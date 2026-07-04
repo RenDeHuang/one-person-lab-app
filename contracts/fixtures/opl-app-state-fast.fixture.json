@@ -646,6 +646,76 @@
             "environment_task_refs": [
               "opl://environment-task/mas/statistical-analysis",
               "opl://environment-task/bookforge/report-export"
+            ],
+            "structured_result_panel": {
+              "surface_kind": "structured_result_panel",
+              "projection_ref": "contracts/app-runtime-bridge.json#structured_result_panel_projection",
+              "display_surfaces": [
+                "ordinary_conversation",
+                "current_task_slice",
+                "right_context_inspector"
+              ],
+              "panel_scope": "current_conversation_or_selected_task",
+              "result_summary_ref": "opl://structured-result/medautoscience/module-runtime-repair/summary",
+              "status_ref": "app_state.operator.workbench.task_run_projection_v2.tasks[0].status",
+              "evidence_card_refs": [
+                "app_state.operator.workbench.task_run_projection_v2.tasks[0].evidence_cards[0]"
+              ],
+              "action_card_refs": [
+                "app_state.operator.workbench.task_run_projection_v2.tasks[0].action_cards[0]"
+              ],
+              "artifact_provenance_ref": "contracts/app-runtime-bridge.json#artifact_provenance_bundle_projection",
+              "follow_up_refs": [
+                "opl://follow-up/medautoscience/module-runtime-repair/request-workspace-ref"
+              ],
+              "content_policy": "refs_only_no_artifact_body_no_domain_verdict",
+              "new_dashboard_allowed": false
+            },
+            "artifact_provenance_card": {
+              "surface_kind": "artifact_provenance_card",
+              "projection_ref": "contracts/app-runtime-bridge.json#artifact_provenance_bundle_projection",
+              "provenance_bundle_ref": "opl://artifact-provenance-bundle/medautoscience/dm003/treatment-gap-fig1",
+              "drawer_ref": "right_context_inspector/artifacts/provenance",
+              "content_policy": "refs_only_no_artifact_body_no_quality_or_ready_verdict",
+              "artifact_body_access": false,
+              "readiness_authority": false,
+              "quality_verdict_authority": false
+            },
+            "ref_level_follow_up_refs": [
+              {
+                "target_ref": "opl://artifact/medautoscience/dm003/figures/treatment-gap-fig1",
+                "source_ref": "opl://review/medautoscience/dm003/treatment-gap-fig1/visual-audit",
+                "comment_ref": "opl://comment/medautoscience/dm003/treatment-gap-fig1/label-overlap",
+                "prompt_ref": "opl://follow-up-prompt/medautoscience/dm003/treatment-gap-fig1/request-change",
+                "action_ref": "opl://app-action/ref_follow_up_prompt_preview",
+                "owner": "medautoscience",
+                "action_kind": "request_change",
+                "content_policy": "refs_only_no_comment_body_no_app_annotation_store",
+                "app_annotation_store_write": false,
+                "owner_receipt_write_access": false
+              }
+            ],
+            "candidate_report_refs": [
+              "opl://candidate-report/openscience/workflow-skill/2026-07-04"
+            ],
+            "workflow_skill_candidate_refs": [
+              {
+                "candidate_ref": "opl://workflow-skill-candidate/openscience/result-panel-review-loop",
+                "source_report_ref": "opl://candidate-report/openscience/workflow-skill/2026-07-04",
+                "candidate_kind": "codex_plugin_workflow_candidate",
+                "display_surface": "settings_capabilities",
+                "status": "review",
+                "available_actions": [
+                  "review",
+                  "needs_changes",
+                  "open_in_codex"
+                ],
+                "content_policy": "report_first_candidate_refs_only_no_skill_body",
+                "report_first": true,
+                "auto_enable": false,
+                "skill_body_write_access": false,
+                "workflow_body_access": false
+              }
             ]
           }
         ],
@@ -676,6 +746,42 @@
             "route": "opl app action execute --action provider_scheduler_status",
             "dry_run_required": true,
             "source_ref": "app_state.actions"
+          },
+          {
+            "action_id": "ref_follow_up_prompt_preview",
+            "label": "Preview ref-level follow-up prompt",
+            "owner": "opl_framework",
+            "route": "opl app action execute --action ref_follow_up_prompt_preview --dry-run --json",
+            "dry_run_required": true,
+            "source_ref": "app_state.operator.workbench.task_run_projection_v2.tasks[0].ref_level_follow_up_refs[0]",
+            "mutates": "none_dry_run_only"
+          },
+          {
+            "action_id": "workflow_skill_candidate_review",
+            "label": "Review workflow or skill candidate",
+            "owner": "one-person-lab-app",
+            "route": "opl app action execute --action workflow_skill_candidate_review --dry-run --json",
+            "dry_run_required": true,
+            "source_ref": "app_state.operator.workbench.task_run_projection_v2.tasks[0].workflow_skill_candidate_refs[0]",
+            "mutates": "none_report_first_review_only"
+          },
+          {
+            "action_id": "workflow_skill_candidate_needs_changes",
+            "label": "Mark workflow or skill candidate needs changes",
+            "owner": "one-person-lab-app",
+            "route": "opl app action execute --action workflow_skill_candidate_needs_changes --dry-run --json",
+            "dry_run_required": true,
+            "source_ref": "app_state.operator.workbench.task_run_projection_v2.tasks[0].workflow_skill_candidate_refs[0]",
+            "mutates": "none_report_first_review_only"
+          },
+          {
+            "action_id": "workflow_skill_candidate_open_in_codex",
+            "label": "Open workflow or skill candidate in Codex",
+            "owner": "one-person-lab-app",
+            "route": "opl app action execute --action workflow_skill_candidate_open_in_codex --dry-run --json",
+            "dry_run_required": true,
+            "source_ref": "app_state.operator.workbench.task_run_projection_v2.tasks[0].workflow_skill_candidate_refs[0]",
+            "mutates": "none_opens_existing_codex_context_only"
           }
         ],
         "refresh_policy": {
@@ -839,7 +945,77 @@
                   "content_policy": "refs_only_no_resource_body"
                 }
               ],
-              "diagnostics_ref": "app_state.provider.temporal"
+              "diagnostics_ref": "app_state.provider.temporal",
+              "structured_result_panel": {
+                "surface_kind": "structured_result_panel",
+                "projection_ref": "contracts/app-runtime-bridge.json#structured_result_panel_projection",
+                "display_surfaces": [
+                  "ordinary_conversation",
+                  "current_task_slice",
+                  "right_context_inspector"
+                ],
+                "panel_scope": "current_conversation_or_selected_task",
+                "result_summary_ref": "opl://structured-result/medautoscience/module-runtime-repair/summary",
+                "status_ref": "app_state.operator.workbench.task_run_projection_v2.tasks[0].status",
+                "evidence_card_refs": [
+                  "app_state.operator.workbench.task_run_projection_v2.tasks[0].evidence_cards[0]"
+                ],
+                "action_card_refs": [
+                  "app_state.operator.workbench.task_run_projection_v2.tasks[0].action_cards[0]"
+                ],
+                "artifact_provenance_ref": "contracts/app-runtime-bridge.json#artifact_provenance_bundle_projection",
+                "follow_up_refs": [
+                  "opl://follow-up/medautoscience/module-runtime-repair/request-workspace-ref"
+                ],
+                "content_policy": "refs_only_no_artifact_body_no_domain_verdict",
+                "new_dashboard_allowed": false
+              },
+              "artifact_provenance_card": {
+                "surface_kind": "artifact_provenance_card",
+                "projection_ref": "contracts/app-runtime-bridge.json#artifact_provenance_bundle_projection",
+                "provenance_bundle_ref": "opl://artifact-provenance-bundle/medautoscience/dm003/treatment-gap-fig1",
+                "drawer_ref": "right_context_inspector/artifacts/provenance",
+                "content_policy": "refs_only_no_artifact_body_no_quality_or_ready_verdict",
+                "artifact_body_access": false,
+                "readiness_authority": false,
+                "quality_verdict_authority": false
+              },
+              "ref_level_follow_up_refs": [
+                {
+                  "target_ref": "opl://artifact/medautoscience/dm003/figures/treatment-gap-fig1",
+                  "source_ref": "opl://review/medautoscience/dm003/treatment-gap-fig1/visual-audit",
+                  "comment_ref": "opl://comment/medautoscience/dm003/treatment-gap-fig1/label-overlap",
+                  "prompt_ref": "opl://follow-up-prompt/medautoscience/dm003/treatment-gap-fig1/request-change",
+                  "action_ref": "opl://app-action/ref_follow_up_prompt_preview",
+                  "owner": "medautoscience",
+                  "action_kind": "request_change",
+                  "content_policy": "refs_only_no_comment_body_no_app_annotation_store",
+                  "app_annotation_store_write": false,
+                  "owner_receipt_write_access": false
+                }
+              ],
+              "candidate_report_refs": [
+                "opl://candidate-report/openscience/workflow-skill/2026-07-04"
+              ],
+              "workflow_skill_candidate_refs": [
+                {
+                  "candidate_ref": "opl://workflow-skill-candidate/openscience/result-panel-review-loop",
+                  "source_report_ref": "opl://candidate-report/openscience/workflow-skill/2026-07-04",
+                  "candidate_kind": "codex_plugin_workflow_candidate",
+                  "display_surface": "settings_capabilities",
+                  "status": "review",
+                  "available_actions": [
+                    "review",
+                    "needs_changes",
+                    "open_in_codex"
+                  ],
+                  "content_policy": "report_first_candidate_refs_only_no_skill_body",
+                  "report_first": true,
+                  "auto_enable": false,
+                  "skill_body_write_access": false,
+                  "workflow_body_access": false
+                }
+              ]
             }
           ],
           "authority_boundary": {
@@ -947,6 +1123,74 @@
         "route_requires_domain_or_app_payload": true,
         "can_submit_to_safe_action_shell": false,
         "route": "opl app action execute --action task_export_bundle_preview"
+      },
+      {
+        "action_id": "ref_follow_up_prompt_preview",
+        "label": "Preview ref-level follow-up prompt",
+        "surface": "opl app action execute",
+        "delegated_surface": "opl app action execute --action ref_follow_up_prompt_preview --dry-run --json",
+        "payload_fields": [
+          "target_ref",
+          "prompt_ref"
+        ],
+        "mutates": "none_dry_run_only",
+        "dry_run_supported": true,
+        "confirmation_required": false,
+        "owner": "opl_framework",
+        "submit_via": "opl app action execute",
+        "execution_policy": "opl_safe_action_shell",
+        "route": "opl app action execute --action ref_follow_up_prompt_preview"
+      },
+      {
+        "action_id": "workflow_skill_candidate_review",
+        "label": "Review workflow or skill candidate",
+        "surface": "opl app action execute",
+        "delegated_surface": "opl app action execute --action workflow_skill_candidate_review --dry-run --json",
+        "payload_fields": [
+          "candidate_ref",
+          "source_report_ref"
+        ],
+        "mutates": "none_report_first_review_only",
+        "dry_run_supported": true,
+        "confirmation_required": false,
+        "owner": "one-person-lab-app",
+        "submit_via": "opl app action execute",
+        "execution_policy": "opl_safe_action_shell",
+        "route": "opl app action execute --action workflow_skill_candidate_review"
+      },
+      {
+        "action_id": "workflow_skill_candidate_needs_changes",
+        "label": "Mark workflow or skill candidate needs changes",
+        "surface": "opl app action execute",
+        "delegated_surface": "opl app action execute --action workflow_skill_candidate_needs_changes --dry-run --json",
+        "payload_fields": [
+          "candidate_ref",
+          "source_report_ref"
+        ],
+        "mutates": "none_report_first_review_only",
+        "dry_run_supported": true,
+        "confirmation_required": false,
+        "owner": "one-person-lab-app",
+        "submit_via": "opl app action execute",
+        "execution_policy": "opl_safe_action_shell",
+        "route": "opl app action execute --action workflow_skill_candidate_needs_changes"
+      },
+      {
+        "action_id": "workflow_skill_candidate_open_in_codex",
+        "label": "Open workflow or skill candidate in Codex",
+        "surface": "opl app action execute",
+        "delegated_surface": "opl app action execute --action workflow_skill_candidate_open_in_codex --dry-run --json",
+        "payload_fields": [
+          "candidate_ref",
+          "source_report_ref"
+        ],
+        "mutates": "none_opens_existing_codex_context_only",
+        "dry_run_supported": true,
+        "confirmation_required": false,
+        "owner": "one-person-lab-app",
+        "submit_via": "opl app action execute",
+        "execution_policy": "opl_safe_action_shell",
+        "route": "opl app action execute --action workflow_skill_candidate_open_in_codex"
       }
     ],
     "settings_control_center": {

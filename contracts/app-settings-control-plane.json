@@ -498,7 +498,9 @@
             "environment_template_ref",
             "storage_ref",
             "resource_receipt_ref",
-            "cost_estimate_ref"
+            "cost_estimate_ref",
+            "candidate_report_refs",
+            "workflow_skill_candidate_refs"
           ],
           "display_policy": "capability_health_connector_workflow_and_export_refs_only_no_skill_body_no_domain_verdict",
           "resource_grouping_policy": {
@@ -514,7 +516,8 @@
           "workflow_body_access": false,
           "artifact_body_access": false,
           "owner_receipt_write_access": false,
-          "domain_verdict_authority": false
+          "domain_verdict_authority": false,
+          "candidate_policy": "report_first_candidate_refs_review_needs_changes_open_in_codex_no_auto_enable_no_skill_body_write"
         },
         "forbidden_sources": [
           "upstream unified catalog without allowlist",

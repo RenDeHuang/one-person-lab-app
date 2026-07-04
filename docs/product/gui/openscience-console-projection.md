@@ -39,10 +39,30 @@ The projection is `refs_only` and `watch_only`. It is not:
 Runtime/source producers remain the source of refs. Console owns only the user
 projection shape, disclosure placement, and forbidden-claim boundary.
 
+## Accepted App Items
+
+The accepted OpenScience items land as App-owned projection contracts, not as a
+new dashboard or second artifact system. In this repo, OPL App means the
+shell-wrapped Codex App; professional agents are Codex plugins or packaged
+Codex skill surfaces.
+
+| Item | App surface | Boundary |
+| --- | --- | --- |
+| Structured result panel | Conversation current-task slice and right inspector use `structured_result_panel_projection`. | Existing task surfaces only; no new dashboard, no domain verdict. |
+| Artifact/provenance | Artifacts tab may show a provenance card/drawer from `artifact_provenance_bundle_projection`. | Refs only; no artifact body, no quality/readiness verdict. |
+| Ref-level comment/follow-up | Review and Actions tabs may show `ref_level_follow_up_refs` for review, request-change, and follow-up prompt/action refs. | No App annotation store and no owner receipt write. |
+| Workflow/skill candidate | Settings / Capabilities may show `workflow_skill_candidate_refs` and `candidate_report_refs`. | Report-first candidate refs only; review / needs changes / open in Codex, no auto-enable and no skill body write. |
+
 ## Acceptance Surface
 
 - Runtime bridge contract: `contracts/app-runtime-bridge.json#openscience_console_projection`.
+- Accepted item contracts:
+  `contracts/app-runtime-bridge.json#structured_result_panel_projection`,
+  `#artifact_provenance_bundle_projection`,
+  `#ref_level_follow_up_projection`, and
+  `#workflow_skill_candidate_projection`.
 - Runtime page projection: `contracts/app-page-state-matrix.json`, Runtime page
   `runtime_view_model.openscience_console_projection`.
 - Focused validator: `scripts/validate-active-shell/shared-contract-validators.ts`
-  enforces required cards, ref fields, watch-only flags, and forbidden claims.
+  enforces required cards, ref fields, watch-only flags, candidate boundaries,
+  and forbidden claims.

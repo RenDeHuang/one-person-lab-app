@@ -371,7 +371,10 @@
             "resource_usage_ref",
             "console_policy_ref",
             "environment_template_ref",
-            "environment_version_ref"
+            "environment_version_ref",
+            "structured_result_panel",
+            "artifact_provenance_card",
+            "ref_level_follow_up_refs"
           ],
           "independent_task_store_allowed": false,
           "model_ref": "contracts/app-runtime-bridge.json#task_awareness_projection",
@@ -386,7 +389,8 @@
         "Codex default model and reasoning status",
         "head-down quick action when head-down mode is enabled",
         "current task status slice when a task is active",
-        "current task resource summary for Gateway, Fabric resources, environment, usage, and Console policy refs when active"
+        "current task resource summary for Gateway, Fabric resources, environment, usage, and Console policy refs when active",
+        "structured result panel inside the current task slice when a task returns structured refs"
       ],
       "must_not_show": [
         "backend selector as normal conversation control",
@@ -500,14 +504,21 @@
             "environment_task_refs",
             "resource_receipt_ref",
             "cost_estimate_ref",
-            "openscience_console_projection_ref"
+            "openscience_console_projection_ref",
+            "structured_result_panel",
+            "artifact_provenance_card",
+            "ref_level_follow_up_refs",
+            "workflow_skill_candidate_refs"
           ],
           "resource_context_policy": "OPL Gateway and OPL Fabric refs are displayed as current-task execution context only; no compute, storage, connector, environment, billing, or Console policy truth is owned by the App",
           "default_state": "collapsed",
           "artifact_body_access": false,
           "domain_verdict_authority": false,
           "model_ref": "contracts/app-runtime-bridge.json#task_awareness_projection",
-          "slice_policy": "same_task_run_projection_v2_filtered_by_current_conversation_or_selected_task"
+          "slice_policy": "same_task_run_projection_v2_filtered_by_current_conversation_or_selected_task",
+          "structured_result_panel_ref": "contracts/app-runtime-bridge.json#structured_result_panel_projection",
+          "artifact_provenance_projection_ref": "contracts/app-runtime-bridge.json#artifact_provenance_bundle_projection",
+          "ref_level_follow_up_ref": "contracts/app-runtime-bridge.json#ref_level_follow_up_projection"
         },
         "must_not_own": [
           "runtime truth",
@@ -528,7 +539,10 @@
         "Routing/runtime refs tab",
         "Memory refs tab",
         "Always-On/Automations tab",
-        "Settings tab"
+        "Settings tab",
+        "structured result panel for the selected current task",
+        "artifact provenance refs-only drawer/card inside Artifacts tab",
+        "ref-level review, request-change, and follow-up prompt/action refs"
       ],
       "must_not_own": [
         "runtime truth",
@@ -619,7 +633,11 @@
             "environment_task_refs",
             "resource_receipt_ref",
             "cost_estimate_ref",
-            "openscience_console_projection_ref"
+            "openscience_console_projection_ref",
+            "structured_result_panel",
+            "artifact_provenance_card",
+            "ref_level_follow_up_refs",
+            "workflow_skill_candidate_refs"
           ],
           "count_policies": {
             "running_task_count": "count user tasks projected as actively running or advancing, never raw provider attempts",
@@ -684,7 +702,11 @@
             "resource_receipt_ref",
             "cost_estimate_ref",
             "openscience_console_projection_ref",
-            "diagnostic_substrate_refs"
+            "diagnostic_substrate_refs",
+            "structured_result_panel",
+            "artifact_provenance_card",
+            "ref_level_follow_up_refs",
+            "workflow_skill_candidate_refs"
           ],
           "resource_context_policy_ref": "contracts/app-runtime-bridge.json#task_awareness_projection.resource_context_policy",
           "settings_capabilities_surface_ref": "contracts/app-runtime-bridge.json#task_awareness_projection.settings_capabilities_surface",
@@ -776,7 +798,9 @@
             ]
           },
           "slice_policy": "runtime_global_list_and_detail_conversation_and_inspector_filtered_slices_same_model",
-          "domain_authority_policy": "refs_only_no_domain_authority_no_artifact_body_no_domain_verdict"
+          "domain_authority_policy": "refs_only_no_domain_authority_no_artifact_body_no_domain_verdict",
+          "structured_result_panel_projection_ref": "contracts/app-runtime-bridge.json#structured_result_panel_projection",
+          "ref_level_follow_up_projection_ref": "contracts/app-runtime-bridge.json#ref_level_follow_up_projection"
         },
         "project_progress": {
           "source": "app_state.operator.workbench.task_drilldowns",
@@ -1223,7 +1247,89 @@
           "shell candidate",
           "runtime implementation selector"
         ],
-        "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget"
+        "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
+        "structured_result_panel": {
+          "source": "app_state.operator.workbench.task_run_projection_v2.tasks[].structured_result_panel",
+          "authority": "opl_framework_refs_only_structured_result_projection",
+          "projection_kind": "structured_result_panel_projection",
+          "surface_kind": "structured_result_panel",
+          "display_policy": "conversation_current_task_right_inspector_panel_no_new_dashboard",
+          "surfaces": [
+            "ordinary_conversation",
+            "current_task_slice",
+            "right_context_inspector"
+          ],
+          "required_ref_fields": [
+            "result_summary_ref",
+            "status_ref",
+            "evidence_card_refs",
+            "action_card_refs",
+            "artifact_provenance_ref",
+            "follow_up_refs"
+          ],
+          "panel_policy": "structured_result_panel_inside_existing_conversation_current_task_and_right_inspector_surfaces",
+          "content_policy": "refs_only_no_artifact_body_no_domain_verdict",
+          "new_dashboard_allowed": false,
+          "app_role": "display_only_structured_result_panel_consumer",
+          "shell_role": "thin_renderer_existing_task_surfaces_only",
+          "refs_only": true,
+          "artifact_body_access": false,
+          "domain_verdict_authority": false,
+          "quality_verdict_authority": false,
+          "readiness_authority": false,
+          "forbidden_claims": [
+            "new_dashboard",
+            "artifact_body",
+            "domain_artifact_body",
+            "domain_quality_verdict",
+            "domain_readiness",
+            "owner_receipt_authority",
+            "app_release_readiness",
+            "family_production_readiness"
+          ]
+        },
+        "ref_level_follow_up": {
+          "source": "app_state.operator.workbench.task_run_projection_v2.tasks[].ref_level_follow_up_refs",
+          "authority": "opl_framework_refs_only_ref_level_follow_up_projection",
+          "projection_kind": "ref_level_follow_up_projection",
+          "surface_kind": "ref_level_comment_and_follow_up_refs",
+          "display_policy": "review_request_change_follow_up_prompt_action_refs_only_no_app_annotation_store",
+          "surfaces": [
+            "right_context_inspector.review",
+            "right_context_inspector.actions",
+            "ordinary_conversation.current_task_slice"
+          ],
+          "action_kinds": [
+            "review",
+            "request_change",
+            "follow_up_prompt"
+          ],
+          "required_ref_fields": [
+            "target_ref",
+            "source_ref",
+            "comment_ref",
+            "prompt_ref",
+            "action_ref",
+            "owner",
+            "content_policy"
+          ],
+          "app_annotation_store_allowed": false,
+          "app_role": "display_only_ref_level_follow_up_refs_consumer",
+          "refs_only": true,
+          "artifact_body_access": false,
+          "app_annotation_store_write": false,
+          "owner_receipt_write_access": false,
+          "domain_verdict_authority": false,
+          "forbidden_claims": [
+            "app_annotation_store",
+            "artifact_body",
+            "review_body",
+            "owner_receipt_authority",
+            "domain_quality_verdict",
+            "domain_readiness",
+            "app_release_readiness"
+          ]
+        }
       },
       "operator_evidence_acceptance_path": {
         "role": "runtime_page_operator_evidence_acceptance",
@@ -1268,7 +1374,11 @@
         "safe app action dry-run",
         "safe app action execute",
         "receipt/count refresh after execute",
-        "authority boundary fields"
+        "authority boundary fields",
+        "structured result panel refs projected to conversation/current-task/right inspector",
+        "artifact provenance refs-only drawer/card",
+        "ref-level review, request-change, and follow-up prompt/action refs",
+        "workflow/skill candidate report-first refs surfaced in Settings Capabilities"
       ],
       "must_show": [
         "user task status first OPL runtime status",
@@ -1309,7 +1419,10 @@
         "receipt/count refresh after execute",
         "refs-only non-authority boundary",
         "next owner action before full evidence ledger",
-        "full evidence ledger only as secondary on-demand diagnostic"
+        "full evidence ledger only as secondary on-demand diagnostic",
+        "structured result panel inside conversation/current-task/right inspector, not a new dashboard",
+        "artifact provenance refs-only drawer/card without artifact body or readiness verdict",
+        "ref-level review, request-change, and follow-up prompt/action refs without App annotation store"
       ],
       "must_not_default_show": [
         "Temporal",
@@ -1343,7 +1456,8 @@
         "owner receipt authority",
         "shell-owned task store",
         "new task dashboard",
-        "family production readiness"
+        "family production readiness",
+        "App annotation store"
       ],
       "framework_refresh_command": "opl app state --profile fast --json",
       "must_not_show": [
@@ -2208,7 +2322,9 @@
         "console_policy_ref",
         "storage_ref",
         "resource_receipt_ref",
-        "cost_estimate_ref"
+        "cost_estimate_ref",
+        "candidate_report_refs",
+        "workflow_skill_candidate_refs"
       ],
       "task_awareness_ref_policy": "thin_renderer_refs_only_no_skill_body_no_artifact_body_no_domain_verdict",
       "export_bundle_action_policy": "show_export_bundle_action_ref_and_dry_run_receipt_without_claiming_domain_export_readiness",
@@ -2246,7 +2362,8 @@
         "reusable workflow refs without skill bodies",
         "reproducibility export bundle action ref with dry-run receipt boundary",
         "External Tools & Voice entry with MCP described as secondary technical detail",
-        "Custom Assistant entry as a secondary or advanced capability when enabled by product policy"
+        "Custom Assistant entry as a secondary or advanced capability when enabled by product policy",
+        "workflow and skill candidate report-first refs with review, needs changes, and open in Codex actions"
       ],
       "must_not_show": [
         "Skills and Tools as the only top-level mental model",
@@ -2255,13 +2372,55 @@
         "OPL Meta Agent as a default Home assistant",
         "AionUI Team as the ordinary multi-agent collaboration entry",
         "MCP as the primary user-facing name for external tools",
-        "artifact body, workflow body, connector body, credential body, owner receipt write, or domain export readiness verdict from Settings Capabilities"
+        "artifact body, workflow body, connector body, credential body, owner receipt write, or domain export readiness verdict from Settings Capabilities",
+        "auto-enabled skills, skill body writes, or workflow body writes from Settings Capabilities candidate refs"
       ],
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
       "ia_group": "capabilities",
       "route_id": "capabilities",
       "route_scope": "ordinary",
-      "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia"
+      "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia",
+      "workflow_skill_candidate_policy": {
+        "source": "app_state.operator.workbench.task_run_projection_v2.tasks[].workflow_skill_candidate_refs",
+        "authority": "opl_framework_refs_only_workflow_skill_candidate_projection",
+        "projection_kind": "workflow_skill_candidate_projection",
+        "surface_kind": "workflow_skill_candidate_report_first_refs",
+        "display_policy": "settings_capabilities_report_first_candidate_refs_review_needs_changes_open_in_codex_no_auto_enable",
+        "surface": "settings_capabilities",
+        "professional_agent_boundary": "professional_agents_are_codex_plugins_or_packaged_codex_skill_surfaces",
+        "required_ref_fields": [
+          "candidate_ref",
+          "source_report_ref",
+          "candidate_kind",
+          "status",
+          "available_actions",
+          "content_policy"
+        ],
+        "allowed_actions": [
+          "review",
+          "needs_changes",
+          "open_in_codex"
+        ],
+        "report_first": true,
+        "auto_enable_allowed": false,
+        "app_role": "display_only_workflow_skill_candidate_refs_consumer",
+        "refs_only": true,
+        "skill_body_access": false,
+        "skill_body_write_access": false,
+        "workflow_body_access": false,
+        "runtime_truth_write_access": false,
+        "domain_verdict_authority": false,
+        "forbidden_claims": [
+          "auto_enable_skill",
+          "skill_body_write",
+          "workflow_body_write",
+          "second_skill_truth",
+          "runtime_truth",
+          "domain_quality_verdict",
+          "domain_readiness",
+          "app_release_readiness"
+        ]
+      }
     },
     {
       "id": "advanced",

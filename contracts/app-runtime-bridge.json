@@ -226,7 +226,11 @@
       "environment_task_refs",
       "resource_receipt_ref",
       "cost_estimate_ref",
-      "openscience_console_projection_ref"
+      "openscience_console_projection_ref",
+      "structured_result_panel",
+      "artifact_provenance_card",
+      "ref_level_follow_up_refs",
+      "workflow_skill_candidate_refs"
     ],
     "count_policies": {
       "running_task_count": "count user tasks projected as actively running or advancing, never raw provider attempts",
@@ -294,7 +298,11 @@
       "resource_receipt_ref",
       "cost_estimate_ref",
       "openscience_console_projection_ref",
-      "diagnostic_substrate_refs"
+      "diagnostic_substrate_refs",
+      "structured_result_panel",
+      "artifact_provenance_card",
+      "ref_level_follow_up_refs",
+      "workflow_skill_candidate_refs"
     ],
     "artifact_or_blocker_policy": "summary_ref_only_no_artifact_body",
     "review_receipt_policy": "receipt_ref_only_no_quality_or_readiness_verdict",
@@ -384,7 +392,9 @@
         "console_policy_ref",
         "storage_ref",
         "resource_receipt_ref",
-        "cost_estimate_ref"
+        "cost_estimate_ref",
+        "candidate_report_refs",
+        "workflow_skill_candidate_refs"
       ],
       "display_policy": "capability_health_connector_workflow_and_export_refs_only_no_skill_body_no_domain_verdict",
       "connector_grouping_policy": "OPL Connect groups connector readiness refs by literature databases, research databases, storage, tools/APIs, internal systems, and compute schedulers while keeping connector bodies and credentials outside App authority",
@@ -401,7 +411,8 @@
       "workflow_body_access": false,
       "artifact_body_access": false,
       "owner_receipt_write_access": false,
-      "domain_verdict_authority": false
+      "domain_verdict_authority": false,
+      "candidate_policy": "report_first_candidate_refs_review_needs_changes_open_in_codex_no_auto_enable_no_skill_body_write"
     },
     "temporal_policy": "diagnostics_only_never_user_task_model",
     "app_role": "display_only_task_awareness_consumer",
@@ -534,7 +545,10 @@
       "resource_usage_ref",
       "console_policy_ref",
       "environment_template_ref",
-      "environment_version_ref"
+      "environment_version_ref",
+      "structured_result_panel",
+      "artifact_provenance_card",
+      "ref_level_follow_up_refs"
     ],
     "inspector_fields": [
       "artifact_or_blocker",
@@ -571,7 +585,11 @@
       "environment_task_refs",
       "resource_receipt_ref",
       "cost_estimate_ref",
-      "openscience_console_projection_ref"
+      "openscience_console_projection_ref",
+      "structured_result_panel",
+      "artifact_provenance_card",
+      "ref_level_follow_up_refs",
+      "workflow_skill_candidate_refs"
     ],
     "default_visibility": "collapsed_or_inline_compact",
     "independent_task_store_allowed": false,
@@ -875,6 +893,132 @@
       "owner_receipt_authority",
       "app_release_readiness",
       "family_production_readiness"
+    ],
+    "card_surface": "right_context_inspector.artifacts.provenance_card",
+    "card_route_policy": "shows_refs_only_summary_and_opens_refs_only_drawer_no_body_read",
+    "drawer_or_card_policy": "drawer_and_card_are_refs_only_projection_surfaces_not_artifact_body_or_quality_verdict_surfaces"
+  },
+  "structured_result_panel_projection": {
+    "source": "app_state.operator.workbench.task_run_projection_v2.tasks[].structured_result_panel",
+    "authority": "opl_framework_refs_only_structured_result_projection",
+    "projection_kind": "structured_result_panel_projection",
+    "surface_kind": "structured_result_panel",
+    "display_policy": "conversation_current_task_right_inspector_panel_no_new_dashboard",
+    "surfaces": [
+      "ordinary_conversation",
+      "current_task_slice",
+      "right_context_inspector"
+    ],
+    "required_ref_fields": [
+      "result_summary_ref",
+      "status_ref",
+      "evidence_card_refs",
+      "action_card_refs",
+      "artifact_provenance_ref",
+      "follow_up_refs"
+    ],
+    "panel_policy": "structured_result_panel_inside_existing_conversation_current_task_and_right_inspector_surfaces",
+    "content_policy": "refs_only_no_artifact_body_no_domain_verdict",
+    "new_dashboard_allowed": false,
+    "app_role": "display_only_structured_result_panel_consumer",
+    "shell_role": "thin_renderer_existing_task_surfaces_only",
+    "refs_only": true,
+    "artifact_body_access": false,
+    "domain_verdict_authority": false,
+    "quality_verdict_authority": false,
+    "readiness_authority": false,
+    "forbidden_claims": [
+      "new_dashboard",
+      "artifact_body",
+      "domain_artifact_body",
+      "domain_quality_verdict",
+      "domain_readiness",
+      "owner_receipt_authority",
+      "app_release_readiness",
+      "family_production_readiness"
+    ]
+  },
+  "ref_level_follow_up_projection": {
+    "source": "app_state.operator.workbench.task_run_projection_v2.tasks[].ref_level_follow_up_refs",
+    "authority": "opl_framework_refs_only_ref_level_follow_up_projection",
+    "projection_kind": "ref_level_follow_up_projection",
+    "surface_kind": "ref_level_comment_and_follow_up_refs",
+    "display_policy": "review_request_change_follow_up_prompt_action_refs_only_no_app_annotation_store",
+    "surfaces": [
+      "right_context_inspector.review",
+      "right_context_inspector.actions",
+      "ordinary_conversation.current_task_slice"
+    ],
+    "action_kinds": [
+      "review",
+      "request_change",
+      "follow_up_prompt"
+    ],
+    "required_ref_fields": [
+      "target_ref",
+      "source_ref",
+      "comment_ref",
+      "prompt_ref",
+      "action_ref",
+      "owner",
+      "content_policy"
+    ],
+    "app_annotation_store_allowed": false,
+    "app_role": "display_only_ref_level_follow_up_refs_consumer",
+    "refs_only": true,
+    "artifact_body_access": false,
+    "app_annotation_store_write": false,
+    "owner_receipt_write_access": false,
+    "domain_verdict_authority": false,
+    "forbidden_claims": [
+      "app_annotation_store",
+      "artifact_body",
+      "review_body",
+      "owner_receipt_authority",
+      "domain_quality_verdict",
+      "domain_readiness",
+      "app_release_readiness"
+    ]
+  },
+  "workflow_skill_candidate_projection": {
+    "source": "app_state.operator.workbench.task_run_projection_v2.tasks[].workflow_skill_candidate_refs",
+    "authority": "opl_framework_refs_only_workflow_skill_candidate_projection",
+    "projection_kind": "workflow_skill_candidate_projection",
+    "surface_kind": "workflow_skill_candidate_report_first_refs",
+    "display_policy": "settings_capabilities_report_first_candidate_refs_review_needs_changes_open_in_codex_no_auto_enable",
+    "surface": "settings_capabilities",
+    "professional_agent_boundary": "professional_agents_are_codex_plugins_or_packaged_codex_skill_surfaces",
+    "required_ref_fields": [
+      "candidate_ref",
+      "source_report_ref",
+      "candidate_kind",
+      "status",
+      "available_actions",
+      "content_policy"
+    ],
+    "allowed_actions": [
+      "review",
+      "needs_changes",
+      "open_in_codex"
+    ],
+    "report_first": true,
+    "auto_enable_allowed": false,
+    "app_role": "display_only_workflow_skill_candidate_refs_consumer",
+    "refs_only": true,
+    "skill_body_access": false,
+    "skill_body_write_access": false,
+    "workflow_body_access": false,
+    "runtime_truth_write_access": false,
+    "domain_verdict_authority": false,
+    "forbidden_claims": [
+      "auto_enable_skill",
+      "skill_body_write",
+      "workflow_body_write",
+      "second_skill_truth",
+      "runtime_truth",
+      "domain_quality_verdict",
+      "domain_readiness",
+      "app_release_readiness"
     ]
   },
   "openscience_console_projection": {

@@ -77,6 +77,10 @@ export function validateTaskAwarenessProjectionContract(projection, label) {
       'connector_readiness_refs',
       'openscience_console_projection_ref',
       'diagnostic_substrate_refs',
+      'structured_result_panel',
+      'artifact_provenance_card',
+      'ref_level_follow_up_refs',
+      'workflow_skill_candidate_refs',
       ...resourceContextOptionalTaskRefs,
     ],
     `${label} optional_task_ref_fields`,
@@ -267,9 +271,17 @@ export function validateSettingsCapabilitiesResourceGrouping(surface, label) {
       'storage_ref',
       'resource_receipt_ref',
       'cost_estimate_ref',
+      'candidate_report_refs',
+      'workflow_skill_candidate_refs',
     ],
     `${label} required_ref_fields`,
   );
+  if (
+    surface.candidate_policy !==
+    'report_first_candidate_refs_review_needs_changes_open_in_codex_no_auto_enable_no_skill_body_write'
+  ) {
+    throw new Error(`${label} must keep workflow/skill candidates report-first and no-auto-enable`);
+  }
   if (surface.resource_grouping_policy?.grouping_source !== 'OPL Connect/Fabric resource refs') {
     throw new Error(`${label} resource grouping must use OPL Connect/Fabric resource refs`);
   }
@@ -290,6 +302,145 @@ export function validateSettingsCapabilitiesResourceGrouping(surface, label) {
       throw new Error(`${label} ${field} must be ${expected}`);
     }
   }
+}
+
+export function validateStructuredResultPanelProjectionContract(projection, label) {
+  if (!projection || typeof projection !== 'object') {
+    throw new Error(`${label} must be declared`);
+  }
+  for (const [field, expected] of Object.entries({
+    source: 'app_state.operator.workbench.task_run_projection_v2.tasks[].structured_result_panel',
+    authority: 'opl_framework_refs_only_structured_result_projection',
+    projection_kind: 'structured_result_panel_projection',
+    surface_kind: 'structured_result_panel',
+    display_policy: 'conversation_current_task_right_inspector_panel_no_new_dashboard',
+    panel_policy: 'structured_result_panel_inside_existing_conversation_current_task_and_right_inspector_surfaces',
+    content_policy: 'refs_only_no_artifact_body_no_domain_verdict',
+    app_role: 'display_only_structured_result_panel_consumer',
+    shell_role: 'thin_renderer_existing_task_surfaces_only',
+  })) {
+    if (projection[field] !== expected) {
+      throw new Error(`${label} ${field} must be ${expected}`);
+    }
+  }
+  assertDeepEqualJson(
+    projection.surfaces,
+    ['ordinary_conversation', 'current_task_slice', 'right_context_inspector'],
+    `${label} surfaces`,
+  );
+  assertIncludesAll(
+    projection.required_ref_fields,
+    ['result_summary_ref', 'status_ref', 'evidence_card_refs', 'action_card_refs', 'artifact_provenance_ref', 'follow_up_refs'],
+    `${label} required_ref_fields`,
+  );
+  for (const [field, expected] of Object.entries({
+    new_dashboard_allowed: false,
+    refs_only: true,
+    artifact_body_access: false,
+    domain_verdict_authority: false,
+    quality_verdict_authority: false,
+    readiness_authority: false,
+  })) {
+    if (projection[field] !== expected) {
+      throw new Error(`${label} ${field} must be ${expected}`);
+    }
+  }
+  assertIncludesAll(
+    projection.forbidden_claims,
+    ['new_dashboard', 'artifact_body', 'domain_quality_verdict', 'domain_readiness', 'owner_receipt_authority'],
+    `${label} forbidden_claims`,
+  );
+}
+
+export function validateRefLevelFollowUpProjectionContract(projection, label) {
+  if (!projection || typeof projection !== 'object') {
+    throw new Error(`${label} must be declared`);
+  }
+  for (const [field, expected] of Object.entries({
+    source: 'app_state.operator.workbench.task_run_projection_v2.tasks[].ref_level_follow_up_refs',
+    authority: 'opl_framework_refs_only_ref_level_follow_up_projection',
+    projection_kind: 'ref_level_follow_up_projection',
+    surface_kind: 'ref_level_comment_and_follow_up_refs',
+    display_policy: 'review_request_change_follow_up_prompt_action_refs_only_no_app_annotation_store',
+    app_role: 'display_only_ref_level_follow_up_refs_consumer',
+  })) {
+    if (projection[field] !== expected) {
+      throw new Error(`${label} ${field} must be ${expected}`);
+    }
+  }
+  assertIncludesAll(
+    projection.surfaces,
+    ['right_context_inspector.review', 'right_context_inspector.actions', 'ordinary_conversation.current_task_slice'],
+    `${label} surfaces`,
+  );
+  assertDeepEqualJson(projection.action_kinds, ['review', 'request_change', 'follow_up_prompt'], `${label} action_kinds`);
+  assertIncludesAll(
+    projection.required_ref_fields,
+    ['target_ref', 'source_ref', 'comment_ref', 'prompt_ref', 'action_ref', 'owner', 'content_policy'],
+    `${label} required_ref_fields`,
+  );
+  for (const [field, expected] of Object.entries({
+    app_annotation_store_allowed: false,
+    refs_only: true,
+    artifact_body_access: false,
+    app_annotation_store_write: false,
+    owner_receipt_write_access: false,
+    domain_verdict_authority: false,
+  })) {
+    if (projection[field] !== expected) {
+      throw new Error(`${label} ${field} must be ${expected}`);
+    }
+  }
+  assertIncludesAll(
+    projection.forbidden_claims,
+    ['app_annotation_store', 'artifact_body', 'review_body', 'owner_receipt_authority', 'domain_quality_verdict'],
+    `${label} forbidden_claims`,
+  );
+}
+
+export function validateWorkflowSkillCandidateProjectionContract(projection, label) {
+  if (!projection || typeof projection !== 'object') {
+    throw new Error(`${label} must be declared`);
+  }
+  for (const [field, expected] of Object.entries({
+    source: 'app_state.operator.workbench.task_run_projection_v2.tasks[].workflow_skill_candidate_refs',
+    authority: 'opl_framework_refs_only_workflow_skill_candidate_projection',
+    projection_kind: 'workflow_skill_candidate_projection',
+    surface_kind: 'workflow_skill_candidate_report_first_refs',
+    display_policy: 'settings_capabilities_report_first_candidate_refs_review_needs_changes_open_in_codex_no_auto_enable',
+    surface: 'settings_capabilities',
+    professional_agent_boundary: 'professional_agents_are_codex_plugins_or_packaged_codex_skill_surfaces',
+    app_role: 'display_only_workflow_skill_candidate_refs_consumer',
+  })) {
+    if (projection[field] !== expected) {
+      throw new Error(`${label} ${field} must be ${expected}`);
+    }
+  }
+  assertIncludesAll(
+    projection.required_ref_fields,
+    ['candidate_ref', 'source_report_ref', 'candidate_kind', 'status', 'available_actions', 'content_policy'],
+    `${label} required_ref_fields`,
+  );
+  assertDeepEqualJson(projection.allowed_actions, ['review', 'needs_changes', 'open_in_codex'], `${label} allowed_actions`);
+  for (const [field, expected] of Object.entries({
+    report_first: true,
+    auto_enable_allowed: false,
+    refs_only: true,
+    skill_body_access: false,
+    skill_body_write_access: false,
+    workflow_body_access: false,
+    runtime_truth_write_access: false,
+    domain_verdict_authority: false,
+  })) {
+    if (projection[field] !== expected) {
+      throw new Error(`${label} ${field} must be ${expected}`);
+    }
+  }
+  assertIncludesAll(
+    projection.forbidden_claims,
+    ['auto_enable_skill', 'skill_body_write', 'workflow_body_write', 'second_skill_truth', 'runtime_truth'],
+    `${label} forbidden_claims`,
+  );
 }
 
 export function validateProgressDeltaDisplayContract(progressDelta, label) {
@@ -750,6 +901,9 @@ export function validateArtifactProvenanceBundleProjectionContract(projection, l
     typed_issue_policy: 'typed_issues_are_refs_or_issue_summaries_not_owner_receipts_or_domain_verdicts',
     drawer_surface: 'right_context_inspector.artifacts.provenance_drawer',
     drawer_route_policy: 'may_open_aionui_refs_only_drawer_or_AI_readback_from_refs_only_projection_no_artifact_body_no_domain_verdict',
+    card_surface: 'right_context_inspector.artifacts.provenance_card',
+    card_route_policy: 'shows_refs_only_summary_and_opens_refs_only_drawer_no_body_read',
+    drawer_or_card_policy: 'drawer_and_card_are_refs_only_projection_surfaces_not_artifact_body_or_quality_verdict_surfaces',
     app_role: 'display_only_artifact_provenance_bundle_refs_consumer',
     shell_implementation_status: 'aionui_refs_only_drawer_implemented',
   })) {
@@ -823,6 +977,87 @@ export function validateArtifactProvenanceBundleProjectionContract(projection, l
       'family_production_readiness',
     ],
     `${label} forbidden_claims`,
+  );
+}
+
+export function validateOpenScienceAcceptedItemsFixture(task, label) {
+  if (!task || typeof task !== 'object') {
+    throw new Error(`${label} task must be declared`);
+  }
+  const panel = task.structured_result_panel;
+  if (panel?.surface_kind !== 'structured_result_panel') {
+    throw new Error(`${label} must include structured_result_panel`);
+  }
+  if (panel.projection_ref !== 'contracts/app-runtime-bridge.json#structured_result_panel_projection') {
+    throw new Error(`${label} structured_result_panel projection_ref must point at runtime bridge`);
+  }
+  assertDeepEqualJson(
+    panel.display_surfaces,
+    ['ordinary_conversation', 'current_task_slice', 'right_context_inspector'],
+    `${label} structured_result_panel display_surfaces`,
+  );
+  for (const field of ['result_summary_ref', 'status_ref', 'evidence_card_refs', 'action_card_refs', 'artifact_provenance_ref', 'follow_up_refs']) {
+    if (!Object.hasOwn(panel, field)) {
+      throw new Error(`${label} structured_result_panel must include ${field}`);
+    }
+  }
+  if (panel.new_dashboard_allowed !== false || panel.content_policy !== 'refs_only_no_artifact_body_no_domain_verdict') {
+    throw new Error(`${label} structured_result_panel must stay inside existing refs-only task surfaces`);
+  }
+
+  const provenanceCard = task.artifact_provenance_card;
+  if (provenanceCard?.surface_kind !== 'artifact_provenance_card') {
+    throw new Error(`${label} must include artifact_provenance_card`);
+  }
+  if (
+    provenanceCard.projection_ref !== 'contracts/app-runtime-bridge.json#artifact_provenance_bundle_projection' ||
+    provenanceCard.artifact_body_access !== false ||
+    provenanceCard.readiness_authority !== false ||
+    provenanceCard.quality_verdict_authority !== false
+  ) {
+    throw new Error(`${label} artifact_provenance_card must be refs-only and non-authoritative`);
+  }
+
+  const followUps = task.ref_level_follow_up_refs;
+  if (!Array.isArray(followUps) || followUps.length === 0) {
+    throw new Error(`${label} must include ref_level_follow_up_refs`);
+  }
+  assertIncludesAll(
+    Object.keys(followUps[0]),
+    ['target_ref', 'source_ref', 'comment_ref', 'prompt_ref', 'action_ref', 'owner', 'content_policy'],
+    `${label} ref_level_follow_up_refs[0] fields`,
+  );
+  if (
+    followUps[0].app_annotation_store_write !== false ||
+    followUps[0].owner_receipt_write_access !== false ||
+    followUps[0].content_policy !== 'refs_only_no_comment_body_no_app_annotation_store'
+  ) {
+    throw new Error(`${label} ref_level_follow_up_refs must not create an App annotation store`);
+  }
+
+  const candidates = task.workflow_skill_candidate_refs;
+  if (!Array.isArray(candidates) || candidates.length === 0) {
+    throw new Error(`${label} must include workflow_skill_candidate_refs`);
+  }
+  assertIncludesAll(
+    Object.keys(candidates[0]),
+    ['candidate_ref', 'source_report_ref', 'candidate_kind', 'status', 'available_actions', 'content_policy'],
+    `${label} workflow_skill_candidate_refs[0] fields`,
+  );
+  assertDeepEqualJson(candidates[0].available_actions, ['review', 'needs_changes', 'open_in_codex'], `${label} candidate actions`);
+  if (
+    candidates[0].display_surface !== 'settings_capabilities' ||
+    candidates[0].report_first !== true ||
+    candidates[0].auto_enable !== false ||
+    candidates[0].skill_body_write_access !== false ||
+    candidates[0].workflow_body_access !== false
+  ) {
+    throw new Error(`${label} workflow_skill_candidate_refs must stay report-first and no-auto-enable`);
+  }
+  assertNoForbiddenKeys(
+    task,
+    ['artifact_body', 'domain_artifact_body', 'review_body', 'skill_body', 'workflow_body', 'app_annotation_store'],
+    label,
   );
 }
 

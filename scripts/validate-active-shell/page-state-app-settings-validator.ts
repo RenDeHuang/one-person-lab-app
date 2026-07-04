@@ -97,6 +97,8 @@ function validateCapabilitiesPage(matrix) {
       'storage_ref',
       'resource_receipt_ref',
       'cost_estimate_ref',
+      'candidate_report_refs',
+      'workflow_skill_candidate_refs',
     ],
     'Capabilities page task awareness ref fields',
   );
@@ -105,6 +107,14 @@ function validateCapabilitiesPage(matrix) {
     capabilitiesPage.export_bundle_action_policy !== 'show_export_bundle_action_ref_and_dry_run_receipt_without_claiming_domain_export_readiness'
   ) {
     throw new Error('Capabilities page must keep task awareness refs display-only and export bundle actions dry-run/receipt bounded');
+  }
+  if (
+    capabilitiesPage.workflow_skill_candidate_policy?.display_policy !==
+      'settings_capabilities_report_first_candidate_refs_review_needs_changes_open_in_codex_no_auto_enable' ||
+    capabilitiesPage.workflow_skill_candidate_policy?.auto_enable_allowed !== false ||
+    capabilitiesPage.workflow_skill_candidate_policy?.skill_body_write_access !== false
+  ) {
+    throw new Error('Capabilities page must keep workflow/skill candidates report-first without auto-enabling or writing skill bodies');
   }
 }
 

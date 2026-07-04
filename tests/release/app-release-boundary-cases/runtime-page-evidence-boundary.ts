@@ -13,7 +13,11 @@ import {
   validateArtifactNativeDrilldownFixture,
   validateArtifactNativeDrilldownProjectionContract,
   validateArtifactProvenanceBundleProjectionContract,
+  validateOpenScienceAcceptedItemsFixture,
+  validateRefLevelFollowUpProjectionContract,
+  validateStructuredResultPanelProjectionContract,
   validateTaskAwarenessProjectionContract,
+  validateWorkflowSkillCandidateProjectionContract,
 } from '../../../scripts/validate-active-shell/shared-contract-validators.ts';
 import { assertIncludesAll } from '../../../scripts/validate-active-shell/assertions.ts';
 import {
@@ -70,6 +74,10 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'resource_receipt_ref',
     'cost_estimate_ref',
     'openscience_console_projection_ref',
+    'structured_result_panel',
+    'artifact_provenance_card',
+    'ref_level_follow_up_refs',
+    'workflow_skill_candidate_refs',
   ];
   const guidHomePage = pageStateMatrix.pages.find((page) => page.id === 'guid_home');
   const runtimePage = pageStateMatrix.pages.find((page) => page.id === 'runtime');
@@ -494,6 +502,7 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
         grouping_source: 'OPL Connect/Fabric resource refs',
         allowed_groups: ['OPL Connect', 'Fabric resources'],
       },
+      candidate_policy: 'report_first_candidate_refs_review_needs_changes_open_in_codex_no_auto_enable_no_skill_body_write',
       refs_only: true,
       skill_body_access: false,
       workflow_body_access: false,
@@ -561,6 +570,9 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'console_policy_ref',
     'environment_template_ref',
     'environment_version_ref',
+    'structured_result_panel',
+    'artifact_provenance_card',
+    'ref_level_follow_up_refs',
   ], 'Current task conversation resource fields');
   assertIncludesAll(runtimeBridge.current_task_slice_projection.inspector_fields, [
     'artifact_or_blocker',
@@ -590,6 +602,10 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'environment_task_refs',
     'resource_receipt_ref',
     'cost_estimate_ref',
+    'structured_result_panel',
+    'artifact_provenance_card',
+    'ref_level_follow_up_refs',
+    'workflow_skill_candidate_refs',
   ], 'Current task inspector resource fields');
   assert.equal(runtimeBridge.current_task_slice_projection.independent_task_store_allowed, false);
   assert.equal(runtimeBridge.current_task_slice_projection.artifact_body_access, false);
@@ -737,6 +753,11 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     runtimeBridge.artifact_provenance_bundle_projection.shell_implementation_status,
     'aionui_refs_only_drawer_implemented',
   );
+  assert.equal(runtimeBridge.artifact_provenance_bundle_projection.card_surface, 'right_context_inspector.artifacts.provenance_card');
+  assert.equal(
+    runtimeBridge.artifact_provenance_bundle_projection.drawer_or_card_policy,
+    'drawer_and_card_are_refs_only_projection_surfaces_not_artifact_body_or_quality_verdict_surfaces',
+  );
   assertIncludesAll(runtimeBridge.artifact_provenance_bundle_projection.input_sources, [
     'opl app state --profile fast --json',
     'opl runtime app-operator-drilldown --task <task_id> --json',
@@ -762,6 +783,30 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   assert.throws(
     () => validateArtifactProvenanceBundleProjectionContract(invalidProvenanceProjection, 'Runtime bridge Artifact Provenance Bundle projection'),
     /artifact_body_access/,
+  );
+  assert.doesNotThrow(() =>
+    validateStructuredResultPanelProjectionContract(
+      runtimeBridge.structured_result_panel_projection,
+      'Runtime bridge structured result panel projection',
+    ),
+  );
+  assert.doesNotThrow(() =>
+    validateRefLevelFollowUpProjectionContract(
+      runtimeBridge.ref_level_follow_up_projection,
+      'Runtime bridge ref-level follow-up projection',
+    ),
+  );
+  assert.doesNotThrow(() =>
+    validateWorkflowSkillCandidateProjectionContract(
+      runtimeBridge.workflow_skill_candidate_projection,
+      'Runtime bridge workflow/skill candidate projection',
+    ),
+  );
+  assert.doesNotThrow(() =>
+    validateOpenScienceAcceptedItemsFixture(
+      fastOperator.workbench.task_run_projection_v2.tasks[0],
+      'Runtime boundary fixture OpenScience accepted item task',
+    ),
   );
   assert.deepEqual(runtimeBridge.provider_readiness_repair_projection, {
     source: 'app_state.provider + app_state.actions + app_state.operator.default_read_surface_policy',
@@ -1184,6 +1229,8 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     optional_task_ref_fields: runtimeBridge.task_awareness_projection.optional_task_ref_fields,
     resource_context_policy_ref: 'contracts/app-runtime-bridge.json#task_awareness_projection.resource_context_policy',
     settings_capabilities_surface_ref: 'contracts/app-runtime-bridge.json#task_awareness_projection.settings_capabilities_surface',
+    structured_result_panel_projection_ref: 'contracts/app-runtime-bridge.json#structured_result_panel_projection',
+    ref_level_follow_up_projection_ref: 'contracts/app-runtime-bridge.json#ref_level_follow_up_projection',
     display_policy: 'runtime_global_task_awareness_with_current_task_slices_no_new_dashboard',
     slice_policy: 'runtime_global_list_and_detail_conversation_and_inspector_filtered_slices_same_model',
     domain_authority_policy: 'refs_only_no_domain_authority_no_artifact_body_no_domain_verdict',

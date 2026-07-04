@@ -385,6 +385,9 @@ export const appOwnedCurrentTaskSlice = {
     'console_policy_ref',
     'environment_template_ref',
     'environment_version_ref',
+    'structured_result_panel',
+    'artifact_provenance_card',
+    'ref_level_follow_up_refs',
   ],
   independent_task_store_allowed: false,
   model_ref: 'contracts/app-runtime-bridge.json#task_awareness_projection',
@@ -495,6 +498,7 @@ export const settingsPageExpectations = {
       'Environment Catalog refs grouped with OPL Fabric resource readiness when capability tasks declare runtime requirements',
       'reusable workflow refs without skill bodies',
       'reproducibility export bundle action ref with dry-run receipt boundary',
+      'workflow and skill candidate report-first refs with review, needs changes, and open in Codex actions',
     ],
     must_not_show: [
       'Skills and Tools as the only top-level mental model',
@@ -504,6 +508,7 @@ export const settingsPageExpectations = {
       'AionUI Team as the ordinary multi-agent collaboration entry',
       'MCP as the primary user-facing name for external tools',
       'artifact body, workflow body, connector body, credential body, owner receipt write, or domain export readiness verdict from Settings Capabilities',
+      'auto-enabled skills, skill body writes, or workflow body writes from Settings Capabilities candidate refs',
     ],
   },
   settings_environment: {

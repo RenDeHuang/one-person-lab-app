@@ -42,8 +42,11 @@ import {
   validateOplFlowContext,
   validateProviderReadinessRepairProjectionContract,
   validateProgressDeltaDisplayContract,
+  validateRefLevelFollowUpProjectionContract,
   validateStateIndexSidecarProjectionContract,
+  validateStructuredResultPanelProjectionContract,
   validateTaskAwarenessProjectionContract,
+  validateWorkflowSkillCandidateProjectionContract,
   validateUserTaskStatusProjectionContract,
 } from './shared-contract-validators.ts';
 
@@ -626,6 +629,8 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
       'storage_ref',
       'resource_receipt_ref',
       'cost_estimate_ref',
+      'candidate_report_refs',
+      'workflow_skill_candidate_refs',
     ],
     'Settings Capabilities task awareness ref fields',
   );
@@ -638,6 +643,7 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
       'Environment Catalog refs grouped with OPL Fabric resource readiness when capability tasks declare runtime requirements',
       'reusable workflow refs without skill bodies',
       'reproducibility export bundle action ref with dry-run receipt boundary',
+      'workflow and skill candidate report-first refs with review, needs changes, and open in Codex actions',
     ],
     'Settings Capabilities task awareness must_show',
   );
@@ -645,8 +651,13 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     pages.settings_capabilities.must_not_show,
     [
       'artifact body, workflow body, connector body, credential body, owner receipt write, or domain export readiness verdict from Settings Capabilities',
+      'auto-enabled skills, skill body writes, or workflow body writes from Settings Capabilities candidate refs',
     ],
     'Settings Capabilities task awareness must_not_show',
+  );
+  validateWorkflowSkillCandidateProjectionContract(
+    pages.settings_capabilities.workflow_skill_candidate_policy,
+    'Settings Capabilities workflow/skill candidate policy',
   );
   validateOplFlowContext(guiContract.opl_flow_context, 'App GUI OPL Flow Context');
   if (!pages.settings_advanced.sections?.includes('opl_flow_context')) {
@@ -746,6 +757,18 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   validateTaskAwarenessProjectionContract(
     guiContract.framework_surfaces?.task_awareness,
     'App GUI framework task awareness',
+  );
+  validateStructuredResultPanelProjectionContract(
+    guiContract.framework_surfaces?.structured_result_panel,
+    'App GUI framework structured result panel',
+  );
+  validateRefLevelFollowUpProjectionContract(
+    guiContract.framework_surfaces?.ref_level_follow_up,
+    'App GUI framework ref-level follow-up',
+  );
+  validateWorkflowSkillCandidateProjectionContract(
+    guiContract.framework_surfaces?.workflow_skill_candidate,
+    'App GUI framework workflow/skill candidate',
   );
   for (const signal of [
     'user task status first OPL runtime status',

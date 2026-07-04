@@ -19,6 +19,11 @@ claim.
   `TaskRunProjection` v2, fixtures, page-state matrix, GUI product contract,
   active-shell validation, and release-boundary assertions for the refs-only
   task model.
+- OpenScience accepted items are now explicit App projection contracts:
+  structured result panel, artifact/provenance drawer or card, ref-level
+  follow-up refs, and workflow/skill candidate refs. OPL App here is the
+  shell-wrapped Codex App, and professional agents are Codex plugins or packaged
+  Codex skills.
 - AionUI renders Runtime task ref summaries, conversation / inspector refs, and
   capability / connector / workflow / export refs as a thin consumer. Temporal,
   provider and `current_control_state` internals remain diagnostics; AionUI does
@@ -94,6 +99,10 @@ App 架构和验证文档中，但不作为用户-facing 白皮书的主要叙�
 | Scientific Source Connector UX | Capability / connector readiness refs | 等价覆盖 |
 | Reproducibility Export Bundle | Export-bundle preview refs + dry-run receipt boundary；真实生成仍归 domain owner | 等价覆盖 refs-only GUI 目标 |
 | Cloud / HPC / managed compute flow | Resource context refs + plan/approve/execute/monitor/collect/receipt | 覆盖为资源上下文，不新增 Cloud dashboard |
+| Structured result panel | Conversation current-task slice + right inspector structured result panel | 覆盖；不是新 dashboard |
+| Artifact / provenance drawer or card | Artifact provenance bundle projection + inspector Artifacts card/drawer | 覆盖 refs-only；不读 artifact body |
+| Ref-level comment / structured follow-up | Review/action ref-level follow-up refs | 覆盖；不创建 App annotation store |
+| Workflow / skill candidate | Settings / Capabilities report-first candidate refs | 覆盖；review / needs changes / open in Codex，不自动 enable 或写 skill body |
 
 ## Owner 分层
 
@@ -120,8 +129,11 @@ App 架构和验证文档中，但不作为用户-facing 白皮书的主要叙�
 | 10 | Capability health / connector readiness | Framework/App contract | Settings thin renderer | 100% | Framework exposes refs-only capability health and connector readiness; App contract/fixture/tests require the Settings capabilities surface; AionUI renders the refs in Settings / Capabilities. | 已完成 for refs-only capability and connector readiness display; real module/domain readiness remains owner authority. |
 | 11 | Reusable workflow refs | Framework/domain | Settings/Capabilities 列 ref | 100% | Framework exposes Settings-level workflow refs with `content_policy=refs_only_no_skill_body_no_workflow_body`; App contracts lock the field; AionUI lists workflow refs without skill bodies. | 已完成 for reusable workflow refs listing; workflow/skill body authoring remains outside App/AionUI. |
 | 12 | Reproducibility export bundle action | Framework/domain action | artifact/task action button + receipt summary | 100% | Framework owns the `task_export_bundle_preview` dry-run action and non-dry-run fail-closed boundary; App fixture/test checks the preview route; AionUI renders the export action ref and dry-run/receipt summary. | 已完成 for reproducibility export preview/action-ref UI; real domain bundle generation and export readiness remain domain-owner actions. |
-| 13 | Fixture 与 focused tests | App repo + shell repo | DOM/i18n focused tests | 100% | App fast fixture carries enriched `TaskRunProjection` v2 evidence/action/resource card examples; shared validators and release-boundary tests require enriched card fields; AionUI focused DOM tests cover overview/detail and current-task enriched card rendering. | 已完成 for landed App-owned contract slices; shell rendering and domain producer changes remain separate owner surfaces. |
-| 14 | 吸收、清理和完成度审计 | Main session | 提供 verified shell commit 后由主会话吸收 | 100% | Current landing is read from Framework producer evidence, App enriched contract/docs lanes, and AionUI Runtime/current-task rendering evidence. This row is a boundary note, not a reusable closeout proof. | 本计划不保存最终吸收审计；future closeout must re-read owner evidence before any completion, release-ready, or domain-ready claim. |
+| 13 | Structured result panel | App repo 定义，Framework 产出 refs | conversation / current task / inspector thin renderer | 100% | `structured_result_panel_projection` plus fixture/test coverage require result summary, status, evidence/action refs, artifact provenance ref and follow-up refs. | 已完成 for refs-only structured result panel；不得变成新 dashboard。 |
+| 14 | Ref-level follow-up | Framework/domain 产出 refs，App contract 定义 | Review/Actions refs UI | 100% | `ref_level_follow_up_projection` and fixture require review/request-change/follow-up prompt/action refs. | 已完成 for refs-only prompt/action refs；不创建 App annotation store。 |
+| 15 | Workflow / skill candidate | Framework/App refs | Settings / Capabilities | 100% | `workflow_skill_candidate_projection` and Settings fixture expose report-first candidates with review / needs changes / open in Codex actions. | 已完成 for candidate refs；不自动 enable skill，不写 skill body。 |
+| 16 | Fixture 与 focused tests | App repo + shell repo | DOM/i18n focused tests | 100% | App fast fixture carries enriched `TaskRunProjection` v2 evidence/action/resource card examples plus OpenScience structured result, provenance card, ref-level follow-up, and workflow/skill candidate refs; shared validators and release-boundary tests require the fields. | 已完成 for landed App-owned contract slices; shell rendering and domain producer changes remain separate owner surfaces. |
+| 17 | 吸收、清理和完成度审计 | Main session | 提供 verified shell commit 后由主会话吸收 | 100% | Current landing is read from Framework producer evidence, App enriched contract/docs lanes, and AionUI Runtime/current-task rendering evidence. This row is a boundary note, not a reusable closeout proof. | 本计划不保存最终吸收审计；future closeout must re-read owner evidence before any completion, release-ready, or domain-ready claim. |
 
 ## 证据读取规则
 

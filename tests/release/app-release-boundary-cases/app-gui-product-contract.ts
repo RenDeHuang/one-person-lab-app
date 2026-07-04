@@ -783,6 +783,8 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     'storage_ref',
     'resource_receipt_ref',
     'cost_estimate_ref',
+    'candidate_report_refs',
+    'workflow_skill_candidate_refs',
   ]);
   assert.equal(
     guiContract.pages.settings_capabilities.task_awareness_ref_policy,
@@ -811,6 +813,11 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     ),
   );
   assert.ok(
+    guiContract.pages.settings_capabilities.must_show.includes(
+      'workflow and skill candidate report-first refs with review, needs changes, and open in Codex actions',
+    ),
+  );
+  assert.ok(
     guiContract.pages.settings_capabilities.must_not_show.includes(
       'AionUI implementation skills such as aionui-skills',
     ),
@@ -820,6 +827,14 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
       'artifact body, workflow body, connector body, credential body, owner receipt write, or domain export readiness verdict from Settings Capabilities',
     ),
   );
+  assert.ok(
+    guiContract.pages.settings_capabilities.must_not_show.includes(
+      'auto-enabled skills, skill body writes, or workflow body writes from Settings Capabilities candidate refs',
+    ),
+  );
+  assert.equal(guiContract.pages.settings_capabilities.workflow_skill_candidate_policy.report_first, true);
+  assert.equal(guiContract.pages.settings_capabilities.workflow_skill_candidate_policy.auto_enable_allowed, false);
+  assert.equal(guiContract.pages.settings_capabilities.workflow_skill_candidate_policy.skill_body_write_access, false);
   assert.ok(guiContract.pages.settings_capabilities.auto_injected_skills_policy.forbidden_examples.includes('aionui-skills'));
   assert.equal(guiContract.desktop_tray_policy.default_visible, true);
   assert.equal(guiContract.desktop_tray_policy.desktop_startup_behavior, 'create_tray_by_default');

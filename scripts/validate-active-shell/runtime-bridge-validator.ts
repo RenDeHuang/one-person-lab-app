@@ -11,14 +11,18 @@ import {
   validateArtifactNativeDrilldownFixture,
   validateArtifactNativeDrilldownProjectionContract,
   validateArtifactProvenanceBundleProjectionContract,
+  validateOpenScienceAcceptedItemsFixture,
   validateOpenScienceConsoleProjectionContract,
   validateProviderReadinessRepairProjectionContract,
   validateProjectProgressDisplayContract,
+  validateRefLevelFollowUpProjectionContract,
   validateStageRunCockpitFixture,
   validateStageRunCockpitProjectionContract,
   validateStateIndexSidecarFixture,
   validateStateIndexSidecarProjectionContract,
+  validateStructuredResultPanelProjectionContract,
   validateTaskRunProjectionV2Fixture,
+  validateWorkflowSkillCandidateProjectionContract,
   validateUserTaskStatusProjectionContract,
 } from './shared-contract-validators.ts';
 
@@ -186,6 +190,14 @@ function validateGoldenAppStateTaskDrilldowns(fixture) {
   validateTaskRunProjectionV2Fixture(
     taskRunProjection.tasks[0],
     'OPL App state golden fixture TaskRunProjection v2 task',
+  );
+  validateOpenScienceAcceptedItemsFixture(
+    taskRunProjection.tasks[0],
+    'OPL App state golden fixture OpenScience accepted item task',
+  );
+  validateOpenScienceAcceptedItemsFixture(
+    taskDrilldowns[0],
+    'OPL App state golden fixture OpenScience accepted item drilldown',
   );
   const stateIndexSidecarExample = taskDrilldowns.find((task) => task?.state_index_sidecar_projection);
   if (!stateIndexSidecarExample) {
@@ -567,6 +579,18 @@ function validateRuntimeBridgeProjectionContracts(runtimeBridge) {
   validateArtifactProvenanceBundleProjectionContract(
     runtimeBridge.artifact_provenance_bundle_projection,
     'Runtime bridge Artifact Provenance Bundle projection',
+  );
+  validateStructuredResultPanelProjectionContract(
+    runtimeBridge.structured_result_panel_projection,
+    'Runtime bridge structured result panel projection',
+  );
+  validateRefLevelFollowUpProjectionContract(
+    runtimeBridge.ref_level_follow_up_projection,
+    'Runtime bridge ref-level follow-up projection',
+  );
+  validateWorkflowSkillCandidateProjectionContract(
+    runtimeBridge.workflow_skill_candidate_projection,
+    'Runtime bridge workflow/skill candidate projection',
   );
   validateOpenScienceConsoleProjectionContract(
     runtimeBridge.openscience_console_projection,

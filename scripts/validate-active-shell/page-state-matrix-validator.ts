@@ -20,7 +20,9 @@ import {
   validateProviderReadinessRepairProjectionContract,
   validateProgressDeltaDisplayContract,
   validateProjectProgressDisplayContract,
+  validateRefLevelFollowUpProjectionContract,
   validateStateIndexSidecarProjectionContract,
+  validateStructuredResultPanelProjectionContract,
   validateUserTaskStatusProjectionContract,
 } from './shared-contract-validators.ts';
 import {
@@ -277,6 +279,14 @@ export function validatePageStateMatrix(matrix, contract) {
   validateOpenScienceConsoleProjectionContract(
     runtimeViewModel.openscience_console_projection,
     'Runtime page OpenScience Console projection',
+  );
+  validateStructuredResultPanelProjectionContract(
+    runtimeViewModel.structured_result_panel,
+    'Runtime page structured result panel projection',
+  );
+  validateRefLevelFollowUpProjectionContract(
+    runtimeViewModel.ref_level_follow_up,
+    'Runtime page ref-level follow-up projection',
   );
   validateProviderReadinessRepairProjectionContract(
     runtimeViewModel.provider_readiness_repair,
