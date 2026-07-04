@@ -1044,12 +1044,17 @@
           "shell_sha",
           "framework_sha"
         ],
-        "currentness_rule": "A stable candidate is current only for the pinned App SHA, shell SHA, and framework SHA cohort. If main or any pinned source advances after the run starts, the old run becomes an obsolete/stale candidate and must not continue as the current stable candidate.",
+        "pre_freeze_currentness_required": true,
+        "post_freeze_drift_name": "post-freeze drift",
+        "dispatch_input_source": "cohort_plan_or_lock",
+        "manual_long_sha_dispatch_recommended": false,
+        "single_desktop_release_per_frozen_cohort": true,
+        "currentness_rule": "A stable candidate is current only for the pinned App SHA, shell SHA, and framework SHA cohort. Remote movement after freeze is post-freeze drift: it may justify freezing a new cohort, but it must not make the completed candidate claim closeout-time latest or force a desktop release rerun when the same frozen cohort only needs owner receipt and promote.",
         "obsolete_candidate_statuses": [
           "obsolete_candidate",
           "stale_candidate"
         ],
-        "next_action": "dispatch_new_cohort"
+        "next_action": "owner_receipt_then_promote_or_dispatch_new_cohort"
       },
       "authority_boundary": "cohort plan is an operator planning artifact only; it cannot publish a release, claim release-ready, write runtime truth, or replace same-cohort release evidence"
     },
@@ -1469,6 +1474,11 @@
       "nightly_standard_release_workflow": ".github/workflows/nightly-standard-release.yml",
       "full_first_install_workflow": ".github/workflows/full-first-install-release.yml",
       "first_run_vm_workflow": ".github/workflows/opl-first-run-vm.yml",
+      "release_mode_boundaries": {
+        "new_release": "normal stable path: draft candidate, same-cohort evidence, owner receipt, then desktop-release-promote.yml publishes stable/latest",
+        "draft_candidate": "diagnostic candidate path only; it does not publish stable/latest and cannot be promoted without a promote-ready candidate record plus owner resolution",
+        "refresh_existing": "asset replacement for an already published release; draft candidates must be published through the promote workflow rather than refreshed by desktop-release.yml"
+      },
       "promote_post_publish_readback": {
         "workflow_job": "promote",
         "step": "Verify published release readback",
@@ -2069,6 +2079,25 @@
       "family_production_ready_claim_allowed": false,
       "evidence_only_can_close_opl_app_release_user_path": false,
       "next_owner_action": "record release_owner_verdict_ref or release_owner_receipt_ref for the same App release cohort, or record release_owner_typed_blocker_ref, typed_blocker_ref, or human_gate_ref when release-ready cannot be authorized",
+      "post_owner_receipt_fast_path": {
+        "default_action": "verify_owner_candidate_record_then_dispatch_promote",
+        "verify_command": "npm run release:owner-candidate-record:verify -- --version <version> --owner-record docs/delivery/release/records/v<version>-release-owner-receipt.json --artifacts-dir artifacts/release-closeout/v<version>-<run-id>/artifacts",
+        "promote_workflow": ".github/workflows/desktop-release-promote.yml",
+        "desktop_release_rerun_required": false,
+        "requires": [
+          "same frozen App/Shell/Framework cohort",
+          "complete same-cohort release evidence",
+          "valid release_owner_verdict_ref or release_owner_receipt_ref",
+          "promote-ready candidate-record validation"
+        ],
+        "forbidden": [
+          "rerun desktop-release solely for owner receipt metadata",
+          "promote failed gates",
+          "invent or backfill owner receipts",
+          "reinterpret draft candidate evidence as published stable/latest"
+        ],
+        "rule": "When the only missing input is the release-owner verdict or receipt for the same frozen cohort, validate the post-owner candidate record and dispatch desktop-release-promote.yml; do not rerun desktop-release just to carry owner-resolution metadata."
+      },
       "authority_boundary": {
         "can_claim_app_release_ready_from_evidence": false,
         "can_claim_stable_latest_from_evidence": false,

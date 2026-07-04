@@ -183,27 +183,30 @@ Stable release flow:
 2. Freeze the candidate cohort by recording App SHA, shell ref plus resolved
    shell SHA, framework ref plus resolved framework SHA, release mode, Full
    intent, VM intent, owner refs, and any gate-reuse inputs.
-3. Run preflight and `release:source-gate` for that pinned cohort.
-4. Run the release workflow for the selected version/channel.
-5. Produce standard and, when requested, Full artifacts plus the release
+3. Generate dispatch inputs from the cohort plan/lock. Do not hand-fill long
+   App/Shell/Framework SHAs as the recommended operator path.
+4. Run preflight and `release:source-gate` for that pinned cohort.
+5. Run the release workflow for the selected version/channel.
+6. Produce standard and, when requested, Full artifacts plus the release
    evidence bundle.
-6. Run remote verification against the published draft release assets.
-7. Produce `release-candidate-record.json`.
-8. Promote only when the promote workflow reads a ready candidate record for
+7. Run remote verification against the published draft release assets.
+8. Produce `release-candidate-record.json`.
+9. Promote only when the promote workflow reads a ready candidate record for
    the same cohort.
-9. Update Homebrew casks after the draft release is published and the matching
+10. Update Homebrew casks after the draft release is published and the matching
    policy assets exist.
-10. Run post-release user-guide/screenshots only after promotion; they are never
+11. Run post-release user-guide/screenshots only after promotion; they are never
    pre-promotion gates.
 
 Nightly and candidate flows follow the same SSOT contract but do not imply stable/latest promotion.
 
-The stable candidate is valid only for the pinned App/Shell/Framework SHA
-cohort. If `main`, the active shell ref, or the framework ref advances after the
-run starts, the old run is an obsolete/stale candidate. It can remain diagnostic
-evidence for that old cohort, but it cannot continue as the current stable
-candidate or be promoted as latest. Dispatch a new cohort instead of trying to
-reinterpret old artifacts against newer source.
+The stable candidate is valid only for one frozen App/Shell/Framework SHA
+cohort. Remote movement after the freeze is `post-freeze drift`: it may make the
+world newer, but it does not let a completed candidate pretend to be the latest
+source at closeout time. If the release owner chooses the newer source, freeze a
+new cohort and dispatch a new desktop release; otherwise the single frozen
+candidate proceeds to owner receipt and promote without rerunning desktop
+release work.
 Moving `main`, shell `main`, and framework `main` are allowed only as
 preparation-time ref-resolution sources. They are not final Stable release
 inputs. The final train input is the pinned cohort lock: App SHA, shell SHA,
@@ -710,6 +713,8 @@ next action. For stable candidates, treat those refs as the frozen candidate
 cohort: App SHA, shell SHA, and framework SHA must match all release-ready
 evidence and the candidate record. Neither file is release evidence and neither
 can publish, promote, or claim readiness.
+Use the cohort plan/lock as the source for workflow dispatch inputs. Manual
+long-SHA entry is a diagnostic fallback only, not the recommended release path.
 
 3. Dispatch and observe through the controller:
 
@@ -729,16 +734,20 @@ failure it should report `failed_gate_draining` while downstream already-queued
 jobs settle, then `failed`, instead of asking the release owner to keep waiting
 on `gh run watch`.
 
-4. Handle stale or draining runs:
+4. Handle post-freeze drift, stale, or draining runs:
 
    - `failed_gate_draining` means the release decision has already stopped on a
      primary blocker while queued jobs finish or artifact upload settles. Wait
      only for cleanup/artifact finalization; do not infer readiness from later
      unrelated job success.
-   - `stale_candidate` means the run head or pinned source refs no longer match
-     the cohort lock. Keep its artifacts as old-cohort diagnostics only. Do not
-     promote it, patch it into a newer cohort, or use it as current release
-     evidence.
+   - `post-freeze drift` means App, shell, or Framework moved remotely after
+     the cohort lock. The candidate is still valid only for the frozen cohort;
+     it is not closeout-time latest. Choose either owner receipt plus promote
+     for that frozen cohort, or freeze a new cohort and rerun desktop release.
+   - `stale_candidate` means the run head or pinned source refs do not match
+     the cohort lock or the run was superseded by a newer same-version cohort.
+     Keep its artifacts as old-cohort diagnostics only. Do not promote it,
+     patch it into a newer cohort, or use it as current release evidence.
    - `cancelled` and `superseded` are typed operator outcomes for
      stop-and-redispatch. They preserve old-run diagnostics and failed-run tax,
      but they do not prove a source gate failed.
@@ -748,12 +757,11 @@ on `gh run watch`.
      `repair_source_gate` or `dispatch_new_cohort`, not another broad release
      dispatch.
 
-When a run's `headSha` no longer matches the expected App SHA, or when a newer
-same-version cohort supersedes it, treat the old run as stale. Its artifacts and
-logs can remain diagnostic background for the old cohort, but they cannot be
-promoted, patched into the new cohort, or reinterpreted as current release
-evidence. Re-freeze App/Shell/Framework refs, run the cohort plan again, and
-dispatch a new cohort.
+When a newer same-version cohort supersedes a run, treat the old run as stale.
+Its artifacts and logs can remain diagnostic background for the old cohort, but
+they cannot be promoted, patched into the new cohort, or reinterpreted as
+current release evidence. Re-freeze App/Shell/Framework refs, run the cohort
+plan again, and dispatch a new cohort.
 
 Desktop stable, WebUI GHCR, and diagnostics are separate lanes. Desktop stable
 owns the App package, updater metadata, Full first-install path, Homebrew gates,
@@ -883,6 +891,13 @@ candidate record with `npm run release:candidate-record:resolve-owner`, then
 runs the normal promote-ready validator before publishing. This avoids a full
 desktop release rerun solely for owner-resolution metadata; it does not skip
 failed gates, invent owner receipts, or bypass candidate-record validation.
+This is the default fast path after owner receipt for a frozen cohort.
+
+`new_release` owns the normal path: draft candidate, same-cohort evidence,
+owner receipt, then promote. `draft_candidate` is diagnostic and does not imply
+stable/latest. `refresh_existing` is only for replacing assets on an already
+published release; if the existing release is still draft, publish through the
+promote workflow rather than refreshing it from the desktop release workflow.
 
 AI exploratory release checks are non-blocking. They can provide exploratory triage, summaries, risk hints, or follow-up suggestions, but they are not a release gate and must not block standard, Full, Homebrew, WebUI, updater, or promotion lanes.
 
