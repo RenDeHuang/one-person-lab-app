@@ -38,6 +38,62 @@ const expectedFailClosedStates = [
   'missing_skill_entry',
   'duplicate_codex_visible_domain_skill',
   'unavailable_managed_agent_pack_channel',
+  'invalid_package_manifest',
+  'missing_package_lock_receipt',
+  'package_source_validation_failed',
+  'atomic_package_unit_incomplete',
+];
+const expectedPackageLifecycleActions = [
+  'discover',
+  'install',
+  'update',
+  'repair',
+  'rollback',
+  'uninstall',
+  'enable',
+  'disable',
+  'hide',
+  'unhide',
+  'manual_check',
+  'apply_selected',
+];
+const expectedManualThirdPartySourceKinds = [
+  'local_manifest_file',
+  'manifest_url',
+  'manifest_import',
+];
+const expectedManualThirdPartyRequires = [
+  'explicit_user_action',
+  'manifest_validation',
+  'trust_tier_assignment',
+  'package_lock_receipt',
+  'rollback_ref',
+];
+const expectedPackageSourceKinds = [
+  'first_party_managed_cohort',
+  'bundled_full_runtime_modules',
+  'local_manifest_file',
+  'manifest_url',
+  'manifest_import',
+  'developer_checkout_override',
+];
+const expectedPackageLockReceiptFields = [
+  'package_id',
+  'version_or_source_digest',
+  'installed_at',
+  'updated_at',
+  'codex_visible_entry',
+  'bundled_required_skill_ids',
+  'optional_skill_refs',
+  'source_kind',
+  'trust_tier',
+  'action_receipt_id',
+  'rollback_ref',
+];
+const expectedAtomicPackageUnitIncludes = [
+  'plugin_manifest',
+  'bundled_required_skill_entries',
+  'optional_companion_skill_refs',
 ];
 
 function readJson(filePath: string): any {
@@ -240,7 +296,107 @@ function validateAgentInstallationContract(policy: any): any {
   assertArrayEqual(policy.sync_and_install_contract?.fail_closed_states, expectedFailClosedStates, 'sync fail closed states');
   assertArrayEqual(contract.fail_closed_states, policy.sync_and_install_contract.fail_closed_states, 'shared fail closed states');
   assertArrayEqual(contract.module_package_channel_agent_ids, expectedRequiredAgentIds, 'module package channel agent ids');
+  validatePackageManagerLifecycle(contract);
+  validateThirdPartyManualSourcePolicy(contract);
+  validatePackageLockReceiptContract(contract);
+  validateAtomicBundlePolicy(contract);
   return contract;
+}
+
+function validatePackageManagerLifecycle(contract: any): void {
+  const lifecycle = contract.package_manager_lifecycle;
+  assertFieldsEqual(lifecycle, {
+    policy_surface: 'Settings Capabilities package manager and app/cli action receipts',
+    manual_check_policy: 'explicit_user_action_only',
+    apply_selected_policy: 'explicit_user_selected_package_set_only',
+    mutating_actions_require_action_receipt: true,
+    rollback_ref_required_for_mutating_actions: true,
+    package_lock_required: true,
+    domain_truth_authority_allowed: false,
+  }, 'package manager lifecycle');
+  assertArrayEqual(lifecycle?.actions, expectedPackageLifecycleActions, 'package manager lifecycle actions');
+}
+
+function validateThirdPartyManualSourcePolicy(contract: any): void {
+  const sourcePolicy = contract.third_party_manual_source_policy;
+  assertArrayEqual(
+    sourcePolicy?.ordinary_user_default_source_kinds,
+    ['first_party_managed_cohort', 'bundled_full_runtime_modules'],
+    'manual source ordinary defaults',
+  );
+  assertArrayEqual(
+    sourcePolicy?.manual_third_party_allowed_source_kinds,
+    expectedManualThirdPartySourceKinds,
+    'manual third-party source kinds',
+  );
+  assertArrayEqual(
+    sourcePolicy?.manual_third_party_requires,
+    expectedManualThirdPartyRequires,
+    'manual third-party source requirements',
+  );
+  assertFieldsEqual(sourcePolicy, {
+    developer_override_source_kind: 'developer_checkout_override',
+    app_hardcoded_repo_path_allowed: false,
+    duplicate_bare_skill_mirrors_allowed: false,
+    homebrew_package_formula_allowed: false,
+    third_party_catalog_required: false,
+  }, 'manual source policy');
+  if (!sourcePolicy?.validation_scope?.includes('without hardcoding exact third-party package ids')) {
+    fail('manual source policy must validate shape without hardcoding exact third-party package ids');
+  }
+}
+
+function validatePackageLockReceiptContract(contract: any): void {
+  const receiptContract = contract.package_lock_receipt_contract;
+  assertFieldsEqual(receiptContract, {
+    lock_owner: 'one-person-lab',
+    app_role: 'require_and_display_package_lock_refs_without_owning_domain_semantics',
+    trust_tier_required: true,
+    rollback_ref_required: true,
+    codex_visible_entry_required: true,
+    optional_skill_refs_are_refs_only: true,
+  }, 'package lock receipt contract');
+  assertArrayEqual(
+    receiptContract?.required_fields,
+    expectedPackageLockReceiptFields,
+    'package lock receipt fields',
+  );
+  assertArrayEqual(
+    receiptContract?.source_kind_allowed_values,
+    expectedPackageSourceKinds,
+    'package lock source kinds',
+  );
+}
+
+function validateAtomicBundlePolicy(contract: any): void {
+  const atomicPolicy = contract.atomic_bundle_policy;
+  assertArrayEqual(
+    atomicPolicy?.managed_package_unit_agent_ids,
+    expectedRequiredAgentIds,
+    'atomic package unit agent ids',
+  );
+  assertArrayEqual(
+    atomicPolicy?.package_unit_includes,
+    expectedAtomicPackageUnitIncludes,
+    'atomic package unit includes',
+  );
+  assertFieldsEqual(atomicPolicy, {
+    reconcile_update_uninstall_as_unit: true,
+    domain_repo_remains_semantic_owner: true,
+    app_package_manager_scope: 'install_exposure_package_lock_action_receipts_and_codex_visible_entries_only',
+  }, 'atomic bundle policy');
+  assertFieldsEqual(atomicPolicy?.mas_professional_skill_pack_unit, {
+    package_id: 'opl.mas',
+    agent_id: 'mas',
+    required_skill_pack_id: 'mas-professional-skill-pack',
+    atomic_with_agent_package: true,
+    domain_repo_remains_semantic_owner: true,
+  }, 'MAS professional skill pack unit');
+  assertArrayEqual(
+    atomicPolicy?.mas_professional_skill_pack_unit?.lifecycle_actions,
+    ['install', 'update', 'repair', 'rollback', 'uninstall'],
+    'MAS professional skill pack lifecycle actions',
+  );
 }
 
 function validateManagedAgentPackDistribution(contract: any): void {
@@ -391,6 +547,8 @@ console.log(JSON.stringify({
   default_visible_domain_skills: expectedDefaultVisibleDomainSkillIds,
   generated_plugin_agents: expectedGeneratedAgentIds,
   generated_plugin_skills: expectedGeneratedPluginSkillIds,
+  package_lifecycle_actions: expectedPackageLifecycleActions,
+  package_lock_receipt_fields: expectedPackageLockReceiptFields,
   validated_plugin_roots: Object.fromEntries(agentRoots),
   validated_codex_skills_root: validatedCodexSkillsRoot,
 }, null, 2));
