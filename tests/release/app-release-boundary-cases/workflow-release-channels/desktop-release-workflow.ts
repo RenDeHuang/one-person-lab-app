@@ -411,6 +411,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(vmWorkflow, /Validate active shell ref before VM runner work/);
   assert.match(vmWorkflow, /opl-aion-shell ref '\$shell_ref' does not exist; fix shell_ref before occupying the first-run VM harness/);
   assert.match(vmWorkflow, /clean-vm-first-run:[\s\S]*needs: validate-vm-inputs/);
+  assert.match(vmWorkflow, /clean-vm-first-run:[\s\S]*permissions:[\s\S]*actions: read[\s\S]*contents: write/);
   assert.match(vmWorkflow, /PROFILE="\$\{\{ needs\.validate-vm-inputs\.outputs\.package_profile \}\}"/);
   assert.match(vmWorkflow, /name: Checkout active shell[\s\S]*ref: \$\{\{ needs\.validate-vm-inputs\.outputs\.shell_ref \}\}/);
   assert.match(vmWorkflow, /release_artifact_name:/);
@@ -427,8 +428,11 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(vmWorkflow, /download_release_with_retry\(\)/);
   assert.match(vmWorkflow, /max_attempts=8/);
   assert.match(vmWorkflow, /Resolved release DMG asset: \$asset_name/);
+  assert.match(vmWorkflow, /asset\.apiUrl \|\| asset\.url/);
+  assert.match(vmWorkflow, /Accept: application\/octet-stream/);
+  assert.match(vmWorkflow, /Authorization: Bearer \$\{GH_TOKEN\}/);
   assert.match(vmWorkflow, /Release DMG asset download failed on attempt \$attempt/);
-  assert.match(vmWorkflow, /curl -fL --retry 5 --retry-all-errors --retry-delay 10 --connect-timeout 30 --max-time 1800 --continue-at -/);
+  assert.match(vmWorkflow, /curl_args=\(-fL --retry 5 --retry-all-errors --retry-delay 10 --connect-timeout 30 --max-time 1800 --continue-at -\)/);
   assert.match(vmWorkflow, /Resolve host Node\.js runtime for guest smoke/);
   assert.match(vmWorkflow, /os\.path\.realpath/);
   assert.match(vmWorkflow, /--guest-node-root "\$\{\{ steps\.host_node\.outputs\.node_root \}\}"/);
