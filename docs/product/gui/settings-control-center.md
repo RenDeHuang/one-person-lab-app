@@ -26,7 +26,7 @@ Home-shortcut preferences, and task-awareness refs, while older payloads or
 partial projections remain in circulation. Recent local evidence shows why this
 matters: MAS/MAG/RCA may be `health_status: dirty` with
 `effective_install_update_source: git_checkout`, `configured_by: developer_mode`,
-`git.sync_status: behind`, and `git.dirty: true`, while BookForge/OMA can be
+`git.sync_status: behind`, and `git.dirty: true`, while OBF/OMA can be
 `health_status: ready` but still carry `recommended_action: update`. The UX and
 contracts therefore must model status as multiple axes instead of collapsing
 everything into one `repair` bucket.
@@ -152,7 +152,8 @@ P0 entries:
 
 P1 entries:
 
-- Remote access: direct route for users who need native AionUI remote access.
+- Remote access: direct route for users who need browser access to this
+  computer's OPL.
   Docker WebUI, OPL Workspace, user-provided SSH/HPC, and OPL Cloud-managed
   resources are advanced deployment concerns, not the normal Access path.
 - Developer Profile Status: local checkout source, auto-update impact, and
@@ -193,7 +194,7 @@ Access owns user-facing connection readiness through four groups:
   model and reasoning selection, and provider policy refs.
 - Local runtime ability: whether Codex CLI can run now, Background Service /
   Temporal readiness, and permission meaning in user language.
-- Remote access: native AionUI remote access for this App, including port,
+- Remote access: browser access to this computer's OPL, including port,
   account, password, and local network reachability controls.
 - Advanced deployment: Docker WebUI, OPL Workspace, user-provided SSH/HPC, OPL
   Cloud-managed compute or storage refs, OPL Fabric resource-source status,
@@ -289,7 +290,7 @@ generic repair badge. `git_checkout`, `configured_by: developer_mode`,
 `git.sync_status: behind`, `git.dirty: true`, `health_status: dirty`, and
 `recommended_action: update` each map to different row axes so the user can see
 whether a package is developer-owned, drifted, stale, or merely waiting for a
-safe update. BookForge/OMA-style `ready + update` must stay distinct from
+safe update. OBF/OMA-style `ready + update` must stay distinct from
 dirty/developer-source packages. Skills, external tools, MCP, voice, and custom
 assistants are supporting sections below the package directory, not a second
 primary list.

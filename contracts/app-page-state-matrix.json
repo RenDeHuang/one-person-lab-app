@@ -206,7 +206,7 @@
             "shortcut_id": "book",
             "package_id": "bookforge",
             "primary_label": "写书",
-            "package_short_name": "BookForge",
+            "package_short_name": "OBF",
             "codex_visible_entry": "opl-bookforge",
             "required_skill_ids": [
               "opl-bookforge"
@@ -248,7 +248,7 @@
             "id": "book",
             "primary_label": "写书",
             "target_assistant_id": "bookforge",
-            "target_assistant_short_name": "BookForge",
+            "target_assistant_short_name": "OBF",
             "display_policy": "purpose_first",
             "home_entry_policy": "visible_click_to_start"
           }
@@ -278,7 +278,7 @@
         "Codex model selector defaulting to GPT-5.5",
         "reasoning effort configurable inside the Codex model menu",
         "conversation pending elapsed seconds while Codex is working",
-        "purpose-first entries 科研/MAS, 基金/MAG, 演示/RCA, 写书/BookForge",
+        "purpose-first entries 科研/MAS, 基金/MAG, 演示/RCA, 写书/OBF",
         "selected assistant shown as a compact @ purpose tag",
         "selected assistant keeps purpose entry switcher visible",
         "assistant-scoped skill menu with required skill checked",
@@ -1656,8 +1656,8 @@
         "OPL Packages status and post-update sync status",
         "OPL Packages Codex Surface sync substatus",
         "user-facing OPL Packages maintenance entry under Local Environment",
-        "BookForge module maintenance status alongside MAS/MAG/RCA/OMA",
-        "ScholarSkills module maintenance status alongside MAS/MAG/RCA/OMA/BookForge",
+        "OBF module maintenance status alongside MAS/MAG/RCA/OMA",
+        "ScholarSkills module maintenance status alongside MAS/MAG/RCA/OMA/OBF",
         "OPL Packages state, Codex Surface substatus, and recommended action",
         "manual check/apply/repair/rollback mappings through opl update or App action routes",
         "health summary for whether the local App foundation can run now",
@@ -1734,7 +1734,7 @@
           "MAG",
           "RCA",
           "OMA",
-          "BookForge",
+          "OBF",
           "ScholarSkills"
         ],
         "required_status": [
@@ -2427,7 +2427,7 @@
         "normal state shows conclusion and necessary action before diagnostics",
         "Model access group with OPL Gateway, configured model access, default model, reasoning, and provider policy refs",
         "Local runtime ability group with Codex CLI, Background Service / Temporal, and permission readiness in user language",
-        "Remote access group for native AionUI remote access port, account, password, and local network reachability controls",
+        "Remote access group for browser access to this computer, including port, account, password, and local network reachability controls",
         "Advanced deployment group for Docker WebUI, OPL Workspace, user-provided SSH/HPC, OPL Cloud managed resources, OPL Fabric, Environment Catalog, and Console-managed refs"
       ],
       "must_not_show": [
@@ -2609,7 +2609,7 @@
         "details drawer or expandable list for receipt refs, physical_surface, workflow refs, connector refs, and resource refs",
         "multi-axis package status for install, update, source, trust, and Codex Surface",
         "developer checkout semantics surfaced explicitly for dirty, git checkout, behind, and configured_by=developer_mode",
-        "BookForge and OMA rows can show ready plus recommended update without being rewritten as repair",
+        "OBF and OMA rows can show ready plus recommended update without being rewritten as repair",
         "OPL Meta Agent as explicit non-default package row",
         "required skills locked and optional skills selectable by package or launch surface",
         "builtin skill catalog and auto-injected skills filtered to App packaged skill ids",

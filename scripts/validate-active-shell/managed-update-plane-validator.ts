@@ -89,7 +89,7 @@ function validateReleaseRuntimeToolchainChannelPolicy(runtimeUpdater) {
     runtimeUpdater?.owner !== 'one-person-lab-app' ||
     runtimeUpdater?.role !== 'app_owned_runtime_substrate_layer_updates' ||
     runtimeUpdater?.brand_name !== 'OPL Runtime Fabric' ||
-    runtimeUpdater?.brand_role !== 'shared runtime fabric for OPL capability modules, not a MAS/MAG/RCA/OMA/BookForge/ScholarSkills brand module' ||
+    runtimeUpdater?.brand_role !== 'shared runtime fabric for OPL capability modules, not a MAS/MAG/RCA/OMA/OBF/ScholarSkills brand module' ||
     runtimeUpdater?.channel_manifest_asset !== 'app-runtime-update-channel.json' ||
     runtimeUpdater?.transport !== 'app_owned_github_release_assets' ||
     runtimeUpdater?.standard_updater_metadata_allowed !== false ||

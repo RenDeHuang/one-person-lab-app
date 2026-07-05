@@ -1152,7 +1152,7 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'Codex model selector defaulting to GPT-5.5',
     'reasoning effort configurable inside the Codex model menu',
     'conversation pending elapsed seconds while Codex is working',
-    'purpose-first entries 科研/MAS, 基金/MAG, 演示/RCA, 写书/BookForge',
+    'purpose-first entries 科研/MAS, 基金/MAG, 演示/RCA, 写书/OBF',
     'selected assistant keeps purpose entry switcher visible',
     'assistant-scoped skill menu with required skill checked',
     'workspace selector',

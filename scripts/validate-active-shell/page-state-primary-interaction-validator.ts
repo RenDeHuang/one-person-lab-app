@@ -142,14 +142,14 @@ function validateGuidHomeRouteAndPurpose(homeViewModel) {
     throw new Error('Guid home page must expose research, grant, ppt, and book package shortcuts');
   }
   if (JSON.stringify(homeAgentShortcuts.map((entry) => entry.package_id)) !== JSON.stringify(['mas', 'mag', 'rca', 'bookforge'])) {
-    throw new Error('Guid home page package shortcuts must target MAS, MAG, RCA, and BookForge');
+    throw new Error('Guid home page package shortcuts must target MAS, MAG, RCA, and OBF');
   }
   const homePurposeEntries = homeViewModel.home_purpose_entries ?? [];
   if (JSON.stringify(homePurposeEntries.map((entry) => entry.id)) !== JSON.stringify(['research', 'grant', 'ppt', 'book'])) {
     throw new Error('Guid home page must expose research, grant, ppt, and book purpose entries');
   }
   if (JSON.stringify(homePurposeEntries.map((entry) => entry.target_assistant_id)) !== JSON.stringify(['mas', 'mag', 'rca', 'bookforge'])) {
-    throw new Error('Guid home page purpose entries must target MAS, MAG, RCA, and BookForge');
+    throw new Error('Guid home page purpose entries must target MAS, MAG, RCA, and OBF');
   }
 }
 
@@ -158,7 +158,7 @@ function validateGuidHomeVisibleSignals(guidHomePage) {
     'Codex CLI fixed executor experience',
     'Codex model selector defaulting to GPT-5.5',
     'reasoning effort configurable inside the Codex model menu',
-    'purpose-first entries 科研/MAS, 基金/MAG, 演示/RCA, 写书/BookForge',
+    'purpose-first entries 科研/MAS, 基金/MAG, 演示/RCA, 写书/OBF',
     'selected assistant keeps purpose entry switcher visible',
     'assistant-scoped skill menu with required skill checked',
     'ordinary skill selector filtered to App-owned assistant profile skill allowlist',

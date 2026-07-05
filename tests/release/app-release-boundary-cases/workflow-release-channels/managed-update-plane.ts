@@ -55,7 +55,7 @@ test('runtime substrate and companion tools are separate App-owned managed chann
   assert.equal(runtimeUpdater.brand_name, 'OPL Runtime Fabric');
   assert.equal(
     runtimeUpdater.brand_role,
-    'shared runtime fabric for OPL capability modules, not a MAS/MAG/RCA/OMA/BookForge/ScholarSkills brand module',
+    'shared runtime fabric for OPL capability modules, not a MAS/MAG/RCA/OMA/OBF/ScholarSkills brand module',
   );
   assert.equal(runtimeUpdater.channel_manifest_asset, 'app-runtime-update-channel.json');
   assert.equal(runtimeUpdater.standard_updater_metadata_allowed, false);

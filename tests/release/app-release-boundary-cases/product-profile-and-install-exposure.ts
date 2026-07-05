@@ -1244,7 +1244,7 @@ test('runtime substrate auto-update stays silent and does not mutate global tool
   assert.equal(runtimeUpdate.brand_name, 'OPL Runtime Fabric');
   assert.equal(
     runtimeUpdate.brand_role,
-    'shared runtime fabric for OPL capability modules, not a MAS/MAG/RCA/OMA/BookForge/ScholarSkills brand module',
+    'shared runtime fabric for OPL capability modules, not a MAS/MAG/RCA/OMA/OBF/ScholarSkills brand module',
   );
   assert.equal(runtimeUpdate.entrypoint, 'opl system startup-maintenance');
   assert.equal(runtimeUpdate.ready_to_launch_blocking, false);

@@ -913,7 +913,7 @@
       {
         "id": "access_information_architecture",
         "track": "user_task_ux",
-        "goal": "Access explains model access, local runtime ability, native remote access, and advanced deployment without first-screen raw provider configuration or normal-state diagnostics.",
+        "goal": "Access explains model access, local runtime ability, browser access to this computer, and advanced deployment without first-screen raw provider configuration or normal-state diagnostics.",
         "evidence_required": [
           "Access adapter forbids direct provider implementation reads",
           "task entry includes model access, local runtime ability, remote access, and advanced deployment",

@@ -1900,7 +1900,7 @@
       "forbidden_inferences": [
         "stable/latest promotion from draft evidence bundle alone",
         "family production readiness from App release/user-path evidence",
-        "MAS/MAG/RCA/BookForge domain readiness from App release/user-path evidence",
+        "MAS/MAG/RCA/OBF domain readiness from App release/user-path evidence",
         "runtime truth from App UI rendering"
       ]
     }
@@ -3096,7 +3096,7 @@
     "owner": "one-person-lab-app",
     "role": "app_owned_runtime_substrate_layer_updates",
     "brand_name": "OPL Runtime Fabric",
-    "brand_role": "shared runtime fabric for OPL capability modules, not a MAS/MAG/RCA/OMA/BookForge/ScholarSkills brand module",
+    "brand_role": "shared runtime fabric for OPL capability modules, not a MAS/MAG/RCA/OMA/OBF/ScholarSkills brand module",
     "channel_manifest_asset": "app-runtime-update-channel.json",
     "transport": "app_owned_github_release_assets",
     "standard_updater_metadata_allowed": false,

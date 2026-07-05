@@ -922,7 +922,7 @@ function validateEnvironmentModuleMaintenanceEntry(entry, label) {
   }
   assertIncludesAll(
     entry?.required_modules,
-    ['MAS', 'MAG', 'RCA', 'OMA', 'BookForge', 'ScholarSkills'],
+    ['MAS', 'MAG', 'RCA', 'OMA', 'OBF', 'ScholarSkills'],
     `${label} module maintenance modules`,
   );
   assertIncludesAll(
@@ -971,7 +971,7 @@ function validateFrameworkModuleMaintenanceEntry(entry) {
   }
   assertIncludesAll(
     entry?.must_include_modules,
-    ['MAS', 'MAG', 'RCA', 'OMA', 'BookForge', 'ScholarSkills'],
+    ['MAS', 'MAG', 'RCA', 'OMA', 'OBF', 'ScholarSkills'],
     'App GUI framework module maintenance modules',
   );
   assertDeepEqualJson(
