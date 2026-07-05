@@ -524,6 +524,11 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p artifacts/release
+          artifact_download_outcome="${{ steps.release_artifact_download.outcome }}"
+          if [ -n "${{ inputs.release_artifact_name }}" ] && [ "$artifact_download_outcome" != "success" ]; then
+            echo "::warning::Workflow artifact download outcome was ${artifact_download_outcome:-unavailable}; removing partial artifact files and falling back to the GitHub Release asset."
+            find artifacts/release -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+          fi
 
           fetch_release_metadata_with_retry() {
             local repo="$1"
