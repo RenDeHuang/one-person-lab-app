@@ -244,12 +244,12 @@ function assertSettingsProfileShape(profile: AppProductProfile): void {
   }
   assertIncludesAll(
     taskEntryPolicy.p0_entries ?? [],
-    ['model_account', 'workspace_entry', 'maintenance_hub', 'capability_status'],
+    ['model_access', 'local_runtime_ability', 'workspace_entry', 'maintenance_hub', 'capability_status'],
     'settings_information_architecture.task_entry_policy.p0_entries',
   );
   assertIncludesAll(
     taskEntryPolicy.p1_entries ?? [],
-    ['web_remote_access', 'developer_profile_status', 'external_tools_voice', 'custom_assistants'],
+    ['remote_access', 'advanced_deployment', 'developer_profile_status', 'external_tools_voice', 'custom_assistants'],
     'settings_information_architecture.task_entry_policy.p1_entries',
   );
   assertIncludesAll(

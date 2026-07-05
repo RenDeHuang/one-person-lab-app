@@ -138,9 +138,10 @@ inside those groups instead of adding more tabs.
 
 P0 entries:
 
-- Access: OPL Gateway readiness with access-key configuration behind
-  disclosure, plus Codex CLI, Background Service / Temporal, and permission
-  readiness cards.
+- Access: four user-facing groups: model access, local runtime ability, remote
+  access, and advanced deployment. Normal state shows the conclusion and the
+  next useful action first; repeated diagnostics stay behind details or appear
+  only when the state is abnormal.
 - Workspace: current path, open/change/verify actions, and permission status.
   It belongs to Overview as an ordinary setup entry.
 - Maintenance Hub: App updates, OPL Runtime Fabric, OPL Packages, storage
@@ -151,10 +152,9 @@ P0 entries:
 
 P1 entries:
 
-- Web / Docker / Remote Access: direct route for users who need AionUI native
-  remote access, Docker WebUI, OPL Workspace, user-provided SSH/HPC, or OPL
-  Cloud-managed resources. Native remote access owns port, account, and
-  password controls.
+- Remote access: direct route for users who need native AionUI remote access.
+  Docker WebUI, OPL Workspace, user-provided SSH/HPC, and OPL Cloud-managed
+  resources are advanced deployment concerns, not the normal Access path.
 - Developer Profile Status: local checkout source, auto-update impact, and
   dirty checkout risk. It belongs to Advanced.
 - External Tools & Voice: ordinary label for tools, MCP support, and voice.
@@ -178,7 +178,7 @@ The overview is a summary-first dashboard. It shows:
 - status chips for access, workspace, local services, and capabilities;
 - one recommended primary action and at most two secondary actions;
 - direct entries for Workspace, Access, Maintenance & Updates,
-  Data & Storage, Capabilities, and Web / Remote Access;
+  Data & Storage, Capabilities, and Remote Access;
 - last maintenance check and next background check when known;
 - a collapsed technical detail section.
 
@@ -187,26 +187,24 @@ phase names, git state, or package receipt ids as first-screen content.
 
 ### Access
 
-Access owns user-facing connection readiness:
+Access owns user-facing connection readiness through four groups:
 
-- Codex CLI availability;
-- OPL Gateway key readiness, with access-key configuration hidden behind an
-  explicit action;
-- Background Service / Temporal readiness;
-- OPL Gateway status as the branded AI access surface for model routing, key
-  state, provider policy, and use refs;
-- model access/API key state;
-- default model and reasoning selection;
-- permission meaning in user language;
-- Web & Remote Access for native AionUI remote access, Local App, Docker/WebUI,
-  OPL Workspace, user-provided SSH/HPC, and OPL Cloud-managed compute or
-  storage refs;
-- OPL Fabric resource-source status for compute, storage, connector, and
-  environment refs when the Framework projection provides them;
-- Environment Catalog refs that show template, version, source, and task fit;
-- Console-managed resource refs for policy, quota, billing, and permission, and
-  self-managed status for local, user-provided SSH, and user-provided HPC
-  resources.
+- Model access: OPL Gateway, configured model access/API-key state, default
+  model and reasoning selection, and provider policy refs.
+- Local runtime ability: whether Codex CLI can run now, Background Service /
+  Temporal readiness, and permission meaning in user language.
+- Remote access: native AionUI remote access for this App, including port,
+  account, password, and local network reachability controls.
+- Advanced deployment: Docker WebUI, OPL Workspace, user-provided SSH/HPC, OPL
+  Cloud-managed compute or storage refs, OPL Fabric resource-source status,
+  Environment Catalog refs, and Console-managed policy, quota, billing, and
+  permission refs.
+
+In the normal state, Access shows the conclusion and necessary action for each
+group. Repeated gateway summary lines, raw `action_available`,
+`diagnose_with_doctor`, `available`, CLI dry-run commands, status ids, and
+provider/runtime internals are hidden by default. They may appear only in an
+explicit details disclosure or when an abnormal state needs diagnostic evidence.
 
 Base URLs, token paths, raw config files, and provider internals are advanced
 details, not first-screen content. Console billing, organization policy, and

@@ -783,6 +783,32 @@ function validateSettingsCapabilitiesDirectoryProjection(capabilitiesPage) {
 }
 
 function validateSettingsAccessCloudBoundary(accessPage) {
+  const presentation = accessPage?.normal_state_presentation;
+  if (!presentation || typeof presentation !== 'object') {
+    throw new Error('Settings Access page adapter must declare normal_state_presentation');
+  }
+  assertDeepEqualJson(
+    presentation.user_facing_groups,
+    ['model_access', 'local_runtime_ability', 'remote_access', 'advanced_deployment'],
+    'Settings Access normal-state groups',
+  );
+  if (presentation.default_policy !== 'conclusion_and_necessary_action_first') {
+    throw new Error('Settings Access normal state must show conclusion and necessary action first');
+  }
+  if (presentation.details_policy !== 'internal_diagnostics_only_in_details_or_abnormal_state') {
+    throw new Error('Settings Access diagnostics must stay in details or abnormal states');
+  }
+  assertIncludesAll(
+    presentation.advanced_deployment_members,
+    ['Docker WebUI', 'OPL Workspace', 'user-provided SSH/HPC', 'OPL Cloud-managed resources'],
+    'Settings Access advanced deployment members',
+  );
+  assertIncludesAll(
+    presentation.hidden_normal_state_terms,
+    ['repeated OPL Gateway summary lines', 'action_available', 'diagnose_with_doctor', 'available', 'CLI dry-run commands'],
+    'Settings Access hidden normal-state terms',
+  );
+
   const boundary = accessPage?.cloud_remote_boundary;
   if (!boundary || typeof boundary !== 'object') {
     throw new Error('Settings Access page adapter must declare cloud_remote_boundary');
@@ -792,8 +818,8 @@ function validateSettingsAccessCloudBoundary(accessPage) {
     ['App', 'Workspace', 'Gateway', 'Fabric', 'Console'],
     'Settings Access cloud remote boundary terms',
   );
-  if (boundary.display_policy !== 'explain_app_workspace_gateway_fabric_console_boundary_without_runtime_truth_claims') {
-    throw new Error('Settings Access cloud remote boundary must explain the App/Workspace/Gateway/Fabric/Console boundary');
+  if (boundary.display_policy !== 'summarize_remote_access_with_advanced_deployment_refs_without_runtime_truth_claims') {
+    throw new Error('Settings Access cloud remote boundary must keep remote access separate from advanced deployment refs');
   }
   if (boundary.refs_only !== true) {
     throw new Error('Settings Access cloud remote boundary refs_only must be true');

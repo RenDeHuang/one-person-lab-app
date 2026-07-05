@@ -430,6 +430,29 @@
         "adapter_entry": "packages/desktop/src/renderer/pages/settings/accessProjection.ts",
         "renderer_entry": "packages/desktop/src/renderer/pages/settings/sections/AccessSettings.tsx",
         "state_source": "opl app state --profile fast --json",
+        "normal_state_presentation": {
+          "user_facing_groups": [
+            "model_access",
+            "local_runtime_ability",
+            "remote_access",
+            "advanced_deployment"
+          ],
+          "default_policy": "conclusion_and_necessary_action_first",
+          "details_policy": "internal_diagnostics_only_in_details_or_abnormal_state",
+          "advanced_deployment_members": [
+            "Docker WebUI",
+            "OPL Workspace",
+            "user-provided SSH/HPC",
+            "OPL Cloud-managed resources"
+          ],
+          "hidden_normal_state_terms": [
+            "repeated OPL Gateway summary lines",
+            "action_available",
+            "diagnose_with_doctor",
+            "available",
+            "CLI dry-run commands"
+          ]
+        },
         "cloud_remote_boundary": {
           "required_boundary_terms": [
             "App",
@@ -438,7 +461,7 @@
             "Fabric",
             "Console"
           ],
-          "display_policy": "explain_app_workspace_gateway_fabric_console_boundary_without_runtime_truth_claims",
+          "display_policy": "summarize_remote_access_with_advanced_deployment_refs_without_runtime_truth_claims",
           "refs_only": true,
           "forbidden_claims": [
             "runtime_truth",
@@ -640,7 +663,7 @@
     ],
     "redirect": [
       "Butler setup shortcuts",
-      "WebUI primary setup",
+      "Docker WebUI advanced deployment setup",
       "raw provider configuration"
     ],
     "reject": [
@@ -742,8 +765,8 @@
         "status": "active"
       },
       {
-        "id": "webui-primary-setup-redirected-to-access",
-        "upstream_surface": "AionUI WebUI primary setup",
+        "id": "webui-advanced-deployment-redirected-to-access",
+        "upstream_surface": "AionUI Docker WebUI advanced deployment setup",
         "classification": "redirect",
         "app_contract_ref": "contracts/app-settings-control-plane.json#legacy_route_redirects.webui",
         "route_or_slot_impact": {
@@ -888,12 +911,12 @@
         ]
       },
       {
-        "id": "access_model_account",
+        "id": "access_information_architecture",
         "track": "user_task_ux",
-        "goal": "Access explains model, account/API key, permissions, Web, Docker, and remote access without first-screen raw provider configuration.",
+        "goal": "Access explains model access, local runtime ability, native remote access, and advanced deployment without first-screen raw provider configuration or normal-state diagnostics.",
         "evidence_required": [
           "Access adapter forbids direct provider implementation reads",
-          "task entry includes OPL Gateway, Codex CLI, background service, and Web/Remote Access",
+          "task entry includes model access, local runtime ability, remote access, and advanced deployment",
           "focused Access DOM tests cover user-facing readiness"
         ]
       },

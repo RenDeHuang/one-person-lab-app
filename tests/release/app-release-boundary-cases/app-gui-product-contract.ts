@@ -600,11 +600,13 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     'secondary_or_deep_link_routes_must_not_be_promoted_to_ordinary_routes_without_contract_matrix_validator_and_test_updates',
   );
   assert.deepEqual(guiContract.settings_navigation.settings_ia.user_task_entries.map((entry) => entry.id), [
-    'model_account',
+    'model_access',
+    'local_runtime_ability',
     'workspace',
     'maintenance_hub',
     'capability_status',
-    'web_remote_access',
+    'remote_access',
+    'advanced_deployment',
     'developer_profile_status',
     'external_tools_voice',
     'custom_assistant',

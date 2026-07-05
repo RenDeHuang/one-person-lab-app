@@ -1826,7 +1826,13 @@
       ],
       "user_task_entries": [
         {
-          "id": "model_account",
+          "id": "model_access",
+          "group_id": "setup_access",
+          "route_id": "access",
+          "priority": "p0"
+        },
+        {
+          "id": "local_runtime_ability",
           "group_id": "setup_access",
           "route_id": "access",
           "priority": "p0"
@@ -1857,7 +1863,13 @@
           "priority": "p0"
         },
         {
-          "id": "web_remote_access",
+          "id": "remote_access",
+          "group_id": "setup_access",
+          "route_id": "access",
+          "priority": "p1"
+        },
+        {
+          "id": "advanced_deployment",
           "group_id": "setup_access",
           "route_id": "access",
           "priority": "p1"
@@ -2175,13 +2187,15 @@
       "ordinary_entry_model": "user_task_first_sections_inside_the_seven_OPL_Control_Center_groups",
       "top_level_tab_policy": "do_not_add_new_top_level_tabs_for_model_workspace_updates_web_tools_or_developer_profile",
       "p0_entries": [
-        "model_account",
+        "model_access",
+        "local_runtime_ability",
         "workspace_entry",
         "maintenance_hub",
         "capability_status"
       ],
       "p1_entries": [
-        "web_remote_access",
+        "remote_access",
+        "advanced_deployment",
         "developer_profile_status",
         "external_tools_voice",
         "custom_assistants"
@@ -3415,7 +3429,7 @@
         "Control Center Overview positioning",
         "workspace as an independent ordinary entry",
         "short links to Access, Capabilities, Maintenance & Updates, Data & Storage, Preferences, Advanced, and Project Progress",
-        "task entry hub for Workspace, OPL Gateway, Maintenance, Capabilities, and Web / Remote Access",
+        "task entry hub for Workspace, OPL Gateway, Maintenance, Capabilities, and Remote Access",
         "workspace path, open/change/verify actions, and permission status as ordinary user-facing content"
       ],
       "must_not_show": [
@@ -3429,18 +3443,10 @@
       "state_source": "opl app state --profile fast --json",
       "refresh_source": "opl app state --profile fast --json",
       "sections": [
-        "getting_started_summary",
-        "model_account",
-        "codex_cli",
-        "provider_readiness",
-        "api_keys",
-        "opl_gateway",
-        "cloud_remote_access",
-        "fabric_resource_sources",
-        "environment_catalog",
-        "console_managed_resources",
-        "webui_compatibility",
-        "web_remote_access"
+        "model_access",
+        "local_runtime_ability",
+        "remote_access",
+        "advanced_deployment"
       ],
       "must_show": [
         "whether Codex CLI can run now",
@@ -3449,15 +3455,12 @@
         "API key and base URL controls behind advanced disclosure",
         "section-level refresh state",
         "Access placed under OPL Control Center Access",
-        "OPL Gateway section with key readiness and access-key configuration behind disclosure",
-        "Codex CLI and Background Service / Temporal cards with user-facing readiness labels",
-        "OPL Gateway as the branded AI access surface for model routing, key status, and provider policy refs",
-        "Web & Remote Access entry that separates AionUI native remote access from Docker WebUI, OPL Workspace, user-provided SSH/HPC, and OPL Cloud managed resource sources",
-        "OPL Fabric resource-source status as refs-only local, remote, managed compute, storage, connector, and environment context",
-        "Environment Catalog read-only refs for template, version, source, and task fit when resource projections provide them",
-        "Console-managed status for policy, quota, billing, and permission refs on managed resources",
-        "self-managed status for local, user-provided SSH, and user-provided HPC resources",
-        "Web / Docker / Remote Access section with a direct user-facing entry to native WebUI port/account/password setup"
+        "four user-facing Access groups: Model access, Local runtime ability, Remote access, and Advanced deployment",
+        "normal state shows conclusion and necessary action before diagnostics",
+        "Model access group with OPL Gateway, configured model access, default model, reasoning, and provider policy refs",
+        "Local runtime ability group with Codex CLI, Background Service / Temporal, and permission readiness in user language",
+        "Remote access group for native AionUI remote access port, account, password, and local network reachability controls",
+        "Advanced deployment group for Docker WebUI, OPL Workspace, user-provided SSH/HPC, OPL Cloud managed resources, OPL Fabric, Environment Catalog, and Console-managed refs"
       ],
       "must_not_show": [
         "raw base URL and token paths as first-screen content",
@@ -3465,11 +3468,14 @@
         "WebUI as the primary access mental model",
         "backend/provider raw selector as the Access primary control",
         "Console billing or managed-cloud entitlement as an App-owned decision",
-        "Cloud service availability as release-ready or runtime-ready proof"
+        "Cloud service availability as release-ready or runtime-ready proof",
+        "repeated OPL Gateway summary lines in normal state",
+        "raw action_available, diagnose_with_doctor, available, or CLI dry-run commands in normal state",
+        "provider/runtime internals outside details disclosure or abnormal state"
       ],
       "cloud_fabric_surface": {
         "surface": "settings_access",
-        "display_name": "Web & Remote Access",
+        "display_name": "Remote access and advanced deployment",
         "source": "opl app state --profile fast --json optional cloud_fabric refs",
         "gateway_entry": "OPL Gateway",
         "deployment_surfaces": [

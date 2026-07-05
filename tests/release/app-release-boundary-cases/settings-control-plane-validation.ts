@@ -149,7 +149,7 @@ test('Settings adapter slot and upstream intake classification are machine-reada
       'skills-tools-settings-routed-to-capabilities',
       'provider-model-setup-routed-to-access-and-environment',
       'layout-accessibility-i18n-settings-fixes',
-      'webui-primary-setup-redirected-to-access',
+      'webui-advanced-deployment-redirected-to-access',
     ],
   );
   assert.deepStrictEqual(
@@ -243,10 +243,10 @@ test('Settings adapter slot and upstream intake classification are machine-reada
 
   const invalidRedirectEvidence = structuredClone(controlPlaneContract);
   invalidRedirectEvidence.upstream_intake_checklist.records.find(
-    (record) => record.id === 'webui-primary-setup-redirected-to-access',
+    (record) => record.id === 'webui-advanced-deployment-redirected-to-access',
   ).route_or_slot_impact = {};
   invalidRedirectEvidence.upstream_intake_checklist.records.find(
-    (record) => record.id === 'webui-primary-setup-redirected-to-access',
+    (record) => record.id === 'webui-advanced-deployment-redirected-to-access',
   ).app_contract_ref = 'contracts/app-settings-control-plane.json';
   assert.throws(
     () =>
@@ -532,7 +532,7 @@ test('Settings product system checklist is the completion-audit source and keeps
       'update_rollback_ux',
       'workspace_task_page',
       'local_services_page',
-      'access_model_account',
+      'access_information_architecture',
       'capabilities_experience',
       'data_storage_safety',
       'preferences_purity',
