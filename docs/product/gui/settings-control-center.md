@@ -51,7 +51,7 @@ The target navigation groups are:
 | --- | --- | --- |
 | Overview | Overview | Is the App usable now, and what should I do next? |
 | Setup & Access | Access & Model, Workspace | How do I connect the App, and where does work happen? |
-| Capabilities | Agents & Capabilities | What can OPL help me do? |
+| Capabilities | Capabilities | What can OPL help me do? |
 | Maintenance & Updates | Updates & Maintenance, Local Services | How do I keep the App foundation healthy and updated? |
 | Data & Storage | Storage & Data | How do I safely manage local App data? |
 | Preferences | Appearance, Language & Notifications | How should the App behave and look for me? |
@@ -209,7 +209,7 @@ it. It shows:
 
 Workspace must not be presented as a runtime diagnostic-only field.
 
-### Agents & Capabilities
+### Capabilities
 
 Capabilities are organized by installed Agent Packages and user-facing work
 shortcuts before implementation detail. First-party starter registry entries
@@ -278,8 +278,9 @@ Connect disclosure details, not separate ordinary capability categories.
 
 ### Updates & Maintenance
 
-Updates & Maintenance owns normal maintenance and update actions, while About owns only version and
-links. The maintenance page groups:
+Updates & Maintenance owns normal maintenance and update actions, while About
+and Update stay discoverable secondary destinations for version, channel,
+release notes, and explicit update detail. The maintenance page groups:
 
 - Installation carrier;
 - OPL Runtime Fabric;

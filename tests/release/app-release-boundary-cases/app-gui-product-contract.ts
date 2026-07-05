@@ -113,7 +113,16 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     attention_group_default: 'visible_when_nonempty',
     inactive_group_default: 'collapsed',
     inactive_states: ['queued', 'pending', 'waiting', 'stopped', 'parked', 'checkpointed', 'blocked', 'attention_needed'],
-    inactive_summary_fields: ['count', 'status', 'next_visible_step'],
+    inactive_summary_fields: [
+      'count',
+      'status',
+      'next_visible_step',
+      'runtime_closeout_observed',
+      'runtime_closeout_ref',
+      'mas_owner_consumption_status',
+      'mas_owner_consumed_stage_attempt_id',
+      'mas_owner_consumption_matches_runtime_closeout',
+    ],
   });
   assert.deepEqual(
     guiContract.framework_surfaces.runtime_default_attention.must_not_default_display_terms,
