@@ -48,9 +48,15 @@ export const managedUpdateScheduler = {
   backoff_policy: 'bounded_retry_with_last_failure_projection',
   user_blocking: false,
   must_project_last_run_and_next_run: true,
-  auto_apply_policy: 'auto_apply_clean_opl_packages_only_with_codex_surface_as_post_apply_substatus',
-  auto_apply_components: ['capability_packages'],
-  never_auto_apply_components: ['installation_carrier', 'runtime_substrate', 'companion_tools', 'workflow_profile'],
+  auto_apply_policy: 'no_background_auto_apply_refresh_projection_only',
+  auto_apply_components: [],
+  never_auto_apply_components: [
+    'installation_carrier',
+    'runtime_substrate',
+    'capability_packages',
+    'companion_tools',
+    'workflow_profile',
+  ],
   must_project_recent_actions_and_skip_reasons: true,
 };
 
