@@ -78,7 +78,8 @@ or release package has changed.
 | 12 | Source visual smoke | A source-level visual smoke proves the non-live candidate surface paints visible pixels for the workbench modules above. | Source visual artifact for the exact candidate cohort; packaged/VM evidence remains separate. |
 | 13 | Package manifest | Explicit candidate package emits a real `.app` manifest without changing stable/nightly release packaging. | Candidate package manifest and release-isolation check. |
 | 14 | Docs / runbook | Product docs, feature inventory, status, product index, and scripts guide describe the non-live product surface closure and the residual live-only gates. | Markdown diff check and residual wording scan. |
-| 15 | Later live evidence | Packaged GUI smoke, clean VM, same-cohort user path, release owner acceptance, active-shell adoption, and release-ready proof stay outside this candidate product-surface closure. | Required only before visual acceptance, release-ready, active-shell-adopted, or live/currentness claims. |
+| 15 | Local candidate live smoke | The candidate repo can launch the packaged `.app` locally with `npm run smoke:native-live` and write `out/native-live-smoke.json` / `out/native-live-smoke.png`. | This proves only local candidate launch/process/window evidence; clean VM, same-cohort owner acceptance, active-shell adoption, and release-ready proof remain separate. |
+| 16 | Later release / owner evidence | Clean VM, same-cohort user path, release owner acceptance, active-shell adoption, and release-ready proof stay outside this candidate product-surface closure. | Required only before visual acceptance, release-ready, active-shell-adopted, or release/currentness claims. |
 
 ## Current Non-Live Acceptance
 
@@ -97,7 +98,8 @@ readiness, or live App release currentness.
 | Implemented | OPL App state context | Source validators require fast state, full state, full drilldown, secondary runtime context, and active-project-line markers. |
 | Implemented | App action preview and receipt | Source validators require `opl app action execute --action`, `--dry-run`, visible action preview controls, and visible receipt markers. |
 | Implemented | Settings route | Source validators require the Settings route, model/account access entry, locale toggle, and packaged route switch markers. |
-| Partial | Packaged/WebUI/visual evidence | Current checks are candidate source/package evidence only. They do not prove same-cohort live user-path behavior, clean-VM behavior, owner acceptance, or release adoption. |
+| Implemented candidate evidence | Local packaged `.app` smoke | Candidate repo `npm run smoke:native-live` launches the packaged AppKit/WKWebView `.app`, records process/window evidence, and writes a local screenshot artifact. |
+| Partial | Packaged/WebUI/visual evidence | Current checks are candidate source/package/local-live evidence only. They do not prove same-cohort owner-accepted user-path behavior, clean-VM behavior, or release adoption. |
 | Partial | Artifact preview, provenance, starters, confirmations, export | These are refs-only candidate UI surfaces. Artifact bodies, domain truth, export verdicts, and owner receipts remain outside the shell. |
 | Not ready | Release and authority claims | `active_shell_adopted`, `release_ready`, `production_ready`, `domain_ready`, `clean_vm_ready`, `full_release_ready`, `live_evidence`, `owner_receipt`, `runtime_authority_transfer`, and `domain_truth_owned` must stay false until the App owner runs the later adoption and release gates. |
 
