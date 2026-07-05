@@ -826,7 +826,7 @@ test('AI release notes completion sanitizes process-first developer memo copy be
   const version = '26.5.19-ai-process-copy';
   const dmgName = `One-Person-Lab-${version}-mac-arm64.dmg`;
   const zipName = `One-Person-Lab-${version}-mac-arm64.zip`;
-  const badPublicMarkdown = `One Person Lab v${version}
+  const badPublicMarkdown = `I’m turning the evidence into user-facing release notes first, then I’ll add the technical tail exactly as requested.One Person Lab v${version}
 
 Workflow validation gate and release operator owner receipt refs are aligned for this cohort while MAS, MAG, and RCA remain available after first launch.
 
@@ -892,9 +892,12 @@ Workflow validation gate and release operator owner receipt refs are aligned for
   assert.equal(result.status, 0, result.stderr);
   const payload = JSON.parse(result.stdout);
   const publicMarkdown = String(payload.release_notes).split('## Technical details')[0];
+  assert.doesNotMatch(publicMarkdown, /turning the evidence/i);
   assert.doesNotMatch(publicMarkdown, /\brefs?\b/i);
   assert.doesNotMatch(publicMarkdown, /\bowner receipt\b/i);
   assert.doesNotMatch(publicMarkdown, /\bcohort\b/i);
+  assert.match(payload.release_notes, /## Highlights/);
+  assert.match(payload.release_notes, /## Compatibility and action required/);
   assert.match(payload.release_notes, /## Technical details/);
 });
 

@@ -430,6 +430,19 @@ function insertSectionBeforeTechnicalIfMissing(markdown: string, heading: string
   return `${before}\n\n${section.trimEnd()}\n\n${after}`;
 }
 
+function insertSectionBeforeHeadingIfMissing(markdown: string, heading: string, beforeHeading: string, section: string) {
+  if (!section || markdown.includes(heading)) {
+    return markdown;
+  }
+  const offset = markdown.indexOf(`\n${beforeHeading}`);
+  if (offset < 0) {
+    return insertSectionBeforeTechnicalIfMissing(markdown, heading, section);
+  }
+  const before = markdown.slice(0, offset).trimEnd();
+  const after = markdown.slice(offset).trimStart();
+  return `${before}\n\n${section.trimEnd()}\n\n${after}`;
+}
+
 function formatFamilyUpdate(change: any) {
   const subjects = compactArray(change.change_subjects, 3);
   const subjectText = subjects.length > 0 ? ` Highlights include ${subjects.join('; ')}.` : '';
@@ -437,6 +450,25 @@ function formatFamilyUpdate(change: any) {
   const count = Number.isFinite(change.commit_count) ? `${change.commit_count} commits. ` : '';
   const compare = change.compare_url ? ` [Compare changes](${change.compare_url})` : '';
   return `- ${change.label}: ${count}${summary}${subjectText}${compare}`;
+}
+
+function buildHighlightsSection(evidence: ReleaseNotesEvidence) {
+  const source = evidence as any;
+  const groupedBullets = compactArray(source.grouped_changes, 4)
+    .flatMap((group: any) => compactArray(group.bullets, 1))
+    .filter(Boolean);
+  const fullPackage = source.payload?.include_full_package
+    ? 'Full first-install users get the App plus bundled research, grant, visual, Office, and document-intake tools from one Stable package.'
+    : 'Standard App users get refreshed built-in OPL entries for MAS, MAG, RCA, and OPL Meta Agent sessions.';
+  const bullets = [
+    fullPackage,
+    ...groupedBullets,
+  ].slice(0, 4);
+  return [
+    '## Highlights',
+    '',
+    ...bullets.map((bullet: string) => `- ${bullet}`),
+  ].join('\n');
 }
 
 function buildWhatImprovedSection(evidence: ReleaseNotesEvidence) {
@@ -451,6 +483,29 @@ function buildWhatImprovedSection(evidence: ReleaseNotesEvidence) {
     '## What improved',
     '',
     ...(bullets.length > 0 ? bullets : fallback).map((bullet: string) => `- ${bullet}`),
+  ].join('\n');
+}
+
+function buildCompatibilitySection(evidence: ReleaseNotesEvidence) {
+  const source = evidence as any;
+  const bullets = source.channel === 'nightly'
+    ? [
+      'Nightly builds are for trying the standard App package before Stable.',
+      'Use the Stable channel when you need the Full first-install package.',
+    ]
+    : source.payload?.include_full_package
+      ? [
+        'No manual migration is required beyond installing or upgrading this Stable release.',
+        'Use the Full first-install package for a fresh machine that needs bundled OPL family tools.',
+      ]
+      : [
+        'No manual migration is required beyond installing or upgrading this Stable release.',
+        'Use a Full release when you need bundled runtime, Office, and document-intake payloads on a fresh machine.',
+      ];
+  return [
+    '## Compatibility and action required',
+    '',
+    ...bullets.map((bullet: string) => `- ${bullet}`),
   ].join('\n');
 }
 
@@ -481,6 +536,32 @@ function ensureReleaseTitle(markdown: string, evidence: ReleaseNotesEvidence) {
     return markdown;
   }
   return `${evidence.release_title}${trimmed ? `\n\n${trimmed}` : '\n'}`;
+}
+
+function removeAiProcessPreamble(markdown: string, evidence: ReleaseNotesEvidence) {
+  const title = escapeRegExp(evidence.release_title);
+  const processPreamble = new RegExp(
+    `^\\s*(?:I['’]m|I am)\\b[\\s\\S]{0,700}?${title}`,
+    'i',
+  );
+  const processLine = /\b(?:I['’]m|I am)\b.*\b(?:evidence|update summary|release notes?|technical tail|sections?|requested|user-facing)\b/i;
+  const titleLine = new RegExp(`^#?\\s*${title}(?:\\s|$)`);
+  const normalized = markdown.replace(processPreamble, evidence.release_title);
+  let sawTitle = false;
+  return normalized
+    .split('\n')
+    .filter((line) => !processLine.test(line.trim()))
+    .filter((line) => {
+      if (!titleLine.test(line.trim())) {
+        return true;
+      }
+      if (!sawTitle) {
+        sawTitle = true;
+        return true;
+      }
+      return false;
+    })
+    .join('\n');
 }
 
 function buildInstallSection(evidence: ReleaseNotesEvidence) {
@@ -561,8 +642,10 @@ function completeAiReleaseNotesWithEvidence(markdown: string, evidence: ReleaseN
   let visible = stripLocalizedReleaseNotes(markdown).trimEnd();
   visible = sanitizePreTechnicalDeveloperTerms(visible);
   visible = removePayloadEvidenceBeforeTechnical(visible, evidence);
+  visible = removeAiProcessPreamble(visible, evidence);
   visible = ensureReleaseTitle(visible, evidence);
   visible = ensureOpeningBenefitParagraph(visible, evidence);
+  visible = insertSectionBeforeHeadingIfMissing(visible, '## Highlights', '## What improved', buildHighlightsSection(evidence));
   visible = insertSectionBeforeTechnicalIfMissing(visible, '## What improved', buildWhatImprovedSection(evidence));
   const installSection = buildInstallSection(evidence);
   if (installSection) {
@@ -571,6 +654,7 @@ function completeAiReleaseNotesWithEvidence(markdown: string, evidence: ReleaseN
   visible = insertSectionBeforeTechnicalIfMissing(visible, '## OPL agents and runtime payload', buildPayloadSection(evidence));
   visible = insertSectionBeforeTechnicalIfMissing(visible, '## OPL family updates', buildFamilyUpdatesSection(evidence));
   visible = insertSectionBeforeTechnicalIfMissing(visible, '## Release scope', buildReleaseScopeSection(evidence));
+  visible = insertSectionBeforeTechnicalIfMissing(visible, '## Compatibility and action required', buildCompatibilitySection(evidence));
   const technical = technicalDetailsOffset(visible);
   if (technical < 0) {
     visible = `${visible.trimEnd()}\n\n${buildTechnicalDetailsSection(evidence)}`;
@@ -787,7 +871,7 @@ function validateEnglishReleaseNotesMarkdown(markdown: string, evidence: Release
   if (!new RegExp(`^#?\\s*${escapeRegExp(evidence.release_title)}(?:\\s|$)`).test(markdown)) {
     failures.push('missing release title');
   }
-  for (const required of ['## What improved', '## OPL agents and runtime payload', '## Release scope']) {
+  for (const required of ['## Highlights', '## What improved', '## Compatibility and action required', '## OPL agents and runtime payload', '## Release scope']) {
     if (!markdown.includes(required)) {
       failures.push(`missing ${required}`);
     }
