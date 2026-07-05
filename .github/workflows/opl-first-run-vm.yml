@@ -508,7 +508,10 @@ jobs:
 
       - name: Download release DMG artifact
         if: ${{ inputs.release_artifact_name != '' }}
+        id: release_artifact_download
         uses: actions/download-artifact@v8
+        timeout-minutes: 10
+        continue-on-error: true
         with:
           name: ${{ inputs.release_artifact_name }}
           run-id: ${{ inputs.release_artifact_run_id || github.run_id }}
@@ -651,9 +654,9 @@ jobs:
 
           if [ "${{ steps.package_profile.outputs.install_mode }}" = "homebrew-cask" ]; then
             echo "Using Homebrew cask install path: ${{ steps.package_profile.outputs.homebrew_cask }}"
-          elif [ -n "${{ inputs.release_artifact_name }}" ] && [ -n "${{ inputs.release_artifact_run_id }}" ]; then
+          elif [ -n "${{ inputs.release_artifact_name }}" ] && find artifacts/release -type f | grep -q . && [ -n "${{ inputs.release_artifact_run_id }}" ]; then
             echo "Using source workflow run artifact: ${{ inputs.release_artifact_name }} from run ${{ inputs.release_artifact_run_id }}"
-          elif [ -n "${{ inputs.release_artifact_name }}" ]; then
+          elif [ -n "${{ inputs.release_artifact_name }}" ] && find artifacts/release -type f | grep -q .; then
             echo "Using same-run workflow artifact: ${{ inputs.release_artifact_name }}"
           elif [ -n "${{ inputs.release_dmg_url }}" ]; then
             DMG_PATH="artifacts/release/One-Person-Lab-${{ steps.package_profile.outputs.profile }}.dmg"
