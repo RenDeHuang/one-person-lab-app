@@ -462,6 +462,15 @@ function ensureOpeningBenefitParagraph(markdown: string, evidence: ReleaseNotesE
   return markdown;
 }
 
+function ensureReleaseTitle(markdown: string, evidence: ReleaseNotesEvidence) {
+  const titlePattern = new RegExp(`^#?\\s*${escapeRegExp(evidence.release_title)}(?:\\s|$)`);
+  const trimmed = markdown.trimStart();
+  if (titlePattern.test(trimmed)) {
+    return markdown;
+  }
+  return `${evidence.release_title}${trimmed ? `\n\n${trimmed}` : '\n'}`;
+}
+
 function buildInstallSection(evidence: ReleaseNotesEvidence) {
   const source = evidence as any;
   if (source.channel !== 'stable' || !source.install_command) {
@@ -541,6 +550,7 @@ function completeAiReleaseNotesWithEvidence(markdown: string, evidence: ReleaseN
   let visible = stripLocalizedReleaseNotes(markdown).trimEnd();
   visible = sanitizePreTechnicalDeveloperTerms(visible);
   visible = removePayloadEvidenceBeforeTechnical(visible, evidence);
+  visible = ensureReleaseTitle(visible, evidence);
   visible = ensureOpeningBenefitParagraph(visible, evidence);
   visible = insertSectionBeforeTechnicalIfMissing(visible, '## What improved', buildWhatImprovedSection(evidence));
   const installSection = buildInstallSection(evidence);
