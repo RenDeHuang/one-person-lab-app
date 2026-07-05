@@ -412,7 +412,20 @@
       "artifact_body_access": false,
       "owner_receipt_write_access": false,
       "domain_verdict_authority": false,
-      "candidate_policy": "report_first_candidate_refs_review_needs_changes_continue_in_conversation_no_auto_enable_no_skill_body_write"
+      "candidate_policy": "report_first_candidate_refs_review_needs_changes_continue_in_conversation_no_auto_enable_no_skill_body_write",
+      "directory_primary_model": {
+        "primary_structure": "agent_packages_and_home_shortcuts_first",
+        "display_policy": "package_directory_home_shortcuts_first_tools_and_connectors_supporting_no_purpose_card_primary_semantics",
+        "supporting_sections": [
+          "external_tools_voice",
+          "connectors",
+          "workflow_skill_candidates"
+        ],
+        "forbidden_primary_semantics": [
+          "purpose_grouped_big_cards",
+          "strong_session_contract"
+        ]
+      }
     },
     "temporal_policy": "diagnostics_only_never_user_task_model",
     "app_role": "display_only_task_awareness_consumer",

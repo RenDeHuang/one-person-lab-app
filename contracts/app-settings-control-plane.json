@@ -446,12 +446,26 @@
             "domain_truth",
             "domain_readiness",
             "app_release_readiness"
-          ]
+          ],
+          "native_remote_access_policy": {
+            "display_policy": "preserve_aionui_native_remote_access_capabilities_and_add_opl_context",
+            "additive_only": true,
+            "stable_entry_surfaces": [
+              "settings_access",
+              "settings_search"
+            ],
+            "preserved_capabilities": [
+              "remote access setup",
+              "Docker WebUI access",
+              "user-provided SSH/HPC access"
+            ]
+          }
         },
         "forbidden_sources": [
           "raw provider selector as ordinary UI",
           "direct provider implementation reads",
-          "domain truth writes"
+          "domain truth writes",
+          "subtractive remote access rewrite"
         ]
       },
       "environment": {
@@ -517,7 +531,20 @@
           "artifact_body_access": false,
           "owner_receipt_write_access": false,
           "domain_verdict_authority": false,
-          "candidate_policy": "report_first_candidate_refs_review_needs_changes_continue_in_conversation_no_auto_enable_no_skill_body_write"
+          "candidate_policy": "report_first_candidate_refs_review_needs_changes_continue_in_conversation_no_auto_enable_no_skill_body_write",
+          "directory_primary_model": {
+            "primary_structure": "agent_packages_and_home_shortcuts_first",
+            "display_policy": "package_directory_home_shortcuts_first_tools_and_connectors_supporting_no_purpose_card_primary_semantics",
+            "supporting_sections": [
+              "external_tools_voice",
+              "connectors",
+              "workflow_skill_candidates"
+            ],
+            "forbidden_primary_semantics": [
+              "purpose_grouped_big_cards",
+              "strong_session_contract"
+            ]
+          }
         },
         "forbidden_sources": [
           "upstream unified catalog without allowlist",
@@ -700,6 +727,24 @@
         "status": "active"
       },
       {
+        "id": "native-remote-access-preserved-and-extended",
+        "upstream_surface": "AionUI remote access setup",
+        "classification": "adapt",
+        "app_contract_ref": "contracts/app-settings-control-plane.json#page_adapter_policy.required_pages.access.cloud_remote_boundary.native_remote_access_policy",
+        "route_or_slot_impact": {
+          "route_id": "access",
+          "slot_id": "settings_access",
+          "adapter_slot": "SettingsShellAdapterSlot"
+        },
+        "required_evidence": [
+          "Settings Access preserves AionUI native remote access capabilities as a stable entry",
+          "OPL Gateway, Workspace, and Fabric context is additive rather than subtractive"
+        ],
+        "decision_owner": "one-person-lab-app",
+        "last_reviewed_at": "2026-07-05",
+        "status": "active"
+      },
+      {
         "id": "webui-primary-setup-redirected-to-access",
         "upstream_surface": "AionUI WebUI primary setup",
         "classification": "redirect",
@@ -748,11 +793,11 @@
       {
         "id": "secondary_route_strategy",
         "track": "ia_routes",
-        "goal": "Workspace, Local Services, About, Update, and Theme remain secondary or deep-link routes, searchable and routable without top-level promotion.",
+        "goal": "Workspace, Local Services, About, Update, and Theme remain secondary or deep-link routes, with About and Update kept as stable discoverable page entries.",
         "evidence_required": [
           "secondary_pages declares the five route ids",
           "route resolver returns secondary_or_deep_link",
-          "visual or route tests cover Workspace and Local Services"
+          "About and Update remain searchable stable page entries from Advanced or Maintenance"
         ]
       },
       {
@@ -808,11 +853,11 @@
       {
         "id": "maintenance_noise_reduction",
         "track": "user_task_ux",
-        "goal": "Maintenance shows user impact and safe next steps; OPL packages and Codex Surface are not shown as competing update systems.",
+        "goal": "Maintenance is system maintenance only: installation carrier, runtime substrate, companion tools, OPL Packages, and local services without in-progress task detail.",
         "evidence_required": [
           "maintenance route uses summary, recommendation, and disclosure card protocol",
           "Codex Surface appears as capability/package status",
-          "raw component ids stay collapsed"
+          "current task details and domain blocker ledgers stay out of Maintenance & Updates ordinary copy"
         ]
       },
       {
@@ -848,21 +893,21 @@
       {
         "id": "access_model_account",
         "track": "user_task_ux",
-        "goal": "Access explains model, account/API key, permissions, Web, Docker, and remote access without first-screen raw provider configuration.",
+        "goal": "Access explains model, account/API key, permissions, Web, Docker, and remote access while preserving AionUI native remote access capabilities and avoiding first-screen raw provider configuration.",
         "evidence_required": [
           "Access adapter forbids direct provider implementation reads",
-          "task entry includes Model & Account and Web/Remote Access",
-          "focused Access DOM tests cover user-facing readiness"
+          "native remote access policy stays additive-only",
+          "focused Access DOM tests cover user-facing readiness and stable remote-access entry points"
         ]
       },
       {
         "id": "capabilities_experience",
         "track": "user_task_ux",
-        "goal": "Capabilities are organized by user purpose with package support, Codex visibility, sync state, failure reason, and per-package action detail.",
+        "goal": "Capabilities are organized as agent package directory/list plus Home shortcuts, with tools/connectors as supporting sections and no purpose-card primary semantics.",
         "evidence_required": [
           "Capabilities adapter is required",
-          "Capabilities task entry is purpose-based",
-          "supporting tools remain below purpose cards"
+          "Capabilities page model is package directory and Home shortcuts first",
+          "supporting tools and connectors remain below package and shortcut entries"
         ]
       },
       {
@@ -891,7 +936,7 @@
         "goal": "Advanced keeps diagnostics, raw paths, logs, About, and copy-diagnostics evidence available without putting them in the ordinary setup path.",
         "evidence_required": [
           "diagnostics default visibility is collapsed_advanced_only",
-          "About is secondary or deep-link",
+          "About remains a stable searchable secondary page entry",
           "visual QA checks diagnostics collapsed anchor"
         ]
       },

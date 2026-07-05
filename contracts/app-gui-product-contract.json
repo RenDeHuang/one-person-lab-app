@@ -546,7 +546,20 @@
         "artifact_body_access": false,
         "owner_receipt_write_access": false,
         "domain_verdict_authority": false,
-        "candidate_policy": "report_first_candidate_refs_review_needs_changes_continue_in_conversation_no_auto_enable_no_skill_body_write"
+        "candidate_policy": "report_first_candidate_refs_review_needs_changes_continue_in_conversation_no_auto_enable_no_skill_body_write",
+        "directory_primary_model": {
+          "primary_structure": "agent_packages_and_home_shortcuts_first",
+          "display_policy": "package_directory_home_shortcuts_first_tools_and_connectors_supporting_no_purpose_card_primary_semantics",
+          "supporting_sections": [
+            "external_tools_voice",
+            "connectors",
+            "workflow_skill_candidates"
+          ],
+          "forbidden_primary_semantics": [
+            "purpose_grouped_big_cards",
+            "strong_session_contract"
+          ]
+        }
       },
       "app_role": "display_only_task_awareness_consumer",
       "shell_role": "thin_renderer_no_runtime_store",
@@ -1776,7 +1789,7 @@
     },
     "source": "opl app state --profile fast --json",
     "refresh_source": "opl app state --profile fast --json",
-    "policy": "Settings is the App-owned OPL Control Center information architecture, not an upstream AionUI configuration dump. The target top-level IA is Overview, Setup & Access, Capabilities, Maintenance & Updates, Data & Storage, Preferences, and Advanced. Existing shell route ids general, access, capabilities, environment, storage, appearance, and advanced map to those groups. About is version-and-links only and remains a secondary Advanced surface. Update and Theme remain secondary pages or deep links, not independent ordinary top-level groups. Updates, repair, package maintenance, and service health live under Maintenance & Updates. Storage lifecycle and safe cleanup live under Data & Storage. Workspace is an independent ordinary setup concern, not a buried runtime diagnostic. Legacy upstream settings routes remain compatibility redirects only; they must not reappear as ordinary navigation.",
+    "policy": "Settings is the App-owned OPL Control Center information architecture, not an upstream AionUI configuration dump. The target top-level IA is Overview, Setup & Access, Agents & Capabilities, Maintenance & Updates, Data & Storage, Preferences, and Advanced. Agents & Capabilities is expressed as agent package directory/list plus Home shortcuts with tools/connectors as supporting sections, not purpose-card semantics. Maintenance & Updates is system maintenance only and must not carry in-progress task detail. Access preserves AionUI-native remote access capabilities and adds OPL Gateway, Workspace, and Fabric context without subtracting native entry points. About and Update remain stable discoverable secondary pages. Existing shell route ids general, access, capabilities, environment, storage, appearance, and advanced map to those groups. Update and Theme remain secondary pages or deep links, not independent ordinary top-level groups. Storage lifecycle and safe cleanup live under Data & Storage. Workspace is an independent ordinary setup concern, not a buried runtime diagnostic. Legacy upstream settings routes remain compatibility redirects only; they must not reappear as ordinary navigation.",
     "settings_ia": {
       "schema": "settings_ia.v1",
       "authority": "one-person-lab-app",
@@ -2000,18 +2013,18 @@
         "ordinary_entry_policy": "top_level_control_center_route"
       },
       "capabilities": {
-        "label_zh": "能力",
-        "label_en": "Capabilities",
-        "role": "purpose_grouped_capability_catalog",
-        "primary_question": "What can OPL help me do?",
+        "label_zh": "智能体与能力",
+        "label_en": "Agents & Capabilities",
+        "role": "agent_package_directory_and_capability_support",
+        "primary_question": "Which agent packages, Home shortcuts, and tools/connectors are available?",
         "ia_group": "capabilities",
         "ordinary_entry_policy": "top_level_control_center_route"
       },
       "environment": {
-        "label_zh": "维护",
+        "label_zh": "维护与更新",
         "label_en": "Maintenance & Updates",
         "role": "health_updates_and_repair",
-        "primary_question": "How do I keep the local App healthy and safe?",
+        "primary_question": "How do I keep the local App foundation healthy, repaired, and updated?",
         "ia_group": "maintenance",
         "ordinary_entry_policy": "top_level_control_center_route"
       },
@@ -2043,7 +2056,7 @@
         "label_zh": "关于",
         "label_en": "About",
         "role": "version_and_links",
-        "primary_question": "What version is running, and where are the documentation, release notes, support, and maintenance links?",
+        "primary_question": "Where can I find version, channel, documentation, and update entry points?",
         "ia_group": "advanced",
         "ordinary_entry_policy": "secondary_page_under_advanced"
       }
@@ -2090,16 +2103,16 @@
       },
       {
         "id": "capabilities",
-        "label_zh": "能力",
-        "label_en": "Capabilities",
-        "role": "purpose_grouped_capability_catalog",
+        "label_zh": "智能体与能力",
+        "label_en": "Agents & Capabilities",
+        "role": "agent_package_directory_and_capability_support",
         "ordinary_entries": [
           "settings_capabilities"
         ]
       },
       {
         "id": "maintenance",
-        "label_zh": "维护",
+        "label_zh": "维护与更新",
         "label_en": "Maintenance & Updates",
         "role": "health_updates_and_repair",
         "ordinary_entries": [
@@ -2662,16 +2675,26 @@
         "OPL Framework revision",
         "Stable or Nightly channel",
         "documentation, release notes, support, and maintenance links",
-        "Maintenance link that routes update and repair actions to Control Center Maintenance"
+        "Maintenance link that routes update and repair actions to Control Center Maintenance",
+        "stable About entry reachable from Advanced and Settings search"
       ],
       "must_not_show": [
         "AionUI version as the App version",
         "raw i18n keys",
         "raw update error codes as user-facing copy",
         "developer checkout as a silent update target",
-        "update, repair, rollback, package maintenance, or storage cleanup controls on About"
+        "update, repair, rollback, package maintenance, or storage cleanup controls on About",
+        "About hidden behind a transient overflow-only surface without a stable route"
       ],
-      "ia_group": "advanced"
+      "ia_group": "advanced",
+      "discoverability_policy": {
+        "stable_page_entry": true,
+        "entry_surfaces": [
+          "advanced",
+          "settings_search"
+        ],
+        "contextual_link_only": false
+      }
     },
     "update": {
       "state_source": "opl app state --profile fast --json",
@@ -2725,7 +2748,8 @@
           "owner receipt mutation controls",
           "quality/export verdict controls",
           "Homebrew/global tool silent upgrade controls",
-          "artifact bodies"
+          "artifact bodies",
+          "current task details, workflow candidate refs, deliverable progress, or domain blocker ledgers"
         ],
         "background_scheduler": {
           "triggers": [
@@ -2786,7 +2810,8 @@
         "Workflow profile semantic merge status when profile changes are available",
         "conditions and repair actions from App state or opl update status",
         "user-facing OPL Packages maintenance entry under Local Environment",
-        "manual check/apply/repair/rollback action mapping for OPL Packages"
+        "manual check/apply/repair/rollback action mapping for OPL Packages",
+        "stable Updates entry reachable from Maintenance & Updates and Settings search"
       ],
       "must_not_show": [
         "Full first-install asset as a standard updater target",
@@ -2797,7 +2822,8 @@
         "owner receipt mutation controls",
         "quality/export verdict controls",
         "Homebrew/global tool silent upgrade controls",
-        "artifact bodies"
+        "artifact bodies",
+        "current task details, workflow candidate refs, deliverable progress, or domain blocker ledgers on Updates & Maintenance"
       ],
       "action_source": "managed component apply/repair/rollback through shell IPC; installation carrier updates through carrier-specific host route action refs",
       "background_maintenance_status_fields": [
@@ -2809,7 +2835,15 @@
         "recent_actions",
         "skipped_reasons",
         "reload_guidance"
-      ]
+      ],
+      "discoverability_policy": {
+        "stable_page_entry": true,
+        "entry_surfaces": [
+          "maintenance",
+          "settings_search"
+        ],
+        "contextual_link_only": false
+      }
     },
     "settings_theme": {
       "state_source": "opl app state --profile fast --json",
@@ -3295,7 +3329,8 @@
         "Environment Catalog read-only refs for template, version, source, and task fit when resource projections provide them",
         "Console-managed status for policy, quota, billing, and permission refs on managed resources",
         "self-managed status for local, user-provided SSH, and user-provided HPC resources",
-        "Web / Docker / Remote Access section with a direct user-facing entry to WebUI or remote access setup"
+        "Web / Docker / Remote Access section with a direct user-facing entry to WebUI or remote access setup",
+        "AionUI-native remote access setup remains available as a stable Access entry and is extended with OPL Gateway, Workspace, and Fabric context rather than replaced"
       ],
       "must_not_show": [
         "raw base URL and token paths as first-screen content",
@@ -3303,7 +3338,8 @@
         "WebUI as the primary access mental model",
         "backend/provider raw selector as the Model & Account primary control",
         "Console billing or managed-cloud entitlement as an App-owned decision",
-        "Cloud service availability as release-ready or runtime-ready proof"
+        "Cloud service availability as release-ready or runtime-ready proof",
+        "removing AionUI native remote access capabilities while adapting Access copy"
       ],
       "cloud_fabric_surface": {
         "surface": "settings_access",
@@ -3353,6 +3389,19 @@
             "permission_ref"
           ],
           "display_policy": "managed_resources_show_console_refs_self_managed_resources_show_owner_context"
+        },
+        "native_remote_access_policy": {
+          "app_role": "preserve_and_extend_aionui_native_remote_access_capabilities",
+          "additive_only": true,
+          "stable_entry_surfaces": [
+            "settings_access",
+            "settings_search"
+          ],
+          "preserved_capabilities": [
+            "remote access setup",
+            "Docker WebUI access",
+            "user-provided SSH/HPC access"
+          ]
         }
       },
       "ia_group": "setup_access"
@@ -3383,42 +3432,39 @@
       "task_awareness_ref_policy": "thin_renderer_refs_only_no_skill_body_no_artifact_body_no_domain_verdict",
       "export_bundle_action_policy": "show_export_bundle_action_ref_and_dry_run_receipt_without_claiming_domain_export_readiness",
       "sections": [
-        "research",
-        "grant",
-        "ppt",
-        "opl_meta_agent",
-        "capability_status",
-        "skills_detail",
-        "tools_detail",
-        "external_tools_voice",
+        "package_directory",
+        "home_shortcuts",
+        "package_support",
+        "connectors_tools",
+        "workflow_candidates",
         "custom_assistants"
       ],
       "must_show": [
-        "purpose-grouped MAS research capability",
-        "purpose-grouped MAG grant capability",
-        "purpose-grouped RCA presentation capability",
-        "OPL Meta Agent as explicit non-default capability",
-        "required skills locked and optional skills selectable by assistant",
+        "agent package directory/list with installed state, source, version, required skill support, and lifecycle actions",
+        "Home shortcut list with visibility and order read back from Framework preferences",
+        "starter Home shortcuts shown as package-backed launch entries rather than the page primary semantic grouping",
+        "package-backed Research, Grant Writing, Presentations, Book or manuscript, and OPL automation shortcuts when installed",
+        "Codex Surface materialization, plugin id, required skills, and sync status as package support detail",
         "builtin skill catalog and auto-injected skills filtered to App packaged skill ids",
-        "MCP and tool details as secondary support details",
-        "capability status for Research, Grant, Presentation, Book or manuscript work, and OPL automation",
         "capability health and connector readiness refs from OPL App state",
+        "External Tools & Voice and OPL Connect connectors as supporting sections beneath packages and shortcuts",
         "OPL Connect connector readiness grouped by literature, database, storage, tools/API, internal system, and compute scheduler refs",
         "OPL Fabric environment and resource-source refs when capability tasks need managed or user-provided resources",
-        "Environment Catalog refs grouped with OPL Fabric resource readiness when capability tasks declare runtime requirements",
+        "Environment Catalog refs grouped with OPL Fabric resource readiness when packages declare runtime requirements",
         "reusable workflow refs without skill bodies",
         "reproducibility export bundle action ref with dry-run receipt boundary",
-        "External Tools & Voice entry with MCP described as secondary technical detail",
-        "Custom Assistant entry as a secondary or advanced capability when enabled by product policy",
-        "workflow and skill candidate report-first refs with review, needs changes, and continue in conversation actions"
+        "workflow and skill candidate report-first refs with review, needs changes, and continue in conversation actions",
+        "Custom Assistant entry as a secondary or advanced capability when enabled by product policy"
       ],
       "must_not_show": [
+        "large purpose cards for Research, Grant, Presentation, Book, or Automation as the primary Settings semantic model",
         "Skills and Tools as the only top-level mental model",
         "AG-UI as a user-visible capability concept",
         "AionUI implementation skills such as aionui-skills",
         "OPL Meta Agent as a default Home assistant",
         "AionUI Team as the ordinary multi-agent collaboration entry",
         "MCP as the primary user-facing name for external tools",
+        "strong Session Contract with stage behavior, prompt internals, artifact schema, or readiness verdict authority",
         "artifact body, workflow body, connector body, credential body, owner receipt write, or domain export readiness verdict from Settings Capabilities",
         "auto-enabled skills, skill body writes, or workflow body writes from Settings Capabilities candidate refs"
       ],
@@ -3508,6 +3554,20 @@
           "domain_readiness",
           "app_release_readiness"
         ]
+      },
+      "directory_model": {
+        "primary_structure": "agent_packages_and_home_shortcuts_first",
+        "package_directory_source": "OPL Agent Registry manifest URLs + Framework package list/status readback",
+        "home_shortcut_source": "Framework home shortcut preference readback",
+        "supporting_sections": [
+          "external_tools_voice",
+          "connectors",
+          "workflow_skill_candidates"
+        ],
+        "forbidden_primary_semantics": [
+          "purpose_grouped_big_cards",
+          "strong_session_contract"
+        ]
       }
     },
     "settings_environment": {
@@ -3543,14 +3603,15 @@
         "OPL Packages state, Codex Surface substatus, and recommended action",
         "manual check/apply/repair/rollback mappings through opl update or App action routes",
         "health summary for whether the local App foundation can run now",
-        "grouped Core, Runtime, Capabilities, and Maintenance sections",
+        "grouped Core, Runtime, Packages, and Maintenance sections",
         "user-facing action language for checks, repairs, updates, and rollback",
         "diagnostics collapsed by default with raw booleans, ids, paths, and receipts hidden",
         "environment page placed under OPL Control Center Maintenance & Updates",
         "Local Environment limited to service health rather than broad local runtime preferences",
         "Maintenance hub for App updates, OPL Runtime Fabric, companion tools, OPL Packages, storage cleanup, and repair recommendations",
         "storage cleanup entry routed to Storage & Data without making cleanup a raw diagnostic card",
-        "single recommended repair or maintenance action before advanced manual actions"
+        "single recommended repair or maintenance action before advanced manual actions",
+        "system maintenance only with no in-progress task details, blocker ledgers, or domain progress as first-screen content"
       ],
       "must_not_show": [
         "Med Deep Scientist as a default module",
@@ -3567,7 +3628,8 @@
         "three equal maintenance buttons with shared ambiguous loading state",
         "workspace directory as a buried Local Environment detail instead of an independent ordinary entry",
         "appearance, language, startup, or tray preferences as Local Environment runtime health",
-        "update, repair, package maintenance, and storage cleanup scattered across unrelated pages without a Maintenance hub"
+        "update, repair, package maintenance, and storage cleanup scattered across unrelated pages without a Maintenance hub",
+        "current task details, workflow candidate refs, deliverable progress, or domain blocker ledgers on Maintenance & Updates"
       ],
       "managed_update_plane_ref": "managed_update_plane",
       "module_maintenance_entry": {
@@ -3638,9 +3700,9 @@
             "label_zh": "运行服务"
           },
           {
-            "id": "capabilities",
-            "label_en": "Capabilities",
-            "label_zh": "能力"
+            "id": "packages",
+            "label_en": "Packages",
+            "label_zh": "能力包"
           },
           {
             "id": "maintenance",

@@ -149,12 +149,13 @@ test('Settings adapter slot and upstream intake classification are machine-reada
       'skills-tools-settings-routed-to-capabilities',
       'provider-model-setup-routed-to-access-and-environment',
       'layout-accessibility-i18n-settings-fixes',
+      'native-remote-access-preserved-and-extended',
       'webui-primary-setup-redirected-to-access',
     ],
   );
   assert.deepStrictEqual(
     controlPlaneContract.upstream_intake_checklist.records.map((record) => record.classification),
-    ['reject', 'adapt', 'adapt', 'accepted', 'redirect'],
+    ['reject', 'adapt', 'adapt', 'accepted', 'adapt', 'redirect'],
   );
   assert.deepStrictEqual(
     controlPlaneContract.upstream_intake_checklist.records.find(
@@ -172,6 +173,15 @@ test('Settings adapter slot and upstream intake classification are machine-reada
       (record) => record.id === 'team-ordinary-surface-disabled',
     ).route_or_slot_impact.forbidden_probe,
     'Team MCP ordinary surface',
+  );
+  assert.deepStrictEqual(
+    controlPlaneContract.upstream_intake_checklist.records.find(
+      (record) => record.id === 'native-remote-access-preserved-and-extended',
+    ).required_evidence,
+    [
+      'Settings Access preserves AionUI native remote access capabilities as a stable entry',
+      'OPL Gateway, Workspace, and Fabric context is additive rather than subtractive',
+    ],
   );
   assert.deepStrictEqual(
     adapterContract.implementation_probes.settings_control_plane_shell_adapter_slot.required_evidence,
@@ -353,6 +363,15 @@ test('Settings page adapters and visual QA policy are machine-readable gates', (
       ),
     /cloud_remote_boundary/,
   );
+  assert.deepStrictEqual(
+    controlPlaneContract.page_adapter_policy.required_pages.access.cloud_remote_boundary.native_remote_access_policy,
+    {
+      display_policy: 'preserve_aionui_native_remote_access_capabilities_and_add_opl_context',
+      additive_only: true,
+      stable_entry_surfaces: ['settings_access', 'settings_search'],
+      preserved_capabilities: ['remote access setup', 'Docker WebUI access', 'user-provided SSH/HPC access'],
+    },
+  );
 
   const invalidCapabilitiesResourceGrouping = structuredClone(controlPlaneContract);
   delete invalidCapabilitiesResourceGrouping.page_adapter_policy.required_pages.capabilities.resource_grouping_surface;
@@ -366,6 +385,15 @@ test('Settings page adapters and visual QA policy are machine-readable gates', (
         adapterContract,
       ),
     /resource grouping surface/,
+  );
+  assert.deepStrictEqual(
+    controlPlaneContract.page_adapter_policy.required_pages.capabilities.resource_grouping_surface.directory_primary_model,
+    {
+      primary_structure: 'agent_packages_and_home_shortcuts_first',
+      display_policy: 'package_directory_home_shortcuts_first_tools_and_connectors_supporting_no_purpose_card_primary_semantics',
+      supporting_sections: ['external_tools_voice', 'connectors', 'workflow_skill_candidates'],
+      forbidden_primary_semantics: ['purpose_grouped_big_cards', 'strong_session_contract'],
+    },
   );
 
   const invalidVisualQaPolicy = structuredClone(controlPlaneContract);

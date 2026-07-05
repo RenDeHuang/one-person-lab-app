@@ -640,7 +640,7 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
       'capability health and connector readiness refs from OPL App state',
       'OPL Connect connector readiness grouped by literature, database, storage, tools/API, internal system, and compute scheduler refs',
       'OPL Fabric environment and resource-source refs when capability tasks need managed or user-provided resources',
-      'Environment Catalog refs grouped with OPL Fabric resource readiness when capability tasks declare runtime requirements',
+      'Environment Catalog refs grouped with OPL Fabric resource readiness when packages declare runtime requirements',
       'reusable workflow refs without skill bodies',
       'reproducibility export bundle action ref with dry-run receipt boundary',
       'workflow and skill candidate report-first refs with review, needs changes, and continue in conversation actions',
@@ -654,6 +654,41 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
       'auto-enabled skills, skill body writes, or workflow body writes from Settings Capabilities candidate refs',
     ],
     'Settings Capabilities task awareness must_not_show',
+  );
+  const nativeRemoteAccessPolicy = pages.settings_access.cloud_fabric_surface?.native_remote_access_policy;
+  if (
+    nativeRemoteAccessPolicy?.app_role !== 'preserve_and_extend_aionui_native_remote_access_capabilities' ||
+    nativeRemoteAccessPolicy?.additive_only !== true
+  ) {
+    throw new Error('Settings Access must preserve and extend AionUI native remote access capabilities');
+  }
+  assertDeepEqualJson(
+    nativeRemoteAccessPolicy?.stable_entry_surfaces,
+    ['settings_access', 'settings_search'],
+    'Settings Access native remote access stable entry surfaces',
+  );
+  assertDeepEqualJson(
+    nativeRemoteAccessPolicy?.preserved_capabilities,
+    ['remote access setup', 'Docker WebUI access', 'user-provided SSH/HPC access'],
+    'Settings Access native remote access preserved capabilities',
+  );
+  const directoryModel = pages.settings_capabilities.directory_model;
+  if (
+    directoryModel?.primary_structure !== 'agent_packages_and_home_shortcuts_first' ||
+    directoryModel?.package_directory_source !== 'OPL Agent Registry manifest URLs + Framework package list/status readback' ||
+    directoryModel?.home_shortcut_source !== 'Framework home shortcut preference readback'
+  ) {
+    throw new Error('Settings Capabilities must treat agent packages and Home shortcuts as the primary model');
+  }
+  assertDeepEqualJson(
+    directoryModel?.supporting_sections,
+    ['external_tools_voice', 'connectors', 'workflow_skill_candidates'],
+    'Settings Capabilities directory model supporting sections',
+  );
+  assertDeepEqualJson(
+    directoryModel?.forbidden_primary_semantics,
+    ['purpose_grouped_big_cards', 'strong_session_contract'],
+    'Settings Capabilities directory model forbidden primary semantics',
   );
   validateWorkflowSkillCandidateProjectionContract(
     pages.settings_capabilities.workflow_skill_candidate_policy,
@@ -699,6 +734,16 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   if (pages.settings_environment.managed_update_plane_ref !== 'managed_update_plane') {
     throw new Error('Settings Environment must reference the managed update plane');
   }
+  if (
+    !pages.settings_environment.must_show?.includes(
+      'system maintenance only with no in-progress task details, blocker ledgers, or domain progress as first-screen content',
+    ) ||
+    !pages.settings_environment.must_not_show?.includes(
+      'current task details, workflow candidate refs, deliverable progress, or domain blocker ledgers on Maintenance & Updates',
+    )
+  ) {
+    throw new Error('Settings Environment must stay system-maintenance-only without in-progress task detail');
+  }
   validateFrameworkModuleMaintenanceEntry(guiContract.framework_surfaces?.managed_update_plane?.ordinary_module_maintenance_entry);
   if (pages.settings_storage.release_contract_ref !== 'contracts/app-release-channel.json#local_data_lifecycle') {
     throw new Error('Settings Storage must reference the App local data lifecycle contract');
@@ -725,7 +770,39 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   if (!pages.about.must_not_show?.includes('update, repair, rollback, package maintenance, or storage cleanup controls on About')) {
     throw new Error('About page must keep update, repair, rollback, package maintenance, and cleanup controls out of About');
   }
+  if (
+    pages.about.discoverability_policy?.stable_page_entry !== true ||
+    pages.about.discoverability_policy?.contextual_link_only !== false
+  ) {
+    throw new Error('About page must remain a stable discoverable secondary page entry');
+  }
+  assertDeepEqualJson(
+    pages.about.discoverability_policy?.entry_surfaces,
+    ['advanced', 'settings_search'],
+    'About page discoverability surfaces',
+  );
   validateManagedUpdatePageSurface(pages.update, 'App GUI Updates & Maintenance page');
+  if (
+    pages.update.discoverability_policy?.stable_page_entry !== true ||
+    pages.update.discoverability_policy?.contextual_link_only !== false
+  ) {
+    throw new Error('Updates & Maintenance page must remain a stable discoverable secondary page entry');
+  }
+  assertDeepEqualJson(
+    pages.update.discoverability_policy?.entry_surfaces,
+    ['maintenance', 'settings_search'],
+    'Updates & Maintenance page discoverability surfaces',
+  );
+  if (
+    !pages.update.must_not_show?.includes(
+      'current task details, workflow candidate refs, deliverable progress, or domain blocker ledgers on Updates & Maintenance',
+    ) ||
+    !pages.update.managed_update_plane?.must_not_show?.includes(
+      'current task details, workflow candidate refs, deliverable progress, or domain blocker ledgers',
+    )
+  ) {
+    throw new Error('Updates & Maintenance page must stay system-maintenance-only without task detail');
+  }
   if (!pages.settings_theme.must_show?.includes('Default theme option') || !pages.settings_theme.must_show?.includes('Codex theme option')) {
     throw new Error('Settings theme page must show default and Codex theme options');
   }

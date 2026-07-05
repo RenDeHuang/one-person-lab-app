@@ -290,6 +290,27 @@ export function validateSettingsCapabilitiesResourceGrouping(surface, label) {
     ['OPL Connect', 'Fabric resources'],
     `${label} resource grouping allowed groups`,
   );
+  const directoryModel = surface.directory_primary_model;
+  if (!directoryModel || typeof directoryModel !== 'object') {
+    throw new Error(`${label} directory_primary_model must be declared`);
+  }
+  if (
+    directoryModel.primary_structure !== 'agent_packages_and_home_shortcuts_first' ||
+    directoryModel.display_policy !==
+      'package_directory_home_shortcuts_first_tools_and_connectors_supporting_no_purpose_card_primary_semantics'
+  ) {
+    throw new Error(`${label} directory_primary_model must keep package directory and Home shortcuts first`);
+  }
+  assertDeepEqualJson(
+    directoryModel.supporting_sections,
+    ['external_tools_voice', 'connectors', 'workflow_skill_candidates'],
+    `${label} directory_primary_model supporting_sections`,
+  );
+  assertDeepEqualJson(
+    directoryModel.forbidden_primary_semantics,
+    ['purpose_grouped_big_cards', 'strong_session_contract'],
+    `${label} directory_primary_model forbidden_primary_semantics`,
+  );
   for (const [field, expected] of Object.entries({
     refs_only: true,
     skill_body_access: false,

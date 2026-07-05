@@ -723,6 +723,26 @@ function validateSettingsAccessCloudBoundary(accessPage) {
   if (boundary.refs_only !== true) {
     throw new Error('Settings Access cloud remote boundary refs_only must be true');
   }
+  const nativeRemoteAccessPolicy = boundary.native_remote_access_policy;
+  if (!nativeRemoteAccessPolicy || typeof nativeRemoteAccessPolicy !== 'object') {
+    throw new Error('Settings Access cloud remote boundary must declare native_remote_access_policy');
+  }
+  if (
+    nativeRemoteAccessPolicy.display_policy !== 'preserve_aionui_native_remote_access_capabilities_and_add_opl_context' ||
+    nativeRemoteAccessPolicy.additive_only !== true
+  ) {
+    throw new Error('Settings Access native remote access policy must stay additive-only over AionUI');
+  }
+  assertDeepEqualJson(
+    nativeRemoteAccessPolicy.stable_entry_surfaces,
+    ['settings_access', 'settings_search'],
+    'Settings Access native remote access stable entry surfaces',
+  );
+  assertDeepEqualJson(
+    nativeRemoteAccessPolicy.preserved_capabilities,
+    ['remote access setup', 'Docker WebUI access', 'user-provided SSH/HPC access'],
+    'Settings Access native remote access preserved capabilities',
+  );
   assertIncludesAll(
     boundary.forbidden_claims,
     ['runtime_truth', 'provider_implementation', 'domain_truth', 'domain_readiness', 'app_release_readiness'],
