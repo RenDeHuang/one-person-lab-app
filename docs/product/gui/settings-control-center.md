@@ -50,7 +50,7 @@ The target navigation groups are:
 | Group | Pages | Primary user question |
 | --- | --- | --- |
 | Overview | Overview | Is the App usable now, and what should I do next? |
-| Setup & Access | Access & Model, Workspace | How do I connect the App, and where does work happen? |
+| Access | OPL Gateway, Codex CLI, Web/remote access | How do I connect the App and its remote entry points? |
 | Capabilities | Capabilities | What can OPL help me do? |
 | Maintenance & Updates | Updates & Maintenance, Local Services | How do I keep the App foundation healthy and updated? |
 | Data & Storage | Storage & Data | How do I safely manage local App data? |
@@ -75,7 +75,7 @@ route ids:
   `update`, and `theme` are also secondary or deep-link route ids.
   unless the contract, page-state matrix, validators, and release-boundary tests
   are deliberately changed together;
-- user-facing groups remain Overview, Setup & Access, Capabilities,
+- user-facing groups remain Overview, Access, Capabilities,
   Maintenance & Updates, Data & Storage, Preferences, and Advanced.
 
 ## Page Contracts
@@ -124,8 +124,9 @@ inside those groups instead of adding more tabs.
 
 P0 entries:
 
-- Model & Account: current model, model access/API key readiness, connection
-  check, and repair entry. It belongs to Setup & Access.
+- Access: OPL Gateway readiness with access-key configuration behind
+  disclosure, plus Codex CLI, Background Service / Temporal, and permission
+  readiness cards.
 - Workspace: current path, open/change/verify actions, and permission status.
   It belongs to Overview as an ordinary setup entry.
 - Maintenance Hub: App updates, OPL Runtime Fabric, OPL Packages, storage
@@ -136,10 +137,10 @@ P0 entries:
 
 P1 entries:
 
-- Web / Docker / Remote Access: direct route for users who need WebUI, Docker,
-  OPL Workspace, user-provided SSH/HPC, or OPL Cloud-managed resources. It
-  belongs to Setup & Access and is displayed as Cloud & Remote Access when the
-  App has OPL Gateway or Fabric refs.
+- Web / Docker / Remote Access: direct route for users who need AionUI native
+  remote access, Docker WebUI, OPL Workspace, user-provided SSH/HPC, or OPL
+  Cloud-managed resources. Native remote access owns port, account, and
+  password controls.
 - Developer Profile Status: local checkout source, auto-update impact, and
   dirty checkout risk. It belongs to Advanced.
 - External Tools & Voice: ordinary label for tools, MCP support, and voice.
@@ -161,7 +162,7 @@ The overview is a summary-first dashboard. It shows:
 - a single overall state: usable, needs attention, or blocked;
 - status chips for access, workspace, local services, and capabilities;
 - one recommended primary action and at most two secondary actions;
-- direct entries for Workspace, Model & Account, Maintenance & Updates,
+- direct entries for Workspace, Access, Maintenance & Updates,
   Data & Storage, Capabilities, and Web / Remote Access;
 - last maintenance check and next background check when known;
 - a collapsed technical detail section.
@@ -169,20 +170,22 @@ The overview is a summary-first dashboard. It shows:
 The overview must not show raw readiness booleans, OPL command names, framework
 phase names, git state, or package receipt ids as first-screen content.
 
-### Access & Model
+### Access
 
-Access & Model owns user-facing connection readiness:
+Access owns user-facing connection readiness:
 
 - Codex CLI availability;
-- Model & Account with current model, account/API key readiness, connection
-  check, and repair entry;
+- OPL Gateway key readiness, with access-key configuration hidden behind an
+  explicit action;
+- Background Service / Temporal readiness;
 - OPL Gateway status as the branded AI access surface for model routing, key
   state, provider policy, and use refs;
 - model access/API key state;
 - default model and reasoning selection;
 - permission meaning in user language;
-- Cloud & Remote Access for Local App, Docker/WebUI, OPL Workspace,
-  user-provided SSH/HPC, and OPL Cloud-managed compute or storage refs;
+- Web & Remote Access for native AionUI remote access, Local App, Docker/WebUI,
+  OPL Workspace, user-provided SSH/HPC, and OPL Cloud-managed compute or
+  storage refs;
 - OPL Fabric resource-source status for compute, storage, connector, and
   environment refs when the Framework projection provides them;
 - Environment Catalog refs that show template, version, source, and task fit;

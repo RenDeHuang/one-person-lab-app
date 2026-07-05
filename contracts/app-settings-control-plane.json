@@ -193,8 +193,8 @@
       "id": "access",
       "path": "/settings/access",
       "label_key": "settings.onboarding",
-      "default_label_en": "Setup & Access",
-      "default_label_zh": "开始使用",
+      "default_label_en": "Access",
+      "default_label_zh": "访问方式",
       "icon_token": "access",
       "ia_group": "setup_access",
       "slot_id": "settings_access",
@@ -411,7 +411,7 @@
     "default_model_ref": "contracts/app-product-profile.json#codex.default_model",
     "default_reasoning_effort_ref": "contracts/app-product-profile.json#codex.default_reasoning_effort",
     "ordinary_surface": "home_and_conversation_model_configuration_menu",
-    "settings_surface": "settings_access.model_account",
+    "settings_surface": "settings_access.opl_gateway",
     "adapter_policy": "Aion/Hermes/shell render App-derived model and reasoning policy only",
     "shell_must_not_own": [
       "default model",
@@ -738,7 +738,7 @@
       {
         "id": "seven_entry_ia",
         "track": "ia_routes",
-        "goal": "The ordinary Settings IA has exactly seven user-facing entries: Overview, Setup & Access, Capabilities, Maintenance & Updates, Data & Storage, Preferences, and Advanced.",
+        "goal": "The ordinary Settings IA has exactly seven user-facing entries: Overview, Access, Capabilities, Maintenance & Updates, Data & Storage, Preferences, and Advanced.",
         "evidence_required": [
           "ordinary_visible_tabs contains seven route ids",
           "legacy routes do not render as ordinary tabs",
@@ -851,7 +851,7 @@
         "goal": "Access explains model, account/API key, permissions, Web, Docker, and remote access without first-screen raw provider configuration.",
         "evidence_required": [
           "Access adapter forbids direct provider implementation reads",
-          "task entry includes Model & Account and Web/Remote Access",
+          "task entry includes OPL Gateway, Codex CLI, background service, and Web/Remote Access",
           "focused Access DOM tests cover user-facing readiness"
         ]
       },

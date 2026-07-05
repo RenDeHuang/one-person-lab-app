@@ -637,8 +637,8 @@ function validateSettingsModelReasoningPolicy(controlPlane, guiContract, product
   if (policy.default_reasoning_effort_ref !== 'contracts/app-product-profile.json#codex.default_reasoning_effort') {
     throw new Error('Settings default reasoning effort must be derived from the App product profile');
   }
-  if (policy.settings_surface !== 'settings_access.model_account') {
-    throw new Error('Settings model/reasoning policy must surface through Settings Access Model & Account');
+  if (policy.settings_surface !== 'settings_access.opl_gateway') {
+    throw new Error('Settings model/reasoning policy must surface through Settings Access OPL Gateway');
   }
   if (policy.adapter_policy !== 'Aion/Hermes/shell render App-derived model and reasoning policy only') {
     throw new Error('Settings model/reasoning policy must keep shells as adapters only');

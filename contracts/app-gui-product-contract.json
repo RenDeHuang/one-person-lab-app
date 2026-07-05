@@ -1781,7 +1781,7 @@
     },
     "source": "opl app state --profile fast --json",
     "refresh_source": "opl app state --profile fast --json",
-    "policy": "Settings is the App-owned OPL Control Center information architecture, not an upstream AionUI configuration dump. The target top-level IA is Overview, Setup & Access, Capabilities, Maintenance & Updates, Data & Storage, Preferences, and Advanced. Existing shell route ids general, access, capabilities, environment, storage, appearance, and advanced map to those groups. About is version-and-links only and remains a secondary Advanced surface. Update and Theme remain secondary pages or deep links, not independent ordinary top-level groups. Updates, repair, package maintenance, and service health live under Maintenance & Updates. Storage lifecycle and safe cleanup live under Data & Storage. Workspace is an independent ordinary setup concern, not a buried runtime diagnostic. Legacy upstream settings routes remain compatibility redirects only; they must not reappear as ordinary navigation.",
+    "policy": "Settings is the App-owned OPL Control Center information architecture, not an upstream AionUI configuration dump. The target top-level IA is Overview, Access, Capabilities, Maintenance & Updates, Data & Storage, Preferences, and Advanced. Existing shell route ids general, access, capabilities, environment, storage, appearance, and advanced map to those groups. About is version-and-links only and remains a secondary Advanced surface. Update and Theme remain secondary pages or deep links, not independent ordinary top-level groups. Updates, repair, package maintenance, and service health live under Maintenance & Updates. Storage lifecycle and safe cleanup live under Data & Storage. Workspace is an independent ordinary setup concern, not a buried runtime diagnostic. Legacy upstream settings routes remain compatibility redirects only; they must not reappear as ordinary navigation.",
     "settings_ia": {
       "schema": "settings_ia.v1",
       "authority": "one-person-lab-app",
@@ -1997,8 +1997,8 @@
         "ordinary_entry_policy": "top_level_control_center_route"
       },
       "access": {
-        "label_zh": "开始使用",
-        "label_en": "Setup & Access",
+        "label_zh": "访问方式",
+        "label_en": "Access",
         "role": "first_use_and_access_setup",
         "primary_question": "How do I connect the App, and where does work happen?",
         "ia_group": "setup_access",
@@ -2080,8 +2080,8 @@
       },
       {
         "id": "setup_access",
-        "label_zh": "开始使用",
-        "label_en": "Setup & Access",
+        "label_zh": "访问方式",
+        "label_en": "Access",
         "role": "first_use_and_access_setup",
         "ordinary_entries": [
           "settings_access",
@@ -3321,8 +3321,8 @@
         "language preference",
         "Control Center Overview positioning",
         "workspace as an independent ordinary entry",
-        "short links to Setup & Access, Capabilities, Maintenance & Updates, Data & Storage, Preferences, Advanced, and Project Progress",
-        "task entry hub for Workspace, Model & Account, Maintenance, Capabilities, and Web / Remote Access",
+        "short links to Access, Capabilities, Maintenance & Updates, Data & Storage, Preferences, Advanced, and Project Progress",
+        "task entry hub for Workspace, OPL Gateway, Maintenance, Capabilities, and Web / Remote Access",
         "workspace path, open/change/verify actions, and permission status as ordinary user-facing content"
       ],
       "must_not_show": [
@@ -3355,27 +3355,28 @@
         "current permission meaning in user-facing language",
         "API key and base URL controls behind advanced disclosure",
         "section-level refresh state",
-        "Setup & Access placed under OPL Control Center Setup & Access",
-        "Model & Account section with current model, model access/API key readiness, connection check, and repair entry",
+        "Access placed under OPL Control Center Access",
+        "OPL Gateway section with key readiness and access-key configuration behind disclosure",
+        "Codex CLI and Background Service / Temporal cards with user-facing readiness labels",
         "OPL Gateway as the branded AI access surface for model routing, key status, and provider policy refs",
-        "Cloud & Remote Access entry that explains Local App, Docker WebUI, OPL Workspace, user-provided SSH/HPC, and OPL Cloud managed resource sources",
+        "Web & Remote Access entry that separates AionUI native remote access from Docker WebUI, OPL Workspace, user-provided SSH/HPC, and OPL Cloud managed resource sources",
         "OPL Fabric resource-source status as refs-only local, remote, managed compute, storage, connector, and environment context",
         "Environment Catalog read-only refs for template, version, source, and task fit when resource projections provide them",
         "Console-managed status for policy, quota, billing, and permission refs on managed resources",
         "self-managed status for local, user-provided SSH, and user-provided HPC resources",
-        "Web / Docker / Remote Access section with a direct user-facing entry to WebUI or remote access setup"
+        "Web / Docker / Remote Access section with a direct user-facing entry to native WebUI port/account/password setup"
       ],
       "must_not_show": [
         "raw base URL and token paths as first-screen content",
         "backend selector as ordinary App configuration",
         "WebUI as the primary access mental model",
-        "backend/provider raw selector as the Model & Account primary control",
+        "backend/provider raw selector as the Access primary control",
         "Console billing or managed-cloud entitlement as an App-owned decision",
         "Cloud service availability as release-ready or runtime-ready proof"
       ],
       "cloud_fabric_surface": {
         "surface": "settings_access",
-        "display_name": "Cloud & Remote Access",
+        "display_name": "Web & Remote Access",
         "source": "opl app state --profile fast --json optional cloud_fabric refs",
         "gateway_entry": "OPL Gateway",
         "deployment_surfaces": [
