@@ -93,6 +93,15 @@ readiness, or live App release currentness.
 The July 5, 2026 visual restyle pass also uses an OPL-owned image-generated
 mockup as a design anchor for the light chat-first shell, with Codex App,
 K-Dense, and Open Science treated as hierarchy and layout references only.
+The current candidate renderer now targets one clearer information
+architecture: left sidebar for project/material/history, center chat-first
+conversation canvas, right contextual tabs for sources/preview/trace/workflows/
+runtime/settings, and Settings as an explicit route rather than a composer-side
+overflow surface.
+The current landing target also converges packaged macOS candidate, WebUI, and
+source around one renderer entry and one bridge/event shape. That is a
+candidate-structure claim only; it still does not imply same-cohort visual
+parity acceptance, active-shell adoption, clean-VM proof, or release readiness.
 
 ## Functional MVP Closeout Status
 
@@ -105,7 +114,7 @@ K-Dense, and Open Science treated as hierarchy and layout references only.
 | Implemented | Settings route | Source validators require the Settings route, model/account access entry, locale toggle, packaged route switch markers, runtime profile readback, and refresh controls. |
 | Implemented | Bridge readback normalization | Candidate bridge normalizes state, drilldown, action receipt, message, and event readbacks into typed envelopes consumable by the renderer. |
 | Implemented candidate evidence | Local packaged `.app` smoke | Candidate repo `npm run smoke:native-live` launches the packaged AppKit/WKWebView `.app`, records process/window evidence, and writes a local screenshot artifact. |
-| Partial | Packaged/WebUI/visual evidence | Current checks are candidate source/package/local-live evidence only. They do not prove same-cohort owner-accepted user-path behavior, clean-VM behavior, or release adoption. |
+| Partial | Packaged/WebUI/source shared renderer convergence | Current checks prove one candidate renderer target plus source/package/local-live/WebUI structural evidence. They do not prove same-cohort owner-accepted user-path behavior, clean-VM behavior, or release adoption. |
 | Partial | Artifact preview, provenance, starters, confirmations, export | These are richer refs-only candidate UI surfaces with live action/state derivation and editable starter fields. Artifact bodies, domain truth, export verdicts, and owner receipts remain outside the shell. |
 | Not ready | Release and authority claims | `active_shell_adopted`, `release_ready`, `production_ready`, `domain_ready`, `clean_vm_ready`, `full_release_ready`, `live_evidence`, `owner_receipt`, `runtime_authority_transfer`, and `domain_truth_owned` must stay false until the App owner runs the later adoption and release gates. |
 
