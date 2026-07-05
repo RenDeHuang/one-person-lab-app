@@ -11,6 +11,15 @@ This plan has been landed through the Framework, App contract, and AionUI
 thin-renderer mainlines. It is still not an App release-ready or domain-ready
 claim.
 
+2026-07-05 contract alignment narrowed the default Runtime page semantics
+further: it is a user task cockpit, not an internal runtime diagnostics page.
+The App contract now explicitly requires a four-layer user mental model
+(agent/capability, project, task/work item, execution run), stage/run telemetry
+fields, typed blocker routing, and a separate agent/module status panel. When
+elapsed, heartbeat, or usage telemetry is missing from the projection, the App
+must show `telemetry missing` rather than silently omitting the slot or
+inferring a healthy run.
+
 - OPL Framework owns the refs-only task awareness producer, Settings /
   Capabilities refs, workflow refs, and dry-run-only export preview action.
   Current proof must be read from `opl app state`, `opl app action`, Framework
@@ -29,6 +38,28 @@ claim.
   provider and `current_control_state` internals remain diagnostics; AionUI does
   not add shell-owned runtime truth, reviewer/domain logic, artifact-body access,
   readiness judgment, or a new dashboard.
+
+## 2026-07-05 Runtime cockpit semantics
+
+The default Runtime page contract now requires these user-facing answers before
+diagnostics:
+
+- Which agent/capability owns this work?
+- Which project line does it belong to?
+- Which task/work item is moving or blocked?
+- Which execution run is active, how long has it been in the current stage, is
+  it still alive, what usage has accumulated, and what blocker/owner route
+  applies?
+
+This also tightens status language:
+
+- `queued`, `pending`, and `waiting` must come from explicit projected status.
+- `blocked` stays blocked; it must not be relabeled as queued just because the
+  run is not currently advancing.
+- `stopped`, `parked`, and `checkpointed` stay inactive summaries.
+- `provider`, `projection`, `ref`, `stage attempt`, and
+  `current_control_state` remain diagnostic vocabulary, not first-screen user
+  wording.
 
 ## 目标
 
@@ -123,7 +154,7 @@ App 架构和验证文档中，但不作为用户-facing 白皮书的主要叙�
 | 4 | Plan-approve-run action | OPL Framework action catalog | 复用 confirmation/action UI | 100% | Framework dry-run readback owns plan/write_targets/risk/expected_output; non-dry-run export preview must fail closed unless a real domain owner action authorizes it. App contracts the dry-run/receipt route. | 已完成 for App action dry-run/receipt preview; real domain execute receipts remain domain-owner actions, not this generic preview action. |
 | 5 | Artifact provenance card | Framework/domain 产出，App contract 定义 | 通用 artifact/receipt card | 100% | Framework enriched `evidence_cards` include `kind/owner/updated_at/why_it_matters/open_action`; App fixture/validator/test require those fields. App runtime bridge now also declares `artifact_provenance_bundle_projection` for provenance bundle refs, RO-Crate refs, replay status refs, agent trace refs, review refs and typed issues. AionUI Runtime and current-task cards render enriched details without artifact bodies, and the App contract/fixture now read back `aionui_refs_only_drawer_implemented` for the provenance drawer. | 已完成 for refs-only artifact provenance UI/readback; App contract + AionUI refs-only drawer 已落地，real artifact body plus quality/export verdict remain domain authority. |
 | 6 | Reviewer receipt card | Domain 产出，Framework projection，App contract 定义 | 通用 receipt summary | 100% | Review receipt stays an evidence card with non-authoritative refs; App contracts forbid quality verdicts; AionUI renders review/action receipt refs and related card details from the same projection. | 已完成 for refs-only reviewer receipt UI; reviewer verdict quality remains domain authority. |
-| 7 | Runtime 全局展示增强 | Framework projection + App contract | existing Runtime thin renderer | 100% | AionUI Runtime task section now shows overview counts, task list, and selected task detail grouped into Evidence / Actions / Resources / Diagnostics while keeping provider internals in Diagnostics. | 已完成 for Runtime page global task awareness. |
+| 7 | Runtime 全局展示增强 | Framework projection + App contract | existing Runtime thin renderer | 100% | In addition to overview counts and grouped detail, the App contract now requires the Runtime default page to answer the four-layer mental model, stage/run telemetry, typed blocker route, and separate agent/module status panel. Missing elapsed/heartbeat/usage must surface as `telemetry missing`, not silence. | Contract/docs/validator landing已完成；live producer coverage for every telemetry slot仍以 fresh `opl app state`/runtime readback 为准。 |
 | 8 | 聊天当前任务切片 | Framework projection + App contract | conversation/composer status thin renderer | 100% | App contracts `current_task_slice_projection`; AionUI current-task component consumes enriched `conditions/evidence_cards/action_cards/resource_cards/diagnostics_ref` from the same slice, including open-action/risk/resource refs, without an independent task store. | 已完成 for current conversation inline status. |
 | 9 | Inspector 当前任务证据面 | Framework refs + App contract | collapsed tabs/card thin renderer | 100% | App inspector fields use the same TaskRunProjection v2 model; AionUI right-side current-task evidence sections render artifact/review/action/workflow/resource/diagnostics refs from the same current-task slice. | 已完成 for refs-only right-side evidence surface. |
 | 10 | Capability health / connector readiness | Framework/App contract | Settings thin renderer | 100% | Framework exposes refs-only capability health and connector readiness; App contract/fixture/tests require the Settings capabilities surface; AionUI renders the refs in Settings / Capabilities. | 已完成 for refs-only capability and connector readiness display; real module/domain readiness remains owner authority. |
@@ -140,9 +171,12 @@ App 架构和验证文档中，但不作为用户-facing 白皮书的主要叙�
 Current proof is not stored in this landed plan. Re-read Framework producer
 commands, App release-boundary tests, App active-shell validation, and AionUI
 focused rendering evidence from their owner repos before making a current,
-release, readiness, absorption, or completion claim. Dated command transcripts,
-worktree paths, shell refs, test counts, and pass/fail logs belong in process
-history, release artifacts, CI logs, or commit history.
+release, readiness, absorption, or completion claim. In particular, this plan's
+contract-level `telemetry missing` fallback and four-layer Runtime semantics do
+not by themselves prove live producer completeness for elapsed/heartbeat/usage
+fields. Dated command transcripts, worktree paths, shell refs, test counts, and
+pass/fail logs belong in process history, release artifacts, CI logs, or commit
+history.
 
 ## 建议落地顺序
 

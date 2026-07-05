@@ -1,6 +1,7 @@
 import { assertDeepEqualJson, assertIncludesAll } from './assertions.ts';
 import { isDefaultReleaseAdapter } from './active-shell-contract.ts';
 import {
+  appOwnedQueueStatusPolicy,
   appOwnedProjectGroupExpansionPolicy,
   beginnerFirstRunTestIds,
   firstRunChecklistFields,
@@ -316,10 +317,24 @@ export function validatePageStateMatrix(matrix, contract) {
   ) {
     throw new Error('Runtime page default attention must keep active project lines separate from active worker runs');
   }
+  if (pageDefaultAttention?.queue_status_policy !== appOwnedQueueStatusPolicy) {
+    throw new Error(`Runtime page default attention queue_status_policy must be ${appOwnedQueueStatusPolicy}`);
+  }
   assertDeepEqualJson(
     pageDefaultAttention?.project_group_expansion_policy,
     appOwnedProjectGroupExpansionPolicy,
     'Runtime page default attention project_group_expansion_policy',
+  );
+  assertIncludesAll(
+    pageDefaultAttention?.secondary_fields,
+    [
+      'stage elapsed or telemetry missing',
+      'last heartbeat / running proof or telemetry missing',
+      'current stage usage / task total usage or telemetry missing',
+      'typed blocker summary / owner / resolution route',
+      'agent/module status panel',
+    ],
+    'Runtime page default attention secondary_fields',
   );
   if (runtimeViewModel.diagnostics?.default_visibility !== 'secondary_disclosure') {
     throw new Error('Runtime page diagnostics must be secondary disclosure, not a primary daily surface');
@@ -381,6 +396,11 @@ export function validatePageStateMatrix(matrix, contract) {
     'queued project count from framework project-line projection',
     'attention count from framework blocker and owner-attention projection',
     'task title/status/stage/progress label/next step/next owner/owner/accepted answer shape/artifact or blocker/last progress',
+    'four-layer mental model from agent/capability to execution run',
+    'stage_run_cockpit or equivalent stage_run_current_owner_delta for current stage/elapsed/heartbeat/usage when projected',
+    'telemetry missing fallback when elapsed, heartbeat, or usage are absent',
+    'typed blocker summary/owner/resolution route from stage_run_cockpit or artifact/blocker refs',
+    'agent/module status panel from connector_readiness_refs, diagnostic_substrate_refs, and gateway_status_ref',
     'provider/current_control_state details as diagnostics only',
     'summary OPL operator drilldown read model',
     'fast App state refresh',
@@ -390,6 +410,7 @@ export function validatePageStateMatrix(matrix, contract) {
     'app_state.operator.workbench.activity_center.active_projects active project lines',
     'app_state.operator.visual_ref_groups.active_project_refs',
     'non-running waiting or stopped projects collapsed by default',
+    'blocked stays blocked; queued or waiting require explicit projected status and are not inferred from non-running',
     'full detail lazy load',
     'app_state.operator.summary refs',
     'app_state.provider readiness refs',
@@ -414,6 +435,12 @@ export function validatePageStateMatrix(matrix, contract) {
     'queued project count',
     'attention count',
     'task title/status/stage/progress label/next step/next owner/owner/accepted answer shape/artifact or blocker/last progress',
+    'four-layer mental model: agent/capability, project, task/work item, execution run',
+    'current stage and stage elapsed or telemetry missing',
+    'last heartbeat or running proof or telemetry missing',
+    'current stage usage and task total usage or telemetry missing',
+    'typed blocker summary, owner, and resolution route',
+    'agent/module status as a separate panel',
     'project progress from app_state.operator.workbench.task_drilldowns',
     'active project line count from app_state.operator.workbench.activity_center.active_projects',
     'project title/domain/current state/current stage',
@@ -430,6 +457,7 @@ export function validatePageStateMatrix(matrix, contract) {
     'operator summary from app_state.operator',
     'safe action refs from app_state.actions',
     'non-running waiting or stopped projects collapsed by default',
+    'blocked stays blocked; queued or waiting require explicit projected status and are not inferred from non-running',
     'summary OPL operator drilldown read model',
     'full detail lazy load',
     'safe app action dry-run/execute controls',

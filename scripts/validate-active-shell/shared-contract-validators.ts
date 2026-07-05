@@ -1,7 +1,12 @@
 import { assertDeepEqualJson, assertIncludesAll } from './assertions.ts';
 import {
+  appOwnedAgentModuleStatusPanel,
   appOwnedProjectGroupExpansionPolicy,
+  appOwnedQueueStatusPolicy,
+  appOwnedRuntimeMentalModel,
   appOwnedRunningStatePolicy,
+  appOwnedStageRunPanelFields,
+  appOwnedTelemetryMissingPolicy,
   firstRunCoreItems,
   taskRunProjectionV2FieldGroups,
   taskRunProjectionV2RequiredFields,
@@ -1200,11 +1205,29 @@ export function validateStageRunCockpitProjectionContract(projection, label) {
     ['task_id', 'stage_id', 'owner', 'next_visible_step', 'accepted_return_shapes', 'readiness_false_flag_refs'],
     `${label} required_ref_fields`,
   );
+  assertDeepEqualJson(
+    projection.optional_ref_fields,
+    [
+      'elapsed_seconds',
+      'last_heartbeat_at',
+      'running_proof_ref',
+      'stage_usage',
+      'task_total_usage',
+      'typed_blocker_summary',
+      'typed_blocker_owner',
+      'typed_blocker_resolution_ref',
+    ],
+    `${label} optional_ref_fields`,
+  );
   assertIncludesAll(
     projection.summary_fields,
     ['current_owner', 'required_delta', 'next_safe_action_ref', 'artifact_or_blocker_refs'],
     `${label} summary_fields`,
   );
+  assertDeepEqualJson(projection.preferred_panel_fields, appOwnedStageRunPanelFields, `${label} preferred_panel_fields`);
+  if (projection.telemetry_missing_policy !== appOwnedTelemetryMissingPolicy) {
+    throw new Error(`${label} telemetry_missing_policy must be ${appOwnedTelemetryMissingPolicy}`);
+  }
   if (projection.refs_only !== true) {
     throw new Error(`${label} refs_only must be true`);
   }
@@ -1382,6 +1405,7 @@ export function validateUserTaskStatusProjectionContract(userTaskStatus, label) 
     ['running_task_count', 'active_project_count', 'queued_project_count', 'attention_count'],
     `${label} summary_fields`,
   );
+  assertDeepEqualJson(userTaskStatus.mental_model_layers, appOwnedRuntimeMentalModel, `${label} mental_model_layers`);
   assertIncludesAll(
     userTaskStatus.task_fields,
     [
@@ -1394,6 +1418,9 @@ export function validateUserTaskStatusProjectionContract(userTaskStatus, label) 
       'owner',
       'last_progress',
       'next_owner',
+      'stage_run_cockpit',
+      'stage_run_cockpit_summary',
+      'stage_run_current_owner_delta',
       'artifact_or_blocker',
       'review_receipt',
       'action_receipt',
@@ -1405,6 +1432,9 @@ export function validateUserTaskStatusProjectionContract(userTaskStatus, label) 
       'storage_ref',
       'resource_plan_ref',
       'resource_approval_ref',
+      'resource_execute_ref',
+      'resource_monitor_ref',
+      'resource_collect_ref',
       'resource_usage_ref',
       'console_policy_ref',
       'quota_ref',
@@ -1416,6 +1446,8 @@ export function validateUserTaskStatusProjectionContract(userTaskStatus, label) 
       'environment_task_refs',
       'resource_receipt_ref',
       'cost_estimate_ref',
+      'connector_readiness_refs',
+      'diagnostic_substrate_refs',
     ],
     `${label} task_fields`,
   );
@@ -1432,6 +1464,17 @@ export function validateUserTaskStatusProjectionContract(userTaskStatus, label) 
   if (userTaskStatus.running_state_policy !== appOwnedRunningStatePolicy) {
     throw new Error(`${label} running_state_policy must be ${appOwnedRunningStatePolicy}`);
   }
+  if (userTaskStatus.queue_status_policy !== appOwnedQueueStatusPolicy) {
+    throw new Error(`${label} queue_status_policy must be ${appOwnedQueueStatusPolicy}`);
+  }
+  if (userTaskStatus.stage_run_projection_ref !== 'contracts/app-runtime-bridge.json#stage_run_cockpit_projection') {
+    throw new Error(`${label} stage_run_projection_ref must point to the Runtime bridge StageRun cockpit projection`);
+  }
+  assertDeepEqualJson(userTaskStatus.default_stage_run_panel_fields, appOwnedStageRunPanelFields, `${label} default_stage_run_panel_fields`);
+  if (userTaskStatus.telemetry_missing_policy !== appOwnedTelemetryMissingPolicy) {
+    throw new Error(`${label} telemetry_missing_policy must be ${appOwnedTelemetryMissingPolicy}`);
+  }
+  assertDeepEqualJson(userTaskStatus.agent_module_status_panel, appOwnedAgentModuleStatusPanel, `${label} agent_module_status_panel`);
   assertDeepEqualJson(
     userTaskStatus.must_not_default_display_terms,
     ['Temporal', 'provider', 'projection', 'ref', 'stage attempt', 'ledger', 'current_control_state'],

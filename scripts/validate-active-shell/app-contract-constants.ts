@@ -17,7 +17,39 @@ export const appOwnedProjectGroupExpansionPolicy = {
 };
 
 export const appOwnedRunningStatePolicy =
-  'only explicit running, in_progress, or advancing status/state counts as running; active_run_id alone is context, not liveness proof';
+  'only explicit running, in_progress, or advancing status/state counts as running; active_run_id alone is context, not liveness proof; queued, pending, and waiting require explicit projected status; blocked or attention_needed stay blocked/attention states; stopped, parked, and checkpointed stay inactive and must not be relabeled queued';
+
+export const appOwnedRuntimeMentalModel = [
+  'agent/capability: which agent, capability package, or module is responsible',
+  'project: which project line, study, or deliverable track this work belongs to',
+  'task/work item: the user-visible unit that is advancing, waiting, or blocked',
+  'execution run: the current stage run, heartbeat, usage, and blocker route for this task',
+];
+
+export const appOwnedStageRunPanelFields = [
+  'current stage',
+  'elapsed',
+  'last heartbeat / running proof',
+  'current stage usage',
+  'task total usage',
+  'typed blocker summary',
+  'typed blocker owner',
+  'resolution route',
+];
+
+export const appOwnedTelemetryMissingPolicy =
+  'when stage elapsed, heartbeat, or usage telemetry is absent, the Runtime page must surface telemetry missing instead of leaving the area blank or inferring a healthy run';
+
+export const appOwnedQueueStatusPolicy =
+  'queued, pending, and waiting require explicit projected status; blocked or attention_needed stay blocked/attention states; stopped, parked, and checkpointed stay inactive; non-running must never be inferred as queued';
+
+export const appOwnedAgentModuleStatusPanel = {
+  source: 'task capability/module refs separated from task liveness',
+  display_policy: 'render agent, capability, connector, and module status in a dedicated panel instead of mixing them into stage/run telemetry',
+  required_ref_fields: ['connector_readiness_refs', 'diagnostic_substrate_refs', 'gateway_status_ref'],
+  optional_ref_fields: ['capability_health_refs'],
+  telemetry_missing_copy: 'module status unavailable',
+};
 
 export const taskRunProjectionV2RequiredFields = [
   'task_identity',

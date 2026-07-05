@@ -54,6 +54,9 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'next_owner',
     'active_run_id',
     'stage_attempt_ids',
+    'stage_run_cockpit',
+    'stage_run_cockpit_summary',
+    'stage_run_current_owner_delta',
     'runtime_closeout_observed',
     'runtime_closeout_ref',
     'mas_owner_consumption_status',
@@ -72,6 +75,9 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'storage_ref',
     'resource_plan_ref',
     'resource_approval_ref',
+    'resource_execute_ref',
+    'resource_monitor_ref',
+    'resource_collect_ref',
     'resource_usage_ref',
     'console_policy_ref',
     'quota_ref',
@@ -83,6 +89,8 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'environment_task_refs',
     'resource_receipt_ref',
     'cost_estimate_ref',
+    'connector_readiness_refs',
+    'diagnostic_substrate_refs',
     'openscience_console_projection_ref',
     'structured_result_panel',
     'artifact_provenance_card',
@@ -414,6 +422,12 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     display_policy: 'user_task_status_first_provider_projection_diagnostic_only',
     default_user_question:
       "How many tasks are running, how many projects or tasks are active or queued, how many need attention, and what is each task's current step?",
+    mental_model_layers: [
+      'agent/capability: which agent, capability package, or module is responsible',
+      'project: which project line, study, or deliverable track this work belongs to',
+      'task/work item: the user-visible unit that is advancing, waiting, or blocked',
+      'execution run: the current stage run, heartbeat, usage, and blocker route for this task',
+    ],
     summary_fields: [
       'running_task_count',
       'active_project_count',
@@ -428,9 +442,31 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
       attention_count: 'count user-visible blockers, human gates, failed safe actions, or owner attention states',
     },
     running_state_policy:
-      'only explicit running, in_progress, or advancing status/state counts as running; active_run_id alone is context, not liveness proof',
+      'only explicit running, in_progress, or advancing status/state counts as running; active_run_id alone is context, not liveness proof; queued, pending, and waiting require explicit projected status; blocked or attention_needed stay blocked/attention states; stopped, parked, and checkpointed stay inactive and must not be relabeled queued',
+    queue_status_policy:
+      'queued, pending, and waiting require explicit projected status; blocked or attention_needed stay blocked/attention states; stopped, parked, and checkpointed stay inactive; non-running must never be inferred as queued',
     progress_label_policy:
       'render framework progress classification and stage labels as human task progress labels without exposing raw projection or ledger names',
+    stage_run_projection_ref: 'contracts/app-runtime-bridge.json#stage_run_cockpit_projection',
+    default_stage_run_panel_fields: [
+      'current stage',
+      'elapsed',
+      'last heartbeat / running proof',
+      'current stage usage',
+      'task total usage',
+      'typed blocker summary',
+      'typed blocker owner',
+      'resolution route',
+    ],
+    telemetry_missing_policy:
+      'when stage elapsed, heartbeat, or usage telemetry is absent, the Runtime page must surface telemetry missing instead of leaving the area blank or inferring a healthy run',
+    agent_module_status_panel: {
+      source: 'task capability/module refs separated from task liveness',
+      display_policy: 'render agent, capability, connector, and module status in a dedicated panel instead of mixing them into stage/run telemetry',
+      required_ref_fields: ['connector_readiness_refs', 'diagnostic_substrate_refs', 'gateway_status_ref'],
+      optional_ref_fields: ['capability_health_refs'],
+      telemetry_missing_copy: 'module status unavailable',
+    },
     mas_runtime_acceptance_display_policy:
       "show MAS owner consumption fields as user-facing acceptance/currentness status, e.g. 'MAS accepted this runtime result' and 'accepted result matches latest runtime closeout'; keep raw refs and stage attempt ids secondary as evidence, not the primary wording",
     diagnostic_source_policy:
@@ -722,12 +758,34 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
       'accepted_return_shapes',
       'readiness_false_flag_refs',
     ],
+    optional_ref_fields: [
+      'elapsed_seconds',
+      'last_heartbeat_at',
+      'running_proof_ref',
+      'stage_usage',
+      'task_total_usage',
+      'typed_blocker_summary',
+      'typed_blocker_owner',
+      'typed_blocker_resolution_ref',
+    ],
     summary_fields: [
       'current_owner',
       'required_delta',
       'next_safe_action_ref',
       'artifact_or_blocker_refs',
     ],
+    preferred_panel_fields: [
+      'current stage',
+      'elapsed',
+      'last heartbeat / running proof',
+      'current stage usage',
+      'task total usage',
+      'typed blocker summary',
+      'typed blocker owner',
+      'resolution route',
+    ],
+    telemetry_missing_policy:
+      'when stage elapsed, heartbeat, or usage telemetry is absent, the Runtime page must surface telemetry missing instead of leaving the area blank or inferring a healthy run',
     refs_only: true,
     app_role: 'display_only_stage_run_cockpit_consumer',
     forbidden_claims: [
@@ -1209,6 +1267,12 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     display_policy: 'user_task_status_first_provider_projection_diagnostic_only',
     default_user_question:
       "How many tasks are running, how many projects or tasks are active or queued, how many need attention, and what is each task's current step?",
+    mental_model_layers: [
+      'agent/capability: which agent, capability package, or module is responsible',
+      'project: which project line, study, or deliverable track this work belongs to',
+      'task/work item: the user-visible unit that is advancing, waiting, or blocked',
+      'execution run: the current stage run, heartbeat, usage, and blocker route for this task',
+    ],
     summary_fields: [
       'running_task_count',
       'active_project_count',
@@ -1223,9 +1287,31 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
       attention_count: 'count user-visible blockers, human gates, failed safe actions, or owner attention states',
     },
     running_state_policy:
-      'only explicit running, in_progress, or advancing status/state counts as running; active_run_id alone is context, not liveness proof',
+      'only explicit running, in_progress, or advancing status/state counts as running; active_run_id alone is context, not liveness proof; queued, pending, and waiting require explicit projected status; blocked or attention_needed stay blocked/attention states; stopped, parked, and checkpointed stay inactive and must not be relabeled queued',
+    queue_status_policy:
+      'queued, pending, and waiting require explicit projected status; blocked or attention_needed stay blocked/attention states; stopped, parked, and checkpointed stay inactive; non-running must never be inferred as queued',
     progress_label_policy:
       'render framework progress classification and stage labels as human task progress labels without exposing raw projection or ledger names',
+    stage_run_projection_ref: 'contracts/app-runtime-bridge.json#stage_run_cockpit_projection',
+    default_stage_run_panel_fields: [
+      'current stage',
+      'elapsed',
+      'last heartbeat / running proof',
+      'current stage usage',
+      'task total usage',
+      'typed blocker summary',
+      'typed blocker owner',
+      'resolution route',
+    ],
+    telemetry_missing_policy:
+      'when stage elapsed, heartbeat, or usage telemetry is absent, the Runtime page must surface telemetry missing instead of leaving the area blank or inferring a healthy run',
+    agent_module_status_panel: {
+      source: 'task capability/module refs separated from task liveness',
+      display_policy: 'render agent, capability, connector, and module status in a dedicated panel instead of mixing them into stage/run telemetry',
+      required_ref_fields: ['connector_readiness_refs', 'diagnostic_substrate_refs', 'gateway_status_ref'],
+      optional_ref_fields: ['capability_health_refs'],
+      telemetry_missing_copy: 'module status unavailable',
+    },
     mas_runtime_acceptance_display_policy:
       "show MAS owner consumption fields as user-facing acceptance/currentness status, e.g. 'MAS accepted this runtime result' and 'accepted result matches latest runtime closeout'; keep raw refs and stage attempt ids secondary as evidence, not the primary wording",
     diagnostic_source_policy:
@@ -1345,10 +1431,24 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     runtimePage.runtime_view_model.default_attention.active_project_line_policy,
     'queued_or_escalated_owner_handled_project_lines_count_as_user_visible_active_projects_without_claiming_active_worker_run',
   );
+  assert.equal(
+    runtimePage.runtime_view_model.default_attention.queue_status_policy,
+    'queued, pending, and waiting require explicit projected status; blocked or attention_needed stay blocked/attention states; stopped, parked, and checkpointed stay inactive; non-running must never be inferred as queued',
+  );
   assert.deepEqual(
     runtimePage.runtime_view_model.default_attention.project_group_expansion_policy,
     appOwnedProjectGroupExpansionPolicy,
   );
+  assert.deepEqual(runtimePage.runtime_view_model.default_attention.secondary_fields.slice(0, 8), [
+    'task title',
+    'task status',
+    'task stage',
+    'stage elapsed or telemetry missing',
+    'last heartbeat / running proof or telemetry missing',
+    'current stage usage / task total usage or telemetry missing',
+    'typed blocker summary / owner / resolution route',
+    'agent/module status panel',
+  ]);
   assert.equal(
     runtimePage.runtime_view_model.progress_delta.source,
     'app_state.operator.workbench.task_drilldowns.progress_delta_classification',
@@ -1433,6 +1533,11 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'queued project count from framework project-line projection',
     'attention count from framework blocker and owner-attention projection',
     'task title/status/stage/progress label/next step/next owner/owner/accepted answer shape/artifact or blocker/last progress',
+    'four-layer mental model from agent/capability to execution run',
+    'stage_run_cockpit or equivalent stage_run_current_owner_delta for current stage/elapsed/heartbeat/usage when projected',
+    'telemetry missing fallback when elapsed, heartbeat, or usage are absent',
+    'typed blocker summary/owner/resolution route from stage_run_cockpit or artifact/blocker refs',
+    'agent/module status panel from connector_readiness_refs, diagnostic_substrate_refs, and gateway_status_ref',
     'provider/current_control_state details as diagnostics only',
     'summary OPL operator drilldown read model',
     'fast App state refresh',
@@ -1445,6 +1550,7 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'app_state.operator.workbench.activity_center.active_projects active project lines',
     'app_state.operator.visual_ref_groups.active_project_refs',
     'non-running waiting or stopped projects collapsed by default',
+    'blocked stays blocked; queued or waiting require explicit projected status and are not inferred from non-running',
     'full detail lazy load',
     'app_state.operator.summary refs',
     'app_state.provider readiness refs',
@@ -1466,6 +1572,12 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'queued project count',
     'attention count',
     'task title/status/stage/progress label/next step/next owner/owner/accepted answer shape/artifact or blocker/last progress',
+    'four-layer mental model: agent/capability, project, task/work item, execution run',
+    'current stage and stage elapsed or telemetry missing',
+    'last heartbeat or running proof or telemetry missing',
+    'current stage usage and task total usage or telemetry missing',
+    'typed blocker summary, owner, and resolution route',
+    'agent/module status as a separate panel',
     'project progress from app_state.operator.workbench.task_drilldowns',
     'active project line count from app_state.operator.workbench.activity_center.active_projects',
     'project title/domain/current state/current stage',
@@ -1480,6 +1592,7 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'operator summary from app_state.operator',
     'safe action refs from app_state.actions',
     'non-running waiting or stopped projects collapsed by default',
+    'blocked stays blocked; queued or waiting require explicit projected status and are not inferred from non-running',
     'summary OPL operator drilldown read model',
     'full detail lazy load',
     'safe app action dry-run/execute controls',
