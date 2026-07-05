@@ -818,7 +818,7 @@ process.stdout.write(${JSON.stringify(validStandardAiReleaseNotes(version))});
   assert.match(fs.readFileSync(promptCapture, 'utf8'), /"release_evidence"/);
 });
 
-test('AI release notes quality gate rejects process-first developer memo copy', () => {
+test('AI release notes completion sanitizes process-first developer memo copy before public sections', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-standard-ai-process-copy-'));
   const shellRoot = path.join(tempRoot, 'shells', 'aionui');
   const outDir = path.join(shellRoot, 'out');
@@ -889,8 +889,13 @@ Workflow validation gate and release operator owner receipt refs are aligned for
     },
   });
 
-  assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /developer memo terms before Technical details/);
+  assert.equal(result.status, 0, result.stderr);
+  const payload = JSON.parse(result.stdout);
+  const publicMarkdown = String(payload.release_notes).split('## Technical details')[0];
+  assert.doesNotMatch(publicMarkdown, /\brefs?\b/i);
+  assert.doesNotMatch(publicMarkdown, /\bowner receipt\b/i);
+  assert.doesNotMatch(publicMarkdown, /\bcohort\b/i);
+  assert.match(payload.release_notes, /## Technical details/);
 });
 
 test('publish retries an individual release asset upload before failing the refresh', () => {

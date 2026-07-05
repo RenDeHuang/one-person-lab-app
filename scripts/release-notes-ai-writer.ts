@@ -359,7 +359,13 @@ function sanitizePreTechnicalDeveloperTerms(visibleMarkdown: string) {
       .replace(/\bworkflows?\b/gi, 'sessions')
       .replace(/\bvalidation\b/gi, 'checks')
       .replace(/\bgates?\b/gi, 'checks')
-      .replace(/\brefs?\b/gi, 'details');
+      .replace(/\brefs?\b/gi, 'details')
+      .replace(/\bSHA(?:-[0-9]+)?\b/g, 'version detail')
+      .replace(/\bcohort\b/gi, 'release')
+      .replace(/\brelease operator\b/gi, 'release process')
+      .replace(/\bowner receipt\b/gi, 'approval record')
+      .replace(/\bowner verdict\b/gi, 'approval decision')
+      .replace(/\brelease candidate\b/gi, 'release build');
   }
   const before = visibleMarkdown.slice(0, offset)
     .split('\n')
@@ -370,7 +376,13 @@ function sanitizePreTechnicalDeveloperTerms(visibleMarkdown: string) {
     .replace(/\bworkflows?\b/gi, 'sessions')
     .replace(/\bvalidation\b/gi, 'checks')
     .replace(/\bgates?\b/gi, 'checks')
-    .replace(/\brefs?\b/gi, 'details');
+    .replace(/\brefs?\b/gi, 'details')
+    .replace(/\bSHA(?:-[0-9]+)?\b/g, 'version detail')
+    .replace(/\bcohort\b/gi, 'release')
+    .replace(/\brelease operator\b/gi, 'release process')
+    .replace(/\bowner receipt\b/gi, 'approval record')
+    .replace(/\bowner verdict\b/gi, 'approval decision')
+    .replace(/\brelease candidate\b/gi, 'release build');
   const after = visibleMarkdown.slice(offset)
     .split('\n')
     .filter((line) => !/[\u3400-\u9fff]/.test(line))
@@ -487,8 +499,7 @@ function buildPayloadSection(evidence: ReleaseNotesEvidence) {
   const source = evidence as any;
   const roleBullets = compactArray(source.agent_runtime_changes, 12)
     .map((change: any) => `- ${change.label}: ${change.user_value_hint || change.role || 'Supports App-managed OPL work.'}`);
-  const payloadLines = compactArray(source.payload?.lines, 12);
-  const bullets = [...roleBullets, ...payloadLines];
+  const bullets = roleBullets;
   return [
     '## OPL agents and runtime payload',
     '',
