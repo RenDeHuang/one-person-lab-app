@@ -95,12 +95,14 @@ readiness, or live App release currentness.
 | Status | Scope | Evidence boundary |
 | --- | --- | --- |
 | Implemented | Codex chat runtime path | Source validators require `codex app-server --stdio`, `initialize`, `thread/start`, `turn/start`, `item/agentMessage/delta`, `turn/completed`, and `thread/resume` markers across the bridge and native host. |
+| Implemented | Chat history and local session resume | Candidate sidebar persists local chat sessions, reopens saved drafts, and reuses a saved Codex `threadId` when available. |
 | Implemented | OPL App state context | Source validators require fast state, full state, full drilldown, secondary runtime context, and active-project-line markers. |
-| Implemented | App action preview and receipt | Source validators require `opl app action execute --action`, `--dry-run`, visible action preview controls, and visible receipt markers. |
-| Implemented | Settings route | Source validators require the Settings route, model/account access entry, locale toggle, and packaged route switch markers. |
+| Implemented | App action preview and receipt | Source validators require `opl app action execute --action`, `--dry-run`, visible action preview controls, visible receipt markers, confirmed execute, and rollback-preview request markers. |
+| Implemented | Settings route | Source validators require the Settings route, model/account access entry, locale toggle, packaged route switch markers, runtime profile readback, and refresh controls. |
+| Implemented | Bridge readback normalization | Candidate bridge normalizes state, drilldown, action receipt, message, and event readbacks into typed envelopes consumable by the renderer. |
 | Implemented candidate evidence | Local packaged `.app` smoke | Candidate repo `npm run smoke:native-live` launches the packaged AppKit/WKWebView `.app`, records process/window evidence, and writes a local screenshot artifact. |
 | Partial | Packaged/WebUI/visual evidence | Current checks are candidate source/package/local-live evidence only. They do not prove same-cohort owner-accepted user-path behavior, clean-VM behavior, or release adoption. |
-| Partial | Artifact preview, provenance, starters, confirmations, export | These are refs-only candidate UI surfaces. Artifact bodies, domain truth, export verdicts, and owner receipts remain outside the shell. |
+| Partial | Artifact preview, provenance, starters, confirmations, export | These are richer refs-only candidate UI surfaces with live action/state derivation and editable starter fields. Artifact bodies, domain truth, export verdicts, and owner receipts remain outside the shell. |
 | Not ready | Release and authority claims | `active_shell_adopted`, `release_ready`, `production_ready`, `domain_ready`, `clean_vm_ready`, `full_release_ready`, `live_evidence`, `owner_receipt`, `runtime_authority_transfer`, and `domain_truth_owned` must stay false until the App owner runs the later adoption and release gates. |
 
 ## False-Ready Boundary
