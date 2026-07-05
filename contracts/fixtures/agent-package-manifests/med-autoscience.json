@@ -1,16 +1,16 @@
 {
-  "package_id": "bookforge",
-  "agent_id": "bookforge",
-  "display_name": "OPL BookForge",
+  "package_id": "med-autoscience",
+  "agent_id": "med-autoscience",
+  "display_name": "Med Auto Science",
   "publisher": "one-person-lab",
-  "version": "0.1.0",
+  "version": "0.1.0a4",
   "source": "first_party",
   "distribution_payload": {
     "payload_kind": "first_party_release_package",
-    "payload_ref": "opl-agent-packages/bookforge/0.1.0",
-    "payload_digest_ref": "release-lock://opl-agent-packages/bookforge/0.1.0/payload-digest",
+    "payload_ref": "opl-agent-packages/med-autoscience/0.1.0a4",
+    "payload_digest_ref": "release-lock://opl-agent-packages/med-autoscience/0.1.0a4/payload-digest",
     "required_skill_pack_lock_refs": [
-      "release-lock://opl-agent-packages/bookforge/0.1.0/bookforge-professional-skill-pack"
+      "release-lock://opl-agent-packages/med-autoscience/0.1.0a4/mas-professional-skill-pack"
     ],
     "proof_status": "contract_fixture_non_live",
     "live_download_proof": false,
@@ -18,33 +18,33 @@
   },
   "codex_surface": {
     "plugin_ids": [
-      "opl-bookforge"
+      "mas"
     ],
     "required_skill_ids": [
-      "opl-bookforge"
+      "mas"
     ],
     "optional_skill_ids": [
+      "mineru-document-extractor",
       "officecli-docx",
-      "pdf",
-      "mineru-document-extractor"
+      "officecli-xlsx"
     ],
-    "plugin_source_ref": "gaofeng21cn/opl-bookforge/plugins/opl-bookforge"
+    "plugin_source_ref": "gaofeng21cn/med-autoscience/plugins/mas"
   },
   "skill_packs": [
     {
-      "id": "bookforge-professional-skill-pack",
-      "source": "github:gaofeng21cn/opl-bookforge/plugins/opl-bookforge/skills/opl-bookforge",
-      "version": "0.1.0",
-      "lock_ref": "release-lock://opl-agent-packages/bookforge/0.1.0/bookforge-professional-skill-pack",
+      "id": "mas-professional-skill-pack",
+      "source": "github:gaofeng21cn/med-autoscience/plugins/mas/skills/mas",
+      "version": "0.1.0a4",
+      "lock_ref": "release-lock://opl-agent-packages/med-autoscience/0.1.0a4/mas-professional-skill-pack",
       "install_mode": "bundled_required"
     }
   ],
   "entrypoints": [
     {
-      "shortcut_id": "book",
-      "label": "Writing",
+      "shortcut_id": "research",
+      "label": "Research",
       "required_skill_ids": [
-        "opl-bookforge"
+        "mas"
       ],
       "shortcut_eligible": true
     }

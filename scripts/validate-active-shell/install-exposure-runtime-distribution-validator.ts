@@ -291,7 +291,7 @@ function validateHomebrewAgentPackPolicy(homebrew) {
   }
   assertIncludesAll(
     homebrew.agent_pack_policy?.managed_agent_ids,
-    ['mas', 'mag', 'rca', 'oma', 'obf', 'scholarskills'],
+    ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-meta-agent', 'opl-bookforge', 'scholarskills'],
     'Install exposure Homebrew managed agent ids',
   );
   assertIncludesAll(
@@ -323,7 +323,7 @@ function validateManagedAgentPackDistribution(modulePackageDistribution) {
   );
   assertIncludesAll(
     modulePackageDistribution.package_agent_ids,
-    ['mas', 'mag', 'rca', 'oma', 'bookforge', 'scholarskills'],
+    ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-meta-agent', 'opl-bookforge', 'scholarskills'],
     'Install exposure capability package distribution agent ids',
   );
   assertIncludesAll(

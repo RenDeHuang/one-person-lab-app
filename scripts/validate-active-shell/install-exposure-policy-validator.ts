@@ -146,12 +146,12 @@ function validateDomainExposure(policy) {
       throw new Error(`Install exposure domain ${expected.domain_id} must require direct skill semantics`);
     }
   }
-  for (const domainId of ['mas', 'mag', 'rca']) {
+  for (const domainId of ['med-autoscience', 'med-autogrant', 'redcube-ai']) {
     if (expectedDomainExposures.find(({ expected }) => expected.domain_id === domainId)?.entry.default_home_visible !== true) {
       throw new Error(`Install exposure domain ${domainId} must be visible on the default home path`);
     }
   }
-  if (expectedDomainExposures.find(({ expected }) => expected.domain_id === 'oma')?.entry.default_home_visible !== false) {
+  if (expectedDomainExposures.find(({ expected }) => expected.domain_id === 'opl-meta-agent')?.entry.default_home_visible !== false) {
     throw new Error('Install exposure policy must keep OMA out of the default home path');
   }
 }

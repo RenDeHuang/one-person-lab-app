@@ -422,12 +422,12 @@ test('agent installation validator accepts generated OMA local plugin roots', ()
     const result = runNode([
       'scripts/validate-agent-installation-contract.ts',
       '--agent-root',
-      `oma=${pluginRoot}`,
+      `opl-meta-agent=${pluginRoot}`,
     ]);
 
     assert.equal(result.status, 0, `${result.stderr}\n${result.stdout}`);
     assert.match(result.stdout, /"generated_plugin_agents"/);
-    assert.match(result.stdout, /"oma":/);
+    assert.match(result.stdout, /"opl-meta-agent":/);
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }

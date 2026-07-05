@@ -100,55 +100,55 @@
         "codex_only_default": true,
         "executor_tab_visible_when_single_executor": false,
         "default_assistants": [
-          "mas",
-          "mag",
-          "rca",
-          "bookforge"
+          "med-autoscience",
+          "med-autogrant",
+          "redcube-ai",
+          "opl-bookforge"
         ],
         "professional_agent_packages": [
-          "mas",
-          "mag",
-          "rca",
-          "bookforge",
-          "oma"
+          "med-autoscience",
+          "med-autogrant",
+          "redcube-ai",
+          "opl-bookforge",
+          "opl-meta-agent"
         ],
         "default_home_agent_packages": [
-          "mas",
-          "mag",
-          "rca",
-          "bookforge"
+          "med-autoscience",
+          "med-autogrant",
+          "redcube-ai",
+          "opl-bookforge"
         ],
         "default_assistant_purpose_labels": {
-          "mas": "科研",
-          "mag": "基金",
-          "rca": "演示",
-          "bookforge": "写书"
+          "med-autoscience": "科研",
+          "med-autogrant": "基金",
+          "redcube-ai": "演示",
+          "opl-bookforge": "写书"
         },
         "default_assistant_required_skills": {
-          "mas": [
+          "med-autoscience": [
             "mas"
           ],
-          "mag": [
+          "med-autogrant": [
             "mag"
           ],
-          "rca": [
+          "redcube-ai": [
             "rca"
           ],
-          "bookforge": [
+          "opl-bookforge": [
             "opl-bookforge"
           ]
         },
         "default_agent_package_required_skills": {
-          "mas": [
+          "med-autoscience": [
             "mas"
           ],
-          "mag": [
+          "med-autogrant": [
             "mag"
           ],
-          "rca": [
+          "redcube-ai": [
             "rca"
           ],
-          "bookforge": [
+          "opl-bookforge": [
             "opl-bookforge"
           ]
         },
@@ -156,7 +156,7 @@
         "home_agent_shortcuts": [
           {
             "shortcut_id": "research",
-            "package_id": "mas",
+            "package_id": "med-autoscience",
             "primary_label": "科研",
             "package_short_name": "MAS",
             "codex_visible_entry": "mas",
@@ -172,7 +172,7 @@
           },
           {
             "shortcut_id": "grant",
-            "package_id": "mag",
+            "package_id": "med-autogrant",
             "primary_label": "基金",
             "package_short_name": "MAG",
             "codex_visible_entry": "mag",
@@ -188,7 +188,7 @@
           },
           {
             "shortcut_id": "ppt",
-            "package_id": "rca",
+            "package_id": "redcube-ai",
             "primary_label": "演示",
             "package_short_name": "RCA",
             "codex_visible_entry": "rca",
@@ -204,7 +204,7 @@
           },
           {
             "shortcut_id": "book",
-            "package_id": "bookforge",
+            "package_id": "opl-bookforge",
             "primary_label": "写书",
             "package_short_name": "OBF",
             "codex_visible_entry": "opl-bookforge",
@@ -223,7 +223,7 @@
           {
             "id": "research",
             "primary_label": "科研",
-            "target_assistant_id": "mas",
+            "target_assistant_id": "med-autoscience",
             "target_assistant_short_name": "MAS",
             "display_policy": "purpose_first",
             "home_entry_policy": "visible_click_to_start"
@@ -231,7 +231,7 @@
           {
             "id": "grant",
             "primary_label": "基金",
-            "target_assistant_id": "mag",
+            "target_assistant_id": "med-autogrant",
             "target_assistant_short_name": "MAG",
             "display_policy": "purpose_first",
             "home_entry_policy": "visible_click_to_start"
@@ -239,7 +239,7 @@
           {
             "id": "ppt",
             "primary_label": "演示",
-            "target_assistant_id": "rca",
+            "target_assistant_id": "redcube-ai",
             "target_assistant_short_name": "RCA",
             "display_policy": "purpose_first",
             "home_entry_policy": "visible_click_to_start"
@@ -247,7 +247,7 @@
           {
             "id": "book",
             "primary_label": "写书",
-            "target_assistant_id": "bookforge",
+            "target_assistant_id": "opl-bookforge",
             "target_assistant_short_name": "OBF",
             "display_policy": "purpose_first",
             "home_entry_policy": "visible_click_to_start"

@@ -1,16 +1,16 @@
 {
-  "package_id": "mas",
-  "agent_id": "mas",
-  "display_name": "Med Auto Science",
+  "package_id": "redcube-ai",
+  "agent_id": "redcube-ai",
+  "display_name": "RedCube AI",
   "publisher": "one-person-lab",
-  "version": "0.1.0a4",
+  "version": "0.1.0",
   "source": "first_party",
   "distribution_payload": {
     "payload_kind": "first_party_release_package",
-    "payload_ref": "opl-agent-packages/mas/0.1.0a4",
-    "payload_digest_ref": "release-lock://opl-agent-packages/mas/0.1.0a4/payload-digest",
+    "payload_ref": "opl-agent-packages/redcube-ai/0.1.0",
+    "payload_digest_ref": "release-lock://opl-agent-packages/redcube-ai/0.1.0/payload-digest",
     "required_skill_pack_lock_refs": [
-      "release-lock://opl-agent-packages/mas/0.1.0a4/mas-professional-skill-pack"
+      "release-lock://opl-agent-packages/redcube-ai/0.1.0/rca-professional-skill-pack"
     ],
     "proof_status": "contract_fixture_non_live",
     "live_download_proof": false,
@@ -18,33 +18,32 @@
   },
   "codex_surface": {
     "plugin_ids": [
-      "mas"
+      "rca"
     ],
     "required_skill_ids": [
-      "mas"
+      "rca"
     ],
     "optional_skill_ids": [
-      "mineru-document-extractor",
-      "officecli-docx",
-      "officecli-xlsx"
+      "officecli-pptx",
+      "ui-ux-pro-max"
     ],
-    "plugin_source_ref": "gaofeng21cn/med-autoscience/plugins/mas"
+    "plugin_source_ref": "gaofeng21cn/redcube-ai/plugins/rca"
   },
   "skill_packs": [
     {
-      "id": "mas-professional-skill-pack",
-      "source": "github:gaofeng21cn/med-autoscience/plugins/mas/skills/mas",
-      "version": "0.1.0a4",
-      "lock_ref": "release-lock://opl-agent-packages/mas/0.1.0a4/mas-professional-skill-pack",
+      "id": "rca-professional-skill-pack",
+      "source": "github:gaofeng21cn/redcube-ai/plugins/rca/skills/rca",
+      "version": "0.1.0",
+      "lock_ref": "release-lock://opl-agent-packages/redcube-ai/0.1.0/rca-professional-skill-pack",
       "install_mode": "bundled_required"
     }
   ],
   "entrypoints": [
     {
-      "shortcut_id": "research",
-      "label": "Research",
+      "shortcut_id": "ppt",
+      "label": "Presentation",
       "required_skill_ids": [
-        "mas"
+        "rca"
       ],
       "shortcut_eligible": true
     }

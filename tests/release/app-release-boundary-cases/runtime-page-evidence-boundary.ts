@@ -1088,20 +1088,20 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'domain_workflow',
     'domain_readiness',
   ]);
-  assert.deepEqual(guidHomePage.home_view_model.default_assistants, ['mas', 'mag', 'rca', 'bookforge']);
-  assert.deepEqual(guidHomePage.home_view_model.professional_agent_packages, ['mas', 'mag', 'rca', 'bookforge', 'oma']);
-  assert.deepEqual(guidHomePage.home_view_model.default_home_agent_packages, ['mas', 'mag', 'rca', 'bookforge']);
+  assert.deepEqual(guidHomePage.home_view_model.default_assistants, ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge']);
+  assert.deepEqual(guidHomePage.home_view_model.professional_agent_packages, ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge', 'opl-meta-agent']);
+  assert.deepEqual(guidHomePage.home_view_model.default_home_agent_packages, ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge']);
   assert.deepEqual(guidHomePage.home_view_model.default_assistant_required_skills, {
-    mas: ['mas'],
-    mag: ['mag'],
-    rca: ['rca'],
-    bookforge: ['opl-bookforge'],
+    'med-autoscience': ['mas'],
+    'med-autogrant': ['mag'],
+    'redcube-ai': ['rca'],
+    'opl-bookforge': ['opl-bookforge'],
   });
   assert.deepEqual(guidHomePage.home_view_model.default_agent_package_required_skills, {
-    mas: ['mas'],
-    mag: ['mag'],
-    rca: ['rca'],
-    bookforge: ['opl-bookforge'],
+    'med-autoscience': ['mas'],
+    'med-autogrant': ['mag'],
+    'redcube-ai': ['rca'],
+    'opl-bookforge': ['opl-bookforge'],
   });
   assert.deepEqual(guidHomePage.home_view_model.home_agent_shortcuts.map((entry) => entry.shortcut_id), [
     'research',
@@ -1110,10 +1110,10 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'book',
   ]);
   assert.deepEqual(guidHomePage.home_view_model.home_agent_shortcuts.map((entry) => entry.package_id), [
-    'mas',
-    'mag',
-    'rca',
-    'bookforge',
+    'med-autoscience',
+    'med-autogrant',
+    'redcube-ai',
+    'opl-bookforge',
   ]);
   assert.deepEqual(guidHomePage.home_view_model.home_purpose_entries.map((entry) => entry.id), [
     'research',
@@ -1128,10 +1128,10 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     '写书',
   ]);
   assert.deepEqual(guidHomePage.home_view_model.home_purpose_entries.map((entry) => entry.target_assistant_id), [
-    'mas',
-    'mag',
-    'rca',
-    'bookforge',
+    'med-autoscience',
+    'med-autogrant',
+    'redcube-ai',
+    'opl-bookforge',
   ]);
   assert.ok(guidHomePage.home_view_model.home_purpose_entries.every((entry) => entry.display_policy === 'purpose_first'));
   assert.equal(guidHomePage.home_view_model.activity_center.authority, 'app_owned_home_minimal_command_surface');

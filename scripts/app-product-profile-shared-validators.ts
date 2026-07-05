@@ -39,7 +39,7 @@ type RouteReceiptOptions = {
   requireExactAssistants?: boolean;
 };
 
-const starterPackageIds = ['mas', 'mag', 'rca', 'bookforge'];
+const starterPackageIds = ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge'];
 const starterShortcutIds = ['research', 'grant', 'ppt', 'book'];
 const agentPackageReceiptRequiredFields = [
   'route_kind',

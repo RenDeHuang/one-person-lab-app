@@ -428,7 +428,14 @@ test('OPL Packages stay the capability package layer with Codex Surface as subst
   assert.equal(packagePolicy.managed_update_plane, 'capability_packages');
   assert.equal(packagePolicy.adapter, 'capability_packages_adapter');
   assert.equal(packagePolicy.legacy_alias, 'agent_package_channel');
-  assert.deepEqual(packagePolicy.managed_agent_ids, ['mas', 'mag', 'rca', 'oma', 'obf', 'scholarskills']);
+  assert.deepEqual(packagePolicy.managed_agent_ids, [
+    'med-autoscience',
+    'med-autogrant',
+    'redcube-ai',
+    'opl-meta-agent',
+    'opl-bookforge',
+    'scholarskills',
+  ]);
   assert.equal(packagePolicy.default_update_mode, 'silent_background');
   assert.equal(packagePolicy.must_not_define_agent_semantics, true);
   assert.deepEqual(plane.capability_packages.post_update_sync_required, [

@@ -1,16 +1,16 @@
 {
-  "package_id": "mag",
-  "agent_id": "mag",
-  "display_name": "Med Auto Grant",
+  "package_id": "opl-bookforge",
+  "agent_id": "opl-bookforge",
+  "display_name": "OPL BookForge",
   "publisher": "one-person-lab",
   "version": "0.1.0",
   "source": "first_party",
   "distribution_payload": {
     "payload_kind": "first_party_release_package",
-    "payload_ref": "opl-agent-packages/mag/0.1.0",
-    "payload_digest_ref": "release-lock://opl-agent-packages/mag/0.1.0/payload-digest",
+    "payload_ref": "opl-agent-packages/opl-bookforge/0.1.0",
+    "payload_digest_ref": "release-lock://opl-agent-packages/opl-bookforge/0.1.0/payload-digest",
     "required_skill_pack_lock_refs": [
-      "release-lock://opl-agent-packages/mag/0.1.0/mag-professional-skill-pack"
+      "release-lock://opl-agent-packages/opl-bookforge/0.1.0/bookforge-professional-skill-pack"
     ],
     "proof_status": "contract_fixture_non_live",
     "live_download_proof": false,
@@ -18,33 +18,33 @@
   },
   "codex_surface": {
     "plugin_ids": [
-      "mag"
+      "opl-bookforge"
     ],
     "required_skill_ids": [
-      "mag"
+      "opl-bookforge"
     ],
     "optional_skill_ids": [
       "officecli-docx",
-      "officecli-xlsx",
+      "pdf",
       "mineru-document-extractor"
     ],
-    "plugin_source_ref": "gaofeng21cn/med-autogrant/plugins/mag"
+    "plugin_source_ref": "gaofeng21cn/opl-bookforge/plugins/opl-bookforge"
   },
   "skill_packs": [
     {
-      "id": "mag-professional-skill-pack",
-      "source": "github:gaofeng21cn/med-autogrant/plugins/mag/skills/mag",
+      "id": "bookforge-professional-skill-pack",
+      "source": "github:gaofeng21cn/opl-bookforge/plugins/opl-bookforge/skills/opl-bookforge",
       "version": "0.1.0",
-      "lock_ref": "release-lock://opl-agent-packages/mag/0.1.0/mag-professional-skill-pack",
+      "lock_ref": "release-lock://opl-agent-packages/opl-bookforge/0.1.0/bookforge-professional-skill-pack",
       "install_mode": "bundled_required"
     }
   ],
   "entrypoints": [
     {
-      "shortcut_id": "grant",
-      "label": "Grant",
+      "shortcut_id": "book",
+      "label": "Writing",
       "required_skill_ids": [
-        "mag"
+        "opl-bookforge"
       ],
       "shortcut_eligible": true
     }

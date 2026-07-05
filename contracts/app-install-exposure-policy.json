@@ -132,7 +132,7 @@
   ],
   "domain_exposure": [
     {
-      "domain_id": "mas",
+      "domain_id": "med-autoscience",
       "display_name": "Med Auto Science",
       "home_purpose_entry": "research",
       "default_home_visible": true,
@@ -142,7 +142,7 @@
       "canonical_metadata_source": "domain_action_catalog_and_stage_control_plane"
     },
     {
-      "domain_id": "mag",
+      "domain_id": "med-autogrant",
       "display_name": "Med Auto Grant",
       "home_purpose_entry": "grant",
       "default_home_visible": true,
@@ -152,7 +152,7 @@
       "canonical_metadata_source": "domain_action_catalog_and_stage_control_plane"
     },
     {
-      "domain_id": "rca",
+      "domain_id": "redcube-ai",
       "display_name": "RedCube AI",
       "home_purpose_entry": "ppt",
       "default_home_visible": true,
@@ -162,7 +162,7 @@
       "canonical_metadata_source": "domain_action_catalog_and_stage_control_plane"
     },
     {
-      "domain_id": "bookforge",
+      "domain_id": "opl-bookforge",
       "display_name": "OPL BookForge",
       "home_purpose_entry": "book",
       "default_home_visible": true,
@@ -172,7 +172,7 @@
       "canonical_metadata_source": "opl_generated_interface_contract_pack"
     },
     {
-      "domain_id": "oma",
+      "domain_id": "opl-meta-agent",
       "display_name": "OPL Meta Agent",
       "home_purpose_entry": null,
       "default_home_visible": false,
@@ -756,11 +756,11 @@
       "agent_pack_policy": {
         "package_kind": "app_cli_managed_opl_packages",
         "managed_agent_ids": [
-          "mas",
-          "mag",
-          "rca",
-          "oma",
-          "obf",
+          "med-autoscience",
+          "med-autogrant",
+          "redcube-ai",
+          "opl-meta-agent",
+          "opl-bookforge",
           "scholarskills"
         ],
         "homebrew_distribution_allowed": false,
@@ -812,22 +812,22 @@
     "direct_skill_target": "codex_user_skill_discovery_path",
     "product_entry_target": "family-product-entry-manifest-v2",
     "required_agent_ids": [
-      "mas",
-      "mag",
-      "rca",
-      "oma",
-      "bookforge",
+      "med-autoscience",
+      "med-autogrant",
+      "redcube-ai",
+      "opl-meta-agent",
+      "opl-bookforge",
       "scholarskills"
     ],
     "default_plugin_agent_ids": [
-      "mas",
-      "mag",
-      "rca",
-      "bookforge"
+      "med-autoscience",
+      "med-autogrant",
+      "redcube-ai",
+      "opl-bookforge"
     ],
     "generated_plugin_agent_ids": [
-      "oma",
-      "bookforge"
+      "opl-meta-agent",
+      "opl-bookforge"
     ],
     "fail_closed_states": [
       "dirty_managed_checkout",
@@ -846,11 +846,11 @@
     "developer_checkout_override_surface": "Developer Profile source_channel capability",
     "ordinary_user_module_source": "app_cli_managed_ghcr_opl_packages_channel",
     "module_package_channel_agent_ids": [
-      "mas",
-      "mag",
-      "rca",
-      "oma",
-      "bookforge",
+      "med-autoscience",
+      "med-autogrant",
+      "redcube-ai",
+      "opl-meta-agent",
+      "opl-bookforge",
       "scholarskills"
     ],
     "non_module_workflow_plugin_ids": [
@@ -1009,11 +1009,11 @@
     },
     "atomic_bundle_policy": {
       "managed_package_unit_agent_ids": [
-        "mas",
-        "mag",
-        "rca",
-        "oma",
-        "bookforge",
+        "med-autoscience",
+        "med-autogrant",
+        "redcube-ai",
+        "opl-meta-agent",
+        "opl-bookforge",
         "scholarskills"
       ],
       "package_unit_includes": [
@@ -1042,8 +1042,8 @@
       "domain_repo_remains_semantic_owner": true,
       "app_package_manager_scope": "install_exposure_package_lock_action_receipts_and_codex_visible_entries_only",
       "mas_professional_skill_pack_unit": {
-        "package_id": "opl.mas",
-        "agent_id": "mas",
+        "package_id": "med-autoscience",
+        "agent_id": "med-autoscience",
         "required_skill_pack_id": "mas-professional-skill-pack",
         "atomic_with_agent_package": true,
         "lifecycle_actions": [
@@ -1070,7 +1070,7 @@
     },
     "agents": [
       {
-        "agent_id": "mas",
+        "agent_id": "med-autoscience",
         "display_name": "Med Auto Science",
         "preferred_distribution": "plugin_packaged_skill",
         "codex_visible_entry": "mas",
@@ -1084,7 +1084,7 @@
         "canonical_metadata_source": "domain_action_catalog_and_stage_control_plane"
       },
       {
-        "agent_id": "mag",
+        "agent_id": "med-autogrant",
         "display_name": "Med Auto Grant",
         "preferred_distribution": "plugin_packaged_skill",
         "codex_visible_entry": "mag",
@@ -1098,7 +1098,7 @@
         "canonical_metadata_source": "domain_action_catalog_and_stage_control_plane"
       },
       {
-        "agent_id": "rca",
+        "agent_id": "redcube-ai",
         "display_name": "RedCube AI",
         "preferred_distribution": "plugin_packaged_skill",
         "codex_visible_entry": "rca",
@@ -1112,7 +1112,7 @@
         "canonical_metadata_source": "domain_action_catalog_and_stage_control_plane"
       },
       {
-        "agent_id": "oma",
+        "agent_id": "opl-meta-agent",
         "display_name": "OPL Meta Agent",
         "preferred_distribution": "opl_generated_codex_plugin_surface",
         "codex_visible_entry": "opl-meta-agent",
@@ -1126,7 +1126,7 @@
         "canonical_metadata_source": "opl_generated_interface_contract_pack"
       },
       {
-        "agent_id": "bookforge",
+        "agent_id": "opl-bookforge",
         "display_name": "OPL BookForge",
         "default_home_visible": true,
         "preferred_distribution": "opl_generated_codex_plugin_surface",
@@ -1180,11 +1180,11 @@
         "codex_surface"
       ],
       "package_agent_ids": [
-        "mas",
-        "mag",
-        "rca",
-        "oma",
-        "bookforge",
+        "med-autoscience",
+        "med-autogrant",
+        "redcube-ai",
+        "opl-meta-agent",
+        "opl-bookforge",
         "scholarskills"
       ],
       "activation_commands": [

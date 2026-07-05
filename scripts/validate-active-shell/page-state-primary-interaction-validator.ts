@@ -85,29 +85,29 @@ function validateGuidHomeLayout(homeViewModel) {
 }
 
 function validateGuidHomeDefaultAssistants(homeViewModel) {
-  assertIncludesAll(homeViewModel.default_assistants, ['mas', 'mag', 'rca', 'bookforge'], 'Guid home page default assistants');
-  if (homeViewModel.default_assistants?.includes('oma')) {
+  assertIncludesAll(homeViewModel.default_assistants, ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge'], 'Guid home page default assistants');
+  if (homeViewModel.default_assistants?.includes('opl-meta-agent')) {
     throw new Error('Guid home page must not include OMA as a default assistant');
   }
   assertIncludesAll(
     homeViewModel.professional_agent_packages,
-    ['mas', 'mag', 'rca', 'bookforge', 'oma'],
+    ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge', 'opl-meta-agent'],
     'Guid home page professional agent packages',
   );
   assertDeepEqualJson(
     homeViewModel.default_home_agent_packages,
-    ['mas', 'mag', 'rca', 'bookforge'],
+    ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge'],
     'Guid home page default home agent packages',
   );
   const requiredSkills = homeViewModel.default_assistant_required_skills ?? {};
   assertDeepEqualJson(
-    ['mas', 'mag', 'rca', 'bookforge'].map((assistant) => requiredSkills[assistant]),
+    ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge'].map((assistant) => requiredSkills[assistant]),
     [['mas'], ['mag'], ['rca'], ['opl-bookforge']],
     'Guid home page required assistant skills',
   );
   const packageRequiredSkills = homeViewModel.default_agent_package_required_skills ?? {};
   assertDeepEqualJson(
-    ['mas', 'mag', 'rca', 'bookforge'].map((packageId) => packageRequiredSkills[packageId]),
+    ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge'].map((packageId) => packageRequiredSkills[packageId]),
     [['mas'], ['mag'], ['rca'], ['opl-bookforge']],
     'Guid home page required package skills',
   );
@@ -141,14 +141,14 @@ function validateGuidHomeRouteAndPurpose(homeViewModel) {
   if (JSON.stringify(homeAgentShortcuts.map((entry) => entry.shortcut_id)) !== JSON.stringify(['research', 'grant', 'ppt', 'book'])) {
     throw new Error('Guid home page must expose research, grant, ppt, and book package shortcuts');
   }
-  if (JSON.stringify(homeAgentShortcuts.map((entry) => entry.package_id)) !== JSON.stringify(['mas', 'mag', 'rca', 'bookforge'])) {
+  if (JSON.stringify(homeAgentShortcuts.map((entry) => entry.package_id)) !== JSON.stringify(['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge'])) {
     throw new Error('Guid home page package shortcuts must target MAS, MAG, RCA, and OBF');
   }
   const homePurposeEntries = homeViewModel.home_purpose_entries ?? [];
   if (JSON.stringify(homePurposeEntries.map((entry) => entry.id)) !== JSON.stringify(['research', 'grant', 'ppt', 'book'])) {
     throw new Error('Guid home page must expose research, grant, ppt, and book purpose entries');
   }
-  if (JSON.stringify(homePurposeEntries.map((entry) => entry.target_assistant_id)) !== JSON.stringify(['mas', 'mag', 'rca', 'bookforge'])) {
+  if (JSON.stringify(homePurposeEntries.map((entry) => entry.target_assistant_id)) !== JSON.stringify(['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge'])) {
     throw new Error('Guid home page purpose entries must target MAS, MAG, RCA, and OBF');
   }
 }

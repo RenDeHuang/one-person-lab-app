@@ -48,7 +48,7 @@
   ],
   "entries": [
     {
-      "package_id": "mas",
+      "package_id": "med-autoscience",
       "display_name": "Med Auto Science",
       "publisher": "one-person-lab",
       "source": "first_party",
@@ -71,7 +71,7 @@
       "display_policy": "refs_only_no_domain_verdict"
     },
     {
-      "package_id": "mag",
+      "package_id": "med-autogrant",
       "display_name": "Med Auto Grant",
       "publisher": "one-person-lab",
       "source": "first_party",
@@ -94,7 +94,7 @@
       "display_policy": "refs_only_no_domain_verdict"
     },
     {
-      "package_id": "rca",
+      "package_id": "redcube-ai",
       "display_name": "RedCube AI",
       "publisher": "one-person-lab",
       "source": "first_party",
@@ -116,7 +116,7 @@
       "display_policy": "refs_only_no_domain_verdict"
     },
     {
-      "package_id": "bookforge",
+      "package_id": "opl-bookforge",
       "display_name": "OPL BookForge",
       "publisher": "one-person-lab",
       "source": "first_party",
@@ -139,7 +139,7 @@
       "display_policy": "refs_only_no_domain_verdict"
     },
     {
-      "package_id": "oma",
+      "package_id": "opl-meta-agent",
       "display_name": "OPL Meta Agent",
       "publisher": "one-person-lab",
       "source": "first_party",

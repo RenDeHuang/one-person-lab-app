@@ -1076,19 +1076,19 @@
         "route_authority": "App-owned Codex Skill declaration only; Codex remains the invocation authority and runtime/domain truth remain in OPL Framework and domain repos",
         "ordinary_entries": [
           {
-            "id": "mas",
+            "id": "med-autoscience",
             "label": "科研",
             "route": "codex-skill:mas",
             "authority": "med-autoscience"
           },
           {
-            "id": "mag",
+            "id": "med-autogrant",
             "label": "基金",
             "route": "codex-skill:mag",
-            "authority": "med-auto-grant"
+            "authority": "med-autogrant"
           },
           {
-            "id": "rca",
+            "id": "redcube-ai",
             "label": "演示",
             "route": "codex-skill:rca",
             "authority": "redcube-ai"

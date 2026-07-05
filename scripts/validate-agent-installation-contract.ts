@@ -13,10 +13,10 @@ const registryPath = path.join(appRoot, 'contracts', 'agent-package-registry.jso
 const agentPackageSurfaceSchemaPath = path.join(appRoot, 'contracts', 'agent-package-surfaces.schema.json');
 const agentPackageManifestFixtureDir = path.join(appRoot, 'contracts', 'fixtures', 'agent-package-manifests');
 const packageJsonPath = path.join(appRoot, 'package.json');
-const expectedDefaultPluginAgentIds = ['mas', 'mag', 'rca', 'bookforge'];
-const expectedRepoPackagedPluginAgentIds = ['mas', 'mag', 'rca'];
-const expectedGeneratedAgentIds = ['oma', 'bookforge'];
-const expectedRequiredAgentIds = ['mas', 'mag', 'rca', 'oma', 'bookforge', 'scholarskills'];
+const expectedDefaultPluginAgentIds = ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge'];
+const expectedRepoPackagedPluginAgentIds = ['med-autoscience', 'med-autogrant', 'redcube-ai'];
+const expectedGeneratedAgentIds = ['opl-meta-agent', 'opl-bookforge'];
+const expectedRequiredAgentIds = ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-meta-agent', 'opl-bookforge', 'scholarskills'];
 const expectedDefaultVisibleDomainSkillIds = ['mas', 'mag', 'rca', 'opl-bookforge'];
 const expectedGeneratedPluginSkillIds = ['opl-meta-agent', 'opl-bookforge'];
 const expectedCompanionSkillSyncIds = [
@@ -134,7 +134,7 @@ const expectedRegistryExcludedFields = [
   'quality_verdict_rule',
   'owner_receipt_authority',
 ];
-const expectedRegistryPackageIds = ['mas', 'mag', 'rca', 'bookforge', 'oma'];
+const expectedRegistryPackageIds = ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge', 'opl-meta-agent'];
 const expectedManualThirdPartySourceKinds = [
   'local_manifest_file',
   'manifest_url',
@@ -783,8 +783,8 @@ function validateAtomicBundlePolicy(contract: any): void {
     'atomic bundle physical surface required skill readback fields',
   );
   assertFieldsEqual(atomicPolicy?.mas_professional_skill_pack_unit, {
-    package_id: 'opl.mas',
-    agent_id: 'mas',
+    package_id: 'med-autoscience',
+    agent_id: 'med-autoscience',
     required_skill_pack_id: 'mas-professional-skill-pack',
     atomic_with_agent_package: true,
     domain_repo_remains_semantic_owner: true,
@@ -860,9 +860,9 @@ function validateExposureClasses(policy: any, contract: any): void {
   const companionClass = findExposureClass(policy, 'companion_tools_codex_skills');
   assertArrayEqual(companionClass.members, expectedCompanionSkillSyncIds, 'companion skill sync members');
   assertEqual(companionClass.legacy_alias, 'companion_skill_sync', 'companion skill sync legacy alias');
-  for (const agentId of expectedRepoPackagedPluginAgentIds) {
-    if (companionClass.members.includes(agentId)) {
-      fail(`companion skill sync must not include domain plugin ${agentId}`);
+  for (const skillId of expectedDefaultVisibleDomainSkillIds) {
+    if (companionClass.members.includes(skillId)) {
+      fail(`companion skill sync must not include domain plugin ${skillId}`);
     }
   }
 }
@@ -901,8 +901,8 @@ function validateAgentInstallEntries(policy: any, contract: any, agentRoots: Age
     );
   }
 
-  const bookforgeExposure = findDomainExposure(policy, 'bookforge');
-  const bookforgeInstallAgent = findInstallAgent(contract, 'bookforge');
+  const bookforgeExposure = findDomainExposure(policy, 'opl-bookforge');
+  const bookforgeInstallAgent = findInstallAgent(contract, 'opl-bookforge');
   assertEqual(bookforgeExposure.default_home_visible, true, 'BookForge default visibility');
   assertEqual(bookforgeExposure.preferred_app_distribution, 'opl_generated_codex_plugin_surface', 'BookForge exposure distribution');
   assertEqual(bookforgeExposure.codex_visible_entry, 'opl-bookforge', 'BookForge Codex visible entry');
@@ -917,8 +917,8 @@ function validateAgentInstallEntries(policy: any, contract: any, agentRoots: Age
     'BookForge canonical metadata source',
   );
 
-  const omaExposure = findDomainExposure(policy, 'oma');
-  const omaInstallAgent = findInstallAgent(contract, 'oma');
+  const omaExposure = findDomainExposure(policy, 'opl-meta-agent');
+  const omaInstallAgent = findInstallAgent(contract, 'opl-meta-agent');
   assertEqual(omaExposure.preferred_app_distribution, 'opl_generated_codex_plugin_surface', 'OMA exposure distribution');
   assertEqual(omaInstallAgent.plugin_registry_required, true, 'OMA plugin registry policy');
   assertEqual(omaInstallAgent.plugin_must_package_skill, false, 'OMA plugin packaging policy');

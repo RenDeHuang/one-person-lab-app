@@ -182,31 +182,31 @@ export const defaultCompanionSkillSyncIds = [
 ];
 export const domainExposureEntries = [
   {
-    domain_id: 'mas',
+    domain_id: 'med-autoscience',
     home_purpose_entry: 'research',
     codex_visible_entry: 'mas',
     preferred_app_distribution: 'plugin_packaged_skill',
   },
   {
-    domain_id: 'mag',
+    domain_id: 'med-autogrant',
     home_purpose_entry: 'grant',
     codex_visible_entry: 'mag',
     preferred_app_distribution: 'plugin_packaged_skill',
   },
   {
-    domain_id: 'rca',
+    domain_id: 'redcube-ai',
     home_purpose_entry: 'ppt',
     codex_visible_entry: 'rca',
     preferred_app_distribution: 'plugin_packaged_skill',
   },
   {
-    domain_id: 'bookforge',
+    domain_id: 'opl-bookforge',
     home_purpose_entry: 'book',
     codex_visible_entry: 'opl-bookforge',
     preferred_app_distribution: 'opl_generated_codex_plugin_surface',
   },
   {
-    domain_id: 'oma',
+    domain_id: 'opl-meta-agent',
     home_purpose_entry: null,
     codex_visible_entry: 'opl-meta-agent',
     preferred_app_distribution: 'opl_generated_codex_plugin_surface',

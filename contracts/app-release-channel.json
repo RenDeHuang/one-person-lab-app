@@ -610,11 +610,11 @@
       "policy": "ordinary_user_non_development_silent_background",
       "post_apply": "sync_plugin_registry_plugin_packaged_skills_generated_surfaces_and_codex_surface_readiness",
       "managed_agent_ids": [
-        "mas",
-        "mag",
-        "rca",
-        "oma",
-        "obf",
+        "med-autoscience",
+        "med-autogrant",
+        "redcube-ai",
+        "opl-meta-agent",
+        "opl-bookforge",
         "scholarskills"
       ],
       "developer_checkout_override_policy": "explicit_developer_profile_source_channel_only",
@@ -2759,11 +2759,11 @@
         "post_apply": "sync_plugin_registry_plugin_packaged_skills_generated_surfaces_and_codex_surface_readiness",
         "default_update_mode": "silent_background",
         "package_agent_ids": [
-          "mas",
-          "mag",
-          "rca",
-          "oma",
-          "obf",
+          "med-autoscience",
+          "med-autogrant",
+          "redcube-ai",
+          "opl-meta-agent",
+          "opl-bookforge",
           "scholarskills"
         ],
         "status_fields": [
@@ -3042,13 +3042,13 @@
       "default_update_mode": "silent_background",
       "default_manifest_tag": "latest",
       "package_agent_ids": [
-        "mas",
-        "mag",
-        "rca",
-        "oma",
-        "obf",
-        "scholarskills"
-      ],
+          "med-autoscience",
+          "med-autogrant",
+          "redcube-ai",
+          "opl-meta-agent",
+          "opl-bookforge",
+          "scholarskills"
+        ],
       "post_update_sync_required": [
         "codex_plugin_registry",
         "plugin_packaged_skills",

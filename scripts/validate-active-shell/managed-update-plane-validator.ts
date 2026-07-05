@@ -628,7 +628,7 @@ function validateManagedUpdateAgentPackageLane(agentPlane, capabilityPlane, agen
   );
   assertDeepEqualJson(
     agentPlane?.package_agent_ids,
-    ['mas', 'mag', 'rca', 'oma', 'obf', 'scholarskills'],
+    ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-meta-agent', 'opl-bookforge', 'scholarskills'],
     'Managed update plane agent package ids',
   );
   if (
@@ -662,7 +662,7 @@ function validateManagedUpdateAgentPackageLane(agentPlane, capabilityPlane, agen
   );
   assertDeepEqualJson(
     agentPackageChannel?.package_agent_ids,
-    ['mas', 'mag', 'rca', 'oma', 'obf', 'scholarskills'],
+    ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-meta-agent', 'opl-bookforge', 'scholarskills'],
     'Managed update plane OPL Packages package ids',
   );
 }

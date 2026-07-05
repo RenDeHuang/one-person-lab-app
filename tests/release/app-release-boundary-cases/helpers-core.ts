@@ -472,6 +472,13 @@ export function writeAssistantRouteSmokeScreenshots(tempRoot) {
   }
 }
 
+const canonicalAssistantRouteIds = ['med-autoscience', 'med-autogrant', 'redcube-ai'];
+const canonicalAssistantShortNames = {
+  'med-autoscience': 'MAS',
+  'med-autogrant': 'MAG',
+  'redcube-ai': 'RCA',
+};
+
 export function writeRuntimeEvidenceJsonFiles(tempRoot) {
   writeFile(
     path.join(tempRoot, 'app-state-summary.json'),
@@ -556,7 +563,7 @@ process.exit(2);
 
 export function writeVmSmokeSummaryFiles(tempRoot, runtimeProfile = 'full') {
   const settingsSmoke = { status: 'passed', pages: ['general', 'access', 'capabilities', 'environment', 'appearance', 'advanced', 'about'] };
-  const assistantRouteSmoke = { status: 'passed', assistants: ['mas', 'mag', 'rca'] };
+  const assistantRouteSmoke = { status: 'passed', assistants: canonicalAssistantRouteIds };
   const codexFunctionalCheck = {
     schema: 'opl_codex_functional_check_receipt.v1',
     status: 'diagnostic_skipped',
@@ -578,8 +585,8 @@ export function writeVmSmokeSummaryFiles(tempRoot, runtimeProfile = 'full') {
     },
     assistant_route_receipts_checked: {
       status: 'passed',
-      required: ['mas', 'mag', 'rca'],
-      checked: ['mas', 'mag', 'rca'],
+      required: canonicalAssistantRouteIds,
+      checked: canonicalAssistantRouteIds,
       deterministic: true,
     },
     skills_or_plugins_policy_checked: {
@@ -644,8 +651,8 @@ export function writeVmSmokeSummaryFiles(tempRoot, runtimeProfile = 'full') {
       surface_id: 'opl_packaged_gui_assistant_route_smoke',
       status: 'passed',
       cdp_port: 9230,
-      assistants: ['mas', 'mag', 'rca'].map((id) => {
-        const shortName = id.toUpperCase();
+      assistants: canonicalAssistantRouteIds.map((id) => {
+        const shortName = canonicalAssistantShortNames[id];
         const badge = `@${shortName}`;
         return {
           id,

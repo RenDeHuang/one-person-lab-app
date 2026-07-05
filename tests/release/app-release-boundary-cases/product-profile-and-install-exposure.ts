@@ -98,7 +98,7 @@ const EXPECTED_REGISTRY_EXCLUDED_FIELDS = [
   'quality_verdict_rule',
   'owner_receipt_authority',
 ];
-const EXPECTED_REGISTRY_PACKAGE_IDS = ['mas', 'mag', 'rca', 'bookforge', 'oma'];
+const EXPECTED_REGISTRY_PACKAGE_IDS = ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge', 'opl-meta-agent'];
 const EXPECTED_PACKAGE_LOCK_RECEIPT_FIELDS = [
   'package_id',
   'version_or_source_digest',
@@ -248,29 +248,29 @@ test('App product profile owns user-facing defaults without runtime authority', 
   );
   assert.deepEqual(profile.gui.home.home_purpose_entries.map((entry) => entry.id), ['research', 'grant', 'ppt', 'book']);
   assert.deepEqual(profile.gui.home.home_purpose_entries.map((entry) => entry.primary_label), ['科研', '基金', '演示', '写书']);
-  assert.deepEqual(profile.gui.home.home_purpose_entries.map((entry) => entry.target_assistant_id), ['mas', 'mag', 'rca', 'bookforge']);
+  assert.deepEqual(profile.gui.home.home_purpose_entries.map((entry) => entry.target_assistant_id), ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge']);
   assert.ok(profile.gui.home.home_purpose_entries.every((entry) => entry.display_policy === 'purpose_first'));
   assert.deepEqual(profile.gui.home.home_agent_shortcuts.map((entry) => entry.shortcut_id), ['research', 'grant', 'ppt', 'book']);
-  assert.deepEqual(profile.gui.home.home_agent_shortcuts.map((entry) => entry.package_id), ['mas', 'mag', 'rca', 'bookforge']);
+  assert.deepEqual(profile.gui.home.home_agent_shortcuts.map((entry) => entry.package_id), ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge']);
   assert.ok(profile.gui.home.home_agent_shortcuts.every((entry) => entry.executor === 'codex_cli' && entry.source === 'opl_app_home'));
   assert.ok(profile.gui.home.home_agent_shortcuts.every((entry) => entry.default_visible === true && entry.user_configurable === true));
-  assert.deepEqual(profile.gui.professional_agent_packages.map((pkg) => pkg.package_id), ['mas', 'mag', 'rca', 'bookforge', 'oma']);
+  assert.deepEqual(profile.gui.professional_agent_packages.map((pkg) => pkg.package_id), ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge', 'opl-meta-agent']);
   assert.deepEqual(
     Object.fromEntries(profile.gui.professional_agent_packages.map((pkg) => [pkg.package_id, pkg.required_skill_ids])),
-    { mas: ['mas'], mag: ['mag'], rca: ['rca'], bookforge: ['opl-bookforge'], oma: ['opl-meta-agent'] },
+    { 'med-autoscience': ['mas'], 'med-autogrant': ['mag'], 'redcube-ai': ['rca'], 'opl-bookforge': ['opl-bookforge'], 'opl-meta-agent': ['opl-meta-agent'] },
   );
   assert.deepEqual(
     Object.fromEntries(profile.gui.professional_agent_packages.map((pkg) => [pkg.package_id, pkg.codex_visible_entry])),
-    { mas: 'mas', mag: 'mag', rca: 'rca', bookforge: 'opl-bookforge', oma: 'opl-meta-agent' },
+    { 'med-autoscience': 'mas', 'med-autogrant': 'mag', 'redcube-ai': 'rca', 'opl-bookforge': 'opl-bookforge', 'opl-meta-agent': 'opl-meta-agent' },
   );
-  assert.ok(profile.gui.professional_agent_packages.filter((pkg) => pkg.package_id !== 'oma').every((pkg) => pkg.default_home_visible === true));
-  assert.equal(profile.gui.professional_agent_packages.find((pkg) => pkg.package_id === 'oma').default_home_visible, false);
-  assert.deepEqual(profile.gui.default_assistants.map((assistant) => assistant.id), ['mas', 'mag', 'rca', 'bookforge']);
+  assert.ok(profile.gui.professional_agent_packages.filter((pkg) => pkg.package_id !== 'opl-meta-agent').every((pkg) => pkg.default_home_visible === true));
+  assert.equal(profile.gui.professional_agent_packages.find((pkg) => pkg.package_id === 'opl-meta-agent').default_home_visible, false);
+  assert.deepEqual(profile.gui.default_assistants.map((assistant) => assistant.id), ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge']);
   assert.ok(profile.gui.default_assistants.every((assistant) => assistant.home_entry_policy === 'purpose_entry_target'));
-  assert.deepEqual(profile.gui.assistant_skill_profiles.map((profile) => profile.assistant_id), ['mas', 'mag', 'rca', 'bookforge']);
+  assert.deepEqual(profile.gui.assistant_skill_profiles.map((profile) => profile.assistant_id), ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge']);
   assert.deepEqual(
     Object.fromEntries(profile.gui.assistant_skill_profiles.map((profile) => [profile.assistant_id, profile.required_skills])),
-    { mas: ['mas'], mag: ['mag'], rca: ['rca'], bookforge: ['opl-bookforge'] },
+    { 'med-autoscience': ['mas'], 'med-autogrant': ['mag'], 'redcube-ai': ['rca'], 'opl-bookforge': ['opl-bookforge'] },
   );
   assert.ok(
     profile.gui.assistant_skill_profiles.every(
@@ -310,7 +310,7 @@ test('App product profile owns user-facing defaults without runtime authority', 
   );
   assert.equal(profile.gui.builtin_assistant_route_receipt_policy.migration_alias_for, 'agent_package_invocation_receipt_policy');
   assert.equal(profile.gui.builtin_assistant_route_receipt_policy.scope, 'home_purpose_entry_to_conversation');
-  assert.deepEqual(profile.gui.builtin_assistant_route_receipt_policy.required_for_assistants, ['mas', 'mag', 'rca', 'bookforge']);
+  assert.deepEqual(profile.gui.builtin_assistant_route_receipt_policy.required_for_assistants, ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge']);
   assert.equal(profile.gui.builtin_assistant_route_receipt_policy.route_kind, 'builtin_capability');
   assert.equal(profile.gui.builtin_assistant_route_receipt_policy.executor, 'codex_cli');
   assert.equal(profile.gui.builtin_assistant_route_receipt_policy.source, 'opl_app_home');
@@ -410,7 +410,7 @@ test('App product profile owns user-facing defaults without runtime authority', 
     'app_action_route_only',
   );
   assert.equal('legacy_developer_mode_alias' in profile.settings.developer_profile, false);
-  assert.equal(profile.gui.non_default_assistants.find((assistant) => assistant.id === 'oma').home_default_visible, false);
+  assert.equal(profile.gui.non_default_assistants.find((assistant) => assistant.id === 'opl-meta-agent').home_default_visible, false);
   assert.ok(profile.codex.default_visible_skills.includes('superpowers'));
   assert.ok(profile.codex.default_visible_skills.includes('cron'));
   assert.ok(profile.codex.default_visible_skills.includes('pdf'));
@@ -583,11 +583,11 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
   assert.equal(exposureClassById.get('companion_tools_codex_skills').members.includes('rca'), false);
 
   const domainById = new Map(policy.domain_exposure.map((entry) => [entry.domain_id, entry]));
-  assert.equal(domainById.get('mas').preferred_app_distribution, 'plugin_packaged_skill');
-  assert.equal(domainById.get('mag').preferred_app_distribution, 'plugin_packaged_skill');
-  assert.equal(domainById.get('rca').preferred_app_distribution, 'plugin_packaged_skill');
-  assert.equal(domainById.get('oma').preferred_app_distribution, 'opl_generated_codex_plugin_surface');
-  assert.equal(domainById.get('oma').default_home_visible, false);
+  assert.equal(domainById.get('med-autoscience').preferred_app_distribution, 'plugin_packaged_skill');
+  assert.equal(domainById.get('med-autogrant').preferred_app_distribution, 'plugin_packaged_skill');
+  assert.equal(domainById.get('redcube-ai').preferred_app_distribution, 'plugin_packaged_skill');
+  assert.equal(domainById.get('opl-meta-agent').preferred_app_distribution, 'opl_generated_codex_plugin_surface');
+  assert.equal(domainById.get('opl-meta-agent').default_home_visible, false);
 
   const installerSurfaceById = new Map(policy.installer_surfaces.map((surface) => [surface.surface, surface]));
   for (const surface of policy.installer_surfaces.filter((entry) => entry.surface !== 'unsigned_local_app_authorization')) {
@@ -879,15 +879,15 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
   assert.equal(policy.agent_installation_contract.direct_skill_target, 'codex_user_skill_discovery_path');
   assert.equal(policy.agent_installation_contract.product_entry_target, 'family-product-entry-manifest-v2');
   assert.deepEqual(policy.agent_installation_contract.required_agent_ids, [
-    'mas',
-    'mag',
-    'rca',
-    'oma',
-    'bookforge',
+    'med-autoscience',
+    'med-autogrant',
+    'redcube-ai',
+    'opl-meta-agent',
+    'opl-bookforge',
     'scholarskills',
   ]);
-  assert.deepEqual(policy.agent_installation_contract.default_plugin_agent_ids, ['mas', 'mag', 'rca', 'bookforge']);
-  assert.deepEqual(policy.agent_installation_contract.generated_plugin_agent_ids, ['oma', 'bookforge']);
+  assert.deepEqual(policy.agent_installation_contract.default_plugin_agent_ids, ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge']);
+  assert.deepEqual(policy.agent_installation_contract.generated_plugin_agent_ids, ['opl-meta-agent', 'opl-bookforge']);
   assert.deepEqual(policy.agent_installation_contract.fail_closed_states, policy.sync_and_install_contract.fail_closed_states);
   assert.equal(policy.agent_installation_contract.may_use_developer_checkout_by_default, false);
   assert.equal(policy.agent_installation_contract.developer_checkout_override_policy, 'explicit_opt_in_only');
@@ -897,11 +897,11 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
   );
   assert.equal(policy.agent_installation_contract.ordinary_user_module_source, 'app_cli_managed_ghcr_opl_packages_channel');
   assert.deepEqual(policy.agent_installation_contract.module_package_channel_agent_ids, [
-    'mas',
-    'mag',
-    'rca',
-    'oma',
-    'bookforge',
+    'med-autoscience',
+    'med-autogrant',
+    'redcube-ai',
+    'opl-meta-agent',
+    'opl-bookforge',
     'scholarskills',
   ]);
   assert.deepEqual(policy.agent_installation_contract.non_module_workflow_plugin_ids, ['opl-flow']);
@@ -1079,11 +1079,11 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
   assert.equal(policy.agent_installation_contract.package_lock_receipt_contract.trust_tier_required, true);
   assert.equal(policy.agent_installation_contract.package_lock_receipt_contract.rollback_ref_required, true);
   assert.deepEqual(policy.agent_installation_contract.atomic_bundle_policy.managed_package_unit_agent_ids, [
-    'mas',
-    'mag',
-    'rca',
-    'oma',
-    'bookforge',
+    'med-autoscience',
+    'med-autogrant',
+    'redcube-ai',
+    'opl-meta-agent',
+    'opl-bookforge',
     'scholarskills',
   ]);
   assert.deepEqual(policy.agent_installation_contract.atomic_bundle_policy.package_unit_includes, [
@@ -1112,8 +1112,8 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
   assert.equal(policy.agent_installation_contract.atomic_bundle_policy.reconcile_update_uninstall_as_unit, true);
   assert.equal(policy.agent_installation_contract.atomic_bundle_policy.domain_repo_remains_semantic_owner, true);
   assert.deepEqual(policy.agent_installation_contract.atomic_bundle_policy.mas_professional_skill_pack_unit, {
-    package_id: 'opl.mas',
-    agent_id: 'mas',
+    package_id: 'med-autoscience',
+    agent_id: 'med-autoscience',
     required_skill_pack_id: 'mas-professional-skill-pack',
     atomic_with_agent_package: true,
     lifecycle_actions: ['install', 'update', 'repair', 'rollback', 'uninstall'],
@@ -1141,11 +1141,11 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
     'codex_surface',
   ]);
   assert.deepEqual(policy.agent_installation_contract.managed_agent_pack_distribution.package_agent_ids, [
-    'mas',
-    'mag',
-    'rca',
-    'oma',
-    'bookforge',
+    'med-autoscience',
+    'med-autogrant',
+    'redcube-ai',
+    'opl-meta-agent',
+    'opl-bookforge',
     'scholarskills',
   ]);
   assert.deepEqual(policy.agent_installation_contract.managed_agent_pack_distribution.activation_commands, [
@@ -1182,7 +1182,7 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
   );
 
   const installAgentById = new Map(policy.agent_installation_contract.agents.map((entry) => [entry.agent_id, entry]));
-  for (const agentId of ['mas', 'mag', 'rca']) {
+  for (const agentId of ['med-autoscience', 'med-autogrant', 'redcube-ai']) {
     const entry = installAgentById.get(agentId);
     assert.equal(entry.plugin_registry_required, true);
     assert.equal(entry.direct_skill_compatibility_required, true);
@@ -1191,14 +1191,18 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
     assert.equal(entry.sync_command, 'opl connect sync-skills');
     assert.equal(entry.product_entry_manifest, 'family-product-entry-manifest-v2');
     assert.equal(entry.canonical_metadata_source, 'domain_action_catalog_and_stage_control_plane');
-    assert.equal(entry.codex_visible_entry, agentId);
+    assert.equal(entry.codex_visible_entry, {
+      'med-autoscience': 'mas',
+      'med-autogrant': 'mag',
+      'redcube-ai': 'rca',
+    }[agentId]);
   }
-  assert.equal(installAgentById.get('oma').plugin_registry_required, true);
-  assert.equal(installAgentById.get('oma').preferred_distribution, 'opl_generated_codex_plugin_surface');
-  assert.equal(installAgentById.get('oma').canonical_metadata_source, 'opl_generated_interface_contract_pack');
-  assert.equal(installAgentById.get('bookforge').plugin_registry_required, true);
-  assert.equal(installAgentById.get('bookforge').preferred_distribution, 'opl_generated_codex_plugin_surface');
-  assert.equal(installAgentById.get('bookforge').canonical_metadata_source, 'opl_generated_interface_contract_pack');
+  assert.equal(installAgentById.get('opl-meta-agent').plugin_registry_required, true);
+  assert.equal(installAgentById.get('opl-meta-agent').preferred_distribution, 'opl_generated_codex_plugin_surface');
+  assert.equal(installAgentById.get('opl-meta-agent').canonical_metadata_source, 'opl_generated_interface_contract_pack');
+  assert.equal(installAgentById.get('opl-bookforge').plugin_registry_required, true);
+  assert.equal(installAgentById.get('opl-bookforge').preferred_distribution, 'opl_generated_codex_plugin_surface');
+  assert.equal(installAgentById.get('opl-bookforge').canonical_metadata_source, 'opl_generated_interface_contract_pack');
   assert.equal(policy.temporal_auto_configuration.provider_env_default, 'OPL_FAMILY_RUNTIME_PROVIDER=temporal');
   assert.deepEqual(policy.temporal_auto_configuration.local_service_defaults, {
     address_env: 'OPL_TEMPORAL_ADDRESS',
@@ -1328,7 +1332,14 @@ test('Homebrew distribution channel is transport-only and keeps OPL activation a
     stable_only: true,
   });
   assert.equal(homebrew.agent_pack_policy.package_kind, 'app_cli_managed_opl_packages');
-  assert.deepEqual(homebrew.agent_pack_policy.managed_agent_ids, ['mas', 'mag', 'rca', 'oma', 'obf', 'scholarskills']);
+  assert.deepEqual(homebrew.agent_pack_policy.managed_agent_ids, [
+    'med-autoscience',
+    'med-autogrant',
+    'redcube-ai',
+    'opl-meta-agent',
+    'opl-bookforge',
+    'scholarskills',
+  ]);
   assert.equal(homebrew.agent_pack_policy.homebrew_distribution_allowed, false);
   assert.equal(homebrew.agent_pack_policy.user_visible_formula_allowed, false);
   assert.equal(homebrew.agent_pack_policy.activation_policy, 'app_cli_managed_background_maintenance');

@@ -7,28 +7,28 @@ import {
 } from './app-contract-constants.ts';
 import { validateGuiProductAuthority } from './gui-product-authority-validator.ts';
 
-const defaultAssistantIds = ['mas', 'mag', 'rca', 'bookforge'];
+const defaultAssistantIds = ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge'];
 const purposeEntryIds = ['research', 'grant', 'ppt', 'book'];
-const managedPackageIds = [...defaultAssistantIds, 'oma'];
+const managedPackageIds = [...defaultAssistantIds, 'opl-meta-agent'];
 const requiredSkillByAssistantId = {
-  mas: 'mas',
-  mag: 'mag',
-  rca: 'rca',
-  bookforge: 'opl-bookforge',
+  'med-autoscience': 'mas',
+  'med-autogrant': 'mag',
+  'redcube-ai': 'rca',
+  'opl-bookforge': 'opl-bookforge',
 };
 const requiredSkillByPackageId = {
-  mas: ['mas'],
-  mag: ['mag'],
-  rca: ['rca'],
-  bookforge: ['opl-bookforge'],
-  oma: ['opl-meta-agent'],
+  'med-autoscience': ['mas'],
+  'med-autogrant': ['mag'],
+  'redcube-ai': ['rca'],
+  'opl-bookforge': ['opl-bookforge'],
+  'opl-meta-agent': ['opl-meta-agent'],
 };
 const codexEntryByPackageId = {
-  mas: 'mas',
-  mag: 'mag',
-  rca: 'rca',
-  bookforge: 'opl-bookforge',
-  oma: 'opl-meta-agent',
+  'med-autoscience': 'mas',
+  'med-autogrant': 'mag',
+  'redcube-ai': 'rca',
+  'opl-bookforge': 'opl-bookforge',
+  'opl-meta-agent': 'opl-meta-agent',
 };
 const rightInspectorExpected = {
   placement: 'right',
@@ -182,7 +182,7 @@ function validateDefaultAssistants(guiContract) {
       throw new Error(`Default assistant ${assistantId} must be a purpose-first entry target`);
     }
   }
-  if (assistants.has('oma')) {
+  if (assistants.has('opl-meta-agent')) {
     throw new Error('OMA must not be a default App GUI assistant');
   }
   if (assistants.has('mds')) {
@@ -213,7 +213,7 @@ function validateProfessionalAgentPackages(guiContract) {
         throw new Error(`App GUI starter package ${entry.package_id} must be default home visible through one shortcut`);
       }
     }
-    if (entry.package_id === 'oma' && (
+    if (entry.package_id === 'opl-meta-agent' && (
       entry.package_kind !== 'managed_professional_agent_package' ||
       entry.default_home_visible !== false ||
       entry.home_shortcut_ids.length !== 0
@@ -292,7 +292,7 @@ function validatePurposeEntries(guiContract) {
 }
 
 function validateNonDefaultAndRetiredAssistants(guiContract) {
-  const oma = (guiContract.non_default_assistants ?? []).find((assistant) => assistant.id === 'oma');
+  const oma = (guiContract.non_default_assistants ?? []).find((assistant) => assistant.id === 'opl-meta-agent');
   if (!oma || oma.home_default_visible !== false || oma.home_entry_policy !== 'explicit_or_settings_only') {
     throw new Error('App GUI contract must keep OMA available but out of default home entries');
   }

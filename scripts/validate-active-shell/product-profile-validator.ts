@@ -57,21 +57,21 @@ const ordinaryForbiddenCapabilityPolicy = {
     'tl',
   ],
 };
-const starterPackageIds = ['mas', 'mag', 'rca', 'bookforge'];
+const starterPackageIds = ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge'];
 const starterShortcutIds = ['research', 'grant', 'ppt', 'book'];
 const requiredSkillByPackageId = {
-  mas: ['mas'],
-  mag: ['mag'],
-  rca: ['rca'],
-  bookforge: ['opl-bookforge'],
-  oma: ['opl-meta-agent'],
+  'med-autoscience': ['mas'],
+  'med-autogrant': ['mag'],
+  'redcube-ai': ['rca'],
+  'opl-bookforge': ['opl-bookforge'],
+  'opl-meta-agent': ['opl-meta-agent'],
 };
 const codexEntryByPackageId = {
-  mas: 'mas',
-  mag: 'mag',
-  rca: 'rca',
-  bookforge: 'opl-bookforge',
-  oma: 'opl-meta-agent',
+  'med-autoscience': 'mas',
+  'med-autogrant': 'mag',
+  'redcube-ai': 'rca',
+  'opl-bookforge': 'opl-bookforge',
+  'opl-meta-agent': 'opl-meta-agent',
 };
 
 function validateProductProfileIdentity(profile) {
@@ -127,7 +127,7 @@ function validateHomeAssistantDefaults(profile) {
   if (JSON.stringify(homePurposeEntries.map((entry) => entry.id)) !== JSON.stringify(['research', 'grant', 'ppt', 'book'])) {
     throw new Error('Product profile GUI home must expose research, grant, ppt, and book purpose entries');
   }
-  if (JSON.stringify(homePurposeEntries.map((entry) => entry.target_assistant_id)) !== JSON.stringify(['mas', 'mag', 'rca', 'bookforge'])) {
+  if (JSON.stringify(homePurposeEntries.map((entry) => entry.target_assistant_id)) !== JSON.stringify(['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge'])) {
     throw new Error('Product profile GUI home purpose entries must target MAS, MAG, RCA, and BookForge');
   }
   const homeAgentShortcuts = profile.gui.home.home_agent_shortcuts ?? [];
@@ -150,7 +150,7 @@ function validateHomeAssistantDefaults(profile) {
       throw new Error(`Product profile GUI home shortcut ${shortcut.shortcut_id} must be a configurable Codex package launch shortcut`);
     }
   }
-  if (JSON.stringify((profile.gui.default_assistants ?? []).map((assistant) => assistant.id)) !== JSON.stringify(['mas', 'mag', 'rca', 'bookforge'])) {
+  if (JSON.stringify((profile.gui.default_assistants ?? []).map((assistant) => assistant.id)) !== JSON.stringify(['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge'])) {
     throw new Error('Product profile default assistants must be MAS, MAG, RCA, and BookForge');
   }
   for (const assistant of profile.gui.default_assistants ?? []) {
@@ -158,7 +158,7 @@ function validateHomeAssistantDefaults(profile) {
       throw new Error(`Product profile default assistant ${assistant.id} must be a purpose-first entry target`);
     }
   }
-  const oma = (profile.gui.non_default_assistants ?? []).find((assistant) => assistant.id === 'oma');
+  const oma = (profile.gui.non_default_assistants ?? []).find((assistant) => assistant.id === 'opl-meta-agent');
   if (!oma || oma.home_default_visible !== false || oma.home_entry_policy !== 'explicit_or_settings_only') {
     throw new Error('Product profile must keep OMA available but out of default home entries');
   }
@@ -171,7 +171,7 @@ function validateHomeAssistantDefaults(profile) {
 
 function validateProfessionalAgentPackages(profile) {
   const packages = profile.gui.professional_agent_packages ?? [];
-  if (JSON.stringify(packages.map((entry) => entry.package_id)) !== JSON.stringify([...starterPackageIds, 'oma'])) {
+  if (JSON.stringify(packages.map((entry) => entry.package_id)) !== JSON.stringify([...starterPackageIds, 'opl-meta-agent'])) {
     throw new Error('Product profile professional agent packages must declare MAS, MAG, RCA, BookForge, and OMA');
   }
   for (const entry of packages) {
@@ -191,7 +191,7 @@ function validateProfessionalAgentPackages(profile) {
         throw new Error(`Product profile starter package ${entry.package_id} must be default home visible through one shortcut`);
       }
     }
-    if (entry.package_id === 'oma' && (
+    if (entry.package_id === 'opl-meta-agent' && (
       entry.package_kind !== 'managed_professional_agent_package' ||
       entry.default_home_visible !== false ||
       entry.home_shortcut_ids.length !== 0
@@ -239,15 +239,15 @@ function validateProductProfileSettings(profile) {
 
 function validateAssistantSkillProfiles(profile) {
   const productSkillProfiles = profile.gui.assistant_skill_profiles ?? [];
-  if (JSON.stringify(productSkillProfiles.map((entry) => entry.assistant_id)) !== JSON.stringify(['mas', 'mag', 'rca', 'bookforge'])) {
+  if (JSON.stringify(productSkillProfiles.map((entry) => entry.assistant_id)) !== JSON.stringify(['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge'])) {
     throw new Error('Product profile assistant skill profiles must target MAS, MAG, RCA, and BookForge');
   }
   const defaultPackagedSkillIds = new Set(profile.companion_payloads?.default_packaged_codex_skill_ids ?? []);
   const requiredSkillByAssistantId = {
-    mas: 'mas',
-    mag: 'mag',
-    rca: 'rca',
-    bookforge: 'opl-bookforge',
+    'med-autoscience': 'mas',
+    'med-autogrant': 'mag',
+    'redcube-ai': 'rca',
+    'opl-bookforge': 'opl-bookforge',
   };
   for (const entry of productSkillProfiles) {
     const requiredSkill = requiredSkillByAssistantId[entry.assistant_id];

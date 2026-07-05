@@ -1246,10 +1246,10 @@
     "migration_alias_for": "agent_package_invocation_receipt_policy",
     "scope": "home_purpose_entry_to_conversation",
     "required_for_assistants": [
-      "mas",
-      "mag",
-      "rca",
-      "bookforge"
+      "med-autoscience",
+      "med-autogrant",
+      "redcube-ai",
+      "opl-bookforge"
     ],
     "route_kind": "builtin_capability",
     "executor": "codex_cli",
@@ -1375,7 +1375,7 @@
     {
       "id": "research",
       "primary_label": "科研",
-      "target_assistant_id": "mas",
+      "target_assistant_id": "med-autoscience",
       "target_assistant_short_name": "MAS",
       "display_policy": "purpose_first",
       "home_entry_policy": "visible_click_to_start"
@@ -1383,7 +1383,7 @@
     {
       "id": "grant",
       "primary_label": "基金",
-      "target_assistant_id": "mag",
+      "target_assistant_id": "med-autogrant",
       "target_assistant_short_name": "MAG",
       "display_policy": "purpose_first",
       "home_entry_policy": "visible_click_to_start"
@@ -1391,7 +1391,7 @@
     {
       "id": "ppt",
       "primary_label": "演示",
-      "target_assistant_id": "rca",
+      "target_assistant_id": "redcube-ai",
       "target_assistant_short_name": "RCA",
       "display_policy": "purpose_first",
       "home_entry_policy": "visible_click_to_start"
@@ -1399,7 +1399,7 @@
     {
       "id": "book",
       "primary_label": "写书",
-      "target_assistant_id": "bookforge",
+      "target_assistant_id": "opl-bookforge",
       "target_assistant_short_name": "OBF",
       "display_policy": "purpose_first",
       "home_entry_policy": "visible_click_to_start"
@@ -1408,7 +1408,7 @@
   "home_agent_shortcuts": [
     {
       "shortcut_id": "research",
-      "package_id": "mas",
+      "package_id": "med-autoscience",
       "primary_label": "科研",
       "package_short_name": "MAS",
       "codex_visible_entry": "mas",
@@ -1424,7 +1424,7 @@
     },
     {
       "shortcut_id": "grant",
-      "package_id": "mag",
+      "package_id": "med-autogrant",
       "primary_label": "基金",
       "package_short_name": "MAG",
       "codex_visible_entry": "mag",
@@ -1440,7 +1440,7 @@
     },
     {
       "shortcut_id": "ppt",
-      "package_id": "rca",
+      "package_id": "redcube-ai",
       "primary_label": "演示",
       "package_short_name": "RCA",
       "codex_visible_entry": "rca",
@@ -1456,7 +1456,7 @@
     },
     {
       "shortcut_id": "book",
-      "package_id": "bookforge",
+      "package_id": "opl-bookforge",
       "primary_label": "写书",
       "package_short_name": "OBF",
       "codex_visible_entry": "opl-bookforge",
@@ -1473,7 +1473,7 @@
   ],
   "professional_agent_packages": [
     {
-      "package_id": "mas",
+      "package_id": "med-autoscience",
       "display_name": "Med Auto Science",
       "short_name": "MAS",
       "role": "research_and_paper_agent",
@@ -1497,7 +1497,7 @@
       "skill_menu_policy": "assistant_scoped_required_checked_optional_visible"
     },
     {
-      "package_id": "mag",
+      "package_id": "med-autogrant",
       "display_name": "Med Auto Grant",
       "short_name": "MAG",
       "role": "grant_authoring_agent",
@@ -1521,7 +1521,7 @@
       "skill_menu_policy": "assistant_scoped_required_checked_optional_visible"
     },
     {
-      "package_id": "rca",
+      "package_id": "redcube-ai",
       "display_name": "RedCube AI",
       "short_name": "RCA",
       "role": "presentation_and_visual_deliverable_agent",
@@ -1544,7 +1544,7 @@
       "skill_menu_policy": "assistant_scoped_required_checked_optional_visible"
     },
     {
-      "package_id": "bookforge",
+      "package_id": "opl-bookforge",
       "display_name": "OPL BookForge",
       "short_name": "OBF",
       "role": "book_authoring_agent",
@@ -1568,7 +1568,7 @@
       "skill_menu_policy": "assistant_scoped_required_checked_optional_visible"
     },
     {
-      "package_id": "oma",
+      "package_id": "opl-meta-agent",
       "display_name": "OPL Meta Agent",
       "short_name": "OMA",
       "role": "opl_agent_design_and_testing_agent",
@@ -1588,7 +1588,7 @@
   ],
   "default_assistants": [
     {
-      "id": "mas",
+      "id": "med-autoscience",
       "display_name": "Med Auto Science",
       "short_name": "MAS",
       "home_purpose_label": "科研",
@@ -1597,7 +1597,7 @@
       "home_entry_policy": "purpose_entry_target"
     },
     {
-      "id": "mag",
+      "id": "med-autogrant",
       "display_name": "Med Auto Grant",
       "short_name": "MAG",
       "home_purpose_label": "基金",
@@ -1606,7 +1606,7 @@
       "home_entry_policy": "purpose_entry_target"
     },
     {
-      "id": "rca",
+      "id": "redcube-ai",
       "display_name": "RedCube AI",
       "short_name": "RCA",
       "home_purpose_label": "演示",
@@ -1615,7 +1615,7 @@
       "home_entry_policy": "purpose_entry_target"
     },
     {
-      "id": "bookforge",
+      "id": "opl-bookforge",
       "display_name": "OPL BookForge",
       "short_name": "OBF",
       "home_purpose_label": "写书",
@@ -1626,7 +1626,7 @@
   ],
   "assistant_skill_profiles": [
     {
-      "assistant_id": "mas",
+      "assistant_id": "med-autoscience",
       "required_skills": [
         "mas"
       ],
@@ -1640,7 +1640,7 @@
       "skill_menu_policy": "assistant_scoped_required_checked_optional_visible"
     },
     {
-      "assistant_id": "mag",
+      "assistant_id": "med-autogrant",
       "required_skills": [
         "mag"
       ],
@@ -1654,7 +1654,7 @@
       "skill_menu_policy": "assistant_scoped_required_checked_optional_visible"
     },
     {
-      "assistant_id": "rca",
+      "assistant_id": "redcube-ai",
       "required_skills": [
         "rca"
       ],
@@ -1667,7 +1667,7 @@
       "skill_menu_policy": "assistant_scoped_required_checked_optional_visible"
     },
     {
-      "assistant_id": "bookforge",
+      "assistant_id": "opl-bookforge",
       "required_skills": [
         "opl-bookforge"
       ],
@@ -1683,7 +1683,7 @@
   ],
   "non_default_assistants": [
     {
-      "id": "oma",
+      "id": "opl-meta-agent",
       "display_name": "OPL Meta Agent",
       "short_name": "OMA",
       "role": "opl_agent_design_and_testing_agent",

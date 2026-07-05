@@ -53,9 +53,9 @@ function validateAssistantRouteSmokeSummary(artifact: EvidenceArtifact, payload:
     }),
   );
   for (const [assistantId, badge, shortName] of [
-    ['mas', '@MAS', 'MAS'],
-    ['mag', '@MAG', 'MAG'],
-    ['rca', '@RCA', 'RCA'],
+    ['med-autoscience', '@MAS', 'MAS'],
+    ['med-autogrant', '@MAG', 'MAG'],
+    ['redcube-ai', '@RCA', 'RCA'],
   ]) {
     const assistant = resultsById.get(assistantId);
     if (!assistant) {
@@ -116,7 +116,7 @@ function validateCodexFunctionalCheckSummary(record: Record<string, unknown>) {
   }
   const required = Array.isArray(routeReceipts.required) ? routeReceipts.required : [];
   const checked = Array.isArray(routeReceipts.checked) ? routeReceipts.checked : [];
-  for (const assistantId of ['mas', 'mag', 'rca']) {
+  for (const assistantId of ['med-autoscience', 'med-autogrant', 'redcube-ai']) {
     if (!required.includes(assistantId) || !checked.includes(assistantId)) {
       throw new Error('codex_functional_check_summary must cover MAS/MAG/RCA assistant route receipts.');
     }

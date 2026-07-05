@@ -229,23 +229,23 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     'gpt-5.5',
     'gpt-5.4',
   ]);
-  assert.deepEqual(guiContract.professional_agent_packages.map((pkg) => pkg.package_id), ['mas', 'mag', 'rca', 'bookforge', 'oma']);
+  assert.deepEqual(guiContract.professional_agent_packages.map((pkg) => pkg.package_id), ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge', 'opl-meta-agent']);
   assert.deepEqual(
     Object.fromEntries(guiContract.professional_agent_packages.map((pkg) => [pkg.package_id, pkg.required_skill_ids])),
-    { mas: ['mas'], mag: ['mag'], rca: ['rca'], bookforge: ['opl-bookforge'], oma: ['opl-meta-agent'] },
+    { 'med-autoscience': ['mas'], 'med-autogrant': ['mag'], 'redcube-ai': ['rca'], 'opl-bookforge': ['opl-bookforge'], 'opl-meta-agent': ['opl-meta-agent'] },
   );
   assert.deepEqual(
     Object.fromEntries(guiContract.professional_agent_packages.map((pkg) => [pkg.package_id, pkg.codex_visible_entry])),
-    { mas: 'mas', mag: 'mag', rca: 'rca', bookforge: 'opl-bookforge', oma: 'opl-meta-agent' },
+    { 'med-autoscience': 'mas', 'med-autogrant': 'mag', 'redcube-ai': 'rca', 'opl-bookforge': 'opl-bookforge', 'opl-meta-agent': 'opl-meta-agent' },
   );
-  assert.ok(guiContract.professional_agent_packages.filter((pkg) => pkg.package_id !== 'oma').every((pkg) => pkg.default_home_visible === true));
-  assert.equal(guiContract.professional_agent_packages.find((pkg) => pkg.package_id === 'oma').default_home_visible, false);
-  assert.deepEqual(guiContract.default_assistants.map((assistant) => assistant.id), ['mas', 'mag', 'rca', 'bookforge']);
+  assert.ok(guiContract.professional_agent_packages.filter((pkg) => pkg.package_id !== 'opl-meta-agent').every((pkg) => pkg.default_home_visible === true));
+  assert.equal(guiContract.professional_agent_packages.find((pkg) => pkg.package_id === 'opl-meta-agent').default_home_visible, false);
+  assert.deepEqual(guiContract.default_assistants.map((assistant) => assistant.id), ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge']);
   assert.ok(guiContract.default_assistants.every((assistant) => assistant.home_entry_policy === 'purpose_entry_target'));
-  assert.deepEqual(guiContract.assistant_skill_profiles.map((profile) => profile.assistant_id), ['mas', 'mag', 'rca', 'bookforge']);
+  assert.deepEqual(guiContract.assistant_skill_profiles.map((profile) => profile.assistant_id), ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge']);
   assert.deepEqual(
     Object.fromEntries(guiContract.assistant_skill_profiles.map((profile) => [profile.assistant_id, profile.required_skills])),
-    { mas: ['mas'], mag: ['mag'], rca: ['rca'], bookforge: ['opl-bookforge'] },
+    { 'med-autoscience': ['mas'], 'med-autogrant': ['mag'], 'redcube-ai': ['rca'], 'opl-bookforge': ['opl-bookforge'] },
   );
   assert.ok(
     guiContract.assistant_skill_profiles.every(
@@ -285,7 +285,7 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   );
   assert.equal(guiContract.builtin_assistant_route_receipt_policy.migration_alias_for, 'agent_package_invocation_receipt_policy');
   assert.equal(guiContract.builtin_assistant_route_receipt_policy.scope, 'home_purpose_entry_to_conversation');
-  assert.deepEqual(guiContract.builtin_assistant_route_receipt_policy.required_for_assistants, ['mas', 'mag', 'rca', 'bookforge']);
+  assert.deepEqual(guiContract.builtin_assistant_route_receipt_policy.required_for_assistants, ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge']);
   assert.equal(guiContract.builtin_assistant_route_receipt_policy.route_kind, 'builtin_capability');
   assert.equal(guiContract.builtin_assistant_route_receipt_policy.executor, 'codex_cli');
   assert.equal(guiContract.builtin_assistant_route_receipt_policy.source, 'opl_app_home');
@@ -374,13 +374,13 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   assert.deepEqual(guiContract.settings_navigation.team_surface_policy.required_probes, expectedAionuiTeamProbeIds);
   assert.deepEqual(guiContract.home_purpose_entries.map((entry) => entry.id), ['research', 'grant', 'ppt', 'book']);
   assert.deepEqual(guiContract.home_purpose_entries.map((entry) => entry.primary_label), ['科研', '基金', '演示', '写书']);
-  assert.deepEqual(guiContract.home_purpose_entries.map((entry) => entry.target_assistant_id), ['mas', 'mag', 'rca', 'bookforge']);
+  assert.deepEqual(guiContract.home_purpose_entries.map((entry) => entry.target_assistant_id), ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge']);
   assert.ok(guiContract.home_purpose_entries.every((entry) => entry.display_policy === 'purpose_first'));
   assert.deepEqual(guiContract.home_agent_shortcuts.map((entry) => entry.shortcut_id), ['research', 'grant', 'ppt', 'book']);
-  assert.deepEqual(guiContract.home_agent_shortcuts.map((entry) => entry.package_id), ['mas', 'mag', 'rca', 'bookforge']);
+  assert.deepEqual(guiContract.home_agent_shortcuts.map((entry) => entry.package_id), ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge']);
   assert.ok(guiContract.home_agent_shortcuts.every((entry) => entry.executor === 'codex_cli' && entry.source === 'opl_app_home'));
   assert.ok(guiContract.home_agent_shortcuts.every((entry) => entry.default_visible === true && entry.user_configurable === true));
-  assert.equal(guiContract.non_default_assistants.find((assistant) => assistant.id === 'oma').home_default_visible, false);
+  assert.equal(guiContract.non_default_assistants.find((assistant) => assistant.id === 'opl-meta-agent').home_default_visible, false);
   assert.equal(guiContract.retired_domain_agents.find((agent) => agent.id === 'mds').default_display_allowed, false);
   assert.equal(
     guiContract.product_authority.shell_upgrade_policy.fork_delta_budget.policy,
