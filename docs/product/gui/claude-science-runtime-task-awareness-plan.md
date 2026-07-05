@@ -11,6 +11,10 @@ This plan has been landed through the Framework, App contract, and AionUI
 thin-renderer mainlines. It is still not an App release-ready or domain-ready
 claim.
 
+2026-07-05 之后，Runtime 页的下一步不再是继续堆 task-awareness 字段，而是把这些
+字段重新组织成用户可理解的项目运行总览。最新产品设计与一步到位落地顺序见
+[`runtime-overview-redesign.md`](runtime-overview-redesign.md)。
+
 2026-07-05 contract alignment narrowed the default Runtime page semantics
 further: it is a user task cockpit, not an internal runtime diagnostics page.
 The App contract now explicitly requires a four-layer user mental model

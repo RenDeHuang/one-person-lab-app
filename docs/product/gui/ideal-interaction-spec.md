@@ -254,6 +254,10 @@ Inspector 默认收起。打开时应该像在当前 chat 旁边展开上下文�
 
 Runtime display 必须 user-task-status-first 且 authority-aware。
 
+更完整的 Runtime 总览重构设计见
+[`runtime-overview-redesign.md`](runtime-overview-redesign.md)。本节只保留
+交互层硬约束。
+
 - 普通状态读取使用 `opl app state --profile fast --json`。
 - 显式 refresh 也使用 fast profile。
 - 默认首屏读取 `app_state.operator.workbench.summary_cards`、
@@ -266,6 +270,14 @@ Runtime display 必须 user-task-status-first 且 authority-aware。
 - UI 先回答用户真正关心的四件事：running task count、active project count、
   queued project count 和 attention count；随后展示 task title/status/stage、
   progress label、next step、owner 和 last progress。
+- Runtime 顶层必须支持范围切换。默认要能看全局总览；“当前工作区”只能作为推断
+  提示或快捷筛选，不能是唯一范围。
+- Runtime 主列表必须先按用户主状态分组，再用自动运行副状态补充说明；不能继续把
+  `running / attention / inactive` 直接当用户第一层状态。
+- 用户主状态至少覆盖：`进行中`、`已交付，自动暂停`、`已暂停，等待后续决定`、
+  `需要你决定`、`需要系统处理`。
+- 自动运行副状态至少覆盖：`自动运行中`、`当前无自动任务`、`最近一次自动结果待收口`、
+  `自动流程异常`。
 - Provider/current_control_state 细节是 secondary diagnostics。`running_provider_attempt_count`
   可以包含 checkpointed provider refs，不能直接显示为用户可见的“正在运行任务数”。
 - “正在运行任务”“进行中项目”“排队项目”和“需要关注”必须分层显示。任务数来自
@@ -279,6 +291,8 @@ Runtime display 必须 user-task-status-first 且 authority-aware。
   `active_run_id` 是上下文，不是 liveness proof。Queued、waiting、stopped、
   parked、checkpointed、blocked 或 attention-needed 项目默认折叠，展示数量、
   状态和下一步摘要，展开后再看具体项目 refs。
+- 每个项目条目至少要显示：智能体/模块、项目、任务/论文、主状态、副状态、当前阶段、
+  本阶段时长、liveness、当前阶段 token、累计 token、下一步和责任方。
 - 项目进度 refs 来自 `app_state.operator.workbench.task_drilldowns`，作为二级
   project progress；它可以支撑项目线和下一步展示，但不用于从 module/runtime
   dirty state 推断运行任务数。

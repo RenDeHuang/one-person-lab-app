@@ -1,6 +1,7 @@
 import { assertDeepEqualJson, assertIncludesAll } from './assertions.ts';
 import {
   appOwnedAgentModuleStatusPanel,
+  appOwnedPrimaryGroupingPolicy,
   appOwnedProjectGroupExpansionPolicy,
   appOwnedQueueStatusPolicy,
   appOwnedRuntimeMentalModel,
@@ -8,6 +9,9 @@ import {
   appOwnedStageRunPanelFields,
   appOwnedTelemetryMissingPolicy,
   firstRunCoreItems,
+  runtimeAutomationStateValues,
+  runtimePrimaryStateValues,
+  runtimeScopeRequiredFields,
   taskRunProjectionV2FieldGroups,
   taskRunProjectionV2RequiredFields,
 } from './app-contract-constants.ts';
@@ -128,6 +132,24 @@ export function validateTaskAwarenessProjectionContract(projection, label) {
   );
 }
 
+export function validateRuntimeScopeProjectionContract(projection, label) {
+  if (!projection || typeof projection !== 'object') {
+    throw new Error(`${label} must be declared`);
+  }
+  for (const [field, expected] of Object.entries({
+    source: 'app_state.operator.workbench.runtime_scope',
+    authority: 'opl_framework_runtime_scope_projection',
+    display_policy: 'global_overview_first_explicit_scope_switcher_current_workspace_as_inferred_hint_only',
+  })) {
+    if (projection[field] !== expected) {
+      throw new Error(`${label} ${field} must be ${expected}`);
+    }
+  }
+  assertDeepEqualJson(projection.required_fields, runtimeScopeRequiredFields, `${label} required_fields`);
+  assertDeepEqualJson(projection.scope_option_kinds, ['all_projects', 'agent', 'workspace', 'project', 'task'], `${label} scope_option_kinds`);
+  assertDeepEqualJson(projection.scope_source_values, ['default_global', 'user_selected', 'inferred'], `${label} scope_source_values`);
+}
+
 export function validateTaskRunProjectionV2Contract(projection, label) {
   for (const [field, expected] of Object.entries({
     schema_name: 'TaskRunProjection',
@@ -189,6 +211,13 @@ export function validateTaskRunProjectionV2Fixture(task, label) {
         }
       }
     }
+  }
+  const status = task.status;
+  if (status?.primary_state && !runtimePrimaryStateValues.includes(status.primary_state)) {
+    throw new Error(`${label} status.primary_state must be one of ${runtimePrimaryStateValues.join(', ')}`);
+  }
+  if (status?.automation_state && !runtimeAutomationStateValues.includes(status.automation_state)) {
+    throw new Error(`${label} status.automation_state must be one of ${runtimeAutomationStateValues.join(', ')}`);
   }
   for (const forbidden of [
     'artifact_body',
@@ -1313,6 +1342,11 @@ export function validateActiveProjectLineProjectionContract(activeProjectLinePro
     throw new Error(`${label} must preserve status, active_run_id, and next_visible_step`);
   }
   assertDeepEqualJson(
+    activeProjectLineProjection.primary_grouping_policy,
+    appOwnedPrimaryGroupingPolicy,
+    `${label} primary_grouping_policy`,
+  );
+  assertDeepEqualJson(
     activeProjectLineProjection.project_group_expansion_policy,
     appOwnedProjectGroupExpansionPolicy,
     `${label} project_group_expansion_policy`,
@@ -1391,8 +1425,9 @@ export function validateUserTaskStatusProjectionContract(userTaskStatus, label) 
   for (const [field, expected] of Object.entries({
     source: 'app_state.operator.workbench.summary_cards + app_state.operator.workbench.activity_center + app_state.operator.workbench.task_drilldowns + app_state.operator.visual_ref_groups.active_project_refs',
     authority: 'opl_framework_refs_only_user_task_projection',
-    display_policy: 'user_task_status_first_provider_projection_diagnostic_only',
-    default_user_question: "How many tasks are running, how many projects or tasks are active or queued, how many need attention, and what is each task's current step?",
+    display_policy: 'scope_switchable_user_task_status_first_provider_projection_diagnostic_only',
+    default_user_question:
+      "Within the selected scope, which projects are moving, which are paused, which need a user decision, which need system handling, and what is each task's current stage, liveness, and token usage?",
     progress_label_policy: 'render framework progress classification and stage labels as human task progress labels without exposing raw projection or ledger names',
     diagnostic_source_policy: 'provider/projection/ref/ledger/current_control_state details stay secondary and are not the default page language',
   })) {
@@ -1401,9 +1436,42 @@ export function validateUserTaskStatusProjectionContract(userTaskStatus, label) 
     }
   }
   assertDeepEqualJson(
+    userTaskStatus.scope_fields,
+    runtimeScopeRequiredFields,
+    `${label} scope_fields`,
+  );
+  assertDeepEqualJson(
     userTaskStatus.summary_fields,
     ['running_task_count', 'active_project_count', 'queued_project_count', 'attention_count'],
     `${label} summary_fields`,
+  );
+  assertDeepEqualJson(
+    userTaskStatus.primary_state_summary_fields,
+    [
+      'in_progress_count',
+      'delivered_auto_paused_count',
+      'paused_count',
+      'owner_decision_count',
+      'system_attention_count',
+      'automation_running_count',
+    ],
+    `${label} primary_state_summary_fields`,
+  );
+  assertDeepEqualJson(
+    userTaskStatus.primary_state_fields,
+    ['primary_state', 'primary_state_label', 'primary_state_reason'],
+    `${label} primary_state_fields`,
+  );
+  assertDeepEqualJson(
+    userTaskStatus.automation_state_fields,
+    ['automation_state', 'automation_state_label', 'automation_state_reason'],
+    `${label} automation_state_fields`,
+  );
+  assertDeepEqualJson(userTaskStatus.primary_state_values, runtimePrimaryStateValues, `${label} primary_state_values`);
+  assertDeepEqualJson(
+    userTaskStatus.automation_state_values,
+    runtimeAutomationStateValues,
+    `${label} automation_state_values`,
   );
   assertDeepEqualJson(userTaskStatus.mental_model_layers, appOwnedRuntimeMentalModel, `${label} mental_model_layers`);
   assertIncludesAll(

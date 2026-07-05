@@ -830,13 +830,23 @@
                 "domain_id": "medautoscience",
                 "domain_label": "Med Auto Science",
                 "study_id": null,
-                "task_ref": "app_state.operator.workbench.task_drilldowns[medautoscience]"
+                "task_ref": "app_state.operator.workbench.task_drilldowns[medautoscience]",
+                "agent_display_name": "Med Auto Science",
+                "project_display_name": "Framework Runtime Repair",
+                "work_item_display_name": "Resolve missing workspace ref",
+                "execution_run_label": "Module runtime repair"
               },
               "status": {
                 "state": "missing",
                 "status": "attention_needed",
                 "status_label": "attention_needed",
                 "priority_bucket": "needs_attention",
+                "primary_state": "system_attention_required",
+                "primary_state_label": "需要系统处理",
+                "primary_state_reason": "缺少 Med Auto Science workspace 引用，当前无法继续自动推进",
+                "automation_state": "automation_idle",
+                "automation_state_label": "当前无自动任务",
+                "automation_state_reason": "等待 workspace 引用修复后再恢复自动流程",
                 "active_stage_id": "module_runtime",
                 "active_stage_label": null,
                 "active_run_ref": null

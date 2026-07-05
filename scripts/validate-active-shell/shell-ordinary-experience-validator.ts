@@ -119,11 +119,12 @@ const acpSendBoxExpected = [
 
 const runtimePageExpected = [
   'const userTaskDrilldown = appStateProjection',
-  'workbenchActiveProjectLines(userTaskDrilldown ?? {})',
-  'workbenchTaskDrilldowns(userTaskDrilldown ?? {})',
-  'const runningTaskCount = runningTasks.length',
-  'taskOverview.inactiveTasks.length > 0',
-  "t('common.runtime.inactiveTasks')",
+  'const runtimeModel = useMemo(() => normalizeRuntimeProjection(appStateQuery.appState), [appStateQuery.appState])',
+  'const runtimeScope = runtimeModel.scope',
+  'buildOverviewSections(runtimeModel.taskRunProjectionV2.tasks, selectedScope, controlStates, t)',
+  "t('common.runtime.scopeSelector')",
+  "t('common.runtime.primaryStates.inProgress')",
+  'scopeMatchesTask(task, selectedScope)',
 ];
 
 const runtimePageForbidden = [

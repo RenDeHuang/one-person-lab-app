@@ -29,6 +29,8 @@ Claude Science、AGUI 和 Hermes 的成熟经验。
 [`ideal-interaction-spec.md`](ideal-interaction-spec.md)；
 Codex App 变成 OPL App 的产品增量看
 [`codex-to-opl-app-delta.md`](codex-to-opl-app-delta.md)。
+Runtime 页这次的总览重构设计看
+[`runtime-overview-redesign.md`](runtime-overview-redesign.md)。
 
 ## 读法与 SSOT
 
@@ -114,6 +116,8 @@ App 目标是专门服务 OPL 工作的 Codex App 体验，不是通用 agent da
 - 当前 turn 的运行状态应作为 conversation live artifact 呈现，包含 elapsed time、
   最近 tool/process/file/diff/receipt refs、permission/action 状态和完成/失败摘要。
   它不是全局 workbench 面板；跨项目 runtime refs 仍进入 Runtime 页或 inspector。
+- Runtime 页必须是可切换范围的项目运行总览：先展示用户主状态、自动运行副状态、
+  阶段、时长、token 和下一步，再把 provider/runtime 细节放到折叠层。
 - Desktop Electron 和 WebUI surfaces 使用同一套 App product truth。
 - 窄桌面和 WebUI 宽度下，二级 context 不变成首页工作台；用户打开后必须以
   overlay/drawer/右侧浮层形式可见，至少保证 `opl-context-tabs` 和

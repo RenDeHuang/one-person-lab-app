@@ -14,6 +14,7 @@ import {
   validateArtifactNativeDrilldownProjectionContract,
   validateArtifactProvenanceBundleProjectionContract,
   validateOpenScienceAcceptedItemsFixture,
+  validateRuntimeScopeProjectionContract,
   validateRefLevelFollowUpProjectionContract,
   validateStructuredResultPanelProjectionContract,
   validateTaskAwarenessProjectionContract,
@@ -22,6 +23,9 @@ import {
 import { assertIncludesAll } from '../../../scripts/validate-active-shell/assertions.ts';
 import {
   appOwnedProjectGroupExpansionPolicy,
+  runtimeAutomationStateValues,
+  runtimePrimaryStateValues,
+  runtimeScopeRequiredFields,
   taskRunProjectionV2FieldGroups,
   taskRunProjectionV2RequiredFields,
 } from '../../../scripts/validate-active-shell/app-contract-constants.ts';
@@ -36,6 +40,7 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   const guiProductContract = JSON.parse(
     fs.readFileSync(path.join(appRoot, 'contracts', 'app-gui-product-contract.json'), 'utf8'),
   );
+  const guiRuntimeStatus = guiProductContract.pages?.runtime_status;
   const pageStateMatrix = JSON.parse(
     fs.readFileSync(path.join(appRoot, 'contracts', 'app-page-state-matrix.json'), 'utf8'),
   );
@@ -156,6 +161,15 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   assert.equal(guiProductContract.ordinary_cockpit_surface_budget.default_next_action_source, 'current_owner_delta');
   assert.equal(guiProductContract.ordinary_cockpit_surface_budget.raw_worklist_generates_default_next_action, false);
   assert.equal(guiProductContract.ordinary_cockpit_surface_budget.release_evidence_counts_as_release_ready, false);
+  validateRuntimeScopeProjectionContract(runtimeBridge.runtime_scope_projection, 'Runtime bridge runtime_scope_projection');
+  validateRuntimeScopeProjectionContract(
+    runtimePage.runtime_view_model.runtime_scope_projection,
+    'Runtime page runtime_scope_projection',
+  );
+  validateRuntimeScopeProjectionContract(
+    guiRuntimeStatus.runtime_scope_projection,
+    'GUI contract runtime_scope_projection',
+  );
 
   const fastOperator = fastStateFixture.app_state.operator;
   assert.equal(fastOperator.operator_next_action_source, 'current_owner_delta');
@@ -248,6 +262,9 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   assert.equal(taskRunProjectionV2.authority_boundary.can_write_domain_truth, false);
   assert.equal(taskRunProjectionV2.authority_boundary.can_read_artifact_body, false);
   assert.equal(taskRunProjectionV2.authority_boundary.can_create_owner_receipt, false);
+  assert.deepEqual(runtimeBridge.user_task_status_projection.scope_fields, runtimeScopeRequiredFields);
+  assert.deepEqual(runtimeBridge.user_task_status_projection.primary_state_values, runtimePrimaryStateValues);
+  assert.deepEqual(runtimeBridge.user_task_status_projection.automation_state_values, runtimeAutomationStateValues);
   assert.equal(taskRunProjectionV2.tasks[0].task_identity.task_id, 'medautoscience');
   assert.equal(taskRunProjectionV2.tasks[0].diagnostics_ref, 'app_state.provider.temporal');
   assert.deepEqual(Object.keys(taskRunProjectionV2.tasks[0].evidence_cards[0]), [
@@ -419,27 +436,46 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   assert.deepEqual(runtimeBridge.user_task_status_projection, {
     source: 'app_state.operator.workbench.summary_cards + app_state.operator.workbench.activity_center + app_state.operator.workbench.task_drilldowns + app_state.operator.visual_ref_groups.active_project_refs',
     authority: 'opl_framework_refs_only_user_task_projection',
-    display_policy: 'user_task_status_first_provider_projection_diagnostic_only',
+    display_policy: 'scope_switchable_user_task_status_first_provider_projection_diagnostic_only',
     default_user_question:
-      "How many tasks are running, how many projects or tasks are active or queued, how many need attention, and what is each task's current step?",
+      "Within the selected scope, which projects are moving, which are paused, which need a user decision, which need system handling, and what is each task's current stage, liveness, and token usage?",
     mental_model_layers: [
       'agent/capability: which agent, capability package, or module is responsible',
       'project: which project line, study, or deliverable track this work belongs to',
       'task/work item: the user-visible unit that is advancing, waiting, or blocked',
       'execution run: the current stage run, heartbeat, usage, and blocker route for this task',
     ],
+    scope_fields: runtimeScopeRequiredFields,
     summary_fields: [
       'running_task_count',
       'active_project_count',
       'queued_project_count',
       'attention_count',
     ],
+    primary_state_summary_fields: [
+      'in_progress_count',
+      'delivered_auto_paused_count',
+      'paused_count',
+      'owner_decision_count',
+      'system_attention_count',
+      'automation_running_count',
+    ],
+    primary_state_fields: ['primary_state', 'primary_state_label', 'primary_state_reason'],
+    automation_state_fields: ['automation_state', 'automation_state_label', 'automation_state_reason'],
+    primary_state_values: runtimePrimaryStateValues,
+    automation_state_values: runtimeAutomationStateValues,
     task_fields: expectedTaskFields,
     count_policies: {
       running_task_count: 'count user tasks projected as actively running or advancing, never raw provider attempts',
       active_project_count: 'count active user-visible project lines from the framework project-line projection',
       queued_project_count: 'count queued or waiting user-visible project/task lines without claiming active worker runs',
       attention_count: 'count user-visible blockers, human gates, failed safe actions, or owner attention states',
+      in_progress_count: 'count tasks whose user-facing primary_state is in_progress',
+      delivered_auto_paused_count: 'count tasks whose user-facing primary_state is delivered_auto_paused',
+      paused_count: 'count tasks whose user-facing primary_state is paused_waiting_for_direction',
+      owner_decision_count: 'count tasks whose user-facing primary_state is owner_decision_required',
+      system_attention_count: 'count tasks whose user-facing primary_state is system_attention_required',
+      automation_running_count: 'count tasks whose automation_state is automation_running',
     },
     running_state_policy:
       'only explicit running, in_progress, or advancing status/state counts as running; active_run_id alone is context, not liveness proof; queued, pending, and waiting require explicit projected status; blocked or attention_needed stay blocked/attention states; stopped, parked, and checkpointed stay inactive and must not be relabeled queued',
@@ -698,6 +734,17 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
       authority: 'opl_framework_refs_only_project_line_projection',
       display_policy: 'active_project_line_count_can_include_queued_or_escalated_owner_handled_lines_without_active_worker_run',
       status_preservation_required: true,
+      primary_grouping_policy: {
+        default_order: [
+          'in_progress',
+          'delivered_auto_paused',
+          'paused_waiting_for_direction',
+          'owner_decision_required',
+          'system_attention_required',
+        ],
+        collapsed_groups: ['delivered_auto_paused', 'paused_waiting_for_direction'],
+        secondary_badge_fields: ['automation_state_label', 'active_stage_label', 'last_progress_at'],
+      },
       project_group_expansion_policy: {
         running_group_default: 'expanded',
         attention_group_default: 'visible_when_nonempty',
@@ -1264,27 +1311,46 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   assert.deepEqual(runtimePage.runtime_view_model.user_task_status_projection, {
     source: 'app_state.operator.workbench.summary_cards + app_state.operator.workbench.activity_center + app_state.operator.workbench.task_drilldowns + app_state.operator.visual_ref_groups.active_project_refs',
     authority: 'opl_framework_refs_only_user_task_projection',
-    display_policy: 'user_task_status_first_provider_projection_diagnostic_only',
+    display_policy: 'scope_switchable_user_task_status_first_provider_projection_diagnostic_only',
     default_user_question:
-      "How many tasks are running, how many projects or tasks are active or queued, how many need attention, and what is each task's current step?",
+      "Within the selected scope, which projects are moving, which are paused, which need a user decision, which need system handling, and what is each task's current stage, liveness, and token usage?",
     mental_model_layers: [
       'agent/capability: which agent, capability package, or module is responsible',
       'project: which project line, study, or deliverable track this work belongs to',
       'task/work item: the user-visible unit that is advancing, waiting, or blocked',
       'execution run: the current stage run, heartbeat, usage, and blocker route for this task',
     ],
+    scope_fields: runtimeScopeRequiredFields,
     summary_fields: [
       'running_task_count',
       'active_project_count',
       'queued_project_count',
       'attention_count',
     ],
+    primary_state_summary_fields: [
+      'in_progress_count',
+      'delivered_auto_paused_count',
+      'paused_count',
+      'owner_decision_count',
+      'system_attention_count',
+      'automation_running_count',
+    ],
+    primary_state_fields: ['primary_state', 'primary_state_label', 'primary_state_reason'],
+    automation_state_fields: ['automation_state', 'automation_state_label', 'automation_state_reason'],
+    primary_state_values: runtimePrimaryStateValues,
+    automation_state_values: runtimeAutomationStateValues,
     task_fields: expectedTaskFields,
     count_policies: {
       running_task_count: 'count user tasks projected as actively running or advancing, never raw provider attempts',
       active_project_count: 'count active user-visible project lines from the framework project-line projection',
       queued_project_count: 'count queued or waiting user-visible project/task lines without claiming active worker runs',
       attention_count: 'count user-visible blockers, human gates, failed safe actions, or owner attention states',
+      in_progress_count: 'count tasks whose user-facing primary_state is in_progress',
+      delivered_auto_paused_count: 'count tasks whose user-facing primary_state is delivered_auto_paused',
+      paused_count: 'count tasks whose user-facing primary_state is paused_waiting_for_direction',
+      owner_decision_count: 'count tasks whose user-facing primary_state is owner_decision_required',
+      system_attention_count: 'count tasks whose user-facing primary_state is system_attention_required',
+      automation_running_count: 'count tasks whose automation_state is automation_running',
     },
     running_state_policy:
       'only explicit running, in_progress, or advancing status/state counts as running; active_run_id alone is context, not liveness proof; queued, pending, and waiting require explicit projected status; blocked or attention_needed stay blocked/attention states; stopped, parked, and checkpointed stay inactive and must not be relabeled queued',
@@ -1382,6 +1448,17 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
       authority: 'opl_framework_refs_only_project_line_projection',
       display_policy: 'active_project_line_count_can_include_queued_or_escalated_owner_handled_lines_without_active_worker_run',
       status_preservation_required: true,
+      primary_grouping_policy: {
+        default_order: [
+          'in_progress',
+          'delivered_auto_paused',
+          'paused_waiting_for_direction',
+          'owner_decision_required',
+          'system_attention_required',
+        ],
+        collapsed_groups: ['delivered_auto_paused', 'paused_waiting_for_direction'],
+        secondary_badge_fields: ['automation_state_label', 'active_stage_label', 'last_progress_at'],
+      },
       project_group_expansion_policy: {
         running_group_default: 'expanded',
         attention_group_default: 'visible_when_nonempty',

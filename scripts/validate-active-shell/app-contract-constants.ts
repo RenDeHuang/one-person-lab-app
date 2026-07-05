@@ -16,6 +16,18 @@ export const appOwnedProjectGroupExpansionPolicy = {
   ],
 };
 
+export const appOwnedPrimaryGroupingPolicy = {
+  default_order: [
+    'in_progress',
+    'delivered_auto_paused',
+    'paused_waiting_for_direction',
+    'owner_decision_required',
+    'system_attention_required',
+  ],
+  collapsed_groups: ['delivered_auto_paused', 'paused_waiting_for_direction'],
+  secondary_badge_fields: ['automation_state_label', 'active_stage_label', 'last_progress_at'],
+};
+
 export const appOwnedRunningStatePolicy =
   'only explicit running, in_progress, or advancing status/state counts as running; active_run_id alone is context, not liveness proof; queued, pending, and waiting require explicit projected status; blocked or attention_needed stay blocked/attention states; stopped, parked, and checkpointed stay inactive and must not be relabeled queued';
 
@@ -24,6 +36,28 @@ export const appOwnedRuntimeMentalModel = [
   'project: which project line, study, or deliverable track this work belongs to',
   'task/work item: the user-visible unit that is advancing, waiting, or blocked',
   'execution run: the current stage run, heartbeat, usage, and blocker route for this task',
+];
+
+export const runtimeScopeRequiredFields = [
+  'scope_options',
+  'current_scope',
+  'scope_source',
+  'inferred_scope_hint',
+];
+
+export const runtimePrimaryStateValues = [
+  'in_progress',
+  'delivered_auto_paused',
+  'paused_waiting_for_direction',
+  'owner_decision_required',
+  'system_attention_required',
+];
+
+export const runtimeAutomationStateValues = [
+  'automation_running',
+  'automation_idle',
+  'result_pending_terminalization',
+  'automation_failed',
 ];
 
 export const appOwnedStageRunPanelFields = [
@@ -63,8 +97,8 @@ export const taskRunProjectionV2RequiredFields = [
 ];
 
 export const taskRunProjectionV2FieldGroups = {
-  task_identity: ['task_id', 'title', 'domain_id', 'domain_label', 'study_id', 'task_ref'],
-  status: ['state', 'status', 'status_label', 'priority_bucket', 'active_stage_id', 'active_stage_label', 'active_run_ref'],
+  task_identity: ['task_id', 'title', 'domain_id', 'domain_label', 'study_id', 'task_ref', 'agent_display_name', 'project_display_name', 'work_item_display_name', 'execution_run_label'],
+  status: ['state', 'status', 'status_label', 'priority_bucket', 'primary_state', 'primary_state_label', 'primary_state_reason', 'automation_state', 'automation_state_label', 'automation_state_reason', 'active_stage_id', 'active_stage_label', 'active_run_ref'],
   progress: ['progress_label', 'current_step', 'last_progress_at', 'progress_ref', 'stage_ref'],
   conditions: ['type', 'status', 'reason', 'message', 'severity', 'owner', 'last_transition_time', 'ref'],
   evidence_cards: [
