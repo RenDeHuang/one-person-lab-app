@@ -90,6 +90,10 @@ manifest. This remains candidate technical evidence only: it does not prove
 clean-VM behavior, visual owner acceptance, active-shell adoption, release
 readiness, or live App release currentness.
 
+The July 5, 2026 visual restyle pass also uses an OPL-owned image-generated
+mockup as a design anchor for the light chat-first shell, with Codex App,
+K-Dense, and Open Science treated as hierarchy and layout references only.
+
 ## Functional MVP Closeout Status
 
 | Status | Scope | Evidence boundary |
