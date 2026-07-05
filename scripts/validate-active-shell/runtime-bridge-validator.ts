@@ -531,6 +531,57 @@ function validateRuntimeBridgeUserTaskStatus(runtimeBridge) {
   }
 }
 
+function validateRuntimeProgressPageDisplayPolicy(runtimeBridge) {
+  const policy = runtimeBridge.runtime_progress_page_display_policy;
+  if (policy?.owner !== 'one-person-lab-app') {
+    throw new Error('Runtime progress page display policy must be App-owned');
+  }
+  if (policy?.default_surface !== 'task_run_cockpit') {
+    throw new Error('Runtime progress page default surface must be task_run_cockpit');
+  }
+  if (policy?.advanced_surface !== 'task_detail_or_diagnostics') {
+    throw new Error('Runtime progress page advanced surface must be task_detail_or_diagnostics');
+  }
+  for (const section of [
+    'top_scope_and_refresh',
+    'freshness_bar',
+    'kpi_row',
+    'main_task_grouped_list',
+    'right_module_status',
+    'right_advanced_information_disclosure',
+  ]) {
+    if (!policy?.default_page_sections?.includes(section)) {
+      throw new Error(`Runtime progress page default sections must include ${section}`);
+    }
+  }
+  for (const field of [
+    'stage_attempt_ids',
+    'active_run_id',
+    'workflow_id',
+    'raw_blocker_route',
+    'runtime_closeout_ref',
+    'mas_owner_consumption_ref',
+    'mas_currentness_drift_text',
+    'current_control_state',
+    'full_drilldown',
+  ]) {
+    if (!policy?.advanced_only_fields?.includes(field)) {
+      throw new Error(`Runtime progress page must keep ${field} advanced-only`);
+    }
+  }
+  for (const claim of [
+    'second_runtime_truth_source',
+    'live_runtime_readiness',
+    'release_currentness',
+    'owner_receipt_authority',
+    'shell_runtime_truth',
+  ]) {
+    if (!policy?.forbidden_claims?.includes(claim)) {
+      throw new Error(`Runtime progress page display policy must forbid ${claim}`);
+    }
+  }
+}
+
 function validateRuntimeBridgeCommandResolutionPolicy(runtimeBridge) {
   const commandResolutionPolicy = runtimeBridge.command_resolution_policy;
   if (commandResolutionPolicy?.owner !== 'one-person-lab-app') {
@@ -715,6 +766,7 @@ export function validateRuntimeBridgeContract(runtimeBridge, contract) {
   validateRuntimeBridgeDeclaredSurfaces(runtimeBridge);
   validateRuntimeBridgeDefaultReadSurfacePolicy(runtimeBridge);
   validateRuntimeBridgeUserTaskStatus(runtimeBridge);
+  validateRuntimeProgressPageDisplayPolicy(runtimeBridge);
   validateRuntimeBridgeCommandResolutionPolicy(runtimeBridge);
   validateRuntimeBridgeProjectionContracts(runtimeBridge);
   validateRuntimeSurfaceOwnerMatrix(runtimeBridge);

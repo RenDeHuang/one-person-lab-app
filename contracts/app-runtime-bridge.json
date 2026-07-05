@@ -346,6 +346,109 @@
     "refs_only": true,
     "app_role": "display_only_user_task_status_consumer"
   },
+  "runtime_progress_page_display_policy": {
+    "owner": "one-person-lab-app",
+    "state": "active_product_contract",
+    "default_surface": "task_run_cockpit",
+    "advanced_surface": "task_detail_or_diagnostics",
+    "default_user_questions": [
+      "which_project",
+      "which_agent_or_module",
+      "current_user_state",
+      "current_stage",
+      "next_stage_or_action",
+      "needs_user_or_system",
+      "data_freshness"
+    ],
+    "default_page_sections": [
+      "top_scope_and_refresh",
+      "freshness_bar",
+      "kpi_row",
+      "main_task_grouped_list",
+      "right_module_status",
+      "right_advanced_information_disclosure"
+    ],
+    "default_visible_field_groups": {
+      "scope_and_refresh": [
+        "scope_options",
+        "current_scope",
+        "scope_source",
+        "inferred_scope_hint",
+        "refresh_action",
+        "last_state_read_at",
+        "projection_freshness_label"
+      ],
+      "freshness_bar": [
+        "last_progress_at",
+        "last_heartbeat_at_or_telemetry_missing",
+        "state_source",
+        "telemetry_missing"
+      ],
+      "kpi_row": [
+        "running_task_count",
+        "active_project_count",
+        "queued_project_count",
+        "attention_count",
+        "in_progress_count",
+        "owner_decision_count",
+        "system_attention_count"
+      ],
+      "main_task_grouped_list": [
+        "agent_display_name",
+        "project_display_name",
+        "work_item_display_name",
+        "primary_state_label",
+        "automation_state_label",
+        "active_stage_label",
+        "progress_label",
+        "next_visible_step",
+        "next_owner",
+        "last_progress_at"
+      ],
+      "right_module_status": [
+        "connector_readiness_refs_as_status",
+        "gateway_status_ref_as_status",
+        "diagnostic_substrate_refs_as_status",
+        "capability_health_refs_as_status"
+      ]
+    },
+    "advanced_only_fields": [
+      "raw_proof_ref",
+      "receipt_refs",
+      "stage_attempt_id",
+      "stage_attempt_ids",
+      "run_id",
+      "active_run_id",
+      "workflow_id",
+      "workflow_refs",
+      "raw_blocker_route",
+      "typed_blocker_resolution_ref",
+      "runtime_closeout_ref",
+      "mas_owner_consumption_ref",
+      "mas_owner_consumed_stage_attempt_id",
+      "mas_currentness_drift_text",
+      "provider",
+      "projection",
+      "ledger",
+      "current_control_state",
+      "full_drilldown"
+    ],
+    "field_placement_policy": "default page shows user task cockpit fields first; raw runtime evidence, ids, refs, route internals, and drift diagnostics require explicit task detail or advanced disclosure",
+    "owner_roles": {
+      "app": "owns product information architecture, display contract, field placement, and release-boundary validation",
+      "shell": "thin renderer that consumes App contract and Framework projections without inventing runtime state",
+      "framework": "owns runtime truth, refs-only projections, action routes, receipts, owner routing, and freshness signals"
+    },
+    "forbidden_claims": [
+      "second_runtime_truth_source",
+      "live_runtime_readiness",
+      "release_currentness",
+      "domain_readiness",
+      "owner_receipt_authority",
+      "shell_runtime_truth"
+    ],
+    "doc_ref": "docs/product/gui/runtime-overview-redesign.md"
+  },
   "runtime_scope_projection": {
     "source": "app_state.operator.workbench.runtime_scope",
     "authority": "opl_framework_runtime_scope_projection",

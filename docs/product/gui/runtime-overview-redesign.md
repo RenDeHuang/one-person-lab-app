@@ -1,8 +1,8 @@
 # Runtime 总览重构设计
 
 Owner: `one-person-lab-app`
-Purpose: `runtime_overview_product_redesign`
-State: `active_design`
+Purpose: `runtime_progress_page_information_architecture`
+State: `active_policy`
 Machine boundary: 本文是产品与落地设计。机器真相归 `contracts/`、`opl app state`、`opl app action`、shell renderer、focused tests 与 release-boundary validation。
 
 ## 背景
@@ -28,11 +28,25 @@ Runtime 页默认回答五个问题：
 
 1. 现在看的范围是什么。
 2. 这个范围里哪些项目在推进，哪些已经暂停，哪些需要我决定，哪些需要系统处理。
-3. 当前自动流程有没有在跑，跑到哪一步，持续多久了。
-4. 这个任务已经消耗了多少 token，这一阶段又消耗了多少。
-5. 如果有问题，问题属于谁处理，下一步是什么。
+3. 当前智能体跑到哪个 stage。
+4. 下一个 stage 或 action 是什么，归用户还是系统处理。
+5. 数据是否新鲜；缺 telemetry 时明确显示缺失，而不是推断健康。
 
 这不是新的 runtime truth。它仍然只是 App 对 OPL Framework refs-only projection 的产品化表达。
+
+## 默认页口径
+
+Runtime 页默认是任务运行 cockpit，不是 runtime 诊断页。默认页只展示用户判断项目进展需要的信息：
+
+- 项目 / 论文 / 任务名称。
+- 智能体或模块，例如 MAS。
+- 用户主状态和自动运行副状态。
+- 当前 stage。
+- 下一 stage 或 action。
+- 下一步归属：用户、系统、智能体或具体 owner。
+- 加载时间、最近进展和 telemetry missing。
+
+默认页不展示 raw proof ref、receipt refs、`stage_attempt_id`、`run_id`、`workflow_id`、raw blocker route、MAS currentness drift 原文、`provider`、`projection`、`ledger`、`current_control_state` 或 full drilldown。这些字段只能出现在任务详情或高级信息折叠层。
 
 ## 顶层信息架构
 
@@ -87,43 +101,43 @@ Runtime 页必须显式支持范围切换。最小范围层级：
 
 ### 顶部
 
-- 范围切换器
+- 范围切换器，默认保留 `全部项目`
 - 当前范围来源：`用户选择` / `系统推断`
 - 推断提示：例如“当前工作区推断为 `dm-cvd-mortality-risk`”
 - 刷新动作
 
-### 概览卡
+### Freshness bar
 
-概览卡改成用户状态计数，而不是 runtime bucket：
+- 加载时间
+- 最近进展或最近 heartbeat
+- 当前状态来源
+- telemetry missing
+
+### KPI 行
+
+KPI 改成用户状态计数，而不是 runtime bucket：
 
 - `进行中`
-- `已交付，自动暂停`
-- `已暂停`
-- `需要你决定`
-- `需要系统处理`
-
-附加统计：
-
 - `自动运行中`
+- `需要系统处理`
+- `需要你决定`
 - `最近活动时间`
 
 ### 主列表
 
 主列表按主状态分组，不再按 `running / attention / inactive` 分组。
 
-每个项目卡片最少包含：
+每个项目行默认包含：
 
-- 智能体 / 模块
 - 项目
 - 任务 / 论文
+- 智能体 / 模块
 - 主状态
 - 自动运行副状态
 - 当前阶段
 - 本阶段已持续多久
-- 最近一次 heartbeat / liveness
-- 当前阶段 token
-- 累计 token
-- 下一步
+- token 用量，允许合并阶段用量和累计用量
+- 下一步 stage 或 action
 - 责任方
 
 ### 高级信息
@@ -131,8 +145,12 @@ Runtime 页必须显式支持范围切换。最小范围层级：
 折叠展示：
 
 - runtime/control-plane 术语
+- liveness proof
 - refs
 - receipts
+- stage/run/workflow IDs
+- MAS owner consumption/currentness diagnostics
+- raw blocker route
 - safe actions
 - provider diagnostics
 - full drilldown
@@ -184,57 +202,12 @@ Runtime 页必须显式支持范围切换。最小范围层级：
 - 第二套 runtime truth
 - 状态词语的独立发明
 
-## 当前缺口
+## 当前落地状态
 
-### 已完成
-
-- 已确认用户认知模型：范围必须可切换，状态必须人话化。
-- 已确认根因：当前 framework 绑定 active MAS workspace，shell 顶层按 runtime bucket 分组。
-- 已确认现有 4 篇论文示例里，用户认知状态和技术状态并不等价。
-
-### 待落地
-
-1. Framework 从 active-workspace-bound 改成 overview-first aggregation。
-2. App contract 增加 scope model 和双层状态模型。
-3. Shell Runtime 页改成按主状态分组，并提供范围切换。
-4. 运行时 token / liveness / duration 字段稳定呈现。
-5. 高级技术术语完全下沉到折叠层。
-
-## 一步到位落地顺序
-
-### 阶段 A：文档与 contract
-
-完成度：`0% -> 本轮落地`
-
-- 更新 Runtime 总览产品定义。
-- 把 scope / 双层状态写入 App contracts。
-- 同步 one-person-lab product/runtime README 的 owner split。
-
-### 阶段 B：Framework
-
-完成度：`0% -> 本轮落地`
-
-- runtime aggregation 改成跨 binding 的 overview-first。
-- 产出 `scope_options`、`current_scope`、`scope_source`、`inferred_scope_hint`。
-- 产出 `primary_state`、`automation_state`、对应 label/reason。
-
-### 阶段 C：Shell
-
-完成度：`0% -> 本轮落地`
-
-- 顶部范围切换器。
-- 主列表按主状态分组。
-- 副状态 badge、token、stage duration、liveness 呈现。
-- 高级技术信息折叠。
-
-### 阶段 D：验证与吸收
-
-完成度：`0% -> 本轮落地`
-
-- Framework focused tests
-- App contract / release-boundary tests
-- Shell DOM / projection tests
-- 主会话复核 diff、吸收回 main、清理 worktree
+- App contract 已定义 `runtime_progress_page_display_policy`，固定默认 cockpit 与高级诊断边界。
+- Shell Runtime 页应按本文展示默认视图：顶部范围与刷新、freshness bar、KPI 行、主任务分组列表、右侧模块状态和高级信息。
+- Framework 仍是 runtime truth owner。App 和 shell 只消费 `opl app state --profile fast --json` 与 drilldown refs，不写 runtime truth、domain truth、owner receipts 或 typed blockers。
+- 本文、contract 和 focused validation 不能作为 live/runtime readiness、release currentness 或 owner acceptance 证据。
 
 ## 完成标准
 
@@ -243,4 +216,5 @@ Runtime 页必须显式支持范围切换。最小范围层级：
 1. 文档、contracts、shell UI 对同一套范围模型和状态模型一致。
 2. Runtime 页默认不再把内部技术术语当作用户主状态。
 3. 用户可以看总览，也可以显式切换查看某个 workspace / project / paper。
-4. 验证证明 framework、App contract、shell renderer 三层已经对齐。
+4. raw evidence、refs、receipts、stage/run IDs、MAS currentness diagnostics 和 full drilldown 默认收起。
+5. 验证证明 App contract 与 shell renderer 对齐；runtime/live readiness 另走 Framework 或 release owner 证据。
