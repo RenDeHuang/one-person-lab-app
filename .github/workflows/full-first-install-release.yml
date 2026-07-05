@@ -560,6 +560,7 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: false
           CI: true
           GH_TOKEN: ${{ github.token }}
+          NODE_OPTIONS: '--max-old-space-size=8192'
           ELECTRON_CACHE: ${{ runner.temp }}/.cache/electron
           ELECTRON_BUILDER_CACHE: ${{ runner.temp }}/.cache/electron-builder
           ELECTRON_BUILDER_BINARIES_MIRROR: https://github.com/electron-userland/electron-builder-binaries/releases/download/
