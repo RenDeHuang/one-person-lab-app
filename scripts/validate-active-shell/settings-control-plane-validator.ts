@@ -22,6 +22,8 @@ import { validateSettingsCapabilitiesResourceGrouping } from './shared-contract-
 const settingsIaRef = 'contracts/app-gui-product-contract.json#settings_navigation.settings_ia';
 const settingsControlPlaneContractRef = 'contracts/app-settings-control-plane.json';
 const appActionRoute = 'opl app action execute --action <action_id> [--payload <json>] [--dry-run] --json';
+const expectedCapabilitiesStateSource =
+  'opl app state --profile fast --json#app_state.agent_packages.directory + app_state.agent_packages.status_index + home_agent_shortcuts + app_state.operator.workbench.task_drilldowns';
 
 const expectedLegacyRedirects = {
   overview: 'general',
@@ -193,6 +195,10 @@ export function validateSettingsControlPlane(controlPlane, guiContract, pageStat
   validateSettingsUpstreamIntake(controlPlane);
   if (controlPlane.default_route !== '/settings/general') {
     throw new Error('Settings control plane default route must be /settings/general');
+  }
+  const capabilitiesRoute = (controlPlane.ordinary_routes ?? []).find((route) => route.id === 'capabilities');
+  if (capabilitiesRoute?.state_source !== expectedCapabilitiesStateSource) {
+    throw new Error('Settings capabilities route must read from canonical agent_packages plus Home shortcut and task-awareness projections');
   }
   if (controlPlane.extension_tab_policy?.legacy_anchor_remap_required !== true) {
     throw new Error('Settings control plane must require extension legacy anchor remapping');
@@ -705,6 +711,75 @@ function validateSettingsPageAdapterPolicy(controlPlane) {
     requiredPages.capabilities?.resource_grouping_surface,
     'Settings Capabilities page adapter resource grouping surface',
   );
+  validateSettingsCapabilitiesDirectoryProjection(requiredPages.capabilities);
+}
+
+function validateSettingsCapabilitiesDirectoryProjection(capabilitiesPage) {
+  if (capabilitiesPage?.state_source !== expectedCapabilitiesStateSource) {
+    throw new Error('Settings Capabilities page adapter must read from canonical agent_packages plus Home shortcut and task-awareness projections');
+  }
+  const directory = capabilitiesPage?.directory_projection_surface;
+  if (!directory || typeof directory !== 'object') {
+    throw new Error('Settings Capabilities page adapter must declare a directory projection surface');
+  }
+  if (
+    directory.surface !== 'settings_capabilities' ||
+    directory.primary_identity !== 'installed_package_directory' ||
+    directory.purpose_role !== 'secondary_tag_filter_only' ||
+    directory.home_shortcut_integration !== 'inline_visibility_and_order_controls_on_package_rows'
+  ) {
+    throw new Error('Settings Capabilities directory projection must be package-directory first with inline Home shortcut management');
+  }
+  if (
+    directory.canonical_projection !==
+      'opl app state --profile fast --json#app_state.agent_packages.directory + app_state.agent_packages.status_index' ||
+    directory.legacy_fallback_projection !==
+      'opl app state --profile fast --json#app_state.modules.items[] + home_agent_shortcuts + app_state.operator.workbench.task_drilldowns'
+  ) {
+    throw new Error('Settings Capabilities directory projection must record canonical and legacy fallback runtime projections');
+  }
+  if (
+    directory.normalization_policy !==
+    'shell must prefer canonical agent_packages projection and only fall back to modules.items when older runtime payloads or partial projections are still in circulation'
+  ) {
+    throw new Error('Settings Capabilities directory projection must explain canonical projection preference and legacy fallback');
+  }
+  const statusModel = directory.status_model;
+  if (statusModel?.policy !== 'multi_axis_package_status_no_single_repair_bucket') {
+    throw new Error('Settings Capabilities must keep a multi-axis package status model');
+  }
+  assertDeepEqualJson(
+    statusModel?.axes,
+    ['install_state', 'update_state', 'source_state', 'trust_state', 'codex_surface_state'],
+    'Settings Capabilities status axes',
+  );
+  if (
+    statusModel?.developer_source_policy !==
+    'developer checkout semantics must surface explicitly and must not collapse into a generic repair bucket'
+  ) {
+    throw new Error('Settings Capabilities must preserve developer checkout semantics as their own axis');
+  }
+  assertDeepEqualJson(
+    statusModel?.must_not_collapse,
+    ['developer_checkout', 'dirty_checkout', 'git_behind', 'unknown', 'needs_sync'],
+    'Settings Capabilities forbidden collapsed states',
+  );
+  const detailSurface = directory.detail_surface;
+  if (
+    detailSurface?.kind !== 'drawer_or_expandable_detail_list' ||
+    detailSurface?.first_screen_policy !==
+      'receipt_refs_physical_surface_and_workflow_connector_resource_refs_are_detail_only_not_primary_row_density'
+  ) {
+    throw new Error('Settings Capabilities detail surface must keep refs in drawer/detail density');
+  }
+  assertIncludesAll(
+    detailSurface?.detail_fields,
+    ['receipt_refs', 'physical_surface', 'workflow_refs', 'connector_readiness_refs', 'resource_source_refs'],
+    'Settings Capabilities detail fields',
+  );
+  if (!String(directory.completion_boundary ?? '').includes('allows modules.items fallback')) {
+    throw new Error('Settings Capabilities directory projection must state the current implementation boundary');
+  }
 }
 
 function validateSettingsAccessCloudBoundary(accessPage) {

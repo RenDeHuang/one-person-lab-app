@@ -744,6 +744,14 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     ia_group: 'data_storage',
     ordinary_entry_policy: 'top_level_control_center_group_entry',
   });
+  assert.deepEqual(guiContract.settings_navigation.primary_tabs.capabilities, {
+    label_zh: '能力',
+    label_en: 'Capabilities',
+    role: 'installed_package_directory_and_home_shortcut_management',
+    primary_question: 'Which packages are installed, how are they exposed on Home, and what can OPL help me do?',
+    ia_group: 'capabilities',
+    ordinary_entry_policy: 'top_level_control_center_route',
+  });
   assert.equal(
     guiContract.pages.settings_storage.release_contract_ref,
     'contracts/app-release-channel.json#local_data_lifecycle',
@@ -803,6 +811,79 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     guiContract.pages.settings_capabilities.export_bundle_action_policy,
     'show_export_bundle_action_ref_and_dry_run_receipt_without_claiming_domain_export_readiness',
   );
+  assert.deepEqual(guiContract.pages.settings_capabilities.primary_identity_policy, {
+    surface: 'installed_package_directory',
+    package_identity_fields: ['package_id', 'display_name', 'package_short_name'],
+    purpose_role: 'secondary_tag_filter_only',
+    home_shortcut_integration: 'inline_visibility_and_order_controls_on_package_rows',
+    supporting_surfaces: ['skills', 'tools', 'external_tools_voice', 'custom_assistants'],
+  });
+  assert.deepEqual(guiContract.pages.settings_capabilities.current_runtime_projection_boundary, {
+    canonical_projection:
+      'opl app state --profile fast --json#app_state.agent_packages.directory + app_state.agent_packages.status_index',
+    legacy_fallback_projection:
+      'opl app state --profile fast --json#app_state.modules.items[] + home_agent_shortcuts + app_state.operator.workbench.task_drilldowns',
+    normalization_policy:
+      'shell must prefer canonical agent_packages projection and only fall back to modules.items when older runtime payloads or partial projections are still in circulation',
+    developer_source_examples: [
+      'health_status=dirty',
+      'source_policy.effective_install_update_source=git_checkout',
+      'source_policy.configured_by=developer_mode',
+      'git.sync_status=behind',
+      'git.dirty=true',
+      'health_status=ready + recommended_action=update',
+    ],
+    completion_boundary:
+      'this contract requires canonical agent_packages projection and allows modules.items fallback only as rollout compatibility',
+  });
+  assert.deepEqual(guiContract.pages.settings_capabilities.status_model, {
+    policy: 'multi_axis_package_status_no_single_repair_bucket',
+    axes: ['install_state', 'update_state', 'source_state', 'trust_state', 'codex_surface_state'],
+    source_inputs: [
+      'app_state.agent_packages.directory.installed_packages[]',
+      'app_state.agent_packages.status_index.packages[]',
+      'app_state.agent_packages.status_index.home_shortcut_preferences[]',
+      'modules.items[].health_status',
+      'modules.items[].recommended_action',
+      'modules.items[].source_policy.effective_install_update_source',
+      'modules.items[].source_policy.configured_by',
+      'modules.items[].git.sync_status',
+      'modules.items[].git.dirty',
+      'managed_update_plane.capability_packages',
+      'managed_update_plane.codex_surface',
+    ],
+    developer_source_policy:
+      'developer checkout semantics must surface explicitly and must not be collapsed into a generic repair bucket',
+    must_not_collapse: ['developer_checkout', 'dirty_checkout', 'git_behind', 'unknown', 'needs_sync'],
+  });
+  assert.deepEqual(guiContract.pages.settings_capabilities.list_density_policy, {
+    primary_row_fields: [
+      'package_id',
+      'display_name',
+      'purpose_tags',
+      'home_shortcut_visible',
+      'home_shortcut_order',
+      'install_state',
+      'update_state',
+      'source_state',
+      'trust_state',
+      'codex_surface_state',
+      'recommended_action',
+    ],
+    detail_surface: 'drawer_or_expandable_detail_list',
+    detail_fields: [
+      'receipt_refs',
+      'rollback_ref',
+      'action_receipt_ref',
+      'physical_surface',
+      'workflow_refs',
+      'connector_readiness_refs',
+      'resource_source_refs',
+      'environment_refs',
+    ],
+    first_screen_policy:
+      'receipt_refs_physical_surface_and_workflow_connector_resource_refs_are_detail_only_not_primary_row_density',
+  });
   assert.ok(
     guiContract.pages.settings_capabilities.must_show.includes(
       'builtin skill catalog and auto-injected skills filtered to App packaged skill ids',

@@ -210,7 +210,7 @@
       "icon_token": "capabilities",
       "ia_group": "capabilities",
       "slot_id": "settings_capabilities",
-      "state_source": "contracts/app-gui-product-contract.json#default_assistants + opl app state --profile fast --json",
+      "state_source": "opl app state --profile fast --json#app_state.agent_packages.directory + app_state.agent_packages.status_index + home_agent_shortcuts + app_state.operator.workbench.task_drilldowns",
       "refresh_source": "opl app state --profile fast --json"
     },
     {
@@ -479,7 +479,7 @@
         "route_id": "capabilities",
         "adapter_entry": "packages/desktop/src/renderer/pages/settings/capabilitiesProjection.ts",
         "renderer_entry": "packages/desktop/src/renderer/pages/settings/CapabilitiesSettings.tsx",
-        "state_source": "contracts/app-gui-product-contract.json#default_assistants + opl app state --profile fast --json",
+        "state_source": "opl app state --profile fast --json#app_state.agent_packages.directory + app_state.agent_packages.status_index + home_agent_shortcuts + app_state.operator.workbench.task_drilldowns",
         "resource_grouping_surface": {
           "surface": "settings_capabilities",
           "source": "same_task_awareness_projection_refs_aggregated_for_capabilities",
@@ -518,6 +518,48 @@
           "owner_receipt_write_access": false,
           "domain_verdict_authority": false,
           "candidate_policy": "report_first_candidate_refs_review_needs_changes_continue_in_conversation_no_auto_enable_no_skill_body_write"
+        },
+        "directory_projection_surface": {
+          "surface": "settings_capabilities",
+          "primary_identity": "installed_package_directory",
+          "purpose_role": "secondary_tag_filter_only",
+          "home_shortcut_integration": "inline_visibility_and_order_controls_on_package_rows",
+          "canonical_projection": "opl app state --profile fast --json#app_state.agent_packages.directory + app_state.agent_packages.status_index",
+          "legacy_fallback_projection": "opl app state --profile fast --json#app_state.modules.items[] + home_agent_shortcuts + app_state.operator.workbench.task_drilldowns",
+          "normalization_policy": "shell must prefer canonical agent_packages projection and only fall back to modules.items when older runtime payloads or partial projections are still in circulation",
+          "status_model": {
+            "policy": "multi_axis_package_status_no_single_repair_bucket",
+            "axes": [
+              "install_state",
+              "update_state",
+              "source_state",
+              "trust_state",
+              "codex_surface_state"
+            ],
+            "developer_source_policy": "developer checkout semantics must surface explicitly and must not collapse into a generic repair bucket",
+            "must_not_collapse": [
+              "developer_checkout",
+              "dirty_checkout",
+              "git_behind",
+              "unknown",
+              "needs_sync"
+            ]
+          },
+          "detail_surface": {
+            "kind": "drawer_or_expandable_detail_list",
+            "detail_fields": [
+              "receipt_refs",
+              "rollback_ref",
+              "action_receipt_ref",
+              "physical_surface",
+              "workflow_refs",
+              "connector_readiness_refs",
+              "resource_source_refs",
+              "environment_refs"
+            ],
+            "first_screen_policy": "receipt_refs_physical_surface_and_workflow_connector_resource_refs_are_detail_only_not_primary_row_density"
+          },
+          "completion_boundary": "this control-plane contract requires canonical agent_packages projection and allows modules.items fallback only as rollout compatibility"
         },
         "forbidden_sources": [
           "upstream unified catalog without allowlist",
@@ -858,11 +900,11 @@
       {
         "id": "capabilities_experience",
         "track": "user_task_ux",
-        "goal": "Capabilities are organized by user purpose with package support, Codex visibility, sync state, failure reason, and per-package action detail.",
+        "goal": "Capabilities are organized as an installed package directory with integrated Home shortcut management, multi-axis status, and detail disclosure; purpose remains a secondary tag/filter.",
         "evidence_required": [
           "Capabilities adapter is required",
-          "Capabilities task entry is purpose-based",
-          "supporting tools remain below purpose cards"
+          "Capabilities task entry is package-directory based with inline Home shortcut management",
+          "current-runtime boundary records canonical agent_packages projection plus the allowed modules.items fallback"
         ]
       },
       {

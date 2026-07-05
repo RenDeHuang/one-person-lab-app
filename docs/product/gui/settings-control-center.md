@@ -17,6 +17,20 @@ source policy, and `SettingsHost` / `SettingsShellAdapterSlot` adapter slot.
 `contracts/app-gui-product-contract.json#settings_navigation.settings_ia` remains
 the App GUI source contract consumed by that control plane.
 
+Current implementation boundary: the ideal Capabilities IA in this document is
+package-directory-first, and canonical runtime readback is now
+`app_state.agent_packages.directory + app_state.agent_packages.status_index`.
+The current shell may still fall back to `opl app state --profile fast --json`
+module projection data, especially `app_state.modules.items[]`,
+Home-shortcut preferences, and task-awareness refs, while older payloads or
+partial projections remain in circulation. Recent local evidence shows why this
+matters: MAS/MAG/RCA may be `health_status: dirty` with
+`effective_install_update_source: git_checkout`, `configured_by: developer_mode`,
+`git.sync_status: behind`, and `git.dirty: true`, while BookForge/OMA can be
+`health_status: ready` but still carry `recommended_action: update`. The UX and
+contracts therefore must model status as multiple axes instead of collapsing
+everything into one `repair` bucket.
+
 ## Reading Order And SSOT
 
 Use this document for the human product design of Settings as the OPL Control
@@ -131,9 +145,9 @@ P0 entries:
   It belongs to Overview as an ordinary setup entry.
 - Maintenance Hub: App updates, OPL Runtime Fabric, OPL Packages, storage
   cleanup entry, and repair recommendations. It belongs to Maintenance & Updates.
-- Capability Status: Research, Grant Writing, Presentations, Book/manuscript
-  work, and OPL automation show usable / needs update / needs repair /
-  not configured. It belongs to Capabilities.
+- Capability Status: installed package directory rows show what is installed,
+  how each package is exposed on Home, and which purpose tags apply. It belongs
+  to Capabilities.
 
 P1 entries:
 
@@ -149,7 +163,8 @@ P1 entries:
   Tools or OPL Connect refs, while MCP server names, transports, and tool lists
   stay implementation detail behind disclosure.
 - Custom Assistant: secondary or Advanced capability depending on product
-  policy; it must not replace built-in OPL purpose entries.
+  policy; it must not replace the installed package directory as the primary
+  capability surface.
 
 The ordinary UI must not expose AionUI Team, backend/provider raw selectors,
 AG-UI implementation surfaces, AionUI implementation skills, or raw
@@ -214,9 +229,19 @@ Workspace must not be presented as a runtime diagnostic-only field.
 
 ### Capabilities
 
-Capabilities are organized by installed Agent Packages and user-facing work
-shortcuts before implementation detail. First-party starter registry entries
+Ideal state: Capabilities is an installed package directory with integrated
+Home shortcut management. Purpose is still useful, but only as a tag/filter
+dimension instead of the primary identity. First-party starter registry entries
 and starter shortcuts are defaults, not the only packages OPL App can manage.
+
+Current implementation boundary: the canonical source is
+`app_state.agent_packages.directory + app_state.agent_packages.status_index`.
+The shell may still fall back to `app_state.modules.items[]` plus Home shortcut
+preference readback and task-awareness refs while older runtime payloads or
+partial projections remain in circulation. That is exactly why the UI must stop
+using purpose cards and single repair badges as the primary model: the runtime
+now distinguishes dirty developer checkouts, managed update-needed modules, and
+ready-but-stale packages in ways a single-purpose-card summary hides.
 
 The package discovery source is the OPL Agent Registry. Users may point it at a
 GitHub-hosted JSON file or another configured URL; Settings uses it to show
@@ -249,20 +274,27 @@ The ordinary model is:
   and post-apply sync state;
 - Invocation Receipt: launch fact only, not a session-behavior contract.
 
-Default starter shortcuts may still be grouped by work purpose:
+The ordinary package-directory row shows:
 
-- Research;
-- Grant Writing;
-- Presentations;
-- Book / manuscript work;
-- OPL automation and Meta Agent.
+- package identity first: package id, display name, short name;
+- inline Home shortcut visibility and order;
+- purpose tags as secondary metadata and filters;
+- multi-axis status: install/update/source/trust/Codex Surface;
+- one recommended action when action is needed.
 
-Each package/shortcut card shows current availability, source
-(`first_party`, `organization`, `user`, `third_party`, or developer override),
-primary entry, required package or skill support, whether it needs update,
-repair, rollback, hide/unhide, or uninstall, and last capability sync when
-available. Skills, external tools, MCP, voice, and custom assistants are
-supporting sections below the package/shortcut model.
+The ordinary first screen must not use receipt refs, `physical_surface`,
+workflow refs, connector refs, resource refs, or raw git facts as the primary
+density. Those belong in a detail drawer or expandable detail list.
+
+Current-runtime UX rule: developer checkout semantics are explicit state, not a
+generic repair badge. `git_checkout`, `configured_by: developer_mode`,
+`git.sync_status: behind`, `git.dirty: true`, `health_status: dirty`, and
+`recommended_action: update` each map to different row axes so the user can see
+whether a package is developer-owned, drifted, stale, or merely waiting for a
+safe update. BookForge/OMA-style `ready + update` must stay distinct from
+dirty/developer-source packages. Skills, external tools, MCP, voice, and custom
+assistants are supporting sections below the package directory, not a second
+primary list.
 
 Settings must not introduce a strong Session Contract. Shortcut/profile
 metadata may describe label, package id, required skill ids, optional companion
@@ -283,7 +315,9 @@ Connect disclosure details, not separate ordinary capability categories.
 
 Updates & Maintenance owns normal maintenance and update actions, while About
 and Update stay discoverable secondary destinations for version, channel,
-release notes, and explicit update detail. The maintenance page groups:
+release notes, and explicit update detail. Maintenance is not the surface for
+in-progress task monitoring, artifact progress, or project execution state. The
+maintenance page groups:
 
 - Installation carrier;
 - OPL Runtime Fabric;
@@ -382,7 +416,7 @@ About shows:
 - feedback and issue links.
 
 It can link to Updates & Maintenance but must not be the primary maintenance
-page.
+page, and it must not host update/repair/rollback/package-maintenance controls.
 
 ## Visual System
 
@@ -393,7 +427,7 @@ Settings should feel like a quiet engineering control center:
 - one page header pattern: title, short description, state badge, last refresh,
   and primary action;
 - setting rows for ordinary controls;
-- cards only for summary states, purpose entries, and repeated entities;
+- cards only for summary states, package rows, and repeated entities;
 - 8px radius, restrained borders, semantic color, and no decorative gradients;
 - one icon family with consistent stroke width;
 - at most one primary action per page;

@@ -1613,6 +1613,7 @@
         "developer checkout/dirty checkout as a silent update target",
         "module maintenance writing runtime/domain truth or update receipts directly",
         "Homebrew/global tool silent upgrade controls",
+        "current project or in-progress task list as Maintenance & Updates content",
         "raw booleans, ids, component ids, receipts, or payload details as ordinary first-screen Local Environment content",
         "three equal maintenance buttons with shared ambiguous loading state",
         "workspace directory as a buried Local Environment detail instead of an independent ordinary entry",
@@ -2363,26 +2364,26 @@
     },
     {
       "id": "capabilities",
-      "expected_source": "App-owned assistant and skill profiles with OPL App state readiness refs",
-      "machine_source": "contracts/app-gui-product-contract.json#default_assistants + opl app state --profile fast --json",
+      "expected_source": "installed package directory from canonical agent_packages projection with Home shortcut preferences, readiness refs, and legacy modules fallback during rollout",
+      "machine_source": "opl app state --profile fast --json#app_state.agent_packages.directory + app_state.agent_packages.status_index + home_agent_shortcuts + operator.workbench.task_drilldowns",
       "refresh_source": "opl app state --profile fast --json",
       "page_contract": "settings_capabilities",
       "sections": [
-        "research",
-        "grant",
-        "ppt",
-        "opl_meta_agent",
+        "package_directory",
+        "home_shortcut_management",
+        "package_details_drawer",
         "capability_status",
-        "skills_detail",
-        "tools_detail",
+        "skills_supporting_surface",
+        "tools_supporting_surface",
         "external_tools_voice",
         "custom_assistants"
       ],
       "state_sections": [
+        "agent_packages.directory",
+        "agent_packages.status_index",
+        "modules.items",
         "professional_agent_packages",
         "home_agent_shortcuts",
-        "default_assistants",
-        "assistant_skill_profiles",
         "modules",
         "tools",
         "operator.workbench.task_drilldowns"
@@ -2427,15 +2428,108 @@
           "skill-creator"
         ]
       },
+      "package_directory_policy": {
+        "surface": "installed_package_directory",
+        "package_identity_fields": [
+          "package_id",
+          "display_name",
+          "package_short_name"
+        ],
+        "purpose_role": "secondary_tag_filter_only",
+        "home_shortcut_integration": "inline_visibility_and_order_controls_on_package_rows",
+        "supporting_surfaces": [
+          "skills",
+          "tools",
+          "external_tools_voice",
+          "custom_assistants"
+        ]
+      },
+      "current_runtime_projection_boundary": {
+        "canonical_projection": "opl app state --profile fast --json#app_state.agent_packages.directory + app_state.agent_packages.status_index",
+        "legacy_fallback_projection": "opl app state --profile fast --json#app_state.modules.items[] + home_agent_shortcuts + app_state.operator.workbench.task_drilldowns",
+        "normalization_policy": "shell must prefer canonical agent_packages projection and only fall back to modules.items when older runtime payloads or partial projections are still in circulation",
+        "developer_source_examples": [
+          "health_status=dirty",
+          "source_policy.effective_install_update_source=git_checkout",
+          "source_policy.configured_by=developer_mode",
+          "git.sync_status=behind",
+          "git.dirty=true",
+          "health_status=ready + recommended_action=update"
+        ],
+        "completion_boundary": "this page-state target requires canonical agent_packages projection and allows modules.items fallback only as rollout compatibility"
+      },
+      "status_model": {
+        "policy": "multi_axis_package_status_no_single_repair_bucket",
+        "axes": [
+          "install_state",
+          "update_state",
+          "source_state",
+          "trust_state",
+          "codex_surface_state"
+        ],
+        "source_inputs": [
+          "app_state.agent_packages.directory.installed_packages[]",
+          "app_state.agent_packages.status_index.packages[]",
+          "app_state.agent_packages.status_index.home_shortcut_preferences[]",
+          "modules.items[].health_status",
+          "modules.items[].recommended_action",
+          "modules.items[].source_policy.effective_install_update_source",
+          "modules.items[].source_policy.configured_by",
+          "modules.items[].git.sync_status",
+          "modules.items[].git.dirty",
+          "managed_update_plane.capability_packages",
+          "managed_update_plane.codex_surface"
+        ],
+        "developer_source_policy": "developer checkout semantics must surface explicitly and must not be collapsed into a generic repair bucket",
+        "must_not_collapse": [
+          "developer_checkout",
+          "dirty_checkout",
+          "git_behind",
+          "unknown",
+          "needs_sync"
+        ]
+      },
+      "list_density_policy": {
+        "primary_row_fields": [
+          "package_id",
+          "display_name",
+          "purpose_tags",
+          "home_shortcut_visible",
+          "home_shortcut_order",
+          "install_state",
+          "update_state",
+          "source_state",
+          "trust_state",
+          "codex_surface_state",
+          "recommended_action"
+        ],
+        "detail_surface": "drawer_or_expandable_detail_list",
+        "detail_fields": [
+          "receipt_refs",
+          "rollback_ref",
+          "action_receipt_ref",
+          "physical_surface",
+          "workflow_refs",
+          "connector_readiness_refs",
+          "resource_source_refs",
+          "environment_refs"
+        ],
+        "first_screen_policy": "receipt_refs_physical_surface_and_workflow_connector_resource_refs_are_detail_only_not_primary_row_density"
+      },
       "must_show": [
-        "purpose-grouped MAS research capability",
-        "purpose-grouped MAG grant capability",
-        "purpose-grouped RCA presentation capability",
-        "OPL Meta Agent as explicit non-default capability",
-        "required skills locked and optional skills selectable by assistant",
+        "installed package directory as the primary Capabilities surface",
+        "package rows keyed by package identity instead of purpose cards",
+        "purpose labels and filters as secondary metadata rather than primary identity",
+        "Home shortcut visibility and order inline on the package directory rows",
+        "details drawer or expandable list for receipt refs, physical_surface, workflow refs, connector refs, and resource refs",
+        "multi-axis package status for install, update, source, trust, and Codex Surface",
+        "developer checkout semantics surfaced explicitly for dirty, git checkout, behind, and configured_by=developer_mode",
+        "BookForge and OMA rows can show ready plus recommended update without being rewritten as repair",
+        "OPL Meta Agent as explicit non-default package row",
+        "required skills locked and optional skills selectable by package or launch surface",
         "builtin skill catalog and auto-injected skills filtered to App packaged skill ids",
         "MCP and tool details as secondary support details",
-        "capability status for Research, Grant, Presentation, Book or manuscript work, and OPL automation",
+        "capability status filters for Research, Grant, Presentation, Book or manuscript work, and OPL automation",
         "capability health and connector readiness refs from OPL App state",
         "OPL Connect connector readiness grouped by literature, database, storage, tools/API, internal system, and compute scheduler refs",
         "OPL Fabric environment and resource-source refs when capability tasks need managed or user-provided resources",
@@ -2447,6 +2541,10 @@
         "workflow and skill candidate report-first refs with review, needs changes, and continue in conversation actions"
       ],
       "must_not_show": [
+        "assistant or purpose cards as the primary Capabilities surface",
+        "single repair status swallowing developer checkout, dirty, behind, unknown, or needs sync",
+        "separate Home shortcut management table detached from the package rows",
+        "receipt refs, physical_surface, workflow refs, connector refs, or resource refs as first-screen primary density",
         "Skills and Tools as the only top-level mental model",
         "AG-UI as a user-visible capability concept",
         "AionUI implementation skills such as aionui-skills",

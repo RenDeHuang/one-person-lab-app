@@ -290,6 +290,50 @@ test('Settings page adapters and visual QA policy are machine-readable gates', (
     controlPlaneContract.page_adapter_policy.required_pages.environment.adapter_entry,
     'packages/desktop/src/renderer/pages/settings/RuntimeSettings/runtimeSettingsViewModel.ts',
   );
+  assert.strictEqual(
+    controlPlaneContract.ordinary_routes.find((route) => route.id === 'capabilities').state_source,
+    'opl app state --profile fast --json#app_state.agent_packages.directory + app_state.agent_packages.status_index + home_agent_shortcuts + app_state.operator.workbench.task_drilldowns',
+  );
+  assert.strictEqual(
+    controlPlaneContract.page_adapter_policy.required_pages.capabilities.state_source,
+    'opl app state --profile fast --json#app_state.agent_packages.directory + app_state.agent_packages.status_index + home_agent_shortcuts + app_state.operator.workbench.task_drilldowns',
+  );
+  assert.deepStrictEqual(controlPlaneContract.page_adapter_policy.required_pages.capabilities.directory_projection_surface, {
+    surface: 'settings_capabilities',
+    primary_identity: 'installed_package_directory',
+    purpose_role: 'secondary_tag_filter_only',
+    home_shortcut_integration: 'inline_visibility_and_order_controls_on_package_rows',
+    canonical_projection:
+      'opl app state --profile fast --json#app_state.agent_packages.directory + app_state.agent_packages.status_index',
+    legacy_fallback_projection:
+      'opl app state --profile fast --json#app_state.modules.items[] + home_agent_shortcuts + app_state.operator.workbench.task_drilldowns',
+    normalization_policy:
+      'shell must prefer canonical agent_packages projection and only fall back to modules.items when older runtime payloads or partial projections are still in circulation',
+    status_model: {
+      policy: 'multi_axis_package_status_no_single_repair_bucket',
+      axes: ['install_state', 'update_state', 'source_state', 'trust_state', 'codex_surface_state'],
+      developer_source_policy:
+        'developer checkout semantics must surface explicitly and must not collapse into a generic repair bucket',
+      must_not_collapse: ['developer_checkout', 'dirty_checkout', 'git_behind', 'unknown', 'needs_sync'],
+    },
+    detail_surface: {
+      kind: 'drawer_or_expandable_detail_list',
+      detail_fields: [
+        'receipt_refs',
+        'rollback_ref',
+        'action_receipt_ref',
+        'physical_surface',
+        'workflow_refs',
+        'connector_readiness_refs',
+        'resource_source_refs',
+        'environment_refs',
+      ],
+      first_screen_policy:
+        'receipt_refs_physical_surface_and_workflow_connector_resource_refs_are_detail_only_not_primary_row_density',
+    },
+    completion_boundary:
+      'this control-plane contract requires canonical agent_packages projection and allows modules.items fallback only as rollout compatibility',
+  });
   assert.deepStrictEqual(controlPlaneContract.visual_qa_policy.required_viewports, ['desktop', 'mobile']);
   assert.deepStrictEqual(controlPlaneContract.visual_qa_policy.required_routes, [
     '/settings/general',
@@ -368,6 +412,21 @@ test('Settings page adapters and visual QA policy are machine-readable gates', (
     /resource grouping surface/,
   );
 
+  const invalidCapabilitiesDirectoryProjection = structuredClone(controlPlaneContract);
+  invalidCapabilitiesDirectoryProjection.page_adapter_policy.required_pages.capabilities.directory_projection_surface.status_model.must_not_collapse =
+    ['repair'];
+  assert.throws(
+    () =>
+      validateSettingsControlPlane(
+        invalidCapabilitiesDirectoryProjection,
+        guiContract,
+        pageStateMatrix,
+        productProfile,
+        adapterContract,
+      ),
+    /forbidden collapsed states/,
+  );
+
   const invalidVisualQaPolicy = structuredClone(controlPlaneContract);
   invalidVisualQaPolicy.visual_qa_policy.does_not_prove = ['release readiness'];
   assert.throws(
@@ -421,7 +480,7 @@ test('Settings model and reasoning policy is App-owned and shells are adapters o
   ]);
   assert.equal(policy.default_model_ref, 'contracts/app-product-profile.json#codex.default_model');
   assert.equal(policy.default_reasoning_effort_ref, 'contracts/app-product-profile.json#codex.default_reasoning_effort');
-  assert.equal(policy.settings_surface, 'settings_access.model_account');
+  assert.equal(policy.settings_surface, 'settings_access.opl_gateway');
   assert.equal(policy.adapter_policy, 'Aion/Hermes/shell render App-derived model and reasoning policy only');
   assert.deepStrictEqual(policy.shell_must_not_own, [
     'default model',
@@ -499,6 +558,19 @@ test('Settings product system checklist is the completion-audit source and keeps
       'release_currentness_policy separates this item from Settings tests',
       'visual QA and contract validators list what they do not prove',
       'release owner gate supplies any future installed/release evidence',
+    ],
+  );
+  assert.strictEqual(
+    controlPlaneContract.product_system_checklist.items.find((item) => item.id === 'capabilities_experience').goal,
+    'Capabilities are organized as an installed package directory with integrated Home shortcut management, multi-axis status, and detail disclosure; purpose remains a secondary tag/filter.',
+  );
+  assert.deepStrictEqual(
+    controlPlaneContract.product_system_checklist.items.find((item) => item.id === 'capabilities_experience')
+      .evidence_required,
+    [
+      'Capabilities adapter is required',
+      'Capabilities task entry is package-directory based with inline Home shortcut management',
+      'current-runtime boundary records canonical agent_packages projection plus the allowed modules.items fallback',
     ],
   );
 
