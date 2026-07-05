@@ -21,6 +21,7 @@ import {
 } from '../../../scripts/validate-active-shell/shared-contract-validators.ts';
 import { assertIncludesAll } from '../../../scripts/validate-active-shell/assertions.ts';
 import {
+  appOwnedProjectGroupExpansionPolicy,
   taskRunProjectionV2FieldGroups,
   taskRunProjectionV2RequiredFields,
 } from '../../../scripts/validate-active-shell/app-contract-constants.ts';
@@ -51,6 +52,15 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'owner',
     'last_progress',
     'next_owner',
+    'active_run_id',
+    'stage_attempt_ids',
+    'runtime_closeout_observed',
+    'runtime_closeout_ref',
+    'mas_owner_consumption_status',
+    'mas_owner_consumption_ref',
+    'mas_owner_consumed_stage_attempt_id',
+    'mas_owner_consumed_closeout_ref',
+    'mas_owner_consumption_matches_runtime_closeout',
     'artifact_or_blocker',
     'review_receipt',
     'action_receipt',
@@ -421,6 +431,8 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
       'only explicit running, in_progress, or advancing status/state counts as running; active_run_id alone is context, not liveness proof',
     progress_label_policy:
       'render framework progress classification and stage labels as human task progress labels without exposing raw projection or ledger names',
+    mas_runtime_acceptance_display_policy:
+      "show MAS owner consumption fields as user-facing acceptance/currentness status, e.g. 'MAS accepted this runtime result' and 'accepted result matches latest runtime closeout'; keep raw refs and stage attempt ids secondary as evidence, not the primary wording",
     diagnostic_source_policy:
       'provider/projection/ref/ledger/current_control_state details stay secondary and are not the default page language',
     must_not_default_display_terms: [
@@ -655,7 +667,16 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
         attention_group_default: 'visible_when_nonempty',
         inactive_group_default: 'collapsed',
         inactive_states: ['queued', 'pending', 'waiting', 'stopped', 'parked', 'checkpointed', 'blocked', 'attention_needed'],
-        inactive_summary_fields: ['count', 'status', 'next_visible_step'],
+        inactive_summary_fields: [
+          'count',
+          'status',
+          'next_visible_step',
+          'runtime_closeout_observed',
+          'runtime_closeout_ref',
+          'mas_owner_consumption_status',
+          'mas_owner_consumed_stage_attempt_id',
+          'mas_owner_consumption_matches_runtime_closeout',
+        ],
       },
       required_fields: [
         'task_id',
@@ -664,6 +685,7 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
         'status',
         'study_id',
         'active_run_id',
+        'stage_attempt_ids',
         'next_visible_step',
       ],
       must_not_claim: [
@@ -1204,6 +1226,8 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
       'only explicit running, in_progress, or advancing status/state counts as running; active_run_id alone is context, not liveness proof',
     progress_label_policy:
       'render framework progress classification and stage labels as human task progress labels without exposing raw projection or ledger names',
+    mas_runtime_acceptance_display_policy:
+      "show MAS owner consumption fields as user-facing acceptance/currentness status, e.g. 'MAS accepted this runtime result' and 'accepted result matches latest runtime closeout'; keep raw refs and stage attempt ids secondary as evidence, not the primary wording",
     diagnostic_source_policy:
       'provider/projection/ref/ledger/current_control_state details stay secondary and are not the default page language',
     must_not_default_display_terms: [
@@ -1277,7 +1301,16 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
         attention_group_default: 'visible_when_nonempty',
         inactive_group_default: 'collapsed',
         inactive_states: ['queued', 'pending', 'waiting', 'stopped', 'parked', 'checkpointed', 'blocked', 'attention_needed'],
-        inactive_summary_fields: ['count', 'status', 'next_visible_step'],
+        inactive_summary_fields: [
+          'count',
+          'status',
+          'next_visible_step',
+          'runtime_closeout_observed',
+          'runtime_closeout_ref',
+          'mas_owner_consumption_status',
+          'mas_owner_consumed_stage_attempt_id',
+          'mas_owner_consumption_matches_runtime_closeout',
+        ],
       },
       required_fields: [
         'task_id',
@@ -1286,6 +1319,7 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
         'status',
         'study_id',
         'active_run_id',
+        'stage_attempt_ids',
         'next_visible_step',
       ],
       must_not_claim: [
@@ -1311,13 +1345,10 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     runtimePage.runtime_view_model.default_attention.active_project_line_policy,
     'queued_or_escalated_owner_handled_project_lines_count_as_user_visible_active_projects_without_claiming_active_worker_run',
   );
-  assert.deepEqual(runtimePage.runtime_view_model.default_attention.project_group_expansion_policy, {
-    running_group_default: 'expanded',
-    attention_group_default: 'visible_when_nonempty',
-    inactive_group_default: 'collapsed',
-    inactive_states: ['queued', 'pending', 'waiting', 'stopped', 'parked', 'checkpointed', 'blocked', 'attention_needed'],
-    inactive_summary_fields: ['count', 'status', 'next_visible_step'],
-  });
+  assert.deepEqual(
+    runtimePage.runtime_view_model.default_attention.project_group_expansion_policy,
+    appOwnedProjectGroupExpansionPolicy,
+  );
   assert.equal(
     runtimePage.runtime_view_model.progress_delta.source,
     'app_state.operator.workbench.task_drilldowns.progress_delta_classification',

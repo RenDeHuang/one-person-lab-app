@@ -4,7 +4,16 @@ export const appOwnedProjectGroupExpansionPolicy = {
   attention_group_default: 'visible_when_nonempty',
   inactive_group_default: 'collapsed',
   inactive_states: ['queued', 'pending', 'waiting', 'stopped', 'parked', 'checkpointed', 'blocked', 'attention_needed'],
-  inactive_summary_fields: ['count', 'status', 'next_visible_step'],
+  inactive_summary_fields: [
+    'count',
+    'status',
+    'next_visible_step',
+    'runtime_closeout_observed',
+    'runtime_closeout_ref',
+    'mas_owner_consumption_status',
+    'mas_owner_consumed_stage_attempt_id',
+    'mas_owner_consumption_matches_runtime_closeout',
+  ],
 };
 
 export const appOwnedRunningStatePolicy =
@@ -154,7 +163,7 @@ export const beginnerFirstRunTestIds = [
 export const appOwnedSettingsTabs = ['general', 'access', 'capabilities', 'environment', 'storage', 'appearance', 'advanced'];
 export const appOwnedSecondarySettingsPages = ['about', 'update', 'theme', 'workspace', 'local-services'];
 export const appOwnedSettingsIaGroupIds = ['overview', 'setup_access', 'capabilities', 'maintenance', 'data_storage', 'preferences', 'advanced'];
-export const appOwnedSettingsIaLabelsZh = ['总览', '开始使用', '智能体与能力', '维护与更新', '数据与存储', '偏好', '高级'];
+export const appOwnedSettingsIaLabelsZh = ['总览', '开始使用', '能力', '维护', '数据与存储', '偏好', '高级'];
 export const appOwnedSettingsIaEntryMap = {
   overview: ['settings_general', 'workspace'],
   setup_access: ['settings_access', 'first_run_setup_center'],
@@ -461,7 +470,6 @@ export const settingsPageExpectations = {
       'Console-managed status for policy, quota, billing, and permission refs on managed resources',
       'self-managed status for local, user-provided SSH, and user-provided HPC resources',
       'Web / Docker / Remote Access section with a direct user-facing entry to WebUI or remote access setup',
-      'AionUI-native remote access setup remains available as a stable Access entry and is extended with OPL Gateway, Workspace, and Fabric context rather than replaced',
       'Setup & Access placed under OPL Control Center Setup & Access',
       'whether Codex CLI can run now',
       'whether configured provider access can work now',
@@ -476,39 +484,38 @@ export const settingsPageExpectations = {
       'backend/provider raw selector as the Model & Account primary control',
       'Console billing or managed-cloud entitlement as an App-owned decision',
       'Cloud service availability as release-ready or runtime-ready proof',
-      'removing AionUI native remote access capabilities while adapting Access copy',
     ],
   },
   settings_capabilities: {
     matrix_id: 'capabilities',
     ia_group: 'capabilities',
-    sections: ['package_directory', 'home_shortcuts', 'package_support', 'connectors_tools', 'workflow_candidates', 'custom_assistants'],
+    sections: ['research', 'grant', 'ppt', 'opl_meta_agent', 'capability_status', 'skills_detail', 'tools_detail', 'external_tools_voice', 'custom_assistants'],
     must_show: [
-      'agent package directory/list with installed state, source, version, required skill support, and lifecycle actions',
-      'Home shortcut list with visibility and order read back from Framework preferences',
-      'starter Home shortcuts shown as package-backed launch entries rather than the page primary semantic grouping',
-      'package-backed Research, Grant Writing, Presentations, Book or manuscript, and OPL automation shortcuts when installed',
-      'Codex Surface materialization, plugin id, required skills, and sync status as package support detail',
+      'capability status for Research, Grant, Presentation, Book or manuscript work, and OPL automation',
+      'External Tools & Voice entry with MCP described as secondary technical detail',
+      'Custom Assistant entry as a secondary or advanced capability when enabled by product policy',
+      'purpose-grouped MAS research capability',
+      'purpose-grouped MAG grant capability',
+      'purpose-grouped RCA presentation capability',
+      'OPL Meta Agent as explicit non-default capability',
+      'required skills locked and optional skills selectable by assistant',
       'builtin skill catalog and auto-injected skills filtered to App packaged skill ids',
+      'MCP and tool details as secondary support details',
       'capability health and connector readiness refs from OPL App state',
-      'External Tools & Voice and OPL Connect connectors as supporting sections beneath packages and shortcuts',
       'OPL Connect connector readiness grouped by literature, database, storage, tools/API, internal system, and compute scheduler refs',
       'OPL Fabric environment and resource-source refs when capability tasks need managed or user-provided resources',
-      'Environment Catalog refs grouped with OPL Fabric resource readiness when packages declare runtime requirements',
+      'Environment Catalog refs grouped with OPL Fabric resource readiness when capability tasks declare runtime requirements',
       'reusable workflow refs without skill bodies',
       'reproducibility export bundle action ref with dry-run receipt boundary',
       'workflow and skill candidate report-first refs with review, needs changes, and continue in conversation actions',
-      'Custom Assistant entry as a secondary or advanced capability when enabled by product policy',
     ],
     must_not_show: [
-      'large purpose cards for Research, Grant, Presentation, Book, or Automation as the primary Settings semantic model',
       'Skills and Tools as the only top-level mental model',
       'AG-UI as a user-visible capability concept',
       'AionUI implementation skills such as aionui-skills',
       'OPL Meta Agent as a default Home assistant',
       'AionUI Team as the ordinary multi-agent collaboration entry',
       'MCP as the primary user-facing name for external tools',
-      'strong Session Contract with stage behavior, prompt internals, artifact schema, or readiness verdict authority',
       'artifact body, workflow body, connector body, credential body, owner receipt write, or domain export readiness verdict from Settings Capabilities',
       'auto-enabled skills, skill body writes, or workflow body writes from Settings Capabilities candidate refs',
     ],
@@ -537,12 +544,11 @@ export const settingsPageExpectations = {
       'OPL Packages state, Codex Surface substatus, and recommended action',
       'manual check/apply/repair/rollback mappings through opl update or App action routes',
       'health summary for whether the local App foundation can run now',
-      'grouped Core, Runtime, Packages, and Maintenance sections',
+      'grouped Core, Runtime, Capabilities, and Maintenance sections',
       'user-facing action language for checks, repairs, updates, and rollback',
       'diagnostics collapsed by default with raw booleans, ids, paths, and receipts hidden',
       'environment page placed under OPL Control Center Maintenance & Updates',
       'Local Environment limited to service health rather than broad local runtime preferences',
-      'system maintenance only with no in-progress task details, blocker ledgers, or domain progress as first-screen content',
     ],
     must_not_show: [
       'Med Deep Scientist as a default module',
@@ -560,7 +566,6 @@ export const settingsPageExpectations = {
       'workspace directory as a buried Local Environment detail instead of an independent ordinary entry',
       'appearance, language, startup, or tray preferences as Local Environment runtime health',
       'update, repair, package maintenance, and storage cleanup scattered across unrelated pages without a Maintenance hub',
-      'current task details, workflow candidate refs, deliverable progress, or domain blocker ledgers on Maintenance & Updates',
     ],
   },
   settings_storage: {

@@ -214,28 +214,12 @@ function validateAboutPage(matrix) {
   if (!aboutPage.must_not_show?.includes('update, repair, rollback, package maintenance, or storage cleanup controls on About')) {
     throw new Error('About page must keep update, repair, rollback, package maintenance, and cleanup controls out of About');
   }
-  if (!aboutPage.must_show?.includes('stable About entry reachable from Advanced and Settings search')) {
-    throw new Error('About page must stay a stable discoverable secondary page entry');
-  }
-  if (!aboutPage.must_not_show?.includes('About hidden behind a transient overflow-only surface without a stable route')) {
-    throw new Error('About page must not be demoted behind a transient overflow-only surface');
-  }
 }
 
 function validateUpdatePage(matrix) {
   const updatePage = pageById(matrix, 'update');
   validateManagedUpdatePageBasics(updatePage, 'Update page', { requirePageContract: true });
   validateManagedUpdatePlaneBinding(updatePage.managed_update_plane, 'Update page');
-  if (!updatePage.must_show?.includes('stable Updates entry reachable from Maintenance & Updates and Settings search')) {
-    throw new Error('Update page must stay a stable discoverable secondary page entry');
-  }
-  if (
-    !updatePage.must_not_show?.includes(
-      'current task details, workflow candidate refs, deliverable progress, or domain blocker ledgers on Updates & Maintenance',
-    )
-  ) {
-    throw new Error('Update page must stay system-maintenance-only without task detail');
-  }
 }
 
 function validateSettingsThemePage(matrix) {

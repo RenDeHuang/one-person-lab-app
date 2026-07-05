@@ -204,6 +204,15 @@
       "owner",
       "last_progress",
       "next_owner",
+      "active_run_id",
+      "stage_attempt_ids",
+      "runtime_closeout_observed",
+      "runtime_closeout_ref",
+      "mas_owner_consumption_status",
+      "mas_owner_consumption_ref",
+      "mas_owner_consumed_stage_attempt_id",
+      "mas_owner_consumed_closeout_ref",
+      "mas_owner_consumption_matches_runtime_closeout",
       "artifact_or_blocker",
       "review_receipt",
       "action_receipt",
@@ -240,6 +249,7 @@
     },
     "running_state_policy": "only explicit running, in_progress, or advancing status/state counts as running; active_run_id alone is context, not liveness proof",
     "progress_label_policy": "render framework progress classification and stage labels as human task progress labels without exposing raw projection or ledger names",
+    "mas_runtime_acceptance_display_policy": "show MAS owner consumption fields as user-facing acceptance/currentness status, e.g. 'MAS accepted this runtime result' and 'accepted result matches latest runtime closeout'; keep raw refs and stage attempt ids secondary as evidence, not the primary wording",
     "diagnostic_source_policy": "provider/projection/ref/ledger/current_control_state details stay secondary and are not the default page language",
     "must_not_default_display_terms": [
       "Temporal",
@@ -412,20 +422,7 @@
       "artifact_body_access": false,
       "owner_receipt_write_access": false,
       "domain_verdict_authority": false,
-      "candidate_policy": "report_first_candidate_refs_review_needs_changes_continue_in_conversation_no_auto_enable_no_skill_body_write",
-      "directory_primary_model": {
-        "primary_structure": "agent_packages_and_home_shortcuts_first",
-        "display_policy": "package_directory_home_shortcuts_first_tools_and_connectors_supporting_no_purpose_card_primary_semantics",
-        "supporting_sections": [
-          "external_tools_voice",
-          "connectors",
-          "workflow_skill_candidates"
-        ],
-        "forbidden_primary_semantics": [
-          "purpose_grouped_big_cards",
-          "strong_session_contract"
-        ]
-      }
+      "candidate_policy": "report_first_candidate_refs_review_needs_changes_continue_in_conversation_no_auto_enable_no_skill_body_write"
     },
     "temporal_policy": "diagnostics_only_never_user_task_model",
     "app_role": "display_only_task_awareness_consumer",
@@ -663,7 +660,12 @@
         "inactive_summary_fields": [
           "count",
           "status",
-          "next_visible_step"
+          "next_visible_step",
+          "runtime_closeout_observed",
+          "runtime_closeout_ref",
+          "mas_owner_consumption_status",
+          "mas_owner_consumed_stage_attempt_id",
+          "mas_owner_consumption_matches_runtime_closeout"
         ]
       },
       "required_fields": [
@@ -673,6 +675,7 @@
         "status",
         "study_id",
         "active_run_id",
+        "stage_attempt_ids",
         "next_visible_step"
       ],
       "must_not_claim": [

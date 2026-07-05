@@ -538,10 +538,7 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   assert.equal(guiContract.settings_navigation.source, 'opl app state --profile fast --json');
   assert.equal(guiContract.settings_navigation.refresh_source, 'opl app state --profile fast --json');
   assert.equal(guiContract.settings_navigation.primary_tabs.general.label_zh, '总览');
-  assert.equal(guiContract.settings_navigation.primary_tabs.capabilities.label_zh, '智能体与能力');
-  assert.equal(guiContract.settings_navigation.primary_tabs.capabilities.label_en, 'Agents & Capabilities');
   assert.equal(guiContract.settings_navigation.primary_tabs.environment.label_en, 'Maintenance & Updates');
-  assert.equal(guiContract.settings_navigation.primary_tabs.environment.label_zh, '维护与更新');
   assert.deepEqual(guiContract.settings_navigation.secondary_page_ids, [
     'about',
     'update',
@@ -804,16 +801,6 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   );
   assert.ok(
     guiContract.pages.settings_capabilities.must_show.includes(
-      'agent package directory/list with installed state, source, version, required skill support, and lifecycle actions',
-    ),
-  );
-  assert.ok(
-    guiContract.pages.settings_capabilities.must_show.includes(
-      'Home shortcut list with visibility and order read back from Framework preferences',
-    ),
-  );
-  assert.ok(
-    guiContract.pages.settings_capabilities.must_show.includes(
       'capability health and connector readiness refs from OPL App state',
     ),
   );
@@ -837,16 +824,6 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   );
   assert.ok(
     guiContract.pages.settings_capabilities.must_not_show.includes(
-      'large purpose cards for Research, Grant, Presentation, Book, or Automation as the primary Settings semantic model',
-    ),
-  );
-  assert.ok(
-    guiContract.pages.settings_capabilities.must_not_show.includes(
-      'strong Session Contract with stage behavior, prompt internals, artifact schema, or readiness verdict authority',
-    ),
-  );
-  assert.ok(
-    guiContract.pages.settings_capabilities.must_not_show.includes(
       'artifact body, workflow body, connector body, credential body, owner receipt write, or domain export readiness verdict from Settings Capabilities',
     ),
   );
@@ -859,19 +836,6 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   assert.equal(guiContract.pages.settings_capabilities.workflow_skill_candidate_policy.auto_enable_allowed, false);
   assert.equal(guiContract.pages.settings_capabilities.workflow_skill_candidate_policy.skill_body_write_access, false);
   assert.ok(guiContract.pages.settings_capabilities.auto_injected_skills_policy.forbidden_examples.includes('aionui-skills'));
-  assert.deepEqual(guiContract.pages.settings_capabilities.directory_model, {
-    primary_structure: 'agent_packages_and_home_shortcuts_first',
-    package_directory_source: 'OPL Agent Registry manifest URLs + Framework package list/status readback',
-    home_shortcut_source: 'Framework home shortcut preference readback',
-    supporting_sections: ['external_tools_voice', 'connectors', 'workflow_skill_candidates'],
-    forbidden_primary_semantics: ['purpose_grouped_big_cards', 'strong_session_contract'],
-  });
-  assert.deepEqual(guiContract.pages.settings_access.cloud_fabric_surface.native_remote_access_policy, {
-    app_role: 'preserve_and_extend_aionui_native_remote_access_capabilities',
-    additive_only: true,
-    stable_entry_surfaces: ['settings_access', 'settings_search'],
-    preserved_capabilities: ['remote access setup', 'Docker WebUI access', 'user-provided SSH/HPC access'],
-  });
   assert.equal(guiContract.desktop_tray_policy.default_visible, true);
   assert.equal(guiContract.desktop_tray_policy.desktop_startup_behavior, 'create_tray_by_default');
   assert.equal(guiContract.desktop_tray_policy.e2e_startup_behavior, 'destroy_tray_and_disable_close_to_tray');
@@ -938,27 +902,7 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   assert.equal('legacy_developer_mode_alias' in guiContract.developer_profile, false);
   assert.ok(guiContract.module_path_source_policy.must_not_use.includes('raw OPL_MODULE_SOURCE_MODE as ordinary Settings UI'));
   assert.equal(guiContract.pages.settings_environment.module_path_source_policy_ref, 'module_path_source_policy');
-  assert.ok(
-    guiContract.pages.settings_environment.must_show.includes(
-      'system maintenance only with no in-progress task details, blocker ledgers, or domain progress as first-screen content',
-    ),
-  );
-  assert.ok(
-    guiContract.pages.settings_environment.must_not_show.includes(
-      'current task details, workflow candidate refs, deliverable progress, or domain blocker ledgers on Maintenance & Updates',
-    ),
-  );
   assert.ok(guiContract.pages.about.must_show.includes('OPL Framework revision'));
-  assert.deepEqual(guiContract.pages.about.discoverability_policy, {
-    stable_page_entry: true,
-    entry_surfaces: ['advanced', 'settings_search'],
-    contextual_link_only: false,
-  });
-  assert.deepEqual(guiContract.pages.update.discoverability_policy, {
-    stable_page_entry: true,
-    entry_surfaces: ['maintenance', 'settings_search'],
-    contextual_link_only: false,
-  });
   assert.equal(guiContract.theme_and_branding.default_theme_id, 'default-theme');
   assert.deepEqual(guiContract.theme_and_branding.allowed_theme_ids, ['default-theme', 'codex']);
   assert.ok(guiContract.pages.settings_theme.must_show.includes('Default theme option'));

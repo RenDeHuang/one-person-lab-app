@@ -538,6 +538,21 @@ Required local authorization evidence:
 
 Gatekeeper rejection is acceptable only when the Stable local authorization policy explicitly records that unsigned/ad-hoc bundles are allowed for the cohort.
 
+## Local Installed App Refresh
+
+When an operator asks to update the local installed macOS App for testing, the default action is to build the current App bundle and replace `/Applications/One Person Lab.app` directly. Do not stop at producing a DMG unless the operator explicitly asks for an installer artifact.
+
+Required local refresh evidence:
+
+- Build the current macOS bundle from the active shell path.
+- Quit the running `cn.onepersonlab.opl` App before replacement.
+- Replace `/Applications/One Person Lab.app` with the freshly built `.app` bundle.
+- Clear quarantine attributes for the replaced bundle when present.
+- Verify the installed bundle version, code signature, and installed `app.asar` hash against the build output.
+- Launch the installed App and inspect recent App logs for startup/runtime bridge errors.
+
+DMG and ZIP artifacts remain useful release artifacts and checksum inputs, but for local operator testing they are not the activation step. The installed bundle under `/Applications` is the tested surface.
+
 ## Full First-Install
 
 Full first-install packaging policy is App-owned, but runtime dependency truth is OPL-owned. The App Full package consumes the OPL runtime bundle manifest, lock, env contract, and readback refs through `opl-release-manifest.json#manifest.opl_runtime_bundle_consumer`; it must not create a second dependency-truth contract. The upstream source surface is OPL Framework `contracts/opl-framework/runtime-environment-substrate-contract.json` and `opl runtime env contract|build|materialize --dry-run|run-context --json` readbacks.

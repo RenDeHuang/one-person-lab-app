@@ -22,8 +22,6 @@ the App GUI source contract consumed by that control plane.
 Use this document for the human product design of Settings as the OPL Control
 Center. Use `contracts/app-settings-control-plane.json` for route, checklist,
 registry, redirect, adapter-slot, and validator truth. Use
-`settings-degradation-audit-and-reorg.md` for the root-cause audit and the user
-mental-model reorg rationale. Use
 `settings-control-center-completion-audit.md` only as a compact audit pointer;
 it must not grow back into a dated evidence ledger, release proof transcript, or
 installed-currentness record.
@@ -53,8 +51,8 @@ The target navigation groups are:
 | --- | --- | --- |
 | Overview | Overview | Is the App usable now, and what should I do next? |
 | Setup & Access | Access & Model, Workspace | How do I connect the App, and where does work happen? |
-| Capabilities | Agents & Capabilities | Which agent packages, Home shortcuts, and tools/connectors are available? |
-| Maintenance & Updates | Updates & Maintenance, Local Services | How do I keep the App foundation healthy, repaired, and updated? |
+| Capabilities | Agents & Capabilities | What can OPL help me do? |
+| Maintenance & Updates | Updates & Maintenance, Local Services | How do I keep the App foundation healthy and updated? |
 | Data & Storage | Storage & Data | How do I safely manage local App data? |
 | Preferences | Appearance, Language & Notifications | How should the App behave and look for me? |
 | Advanced | Developer & Diagnostics, About | Where are technical details, raw references, versions, and links? |
@@ -77,7 +75,7 @@ route ids:
   `update`, and `theme` are also secondary or deep-link route ids.
   unless the contract, page-state matrix, validators, and release-boundary tests
   are deliberately changed together;
-- user-facing groups remain Overview, Setup & Access, Agents & Capabilities,
+- user-facing groups remain Overview, Setup & Access, Capabilities,
   Maintenance & Updates, Data & Storage, Preferences, and Advanced.
 
 ## Page Contracts
@@ -132,8 +130,9 @@ P0 entries:
   It belongs to Overview as an ordinary setup entry.
 - Maintenance Hub: App updates, OPL Runtime Fabric, OPL Packages, storage
   cleanup entry, and repair recommendations. It belongs to Maintenance & Updates.
-- Capability Status: installed packages, Home shortcuts, tools/connectors, and
-  capability support state. It belongs to Agents & Capabilities.
+- Capability Status: Research, Grant Writing, Presentations, Book/manuscript
+  work, and OPL automation show usable / needs update / needs repair /
+  not configured. It belongs to Capabilities.
 
 P1 entries:
 
@@ -191,10 +190,6 @@ Access & Model owns user-facing connection readiness:
   self-managed status for local, user-provided SSH, and user-provided HPC
   resources.
 
-The Access reorg is additive over AionUI native remote access. Native remote
-access entry points stay available as stable Access entries; OPL App adds
-Gateway, Workspace, Fabric, and Console context around them.
-
 Base URLs, token paths, raw config files, and provider internals are advanced
 details, not first-screen content. Console billing, organization policy, and
 managed-resource entitlement are displayed only as Console-managed refs; the App
@@ -251,7 +246,7 @@ The ordinary model is:
   and post-apply sync state;
 - Invocation Receipt: launch fact only, not a session-behavior contract.
 
-Default starter shortcuts may still be labeled by work purpose:
+Default starter shortcuts may still be grouped by work purpose:
 
 - Research;
 - Grant Writing;
@@ -264,8 +259,7 @@ Each package/shortcut card shows current availability, source
 primary entry, required package or skill support, whether it needs update,
 repair, rollback, hide/unhide, or uninstall, and last capability sync when
 available. Skills, external tools, MCP, voice, and custom assistants are
-supporting sections below the package/shortcut model. Large purpose cards are
-not the primary semantic model for this page.
+supporting sections below the package/shortcut model.
 
 Settings must not introduce a strong Session Contract. Shortcut/profile
 metadata may describe label, package id, required skill ids, optional companion
@@ -293,11 +287,6 @@ links. The maintenance page groups:
 - storage cleanup;
 - repair recommendations;
 - Codex Surface sync.
-
-It is system maintenance only. It must not carry in-progress task detail,
-workflow candidate state, deliverable progress, or domain blocker ledgers.
-The Update page remains a stable secondary page with a stable route and stable
-entry from Maintenance & Updates and Settings search.
 
 Each group uses the same structure: current state, user summary, recommended
 action, last check, next check, and details disclosure. Apply, repair, and
@@ -388,9 +377,8 @@ About shows:
 - release notes and documentation links;
 - feedback and issue links.
 
-It is a stable secondary page with a stable route and stable entry from
-Advanced and Settings search. It can link to Updates & Maintenance but must not
-be the primary maintenance page.
+It can link to Updates & Maintenance but must not be the primary maintenance
+page.
 
 ## Visual System
 
