@@ -8,6 +8,7 @@ import {
   activeShellRoot,
   expectedAionuiTeamProbeIds,
   runNode,
+  spawnSync,
   writeExecutable,
 } from './helpers.ts';
 
@@ -498,64 +499,21 @@ test('shell candidate validator derives foreground and archived policy from regi
   );
 });
 
-test('App shell convergence readback closes structure gate without release or live claims', () => {
+test('App shell convergence uses existing active-shell and candidate gates without a second readback script', () => {
   const packageJson = JSON.parse(fs.readFileSync(path.join(appRoot, 'package.json'), 'utf8'));
-  const result = runNode(['scripts/validate-shell-convergence.ts']);
 
   assert.equal(
     packageJson.scripts['validate:shell-convergence'],
-    'node --experimental-strip-types scripts/validate-shell-convergence.ts',
+    'npm run validate:active-shell -- --quick && npm run validate:shell-candidates',
   );
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-  const readback = JSON.parse(result.stdout);
+  assert.equal(fs.existsSync(path.join(appRoot, 'scripts', 'validate-shell-convergence.ts')), false);
 
-  assert.equal(readback.surface_kind, 'opl_app_shell_convergence_readback');
-  assert.equal(readback.status, 'closed_structure_gate_not_live_evidence');
-  assert.equal(readback.app_truth_owner, 'one-person-lab-app');
-  assert.equal(readback.active_shell, 'aionui');
-  assert.equal(readback.active_shell_root, 'shells/aionui');
-  assert.equal(readback.active_shell_source_repo, 'gaofeng21cn/opl-aion-shell');
-  assert.equal(readback.active_shell_release_role, 'stable_app_shell');
-  assert.equal(readback.mainline_shell, 'aionui');
-  assert.equal(readback.mainline_source_repo, 'gaofeng21cn/opl-aion-shell');
-  assert.equal(readback.foreground_alternative, 'opl-native-workbench');
-  assert.equal(readback.foreground_alternative_basis, 'OPL native workbench');
-  assert.deepEqual(readback.default_candidate_validation_scope, ['opl-native-workbench']);
-  assert.deepEqual(readback.archived_technical_proofs, ['agui-codex']);
-  assert.equal(readback.agui_default_update_allowed, false);
-  assert.equal(readback.no_resurrection_policy_id, 'app.shell_candidate.no_resurrection.v1');
-  assert.equal(readback.default_candidate_validation_scope.includes('agui-codex'), false);
-  assert.equal(readback.default_candidate_validation_scope.includes('hermes-codex'), false);
-  assert.deepEqual(readback.false_ready_boundary, {
-    active_shell_switch_allowed_by_this_readback: false,
-    can_claim_active_shell_adopted: false,
-    can_claim_app_release_ready: false,
-    can_claim_production_ready: false,
-    can_claim_live_user_path: false,
-    can_claim_live_evidence: false,
-    can_claim_packaged_gui_acceptance: false,
+  const result = spawnSync('npm', ['run', 'validate:shell-convergence'], {
+    cwd: appRoot,
+    encoding: 'utf8',
+    env: { ...process.env, OPL_APP_SHELL_ROOT: '/Users/gaofeng/workspace/opl-aion-shell' },
   });
-  assert.ok(
-    readback.required_validation_commands.some((entry) => (
-      entry.id === 'active_shell_quick_guard'
-      && entry.command === 'npm test'
-    )),
-  );
-  assert.ok(
-    readback.required_validation_commands.some((entry) => (
-      entry.id === 'foreground_candidate_registry_scope'
-      && entry.command === 'npm run validate:shell-candidates'
-    )),
-  );
-  assert.ok(
-    readback.required_validation_commands.some((entry) => (
-      entry.id === 'foreground_candidate_contract_or_blocker'
-      && entry.command === 'npm run validate:shell-candidates -- --candidate opl-native-workbench'
-    )),
-  );
-  assert.ok(readback.source_refs.includes('contracts/app-shell-adapter.json'));
-  assert.ok(readback.source_refs.includes('contracts/app-shell-candidates.json'));
-  assert.ok(readback.source_refs.includes('contracts/shell-adapters/opl-native-workbench.json'));
+  assert.equal(result.status, 0, result.stderr || result.stdout);
 });
 
 test('explicit AG-UI/Codex adapter contract selects linked external candidate shell', () => {

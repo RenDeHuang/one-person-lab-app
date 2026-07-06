@@ -53,10 +53,9 @@ material, but it is not a default candidate lane and should not receive routine
 updates or polish work. Treat
 `candidate` in AGUI filenames, manifests, scripts, and adapter contracts as a
 backward-compatible replay label only; it does not reopen AGUI as a foreground
-candidate or default validation target. The App-owned convergence readback is
-`npm run validate:shell-convergence`: it confirms the AionUI mainline,
-foreground alternative registry, AGUI archived/no-resurrection policy, and false-ready
-boundaries as structure evidence only. It cannot claim App release readiness,
+candidate or default validation target. The App-owned convergence aggregate is
+`npm run validate:shell-convergence`: it reuses the active-shell and
+shell-candidate validators as structure evidence only. It cannot claim App release readiness,
 active-shell adoption, packaged GUI acceptance, production readiness, live user
 path evidence, or Live Evidence.
 
@@ -326,10 +325,9 @@ Shell alternative work is separated from the active release adapter.
 `contracts/shell-adapters/opl-native-workbench.json` owns the foreground
 alternative adapter when selected, and
 `contracts/shell-adapters/agui-codex.json` remains explicit replay only.
-`scripts/validate-shell-convergence.ts` is the App-owned aggregate readback for
-that policy: it reports structure evidence only when the active AionUI adapter,
-foreground alternative scope, AGUI archived proof policy, and no-release/no-live
-false-ready boundary all match the contracts. `docs/product/gui/opl-native-workbench-plan.md`
+`npm run validate:shell-convergence` is the thin aggregate gate for that policy:
+it runs the active-shell quick guard and shell-candidate registry validator
+without maintaining a second JSON readback surface. `docs/product/gui/opl-native-workbench-plan.md`
 owns the active candidate plan. Hermes docs remain prior-candidate reference:
 `docs/product/shell-alternatives/hermes-gui-adaptation-plan.md` and
 `docs/product/shell-alternatives/hermes-first-run-flow.md`.
