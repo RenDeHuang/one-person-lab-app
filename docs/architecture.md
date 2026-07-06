@@ -52,6 +52,19 @@ Home entry ownership is split deliberately for GUI replacement. The App contract
 
 Skill ownership is similarly split. `skill` remains the public semantic ABI, and Codex plugin packaging remains the preferred App distribution shell. Package manifests declare required skill packs and optional companion tools; required skill packs may be developed in separate repositories but must be materialized into the package at release time with lock/checksum/receipt evidence. `companion_payloads.default_packaged_codex_skill_ids` is the App-level default package whitelist during the current migration, independent of whether a candidate originated in AionUI builtin assets, Skills Manager, a Codex local skill, or a plugin payload. AionUI-specific internal skills such as `aionui-skills`, `aionui-webui-setup`, and `skill-creator` stay out of ordinary App capability selection. The global package/skill hub remains a Settings/Capabilities surface, not the normal home input menu.
 
+The App consumes the OPL three-layer capability model without becoming any of
+the three layers' owner. `professional_skill` is the package-declared expert
+playbook launched through Codex or a package shortcut. `skill_local_deterministic_helper`
+is a helper such as `kernel.py` that travels with that skill pack and may be
+displayed as packaged payload/readback. `programmatic_substrate` and
+`authority_surface` remain Framework or domain-owned producers: package
+validation, connector receipts, runtime queues, App state, owner receipts,
+typed blockers, quality/export verdicts, and release evidence. The App may
+show install status, shortcut state, launch receipts, and refs-only runtime
+projection for all three, but it must not turn helper presence, package
+materialization, shell rendering, or App validation into a professional-agent
+result, domain readiness, release readiness, or owner acceptance claim.
+
 The home executor boundary is intentionally narrower than upstream AionUI. The App is a Codex CLI wrapper with built-in OPL assistants, not a general multi-backend agent launcher. Active shells may retain upstream AionUI agent/backend settings for development or diagnostics, but the App home path and ordinary Codex conversation path must not surface Aion CLI, Claude Code, backend switching, provider lists, or permission-mode choices as normal user controls. The visible model selector is App-owned and bounded by the product profile.
 
 Settings boundary 也遵循同样拆分。普通 Settings navigation 是 Overview、Access、Workspace、Capabilities、Resources & Connections、Maintenance & Updates、Data & Storage、Preferences，对应 route ids `general`、`access`、`workspace`、`capabilities`、`resources`、`environment`、`storage`、`appearance`。Resources & Connections 是普通顶层入口，承载 Docker WebUI、OPL Workspace、SSH/HPC、Fabric、Console-managed refs 等资源与部署上下文；Access 只回答 OPL Gateway、Codex CLI 和本机浏览器访问。Advanced、About、Update、Theme、Local Services 是 secondary or deep-link surfaces；Advanced 承载 raw diagnostics，About 只承载版本/链接/readback，Update 承载显式更新详情，Maintenance & Updates 承载正常维护动作且不能变成进行中任务面板。Capabilities 的理想态是 installed package directory + integrated Home shortcut management。当前 canonical runtime readback 已由 `opl app state --profile fast --json#app_state.agent_packages.directory + app_state.agent_packages.status_index` 提供，shell 只应在 older payload 或 partial projection 仍在流通时回退到 `app_state.modules.items[]`。无论读取 canonical 还是 fallback，dirty developer checkout、ready-but-update、Codex Surface sync 等信号都必须保留为多轴 package 状态，而不是退回单个 repair badge 或 purpose cards。Overview、runtime、system、model、agent、assistants、skills-hub、tools、display、webui、pet 等 legacy upstream routes redirect 到 App-owned pages。Storage owns local data lifecycle inventory and cleanup controls; Shell 仍可保留 diagnostic 或 redirected sub-content 的实现组件，但这些组件不定义普通 App navigation 或 product authority。
