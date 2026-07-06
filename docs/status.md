@@ -302,11 +302,16 @@ constants instead of maintaining three local copies; professional-agent package
 policy validation and the OPL Flow intelligence enhancement mode assertion are
 also shared instead of repeated across product-profile and active-shell
 validators. Release size scripts share byte-size formatting through
-`scripts/release-size-reporting.ts` instead of local `formatBytes` copies. `npm run
-hygiene:fallow -- --format json --summary` is the production hygiene check for
-unused files/exports and duplicate exports. This is code-health and
-validation-structure evidence only; it is not a release-ready, currentness,
-packaged-App, clean-VM, owner-acceptance, or Live Evidence claim.
+`scripts/release-size-reporting.ts` instead of local `formatBytes` copies.
+Product-profile package entry lookup is private to its validator module, Full
+runtime trust/prune scripts use Node's native argument parser instead of local
+argv walkers, and active-shell boundary validators reuse the App shell adapter's
+boundary types and constants instead of copying the same adoption gates and
+state-surface expectations. `npm run hygiene:fallow -- --format json --summary`
+is the production hygiene check for unused files/exports and duplicate exports.
+This is code-health and validation-structure evidence only; it is not a
+release-ready, currentness, packaged-App, clean-VM, owner-acceptance, or Live
+Evidence claim.
 
 Current release validation is App-root first. Root wrappers prepare App-owned
 payloads and call active-shell build/release scripts; `validate:app-root-boundary`
