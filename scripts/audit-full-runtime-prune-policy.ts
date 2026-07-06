@@ -2,6 +2,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { parseArgs as parseNodeArgs } from 'node:util';
 import {
   FULL_RUNTIME_PRUNE_POLICY,
   FULL_RUNTIME_PRUNE_POLICY_PATH,
@@ -17,39 +18,29 @@ import { formatBytes } from './release-size-reporting.ts';
 type OutputMode = 'json' | 'markdown';
 
 function parseArgs(argv: string[]) {
+  const { values } = parseNodeArgs({
+    args: argv,
+    options: {
+      'runtime-root': { type: 'string' },
+      baseline: { type: 'string' },
+      top: { type: 'string' },
+      json: { type: 'boolean' },
+      markdown: { type: 'boolean' },
+    },
+    allowPositionals: false,
+  });
   const parsed = {
-    runtimeRoot: '',
-    baseline: '',
+    runtimeRoot: values['runtime-root'] ? path.resolve(values['runtime-root']) : '',
+    baseline: values.baseline ? path.resolve(values.baseline) : '',
     top: 20,
-    output: 'json' as OutputMode,
+    output: argv.lastIndexOf('--markdown') > argv.lastIndexOf('--json') ? 'markdown' as OutputMode : 'json' as OutputMode,
   };
 
-  for (let index = 0; index < argv.length; index += 1) {
-    const token = argv[index];
-    if (token === '--json') {
-      parsed.output = 'json';
-      continue;
+  if (values.top) {
+    if (!/^\d+$/.test(values.top) || Number(values.top) < 1) {
+      throw new Error('--top requires a positive integer.');
     }
-    if (token === '--markdown') {
-      parsed.output = 'markdown';
-      continue;
-    }
-
-    const value = argv[index + 1];
-    if (!value || value.startsWith('--')) {
-      throw new Error(`Missing value for ${token}`);
-    }
-    index += 1;
-    if (token === '--runtime-root') parsed.runtimeRoot = path.resolve(value);
-    else if (token === '--baseline') parsed.baseline = path.resolve(value);
-    else if (token === '--top') {
-      if (!/^\d+$/.test(value) || Number(value) < 1) {
-        throw new Error('--top requires a positive integer.');
-      }
-      parsed.top = Number(value);
-    } else {
-      throw new Error(`Unknown argument: ${token}`);
-    }
+    parsed.top = Number(values.top);
   }
 
   return parsed;

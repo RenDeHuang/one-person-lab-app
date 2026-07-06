@@ -2,31 +2,25 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { parseArgs as parseNodeArgs } from 'node:util';
 
 import { listFullRuntimeNativeExecutables } from './build-full-first-install-package/runtime-native-trust.ts';
 
 function parseArgs(argv: string[]) {
+  const { values } = parseNodeArgs({
+    args: argv,
+    options: {
+      'runtime-root': { type: 'string' },
+      output: { type: 'string' },
+      'require-spctl': { type: 'boolean' },
+    },
+    allowPositionals: false,
+  });
   const parsed = {
-    runtimeRoot: '',
-    output: '',
-    requireSpctl: false,
+    runtimeRoot: values['runtime-root'] ? path.resolve(values['runtime-root']) : '',
+    output: values.output ? path.resolve(values.output) : '',
+    requireSpctl: Boolean(values['require-spctl']),
   };
-
-  for (let index = 0; index < argv.length; index += 1) {
-    const token = argv[index];
-    if (token === '--require-spctl') {
-      parsed.requireSpctl = true;
-      continue;
-    }
-    const value = argv[index + 1];
-    if (!value || value.startsWith('--')) {
-      throw new Error(`Missing value for ${token}`);
-    }
-    index += 1;
-    if (token === '--runtime-root') parsed.runtimeRoot = path.resolve(value);
-    else if (token === '--output') parsed.output = path.resolve(value);
-    else throw new Error(`Unknown argument: ${token}`);
-  }
 
   if (!parsed.runtimeRoot) {
     throw new Error('Pass --runtime-root <path>.');
