@@ -33,7 +33,7 @@ const requiredCompanionSkillSyncIds = requiredDefaultPackagedSkillIds.filter((sk
   !['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge'].includes(skillId)
 ));
 const appOwnedSettingsTabs = ['general', 'access', 'capabilities', 'environment', 'storage', 'appearance', 'advanced'];
-const appOwnedSecondarySettingsPages = ['about', 'update', 'theme', 'workspace', 'local-services'];
+const appOwnedSecondarySettingsPages = ['about', 'update', 'theme', 'workspace', 'local-services', 'resources'];
 const appOwnedSettingsIaGroups = ['overview', 'setup_access', 'capabilities', 'maintenance', 'data_storage', 'preferences', 'advanced'];
 const appOwnedSettingsPrimaryTabIds = ['general', 'access', 'capabilities', 'environment', 'storage', 'appearance', 'advanced', 'about'];
 const developerProfileCapabilityAxes = [
