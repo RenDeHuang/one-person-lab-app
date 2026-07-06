@@ -58,17 +58,17 @@
       "id": "codex_surface",
       "owner": "one-person-lab",
       "members": [
-        "mas",
-        "mag",
-        "rca",
+        "med-autoscience",
+        "med-autogrant",
+        "redcube-ai",
         "opl-bookforge"
       ],
       "default_app_visible": true,
       "sync_target": "codex_plugin_registry",
       "must_not_sync_to": [
-        "~/.codex/skills/mas",
-        "~/.codex/skills/mag",
-        "~/.codex/skills/rca",
+        "~/.codex/skills/med-autoscience",
+        "~/.codex/skills/med-autogrant",
+        "~/.codex/skills/redcube-ai",
         "~/.codex/skills/opl-bookforge"
       ],
       "legacy_alias": "family_domain_plugin_surfaces"
@@ -136,7 +136,7 @@
       "display_name": "Med Auto Science",
       "home_purpose_entry": "research",
       "default_home_visible": true,
-      "codex_visible_entry": "mas",
+      "codex_visible_entry": "med-autoscience",
       "preferred_app_distribution": "plugin_packaged_skill",
       "direct_skill_semantics_required": true,
       "canonical_metadata_source": "domain_action_catalog_and_stage_control_plane"
@@ -146,7 +146,7 @@
       "display_name": "Med Auto Grant",
       "home_purpose_entry": "grant",
       "default_home_visible": true,
-      "codex_visible_entry": "mag",
+      "codex_visible_entry": "med-autogrant",
       "preferred_app_distribution": "plugin_packaged_skill",
       "direct_skill_semantics_required": true,
       "canonical_metadata_source": "domain_action_catalog_and_stage_control_plane"
@@ -156,7 +156,7 @@
       "display_name": "RedCube AI",
       "home_purpose_entry": "ppt",
       "default_home_visible": true,
-      "codex_visible_entry": "rca",
+      "codex_visible_entry": "redcube-ai",
       "preferred_app_distribution": "plugin_packaged_skill",
       "direct_skill_semantics_required": true,
       "canonical_metadata_source": "domain_action_catalog_and_stage_control_plane"
@@ -1041,10 +1041,10 @@
       "reconcile_update_uninstall_as_unit": true,
       "domain_repo_remains_semantic_owner": true,
       "app_package_manager_scope": "install_exposure_package_lock_action_receipts_and_codex_visible_entries_only",
-      "mas_professional_skill_pack_unit": {
+      "med_autoscience_professional_skill_pack_unit": {
         "package_id": "med-autoscience",
         "agent_id": "med-autoscience",
-        "required_skill_pack_id": "mas-professional-skill-pack",
+        "required_skill_pack_id": "med-autoscience-professional-skill-pack",
         "atomic_with_agent_package": true,
         "lifecycle_actions": [
           "install",
@@ -1066,14 +1066,14 @@
         "validated_plugin_roots",
         "validated_codex_skills_root"
       ],
-      "codex_skills_root_validation_scope": "fail if mas, mag, rca, or opl-bookforge exists as a bare Codex skill mirror at <codex_skills_root>/<codex_visible_entry>/SKILL.md"
+      "codex_skills_root_validation_scope": "fail if med-autoscience, med-autogrant, redcube-ai, or opl-bookforge exists as a bare Codex skill mirror at <codex_skills_root>/<codex_visible_entry>/SKILL.md"
     },
     "agents": [
       {
         "agent_id": "med-autoscience",
         "display_name": "Med Auto Science",
         "preferred_distribution": "plugin_packaged_skill",
-        "codex_visible_entry": "mas",
+        "codex_visible_entry": "med-autoscience",
         "home_purpose_entry": "research",
         "plugin_registry_required": true,
         "direct_skill_compatibility_required": true,
@@ -1087,7 +1087,7 @@
         "agent_id": "med-autogrant",
         "display_name": "Med Auto Grant",
         "preferred_distribution": "plugin_packaged_skill",
-        "codex_visible_entry": "mag",
+        "codex_visible_entry": "med-autogrant",
         "home_purpose_entry": "grant",
         "plugin_registry_required": true,
         "direct_skill_compatibility_required": true,
@@ -1101,7 +1101,7 @@
         "agent_id": "redcube-ai",
         "display_name": "RedCube AI",
         "preferred_distribution": "plugin_packaged_skill",
-        "codex_visible_entry": "rca",
+        "codex_visible_entry": "redcube-ai",
         "home_purpose_entry": "ppt",
         "plugin_registry_required": true,
         "direct_skill_compatibility_required": true,

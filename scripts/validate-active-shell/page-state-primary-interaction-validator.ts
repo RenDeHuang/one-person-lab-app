@@ -102,13 +102,13 @@ function validateGuidHomeDefaultAssistants(homeViewModel) {
   const requiredSkills = homeViewModel.default_assistant_required_skills ?? {};
   assertDeepEqualJson(
     ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge'].map((assistant) => requiredSkills[assistant]),
-    [['mas'], ['mag'], ['rca'], ['opl-bookforge']],
+    [['med-autoscience'], ['med-autogrant'], ['redcube-ai'], ['opl-bookforge']],
     'Guid home page required assistant skills',
   );
   const packageRequiredSkills = homeViewModel.default_agent_package_required_skills ?? {};
   assertDeepEqualJson(
     ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge'].map((packageId) => packageRequiredSkills[packageId]),
-    [['mas'], ['mag'], ['rca'], ['opl-bookforge']],
+    [['med-autoscience'], ['med-autogrant'], ['redcube-ai'], ['opl-bookforge']],
     'Guid home page required package skills',
   );
 }

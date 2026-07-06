@@ -10,7 +10,7 @@
     "payload_ref": "opl-agent-packages/med-autoscience/0.1.0a4",
     "payload_digest_ref": "release-lock://opl-agent-packages/med-autoscience/0.1.0a4/payload-digest",
     "required_skill_pack_lock_refs": [
-      "release-lock://opl-agent-packages/med-autoscience/0.1.0a4/mas-professional-skill-pack"
+      "release-lock://opl-agent-packages/med-autoscience/0.1.0a4/med-autoscience-professional-skill-pack"
     ],
     "proof_status": "contract_fixture_non_live",
     "live_download_proof": false,
@@ -18,24 +18,24 @@
   },
   "codex_surface": {
     "plugin_ids": [
-      "mas"
+      "med-autoscience"
     ],
     "required_skill_ids": [
-      "mas"
+      "med-autoscience"
     ],
     "optional_skill_ids": [
       "mineru-document-extractor",
       "officecli-docx",
       "officecli-xlsx"
     ],
-    "plugin_source_ref": "gaofeng21cn/med-autoscience/plugins/mas"
+    "plugin_source_ref": "gaofeng21cn/med-autoscience/plugins/med-autoscience"
   },
   "skill_packs": [
     {
-      "id": "mas-professional-skill-pack",
-      "source": "github:gaofeng21cn/med-autoscience/plugins/mas/skills/mas",
+      "id": "med-autoscience-professional-skill-pack",
+      "source": "github:gaofeng21cn/med-autoscience/plugins/med-autoscience/skills/med-autoscience",
       "version": "0.1.0a4",
-      "lock_ref": "release-lock://opl-agent-packages/med-autoscience/0.1.0a4/mas-professional-skill-pack",
+      "lock_ref": "release-lock://opl-agent-packages/med-autoscience/0.1.0a4/med-autoscience-professional-skill-pack",
       "install_mode": "bundled_required"
     }
   ],
@@ -44,7 +44,7 @@
       "shortcut_id": "research",
       "label": "Research",
       "required_skill_ids": [
-        "mas"
+        "med-autoscience"
       ],
       "shortcut_eligible": true
     }

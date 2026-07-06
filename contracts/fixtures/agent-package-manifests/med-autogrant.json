@@ -10,7 +10,7 @@
     "payload_ref": "opl-agent-packages/med-autogrant/0.1.0",
     "payload_digest_ref": "release-lock://opl-agent-packages/med-autogrant/0.1.0/payload-digest",
     "required_skill_pack_lock_refs": [
-      "release-lock://opl-agent-packages/med-autogrant/0.1.0/mag-professional-skill-pack"
+      "release-lock://opl-agent-packages/med-autogrant/0.1.0/med-autogrant-professional-skill-pack"
     ],
     "proof_status": "contract_fixture_non_live",
     "live_download_proof": false,
@@ -18,24 +18,24 @@
   },
   "codex_surface": {
     "plugin_ids": [
-      "mag"
+      "med-autogrant"
     ],
     "required_skill_ids": [
-      "mag"
+      "med-autogrant"
     ],
     "optional_skill_ids": [
       "officecli-docx",
       "officecli-xlsx",
       "mineru-document-extractor"
     ],
-    "plugin_source_ref": "gaofeng21cn/med-autogrant/plugins/mag"
+    "plugin_source_ref": "gaofeng21cn/med-autogrant/plugins/med-autogrant"
   },
   "skill_packs": [
     {
-      "id": "mag-professional-skill-pack",
-      "source": "github:gaofeng21cn/med-autogrant/plugins/mag/skills/mag",
+      "id": "med-autogrant-professional-skill-pack",
+      "source": "github:gaofeng21cn/med-autogrant/plugins/med-autogrant/skills/med-autogrant",
       "version": "0.1.0",
-      "lock_ref": "release-lock://opl-agent-packages/med-autogrant/0.1.0/mag-professional-skill-pack",
+      "lock_ref": "release-lock://opl-agent-packages/med-autogrant/0.1.0/med-autogrant-professional-skill-pack",
       "install_mode": "bundled_required"
     }
   ],
@@ -44,7 +44,7 @@
       "shortcut_id": "grant",
       "label": "Grant",
       "required_skill_ids": [
-        "mag"
+        "med-autogrant"
       ],
       "shortcut_eligible": true
     }

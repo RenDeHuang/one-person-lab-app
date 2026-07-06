@@ -475,8 +475,8 @@ test('Full first-install cache and release acceleration contract are explicit', 
   assert.match(buildScript, /copySingleFile\(sources\.mineruOpenApiBin, path\.join\(layerRoot, 'bin', 'mineru-open-api'\)\)/);
   assert.match(buildScript, /version: commandOutput\(sources\.mineruOpenApiBin, \['version'\]\)/);
   assert.match(buildScript, /plugins', 'opl-meta-agent', 'skills', 'opl-meta-agent'/);
-  assert.match(buildScript, /function masSkillCandidates\(options\)[\s\S]*options\.masRoot[\s\S]*\.codex', 'skills', 'mas'/);
-  assert.match(buildScript, /copyFirstSkillSource\('mas', targetRoot, masSkillCandidates\(options\)\)/);
+  assert.match(buildScript, /function masSkillCandidates\(options\)[\s\S]*options\.masRoot[\s\S]*\.codex', 'skills', 'med-autoscience'/);
+  assert.match(buildScript, /copyFirstSkillSource\('med-autoscience', targetRoot, masSkillCandidates\(options\)\)/);
   assert.match(buildScript, /meta_agent_skill_source: metaAgentSkillSnapshot\(options\)/);
   assert.match(buildScript, /bookforge_skill_source: bookforgeSkillSnapshot\(options\)/);
   assert.match(buildScript, /bookforge_commit: readGitHead\(options\.bookforgeRoot\)/);

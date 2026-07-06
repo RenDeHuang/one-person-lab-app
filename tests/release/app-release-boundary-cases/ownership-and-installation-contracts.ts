@@ -399,14 +399,14 @@ test('agent installation validator rejects duplicate bare MAS/MAG/RCA skill mirr
   assert.equal(cleanResult.status, 0, cleanResult.stderr || cleanResult.stdout);
   assert.match(cleanResult.stdout, /"validated_codex_skills_root"/);
 
-  writeFile(path.join(skillsRoot, 'mas', 'SKILL.md'), '# duplicate MAS skill\n');
+  writeFile(path.join(skillsRoot, 'med-autoscience', 'SKILL.md'), '# duplicate Med Auto Science skill\n');
   const duplicateResult = runNode([
     'scripts/validate-agent-installation-contract.ts',
     '--codex-skills-root',
     skillsRoot,
   ]);
   assert.notEqual(duplicateResult.status, 0);
-  assert.match(duplicateResult.stderr, /mas must not be mirrored as a bare Codex skill/);
+  assert.match(duplicateResult.stderr, /med-autoscience must not be mirrored as a bare Codex skill/);
 });
 
 test('agent installation validator accepts generated OMA local plugin roots', () => {

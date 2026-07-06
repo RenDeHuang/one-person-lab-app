@@ -10,7 +10,7 @@
     "payload_ref": "opl-agent-packages/opl-bookforge/0.1.0",
     "payload_digest_ref": "release-lock://opl-agent-packages/opl-bookforge/0.1.0/payload-digest",
     "required_skill_pack_lock_refs": [
-      "release-lock://opl-agent-packages/opl-bookforge/0.1.0/bookforge-professional-skill-pack"
+      "release-lock://opl-agent-packages/opl-bookforge/0.1.0/opl-bookforge-professional-skill-pack"
     ],
     "proof_status": "contract_fixture_non_live",
     "live_download_proof": false,
@@ -32,10 +32,10 @@
   },
   "skill_packs": [
     {
-      "id": "bookforge-professional-skill-pack",
+      "id": "opl-bookforge-professional-skill-pack",
       "source": "github:gaofeng21cn/opl-bookforge/plugins/opl-bookforge/skills/opl-bookforge",
       "version": "0.1.0",
-      "lock_ref": "release-lock://opl-agent-packages/opl-bookforge/0.1.0/bookforge-professional-skill-pack",
+      "lock_ref": "release-lock://opl-agent-packages/opl-bookforge/0.1.0/opl-bookforge-professional-skill-pack",
       "install_mode": "bundled_required"
     }
   ],

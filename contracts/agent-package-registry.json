@@ -52,13 +52,13 @@
       "display_name": "Med Auto Science",
       "publisher": "one-person-lab",
       "source": "first_party",
-      "manifest_url": "https://raw.githubusercontent.com/gaofeng21cn/med-autoscience/main/plugins/mas/opl-agent-manifest.json",
+      "manifest_url": "https://raw.githubusercontent.com/gaofeng21cn/med-autoscience/main/plugins/med-autoscience/opl-agent-manifest.json",
       "latest_version": "0.1.0a4",
       "trust_tier": "first_party",
       "starter_default": true,
-      "codex_visible_entry": "mas",
+      "codex_visible_entry": "med-autoscience",
       "required_skill_ids": [
-        "mas"
+        "med-autoscience"
       ],
       "optional_skill_ids": [
         "mineru-document-extractor",
@@ -75,13 +75,13 @@
       "display_name": "Med Auto Grant",
       "publisher": "one-person-lab",
       "source": "first_party",
-      "manifest_url": "https://raw.githubusercontent.com/gaofeng21cn/med-autogrant/main/plugins/mag/opl-agent-manifest.json",
+      "manifest_url": "https://raw.githubusercontent.com/gaofeng21cn/med-autogrant/main/plugins/med-autogrant/opl-agent-manifest.json",
       "latest_version": "0.1.0",
       "trust_tier": "first_party",
       "starter_default": true,
-      "codex_visible_entry": "mag",
+      "codex_visible_entry": "med-autogrant",
       "required_skill_ids": [
-        "mag"
+        "med-autogrant"
       ],
       "optional_skill_ids": [
         "officecli-docx",
@@ -98,13 +98,13 @@
       "display_name": "RedCube AI",
       "publisher": "one-person-lab",
       "source": "first_party",
-      "manifest_url": "https://raw.githubusercontent.com/gaofeng21cn/redcube-ai/main/plugins/rca/opl-agent-manifest.json",
+      "manifest_url": "https://raw.githubusercontent.com/gaofeng21cn/redcube-ai/main/plugins/redcube-ai/opl-agent-manifest.json",
       "latest_version": "0.1.0",
       "trust_tier": "first_party",
       "starter_default": true,
-      "codex_visible_entry": "rca",
+      "codex_visible_entry": "redcube-ai",
       "required_skill_ids": [
-        "rca"
+        "redcube-ai"
       ],
       "optional_skill_ids": [
         "officecli-pptx",

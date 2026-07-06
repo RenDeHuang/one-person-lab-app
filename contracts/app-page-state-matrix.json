@@ -126,13 +126,13 @@
         },
         "default_assistant_required_skills": {
           "med-autoscience": [
-            "mas"
+            "med-autoscience"
           ],
           "med-autogrant": [
-            "mag"
+            "med-autogrant"
           ],
           "redcube-ai": [
-            "rca"
+            "redcube-ai"
           ],
           "opl-bookforge": [
             "opl-bookforge"
@@ -140,13 +140,13 @@
         },
         "default_agent_package_required_skills": {
           "med-autoscience": [
-            "mas"
+            "med-autoscience"
           ],
           "med-autogrant": [
-            "mag"
+            "med-autogrant"
           ],
           "redcube-ai": [
-            "rca"
+            "redcube-ai"
           ],
           "opl-bookforge": [
             "opl-bookforge"
@@ -159,9 +159,9 @@
             "package_id": "med-autoscience",
             "primary_label": "科研",
             "package_short_name": "MAS",
-            "codex_visible_entry": "mas",
+            "codex_visible_entry": "med-autoscience",
             "required_skill_ids": [
-              "mas"
+              "med-autoscience"
             ],
             "source": "opl_app_home",
             "executor": "codex_cli",
@@ -175,9 +175,9 @@
             "package_id": "med-autogrant",
             "primary_label": "基金",
             "package_short_name": "MAG",
-            "codex_visible_entry": "mag",
+            "codex_visible_entry": "med-autogrant",
             "required_skill_ids": [
-              "mag"
+              "med-autogrant"
             ],
             "source": "opl_app_home",
             "executor": "codex_cli",
@@ -191,9 +191,9 @@
             "package_id": "redcube-ai",
             "primary_label": "演示",
             "package_short_name": "RCA",
-            "codex_visible_entry": "rca",
+            "codex_visible_entry": "redcube-ai",
             "required_skill_ids": [
-              "rca"
+              "redcube-ai"
             ],
             "source": "opl_app_home",
             "executor": "codex_cli",

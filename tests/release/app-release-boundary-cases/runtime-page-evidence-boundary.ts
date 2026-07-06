@@ -1092,15 +1092,15 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   assert.deepEqual(guidHomePage.home_view_model.professional_agent_packages, ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge', 'opl-meta-agent']);
   assert.deepEqual(guidHomePage.home_view_model.default_home_agent_packages, ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge']);
   assert.deepEqual(guidHomePage.home_view_model.default_assistant_required_skills, {
-    'med-autoscience': ['mas'],
-    'med-autogrant': ['mag'],
-    'redcube-ai': ['rca'],
+    'med-autoscience': ['med-autoscience'],
+    'med-autogrant': ['med-autogrant'],
+    'redcube-ai': ['redcube-ai'],
     'opl-bookforge': ['opl-bookforge'],
   });
   assert.deepEqual(guidHomePage.home_view_model.default_agent_package_required_skills, {
-    'med-autoscience': ['mas'],
-    'med-autogrant': ['mag'],
-    'redcube-ai': ['rca'],
+    'med-autoscience': ['med-autoscience'],
+    'med-autogrant': ['med-autogrant'],
+    'redcube-ai': ['redcube-ai'],
     'opl-bookforge': ['opl-bookforge'],
   });
   assert.deepEqual(guidHomePage.home_view_model.home_agent_shortcuts.map((entry) => entry.shortcut_id), [

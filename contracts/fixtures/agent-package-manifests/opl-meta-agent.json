@@ -10,7 +10,7 @@
     "payload_ref": "opl-agent-packages/opl-meta-agent/0.1.0",
     "payload_digest_ref": "release-lock://opl-agent-packages/opl-meta-agent/0.1.0/payload-digest",
     "required_skill_pack_lock_refs": [
-      "release-lock://opl-agent-packages/opl-meta-agent/0.1.0/oma-professional-skill-pack"
+      "release-lock://opl-agent-packages/opl-meta-agent/0.1.0/opl-meta-agent-professional-skill-pack"
     ],
     "proof_status": "contract_fixture_non_live",
     "live_download_proof": false,
@@ -28,10 +28,10 @@
   },
   "skill_packs": [
     {
-      "id": "oma-professional-skill-pack",
+      "id": "opl-meta-agent-professional-skill-pack",
       "source": "github:gaofeng21cn/opl-meta-agent/plugins/opl-meta-agent/skills/opl-meta-agent",
       "version": "0.1.0",
-      "lock_ref": "release-lock://opl-agent-packages/opl-meta-agent/0.1.0/oma-professional-skill-pack",
+      "lock_ref": "release-lock://opl-agent-packages/opl-meta-agent/0.1.0/opl-meta-agent-professional-skill-pack",
       "install_mode": "bundled_required"
     }
   ],

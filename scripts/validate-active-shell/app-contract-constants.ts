@@ -184,19 +184,19 @@ export const domainExposureEntries = [
   {
     domain_id: 'med-autoscience',
     home_purpose_entry: 'research',
-    codex_visible_entry: 'mas',
+    codex_visible_entry: 'med-autoscience',
     preferred_app_distribution: 'plugin_packaged_skill',
   },
   {
     domain_id: 'med-autogrant',
     home_purpose_entry: 'grant',
-    codex_visible_entry: 'mag',
+    codex_visible_entry: 'med-autogrant',
     preferred_app_distribution: 'plugin_packaged_skill',
   },
   {
     domain_id: 'redcube-ai',
     home_purpose_entry: 'ppt',
-    codex_visible_entry: 'rca',
+    codex_visible_entry: 'redcube-ai',
     preferred_app_distribution: 'plugin_packaged_skill',
   },
   {

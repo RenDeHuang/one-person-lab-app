@@ -11,9 +11,9 @@ import { appProductProfilePath } from './paths.ts';
 import type { AppProductProfile } from './types.ts';
 
 const requiredDefaultPackagedSkillIds = [
-  'mas',
-  'mag',
-  'rca',
+  'med-autoscience',
+  'med-autogrant',
+  'redcube-ai',
   'opl-bookforge',
   'superpowers',
   'cron',
@@ -30,7 +30,7 @@ const requiredDefaultPackagedSkillIds = [
   'ui-ux-pro-max',
 ];
 const requiredCompanionSkillSyncIds = requiredDefaultPackagedSkillIds.filter((skillId) => (
-  !['mas', 'mag', 'rca', 'opl-bookforge'].includes(skillId)
+  !['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge'].includes(skillId)
 ));
 const appOwnedSettingsTabs = ['general', 'access', 'capabilities', 'environment', 'storage', 'appearance', 'advanced'];
 const appOwnedSecondarySettingsPages = ['about', 'update', 'theme', 'workspace', 'local-services'];
@@ -46,16 +46,16 @@ const developerProfileCapabilityAxes = [
 const starterPackageIds = ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge'];
 const starterShortcutIds = ['research', 'grant', 'ppt', 'book'];
 const requiredSkillByPackageId = {
-  'med-autoscience': ['mas'],
-  'med-autogrant': ['mag'],
-  'redcube-ai': ['rca'],
+  'med-autoscience': ['med-autoscience'],
+  'med-autogrant': ['med-autogrant'],
+  'redcube-ai': ['redcube-ai'],
   'opl-bookforge': ['opl-bookforge'],
   'opl-meta-agent': ['opl-meta-agent'],
 };
 const codexEntryByPackageId = {
-  'med-autoscience': 'mas',
-  'med-autogrant': 'mag',
-  'redcube-ai': 'rca',
+  'med-autoscience': 'med-autoscience',
+  'med-autogrant': 'med-autogrant',
+  'redcube-ai': 'redcube-ai',
   'opl-bookforge': 'opl-bookforge',
   'opl-meta-agent': 'opl-meta-agent',
 };

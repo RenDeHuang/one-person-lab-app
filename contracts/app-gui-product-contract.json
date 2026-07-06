@@ -1411,9 +1411,9 @@
       "package_id": "med-autoscience",
       "primary_label": "科研",
       "package_short_name": "MAS",
-      "codex_visible_entry": "mas",
+      "codex_visible_entry": "med-autoscience",
       "required_skill_ids": [
-        "mas"
+        "med-autoscience"
       ],
       "source": "opl_app_home",
       "executor": "codex_cli",
@@ -1427,9 +1427,9 @@
       "package_id": "med-autogrant",
       "primary_label": "基金",
       "package_short_name": "MAG",
-      "codex_visible_entry": "mag",
+      "codex_visible_entry": "med-autogrant",
       "required_skill_ids": [
-        "mag"
+        "med-autogrant"
       ],
       "source": "opl_app_home",
       "executor": "codex_cli",
@@ -1443,9 +1443,9 @@
       "package_id": "redcube-ai",
       "primary_label": "演示",
       "package_short_name": "RCA",
-      "codex_visible_entry": "rca",
+      "codex_visible_entry": "redcube-ai",
       "required_skill_ids": [
-        "rca"
+        "redcube-ai"
       ],
       "source": "opl_app_home",
       "executor": "codex_cli",
@@ -1480,12 +1480,12 @@
       "package_kind": "starter_professional_agent_package",
       "installed_manageable": true,
       "default_home_visible": true,
-      "codex_visible_entry": "mas",
+      "codex_visible_entry": "med-autoscience",
       "home_shortcut_ids": [
         "research"
       ],
       "required_skill_ids": [
-        "mas"
+        "med-autoscience"
       ],
       "optional_skill_ids": [
         "mineru-document-extractor",
@@ -1504,12 +1504,12 @@
       "package_kind": "starter_professional_agent_package",
       "installed_manageable": true,
       "default_home_visible": true,
-      "codex_visible_entry": "mag",
+      "codex_visible_entry": "med-autogrant",
       "home_shortcut_ids": [
         "grant"
       ],
       "required_skill_ids": [
-        "mag"
+        "med-autogrant"
       ],
       "optional_skill_ids": [
         "officecli-docx",
@@ -1528,12 +1528,12 @@
       "package_kind": "starter_professional_agent_package",
       "installed_manageable": true,
       "default_home_visible": true,
-      "codex_visible_entry": "rca",
+      "codex_visible_entry": "redcube-ai",
       "home_shortcut_ids": [
         "ppt"
       ],
       "required_skill_ids": [
-        "rca"
+        "redcube-ai"
       ],
       "optional_skill_ids": [
         "officecli-pptx",
@@ -1628,7 +1628,7 @@
     {
       "assistant_id": "med-autoscience",
       "required_skills": [
-        "mas"
+        "med-autoscience"
       ],
       "optional_skills": [
         "mineru-document-extractor",
@@ -1642,7 +1642,7 @@
     {
       "assistant_id": "med-autogrant",
       "required_skills": [
-        "mag"
+        "med-autogrant"
       ],
       "optional_skills": [
         "officecli-docx",
@@ -1656,7 +1656,7 @@
     {
       "assistant_id": "redcube-ai",
       "required_skills": [
-        "rca"
+        "redcube-ai"
       ],
       "optional_skills": [
         "officecli-pptx",

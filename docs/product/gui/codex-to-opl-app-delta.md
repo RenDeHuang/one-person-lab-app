@@ -141,7 +141,7 @@ Codex App 有 skills 和 tools。OPL App 增加 App-owned skill exposure policy�
   auto-inject skill 或 MCP server 不进入选择器、展示或 create payload。
 - Plugin packaging 是 distribution shell；`skill` 仍是 public semantic ABI。
 - MAS/MAG/RCA 作为 plugins/packages 打包时，不能再镜像成裸
-  `~/.codex/skills/{mas,mag,rca}`。
+  `~/.codex/skills/{med-autoscience,med-autogrant,redcube-ai}`。
 - OMA 是 OPL-generated local Codex plugin surface，在提升前保持 explicit。
 - Fresh install 后由 App/CLI 管理 `opl connect reconcile-modules`、`opl connect sync-skills`、
   OMA local plugin generation 和 Codex plugin registry 写入；用户不需要在

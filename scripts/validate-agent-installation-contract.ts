@@ -17,7 +17,7 @@ const expectedDefaultPluginAgentIds = ['med-autoscience', 'med-autogrant', 'redc
 const expectedRepoPackagedPluginAgentIds = ['med-autoscience', 'med-autogrant', 'redcube-ai'];
 const expectedGeneratedAgentIds = ['opl-meta-agent', 'opl-bookforge'];
 const expectedRequiredAgentIds = ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-meta-agent', 'opl-bookforge', 'scholarskills'];
-const expectedDefaultVisibleDomainSkillIds = ['mas', 'mag', 'rca', 'opl-bookforge'];
+const expectedDefaultVisibleDomainSkillIds = ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge'];
 const expectedGeneratedPluginSkillIds = ['opl-meta-agent', 'opl-bookforge'];
 const expectedCompanionSkillSyncIds = [
   'superpowers',
@@ -640,6 +640,11 @@ function validateFirstPartyManifestFixtures(profile: any, registry: any, schema:
       fail(`manifest fixture ${registryEntry.package_id} must declare one bundled required skill pack`);
     }
     assertEqual(
+      manifest.skill_packs[0].id,
+      `${registryEntry.package_id}-professional-skill-pack`,
+      `${registryEntry.package_id} manifest required skill pack id`,
+    );
+    assertEqual(
       manifest.skill_packs[0].install_mode,
       'bundled_required',
       `${registryEntry.package_id} manifest required skill pack install mode`,
@@ -782,15 +787,15 @@ function validateAtomicBundlePolicy(contract: any): void {
     ['materialized_required_skill_ids', 'materialized_required_skill_paths'],
     'atomic bundle physical surface required skill readback fields',
   );
-  assertFieldsEqual(atomicPolicy?.mas_professional_skill_pack_unit, {
+  assertFieldsEqual(atomicPolicy?.med_autoscience_professional_skill_pack_unit, {
     package_id: 'med-autoscience',
     agent_id: 'med-autoscience',
-    required_skill_pack_id: 'mas-professional-skill-pack',
+    required_skill_pack_id: 'med-autoscience-professional-skill-pack',
     atomic_with_agent_package: true,
     domain_repo_remains_semantic_owner: true,
   }, 'MAS professional skill pack unit');
   assertArrayEqual(
-    atomicPolicy?.mas_professional_skill_pack_unit?.lifecycle_actions,
+    atomicPolicy?.med_autoscience_professional_skill_pack_unit?.lifecycle_actions,
     ['install', 'update', 'repair', 'rollback', 'uninstall'],
     'MAS professional skill pack lifecycle actions',
   );
@@ -832,7 +837,7 @@ function validatePluginRegistrationInputs(contract: any): void {
     plugin_root_flag: '--agent-root <agent_id>=<path>',
     codex_skills_root_flag: '--codex-skills-root <path>',
     default_live_codex_skills_root: '~/.codex/skills',
-    codex_skills_root_validation_scope: 'fail if mas, mag, rca, or opl-bookforge exists as a bare Codex skill mirror at <codex_skills_root>/<codex_visible_entry>/SKILL.md',
+    codex_skills_root_validation_scope: 'fail if med-autoscience, med-autogrant, redcube-ai, or opl-bookforge exists as a bare Codex skill mirror at <codex_skills_root>/<codex_visible_entry>/SKILL.md',
   }, 'agent validation inputs');
   assertArrayEqual(
     contract.plugin_registration_validation_inputs?.validated_output_fields,
@@ -847,9 +852,9 @@ function validateExposureClasses(policy: any, contract: any): void {
   assertEqual(domainPluginClass.sync_target, contract.codex_plugin_registry_target, 'domain plugin sync target');
   assertEqual(domainPluginClass.legacy_alias, 'family_domain_plugin_surfaces', 'domain plugin exposure legacy alias');
   assertArrayEqual(domainPluginClass.must_not_sync_to, [
-    '~/.codex/skills/mas',
-    '~/.codex/skills/mag',
-    '~/.codex/skills/rca',
+    '~/.codex/skills/med-autoscience',
+    '~/.codex/skills/med-autogrant',
+    '~/.codex/skills/redcube-ai',
     '~/.codex/skills/opl-bookforge',
   ], 'domain plugin forbidden sync targets');
 

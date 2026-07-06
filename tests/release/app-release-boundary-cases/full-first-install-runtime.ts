@@ -989,7 +989,7 @@ test('Full runtime node payload prunes package-only docs while preserving offlin
   writeExecutable(path.join(runtimeRoot, 'uv', 'bin', 'uv'), '#!/bin/sh\nexit 0\n');
   writeExecutable(path.join(runtimeRoot, 'bin', 'officecli'), '#!/bin/sh\nexit 0\n');
   writeExecutable(path.join(runtimeRoot, 'bin', 'mineru-open-api'), '#!/bin/sh\nexit 0\n');
-  for (const skillId of ['mas', 'mag', 'rca', 'opl-bookforge']) {
+  for (const skillId of ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge']) {
     writeFile(path.join(runtimeRoot, 'skills', skillId, 'SKILL.md'), '# skill\n');
   }
   writeFile(path.join(runtimeRoot, 'skills', 'superpowers', '.codex-plugin', 'plugin.json'), '{}\n');

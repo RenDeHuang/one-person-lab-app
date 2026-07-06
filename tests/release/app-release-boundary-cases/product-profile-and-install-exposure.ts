@@ -257,11 +257,11 @@ test('App product profile owns user-facing defaults without runtime authority', 
   assert.deepEqual(profile.gui.professional_agent_packages.map((pkg) => pkg.package_id), ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge', 'opl-meta-agent']);
   assert.deepEqual(
     Object.fromEntries(profile.gui.professional_agent_packages.map((pkg) => [pkg.package_id, pkg.required_skill_ids])),
-    { 'med-autoscience': ['mas'], 'med-autogrant': ['mag'], 'redcube-ai': ['rca'], 'opl-bookforge': ['opl-bookforge'], 'opl-meta-agent': ['opl-meta-agent'] },
+    { 'med-autoscience': ['med-autoscience'], 'med-autogrant': ['med-autogrant'], 'redcube-ai': ['redcube-ai'], 'opl-bookforge': ['opl-bookforge'], 'opl-meta-agent': ['opl-meta-agent'] },
   );
   assert.deepEqual(
     Object.fromEntries(profile.gui.professional_agent_packages.map((pkg) => [pkg.package_id, pkg.codex_visible_entry])),
-    { 'med-autoscience': 'mas', 'med-autogrant': 'mag', 'redcube-ai': 'rca', 'opl-bookforge': 'opl-bookforge', 'opl-meta-agent': 'opl-meta-agent' },
+    { 'med-autoscience': 'med-autoscience', 'med-autogrant': 'med-autogrant', 'redcube-ai': 'redcube-ai', 'opl-bookforge': 'opl-bookforge', 'opl-meta-agent': 'opl-meta-agent' },
   );
   assert.ok(profile.gui.professional_agent_packages.filter((pkg) => pkg.package_id !== 'opl-meta-agent').every((pkg) => pkg.default_home_visible === true));
   assert.equal(profile.gui.professional_agent_packages.find((pkg) => pkg.package_id === 'opl-meta-agent').default_home_visible, false);
@@ -270,7 +270,7 @@ test('App product profile owns user-facing defaults without runtime authority', 
   assert.deepEqual(profile.gui.assistant_skill_profiles.map((profile) => profile.assistant_id), ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge']);
   assert.deepEqual(
     Object.fromEntries(profile.gui.assistant_skill_profiles.map((profile) => [profile.assistant_id, profile.required_skills])),
-    { 'med-autoscience': ['mas'], 'med-autogrant': ['mag'], 'redcube-ai': ['rca'], 'opl-bookforge': ['opl-bookforge'] },
+    { 'med-autoscience': ['med-autoscience'], 'med-autogrant': ['med-autogrant'], 'redcube-ai': ['redcube-ai'], 'opl-bookforge': ['opl-bookforge'] },
   );
   assert.ok(
     profile.gui.assistant_skill_profiles.every(
@@ -525,7 +525,7 @@ test('App product profile owns user-facing defaults without runtime authority', 
   assert.equal(profile.companion_payloads.public_abi.primary_semantic_entry, 'skill');
   assert.equal(profile.companion_payloads.public_abi.plugin_must_not_create_second_semantics, true);
   assert.equal(profile.companion_payloads.domain_plugin_skills_must_not_be_companion_mirrors, true);
-  assert.deepEqual(profile.companion_payloads.domain_plugin_skill_ids, ['mas', 'mag', 'rca', 'opl-bookforge']);
+  assert.deepEqual(profile.companion_payloads.domain_plugin_skill_ids, ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge']);
   assert.deepEqual(profile.companion_payloads.companion_skill_sync_default_ids, expectedDefaultCompanionSkillSyncIds);
   for (const domainPluginId of profile.companion_payloads.domain_plugin_skill_ids) {
     assert.equal(profile.companion_payloads.companion_skill_sync_default_ids.includes(domainPluginId), false);
@@ -565,22 +565,22 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
   assert.equal(policy.public_abi.app_must_not_mirror_plugin_skill_as_duplicate_bare_skill, true);
 
   const exposureClassById = new Map(policy.exposure_classes.map((entry) => [entry.id, entry]));
-  assert.deepEqual(exposureClassById.get('codex_surface').members, ['mas', 'mag', 'rca', 'opl-bookforge']);
+  assert.deepEqual(exposureClassById.get('codex_surface').members, ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge']);
   assert.equal(exposureClassById.get('codex_surface').sync_target, 'codex_plugin_registry');
   assert.equal(exposureClassById.get('codex_surface').legacy_alias, 'family_domain_plugin_surfaces');
   assert.deepEqual(exposureClassById.get('codex_surface').must_not_sync_to, [
-    '~/.codex/skills/mas',
-    '~/.codex/skills/mag',
-    '~/.codex/skills/rca',
+    '~/.codex/skills/med-autoscience',
+    '~/.codex/skills/med-autogrant',
+    '~/.codex/skills/redcube-ai',
     '~/.codex/skills/opl-bookforge',
   ]);
   assert.equal(exposureClassById.get('opl_generated_plugin_surfaces').sync_target, 'opl_generated_codex_plugin_surface');
   assert.deepEqual(exposureClassById.get('opl_generated_plugin_surfaces').members, ['opl-meta-agent', 'opl-bookforge']);
   assert.deepEqual(exposureClassById.get('companion_tools_codex_skills').members, expectedDefaultCompanionSkillSyncIds);
   assert.equal(exposureClassById.get('companion_tools_codex_skills').legacy_alias, 'companion_skill_sync');
-  assert.equal(exposureClassById.get('companion_tools_codex_skills').members.includes('mas'), false);
-  assert.equal(exposureClassById.get('companion_tools_codex_skills').members.includes('mag'), false);
-  assert.equal(exposureClassById.get('companion_tools_codex_skills').members.includes('rca'), false);
+  assert.equal(exposureClassById.get('companion_tools_codex_skills').members.includes('med-autoscience'), false);
+  assert.equal(exposureClassById.get('companion_tools_codex_skills').members.includes('med-autogrant'), false);
+  assert.equal(exposureClassById.get('companion_tools_codex_skills').members.includes('redcube-ai'), false);
 
   const domainById = new Map(policy.domain_exposure.map((entry) => [entry.domain_id, entry]));
   assert.equal(domainById.get('med-autoscience').preferred_app_distribution, 'plugin_packaged_skill');
@@ -1111,10 +1111,10 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
   ]);
   assert.equal(policy.agent_installation_contract.atomic_bundle_policy.reconcile_update_uninstall_as_unit, true);
   assert.equal(policy.agent_installation_contract.atomic_bundle_policy.domain_repo_remains_semantic_owner, true);
-  assert.deepEqual(policy.agent_installation_contract.atomic_bundle_policy.mas_professional_skill_pack_unit, {
+  assert.deepEqual(policy.agent_installation_contract.atomic_bundle_policy.med_autoscience_professional_skill_pack_unit, {
     package_id: 'med-autoscience',
     agent_id: 'med-autoscience',
-    required_skill_pack_id: 'mas-professional-skill-pack',
+    required_skill_pack_id: 'med-autoscience-professional-skill-pack',
     atomic_with_agent_package: true,
     lifecycle_actions: ['install', 'update', 'repair', 'rollback', 'uninstall'],
     domain_repo_remains_semantic_owner: true,
@@ -1192,9 +1192,9 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
     assert.equal(entry.product_entry_manifest, 'family-product-entry-manifest-v2');
     assert.equal(entry.canonical_metadata_source, 'domain_action_catalog_and_stage_control_plane');
     assert.equal(entry.codex_visible_entry, {
-      'med-autoscience': 'mas',
-      'med-autogrant': 'mag',
-      'redcube-ai': 'rca',
+      'med-autoscience': 'med-autoscience',
+      'med-autogrant': 'med-autogrant',
+      'redcube-ai': 'redcube-ai',
     }[agentId]);
   }
   assert.equal(installAgentById.get('opl-meta-agent').plugin_registry_required, true);

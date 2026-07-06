@@ -232,11 +232,11 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   assert.deepEqual(guiContract.professional_agent_packages.map((pkg) => pkg.package_id), ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge', 'opl-meta-agent']);
   assert.deepEqual(
     Object.fromEntries(guiContract.professional_agent_packages.map((pkg) => [pkg.package_id, pkg.required_skill_ids])),
-    { 'med-autoscience': ['mas'], 'med-autogrant': ['mag'], 'redcube-ai': ['rca'], 'opl-bookforge': ['opl-bookforge'], 'opl-meta-agent': ['opl-meta-agent'] },
+    { 'med-autoscience': ['med-autoscience'], 'med-autogrant': ['med-autogrant'], 'redcube-ai': ['redcube-ai'], 'opl-bookforge': ['opl-bookforge'], 'opl-meta-agent': ['opl-meta-agent'] },
   );
   assert.deepEqual(
     Object.fromEntries(guiContract.professional_agent_packages.map((pkg) => [pkg.package_id, pkg.codex_visible_entry])),
-    { 'med-autoscience': 'mas', 'med-autogrant': 'mag', 'redcube-ai': 'rca', 'opl-bookforge': 'opl-bookforge', 'opl-meta-agent': 'opl-meta-agent' },
+    { 'med-autoscience': 'med-autoscience', 'med-autogrant': 'med-autogrant', 'redcube-ai': 'redcube-ai', 'opl-bookforge': 'opl-bookforge', 'opl-meta-agent': 'opl-meta-agent' },
   );
   assert.ok(guiContract.professional_agent_packages.filter((pkg) => pkg.package_id !== 'opl-meta-agent').every((pkg) => pkg.default_home_visible === true));
   assert.equal(guiContract.professional_agent_packages.find((pkg) => pkg.package_id === 'opl-meta-agent').default_home_visible, false);
@@ -245,7 +245,7 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   assert.deepEqual(guiContract.assistant_skill_profiles.map((profile) => profile.assistant_id), ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge']);
   assert.deepEqual(
     Object.fromEntries(guiContract.assistant_skill_profiles.map((profile) => [profile.assistant_id, profile.required_skills])),
-    { 'med-autoscience': ['mas'], 'med-autogrant': ['mag'], 'redcube-ai': ['rca'], 'opl-bookforge': ['opl-bookforge'] },
+    { 'med-autoscience': ['med-autoscience'], 'med-autogrant': ['med-autogrant'], 'redcube-ai': ['redcube-ai'], 'opl-bookforge': ['opl-bookforge'] },
   );
   assert.ok(
     guiContract.assistant_skill_profiles.every(

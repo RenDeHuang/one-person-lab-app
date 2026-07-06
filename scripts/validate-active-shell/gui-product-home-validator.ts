@@ -11,22 +11,22 @@ const defaultAssistantIds = ['med-autoscience', 'med-autogrant', 'redcube-ai', '
 const purposeEntryIds = ['research', 'grant', 'ppt', 'book'];
 const managedPackageIds = [...defaultAssistantIds, 'opl-meta-agent'];
 const requiredSkillByAssistantId = {
-  'med-autoscience': 'mas',
-  'med-autogrant': 'mag',
-  'redcube-ai': 'rca',
+  'med-autoscience': 'med-autoscience',
+  'med-autogrant': 'med-autogrant',
+  'redcube-ai': 'redcube-ai',
   'opl-bookforge': 'opl-bookforge',
 };
 const requiredSkillByPackageId = {
-  'med-autoscience': ['mas'],
-  'med-autogrant': ['mag'],
-  'redcube-ai': ['rca'],
+  'med-autoscience': ['med-autoscience'],
+  'med-autogrant': ['med-autogrant'],
+  'redcube-ai': ['redcube-ai'],
   'opl-bookforge': ['opl-bookforge'],
   'opl-meta-agent': ['opl-meta-agent'],
 };
 const codexEntryByPackageId = {
-  'med-autoscience': 'mas',
-  'med-autogrant': 'mag',
-  'redcube-ai': 'rca',
+  'med-autoscience': 'med-autoscience',
+  'med-autogrant': 'med-autogrant',
+  'redcube-ai': 'redcube-ai',
   'opl-bookforge': 'opl-bookforge',
   'opl-meta-agent': 'opl-meta-agent',
 };

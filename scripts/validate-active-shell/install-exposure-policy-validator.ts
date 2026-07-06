@@ -90,10 +90,10 @@ function validateExposureClasses(policy) {
   }
   assertIncludesAll(
     domainPluginClass?.members,
-    ['mas', 'mag', 'rca'],
+    ['med-autoscience', 'med-autogrant', 'redcube-ai'],
     'Install exposure domain plugin members',
   );
-  for (const forbiddenMirror of ['~/.codex/skills/mas', '~/.codex/skills/mag', '~/.codex/skills/rca']) {
+  for (const forbiddenMirror of ['~/.codex/skills/med-autoscience', '~/.codex/skills/med-autogrant', '~/.codex/skills/redcube-ai']) {
     if (!domainPluginClass.must_not_sync_to?.includes(forbiddenMirror)) {
       throw new Error(`Install exposure domain plugin class must forbid ${forbiddenMirror}`);
     }
@@ -114,7 +114,7 @@ function validateExposureClasses(policy) {
     defaultCompanionSkillSyncIds,
     'Install exposure companion skill members',
   );
-  for (const forbiddenDomain of ['mas', 'mag', 'rca']) {
+  for (const forbiddenDomain of ['med-autoscience', 'med-autogrant', 'redcube-ai']) {
     if (companionClass.members?.includes(forbiddenDomain)) {
       throw new Error(`Install exposure companion skill class must not include domain plugin ${forbiddenDomain}`);
     }

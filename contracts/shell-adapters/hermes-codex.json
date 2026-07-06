@@ -36,7 +36,7 @@
     ],
     "extension_points": {
       "codex": "fixed ordinary executor route through Hermes openai-codex plus codex_app_server defaults",
-      "mas": "Codex Skill/Plugin/MCP extension through Hermes skills.external_dirs and Codex app-server structured skill input",
+      "med-autoscience": "Codex Skill/Plugin/MCP extension through Hermes skills.external_dirs and Codex app-server structured skill input",
       "policy": "extension points must not replace the complete Hermes backend or own OPL runtime truth"
     },
     "ordinary_user_experience": "wrapped Codex App experience on top of Hermes Desktop",
@@ -83,19 +83,19 @@
       {
         "id": "med-autoscience",
         "label": "科研",
-        "route": "codex-skill:mas",
+        "route": "codex-skill:med-autoscience",
         "authority": "med-autoscience"
       },
       {
         "id": "med-autogrant",
         "label": "基金",
-        "route": "codex-skill:mag",
-        "authority": "med-auto-grant"
+        "route": "codex-skill:med-autogrant",
+        "authority": "med-autogrant"
       },
       {
         "id": "redcube-ai",
         "label": "演示",
-        "route": "codex-skill:rca",
+        "route": "codex-skill:redcube-ai",
         "authority": "redcube-ai"
       }
     ],

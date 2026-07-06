@@ -406,7 +406,7 @@ function validateHermesPackagedSmoke(candidate: ShellCandidate): void {
     }
     assertStringArrayIncludes(
       smokeCase.gateway?.codex_skills_available ?? [],
-      ['mas', 'mag', 'rca'],
+      ['med-autoscience', 'med-autogrant', 'redcube-ai'],
       `${candidate.id} packaged smoke ${caseId} available Codex Skills`,
     );
     if (Number(smokeCase.gateway?.codex_skill_available_count ?? 0) < 3) {

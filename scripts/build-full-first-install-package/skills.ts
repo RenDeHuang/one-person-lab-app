@@ -49,8 +49,8 @@ export function skillFileSourceSnapshot(candidates) {
 
 export function masSkillCandidates(options) {
   return [
-    path.join(options.masRoot, 'plugins', 'mas', 'skills', 'mas'),
-    path.join(os.homedir(), '.codex', 'skills', 'mas'),
+    path.join(options.masRoot, 'plugins', 'med-autoscience', 'skills', 'med-autoscience'),
+    path.join(os.homedir(), '.codex', 'skills', 'med-autoscience'),
   ];
 }
 
@@ -121,15 +121,15 @@ export function officeCliCoreSkillSnapshot(options) {
 
 export function magSkillCandidates(options) {
   return [
-    path.join(options.magRoot, 'plugins', 'mag', 'skills', 'mag'),
-    path.join(os.homedir(), '.codex', 'skills', 'mag'),
+    path.join(options.magRoot, 'plugins', 'med-autogrant', 'skills', 'med-autogrant'),
+    path.join(os.homedir(), '.codex', 'skills', 'med-autogrant'),
   ];
 }
 
 export function rcaSkillCandidates(options) {
   return [
-    path.join(options.rcaRoot, 'plugins', 'rca', 'skills', 'rca'),
-    path.join(os.homedir(), '.codex', 'skills', 'rca'),
+    path.join(options.rcaRoot, 'plugins', 'redcube-ai', 'skills', 'redcube-ai'),
+    path.join(os.homedir(), '.codex', 'skills', 'redcube-ai'),
   ];
 }
 
@@ -278,9 +278,9 @@ export function copyUiUxProMaxSkill(targetRoot, options) {
 }
 
 export const packagedSkillCopyHandlers = {
-  mas: (targetRoot, options) => copyFirstSkillSource('mas', targetRoot, masSkillCandidates(options)),
-  mag: (targetRoot, options) => copyFirstSkillSource('mag', targetRoot, magSkillCandidates(options)),
-  rca: (targetRoot, options) => copyFirstSkillSource('rca', targetRoot, rcaSkillCandidates(options)),
+  'med-autoscience': (targetRoot, options) => copyFirstSkillSource('med-autoscience', targetRoot, masSkillCandidates(options)),
+  'med-autogrant': (targetRoot, options) => copyFirstSkillSource('med-autogrant', targetRoot, magSkillCandidates(options)),
+  'redcube-ai': (targetRoot, options) => copyFirstSkillSource('redcube-ai', targetRoot, rcaSkillCandidates(options)),
   'opl-bookforge': (targetRoot, options) => copyOplBookforgeSkill(targetRoot, options),
   superpowers: (targetRoot, options) => copySuperpowersBundle(targetRoot, options),
   cron: (targetRoot) => copyFirstSkillSource('cron', targetRoot, appCompanionSkillCandidates('cron')),

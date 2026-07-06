@@ -60,16 +60,16 @@ const ordinaryForbiddenCapabilityPolicy = {
 const starterPackageIds = ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge'];
 const starterShortcutIds = ['research', 'grant', 'ppt', 'book'];
 const requiredSkillByPackageId = {
-  'med-autoscience': ['mas'],
-  'med-autogrant': ['mag'],
-  'redcube-ai': ['rca'],
+  'med-autoscience': ['med-autoscience'],
+  'med-autogrant': ['med-autogrant'],
+  'redcube-ai': ['redcube-ai'],
   'opl-bookforge': ['opl-bookforge'],
   'opl-meta-agent': ['opl-meta-agent'],
 };
 const codexEntryByPackageId = {
-  'med-autoscience': 'mas',
-  'med-autogrant': 'mag',
-  'redcube-ai': 'rca',
+  'med-autoscience': 'med-autoscience',
+  'med-autogrant': 'med-autogrant',
+  'redcube-ai': 'redcube-ai',
   'opl-bookforge': 'opl-bookforge',
   'opl-meta-agent': 'opl-meta-agent',
 };
@@ -244,9 +244,9 @@ function validateAssistantSkillProfiles(profile) {
   }
   const defaultPackagedSkillIds = new Set(profile.companion_payloads?.default_packaged_codex_skill_ids ?? []);
   const requiredSkillByAssistantId = {
-    'med-autoscience': 'mas',
-    'med-autogrant': 'mag',
-    'redcube-ai': 'rca',
+    'med-autoscience': 'med-autoscience',
+    'med-autogrant': 'med-autogrant',
+    'redcube-ai': 'redcube-ai',
     'opl-bookforge': 'opl-bookforge',
   };
   for (const entry of productSkillProfiles) {
@@ -591,7 +591,7 @@ function validateCompanionPayloadAuthority(profile, installExposurePolicy) {
   }
   assertIncludesAll(
     profile.companion_payloads?.domain_plugin_skill_ids,
-    ['mas', 'mag', 'rca'],
+    ['med-autoscience', 'med-autogrant', 'redcube-ai'],
     'Product profile domain plugin skill ids',
   );
   assertIncludesAll(

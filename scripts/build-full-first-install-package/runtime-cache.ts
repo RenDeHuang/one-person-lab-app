@@ -187,9 +187,9 @@ export function buildRuntimeCacheKeyInputs(options, sources) {
         exclude_policy_hash: excludePolicyHash,
     },
     skills: {
-        mas_skill_source: skillSourceSnapshot(masSkillCandidates(options), 'skills/mas'),
-        mag_skill_source: skillSourceSnapshot(magSkillCandidates(options), 'skills/mag'),
-        rca_skill_source: skillSourceSnapshot(rcaSkillCandidates(options), 'skills/rca'),
+        med_autoscience_skill_source: skillSourceSnapshot(masSkillCandidates(options), 'skills/med-autoscience'),
+        med_autogrant_skill_source: skillSourceSnapshot(magSkillCandidates(options), 'skills/med-autogrant'),
+        redcube_ai_skill_source: skillSourceSnapshot(rcaSkillCandidates(options), 'skills/redcube-ai'),
         meta_agent_skill_source: metaAgentSkillSnapshot(options),
         bookforge_skill_source: bookforgeSkillSnapshot(options),
         superpowers_root_commit: readGitHead(options.superpowersRoot),

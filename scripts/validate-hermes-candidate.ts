@@ -192,9 +192,9 @@ function validateTargetStateContracts(label: string, target: HermesTargetStateCo
     throw new Error(`Hermes ${label}.agent_route_contract must declare App-owned Codex Skill entries`);
   }
   for (const [id, route, authority] of [
-    ['med-autoscience', 'codex-skill:mas', 'med-autoscience'],
-    ['med-autogrant', 'codex-skill:mag', 'med-autogrant'],
-    ['redcube-ai', 'codex-skill:rca', 'redcube-ai'],
+    ['med-autoscience', 'codex-skill:med-autoscience', 'med-autoscience'],
+    ['med-autogrant', 'codex-skill:med-autogrant', 'med-autogrant'],
+    ['redcube-ai', 'codex-skill:redcube-ai', 'redcube-ai'],
   ] as const) {
     const entry = routes.ordinary_entries.find((candidateRoute) => candidateRoute.id === id);
     if (!entry || entry.route !== route || entry.authority !== authority) {

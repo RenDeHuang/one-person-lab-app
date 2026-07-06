@@ -112,7 +112,7 @@ domain skill; Codex App plugins are distribution/capability bundles, and CLI,
 App, direct skill, and product-entry surfaces converge on the same
 domain-owned action/stage metadata. MAS/MAG/RCA are default App purpose entries
 and plugin-visible domain skills, not companion skill mirrors under
-`~/.codex/skills/{mas,mag,rca}`. OPL Meta Agent remains an OPL-generated Codex
+`~/.codex/skills/{med-autoscience,med-autogrant,redcube-ai}`. OPL Meta Agent remains an OPL-generated Codex
 surface and an App/CLI-managed ecosystem module, but not a default home
 assistant. Companion skill sync stays limited to the App-level packaged
 whitelist such as Superpowers, cron, the OfficeCLI family, PDF, MinerU, and
@@ -135,7 +135,7 @@ channel is unavailable and uses bundled Full runtime modules before any explicit
 Developer Profile checkout override. The machine gate is
 `npm run validate:agent-installation`, with optional
 `--agent-root <id>=<path>` checks for real plugin roots and
-`--codex-skills-root <path>` checks that MAS/MAG/RCA are not also installed as
+`--codex-skills-root <path>` checks that `med-autoscience` / `med-autogrant` / `redcube-ai` are not also installed as
 duplicate bare Codex skill mirrors.
 
 First-install policy is now contract-backed in

@@ -50,9 +50,9 @@ export const expectedDefaultCompanionSkillSyncIds = [
   'ui-ux-pro-max',
 ];
 export const expectedDefaultPackagedSkillIds = [
-  'mas',
-  'mag',
-  'rca',
+  'med-autoscience',
+  'med-autogrant',
+  'redcube-ai',
   'opl-bookforge',
   ...expectedDefaultCompanionSkillSyncIds,
 ];
