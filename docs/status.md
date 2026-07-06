@@ -295,7 +295,10 @@ helper, Settings control-plane redirect expectations derive from the App
 contract constants, page-state Settings validation no longer repeats route
 identity checks already covered by the Settings control-plane validator, and GUI
 contract validation derives hidden legacy tabs and Developer Profile axis
-consistency from the GUI contract instead of mirrored constants. `npm run
+consistency from the GUI contract instead of mirrored constants. Agent package
+and shortcut ids used by the App product profile, active-shell product profile
+validator, and GUI home validator share the existing App product profile helper
+constants instead of maintaining three local copies. `npm run
 hygiene:fallow -- --format json --summary` is the production hygiene check for
 unused files/exports and duplicate exports. This is code-health and
 validation-structure evidence only; it is not a release-ready, currentness,
