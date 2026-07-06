@@ -18,7 +18,9 @@ source policy, and `SettingsHost` / `SettingsShellAdapterSlot` adapter slot.
 the App GUI source contract consumed by that control plane.
 
 Current implementation boundary: the ideal Capabilities IA in this document is
-package-directory-first, and canonical runtime readback is now
+package-directory-first, and the target visual model is Settings > 智能体与能力 as
+a Codex App plugin-manager-like compact package directory. Canonical runtime
+readback is now
 `app_state.agent_packages.directory + app_state.agent_packages.status_index`.
 The current shell may still fall back to `opl app state --profile fast --json`
 module projection data, especially `app_state.modules.items[]`,
@@ -248,10 +250,11 @@ Workspace must not be presented as a runtime diagnostic-only field.
 
 ### Capabilities
 
-Ideal state: Capabilities is an installed package directory with integrated
-Home shortcut management. Purpose is still useful, but only as a tag/filter
-dimension instead of the primary identity. First-party starter registry entries
-and starter shortcuts are defaults, not the only packages OPL App can manage.
+Ideal state: Settings > 智能体与能力 is an installed Codex-plugin-style package
+directory with integrated Home shortcut management. Purpose is still useful, but
+only as a tag/filter dimension instead of the primary identity. First-party
+starter registry entries and starter shortcuts are defaults, not the only
+packages OPL App can manage.
 
 Current implementation boundary: the canonical source is
 `app_state.agent_packages.directory + app_state.agent_packages.status_index`.
@@ -293,7 +296,9 @@ The ordinary model is:
   and post-apply sync state;
 - Invocation Receipt: launch fact only, not a session-behavior contract.
 
-The ordinary package-directory row shows:
+The ordinary top bar supports registry refresh, search by package name/tag or
+description, status filtering, and manifest URL install. The ordinary
+package-directory row shows:
 
 - package identity first: package id, display name, short name;
 - inline Home shortcut visibility and order;
@@ -303,7 +308,9 @@ The ordinary package-directory row shows:
 
 The ordinary first screen must not use receipt refs, `physical_surface`,
 workflow refs, connector refs, resource refs, or raw git facts as the primary
-density. Those belong in a detail drawer or expandable detail list.
+density. Those belong in a right-side details panel, drawer, or expandable
+detail list. Required Skills and optional Tools are supporting details and are
+collapsed by default unless the user explicitly opens them.
 
 Current-runtime UX rule: developer checkout semantics are explicit state, not a
 generic repair badge. `git_checkout`, `configured_by: developer_mode`,

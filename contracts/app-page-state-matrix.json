@@ -2394,6 +2394,39 @@
       ],
       "task_awareness_ref_policy": "thin_renderer_refs_only_no_skill_body_no_artifact_body_no_domain_verdict",
       "export_bundle_action_policy": "show_export_bundle_action_ref_and_dry_run_receipt_without_claiming_domain_export_readiness",
+      "codex_plugin_directory_target": {
+        "target_label_zh": "智能体与能力",
+        "target_label_en": "Agents & Capabilities",
+        "mental_model": "codex_app_plugin_manager_compact_package_directory",
+        "primary_layout": "compact_package_table_or_list_with_right_details_panel",
+        "top_controls": [
+          "refresh_registry",
+          "search_by_package_name_tag_or_description",
+          "status_filter",
+          "manifest_url_install"
+        ],
+        "row_controls": [
+          "home_shortcut_visibility",
+          "home_shortcut_order",
+          "launch_shortcut",
+          "update_repair_or_install_action",
+          "open_details_panel"
+        ],
+        "detail_panel_fields": [
+          "receipt_refs",
+          "package_lock_ref",
+          "action_receipt_ref",
+          "physical_surface",
+          "manifest_ref",
+          "required_skill_refs",
+          "optional_tool_refs",
+          "workflow_refs",
+          "connector_readiness_refs",
+          "resource_source_refs"
+        ],
+        "default_disclosure": "skills_and_tools_collapsed_by_default",
+        "visual_gap_acceptance": "target_design_1_to_1_gap_is_shell_acceptance_item"
+      },
       "builtin_skill_catalog_policy": {
         "source": "active shell builtin skill catalog filtered by App product profile packaged skills",
         "allowed_set_ref": "contracts/app-product-profile.json#companion_payloads.default_packaged_codex_skill_ids + packaged_not_default_visible_codex_skill_ids",
@@ -2502,9 +2535,12 @@
       },
       "must_show": [
         "installed package directory as the primary Capabilities surface",
+        "Codex App plugin-manager-like compact package directory as the target for 智能体与能力",
+        "search, status filter, registry refresh, and manifest URL install as package-directory controls",
         "package rows keyed by package identity instead of purpose cards",
         "purpose labels and filters as secondary metadata rather than primary identity",
         "Home shortcut visibility and order inline on the package directory rows",
+        "right-side details panel or drawer for receipts, physical surface, refs, required skills, and optional tools",
         "details drawer or expandable list for receipt refs, physical_surface, workflow refs, connector refs, and resource refs",
         "multi-axis package status for install, update, source, trust, and Codex Surface",
         "developer checkout semantics surfaced explicitly for dirty, git checkout, behind, and configured_by=developer_mode",
@@ -2527,6 +2563,7 @@
       ],
       "must_not_show": [
         "assistant or purpose cards as the primary Capabilities surface",
+        "large assistant cards instead of a compact package directory",
         "single repair status swallowing developer checkout, dirty, behind, unknown, or needs sync",
         "separate Home shortcut management table detached from the package rows",
         "receipt refs, physical_surface, workflow refs, connector refs, or resource refs as first-screen primary density",
