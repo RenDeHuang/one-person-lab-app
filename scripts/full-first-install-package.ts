@@ -5,8 +5,8 @@ import { fileURLToPath } from 'node:url';
 import {
   formatCodexProfilePhrase,
   formatRecommendedCompanionSkills,
-  readAppProductProfile,
 } from './app-product-profile.ts';
+import { readAppProductProfile } from './app-product-profile/profile-contract.ts';
 
 export const FULL_FIRST_INSTALL_OUTPUT_DIR = '/Users/gaofeng/Downloads/One-Person-Lab-Full-First-Install';
 export const FULL_RELEASE_OUTPUT_DIR = 'dist/opl-full-release';

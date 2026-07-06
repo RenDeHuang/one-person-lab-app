@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { fileSha256 as readFileSha256 } from '../release-file-helpers.ts';
 import {
   listFullRuntimeProductionNodeModulePaths,
   shouldExcludeProductionNodeModulePath,
@@ -12,7 +13,7 @@ export function fileSha256(filePath) {
   if (!filePath || !fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
     return null;
   }
-  return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
+  return readFileSha256(filePath);
 }
 
 export function functionSourceSha256(functions) {

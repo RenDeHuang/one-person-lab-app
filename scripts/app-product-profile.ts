@@ -6,8 +6,6 @@ import { readAppShellAdapterContract, resolveActiveShellPaths } from './app-shel
 import { readAppProductProfile } from './app-product-profile/profile-contract.ts';
 import { appRoot, appProductProfilePath } from './app-product-profile/paths.ts';
 
-export { readAppProductProfile } from './app-product-profile/profile-contract.ts';
-
 function formatCodexProfileLabel(profile = readAppProductProfile()): string {
   return `${profile.codex.default_model} / ${profile.codex.default_reasoning_effort}`;
 }

@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 
-import { readAppProductProfile } from '../app-product-profile.ts';
+import { readAppProductProfile } from '../app-product-profile/profile-contract.ts';
 import { appRepoRoot } from './paths.ts';
 import { copyTreeFiltered } from './filesystem.ts';
 import { readGitHead } from './git.ts';
