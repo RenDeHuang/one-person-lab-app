@@ -153,7 +153,9 @@ App-managed bootstrap and maintenance and cannot use “install
 Homebrew/Node/Git first” as the first-screen terminal state. CLT requests use
 `xcode-select --install` and wait for user confirmation inside Apple's system
 installer. `officecli`, MinerU, and `opl-meta-agent` are App/CLI-managed
-ecosystem modules.
+ecosystem modules. Active-shell validators derive first-run Core items,
+beginner presentation expectations, and first-conversation wait/failure policy
+from the product profile instead of keeping a second constants mirror.
 
 First conversation readiness is now part of the App-owned setup contract. The
 active shell must warm the ACP conversation and wait for the conversation record

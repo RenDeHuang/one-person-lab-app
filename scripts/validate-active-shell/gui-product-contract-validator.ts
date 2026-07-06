@@ -4,7 +4,6 @@ import {
   appOwnedSettingsTabs,
   appOwnedTaskAwarenessRefFields,
   beginnerFirstRunTestIds,
-  firstRunCoreItems,
   homeActivityCenterForbiddenDisplays,
   legacySettingsRouteRedirects,
   appOwnedSecondarySettingsPages,
@@ -33,6 +32,7 @@ import {
 import { productProfilePath } from './validation-config.ts';
 import { validateSettingsControlPlaneBehavior } from './settings-control-plane-validator.ts';
 import {
+  assertNonEmptyStringArray,
   validateArtifactNativeDrilldownProjectionContract,
   validateBeginnerFirstRunPresentation,
   validateOplFlowContext,
@@ -76,6 +76,10 @@ const aionuiTeamProbeIds = [
 ];
 const productProfile = readJson(productProfilePath);
 const expectedFirstRunProgressModel = productProfile.first_run?.progress_model;
+const expectedFirstRunCoreItems = assertNonEmptyStringArray(
+  productProfile.first_run?.ready_to_launch_gate?.required_core_items,
+  'Product profile ready_to_launch required_core_items',
+);
 const expectedFullReadinessItems = (productProfile.first_run?.full_readiness_layers ?? [])
   .filter((item) => item !== 'core');
 
@@ -238,7 +242,7 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   if (firstLaunchPolicy?.launch_gate !== 'ready_to_launch' || firstLaunchPolicy?.ui_order !== 'before_guid') {
     throw new Error('App GUI first-launch readiness must gate ready_to_launch before /guid');
   }
-  for (const item of firstRunCoreItems) {
+  for (const item of expectedFirstRunCoreItems) {
     if (!firstLaunchPolicy?.core_required_items?.includes(item)) {
       throw new Error(`App GUI first-launch readiness must require Core item ${item}`);
     }
@@ -264,6 +268,7 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   validateBeginnerFirstRunPresentation(
     firstLaunchPolicy?.beginner_presentation,
     'App GUI first-launch beginner presentation',
+    expectedFirstRunCoreItems,
   );
   assertFirstRunProgressModelMatches(
     firstLaunchPolicy?.progress_model,

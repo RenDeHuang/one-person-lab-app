@@ -2,9 +2,6 @@ import path from 'node:path';
 import { assertDeepEqualJson, assertForbiddenCapabilityPolicy, assertIncludesAll } from './assertions.ts';
 import {
   appOwnedSettingsTabs,
-  firstConversationFailurePolicy,
-  firstConversationMustWaitFor,
-  firstRunCoreItems,
   forbiddenAuthorityOwners,
   legacySettingsRouteRedirects,
 } from './app-contract-constants.ts';
@@ -18,6 +15,7 @@ import {
   assertFile,
 } from './validation-config.ts';
 import {
+  assertNonEmptyStringArray,
   assertFirstRunProgressModelShape,
   validateBeginnerFirstRunPresentation,
   validateOplFlowContext,
@@ -385,17 +383,22 @@ function validateFullFirstInstallCoreReadyPolicy(profile) {
   if (JSON.stringify(profile.first_run?.readiness_layers) !== JSON.stringify(['core'])) {
     throw new Error('Product profile ready_to_launch readiness_layers must contain only core');
   }
+  const firstRunCoreItems = assertNonEmptyStringArray(
+    profile.first_run?.ready_to_launch_gate?.required_core_items,
+    'Product profile ready_to_launch required_core_items',
+  );
   validateBeginnerFirstRunPresentation(
     profile.first_run?.beginner_presentation,
     'Product profile first-run beginner presentation',
+    firstRunCoreItems,
   );
-  validateReadyToLaunchGate(profile);
+  validateReadyToLaunchGate(profile, firstRunCoreItems);
   validateFirstConversationPolicy(profile);
   validateFullFirstInstallBackgroundPolicy(profile);
   validateFirstRunProgressModel(profile);
 }
 
-function validateReadyToLaunchGate(profile) {
+function validateReadyToLaunchGate(profile, firstRunCoreItems) {
   const launchGate = profile.first_run?.ready_to_launch_gate;
   if (launchGate?.id !== 'ready_to_launch' || launchGate?.ui_order !== 'before_guid') {
     throw new Error('Product profile ready_to_launch gate must run before /guid');
@@ -424,12 +427,18 @@ function validateReadyToLaunchGate(profile) {
 function validateFirstConversationPolicy(profile) {
   const firstConversation = profile.first_run?.first_conversation;
   const progressModel = profile.first_run?.progress_model;
+  const firstConversationMustWaitFor = assertNonEmptyStringArray(
+    firstConversation?.must_wait_for,
+    'Product profile first conversation must_wait_for',
+  );
+  if (typeof firstConversation?.failure_policy !== 'string' || !firstConversation.failure_policy.trim()) {
+    throw new Error('Product profile first conversation must define a failure_policy');
+  }
   assertFirstRunProgressModelShape(progressModel, 'Product profile first-run progress model');
   if (
     firstConversation?.gate !== 'acp_warmup_before_initial_send' ||
     firstConversation?.source_command !== progressModel.source_command ||
-    firstConversation?.ready_to_launch_must_be_true !== true ||
-    firstConversation?.failure_policy !== firstConversationFailurePolicy
+    firstConversation?.ready_to_launch_must_be_true !== true
   ) {
     throw new Error('Product profile first conversation must gate initial send on ready_to_launch and ACP warmup');
   }

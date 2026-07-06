@@ -1,8 +1,5 @@
 import { assertIncludesAll, readJson } from './assertions.ts';
 import {
-  firstConversationFailurePolicy,
-  firstConversationMustWaitFor,
-  firstRunCoreItems,
   forbiddenAuthorityOwners,
 } from './app-contract-constants.ts';
 import {
@@ -10,11 +7,21 @@ import {
   expectedDomainExposureFromProductProfile,
 } from './domain-exposure-validator.ts';
 import { validateInstallExposureRuntimeAndDistribution } from './install-exposure-runtime-distribution-validator.ts';
-import { assertFirstRunProgressModelShape } from './shared-contract-validators.ts';
+import { assertFirstRunProgressModelShape, assertNonEmptyStringArray } from './shared-contract-validators.ts';
 import { productProfilePath } from './validation-config.ts';
 
 const productProfile = readJson(productProfilePath);
 const expectedFirstRunProgressModel = productProfile.first_run?.progress_model;
+const expectedFirstRunCoreItems = assertNonEmptyStringArray(
+  productProfile.first_run?.ready_to_launch_gate?.required_core_items,
+  'Product profile ready_to_launch required_core_items',
+);
+const expectedFirstConversation = productProfile.first_run?.first_conversation;
+const expectedFirstConversationMustWaitFor = assertNonEmptyStringArray(
+  expectedFirstConversation?.must_wait_for,
+  'Product profile first conversation must_wait_for',
+);
+const expectedFirstConversationFailurePolicy = expectedFirstConversation?.failure_policy;
 const expectedCompanionSkillSyncIds = productProfile.companion_payloads?.companion_skill_sync_default_ids ?? [];
 const expectedFullReadinessItems = (productProfile.first_run?.full_readiness_layers ?? [])
   .filter((item) => item !== 'core');
@@ -471,7 +478,7 @@ function validateFirstRunUserPresentation(presentation) {
   }
   assertIncludesAll(
     presentation.primary_steps,
-    firstRunCoreItems,
+    expectedFirstRunCoreItems,
     'Install exposure first-run primary steps',
   );
   assertIncludesAll(
@@ -499,7 +506,7 @@ function validateSetupFlowContract(setupFlow) {
   }
   assertIncludesAll(
     setupFlow.ready_to_launch_required_core_items,
-    firstRunCoreItems,
+    expectedFirstRunCoreItems,
     'Install exposure ready_to_launch core items',
   );
   assertIncludesAll(
@@ -512,13 +519,13 @@ function validateSetupFlowContract(setupFlow) {
     firstConversation?.gate !== 'acp_warmup_before_initial_send' ||
     firstConversation?.source_command !== expectedFirstRunProgressModel.source_command ||
     firstConversation?.ready_to_launch_must_be_true !== true ||
-    firstConversation?.failure_policy !== firstConversationFailurePolicy
+    firstConversation?.failure_policy !== expectedFirstConversationFailurePolicy
   ) {
     throw new Error('Install exposure first conversation readiness must gate initial send on ready_to_launch and ACP warmup');
   }
   assertIncludesAll(
     firstConversation.must_wait_for,
-    firstConversationMustWaitFor,
+    expectedFirstConversationMustWaitFor,
     'Install exposure first conversation wait-for items',
   );
   assertIncludesAll(

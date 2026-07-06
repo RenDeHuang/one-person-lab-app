@@ -4,9 +4,9 @@ import {
   appOwnedQueueStatusPolicy,
   appOwnedProjectGroupExpansionPolicy,
   beginnerFirstRunTestIds,
-  firstRunCoreItems,
 } from './app-contract-constants.ts';
 import {
+  assertNonEmptyStringArray,
   validateArtifactNativeDrilldownProjectionContract,
   validateBeginnerFirstRunPresentation,
   validateOpenScienceConsoleProjectionContract,
@@ -27,6 +27,10 @@ import { productProfilePath } from './validation-config.ts';
 
 const productProfile = readJson(productProfilePath);
 const expectedFirstRunProgressModel = productProfile.first_run?.progress_model;
+const expectedFirstRunCoreItems = assertNonEmptyStringArray(
+  productProfile.first_run?.ready_to_launch_gate?.required_core_items,
+  'Product profile ready_to_launch required_core_items',
+);
 const expectedFullReadinessItems = (productProfile.first_run?.full_readiness_layers ?? [])
   .filter((item) => item !== 'core');
 
@@ -77,13 +81,14 @@ export function validatePageStateMatrix(matrix, contract) {
   validateBeginnerFirstRunPresentation(
     firstLaunchPage.beginner_view_model,
     'First-launch readiness beginner view model',
+    expectedFirstRunCoreItems,
   );
   assertIncludesAll(
     firstLaunchPage.beginner_view_model?.required_shell_testids,
     beginnerFirstRunTestIds,
     'First-launch readiness beginner shell test ids',
   );
-  for (const item of firstRunCoreItems) {
+  for (const item of expectedFirstRunCoreItems) {
     if (!firstLaunchPage.launch_gate?.required_core_items?.includes(item)) {
       throw new Error(`First-launch readiness page must require Core item ${item}`);
     }

@@ -2,28 +2,24 @@ import { assertIncludesAll, readJson } from './assertions.ts';
 import { isDefaultReleaseAdapter } from './active-shell-contract.ts';
 import {
   beginnerFirstRunTestIds,
-  firstRunCoreItems,
   firstRunEcosystemModules,
 } from './app-contract-constants.ts';
-import { assertSharedFirstRunProgressModelMatches } from './shared-contract-validators.ts';
+import { assertNonEmptyStringArray, assertSharedFirstRunProgressModelMatches } from './shared-contract-validators.ts';
 import { productProfilePath } from './validation-config.ts';
 
 const productProfile = readJson(productProfilePath);
 const fullFirstInstallPolicy = productProfile.first_run?.core_ready_policy?.full_first_install_clean_machine;
 const expectedFirstRunProgressModel = productProfile.first_run?.progress_model;
+const expectedFirstRunCoreItems = assertNonEmptyStringArray(
+  productProfile.first_run?.ready_to_launch_gate?.required_core_items,
+  'Product profile ready_to_launch required_core_items',
+);
 
-function requiredContractStringArray(value, label) {
-  if (!Array.isArray(value) || value.length === 0 || value.some((entry) => typeof entry !== 'string' || !entry.trim())) {
-    throw new Error(`${label} must be a non-empty string array`);
-  }
-  return value;
-}
-
-const firstRunRequiredHostTools = requiredContractStringArray(
+const firstRunRequiredHostTools = assertNonEmptyStringArray(
   fullFirstInstallPolicy?.missing_host_tools_allowed,
   'Product profile Full first-install missing_host_tools_allowed',
 );
-const firstRunDeferredMaintenanceItems = requiredContractStringArray(
+const firstRunDeferredMaintenanceItems = assertNonEmptyStringArray(
   fullFirstInstallPolicy?.must_not_block_core_ready,
   'Product profile Full first-install must_not_block_core_ready',
 );
@@ -58,7 +54,7 @@ function validateFullFirstInstallScenario(fullClean) {
   if (fullClean?.ready_to_launch_gate?.blocks_on_full_readiness !== false) {
     throw new Error('Full first-install ready_to_launch must not block on full readiness');
   }
-  for (const item of firstRunCoreItems) {
+  for (const item of expectedFirstRunCoreItems) {
     if (!fullClean?.ready_to_launch_gate?.required_core_items?.includes(item)) {
       throw new Error(`Full first-install ready_to_launch must require Core item ${item}`);
     }

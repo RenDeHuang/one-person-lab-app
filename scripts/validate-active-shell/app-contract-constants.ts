@@ -1,8 +1,3 @@
-export const firstRunCoreItems = [
-  "workspace_root",
-  "codex_cli",
-  "codex_config",
-];
 export const appOwnedProjectGroupExpansionPolicy = {
   running_group_default: "expanded",
   attention_group_default: "visible_when_nonempty",
@@ -841,9 +836,3 @@ export const temporalManagedCommands = [
   "opl family-runtime worker start --provider temporal",
   "opl family-runtime residency proof --provider temporal --production",
 ];
-export const firstConversationMustWaitFor = [
-  "conversation_record_ready",
-  "acp_warmup_complete",
-];
-export const firstConversationFailurePolicy =
-  "show_retryable_initial_message_error_without_losing_user_prompt";

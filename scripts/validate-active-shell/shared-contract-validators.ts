@@ -8,7 +8,6 @@ import {
   appOwnedRunningStatePolicy,
   appOwnedStageRunPanelFields,
   appOwnedTelemetryMissingPolicy,
-  firstRunCoreItems,
   runtimeAutomationStateValues,
   runtimePrimaryStateValues,
   runtimeScopeRequiredFields,
@@ -23,10 +22,11 @@ function assertNonEmptyString(value, label) {
   }
 }
 
-function assertNonEmptyStringArray(value, label) {
+export function assertNonEmptyStringArray(value, label) {
   if (!Array.isArray(value) || value.length === 0 || value.some((entry) => typeof entry !== 'string' || !entry.trim())) {
     throw new Error(`${label} must be a non-empty string array`);
   }
+  return value;
 }
 
 export function assertFirstRunProgressModelShape(progressModel, label) {
@@ -1637,7 +1637,7 @@ export function validateUserTaskStatusProjectionContract(userTaskStatus, label) 
   }
 }
 
-export function validateBeginnerFirstRunPresentation(presentation, label) {
+export function validateBeginnerFirstRunPresentation(presentation, label, expectedCoreItems) {
   if (presentation?.audience !== 'beginner_non_technical_users') {
     throw new Error(`${label} must target beginner_non_technical_users`);
   }
@@ -1647,7 +1647,7 @@ export function validateBeginnerFirstRunPresentation(presentation, label) {
   if (presentation.primary_user_goal !== 'reach_guid_with_codex_ready') {
     throw new Error(`${label} must focus on reaching /guid with Codex ready`);
   }
-  assertIncludesAll(presentation.primary_steps, firstRunCoreItems, `${label} primary steps`);
+  assertIncludesAll(presentation.primary_steps, expectedCoreItems, `${label} primary steps`);
   for (const [field, expected] of Object.entries({
     advanced_progress_disclosure: 'collapsed_or_secondary',
     background_maintenance_presentation: 'collapsed_technical_non_blocking',
