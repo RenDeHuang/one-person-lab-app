@@ -114,6 +114,7 @@ export function parseReleaseSourceGateArgs(argv: string[]): ReleaseSourceGateOpt
   const parsed = defaultOptions();
   const { values, tokens } = parseNodeArgs({
     args: argv,
+    tokens: true,
     options: {
       version: { type: 'string' },
       'app-ref': { type: 'string' },

@@ -3,6 +3,7 @@ import path from 'node:path';
 import test from 'node:test';
 import {
   buildReleaseSourceGateReport,
+  parseReleaseSourceGateArgs,
   type CommandRunner,
   type ReleaseSourceGateOptions,
 } from '../../scripts/validate-release-source-gate.ts';
@@ -88,6 +89,37 @@ function checkStatus(report: ReturnType<typeof buildReleaseSourceGateReport>, id
   assert.ok(check, `missing check ${id}`);
   return check.status;
 }
+
+test('release source gate CLI parser accepts release refs and keeps the last App head alias', () => {
+  const parsed = parseReleaseSourceGateArgs([
+    '--version',
+    '26.7.6-nightly',
+    '--app-ref',
+    '1111111111111111111111111111111111111111',
+    '--expected-app-head',
+    appHead,
+    '--shell-ref',
+    'main',
+    '--framework-ref',
+    'main',
+    '--framework-root',
+    frameworkRoot,
+    '--require-shell-format',
+    'true',
+    '--output',
+    'release-source-gate.json',
+    '--json',
+  ]);
+
+  assert.equal(parsed.version, '26.7.6-nightly');
+  assert.equal(parsed.expectedAppHead, appHead);
+  assert.equal(parsed.shellRef, 'main');
+  assert.equal(parsed.frameworkRef, 'main');
+  assert.equal(parsed.frameworkRoot, frameworkRoot);
+  assert.equal(parsed.requireShellFormat, true);
+  assert.equal(parsed.json, true);
+  assert.match(parsed.output, /release-source-gate\.json$/);
+});
 
 function reportFor(overrides: Partial<ReleaseSourceGateOptions> = {}) {
   return buildReleaseSourceGateReport(
