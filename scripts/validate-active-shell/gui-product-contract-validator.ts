@@ -4,7 +4,6 @@ import {
   appOwnedSettingsTabs,
   beginnerFirstRunTestIds,
   firstRunCoreItems,
-  fullReadinessItems,
   homeActivityCenterForbiddenDisplays,
   legacySettingsRouteRedirects,
   appOwnedSecondarySettingsPages,
@@ -73,7 +72,10 @@ const aionuiTeamProbeIds = [
   'team_deep_link_not_whitelisted',
   'team_bridge_mutation_gate',
 ];
-const expectedFirstRunProgressModel = readJson(productProfilePath).first_run?.progress_model;
+const productProfile = readJson(productProfilePath);
+const expectedFirstRunProgressModel = productProfile.first_run?.progress_model;
+const expectedFullReadinessItems = (productProfile.first_run?.full_readiness_layers ?? [])
+  .filter((item) => item !== 'core');
 
 function validateManagedUpdatePageSurface(page, label) {
   validateManagedUpdatePageBasics(page, label, {
@@ -239,7 +241,7 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
       throw new Error(`App GUI first-launch readiness must require Core item ${item}`);
     }
   }
-  for (const item of fullReadinessItems) {
+  for (const item of expectedFullReadinessItems) {
     if (!firstLaunchPolicy?.full_readiness_items?.includes(item)) {
       throw new Error(`App GUI first-launch readiness must keep ${item} in full readiness`);
     }

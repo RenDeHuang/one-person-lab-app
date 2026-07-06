@@ -5,7 +5,6 @@ import {
   appOwnedProjectGroupExpansionPolicy,
   beginnerFirstRunTestIds,
   firstRunCoreItems,
-  fullReadinessItems,
 } from './app-contract-constants.ts';
 import {
   validateArtifactNativeDrilldownProjectionContract,
@@ -26,7 +25,10 @@ import {
 import { validatePrimaryInteractionPages } from './page-state-primary-interaction-validator.ts';
 import { productProfilePath } from './validation-config.ts';
 
-const expectedFirstRunProgressModel = readJson(productProfilePath).first_run?.progress_model;
+const productProfile = readJson(productProfilePath);
+const expectedFirstRunProgressModel = productProfile.first_run?.progress_model;
+const expectedFullReadinessItems = (productProfile.first_run?.full_readiness_layers ?? [])
+  .filter((item) => item !== 'core');
 
 export function validatePageStateMatrix(matrix, contract) {
   if (isDefaultReleaseAdapter(contract) && (matrix.active_shell !== contract.active_shell || matrix.shell_root !== contract.shell_root)) {
@@ -86,7 +88,7 @@ export function validatePageStateMatrix(matrix, contract) {
       throw new Error(`First-launch readiness page must require Core item ${item}`);
     }
   }
-  for (const item of fullReadinessItems) {
+  for (const item of expectedFullReadinessItems) {
     if (!firstLaunchPage.launch_gate?.full_readiness_items?.includes(item)) {
       throw new Error(`First-launch readiness page must list ${item} as full readiness`);
     }

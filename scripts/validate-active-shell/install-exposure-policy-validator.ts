@@ -1,18 +1,20 @@
 import { assertIncludesAll, readJson } from './assertions.ts';
 import {
-  defaultCompanionSkillSyncIds,
   firstConversationFailurePolicy,
   firstConversationMustWaitFor,
   firstRunCoreItems,
   forbiddenAuthorityOwners,
-  fullReadinessItems,
 } from './app-contract-constants.ts';
 import { expectedDomainExposureEntryMap } from './domain-exposure-validator.ts';
 import { validateInstallExposureRuntimeAndDistribution } from './install-exposure-runtime-distribution-validator.ts';
 import { assertFirstRunProgressModelShape } from './shared-contract-validators.ts';
 import { productProfilePath } from './validation-config.ts';
 
-const expectedFirstRunProgressModel = readJson(productProfilePath).first_run?.progress_model;
+const productProfile = readJson(productProfilePath);
+const expectedFirstRunProgressModel = productProfile.first_run?.progress_model;
+const expectedCompanionSkillSyncIds = productProfile.companion_payloads?.companion_skill_sync_default_ids ?? [];
+const expectedFullReadinessItems = (productProfile.first_run?.full_readiness_layers ?? [])
+  .filter((item) => item !== 'core');
 assertFirstRunProgressModelShape(expectedFirstRunProgressModel, 'Product profile first-run progress model');
 
 function validateInstallExposureHeader(policy) {
@@ -114,7 +116,7 @@ function validateExposureClasses(policy) {
   }
   assertIncludesAll(
     companionClass?.members,
-    defaultCompanionSkillSyncIds,
+    expectedCompanionSkillSyncIds,
     'Install exposure companion skill members',
   );
   for (const forbiddenDomain of ['med-autoscience', 'med-autogrant', 'redcube-ai']) {
@@ -470,7 +472,7 @@ function validateFirstRunUserPresentation(presentation) {
   );
   assertIncludesAll(
     presentation.secondary_steps,
-    fullReadinessItems,
+    expectedFullReadinessItems,
     'Install exposure first-run secondary steps',
   );
   if (presentation.technical_detail_policy !== 'hidden_until_expanded_or_error') {
@@ -498,7 +500,7 @@ function validateSetupFlowContract(setupFlow) {
   );
   assertIncludesAll(
     setupFlow.full_readiness_non_blocking_items,
-    fullReadinessItems,
+    expectedFullReadinessItems,
     'Install exposure full readiness non-blocking items',
   );
   const firstConversation = setupFlow.first_conversation_readiness;
@@ -517,7 +519,7 @@ function validateSetupFlowContract(setupFlow) {
   );
   assertIncludesAll(
     firstConversation.must_not_wait_for,
-    fullReadinessItems,
+    expectedFullReadinessItems,
     'Install exposure first conversation non-blocking readiness items',
   );
 }

@@ -2,16 +2,11 @@ import path from 'node:path';
 import { assertDeepEqualJson, assertForbiddenCapabilityPolicy, assertIncludesAll } from './assertions.ts';
 import {
   appOwnedSettingsTabs,
-  defaultCompanionSkillSyncIds,
-  deferredMaintenanceItems,
-  ecosystemModuleIds,
   firstConversationFailurePolicy,
   firstConversationMustWaitFor,
   firstRunCoreItems,
   forbiddenAuthorityOwners,
-  fullReadinessItems,
   legacySettingsRouteRedirects,
-  requiredHostTools,
 } from './app-contract-constants.ts';
 import {
   defaultActiveShellContractPath,
@@ -58,6 +53,46 @@ const ordinaryForbiddenCapabilityPolicy = {
     'tl',
   ],
 };
+const requiredHostTools = [
+  'command_line_tools',
+  'homebrew',
+  'node',
+  'git',
+];
+const fullReadinessItems = [
+  'domain_modules',
+  'family_runtime_provider',
+  'recommended_skills',
+  'native_helpers',
+  'repo_sync',
+  'command_line_tools_install',
+  'ecosystem_module_updates',
+];
+const deferredMaintenanceItems = [
+  'repo_sync',
+  'module_reconcile',
+  'command_line_tools_install',
+  'native_helpers',
+  'companion_skills_install',
+  'ecosystem_module_updates',
+];
+const ecosystemModuleIds = ['officecli', 'mineru', 'opl-meta-agent'];
+const defaultCompanionSkillSyncIds = [
+  'superpowers',
+  'cron',
+  'officecli',
+  'officecli-docx',
+  'officecli-pptx',
+  'officecli-xlsx',
+  'officecli-academic-paper',
+  'officecli-data-dashboard',
+  'officecli-financial-model',
+  'officecli-pitch-deck',
+  'pdf',
+  'mineru-document-extractor',
+  'ui-ux-pro-max',
+];
+
 function validateProductProfileIdentity(profile) {
   assertAppProductProfileIdentity(profile, 'product profile');
 }

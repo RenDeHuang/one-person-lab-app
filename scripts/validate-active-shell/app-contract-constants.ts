@@ -208,45 +208,6 @@ export const taskRunProjectionV2FieldGroups = {
   diagnostics_ref: ["diagnostics_ref"],
 };
 
-export const requiredHostTools = [
-  "command_line_tools",
-  "homebrew",
-  "node",
-  "git",
-];
-export const fullReadinessItems = [
-  "domain_modules",
-  "family_runtime_provider",
-  "recommended_skills",
-  "native_helpers",
-  "repo_sync",
-  "command_line_tools_install",
-  "ecosystem_module_updates",
-];
-export const deferredMaintenanceItems = [
-  "repo_sync",
-  "module_reconcile",
-  "command_line_tools_install",
-  "native_helpers",
-  "companion_skills_install",
-  "ecosystem_module_updates",
-];
-export const ecosystemModuleIds = ["officecli", "mineru", "opl-meta-agent"];
-export const defaultCompanionSkillSyncIds = [
-  "superpowers",
-  "cron",
-  "officecli",
-  "officecli-docx",
-  "officecli-pptx",
-  "officecli-xlsx",
-  "officecli-academic-paper",
-  "officecli-data-dashboard",
-  "officecli-financial-model",
-  "officecli-pitch-deck",
-  "pdf",
-  "mineru-document-extractor",
-  "ui-ux-pro-max",
-];
 export const domainExposureEntries = [
   {
     domain_id: "med-autoscience",
