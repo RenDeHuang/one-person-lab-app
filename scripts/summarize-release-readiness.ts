@@ -18,6 +18,7 @@ import {
   arrayField,
   arrayOrEmpty,
   objectField,
+  readJsonFile,
   recordOrNull,
   stringField,
 } from './release-json-helpers.ts';
@@ -104,10 +105,6 @@ function parseArgs(argv: string[]): Options {
   };
 }
 
-function readJson(filePath: string) {
-  return JSON.parse(fs.readFileSync(filePath, 'utf8'));
-}
-
 function artifactDir(options: Options, artifactName: string) {
   return path.join(options.artifactsDir, artifactName);
 }
@@ -116,7 +113,7 @@ function readJobResults(options: Options) {
   if (!options.jobResultsPath || !fs.existsSync(options.jobResultsPath)) {
     return {};
   }
-  const payload = readJson(options.jobResultsPath);
+  const payload = readJsonFile(options.jobResultsPath);
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
     throw new Error('Release readiness job results must be a JSON object.');
   }
@@ -164,7 +161,7 @@ function jsonGate(options: Options, gate: {
     return missingGate(gate.required, gate.artifactName, `Missing ${gate.fileName} in ${gate.artifactName}.`);
   }
   try {
-    const payload = readJson(filePath);
+    const payload = readJsonFile(filePath);
     const record = payload && typeof payload === 'object' && !Array.isArray(payload)
       ? payload as Record<string, unknown>
       : {};
@@ -278,7 +275,7 @@ function readPreflightSummary(options: Options) {
   const artifactName = `release-preflight-summary-${options.version}`;
   const preflightPath = findFileByName(artifactDir(options, artifactName), 'release-preflight-summary.json');
   if (!preflightPath) return { artifactName, path: null, summary: null };
-  const summary = readJson(preflightPath);
+  const summary = readJsonFile(preflightPath);
   return {
     artifactName,
     path: path.relative(options.artifactsDir, preflightPath),
@@ -607,9 +604,9 @@ function readFullDiagnostics(options: Options, artifactName: string) {
             path.relative(options.artifactsDir, checksumPath),
           ].join(', '),
           fields: {
-            full_package_manifest: readJson(manifestPath),
-            full_package_size_summary: sizeSummaryPath ? readJson(sizeSummaryPath) : null,
-            runtime_cache_events: readJson(runtimeCacheEventsPath),
+            full_package_manifest: readJsonFile(manifestPath),
+            full_package_size_summary: sizeSummaryPath ? readJsonFile(sizeSummaryPath) : null,
+            runtime_cache_events: readJsonFile(runtimeCacheEventsPath),
           },
         }
       : missingGate(false, artifactName, 'Missing Full diagnostics manifest, runtime cache events, or SHA256SUMS.');
@@ -794,13 +791,13 @@ function buildSummary(options: Options) {
     .filter(([, gate]) => gate.required && gate.status !== 'passed')
     .map(([id, gate]) => ({ id, status: gate.status, reason: gate.reason || 'gate did not pass' }));
   const telemetryPath = findFileByName(artifactDir(options, fullTelemetryArtifactName), 'full-workflow-telemetry.json');
-  const fullPackage = telemetryPath ? readJson(telemetryPath) : null;
-  const manifest = manifestPath ? readJson(manifestPath) : null;
-  const runtimeCacheEvents = runtimeCacheEventsPath ? readJson(runtimeCacheEventsPath) : null;
+  const fullPackage = telemetryPath ? readJsonFile(telemetryPath) : null;
+  const manifest = manifestPath ? readJsonFile(manifestPath) : null;
+  const runtimeCacheEvents = runtimeCacheEventsPath ? readJsonFile(runtimeCacheEventsPath) : null;
   const sizeBudget = summarizeFullSizeBudget(gates.remote_release_verification);
   const sizeAnalysis = sizeSummaryPath
     ? {
-        ...readJson(sizeSummaryPath),
+        ...readJsonFile(sizeSummaryPath),
         source: 'full_package_size_summary_artifact',
       }
     : buildManifestSizeAnalysis(manifest, sizeBudget);
