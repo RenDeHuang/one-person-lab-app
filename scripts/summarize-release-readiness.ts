@@ -668,173 +668,25 @@ function buildSummary(options: Options) {
   const fullTelemetryArtifactName = `opl-full-workflow-telemetry-${options.version}`;
   const fullDiagnosticsArtifactName = `opl-full-diagnostics-${options.version}`;
 
-  const remoteGate = jsonGate(options, {
-    required: true,
-    artifactName: remoteArtifactName,
-    fileName: 'remote-release-verification.json',
-    validate: (payload) => {
-      const includeFullPackage = payload.include_full_package === true;
-      const fields = {
-        include_full_package: payload.include_full_package,
-        verified_asset_count: payload.verified_asset_count,
-        verified_assets: payload.verified_assets ?? [],
-        full_first_install_budget: payload.full_first_install_budget ?? null,
-      };
-      if (payload.status !== 'passed') return { reason: `Remote verification status is ${statusString(payload.status) || 'unknown'}.`, fields };
-      if (options.includeFullPackage && !includeFullPackage) return { reason: 'Remote verification did not include the Full package.', fields };
-      return { fields };
-    },
-  });
-
-  const vmGate = (artifactName: string, profile: string, required: boolean) => jsonGate(options, {
-    required,
-    artifactName,
-    fileName: 'tart-smoke-summary.json',
-    validate: (payload) => {
-      const fields = {
-        runtime_profile: payload.runtime_profile,
-        settings_smoke: payload.settings_smoke ?? null,
-      };
-      if (payload.status !== 'passed') return { reason: `VM smoke status is ${statusString(payload.status) || 'unknown'}.`, fields };
-      if (payload.runtime_profile !== profile) return { reason: `Expected runtime_profile ${profile}, got ${String(payload.runtime_profile)}.`, fields };
-      const settingsSmoke = payload.settings_smoke as Record<string, unknown> | undefined;
-      if (!settingsSmoke || settingsSmoke.status !== 'passed') return { reason: 'VM smoke did not include passed Settings evidence.', fields };
-      return { fields };
-    },
-  });
-
-  const homebrewTapGate = jsonGate(options, {
+  const remoteGate = buildRemoteReleaseVerificationGate(options, remoteArtifactName);
+  const homebrewTapGate = buildHomebrewTapGate(options, remoteGate, {
     required: true,
     artifactName: homebrewTapArtifactName,
-    fileName: 'homebrew-tap-plan.json',
-    validate: (payload) => {
-      const policy = objectField(payload, 'policy');
-      const fields: Record<string, unknown> = {
-        channel: payload.channel,
-        package_kind: payload.package_kind,
-        version: payload.version,
-        tap_repo: 'gaofeng21cn/homebrew-one-person-lab',
-        remote_write_mode: policy?.remote_write_mode ?? null,
-        publishes_or_pushes_remote: policy?.publishes_or_pushes_remote ?? null,
-      };
-      if (payload.channel !== 'stable') return { reason: `Homebrew tap plan channel is ${statusString(payload.channel) || 'unknown'}.`, fields };
-      if (payload.package_kind !== 'app_standard') return { reason: `Homebrew tap plan package_kind is ${statusString(payload.package_kind) || 'unknown'}.`, fields };
-      if (payload.version !== options.version) return { reason: `Homebrew tap plan version is ${statusString(payload.version) || 'unknown'}.`, fields };
-      if (policy?.remote_write_mode !== 'direct_commit' || policy?.publishes_or_pushes_remote !== true) {
-        return { reason: 'Stable Homebrew tap plan did not record direct_commit remote publication.', fields };
-      }
-      const digestReason = validateHomebrewDigestCoherence(payload, remoteGate, fields);
-      if (digestReason) return { reason: digestReason, fields };
-      return { fields };
-    },
+    label: 'Homebrew tap plan',
+    packageKind: 'app_standard',
+    remotePublicationReason: 'Stable Homebrew tap plan did not record direct_commit remote publication.',
   });
-  const fullHomebrewTapGate = jsonGate(options, {
+  const fullHomebrewTapGate = buildHomebrewTapGate(options, remoteGate, {
     required: options.includeFullPackage && options.runVmSmoke && options.releaseMode !== 'draft_candidate',
     artifactName: fullHomebrewTapArtifactName,
-    fileName: 'homebrew-tap-plan.json',
-    validate: (payload) => {
-      const policy = objectField(payload, 'policy');
-      const fields: Record<string, unknown> = {
-        channel: payload.channel,
-        package_kind: payload.package_kind,
-        version: payload.version,
-        tap_repo: 'gaofeng21cn/homebrew-one-person-lab',
-        remote_write_mode: policy?.remote_write_mode ?? null,
-        publishes_or_pushes_remote: policy?.publishes_or_pushes_remote ?? null,
-        full_first_install_allowed: policy?.full_first_install_allowed ?? null,
-        standard_updater_visible: policy?.standard_updater_visible ?? null,
-      };
-      if (payload.channel !== 'stable') return { reason: `Full Homebrew tap plan channel is ${statusString(payload.channel) || 'unknown'}.`, fields };
-      if (payload.package_kind !== 'app_full_first_install') return { reason: `Full Homebrew tap plan package_kind is ${statusString(payload.package_kind) || 'unknown'}.`, fields };
-      if (payload.version !== options.version) return { reason: `Full Homebrew tap plan version is ${statusString(payload.version) || 'unknown'}.`, fields };
-      if (policy?.remote_write_mode !== 'direct_commit' || policy?.publishes_or_pushes_remote !== true) {
-        return { reason: 'Full Homebrew tap plan did not record direct_commit remote publication.', fields };
-      }
-      if (policy?.full_first_install_allowed !== true || policy?.standard_updater_visible !== false) {
-        return { reason: 'Full Homebrew tap plan did not preserve Full first-install boundary policy.', fields };
-      }
-      const digestReason = validateHomebrewDigestCoherence(payload, remoteGate, fields);
-      if (digestReason) return { reason: digestReason, fields };
-      return { fields };
-    },
+    label: 'Full Homebrew tap plan',
+    packageKind: 'app_full_first_install',
+    remotePublicationReason: 'Full Homebrew tap plan did not record direct_commit remote publication.',
+    includeFullBoundaryPolicy: true,
   });
-
   const operatorEvidenceBundleArtifactName = `release-evidence-bundle-${options.version}`;
-  const operatorEvidenceBundleGate = jsonGate(options, {
-    required: false,
-    artifactName: operatorEvidenceBundleArtifactName,
-    fileName: 'evidence-validation-summary.json',
-    validate: (payload) => {
-      const forbiddenAuthority = arrayOrEmpty(payload.forbidden_authority);
-      const fields = {
-        bundle_dir: payload.bundle_dir ?? null,
-        manifest_path: payload.manifest_path ?? null,
-        packaged_app_evidence: payload.packaged_app_evidence ?? null,
-        authority_boundary: payload.authority_boundary ?? payload.evidence_boundary ?? null,
-        verified_artifact_count: payload.verified_artifact_count ?? null,
-        missing_artifact_count: payload.missing_artifact_count ?? null,
-        blocked_artifact_count: payload.blocked_artifact_count ?? null,
-        l5_evidence_readout: payload.l5_evidence_readout ?? null,
-      };
-      if (payload.status !== 'passed') return { reason: `Operator evidence bundle status is ${statusString(payload.status) || 'unknown'}.`, fields };
-      if (payload.packaged_app_evidence !== true) return { reason: 'Operator evidence bundle did not claim packaged_app_evidence=true.', fields };
-      if ((payload.authority_boundary ?? payload.evidence_boundary) !== 'refs_only_no_runtime_truth_domain_truth_artifact_or_quality_authority') {
-        return { reason: 'Operator evidence bundle did not preserve refs-only authority boundary.', fields };
-      }
-      if (Number(payload.missing_artifact_count) !== 0 || Number(payload.blocked_artifact_count) !== 0) {
-        return { reason: 'Operator evidence bundle has missing or blocked artifacts.', fields };
-      }
-      for (const forbidden of [
-        'runtime_truth',
-        'provider_implementation',
-        'domain_truth',
-        'domain_quality_verdict',
-        'domain_artifact_authority',
-      ]) {
-        if (!forbiddenAuthority.includes(forbidden)) {
-          return { reason: `Operator evidence bundle is missing forbidden authority marker ${forbidden}.`, fields };
-        }
-      }
-      return { fields };
-    },
-  });
-
-  const oneShotGate = jsonGate(options, {
-    required: true,
-    artifactName: oneShotArtifactName,
-    fileName: 'opl-one-shot-system-initialize.json',
-    validate: (payload) => {
-      const systemInitialize = recordOrNull(payload.system_initialize);
-      const setupFlow = recordOrNull(systemInitialize?.setup_flow);
-      const fields: Record<string, unknown> = {
-        installer_entry: './install.sh --complete --skip-modules',
-        bootstrap_status_source: 'workflow job result one-shot-app-installer-smoke',
-        initialization_command: 'opl system initialize --json',
-        initialization_source: 'system_initialize.setup_flow',
-        artifact_files: ['opl-one-shot-system-initialize.json'],
-        setup_flow_status: setupFlow?.status ?? payload.status ?? null,
-        setup_flow_phase: setupFlow?.phase ?? null,
-        core_progress: recordOrNull(setupFlow?.core_progress),
-        full_readiness_progress: recordOrNull(setupFlow?.full_readiness_progress),
-        maintenance_progress: recordOrNull(setupFlow?.maintenance_progress),
-        blockers: arrayOrEmpty(setupFlow?.blockers),
-        next_visible_step: setupFlow?.next_visible_step ?? null,
-        retry_detected: false,
-        skip_modules: true,
-      };
-      if (payload.status === 'failed') {
-        const error = recordOrNull(payload.error);
-        if (error) fields.error = error;
-        const message = typeof error?.message === 'string' ? error.message : 'One-shot installer reported failed status.';
-        return { reason: message, fields };
-      }
-      if (setupFlow?.status && !['ready_to_launch', 'passed', 'initialized'].includes(String(setupFlow.status))) {
-        return { reason: `One-shot setup_flow status is ${String(setupFlow.status)}.`, fields };
-      }
-      return { fields };
-    },
-  });
-
+  const operatorEvidenceBundleGate = buildOperatorEvidenceBundleGate(options, operatorEvidenceBundleArtifactName);
+  const oneShotGate = buildOneShotGate(options, oneShotArtifactName);
   const dockerGate = textArtifactGate(options, {
     required: true,
     artifactName: dockerArtifactName,
@@ -844,162 +696,23 @@ function buildSummary(options: Options) {
       'opl-webui-image-size-bytes.txt',
     ],
   });
-
-  const webuiGhcrGate = jsonGate(options, {
-    required: true,
-    artifactName: webuiGhcrArtifactName,
-    fileName: 'opl-webui-ghcr-publish.json',
-    validate: (payload) => {
-      const tags = arrayOrEmpty(payload.tags);
-      const fields = {
-        image: payload.image,
-        tags,
-        draft_candidate_push: payload.draft_candidate_push ?? null,
-        build_reuse: payload.build_reuse ?? null,
-        package_access_required: payload.package_access_required ?? null,
-        error: payload.error ?? null,
-      };
-      if (options.releaseMode === 'draft_candidate') {
-        if (payload.status !== 'draft_not_pushed') {
-          return { reason: `Draft WebUI GHCR publish status is ${statusString(payload.status) || 'unknown'}.`, fields };
-        }
-        if (payload.draft_candidate_push !== false) {
-          return { reason: 'Draft WebUI GHCR publish must not push tags.', fields };
-        }
-        return { fields };
-      }
-      if (payload.status !== 'published') {
-        return { reason: `WebUI GHCR publish status is ${statusString(payload.status) || 'unknown'}.`, fields };
-      }
-      for (const requiredTag of [options.version, 'stable']) {
-        if (!tags.includes(requiredTag)) {
-          return { reason: `WebUI GHCR publish summary is missing tag ${requiredTag}.`, fields };
-        }
-      }
-      return { fields };
-    },
-  });
-
+  const webuiGhcrGate = buildWebuiGhcrGate(options, webuiGhcrArtifactName);
   const dockerCleanVmEvidenceArtifactName = `docker-webui-clean-vm-evidence-${options.version}`;
-  const dockerCleanVmEvidenceGate = jsonGate(options, {
-    required: true,
-    artifactName: dockerCleanVmEvidenceArtifactName,
-    fileName: 'docker-webui-clean-vm-evidence-validation.json',
-    validate: (payload) => {
-      const summaries = Array.isArray(payload.summaries)
-        ? payload.summaries.filter((summary) => summary && typeof summary === 'object' && !Array.isArray(summary)) as Record<string, unknown>[]
-        : [];
-      const cleanLinux = summaries.find((summary) => summary.gate_id === 'clean_linux_vm') ?? null;
-      const cleanWindows = summaries.find((summary) => summary.gate_id === 'clean_windows_vm') ?? null;
-      const fields = {
-        aggregate_status: payload.status ?? null,
-        required_gates: Array.isArray(payload.required_gates) ? payload.required_gates : [],
-        optional_gates: Array.isArray(payload.optional_gates) ? payload.optional_gates : [],
-        clean_linux_vm: cleanLinux,
-        clean_windows_vm: cleanWindows,
-        release_readiness_policy: payload.release_readiness_policy ?? null,
-      };
-      if (payload.schema !== 'opl_docker_webui_clean_vm_evidence_validation.v1') {
-        return { reason: 'Docker WebUI clean VM evidence validation schema is not opl_docker_webui_clean_vm_evidence_validation.v1.', fields };
-      }
-      if (payload.status !== 'passed') {
-        const blocker = cleanWindows?.typed_blocker && typeof cleanWindows.typed_blocker === 'object' && !Array.isArray(cleanWindows.typed_blocker)
-          ? cleanWindows.typed_blocker as Record<string, unknown>
-          : cleanLinux?.typed_blocker && typeof cleanLinux.typed_blocker === 'object' && !Array.isArray(cleanLinux.typed_blocker)
-            ? cleanLinux.typed_blocker as Record<string, unknown>
-            : null;
-        const blockerCode = typeof blocker?.code === 'string' ? ` (${blocker.code})` : '';
-        return { reason: `Docker WebUI clean VM evidence status is ${statusString(payload.status) || 'unknown'}${blockerCode}.`, fields };
-      }
-      if (cleanLinux?.status !== 'passed') {
-        return {
-          reason: `Docker WebUI clean VM evidence requires clean_linux_vm to pass; got Linux=${statusString(cleanLinux?.status) || 'missing'}.`,
-          fields,
-        };
-      }
-      return { fields };
-    },
-  });
-
-  const fullTelemetryGate = jsonGate(options, {
-    required: false,
-    artifactName: fullTelemetryArtifactName,
-    fileName: 'full-workflow-telemetry.json',
-    validate: (payload) => {
-      const durationSeconds = payload.duration_seconds as Record<string, unknown> | undefined;
-      const breakdown = durationSeconds?.full_package_build_breakdown as Record<string, unknown> | undefined;
-      const requiredBreakdown = [
-        'runtime_materialize',
-        'runtime_cache_materialize',
-        'payload_sync',
-        'shell_build',
-        'dmg_package_compression',
-        'manifest_checksum',
-      ];
-      const fields = {
-        cache: payload.cache ?? null,
-        duration_seconds: durationSeconds ?? null,
-        resolved_refs: payload.resolved_refs ?? null,
-      };
-      if (payload.schema !== 'opl_full_workflow_telemetry.v1') return { reason: 'Full telemetry schema is not opl_full_workflow_telemetry.v1.', fields };
-      if (!durationSeconds || typeof durationSeconds.full_package_build !== 'number') return { reason: 'Full telemetry is missing duration_seconds.full_package_build.', fields };
-      if (!breakdown || typeof breakdown !== 'object') return { reason: 'Full telemetry is missing duration_seconds.full_package_build_breakdown.', fields };
-      const missing = requiredBreakdown.filter((key) => typeof breakdown[key] !== 'number');
-      if (missing.length > 0) return { reason: `Full telemetry breakdown is missing numeric fields: ${missing.join(', ')}.`, fields };
-      return { fields };
-    },
-  });
-
-  const fullDiagnosticsRoot = artifactDir(options, fullDiagnosticsArtifactName);
-  const manifestPath = findFileByName(fullDiagnosticsRoot, 'full-package-manifest.json');
-  const sizeSummaryPath = findFileByName(fullDiagnosticsRoot, 'full-package-size-summary.json');
-  const runtimeCacheEventsPath = findFileByName(fullDiagnosticsRoot, 'runtime-cache-events.json');
-  const checksumPath = findFileByName(fullDiagnosticsRoot, 'SHA256SUMS.txt');
-  const fullDiagnosticsGate: GateSummary = !options.includeFullPackage
-    ? missingGate(false, fullDiagnosticsArtifactName, 'Full package is not included.')
-    : manifestPath && runtimeCacheEventsPath && checksumPath
-      ? {
-          status: 'passed',
-          required: false,
-          artifact_name: fullDiagnosticsArtifactName,
-          artifact_path: [
-            path.relative(options.artifactsDir, manifestPath),
-            ...(sizeSummaryPath ? [path.relative(options.artifactsDir, sizeSummaryPath)] : []),
-            path.relative(options.artifactsDir, runtimeCacheEventsPath),
-            path.relative(options.artifactsDir, checksumPath),
-          ].join(', '),
-          fields: {
-            full_package_manifest: readJson(manifestPath),
-            full_package_size_summary: sizeSummaryPath ? readJson(sizeSummaryPath) : null,
-            runtime_cache_events: readJson(runtimeCacheEventsPath),
-          },
-        }
-      : missingGate(false, fullDiagnosticsArtifactName, 'Missing Full diagnostics manifest, runtime cache events, or SHA256SUMS.');
-
-  const fullSizeCacheTimingGate: GateSummary = options.includeFullPackage
-    ? fullTelemetryGate.status === 'passed' && fullDiagnosticsGate.status === 'passed'
-      ? {
-          status: 'passed',
-          required: false,
-          artifact_name: `${fullTelemetryArtifactName}, ${fullDiagnosticsArtifactName}`,
-          fields: {
-            diagnostic_only: true,
-            telemetry: fullTelemetryGate.fields,
-            diagnostics: fullDiagnosticsGate.fields,
-          },
-        }
-      : {
-          status: 'skipped',
-          required: false,
-          artifact_name: `${fullTelemetryArtifactName}, ${fullDiagnosticsArtifactName}`,
-          reason: [fullTelemetryGate.reason, fullDiagnosticsGate.reason].filter(Boolean).join(' '),
-          fields: {
-            diagnostic_only: true,
-            telemetry_status: fullTelemetryGate.status,
-            diagnostics_status: fullDiagnosticsGate.status,
-          },
-        }
-    : missingGate(false, `${fullTelemetryArtifactName}, ${fullDiagnosticsArtifactName}`, 'Full package is not included.');
+  const dockerCleanVmEvidenceGate = buildDockerCleanVmEvidenceGate(options, dockerCleanVmEvidenceArtifactName);
+  const fullTelemetryGate = buildFullTelemetryGate(options, fullTelemetryArtifactName);
+  const {
+    gate: fullDiagnosticsGate,
+    manifestPath,
+    sizeSummaryPath,
+    runtimeCacheEventsPath,
+  } = readFullDiagnostics(options, fullDiagnosticsArtifactName);
+  const fullSizeCacheTimingGate = buildFullSizeCacheTimingGate(
+    options,
+    fullTelemetryGate,
+    fullTelemetryArtifactName,
+    fullDiagnosticsGate,
+    fullDiagnosticsArtifactName,
+  );
 
   const selectedRemoteJob = options.includeFullPackage ? 'remote-verify-full' : 'remote-verify-standard';
   const selectedStandardVmJob = options.includeFullPackage
@@ -1010,7 +723,7 @@ function buildSummary(options: Options) {
     remote_release_verification: applyJobResult(remoteGate, jobResults, selectedRemoteJob, true),
     standard_dmg_clean_vm: applyJobResult(
       options.runVmSmoke
-        ? vmGate(standardVmArtifactName, 'standard', true)
+        ? buildVmSmokeGate(options, standardVmArtifactName, 'standard', true)
         : missingGate(false, standardVmArtifactName, 'VM smoke disabled for this run.'),
       jobResults,
       selectedStandardVmJob,
@@ -1034,7 +747,7 @@ function buildSummary(options: Options) {
     ),
     homebrew_standard_cask_clean_vm: applyJobResult(
       stableHomebrewRequired
-        ? vmGate(homebrewVmArtifactName, 'standard', true)
+        ? buildVmSmokeGate(options, homebrewVmArtifactName, 'standard', true)
         : missingGate(false, homebrewVmArtifactName, options.runVmSmoke ? homebrewReadiness.reason || 'Stable Homebrew VM smoke is not required for this run.' : 'VM smoke disabled for this run.'),
       jobResults,
       'homebrew-standard-first-run-vm-smoke',
@@ -1042,7 +755,7 @@ function buildSummary(options: Options) {
     ),
     full_dmg_clean_vm: applyJobResult(
       options.includeFullPackage && options.runVmSmoke
-        ? vmGate(fullVmArtifactName, 'full', true)
+        ? buildVmSmokeGate(options, fullVmArtifactName, 'full', true)
         : missingGate(false, fullVmArtifactName, options.includeFullPackage ? 'VM smoke disabled for this run.' : 'Full package is not included.'),
       jobResults,
       'full-first-run-vm-smoke',
