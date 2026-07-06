@@ -55,7 +55,7 @@ export const requiredSkillByAssistantId = {
   'redcube-ai': 'redcube-ai',
   'opl-bookforge': 'opl-bookforge',
 };
-export const codexEntryByPackageId = {
+const codexEntryByPackageId = {
   'med-autoscience': 'med-autoscience',
   'med-autogrant': 'med-autogrant',
   'redcube-ai': 'redcube-ai',
