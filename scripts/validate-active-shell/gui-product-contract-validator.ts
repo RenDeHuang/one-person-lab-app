@@ -457,7 +457,7 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   }
   assertDeepEqualJson(
     invocationReceiptPolicy.required_for_package_shortcuts,
-    ['research', 'grant', 'ppt', 'book'],
+    ['research', 'grant', 'ppt', 'book', 'oma'],
     'App GUI agent package shortcut receipt ids',
   );
   assertIncludesAll(

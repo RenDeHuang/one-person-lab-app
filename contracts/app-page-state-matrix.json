@@ -217,6 +217,22 @@
             "home_entry_policy": "visible_click_to_start",
             "default_visible": true,
             "user_configurable": true
+          },
+          {
+            "shortcut_id": "oma",
+            "package_id": "opl-meta-agent",
+            "primary_label": "OMA",
+            "package_short_name": "OMA",
+            "codex_visible_entry": "opl-meta-agent",
+            "required_skill_ids": [
+              "opl-meta-agent"
+            ],
+            "source": "opl_app_home",
+            "executor": "codex_cli",
+            "display_policy": "purpose_first",
+            "home_entry_policy": "visible_click_to_start",
+            "default_visible": false,
+            "user_configurable": true
           }
         ],
         "home_purpose_entries": [

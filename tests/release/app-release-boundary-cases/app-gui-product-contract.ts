@@ -279,7 +279,7 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   assert.ok(guiContract.assistant_skill_profiles.every((profile) => !('hidden_home_skill_names' in profile)));
   assert.ok(guiContract.assistant_skill_profiles.every((profile) => !profile.optional_skills.includes('morph-ppt')));
   assert.equal(guiContract.agent_package_invocation_receipt_policy.scope, 'package_shortcut_launch_to_codex_conversation');
-  assert.deepEqual(guiContract.agent_package_invocation_receipt_policy.required_for_package_shortcuts, ['research', 'grant', 'ppt', 'book']);
+  assert.deepEqual(guiContract.agent_package_invocation_receipt_policy.required_for_package_shortcuts, ['research', 'grant', 'ppt', 'book', 'oma']);
   assert.equal(guiContract.agent_package_invocation_receipt_policy.route_kind, 'agent_package_shortcut');
   assert.equal(guiContract.agent_package_invocation_receipt_policy.executor, 'codex_cli');
   assert.equal(guiContract.agent_package_invocation_receipt_policy.source, 'opl_app_home');
@@ -394,10 +394,12 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   assert.deepEqual(guiContract.home_purpose_entries.map((entry) => entry.primary_label), ['科研', '基金', '演示', '写书']);
   assert.deepEqual(guiContract.home_purpose_entries.map((entry) => entry.target_assistant_id), ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge']);
   assert.ok(guiContract.home_purpose_entries.every((entry) => entry.display_policy === 'purpose_first'));
-  assert.deepEqual(guiContract.home_agent_shortcuts.map((entry) => entry.shortcut_id), ['research', 'grant', 'ppt', 'book']);
-  assert.deepEqual(guiContract.home_agent_shortcuts.map((entry) => entry.package_id), ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge']);
+  assert.deepEqual(guiContract.home_agent_shortcuts.map((entry) => entry.shortcut_id), ['research', 'grant', 'ppt', 'book', 'oma']);
+  assert.deepEqual(guiContract.home_agent_shortcuts.map((entry) => entry.package_id), ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge', 'opl-meta-agent']);
   assert.ok(guiContract.home_agent_shortcuts.every((entry) => entry.executor === 'codex_cli' && entry.source === 'opl_app_home'));
-  assert.ok(guiContract.home_agent_shortcuts.every((entry) => entry.default_visible === true && entry.user_configurable === true));
+  assert.ok(guiContract.home_agent_shortcuts.filter((entry) => entry.shortcut_id !== 'oma').every((entry) => entry.default_visible === true && entry.user_configurable === true));
+  assert.equal(guiContract.home_agent_shortcuts.find((entry) => entry.shortcut_id === 'oma').default_visible, false);
+  assert.equal(guiContract.home_agent_shortcuts.find((entry) => entry.shortcut_id === 'oma').user_configurable, true);
   assert.equal(guiContract.non_default_assistants.find((assistant) => assistant.id === 'opl-meta-agent').home_default_visible, false);
   assert.equal(guiContract.retired_domain_agents.find((agent) => agent.id === 'mds').default_display_allowed, false);
   assert.equal(

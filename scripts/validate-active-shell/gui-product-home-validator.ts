@@ -9,6 +9,8 @@ import { validateGuiProductAuthority } from './gui-product-authority-validator.t
 
 const defaultAssistantIds = ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge'];
 const purposeEntryIds = ['research', 'grant', 'ppt', 'book'];
+const managedShortcutIds = [...purposeEntryIds, 'oma'];
+const managedShortcutPackageIds = [...defaultAssistantIds, 'opl-meta-agent'];
 const managedPackageIds = [...defaultAssistantIds, 'opl-meta-agent'];
 const requiredSkillByAssistantId = {
   'med-autoscience': 'med-autoscience',
@@ -216,9 +218,9 @@ function validateProfessionalAgentPackages(guiContract) {
     if (entry.package_id === 'opl-meta-agent' && (
       entry.package_kind !== 'managed_professional_agent_package' ||
       entry.default_home_visible !== false ||
-      entry.home_shortcut_ids.length !== 0
+      JSON.stringify(entry.home_shortcut_ids) !== JSON.stringify(['oma'])
     )) {
-      throw new Error('App GUI contract must keep OMA installed/manageable but out of default home shortcuts');
+      throw new Error('App GUI contract must keep OMA installed/manageable, hidden by default, and configurable from Home shortcuts');
     }
   }
 }
@@ -268,12 +270,12 @@ function validatePurposeEntries(guiContract) {
   const shortcuts = guiContract.home_agent_shortcuts ?? [];
   assertDeepEqualJson(
     shortcuts.map((entry) => entry.shortcut_id),
-    purposeEntryIds,
+    managedShortcutIds,
     'App GUI contract home agent shortcuts',
   );
   assertDeepEqualJson(
     shortcuts.map((entry) => entry.package_id),
-    defaultAssistantIds,
+    managedShortcutPackageIds,
     'App GUI contract home agent shortcut package targets',
   );
   for (const entry of shortcuts) {
@@ -282,11 +284,17 @@ function validatePurposeEntries(guiContract) {
       entry.source !== 'opl_app_home' ||
       entry.display_policy !== 'purpose_first' ||
       entry.home_entry_policy !== 'visible_click_to_start' ||
-      entry.default_visible !== true ||
       entry.user_configurable !== true ||
       JSON.stringify(entry.required_skill_ids) !== JSON.stringify(requiredSkillByPackageId[entry.package_id])
     ) {
       throw new Error(`App GUI home agent shortcut ${entry.shortcut_id} must be a configurable Codex package launch shortcut`);
+    }
+    if (entry.package_id === 'opl-meta-agent') {
+      if (entry.shortcut_id !== 'oma' || entry.default_visible !== false) {
+        throw new Error('App GUI OMA shortcut must be user-configurable but hidden by default');
+      }
+    } else if (entry.default_visible !== true) {
+      throw new Error(`App GUI home agent shortcut ${entry.shortcut_id} must be visible by default`);
     }
   }
 }

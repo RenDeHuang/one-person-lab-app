@@ -1134,12 +1134,14 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'grant',
     'ppt',
     'book',
+    'oma',
   ]);
   assert.deepEqual(guidHomePage.home_view_model.home_agent_shortcuts.map((entry) => entry.package_id), [
     'med-autoscience',
     'med-autogrant',
     'redcube-ai',
     'opl-bookforge',
+    'opl-meta-agent',
   ]);
   assert.deepEqual(guidHomePage.home_view_model.home_purpose_entries.map((entry) => entry.id), [
     'research',

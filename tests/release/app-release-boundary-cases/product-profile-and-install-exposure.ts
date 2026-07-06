@@ -264,10 +264,12 @@ test('App product profile owns user-facing defaults without runtime authority', 
   assert.deepEqual(profile.gui.home.home_purpose_entries.map((entry) => entry.primary_label), ['科研', '基金', '演示', '写书']);
   assert.deepEqual(profile.gui.home.home_purpose_entries.map((entry) => entry.target_assistant_id), ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge']);
   assert.ok(profile.gui.home.home_purpose_entries.every((entry) => entry.display_policy === 'purpose_first'));
-  assert.deepEqual(profile.gui.home.home_agent_shortcuts.map((entry) => entry.shortcut_id), ['research', 'grant', 'ppt', 'book']);
-  assert.deepEqual(profile.gui.home.home_agent_shortcuts.map((entry) => entry.package_id), ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge']);
+  assert.deepEqual(profile.gui.home.home_agent_shortcuts.map((entry) => entry.shortcut_id), ['research', 'grant', 'ppt', 'book', 'oma']);
+  assert.deepEqual(profile.gui.home.home_agent_shortcuts.map((entry) => entry.package_id), ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge', 'opl-meta-agent']);
   assert.ok(profile.gui.home.home_agent_shortcuts.every((entry) => entry.executor === 'codex_cli' && entry.source === 'opl_app_home'));
-  assert.ok(profile.gui.home.home_agent_shortcuts.every((entry) => entry.default_visible === true && entry.user_configurable === true));
+  assert.ok(profile.gui.home.home_agent_shortcuts.filter((entry) => entry.shortcut_id !== 'oma').every((entry) => entry.default_visible === true && entry.user_configurable === true));
+  assert.equal(profile.gui.home.home_agent_shortcuts.find((entry) => entry.shortcut_id === 'oma').default_visible, false);
+  assert.equal(profile.gui.home.home_agent_shortcuts.find((entry) => entry.shortcut_id === 'oma').user_configurable, true);
   assert.deepEqual(profile.gui.professional_agent_packages.map((pkg) => pkg.package_id), ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge', 'opl-meta-agent']);
   assert.deepEqual(
     Object.fromEntries(profile.gui.professional_agent_packages.map((pkg) => [pkg.package_id, pkg.required_skill_ids])),
@@ -279,6 +281,7 @@ test('App product profile owns user-facing defaults without runtime authority', 
   );
   assert.ok(profile.gui.professional_agent_packages.filter((pkg) => pkg.package_id !== 'opl-meta-agent').every((pkg) => pkg.default_home_visible === true));
   assert.equal(profile.gui.professional_agent_packages.find((pkg) => pkg.package_id === 'opl-meta-agent').default_home_visible, false);
+  assert.deepEqual(profile.gui.professional_agent_packages.find((pkg) => pkg.package_id === 'opl-meta-agent').home_shortcut_ids, ['oma']);
   assert.deepEqual(profile.gui.default_assistants.map((assistant) => assistant.id), ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge']);
   assert.ok(profile.gui.default_assistants.every((assistant) => assistant.home_entry_policy === 'purpose_entry_target'));
   assert.deepEqual(profile.gui.assistant_skill_profiles.map((profile) => profile.assistant_id), ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge']);
@@ -300,7 +303,7 @@ test('App product profile owns user-facing defaults without runtime authority', 
   assert.ok(profile.gui.assistant_skill_profiles.every((profile) => !('hidden_home_skill_names' in profile)));
   assert.ok(profile.gui.assistant_skill_profiles.every((profile) => !profile.optional_skills.includes('morph-ppt')));
   assert.equal(profile.gui.agent_package_invocation_receipt_policy.scope, 'package_shortcut_launch_to_codex_conversation');
-  assert.deepEqual(profile.gui.agent_package_invocation_receipt_policy.required_for_package_shortcuts, ['research', 'grant', 'ppt', 'book']);
+  assert.deepEqual(profile.gui.agent_package_invocation_receipt_policy.required_for_package_shortcuts, ['research', 'grant', 'ppt', 'book', 'oma']);
   assert.equal(profile.gui.agent_package_invocation_receipt_policy.route_kind, 'agent_package_shortcut');
   assert.equal(profile.gui.agent_package_invocation_receipt_policy.executor, 'codex_cli');
   assert.equal(profile.gui.agent_package_invocation_receipt_policy.source, 'opl_app_home');

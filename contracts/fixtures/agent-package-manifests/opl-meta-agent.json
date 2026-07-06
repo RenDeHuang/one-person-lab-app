@@ -41,7 +41,17 @@
       "install_mode": "bundled_required"
     }
   ],
-  "entrypoints": [],
+  "entrypoints": [
+    {
+      "shortcut_id": "oma",
+      "label": "OMA",
+      "required_skill_ids": [
+        "opl-meta-agent"
+      ],
+      "shortcut_eligible": true,
+      "default_visible": false
+    }
+  ],
   "health_check": {
     "kind": "opl_package_receipt",
     "required_surfaces": [

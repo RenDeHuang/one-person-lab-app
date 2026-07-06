@@ -138,11 +138,11 @@ function validateGuidHomeRouteAndPurpose(homeViewModel) {
     'Guid home page route receipt non-authority fields',
   );
   const homeAgentShortcuts = homeViewModel.home_agent_shortcuts ?? [];
-  if (JSON.stringify(homeAgentShortcuts.map((entry) => entry.shortcut_id)) !== JSON.stringify(['research', 'grant', 'ppt', 'book'])) {
-    throw new Error('Guid home page must expose research, grant, ppt, and book package shortcuts');
+  if (JSON.stringify(homeAgentShortcuts.map((entry) => entry.shortcut_id)) !== JSON.stringify(['research', 'grant', 'ppt', 'book', 'oma'])) {
+    throw new Error('Guid home page must expose MAS, MAG, RCA, OBF, and OMA package shortcuts');
   }
-  if (JSON.stringify(homeAgentShortcuts.map((entry) => entry.package_id)) !== JSON.stringify(['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge'])) {
-    throw new Error('Guid home page package shortcuts must target MAS, MAG, RCA, and OBF');
+  if (JSON.stringify(homeAgentShortcuts.map((entry) => entry.package_id)) !== JSON.stringify(['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge', 'opl-meta-agent'])) {
+    throw new Error('Guid home page package shortcuts must target MAS, MAG, RCA, OBF, and OMA');
   }
   const homePurposeEntries = homeViewModel.home_purpose_entries ?? [];
   if (JSON.stringify(homePurposeEntries.map((entry) => entry.id)) !== JSON.stringify(['research', 'grant', 'ppt', 'book'])) {

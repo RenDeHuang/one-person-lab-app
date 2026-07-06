@@ -45,6 +45,8 @@ const developerProfileCapabilityAxes = [
 ];
 const starterPackageIds = ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge'];
 const starterShortcutIds = ['research', 'grant', 'ppt', 'book'];
+const managedShortcutIds = [...starterShortcutIds, 'oma'];
+const managedShortcutPackageIds = [...starterPackageIds, 'opl-meta-agent'];
 const requiredSkillByPackageId = {
   'med-autoscience': ['med-autoscience'],
   'med-autogrant': ['med-autogrant'],
@@ -450,11 +452,11 @@ function assertHomePurposeEntries(profile: AppProductProfile): void {
     }
   }
   const shortcuts = profile.gui.home.home_agent_shortcuts ?? [];
-  if (JSON.stringify(shortcuts.map((entry) => entry.shortcut_id)) !== JSON.stringify(starterShortcutIds)) {
-    throw new Error('App product profile GUI home must expose configurable research, grant, ppt, and book package shortcuts');
+  if (JSON.stringify(shortcuts.map((entry) => entry.shortcut_id)) !== JSON.stringify(managedShortcutIds)) {
+    throw new Error('App product profile GUI home must expose configurable MAS, MAG, RCA, OBF, and OMA package shortcuts');
   }
-  if (JSON.stringify(shortcuts.map((entry) => entry.package_id)) !== JSON.stringify(starterPackageIds)) {
-    throw new Error('App product profile GUI home shortcuts must target MAS, MAG, RCA, and BookForge packages');
+  if (JSON.stringify(shortcuts.map((entry) => entry.package_id)) !== JSON.stringify(managedShortcutPackageIds)) {
+    throw new Error('App product profile GUI home shortcuts must target MAS, MAG, RCA, OBF, and OMA packages');
   }
   for (const shortcut of shortcuts) {
     const expectedSkills = requiredSkillByPackageId[shortcut.package_id as keyof typeof requiredSkillByPackageId];
@@ -463,11 +465,17 @@ function assertHomePurposeEntries(profile: AppProductProfile): void {
       shortcut.source !== 'opl_app_home' ||
       shortcut.display_policy !== 'purpose_first' ||
       shortcut.home_entry_policy !== 'visible_click_to_start' ||
-      shortcut.default_visible !== true ||
       shortcut.user_configurable !== true ||
       JSON.stringify(shortcut.required_skill_ids) !== JSON.stringify(expectedSkills)
     ) {
       throw new Error(`App product profile GUI home shortcut ${shortcut.shortcut_id} must be a configurable Codex package launch shortcut`);
+    }
+    if (shortcut.package_id === 'opl-meta-agent') {
+      if (shortcut.shortcut_id !== 'oma' || shortcut.default_visible !== false) {
+        throw new Error('App product profile OMA shortcut must be user-configurable but hidden by default');
+      }
+    } else if (shortcut.default_visible !== true) {
+      throw new Error(`App product profile shortcut ${shortcut.shortcut_id} must be visible by default`);
     }
   }
   assertStringArray(
@@ -640,9 +648,9 @@ function assertProfessionalAgentPackages(profile: AppProductProfile): void {
     if (entry.package_id === 'opl-meta-agent' && (
       entry.package_kind !== 'managed_professional_agent_package' ||
       entry.default_home_visible !== false ||
-      entry.home_shortcut_ids.length !== 0
+      JSON.stringify(entry.home_shortcut_ids) !== JSON.stringify(['oma'])
     )) {
-      throw new Error('App product profile must keep OMA installed/manageable but out of default home shortcuts');
+      throw new Error('App product profile must keep OMA installed/manageable, hidden by default, and configurable from Home shortcuts');
     }
   }
 }

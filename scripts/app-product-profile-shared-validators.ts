@@ -41,6 +41,7 @@ type RouteReceiptOptions = {
 
 const starterPackageIds = ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge'];
 const starterShortcutIds = ['research', 'grant', 'ppt', 'book'];
+const managedShortcutIds = [...starterShortcutIds, 'oma'];
 const agentPackageReceiptRequiredFields = [
   'route_kind',
   'executor',
@@ -293,9 +294,9 @@ export function assertAppProductProfileRouteReceiptPolicy(
     throw new Error(`${label} must require agent package shortcut Codex CLI launch receipts`);
   }
   if (options.requireExactAssistants) {
-    assertExactStringArray(policy.required_for_package_shortcuts, starterShortcutIds, `${label} package shortcut receipt ids`);
+    assertExactStringArray(policy.required_for_package_shortcuts, managedShortcutIds, `${label} package shortcut receipt ids`);
   } else {
-    assertStringArrayIncludes(policy.required_for_package_shortcuts, starterShortcutIds, `${label} package shortcut receipt ids`);
+    assertStringArrayIncludes(policy.required_for_package_shortcuts, managedShortcutIds, `${label} package shortcut receipt ids`);
   }
   assertStringArrayIncludes(
     policy.required_fields,
