@@ -63,6 +63,8 @@ test('runtime substrate and companion tools are separate App-owned managed chann
   assert.equal(runtimeUpdater.homebrew_tap_write_allowed, false);
   assert.equal(runtimeUpdater.managed_update_plane, 'runtime_substrate');
   assert.equal(runtimeUpdater.adapter, 'runtime_substrate_adapter');
+  assert.equal(runtimeUpdater.channel_model, 'stable_nightly_release_cohort');
+  assert.equal(runtimeUpdater.rolling_latest_allowed, false);
   assert.equal(runtimeUpdater.legacy_alias, 'runtime_toolchain_updater');
   assert.deepEqual(runtimeUpdater.managed_components, [
     'embedded_codex_executor',
@@ -130,6 +132,8 @@ test('runtime substrate and companion tools are separate App-owned managed chann
   assert.equal(companionUpdater.standard_updater_metadata_allowed, false);
   assert.equal(companionUpdater.standard_updater_latest_yml_allowed, false);
   assert.equal(companionUpdater.homebrew_tap_write_allowed, false);
+  assert.equal(companionUpdater.channel_model, 'stable_nightly_release_cohort');
+  assert.equal(companionUpdater.rolling_latest_allowed, false);
   assert.deepEqual(companionUpdater.managed_tools, ['officecli', 'mineru_open_api']);
   assert.deepEqual(companionUpdater.forbidden_silent_overwrite_scope, runtimeUpdater.forbidden_silent_overwrite_scope);
 });

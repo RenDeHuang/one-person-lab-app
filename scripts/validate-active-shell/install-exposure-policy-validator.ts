@@ -311,8 +311,8 @@ function validateInstallerSurfaces(policy) {
   if (dockerWebui.runtime_distribution_model?.default_profile !== 'webui_full') {
     throw new Error('Docker/WebUI install exposure must make webui_full the beginner default profile');
   }
-  if (dockerWebui.runtime_distribution_model?.stable_latest_policy !== 'latest_and_stable_must_point_to_webui_full_not_metadata_only_slim') {
-    throw new Error('Docker/WebUI install exposure must forbid metadata-only slim images for stable/latest');
+  if (dockerWebui.runtime_distribution_model?.stable_channel_policy !== 'stable_must_point_to_webui_full_not_metadata_only_slim') {
+    throw new Error('Docker/WebUI install exposure must forbid metadata-only slim images for stable');
   }
   if (dockerWebui.runtime_distribution_model?.required_image_manifest !== '/opt/opl/image-manifest.json') {
     throw new Error('Docker/WebUI install exposure must require the canonical /opt/opl image manifest');

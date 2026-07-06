@@ -534,7 +534,7 @@ function buildSummary(options: Options) {
       if (payload.status !== 'published') {
         return { reason: `WebUI GHCR publish status is ${statusString(payload.status) || 'unknown'}.`, fields };
       }
-      for (const requiredTag of [options.version, 'stable', 'latest']) {
+      for (const requiredTag of [options.version, 'stable']) {
         if (!tags.includes(requiredTag)) {
           return { reason: `WebUI GHCR publish summary is missing tag ${requiredTag}.`, fields };
         }

@@ -1287,6 +1287,8 @@ test('runtime substrate auto-update stays silent and does not mutate global tool
   );
   assert.equal(runtimeUpdate.entrypoint, 'opl system startup-maintenance');
   assert.equal(runtimeUpdate.ready_to_launch_blocking, false);
+  assert.equal(runtimeUpdate.channel_model, 'stable_nightly_release_cohort');
+  assert.equal(runtimeUpdate.rolling_latest_allowed, false);
   assert.deepEqual(runtimeUpdate.default_policy, {
     auto_check: true,
     download: 'silent_background',
@@ -1308,6 +1310,8 @@ test('runtime substrate auto-update stays silent and does not mutate global tool
   });
   assert.equal(runtimeUpdate.legacy_alias, 'runtime_toolchain_auto_update');
   assert.equal(runtimeUpdate.companion_tools_ref, 'companion_tools_auto_update');
+  assert.equal(policy.companion_tools_auto_update.channel_model, 'stable_nightly_release_cohort');
+  assert.equal(policy.companion_tools_auto_update.rolling_latest_allowed, false);
   assert.deepEqual(runtimeUpdate.user_global_tool_policy, {
     prefer_compatible_newer_system_tool: false,
     system_sources_default_used: false,

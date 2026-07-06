@@ -201,7 +201,7 @@ function parseArgs(argv: string[]) {
     artifacts: '',
     evidence: '',
     validateResult: '',
-    image: 'ghcr.io/gaofeng21cn/one-person-lab-webui:latest',
+    image: 'ghcr.io/gaofeng21cn/one-person-lab-webui:stable',
     port: 3000,
     healthTimeout: 120,
     noOpen: true,
@@ -456,7 +456,7 @@ function makeOrdinaryUserStatus(input: {
           : 'Finish the one-click installer before using host update mode.',
       evidence_ref: input.composePath,
     },
-    image_seed_selection: 'Default latest/stable image must use the WebUI full seed; --tag/--image are explicit advanced overrides.',
+    image_seed_selection: 'Default stable image must use the WebUI full seed; --tag/--image are explicit advanced overrides.',
     settings_entry: 'Settings -> Access',
     must_not_claim: [...ordinaryMustNotClaim],
   };

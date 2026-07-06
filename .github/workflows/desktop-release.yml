@@ -1063,7 +1063,6 @@ jobs:
           docker tag "one-person-lab-webui:${{ inputs.opl_version }}" "${ghcr_image}:${{ inputs.opl_version }}"
           docker tag "one-person-lab-webui:${{ inputs.opl_version }}-slim" "${ghcr_image}:${{ inputs.opl_version }}-slim"
           docker tag "one-person-lab-webui:${{ inputs.opl_version }}" "${ghcr_image}:stable"
-          docker tag "one-person-lab-webui:${{ inputs.opl_version }}" "${ghcr_image}:latest"
 
           if [ "$RELEASE_MODE" = "draft_candidate" ]; then
             write_publish_summary "draft_not_pushed"
@@ -1084,10 +1083,6 @@ jobs:
           fi
           if ! docker push "${ghcr_image}:stable"; then
             write_publish_summary "failed" "ghcr_write_package_denied" "GHCR stable tag push failed. Ensure the one-person-lab-webui package grants write Actions access to gaofeng21cn/one-person-lab-app."
-            exit 0
-          fi
-          if ! docker push "${ghcr_image}:latest"; then
-            write_publish_summary "failed" "ghcr_write_package_denied" "GHCR latest tag push failed. Ensure the one-person-lab-webui package grants write Actions access to gaofeng21cn/one-person-lab-app."
             exit 0
           fi
           write_publish_summary "published"

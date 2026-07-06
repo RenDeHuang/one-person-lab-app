@@ -12,7 +12,7 @@ lang: zh-CN
 
 新手主路径是先让 Docker 正常运行，再运行 One Person Lab 提供的一键安装器，最后在浏览器里完成首次配置。手动 Docker 命令只作为排障或高级部署路径保留。
 
-镜像：`ghcr.io/gaofeng21cn/one-person-lab-webui:latest`
+镜像：`ghcr.io/gaofeng21cn/one-person-lab-webui:stable`
 
 参考：<https://github.com/gaofeng21cn/one-person-lab/blob/main/docs/references/current-support/opl-docker-webui-deployment.md>
 
@@ -253,7 +253,7 @@ docker run --rm -p 3000:3000 \
   -e AIONUI_ALLOW_REMOTE=true \
   -e AIONUI_DATA_DIR=/data \
   -e OPL_PROJECTS_DIR=/projects \
-  ghcr.io/gaofeng21cn/one-person-lab-webui:latest
+  ghcr.io/gaofeng21cn/one-person-lab-webui:stable
 ```
 
 `compose.yaml` 也必须保留 `/data`、`/projects` 和浏览器 WebUI-first key entry 边界。

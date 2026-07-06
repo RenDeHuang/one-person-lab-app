@@ -333,11 +333,10 @@
       ],
       "profiles": {
         "webui_full": {
-          "default_for_beginner_and_stable_latest": true,
+          "default_for_beginner_and_stable_channel": true,
           "required_tags": [
             "<app_or_opl_version>",
-            "stable",
-            "latest"
+            "stable"
           ],
           "seed_strategy": [
             "payload_manifest",
@@ -350,7 +349,7 @@
             "domain_modules"
           ],
           "metadata_only_allowed": false,
-          "rule": "Stable/latest Docker WebUI images must be payload-capable runtime images. A metadata-only image may not be promoted as the beginner default."
+          "rule": "Stable Docker WebUI images must be payload-capable runtime images. A metadata-only image may not be promoted as the beginner default."
         },
         "webui_slim": {
           "developer_or_ci_only": true,
@@ -358,9 +357,9 @@
           "seed_strategy": [
             "metadata_only"
           ],
-          "stable_latest_allowed": false,
+          "stable_channel_allowed": false,
           "moving_tags_allowed": false,
-          "rule": "Slim images may carry only WebUI, AionCore, bootstrap, and seed metadata, but must not be tagged stable/latest or documented as the default beginner path."
+          "rule": "Slim images may carry only WebUI, AionCore, bootstrap, and seed metadata, but must not be tagged stable or documented as the default beginner path."
         }
       },
       "persistent_mounts": {
@@ -406,7 +405,7 @@
       },
       "publish_gate": {
         "script": "scripts/validate-webui-runtime-image.ts",
-        "stable_latest_expected_profile": "webui-full",
+        "stable_channel_expected_profile": "webui-full",
         "must_read_back": [
           "docker_image_inspect",
           "image_manifest",
@@ -420,7 +419,7 @@
           "startup_maintenance_log",
           "auto_login_smoke"
         ],
-        "forbidden_success_state": "metadata_only_seed_promoted_to_stable_or_latest"
+        "forbidden_success_state": "metadata_only_seed_promoted_to_stable"
       },
       "update_planes": {
         "image_update": [
@@ -468,7 +467,6 @@
       "retain_stable_versions": 5,
       "retain_nightly_versions": 7,
       "protected_tags": [
-        "latest",
         "stable",
         "nightly"
       ],
@@ -482,8 +480,7 @@
     ],
     "stable_tags": [
       "<app_or_opl_version>",
-      "stable",
-      "latest"
+      "stable"
     ],
     "nightly_tags": [
       "<app_or_opl_version>",
@@ -2758,6 +2755,8 @@
         "source": "app-runtime-update-channel.json",
         "adapter": "runtime_substrate_adapter",
         "policy": "silent_background_verified_stage_apply_on_next_restart",
+        "channel_model": "stable_nightly_release_cohort",
+        "rolling_latest_allowed": false,
         "brand_name": "OPL Runtime Fabric",
         "brand_role": "shared runtime fabric for OPL capability modules, not a user-facing brand module",
         "managed_subsystems": {
@@ -2931,6 +2930,8 @@
         "source": "app-runtime-update-channel.json#companion_tools",
         "adapter": "companion_tools_adapter",
         "policy": "silent_background_verified_stage_apply_on_next_restart",
+        "channel_model": "stable_nightly_release_cohort",
+        "rolling_latest_allowed": false,
         "post_apply": "companion_tool_capability_smoke_and_pointer_swap",
         "default_update_mode": "silent_background",
         "managed_tools": [
@@ -3394,6 +3395,8 @@
     "kernel": "opl_managed_updater_kernel",
     "adapter": "runtime_substrate_adapter",
     "policy": "silent_background_verified_stage_apply_on_next_restart",
+    "channel_model": "stable_nightly_release_cohort",
+    "rolling_latest_allowed": false,
     "post_apply": "startup_smoke_then_swap_runtime_current_pointer_with_rollback",
     "status_sources": [
       "opl app state --profile fast --json#managed_update_plane.runtime_substrate",
@@ -3421,6 +3424,8 @@
     "kernel": "opl_managed_updater_kernel",
     "adapter": "companion_tools_adapter",
     "policy": "silent_background_verified_stage_apply_on_next_app_restart",
+    "channel_model": "stable_nightly_release_cohort",
+    "rolling_latest_allowed": false,
     "default_update_mode": "silent_background",
     "managed_tools": [
       "officecli",

@@ -313,7 +313,7 @@
             "host_update": "Update the WebUI image from the host by rerunning the installer or using its explicit update mode; the browser WebUI must not self-update containers through a Docker socket."
           },
           "settings_entry": "Settings -> Access",
-          "image_seed_selection": "Default latest/stable image must use the WebUI full seed; --tag and --image are explicit advanced overrides.",
+          "image_seed_selection": "Default stable image must use the WebUI full seed; --tag and --image are explicit advanced overrides.",
           "must_prefer_over": [
             "release_evidence_bundle",
             "operator_evidence_bundle",
@@ -388,7 +388,7 @@
           "webui_full": "beginner_default_with_payload_capable_seed_and_fast_first_start",
           "webui_slim": "developer_or_ci_only_metadata_seed_online_reconcile"
         },
-        "stable_latest_policy": "latest_and_stable_must_point_to_webui_full_not_metadata_only_slim",
+        "stable_channel_policy": "stable_must_point_to_webui_full_not_metadata_only_slim",
         "required_image_manifest": "/opt/opl/image-manifest.json",
         "required_seed_metadata": "/opt/opl/seed/metadata.json",
         "required_full_seed_components": [
@@ -1296,6 +1296,8 @@
     "brand_role": "shared runtime fabric for OPL capability modules, not a MAS/MAG/RCA/OMA/OBF/ScholarSkills brand module",
     "entrypoint": "opl system startup-maintenance",
     "ready_to_launch_blocking": false,
+    "channel_model": "stable_nightly_release_cohort",
+    "rolling_latest_allowed": false,
     "default_policy": {
       "auto_check": true,
       "download": "silent_background",
@@ -1375,6 +1377,8 @@
     "framework_role": "apply_verified_staged_companion_tools_during_startup_maintenance",
     "entrypoint": "opl system startup-maintenance",
     "ready_to_launch_blocking": false,
+    "channel_model": "stable_nightly_release_cohort",
+    "rolling_latest_allowed": false,
     "default_policy": {
       "auto_check": true,
       "download": "silent_background",

@@ -108,7 +108,9 @@ function validateRuntimeSubstrateAutoUpdate(runtimeUpdate) {
     runtimeUpdate?.brand_role !== 'shared runtime fabric for OPL capability modules, not a MAS/MAG/RCA/OMA/OBF/ScholarSkills brand module' ||
     runtimeUpdate?.framework_role !== 'apply_verified_staged_runtime_during_startup_maintenance' ||
     runtimeUpdate?.entrypoint !== 'opl system startup-maintenance' ||
-    runtimeUpdate?.ready_to_launch_blocking !== false
+    runtimeUpdate?.ready_to_launch_blocking !== false ||
+    runtimeUpdate?.channel_model !== 'stable_nightly_release_cohort' ||
+    runtimeUpdate?.rolling_latest_allowed !== false
   ) {
     throw new Error('Install exposure runtime substrate auto update must be App-owned, silent, staged, and applied through startup maintenance');
   }
@@ -176,6 +178,8 @@ function validateCompanionToolsAutoUpdate(companionToolsUpdate) {
     companionToolsUpdate?.framework_role !== 'apply_verified_staged_companion_tools_during_startup_maintenance' ||
     companionToolsUpdate?.entrypoint !== 'opl system startup-maintenance' ||
     companionToolsUpdate?.ready_to_launch_blocking !== false ||
+    companionToolsUpdate?.channel_model !== 'stable_nightly_release_cohort' ||
+    companionToolsUpdate?.rolling_latest_allowed !== false ||
     companionToolsUpdate?.shared_kernel_lifecycle_allowed !== true ||
     companionToolsUpdate?.must_not_be_grouped_under_runtime_substrate !== true
   ) {

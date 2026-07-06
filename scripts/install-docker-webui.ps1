@@ -8,7 +8,7 @@ param(
   [ValidateRange(1, 65535)]
   [int]$Port = 3000,
   [string]$Image = "ghcr.io/gaofeng21cn/one-person-lab-webui",
-  [string]$Tag = "latest",
+  [string]$Tag = "stable",
   [string]$DataDir,
   [string]$ProjectsDir,
   [ValidateRange(1, 86400)]
@@ -990,7 +990,7 @@ if ($Update) {
 } else {
   Write-Step "Update model: rerun this installer, or pass -Update, to pull the WebUI image from the host; the WebUI does not self-update through Docker."
 }
-Write-Step "Image/seed: default latest/stable WebUI image uses the full seed; -Tag and -Image are advanced overrides."
+Write-Step "Image/seed: default stable WebUI image uses the full seed; -Tag and -Image are advanced overrides."
 Write-Step "Access keys are configured inside the WebUI first-run Access panel or Settings -> Access. This script does not accept or write API keys."
 Write-UserPathStatus -Url $url
 

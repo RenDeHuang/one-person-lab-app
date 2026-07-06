@@ -149,7 +149,7 @@ test('Windows Docker/WebUI installer parses and dry-runs when PowerShell is avai
   assert.equal(dryRun.status, 0, dryRun.stderr || dryRun.stdout);
   assert.match(dryRun.stdout, /Dry run: would write/);
   assert.match(dryRun.stdout, /127\.0\.0\.1:3133:3000/);
-  assert.match(dryRun.stdout, /ghcr\.io\/gaofeng21cn\/one-person-lab-webui:latest/);
+  assert.match(dryRun.stdout, /ghcr\.io\/gaofeng21cn\/one-person-lab-webui:stable/);
   assert.match(dryRun.stdout, /pull_policy: always/);
   assert.match(dryRun.stdout, /Update mode: pull the configured WebUI image from the host and recreate the compose service/);
   assert.match(dryRun.stdout, /docker compose .* pull/);
@@ -164,7 +164,7 @@ test('Windows Docker/WebUI installer parses and dry-runs when PowerShell is avai
   assert.match(dryRun.stdout, /runtime_proxy: WebUI uses \/api\/opl-runtime\/configure-codex -> opl system configure-codex --api-key-stdin --json/);
   assert.match(dryRun.stdout, /startup_recovery: if startup fails, collect redacted startup diagnostics/);
   assert.match(dryRun.stdout, /host_update: rerun this installer, or pass -Update, to pull the WebUI image from the host/);
-  assert.match(dryRun.stdout, /Image\/seed: default latest\/stable WebUI image uses the full seed/);
+  assert.match(dryRun.stdout, /Image\/seed: default stable WebUI image uses the full seed/);
   assert.equal(fs.existsSync(path.join(tempRoot, 'compose.yaml')), false, 'dry-run must not create compose.yaml');
 });
 

@@ -490,7 +490,7 @@ test('Docker WebUI smoke records image size as a release-speed artifact', () => 
   assert.equal((workflow.match(/docker build/g) ?? []).length, 2, 'stable WebUI release path should build full and slim variants once each');
   assertMatches(workflow, /-t "one-person-lab-webui:\$\{\{ inputs\.opl_version \}\}"/, 'Docker WebUI full image tag');
   assertMatches(workflow, /-t "one-person-lab-webui:\$\{\{ inputs\.opl_version \}\}-slim"/, 'Docker WebUI slim image tag');
-  assertMatches(workflow, /"\$\{ghcr_image\}:\$\{\{ inputs\.opl_version \}\}"[\s\S]*"\$\{ghcr_image\}:\$\{\{ inputs\.opl_version \}\}-slim"[\s\S]*"\$\{ghcr_image\}:stable"[\s\S]*"\$\{ghcr_image\}:latest"/, 'stable/latest remain full image tags while slim is version-scoped');
+  assertMatches(workflow, /"\$\{ghcr_image\}:\$\{\{ inputs\.opl_version \}\}"[\s\S]*"\$\{ghcr_image\}:\$\{\{ inputs\.opl_version \}\}-slim"[\s\S]*"\$\{ghcr_image\}:stable"/, 'stable remains a full image tag while slim is version-scoped');
 });
 
 test('release plan exposes depends_on and can_run_with for parallel speed lanes and serialized gates', () => {
@@ -580,7 +580,7 @@ test('release plan exposes depends_on and can_run_with for parallel speed lanes 
   assert.deepEqual(webuiGhcrPublish.depends_on, ['docker_webui_smoke']);
   assert.ok(webuiGhcrPublish.command.includes('ghcr.io/<owner>/one-person-lab-webui'));
   assert.ok(webuiGhcrPublish.command.includes('stable'));
-  assert.ok(webuiGhcrPublish.command.includes('latest'));
+  assert.ok(webuiGhcrPublish.command.includes('stable'));
   assert.ok(webuiGhcrPublish.required_for.includes('stable_release'));
 
   assert.deepEqual(evidenceBundle.depends_on?.sort(), [

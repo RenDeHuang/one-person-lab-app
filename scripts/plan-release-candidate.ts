@@ -381,10 +381,8 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
     command: [
       `docker tag one-person-lab-webui:${options.version} ghcr.io/<owner>/one-person-lab-webui:${options.version}`,
       `docker tag one-person-lab-webui:${options.version} ghcr.io/<owner>/one-person-lab-webui:stable`,
-      `docker tag one-person-lab-webui:${options.version} ghcr.io/<owner>/one-person-lab-webui:latest`,
       'docker push ghcr.io/<owner>/one-person-lab-webui:<app_or_opl_version>',
       'docker push ghcr.io/<owner>/one-person-lab-webui:stable',
-      'docker push ghcr.io/<owner>/one-person-lab-webui:latest',
     ].join(' && '),
     required_for: ['stable_release'],
   });

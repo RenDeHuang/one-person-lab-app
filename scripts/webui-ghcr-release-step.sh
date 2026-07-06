@@ -11,7 +11,7 @@ fi
 
 image_owner="$(printf '%s' "${GITHUB_REPOSITORY_OWNER:?Set GITHUB_REPOSITORY_OWNER.}" | tr '[:upper:]' '[:lower:]')"
 ghcr_image="ghcr.io/${image_owner}/one-person-lab-webui"
-channel_tags_csv="${WEBUI_CHANNEL_TAGS:-stable,latest}"
+channel_tags_csv="${WEBUI_CHANNEL_TAGS:-stable}"
 workflow_job="${WEBUI_WORKFLOW_JOB:-publish-webui-ghcr}"
 release_mode="${RELEASE_MODE:-new_release}"
 publish_failure_exit_code="${WEBUI_PUBLISH_FAILURE_EXIT_CODE:-1}"
@@ -23,7 +23,7 @@ write_publish_summary() {
   STATUS="$status" ERROR_CODE="$error_code" ERROR_MESSAGE="$error_message" GHCR_IMAGE="$ghcr_image" node <<'NODE'
 const fs = require('node:fs');
 const version = process.env.OPL_VERSION;
-const channelTags = (process.env.WEBUI_CHANNEL_TAGS || 'stable,latest')
+const channelTags = (process.env.WEBUI_CHANNEL_TAGS || 'stable')
   .split(',')
   .map((tag) => tag.trim())
   .filter(Boolean);

@@ -20,7 +20,7 @@ function writeCompleteDiagnostics(root: string) {
     'compose.yaml': [
       'services:',
       '  webui:',
-      '    image: ghcr.io/gaofeng21cn/one-person-lab-webui:latest',
+      '    image: ghcr.io/gaofeng21cn/one-person-lab-webui:stable',
       '    environment:',
       '      AIONUI_DATA_DIR: /data',
       '      OPL_PROJECTS_DIR: /projects',
@@ -95,7 +95,7 @@ function completeGateResult() {
     compose: { path: '/tmp/artifact/home/OnePersonLab/compose.yaml', status: 'present' },
     container: { name: 'one-person-lab-webui', status: 'running', id: 'abc123' },
     image: {
-      ref: 'ghcr.io/gaofeng21cn/one-person-lab-webui:latest',
+      ref: 'ghcr.io/gaofeng21cn/one-person-lab-webui:stable',
       status: 'present',
       id: imageDigest,
       repo_digests: [`ghcr.io/gaofeng21cn/one-person-lab-webui@${imageDigest}`],
@@ -165,7 +165,7 @@ function completeGateResult() {
         next_action: 'Use install-docker-webui.sh --update or install-docker-webui.ps1 -Update when the host image should be updated.',
         evidence_ref: '/tmp/artifact/home/OnePersonLab/compose.yaml',
       },
-      image_seed_selection: 'Default latest/stable image must use the WebUI full seed; --tag/--image are explicit advanced overrides.',
+      image_seed_selection: 'Default stable image must use the WebUI full seed; --tag/--image are explicit advanced overrides.',
       settings_entry: 'Settings -> Access',
       must_not_claim: [
         'desktop_release_ready',
@@ -214,7 +214,7 @@ test('Docker/WebUI diagnostics validator requires compose mounts, preservation i
 
   fs.writeFileSync(
     path.join(diagnostics, 'compose.yaml'),
-    'services:\n  webui:\n    image: ghcr.io/gaofeng21cn/one-person-lab-webui:latest\n',
+    'services:\n  webui:\n    image: ghcr.io/gaofeng21cn/one-person-lab-webui:stable\n',
   );
   const missingMounts = validateDockerWebuiDiagnostics(diagnostics);
   assert.equal(missingMounts.status, 'failed');
@@ -252,7 +252,7 @@ test('Docker/WebUI diagnostics validator treats remote image currentness as opti
 
   fs.writeFileSync(
     path.join(diagnostics, 'remote-image-digest.txt'),
-    `remote_ref=ghcr.io/gaofeng21cn/one-person-lab-webui:latest\nremote_digest=${remoteImageDigest}\n`,
+    `remote_ref=ghcr.io/gaofeng21cn/one-person-lab-webui:stable\nremote_digest=${remoteImageDigest}\n`,
   );
   const updateAvailable = validateDockerWebuiDiagnostics(diagnostics);
   assert.equal(updateAvailable.status, 'passed');
@@ -332,7 +332,7 @@ test('Docker/WebUI smoke gate result readback rejects passed gates without image
 
 test('Docker/WebUI smoke gate result readback accepts remote currentness comparison only as status readback', () => {
   const payload = completeGateResult();
-  payload.image.remote_ref = 'ghcr.io/gaofeng21cn/one-person-lab-webui:latest';
+  payload.image.remote_ref = 'ghcr.io/gaofeng21cn/one-person-lab-webui:stable';
   payload.image.remote_digest = remoteImageDigest;
   payload.image.currentness_status = 'update_available';
   payload.image.currentness_evidence_source = 'remote-image-digest.txt';

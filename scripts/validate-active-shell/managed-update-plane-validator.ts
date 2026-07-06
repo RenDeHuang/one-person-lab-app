@@ -72,6 +72,8 @@ export function validateReleaseCompanionToolsUpdater(companionUpdater, managedUp
     companionUpdater?.standard_updater_metadata_allowed !== false ||
     companionUpdater?.standard_updater_latest_yml_allowed !== false ||
     companionUpdater?.homebrew_tap_write_allowed !== false ||
+    companionUpdater?.channel_model !== 'stable_nightly_release_cohort' ||
+    companionUpdater?.rolling_latest_allowed !== false ||
     companionUpdater?.app_role !== 'status_conditions_repair_actions_consumer_only'
   ) {
     throw new Error('Release channel companion tools updater must be a separate managed class that shares the kernel lifecycle without becoming runtime substrate');
@@ -99,7 +101,9 @@ function validateReleaseRuntimeToolchainChannelPolicy(runtimeUpdater) {
     runtimeUpdater?.default_policy?.download !== 'silent_background' ||
     runtimeUpdater?.default_policy?.apply !== 'stage_verified_payload_and_apply_on_next_app_restart' ||
     runtimeUpdater?.default_policy?.restart_prompt !== 'none_until_user_restarts_app' ||
-    runtimeUpdater?.default_policy?.user_blocking !== false
+    runtimeUpdater?.default_policy?.user_blocking !== false ||
+    runtimeUpdater?.channel_model !== 'stable_nightly_release_cohort' ||
+    runtimeUpdater?.rolling_latest_allowed !== false
   ) {
     throw new Error('Release channel runtime substrate updater must be a silent App-owned runtime fallback channel separate from standard updater and Homebrew');
   }
@@ -167,6 +171,8 @@ function validateReleaseRuntimeToolchainPlaneBinding(runtimeUpdater, managedUpda
     runtimeUpdater?.kernel !== 'opl_managed_updater_kernel' ||
     runtimeUpdater?.adapter !== 'runtime_substrate_adapter' ||
     runtimeUpdater?.policy !== 'silent_background_verified_stage_apply_on_next_restart' ||
+    runtimeUpdater?.channel_model !== 'stable_nightly_release_cohort' ||
+    runtimeUpdater?.rolling_latest_allowed !== false ||
     runtimeUpdater?.post_apply !== 'startup_smoke_then_swap_runtime_current_pointer_with_rollback' ||
     runtimeUpdater?.app_role !== 'status_conditions_repair_actions_consumer_only'
   ) {
@@ -688,6 +694,8 @@ function validateManagedUpdateCompanionToolsLane(companionPlane, companionTools)
     companionPlane?.updater_kind !== 'managed_updater_kernel' ||
     companionPlane?.adapter !== 'companion_tools_adapter' ||
     companionPlane?.policy !== 'silent_background_verified_stage_apply_on_next_restart' ||
+    companionPlane?.channel_model !== 'stable_nightly_release_cohort' ||
+    companionPlane?.rolling_latest_allowed !== false ||
     companionPlane?.display_group !== 'Companion tools' ||
     companionTools?.must_not_be_grouped_under_runtime_substrate !== true ||
     companionTools?.shared_kernel_lifecycle_allowed !== true

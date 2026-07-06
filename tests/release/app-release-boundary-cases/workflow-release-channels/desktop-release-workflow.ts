@@ -295,7 +295,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(cleanLinuxDockerWebuiWorkflow, /name: OPL Docker WebUI Clean Linux VM Smoke/);
   assert.match(cleanLinuxDockerWebuiWorkflow, /workflow_dispatch:/);
   assert.match(cleanLinuxDockerWebuiWorkflow, /runs-on: ubuntu-latest/);
-  assert.match(cleanLinuxDockerWebuiWorkflow, /ghcr\.io\/gaofeng21cn\/one-person-lab-webui:latest/);
+  assert.match(cleanLinuxDockerWebuiWorkflow, /ghcr\.io\/gaofeng21cn\/one-person-lab-webui:stable/);
   assert.match(cleanLinuxDockerWebuiWorkflow, /artifact_name:[\s\S]*docker-webui-clean-linux-vm-evidence/);
   assert.match(cleanLinuxDockerWebuiWorkflow, /node --experimental-strip-types scripts\/docker-webui-smoke-gate\.ts[\s\S]*--gate clean_linux_vm/);
   assert.match(cleanLinuxDockerWebuiWorkflow, /--validate-result docker-webui-clean-linux-vm\/docker-webui-smoke-gate-result\.json/);
@@ -320,7 +320,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(cleanWindowsDockerWebuiWorkflow, /needs: runner-preflight/);
   assert.match(cleanWindowsDockerWebuiWorkflow, /if: \$\{\{ needs\.runner-preflight\.result == 'success' \}\}/);
   assert.match(cleanWindowsDockerWebuiWorkflow, /runs-on: \$\{\{ fromJSON\(inputs\.runner_labels_json\) \}\}/);
-  assert.match(cleanWindowsDockerWebuiWorkflow, /ghcr\.io\/gaofeng21cn\/one-person-lab-webui:latest/);
+  assert.match(cleanWindowsDockerWebuiWorkflow, /ghcr\.io\/gaofeng21cn\/one-person-lab-webui:stable/);
   assert.match(cleanWindowsDockerWebuiWorkflow, /artifact_name:[\s\S]*docker-webui-clean-windows-vm-evidence/);
   assert.match(cleanWindowsDockerWebuiWorkflow, /powershell -ExecutionPolicy Bypass[\s\S]*-File scripts\/install-docker-webui\.ps1[\s\S]*-EvidenceDir windows-clean-evidence[\s\S]*-EvidenceArchive windows-clean-evidence\.zip/);
   assert.match(cleanWindowsDockerWebuiWorkflow, /node --experimental-strip-types scripts\/docker-webui-smoke-gate\.ts[\s\S]*--gate clean_windows_vm[\s\S]*--evidence windows-clean-evidence\.zip/);
@@ -368,7 +368,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /"\$\{ghcr_image\}:\$\{\{ inputs\.opl_version \}\}"/);
   assert.match(workflow, /"\$\{ghcr_image\}:\$\{\{ inputs\.opl_version \}\}-slim"/);
   assert.match(workflow, /"\$\{ghcr_image\}:stable"/);
-  assert.match(workflow, /"\$\{ghcr_image\}:latest"/);
+  assert.doesNotMatch(workflow, /"\$\{ghcr_image\}:latest"/);
   assert.doesNotMatch(workflow, /"\$\{ghcr_image\}:stable-slim"/);
   assert.doesNotMatch(workflow, /"\$\{ghcr_image\}:latest-slim"/);
   assert.match(workflow, /RELEASE_MODE.*draft_candidate/);
@@ -914,11 +914,10 @@ test('manual desktop release workflow supports new releases and same-tag refresh
       ],
       profiles: {
         webui_full: {
-          default_for_beginner_and_stable_latest: true,
+          default_for_beginner_and_stable_channel: true,
           required_tags: [
             '<app_or_opl_version>',
             'stable',
-            'latest',
           ],
           seed_strategy: [
             'payload_manifest',
@@ -931,7 +930,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
             'domain_modules',
           ],
           metadata_only_allowed: false,
-          rule: 'Stable/latest Docker WebUI images must be payload-capable runtime images. A metadata-only image may not be promoted as the beginner default.',
+          rule: 'Stable Docker WebUI images must be payload-capable runtime images. A metadata-only image may not be promoted as the beginner default.',
         },
         webui_slim: {
           developer_or_ci_only: true,
@@ -939,9 +938,9 @@ test('manual desktop release workflow supports new releases and same-tag refresh
           seed_strategy: [
             'metadata_only',
           ],
-          stable_latest_allowed: false,
+          stable_channel_allowed: false,
           moving_tags_allowed: false,
-          rule: 'Slim images may carry only WebUI, AionCore, bootstrap, and seed metadata, but must not be tagged stable/latest or documented as the default beginner path.',
+          rule: 'Slim images may carry only WebUI, AionCore, bootstrap, and seed metadata, but must not be tagged stable or documented as the default beginner path.',
         },
       },
       persistent_mounts: {
@@ -987,7 +986,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
       },
       publish_gate: {
         script: 'scripts/validate-webui-runtime-image.ts',
-        stable_latest_expected_profile: 'webui-full',
+        stable_channel_expected_profile: 'webui-full',
         must_read_back: [
           'docker_image_inspect',
           'image_manifest',
@@ -1001,7 +1000,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
           'startup_maintenance_log',
           'auto_login_smoke',
         ],
-        forbidden_success_state: 'metadata_only_seed_promoted_to_stable_or_latest',
+        forbidden_success_state: 'metadata_only_seed_promoted_to_stable',
       },
       update_planes: {
         image_update: [
@@ -1048,7 +1047,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
       strategy: 'retain_latest_n_versions_and_declared_rollbacks',
       retain_stable_versions: 5,
       retain_nightly_versions: 7,
-      protected_tags: ['latest', 'stable', 'nightly'],
+      protected_tags: ['stable', 'nightly'],
       cleanup_execution_mode: 'dry_run_first_explicit_execute_required',
       destructive_action_requires: 'package_admin_with_delete_packages_scope',
       rule: 'WebUI GHCR cleanup must retain protected moving tags, recent stable/nightly versions, and declared rollback tags; deletion is never part of ordinary release publishing.',
@@ -1057,7 +1056,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
       '.github/workflows/desktop-release.yml',
       '.github/workflows/nightly-standard-release.yml',
     ],
-    stable_tags: ['<app_or_opl_version>', 'stable', 'latest'],
+    stable_tags: ['<app_or_opl_version>', 'stable'],
     nightly_tags: ['<app_or_opl_version>', 'nightly'],
     draft_candidate_push: false,
     full_first_install_payload_allowed: false,

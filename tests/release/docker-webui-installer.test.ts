@@ -43,7 +43,7 @@ function writeMinimalDiagnostics(diagnostics: string) {
       content = [
         'services:',
         '  webui:',
-        '    image: ghcr.io/gaofeng21cn/one-person-lab-webui:latest',
+        '    image: ghcr.io/gaofeng21cn/one-person-lab-webui:stable',
         '    environment:',
         '      AIONUI_DATA_DIR: /data',
         '      OPL_PROJECTS_DIR: /projects',
@@ -174,7 +174,7 @@ test('Docker/WebUI installer dry-run generates the compose-only startup plan', (
   assert.match(result.stdout, /runtime_proxy: WebUI uses \/api\/opl-runtime\/configure-codex -> opl system configure-codex --api-key-stdin --json/);
   assert.match(result.stdout, /startup_recovery: if startup fails, collect redacted startup diagnostics/);
   assert.match(result.stdout, /host_update: rerun this installer, or pass --update, to pull the WebUI image from the host/);
-  assert.match(result.stdout, /Image\/seed: default latest\/stable WebUI image uses the full seed/);
+  assert.match(result.stdout, /Image\/seed: default stable WebUI image uses the full seed/);
   assert.doesNotMatch(result.stdout, /docker run/);
   assert.doesNotMatch(result.stdout, /OPENAI_API_KEY|ANTHROPIC_API_KEY|api_key/i);
   assert.equal(fs.existsSync(path.join(home, 'OnePersonLab')), false, 'dry-run must not create host directories');

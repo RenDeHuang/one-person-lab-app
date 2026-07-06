@@ -25,10 +25,10 @@ function validateWebuiGhcrImage(webuiImage) {
     webuiImage?.owner !== 'one-person-lab-app' ||
     webuiImage?.distribution_role !== 'preheated_webui_runtime_image_not_desktop_app_gui_shell' ||
     contract?.image_role !== 'browser_entrypoint_for_opl_on_linux_container' ||
-    contract?.profiles?.webui_full?.default_for_beginner_and_stable_latest !== true ||
+    contract?.profiles?.webui_full?.default_for_beginner_and_stable_channel !== true ||
     contract?.profiles?.webui_full?.metadata_only_allowed !== false ||
     contract?.profiles?.webui_slim?.version_tag !== '<app_or_opl_version>-slim' ||
-    contract?.profiles?.webui_slim?.stable_latest_allowed !== false ||
+    contract?.profiles?.webui_slim?.stable_channel_allowed !== false ||
     contract?.profiles?.webui_slim?.moving_tags_allowed !== false
   ) {
     throw new Error('Release channel must declare Docker/WebUI full and slim image profile boundaries');
@@ -65,10 +65,10 @@ function validateWebuiGhcrImage(webuiImage) {
     contract.image_manifest?.canonical_path !== '/opt/opl/image-manifest.json' ||
     contract.seed_metadata?.canonical_path !== '/opt/opl/seed/metadata.json' ||
     contract.publish_gate?.script !== 'scripts/validate-webui-runtime-image.ts' ||
-    contract.publish_gate?.stable_latest_expected_profile !== 'webui-full' ||
-    contract.publish_gate?.forbidden_success_state !== 'metadata_only_seed_promoted_to_stable_or_latest'
+    contract.publish_gate?.stable_channel_expected_profile !== 'webui-full' ||
+    contract.publish_gate?.forbidden_success_state !== 'metadata_only_seed_promoted_to_stable'
   ) {
-    throw new Error('Docker/WebUI GHCR publishing must validate canonical manifest, seed metadata, and full profile before stable/latest tags');
+    throw new Error('Docker/WebUI GHCR publishing must validate canonical manifest, seed metadata, and full profile before stable tags');
   }
   assertIncludesAll(
     contract.publish_gate?.must_read_back,

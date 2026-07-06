@@ -115,7 +115,7 @@ jobs:
             echo 'OPL_VERSION=${{ inputs.opl_version }}'
             echo 'SHELL_SHA=${{ steps.release-source-gate.outputs.shell_sha }}'
             echo 'OPL_FRAMEWORK_SHA=${{ steps.release-source-gate.outputs.framework_sha }}'
-            echo 'WEBUI_CHANNEL_TAGS=stable,latest'
+            echo 'WEBUI_CHANNEL_TAGS=stable'
             echo 'WEBUI_WORKFLOW_JOB=publish-webui-ghcr'
             echo 'WEBUI_BUILD_REUSE_MODE=webui_only_release_workflow'
             echo 'WEBUI_SOURCE_GATE=webui-ghcr-release'

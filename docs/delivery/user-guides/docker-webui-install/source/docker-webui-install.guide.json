@@ -18,8 +18,8 @@
     "verification": "docs/delivery/user-guides/docker-webui-install/verification/docker-webui-install-verification.json"
   },
   "download": {
-    "image": "ghcr.io/gaofeng21cn/one-person-lab-webui:latest",
-    "local_image": "one-person-lab-webui:latest",
+    "image": "ghcr.io/gaofeng21cn/one-person-lab-webui:stable",
+    "local_image": "one-person-lab-webui:stable",
     "source_repo": "https://github.com/gaofeng21cn/one-person-lab-app",
     "linux_macos_installer_url": "https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/scripts/install-docker-webui.sh",
     "windows_installer_url": "https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/scripts/install-docker-webui.ps1",
@@ -75,8 +75,8 @@
     "不声明公开 GHCR latest",
     "不声明公开 GHCR latest 或一键脚本已经线上发布",
     "这个文档是否证明 latest 已发布：不能",
-    "公开 GHCR latest/stable 当前可作为新手默认镜像入口",
-    "公开 `ghcr.io/gaofeng21cn/one-person-lab-webui:latest` 和 `stable` 已发布",
+    "公开 GHCR stable 当前可作为新手默认镜像入口",
+    "公开 `ghcr.io/gaofeng21cn/one-person-lab-webui:stable` 已发布",
     "public live smoke 证明"
   ],
   "screenshots_manifest": "docs/guides/docker-webui-install/screenshots.manifest.json",
