@@ -7,9 +7,6 @@ import {
   readProductProfile,
 } from './helpers.ts';
 import {
-  buildHydratedSettingsRegistry,
-  remapSettingsExtensionAnchor,
-  resolveSettingsControlPlaneRoute,
   validateSettingsControlPlane,
 } from '../../../scripts/validate-active-shell/settings-control-plane-validator.ts';
 import { appOwnedSettingsUpstreamIntakeClassifications } from '../../../scripts/validate-active-shell/app-contract-constants.ts';
@@ -62,14 +59,16 @@ test('Settings control-plane validator binds contract, profile, page-state, and 
   );
 });
 
-test('Settings control plane hydrates registry, route resolver, and extension anchor remap behavior', () => {
+test('Settings control plane declares route slots, redirects, and extension anchor remaps without test-only helper APIs', () => {
   const controlPlaneContract = JSON.parse(
     fs.readFileSync(path.join(appRoot, 'contracts', 'app-settings-control-plane.json'), 'utf8'),
   );
 
-  const registry = buildHydratedSettingsRegistry(controlPlaneContract);
   assert.deepStrictEqual(
-    registry.ordinary_routes.map((route) => `${route.id}:${route.slot_id}:${route.component_key}`),
+    controlPlaneContract.ordinary_routes.map((route) => {
+      const slot = controlPlaneContract.slot_registry[route.slot_id];
+      return `${route.id}:${route.slot_id}:${slot.component_key}`;
+    }),
     [
       'general:settings_general:OverviewSettings',
       'access:settings_access:AccessSettingsContent',
@@ -82,7 +81,7 @@ test('Settings control plane hydrates registry, route resolver, and extension an
     ],
   );
   assert.deepStrictEqual(
-    registry.secondary_pages.map((route) => `${route.id}:${route.route_scope}`),
+    controlPlaneContract.secondary_pages.map((route) => `${route.id}:${route.visibility}`),
     [
       'advanced:secondary_or_deep_link',
       'about:secondary_or_deep_link',
@@ -91,44 +90,22 @@ test('Settings control plane hydrates registry, route resolver, and extension an
       'local-services:secondary_or_deep_link',
     ],
   );
-  assert.deepStrictEqual(resolveSettingsControlPlaneRoute(controlPlaneContract, 'general'), {
-    input: 'general',
-    id: 'general',
-    target_id: 'general',
-    path: '/settings/general',
-    route_scope: 'ordinary',
-    slot_id: 'settings_general',
-    component_key: 'OverviewSettings',
+  assert.deepStrictEqual(controlPlaneContract.legacy_route_redirects, {
+    overview: 'general',
+    runtime: 'environment',
+    system: 'advanced',
+    model: 'environment',
+    agent: 'capabilities',
+    assistants: 'capabilities',
+    'skills-hub': 'capabilities?tab=skills',
+    tools: 'capabilities?tab=tools',
+    display: 'appearance',
+    webui: 'resources',
+    pet: 'appearance',
+    about: 'advanced',
   });
-  assert.deepStrictEqual(resolveSettingsControlPlaneRoute(controlPlaneContract, 'workspace'), {
-    input: 'workspace',
-    id: 'workspace',
-    target_id: 'workspace',
-    path: '/settings/workspace',
-    route_scope: 'ordinary',
-    slot_id: 'workspace',
-    component_key: 'WorkspaceSettings',
-  });
-  assert.deepStrictEqual(resolveSettingsControlPlaneRoute(controlPlaneContract, 'resources'), {
-    input: 'resources',
-    id: 'resources',
-    target_id: 'resources',
-    path: '/settings/resources',
-    route_scope: 'ordinary',
-    slot_id: 'settings_resources',
-    component_key: 'AccessSettingsContent',
-  });
-  assert.deepStrictEqual(resolveSettingsControlPlaneRoute(controlPlaneContract, 'skills-hub'), {
-    input: 'skills-hub',
-    id: 'skills-hub',
-    target_id: 'capabilities',
-    path: '/settings/capabilities?tab=skills',
-    route_scope: 'legacy_redirect',
-    slot_id: 'settings_capabilities',
-    component_key: 'CapabilitiesSettingsContent',
-  });
-  assert.strictEqual(remapSettingsExtensionAnchor(controlPlaneContract, 'skills-hub'), 'capabilities');
-  assert.strictEqual(remapSettingsExtensionAnchor(controlPlaneContract, 'unknown-upstream-anchor'), 'advanced');
+  assert.strictEqual(controlPlaneContract.extension_anchor_remap['skills-hub'], 'capabilities');
+  assert.strictEqual(controlPlaneContract.extension_tab_policy.unknown_anchor, 'treat_as_unanchored');
 });
 
 test('Settings adapter slot and upstream intake classification are machine-readable gates', () => {

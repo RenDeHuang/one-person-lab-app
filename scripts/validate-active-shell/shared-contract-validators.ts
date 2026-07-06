@@ -150,7 +150,7 @@ export function validateRuntimeScopeProjectionContract(projection, label) {
   assertDeepEqualJson(projection.scope_source_values, ['default_global', 'user_selected', 'inferred'], `${label} scope_source_values`);
 }
 
-export function validateTaskRunProjectionV2Contract(projection, label) {
+function validateTaskRunProjectionV2Contract(projection, label) {
   for (const [field, expected] of Object.entries({
     schema_name: 'TaskRunProjection',
     schema_version: 2,
@@ -238,7 +238,7 @@ export function validateTaskRunProjectionV2Fixture(task, label) {
   }
 }
 
-export function validateResourceContextPolicy(policy, label) {
+function validateResourceContextPolicy(policy, label) {
   if (!policy || typeof policy !== 'object') {
     throw new Error(`${label} must be declared`);
   }

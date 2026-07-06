@@ -205,7 +205,7 @@ function offlineFirstInstallCompletenessPreserved(args: {
     && entries.electron_framework?.exists === true;
 }
 
-export function buildFullPackageOptimizationSection(args: {
+function buildFullPackageOptimizationSection(args: {
   trimReport: Record<string, any>;
   boundaryAudit: Record<string, any>;
 }) {
@@ -250,7 +250,7 @@ export function buildFullPackageOptimizationSection(args: {
   };
 }
 
-export function assertFullPackageOptimizationPreservesOfflineBoundary(optimization: Record<string, any>) {
+function assertFullPackageOptimizationPreservesOfflineBoundary(optimization: Record<string, any>) {
   if (optimization.offline_first_install_completeness_preserved !== true) {
     throw new Error(
       'Full package optimization did not preserve the declared offline first-install App bundle boundary.',

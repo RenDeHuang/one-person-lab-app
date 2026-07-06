@@ -861,7 +861,6 @@ test('Full App bundle staging trim removes non-runtime artifacts while preservin
     trimFullAppBundleForDmg,
     auditFullPackageBundleBoundaries,
     withFullPackageOptimization,
-    assertFullPackageOptimizationPreservesOfflineBoundary,
   } = await import('../../../scripts/build-full-first-install-package/package-optimization.ts');
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-full-app-bundle-trim-'));
   const appPath = path.join(tempRoot, 'One Person Lab.app');
@@ -932,12 +931,6 @@ test('Full App bundle staging trim removes non-runtime artifacts while preservin
       { manifest_version: 2, package_kind: 'opl_full_first_install_macos_arm64' },
       { trimReport, boundaryAudit: incompleteAudit },
     ),
-    /did not preserve the declared offline first-install App bundle boundary/,
-  );
-  assert.throws(
-    () => assertFullPackageOptimizationPreservesOfflineBoundary({
-      offline_first_install_completeness_preserved: false,
-    }),
     /did not preserve the declared offline first-install App bundle boundary/,
   );
 });

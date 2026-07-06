@@ -320,26 +320,6 @@ export const appOwnedSettingsIaGroupIds = [
   "preferences",
   "advanced",
 ];
-export const appOwnedSettingsIaLabelsZh = [
-  "总览",
-  "开始使用",
-  "能力",
-  "资源与连接",
-  "维护",
-  "数据与存储",
-  "偏好",
-  "高级",
-];
-export const appOwnedSettingsIaEntryMap = {
-  overview: ["settings_general", "workspace"],
-  setup_access: ["settings_access", "first_run_setup_center"],
-  capabilities: ["settings_capabilities"],
-  resources: ["settings_resources"],
-  maintenance: ["settings_environment", "local_services", "update"],
-  data_storage: ["settings_storage"],
-  preferences: ["settings_theme", "appearance", "language", "startup", "tray"],
-  advanced: ["settings_advanced", "about"],
-};
 export const appOwnedSettingsRouteScopes = {
   settings_general: { route_id: "general", route_scope: "ordinary" },
   access: { route_id: "access", route_scope: "ordinary" },

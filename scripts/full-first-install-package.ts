@@ -14,7 +14,7 @@ export const FULL_RUNTIME_RESOURCE_DIR = 'opl-full-runtime';
 export const PACKAGED_MODULE_MARKER_FILE = 'opl-runtime-module.json';
 const FULL_RUNTIME_CACHE_LAYOUT_VERSION = 1;
 export const FULL_RUNTIME_CACHE_LAYER_IDS = ['toolchain', 'domain-runtime', 'opl-runtime', 'skills'] as const;
-export const OPL_RUNTIME_BUNDLE_LAYER_IDS = [
+const OPL_RUNTIME_BUNDLE_LAYER_IDS = [
   'base-toolchain',
   'python-wheelhouse',
   'opl-framework-runtime',
@@ -31,7 +31,7 @@ export const FULL_RUNTIME_CACHE_LAYER_TAXONOMY = {
     skills: ['companion-skills'],
   },
 } as const;
-export const RUNTIME_FABRIC_BUNDLE_TAXONOMY = {
+const RUNTIME_FABRIC_BUNDLE_TAXONOMY = {
   'execution-core.bundle': {
     display_name: 'Agent Execution Core',
     components: ['codex', 'temporal_cli', 'opl'],
@@ -57,7 +57,7 @@ export const RUNTIME_FABRIC_BUNDLE_TAXONOMY = {
     smoke: 'Native helper doctor/runtime-watch/indexer protocol smoke when helper is present',
   },
 } as const;
-export const OPL_RUNTIME_BUNDLE_SOURCE_SURFACE = {
+const OPL_RUNTIME_BUNDLE_SOURCE_SURFACE = {
   contract_ref: 'gaofeng21cn/one-person-lab/contracts/opl-framework/runtime-environment-substrate-contract.json',
   readback_command_refs: {
     contract: 'opl runtime env contract --json',
@@ -74,7 +74,7 @@ export const OPL_RUNTIME_BUNDLE_SOURCE_SURFACE = {
     'can_claim_app_release_ready',
   ],
 } as const;
-export const OPL_RUNTIME_BUNDLE_CONSUMER_CONTRACT = {
+const OPL_RUNTIME_BUNDLE_CONSUMER_CONTRACT = {
   schema: 'opl_runtime_bundle_manifest_consumer.v1',
   app_repo_role: 'consumer_only',
   truth_owner: 'gaofeng21cn/one-person-lab',

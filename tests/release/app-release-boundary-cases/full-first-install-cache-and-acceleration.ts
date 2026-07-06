@@ -277,9 +277,10 @@ test('Full first-install cache and release acceleration contract are explicit', 
     releaseContract.release_acceleration.full_runtime_cache.opl_runtime_bundle_consumer.layer_taxonomy,
     mod.FULL_RUNTIME_CACHE_LAYER_TAXONOMY,
   );
+  const manifest = mod.buildFullPackageManifest({ version: '26.6.21-bundle-consumer' });
   assert.equal(
     releaseContract.release_acceleration.full_runtime_cache.opl_runtime_bundle_consumer.source_surface.contract_ref,
-    mod.OPL_RUNTIME_BUNDLE_SOURCE_SURFACE.contract_ref,
+    manifest.opl_runtime_bundle_consumer.source_surface.contract_ref,
   );
   assert.equal(
     releaseContract.release_acceleration.full_runtime_cache.opl_runtime_bundle_consumer.consumption_boundary.can_claim_app_release_ready,
@@ -399,7 +400,7 @@ test('Full first-install cache and release acceleration contract are explicit', 
       schema: 'opl_full_runtime_cache_aggregate_key.v1',
       layout_version: 1,
       layer_ids: ['toolchain', 'domain-runtime', 'opl-runtime', 'skills'],
-      opl_runtime_bundle_consumer: mod.OPL_RUNTIME_BUNDLE_CONSUMER_CONTRACT,
+      opl_runtime_bundle_consumer: manifest.opl_runtime_bundle_consumer,
       layers: {
         toolchain: 'full-runtime-v1-toolchain-a',
         'domain-runtime': 'full-runtime-v1-domain-runtime-b',

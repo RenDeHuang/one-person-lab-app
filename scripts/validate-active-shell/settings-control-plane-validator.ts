@@ -259,7 +259,7 @@ export function validateSettingsControlPlaneBehavior({
   }
 }
 
-export function buildHydratedSettingsRegistry(controlPlane) {
+function buildHydratedSettingsRegistry(controlPlane) {
   return {
     ordinary_routes: (controlPlane.ordinary_routes ?? []).map((route) => {
       const slot = controlPlane.slot_registry?.[route.slot_id];
@@ -289,7 +289,7 @@ export function buildHydratedSettingsRegistry(controlPlane) {
   };
 }
 
-export function resolveSettingsControlPlaneRoute(controlPlane, routeId) {
+function resolveSettingsControlPlaneRoute(controlPlane, routeId) {
   const registry = buildHydratedSettingsRegistry(controlPlane);
   const ordinaryRoute = registry.ordinary_routes.find((route) => route.id === routeId);
   if (ordinaryRoute) {
@@ -326,7 +326,7 @@ export function resolveSettingsControlPlaneRoute(controlPlane, routeId) {
   );
 }
 
-export function remapSettingsExtensionAnchor(controlPlane, anchorId) {
+function remapSettingsExtensionAnchor(controlPlane, anchorId) {
   const remapped = controlPlane.extension_anchor_remap?.[anchorId];
   if (remapped) {
     return remapped;
