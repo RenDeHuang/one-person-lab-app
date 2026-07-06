@@ -101,6 +101,12 @@ page-state, and user-task-status validators consume that projection as the
 cross-contract expectation instead of keeping a second copy in validator
 constants.
 
+Settings IA behavior is validated through the Settings control-plane validator.
+The GUI product validator checks GUI-to-control-plane consistency and delegates
+Settings IA protocol checks instead of keeping a second Settings validator copy.
+The product-profile validator compares Settings defaults to its projected
+`settings.control_plane` copy rather than importing separate Settings constants.
+
 GUI interaction status is contract-backed as a composer-first Codex canvas with
 purpose entries, App-owned model status, collapsed contextual surfaces, and
 secondary inspector/detail views. The element audit lives in

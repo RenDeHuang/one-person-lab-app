@@ -1,9 +1,7 @@
 import path from 'node:path';
 import { assertDeepEqualJson, assertForbiddenCapabilityPolicy, assertIncludesAll } from './assertions.ts';
 import {
-  appOwnedSettingsTabs,
   forbiddenAuthorityOwners,
-  legacySettingsRouteRedirects,
 } from './app-contract-constants.ts';
 import {
   defaultActiveShellContractPath,
@@ -198,14 +196,19 @@ function validateProfessionalAgentPackages(profile) {
 
 function validateProductProfileSettings(profile) {
   validateSettingsControlPlaneBehavior({ productProfile: profile });
+  const queryFreeControlPlaneRedirects = Object.fromEntries(
+    Object.entries(profile.settings.control_plane.legacy_route_redirects ?? {})
+      .filter(([id]) => id !== 'about')
+      .map(([id, target]) => [id, String(target).split('?')[0]]),
+  );
   assertDeepEqualJson(
     profile.settings?.visible_tabs,
-    appOwnedSettingsTabs,
+    profile.settings.control_plane.ordinary_visible_tabs,
     'Product profile ordinary settings visible tabs',
   );
   assertDeepEqualJson(
     profile.settings?.legacy_route_redirects,
-    legacySettingsRouteRedirects,
+    queryFreeControlPlaneRedirects,
     'Product profile legacy settings route redirects',
   );
   if (profile.settings?.control_plane?.source_contract_ref !== 'contracts/app-settings-control-plane.json') {
@@ -213,12 +216,12 @@ function validateProductProfileSettings(profile) {
   }
   assertDeepEqualJson(
     profile.settings.control_plane.ordinary_visible_tabs,
-    appOwnedSettingsTabs,
+    profile.settings?.visible_tabs,
     'Product profile settings.control_plane ordinary tabs',
   );
   assertDeepEqualJson(
     profile.settings.control_plane.ordinary_routes?.map((route) => route.id),
-    appOwnedSettingsTabs,
+    profile.settings.control_plane.ordinary_visible_tabs,
     'Product profile settings.control_plane ordinary route ids',
   );
   assertDeepEqualJson(
@@ -227,7 +230,7 @@ function validateProductProfileSettings(profile) {
         .filter(([id]) => id !== 'about')
         .map(([id, target]) => [id, String(target).split('?')[0]]),
     ),
-    legacySettingsRouteRedirects,
+    profile.settings?.legacy_route_redirects,
     'Product profile settings.control_plane legacy redirects',
   );
 }

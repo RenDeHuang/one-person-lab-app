@@ -1,24 +1,9 @@
 import { assertDeepEqualJson, assertForbiddenCapabilityPolicy, assertIncludesAll, readJson } from './assertions.ts';
 import {
   appActionRoute,
-  appOwnedSettingsTabs,
   appOwnedTaskAwarenessRefFields,
   beginnerFirstRunTestIds,
   homeActivityCenterForbiddenDisplays,
-  legacySettingsRouteRedirects,
-  appOwnedSecondarySettingsPages,
-  appOwnedSettingsCardFields,
-  appOwnedSettingsConfirmationFields,
-  appOwnedSettingsIaGroupIds,
-  appOwnedSettingsIssueStatuses,
-  appOwnedSettingsMakeUsableAllowedSteps,
-  appOwnedSettingsMakeUsableForbiddenSteps,
-  appOwnedSettingsPostUpdateNoticeFields,
-  appOwnedSettingsSearchProtocol,
-  appOwnedSettingsTaskEntryMetadataFields,
-  appOwnedSettingsTopLevelEntryIds,
-  appOwnedSettingsTaskEntryIds,
-  appOwnedSettingsVisualQaTargets,
 } from './app-contract-constants.ts';
 import { validateGuiFrameworkSurfaces } from './gui-framework-surfaces-validator.ts';
 import { validateGuiProductHomeContract } from './gui-product-home-validator.ts';
@@ -28,7 +13,7 @@ import {
   validateEnvironmentModuleMaintenanceEntry,
   validateManagedUpdatePlaneBinding,
 } from './managed-update-plane-validator.ts';
-import { productProfilePath, runtimeBridgePath } from './validation-config.ts';
+import { productProfilePath, runtimeBridgePath, settingsControlPlanePath } from './validation-config.ts';
 import { validateSettingsControlPlaneBehavior } from './settings-control-plane-validator.ts';
 import {
   assertNonEmptyStringArray,
@@ -75,6 +60,7 @@ const aionuiTeamProbeIds = [
 ];
 const productProfile = readJson(productProfilePath);
 const runtimeBridge = readJson(runtimeBridgePath);
+const settingsControlPlane = readJson(settingsControlPlanePath);
 const expectedFirstRunProgressModel = productProfile.first_run?.progress_model;
 const expectedFirstRunCoreItems = assertNonEmptyStringArray(
   productProfile.first_run?.ready_to_launch_gate?.required_core_items,
@@ -193,18 +179,21 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   }
   assertDeepEqualJson(
     guiContract.settings_navigation?.ordinary_visible_tabs,
-    appOwnedSettingsTabs,
+    settingsControlPlane.ordinary_visible_tabs,
     'App GUI settings navigation ordinary visible tabs',
   );
   assertDeepEqualJson(
     guiContract.settings_navigation?.secondary_page_ids,
-    appOwnedSecondarySettingsPages.filter((routeId) => routeId !== 'storage'),
+    settingsControlPlane.secondary_pages?.map((route) => route.id),
     'App GUI settings navigation secondary page ids',
   );
-  validateSettingsIaContract(guiContract.settings_navigation?.settings_ia);
   assertDeepEqualJson(
     guiContract.settings_navigation?.legacy_route_redirects,
-    legacySettingsRouteRedirects,
+    Object.fromEntries(
+      Object.entries(settingsControlPlane.legacy_route_redirects ?? {})
+        .filter(([id]) => id !== 'about')
+        .map(([id, target]) => [id, String(target).split('?')[0]]),
+    ),
     'App GUI settings navigation legacy route redirects',
   );
   assertDeepEqualJson(
@@ -769,133 +758,6 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   if ('docker_webui' in guiContract) {
     throw new Error('App GUI contract must not include withdrawn Docker/WebUI username, title, logo, or branding requirements');
   }
-}
-
-function validateSettingsIaContract(settingsIa) {
-  if (settingsIa?.schema !== 'settings_ia.v1') {
-    throw new Error('App GUI settings IA must declare settings_ia.v1');
-  }
-  if (settingsIa.authority !== 'one-person-lab-app') {
-    throw new Error('App GUI settings IA authority must stay in one-person-lab-app');
-  }
-  assertDeepEqualJson(settingsIa.ordinary_route_ids, appOwnedSettingsTabs, 'App GUI settings IA ordinary route ids');
-  assertDeepEqualJson(
-    settingsIa.secondary_or_deep_link_route_ids,
-    appOwnedSecondarySettingsPages,
-    'App GUI settings IA secondary/deep-link route ids',
-  );
-  assertDeepEqualJson(settingsIa.group_ids, appOwnedSettingsIaGroupIds, 'App GUI settings IA group ids');
-  if (settingsIa.route_identity_policy !== 'keep_current_shell_route_ids_distinct_from_user_facing_ia_groups') {
-    throw new Error('App GUI settings IA must distinguish current route ids from user-facing IA groups');
-  }
-  if (
-    settingsIa.route_promotion_policy !==
-    'secondary_or_deep_link_routes_must_not_be_promoted_to_ordinary_routes_without_contract_matrix_validator_and_test_updates'
-  ) {
-    throw new Error('App GUI settings IA must gate secondary/deep-link route promotion through contract, matrix, validator, and tests');
-  }
-  if (
-    settingsIa.top_level_navigation_policy?.workspace_visibility !== 'workspace_is_user_visible_top_level_navigation_entry' ||
-    settingsIa.top_level_navigation_policy?.shell_route_compatibility !==
-      'workspace_route_is_ordinary_user_visible_top_level_navigation'
-  ) {
-    throw new Error('App GUI settings IA must make Workspace a user-visible top-level navigation entry');
-  }
-  assertDeepEqualJson(
-    (settingsIa.top_level_entries ?? []).map((entry) => entry.id),
-    appOwnedSettingsTopLevelEntryIds,
-    'App GUI settings IA top-level entries',
-  );
-  const workspaceTopLevel = (settingsIa.top_level_entries ?? []).find((entry) => entry.id === 'workspace');
-  if (
-    workspaceTopLevel?.route_id !== 'workspace' ||
-    workspaceTopLevel?.route_scope !== 'ordinary' ||
-    workspaceTopLevel?.visibility !== 'top_level_navigation'
-  ) {
-    throw new Error('App GUI settings IA Workspace top-level entry must be ordinary top-level navigation');
-  }
-  assertDeepEqualJson(
-    (settingsIa.user_task_entries ?? []).map((entry) => entry.id),
-    appOwnedSettingsTaskEntryIds,
-    'App GUI settings IA user task entries',
-  );
-  for (const entry of [...(settingsIa.top_level_entries ?? []), ...(settingsIa.user_task_entries ?? [])]) {
-    assertIncludesAll(
-      Object.keys(entry),
-      appOwnedSettingsTaskEntryMetadataFields,
-      `App GUI settings IA entry ${entry?.id ?? '<missing id>'} metadata fields`,
-    );
-  }
-  assertDeepEqualJson(settingsIa.protocols?.issue_queue?.statuses, appOwnedSettingsIssueStatuses, 'App GUI settings issue queue statuses');
-  if (
-    settingsIa.protocols?.action_catalog?.action_route !== appActionRoute
-  ) {
-    throw new Error('App GUI settings action catalog must use the App action route');
-  }
-  assertDeepEqualJson(
-    settingsIa.protocols?.settings_search,
-    appOwnedSettingsSearchProtocol,
-    'App GUI settings search protocol',
-  );
-  assertDeepEqualJson(
-    settingsIa.protocols?.card_protocol?.required_fields,
-    appOwnedSettingsCardFields,
-    'App GUI settings card protocol fields',
-  );
-  assertDeepEqualJson(
-    settingsIa.protocols?.confirmation_drawer?.required_fields,
-    appOwnedSettingsConfirmationFields,
-    'App GUI settings confirmation drawer fields',
-  );
-  if (
-    settingsIa.protocols?.confirmation_drawer?.copy_policy !==
-    'must_explain_what_changes_what_does_not_change_and_the_recovery_reference_before_mutation'
-  ) {
-    throw new Error('App GUI settings confirmation drawer must explain change boundaries and recovery references');
-  }
-  assertDeepEqualJson(
-    settingsIa.protocols?.post_update_notice?.required_fields,
-    appOwnedSettingsPostUpdateNoticeFields,
-    'App GUI settings post-update notice fields',
-  );
-  if (
-    settingsIa.protocols?.post_update_notice?.visibility_policy !==
-      'ordinary_layer_after_mutation_or_background_action_until_next_refresh' ||
-    settingsIa.protocols?.post_update_notice?.receipt_policy !==
-      'show_receipt_ref_without_claiming_domain_or_release_readiness'
-  ) {
-    throw new Error('App GUI settings post-update notices must stay visible without readiness claims');
-  }
-  const makeUsableAction = settingsIa.protocols?.make_usable_action;
-  if (
-    makeUsableAction?.placement !== 'settings_environment.maintenance_hub.primary_action' ||
-    makeUsableAction?.orchestration_policy !== 'shell_orchestrates_existing_app_and_managed_update_actions_only' ||
-    makeUsableAction?.post_action_notice !==
-      'show restart or reload guidance from managed update status/result without claiming domain, release, or production readiness'
-  ) {
-    throw new Error('App GUI Settings make-usable action must stay a shell-orchestrated composite over existing actions');
-  }
-  assertDeepEqualJson(
-    makeUsableAction?.allowed_steps,
-    appOwnedSettingsMakeUsableAllowedSteps,
-    'App GUI Settings make-usable allowed steps',
-  );
-  assertDeepEqualJson(
-    makeUsableAction?.must_not,
-    appOwnedSettingsMakeUsableForbiddenSteps,
-    'App GUI Settings make-usable forbidden steps',
-  );
-  if (settingsIa.protocols?.diagnostics?.default_visibility !== 'collapsed_advanced_only') {
-    throw new Error('App GUI settings diagnostics must be collapsed and Advanced-only by default');
-  }
-  if (settingsIa.protocols?.deep_link_policy?.unknown_route_policy !== 'redirect_to_nearest_app_owned_settings_group') {
-    throw new Error('App GUI settings deep links must redirect unknown routes to the nearest App-owned Settings group');
-  }
-  assertDeepEqualJson(
-    settingsIa.protocols?.visual_qa_expectations?.required_targets,
-    appOwnedSettingsVisualQaTargets,
-    'App GUI settings visual QA targets',
-  );
 }
 
 function validateFrameworkModuleMaintenanceEntry(entry) {
