@@ -55,11 +55,12 @@ const updateLocaleForbidden = [
 ];
 
 const runtimeSettingsExpected = [
-  "ipcBridge.oplRuntime.getAppState.invoke({ profile: 'fast' })",
-  "ipcBridge.oplRuntime.getAppState.invoke({ profile: 'full' })",
-  "ipcBridge.oplRuntime.getDrilldown.invoke({ detail: 'full' })",
-  'normalizeRuntimeProjection',
-  'payloadRefsOnlyJson',
+  "useOplAppState('fast')",
+  'executeManagedUpdateRead',
+  'executeManagedUpdateMutation',
+  'runSettingsControlPlaneAction',
+  'RuntimeMaintenanceHub',
+  'RuntimeReadinessGrid',
 ];
 
 const trayStartupExpected = [
@@ -140,7 +141,7 @@ function validateShellLocalizedRuntimeText(shellPaths, requiresLocale) {
 function validateRuntimeSettings(shellPaths) {
   const runtimeSettings = assertShellTextIncludesAll(
     shellPaths,
-    'packages/desktop/src/renderer/pages/settings/RuntimeSettings/index.tsx',
+    'packages/desktop/src/renderer/pages/settings/sections/RuntimeSettings.tsx',
     runtimeSettingsExpected,
     'Active shell Runtime settings',
   );
