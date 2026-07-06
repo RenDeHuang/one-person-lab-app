@@ -1,4 +1,5 @@
 import { assertDeepEqualJson, assertIncludesAll } from './assertions.ts';
+import { appActionRoute } from './app-contract-constants.ts';
 import {
   managedKernelComponentReceiptIdentityFields,
   managedKernelComponentReceiptRequiredFields,
@@ -912,6 +913,55 @@ export function validateManagedUpdatePageBasics(page, label, options = {}) {
   assertDeepEqualJson(page?.sections, managedUpdateSections, `${label} sections`);
   assertIncludesAll(page?.must_show, managedUpdateMustShow, `${label} must_show`);
   assertIncludesAll(page?.must_not_show, managedUpdateMustNotShow, `${label} must_not_show`);
+}
+
+export function validateEnvironmentModuleMaintenanceEntry(entry, label) {
+  if (
+    entry?.placement !== 'Local Environment' ||
+    entry?.app_role !== 'managed_update_status_action_consumer_only' ||
+    entry?.kernel_implementation_allowed !== false ||
+    entry?.domain_truth_write_allowed !== false ||
+    entry?.owner_receipt_write_allowed !== false ||
+    entry?.developer_checkout_silent_update_allowed !== false ||
+    entry?.dirty_checkout_silent_update_allowed !== false
+  ) {
+    throw new Error(`${label} module maintenance entry must stay under Local Environment as a consumer-only managed update surface`);
+  }
+  assertIncludesAll(
+    entry?.required_modules,
+    ['MAS', 'MAG', 'RCA', 'OMA', 'OBF', 'ScholarSkills'],
+    `${label} module maintenance modules`,
+  );
+  assertIncludesAll(
+    entry?.required_status,
+    [
+      'OPL Packages state and Codex Surface substatus',
+      'recommended action',
+      'post-update sync status',
+      'repair and rollback refs',
+    ],
+    `${label} module maintenance status`,
+  );
+  assertDeepEqualJson(
+    entry?.manual_action_mapping,
+    {
+      refresh: 'opl update status --json',
+      check: 'opl update check --json',
+      apply_managed_component: 'opl update apply --component <component_id> --json',
+      apply_allowed_components: ['capability_packages'],
+      apply_forbidden_components: [
+        'installation_carrier',
+        'runtime_substrate',
+        'companion_tools',
+        'codex_surface',
+        'workflow_profile',
+      ],
+      repair: 'opl update repair --receipt <receipt_id> --json',
+      rollback: 'opl update rollback --component <component_id> --json',
+      app_action_route: appActionRoute,
+    },
+    `${label} module maintenance action mapping`,
+  );
 }
 
 export function validateManagedUpdatePlaneBinding(plane, label, options = {}) {

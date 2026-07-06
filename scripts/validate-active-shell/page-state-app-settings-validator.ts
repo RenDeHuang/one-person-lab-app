@@ -1,9 +1,10 @@
 import { assertDeepEqualJson, assertIncludesAll } from './assertions.ts';
 import {
-  appActionRoute,
+  appOwnedTaskAwarenessRefFields,
   settingsPageExpectations,
 } from './app-contract-constants.ts';
 import {
+  validateEnvironmentModuleMaintenanceEntry,
   validateManagedUpdatePageBasics,
   validateManagedUpdatePlaneBinding,
 } from './managed-update-plane-validator.ts';
@@ -70,25 +71,7 @@ function validateCapabilitiesPage(matrix) {
   }
   assertDeepEqualJson(
     capabilitiesPage.task_awareness_ref_fields,
-    [
-      'capability_health_refs',
-      'connector_readiness_refs',
-      'workflow_refs',
-      'export_bundle_action_ref',
-      'resource_source_refs',
-      'gateway_status_ref',
-      'environment_ref',
-      'environment_template_ref',
-      'environment_version_ref',
-      'environment_source_ref',
-      'environment_task_refs',
-      'console_policy_ref',
-      'storage_ref',
-      'resource_receipt_ref',
-      'cost_estimate_ref',
-      'candidate_report_refs',
-      'workflow_skill_candidate_refs',
-    ],
+    appOwnedTaskAwarenessRefFields,
     'Capabilities page task awareness ref fields',
   );
   if (
@@ -299,55 +282,6 @@ function validateEnvironmentPage(matrix) {
   if (environmentPage.managed_update_plane_ref !== 'contracts/app-release-channel.json#managed_update_plane') {
     throw new Error('Environment page must reference the App release managed update plane');
   }
-}
-
-function validateEnvironmentModuleMaintenanceEntry(entry, label) {
-  if (
-    entry?.placement !== 'Local Environment' ||
-    entry?.app_role !== 'managed_update_status_action_consumer_only' ||
-    entry?.kernel_implementation_allowed !== false ||
-    entry?.domain_truth_write_allowed !== false ||
-    entry?.owner_receipt_write_allowed !== false ||
-    entry?.developer_checkout_silent_update_allowed !== false ||
-    entry?.dirty_checkout_silent_update_allowed !== false
-  ) {
-    throw new Error(`${label} module maintenance entry must stay under Local Environment as a consumer-only managed update surface`);
-  }
-  assertIncludesAll(
-    entry?.required_modules,
-    ['MAS', 'MAG', 'RCA', 'OMA', 'OBF', 'ScholarSkills'],
-    `${label} module maintenance modules`,
-  );
-  assertIncludesAll(
-    entry?.required_status,
-    [
-      'OPL Packages state and Codex Surface substatus',
-      'recommended action',
-      'post-update sync status',
-      'repair and rollback refs',
-    ],
-    `${label} module maintenance status`,
-  );
-  assertDeepEqualJson(
-    entry?.manual_action_mapping,
-    {
-      refresh: 'opl update status --json',
-      check: 'opl update check --json',
-      apply_managed_component: 'opl update apply --component <component_id> --json',
-      apply_allowed_components: ['capability_packages'],
-      apply_forbidden_components: [
-        'installation_carrier',
-        'runtime_substrate',
-        'companion_tools',
-        'codex_surface',
-        'workflow_profile',
-      ],
-      repair: 'opl update repair --receipt <receipt_id> --json',
-      rollback: 'opl update rollback --component <component_id> --json',
-      app_action_route: appActionRoute,
-    },
-    `${label} module maintenance action mapping`,
-  );
 }
 
 function validateAdvancedPage(matrix) {

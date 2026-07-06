@@ -329,7 +329,14 @@ the product profile for those expectations instead of importing global mirror
 constants. Settings product-system item and track constants remain fixed
 validator assertions rather than contract-derived values, because deriving them
 from the Settings contract or its product-profile projection would self-validate
-the same checklist. `npm run hygiene:fallow -- --format json --summary`
+the same checklist. Settings Capabilities task-awareness ref fields now share
+one App-owned validator constant, and the Settings Environment module
+maintenance entry uses the managed-update validator helper instead of repeating
+the same assertion block in GUI and page-state validators. Tracked guide
+screenshot PNGs remain intentional App-owned guide and release-doc artifacts,
+so cleanup closed the unused renderer and selected duplication/constant mirrors
+only; broad tracked-screenshot deletion and large `buildSummary` / validator
+thinning remain follow-up items, not completed cleanup. `npm run hygiene:fallow -- --format json --summary`
 is the production hygiene check for unused files/exports and duplicate exports.
 This is code-health and validation-structure evidence only; it is not a
 release-ready, currentness, packaged-App, clean-VM, owner-acceptance, or Live
