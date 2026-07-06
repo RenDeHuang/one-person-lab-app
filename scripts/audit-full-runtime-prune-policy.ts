@@ -18,11 +18,15 @@ import { formatBytes } from './release-size-reporting.ts';
 type OutputMode = 'json' | 'markdown';
 
 function parseArgs(argv: string[]) {
+  const runtimeRootOption = '--runtime-root';
+  const baselineOption = '--baseline';
+  const runtimeRootKey = runtimeRootOption.slice(2) as 'runtime-root';
+  const baselineKey = baselineOption.slice(2) as 'baseline';
   const { values } = parseNodeArgs({
     args: argv,
     options: {
-      'runtime-root': { type: 'string' },
-      baseline: { type: 'string' },
+      [runtimeRootKey]: { type: 'string' },
+      [baselineKey]: { type: 'string' },
       top: { type: 'string' },
       json: { type: 'boolean' },
       markdown: { type: 'boolean' },
@@ -30,8 +34,8 @@ function parseArgs(argv: string[]) {
     allowPositionals: false,
   });
   const parsed = {
-    runtimeRoot: values['runtime-root'] ? path.resolve(values['runtime-root']) : '',
-    baseline: values.baseline ? path.resolve(values.baseline) : '',
+    runtimeRoot: values[runtimeRootKey] ? path.resolve(values[runtimeRootKey]) : '',
+    baseline: values[baselineKey] ? path.resolve(values[baselineKey]) : '',
     top: 20,
     output: argv.lastIndexOf('--markdown') > argv.lastIndexOf('--json') ? 'markdown' as OutputMode : 'json' as OutputMode,
   };
