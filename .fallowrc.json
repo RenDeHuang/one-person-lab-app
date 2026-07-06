@@ -1,9 +1,16 @@
 {
   "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
   "entry": [
+    "scripts/assert-full-runtime-currentness.ts",
+    "scripts/validate-hermes-candidate.ts",
+    "scripts/user-guides/render-runtime-environment-screenshot.ts",
     "scripts/setup-release-notes-codex-config.ts"
   ],
   "ignorePatterns": [
+    "docs/delivery/user-guides/macos-app-install/generated/macos-app-install-marp-theme.css",
+    "docs/publishing/templates/opl-guide/styles.scss",
+    "docs/publishing/templates/opl-quickstart/styles.scss",
+    "docs/publishing/templates/opl-whitepaper/styles.scss",
     "shells/aionui/**",
     "shells/agui-codex/**"
   ],

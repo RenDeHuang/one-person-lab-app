@@ -31,7 +31,6 @@ import {
   buildManifestSizeAnalysis,
   buildReadinessBottlenecks,
   buildReadinessOptimizationRecommendations,
-  numberField,
   stringField,
   summarizeFullSizeBudget,
   summarizeRuntimeCacheEvents,

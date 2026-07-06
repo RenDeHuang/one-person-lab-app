@@ -9,7 +9,7 @@ type GateFieldsSource = {
   fields?: Record<string, unknown> | null;
 };
 
-export function numberField(record: Record<string, unknown> | null | undefined, key: string) {
+function numberField(record: Record<string, unknown> | null | undefined, key: string) {
   const value = record?.[key];
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }

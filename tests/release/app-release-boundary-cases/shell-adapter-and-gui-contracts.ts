@@ -648,7 +648,20 @@ test('App fallow hygiene is not the active GUI shell validation gate', () => {
   const packageJson = JSON.parse(fs.readFileSync(path.join(appRoot, 'package.json'), 'utf8'));
   const fallowConfig = JSON.parse(fs.readFileSync(path.join(appRoot, '.fallowrc.json'), 'utf8'));
 
-  assert.deepEqual(fallowConfig.ignorePatterns, ['shells/aionui/**', 'shells/agui-codex/**']);
+  assert.deepEqual(fallowConfig.entry, [
+    'scripts/assert-full-runtime-currentness.ts',
+    'scripts/validate-hermes-candidate.ts',
+    'scripts/user-guides/render-runtime-environment-screenshot.ts',
+    'scripts/setup-release-notes-codex-config.ts',
+  ]);
+  assert.deepEqual(fallowConfig.ignorePatterns, [
+    'docs/delivery/user-guides/macos-app-install/generated/macos-app-install-marp-theme.css',
+    'docs/publishing/templates/opl-guide/styles.scss',
+    'docs/publishing/templates/opl-quickstart/styles.scss',
+    'docs/publishing/templates/opl-whitepaper/styles.scss',
+    'shells/aionui/**',
+    'shells/agui-codex/**',
+  ]);
   assert.equal(packageJson.scripts['hygiene:fallow'], 'npx --yes fallow@latest --root . --no-cache --production');
   assert.match(packageJson.scripts['validate:gui-shell'], /validate-active-shell\.ts/);
   assert.match(packageJson.scripts['validate:gui-shell'], /run-active-shell-command\.ts bun run package/);

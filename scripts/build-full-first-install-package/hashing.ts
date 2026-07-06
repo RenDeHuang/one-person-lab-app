@@ -15,12 +15,8 @@ export function fileSha256(filePath) {
   return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
 }
 
-export function stringSha256(value) {
-  return crypto.createHash('sha256').update(value).digest('hex');
-}
-
 export function functionSourceSha256(functions) {
-  return stringSha256(functions.map((fn) => fn.toString()).join('\n\n'));
+  return crypto.createHash('sha256').update(functions.map((fn) => fn.toString()).join('\n\n')).digest('hex');
 }
 
 export function hashFiles(sourceRoot, relativePaths) {
