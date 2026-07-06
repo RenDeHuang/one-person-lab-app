@@ -268,7 +268,8 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /same_job_after_docker_webui_smoke/);
   assert.match(workflow, /repeated_docker_build: false/);
   assert.match(workflow, /webui-ghcr-publish:[\s\S]*Download WebUI GHCR publish summary[\s\S]*Verify WebUI GHCR publish summary/);
-  assert.match(workflow, /Download Docker WebUI clean VM evidence validation[\s\S]*docker-webui-clean-vm-evidence-\$\{\{ inputs\.opl_version \}\}/);
+  assert.match(workflow, /docker-webui-clean-vm-evidence:[\s\S]*docker-webui-clean-vm-evidence-\$\{\{ inputs\.opl_version \}\}/);
+  assert.match(workflow, /release-addon-readiness-summary:[\s\S]*release-addon-readiness-summary-\$\{\{ inputs\.opl_version \}\}/);
   const nightlyWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'nightly-standard-release.yml'), 'utf8');
   assert.match(nightlyWorkflow, /release-source-gate:[\s\S]*npm run release:source-gate --/);
   assert.match(nightlyWorkflow, /standard-build:[\s\S]*needs:[\s\S]*resolve-nightly[\s\S]*release-source-gate/);
@@ -346,17 +347,15 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(readinessAdmissionJob, /release-preflight/);
   assert.match(jobLevelIf(readinessAdmissionJob), /needs\.release-preflight\.result == 'success'/);
   assert.doesNotMatch(jobLevelIf(readinessAdmissionJob), /needs\.release-preflight\.outputs\.homebrew_tap_update_required != 'true'/);
-  assert.match(readinessAdmissionJob, /const homebrewTapUpdateRequired = '\$\{\{ needs\.release-preflight\.outputs\.homebrew_tap_update_required \}\}' === 'true'/);
-  assert.match(readinessAdmissionJob, /const requireAddonGatesForStableReadiness = '\$\{\{ inputs\.require_addon_gates_for_stable_readiness \}\}' === 'true'/);
   assert.match(readinessAdmissionJob, /requireSuccess\('remote-verify-standard'\)/);
-  assert.match(readinessAdmissionJob, /if \(requireAddonGatesForStableReadiness && homebrewTapUpdateRequired\) \{[\s\S]*requireSuccess\('stable-homebrew-tap-update'\)[\s\S]*requireSuccess\('full-homebrew-tap-update'\)[\s\S]*requireSuccess\('homebrew-standard-first-run-vm-smoke'\)/);
-  assert.match(readinessAdmissionJob, /else \{[\s\S]*requireSuccessOrSkippedOrFailed\('stable-homebrew-tap-update'\)[\s\S]*requireSuccessOrSkippedOrFailed\('full-homebrew-tap-update'\)[\s\S]*requireSuccessOrSkippedOrFailed\('homebrew-standard-first-run-vm-smoke'\)/);
-  assert.match(readinessAdmissionJob, /if \(requireAddonGatesForStableReadiness && publishDockerWebui\) \{[\s\S]*requireSuccess\('docker-webui-clean-vm-evidence'\)/);
-  assert.match(readinessAdmissionJob, /requireSuccessOrSkippedOrFailed\('docker-webui-clean-vm-evidence'\)/);
+  assert.doesNotMatch(readinessAdmissionJob, /homebrewTapUpdateRequired|requireAddonGatesForStableReadiness/);
+  assert.doesNotMatch(readinessAdmissionJob, /full-homebrew-tap-update|docker-webui-clean-vm-evidence|remote-verify-full/);
   assert.doesNotMatch(jobLevelIf(readinessAdmissionJob), /operator-evidence-bundle-validation/);
   assert.doesNotMatch(readinessAdmissionJob, /requireSuccess\('operator-evidence-bundle-validation'\)/);
   assert.doesNotMatch(jobLevelIf(readinessJob), /if:\s*\$\{\{\s*always\(\)/);
   assert.match(jobLevelIf(readinessJob), /if:\s*\$\{\{\s*!cancelled\(\) && needs\.release-readiness-admission\.result == 'success'/);
+  assert.doesNotMatch(workflowJobBlock(workflow, 'release-readiness-summary'), /full-first-install|remote-verify-full|docker-webui-smoke|operator-evidence-bundle-validation/);
+  assert.match(workflowJobBlock(workflow, 'release-addon-readiness-summary'), /needs:[\s\S]*full-first-install[\s\S]*remote-verify-full[\s\S]*docker-webui-smoke[\s\S]*operator-evidence-bundle-validation/);
   assert.doesNotMatch(readinessJob, /name: Write release candidate record[\s\S]{0,80}if:\s*\$\{\{\s*always\(\)/);
   assert.doesNotMatch(readinessJob, /name: Upload release readiness summary[\s\S]{0,80}if:\s*always\(\)/);
   assert.doesNotMatch(readinessJob, /name: Upload release candidate record[\s\S]{0,80}if:\s*always\(\)/);
@@ -381,8 +380,8 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /package_profile: standard/);
   assert.match(workflow, /package_profile: full/);
   assert.match(workflow, /package_profile: homebrew-standard/);
-  assert.match(workflow, /opl-first-run-vm-homebrew-standard-\$\{\{ github\.run_id \}\}/);
-  assert.match(workflow, /homebrew-tap-plan-stable-app_full_first_install-\$\{\{ inputs\.opl_version \}\}/);
+  assert.match(workflow, /release-addon-readiness-summary:[\s\S]*homebrew-standard-first-run-vm-smoke/);
+  assert.match(workflow, /release-addon-readiness-summary:[\s\S]*full-homebrew-tap-update/);
   assert.match(workflow, /guide_screenshots: \$\{\{ inputs\.guide_screenshots \}\}/);
   assert.match(fullWorkflow, /workflow_call:/);
   const fullWorkflowCallBlock = fullWorkflow.match(/\n  workflow_call:[\s\S]*?\npermissions:/)?.[0] ?? '';
@@ -569,7 +568,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.deepEqual(releaseContract.release_acceleration.github_actions.release_readiness_admission, {
     workflow_job: 'release-readiness-admission',
     preflight_dependency: 'release-preflight',
-    addon_gate_blocking_input: 'require_addon_gates_for_stable_readiness',
+    addon_requirement_input: 'require_addon_gates_for_stable_readiness',
     addon_gate_blocking_default: false,
     standard_stable_required_jobs: [
       'publish-standard',
@@ -586,7 +585,8 @@ test('manual desktop release workflow supports new releases and same-tag refresh
     homebrew_allowed_when_false: 'success_or_skipped',
     diagnostic_gates: ['operator-evidence-bundle-validation'],
     same_cohort_addon_status_policy: 'success_or_skipped_or_failed_when_not_required',
-    rule: 'Release readiness admission must fail when Standard stable critical-path gates fail. By default it must not force Full, Docker/WebUI, or Homebrew add-on gates before writing the Standard readiness record; those gates keep running in the same cohort and their success, skipped, or failed statuses remain recorded. When require_addon_gates_for_stable_readiness=true, Full, Docker/WebUI, and Homebrew add-on gates become blocking for the readiness record. Clean Windows Docker VM evidence remains optional diagnostic import. Diagnostic gates such as operator evidence bundle validation must feed the readiness summary when present, but they must not prevent readiness aggregation from running.',
+    addon_status_artifact: 'release-addon-readiness-summary-<version>',
+    rule: 'Release readiness admission must fail when Standard stable critical-path gates fail. By default it must not force Full, Docker/WebUI, or Homebrew add-on gates before writing the Standard readiness record; those gates keep running in the same cohort and their success, skipped, or failed statuses remain recorded in the add-on readiness summary. require_addon_gates_for_stable_readiness records the release owner expectation for promote-time policy without delaying the Standard readiness record. Clean Windows Docker VM evidence remains optional diagnostic import. Diagnostic gates such as operator evidence bundle validation must feed the add-on summary when present, but they must not prevent Standard readiness aggregation from running.',
   });
   assert.deepEqual(releaseContract.release_acceleration.github_actions.diagnostics_workflow_policy, {
     workflow: '.github/workflows/desktop-release-diagnostics.yml',

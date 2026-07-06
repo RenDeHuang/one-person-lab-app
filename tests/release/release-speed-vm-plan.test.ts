@@ -204,14 +204,21 @@ test('desktop release workflow keeps the release DAG split by build, publish, ve
   const operatorEvidenceJob = workflow.match(/\n  operator-evidence-bundle-validation:[\s\S]*?(?=\n  [a-z0-9-]+:\n|$)/)?.[0] ?? '';
   assert.doesNotMatch(operatorEvidenceJob, /npm run [^\n]*> evidence-(?:collection|validation)-summary\.json/);
   assertMatches(workflow, /release-readiness-admission:[\s\S]*?Release readiness aggregation is blocked by failed, skipped, or missing required gates/, 'release readiness admission fail-fast job');
-  assertMatches(workflow, /release-readiness-admission:[\s\S]*?requireSuccess\('full-homebrew-tap-update'\)/, 'Full Homebrew tap update must be required when Full is included');
-  assertMatches(workflow, /release-readiness-admission:[\s\S]*?requireSuccess\('homebrew-standard-first-run-vm-smoke'\)/, 'Homebrew VM smoke must be required for clean release evidence');
+  assert.doesNotMatch(
+    workflow.match(/\n  release-readiness-admission:[\s\S]*?(?=\n  [a-z0-9-]+:\n|$)/)?.[0] ?? '',
+    /full-homebrew-tap-update|homebrew-standard-first-run-vm-smoke|docker-webui-clean-vm-evidence/,
+    'Standard readiness admission must not wait for add-on gates by default',
+  );
   assertMatches(workflow, /release-readiness-summary:[\s\S]*?needs\.release-readiness-admission\.result == 'success'/, 'final release readiness summary waits for admission');
-  assertMatches(workflow, /release-readiness-summary:[\s\S]*?remote-verify-standard[\s\S]*?remote-verify-full[\s\S]*?standard-first-run-vm-smoke-after-standard-only[\s\S]*?standard-first-run-vm-smoke-after-full[\s\S]*?standard-vm-smoke-gate-after-full[\s\S]*?full-first-run-vm-smoke[\s\S]*?one-shot-app-installer-smoke[\s\S]*?docker-webui-smoke[\s\S]*?operator-evidence-bundle-validation[\s\S]*?release-readiness-admission/, 'final release readiness dependencies');
+  assertMatches(workflow, /release-readiness-summary:[\s\S]*?remote-verify-standard[\s\S]*?standard-first-run-vm-smoke-after-standard-only[\s\S]*?standard-first-run-vm-smoke-after-full[\s\S]*?standard-vm-smoke-gate-after-full[\s\S]*?one-shot-app-installer-smoke[\s\S]*?release-readiness-admission/, 'standard release readiness dependencies');
+  assert.doesNotMatch(
+    workflow.match(/\n  release-readiness-summary:[\s\S]*?(?=\n  [a-z0-9-]+:\n|$)/)?.[0] ?? '',
+    /remote-verify-full|full-first-run-vm-smoke|docker-webui-smoke|operator-evidence-bundle-validation/,
+    'Standard readiness summary must not wait for add-on jobs',
+  );
+  assertMatches(workflow, /release-addon-readiness-summary:[\s\S]*?remote-verify-full[\s\S]*?full-first-run-vm-smoke[\s\S]*?docker-webui-smoke[\s\S]*?operator-evidence-bundle-validation/, 'same-cohort add-on status dependencies');
   assertMatches(workflow, /release-readiness-summary:[\s\S]*?remote-release-verification-\$\{\{ inputs\.opl_version \}\}/, 'remote verification small artifact');
-  assertMatches(workflow, /release-readiness-summary:[\s\S]*?release-evidence-bundle-\$\{\{ inputs\.opl_version \}\}/, 'operator evidence validation small artifact');
-  assertMatches(workflow, /release-readiness-summary:[\s\S]*?opl-full-workflow-telemetry-\$\{\{ inputs\.opl_version \}\}/, 'Full telemetry small artifact');
-  assertMatches(workflow, /release-readiness-summary:[\s\S]*?opl-full-diagnostics-\$\{\{ inputs\.opl_version \}\}/, 'Full diagnostics small artifact');
+  assertMatches(workflow, /release-addon-readiness-summary:[\s\S]*?release-addon-readiness-summary\.json/, 'same-cohort add-on status artifact');
   assertMatches(workflow, /release-readiness-summary:[\s\S]*?release-readiness-summary\.json/, 'machine-readable release readiness summary');
   assertMatches(workflow, /release-readiness-summary:[\s\S]*?summarize-release-readiness\.ts/, 'scripted release readiness aggregation');
   const readinessJob = workflow.match(/\n  release-readiness-summary:[\s\S]*?(?=\n  [a-z0-9-]+:\n|$)/)?.[0] ?? '';

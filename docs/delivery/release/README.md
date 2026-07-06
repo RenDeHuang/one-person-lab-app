@@ -194,8 +194,9 @@ Stable release flow:
    standard VM gate, and the one-shot installer smoke as the default Standard
    stable readiness path.
 7. Continue Full, Docker/WebUI, Homebrew, and operator-evidence work as
-   same-cohort add-on gates/assets. They block the Standard readiness record
-   only when `require_addon_gates_for_stable_readiness=true`.
+   same-cohort add-on gates/assets. Their status is recorded in
+   `release-addon-readiness-summary` without delaying the Standard readiness
+   record; release owner policy may still require them before promote.
 8. Produce `release-candidate-record.json` for the admitted readiness path while
    preserving add-on job results for the same cohort.
 9. Promote only when the promote workflow reads a ready candidate record for

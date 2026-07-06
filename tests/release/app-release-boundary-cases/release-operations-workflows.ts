@@ -307,7 +307,7 @@ test('stable validation profile covers every user installation surface', () => {
   ]);
   assert.equal(releaseContract.release_acceleration.target_architecture.addon_gate_blocking_default, false);
   assert.equal(
-    releaseContract.release_acceleration.target_architecture.addon_gate_blocking_input,
+    releaseContract.release_acceleration.target_architecture.addon_requirement_input,
     'require_addon_gates_for_stable_readiness',
   );
   assert.ok(
