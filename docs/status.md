@@ -321,7 +321,14 @@ and first-run progress model expectations for GUI, page-state, first-run
 matrix, and install-exposure validators derive from
 `contracts/app-product-profile.json#first_run.progress_model` instead of
 mirroring the same command, path, field, visible-element, and consumer package
-lists in `app-contract-constants.ts`. `npm run hygiene:fallow -- --format json --summary`
+lists in `app-contract-constants.ts`. Product-profile-specific host-tool,
+full-readiness, deferred-maintenance, ecosystem-module, and companion-skill
+expectations are local to the product-profile validator; other validators read
+the product profile for those expectations instead of importing global mirror
+constants. Settings product-system item and track constants remain fixed
+validator assertions rather than contract-derived values, because deriving them
+from the Settings contract or its product-profile projection would self-validate
+the same checklist. `npm run hygiene:fallow -- --format json --summary`
 is the production hygiene check for unused files/exports and duplicate exports.
 This is code-health and validation-structure evidence only; it is not a
 release-ready, currentness, packaged-App, clean-VM, owner-acceptance, or Live
