@@ -1,9 +1,9 @@
-export type ValidationCommand = {
-  id: string;
-  cwd: string;
-  command: string;
-  optional?: boolean;
-};
+import type {
+  HermesTargetStateContract,
+  ValidationCommand,
+} from '../app-shell-adapter.ts';
+
+export type { ValidationCommand };
 
 export type ActiveProjectLineStateModel = {
   authority: string;
@@ -13,52 +13,7 @@ export type ActiveProjectLineStateModel = {
   forbidden_claims: string[];
 };
 
-export type HermesAppServerAdapterContract = {
-  owner: string;
-  gateway_route: string;
-  ordinary_chat_route: string;
-  required_events: string[];
-  forbidden_backends: string[];
-};
-
-export type HermesModelAccessPolicy = {
-  ordinary_provider: string;
-  api_key_env: string;
-  provider_base_url: string;
-  default_model: string;
-  reasoning_effort: string;
-  ordinary_ui_surfaces: string[];
-  forbidden_ordinary_controls: string[];
-};
-
-export type HermesAgentRouteContract = {
-  owner: string;
-  route_authority: string;
-  ordinary_entries: Array<{
-    id: string;
-    label: string;
-    route: string;
-    authority: string;
-  }>;
-  required_surface: string;
-  forbidden_claims: string[];
-};
-
-export type HermesSettingsInformationArchitecture = {
-  ordinary_tabs: string[];
-  opl_semantics: string[];
-  hidden_or_advanced: string[];
-  ordinary_access_policy: string;
-};
-
-export type HermesVisualParityContract = {
-  comparison_baseline: string;
-  minimum_bar: string;
-  required_evidence: string[];
-  docs_or_contract_only_completion_allowed: boolean;
-};
-
-export type ShellCandidate = {
+export type ShellCandidate = HermesTargetStateContract & {
   id: string;
   state: string;
   archived_reason?: string;
@@ -82,11 +37,6 @@ export type ShellCandidate = {
     ordinary_user_experience: string;
     webui_strategy: string;
   };
-  app_server_adapter_contract?: HermesAppServerAdapterContract;
-  model_access_policy?: HermesModelAccessPolicy;
-  agent_route_contract?: HermesAgentRouteContract;
-  settings_information_architecture?: HermesSettingsInformationArchitecture;
-  visual_parity_contract?: HermesVisualParityContract;
   checkout_policy?: {
     primary_path: string;
     accepted_alternate_path: string;

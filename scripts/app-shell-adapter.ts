@@ -20,48 +20,133 @@ export type ShellPathContract = {
   release_verify_script: string;
 };
 
-export type HermesTargetStateContract = {
-  app_server_adapter_contract?: {
-    owner: string;
-    gateway_route: string;
-    ordinary_chat_route: string;
-    required_events: string[];
-    forbidden_backends: string[];
-  };
-  model_access_policy?: {
-    ordinary_provider: string;
-    api_key_env: string;
-    provider_base_url: string;
-    default_model: string;
-    reasoning_effort: string;
-    ordinary_ui_surfaces: string[];
-    forbidden_ordinary_controls: string[];
-  };
-  agent_route_contract?: {
-    owner: string;
-    route_authority: string;
-    ordinary_entries: Array<{
-      id: string;
-      label: string;
-      route: string;
-      authority: string;
-    }>;
-    required_surface: string;
-    forbidden_claims: string[];
-  };
-  settings_information_architecture?: {
-    ordinary_tabs: string[];
-    opl_semantics: string[];
-    hidden_or_advanced: string[];
-    ordinary_access_policy: string;
-  };
-  visual_parity_contract?: {
-    comparison_baseline: string;
-    minimum_bar: string;
-    required_evidence: string[];
-    docs_or_contract_only_completion_allowed: boolean;
-  };
+export type ValidationCommand = {
+  id: string;
+  cwd: string;
+  command: string;
+  optional?: boolean;
 };
+
+export type HermesAppServerAdapterContract = {
+  owner: string;
+  gateway_route: string;
+  ordinary_chat_route: string;
+  required_events: string[];
+  forbidden_backends: string[];
+};
+
+export type HermesModelAccessPolicy = {
+  ordinary_provider: string;
+  api_key_env: string;
+  provider_base_url: string;
+  default_model: string;
+  reasoning_effort: string;
+  ordinary_ui_surfaces: string[];
+  forbidden_ordinary_controls: string[];
+};
+
+export type HermesAgentRouteContract = {
+  owner: string;
+  route_authority: string;
+  ordinary_entries: Array<{
+    id: string;
+    label: string;
+    route: string;
+    authority: string;
+  }>;
+  required_surface: string;
+  forbidden_claims: string[];
+};
+
+export type HermesSettingsInformationArchitecture = {
+  ordinary_tabs: string[];
+  opl_semantics: string[];
+  hidden_or_advanced: string[];
+  ordinary_access_policy: string;
+};
+
+export type HermesVisualParityContract = {
+  comparison_baseline: string;
+  minimum_bar: string;
+  required_evidence: string[];
+  docs_or_contract_only_completion_allowed: boolean;
+};
+
+export type HermesTargetStateContract = {
+  app_server_adapter_contract?: HermesAppServerAdapterContract;
+  model_access_policy?: HermesModelAccessPolicy;
+  agent_route_contract?: HermesAgentRouteContract;
+  settings_information_architecture?: HermesSettingsInformationArchitecture;
+  visual_parity_contract?: HermesVisualParityContract;
+};
+
+export const REQUIRED_GUI_AUTHORITY_PRODUCT_CONTRACTS = [
+  'contracts/app-gui-product-contract.json',
+  'contracts/app-runtime-bridge.json',
+  'contracts/app-product-profile.json',
+  'contracts/app-install-exposure-policy.json',
+  'contracts/app-page-state-matrix.json',
+  'contracts/app-first-run-test-matrix.json',
+  'contracts/app-release-channel.json',
+] as const;
+
+export const REQUIRED_BASE_SHELL_OWNED_SURFACES = [
+  'concrete renderer implementation',
+  'process and preload implementation',
+  'shell package metadata',
+  'shell tests and release hooks',
+] as const;
+
+export const DEFAULT_RELEASE_SHELL_OWNED_SURFACE = 'upstream AionUI intake';
+
+export const FORBIDDEN_SHELL_OWNED_SURFACES = [
+  'App GUI product truth',
+  'App user-facing page-state authority',
+  'App model-selection policy',
+  'App onboarding policy',
+  'App release/user documentation authority',
+  'OPL runtime truth',
+  'domain truth',
+  'provider implementation',
+] as const;
+
+export const ARCHIVED_REPLAY_ADOPTION_GATES = [
+  'declare archived replay surface in contracts/app-shell-candidates.json',
+  'consume contracts/app-gui-product-contract.json as replay acceptance input only',
+  'sync App product profile into the archived replay shell target',
+  'preserve archived page-state and first-run replay boundaries without default release claims',
+  'pass App-root explicit adapter validation only when AGUI replay is requested',
+  'pass explicit AGUI replay package compile through App wrapper',
+  'preserve external checkout history policy and release isolation',
+] as const;
+
+export const CANDIDATE_ADOPTION_GATES = [
+  'declare candidate in contracts/app-shell-candidates.json',
+  'implement contracts/app-gui-product-contract.json',
+  'sync App product profile into the candidate shell target',
+  'pass App page-state and first-run matrices',
+  'pass App-root active shell validation',
+  'pass GUI package compile through App wrapper',
+  'preserve external checkout history policy',
+] as const;
+
+export const STATE_SURFACE_CONTRACT_EXPECTATIONS = {
+  primary_read_command: 'opl app state --profile fast --json',
+  refresh_read_command: 'opl app state --profile fast --json',
+  full_state_read_command: 'opl app state --profile full --json',
+  full_state_policy: 'diagnostic_or_release_evidence_only',
+  action_command: 'opl app action execute --action <action_id> [--payload json] [--dry-run] --json',
+  full_drilldown_exception: 'opl runtime app-operator-drilldown --detail full --json',
+} as const;
+
+export const FORBIDDEN_GUI_TRUTH_SOURCES = [
+  'direct opl connect modules --json page aggregation',
+  'direct opl system developer-supervisor page aggregation',
+  'direct opl family-runtime worker status page aggregation',
+  'application.systemInfo as OPL path truth',
+  'application.appVersions as OPL release truth',
+  'direct reads of OPL internal state files',
+] as const;
 
 export type ShellAdapterContract = {
   schema_version: number;
@@ -184,17 +269,8 @@ export type ShellAdapterContract = {
     policy: string;
     surfaces: string[];
   };
-  validation_commands: Array<{
-    id: string;
-    cwd: string;
-    command: string;
-  }>;
-  manual_verification_commands?: Array<{
-    id: string;
-    cwd: string;
-    command: string;
-    policy?: string;
-  }>;
+  validation_commands: ValidationCommand[];
+  manual_verification_commands?: Array<ValidationCommand & { policy?: string }>;
 } & HermesTargetStateContract;
 
 export type ActiveShellPaths = {
@@ -340,24 +416,8 @@ function assertShellReplacementPolicy(contract: ShellAdapterContract): void {
   }
   assertStringArray(contract.shell_replacement_policy.adoption_gate, 'shell_replacement_policy.adoption_gate');
   const requiredGates = contract.release_role === 'archived_technical_verification_shell'
-    ? [
-      'declare archived replay surface in contracts/app-shell-candidates.json',
-      'consume contracts/app-gui-product-contract.json as replay acceptance input only',
-      'sync App product profile into the archived replay shell target',
-      'preserve archived page-state and first-run replay boundaries without default release claims',
-      'pass App-root explicit adapter validation only when AGUI replay is requested',
-      'pass explicit AGUI replay package compile through App wrapper',
-      'preserve external checkout history policy and release isolation',
-    ]
-    : [
-      'declare candidate in contracts/app-shell-candidates.json',
-      'implement contracts/app-gui-product-contract.json',
-      'sync App product profile into the candidate shell target',
-      'pass App page-state and first-run matrices',
-      'pass App-root active shell validation',
-      'pass GUI package compile through App wrapper',
-      'preserve external checkout history policy',
-    ];
+    ? ARCHIVED_REPLAY_ADOPTION_GATES
+    : CANDIDATE_ADOPTION_GATES;
   for (const gate of requiredGates) {
     if (!contract.shell_replacement_policy.adoption_gate.includes(gate)) {
       throw new Error(`active shell replacement policy missing gate ${gate}`);
@@ -417,22 +477,22 @@ function assertShellContractPathsAndCapabilities(contract: ShellAdapterContract)
 
 function assertStateSurfaceContract(contract: ShellAdapterContract): void {
   const stateSurface = contract.state_surface_contract;
-  if (stateSurface?.primary_read_command !== 'opl app state --profile fast --json') {
+  if (stateSurface?.primary_read_command !== STATE_SURFACE_CONTRACT_EXPECTATIONS.primary_read_command) {
     throw new Error(`Unexpected active shell primary state read command: ${stateSurface?.primary_read_command}`);
   }
-  if (stateSurface.refresh_read_command !== 'opl app state --profile fast --json') {
+  if (stateSurface.refresh_read_command !== STATE_SURFACE_CONTRACT_EXPECTATIONS.refresh_read_command) {
     throw new Error(`Unexpected active shell refresh state read command: ${stateSurface.refresh_read_command}`);
   }
-  if (stateSurface.full_state_read_command !== 'opl app state --profile full --json') {
+  if (stateSurface.full_state_read_command !== STATE_SURFACE_CONTRACT_EXPECTATIONS.full_state_read_command) {
     throw new Error(`Unexpected active shell full state read command: ${stateSurface.full_state_read_command}`);
   }
-  if (stateSurface.full_state_policy !== 'diagnostic_or_release_evidence_only') {
+  if (stateSurface.full_state_policy !== STATE_SURFACE_CONTRACT_EXPECTATIONS.full_state_policy) {
     throw new Error(`Unexpected active shell full state policy: ${stateSurface.full_state_policy}`);
   }
-  if (stateSurface.action_command !== 'opl app action execute --action <action_id> [--payload json] [--dry-run] --json') {
+  if (stateSurface.action_command !== STATE_SURFACE_CONTRACT_EXPECTATIONS.action_command) {
     throw new Error(`Unexpected active shell action command: ${stateSurface.action_command}`);
   }
-  if (stateSurface.full_drilldown_exception !== 'opl runtime app-operator-drilldown --detail full --json') {
+  if (stateSurface.full_drilldown_exception !== STATE_SURFACE_CONTRACT_EXPECTATIONS.full_drilldown_exception) {
     throw new Error(`Unexpected active shell full drilldown exception: ${stateSurface.full_drilldown_exception}`);
   }
   assertStringArray(stateSurface.forbidden_gui_truth_sources, 'state_surface_contract.forbidden_gui_truth_sources');
