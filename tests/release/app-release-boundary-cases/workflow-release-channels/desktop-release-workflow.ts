@@ -133,9 +133,12 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.doesNotMatch(workflow, /OPL_RELEASE_NOTES_GITHUB_MODEL:/);
   assert.doesNotMatch(workflow, /setup-release-notes-codex-config/);
   assert.doesNotMatch(workflow, /OPENAI_API_KEY: \$\{\{ secrets\.OPENAI_API_KEY \}\}/);
-  assert.match(workflow, /OPL_RELEASE_NOTES_EVIDENCE_OUTPUT: \$\{\{ runner\.temp \}\}\/standard-release-notes-evidence\.json/);
-  assert.match(workflow, /standard-release-notes-evidence-\$\{\{ inputs\.opl_version \}\}/);
-  assert.match(workflow, /full-release-notes-evidence-\$\{\{ inputs\.opl_version \}\}/);
+  assert.match(workflow, /prepare-standard-release-notes:/);
+  assert.match(workflow, /--evidence-output standard-release-notes-evidence\.json/);
+  assert.match(workflow, /prepared-standard-release-notes-\$\{\{ inputs\.opl_version \}\}/);
+  assert.match(workflow, /prepared-full-release-notes-\$\{\{ inputs\.opl_version \}\}/);
+  assert.match(workflow, /OPL_RELEASE_NOTES_FILE: prepared-standard-release-notes\/standard-release-notes\.md/);
+  assert.match(workflow, /OPL_RELEASE_NOTES_FILE: prepared-full-release-notes\/full-release-notes\.md/);
   assert.match(workflow, /git tag "\$tag" "\$GITHUB_SHA"/);
   assert.match(workflow, /--standard-artifacts-dir release-assets/);
   assert.match(workflow, /if \[ "\$RELEASE_MODE" = "new_release" \] \|\| \[ "\$RELEASE_MODE" = "draft_candidate" \]; then[\s\S]*publish_args\+=\(--draft\)/);

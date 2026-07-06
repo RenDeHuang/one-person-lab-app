@@ -1000,6 +1000,34 @@ jobs:
             exit 1
           fi
 
+      - name: Prepare Full release notes
+        if: ${{ inputs.publish_to_release }}
+        working-directory: one-person-lab-app
+        env:
+          OPL_RELEASE_NOTES_PROVIDER: openai_compatible
+          OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL: ${{ vars.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL }}
+          OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY: ${{ secrets.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY }}
+          OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODEL: ${{ vars.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODEL }}
+          OPL_RELEASE_NOTES_CODEX_BASE_URL: ${{ vars.OPL_RELEASE_NOTES_CODEX_BASE_URL }}
+          OPL_RELEASE_NOTES_CODEX_API_KEY: ${{ secrets.OPL_RELEASE_NOTES_CODEX_API_KEY }}
+          OPL_RELEASE_NOTES_MODEL: ${{ vars.OPL_RELEASE_NOTES_MODEL }}
+        run: |
+          set -euo pipefail
+          npm run release:notes -- \
+            --version "$OPL_RELEASE_VERSION" \
+            --channel stable \
+            --repo "$GITHUB_REPOSITORY" \
+            --shell-root shells/aionui \
+            --include-full-package \
+            --full-package-manifest dist/opl-full-release/full-package-manifest.json \
+            --current-tag "v${OPL_RELEASE_VERSION}" \
+            --evidence-output "$RUNNER_TEMP/full-release-notes-evidence.json" \
+            --output "$RUNNER_TEMP/full-release-notes-template.md"
+          node --experimental-strip-types scripts/release-notes-ai-writer.ts --probe-openai-compatible
+          npm run release:notes:prepare -- \
+            --evidence "$RUNNER_TEMP/full-release-notes-evidence.json" \
+            --output "$RUNNER_TEMP/full-release-notes.md"
+
       - name: Upload Full package workflow artifact
         if: ${{ inputs.upload_full_package_artifact }}
         uses: actions/upload-artifact@v7
@@ -1024,30 +1052,25 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GITHUB_TOKEN: ${{ github.token }}
-          OPL_RELEASE_NOTES_MODE: ai
-          OPL_RELEASE_NOTES_PROVIDER: openai_compatible
-          OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL: ${{ vars.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL }}
-          OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY: ${{ secrets.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY }}
-          OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODEL: ${{ vars.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODEL }}
-          OPL_RELEASE_NOTES_CODEX_BASE_URL: ${{ vars.OPL_RELEASE_NOTES_CODEX_BASE_URL }}
-          OPL_RELEASE_NOTES_CODEX_API_KEY: ${{ secrets.OPL_RELEASE_NOTES_CODEX_API_KEY }}
-          OPL_RELEASE_NOTES_MODEL: ${{ vars.OPL_RELEASE_NOTES_MODEL }}
-          OPL_RELEASE_NOTES_EVIDENCE_OUTPUT: ${{ runner.temp }}/full-release-notes-evidence.json
+          OPL_RELEASE_NOTES_FILE: ${{ runner.temp }}/full-release-notes.md
         run: |
-          node --experimental-strip-types scripts/release-notes-ai-writer.ts --probe-openai-compatible
           npm run release:publish -- \
             --no-build \
             --version "$OPL_RELEASE_VERSION" \
             --repo "$GITHUB_REPOSITORY" \
             --full-package-only \
-            --include-full-package
+            --include-full-package \
+            --release-notes-file "$OPL_RELEASE_NOTES_FILE"
 
       - name: Upload Full release-note evidence
         if: ${{ inputs.publish_to_release }}
         uses: actions/upload-artifact@v7
         with:
           name: full-release-notes-evidence-${{ env.OPL_RELEASE_VERSION }}
-          path: ${{ runner.temp }}/full-release-notes-evidence.json
+          path: |
+            ${{ runner.temp }}/full-release-notes.md
+            ${{ runner.temp }}/full-release-notes-template.md
+            ${{ runner.temp }}/full-release-notes-evidence.json
           if-no-files-found: error
 
       - name: Clean up keychain
