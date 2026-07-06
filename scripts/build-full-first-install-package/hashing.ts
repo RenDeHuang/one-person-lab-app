@@ -32,14 +32,16 @@ export function directoryFingerprint(root, runtimePrefix) {
   if (!fs.existsSync(root)) {
     return null;
   }
+  return treeFingerprint(root, (relative) => shouldExcludeRuntimePath(path.posix.join(runtimePrefix, relative)));
+}
+
+function treeFingerprint(root, shouldExcludeRelativePath) {
   const hash = crypto.createHash('sha256');
   const stack = [['', root]];
   while (stack.length > 0) {
     const [relative, current] = stack.pop();
-    const runtimeRelative = relative
-      ? path.posix.join(runtimePrefix, relative.split(path.sep).join('/'))
-      : runtimePrefix;
-    if (relative && shouldExcludeRuntimePath(runtimeRelative)) {
+    const normalizedRelative = relative.split(path.sep).join('/');
+    if (normalizedRelative && shouldExcludeRelativePath(normalizedRelative)) {
       continue;
     }
     const stat = fs.lstatSync(current);
@@ -76,27 +78,7 @@ export function productionNodeModulesFingerprint(sourceRoot) {
 }
 
 function productionNodeModuleFingerprint(root) {
-  const hash = crypto.createHash('sha256');
-  const stack = [['', root]];
-  while (stack.length > 0) {
-    const [relative, current] = stack.pop();
-    if (relative && shouldExcludeProductionNodeModulePath(relative.split(path.sep).join('/'))) {
-      continue;
-    }
-    const stat = fs.lstatSync(current);
-    hash.update(relative);
-    hash.update(stat.isDirectory() ? 'dir' : stat.isSymbolicLink() ? 'symlink' : 'file');
-    if (stat.isDirectory()) {
-      for (const entry of fs.readdirSync(current).sort().reverse()) {
-        stack.push([path.join(relative, entry), path.join(current, entry)]);
-      }
-    } else if (stat.isSymbolicLink()) {
-      hash.update(fs.readlinkSync(current));
-    } else if (stat.isFile()) {
-      hash.update(fs.readFileSync(current));
-    }
-  }
-  return hash.digest('hex');
+  return treeFingerprint(root, shouldExcludeProductionNodeModulePath);
 }
 
 export function packageJsonVersion(packagePath) {
