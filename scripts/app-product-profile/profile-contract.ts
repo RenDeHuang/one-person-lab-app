@@ -6,6 +6,11 @@ import {
   assertAppProductProfileGuiAuthority,
   assertAppProductProfileHomeCodexPolicy,
   assertAppProductProfileRouteReceiptPolicy,
+  codexEntryByPackageId,
+  managedShortcutIds,
+  managedShortcutPackageIds,
+  requiredSkillByPackageId,
+  starterPackageIds,
 } from '../app-product-profile-shared-validators.ts';
 import { appProductProfilePath } from './paths.ts';
 import type { AppProductProfile } from './types.ts';
@@ -43,24 +48,6 @@ const developerProfileCapabilityAxes = [
   'agent_automation',
   'runtime_mutation_scope',
 ];
-const starterPackageIds = ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge'];
-const starterShortcutIds = ['research', 'grant', 'ppt', 'book'];
-const managedShortcutIds = [...starterShortcutIds, 'oma'];
-const managedShortcutPackageIds = [...starterPackageIds, 'opl-meta-agent'];
-const requiredSkillByPackageId = {
-  'med-autoscience': ['med-autoscience'],
-  'med-autogrant': ['med-autogrant'],
-  'redcube-ai': ['redcube-ai'],
-  'opl-bookforge': ['opl-bookforge'],
-  'opl-meta-agent': ['opl-meta-agent'],
-};
-const codexEntryByPackageId = {
-  'med-autoscience': 'med-autoscience',
-  'med-autogrant': 'med-autogrant',
-  'redcube-ai': 'redcube-ai',
-  'opl-bookforge': 'opl-bookforge',
-  'opl-meta-agent': 'opl-meta-agent',
-};
 const legacySettingsRouteRedirects = {
   overview: 'general',
   runtime: 'environment',

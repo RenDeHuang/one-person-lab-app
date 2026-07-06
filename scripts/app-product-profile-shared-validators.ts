@@ -38,9 +38,30 @@ type RouteReceiptOptions = {
   requireExactAssistants?: boolean;
 };
 
-const starterPackageIds = ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge'];
-const starterShortcutIds = ['research', 'grant', 'ppt', 'book'];
-const managedShortcutIds = [...starterShortcutIds, 'oma'];
+export const starterPackageIds = ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge'];
+export const starterShortcutIds = ['research', 'grant', 'ppt', 'book'];
+export const managedShortcutIds = [...starterShortcutIds, 'oma'];
+export const managedShortcutPackageIds = [...starterPackageIds, 'opl-meta-agent'];
+export const requiredSkillByPackageId = {
+  'med-autoscience': ['med-autoscience'],
+  'med-autogrant': ['med-autogrant'],
+  'redcube-ai': ['redcube-ai'],
+  'opl-bookforge': ['opl-bookforge'],
+  'opl-meta-agent': ['opl-meta-agent'],
+};
+export const requiredSkillByAssistantId = {
+  'med-autoscience': 'med-autoscience',
+  'med-autogrant': 'med-autogrant',
+  'redcube-ai': 'redcube-ai',
+  'opl-bookforge': 'opl-bookforge',
+};
+export const codexEntryByPackageId = {
+  'med-autoscience': 'med-autoscience',
+  'med-autogrant': 'med-autogrant',
+  'redcube-ai': 'redcube-ai',
+  'opl-bookforge': 'opl-bookforge',
+  'opl-meta-agent': 'opl-meta-agent',
+};
 const agentPackageReceiptRequiredFields = [
   'route_kind',
   'executor',

@@ -5,33 +5,18 @@ import {
   appOwnedHomeLayout,
   appOwnedRightContextInspectorTabIds,
 } from './app-contract-constants.ts';
+import {
+  codexEntryByPackageId,
+  managedShortcutIds,
+  managedShortcutPackageIds as managedPackageIds,
+  managedShortcutPackageIds,
+  requiredSkillByAssistantId,
+  requiredSkillByPackageId,
+  starterPackageIds as defaultAssistantIds,
+  starterShortcutIds as purposeEntryIds,
+} from '../app-product-profile-shared-validators.ts';
 import { validateGuiProductAuthority } from './gui-product-authority-validator.ts';
 
-const defaultAssistantIds = ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge'];
-const purposeEntryIds = ['research', 'grant', 'ppt', 'book'];
-const managedShortcutIds = [...purposeEntryIds, 'oma'];
-const managedShortcutPackageIds = [...defaultAssistantIds, 'opl-meta-agent'];
-const managedPackageIds = [...defaultAssistantIds, 'opl-meta-agent'];
-const requiredSkillByAssistantId = {
-  'med-autoscience': 'med-autoscience',
-  'med-autogrant': 'med-autogrant',
-  'redcube-ai': 'redcube-ai',
-  'opl-bookforge': 'opl-bookforge',
-};
-const requiredSkillByPackageId = {
-  'med-autoscience': ['med-autoscience'],
-  'med-autogrant': ['med-autogrant'],
-  'redcube-ai': ['redcube-ai'],
-  'opl-bookforge': ['opl-bookforge'],
-  'opl-meta-agent': ['opl-meta-agent'],
-};
-const codexEntryByPackageId = {
-  'med-autoscience': 'med-autoscience',
-  'med-autogrant': 'med-autogrant',
-  'redcube-ai': 'redcube-ai',
-  'opl-bookforge': 'opl-bookforge',
-  'opl-meta-agent': 'opl-meta-agent',
-};
 const rightInspectorExpected = {
   placement: 'right',
   default_state: 'collapsed',
