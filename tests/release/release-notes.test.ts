@@ -105,6 +105,18 @@ function publicFirstScreen(markdown) {
   return technicalDetails === -1 ? markdown : markdown.slice(0, technicalDetails);
 }
 
+function withHiddenLocalizedReleaseNotes(publicMarkdown, zhMarkdown) {
+  return `${publicMarkdown.trimEnd()}
+
+<!-- OPL_RELEASE_NOTES:en-US
+${publicMarkdown.trimEnd()}
+-->
+<!-- OPL_RELEASE_NOTES:zh-CN
+${zhMarkdown.trimEnd()}
+-->
+`;
+}
+
 function assertUserFirstLead(markdown) {
   const lead = publicFirstScreen(markdown);
   assert.match(lead, /## Highlights/);
@@ -426,6 +438,136 @@ Popup summary without the release title.
   assert.match(publicNotes, /## OPL family updates/);
   assert.match(publicNotes, /## Install Stable/);
   assert.match(publicNotes, /## Release scope/);
+});
+
+test('release notes prepare command validates prepared public sections before publish', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-notes-validate-'));
+  const evidencePath = path.join(tempRoot, 'evidence.json');
+  const badNotesPath = path.join(tempRoot, 'bad-notes.md');
+  const goodNotesPath = path.join(tempRoot, 'good-notes.md');
+  const installCommand = 'curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh | bash -s -- --stable-macos-install --yes';
+  const evidence = {
+    schema: 'opl_app_release_notes_evidence.v1',
+    version: '26.9.3',
+    channel: 'stable',
+    release_title: 'One Person Lab v26.9.3',
+    release_repo: 'gaofeng21cn/one-person-lab-app',
+    current_tag: 'v26.9.3',
+    previous_tag: 'v26.9.2',
+    install_command: installCommand,
+    full_changelog_url: null,
+    grouped_changes: [],
+    payload: {
+      include_full_package: false,
+      lines: [],
+      bundled_refs: [],
+      updates_since_previous_stable: [],
+    },
+    agent_runtime_changes: [],
+    family_repo_changes: [],
+  };
+  const validPublic = `One Person Lab v26.9.3
+
+Users can install or upgrade One Person Lab App and open MAS research, MAG grant-writing, RCA visual deliverable, and OPL Meta Agent sessions with clearer setup.
+
+## Highlights
+
+- Standard App users get clearer MAS, MAG, RCA, and OPL Meta Agent entry points.
+
+## What improved
+
+- MAS research, MAG grant-writing, RCA visual deliverable, and OPL Meta Agent sessions are easier to start after install.
+
+## Compatibility and action required
+
+- No manual migration is required beyond installing or upgrading this Stable release.
+
+## OPL agents and runtime payload
+
+- Standard package: App-managed MAS, MAG, RCA, and OPL Meta Agent entry surface plus Codex plugin and skill sync policy.
+
+## Install Stable
+
+\`${installCommand}\`
+
+## Release scope
+
+- Standard macOS arm64 updater package is published for this release.
+`;
+  const invalidPublic = validPublic
+    .replace(/\n## Highlights\n\n- Standard App users get clearer MAS, MAG, RCA, and OPL Meta Agent entry points.\n/, '')
+    .replace(/\n## Compatibility and action required\n\n- No manual migration is required beyond installing or upgrading this Stable release.\n/, '');
+
+  fs.writeFileSync(evidencePath, `${JSON.stringify(evidence, null, 2)}\n`);
+  fs.writeFileSync(goodNotesPath, withHiddenLocalizedReleaseNotes(validPublic, `One Person Lab v26.9.3
+
+这次更新让用户安装或升级 One Person Lab App 后，更容易打开 MAS、MAG、RCA 和 OPL Meta Agent 会话。
+
+## Highlights
+
+- MAS、MAG、RCA 和 OPL Meta Agent 入口更清楚。
+
+## What improved
+
+- MAS、MAG、RCA 和 OPL Meta Agent 会话更容易开始。
+
+## Compatibility and action required
+
+- 除安装或升级 Stable 版本外，不需要手动迁移。
+
+## OPL agents and runtime payload
+
+- Standard package: App-managed MAS, MAG, RCA, and OPL Meta Agent entry surface plus Codex plugin and skill sync policy.
+
+## Install Stable
+
+\`${installCommand}\`
+
+## Release scope
+
+- Standard macOS arm64 updater package is published for this release.
+`));
+  fs.writeFileSync(badNotesPath, withHiddenLocalizedReleaseNotes(invalidPublic, `One Person Lab v26.9.3
+
+这次更新让用户安装或升级 One Person Lab App 后，更容易打开 MAS、MAG、RCA 和 OPL Meta Agent 会话。
+
+## What improved
+
+- MAS、MAG、RCA 和 OPL Meta Agent 会话更容易开始。
+
+## OPL agents and runtime payload
+
+- Standard package: App-managed MAS, MAG, RCA, and OPL Meta Agent entry surface plus Codex plugin and skill sync policy.
+
+## Install Stable
+
+\`${installCommand}\`
+
+## Release scope
+
+- Standard macOS arm64 updater package is published for this release.
+`));
+
+  const failure = runNode([
+    'scripts/release-notes-ai-writer.ts',
+    '--evidence',
+    evidencePath,
+    '--input',
+    badNotesPath,
+  ]);
+  assert.notEqual(failure.status, 0);
+  assert.match(failure.stderr, /missing ## Highlights/);
+  assert.match(failure.stderr, /missing ## Compatibility and action required/);
+
+  const success = runNode([
+    'scripts/release-notes-ai-writer.ts',
+    '--evidence',
+    evidencePath,
+    '--input',
+    goodNotesPath,
+  ]);
+  assert.equal(success.status, 0, success.stderr);
+  assert.match(success.stdout, /## Highlights/);
 });
 
 function writeFakeGhReleaseDownload(binDir, publicReleaseManifest) {

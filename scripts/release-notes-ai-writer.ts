@@ -1005,7 +1005,7 @@ function validateLocalizedReleaseNotes(markdown: string, evidence: ReleaseNotesE
   }
 }
 
-function validateAiReleaseNotes(markdown: string, evidence: ReleaseNotesEvidence) {
+export function validateAiReleaseNotes(markdown: string, evidence: ReleaseNotesEvidence) {
   validateEnglishReleaseNotesMarkdown(stripLocalizedReleaseNotes(markdown), evidence);
   validateLocalizedReleaseNotes(markdown, evidence);
 }
@@ -1028,6 +1028,7 @@ export function buildAiReleaseNotesDocument(evidence: ReleaseNotesEvidence, opti
 
 type AiReleaseNotesCliOptions = AiReleaseNotesOptions & {
   evidencePath: string;
+  inputPath: string;
   outputPath: string;
   probeOpenAICompatible: boolean;
 };
@@ -1043,6 +1044,7 @@ function valueAfter(argv: string[], index: number, token: string) {
 function parseCliArgs(argv: string[]): AiReleaseNotesCliOptions {
   const parsed: AiReleaseNotesCliOptions = {
     evidencePath: process.env.OPL_RELEASE_NOTES_EVIDENCE_INPUT?.trim() || '',
+    inputPath: '',
     outputPath: '',
     probeOpenAICompatible: false,
   };
@@ -1055,6 +1057,8 @@ function parseCliArgs(argv: string[]): AiReleaseNotesCliOptions {
     const value = valueAfter(argv, index, token);
     if (token === '--evidence') {
       parsed.evidencePath = path.resolve(value);
+    } else if (token === '--input') {
+      parsed.inputPath = path.resolve(value);
     } else if (token === '--output') {
       parsed.outputPath = path.resolve(value);
     } else if (token === '--provider-command') {
@@ -1083,7 +1087,11 @@ function runCli() {
     runOpenAICompatibleProbe();
     return;
   }
-  const notes = buildAiReleaseNotesDocument(readReleaseNotesEvidence(options.evidencePath), options);
+  const evidence = readReleaseNotesEvidence(options.evidencePath);
+  const notes = options.inputPath
+    ? fs.readFileSync(options.inputPath, 'utf8')
+    : buildAiReleaseNotesDocument(evidence, options);
+  validateAiReleaseNotes(notes, evidence);
   if (options.outputPath) {
     fs.mkdirSync(path.dirname(options.outputPath), { recursive: true });
     fs.writeFileSync(options.outputPath, notes);

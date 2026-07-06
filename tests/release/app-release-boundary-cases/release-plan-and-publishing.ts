@@ -818,6 +818,142 @@ process.stdout.write(${JSON.stringify(validStandardAiReleaseNotes(version))});
   assert.match(fs.readFileSync(promptCapture, 'utf8'), /"release_evidence"/);
 });
 
+test('publish consumes a prepared release notes file before calling AI', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-prepared-release-notes-'));
+  const shellRoot = path.join(tempRoot, 'shells', 'aionui');
+  const outDir = path.join(shellRoot, 'out');
+  const fakeAi = path.join(tempRoot, 'fake-release-notes-ai.js');
+  const releaseNotesFile = path.join(tempRoot, 'prepared-notes.md');
+  const badReleaseNotesFile = path.join(tempRoot, 'bad-notes.md');
+  const aiCalledMarker = path.join(tempRoot, 'ai-called');
+  const version = '26.5.19-prepared-notes';
+  const dmgName = `One-Person-Lab-${version}-mac-arm64.dmg`;
+  const zipName = `One-Person-Lab-${version}-mac-arm64.zip`;
+  const publicMarkdown = `One Person Lab v${version}
+
+Users can install or upgrade One Person Lab App and open MAS research, MAG grant-writing, RCA visual deliverable, and OPL Meta Agent sessions with clearer setup.
+
+## Highlights
+
+- Standard App users get clearer MAS, MAG, RCA, and OPL Meta Agent entry points.
+
+## What improved
+
+- MAS research, MAG grant-writing, RCA visual deliverable, and OPL Meta Agent sessions are easier to start after install.
+
+## Compatibility and action required
+
+- No manual migration is required beyond installing or upgrading this Stable release.
+
+## OPL agents and runtime payload
+
+- Standard package: App-managed MAS, MAG, RCA, and OPL Meta Agent entry surface plus Codex plugin and skill sync policy.
+
+## OPL family updates
+
+- One Person Lab App: current standard package changes keep the built-in OPL entries aligned.
+- OPL Aion Shell: current shell changes keep the first-run and settings UI aligned with the App release.
+
+## Install Stable
+
+\`${stableInstallCommand}\`
+
+## Release scope
+
+- Standard macOS arm64 updater package is published for this release.
+`;
+
+  writeFile(path.join(outDir, dmgName), 'dmg');
+  writeFile(path.join(outDir, zipName), 'zip');
+  writeReleaseMetadata(outDir, version, dmgName);
+  writeStandardLocalAuthorizationPolicy(outDir);
+  writeExecutable(fakeAi, `#!/usr/bin/env node
+require('node:fs').writeFileSync(${JSON.stringify(aiCalledMarker)}, 'called');
+process.exit(42);
+`);
+  writeFile(releaseNotesFile, withHiddenLocalizedReleaseNotes(publicMarkdown, `One Person Lab v${version}
+
+这次更新让用户安装或升级 One Person Lab App 后，更容易打开 MAS、MAG、RCA 和 OPL Meta Agent 会话。
+
+## Highlights
+
+- MAS、MAG、RCA 和 OPL Meta Agent 入口更清楚。
+
+## What improved
+
+- MAS、MAG、RCA 和 OPL Meta Agent 会话更容易开始。
+
+## Compatibility and action required
+
+- 除安装或升级 Stable 版本外，不需要手动迁移。
+
+## OPL agents and runtime payload
+
+- Standard package: App-managed MAS, MAG, RCA, and OPL Meta Agent entry surface plus Codex plugin and skill sync policy.
+
+## OPL family updates
+
+- One Person Lab App: 当前标准包更新会让内置 OPL 入口保持一致。
+- OPL Aion Shell: 当前 shell 更新会让首次启动和设置界面与 App 发布保持一致。
+
+## Install Stable
+
+\`${stableInstallCommand}\`
+
+## Release scope
+
+- Standard macOS arm64 updater package is published for this release.
+`));
+  writeFile(
+    badReleaseNotesFile,
+    fs.readFileSync(releaseNotesFile, 'utf8').replace(/\n## Highlights\n\n- Standard App users get clearer MAS, MAG, RCA, and OPL Meta Agent entry points.\n/, ''),
+  );
+
+  const result = runNode([
+    'scripts/publish-release.ts',
+    '--no-build',
+    '--dry-run',
+    '--shell-root',
+    shellRoot,
+    '--version',
+    version,
+    '--release-notes-file',
+    releaseNotesFile,
+  ], {
+    env: {
+      OPL_RELEASE_EXISTS: '1',
+      OPL_RELEASE_NOTES_AI_COMMAND: `${process.execPath} ${fakeAi}`,
+    },
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  const payload = JSON.parse(result.stdout);
+  assert.equal(payload.release_notes_mode, 'file');
+  assert.equal(payload.release_notes_file, releaseNotesFile);
+  assert.match(payload.release_notes, /## Highlights/);
+  assert.ok(!fs.existsSync(aiCalledMarker));
+
+  const missingSection = runNode([
+    'scripts/publish-release.ts',
+    '--no-build',
+    '--dry-run',
+    '--shell-root',
+    shellRoot,
+    '--version',
+    version,
+    '--release-notes-file',
+    badReleaseNotesFile,
+  ], {
+    env: {
+      OPL_RELEASE_EXISTS: '1',
+      OPL_RELEASE_NOTES_AI_COMMAND: `${process.execPath} ${fakeAi}`,
+    },
+  });
+  assert.notEqual(missingSection.status, 0);
+  assert.match(missingSection.stderr, /missing ## Highlights/);
+  assert.ok(!fs.existsSync(aiCalledMarker));
+});
+
 test('AI release notes completion sanitizes process-first developer memo copy before public sections', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-standard-ai-process-copy-'));
   const shellRoot = path.join(tempRoot, 'shells', 'aionui');

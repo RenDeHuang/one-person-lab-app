@@ -5,7 +5,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { resolveActiveShellPaths } from './app-shell-adapter.ts';
 import { buildReleaseNotesDocument, buildReleaseNotesEvidence, buildReleaseTitle } from './release-notes.ts';
-import { buildAiReleaseNotesDocument } from './release-notes-ai-writer.ts';
+import { buildAiReleaseNotesDocument, validateAiReleaseNotes } from './release-notes-ai-writer.ts';
 import { assertLocalAuthorizationPolicy } from './local-authorization-policy.ts';
 import { fileSha256 } from './release-file-helpers.ts';
 import { assertFullRuntimeNativeTrustFile } from './full-runtime-native-trust.ts';
@@ -38,6 +38,7 @@ function parseArgs(argv) {
     macArch: process.env.OPL_RELEASE_MAC_ARCH || 'arm64',
     standardArtifactsDir: process.env.OPL_STANDARD_ARTIFACTS_DIR || '',
     fullPackageDir: process.env.OPL_FULL_PACKAGE_DIR || '',
+    releaseNotesFile: process.env.OPL_RELEASE_NOTES_FILE || '',
     build: true,
     includeFullPackage: false,
     fullPackageOnly: false,
@@ -114,6 +115,11 @@ function parseArgs(argv) {
     if (token === '--full-package-dir') {
       parsed.fullPackageDir = path.resolve(value);
       parsed.includeFullPackage = true;
+      index += 1;
+      continue;
+    }
+    if (token === '--release-notes-file') {
+      parsed.releaseNotesFile = path.resolve(value);
       index += 1;
       continue;
     }
@@ -533,6 +539,15 @@ function buildReleaseNotes(version, includeFullPackage, shellRoot, fullPackageMa
   };
   const evidence = buildReleaseNotesEvidence(releaseNoteOptions);
   writeReleaseNotesEvidence(evidence);
+  const releaseNotesFile = options.releaseNotesFile || process.env.OPL_RELEASE_NOTES_FILE?.trim();
+  if (releaseNotesFile) {
+    const notes = fs.readFileSync(path.resolve(releaseNotesFile), 'utf8');
+    validateAiReleaseNotes(notes, evidence);
+    return {
+      mode: 'file',
+      notes,
+    };
+  }
   const mode = releaseNotesMode(options);
   if (mode === 'template') {
     return {
@@ -668,7 +683,12 @@ function main() {
     options.includeFullPackage,
     options.shellRoot,
     fullPackageManifest,
-    { allowTemplate: options.dryRun, fullPackageOnly: options.fullPackageOnly, releaseRepo: options.releaseRepo },
+    {
+      allowTemplate: options.dryRun,
+      fullPackageOnly: options.fullPackageOnly,
+      releaseRepo: options.releaseRepo,
+      releaseNotesFile: options.releaseNotesFile,
+    },
   );
   const releaseNotes = releaseNotesResult.notes;
 
@@ -681,6 +701,7 @@ function main() {
       build: options.build,
       standard_artifacts_dir: options.standardArtifactsDir || null,
       full_package_only: options.fullPackageOnly,
+      release_notes_file: options.releaseNotesFile || null,
       artifacts: allArtifacts,
       standard_artifacts: artifacts,
       full_package_artifacts: fullPackageArtifacts,
