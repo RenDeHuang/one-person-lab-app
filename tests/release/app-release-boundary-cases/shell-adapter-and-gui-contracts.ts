@@ -651,7 +651,6 @@ test('App fallow hygiene is not the active GUI shell validation gate', () => {
   assert.deepEqual(fallowConfig.entry, [
     'scripts/assert-full-runtime-currentness.ts',
     'scripts/validate-hermes-candidate.ts',
-    'scripts/user-guides/render-runtime-environment-screenshot.ts',
     'scripts/setup-release-notes-codex-config.ts',
   ]);
   assert.deepEqual(fallowConfig.ignorePatterns, [
