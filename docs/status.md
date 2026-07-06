@@ -94,6 +94,13 @@ file keeps only the current boundary. Use
 the focused release-boundary GUI tests for executable Team and MCP-filtering
 truth.
 
+Active-shell StageRun cockpit panel and telemetry-missing expectations are
+single-sourced from
+`contracts/app-runtime-bridge.json#stage_run_cockpit_projection`. GUI,
+page-state, and user-task-status validators consume that projection as the
+cross-contract expectation instead of keeping a second copy in validator
+constants.
+
 GUI interaction status is contract-backed as a composer-first Codex canvas with
 purpose entries, App-owned model status, collapsed contextual surfaces, and
 secondary inspector/detail views. The element audit lives in

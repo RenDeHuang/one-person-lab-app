@@ -28,7 +28,7 @@ import {
   validateEnvironmentModuleMaintenanceEntry,
   validateManagedUpdatePlaneBinding,
 } from './managed-update-plane-validator.ts';
-import { productProfilePath } from './validation-config.ts';
+import { productProfilePath, runtimeBridgePath } from './validation-config.ts';
 import { validateSettingsControlPlaneBehavior } from './settings-control-plane-validator.ts';
 import {
   assertNonEmptyStringArray,
@@ -74,6 +74,7 @@ const aionuiTeamProbeIds = [
   'team_bridge_mutation_gate',
 ];
 const productProfile = readJson(productProfilePath);
+const runtimeBridge = readJson(runtimeBridgePath);
 const expectedFirstRunProgressModel = productProfile.first_run?.progress_model;
 const expectedFirstRunCoreItems = assertNonEmptyStringArray(
   productProfile.first_run?.ready_to_launch_gate?.required_core_items,
@@ -715,6 +716,7 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   validateUserTaskStatusProjectionContract(
     pages.runtime_status.user_task_status_policy,
     'App GUI runtime status user task status policy',
+    runtimeBridge.stage_run_cockpit_projection,
   );
   validateTaskAwarenessProjectionContract(
     guiContract.framework_surfaces?.task_awareness,

@@ -72,20 +72,6 @@ export const runtimeAutomationStateValues = [
   "automation_failed",
 ];
 
-export const appOwnedStageRunPanelFields = [
-  "current stage",
-  "elapsed",
-  "last heartbeat / running proof",
-  "current stage usage",
-  "task total usage",
-  "typed blocker summary",
-  "typed blocker owner",
-  "resolution route",
-];
-
-export const appOwnedTelemetryMissingPolicy =
-  "when stage elapsed, heartbeat, or usage telemetry is absent, the Runtime page must surface telemetry missing instead of leaving the area blank or inferring a healthy run";
-
 export const appOwnedQueueStatusPolicy =
   "queued, pending, and waiting require explicit projected status; blocked or attention_needed stay blocked/attention states; stopped, parked, and checkpointed stay inactive; non-running must never be inferred as queued";
 

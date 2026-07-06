@@ -6,8 +6,6 @@ import {
   appOwnedQueueStatusPolicy,
   appOwnedRuntimeMentalModel,
   appOwnedRunningStatePolicy,
-  appOwnedStageRunPanelFields,
-  appOwnedTelemetryMissingPolicy,
   runtimeAutomationStateValues,
   runtimePrimaryStateValues,
   runtimeScopeRequiredFields,
@@ -1337,10 +1335,8 @@ export function validateStageRunCockpitProjectionContract(projection, label) {
     ['current_owner', 'required_delta', 'next_safe_action_ref', 'artifact_or_blocker_refs'],
     `${label} summary_fields`,
   );
-  assertDeepEqualJson(projection.preferred_panel_fields, appOwnedStageRunPanelFields, `${label} preferred_panel_fields`);
-  if (projection.telemetry_missing_policy !== appOwnedTelemetryMissingPolicy) {
-    throw new Error(`${label} telemetry_missing_policy must be ${appOwnedTelemetryMissingPolicy}`);
-  }
+  assertNonEmptyStringArray(projection.preferred_panel_fields, `${label} preferred_panel_fields`);
+  assertNonEmptyString(projection.telemetry_missing_policy, `${label} telemetry_missing_policy`);
   if (projection.refs_only !== true) {
     throw new Error(`${label} refs_only must be true`);
   }
@@ -1502,9 +1498,15 @@ export function validateProjectProgressDisplayContract(projectProgress, label) {
   );
 }
 
-export function validateUserTaskStatusProjectionContract(userTaskStatus, label) {
+export function validateUserTaskStatusProjectionContract(userTaskStatus, label, stageRunCockpitProjection) {
   if (!userTaskStatus || typeof userTaskStatus !== 'object') {
     throw new Error(`${label} must be declared`);
+  }
+  if (!stageRunCockpitProjection || typeof stageRunCockpitProjection !== 'object') {
+    throw new Error(`${label} must receive Runtime bridge StageRun cockpit projection expectations`);
+  }
+  if (userTaskStatus === stageRunCockpitProjection) {
+    throw new Error(`${label} must compare against the Runtime bridge StageRun cockpit projection, not itself`);
   }
   for (const [field, expected] of Object.entries({
     source: 'app_state.operator.workbench.summary_cards + app_state.operator.workbench.activity_center + app_state.operator.workbench.task_drilldowns + app_state.operator.visual_ref_groups.active_project_refs',
@@ -1622,9 +1624,13 @@ export function validateUserTaskStatusProjectionContract(userTaskStatus, label) 
   if (userTaskStatus.stage_run_projection_ref !== 'contracts/app-runtime-bridge.json#stage_run_cockpit_projection') {
     throw new Error(`${label} stage_run_projection_ref must point to the Runtime bridge StageRun cockpit projection`);
   }
-  assertDeepEqualJson(userTaskStatus.default_stage_run_panel_fields, appOwnedStageRunPanelFields, `${label} default_stage_run_panel_fields`);
-  if (userTaskStatus.telemetry_missing_policy !== appOwnedTelemetryMissingPolicy) {
-    throw new Error(`${label} telemetry_missing_policy must be ${appOwnedTelemetryMissingPolicy}`);
+  assertDeepEqualJson(
+    userTaskStatus.default_stage_run_panel_fields,
+    stageRunCockpitProjection.preferred_panel_fields,
+    `${label} default_stage_run_panel_fields`,
+  );
+  if (userTaskStatus.telemetry_missing_policy !== stageRunCockpitProjection.telemetry_missing_policy) {
+    throw new Error(`${label} telemetry_missing_policy must match Runtime bridge StageRun cockpit projection`);
   }
   assertDeepEqualJson(userTaskStatus.agent_module_status_panel, appOwnedAgentModuleStatusPanel, `${label} agent_module_status_panel`);
   assertDeepEqualJson(

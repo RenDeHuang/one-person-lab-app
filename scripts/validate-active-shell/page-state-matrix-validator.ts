@@ -23,9 +23,10 @@ import {
   validateAppSettingsPages,
 } from './page-state-app-settings-validator.ts';
 import { validatePrimaryInteractionPages } from './page-state-primary-interaction-validator.ts';
-import { productProfilePath } from './validation-config.ts';
+import { productProfilePath, runtimeBridgePath } from './validation-config.ts';
 
 const productProfile = readJson(productProfilePath);
+const runtimeBridge = readJson(runtimeBridgePath);
 const expectedFirstRunProgressModel = productProfile.first_run?.progress_model;
 const expectedFirstRunCoreItems = assertNonEmptyStringArray(
   productProfile.first_run?.ready_to_launch_gate?.required_core_items,
@@ -246,6 +247,7 @@ export function validatePageStateMatrix(matrix, contract, guiProductContract) {
   validateUserTaskStatusProjectionContract(
     runtimeViewModel.user_task_status_projection,
     'Runtime page user task status projection',
+    runtimeBridge.stage_run_cockpit_projection,
   );
   validateProjectProgressDisplayContract(runtimeViewModel.project_progress, 'Runtime page project progress display contract');
   validateStateIndexSidecarProjectionContract(

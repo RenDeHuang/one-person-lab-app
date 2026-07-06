@@ -526,6 +526,7 @@ function validateRuntimeBridgeUserTaskStatus(runtimeBridge) {
   validateUserTaskStatusProjectionContract(
     runtimeBridge.user_task_status_projection,
     'Runtime bridge user task status projection',
+    runtimeBridge.stage_run_cockpit_projection,
   );
   if (runtimeBridge.user_task_status_projection?.app_role !== 'display_only_user_task_status_consumer') {
     throw new Error('Runtime bridge user task status projection must be a display-only consumer');
@@ -770,10 +771,10 @@ export function validateRuntimeBridgeContract(runtimeBridge, contract) {
   validateRuntimeBridgeIdentity(runtimeBridge, contract);
   validateRuntimeBridgeDeclaredSurfaces(runtimeBridge);
   validateRuntimeBridgeDefaultReadSurfacePolicy(runtimeBridge);
-  validateRuntimeBridgeUserTaskStatus(runtimeBridge);
   validateRuntimeProgressPageDisplayPolicy(runtimeBridge);
   validateRuntimeBridgeCommandResolutionPolicy(runtimeBridge);
   validateRuntimeBridgeProjectionContracts(runtimeBridge);
+  validateRuntimeBridgeUserTaskStatus(runtimeBridge);
   validateRuntimeSurfaceOwnerMatrix(runtimeBridge);
   validateRuntimeBridgeAuthorityBoundary(runtimeBridge);
   validateRuntimeBridgeReplacementPolicy(runtimeBridge);
