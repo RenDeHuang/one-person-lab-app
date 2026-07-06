@@ -20,6 +20,7 @@ import {
   appOwnedSettingsUpstreamIntakeClassifications,
   appOwnedSettingsTaskEntryIds,
   appOwnedSettingsVisualQaTargets,
+  legacySettingsRouteRedirects,
 } from './app-contract-constants.ts';
 import { validateSettingsCapabilitiesResourceGrouping } from './shared-contract-validators.ts';
 
@@ -30,34 +31,15 @@ const expectedCapabilitiesStateSource =
   'opl app state --profile fast --json#app_state.agent_packages.directory + app_state.agent_packages.status_index + home_agent_shortcuts + app_state.operator.workbench.task_drilldowns';
 
 const expectedLegacyRedirects = {
-  overview: 'general',
-  runtime: 'environment',
-  system: 'advanced',
-  model: 'environment',
-  agent: 'capabilities',
-  assistants: 'capabilities',
+  ...legacySettingsRouteRedirects,
   'skills-hub': 'capabilities?tab=skills',
   tools: 'capabilities?tab=tools',
-  display: 'appearance',
-  webui: 'resources',
-  pet: 'appearance',
   about: 'advanced',
 };
 
-const expectedAnchorRemap = {
-  overview: 'general',
-  runtime: 'environment',
-  system: 'advanced',
-  model: 'environment',
-  agent: 'capabilities',
-  assistants: 'capabilities',
-  'skills-hub': 'capabilities',
-  tools: 'capabilities',
-  display: 'appearance',
-  webui: 'resources',
-  pet: 'appearance',
-  about: 'advanced',
-};
+const expectedAnchorRemap = Object.fromEntries(
+  Object.entries(expectedLegacyRedirects).map(([id, target]) => [id, String(target).split('?')[0]]),
+);
 
 const expectedSlotKeys = [
   'settings_general',
@@ -219,7 +201,7 @@ export function validateSettingsControlPlane(controlPlane, guiContract, pageStat
   if (controlPlane.extension_tab_policy?.legacy_anchor_remap_required !== true) {
     throw new Error('Settings control plane must require extension legacy anchor remapping');
   }
-  if (controlPlane.state_action_policy?.action_route !== 'opl app action execute --action <action_id> [--payload <json>] [--dry-run] --json') {
+  if (controlPlane.state_action_policy?.action_route !== appActionRoute) {
     throw new Error('Settings control plane must route mutations through opl app action execute');
   }
   assertDeepEqualJson(
