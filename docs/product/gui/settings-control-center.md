@@ -314,9 +314,25 @@ package-directory row shows:
 
 The ordinary first screen must not use receipt refs, `physical_surface`,
 workflow refs, connector refs, resource refs, or raw git facts as the primary
-density. Those belong in a right-side details panel, drawer, or expandable
-detail list. Required Skills and optional Tools are supporting details and are
+density. Required Skills and optional Tools are supporting details and are
 collapsed by default unless the user explicitly opens them.
+
+The capability detail panel is three-layered:
+
+- User detail layer: purpose, status, Codex availability, Home shortcut
+  visibility/order, version, user-language source label, last sync, and failure
+  reason only when there is a real failed or blocked state. Empty values are
+  hidden; the UI must not show `未报告`, `Not reported`, raw ids, or raw paths as
+  ordinary content.
+- Supporting context layer: connector readiness, reusable workflow,
+  environment/resource context, and reproducibility export actions appear only
+  when App state provides real refs or action refs. This layer summarizes the
+  user-facing title, state, owner, or next action; raw refs remain diagnostic.
+- Advanced diagnostics layer: package id, Codex-visible entry, receipt refs,
+  rollback/action receipts, `physical_surface`, manifest/cache/marketplace
+  config, paths, and raw refs are collapsed under advanced diagnostics or an
+  advanced route. These fields are useful for support and release/debug work,
+  not for normal package selection.
 
 Current-runtime UX rule: developer checkout semantics are explicit state, not a
 generic repair badge. `git_checkout`, `configured_by: developer_mode`,

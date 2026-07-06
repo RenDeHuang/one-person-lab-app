@@ -3805,19 +3805,30 @@
           "open_details_panel"
         ],
         "detail_panel_fields": [
+          "purpose",
+          "status",
+          "codex_availability",
+          "home_shortcut",
+          "version",
+          "source_label",
+          "last_synced_at",
+          "failure_reason_when_failed"
+        ],
+        "default_disclosure": "user_detail_visible_advanced_diagnostics_collapsed_empty_unreported_hidden",
+        "visual_gap_acceptance": "target_design_1_to_1_gap_is_shell_acceptance_item",
+        "advanced_diagnostic_fields": [
+          "package_id",
+          "codex_visible_entry",
           "receipt_refs",
-          "package_lock_ref",
+          "rollback_ref",
           "action_receipt_ref",
           "physical_surface",
+          "paths",
           "manifest_ref",
-          "required_skill_refs",
-          "optional_tool_refs",
-          "workflow_refs",
-          "connector_readiness_refs",
-          "resource_source_refs"
-        ],
-        "default_disclosure": "skills_and_tools_collapsed_by_default",
-        "visual_gap_acceptance": "target_design_1_to_1_gap_is_shell_acceptance_item"
+          "cache_config",
+          "marketplace_config",
+          "raw_refs_json"
+        ]
       },
       "sections": [
         "package_directory",
@@ -3891,9 +3902,10 @@
         ]
       },
       "list_density_policy": {
+        "row_identity_key": "package_id",
         "primary_row_fields": [
-          "package_id",
           "display_name",
+          "package_short_name",
           "purpose_tags",
           "home_shortcut_visible",
           "home_shortcut_order",
@@ -3905,17 +3917,32 @@
           "recommended_action"
         ],
         "detail_surface": "desktop_right_side_panel_mobile_drawer",
-        "detail_fields": [
+        "default_detail_fields": [
+          "purpose",
+          "status",
+          "codex_availability",
+          "home_shortcut",
+          "version",
+          "source_label",
+          "last_synced_at",
+          "failure_reason_when_failed"
+        ],
+        "content_block_policy": "show_connectors_workflows_environment_resources_and_reproducibility_export_only_when_real_projection_data_or_action_refs_exist",
+        "advanced_diagnostic_fields": [
+          "package_id",
+          "codex_visible_entry",
           "receipt_refs",
           "rollback_ref",
           "action_receipt_ref",
           "physical_surface",
-          "workflow_refs",
-          "connector_readiness_refs",
-          "resource_source_refs",
-          "environment_refs"
+          "paths",
+          "manifest_ref",
+          "cache_config",
+          "marketplace_config",
+          "raw_refs_json"
         ],
-        "first_screen_policy": "receipt_refs_physical_surface_and_workflow_connector_resource_refs_are_detail_only_not_primary_row_density"
+        "first_screen_policy": "default detail shows user-decision fields only; raw package_id, codex_visible_entry, receipt refs, paths, manifest, cache, and marketplace config stay collapsed in Advanced diagnostics",
+        "empty_field_policy": "hide empty, unknown, unavailable, not_applicable, null, or unreported fields; never render 未报告 or Not reported as default user detail text"
       },
       "must_show": [
         "installed package directory as the primary Capabilities surface",
@@ -3924,8 +3951,7 @@
         "package rows keyed by package identity instead of purpose cards",
         "purpose labels and filters as secondary metadata rather than primary identity",
         "Home shortcut visibility and order inline on the package directory rows",
-        "right-side details panel on desktop and drawer on narrow screens for receipts, physical surface, refs, required skills, and optional tools",
-        "details panel or drawer for receipt refs, physical_surface, workflow refs, connector refs, and resource refs",
+        "right-side details panel on desktop and drawer on narrow screens for user-decision capability details",
         "multi-axis package status for install, update, source, trust, and Codex Surface",
         "developer checkout semantics surfaced explicitly for dirty, git checkout, behind, and configured_by=developer_mode",
         "OBF and OMA rows can show ready plus recommended update without being rewritten as repair",
@@ -3943,7 +3969,10 @@
         "reproducibility export bundle action ref with dry-run receipt boundary",
         "External Tools & Voice entry with MCP described as secondary technical detail",
         "Custom Assistant entry as a secondary or advanced capability when enabled by product policy",
-        "workflow and skill candidate report-first refs with review, needs changes, and continue in conversation actions"
+        "workflow and skill candidate report-first refs with review, needs changes, and continue in conversation actions",
+        "Capabilities detail default layer shows only purpose, status, Codex availability, Home shortcut, version, user-language source, last sync, and failure reason only when failed",
+        "connector, reusable workflow, environment resource, and reproducibility export blocks only when real projection data or action refs exist",
+        "package id, Codex-visible entry, receipts, paths, manifest, cache, and marketplace configuration collapsed under Advanced diagnostics"
       ],
       "must_not_show": [
         "assistant or purpose cards as the primary Capabilities surface",
@@ -3959,7 +3988,10 @@
         "AionUI Team as the ordinary multi-agent collaboration entry",
         "MCP as the primary user-facing name for external tools",
         "artifact body, workflow body, connector body, credential body, owner receipt write, or domain export readiness verdict from Settings Capabilities",
-        "auto-enabled skills, skill body writes, or workflow body writes from Settings Capabilities candidate refs"
+        "auto-enabled skills, skill body writes, or workflow body writes from Settings Capabilities candidate refs",
+        "package_id, codex_visible_entry, receipt refs, paths, manifest, cache, or marketplace config as default capability detail fields",
+        "未报告 or Not reported placeholders for empty capability detail fields",
+        "empty connector, workflow, environment resource, or export-action blocks in default capability details"
       ],
       "fabric_connect_grouping_policy": {
         "source": "contracts/app-runtime-bridge.json#task_awareness_projection.settings_capabilities_surface",
@@ -4047,6 +4079,66 @@
           "domain_readiness",
           "app_release_readiness"
         ]
+      },
+      "capability_detail_presentation_policy": {
+        "default_layer": "user_decision_detail",
+        "default_surface": "desktop_right_side_panel_mobile_drawer",
+        "default_visible_fields": [
+          "purpose",
+          "status",
+          "codex_availability",
+          "home_shortcut",
+          "version",
+          "source_label",
+          "last_synced_at",
+          "failure_reason_when_failed"
+        ],
+        "source_label_policy": "render source in user language such as OPL Packages, local developer checkout, organization registry, or user registry; do not show raw source ids by default",
+        "failure_reason_policy": "show failure reason only when the capability is failed, blocked, or needs user action",
+        "empty_field_policy": "hide empty, unknown, unavailable, not_applicable, null, or unreported fields; never render 未报告 or Not reported as default user detail text",
+        "content_blocks": [
+          {
+            "id": "connectors",
+            "label": "connectors",
+            "source_ref": "connector_readiness_refs",
+            "default_visibility": "visible_only_when_non_empty"
+          },
+          {
+            "id": "reusable_workflows",
+            "label": "reusable workflows",
+            "source_ref": "workflow_refs",
+            "default_visibility": "visible_only_when_non_empty"
+          },
+          {
+            "id": "environment_resources",
+            "label": "environment resources",
+            "source_ref": "environment_ref + resource_source_refs",
+            "default_visibility": "visible_only_when_non_empty"
+          },
+          {
+            "id": "reproducibility_export_action",
+            "label": "reproducibility export action",
+            "source_ref": "export_bundle_action_ref",
+            "default_visibility": "visible_only_when_action_available"
+          }
+        ],
+        "advanced_diagnostics": {
+          "default_visibility": "collapsed",
+          "surface": "advanced_diagnostics_disclosure_or_advanced_route",
+          "fields": [
+            "package_id",
+            "codex_visible_entry",
+            "receipt_refs",
+            "rollback_ref",
+            "action_receipt_ref",
+            "physical_surface",
+            "paths",
+            "manifest_ref",
+            "cache_config",
+            "marketplace_config",
+            "raw_refs_json"
+          ]
+        }
       }
     },
     "settings_environment": {

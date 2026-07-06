@@ -888,9 +888,10 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     must_not_collapse: ['developer_checkout', 'dirty_checkout', 'git_behind', 'unknown', 'needs_sync'],
   });
   assert.deepEqual(guiContract.pages.settings_capabilities.list_density_policy, {
+    row_identity_key: 'package_id',
     primary_row_fields: [
-      'package_id',
       'display_name',
+      'package_short_name',
       'purpose_tags',
       'home_shortcut_visible',
       'home_shortcut_order',
@@ -902,18 +903,97 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
       'recommended_action',
     ],
     detail_surface: 'desktop_right_side_panel_mobile_drawer',
-    detail_fields: [
+    default_detail_fields: [
+      'purpose',
+      'status',
+      'codex_availability',
+      'home_shortcut',
+      'version',
+      'source_label',
+      'last_synced_at',
+      'failure_reason_when_failed',
+    ],
+    content_block_policy:
+      'show_connectors_workflows_environment_resources_and_reproducibility_export_only_when_real_projection_data_or_action_refs_exist',
+    advanced_diagnostic_fields: [
+      'package_id',
+      'codex_visible_entry',
       'receipt_refs',
       'rollback_ref',
       'action_receipt_ref',
       'physical_surface',
-      'workflow_refs',
-      'connector_readiness_refs',
-      'resource_source_refs',
-      'environment_refs',
+      'paths',
+      'manifest_ref',
+      'cache_config',
+      'marketplace_config',
+      'raw_refs_json',
     ],
     first_screen_policy:
-      'receipt_refs_physical_surface_and_workflow_connector_resource_refs_are_detail_only_not_primary_row_density',
+      'default detail shows user-decision fields only; raw package_id, codex_visible_entry, receipt refs, paths, manifest, cache, and marketplace config stay collapsed in Advanced diagnostics',
+    empty_field_policy:
+      'hide empty, unknown, unavailable, not_applicable, null, or unreported fields; never render 未报告 or Not reported as default user detail text',
+  });
+  assert.deepEqual(guiContract.pages.settings_capabilities.capability_detail_presentation_policy, {
+    default_layer: 'user_decision_detail',
+    default_surface: 'desktop_right_side_panel_mobile_drawer',
+    default_visible_fields: [
+      'purpose',
+      'status',
+      'codex_availability',
+      'home_shortcut',
+      'version',
+      'source_label',
+      'last_synced_at',
+      'failure_reason_when_failed',
+    ],
+    source_label_policy:
+      'render source in user language such as OPL Packages, local developer checkout, organization registry, or user registry; do not show raw source ids by default',
+    failure_reason_policy: 'show failure reason only when the capability is failed, blocked, or needs user action',
+    empty_field_policy:
+      'hide empty, unknown, unavailable, not_applicable, null, or unreported fields; never render 未报告 or Not reported as default user detail text',
+    content_blocks: [
+      {
+        id: 'connectors',
+        label: 'connectors',
+        source_ref: 'connector_readiness_refs',
+        default_visibility: 'visible_only_when_non_empty',
+      },
+      {
+        id: 'reusable_workflows',
+        label: 'reusable workflows',
+        source_ref: 'workflow_refs',
+        default_visibility: 'visible_only_when_non_empty',
+      },
+      {
+        id: 'environment_resources',
+        label: 'environment resources',
+        source_ref: 'environment_ref + resource_source_refs',
+        default_visibility: 'visible_only_when_non_empty',
+      },
+      {
+        id: 'reproducibility_export_action',
+        label: 'reproducibility export action',
+        source_ref: 'export_bundle_action_ref',
+        default_visibility: 'visible_only_when_action_available',
+      },
+    ],
+    advanced_diagnostics: {
+      default_visibility: 'collapsed',
+      surface: 'advanced_diagnostics_disclosure_or_advanced_route',
+      fields: [
+        'package_id',
+        'codex_visible_entry',
+        'receipt_refs',
+        'rollback_ref',
+        'action_receipt_ref',
+        'physical_surface',
+        'paths',
+        'manifest_ref',
+        'cache_config',
+        'marketplace_config',
+        'raw_refs_json',
+      ],
+    },
   });
   assert.ok(
     guiContract.pages.settings_capabilities.must_show.includes(
