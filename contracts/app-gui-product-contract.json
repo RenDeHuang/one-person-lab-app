@@ -1755,10 +1755,10 @@
       "access",
       "workspace",
       "capabilities",
+      "resources",
       "environment",
       "storage",
-      "appearance",
-      "advanced"
+      "appearance"
     ],
     "legacy_route_redirects": {
       "overview": "general",
@@ -1770,7 +1770,7 @@
       "skills-hub": "capabilities",
       "tools": "capabilities",
       "display": "appearance",
-      "webui": "access",
+      "webui": "resources",
       "pet": "appearance"
     },
     "ordinary_hidden_legacy_tabs": [
@@ -1789,7 +1789,9 @@
     "required_sections": [
       "general",
       "access",
+      "workspace",
       "capabilities",
+      "resources",
       "environment",
       "storage",
       "appearance",
@@ -1822,7 +1824,7 @@
     },
     "source": "opl app state --profile fast --json",
     "refresh_source": "opl app state --profile fast --json",
-    "policy": "Settings is the App-owned OPL Control Center information architecture, not an upstream AionUI configuration dump. The target top-level IA is Overview, Access, Workspace, Capabilities, Maintenance & Updates, Data & Storage, Preferences, and Advanced. Existing shell route ids general, access, workspace, capabilities, environment, storage, appearance, and advanced map to those groups. Capabilities is an installed package directory with integrated Home shortcut management; purpose labels remain secondary tags and filters, not the primary card identity. About is version-and-links only and remains a secondary Advanced surface. Update is an explicit detail or deep-link destination for update state, while normal repair and maintenance actions stay under Maintenance & Updates. Maintenance must not become a second runtime task board. Theme remains a secondary page or deep link, not an independent ordinary top-level group. Storage lifecycle and safe cleanup live under Data & Storage. Workspace is an independent ordinary setup concern, not a buried runtime diagnostic. Resources & Connections is a secondary setup/access route for Docker WebUI, OPL Workspace, managed resources, SSH/HPC, Fabric, and Console-managed refs so Access stays focused on OPL Gateway, Codex CLI, and browser access to this computer. Legacy upstream settings routes remain compatibility redirects only; they must not reappear as ordinary navigation.",
+    "policy": "Settings is the App-owned OPL Control Center information architecture, not an upstream AionUI configuration dump. The target ordinary IA is Overview, Access, Workspace, Capabilities, Resources & Connections, Maintenance & Updates, Data & Storage, and Preferences. Existing shell route ids general, access, workspace, capabilities, resources, environment, storage, and appearance map to those ordinary groups. Advanced, About, Update, Theme, and Local Services are secondary or deep-link routes. Capabilities is an installed package directory with integrated Home shortcut management; purpose labels remain secondary tags and filters, not the primary card identity. About is version-and-links only and remains a secondary Advanced surface. Update is an explicit detail or deep-link destination for update state, while normal repair and maintenance actions stay under Maintenance & Updates. Maintenance must not become a second runtime task board. Theme remains a secondary page or deep link, not an independent ordinary top-level group. Storage lifecycle and safe cleanup live under Data & Storage. Workspace is an independent ordinary setup concern, not a buried runtime diagnostic. Resources & Connections is an ordinary route for Docker WebUI, OPL Workspace, managed resources, SSH/HPC, Fabric, and Console-managed refs so Access stays focused on OPL Gateway, Codex CLI, and browser access to this computer. Legacy upstream settings routes remain compatibility redirects only; they must not reappear as ordinary navigation.",
     "settings_ia": {
       "schema": "settings_ia.v1",
       "authority": "one-person-lab-app",
@@ -1833,29 +1835,32 @@
       "top_level_navigation_policy": {
         "entry_model": "user_visible_top_level_entries_match_ordinary_navigation_entries",
         "workspace_visibility": "workspace_is_user_visible_top_level_navigation_entry",
-        "shell_route_compatibility": "workspace_route_is_ordinary_user_visible_top_level_navigation"
+        "shell_route_compatibility": "workspace_route_is_ordinary_user_visible_top_level_navigation",
+        "resources_visibility": "resources_is_user_visible_top_level_navigation_entry",
+        "advanced_visibility": "advanced_is_secondary_or_deep_link_not_ordinary_navigation"
       },
       "ordinary_route_ids": [
         "general",
         "access",
         "workspace",
         "capabilities",
+        "resources",
         "environment",
         "storage",
-        "appearance",
-        "advanced"
+        "appearance"
       ],
       "secondary_or_deep_link_route_ids": [
+        "advanced",
         "about",
         "update",
         "theme",
-        "local-services",
-        "resources"
+        "local-services"
       ],
       "group_ids": [
         "overview",
         "setup_access",
         "capabilities",
+        "resources",
         "maintenance",
         "data_storage",
         "preferences",
@@ -1911,6 +1916,18 @@
           "frequency": "occasional"
         },
         {
+          "id": "resources",
+          "route_id": "resources",
+          "route_scope": "ordinary",
+          "visibility": "top_level_navigation",
+          "label_en": "Resources & Connections",
+          "label_zh": "资源与连接",
+          "scope": "resource",
+          "intent": "configure",
+          "risk": "confirmation_required",
+          "frequency": "occasional"
+        },
+        {
           "id": "maintenance",
           "route_id": "environment",
           "route_scope": "ordinary",
@@ -1945,18 +1962,6 @@
           "intent": "configure",
           "risk": "reversible",
           "frequency": "occasional"
-        },
-        {
-          "id": "diagnostics",
-          "route_id": "advanced",
-          "route_scope": "ordinary",
-          "visibility": "top_level_navigation",
-          "label_en": "Advanced",
-          "label_zh": "高级",
-          "scope": "developer",
-          "intent": "diagnose",
-          "risk": "read_only",
-          "frequency": "expert_or_exception"
         }
       ],
       "user_task_entries": [
@@ -2029,7 +2034,7 @@
         },
         {
           "id": "advanced_deployment",
-          "group_id": "setup_access",
+          "group_id": "resources",
           "route_id": "resources",
           "priority": "p1",
           "scope": "resource",
@@ -2167,16 +2172,16 @@
             "desktop_settings_access",
             "desktop_settings_workspace",
             "desktop_settings_capabilities",
+            "desktop_settings_resources",
             "desktop_settings_maintenance",
             "desktop_settings_storage",
             "desktop_settings_preferences",
-            "desktop_settings_advanced",
             "mobile_settings_section_nav",
             "mobile_settings_preferences"
           ],
           "must_check": [
-            "ordinary nav shows eight current route ids including workspace",
-            "About/Update/Theme are secondary or deep-link surfaces unless contract is changed deliberately",
+            "ordinary nav shows eight current route ids including workspace and resources, excluding advanced",
+            "Advanced/About/Update/Theme/Local Services are secondary or deep-link surfaces unless contract is changed deliberately",
             "diagnostics and raw refs are collapsed by default",
             "confirmation drawer appears before destructive or state-changing actions",
             "post-update notice displays receipt and restart or reload guidance",
@@ -2202,12 +2207,28 @@
         "ia_group": "setup_access",
         "ordinary_entry_policy": "top_level_control_center_route"
       },
+      "workspace": {
+        "label_zh": "工作区",
+        "label_en": "Workspace",
+        "role": "selected_workspace_paths_permissions_and_artifact_roots",
+        "primary_question": "Where is my current work, and can the App access it?",
+        "ia_group": "overview",
+        "ordinary_entry_policy": "top_level_control_center_route"
+      },
       "capabilities": {
         "label_zh": "能力",
         "label_en": "Capabilities",
         "role": "installed_package_directory_and_home_shortcut_management",
         "primary_question": "Which packages are installed, how are they exposed on Home, and what can OPL help me do?",
         "ia_group": "capabilities",
+        "ordinary_entry_policy": "top_level_control_center_route"
+      },
+      "resources": {
+        "label_zh": "资源与连接",
+        "label_en": "Resources & Connections",
+        "role": "resources_connections_and_advanced_deployment",
+        "primary_question": "Which local, remote, hosted, or managed resources can my tasks use?",
+        "ia_group": "resources",
         "ordinary_entry_policy": "top_level_control_center_route"
       },
       "environment": {
@@ -2238,9 +2259,9 @@
         "label_zh": "高级",
         "label_en": "Advanced",
         "role": "developer_controls_version_links_and_collapsed_raw_diagnostics",
-        "primary_question": "Where are technical details, raw references, versions, and links?",
+        "primary_question": "Where are technical details, raw references, logs, and diagnostics?",
         "ia_group": "advanced",
-        "ordinary_entry_policy": "top_level_control_center_route"
+        "ordinary_entry_policy": "secondary_page_or_deep_link_under_diagnostics"
       },
       "about": {
         "label_zh": "关于",
@@ -2252,17 +2273,17 @@
       }
     },
     "secondary_page_ids": [
+      "advanced",
       "about",
       "update",
       "theme",
-      "local-services",
-      "resources"
+      "local-services"
     ],
     "ordinary_surface": {
       "id": "control_center",
       "label_zh": "控制中心",
       "label_en": "Control Center",
-      "positioning": "single App-owned OPL Control Center for overview, setup and access, capabilities, maintenance and updates, data and storage, preferences, and advanced diagnostics"
+      "positioning": "single App-owned OPL Control Center for overview, access, workspace, capabilities, resources and connections, maintenance and updates, data and storage, and preferences; advanced diagnostics stay secondary"
     },
     "ordinary_groups": [
       {
@@ -2283,14 +2304,12 @@
         "role": "first_use_and_access_setup",
         "ordinary_entries": [
           "settings_access",
-          "first_run_setup_center",
-          "settings_resources"
+          "first_run_setup_center"
         ],
         "primary_tasks": [
           "workspace_root",
           "codex_cli",
-          "codex_config",
-          "resources_connections"
+          "codex_config"
         ]
       },
       {
@@ -2300,6 +2319,22 @@
         "role": "installed_package_directory_and_home_shortcut_management",
         "ordinary_entries": [
           "settings_capabilities"
+        ]
+      },
+      {
+        "id": "resources",
+        "label_zh": "资源与连接",
+        "label_en": "Resources & Connections",
+        "role": "resources_connections_and_advanced_deployment",
+        "ordinary_entries": [
+          "settings_resources"
+        ],
+        "primary_tasks": [
+          "resources_connections",
+          "docker_webui",
+          "opl_workspace",
+          "ssh_hpc",
+          "fabric_console_refs"
         ]
       },
       {
@@ -2358,12 +2393,13 @@
           "settings_advanced",
           "about"
         ],
-        "diagnostics_default_state": "collapsed"
+        "diagnostics_default_state": "collapsed",
+        "route_scope": "secondary_or_deep_link"
       }
     ],
     "task_entry_policy": {
       "ordinary_entry_model": "user_task_first_sections_inside_the_eight_OPL_Control_Center_entries",
-      "top_level_tab_policy": "do_not_add_new_shell_route_tabs_for_model_updates_web_tools_or_developer_profile; workspace_is_a_user_visible_top_level_entry",
+      "top_level_tab_policy": "do_not_add_new_shell_route_tabs_for_model_updates_web_tools_developer_profile_or_advanced_diagnostics; workspace_and_resources_are_user_visible_top_level_entries",
       "p0_entries": [
         "model_access",
         "local_runtime_ability",
@@ -4359,7 +4395,8 @@
       "settings_theme",
       "advanced",
       "about",
-      "update"
+      "update",
+      "settings_resources"
     ],
     "ordinary_allowed_answer_shapes": [
       "purpose_entry",

@@ -2494,9 +2494,9 @@
         "state-changing resource deployment without App action route or confirmation boundary"
       ],
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
-      "ia_group": "setup_access",
+      "ia_group": "resources",
       "route_id": "resources",
-      "route_scope": "secondary_or_deep_link",
+      "route_scope": "ordinary",
       "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia"
     },
     {
@@ -2817,7 +2817,7 @@
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
       "ia_group": "advanced",
       "route_id": "advanced",
-      "route_scope": "ordinary",
+      "route_scope": "secondary_or_deep_link",
       "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia"
     }
   ],

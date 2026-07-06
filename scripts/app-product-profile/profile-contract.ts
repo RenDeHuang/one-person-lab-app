@@ -32,10 +32,10 @@ const requiredDefaultPackagedSkillIds = [
 const requiredCompanionSkillSyncIds = requiredDefaultPackagedSkillIds.filter((skillId) => (
   !['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge'].includes(skillId)
 ));
-const appOwnedSettingsTabs = ['general', 'access', 'workspace', 'capabilities', 'environment', 'storage', 'appearance', 'advanced'];
-const appOwnedSecondarySettingsPages = ['about', 'update', 'theme', 'local-services', 'resources'];
-const appOwnedSettingsIaGroups = ['overview', 'setup_access', 'capabilities', 'maintenance', 'data_storage', 'preferences', 'advanced'];
-const appOwnedSettingsPrimaryTabIds = ['general', 'access', 'workspace', 'capabilities', 'environment', 'storage', 'appearance', 'advanced', 'about'];
+const appOwnedSettingsTabs = ['general', 'access', 'workspace', 'capabilities', 'resources', 'environment', 'storage', 'appearance'];
+const appOwnedSecondarySettingsPages = ['advanced', 'about', 'update', 'theme', 'local-services'];
+const appOwnedSettingsIaGroups = ['overview', 'setup_access', 'capabilities', 'resources', 'maintenance', 'data_storage', 'preferences', 'advanced'];
+const appOwnedSettingsPrimaryTabIds = ['general', 'access', 'workspace', 'capabilities', 'resources', 'environment', 'storage', 'appearance', 'advanced', 'about'];
 const developerProfileCapabilityAxes = [
   'source_channel',
   'workspace_trust',
@@ -71,7 +71,7 @@ const legacySettingsRouteRedirects = {
   'skills-hub': 'capabilities',
   tools: 'capabilities',
   display: 'appearance',
-  webui: 'access',
+  webui: 'resources',
   pet: 'appearance',
 };
 

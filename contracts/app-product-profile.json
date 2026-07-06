@@ -1170,10 +1170,10 @@
       "access",
       "workspace",
       "capabilities",
+      "resources",
       "environment",
       "storage",
-      "appearance",
-      "advanced"
+      "appearance"
     ],
     "legacy_route_redirects": {
       "overview": "general",
@@ -1185,7 +1185,7 @@
       "skills-hub": "capabilities",
       "tools": "capabilities",
       "display": "appearance",
-      "webui": "access",
+      "webui": "resources",
       "pet": "appearance"
     },
     "environment_items": [
@@ -1251,7 +1251,7 @@
         "id": "control_center",
         "label_zh": "控制中心",
         "label_en": "Control Center",
-        "positioning": "single App-owned OPL Control Center for overview, setup and access, capabilities, maintenance and updates, data and storage, preferences, and advanced diagnostics"
+        "positioning": "single App-owned OPL Control Center for overview, access, workspace, capabilities, resources and connections, maintenance and updates, data and storage, and preferences; advanced diagnostics stay secondary"
       },
       "ordinary_groups": [
         {
@@ -1275,20 +1275,34 @@
             "first_run_setup_center"
           ],
           "primary_tasks": [
-            "model_access",
-            "local_runtime_ability",
-            "remote_access",
-            "advanced_deployment"
-          ],
-          "normal_state_policy": "show_conclusion_and_necessary_action_first_hide_internal_diagnostics_until_details_or_abnormal_state"
+            "workspace_root",
+            "codex_cli",
+            "codex_config"
+          ]
         },
         {
           "id": "capabilities",
           "label_zh": "能力",
           "label_en": "Capabilities",
-          "role": "purpose_grouped_capability_catalog",
+          "role": "installed_package_directory_and_home_shortcut_management",
           "ordinary_entries": [
             "settings_capabilities"
+          ]
+        },
+        {
+          "id": "resources",
+          "label_zh": "资源与连接",
+          "label_en": "Resources & Connections",
+          "role": "resources_connections_and_advanced_deployment",
+          "ordinary_entries": [
+            "settings_resources"
+          ],
+          "primary_tasks": [
+            "resources_connections",
+            "docker_webui",
+            "opl_workspace",
+            "ssh_hpc",
+            "fabric_console_refs"
           ]
         },
         {
@@ -1298,6 +1312,7 @@
           "role": "health_updates_and_repair",
           "ordinary_entries": [
             "settings_environment",
+            "local_services",
             "update"
           ],
           "owns": [
@@ -1346,7 +1361,8 @@
             "settings_advanced",
             "about"
           ],
-          "diagnostics_default_state": "collapsed"
+          "diagnostics_default_state": "collapsed",
+          "route_scope": "secondary_or_deep_link"
         }
       ],
       "primary_tabs": {
@@ -1362,22 +1378,9 @@
           "label_zh": "访问方式",
           "label_en": "Access",
           "role": "first_use_and_access_setup",
-          "primary_question": "Can the App use a model, run locally, accept remote access, or use an advanced deployment?",
+          "primary_question": "How do I connect the App, and where does work happen?",
           "ia_group": "setup_access",
-          "ordinary_entry_policy": "top_level_control_center_route",
-          "user_facing_groups": [
-            "model_access",
-            "local_runtime_ability",
-            "remote_access",
-            "advanced_deployment"
-          ],
-          "hidden_normal_state_terms": [
-            "repeated OPL Gateway summary lines",
-            "action_available",
-            "diagnose_with_doctor",
-            "available",
-            "CLI dry-run commands"
-          ]
+          "ordinary_entry_policy": "top_level_control_center_route"
         },
         "workspace": {
           "label_zh": "工作区",
@@ -1390,9 +1393,17 @@
         "capabilities": {
           "label_zh": "能力",
           "label_en": "Capabilities",
-          "role": "purpose_grouped_capability_catalog",
-          "primary_question": "What can OPL help me do?",
+          "role": "installed_package_directory_and_home_shortcut_management",
+          "primary_question": "Which packages are installed, how are they exposed on Home, and what can OPL help me do?",
           "ia_group": "capabilities",
+          "ordinary_entry_policy": "top_level_control_center_route"
+        },
+        "resources": {
+          "label_zh": "资源与连接",
+          "label_en": "Resources & Connections",
+          "role": "resources_connections_and_advanced_deployment",
+          "primary_question": "Which local, remote, hosted, or managed resources can my tasks use?",
+          "ia_group": "resources",
           "ordinary_entry_policy": "top_level_control_center_route"
         },
         "environment": {
@@ -1423,9 +1434,9 @@
           "label_zh": "高级",
           "label_en": "Advanced",
           "role": "developer_controls_version_links_and_collapsed_raw_diagnostics",
-          "primary_question": "Where are technical details, raw references, versions, and links?",
+          "primary_question": "Where are technical details, raw references, logs, and diagnostics?",
           "ia_group": "advanced",
-          "ordinary_entry_policy": "top_level_control_center_route"
+          "ordinary_entry_policy": "secondary_page_or_deep_link_under_diagnostics"
         },
         "about": {
           "label_zh": "关于",
@@ -1437,15 +1448,15 @@
         }
       },
       "secondary_page_ids": [
+        "advanced",
         "about",
         "update",
         "theme",
-        "local-services",
-        "resources"
+        "local-services"
       ],
       "task_entry_policy": {
         "ordinary_entry_model": "user_task_first_sections_inside_the_eight_OPL_Control_Center_entries",
-        "top_level_tab_policy": "workspace_is_a_visible_top_level_entry; do_not_add_new_top_level_tabs_for_model_updates_web_tools_or_developer_profile",
+        "top_level_tab_policy": "do_not_add_new_shell_route_tabs_for_model_updates_web_tools_developer_profile_or_advanced_diagnostics; workspace_and_resources_are_user_visible_top_level_entries",
         "p0_entries": [
           "model_access",
           "local_runtime_ability",
@@ -1641,10 +1652,10 @@
         "access",
         "workspace",
         "capabilities",
+        "resources",
         "environment",
         "storage",
-        "appearance",
-        "advanced"
+        "appearance"
       ],
       "default_route": "/settings/general",
       "route_identity_policy": "keep_current_shell_route_ids_distinct_from_user_facing_ia_groups",
@@ -1714,6 +1725,22 @@
           "frequency": "occasional"
         },
         {
+          "id": "resources",
+          "path": "/settings/resources",
+          "label_key": "settings.resources",
+          "default_label_en": "Resources & Connections",
+          "default_label_zh": "资源与连接",
+          "icon_token": "resources",
+          "ia_group": "resources",
+          "slot_id": "settings_resources",
+          "state_source": "opl app state --profile fast --json#settings_control_center.app_settings_read_model.resource_sources + docker_webui",
+          "refresh_source": "opl app state --profile fast --json",
+          "scope": "resource",
+          "intent": "configure",
+          "risk": "confirmation_required",
+          "frequency": "occasional"
+        },
+        {
           "id": "environment",
           "path": "/settings/environment",
           "label_key": "settings.maintenance",
@@ -1760,25 +1787,20 @@
           "intent": "configure",
           "risk": "reversible",
           "frequency": "occasional"
-        },
+        }
+      ],
+      "secondary_pages": [
         {
           "id": "advanced",
           "path": "/settings/advanced",
-          "label_key": "settings.advanced",
-          "default_label_en": "Advanced",
-          "default_label_zh": "高级",
-          "icon_token": "advanced",
           "ia_group": "advanced",
           "slot_id": "settings_advanced",
-          "state_source": "opl app state --profile fast --json",
-          "refresh_source": "opl app state --profile fast --json",
+          "visibility": "secondary_or_deep_link",
           "scope": "developer",
           "intent": "diagnose",
           "risk": "read_only",
           "frequency": "expert_or_exception"
-        }
-      ],
-      "secondary_pages": [
+        },
         {
           "id": "about",
           "path": "/settings/about",
@@ -1822,17 +1844,6 @@
           "intent": "diagnose",
           "risk": "read_only",
           "frequency": "when_attention_needed"
-        },
-        {
-          "id": "resources",
-          "path": "/settings/resources",
-          "ia_group": "setup_access",
-          "slot_id": "settings_resources",
-          "visibility": "secondary_or_deep_link",
-          "scope": "resource",
-          "intent": "configure",
-          "risk": "confirmation_required",
-          "frequency": "occasional"
         }
       ],
       "legacy_route_redirects": {
@@ -1845,7 +1856,7 @@
         "skills-hub": "capabilities?tab=skills",
         "tools": "capabilities?tab=tools",
         "display": "appearance",
-        "webui": "access",
+        "webui": "resources",
         "pet": "appearance",
         "about": "advanced"
       },
@@ -1859,7 +1870,7 @@
         "skills-hub": "capabilities",
         "tools": "capabilities",
         "display": "appearance",
-        "webui": "access",
+        "webui": "resources",
         "pet": "appearance",
         "about": "advanced"
       },
@@ -1974,24 +1985,19 @@
               "user_facing_groups": [
                 "model_access",
                 "local_runtime_ability",
-                "remote_access",
-                "advanced_deployment"
+                "remote_access"
               ],
               "default_policy": "conclusion_and_necessary_action_first",
               "details_policy": "internal_diagnostics_only_in_details_or_abnormal_state",
-              "advanced_deployment_members": [
-                "Docker WebUI",
-                "OPL Workspace",
-                "user-provided SSH/HPC",
-                "OPL Cloud-managed resources"
-              ],
               "hidden_normal_state_terms": [
                 "repeated OPL Gateway summary lines",
                 "action_available",
                 "diagnose_with_doctor",
                 "available",
                 "CLI dry-run commands"
-              ]
+              ],
+              "resources_route": "resources",
+              "resources_route_policy": "Docker WebUI, OPL Workspace, SSH/HPC, cloud, Fabric, and Console-managed refs live on the ordinary Resources & Connections route"
             },
             "cloud_remote_boundary": {
               "required_boundary_terms": [
@@ -2001,7 +2007,7 @@
                 "Fabric",
                 "Console"
               ],
-              "display_policy": "summarize_remote_access_with_advanced_deployment_refs_without_runtime_truth_claims",
+              "display_policy": "summarize_remote_access_without_advanced_deployment_refs; resource and deployment refs route to Settings Resources",
               "refs_only": true,
               "forbidden_claims": [
                 "runtime_truth",
@@ -2137,20 +2143,23 @@
           "desktop",
           "mobile"
         ],
-      "required_routes": [
-        "/settings/general",
-        "/settings/access",
-        "/settings/workspace",
-        "/settings/capabilities",
-        "/settings/environment",
-        "/settings/storage",
-          "/settings/appearance",
-          "/settings/advanced"
-      ],
-      "required_secondary_routes": [
-        "/settings/local-services",
-        "/settings/resources"
-      ],
+        "required_routes": [
+          "/settings/general",
+          "/settings/access",
+          "/settings/workspace",
+          "/settings/capabilities",
+          "/settings/resources",
+          "/settings/environment",
+          "/settings/storage",
+          "/settings/appearance"
+        ],
+        "required_secondary_routes": [
+          "/settings/advanced",
+          "/settings/about",
+          "/settings/update",
+          "/settings/theme",
+          "/settings/local-services"
+        ],
         "required_status_anchors": [
           "diagnostics_collapsed_by_default",
           "state_changing_action_confirmation",
@@ -2168,7 +2177,7 @@
             "status_anchors"
           ],
           "viewport_policy": "each required route is captured for desktop and mobile viewports",
-          "secondary_route_policy": "local-services and resources are captured or explicitly marked route_unit_covered with no screenshot claim"
+          "secondary_route_policy": "advanced, about, update, theme, and local-services are captured or explicitly marked route_unit_covered with no screenshot claim"
         },
         "evidence_command": "E2E_SCREENSHOTS=1 bun run test:e2e -- tests/e2e/specs/navigation.e2e.ts --grep \"Settings Pages|Sidebar Navigation\"",
         "does_not_prove": [
@@ -2306,18 +2315,18 @@
             "status": "active"
           },
           {
-            "id": "webui-advanced-deployment-redirected-to-access",
+            "id": "webui-advanced-deployment-routed-to-resources",
             "upstream_surface": "AionUI Docker WebUI advanced deployment setup",
             "classification": "redirect",
             "app_contract_ref": "contracts/app-settings-control-plane.json#legacy_route_redirects.webui",
             "route_or_slot_impact": {
               "legacy_redirect": "webui",
               "anchor_remap": "webui",
-              "route_id": "access"
+              "route_id": "resources"
             },
             "required_evidence": [
-              "webui legacy route redirects to access",
-              "webui extension anchor remaps to access"
+              "webui legacy route redirects to resources",
+              "webui extension anchor remaps to resources"
             ],
             "decision_owner": "one-person-lab-app",
             "last_reviewed_at": "2026-06-30",
@@ -2344,9 +2353,9 @@
           {
             "id": "eight_entry_ia",
             "track": "ia_routes",
-            "goal": "The ordinary Settings IA has exactly eight user-facing entries: Overview, Access, Workspace, Capabilities, Maintenance & Updates, Data & Storage, Preferences, and Advanced.",
+            "goal": "The ordinary Settings IA has exactly eight user-facing entries: Overview, Access, Workspace, Capabilities, Resources & Connections, Maintenance & Updates, Data & Storage, and Preferences.",
             "evidence_required": [
-              "ordinary_visible_tabs contains eight route ids including workspace",
+              "ordinary_visible_tabs contains eight route ids including resources and excluding advanced",
               "legacy routes do not render as ordinary tabs",
               "page-state matrix maps each route to one IA group"
             ]
@@ -2354,11 +2363,11 @@
           {
             "id": "secondary_route_strategy",
             "track": "ia_routes",
-            "goal": "Local Services, Resources, About, Update, and Theme remain secondary or deep-link routes, searchable and routable without top-level promotion.",
+            "goal": "Advanced, About, Update, Theme, and Local Services remain secondary or deep-link routes, searchable and routable without top-level promotion.",
             "evidence_required": [
-              "secondary_pages declares the five route ids",
+              "secondary_pages declares advanced, about, update, theme, and local-services",
               "route resolver returns secondary_or_deep_link for secondary pages",
-              "visual or route tests cover Local Services and Resources"
+              "visual or route tests cover Advanced and Local Services route behavior"
             ]
           },
           {
@@ -2455,11 +2464,11 @@
           {
             "id": "access_information_architecture",
             "track": "user_task_ux",
-            "goal": "Access explains OPL Gateway, Codex CLI, and browser access to this computer; Resources & Connections owns Docker WebUI, OPL Workspace, cloud, hosted, SSH/HPC, Fabric, and Console-managed refs.",
+            "goal": "Access explains OPL Gateway, Codex CLI, and browser access to this computer; Resources & Connections owns Docker WebUI, OPL Workspace, cloud, hosted, SSH/HPC, Fabric, and Console-managed refs as an ordinary route.",
             "evidence_required": [
               "Access adapter forbids direct provider implementation reads",
-              "task entry includes model access, Codex CLI, remote access, and Resources & Connections deep link",
-              "focused Access DOM tests cover user-facing readiness"
+              "Resources & Connections is declared as an ordinary top-level route",
+              "focused Access and route tests cover user-facing readiness"
             ]
           },
           {
@@ -2495,10 +2504,10 @@
           {
             "id": "advanced_diagnostics",
             "track": "user_task_ux",
-            "goal": "Advanced keeps diagnostics, raw paths, logs, About, and copy-diagnostics evidence available without putting them in the ordinary setup path.",
+            "goal": "Advanced keeps diagnostics, raw paths, logs, About, and copy-diagnostics evidence available as secondary or deep-link surfaces outside the ordinary setup path.",
             "evidence_required": [
               "diagnostics default visibility is collapsed_advanced_only",
-              "About is secondary or deep-link",
+              "Advanced and About are secondary or deep-link routes",
               "visual QA checks diagnostics collapsed anchor"
             ]
           },

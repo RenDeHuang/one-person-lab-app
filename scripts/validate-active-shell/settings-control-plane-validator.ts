@@ -39,7 +39,7 @@ const expectedLegacyRedirects = {
   'skills-hub': 'capabilities?tab=skills',
   tools: 'capabilities?tab=tools',
   display: 'appearance',
-  webui: 'access',
+  webui: 'resources',
   pet: 'appearance',
   about: 'advanced',
 };
@@ -54,7 +54,7 @@ const expectedAnchorRemap = {
   'skills-hub': 'capabilities',
   tools: 'capabilities',
   display: 'appearance',
-  webui: 'access',
+  webui: 'resources',
   pet: 'appearance',
   about: 'advanced',
 };
@@ -93,12 +93,18 @@ const expectedVisualQaRoutes = [
   '/settings/access',
   '/settings/workspace',
   '/settings/capabilities',
+  '/settings/resources',
   '/settings/environment',
   '/settings/storage',
   '/settings/appearance',
-  '/settings/advanced',
 ];
-const expectedVisualQaSecondaryRoutes = ['/settings/local-services', '/settings/resources'];
+const expectedVisualQaSecondaryRoutes = [
+  '/settings/advanced',
+  '/settings/about',
+  '/settings/update',
+  '/settings/theme',
+  '/settings/local-services',
+];
 const expectedVisualQaStatusAnchors = [
   'diagnostics_collapsed_by_default',
   'state_changing_action_confirmation',
@@ -118,6 +124,7 @@ const matrixRouteScopes = {
   settings_general: appOwnedSettingsRouteScopes.settings_general,
   access: appOwnedSettingsRouteScopes.access,
   capabilities: appOwnedSettingsRouteScopes.capabilities,
+  settings_resources: appOwnedSettingsRouteScopes.resources,
   environment: appOwnedSettingsRouteScopes.environment,
   settings_local_services: appOwnedSettingsRouteScopes.local_services,
   storage: appOwnedSettingsRouteScopes.storage,
@@ -126,13 +133,13 @@ const matrixRouteScopes = {
   settings_theme: appOwnedSettingsRouteScopes.settings_theme,
   advanced: appOwnedSettingsRouteScopes.advanced,
   settings_workspace: appOwnedSettingsRouteScopes.workspace,
-  settings_resources: appOwnedSettingsRouteScopes.resources,
 };
 
 const expectedIaGroupByMatrixPageId = {
   settings_general: 'overview',
   access: 'setup_access',
   capabilities: 'capabilities',
+  settings_resources: 'resources',
   environment: 'maintenance',
   settings_local_services: 'maintenance',
   storage: 'data_storage',
@@ -141,7 +148,6 @@ const expectedIaGroupByMatrixPageId = {
   settings_theme: 'preferences',
   advanced: 'advanced',
   settings_workspace: 'overview',
-  settings_resources: 'setup_access',
 };
 
 export function validateSettingsControlPlane(controlPlane, guiContract, pageStateMatrix, productProfile, adapterContract) {
@@ -170,7 +176,7 @@ export function validateSettingsControlPlane(controlPlane, guiContract, pageStat
   );
   assertDeepEqualJson(
     [...new Set(controlPlane.ordinary_routes?.map((route) => route.ia_group))],
-    appOwnedSettingsIaGroupIds,
+    appOwnedSettingsIaGroupIds.filter((groupId) => groupId !== 'advanced'),
     'Settings control plane IA groups',
   );
   assertDeepEqualJson(
@@ -180,10 +186,10 @@ export function validateSettingsControlPlane(controlPlane, guiContract, pageStat
       'settings_access',
       'workspace',
       'settings_capabilities',
+      'settings_resources',
       'settings_environment',
       'settings_storage',
       'settings_theme',
-      'settings_advanced',
     ],
     'Settings control plane ordinary slot ids',
   );
@@ -296,9 +302,11 @@ export function resolveSettingsControlPlaneRoute(controlPlane, routeId) {
   const redirectTarget = registry.legacy_route_redirects[routeId];
   if (redirectTarget) {
     const [targetId, query] = String(redirectTarget).split('?');
-    const targetRoute = registry.ordinary_routes.find((route) => route.id === targetId);
+    const targetRoute =
+      registry.ordinary_routes.find((route) => route.id === targetId) ??
+      registry.secondary_pages.find((route) => route.id === targetId);
     if (!targetRoute) {
-      throw new Error(`Settings legacy route ${routeId} redirects to unknown ordinary route ${targetId}`);
+      throw new Error(`Settings legacy route ${routeId} redirects to unknown Settings route ${targetId}`);
     }
     return settingsRouteResolution(
       routeId,
@@ -313,7 +321,7 @@ export function resolveSettingsControlPlaneRoute(controlPlane, routeId) {
   return settingsRouteResolution(
     routeId,
     'advanced',
-    registry.ordinary_routes.find((route) => route.id === 'advanced'),
+    registry.secondary_pages.find((route) => route.id === 'advanced'),
     'unknown_redirect',
   );
 }
@@ -464,10 +472,12 @@ function validateSettingsTopLevelEntries(entries, policy) {
   if (
     policy?.entry_model !== 'user_visible_top_level_entries_match_ordinary_navigation_entries' ||
     policy?.workspace_visibility !== 'workspace_is_user_visible_top_level_navigation_entry' ||
+    policy?.resources_visibility !== 'resources_is_user_visible_top_level_navigation_entry' ||
+    policy?.advanced_visibility !== 'advanced_is_secondary_or_deep_link_not_ordinary_navigation' ||
     policy?.shell_route_compatibility !==
       'workspace_route_is_ordinary_user_visible_top_level_navigation'
   ) {
-    throw new Error('Settings IA must declare Workspace as a user-visible top-level entry with shell route compatibility');
+    throw new Error('Settings IA must declare Workspace and Resources as user-visible top-level entries and Advanced as secondary');
   }
   assertDeepEqualJson(
     (entries ?? []).map((entry) => entry.id),
@@ -481,6 +491,14 @@ function validateSettingsTopLevelEntries(entries, policy) {
     workspace?.visibility !== 'top_level_navigation'
   ) {
     throw new Error('Settings IA Workspace must be ordinary top-level navigation');
+  }
+  const resources = (entries ?? []).find((entry) => entry.id === 'resources');
+  if (
+    resources?.route_id !== 'resources' ||
+    resources?.route_scope !== 'ordinary' ||
+    resources?.visibility !== 'top_level_navigation'
+  ) {
+    throw new Error('Settings IA Resources must be ordinary top-level navigation');
   }
   for (const entry of entries ?? []) {
     assertKnownSettingsRoute(entry.route_id, `Settings IA top-level entry ${entry.id}`);
@@ -619,10 +637,10 @@ function validateHydratedSettingsRegistry(controlPlane) {
       'AccessSettingsContent',
       'WorkspaceSettings',
       'CapabilitiesSettingsContent',
+      'AccessSettingsContent',
       'RuntimeSettings',
       'StorageSettings',
       'AppearanceModalContent',
-      'SystemModalContent',
     ],
     'Hydrated Settings registry ordinary component keys',
   );
@@ -639,8 +657,9 @@ function validateHydratedSettingsRegistry(controlPlane) {
   }
   for (const legacyRoute of Object.keys(expectedLegacyRedirects)) {
     const redirectTarget = String(controlPlane.legacy_route_redirects[legacyRoute]).split('?')[0];
-    if (!appOwnedSettingsTabs.includes(redirectTarget)) {
-      throw new Error(`Settings legacy route ${legacyRoute} must target an ordinary route`);
+    const knownTargets = new Set([...appOwnedSettingsTabs, ...appOwnedSecondarySettingsPages]);
+    if (!knownTargets.has(redirectTarget)) {
+      throw new Error(`Settings legacy route ${legacyRoute} must target a known Settings route`);
     }
     if (
       !appOwnedSecondarySettingsPages.includes(legacyRoute) &&
@@ -648,8 +667,8 @@ function validateHydratedSettingsRegistry(controlPlane) {
     ) {
       throw new Error(`Settings legacy route ${legacyRoute} must resolve through the legacy redirect table`);
     }
-    if (!appOwnedSettingsTabs.includes(remapSettingsExtensionAnchor(controlPlane, legacyRoute))) {
-      throw new Error(`Settings extension anchor ${legacyRoute} must remap to an ordinary route`);
+    if (!knownTargets.has(remapSettingsExtensionAnchor(controlPlane, legacyRoute))) {
+      throw new Error(`Settings extension anchor ${legacyRoute} must remap to a known Settings route`);
     }
   }
 }
@@ -899,7 +918,7 @@ function validateSettingsAccessCloudBoundary(accessPage) {
   }
   assertDeepEqualJson(
     presentation.user_facing_groups,
-    ['model_access', 'local_runtime_ability', 'remote_access', 'advanced_deployment'],
+    ['model_access', 'local_runtime_ability', 'remote_access'],
     'Settings Access normal-state groups',
   );
   if (presentation.default_policy !== 'conclusion_and_necessary_action_first') {
@@ -908,11 +927,13 @@ function validateSettingsAccessCloudBoundary(accessPage) {
   if (presentation.details_policy !== 'internal_diagnostics_only_in_details_or_abnormal_state') {
     throw new Error('Settings Access diagnostics must stay in details or abnormal states');
   }
-  assertIncludesAll(
-    presentation.advanced_deployment_members,
-    ['Docker WebUI', 'OPL Workspace', 'user-provided SSH/HPC', 'OPL Cloud-managed resources'],
-    'Settings Access advanced deployment members',
-  );
+  if (
+    presentation.resources_route !== 'resources' ||
+    presentation.resources_route_policy !==
+      'Docker WebUI, OPL Workspace, SSH/HPC, cloud, Fabric, and Console-managed refs live on the ordinary Resources & Connections route'
+  ) {
+    throw new Error('Settings Access must route resource and deployment refs to Settings Resources');
+  }
   assertIncludesAll(
     presentation.hidden_normal_state_terms,
     ['repeated OPL Gateway summary lines', 'action_available', 'diagnose_with_doctor', 'available', 'CLI dry-run commands'],
@@ -928,8 +949,8 @@ function validateSettingsAccessCloudBoundary(accessPage) {
     ['App', 'Workspace', 'Gateway', 'Fabric', 'Console'],
     'Settings Access cloud remote boundary terms',
   );
-  if (boundary.display_policy !== 'summarize_remote_access_with_advanced_deployment_refs_without_runtime_truth_claims') {
-    throw new Error('Settings Access cloud remote boundary must keep remote access separate from advanced deployment refs');
+  if (boundary.display_policy !== 'summarize_remote_access_without_advanced_deployment_refs; resource and deployment refs route to Settings Resources') {
+    throw new Error('Settings Access cloud remote boundary must route resource/deployment refs to Settings Resources');
   }
   if (boundary.refs_only !== true) {
     throw new Error('Settings Access cloud remote boundary refs_only must be true');
@@ -969,7 +990,7 @@ function validateSettingsVisualQaPolicy(controlPlane) {
   if (
     policy.evidence_manifest?.viewport_policy !== 'each required route is captured for desktop and mobile viewports' ||
     policy.evidence_manifest?.secondary_route_policy !==
-      'local-services and resources are captured or explicitly marked route_unit_covered with no screenshot claim'
+      'advanced, about, update, theme, and local-services are captured or explicitly marked route_unit_covered with no screenshot claim'
   ) {
     throw new Error('Settings visual QA manifest must declare viewport and secondary route evidence policy');
   }

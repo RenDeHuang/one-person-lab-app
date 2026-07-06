@@ -298,22 +298,23 @@ export const appOwnedSettingsTabs = [
   "access",
   "workspace",
   "capabilities",
+  "resources",
   "environment",
   "storage",
   "appearance",
-  "advanced",
 ];
 export const appOwnedSecondarySettingsPages = [
+  "advanced",
   "about",
   "update",
   "theme",
   "local-services",
-  "resources",
 ];
 export const appOwnedSettingsIaGroupIds = [
   "overview",
   "setup_access",
   "capabilities",
+  "resources",
   "maintenance",
   "data_storage",
   "preferences",
@@ -323,6 +324,7 @@ export const appOwnedSettingsIaLabelsZh = [
   "总览",
   "开始使用",
   "能力",
+  "资源与连接",
   "维护",
   "数据与存储",
   "偏好",
@@ -330,8 +332,9 @@ export const appOwnedSettingsIaLabelsZh = [
 ];
 export const appOwnedSettingsIaEntryMap = {
   overview: ["settings_general", "workspace"],
-  setup_access: ["settings_access", "first_run_setup_center", "settings_resources"],
+  setup_access: ["settings_access", "first_run_setup_center"],
   capabilities: ["settings_capabilities"],
+  resources: ["settings_resources"],
   maintenance: ["settings_environment", "local_services", "update"],
   data_storage: ["settings_storage"],
   preferences: ["settings_theme", "appearance", "language", "startup", "tray"],
@@ -341,19 +344,16 @@ export const appOwnedSettingsRouteScopes = {
   settings_general: { route_id: "general", route_scope: "ordinary" },
   access: { route_id: "access", route_scope: "ordinary" },
   capabilities: { route_id: "capabilities", route_scope: "ordinary" },
+  resources: { route_id: "resources", route_scope: "ordinary" },
   environment: { route_id: "environment", route_scope: "ordinary" },
   storage: { route_id: "storage", route_scope: "ordinary" },
   settings_theme: { route_id: "theme", route_scope: "secondary_or_deep_link" },
-  advanced: { route_id: "advanced", route_scope: "ordinary" },
+  advanced: { route_id: "advanced", route_scope: "secondary_or_deep_link" },
   about: { route_id: "about", route_scope: "secondary_or_deep_link" },
   update: { route_id: "update", route_scope: "secondary_or_deep_link" },
   workspace: { route_id: "workspace", route_scope: "ordinary" },
   local_services: {
     route_id: "local-services",
-    route_scope: "secondary_or_deep_link",
-  },
-  resources: {
-    route_id: "resources",
     route_scope: "secondary_or_deep_link",
   },
 };
@@ -380,10 +380,10 @@ export const appOwnedSettingsTopLevelEntryIds = [
   "access",
   "workspace",
   "capabilities",
+  "resources",
   "maintenance",
   "storage",
   "preferences",
-  "diagnostics",
 ];
 export const appOwnedSettingsProjectionSectionIds = [
   "summary",
@@ -460,10 +460,10 @@ export const appOwnedSettingsVisualQaTargets = [
   "desktop_settings_access",
   "desktop_settings_workspace",
   "desktop_settings_capabilities",
+  "desktop_settings_resources",
   "desktop_settings_maintenance",
   "desktop_settings_storage",
   "desktop_settings_preferences",
-  "desktop_settings_advanced",
   "mobile_settings_section_nav",
   "mobile_settings_preferences",
 ];
@@ -528,7 +528,7 @@ export const legacySettingsRouteRedirects = {
   "skills-hub": "capabilities",
   tools: "capabilities",
   display: "appearance",
-  webui: "access",
+  webui: "resources",
   pet: "appearance",
 };
 export const ordinaryHiddenLegacySettingsTabs = Object.keys(

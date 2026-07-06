@@ -170,10 +170,10 @@
     "access",
     "workspace",
     "capabilities",
+    "resources",
     "environment",
     "storage",
-    "appearance",
-    "advanced"
+    "appearance"
   ],
   "default_route": "/settings/general",
   "route_identity_policy": "keep_current_shell_route_ids_distinct_from_user_facing_ia_groups",
@@ -243,6 +243,22 @@
       "frequency": "occasional"
     },
     {
+      "id": "resources",
+      "path": "/settings/resources",
+      "label_key": "settings.resources",
+      "default_label_en": "Resources & Connections",
+      "default_label_zh": "资源与连接",
+      "icon_token": "resources",
+      "ia_group": "resources",
+      "slot_id": "settings_resources",
+      "state_source": "opl app state --profile fast --json#settings_control_center.app_settings_read_model.resource_sources + docker_webui",
+      "refresh_source": "opl app state --profile fast --json",
+      "scope": "resource",
+      "intent": "configure",
+      "risk": "confirmation_required",
+      "frequency": "occasional"
+    },
+    {
       "id": "environment",
       "path": "/settings/environment",
       "label_key": "settings.maintenance",
@@ -289,25 +305,20 @@
       "intent": "configure",
       "risk": "reversible",
       "frequency": "occasional"
-    },
+    }
+  ],
+  "secondary_pages": [
     {
       "id": "advanced",
       "path": "/settings/advanced",
-      "label_key": "settings.advanced",
-      "default_label_en": "Advanced",
-      "default_label_zh": "高级",
-      "icon_token": "advanced",
       "ia_group": "advanced",
       "slot_id": "settings_advanced",
-      "state_source": "opl app state --profile fast --json",
-      "refresh_source": "opl app state --profile fast --json",
+      "visibility": "secondary_or_deep_link",
       "scope": "developer",
       "intent": "diagnose",
       "risk": "read_only",
       "frequency": "expert_or_exception"
-    }
-  ],
-  "secondary_pages": [
+    },
     {
       "id": "about",
       "path": "/settings/about",
@@ -351,17 +362,6 @@
       "intent": "diagnose",
       "risk": "read_only",
       "frequency": "when_attention_needed"
-    },
-    {
-      "id": "resources",
-      "path": "/settings/resources",
-      "ia_group": "setup_access",
-      "slot_id": "settings_resources",
-      "visibility": "secondary_or_deep_link",
-      "scope": "resource",
-      "intent": "configure",
-      "risk": "confirmation_required",
-      "frequency": "occasional"
     }
   ],
   "legacy_route_redirects": {
@@ -374,7 +374,7 @@
     "skills-hub": "capabilities?tab=skills",
     "tools": "capabilities?tab=tools",
     "display": "appearance",
-    "webui": "access",
+    "webui": "resources",
     "pet": "appearance",
     "about": "advanced"
   },
@@ -388,7 +388,7 @@
     "skills-hub": "capabilities",
     "tools": "capabilities",
     "display": "appearance",
-    "webui": "access",
+    "webui": "resources",
     "pet": "appearance",
     "about": "advanced"
   },
@@ -503,24 +503,19 @@
           "user_facing_groups": [
             "model_access",
             "local_runtime_ability",
-            "remote_access",
-            "advanced_deployment"
+            "remote_access"
           ],
           "default_policy": "conclusion_and_necessary_action_first",
           "details_policy": "internal_diagnostics_only_in_details_or_abnormal_state",
-          "advanced_deployment_members": [
-            "Docker WebUI",
-            "OPL Workspace",
-            "user-provided SSH/HPC",
-            "OPL Cloud-managed resources"
-          ],
           "hidden_normal_state_terms": [
             "repeated OPL Gateway summary lines",
             "action_available",
             "diagnose_with_doctor",
             "available",
             "CLI dry-run commands"
-          ]
+          ],
+          "resources_route": "resources",
+          "resources_route_policy": "Docker WebUI, OPL Workspace, SSH/HPC, cloud, Fabric, and Console-managed refs live on the ordinary Resources & Connections route"
         },
         "cloud_remote_boundary": {
           "required_boundary_terms": [
@@ -530,7 +525,7 @@
             "Fabric",
             "Console"
           ],
-          "display_policy": "summarize_remote_access_with_advanced_deployment_refs_without_runtime_truth_claims",
+          "display_policy": "summarize_remote_access_without_advanced_deployment_refs; resource and deployment refs route to Settings Resources",
           "refs_only": true,
           "forbidden_claims": [
             "runtime_truth",
@@ -671,14 +666,17 @@
       "/settings/access",
       "/settings/workspace",
       "/settings/capabilities",
+      "/settings/resources",
       "/settings/environment",
       "/settings/storage",
-      "/settings/appearance",
-      "/settings/advanced"
+      "/settings/appearance"
     ],
     "required_secondary_routes": [
-      "/settings/local-services",
-      "/settings/resources"
+      "/settings/advanced",
+      "/settings/about",
+      "/settings/update",
+      "/settings/theme",
+      "/settings/local-services"
     ],
     "required_status_anchors": [
       "diagnostics_collapsed_by_default",
@@ -697,7 +695,7 @@
         "status_anchors"
       ],
       "viewport_policy": "each required route is captured for desktop and mobile viewports",
-      "secondary_route_policy": "local-services and resources are captured or explicitly marked route_unit_covered with no screenshot claim"
+      "secondary_route_policy": "advanced, about, update, theme, and local-services are captured or explicitly marked route_unit_covered with no screenshot claim"
     },
     "evidence_command": "E2E_SCREENSHOTS=1 bun run test:e2e -- tests/e2e/specs/navigation.e2e.ts --grep \"Settings Pages|Sidebar Navigation\"",
     "does_not_prove": [
@@ -835,18 +833,18 @@
         "status": "active"
       },
       {
-        "id": "webui-advanced-deployment-redirected-to-access",
+        "id": "webui-advanced-deployment-routed-to-resources",
         "upstream_surface": "AionUI Docker WebUI advanced deployment setup",
         "classification": "redirect",
         "app_contract_ref": "contracts/app-settings-control-plane.json#legacy_route_redirects.webui",
         "route_or_slot_impact": {
           "legacy_redirect": "webui",
           "anchor_remap": "webui",
-          "route_id": "access"
+          "route_id": "resources"
         },
         "required_evidence": [
-          "webui legacy route redirects to access",
-          "webui extension anchor remaps to access"
+          "webui legacy route redirects to resources",
+          "webui extension anchor remaps to resources"
         ],
         "decision_owner": "one-person-lab-app",
         "last_reviewed_at": "2026-06-30",
@@ -873,9 +871,9 @@
       {
         "id": "eight_entry_ia",
         "track": "ia_routes",
-        "goal": "The ordinary Settings IA has exactly eight user-facing entries: Overview, Access, Workspace, Capabilities, Maintenance & Updates, Data & Storage, Preferences, and Advanced.",
+        "goal": "The ordinary Settings IA has exactly eight user-facing entries: Overview, Access, Workspace, Capabilities, Resources & Connections, Maintenance & Updates, Data & Storage, and Preferences.",
         "evidence_required": [
-          "ordinary_visible_tabs contains eight route ids including workspace",
+          "ordinary_visible_tabs contains eight route ids including resources and excluding advanced",
           "legacy routes do not render as ordinary tabs",
           "page-state matrix maps each route to one IA group"
         ]
@@ -883,11 +881,11 @@
       {
         "id": "secondary_route_strategy",
         "track": "ia_routes",
-        "goal": "Local Services, Resources, About, Update, and Theme remain secondary or deep-link routes, searchable and routable without top-level promotion.",
+        "goal": "Advanced, About, Update, Theme, and Local Services remain secondary or deep-link routes, searchable and routable without top-level promotion.",
         "evidence_required": [
-          "secondary_pages declares the five route ids",
+          "secondary_pages declares advanced, about, update, theme, and local-services",
           "route resolver returns secondary_or_deep_link for secondary pages",
-          "visual or route tests cover Local Services and Resources"
+          "visual or route tests cover Advanced and Local Services route behavior"
         ]
       },
       {
@@ -984,11 +982,11 @@
       {
         "id": "access_information_architecture",
         "track": "user_task_ux",
-        "goal": "Access explains OPL Gateway, Codex CLI, and browser access to this computer; Resources & Connections owns Docker WebUI, OPL Workspace, cloud, hosted, SSH/HPC, Fabric, and Console-managed refs.",
+        "goal": "Access explains OPL Gateway, Codex CLI, and browser access to this computer; Resources & Connections owns Docker WebUI, OPL Workspace, cloud, hosted, SSH/HPC, Fabric, and Console-managed refs as an ordinary route.",
         "evidence_required": [
           "Access adapter forbids direct provider implementation reads",
-          "task entry includes model access, Codex CLI, remote access, and Resources & Connections deep link",
-          "focused Access DOM tests cover user-facing readiness"
+          "Resources & Connections is declared as an ordinary top-level route",
+          "focused Access and route tests cover user-facing readiness"
         ]
       },
       {
@@ -1024,10 +1022,10 @@
       {
         "id": "advanced_diagnostics",
         "track": "user_task_ux",
-        "goal": "Advanced keeps diagnostics, raw paths, logs, About, and copy-diagnostics evidence available without putting them in the ordinary setup path.",
+        "goal": "Advanced keeps diagnostics, raw paths, logs, About, and copy-diagnostics evidence available as secondary or deep-link surfaces outside the ordinary setup path.",
         "evidence_required": [
           "diagnostics default visibility is collapsed_advanced_only",
-          "About is secondary or deep-link",
+          "Advanced and About are secondary or deep-link routes",
           "visual QA checks diagnostics collapsed anchor"
         ]
       },

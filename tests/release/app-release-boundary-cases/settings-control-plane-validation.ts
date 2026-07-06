@@ -75,20 +75,20 @@ test('Settings control plane hydrates registry, route resolver, and extension an
       'access:settings_access:AccessSettingsContent',
       'workspace:workspace:WorkspaceSettings',
       'capabilities:settings_capabilities:CapabilitiesSettingsContent',
+      'resources:settings_resources:AccessSettingsContent',
       'environment:settings_environment:RuntimeSettings',
       'storage:settings_storage:StorageSettings',
       'appearance:settings_theme:AppearanceModalContent',
-      'advanced:settings_advanced:SystemModalContent',
     ],
   );
   assert.deepStrictEqual(
     registry.secondary_pages.map((route) => `${route.id}:${route.route_scope}`),
     [
+      'advanced:secondary_or_deep_link',
       'about:secondary_or_deep_link',
       'update:secondary_or_deep_link',
       'theme:secondary_or_deep_link',
       'local-services:secondary_or_deep_link',
-      'resources:secondary_or_deep_link',
     ],
   );
   assert.deepStrictEqual(resolveSettingsControlPlaneRoute(controlPlaneContract, 'general'), {
@@ -114,7 +114,7 @@ test('Settings control plane hydrates registry, route resolver, and extension an
     id: 'resources',
     target_id: 'resources',
     path: '/settings/resources',
-    route_scope: 'secondary_or_deep_link',
+    route_scope: 'ordinary',
     slot_id: 'settings_resources',
     component_key: 'AccessSettingsContent',
   });
@@ -159,7 +159,7 @@ test('Settings adapter slot and upstream intake classification are machine-reada
       'skills-tools-settings-routed-to-capabilities',
       'provider-model-setup-routed-to-access-and-environment',
       'layout-accessibility-i18n-settings-fixes',
-      'webui-advanced-deployment-redirected-to-access',
+      'webui-advanced-deployment-routed-to-resources',
     ],
   );
   assert.deepStrictEqual(
@@ -253,10 +253,10 @@ test('Settings adapter slot and upstream intake classification are machine-reada
 
   const invalidRedirectEvidence = structuredClone(controlPlaneContract);
   invalidRedirectEvidence.upstream_intake_checklist.records.find(
-    (record) => record.id === 'webui-advanced-deployment-redirected-to-access',
+    (record) => record.id === 'webui-advanced-deployment-routed-to-resources',
   ).route_or_slot_impact = {};
   invalidRedirectEvidence.upstream_intake_checklist.records.find(
-    (record) => record.id === 'webui-advanced-deployment-redirected-to-access',
+    (record) => record.id === 'webui-advanced-deployment-routed-to-resources',
   ).app_contract_ref = 'contracts/app-settings-control-plane.json';
   assert.throws(
     () =>
@@ -350,14 +350,17 @@ test('Settings page adapters and visual QA policy are machine-readable gates', (
     '/settings/access',
     '/settings/workspace',
     '/settings/capabilities',
+    '/settings/resources',
     '/settings/environment',
     '/settings/storage',
     '/settings/appearance',
-    '/settings/advanced',
   ]);
   assert.deepStrictEqual(controlPlaneContract.visual_qa_policy.required_secondary_routes, [
+    '/settings/advanced',
+    '/settings/about',
+    '/settings/update',
+    '/settings/theme',
     '/settings/local-services',
-    '/settings/resources',
   ]);
   assert.deepStrictEqual(controlPlaneContract.visual_qa_policy.required_status_anchors, [
     'diagnostics_collapsed_by_default',
@@ -570,6 +573,10 @@ test('Settings product system checklist is the completion-audit source and keeps
       'visual QA and contract validators list what they do not prove',
       'release owner gate supplies any future installed/release evidence',
     ],
+  );
+  assert.strictEqual(
+    controlPlaneContract.product_system_checklist.items.find((item) => item.id === 'eight_entry_ia').goal,
+    'The ordinary Settings IA has exactly eight user-facing entries: Overview, Access, Workspace, Capabilities, Resources & Connections, Maintenance & Updates, Data & Storage, and Preferences.',
   );
   assert.strictEqual(
     controlPlaneContract.product_system_checklist.items.find((item) => item.id === 'capabilities_experience').goal,

@@ -66,12 +66,13 @@ The target navigation groups are:
 | Group                 | Pages                                     | Primary user question                                             |
 | --------------------- | ----------------------------------------- | ----------------------------------------------------------------- |
 | Overview              | Overview                                  | Is the App usable now, and what should I do next?                 |
-| Access                | OPL Gateway, Codex CLI, local remote access, Resources & Connections | How do I connect the App and its remote entry points?             |
+| Access                | OPL Gateway, Codex CLI, local remote access | How do I connect the App and this computer?                       |
 | Capabilities          | Capabilities                              | What can OPL help me do?                                          |
+| Resources & Connections | Docker WebUI, OPL Workspace, SSH/HPC, Fabric, Console refs | Which local, remote, hosted, or managed resources can my tasks use? |
 | Maintenance & Updates | Updates & Maintenance, Local Services     | How do I keep the App foundation healthy and updated?             |
 | Data & Storage        | Storage & Data                            | How do I safely manage local App data?                            |
 | Preferences           | Appearance, Language & Notifications      | How should the App behave and look for me?                        |
-| Advanced              | Developer & Diagnostics, About            | Where are technical details, raw references, versions, and links? |
+| Advanced              | Secondary: Developer & Diagnostics, About | Where are technical details, raw references, versions, and links? |
 
 Legacy routes such as `runtime`, `model`, `agent`, `assistants`, `skills-hub`,
 `tools`, `display`, `webui`, `pet`, and `system` remain compatibility redirects.
@@ -85,14 +86,13 @@ The control plane deliberately separates user-facing groups from current shell
 route ids:
 
 - ordinary route ids remain `general`, `access`, `workspace`, `capabilities`,
-  `environment`, `storage`, `appearance`, and `advanced`;
-- `local-services` and `resources` are independent user task pages surfaced as
-  secondary/deep-link routes under Maintenance & Updates and Access. `about`,
-  `update`, and `theme` are also secondary or deep-link route ids unless the
-  contract, page-state matrix, validators, and release-boundary tests are
-  deliberately changed together;
+  `resources`, `environment`, `storage`, and `appearance`;
+- `advanced`, `about`, `update`, `theme`, and `local-services` are secondary or
+  deep-link route ids unless the contract, page-state matrix, validators, and
+  release-boundary tests are deliberately changed together;
 - user-facing groups remain Overview, Access, Workspace, Capabilities,
-  Maintenance & Updates, Data & Storage, Preferences, and Advanced.
+  Resources & Connections, Maintenance & Updates, Data & Storage, and
+  Preferences.
 
 ## Page Contracts
 
@@ -140,8 +140,8 @@ inside those groups instead of adding more tabs.
 
 P0 entries:
 
-- Access: four user-facing groups: model access, local runtime ability, remote
-  access, and advanced deployment. Normal state shows the conclusion and the
+- Access: three user-facing groups: model access, local runtime ability, and
+  remote access. Normal state shows the conclusion and the
   next useful action first; repeated diagnostics stay behind details or appear
   only when the state is abnormal.
 - Workspace: current path, open/change/verify actions, and permission status.
@@ -151,13 +151,14 @@ P0 entries:
 - Capability Status: installed package directory rows show what is installed,
   how each package is exposed on Home, and which purpose tags apply. It belongs
   to Capabilities.
+- Resources & Connections: Docker WebUI, OPL Workspace, user-provided SSH/HPC,
+  cloud/hosted resources, Fabric resource-source refs, Environment Catalog refs,
+  and Console-managed refs. It is an ordinary top-level route.
 
 P1 entries:
 
 - Remote access: direct route for users who need browser access to this
-  computer's OPL.
-  Docker WebUI, OPL Workspace, user-provided SSH/HPC, and OPL Cloud-managed
-  resources are advanced deployment concerns, not the normal Access path.
+  computer's OPL. Deployment/resource choices route to Resources & Connections.
 - Developer Profile Status: local checkout source, auto-update impact, and
   dirty checkout risk. It belongs to Advanced.
 - External Tools & Voice: ordinary label for tools, MCP support, and voice.
@@ -180,8 +181,8 @@ The overview is a summary-first dashboard. It shows:
 - a single overall state: usable, needs attention, or blocked;
 - status chips for access, workspace, local services, and capabilities;
 - one recommended primary action and at most two secondary actions;
-- direct entries for Workspace, Access, Maintenance & Updates,
-  Data & Storage, Capabilities, and Remote Access;
+- direct entries for Workspace, Access, Resources & Connections, Maintenance &
+  Updates, Data & Storage, Capabilities, and Remote Access;
 - last maintenance check and next background check when known;
 - a collapsed technical detail section.
 
@@ -199,7 +200,7 @@ Access owns first-screen connection readiness through three groups:
 - Remote access: browser access to this computer's OPL, including port,
   account, password, and local network reachability controls.
 
-Resources & Connections is the secondary Access route for deployment and
+Resources & Connections is the ordinary top-level route for deployment and
 resource context: Docker WebUI, OPL Workspace, user-provided SSH/HPC, OPL
 Cloud-managed compute or storage refs, OPL Fabric resource-source status,
 Environment Catalog refs, and Console-managed policy, quota, billing, and
@@ -519,7 +520,7 @@ maintenance.
 The route identity rule is part of maintainability: current shell route ids are
 implementation facts, while the eight IA entries are user-facing product groups.
 Do not rename shell routes to match prose group labels, and do not promote
-secondary/deep-link routes such as Local Services, About, Update, or Theme into
+secondary/deep-link routes such as Advanced, Local Services, About, Update, or Theme into
 ordinary routes without updating the contract, matrix, validators, tests, and
 visual QA targets.
 
@@ -547,7 +548,7 @@ than only page names:
 | Track                 | Checklist items                                                                                                                                                              |
 | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Product positioning   | Control Center positioning                                                                                                                                                   |
-| IA and routes         | Seven-entry IA, secondary route strategy, Settings search                                                                                                                    |
+| IA and routes         | Eight-entry IA, secondary route strategy, Settings search                                                                                                                    |
 | Control plane         | Single control plane, contract validators                                                                                                                                    |
 | Shell adapter         | Host adapter slot, view-model layer                                                                                                                                          |
 | State/action protocol | Issue/action protocol, Make OPL usable reconcile                                                                                                                             |
@@ -595,12 +596,12 @@ E2E_SCREENSHOTS=1 bun run test:e2e -- tests/e2e/specs/navigation.e2e.ts --grep "
 ```
 
 That evidence must cover desktop and mobile viewports for the ordinary routes
-`/settings/general`, `/settings/access`, `/settings/capabilities`,
-`/settings/environment`, `/settings/storage`, `/settings/appearance`, and
-`/settings/advanced`. Local Services is secondary/deep-link
-task pages; visual evidence must either capture `/settings/workspace` and
-`/settings/local-services` or explicitly mark them as route-unit-covered without
-claiming screenshot coverage.
+`/settings/general`, `/settings/access`, `/settings/workspace`,
+`/settings/capabilities`, `/settings/resources`, `/settings/environment`,
+`/settings/storage`, and `/settings/appearance`. Advanced, About, Update, Theme,
+and Local Services are secondary/deep-link task pages; visual evidence must
+capture them or explicitly mark them as route-unit-covered without claiming
+screenshot coverage.
 
 The shell evidence bundle must write
 `tests/e2e/screenshots/settings-control-center-manifest.json` with the command,
