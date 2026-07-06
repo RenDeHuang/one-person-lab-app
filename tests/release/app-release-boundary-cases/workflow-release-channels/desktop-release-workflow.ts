@@ -484,13 +484,23 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(vmWorkflow, /Write first-run VM preflight summary/);
   assert.match(vmWorkflow, /deterministic release-blocking clean VM first launch/);
   assert.match(vmWorkflow, /id:\s+vm_smoke/);
-  assert.match(vmWorkflow, /Write first-run VM critical diagnostics[\s\S]*vm-gate-failure-summary\.json[\s\S]*vm-gate-failure-summary\.md/);
-  assert.match(vmWorkflow, /release_artifact_name: process\.env\.RELEASE_ARTIFACT_NAME/);
-  assert.match(vmWorkflow, /release_artifact_run_id: releaseArtifactRunId/);
-  assert.match(vmWorkflow, /step_conclusion: smokeConclusion/);
-  assert.match(vmWorkflow, /const expectedNextAction =[\s\S]*rerun_diagnostic_same_artifact[\s\S]*expected_next_action: expectedNextAction/);
-  assert.match(vmWorkflow, /artifact_upload_failure_boundary:[\s\S]*critical_diagnostics_retention_days: 7[\s\S]*large_vm_artifact_if_no_files_found: 'warn'/);
-  assert.match(vmWorkflow, /truth_boundary: 'critical diagnostics are not release-ready evidence/);
+  assert.match(vmWorkflow, /Write first-run VM critical diagnostics[\s\S]*write-first-run-vm-critical-diagnostics\.ts/);
+  assert.match(vmWorkflow, /RELEASE_ARTIFACT_DOWNLOAD_OUTCOME:\s+\$\{\{ steps\.release_artifact_download\.outcome \|\| 'skipped' \}\}/);
+  assert.match(vmWorkflow, /DMG_CONCLUSION:\s+\$\{\{ steps\.dmg\.conclusion \|\| 'skipped' \}\}/);
+  const vmCriticalDiagnosticsScript = fs.readFileSync(
+    path.join(appRoot, 'scripts', 'write-first-run-vm-critical-diagnostics.ts'),
+    'utf8',
+  );
+  assert.match(vmCriticalDiagnosticsScript, /release_artifact_name: env\('RELEASE_ARTIFACT_NAME'\)/);
+  assert.match(vmCriticalDiagnosticsScript, /release_artifact_run_id: releaseArtifactRunId/);
+  assert.match(vmCriticalDiagnosticsScript, /artifact_download_failed/);
+  assert.match(vmCriticalDiagnosticsScript, /release_asset_missing/);
+  assert.match(vmCriticalDiagnosticsScript, /vm_launch_failed/);
+  assert.match(vmCriticalDiagnosticsScript, /app_ready_failed/);
+  assert.match(vmCriticalDiagnosticsScript, /retry_entry/);
+  assert.match(vmCriticalDiagnosticsScript, /rebuilds_standard_or_full_artifact:\s+false/);
+  assert.match(vmCriticalDiagnosticsScript, /artifact_upload_failure_boundary:[\s\S]*critical_diagnostics_retention_days: 7[\s\S]*large_vm_artifact_if_no_files_found: 'warn'/);
+  assert.match(vmCriticalDiagnosticsScript, /truth_boundary: 'critical diagnostics are not release-ready evidence/);
   assert.match(vmWorkflow, /Upload first-run VM critical diagnostics[\s\S]*if:\s+\$\{\{ always\(\) \}\}[\s\S]*if-no-files-found:\s+error[\s\S]*retention-days:\s+7/);
   assert.match(vmWorkflow, /--runtime-profile "\$\{\{ steps\.package_profile\.outputs\.runtime_profile \}\}"/);
   assert.match(vmWorkflow, /CMD\+=\(--guide-screenshots\)/);

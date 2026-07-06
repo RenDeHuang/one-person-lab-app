@@ -1550,93 +1550,21 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p artifacts/opl-first-run-vm-critical-diagnostics
-
-          node <<'NODE'
-          const fs = require('node:fs');
-
-          const outputDir = 'artifacts/opl-first-run-vm-critical-diagnostics';
-          const summaryJsonPath = `${outputDir}/vm-gate-failure-summary.json`;
-          const summaryMdPath = `${outputDir}/vm-gate-failure-summary.md`;
-          const smokeConclusion = process.env.VM_SMOKE_CONCLUSION || 'unknown';
-          const releaseArtifactRunId =
-            process.env.RELEASE_ARTIFACT_EFFECTIVE_RUN_ID ||
-            process.env.RELEASE_ARTIFACT_RUN_ID ||
-            process.env.GITHUB_RUN_ID ||
-            '';
-          const expectedNextAction =
-            smokeConclusion === 'success' ? 'none' : 'rerun_diagnostic_same_artifact';
-
-          const summary = {
-            schema_version: 1,
-            owner: 'one-person-lab-app',
-            purpose: 'first_run_vm_gate_failure_critical_diagnostics',
-            generated_at: new Date().toISOString(),
-            workflow: {
-              name: 'OPL GUI First-Run VM',
-              job: 'clean-vm-first-run',
-              run_id: process.env.GITHUB_RUN_ID || '',
-              run_attempt: process.env.GITHUB_RUN_ATTEMPT || '',
-              repository: process.env.GITHUB_REPOSITORY || '',
-              ref: process.env.GITHUB_REF || '',
-              sha: process.env.GITHUB_SHA || '',
-            },
-            release_inputs: {
-              package_profile: process.env.PACKAGE_PROFILE || '',
-              diagnostic_scope: process.env.DIAGNOSTIC_SCOPE || '',
-              release_tag: process.env.RELEASE_TAG || '',
-              release_artifact_name: process.env.RELEASE_ARTIFACT_NAME || '',
-              release_artifact_run_id: releaseArtifactRunId,
-              release_artifact_run_id_input: process.env.RELEASE_ARTIFACT_RUN_ID || '',
-            },
-            vm_gate: {
-              step_name: 'Run clean VM first launch smoke',
-              step_id: 'vm_smoke',
-              step_conclusion: smokeConclusion,
-              expected_next_action: expectedNextAction,
-            },
-            artifact_upload_failure_boundary: {
-              critical_diagnostics_artifact_name: `opl-first-run-vm-critical-diagnostics-${process.env.PACKAGE_PROFILE || 'unknown'}-${process.env.GITHUB_RUN_ID || 'unknown'}`,
-              critical_diagnostics_paths: [
-                'vm-gate-failure-summary.json',
-                'vm-gate-failure-summary.md',
-              ],
-              critical_diagnostics_if_no_files_found: 'error',
-              critical_diagnostics_retention_days: 7,
-              large_vm_artifact_name: `opl-first-run-vm-${process.env.PACKAGE_PROFILE || 'unknown'}-${process.env.GITHUB_RUN_ID || 'unknown'}`,
-              large_vm_artifact_path: 'artifacts/opl-first-run-vm',
-              large_vm_artifact_if_no_files_found: 'warn',
-              truth_boundary: 'critical diagnostics are not release-ready evidence and do not replace the VM smoke artifact, release readiness summary, candidate record, or owner receipt',
-            },
-          };
-
-          fs.writeFileSync(summaryJsonPath, `${JSON.stringify(summary, null, 2)}\n`);
-          fs.writeFileSync(
-            summaryMdPath,
-            [
-              '# First-run VM critical diagnostics',
-              '',
-              `- Run id: ${summary.workflow.run_id}`,
-              `- Package profile: ${summary.release_inputs.package_profile}`,
-              `- Diagnostic scope: ${summary.release_inputs.diagnostic_scope}`,
-              `- Release tag: ${summary.release_inputs.release_tag}`,
-              `- Release artifact name: ${summary.release_inputs.release_artifact_name}`,
-              `- Release artifact run id: ${summary.release_inputs.release_artifact_run_id}`,
-              `- Smoke step conclusion: ${summary.vm_gate.step_conclusion}`,
-              `- Expected next action: ${summary.vm_gate.expected_next_action}`,
-              `- Artifact upload failure boundary: critical diagnostics use if-no-files-found=error; large VM artifacts use if-no-files-found=warn.`,
-              `- Truth boundary: ${summary.artifact_upload_failure_boundary.truth_boundary}.`,
-              '',
-            ].join('\n')
-          );
-          NODE
+          node --experimental-strip-types scripts/write-first-run-vm-critical-diagnostics.ts
         env:
           PACKAGE_PROFILE: ${{ steps.package_profile.outputs.profile || needs.validate-vm-inputs.outputs.package_profile }}
+          PACKAGE_PROFILE_CONCLUSION: ${{ steps.package_profile.conclusion || 'skipped' }}
           DIAGNOSTIC_SCOPE: ${{ needs.validate-vm-inputs.outputs.diagnostic_scope }}
+          INSTALL_MODE: ${{ steps.package_profile.outputs.install_mode }}
+          TART_SOURCE_CONCLUSION: ${{ steps.tart_source.conclusion || 'skipped' }}
           RELEASE_TAG: ${{ inputs.release_tag }}
+          RELEASE_DMG_URL_CONFIGURED: ${{ inputs.release_dmg_url != '' && 'true' || 'false' }}
           RELEASE_ARTIFACT_NAME: ${{ inputs.release_artifact_name }}
           RELEASE_ARTIFACT_RUN_ID: ${{ inputs.release_artifact_run_id }}
           RELEASE_ARTIFACT_EFFECTIVE_RUN_ID: ${{ inputs.release_artifact_run_id || github.run_id }}
+          RELEASE_ARTIFACT_DOWNLOAD_OUTCOME: ${{ steps.release_artifact_download.outcome || 'skipped' }}
+          DMG_CONCLUSION: ${{ steps.dmg.conclusion || 'skipped' }}
+          CODEX_PACKAGE_PREFLIGHT_CONCLUSION: ${{ steps.codex_package_preflight.conclusion || 'skipped' }}
           VM_SMOKE_CONCLUSION: ${{ steps.vm_smoke.conclusion || 'skipped' }}
 
       - name: Upload first-run VM critical diagnostics
