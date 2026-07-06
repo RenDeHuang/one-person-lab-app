@@ -290,12 +290,16 @@ guide rather than dated status prose.
 Current cleanup state: release helper JSON/file access is consolidated under
 `scripts/release-json-helpers.ts` and `scripts/release-file-helpers.ts`,
 readiness-summary gate construction uses shared helper builders instead of
-inline duplicate blocks, Settings control-plane redirect expectations derive
-from the App contract constants, and `npm run hygiene:fallow -- --format json
---summary` is the production hygiene check for unused files/exports and duplicate
-exports. This is code-health and validation-structure evidence only; it is not a
-release-ready, currentness, packaged-App, clean-VM, owner-acceptance, or Live
-Evidence claim.
+inline duplicate blocks, release readiness JSON reads use the shared JSON file
+helper, Settings control-plane redirect expectations derive from the App
+contract constants, page-state Settings validation no longer repeats route
+identity checks already covered by the Settings control-plane validator, and GUI
+contract validation derives hidden legacy tabs and Developer Profile axis
+consistency from the GUI contract instead of mirrored constants. `npm run
+hygiene:fallow -- --format json --summary` is the production hygiene check for
+unused files/exports and duplicate exports. This is code-health and
+validation-structure evidence only; it is not a release-ready, currentness,
+packaged-App, clean-VM, owner-acceptance, or Live Evidence claim.
 
 Current release validation is App-root first. Root wrappers prepare App-owned
 payloads and call active-shell build/release scripts; `validate:app-root-boundary`
