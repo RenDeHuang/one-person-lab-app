@@ -5,7 +5,10 @@ import {
   firstRunCoreItems,
   forbiddenAuthorityOwners,
 } from './app-contract-constants.ts';
-import { expectedDomainExposureEntryMap } from './domain-exposure-validator.ts';
+import {
+  expectedDomainExposureEntryMap,
+  expectedDomainExposureFromProductProfile,
+} from './domain-exposure-validator.ts';
 import { validateInstallExposureRuntimeAndDistribution } from './install-exposure-runtime-distribution-validator.ts';
 import { assertFirstRunProgressModelShape } from './shared-contract-validators.ts';
 import { productProfilePath } from './validation-config.ts';
@@ -139,6 +142,7 @@ function validateExposureClasses(policy) {
 function validateDomainExposure(policy) {
   const expectedDomainExposures = expectedDomainExposureEntryMap(
     policy.domain_exposure,
+    expectedDomainExposureFromProductProfile(productProfile),
     (domainId) => `Install exposure policy missing domain ${domainId}`,
   );
   for (const { expected, entry } of expectedDomainExposures) {

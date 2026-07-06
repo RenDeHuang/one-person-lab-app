@@ -208,38 +208,6 @@ export const taskRunProjectionV2FieldGroups = {
   diagnostics_ref: ["diagnostics_ref"],
 };
 
-export const domainExposureEntries = [
-  {
-    domain_id: "med-autoscience",
-    home_purpose_entry: "research",
-    codex_visible_entry: "med-autoscience",
-    preferred_app_distribution: "plugin_packaged_skill",
-  },
-  {
-    domain_id: "med-autogrant",
-    home_purpose_entry: "grant",
-    codex_visible_entry: "med-autogrant",
-    preferred_app_distribution: "plugin_packaged_skill",
-  },
-  {
-    domain_id: "redcube-ai",
-    home_purpose_entry: "ppt",
-    codex_visible_entry: "redcube-ai",
-    preferred_app_distribution: "plugin_packaged_skill",
-  },
-  {
-    domain_id: "opl-bookforge",
-    home_purpose_entry: "book",
-    codex_visible_entry: "opl-bookforge",
-    preferred_app_distribution: "opl_generated_codex_plugin_surface",
-  },
-  {
-    domain_id: "opl-meta-agent",
-    home_purpose_entry: null,
-    codex_visible_entry: "opl-meta-agent",
-    preferred_app_distribution: "opl_generated_codex_plugin_surface",
-  },
-];
 export const forbiddenAuthorityOwners = [
   "runtime_truth",
   "provider_implementation",

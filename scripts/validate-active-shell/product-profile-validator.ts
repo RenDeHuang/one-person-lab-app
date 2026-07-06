@@ -579,6 +579,7 @@ function validateCompanionPayloadAuthority(profile, installExposurePolicy) {
   }
   for (const { expected, entry } of expectedDomainExposureEntryMap(
     profile.companion_payloads?.domain_exposure,
+    installExposurePolicy.domain_exposure,
     (domainId) => `Product profile companion payloads missing domain exposure ${domainId}`,
   )) {
     if (entry.codex_visible_entry !== expected.codex_visible_entry) {

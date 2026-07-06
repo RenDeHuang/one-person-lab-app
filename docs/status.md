@@ -330,8 +330,10 @@ the product profile for those expectations instead of importing global mirror
 constants. Settings product-system item and track constants remain fixed
 validator assertions rather than contract-derived values, because deriving them
 from the Settings contract or its product-profile projection would self-validate
-the same checklist. Settings Capabilities task-awareness ref fields now share
-one App-owned validator constant, and the Settings Environment module
+the same checklist. Domain exposure expectations are derived from the App
+product profile plus Home shortcut projection instead of a hard-coded
+`app-contract-constants.ts` mirror. Settings Capabilities task-awareness ref
+fields now share one App-owned validator constant, and the Settings Environment module
 maintenance entry uses the managed-update validator helper instead of repeating
 the same assertion block in GUI and page-state validators. Tracked guide
 screenshot PNGs remain intentional App-owned guide and release-doc artifacts,
