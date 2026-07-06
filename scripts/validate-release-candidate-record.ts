@@ -9,6 +9,12 @@ const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const expectedSchema = 'opl_release_candidate_record.v1';
 const readyStatus = 'ready_to_promote';
 const ownerResolutionRefShapes = ['release_owner_verdict_ref', 'release_owner_receipt_ref'];
+const statusFlag = '--status';
+const promoteReadyFlag = '--promote-ready';
+
+function optionName(flag: string) {
+  return flag.slice(2);
+}
 
 type Options = {
   mode: 'validate' | 'status';
@@ -21,8 +27,8 @@ function parseArgs(argv: string[]): Options {
   const { values, tokens } = parseNodeArgs({
     args: argv,
     options: {
-      status: { type: 'boolean' },
-      'promote-ready': { type: 'boolean' },
+      [optionName(statusFlag)]: { type: 'boolean' },
+      [optionName(promoteReadyFlag)]: { type: 'boolean' },
       record: { type: 'string' },
       version: { type: 'string' },
       format: { type: 'string' },
@@ -33,8 +39,8 @@ function parseArgs(argv: string[]): Options {
 
   let mode: Options['mode'] = 'validate';
   for (const token of tokens) {
-    if (token.kind === 'option' && token.name === 'status') mode = 'status';
-    if (token.kind === 'option' && token.name === 'promote-ready') mode = 'validate';
+    if (token.kind === 'option' && token.name === optionName(statusFlag)) mode = 'status';
+    if (token.kind === 'option' && token.name === optionName(promoteReadyFlag)) mode = 'validate';
   }
   const format = values.format ?? 'json';
   if (format !== 'json' && format !== 'markdown') {
