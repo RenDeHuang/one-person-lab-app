@@ -220,6 +220,24 @@ OPL Framework owns producing and applying it:
 }
 ```
 
+## Canonical State / Display / Action Map
+
+The App-owned bridge now keeps one thin map for the three ordinary semantic
+lanes a shell must render: runtime, task, and package. Its machine source is
+`contracts/app-runtime-bridge.json#canonical_state_display_action_map`, with
+`contracts/app-gui-product-contract.json#framework_surfaces.canonical_state_display_action_map`
+and `contracts/app-page-state-matrix.json#canonical_state_display_action_map_ref`
+binding GUI and page-state validation to the same map.
+
+| Semantic lane | Canonical source | Aion display role | Native Workbench display role | Action boundary |
+| --- | --- | --- | --- | --- |
+| Runtime | `opl app state --profile fast --json#app_state.operator.current_owner_delta + app_state.operator.workbench + app_state.actions` | Runtime page user-task-status cockpit | Workbench task cockpit | `app_state.actions[]` through `opl app action execute`; full drilldown is explicit detail only. |
+| Task | `opl app state --profile fast --json#app_state.operator.workbench.task_run_projection_v2.tasks[]` | Current task slice in conversation and right inspector | Task detail and artifact/provenance workbench pane | Task action, follow-up, export, and workflow-skill candidate refs only; no artifact body, owner receipt, or domain verdict authority. |
+| Package | `opl app state --profile fast --json#app_state.agent_packages.directory + app_state.agent_packages.status_index` | Settings Capabilities package directory rows | Packages panel rows | Package lifecycle and Home shortcut preference actions through App action refs; `modules.items[]` is fallback only and cannot collapse developer checkout state. |
+
+Fallback projections preserve older payload usability only. They must not claim
+currentness, release readiness, domain readiness, or mutation authority.
+
 ## First-Party Starter And External Skill Pack Management
 
 A first-party starter agent may keep professional skills in a separate

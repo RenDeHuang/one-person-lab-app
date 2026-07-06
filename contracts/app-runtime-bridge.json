@@ -45,6 +45,114 @@
     ]
   },
   "action_command": "opl app action execute --action <action_id> [--payload json] [--dry-run] --json",
+  "canonical_state_display_action_map": {
+    "schema": "app_canonical_state_display_action_map.v1",
+    "authority": "one-person-lab-app",
+    "canonical_state_surface": "opl app state --profile fast --json",
+    "canonical_action_surface": "opl app action execute --action <action_id> [--payload json] [--dry-run] --json",
+    "full_detail_exception": "opl runtime app-operator-drilldown --detail full --json",
+    "shells": {
+      "aionui": {
+        "role": "active_release_shell_thin_display_consumer",
+        "implementation_carrier": "opl-aion-shell"
+      },
+      "opl_native_workbench": {
+        "role": "foreground_candidate_same_contract_display_consumer",
+        "implementation_carrier": "opl-native-workbench"
+      }
+    },
+    "rows": [
+      {
+        "semantic_area": "runtime",
+        "canonical_source": "opl app state --profile fast --json#app_state.operator.current_owner_delta + app_state.operator.workbench + app_state.actions",
+        "aion_display_role": "Runtime page user-task-status cockpit",
+        "workbench_display_role": "Workbench task cockpit",
+        "allowed_action_refs": [
+          "app_state.actions[].action_id",
+          "task_action_receipt_preview",
+          "task_export_bundle_preview",
+          "provider_readiness_repair"
+        ],
+        "fallback_policy": {
+          "allowed_fallback_source": "opl app state --profile full --json or opl runtime app-operator-drilldown --detail full --json",
+          "allowed_when": "explicit detail, diagnostics, or release evidence readback only",
+          "can_claim_currentness": false,
+          "can_mutate_without_app_action": false
+        },
+        "forbidden_overclaim": [
+          "runtime_truth",
+          "provider_implementation",
+          "domain_readiness",
+          "app_release_readiness",
+          "family_production_readiness"
+        ]
+      },
+      {
+        "semantic_area": "task",
+        "canonical_source": "opl app state --profile fast --json#app_state.operator.workbench.task_run_projection_v2.tasks[]",
+        "aion_display_role": "current task slice in conversation and right inspector",
+        "workbench_display_role": "task detail and artifact/provenance workbench pane",
+        "allowed_action_refs": [
+          "tasks[].action_cards[].action_ref",
+          "tasks[].ref_level_follow_up_refs[].action_ref",
+          "tasks[].export_bundle_action_ref",
+          "tasks[].workflow_skill_candidate_refs[].available_actions"
+        ],
+        "fallback_policy": {
+          "allowed_fallback_source": "same task awareness projection filtered by selected task or conversation",
+          "allowed_when": "selected task detail or current conversation context only",
+          "can_claim_currentness": false,
+          "can_mutate_without_app_action": false
+        },
+        "forbidden_overclaim": [
+          "artifact_body",
+          "owner_receipt_authority",
+          "domain_quality_verdict",
+          "domain_readiness",
+          "app_annotation_store",
+          "new_task_dashboard"
+        ]
+      },
+      {
+        "semantic_area": "package",
+        "canonical_source": "opl app state --profile fast --json#app_state.agent_packages.directory + app_state.agent_packages.status_index",
+        "aion_display_role": "Settings Capabilities package directory rows",
+        "workbench_display_role": "Packages panel rows",
+        "allowed_action_refs": [
+          "agent_package_install",
+          "agent_package_update",
+          "agent_package_repair",
+          "agent_package_rollback",
+          "agent_package_uninstall",
+          "agent_package_hide",
+          "agent_package_unhide",
+          "agent_package_enable",
+          "agent_package_disable",
+          "agent_package_home_shortcut_preferences_set"
+        ],
+        "fallback_policy": {
+          "allowed_fallback_source": "opl app state --profile fast --json#app_state.modules.items[] + home_agent_shortcuts + task_awareness refs",
+          "allowed_when": "older runtime payloads or partial agent_packages projection only",
+          "can_claim_currentness": false,
+          "can_mutate_without_app_action": false,
+          "can_collapse_developer_checkout": false
+        },
+        "forbidden_overclaim": [
+          "session_behavior",
+          "domain_workflow",
+          "domain_readiness",
+          "single_repair_bucket_for_dirty_or_behind_checkout",
+          "second_skill_truth",
+          "codex_surface_reload_proof"
+        ]
+      }
+    ],
+    "required_semantic_areas": [
+      "runtime",
+      "task",
+      "package"
+    ]
+  },
   "command_resolution_policy": {
     "owner": "one-person-lab-app",
     "adapter_responsibility": "resolve_healthy_opl_cli_before_running_declared_surfaces",

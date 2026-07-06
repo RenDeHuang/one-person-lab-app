@@ -147,6 +147,17 @@
       "command": "opl app action execute --action <action_id> [--payload json] [--dry-run] --json",
       "policy": "mutating_work_uses_explicit_app_action_route"
     },
+    "canonical_state_display_action_map": {
+      "source_ref": "contracts/app-runtime-bridge.json#canonical_state_display_action_map",
+      "required_semantic_areas": [
+        "runtime",
+        "task",
+        "package"
+      ],
+      "aion_display_contract": "active AionUI shell renders the map as a thin App-state consumer",
+      "workbench_display_contract": "OPL Native Workbench candidate must render the same map without introducing runtime or package truth",
+      "fallback_claim_policy": "fallback projections may keep older payloads usable but cannot claim currentness, readiness, domain truth, or mutation authority"
+    },
     "runtime_full_drilldown": {
       "command": "opl runtime app-operator-drilldown --detail full --json",
       "policy": "on_demand_only"

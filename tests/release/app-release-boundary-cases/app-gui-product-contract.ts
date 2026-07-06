@@ -87,6 +87,24 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     'opl runtime app-operator-drilldown --detail full --json',
   );
   assert.equal(guiContract.framework_surfaces.runtime_full_drilldown.policy, 'on_demand_only');
+  assert.equal(
+    guiContract.framework_surfaces.canonical_state_display_action_map.source_ref,
+    'contracts/app-runtime-bridge.json#canonical_state_display_action_map',
+  );
+  assert.deepEqual(guiContract.framework_surfaces.canonical_state_display_action_map.required_semantic_areas, [
+    'runtime',
+    'task',
+    'package',
+  ]);
+  assert.equal(
+    pageStateMatrix.canonical_state_display_action_map_ref,
+    'contracts/app-runtime-bridge.json#canonical_state_display_action_map',
+  );
+  assert.deepEqual(pageStateMatrix.canonical_state_display_action_map_required_semantic_areas, [
+    'runtime',
+    'task',
+    'package',
+  ]);
   assert.deepEqual(guiContract.framework_surfaces.task_awareness.v2_field_groups.evidence_cards, taskRunProjectionV2FieldGroups.evidence_cards);
   assert.deepEqual(guiContract.framework_surfaces.task_awareness.v2_field_groups.action_cards, taskRunProjectionV2FieldGroups.action_cards);
   assert.deepEqual(guiContract.framework_surfaces.task_awareness.v2_field_groups.resource_cards, taskRunProjectionV2FieldGroups.resource_cards);

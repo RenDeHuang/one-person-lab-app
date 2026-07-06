@@ -2682,6 +2682,12 @@
     "command": "opl app action execute --action <action_id> [--payload json] [--dry-run] --json",
     "policy": "mutating_work_uses_explicit_app_action_route"
   },
+  "canonical_state_display_action_map_ref": "contracts/app-runtime-bridge.json#canonical_state_display_action_map",
+  "canonical_state_display_action_map_required_semantic_areas": [
+    "runtime",
+    "task",
+    "package"
+  ],
   "full_detail_exception": {
     "command": "opl runtime app-operator-drilldown --detail full --json",
     "policy": "on_demand_only"

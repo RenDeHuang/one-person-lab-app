@@ -418,6 +418,32 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   assert.equal(fastOperator.ordinary_cockpit.authority_boundary.can_claim_app_release_ready, false);
   assert.equal(fastOperator.ordinary_cockpit.authority_boundary.can_claim_production_ready, false);
   assert.equal(runtimeBridge.action_command, 'opl app action execute --action <action_id> [--payload json] [--dry-run] --json');
+  assert.equal(runtimeBridge.canonical_state_display_action_map.schema, 'app_canonical_state_display_action_map.v1');
+  assert.equal(runtimeBridge.canonical_state_display_action_map.canonical_state_surface, runtimeBridge.summary_command);
+  assert.equal(runtimeBridge.canonical_state_display_action_map.canonical_action_surface, runtimeBridge.action_command);
+  assert.deepEqual(runtimeBridge.canonical_state_display_action_map.required_semantic_areas, [
+    'runtime',
+    'task',
+    'package',
+  ]);
+  const displayMapRows = new Map(
+    runtimeBridge.canonical_state_display_action_map.rows.map((row) => [row.semantic_area, row]),
+  );
+  assert.deepEqual([...displayMapRows.keys()], ['runtime', 'task', 'package']);
+  assert.match(displayMapRows.get('runtime').canonical_source, /current_owner_delta/);
+  assert.match(displayMapRows.get('task').canonical_source, /task_run_projection_v2/);
+  assert.match(displayMapRows.get('package').canonical_source, /agent_packages\.directory/);
+  assert.match(displayMapRows.get('runtime').aion_display_role, /Runtime page/);
+  assert.match(displayMapRows.get('runtime').workbench_display_role, /Workbench/);
+  assert.ok(displayMapRows.get('package').allowed_action_refs.includes('agent_package_home_shortcut_preferences_set'));
+  for (const row of displayMapRows.values()) {
+    assert.equal(row.fallback_policy.can_claim_currentness, false);
+    assert.equal(row.fallback_policy.can_mutate_without_app_action, false);
+    assert.ok(row.forbidden_overclaim.includes('domain_readiness'));
+  }
+  assert.equal(displayMapRows.get('package').fallback_policy.can_collapse_developer_checkout, false);
+  assert.ok(displayMapRows.get('task').forbidden_overclaim.includes('artifact_body'));
+  assert.ok(displayMapRows.get('task').forbidden_overclaim.includes('owner_receipt_authority'));
   assert.equal(runtimeBridge.live_conformance_gate.mode, 'explicit_env_opt_in');
   assert.equal(runtimeBridge.live_conformance_gate.default_enforcement, 'disabled');
   assert.equal(runtimeBridge.live_conformance_gate.enable_env, 'OPL_APP_LIVE_CONFORMANCE');
