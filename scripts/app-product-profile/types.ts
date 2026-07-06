@@ -238,6 +238,12 @@ export type AppProductProfile = {
           local_proxy_base_url: string;
           upstream_policy: string;
           behavior_policy: string;
+          service_policy: string;
+          status_action_id: string;
+          enable_action_id: string;
+          disable_action_id: string;
+          repair_action_id: string;
+          uninstall_action_id: string;
         };
       };
     };
