@@ -88,6 +88,7 @@ test('Settings control plane hydrates registry, route resolver, and extension an
       'theme:secondary_or_deep_link',
       'workspace:secondary_or_deep_link',
       'local-services:secondary_or_deep_link',
+      'resources:secondary_or_deep_link',
     ],
   );
   assert.deepStrictEqual(resolveSettingsControlPlaneRoute(controlPlaneContract, 'general'), {
@@ -107,6 +108,15 @@ test('Settings control plane hydrates registry, route resolver, and extension an
     route_scope: 'secondary_or_deep_link',
     slot_id: 'workspace',
     component_key: 'WorkspaceSettings',
+  });
+  assert.deepStrictEqual(resolveSettingsControlPlaneRoute(controlPlaneContract, 'resources'), {
+    input: 'resources',
+    id: 'resources',
+    target_id: 'resources',
+    path: '/settings/resources',
+    route_scope: 'secondary_or_deep_link',
+    slot_id: 'settings_resources',
+    component_key: 'AccessSettingsContent',
   });
   assert.deepStrictEqual(resolveSettingsControlPlaneRoute(controlPlaneContract, 'skills-hub'), {
     input: 'skills-hub',
@@ -347,6 +357,7 @@ test('Settings page adapters and visual QA policy are machine-readable gates', (
   assert.deepStrictEqual(controlPlaneContract.visual_qa_policy.required_secondary_routes, [
     '/settings/workspace',
     '/settings/local-services',
+    '/settings/resources',
   ]);
   assert.deepStrictEqual(controlPlaneContract.visual_qa_policy.required_status_anchors, [
     'diagnostics_collapsed_by_default',

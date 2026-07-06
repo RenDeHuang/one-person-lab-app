@@ -297,6 +297,13 @@
       "ia_group": "maintenance",
       "slot_id": "local_services",
       "visibility": "secondary_or_deep_link"
+    },
+    {
+      "id": "resources",
+      "path": "/settings/resources",
+      "ia_group": "setup_access",
+      "slot_id": "settings_resources",
+      "visibility": "secondary_or_deep_link"
     }
   ],
   "legacy_route_redirects": {
@@ -381,6 +388,10 @@
     },
     "local_services": {
       "component_key": "LocalServicesSettings",
+      "wrapper_policy": "host_provides_wrapper"
+    },
+    "settings_resources": {
+      "component_key": "AccessSettingsContent",
       "wrapper_policy": "host_provides_wrapper"
     }
   },
@@ -608,7 +619,8 @@
     ],
     "required_secondary_routes": [
       "/settings/workspace",
-      "/settings/local-services"
+      "/settings/local-services",
+      "/settings/resources"
     ],
     "required_status_anchors": [
       "diagnostics_collapsed_by_default",
@@ -627,7 +639,7 @@
         "status_anchors"
       ],
       "viewport_policy": "each required route is captured for desktop and mobile viewports",
-      "secondary_route_policy": "workspace and local-services are captured or explicitly marked route_unit_covered with no screenshot claim"
+      "secondary_route_policy": "workspace, local-services, and resources are captured or explicitly marked route_unit_covered with no screenshot claim"
     },
     "evidence_command": "E2E_SCREENSHOTS=1 bun run test:e2e -- tests/e2e/specs/navigation.e2e.ts --grep \"Settings Pages|Sidebar Navigation\"",
     "does_not_prove": [
@@ -813,11 +825,11 @@
       {
         "id": "secondary_route_strategy",
         "track": "ia_routes",
-        "goal": "Workspace, Local Services, About, Update, and Theme remain secondary or deep-link routes, searchable and routable without top-level promotion.",
+        "goal": "Workspace, Local Services, Resources, About, Update, and Theme remain secondary or deep-link routes, searchable and routable without top-level promotion.",
         "evidence_required": [
-          "secondary_pages declares the five route ids",
+          "secondary_pages declares the six route ids",
           "route resolver returns secondary_or_deep_link",
-          "visual or route tests cover Workspace and Local Services"
+          "visual or route tests cover Workspace, Local Services, and Resources"
         ]
       },
       {
@@ -913,10 +925,10 @@
       {
         "id": "access_information_architecture",
         "track": "user_task_ux",
-        "goal": "Access explains model access, local runtime ability, browser access to this computer, and advanced deployment without first-screen raw provider configuration or normal-state diagnostics.",
+        "goal": "Access explains OPL Gateway, Codex CLI, and browser access to this computer; Resources & Connections owns Docker WebUI, OPL Workspace, cloud, hosted, SSH/HPC, Fabric, and Console-managed refs.",
         "evidence_required": [
           "Access adapter forbids direct provider implementation reads",
-          "task entry includes model access, local runtime ability, remote access, and advanced deployment",
+          "task entry includes model access, Codex CLI, remote access, and Resources & Connections deep link",
           "focused Access DOM tests cover user-facing readiness"
         ]
       },

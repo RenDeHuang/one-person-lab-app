@@ -572,6 +572,7 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     'theme',
     'workspace',
     'local-services',
+    'resources',
   ]);
   assert.deepEqual(guiContract.settings_navigation.ordinary_groups.map((group) => group.id), [
     'overview',
@@ -599,6 +600,7 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     'theme',
     'workspace',
     'local-services',
+    'resources',
   ]);
   assert.deepEqual(guiContract.settings_navigation.settings_ia.group_ids, [
     'overview',
@@ -754,6 +756,7 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
       settings_theme: { route_id: 'theme', route_scope: 'secondary_or_deep_link', ia_group: 'preferences' },
       advanced: { route_id: 'advanced', route_scope: 'ordinary', ia_group: 'advanced' },
       settings_workspace: { route_id: 'workspace', route_scope: 'secondary_or_deep_link', ia_group: 'overview' },
+      settings_resources: { route_id: 'resources', route_scope: 'secondary_or_deep_link', ia_group: 'setup_access' },
     },
   );
   assert.deepEqual(guiContract.settings_navigation.primary_tabs.storage, {

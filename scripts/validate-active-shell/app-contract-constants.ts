@@ -308,6 +308,7 @@ export const appOwnedSecondarySettingsPages = [
   "theme",
   "workspace",
   "local-services",
+  "resources",
 ];
 export const appOwnedSettingsIaGroupIds = [
   "overview",
@@ -329,7 +330,7 @@ export const appOwnedSettingsIaLabelsZh = [
 ];
 export const appOwnedSettingsIaEntryMap = {
   overview: ["settings_general", "workspace"],
-  setup_access: ["settings_access", "first_run_setup_center"],
+  setup_access: ["settings_access", "first_run_setup_center", "settings_resources"],
   capabilities: ["settings_capabilities"],
   maintenance: ["settings_environment", "local_services", "update"],
   data_storage: ["settings_storage"],
@@ -349,6 +350,10 @@ export const appOwnedSettingsRouteScopes = {
   workspace: { route_id: "workspace", route_scope: "secondary_or_deep_link" },
   local_services: {
     route_id: "local-services",
+    route_scope: "secondary_or_deep_link",
+  },
+  resources: {
+    route_id: "resources",
     route_scope: "secondary_or_deep_link",
   },
 };
@@ -644,21 +649,19 @@ export const settingsPageExpectations = {
     ia_group: "setup_access",
     sections: [
       "model_access",
-      "local_runtime_ability",
+      "codex_cli",
       "remote_access",
-      "advanced_deployment",
     ],
     must_show: [
-      "four user-facing Access groups: Model access, Local runtime ability, Remote access, and Advanced deployment",
+      "three first-screen Access groups: OPL Gateway, Codex CLI, and local remote access",
+      "Resources & Connections deep link for Docker WebUI, OPL Workspace, cloud, hosted, SSH/HPC, Fabric, and Console-managed refs",
       "normal state shows conclusion and necessary action before diagnostics",
-      "Model access group with OPL Gateway, configured model access, default model, reasoning, and provider policy refs",
-      "Local runtime ability group with Codex CLI, Background Service / Temporal, and permission readiness in user language",
-      "Remote access group for browser access to this computer, including port, account, password, and local network reachability controls",
-      "Advanced deployment group for Docker WebUI, OPL Workspace, user-provided SSH/HPC, OPL Cloud managed resources, OPL Fabric, Environment Catalog, and Console-managed refs",
+      "OPL Gateway group with configured model access, default model, reasoning, and provider policy refs behind configuration disclosure",
+      "Codex CLI group with installed version and default model read from Codex configuration",
+      "Local remote access group for browser access to this computer, including port, account, password, and local network reachability controls",
       "Access placed under OPL Control Center Access",
       "whether Codex CLI can run now",
       "whether configured provider access can work now",
-      "current permission meaning in user-facing language",
       "API key and base URL controls behind advanced disclosure",
       "section-level refresh state",
     ],
@@ -668,6 +671,7 @@ export const settingsPageExpectations = {
       "WebUI as the primary access mental model",
       "backend/provider raw selector as the Access primary control",
       "Console billing or managed-cloud entitlement as an App-owned decision",
+      "Docker WebUI, OPL Workspace, cloud, hosted, SSH/HPC, Fabric, or Console-managed refs as Access first-screen cards",
       "Cloud service availability as release-ready or runtime-ready proof",
       "repeated OPL Gateway summary lines in normal state",
       "raw action_available, diagnose_with_doctor, available, or CLI dry-run commands in normal state",

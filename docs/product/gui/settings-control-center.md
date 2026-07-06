@@ -66,7 +66,7 @@ The target navigation groups are:
 | Group                 | Pages                                     | Primary user question                                             |
 | --------------------- | ----------------------------------------- | ----------------------------------------------------------------- |
 | Overview              | Overview                                  | Is the App usable now, and what should I do next?                 |
-| Access                | OPL Gateway, Codex CLI, Web/remote access | How do I connect the App and its remote entry points?             |
+| Access                | OPL Gateway, Codex CLI, local remote access, Resources & Connections | How do I connect the App and its remote entry points?             |
 | Capabilities          | Capabilities                              | What can OPL help me do?                                          |
 | Maintenance & Updates | Updates & Maintenance, Local Services     | How do I keep the App foundation healthy and updated?             |
 | Data & Storage        | Storage & Data                            | How do I safely manage local App data?                            |
@@ -86,9 +86,10 @@ route ids:
 
 - ordinary route ids remain `general`, `access`, `capabilities`, `environment`,
   `storage`, `appearance`, and `advanced`;
-- `workspace` and `local-services` are independent user task pages surfaced as
-  secondary/deep-link routes under Overview and Maintenance & Updates. `about`,
-  `update`, and `theme` are also secondary or deep-link route ids.
+- `workspace`, `local-services`, and `resources` are independent user task pages
+  surfaced as secondary/deep-link routes under Overview, Maintenance & Updates,
+  and Access. `about`, `update`, and `theme` are also secondary or deep-link
+  route ids.
   unless the contract, page-state matrix, validators, and release-boundary tests
   are deliberately changed together;
 - user-facing groups remain Overview, Access, Capabilities,
@@ -190,18 +191,20 @@ phase names, git state, or package receipt ids as first-screen content.
 
 ### Access
 
-Access owns user-facing connection readiness through four groups:
+Access owns first-screen connection readiness through three groups:
 
-- Model access: OPL Gateway, configured model access/API-key state, default
-  model and reasoning selection, and provider policy refs.
-- Local runtime ability: whether Codex CLI can run now, Background Service /
-  Temporal readiness, and permission meaning in user language.
+- OPL Gateway: configured model access/API-key state, default model and
+  reasoning selection, and provider policy refs behind configuration disclosure.
+- Codex CLI: installed CLI version and the default model read from Codex config
+  / App state.
 - Remote access: browser access to this computer's OPL, including port,
   account, password, and local network reachability controls.
-- Advanced deployment: Docker WebUI, OPL Workspace, user-provided SSH/HPC, OPL
-  Cloud-managed compute or storage refs, OPL Fabric resource-source status,
-  Environment Catalog refs, and Console-managed policy, quota, billing, and
-  permission refs.
+
+Resources & Connections is the secondary Access route for deployment and
+resource context: Docker WebUI, OPL Workspace, user-provided SSH/HPC, OPL
+Cloud-managed compute or storage refs, OPL Fabric resource-source status,
+Environment Catalog refs, and Console-managed policy, quota, billing, and
+permission refs.
 
 In the normal state, Access shows the conclusion and necessary action for each
 group. Repeated gateway summary lines, raw `action_available`,
@@ -223,10 +226,10 @@ Access page refinement on 2026-07-06 produced reusable Settings design rules:
 - Name the user-facing capability, not the implementation origin. "Remote
   access" is better first-screen wording than "AionUI native remote access";
   implementation provenance belongs in details.
-- Use stable mental buckets before showing diagnostics: model access, local
-  runtime ability, remote access, and advanced deployment. Do not flatten
-  Docker WebUI, OPL Workspace, local browser access, model keys, and dry-run
-  routes into one list.
+- Use stable mental buckets before showing diagnostics: OPL Gateway, Codex CLI,
+  local remote access, and Resources & Connections. Do not flatten Docker WebUI,
+  OPL Workspace, local browser access, model keys, and dry-run routes into one
+  list.
 - Normal state is conclusion-first: "ready", "needs key", "open settings", or
   "check path". Raw status ids, CLI commands, receipt refs, and internal owner
   names appear only when abnormal or expanded.

@@ -2408,9 +2408,8 @@
       "page_contract": "settings_access",
       "sections": [
         "model_access",
-        "local_runtime_ability",
-        "remote_access",
-        "advanced_deployment"
+        "codex_cli",
+        "remote_access"
       ],
       "state_sections": [
         "core.codex",
@@ -2420,16 +2419,15 @@
       "must_show": [
         "whether Codex CLI can run now",
         "whether configured provider access can work now",
-        "current permission meaning in user-facing language",
         "API key and base URL controls behind advanced disclosure",
         "section-level refresh state",
         "Access placed under OPL Control Center Access",
-        "four user-facing Access groups: Model access, Local runtime ability, Remote access, and Advanced deployment",
+        "three first-screen Access groups: OPL Gateway, Codex CLI, and local remote access",
+        "Resources & Connections deep link for Docker WebUI, OPL Workspace, cloud, hosted, SSH/HPC, Fabric, and Console-managed refs",
         "normal state shows conclusion and necessary action before diagnostics",
-        "Model access group with OPL Gateway, configured model access, default model, reasoning, and provider policy refs",
-        "Local runtime ability group with Codex CLI, Background Service / Temporal, and permission readiness in user language",
-        "Remote access group for browser access to this computer, including port, account, password, and local network reachability controls",
-        "Advanced deployment group for Docker WebUI, OPL Workspace, user-provided SSH/HPC, OPL Cloud managed resources, OPL Fabric, Environment Catalog, and Console-managed refs"
+        "OPL Gateway group with configured model access, default model, reasoning, and provider policy refs behind configuration disclosure",
+        "Codex CLI group with installed version and default model read from Codex configuration",
+        "Local remote access group for browser access to this computer, including port, account, password, and local network reachability controls"
       ],
       "must_not_show": [
         "raw base URL and token paths as first-screen content",
@@ -2440,12 +2438,49 @@
         "Cloud service availability as release-ready or runtime-ready proof",
         "repeated OPL Gateway summary lines in normal state",
         "raw action_available, diagnose_with_doctor, available, or CLI dry-run commands in normal state",
+        "Docker WebUI, OPL Workspace, cloud, hosted, SSH/HPC, Fabric, or Console-managed refs as Access first-screen cards",
         "provider/runtime internals outside details disclosure or abnormal state"
       ],
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
       "ia_group": "setup_access",
       "route_id": "access",
       "route_scope": "ordinary",
+      "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia"
+    },
+    {
+      "id": "settings_resources",
+      "expected_source": "OPL App state resource-source and Docker WebUI action projection",
+      "machine_source": "opl app state --profile fast --json#settings_control_center.app_settings_read_model.resource_sources + docker_webui",
+      "refresh_source": "opl app state --profile fast --json",
+      "page_contract": "settings_resources",
+      "sections": [
+        "docker_webui_actions",
+        "resource_sources",
+        "managed_resource_refs"
+      ],
+      "state_sections": [
+        "settings_control_center.app_settings_read_model.docker_webui",
+        "settings_control_center.app_settings_read_model.resource_sources",
+        "access",
+        "provider",
+        "core.codex"
+      ],
+      "must_show": [
+        "Docker WebUI and OPL Workspace deployment actions as resources, not normal Access setup",
+        "cloud, hosted, SSH/HPC, Fabric, and Console-managed resource refs when provided by App state",
+        "self-managed versus Console-managed resource context",
+        "dry-run or input-required action boundary before deployment changes"
+      ],
+      "must_not_show": [
+        "resource availability as release-ready or runtime-ready proof",
+        "Console billing, quota, or permission refs unless Framework projection provides them",
+        "Docker WebUI or OPL Workspace as the primary Access mental model",
+        "state-changing resource deployment without App action route or confirmation boundary"
+      ],
+      "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
+      "ia_group": "setup_access",
+      "route_id": "resources",
+      "route_scope": "secondary_or_deep_link",
       "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia"
     },
     {

@@ -142,8 +142,9 @@ but must not duplicate the detailed surface.
 ### Ordinary pages
 
 - `总览`
-- `开始使用`
+- `访问方式`
 - `智能体与能力`
+- `资源与连接`（secondary/deep-link under Access）
 - `维护与更新`
 - `数据与存储`
 - `偏好`
@@ -265,24 +266,28 @@ guidance belong behind disclosure.
 
 ### 3. 开始使用
 
-This page should answer setup questions only.
+This page should answer access questions only.
 
 #### Target sections
 
 - `模型与账号`
-- `工作区`
-- `远程访问与部署`
+- `Codex CLI`
+- `本机远程访问`
+- `资源与连接` deep link
 
 #### Remote access rule
 
-`远程访问与部署` must be additive over AionUI native remote-access capability.
+`本机远程访问` must preserve the local browser-access capability while hiding
+implementation provenance from first-screen copy. Do not use "AionUI native" as
+the primary user label.
 
 The page should be split into:
 
-- `AionUI 本身的远程访问能力`
-  This is the base capability and must remain directly usable.
-- `OPL 增强入口`
-  Local App, Docker WebUI, OPL Workspace, SSH/HPC, OPL Cloud or Fabric refs.
+- `访问方式`
+  OPL Gateway, Codex CLI, local browser access to this computer.
+- `资源与连接`
+  Docker WebUI, OPL Workspace, SSH/HPC, OPL Cloud or Fabric refs, Environment
+  Catalog refs, and Console-managed resource context.
 
 #### Do not make these primary
 

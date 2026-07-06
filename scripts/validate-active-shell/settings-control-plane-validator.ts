@@ -67,6 +67,7 @@ const expectedSlotKeys = [
   'update',
   'workspace',
   'local_services',
+  'settings_resources',
 ];
 
 const expectedSettingsAdapterEvidence = [
@@ -92,7 +93,7 @@ const expectedVisualQaRoutes = [
   '/settings/appearance',
   '/settings/advanced',
 ];
-const expectedVisualQaSecondaryRoutes = ['/settings/workspace', '/settings/local-services'];
+const expectedVisualQaSecondaryRoutes = ['/settings/workspace', '/settings/local-services', '/settings/resources'];
 const expectedVisualQaStatusAnchors = [
   'diagnostics_collapsed_by_default',
   'state_changing_action_confirmation',
@@ -120,6 +121,7 @@ const matrixRouteScopes = {
   settings_theme: appOwnedSettingsRouteScopes.settings_theme,
   advanced: appOwnedSettingsRouteScopes.advanced,
   settings_workspace: appOwnedSettingsRouteScopes.workspace,
+  settings_resources: appOwnedSettingsRouteScopes.resources,
 };
 
 const expectedIaGroupByMatrixPageId = {
@@ -134,6 +136,7 @@ const expectedIaGroupByMatrixPageId = {
   settings_theme: 'preferences',
   advanced: 'advanced',
   settings_workspace: 'overview',
+  settings_resources: 'setup_access',
 };
 
 export function validateSettingsControlPlane(controlPlane, guiContract, pageStateMatrix, productProfile, adapterContract) {
@@ -859,7 +862,7 @@ function validateSettingsVisualQaPolicy(controlPlane) {
   if (
     policy.evidence_manifest?.viewport_policy !== 'each required route is captured for desktop and mobile viewports' ||
     policy.evidence_manifest?.secondary_route_policy !==
-      'workspace and local-services are captured or explicitly marked route_unit_covered with no screenshot claim'
+      'workspace, local-services, and resources are captured or explicitly marked route_unit_covered with no screenshot claim'
   ) {
     throw new Error('Settings visual QA manifest must declare viewport and secondary route evidence policy');
   }

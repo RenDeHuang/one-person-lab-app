@@ -1802,7 +1802,7 @@
     },
     "source": "opl app state --profile fast --json",
     "refresh_source": "opl app state --profile fast --json",
-    "policy": "Settings is the App-owned OPL Control Center information architecture, not an upstream AionUI configuration dump. The target top-level IA is Overview, Access, Capabilities, Maintenance & Updates, Data & Storage, Preferences, and Advanced. Existing shell route ids general, access, capabilities, environment, storage, appearance, and advanced map to those groups. Capabilities is an installed package directory with integrated Home shortcut management; purpose labels remain secondary tags and filters, not the primary card identity. About is version-and-links only and remains a secondary Advanced surface. Update is an explicit detail or deep-link destination for update state, while normal repair and maintenance actions stay under Maintenance & Updates. Maintenance must not become a second runtime task board. Theme remains a secondary page or deep link, not an independent ordinary top-level group. Storage lifecycle and safe cleanup live under Data & Storage. Workspace is an independent ordinary setup concern, not a buried runtime diagnostic. Legacy upstream settings routes remain compatibility redirects only; they must not reappear as ordinary navigation.",
+    "policy": "Settings is the App-owned OPL Control Center information architecture, not an upstream AionUI configuration dump. The target top-level IA is Overview, Access, Capabilities, Maintenance & Updates, Data & Storage, Preferences, and Advanced. Existing shell route ids general, access, capabilities, environment, storage, appearance, and advanced map to those groups. Capabilities is an installed package directory with integrated Home shortcut management; purpose labels remain secondary tags and filters, not the primary card identity. About is version-and-links only and remains a secondary Advanced surface. Update is an explicit detail or deep-link destination for update state, while normal repair and maintenance actions stay under Maintenance & Updates. Maintenance must not become a second runtime task board. Theme remains a secondary page or deep link, not an independent ordinary top-level group. Storage lifecycle and safe cleanup live under Data & Storage. Workspace is an independent ordinary setup concern, not a buried runtime diagnostic. Resources & Connections is a secondary setup/access route for Docker WebUI, OPL Workspace, managed resources, SSH/HPC, Fabric, and Console-managed refs so Access stays focused on OPL Gateway, Codex CLI, and browser access to this computer. Legacy upstream settings routes remain compatibility redirects only; they must not reappear as ordinary navigation.",
     "settings_ia": {
       "schema": "settings_ia.v1",
       "authority": "one-person-lab-app",
@@ -1824,7 +1824,8 @@
         "update",
         "theme",
         "workspace",
-        "local-services"
+        "local-services",
+        "resources"
       ],
       "group_ids": [
         "overview",
@@ -1877,12 +1878,13 @@
           "id": "remote_access",
           "group_id": "setup_access",
           "route_id": "access",
+          "secondary_route_ids": ["resources"],
           "priority": "p1"
         },
         {
           "id": "advanced_deployment",
           "group_id": "setup_access",
-          "route_id": "access",
+          "route_id": "resources",
           "priority": "p1"
         },
         {
@@ -2091,7 +2093,8 @@
       "update",
       "theme",
       "workspace",
-      "local-services"
+      "local-services",
+      "resources"
     ],
     "ordinary_surface": {
       "id": "control_center",
@@ -2118,12 +2121,14 @@
         "role": "first_use_and_access_setup",
         "ordinary_entries": [
           "settings_access",
-          "first_run_setup_center"
+          "first_run_setup_center",
+          "settings_resources"
         ],
         "primary_tasks": [
           "workspace_root",
           "codex_cli",
-          "codex_config"
+          "codex_config",
+          "resources_connections"
         ]
       },
       {
@@ -3456,23 +3461,21 @@
       "refresh_source": "opl app state --profile fast --json",
       "sections": [
         "model_access",
-        "local_runtime_ability",
-        "remote_access",
-        "advanced_deployment"
+        "codex_cli",
+        "remote_access"
       ],
       "must_show": [
         "whether Codex CLI can run now",
         "whether configured provider access can work now",
-        "current permission meaning in user-facing language",
         "API key and base URL controls behind advanced disclosure",
         "section-level refresh state",
         "Access placed under OPL Control Center Access",
-        "four user-facing Access groups: Model access, Local runtime ability, Remote access, and Advanced deployment",
+        "three first-screen Access groups: OPL Gateway, Codex CLI, and local remote access",
+        "Resources & Connections deep link for Docker WebUI, OPL Workspace, cloud, hosted, SSH/HPC, Fabric, and Console-managed refs",
         "normal state shows conclusion and necessary action before diagnostics",
-        "Model access group with OPL Gateway, configured model access, default model, reasoning, and provider policy refs",
-        "Local runtime ability group with Codex CLI, Background Service / Temporal, and permission readiness in user language",
-        "Remote access group for browser access to this computer, including port, account, password, and local network reachability controls",
-        "Advanced deployment group for Docker WebUI, OPL Workspace, user-provided SSH/HPC, OPL Cloud managed resources, OPL Fabric, Environment Catalog, and Console-managed refs"
+        "OPL Gateway group with configured model access, default model, reasoning, and provider policy refs behind configuration disclosure",
+        "Codex CLI group with installed version and default model read from Codex configuration",
+        "Local remote access group for browser access to this computer, including port, account, password, and local network reachability controls"
       ],
       "must_not_show": [
         "raw base URL and token paths as first-screen content",
@@ -3483,10 +3486,33 @@
         "Cloud service availability as release-ready or runtime-ready proof",
         "repeated OPL Gateway summary lines in normal state",
         "raw action_available, diagnose_with_doctor, available, or CLI dry-run commands in normal state",
+        "Docker WebUI, OPL Workspace, cloud, hosted, SSH/HPC, Fabric, or Console-managed refs as Access first-screen cards",
         "provider/runtime internals outside details disclosure or abnormal state"
       ],
+      "ia_group": "setup_access"
+    },
+    "settings_resources": {
+      "state_source": "opl app state --profile fast --json#settings_control_center.app_settings_read_model.resource_sources + docker_webui",
+      "refresh_source": "opl app state --profile fast --json",
+      "sections": [
+        "docker_webui_actions",
+        "resource_sources",
+        "managed_resource_refs"
+      ],
+      "must_show": [
+        "Docker WebUI and OPL Workspace deployment actions as resources, not normal Access setup",
+        "cloud, hosted, SSH/HPC, Fabric, and Console-managed resource refs when provided by App state",
+        "self-managed versus Console-managed resource context",
+        "dry-run or input-required action boundary before deployment changes"
+      ],
+      "must_not_show": [
+        "resource availability as release-ready or runtime-ready proof",
+        "Console billing, quota, or permission refs unless Framework projection provides them",
+        "Docker WebUI or OPL Workspace as the primary Access mental model",
+        "state-changing resource deployment without App action route or confirmation boundary"
+      ],
       "cloud_fabric_surface": {
-        "surface": "settings_access",
+        "surface": "settings_resources",
         "display_name": "Remote access and advanced deployment",
         "source": "opl app state --profile fast --json optional cloud_fabric refs",
         "gateway_entry": "OPL Gateway",
