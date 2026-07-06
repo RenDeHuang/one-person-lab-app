@@ -1,29 +1,15 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { sizeOptimizationCandidates, type JsonRecord } from './full-package-tuning.ts';
+import {
+  arrayOrEmpty as asArray,
+  numberField,
+  recordOrNull as asRecord,
+  stringField,
+} from '../release-json-helpers.ts';
 
 type CloseoutSummary = JsonRecord;
 type CloseoutMonitor = JsonRecord;
-
-function asRecord(value: unknown): JsonRecord | null {
-  return value && typeof value === 'object' && !Array.isArray(value)
-    ? value as JsonRecord
-    : null;
-}
-
-function asArray(value: unknown): unknown[] {
-  return Array.isArray(value) ? value : [];
-}
-
-function stringField(record: JsonRecord | null | undefined, key: string): string | null {
-  const value = record?.[key];
-  return typeof value === 'string' ? value : null;
-}
-
-function numberField(record: JsonRecord | null | undefined, key: string): number | null {
-  const value = record?.[key];
-  return typeof value === 'number' && Number.isFinite(value) ? value : null;
-}
 
 function formatDuration(seconds: number | null): string {
   if (seconds === null) return 'n/a';

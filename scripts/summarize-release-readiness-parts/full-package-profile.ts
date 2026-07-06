@@ -1,6 +1,7 @@
 import { budgetStatus, percent } from '../release-size-reporting.ts';
 import {
   arrayField,
+  numberField,
   objectField,
   recordOrNull,
 } from '../release-json-helpers.ts';
@@ -8,11 +9,6 @@ import {
 type GateFieldsSource = {
   fields?: Record<string, unknown> | null;
 };
-
-function numberField(record: Record<string, unknown> | null | undefined, key: string) {
-  const value = record?.[key];
-  return typeof value === 'number' && Number.isFinite(value) ? value : null;
-}
 
 export function stringField(record: Record<string, unknown> | null | undefined, key: string) {
   const value = record?.[key];

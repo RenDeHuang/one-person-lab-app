@@ -2,7 +2,14 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { spawnSync } from 'node:child_process';
+import { runGitHubCli as runGh } from './release-file-helpers.ts';
+import {
+  arrayOrEmpty as asArray,
+  numberField,
+  readJsonFile as readJson,
+  recordOrNull as asRecord,
+  stringField,
+} from './release-json-helpers.ts';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -90,26 +97,6 @@ function parsePositiveInteger(value: string, label: string): number {
   return Number(value);
 }
 
-function asRecord(value: unknown): JsonRecord | null {
-  return value && typeof value === 'object' && !Array.isArray(value)
-    ? value as JsonRecord
-    : null;
-}
-
-function asArray(value: unknown): unknown[] {
-  return Array.isArray(value) ? value : [];
-}
-
-function stringField(record: JsonRecord | null | undefined, key: string): string | null {
-  const value = record?.[key];
-  return typeof value === 'string' ? value : null;
-}
-
-function numberField(record: JsonRecord | null | undefined, key: string): number | null {
-  const value = record?.[key];
-  return typeof value === 'number' && Number.isFinite(value) ? value : null;
-}
-
 function parseDateMs(value: unknown): number | null {
   if (typeof value !== 'string' || !value.trim() || value.startsWith('0001-01-01')) return null;
   const parsed = Date.parse(value);
@@ -150,10 +137,6 @@ function formatDuration(seconds: number | null): string {
   return `${rest}s`;
 }
 
-function readJson(filePath: string): unknown {
-  return JSON.parse(fs.readFileSync(filePath, 'utf8'));
-}
-
 function writeJson(filePath: string, payload: unknown): void {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
@@ -162,18 +145,6 @@ function writeJson(filePath: string, payload: unknown): void {
 function writeText(filePath: string, content: string): void {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, content, 'utf8');
-}
-
-function runGh(args: string[], label: string): string {
-  const result = spawnSync('gh', args, {
-    encoding: 'utf8',
-    maxBuffer: commandMaxBuffer,
-  });
-  if (result.status !== 0) {
-    const detail = result.stderr.trim() || result.stdout.trim() || `${label} failed`;
-    throw new Error(detail);
-  }
-  return result.stdout;
 }
 
 function normalizeRunPayload(payload: unknown): JsonRecord[] {
@@ -212,7 +183,7 @@ function fetchRunFromGh(options: Options, runId: string): JsonRecord {
       'url',
       'jobs',
     ].join(','),
-  ], `Fetch GitHub Actions run ${runId}`);
+  ], `Fetch GitHub Actions run ${runId}`, { maxBuffer: commandMaxBuffer });
   return normalizeRunPayload(JSON.parse(stdout))[0];
 }
 

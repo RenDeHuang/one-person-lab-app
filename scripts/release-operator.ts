@@ -2,10 +2,15 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { applyStringOptionArg, requiredOptionValue } from './cli-option-args.ts';
-import { writeLinesFile } from './release-file-helpers.ts';
+import { runGitHubCli as runGh, writeLinesFile } from './release-file-helpers.ts';
+import {
+  arrayOrEmpty as asArray,
+  readJsonFile as readJson,
+  recordOrNull as asRecord,
+  stringField,
+} from './release-json-helpers.ts';
 import {
   buildReleaseCohortPlan,
   parseReleaseCohortPlanArgs,
@@ -466,37 +471,6 @@ function buildDiagnoseVmState(options: DiagnoseVmOptions): OperatorState {
   };
 }
 
-function readJson(filePath: string): unknown {
-  return JSON.parse(fs.readFileSync(filePath, 'utf8'));
-}
-
-function runGh(args: string[], label: string): string {
-  const result = spawnSync('gh', args, {
-    cwd: appRoot,
-    encoding: 'utf8',
-    maxBuffer: commandMaxBuffer,
-  });
-  if (result.status !== 0) {
-    throw new Error(`${label} failed: ${result.stderr || result.stdout}`);
-  }
-  return result.stdout;
-}
-
-function asRecord(value: unknown): JsonRecord | null {
-  return value && typeof value === 'object' && !Array.isArray(value)
-    ? value as JsonRecord
-    : null;
-}
-
-function asArray(value: unknown): unknown[] {
-  return Array.isArray(value) ? value : [];
-}
-
-function stringField(record: JsonRecord | null | undefined, key: string): string | null {
-  const value = record?.[key];
-  return typeof value === 'string' ? value : null;
-}
-
 function timestampField(record: JsonRecord | null | undefined, camelKey: string, snakeKey?: string): string | null {
   return stringField(record, camelKey) ?? (snakeKey ? stringField(record, snakeKey) : null);
 }
@@ -538,7 +512,11 @@ function fetchRun(options: StatusOptions): JsonRecord {
       'url',
       'jobs',
     ].join(','),
-  ], 'Fetch release run status');
+  ], 'Fetch release run status', {
+    cwd: appRoot,
+    maxBuffer: commandMaxBuffer,
+    prefixErrorWithLabel: true,
+  });
   return normalizeRunPayload(JSON.parse(stdout));
 }
 

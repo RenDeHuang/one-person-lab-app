@@ -4,7 +4,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { findFileByName } from './release-file-helpers.ts';
+import { findFileByName, runGitHubCli as runGh } from './release-file-helpers.ts';
+import {
+  arrayOrEmpty as asArray,
+  numberField,
+  readJsonFile as readJson,
+  recordOrNull as asRecord,
+  stringField,
+} from './release-json-helpers.ts';
 import {
   buildCloseoutBottlenecks,
   buildCloseoutOptimizationRecommendations,
@@ -186,46 +193,9 @@ function parseArgs(argv: string[]): Options {
   };
 }
 
-function runGh(args: string[], label: string): string {
-  const result = spawnSync('gh', args, {
-    cwd: appRoot,
-    encoding: 'utf8',
-    maxBuffer: commandMaxBuffer,
-  });
-  if (result.status !== 0) {
-    const detail = result.stderr.trim() || result.stdout.trim() || `${label} failed`;
-    throw new Error(detail);
-  }
-  return result.stdout;
-}
-
-function readJson(filePath: string): unknown {
-  return JSON.parse(fs.readFileSync(filePath, 'utf8'));
-}
-
 function writeJson(filePath: string, payload: unknown): void {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
-}
-
-function asRecord(value: unknown): JsonRecord | null {
-  return value && typeof value === 'object' && !Array.isArray(value)
-    ? value as JsonRecord
-    : null;
-}
-
-function asArray(value: unknown): unknown[] {
-  return Array.isArray(value) ? value : [];
-}
-
-function stringField(record: JsonRecord | null | undefined, key: string): string | null {
-  const value = record?.[key];
-  return typeof value === 'string' ? value : null;
-}
-
-function numberField(record: JsonRecord | null | undefined, key: string): number | null {
-  const value = record?.[key];
-  return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
 function parseDateMs(value: unknown): number | null {
@@ -306,7 +276,7 @@ function fetchRun(options: Options): JsonRecord {
       'url',
       'jobs',
     ].join(','),
-  ], 'Fetch release run');
+  ], 'Fetch release run', { cwd: appRoot, maxBuffer: commandMaxBuffer });
   return normalizeRunPayload(JSON.parse(stdout));
 }
 
@@ -323,7 +293,7 @@ function fetchJobs(options: Options, run: JsonRecord): JsonRecord[] {
     options.repo,
     '--json',
     'jobs',
-  ], 'Fetch release run jobs');
+  ], 'Fetch release run jobs', { cwd: appRoot, maxBuffer: commandMaxBuffer });
   return normalizeJobsPayload(JSON.parse(stdout));
 }
 
@@ -337,7 +307,7 @@ function fetchArtifacts(options: Options): JsonRecord[] {
     `/repos/${owner}/${repoName}/actions/runs/${options.runId}/artifacts`,
     '-H',
     'Accept: application/vnd.github+json',
-  ], 'Fetch release run artifacts');
+  ], 'Fetch release run artifacts', { cwd: appRoot, maxBuffer: commandMaxBuffer });
   return normalizeArtifactsPayload(JSON.parse(stdout));
 }
 
@@ -395,7 +365,7 @@ function downloadArtifacts(options: Options, artifacts: JsonRecord[]): Downloade
       name,
       '--dir',
       targetDir,
-    ], `Download artifact ${name}`);
+    ], `Download artifact ${name}`, { cwd: appRoot, maxBuffer: commandMaxBuffer });
     downloaded.push({ name, path: targetDir });
   }
   return downloaded;
