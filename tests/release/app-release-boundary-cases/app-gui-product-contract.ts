@@ -477,7 +477,7 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   assert.equal(guiContract.pages.settings_workspace.ia_group, 'overview');
   assert.ok(
     guiContract.pages.settings_workspace.must_show.includes(
-      'workspace page reachable as a secondary deep link from Overview and task search',
+      'workspace page reachable as a top-level Settings entry and from Overview task links',
     ),
   );
   assert.ok(
@@ -507,6 +507,7 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   assert.deepEqual(guiContract.settings_navigation.ordinary_visible_tabs, [
     'general',
     'access',
+    'workspace',
     'capabilities',
     'environment',
     'storage',
@@ -572,7 +573,6 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     'about',
     'update',
     'theme',
-    'workspace',
     'local-services',
     'resources',
   ]);
@@ -590,6 +590,7 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   assert.deepEqual(guiContract.settings_navigation.settings_ia.ordinary_route_ids, [
     'general',
     'access',
+    'workspace',
     'capabilities',
     'environment',
     'storage',
@@ -600,7 +601,6 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     'about',
     'update',
     'theme',
-    'workspace',
     'local-services',
     'resources',
   ]);
@@ -633,10 +633,10 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     'external_tools_voice',
     'custom_assistant',
   ]);
-  assert.deepEqual(
+  assert.equal(
     guiContract.settings_navigation.settings_ia.user_task_entries.find((entry) => entry.id === 'workspace')
-      .secondary_route_ids,
-    ['workspace'],
+      .route_id,
+    'workspace',
   );
   assert.deepEqual(
     guiContract.settings_navigation.settings_ia.user_task_entries.find((entry) => entry.id === 'maintenance_hub')
@@ -728,6 +728,7 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   assert.deepEqual(guiContract.settings_navigation.settings_ia.protocols.visual_qa_expectations.required_targets, [
     'desktop_settings_overview',
     'desktop_settings_access',
+    'desktop_settings_workspace',
     'desktop_settings_capabilities',
     'desktop_settings_maintenance',
     'desktop_settings_storage',
@@ -757,7 +758,7 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
       update: { route_id: 'update', route_scope: 'secondary_or_deep_link', ia_group: 'maintenance' },
       settings_theme: { route_id: 'theme', route_scope: 'secondary_or_deep_link', ia_group: 'preferences' },
       advanced: { route_id: 'advanced', route_scope: 'ordinary', ia_group: 'advanced' },
-      settings_workspace: { route_id: 'workspace', route_scope: 'secondary_or_deep_link', ia_group: 'overview' },
+      settings_workspace: { route_id: 'workspace', route_scope: 'ordinary', ia_group: 'overview' },
       settings_resources: { route_id: 'resources', route_scope: 'secondary_or_deep_link', ia_group: 'setup_access' },
     },
   );

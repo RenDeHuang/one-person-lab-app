@@ -32,10 +32,10 @@ const requiredDefaultPackagedSkillIds = [
 const requiredCompanionSkillSyncIds = requiredDefaultPackagedSkillIds.filter((skillId) => (
   !['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge'].includes(skillId)
 ));
-const appOwnedSettingsTabs = ['general', 'access', 'capabilities', 'environment', 'storage', 'appearance', 'advanced'];
-const appOwnedSecondarySettingsPages = ['about', 'update', 'theme', 'workspace', 'local-services', 'resources'];
+const appOwnedSettingsTabs = ['general', 'access', 'workspace', 'capabilities', 'environment', 'storage', 'appearance', 'advanced'];
+const appOwnedSecondarySettingsPages = ['about', 'update', 'theme', 'local-services', 'resources'];
 const appOwnedSettingsIaGroups = ['overview', 'setup_access', 'capabilities', 'maintenance', 'data_storage', 'preferences', 'advanced'];
-const appOwnedSettingsPrimaryTabIds = ['general', 'access', 'capabilities', 'environment', 'storage', 'appearance', 'advanced', 'about'];
+const appOwnedSettingsPrimaryTabIds = ['general', 'access', 'workspace', 'capabilities', 'environment', 'storage', 'appearance', 'advanced', 'about'];
 const developerProfileCapabilityAxes = [
   'source_channel',
   'workspace_trust',
@@ -241,8 +241,8 @@ function assertSettingsProfileShape(profile: AppProductProfile): void {
   if (!taskEntryPolicy || typeof taskEntryPolicy !== 'object') {
     throw new Error('App product profile settings_information_architecture.task_entry_policy must be declared');
   }
-  if (taskEntryPolicy.ordinary_entry_model !== 'user_task_first_sections_inside_the_seven_OPL_Control_Center_groups') {
-    throw new Error('App product profile task_entry_policy must keep task entries inside the seven OPL Control Center groups');
+  if (taskEntryPolicy.ordinary_entry_model !== 'user_task_first_sections_inside_the_eight_OPL_Control_Center_entries') {
+    throw new Error('App product profile task_entry_policy must keep task entries inside the eight OPL Control Center entries');
   }
   assertIncludesAll(
     taskEntryPolicy.p0_entries ?? [],

@@ -296,6 +296,7 @@ export const beginnerFirstRunTestIds = [
 export const appOwnedSettingsTabs = [
   "general",
   "access",
+  "workspace",
   "capabilities",
   "environment",
   "storage",
@@ -306,7 +307,6 @@ export const appOwnedSecondarySettingsPages = [
   "about",
   "update",
   "theme",
-  "workspace",
   "local-services",
   "resources",
 ];
@@ -347,7 +347,7 @@ export const appOwnedSettingsRouteScopes = {
   advanced: { route_id: "advanced", route_scope: "ordinary" },
   about: { route_id: "about", route_scope: "secondary_or_deep_link" },
   update: { route_id: "update", route_scope: "secondary_or_deep_link" },
-  workspace: { route_id: "workspace", route_scope: "secondary_or_deep_link" },
+  workspace: { route_id: "workspace", route_scope: "ordinary" },
   local_services: {
     route_id: "local-services",
     route_scope: "secondary_or_deep_link",
@@ -368,6 +368,41 @@ export const appOwnedSettingsTaskEntryIds = [
   "developer_profile_status",
   "external_tools_voice",
   "custom_assistant",
+];
+export const appOwnedSettingsTaskEntryMetadataFields = [
+  "scope",
+  "intent",
+  "risk",
+  "frequency",
+];
+export const appOwnedSettingsTopLevelEntryIds = [
+  "overview",
+  "access",
+  "workspace",
+  "capabilities",
+  "maintenance",
+  "storage",
+  "preferences",
+  "diagnostics",
+];
+export const appOwnedSettingsProjectionSectionIds = [
+  "summary",
+  "access",
+  "workspace",
+  "capabilities",
+  "resources",
+  "maintenance",
+  "storage",
+  "diagnostics",
+];
+export const appOwnedSettingsProjectionItemFields = [
+  "scope",
+  "owner",
+  "risk",
+  "normal_summary",
+  "next_action",
+  "details_ref",
+  "editable_reason",
 ];
 export const appOwnedSettingsIssueStatuses = [
   "needs_action",
@@ -423,6 +458,7 @@ export const appOwnedSettingsMakeUsableForbiddenSteps = [
 export const appOwnedSettingsVisualQaTargets = [
   "desktop_settings_overview",
   "desktop_settings_access",
+  "desktop_settings_workspace",
   "desktop_settings_capabilities",
   "desktop_settings_maintenance",
   "desktop_settings_storage",
@@ -439,7 +475,7 @@ export const appOwnedSettingsUpstreamIntakeClassifications = [
 ];
 export const appOwnedSettingsProductSystemItemIds = [
   "control_center_positioning",
-  "seven_entry_ia",
+  "eight_entry_ia",
   "secondary_route_strategy",
   "single_control_plane",
   "host_adapter_slot",

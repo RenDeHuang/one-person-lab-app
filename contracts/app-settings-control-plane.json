@@ -168,6 +168,7 @@
   "ordinary_visible_tabs": [
     "general",
     "access",
+    "workspace",
     "capabilities",
     "environment",
     "storage",
@@ -187,7 +188,11 @@
       "ia_group": "overview",
       "slot_id": "settings_general",
       "state_source": "opl app state --profile fast --json",
-      "refresh_source": "opl app state --profile fast --json"
+      "refresh_source": "opl app state --profile fast --json",
+      "scope": "user",
+      "intent": "view_status",
+      "risk": "read_only",
+      "frequency": "daily"
     },
     {
       "id": "access",
@@ -199,7 +204,27 @@
       "ia_group": "setup_access",
       "slot_id": "settings_access",
       "state_source": "opl app state --profile fast --json",
-      "refresh_source": "opl app state --profile fast --json"
+      "refresh_source": "opl app state --profile fast --json",
+      "scope": "user",
+      "intent": "configure",
+      "risk": "reversible",
+      "frequency": "first_run_or_when_access_changes"
+    },
+    {
+      "id": "workspace",
+      "path": "/settings/workspace",
+      "label_key": "settings.workspace",
+      "default_label_en": "Workspace",
+      "default_label_zh": "工作区",
+      "icon_token": "workspace",
+      "ia_group": "overview",
+      "slot_id": "workspace",
+      "state_source": "opl app state --profile fast --json",
+      "refresh_source": "opl app state --profile fast --json",
+      "scope": "workspace",
+      "intent": "configure",
+      "risk": "confirmation_required",
+      "frequency": "first_run_or_project_switch"
     },
     {
       "id": "capabilities",
@@ -211,7 +236,11 @@
       "ia_group": "capabilities",
       "slot_id": "settings_capabilities",
       "state_source": "opl app state --profile fast --json#app_state.agent_packages.directory + app_state.agent_packages.status_index + home_agent_shortcuts + app_state.operator.workbench.task_drilldowns",
-      "refresh_source": "opl app state --profile fast --json"
+      "refresh_source": "opl app state --profile fast --json",
+      "scope": "user",
+      "intent": "view_status",
+      "risk": "reversible",
+      "frequency": "occasional"
     },
     {
       "id": "environment",
@@ -223,7 +252,11 @@
       "ia_group": "maintenance",
       "slot_id": "settings_environment",
       "state_source": "opl app state --profile fast --json",
-      "refresh_source": "opl app state --profile fast --json"
+      "refresh_source": "opl app state --profile fast --json",
+      "scope": "machine",
+      "intent": "maintenance",
+      "risk": "confirmation_required",
+      "frequency": "when_attention_needed"
     },
     {
       "id": "storage",
@@ -235,7 +268,11 @@
       "ia_group": "data_storage",
       "slot_id": "settings_storage",
       "state_source": "active shell local data lifecycle service + contracts/app-release-channel.json#local_data_lifecycle",
-      "refresh_source": "Settings / Storage refresh inventory"
+      "refresh_source": "Settings / Storage refresh inventory",
+      "scope": "machine",
+      "intent": "data_safety",
+      "risk": "confirmation_required",
+      "frequency": "occasional"
     },
     {
       "id": "appearance",
@@ -247,7 +284,11 @@
       "ia_group": "preferences",
       "slot_id": "settings_theme",
       "state_source": "opl app state --profile fast --json",
-      "refresh_source": "opl app state --profile fast --json"
+      "refresh_source": "opl app state --profile fast --json",
+      "scope": "user",
+      "intent": "configure",
+      "risk": "reversible",
+      "frequency": "occasional"
     },
     {
       "id": "advanced",
@@ -259,7 +300,11 @@
       "ia_group": "advanced",
       "slot_id": "settings_advanced",
       "state_source": "opl app state --profile fast --json",
-      "refresh_source": "opl app state --profile fast --json"
+      "refresh_source": "opl app state --profile fast --json",
+      "scope": "developer",
+      "intent": "diagnose",
+      "risk": "read_only",
+      "frequency": "expert_or_exception"
     }
   ],
   "secondary_pages": [
@@ -268,42 +313,55 @@
       "path": "/settings/about",
       "ia_group": "advanced",
       "slot_id": "about",
-      "visibility": "secondary_or_deep_link"
+      "visibility": "secondary_or_deep_link",
+      "scope": "machine",
+      "intent": "view_status",
+      "risk": "read_only",
+      "frequency": "occasional"
     },
     {
       "id": "update",
       "path": "/settings/update",
       "ia_group": "maintenance",
       "slot_id": "update",
-      "visibility": "secondary_or_deep_link"
+      "visibility": "secondary_or_deep_link",
+      "scope": "machine",
+      "intent": "maintenance",
+      "risk": "confirmation_required",
+      "frequency": "when_attention_needed"
     },
     {
       "id": "theme",
       "path": "/settings/theme",
       "ia_group": "preferences",
       "slot_id": "settings_theme",
-      "visibility": "secondary_or_deep_link"
-    },
-    {
-      "id": "workspace",
-      "path": "/settings/workspace",
-      "ia_group": "overview",
-      "slot_id": "workspace",
-      "visibility": "secondary_or_deep_link"
+      "visibility": "secondary_or_deep_link",
+      "scope": "user",
+      "intent": "configure",
+      "risk": "reversible",
+      "frequency": "occasional"
     },
     {
       "id": "local-services",
       "path": "/settings/local-services",
       "ia_group": "maintenance",
       "slot_id": "local_services",
-      "visibility": "secondary_or_deep_link"
+      "visibility": "secondary_or_deep_link",
+      "scope": "machine",
+      "intent": "diagnose",
+      "risk": "read_only",
+      "frequency": "when_attention_needed"
     },
     {
       "id": "resources",
       "path": "/settings/resources",
       "ia_group": "setup_access",
       "slot_id": "settings_resources",
-      "visibility": "secondary_or_deep_link"
+      "visibility": "secondary_or_deep_link",
+      "scope": "resource",
+      "intent": "configure",
+      "risk": "confirmation_required",
+      "frequency": "occasional"
     }
   ],
   "legacy_route_redirects": {
@@ -611,6 +669,7 @@
     "required_routes": [
       "/settings/general",
       "/settings/access",
+      "/settings/workspace",
       "/settings/capabilities",
       "/settings/environment",
       "/settings/storage",
@@ -618,7 +677,6 @@
       "/settings/advanced"
     ],
     "required_secondary_routes": [
-      "/settings/workspace",
       "/settings/local-services",
       "/settings/resources"
     ],
@@ -639,7 +697,7 @@
         "status_anchors"
       ],
       "viewport_policy": "each required route is captured for desktop and mobile viewports",
-      "secondary_route_policy": "workspace, local-services, and resources are captured or explicitly marked route_unit_covered with no screenshot claim"
+      "secondary_route_policy": "local-services and resources are captured or explicitly marked route_unit_covered with no screenshot claim"
     },
     "evidence_command": "E2E_SCREENSHOTS=1 bun run test:e2e -- tests/e2e/specs/navigation.e2e.ts --grep \"Settings Pages|Sidebar Navigation\"",
     "does_not_prove": [
@@ -813,11 +871,11 @@
         ]
       },
       {
-        "id": "seven_entry_ia",
+        "id": "eight_entry_ia",
         "track": "ia_routes",
-        "goal": "The ordinary Settings IA has exactly seven user-facing entries: Overview, Access, Capabilities, Maintenance & Updates, Data & Storage, Preferences, and Advanced.",
+        "goal": "The ordinary Settings IA has exactly eight user-facing entries: Overview, Access, Workspace, Capabilities, Maintenance & Updates, Data & Storage, Preferences, and Advanced.",
         "evidence_required": [
-          "ordinary_visible_tabs contains seven route ids",
+          "ordinary_visible_tabs contains eight route ids including workspace",
           "legacy routes do not render as ordinary tabs",
           "page-state matrix maps each route to one IA group"
         ]
@@ -825,11 +883,11 @@
       {
         "id": "secondary_route_strategy",
         "track": "ia_routes",
-        "goal": "Workspace, Local Services, Resources, About, Update, and Theme remain secondary or deep-link routes, searchable and routable without top-level promotion.",
+        "goal": "Local Services, Resources, About, Update, and Theme remain secondary or deep-link routes, searchable and routable without top-level promotion.",
         "evidence_required": [
-          "secondary_pages declares the six route ids",
-          "route resolver returns secondary_or_deep_link",
-          "visual or route tests cover Workspace, Local Services, and Resources"
+          "secondary_pages declares the five route ids",
+          "route resolver returns secondary_or_deep_link for secondary pages",
+          "visual or route tests cover Local Services and Resources"
         ]
       },
       {
@@ -839,7 +897,8 @@
         "evidence_required": [
           "product profile projection matches this contract",
           "validator checks route, redirect, anchor, and matrix consistency",
-          "docs point future IA changes to this contract"
+          "docs point future IA changes to this contract",
+          "settings_projection declares summary/access/workspace/capabilities/resources/maintenance/storage/diagnostics item contracts"
         ]
       },
       {
@@ -907,8 +966,8 @@
         "track": "user_task_ux",
         "goal": "Workspace is a task page with current folder, open/change/verify, and repair-permission actions.",
         "evidence_required": [
-          "Workspace is declared as a secondary route",
-          "Overview task entries can route to Workspace",
+          "Workspace is declared as an ordinary top-level route",
+          "Overview task entries and ordinary navigation can route to Workspace",
           "shell tests cover Workspace route behavior"
         ]
       },
@@ -1074,5 +1133,153 @@
       "forbidden runtime truth sources",
       "forbidden shell-owned product IA"
     ]
+  },
+  "settings_projection": {
+    "schema": "settings_projection.v1",
+    "owner": "one-person-lab-app",
+    "source": "opl app state --profile fast --json#settings",
+    "policy": "summary_first_settings_items_with_scope_owner_risk_action_details_and_editability_reason",
+    "section_ids": [
+      "summary",
+      "access",
+      "workspace",
+      "capabilities",
+      "resources",
+      "maintenance",
+      "storage",
+      "diagnostics"
+    ],
+    "item_required_fields": [
+      "scope",
+      "owner",
+      "risk",
+      "normal_summary",
+      "next_action",
+      "details_ref",
+      "editable_reason"
+    ],
+    "live_evidence_policy": "contract_docs_tests_do_not_prove_live_installed_release_runtime_currentness_or_owner_acceptance",
+    "sections": {
+      "summary": {
+        "id": "summary",
+        "items": [
+          {
+            "id": "overall_status",
+            "scope": "user",
+            "owner": "one-person-lab-app",
+            "risk": "read_only",
+            "normal_summary": "Settings overview shows health and the next useful action.",
+            "next_action": "open the page that owns the item needing attention",
+            "details_ref": "contracts/app-gui-product-contract.json#pages.settings_general",
+            "editable_reason": "read-only summary; edits happen on the owning page"
+          }
+        ]
+      },
+      "access": {
+        "id": "access",
+        "items": [
+          {
+            "id": "model_and_local_access",
+            "scope": "user",
+            "owner": "one-person-lab-app",
+            "risk": "reversible",
+            "normal_summary": "Model access, Codex CLI, and local browser access are shown without deployment refs.",
+            "next_action": "configure OPL Gateway only when access needs changes",
+            "details_ref": "contracts/app-gui-product-contract.json#pages.settings_access",
+            "editable_reason": "access key changes are user-initiated and reversible"
+          }
+        ]
+      },
+      "workspace": {
+        "id": "workspace",
+        "items": [
+          {
+            "id": "workspace_root",
+            "scope": "workspace",
+            "owner": "one-person-lab-app",
+            "risk": "confirmation_required",
+            "normal_summary": "Workspace explains where projects and artifacts live and whether the App can access them.",
+            "next_action": "open, choose, or verify the workspace when needed",
+            "details_ref": "contracts/app-gui-product-contract.json#pages.settings_workspace",
+            "editable_reason": "workspace mutations require explicit user action and confirmation"
+          }
+        ]
+      },
+      "capabilities": {
+        "id": "capabilities",
+        "items": [
+          {
+            "id": "capability_directory",
+            "scope": "user",
+            "owner": "one-person-lab-app",
+            "risk": "reversible",
+            "normal_summary": "Capabilities are presented as an installed package directory with Home shortcut controls.",
+            "next_action": "open capability details or Maintenance for updates and repairs",
+            "details_ref": "contracts/app-gui-product-contract.json#pages.settings_capabilities",
+            "editable_reason": "visibility and setup actions are user configurable"
+          }
+        ]
+      },
+      "resources": {
+        "id": "resources",
+        "items": [
+          {
+            "id": "resource_connections",
+            "scope": "resource",
+            "owner": "one-person-lab-app",
+            "risk": "confirmation_required",
+            "normal_summary": "Docker WebUI, OPL Workspace, cloud, SSH/HPC, Fabric, and managed refs live outside Access.",
+            "next_action": "precheck or open resource details before deployment changes",
+            "details_ref": "contracts/app-gui-product-contract.json#pages.settings_resources",
+            "editable_reason": "resource deployment actions require dry-run or input confirmation"
+          }
+        ]
+      },
+      "maintenance": {
+        "id": "maintenance",
+        "items": [
+          {
+            "id": "maintenance_hub",
+            "scope": "machine",
+            "owner": "one-person-lab-app",
+            "risk": "confirmation_required",
+            "normal_summary": "Maintenance owns app updates, runtime repair, capability sync, and local service checks.",
+            "next_action": "run the recommended check, repair, or update action",
+            "details_ref": "contracts/app-gui-product-contract.json#pages.settings_environment",
+            "editable_reason": "state-changing maintenance requires action routes and confirmation"
+          }
+        ]
+      },
+      "storage": {
+        "id": "storage",
+        "items": [
+          {
+            "id": "data_storage_safety",
+            "scope": "machine",
+            "owner": "one-person-lab-app",
+            "risk": "confirmation_required",
+            "normal_summary": "Storage shows inventory, cleanup plans, archive/restore, logs, and cache risk.",
+            "next_action": "preview cleanup or inspect receipts before any destructive change",
+            "details_ref": "contracts/app-gui-product-contract.json#pages.settings_storage",
+            "editable_reason": "cleanup requires preview, confirmation, and receipt"
+          }
+        ]
+      },
+      "diagnostics": {
+        "id": "diagnostics",
+        "items": [
+          {
+            "id": "advanced_diagnostics",
+            "scope": "developer",
+            "owner": "one-person-lab-app",
+            "risk": "read_only",
+            "normal_summary": "Advanced keeps raw refs, logs, developer profile, and diagnostic escape hatches collapsed by default.",
+            "next_action": "copy diagnostics or inspect raw refs only when troubleshooting",
+            "details_ref": "contracts/app-gui-product-contract.json#pages.settings_advanced",
+            "editable_reason": "diagnostic fields are read-only unless an explicit App action route exists"
+          }
+        ]
+      }
+    }
   }
 }

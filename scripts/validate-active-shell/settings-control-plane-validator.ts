@@ -9,10 +9,14 @@ import {
   appOwnedSettingsMakeUsableForbiddenSteps,
   appOwnedSettingsProductSystemItemIds,
   appOwnedSettingsProductSystemTracks,
+  appOwnedSettingsProjectionItemFields,
+  appOwnedSettingsProjectionSectionIds,
   appOwnedSettingsPostUpdateNoticeFields,
   appOwnedSettingsRouteScopes,
   appOwnedSettingsSearchProtocol,
   appOwnedSettingsTabs,
+  appOwnedSettingsTaskEntryMetadataFields,
+  appOwnedSettingsTopLevelEntryIds,
   appOwnedSettingsUpstreamIntakeClassifications,
   appOwnedSettingsTaskEntryIds,
   appOwnedSettingsVisualQaTargets,
@@ -87,13 +91,14 @@ const expectedPageAdapterEntries = {
 const expectedVisualQaRoutes = [
   '/settings/general',
   '/settings/access',
+  '/settings/workspace',
   '/settings/capabilities',
   '/settings/environment',
   '/settings/storage',
   '/settings/appearance',
   '/settings/advanced',
 ];
-const expectedVisualQaSecondaryRoutes = ['/settings/workspace', '/settings/local-services', '/settings/resources'];
+const expectedVisualQaSecondaryRoutes = ['/settings/local-services', '/settings/resources'];
 const expectedVisualQaStatusAnchors = [
   'diagnostics_collapsed_by_default',
   'state_changing_action_confirmation',
@@ -173,6 +178,7 @@ export function validateSettingsControlPlane(controlPlane, guiContract, pageStat
     [
       'settings_general',
       'settings_access',
+      'workspace',
       'settings_capabilities',
       'settings_environment',
       'settings_storage',
@@ -192,6 +198,7 @@ export function validateSettingsControlPlane(controlPlane, guiContract, pageStat
   validateHydratedSettingsRegistry(controlPlane);
   validateSettingsShellAdapterSlotContract(controlPlane);
   validateSettingsModelReasoningPolicy(controlPlane, guiContract, productProfile);
+  validateSettingsProjection(controlPlane.settings_projection);
   validateSettingsPageAdapterPolicy(controlPlane);
   validateSettingsVisualQaPolicy(controlPlane);
   validateSettingsProductSystemChecklist(controlPlane);
@@ -351,7 +358,7 @@ function validateCrossContractConsistency(controlPlane, guiContract, pageStateMa
   );
   const pageIds = new Set((pageStateMatrix?.pages ?? []).map((page) => page.id));
   for (const route of controlPlane.ordinary_routes) {
-    if (!pageIds.has(route.id) && !pageIds.has(route.slot_id)) {
+    if (!pageIds.has(route.id) && !pageIds.has(route.slot_id) && !pageIds.has(`settings_${route.id}`)) {
       throw new Error(`Settings control plane route ${route.id} must have a page-state matrix entry`);
     }
   }
@@ -425,6 +432,7 @@ function validateSettingsIa(settingsIa) {
   ) {
     throw new Error('Settings control plane must gate route promotion through contract, matrix, validator, and tests');
   }
+  validateSettingsTopLevelEntries(settingsIa.top_level_entries, settingsIa.top_level_navigation_policy);
   assertDeepEqualJson(
     (settingsIa.user_task_entries ?? []).map((entry) => entry.id),
     appOwnedSettingsTaskEntryIds,
@@ -434,12 +442,54 @@ function validateSettingsIa(settingsIa) {
     if (!appOwnedSettingsIaGroupIds.includes(entry.group_id)) {
       throw new Error(`Settings control plane task entry ${entry.id} has unknown group ${entry.group_id}`);
     }
+    assertIncludesAll(
+      Object.keys(entry),
+      appOwnedSettingsTaskEntryMetadataFields,
+      `Settings control plane task entry ${entry.id} metadata fields`,
+    );
+    for (const field of appOwnedSettingsTaskEntryMetadataFields) {
+      if (typeof entry[field] !== 'string' || entry[field].trim() === '') {
+        throw new Error(`Settings control plane task entry ${entry.id} must declare ${field}`);
+      }
+    }
     assertKnownSettingsRoute(entry.route_id, `Settings control plane task entry ${entry.id}`);
     for (const routeId of entry.secondary_route_ids ?? []) {
       assertKnownSettingsRoute(routeId, `Settings control plane task entry ${entry.id} secondary route`);
     }
   }
   validateSettingsProtocols(settingsIa.protocols);
+}
+
+function validateSettingsTopLevelEntries(entries, policy) {
+  if (
+    policy?.entry_model !== 'user_visible_top_level_entries_match_ordinary_navigation_entries' ||
+    policy?.workspace_visibility !== 'workspace_is_user_visible_top_level_navigation_entry' ||
+    policy?.shell_route_compatibility !==
+      'workspace_route_is_ordinary_user_visible_top_level_navigation'
+  ) {
+    throw new Error('Settings IA must declare Workspace as a user-visible top-level entry with shell route compatibility');
+  }
+  assertDeepEqualJson(
+    (entries ?? []).map((entry) => entry.id),
+    appOwnedSettingsTopLevelEntryIds,
+    'Settings IA top-level user-visible entries',
+  );
+  const workspace = (entries ?? []).find((entry) => entry.id === 'workspace');
+  if (
+    workspace?.route_id !== 'workspace' ||
+    workspace?.route_scope !== 'ordinary' ||
+    workspace?.visibility !== 'top_level_navigation'
+  ) {
+    throw new Error('Settings IA Workspace must be ordinary top-level navigation');
+  }
+  for (const entry of entries ?? []) {
+    assertKnownSettingsRoute(entry.route_id, `Settings IA top-level entry ${entry.id}`);
+    assertIncludesAll(
+      Object.keys(entry),
+      appOwnedSettingsTaskEntryMetadataFields,
+      `Settings IA top-level entry ${entry.id} metadata fields`,
+    );
+  }
 }
 
 function validateSettingsProtocols(protocols) {
@@ -567,6 +617,7 @@ function validateHydratedSettingsRegistry(controlPlane) {
     [
       'OverviewSettings',
       'AccessSettingsContent',
+      'WorkspaceSettings',
       'CapabilitiesSettingsContent',
       'RuntimeSettings',
       'StorageSettings',
@@ -677,6 +728,62 @@ function validateSettingsModelReasoningPolicy(controlPlane, guiContract, product
   }
   if (!String(policy.release_evidence_policy ?? '').includes('does not prove release cohort')) {
     throw new Error('Settings model/reasoning policy must keep release/live evidence separate');
+  }
+}
+
+function validateSettingsProjection(projection) {
+  if (projection?.schema !== 'settings_projection.v1') {
+    throw new Error('Settings control plane must declare settings_projection.v1');
+  }
+  if (projection?.owner !== 'one-person-lab-app') {
+    throw new Error('Settings projection must stay App-owned');
+  }
+  if (projection?.source !== 'opl app state --profile fast --json#settings') {
+    throw new Error('Settings projection must consume the fast App settings projection');
+  }
+  if (
+    projection?.policy !==
+    'summary_first_settings_items_with_scope_owner_risk_action_details_and_editability_reason'
+  ) {
+    throw new Error('Settings projection must require summary-first item metadata');
+  }
+  assertDeepEqualJson(
+    projection?.section_ids,
+    appOwnedSettingsProjectionSectionIds,
+    'Settings projection section ids',
+  );
+  assertDeepEqualJson(
+    projection?.item_required_fields,
+    appOwnedSettingsProjectionItemFields,
+    'Settings projection item required fields',
+  );
+  if (
+    projection?.live_evidence_policy !==
+    'contract_docs_tests_do_not_prove_live_installed_release_runtime_currentness_or_owner_acceptance'
+  ) {
+    throw new Error('Settings projection must keep Live evidence outside contract/docs/tests completion');
+  }
+  const sections = projection?.sections ?? {};
+  assertDeepEqualJson(Object.keys(sections), appOwnedSettingsProjectionSectionIds, 'Settings projection sections');
+  for (const [sectionId, section] of Object.entries(sections)) {
+    if (section?.id !== sectionId) {
+      throw new Error(`Settings projection section ${sectionId} must keep matching id`);
+    }
+    if (!Array.isArray(section.items) || section.items.length === 0) {
+      throw new Error(`Settings projection section ${sectionId} must declare at least one item`);
+    }
+    for (const item of section.items) {
+      assertIncludesAll(
+        Object.keys(item),
+        appOwnedSettingsProjectionItemFields,
+        `Settings projection item ${sectionId}.${item?.id ?? '<missing id>'} fields`,
+      );
+      for (const field of appOwnedSettingsProjectionItemFields) {
+        if (typeof item[field] !== 'string' || item[field].trim() === '') {
+          throw new Error(`Settings projection item ${sectionId}.${item?.id ?? '<missing id>'} must declare ${field}`);
+        }
+      }
+    }
   }
 }
 
@@ -862,7 +969,7 @@ function validateSettingsVisualQaPolicy(controlPlane) {
   if (
     policy.evidence_manifest?.viewport_policy !== 'each required route is captured for desktop and mobile viewports' ||
     policy.evidence_manifest?.secondary_route_policy !==
-      'workspace, local-services, and resources are captured or explicitly marked route_unit_covered with no screenshot claim'
+      'local-services and resources are captured or explicitly marked route_unit_covered with no screenshot claim'
   ) {
     throw new Error('Settings visual QA manifest must declare viewport and secondary route evidence policy');
   }

@@ -1753,6 +1753,7 @@
     "ordinary_visible_tabs": [
       "general",
       "access",
+      "workspace",
       "capabilities",
       "environment",
       "storage",
@@ -1821,7 +1822,7 @@
     },
     "source": "opl app state --profile fast --json",
     "refresh_source": "opl app state --profile fast --json",
-    "policy": "Settings is the App-owned OPL Control Center information architecture, not an upstream AionUI configuration dump. The target top-level IA is Overview, Access, Capabilities, Maintenance & Updates, Data & Storage, Preferences, and Advanced. Existing shell route ids general, access, capabilities, environment, storage, appearance, and advanced map to those groups. Capabilities is an installed package directory with integrated Home shortcut management; purpose labels remain secondary tags and filters, not the primary card identity. About is version-and-links only and remains a secondary Advanced surface. Update is an explicit detail or deep-link destination for update state, while normal repair and maintenance actions stay under Maintenance & Updates. Maintenance must not become a second runtime task board. Theme remains a secondary page or deep link, not an independent ordinary top-level group. Storage lifecycle and safe cleanup live under Data & Storage. Workspace is an independent ordinary setup concern, not a buried runtime diagnostic. Resources & Connections is a secondary setup/access route for Docker WebUI, OPL Workspace, managed resources, SSH/HPC, Fabric, and Console-managed refs so Access stays focused on OPL Gateway, Codex CLI, and browser access to this computer. Legacy upstream settings routes remain compatibility redirects only; they must not reappear as ordinary navigation.",
+    "policy": "Settings is the App-owned OPL Control Center information architecture, not an upstream AionUI configuration dump. The target top-level IA is Overview, Access, Workspace, Capabilities, Maintenance & Updates, Data & Storage, Preferences, and Advanced. Existing shell route ids general, access, workspace, capabilities, environment, storage, appearance, and advanced map to those groups. Capabilities is an installed package directory with integrated Home shortcut management; purpose labels remain secondary tags and filters, not the primary card identity. About is version-and-links only and remains a secondary Advanced surface. Update is an explicit detail or deep-link destination for update state, while normal repair and maintenance actions stay under Maintenance & Updates. Maintenance must not become a second runtime task board. Theme remains a secondary page or deep link, not an independent ordinary top-level group. Storage lifecycle and safe cleanup live under Data & Storage. Workspace is an independent ordinary setup concern, not a buried runtime diagnostic. Resources & Connections is a secondary setup/access route for Docker WebUI, OPL Workspace, managed resources, SSH/HPC, Fabric, and Console-managed refs so Access stays focused on OPL Gateway, Codex CLI, and browser access to this computer. Legacy upstream settings routes remain compatibility redirects only; they must not reappear as ordinary navigation.",
     "settings_ia": {
       "schema": "settings_ia.v1",
       "authority": "one-person-lab-app",
@@ -1829,9 +1830,15 @@
       "matrix_ref": "contracts/app-page-state-matrix.json#pages",
       "route_identity_policy": "keep_current_shell_route_ids_distinct_from_user_facing_ia_groups",
       "route_promotion_policy": "secondary_or_deep_link_routes_must_not_be_promoted_to_ordinary_routes_without_contract_matrix_validator_and_test_updates",
+      "top_level_navigation_policy": {
+        "entry_model": "user_visible_top_level_entries_match_ordinary_navigation_entries",
+        "workspace_visibility": "workspace_is_user_visible_top_level_navigation_entry",
+        "shell_route_compatibility": "workspace_route_is_ordinary_user_visible_top_level_navigation"
+      },
       "ordinary_route_ids": [
         "general",
         "access",
+        "workspace",
         "capabilities",
         "environment",
         "storage",
@@ -1842,7 +1849,6 @@
         "about",
         "update",
         "theme",
-        "workspace",
         "local-services",
         "resources"
       ],
@@ -1855,27 +1861,134 @@
         "preferences",
         "advanced"
       ],
+      "top_level_entries": [
+        {
+          "id": "overview",
+          "route_id": "general",
+          "route_scope": "ordinary",
+          "visibility": "top_level_navigation",
+          "label_en": "Overview",
+          "label_zh": "总览",
+          "scope": "user",
+          "intent": "view_status",
+          "risk": "read_only",
+          "frequency": "daily"
+        },
+        {
+          "id": "access",
+          "route_id": "access",
+          "route_scope": "ordinary",
+          "visibility": "top_level_navigation",
+          "label_en": "Access",
+          "label_zh": "访问方式",
+          "scope": "user",
+          "intent": "configure",
+          "risk": "reversible",
+          "frequency": "first_run_or_when_access_changes"
+        },
+        {
+          "id": "workspace",
+          "route_id": "workspace",
+          "route_scope": "ordinary",
+          "visibility": "top_level_navigation",
+          "label_en": "Workspace",
+          "label_zh": "工作区",
+          "scope": "workspace",
+          "intent": "configure",
+          "risk": "confirmation_required",
+          "frequency": "first_run_or_project_switch"
+        },
+        {
+          "id": "capabilities",
+          "route_id": "capabilities",
+          "route_scope": "ordinary",
+          "visibility": "top_level_navigation",
+          "label_en": "Capabilities",
+          "label_zh": "能力",
+          "scope": "user",
+          "intent": "view_status",
+          "risk": "reversible",
+          "frequency": "occasional"
+        },
+        {
+          "id": "maintenance",
+          "route_id": "environment",
+          "route_scope": "ordinary",
+          "visibility": "top_level_navigation",
+          "label_en": "Maintenance & Updates",
+          "label_zh": "维护",
+          "scope": "machine",
+          "intent": "maintenance",
+          "risk": "confirmation_required",
+          "frequency": "when_attention_needed"
+        },
+        {
+          "id": "storage",
+          "route_id": "storage",
+          "route_scope": "ordinary",
+          "visibility": "top_level_navigation",
+          "label_en": "Data & Storage",
+          "label_zh": "数据与存储",
+          "scope": "machine",
+          "intent": "data_safety",
+          "risk": "confirmation_required",
+          "frequency": "occasional"
+        },
+        {
+          "id": "preferences",
+          "route_id": "appearance",
+          "route_scope": "ordinary",
+          "visibility": "top_level_navigation",
+          "label_en": "Preferences",
+          "label_zh": "偏好",
+          "scope": "user",
+          "intent": "configure",
+          "risk": "reversible",
+          "frequency": "occasional"
+        },
+        {
+          "id": "diagnostics",
+          "route_id": "advanced",
+          "route_scope": "ordinary",
+          "visibility": "top_level_navigation",
+          "label_en": "Advanced",
+          "label_zh": "高级",
+          "scope": "developer",
+          "intent": "diagnose",
+          "risk": "read_only",
+          "frequency": "expert_or_exception"
+        }
+      ],
       "user_task_entries": [
         {
           "id": "model_access",
           "group_id": "setup_access",
           "route_id": "access",
-          "priority": "p0"
+          "priority": "p0",
+          "scope": "user",
+          "intent": "configure",
+          "risk": "reversible",
+          "frequency": "first_run_or_when_access_changes"
         },
         {
           "id": "local_runtime_ability",
           "group_id": "setup_access",
           "route_id": "access",
-          "priority": "p0"
+          "priority": "p0",
+          "scope": "machine",
+          "intent": "view_status",
+          "risk": "read_only",
+          "frequency": "first_run_or_when_attention_needed"
         },
         {
           "id": "workspace",
           "group_id": "overview",
-          "route_id": "general",
+          "route_id": "workspace",
           "priority": "p0",
-          "secondary_route_ids": [
-            "workspace"
-          ]
+          "scope": "workspace",
+          "intent": "configure",
+          "risk": "confirmation_required",
+          "frequency": "first_run_or_project_switch"
         },
         {
           "id": "maintenance_hub",
@@ -1885,44 +1998,74 @@
             "local-services",
             "update"
           ],
-          "priority": "p0"
+          "priority": "p0",
+          "scope": "machine",
+          "intent": "maintenance",
+          "risk": "confirmation_required",
+          "frequency": "when_attention_needed"
         },
         {
           "id": "capability_status",
           "group_id": "capabilities",
           "route_id": "capabilities",
-          "priority": "p0"
+          "priority": "p0",
+          "scope": "user",
+          "intent": "view_status",
+          "risk": "reversible",
+          "frequency": "occasional"
         },
         {
           "id": "remote_access",
           "group_id": "setup_access",
           "route_id": "access",
-          "secondary_route_ids": ["resources"],
-          "priority": "p1"
+          "secondary_route_ids": [
+            "resources"
+          ],
+          "priority": "p1",
+          "scope": "resource",
+          "intent": "configure",
+          "risk": "confirmation_required",
+          "frequency": "occasional"
         },
         {
           "id": "advanced_deployment",
           "group_id": "setup_access",
           "route_id": "resources",
-          "priority": "p1"
+          "priority": "p1",
+          "scope": "resource",
+          "intent": "configure",
+          "risk": "confirmation_required",
+          "frequency": "expert_or_exception"
         },
         {
           "id": "developer_profile_status",
           "group_id": "advanced",
           "route_id": "advanced",
-          "priority": "p1"
+          "priority": "p1",
+          "scope": "developer",
+          "intent": "diagnose",
+          "risk": "read_only",
+          "frequency": "expert_or_exception"
         },
         {
           "id": "external_tools_voice",
           "group_id": "capabilities",
           "route_id": "capabilities",
-          "priority": "p1"
+          "priority": "p1",
+          "scope": "user",
+          "intent": "configure",
+          "risk": "reversible",
+          "frequency": "occasional"
         },
         {
           "id": "custom_assistant",
           "group_id": "capabilities",
           "route_id": "capabilities",
-          "priority": "p1"
+          "priority": "p1",
+          "scope": "user",
+          "intent": "configure",
+          "risk": "reversible",
+          "frequency": "occasional"
         }
       ],
       "protocols": {
@@ -2022,6 +2165,7 @@
           "required_targets": [
             "desktop_settings_overview",
             "desktop_settings_access",
+            "desktop_settings_workspace",
             "desktop_settings_capabilities",
             "desktop_settings_maintenance",
             "desktop_settings_storage",
@@ -2031,7 +2175,7 @@
             "mobile_settings_preferences"
           ],
           "must_check": [
-            "ordinary nav shows seven current route ids only",
+            "ordinary nav shows eight current route ids including workspace",
             "About/Update/Theme are secondary or deep-link surfaces unless contract is changed deliberately",
             "diagnostics and raw refs are collapsed by default",
             "confirmation drawer appears before destructive or state-changing actions",
@@ -2111,7 +2255,6 @@
       "about",
       "update",
       "theme",
-      "workspace",
       "local-services",
       "resources"
     ],
@@ -2219,8 +2362,8 @@
       }
     ],
     "task_entry_policy": {
-      "ordinary_entry_model": "user_task_first_sections_inside_the_seven_OPL_Control_Center_groups",
-      "top_level_tab_policy": "do_not_add_new_top_level_tabs_for_model_workspace_updates_web_tools_or_developer_profile",
+      "ordinary_entry_model": "user_task_first_sections_inside_the_eight_OPL_Control_Center_entries",
+      "top_level_tab_policy": "do_not_add_new_shell_route_tabs_for_model_updates_web_tools_or_developer_profile; workspace_is_a_user_visible_top_level_entry",
       "p0_entries": [
         "model_access",
         "local_runtime_ability",
@@ -2250,7 +2393,7 @@
         "parent_route_id": "general",
         "label_en": "Workspace",
         "label_zh": "工作目录",
-        "ordinary_entry_policy": "secondary_deep_link_for_independent_workspace_task",
+        "ordinary_entry_policy": "ordinary_top_level_workspace_entry",
         "source": "opl app state --profile fast --json#app_state.paths"
       },
       "local_services": {
@@ -4162,14 +4305,15 @@
         "open workspace action",
         "change or verify workspace action through App action route when available",
         "permission or trust status in user-facing language",
-        "workspace page reachable as a secondary deep link from Overview and task search"
+        "workspace page reachable as a top-level Settings entry and from Overview task links"
       ],
       "must_not_show": [
         "workspace buried only inside Local Environment or Advanced diagnostics",
         "raw path JSON or provider implementation details as the primary page language",
         "workspace changes without confirmation when mutation is required"
       ],
-      "ia_group": "overview"
+      "ia_group": "overview",
+      "route_scope": "ordinary"
     },
     "settings_local_services": {
       "state_source": "opl app state --profile fast --json",

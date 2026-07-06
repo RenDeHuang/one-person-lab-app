@@ -84,15 +84,14 @@ is mirrored by route metadata in `contracts/app-page-state-matrix.json#pages`.
 The control plane deliberately separates user-facing groups from current shell
 route ids:
 
-- ordinary route ids remain `general`, `access`, `capabilities`, `environment`,
-  `storage`, `appearance`, and `advanced`;
-- `workspace`, `local-services`, and `resources` are independent user task pages
-  surfaced as secondary/deep-link routes under Overview, Maintenance & Updates,
-  and Access. `about`, `update`, and `theme` are also secondary or deep-link
-  route ids.
-  unless the contract, page-state matrix, validators, and release-boundary tests
-  are deliberately changed together;
-- user-facing groups remain Overview, Access, Capabilities,
+- ordinary route ids remain `general`, `access`, `workspace`, `capabilities`,
+  `environment`, `storage`, `appearance`, and `advanced`;
+- `local-services` and `resources` are independent user task pages surfaced as
+  secondary/deep-link routes under Maintenance & Updates and Access. `about`,
+  `update`, and `theme` are also secondary or deep-link route ids unless the
+  contract, page-state matrix, validators, and release-boundary tests are
+  deliberately changed together;
+- user-facing groups remain Overview, Access, Workspace, Capabilities,
   Maintenance & Updates, Data & Storage, Preferences, and Advanced.
 
 ## Page Contracts
@@ -136,7 +135,7 @@ ad hoc cards:
 
 ## Task Entries
 
-The OPL Control Center keeps seven top-level IA groups. User task entries are surfaced
+The OPL Control Center keeps eight top-level entries. User task entries are surfaced
 inside those groups instead of adding more tabs.
 
 P0 entries:
@@ -518,9 +517,9 @@ Settings package, plugin ecosystem, or shell-owned product IA to solve fork
 maintenance.
 
 The route identity rule is part of maintainability: current shell route ids are
-implementation facts, while the seven IA groups are user-facing product groups.
+implementation facts, while the eight IA entries are user-facing product groups.
 Do not rename shell routes to match prose group labels, and do not promote
-secondary/deep-link routes such as Workspace, Local Services, About, Update, or Theme into
+secondary/deep-link routes such as Local Services, About, Update, or Theme into
 ordinary routes without updating the contract, matrix, validators, tests, and
 visual QA targets.
 
@@ -598,7 +597,7 @@ E2E_SCREENSHOTS=1 bun run test:e2e -- tests/e2e/specs/navigation.e2e.ts --grep "
 That evidence must cover desktop and mobile viewports for the ordinary routes
 `/settings/general`, `/settings/access`, `/settings/capabilities`,
 `/settings/environment`, `/settings/storage`, `/settings/appearance`, and
-`/settings/advanced`. Workspace and Local Services are secondary/deep-link
+`/settings/advanced`. Local Services is secondary/deep-link
 task pages; visual evidence must either capture `/settings/workspace` and
 `/settings/local-services` or explicitly mark them as route-unit-covered without
 claiming screenshot coverage.

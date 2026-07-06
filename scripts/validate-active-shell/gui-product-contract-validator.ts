@@ -25,6 +25,8 @@ import {
   appOwnedSettingsMakeUsableForbiddenSteps,
   appOwnedSettingsPostUpdateNoticeFields,
   appOwnedSettingsSearchProtocol,
+  appOwnedSettingsTaskEntryMetadataFields,
+  appOwnedSettingsTopLevelEntryIds,
   appOwnedSettingsTaskEntryIds,
   appOwnedSettingsVisualQaTargets,
 } from './app-contract-constants.ts';
@@ -674,10 +676,10 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   }
   if (
     pages.settings_workspace?.ia_group !== 'overview' ||
-    !pages.settings_workspace.must_show?.includes('workspace page reachable as a secondary deep link from Overview and task search') ||
+    !pages.settings_workspace.must_show?.includes('workspace page reachable as a top-level Settings entry and from Overview task links') ||
     !pages.settings_workspace.must_not_show?.includes('workspace buried only inside Local Environment or Advanced diagnostics')
   ) {
-    throw new Error('Settings Workspace must be an independent secondary page under Overview');
+    throw new Error('Settings Workspace must be an independent top-level page under Overview');
   }
   if (
     pages.settings_local_services?.ia_group !== 'maintenance' ||
@@ -830,11 +832,38 @@ function validateSettingsIaContract(settingsIa) {
   ) {
     throw new Error('App GUI settings IA must gate secondary/deep-link route promotion through contract, matrix, validator, and tests');
   }
+  if (
+    settingsIa.top_level_navigation_policy?.workspace_visibility !== 'workspace_is_user_visible_top_level_navigation_entry' ||
+    settingsIa.top_level_navigation_policy?.shell_route_compatibility !==
+      'workspace_route_is_ordinary_user_visible_top_level_navigation'
+  ) {
+    throw new Error('App GUI settings IA must make Workspace a user-visible top-level navigation entry');
+  }
+  assertDeepEqualJson(
+    (settingsIa.top_level_entries ?? []).map((entry) => entry.id),
+    appOwnedSettingsTopLevelEntryIds,
+    'App GUI settings IA top-level entries',
+  );
+  const workspaceTopLevel = (settingsIa.top_level_entries ?? []).find((entry) => entry.id === 'workspace');
+  if (
+    workspaceTopLevel?.route_id !== 'workspace' ||
+    workspaceTopLevel?.route_scope !== 'ordinary' ||
+    workspaceTopLevel?.visibility !== 'top_level_navigation'
+  ) {
+    throw new Error('App GUI settings IA Workspace top-level entry must be ordinary top-level navigation');
+  }
   assertDeepEqualJson(
     (settingsIa.user_task_entries ?? []).map((entry) => entry.id),
     appOwnedSettingsTaskEntryIds,
     'App GUI settings IA user task entries',
   );
+  for (const entry of [...(settingsIa.top_level_entries ?? []), ...(settingsIa.user_task_entries ?? [])]) {
+    assertIncludesAll(
+      Object.keys(entry),
+      appOwnedSettingsTaskEntryMetadataFields,
+      `App GUI settings IA entry ${entry?.id ?? '<missing id>'} metadata fields`,
+    );
+  }
   assertDeepEqualJson(settingsIa.protocols?.issue_queue?.statuses, appOwnedSettingsIssueStatuses, 'App GUI settings issue queue statuses');
   if (
     settingsIa.protocols?.action_catalog?.action_route !==

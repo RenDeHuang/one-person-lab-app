@@ -2403,7 +2403,7 @@
         "open workspace action",
         "change or verify workspace action through App action route when available",
         "permission or trust status in user-facing language",
-        "workspace page reachable as a secondary deep link from Overview and task search"
+        "workspace page reachable as a top-level Settings entry and from Overview task links"
       ],
       "must_not_show": [
         "workspace buried only inside Local Environment or Advanced diagnostics",
@@ -2413,7 +2413,7 @@
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
       "ia_group": "overview",
       "route_id": "workspace",
-      "route_scope": "secondary_or_deep_link",
+      "route_scope": "ordinary",
       "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia"
     },
     {

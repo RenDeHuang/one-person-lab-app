@@ -48,7 +48,7 @@ test('Settings control-plane validator binds contract, profile, page-state, and 
   );
 
   const invalidMatrix = structuredClone(pageStateMatrix);
-  invalidMatrix.pages.find((page) => page.id === 'settings_workspace').route_scope = 'ordinary';
+  invalidMatrix.pages.find((page) => page.id === 'settings_workspace').route_scope = 'secondary_or_deep_link';
   assert.throws(
     () =>
       validateSettingsControlPlane(
@@ -58,7 +58,7 @@ test('Settings control-plane validator binds contract, profile, page-state, and 
         productProfile,
         adapterContract,
       ),
-    /settings_workspace route_scope must be secondary_or_deep_link/,
+    /settings_workspace route_scope must be ordinary/,
   );
 });
 
@@ -73,6 +73,7 @@ test('Settings control plane hydrates registry, route resolver, and extension an
     [
       'general:settings_general:OverviewSettings',
       'access:settings_access:AccessSettingsContent',
+      'workspace:workspace:WorkspaceSettings',
       'capabilities:settings_capabilities:CapabilitiesSettingsContent',
       'environment:settings_environment:RuntimeSettings',
       'storage:settings_storage:StorageSettings',
@@ -86,7 +87,6 @@ test('Settings control plane hydrates registry, route resolver, and extension an
       'about:secondary_or_deep_link',
       'update:secondary_or_deep_link',
       'theme:secondary_or_deep_link',
-      'workspace:secondary_or_deep_link',
       'local-services:secondary_or_deep_link',
       'resources:secondary_or_deep_link',
     ],
@@ -105,7 +105,7 @@ test('Settings control plane hydrates registry, route resolver, and extension an
     id: 'workspace',
     target_id: 'workspace',
     path: '/settings/workspace',
-    route_scope: 'secondary_or_deep_link',
+    route_scope: 'ordinary',
     slot_id: 'workspace',
     component_key: 'WorkspaceSettings',
   });
@@ -348,6 +348,7 @@ test('Settings page adapters and visual QA policy are machine-readable gates', (
   assert.deepStrictEqual(controlPlaneContract.visual_qa_policy.required_routes, [
     '/settings/general',
     '/settings/access',
+    '/settings/workspace',
     '/settings/capabilities',
     '/settings/environment',
     '/settings/storage',
@@ -355,7 +356,6 @@ test('Settings page adapters and visual QA policy are machine-readable gates', (
     '/settings/advanced',
   ]);
   assert.deepStrictEqual(controlPlaneContract.visual_qa_policy.required_secondary_routes, [
-    '/settings/workspace',
     '/settings/local-services',
     '/settings/resources',
   ]);
@@ -532,7 +532,7 @@ test('Settings product system checklist is the completion-audit source and keeps
     controlPlaneContract.product_system_checklist.items.map((item) => item.id),
     [
       'control_center_positioning',
-      'seven_entry_ia',
+      'eight_entry_ia',
       'secondary_route_strategy',
       'single_control_plane',
       'host_adapter_slot',
