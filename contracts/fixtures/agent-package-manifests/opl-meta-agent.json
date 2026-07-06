@@ -44,7 +44,7 @@
   "entrypoints": [
     {
       "shortcut_id": "oma",
-      "label": "OMA",
+      "label": "元智能体",
       "required_skill_ids": [
         "opl-meta-agent"
       ],
