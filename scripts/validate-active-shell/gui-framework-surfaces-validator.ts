@@ -248,6 +248,7 @@ export function validateGuiFrameworkSurfaces(guiContract, releaseChannel, instal
         'advanced',
         'about',
         'update',
+        'settings_resources',
       ],
       ordinary_allowed_answer_shapes: [
         'purpose_entry',
