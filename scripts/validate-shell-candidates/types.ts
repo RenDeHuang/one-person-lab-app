@@ -1,5 +1,7 @@
 import type {
+  FirstRunContract,
   HermesTargetStateContract,
+  IconContract,
   ValidationCommand,
 } from '../app-shell-adapter.ts';
 
@@ -48,42 +50,8 @@ export type ShellCandidate = HermesTargetStateContract & {
     missing_checkout_blocker_allowed: boolean;
   };
   candidate_stage?: string;
-  first_run_contract?: {
-    owner: string;
-    ui_reuse_policy: string;
-    forbidden_default_action: string;
-    startup_model: string;
-    startup_check_sequence: string[];
-    one_time_initialization_trigger: string[];
-    one_time_initialization_sequence: string[];
-    model_access_wizard: {
-      trigger: string;
-      api_key_provider: string;
-      api_key_command: string;
-      provider_base_url: string;
-      default_model: string;
-      api_key_env: string;
-      ordinary_ui_policy: string;
-    };
-    background_refresh_sequence: string[];
-    blocking_policy: string;
-    skip_to_chat_policy?: {
-      trigger: string;
-      marker_state: string;
-      must_not_claim: string[];
-    };
-    api_key_missing_behavior: string;
-    api_key_present_behavior: string;
-    ready_check: string;
-    packaged_smoke_must_prove: string[];
-  };
-  icon_contract?: {
-    source: string;
-    macos_safe_margin_required: boolean;
-    max_alpha_bounds_px: number;
-    current_expected_alpha_bounds_px: string;
-    applies_to: string[];
-  };
+  first_run_contract?: FirstRunContract;
+  icon_contract?: IconContract;
   deferred_until_feature_comparison?: string[];
   codex_app_like_chat_target?: {
     scope: string;
