@@ -511,7 +511,7 @@ test('App shell convergence uses existing active-shell and candidate gates witho
   const result = spawnSync('npm', ['run', 'validate:shell-convergence'], {
     cwd: appRoot,
     encoding: 'utf8',
-    env: { ...process.env, OPL_APP_SHELL_ROOT: '/Users/gaofeng/workspace/opl-aion-shell' },
+    env: { ...process.env, OPL_APP_SHELL_ROOT: activeShellRoot },
   });
   assert.equal(result.status, 0, result.stderr || result.stdout);
 });
