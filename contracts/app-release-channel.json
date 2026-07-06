@@ -13,10 +13,13 @@
   },
   "public_release_notes": {
     "owner": "one-person-lab-app",
-    "default_public_writer": "ai_assisted_public_copy",
+    "default_public_writer": "pre_release_prepared_public_copy",
     "evidence_first": true,
     "script": "scripts/generate-release-notes.ts",
     "publish_script": "scripts/publish-release.ts",
+    "release_critical_path_ai_allowed": false,
+    "prepared_body_required_before_expensive_gates": true,
+    "ai_assisted_draft_scope": "pre_release_preparation_only_not_publish_or_promote",
     "channels": {
       "stable": {
         "target_reader": "ordinary App users and release operators deciding whether to install, upgrade, promote, or troubleshoot the Stable package",
@@ -70,14 +73,13 @@
     "template_policy": {
       "default_public_copy_allowed": false,
       "allowed_modes": [
-        "ai_unavailable_fallback",
         "dry_run",
         "diagnostic_preview"
       ],
-      "rule": "Template release notes preserve evidence facts and technical details only when AI public copy is unavailable or the operator requested a dry-run/diagnostic preview; template output is not the default polished public Stable or Nightly copy."
+      "rule": "Template release notes preserve evidence facts and technical details only when the operator requested a dry-run or diagnostic preview; template output is not the default polished public Stable or Nightly copy and must not be silently published from the release critical path."
     },
     "public_asset_policy": "Release-note evidence JSON and technical audit output are operator evidence, not public download assets; the public GitHub Release asset list stays focused on install, update, checksum, and manifest entrypoints.",
-    "rule": "Public release notes default to AI-written user copy derived from script-generated evidence. The body leads with user scenarios, upgrade value, and action items; commit logs, refs, workflow facts, changelog details, and packaging audit material belong in Technical details or evidence artifacts instead of the main narrative."
+    "rule": "Public release notes use prepared user copy derived from script-generated evidence before the expensive release train starts. Publish and promote jobs must not call AI to generate or replace notes on the critical path. The body leads with user scenarios, upgrade value, and action items; commit logs, refs, workflow facts, changelog details, and packaging audit material belong in Technical details or evidence artifacts instead of the main narrative."
   },
   "active_shell": "aionui",
   "shell_root": "shells/aionui",
@@ -967,6 +969,13 @@
       "app_repo_role": "consumer_only",
       "truth_owner": "gaofeng21cn/one-person-lab",
       "dependency_truth_owner": false,
+      "release_efficiency_boundary": {
+        "full_runtime_bundle_preheated_outside_app_release": true,
+        "app_release_consumes_manifest_lock_readback_refs": true,
+        "app_release_must_not_materialize_runtime_bundle": true,
+        "cache_hit_or_manifest_is_reuse_evidence_only": true,
+        "rule": "Full runtime bundle preparation belongs to OPL Framework. The App Full release consumes the bundle manifest, lock, env contract, and readback refs and packages required offline payloads; it does not own dependency truth or add runtime materialization to the release critical path."
+      },
       "source_surface": {
         "contract_ref": "gaofeng21cn/one-person-lab/contracts/opl-framework/runtime-environment-substrate-contract.json",
         "readback_command_refs": {
@@ -1088,6 +1097,39 @@
   },
   "release_acceleration": {
     "plan_command": "npm run release:plan -- --version <version> --include-full-package",
+    "target_architecture": {
+      "strategy": "build_once_promote_many",
+      "release_cohort_manifest_is_retry_entrypoint": true,
+      "same_cohort_retry_default": "rerun_failed_gate_or_diagnostic_only",
+      "full_train_rerun_allowed_when": [
+        "pinned source refs changed by release owner decision",
+        "source gate invalidates the cohort",
+        "built artifact is invalid or missing",
+        "candidate record cannot bind evidence to the frozen cohort"
+      ],
+      "forbidden_recovery_patterns": [
+        "rerun_full_desktop_release_to_carry_owner_metadata",
+        "hand_fill_long_sha_inputs_when_cohort_plan_or_lock_exists",
+        "use_vm_smoke_to_rebuild_or_mutate_release_material",
+        "generate_release_notes_with_ai_during_publish_or_promote"
+      ],
+      "rca_classification": {
+        "workflow_design_share": "70%",
+        "implementation_bug_share": "30%",
+        "primary_repair_order": [
+          "make cohort and retry state explicit",
+          "shorten critical path",
+          "fix implementation defects exposed by targeted gates"
+        ]
+      },
+      "critical_path_targets": {
+        "stable_standard_minutes": "10-20",
+        "stable_full_minutes": "35-50",
+        "same_cohort_retry_minutes": "3-15",
+        "promote_minutes": "<5"
+      },
+      "rule": "A stable release freezes one App/Shell/Framework cohort, builds and qualifies artifacts once, and uses the cohort manifest, readiness summary, candidate record, owner receipt, and targeted gate reruns for recovery and promote."
+    },
     "cohort_prepare": {
       "package_script": "release:cohort-plan",
       "script": "scripts/plan-release-cohort.ts",
@@ -1105,6 +1147,23 @@
         "next_action"
       ],
       "purpose": "separate currentness preparation from stable release dispatch by recording the exact pinned cohort refs before expensive release gates",
+      "manifest_role": "retry_and_promote_entrypoint_for_same_cohort_gates",
+      "manifest_must_record": [
+        "version",
+        "release_mode",
+        "app_sha",
+        "shell_sha",
+        "framework_sha",
+        "include_full_package",
+        "run_vm_smoke",
+        "release_artifact_refs",
+        "remote_verification_refs",
+        "release_readiness_summary_ref",
+        "release_candidate_record_ref",
+        "release_owner_receipt_ref_or_pending_owner_state",
+        "gate_reuse_plan_ref",
+        "recommended_retry_or_promote_action"
+      ],
       "stable_candidate_freeze": {
         "required": true,
         "pinned_sha_fields": [

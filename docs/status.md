@@ -228,6 +228,21 @@ policy, and release workflow sequencing are governed by
 `contracts/app-release-channel.json`, `docs/delivery/release/README.md`, release
 workflows, validators, and release artifacts.
 
+Release efficiency now has an explicit target architecture:
+`build-once/promote-many`. A frozen App/Shell/Framework cohort should build and
+qualify artifacts once, then use the release cohort manifest as the retry and
+promote entrypoint. Same-cohort recovery should rerun the failed gate, VM
+diagnostic, or promote path instead of restarting the whole release train.
+Current target timing is standard 10-20 minutes, Full 35-50 minutes,
+same-cohort retry 3-15 minutes, and promote under 5 minutes. The current RCA
+classification treats delay as mostly workflow design and retry-shape debt
+with a smaller implementation-bug share; status summaries should therefore
+name the failed gate and owner route instead of defaulting to full reruns.
+Release publish/promote must consume prepared release notes and must not call
+AI to generate notes on the critical path. Full runtime bundle preparation is
+owned by OPL Framework and consumed by the App through manifest/lock/readback
+refs; VM smoke qualifies the exact release artifact for the same cohort.
+
 The standard updater now treats downloaded and applied as separate states.
 `update_downloaded` only proves that the package is cached. Installation success
 requires `update_apply_started`, a post-restart running-version switch to the

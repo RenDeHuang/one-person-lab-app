@@ -217,14 +217,57 @@ Every desktop release run also uploads `release-actions-timing-<version>`. Use
 that artifact to inspect workflow wall time, failed/canceled run tax, slow jobs,
 and slow steps before opening raw job logs.
 
+## Release Efficiency Target Architecture
+
+The target release shape is `build-once/promote-many`: a frozen App/Shell/Framework
+cohort produces standard, Full, VM, remote-verification, readiness, and candidate
+record artifacts once. Retry work reuses that same cohort and the same produced
+artifacts unless the failed gate proves the artifact itself is invalid or a
+release owner deliberately freezes a new cohort.
+
+The release cohort manifest is the retry entrypoint. It records the version,
+release mode, pinned App/Shell/Framework SHAs, Full intent, VM intent, release
+artifact refs, remote verification refs, candidate-record refs, owner refs, and
+gate reuse decisions. Operators should restart from the manifest instead of
+hand-filling workflow inputs or rerunning the full train after a late gate
+failure.
+
+Critical-path targets:
+
+| Path | Target wall time | Owner action when exceeded |
+| --- | --- | --- |
+| Stable standard candidate | 10-20 minutes | Inspect `release-actions-timing-<version>` and the operator status for slow gates before rerunning. |
+| Stable with Full package | 35-50 minutes | Check Full bundle reuse, Full diagnostics, and VM runner capacity before rerunning the Full build. |
+| Same-cohort gate retry | 3-15 minutes | Use the cohort manifest to rerun only the failed gate or diagnostic path. |
+| Promote after owner receipt | Under 5 minutes | Promote from a ready candidate record; do not rerun desktop release to carry owner metadata. |
+
+The RCA boundary is mostly process design, not isolated code failure: treat
+roughly 70% of release delay as workflow shape, evidence routing, and retry
+design, and roughly 30% as implementation bugs. The first repair target is
+therefore shortening the critical path and making retry state explicit before
+adding more scripts.
+
+Full runtime bundle assembly is outside the App release critical path. OPL
+Framework owns preheating/materializing the runtime bundle, lock, env contract,
+and readback; the App Full release consumes the bundle manifest and packages
+required offline payloads. A cache hit, manifest, or lock is reuse evidence
+only, not runtime truth or release readiness.
+
+VM smoke is artifact qualification. It qualifies the exact DMG/cask artifact
+for the same cohort and must not be used as a place to rebuild, mutate source,
+or generate missing release material. If VM smoke fails after artifact creation,
+rerun the VM diagnostic or same-cohort gate from the manifest; dispatch a new
+cohort only when the artifact, source gate, or pinned refs are invalid.
+
 ## Release Notes Runbook
 
 Public release notes are user communication, not the release audit ledger.
 Release scripts generate the evidence packet first: channel, version, compared
 release, user-facing change groups, OPL-family refs, Full payload versions,
-asset/readback facts, and technical provenance. The default public body is then
-AI-written from that evidence so the front matter explains what changed for
-users, why the upgrade matters, and what action they should take.
+asset/readback facts, and technical provenance. Public copy must be prepared
+before the release train enters the expensive build/VM/publish path. Release
+publish and promote jobs consume the prepared body and evidence refs; they do
+not call online AI to write public notes on the critical path.
 
 Stable notes target ordinary App users and release operators deciding whether
 to install, upgrade, promote, or troubleshoot the current Stable package. Lead
@@ -257,25 +300,25 @@ the candidate record, CI summaries, or closeout artifacts. The public download
 list must stay focused on install/update/checksum entrypoints; release-note
 evidence JSON is operator evidence, not a user download.
 
-AI public-copy generation is the release publishing path. Template output is
-allowed only for explicit dry-runs and diagnostic previews. Stable and Nightly
-publishing must fail closed when the online AI route is unavailable; do not
-silently publish template copy as polished public release notes.
+AI assistance is a pre-release drafting tool only. It may produce a candidate
+body before dispatch, but the release cohort must carry the final prepared notes
+or fail before expensive gates start. Template output is allowed only for
+explicit dry-runs and diagnostic previews. Stable and Nightly publishing must
+not silently generate or replace public release notes during publish/promote.
 
-Release workflows use `OPL_RELEASE_NOTES_PROVIDER=openai_compatible`: the
-maintained online path is an operator-configured OpenAI-compatible endpoint.
-There is no GitHub Models fallback and no automatic template fallback in release
-publishing. GitHub announced that
+The historical online writer uses `OPL_RELEASE_NOTES_PROVIDER=openai_compatible`:
+the maintained online path is an operator-configured OpenAI-compatible endpoint.
+There is no GitHub Models fallback and no automatic template fallback for
+prepared release notes. GitHub announced that
 [GitHub Models is being fully retired on July 30, 2026](https://github.blog/changelog/2026-07-01-github-models-is-being-fully-retired-on-july-30-2026/),
-so do not route release notes through free GitHub Models. The evidence sent to
-the model is compacted before the request so token limits do not turn release
-notes into a large-prompt failure. Each online model request has a bounded timeout
-(`OPL_RELEASE_NOTES_AI_TIMEOUT_SECONDS`, default 75 seconds), so a slow provider
-falls through instead of hanging the release job.
+so do not route release notes through free GitHub Models. When AI drafting is
+run before dispatch, the evidence sent to the model is compacted before the
+request and each online model request has a bounded timeout
+(`OPL_RELEASE_NOTES_AI_TIMEOUT_SECONDS`, default 75 seconds).
 
-Release workflows probe the online provider before publishing and fail closed
-when the endpoint or secret is missing or unusable. Configure one of these
-secret-safe GitHub Actions routes:
+Pre-release drafting probes the online provider before accepting AI-assisted
+copy and fails closed when the endpoint or secret is missing or unusable.
+Configure one of these secret-safe GitHub Actions routes:
 
 ```bash
 # Preferred explicit route.
