@@ -419,9 +419,6 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   if (!pages.guid_home.must_show?.includes('selected assistant shown as a compact @ purpose tag')) {
     throw new Error('App GUI home must show selected assistant as a compact @ purpose tag');
   }
-  if (!pages.ordinary_conversation.must_show?.includes('head-down quick action when head-down mode is enabled')) {
-    throw new Error('App GUI ordinary conversation must expose the head-down quick action when head-down mode is enabled');
-  }
   if (pages.guid_home.model_status?.display_value !== 'GPT-5.5') {
     throw new Error('App GUI home model selector must keep the friendly default model without repeating reasoning');
   }

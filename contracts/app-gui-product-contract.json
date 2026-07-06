@@ -1211,17 +1211,51 @@
     "language_policy": "follow_ui_locale_zh_only_when_ui_zh",
     "user_agents_mutation_allowed": false,
     "conflict_detection_required": true,
+    "ponytail_mode_routing": {
+      "default_mode": "lite",
+      "development_task_mode": "full",
+      "deletion_slimming_mode": "ultra",
+      "development_task_triggers": [
+        "feature_implementation",
+        "bug_fix",
+        "refactor",
+        "config_change",
+        "script_change",
+        "test_change",
+        "pr_or_diff_review",
+        "worktree_lane_absorption"
+      ],
+      "deletion_slimming_triggers": [
+        "delete",
+        "slimming",
+        "over_engineering_audit",
+        "remove_wrapper",
+        "historical_residue_cleanup",
+        "yagni_audit",
+        "ponytail-audit"
+      ],
+      "ultra_execution_policy": "candidate_list_and_risk_order_first_execute_only_when_explicit",
+      "non_override_guards": [
+        "risk-based-development-flow",
+        "codex-ops-kit",
+        "debugger",
+        "verifier",
+        "fresh evidence",
+        "owner route",
+        "completion audit",
+        "runtime/readiness/currentness evidence"
+      ]
+    },
     "optional_user_modes": {
-      "head_down": {
-        "id": "head_down",
-        "settings_key": "codex.oplFlowHeadDownMode",
-        "label_key": "settings.oplFlowHeadDownMode",
-        "description_key": "settings.oplFlowHeadDownModeDesc",
-        "prompt_line": "DO NOT send optional commentary",
-        "quick_action_label_key": "conversation.headDownQuickAction",
-        "quick_action_prompt": "Spend time on thinking; you do not need to use the commentary channel to report progress to me.",
-        "quick_action_policy": "send_as_current_conversation_user_message_when_mode_enabled",
-        "injection_policy": "prepend_before_opl_flow_context"
+      "intelligence_enhancement": {
+        "id": "intelligence_enhancement",
+        "settings_key": "codex.oplFlowIntelligenceEnhancementMode",
+        "label_key": "settings.oplFlowIntelligenceEnhancementMode",
+        "description_key": "settings.oplFlowIntelligenceEnhancementModeDesc",
+        "provider": "codexcont",
+        "local_proxy_base_url": "http://127.0.0.1:8787/v1",
+        "upstream_policy": "preserve_current_codex_provider_via_local_responses_proxy",
+        "behavior_policy": "local_proxy_reasoning_continuation_no_prompt_injection_no_quick_action"
       }
     }
   },
@@ -2862,8 +2896,7 @@
         "pinned composer",
         "compact purpose tag",
         "assistant route receipt",
-        "Codex default model and reasoning status",
-        "head-down quick action when head-down mode is enabled"
+        "Codex default model and reasoning status"
       ],
       "must_not_show": [
         "backend selector as normal conversation control",

@@ -402,21 +402,19 @@ function assertCodexOplFlowContext(profile: AppProductProfile): void {
   ) {
     throw new Error('App product profile must declare localized OPL Flow session context');
   }
-  const headDownMode = profile.codex.opl_flow_context.optional_user_modes?.head_down;
+  const intelligenceEnhancementMode = profile.codex.opl_flow_context.optional_user_modes?.intelligence_enhancement;
   if (
-    !headDownMode ||
-    headDownMode.id !== 'head_down' ||
-    headDownMode.settings_key !== 'codex.oplFlowHeadDownMode' ||
-    headDownMode.label_key !== 'settings.oplFlowHeadDownMode' ||
-    headDownMode.description_key !== 'settings.oplFlowHeadDownModeDesc' ||
-    headDownMode.prompt_line !== 'DO NOT send optional commentary' ||
-    headDownMode.quick_action_label_key !== 'conversation.headDownQuickAction' ||
-    headDownMode.quick_action_prompt !==
-      'Spend time on thinking; you do not need to use the commentary channel to report progress to me.' ||
-    headDownMode.quick_action_policy !== 'send_as_current_conversation_user_message_when_mode_enabled' ||
-    headDownMode.injection_policy !== 'prepend_before_opl_flow_context'
+    !intelligenceEnhancementMode ||
+    intelligenceEnhancementMode.id !== 'intelligence_enhancement' ||
+    intelligenceEnhancementMode.settings_key !== 'codex.oplFlowIntelligenceEnhancementMode' ||
+    intelligenceEnhancementMode.label_key !== 'settings.oplFlowIntelligenceEnhancementMode' ||
+    intelligenceEnhancementMode.description_key !== 'settings.oplFlowIntelligenceEnhancementModeDesc' ||
+    intelligenceEnhancementMode.provider !== 'codexcont' ||
+    intelligenceEnhancementMode.local_proxy_base_url !== 'http://127.0.0.1:8787/v1' ||
+    intelligenceEnhancementMode.upstream_policy !== 'preserve_current_codex_provider_via_local_responses_proxy' ||
+    intelligenceEnhancementMode.behavior_policy !== 'local_proxy_reasoning_continuation_no_prompt_injection_no_quick_action'
   ) {
-    throw new Error('App product profile must declare OPL Flow head_down prompt mode');
+    throw new Error('App product profile must declare OPL Flow intelligence enhancement mode');
   }
 }
 

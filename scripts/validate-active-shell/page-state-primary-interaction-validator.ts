@@ -277,7 +277,6 @@ function validateOrdinaryConversationPage(matrix) {
     'compact purpose tag',
     'assistant route receipt',
     'Codex default model and reasoning status',
-    'head-down quick action when head-down mode is enabled',
   ], 'Ordinary conversation page visible signals');
   assertIncludesAll(ordinaryConversationPage.must_not_show, [
     'backend selector as normal conversation control',

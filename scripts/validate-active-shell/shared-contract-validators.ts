@@ -1618,19 +1618,67 @@ export function validateOplFlowContext(context, label) {
       throw new Error(`${label}.${field} must be ${expected}`);
     }
   }
-  const headDownMode = context.optional_user_modes?.head_down;
+  const ponytailRouting = context.ponytail_mode_routing;
   if (
-    headDownMode?.id !== 'head_down' ||
-    headDownMode.settings_key !== 'codex.oplFlowHeadDownMode' ||
-    headDownMode.label_key !== 'settings.oplFlowHeadDownMode' ||
-    headDownMode.description_key !== 'settings.oplFlowHeadDownModeDesc' ||
-    headDownMode.prompt_line !== 'DO NOT send optional commentary' ||
-    headDownMode.quick_action_label_key !== 'conversation.headDownQuickAction' ||
-    headDownMode.quick_action_prompt !==
-      'Spend time on thinking; you do not need to use the commentary channel to report progress to me.' ||
-    headDownMode.quick_action_policy !== 'send_as_current_conversation_user_message_when_mode_enabled' ||
-    headDownMode.injection_policy !== 'prepend_before_opl_flow_context'
+    ponytailRouting?.default_mode !== 'lite' ||
+    ponytailRouting.development_task_mode !== 'full' ||
+    ponytailRouting.deletion_slimming_mode !== 'ultra' ||
+    ponytailRouting.ultra_execution_policy !== 'candidate_list_and_risk_order_first_execute_only_when_explicit'
   ) {
-    throw new Error(`${label} must declare the OPL Flow head_down optional prompt mode`);
+    throw new Error(`${label} must declare balanced Ponytail lite/full/ultra routing`);
+  }
+  assertIncludesAll(
+    ponytailRouting.development_task_triggers,
+    [
+      'feature_implementation',
+      'bug_fix',
+      'refactor',
+      'config_change',
+      'script_change',
+      'test_change',
+      'pr_or_diff_review',
+      'worktree_lane_absorption',
+    ],
+    `${label}.ponytail_mode_routing.development_task_triggers`,
+  );
+  assertIncludesAll(
+    ponytailRouting.deletion_slimming_triggers,
+    [
+      'delete',
+      'slimming',
+      'over_engineering_audit',
+      'remove_wrapper',
+      'historical_residue_cleanup',
+      'yagni_audit',
+      'ponytail-audit',
+    ],
+    `${label}.ponytail_mode_routing.deletion_slimming_triggers`,
+  );
+  assertIncludesAll(
+    ponytailRouting.non_override_guards,
+    [
+      'risk-based-development-flow',
+      'codex-ops-kit',
+      'debugger',
+      'verifier',
+      'fresh evidence',
+      'owner route',
+      'completion audit',
+      'runtime/readiness/currentness evidence',
+    ],
+    `${label}.ponytail_mode_routing.non_override_guards`,
+  );
+  const intelligenceEnhancementMode = context.optional_user_modes?.intelligence_enhancement;
+  if (
+    intelligenceEnhancementMode?.id !== 'intelligence_enhancement' ||
+    intelligenceEnhancementMode.settings_key !== 'codex.oplFlowIntelligenceEnhancementMode' ||
+    intelligenceEnhancementMode.label_key !== 'settings.oplFlowIntelligenceEnhancementMode' ||
+    intelligenceEnhancementMode.description_key !== 'settings.oplFlowIntelligenceEnhancementModeDesc' ||
+    intelligenceEnhancementMode.provider !== 'codexcont' ||
+    intelligenceEnhancementMode.local_proxy_base_url !== 'http://127.0.0.1:8787/v1' ||
+    intelligenceEnhancementMode.upstream_policy !== 'preserve_current_codex_provider_via_local_responses_proxy' ||
+    intelligenceEnhancementMode.behavior_policy !== 'local_proxy_reasoning_continuation_no_prompt_injection_no_quick_action'
+  ) {
+    throw new Error(`${label} must declare the OPL Flow intelligence enhancement mode`);
   }
 }
