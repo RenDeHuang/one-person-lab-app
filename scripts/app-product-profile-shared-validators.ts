@@ -87,6 +87,7 @@ type ProfessionalAgentPackageLike = {
   default_home_visible?: unknown;
   home_shortcut_ids?: unknown[];
 };
+type OplFlowIntelligenceEnhancementModeLike = Record<string, unknown> | undefined;
 
 function assertExactStringArray(actual: unknown, expected: string[], label: string): void {
   if (JSON.stringify(actual) !== JSON.stringify(expected)) {
@@ -132,6 +133,30 @@ export function assertProfessionalAgentPackagePolicy(
     )) {
       throw new Error(`${label} must keep OMA installed/manageable, hidden by default, and configurable from Home shortcuts`);
     }
+  }
+}
+
+export function assertOplFlowIntelligenceEnhancementMode(
+  mode: OplFlowIntelligenceEnhancementModeLike,
+  label: string,
+): void {
+  if (
+    mode?.id !== 'intelligence_enhancement' ||
+    mode.settings_key !== 'codex.oplFlowIntelligenceEnhancementMode' ||
+    mode.label_key !== 'settings.oplFlowIntelligenceEnhancementMode' ||
+    mode.description_key !== 'settings.oplFlowIntelligenceEnhancementModeDesc' ||
+    mode.provider !== 'codexcont' ||
+    mode.local_proxy_base_url !== 'http://127.0.0.1:8787/v1' ||
+    mode.upstream_policy !== 'preserve_current_codex_provider_via_local_responses_proxy' ||
+    mode.behavior_policy !== 'local_proxy_reasoning_continuation_no_prompt_injection_no_quick_action' ||
+    mode.service_policy !== 'opl_flow_managed_persistent_service_macos_launch_agent_linux_systemd_user_docker_startup_repair' ||
+    mode.status_action_id !== 'intelligence_enhancement_status' ||
+    mode.enable_action_id !== 'intelligence_enhancement_enable' ||
+    mode.disable_action_id !== 'intelligence_enhancement_disable' ||
+    mode.repair_action_id !== 'intelligence_enhancement_repair' ||
+    mode.uninstall_action_id !== 'intelligence_enhancement_uninstall'
+  ) {
+    throw new Error(`${label} must declare the OPL Flow intelligence enhancement mode`);
   }
 }
 

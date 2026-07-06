@@ -6,6 +6,7 @@ import {
   assertAppProductProfileGuiAuthority,
   assertAppProductProfileHomeCodexPolicy,
   assertAppProductProfileRouteReceiptPolicy,
+  assertOplFlowIntelligenceEnhancementMode,
   assertProfessionalAgentPackagePolicy,
   managedShortcutIds,
   managedShortcutPackageIds,
@@ -388,26 +389,10 @@ function assertCodexOplFlowContext(profile: AppProductProfile): void {
   ) {
     throw new Error('App product profile must declare localized OPL Flow session context');
   }
-  const intelligenceEnhancementMode = profile.codex.opl_flow_context.optional_user_modes?.intelligence_enhancement;
-  if (
-    !intelligenceEnhancementMode ||
-    intelligenceEnhancementMode.id !== 'intelligence_enhancement' ||
-    intelligenceEnhancementMode.settings_key !== 'codex.oplFlowIntelligenceEnhancementMode' ||
-    intelligenceEnhancementMode.label_key !== 'settings.oplFlowIntelligenceEnhancementMode' ||
-    intelligenceEnhancementMode.description_key !== 'settings.oplFlowIntelligenceEnhancementModeDesc' ||
-    intelligenceEnhancementMode.provider !== 'codexcont' ||
-    intelligenceEnhancementMode.local_proxy_base_url !== 'http://127.0.0.1:8787/v1' ||
-    intelligenceEnhancementMode.upstream_policy !== 'preserve_current_codex_provider_via_local_responses_proxy' ||
-    intelligenceEnhancementMode.behavior_policy !== 'local_proxy_reasoning_continuation_no_prompt_injection_no_quick_action' ||
-    intelligenceEnhancementMode.service_policy !== 'opl_flow_managed_persistent_service_macos_launch_agent_linux_systemd_user_docker_startup_repair' ||
-    intelligenceEnhancementMode.status_action_id !== 'intelligence_enhancement_status' ||
-    intelligenceEnhancementMode.enable_action_id !== 'intelligence_enhancement_enable' ||
-    intelligenceEnhancementMode.disable_action_id !== 'intelligence_enhancement_disable' ||
-    intelligenceEnhancementMode.repair_action_id !== 'intelligence_enhancement_repair' ||
-    intelligenceEnhancementMode.uninstall_action_id !== 'intelligence_enhancement_uninstall'
-  ) {
-    throw new Error('App product profile must declare OPL Flow intelligence enhancement mode');
-  }
+  assertOplFlowIntelligenceEnhancementMode(
+    profile.codex.opl_flow_context.optional_user_modes?.intelligence_enhancement,
+    'App product profile',
+  );
 }
 
 function assertHomeCodexProfileShape(profile: AppProductProfile): void {
