@@ -337,7 +337,10 @@ validator assertions rather than contract-derived values, because deriving them
 from the Settings contract or its product-profile projection would self-validate
 the same checklist. Domain exposure expectations are derived from the App
 product profile plus Home shortcut projection instead of a hard-coded
-`app-contract-constants.ts` mirror. Settings Capabilities task-awareness ref
+`app-contract-constants.ts` mirror. Page-state Settings page sections and
+must-show/must-not-show expectations derive from
+`contracts/app-gui-product-contract.json#pages.settings_*` instead of a
+hand-written `settingsPageExpectations` mirror. Settings Capabilities task-awareness ref
 fields now share one App-owned validator constant, and the Settings Environment module
 maintenance entry uses the managed-update validator helper instead of repeating
 the same assertion block in GUI and page-state validators. `release-operator.ts`

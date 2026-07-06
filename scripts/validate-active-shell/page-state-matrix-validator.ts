@@ -34,7 +34,7 @@ const expectedFirstRunCoreItems = assertNonEmptyStringArray(
 const expectedFullReadinessItems = (productProfile.first_run?.full_readiness_layers ?? [])
   .filter((item) => item !== 'core');
 
-export function validatePageStateMatrix(matrix, contract) {
+export function validatePageStateMatrix(matrix, contract, guiProductContract) {
   if (isDefaultReleaseAdapter(contract) && (matrix.active_shell !== contract.active_shell || matrix.shell_root !== contract.shell_root)) {
     throw new Error('Page-state matrix must target the active shell contract');
   }
@@ -66,7 +66,7 @@ export function validatePageStateMatrix(matrix, contract) {
   }
 
   validatePrimaryInteractionPages(matrix);
-  validateAppSettingsPages(matrix);
+  validateAppSettingsPages(matrix, guiProductContract);
 
   const firstLaunchPage = (matrix.pages ?? []).find((page) => page.id === 'first_launch_readiness');
   if (!firstLaunchPage) {

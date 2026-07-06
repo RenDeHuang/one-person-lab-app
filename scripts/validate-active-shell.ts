@@ -47,7 +47,7 @@ validateContractShape(contract);
 validateRuntimeBridgeContract(runtimeBridge, contract);
 validateInstallExposurePolicy(installExposurePolicy);
 validateAppGuiProductContract(guiProductContract, releaseChannel, installExposurePolicy);
-validatePageStateMatrix(pageStateMatrix, contract);
+validatePageStateMatrix(pageStateMatrix, contract, guiProductContract);
 validateSettingsControlPlane(settingsControlPlane, guiProductContract, pageStateMatrix, productProfile, contract);
 validateFirstRunMatrix(firstRunMatrix, contract);
 validateProductProfile(productProfile, installExposurePolicy);

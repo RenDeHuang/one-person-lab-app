@@ -7,7 +7,6 @@ import {
   homeActivityCenterForbiddenDisplays,
   legacySettingsRouteRedirects,
   appOwnedSecondarySettingsPages,
-  settingsPageExpectations,
   appOwnedSettingsCardFields,
   appOwnedSettingsConfirmationFields,
   appOwnedSettingsIaGroupIds,
@@ -555,11 +554,10 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
       throw new Error(`App GUI home must not show ${hiddenSignal}`);
     }
   }
-  for (const [pageId, expected] of Object.entries(settingsPageExpectations)) {
-    const page = pages[pageId];
-    assertDeepEqualJson(page.sections, expected.sections, `App GUI ${pageId} sections`);
-    assertIncludesAll(page.must_show, expected.must_show, `App GUI ${pageId} must_show`);
-    assertIncludesAll(page.must_not_show, expected.must_not_show, `App GUI ${pageId} must_not_show`);
+  for (const [pageId, page] of Object.entries(pages).filter(([id]) => id === 'about' || id === 'update' || id.startsWith('settings_'))) {
+    assertNonEmptyStringArray(page.sections, `App GUI ${pageId} sections`);
+    assertNonEmptyStringArray(page.must_show, `App GUI ${pageId} must_show`);
+    assertNonEmptyStringArray(page.must_not_show, `App GUI ${pageId} must_not_show`);
   }
   if (
     pages.settings_capabilities.builtin_skill_catalog_policy?.allowed_set_ref !==

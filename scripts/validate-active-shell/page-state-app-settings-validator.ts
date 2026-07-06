@@ -1,7 +1,6 @@
 import { assertDeepEqualJson, assertIncludesAll } from './assertions.ts';
 import {
   appOwnedTaskAwarenessRefFields,
-  settingsPageExpectations,
 } from './app-contract-constants.ts';
 import {
   validateEnvironmentModuleMaintenanceEntry,
@@ -10,7 +9,16 @@ import {
 } from './managed-update-plane-validator.ts';
 import { validateSettingsControlPlaneBehavior } from './settings-control-plane-validator.ts';
 
-export function validateAppSettingsPages(matrix) {
+const guiSettingsPageToMatrixPage = {
+  settings_general: 'settings_general',
+  settings_access: 'access',
+  settings_capabilities: 'capabilities',
+  settings_environment: 'environment',
+  settings_storage: 'storage',
+  settings_advanced: 'advanced',
+};
+
+export function validateAppSettingsPages(matrix, guiContract) {
   validateSettingsControlPlaneBehavior({ pageStateMatrix: matrix });
 
   const appStatePages = ['settings_general', 'access', 'environment', 'advanced', 'about', 'settings_theme'];
@@ -24,14 +32,18 @@ export function validateAppSettingsPages(matrix) {
     }
   }
 
-  for (const [contractPageId, expected] of Object.entries(settingsPageExpectations)) {
-    const page = pageById(matrix, expected.matrix_id);
-    if (page.page_contract !== contractPageId) {
-      throw new Error(`${expected.matrix_id} page_contract must be ${contractPageId}`);
+  for (const [contractPageId, matrixPageId] of Object.entries(guiSettingsPageToMatrixPage)) {
+    const expected = guiContract?.pages?.[contractPageId];
+    if (!expected) {
+      throw new Error(`App GUI contract is missing ${contractPageId}`);
     }
-    assertDeepEqualJson(page.sections, expected.sections, `${expected.matrix_id} sections`);
-    assertIncludesAll(page.must_show, expected.must_show, `${expected.matrix_id} must_show`);
-    assertIncludesAll(page.must_not_show, expected.must_not_show, `${expected.matrix_id} must_not_show`);
+    const page = pageById(matrix, matrixPageId);
+    if (page.page_contract !== contractPageId) {
+      throw new Error(`${matrixPageId} page_contract must be ${contractPageId}`);
+    }
+    assertDeepEqualJson(page.sections, expected.sections, `${matrixPageId} sections`);
+    assertIncludesAll(page.must_show, expected.must_show, `${matrixPageId} must_show`);
+    assertIncludesAll(page.must_not_show, expected.must_not_show, `${matrixPageId} must_not_show`);
   }
 
   validateCapabilitiesPage(matrix);
