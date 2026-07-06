@@ -4,16 +4,12 @@ import {
   numberField,
   objectField,
   recordOrNull,
+  stringField,
 } from '../release-json-helpers.ts';
 
 type GateFieldsSource = {
   fields?: Record<string, unknown> | null;
 };
-
-export function stringField(record: Record<string, unknown> | null | undefined, key: string) {
-  const value = record?.[key];
-  return typeof value === 'string' ? value : null;
-}
 
 export function summarizeFullSizeBudget(remoteGate: GateFieldsSource) {
   const budget = objectField(remoteGate.fields ?? null, 'full_first_install_budget');

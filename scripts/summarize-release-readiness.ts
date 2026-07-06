@@ -19,6 +19,7 @@ import {
   arrayOrEmpty,
   objectField,
   recordOrNull,
+  stringField,
 } from './release-json-helpers.ts';
 import { writeReleaseReadinessMarkdown } from './release-readiness-markdown.ts';
 import {
@@ -31,7 +32,6 @@ import {
   buildManifestSizeAnalysis,
   buildReadinessBottlenecks,
   buildReadinessOptimizationRecommendations,
-  stringField,
   summarizeFullSizeBudget,
   summarizeRuntimeCacheEvents,
   warningsFromFullSizeBudget,
