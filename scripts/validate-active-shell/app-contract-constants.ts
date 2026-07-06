@@ -310,6 +310,8 @@ export const appOwnedSecondarySettingsPages = [
   "theme",
   "local-services",
 ];
+export const appActionRoute =
+  "opl app action execute --action <action_id> [--payload <json>] [--dry-run] --json";
 export const appOwnedSettingsIaGroupIds = [
   "overview",
   "setup_access",

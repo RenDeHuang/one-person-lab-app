@@ -1,5 +1,6 @@
 import { assertDeepEqualJson, assertForbiddenCapabilityPolicy, assertIncludesAll } from './assertions.ts';
 import {
+  appActionRoute,
   appOwnedDeveloperProfileCapabilityAxes,
   appOwnedSettingsTabs,
   beginnerFirstRunTestIds,
@@ -863,8 +864,7 @@ function validateSettingsIaContract(settingsIa) {
   }
   assertDeepEqualJson(settingsIa.protocols?.issue_queue?.statuses, appOwnedSettingsIssueStatuses, 'App GUI settings issue queue statuses');
   if (
-    settingsIa.protocols?.action_catalog?.action_route !==
-    'opl app action execute --action <action_id> [--payload <json>] [--dry-run] --json'
+    settingsIa.protocols?.action_catalog?.action_route !== appActionRoute
   ) {
     throw new Error('App GUI settings action catalog must use the App action route');
   }
@@ -977,7 +977,7 @@ function validateEnvironmentModuleMaintenanceEntry(entry, label) {
       ],
       repair: 'opl update repair --receipt <receipt_id> --json',
       rollback: 'opl update rollback --component <component_id> --json',
-      app_action_route: 'opl app action execute --action <action_id> [--payload <json>] [--dry-run] --json',
+      app_action_route: appActionRoute,
     },
     `${label} module maintenance action mapping`,
   );
@@ -1015,7 +1015,7 @@ function validateFrameworkModuleMaintenanceEntry(entry) {
       ],
       repair: 'opl update repair --receipt <receipt_id> --json',
       rollback: 'opl update rollback --component <component_id> --json',
-      app_action_route: 'opl app action execute --action <action_id> [--payload <json>] [--dry-run] --json',
+      app_action_route: appActionRoute,
     },
     'App GUI framework module maintenance action mapping',
   );

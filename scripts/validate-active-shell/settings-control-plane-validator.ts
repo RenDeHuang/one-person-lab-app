@@ -1,5 +1,6 @@
 import { assertDeepEqualJson, assertIncludesAll } from './assertions.ts';
 import {
+  appActionRoute,
   appOwnedSecondarySettingsPages,
   appOwnedSettingsCardFields,
   appOwnedSettingsConfirmationFields,
@@ -26,7 +27,6 @@ import { validateSettingsCapabilitiesResourceGrouping } from './shared-contract-
 
 const settingsIaRef = 'contracts/app-gui-product-contract.json#settings_navigation.settings_ia';
 const settingsControlPlaneContractRef = 'contracts/app-settings-control-plane.json';
-const appActionRoute = 'opl app action execute --action <action_id> [--payload <json>] [--dry-run] --json';
 const expectedCapabilitiesStateSource =
   'opl app state --profile fast --json#app_state.agent_packages.directory + app_state.agent_packages.status_index + home_agent_shortcuts + app_state.operator.workbench.task_drilldowns';
 

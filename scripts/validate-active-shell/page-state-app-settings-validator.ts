@@ -1,5 +1,9 @@
 import { assertDeepEqualJson, assertIncludesAll } from './assertions.ts';
-import { appOwnedSettingsRouteScopes, settingsPageExpectations } from './app-contract-constants.ts';
+import {
+  appActionRoute,
+  appOwnedSettingsRouteScopes,
+  settingsPageExpectations,
+} from './app-contract-constants.ts';
 import {
   validateManagedUpdatePageBasics,
   validateManagedUpdatePlaneBinding,
@@ -358,7 +362,7 @@ function validateEnvironmentModuleMaintenanceEntry(entry, label) {
       ],
       repair: 'opl update repair --receipt <receipt_id> --json',
       rollback: 'opl update rollback --component <component_id> --json',
-      app_action_route: 'opl app action execute --action <action_id> [--payload <json>] [--dry-run] --json',
+      app_action_route: appActionRoute,
     },
     `${label} module maintenance action mapping`,
   );
