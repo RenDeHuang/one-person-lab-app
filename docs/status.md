@@ -298,7 +298,11 @@ contract validation derives hidden legacy tabs and Developer Profile axis
 consistency from the GUI contract instead of mirrored constants. Agent package
 and shortcut ids used by the App product profile, active-shell product profile
 validator, and GUI home validator share the existing App product profile helper
-constants instead of maintaining three local copies. `npm run
+constants instead of maintaining three local copies; professional-agent package
+policy validation and the OPL Flow intelligence enhancement mode assertion are
+also shared instead of repeated across product-profile and active-shell
+validators. Release size scripts share byte-size formatting through
+`scripts/release-size-reporting.ts` instead of local `formatBytes` copies. `npm run
 hygiene:fallow -- --format json --summary` is the production hygiene check for
 unused files/exports and duplicate exports. This is code-health and
 validation-structure evidence only; it is not a release-ready, currentness,
