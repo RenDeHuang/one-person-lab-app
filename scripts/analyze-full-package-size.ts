@@ -7,7 +7,7 @@ import {
   FULL_RELEASE_OUTPUT_DIR,
   FULL_RUNTIME_CACHE_LAYER_IDS,
 } from './full-first-install-package.ts';
-import { budgetStatus, percent } from './release-size-reporting.ts';
+import { budgetStatus, formatBytes, percent } from './release-size-reporting.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const defaultManifestPath = path.join(appRoot, FULL_RELEASE_OUTPUT_DIR, 'full-package-manifest.json');
@@ -85,18 +85,6 @@ function sizeBytes(root: string): number {
     }
   }
   return total;
-}
-
-function formatBytes(bytes: number | null | undefined) {
-  if (!Number.isFinite(bytes) || bytes === null || bytes === undefined) return 'n/a';
-  const units = ['B', 'KiB', 'MiB', 'GiB'];
-  let value = bytes;
-  let unitIndex = 0;
-  while (value >= 1024 && unitIndex < units.length - 1) {
-    value /= 1024;
-    unitIndex += 1;
-  }
-  return `${value.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
 }
 
 function compressedFullDmgStatus(args: {

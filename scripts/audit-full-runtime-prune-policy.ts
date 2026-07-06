@@ -12,6 +12,7 @@ import {
 } from './full-first-install-package.ts';
 import { directorySizeBytes } from './build-full-first-install-package/filesystem.ts';
 import { collectRuntimeAssertions } from './build-full-first-install-package/runtime-layers.ts';
+import { formatBytes } from './release-size-reporting.ts';
 
 type OutputMode = 'json' | 'markdown';
 
@@ -239,17 +240,6 @@ function buildAudit(options: ReturnType<typeof parseArgs>) {
     runtime_scan: runtimeScan,
     runtime_scan_diff: diffRuntimeScan(runtimeScan, options.baseline),
   };
-}
-
-function formatBytes(bytes: number) {
-  const units = ['B', 'KiB', 'MiB', 'GiB'];
-  let value = bytes;
-  let unitIndex = 0;
-  while (value >= 1024 && unitIndex < units.length - 1) {
-    value /= 1024;
-    unitIndex += 1;
-  }
-  return `${value.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
 }
 
 function renderMarkdown(audit: ReturnType<typeof buildAudit>) {
