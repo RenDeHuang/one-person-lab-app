@@ -311,7 +311,11 @@ state-surface expectations. Shell replacement gate validation is now shared
 through the App shell adapter helper while preserving the Hermes candidate
 chain as explicit-candidate validation, and Full first-install filesystem
 copying reuses local directory traversal and portable-symlink helpers instead
-of repeating the same recurse-and-copy blocks. `npm run hygiene:fallow -- --format json --summary`
+of repeating the same recurse-and-copy blocks. Full first-install hashing now
+uses one private tree-fingerprint walker for runtime and production
+node_modules fingerprints, and first-run matrix validation derives host-tool
+and deferred-maintenance expectations from the App product profile instead of
+duplicating those arrays in contract constants. `npm run hygiene:fallow -- --format json --summary`
 is the production hygiene check for unused files/exports and duplicate exports.
 This is code-health and validation-structure evidence only; it is not a
 release-ready, currentness, packaged-App, clean-VM, owner-acceptance, or Live
