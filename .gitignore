@@ -190,6 +190,8 @@ desdoc/
 
 # E2E test artifacts (Playwright)
 .playwright-mcp/
+.codex-artifacts/
+output/playwright/
 artifacts/
 tests/e2e/screenshots/
 tests/e2e/results/
