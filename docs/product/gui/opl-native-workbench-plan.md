@@ -95,9 +95,8 @@ mockup as a design anchor for the light chat-first shell, with Codex App,
 K-Dense, and Open Science treated as hierarchy and layout references only.
 The current candidate renderer now targets one clearer information
 architecture: left sidebar for project/material/history, center chat-first
-conversation canvas, right contextual tabs for sources/preview/trace/workflows/
-runtime/settings, and Settings as an explicit route rather than a composer-side
-overflow surface.
+conversation canvas, right contextual tabs with Preview open by default, and
+Settings as an explicit route rather than a composer-side overflow surface.
 The current landing target also converges packaged macOS candidate, WebUI, and
 source around one renderer entry and one bridge/event shape. That is a
 candidate-structure claim only; it still does not imply same-cohort visual

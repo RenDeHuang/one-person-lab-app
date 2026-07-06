@@ -132,11 +132,7 @@
         "deep_initialize_trigger": "explicit_user_configuration_or_diagnostics_only",
         "deep_initialize_stream": "opl system initialize --events --json",
         "blocking_policy": "ordinary_startup_is_non_blocking_unless_core_prerequisites_fail",
-        "core_prerequisites": [
-          "workspace_root",
-          "codex_cli",
-          "codex_config"
-        ],
+        "core_prerequisites": ["workspace_root", "codex_cli", "codex_config"],
         "full_readiness_blocks_launch": false,
         "renderer_role": "render_fast_state_and_event_stream_progress_without_private_truth",
         "must_not_do": [
@@ -360,11 +356,7 @@
         "right_context_inspector.actions",
         "ordinary_conversation.current_task_slice"
       ],
-      "action_kinds": [
-        "review",
-        "request_change",
-        "follow_up_prompt"
-      ],
+      "action_kinds": ["review", "request_change", "follow_up_prompt"],
       "required_ref_fields": [
         "target_ref",
         "source_ref",
@@ -534,10 +526,7 @@
         "display_policy": "capability_health_connector_workflow_and_export_refs_only_no_skill_body_no_domain_verdict",
         "resource_grouping_policy": {
           "grouping_source": "OPL Connect/Fabric resource refs",
-          "allowed_groups": [
-            "OPL Connect",
-            "Fabric resources"
-          ]
+          "allowed_groups": ["OPL Connect", "Fabric resources"]
         },
         "action_policy": "export_bundle_action_ref_may_open_app_action_dry_run_receipt_only_until_domain_owner_execute_exists",
         "refs_only": true,
@@ -694,9 +683,7 @@
           "open_action",
           "content_policy"
         ],
-        "diagnostics_ref": [
-          "diagnostics_ref"
-        ]
+        "diagnostics_ref": ["diagnostics_ref"]
       },
       "slice_policy": "runtime_global_list_and_detail_conversation_and_inspector_filtered_slices_same_model",
       "domain_authority_policy": "refs_only_no_domain_authority_no_artifact_body_no_domain_verdict"
@@ -861,9 +848,7 @@
         "manual_action_mapping": {
           "check": "opl update check --json",
           "apply_managed_component": "opl update apply --component <component_id> --json",
-          "apply_allowed_components": [
-            "capability_packages"
-          ],
+          "apply_allowed_components": ["capability_packages"],
           "apply_forbidden_components": [
             "installation_carrier",
             "runtime_substrate",
@@ -943,10 +928,7 @@
     "user_model_override_allowed": true,
     "user_reasoning_effort_override_allowed": true,
     "restore_auto_model_selection_allowed": true,
-    "frontier_model_preference_order": [
-      "gpt-5.5",
-      "gpt-5.4"
-    ],
+    "frontier_model_preference_order": ["gpt-5.5", "gpt-5.4"],
     "model_display_options_policy": {
       "source": "contracts/app-product-profile.json#gui.home.codex_model_display_options",
       "display_policy": "friendly_model_name_primary_reasoning_configurable_in_model_menu",
@@ -960,12 +942,7 @@
       "reasoning_effort_options_source": "acp_codex_config_options_enum",
       "auto_option_current_resolution_visible": true,
       "model_menu_policy": "last_submenu_collapsed_by_default",
-      "user_reasoning_effort_options": [
-        "low",
-        "medium",
-        "high",
-        "xhigh"
-      ],
+      "user_reasoning_effort_options": ["low", "medium", "high", "xhigh"],
       "auto_option_label_policy": "auto_recommended_with_current_model_reasoning_and_latest_strongest_description",
       "fixed_option_label_policy": "friendly_model_name_plus_reasoning_with_fixed_model_description",
       "visible_models_must_match_frontier_preference_order": true,
@@ -979,12 +956,7 @@
     "composer_position": "pinned_bottom",
     "composer_primary": true,
     "workspace_selector_visible": true,
-    "purpose_entries_visible": [
-      "research",
-      "grant",
-      "ppt",
-      "book"
-    ],
+    "purpose_entries_visible": ["research", "grant", "ppt", "book"],
     "workspace_session_rail_default_state": "collapsed",
     "right_context_inspector_default_state": "collapsed",
     "must_not_show": [
@@ -1126,13 +1098,7 @@
     "current_task_evidence": {
       "source": "contracts/app-runtime-bridge.json#current_task_slice_projection",
       "state_source": "opl app state --profile fast --json",
-      "tabs": [
-        "files",
-        "artifacts",
-        "review",
-        "actions",
-        "runtime"
-      ],
+      "tabs": ["files", "artifacts", "review", "actions", "runtime"],
       "fields": [
         "artifact_or_blocker",
         "review_receipt",
@@ -1216,12 +1182,7 @@
   },
   "agent_package_invocation_receipt_policy": {
     "scope": "package_shortcut_launch_to_codex_conversation",
-    "required_for_package_shortcuts": [
-      "research",
-      "grant",
-      "ppt",
-      "book"
-    ],
+    "required_for_package_shortcuts": ["research", "grant", "ppt", "book"],
     "route_kind": "agent_package_shortcut",
     "executor": "codex_cli",
     "source": "opl_app_home",
@@ -1290,16 +1251,9 @@
     ],
     "conversation_snapshot_policy": "scrub_disabled_team_mcp_and_team_metadata_before_rendering_or_inheriting_ordinary_conversations",
     "forbidden_mcp_matchers": {
-      "exact": [
-        "aionui-team"
-      ],
-      "prefixes": [
-        "team_",
-        "mcp__aionui-team"
-      ],
-      "contains": [
-        "aionui-team"
-      ]
+      "exact": ["aionui-team"],
+      "prefixes": ["team_", "mcp__aionui-team"],
+      "contains": ["aionui-team"]
     },
     "scrub_extra_keys": [
       "team_mcp_stdio_config",
@@ -1412,9 +1366,7 @@
       "primary_label": "科研",
       "package_short_name": "MAS",
       "codex_visible_entry": "med-autoscience",
-      "required_skill_ids": [
-        "med-autoscience"
-      ],
+      "required_skill_ids": ["med-autoscience"],
       "source": "opl_app_home",
       "executor": "codex_cli",
       "display_policy": "purpose_first",
@@ -1428,9 +1380,7 @@
       "primary_label": "基金",
       "package_short_name": "MAG",
       "codex_visible_entry": "med-autogrant",
-      "required_skill_ids": [
-        "med-autogrant"
-      ],
+      "required_skill_ids": ["med-autogrant"],
       "source": "opl_app_home",
       "executor": "codex_cli",
       "display_policy": "purpose_first",
@@ -1444,9 +1394,7 @@
       "primary_label": "演示",
       "package_short_name": "RCA",
       "codex_visible_entry": "redcube-ai",
-      "required_skill_ids": [
-        "redcube-ai"
-      ],
+      "required_skill_ids": ["redcube-ai"],
       "source": "opl_app_home",
       "executor": "codex_cli",
       "display_policy": "purpose_first",
@@ -1460,9 +1408,7 @@
       "primary_label": "写书",
       "package_short_name": "OBF",
       "codex_visible_entry": "opl-bookforge",
-      "required_skill_ids": [
-        "opl-bookforge"
-      ],
+      "required_skill_ids": ["opl-bookforge"],
       "source": "opl_app_home",
       "executor": "codex_cli",
       "display_policy": "purpose_first",
@@ -1481,12 +1427,8 @@
       "installed_manageable": true,
       "default_home_visible": true,
       "codex_visible_entry": "med-autoscience",
-      "home_shortcut_ids": [
-        "research"
-      ],
-      "required_skill_ids": [
-        "med-autoscience"
-      ],
+      "home_shortcut_ids": ["research"],
+      "required_skill_ids": ["med-autoscience"],
       "optional_skill_ids": [
         "mineru-document-extractor",
         "officecli-docx",
@@ -1505,12 +1447,8 @@
       "installed_manageable": true,
       "default_home_visible": true,
       "codex_visible_entry": "med-autogrant",
-      "home_shortcut_ids": [
-        "grant"
-      ],
-      "required_skill_ids": [
-        "med-autogrant"
-      ],
+      "home_shortcut_ids": ["grant"],
+      "required_skill_ids": ["med-autogrant"],
       "optional_skill_ids": [
         "officecli-docx",
         "officecli-xlsx",
@@ -1529,16 +1467,9 @@
       "installed_manageable": true,
       "default_home_visible": true,
       "codex_visible_entry": "redcube-ai",
-      "home_shortcut_ids": [
-        "ppt"
-      ],
-      "required_skill_ids": [
-        "redcube-ai"
-      ],
-      "optional_skill_ids": [
-        "officecli-pptx",
-        "ui-ux-pro-max"
-      ],
+      "home_shortcut_ids": ["ppt"],
+      "required_skill_ids": ["redcube-ai"],
+      "optional_skill_ids": ["officecli-pptx", "ui-ux-pro-max"],
       "required_skill_policy": "checked_locked",
       "optional_skill_policy": "unchecked_user_selectable",
       "skill_menu_policy": "assistant_scoped_required_checked_optional_visible"
@@ -1552,12 +1483,8 @@
       "installed_manageable": true,
       "default_home_visible": true,
       "codex_visible_entry": "opl-bookforge",
-      "home_shortcut_ids": [
-        "book"
-      ],
-      "required_skill_ids": [
-        "opl-bookforge"
-      ],
+      "home_shortcut_ids": ["book"],
+      "required_skill_ids": ["opl-bookforge"],
       "optional_skill_ids": [
         "officecli-docx",
         "pdf",
@@ -1577,9 +1504,7 @@
       "default_home_visible": false,
       "codex_visible_entry": "opl-meta-agent",
       "home_shortcut_ids": [],
-      "required_skill_ids": [
-        "opl-meta-agent"
-      ],
+      "required_skill_ids": ["opl-meta-agent"],
       "optional_skill_ids": [],
       "required_skill_policy": "checked_locked",
       "optional_skill_policy": "unchecked_user_selectable",
@@ -1627,9 +1552,7 @@
   "assistant_skill_profiles": [
     {
       "assistant_id": "med-autoscience",
-      "required_skills": [
-        "med-autoscience"
-      ],
+      "required_skills": ["med-autoscience"],
       "optional_skills": [
         "mineru-document-extractor",
         "officecli-docx",
@@ -1641,9 +1564,7 @@
     },
     {
       "assistant_id": "med-autogrant",
-      "required_skills": [
-        "med-autogrant"
-      ],
+      "required_skills": ["med-autogrant"],
       "optional_skills": [
         "officecli-docx",
         "officecli-xlsx",
@@ -1655,27 +1576,16 @@
     },
     {
       "assistant_id": "redcube-ai",
-      "required_skills": [
-        "redcube-ai"
-      ],
-      "optional_skills": [
-        "officecli-pptx",
-        "ui-ux-pro-max"
-      ],
+      "required_skills": ["redcube-ai"],
+      "optional_skills": ["officecli-pptx", "ui-ux-pro-max"],
       "required_skill_policy": "checked_locked",
       "optional_skill_policy": "unchecked_user_selectable",
       "skill_menu_policy": "assistant_scoped_required_checked_optional_visible"
     },
     {
       "assistant_id": "opl-bookforge",
-      "required_skills": [
-        "opl-bookforge"
-      ],
-      "optional_skills": [
-        "officecli-docx",
-        "pdf",
-        "mineru-document-extractor"
-      ],
+      "required_skills": ["opl-bookforge"],
+      "optional_skills": ["officecli-docx", "pdf", "mineru-document-extractor"],
       "required_skill_policy": "checked_locked",
       "optional_skill_policy": "unchecked_user_selectable",
       "skill_menu_policy": "assistant_scoped_required_checked_optional_visible"
@@ -1693,10 +1603,7 @@
   ],
   "theme_and_branding": {
     "default_theme_id": "default-theme",
-    "allowed_theme_ids": [
-      "default-theme",
-      "codex"
-    ],
+    "allowed_theme_ids": ["default-theme", "codex"],
     "default_visible_product_name": "One Person Lab App",
     "legacy_upstream_branding_forbidden": true,
     "visible_branding_surfaces": [
@@ -1713,11 +1620,7 @@
       "development_app_name",
       "logs_and_userdata_display_names"
     ],
-    "forbidden_visible_terms": [
-      "AionUI",
-      "Aion UI",
-      "AionUi"
-    ]
+    "forbidden_visible_terms": ["AionUI", "Aion UI", "AionUi"]
   },
   "settings_navigation": {
     "ordinary_visible_tabs": [
@@ -1842,18 +1745,13 @@
           "group_id": "overview",
           "route_id": "general",
           "priority": "p0",
-          "secondary_route_ids": [
-            "workspace"
-          ]
+          "secondary_route_ids": ["workspace"]
         },
         {
           "id": "maintenance_hub",
           "group_id": "maintenance",
           "route_id": "environment",
-          "secondary_route_ids": [
-            "local-services",
-            "update"
-          ],
+          "secondary_route_ids": ["local-services", "update"],
           "priority": "p0"
         },
         {
@@ -2094,10 +1992,7 @@
         "label_zh": "总览",
         "label_en": "Overview",
         "role": "control_center_summary",
-        "ordinary_entries": [
-          "settings_general",
-          "workspace"
-        ],
+        "ordinary_entries": ["settings_general", "workspace"],
         "required_prominence": "workspace_is_independent_ordinary_entry"
       },
       {
@@ -2105,24 +2000,15 @@
         "label_zh": "访问方式",
         "label_en": "Access",
         "role": "first_use_and_access_setup",
-        "ordinary_entries": [
-          "settings_access",
-          "first_run_setup_center"
-        ],
-        "primary_tasks": [
-          "workspace_root",
-          "codex_cli",
-          "codex_config"
-        ]
+        "ordinary_entries": ["settings_access", "first_run_setup_center"],
+        "primary_tasks": ["workspace_root", "codex_cli", "codex_config"]
       },
       {
         "id": "capabilities",
         "label_zh": "能力",
         "label_en": "Capabilities",
         "role": "installed_package_directory_and_home_shortcut_management",
-        "ordinary_entries": [
-          "settings_capabilities"
-        ]
+        "ordinary_entries": ["settings_capabilities"]
       },
       {
         "id": "maintenance",
@@ -2147,9 +2033,7 @@
         "label_zh": "数据与存储",
         "label_en": "Data & Storage",
         "role": "safe_local_data_lifecycle_inventory_and_cleanup",
-        "ordinary_entries": [
-          "settings_storage"
-        ],
+        "ordinary_entries": ["settings_storage"],
         "owns": [
           "storage_inventory",
           "conversation_archives",
@@ -2176,10 +2060,7 @@
         "label_zh": "高级",
         "label_en": "Advanced",
         "role": "developer_controls_version_links_and_collapsed_raw_diagnostics",
-        "ordinary_entries": [
-          "settings_advanced",
-          "about"
-        ],
+        "ordinary_entries": ["settings_advanced", "about"],
         "diagnostics_default_state": "collapsed"
       }
     ],
@@ -2240,11 +2121,7 @@
   "first_launch_readiness_policy": {
     "launch_gate": "ready_to_launch",
     "ui_order": "before_guid",
-    "core_required_items": [
-      "workspace_root",
-      "codex_cli",
-      "codex_config"
-    ],
+    "core_required_items": ["workspace_root", "codex_cli", "codex_config"],
     "full_readiness_items": [
       "domain_modules",
       "family_runtime_provider",
@@ -2307,11 +2184,7 @@
       "audience": "beginner_non_technical_users",
       "presentation_mode": "simplified_first_run",
       "primary_user_goal": "reach_guid_with_codex_ready",
-      "primary_steps": [
-        "workspace_root",
-        "codex_cli",
-        "codex_config"
-      ],
+      "primary_steps": ["workspace_root", "codex_cli", "codex_config"],
       "primary_progress_signal": "Core completed and total count",
       "advanced_progress_disclosure": "collapsed_or_secondary",
       "background_maintenance_presentation": "collapsed_technical_non_blocking",
@@ -2377,11 +2250,7 @@
       "deep_initialize_trigger": "explicit_user_configuration_or_diagnostics_only",
       "deep_initialize_event_stream": "opl system initialize --events --json",
       "blocking_only_when_core_prerequisites_fail": true,
-      "core_prerequisites": [
-        "workspace_root",
-        "codex_cli",
-        "codex_config"
-      ],
+      "core_prerequisites": ["workspace_root", "codex_cli", "codex_config"],
       "full_readiness_blocks_launch": false,
       "background_after_core_ready": [
         "domain_modules",
@@ -2432,10 +2301,7 @@
   },
   "developer_profile": {
     "source": "app_state.developer_profile + app_state.modules[].source_policy",
-    "settings_pages": [
-      "settings_environment",
-      "settings_advanced"
-    ],
+    "settings_pages": ["settings_environment", "settings_advanced"],
     "default_profile": "standard_user",
     "opt_in_policy": "explicit_opt_in_only",
     "ordinary_user_defaults": {
@@ -2503,9 +2369,7 @@
         "docker_webui_smoke",
         "webui_ghcr_publish"
       ],
-      "diagnostic_gate": [
-        "operator_evidence_bundle"
-      ],
+      "diagnostic_gate": ["operator_evidence_bundle"],
       "latest_policy": "stable_release_may_be_marked_latest_after_required_lanes_pass"
     },
     "nightly": {
@@ -2681,10 +2545,7 @@
     "about": {
       "state_source": "opl app state --profile fast --json",
       "refresh_source": "opl app state --profile fast --json",
-      "sections": [
-        "release",
-        "links"
-      ],
+      "sections": ["release", "links"],
       "must_show": [
         "One Person Lab App version",
         "GUI shell version",
@@ -2842,9 +2703,7 @@
     "settings_theme": {
       "state_source": "opl app state --profile fast --json",
       "refresh_source": "opl app state --profile fast --json",
-      "sections": [
-        "theme"
-      ],
+      "sections": ["theme"],
       "must_show": [
         "Default theme option",
         "Codex theme option",
@@ -3015,9 +2874,7 @@
             "diagnostic_substrate_refs",
             "gateway_status_ref"
           ],
-          "optional_ref_fields": [
-            "capability_health_refs"
-          ],
+          "optional_ref_fields": ["capability_health_refs"],
           "telemetry_missing_copy": "module status unavailable"
         },
         "mas_runtime_acceptance_display_policy": "show MAS owner consumption fields as user-facing acceptance/currentness status, e.g. 'MAS accepted this runtime result' and 'accepted result matches latest runtime closeout'; keep raw refs and stage attempt ids secondary as evidence, not the primary wording",
@@ -3050,11 +2907,7 @@
           "project",
           "task"
         ],
-        "scope_source_values": [
-          "default_global",
-          "user_selected",
-          "inferred"
-        ]
+        "scope_source_values": ["default_global", "user_selected", "inferred"]
       },
       "diagnostics_policy": {
         "default_visibility": "secondary_disclosure",
@@ -3378,11 +3231,7 @@
           "right_context_inspector.actions",
           "ordinary_conversation.current_task_slice"
         ],
-        "action_kinds": [
-          "review",
-          "request_change",
-          "follow_up_prompt"
-        ],
+        "action_kinds": ["review", "request_change", "follow_up_prompt"],
         "required_ref_fields": [
           "target_ref",
           "source_ref",
@@ -3478,11 +3327,7 @@
         "display_name": "Remote access and advanced deployment",
         "source": "opl app state --profile fast --json optional cloud_fabric refs",
         "gateway_entry": "OPL Gateway",
-        "deployment_surfaces": [
-          "OPL App",
-          "Docker WebUI",
-          "OPL Workspace"
-        ],
+        "deployment_surfaces": ["OPL App", "Docker WebUI", "OPL Workspace"],
         "fabric_resource_sources": [
           "local_app",
           "docker_webui",
@@ -3510,10 +3355,7 @@
         },
         "console_management": {
           "source": "app_state.settings_control_center.app_settings_read_model.resource_sources.*",
-          "management_modes": [
-            "self_managed",
-            "console_managed"
-          ],
+          "management_modes": ["self_managed", "console_managed"],
           "managed_ref_fields": [
             "console_policy_ref",
             "quota_ref",
@@ -3869,9 +3711,7 @@
           "refresh": "opl update status --json",
           "check": "opl update check --json",
           "apply_managed_component": "opl update apply --component <component_id> --json",
-          "apply_allowed_components": [
-            "capability_packages"
-          ],
+          "apply_allowed_components": ["capability_packages"],
           "apply_forbidden_components": [
             "installation_carrier",
             "runtime_substrate",

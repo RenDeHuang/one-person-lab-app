@@ -61,15 +61,15 @@ diagnostics remain behind disclosure controls or Advanced pages.
 
 The target navigation groups are:
 
-| Group | Pages | Primary user question |
-| --- | --- | --- |
-| Overview | Overview | Is the App usable now, and what should I do next? |
-| Access | OPL Gateway, Codex CLI, Web/remote access | How do I connect the App and its remote entry points? |
-| Capabilities | Capabilities | What can OPL help me do? |
-| Maintenance & Updates | Updates & Maintenance, Local Services | How do I keep the App foundation healthy and updated? |
-| Data & Storage | Storage & Data | How do I safely manage local App data? |
-| Preferences | Appearance, Language & Notifications | How should the App behave and look for me? |
-| Advanced | Developer & Diagnostics, About | Where are technical details, raw references, versions, and links? |
+| Group                 | Pages                                     | Primary user question                                             |
+| --------------------- | ----------------------------------------- | ----------------------------------------------------------------- |
+| Overview              | Overview                                  | Is the App usable now, and what should I do next?                 |
+| Access                | OPL Gateway, Codex CLI, Web/remote access | How do I connect the App and its remote entry points?             |
+| Capabilities          | Capabilities                              | What can OPL help me do?                                          |
+| Maintenance & Updates | Updates & Maintenance, Local Services     | How do I keep the App foundation healthy and updated?             |
+| Data & Storage        | Storage & Data                            | How do I safely manage local App data?                            |
+| Preferences           | Appearance, Language & Notifications      | How should the App behave and look for me?                        |
+| Advanced              | Developer & Diagnostics, About            | Where are technical details, raw references, versions, and links? |
 
 Legacy routes such as `runtime`, `model`, `agent`, `assistants`, `skills-hub`,
 `tools`, `display`, `webui`, `pet`, and `system` remain compatibility redirects.
@@ -103,7 +103,7 @@ ad hoc cards:
   and `dismissed`.
 - Actions come from `app_state.actions` and mutate only through
   `opl app action execute --action <action_id> [--payload <json>] [--dry-run]
-  --json`.
+--json`.
 - The Maintenance hub may expose one primary "Make OPL usable" action. It is a
   shell-orchestrated composite over existing repair prep and managed update
   actions: it may check status, repair components with explicit repair receipts,
@@ -312,8 +312,8 @@ generic repair badge. `git_checkout`, `configured_by: developer_mode`,
 whether a package is developer-owned, drifted, stale, or merely waiting for a
 safe update. OBF/OMA-style `ready + update` must stay distinct from
 dirty/developer-source packages. Skills, external tools, MCP, voice, and custom
-assistants are supporting sections below the package directory, not a second
-primary list.
+assistants are collapsed supporting sections below the package directory, not a
+second primary list or a default long catalog.
 
 Settings must not introduce a strong Session Contract. Shortcut/profile
 metadata may describe label, package id, required skill ids, optional companion
@@ -530,17 +530,17 @@ Completion audits for Settings Control Center work use
 machine-readable checklist. The checklist tracks product-system outcomes rather
 than only page names:
 
-| Track | Checklist items |
-| --- | --- |
-| Product positioning | Control Center positioning |
-| IA and routes | Seven-entry IA, secondary route strategy, Settings search |
-| Control plane | Single control plane, contract validators |
-| Shell adapter | Host adapter slot, view-model layer |
-| State/action protocol | Issue/action protocol, Make OPL usable reconcile |
-| User task UX | Maintenance noise reduction, update/rollback UX, Workspace, Local Services, Access, Capabilities, Data & Storage, Preferences, Advanced, Developer Profile, user copy system |
-| Visual QA | Visual system, screenshot QA |
-| Ops hygiene | Worktree/lane hygiene |
-| Release/currentness | Installed/release currentness |
+| Track                 | Checklist items                                                                                                                                                              |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Product positioning   | Control Center positioning                                                                                                                                                   |
+| IA and routes         | Seven-entry IA, secondary route strategy, Settings search                                                                                                                    |
+| Control plane         | Single control plane, contract validators                                                                                                                                    |
+| Shell adapter         | Host adapter slot, view-model layer                                                                                                                                          |
+| State/action protocol | Issue/action protocol, Make OPL usable reconcile                                                                                                                             |
+| User task UX          | Maintenance noise reduction, update/rollback UX, Workspace, Local Services, Access, Capabilities, Data & Storage, Preferences, Advanced, Developer Profile, user copy system |
+| Visual QA             | Visual system, screenshot QA                                                                                                                                                 |
+| Ops hygiene           | Worktree/lane hygiene                                                                                                                                                        |
+| Release/currentness   | Installed/release currentness                                                                                                                                                |
 
 Each item is audited against fresh evidence. Docs, contracts, tests,
 screenshots, and shell code prove only the slice they directly cover. The
