@@ -94,7 +94,7 @@ permissions:
 
 concurrency:
   group: opl-desktop-release-${{ inputs.release_mode }}-${{ inputs.opl_version }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true

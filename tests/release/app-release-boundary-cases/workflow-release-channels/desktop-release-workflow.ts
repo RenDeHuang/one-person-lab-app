@@ -78,7 +78,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   const jobLevelIf = (job: string) => job.split('\n').find((line) => /^    if:/.test(line)) ?? '';
 
   assert.match(workflow, /name: OPL Desktop Release/);
-  assert.match(workflow, /cancel-in-progress:\s+true/);
+  assert.match(workflow, /cancel-in-progress:\s+false/);
   assert.match(workflow, /release-preflight:/);
   assert.match(workflow, /name: Release preflight/);
   assert.match(workflow, /npm run release:preflight --/);
@@ -558,8 +558,8 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   );
   assert.deepEqual(releaseContract.release_acceleration.github_actions.desktop_release_concurrency, {
     group: 'opl-desktop-release-<release_mode>-<version>',
-    cancel_in_progress: true,
-    rule: 'A newer run for the same version and same release mode cancels stale work before another expensive App release attempt can publish or produce contradictory diagnostic artifacts; new_release and refresh_existing must not cancel each other.',
+    cancel_in_progress: false,
+    rule: 'A newer run for the same version and same release mode queues behind the active run instead of cancelling expensive release work. Superseding an active or queued run must be an explicit operator action that records the old run as stale or superseded; new_release and refresh_existing must not block each other because their concurrency groups remain separate.',
   });
   assert.deepEqual(releaseContract.release_acceleration.github_actions.release_readiness_admission, {
     workflow_job: 'release-readiness-admission',

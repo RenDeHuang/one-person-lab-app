@@ -180,7 +180,7 @@ records, or `docs/history/process/`.
 | Owner-resolution rebuild | Promote workflow may rebuild a candidate record from existing same-cohort small artifacts when only owner receipt/verdict refs arrived after the run. | It cannot repair failed gates or generate owner authority. |
 | Post-publish follow-up | Closeout distinguishes published/readback state from later Homebrew VM, screenshot, docs, or proof-gate follow-up via `published_with_post_publish_followup`. | Follow-up gates must not rewrite whether the release/tap was already published. |
 | Pinned cohort flow | Stable release separates sync preparation from release execution: resolve App/Shell/Framework refs, run cheap owner/source gates, write a cohort lock, then release that exact cohort. | Moving `main`, shell `main`, and framework `main` are preparation inputs only, never final release train truth. |
-| Stale/draining/stop-and-redispatch states | `failed_gate_draining` stops the decision while queued jobs settle; `stale_candidate` keeps old artifacts diagnostic-only when source refs no longer match the cohort lock; `cancelled` and `superseded` record stopped runs after process repair or a newer cohort dispatch. | Old-cohort artifacts cannot be promoted or reinterpreted as current release evidence, and cancellation/supersession is not a source-gate failure. |
+| Stale/draining/stop-and-redispatch states | `failed_gate_draining` stops the decision while queued jobs settle; `stale_candidate` keeps old artifacts diagnostic-only when source refs no longer match the cohort lock; queued same-mode/same-version runs wait by default, while `cancelled` and `superseded` record explicit operator stop-and-redispatch after process repair or a newer cohort dispatch. | Old-cohort artifacts cannot be promoted or reinterpreted as current release evidence, and cancellation/supersession is not a source-gate failure. |
 
 ## Open Design Work
 
@@ -225,9 +225,11 @@ Operator stop conditions:
 - Treat `stale_candidate` and `obsolete_candidate` artifacts as old-cohort
   diagnostics only. They cannot be promoted, patched into the new cohort, or
   used as current release evidence.
-- If the release process needs a mid-run fix, stop the old run and redispatch
-  from a new pinned cohort. Classify the old run as `cancelled` or
-  `superseded`; do not count that outcome as a source-gate failure.
+- If the release process needs a mid-run fix, explicitly stop or supersede the
+  old run before redispatching from a new pinned cohort. Default GitHub Actions
+  concurrency queues same-mode/same-version desktop releases instead of
+  cancelling them. Classify the old run as `cancelled` or `superseded`; do not
+  count that outcome as a source-gate failure.
 - Use `refresh_existing` only for an owner-approved emergency repair or replace
   lane against an already published release.
 - Run user-guide screenshot/docs refresh only after Stable promotion; screenshot

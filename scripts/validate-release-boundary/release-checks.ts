@@ -162,7 +162,7 @@ export const releaseBoundaryChecks: ReleaseBoundaryCheck[] = [
       '--shell-ref "${{ inputs.shell_ref || \'main\' }}"',
       '--framework-ref "${{ inputs.framework_ref || \'main\' }}"',
       '--require-shell-format true',
-      'cancel-in-progress: true',
+      'cancel-in-progress: false',
       'homebrew_tap_update_required',
       'release-source-gate',
       'uses: ./.github/workflows/_build-reusable.yml',

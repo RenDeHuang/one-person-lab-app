@@ -76,7 +76,7 @@ test('desktop release workflow has a final readiness aggregation job that downlo
   assert.match(workflow, /webui-ghcr-publish:[\s\S]*Verify WebUI GHCR publish summary/);
 });
 
-test('desktop release workflow fails fast before expensive builds and cancels stale same-version runs', () => {
+test('desktop release workflow fails fast before expensive builds and queues same-version runs', () => {
   const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'desktop-release.yml'), 'utf8');
   const fullFirstInstallJob = workflow.match(/\n  full-first-install:[\s\S]*?(?=\n  [a-z0-9-]+:\n|$)/)?.[0] ?? '';
   const publishFullAssetsJob = workflow.match(/\n  publish-full-assets:[\s\S]*?(?=\n  [a-z0-9-]+:\n|$)/)?.[0] ?? '';
@@ -88,7 +88,7 @@ test('desktop release workflow fails fast before expensive builds and cancels st
   const readinessJob = workflow.match(/\n  release-readiness-summary:[\s\S]*?(?=\n  [a-z0-9-]+:\n|$)/)?.[0] ?? '';
 
   assert.match(workflow, /concurrency:[\s\S]*group:\s+opl-desktop-release-\$\{\{ inputs\.release_mode \}\}-\$\{\{ inputs\.opl_version \}\}/);
-  assert.match(workflow, /cancel-in-progress:\s+true/);
+  assert.match(workflow, /cancel-in-progress:\s+false/);
   assert.match(workflow, /release-workflow-contract:[\s\S]*name:\s+Release workflow contract/);
   assert.match(workflow, /release-workflow-contract:[\s\S]*npm run validate:release-boundary/);
   assert.match(workflow, /release-workflow-contract:[\s\S]*npm run test:release-boundary/);

@@ -837,9 +837,11 @@ No-watch operator runbook:
    `gh run view --log-failed` only for the named blocker after structured
    state is missing or insufficient; do not keep an unbounded `gh run watch`
    open while downstream jobs drain. If the release process itself needs a fix
-   mid-run, stop the old run and dispatch a new pinned cohort after the fix.
-   Record the old run as `cancelled` or `superseded`, not as a source-gate
-   failure.
+   mid-run, explicitly stop or mark the old run superseded before dispatching a
+   new pinned cohort after the fix. GitHub Actions same-mode/same-version
+   concurrency queues by default; it must not cancel expensive release work
+   implicitly. Record the old run as `cancelled` or `superseded`, not as a
+   source-gate failure.
 
 Pinned cohort runbook:
 
