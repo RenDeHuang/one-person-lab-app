@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -30,16 +29,13 @@ import { durationSeconds, monotonicSeconds, run } from './build-full-first-insta
 import { buildRuntimeCacheKeyReport } from './build-full-first-install-package/runtime-cache.ts';
 import { resolveRuntimeSources } from './build-full-first-install-package/runtime-sources.ts';
 import { prepareRuntime } from './build-full-first-install-package/staging.ts';
+import { fileSha256 } from './release-file-helpers.ts';
 
 function readJsonIfExists(filePath) {
   if (!fs.existsSync(filePath)) {
     return null;
   }
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));
-}
-
-function fileSha256(filePath) {
-  return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
 }
 
 function buildFullPublicReleaseManifest(input) {

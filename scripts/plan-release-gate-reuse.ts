@@ -6,7 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { applyStringOptionArg } from './cli-option-args.ts';
 import { fileSha256, writeLinesFile } from './release-file-helpers.ts';
-import { arrayOrEmpty, recordOrNull } from './release-json-helpers.ts';
+import { arrayOrEmpty, asRecord, readJsonFile, recordOrNull } from './release-json-helpers.ts';
 import {
   applySharedReleaseReadinessArg,
   assertSharedReleaseReadinessOptions,
@@ -119,9 +119,7 @@ function parseArgs(argv: string[]): Options {
 }
 
 function readRecord(filePath: string) {
-  const record = recordOrNull(JSON.parse(fs.readFileSync(filePath, 'utf8')));
-  if (!record) throw new Error(`${filePath} must contain a JSON object.`);
-  return record;
+  return asRecord(readJsonFile(filePath), filePath);
 }
 
 function stringValue(value: unknown) {

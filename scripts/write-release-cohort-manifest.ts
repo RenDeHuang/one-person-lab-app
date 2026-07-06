@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs as parseNodeArgs } from 'node:util';
 import { fileSha256, writeLinesFile } from './release-file-helpers.ts';
-import { recordOrNull } from './release-json-helpers.ts';
+import { asRecord, readJsonFile, recordOrNull } from './release-json-helpers.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -81,9 +81,7 @@ function parseArgs(argv: string[]): Options {
 }
 
 function readRecord(filePath: string) {
-  const record = recordOrNull(JSON.parse(fs.readFileSync(filePath, 'utf8')));
-  if (!record) throw new Error(`${filePath} must contain a JSON object.`);
-  return record;
+  return asRecord(readJsonFile(filePath), filePath);
 }
 
 function readOptionalRecord(filePath: string) {
