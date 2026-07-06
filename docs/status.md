@@ -287,6 +287,16 @@ Detailed run/timing/asset profiles are historical provenance under
 release artifacts, contracts, workflows, validators, CI outputs, and the release
 guide rather than dated status prose.
 
+Current cleanup state: release helper JSON/file access is consolidated under
+`scripts/release-json-helpers.ts` and `scripts/release-file-helpers.ts`,
+readiness-summary gate construction uses shared helper builders instead of
+inline duplicate blocks, Settings control-plane redirect expectations derive
+from the App contract constants, and `npm run hygiene:fallow -- --format json
+--summary` is the production hygiene check for unused files/exports and duplicate
+exports. This is code-health and validation-structure evidence only; it is not a
+release-ready, currentness, packaged-App, clean-VM, owner-acceptance, or Live
+Evidence claim.
+
 Current release validation is App-root first. Root wrappers prepare App-owned
 payloads and call active-shell build/release scripts; `validate:app-root-boundary`
 guards that the App root remains the product wrapper and shell build outputs
