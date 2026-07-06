@@ -54,6 +54,12 @@ function main(): void {
     active_shell_unchanged: registry.active_shell_unchanged,
     candidate_count: candidates.length,
     candidates: candidates.map((candidate) => candidate.id),
+    candidate_roles: candidates.map((candidate) => ({
+      id: candidate.id,
+      state: candidate.state,
+      role: candidate.foreground_alternative_role ?? candidate.state,
+      release_participation: candidate.release_participation,
+    })),
     default_validation_scope: args.candidate ? 'explicit_candidate' : 'foreground_alternative_only',
     candidate_blockers: candidates.flatMap(candidateBlockers),
     release_participation: 'explicit_candidate_build_only_until_adopted',

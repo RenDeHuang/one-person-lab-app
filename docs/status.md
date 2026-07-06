@@ -30,7 +30,7 @@ promoted into release-ready or family production-ready proof.
 - Active shell root: `shells/aionui` as an external checkout.
 - Active shell source repo: `gaofeng21cn/opl-aion-shell`.
 - Foreground alternative GUI candidate: `opl-native-workbench`, an independent shell checkout governed by the App candidate registry and adapter contract.
-- Prior foreground alternative reference: `hermes-codex`, based on Hermes Desktop.
+- Retained GUI candidate: `hermes-codex`, based on Hermes Desktop. It remains selectable for explicit candidate validation and package builds and must not be treated as cleanup waste.
 - Archived technical GUI proof: `agui-codex`; do not update or improve it unless AGUI is explicitly requested.
 - App product profile: `contracts/app-product-profile.json`.
 - Framework dependency: `gaofeng21cn/one-person-lab`.
@@ -43,11 +43,13 @@ The App repo must not merge AionUI history into its default branch. AionUI
 upstream-following work stays in `opl-aion-shell`; App product release and user
 docs stay in `one-person-lab-app`.
 
-Current GUI development follows one mainline and one foreground alternative:
-AionUI is the stable App GUI mainline, and `opl-native-workbench` is the
-foreground alternative candidate once the candidate registry selects it. Hermes
-Desktop / `hermes-codex` is retained as the prior foreground alternative
-reference, not the default foreground scope. The previous AG-UI/CopilotKit work
+Current GUI development follows one active mainline plus retained candidate
+lanes: AionUI is the stable App GUI mainline, `opl-native-workbench` is the
+foreground alternative candidate, and Hermes Desktop / `hermes-codex` is a
+retained explicit candidate for validation, feature comparison, and candidate
+package builds. See `docs/product/gui/gui-shell-candidates.md` for the current
+topology and commands. Hermes is not the default foreground scope, but it is
+also not historical cleanup residue. The previous AG-UI/CopilotKit work
 remains useful as technical verification provenance and explicit replay
 material, but it is not a default candidate lane and should not receive routine
 updates or polish work. Treat

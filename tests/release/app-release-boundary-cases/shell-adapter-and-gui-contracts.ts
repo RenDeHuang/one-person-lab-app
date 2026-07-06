@@ -354,6 +354,16 @@ test('App shell candidates are isolated from active AionUI release shell', () =>
   );
 
   assert.equal(packageJson.scripts['validate:shell-candidates'], 'node --experimental-strip-types scripts/validate-shell-candidates.ts');
+  assert.equal(packageJson.scripts['validate:candidate:hermes'], 'npm run validate:shell-candidates -- --candidate hermes-codex');
+  assert.equal(packageJson.scripts['validate:candidate:native'], 'npm run validate:shell-candidates -- --candidate opl-native-workbench');
+  assert.equal(
+    packageJson.scripts['package:candidate:hermes'],
+    'OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/hermes-codex.json npm run package',
+  );
+  assert.equal(
+    packageJson.scripts['package:candidate:native'],
+    'OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/opl-native-workbench.json npm run package',
+  );
   assert.equal(candidateRegistry.owner, 'one-person-lab-app');
   assert.equal(candidateRegistry.purpose, 'app_shell_candidate_registry');
   assert.equal(candidateRegistry.state, 'active_gui_route_policy');
@@ -471,6 +481,8 @@ test('shell candidate validator derives foreground and archived policy from regi
 
   assert.match(dispatcherSource, /candidateValidationPolicyFromRegistry\(registry\)/);
   assert.match(dispatcherSource, /validateCandidate\(candidate,\s*validationPolicy\)/);
+  assert.match(dispatcherSource, /candidate_roles/);
+  assert.match(dispatcherSource, /release_participation: candidate\.release_participation/);
   assert.match(candidateContractSource, /registry\.alternative_gui_policy/);
   assert.match(candidateContractSource, /policy\.archivedTechnicalProofs\.includes\(candidate\.id\)/);
   assert.match(candidateContractSource, /policy\.referenceOnlyCandidates\.includes\(candidate\.id\)/);

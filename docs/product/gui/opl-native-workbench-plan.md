@@ -24,12 +24,13 @@ adapter. Switching the default release shell requires a later explicit edit to
 `contracts/app-shell-adapter.json` plus the App shell adapter, product profile,
 page-state, first-run, package, WebUI, release, and owner gates.
 
-Hermes Desktop / `hermes-codex` becomes the retained prior foreground
-alternative reference. Its upstream-first compatibility lessons remain useful,
-but it is no longer the default foreground implementation scope once the
-candidate registry points to `opl-native-workbench`. AGUI / `agui-codex` remains
-archived technical proof and must not be revived unless AGUI replay is
-explicitly requested.
+Hermes Desktop / `hermes-codex` remains a retained explicit candidate. Its
+upstream-first compatibility lessons, adapter contract, checkout policy, and
+candidate package path stay live for explicit validation and feature comparison,
+but it is not the default foreground implementation scope while the candidate
+registry points to `opl-native-workbench`. AGUI / `agui-codex` remains archived
+technical proof and must not be revived unless AGUI replay is explicitly
+requested.
 
 ## Topology
 
@@ -40,6 +41,7 @@ explicitly requested.
 | Adapter contract | `contracts/shell-adapters/opl-native-workbench.json` |
 | Candidate registry | `contracts/app-shell-candidates.json` |
 | Active release shell | Still `aionui` via `contracts/app-shell-adapter.json` |
+| Retained candidate | `hermes-codex` via `contracts/shell-adapters/hermes-codex.json` |
 | Release participation before adoption | Explicit candidate build and smoke only |
 | Authority boundary | App state/action and contracts only; no runtime, provider, domain, artifact, or owner-receipt authority transfer |
 
