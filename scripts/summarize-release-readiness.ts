@@ -3,6 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { parseArgs as parseNodeArgs } from 'node:util';
 import {
   buildAppReleaseL5EvidenceReadout,
   readAppReleaseL5ReadoutContract,
@@ -13,7 +14,6 @@ import {
 } from './app-release-owner-verdict.ts';
 import { buildReleaseEvidenceCohort } from './release-evidence-cohort.ts';
 import { findFileByName } from './release-file-helpers.ts';
-import { applyStringOptionArg } from './cli-option-args.ts';
 import {
   arrayField,
   arrayOrEmpty,
@@ -24,7 +24,6 @@ import {
 } from './release-json-helpers.ts';
 import { writeReleaseReadinessMarkdown } from './release-readiness-markdown.ts';
 import {
-  applySharedReleaseReadinessArg,
   assertSharedReleaseReadinessOptions,
   buildSharedReleaseReadinessOptions,
   parseStrictBoolean,
@@ -66,6 +65,22 @@ type Options = {
 };
 
 function parseArgs(argv: string[]): Options {
+  const { values } = parseNodeArgs({
+    args: argv,
+    options: {
+      version: { type: 'string' },
+      'release-mode': { type: 'string' },
+      'include-full-package': { type: 'string' },
+      'run-vm-smoke': { type: 'string' },
+      'publish-docker-webui': { type: 'string' },
+      'artifacts-dir': { type: 'string' },
+      'job-results': { type: 'string' },
+      output: { type: 'string' },
+      markdown: { type: 'string' },
+    },
+    strict: true,
+    allowPositionals: false,
+  });
   const parsed: Options = {
     ...buildSharedReleaseReadinessOptions(parseStrictBoolean),
     artifactsDir: process.env.OPL_RELEASE_READINESS_ARTIFACTS_DIR || '',
@@ -74,25 +89,21 @@ function parseArgs(argv: string[]): Options {
     markdown: process.env.OPL_RELEASE_READINESS_MARKDOWN || '',
   };
 
-  for (let index = 0; index < argv.length; index += 1) {
-    const token = argv[index];
-    const sharedIndex = applySharedReleaseReadinessArg(argv, index, parsed, parseStrictBoolean);
-    if (sharedIndex !== null) {
-      index = sharedIndex;
-      continue;
-    }
-    const optionIndex = applyStringOptionArg(argv, index, {
-      '--artifacts-dir': (value) => { parsed.artifactsDir = value; },
-      '--job-results': (value) => { parsed.jobResultsPath = value; },
-      '--output': (value) => { parsed.output = value; },
-      '--markdown': (value) => { parsed.markdown = value; },
-    });
-    if (optionIndex !== null) {
-      index = optionIndex;
-      continue;
-    }
-    throw new Error(`Unknown argument: ${token}`);
+  if (values.version !== undefined) parsed.version = values.version;
+  if (values['release-mode'] !== undefined) parsed.releaseMode = values['release-mode'];
+  if (values['include-full-package'] !== undefined) {
+    parsed.includeFullPackage = parseStrictBoolean(values['include-full-package']);
   }
+  if (values['run-vm-smoke'] !== undefined) {
+    parsed.runVmSmoke = parseStrictBoolean(values['run-vm-smoke']);
+  }
+  if (values['publish-docker-webui'] !== undefined) {
+    parsed.publishDockerWebui = parseStrictBoolean(values['publish-docker-webui'], true);
+  }
+  if (values['artifacts-dir'] !== undefined) parsed.artifactsDir = values['artifacts-dir'];
+  if (values['job-results'] !== undefined) parsed.jobResultsPath = values['job-results'];
+  if (values.output !== undefined) parsed.output = values.output;
+  if (values.markdown !== undefined) parsed.markdown = values.markdown;
 
   assertSharedReleaseReadinessOptions(parsed);
   if (!parsed.artifactsDir.trim()) throw new Error('Pass --artifacts-dir <dir> or set OPL_RELEASE_READINESS_ARTIFACTS_DIR.');
