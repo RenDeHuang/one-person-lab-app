@@ -13,32 +13,31 @@ test('desktop release workflow has a final readiness aggregation job that downlo
 
   for (const dependency of [
     'remote-verify-standard',
-    'remote-verify-full',
     'standard-first-run-vm-smoke-after-standard-only',
     'standard-first-run-vm-smoke-after-full',
     'standard-vm-smoke-gate-after-full',
-    'full-first-run-vm-smoke',
     'one-shot-app-installer-smoke',
+    'release-readiness-admission',
+  ]) {
+    assert.match(job, new RegExp(dependency), `readiness job must depend on ${dependency}`);
+  }
+
+  for (const addOnDependency of [
+    'remote-verify-full',
+    'full-first-install',
+    'full-first-run-vm-smoke',
     'docker-webui-smoke',
     'webui-ghcr-publish',
     'operator-evidence-bundle-validation',
-    'release-readiness-admission',
-    'full-first-install',
   ]) {
-    assert.match(job, new RegExp(dependency), `readiness job must depend on ${dependency}`);
+    assert.doesNotMatch(job, new RegExp(addOnDependency), `standard readiness job must not wait for ${addOnDependency}`);
   }
 
   for (const smallArtifact of [
     'release-preflight-summary-${{ inputs.opl_version }}',
     'remote-release-verification-${{ inputs.opl_version }}',
     'opl-first-run-vm-standard-${{ github.run_id }}',
-    'opl-first-run-vm-full-${{ github.run_id }}',
     'one-shot-app-installer-smoke-${{ inputs.opl_version }}',
-    'docker-webui-smoke-${{ inputs.opl_version }}',
-    'webui-ghcr-publish-${{ inputs.opl_version }}',
-    'opl-full-workflow-telemetry-${{ inputs.opl_version }}',
-    'opl-full-diagnostics-${{ inputs.opl_version }}',
-    'release-evidence-bundle-${{ inputs.opl_version }}',
   ]) {
     assert.ok(job.includes(smallArtifact), `readiness job must download ${smallArtifact}`);
   }
@@ -46,8 +45,8 @@ test('desktop release workflow has a final readiness aggregation job that downlo
   assert.doesNotMatch(job, /name:\s+macos-build-arm64/);
   assert.doesNotMatch(job, /name:\s+opl-full-first-install-\$\{\{ inputs\.opl_version \}\}-mac-arm64/);
   assert.match(job, /release-readiness-summary\.json/);
-  assert.match(job, /opl-full-diagnostics-\$\{\{ inputs\.opl_version \}\}/);
-  assert.match(job, /operator-evidence-bundle-validation/);
+  assert.doesNotMatch(job, /opl-full-diagnostics-\$\{\{ inputs\.opl_version \}\}/);
+  assert.doesNotMatch(job, /operator-evidence-bundle-validation/);
   assert.match(job, /summarize-release-readiness\.ts/);
   assert.match(job, /write-release-candidate-record\.ts/);
   assert.match(workflow, /release_owner_receipt_ref:/);
@@ -68,7 +67,8 @@ test('desktop release workflow has a final readiness aggregation job that downlo
   assert.doesNotMatch(job, /Build GitHub Actions timing summary/);
   assert.doesNotMatch(job, /npm run release:actions-timing --/);
   assert.doesNotMatch(job, /release-actions-timing/);
-  assert.match(job, /needs\[['"]?remote-verify-full['"]?\]\.result|needs\.remote-verify-full\.result/);
+  assert.doesNotMatch(job, /needs\[['"]?remote-verify-full['"]?\]\.result|needs\.remote-verify-full\.result/);
+  assert.match(workflow, /release-addon-readiness-summary:[\s\S]*release-addon-readiness-summary\.json/);
   assert.match(job, /release-readiness-job-results\.json/);
   assert.match(workflow, /release_artifact_name:\s+macos-build-arm64-dmg/);
   assert.match(workflow, /release_artifact_name:\s+opl-full-first-install-dmg-\$\{\{ inputs\.opl_version \}\}-mac-arm64/);
@@ -76,7 +76,7 @@ test('desktop release workflow has a final readiness aggregation job that downlo
   assert.match(workflow, /webui-ghcr-publish:[\s\S]*Verify WebUI GHCR publish summary/);
 });
 
-test('desktop release workflow fails fast before expensive builds and cancels stale same-version runs', () => {
+test('desktop release workflow fails fast before expensive builds and queues same-version runs', () => {
   const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'desktop-release.yml'), 'utf8');
   const fullFirstInstallJob = workflow.match(/\n  full-first-install:[\s\S]*?(?=\n  [a-z0-9-]+:\n|$)/)?.[0] ?? '';
   const publishFullAssetsJob = workflow.match(/\n  publish-full-assets:[\s\S]*?(?=\n  [a-z0-9-]+:\n|$)/)?.[0] ?? '';
@@ -88,7 +88,7 @@ test('desktop release workflow fails fast before expensive builds and cancels st
   const readinessJob = workflow.match(/\n  release-readiness-summary:[\s\S]*?(?=\n  [a-z0-9-]+:\n|$)/)?.[0] ?? '';
 
   assert.match(workflow, /concurrency:[\s\S]*group:\s+opl-desktop-release-\$\{\{ inputs\.release_mode \}\}-\$\{\{ inputs\.opl_version \}\}/);
-  assert.match(workflow, /cancel-in-progress:\s+true/);
+  assert.match(workflow, /cancel-in-progress:\s+false/);
   assert.match(workflow, /release-workflow-contract:[\s\S]*name:\s+Release workflow contract/);
   assert.match(workflow, /release-workflow-contract:[\s\S]*npm run validate:release-boundary/);
   assert.match(workflow, /release-workflow-contract:[\s\S]*npm run test:release-boundary/);
@@ -108,12 +108,9 @@ test('desktop release workflow fails fast before expensive builds and cancels st
   assert.match(workflow, /full-homebrew-tap-update:[\s\S]*needs\.full-first-run-vm-smoke\.result == 'success'/);
   assert.match(workflow, /stable-homebrew-tap-update:[\s\S]*standard-vm-smoke-gate-after-full/);
   assert.match(readinessAdmissionJob, /release-preflight/);
-  assert.match(readinessAdmissionJob, /homebrewTapUpdateRequired/);
-  assert.match(readinessAdmissionJob, /requireSuccess\('full-homebrew-tap-update'\)/);
-  assert.match(readinessAdmissionJob, /requireSuccess\('homebrew-standard-first-run-vm-smoke'\)/);
-  assert.match(readinessAdmissionJob, /requireSuccessOrSkipped\('stable-homebrew-tap-update'\)/);
-  assert.match(readinessAdmissionJob, /requireSuccessOrSkipped\('homebrew-standard-first-run-vm-smoke'\)/);
-  assert.match(
+  assert.doesNotMatch(readinessAdmissionJob, /homebrewTapUpdateRequired/);
+  assert.doesNotMatch(readinessAdmissionJob, /full-homebrew-tap-update|homebrew-standard-first-run-vm-smoke|stable-homebrew-tap-update/);
+  assert.doesNotMatch(
     readinessAdmissionJob.match(/\n    if:[^\n]+/)?.[0] ?? '',
     /needs\.release-preflight\.outputs\.homebrew_tap_update_required != 'true'/,
   );
@@ -144,6 +141,8 @@ test('desktop release workflow fails fast before expensive builds and cancels st
   assert.match(readinessAdmissionJob, /Release readiness aggregation is blocked by failed, skipped, or missing required gates/);
   assert.match(readinessAdmissionJob, /standard-vm-smoke-gate-after-full/);
   assert.match(readinessJob, /needs\.release-readiness-admission\.result == 'success'/);
+  assert.doesNotMatch(readinessJob, /full-first-install|remote-verify-full|docker-webui-smoke|operator-evidence-bundle-validation/);
+  assert.match(workflow, /release-addon-readiness-summary:[\s\S]*full-homebrew-tap-update[\s\S]*docker-webui-clean-vm-evidence[\s\S]*release-addon-readiness-summary-\$\{\{ inputs\.opl_version \}\}/);
   assert.doesNotMatch(
     readinessJob.match(/\n    if:[^\n]+/)?.[0] ?? '',
     /if:\s+\$\{\{\s*always\(\)\s*\}\}/,

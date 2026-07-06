@@ -233,8 +233,9 @@ function validateGithubReleaseName(releaseContract: Record<string, any>): number
 function validateStandardUpdaterCompressionPolicy(appRoot: string, releaseContract: Record<string, any>): number {
   let failures = 0;
   const compression = releaseContract.standard_updater?.dmg_compression;
+  const activeShellRoot = process.env.OPL_APP_SHELL_ROOT || process.env.OPL_AION_SHELL_ROOT || path.join(appRoot, 'shells/aionui');
   const electronBuilderConfig = fs.readFileSync(
-    path.join(appRoot, 'shells/aionui/packages/desktop/electron-builder.yml'),
+    path.join(activeShellRoot, 'packages/desktop/electron-builder.yml'),
     'utf8',
   );
 
@@ -615,12 +616,15 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
   if (
     readinessAdmission?.workflow_job !== 'release-readiness-admission' ||
     readinessAdmission?.preflight_dependency !== 'release-preflight' ||
+    readinessAdmission?.addon_requirement_input !== 'require_addon_gates_for_stable_readiness' ||
+    readinessAdmission?.addon_gate_blocking_default !== false ||
+    readinessAdmission?.addon_status_artifact !== 'release-addon-readiness-summary-<version>' ||
     readinessAdmission?.homebrew_tap_update_required_source !== 'release-preflight.outputs.homebrew_tap_update_required' ||
     readinessAdmission?.homebrew_allowed_when_false !== 'success_or_skipped' ||
-    !readinessAdmission?.rule?.includes('must not force Homebrew tap or Homebrew VM gates when release-preflight says no tap update is required') ||
-    !readinessAdmission?.rule?.includes('Diagnostic gates such as operator evidence bundle validation must feed the readiness summary when present, but they must not prevent readiness aggregation from running')
+    !readinessAdmission?.rule?.includes('must not force Full, Docker/WebUI, or Homebrew add-on gates before writing the Standard readiness record') ||
+    !readinessAdmission?.rule?.includes('Diagnostic gates such as operator evidence bundle validation must feed the add-on summary when present, but they must not prevent Standard readiness aggregation from running')
   ) {
-    console.error('FAIL release_readiness_admission_policy: readiness admission must be preflight-driven for Homebrew gates');
+    console.error('FAIL release_readiness_admission_policy: readiness admission must keep Standard readiness separate from same-cohort add-on status');
     failures += 1;
   }
   if (!readinessAdmission?.diagnostic_gates?.includes('operator-evidence-bundle-validation')) {

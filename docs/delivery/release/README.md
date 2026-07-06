@@ -142,9 +142,12 @@ tap update as failed. A non-fast-forward tap push is a recoverable write
 conflict, not release evidence failure.
 
 Docker/WebUI releases are gated by Docker build, GHCR publish, and clean Linux
-Docker runtime smoke. `docker_webui_clean_windows_evidence_artifact` is optional
-diagnostic input; missing Windows evidence must not block a macOS App stable
-release or a Docker/WebUI image release.
+Docker runtime smoke. These gates stay in the same release cohort and remain
+visible in readiness job results, but they are add-on gates for Standard stable
+readiness unless `require_addon_gates_for_stable_readiness=true` is dispatched.
+`docker_webui_clean_windows_evidence_artifact` is optional diagnostic input;
+missing Windows evidence must not block a macOS App stable release or a
+Docker/WebUI image release.
 
 The source gate is the next fail-fast boundary after preflight:
 
@@ -187,10 +190,15 @@ Stable release flow:
    App/Shell/Framework SHAs as the recommended operator path.
 4. Run preflight and `release:source-gate` for that pinned cohort.
 5. Run the release workflow for the selected version/channel.
-6. Produce standard and, when requested, Full artifacts plus the release
-   evidence bundle.
-7. Run remote verification against the published draft release assets.
-8. Produce `release-candidate-record.json`.
+6. Produce standard artifacts, then run standard remote verification, the
+   standard VM gate, and the one-shot installer smoke as the default Standard
+   stable readiness path.
+7. Continue Full, Docker/WebUI, Homebrew, and operator-evidence work as
+   same-cohort add-on gates/assets. Their status is recorded in
+   `release-addon-readiness-summary` without delaying the Standard readiness
+   record; release owner policy may still require them before promote.
+8. Produce `release-candidate-record.json` for the admitted readiness path while
+   preserving add-on job results for the same cohort.
 9. Promote only when the promote workflow reads a ready candidate record for
    the same cohort.
 10. Update Homebrew casks after the draft release is published and the matching
@@ -847,9 +855,11 @@ No-watch operator runbook:
    `gh run view --log-failed` only for the named blocker after structured
    state is missing or insufficient; do not keep an unbounded `gh run watch`
    open while downstream jobs drain. If the release process itself needs a fix
-   mid-run, stop the old run and dispatch a new pinned cohort after the fix.
-   Record the old run as `cancelled` or `superseded`, not as a source-gate
-   failure.
+   mid-run, explicitly stop or mark the old run superseded before dispatching a
+   new pinned cohort after the fix. GitHub Actions same-mode/same-version
+   concurrency queues by default; it must not cancel expensive release work
+   implicitly. Record the old run as `cancelled` or `superseded`, not as a
+   source-gate failure.
 
 Pinned cohort runbook:
 

@@ -96,9 +96,10 @@ build, GHCR publish, and clean Linux Docker runtime smoke are blocking evidence.
 Clean Windows VM evidence is optional diagnostic input because Windows Docker
 host readiness belongs to Docker and Windows, not the macOS App stable release.
 The Docker/WebUI lane starts after standard asset publish, not after the macOS
-standard VM gate. Final Stable readiness still requires both the macOS App gate
-and the Docker/WebUI gates when Docker/WebUI publishing is enabled, but one lane
-must not suppress the other's evidence collection.
+standard VM gate. Standard Stable readiness now admits from the Standard
+critical path by default; Docker/WebUI remains a same-cohort add-on gate whose
+status is recorded and whose failure blocks only when
+`require_addon_gates_for_stable_readiness=true`.
 
 `release_source_gate` runs after preflight and before expensive lanes. It checks
 the App release-boundary contract, active shell format/type, active shell
@@ -151,9 +152,11 @@ that image for smoke plus publish, but the action boundary must reveal whether
 time is being spent in Docker build, runtime validation, HTTP smoke, GHCR
 authentication, or package push.
 
-`release_readiness_summary` is the final judge. It downloads only small
-diagnostic artifacts and fails closed when required gates are missing, failed,
-or inconsistent.
+`release_readiness_summary` is the final judge for the admitted path. It
+downloads only small diagnostic artifacts and fails closed when required
+Standard gates are missing, failed, or inconsistent. Full, Homebrew, and
+Docker/WebUI statuses stay attached to the same cohort as add-on job results
+unless the dispatch explicitly requires add-on gates for Stable readiness.
 
 `post_release_user_guide_screenshots` is a post-promotion documentation lane. It
 may capture and refresh user-guide screenshots from the promoted Stable cohort,
@@ -174,13 +177,13 @@ records, or `docs/history/process/`.
 | Release operator status | `npm run release:operator` is the no-watch control surface for current job/step, elapsed time, run update age, stale candidate state, primary blocker, and typed next action. | It is an operator state machine, not a release-ready claim or second release truth source. |
 | WebUI GHCR lane | Standalone WebUI publish is split into prepare, build, inspect/readback, smoke, tag, publish, and upload steps so the slow or failed boundary is visible. | WebUI/container evidence does not replace desktop App install evidence or stable promotion evidence. |
 | Release actions timing | `release-actions-timing.json/md` measures workflow wall time, failed/cancelled run tax, slow jobs, slow steps, and optional operator-loop gap. | Timing artifacts are delivery-health evidence, not release readiness or owner acceptance. |
-| Standard/Homebrew critical path | The Homebrew standard VM gate waits only for the stable standard cask tap update. Full cask update remains an independent required gate when Full is included. | Standard and Full release lanes stay separate; standard evidence cannot prove Full first-install readiness. |
+| Standard/add-on critical path | Standard Stable readiness requires standard publish, standard remote verification, the standard VM gate, and one-shot installer smoke. Full, Homebrew, and Docker/WebUI continue as same-cohort add-on gates and block only when explicitly required. | Standard and add-on lanes stay separate; standard evidence cannot prove Full first-install, Homebrew, or Docker/WebUI readiness. |
 | Gate reuse plan | `npm run release:gate-reuse-plan` can emit `opl_release_gate_reuse_plan.v1` with per-gate `reuse_allowed` / `must_run` decisions and a stable digest. | It is advisory until workflows explicitly consume the artifact; no gate is skipped by prose. |
 | Tart prebake boundary | The release contract allows only host setup layers such as GUI session readiness, Homebrew prerequisites, Node prerequisites, and Codex install cache seed. | A prebaked base is not current release infrastructure until it has an image receipt, digest, profile, truth boundary, and validation command. |
 | Owner-resolution rebuild | Promote workflow may rebuild a candidate record from existing same-cohort small artifacts when only owner receipt/verdict refs arrived after the run. | It cannot repair failed gates or generate owner authority. |
 | Post-publish follow-up | Closeout distinguishes published/readback state from later Homebrew VM, screenshot, docs, or proof-gate follow-up via `published_with_post_publish_followup`. | Follow-up gates must not rewrite whether the release/tap was already published. |
 | Pinned cohort flow | Stable release separates sync preparation from release execution: resolve App/Shell/Framework refs, run cheap owner/source gates, write a cohort lock, then release that exact cohort. | Moving `main`, shell `main`, and framework `main` are preparation inputs only, never final release train truth. |
-| Stale/draining/stop-and-redispatch states | `failed_gate_draining` stops the decision while queued jobs settle; `stale_candidate` keeps old artifacts diagnostic-only when source refs no longer match the cohort lock; `cancelled` and `superseded` record stopped runs after process repair or a newer cohort dispatch. | Old-cohort artifacts cannot be promoted or reinterpreted as current release evidence, and cancellation/supersession is not a source-gate failure. |
+| Stale/draining/stop-and-redispatch states | `failed_gate_draining` stops the decision while queued jobs settle; `stale_candidate` keeps old artifacts diagnostic-only when source refs no longer match the cohort lock; queued same-mode/same-version runs wait by default, while `cancelled` and `superseded` record explicit operator stop-and-redispatch after process repair or a newer cohort dispatch. | Old-cohort artifacts cannot be promoted or reinterpreted as current release evidence, and cancellation/supersession is not a source-gate failure. |
 
 ## Open Design Work
 
@@ -225,9 +228,11 @@ Operator stop conditions:
 - Treat `stale_candidate` and `obsolete_candidate` artifacts as old-cohort
   diagnostics only. They cannot be promoted, patched into the new cohort, or
   used as current release evidence.
-- If the release process needs a mid-run fix, stop the old run and redispatch
-  from a new pinned cohort. Classify the old run as `cancelled` or
-  `superseded`; do not count that outcome as a source-gate failure.
+- If the release process needs a mid-run fix, explicitly stop or supersede the
+  old run before redispatching from a new pinned cohort. Default GitHub Actions
+  concurrency queues same-mode/same-version desktop releases instead of
+  cancelling them. Classify the old run as `cancelled` or `superseded`; do not
+  count that outcome as a source-gate failure.
 - Use `refresh_existing` only for an owner-approved emergency repair or replace
   lane against an already published release.
 - Run user-guide screenshot/docs refresh only after Stable promotion; screenshot

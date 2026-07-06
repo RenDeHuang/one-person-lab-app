@@ -1139,7 +1139,24 @@
         "same_cohort_retry_minutes": "3-15",
         "promote_minutes": "<5"
       },
-      "rule": "A stable release freezes one App/Shell/Framework cohort, builds and qualifies artifacts once, and uses the cohort manifest, readiness summary, candidate record, owner receipt, and targeted gate reruns for recovery and promote."
+      "standard_stable_readiness_critical_path": [
+        "publish-standard",
+        "remote-verify-standard",
+        "standard_dmg_clean_vm_smoke",
+        "one_shot_app_installer_fresh_install_smoke"
+      ],
+      "same_cohort_addon_gates": [
+        "full_first_install_build",
+        "remote_standard_and_full_release_verification",
+        "homebrew_standard_cask_clean_vm_smoke",
+        "full_dmg_clean_vm_smoke",
+        "docker_webui_smoke",
+        "webui_ghcr_publish",
+        "docker_webui_clean_vm_evidence"
+      ],
+      "addon_gate_blocking_default": false,
+      "addon_requirement_input": "require_addon_gates_for_stable_readiness",
+      "rule": "A stable release freezes one App/Shell/Framework cohort, builds and qualifies artifacts once, and uses the cohort manifest, readiness summary, candidate record, owner receipt, and targeted gate reruns for recovery and promote. Standard stable readiness is admitted from the Standard critical path by default; Full, Docker/WebUI, and Homebrew add-on gates stay same-cohort recorded gates in release-addon-readiness-summary and may be required by release owner policy before promote without blocking the Standard readiness record."
     },
     "cohort_prepare": {
       "package_script": "release:cohort-plan",
@@ -1630,12 +1647,20 @@
       },
       "desktop_release_concurrency": {
         "group": "opl-desktop-release-<release_mode>-<version>",
-        "cancel_in_progress": true,
-        "rule": "A newer run for the same version and same release mode cancels stale work before another expensive App release attempt can publish or produce contradictory diagnostic artifacts; new_release and refresh_existing must not cancel each other."
+        "cancel_in_progress": false,
+        "rule": "A newer run for the same version and same release mode queues behind the active run instead of cancelling expensive release work. Superseding an active or queued run must be an explicit operator action that records the old run as stale or superseded; new_release and refresh_existing must not block each other because their concurrency groups remain separate."
       },
       "release_readiness_admission": {
         "workflow_job": "release-readiness-admission",
         "preflight_dependency": "release-preflight",
+        "addon_requirement_input": "require_addon_gates_for_stable_readiness",
+        "addon_gate_blocking_default": false,
+        "standard_stable_required_jobs": [
+          "publish-standard",
+          "remote-verify-standard",
+          "standard-first-run-vm-smoke-after-standard-only_or_standard-vm-smoke-gate-after-full",
+          "one-shot-app-installer-smoke"
+        ],
         "homebrew_tap_update_required_source": "release-preflight.outputs.homebrew_tap_update_required",
         "homebrew_required_when_true": [
           "stable-homebrew-tap-update",
@@ -1646,7 +1671,9 @@
         "diagnostic_gates": [
           "operator-evidence-bundle-validation"
         ],
-        "rule": "Release readiness admission must fail when required same-cohort gates fail, but it must not force Homebrew tap or Homebrew VM gates when release-preflight says no tap update is required. Docker/WebUI publish and clean Linux Docker runtime evidence run independently after standard asset publish and remain required when publish_docker_webui=true; clean Windows VM evidence is optional diagnostic import. Diagnostic gates such as operator evidence bundle validation must feed the readiness summary when present, but they must not prevent readiness aggregation from running."
+        "same_cohort_addon_status_policy": "success_or_skipped_or_failed_when_not_required",
+        "addon_status_artifact": "release-addon-readiness-summary-<version>",
+        "rule": "Release readiness admission must fail when Standard stable critical-path gates fail. By default it must not force Full, Docker/WebUI, or Homebrew add-on gates before writing the Standard readiness record; those gates keep running in the same cohort and their success, skipped, or failed statuses remain recorded in the add-on readiness summary. require_addon_gates_for_stable_readiness records the release owner expectation for promote-time policy without delaying the Standard readiness record. Clean Windows Docker VM evidence remains optional diagnostic import. Diagnostic gates such as operator evidence bundle validation must feed the add-on summary when present, but they must not prevent Standard readiness aggregation from running."
       },
       "diagnostics_workflow_policy": {
         "workflow": ".github/workflows/desktop-release-diagnostics.yml",
