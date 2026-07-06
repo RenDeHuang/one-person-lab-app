@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { parseArgs as parseNodeArgs } from 'node:util';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -78,45 +79,32 @@ const FULL_PAYLOAD_REF_AUDIT = {
 } as const;
 
 function parseArgs(argv: string[]) {
+  const { values } = parseNodeArgs({
+    args: argv,
+    options: {
+      'include-full-package': { type: 'boolean' },
+      profile: { type: 'string' },
+      'no-settings-vm': { type: 'boolean' },
+      version: { type: 'string' },
+    },
+    strict: true,
+    allowPositionals: false,
+  });
   const parsed = {
     version: process.env.OPL_RELEASE_VERSION || '',
     profile: 'stable',
     includeFullPackage: false,
     settingsVm: true,
   };
-  for (let index = 0; index < argv.length; index += 1) {
-    const token = argv[index];
-    if (token === '--include-full-package') {
-      parsed.includeFullPackage = true;
-      continue;
+  if (values['include-full-package'] === true) parsed.includeFullPackage = true;
+  if (values.profile !== undefined) {
+    if (values.profile !== 'stable' && values.profile !== 'nightly') {
+      throw new Error(`Unsupported release profile: ${values.profile}`);
     }
-    if (token === '--profile') {
-      const value = argv[index + 1];
-      if (!value || value.startsWith('--')) {
-        throw new Error(`Missing value for ${token}`);
-      }
-      if (value !== 'stable' && value !== 'nightly') {
-        throw new Error(`Unsupported release profile: ${value}`);
-      }
-      parsed.profile = value;
-      index += 1;
-      continue;
-    }
-    if (token === '--no-settings-vm') {
-      parsed.settingsVm = false;
-      continue;
-    }
-    const value = argv[index + 1];
-    if (!value || value.startsWith('--')) {
-      throw new Error(`Missing value for ${token}`);
-    }
-    if (token === '--version') {
-      parsed.version = value;
-      index += 1;
-      continue;
-    }
-    throw new Error(`Unknown argument: ${token}`);
+    parsed.profile = values.profile;
   }
+  if (values['no-settings-vm'] === true) parsed.settingsVm = false;
+  if (values.version !== undefined) parsed.version = values.version;
   if (!parsed.version.trim()) {
     throw new Error('Missing release version. Pass --version <version> or set OPL_RELEASE_VERSION.');
   }

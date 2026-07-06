@@ -316,9 +316,10 @@ uses one private tree-fingerprint walker for runtime and production
 node_modules fingerprints, and first-run matrix validation derives host-tool
 and deferred-maintenance expectations from the App product profile instead of
 duplicating those arrays in contract constants. Release candidate record
-validation and release readiness summary generation now use Node's native
-argument parser instead of local argv loops, and first-run progress model
-expectations for GUI, page-state, first-run
+validation, release readiness summary generation, full-package size analysis,
+Homebrew tap update planning, and release candidate planning now use Node's
+native argument parser instead of local argv loops, and first-run progress
+model expectations for GUI, page-state, first-run
 matrix, and install-exposure validators derive from
 `contracts/app-product-profile.json#first_run.progress_model` instead of
 mirroring the same command, path, field, visible-element, and consumer package

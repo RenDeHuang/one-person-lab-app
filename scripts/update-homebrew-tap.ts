@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { parseArgs as parseNodeArgs } from 'node:util';
 
 type Channel = 'stable' | 'nightly';
 type PackageKind = 'app_standard' | 'app_full_first_install';
@@ -53,6 +54,28 @@ const caskConflictMap: Record<string, string[]> = {
 };
 
 function parseArgs(argv: string[]): Options {
+  const { values, tokens } = parseNodeArgs({
+    args: argv,
+    options: {
+      'self-check': { type: 'boolean' },
+      write: { type: 'boolean' },
+      'dry-run': { type: 'boolean' },
+      channel: { type: 'string' },
+      'package-kind': { type: 'string' },
+      version: { type: 'string' },
+      'tap-root': { type: 'string' },
+      formula: { type: 'string', multiple: true },
+      cask: { type: 'string', multiple: true },
+      'manifest-url': { type: 'string' },
+      'checksum-sha256': { type: 'string' },
+      'download-url': { type: 'string' },
+      'summary-path': { type: 'string' },
+      'remote-write-mode': { type: 'string' },
+    },
+    strict: true,
+    allowPositionals: false,
+    tokens: true,
+  });
   const parsed: Options = {
     channel: 'stable',
     packageKind: null,
@@ -68,55 +91,32 @@ function parseArgs(argv: string[]): Options {
     selfCheck: false,
   };
 
-  for (let index = 0; index < argv.length; index += 1) {
-    const token = argv[index];
-    if (token === '--self-check') {
-      parsed.selfCheck = true;
-      continue;
+  if (values.channel !== undefined) {
+    if (values.channel !== 'stable' && values.channel !== 'nightly') {
+      throw new Error('--channel must be stable or nightly.');
     }
-    if (token === '--write') {
-      parsed.write = true;
-      continue;
+    parsed.channel = values.channel;
+  }
+  if (values['package-kind'] !== undefined) {
+    if (values['package-kind'] !== 'app_standard' && values['package-kind'] !== 'app_full_first_install') {
+      throw new Error('--package-kind must be app_standard or app_full_first_install. Homebrew tap updates are App cask-only; agent packs are App/CLI-managed.');
     }
-    if (token === '--dry-run') {
-      parsed.write = false;
-      continue;
-    }
-
-    const value = argv[index + 1];
-    if (!value || value.startsWith('--')) {
-      throw new Error(`${token} requires a value.`);
-    }
-    index += 1;
-
-    if (token === '--channel') {
-      if (value !== 'stable' && value !== 'nightly') {
-        throw new Error('--channel must be stable or nightly.');
-      }
-      parsed.channel = value;
-    } else if (token === '--package-kind') {
-      if (value !== 'app_standard' && value !== 'app_full_first_install') {
-        throw new Error('--package-kind must be app_standard or app_full_first_install. Homebrew tap updates are App cask-only; agent packs are App/CLI-managed.');
-      }
-      parsed.packageKind = value;
-    } else if (token === '--version') {
-      parsed.version = value;
-    } else if (token === '--tap-root') {
-      parsed.tapRoot = path.resolve(value);
-    } else if (token === '--formula' || token === '--cask') {
-      parsed.targets.push(value);
-    } else if (token === '--manifest-url') {
-      parsed.manifestUrl = value;
-    } else if (token === '--checksum-sha256') {
-      parsed.checksumSha256 = value;
-    } else if (token === '--download-url') {
-      parsed.downloadUrl = value;
-    } else if (token === '--summary-path') {
-      parsed.summaryPath = path.resolve(value);
-    } else if (token === '--remote-write-mode') {
-      parsed.remoteWriteMode = value;
-    } else {
-      throw new Error(`Unknown option: ${token}`);
+    parsed.packageKind = values['package-kind'];
+  }
+  if (values.version !== undefined) parsed.version = values.version;
+  if (values['tap-root'] !== undefined) parsed.tapRoot = path.resolve(values['tap-root']);
+  if (values['manifest-url'] !== undefined) parsed.manifestUrl = values['manifest-url'];
+  if (values['checksum-sha256'] !== undefined) parsed.checksumSha256 = values['checksum-sha256'];
+  if (values['download-url'] !== undefined) parsed.downloadUrl = values['download-url'];
+  if (values['summary-path'] !== undefined) parsed.summaryPath = path.resolve(values['summary-path']);
+  if (values['remote-write-mode'] !== undefined) parsed.remoteWriteMode = values['remote-write-mode'];
+  parsed.selfCheck = values['self-check'] === true;
+  for (const token of tokens) {
+    if (token.kind !== 'option') continue;
+    if (token.name === 'write') parsed.write = true;
+    if (token.name === 'dry-run') parsed.write = false;
+    if ((token.name === 'formula' || token.name === 'cask') && token.value !== undefined) {
+      parsed.targets.push(token.value);
     }
   }
 

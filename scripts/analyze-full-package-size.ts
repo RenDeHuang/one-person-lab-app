@@ -3,6 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { parseArgs as parseNodeArgs } from 'node:util';
 import {
   FULL_RELEASE_OUTPUT_DIR,
   FULL_RUNTIME_CACHE_LAYER_IDS,
@@ -13,6 +14,22 @@ const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const defaultManifestPath = path.join(appRoot, FULL_RELEASE_OUTPUT_DIR, 'full-package-manifest.json');
 
 function parseArgs(argv: string[]) {
+  const { values, tokens } = parseNodeArgs({
+    args: argv,
+    options: {
+      manifest: { type: 'string' },
+      'previous-manifest': { type: 'string' },
+      'runtime-root': { type: 'string' },
+      'full-dmg-size-bytes': { type: 'string' },
+      'previous-full-dmg-size-bytes': { type: 'string' },
+      top: { type: 'string' },
+      markdown: { type: 'boolean' },
+      json: { type: 'boolean' },
+    },
+    strict: true,
+    allowPositionals: false,
+    tokens: true,
+  });
   const parsed = {
     manifestPath: defaultManifestPath,
     previousManifestPath: '',
@@ -23,40 +40,27 @@ function parseArgs(argv: string[]) {
     markdown: false,
   };
 
-  for (let index = 0; index < argv.length; index += 1) {
-    const token = argv[index];
-    const value = argv[index + 1];
-    if (token === '--manifest') {
-      if (!value) throw new Error('--manifest requires a path.');
-      parsed.manifestPath = path.resolve(value);
-      index += 1;
-    } else if (token === '--previous-manifest') {
-      if (!value) throw new Error('--previous-manifest requires a path.');
-      parsed.previousManifestPath = path.resolve(value);
-      index += 1;
-    } else if (token === '--runtime-root') {
-      if (!value) throw new Error('--runtime-root requires a path.');
-      parsed.runtimeRoot = path.resolve(value);
-      index += 1;
-    } else if (token === '--full-dmg-size-bytes') {
-      if (!value || !/^\d+$/.test(value)) throw new Error('--full-dmg-size-bytes requires a non-negative integer.');
-      parsed.fullDmgSizeBytes = Number(value);
-      index += 1;
-    } else if (token === '--previous-full-dmg-size-bytes') {
-      if (!value || !/^\d+$/.test(value)) throw new Error('--previous-full-dmg-size-bytes requires a non-negative integer.');
-      parsed.previousFullDmgSizeBytes = Number(value);
-      index += 1;
-    } else if (token === '--top') {
-      if (!value || !/^\d+$/.test(value)) throw new Error('--top requires a positive integer.');
-      parsed.top = Number(value);
-      index += 1;
-    } else if (token === '--markdown') {
-      parsed.markdown = true;
-    } else if (token === '--json') {
-      parsed.markdown = false;
-    } else {
-      throw new Error(`Unknown argument: ${token}`);
+  if (values.manifest !== undefined) parsed.manifestPath = path.resolve(values.manifest);
+  if (values['previous-manifest'] !== undefined) parsed.previousManifestPath = path.resolve(values['previous-manifest']);
+  if (values['runtime-root'] !== undefined) parsed.runtimeRoot = path.resolve(values['runtime-root']);
+  if (values['full-dmg-size-bytes'] !== undefined) {
+    if (!/^\d+$/.test(values['full-dmg-size-bytes'])) throw new Error('--full-dmg-size-bytes requires a non-negative integer.');
+    parsed.fullDmgSizeBytes = Number(values['full-dmg-size-bytes']);
+  }
+  if (values['previous-full-dmg-size-bytes'] !== undefined) {
+    if (!/^\d+$/.test(values['previous-full-dmg-size-bytes'])) {
+      throw new Error('--previous-full-dmg-size-bytes requires a non-negative integer.');
     }
+    parsed.previousFullDmgSizeBytes = Number(values['previous-full-dmg-size-bytes']);
+  }
+  if (values.top !== undefined) {
+    if (!/^\d+$/.test(values.top)) throw new Error('--top requires a positive integer.');
+    parsed.top = Number(values.top);
+  }
+  for (const token of tokens) {
+    if (token.kind !== 'option') continue;
+    if (token.name === 'markdown') parsed.markdown = true;
+    if (token.name === 'json') parsed.markdown = false;
   }
 
   return parsed;
