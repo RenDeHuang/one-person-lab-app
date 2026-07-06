@@ -101,8 +101,21 @@ function copyFileWithMode(sourcePath, targetPath, stat = fs.statSync(sourcePath)
 function copyDirectoryEntries(sourcePath, targetPath, copyEntry) {
   fs.mkdirSync(targetPath, { recursive: true });
   for (const entry of fs.readdirSync(sourcePath)) {
-    copyEntry(path.join(sourcePath, entry), path.join(targetPath, entry));
+    copyEntry(path.join(sourcePath, entry), path.join(targetPath, entry), entry);
   }
+}
+
+function copyPortableInternalSymlink(targetPath, sourceBase, targetBase, resolvedSourceTarget) {
+  if (!isInsidePath(sourceBase, resolvedSourceTarget)) {
+    return false;
+  }
+
+  const targetEquivalent = path.join(targetBase, path.relative(sourceBase, resolvedSourceTarget));
+  const portableLinkTarget = path.relative(path.dirname(targetPath), targetEquivalent) || '.';
+  fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+  fs.rmSync(targetPath, { recursive: true, force: true });
+  fs.symlinkSync(portableLinkTarget, targetPath);
+  return true;
 }
 
 export function copyPortableTree(sourceRoot, targetRoot) {
@@ -120,12 +133,7 @@ export function copyPortableTree(sourceRoot, targetRoot) {
     if (stat.isSymbolicLink()) {
       const linkTarget = fs.readlinkSync(sourcePath);
       const resolvedSourceTarget = path.resolve(path.dirname(sourcePath), linkTarget);
-      if (isInsidePath(sourceBase, resolvedSourceTarget)) {
-        const targetEquivalent = path.join(targetBase, path.relative(sourceBase, resolvedSourceTarget));
-        const portableLinkTarget = path.relative(path.dirname(targetPath), targetEquivalent) || '.';
-        fs.mkdirSync(path.dirname(targetPath), { recursive: true });
-        fs.rmSync(targetPath, { recursive: true, force: true });
-        fs.symlinkSync(portableLinkTarget, targetPath);
+      if (copyPortableInternalSymlink(targetPath, sourceBase, targetBase, resolvedSourceTarget)) {
         return;
       }
 
@@ -223,31 +231,24 @@ function copyNodeToolchainPackage(sourceRoot, targetRoot) {
     }
     const stat = fs.lstatSync(sourcePath);
     if (stat.isDirectory()) {
-      fs.mkdirSync(targetPath, { recursive: true });
-      for (const entry of fs.readdirSync(sourcePath)) {
-        copyEntry(path.join(sourcePath, entry), path.join(targetPath, entry), path.posix.join(relativePath, entry));
-      }
+      copyDirectoryEntries(sourcePath, targetPath, (childSourcePath, childTargetPath, entry) => {
+        copyEntry(childSourcePath, childTargetPath, path.posix.join(relativePath, entry));
+      });
       return;
     }
 
     if (stat.isSymbolicLink()) {
       const linkTarget = fs.readlinkSync(sourcePath);
       const resolvedSourceTarget = path.resolve(path.dirname(sourcePath), linkTarget);
-      if (isInsidePath(sourceBase, resolvedSourceTarget)) {
-        const targetEquivalent = path.join(targetBase, path.relative(sourceBase, resolvedSourceTarget));
-        const portableLinkTarget = path.relative(path.dirname(targetPath), targetEquivalent) || '.';
-        fs.mkdirSync(path.dirname(targetPath), { recursive: true });
-        fs.rmSync(targetPath, { recursive: true, force: true });
-        fs.symlinkSync(portableLinkTarget, targetPath);
+      if (copyPortableInternalSymlink(targetPath, sourceBase, targetBase, resolvedSourceTarget)) {
         return;
       }
 
       const realStat = fs.statSync(resolvedSourceTarget);
       if (realStat.isDirectory()) {
-        fs.mkdirSync(targetPath, { recursive: true });
-        for (const entry of fs.readdirSync(resolvedSourceTarget)) {
-          copyEntry(path.join(resolvedSourceTarget, entry), path.join(targetPath, entry), path.posix.join(relativePath, entry));
-        }
+        copyDirectoryEntries(resolvedSourceTarget, targetPath, (childSourcePath, childTargetPath, entry) => {
+          copyEntry(childSourcePath, childTargetPath, path.posix.join(relativePath, entry));
+        });
         return;
       }
       copyFileWithMode(resolvedSourceTarget, targetPath, realStat);
@@ -290,20 +291,14 @@ function copyProductionNodeModule(sourceRoot, targetRoot) {
     }
     const stat = fs.lstatSync(sourcePath);
     if (stat.isDirectory()) {
-      fs.mkdirSync(targetPath, { recursive: true });
-      for (const entry of fs.readdirSync(sourcePath)) {
-        copyEntry(path.join(sourcePath, entry), path.join(targetPath, entry));
-      }
+      copyDirectoryEntries(sourcePath, targetPath, copyEntry);
       return;
     }
     if (stat.isSymbolicLink()) {
       const realPath = fs.realpathSync(sourcePath);
       const realStat = fs.statSync(realPath);
       if (realStat.isDirectory()) {
-        fs.mkdirSync(targetPath, { recursive: true });
-        for (const entry of fs.readdirSync(realPath)) {
-          copyEntry(path.join(realPath, entry), path.join(targetPath, entry));
-        }
+        copyDirectoryEntries(realPath, targetPath, copyEntry);
         return;
       }
       if (realStat.isFile()) {
