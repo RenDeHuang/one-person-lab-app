@@ -2,6 +2,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { parseArgs as parseNodeArgs } from 'node:util';
 import { runGitHubCli as runGh } from './release-file-helpers.ts';
 import {
   arrayOrEmpty as asArray,
@@ -55,35 +56,35 @@ Options:
 `);
 }
 
-function readArgValue(argv: string[], index: number, token: string): string {
-  const value = argv[index + 1];
-  if (!value || value.startsWith('--')) throw new Error(`Missing value for ${token}`);
-  return value;
-}
-
 function parseArgs(argv: string[]): Options {
   const parsed = defaultOptions();
-  for (let index = 0; index < argv.length; index += 1) {
-    const token = argv[index];
-    if (token === '--help' || token === '-h') {
-      usage();
-      process.exit(0);
-    }
-    const value = token === '--run-id' || token === '--run-json' || token === '--repo'
-      || token === '--output' || token === '--markdown' || token === '--top'
-      || token === '--agent-wall-time'
-      ? readArgValue(argv, index, token)
-      : '';
-    if (token === '--run-id') parsed.runIds.push(value);
-    else if (token === '--run-json') parsed.runJsonPaths.push(path.resolve(value));
-    else if (token === '--repo') parsed.repo = value;
-    else if (token === '--output') parsed.output = path.resolve(value);
-    else if (token === '--markdown') parsed.markdown = path.resolve(value);
-    else if (token === '--top') parsed.top = parsePositiveInteger(value, '--top');
-    else if (token === '--agent-wall-time') parsed.agentWallTime = value;
-    else throw new Error(`Unknown argument: ${token}`);
-    index += 1;
+  const { values } = parseNodeArgs({
+    args: argv,
+    options: {
+      help: { type: 'boolean', short: 'h' },
+      repo: { type: 'string' },
+      'run-id': { type: 'string', multiple: true },
+      'run-json': { type: 'string', multiple: true },
+      output: { type: 'string' },
+      markdown: { type: 'string' },
+      top: { type: 'string' },
+      'agent-wall-time': { type: 'string' },
+    },
+  });
+
+  if (values.help) {
+    usage();
+    process.exit(0);
   }
+
+  parsed.runIds = values['run-id'] ?? parsed.runIds;
+  parsed.runJsonPaths = values['run-json']?.map((filePath) => path.resolve(filePath)) ?? parsed.runJsonPaths;
+  parsed.repo = values.repo ?? parsed.repo;
+  parsed.output = values.output ? path.resolve(values.output) : parsed.output;
+  parsed.markdown = values.markdown ? path.resolve(values.markdown) : parsed.markdown;
+  parsed.agentWallTime = values['agent-wall-time'] ?? parsed.agentWallTime;
+  if (values.top) parsed.top = parsePositiveInteger(values.top, '--top');
+
   if (parsed.runIds.length === 0 && parsed.runJsonPaths.length === 0) {
     throw new Error('Pass at least one --run-id <id> or --run-json <file>.');
   }

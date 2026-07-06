@@ -3,7 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { applyStringOptionArg } from './cli-option-args.ts';
+import { parseArgs as parseNodeArgs } from 'node:util';
 import { fileSha256, writeLinesFile } from './release-file-helpers.ts';
 import { recordOrNull } from './release-json-helpers.ts';
 
@@ -34,24 +34,30 @@ function parseArgs(argv: string[]): Options {
     markdown: process.env.OPL_RELEASE_COHORT_MANIFEST_MARKDOWN || '',
   };
 
-  for (let index = 0; index < argv.length; index += 1) {
-    const optionIndex = applyStringOptionArg(argv, index, {
-      '--version': (value) => { parsed.version = value; },
-      '--release-mode': (value) => { parsed.releaseMode = value; },
-      '--candidate-record': (value) => { parsed.candidateRecordPath = value; },
-      '--readiness': (value) => { parsed.readinessPath = value; },
-      '--remote-verification': (value) => { parsed.remoteVerificationPath = value; },
-      '--preflight': (value) => { parsed.preflightPath = value; },
-      '--gate-reuse-plan': (value) => { parsed.gateReusePlanPath = value; },
-      '--output': (value) => { parsed.output = value; },
-      '--markdown': (value) => { parsed.markdown = value; },
-    });
-    if (optionIndex !== null) {
-      index = optionIndex;
-      continue;
-    }
-    throw new Error(`Unknown argument: ${argv[index]}`);
-  }
+  const { values } = parseNodeArgs({
+    args: argv,
+    options: {
+      version: { type: 'string' },
+      'release-mode': { type: 'string' },
+      'candidate-record': { type: 'string' },
+      readiness: { type: 'string' },
+      'remote-verification': { type: 'string' },
+      preflight: { type: 'string' },
+      'gate-reuse-plan': { type: 'string' },
+      output: { type: 'string' },
+      markdown: { type: 'string' },
+    },
+  });
+
+  parsed.version = values.version ?? parsed.version;
+  parsed.releaseMode = values['release-mode'] ?? parsed.releaseMode;
+  parsed.candidateRecordPath = values['candidate-record'] ?? parsed.candidateRecordPath;
+  parsed.readinessPath = values.readiness ?? parsed.readinessPath;
+  parsed.remoteVerificationPath = values['remote-verification'] ?? parsed.remoteVerificationPath;
+  parsed.preflightPath = values.preflight ?? parsed.preflightPath;
+  parsed.gateReusePlanPath = values['gate-reuse-plan'] ?? parsed.gateReusePlanPath;
+  parsed.output = values.output ?? parsed.output;
+  parsed.markdown = values.markdown ?? parsed.markdown;
 
   const required = [
     ['--version', parsed.version],

@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { parseArgs as parseNodeArgs } from 'node:util';
 import { findFileByName, runGitHubCli as runGh } from './release-file-helpers.ts';
 import {
   arrayOrEmpty as asArray,
@@ -121,12 +122,6 @@ Options:
 `);
 }
 
-function readArgValue(argv: string[], index: number, token: string): string {
-  const value = argv[index + 1];
-  if (!value || value.startsWith('--')) throw new Error(`Missing value for ${token}`);
-  return value;
-}
-
 function parseArtifactProfile(value: string): ArtifactProfile {
   if (value === 'primary' || value === 'diagnostics' || value === 'readiness-inputs') {
     return value;
@@ -134,41 +129,60 @@ function parseArtifactProfile(value: string): ArtifactProfile {
   throw new Error('--artifact-profile must be primary, diagnostics, or readiness-inputs.');
 }
 
-function applyOption(parsed: Options, token: string, value: string): void {
-  if (token === '--version') parsed.version = value;
-  else if (token === '--run-id') parsed.runId = value;
-  else if (token === '--repo') parsed.repo = value;
-  else if (token === '--out-dir' || token === '--output-dir') parsed.outDir = value;
-  else if (token === '--output') parsed.output = value;
-  else if (token === '--markdown') parsed.markdown = value;
-  else if (token === '--monitor') parsed.monitor = value;
-  else if (token === '--notification') parsed.notification = value;
-  else if (token === '--run-json') parsed.runJsonPath = value;
-  else if (token === '--jobs-json') parsed.jobsJsonPath = value;
-  else if (token === '--artifacts-json') parsed.artifactsJsonPath = value;
-  else if (token === '--artifacts-dir') parsed.artifactsDir = value;
-  else if (token === '--artifact-profile') parsed.artifactProfile = parseArtifactProfile(value);
-  else if (token === '--agent-started-at') parsed.agentStartedAt = value;
-  else if (token === '--agent-finished-at') parsed.agentFinishedAt = value;
-  else if (token === '--agent-wall-time') parsed.agentWallTime = value;
-  else throw new Error(`Unknown argument: ${token}`);
-}
-
 function parseArgs(argv: string[]): Options {
   const parsed = defaultOptions();
-  for (let index = 0; index < argv.length; index += 1) {
-    const token = argv[index];
-    if (token === '--help' || token === '-h') {
-      usage();
-      process.exit(0);
-    }
-    if (token === '--no-download') {
-      parsed.noDownload = true;
-      continue;
-    }
-    applyOption(parsed, token, readArgValue(argv, index, token));
-    index += 1;
+  const { values, tokens } = parseNodeArgs({
+    args: argv,
+    options: {
+      help: { type: 'boolean', short: 'h' },
+      version: { type: 'string' },
+      'run-id': { type: 'string', multiple: true },
+      repo: { type: 'string' },
+      'out-dir': { type: 'string' },
+      'output-dir': { type: 'string' },
+      output: { type: 'string' },
+      markdown: { type: 'string' },
+      monitor: { type: 'string' },
+      notification: { type: 'string' },
+      'run-json': { type: 'string', multiple: true },
+      'jobs-json': { type: 'string' },
+      'artifacts-json': { type: 'string' },
+      'artifacts-dir': { type: 'string' },
+      'artifact-profile': { type: 'string' },
+      'no-download': { type: 'boolean' },
+      'agent-started-at': { type: 'string' },
+      'agent-finished-at': { type: 'string' },
+      'agent-wall-time': { type: 'string' },
+    },
+    tokens: true,
+  });
+
+  if (values.help) {
+    usage();
+    process.exit(0);
   }
+
+  parsed.version = values.version ?? parsed.version;
+  parsed.runId = values['run-id']?.at(-1) ?? parsed.runId;
+  parsed.repo = values.repo ?? parsed.repo;
+  parsed.output = values.output ?? parsed.output;
+  parsed.markdown = values.markdown ?? parsed.markdown;
+  parsed.monitor = values.monitor ?? parsed.monitor;
+  parsed.notification = values.notification ?? parsed.notification;
+  parsed.runJsonPath = values['run-json']?.at(-1) ?? parsed.runJsonPath;
+  parsed.jobsJsonPath = values['jobs-json'] ?? parsed.jobsJsonPath;
+  parsed.artifactsJsonPath = values['artifacts-json'] ?? parsed.artifactsJsonPath;
+  parsed.artifactsDir = values['artifacts-dir'] ?? parsed.artifactsDir;
+  parsed.agentStartedAt = values['agent-started-at'] ?? parsed.agentStartedAt;
+  parsed.agentFinishedAt = values['agent-finished-at'] ?? parsed.agentFinishedAt;
+  parsed.agentWallTime = values['agent-wall-time'] ?? parsed.agentWallTime;
+  parsed.noDownload = values['no-download'] ?? parsed.noDownload;
+
+  const outDirToken = tokens
+    .filter((token) => token.kind === 'option' && (token.name === 'out-dir' || token.name === 'output-dir'))
+    .at(-1);
+  if (outDirToken?.value) parsed.outDir = outDirToken.value;
+  if (values['artifact-profile']) parsed.artifactProfile = parseArtifactProfile(values['artifact-profile']);
 
   if (!parsed.version.trim()) throw new Error('Pass --version <version> or set OPL_RELEASE_VERSION.');
   if (!parsed.runId.trim() && !parsed.runJsonPath.trim()) {
