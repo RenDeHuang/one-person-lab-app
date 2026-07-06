@@ -1,18 +1,36 @@
-import { assertIncludesAll } from './assertions.ts';
+import { assertIncludesAll, readJson } from './assertions.ts';
 import { isDefaultReleaseAdapter } from './active-shell-contract.ts';
 import {
   beginnerFirstRunTestIds,
   firstRunChecklistFields,
   firstRunCoreItems,
-  firstRunDeferredMaintenanceItems,
   firstRunEcosystemModules,
   firstRunProgressConsumerPackageTypes,
   firstRunProgressFields,
   firstRunProgressSourceCommand,
   firstRunProgressSourcePath,
-  firstRunRequiredHostTools,
   firstRunSetupFlowFields,
 } from './app-contract-constants.ts';
+import { productProfilePath } from './validation-config.ts';
+
+const productProfile = readJson(productProfilePath);
+const fullFirstInstallPolicy = productProfile.first_run?.core_ready_policy?.full_first_install_clean_machine;
+
+function requiredContractStringArray(value, label) {
+  if (!Array.isArray(value) || value.length === 0 || value.some((entry) => typeof entry !== 'string' || !entry.trim())) {
+    throw new Error(`${label} must be a non-empty string array`);
+  }
+  return value;
+}
+
+const firstRunRequiredHostTools = requiredContractStringArray(
+  fullFirstInstallPolicy?.missing_host_tools_allowed,
+  'Product profile Full first-install missing_host_tools_allowed',
+);
+const firstRunDeferredMaintenanceItems = requiredContractStringArray(
+  fullFirstInstallPolicy?.must_not_block_core_ready,
+  'Product profile Full first-install must_not_block_core_ready',
+);
 
 function buildScenarioMap(matrix) {
   if (!Array.isArray(matrix.scenarios) || matrix.scenarios.length === 0) {

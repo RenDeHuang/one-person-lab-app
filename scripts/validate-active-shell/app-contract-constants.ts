@@ -874,20 +874,6 @@ export const settingsPageExpectations = {
     ],
   },
 };
-export const firstRunRequiredHostTools = [
-  "command_line_tools",
-  "homebrew",
-  "node",
-  "git",
-];
-export const firstRunDeferredMaintenanceItems = [
-  "repo_sync",
-  "module_reconcile",
-  "command_line_tools_install",
-  "native_helpers",
-  "companion_skills_install",
-  "ecosystem_module_updates",
-];
 export const firstRunEcosystemModules = [
   "officecli",
   "mineru",
