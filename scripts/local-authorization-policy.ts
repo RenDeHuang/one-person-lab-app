@@ -3,7 +3,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { pushDirectoryEntries } from './filesystem-walk.ts';
 
 const LOCAL_AUTHORIZATION_POLICY_SCHEMA = 'opl_local_authorized_macos_policy.v1';
 
@@ -93,7 +92,9 @@ function quarantineCount(target) {
     const current = stack.pop();
     const stat = fs.lstatSync(current);
     if (stat.isDirectory()) {
-      pushDirectoryEntries(stack, current);
+      for (const entry of fs.readdirSync(current)) {
+        stack.push(path.join(current, entry));
+      }
     }
     if (runCapture('xattr', ['-p', 'com.apple.quarantine', current]).status === 0) {
       count += 1;

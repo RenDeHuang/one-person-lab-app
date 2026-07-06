@@ -1,8 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { assertRepositoryRelativePath } from '../repository-relative-path.ts';
-import { assertStringArrayIncludes } from '../string-array-assertions.ts';
+import { assertRepositoryRelativePath, assertStringArrayIncludes } from '../value-assertions.ts';
 import type { ActiveProjectLineStateModel } from './types.ts';
 
 export const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');

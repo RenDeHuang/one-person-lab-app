@@ -11,7 +11,6 @@ import {
   strictMacosRuntimeSigningRequired,
 } from './macos-trust.ts';
 import { run, runCapture } from './process.ts';
-import { pushDirectoryEntries } from '../filesystem-walk.ts';
 
 function macosSigningIdentity() {
   return process.env.OPL_RUNTIME_CODESIGN_IDENTITY?.trim()
@@ -54,7 +53,9 @@ export function listFullRuntimeNativeExecutables(runtimeRoot) {
     const current = stack.pop();
     const stat = fs.lstatSync(current);
     if (stat.isDirectory()) {
-      pushDirectoryEntries(stack, current);
+      for (const entry of fs.readdirSync(current)) {
+        stack.push(path.join(current, entry));
+      }
       continue;
     }
     if (stat.isSymbolicLink()) {

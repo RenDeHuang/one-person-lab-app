@@ -1,5 +1,4 @@
-import { assertExpectedFields } from './expected-field-assertions.ts';
-import { assertStringArrayIncludes } from './string-array-assertions.ts';
+import { assertExpectedFields, assertStringArrayIncludes } from './value-assertions.ts';
 
 type ProductProfileLike = {
   codex?: {

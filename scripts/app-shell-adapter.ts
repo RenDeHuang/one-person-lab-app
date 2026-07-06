@@ -5,7 +5,7 @@ import {
   validateGuiProductContractPolicyFields,
   validateValidationCommandShape,
 } from './app-shell-adapter-contract-validators.ts';
-import { assertRepositoryRelativePath } from './repository-relative-path.ts';
+import { assertRepositoryRelativePath } from './value-assertions.ts';
 
 export type ShellPathContract = {
   package_manifest: string;

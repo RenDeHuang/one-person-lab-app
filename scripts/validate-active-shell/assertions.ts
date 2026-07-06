@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { assertStringArrayIncludes } from '../string-array-assertions.ts';
+import { assertStringArrayIncludes } from '../value-assertions.ts';
 
 export function readJson(filePath) {
   return JSON.parse(readFileSync(filePath, 'utf8'));

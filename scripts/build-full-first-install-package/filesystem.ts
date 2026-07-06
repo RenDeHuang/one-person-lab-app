@@ -7,7 +7,6 @@ import {
   shouldExcludeProductionNodeModulePath,
   shouldExcludeRuntimePath,
 } from '../full-first-install-package.ts';
-import { pushDirectoryEntries } from '../filesystem-walk.ts';
 
 export function requirePath(filePath, label) {
   if (!filePath || !fs.existsSync(filePath)) {
@@ -29,7 +28,9 @@ export function directorySizeBytes(root) {
     const current = stack.pop();
     const stat = fs.lstatSync(current);
     if (stat.isDirectory()) {
-      pushDirectoryEntries(stack, current);
+      for (const entry of fs.readdirSync(current)) {
+        stack.push(path.join(current, entry));
+      }
     } else {
       total += stat.size;
     }

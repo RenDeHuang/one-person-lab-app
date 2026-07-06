@@ -1,5 +1,5 @@
 import { assertDeepEqualJson, assertIncludesAll } from './assertions.ts';
-import { assertExpectedFields } from '../expected-field-assertions.ts';
+import { assertExpectedFields } from '../value-assertions.ts';
 
 export function validateReleaseHomebrewDistribution(releaseChannel, managedUpdatePlane) {
   const homebrew = releaseChannel.homebrew_tap_distribution;
