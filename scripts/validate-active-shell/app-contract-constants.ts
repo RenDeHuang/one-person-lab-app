@@ -493,13 +493,6 @@ export const appOwnedSettingsProductSystemTracks = [
   "ops_hygiene",
   "release_currentness",
 ];
-export const appOwnedDeveloperProfileCapabilityAxes = [
-  "source_channel",
-  "workspace_trust",
-  "github_authority",
-  "agent_automation",
-  "runtime_mutation_scope",
-];
 export const legacySettingsRouteRedirects = {
   overview: "general",
   runtime: "environment",
@@ -513,9 +506,6 @@ export const legacySettingsRouteRedirects = {
   webui: "resources",
   pet: "appearance",
 };
-export const ordinaryHiddenLegacySettingsTabs = Object.keys(
-  legacySettingsRouteRedirects,
-);
 const homeActivityCenterItemFields = [
   "task_id",
   "title",

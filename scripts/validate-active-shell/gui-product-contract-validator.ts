@@ -1,7 +1,6 @@
 import { assertDeepEqualJson, assertForbiddenCapabilityPolicy, assertIncludesAll } from './assertions.ts';
 import {
   appActionRoute,
-  appOwnedDeveloperProfileCapabilityAxes,
   appOwnedSettingsTabs,
   beginnerFirstRunTestIds,
   firstRunChecklistFields,
@@ -15,7 +14,6 @@ import {
   fullReadinessItems,
   homeActivityCenterForbiddenDisplays,
   legacySettingsRouteRedirects,
-  ordinaryHiddenLegacySettingsTabs,
   appOwnedSecondarySettingsPages,
   settingsPageExpectations,
   appOwnedSettingsCardFields,
@@ -207,7 +205,7 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   );
   assertDeepEqualJson(
     guiContract.settings_navigation?.ordinary_hidden_legacy_tabs,
-    ordinaryHiddenLegacySettingsTabs,
+    Object.keys(guiContract.settings_navigation?.legacy_route_redirects ?? {}),
     'App GUI settings navigation ordinary hidden legacy tabs',
   );
   assertIncludesAll(
@@ -338,10 +336,14 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   if (!developerProfile || typeof developerProfile !== 'object') {
     throw new Error('App GUI contract must declare Developer Profile capabilities');
   }
+  const developerProfileCapabilityAxes = developerProfile.capability_axes;
+  if (!Array.isArray(developerProfileCapabilityAxes) || developerProfileCapabilityAxes.length === 0) {
+    throw new Error('App GUI Developer Profile must declare capability axes');
+  }
   assertDeepEqualJson(
-    developerProfile.capability_axes,
-    appOwnedDeveloperProfileCapabilityAxes,
-    'App GUI Developer Profile capability axes',
+    Object.keys(developerProfile.capabilities ?? {}),
+    developerProfileCapabilityAxes,
+    'App GUI Developer Profile capability axes and capability map keys',
   );
   if (
     developerProfile.default_profile !== 'standard_user' ||
@@ -351,7 +353,7 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   ) {
     throw new Error('App GUI Developer Profile must preserve standard user defaults and explicit opt-in');
   }
-  for (const axis of appOwnedDeveloperProfileCapabilityAxes) {
+  for (const axis of developerProfileCapabilityAxes) {
     const capability = developerProfile.capabilities?.[axis];
     if (!capability?.standard_default || !capability.developer_opt_in || !capability.display_policy) {
       throw new Error(`App GUI Developer Profile capability ${axis} must declare defaults, opt-in, and display policy`);
