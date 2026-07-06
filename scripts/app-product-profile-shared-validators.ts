@@ -75,10 +75,63 @@ const agentPackageReceiptRequiredFields = [
 type GuiLike = NonNullable<ProductProfileLike['gui']>;
 type HomeLike = GuiLike['home'];
 type CodexModelDisplayOptionsLike = NonNullable<NonNullable<HomeLike>['codex_model_display_options']>;
+type ProfessionalAgentPackageLike = {
+  package_id: string;
+  installed_manageable?: unknown;
+  codex_visible_entry?: unknown;
+  required_skill_ids?: unknown;
+  required_skill_policy?: unknown;
+  optional_skill_policy?: unknown;
+  skill_menu_policy?: unknown;
+  package_kind?: unknown;
+  default_home_visible?: unknown;
+  home_shortcut_ids?: unknown[];
+};
 
 function assertExactStringArray(actual: unknown, expected: string[], label: string): void {
   if (JSON.stringify(actual) !== JSON.stringify(expected)) {
     throw new Error(`${label} must be ${JSON.stringify(expected)}`);
+  }
+}
+
+export function assertProfessionalAgentPackagePolicy(
+  packages: ProfessionalAgentPackageLike[] | undefined,
+  label: string,
+): void {
+  const entries = packages ?? [];
+  assertExactStringArray(
+    entries.map((entry) => entry.package_id),
+    managedShortcutPackageIds,
+    `${label} professional agent packages`,
+  );
+  for (const entry of entries) {
+    const requiredSkills = requiredSkillByPackageId[entry.package_id as keyof typeof requiredSkillByPackageId];
+    const codexEntry = codexEntryByPackageId[entry.package_id as keyof typeof codexEntryByPackageId];
+    if (!requiredSkills || !codexEntry) {
+      throw new Error(`${label} professional agent package ${entry.package_id} is not in the App package allowlist`);
+    }
+    if (
+      entry.installed_manageable !== true ||
+      entry.codex_visible_entry !== codexEntry ||
+      JSON.stringify(entry.required_skill_ids) !== JSON.stringify(requiredSkills) ||
+      entry.required_skill_policy !== 'checked_locked' ||
+      entry.optional_skill_policy !== 'unchecked_user_selectable' ||
+      entry.skill_menu_policy !== 'assistant_scoped_required_checked_optional_visible'
+    ) {
+      throw new Error(`${label} professional agent package ${entry.package_id} has invalid shortcut or skill policy`);
+    }
+    if (starterPackageIds.includes(entry.package_id)) {
+      if (entry.package_kind !== 'starter_professional_agent_package' || entry.default_home_visible !== true || entry.home_shortcut_ids.length !== 1) {
+        throw new Error(`${label} starter package ${entry.package_id} must be default home visible through one shortcut`);
+      }
+    }
+    if (entry.package_id === 'opl-meta-agent' && (
+      entry.package_kind !== 'managed_professional_agent_package' ||
+      entry.default_home_visible !== false ||
+      JSON.stringify(entry.home_shortcut_ids) !== JSON.stringify(['oma'])
+    )) {
+      throw new Error(`${label} must keep OMA installed/manageable, hidden by default, and configurable from Home shortcuts`);
+    }
   }
 }
 

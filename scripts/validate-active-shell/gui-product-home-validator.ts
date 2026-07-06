@@ -6,9 +6,8 @@ import {
   appOwnedRightContextInspectorTabIds,
 } from './app-contract-constants.ts';
 import {
-  codexEntryByPackageId,
+  assertProfessionalAgentPackagePolicy,
   managedShortcutIds,
-  managedShortcutPackageIds as managedPackageIds,
   managedShortcutPackageIds,
   requiredSkillByAssistantId,
   requiredSkillByPackageId,
@@ -178,36 +177,7 @@ function validateDefaultAssistants(guiContract) {
 }
 
 function validateProfessionalAgentPackages(guiContract) {
-  const packages = guiContract.professional_agent_packages ?? [];
-  assertDeepEqualJson(
-    packages.map((entry) => entry.package_id),
-    managedPackageIds,
-    'App GUI contract professional agent packages',
-  );
-  for (const entry of packages) {
-    if (
-      entry.installed_manageable !== true ||
-      entry.codex_visible_entry !== codexEntryByPackageId[entry.package_id] ||
-      JSON.stringify(entry.required_skill_ids) !== JSON.stringify(requiredSkillByPackageId[entry.package_id]) ||
-      entry.required_skill_policy !== 'checked_locked' ||
-      entry.optional_skill_policy !== 'unchecked_user_selectable' ||
-      entry.skill_menu_policy !== 'assistant_scoped_required_checked_optional_visible'
-    ) {
-      throw new Error(`App GUI professional agent package ${entry.package_id} has invalid shortcut or skill policy`);
-    }
-    if (defaultAssistantIds.includes(entry.package_id)) {
-      if (entry.package_kind !== 'starter_professional_agent_package' || entry.default_home_visible !== true || entry.home_shortcut_ids.length !== 1) {
-        throw new Error(`App GUI starter package ${entry.package_id} must be default home visible through one shortcut`);
-      }
-    }
-    if (entry.package_id === 'opl-meta-agent' && (
-      entry.package_kind !== 'managed_professional_agent_package' ||
-      entry.default_home_visible !== false ||
-      JSON.stringify(entry.home_shortcut_ids) !== JSON.stringify(['oma'])
-    )) {
-      throw new Error('App GUI contract must keep OMA installed/manageable, hidden by default, and configurable from Home shortcuts');
-    }
-  }
+  assertProfessionalAgentPackagePolicy(guiContract.professional_agent_packages, 'App GUI contract');
 }
 
 function validateAssistantSkillProfiles(guiContract) {

@@ -38,11 +38,10 @@ import {
   assertAppProductProfileGuiAuthority,
   assertAppProductProfileHomeCodexPolicy,
   assertAppProductProfileRouteReceiptPolicy,
-  codexEntryByPackageId,
+  assertProfessionalAgentPackagePolicy,
   managedShortcutIds,
   managedShortcutPackageIds,
   requiredSkillByPackageId,
-  starterPackageIds,
 } from '../app-product-profile-shared-validators.ts';
 import { expectedDomainExposureEntryMap } from './domain-exposure-validator.ts';
 
@@ -164,35 +163,7 @@ function validateHomeAssistantDefaults(profile) {
 }
 
 function validateProfessionalAgentPackages(profile) {
-  const packages = profile.gui.professional_agent_packages ?? [];
-  if (JSON.stringify(packages.map((entry) => entry.package_id)) !== JSON.stringify([...starterPackageIds, 'opl-meta-agent'])) {
-    throw new Error('Product profile professional agent packages must declare MAS, MAG, RCA, BookForge, and OMA');
-  }
-  for (const entry of packages) {
-    const requiredSkills = requiredSkillByPackageId[entry.package_id];
-    if (
-      entry.installed_manageable !== true ||
-      entry.codex_visible_entry !== codexEntryByPackageId[entry.package_id] ||
-      JSON.stringify(entry.required_skill_ids) !== JSON.stringify(requiredSkills) ||
-      entry.required_skill_policy !== 'checked_locked' ||
-      entry.optional_skill_policy !== 'unchecked_user_selectable' ||
-      entry.skill_menu_policy !== 'assistant_scoped_required_checked_optional_visible'
-    ) {
-      throw new Error(`Product profile professional agent package ${entry.package_id} has invalid shortcut or skill policy`);
-    }
-    if (starterPackageIds.includes(entry.package_id)) {
-      if (entry.package_kind !== 'starter_professional_agent_package' || entry.default_home_visible !== true || entry.home_shortcut_ids.length !== 1) {
-        throw new Error(`Product profile starter package ${entry.package_id} must be default home visible through one shortcut`);
-      }
-    }
-    if (entry.package_id === 'opl-meta-agent' && (
-      entry.package_kind !== 'managed_professional_agent_package' ||
-      entry.default_home_visible !== false ||
-      JSON.stringify(entry.home_shortcut_ids) !== JSON.stringify(['oma'])
-    )) {
-      throw new Error('Product profile must keep OMA installed/manageable, hidden by default, and configurable from Home shortcuts');
-    }
-  }
+  assertProfessionalAgentPackagePolicy(profile.gui.professional_agent_packages, 'Product profile');
 }
 
 function validateProductProfileSettings(profile) {
