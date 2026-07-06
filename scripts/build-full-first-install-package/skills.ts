@@ -7,7 +7,7 @@ import { readAppProductProfile } from '../app-product-profile/profile-contract.t
 import { appRepoRoot } from './paths.ts';
 import { copyTreeFiltered } from './filesystem.ts';
 import { readGitHead } from './git.ts';
-import { directoryFingerprint, fileSha256 } from './hashing.ts';
+import { directoryFingerprint, existingFileSha256 } from './hashing.ts';
 
 export function copySkillDirectory(sourceRoot, targetRoot, skillName) {
   if (!fs.existsSync(path.join(sourceRoot, 'SKILL.md'))) {
@@ -43,7 +43,7 @@ export function skillFileSourceSnapshot(candidates) {
   return {
     source_path: source,
     git_commit: source ? readGitHead(source) : null,
-    skill_md_sha256: source ? fileSha256(path.join(source, 'SKILL.md')) : null,
+    skill_md_sha256: source ? existingFileSha256(path.join(source, 'SKILL.md')) : null,
   };
 }
 
@@ -87,7 +87,7 @@ export function metaAgentSkillSnapshot(options) {
     return {
       source_path: source.sourcePath,
       git_commit: readGitHead(source.sourcePath),
-      domain_skill_sha256: fileSha256(source.domainSkill),
+      domain_skill_sha256: existingFileSha256(source.domainSkill),
       agent_payload_fingerprint: directoryFingerprint(source.agentRoot, 'skills/opl-meta-agent'),
     };
   }
@@ -103,7 +103,7 @@ export function bookforgeSkillSnapshot(options) {
     return {
       source_path: source.sourcePath,
       git_commit: readGitHead(source.sourcePath),
-      framework_generator_sha256: fileSha256(source.frameworkEntry),
+      framework_generator_sha256: existingFileSha256(source.frameworkEntry),
     };
   }
   return skillSourceSnapshot([

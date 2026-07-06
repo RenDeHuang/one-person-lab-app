@@ -9,7 +9,7 @@ import {
   shouldExcludeRuntimePath,
 } from '../full-first-install-package.ts';
 
-export function fileSha256(filePath) {
+export function existingFileSha256(filePath) {
   if (!filePath || !fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
     return null;
   }
@@ -24,7 +24,7 @@ export function hashFiles(sourceRoot, relativePaths) {
   const entries = {};
   for (const relativePath of relativePaths) {
     const filePath = path.join(sourceRoot, relativePath);
-    entries[relativePath] = fs.existsSync(filePath) ? fileSha256(filePath) : null;
+    entries[relativePath] = fs.existsSync(filePath) ? existingFileSha256(filePath) : null;
   }
   return entries;
 }
