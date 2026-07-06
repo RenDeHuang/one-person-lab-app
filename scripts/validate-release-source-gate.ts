@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { applyStringOptionArg } from './cli-option-args.ts';
+import { parseArgs as parseNodeArgs } from 'node:util';
 import { parseStrictBoolean } from './release-readiness-args.ts';
 
 const defaultRepoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -112,34 +112,44 @@ function defaultOptions(): ReleaseSourceGateOptions {
 
 export function parseReleaseSourceGateArgs(argv: string[]): ReleaseSourceGateOptions {
   const parsed = defaultOptions();
-  for (let index = 0; index < argv.length; index += 1) {
-    const token = argv[index];
-    if (token === '--help' || token === '-h') {
-      usage();
-      process.exit(0);
-    }
-    if (token === '--json') {
-      parsed.json = true;
-      continue;
-    }
-    const optionIndex = applyStringOptionArg(argv, index, {
-      '--version': (value) => { parsed.version = value; },
-      '--app-ref': (value) => { parsed.expectedAppHead = value; },
-      '--expected-app-head': (value) => { parsed.expectedAppHead = value; },
-      '--shell-ref': (value) => { parsed.shellRef = value; },
-      '--framework-ref': (value) => { parsed.frameworkRef = value; },
-      '--require-shell-format': (value) => { parsed.requireShellFormat = parseStrictBoolean(value); },
-      '--run-shell-tests': (value) => { parsed.runShellTests = parseStrictBoolean(value); },
-      '--repo-root': (value) => { parsed.repoRoot = value; },
-      '--framework-root': (value) => { parsed.frameworkRoot = value; },
-      '--output': (value) => { parsed.output = value; },
-    });
-    if (optionIndex !== null) {
-      index = optionIndex;
-      continue;
-    }
-    throw new Error(`Unknown argument: ${token}`);
+  const { values, tokens } = parseNodeArgs({
+    args: argv,
+    options: {
+      version: { type: 'string' },
+      'app-ref': { type: 'string' },
+      'expected-app-head': { type: 'string' },
+      'shell-ref': { type: 'string' },
+      'framework-ref': { type: 'string' },
+      'require-shell-format': { type: 'string' },
+      'run-shell-tests': { type: 'string' },
+      'repo-root': { type: 'string' },
+      'framework-root': { type: 'string' },
+      output: { type: 'string' },
+      json: { type: 'boolean' },
+      help: { type: 'boolean', short: 'h' },
+    },
+  });
+  if (values.help) {
+    usage();
+    process.exit(0);
   }
+  parsed.version = values.version ?? parsed.version;
+  const expectedAppHeadToken = tokens
+    .filter((token) => token.kind === 'option' && (token.name === 'app-ref' || token.name === 'expected-app-head'))
+    .at(-1);
+  parsed.expectedAppHead = expectedAppHeadToken?.value ?? parsed.expectedAppHead;
+  parsed.shellRef = values['shell-ref'] ?? parsed.shellRef;
+  parsed.frameworkRef = values['framework-ref'] ?? parsed.frameworkRef;
+  if (values['require-shell-format'] !== undefined) {
+    parsed.requireShellFormat = parseStrictBoolean(values['require-shell-format']);
+  }
+  if (values['run-shell-tests'] !== undefined) {
+    parsed.runShellTests = parseStrictBoolean(values['run-shell-tests']);
+  }
+  parsed.repoRoot = values['repo-root'] ?? parsed.repoRoot;
+  parsed.frameworkRoot = values['framework-root'] ?? parsed.frameworkRoot;
+  parsed.output = values.output ?? parsed.output;
+  parsed.json = values.json ?? parsed.json;
 
   if (!parsed.version.trim()) throw new Error('Pass --version <version> or set OPL_RELEASE_VERSION.');
   if (!parsed.expectedAppHead.trim()) {

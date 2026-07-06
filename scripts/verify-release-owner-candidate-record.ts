@@ -4,8 +4,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { parseArgs as parseNodeArgs } from 'node:util';
 import { fileSha256, findFileByName } from './release-file-helpers.ts';
-import { requiredOptionValue } from './cli-option-args.ts';
 import { asRecord, readJsonFile } from './release-json-helpers.ts';
 import { parseStrictBoolean } from './release-readiness-args.ts';
 
@@ -32,21 +32,28 @@ function parseArgs(argv: string[]): Options {
     runVmSmoke: parseStrictBoolean(process.env.OPL_RUN_VM_SMOKE, true),
   };
 
-  for (let index = 0; index < argv.length; index += 1) {
-    const token = argv[index];
-    if (token === '--version') parsed.version = requiredOptionValue(argv, index, token);
-    else if (token === '--owner-record') parsed.ownerRecordPath = requiredOptionValue(argv, index, token);
-    else if (token === '--artifacts-dir') parsed.artifactsDir = requiredOptionValue(argv, index, token);
-    else if (token === '--output-dir') parsed.outputDir = requiredOptionValue(argv, index, token);
-    else if (token === '--release-mode') parsed.releaseMode = requiredOptionValue(argv, index, token);
-    else if (token === '--include-full-package') {
-      parsed.includeFullPackage = parseStrictBoolean(requiredOptionValue(argv, index, token));
-    } else if (token === '--run-vm-smoke') {
-      parsed.runVmSmoke = parseStrictBoolean(requiredOptionValue(argv, index, token));
-    } else {
-      throw new Error(`Unknown argument: ${token}`);
-    }
-    index += 1;
+  const { values } = parseNodeArgs({
+    args: argv,
+    options: {
+      version: { type: 'string' },
+      'owner-record': { type: 'string' },
+      'artifacts-dir': { type: 'string' },
+      'output-dir': { type: 'string' },
+      'release-mode': { type: 'string' },
+      'include-full-package': { type: 'string' },
+      'run-vm-smoke': { type: 'string' },
+    },
+  });
+  parsed.version = values.version ?? parsed.version;
+  parsed.ownerRecordPath = values['owner-record'] ?? parsed.ownerRecordPath;
+  parsed.artifactsDir = values['artifacts-dir'] ?? parsed.artifactsDir;
+  parsed.outputDir = values['output-dir'] ?? parsed.outputDir;
+  parsed.releaseMode = values['release-mode'] ?? parsed.releaseMode;
+  if (values['include-full-package'] !== undefined) {
+    parsed.includeFullPackage = parseStrictBoolean(values['include-full-package']);
+  }
+  if (values['run-vm-smoke'] !== undefined) {
+    parsed.runVmSmoke = parseStrictBoolean(values['run-vm-smoke']);
   }
 
   if (!parsed.version.trim()) throw new Error('Pass --version <version> or set OPL_RELEASE_VERSION.');

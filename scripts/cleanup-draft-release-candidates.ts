@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 
 import path from 'node:path';
-import { applyCleanupArg, emitJsonSummary, parseJsonLines, runCleanupScript, runGh } from './release-cleanup-helpers.ts';
+import { parseArgs as parseNodeArgs } from 'node:util';
+import { emitJsonSummary, parseJsonLines, runCleanupScript, runGh } from './release-cleanup-helpers.ts';
 
 type ReleaseAsset = {
   name?: string;
@@ -39,23 +40,24 @@ function parseArgs(argv: string[]): Options {
     summaryPath: process.env.OPL_DRAFT_CLEANUP_SUMMARY_PATH || '',
   };
 
-  for (let index = 0; index < argv.length; index += 1) {
-    index = applyCleanupArg(argv, index, {
-      setExecute: (execute) => {
-        parsed.execute = execute;
-      },
-      valueHandlers: {
-        '--repo': (value) => {
-          parsed.repo = value;
-        },
-        '--version': (value) => {
-          parsed.version = value;
-        },
-        '--summary-path': (value) => {
-          parsed.summaryPath = path.resolve(value);
-        },
-      },
-    });
+  const { values, tokens } = parseNodeArgs({
+    args: argv,
+    options: {
+      repo: { type: 'string' },
+      version: { type: 'string' },
+      'summary-path': { type: 'string' },
+      execute: { type: 'boolean' },
+      'dry-run': { type: 'boolean' },
+    },
+    tokens: true,
+  });
+  parsed.repo = values.repo ?? parsed.repo;
+  parsed.version = values.version ?? parsed.version;
+  parsed.summaryPath = values['summary-path'] ? path.resolve(values['summary-path']) : parsed.summaryPath;
+  for (const token of tokens) {
+    if (token.kind !== 'option') continue;
+    if (token.name === 'execute') parsed.execute = true;
+    if (token.name === 'dry-run') parsed.execute = false;
   }
 
   if (!/^[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$/.test(parsed.version)) {

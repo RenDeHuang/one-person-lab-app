@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { requiredOptionValue } from './cli-option-args.ts';
+import { parseArgs as parseNodeArgs } from 'node:util';
 import { asRecord, readJsonFile } from './release-json-helpers.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -32,23 +32,27 @@ function parseArgs(argv: string[]): Options {
     releaseOwnerVerdictRef: '',
     releaseOwnerReceiptRef: '',
   };
-  for (let index = 0; index < argv.length; index += 1) {
-    const token = argv[index];
-    if (token === '--candidate-record') parsed.candidateRecordPath = requiredOptionValue(argv, index, token);
-    else if (token === '--preflight') parsed.preflightPath = requiredOptionValue(argv, index, token);
-    else if (token === '--readiness') parsed.readinessPath = requiredOptionValue(argv, index, token);
-    else if (token === '--remote-verification') parsed.remoteVerificationPath = requiredOptionValue(argv, index, token);
-    else if (token === '--output') parsed.output = requiredOptionValue(argv, index, token);
-    else if (token === '--markdown') parsed.markdown = requiredOptionValue(argv, index, token);
-    else if (token === '--release-owner-verdict-ref') {
-      parsed.releaseOwnerVerdictRef = requiredOptionValue(argv, index, token);
-    } else if (token === '--release-owner-receipt-ref') {
-      parsed.releaseOwnerReceiptRef = requiredOptionValue(argv, index, token);
-    } else {
-      throw new Error(`Unknown argument: ${token}`);
-    }
-    index += 1;
-  }
+  const { values } = parseNodeArgs({
+    args: argv,
+    options: {
+      'candidate-record': { type: 'string' },
+      preflight: { type: 'string' },
+      readiness: { type: 'string' },
+      'remote-verification': { type: 'string' },
+      output: { type: 'string' },
+      markdown: { type: 'string' },
+      'release-owner-verdict-ref': { type: 'string' },
+      'release-owner-receipt-ref': { type: 'string' },
+    },
+  });
+  parsed.candidateRecordPath = values['candidate-record'] ?? parsed.candidateRecordPath;
+  parsed.preflightPath = values.preflight ?? parsed.preflightPath;
+  parsed.readinessPath = values.readiness ?? parsed.readinessPath;
+  parsed.remoteVerificationPath = values['remote-verification'] ?? parsed.remoteVerificationPath;
+  parsed.output = values.output ?? parsed.output;
+  parsed.markdown = values.markdown ?? parsed.markdown;
+  parsed.releaseOwnerVerdictRef = values['release-owner-verdict-ref'] ?? parsed.releaseOwnerVerdictRef;
+  parsed.releaseOwnerReceiptRef = values['release-owner-receipt-ref'] ?? parsed.releaseOwnerReceiptRef;
   if (!parsed.candidateRecordPath) throw new Error('Pass --candidate-record <path>.');
   if (!parsed.preflightPath) throw new Error('Pass --preflight <path>.');
   if (!parsed.readinessPath) throw new Error('Pass --readiness <path>.');

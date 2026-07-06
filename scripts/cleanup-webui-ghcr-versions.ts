@@ -3,7 +3,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { applyCleanupArg, emitJsonSummary, parseJsonLines, runCleanupScript, runGh } from './release-cleanup-helpers.ts';
+import { parseArgs as parseNodeArgs } from 'node:util';
+import { emitJsonSummary, parseJsonLines, runCleanupScript, runGh } from './release-cleanup-helpers.ts';
 
 type GhcrVersion = {
   id?: number;
@@ -39,26 +40,26 @@ function parseArgs(argv: string[]): Options {
     rollbackTags: [],
   };
 
-  for (let index = 0; index < argv.length; index += 1) {
-    index = applyCleanupArg(argv, index, {
-      setExecute: (execute) => {
-        parsed.execute = execute;
-      },
-      valueHandlers: {
-        '--owner': (value) => {
-          parsed.owner = value;
-        },
-        '--package': (value) => {
-          parsed.packageName = value;
-        },
-        '--summary-path': (value) => {
-          parsed.summaryPath = path.resolve(value);
-        },
-        '--rollback-tag': (value) => {
-          parsed.rollbackTags.push(value);
-        },
-      },
-    });
+  const { values, tokens } = parseNodeArgs({
+    args: argv,
+    options: {
+      owner: { type: 'string' },
+      package: { type: 'string' },
+      'summary-path': { type: 'string' },
+      'rollback-tag': { type: 'string', multiple: true },
+      execute: { type: 'boolean' },
+      'dry-run': { type: 'boolean' },
+    },
+    tokens: true,
+  });
+  parsed.owner = values.owner ?? parsed.owner;
+  parsed.packageName = values.package ?? parsed.packageName;
+  parsed.summaryPath = values['summary-path'] ? path.resolve(values['summary-path']) : parsed.summaryPath;
+  parsed.rollbackTags = values['rollback-tag'] ?? parsed.rollbackTags;
+  for (const token of tokens) {
+    if (token.kind !== 'option') continue;
+    if (token.name === 'execute') parsed.execute = true;
+    if (token.name === 'dry-run') parsed.execute = false;
   }
 
   return parsed;
