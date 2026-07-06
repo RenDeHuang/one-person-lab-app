@@ -307,7 +307,11 @@ Product-profile package entry lookup is private to its validator module, Full
 runtime trust/prune scripts use Node's native argument parser instead of local
 argv walkers, and active-shell boundary validators reuse the App shell adapter's
 boundary types and constants instead of copying the same adoption gates and
-state-surface expectations. `npm run hygiene:fallow -- --format json --summary`
+state-surface expectations. Shell replacement gate validation is now shared
+through the App shell adapter helper while preserving the Hermes candidate
+chain as explicit-candidate validation, and Full first-install filesystem
+copying reuses local directory traversal and portable-symlink helpers instead
+of repeating the same recurse-and-copy blocks. `npm run hygiene:fallow -- --format json --summary`
 is the production hygiene check for unused files/exports and duplicate exports.
 This is code-health and validation-structure evidence only; it is not a
 release-ready, currentness, packaged-App, clean-VM, owner-acceptance, or Live
