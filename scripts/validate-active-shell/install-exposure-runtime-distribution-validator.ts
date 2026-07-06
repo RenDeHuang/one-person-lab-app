@@ -304,10 +304,15 @@ function validateHomebrewAgentPackPolicy(homebrew) {
 function validateManagedAgentPackDistribution(modulePackageDistribution) {
   if (
     modulePackageDistribution?.class !== 'capability_packages' ||
-    modulePackageDistribution?.channel_id !== 'opl_distribution_cohort' ||
+    modulePackageDistribution?.channel_id !== 'opl_agent_packages_rolling_latest' ||
     modulePackageDistribution?.default_transport !== 'app_cli_managed_background_maintenance' ||
-    modulePackageDistribution?.default_update_mode !== 'silent_background' ||
+    modulePackageDistribution?.default_update_mode !== 'automatic_apply_for_clean_managed_roots' ||
     modulePackageDistribution?.default_manifest_tag !== 'latest' ||
+    modulePackageDistribution?.distribution_format !== 'ghcr_oci_artifact' ||
+    modulePackageDistribution?.ordinary_user_channel_model !== 'rolling_latest_only' ||
+    modulePackageDistribution?.publication_cadence !== 'daily_when_source_digest_changes' ||
+    modulePackageDistribution?.digest_lock_required !== true ||
+    modulePackageDistribution?.stable_or_nightly_user_channels_allowed !== false ||
     modulePackageDistribution?.homebrew_distribution_allowed !== false ||
     modulePackageDistribution?.homebrew_formula_allowed !== false ||
     modulePackageDistribution?.must_not_write_user_codex_state !== true ||
@@ -335,7 +340,7 @@ function validateManagedAgentPackDistribution(modulePackageDistribution) {
     modulePackageDistribution.fallback_source_order,
     [
       'bundled_full_runtime_modules',
-      'app_cli_managed_ghcr_opl_packages_channel',
+      'app_cli_managed_ghcr_oci_agent_packages_latest_channel',
       'explicit_developer_checkout_override',
     ],
     'Install exposure capability package distribution fallback source order',

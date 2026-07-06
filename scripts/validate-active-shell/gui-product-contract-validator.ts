@@ -301,8 +301,8 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   }
   for (const explanation of [
     'whether a module comes from the bundled Full runtime payload',
-    'whether a module comes from the App/CLI-managed GHCR OPL Packages channel',
-    'whether a module comes from the App/CLI-managed GHCR OPL Packages channel moving tags',
+    'whether a module comes from the App/CLI-managed GHCR OCI Agent Packages latest channel',
+    'whether a module comes from the App/CLI-managed GHCR OCI Agent Packages rolling latest channel',
     'whether a module comes from a local domain repository checkout',
     'whether Developer Profile source_channel uses a GitHub repo or local checkout',
     'whether a module is managed by App/CLI maintenance',
@@ -313,7 +313,7 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     }
   }
   if (
-    modulePathPolicy.ordinary_user_source !== 'app_cli_managed_ghcr_opl_packages_channel' ||
+    modulePathPolicy.ordinary_user_source !== 'app_cli_managed_ghcr_oci_agent_packages_latest_channel' ||
     modulePathPolicy.ordinary_user_transport !== 'app_cli_managed'
   ) {
     throw new Error('App GUI module path source policy must keep ordinary users on App/CLI-managed package maintenance');
@@ -343,8 +343,8 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   if (
     developerProfile.default_profile !== 'standard_user' ||
     developerProfile.opt_in_policy !== 'explicit_opt_in_only' ||
-    developerProfile.ordinary_user_defaults?.source_channel !== 'agent_latest_package_channel' ||
-    developerProfile.ordinary_user_defaults?.agent_automation !== 'silent_background_agent_package_updates'
+    developerProfile.ordinary_user_defaults?.source_channel !== 'agent_rolling_latest_package_channel' ||
+    developerProfile.ordinary_user_defaults?.agent_automation !== 'automatic_clean_managed_agent_package_updates'
   ) {
     throw new Error('App GUI Developer Profile must preserve standard user defaults and explicit opt-in');
   }
@@ -356,7 +356,7 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   }
   if (
     developerProfile.capabilities.source_channel.developer_opt_in !== 'github_repo_or_local_checkout' ||
-    developerProfile.capabilities.agent_automation.standard_default !== 'silent_background_agent_package_updates' ||
+    developerProfile.capabilities.agent_automation.standard_default !== 'automatic_clean_managed_agent_package_updates' ||
     developerProfile.capabilities.runtime_mutation_scope.standard_default !== 'app_action_route_only' ||
     'legacy_developer_mode_alias' in developerProfile ||
     !developerProfile.must_not_show?.includes('single Developer Mode switch as the only capability expression')

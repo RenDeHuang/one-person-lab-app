@@ -80,7 +80,13 @@
             "required_skill_pack_lock_refs",
             "proof_status",
             "live_download_proof",
-            "installed_reload_proof"
+            "installed_reload_proof",
+            "oci_ref",
+            "oci_media_type",
+            "immutable_tag",
+            "rolling_tag",
+            "promotion_policy",
+            "install_truth"
           ],
           "properties": {
             "payload_kind": {
@@ -107,6 +113,27 @@
             },
             "installed_reload_proof": {
               "const": false
+            },
+            "oci_ref": {
+              "type": "string",
+              "minLength": 1
+            },
+            "oci_media_type": {
+              "type": "string",
+              "minLength": 1
+            },
+            "immutable_tag": {
+              "type": "string",
+              "minLength": 1
+            },
+            "rolling_tag": {
+              "const": "latest"
+            },
+            "promotion_policy": {
+              "const": "daily_candidate_gates_then_promote_latest"
+            },
+            "install_truth": {
+              "const": "resolved_digest_lock"
             }
           }
         },
@@ -241,13 +268,41 @@
       },
       "not": {
         "anyOf": [
-          { "required": ["session_contract_ref"] },
-          { "required": ["domain_workflow_schema"] },
-          { "required": ["prompt_body"] },
-          { "required": ["artifact_schema"] },
-          { "required": ["readiness_verdict_rule"] },
-          { "required": ["quality_verdict_rule"] },
-          { "required": ["owner_receipt_authority"] }
+          {
+            "required": [
+              "session_contract_ref"
+            ]
+          },
+          {
+            "required": [
+              "domain_workflow_schema"
+            ]
+          },
+          {
+            "required": [
+              "prompt_body"
+            ]
+          },
+          {
+            "required": [
+              "artifact_schema"
+            ]
+          },
+          {
+            "required": [
+              "readiness_verdict_rule"
+            ]
+          },
+          {
+            "required": [
+              "quality_verdict_rule"
+            ]
+          },
+          {
+            "required": [
+              "owner_receipt_authority"
+            ]
+          }
         ]
       }
     },
@@ -439,6 +494,17 @@
               "type": "boolean"
             }
           }
+        },
+        "oci_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "resolved_digest": {
+          "type": "string",
+          "minLength": 1
+        },
+        "rolling_tag": {
+          "const": "latest"
         }
       }
     }

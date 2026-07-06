@@ -453,7 +453,7 @@ function validateManagedUpdateRuntimeAndAgentLanes(runtimePlane, agentPlane, cap
     runtimePlane?.post_apply !== 'startup_smoke_then_swap_runtime_current_pointer_with_rollback' ||
     agentPlane?.updater_kind !== 'managed_updater_kernel' ||
     agentPlane?.adapter !== 'capability_packages_adapter' ||
-    agentPlane?.policy !== 'ordinary_user_non_development_silent_background' ||
+    agentPlane?.policy !== 'ordinary_user_non_development_rolling_latest_auto_apply' ||
     agentPlane?.post_apply !==
       'sync_plugin_registry_plugin_packaged_skills_generated_surfaces_and_codex_surface_readiness'
   ) {
@@ -597,6 +597,11 @@ function validateManagedUpdateAgentPackageLane(agentPlane, capabilityPlane, agen
       'execution.status',
       'components[].receipt.last_receipt_ref',
       'components[].receipt.repair_action',
+      'oci_ref',
+      'resolved_digest',
+      'installed_digest',
+      'latest_digest',
+      'auto_apply.skip_reasons',
     ],
     'Managed update plane agent package lane status fields',
   );
@@ -644,9 +649,20 @@ function validateManagedUpdateAgentPackageLane(agentPlane, capabilityPlane, agen
   }
   if (
     agentPackageChannel?.background_apply_policy !==
-    'apply_after_check_or_plan_when_all_opl_package_components_are_clean_managed_and_update_available'
+    'apply_after_daily_or_startup_digest_check_when_all_opl_package_components_are_clean_managed_and_update_available'
   ) {
     throw new Error('Managed update plane OPL Packages channel must declare clean managed background auto-apply policy');
+  }
+  if (
+    agentPlane?.source !== 'GHCR OCI Agent Packages' ||
+    agentPlane?.default_update_mode !== 'automatic_apply_for_clean_managed_roots' ||
+    agentPlane?.distribution_format !== 'ghcr_oci_artifact' ||
+    agentPlane?.ordinary_user_channel_model !== 'rolling_latest_only' ||
+    agentPlane?.publication_cadence !== 'daily_when_source_digest_changes' ||
+    agentPlane?.digest_lock_required !== true ||
+    agentPackageChannel?.stable_or_nightly_user_channels_allowed !== false
+  ) {
+    throw new Error('Managed update plane OPL Packages must use rolling latest GHCR OCI artifacts with digest locks');
   }
   assertDeepEqualJson(
     agentPackageChannel?.background_apply_must_record,

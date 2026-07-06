@@ -192,7 +192,7 @@ function validateCapabilitiesPage(matrix) {
         'codex_surface_state',
         'recommended_action',
       ],
-      detail_surface: 'drawer_or_expandable_detail_list',
+      detail_surface: 'desktop_right_side_panel_mobile_drawer',
       detail_fields: [
         'receipt_refs',
         'rollback_ref',

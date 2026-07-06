@@ -269,7 +269,10 @@ The package discovery source is the OPL Agent Registry. Users may point it at a
 GitHub-hosted JSON file or another configured URL; Settings uses it to show
 available packages and starter shortcuts. Installing from a selected manifest
 URL follows OPL Framework validation, lock, rollback ref, receipt creation, and
-package list readback. Updating, repairing, rolling back, uninstalling,
+package list readback. Ordinary managed packages update through GHCR `latest`
+after daily gated promotion; Settings should show `latest` as the normal
+channel while details show the immutable version tag and resolved digest that
+the Framework locked. Updating, repairing, rolling back, uninstalling,
 hiding/unhiding, enabling/disabling, and status readback are Framework-owned
 lifecycle receipt routes that Settings may expose as App actions. Active shell
 reads Framework-backed Home shortcut preference readback from App state, routes
@@ -318,7 +321,9 @@ generic repair badge. `git_checkout`, `configured_by: developer_mode`,
 `recommended_action: update` each map to different row axes so the user can see
 whether a package is developer-owned, drifted, stale, or merely waiting for a
 safe update. OBF/OMA-style `ready + update` must stay distinct from
-dirty/developer-source packages. Skills, external tools, MCP, voice, and custom
+dirty/developer-source packages. Git repo or local checkout sources are
+Developer Profile state only; they must not be presented as ordinary `latest`
+installs or silently updated by the package directory. Skills, external tools, MCP, voice, and custom
 assistants are collapsed supporting sections below the package directory, not a
 second primary list or a default long catalog.
 

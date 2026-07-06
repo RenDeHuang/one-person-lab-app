@@ -584,7 +584,7 @@
       "semantic_authority": "one-person-lab_and_domain_repositories",
       "homebrew_role": "not_a_distribution_target",
       "activation_owner": "app_cli_managed_background_maintenance",
-      "default_update_mode": "silent_background",
+      "default_update_mode": "automatic_apply_for_clean_managed_roots",
       "default_manifest_tag": "latest",
       "post_update_sync_required": [
         "codex_plugin_registry",
@@ -606,10 +606,10 @@
       "must_not_define_agent_semantics": true,
       "managed_update_plane": "capability_packages",
       "kernel": "opl_managed_updater_kernel",
-      "source_role": "ordinary_user_non_development_opl_package_update_source",
+      "source_role": "ordinary_user_non_development_rolling_latest_oci_agent_package_source",
       "registry": "ghcr.io",
       "adapter": "capability_packages_adapter",
-      "policy": "ordinary_user_non_development_silent_background",
+      "policy": "ordinary_user_non_development_rolling_latest_auto_apply",
       "post_apply": "sync_plugin_registry_plugin_packaged_skills_generated_surfaces_and_codex_surface_readiness",
       "managed_agent_ids": [
         "med-autoscience",
@@ -629,7 +629,18 @@
         "export verdict",
         "Homebrew/global tools"
       ],
-      "legacy_alias": "agent_package_channel"
+      "legacy_alias": "agent_package_channel",
+      "distribution_format": "ghcr_oci_artifact",
+      "ordinary_user_channel_model": "rolling_latest_only",
+      "user_visible_channels": [
+        "latest"
+      ],
+      "internal_candidate_channel": "candidate_ci_only_not_user_visible",
+      "publication_cadence": "daily_when_source_digest_changes",
+      "promotion_policy": "build_candidate_validate_manifest_skill_plugin_surface_install_smoke_sign_then_promote_latest",
+      "immutable_tag_required": true,
+      "digest_lock_required": true,
+      "stable_or_nightly_user_channels_allowed": false
     }
   },
   "full_first_install": {
@@ -2812,11 +2823,11 @@
         "display_label_en": "OPL Packages",
         "display_label_zh": "OPL 能力包",
         "updater_kind": "managed_updater_kernel",
-        "source": "GHCR OPL Packages",
+        "source": "GHCR OCI Agent Packages",
         "adapter": "capability_packages_adapter",
-        "policy": "ordinary_user_non_development_silent_background",
+        "policy": "ordinary_user_non_development_rolling_latest_auto_apply",
         "post_apply": "sync_plugin_registry_plugin_packaged_skills_generated_surfaces_and_codex_surface_readiness",
-        "default_update_mode": "silent_background",
+        "default_update_mode": "automatic_apply_for_clean_managed_roots",
         "package_agent_ids": [
           "med-autoscience",
           "med-autogrant",
@@ -2838,7 +2849,12 @@
           "idempotency_lock.status",
           "execution.status",
           "components[].receipt.last_receipt_ref",
-          "components[].receipt.repair_action"
+          "components[].receipt.repair_action",
+          "oci_ref",
+          "resolved_digest",
+          "installed_digest",
+          "latest_digest",
+          "auto_apply.skip_reasons"
         ],
         "post_apply_sync": {
           "status_field": "components[].receipt.post_apply_hooks",
@@ -2864,7 +2880,20 @@
         },
         "repair_action_scope": "opl_package_reconcile_skill_sync_and_codex_surface_readiness_only",
         "legacy_alias": "agent_package_channel",
-        "codex_surface_substatus_source": "managed_update_plane.codex_surface"
+        "codex_surface_substatus_source": "managed_update_plane.codex_surface",
+        "default_manifest_tag": "latest",
+        "distribution_format": "ghcr_oci_artifact",
+        "ordinary_user_channel_model": "rolling_latest_only",
+        "user_visible_channels": [
+          "latest"
+        ],
+        "internal_candidate_channel": "candidate_ci_only_not_user_visible",
+        "publication_cadence": "daily_when_source_digest_changes",
+        "promotion_policy": "build_candidate_validate_manifest_skill_plugin_surface_install_smoke_sign_then_promote_latest",
+        "immutable_tag_required": true,
+        "digest_lock_required": true,
+        "stable_or_nightly_user_channels_allowed": false,
+        "source_role": "ordinary_user_non_development_rolling_latest_oci_agent_package_source"
       },
       {
         "id": "companion_tools",
@@ -2956,8 +2985,10 @@
       "capability_packages": {
         "legacy_alias": "agent_package_channel",
         "adapter": "capability_packages_adapter",
-        "policy": "ordinary_user_non_development_silent_background",
-        "post_apply": "reconcile_modules_sync_skills_sync_plugin_registry_generated_surfaces_and_codex_surface_readiness"
+        "policy": "ordinary_user_non_development_rolling_latest_auto_apply",
+        "post_apply": "reconcile_modules_sync_skills_sync_plugin_registry_generated_surfaces_and_codex_surface_readiness",
+        "distribution_format": "ghcr_oci_artifact",
+        "default_update_mode": "automatic_apply_for_clean_managed_roots"
       },
       "companion_tools": {
         "adapter": "companion_tools_adapter",
@@ -3029,12 +3060,13 @@
         "backoff_policy": "bounded_retry_with_last_failure_projection",
         "user_blocking": false,
         "must_project_last_run_and_next_run": true,
-        "auto_apply_policy": "no_background_auto_apply_refresh_projection_only",
-        "auto_apply_components": [],
+        "auto_apply_policy": "auto_apply_capability_packages_only_when_clean_managed_and_latest_digest_changed",
+        "auto_apply_components": [
+          "capability_packages"
+        ],
         "never_auto_apply_components": [
           "installation_carrier",
           "runtime_substrate",
-          "capability_packages",
           "companion_tools",
           "workflow_profile"
         ],
@@ -3097,17 +3129,17 @@
     },
     "capability_packages": {
       "registry": "ghcr.io",
-      "source_role": "ordinary_user_non_development_opl_package_update_source",
-      "default_update_mode": "silent_background",
+      "source_role": "ordinary_user_non_development_rolling_latest_oci_agent_package_source",
+      "default_update_mode": "automatic_apply_for_clean_managed_roots",
       "default_manifest_tag": "latest",
       "package_agent_ids": [
-          "med-autoscience",
-          "med-autogrant",
-          "redcube-ai",
-          "opl-meta-agent",
-          "opl-bookforge",
-          "scholarskills"
-        ],
+        "med-autoscience",
+        "med-autogrant",
+        "redcube-ai",
+        "opl-meta-agent",
+        "opl-bookforge",
+        "scholarskills"
+      ],
       "post_update_sync_required": [
         "codex_plugin_registry",
         "plugin_packaged_skills",
@@ -3118,7 +3150,7 @@
         "opl connect reconcile-modules",
         "opl connect sync-skills"
       ],
-      "background_apply_policy": "apply_after_check_or_plan_when_all_opl_package_components_are_clean_managed_and_update_available",
+      "background_apply_policy": "apply_after_daily_or_startup_digest_check_when_all_opl_package_components_are_clean_managed_and_update_available",
       "background_apply_must_record": [
         "last_auto_apply_at",
         "last_auto_apply_component_ids",
@@ -3130,7 +3162,27 @@
       "must_not_write_user_codex_state_directly": true,
       "must_not_define_agent_semantics": true,
       "developer_checkout_override_policy": "explicit_developer_profile_source_channel_only",
-      "legacy_alias": "agent_package_channel"
+      "legacy_alias": "agent_package_channel",
+      "distribution_format": "ghcr_oci_artifact",
+      "ordinary_user_channel_model": "rolling_latest_only",
+      "user_visible_channels": [
+        "latest"
+      ],
+      "internal_candidate_channel": "candidate_ci_only_not_user_visible",
+      "publication_cadence": "daily_when_source_digest_changes",
+      "promotion_policy": "build_candidate_validate_manifest_skill_plugin_surface_install_smoke_sign_then_promote_latest",
+      "immutable_tag_required": true,
+      "digest_lock_required": true,
+      "stable_or_nightly_user_channels_allowed": false,
+      "policy": "ordinary_user_non_development_rolling_latest_auto_apply",
+      "auto_apply_skip_reasons": [
+        "developer_checkout_override",
+        "dirty_checkout",
+        "permission_scope_changed",
+        "major_compatibility_break",
+        "verification_failed",
+        "idempotency_lock_in_progress"
+      ]
     },
     "companion_tools": {
       "managed_tools": [

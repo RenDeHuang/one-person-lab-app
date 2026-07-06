@@ -130,9 +130,11 @@ The independent agent installation path is pinned by
 `contracts/app-install-exposure-policy.json`: MAS/MAG/RCA must register through
 Codex plugin registry targets while keeping direct skill compatibility and the
 same action/stage metadata; OMA stays on the OPL-generated local Codex plugin
-surface. Managed agent-pack distribution now fails closed when a stable package
-channel is unavailable and uses bundled Full runtime modules before any explicit
-Developer Profile checkout override. The machine gate is
+surface. Managed agent-pack distribution now fails closed when the GHCR
+`latest` package pointer or its resolved digest is unavailable and uses bundled
+Full runtime modules before any explicit Developer Profile checkout source.
+`latest` is the only ordinary user channel; immutable version tags plus digests
+are the installed truth. The machine gate is
 `npm run validate:agent-installation`, with optional
 `--agent-root <id>=<path>` checks for real plugin roots and
 `--codex-skills-root <path>` checks that `med-autoscience` / `med-autogrant` / `redcube-ai` are not also installed as

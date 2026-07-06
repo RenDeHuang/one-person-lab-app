@@ -766,11 +766,11 @@ function validateSettingsCapabilitiesDirectoryProjection(capabilitiesPage) {
   );
   const detailSurface = directory.detail_surface;
   if (
-    detailSurface?.kind !== 'drawer_or_expandable_detail_list' ||
+    detailSurface?.kind !== 'desktop_right_side_panel_mobile_drawer' ||
     detailSurface?.first_screen_policy !==
       'receipt_refs_physical_surface_and_workflow_connector_resource_refs_are_detail_only_not_primary_row_density'
   ) {
-    throw new Error('Settings Capabilities detail surface must keep refs in drawer/detail density');
+    throw new Error('Settings Capabilities detail surface must keep refs in side-panel/drawer density');
   }
   assertIncludesAll(
     detailSurface?.detail_fields,

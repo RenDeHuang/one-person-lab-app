@@ -6,15 +6,21 @@
   "version": "0.1.0a4",
   "source": "first_party",
   "distribution_payload": {
-    "payload_kind": "first_party_release_package",
-    "payload_ref": "opl-agent-packages/med-autoscience/0.1.0a4",
-    "payload_digest_ref": "release-lock://opl-agent-packages/med-autoscience/0.1.0a4/payload-digest",
+    "payload_kind": "ghcr_oci_agent_package",
+    "payload_ref": "ghcr.io/gaofeng21cn/opl-agent-med-autoscience:0.1.0a4",
+    "payload_digest_ref": "oci-digest-lock://ghcr.io/gaofeng21cn/opl-agent-med-autoscience@sha256:medautoscience-010a4",
     "required_skill_pack_lock_refs": [
-      "release-lock://opl-agent-packages/med-autoscience/0.1.0a4/med-autoscience-professional-skill-pack"
+      "oci-digest-lock://ghcr.io/gaofeng21cn/opl-agent-med-autoscience@sha256:medautoscience-010a4/skills/med-autoscience-professional-skill-pack"
     ],
     "proof_status": "contract_fixture_non_live",
     "live_download_proof": false,
-    "installed_reload_proof": false
+    "installed_reload_proof": false,
+    "oci_ref": "ghcr.io/gaofeng21cn/opl-agent-med-autoscience:latest",
+    "oci_media_type": "application/vnd.onepersonlab.agent.package.v1+tar",
+    "immutable_tag": "0.1.0a4",
+    "rolling_tag": "latest",
+    "promotion_policy": "daily_candidate_gates_then_promote_latest",
+    "install_truth": "resolved_digest_lock"
   },
   "codex_surface": {
     "plugin_ids": [
@@ -35,7 +41,7 @@
       "id": "med-autoscience-professional-skill-pack",
       "source": "github:gaofeng21cn/med-autoscience/plugins/med-autoscience/skills/med-autoscience",
       "version": "0.1.0a4",
-      "lock_ref": "release-lock://opl-agent-packages/med-autoscience/0.1.0a4/med-autoscience-professional-skill-pack",
+      "lock_ref": "oci-digest-lock://ghcr.io/gaofeng21cn/opl-agent-med-autoscience@sha256:medautoscience-010a4/skills/med-autoscience-professional-skill-pack",
       "install_mode": "bundled_required"
     }
   ],

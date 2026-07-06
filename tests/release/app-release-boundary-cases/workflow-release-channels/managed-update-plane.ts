@@ -326,6 +326,11 @@ test('managed update plane exposes the v2 install/update taxonomy and legacy ali
     'execution.status',
     'components[].receipt.last_receipt_ref',
     'components[].receipt.repair_action',
+    'oci_ref',
+    'resolved_digest',
+    'installed_digest',
+    'latest_digest',
+    'auto_apply.skip_reasons',
   ]);
   assert.equal(lanes.get('capability_packages').codex_surface_substatus_source, 'managed_update_plane.codex_surface');
   assert.equal(lanes.get('codex_surface').adapter, 'codex_surface_status_adapter');
@@ -351,12 +356,11 @@ test('scheduler and UI surfaces consume new primary ids', () => {
     backoff_policy: 'bounded_retry_with_last_failure_projection',
     user_blocking: false,
     must_project_last_run_and_next_run: true,
-    auto_apply_policy: 'no_background_auto_apply_refresh_projection_only',
-    auto_apply_components: [],
+    auto_apply_policy: 'auto_apply_capability_packages_only_when_clean_managed_and_latest_digest_changed',
+    auto_apply_components: ['capability_packages'],
     never_auto_apply_components: [
       'installation_carrier',
       'runtime_substrate',
-      'capability_packages',
       'companion_tools',
       'workflow_profile',
     ],
@@ -436,7 +440,12 @@ test('OPL Packages stay the capability package layer with Codex Surface as subst
     'opl-bookforge',
     'scholarskills',
   ]);
-  assert.equal(packagePolicy.default_update_mode, 'silent_background');
+  assert.equal(packagePolicy.default_update_mode, 'automatic_apply_for_clean_managed_roots');
+  assert.equal(packagePolicy.distribution_format, 'ghcr_oci_artifact');
+  assert.equal(packagePolicy.ordinary_user_channel_model, 'rolling_latest_only');
+  assert.equal(packagePolicy.publication_cadence, 'daily_when_source_digest_changes');
+  assert.equal(packagePolicy.digest_lock_required, true);
+  assert.equal(packagePolicy.stable_or_nightly_user_channels_allowed, false);
   assert.equal(packagePolicy.must_not_define_agent_semantics, true);
   assert.deepEqual(plane.capability_packages.post_update_sync_required, [
     'codex_plugin_registry',

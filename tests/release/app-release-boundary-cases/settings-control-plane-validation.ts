@@ -317,7 +317,7 @@ test('Settings page adapters and visual QA policy are machine-readable gates', (
       must_not_collapse: ['developer_checkout', 'dirty_checkout', 'git_behind', 'unknown', 'needs_sync'],
     },
     detail_surface: {
-      kind: 'drawer_or_expandable_detail_list',
+      kind: 'desktop_right_side_panel_mobile_drawer',
       detail_fields: [
         'receipt_refs',
         'rollback_ref',

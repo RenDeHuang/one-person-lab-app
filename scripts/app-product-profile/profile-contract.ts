@@ -285,7 +285,7 @@ function assertSettingsProfileShape(profile: AppProductProfile): void {
     }
   }
   if (
-    developerProfile.capabilities.source_channel.standard_default !== 'agent_latest_package_channel' ||
+    developerProfile.capabilities.source_channel.standard_default !== 'agent_rolling_latest_package_channel' ||
     developerProfile.capabilities.source_channel.developer_opt_in !== 'github_repo_or_local_checkout' ||
     developerProfile.capabilities.runtime_mutation_scope.standard_default !== 'app_action_route_only' ||
     'legacy_developer_mode_alias' in developerProfile

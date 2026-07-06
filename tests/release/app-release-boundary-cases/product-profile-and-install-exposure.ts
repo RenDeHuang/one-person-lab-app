@@ -88,6 +88,12 @@ const EXPECTED_DISTRIBUTION_PAYLOAD_FIELDS = [
   'proof_status',
   'live_download_proof',
   'installed_reload_proof',
+  'oci_ref',
+  'oci_media_type',
+  'immutable_tag',
+  'rolling_tag',
+  'promotion_policy',
+  'install_truth',
 ];
 const EXPECTED_REGISTRY_EXCLUDED_FIELDS = [
   'session_contract_ref',
@@ -120,6 +126,8 @@ const EXPECTED_REMOTE_DISTRIBUTION_PAYLOAD_FIELDS = [
   'trust_tier',
   'package_lock_receipt',
   'rollback_ref',
+  'oci_ref',
+  'oci_digest',
 ];
 const EXPECTED_FIRST_PARTY_DISTRIBUTION_PAYLOAD_FIELDS = [
   'cohort_manifest_ref',
@@ -127,6 +135,12 @@ const EXPECTED_FIRST_PARTY_DISTRIBUTION_PAYLOAD_FIELDS = [
   'payload_digest_ref',
   'required_skill_pack_lock_refs',
   'rollback_ref',
+  'oci_ref',
+  'oci_media_type',
+  'immutable_tag',
+  'rolling_tag',
+  'promotion_policy',
+  'install_truth',
 ];
 
 test('App product profile owns user-facing defaults without runtime authority', () => {
@@ -399,7 +413,7 @@ test('App product profile owns user-facing defaults without runtime authority', 
   assert.equal(profile.settings.developer_profile.opt_in_policy, 'explicit_opt_in_only');
   assert.equal(
     profile.settings.developer_profile.capabilities.source_channel.standard_default,
-    'agent_latest_package_channel',
+    'agent_rolling_latest_package_channel',
   );
   assert.equal(
     profile.settings.developer_profile.capabilities.source_channel.developer_opt_in,
@@ -895,7 +909,7 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
     policy.agent_installation_contract.developer_checkout_override_surface,
     'Developer Profile source_channel capability',
   );
-  assert.equal(policy.agent_installation_contract.ordinary_user_module_source, 'app_cli_managed_ghcr_opl_packages_channel');
+  assert.equal(policy.agent_installation_contract.ordinary_user_module_source, 'app_cli_managed_ghcr_oci_agent_packages_latest_channel');
   assert.deepEqual(policy.agent_installation_contract.module_package_channel_agent_ids, [
     'med-autoscience',
     'med-autogrant',
@@ -1007,8 +1021,21 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
     assert.deepEqual(manifest.distribution_payload.required_skill_pack_lock_refs, [manifest.skill_packs[0].lock_ref]);
   }
   assert.deepEqual(policy.agent_installation_contract.package_manager_lifecycle.actions, EXPECTED_PACKAGE_LIFECYCLE_ACTIONS);
-  assert.equal(policy.agent_installation_contract.package_manager_lifecycle.manual_check_policy, 'explicit_user_action_only');
-  assert.equal(policy.agent_installation_contract.package_manager_lifecycle.apply_selected_policy, 'explicit_user_selected_package_set_only');
+  assert.equal(
+    policy.agent_installation_contract.package_manager_lifecycle.manual_check_policy,
+    'automatic_daily_check_plus_explicit_user_refresh',
+  );
+  assert.equal(
+    policy.agent_installation_contract.package_manager_lifecycle.apply_selected_policy,
+    'automatic_apply_for_clean_managed_roots_explicit_apply_for_selected_packages',
+  );
+  assert.equal(policy.agent_installation_contract.package_manager_lifecycle.automatic_apply_policy.user_visible_channel, 'latest');
+  assert.deepEqual(policy.agent_installation_contract.package_manager_lifecycle.automatic_apply_policy.apply_when, [
+    'latest_digest_changed',
+    'managed_root_clean',
+    'manifest_permissions_unchanged',
+    'compatibility_gate_passed',
+  ]);
   assert.equal(policy.agent_installation_contract.package_manager_lifecycle.mutating_actions_require_action_receipt, true);
   assert.equal(policy.agent_installation_contract.package_manager_lifecycle.rollback_ref_required_for_mutating_actions, true);
   assert.equal(policy.agent_installation_contract.package_manager_lifecycle.package_lock_required, true);
@@ -1064,7 +1091,7 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
   );
   assert.deepEqual(policy.agent_installation_contract.package_lock_receipt_contract.required_fields, EXPECTED_PACKAGE_LOCK_RECEIPT_FIELDS);
   assert.deepEqual(policy.agent_installation_contract.package_lock_receipt_contract.source_kind_allowed_values, [
-    'first_party_managed_cohort',
+    'first_party_ghcr_oci_artifact',
     'bundled_full_runtime_modules',
     'local_manifest_file',
     'manifest_url',
@@ -1097,7 +1124,7 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
   );
   assert.equal(
     policy.agent_installation_contract.atomic_bundle_policy.required_skill_pack_lock_policy,
-    'skill_packs[].lock_ref must be a release or digest lock and must not equal registry.latest_version',
+    'skill_packs[].lock_ref must be a release or digest lock and must not equal registry.latest_version or a moving tag',
   );
   assert.deepEqual(
     policy.agent_installation_contract.atomic_bundle_policy.release_payload_proof_required_fields,
@@ -1119,13 +1146,18 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
     lifecycle_actions: ['install', 'update', 'repair', 'rollback', 'uninstall'],
     domain_repo_remains_semantic_owner: true,
   });
-  assert.equal(policy.agent_installation_contract.managed_agent_pack_distribution.channel_id, 'opl_distribution_cohort');
+  assert.equal(policy.agent_installation_contract.managed_agent_pack_distribution.channel_id, 'opl_agent_packages_rolling_latest');
   assert.equal(
     policy.agent_installation_contract.managed_agent_pack_distribution.default_transport,
     'app_cli_managed_background_maintenance',
   );
-  assert.equal(policy.agent_installation_contract.managed_agent_pack_distribution.default_update_mode, 'silent_background');
+  assert.equal(policy.agent_installation_contract.managed_agent_pack_distribution.default_update_mode, 'automatic_apply_for_clean_managed_roots');
   assert.equal(policy.agent_installation_contract.managed_agent_pack_distribution.default_manifest_tag, 'latest');
+  assert.equal(policy.agent_installation_contract.managed_agent_pack_distribution.distribution_format, 'ghcr_oci_artifact');
+  assert.equal(policy.agent_installation_contract.managed_agent_pack_distribution.ordinary_user_channel_model, 'rolling_latest_only');
+  assert.equal(policy.agent_installation_contract.managed_agent_pack_distribution.publication_cadence, 'daily_when_source_digest_changes');
+  assert.equal(policy.agent_installation_contract.managed_agent_pack_distribution.digest_lock_required, true);
+  assert.equal(policy.agent_installation_contract.managed_agent_pack_distribution.stable_or_nightly_user_channels_allowed, false);
   assert.deepEqual(
     policy.agent_installation_contract.managed_agent_pack_distribution.first_party_distribution_payload_required_fields,
     EXPECTED_FIRST_PARTY_DISTRIBUTION_PAYLOAD_FIELDS,
@@ -1172,7 +1204,7 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
   ]);
   assert.deepEqual(policy.agent_installation_contract.managed_agent_pack_distribution.fallback_source_order, [
     'bundled_full_runtime_modules',
-    'app_cli_managed_ghcr_opl_packages_channel',
+    'app_cli_managed_ghcr_oci_agent_packages_latest_channel',
     'explicit_developer_checkout_override',
   ]);
   assert.equal(policy.agent_installation_contract.managed_agent_pack_distribution.must_not_depend_on_fixed_version_tag_by_default, true);

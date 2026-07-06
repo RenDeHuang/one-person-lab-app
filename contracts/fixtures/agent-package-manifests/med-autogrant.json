@@ -6,15 +6,21 @@
   "version": "0.1.0",
   "source": "first_party",
   "distribution_payload": {
-    "payload_kind": "first_party_release_package",
-    "payload_ref": "opl-agent-packages/med-autogrant/0.1.0",
-    "payload_digest_ref": "release-lock://opl-agent-packages/med-autogrant/0.1.0/payload-digest",
+    "payload_kind": "ghcr_oci_agent_package",
+    "payload_ref": "ghcr.io/gaofeng21cn/opl-agent-med-autogrant:0.1.0",
+    "payload_digest_ref": "oci-digest-lock://ghcr.io/gaofeng21cn/opl-agent-med-autogrant@sha256:medautogrant-010",
     "required_skill_pack_lock_refs": [
-      "release-lock://opl-agent-packages/med-autogrant/0.1.0/med-autogrant-professional-skill-pack"
+      "oci-digest-lock://ghcr.io/gaofeng21cn/opl-agent-med-autogrant@sha256:medautogrant-010/skills/med-autogrant-professional-skill-pack"
     ],
     "proof_status": "contract_fixture_non_live",
     "live_download_proof": false,
-    "installed_reload_proof": false
+    "installed_reload_proof": false,
+    "oci_ref": "ghcr.io/gaofeng21cn/opl-agent-med-autogrant:latest",
+    "oci_media_type": "application/vnd.onepersonlab.agent.package.v1+tar",
+    "immutable_tag": "0.1.0",
+    "rolling_tag": "latest",
+    "promotion_policy": "daily_candidate_gates_then_promote_latest",
+    "install_truth": "resolved_digest_lock"
   },
   "codex_surface": {
     "plugin_ids": [
@@ -35,7 +41,7 @@
       "id": "med-autogrant-professional-skill-pack",
       "source": "github:gaofeng21cn/med-autogrant/plugins/med-autogrant/skills/med-autogrant",
       "version": "0.1.0",
-      "lock_ref": "release-lock://opl-agent-packages/med-autogrant/0.1.0/med-autogrant-professional-skill-pack",
+      "lock_ref": "oci-digest-lock://ghcr.io/gaofeng21cn/opl-agent-med-autogrant@sha256:medautogrant-010/skills/med-autogrant-professional-skill-pack",
       "install_mode": "bundled_required"
     }
   ],

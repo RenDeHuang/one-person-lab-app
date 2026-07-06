@@ -88,6 +88,16 @@ agent manifest URL. The manifest URL, after Framework validation, lock, and
 receipt creation, is the installation authority; the Registry is not authority
 for agent behavior.
 
+For ordinary users, managed GHCR OPL Packages use one rolling stable path:
+`latest`. There is no user-visible nightly/stable package split. Daily
+automation may build a candidate when package source changes, but only a
+candidate that passes manifest validation, payload checks, Codex Surface
+materialization checks, and receipt/readback gates is promoted to `latest`.
+Framework resolves `latest` to an immutable OCI digest before install or
+update; the package lock records the immutable version tag plus digest as the
+installed truth. Git repo and local checkout sources remain Developer Profile
+sources only, not ordinary managed package state.
+
 ## Module Positioning
 
 | Module                     | Owns                                                                                                                                                                                                                                                                    | Must not own                                                                                                                                                              |
@@ -128,6 +138,12 @@ rolls back, and receipts:
   "publisher": "one-person-lab",
   "version": "1.4.0",
   "source": "first_party_starter",
+  "distribution": {
+    "type": "ghcr_oci_artifact",
+    "ref": "ghcr.io/gaofeng21cn/opl-agent-research-starter:latest",
+    "immutable_version_tag": "2026.7.6.1",
+    "digest": "sha256:..."
+  },
   "codex_surface": {
     "plugin_ids": ["research-starter"],
     "required_skill_ids": ["research-starter"],
@@ -155,7 +171,7 @@ rolls back, and receipts:
     "required_surfaces": ["plugin_registry", "required_skill_ids"]
   },
   "permissions": [],
-  "update_channel": "managed_opl_packages",
+  "update_channel": "latest",
   "rollback_ref": "package-receipt-ref"
 }
 ```
@@ -195,7 +211,9 @@ OPL Framework owns producing and applying it:
 ```json
 {
   "package_id": "opl.research-starter",
-  "version_or_source_digest": "1.4.0+sha256:...",
+  "version_or_source_digest": "2026.7.6.1+sha256:...",
+  "distribution_ref": "ghcr.io/gaofeng21cn/opl-agent-research-starter:latest",
+  "resolved_digest": "sha256:...",
   "installed_at": "2026-07-04T00:00:00Z",
   "updated_at": "2026-07-04T00:00:00Z",
   "codex_visible_entry": "research-starter",
@@ -250,6 +268,9 @@ Recommended shape:
   packs.
 - The skill repo remains independently developed and versioned.
 - Release packaging materializes the locked skill pack into the agent package.
+- Ordinary release automation publishes a GHCR OCI artifact, moves only
+  `latest` after gates pass, and keeps immutable version tags plus digests for
+  install truth and rollback.
 - Install/update/rollback applies agent runtime/plugin/skill-pack surfaces
   together.
 - Development can use a local link, but only under an explicit Developer
@@ -262,6 +283,9 @@ Avoid this shape:
 - App hard-coding agent skill repo paths.
 - OPL App reading agent skill bodies.
 - Runtime install depending on local symlinks or developer checkouts.
+- Ordinary package updates from a Git checkout. Git repo/local checkout sources
+  are Developer Profile state and must not be silently overwritten by managed
+  maintenance.
 - A second bare `~/.codex/skills/<agent>` mirror that diverges from the plugin
   package.
 
@@ -276,6 +300,7 @@ Avoid this shape:
 | 5     | Keep launch evidence as thin invocation receipt.                                 |               100% | done    | `agent_package_invocation_receipt_policy` requires launch-only package/shortcut/Codex fields and explicitly excludes session behavior, domain workflow, and readiness authority; active shell emits `opl_agent_package_invocation` in packaged VM route smoke while retaining legacy `opl_assistant_route` as migration alias.                                                                                                                                                                                       | Live installed App/Codex invocation evidence remains outside this non-live contract/readback landing.                                                             |
 | 6     | Add package lifecycle actions.                                                   |               100% | done    | `app-install-exposure-policy` names discover/install/update/repair/rollback/uninstall/enable/disable/hide/unhide/manual_check/apply_selected, package-lock requirement, action receipt, rollback ref, plus validator and release-boundary coverage. Framework implements CLI and App-action routes for install/update/repair/rollback/uninstall/hide/unhide/enable/disable/status and writes lifecycle receipts/readback.                                                                                            | Live Codex-surface reload proof remains tracked separately below.                                                                                                 |
 | 7     | Make first-party starter packages plus required skill packs atomic.              |               100% | done    | Contract now requires atomic package units to include plugin manifest, bundled required skill entries, optional companion skill refs, release payload proof fields, and locked required skill-pack refs that must not be `registry.latest_version`. First-party fixtures carry non-live `distribution_payload` proof refs; Framework records `bundled_required_skill_ids`, validates required skill files, reads back materialized skill ids/paths, and supports local plus remote payload manifest materialization. | Actual public payload publication and installed Codex reload proof remain release/runtime evidence, not this non-live item.                                       |
+| 7.1   | Define rolling stable GHCR package distribution semantics.                       |               100% | done    | Docs now define `latest` as the only ordinary user package channel, daily promotion after gates, immutable version tags plus resolved OCI digest as installed truth, clean-managed-root auto-apply eligibility, and git checkout as Developer Profile source only. | Machine contract/script implementation remains outside this docs-only lane. |
 | 8     | Build Settings package-directory UI.                                             |                88% | partial | Contracts/page-state/validators now target package-directory-first Capabilities, integrated Home shortcut management, multi-axis status, details-drawer density, and the Codex App plugin-manager-like compact directory target for Settings > 智能体与能力. The `/tmp/opl-capabilities-design-vs-implementation.png` 1:1 visual gap is no longer treated as commentary; it is an acceptance item for shell convergence. Framework now exposes canonical `app_state.agent_packages.directory + app_state.agent_packages.status_index`; shell still needs to finish converging fully on that projection and keep `app_state.modules.items[]` as compatibility fallback only. | Shell implementation and installed-App live evidence still need full convergence before this can be treated as fully landed UX.                                   |
 | 9     | Make Home shortcuts user-configurable in the package directory.                  |                75% | partial | Contracts/profile already model `home_agent_shortcuts` over installed packages with `user_configurable=true`; Framework persists preference readback/action. This lane now also moves shortcut visibility/order into the same package-directory row model instead of a detached second table.                                                                                                                                                                                                                        | Installed-App live readback and shell UI convergence on the integrated row model remain outside this docs/contract lane.                                          |
 | 10    | Support third-party/manual package install.                                      |               100% | done    | Contract allows local manifest file, manifest URL, manifest import, and remote distribution payload refs only through explicit user action, validation, trust tier, package lock receipt, rollback ref, and no live-download/reload claim. Framework supports registry-selected and direct manifest install plus manifest-declared local and remote payload materialization/cleanup.                                                                                                                                 | Live user-path evidence and installed Codex reload proof remain deferred.                                                                                         |

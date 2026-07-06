@@ -844,7 +844,7 @@
     "may_use_developer_checkout_by_default": false,
     "developer_checkout_override_policy": "explicit_opt_in_only",
     "developer_checkout_override_surface": "Developer Profile source_channel capability",
-    "ordinary_user_module_source": "app_cli_managed_ghcr_opl_packages_channel",
+    "ordinary_user_module_source": "app_cli_managed_ghcr_oci_agent_packages_latest_channel",
     "module_package_channel_agent_ids": [
       "med-autoscience",
       "med-autogrant",
@@ -929,19 +929,37 @@
         "manual_check",
         "apply_selected"
       ],
-      "manual_check_policy": "explicit_user_action_only",
-      "apply_selected_policy": "explicit_user_selected_package_set_only",
+      "manual_check_policy": "automatic_daily_check_plus_explicit_user_refresh",
+      "apply_selected_policy": "automatic_apply_for_clean_managed_roots_explicit_apply_for_selected_packages",
       "mutating_actions_require_action_receipt": true,
       "rollback_ref_required_for_mutating_actions": true,
       "package_lock_required": true,
       "domain_truth_authority_allowed": false,
       "home_shortcut_preferences_owner": "one-person-lab",
       "home_shortcut_preferences_action": "agent_package_home_shortcut_preferences_set",
-      "home_shortcut_preferences_readback": "opl connect agent-packages list/status#home_shortcut_preferences"
+      "home_shortcut_preferences_readback": "opl connect agent-packages list/status#home_shortcut_preferences",
+      "automatic_apply_policy": {
+        "cadence": "daily_after_core_ready_and_app_startup_check",
+        "user_visible_channel": "latest",
+        "apply_when": [
+          "latest_digest_changed",
+          "managed_root_clean",
+          "manifest_permissions_unchanged",
+          "compatibility_gate_passed"
+        ],
+        "require_user_action_when": [
+          "developer_checkout",
+          "dirty_checkout",
+          "permission_scope_changed",
+          "major_compatibility_break",
+          "verification_failed"
+        ],
+        "receipt_required": true
+      }
     },
     "third_party_manual_source_policy": {
       "ordinary_user_default_source_kinds": [
-        "first_party_managed_cohort",
+        "first_party_ghcr_oci_artifact",
         "bundled_full_runtime_modules"
       ],
       "manual_third_party_allowed_source_kinds": [
@@ -968,7 +986,9 @@
           "source_digest_ref",
           "trust_tier",
           "package_lock_receipt",
-          "rollback_ref"
+          "rollback_ref",
+          "oci_ref",
+          "oci_digest"
         ],
         "download_execution_owner": "one-person-lab",
         "app_contract_claim": "validate_and_route_refs_only_without_claiming_live_download_or_installed_reload",
@@ -995,7 +1015,7 @@
         "physical_surface"
       ],
       "source_kind_allowed_values": [
-        "first_party_managed_cohort",
+        "first_party_ghcr_oci_artifact",
         "bundled_full_runtime_modules",
         "local_manifest_file",
         "manifest_url",
@@ -1005,7 +1025,8 @@
       "trust_tier_required": true,
       "rollback_ref_required": true,
       "codex_visible_entry_required": true,
-      "optional_skill_refs_are_refs_only": true
+      "optional_skill_refs_are_refs_only": true,
+      "digest_is_install_truth": true
     },
     "atomic_bundle_policy": {
       "managed_package_unit_agent_ids": [
@@ -1022,7 +1043,7 @@
         "optional_companion_skill_refs"
       ],
       "framework_local_payload_validation": "manifest-declared plugin_source_path must contain .codex-plugin/plugin.json and skills/<required_skill_id>/SKILL.md before materialization",
-      "required_skill_pack_lock_policy": "skill_packs[].lock_ref must be a release or digest lock and must not equal registry.latest_version",
+      "required_skill_pack_lock_policy": "skill_packs[].lock_ref must be a release or digest lock and must not equal registry.latest_version or a moving tag",
       "release_payload_proof_required_fields": [
         "payload_kind",
         "payload_ref",
@@ -1030,7 +1051,13 @@
         "required_skill_pack_lock_refs",
         "proof_status",
         "live_download_proof",
-        "installed_reload_proof"
+        "installed_reload_proof",
+        "oci_ref",
+        "oci_media_type",
+        "immutable_tag",
+        "rolling_tag",
+        "promotion_policy",
+        "install_truth"
       ],
       "release_payload_proof_live_claim_allowed": false,
       "installed_codex_reload_proof_deferred": true,
@@ -1161,16 +1188,22 @@
       }
     ],
     "managed_agent_pack_distribution": {
-      "channel_id": "opl_distribution_cohort",
+      "channel_id": "opl_agent_packages_rolling_latest",
       "default_transport": "app_cli_managed_background_maintenance",
-      "default_update_mode": "silent_background",
+      "default_update_mode": "automatic_apply_for_clean_managed_roots",
       "default_manifest_tag": "latest",
       "first_party_distribution_payload_required_fields": [
         "cohort_manifest_ref",
         "distribution_payload_ref",
         "payload_digest_ref",
         "required_skill_pack_lock_refs",
-        "rollback_ref"
+        "rollback_ref",
+        "oci_ref",
+        "oci_media_type",
+        "immutable_tag",
+        "rolling_tag",
+        "promotion_policy",
+        "install_truth"
       ],
       "first_party_distribution_payload_status": "contract_required_non_live_until_release_owner_publishes_payload",
       "post_update_sync_required": [
@@ -1193,7 +1226,7 @@
       ],
       "fallback_source_order": [
         "bundled_full_runtime_modules",
-        "app_cli_managed_ghcr_opl_packages_channel",
+        "app_cli_managed_ghcr_oci_agent_packages_latest_channel",
         "explicit_developer_checkout_override"
       ],
       "must_not_depend_on_fixed_version_tag_by_default": true,
@@ -1208,7 +1241,33 @@
       "must_not_define_agent_semantics": true,
       "cohort_manifest_required": true,
       "class": "capability_packages",
-      "legacy_alias": "agent_package_channel"
+      "legacy_alias": "agent_package_channel",
+      "distribution_format": "ghcr_oci_artifact",
+      "registry": "ghcr.io",
+      "ordinary_user_channel_model": "rolling_latest_only",
+      "user_visible_channels": [
+        "latest"
+      ],
+      "internal_candidate_channel": "candidate_ci_only_not_user_visible",
+      "publication_cadence": "daily_when_source_digest_changes",
+      "promotion_policy": "build_candidate_validate_manifest_skill_plugin_surface_install_smoke_sign_then_promote_latest",
+      "immutable_tag_required": true,
+      "digest_lock_required": true,
+      "latest_is_moving_channel": true,
+      "stable_or_nightly_user_channels_allowed": false,
+      "auto_apply": {
+        "enabled_for": "clean_managed_roots_only",
+        "trigger": "daily_or_startup_latest_digest_check",
+        "skip_when": [
+          "developer_checkout_override",
+          "dirty_checkout",
+          "permission_scope_changed",
+          "major_compatibility_break",
+          "verification_failed",
+          "idempotency_lock_in_progress"
+        ],
+        "receipt_required": true
+      }
     }
   },
   "release_validation": {

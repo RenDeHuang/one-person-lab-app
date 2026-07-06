@@ -102,6 +102,12 @@ const expectedDistributionPayloadFields = [
   'proof_status',
   'live_download_proof',
   'installed_reload_proof',
+  'oci_ref',
+  'oci_media_type',
+  'immutable_tag',
+  'rolling_tag',
+  'promotion_policy',
+  'install_truth',
 ];
 const expectedHomeShortcutRequiredFields = [
   'shortcut_id',
@@ -154,6 +160,8 @@ const expectedRemoteDistributionPayloadFields = [
   'trust_tier',
   'package_lock_receipt',
   'rollback_ref',
+  'oci_ref',
+  'oci_digest',
 ];
 const expectedFirstPartyDistributionPayloadFields = [
   'cohort_manifest_ref',
@@ -161,9 +169,15 @@ const expectedFirstPartyDistributionPayloadFields = [
   'payload_digest_ref',
   'required_skill_pack_lock_refs',
   'rollback_ref',
+  'oci_ref',
+  'oci_media_type',
+  'immutable_tag',
+  'rolling_tag',
+  'promotion_policy',
+  'install_truth',
 ];
 const expectedPackageSourceKinds = [
-  'first_party_managed_cohort',
+  'first_party_ghcr_oci_artifact',
   'bundled_full_runtime_modules',
   'local_manifest_file',
   'manifest_url',
@@ -390,7 +404,7 @@ function validateAgentInstallationContract(policy: any): any {
     may_use_developer_checkout_by_default: false,
     developer_checkout_override_policy: 'explicit_opt_in_only',
     developer_checkout_override_surface: 'Developer Profile source_channel capability',
-    ordinary_user_module_source: 'app_cli_managed_ghcr_opl_packages_channel',
+    ordinary_user_module_source: 'app_cli_managed_ghcr_oci_agent_packages_latest_channel',
     duplicate_bare_skill_policy: 'forbid_domain_plugin_skill_mirrors',
   }, 'agent contract');
   assertArrayEqual(contract.required_agent_ids, expectedRequiredAgentIds, 'required agent ids');
@@ -611,11 +625,23 @@ function validateFirstPartyManifestFixtures(profile: any, registry: any, schema:
       `${registryEntry.package_id} manifest distribution payload fields`,
     );
     assertFieldsEqual(manifest.distribution_payload, {
-      payload_kind: 'first_party_release_package',
+      payload_kind: 'ghcr_oci_agent_package',
       proof_status: 'contract_fixture_non_live',
       live_download_proof: false,
       installed_reload_proof: false,
+      oci_media_type: 'application/vnd.onepersonlab.agent.package.v1+tar',
+      rolling_tag: 'latest',
+      promotion_policy: 'daily_candidate_gates_then_promote_latest',
+      install_truth: 'resolved_digest_lock',
     }, `${registryEntry.package_id} manifest distribution payload`);
+    if (!String(manifest.distribution_payload.oci_ref ?? '').startsWith(`ghcr.io/gaofeng21cn/opl-agent-${registryEntry.package_id}:latest`)) {
+      fail(`manifest fixture ${registryEntry.package_id} must use a GHCR latest OCI ref`);
+    }
+    assertEqual(
+      manifest.distribution_payload.immutable_tag,
+      manifest.version,
+      `${registryEntry.package_id} manifest immutable OCI tag`,
+    );
     assertArrayEqual(
       manifest.codex_surface?.plugin_ids,
       [registryEntry.codex_visible_entry],
@@ -681,8 +707,8 @@ function validatePackageManagerLifecycle(contract: any): void {
   const lifecycle = contract.package_manager_lifecycle;
   assertFieldsEqual(lifecycle, {
     policy_surface: 'Settings Capabilities package manager and app/cli action receipts',
-    manual_check_policy: 'explicit_user_action_only',
-    apply_selected_policy: 'explicit_user_selected_package_set_only',
+    manual_check_policy: 'automatic_daily_check_plus_explicit_user_refresh',
+    apply_selected_policy: 'automatic_apply_for_clean_managed_roots_explicit_apply_for_selected_packages',
     mutating_actions_require_action_receipt: true,
     rollback_ref_required_for_mutating_actions: true,
     package_lock_required: true,
@@ -692,13 +718,28 @@ function validatePackageManagerLifecycle(contract: any): void {
     home_shortcut_preferences_readback: 'opl connect agent-packages list/status#home_shortcut_preferences',
   }, 'package manager lifecycle');
   assertArrayEqual(lifecycle?.actions, expectedPackageLifecycleActions, 'package manager lifecycle actions');
+  assertFieldsEqual(lifecycle?.automatic_apply_policy, {
+    cadence: 'daily_after_core_ready_and_app_startup_check',
+    user_visible_channel: 'latest',
+    receipt_required: true,
+  }, 'package manager lifecycle automatic apply policy');
+  assertArrayEqual(
+    lifecycle?.automatic_apply_policy?.apply_when,
+    ['latest_digest_changed', 'managed_root_clean', 'manifest_permissions_unchanged', 'compatibility_gate_passed'],
+    'package manager lifecycle automatic apply conditions',
+  );
+  assertArrayEqual(
+    lifecycle?.automatic_apply_policy?.require_user_action_when,
+    ['developer_checkout', 'dirty_checkout', 'permission_scope_changed', 'major_compatibility_break', 'verification_failed'],
+    'package manager lifecycle manual action conditions',
+  );
 }
 
 function validateThirdPartyManualSourcePolicy(contract: any): void {
   const sourcePolicy = contract.third_party_manual_source_policy;
   assertArrayEqual(
     sourcePolicy?.ordinary_user_default_source_kinds,
-    ['first_party_managed_cohort', 'bundled_full_runtime_modules'],
+    ['first_party_ghcr_oci_artifact', 'bundled_full_runtime_modules'],
     'manual source ordinary defaults',
   );
   assertArrayEqual(
@@ -770,7 +811,7 @@ function validateAtomicBundlePolicy(contract: any): void {
   );
   assertFieldsEqual(atomicPolicy, {
     framework_local_payload_validation: 'manifest-declared plugin_source_path must contain .codex-plugin/plugin.json and skills/<required_skill_id>/SKILL.md before materialization',
-    required_skill_pack_lock_policy: 'skill_packs[].lock_ref must be a release or digest lock and must not equal registry.latest_version',
+    required_skill_pack_lock_policy: 'skill_packs[].lock_ref must be a release or digest lock and must not equal registry.latest_version or a moving tag',
     reconcile_update_uninstall_as_unit: true,
     domain_repo_remains_semantic_owner: true,
     app_package_manager_scope: 'install_exposure_package_lock_action_receipts_and_codex_visible_entries_only',
@@ -804,10 +845,20 @@ function validateAtomicBundlePolicy(contract: any): void {
 function validateManagedAgentPackDistribution(contract: any): void {
   const distribution = contract.managed_agent_pack_distribution;
   assertFieldsEqual(distribution, {
-    channel_id: 'opl_distribution_cohort',
+    channel_id: 'opl_agent_packages_rolling_latest',
     default_transport: 'app_cli_managed_background_maintenance',
-    default_update_mode: 'silent_background',
+    default_update_mode: 'automatic_apply_for_clean_managed_roots',
     default_manifest_tag: 'latest',
+    distribution_format: 'ghcr_oci_artifact',
+    registry: 'ghcr.io',
+    ordinary_user_channel_model: 'rolling_latest_only',
+    internal_candidate_channel: 'candidate_ci_only_not_user_visible',
+    publication_cadence: 'daily_when_source_digest_changes',
+    promotion_policy: 'build_candidate_validate_manifest_skill_plugin_surface_install_smoke_sign_then_promote_latest',
+    immutable_tag_required: true,
+    digest_lock_required: true,
+    latest_is_moving_channel: true,
+    stable_or_nightly_user_channels_allowed: false,
     first_party_distribution_payload_status: 'contract_required_non_live_until_release_owner_publishes_payload',
     must_not_depend_on_fixed_version_tag_by_default: true,
     github_packages_unavailable_policy: 'fail_closed_with_actionable_background_maintenance_error',
@@ -819,16 +870,27 @@ function validateManagedAgentPackDistribution(contract: any): void {
   }, 'agent-pack distribution');
   assertArrayFieldsEqual(distribution, {
     post_update_sync_required: ['codex_plugin_registry', 'plugin_packaged_skills', 'opl_generated_plugin_surface', 'codex_surface'],
+    user_visible_channels: ['latest'],
     package_agent_ids: expectedRequiredAgentIds,
     activation_commands: ['opl connect reconcile-modules', 'opl connect sync-skills'],
     first_party_distribution_payload_required_fields: expectedFirstPartyDistributionPayloadFields,
     fallback_source_order: [
       'bundled_full_runtime_modules',
-      'app_cli_managed_ghcr_opl_packages_channel',
+      'app_cli_managed_ghcr_oci_agent_packages_latest_channel',
       'explicit_developer_checkout_override',
     ],
     forbidden_homebrew_formulae: ['one-person-lab-modules', 'one-person-lab-modules-nightly'],
   }, 'agent-pack distribution');
+  assertFieldsEqual(distribution?.auto_apply, {
+    enabled_for: 'clean_managed_roots_only',
+    trigger: 'daily_or_startup_latest_digest_check',
+    receipt_required: true,
+  }, 'agent-pack distribution auto apply');
+  assertArrayEqual(
+    distribution?.auto_apply?.skip_when,
+    ['developer_checkout_override', 'dirty_checkout', 'permission_scope_changed', 'major_compatibility_break', 'verification_failed', 'idempotency_lock_in_progress'],
+    'agent-pack distribution auto apply skips',
+  );
 }
 
 function validatePluginRegistrationInputs(contract: any): void {
