@@ -1774,6 +1774,23 @@ jobs:
             --allow-blocked
           cat release-candidate-record.md >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Write release cohort manifest
+        shell: bash
+        env:
+          OPL_RELEASE_VERSION: ${{ inputs.opl_version }}
+          OPL_RELEASE_MODE: ${{ inputs.release_mode }}
+        run: |
+          node --experimental-strip-types scripts/write-release-cohort-manifest.ts \
+            --version "$OPL_RELEASE_VERSION" \
+            --release-mode "$OPL_RELEASE_MODE" \
+            --candidate-record release-candidate-record.json \
+            --readiness release-readiness-summary.json \
+            --remote-verification "release-readiness-inputs/remote-release-verification-${{ inputs.opl_version }}/remote-release-verification.json" \
+            --preflight "release-readiness-inputs/release-preflight-summary-${{ inputs.opl_version }}/release-preflight-summary.json" \
+            --output release-cohort-manifest.json \
+            --markdown release-cohort-manifest.md
+          cat release-cohort-manifest.md >> "$GITHUB_STEP_SUMMARY"
+
       - name: Upload release readiness summary
         uses: actions/upload-artifact@v7
         with:
@@ -1790,4 +1807,13 @@ jobs:
           path: |
             release-candidate-record.json
             release-candidate-record.md
+          if-no-files-found: error
+
+      - name: Upload release cohort manifest
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-cohort-manifest-${{ inputs.opl_version }}
+          path: |
+            release-cohort-manifest.json
+            release-cohort-manifest.md
           if-no-files-found: error
