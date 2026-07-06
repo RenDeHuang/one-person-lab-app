@@ -1,17 +1,10 @@
-import { assertDeepEqualJson, assertIncludesAll } from './assertions.ts';
+import { assertDeepEqualJson, assertIncludesAll, readJson } from './assertions.ts';
 import { isDefaultReleaseAdapter } from './active-shell-contract.ts';
 import {
   appOwnedQueueStatusPolicy,
   appOwnedProjectGroupExpansionPolicy,
   beginnerFirstRunTestIds,
-  firstRunChecklistFields,
   firstRunCoreItems,
-  firstRunProgressFields,
-  firstRunProgressSourceCommand,
-  firstRunProgressSourcePath,
-  firstRunProgressVisibleElements,
-  firstRunRendererTruthPolicy,
-  firstRunSetupFlowFields,
   fullReadinessItems,
 } from './app-contract-constants.ts';
 import {
@@ -25,11 +18,15 @@ import {
   validateStateIndexSidecarProjectionContract,
   validateStructuredResultPanelProjectionContract,
   validateUserTaskStatusProjectionContract,
+  assertFirstRunProgressModelMatches,
 } from './shared-contract-validators.ts';
 import {
   validateAppSettingsPages,
 } from './page-state-app-settings-validator.ts';
 import { validatePrimaryInteractionPages } from './page-state-primary-interaction-validator.ts';
+import { productProfilePath } from './validation-config.ts';
+
+const expectedFirstRunProgressModel = readJson(productProfilePath).first_run?.progress_model;
 
 export function validatePageStateMatrix(matrix, contract) {
   if (isDefaultReleaseAdapter(contract) && (matrix.active_shell !== contract.active_shell || matrix.shell_root !== contract.shell_root)) {
@@ -143,35 +140,10 @@ export function validatePageStateMatrix(matrix, contract) {
   ) {
     throw new Error('First-launch readiness beginner localization must map initialize item ids before rendering');
   }
-  const firstLaunchProgressModel = firstLaunchPage.progress_model;
-  if (firstLaunchProgressModel?.source_command !== firstRunProgressSourceCommand) {
-    throw new Error('First-launch readiness page progress model must use opl system initialize --json');
-  }
-  if (firstLaunchProgressModel?.source_path !== firstRunProgressSourcePath) {
-    throw new Error('First-launch readiness page progress model must read system_initialize.setup_flow');
-  }
-  if (firstLaunchProgressModel?.renderer_truth_policy !== firstRunRendererTruthPolicy) {
-    throw new Error('First-launch readiness page progress model must keep the shell as render-only');
-  }
-  assertIncludesAll(
-    firstLaunchProgressModel?.required_setup_flow_fields,
-    firstRunSetupFlowFields,
-    'First-launch readiness page progress setup_flow fields',
-  );
-  assertIncludesAll(
-    firstLaunchProgressModel?.required_progress_fields,
-    firstRunProgressFields,
-    'First-launch readiness page progress fields',
-  );
-  assertIncludesAll(
-    firstLaunchProgressModel?.required_checklist_fields,
-    firstRunChecklistFields,
-    'First-launch readiness page progress checklist fields',
-  );
-  assertIncludesAll(
-    firstLaunchProgressModel?.required_visible_elements,
-    firstRunProgressVisibleElements,
-    'First-launch readiness page progress visible elements',
+  assertFirstRunProgressModelMatches(
+    firstLaunchPage.progress_model,
+    expectedFirstRunProgressModel,
+    'First-launch readiness page',
   );
 
   const runtimePage = (matrix.pages ?? []).find((page) => page.id === 'runtime');

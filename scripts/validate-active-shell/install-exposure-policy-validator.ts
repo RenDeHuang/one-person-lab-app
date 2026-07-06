@@ -1,16 +1,19 @@
-import { assertIncludesAll } from './assertions.ts';
+import { assertIncludesAll, readJson } from './assertions.ts';
 import {
   defaultCompanionSkillSyncIds,
   firstConversationFailurePolicy,
   firstConversationMustWaitFor,
   firstRunCoreItems,
-  firstRunProgressSourceCommand,
-  firstRunProgressSourcePath,
   forbiddenAuthorityOwners,
   fullReadinessItems,
 } from './app-contract-constants.ts';
 import { expectedDomainExposureEntryMap } from './domain-exposure-validator.ts';
 import { validateInstallExposureRuntimeAndDistribution } from './install-exposure-runtime-distribution-validator.ts';
+import { assertFirstRunProgressModelShape } from './shared-contract-validators.ts';
+import { productProfilePath } from './validation-config.ts';
+
+const expectedFirstRunProgressModel = readJson(productProfilePath).first_run?.progress_model;
+assertFirstRunProgressModelShape(expectedFirstRunProgressModel, 'Product profile first-run progress model');
 
 function validateInstallExposureHeader(policy) {
   if (policy.owner !== 'one-person-lab-app') {
@@ -163,8 +166,8 @@ function validateInstallerSurfaces(policy) {
     if (!entry) {
       throw new Error(`Install exposure policy missing installer surface ${surface}`);
     }
-    if (entry.progress_source !== firstRunProgressSourceCommand) {
-      throw new Error(`Install exposure surface ${surface} must use ${firstRunProgressSourceCommand}`);
+    if (entry.progress_source !== expectedFirstRunProgressModel.source_command) {
+      throw new Error(`Install exposure surface ${surface} must use ${expectedFirstRunProgressModel.source_command}`);
     }
   }
   if (installerSurfaces.get('app_first_run')?.exposure_policy !== 'hide_skill_plugin_packaging_mechanics_by_default') {
@@ -476,11 +479,11 @@ function validateFirstRunUserPresentation(presentation) {
 }
 
 function validateSetupFlowContract(setupFlow) {
-  if (setupFlow?.source_command !== firstRunProgressSourceCommand) {
-    throw new Error('Install exposure setup flow must use opl system initialize --json');
+  if (setupFlow?.source_command !== expectedFirstRunProgressModel.source_command) {
+    throw new Error(`Install exposure setup flow must use ${expectedFirstRunProgressModel.source_command}`);
   }
-  if (setupFlow?.source_path !== firstRunProgressSourcePath) {
-    throw new Error('Install exposure setup flow must read system_initialize.setup_flow');
+  if (setupFlow?.source_path !== expectedFirstRunProgressModel.source_path) {
+    throw new Error(`Install exposure setup flow must read ${expectedFirstRunProgressModel.source_path}`);
   }
   if (setupFlow?.truth_policy !== 'all_installers_and_renderers_derive_progress_from_the_shared_initialize_model') {
     throw new Error('Install exposure setup flow must forbid separate installer progress truth');
@@ -501,7 +504,7 @@ function validateSetupFlowContract(setupFlow) {
   const firstConversation = setupFlow.first_conversation_readiness;
   if (
     firstConversation?.gate !== 'acp_warmup_before_initial_send' ||
-    firstConversation?.source_command !== firstRunProgressSourceCommand ||
+    firstConversation?.source_command !== expectedFirstRunProgressModel.source_command ||
     firstConversation?.ready_to_launch_must_be_true !== true ||
     firstConversation?.failure_policy !== firstConversationFailurePolicy
   ) {

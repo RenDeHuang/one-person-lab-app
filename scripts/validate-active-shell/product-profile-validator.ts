@@ -7,14 +7,7 @@ import {
   ecosystemModuleIds,
   firstConversationFailurePolicy,
   firstConversationMustWaitFor,
-  firstRunChecklistFields,
   firstRunCoreItems,
-  firstRunProgressFields,
-  firstRunProgressSourceCommand,
-  firstRunProgressSourcePath,
-  firstRunProgressVisibleElements,
-  firstRunRendererTruthPolicy,
-  firstRunSetupFlowFields,
   forbiddenAuthorityOwners,
   fullReadinessItems,
   legacySettingsRouteRedirects,
@@ -29,7 +22,11 @@ import {
   settingsControlPlanePath,
   assertFile,
 } from './validation-config.ts';
-import { validateBeginnerFirstRunPresentation, validateOplFlowContext } from './shared-contract-validators.ts';
+import {
+  assertFirstRunProgressModelShape,
+  validateBeginnerFirstRunPresentation,
+  validateOplFlowContext,
+} from './shared-contract-validators.ts';
 import { validateSettingsControlPlaneBehavior } from './settings-control-plane-validator.ts';
 import { assertDefaultCodexSessionProfile } from '../app-product-profile-default-session.ts';
 import { assertAppProductProfileIdentity } from '../app-product-profile-identity.ts';
@@ -391,9 +388,11 @@ function validateReadyToLaunchGate(profile) {
 
 function validateFirstConversationPolicy(profile) {
   const firstConversation = profile.first_run?.first_conversation;
+  const progressModel = profile.first_run?.progress_model;
+  assertFirstRunProgressModelShape(progressModel, 'Product profile first-run progress model');
   if (
     firstConversation?.gate !== 'acp_warmup_before_initial_send' ||
-    firstConversation?.source_command !== firstRunProgressSourceCommand ||
+    firstConversation?.source_command !== progressModel.source_command ||
     firstConversation?.ready_to_launch_must_be_true !== true ||
     firstConversation?.failure_policy !== firstConversationFailurePolicy
   ) {
@@ -452,36 +451,7 @@ function validateFullFirstInstallBackgroundPolicy(profile) {
 }
 
 function validateFirstRunProgressModel(profile) {
-  const progressModel = profile.first_run?.progress_model;
-  if (progressModel?.source_command !== firstRunProgressSourceCommand) {
-    throw new Error('Product profile first-run progress model must use opl system initialize --json');
-  }
-  if (progressModel?.source_path !== firstRunProgressSourcePath) {
-    throw new Error('Product profile first-run progress model must read system_initialize.setup_flow');
-  }
-  if (progressModel?.renderer_truth_policy !== firstRunRendererTruthPolicy) {
-    throw new Error('Product profile first-run progress model must keep renderers as display-only consumers');
-  }
-  assertIncludesAll(
-    progressModel?.required_setup_flow_fields,
-    firstRunSetupFlowFields,
-    'Product profile first-run progress setup_flow fields',
-  );
-  assertIncludesAll(
-    progressModel?.required_progress_fields,
-    firstRunProgressFields,
-    'Product profile first-run progress fields',
-  );
-  assertIncludesAll(
-    progressModel?.required_checklist_fields,
-    firstRunChecklistFields,
-    'Product profile first-run progress checklist fields',
-  );
-  assertIncludesAll(
-    progressModel?.required_visible_elements,
-    firstRunProgressVisibleElements,
-    'Product profile first-run progress visible elements',
-  );
+  assertFirstRunProgressModelShape(profile.first_run?.progress_model, 'Product profile first-run progress model');
 }
 
 function validateStandardPackagePolicy(profile) {

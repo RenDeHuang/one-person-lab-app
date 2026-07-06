@@ -1,16 +1,9 @@
-import { assertDeepEqualJson, assertForbiddenCapabilityPolicy, assertIncludesAll } from './assertions.ts';
+import { assertDeepEqualJson, assertForbiddenCapabilityPolicy, assertIncludesAll, readJson } from './assertions.ts';
 import {
   appActionRoute,
   appOwnedSettingsTabs,
   beginnerFirstRunTestIds,
-  firstRunChecklistFields,
   firstRunCoreItems,
-  firstRunProgressFields,
-  firstRunProgressSourceCommand,
-  firstRunProgressSourcePath,
-  firstRunProgressVisibleElements,
-  firstRunRendererTruthPolicy,
-  firstRunSetupFlowFields,
   fullReadinessItems,
   homeActivityCenterForbiddenDisplays,
   legacySettingsRouteRedirects,
@@ -36,6 +29,7 @@ import {
   validateManagedUpdatePageBasics,
   validateManagedUpdatePlaneBinding,
 } from './managed-update-plane-validator.ts';
+import { productProfilePath } from './validation-config.ts';
 import { validateSettingsControlPlaneBehavior } from './settings-control-plane-validator.ts';
 import {
   validateArtifactNativeDrilldownProjectionContract,
@@ -49,6 +43,7 @@ import {
   validateTaskAwarenessProjectionContract,
   validateWorkflowSkillCandidateProjectionContract,
   validateUserTaskStatusProjectionContract,
+  assertFirstRunProgressModelMatches,
 } from './shared-contract-validators.ts';
 
 const ordinaryForbiddenCapabilityPolicy = {
@@ -78,6 +73,7 @@ const aionuiTeamProbeIds = [
   'team_deep_link_not_whitelisted',
   'team_bridge_mutation_gate',
 ];
+const expectedFirstRunProgressModel = readJson(productProfilePath).first_run?.progress_model;
 
 function validateManagedUpdatePageSurface(page, label) {
   validateManagedUpdatePageBasics(page, label, {
@@ -265,35 +261,10 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     firstLaunchPolicy?.beginner_presentation,
     'App GUI first-launch beginner presentation',
   );
-  const firstLaunchProgressModel = firstLaunchPolicy?.progress_model;
-  if (firstLaunchProgressModel?.source_command !== firstRunProgressSourceCommand) {
-    throw new Error('App GUI first-launch progress model must use opl system initialize --json');
-  }
-  if (firstLaunchProgressModel?.source_path !== firstRunProgressSourcePath) {
-    throw new Error('App GUI first-launch progress model must read system_initialize.setup_flow');
-  }
-  if (firstLaunchProgressModel?.renderer_truth_policy !== firstRunRendererTruthPolicy) {
-    throw new Error('App GUI first-launch progress model must keep the shell as render-only');
-  }
-  assertIncludesAll(
-    firstLaunchProgressModel?.required_setup_flow_fields,
-    firstRunSetupFlowFields,
-    'App GUI first-launch progress setup_flow fields',
-  );
-  assertIncludesAll(
-    firstLaunchProgressModel?.required_progress_fields,
-    firstRunProgressFields,
-    'App GUI first-launch progress fields',
-  );
-  assertIncludesAll(
-    firstLaunchProgressModel?.required_checklist_fields,
-    firstRunChecklistFields,
-    'App GUI first-launch progress checklist fields',
-  );
-  assertIncludesAll(
-    firstLaunchProgressModel?.required_visible_elements,
-    firstRunProgressVisibleElements,
-    'App GUI first-launch progress visible elements',
+  assertFirstRunProgressModelMatches(
+    firstLaunchPolicy?.progress_model,
+    expectedFirstRunProgressModel,
+    'App GUI first-launch',
   );
 
   const modulePathPolicy = guiContract.module_path_source_policy;

@@ -879,49 +879,6 @@ export const firstRunEcosystemModules = [
   "mineru",
   "opl-meta-agent",
 ];
-export const firstRunProgressSourceCommand = "opl system initialize --json";
-export const firstRunProgressSourcePath = "system_initialize.setup_flow";
-export const firstRunRendererTruthPolicy =
-  "render_only_no_shell_private_progress_truth";
-export const firstRunSetupFlowFields = [
-  "phase",
-  "ready_to_launch",
-  "progress",
-  "blocking_items",
-  "maintenance_items",
-];
-export const firstRunProgressFields = [
-  "ready_required_count",
-  "total_required_count",
-  "ready_full_readiness_count",
-  "total_full_readiness_count",
-  "ready_optional_count",
-  "total_optional_count",
-];
-export const firstRunChecklistFields = [
-  "item_id",
-  "label",
-  "status",
-  "readiness_layer",
-  "blocking",
-  "severity",
-  "next_visible_step",
-  "detail_summary",
-];
-export const firstRunProgressVisibleElements = [
-  "current initialization phase",
-  "Core completed and total count",
-  "Full readiness completed and total count",
-  "background maintenance completed and total count",
-  "blocking item list",
-  "next visible step",
-];
-export const firstRunProgressConsumerPackageTypes = [
-  "full",
-  "standard",
-  "source_installer",
-  "docker_webui",
-];
 export const temporalLocalServiceDefaults = {
   address_env: "OPL_TEMPORAL_ADDRESS",
   default_address: "127.0.0.1:7233",

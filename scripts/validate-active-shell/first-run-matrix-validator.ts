@@ -2,19 +2,15 @@ import { assertIncludesAll, readJson } from './assertions.ts';
 import { isDefaultReleaseAdapter } from './active-shell-contract.ts';
 import {
   beginnerFirstRunTestIds,
-  firstRunChecklistFields,
   firstRunCoreItems,
   firstRunEcosystemModules,
-  firstRunProgressConsumerPackageTypes,
-  firstRunProgressFields,
-  firstRunProgressSourceCommand,
-  firstRunProgressSourcePath,
-  firstRunSetupFlowFields,
 } from './app-contract-constants.ts';
+import { assertSharedFirstRunProgressModelMatches } from './shared-contract-validators.ts';
 import { productProfilePath } from './validation-config.ts';
 
 const productProfile = readJson(productProfilePath);
 const fullFirstInstallPolicy = productProfile.first_run?.core_ready_policy?.full_first_install_clean_machine;
+const expectedFirstRunProgressModel = productProfile.first_run?.progress_model;
 
 function requiredContractStringArray(value, label) {
   if (!Array.isArray(value) || value.length === 0 || value.some((entry) => typeof entry !== 'string' || !entry.trim())) {
@@ -144,43 +140,31 @@ function validateUpdaterScenario(updater) {
   }
 }
 
-function validateSharedProgressModel(progressModel) {
+function expandPackageTypes(packageType) {
+  if (typeof packageType !== 'string' || !packageType.trim()) {
+    return [];
+  }
+  return packageType.split('_or_').filter(Boolean);
+}
+
+function validateSharedProgressModel(progressModel, scenarios) {
   if (progressModel?.producer !== 'one-person-lab') {
     throw new Error('First-run shared progress model producer must be one-person-lab');
   }
-  if (progressModel?.source_command !== firstRunProgressSourceCommand) {
-    throw new Error('First-run shared progress model must use opl system initialize --json');
-  }
-  if (progressModel?.source_path !== firstRunProgressSourcePath) {
-    throw new Error('First-run shared progress model must read system_initialize.setup_flow');
-  }
+  assertSharedFirstRunProgressModelMatches(progressModel, expectedFirstRunProgressModel, 'First-run matrix');
   if (progressModel?.truth_policy !== 'all_installers_and_renderers_derive_progress_from_the_shared_initialize_model') {
     throw new Error('First-run shared progress model must forbid parallel installer progress truth');
   }
-  assertIncludesAll(
-    progressModel?.required_setup_flow_fields,
-    firstRunSetupFlowFields,
-    'First-run shared progress model setup_flow fields',
-  );
-  assertIncludesAll(
-    progressModel?.required_progress_fields,
-    firstRunProgressFields,
-    'First-run shared progress model progress fields',
-  );
-  assertIncludesAll(
-    progressModel?.required_checklist_fields,
-    firstRunChecklistFields,
-    'First-run shared progress model checklist fields',
-  );
   const packageTypes = (progressModel?.consumers ?? []).map((consumer) => consumer.package_type);
-  assertIncludesAll(packageTypes, firstRunProgressConsumerPackageTypes, 'First-run shared progress model consumers');
+  const scenarioPackageTypes = [...new Set((scenarios ?? []).flatMap((scenario) => expandPackageTypes(scenario.package_type)))];
+  assertIncludesAll(packageTypes, scenarioPackageTypes, 'First-run shared progress model consumers');
 }
 
 export function validateFirstRunMatrix(matrix, contract) {
   if (isDefaultReleaseAdapter(contract) && (matrix.active_shell !== contract.active_shell || matrix.shell_root !== contract.shell_root)) {
     throw new Error('First-run matrix must target the active shell contract');
   }
-  validateSharedProgressModel(matrix.shared_progress_model);
+  validateSharedProgressModel(matrix.shared_progress_model, matrix.scenarios);
   const scenarioById = buildScenarioMap(matrix);
   validateFullFirstInstallScenario(scenarioById.get('full_first_install_clean_machine'));
   const beginnerScenario = scenarioById.get('beginner_simplified_first_run_clean_machine');
