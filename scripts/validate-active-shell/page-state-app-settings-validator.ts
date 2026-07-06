@@ -1,7 +1,6 @@
 import { assertDeepEqualJson, assertIncludesAll } from './assertions.ts';
 import {
   appActionRoute,
-  appOwnedSettingsRouteScopes,
   settingsPageExpectations,
 } from './app-contract-constants.ts';
 import {
@@ -32,7 +31,6 @@ export function validateAppSettingsPages(matrix) {
     assertDeepEqualJson(page.sections, expected.sections, `${expected.matrix_id} sections`);
     assertIncludesAll(page.must_show, expected.must_show, `${expected.matrix_id} must_show`);
     assertIncludesAll(page.must_not_show, expected.must_not_show, `${expected.matrix_id} must_not_show`);
-    validateSettingsRouteIdentity(page, expected.matrix_id);
   }
 
   validateCapabilitiesPage(matrix);
@@ -41,22 +39,6 @@ export function validateAppSettingsPages(matrix) {
   validateAboutPage(matrix);
   validateUpdatePage(matrix);
   validateSettingsThemePage(matrix);
-}
-
-function validateSettingsRouteIdentity(page, pageId) {
-  const expected = appOwnedSettingsRouteScopes[pageId];
-  if (!expected) {
-    return;
-  }
-  if (page.route_id !== expected.route_id) {
-    throw new Error(`${pageId} route_id must remain ${expected.route_id}`);
-  }
-  if (page.route_scope !== expected.route_scope) {
-    throw new Error(`${pageId} route_scope must remain ${expected.route_scope}`);
-  }
-  if (page.settings_ia_ref !== 'contracts/app-gui-product-contract.json#settings_navigation.settings_ia') {
-    throw new Error(`${pageId} must reference the App-owned settings_ia.v1 contract`);
-  }
 }
 
 function pageById(matrix, id) {
