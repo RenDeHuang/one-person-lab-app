@@ -212,6 +212,26 @@ details, not first-screen content. Console billing, organization policy, and
 managed-resource entitlement are displayed only as Console-managed refs; the App
 does not make those decisions.
 
+Access page refinement on 2026-07-06 produced reusable Settings design rules:
+
+- Show a fact only when it helps the user decide or act. For example, OPL
+  Gateway in the normal ready state needs one status plus a "configure key"
+  action; repeated "connected / current source" lines are not additional user
+  value.
+- Name the user-facing capability, not the implementation origin. "Remote
+  access" is better first-screen wording than "AionUI native remote access";
+  implementation provenance belongs in details.
+- Use stable mental buckets before showing diagnostics: model access, local
+  runtime ability, remote access, and advanced deployment. Do not flatten
+  Docker WebUI, OPL Workspace, local browser access, model keys, and dry-run
+  routes into one list.
+- Normal state is conclusion-first: "ready", "needs key", "open settings", or
+  "check path". Raw status ids, CLI commands, receipt refs, and internal owner
+  names appear only when abnormal or expanded.
+- Technical labels must match their source. Codex default model comes from
+  Codex config / App state `core.codex.default_model`; bundled default profile
+  is only fallback and must not be presented as the user's current default.
+
 ### Workspace
 
 Workspace is an independent setup task page, not hidden inside Local
@@ -340,6 +360,34 @@ per-component actions with their own confirmation and guidance.
 
 The App remains a consumer of OPL/App action routes and managed updater status;
 it must not implement the update kernel or write runtime/domain truth.
+
+Current Maintenance page assessment on 2026-07-06:
+
+- Keep: the page has the right core materials for a maintenance hub: health
+  summary, "Make OPL usable", managed update components, package maintenance,
+  confirmation before mutation, post-action receipts, reload guidance, and
+  collapsed diagnostics.
+- Change: `进行中的任务` and task-run details belong to Runtime / Run Status, not
+  Settings. They answer "what is my work doing?", while Maintenance should
+  answer "what foundation needs update or repair?"
+- Change: Workspace, Storage, and version/update are useful cross-links, but
+  should be compact entries. Full workspace status belongs to Workspace; cleanup
+  details belong to Storage; version/channel and release notes belong to About
+  and Update.
+- Change: labels such as `OPL 系统桥接` and `必要能力` are implementation-shaped.
+  Ordinary copy should use `维护与更新`, `运行环境`, `能力包同步`, `本机服务与修复`,
+  and `应用更新` unless the user opens technical details.
+- Change: module maintenance and managed updates currently overlap. The first
+  screen should show one recommended action per user bucket, then route into
+  component-specific apply / repair / rollback controls only when needed.
+- Target structure: four ordinary sections only: `应用更新`, `运行环境`,
+  `能力包与 Codex Surface 同步`, and `本机服务与修复`. Storage is a link-out,
+  task progress is removed, diagnostics remain collapsed.
+
+This assessment maps to the current shell surface in
+`shells/aionui/packages/desktop/src/renderer/pages/settings/sections/RuntimeSettings.tsx`
+and its panel components in
+`shells/aionui/packages/desktop/src/renderer/pages/settings/sections/RuntimeSettingsPanels.tsx`.
 
 ### Storage & Data
 
