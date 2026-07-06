@@ -317,9 +317,12 @@ node_modules fingerprints, and first-run matrix validation derives host-tool
 and deferred-maintenance expectations from the App product profile instead of
 duplicating those arrays in contract constants. Release candidate record
 validation, release readiness summary generation, full-package size analysis,
-Homebrew tap update planning, and release candidate planning now use Node's
-native argument parser instead of local argv loops, and first-run progress
-model expectations for GUI, page-state, first-run
+Homebrew tap update planning, release candidate planning, release closeout,
+GitHub Actions timing summaries, release cohort manifest generation,
+release-owner candidate resolution and verification, draft release cleanup,
+WebUI GHCR cleanup, and release source-gate validation now use Node's native
+argument parser instead of local argv loops, and first-run progress model
+expectations for GUI, page-state, first-run
 matrix, and install-exposure validators derive from
 `contracts/app-product-profile.json#first_run.progress_model` instead of
 mirroring the same command, path, field, visible-element, and consumer package
@@ -335,11 +338,15 @@ product profile plus Home shortcut projection instead of a hard-coded
 `app-contract-constants.ts` mirror. Settings Capabilities task-awareness ref
 fields now share one App-owned validator constant, and the Settings Environment module
 maintenance entry uses the managed-update validator helper instead of repeating
-the same assertion block in GUI and page-state validators. Tracked guide
-screenshot PNGs remain intentional App-owned guide and release-doc artifacts,
-so cleanup closed the unused renderer and selected duplication/constant mirrors
-only; broad tracked-screenshot deletion and large `buildSummary` / validator
-thinning remain follow-up items, not completed cleanup. `npm run hygiene:fallow -- --format json --summary`
+the same assertion block in GUI and page-state validators. `release-operator.ts`
+and `validate-release-preflight.ts` intentionally keep their non-native parsers:
+the former owns subcommands plus parameter forwarding, while the latter keeps an
+optional-value evidence-artifact flag that is not equivalent to a simple
+`node:util.parseArgs` option. Tracked guide screenshot PNGs remain intentional
+App-owned guide and release-doc artifacts, so cleanup closed the unused renderer
+and selected duplication/constant mirrors only; broad tracked-screenshot
+deletion and large `buildSummary` / validator thinning remain follow-up items,
+not completed cleanup. `npm run hygiene:fallow -- --format json --summary`
 is the production hygiene check for unused files/exports and duplicate exports.
 This is code-health and validation-structure evidence only; it is not a
 release-ready, currentness, packaged-App, clean-VM, owner-acceptance, or Live
