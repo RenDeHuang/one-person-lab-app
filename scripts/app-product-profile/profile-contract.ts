@@ -37,10 +37,6 @@ const requiredDefaultPackagedSkillIds = [
 const requiredCompanionSkillSyncIds = requiredDefaultPackagedSkillIds.filter((skillId) => (
   !['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge'].includes(skillId)
 ));
-const appOwnedSettingsTabs = ['general', 'access', 'workspace', 'capabilities', 'resources', 'environment', 'storage', 'appearance'];
-const appOwnedSecondarySettingsPages = ['advanced', 'about', 'update', 'theme', 'local-services'];
-const appOwnedSettingsIaGroups = ['overview', 'setup_access', 'capabilities', 'resources', 'maintenance', 'data_storage', 'preferences', 'advanced'];
-const appOwnedSettingsPrimaryTabIds = ['general', 'access', 'workspace', 'capabilities', 'resources', 'environment', 'storage', 'appearance', 'advanced', 'about'];
 const developerProfileCapabilityAxes = [
   'source_channel',
   'workspace_trust',
@@ -48,20 +44,6 @@ const developerProfileCapabilityAxes = [
   'agent_automation',
   'runtime_mutation_scope',
 ];
-const legacySettingsRouteRedirects = {
-  overview: 'general',
-  runtime: 'environment',
-  system: 'advanced',
-  model: 'environment',
-  agent: 'capabilities',
-  assistants: 'capabilities',
-  'skills-hub': 'capabilities',
-  tools: 'capabilities',
-  display: 'appearance',
-  webui: 'resources',
-  pet: 'appearance',
-};
-
 function assertStringArray(value: unknown, label: string, options: { allowBlank?: boolean } = {}): asserts value is string[] {
   if (!Array.isArray(value) || value.length === 0 || !value.every((entry) => (
     typeof entry === 'string' && (options.allowBlank || entry.trim())
@@ -161,35 +143,30 @@ function assertFirstRunProfileShape(profile: AppProductProfile): void {
 
 function assertSettingsProfileShape(profile: AppProductProfile): void {
   assertStringArray(profile.settings.visible_tabs, 'settings.visible_tabs');
-  if (
-    JSON.stringify(profile.settings.visible_tabs) !==
-    JSON.stringify(appOwnedSettingsTabs)
-  ) {
-    throw new Error('App product profile settings.visible_tabs must keep ordinary settings on OPL App-owned pages');
-  }
-  if (
-    JSON.stringify(profile.settings.legacy_route_redirects) !==
-    JSON.stringify(legacySettingsRouteRedirects)
-  ) {
-    throw new Error('App product profile settings.legacy_route_redirects must route legacy AionUI settings to App-owned pages');
-  }
   const controlPlane = profile.settings.control_plane;
   if (!controlPlane || controlPlane.source_contract_ref !== 'contracts/app-settings-control-plane.json') {
     throw new Error('App product profile settings.control_plane must project contracts/app-settings-control-plane.json');
   }
-  if (JSON.stringify(controlPlane.ordinary_visible_tabs) !== JSON.stringify(appOwnedSettingsTabs)) {
-    throw new Error('App product profile settings.control_plane must keep ordinary settings tabs on App-owned pages');
-  }
-  if (JSON.stringify(controlPlane.ordinary_routes?.map((route) => route.id)) !== JSON.stringify(appOwnedSettingsTabs)) {
-    throw new Error('App product profile settings.control_plane.ordinary_routes must describe every ordinary App settings route');
-  }
+  const ordinaryRoutes = Array.isArray(controlPlane.ordinary_routes) ? controlPlane.ordinary_routes : [];
+  const secondaryPages = Array.isArray(controlPlane.secondary_pages) ? controlPlane.secondary_pages : [];
+  const ordinaryRouteIds = ordinaryRoutes.map((route) => route.id);
+  const secondaryPageIds = secondaryPages.map((page) => page.id);
+  assertStringArray(controlPlane.ordinary_visible_tabs, 'settings.control_plane.ordinary_visible_tabs');
+  assertStringArray(ordinaryRouteIds, 'settings.control_plane.ordinary_routes ids');
+  assertStringArray(secondaryPageIds, 'settings.control_plane.secondary_pages ids');
   const controlPlaneRedirects = Object.fromEntries(
     Object.entries(controlPlane.legacy_route_redirects ?? {})
       .filter(([id]) => id !== 'about')
       .map(([id, target]) => [id, String(target).split('?')[0]]),
   );
-  if (JSON.stringify(controlPlaneRedirects) !== JSON.stringify(legacySettingsRouteRedirects)) {
-    throw new Error('App product profile settings.control_plane legacy redirects must match App-owned legacy redirects');
+  if (JSON.stringify(profile.settings.visible_tabs) !== JSON.stringify(controlPlane.ordinary_visible_tabs)) {
+    throw new Error('App product profile settings.visible_tabs must match the projected Settings control plane ordinary tabs');
+  }
+  if (JSON.stringify(profile.settings.legacy_route_redirects) !== JSON.stringify(controlPlaneRedirects)) {
+    throw new Error('App product profile settings.legacy_route_redirects must match query-free Settings control plane redirects');
+  }
+  if (JSON.stringify(controlPlane.ordinary_visible_tabs) !== JSON.stringify(ordinaryRouteIds)) {
+    throw new Error('App product profile settings.control_plane must keep ordinary settings tabs on App-owned pages');
   }
   if (controlPlane.extension_tab_policy?.legacy_anchor_remap_required !== true) {
     throw new Error('App product profile settings.control_plane must require legacy extension anchor remapping');
@@ -214,14 +191,20 @@ function assertSettingsProfileShape(profile: AppProductProfile): void {
   const groupIds = Array.isArray(settingsIa.ordinary_groups)
     ? settingsIa.ordinary_groups.map((group) => group.id)
     : [];
-  if (JSON.stringify(groupIds) !== JSON.stringify(appOwnedSettingsIaGroups)) {
+  const routeGroupIds = [...ordinaryRoutes, ...secondaryPages]
+    .map((route) => route.ia_group)
+    .filter((groupId, index, groups) => typeof groupId === 'string' && groups.indexOf(groupId) === index);
+  if (JSON.stringify(groupIds) !== JSON.stringify(routeGroupIds)) {
     throw new Error('App product profile settings_information_architecture must describe every Control Center IA group');
   }
   const primaryTabIds = Object.keys(settingsIa.primary_tabs ?? {});
-  if (JSON.stringify(primaryTabIds) !== JSON.stringify(appOwnedSettingsPrimaryTabIds)) {
-    throw new Error('App product profile settings_information_architecture.primary_tabs must describe every App settings page id');
+  assertIncludesAll(primaryTabIds, ordinaryRouteIds, 'settings_information_architecture.primary_tabs');
+  for (const tabId of primaryTabIds) {
+    if (![...ordinaryRouteIds, ...secondaryPageIds].includes(tabId)) {
+      throw new Error(`App product profile settings_information_architecture.primary_tabs contains unknown settings route ${tabId}`);
+    }
   }
-  if (JSON.stringify(settingsIa.secondary_page_ids ?? []) !== JSON.stringify(appOwnedSecondarySettingsPages)) {
+  if (JSON.stringify(settingsIa.secondary_page_ids ?? []) !== JSON.stringify(secondaryPageIds)) {
     throw new Error('App product profile settings_information_architecture.secondary_page_ids must declare secondary settings pages');
   }
   const taskEntryPolicy = settingsIa.task_entry_policy;
