@@ -3,6 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { parseArgs as parseNodeArgs } from 'node:util';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const expectedSchema = 'opl_release_candidate_record.v1';
@@ -17,41 +18,34 @@ type Options = {
 };
 
 function parseArgs(argv: string[]): Options {
-  const parsed: Options = {
-    mode: 'validate',
-    recordPath: process.env.OPL_RELEASE_CANDIDATE_RECORD || path.resolve(appRoot, 'release-candidate-record.json'),
-    version: process.env.OPL_RELEASE_VERSION || '',
-    format: 'json',
-  };
+  const { values, tokens } = parseNodeArgs({
+    args: argv,
+    options: {
+      status: { type: 'boolean' },
+      'promote-ready': { type: 'boolean' },
+      record: { type: 'string' },
+      version: { type: 'string' },
+      format: { type: 'string' },
+    },
+    strict: true,
+    tokens: true,
+  });
 
-  for (let index = 0; index < argv.length; index += 1) {
-    const token = argv[index];
-    if (token === '--status') {
-      parsed.mode = 'status';
-      continue;
-    }
-    if (token === '--promote-ready') {
-      parsed.mode = 'validate';
-      continue;
-    }
-    const value = argv[index + 1];
-    if (!value || value.startsWith('--')) throw new Error(`Missing value for ${token}`);
-    if (token === '--record') parsed.recordPath = value;
-    else if (token === '--version') parsed.version = value;
-    else if (token === '--format') {
-      if (value !== 'json' && value !== 'markdown') {
-        throw new Error(`--format must be json or markdown, got ${value}`);
-      }
-      parsed.format = value;
-    } else {
-      throw new Error(`Unknown argument: ${token}`);
-    }
-    index += 1;
+  let mode: Options['mode'] = 'validate';
+  for (const token of tokens) {
+    if (token.kind === 'option' && token.name === 'status') mode = 'status';
+    if (token.kind === 'option' && token.name === 'promote-ready') mode = 'validate';
+  }
+  const format = values.format ?? 'json';
+  if (format !== 'json' && format !== 'markdown') {
+    throw new Error(`--format must be json or markdown, got ${format}`);
   }
 
   return {
-    ...parsed,
-    recordPath: path.resolve(parsed.recordPath),
+    mode,
+    recordPath: path.resolve(values.record ?? process.env.OPL_RELEASE_CANDIDATE_RECORD ?? path.resolve(appRoot, 'release-candidate-record.json')),
+    version: values.version ?? process.env.OPL_RELEASE_VERSION ?? '',
+    format,
   };
 }
 
