@@ -148,7 +148,7 @@ export const FORBIDDEN_SHELL_OWNED_SURFACES = [
   'provider implementation',
 ] as const;
 
-export const ARCHIVED_REPLAY_ADOPTION_GATES = [
+const ARCHIVED_REPLAY_ADOPTION_GATES = [
   'declare archived replay surface in contracts/app-shell-candidates.json',
   'consume contracts/app-gui-product-contract.json as replay acceptance input only',
   'sync App product profile into the archived replay shell target',
@@ -158,7 +158,7 @@ export const ARCHIVED_REPLAY_ADOPTION_GATES = [
   'preserve external checkout history policy and release isolation',
 ] as const;
 
-export const CANDIDATE_ADOPTION_GATES = [
+const CANDIDATE_ADOPTION_GATES = [
   'declare candidate in contracts/app-shell-candidates.json',
   'implement contracts/app-gui-product-contract.json',
   'sync App product profile into the candidate shell target',
@@ -167,6 +167,25 @@ export const CANDIDATE_ADOPTION_GATES = [
   'pass GUI package compile through App wrapper',
   'preserve external checkout history policy',
 ] as const;
+
+export function assertShellReplacementAdoptionGates(
+  releaseRole: string,
+  adoptionGate: readonly string[] | undefined,
+  missingGateMessage: (gate: string) => string,
+  forbiddenAdapterCandidateMessage = 'Shell replacement policy must not declare candidates inside contracts/app-shell-adapter.json',
+): void {
+  const requiredGates = releaseRole === 'archived_technical_verification_shell'
+    ? ARCHIVED_REPLAY_ADOPTION_GATES
+    : CANDIDATE_ADOPTION_GATES;
+  for (const gate of requiredGates) {
+    if (!adoptionGate?.includes(gate)) {
+      throw new Error(missingGateMessage(gate));
+    }
+  }
+  if (adoptionGate?.includes('declare candidate in contracts/app-shell-adapter.json')) {
+    throw new Error(forbiddenAdapterCandidateMessage);
+  }
+}
 
 export const STATE_SURFACE_CONTRACT_EXPECTATIONS = {
   primary_read_command: 'opl app state --profile fast --json',
@@ -419,17 +438,12 @@ function assertShellReplacementPolicy(contract: ShellAdapterContract): void {
     throw new Error('active shell replacement must not transfer App GUI authority');
   }
   assertStringArray(contract.shell_replacement_policy.adoption_gate, 'shell_replacement_policy.adoption_gate');
-  const requiredGates = contract.release_role === 'archived_technical_verification_shell'
-    ? ARCHIVED_REPLAY_ADOPTION_GATES
-    : CANDIDATE_ADOPTION_GATES;
-  for (const gate of requiredGates) {
-    if (!contract.shell_replacement_policy.adoption_gate.includes(gate)) {
-      throw new Error(`active shell replacement policy missing gate ${gate}`);
-    }
-  }
-  if (contract.shell_replacement_policy.adoption_gate.includes('declare candidate in contracts/app-shell-adapter.json')) {
-    throw new Error('active shell replacement policy must not declare candidates inside contracts/app-shell-adapter.json');
-  }
+  assertShellReplacementAdoptionGates(
+    contract.release_role,
+    contract.shell_replacement_policy.adoption_gate,
+    (gate) => `active shell replacement policy missing gate ${gate}`,
+    'active shell replacement policy must not declare candidates inside contracts/app-shell-adapter.json',
+  );
 }
 
 function assertShellContractPathsAndCapabilities(contract: ShellAdapterContract): void {

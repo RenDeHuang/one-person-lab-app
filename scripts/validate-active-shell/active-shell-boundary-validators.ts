@@ -1,13 +1,12 @@
 import path from 'node:path';
 import {
-  ARCHIVED_REPLAY_ADOPTION_GATES,
-  CANDIDATE_ADOPTION_GATES,
   DEFAULT_RELEASE_SHELL_OWNED_SURFACE,
   FORBIDDEN_GUI_TRUTH_SOURCES,
   FORBIDDEN_SHELL_OWNED_SURFACES,
   REQUIRED_BASE_SHELL_OWNED_SURFACES,
   REQUIRED_GUI_AUTHORITY_PRODUCT_CONTRACTS,
   STATE_SURFACE_CONTRACT_EXPECTATIONS,
+  assertShellReplacementAdoptionGates,
 } from '../app-shell-adapter.ts';
 import {
   validateGuiProductContractPolicyFields,
@@ -63,17 +62,11 @@ export function validateShellReplacementPolicy(contract) {
   if (contract.shell_replacement_policy.authority_transfer_allowed !== false) {
     throw new Error('Shell replacement must not transfer App GUI authority');
   }
-  const requiredGates = contract.release_role === 'archived_technical_verification_shell'
-    ? ARCHIVED_REPLAY_ADOPTION_GATES
-    : CANDIDATE_ADOPTION_GATES;
-  for (const gate of requiredGates) {
-    if (!contract.shell_replacement_policy.adoption_gate?.includes(gate)) {
-      throw new Error(`Shell replacement policy missing gate ${gate}`);
-    }
-  }
-  if (contract.shell_replacement_policy.adoption_gate.includes('declare candidate in contracts/app-shell-adapter.json')) {
-    throw new Error('Shell replacement policy must not declare candidates inside contracts/app-shell-adapter.json');
-  }
+  assertShellReplacementAdoptionGates(
+    contract.release_role,
+    contract.shell_replacement_policy.adoption_gate,
+    (gate) => `Shell replacement policy missing gate ${gate}`,
+  );
 }
 
 export function validateShellContractCapabilities(contract) {
