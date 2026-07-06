@@ -46,6 +46,11 @@ on:
         required: false
         default: true
         type: boolean
+      require_addon_gates_for_stable_readiness:
+        description: Require Full, Docker/WebUI, and Homebrew add-on gates before writing the Stable readiness record
+        required: false
+        default: false
+        type: boolean
       docker_webui_clean_linux_evidence_artifact:
         description: Optional same-run artifact name containing clean Linux VM Docker WebUI smoke evidence; empty runs the Ubuntu clean VM gate in this workflow
         required: false
@@ -599,7 +604,8 @@ jobs:
     needs:
       - publish-standard
       - standard-first-run-vm-smoke-after-standard-only
-    if: ${{ !cancelled() && !inputs.include_full_package && (!inputs.run_vm_smoke || needs.standard-first-run-vm-smoke-after-standard-only.result == 'success') }}
+      - standard-vm-smoke-gate-after-full
+    if: ${{ !cancelled() && (!inputs.run_vm_smoke || ((!inputs.include_full_package && needs.standard-first-run-vm-smoke-after-standard-only.result == 'success') || (inputs.include_full_package && needs.standard-vm-smoke-gate-after-full.result == 'success'))) }}
     runs-on: macos-latest
 
     steps:
@@ -671,7 +677,7 @@ jobs:
       - remote-verify-full
       - standard-first-run-vm-smoke-after-standard-only
       - standard-vm-smoke-gate-after-full
-    if: ${{ !cancelled() && inputs.run_vm_smoke && needs.release-preflight.outputs.homebrew_tap_update_required == 'true' && ((!inputs.include_full_package && needs.remote-verify-standard.result == 'success' && needs.standard-first-run-vm-smoke-after-standard-only.result == 'success') || (inputs.include_full_package && needs.remote-verify-full.result == 'success' && needs.standard-vm-smoke-gate-after-full.result == 'success')) }}
+    if: ${{ !cancelled() && inputs.run_vm_smoke && needs.release-preflight.outputs.homebrew_tap_update_required == 'true' && needs.remote-verify-standard.result == 'success' && ((!inputs.include_full_package && needs.standard-first-run-vm-smoke-after-standard-only.result == 'success') || (inputs.include_full_package && needs.standard-vm-smoke-gate-after-full.result == 'success')) }}
     uses: ./.github/workflows/homebrew-tap-update.yml
     with:
       channel: stable
@@ -1575,7 +1581,7 @@ jobs:
   release-readiness-admission:
     name: Admit release readiness aggregation
     runs-on: ubuntu-latest
-    if: ${{ !cancelled() && inputs.run_vm_smoke && needs.release-preflight.result == 'success' && ((!inputs.include_full_package && needs.remote-verify-standard.result == 'success' && needs.standard-first-run-vm-smoke-after-standard-only.result == 'success') || (inputs.include_full_package && needs.standard-vm-smoke-gate-after-full.result == 'success' && needs.remote-verify-full.result == 'success' && needs.full-first-run-vm-smoke.result == 'success')) && (needs.release-preflight.outputs.homebrew_tap_update_required != 'true' || (needs.stable-homebrew-tap-update.result == 'success' && (!inputs.include_full_package || needs.full-homebrew-tap-update.result == 'success') && needs.homebrew-standard-first-run-vm-smoke.result == 'success')) && needs.one-shot-app-installer-smoke.result == 'success' && (!inputs.publish_docker_webui || (needs.docker-webui-smoke.result == 'success' && needs.webui-ghcr-publish.result == 'success' && needs.docker-webui-clean-vm-evidence.result == 'success')) }}
+    if: ${{ !cancelled() && inputs.run_vm_smoke && needs.release-preflight.result == 'success' && needs.remote-verify-standard.result == 'success' && ((!inputs.include_full_package && needs.standard-first-run-vm-smoke-after-standard-only.result == 'success') || (inputs.include_full_package && needs.standard-vm-smoke-gate-after-full.result == 'success')) && needs.one-shot-app-installer-smoke.result == 'success' }}
     needs:
       - release-preflight
       - remote-verify-standard
@@ -1600,6 +1606,7 @@ jobs:
           node <<'NODE'
           const includeFullPackage = '${{ inputs.include_full_package }}' === 'true';
           const publishDockerWebui = '${{ inputs.publish_docker_webui }}' === 'true';
+          const requireAddonGatesForStableReadiness = '${{ inputs.require_addon_gates_for_stable_readiness }}' === 'true';
           const runVmSmoke = '${{ inputs.run_vm_smoke }}' === 'true';
           const homebrewTapUpdateRequired = '${{ needs.release-preflight.outputs.homebrew_tap_update_required }}' === 'true';
           const results = {
@@ -1631,22 +1638,33 @@ jobs:
               failures.push(`${job}=${results[job] || 'unknown'}`);
             }
           }
+          function requireSuccessOrSkippedOrFailed(job) {
+            if (!['success', 'skipped', 'failure'].includes(results[job])) {
+              failures.push(`${job}=${results[job] || 'unknown'}`);
+            }
+          }
 
           if (!runVmSmoke) {
             failures.push('run_vm_smoke=false prevents release readiness aggregation for stable clean evidence closeout');
           }
           requireSuccess('release-preflight');
 
+          requireSuccess('remote-verify-standard');
           if (includeFullPackage) {
             requireSuccess('standard-vm-smoke-gate-after-full');
-            requireSuccess('remote-verify-full');
-            requireSuccess('full-first-run-vm-smoke');
           } else {
-            requireSuccess('remote-verify-standard');
             requireSuccess('standard-first-run-vm-smoke-after-standard-only');
           }
 
-          if (homebrewTapUpdateRequired) {
+          if (requireAddonGatesForStableReadiness && includeFullPackage) {
+            requireSuccess('remote-verify-full');
+            requireSuccess('full-first-run-vm-smoke');
+          } else {
+            requireSuccessOrSkippedOrFailed('remote-verify-full');
+            requireSuccessOrSkippedOrFailed('full-first-run-vm-smoke');
+          }
+
+          if (requireAddonGatesForStableReadiness && homebrewTapUpdateRequired) {
             requireSuccess('stable-homebrew-tap-update');
             if (includeFullPackage) {
               requireSuccess('full-homebrew-tap-update');
@@ -1655,19 +1673,19 @@ jobs:
             }
             requireSuccess('homebrew-standard-first-run-vm-smoke');
           } else {
-            requireSuccessOrSkipped('stable-homebrew-tap-update');
-            requireSuccessOrSkipped('full-homebrew-tap-update');
-            requireSuccessOrSkipped('homebrew-standard-first-run-vm-smoke');
+            requireSuccessOrSkippedOrFailed('stable-homebrew-tap-update');
+            requireSuccessOrSkippedOrFailed('full-homebrew-tap-update');
+            requireSuccessOrSkippedOrFailed('homebrew-standard-first-run-vm-smoke');
           }
           requireSuccess('one-shot-app-installer-smoke');
-          if (publishDockerWebui) {
+          if (requireAddonGatesForStableReadiness && publishDockerWebui) {
             requireSuccess('docker-webui-smoke');
             requireSuccess('webui-ghcr-publish');
             requireSuccess('docker-webui-clean-vm-evidence');
           } else {
-            requireSuccessOrSkipped('docker-webui-smoke');
-            requireSuccessOrSkipped('webui-ghcr-publish');
-            requireSuccessOrSkipped('docker-webui-clean-vm-evidence');
+            requireSuccessOrSkippedOrFailed('docker-webui-smoke');
+            requireSuccessOrSkippedOrFailed('webui-ghcr-publish');
+            requireSuccessOrSkippedOrFailed('docker-webui-clean-vm-evidence');
           }
           if (failures.length > 0) {
             console.error('Release readiness aggregation is blocked by failed, skipped, or missing required gates:');
@@ -1819,8 +1837,9 @@ jobs:
             "full-first-install": "${{ needs.full-first-install.result }}",
             "remote-verify-standard": "${{ needs.remote-verify-standard.result }}",
             "remote-verify-full": "${{ needs.remote-verify-full.result }}",
-            "standard-first-run-vm-smoke-after-standard-only": "${{ needs.standard-first-run-vm-smoke-after-standard-only.result }}",
+            "standard-first-run-vm-smoke-after-standard-only": "${{ (needs.standard-first-run-vm-smoke-after-standard-only.result == 'success' || needs.standard-vm-smoke-gate-after-full.result == 'success') && 'success' || needs.standard-first-run-vm-smoke-after-standard-only.result }}",
             "standard-first-run-vm-smoke-after-full": "${{ needs.standard-first-run-vm-smoke-after-full.result }}",
+            "standard-vm-smoke-gate-after-full": "${{ needs.standard-vm-smoke-gate-after-full.result }}",
             "stable-homebrew-tap-update": "${{ needs.stable-homebrew-tap-update.result }}",
             "full-homebrew-tap-update": "${{ needs.full-homebrew-tap-update.result }}",
             "homebrew-standard-first-run-vm-smoke": "${{ needs.homebrew-standard-first-run-vm-smoke.result }}",
@@ -1841,13 +1860,20 @@ jobs:
           OPL_INCLUDE_FULL_PACKAGE: ${{ inputs.include_full_package }}
           OPL_RUN_VM_SMOKE: ${{ inputs.run_vm_smoke }}
           OPL_PUBLISH_DOCKER_WEBUI: ${{ inputs.publish_docker_webui }}
+          OPL_REQUIRE_ADDON_GATES_FOR_STABLE_READINESS: ${{ inputs.require_addon_gates_for_stable_readiness }}
         run: |
+          readiness_include_full_package="false"
+          readiness_publish_docker_webui="false"
+          if [ "$OPL_REQUIRE_ADDON_GATES_FOR_STABLE_READINESS" = "true" ]; then
+            readiness_include_full_package="$OPL_INCLUDE_FULL_PACKAGE"
+            readiness_publish_docker_webui="$OPL_PUBLISH_DOCKER_WEBUI"
+          fi
           node --experimental-strip-types scripts/summarize-release-readiness.ts \
             --version "$OPL_RELEASE_VERSION" \
             --release-mode "$OPL_RELEASE_MODE" \
-            --include-full-package "$OPL_INCLUDE_FULL_PACKAGE" \
+            --include-full-package "$readiness_include_full_package" \
             --run-vm-smoke "$OPL_RUN_VM_SMOKE" \
-            --publish-docker-webui "$OPL_PUBLISH_DOCKER_WEBUI" \
+            --publish-docker-webui "$readiness_publish_docker_webui" \
             --artifacts-dir release-readiness-inputs \
             --job-results release-readiness-job-results.json \
             --output release-readiness-summary.json \
@@ -1862,6 +1888,7 @@ jobs:
           OPL_INCLUDE_FULL_PACKAGE: ${{ inputs.include_full_package }}
           OPL_RUN_VM_SMOKE: ${{ inputs.run_vm_smoke }}
           OPL_PUBLISH_DOCKER_WEBUI: ${{ inputs.publish_docker_webui }}
+          OPL_REQUIRE_ADDON_GATES_FOR_STABLE_READINESS: ${{ inputs.require_addon_gates_for_stable_readiness }}
           OPL_SHELL_REF: ${{ needs.publish-standard.outputs.shell_sha }}
           OPL_FRAMEWORK_REF: ${{ needs.publish-standard.outputs.framework_sha }}
           OPL_APP_COMMIT: ${{ needs.publish-standard.outputs.app_sha }}
@@ -1870,10 +1897,14 @@ jobs:
           OPL_RELEASE_OWNER_TYPED_BLOCKER_REF: ${{ inputs.release_owner_typed_blocker_ref }}
           OPL_RELEASE_OWNER_HUMAN_GATE_REF: ${{ inputs.release_owner_human_gate_ref }}
         run: |
+          readiness_include_full_package="false"
+          if [ "$OPL_REQUIRE_ADDON_GATES_FOR_STABLE_READINESS" = "true" ]; then
+            readiness_include_full_package="$OPL_INCLUDE_FULL_PACKAGE"
+          fi
           node --experimental-strip-types scripts/write-release-candidate-record.ts \
             --version "$OPL_RELEASE_VERSION" \
             --release-mode "$OPL_RELEASE_MODE" \
-            --include-full-package "$OPL_INCLUDE_FULL_PACKAGE" \
+            --include-full-package "$readiness_include_full_package" \
             --run-vm-smoke "$OPL_RUN_VM_SMOKE" \
             --shell-ref "$OPL_SHELL_REF" \
             --framework-ref "$OPL_FRAMEWORK_REF" \

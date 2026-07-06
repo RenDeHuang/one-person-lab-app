@@ -299,6 +299,24 @@ test('stable validation profile covers every user installation surface', () => {
   const scenarioIds = firstRunMatrix.scenarios.map((scenario) => scenario.id);
   const stable = releaseContract.release_validation_profiles.stable;
 
+  assert.deepEqual(releaseContract.release_acceleration.target_architecture.standard_stable_readiness_critical_path, [
+    'publish-standard',
+    'remote-verify-standard',
+    'standard_dmg_clean_vm_smoke',
+    'one_shot_app_installer_fresh_install_smoke',
+  ]);
+  assert.equal(releaseContract.release_acceleration.target_architecture.addon_gate_blocking_default, false);
+  assert.equal(
+    releaseContract.release_acceleration.target_architecture.addon_gate_blocking_input,
+    'require_addon_gates_for_stable_readiness',
+  );
+  assert.ok(
+    releaseContract.release_acceleration.target_architecture.same_cohort_addon_gates.includes('full_first_install_build'),
+  );
+  assert.ok(
+    releaseContract.release_acceleration.target_architecture.same_cohort_addon_gates.includes('webui_ghcr_publish'),
+  );
+
   assert.ok(stable.required_lanes.includes('webui_ghcr_publish'));
   assert.ok(stable.required_lanes.indexOf('webui_ghcr_publish') > stable.required_lanes.indexOf('docker_webui_smoke'));
   assert.deepEqual(stable.required_installation_surfaces, [

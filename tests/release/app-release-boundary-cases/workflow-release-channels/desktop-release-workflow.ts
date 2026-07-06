@@ -83,6 +83,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /name: Release preflight/);
   assert.match(workflow, /npm run release:preflight --/);
   assert.match(workflow, /--publish-docker-webui "\$\{\{ inputs\.publish_docker_webui \}\}"/);
+  assert.match(workflow, /require_addon_gates_for_stable_readiness:[\s\S]*default: false[\s\S]*type: boolean/);
   assert.match(workflow, /--docker-webui-clean-windows-evidence-artifact "\$\{\{ inputs\.docker_webui_clean_windows_evidence_artifact \}\}"/);
   assert.match(workflow, /release-preflight-summary\.json/);
   assert.match(workflow, /release-preflight-summary\.md/);
@@ -147,11 +148,11 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflowJobBlock(workflow, 'remote-verify-standard'), /runs-on: macos-latest/);
   assert.match(
     workflowJobBlock(workflow, 'remote-verify-standard'),
-    /needs:[\s\S]*standard-first-run-vm-smoke-after-standard-only/,
+    /needs:[\s\S]*standard-first-run-vm-smoke-after-standard-only[\s\S]*standard-vm-smoke-gate-after-full/,
   );
   assert.match(
     workflowJobBlock(workflow, 'remote-verify-standard'),
-    /needs\.standard-first-run-vm-smoke-after-standard-only\.result == 'success'/,
+    /needs\.standard-first-run-vm-smoke-after-standard-only\.result == 'success'[\s\S]*needs\.standard-vm-smoke-gate-after-full\.result == 'success'/,
   );
   assert.match(workflowJobBlock(workflow, 'remote-verify-full'), /runs-on: macos-latest/);
   assert.match(workflow, /npm run verify-remote-release/);
@@ -339,15 +340,19 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(jobLevelIf(operatorEvidenceJob), /if:\s*\$\{\{\s*!cancelled\(\) && inputs\.run_vm_smoke/);
   assert.doesNotMatch(jobLevelIf(readinessAdmissionJob), /if:\s*\$\{\{\s*always\(\)/);
   assert.match(jobLevelIf(readinessAdmissionJob), /if:\s*\$\{\{\s*!cancelled\(\) && inputs\.run_vm_smoke/);
-  assert.match(jobLevelIf(readinessAdmissionJob), /needs\.docker-webui-clean-vm-evidence\.result == 'success'/);
+  assert.doesNotMatch(jobLevelIf(readinessAdmissionJob), /needs\.docker-webui-clean-vm-evidence\.result == 'success'/);
+  assert.doesNotMatch(jobLevelIf(readinessAdmissionJob), /needs\.remote-verify-full\.result == 'success'/);
+  assert.match(jobLevelIf(readinessAdmissionJob), /needs\.remote-verify-standard\.result == 'success'/);
   assert.match(readinessAdmissionJob, /release-preflight/);
   assert.match(jobLevelIf(readinessAdmissionJob), /needs\.release-preflight\.result == 'success'/);
-  assert.match(jobLevelIf(readinessAdmissionJob), /needs\.release-preflight\.outputs\.homebrew_tap_update_required != 'true'/);
+  assert.doesNotMatch(jobLevelIf(readinessAdmissionJob), /needs\.release-preflight\.outputs\.homebrew_tap_update_required != 'true'/);
   assert.match(readinessAdmissionJob, /const homebrewTapUpdateRequired = '\$\{\{ needs\.release-preflight\.outputs\.homebrew_tap_update_required \}\}' === 'true'/);
-  assert.match(readinessAdmissionJob, /if \(homebrewTapUpdateRequired\) \{[\s\S]*requireSuccess\('stable-homebrew-tap-update'\)[\s\S]*requireSuccess\('full-homebrew-tap-update'\)[\s\S]*requireSuccess\('homebrew-standard-first-run-vm-smoke'\)/);
-  assert.match(readinessAdmissionJob, /else \{[\s\S]*requireSuccessOrSkipped\('stable-homebrew-tap-update'\)[\s\S]*requireSuccessOrSkipped\('full-homebrew-tap-update'\)[\s\S]*requireSuccessOrSkipped\('homebrew-standard-first-run-vm-smoke'\)/);
-  assert.match(readinessAdmissionJob, /requireSuccess\('docker-webui-clean-vm-evidence'\)/);
-  assert.match(readinessAdmissionJob, /requireSuccessOrSkipped\('docker-webui-clean-vm-evidence'\)/);
+  assert.match(readinessAdmissionJob, /const requireAddonGatesForStableReadiness = '\$\{\{ inputs\.require_addon_gates_for_stable_readiness \}\}' === 'true'/);
+  assert.match(readinessAdmissionJob, /requireSuccess\('remote-verify-standard'\)/);
+  assert.match(readinessAdmissionJob, /if \(requireAddonGatesForStableReadiness && homebrewTapUpdateRequired\) \{[\s\S]*requireSuccess\('stable-homebrew-tap-update'\)[\s\S]*requireSuccess\('full-homebrew-tap-update'\)[\s\S]*requireSuccess\('homebrew-standard-first-run-vm-smoke'\)/);
+  assert.match(readinessAdmissionJob, /else \{[\s\S]*requireSuccessOrSkippedOrFailed\('stable-homebrew-tap-update'\)[\s\S]*requireSuccessOrSkippedOrFailed\('full-homebrew-tap-update'\)[\s\S]*requireSuccessOrSkippedOrFailed\('homebrew-standard-first-run-vm-smoke'\)/);
+  assert.match(readinessAdmissionJob, /if \(requireAddonGatesForStableReadiness && publishDockerWebui\) \{[\s\S]*requireSuccess\('docker-webui-clean-vm-evidence'\)/);
+  assert.match(readinessAdmissionJob, /requireSuccessOrSkippedOrFailed\('docker-webui-clean-vm-evidence'\)/);
   assert.doesNotMatch(jobLevelIf(readinessAdmissionJob), /operator-evidence-bundle-validation/);
   assert.doesNotMatch(readinessAdmissionJob, /requireSuccess\('operator-evidence-bundle-validation'\)/);
   assert.doesNotMatch(jobLevelIf(readinessJob), /if:\s*\$\{\{\s*always\(\)/);
@@ -564,6 +569,14 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.deepEqual(releaseContract.release_acceleration.github_actions.release_readiness_admission, {
     workflow_job: 'release-readiness-admission',
     preflight_dependency: 'release-preflight',
+    addon_gate_blocking_input: 'require_addon_gates_for_stable_readiness',
+    addon_gate_blocking_default: false,
+    standard_stable_required_jobs: [
+      'publish-standard',
+      'remote-verify-standard',
+      'standard-first-run-vm-smoke-after-standard-only_or_standard-vm-smoke-gate-after-full',
+      'one-shot-app-installer-smoke',
+    ],
     homebrew_tap_update_required_source: 'release-preflight.outputs.homebrew_tap_update_required',
     homebrew_required_when_true: [
       'stable-homebrew-tap-update',
@@ -572,7 +585,8 @@ test('manual desktop release workflow supports new releases and same-tag refresh
     ],
     homebrew_allowed_when_false: 'success_or_skipped',
     diagnostic_gates: ['operator-evidence-bundle-validation'],
-    rule: 'Release readiness admission must fail when required same-cohort gates fail, but it must not force Homebrew tap or Homebrew VM gates when release-preflight says no tap update is required. Docker/WebUI publish and clean Linux Docker runtime evidence run independently after standard asset publish and remain required when publish_docker_webui=true; clean Windows VM evidence is optional diagnostic import. Diagnostic gates such as operator evidence bundle validation must feed the readiness summary when present, but they must not prevent readiness aggregation from running.',
+    same_cohort_addon_status_policy: 'success_or_skipped_or_failed_when_not_required',
+    rule: 'Release readiness admission must fail when Standard stable critical-path gates fail. By default it must not force Full, Docker/WebUI, or Homebrew add-on gates before writing the Standard readiness record; those gates keep running in the same cohort and their success, skipped, or failed statuses remain recorded. When require_addon_gates_for_stable_readiness=true, Full, Docker/WebUI, and Homebrew add-on gates become blocking for the readiness record. Clean Windows Docker VM evidence remains optional diagnostic import. Diagnostic gates such as operator evidence bundle validation must feed the readiness summary when present, but they must not prevent readiness aggregation from running.',
   });
   assert.deepEqual(releaseContract.release_acceleration.github_actions.diagnostics_workflow_policy, {
     workflow: '.github/workflows/desktop-release-diagnostics.yml',
