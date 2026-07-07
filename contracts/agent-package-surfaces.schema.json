@@ -175,6 +175,7 @@
             "additionalProperties": true,
             "required": [
               "id",
+              "source_kind",
               "source",
               "version",
               "lock_ref",
@@ -185,9 +186,22 @@
                 "type": "string",
                 "minLength": 1
               },
+              "source_kind": {
+                "enum": [
+                  "repo_plugin_skill",
+                  "opl_generated_plugin_surface"
+                ]
+              },
               "source": {
                 "type": "string",
                 "minLength": 1
+              },
+              "semantic_pack_root": {
+                "type": "string",
+                "minLength": 1
+              },
+              "generated_surface_owner": {
+                "const": "one-person-lab"
               },
               "version": {
                 "type": "string",

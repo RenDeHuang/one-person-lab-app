@@ -39,6 +39,7 @@
   "skill_packs": [
     {
       "id": "med-autogrant-professional-skill-pack",
+      "source_kind": "repo_plugin_skill",
       "source": "github:gaofeng21cn/med-autogrant/plugins/med-autogrant/skills/med-autogrant",
       "version": "0.1.0",
       "lock_ref": "oci-digest-lock://ghcr.io/gaofeng21cn/opl-agent-med-autogrant@sha256:medautogrant-010/skills/med-autogrant-professional-skill-pack",

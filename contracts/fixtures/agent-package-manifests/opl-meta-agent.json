@@ -30,12 +30,16 @@
       "opl-meta-agent"
     ],
     "optional_skill_ids": [],
-    "plugin_source_ref": "gaofeng21cn/opl-meta-agent/plugins/opl-meta-agent"
+    "plugin_source_ref": "opl_generated:gaofeng21cn/opl-meta-agent/contracts/pack_compiler_input.json",
+    "generated_surface_owner": "one-person-lab"
   },
   "skill_packs": [
     {
       "id": "opl-meta-agent-professional-skill-pack",
-      "source": "github:gaofeng21cn/opl-meta-agent/plugins/opl-meta-agent/skills/opl-meta-agent",
+      "source_kind": "opl_generated_plugin_surface",
+      "source": "github:gaofeng21cn/opl-meta-agent/contracts/pack_compiler_input.json",
+      "semantic_pack_root": "github:gaofeng21cn/opl-meta-agent/agent",
+      "generated_surface_owner": "one-person-lab",
       "version": "0.1.0",
       "lock_ref": "oci-digest-lock://ghcr.io/gaofeng21cn/opl-agent-opl-meta-agent@sha256:oplmetaagent-010/skills/opl-meta-agent-professional-skill-pack",
       "install_mode": "bundled_required"

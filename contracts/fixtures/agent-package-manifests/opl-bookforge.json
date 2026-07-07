@@ -34,12 +34,16 @@
       "pdf",
       "mineru-document-extractor"
     ],
-    "plugin_source_ref": "gaofeng21cn/opl-bookforge/plugins/opl-bookforge"
+    "plugin_source_ref": "opl_generated:gaofeng21cn/opl-bookforge/contracts/pack_compiler_input.json",
+    "generated_surface_owner": "one-person-lab"
   },
   "skill_packs": [
     {
       "id": "opl-bookforge-professional-skill-pack",
-      "source": "github:gaofeng21cn/opl-bookforge/plugins/opl-bookforge/skills/opl-bookforge",
+      "source_kind": "opl_generated_plugin_surface",
+      "source": "github:gaofeng21cn/opl-bookforge/contracts/pack_compiler_input.json",
+      "semantic_pack_root": "github:gaofeng21cn/opl-bookforge/agent",
+      "generated_surface_owner": "one-person-lab",
       "version": "0.1.0",
       "lock_ref": "oci-digest-lock://ghcr.io/gaofeng21cn/opl-agent-opl-bookforge@sha256:oplbookforge-010/skills/opl-bookforge-professional-skill-pack",
       "install_mode": "bundled_required"

@@ -39,6 +39,7 @@
   "skill_packs": [
     {
       "id": "med-autoscience-professional-skill-pack",
+      "source_kind": "repo_plugin_skill",
       "source": "github:gaofeng21cn/med-autoscience/plugins/med-autoscience/skills/med-autoscience",
       "version": "0.1.0a4",
       "lock_ref": "oci-digest-lock://ghcr.io/gaofeng21cn/opl-agent-med-autoscience@sha256:medautoscience-010a4/skills/med-autoscience-professional-skill-pack",

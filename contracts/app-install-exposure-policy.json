@@ -1042,7 +1042,7 @@
         "bundled_required_skill_entries",
         "optional_companion_skill_refs"
       ],
-      "framework_local_payload_validation": "manifest-declared plugin_source_path must contain .codex-plugin/plugin.json and skills/<required_skill_id>/SKILL.md before materialization",
+      "framework_local_payload_validation": "repo_plugin_skill sources must resolve to .codex-plugin/plugin.json plus skills/<required_skill_id>/SKILL.md; opl_generated_plugin_surface sources must resolve to the domain pack compiler input and generated_surface_owner=one-person-lab",
       "required_skill_pack_lock_policy": "skill_packs[].lock_ref must be a release or digest lock and must not equal registry.latest_version or a moving tag",
       "release_payload_proof_required_fields": [
         "payload_kind",

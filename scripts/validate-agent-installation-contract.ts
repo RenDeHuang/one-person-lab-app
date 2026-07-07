@@ -19,6 +19,21 @@ const expectedGeneratedAgentIds = ['opl-meta-agent', 'opl-bookforge'];
 const expectedRequiredAgentIds = ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-meta-agent', 'opl-bookforge', 'scholarskills'];
 const expectedDefaultVisibleDomainSkillIds = ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge'];
 const expectedGeneratedPluginSkillIds = ['opl-meta-agent', 'opl-bookforge'];
+const expectedSkillPackSources: Record<string, string> = {
+  'med-autoscience': 'github:gaofeng21cn/med-autoscience/plugins/med-autoscience/skills/med-autoscience',
+  'med-autogrant': 'github:gaofeng21cn/med-autogrant/plugins/med-autogrant/skills/med-autogrant',
+  'redcube-ai': 'github:gaofeng21cn/redcube-ai/plugins/redcube-ai/skills/redcube-ai',
+  'opl-bookforge': 'github:gaofeng21cn/opl-bookforge/contracts/pack_compiler_input.json',
+  'opl-meta-agent': 'github:gaofeng21cn/opl-meta-agent/contracts/pack_compiler_input.json',
+};
+const expectedGeneratedPluginSourceRefs: Record<string, string> = {
+  'opl-bookforge': 'opl_generated:gaofeng21cn/opl-bookforge/contracts/pack_compiler_input.json',
+  'opl-meta-agent': 'opl_generated:gaofeng21cn/opl-meta-agent/contracts/pack_compiler_input.json',
+};
+const expectedGeneratedSemanticPackRoots: Record<string, string> = {
+  'opl-bookforge': 'github:gaofeng21cn/opl-bookforge/agent',
+  'opl-meta-agent': 'github:gaofeng21cn/opl-meta-agent/agent',
+};
 const expectedCompanionSkillSyncIds = [
   'superpowers',
   'cron',
@@ -253,6 +268,75 @@ function assertArrayFieldsInclude(actual: any, expectedFields: Record<string, st
   }
 }
 
+function isGeneratedAgent(agentId: string): boolean {
+  return expectedGeneratedAgentIds.includes(agentId);
+}
+
+function localWorkspaceRoots(): string[] {
+  const configured = process.env.OPL_AGENT_SOURCE_ROOTS?.trim();
+  const roots = configured ? configured.split(path.delimiter) : ['/Users/gaofeng/workspace'];
+  return roots.map((root) => root.trim()).filter(Boolean);
+}
+
+function parseGithubSource(source: string): { repo: string; repoPath: string } | null {
+  const match = source.match(/^github:[^/]+\/([^/]+)\/(.+)$/);
+  if (!match) {
+    return null;
+  }
+  return { repo: match[1], repoPath: match[2] };
+}
+
+function validateGithubSourcePathIfAvailable(source: string, label: string): string | null {
+  const parsed = parseGithubSource(source);
+  if (!parsed) {
+    fail(`${label} must be a github:<owner>/<repo>/<path> ref`);
+  }
+  for (const root of localWorkspaceRoots()) {
+    const repoRoot = path.join(root, parsed.repo);
+    if (!fs.existsSync(repoRoot)) {
+      continue;
+    }
+    const localPath = path.join(repoRoot, parsed.repoPath);
+    if (!fs.existsSync(localPath)) {
+      fail(`${label} does not resolve in local sibling checkout: ${localPath}`);
+    }
+    return localPath;
+  }
+  return null;
+}
+
+function frontmatterName(skillPath: string): string | null {
+  const content = fs.readFileSync(skillPath, 'utf8');
+  if (!content.startsWith('---\n')) {
+    return null;
+  }
+  const end = content.indexOf('\n---', 4);
+  if (end < 0) {
+    return null;
+  }
+  const match = content.slice(4, end).match(/^name:\s*(.+?)\s*$/m);
+  return match?.[1]?.replace(/^['"]|['"]$/g, '') ?? null;
+}
+
+function validateSkillFrontmatterName(skillPath: string, expectedName: string, label: string): void {
+  if (!fs.existsSync(skillPath)) {
+    fail(`${label} is missing SKILL.md: ${skillPath}`);
+  }
+  assertEqual(frontmatterName(skillPath), expectedName, `${label} frontmatter name`);
+}
+
+function validateRepoPluginSkillSource(skillDir: string, pluginName: string, label: string): void {
+  const pluginRoot = path.dirname(path.dirname(skillDir));
+  const pluginManifestPath = path.join(pluginRoot, '.codex-plugin', 'plugin.json');
+  if (!fs.existsSync(pluginManifestPath)) {
+    fail(`${label} is missing .codex-plugin/plugin.json: ${pluginRoot}`);
+  }
+  const pluginManifest = readJson(pluginManifestPath);
+  assertEqual(pluginManifest.name, pluginName, `${label} plugin manifest name`);
+  assertEqual(pluginManifest.skills, './skills/', `${label} plugin manifest skills path`);
+  validateSkillFrontmatterName(path.join(skillDir, 'SKILL.md'), pluginName, label);
+}
+
 type ParsedArgs = {
   agentRoots: AgentRootMap;
   codexSkillsRoot: string | null;
@@ -330,6 +414,7 @@ function validatePluginRoot(agentId: string, root: string, installAgent: any): v
   const pluginManifest = readJson(pluginManifestPath);
   assertEqual(pluginManifest.name, pluginName, `${agentId} plugin manifest name`);
   assertEqual(pluginManifest.skills, './skills/', `${agentId} plugin manifest skills path`);
+  validateSkillFrontmatterName(skillPath, pluginName, `${agentId} plugin skill`);
 }
 
 function validateNoDuplicateBareDomainSkills(root: string | null): string | null {
@@ -665,26 +750,76 @@ function validateFirstPartyManifestFixtures(profile: any, registry: any, schema:
     if (!Array.isArray(manifest.skill_packs) || manifest.skill_packs.length !== 1) {
       fail(`manifest fixture ${registryEntry.package_id} must declare one bundled required skill pack`);
     }
+    const skillPack = manifest.skill_packs[0];
     assertEqual(
-      manifest.skill_packs[0].id,
+      skillPack.id,
       `${registryEntry.package_id}-professional-skill-pack`,
       `${registryEntry.package_id} manifest required skill pack id`,
     );
     assertEqual(
-      manifest.skill_packs[0].install_mode,
+      skillPack.install_mode,
       'bundled_required',
       `${registryEntry.package_id} manifest required skill pack install mode`,
     );
-    if (manifest.skill_packs[0].lock_ref === 'registry.latest_version') {
+    if (skillPack.lock_ref === 'registry.latest_version') {
       fail(`manifest fixture ${registryEntry.package_id} required skill pack lock_ref must not use registry.latest_version`);
     }
     assertArrayEqual(
       manifest.distribution_payload.required_skill_pack_lock_refs,
-      [manifest.skill_packs[0].lock_ref],
+      [skillPack.lock_ref],
       `${registryEntry.package_id} manifest distribution payload skill pack locks`,
     );
-    if (!String(manifest.skill_packs[0].source ?? '').startsWith('github:')) {
+    const expectedSource = expectedSkillPackSources[registryEntry.package_id];
+    if (!expectedSource) {
+      fail(`manifest fixture ${registryEntry.package_id} has no expected skill pack source`);
+    }
+    assertEqual(skillPack.source, expectedSource, `${registryEntry.package_id} manifest required skill pack source`);
+    if (!String(skillPack.source ?? '').startsWith('github:')) {
       fail(`manifest fixture ${registryEntry.package_id} required skill pack source must be a github ref`);
+    }
+    const localSourcePath = validateGithubSourcePathIfAvailable(
+      skillPack.source,
+      `${registryEntry.package_id} manifest required skill pack source`,
+    );
+    if (isGeneratedAgent(registryEntry.package_id)) {
+      assertEqual(
+        skillPack.source_kind,
+        'opl_generated_plugin_surface',
+        `${registryEntry.package_id} manifest skill pack source kind`,
+      );
+      assertEqual(
+        skillPack.generated_surface_owner,
+        'one-person-lab',
+        `${registryEntry.package_id} manifest skill pack generated owner`,
+      );
+      assertEqual(
+        skillPack.semantic_pack_root,
+        expectedGeneratedSemanticPackRoots[registryEntry.package_id],
+        `${registryEntry.package_id} manifest semantic pack root`,
+      );
+      assertEqual(
+        manifest.codex_surface?.plugin_source_ref,
+        expectedGeneratedPluginSourceRefs[registryEntry.package_id],
+        `${registryEntry.package_id} manifest generated plugin source ref`,
+      );
+      assertEqual(
+        manifest.codex_surface?.generated_surface_owner,
+        'one-person-lab',
+        `${registryEntry.package_id} manifest generated plugin owner`,
+      );
+      validateGithubSourcePathIfAvailable(
+        skillPack.semantic_pack_root,
+        `${registryEntry.package_id} manifest semantic pack root`,
+      );
+    } else {
+      assertEqual(skillPack.source_kind, 'repo_plugin_skill', `${registryEntry.package_id} manifest skill pack source kind`);
+      if (localSourcePath) {
+        validateRepoPluginSkillSource(
+          localSourcePath,
+          registryEntry.codex_visible_entry,
+          `${registryEntry.package_id} manifest source skill`,
+        );
+      }
     }
     const expectedShortcutIds = registryEntry.home_shortcut_ids ?? [];
     assertArrayEqual(
@@ -810,7 +945,7 @@ function validateAtomicBundlePolicy(contract: any): void {
     'atomic package unit includes',
   );
   assertFieldsEqual(atomicPolicy, {
-    framework_local_payload_validation: 'manifest-declared plugin_source_path must contain .codex-plugin/plugin.json and skills/<required_skill_id>/SKILL.md before materialization',
+    framework_local_payload_validation: 'repo_plugin_skill sources must resolve to .codex-plugin/plugin.json plus skills/<required_skill_id>/SKILL.md; opl_generated_plugin_surface sources must resolve to the domain pack compiler input and generated_surface_owner=one-person-lab',
     required_skill_pack_lock_policy: 'skill_packs[].lock_ref must be a release or digest lock and must not equal registry.latest_version or a moving tag',
     reconcile_update_uninstall_as_unit: true,
     domain_repo_remains_semantic_owner: true,

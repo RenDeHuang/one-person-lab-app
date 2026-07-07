@@ -65,6 +65,21 @@ const EXPECTED_REGISTRY_ENTRY_FIELDS = [
   'latest_version',
   'trust_tier',
 ];
+const EXPECTED_SKILL_PACK_SOURCES = {
+  'med-autoscience': 'github:gaofeng21cn/med-autoscience/plugins/med-autoscience/skills/med-autoscience',
+  'med-autogrant': 'github:gaofeng21cn/med-autogrant/plugins/med-autogrant/skills/med-autogrant',
+  'redcube-ai': 'github:gaofeng21cn/redcube-ai/plugins/redcube-ai/skills/redcube-ai',
+  'opl-bookforge': 'github:gaofeng21cn/opl-bookforge/contracts/pack_compiler_input.json',
+  'opl-meta-agent': 'github:gaofeng21cn/opl-meta-agent/contracts/pack_compiler_input.json',
+};
+const EXPECTED_GENERATED_PLUGIN_SOURCE_REFS = {
+  'opl-bookforge': 'opl_generated:gaofeng21cn/opl-bookforge/contracts/pack_compiler_input.json',
+  'opl-meta-agent': 'opl_generated:gaofeng21cn/opl-meta-agent/contracts/pack_compiler_input.json',
+};
+const EXPECTED_GENERATED_SEMANTIC_PACK_ROOTS = {
+  'opl-bookforge': 'github:gaofeng21cn/opl-bookforge/agent',
+  'opl-meta-agent': 'github:gaofeng21cn/opl-meta-agent/agent',
+};
 const EXPECTED_MANIFEST_REQUIRED_FIELDS = [
   'package_id',
   'agent_id',
@@ -1013,6 +1028,14 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
     agentPackageSurfaceSchema.$defs.agent_package_manifest.properties.codex_surface.properties.plugin_payload_manifest_url.type,
     'string',
   );
+  assert.deepEqual(
+    agentPackageSurfaceSchema.$defs.agent_package_manifest.properties.skill_packs.items.required,
+    ['id', 'source_kind', 'source', 'version', 'lock_ref', 'install_mode'],
+  );
+  assert.deepEqual(
+    agentPackageSurfaceSchema.$defs.agent_package_manifest.properties.skill_packs.items.properties.source_kind.enum,
+    ['repo_plugin_skill', 'opl_generated_plugin_surface'],
+  );
   assert.equal(
     agentPackageSurfaceSchema.$defs.package_lock_receipt.properties.physical_surface.properties.plugin_payload_manifest_sha256.type,
     'string',
@@ -1033,7 +1056,17 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
     assert.equal(manifest.distribution_payload.live_download_proof, false);
     assert.equal(manifest.distribution_payload.installed_reload_proof, false);
     assert.equal(manifest.skill_packs[0].lock_ref === 'registry.latest_version', false);
+    assert.equal(manifest.skill_packs[0].source, EXPECTED_SKILL_PACK_SOURCES[entry.package_id]);
     assert.deepEqual(manifest.distribution_payload.required_skill_pack_lock_refs, [manifest.skill_packs[0].lock_ref]);
+    if (entry.package_id === 'opl-bookforge' || entry.package_id === 'opl-meta-agent') {
+      assert.equal(manifest.skill_packs[0].source_kind, 'opl_generated_plugin_surface');
+      assert.equal(manifest.skill_packs[0].generated_surface_owner, 'one-person-lab');
+      assert.equal(manifest.skill_packs[0].semantic_pack_root, EXPECTED_GENERATED_SEMANTIC_PACK_ROOTS[entry.package_id]);
+      assert.equal(manifest.codex_surface.plugin_source_ref, EXPECTED_GENERATED_PLUGIN_SOURCE_REFS[entry.package_id]);
+      assert.equal(manifest.codex_surface.generated_surface_owner, 'one-person-lab');
+    } else {
+      assert.equal(manifest.skill_packs[0].source_kind, 'repo_plugin_skill');
+    }
   }
   assert.deepEqual(policy.agent_installation_contract.package_manager_lifecycle.actions, EXPECTED_PACKAGE_LIFECYCLE_ACTIONS);
   assert.equal(
@@ -1135,7 +1168,7 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
   ]);
   assert.equal(
     policy.agent_installation_contract.atomic_bundle_policy.framework_local_payload_validation,
-    'manifest-declared plugin_source_path must contain .codex-plugin/plugin.json and skills/<required_skill_id>/SKILL.md before materialization',
+    'repo_plugin_skill sources must resolve to .codex-plugin/plugin.json plus skills/<required_skill_id>/SKILL.md; opl_generated_plugin_surface sources must resolve to the domain pack compiler input and generated_surface_owner=one-person-lab',
   );
   assert.equal(
     policy.agent_installation_contract.atomic_bundle_policy.required_skill_pack_lock_policy,

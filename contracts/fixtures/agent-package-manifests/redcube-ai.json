@@ -38,6 +38,7 @@
   "skill_packs": [
     {
       "id": "redcube-ai-professional-skill-pack",
+      "source_kind": "repo_plugin_skill",
       "source": "github:gaofeng21cn/redcube-ai/plugins/redcube-ai/skills/redcube-ai",
       "version": "0.1.0",
       "lock_ref": "oci-digest-lock://ghcr.io/gaofeng21cn/opl-agent-redcube-ai@sha256:redcubeai-010/skills/redcube-ai-professional-skill-pack",
