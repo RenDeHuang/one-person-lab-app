@@ -589,6 +589,52 @@
         "capability_health_refs_as_status"
       ]
     },
+    "default_label_policy": {
+      "purpose": "default_cockpit_uses_human_labels_not_runtime_identifiers",
+      "human_label_fields": [
+        "agent_display_name",
+        "project_display_name",
+        "work_item_display_name",
+        "primary_state_label",
+        "automation_state_label",
+        "active_stage_label",
+        "next_visible_step",
+        "next_owner"
+      ],
+      "raw_identifier_default_visible": false,
+      "raw_identifier_advanced_only_fields": [
+        "agent_id",
+        "module_id",
+        "owner_id",
+        "active_stage_id",
+        "raw_stage_id",
+        "raw_owner_route"
+      ],
+      "humanization_targets": [
+        "agent_or_module_ids",
+        "owner_ids",
+        "stage_ids",
+        "technical_next_step_routes"
+      ],
+      "default_copy_examples": {
+        "agent_or_module": [
+          "MAS",
+          "MAG",
+          "RedCube AI",
+          "OMA",
+          "BookForge"
+        ],
+        "stage": [
+          "投稿包后续处理",
+          "同步项目状态",
+          "复核运行结果"
+        ],
+        "telemetry_missing": [
+          "用量未记录",
+          "Usage not recorded"
+        ]
+      }
+    },
     "task_deduplication_policy": {
       "dedupe_key_priority": [
         "agent_display_name + project_display_name_or_study_id + work_item_display_name",

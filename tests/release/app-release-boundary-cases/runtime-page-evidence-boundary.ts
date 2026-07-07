@@ -509,6 +509,35 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   );
   assert.equal(runtimeDisplayPolicy.task_deduplication_policy.raw_duplicate_refs_default_visible, false);
   assert.equal(
+    runtimeDisplayPolicy.default_label_policy.purpose,
+    'default_cockpit_uses_human_labels_not_runtime_identifiers',
+  );
+  assert.equal(runtimeDisplayPolicy.default_label_policy.raw_identifier_default_visible, false);
+  assertIncludesAll(runtimeDisplayPolicy.default_label_policy.human_label_fields, [
+    'agent_display_name',
+    'project_display_name',
+    'work_item_display_name',
+    'primary_state_label',
+    'automation_state_label',
+    'active_stage_label',
+    'next_visible_step',
+    'next_owner',
+  ], 'Runtime display human label fields');
+  assertIncludesAll(runtimeDisplayPolicy.default_label_policy.raw_identifier_advanced_only_fields, [
+    'agent_id',
+    'module_id',
+    'owner_id',
+    'active_stage_id',
+    'raw_stage_id',
+    'raw_owner_route',
+  ], 'Runtime display raw identifier advanced-only fields');
+  assertIncludesAll(runtimeDisplayPolicy.default_label_policy.humanization_targets, [
+    'agent_or_module_ids',
+    'owner_ids',
+    'stage_ids',
+    'technical_next_step_routes',
+  ], 'Runtime display humanization targets');
+  assert.equal(
     runtimeDisplayPolicy.next_step_copy_policy.long_text_policy,
     'normalize_long_routes_commands_or_stage_ids_to_short_human_action_copy',
   );

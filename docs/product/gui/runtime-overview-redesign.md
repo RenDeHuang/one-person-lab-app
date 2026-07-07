@@ -48,6 +48,11 @@ Runtime 页默认是任务运行 cockpit，不是 runtime 诊断页。默认页�
 
 默认页不展示 raw proof ref、receipt refs、`stage_attempt_id`、`run_id`、`workflow_id`、raw blocker route、MAS currentness drift 原文、`provider`、`projection`、`ledger`、`current_control_state` 或 full drilldown。这些字段只能出现在任务详情或高级信息折叠层。
 
+默认页也不把 runtime identifier 当作用户文案。`medautoscience`、`med-autoscience`、
+`oplmetaagent`、`submission_milestone_candidate::followthrough::followthrough-01`、
+`domain_route/reconcile-apply` 这类 agent/module/owner/stage id 必须转成 MAS、OMA、
+投稿包后续处理、复核运行结果等人类可读标签；raw id 只允许进入高级信息或任务详情。
+
 ## 顶层信息架构
 
 ### 1. 顶层定位
@@ -191,6 +196,10 @@ Runtime projection 可能因为不同 binding、不同 provider attempt 或不�
 
 `next_visible_step` 允许来自 runtime 或 domain projection，但默认页不直接展示长命令、route、readback、receipt、stage attempt 或 currentness drift 原文。默认页应把这类内容压成短动作文案，例如“最近一次自动结果待收口”“需要系统处理”“需要你决定”；原文保留到高级信息或任务详情。
 
+同理，默认页展示 `agent_display_name`、`active_stage_label`、`next_owner` 时必须优先使用人类可读标签。
+如果上游只提供机器 id，shell renderer 可以做最小确定映射；但这个映射只是展示层，不改变 OPL
+runtime truth，也不能生成新的 owner receipt、typed blocker 或 stage truth。
+
 ## 模块职责
 
 ### one-person-lab
@@ -254,8 +263,9 @@ Runtime projection 可能因为不同 binding、不同 provider attempt 或不�
 | 任务去重：同一论文 / work item 只显示一行 | 100% | 3 | App contract 锁定 policy；Shell companion lane 用 DOM test 验证同一 DM003 binding 只显示一行 |
 | `module_runtime` 分流到右侧模块状态 | 100% | 4 | App contract 锁定 policy；active-shell validator 同时要求主列表过滤 `module_runtime` 且右侧 `moduleStatusItems` 渲染存在 |
 | long next-step 人话归一 | 100% | 5 | App contract 锁定 policy；Shell companion lane 用 DOM test 验证 raw terminalization/readback 文案默认隐藏 |
-| 设计图布局：顶部、freshness、KPI、主列、右侧范围/模块/高级 | 100% | 6 | `layout_regions` + Shell companion source/DOM evidence；不等同于 installed App 截图证据 |
-| installed App 视觉截图验收 | 0% | 7 | release / install owner；不能由 contract 或 focused test 代替 |
+| 默认人类标签策略：agent/module/owner/stage id 不直出 | 100% | 6 | `default_label_policy` + release-boundary test；Shell companion lane 用 DOM test 验证 raw id 默认隐藏 |
+| 设计图布局：顶部、freshness、KPI、主列、右侧范围/模块/高级 | 100% | 7 | `layout_regions` + Shell companion source/DOM evidence；不等同于 installed App 截图证据 |
+| installed App 本机视觉截图验收 | 80% | 8 | 已有本机 renderer 截图证明布局接近设计稿；本轮人类标签修复后必须重新 build/install/readback 才能标为本地 100%。这不是 release currentness 证据 |
 
 ## 完成标准
 
@@ -265,4 +275,5 @@ Runtime projection 可能因为不同 binding、不同 provider attempt 或不�
 2. Runtime 页默认不再把内部技术术语当作用户主状态。
 3. 用户可以看总览，也可以显式切换查看某个 workspace / project / paper。
 4. raw evidence、refs、receipts、stage/run IDs、MAS currentness diagnostics 和 full drilldown 默认收起。
-5. 验证证明 App contract 与 shell renderer 对齐；runtime/live readiness 另走 Framework 或 release owner 证据。
+5. 默认页展示人类可读 agent/module/owner/stage 标签；raw id 只能在高级信息或任务详情出现。
+6. 验证证明 App contract 与 shell renderer 对齐；runtime/live readiness 另走 Framework 或 release owner 证据。
