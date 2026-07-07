@@ -267,7 +267,8 @@ function withGeneratedLifecycleFrontMatter(markdown: string, lifecycle: string) 
 }
 
 function imagePath(asset: string) {
-  return `../assets/${encodeURIComponent(asset)}`;
+  const relativePath = path.relative(path.dirname(generatedMarpPath), path.join(screenshotDir, asset));
+  return relativePath.split(path.sep).map(encodeURIComponent).join('/');
 }
 
 function listHtml(items: string[], limit?: number) {
