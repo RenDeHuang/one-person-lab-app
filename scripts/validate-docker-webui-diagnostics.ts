@@ -67,21 +67,6 @@ const REQUIRED_PRESERVATION_SECTIONS = [
   'post_projects_inventory',
 ];
 
-function extractJsonString(filePath: string, key: string): string | null {
-  if (!fs.existsSync(filePath)) return null;
-  const text = readText(filePath);
-  const match = text.match(new RegExp(`"${key}"\\s*:\\s*"([^"]+)"`));
-  return match?.[1] ?? null;
-}
-
-function extractJsonStringArray(filePath: string, key: string): string[] {
-  if (!fs.existsSync(filePath)) return [];
-  const text = readText(filePath);
-  const match = text.match(new RegExp(`"${key}"\\s*:\\s*\\[([\\s\\S]*?)\\]`));
-  if (!match) return [];
-  return [...match[1].matchAll(/"([^"]+)"/g)].map((entry) => entry[1]).filter(Boolean);
-}
-
 function normalizeImageDigest(imageId: string | null, repoDigests: string[]): string | null {
   const repoDigest = repoDigests.find((value) => /@sha256:[a-f0-9]{64}$/i.test(value));
   if (repoDigest) {
@@ -132,6 +117,34 @@ function compareImageCurrentness(
   if (!currentnessEvidenceSource) return 'not_checked';
   if (!localDigest || !remoteDigest) return 'unknown';
   return localDigest.toLowerCase() === remoteDigest.toLowerCase() ? 'current' : 'update_available';
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function readDockerImageInspect(filePath: string): {
+  imageId: string | null;
+  repoDigests: string[];
+  errors: string[];
+} {
+  if (!fs.existsSync(filePath)) {
+    return { imageId: null, repoDigests: [], errors: [] };
+  }
+  try {
+    const parsed = JSON.parse(readText(filePath)) as unknown;
+    const record = Array.isArray(parsed) ? parsed.find(isRecord) : isRecord(parsed) ? parsed : null;
+    if (!record) {
+      return { imageId: null, repoDigests: [], errors: ['docker-image.txt:json_shape'] };
+    }
+    return {
+      imageId: typeof record.Id === 'string' ? record.Id : null,
+      repoDigests: Array.isArray(record.RepoDigests) ? record.RepoDigests.filter((value): value is string => typeof value === 'string') : [],
+      errors: [],
+    };
+  } catch {
+    return { imageId: null, repoDigests: [], errors: ['docker-image.txt:json'] };
+  }
 }
 
 function validateComposeVolumeMapping(composeText: string) {
@@ -264,8 +277,10 @@ export function validateDockerWebuiDiagnostics(diagnosticsDir: string): Validati
   }
 
   const dockerImagePath = path.join(diagnosticsDir, 'docker-image.txt');
-  const imageId = extractJsonString(dockerImagePath, 'Id');
-  const repoDigests = extractJsonStringArray(dockerImagePath, 'RepoDigests');
+  const imageInspect = readDockerImageInspect(dockerImagePath);
+  invalidEvidence.push(...imageInspect.errors);
+  const imageId = imageInspect.imageId;
+  const repoDigests = imageInspect.repoDigests;
   const digest = normalizeImageDigest(imageId, repoDigests);
   const remoteImage = readRemoteImageDigest(diagnosticsDir);
   const imageIdentity = {
