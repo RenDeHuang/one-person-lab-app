@@ -4,7 +4,9 @@
   "purpose": "active_shell_adapter",
   "state": "active",
   "app_repo": "gaofeng21cn/one-person-lab-app",
-  "active_shell": "opl-native-workbench",
+  "adapter_id": "opl-native-workbench",
+  "candidate_shell": "opl-native-workbench",
+  "adapter_role": "foreground_alternative_candidate_adapter",
   "shell_root": "shells/opl-native-workbench",
   "runtime_bridge_contract": "contracts/app-runtime-bridge.json",
   "upstream_family": "OPL Native Workbench",
@@ -75,7 +77,7 @@
       "host_component": "SettingsHost",
       "slots": {
         "SettingsShellAdapterSlot": {
-          "role": "active_shell_settings_registry_and_render_slot_adapter",
+          "role": "candidate_shell_settings_registry_and_render_slot_adapter",
           "registry_source": "contracts/app-settings-control-plane.json",
           "ordinary_route_source": "ordinary_routes",
           "secondary_route_source": "secondary_pages",

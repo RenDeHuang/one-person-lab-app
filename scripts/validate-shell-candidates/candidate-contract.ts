@@ -40,7 +40,12 @@ function missingCandidateCheckoutCanBeBlocked(candidate: ShellCandidate): boolea
 }
 
 type CandidateAdapterContract = {
-  active_shell: string;
+  purpose?: string;
+  state?: string;
+  adapter_id?: string;
+  candidate_shell?: string;
+  adapter_role?: string;
+  active_shell?: string;
   shell_root: string;
   shell_source: { owner_repo: string; history_policy: string; checkout_path: string };
   release_role: string;
@@ -138,7 +143,22 @@ function validateCandidateAdapterContract(
   adapterContract: CandidateAdapterContract,
   policy: CandidateValidationPolicy,
 ): void {
-  if (adapterContract.active_shell !== candidate.id || adapterContract.shell_root !== candidate.candidate_root) {
+  const isForegroundCandidate = candidate.id === policy.onlyForegroundAlternative;
+  if (isForegroundCandidate) {
+    if ('active_shell' in adapterContract) {
+      throw new Error(`${candidate.id} foreground candidate adapter must use candidate_shell, not active_shell; active release shell remains contracts/app-shell-adapter.json`);
+    }
+    if (
+      adapterContract.adapter_id !== candidate.id ||
+      adapterContract.candidate_shell !== candidate.id ||
+      adapterContract.adapter_role !== 'foreground_alternative_candidate_adapter'
+    ) {
+      throw new Error(`${candidate.id} foreground candidate adapter must declare candidate_shell adapter identity`);
+    }
+  } else if (adapterContract.active_shell !== candidate.id) {
+    throw new Error(`${candidate.id} adapter contract must identify ${candidate.id}`);
+  }
+  if (adapterContract.shell_root !== candidate.candidate_root) {
     throw new Error(`${candidate.id} adapter contract must point at ${candidate.candidate_root}`);
   }
   if (adapterContract.shell_source.checkout_path !== candidate.candidate_root) {

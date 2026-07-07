@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { assertAppRootBoundary } from './app-root-boundary.ts';
 import { syncAppProductProfileToShell } from './app-product-profile.ts';
-import { resolveActiveShellPaths } from './app-shell-adapter.ts';
+import { resolveActiveShellPaths, resolveShellAdapterIdentity } from './app-shell-adapter.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const runtimeRoot = path.join(appRoot, 'packaged-runtimes', 'opl-full-runtime');
@@ -20,7 +20,7 @@ if (shellPaths.contract.release_role === 'experimental_candidate_shell') {
     status: 'standard_release_payload_skipped_for_candidate_shell',
     reason: 'Experimental candidate shells do not consume AionUI stable payload preparation before active-shell adoption',
     shell_root: shellPaths.shellRootForDisplay,
-    candidate_shell: shellPaths.contract.active_shell,
+    candidate_shell: resolveShellAdapterIdentity(shellPaths.contract),
   }, null, 2));
   process.exit(0);
 }

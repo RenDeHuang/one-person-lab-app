@@ -459,7 +459,10 @@ test('App shell candidates are isolated from active AionUI release shell', () =>
     entry.id === 'candidate_app_bundle_build'
     && /OPL_APP_SHELL_ADAPTER_CONTRACT=contracts\/shell-adapters\/opl-native-workbench\.json npm run package/.test(entry.command)
   )));
-  assert.equal(nativeAdapter.active_shell, 'opl-native-workbench');
+  assert.equal(nativeAdapter.adapter_id, 'opl-native-workbench');
+  assert.equal(nativeAdapter.candidate_shell, 'opl-native-workbench');
+  assert.equal(nativeAdapter.adapter_role, 'foreground_alternative_candidate_adapter');
+  assert.equal('active_shell' in nativeAdapter, false);
   assert.equal(nativeAdapter.shell_root, 'shells/opl-native-workbench');
   assert.equal(nativeAdapter.release_role, 'experimental_candidate_shell');
   assert.equal(nativeAdapter.shell_source.history_policy, 'external_checkout_not_merged_into_app_default_branch');
@@ -572,6 +575,48 @@ test('explicit AG-UI/Codex adapter contract selects linked external candidate sh
   ]) {
     assert.ok(!aguiAdapter.shell_replacement_policy.adoption_gate.includes(oldAdoptionGate), oldAdoptionGate);
   }
+});
+
+test('explicit Native Workbench adapter contract selects foreground candidate without switching active shell', () => {
+  const result = runNode(
+    [
+      '-e',
+      "import('./scripts/app-shell-adapter.ts').then(({ resolveActiveShellPaths, resolveShellAdapterIdentity }) => { const shell = resolveActiveShellPaths(); console.log(JSON.stringify({ adapter_identity: resolveShellAdapterIdentity(shell.contract), active_shell: shell.contract.active_shell ?? null, adapter_id: shell.contract.adapter_id, candidate_shell: shell.contract.candidate_shell, adapter_role: shell.contract.adapter_role, shell_root: shell.contract.shell_root, shell_root_for_display: shell.shellRootForDisplay, product_profile_target: shell.productProfileTargetPath, release_role: shell.contract.release_role })); })",
+    ],
+    {
+      env: {
+        OPL_APP_SHELL_ADAPTER_CONTRACT: 'contracts/shell-adapters/opl-native-workbench.json',
+        OPL_APP_SHELL_ROOT: '',
+      },
+    },
+  );
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const resolved = JSON.parse(result.stdout);
+  assert.equal(resolved.adapter_identity, 'opl-native-workbench');
+  assert.equal(resolved.active_shell, null);
+  assert.equal(resolved.adapter_id, 'opl-native-workbench');
+  assert.equal(resolved.candidate_shell, 'opl-native-workbench');
+  assert.equal(resolved.adapter_role, 'foreground_alternative_candidate_adapter');
+  assert.equal(resolved.shell_root, 'shells/opl-native-workbench');
+  assert.equal(resolved.shell_root_for_display, 'shells/opl-native-workbench');
+  assert.match(
+    resolved.product_profile_target,
+    /shells\/opl-native-workbench\/src\/generated\/oplProductProfile\.generated\.json$/,
+  );
+  assert.equal(resolved.release_role, 'experimental_candidate_shell');
+
+  const packagePrep = runNode(['scripts/prepare-standard-release-payload.ts'], {
+    env: {
+      OPL_APP_SHELL_ADAPTER_CONTRACT: 'contracts/shell-adapters/opl-native-workbench.json',
+      OPL_APP_SHELL_ROOT: '',
+    },
+  });
+  assert.equal(packagePrep.status, 0, packagePrep.stderr || packagePrep.stdout);
+  const prepResult = JSON.parse(packagePrep.stdout);
+  assert.equal(prepResult.status, 'standard_release_payload_skipped_for_candidate_shell');
+  assert.equal(prepResult.candidate_shell, 'opl-native-workbench');
+  assert.equal(prepResult.shell_root, 'shells/opl-native-workbench');
 });
 
 test('AG-UI/Codex candidate package validation requires a real app bundle manifest', () => {

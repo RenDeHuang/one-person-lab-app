@@ -211,10 +211,14 @@ export type ShellAdapterContract = {
   purpose: string;
   state: string;
   app_repo: string;
-  active_shell: string;
+  active_shell?: string;
+  adapter_id?: string;
+  candidate_shell?: string;
+  adapter_role?: string;
   shell_root: string;
   runtime_bridge_contract: string;
   upstream_family: string;
+  release_role: string;
   candidate_stage?: string;
   shell_source: {
     owner_repo: string;
@@ -353,6 +357,14 @@ function isExplicitAdapterOverride(filePath: string): boolean {
   return path.resolve(filePath) !== path.resolve(contractPath);
 }
 
+export function resolveShellAdapterIdentity(contract: ShellAdapterContract): string {
+  const identity = contract.active_shell ?? contract.candidate_shell ?? contract.adapter_id;
+  if (typeof identity !== 'string' || !identity.trim()) {
+    throw new Error('active shell adapter contract must declare active_shell or candidate_shell identity');
+  }
+  return identity;
+}
+
 export function readAppShellAdapterContract(filePath = resolveAdapterContractPath()): ShellAdapterContract {
   const contract = readJson(filePath) as ShellAdapterContract;
   assertAdapterContractIdentity(contract, { explicitOverride: isExplicitAdapterOverride(filePath) });
@@ -379,6 +391,22 @@ function assertAdapterContractIdentity(contract: ShellAdapterContract, options: 
   }
   if (contract.app_repo !== 'gaofeng21cn/one-person-lab-app') {
     throw new Error(`Unexpected active shell app_repo: ${contract.app_repo}`);
+  }
+  const adapterIdentity = resolveShellAdapterIdentity(contract);
+  if (!options.explicitOverride) {
+    if (contract.active_shell !== 'aionui' || adapterIdentity !== 'aionui') {
+      throw new Error(`Default active shell adapter must remain aionui: ${adapterIdentity}`);
+    }
+    if (contract.candidate_shell || contract.adapter_id || contract.adapter_role) {
+      throw new Error('Default active shell adapter must not declare foreground candidate identity');
+    }
+  } else if (contract.candidate_shell) {
+    if (contract.active_shell !== undefined) {
+      throw new Error(`${contract.candidate_shell} foreground candidate adapter must not declare active_shell`);
+    }
+    if (contract.adapter_id !== contract.candidate_shell || contract.adapter_role !== 'foreground_alternative_candidate_adapter') {
+      throw new Error(`${contract.candidate_shell} foreground candidate adapter identity is inconsistent`);
+    }
   }
   if (contract.shell_source?.history_policy !== 'external_checkout_not_merged_into_app_default_branch') {
     throw new Error(`Unexpected shell history policy: ${contract.shell_source?.history_policy}`);
