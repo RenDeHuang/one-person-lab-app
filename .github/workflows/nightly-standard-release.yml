@@ -107,6 +107,69 @@ jobs:
       require_macos_gatekeeper: false
     secrets: inherit
 
+  prepare-nightly-release-notes:
+    name: Prepare Nightly release notes
+    runs-on: ubuntu-latest
+    needs:
+      - resolve-nightly
+      - release-source-gate
+
+    steps:
+      - name: Checkout App repo
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Checkout active shell
+        uses: actions/checkout@v6
+        with:
+          repository: gaofeng21cn/opl-aion-shell
+          ref: main
+          path: shells/aionui
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Build and validate prepared Nightly release notes
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPL_RELEASE_NOTES_MODE: ai
+          OPL_RELEASE_NOTES_PROVIDER: openai_compatible
+          OPL_RELEASE_NOTES_CODEX_BASE_URL: ${{ vars.OPL_RELEASE_NOTES_CODEX_BASE_URL || 'https://gflabtoken.cn/v1' }}
+          OPL_RELEASE_NOTES_CODEX_API_KEY: ${{ secrets.OPL_RELEASE_NOTES_CODEX_API_KEY }}
+          OPL_RELEASE_NOTES_MODEL: ${{ vars.OPL_RELEASE_NOTES_MODEL || 'gpt-5.4-mini' }}
+          OPL_RELEASE_NOTES_EVIDENCE_OUTPUT: ${{ runner.temp }}/opl-nightly-notes-evidence.json
+          OPL_RELEASE_VERSION: ${{ needs.resolve-nightly.outputs.version }}
+        run: |
+          set -euo pipefail
+          notes_file="$RUNNER_TEMP/opl-nightly-notes.md"
+          template_notes_file="$RUNNER_TEMP/opl-nightly-template-notes.md"
+          npm run release:notes:probe-ai
+          node --experimental-strip-types scripts/generate-release-notes.ts \
+            --version "$OPL_RELEASE_VERSION" \
+            --channel nightly \
+            --repo "$GITHUB_REPOSITORY" \
+            --shell-root shells/aionui \
+            --evidence-output "$OPL_RELEASE_NOTES_EVIDENCE_OUTPUT" \
+            --output "$template_notes_file"
+          node --experimental-strip-types scripts/release-notes-ai-writer.ts \
+            --evidence "$OPL_RELEASE_NOTES_EVIDENCE_OUTPUT" \
+            --output "$notes_file"
+
+      - name: Upload prepared Nightly release notes
+        uses: actions/upload-artifact@v7
+        with:
+          name: prepared-nightly-release-notes-${{ needs.resolve-nightly.outputs.version }}
+          path: |
+            ${{ runner.temp }}/opl-nightly-notes.md
+            ${{ runner.temp }}/opl-nightly-template-notes.md
+            ${{ runner.temp }}/opl-nightly-notes-evidence.json
+          if-no-files-found: error
+
   publish-nightly:
     name: Publish standard Nightly prerelease
     runs-on: macos-latest
@@ -115,6 +178,7 @@ jobs:
       actions: read
     needs:
       - resolve-nightly
+      - prepare-nightly-release-notes
       - standard-build
 
     steps:
@@ -151,13 +215,17 @@ jobs:
           OPL_RELEASE_VERSION: ${{ needs.resolve-nightly.outputs.version }}
         run: node --experimental-strip-types scripts/validate-release.ts release-assets
 
+      - name: Download prepared Nightly release notes
+        uses: actions/download-artifact@v8
+        with:
+          name: prepared-nightly-release-notes-${{ needs.resolve-nightly.outputs.version }}
+          path: prepared-nightly-release-notes
+
       - name: Create or refresh Nightly prerelease
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          OPL_RELEASE_NOTES_MODE: template
-          OPL_RELEASE_NOTES_EVIDENCE_OUTPUT: ${{ runner.temp }}/opl-nightly-notes-evidence.json
           OPL_RELEASE_VERSION: ${{ needs.resolve-nightly.outputs.version }}
           OPL_RELEASE_TAG: ${{ needs.resolve-nightly.outputs.tag }}
         run: |
@@ -175,19 +243,7 @@ jobs:
             git push origin "refs/tags/${OPL_RELEASE_TAG}"
           fi
 
-          notes_file="$RUNNER_TEMP/opl-nightly-notes.md"
-          template_notes_file="$RUNNER_TEMP/opl-nightly-template-notes.md"
-          node --experimental-strip-types scripts/generate-release-notes.ts \
-            --version "$OPL_RELEASE_VERSION" \
-            --channel nightly \
-            --repo "$GITHUB_REPOSITORY" \
-            --shell-root shells/aionui \
-            --evidence-output "$OPL_RELEASE_NOTES_EVIDENCE_OUTPUT" \
-            --output "$template_notes_file"
-          node --experimental-strip-types scripts/release-notes-ai-writer.ts \
-            --evidence "$OPL_RELEASE_NOTES_EVIDENCE_OUTPUT" \
-            --input "$template_notes_file" \
-            --output "$notes_file"
+          notes_file="prepared-nightly-release-notes/opl-nightly-notes.md"
 
           if gh release view "${OPL_RELEASE_TAG}" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release edit "${OPL_RELEASE_TAG}" \
@@ -208,16 +264,6 @@ jobs:
           gh release upload "${OPL_RELEASE_TAG}" release-assets/* \
             --repo "$GITHUB_REPOSITORY" \
             --clobber
-
-      - name: Upload Nightly release-note evidence
-        uses: actions/upload-artifact@v7
-        with:
-          name: release-notes-evidence-${{ needs.resolve-nightly.outputs.version }}
-          path: |
-            ${{ runner.temp }}/opl-nightly-notes.md
-            ${{ runner.temp }}/opl-nightly-template-notes.md
-            ${{ runner.temp }}/opl-nightly-notes-evidence.json
-          if-no-files-found: error
 
       - name: Verify remote standard Nightly assets
         env:

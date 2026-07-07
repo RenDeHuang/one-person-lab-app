@@ -94,10 +94,12 @@ test('stable release workflow publishes only macOS arm64 standard assets', () =>
   assert.match(publishStandard, /OPL_RELEASE_NOTES_FILE: prepared-standard-release-notes\/standard-release-notes\.md/);
   assert.match(publishStandard, /--release-notes-file "\$OPL_RELEASE_NOTES_FILE"/);
   assert.doesNotMatch(publishStandard, /release-notes-ai-writer\.ts --probe-openai-compatible/);
-  assert.match(workflowJobBlock(workflow, 'prepare-standard-release-notes'), /OPL_RELEASE_NOTES_MODE: template/);
-  assert.match(workflowJobBlock(workflow, 'prepare-standard-release-notes'), /--input standard-release-notes-template\.md/);
-  assert.doesNotMatch(workflowJobBlock(workflow, 'prepare-standard-release-notes'), /release-notes-ai-writer\.ts --probe-openai-compatible/);
-  assert.doesNotMatch(workflowJobBlock(workflow, 'prepare-standard-release-notes'), /OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL/);
+  assert.match(workflowJobBlock(workflow, 'prepare-standard-release-notes'), /OPL_RELEASE_NOTES_MODE: ai/);
+  assert.match(workflowJobBlock(workflow, 'prepare-standard-release-notes'), /OPL_RELEASE_NOTES_PROVIDER: openai_compatible/);
+  assert.match(workflowJobBlock(workflow, 'prepare-standard-release-notes'), /OPL_RELEASE_NOTES_CODEX_BASE_URL: \$\{\{ vars\.OPL_RELEASE_NOTES_CODEX_BASE_URL \|\| 'https:\/\/gflabtoken\.cn\/v1' \}\}/);
+  assert.match(workflowJobBlock(workflow, 'prepare-standard-release-notes'), /OPL_RELEASE_NOTES_MODEL: \$\{\{ vars\.OPL_RELEASE_NOTES_MODEL \|\| 'gpt-5\.4-mini' \}\}/);
+  assert.match(workflowJobBlock(workflow, 'prepare-standard-release-notes'), /npm run release:notes:probe-ai/);
+  assert.doesNotMatch(workflowJobBlock(workflow, 'prepare-standard-release-notes'), /--input standard-release-notes-template\.md/);
   assert.doesNotMatch(publishStandard, /OPL_RELEASE_NOTES_GITHUB_MODEL:/);
   assert.doesNotMatch(publishStandard, /setup-release-notes-codex-config/);
   assert.doesNotMatch(publishStandard, /OPENAI_API_KEY: \$\{\{ secrets\.OPENAI_API_KEY \}\}/);

@@ -308,18 +308,24 @@ the candidate record, CI summaries, or closeout artifacts. The public download
 list must stay focused on install/update/checksum entrypoints; release-note
 evidence JSON is operator evidence, not a user download.
 
-AI assistance is a pre-release drafting tool only. It may produce a candidate
-body before dispatch, but the release cohort must carry the final prepared notes
-or fail before expensive gates start. Deterministic template completion is
-allowed for workflow-prepared notes, but raw template previews are allowed only
-for explicit dry-runs and diagnostics. Stable and Nightly publishing must not
-silently generate or replace public release notes during publish/promote.
-The desktop Stable/Full workflow, scheduled Nightly workflow, and legacy Full
-first-install workflow all consume prepared or deterministic template notes as
-files; none of those publish steps may probe or call an online note provider.
+AI assistance is the public release-note writer, but only in the pre-release
+preparation stage. The release cohort must carry the final prepared AI-written
+notes or fail before publish/promote starts. Deterministic template output is
+allowed only for explicit dry-runs and diagnostics; it must not be silently
+published as the public Stable or Nightly body. Stable and Nightly publishing
+must not generate or replace public release notes during publish/promote.
+The desktop Stable/Full workflow and scheduled Nightly workflow prepare
+LLM-written notes before their publish jobs, then those publish jobs consume the
+prepared notes files. The legacy Full first-install workflow prepares the same
+LLM-written notes before its GitHub Release upload step.
 
-The historical online writer uses `OPL_RELEASE_NOTES_PROVIDER=openai_compatible`:
-the maintained online path is an operator-configured OpenAI-compatible endpoint.
+The release workflows use `OPL_RELEASE_NOTES_PROVIDER=openai_compatible` with
+the OPL gflabtoken compatibility route:
+`OPL_RELEASE_NOTES_CODEX_BASE_URL=https://gflabtoken.cn/v1`,
+`OPL_RELEASE_NOTES_CODEX_API_KEY`, and
+`OPL_RELEASE_NOTES_MODEL=gpt-5.4-mini`. The writer also supports a separate
+operator-configured OpenAI-compatible endpoint for non-release probes or local
+drafting.
 There is no GitHub Models fallback and no automatic template fallback for
 prepared release notes. GitHub announced that
 [GitHub Models is being fully retired on July 30, 2026](https://github.blog/changelog/2026-07-01-github-models-is-being-fully-retired-on-july-30-2026/),
@@ -338,7 +344,7 @@ OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL=http://localhost:3001/v1
 OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY=freellmapi-...
 OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODEL=auto
 
-# Compatibility route already used by older release-note configuration.
+# Release workflow route.
 OPL_RELEASE_NOTES_CODEX_BASE_URL=https://gflabtoken.cn/v1
 OPL_RELEASE_NOTES_CODEX_API_KEY=<repo secret>
 OPL_RELEASE_NOTES_MODEL=gpt-5.4-mini

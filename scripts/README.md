@@ -22,7 +22,7 @@ AGUI selection should happen only when AGUI replay is explicitly requested.
 | `prepare-release-assets.ts` | Calls the active shell release asset normalizer from the App root. |
 | `validate-release.ts` | Verifies release assets and enforces that standard updater metadata excludes Full first-install assets. |
 | `verify-remote-release-assets.ts` | Downloads GitHub Release assets and verifies remote size, sha256 digest, updater metadata, Full manifest, Full README language, Full checksums, and Full size budgets. |
-| `generate-release-notes.ts` | Builds release-note evidence and optional pre-release public-copy drafts. Stable compares with the previous Stable release, Nightly compares with the previous Nightly prerelease, release names use `One Person Lab v<version>`, and the public body leads with user scenarios, upgrade value, and action items. Commit logs, refs, workflow facts, changelog details, OPL-family changes, and Full payload versions stay in Technical details or evidence artifacts unless they are directly user-visible. Release publish/promote consumes prepared notes and must not call AI on the critical path; template output is dry-run/diagnostic only. |
+| `generate-release-notes.ts` | Builds release-note evidence and deterministic template notes for the LLM writer. Stable compares with the previous Stable release, Nightly compares with the previous Nightly prerelease, release names use `One Person Lab v<version>`, and the public body leads with user scenarios, upgrade value, and action items. Commit logs, refs, workflow facts, changelog details, OPL-family changes, and Full payload versions stay in Technical details or evidence artifacts unless they are directly user-visible. Release publish/promote consumes prepared AI-written notes and must not call AI on the critical path; template output is dry-run/diagnostic only. |
 | `cleanup-draft-release-candidates.ts` | Dry-runs or deletes stale `v<version>-draft.*` and `v<version>-readiness.*` draft Releases after the stable release exists. |
 | `cleanup-webui-ghcr-versions.ts` | Dry-runs or deletes stale `one-person-lab-webui` GHCR package versions according to the App release-channel retention policy. |
 | `install-docker-webui.sh` | Linux/macOS Bash entrypoint for starting the Docker/WebUI image with host `/data` and `/projects` mounts through `docker compose`; Ubuntu may install Docker Engine, while macOS only checks for an existing Docker runtime. After compose startup it waits for the local HTTP endpoint and can write a diagnostic directory or `.tar.gz` package without accepting API keys. |
@@ -357,21 +357,21 @@ updates that tag to the current workflow commit on same-day reruns, keeps
 Nightly, and runs the remote standard asset verifier without Full assets.
 
 AI release-note drafting is a pre-release preparation path, not publish/promote
-critical-path work. Stable desktop release jobs prepare deterministic template
-notes with `OPL_RELEASE_NOTES_MODE=template`, then run the same release-note
-quality gate before publishing. When online drafting is used outside that
-critical path, it follows the same provider chain:
-`OPL_RELEASE_NOTES_PROVIDER=openai_compatible` uses an OpenAI-compatible endpoint configured through
+critical-path work. Stable desktop and Nightly release jobs prepare
+LLM-written notes with `OPL_RELEASE_NOTES_MODE=ai`, run the online provider
+probe first, and fail closed when no usable provider is configured. The
+deterministic template remains an evidence-backed prompt/input artifact and
+diagnostic fallback only. Online release drafting uses
+`OPL_RELEASE_NOTES_PROVIDER=openai_compatible` with the existing
+`OPL_RELEASE_NOTES_CODEX_BASE_URL=https://gflabtoken.cn/v1`,
+`OPL_RELEASE_NOTES_CODEX_API_KEY`, and
+`OPL_RELEASE_NOTES_MODEL=gpt-5.4-mini` route. The writer also accepts
 `OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL` and
-`OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY`. The writer also accepts the
-existing `OPL_RELEASE_NOTES_CODEX_BASE_URL` / `OPL_RELEASE_NOTES_CODEX_API_KEY`
-route directly, so GitHub Actions and local probes do not need a separate env
-remapping layer. GitHub Models is not in the release path. A self-hosted
-FreeLLMAPI server can fill the OpenAI-compatible slot by
-exposing `/v1/chat/completions` and using model `auto`. Online pre-release
-drafting runs `scripts/release-notes-ai-writer.ts --probe-openai-compatible`
-before accepting AI-assisted copy and fails closed when the online route is not
-usable.
+`OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY` for non-release probes or local
+operator drafting. GitHub Models is not in the release path. Online pre-release
+drafting runs
+`scripts/release-notes-ai-writer.ts --probe-openai-compatible` before accepting
+AI-assisted copy and fails closed when the online route is not usable.
 Use
 `npm run release:notes:probe-ai` to run the same secret-safe probe locally, and
 `OPL_RELEASE_NOTES_AI_TIMEOUT_SECONDS` to override the default 75-second
