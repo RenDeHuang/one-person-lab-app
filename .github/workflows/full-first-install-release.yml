@@ -1004,13 +1004,9 @@ jobs:
         if: ${{ inputs.publish_to_release }}
         working-directory: one-person-lab-app
         env:
-          OPL_RELEASE_NOTES_PROVIDER: openai_compatible
-          OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL: ${{ vars.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL }}
-          OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY: ${{ secrets.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY }}
-          OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODEL: ${{ vars.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODEL }}
-          OPL_RELEASE_NOTES_CODEX_BASE_URL: ${{ vars.OPL_RELEASE_NOTES_CODEX_BASE_URL }}
-          OPL_RELEASE_NOTES_CODEX_API_KEY: ${{ secrets.OPL_RELEASE_NOTES_CODEX_API_KEY }}
-          OPL_RELEASE_NOTES_MODEL: ${{ vars.OPL_RELEASE_NOTES_MODEL }}
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+          OPL_RELEASE_NOTES_MODE: template
         run: |
           set -euo pipefail
           npm run release:notes -- \
@@ -1023,9 +1019,9 @@ jobs:
             --current-tag "v${OPL_RELEASE_VERSION}" \
             --evidence-output "$RUNNER_TEMP/full-release-notes-evidence.json" \
             --output "$RUNNER_TEMP/full-release-notes-template.md"
-          node --experimental-strip-types scripts/release-notes-ai-writer.ts --probe-openai-compatible
           npm run release:notes:prepare -- \
             --evidence "$RUNNER_TEMP/full-release-notes-evidence.json" \
+            --input "$RUNNER_TEMP/full-release-notes-template.md" \
             --output "$RUNNER_TEMP/full-release-notes.md"
 
       - name: Upload Full package workflow artifact

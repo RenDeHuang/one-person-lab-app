@@ -310,9 +310,13 @@ evidence JSON is operator evidence, not a user download.
 
 AI assistance is a pre-release drafting tool only. It may produce a candidate
 body before dispatch, but the release cohort must carry the final prepared notes
-or fail before expensive gates start. Template output is allowed only for
-explicit dry-runs and diagnostic previews. Stable and Nightly publishing must
-not silently generate or replace public release notes during publish/promote.
+or fail before expensive gates start. Deterministic template completion is
+allowed for workflow-prepared notes, but raw template previews are allowed only
+for explicit dry-runs and diagnostics. Stable and Nightly publishing must not
+silently generate or replace public release notes during publish/promote.
+The desktop Stable/Full workflow, scheduled Nightly workflow, and legacy Full
+first-install workflow all consume prepared or deterministic template notes as
+files; none of those publish steps may probe or call an online note provider.
 
 The historical online writer uses `OPL_RELEASE_NOTES_PROVIDER=openai_compatible`:
 the maintained online path is an operator-configured OpenAI-compatible endpoint.

@@ -156,20 +156,12 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          OPL_RELEASE_NOTES_MODE: ai
-          OPL_RELEASE_NOTES_PROVIDER: openai_compatible
-          OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL: ${{ vars.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL }}
-          OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY: ${{ secrets.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY }}
-          OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODEL: ${{ vars.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODEL }}
-          OPL_RELEASE_NOTES_CODEX_BASE_URL: ${{ vars.OPL_RELEASE_NOTES_CODEX_BASE_URL }}
-          OPL_RELEASE_NOTES_CODEX_API_KEY: ${{ secrets.OPL_RELEASE_NOTES_CODEX_API_KEY }}
-          OPL_RELEASE_NOTES_MODEL: ${{ vars.OPL_RELEASE_NOTES_MODEL }}
+          OPL_RELEASE_NOTES_MODE: template
           OPL_RELEASE_NOTES_EVIDENCE_OUTPUT: ${{ runner.temp }}/opl-nightly-notes-evidence.json
           OPL_RELEASE_VERSION: ${{ needs.resolve-nightly.outputs.version }}
           OPL_RELEASE_TAG: ${{ needs.resolve-nightly.outputs.tag }}
         run: |
           set -euo pipefail
-          node --experimental-strip-types scripts/release-notes-ai-writer.ts --probe-openai-compatible
           release_title="One Person Lab ${OPL_RELEASE_TAG}"
           git fetch --tags origin
 
@@ -194,6 +186,7 @@ jobs:
             --output "$template_notes_file"
           node --experimental-strip-types scripts/release-notes-ai-writer.ts \
             --evidence "$OPL_RELEASE_NOTES_EVIDENCE_OUTPUT" \
+            --input "$template_notes_file" \
             --output "$notes_file"
 
           if gh release view "${OPL_RELEASE_TAG}" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
@@ -220,7 +213,10 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: release-notes-evidence-${{ needs.resolve-nightly.outputs.version }}
-          path: ${{ runner.temp }}/opl-nightly-notes-evidence.json
+          path: |
+            ${{ runner.temp }}/opl-nightly-notes.md
+            ${{ runner.temp }}/opl-nightly-template-notes.md
+            ${{ runner.temp }}/opl-nightly-notes-evidence.json
           if-no-files-found: error
 
       - name: Verify remote standard Nightly assets
