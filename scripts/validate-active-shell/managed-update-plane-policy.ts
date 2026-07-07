@@ -207,7 +207,7 @@ export const managedOplPackageKinds = {
   'redcube-ai': 'domain_agent_package',
   'opl-meta-agent': 'domain_agent_package',
   'opl-bookforge': 'domain_agent_package',
-  mas-scholar-skills: 'framework_capability_package',
+  'mas-scholar-skills': 'framework_capability_package',
   'opl-flow': 'workflow_plugin_package',
 };
 
