@@ -262,6 +262,34 @@ test('Docker/WebUI diagnostics validator treats remote image currentness as opti
   assert.equal(updateAvailable.image_identity.currentness_claim, false);
 });
 
+test('Docker/WebUI diagnostics validator accepts Docker inspect capture output with a command prefix', () => {
+  const diagnostics = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-diagnostics-image-capture-'));
+  writeCompleteDiagnostics(diagnostics);
+  fs.writeFileSync(
+    path.join(diagnostics, 'docker-image.txt'),
+    [
+      '$ docker image inspect ghcr.io/gaofeng21cn/one-person-lab-webui:stable',
+      JSON.stringify(
+        [
+          {
+            Id: imageDigest,
+            RepoDigests: [`ghcr.io/gaofeng21cn/one-person-lab-webui@${imageDigest}`],
+          },
+        ],
+        null,
+        2,
+      ),
+      '',
+    ].join('\n'),
+  );
+
+  const result = validateDockerWebuiDiagnostics(diagnostics);
+  assert.equal(result.status, 'passed');
+  assert.equal(result.image_identity.image_id, imageDigest);
+  assert.deepEqual(result.image_identity.repo_digests, [`ghcr.io/gaofeng21cn/one-person-lab-webui@${imageDigest}`]);
+  assert.equal(result.image_identity.digest, imageDigest);
+});
+
 test('Docker/WebUI smoke gate result readback fails when required artifact schema fields are missing', () => {
   const valid = validateDockerWebuiSmokeGateResult(completeGateResult());
   assert.equal(valid.status, 'passed');

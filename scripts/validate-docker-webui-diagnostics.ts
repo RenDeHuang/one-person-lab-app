@@ -133,7 +133,7 @@ function readDockerImageInspect(filePath: string): {
     return { imageId: null, repoDigests: [], errors: [] };
   }
   try {
-    const parsed = JSON.parse(readText(filePath)) as unknown;
+    const parsed = parseJsonCapture(readText(filePath)) as unknown;
     const record = Array.isArray(parsed) ? parsed.find(isRecord) : isRecord(parsed) ? parsed : null;
     if (!record) {
       return { imageId: null, repoDigests: [], errors: ['docker-image.txt:json_shape'] };
@@ -146,6 +146,55 @@ function readDockerImageInspect(filePath: string): {
   } catch {
     return { imageId: null, repoDigests: [], errors: ['docker-image.txt:json'] };
   }
+}
+
+function parseJsonCapture(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch (error) {
+    const embeddedJson = extractFirstJsonValue(text);
+    if (!embeddedJson) throw error;
+    return JSON.parse(embeddedJson);
+  }
+}
+
+function extractFirstJsonValue(text: string): string | null {
+  const start = text.search(/[\[{]/);
+  if (start < 0) return null;
+  const stack: string[] = [];
+  let inString = false;
+  let escaped = false;
+
+  for (let index = start; index < text.length; index += 1) {
+    const char = text[index];
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (char === '\\') {
+        escaped = true;
+      } else if (char === '"') {
+        inString = false;
+      }
+      continue;
+    }
+    if (char === '"') {
+      inString = true;
+      continue;
+    }
+    if (char === '{') {
+      stack.push('}');
+      continue;
+    }
+    if (char === '[') {
+      stack.push(']');
+      continue;
+    }
+    if (char === '}' || char === ']') {
+      if (stack.pop() !== char) return null;
+      if (stack.length === 0) return text.slice(start, index + 1);
+    }
+  }
+  return null;
 }
 
 function validateComposeVolumeMapping(composeText: string) {

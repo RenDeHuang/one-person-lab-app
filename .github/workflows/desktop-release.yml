@@ -1221,7 +1221,10 @@ jobs:
           fi
 
           windows_raw_evidence="docker-webui-clean-vm-inputs/clean-windows-vm"
-          windows_zip_evidence="$(find docker-webui-clean-vm-inputs/clean-windows-vm -maxdepth 1 -type f -name '*.zip' | sort | head -n 1 || true)"
+          windows_zip_evidence=""
+          if [ -d "$windows_raw_evidence" ]; then
+            windows_zip_evidence="$(find "$windows_raw_evidence" -maxdepth 1 -type f -name '*.zip' | sort | head -n 1 || true)"
+          fi
           if [ -n "$WINDOWS_ARTIFACT_NAME" ] && [ -f "$windows_raw_evidence/windows-smoke-evidence.json" ] && [ ! -f "$windows_raw_evidence/docker-webui-smoke-gate-result.json" ]; then
             node --experimental-strip-types scripts/docker-webui-smoke-gate.ts \
               --gate clean_windows_vm \
