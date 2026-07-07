@@ -348,32 +348,21 @@ ${zhCN.trimEnd()}
 `;
 }
 
-function sanitizePreTechnicalDeveloperTerms(visibleMarkdown: string) {
-  const offset = technicalDetailsOffset(visibleMarkdown);
-  if (offset < 0) {
-    return visibleMarkdown
-      .split('\n')
-      .filter((line) => !/[\u3400-\u9fff]/.test(line))
-      .join('\n')
-      .replace(/\brelease notes?\b/gi, 'update summary')
-      .replace(/\brelease-note\b/gi, 'update')
-      .replace(/\bworkflows?\b/gi, 'sessions')
-      .replace(/\bvalidation\b/gi, 'checks')
-      .replace(/\bgates?\b/gi, 'checks')
-      .replace(/\brefs?\b/gi, 'details')
-      .replace(/\bSHA(?:-[0-9]+)?\b/g, 'version detail')
-      .replace(/\bcohort\b/gi, 'release')
-      .replace(/\brelease operator\b/gi, 'release process')
-      .replace(/\bowner receipt\b/gi, 'approval record')
-      .replace(/\bowner verdict\b/gi, 'approval decision')
-      .replace(/\brelease candidate\b/gi, 'release build');
-  }
-  const before = visibleMarkdown.slice(0, offset)
+function stripChineseLines(markdown: string) {
+  return markdown
     .split('\n')
     .filter((line) => !/[\u3400-\u9fff]/.test(line))
-    .join('\n')
+    .join('\n');
+}
+
+function replaceReleaseNoteTerms(markdown: string) {
+  return markdown
     .replace(/\brelease notes?\b/gi, 'update summary')
-    .replace(/\brelease-note\b/gi, 'update')
+    .replace(/\brelease-note\b/gi, 'update');
+}
+
+function sanitizePublicDeveloperTerms(markdown: string) {
+  return replaceReleaseNoteTerms(stripChineseLines(markdown))
     .replace(/\bworkflows?\b/gi, 'sessions')
     .replace(/\bvalidation\b/gi, 'checks')
     .replace(/\bgates?\b/gi, 'checks')
@@ -384,12 +373,19 @@ function sanitizePreTechnicalDeveloperTerms(visibleMarkdown: string) {
     .replace(/\bowner receipt\b/gi, 'approval record')
     .replace(/\bowner verdict\b/gi, 'approval decision')
     .replace(/\brelease candidate\b/gi, 'release build');
-  const after = visibleMarkdown.slice(offset)
-    .split('\n')
-    .filter((line) => !/[\u3400-\u9fff]/.test(line))
-    .join('\n')
-    .replace(/\brelease notes?\b/gi, 'update summary')
-    .replace(/\brelease-note\b/gi, 'update');
+}
+
+function sanitizeTechnicalTailTerms(markdown: string) {
+  return replaceReleaseNoteTerms(stripChineseLines(markdown));
+}
+
+function sanitizePreTechnicalDeveloperTerms(visibleMarkdown: string) {
+  const offset = technicalDetailsOffset(visibleMarkdown);
+  if (offset < 0) {
+    return sanitizePublicDeveloperTerms(visibleMarkdown);
+  }
+  const before = sanitizePublicDeveloperTerms(visibleMarkdown.slice(0, offset));
+  const after = sanitizeTechnicalTailTerms(visibleMarkdown.slice(offset));
   return `${before}${after}`;
 }
 
