@@ -33,14 +33,16 @@ governance only.
 
 | Directory | Owner / purpose / state | Use it for | Machine boundary |
 | --- | --- | --- | --- |
-| [`public/`](public/) | App public docs; `app_public_docs_entry`; `active` | End-user reading surfaces. Start with [`public/macos-app-install/README.md`](public/macos-app-install/README.md), [`index.html`](public/macos-app-install/index.html), PDF, and PPTX. | Public docs are human-readable artifacts, not release/readiness proof. |
+| [`public/`](public/) | App public docs; `app_public_docs_entry`; `active` | End-user reading surfaces. Start with [`public/macos-app-install/README.md`](public/macos-app-install/README.md), [`index.html`](public/macos-app-install/index.html), PDF, and PPTX. Keep new generated binaries out of git unless they are the canonical public bundle for a maintained guide. | Public docs are human-readable artifacts, not release/readiness proof. |
 | [`product/`](product/) | App/workbench/product shell design and GUI support; `active_support` | Product requirements, GUI support docs, App/workbench shell design, and product-facing decisions. | Product acceptance stays in App contracts, page-state matrices, shell validation, source, and tests. |
 | [`delivery/`](delivery/) | Release, artifact/package/export, user-guide generation source, and verification; `active_support` | Release operator docs, generated guide source/provenance, screenshots, and package/export lifecycle support. | Release truth stays in produced assets, updater metadata, evidence manifests, CI/logs, workflows, validators, and release-boundary tests. |
 | [`testing/`](testing/) | App testing entry; `app_testing_docs`; `active` | Test, validation, release-evidence classification, and smoke command orientation. | Test code, contracts, workflows, validators, and artifacts are executable truth. |
 | [`history/`](history/) | App historical index; `app_history`; `history_index` | Retired routes, candidate verification provenance, stale-surface no-resurrection notes, and compressed process history. | Historical only; not active product/runtime/release truth. |
 The canonical public user install entries are `docs/public/macos-app-install/`
 and `docs/public/docker-webui-install/`; source and generated maintenance
-material belongs under `docs/delivery/`.
+material belongs under `docs/delivery/`. New shareable HTML/PDF/PPTX outputs
+should be release assets or regenerated local output unless they replace a
+canonical public bundle.
 
 ## Public User Entry
 
