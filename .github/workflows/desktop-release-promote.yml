@@ -12,6 +12,11 @@ on:
         required: false
         default: true
         type: boolean
+      require_docker_webui:
+        description: Verify same-cohort Docker/WebUI add-on evidence before publishing
+        required: false
+        default: true
+        type: boolean
       release_run_id:
         description: Desktop release workflow run id that produced the candidate record
         required: true
@@ -92,6 +97,15 @@ jobs:
           path: owner-resolution-inputs
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Download add-on readiness input
+        if: ${{ inputs.include_full_package || inputs.require_docker_webui }}
+        uses: actions/download-artifact@v8
+        with:
+          name: release-addon-readiness-summary-${{ inputs.opl_version }}
+          run-id: ${{ inputs.release_run_id }}
+          path: owner-resolution-addon-inputs
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Resolve release owner gate
         if: ${{ inputs.release_owner_verdict_ref != '' || inputs.release_owner_receipt_ref != '' }}
         env:
@@ -115,6 +129,16 @@ jobs:
             args+=(--release-owner-receipt-ref "${RELEASE_OWNER_RECEIPT_REF}")
           fi
           "${args[@]}"
+
+      - name: Verify same-cohort add-on readiness
+        if: ${{ inputs.include_full_package || inputs.require_docker_webui }}
+        run: |
+          node --experimental-strip-types scripts/validate-release-addon-readiness.ts \
+            --version "${{ inputs.opl_version }}" \
+            --record owner-resolution-addon-inputs/release-addon-readiness-summary.json \
+            --include-full-package "${{ inputs.include_full_package }}" \
+            --run-vm-smoke true \
+            --require-docker-webui "${{ inputs.require_docker_webui }}"
 
       - name: Verify release candidate record
         env:

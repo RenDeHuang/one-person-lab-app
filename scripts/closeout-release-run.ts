@@ -329,6 +329,7 @@ function artifactNames(options: Options): string[] {
   const base = [
     `release-candidate-record-${options.version}`,
     `release-readiness-summary-${options.version}`,
+    `release-addon-readiness-summary-${options.version}`,
     `release-preflight-summary-${options.version}`,
     `remote-release-verification-${options.version}`,
   ];
@@ -466,6 +467,11 @@ function summarizeRunTiming(run: JsonRecord, jobs: JsonRecord[]) {
 
 function sourceStatus(record: JsonRecord | null): string {
   return stringField(record, 'status') ?? 'missing';
+}
+
+function artifactPresenceStatus(record: JsonRecord | null): string {
+  if (!record) return 'missing';
+  return stringField(record, 'status') ?? 'present';
 }
 
 function failedGateSummaries(readiness: JsonRecord | null) {
@@ -760,6 +766,7 @@ function buildSummary(options: Options) {
 
   const candidateArtifact = readArtifactJson(options, `release-candidate-record-${options.version}`, 'release-candidate-record.json');
   const readinessArtifact = readArtifactJson(options, `release-readiness-summary-${options.version}`, 'release-readiness-summary.json');
+  const addonReadinessArtifact = readArtifactJson(options, `release-addon-readiness-summary-${options.version}`, 'release-addon-readiness-summary.json');
   const preflightArtifact = readArtifactJson(options, `release-preflight-summary-${options.version}`, 'release-preflight-summary.json');
   const remoteArtifact = readArtifactJson(options, `remote-release-verification-${options.version}`, 'remote-release-verification.json');
   const telemetryArtifact = readArtifactJson(options, `opl-full-workflow-telemetry-${options.version}`, 'full-workflow-telemetry.json');
@@ -833,12 +840,14 @@ function buildSummary(options: Options) {
     source_status: {
       candidate_record: sourceStatus(candidateArtifact.payload),
       release_readiness_summary: sourceStatus(readinessArtifact.payload),
+      release_addon_readiness_summary: artifactPresenceStatus(addonReadinessArtifact.payload),
       release_preflight_summary: sourceStatus(preflightArtifact.payload),
       remote_release_verification: sourceStatus(remoteArtifact.payload),
     },
     source_paths: {
       candidate_record: candidateArtifact.path,
       release_readiness_summary: readinessArtifact.path,
+      release_addon_readiness_summary: addonReadinessArtifact.path,
       release_preflight_summary: preflightArtifact.path,
       remote_release_verification: remoteArtifact.path,
       full_workflow_telemetry: telemetryArtifact.path,
@@ -859,6 +868,11 @@ function buildSummary(options: Options) {
       warnings: asArray(readinessArtifact.payload.warnings),
       bottlenecks: asArray(readinessArtifact.payload.bottlenecks),
       optimization_recommendations: asArray(readinessArtifact.payload.optimization_recommendations),
+    } : null,
+    addon_readiness: addonReadinessArtifact.payload ? {
+      status: artifactPresenceStatus(addonReadinessArtifact.payload),
+      require_addon_gates_for_stable_readiness: addonReadinessArtifact.payload.require_addon_gates_for_stable_readiness === true,
+      job_results: asRecord(addonReadinessArtifact.payload.job_results),
     } : null,
     failed_rerun_tax: failedRerunTax,
     bottlenecks,

@@ -403,9 +403,12 @@ test('release automation workflows cover remote verification, Full cache warmup,
   assert.match(promoteWorkflow, /release_run_id:/);
   assert.match(promoteWorkflow, /release_owner_verdict_ref:/);
   assert.match(promoteWorkflow, /release_owner_receipt_ref:/);
+  assert.match(promoteWorkflow, /require_docker_webui:/);
   assert.match(promoteWorkflow, /Download release candidate record/);
   assert.match(promoteWorkflow, /Resolve release owner gate/);
   assert.match(promoteWorkflow, /release:candidate-record:resolve-owner/);
+  assert.match(promoteWorkflow, /Download add-on readiness input/);
+  assert.match(promoteWorkflow, /validate-release-addon-readiness\.ts/);
   assert.match(promoteWorkflow, /release-candidate-record-\$\{\{ inputs\.opl_version \}\}/);
   assert.match(promoteWorkflow, /npm run release:candidate-record:validate/);
   assert.match(promoteWorkflow, /release-candidate-record-input\/release-candidate-record\.json/);

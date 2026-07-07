@@ -126,6 +126,20 @@ function writeCloseoutArtifacts(root: string, version = '26.5.99', options: {
       promote_command: `gh release edit v${version} --repo gaofeng21cn/one-person-lab-app --draft=false --latest`,
     },
   });
+  writeJson(path.join(root, `release-addon-readiness-summary-${version}`, 'release-addon-readiness-summary.json'), {
+    schema: 'opl_release_addon_readiness_summary.v1',
+    version,
+    release_mode: 'new_release',
+    job_results: {
+      'full-first-install': 'success',
+      'remote-verify-full': 'success',
+      'full-first-run-vm-smoke': 'success',
+      'docker-webui-smoke': 'success',
+      'webui-ghcr-publish': 'success',
+      'docker-webui-clean-vm-evidence': 'success',
+      'operator-evidence-bundle-validation': 'success',
+    },
+  });
 }
 
 test('release closeout separates workflow wall time from Agent orchestration wall time and avoids large artifacts', () => {
@@ -222,6 +236,9 @@ test('release closeout separates workflow wall time from Agent orchestration wal
   assert.equal(summary.run.timing.runner_execution_seconds, 1705);
   assert.equal(summary.clock_boundary.agent_orchestration_wall_time_seconds, 7603);
   assert.equal(summary.source_status.candidate_record, 'ready_to_promote');
+  assert.equal(summary.source_status.release_addon_readiness_summary, 'present');
+  assert.equal(summary.addon_readiness.status, 'present');
+  assert.equal(summary.addon_readiness.job_results['full-first-install'], 'success');
   assert.equal(summary.decision.next_action, 'promote_from_candidate_record');
   assert.equal(summary.artifact_policy.downloads_large_artifacts, false);
   assert.deepEqual(summary.artifact_policy.downloaded_artifacts, []);

@@ -676,6 +676,20 @@ test('release owner receipt verification rebuilds a promote-ready candidate reco
     verified_asset_count: 12,
     full_first_install_budget: { status: 'passed', full_dmg_size_bytes: 512 },
   });
+  writeJson(path.join(artifactsDir, 'release-addon-readiness-summary.json'), {
+    schema: 'opl_release_addon_readiness_summary.v1',
+    version: '26.5.99',
+    release_mode: 'refresh_existing',
+    job_results: {
+      'full-first-install': 'success',
+      'remote-verify-full': 'success',
+      'full-first-run-vm-smoke': 'success',
+      'docker-webui-smoke': 'success',
+      'webui-ghcr-publish': 'success',
+      'docker-webui-clean-vm-evidence': 'success',
+      'operator-evidence-bundle-validation': 'success',
+    },
+  });
   writeJson(ownerRecordPath, {
     schema: 'opl_app_release_owner_receipt_record.v1',
     owner: 'one-person-lab-app release owner',
@@ -723,6 +737,7 @@ test('release owner receipt verification rebuilds a promote-ready candidate reco
   assert.equal(summary.source_run_id, '12345');
   assert.equal(summary.validator.promote_ready, true);
   assert.equal(summary.validator.release_owner_verdict_status, 'release_owner_receipt_recorded');
+  assert.equal(summary.addon_readiness.status, 'verified');
   assert.equal(
     summary.validator.release_owner_receipt_ref,
     'release_owner_receipt_ref://one-person-lab-app/release-owner/v26.5.99/receipt-test',
@@ -734,6 +749,68 @@ test('release owner receipt verification rebuilds a promote-ready candidate reco
     JSON.parse(fs.readFileSync(summary.output_candidate_record, 'utf8')).status,
     'ready_to_promote',
   );
+});
+
+test('release owner receipt verification requires same-cohort add-on evidence when Full or Docker is in scope', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-owner-candidate-addon-'));
+  const artifactsDir = path.join(tempRoot, 'artifacts');
+  const outputDir = path.join(tempRoot, 'owner-validation');
+  const ownerRecordPath = path.join(tempRoot, 'v26.5.99-release-owner-receipt.json');
+
+  writeJson(path.join(artifactsDir, 'release-preflight-summary.json'), {
+    schema: 'opl_release_preflight.v1',
+    status: 'passed',
+  });
+  writeJson(path.join(artifactsDir, 'release-readiness-summary.json'), {
+    schema: 'opl_release_readiness_summary.v1',
+    status: 'passed',
+    version: '26.5.99',
+    failed_required_gates: [],
+    release_owner_verdict: releaseOwnerVerdict(),
+  });
+  writeJson(path.join(artifactsDir, 'remote-release-verification.json'), {
+    status: 'passed',
+    version: '26.5.99',
+    include_full_package: true,
+    verified_asset_count: 12,
+  });
+  writeJson(ownerRecordPath, {
+    schema: 'opl_app_release_owner_receipt_record.v1',
+    owner: 'one-person-lab-app release owner',
+    scope: 'same_cohort_app_release_user_path_owner_verdict',
+    status: 'release_owner_receipt_recorded',
+    version: '26.5.99',
+    tag: 'v26.5.99',
+    channel: 'stable',
+    release_owner_receipt_ref:
+      'release_owner_receipt_ref://one-person-lab-app/release-owner/v26.5.99/receipt-test',
+    release_ready_claim: false,
+    stable_latest_promotion_claim: false,
+    family_production_ready_claim: false,
+    source_artifact_readback: {
+      source_run_id: '12345',
+      app_commit: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    },
+    authority_boundary: {
+      can_claim_app_release_ready_from_evidence: false,
+      can_claim_stable_latest_from_evidence: false,
+      can_claim_family_production_ready: false,
+    },
+  });
+
+  const result = runReleaseOwnerCandidateVerifier([
+    '--version',
+    '26.5.99',
+    '--owner-record',
+    ownerRecordPath,
+    '--artifacts-dir',
+    artifactsDir,
+    '--output-dir',
+    outputDir,
+  ]);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /Missing release-addon-readiness-summary\.json/);
 });
 
 test('release candidate record blocks promotion when a required gate fails', () => {

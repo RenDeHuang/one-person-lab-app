@@ -1070,9 +1070,12 @@ until the promote workflow consumes a valid `ready_to_promote` candidate record.
 After an App release-owner receipt is recorded, use
 `npm run release:owner-candidate-record:verify` with the ignored small
 release-closeout artifacts to rebuild and validate the post-owner candidate
-record. This verifies the owner-resolution ref path only; it does not publish
-the release, mutate updater metadata, or claim App release ready / OPL family
-production ready.
+record. When Full or Docker/WebUI evidence is in scope, this verification must
+also read `release-addon-readiness-summary-<version>` and require the same-cohort
+Full, Docker/WebUI, GHCR, clean-VM, and operator-evidence add-on jobs that the
+owner receipt reviewed. This verifies the owner-resolution ref path and reviewed
+add-on evidence only; it does not publish the release, mutate updater metadata,
+or claim App release ready / OPL family production ready.
 
 When a desktop release run has already produced complete same-cohort evidence
 and is blocked only by the release-owner resolution ref, pass

@@ -19,6 +19,7 @@ type Options = {
   releaseMode: string;
   includeFullPackage: boolean;
   runVmSmoke: boolean;
+  requireDockerWebui: boolean;
 };
 
 function parseArgs(argv: string[]): Options {
@@ -30,6 +31,7 @@ function parseArgs(argv: string[]): Options {
     releaseMode: process.env.OPL_RELEASE_MODE || 'refresh_existing',
     includeFullPackage: parseStrictBoolean(process.env.OPL_INCLUDE_FULL_PACKAGE, true),
     runVmSmoke: parseStrictBoolean(process.env.OPL_RUN_VM_SMOKE, true),
+    requireDockerWebui: parseStrictBoolean(process.env.OPL_REQUIRE_DOCKER_WEBUI, true),
   };
 
   const { values } = parseNodeArgs({
@@ -42,6 +44,7 @@ function parseArgs(argv: string[]): Options {
       'release-mode': { type: 'string' },
       'include-full-package': { type: 'string' },
       'run-vm-smoke': { type: 'string' },
+      'require-docker-webui': { type: 'string' },
     },
   });
   parsed.version = values.version ?? parsed.version;
@@ -54,6 +57,9 @@ function parseArgs(argv: string[]): Options {
   }
   if (values['run-vm-smoke'] !== undefined) {
     parsed.runVmSmoke = parseStrictBoolean(values['run-vm-smoke']);
+  }
+  if (values['require-docker-webui'] !== undefined) {
+    parsed.requireDockerWebui = parseStrictBoolean(values['require-docker-webui']);
   }
 
   if (!parsed.version.trim()) throw new Error('Pass --version <version> or set OPL_RELEASE_VERSION.');
@@ -140,6 +146,10 @@ function requiredArtifactPath(root: string, fileName: string) {
   return found;
 }
 
+function optionalArtifactPath(root: string, fileName: string) {
+  return findFileByName(root, fileName);
+}
+
 function runNodeScript(args: string[]) {
   const result = spawnSync(process.execPath, ['--experimental-strip-types', ...args], {
     cwd: appRoot,
@@ -159,7 +169,26 @@ try {
   const preflightPath = requiredArtifactPath(options.artifactsDir, 'release-preflight-summary.json');
   const readinessPath = requiredArtifactPath(options.artifactsDir, 'release-readiness-summary.json');
   const remotePath = requiredArtifactPath(options.artifactsDir, 'remote-release-verification.json');
+  const addonReadinessPath = optionalArtifactPath(options.artifactsDir, 'release-addon-readiness-summary.json');
   fs.mkdirSync(options.outputDir, { recursive: true });
+  const addonReadiness = addonReadinessPath
+    ? runNodeScript([
+      'scripts/validate-release-addon-readiness.ts',
+      '--version',
+      options.version,
+      '--record',
+      addonReadinessPath,
+      '--include-full-package',
+      String(options.includeFullPackage),
+      '--run-vm-smoke',
+      String(options.runVmSmoke),
+      '--require-docker-webui',
+      String(options.requireDockerWebui),
+    ])
+    : null;
+  if (!addonReadiness && (options.includeFullPackage || options.requireDockerWebui)) {
+    throw new Error('Missing release-addon-readiness-summary.json under artifacts dir.');
+  }
 
   const candidateRecordPath = path.join(options.outputDir, 'release-candidate-record.json');
   const candidateMarkdownPath = path.join(options.outputDir, 'release-candidate-record.md');
@@ -215,7 +244,9 @@ try {
       preflight: preflightPath,
       readiness: readinessPath,
       remote_verification: remotePath,
+      addon_readiness: addonReadinessPath,
     },
+    addon_readiness: addonReadiness,
     validator,
     authority_boundary: {
       ...owner.authorityBoundary,

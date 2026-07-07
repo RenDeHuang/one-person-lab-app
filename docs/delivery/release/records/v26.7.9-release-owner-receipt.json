@@ -1,0 +1,152 @@
+{
+  "schema": "opl_app_release_owner_receipt_record.v1",
+  "owner": "one-person-lab-app release owner",
+  "scope": "same_cohort_app_release_user_path_owner_verdict",
+  "status": "release_owner_receipt_recorded",
+  "version": "26.7.9",
+  "tag": "v26.7.9",
+  "channel": "stable",
+  "release_owner_receipt_ref": "release_owner_receipt_ref://one-person-lab-app/release-owner/v26.7.9/receipt-20260707-owner-verdict",
+  "release_owner_verdict_ref": null,
+  "supersedes_typed_blocker_ref": "typed_blocker_ref://one-person-lab-app/release-owner/v26.7.9/verdict-pending",
+  "release_candidate_promote_ready": true,
+  "release_ready_claim": false,
+  "stable_latest_promotion_claim": false,
+  "family_production_ready_claim": false,
+  "can_close_opl_app_release_user_path": true,
+  "reason": "App release owner reviewed same-cohort v26.7.9 new_release evidence from GitHub Actions release run 28885062658: release preflight, standard remote verification, standard clean-VM first launch, one-shot installer, Full remote verification, Full clean-VM first launch, Docker/WebUI smoke, GHCR publish, Docker/WebUI clean-VM evidence, and operator evidence validation. This receipt authorizes the App release-owner resolution ref path for candidate promotion validation; it does not claim App release-ready from evidence alone, stable/latest publication before promote workflow readback, OPL family production readiness, domain readiness, domain quality/export readiness, or any domain owner receipt.",
+  "evidence_refs": [
+    "github_actions_run_ref://gaofeng21cn/one-person-lab-app/actions/runs/28885062658",
+    "github_release_ref://gaofeng21cn/one-person-lab-app/releases/tag/v26.7.9",
+    "release_candidate_record_ref://one-person-lab-app/v26.7.9/run/28885062658",
+    "release_readiness_summary_ref://one-person-lab-app/v26.7.9/run/28885062658",
+    "release_addon_readiness_summary_ref://one-person-lab-app/v26.7.9/run/28885062658",
+    "release_preflight_summary_ref://one-person-lab-app/v26.7.9/run/28885062658",
+    "remote_release_verification_ref://one-person-lab-app/v26.7.9/run/28885062658",
+    "operator_evidence_bundle_ref://one-person-lab-app/v26.7.9/run/28885062658",
+    "install_evidence_ref://one-person-lab-app/release-owner/v26.7.9/install-evidence"
+  ],
+  "source_artifact_readback": {
+    "source_run_id": "28885062658",
+    "source_run_url": "https://github.com/gaofeng21cn/one-person-lab-app/actions/runs/28885062658",
+    "app_commit": "206f934fb2057555246bfca078863e73eb7ef97b",
+    "shell_ref": "11e26a30c73ef965d2c53b7bd6ab69de25e5d397",
+    "framework_ref": "9fb432a7d8b48bdddea93908babc2d74458f1f85",
+    "release_candidate_record_artifact": "release-candidate-record-26.7.9",
+    "release_readiness_summary_artifact": "release-readiness-summary-26.7.9",
+    "release_addon_readiness_summary_artifact": "release-addon-readiness-summary-26.7.9",
+    "release_preflight_summary_artifact": "release-preflight-summary-26.7.9",
+    "remote_release_verification_artifact": "remote-release-verification-26.7.9",
+    "release_evidence_bundle_artifact": "release-evidence-bundle-26.7.9",
+    "source_sha256": {
+      "release_candidate_record_json": "9fa0ccdebc6d63cac277adff69dd57bf1ed09aa95e746d456375a9c82c794a84",
+      "release_readiness_summary_json": "0d8ced3183018b2c0d41717a1dbcf33a56fe768ab3d7ffb2df9ae92aa4f14dba",
+      "release_addon_readiness_summary_json": "d76d02ba5fced383cafb71608ebcdf54fc3dc001588303a601cf2916b11bea37",
+      "release_preflight_summary_json": "659b8db5cdc7181e75350629e818302e4a908c7d5061d3f274b1bc2bc96bf06c",
+      "remote_release_verification_json": "aa2d932974eb982735a102df894ec2c957d8b381879f06705c1849d339d2b92b"
+    },
+    "source_status": {
+      "desktop_release_run": "success",
+      "preflight": "passed",
+      "standard_readiness": "passed",
+      "standard_remote_verification": "passed",
+      "full_remote_verification": "passed",
+      "addon_readiness": "passed",
+      "operator_evidence_bundle_validation": "passed"
+    },
+    "job_results": {
+      "remote-verify-standard": "success",
+      "standard-first-run-vm-smoke-after-standard-only": "success",
+      "standard-first-run-vm-smoke-after-full": "success",
+      "standard-vm-smoke-gate-after-full": "success",
+      "one-shot-app-installer-smoke": "success",
+      "release-readiness-admission": "success",
+      "full-first-install": "success",
+      "remote-verify-full": "success",
+      "full-first-run-vm-smoke": "success",
+      "docker-webui-smoke": "success",
+      "webui-ghcr-publish": "success",
+      "docker-webui-clean-vm-evidence": "success",
+      "operator-evidence-bundle-validation": "success",
+      "stable-homebrew-tap-update": "skipped_for_draft_candidate_before_promote",
+      "full-homebrew-tap-update": "skipped_for_draft_candidate_before_promote",
+      "homebrew-standard-first-run-vm-smoke": "skipped_for_draft_candidate_before_promote"
+    },
+    "release_readiness_failed_required_gate_count": 0,
+    "remote_verified_asset_count": 7,
+    "include_full_package": true,
+    "standard_clean_vm_status": "passed",
+    "full_clean_vm_status": "passed",
+    "one_shot_app_installer_status": "passed",
+    "operator_evidence_bundle_status": "passed",
+    "docker_webui_status": "passed",
+    "webui_ghcr_publish_status": "passed",
+    "docker_webui_clean_vm_evidence_status": "passed",
+    "homebrew_standard_cask_clean_vm_status": "not_run_before_promote",
+    "standard_homebrew_tap_update_status": "not_run_before_promote",
+    "full_homebrew_tap_update_status": "not_run_before_promote",
+    "full_first_install_budget_status": "passed",
+    "full_dmg_size_status": "warning",
+    "full_dmg_size_bytes": 814756743,
+    "runtime_uncompressed_bytes": 738953087
+  },
+  "remote_release_asset_readback": {
+    "release_url": "https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/v26.7.9",
+    "release_state_before_promotion": {
+      "is_draft": true,
+      "is_prerelease": false,
+      "published_at": null
+    },
+    "standard_dmg": {
+      "name": "One-Person-Lab-26.7.9-mac-arm64.dmg",
+      "size": 382417842,
+      "sha256": "a7d9ae4be6c6a68397e08a7a62490d3002d4c7c305e2243458ce6558e995fc7a"
+    },
+    "standard_zip": {
+      "name": "One-Person-Lab-26.7.9-mac-arm64.zip",
+      "size": 395696289,
+      "sha256": "067c8fd7eeed5dd1aebe7f93b3f60b4d5665cb6a3978fded9f9f6f4402c9c96c"
+    },
+    "standard_blockmap": {
+      "name": "One-Person-Lab-26.7.9-mac-arm64.zip.blockmap",
+      "size": 409245,
+      "sha256": "08fcbae58dc3b4ade5497dd35a8dde1b88ba79af5925e409d1c62a04167b0944"
+    },
+    "standard_updater_metadata": {
+      "latest_arm64_mac_yml_sha256": "c858a6efc00833c42bda6b623925841b41eb8066ed26f88ed3684b89b352e093"
+    },
+    "standard_local_authorization_policy": {
+      "name": "standard-local-authorization-policy.json",
+      "size": 921,
+      "sha256": "fcae52bc13b9577fbf65d942a3d79349b0b24aa20fc1406d298d5498c25ef8cd"
+    },
+    "full_dmg": {
+      "name": "One-Person-Lab-Full-26.7.9-mac-arm64.dmg",
+      "size": 814756743,
+      "sha256": "f0e5f7005db49eaa5c045ce6247ce2587474576da4cabe4daaa7401f7a866704"
+    },
+    "release_manifest": {
+      "name": "opl-release-manifest.json",
+      "size": 91433,
+      "sha256": "203dfa5ce6649ae5eb943f42bdf9f53427ba93eca03586c2056953c3a01dd1de"
+    }
+  },
+  "owner_resolution_validation": {
+    "validator_command": "npm run release:owner-candidate-record:verify -- --version 26.7.9 --owner-record docs/delivery/release/records/v26.7.9-release-owner-receipt.json --artifacts-dir artifacts/release-closeout/v26.7.9-28885062658/artifacts --output-dir artifacts/release-owner-validation/v26.7.9-28885062658 --release-mode new_release --include-full-package true --run-vm-smoke true --require-docker-webui true",
+    "release_candidate_status": "pending_validation",
+    "release_candidate_validator_promote_ready": null,
+    "release_owner_verdict_status": "release_owner_receipt_recorded",
+    "release_owner_resolution_ref_present": true,
+    "validator_errors": []
+  },
+  "candidate_record_rebuild_command": "node --experimental-strip-types scripts/resolve-release-owner-candidate-record.ts --candidate-record <release-candidate-record.json> --preflight <release-preflight-summary.json> --readiness <release-readiness-summary.json> --remote-verification <remote-release-verification.json> --release-owner-receipt-ref release_owner_receipt_ref://one-person-lab-app/release-owner/v26.7.9/receipt-20260707-owner-verdict --output <release-candidate-record.json>",
+  "authority_boundary": {
+    "can_claim_app_release_ready_from_evidence": false,
+    "can_claim_stable_latest_from_evidence": false,
+    "can_claim_family_production_ready": false,
+    "can_write_domain_truth": false,
+    "can_sign_domain_owner_receipt": false,
+    "can_claim_domain_ready": false,
+    "can_claim_quality_or_export_ready": false
+  }
+}
