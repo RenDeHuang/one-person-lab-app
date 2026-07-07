@@ -3,8 +3,8 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { createGuideScriptHelpers } from './guide-script-helpers.ts';
 
 type GuideManifest = {
   schema: string;
@@ -72,6 +72,7 @@ type ScreenshotManifest = {
 };
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const { run, relativeToApp, readJson } = createGuideScriptHelpers(appRoot);
 const guideId = process.argv[2];
 const manifestFileName = process.argv[3] ?? `${guideId}.guide.json`;
 
@@ -94,31 +95,6 @@ const forbiddenSecretPatterns = [
   /OPL_CODEX_API_KEY\s*=\s*[^`\s]+/,
   /opl-first-run-smoke-guide-key/,
 ];
-
-function run(command: string, args: string[], options: { cwd?: string; env?: NodeJS.ProcessEnv } = {}) {
-  const result = spawnSync(command, args, {
-    cwd: options.cwd ?? appRoot,
-    encoding: 'utf8',
-    stdio: 'pipe',
-    env: options.env ?? process.env,
-  });
-  if (result.status !== 0) {
-    throw new Error([
-      `Command failed: ${command} ${args.join(' ')}`,
-      result.stdout,
-      result.stderr,
-    ].filter(Boolean).join('\n'));
-  }
-  return result;
-}
-
-function relativeToApp(filePath: string) {
-  return path.relative(appRoot, filePath);
-}
-
-function readJson<T>(filePath: string): T {
-  return JSON.parse(fs.readFileSync(filePath, 'utf8')) as T;
-}
 
 function generatedLifecycleFrontMatter(manifest: GuideManifest) {
   return [
