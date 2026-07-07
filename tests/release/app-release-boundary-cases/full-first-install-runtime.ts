@@ -782,7 +782,8 @@ test('Full runtime pruning keeps macOS arm64 launch payloads without development
   assert.match(buildScript, /MACOS_ARM64_TEMPORAL_CORE_BRIDGE_TARGET = 'aarch64-apple-darwin'/);
   assert.match(buildScript, /pruneTemporalCoreBridgeReleases\(path\.join\(targetRoot, 'node_modules'\)\)/);
   assert.match(buildScript, /assertTemporalCoreBridgeMacosArm64Only\(path\.join\(runtimeRoot, 'opl', 'node_modules'\)\)/);
-  assert.match(buildScript, /runtimeAssertions: collectRuntimeAssertions\(runtimeRoot\)/);
+  assert.match(buildScript, /const runtimeAssertions = collectRuntimeAssertions\(runtimeRoot\)/);
+  assert.match(buildScript, /assertOfflineRequiredPayloadsPresent\(runtimeAssertions\)/);
   assert.match(buildScript, /prune_policy_hash: buildFullRuntimePrunePolicyHash\(\)/);
   assert.match(buildScript, /offline_required_payloads:/);
   assert.match(buildScript, /declared_pruned_paths:/);
@@ -938,6 +939,7 @@ test('Full App bundle staging trim removes non-runtime artifacts while preservin
 test('Full runtime node payload prunes package-only docs while preserving offline launch executables', async () => {
   const { copyNodeRuntimePayload } = await import('../../../scripts/build-full-first-install-package/filesystem.ts');
   const { collectRuntimeAssertions } = await import('../../../scripts/build-full-first-install-package/runtime-layers.ts');
+  const { writeFullRuntimeManifest } = await import('../../../scripts/build-full-first-install-package/manifest-checksum.ts');
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-full-node-prune-'));
   const sourceRoot = path.join(tempRoot, 'node-source');
   const targetRoot = path.join(tempRoot, 'runtime', 'node');
@@ -986,6 +988,14 @@ test('Full runtime node payload prunes package-only docs while preserving offlin
     writeFile(path.join(runtimeRoot, 'skills', skillId, 'SKILL.md'), '# skill\n');
   }
   writeFile(path.join(runtimeRoot, 'skills', 'superpowers', '.codex-plugin', 'plugin.json'), '{}\n');
+  for (const [modulePath, pluginId] of [
+    ['modules/mas', 'med-autoscience'],
+    ['modules/mag', 'med-autogrant'],
+    ['modules/rca', 'redcube-ai'],
+  ]) {
+    writeFile(path.join(runtimeRoot, modulePath, 'plugins', pluginId, '.codex-plugin', 'plugin.json'), '{}\n');
+    writeFile(path.join(runtimeRoot, modulePath, 'plugins', pluginId, 'skills', pluginId, 'SKILL.md'), '# skill\n');
+  }
 
   const assertions = collectRuntimeAssertions(runtimeRoot);
   assert.equal(assertions.prune_policy_id, 'full_runtime_offline_first_install_slim_v1');
@@ -1002,6 +1012,29 @@ test('Full runtime node payload prunes package-only docs while preserving offlin
   assert.equal(
     assertions.offline_required_payloads.find((entry) => entry.path === 'node/bin/npm')?.executable,
     true,
+  );
+  assert.equal(
+    assertions.offline_required_payloads.find(
+      (entry) => entry.path === 'modules/mag/plugins/med-autogrant/.codex-plugin/plugin.json',
+    )?.exists,
+    true,
+  );
+  assert.equal(
+    assertions.offline_required_payloads.find(
+      (entry) => entry.path === 'modules/mag/plugins/med-autogrant/skills/med-autogrant/SKILL.md',
+    )?.exists,
+    true,
+  );
+  assert.doesNotThrow(() =>
+    writeFullRuntimeManifest(runtimeRoot, { version: '26.7.7-test' }, '2026-07-07T00:00:00.000Z', {}, {}),
+  );
+  fs.rmSync(path.join(runtimeRoot, 'modules', 'mag', 'plugins', 'med-autogrant', '.codex-plugin'), {
+    recursive: true,
+    force: true,
+  });
+  assert.throws(
+    () => writeFullRuntimeManifest(runtimeRoot, { version: '26.7.7-test' }, '2026-07-07T00:00:00.000Z', {}, {}),
+    /modules\/mag\/plugins\/med-autogrant\/\.codex-plugin\/plugin\.json/,
   );
   assert.equal(
     assertions.declared_pruned_paths.find((entry) => entry.path === 'node/include')?.present,

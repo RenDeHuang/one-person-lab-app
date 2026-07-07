@@ -224,6 +224,19 @@ function runtimePayloadStatus(runtimeRoot, relativePath, options = {}) {
   };
 }
 
+const FULL_RUNTIME_DOMAIN_PLUGIN_PAYLOADS = [
+  { modulePath: 'modules/mas', pluginId: 'med-autoscience', skillId: 'med-autoscience' },
+  { modulePath: 'modules/mag', pluginId: 'med-autogrant', skillId: 'med-autogrant' },
+  { modulePath: 'modules/rca', pluginId: 'redcube-ai', skillId: 'redcube-ai' },
+];
+
+function domainPluginPayloadStatuses(runtimeRoot) {
+  return FULL_RUNTIME_DOMAIN_PLUGIN_PAYLOADS.flatMap(({ modulePath, pluginId, skillId }) => [
+    runtimePayloadStatus(runtimeRoot, `${modulePath}/plugins/${pluginId}/.codex-plugin/plugin.json`),
+    runtimePayloadStatus(runtimeRoot, `${modulePath}/plugins/${pluginId}/skills/${skillId}/SKILL.md`),
+  ]);
+}
+
 function listRuntimeRelativePaths(runtimeRoot) {
   if (!fs.existsSync(runtimeRoot)) return [];
   const paths = [];
@@ -292,6 +305,7 @@ export function collectRuntimeAssertions(runtimeRoot) {
       runtimePayloadStatus(runtimeRoot, 'skills/redcube-ai/SKILL.md'),
       runtimePayloadStatus(runtimeRoot, 'skills/opl-bookforge/SKILL.md'),
       runtimePayloadStatus(runtimeRoot, 'skills/superpowers/.codex-plugin/plugin.json'),
+      ...domainPluginPayloadStatuses(runtimeRoot),
     ],
     declared_pruned_paths: declaredPrunedPathAssertions(runtimeRoot),
   };

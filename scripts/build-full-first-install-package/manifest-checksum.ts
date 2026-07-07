@@ -163,31 +163,54 @@ export function writeJsonFile(filePath, value) {
   fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
 }
 
+function assertOfflineRequiredPayloadsPresent(runtimeAssertions) {
+  const missingPayloads = (runtimeAssertions.offline_required_payloads ?? []).filter((entry) => {
+    if (entry.exists !== true) return true;
+    return Object.prototype.hasOwnProperty.call(entry, 'executable') && entry.executable !== true;
+  });
+  if (missingPayloads.length > 0) {
+    throw new Error(
+      [
+        'Full runtime package is missing required offline payload(s):',
+        ...missingPayloads.map((entry) =>
+          Object.prototype.hasOwnProperty.call(entry, 'executable') && entry.executable !== true
+            ? `  - ${entry.path} (not executable)`
+            : `  - ${entry.path}`,
+        ),
+      ].join('\n'),
+    );
+  }
+}
+
 export function writeFullRuntimeManifest(runtimeRoot, options, packagedAt, components, resolvedRefs, optionalComponents = {}, nativeTrust = undefined) {
   const manifestDir = path.join(runtimeRoot, 'manifest');
   const manifestPath = path.join(manifestDir, 'full-package-manifest.json');
   fs.mkdirSync(manifestDir, { recursive: true });
 
+  const runtimeAssertions = collectRuntimeAssertions(runtimeRoot);
+  assertOfflineRequiredPayloadsPresent(runtimeAssertions);
   let manifest = buildFullPackageManifest({
     version: options.version,
     generatedAt: packagedAt,
     components,
     optionalComponents,
     resolvedRefs,
-    runtimeAssertions: collectRuntimeAssertions(runtimeRoot),
+    runtimeAssertions,
     nativeTrust,
   });
 
   for (let attempt = 0; attempt < 8; attempt += 1) {
     fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
     const sizeBreakdown = collectFullRuntimeSizeBreakdown(runtimeRoot);
+    const nextRuntimeAssertions = collectRuntimeAssertions(runtimeRoot);
+    assertOfflineRequiredPayloadsPresent(nextRuntimeAssertions);
     const nextManifest = buildFullPackageManifest({
       version: options.version,
       generatedAt: packagedAt,
       components,
       optionalComponents,
       resolvedRefs,
-      runtimeAssertions: collectRuntimeAssertions(runtimeRoot),
+      runtimeAssertions: nextRuntimeAssertions,
       nativeTrust,
       sizeBreakdown,
     });
