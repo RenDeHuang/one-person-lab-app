@@ -55,7 +55,7 @@ test('runtime substrate and companion tools are separate App-owned managed chann
   assert.equal(runtimeUpdater.brand_name, 'OPL Runtime Fabric');
   assert.equal(
     runtimeUpdater.brand_role,
-    'shared runtime fabric for OPL capability modules, not a MAS/MAG/RCA/OMA/OBF/ScholarSkills brand module',
+    'shared runtime fabric for OPL capability modules, not a MAS/MAG/RCA/OMA/OBF/MAS Scholar Skills brand module',
   );
   assert.equal(runtimeUpdater.channel_manifest_asset, 'app-runtime-update-channel.json');
   assert.equal(runtimeUpdater.standard_updater_metadata_allowed, false);
@@ -452,7 +452,7 @@ test('OPL Packages stay the capability package layer with Codex Surface as subst
     'redcube-ai',
     'opl-meta-agent',
     'opl-bookforge',
-    'scholarskills',
+    'mas-scholar-skills',
   ]);
   assert.deepEqual(plane.capability_packages.package_ids, [
     'med-autoscience',
@@ -460,7 +460,7 @@ test('OPL Packages stay the capability package layer with Codex Surface as subst
     'redcube-ai',
     'opl-meta-agent',
     'opl-bookforge',
-    'scholarskills',
+    'mas-scholar-skills',
     'opl-flow',
   ]);
   assert.equal(plane.capability_packages.package_kinds['opl-flow'], 'workflow_plugin_package');

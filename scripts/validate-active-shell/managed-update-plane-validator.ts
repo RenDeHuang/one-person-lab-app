@@ -95,7 +95,7 @@ function validateReleaseRuntimeToolchainChannelPolicy(runtimeUpdater) {
     runtimeUpdater?.owner !== 'one-person-lab-app' ||
     runtimeUpdater?.role !== 'app_owned_runtime_substrate_layer_updates' ||
     runtimeUpdater?.brand_name !== 'OPL Runtime Fabric' ||
-    runtimeUpdater?.brand_role !== 'shared runtime fabric for OPL capability modules, not a MAS/MAG/RCA/OMA/OBF/ScholarSkills brand module' ||
+    runtimeUpdater?.brand_role !== 'shared runtime fabric for OPL capability modules, not a MAS/MAG/RCA/OMA/OBF/MAS Scholar Skills brand module' ||
     runtimeUpdater?.channel_manifest_asset !== 'app-runtime-update-channel.json' ||
     runtimeUpdater?.transport !== 'app_owned_github_release_assets' ||
     runtimeUpdater?.standard_updater_metadata_allowed !== false ||
@@ -626,7 +626,7 @@ function validateManagedUpdateAgentPackageLane(agentPlane, capabilityPlane, agen
         'sync_plugin_packaged_skills',
         'sync_oma_generated_plugin_surface',
         'sync_bookforge_generated_plugin_surface',
-        'sync_scholarskills_package_surface',
+        'sync_mas_scholar_skills_package_surface',
         'codex_surface_readiness',
       ],
       reload_guidance: 'reload_app_and_codex_plugin_cache_when_post_apply_sync_changes_visible_plugin_or_skill_surface',
@@ -643,7 +643,7 @@ function validateManagedUpdateAgentPackageLane(agentPlane, capabilityPlane, agen
   );
   assertDeepEqualJson(
     agentPlane?.package_agent_ids,
-    ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-meta-agent', 'opl-bookforge', 'scholarskills'],
+    ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-meta-agent', 'opl-bookforge', 'mas-scholar-skills'],
     'Managed update plane agent package ids',
   );
   assertDeepEqualJson(agentPlane?.package_ids, managedOplPackageIds, 'Managed update plane OPL package ids');
@@ -691,7 +691,7 @@ function validateManagedUpdateAgentPackageLane(agentPlane, capabilityPlane, agen
   );
   assertDeepEqualJson(
     agentPackageChannel?.package_agent_ids,
-    ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-meta-agent', 'opl-bookforge', 'scholarskills'],
+    ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-meta-agent', 'opl-bookforge', 'mas-scholar-skills'],
     'Managed update plane OPL Packages package ids',
   );
   assertDeepEqualJson(agentPackageChannel?.package_ids, managedOplPackageIds, 'Managed update plane OPL Packages package ids');
@@ -938,7 +938,7 @@ export function validateEnvironmentModuleMaintenanceEntry(entry, label) {
   }
   assertIncludesAll(
     entry?.required_modules,
-    ['MAS', 'MAG', 'RCA', 'OMA', 'OBF', 'ScholarSkills'],
+    ['MAS', 'MAG', 'RCA', 'OMA', 'OBF', 'MAS Scholar Skills'],
     `${label} module maintenance modules`,
   );
   assertIncludesAll(

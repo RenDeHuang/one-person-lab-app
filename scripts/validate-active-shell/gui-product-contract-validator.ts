@@ -774,7 +774,7 @@ function validateFrameworkModuleMaintenanceEntry(entry) {
   }
   assertIncludesAll(
     entry?.must_include_modules,
-    ['MAS', 'MAG', 'RCA', 'OMA', 'OBF', 'ScholarSkills'],
+    ['MAS', 'MAG', 'RCA', 'OMA', 'OBF', 'MAS Scholar Skills'],
     'App GUI framework module maintenance modules',
   );
   assertDeepEqualJson(

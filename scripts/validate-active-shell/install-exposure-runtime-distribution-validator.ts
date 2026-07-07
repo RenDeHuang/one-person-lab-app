@@ -106,7 +106,7 @@ function validateRuntimeSubstrateAutoUpdate(runtimeUpdate) {
     runtimeUpdate?.owner !== 'one-person-lab-app' ||
     runtimeUpdate?.producer_owner !== 'one-person-lab' ||
     runtimeUpdate?.brand_name !== 'OPL Runtime Fabric' ||
-    runtimeUpdate?.brand_role !== 'shared runtime fabric for OPL capability modules, not a MAS/MAG/RCA/OMA/OBF/ScholarSkills brand module' ||
+    runtimeUpdate?.brand_role !== 'shared runtime fabric for OPL capability modules, not a MAS/MAG/RCA/OMA/OBF/MAS Scholar Skills brand module' ||
     runtimeUpdate?.framework_role !== 'apply_verified_staged_runtime_during_startup_maintenance' ||
     runtimeUpdate?.entrypoint !== 'opl system startup-maintenance' ||
     runtimeUpdate?.ready_to_launch_blocking !== false ||
@@ -296,7 +296,7 @@ function validateHomebrewAgentPackPolicy(homebrew) {
   }
   assertIncludesAll(
     homebrew.agent_pack_policy?.managed_agent_ids,
-    ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-meta-agent', 'opl-bookforge', 'scholarskills'],
+    ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-meta-agent', 'opl-bookforge', 'mas-scholar-skills'],
     'Install exposure Homebrew managed agent ids',
   );
   assertDeepEqualJson(
@@ -348,7 +348,7 @@ function validateManagedAgentPackDistribution(modulePackageDistribution) {
   );
   assertIncludesAll(
     modulePackageDistribution.package_agent_ids,
-    ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-meta-agent', 'opl-bookforge', 'scholarskills'],
+    ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-meta-agent', 'opl-bookforge', 'mas-scholar-skills'],
     'Install exposure capability package distribution agent ids',
   );
   assertDeepEqualJson(

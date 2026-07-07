@@ -182,7 +182,7 @@ function validateReleaseHomebrewAgentPackPolicy(homebrew, managedUpdatePlane) {
   );
   assertDeepEqualJson(
     agentPack?.managed_agent_ids,
-    ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-meta-agent', 'opl-bookforge', 'scholarskills'],
+    ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-meta-agent', 'opl-bookforge', 'mas-scholar-skills'],
     'Release channel managed update agent ids',
   );
   assertDeepEqualJson(agentPack?.package_ids, managedOplPackageIds, 'Release channel managed OPL package ids');

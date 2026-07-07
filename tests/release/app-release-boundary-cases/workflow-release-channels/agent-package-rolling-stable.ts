@@ -30,7 +30,7 @@ const expectedAgentIds = [
   'redcube-ai',
   'opl-meta-agent',
   'opl-bookforge',
-  'scholarskills',
+  'mas-scholar-skills',
 ];
 const expectedPackageIds = [...expectedAgentIds, 'opl-flow'];
 

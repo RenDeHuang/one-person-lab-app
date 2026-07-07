@@ -227,7 +227,7 @@ OPL Framework owns producing and applying it:
     "research-starter",
     "research-starter-required-skills"
   ],
-  "optional_skill_refs": ["opl-scholarskills:display"],
+  "optional_skill_refs": ["mas-scholar-skills:display"],
   "source_kind": "first_party_managed_cohort",
   "trust_tier": "first_party",
   "action_receipt_id": "opl-action-receipt-ref",

@@ -621,7 +621,7 @@
         "redcube-ai",
         "opl-meta-agent",
         "opl-bookforge",
-        "scholarskills"
+        "mas-scholar-skills"
       ],
       "package_ids": [
         "med-autoscience",
@@ -629,7 +629,7 @@
         "redcube-ai",
         "opl-meta-agent",
         "opl-bookforge",
-        "scholarskills",
+        "mas-scholar-skills",
         "opl-flow"
       ],
       "package_kinds": {
@@ -638,7 +638,7 @@
         "redcube-ai": "domain_agent_package",
         "opl-meta-agent": "domain_agent_package",
         "opl-bookforge": "domain_agent_package",
-        "scholarskills": "framework_capability_package",
+        "mas-scholar-skills": "framework_capability_package",
         "opl-flow": "workflow_plugin_package"
       },
       "opl_flow_package": {
@@ -2899,7 +2899,7 @@
           "redcube-ai",
           "opl-meta-agent",
           "opl-bookforge",
-          "scholarskills"
+          "mas-scholar-skills"
         ],
         "package_ids": [
           "med-autoscience",
@@ -2907,7 +2907,7 @@
           "redcube-ai",
           "opl-meta-agent",
           "opl-bookforge",
-          "scholarskills",
+          "mas-scholar-skills",
           "opl-flow"
         ],
         "package_kinds": {
@@ -2916,7 +2916,7 @@
           "redcube-ai": "domain_agent_package",
           "opl-meta-agent": "domain_agent_package",
           "opl-bookforge": "domain_agent_package",
-          "scholarskills": "framework_capability_package",
+          "mas-scholar-skills": "framework_capability_package",
           "opl-flow": "workflow_plugin_package"
         },
         "opl_flow_package": {
@@ -2962,7 +2962,7 @@
             "sync_plugin_packaged_skills",
             "sync_oma_generated_plugin_surface",
             "sync_bookforge_generated_plugin_surface",
-            "sync_scholarskills_package_surface",
+            "sync_mas_scholar_skills_package_surface",
             "codex_surface_readiness"
           ],
           "reload_guidance": "reload_app_and_codex_plugin_cache_when_post_apply_sync_changes_visible_plugin_or_skill_surface",
@@ -3237,7 +3237,7 @@
         "redcube-ai",
         "opl-meta-agent",
         "opl-bookforge",
-        "scholarskills"
+        "mas-scholar-skills"
       ],
       "package_ids": [
         "med-autoscience",
@@ -3245,7 +3245,7 @@
         "redcube-ai",
         "opl-meta-agent",
         "opl-bookforge",
-        "scholarskills",
+        "mas-scholar-skills",
         "opl-flow"
       ],
       "package_kinds": {
@@ -3254,7 +3254,7 @@
         "redcube-ai": "domain_agent_package",
         "opl-meta-agent": "domain_agent_package",
         "opl-bookforge": "domain_agent_package",
-        "scholarskills": "framework_capability_package",
+        "mas-scholar-skills": "framework_capability_package",
         "opl-flow": "workflow_plugin_package"
       },
       "opl_flow_package": {
@@ -3338,7 +3338,7 @@
     "owner": "one-person-lab-app",
     "role": "app_owned_runtime_substrate_layer_updates",
     "brand_name": "OPL Runtime Fabric",
-    "brand_role": "shared runtime fabric for OPL capability modules, not a MAS/MAG/RCA/OMA/OBF/ScholarSkills brand module",
+    "brand_role": "shared runtime fabric for OPL capability modules, not a MAS/MAG/RCA/OMA/OBF/MAS Scholar Skills brand module",
     "channel_manifest_asset": "app-runtime-update-channel.json",
     "transport": "app_owned_github_release_assets",
     "standard_updater_metadata_allowed": false,

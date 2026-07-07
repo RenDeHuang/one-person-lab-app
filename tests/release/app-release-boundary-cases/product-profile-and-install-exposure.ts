@@ -928,7 +928,7 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
     'redcube-ai',
     'opl-meta-agent',
     'opl-bookforge',
-    'scholarskills',
+    'mas-scholar-skills',
   ]);
   assert.deepEqual(policy.agent_installation_contract.default_plugin_agent_ids, ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge']);
   assert.deepEqual(policy.agent_installation_contract.generated_plugin_agent_ids, ['opl-meta-agent', 'opl-bookforge']);
@@ -946,7 +946,7 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
     'redcube-ai',
     'opl-meta-agent',
     'opl-bookforge',
-    'scholarskills',
+    'mas-scholar-skills',
   ]);
   assert.deepEqual(policy.agent_installation_contract.non_module_workflow_plugin_ids, ['opl-flow']);
   assert.deepEqual(policy.agent_installation_contract.agent_registry_policy, {
@@ -1159,7 +1159,7 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
     'redcube-ai',
     'opl-meta-agent',
     'opl-bookforge',
-    'scholarskills',
+    'mas-scholar-skills',
   ]);
   assert.deepEqual(policy.agent_installation_contract.atomic_bundle_policy.package_unit_includes, [
     'plugin_manifest',
@@ -1226,7 +1226,7 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
     'redcube-ai',
     'opl-meta-agent',
     'opl-bookforge',
-    'scholarskills',
+    'mas-scholar-skills',
   ]);
   assert.deepEqual(policy.agent_installation_contract.managed_agent_pack_distribution.package_ids, [
     'med-autoscience',
@@ -1234,7 +1234,7 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
     'redcube-ai',
     'opl-meta-agent',
     'opl-bookforge',
-    'scholarskills',
+    'mas-scholar-skills',
     'opl-flow',
   ]);
   assert.equal(
@@ -1351,7 +1351,7 @@ test('runtime substrate auto-update stays silent and does not mutate global tool
   assert.equal(runtimeUpdate.brand_name, 'OPL Runtime Fabric');
   assert.equal(
     runtimeUpdate.brand_role,
-    'shared runtime fabric for OPL capability modules, not a MAS/MAG/RCA/OMA/OBF/ScholarSkills brand module',
+    'shared runtime fabric for OPL capability modules, not a MAS/MAG/RCA/OMA/OBF/MAS Scholar Skills brand module',
   );
   assert.equal(runtimeUpdate.entrypoint, 'opl system startup-maintenance');
   assert.equal(runtimeUpdate.ready_to_launch_blocking, false);
@@ -1445,7 +1445,7 @@ test('Homebrew distribution channel is transport-only and keeps OPL activation a
     'redcube-ai',
     'opl-meta-agent',
     'opl-bookforge',
-    'scholarskills',
+    'mas-scholar-skills',
   ]);
   assert.equal(homebrew.agent_pack_policy.homebrew_distribution_allowed, false);
   assert.equal(homebrew.agent_pack_policy.user_visible_formula_allowed, false);

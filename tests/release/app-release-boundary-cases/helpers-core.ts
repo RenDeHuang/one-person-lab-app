@@ -287,7 +287,7 @@ export const expectedSettingsPageSections = {
       "OPL Packages Codex Surface sync substatus",
       "user-facing OPL Packages maintenance entry under Local Environment",
       "OBF module maintenance status alongside MAS/MAG/RCA/OMA",
-      "ScholarSkills module maintenance status alongside MAS/MAG/RCA/OMA/OBF",
+      "MAS Scholar Skills module maintenance status alongside MAS/MAG/RCA/OMA/OBF",
       "OPL Packages state, Codex Surface substatus, and recommended action",
       "manual check/apply/repair/rollback mappings through opl update or App action routes",
       "health summary for whether the local App foundation can run now",
