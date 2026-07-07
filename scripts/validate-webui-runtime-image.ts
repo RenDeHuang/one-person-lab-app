@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import fs from 'node:fs';
-import { applyStringOptionArg } from './cli-option-args.ts';
+import { parseArgs as parseNodeArgs } from 'node:util';
 import { asRecord, readJsonFile } from './release-json-helpers.ts';
 
 type Args = {
@@ -13,40 +13,29 @@ type Args = {
 };
 
 function parseArgs(): Args {
-  const args: Args = {
-    imageInspectPath: '',
-    imageManifestPath: '',
-    seedMetadataPath: '',
-    expectedProfile: 'webui-full',
-  };
-  const argv = process.argv.slice(2);
-  for (let index = 0; index < argv.length; index += 1) {
-    const consumed = applyStringOptionArg(argv, index, {
-      '--image-inspect': (value) => {
-        args.imageInspectPath = value;
-      },
-      '--image-manifest': (value) => {
-        args.imageManifestPath = value;
-      },
-      '--seed-metadata': (value) => {
-        args.seedMetadataPath = value;
-      },
-      '--expected-profile': (value) => {
-        if (value !== 'webui-full' && value !== 'webui-slim') {
-          throw new Error(`Unsupported WebUI image profile: ${value}`);
-        }
-        args.expectedProfile = value;
-      },
-      '--summary-path': (value) => {
-        args.summaryPath = value;
-      },
-    });
-    if (consumed !== null) {
-      index = consumed;
-      continue;
-    }
-    throw new Error(`Unknown option: ${argv[index]}`);
+  const { values } = parseNodeArgs({
+    args: process.argv.slice(2),
+    options: {
+      'image-inspect': { type: 'string' },
+      'image-manifest': { type: 'string' },
+      'seed-metadata': { type: 'string' },
+      'expected-profile': { type: 'string' },
+      'summary-path': { type: 'string' },
+    } as const,
+    allowPositionals: false,
+    strict: true,
+  });
+  const expectedProfile = values['expected-profile'] ?? 'webui-full';
+  if (expectedProfile !== 'webui-full' && expectedProfile !== 'webui-slim') {
+    throw new Error(`Unsupported WebUI image profile: ${expectedProfile}`);
   }
+  const args: Args = {
+    imageInspectPath: values['image-inspect'] ?? '',
+    imageManifestPath: values['image-manifest'] ?? '',
+    seedMetadataPath: values['seed-metadata'] ?? '',
+    expectedProfile,
+    summaryPath: values['summary-path'],
+  };
   for (const [field, value] of Object.entries({
     imageInspectPath: args.imageInspectPath,
     imageManifestPath: args.imageManifestPath,

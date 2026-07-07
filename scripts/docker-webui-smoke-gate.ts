@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { parseArgs as parseNodeArgs } from 'node:util';
 import { inflateRawSync } from 'node:zlib';
 import { validateDockerWebuiDiagnostics } from './validate-docker-webui-diagnostics.ts';
 
@@ -198,58 +199,38 @@ function emptyDiagnosticsValidation(diagnosticsDir: string, missingFiles = ['dia
 }
 
 function parseArgs(argv: string[]) {
-  const options = {
-    gate: '' as GateId | '',
-    artifacts: '',
-    evidence: '',
-    validateResult: '',
-    image: 'ghcr.io/gaofeng21cn/one-person-lab-webui:stable',
-    port: 3000,
-    healthTimeout: 120,
-    noOpen: true,
-    json: false,
-  };
-  for (let index = 0; index < argv.length; index += 1) {
-    const arg = argv[index];
-    if (arg === '--gate') {
-      options.gate = (argv[++index] ?? '') as GateId;
-    } else if (arg.startsWith('--gate=')) {
-      options.gate = arg.slice('--gate='.length) as GateId;
-    } else if (arg === '--artifacts') {
-      options.artifacts = argv[++index] ?? '';
-    } else if (arg.startsWith('--artifacts=')) {
-      options.artifacts = arg.slice('--artifacts='.length);
-    } else if (arg === '--evidence') {
-      options.evidence = argv[++index] ?? '';
-    } else if (arg.startsWith('--evidence=')) {
-      options.evidence = arg.slice('--evidence='.length);
-    } else if (arg === '--validate-result') {
-      options.validateResult = argv[++index] ?? '';
-    } else if (arg.startsWith('--validate-result=')) {
-      options.validateResult = arg.slice('--validate-result='.length);
-    } else if (arg === '--image') {
-      options.image = argv[++index] ?? '';
-    } else if (arg.startsWith('--image=')) {
-      options.image = arg.slice('--image='.length);
-    } else if (arg === '--port') {
-      options.port = Number(argv[++index]);
-    } else if (arg.startsWith('--port=')) {
-      options.port = Number(arg.slice('--port='.length));
-    } else if (arg === '--health-timeout') {
-      options.healthTimeout = Number(argv[++index]);
-    } else if (arg.startsWith('--health-timeout=')) {
-      options.healthTimeout = Number(arg.slice('--health-timeout='.length));
-    } else if (arg === '--open') {
-      options.noOpen = false;
-    } else if (arg === '--json') {
-      options.json = true;
-    } else if (arg === '--help' || arg === '-h') {
-      printUsage();
-      process.exit(0);
-    } else {
-      throw new Error(`Unknown option: ${arg}`);
-    }
+  const { values } = parseNodeArgs({
+    args: argv,
+    options: {
+      gate: { type: 'string' },
+      artifacts: { type: 'string' },
+      evidence: { type: 'string' },
+      'validate-result': { type: 'string' },
+      image: { type: 'string' },
+      port: { type: 'string' },
+      'health-timeout': { type: 'string' },
+      open: { type: 'boolean' },
+      json: { type: 'boolean' },
+      help: { type: 'boolean', short: 'h' },
+    } as const,
+    allowPositionals: false,
+    strict: true,
+  });
+  if (values.help) {
+    printUsage();
+    process.exit(0);
   }
+  const options = {
+    gate: (values.gate ?? '') as GateId | '',
+    artifacts: values.artifacts ?? '',
+    evidence: values.evidence ?? '',
+    validateResult: values['validate-result'] ?? '',
+    image: values.image ?? 'ghcr.io/gaofeng21cn/one-person-lab-webui:stable',
+    port: values.port === undefined ? 3000 : Number(values.port),
+    healthTimeout: values['health-timeout'] === undefined ? 120 : Number(values['health-timeout']),
+    noOpen: values.open !== true,
+    json: values.json === true,
+  };
   if (options.validateResult) {
     return options as typeof options & { gate: GateId | '' };
   }

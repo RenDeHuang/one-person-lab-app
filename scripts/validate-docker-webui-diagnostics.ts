@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { parseArgs as parseNodeArgs } from 'node:util';
 
 type ValidationResult = {
   status: 'passed' | 'failed';
@@ -184,30 +185,26 @@ function validatePreservationEvidence(text: string) {
 }
 
 function parseArgs(argv: string[]) {
-  const options = {
-    diagnosticsDir: '',
-    output: '',
-    json: false,
-  };
-  for (let index = 0; index < argv.length; index += 1) {
-    const arg = argv[index];
-    if (arg === '--diagnostics-dir') {
-      options.diagnosticsDir = argv[++index] ?? '';
-    } else if (arg.startsWith('--diagnostics-dir=')) {
-      options.diagnosticsDir = arg.slice('--diagnostics-dir='.length);
-    } else if (arg === '--output') {
-      options.output = argv[++index] ?? '';
-    } else if (arg.startsWith('--output=')) {
-      options.output = arg.slice('--output='.length);
-    } else if (arg === '--json') {
-      options.json = true;
-    } else if (arg === '--help' || arg === '-h') {
-      printUsage();
-      process.exit(0);
-    } else {
-      throw new Error(`Unknown option: ${arg}`);
-    }
+  const { values } = parseNodeArgs({
+    args: argv,
+    options: {
+      'diagnostics-dir': { type: 'string' },
+      output: { type: 'string' },
+      json: { type: 'boolean' },
+      help: { type: 'boolean', short: 'h' },
+    } as const,
+    allowPositionals: false,
+    strict: true,
+  });
+  if (values.help) {
+    printUsage();
+    process.exit(0);
   }
+  const options = {
+    diagnosticsDir: values['diagnostics-dir'] ?? '',
+    output: values.output ?? '',
+    json: values.json === true,
+  };
   if (!options.diagnosticsDir) {
     throw new Error('Missing --diagnostics-dir');
   }

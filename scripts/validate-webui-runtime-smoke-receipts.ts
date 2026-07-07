@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import fs from 'node:fs';
-import { applyStringOptionArg } from './cli-option-args.ts';
+import { parseArgs as parseNodeArgs } from 'node:util';
 import { asRecord, readJsonFile } from './release-json-helpers.ts';
 
 type Args = {
@@ -22,33 +22,23 @@ const requiredManagedUpdateComponents = [
 ];
 
 function parseArgs(): Args {
+  const { values } = parseNodeArgs({
+    args: process.argv.slice(2),
+    options: {
+      'startup-maintenance': { type: 'string' },
+      'update-status': { type: 'string' },
+      'install-manifest': { type: 'string' },
+      'summary-path': { type: 'string' },
+    } as const,
+    allowPositionals: false,
+    strict: true,
+  });
   const args: Args = {
-    startupMaintenancePath: '',
-    updateStatusPath: '',
-    installManifestPath: '',
+    startupMaintenancePath: values['startup-maintenance'] ?? '',
+    updateStatusPath: values['update-status'] ?? '',
+    installManifestPath: values['install-manifest'] ?? '',
+    summaryPath: values['summary-path'],
   };
-  const argv = process.argv.slice(2);
-  for (let index = 0; index < argv.length; index += 1) {
-    const consumed = applyStringOptionArg(argv, index, {
-      '--startup-maintenance': (value) => {
-        args.startupMaintenancePath = value;
-      },
-      '--update-status': (value) => {
-        args.updateStatusPath = value;
-      },
-      '--install-manifest': (value) => {
-        args.installManifestPath = value;
-      },
-      '--summary-path': (value) => {
-        args.summaryPath = value;
-      },
-    });
-    if (consumed !== null) {
-      index = consumed;
-      continue;
-    }
-    throw new Error(`Unknown option: ${argv[index]}`);
-  }
   for (const [field, value] of Object.entries({
     startupMaintenancePath: args.startupMaintenancePath,
     updateStatusPath: args.updateStatusPath,
