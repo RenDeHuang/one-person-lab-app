@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { parseArgs as parseNodeArgs } from 'node:util';
 import { resolveActiveShellPaths } from './app-shell-adapter.ts';
 import { buildReleaseNotesDocument, buildReleaseNotesEvidence, buildReleaseTitle } from './release-notes.ts';
 import { buildAiReleaseNotesDocument, validateAiReleaseNotes } from './release-notes-ai-writer.ts';
@@ -47,84 +48,57 @@ function parseArgs(argv) {
     draft: false,
   };
 
-  for (let index = 0; index < argv.length; index += 1) {
-    const token = argv[index];
-    if (token === '--no-build') {
-      parsed.build = false;
-      continue;
-    }
-    if (token === '--dry-run') {
-      parsed.dryRun = true;
-      continue;
-    }
-    if (token === '--force-upload') {
-      parsed.forceUpload = true;
-      continue;
-    }
-    if (token === '--draft') {
-      parsed.draft = true;
-      continue;
-    }
-    if (token === '--include-full-package') {
-      parsed.includeFullPackage = true;
-      if (!parsed.fullPackageDir) {
-        parsed.fullPackageDir = defaultFullPackageDir;
-      }
-      continue;
-    }
-    if (token === '--full-package-only') {
-      parsed.fullPackageOnly = true;
-      parsed.includeFullPackage = true;
-      parsed.build = false;
-      if (!parsed.fullPackageDir) {
-        parsed.fullPackageDir = defaultFullPackageDir;
-      }
-      continue;
-    }
-    const value = argv[index + 1];
-    if (!value || value.startsWith('--')) {
-      throw new Error(`Missing value for ${token}`);
-    }
-    if (token === '--shell-root') {
-      parsed.shellRoot = path.resolve(value);
-      index += 1;
-      continue;
-    }
-    if (token === '--repo') {
-      parsed.releaseRepo = value;
-      index += 1;
-      continue;
-    }
-    if (token === '--version') {
-      parsed.version = value;
-      parsed.versionExplicit = true;
-      index += 1;
-      continue;
-    }
-    if (token === '--mac-arch') {
-      parsed.macArch = value;
-      index += 1;
-      continue;
-    }
-    if (token === '--standard-artifacts-dir') {
-      parsed.standardArtifactsDir = path.resolve(value);
-      parsed.build = false;
-      index += 1;
-      continue;
-    }
-    if (token === '--full-package-dir') {
-      parsed.fullPackageDir = path.resolve(value);
-      parsed.includeFullPackage = true;
-      index += 1;
-      continue;
-    }
-    if (token === '--release-notes-file') {
-      parsed.releaseNotesFile = path.resolve(value);
-      index += 1;
-      continue;
-    }
-    throw new Error(`Unknown argument: ${token}`);
+  const { values } = parseNodeArgs({
+    args: argv,
+    options: {
+      'no-build': { type: 'boolean' },
+      'dry-run': { type: 'boolean' },
+      'force-upload': { type: 'boolean' },
+      draft: { type: 'boolean' },
+      'include-full-package': { type: 'boolean' },
+      'full-package-only': { type: 'boolean' },
+      'shell-root': { type: 'string' },
+      repo: { type: 'string' },
+      version: { type: 'string' },
+      'mac-arch': { type: 'string' },
+      'standard-artifacts-dir': { type: 'string' },
+      'full-package-dir': { type: 'string' },
+      'release-notes-file': { type: 'string' },
+    },
+    allowPositionals: false,
+    strict: true,
+  });
+
+  if (values['no-build']) parsed.build = false;
+  if (values['dry-run']) parsed.dryRun = true;
+  if (values['force-upload']) parsed.forceUpload = true;
+  if (values.draft) parsed.draft = true;
+  if (values['include-full-package']) {
+    parsed.includeFullPackage = true;
+    if (!parsed.fullPackageDir) parsed.fullPackageDir = defaultFullPackageDir;
   }
+  if (values['full-package-only']) {
+    parsed.fullPackageOnly = true;
+    parsed.includeFullPackage = true;
+    parsed.build = false;
+    if (!parsed.fullPackageDir) parsed.fullPackageDir = defaultFullPackageDir;
+  }
+  if (values['shell-root']) parsed.shellRoot = path.resolve(values['shell-root']);
+  if (values.repo) parsed.releaseRepo = values.repo;
+  if (values.version) {
+    parsed.version = values.version;
+    parsed.versionExplicit = true;
+  }
+  if (values['mac-arch']) parsed.macArch = values['mac-arch'];
+  if (values['standard-artifacts-dir']) {
+    parsed.standardArtifactsDir = path.resolve(values['standard-artifacts-dir']);
+    parsed.build = false;
+  }
+  if (values['full-package-dir']) {
+    parsed.fullPackageDir = path.resolve(values['full-package-dir']);
+    parsed.includeFullPackage = true;
+  }
+  if (values['release-notes-file']) parsed.releaseNotesFile = path.resolve(values['release-notes-file']);
   if (!['arm64', 'x64', 'universal'].includes(parsed.macArch)) {
     throw new Error(`Unsupported macOS release architecture: ${parsed.macArch}`);
   }

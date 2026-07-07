@@ -20,6 +20,14 @@ Last updated: 2026-07-07
 - Why safe: the split stays in one file, preserves the existing pre-Technical-details vs Technical-details behavior, and does not change provider selection, command execution, JSON parsing, release-note validation, or publish flow.
 - Verification required for this slice: `git diff --check` plus a focused release-notes test or direct `release-notes-ai-writer.ts --input/--evidence` command that exercises the sanitization path.
 
+### 2026-07-07 delivery asset and simple CLI parser cleanup
+
+- Removed `docs/delivery/user-guides/macos-app-install/assets/06-research-data-folder.png`; current guide, generated delivery markdown, slide markdown, and verification refs point at the canonical `docs/guides/macos-app-install/screenshots/06-research-data-folder.png` source instead.
+- `scripts/generate-release-notes.ts` was already on `node:util.parseArgs`, so this slice left it unchanged.
+- `scripts/publish-release.ts` now uses `node:util.parseArgs` for its simple boolean and string release options instead of a hand-rolled argv loop.
+- Kept `scripts/cli-option-args.ts` because release cohort, readiness, operator, evidence, and Docker/WebUI dispatch scripts still import it.
+- Verification required for this slice: `git diff --check`, focused parser probes for `generate-release-notes.ts` and `publish-release.ts`, and `rg` checks proving the deleted delivery asset path and `cli-option-args.ts` imports are understood.
+
 ## No-Safe-Semantic-Split Boundaries
 
 The following cleanup classes must not be landed as broad mechanical refactors without a focused semantic split and matching verification:
