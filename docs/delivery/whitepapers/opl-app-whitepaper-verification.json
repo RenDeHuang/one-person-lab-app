@@ -11,31 +11,31 @@
   "rendered_page_hashes": [
     {
       "page": "page-1.png",
-      "sha1": "d94661f5241f3ca22358a84eb7222eab9595ca04"
+      "sha1": "2cfada5573b7f9088817c8518f7b5cfe118c54bb"
     },
     {
       "page": "page-2.png",
-      "sha1": "53a488f94b7fdb83c2aa975f312b07b916af80ba"
+      "sha1": "95399d85b003a91aaec157632403c85c1bfdf3cf"
     },
     {
       "page": "page-3.png",
-      "sha1": "133ce2e6347baf1e8bde478d2fdbcaa8cd33cbc3"
+      "sha1": "ab7d375c64f28574ef7d17a998abd78b787bf142"
     },
     {
       "page": "page-4.png",
-      "sha1": "5a12949bd89b76f58936db29284a610609824971"
+      "sha1": "6a7c319917fbc99f6f828681c2e6a6a56eb42c6c"
     },
     {
       "page": "page-5.png",
-      "sha1": "356bfcdcc165fc7ba5a67d4d511845b9fbadd771"
+      "sha1": "d303f0396736d466d38f1de22e08b6f23a7a2d53"
     },
     {
       "page": "page-6.png",
-      "sha1": "5d2173b67588b61c305c77ab90fd414fd32a3ea2"
+      "sha1": "1a4e6da7dbe1869651fd7bdb3c2d6a3dd7b7c84c"
     },
     {
       "page": "page-7.png",
-      "sha1": "94d1ef59f92de68bc2d75e628b91a4bcfa76675b"
+      "sha1": "224d5a8fcb499af4dfae625906247d3597d18485"
     }
   ],
   "pdf_pages": 7,
@@ -66,11 +66,13 @@
     "结语"
   ],
   "required_terms_status": "present",
+  "style_profile": "opl-whitepaper-pandoc-xelatex-v1",
   "tools": {
     "pandoc": "/opt/homebrew/bin/pandoc",
-    "xelatex": "/Users/gaofeng/Library/TinyTeX/bin/universal-darwin/xelatex",
-    "pdfinfo": "/Users/gaofeng/.cache/codex-runtimes/codex-primary-runtime/dependencies/bin/pdfinfo",
-    "pdftoppm": "/Users/gaofeng/.cache/codex-runtimes/codex-primary-runtime/dependencies/bin/pdftoppm",
+    "xelatex": "/opt/homebrew/bin/xelatex",
+    "pdfinfo": "/opt/homebrew/bin/pdfinfo",
+    "pdftoppm": "/opt/homebrew/bin/pdftoppm",
     "pdftotext": "/opt/homebrew/bin/pdftotext"
-  }
+  },
+  "references": []
 }
