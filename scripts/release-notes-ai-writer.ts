@@ -1030,6 +1030,9 @@ type AiReleaseNotesCliOptions = AiReleaseNotesOptions & {
   probeOpenAICompatible: boolean;
 };
 
+const probeOpenAICompatibleFlag = '--probe-openai-compatible';
+const probeOpenAICompatibleOption = probeOpenAICompatibleFlag.slice(2);
+
 function parseCliArgs(argv: string[]): AiReleaseNotesCliOptions {
   const { values } = parseNodeArgs({
     args: argv,
@@ -1039,7 +1042,7 @@ function parseCliArgs(argv: string[]): AiReleaseNotesCliOptions {
       output: { type: 'string' },
       'provider-command': { type: 'string' },
       model: { type: 'string' },
-      'probe-openai-compatible': { type: 'boolean' },
+      [probeOpenAICompatibleOption]: { type: 'boolean' },
     } as const,
     allowPositionals: false,
     strict: true,
@@ -1050,10 +1053,10 @@ function parseCliArgs(argv: string[]): AiReleaseNotesCliOptions {
     outputPath: values.output ? path.resolve(values.output) : '',
     providerCommand: values['provider-command'],
     model: values.model,
-    probeOpenAICompatible: values['probe-openai-compatible'] === true,
+    probeOpenAICompatible: values[probeOpenAICompatibleOption] === true,
   };
   if (!parsed.probeOpenAICompatible && !parsed.evidencePath) {
-    throw new Error('Missing required --evidence.');
+    throw new Error(`Missing required --evidence unless ${probeOpenAICompatibleFlag} is set.`);
   }
   return parsed;
 }

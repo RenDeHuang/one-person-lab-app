@@ -15,6 +15,8 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 const defaultFullPackageDir = path.resolve(repoRoot, 'dist', 'opl-full-release');
 const defaultUploadAttempts = 3;
 const defaultUploadTimeoutMs = 5 * 60 * 1000;
+const forceUploadFlag = '--force-upload';
+const forceUploadOption = forceUploadFlag.slice(2);
 
 function resolveShellRootEnv() {
   return process.env.OPL_APP_SHELL_ROOT || process.env.OPL_AION_SHELL_ROOT || resolveActiveShellPaths().shellRoot;
@@ -53,7 +55,7 @@ function parseArgs(argv) {
     options: {
       'no-build': { type: 'boolean' },
       'dry-run': { type: 'boolean' },
-      'force-upload': { type: 'boolean' },
+      [forceUploadOption]: { type: 'boolean' },
       draft: { type: 'boolean' },
       'include-full-package': { type: 'boolean' },
       'full-package-only': { type: 'boolean' },
@@ -71,7 +73,7 @@ function parseArgs(argv) {
 
   if (values['no-build']) parsed.build = false;
   if (values['dry-run']) parsed.dryRun = true;
-  if (values['force-upload']) parsed.forceUpload = true;
+  if (values[forceUploadOption]) parsed.forceUpload = true;
   if (values.draft) parsed.draft = true;
   if (values['include-full-package']) {
     parsed.includeFullPackage = true;

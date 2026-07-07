@@ -417,7 +417,18 @@ test('agent installation validator accepts generated OMA local plugin roots', ()
       path.join(pluginRoot, '.codex-plugin', 'plugin.json'),
       `${JSON.stringify({ name: 'opl-meta-agent', skills: './skills/' }, null, 2)}\n`,
     );
-    writeFile(path.join(pluginRoot, 'skills', 'opl-meta-agent', 'SKILL.md'), '# OPL Meta Agent\n');
+    writeFile(
+      path.join(pluginRoot, 'skills', 'opl-meta-agent', 'SKILL.md'),
+      [
+        '---',
+        'name: opl-meta-agent',
+        'description: Generated OPL Meta Agent primary skill fixture.',
+        '---',
+        '',
+        '# OPL Meta Agent',
+        '',
+      ].join('\n'),
+    );
 
     const result = runNode([
       'scripts/validate-agent-installation-contract.ts',
