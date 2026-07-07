@@ -52,6 +52,9 @@ jobs:
   promote:
     name: Verify and publish draft release
     runs-on: macos-latest
+    outputs:
+      shell_ref: ${{ steps.release-cohort.outputs.shell_ref }}
+      framework_ref: ${{ steps.release-cohort.outputs.framework_ref }}
 
     steps:
       - name: Checkout App repo
@@ -144,6 +147,27 @@ jobs:
         env:
           OPL_RELEASE_VERSION: ${{ inputs.opl_version }}
         run: npm run release:candidate-record:validate -- --record release-candidate-record-input/release-candidate-record.json
+
+      - name: Resolve release cohort refs
+        id: release-cohort
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const record = JSON.parse(fs.readFileSync('release-candidate-record-input/release-candidate-record.json', 'utf8'));
+          const shellRef = record?.inputs?.shell_ref || process.env.FALLBACK_SHELL_REF || 'main';
+          const frameworkRef = record?.inputs?.framework_ref || '';
+          if (!/^(main|[0-9a-f]{40})$/i.test(shellRef)) {
+            throw new Error(`Release candidate record has invalid shell_ref: ${shellRef}`);
+          }
+          if (!/^[0-9a-f]{40}$/i.test(frameworkRef)) {
+            throw new Error(`Release candidate record must expose a fixed framework_ref SHA for Homebrew VM smoke: ${frameworkRef || '<missing>'}`);
+          }
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `shell_ref=${shellRef}\nframework_ref=${frameworkRef}\n`);
+          NODE
+        env:
+          FALLBACK_SHELL_REF: ${{ inputs.shell_ref || 'main' }}
 
       - name: Verify remote release assets
         env:
@@ -268,11 +292,13 @@ jobs:
   homebrew-standard-first-run-vm-smoke:
     name: Run Homebrew standard first-run VM smoke
     needs:
+      - promote
       - stable-homebrew-tap-update
     if: ${{ always() && needs.stable-homebrew-tap-update.result == 'success' }}
     uses: ./.github/workflows/opl-first-run-vm.yml
     with:
       release_tag: v${{ inputs.opl_version }}
       package_profile: homebrew-standard
-      shell_ref: ${{ inputs.shell_ref || 'main' }}
+      shell_ref: ${{ needs.promote.outputs.shell_ref }}
+      framework_ref: ${{ needs.promote.outputs.framework_ref }}
     secrets: inherit

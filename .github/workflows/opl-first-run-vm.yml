@@ -24,6 +24,10 @@ on:
         required: false
         default: main
         type: string
+      framework_ref:
+        description: 'one-person-lab Framework ref to inject into the VM as the standard bootstrap source. Empty keeps the packaged installer default.'
+        required: false
+        type: string
       package_profile:
         description: 'Install profile to test.'
         required: false
@@ -108,6 +112,10 @@ on:
         description: 'opl-aion-shell ref containing the first-run smoke scripts. Empty means main.'
         required: false
         default: main
+        type: string
+      framework_ref:
+        description: 'one-person-lab Framework ref to inject into the VM as the standard bootstrap source. Empty keeps the packaged installer default.'
+        required: false
         type: string
       package_profile:
         description: 'Install profile to test: full, standard, or homebrew-standard.'
@@ -385,6 +393,15 @@ jobs:
           fetch-depth: 1
           sparse-checkout: scripts
 
+      - name: Checkout OPL Framework bootstrap source
+        if: ${{ inputs.framework_ref != '' }}
+        uses: actions/checkout@v6
+        with:
+          repository: gaofeng21cn/one-person-lab
+          ref: ${{ inputs.framework_ref }}
+          path: one-person-lab
+          fetch-depth: 1
+
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
@@ -410,6 +427,21 @@ jobs:
         run: |
           node --check shells/aionui/scripts/opl-first-run-vm-smoke.mjs
           node --check shells/aionui/scripts/opl-first-run-tart-smoke.mjs
+
+      - name: Prepare OPL Framework bootstrap archive
+        id: framework_source
+        if: ${{ inputs.framework_ref != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/opl-first-run-vm/framework-source
+          archive_path="artifacts/opl-first-run-vm/framework-source/one-person-lab-framework.tar.gz"
+          install_script_path="one-person-lab/install.sh"
+          test -f "$install_script_path"
+          git -C one-person-lab archive --format=tar.gz --prefix=one-person-lab/ HEAD -o "$GITHUB_WORKSPACE/$archive_path"
+          chmod +x "$install_script_path"
+          echo "archive_path=$archive_path" >> "$GITHUB_OUTPUT"
+          echo "install_script_path=$install_script_path" >> "$GITHUB_OUTPUT"
 
       - name: Resolve package profile
         id: package_profile
@@ -1464,6 +1496,10 @@ jobs:
             --runtime-profile "${{ steps.package_profile.outputs.runtime_profile }}"
             --guest-node-root "${{ steps.host_node.outputs.node_root }}"
           )
+          if [ -n "${{ steps.framework_source.outputs.archive_path }}" ]; then
+            CMD+=(--framework-source-archive "${{ steps.framework_source.outputs.archive_path }}")
+            CMD+=(--framework-install-script "${{ steps.framework_source.outputs.install_script_path }}")
+          fi
           if [ "${{ needs.validate-vm-inputs.outputs.diagnostic_scope }}" != "bootstrap_only" ]; then
             CMD+=(--codex-package-tarball "${{ steps.codex_package_preflight.outputs.tarball_path }}")
             CMD+=(--codex-platform-package-tarball "${{ steps.codex_package_preflight.outputs.platform_tarball_path }}")

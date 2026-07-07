@@ -214,6 +214,10 @@ test('desktop promote workflow is gated by the candidate record before publishin
   assert.match(workflow, /--require-docker-webui "\$\{\{ inputs\.require_docker_webui \}\}"/);
   assert.match(workflow, /npm run release:candidate-record:validate/);
   assert.match(workflow, /--record release-candidate-record-input\/release-candidate-record\.json/);
+  assert.match(workflow, /outputs:[\s\S]*framework_ref: \$\{\{ steps\.release-cohort\.outputs\.framework_ref \}\}/);
+  assert.match(workflow, /Resolve release cohort refs/);
+  assert.match(workflow, /record\?\.inputs\?\.framework_ref/);
+  assert.match(workflow, /Release candidate record must expose a fixed framework_ref SHA for Homebrew VM smoke/);
   assert.doesNotMatch(workflow, /node <<'NODE'/);
   assert.match(workflow, /Verify remote release assets/);
   assert.match(workflow, /Publish draft release/);
@@ -227,10 +231,12 @@ test('desktop promote workflow is gated by the candidate record before publishin
   assert.match(workflow, /Run Homebrew standard first-run VM smoke/);
   assert.match(workflow, /uses:\s+\.\/\.github\/workflows\/homebrew-tap-update\.yml/);
   assert.match(workflow, /uses:\s+\.\/\.github\/workflows\/opl-first-run-vm\.yml/);
-  assert.match(workflow, /needs:\s+promote/);
   assert.match(workflow, /package_profile:\s+homebrew-standard/);
   const homebrewStandardVmJob = workflow.match(/\n  homebrew-standard-first-run-vm-smoke:[\s\S]*?(?=\n  [a-z0-9-]+:\n|$)/)?.[0] ?? '';
+  assert.match(homebrewStandardVmJob, /needs:[\s\S]*- promote/);
   assert.match(homebrewStandardVmJob, /stable-homebrew-tap-update/);
+  assert.match(homebrewStandardVmJob, /shell_ref: \$\{\{ needs\.promote\.outputs\.shell_ref \}\}/);
+  assert.match(homebrewStandardVmJob, /framework_ref: \$\{\{ needs\.promote\.outputs\.framework_ref \}\}/);
   assert.doesNotMatch(homebrewStandardVmJob, /full-homebrew-tap-update/);
   assert.ok(workflow.indexOf('Verify release candidate record') < workflow.indexOf('Publish draft release'));
   assert.ok(workflow.indexOf('Verify same-cohort add-on readiness') < workflow.indexOf('Publish draft release'));

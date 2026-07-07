@@ -434,6 +434,9 @@ test('release operations workflows serialize refreshable GitHub Actions runs wit
   assertMatches(warmupWorkflow, /cancel-in-progress:\s+true/, 'Full warmup cancellation policy');
   assertMatches(promoteWorkflow, /concurrency:[\s\S]*group:\s+opl-desktop-release-promote-\$\{\{ inputs\.opl_version \}\}/, 'promote concurrency group');
   assertMatches(promoteWorkflow, /cancel-in-progress:\s+true/, 'promote cancellation policy');
+  assertMatches(promoteWorkflow, /Resolve release cohort refs[\s\S]*record\?\.inputs\?\.framework_ref/, 'promote resolves Framework ref from candidate record');
+  assertMatches(promoteWorkflow, /homebrew-standard-first-run-vm-smoke:[\s\S]*needs:[\s\S]*- promote/, 'promote Homebrew VM directly depends on promote outputs');
+  assertMatches(promoteWorkflow, /homebrew-standard-first-run-vm-smoke:[\s\S]*framework_ref: \$\{\{ needs\.promote\.outputs\.framework_ref \}\}/, 'promote Homebrew VM uses same-cohort Framework ref');
   assertMatches(verifyWorkflow, /concurrency:[\s\S]*group:\s+opl-remote-release-verification-\$\{\{ inputs\.opl_version \}\}/, 'remote verify concurrency group');
   assertMatches(verifyWorkflow, /cancel-in-progress:\s+true/, 'remote verify cancellation policy');
 });
@@ -454,6 +457,8 @@ test('first-run VM workflow writes deterministic preflight and final summaries b
   assertMatches(workflow, /Using same-run workflow artifact/, 'VM artifact source log');
   assertMatches(workflow, /Using source workflow run artifact/, 'VM source-run artifact source log');
   assertMatches(workflow, /release tag \$\{\{ inputs\.release_tag \}\} kept for provenance/, 'VM release tag provenance');
+  assertMatches(workflow, /Checkout OPL Framework bootstrap source[\s\S]*repository:\s+gaofeng21cn\/one-person-lab/, 'VM harness can checkout pinned Framework source');
+  assertMatches(workflow, /Prepare OPL Framework bootstrap archive[\s\S]*--framework-source-archive/, 'VM harness injects Framework archive into guest smoke');
   assertMatches(workflow, /Resolve host Node\.js runtime for guest smoke/, 'VM host Node runtime resolution');
   assertMatches(workflow, /--guest-node-root "\$\{\{ steps\.host_node\.outputs\.node_root \}\}"/, 'VM guest Node copy');
   assertMatches(workflow, /Runner labels/, 'VM runner labels');

@@ -196,6 +196,10 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   const homebrewStandardVmJob = workflow.match(/\n  homebrew-standard-first-run-vm-smoke:[\s\S]*?(?=\n  [a-z0-9-]+:\n|$)/)?.[0] ?? '';
   assert.match(jobLevelIf(homebrewStandardVmJob), /if:\s*\$\{\{\s*!cancelled\(\) && inputs\.run_vm_smoke/);
   assert.doesNotMatch(homebrewStandardVmJob, /full-homebrew-tap-update/);
+  assert.match(workflowJobBlock(workflow, 'standard-first-run-vm-smoke-after-standard-only'), /framework_ref: \$\{\{ needs\.publish-standard\.outputs\.framework_sha \}\}/);
+  assert.match(workflowJobBlock(workflow, 'standard-first-run-vm-smoke-after-full'), /framework_ref: \$\{\{ needs\.publish-standard\.outputs\.framework_sha \}\}/);
+  assert.match(homebrewStandardVmJob, /framework_ref: \$\{\{ needs\.publish-standard\.outputs\.framework_sha \}\}/);
+  assert.match(workflowJobBlock(workflow, 'full-first-run-vm-smoke'), /framework_ref: \$\{\{ needs\.standard-vm-smoke-gate-after-full\.outputs\.framework_sha \}\}/);
   assert.match(workflow, /homebrew-standard-first-run-vm-smoke:/);
   assert.match(workflow, /full-first-run-vm-smoke:/);
   assert.match(
@@ -468,6 +472,9 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(vmWorkflow, /Resolve Tart source VM/);
   assert.match(vmWorkflow, /package_profile:/);
   assert.match(vmWorkflow, /homebrew-standard/);
+  assert.match(vmWorkflow, /framework_ref:[\s\S]*one-person-lab Framework ref to inject into the VM as the standard bootstrap source/);
+  assert.match(vmWorkflow, /Checkout OPL Framework bootstrap source[\s\S]*repository: gaofeng21cn\/one-person-lab[\s\S]*ref: \$\{\{ inputs\.framework_ref \}\}/);
+  assert.match(vmWorkflow, /Prepare OPL Framework bootstrap archive[\s\S]*git -C one-person-lab archive --format=tar\.gz --prefix=one-person-lab\//);
   assert.match(vmWorkflow, /guide_screenshots:/);
   assert.match(vmWorkflow, /Resolve package profile/);
   assert.match(vmWorkflow, /profile="\$\{\{ needs\.validate-vm-inputs\.outputs\.package_profile \}\}"/);
@@ -485,6 +492,8 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(vmWorkflow, /--smoke-profile homebrew-standard-cask/);
   assert.match(vmWorkflow, /--install-mode homebrew-cask/);
   assert.match(vmWorkflow, /--homebrew-cask "\$\{\{ steps\.package_profile\.outputs\.homebrew_cask \}\}"/);
+  assert.match(vmWorkflow, /--framework-source-archive "\$\{\{ steps\.framework_source\.outputs\.archive_path \}\}"/);
+  assert.match(vmWorkflow, /--framework-install-script "\$\{\{ steps\.framework_source\.outputs\.install_script_path \}\}"/);
   assert.match(vmWorkflow, /--display 1920x1080px/);
   assert.match(vmWorkflow, /--settings-smoke/);
   assert.match(vmWorkflow, /--assistant-route-smoke/);

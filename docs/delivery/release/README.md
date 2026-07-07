@@ -821,6 +821,18 @@ screenshot, docs, or other post-publish proof gate, closeout must classify that
 as `resolve_post_publish_followup_gate`; do not conflate the published
 GitHub Release/tap state with clean-install proof completion.
 
+Homebrew VM follow-up gates must keep using the same frozen App/Shell/Framework
+cohort as the candidate record. The promote workflow reads
+`release-candidate-record.json#inputs.framework_ref`, exposes it as a job
+output, and passes it to `opl-first-run-vm.yml`. The VM workflow checks out that
+Framework SHA, archives it, and passes both `--framework-source-archive` and
+`--framework-install-script` to the Tart harness so the guest receives
+`OPL_INSTALL_SCRIPT_URL=file://...`. Do not rerun an old failed promote job when
+the workflow source changed; dispatch the promote or VM workflow from the
+updated App `main` with the same candidate/release inputs. A Homebrew VM failure
+that shows packaged `opl-install.sh` falling back to raw GitHub is a workflow
+source-boundary defect, not proof that the cask or release assets are invalid.
+
 The standard clean VM smoke is the fail-fast gate for stable release trains. In
 standard-only runs, `desktop-release.yml` runs
 `standard-first-run-vm-smoke-after-standard-only` immediately after standard

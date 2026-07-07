@@ -707,6 +707,7 @@ jobs:
       release_artifact_name: macos-build-arm64-dmg
       package_profile: standard
       shell_ref: ${{ needs.publish-standard.outputs.shell_sha }}
+      framework_ref: ${{ needs.publish-standard.outputs.framework_sha }}
     secrets: inherit
 
   standard-first-run-vm-smoke-after-full:
@@ -719,6 +720,7 @@ jobs:
       release_artifact_name: macos-build-arm64-dmg
       package_profile: standard
       shell_ref: ${{ needs.publish-standard.outputs.shell_sha }}
+      framework_ref: ${{ needs.publish-standard.outputs.framework_sha }}
     secrets: inherit
 
   standard-vm-smoke-gate-after-full:
@@ -771,6 +773,7 @@ jobs:
       release_tag: v${{ inputs.opl_version }}
       package_profile: homebrew-standard
       shell_ref: ${{ needs.publish-standard.outputs.shell_sha }}
+      framework_ref: ${{ needs.publish-standard.outputs.framework_sha }}
     secrets: inherit
 
   full-first-run-vm-smoke:
@@ -785,6 +788,7 @@ jobs:
       release_artifact_name: opl-full-first-install-dmg-${{ inputs.opl_version }}-mac-arm64
       package_profile: full
       shell_ref: ${{ needs.standard-vm-smoke-gate-after-full.outputs.shell_sha }}
+      framework_ref: ${{ needs.standard-vm-smoke-gate-after-full.outputs.framework_sha }}
       guide_screenshots: ${{ inputs.guide_screenshots }}
     secrets: inherit
 

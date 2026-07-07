@@ -412,6 +412,10 @@ test('release automation workflows cover remote verification, Full cache warmup,
   assert.match(promoteWorkflow, /release-candidate-record-\$\{\{ inputs\.opl_version \}\}/);
   assert.match(promoteWorkflow, /npm run release:candidate-record:validate/);
   assert.match(promoteWorkflow, /release-candidate-record-input\/release-candidate-record\.json/);
+  assert.match(promoteWorkflow, /Resolve release cohort refs/);
+  assert.match(promoteWorkflow, /framework_ref: \$\{\{ steps\.release-cohort\.outputs\.framework_ref \}\}/);
+  assert.match(promoteWorkflow, /homebrew-standard-first-run-vm-smoke:[\s\S]*needs:[\s\S]*- promote/);
+  assert.match(promoteWorkflow, /homebrew-standard-first-run-vm-smoke:[\s\S]*framework_ref: \$\{\{ needs\.promote\.outputs\.framework_ref \}\}/);
   assert.equal(
     packageJson.scripts['release:candidate-record:resolve-owner'],
     'node --experimental-strip-types scripts/resolve-release-owner-candidate-record.ts',
