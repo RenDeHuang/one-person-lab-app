@@ -39,4 +39,9 @@ The active GUI shell is `aionui`, checked out from `gaofeng21cn/opl-aion-shell` 
 
 Experimental GUI candidates are declared separately in `contracts/app-shell-candidates.json`. The current foreground alternative is `opl-native-workbench`, selected through `contracts/shell-adapters/opl-native-workbench.json` and governed by the App-owned candidate policy. Hermes Desktop / `hermes-codex` is retained as the prior foreground alternative reference through `contracts/shell-adapters/hermes-codex.json`. `agui-codex` is no longer a foreground candidate: it remains a linked archived technical proof under `shells/agui-codex/` with its selectable replay adapter at `contracts/shell-adapters/agui-codex.json`. Candidate shells do not participate in default stable, nightly, updater, Docker/WebUI, or Full first-install release packaging until the active adapter is deliberately switched, and AGUI should not receive routine updates, polish, or adoption work unless AGUI replay is explicitly requested. Candidate shell work enters App product truth only through App-owned contracts and validation gates, not through a shell implementation roadmap.
 
+Foreground candidate adapter contracts identify the candidate with `candidate_shell`
+and must not rewrite `active_shell`. `active_shell` remains reserved for the
+default release adapter in `contracts/app-shell-adapter.json` until an explicit
+App-owned adoption gate switches it.
+
 Default current status is [status.md](status.md). Documentation entry is [README.md](README.md).
