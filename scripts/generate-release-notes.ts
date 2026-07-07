@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
+import { parseArgs as parseNodeArgs } from 'node:util';
 import { buildReleaseNotesDocument, buildReleaseNotesEvidence } from './release-notes.ts';
 import { resolveActiveShellPaths } from './app-shell-adapter.ts';
 
@@ -44,64 +45,54 @@ function defaultOptions(): ReleaseNotesCliOptions {
   };
 }
 
-function valueAfter(argv: string[], index: number, token: string) {
-  const value = argv[index + 1];
-  if (!value || value.startsWith('--')) {
-    throw new Error(`Missing value for ${token}`);
-  }
-  return value;
-}
-
-function applyValueOption(parsed: ReleaseNotesCliOptions, token: string, value: string) {
-  if (token === '--version') {
-    parsed.version = value;
-  } else if (token === '--channel') {
-    if (value !== 'stable' && value !== 'nightly') {
-      throw new Error(`Unsupported release note channel: ${value}`);
-    }
-    parsed.channel = value;
-  } else if (token === '--repo') {
-    parsed.releaseRepo = value;
-  } else if (token === '--shell-root') {
-    parsed.shellRoot = path.resolve(value);
-  } else if (token === '--full-package-manifest') {
-    parsed.fullPackageManifestPath = path.resolve(value);
-    parsed.includeFullPackage = true;
-  } else if (token === '--previous-full-package-manifest') {
-    parsed.previousFullPackageManifestPath = path.resolve(value);
-  } else if (token === '--output') {
-    parsed.output = path.resolve(value);
-  } else if (token === '--previous-tag') {
-    parsed.previousTag = value;
-  } else if (token === '--current-tag') {
-    parsed.currentTag = value;
-  } else if (token === '--previous-app-ref') {
-    parsed.previousAppRef = value;
-  } else if (token === '--current-app-ref') {
-    parsed.currentAppRef = value;
-  } else if (token === '--previous-shell-ref') {
-    parsed.previousShellRef = value;
-  } else if (token === '--current-shell-ref') {
-    parsed.currentShellRef = value;
-  } else if (token === '--evidence-output') {
-    parsed.evidenceOutput = path.resolve(value);
-  } else {
-    throw new Error(`Unknown argument: ${token}`);
-  }
-}
-
 function parseArgs(argv: string[]) {
   const parsed = defaultOptions();
+  const { values } = parseNodeArgs({
+    args: argv,
+    options: {
+      version: { type: 'string' },
+      channel: { type: 'string' },
+      repo: { type: 'string' },
+      'shell-root': { type: 'string' },
+      'include-full-package': { type: 'boolean' },
+      'full-package-manifest': { type: 'string' },
+      'previous-full-package-manifest': { type: 'string' },
+      output: { type: 'string' },
+      'previous-tag': { type: 'string' },
+      'current-tag': { type: 'string' },
+      'previous-app-ref': { type: 'string' },
+      'current-app-ref': { type: 'string' },
+      'previous-shell-ref': { type: 'string' },
+      'current-shell-ref': { type: 'string' },
+      'evidence-output': { type: 'string' },
+    } as const,
+    allowPositionals: false,
+    strict: true,
+  });
 
-  for (let index = 0; index < argv.length; index += 1) {
-    const token = argv[index];
-    if (token === '--include-full-package') {
-      parsed.includeFullPackage = true;
-      continue;
+  if (values.version) parsed.version = values.version;
+  if (values.channel) {
+    if (values.channel !== 'stable' && values.channel !== 'nightly') {
+      throw new Error(`Unsupported release note channel: ${values.channel}`);
     }
-    applyValueOption(parsed, token, valueAfter(argv, index, token));
-    index += 1;
+    parsed.channel = values.channel;
   }
+  if (values.repo) parsed.releaseRepo = values.repo;
+  if (values['shell-root']) parsed.shellRoot = path.resolve(values['shell-root']);
+  if (values['include-full-package']) parsed.includeFullPackage = true;
+  if (values['full-package-manifest']) {
+    parsed.fullPackageManifestPath = path.resolve(values['full-package-manifest']);
+    parsed.includeFullPackage = true;
+  }
+  if (values['previous-full-package-manifest']) parsed.previousFullPackageManifestPath = path.resolve(values['previous-full-package-manifest']);
+  if (values.output) parsed.output = path.resolve(values.output);
+  if (values['previous-tag']) parsed.previousTag = values['previous-tag'];
+  if (values['current-tag']) parsed.currentTag = values['current-tag'];
+  if (values['previous-app-ref']) parsed.previousAppRef = values['previous-app-ref'];
+  if (values['current-app-ref']) parsed.currentAppRef = values['current-app-ref'];
+  if (values['previous-shell-ref']) parsed.previousShellRef = values['previous-shell-ref'];
+  if (values['current-shell-ref']) parsed.currentShellRef = values['current-shell-ref'];
+  if (values['evidence-output']) parsed.evidenceOutput = path.resolve(values['evidence-output']);
 
   if (!parsed.version) {
     throw new Error('Missing required --version.');

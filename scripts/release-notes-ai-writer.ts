@@ -1,6 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import { parseArgs as parseNodeArgs } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import type { ReleaseNotesEvidence } from './release-notes.ts';
 
@@ -1033,43 +1034,28 @@ type AiReleaseNotesCliOptions = AiReleaseNotesOptions & {
   probeOpenAICompatible: boolean;
 };
 
-function valueAfter(argv: string[], index: number, token: string) {
-  const value = argv[index + 1];
-  if (!value || value.startsWith('--')) {
-    throw new Error(`Missing value for ${token}`);
-  }
-  return value;
-}
-
 function parseCliArgs(argv: string[]): AiReleaseNotesCliOptions {
+  const { values } = parseNodeArgs({
+    args: argv,
+    options: {
+      evidence: { type: 'string' },
+      input: { type: 'string' },
+      output: { type: 'string' },
+      'provider-command': { type: 'string' },
+      model: { type: 'string' },
+      'probe-openai-compatible': { type: 'boolean' },
+    } as const,
+    allowPositionals: false,
+    strict: true,
+  });
   const parsed: AiReleaseNotesCliOptions = {
-    evidencePath: process.env.OPL_RELEASE_NOTES_EVIDENCE_INPUT?.trim() || '',
-    inputPath: '',
-    outputPath: '',
-    probeOpenAICompatible: false,
+    evidencePath: values.evidence ? path.resolve(values.evidence) : process.env.OPL_RELEASE_NOTES_EVIDENCE_INPUT?.trim() || '',
+    inputPath: values.input ? path.resolve(values.input) : '',
+    outputPath: values.output ? path.resolve(values.output) : '',
+    providerCommand: values['provider-command'],
+    model: values.model,
+    probeOpenAICompatible: values['probe-openai-compatible'] === true,
   };
-  for (let index = 0; index < argv.length; index += 1) {
-    const token = argv[index];
-    if (token === '--probe-openai-compatible') {
-      parsed.probeOpenAICompatible = true;
-      continue;
-    }
-    const value = valueAfter(argv, index, token);
-    if (token === '--evidence') {
-      parsed.evidencePath = path.resolve(value);
-    } else if (token === '--input') {
-      parsed.inputPath = path.resolve(value);
-    } else if (token === '--output') {
-      parsed.outputPath = path.resolve(value);
-    } else if (token === '--provider-command') {
-      parsed.providerCommand = value;
-    } else if (token === '--model') {
-      parsed.model = value;
-    } else {
-      throw new Error(`Unknown argument: ${token}`);
-    }
-    index += 1;
-  }
   if (!parsed.probeOpenAICompatible && !parsed.evidencePath) {
     throw new Error('Missing required --evidence.');
   }
