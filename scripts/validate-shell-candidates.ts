@@ -2,6 +2,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { parseArgs as parseNodeArgs } from 'node:util';
 import {
   candidateValidationPolicyFromRegistry,
   validateCandidate,
@@ -12,22 +13,19 @@ import { readJson, registryPath, root } from './validate-shell-candidates/shared
 import type { ShellCandidateRegistry } from './validate-shell-candidates/types.ts';
 
 export function parseArgs(argv: string[]): { candidate?: string; runCandidateCommands: boolean } {
-  const parsed = { candidate: undefined as string | undefined, runCandidateCommands: false };
-  for (let index = 2; index < argv.length; index += 1) {
-    const token = argv[index];
-    if (token === '--candidate') {
-      const value = argv[++index];
-      if (!value) throw new Error('Missing value for --candidate');
-      parsed.candidate = value;
-      continue;
-    }
-    if (token === '--run-candidate-commands') {
-      parsed.runCandidateCommands = true;
-      continue;
-    }
-    throw new Error(`Unknown argument: ${token}`);
-  }
-  return parsed;
+  const { values } = parseNodeArgs({
+    args: argv.slice(2),
+    options: {
+      candidate: { type: 'string' },
+      'run-candidate-commands': { type: 'boolean' },
+    } as const,
+    allowPositionals: false,
+    strict: true,
+  });
+  return {
+    candidate: values.candidate,
+    runCandidateCommands: values['run-candidate-commands'] === true,
+  };
 }
 
 function main(): void {
