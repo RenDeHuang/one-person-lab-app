@@ -56,6 +56,13 @@ Last updated: 2026-07-07
 - Updated release evidence validation fixture copies so temporary app roots no longer copy the deleted CLI option helper.
 - Verification required for this slice: `git diff --check`, focused parser probes for the changed CLI entrypoints, `node --test` release tests that cover cohort/operator/candidate/gate/evidence/dispatch behavior, and `rg` checks proving scripts/tests no longer depend on `cli-option-args.ts`.
 
+### 2026-07-07 local ignored artifacts and WebUI assertion helper reuse
+
+- Local ignored-artifact cleanup is safe only as worktree hygiene: remove ignored generated files from the active lane when they are not tracked product, release, contract, or runtime truth. Do not encode ignored-artifact cleanup as App behavior or release readiness.
+- `scripts/validate-webui-runtime-image.ts` and `scripts/validate-webui-runtime-smoke-receipts.ts` now reuse `scripts/value-assertions.ts` for repeated expected-field and string-array inclusion assertions instead of keeping duplicate file-local equality/includes helpers.
+- Why safe: the slice keeps each validator's parsing, required-field checks, summary output, and WebUI runtime receipt/image semantics in place. It does not add `validator-utils`, touch contracts, or reshape validator ownership.
+- Verification required for this slice: `git diff --check`, the existing WebUI runtime smoke receipt test, and a direct `validate-webui-runtime-image.ts` fixture command for the image validator.
+
 ## No-Safe-Semantic-Split Boundaries
 
 The following cleanup classes must not be landed as broad mechanical refactors without a focused semantic split and matching verification:
@@ -66,6 +73,12 @@ The following cleanup classes must not be landed as broad mechanical refactors w
   Some call sites need strict object/array coercion, others intentionally allow raw `JSON.parse` failures or line-delimited parsing. Consolidation must keep parse-error wording and schema-boundary behavior visible.
 - Active-shell validator cleanup under `scripts/validate-active-shell/*`.
   Validator structure encodes App product truth and shell adapter expectations. Do not reshape it for aesthetics; first identify one validator rule, its owning contract/doc, and the command proving that rule still gates the intended behavior.
+- Hermes validator consolidation.
+  Merging Hermes candidate validator paths is `no-safe-semantic-split`: Hermes is a reference candidate with different adoption status, evidence shape, and shell boundary from the active AionUI path and the OPL Native Workbench foreground alternative. Any consolidation needs an owner-approved semantic split that names the preserved candidate role and focused validator evidence.
+- Contract shrink.
+  Shrinking App product, release, install exposure, shell adapter, or page-state contracts is `no-safe-semantic-split`: contracts are the App-owned truth surface, not just duplicate prose. A shrink must first prove which owner surface now holds each removed requirement and which validator/readback still gates it.
+- First-run matrix schema redesign.
+  Reshaping first-run matrix schema is `no-safe-semantic-split`: the schema controls packaged first-run expectations and cannot be mechanically compacted without preserving migration semantics, page-state acceptance, and active-shell validation coverage. Open a separate owner-approved semantic split before changing it.
 - Release cleanup helper expansion.
   `release-cleanup-helpers.ts` is currently scoped to destructive-release cleanup scripts. Do not promote it into a general release runner unless the new caller shares dry-run/execute semantics and has a destructive-action safety check.
 - Release closeout / GitHub Actions timing helper consolidation across `scripts/closeout-release-run.ts` and `scripts/summarize-github-actions-timing.ts`.

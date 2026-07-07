@@ -3,6 +3,7 @@
 import fs from 'node:fs';
 import { parseArgs as parseNodeArgs } from 'node:util';
 import { asRecord, readJsonFile } from './release-json-helpers.ts';
+import { assertExpectedFields, assertStringArrayIncludes } from './value-assertions.ts';
 
 type Args = {
   imageInspectPath: string;
@@ -63,23 +64,6 @@ function envMap(rawEnv: unknown) {
   );
 }
 
-function requireEqual(actual: unknown, expected: unknown, label: string) {
-  if (actual !== expected) {
-    throw new Error(`${label} must be ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
-  }
-}
-
-function requireStringArrayIncludes(value: unknown, expected: string[], label: string) {
-  if (!Array.isArray(value) || value.some((entry) => typeof entry !== 'string')) {
-    throw new Error(`${label} must be a string array.`);
-  }
-  for (const item of expected) {
-    if (!value.includes(item)) {
-      throw new Error(`${label} must include ${item}`);
-    }
-  }
-}
-
 function requiredComponentIds(seedMetadata: Record<string, unknown>) {
   const components = seedMetadata.components;
   if (!Array.isArray(components)) {
@@ -118,7 +102,15 @@ const volumes = asRecord(config.Volumes, 'Docker image inspect volumes');
 const imageManifest = asRecord(readJsonFile(args.imageManifestPath), 'WebUI image manifest');
 const seedMetadata = asRecord(readJsonFile(args.seedMetadataPath), 'WebUI image seed metadata');
 
-requireEqual(labels['org.opencontainers.image.source'], 'https://github.com/gaofeng21cn/one-person-lab-app', 'OCI source label');
+assertExpectedFields(
+  [
+    {
+      actual: labels['org.opencontainers.image.source'],
+      expected: 'https://github.com/gaofeng21cn/one-person-lab-app',
+    },
+  ],
+  'OCI source label must point at the One Person Lab App repository.',
+);
 if (typeof labels['org.opencontainers.image.revision'] !== 'string' || !labels['org.opencontainers.image.revision']) {
   throw new Error('OCI revision label must be present.');
 }
@@ -134,7 +126,11 @@ for (const [key, expected] of Object.entries({
   OPL_PROJECTS_DIR: '/projects',
   OPL_WORKSPACE_ROOT: '/projects',
 })) {
-  requireEqual(env.get(key), expected, `Docker env ${key}`);
+  const actual = env.get(key);
+  assertExpectedFields(
+    [{ actual, expected }],
+    `Docker env ${key} must be ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`,
+  );
 }
 for (const key of ['OPL_IMAGE_MANIFEST_PATH', 'OPL_IMAGE_SEED_DIR']) {
   if (!env.get(key)) {
@@ -143,19 +139,24 @@ for (const key of ['OPL_IMAGE_MANIFEST_PATH', 'OPL_IMAGE_SEED_DIR']) {
 }
 const pathEnv = env.get('PATH') ?? '';
 if (args.expectedProfile === 'webui-full') {
-  for (const requiredPath of ['/opt/opl/seed/payload/opl_framework/bin', '/opt/opl/seed/payload/codex_cli/bin']) {
-    if (!pathEnv.split(':').includes(requiredPath)) {
-      throw new Error(`webui-full Docker PATH must include ${requiredPath}.`);
-    }
-  }
+  assertStringArrayIncludes(
+    pathEnv.split(':'),
+    ['/opt/opl/seed/payload/opl_framework/bin', '/opt/opl/seed/payload/codex_cli/bin'],
+    'webui-full Docker PATH',
+  );
 }
 
-requireEqual(imageManifest.schema, 'dev.onepersonlab.opl-webui-image-manifest.v1', 'image manifest schema');
-requireEqual(imageManifest.image_role, 'opl_webui_runtime_image', 'image manifest image_role');
-requireEqual(imageManifest.data_dir, '/data', 'image manifest data_dir');
-requireEqual(imageManifest.projects_dir, '/projects', 'image manifest projects_dir');
-requireEqual(imageManifest.seed_dir, '/opt/opl/seed', 'image manifest seed_dir');
-requireEqual(imageManifest.seed_metadata, '/opt/opl/seed/metadata.json', 'image manifest seed_metadata');
+assertExpectedFields(
+  [
+    { actual: imageManifest.schema, expected: 'dev.onepersonlab.opl-webui-image-manifest.v1' },
+    { actual: imageManifest.image_role, expected: 'opl_webui_runtime_image' },
+    { actual: imageManifest.data_dir, expected: '/data' },
+    { actual: imageManifest.projects_dir, expected: '/projects' },
+    { actual: imageManifest.seed_dir, expected: '/opt/opl/seed' },
+    { actual: imageManifest.seed_metadata, expected: '/opt/opl/seed/metadata.json' },
+  ],
+  'Image manifest identity and runtime paths must match the WebUI runtime image contract.',
+);
 if (typeof imageManifest.base_image_family !== 'string' || /alpine/i.test(imageManifest.base_image_family)) {
   throw new Error('Docker/WebUI runtime image must use a glibc LTS/slim base, not Alpine.');
 }
@@ -164,11 +165,16 @@ if (webuiPackage.name !== '@aionui/web-cli' || typeof webuiPackage.version !== '
   throw new Error('Image manifest must identify the bundled @aionui/web-cli package.');
 }
 const bundledAioncore = asRecord(imageManifest.bundled_aioncore, 'image manifest bundled_aioncore');
-requireStringArrayIncludes(bundledAioncore.platforms, ['linux-x64'], 'bundled AionCore platforms');
+assertStringArrayIncludes(bundledAioncore.platforms, ['linux-x64'], 'bundled AionCore platforms');
 
-requireEqual(seedMetadata.schema, 'dev.onepersonlab.opl-webui-image-seed.v1', 'seed metadata schema');
-requireEqual(seedMetadata.data_dir, '/data', 'seed metadata data_dir');
-requireEqual(seedMetadata.projects_dir, '/projects', 'seed metadata projects_dir');
+assertExpectedFields(
+  [
+    { actual: seedMetadata.schema, expected: 'dev.onepersonlab.opl-webui-image-seed.v1' },
+    { actual: seedMetadata.data_dir, expected: '/data' },
+    { actual: seedMetadata.projects_dir, expected: '/projects' },
+  ],
+  'Seed metadata identity and runtime paths must match the WebUI image seed contract.',
+);
 
 const seedStrategy = String(imageManifest.seed_strategy ?? seedMetadata.strategy ?? '');
 if (args.expectedProfile === 'webui-full') {
@@ -179,11 +185,11 @@ if (args.expectedProfile === 'webui-full') {
     throw new Error(`webui-full image must use payload_manifest or payload_preheated seed strategy, got ${seedStrategy}`);
   }
   const componentIds = requiredComponentIds(seedMetadata);
-  for (const id of ['opl_framework', 'codex_cli', 'companion_skills', 'domain_modules']) {
-    if (!componentIds.includes(id)) {
-      throw new Error(`webui-full seed metadata must include component ${id}`);
-    }
-  }
+  assertStringArrayIncludes(
+    componentIds,
+    ['opl_framework', 'codex_cli', 'companion_skills', 'domain_modules'],
+    'webui-full seed metadata components',
+  );
 } else if (seedStrategy !== 'metadata_only') {
   throw new Error(`webui-slim image must use metadata_only seed strategy, got ${seedStrategy}`);
 }

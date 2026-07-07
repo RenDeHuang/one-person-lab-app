@@ -798,23 +798,33 @@ function openAICompatibleConfigured() {
   return Boolean(config.endpoint && config.token);
 }
 
+function runOpenAICompatibleModels<T>(
+  models: string[],
+  failureLabel: string,
+  requestModel: (model: string, providerLabel: string) => T,
+) {
+  const failures: string[] = [];
+  for (const model of models) {
+    const providerLabel = `OpenAI-compatible ${model}`;
+    try {
+      return requestModel(model, providerLabel);
+    } catch (error) {
+      failures.push(`${model}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  throw new Error(`OpenAI-compatible ${failureLabel} failed for ${models.join(', ')}: ${failures.join(' | ')}`);
+}
+
 function runOpenAICompatibleProvider(prompt: string, evidence: ReleaseNotesEvidence) {
   const { endpoint, token, models } = openAICompatibleConfig();
   if (!endpoint || !token) {
     throw new Error('Missing OpenAI-compatible release-note provider config. Set OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL and OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY, or the existing OPL_RELEASE_NOTES_CODEX_BASE_URL and OPL_RELEASE_NOTES_CODEX_API_KEY route.');
   }
-  const failures: string[] = [];
-  for (const model of models) {
-    const providerLabel = `OpenAI-compatible ${model}`;
-    try {
-      return validateOrRepairGeneratedMarkdown(prompt, evidence, (activePrompt) => (
-        requestChatCompletions(endpoint, token, model, activePrompt, providerLabel)
-      ));
-    } catch (error) {
-      failures.push(`${model}: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  }
-  throw new Error(`OpenAI-compatible provider failed for ${models.join(', ')}: ${failures.join(' | ')}`);
+  return runOpenAICompatibleModels(models, 'provider', (model, providerLabel) => (
+    validateOrRepairGeneratedMarkdown(prompt, evidence, (activePrompt) => (
+      requestChatCompletions(endpoint, token, model, activePrompt, providerLabel)
+    ))
+  ));
 }
 
 function runOpenAICompatibleProbe() {
@@ -822,32 +832,24 @@ function runOpenAICompatibleProbe() {
   if (!endpoint || !token) {
     throw new Error('Missing OpenAI-compatible release-note provider config. Set OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL and OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY, or the existing OPL_RELEASE_NOTES_CODEX_BASE_URL and OPL_RELEASE_NOTES_CODEX_API_KEY route.');
   }
-  const failures: string[] = [];
-  for (const model of models) {
-    const providerLabel = `OpenAI-compatible ${model}`;
-    try {
-      const content = requestChatCompletions(
-        endpoint,
-        token,
-        model,
-        'Return exactly: OPL_RELEASE_NOTES_PROVIDER_OK',
-        providerLabel,
-      );
-      if (!/OPL_RELEASE_NOTES_PROVIDER_OK/.test(content)) {
-        throw new Error(`${providerLabel} probe returned unexpected content.`);
-      }
-      console.log(JSON.stringify({
-        status: 'ok',
-        provider: 'openai_compatible',
-        model,
-        endpoint: endpoint.replace(/^https?:\/\//, '').replace(/\/v1\/chat\/completions$/, ''),
-      }, null, 2));
-      return;
-    } catch (error) {
-      failures.push(`${model}: ${error instanceof Error ? error.message : String(error)}`);
+  runOpenAICompatibleModels(models, 'provider probe', (model, providerLabel) => {
+    const content = requestChatCompletions(
+      endpoint,
+      token,
+      model,
+      'Return exactly: OPL_RELEASE_NOTES_PROVIDER_OK',
+      providerLabel,
+    );
+    if (!/OPL_RELEASE_NOTES_PROVIDER_OK/.test(content)) {
+      throw new Error(`${providerLabel} probe returned unexpected content.`);
     }
-  }
-  throw new Error(`OpenAI-compatible provider probe failed for ${models.join(', ')}: ${failures.join(' | ')}`);
+    console.log(JSON.stringify({
+      status: 'ok',
+      provider: 'openai_compatible',
+      model,
+      endpoint: endpoint.replace(/^https?:\/\//, '').replace(/\/v1\/chat\/completions$/, ''),
+    }, null, 2));
+  });
 }
 
 function runCodexProvider(prompt: string, evidence: ReleaseNotesEvidence, command: string) {

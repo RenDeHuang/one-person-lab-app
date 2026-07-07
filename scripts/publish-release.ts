@@ -9,7 +9,7 @@ import { buildReleaseNotesDocument, buildReleaseNotesEvidence, buildReleaseTitle
 import { buildAiReleaseNotesDocument, validateAiReleaseNotes } from './release-notes-ai-writer.ts';
 import { assertLocalAuthorizationPolicy } from './local-authorization-policy.ts';
 import { fileSha256 } from './release-file-helpers.ts';
-import { assertFullRuntimeNativeTrustFile } from './full-runtime-native-trust.ts';
+import { assertFullRuntimeNativeTrustObject } from './full-runtime-native-trust.ts';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const defaultFullPackageDir = path.resolve(repoRoot, 'dist', 'opl-full-release');
@@ -177,20 +177,6 @@ function assertStableLocalAuthorizationPolicy(releaseDir, name, packageKind) {
   assertLocalAuthorizationPolicy(policy, packageKind, name);
 }
 
-function assertFullRuntimeNativeTrustObject(trust, manifest) {
-  if (!trust || typeof trust !== 'object' || Array.isArray(trust)) {
-    throw new Error('Full public release manifest is missing evidence.runtime_native_trust.');
-  }
-  const tempDir = fs.mkdtempSync(path.join(process.env.TMPDIR || '/tmp', 'opl-full-native-trust-'));
-  const trustPath = path.join(tempDir, 'full-runtime-native-trust.json');
-  try {
-    fs.writeFileSync(trustPath, `${JSON.stringify(trust, null, 2)}\n`);
-    assertFullRuntimeNativeTrustFile(trustPath, manifest);
-  } finally {
-    fs.rmSync(tempDir, { recursive: true, force: true });
-  }
-}
-
 function readJsonFile(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));
 }
@@ -352,7 +338,9 @@ function findFullPackageArtifacts(fullPackageDir, version, macArch) {
     'app_full_first_install',
     'opl-release-manifest.json#evidence.local_authorization_policy',
   );
-  assertFullRuntimeNativeTrustObject(releaseManifest?.evidence?.runtime_native_trust, manifest);
+  assertFullRuntimeNativeTrustObject(releaseManifest?.evidence?.runtime_native_trust, manifest, {
+    missingMessage: 'Full public release manifest is missing evidence.runtime_native_trust.',
+  });
   assertFullPackageManifestHasReleaseNotesMetadata(manifest);
 
   return required.map((name) => path.join(fullPackageDir, name));

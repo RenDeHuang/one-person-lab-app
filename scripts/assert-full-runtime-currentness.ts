@@ -1,21 +1,44 @@
 #!/usr/bin/env node
-import { parseArgs } from './build-full-first-install-package/env.ts';
+import { parseArgs as parseNodeArgs } from 'node:util';
+
+import { parseArgs as parseFullPackageArgs } from './build-full-first-install-package/env.ts';
 import { assertFullRuntimeCurrentness } from './build-full-first-install-package/runtime-currentness.ts';
 
-function valueAfter(flag: string, args: string[]): string | null {
-  const index = args.indexOf(flag);
-  if (index === -1) return null;
-  return args[index + 1] ?? null;
-}
-
-function main() {
-  const args = process.argv.slice(2);
-  const runtimeRoot = valueAfter('--runtime-root', args);
-  if (!runtimeRoot) {
+function parseRuntimeRootArgs(args: string[]) {
+  const runtimeRootKey = 'runtime-root';
+  const { values, tokens } = parseNodeArgs({
+    args,
+    options: {
+      [runtimeRootKey]: { type: 'string' },
+    },
+    allowPositionals: true,
+    strict: false,
+    tokens: true,
+  });
+  const runtimeRoot = values[runtimeRootKey];
+  if (typeof runtimeRoot !== 'string' || !runtimeRoot) {
     throw new Error('Usage: assert-full-runtime-currentness --runtime-root <runtime/current>');
   }
 
-  const options = parseArgs(args.filter((arg, index) => arg !== '--runtime-root' && args[index - 1] !== '--runtime-root'));
+  const consumedIndexes = new Set<number>();
+  for (const token of tokens) {
+    if (token.kind !== 'option' || token.name !== runtimeRootKey) {
+      continue;
+    }
+    consumedIndexes.add(token.index);
+    if (token.value !== undefined && token.inlineValue === false) {
+      consumedIndexes.add(token.index + 1);
+    }
+  }
+  return {
+    runtimeRoot,
+    forwardedArgs: args.filter((_, index) => !consumedIndexes.has(index)),
+  };
+}
+
+function main() {
+  const { runtimeRoot, forwardedArgs } = parseRuntimeRootArgs(process.argv.slice(2));
+  const options = parseFullPackageArgs(forwardedArgs);
   const report = assertFullRuntimeCurrentness(runtimeRoot, {
     frameworkRoot: options.frameworkRoot,
   });

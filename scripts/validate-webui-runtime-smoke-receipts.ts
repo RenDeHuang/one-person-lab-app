@@ -3,6 +3,7 @@
 import fs from 'node:fs';
 import { parseArgs as parseNodeArgs } from 'node:util';
 import { asRecord, readJsonFile } from './release-json-helpers.ts';
+import { assertExpectedFields, assertStringArrayIncludes } from './value-assertions.ts';
 
 type Args = {
   startupMaintenancePath: string;
@@ -51,12 +52,6 @@ function parseArgs(): Args {
   return args;
 }
 
-function requireEqual(actual: unknown, expected: unknown, label: string) {
-  if (actual !== expected) {
-    throw new Error(`${label} must be ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
-  }
-}
-
 function requireString(value: unknown, label: string): string {
   if (typeof value !== 'string' || value.trim() === '') {
     throw new Error(`${label} must be a non-empty string.`);
@@ -73,7 +68,7 @@ function requireArray(value: unknown, label: string): unknown[] {
 
 function unwrapProxyEnvelope(value: unknown, label: string): Record<string, unknown> {
   const envelope = asRecord(value, `${label} proxy response`);
-  requireEqual(envelope.success, true, `${label} proxy success`);
+  assertExpectedFields([{ actual: envelope.success, expected: true }], `${label} proxy success must be true`);
   const data = asRecord(envelope.data, `${label} proxy data`);
   requireString(data.command, `${label} command`);
   if (typeof data.parsed !== 'undefined' && data.parsed !== null) {
@@ -84,7 +79,7 @@ function unwrapProxyEnvelope(value: unknown, label: string): Record<string, unkn
 }
 
 function validateReceiptFields(receipt: Record<string, unknown>, label: string) {
-  requireEqual(receipt.status, 'completed', `${label} status`);
+  assertExpectedFields([{ actual: receipt.status, expected: 'completed' }], `${label} status must be completed`);
   requireString(receipt.operation, `${label} operation`);
   requireString(receipt.component_id, `${label} component_id`);
   requireString(receipt.receipt_ref, `${label} receipt_ref`);
@@ -92,45 +87,78 @@ function validateReceiptFields(receipt: Record<string, unknown>, label: string) 
 }
 
 function validateInstallManifest(installManifest: Record<string, unknown>) {
-  requireEqual(installManifest.surface_kind, 'opl_seed_install_manifest', 'install manifest surface_kind');
-  requireEqual(installManifest.schema_version, 'opl_seed_install_manifest.v1', 'install manifest schema_version');
-  requireEqual(installManifest.status, 'applied', 'install manifest status');
+  assertExpectedFields(
+    [
+      { actual: installManifest.surface_kind, expected: 'opl_seed_install_manifest' },
+      { actual: installManifest.schema_version, expected: 'opl_seed_install_manifest.v1' },
+      { actual: installManifest.status, expected: 'applied' },
+    ],
+    'Install manifest identity and status must match the applied seed install contract.',
+  );
 
   const image = asRecord(installManifest.image, 'install manifest image');
-  requireEqual(image.seed_strategy_status, 'accepted', 'install manifest image seed_strategy_status');
-  requireEqual(image.seed_strategy, 'payload_manifest', 'install manifest image seed_strategy');
+  assertExpectedFields(
+    [
+      { actual: image.seed_strategy_status, expected: 'accepted' },
+      { actual: image.seed_strategy, expected: 'payload_manifest' },
+    ],
+    'Install manifest image seed strategy must be accepted payload_manifest.',
+  );
   const imageManifest = asRecord(image.manifest, 'install manifest image.manifest');
-  requireEqual(imageManifest.image_profile, 'webui-full', 'install manifest image profile');
-  requireEqual(imageManifest.data_dir, '/data', 'install manifest image data_dir');
-  requireEqual(imageManifest.projects_dir, '/projects', 'install manifest image projects_dir');
+  assertExpectedFields(
+    [
+      { actual: imageManifest.image_profile, expected: 'webui-full' },
+      { actual: imageManifest.data_dir, expected: '/data' },
+      { actual: imageManifest.projects_dir, expected: '/projects' },
+    ],
+    'Install manifest image profile and runtime paths must match webui-full.',
+  );
 
   const seedMetadata = asRecord(installManifest.seed_metadata, 'install manifest seed_metadata');
-  requireEqual(seedMetadata.metadata_status, 'found', 'install manifest seed metadata status');
+  assertExpectedFields(
+    [{ actual: seedMetadata.metadata_status, expected: 'found' }],
+    'Install manifest seed metadata status must be found.',
+  );
   const seedManifest = asRecord(seedMetadata.manifest, 'install manifest seed metadata manifest');
-  requireEqual(seedManifest.strategy, 'payload_preheated', 'install manifest seed metadata strategy');
-  requireEqual(seedManifest.data_dir, '/data', 'install manifest seed metadata data_dir');
-  requireEqual(seedManifest.projects_dir, '/projects', 'install manifest seed metadata projects_dir');
+  assertExpectedFields(
+    [
+      { actual: seedManifest.strategy, expected: 'payload_preheated' },
+      { actual: seedManifest.data_dir, expected: '/data' },
+      { actual: seedManifest.projects_dir, expected: '/projects' },
+    ],
+    'Install manifest seed metadata strategy and runtime paths must match payload_preheated.',
+  );
 
   const install = asRecord(installManifest.install, 'install manifest install');
-  requireEqual(install.data_dir, '/data', 'install manifest install data_dir');
-  requireEqual(install.projects_dir, '/projects', 'install manifest install projects_dir');
+  assertExpectedFields(
+    [
+      { actual: install.data_dir, expected: '/data' },
+      { actual: install.projects_dir, expected: '/projects' },
+    ],
+    'Install manifest install paths must match /data and /projects.',
+  );
   requireString(install.manifest_file, 'install manifest install manifest_file');
 
   const components = requireArray(installManifest.components, 'install manifest components').map((item) =>
     asRecord(item, 'install manifest component')
   );
   const componentIds = new Set(components.map((component) => requireString(component.component_id, 'component id')));
-  for (const id of [...requiredSeedComponents, ...requiredMigrationComponents]) {
-    if (!componentIds.has(id)) {
-      throw new Error(`install manifest components must include ${id}`);
-    }
-  }
+  assertStringArrayIncludes(
+    [...componentIds],
+    [...requiredSeedComponents, ...requiredMigrationComponents],
+    'install manifest components',
+  );
 
   for (const id of requiredSeedComponents) {
     const component = components.find((item) => item.component_id === id);
     if (!component) throw new Error(`missing seed component ${id}`);
-    requireEqual(component.state, 'current', `seed component ${id} state`);
-    requireEqual(component.component_kind, 'image_seed', `seed component ${id} kind`);
+    assertExpectedFields(
+      [
+        { actual: component.state, expected: 'current' },
+        { actual: component.component_kind, expected: 'image_seed' },
+      ],
+      `seed component ${id} state and kind must match image_seed current`,
+    );
     requireString(component.payload_path, `seed component ${id} payload_path`);
     requireString(component.materialized_path, `seed component ${id} materialized_path`);
     requireString(component.receipt_ref, `seed component ${id} receipt_ref`);
@@ -143,8 +171,13 @@ function validateInstallManifest(installManifest: Record<string, unknown>) {
   for (const id of requiredMigrationComponents) {
     const component = components.find((item) => item.component_id === id);
     if (!component) throw new Error(`missing migration component ${id}`);
-    requireEqual(component.state, 'current', `migration component ${id} state`);
-    requireEqual(component.component_kind, 'migration', `migration component ${id} kind`);
+    assertExpectedFields(
+      [
+        { actual: component.state, expected: 'current' },
+        { actual: component.component_kind, expected: 'migration' },
+      ],
+      `migration component ${id} state and kind must match migration current`,
+    );
     requireString(component.materialized_path, `migration component ${id} materialized_path`);
     requireString(component.receipt_ref, `migration component ${id} receipt_ref`);
     requireString(component.receipt_kind, `migration component ${id} receipt_kind`);
@@ -154,17 +187,17 @@ function validateInstallManifest(installManifest: Record<string, unknown>) {
     asRecord(item, 'install manifest receipt')
   );
   const receiptComponentIds = new Set(receipts.map((receipt) => requireString(receipt.component_id, 'receipt component id')));
-  for (const id of [...requiredSeedComponents, ...requiredMigrationComponents]) {
-    if (!receiptComponentIds.has(id)) {
-      throw new Error(`install manifest receipts must include ${id}`);
-    }
-  }
+  assertStringArrayIncludes(
+    [...receiptComponentIds],
+    [...requiredSeedComponents, ...requiredMigrationComponents],
+    'install manifest receipts',
+  );
   for (const receipt of receipts) {
     validateReceiptFields(receipt, `install manifest receipt ${String(receipt.component_id)}`);
   }
 
   const reconcile = asRecord(installManifest.reconcile, 'install manifest reconcile');
-  requireEqual(reconcile.status, 'applied', 'install manifest reconcile status');
+  assertExpectedFields([{ actual: reconcile.status, expected: 'applied' }], 'install manifest reconcile status must be applied');
   if (Number(reconcile.image_seed_receipts_count) < requiredSeedComponents.length + 1) {
     throw new Error('install manifest reconcile image_seed_receipts_count is too low.');
   }
@@ -174,27 +207,43 @@ function validateInstallManifest(installManifest: Record<string, unknown>) {
 }
 
 function validateStartupMaintenance(payload: Record<string, unknown>) {
-  requireEqual(payload.version, 'g2', 'startup maintenance version');
+  assertExpectedFields([{ actual: payload.version, expected: 'g2' }], 'startup maintenance version must be g2');
   const action = asRecord(payload.system_action, 'startup maintenance system_action');
-  requireEqual(action.action, 'startup_maintenance', 'startup maintenance action');
+  assertExpectedFields([{ actual: action.action, expected: 'startup_maintenance' }], 'startup maintenance action must be startup_maintenance');
   const actionStatus = requireString(action.status, 'startup maintenance status');
   if (actionStatus !== 'completed' && actionStatus !== 'manual_required') {
     throw new Error(`startup maintenance status must be "completed" or "manual_required", got ${JSON.stringify(actionStatus)}`);
   }
   const workspaceRoot = asRecord(action.workspace_root, 'startup maintenance workspace_root');
-  requireEqual(workspaceRoot.selected_path, '/projects', 'startup maintenance workspace root');
-  requireEqual(workspaceRoot.health_status, 'ready', 'startup maintenance workspace health');
+  assertExpectedFields(
+    [
+      { actual: workspaceRoot.selected_path, expected: '/projects' },
+      { actual: workspaceRoot.health_status, expected: 'ready' },
+    ],
+    'startup maintenance workspace root must be ready at /projects',
+  );
   const details = asRecord(action.details, 'startup maintenance details');
-  requireEqual(details.surface_kind, 'opl_app_startup_maintenance', 'startup maintenance surface_kind');
+  assertExpectedFields(
+    [{ actual: details.surface_kind, expected: 'opl_app_startup_maintenance' }],
+    'startup maintenance surface_kind must be opl_app_startup_maintenance',
+  );
   const summary = asRecord(details.summary, 'startup maintenance summary');
   if (Number(summary.total_targets_count) <= 0) {
     throw new Error('startup maintenance summary must include at least one target.');
   }
   const seedBoundary = asRecord(details.seed_boundary, 'startup maintenance seed_boundary');
-  requireEqual(seedBoundary.surface_kind, 'opl_seed_install_manifest', 'startup maintenance seed boundary kind');
+  assertExpectedFields(
+    [{ actual: seedBoundary.surface_kind, expected: 'opl_seed_install_manifest' }],
+    'startup maintenance seed boundary kind must be opl_seed_install_manifest',
+  );
   const seedInstall = asRecord(seedBoundary.install, 'startup maintenance seed_boundary.install');
-  requireEqual(seedInstall.data_dir, '/data', 'startup maintenance seed install data_dir');
-  requireEqual(seedInstall.projects_dir, '/projects', 'startup maintenance seed install projects_dir');
+  assertExpectedFields(
+    [
+      { actual: seedInstall.data_dir, expected: '/data' },
+      { actual: seedInstall.projects_dir, expected: '/projects' },
+    ],
+    'startup maintenance seed install paths must match /data and /projects',
+  );
   requireString(seedInstall.manifest_file, 'startup maintenance seed install manifest_file');
 
   if (actionStatus === 'manual_required') {
@@ -205,10 +254,9 @@ function validateStartupMaintenance(payload: Record<string, unknown>) {
     if (!manualFrameworkTarget) {
       throw new Error('startup maintenance manual_required must include a manual_required framework target.');
     }
-    requireEqual(
-      manualFrameworkTarget.reason,
-      'framework_update_target_invalid',
-      'startup maintenance manual framework target reason',
+    assertExpectedFields(
+      [{ actual: manualFrameworkTarget.reason, expected: 'framework_update_target_invalid' }],
+      'startup maintenance manual framework target reason must be framework_update_target_invalid',
     );
   }
 }
@@ -223,48 +271,56 @@ function validateRuntimeSubstrateFrameworkUpdate(component: Record<string, unkno
   requireString(frameworkRuntime.channel_artifact, 'runtime_substrate framework channel_artifact');
   requireString(frameworkRuntime.channel_version, 'runtime_substrate framework channel_version');
   requireString(frameworkRuntime.channel_source_archive_sha256, 'runtime_substrate framework channel_source_archive_sha256');
-  requireEqual(
-    frameworkRuntime.command_ref,
-    'opl update apply --component runtime_substrate --json',
-    'runtime_substrate framework command_ref',
-  );
-  requireEqual(
-    frameworkRuntime.rollback_command_ref,
-    'opl update rollback --component runtime_substrate --json',
-    'runtime_substrate framework rollback_command_ref',
+  assertExpectedFields(
+    [
+      { actual: frameworkRuntime.command_ref, expected: 'opl update apply --component runtime_substrate --json' },
+      { actual: frameworkRuntime.rollback_command_ref, expected: 'opl update rollback --component runtime_substrate --json' },
+    ],
+    'runtime_substrate framework update and rollback command refs must match managed updater commands',
   );
 }
 
 function validateUpdateStatus(payload: Record<string, unknown>) {
-  requireEqual(payload.version, 'g2', 'update status version');
+  assertExpectedFields([{ actual: payload.version, expected: 'g2' }], 'update status version must be g2');
   const managedUpdate = asRecord(payload.managed_update, 'managed update');
-  requireEqual(managedUpdate.surface_id, 'opl_managed_updater_kernel', 'managed update surface');
-  requireEqual(managedUpdate.operation, 'status', 'managed update operation');
-  requireEqual(managedUpdate.operation_mode, 'read_only_projection', 'managed update operation mode');
+  assertExpectedFields(
+    [
+      { actual: managedUpdate.surface_id, expected: 'opl_managed_updater_kernel' },
+      { actual: managedUpdate.operation, expected: 'status' },
+      { actual: managedUpdate.operation_mode, expected: 'read_only_projection' },
+    ],
+    'managed update status projection identity must match the updater kernel contract',
+  );
   const workspaceRoot = asRecord(managedUpdate.workspace_root, 'managed update workspace_root');
-  requireEqual(workspaceRoot.selected_path, '/projects', 'managed update workspace root');
-  requireEqual(workspaceRoot.health_status, 'ready', 'managed update workspace health');
-  const lifecycle = requireArray(managedUpdate.lifecycle, 'managed update lifecycle');
-  for (const step of ['read_manifest', 'verify', 'activate', 'write_receipt', 'report_status_or_repair']) {
-    if (!lifecycle.includes(step)) {
-      throw new Error(`managed update lifecycle must include ${step}`);
-    }
-  }
+  assertExpectedFields(
+    [
+      { actual: workspaceRoot.selected_path, expected: '/projects' },
+      { actual: workspaceRoot.health_status, expected: 'ready' },
+    ],
+    'managed update workspace root must be ready at /projects',
+  );
+  assertStringArrayIncludes(
+    managedUpdate.lifecycle,
+    ['read_manifest', 'verify', 'activate', 'write_receipt', 'report_status_or_repair'],
+    'managed update lifecycle',
+  );
   const components = requireArray(managedUpdate.components, 'managed update components').map((item) =>
     asRecord(item, 'managed update component')
   );
   const componentIds = new Set(components.map((component) => requireString(component.component_id, 'managed update component id')));
-  for (const id of requiredManagedUpdateComponents) {
-    if (!componentIds.has(id)) {
-      throw new Error(`managed update components must include ${id}`);
-    }
-  }
+  assertStringArrayIncludes([...componentIds], requiredManagedUpdateComponents, 'managed update components');
   for (const component of components) {
     const id = requireString(component.component_id, 'managed update component id');
     requireString(component.state, `managed update component ${id} state`);
     const receipt = asRecord(component.receipt, `managed update component ${id} receipt`);
-    requireEqual(receipt.schema_version, 'opl_managed_update_component_receipt.v1', `managed update component ${id} receipt schema`);
-    requireEqual(receipt.required, true, `managed update component ${id} receipt required`);
+    assertExpectedFields(
+      [{ actual: receipt.schema_version, expected: 'opl_managed_update_component_receipt.v1' }],
+      `managed update component ${id} receipt schema must be opl_managed_update_component_receipt.v1`,
+    );
+    assertExpectedFields(
+      [{ actual: receipt.required, expected: true }],
+      `managed update component ${id} receipt required must be true`,
+    );
     requireString(receipt.source_manifest_ref, `managed update component ${id} source_manifest_ref`);
     requireString(receipt.verify_result, `managed update component ${id} verify_result`);
     requireString(receipt.apply_mode, `managed update component ${id} apply_mode`);
@@ -274,14 +330,16 @@ function validateUpdateStatus(payload: Record<string, unknown>) {
     validateRuntimeSubstrateFrameworkUpdate(component);
   }
   const receipts = asRecord(managedUpdate.receipts, 'managed update receipts');
-  requireEqual(receipts.component_receipt_schema, 'opl_managed_update_component_receipt.v1', 'managed update receipt schema');
+  assertExpectedFields(
+    [{ actual: receipts.component_receipt_schema, expected: 'opl_managed_update_component_receipt.v1' }],
+    'managed update receipt schema must be opl_managed_update_component_receipt.v1',
+  );
   requireString(receipts.component_receipt_ledger_file, 'managed update receipt ledger file');
-  const requiredFields = requireArray(receipts.required_fields, 'managed update receipt required_fields');
-  for (const field of ['source_manifest_ref', 'verify_result', 'apply_mode', 'status_detail', 'reload_guidance']) {
-    if (!requiredFields.includes(field)) {
-      throw new Error(`managed update receipt required_fields must include ${field}`);
-    }
-  }
+  assertStringArrayIncludes(
+    receipts.required_fields,
+    ['source_manifest_ref', 'verify_result', 'apply_mode', 'status_detail', 'reload_guidance'],
+    'managed update receipt required_fields',
+  );
 }
 
 const args = parseArgs();

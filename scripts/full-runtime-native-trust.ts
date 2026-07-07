@@ -10,15 +10,14 @@ function requiredFullRuntimeNativeTrustPaths(manifest: any): string[] {
   ];
 }
 
-export function assertFullRuntimeNativeTrustFile(
-  trustPath: string,
+export function assertFullRuntimeNativeTrustObject(
+  trust: any,
   manifest: any,
   options: { missingMessage?: string } = {},
 ): void {
-  if (options.missingMessage && !fs.existsSync(trustPath)) {
-    throw new Error(options.missingMessage);
+  if (!trust || typeof trust !== 'object' || Array.isArray(trust)) {
+    throw new Error(options.missingMessage ?? 'full-runtime-native-trust.json must record Full runtime native executable diagnostics.');
   }
-  const trust = JSON.parse(fs.readFileSync(trustPath, 'utf8'));
   if (trust?.schema !== 'opl_full_runtime_native_trust.v1' || !['passed', 'local_authorized_unsigned', 'not_distributable', 'failed'].includes(trust?.status)) {
     throw new Error('full-runtime-native-trust.json must record Full runtime native executable diagnostics.');
   }
@@ -40,4 +39,16 @@ export function assertFullRuntimeNativeTrustFile(
       throw new Error(`Full runtime native executable is not locally authorized: ${entry?.relative_path || '(unknown)'}.`);
     }
   }
+}
+
+export function assertFullRuntimeNativeTrustFile(
+  trustPath: string,
+  manifest: any,
+  options: { missingMessage?: string } = {},
+): void {
+  if (options.missingMessage && !fs.existsSync(trustPath)) {
+    throw new Error(options.missingMessage);
+  }
+  const trust = JSON.parse(fs.readFileSync(trustPath, 'utf8'));
+  assertFullRuntimeNativeTrustObject(trust, manifest);
 }
