@@ -20,6 +20,8 @@ import {
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const releaseRepo = 'gaofeng21cn/one-person-lab-app';
 const allowedStatuses = ['ready_to_promote', 'blocked', 'diagnostic_only'] as const;
+const allowBlockedFlag = '--allow-blocked';
+const allowBlockedOption = allowBlockedFlag.slice(2);
 const releaseOwnerVerdictContract = validateAppReleaseOwnerVerdictContract(
   readAppReleaseOwnerVerdictContract(appRoot),
 );
@@ -79,7 +81,7 @@ function parseArgs(argv: string[]): Options {
   const { values } = parseNodeArgs({
     args: argv,
     options: {
-      'allow-blocked': { type: 'boolean' },
+      [allowBlockedOption]: { type: 'boolean' },
       version: { type: 'string' },
       'release-mode': { type: 'string' },
       'include-full-package': { type: 'string' },
@@ -102,7 +104,7 @@ function parseArgs(argv: string[]): Options {
       'release-owner-human-gate-ref': { type: 'string' },
     },
   });
-  if (values['allow-blocked']) parsed.allowBlocked = true;
+  if (values[allowBlockedOption]) parsed.allowBlocked = true;
   if (typeof values.version === 'string') parsed.version = values.version;
   if (typeof values['release-mode'] === 'string') parsed.releaseMode = values['release-mode'];
   if (typeof values['include-full-package'] === 'string') {

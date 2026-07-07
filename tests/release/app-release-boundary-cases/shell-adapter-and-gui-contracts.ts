@@ -625,6 +625,7 @@ test('App fallow hygiene is not the active GUI shell validation gate', () => {
   ]);
   assert.deepEqual(fallowConfig.ignorePatterns, [
     'docs/delivery/user-guides/macos-app-install/generated/macos-app-install-marp-theme.css',
+    'docs/publishing/templates/opl-guide/marp-theme.css',
     'docs/publishing/templates/opl-guide/styles.scss',
     'docs/publishing/templates/opl-quickstart/styles.scss',
     'docs/publishing/templates/opl-whitepaper/styles.scss',
