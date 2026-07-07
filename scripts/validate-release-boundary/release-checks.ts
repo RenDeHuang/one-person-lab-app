@@ -991,6 +991,7 @@ export const releaseBoundaryChecks: ReleaseBoundaryCheck[] = [
     id: 'desktop_release_evidence_notes',
     file: '.github/workflows/desktop-release.yml',
     required: [
+      'GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}',
       'GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}',
       'prepare-standard-release-notes:',
       'prepare-full-release-notes:',

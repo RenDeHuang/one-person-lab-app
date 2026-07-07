@@ -295,6 +295,8 @@ jobs:
 
       - name: Build and validate prepared release notes
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OPL_RELEASE_NOTES_MODE: template
         run: |
           set -euo pipefail
@@ -506,6 +508,8 @@ jobs:
 
       - name: Build and validate prepared Full release notes
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OPL_RELEASE_NOTES_MODE: template
         run: |
           set -euo pipefail

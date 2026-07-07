@@ -129,6 +129,8 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.doesNotMatch(workflow, /Install Codex release-note writer/);
   assert.doesNotMatch(workflow, /Configure Codex release-note writer/);
   assert.match(workflow, /OPL_RELEASE_NOTES_MODE: template/);
+  assert.match(workflowJobBlock(workflow, 'prepare-standard-release-notes'), /GH_TOKEN: \$\{\{ secrets\.GITHUB_TOKEN \}\}/);
+  assert.match(workflowJobBlock(workflow, 'prepare-full-release-notes'), /GH_TOKEN: \$\{\{ secrets\.GITHUB_TOKEN \}\}/);
   assert.match(workflow, /--input standard-release-notes-template\.md/);
   assert.match(workflow, /--input full-release-notes-template\.md/);
   assert.doesNotMatch(workflow, /node --experimental-strip-types scripts\/release-notes-ai-writer\.ts --probe-openai-compatible/);
