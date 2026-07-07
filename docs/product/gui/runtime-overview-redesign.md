@@ -155,6 +155,42 @@ KPI 改成用户状态计数，而不是 runtime bucket：
 - provider diagnostics
 - full drilldown
 
+## 设计图对齐口径
+
+本页按“先判断项目，再进入诊断”的顺序组织，而不是按 runtime 技术层级组织。
+设计图中的每个区域对应一个稳定职责：
+
+- 顶部标题和说明：告诉用户这是项目运行总览，不是日志页或 provider 诊断页。
+- 右上范围与刷新：用户先确定“我在看全部项目，还是某个智能体 / workspace / project / task”。
+- Freshness bar：只回答“数据什么时候读的、是否已加载、是否缺 telemetry”。
+- KPI 行：只放用户状态计数，包括 `进行中`、`自动运行中`、`需要系统处理`、`需要你决定` 和最近活动。
+- 主任务列表：一行对应一个用户认知任务，默认按主状态分组；同一论文或项目被多个 runtime binding 投影时只能显示一行。
+- 右侧范围卡：保留显式范围切换，避免把“当前工作区推断”误当成唯一工作区。
+- 右侧模块 / 智能体状态：模块健康和任务进展分离；没有 project / study 的 `module_runtime` 行不能进入主任务列表。
+- 高级信息：只放维护诊断、refs、receipts、stage/run/workflow IDs、safe actions 和 full drilldown。
+
+默认任务行的认知脊柱固定为：
+
+1. 项目 / 论文。
+2. 智能体 / 模块。
+3. 任务 / stage。
+4. 下一步 stage 或 action。
+5. 状态。
+
+这条脊柱比直接展示 `task_id`、`stage_attempt_id`、`workflow_id` 更符合 OPL 智能体设计：用户先知道哪篇论文、哪个智能体、当前 stage、下一步动作和归属；需要追查证据时再展开高级信息。
+
+## 去重与文案策略
+
+Runtime projection 可能因为不同 binding、不同 provider attempt 或不同 read-model 来源，给同一篇论文投出多条 refs。默认页必须按用户认知去重：
+
+- 优先按 `agent + project/study + work item` 合并。
+- 其次按 `agent + project/study + active stage` 合并。
+- 再使用 task ref、去掉 binding id 的 task id、原始 task id 兜底。
+- 合并时优先保留 `进行中`、`自动运行中`、`最近一次自动结果待收口`，再比较字段完整度和最近活动时间。
+- 被合并掉的 raw refs 只能进入高级信息。
+
+`next_visible_step` 允许来自 runtime 或 domain projection，但默认页不直接展示长命令、route、readback、receipt、stage attempt 或 currentness drift 原文。默认页应把这类内容压成短动作文案，例如“最近一次自动结果待收口”“需要系统处理”“需要你决定”；原文保留到高级信息或任务详情。
+
 ## 模块职责
 
 ### one-person-lab
@@ -208,6 +244,18 @@ KPI 改成用户状态计数，而不是 runtime bucket：
 - Shell Runtime 页应按本文展示默认视图：顶部范围与刷新、freshness bar、KPI 行、主任务分组列表、右侧模块状态和高级信息。
 - Framework 仍是 runtime truth owner。App 和 shell 只消费 `opl app state --profile fast --json` 与 drilldown refs，不写 runtime truth、domain truth、owner receipts 或 typed blockers。
 - 本文、contract 和 focused validation 不能作为 live/runtime readiness、release currentness 或 owner acceptance 证据。
+
+## 落地顺序与完成度
+
+| 条目 | 完成度 | 建议顺序 | 权威位置 / 证据边界 |
+| --- | ---: | --- | --- |
+| 产品信息架构：项目 cockpit 默认页，高级诊断后置 | 100% | 1 | 本文 + `contracts/app-runtime-bridge.json#runtime_progress_page_display_policy` |
+| 默认字段 allowlist 与 advanced-only 字段 | 100% | 2 | `contracts/app-runtime-bridge.json` + runtime bridge validator；default visible fields 必须属于 allowlist，advanced-only 字段精确校验 |
+| 任务去重：同一论文 / work item 只显示一行 | 100% | 3 | App contract 锁定 policy；Shell companion lane 用 DOM test 验证同一 DM003 binding 只显示一行 |
+| `module_runtime` 分流到右侧模块状态 | 100% | 4 | App contract 锁定 policy；active-shell validator 同时要求主列表过滤 `module_runtime` 且右侧 `moduleStatusItems` 渲染存在 |
+| long next-step 人话归一 | 100% | 5 | App contract 锁定 policy；Shell companion lane 用 DOM test 验证 raw terminalization/readback 文案默认隐藏 |
+| 设计图布局：顶部、freshness、KPI、主列、右侧范围/模块/高级 | 100% | 6 | `layout_regions` + Shell companion source/DOM evidence；不等同于 installed App 截图证据 |
+| installed App 视觉截图验收 | 0% | 7 | release / install owner；不能由 contract 或 focused test 代替 |
 
 ## 完成标准
 

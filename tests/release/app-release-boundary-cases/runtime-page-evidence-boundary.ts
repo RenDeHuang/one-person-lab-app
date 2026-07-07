@@ -459,6 +459,85 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     runtimeBridge.projection_sources.policy,
     'user_task_status_from_app_state_project_refs_provider_projection_diagnostic_only',
   );
+  const runtimeDisplayPolicy = runtimeBridge.runtime_progress_page_display_policy;
+  assert.equal(runtimeDisplayPolicy.page_role, 'project_runtime_cockpit_not_runtime_diagnostics');
+  assert.deepEqual(runtimeDisplayPolicy.default_task_row_spine, [
+    'project_or_paper',
+    'agent_or_module',
+    'task_or_stage',
+    'next_step',
+    'status',
+  ]);
+  assert.deepEqual(runtimeDisplayPolicy.layout_regions, {
+    top: ['top_scope_and_refresh', 'freshness_bar'],
+    overview: ['kpi_row'],
+    main: ['main_task_grouped_list'],
+    right: ['right_scope_filter', 'right_module_status', 'right_advanced_information_disclosure'],
+  });
+  assertIncludesAll(runtimeDisplayPolicy.default_page_sections, [
+    'top_scope_and_refresh',
+    'freshness_bar',
+    'kpi_row',
+    'main_task_grouped_list',
+    'right_scope_filter',
+    'right_module_status',
+    'right_advanced_information_disclosure',
+  ], 'Runtime display default sections');
+  assertIncludesAll(runtimeDisplayPolicy.default_field_allowlist, [
+    'project_display_name',
+    'work_item_display_name',
+    'agent_display_name',
+    'primary_state_label',
+    'automation_state_label',
+    'active_stage_label',
+    'active_stage_elapsed',
+    'stage_usage',
+    'task_total_usage',
+    'next_visible_step',
+    'next_owner',
+  ], 'Runtime display default field allowlist');
+  assert.deepEqual(runtimeDisplayPolicy.task_deduplication_policy.dedupe_key_priority, [
+    'agent_display_name + project_display_name_or_study_id + work_item_display_name',
+    'agent_display_name + project_display_name_or_study_id + active_stage_label',
+    'task_identity.task_ref',
+    'binding_agnostic_task_id',
+    'task_identity.task_id',
+  ]);
+  assert.equal(
+    runtimeDisplayPolicy.task_deduplication_policy.module_runtime_rows_policy,
+    'module_runtime_without_project_or_study_belongs_to_right_module_status_not_main_task_grouped_list',
+  );
+  assert.equal(runtimeDisplayPolicy.task_deduplication_policy.raw_duplicate_refs_default_visible, false);
+  assert.equal(
+    runtimeDisplayPolicy.next_step_copy_policy.long_text_policy,
+    'normalize_long_routes_commands_or_stage_ids_to_short_human_action_copy',
+  );
+  assert.equal(runtimeDisplayPolicy.next_step_copy_policy.raw_route_or_command_default_visible, false);
+  assert.deepEqual(runtimeDisplayPolicy.advanced_only_fields, [
+    'raw_proof_ref',
+    'receipt_refs',
+    'stage_attempt_id',
+    'stage_attempt_ids',
+    'run_id',
+    'active_run_id',
+    'workflow_id',
+    'workflow_refs',
+    'raw_blocker_route',
+    'typed_blocker_resolution_ref',
+    'raw_readback',
+    'readback_ref',
+    'readback_text',
+    'runtime_readback_ref',
+    'runtime_closeout_ref',
+    'mas_owner_consumption_ref',
+    'mas_owner_consumed_stage_attempt_id',
+    'mas_currentness_drift_text',
+    'provider',
+    'projection',
+    'ledger',
+    'current_control_state',
+    'full_drilldown',
+  ]);
   assert.deepEqual(runtimeBridge.user_task_status_projection, {
     source: 'app_state.operator.workbench.summary_cards + app_state.operator.workbench.activity_center + app_state.operator.workbench.task_drilldowns + app_state.operator.visual_ref_groups.active_project_refs',
     authority: 'opl_framework_refs_only_user_task_projection',

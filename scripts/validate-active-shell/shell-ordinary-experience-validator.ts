@@ -122,7 +122,9 @@ const runtimePageExpected = [
   'buildOverviewSections(runtimeModel.taskRunProjectionV2.tasks, selectedScope, controlStates, t)',
   "t('common.runtime.scopeSelector')",
   "t('common.runtime.primaryStates.inProgress')",
-  'scopeMatchesTask(task, selectedScope)',
+  'tasks.filter((task) => scopeMatchesTask(task, scope) && !isModuleRuntimeTask(task))',
+  'parseModuleStatusItems(appStateQuery.appState, t)',
+  'moduleStatusItems.map((item) =>',
 ];
 
 const runtimePageForbidden = [

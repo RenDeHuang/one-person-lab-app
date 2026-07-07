@@ -457,6 +457,7 @@
   "runtime_progress_page_display_policy": {
     "owner": "one-person-lab-app",
     "state": "active_product_contract",
+    "page_role": "project_runtime_cockpit_not_runtime_diagnostics",
     "default_surface": "task_run_cockpit",
     "advanced_surface": "task_detail_or_diagnostics",
     "default_user_questions": [
@@ -468,13 +469,76 @@
       "needs_user_or_system",
       "data_freshness"
     ],
+    "default_task_row_spine": [
+      "project_or_paper",
+      "agent_or_module",
+      "task_or_stage",
+      "next_step",
+      "status"
+    ],
     "default_page_sections": [
       "top_scope_and_refresh",
       "freshness_bar",
       "kpi_row",
       "main_task_grouped_list",
+      "right_scope_filter",
       "right_module_status",
       "right_advanced_information_disclosure"
+    ],
+    "layout_regions": {
+      "top": [
+        "top_scope_and_refresh",
+        "freshness_bar"
+      ],
+      "overview": [
+        "kpi_row"
+      ],
+      "main": [
+        "main_task_grouped_list"
+      ],
+      "right": [
+        "right_scope_filter",
+        "right_module_status",
+        "right_advanced_information_disclosure"
+      ]
+    },
+    "default_field_allowlist": [
+      "scope_options",
+      "current_scope",
+      "scope_source",
+      "inferred_scope_hint",
+      "refresh_action",
+      "last_state_read_at",
+      "projection_freshness_label",
+      "last_progress_at",
+      "last_heartbeat_at_or_telemetry_missing",
+      "state_source",
+      "telemetry_missing",
+      "running_task_count",
+      "active_project_count",
+      "queued_project_count",
+      "attention_count",
+      "in_progress_count",
+      "automation_running_count",
+      "system_attention_count",
+      "owner_decision_count",
+      "recent_activity_at",
+      "agent_display_name",
+      "project_display_name",
+      "work_item_display_name",
+      "primary_state_label",
+      "automation_state_label",
+      "active_stage_label",
+      "active_stage_elapsed",
+      "progress_label",
+      "stage_usage",
+      "task_total_usage",
+      "next_visible_step",
+      "next_owner",
+      "connector_readiness_refs_as_status",
+      "gateway_status_ref_as_status",
+      "diagnostic_substrate_refs_as_status",
+      "capability_health_refs_as_status"
     ],
     "default_visible_field_groups": {
       "scope_and_refresh": [
@@ -498,8 +562,10 @@
         "queued_project_count",
         "attention_count",
         "in_progress_count",
+        "automation_running_count",
         "owner_decision_count",
-        "system_attention_count"
+        "system_attention_count",
+        "recent_activity_at"
       ],
       "main_task_grouped_list": [
         "agent_display_name",
@@ -508,7 +574,10 @@
         "primary_state_label",
         "automation_state_label",
         "active_stage_label",
+        "active_stage_elapsed",
         "progress_label",
+        "stage_usage",
+        "task_total_usage",
         "next_visible_step",
         "next_owner",
         "last_progress_at"
@@ -519,6 +588,40 @@
         "diagnostic_substrate_refs_as_status",
         "capability_health_refs_as_status"
       ]
+    },
+    "task_deduplication_policy": {
+      "dedupe_key_priority": [
+        "agent_display_name + project_display_name_or_study_id + work_item_display_name",
+        "agent_display_name + project_display_name_or_study_id + active_stage_label",
+        "task_identity.task_ref",
+        "binding_agnostic_task_id",
+        "task_identity.task_id"
+      ],
+      "module_runtime_rows_policy": "module_runtime_without_project_or_study_belongs_to_right_module_status_not_main_task_grouped_list",
+      "duplicate_selection_policy": "prefer_in_progress_then_automation_running_then_result_pending_terminalization_then_most_complete_latest_activity",
+      "merge_sources": [
+        "app_state.operator.workbench.task_run_projection_v2.tasks",
+        "app_state.operator.workbench.task_drilldowns",
+        "app_state.operator.workbench.activity_center.active_projects",
+        "app_state.operator.visual_ref_groups.active_project_refs"
+      ],
+      "display_policy": "one_user_visible_row_per_task_keep_secondary_refs_in_advanced_detail",
+      "raw_duplicate_refs_default_visible": false
+    },
+    "next_step_copy_policy": {
+      "source_priority": [
+        "next_visible_step",
+        "next_step",
+        "current_owner_delta_next_action"
+      ],
+      "long_text_policy": "normalize_long_routes_commands_or_stage_ids_to_short_human_action_copy",
+      "default_copy_examples": [
+        "继续分析数据",
+        "继续筛选文献",
+        "等待你决定",
+        "系统自动处理"
+      ],
+      "raw_route_or_command_default_visible": false
     },
     "advanced_only_fields": [
       "raw_proof_ref",
@@ -531,6 +634,10 @@
       "workflow_refs",
       "raw_blocker_route",
       "typed_blocker_resolution_ref",
+      "raw_readback",
+      "readback_ref",
+      "readback_text",
+      "runtime_readback_ref",
       "runtime_closeout_ref",
       "mas_owner_consumption_ref",
       "mas_owner_consumed_stage_attempt_id",
@@ -544,7 +651,7 @@
     "field_placement_policy": "default page shows user task cockpit fields first; raw runtime evidence, ids, refs, route internals, and drift diagnostics require explicit task detail or advanced disclosure",
     "owner_roles": {
       "app": "owns product information architecture, display contract, field placement, and release-boundary validation",
-      "shell": "thin renderer that consumes App contract and Framework projections without inventing runtime state",
+      "shell": "implementation carrier and thin renderer that consumes App contract and Framework projections without inventing runtime state",
       "framework": "owns runtime truth, refs-only projections, action routes, receipts, owner routing, and freshness signals"
     },
     "forbidden_claims": [

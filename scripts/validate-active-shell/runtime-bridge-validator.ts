@@ -544,11 +544,22 @@ function validateRuntimeProgressPageDisplayPolicy(runtimeBridge) {
   if (policy?.advanced_surface !== 'task_detail_or_diagnostics') {
     throw new Error('Runtime progress page advanced surface must be task_detail_or_diagnostics');
   }
+  if (policy?.page_role !== 'project_runtime_cockpit_not_runtime_diagnostics') {
+    throw new Error('Runtime progress page must declare itself as project cockpit, not runtime diagnostics');
+  }
+  assertIncludesAll(policy?.default_task_row_spine ?? [], [
+    'project_or_paper',
+    'agent_or_module',
+    'task_or_stage',
+    'next_step',
+    'status',
+  ], 'Runtime progress page default task row spine');
   for (const section of [
     'top_scope_and_refresh',
     'freshness_bar',
     'kpi_row',
     'main_task_grouped_list',
+    'right_scope_filter',
     'right_module_status',
     'right_advanced_information_disclosure',
   ]) {
@@ -556,21 +567,96 @@ function validateRuntimeProgressPageDisplayPolicy(runtimeBridge) {
       throw new Error(`Runtime progress page default sections must include ${section}`);
     }
   }
-  for (const field of [
-    'stage_attempt_ids',
-    'active_run_id',
-    'workflow_id',
-    'raw_blocker_route',
-    'runtime_closeout_ref',
-    'mas_owner_consumption_ref',
-    'mas_currentness_drift_text',
-    'current_control_state',
-    'full_drilldown',
-  ]) {
-    if (!policy?.advanced_only_fields?.includes(field)) {
-      throw new Error(`Runtime progress page must keep ${field} advanced-only`);
+  assertDeepEqualJson(policy?.layout_regions, {
+    top: ['top_scope_and_refresh', 'freshness_bar'],
+    overview: ['kpi_row'],
+    main: ['main_task_grouped_list'],
+    right: ['right_scope_filter', 'right_module_status', 'right_advanced_information_disclosure'],
+  }, 'Runtime progress page layout regions');
+  assertIncludesAll(policy?.default_field_allowlist ?? [], [
+    'project_display_name',
+    'work_item_display_name',
+    'agent_display_name',
+    'primary_state_label',
+    'automation_state_label',
+    'active_stage_label',
+    'active_stage_elapsed',
+    'stage_usage',
+    'task_total_usage',
+    'next_visible_step',
+    'next_owner',
+  ], 'Runtime progress page default field allowlist');
+  assertIncludesAll(policy?.default_visible_field_groups?.main_task_grouped_list ?? [], [
+    'project_display_name',
+    'work_item_display_name',
+    'agent_display_name',
+    'primary_state_label',
+    'automation_state_label',
+    'active_stage_label',
+    'active_stage_elapsed',
+    'stage_usage',
+    'task_total_usage',
+    'next_visible_step',
+    'next_owner',
+  ], 'Runtime progress page main task grouped list fields');
+  const defaultFieldAllowlist = new Set(policy?.default_field_allowlist ?? []);
+  for (const [groupName, fields] of Object.entries(policy?.default_visible_field_groups ?? {})) {
+    if (!Array.isArray(fields)) {
+      throw new Error(`Runtime progress page default visible field group ${groupName} must be an array`);
+    }
+    for (const field of fields) {
+      if (!defaultFieldAllowlist.has(field)) {
+        throw new Error(`Runtime progress page default field ${groupName}.${field} must be included in default_field_allowlist`);
+      }
     }
   }
+  assertDeepEqualJson(policy?.task_deduplication_policy?.dedupe_key_priority, [
+    'agent_display_name + project_display_name_or_study_id + work_item_display_name',
+    'agent_display_name + project_display_name_or_study_id + active_stage_label',
+    'task_identity.task_ref',
+    'binding_agnostic_task_id',
+    'task_identity.task_id',
+  ], 'Runtime progress page task dedupe key priority');
+  if (
+    policy?.task_deduplication_policy?.module_runtime_rows_policy !==
+    'module_runtime_without_project_or_study_belongs_to_right_module_status_not_main_task_grouped_list'
+  ) {
+    throw new Error('Runtime progress page must keep module_runtime rows out of the default task list');
+  }
+  if (policy?.task_deduplication_policy?.raw_duplicate_refs_default_visible !== false) {
+    throw new Error('Runtime progress page raw duplicate refs must stay hidden by default');
+  }
+  if (policy?.next_step_copy_policy?.long_text_policy !== 'normalize_long_routes_commands_or_stage_ids_to_short_human_action_copy') {
+    throw new Error('Runtime progress page must normalize long runtime next-step copy');
+  }
+  if (policy?.next_step_copy_policy?.raw_route_or_command_default_visible !== false) {
+    throw new Error('Runtime progress page raw route/command next steps must stay hidden by default');
+  }
+  assertDeepEqualJson(policy?.advanced_only_fields, [
+    'raw_proof_ref',
+    'receipt_refs',
+    'stage_attempt_id',
+    'stage_attempt_ids',
+    'run_id',
+    'active_run_id',
+    'workflow_id',
+    'workflow_refs',
+    'raw_blocker_route',
+    'typed_blocker_resolution_ref',
+    'raw_readback',
+    'readback_ref',
+    'readback_text',
+    'runtime_readback_ref',
+    'runtime_closeout_ref',
+    'mas_owner_consumption_ref',
+    'mas_owner_consumed_stage_attempt_id',
+    'mas_currentness_drift_text',
+    'provider',
+    'projection',
+    'ledger',
+    'current_control_state',
+    'full_drilldown',
+  ], 'Runtime progress page advanced-only fields');
   for (const claim of [
     'second_runtime_truth_source',
     'live_runtime_readiness',
