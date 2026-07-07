@@ -186,11 +186,18 @@ One Person Lab App 是面向用户的日常 chat-first 桌面入口：
 
 One Person Lab App 负责桌面产品体验：打包、发布、更新、首次启动、界面状态、截图和用户文档。它证明的是用户能否顺利安装、打开、进入任务、查看进度和处理文件；医学研究、基金写作和视觉交付是否合格，仍由对应专业 Agent 和人工决策来判断。
 
+公开角色图：
+
+- App 是普通用户产品入口和 GUI 产品事实源。产品导航、页面状态预期、用户文档、截图，以及让用户管理专业 Agent package 的界面，都由 App 仓维护。
+- Agent package management 是 App 产品面，但 package lock、生命周期 receipt、校验、rollback ref 和 package truth 归 Framework/root。App 负责请求和展示这些事实，不能把 shell 本地状态当成安装权威。
+- One Person Lab Framework/root 持有 App 背后的 runtime state、action execution、package/runtime projection、provider/domain projection 和领域路由事实。
+- AionUI 是主线 shell implementation carrier；Native Workbench 是开发备选候选。二者都消费 App/root canonical state，不持有 product、runtime、package 或 domain truth。
+
 App 决定用户看到的安装形态、默认入口、首次启动体验和设置界面。One Person Lab Framework 提供背后的运行、初始化和进度数据，MAS、MAG、RCA 承载各自专业判断和交付物。App 只负责把这些能力呈现为用户能使用的桌面产品体验，不替专业 Agent 做领域判断。
 
 OPL App 的工作台体验横跨三种入口：本机桌面 App、Docker/WebUI 浏览器入口和云端 OPL Workspace。Docker/WebUI 不是第二套产品，它是同一个 App 体验的浏览器运行形态；OPL Workspace 是这套 WebUI 在云端托管后的产品形态。三者共享同一套任务、产物、进度和回执语言。
 
-GUI 产品事实也由 App 仓维护。当前 GUI 主线是基于 AionUI 的 OPL 品牌壳；Hermes Desktop / `hermes-codex` 是唯一前台备选。`agui-codex`、PilotDeck 等只作为已归档技术验证或参考材料，不再作为日常实现、默认验证或抛光路线；真正进入产品的界面、默认行为和发布体验，以 App 仓的产品文档、合同和验证结果为准。
+GUI 产品事实也由 App 仓维护。当前 GUI 主线是基于 AionUI 的 OPL 品牌壳；Native Workbench 是开发备选和 foreground candidate；Hermes Desktop / `hermes-codex` 保留为 prior-candidate reference。`agui-codex`、PilotDeck 等只作为已归档技术验证或参考材料，不再作为日常实现、默认验证或抛光路线；真正进入产品的界面、默认行为和发布体验，以 App 仓的产品文档、合同和验证结果为准。
 
 需要框架、运行时和合同信息时，请进入 [`gaofeng21cn/one-person-lab`](https://github.com/gaofeng21cn/one-person-lab)。
 
@@ -211,7 +218,7 @@ one-person-lab-app/
     aionui/             gaofeng21cn/opl-aion-shell 的外部检出目录
 ```
 
-`shells/aionui/` 不纳入本仓跟踪。构建和验证时从 `gaofeng21cn/opl-aion-shell` 检出，AionUI 历史和贡献者记录保留在独立 shell 仓库中。Hermes Desktop / `hermes-codex` 作为唯一前台备选也遵循外部检出规则。`shells/agui-codex/` 只保留到 `gaofeng21cn/opl-agui-codex-shell` 的已归档技术验证链接；除非明确要求 AGUI replay，不再默认更新、完善或抛光。
+`shells/aionui/` 不纳入本仓跟踪。构建和验证时从 `gaofeng21cn/opl-aion-shell` 检出，AionUI 历史和贡献者记录保留在独立 shell 仓库中。Native Workbench 作为开发备选候选，同样以 `shells/opl-native-workbench` 外部检出承载；Hermes Desktop / `hermes-codex` 保留为 prior-candidate reference。`shells/agui-codex/` 只保留到 `gaofeng21cn/opl-agui-codex-shell` 的已归档技术验证链接；除非明确要求 AGUI replay，不再默认更新、完善或抛光。
 
 ### 常用验证命令
 
@@ -241,7 +248,13 @@ bun run validate-release -- release-assets
 - 界面来源：`gaofeng21cn/opl-aion-shell`
 - 历史策略：外部检出，不合并进 App 默认分支
 
-不改变默认发布 adapter 的情况下，可以显式选择 Hermes Desktop 备选：
+不改变默认发布 adapter 的情况下，可以显式选择 Native Workbench 开发备选候选：
+
+```bash
+OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/opl-native-workbench.json npm run package
+```
+
+Hermes Desktop 保留为显式 prior-candidate reference：
 
 ```bash
 OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/hermes-codex.json npm run package
@@ -282,7 +295,7 @@ gates 见 [App release guide](docs/delivery/release/README.md)。当前 App 产�
 gap 见 [`docs/status.md`](docs/status.md) 与
 [`docs/active/app-ideal-state-gap-plan.md`](docs/active/app-ideal-state-gap-plan.md)。
 
-GUI 定义栈按顺序阅读：[`docs/product/gui/ideal-interaction-spec.md`](docs/product/gui/ideal-interaction-spec.md) 定义不绑定具体 shell 的理想交互形态，[`docs/product/gui/codex-to-opl-app-delta.md`](docs/product/gui/codex-to-opl-app-delta.md) 定义 Codex App 变成 OPL App 需要追加、隐藏和治理的产品增量，[`docs/product/gui/feature-inventory.md`](docs/product/gui/feature-inventory.md) 维护跨 shell 的能力清单。后续设计或评审 GUI 时先看这三份，再看 contracts 和 page-state 矩阵；AionUI 是当前实现主线，Hermes Desktop / `hermes-codex` 是唯一前台备选，`agui-codex` 和 PilotDeck 只提供已归档技术验证或参考材料，不能反过来定义 OPL App 产品事实。
+GUI 定义栈按顺序阅读：[`docs/product/gui/ideal-interaction-spec.md`](docs/product/gui/ideal-interaction-spec.md) 定义不绑定具体 shell 的理想交互形态，[`docs/product/gui/codex-to-opl-app-delta.md`](docs/product/gui/codex-to-opl-app-delta.md) 定义 Codex App 变成 OPL App 需要追加、隐藏和治理的产品增量，[`docs/product/gui/feature-inventory.md`](docs/product/gui/feature-inventory.md) 维护跨 shell 的能力清单。后续设计或评审 GUI 时先看这三份，再看 contracts 和 page-state 矩阵；AionUI 是当前实现主线，Native Workbench 是开发备选和 foreground candidate，Hermes Desktop / `hermes-codex` 是 prior-candidate reference，`agui-codex` 和 PilotDeck 只提供已归档技术验证或参考材料，不能反过来定义 OPL App 产品事实。
 
 ### Agent / Framework Boundary
 
