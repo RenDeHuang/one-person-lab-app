@@ -13,7 +13,7 @@ historical provenance:
 
 | Neighbor docs owner | Use for | Boundary |
 | --- | --- | --- |
-| [`../public/`](../public/) | User-readable guide bundles, especially `macos-app-install` HTML/PDF/PPTX | Public docs are not release/readiness proof |
+| [`../site/`](../site/) | Latest generated user-readable guide and whitepaper outputs | Public docs are not release/readiness proof |
 | [`../product/`](../product/) | App/workbench/product shell design and GUI support | Product acceptance stays in contracts, page-state matrices, shell validation, source, and tests |
 | [`../delivery/`](../delivery/) | Release, artifact/package/export, user-guide generation source, screenshots, and verification | Release truth stays in assets, updater metadata, evidence manifests, workflows, validators, CI/logs, and release-boundary tests |
 | [`../history/`](../history/) | Retired routes, candidate replay provenance, and process history | Historical only |

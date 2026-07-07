@@ -133,11 +133,11 @@ macOS trust 诊断和内部版本处理细节留在 release guide，不放在公
 `one-person-lab-full` Homebrew cask 安装。
 
 macOS 可以通过 DMG、一键安装、Homebrew 或 Docker/WebUI 安装。首次启动图文教程以
-[macOS App install user guide](docs/public/macos-app-install/index.html)
+[macOS App install user guide](https://gaofeng21cn.github.io/one-person-lab-app/latest/macos-app-install/macos-app-install.html)
 为主入口；同一份 guide 也提供
-[可转发 PDF](docs/public/macos-app-install/macos-app-install-slides.pdf)、
-[可转发 PPTX](docs/public/macos-app-install/macos-app-install-slides.pptx) 和
-[detailed PDF](docs/public/macos-app-install/macos-app-install-detailed-guide.pdf)。
+[可转发 PDF](https://gaofeng21cn.github.io/one-person-lab-app/latest/macos-app-install/macos-app-install-slides.pdf)、
+[可转发 PPTX](https://gaofeng21cn.github.io/one-person-lab-app/latest/macos-app-install/macos-app-install-slides.pptx) 和
+[detailed PDF](https://gaofeng21cn.github.io/one-person-lab-app/latest/macos-app-install/macos-app-install-detailed-guide.pdf)。
 
 日常更新由 Homebrew 或应用内更新通道完成，取决于安装方式。release asset、updater metadata 和 Full first-install 边界由 App release guide 与 contracts 维护。
 
@@ -157,9 +157,9 @@ Full 首装包是给干净机器准备的预置载荷，不是长期更新通道
 | User Data / Artifacts | 工作区、对话、生成交付物、日志、缓存和 receipts。用户产物删除前需要 inventory、archive/restore proof 和明确确认。 |
 
 Linux、Windows、服务器或云主机用户默认使用 Docker/WebUI，请从
-[Docker/WebUI install guide](docs/public/docker-webui-install/index.html) 开始；同一份
+[Docker/WebUI install guide](https://gaofeng21cn.github.io/one-person-lab-app/latest/docker-webui-install/docker-webui-install.html) 开始；同一份
 guide 也提供
-[detailed PDF](docs/public/docker-webui-install/docker-webui-install-detailed-guide.pdf)。
+[detailed PDF](https://gaofeng21cn.github.io/one-person-lab-app/latest/docker-webui-install/docker-webui-install-detailed-guide.pdf)。
 
 ## 应用能做什么
 

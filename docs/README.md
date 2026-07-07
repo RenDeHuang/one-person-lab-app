@@ -33,30 +33,29 @@ governance only.
 
 | Directory | Owner / purpose / state | Use it for | Machine boundary |
 | --- | --- | --- | --- |
-| [`public/`](public/) | App public docs; `app_public_docs_entry`; `active` | End-user reading entrypoints. Start with [`public/macos-app-install/README.md`](public/macos-app-install/README.md) or [`public/docker-webui-install/README.md`](public/docker-webui-install/README.md); generated latest HTML/PDF/PPTX outputs are produced under `site/latest/`. | Public docs are human-readable artifacts, not release/readiness proof. |
-| `site/latest/` | Generated latest site outputs; `generated_payload`; `local_or_release_asset` | Regenerated HTML/PDF/PPTX/whitepaper outputs for the currently maintained public docs. | Generated payload only; source and provenance stay in `delivery/`, `guides/`, and `whitepapers/`. |
+| [`site/`](site/) | App latest docs site; `latest_public_docs`; `active_support` | GitHub Pages root for the one maintained current user docs set. Generated HTML/PDF/PPTX outputs are produced under `site/latest/`. | Generated payload only; source and provenance stay in `delivery/`, `guides/`, and `whitepapers/`. |
+| [`whitepapers/`](whitepapers/) | OPL App whitepaper source; `whitepaper_source_root`; `active` | Source Markdown for maintained public whitepapers. | Generated HTML/PDF belongs under `site/latest/whitepapers/`; verification belongs under `delivery/whitepapers/`. |
 | [`product/`](product/) | App/workbench/product shell design and GUI support; `active_support` | Product requirements, GUI support docs, App/workbench shell design, and product-facing decisions. | Product acceptance stays in App contracts, page-state matrices, shell validation, source, and tests. |
 | [`delivery/`](delivery/) | Release, artifact/package/export, user-guide generation source, and verification; `active_support` | Release operator docs, generated guide source/provenance, screenshots, and package/export lifecycle support. | Release truth stays in produced assets, updater metadata, evidence manifests, CI/logs, workflows, validators, and release-boundary tests. |
 | [`testing/`](testing/) | App testing entry; `app_testing_docs`; `active` | Test, validation, release-evidence classification, and smoke command orientation. | Test code, contracts, workflows, validators, and artifacts are executable truth. |
 | [`history/`](history/) | App historical index; `app_history`; `history_index` | Retired routes, candidate verification provenance, stale-surface no-resurrection notes, and compressed process history. | Historical only; not active product/runtime/release truth. |
-The canonical public user install entries are `docs/public/macos-app-install/`
-and `docs/public/docker-webui-install/`; latest generated outputs belong under
-`docs/site/latest/`, while source and maintenance material belongs under
-`docs/delivery/`. New shareable HTML/PDF/PPTX outputs should be release assets
-or regenerated local output unless they replace a canonical public bundle.
+The canonical public user install entries are the latest Pages outputs under
+`docs/site/latest/`; source and maintenance material belongs under
+`docs/guides/`, `docs/delivery/`, and `docs/whitepapers/`. New shareable
+HTML/PDF/PPTX outputs should be release assets or regenerated local output
+unless they replace a canonical latest bundle.
 
 ## Public User Entry
 
-Use [`public/macos-app-install/README.md`](public/macos-app-install/README.md)
-and [`public/docker-webui-install/README.md`](public/docker-webui-install/README.md)
-for links to publishable install guides:
+Use the GitHub Pages latest URLs for publishable install guides:
 
-- `site/latest/macos-app-install/macos-app-install.html`
-- `site/latest/macos-app-install/macos-app-install-slides.pdf`
-- `site/latest/macos-app-install/macos-app-install-slides.pptx`
-- `site/latest/macos-app-install/macos-app-install-detailed-guide.pdf`
-- `site/latest/docker-webui-install/docker-webui-install.html`
-- `site/latest/docker-webui-install/docker-webui-install-detailed-guide.pdf`
+- `https://gaofeng21cn.github.io/one-person-lab-app/latest/macos-app-install/macos-app-install.html`
+- `https://gaofeng21cn.github.io/one-person-lab-app/latest/macos-app-install/macos-app-install-slides.pdf`
+- `https://gaofeng21cn.github.io/one-person-lab-app/latest/macos-app-install/macos-app-install-slides.pptx`
+- `https://gaofeng21cn.github.io/one-person-lab-app/latest/macos-app-install/macos-app-install-detailed-guide.pdf`
+- `https://gaofeng21cn.github.io/one-person-lab-app/latest/docker-webui-install/docker-webui-install.html`
+- `https://gaofeng21cn.github.io/one-person-lab-app/latest/docker-webui-install/docker-webui-install-detailed-guide.pdf`
+- `https://gaofeng21cn.github.io/one-person-lab-app/latest/whitepapers/opl-app-whitepaper.html`
 
 Do not link ordinary users to `docs/delivery/user-guides/*`; those are
 maintenance/source surfaces.

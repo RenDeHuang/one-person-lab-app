@@ -510,6 +510,10 @@ function main() {
   fs.mkdirSync(publicDir, { recursive: true });
   fs.mkdirSync(path.dirname(generatedMarkdownPath), { recursive: true });
   fs.mkdirSync(path.dirname(verificationPath), { recursive: true });
+  const htmlFileName = path.basename(htmlOutputPath);
+  if (htmlFileName === 'index.html') {
+    throw new Error(`Published guide HTML must use the guide-aligned filename, not index.html: ${relativeToApp(htmlOutputPath)}`);
+  }
   copyDir(path.join(projectDir, 'screenshots'), path.join(publicDir, 'screenshots'));
   const renderedPdf = fs.readdirSync(outputDir).find((name) => name.endsWith('.pdf'));
   if (!renderedPdf) {
@@ -517,7 +521,7 @@ function main() {
   }
   fs.writeFileSync(
     htmlOutputPath,
-    trimLineEndings(fs.readFileSync(path.join(outputDir, 'index.html'), 'utf8')),
+    trimLineEndings(fs.readFileSync(path.join(outputDir, 'index.html'), 'utf8').replaceAll('index.html', htmlFileName)),
     'utf8',
   );
   fs.copyFileSync(path.join(outputDir, renderedPdf), pdfOutputPath);

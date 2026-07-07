@@ -185,7 +185,7 @@ function buildPdf(metadata: WhitepaperMetadata, markdown: string) {
   ], { env: { SOURCE_DATE_EPOCH: sourceDateEpoch } });
 }
 
-function buildHtml(metadata: WhitepaperMetadata, markdown: string) {
+function buildHtml(metadata: WhitepaperMetadata) {
   fs.mkdirSync(whitepaperDir, { recursive: true });
   run('pandoc', [
     sourceMarkdownPath,
@@ -242,7 +242,7 @@ function main() {
   const markdown = fs.readFileSync(sourceMarkdownPath, 'utf8');
   const metadata = parseMarkdownMetadata(markdown);
   scanTextForSecrets(markdown);
-  buildHtml(metadata, markdown);
+  buildHtml(metadata);
   buildPdf(metadata, markdown);
 
   const render = renderPdf(pdfPath);

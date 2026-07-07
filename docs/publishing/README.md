@@ -10,7 +10,7 @@ OPL install guides use a Quarto-first publishing pipeline:
 - Human-readable body source: `docs/guides/<guide-id>/guide.qmd` and, when needed, `slides.qmd`.
 - Machine metadata: guide manifest JSON.
 - Screenshot provenance: `screenshots.manifest.json`.
-- Published reading outputs: Quarto Book HTML and PDF.
+- Published reading outputs: Quarto Book HTML and PDF under `docs/site/latest/`.
 - Shared style: `docs/publishing/templates/opl-guide`.
 
 This keeps the maintenance boundary simple: edit QMD for prose, edit manifest JSON for paths and validation terms, edit screenshot manifest for image provenance, and edit templates for brand or layout.
@@ -36,6 +36,7 @@ verified with Chinese content.
 Use:
 
 ```bash
+npm run docs:latest
 npm run docs:guides
 npm run docs:whitepaper
 ```
@@ -50,4 +51,6 @@ The generator validates:
 - HTML and PDF are generated.
 - PDF is portrait and has a reasonable page count.
 
-Generated HTML, Markdown, PDFs, and verification JSON are build artifacts. Do not hand-edit them as content sources.
+Generated HTML, Markdown, PDFs, and verification JSON are build artifacts. Do
+not hand-edit them as content sources. Public HTML filenames must match the
+artifact, for example `macos-app-install.html`, not `index.html`.

@@ -18,12 +18,12 @@ Markdown, or smoke gate runbook.
   owns installer surface, data mounts, Access key transport, startup diagnostics, and
   false-ready boundaries.
 - Operator guide: this file owns the maintainer-facing install route and points
-  to the guide source, public bundle, and verification support.
+  to the guide source, latest published output, and verification support.
 - Verification support:
   [`docker-webui-smoke-gates.md`](docker-webui-smoke-gates.md) owns smoke gate
   commands, artifact readback, typed blockers, and completion boundaries.
 - Public entry:
-  [`../../public/docker-webui-install/README.md`](../../public/docker-webui-install/README.md)
+  [`https://gaofeng21cn.github.io/one-person-lab-app/latest/docker-webui-install/docker-webui-install.html`](https://gaofeng21cn.github.io/one-person-lab-app/latest/docker-webui-install/docker-webui-install.html)
   is the user-facing starting point.
 - Generated payload:
   [`../user-guides/docker-webui-install/generated/docker-webui-install.md`](../user-guides/docker-webui-install/generated/docker-webui-install.md)
@@ -35,8 +35,8 @@ Markdown, or smoke gate runbook.
   [`../../guides/docker-webui-install/guide.qmd`](../../guides/docker-webui-install/guide.qmd)
 - Generated Markdown, delivery manifest, and verification:
   [`../user-guides/docker-webui-install/README.md`](../user-guides/docker-webui-install/README.md)
-- Public user bundle:
-  [`../../public/docker-webui-install/README.md`](../../public/docker-webui-install/README.md)
+- Latest public user guide:
+  [`../../site/latest/docker-webui-install/docker-webui-install.html`](../../site/latest/docker-webui-install/docker-webui-install.html)
 - Latest HTML:
   [`../../site/latest/docker-webui-install/docker-webui-install.html`](../../site/latest/docker-webui-install/docker-webui-install.html)
 - Latest detailed PDF:

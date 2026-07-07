@@ -33,8 +33,8 @@ taxonomy below instead of growing more root-level topic files.
 | `docs/active/app-ideal-state-gap-plan.md` | Active product plan; `active_plan` | Current product progress, gaps, and next-round Agent baton | Human-readable active plan; contracts/tests/artifacts prove machine claims |
 | `docs/status.md` | App status; `active` | Current App repository, shell, release, runtime-page, and validation state | Human-readable status; no runtime/provider/domain authority |
 | `docs/project.md`, `docs/architecture.md`, `docs/invariants.md`, `docs/decisions.md` | Core current docs; `active` | Product boundary, architecture split, non-ownership rules, and still-active App decisions | Durable human-readable current truth; machine decisions use contracts/source/tests |
-| `docs/public/` | Public docs; `active` | Clean end-user reading entrypoints. Keep source-like public pages here; generated latest HTML/PDF/PPTX/screenshot copies belong under `docs/site/latest/`. | Human-readable public docs; not production/readiness proof |
-| `docs/site/latest/` | Generated latest site outputs; `generated_payload` | Current generated HTML/PDF/PPTX/whitepaper outputs for maintained public docs. | Generated payload only; not production/readiness proof |
+| `docs/site/` | Latest public docs site; `active_support` | GitHub Pages root for the one maintained current user docs set. `docs/site/latest/` is generated. | Generated payload only; not production/readiness proof |
+| `docs/whitepapers/` | Whitepaper source root; `active` | Canonical Markdown source for maintained OPL-family whitepapers. | Source prose only; generated HTML/PDF belongs under `docs/site/latest/whitepapers/` |
 | `docs/product/` | Product docs; `active_support` | App/workbench/product shell design, GUI support, foreground shell-alternative material, and product-facing reference docs | Product acceptance stays in App contracts, page-state matrices, active-shell validation, source, and tests |
 | `docs/delivery/` | Delivery docs; `active_support` | Release, artifact/package/export lifecycle, user-guide generation source, screenshot provenance, release evidence, and verification support | Release/delivery truth stays in assets, updater metadata, evidence manifests, CI/logs, workflows, validators, release records, and release-boundary tests |
 | `docs/testing/` | Testing docs; `active` | Test command entry, validation orientation, release-evidence classification guidance, and explicit smoke lanes | Tests, scripts, contracts, workflows, validators, and artifacts are authoritative |
@@ -44,17 +44,19 @@ taxonomy below instead of growing more root-level topic files.
 ## Governance Rules
 
 - Root `docs/` should not accumulate new topic files. Add or move material to
-  `public/`, `product/`, `delivery/`, `testing/`, or `history/` according to
-  the owner and lifecycle role.
+  `site/`, `whitepapers/`, `product/`, `delivery/`, `testing/`, or `history/`
+  according to the owner and lifecycle role.
 - Every long-lived doc must make owner, purpose, state, and machine boundary
   clear near the top.
-- `docs/public/` is for user entrypoints. Link users to
-  `docs/public/macos-app-install/README.md` or
-  `docs/public/docker-webui-install/README.md`, then route generated
-  HTML/PDF/PPTX outputs through `docs/site/latest/`; do not point users at
-  guide source directories. New generated binaries should ship as release
-  assets or regenerated local outputs unless they are the canonical maintained
-  output for a guide.
+- `docs/site/latest/` is the generated latest public site. Link users to
+  GitHub Pages latest URLs, not to guide source directories or tracked binary
+  copies. New generated binaries should ship as release assets or regenerated
+  local outputs unless they are the canonical maintained latest output for a
+  guide.
+- OPL-family whitepapers should follow the same source/build/publish pattern:
+  source in `docs/whitepapers/`, verification in `docs/delivery/whitepapers/`,
+  generated latest HTML/PDF in `docs/site/latest/whitepapers/`, and no committed
+  per-release public copies.
 - `docs/product/` owns App/workbench/product shell design and GUI support.
   Product claims must fold back to App contracts, page-state matrices,
   active-shell validation, source, and tests.
@@ -103,7 +105,7 @@ Future coverage belongs in the narrowest owner:
 | User guide generation and screenshot provenance | `docs/delivery/user-guides/`, `docs/delivery/release-evidence/`, and latest generated outputs in `docs/site/latest/`; new generated binaries should not be added as extra tracked copies without a manifest and regeneration command |
 | Docs lifecycle tranche closeout | `docs/history/process/README.md` as a compressed theme row, not a dated proof ledger |
 | Testing-doc release evidence guidance | `docs/testing/README.md` for command entry and evidence classification only; release cohort policy stays in delivery/release docs, `contracts/app-release-channel.json`, workflows, validators, and release-boundary tests |
-| Docker/WebUI beginner install path | `contracts/app-install-exposure-policy.json` owns machine policy; `docs/delivery/install/docker-webui-guide.md` owns operator install routing; `docs/delivery/install/docker-webui-smoke-gates.md` owns verification/readiness-boundary support; `docs/public/docker-webui-install/README.md` owns the user-facing entry; `docs/site/latest/docker-webui-install/` owns latest generated outputs; `docs/delivery/user-guides/docker-webui-install/generated/` is generated payload only |
+| Docker/WebUI beginner install path | `contracts/app-install-exposure-policy.json` owns machine policy; `docs/delivery/install/docker-webui-guide.md` owns operator install routing; `docs/delivery/install/docker-webui-smoke-gates.md` owns verification/readiness-boundary support; GitHub Pages latest owns the user-facing entry; `docs/site/latest/docker-webui-install/` owns latest generated outputs; `docs/delivery/user-guides/docker-webui-install/generated/` is generated payload only |
 
 This App coverage does not close the parent OPL series docs-governance goal,
 because the seven-repo goal remains open until every repo ledger has no
