@@ -4,6 +4,7 @@ import { existsSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { parseArgs as parseNodeArgs } from 'node:util';
 import { readAppShellAdapterContract, resolveActiveShellPaths } from './app-shell-adapter.ts';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -16,42 +17,45 @@ function parseArgs(argv) {
     fileParallelism: false,
     passThrough: [],
   };
-
-  for (let index = 2; index < argv.length; index += 1) {
-    const arg = argv[index];
-    if (arg === '--chunk-size') {
-      const value = Number.parseInt(argv[++index] ?? '', 10);
-      if (!Number.isInteger(value) || value <= 0) {
-        throw new Error('Expected a positive integer after --chunk-size');
-      }
-      parsed.chunkSize = value;
-      continue;
+  const { values, positionals, tokens } = parseNodeArgs({
+    args: argv.slice(2),
+    options: {
+      'chunk-size': { type: 'string' },
+      'max-workers': { type: 'string' },
+      project: { type: 'string' },
+      'file-parallelism': { type: 'boolean' },
+    } as const,
+    allowPositionals: true,
+    strict: true,
+    tokens: true,
+  });
+  const hasTerminator = tokens.some((token) => token.kind === 'option-terminator');
+  if (!hasTerminator && positionals.length > 0) {
+    throw new Error(`Unknown argument: ${positionals[0]}`);
+  }
+  parsed.passThrough = hasTerminator ? positionals : [];
+  if (values['chunk-size']) {
+    const value = Number.parseInt(values['chunk-size'], 10);
+    if (!Number.isInteger(value) || value <= 0) {
+      throw new Error('Expected a positive integer after --chunk-size');
     }
-    if (arg === '--max-workers') {
-      const value = Number.parseInt(argv[++index] ?? '', 10);
-      if (!Number.isInteger(value) || value <= 0) {
-        throw new Error('Expected a positive integer after --max-workers');
-      }
-      parsed.maxWorkers = value;
-      continue;
+    parsed.chunkSize = value;
+  }
+  if (values['max-workers']) {
+    const value = Number.parseInt(values['max-workers'], 10);
+    if (!Number.isInteger(value) || value <= 0) {
+      throw new Error('Expected a positive integer after --max-workers');
     }
-    if (arg === '--project') {
-      const value = argv[++index];
-      if (!['all', 'node', 'dom'].includes(value)) {
-        throw new Error('Expected one of all, node, dom after --project');
-      }
-      parsed.project = value;
-      continue;
+    parsed.maxWorkers = value;
+  }
+  if (values.project) {
+    if (!['all', 'node', 'dom'].includes(values.project)) {
+      throw new Error('Expected one of all, node, dom after --project');
     }
-    if (arg === '--file-parallelism') {
-      parsed.fileParallelism = true;
-      continue;
-    }
-    if (arg === '--') {
-      parsed.passThrough.push(...argv.slice(index + 1));
-      break;
-    }
-    throw new Error(`Unknown argument: ${arg}`);
+    parsed.project = values.project;
+  }
+  if (values['file-parallelism']) {
+    parsed.fileParallelism = true;
   }
 
   return parsed;

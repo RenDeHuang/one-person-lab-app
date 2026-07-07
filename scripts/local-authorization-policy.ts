@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { parseArgs as parseNodeArgs } from 'node:util';
 
 const LOCAL_AUTHORIZATION_POLICY_SCHEMA = 'opl_local_authorized_macos_policy.v1';
 
@@ -33,25 +34,23 @@ export function assertLocalAuthorizationPolicy(policy, packageKind, name = 'loca
 }
 
 function parseArgs(argv) {
+  const { values } = parseNodeArgs({
+    args: argv,
+    options: {
+      'package-kind': { type: 'string' },
+      'app-path': { type: 'string' },
+      output: { type: 'string' },
+      'runtime-native-trust': { type: 'string' },
+    } as const,
+    allowPositionals: false,
+    strict: true,
+  });
   const parsed = {
-    packageKind: '',
-    appPath: '',
-    output: '',
-    runtimeNativeTrustPath: '',
+    packageKind: values['package-kind'] ?? '',
+    appPath: values['app-path'] ? path.resolve(values['app-path']) : '',
+    output: values.output ? path.resolve(values.output) : '',
+    runtimeNativeTrustPath: values['runtime-native-trust'] ? path.resolve(values['runtime-native-trust']) : '',
   };
-  for (let index = 0; index < argv.length; index += 1) {
-    const token = argv[index];
-    const value = argv[index + 1];
-    if (!value || value.startsWith('--')) {
-      throw new Error(`Missing value for ${token}`);
-    }
-    index += 1;
-    if (token === '--package-kind') parsed.packageKind = value;
-    else if (token === '--app-path') parsed.appPath = path.resolve(value);
-    else if (token === '--output') parsed.output = path.resolve(value);
-    else if (token === '--runtime-native-trust') parsed.runtimeNativeTrustPath = path.resolve(value);
-    else throw new Error(`Unknown argument: ${token}`);
-  }
   if (!['app_standard', 'app_full_first_install'].includes(parsed.packageKind)) {
     throw new Error(`Unsupported package kind: ${parsed.packageKind || '(empty)'}`);
   }

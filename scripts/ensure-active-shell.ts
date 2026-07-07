@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { parseArgs as parseNodeArgs } from 'node:util';
 import { readAppShellAdapterContract, resolveActiveShellPaths } from './app-shell-adapter.ts';
 import { runCommand } from './release-cleanup-helpers.ts';
 
@@ -14,27 +15,21 @@ function run(command: string, args: string[], options: { capture?: boolean; cwd?
 }
 
 function parseArgs(argv) {
-  const parsed = {
-    ref: process.env.OPL_APP_SHELL_REF || '',
-    repo: process.env.OPL_APP_SHELL_REPO || '',
-    reset: false,
+  const { values } = parseNodeArgs({
+    args: argv.slice(2),
+    options: {
+      ref: { type: 'string' },
+      repo: { type: 'string' },
+      reset: { type: 'boolean' },
+    } as const,
+    allowPositionals: false,
+    strict: true,
+  });
+  return {
+    ref: values.ref ?? process.env.OPL_APP_SHELL_REF ?? '',
+    repo: values.repo ?? process.env.OPL_APP_SHELL_REPO ?? '',
+    reset: values.reset === true,
   };
-  for (let index = 2; index < argv.length; index += 1) {
-    const token = argv[index];
-    if (token === '--reset') {
-      parsed.reset = true;
-      continue;
-    }
-    const value = argv[index + 1];
-    if (!value || value.startsWith('--')) {
-      throw new Error(`Missing value for ${token}`);
-    }
-    index += 1;
-    if (token === '--ref') parsed.ref = value;
-    else if (token === '--repo') parsed.repo = value;
-    else throw new Error(`Unknown argument: ${token}`);
-  }
-  return parsed;
 }
 
 function isGitCheckout(shellRoot) {
