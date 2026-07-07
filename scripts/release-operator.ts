@@ -153,6 +153,11 @@ type OperatorBudget = {
   current_step_elapsed_seconds: number | null;
   run_updated_age_seconds: number | null;
   threshold_seconds: number | null;
+  run_sla_profile: string | null;
+  run_attention_seconds: number | null;
+  run_hard_stop_seconds: number | null;
+  run_sla_status: 'unknown' | 'within_sla' | 'attention' | 'exceeded';
+  run_sla_reason: string;
   reason: string;
 };
 
@@ -191,6 +196,7 @@ type DiagnoseVmOptions = OperatorOutputOptions & {
   releaseMode: string;
   releaseArtifactRunId: string;
   releaseArtifactName: string;
+  packageProfile: string;
   diagnosticScope: string;
   buildStandardArtifact: boolean;
   runVmDiagnostic: boolean;
@@ -273,6 +279,7 @@ function parseDiagnoseVmArgs(argv: string[]): DiagnoseVmOptions {
     releaseMode: process.env.OPL_RELEASE_MODE || 'refresh_existing',
     releaseArtifactRunId: process.env.OPL_RELEASE_ARTIFACT_RUN_ID || '',
     releaseArtifactName: process.env.OPL_RELEASE_ARTIFACT_NAME || 'macos-build-arm64-dmg',
+    packageProfile: process.env.OPL_RELEASE_PACKAGE_PROFILE || 'standard',
     diagnosticScope: process.env.OPL_RELEASE_DIAGNOSTIC_SCOPE || 'existing_artifact',
     buildStandardArtifact: false,
     runVmDiagnostic: true,
@@ -285,6 +292,7 @@ function parseDiagnoseVmArgs(argv: string[]): DiagnoseVmOptions {
       'release-mode': { type: 'string' },
       'release-artifact-run-id': { type: 'string' },
       'release-artifact-name': { type: 'string' },
+      'package-profile': { type: 'string' },
       'diagnostic-scope': { type: 'string' },
       'build-standard-artifact': { type: 'string' },
       'run-vm-diagnostic': { type: 'string' },
@@ -300,6 +308,7 @@ function parseDiagnoseVmArgs(argv: string[]): DiagnoseVmOptions {
   if (typeof values['release-mode'] === 'string') parsed.releaseMode = values['release-mode'];
   if (typeof values['release-artifact-run-id'] === 'string') parsed.releaseArtifactRunId = values['release-artifact-run-id'];
   if (typeof values['release-artifact-name'] === 'string') parsed.releaseArtifactName = values['release-artifact-name'];
+  if (typeof values['package-profile'] === 'string') parsed.packageProfile = values['package-profile'];
   if (typeof values['diagnostic-scope'] === 'string') parsed.diagnosticScope = values['diagnostic-scope'];
   if (typeof values['build-standard-artifact'] === 'string') {
     parsed.buildStandardArtifact = parseBoolean(values['build-standard-artifact']);
@@ -372,10 +381,14 @@ function quoteField(value: string): string {
 }
 
 function buildDiagnosticCommands(options: DiagnoseVmOptions): DiagnosticCommand[] {
+  const releaseTag = options.version.trim() ? `v${options.version.trim()}` : '';
   const firstRunVm = [
     'gh workflow run "OPL GUI First-Run VM"',
+    `--field release_tag=${quoteField(releaseTag)}`,
     `--field release_artifact_name=${quoteField(options.releaseArtifactName)}`,
     `--field release_artifact_run_id=${quoteField(options.releaseArtifactRunId)}`,
+    `--field package_profile=${quoteField(options.packageProfile)}`,
+    `--field diagnostic_scope=${quoteField(options.diagnosticScope)}`,
   ].join(' ');
   const diagnostics = [
     'gh workflow run desktop-release-diagnostics.yml',
@@ -384,6 +397,7 @@ function buildDiagnosticCommands(options: DiagnoseVmOptions): DiagnosticCommand[
     `--field diagnostic_scope=${quoteField(options.diagnosticScope)}`,
     `--field release_artifact_run_id=${quoteField(options.releaseArtifactRunId)}`,
     `--field release_artifact_name=${quoteField(options.releaseArtifactName)}`,
+    `--field package_profile=${quoteField(options.packageProfile)}`,
     `--field build_standard_artifact=${String(options.buildStandardArtifact)}`,
     `--field run_vm_diagnostic=${String(options.runVmDiagnostic)}`,
   ].join(' ');
@@ -610,6 +624,36 @@ function classifyBlockerAction(blocker: PrimaryBlocker, run: RunStatusSummary): 
   return 'inspect_primary_blocker';
 }
 
+function inferVmDiagnosticProfile(run: RunStatusSummary, blocker: PrimaryBlocker, version: string) {
+  const text = normalizeClassifierText(run.workflow_name, blocker?.job_name, blocker?.step_name, blocker?.reason);
+  if (text.includes('homebrew')) {
+    return { packageProfile: 'homebrew-standard', releaseArtifactName: '' };
+  }
+  if (text.includes('full')) {
+    return {
+      packageProfile: 'full',
+      releaseArtifactName: `opl-full-first-install-dmg-${version}-mac-arm64`,
+    };
+  }
+  return { packageProfile: 'standard', releaseArtifactName: 'macos-build-arm64-dmg' };
+}
+
+function sameArtifactVmDiagnosticCommand(options: StatusOptions, run: RunStatusSummary, blocker: PrimaryBlocker): string {
+  const version = options.version.trim() || '<version>';
+  const profile = inferVmDiagnosticProfile(run, blocker, version);
+  return [
+    'npm run release:operator -- diagnose-vm --',
+    `--version ${quoteField(version)}`,
+    '--release-mode refresh_existing',
+    `--release-artifact-run-id ${quoteField(run.id)}`,
+    `--release-artifact-name ${quoteField(profile.releaseArtifactName)}`,
+    `--package-profile ${quoteField(profile.packageProfile)}`,
+    '--diagnostic-scope release_gate',
+    '--build-standard-artifact false',
+    '--run-vm-diagnostic true',
+  ].join(' ');
+}
+
 function phaseForStatus(status: OperatorStatus): OperatorPhase {
   if (status === 'planned') return 'release_plan_ready';
   if (status === 'diagnostic_command_ready') return 'release_diagnostic_ready';
@@ -657,6 +701,78 @@ function progressThresholdSeconds(run: RunStatusSummary, currentStep: CurrentSte
   return 20 * 60;
 }
 
+function runSlaThresholds(run: RunStatusSummary): { profile: string; attention: number; hardStop: number } | null {
+  const text = normalizeClassifierText(run.workflow_name, ...run.jobs.map((job) => job.name));
+  if (text.includes('desktop release promote')) {
+    return { profile: 'promote_after_owner_receipt', attention: 10 * 60, hardStop: 15 * 60 };
+  }
+  if (text.includes('desktop release diagnostics')) {
+    return { profile: 'same_cohort_diagnostic', attention: 15 * 60, hardStop: 30 * 60 };
+  }
+  if (text.includes('first-run vm') || text.includes('first run vm')) {
+    return { profile: 'same_artifact_vm_gate', attention: 15 * 60, hardStop: 30 * 60 };
+  }
+  if (text.includes('desktop release')) {
+    if (
+      text.includes('full first-install')
+      || text.includes('full-first-install')
+      || text.includes('full package')
+      || text.includes('full release')
+    ) {
+      return { profile: 'stable_full_docker_vm', attention: 75 * 60, hardStop: 90 * 60 };
+    }
+    return { profile: 'stable_standard_only', attention: 45 * 60, hardStop: 60 * 60 };
+  }
+  return null;
+}
+
+function buildRunSlaBudget(run: RunStatusSummary, elapsedSecondsValue: number | null) {
+  const thresholds = runSlaThresholds(run);
+  if (!thresholds) {
+    return {
+      run_sla_profile: null,
+      run_attention_seconds: null,
+      run_hard_stop_seconds: null,
+      run_sla_status: 'unknown' as const,
+      run_sla_reason: 'No release SLA profile applies to this workflow.',
+    };
+  }
+  if (elapsedSecondsValue === null) {
+    return {
+      run_sla_profile: thresholds.profile,
+      run_attention_seconds: thresholds.attention,
+      run_hard_stop_seconds: thresholds.hardStop,
+      run_sla_status: 'unknown' as const,
+      run_sla_reason: `Release SLA profile ${thresholds.profile} applies, but elapsed time is unavailable.`,
+    };
+  }
+  if (elapsedSecondsValue >= thresholds.hardStop) {
+    return {
+      run_sla_profile: thresholds.profile,
+      run_attention_seconds: thresholds.attention,
+      run_hard_stop_seconds: thresholds.hardStop,
+      run_sla_status: 'exceeded' as const,
+      run_sla_reason: `Run elapsed ${elapsedSecondsValue}s exceeded the ${thresholds.hardStop}s hard-stop SLA for ${thresholds.profile}.`,
+    };
+  }
+  if (elapsedSecondsValue >= thresholds.attention) {
+    return {
+      run_sla_profile: thresholds.profile,
+      run_attention_seconds: thresholds.attention,
+      run_hard_stop_seconds: thresholds.hardStop,
+      run_sla_status: 'attention' as const,
+      run_sla_reason: `Run elapsed ${elapsedSecondsValue}s crossed the ${thresholds.attention}s attention SLA for ${thresholds.profile}.`,
+    };
+  }
+  return {
+    run_sla_profile: thresholds.profile,
+    run_attention_seconds: thresholds.attention,
+    run_hard_stop_seconds: thresholds.hardStop,
+    run_sla_status: 'within_sla' as const,
+    run_sla_reason: `Run elapsed ${elapsedSecondsValue}s is inside the ${thresholds.attention}s attention SLA for ${thresholds.profile}.`,
+  };
+}
+
 function buildBudget(run: RunStatusSummary, currentStep: CurrentStep, elapsed: OperatorElapsed, generatedAt: string): OperatorBudget {
   const stepStartedAt = currentStep.started_at ?? (currentStep.waiting ? currentStep.started_at : null);
   const currentStepElapsed = run.status === 'completed'
@@ -666,6 +782,7 @@ function buildBudget(run: RunStatusSummary, currentStep: CurrentStep, elapsed: O
     ? null
     : elapsedSeconds(run.updated_at ?? run.started_at ?? run.created_at, generatedAt);
   const threshold = progressThresholdSeconds(run, currentStep);
+  const runSla = buildRunSlaBudget(run, elapsed.seconds);
   if (run.status === 'completed') {
     return {
       status: 'unknown',
@@ -673,6 +790,7 @@ function buildBudget(run: RunStatusSummary, currentStep: CurrentStep, elapsed: O
       current_step_elapsed_seconds: currentStepElapsed,
       run_updated_age_seconds: runUpdatedAge,
       threshold_seconds: threshold,
+      ...runSla,
       reason: 'Run is complete; progress budget no longer applies.',
     };
   }
@@ -683,6 +801,7 @@ function buildBudget(run: RunStatusSummary, currentStep: CurrentStep, elapsed: O
       current_step_elapsed_seconds: currentStepElapsed,
       run_updated_age_seconds: runUpdatedAge,
       threshold_seconds: threshold,
+      ...runSla,
       reason: `Current step has been active for ${currentStepElapsed}s, crossing the ${threshold}s release-operator attention budget.`,
     };
   }
@@ -693,7 +812,19 @@ function buildBudget(run: RunStatusSummary, currentStep: CurrentStep, elapsed: O
       current_step_elapsed_seconds: currentStepElapsed,
       run_updated_age_seconds: runUpdatedAge,
       threshold_seconds: threshold,
+      ...runSla,
       reason: `Run status has not updated for ${runUpdatedAge}s, crossing the ${threshold}s release-operator attention budget.`,
+    };
+  }
+  if (runSla.run_sla_status === 'attention' || runSla.run_sla_status === 'exceeded') {
+    return {
+      status: 'attention',
+      elapsed_seconds: elapsed.seconds,
+      current_step_elapsed_seconds: currentStepElapsed,
+      run_updated_age_seconds: runUpdatedAge,
+      threshold_seconds: threshold,
+      ...runSla,
+      reason: runSla.run_sla_reason,
     };
   }
   return {
@@ -702,6 +833,7 @@ function buildBudget(run: RunStatusSummary, currentStep: CurrentStep, elapsed: O
     current_step_elapsed_seconds: currentStepElapsed,
     run_updated_age_seconds: runUpdatedAge,
     threshold_seconds: threshold,
+    ...runSla,
     reason: threshold === null
       ? 'No progress budget applies to this run state.'
       : `Current run is still inside the ${threshold}s release-operator attention budget.`,
@@ -816,8 +948,12 @@ function statusAction(
     const action = classifyBlockerAction(blocker, run);
     return {
       action,
-      command: `gh run view ${run.id} --repo ${options.repo} --log-failed`,
-      reason: `Primary blocker failed while the workflow is still ${run.status ?? 'running'}: ${blocker?.reason ?? 'A gate failed.'}`,
+      command: action === 'rerun_diagnostic_same_artifact'
+        ? sameArtifactVmDiagnosticCommand(options, run, blocker)
+        : `gh run view ${run.id} --repo ${options.repo} --log-failed`,
+      reason: action === 'rerun_diagnostic_same_artifact'
+        ? `VM gate failed while the workflow is still ${run.status ?? 'running'}; run the same-artifact diagnostic instead of rerunning desktop-release. ${blocker?.reason ?? ''}`.trim()
+        : `Primary blocker failed while the workflow is still ${run.status ?? 'running'}: ${blocker?.reason ?? 'A gate failed.'}`,
       publishes_release: false,
       dispatches_workflow: false,
     };
@@ -826,8 +962,12 @@ function statusAction(
     const action = classifyBlockerAction(blocker, run);
     return {
       action,
-      command: `gh run view ${run.id} --repo ${options.repo} --log-failed`,
-      reason: blocker?.reason ?? `Run conclusion is ${run.conclusion ?? 'unknown'}.`,
+      command: action === 'rerun_diagnostic_same_artifact'
+        ? sameArtifactVmDiagnosticCommand(options, run, blocker)
+        : `gh run view ${run.id} --repo ${options.repo} --log-failed`,
+      reason: action === 'rerun_diagnostic_same_artifact'
+        ? `VM gate failed; run the same-artifact diagnostic instead of rerunning desktop-release. ${blocker?.reason ?? ''}`.trim()
+        : blocker?.reason ?? `Run conclusion is ${run.conclusion ?? 'unknown'}.`,
       publishes_release: false,
       dispatches_workflow: false,
     };
@@ -950,6 +1090,7 @@ function writeOperatorMarkdown(filePath: string, state: OperatorState): void {
       `- Current job: ${state.current_step?.job_name ?? 'none'}`,
       `- Current step: ${state.current_step?.step_name ?? 'none'}`,
       `- Elapsed seconds: ${state.elapsed?.seconds ?? 'unknown'}`,
+      `- Release SLA: ${state.budget?.run_sla_status ?? 'unknown'} (${state.budget?.run_sla_profile ?? 'none'})`,
       `- Stale: ${String(state.is_stale ?? false)}`,
       `- Primary blocker: ${state.primary_blocker ? state.primary_blocker.reason : 'none'}`,
       '',
@@ -1031,6 +1172,7 @@ function formatOperatorSummary(state: OperatorState): string {
       `Budget: ${state.budget.status}`,
       `Current step elapsed: ${state.budget.current_step_elapsed_seconds ?? 'unknown'}s`,
       `Run updated age: ${state.budget.run_updated_age_seconds ?? 'unknown'}s`,
+      `Release SLA: ${state.budget.run_sla_status} (${state.budget.run_sla_profile ?? 'none'})`,
     );
   }
   lines.push(

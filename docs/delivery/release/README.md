@@ -244,10 +244,10 @@ Critical-path targets:
 
 | Path | Target wall time | Owner action when exceeded |
 | --- | --- | --- |
-| Stable standard candidate | 10-20 minutes | Inspect `release-actions-timing-<version>` and the operator status for slow gates before rerunning. |
-| Stable with Full package | 35-50 minutes | Check Full bundle reuse, Full diagnostics, and VM runner capacity before rerunning the Full build. |
+| Stable standard-only candidate | 35-50 minutes | Inspect `release-actions-timing-<version>` and the operator status for slow gates before rerunning. |
+| Stable with Full package, Docker/WebUI, and VM gates | 55-70 minutes for the release workflow; 75-90 minutes including normal operator interaction | At 75 minutes, run `release:operator status` and classify the active job/step before waiting longer. At 90 minutes, stop passive waiting and identify the blocker owner or same-cohort retry path. |
 | Same-cohort gate retry | 3-15 minutes | Use the cohort manifest to rerun only the failed gate or diagnostic path. |
-| Promote after owner receipt | Under 5 minutes | Promote from a ready candidate record; do not rerun desktop release to carry owner metadata. |
+| Promote after owner receipt | 8-12 minutes | Promote from a ready candidate record; inspect at 10 minutes and treat 15 minutes as the hard-stop SLA for the promote workflow. Do not rerun desktop release to carry owner metadata. |
 
 The RCA boundary is mostly process design, not isolated code failure: treat
 roughly 70% of release delay as workflow shape, evidence routing, and retry
@@ -264,8 +264,10 @@ only, not runtime truth or release readiness.
 VM smoke is artifact qualification. It qualifies the exact DMG/cask artifact
 for the same cohort and must not be used as a place to rebuild, mutate source,
 or generate missing release material. If VM smoke fails after artifact creation,
-rerun the VM diagnostic or same-cohort gate from the manifest; dispatch a new
-cohort only when the artifact, source gate, or pinned refs are invalid.
+rerun the VM diagnostic or same-cohort gate from the manifest. The operator
+next action must be a same-artifact diagnostic unless the failure proves the
+artifact, source gate, or pinned refs are invalid. Dispatch a new cohort only
+after that boundary is proven.
 
 ## Release Notes Runbook
 
@@ -391,10 +393,19 @@ Interpret the result as follows:
 - `waiting_for_run_completion` with `Budget: within_budget`: wait or check the
   current job normally.
 - `waiting_for_run_completion` with `Budget: attention`: the active job/step or
-  run update age crossed the release-operator budget. Inspect the current step,
-  runner availability, and workflow shape before continuing to wait.
+  run update age crossed the release-operator budget, or the run crossed its
+  release SLA. The summary line `Release SLA: attention` means elapsed time
+  crossed the planned operator threshold even if the current step itself is
+  still young. Inspect the current step, runner availability, and workflow
+  shape before continuing to wait.
 - `ready_for_closeout_review`: inspect closeout, readiness, candidate record,
   and remote verification artifacts before any release-owner decision.
+
+For the full Stable path, 75 minutes is the attention point and 90 minutes is
+the hard-stop SLA for passive waiting. For the promote path, inspect at
+10 minutes and treat 15 minutes as the hard stop. A VM failure after artifact
+creation should route to `npm run release:operator -- diagnose-vm ...` or the
+critical-diagnostics `retry_entry`, not to a new `desktop-release` dispatch.
 
 The 2026-06-29/30 stable attempt exposed two design traps that this runbook
 guards against: a WebUI GHCR run can sit inside one opaque Docker step with no

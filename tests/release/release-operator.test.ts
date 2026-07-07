@@ -91,9 +91,13 @@ test('release guide documents no-watch operator runbook and lane boundaries', ()
     'release-monitor.json#state',
     'primary_blocker',
     'recommended_next_action',
+    'Release SLA: attention',
+    '75 minutes',
+    '90 minutes',
     'failed_gate_draining',
     'stale_candidate',
     'dispatch a new cohort',
+    'same-artifact diagnostic',
     'Pinned cohort runbook',
     'Sync preparation',
     'moving refs to immutable values',
@@ -273,11 +277,14 @@ test('release operator VM diagnostics only emits non-dispatching suggested comma
   assert.equal(state.status, 'diagnostic_command_ready');
   assert.equal(state.next_action.action, 'rerun_diagnostic_same_artifact');
   assert.match(state.next_action.command, /desktop-release-diagnostics\.yml/);
+  assert.match(state.next_action.command, /--field package_profile="standard"/);
   assert.equal(state.authority_boundary.operator_can_dispatch_workflow_without_explicit_user_action, false);
   for (const command of state.diagnostic_commands) {
     assert.equal(command.dispatches_workflow, false);
     assert.equal(command.publishes_release, false);
     assert.match(command.command, /^gh workflow run /);
+    assert.match(command.command, /package_profile="standard"/);
+    assert.match(command.command, /diagnostic_scope="existing_artifact"/);
   }
   assert.ok(
     state.diagnostic_commands.some((command: { command: string }) => command.command.includes('OPL GUI First-Run VM')),
@@ -285,6 +292,109 @@ test('release operator VM diagnostics only emits non-dispatching suggested comma
   assert.ok(
     state.diagnostic_commands.some((command: { command: string }) => command.command.includes('desktop-release-diagnostics.yml')),
   );
+});
+
+test('release operator status escalates Full stable runs after the 75-minute SLA boundary', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-operator-status-sla-'));
+  const runJsonPath = path.join(tempRoot, 'run.json');
+  const outputPath = path.join(tempRoot, 'release-operator-state.json');
+  const startedAt = new Date(Date.now() - 76 * 60 * 1000).toISOString();
+  const recentAt = new Date(Date.now() - 60 * 1000).toISOString();
+  writeJson(runJsonPath, {
+    databaseId: 12349,
+    workflowName: 'OPL Desktop Release',
+    status: 'in_progress',
+    conclusion: null,
+    startedAt,
+    updatedAt: recentAt,
+    headSha: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    jobs: [
+      {
+        name: 'Build Full first-install assets / Build App-owned Full first-install DMG',
+        status: 'completed',
+        conclusion: 'success',
+      },
+      {
+        name: 'Validate operator evidence bundle',
+        status: 'in_progress',
+        conclusion: null,
+        startedAt: recentAt,
+        steps: [
+          {
+            name: 'Collect operator evidence',
+            status: 'in_progress',
+            conclusion: null,
+            startedAt: recentAt,
+          },
+        ],
+      },
+    ],
+  });
+
+  const result = runScript('scripts/release-operator.ts', [
+    'status',
+    '--run-json',
+    runJsonPath,
+    '--output',
+    outputPath,
+  ]);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const state = readJson(outputPath);
+  assert.equal(state.status, 'waiting_for_run_completion');
+  assert.equal(state.budget.status, 'attention');
+  assert.equal(state.budget.run_sla_profile, 'stable_full_docker_vm');
+  assert.equal(state.budget.run_sla_status, 'attention');
+  assert.equal(state.budget.run_attention_seconds, 4500);
+  assert.equal(state.budget.run_hard_stop_seconds, 5400);
+  assert.equal(state.next_action.action, 'inspect_current_step_progress');
+  assert.match(state.next_action.reason, /attention SLA/);
+});
+
+test('release operator status routes VM failures to same-artifact diagnostics instead of full release reruns', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-operator-status-vm-diagnostic-'));
+  const runJsonPath = path.join(tempRoot, 'run.json');
+  const outputPath = path.join(tempRoot, 'release-operator-state.json');
+  writeJson(runJsonPath, {
+    databaseId: 12350,
+    workflowName: 'OPL Desktop Release Promote',
+    status: 'completed',
+    conclusion: 'failure',
+    headSha: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    jobs: [
+      {
+        name: 'Run Homebrew standard first-run VM smoke / Clean VM first launch',
+        status: 'completed',
+        conclusion: 'failure',
+        steps: [
+          { name: 'Run clean VM first launch smoke', status: 'completed', conclusion: 'failure' },
+        ],
+      },
+    ],
+  });
+
+  const result = runScript('scripts/release-operator.ts', [
+    'status',
+    '--run-json',
+    runJsonPath,
+    '--version',
+    '26.7.9',
+    '--output',
+    outputPath,
+  ]);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const state = readJson(outputPath);
+  assert.equal(state.status, 'failed');
+  assert.equal(state.next_action.action, 'rerun_diagnostic_same_artifact');
+  assert.match(state.next_action.command, /release:operator -- diagnose-vm/);
+  assert.match(state.next_action.command, /--version "26\.7\.9"/);
+  assert.match(state.next_action.command, /--release-artifact-run-id "12350"/);
+  assert.match(state.next_action.command, /--release-artifact-name ""/);
+  assert.match(state.next_action.command, /--package-profile "homebrew-standard"/);
+  assert.match(state.next_action.command, /--diagnostic-scope release_gate/);
+  assert.doesNotMatch(state.next_action.command, /desktop-release\.yml/);
+  assert.match(state.next_action.reason, /same-artifact diagnostic/);
 });
 
 test('release operator status reports completed failure primary blocker', () => {
