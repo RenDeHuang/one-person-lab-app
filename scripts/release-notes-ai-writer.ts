@@ -800,7 +800,7 @@ function openAICompatibleConfigured() {
 
 function runOpenAICompatibleModels<T>(
   models: string[],
-  failureLabel: string,
+  failureMessage: string,
   requestModel: (model: string, providerLabel: string) => T,
 ) {
   const failures: string[] = [];
@@ -812,7 +812,7 @@ function runOpenAICompatibleModels<T>(
       failures.push(`${model}: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
-  throw new Error(`OpenAI-compatible ${failureLabel} failed for ${models.join(', ')}: ${failures.join(' | ')}`);
+  throw new Error(`${failureMessage} for ${models.join(', ')}: ${failures.join(' | ')}`);
 }
 
 function runOpenAICompatibleProvider(prompt: string, evidence: ReleaseNotesEvidence) {
@@ -820,7 +820,7 @@ function runOpenAICompatibleProvider(prompt: string, evidence: ReleaseNotesEvide
   if (!endpoint || !token) {
     throw new Error('Missing OpenAI-compatible release-note provider config. Set OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL and OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY, or the existing OPL_RELEASE_NOTES_CODEX_BASE_URL and OPL_RELEASE_NOTES_CODEX_API_KEY route.');
   }
-  return runOpenAICompatibleModels(models, 'provider', (model, providerLabel) => (
+  return runOpenAICompatibleModels(models, 'OpenAI-compatible provider failed', (model, providerLabel) => (
     validateOrRepairGeneratedMarkdown(prompt, evidence, (activePrompt) => (
       requestChatCompletions(endpoint, token, model, activePrompt, providerLabel)
     ))
@@ -832,7 +832,7 @@ function runOpenAICompatibleProbe() {
   if (!endpoint || !token) {
     throw new Error('Missing OpenAI-compatible release-note provider config. Set OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL and OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY, or the existing OPL_RELEASE_NOTES_CODEX_BASE_URL and OPL_RELEASE_NOTES_CODEX_API_KEY route.');
   }
-  runOpenAICompatibleModels(models, 'provider probe', (model, providerLabel) => {
+  runOpenAICompatibleModels(models, 'OpenAI-compatible provider probe failed', (model, providerLabel) => {
     const content = requestChatCompletions(
       endpoint,
       token,
