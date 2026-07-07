@@ -56,6 +56,7 @@
     "docs:publishing-templates": "node --experimental-strip-types scripts/validate-publishing-templates.ts",
     "docs:guides": "npm run docs:publishing-templates && npm run docs:macos-guide && npm run docs:docker-webui-guide",
     "docs:latest": "npm run docs:guides && npm run docs:whitepaper",
+    "docs:publish": "bash scripts/publish-docs-latest.sh",
     "docs:macos-guide": "npm run docs:macos-guide:quarto && npm run docs:macos-guide:slides",
     "docs:macos-guide:quarto": "node --experimental-strip-types scripts/build-quarto-guide.ts macos-app-install macos-app-install.quarto.json",
     "docs:macos-guide:slides": "node --experimental-strip-types scripts/build-user-guide-slides.ts",

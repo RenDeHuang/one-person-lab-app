@@ -4,8 +4,8 @@ Owner: `one-person-lab-app`
 Purpose: `whitepaper_source_root`
 State: `active`
 Machine boundary: Source prose for public whitepapers. Generated HTML/PDF live
-under `docs/site/latest/` and are published as latest GitHub Pages artifacts,
-not tracked release-by-release files.
+under local `docs/site/latest/` and are published from the local build to the
+latest GitHub Pages copy, not tracked release-by-release files on `main`.
 
 This repo follows the OPL-wide whitepaper pattern:
 
@@ -13,7 +13,8 @@ This repo follows the OPL-wide whitepaper pattern:
 - Keep shared style and publishing templates under `docs/publishing/`.
 - Write verification records under `docs/delivery/whitepapers/`.
 - Generate current public HTML/PDF into `docs/site/latest/whitepapers/`.
-- Publish only the latest public copy through GitHub Pages.
+- Publish only the latest public copy through the shared local
+  `scripts/publish-docs-latest.sh` pattern.
 
 Current source:
 
