@@ -8,8 +8,11 @@ publishable user artifacts, not release readiness, runtime readiness, domain
 readiness, or owner-receipt evidence.
 
 This directory contains clean end-user reading surfaces. It should stay small:
-one folder per public guide or public doc bundle. Generated/source maintenance
-material belongs under the delivery owner (`docs/delivery/`).
+one folder per public guide or public doc bundle. Source maintenance material
+belongs under the delivery owner (`docs/delivery/`). Generated HTML, PDF, PPTX,
+and screenshot copies are publishable outputs; keep only the active public entry
+bundles here, and prefer release assets or regenerated local output for new
+shareable binaries instead of adding another tracked copy.
 
 ## Public Entries
 
@@ -20,4 +23,6 @@ material belongs under the delivery owner (`docs/delivery/`).
 | [Docker/WebUI install guide bundle](docker-webui-install/README.md) | User-facing Docker/WebUI guide for Linux, Windows, and server users. Start with [`index.html`](docker-webui-install/index.html), then use the detailed PDF when a shareable file is needed. | Human-readable onboarding artifact only. WebUI image truth stays in App contracts, release artifacts, GHCR publish receipts, shell Dockerfile/web-cli behavior, and live container smoke. |
 
 Do not point ordinary users at guide source, generated maintenance material, or
-screenshot provenance directories.
+screenshot provenance directories. Do not add new generated public binaries
+unless they are the canonical public entry for a maintained guide and have a
+delivery manifest plus regeneration command.
