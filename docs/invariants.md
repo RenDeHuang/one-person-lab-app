@@ -6,7 +6,7 @@ State: `active_truth`
 Machine boundary: Human-readable invariants. Machine-readable truth lives in `contracts/`, source, release artifacts, updater metadata, and test results.
 
 - The App repo owns desktop product packaging, release metadata, first-run product policy, App-level contracts, screenshots, user guides, and App validation wrappers.
-- Temporary visual, Playwright, and Codex screenshots are local run artifacts, not repo truth. Keep them out of git unless they are promoted into `docs/public`, a release evidence bundle, or an explicit manifest-backed evidence surface.
+- Temporary visual, Playwright, and Codex screenshots are local run artifacts, not repo truth. Keep them out of git unless they are promoted into `docs/site/latest`, a release evidence bundle, or an explicit manifest-backed evidence surface.
 - The App repo is a purpose-first Codex wrapper product authority. It owns how users enter research, grant, presentation, and book work; it does not own the runtime, domain, memory, artifact, or family production truth behind those entries.
 - The App repo owns One Person Lab App GUI product truth. The active shell may implement renderer/process/package/test/release-hook details and absorb upstream AionUI changes, but App page behavior, model-selection policy, onboarding policy, screenshots, and release/user docs stay App-owned.
 - GUI 定义必须从 App-owned product docs 流向 implementation：

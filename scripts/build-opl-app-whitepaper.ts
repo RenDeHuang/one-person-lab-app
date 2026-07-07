@@ -15,10 +15,13 @@ type WhitepaperMetadata = {
 };
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const whitepaperDir = path.join(repoRoot, 'docs', 'public', 'whitepaper');
+const sourceDir = path.join(repoRoot, 'docs', 'whitepapers');
+const whitepaperDir = path.join(repoRoot, 'docs', 'site', 'latest', 'whitepapers');
 const markdownPath = path.join(whitepaperDir, 'opl-app-whitepaper.md');
+const sourceMarkdownPath = path.join(sourceDir, 'opl-app-whitepaper.md');
+const htmlPath = path.join(whitepaperDir, 'opl-app-whitepaper.html');
 const pdfPath = path.join(whitepaperDir, 'opl-app-whitepaper.pdf');
-const verificationPath = path.join(whitepaperDir, 'opl-app-whitepaper-verification.json');
+const verificationPath = path.join(repoRoot, 'docs', 'delivery', 'whitepapers', 'opl-app-whitepaper-verification.json');
 const templateHeaderPath = path.join(repoRoot, 'docs', 'publishing', 'templates', 'opl-whitepaper', 'header.tex');
 const tempDir = path.join(repoRoot, 'tmp', 'pdfs', 'opl-app-whitepaper');
 const tempMarkdownPath = path.join(tempDir, 'opl-app-whitepaper.pandoc.md');
@@ -157,6 +160,7 @@ function buildPdfMarkdown(metadata: WhitepaperMetadata, markdown: string) {
 
 function buildPdf(metadata: WhitepaperMetadata, markdown: string) {
   fs.mkdirSync(tempDir, { recursive: true });
+  fs.mkdirSync(whitepaperDir, { recursive: true });
   fs.writeFileSync(tempHeaderPath, buildHeader(), 'utf8');
   fs.writeFileSync(tempMarkdownPath, buildPdfMarkdown(metadata, markdown), 'utf8');
   const latinFont = process.env.OPL_WHITEPAPER_LATIN_FONT || 'Helvetica Neue';
@@ -179,6 +183,17 @@ function buildPdf(metadata: WhitepaperMetadata, markdown: string) {
     '-V', 'urlcolor=OPLBlue',
     '-o', pdfPath,
   ], { env: { SOURCE_DATE_EPOCH: sourceDateEpoch } });
+}
+
+function buildHtml(metadata: WhitepaperMetadata, markdown: string) {
+  fs.mkdirSync(whitepaperDir, { recursive: true });
+  run('pandoc', [
+    sourceMarkdownPath,
+    '--standalone',
+    '--metadata', `title=${metadata.title}`,
+    '--metadata', 'lang=zh-CN',
+    '-o', htmlPath,
+  ]);
 }
 
 function parsePdfInfo(pdfFile: string) {
@@ -224,9 +239,10 @@ function relativeToRepo(filePath: string) {
 }
 
 function main() {
-  const markdown = fs.readFileSync(markdownPath, 'utf8');
+  const markdown = fs.readFileSync(sourceMarkdownPath, 'utf8');
   const metadata = parseMarkdownMetadata(markdown);
   scanTextForSecrets(markdown);
+  buildHtml(metadata, markdown);
   buildPdf(metadata, markdown);
 
   const render = renderPdf(pdfPath);
@@ -248,7 +264,9 @@ function main() {
   const verification = {
     status: 'opl_app_whitepaper_ready',
     generated_at: `${metadata.publicationDate}T00:00:00.000Z`,
-    source_markdown: relativeToRepo(markdownPath),
+    source_markdown: relativeToRepo(sourceMarkdownPath),
+    generated_markdown: relativeToRepo(markdownPath),
+    generated_html: relativeToRepo(htmlPath),
     generated_pdf: relativeToRepo(pdfPath),
     temp_markdown: relativeToRepo(tempMarkdownPath),
     rendered_dir: relativeToRepo(render.renderDir),
@@ -266,6 +284,8 @@ function main() {
       pdftotext: commandPath('pdftotext'),
     },
   };
+  fs.copyFileSync(sourceMarkdownPath, markdownPath);
+  fs.mkdirSync(path.dirname(verificationPath), { recursive: true });
   fs.writeFileSync(verificationPath, `${JSON.stringify(verification, null, 2)}\n`, 'utf8');
   console.log(JSON.stringify(verification, null, 2));
 }

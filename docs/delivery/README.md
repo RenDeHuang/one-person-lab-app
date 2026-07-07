@@ -9,7 +9,7 @@ updater metadata, release records, evidence manifests, workflows, validators,
 release-boundary tests, CI logs, and App contracts.
 
 This directory holds maintainer-facing delivery material. Public user reading
-surfaces live under `docs/public/`.
+surfaces live under `docs/site/latest/`.
 
 ## Entries
 
@@ -24,5 +24,5 @@ surfaces live under `docs/public/`.
 | [`user-guides/docker-webui-install/README.md`](user-guides/docker-webui-install/README.md) | Docker/WebUI install guide source, generated Markdown, and verification records. |
 
 Do not link ordinary users to this directory. Use
-`docs/public/macos-app-install/` and `docs/public/docker-webui-install/` for
+`docs/site/latest/macos-app-install/` and `docs/site/latest/docker-webui-install/` for
 publishable guide bundles.

@@ -11,9 +11,9 @@
   "intro": "本文以 macOS App 首次启动为主线，说明如何下载、安装、配置 One Person Lab，并从科研、基金、演示或写书入口开始工作；下文以 Research Foundry / Med Auto Science 的首次科研任务为例。",
   "source_qmd": "docs/guides/macos-app-install/guide.qmd",
   "output": {
-    "public_dir": "docs/public/macos-app-install",
-    "html": "docs/public/macos-app-install/index.html",
-    "pdf": "docs/public/macos-app-install/macos-app-install-detailed-guide.pdf",
+    "public_dir": "docs/site/latest/macos-app-install",
+    "html": "docs/site/latest/macos-app-install/macos-app-install.html",
+    "pdf": "docs/site/latest/macos-app-install/macos-app-install-detailed-guide.pdf",
     "generated_markdown": "docs/delivery/user-guides/macos-app-install/generated/macos-app-install.md",
     "verification": "docs/delivery/user-guides/macos-app-install/verification/macos-app-install-verification.json"
   },

@@ -33,7 +33,8 @@ taxonomy below instead of growing more root-level topic files.
 | `docs/active/app-ideal-state-gap-plan.md` | Active product plan; `active_plan` | Current product progress, gaps, and next-round Agent baton | Human-readable active plan; contracts/tests/artifacts prove machine claims |
 | `docs/status.md` | App status; `active` | Current App repository, shell, release, runtime-page, and validation state | Human-readable status; no runtime/provider/domain authority |
 | `docs/project.md`, `docs/architecture.md`, `docs/invariants.md`, `docs/decisions.md` | Core current docs; `active` | Product boundary, architecture split, non-ownership rules, and still-active App decisions | Durable human-readable current truth; machine decisions use contracts/source/tests |
-| `docs/public/` | Public docs; `active` | Clean end-user reading surfaces. Keep only active public guide bundles here; generated HTML/PDF/PPTX/screenshot copies should not multiply beyond canonical public entries. | Human-readable public docs; not production/readiness proof |
+| `docs/public/` | Public docs; `active` | Clean end-user reading entrypoints. Keep source-like public pages here; generated latest HTML/PDF/PPTX/screenshot copies belong under `docs/site/latest/`. | Human-readable public docs; not production/readiness proof |
+| `docs/site/latest/` | Generated latest site outputs; `generated_payload` | Current generated HTML/PDF/PPTX/whitepaper outputs for maintained public docs. | Generated payload only; not production/readiness proof |
 | `docs/product/` | Product docs; `active_support` | App/workbench/product shell design, GUI support, foreground shell-alternative material, and product-facing reference docs | Product acceptance stays in App contracts, page-state matrices, active-shell validation, source, and tests |
 | `docs/delivery/` | Delivery docs; `active_support` | Release, artifact/package/export lifecycle, user-guide generation source, screenshot provenance, release evidence, and verification support | Release/delivery truth stays in assets, updater metadata, evidence manifests, CI/logs, workflows, validators, release records, and release-boundary tests |
 | `docs/testing/` | Testing docs; `active` | Test command entry, validation orientation, release-evidence classification guidance, and explicit smoke lanes | Tests, scripts, contracts, workflows, validators, and artifacts are authoritative |
@@ -47,11 +48,13 @@ taxonomy below instead of growing more root-level topic files.
   the owner and lifecycle role.
 - Every long-lived doc must make owner, purpose, state, and machine boundary
   clear near the top.
-- `docs/public/` is for users. Link users to
-  `docs/public/macos-app-install/README.md`, `index.html`, PDF, or PPTX; do not
-  point them at guide source directories. New generated binaries should ship as
-  release assets or regenerated local outputs unless they are the canonical
-  maintained public entry for a guide.
+- `docs/public/` is for user entrypoints. Link users to
+  `docs/public/macos-app-install/README.md` or
+  `docs/public/docker-webui-install/README.md`, then route generated
+  HTML/PDF/PPTX outputs through `docs/site/latest/`; do not point users at
+  guide source directories. New generated binaries should ship as release
+  assets or regenerated local outputs unless they are the canonical maintained
+  output for a guide.
 - `docs/product/` owns App/workbench/product shell design and GUI support.
   Product claims must fold back to App contracts, page-state matrices,
   active-shell validation, source, and tests.
@@ -97,10 +100,10 @@ Future coverage belongs in the narrowest owner:
 | Release proof, remote checks, VM smoke, packaged route receipts | Release artifacts, evidence manifests, CI logs, release records, workflows, validators, or release history/provenance |
 | Foreground alternative technical smoke, adoption gate, or replacement decision | `contracts/app-shell-candidates.json`, `contracts/shell-adapters/hermes-codex.json`, `scripts/validate-shell-candidates/*`, Hermes candidate manifests, shell artifacts, focused tests, candidate history/provenance, and `docs/product/shell-alternatives/`; archived AGUI replay evidence stays under `docs/history/shell-candidates/` only when AGUI is explicitly requested |
 | GUI definition / interaction target | `docs/product/gui/`, App GUI/page-state/first-run contracts, and active-shell validation |
-| User guide generation and screenshot provenance | `docs/delivery/user-guides/`, `docs/delivery/release-evidence/`, and the canonical public bundles in `docs/public/`; new generated binaries should not be added as extra tracked copies without a manifest and regeneration command |
+| User guide generation and screenshot provenance | `docs/delivery/user-guides/`, `docs/delivery/release-evidence/`, and latest generated outputs in `docs/site/latest/`; new generated binaries should not be added as extra tracked copies without a manifest and regeneration command |
 | Docs lifecycle tranche closeout | `docs/history/process/README.md` as a compressed theme row, not a dated proof ledger |
 | Testing-doc release evidence guidance | `docs/testing/README.md` for command entry and evidence classification only; release cohort policy stays in delivery/release docs, `contracts/app-release-channel.json`, workflows, validators, and release-boundary tests |
-| Docker/WebUI beginner install path | `contracts/app-install-exposure-policy.json` owns machine policy; `docs/delivery/install/docker-webui-guide.md` owns operator install routing; `docs/delivery/install/docker-webui-smoke-gates.md` owns verification/readiness-boundary support; `docs/public/docker-webui-install/README.md` owns the user-facing entry; `docs/delivery/user-guides/docker-webui-install/generated/` is generated payload only |
+| Docker/WebUI beginner install path | `contracts/app-install-exposure-policy.json` owns machine policy; `docs/delivery/install/docker-webui-guide.md` owns operator install routing; `docs/delivery/install/docker-webui-smoke-gates.md` owns verification/readiness-boundary support; `docs/public/docker-webui-install/README.md` owns the user-facing entry; `docs/site/latest/docker-webui-install/` owns latest generated outputs; `docs/delivery/user-guides/docker-webui-install/generated/` is generated payload only |
 
 This App coverage does not close the parent OPL series docs-governance goal,
 because the seven-repo goal remains open until every repo ledger has no

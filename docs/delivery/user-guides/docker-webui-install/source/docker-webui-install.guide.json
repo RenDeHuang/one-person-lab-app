@@ -11,9 +11,9 @@
   "intro": "新手主路径是先让 Docker 正常运行，再运行 One Person Lab 提供的一键安装器，最后在浏览器里完成首次配置。",
   "source_qmd": "docs/guides/docker-webui-install/guide.qmd",
   "output": {
-    "public_dir": "docs/public/docker-webui-install",
-    "html": "docs/public/docker-webui-install/index.html",
-    "pdf": "docs/public/docker-webui-install/docker-webui-install-detailed-guide.pdf",
+    "public_dir": "docs/site/latest/docker-webui-install",
+    "html": "docs/site/latest/docker-webui-install/docker-webui-install.html",
+    "pdf": "docs/site/latest/docker-webui-install/docker-webui-install-detailed-guide.pdf",
     "generated_markdown": "docs/delivery/user-guides/docker-webui-install/generated/docker-webui-install.md",
     "verification": "docs/delivery/user-guides/docker-webui-install/verification/docker-webui-install-verification.json"
   },

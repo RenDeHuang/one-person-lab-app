@@ -37,10 +37,10 @@ Markdown, or smoke gate runbook.
   [`../user-guides/docker-webui-install/README.md`](../user-guides/docker-webui-install/README.md)
 - Public user bundle:
   [`../../public/docker-webui-install/README.md`](../../public/docker-webui-install/README.md)
-- Public HTML:
-  [`../../public/docker-webui-install/index.html`](../../public/docker-webui-install/index.html)
-- Public detailed PDF:
-  [`../../public/docker-webui-install/docker-webui-install-detailed-guide.pdf`](../../public/docker-webui-install/docker-webui-install-detailed-guide.pdf)
+- Latest HTML:
+  [`../../site/latest/docker-webui-install/docker-webui-install.html`](../../site/latest/docker-webui-install/docker-webui-install.html)
+- Latest detailed PDF:
+  [`../../site/latest/docker-webui-install/docker-webui-install-detailed-guide.pdf`](../../site/latest/docker-webui-install/docker-webui-install-detailed-guide.pdf)
 
 ## Operator Boundary
 

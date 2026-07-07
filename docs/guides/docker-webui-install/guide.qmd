@@ -288,5 +288,5 @@ existing_old_onepersonlab_data_dir -> 保留或迁移旧 data，不删除
 - 这份长文 HTML/PDF 使用 Quarto 渲染；Quarto 负责目录、主题、HTML/PDF 输出和 LaTeX PDF 排版路径。
 - 生成脚本检查 QMD、HTML 和 PDF 文本中不存在未展开的双花括号模板占位符。
 - 生成脚本扫描 source、HTML 和 PDF 文本，禁止真实 secret marker 出现在教程 artifact 中。
-- 截图资产保存在 `docs/guides/docker-webui-install/screenshots/`，生成器会校验文件存在、尺寸和 SHA256，并发布到 `docs/public/docker-webui-install/screenshots/`。
+- 截图资产保存在 `docs/guides/docker-webui-install/screenshots/`，生成器会校验文件存在、尺寸和 SHA256，并发布到 `docs/site/latest/docker-webui-install/screenshots/`。
 - Docker/WebUI gate 结论必须来自对应 smoke artifact 或 typed blocker；未跑的 clean VM、existing Docker 或 old-data gate 不能包装成已通过。

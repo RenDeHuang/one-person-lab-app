@@ -30,7 +30,7 @@ AGUI selection should happen only when AGUI replay is explicitly requested.
 | `docker-webui-smoke-gate.ts` | Repo-native Docker/WebUI smoke gate runner for clean Linux VM, clean Windows VM, existing Docker, and old data-dir gates. It writes a typed blocker when the current host cannot prove the requested gate instead of returning a false pass. |
 | `validate-docker-webui-diagnostics.ts` | Validates installer diagnostic directories for required files, data preservation evidence, and secret-like markers. |
 | `publish-release.ts` | Creates or refreshes App GitHub Release assets from local shell output, prebuilt standard assets, optional Full first-install assets, and the prepared evidence-backed release-note body. It keeps release-note evidence and technical audit material in Technical details, Actions artifacts, candidate records, or closeout artifacts, and must not generate AI public copy during publish/promote. |
-| `plan-release-candidate.ts` | Prints the Nightly or Stable release lane plan, including purpose-based installation gates, Stable candidate-record promotion, and post-release guide refresh with `npm run docs:macos-guide` from `docs/delivery/user-guides/macos-app-install` sources into `docs/public`. |
+| `plan-release-candidate.ts` | Prints the Nightly or Stable release lane plan, including purpose-based installation gates, Stable candidate-record promotion, and post-release guide refresh with `npm run docs:macos-guide` from `docs/delivery/user-guides/macos-app-install` sources into `docs/site/latest`. |
 | `closeout-release-run.ts` | Powers the default desktop release `release-closeout-<version>` artifact and local reruns; reads only final small release summaries, writes `release-closeout.json/md`, separates GitHub Actions workflow wall time from Agent orchestration wall time, and points the operator at candidate blockers, failed gates, promotion, or log inspection. |
 | `summarize-github-actions-timing.ts` | Profiles one or more `gh run view --json ...jobs` payloads, including multi-run span, failed/canceled run tax, slow jobs, slow steps, and the operator-loop gap when an Agent wall-time clock is supplied. |
 | `plan-release-gate-reuse.ts` | Compares the current release cohort with a previous promote-ready candidate record, readiness summary, and remote verification artifact, then writes `opl_release_gate_reuse_plan.v1` with per-gate `reuse_allowed` / `must_run` decisions and a stable reuse digest. The plan is a decision artifact only; workflow gates still run unless a workflow explicitly consumes it. |
@@ -70,7 +70,7 @@ minutes, and promote under 5 minutes.
 
 Docs generation commands read `docs/delivery/user-guides/macos-app-install`
 guide sources and write the public bundle under
-`docs/public/macos-app-install/`.
+`docs/site/latest/macos-app-install/`.
 
 Examples:
 
@@ -383,7 +383,7 @@ For normal Stable trains, use `npm run release:plan -- --version <version>
 `docs/delivery/user-guides/macos-app-install` sources, screenshots, and generated public artifacts refresh in a
 post-release lane. Run `npm run docs:macos-guide` for that docs refresh; it
 updates the public HTML guide plus the shareable PDF/PPTX and detailed PDF
-artifacts under `docs/public/macos-app-install/`.
+artifacts under `docs/site/latest/macos-app-install/`.
 `refresh_existing` is the
 emergency repair/replace lane for an already published release, not the default
 new Stable path. Once a candidate record, readiness summary, remote verification

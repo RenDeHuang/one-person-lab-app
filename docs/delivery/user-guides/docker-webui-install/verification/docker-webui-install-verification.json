@@ -6,8 +6,8 @@
   "manifest": "docs/delivery/user-guides/docker-webui-install/source/docker-webui-install.guide.json",
   "screenshots_manifest": "docs/guides/docker-webui-install/screenshots.manifest.json",
   "generated_markdown": "docs/delivery/user-guides/docker-webui-install/generated/docker-webui-install.md",
-  "output_html": "docs/public/docker-webui-install/index.html",
-  "output_pdf": "docs/public/docker-webui-install/docker-webui-install-detailed-guide.pdf",
+  "output_html": "docs/site/latest/docker-webui-install/docker-webui-install.html",
+  "output_pdf": "docs/site/latest/docker-webui-install/docker-webui-install-detailed-guide.pdf",
   "quarto_project_dir": "tmp/quarto-guides/docker-webui-install/project",
   "publishing_template": "opl-guide",
   "preferred_pdf_engine": "typst",
@@ -21,7 +21,7 @@
   },
   "rendered_pages": 11,
   "rendered_dir": "tmp/quarto-guides/docker-webui-install/rendered",
-  "html_bytes": 2659139,
+  "html_bytes": 2659144,
   "screenshot_assets": [
     {
       "role": "browser_open_webui",

@@ -7,7 +7,7 @@ Machine boundary: Generated artifacts, Quarto manifest, and verification records
 
 This directory is not the clean end-user reading surface and is not the prose
 editing area. Link users to
-[`../../../public/docker-webui-install/`](../../../public/docker-webui-install/)
+[`../../../site/latest/docker-webui-install/`](../../../site/latest/docker-webui-install/)
 instead.
 
 Canonical source files:
@@ -31,8 +31,8 @@ Delivery and generated files:
 
 Generated reading artifacts:
 
-- [Docker/WebUI install HTML guide](../../../public/docker-webui-install/index.html)
-- [Docker/WebUI install detailed PDF](../../../public/docker-webui-install/docker-webui-install-detailed-guide.pdf)
+- [Docker/WebUI install HTML guide](../../../site/latest/docker-webui-install/docker-webui-install.html)
+- [Docker/WebUI install detailed PDF](../../../site/latest/docker-webui-install/docker-webui-install-detailed-guide.pdf)
 - [Docker/WebUI install Markdown](generated/docker-webui-install.md)
 
 Update flow:

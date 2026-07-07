@@ -1,0 +1,76 @@
+{
+  "status": "opl_app_whitepaper_ready",
+  "generated_at": "2026-07-04T00:00:00.000Z",
+  "source_markdown": "docs/whitepapers/opl-app-whitepaper.md",
+  "generated_markdown": "docs/site/latest/whitepapers/opl-app-whitepaper.md",
+  "generated_html": "docs/site/latest/whitepapers/opl-app-whitepaper.html",
+  "generated_pdf": "docs/site/latest/whitepapers/opl-app-whitepaper.pdf",
+  "temp_markdown": "tmp/pdfs/opl-app-whitepaper/opl-app-whitepaper.pandoc.md",
+  "rendered_dir": "tmp/pdfs/opl-app-whitepaper/rendered",
+  "rendered_pages": 7,
+  "rendered_page_hashes": [
+    {
+      "page": "page-1.png",
+      "sha1": "d94661f5241f3ca22358a84eb7222eab9595ca04"
+    },
+    {
+      "page": "page-2.png",
+      "sha1": "53a488f94b7fdb83c2aa975f312b07b916af80ba"
+    },
+    {
+      "page": "page-3.png",
+      "sha1": "133ce2e6347baf1e8bde478d2fdbcaa8cd33cbc3"
+    },
+    {
+      "page": "page-4.png",
+      "sha1": "5a12949bd89b76f58936db29284a610609824971"
+    },
+    {
+      "page": "page-5.png",
+      "sha1": "356bfcdcc165fc7ba5a67d4d511845b9fbadd771"
+    },
+    {
+      "page": "page-6.png",
+      "sha1": "5d2173b67588b61c305c77ab90fd414fd32a3ea2"
+    },
+    {
+      "page": "page-7.png",
+      "sha1": "94d1ef59f92de68bc2d75e628b91a4bcfa76675b"
+    }
+  ],
+  "pdf_pages": 7,
+  "pdf_page_size_pts": {
+    "width": 612,
+    "height": 792
+  },
+  "required_terms": [
+    "OPL App 白皮书",
+    "可信专业工作台",
+    "本地优先",
+    "云端连续",
+    "一个工作台，不用跳工具",
+    "结果带来路",
+    "工作台跟着工作走",
+    "Docker/WebUI",
+    "OPL Workspace",
+    "OPL Framework",
+    "OPL Cloud",
+    "Foundry Agents",
+    "Med Auto Science",
+    "Med Auto Grant",
+    "RedCube AI",
+    "OPL BookForge",
+    "OPL Meta Agent",
+    "为什么用户可以相信 OPL App 专业",
+    "本文边界",
+    "结语"
+  ],
+  "required_terms_status": "present",
+  "tools": {
+    "pandoc": "/opt/homebrew/bin/pandoc",
+    "xelatex": "/Users/gaofeng/Library/TinyTeX/bin/universal-darwin/xelatex",
+    "pdfinfo": "/Users/gaofeng/.cache/codex-runtimes/codex-primary-runtime/dependencies/bin/pdfinfo",
+    "pdftoppm": "/Users/gaofeng/.cache/codex-runtimes/codex-primary-runtime/dependencies/bin/pdftoppm",
+    "pdftotext": "/opt/homebrew/bin/pdftotext"
+  }
+}

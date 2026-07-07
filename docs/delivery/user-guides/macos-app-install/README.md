@@ -7,7 +7,7 @@ Machine boundary: Generated artifacts, Quarto manifests, and verification record
 
 This directory is not the clean end-user reading surface and is not the prose
 editing area. Link users to
-[`../../../public/macos-app-install/`](../../../public/macos-app-install/) instead.
+[`../../../site/latest/macos-app-install/`](../../../site/latest/macos-app-install/) instead.
 
 Canonical source files:
 
@@ -39,10 +39,10 @@ Delivery and generated files:
 
 Generated reading artifacts:
 
-- [macOS App install guide](../../../public/macos-app-install/index.html)
-- [macOS App install detailed PDF](../../../public/macos-app-install/macos-app-install-detailed-guide.pdf)
-- [macOS App install slides PDF](../../../public/macos-app-install/macos-app-install-slides.pdf)
-- [macOS App install slides PPTX](../../../public/macos-app-install/macos-app-install-slides.pptx)
+- [macOS App install guide](../../../site/latest/macos-app-install/macos-app-install.html)
+- [macOS App install detailed PDF](../../../site/latest/macos-app-install/macos-app-install-detailed-guide.pdf)
+- [macOS App install slides PDF](../../../site/latest/macos-app-install/macos-app-install-slides.pdf)
+- [macOS App install slides PPTX](../../../site/latest/macos-app-install/macos-app-install-slides.pptx)
 
 Update flow:
 

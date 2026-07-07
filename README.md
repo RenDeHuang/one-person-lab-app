@@ -142,11 +142,11 @@ package is also available as the `one-person-lab-full` Homebrew cask.
 
 For macOS, the App can be installed through DMG, the one-shot installer,
 Homebrew, or Docker/WebUI. For a screenshot-based first-run walkthrough, start
-from the [macOS App install user guide](docs/public/macos-app-install/index.html).
-The same guide is also available as the maintained public
-[PDF](docs/public/macos-app-install/macos-app-install-slides.pdf) and
-[PPTX](docs/public/macos-app-install/macos-app-install-slides.pptx), plus a
-[detailed PDF](docs/public/macos-app-install/macos-app-install-detailed-guide.pdf).
+from the [macOS App install user guide](docs/site/latest/macos-app-install/macos-app-install.html).
+The same guide is also available as generated latest
+[PDF](docs/site/latest/macos-app-install/macos-app-install-slides.pdf) and
+[PPTX](docs/site/latest/macos-app-install/macos-app-install-slides.pptx), plus a
+[detailed PDF](docs/site/latest/macos-app-install/macos-app-install-detailed-guide.pdf).
 
 Daily updates are handled by Homebrew or the in-app update channel, depending on
 how the App was installed. Release asset, updater metadata, and Full
@@ -170,9 +170,9 @@ user-facing layers:
 
 For Docker or server deployment, Linux, Windows, server, and cloud-VM users should start
 from the Docker/WebUI one-click installer path in the
-[Docker/WebUI install guide](docs/public/docker-webui-install/index.html). The
+[Docker/WebUI install guide](docs/site/latest/docker-webui-install/docker-webui-install.html). The
 same guide is also available as a
-[detailed PDF](docs/public/docker-webui-install/docker-webui-install-detailed-guide.pdf).
+[detailed PDF](docs/site/latest/docker-webui-install/docker-webui-install-detailed-guide.pdf).
 This path is separate from the desktop App GUI shell, does not put API keys in
 CLI commands, and keeps manual `docker run` / Compose commands as advanced
 troubleshooting references.
