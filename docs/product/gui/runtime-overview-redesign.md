@@ -265,7 +265,7 @@ runtime truth，也不能生成新的 owner receipt、typed blocker 或 stage tr
 | long next-step 人话归一 | 100% | 5 | App contract 锁定 policy；Shell companion lane 用 DOM test 验证 raw terminalization/readback 文案默认隐藏 |
 | 默认人类标签策略：agent/module/owner/stage id 不直出 | 100% | 6 | `default_label_policy` + release-boundary test；Shell companion lane 用 DOM test 验证 raw id 默认隐藏 |
 | 设计图布局：顶部、freshness、KPI、主列、右侧范围/模块/高级 | 100% | 7 | `layout_regions` + Shell companion source/DOM evidence；不等同于 installed App 截图证据 |
-| installed App 本机视觉截图验收 | 80% | 8 | 已有本机 renderer 截图证明布局接近设计稿；本轮人类标签修复后必须重新 build/install/readback 才能标为本地 100%。这不是 release currentness 证据 |
+| installed App 本机视觉截图验收 | 100% | 8 | 本机安装版 `26.7.7` 已由 Electron renderer 读回验证：`/tmp/opl-runtime-installed-electron-cockpit-final-20260708.png`；安装包 `app.asar` hash 为 `b92a208147c352536c8ddc876ac48fa302a0c3ff06bd93da21f719c41b95fd80`。这不是 release currentness 证据 |
 
 ## 完成标准
 
