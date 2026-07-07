@@ -619,7 +619,7 @@ function validateHydratedSettingsRegistry(controlPlane) {
       'AccessSettingsContent',
       'WorkspaceSettings',
       'CapabilitiesSettingsContent',
-      'AccessSettingsContent',
+      'ResourcesSettingsContent',
       'RuntimeSettings',
       'StorageSettings',
       'AppearanceModalContent',

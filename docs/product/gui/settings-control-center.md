@@ -145,9 +145,9 @@ P0 entries:
   next useful action first; repeated diagnostics stay behind details or appear
   only when the state is abnormal.
 - Workspace: current path, open/change/verify actions, and permission status.
-  It belongs to Overview as an ordinary setup entry.
-- Maintenance Hub: App updates, OPL Runtime Fabric, OPL Packages, storage
-  cleanup entry, and repair recommendations. It belongs to Maintenance & Updates.
+  It is an ordinary top-level setup entry and also appears in Overview.
+- Maintenance Hub: App update, runtime environment, capability/Codex Surface
+  sync, and local service repair buckets. It belongs to Maintenance & Updates.
 - Capability Status: installed package directory rows show what is installed,
   how each package is exposed on Home, and which purpose tags apply. It belongs
   to Capabilities.
@@ -239,17 +239,19 @@ Access page refinement on 2026-07-06 produced reusable Settings design rules:
 
 ### Workspace
 
-Workspace is an independent setup task page, not hidden inside Local
-Environment. It may render as a secondary/deep-link route rather than a new
-top-level tab, but search and Overview task entries must be able to route to
-it. It shows:
+Workspace is an independent ordinary setup task page, not hidden inside Local
+Environment and not a generic diagnostics page. Search and Overview task
+entries route to it. It shows:
 
 - current workspace folder;
 - whether the folder exists and is writable;
 - where App work products and project files are stored by default;
-- choose, change, open, and repair-permission actions.
+- open folder, change folder, verify access, and repair-permission actions;
+- logs and maintenance paths only as supporting detail or troubleshooting
+  links, not as the first-screen mental model.
 
-Workspace must not be presented as a runtime diagnostic-only field.
+Workspace must answer "where are my files and can the App write there?" before
+showing modules, logs, maintenance folders, or other implementation paths.
 
 ### Capabilities
 
@@ -303,7 +305,8 @@ The ordinary model is:
 - Invocation Receipt: launch fact only, not a session-behavior contract.
 
 The ordinary top bar supports registry refresh, search by package name/tag or
-description, status filtering, and manifest URL install. The ordinary
+description, status filtering, and an "Add capability" entry. Manifest URL
+install remains an advanced add method behind disclosure. The ordinary
 package-directory row shows:
 
 - package identity first: package id, display name, short name;
@@ -367,14 +370,12 @@ Updates & Maintenance owns normal maintenance and update actions, while About
 and Update stay discoverable secondary destinations for version, channel,
 release notes, and explicit update detail. Maintenance is not the surface for
 in-progress task monitoring, artifact progress, or project execution state. The
-maintenance page groups:
+first screen has exactly four ordinary user buckets:
 
-- Installation carrier;
-- OPL Runtime Fabric;
-- OPL Packages;
-- storage cleanup;
-- repair recommendations;
-- Codex Surface sync.
+- App update;
+- Runtime environment;
+- Capability packages and Codex Surface sync;
+- Local services and repair.
 
 Each group uses the same structure: current state, user summary, recommended
 action, last check, next check, and details disclosure. Apply, repair, and
@@ -389,8 +390,10 @@ non-restart repairs or capability sync actions. Restart-required runtime changes
 dirty/developer checkouts, cleanup execution, and rollback remain explicit
 per-component actions with their own confirmation and guidance.
 
-The App remains a consumer of OPL/App action routes and managed updater status;
-it must not implement the update kernel or write runtime/domain truth.
+Component ids, module names, dry-run commands, payload requirements, managed
+update details, and package receipts remain under details or a component drill
+down. The App remains a consumer of OPL/App action routes and managed updater
+status; it must not implement the update kernel or write runtime/domain truth.
 
 Current Maintenance page assessment on 2026-07-06:
 
@@ -422,19 +425,20 @@ and its panel components in
 
 ### Storage & Data
 
-Storage & Data is its own Control Center group and uses user safety language:
+Storage & Data is its own Control Center group and uses user safety language.
+The ordinary first-level labels are:
 
-- Update cache;
-- Conversation archives;
 - Runtime cache;
 - Logs;
-- Workspace data lifecycle.
+- Conversation archives;
+- Install package cache;
+- Workspace files and work products.
 
 The first screen shows size, safety classification, and the recommended action.
-Technical terms such as dry-run may appear as secondary labels, but primary
-copy should say "Preview cleanup plan" and "Clean selected cache". Destructive
-actions stay disabled until the required preview, archive, restore proof, or
-receipt exists.
+Terms such as OPL Runtime Fabric, research lifecycle, dry-run, and receipt refs
+are supporting details. Primary copy says "Preview cleanup plan", "Open folder",
+or "Clean selected cache". Destructive actions stay disabled until the required
+preview, archive, restore proof, or receipt exists.
 
 For research workspaces, Storage & Data is a read-only consumer of OPL/MAS
 lifecycle refs. It can show lifecycle planes, large body refs, small-file
@@ -458,18 +462,25 @@ package update, rollback, storage cleanup, or workspace management controls:
 It offers diagnose, refresh, start/restart, and repair actions. Module paths,
 repo urls, git status, and component receipt refs stay collapsed.
 
-### Appearance
+### Preferences
 
-Appearance belongs to Preferences, not Maintenance & Updates, Data & Storage, or Local Runtime. It owns:
+Preferences owns ordinary user behavior and appearance, not Maintenance &
+Updates, Data & Storage, Local Runtime, or Advanced. It owns:
 
 - visual theme;
+- language;
+- notifications;
+- startup and tray behavior;
+- upload and Office preview behavior;
+- prompt and agent idle timeout;
+- hardware acceleration when supported;
 - density;
 - typography scale when supported;
 - sidebar behavior;
 - reduced-motion or animation preference when supported.
 
-The page should use a compact preview plus setting rows instead of large
-technical cards.
+The page should use a compact preview plus setting rows. Advanced must not
+duplicate these ordinary preferences.
 
 ### Developer & Diagnostics
 
@@ -481,7 +492,10 @@ Developer & Diagnostics owns power-user detail:
 - JSON/read-model references;
 - copy diagnostics actions.
 
-This page is not part of the ordinary setup path.
+This page is not part of the ordinary setup path. It may link back to
+Preferences for ordinary behavior settings, but it should not own language,
+notifications, startup, tray, upload, Office preview, timeout, or appearance
+controls.
 
 ### About
 

@@ -74,7 +74,7 @@ test('Settings control plane declares route slots, redirects, and extension anch
       'access:settings_access:AccessSettingsContent',
       'workspace:workspace:WorkspaceSettings',
       'capabilities:settings_capabilities:CapabilitiesSettingsContent',
-      'resources:settings_resources:AccessSettingsContent',
+      'resources:settings_resources:ResourcesSettingsContent',
       'environment:settings_environment:RuntimeSettings',
       'storage:settings_storage:StorageSettings',
       'appearance:settings_theme:AppearanceModalContent',
