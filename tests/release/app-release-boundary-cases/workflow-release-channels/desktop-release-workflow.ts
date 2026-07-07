@@ -128,9 +128,11 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.doesNotMatch(workflowJobBlock(workflow, 'publish-full-assets'), /models: read/);
   assert.doesNotMatch(workflow, /Install Codex release-note writer/);
   assert.doesNotMatch(workflow, /Configure Codex release-note writer/);
-  assert.match(workflow, /OPL_RELEASE_NOTES_PROVIDER: openai_compatible/);
-  assert.match(workflow, /node --experimental-strip-types scripts\/release-notes-ai-writer\.ts --probe-openai-compatible/);
-  assert.match(workflow, /OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY/);
+  assert.match(workflow, /OPL_RELEASE_NOTES_MODE: template/);
+  assert.match(workflow, /--input standard-release-notes-template\.md/);
+  assert.match(workflow, /--input full-release-notes-template\.md/);
+  assert.doesNotMatch(workflow, /node --experimental-strip-types scripts\/release-notes-ai-writer\.ts --probe-openai-compatible/);
+  assert.doesNotMatch(workflow, /OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY/);
   assert.doesNotMatch(workflow, /OPL_RELEASE_NOTES_GITHUB_MODEL:/);
   assert.doesNotMatch(workflow, /setup-release-notes-codex-config/);
   assert.doesNotMatch(workflow, /OPENAI_API_KEY: \$\{\{ secrets\.OPENAI_API_KEY \}\}/);

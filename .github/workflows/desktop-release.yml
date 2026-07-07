@@ -295,15 +295,7 @@ jobs:
 
       - name: Build and validate prepared release notes
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          OPL_RELEASE_NOTES_PROVIDER: openai_compatible
-          OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL: ${{ vars.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL }}
-          OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY: ${{ secrets.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY }}
-          OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODEL: ${{ vars.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODEL }}
-          OPL_RELEASE_NOTES_CODEX_BASE_URL: ${{ vars.OPL_RELEASE_NOTES_CODEX_BASE_URL }}
-          OPL_RELEASE_NOTES_CODEX_API_KEY: ${{ secrets.OPL_RELEASE_NOTES_CODEX_API_KEY }}
-          OPL_RELEASE_NOTES_MODEL: ${{ vars.OPL_RELEASE_NOTES_MODEL }}
+          OPL_RELEASE_NOTES_MODE: template
         run: |
           set -euo pipefail
           npm run release:notes -- \
@@ -316,9 +308,9 @@ jobs:
             --current-shell-ref "${{ needs.release-source-gate.outputs.shell_sha }}" \
             --evidence-output standard-release-notes-evidence.json \
             --output standard-release-notes-template.md
-          node --experimental-strip-types scripts/release-notes-ai-writer.ts --probe-openai-compatible
           npm run release:notes:prepare -- \
             --evidence standard-release-notes-evidence.json \
+            --input standard-release-notes-template.md \
             --output standard-release-notes.md
 
       - name: Upload prepared standard release notes
@@ -514,15 +506,7 @@ jobs:
 
       - name: Build and validate prepared Full release notes
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          OPL_RELEASE_NOTES_PROVIDER: openai_compatible
-          OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL: ${{ vars.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL }}
-          OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY: ${{ secrets.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY }}
-          OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODEL: ${{ vars.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODEL }}
-          OPL_RELEASE_NOTES_CODEX_BASE_URL: ${{ vars.OPL_RELEASE_NOTES_CODEX_BASE_URL }}
-          OPL_RELEASE_NOTES_CODEX_API_KEY: ${{ secrets.OPL_RELEASE_NOTES_CODEX_API_KEY }}
-          OPL_RELEASE_NOTES_MODEL: ${{ vars.OPL_RELEASE_NOTES_MODEL }}
+          OPL_RELEASE_NOTES_MODE: template
         run: |
           set -euo pipefail
           npm run release:notes -- \
@@ -537,9 +521,9 @@ jobs:
             --current-shell-ref "${{ needs.publish-standard.outputs.shell_sha }}" \
             --evidence-output full-release-notes-evidence.json \
             --output full-release-notes-template.md
-          node --experimental-strip-types scripts/release-notes-ai-writer.ts --probe-openai-compatible
           npm run release:notes:prepare -- \
             --evidence full-release-notes-evidence.json \
+            --input full-release-notes-template.md \
             --output full-release-notes.md
 
       - name: Upload prepared Full release notes

@@ -357,7 +357,10 @@ updates that tag to the current workflow commit on same-day reruns, keeps
 Nightly, and runs the remote standard asset verifier without Full assets.
 
 AI release-note drafting is a pre-release preparation path, not publish/promote
-critical-path work. When used, it follows the same provider chain as Stable:
+critical-path work. Stable desktop release jobs prepare deterministic template
+notes with `OPL_RELEASE_NOTES_MODE=template`, then run the same release-note
+quality gate before publishing. When online drafting is used outside that
+critical path, it follows the same provider chain:
 `OPL_RELEASE_NOTES_PROVIDER=openai_compatible` uses an OpenAI-compatible endpoint configured through
 `OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL` and
 `OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY`. The writer also accepts the
@@ -365,9 +368,10 @@ existing `OPL_RELEASE_NOTES_CODEX_BASE_URL` / `OPL_RELEASE_NOTES_CODEX_API_KEY`
 route directly, so GitHub Actions and local probes do not need a separate env
 remapping layer. GitHub Models is not in the release path. A self-hosted
 FreeLLMAPI server can fill the OpenAI-compatible slot by
-exposing `/v1/chat/completions` and using model `auto`. Pre-release drafting
-runs `scripts/release-notes-ai-writer.ts --probe-openai-compatible` before
-accepting AI-assisted copy and fails closed when the online route is not usable.
+exposing `/v1/chat/completions` and using model `auto`. Online pre-release
+drafting runs `scripts/release-notes-ai-writer.ts --probe-openai-compatible`
+before accepting AI-assisted copy and fails closed when the online route is not
+usable.
 Use
 `npm run release:notes:probe-ai` to run the same secret-safe probe locally, and
 `OPL_RELEASE_NOTES_AI_TIMEOUT_SECONDS` to override the default 75-second

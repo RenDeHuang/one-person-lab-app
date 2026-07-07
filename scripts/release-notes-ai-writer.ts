@@ -12,6 +12,7 @@ type AiReleaseNotesOptions = {
 
 type ReleaseNotesLocale = 'en-US' | 'zh-CN';
 type ReleaseNotesProvider = 'auto' | 'openai_compatible' | 'codex';
+type ReleaseNotesMode = 'ai' | 'template';
 
 const releaseNotesLocales: ReleaseNotesLocale[] = ['en-US', 'zh-CN'];
 const defaultOpenAICompatibleModel = 'auto';
@@ -91,6 +92,14 @@ function selectedProvider(): ReleaseNotesProvider {
     throw new Error(`Unsupported OPL_RELEASE_NOTES_PROVIDER: ${process.env.OPL_RELEASE_NOTES_PROVIDER}`);
   }
   return value as ReleaseNotesProvider;
+}
+
+function releaseNotesMode(): ReleaseNotesMode {
+  const value = (process.env.OPL_RELEASE_NOTES_MODE || 'ai').trim().toLowerCase();
+  if (value !== 'ai' && value !== 'template') {
+    throw new Error(`Unsupported OPL_RELEASE_NOTES_MODE: ${process.env.OPL_RELEASE_NOTES_MODE}`);
+  }
+  return value;
 }
 
 function escapeRegExp(value: string) {
@@ -1073,9 +1082,16 @@ function runCli() {
     return;
   }
   const evidence = readReleaseNotesEvidence(options.evidencePath);
-  const notes = options.inputPath
-    ? fs.readFileSync(options.inputPath, 'utf8')
-    : buildAiReleaseNotesDocument(evidence, options);
+  const mode = releaseNotesMode();
+  if (mode === 'template' && !options.inputPath) {
+    throw new Error('OPL_RELEASE_NOTES_MODE=template requires --input with a deterministic template file.');
+  }
+  const notes =
+    mode === 'template'
+      ? completeAiReleaseNotesWithEvidence(fs.readFileSync(options.inputPath, 'utf8'), evidence)
+      : options.inputPath
+        ? fs.readFileSync(options.inputPath, 'utf8')
+        : buildAiReleaseNotesDocument(evidence, options);
   validateAiReleaseNotes(notes, evidence);
   if (options.outputPath) {
     fs.mkdirSync(path.dirname(options.outputPath), { recursive: true });
