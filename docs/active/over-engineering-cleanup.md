@@ -47,6 +47,8 @@ The following cleanup classes must not be landed as broad mechanical refactors w
   Validator structure encodes App product truth and shell adapter expectations. Do not reshape it for aesthetics; first identify one validator rule, its owning contract/doc, and the command proving that rule still gates the intended behavior.
 - Release cleanup helper expansion.
   `release-cleanup-helpers.ts` is currently scoped to destructive-release cleanup scripts. Do not promote it into a general release runner unless the new caller shares dry-run/execute semantics and has a destructive-action safety check.
+- Release closeout / GitHub Actions timing helper consolidation across `scripts/closeout-release-run.ts` and `scripts/summarize-github-actions-timing.ts`.
+  This remains a no-safe-semantic-split boundary. The apparent duplicate timing helpers are tied to different CLI contracts: release closeout is a single-run release decision/readback path with local artifact inputs, optional artifact downloads, `runStartedAt` handling, and agent start/finish fallback; the Actions timing summarizer is a multi-run timing report that accepts arrays/nested `runs`, treats GitHub zero-date timestamps as missing, falls back to `completedAt` for run end, and emits Markdown top jobs/steps. A shared helper would need behavior switches to preserve those differences, which would add a new abstraction without removing release risk.
 
 ## Future Slice Requirements
 
