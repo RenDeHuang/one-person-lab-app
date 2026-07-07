@@ -6,6 +6,8 @@ import { fileURLToPath } from 'node:url';
 import { inflateRawSync } from 'node:zlib';
 import { validateDockerWebuiDiagnostics } from './validate-docker-webui-diagnostics.ts';
 
+type ImageIdentity = ReturnType<typeof validateDockerWebuiDiagnostics>['image_identity'];
+
 type GateId = 'clean_linux_vm' | 'clean_windows_vm' | 'existing_docker' | 'existing_old_onepersonlab_data_dir';
 
 type GateResult = {
@@ -630,73 +632,6 @@ function fileStatus(filePath: string): 'present' | 'missing' {
   return fs.existsSync(filePath) ? 'present' : 'missing';
 }
 
-function firstJsonString(filePath: string, key: string): string | null {
-  if (!fs.existsSync(filePath)) return null;
-  const text = fs.readFileSync(filePath, 'utf8');
-  const match = text.match(new RegExp(`"${key}"\\s*:\\s*"([^"]+)"`));
-  return match?.[1] ?? null;
-}
-
-function jsonStringArray(filePath: string, key: string): string[] {
-  if (!fs.existsSync(filePath)) return [];
-  const text = fs.readFileSync(filePath, 'utf8');
-  const match = text.match(new RegExp(`"${key}"\\s*:\\s*\\[([\\s\\S]*?)\\]`));
-  if (!match) return [];
-  return [...match[1].matchAll(/"([^"]+)"/g)].map((entry) => entry[1]).filter(Boolean);
-}
-
-function normalizeImageDigest(imageId: string | null, repoDigests: string[]): string | null {
-  const repoDigest = repoDigests.find((value) => /@sha256:[a-f0-9]{64}$/i.test(value));
-  if (repoDigest) {
-    return repoDigest.slice(repoDigest.indexOf('@') + 1);
-  }
-  return imageId && /^sha256:[a-f0-9]{64}$/i.test(imageId) ? imageId : null;
-}
-
-function extractDigestFromText(text: string): string | null {
-  const match = text.match(/\bsha256:[a-f0-9]{64}\b/i);
-  return match?.[0] ?? null;
-}
-
-function readRemoteImageDigest(diagnosticsDir: string): {
-  remote_ref: string | null;
-  remote_digest: string | null;
-  currentness_evidence_source: string | null;
-} {
-  for (const file of ['remote-image-digest.txt', 'docker-remote-image.txt']) {
-    const filePath = path.join(diagnosticsDir, file);
-    if (!fs.existsSync(filePath)) continue;
-    const text = fs.readFileSync(filePath, 'utf8');
-    const keyValues = Object.fromEntries(
-      text
-        .split(/\r?\n/)
-        .map((line) => line.match(/^([^=\s]+)=(.*)$/))
-        .filter((match): match is RegExpMatchArray => Boolean(match))
-        .map((match) => [match[1], match[2]]),
-    );
-    return {
-      remote_ref: keyValues.remote_ref ?? keyValues.image ?? null,
-      remote_digest: keyValues.remote_digest ?? keyValues.digest ?? extractDigestFromText(text),
-      currentness_evidence_source: file,
-    };
-  }
-  return {
-    remote_ref: null,
-    remote_digest: null,
-    currentness_evidence_source: null,
-  };
-}
-
-function compareImageCurrentness(
-  localDigest: string | null,
-  remoteDigest: string | null,
-  currentnessEvidenceSource: string | null,
-): 'not_checked' | 'current' | 'update_available' | 'unknown' {
-  if (!currentnessEvidenceSource) return 'not_checked';
-  if (!localDigest || !remoteDigest) return 'unknown';
-  return localDigest.toLowerCase() === remoteDigest.toLowerCase() ? 'current' : 'update_available';
-}
-
 function readHttpStatus(httpProbe: Record<string, string>): number | null {
   const candidates = [
     httpProbe.status,
@@ -843,7 +778,7 @@ function refreshDiagnosticsArchive(result: GateResult) {
   }
 }
 
-function readDiagnosticsSummary(result: GateResult, options: ReturnType<typeof parseArgs>) {
+function readDiagnosticsSummary(result: GateResult, options: ReturnType<typeof parseArgs>, imageIdentity: ImageIdentity) {
   const metadata = readKeyValue(path.join(result.diagnostics_dir, 'metadata.txt'));
   const httpProbe = readKeyValue(path.join(result.diagnostics_dir, 'http-probe.txt'));
   const preservation = readKeyValue(path.join(result.diagnostics_dir, 'data-preservation.txt'));
@@ -851,10 +786,6 @@ function readDiagnosticsSummary(result: GateResult, options: ReturnType<typeof p
   const imageRef = metadata.image || options.image;
   const healthUrl = metadata.health_url || `http://localhost:${options.port}/`;
   const httpStatus = readHttpStatus(httpProbe);
-  const imageId = firstJsonString(path.join(result.diagnostics_dir, 'docker-image.txt'), 'Id');
-  const repoDigests = jsonStringArray(path.join(result.diagnostics_dir, 'docker-image.txt'), 'RepoDigests');
-  const imageDigest = normalizeImageDigest(imageId, repoDigests);
-  const remoteImage = readRemoteImageDigest(result.diagnostics_dir);
 
   result.health = {
     url: healthUrl,
@@ -873,13 +804,13 @@ function readDiagnosticsSummary(result: GateResult, options: ReturnType<typeof p
   result.image = {
     ref: imageRef,
     status: fileStatus(path.join(result.diagnostics_dir, 'docker-image.txt')),
-    id: imageId,
-    repo_digests: repoDigests,
-    digest: imageDigest,
-    remote_ref: remoteImage.remote_ref,
-    remote_digest: remoteImage.remote_digest,
-    currentness_status: compareImageCurrentness(imageDigest, remoteImage.remote_digest, remoteImage.currentness_evidence_source),
-    currentness_evidence_source: remoteImage.currentness_evidence_source,
+    id: imageIdentity.image_id,
+    repo_digests: imageIdentity.repo_digests,
+    digest: imageIdentity.digest,
+    remote_ref: imageIdentity.remote_ref,
+    remote_digest: imageIdentity.remote_digest,
+    currentness_status: imageIdentity.currentness_status,
+    currentness_evidence_source: imageIdentity.currentness_evidence_source,
     currentness_claim: false,
   };
   result.data_preservation = {
@@ -892,8 +823,8 @@ function readDiagnosticsSummary(result: GateResult, options: ReturnType<typeof p
 function attachDiagnosticsReadback(result: GateResult, options: ReturnType<typeof parseArgs>) {
   writeDiagnosticsManifest(result, options);
   refreshDiagnosticsArchive(result);
-  readDiagnosticsSummary(result, options);
   const validation = validateDockerWebuiDiagnostics(result.diagnostics_dir);
+  readDiagnosticsSummary(result, options, validation.image_identity);
   result.diagnostics_validation = validation;
   result.secret_scan = validation.secret_scan;
   if (validation.preservation_verdict) {
@@ -1196,7 +1127,7 @@ function importWindowsEvidenceGate(result: GateResult, options: ReturnType<typeo
   }
   if (validation.diagnosticsDir) {
     result.evidence.windows_diagnostics_dir = validation.diagnosticsDir;
-    readDiagnosticsSummary(result, options);
+    readDiagnosticsSummary(result, options, validation.diagnosticsValidation.image_identity);
   }
   if (validation.apiKeyFlowEvidencePath) {
     result.api_key_flow = {
