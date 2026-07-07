@@ -36,6 +36,29 @@ type CandidateAppBundleManifest = {
   product_profile_owner?: string;
 };
 
+type CandidateAppBundleExpectation = {
+  executable: string;
+  executableError: string;
+  forbiddenExecutable?: string;
+  forbiddenExecutableError?: string;
+  requireAppOwnedProductProfile?: boolean;
+};
+
+const nativeWorkbenchPackageFields = {
+  default_release_shell_unchanged: true,
+  active_shell_adopted: false,
+  runtime_authority_transfer: false,
+  domain_truth_owned: false,
+};
+
+const hermesPackageFields = {
+  default_release_shell_unchanged: true,
+  active_shell_adopted: false,
+  hermes_runtime_authority_transfer: false,
+  official_hermes_backend_preserved: true,
+  official_hermes_desktop_ui_reused: true,
+};
+
 function validateCandidateAppBundleRoot(candidate: ShellCandidate, manifest: CandidateAppBundleManifest) {
   if (manifest.status !== 'candidate_app_bundle_ready') {
     throw new Error(`${candidate.id} package manifest must declare candidate_app_bundle_ready`);
@@ -57,6 +80,25 @@ function validateCandidateAppBundleRoot(candidate: ShellCandidate, manifest: Can
     macOsDir,
     executable: findMacAppExecutable(macOsDir, candidate.id),
   };
+}
+
+function validateCandidateAppBundleEvidence(
+  candidate: ShellCandidate,
+  manifest: CandidateAppBundleManifest,
+  expectation: CandidateAppBundleExpectation,
+) {
+  const bundle = validateCandidateAppBundleRoot(candidate, manifest);
+  if (manifest.app_bundle_executable !== expectation.executable || bundle.executable !== expectation.executable) {
+    throw new Error(expectation.executableError);
+  }
+  if (expectation.forbiddenExecutable && fs.existsSync(path.join(bundle.macOsDir, expectation.forbiddenExecutable))) {
+    throw new Error(expectation.forbiddenExecutableError ?? `${candidate.id} .app bundle must not expose ${expectation.forbiddenExecutable}`);
+  }
+  assertNoAbsoluteSymlinks(bundle.appBundleRoot, candidate.id);
+  if (expectation.requireAppOwnedProductProfile) {
+    assertAppOwnedProductProfile(candidate, manifest);
+  }
+  return bundle;
 }
 
 function assertAppOwnedProductProfile(candidate: ShellCandidate, manifest: CandidateAppBundleManifest): void {
@@ -214,18 +256,12 @@ function validateNativeWorkbenchPackageManifest(candidate: ShellCandidate, optio
     implemented_capabilities?: string[];
     context_testids?: string[];
   }>(manifestPath);
-  const { appBundleRoot, executable } = validateCandidateAppBundleRoot(candidate, manifest);
-  if (manifest.app_bundle_executable !== 'One Person Lab Native Workbench Candidate' || executable !== manifest.app_bundle_executable) {
-    throw new Error(`${candidate.id} .app bundle must use the OPL native workbench executable name`);
-  }
-  assertNoAbsoluteSymlinks(appBundleRoot, candidate.id);
-  assertAppOwnedProductProfile(candidate, manifest);
-  assertManifestFieldValues(candidate, manifest, {
-    default_release_shell_unchanged: true,
-    active_shell_adopted: false,
-    runtime_authority_transfer: false,
-    domain_truth_owned: false,
+  validateCandidateAppBundleEvidence(candidate, manifest, {
+    executable: 'One Person Lab Native Workbench Candidate',
+    executableError: `${candidate.id} .app bundle must use the OPL native workbench executable name`,
+    requireAppOwnedProductProfile: true,
   });
+  assertManifestFieldValues(candidate, manifest, nativeWorkbenchPackageFields);
   assertStringArrayIncludes(manifest.home_purpose_entries, requiredHomeEntries, `${candidate.id} package manifest purpose entries`);
   assertStringArrayIncludes(manifest.implemented_capabilities ?? [], requiredNativeCapabilities, `${candidate.id} package manifest implemented capabilities`);
   assertStringArrayIncludes(manifest.context_testids ?? [], requiredContextTestIds, `${candidate.id} package manifest context testids`);
@@ -261,24 +297,16 @@ function validateHermesCandidatePackageManifest(candidate: ShellCandidate, optio
     implemented_capabilities?: string[];
     deferred_until_feature_comparison?: string[];
   }>(manifestPath);
-  const { appBundleRoot, macOsDir, executable } = validateCandidateAppBundleRoot(candidate, manifest);
-  if (manifest.app_bundle_executable !== 'One Person Lab Hermes Candidate' || executable !== manifest.app_bundle_executable) {
-    throw new Error(`${candidate.id} .app bundle must use the OPL branded executable name`);
-  }
-  if (fs.existsSync(path.join(macOsDir, 'Electron'))) {
-    throw new Error(`${candidate.id} .app bundle must not expose the legacy Electron executable name`);
-  }
-  assertNoAbsoluteSymlinks(appBundleRoot, candidate.id);
+  validateCandidateAppBundleEvidence(candidate, manifest, {
+    executable: 'One Person Lab Hermes Candidate',
+    executableError: `${candidate.id} .app bundle must use the OPL branded executable name`,
+    forbiddenExecutable: 'Electron',
+    forbiddenExecutableError: `${candidate.id} .app bundle must not expose the legacy Electron executable name`,
+  });
   if (options.requireSmoke !== false) {
     validateHermesPackagedSmoke(candidate);
   }
-  assertManifestFieldValues(candidate, manifest, {
-    default_release_shell_unchanged: true,
-    active_shell_adopted: false,
-    hermes_runtime_authority_transfer: false,
-    official_hermes_backend_preserved: true,
-    official_hermes_desktop_ui_reused: true,
-  });
+  assertManifestFieldValues(candidate, manifest, hermesPackageFields);
   if (manifest.backend_bridge?.codex_runtime_reference !== 'codex app-server --listen stdio://') {
     throw new Error(`${candidate.id} package manifest must prove the Codex app-server runtime reference`);
   }

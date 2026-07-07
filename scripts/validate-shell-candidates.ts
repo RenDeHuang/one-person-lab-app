@@ -1,7 +1,5 @@
 #!/usr/bin/env node
 
-import fs from 'node:fs';
-import path from 'node:path';
 import { parseArgs as parseNodeArgs } from 'node:util';
 import {
   candidateValidationPolicyFromRegistry,
@@ -9,7 +7,7 @@ import {
 } from './validate-shell-candidates/candidate-contract.ts';
 import { runCandidateCommands } from './validate-shell-candidates/candidate-evidence.ts';
 import { validateActiveShellUnaffected, validateRegistryShape } from './validate-shell-candidates/registry.ts';
-import { readJson, registryPath, root } from './validate-shell-candidates/shared.ts';
+import { readJson, registryPath } from './validate-shell-candidates/shared.ts';
 import type { ShellCandidateRegistry } from './validate-shell-candidates/types.ts';
 
 export function parseArgs(argv: string[]): { candidate?: string; runCandidateCommands: boolean } {
@@ -59,74 +57,8 @@ function main(): void {
       release_participation: candidate.release_participation,
     })),
     default_validation_scope: args.candidate ? 'explicit_candidate' : 'foreground_alternative_only',
-    candidate_blockers: candidates.flatMap(candidateBlockers),
     release_participation: 'explicit_candidate_build_only_until_adopted',
   }, null, 2));
-}
-
-function candidateBlockers(candidate: { id: string }): Array<{ candidate: string; blockers: string[] }> {
-  if (candidate.id === 'opl-native-workbench') {
-    const checkoutPath = ['shells/opl-native-workbench', '../opl-native-workbench'].find((entry) => fs.existsSync(path.resolve(root, entry)));
-    if (!checkoutPath) {
-      return [{
-        candidate: candidate.id,
-        blockers: [
-          'missing_shell_checkout:shells/opl-native-workbench',
-          'missing_shell_checkout:../opl-native-workbench',
-        ],
-      }];
-    }
-    const missing = [
-      'AGENTS.md',
-      'README.md',
-      'package.json',
-      'src/bridge/oplBridge.ts',
-      'src/workbench/App.tsx',
-      'src/workbench/workbenchModel.ts',
-      'src/candidateContractEvidence.json',
-      'scripts/validate-native-workbench-candidate.mjs',
-      'scripts/validate-state-model.mjs',
-      'scripts/smoke-webui.mjs',
-      'scripts/package-native-workbench.mjs',
-    ].filter((relativePath) => !fs.existsSync(path.resolve(root, checkoutPath, relativePath)));
-    return missing.length === 0
-      ? []
-      : [{
-        candidate: candidate.id,
-        blockers: missing.map((relativePath) => `missing_wrapper_file:${checkoutPath}/${relativePath}`),
-      }];
-  }
-  if (candidate.id !== 'hermes-codex') {
-    return [];
-  }
-  const checkoutPath = ['shells/hermes', '../opl-hermes-shell'].find((entry) => fs.existsSync(path.resolve(root, entry)));
-  if (!checkoutPath) {
-    return [{
-      candidate: candidate.id,
-      blockers: [
-        'missing_shell_checkout:shells/hermes',
-        'missing_shell_checkout:../opl-hermes-shell',
-      ],
-    }];
-  }
-  const missing = [
-    'AGENTS.md',
-    'README.md',
-    'UPSTREAM_README.md',
-    'electron/main.cjs',
-    'electron/opl-bootstrap-runner.cjs',
-    'electron/opl-codex-gateway.cjs',
-    'electron/opl-bootstrap-runner.test.cjs',
-    'electron/opl-codex-gateway.test.cjs',
-    'scripts/package-opl-candidate-app.cjs',
-    'scripts/validate-hermes-codex-candidate.cjs',
-  ].filter((relativePath) => !fs.existsSync(path.resolve(root, checkoutPath, relativePath)));
-  return missing.length === 0
-    ? []
-    : [{
-      candidate: candidate.id,
-      blockers: missing.map((relativePath) => `missing_wrapper_file:${checkoutPath}/${relativePath}`),
-    }];
 }
 
 try {

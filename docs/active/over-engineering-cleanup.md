@@ -42,6 +42,13 @@ Last updated: 2026-07-07
 - Why safe: the generated path and Marp theme name stay unchanged; the generator keeps owning the delivery write, while the CSS source is reviewable as a static template asset.
 - Verification required for this slice: `npm run docs:macos-guide:slides` and `git diff --check`.
 
+### 2026-07-07 shell candidate blocker and evidence cleanup
+
+- Removed `scripts/validate-shell-candidates.ts`'s file-list blocker projection. Missing checkout and implementation-file failures now stay with the candidate contract and evidence validators instead of a second hand-maintained Native/Hermes list in the CLI summary.
+- `scripts/validate-shell-candidates/candidate-evidence.ts` keeps Native Workbench and Hermes package evidence in their candidate-specific validators, but shares the local `.app` bundle executable/symlink/profile check and uses named expected-field tables for repeated non-adoption assertions.
+- Preserved product roles: AionUI remains the active GUI mainline, OPL Native Workbench remains the foreground alternative, Hermes remains the explicit reference candidate, and AGUI remains archived technical proof.
+- Verification required for this slice: `npm run validate:shell-candidates` and `git diff --check`.
+
 ## No-Safe-Semantic-Split Boundaries
 
 The following cleanup classes must not be landed as broad mechanical refactors without a focused semantic split and matching verification:
