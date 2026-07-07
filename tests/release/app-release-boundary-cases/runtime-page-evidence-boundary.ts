@@ -435,7 +435,7 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   assert.match(displayMapRows.get('package').canonical_source, /agent_packages\.directory/);
   assert.match(displayMapRows.get('runtime').aion_display_role, /Runtime page/);
   assert.match(displayMapRows.get('runtime').workbench_display_role, /Workbench/);
-  assert.ok(displayMapRows.get('package').allowed_action_refs.includes('agent_package_home_shortcut_preferences_set'));
+  assert.ok(displayMapRows.get('package').allowed_action_refs.includes('agent_package_preferences_set'));
   for (const row of displayMapRows.values()) {
     assert.equal(row.fallback_policy.can_claim_currentness, false);
     assert.equal(row.fallback_policy.can_mutate_without_app_action, false);

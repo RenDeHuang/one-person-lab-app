@@ -947,28 +947,30 @@
     "package_manager_lifecycle": {
       "policy_surface": "Settings Capabilities package manager and app/cli action receipts",
       "actions": [
-        "discover",
-        "install",
-        "update",
-        "repair",
-        "rollback",
-        "uninstall",
-        "enable",
-        "disable",
+        "refresh_registry",
+        "install_from_manifest_url",
+        "agent_package_update",
+        "agent_package_repair",
+        "agent_package_uninstall",
+        "agent_package_preferences_set"
+      ],
+      "exposure_action_values": [
         "hide",
         "unhide",
-        "set_home_shortcut_preferences",
-        "manual_check",
-        "apply_selected"
+        "enable",
+        "disable"
       ],
       "manual_check_policy": "automatic_daily_check_plus_explicit_user_refresh",
       "apply_selected_policy": "automatic_apply_for_clean_managed_roots_explicit_apply_for_selected_packages",
+      "app_role": "package_manager_carrier_and_action_ref_consumer_only",
+      "mutating_lifecycle_owner": "one-person-lab_framework_action_refs",
       "mutating_actions_require_action_receipt": true,
       "rollback_ref_required_for_mutating_actions": true,
+      "rollback_boundary": "agent_package_lifecycle_does_not_define_an_app_or_framework_package_lifecycle_rollback_verb; App displays receipt rollback_ref fail-closed state and repair/update route, while true managed rollback stays with managed_update_plane/runtime substrate/package-channel owners",
       "package_lock_required": true,
       "domain_truth_authority_allowed": false,
       "home_shortcut_preferences_owner": "one-person-lab",
-      "home_shortcut_preferences_action": "agent_package_home_shortcut_preferences_set",
+      "home_shortcut_preferences_action": "agent_package_preferences_set",
       "home_shortcut_preferences_readback": "opl connect agent-packages list/status#home_shortcut_preferences",
       "automatic_apply_policy": {
         "cadence": "daily_after_core_ready_and_app_startup_check",
@@ -1109,7 +1111,6 @@
           "install",
           "update",
           "repair",
-          "rollback",
           "uninstall"
         ],
         "domain_repo_remains_semantic_owner": true

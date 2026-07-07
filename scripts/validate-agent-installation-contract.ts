@@ -62,19 +62,12 @@ const expectedFailClosedStates = [
   'atomic_package_unit_incomplete',
 ];
 const expectedPackageLifecycleActions = [
-  'discover',
-  'install',
-  'update',
-  'repair',
-  'rollback',
-  'uninstall',
-  'enable',
-  'disable',
-  'hide',
-  'unhide',
-  'set_home_shortcut_preferences',
-  'manual_check',
-  'apply_selected',
+  'refresh_registry',
+  'install_from_manifest_url',
+  'agent_package_update',
+  'agent_package_repair',
+  'agent_package_uninstall',
+  'agent_package_preferences_set',
 ];
 const expectedRegistrySourceKinds = [
   'default_opl_registry',
@@ -849,7 +842,7 @@ function validatePackageManagerLifecycle(contract: any): void {
     package_lock_required: true,
     domain_truth_authority_allowed: false,
     home_shortcut_preferences_owner: 'one-person-lab',
-    home_shortcut_preferences_action: 'agent_package_home_shortcut_preferences_set',
+    home_shortcut_preferences_action: 'agent_package_preferences_set',
     home_shortcut_preferences_readback: 'opl connect agent-packages list/status#home_shortcut_preferences',
   }, 'package manager lifecycle');
   assertArrayEqual(lifecycle?.actions, expectedPackageLifecycleActions, 'package manager lifecycle actions');
@@ -972,7 +965,7 @@ function validateAtomicBundlePolicy(contract: any): void {
   }, 'MAS professional skill pack unit');
   assertArrayEqual(
     atomicPolicy?.med_autoscience_professional_skill_pack_unit?.lifecycle_actions,
-    ['install', 'update', 'repair', 'rollback', 'uninstall'],
+    ['install', 'update', 'repair', 'uninstall'],
     'MAS professional skill pack lifecycle actions',
   );
 }

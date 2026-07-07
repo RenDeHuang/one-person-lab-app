@@ -33,19 +33,12 @@ const EXPECTED_RUNTIME_FABRIC_SUBSYSTEMS = {
   opl_system_bridge: ['native_helper'],
 };
 const EXPECTED_PACKAGE_LIFECYCLE_ACTIONS = [
-  'discover',
-  'install',
-  'update',
-  'repair',
-  'rollback',
-  'uninstall',
-  'enable',
-  'disable',
-  'hide',
-  'unhide',
-  'set_home_shortcut_preferences',
-  'manual_check',
-  'apply_selected',
+  'refresh_registry',
+  'install_from_manifest_url',
+  'agent_package_update',
+  'agent_package_repair',
+  'agent_package_uninstall',
+  'agent_package_preferences_set',
 ];
 const EXPECTED_REGISTRY_SOURCE_KINDS = [
   'default_opl_registry',
@@ -1069,6 +1062,12 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
     }
   }
   assert.deepEqual(policy.agent_installation_contract.package_manager_lifecycle.actions, EXPECTED_PACKAGE_LIFECYCLE_ACTIONS);
+  assert.deepEqual(policy.agent_installation_contract.package_manager_lifecycle.exposure_action_values, [
+    'hide',
+    'unhide',
+    'enable',
+    'disable',
+  ]);
   assert.equal(
     policy.agent_installation_contract.package_manager_lifecycle.manual_check_policy,
     'automatic_daily_check_plus_explicit_user_refresh',
@@ -1076,6 +1075,14 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
   assert.equal(
     policy.agent_installation_contract.package_manager_lifecycle.apply_selected_policy,
     'automatic_apply_for_clean_managed_roots_explicit_apply_for_selected_packages',
+  );
+  assert.equal(
+    policy.agent_installation_contract.package_manager_lifecycle.app_role,
+    'package_manager_carrier_and_action_ref_consumer_only',
+  );
+  assert.equal(
+    policy.agent_installation_contract.package_manager_lifecycle.mutating_lifecycle_owner,
+    'one-person-lab_framework_action_refs',
   );
   assert.equal(policy.agent_installation_contract.package_manager_lifecycle.automatic_apply_policy.user_visible_channel, 'latest');
   assert.deepEqual(policy.agent_installation_contract.package_manager_lifecycle.automatic_apply_policy.apply_when, [
@@ -1086,12 +1093,16 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
   ]);
   assert.equal(policy.agent_installation_contract.package_manager_lifecycle.mutating_actions_require_action_receipt, true);
   assert.equal(policy.agent_installation_contract.package_manager_lifecycle.rollback_ref_required_for_mutating_actions, true);
+  assert.equal(
+    policy.agent_installation_contract.package_manager_lifecycle.rollback_boundary,
+    'agent_package_lifecycle_does_not_define_an_app_or_framework_package_lifecycle_rollback_verb; App displays receipt rollback_ref fail-closed state and repair/update route, while true managed rollback stays with managed_update_plane/runtime substrate/package-channel owners',
+  );
   assert.equal(policy.agent_installation_contract.package_manager_lifecycle.package_lock_required, true);
   assert.equal(policy.agent_installation_contract.package_manager_lifecycle.domain_truth_authority_allowed, false);
   assert.equal(policy.agent_installation_contract.package_manager_lifecycle.home_shortcut_preferences_owner, 'one-person-lab');
   assert.equal(
     policy.agent_installation_contract.package_manager_lifecycle.home_shortcut_preferences_action,
-    'agent_package_home_shortcut_preferences_set',
+    'agent_package_preferences_set',
   );
   assert.equal(
     policy.agent_installation_contract.package_manager_lifecycle.home_shortcut_preferences_readback,
@@ -1191,7 +1202,7 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
     agent_id: 'med-autoscience',
     required_skill_pack_id: 'med-autoscience-professional-skill-pack',
     atomic_with_agent_package: true,
-    lifecycle_actions: ['install', 'update', 'repair', 'rollback', 'uninstall'],
+    lifecycle_actions: ['install', 'update', 'repair', 'uninstall'],
     domain_repo_remains_semantic_owner: true,
   });
   assert.equal(policy.agent_installation_contract.managed_agent_pack_distribution.channel_id, 'opl_agent_packages_rolling_latest');

@@ -317,6 +317,8 @@ test('Settings page adapters and visual QA policy are machine-readable gates', (
       ],
       first_screen_policy:
         'receipt_refs_physical_surface_and_workflow_connector_resource_refs_are_detail_only_not_primary_row_density',
+      rollback_display_policy:
+        'rollback_ref_is_diagnostic_recovery_reference_not_an_app_owned_rollback_button_or_runtime_truth',
     },
     completion_boundary:
       'this control-plane contract requires canonical agent_packages projection and allows modules.items fallback only as rollout compatibility',

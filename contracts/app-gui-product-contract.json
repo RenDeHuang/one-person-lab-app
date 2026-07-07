@@ -862,14 +862,15 @@
           "OBF",
           "MAS Scholar Skills"
         ],
-        "must_show_state": [
-          "OPL Packages state",
-          "OPL Packages Codex Surface sync substatus",
-          "recommended action",
-          "post-update sync status",
-          "repair and rollback refs"
-        ],
-        "manual_action_mapping": {
+          "must_show_state": [
+            "OPL Packages state",
+            "OPL Packages Codex Surface sync substatus",
+            "recommended action",
+            "post-update sync status",
+            "repair and rollback refs"
+          ],
+          "agent_package_rollback_boundary": "Agent Package rows may display rollback_ref and Framework action receipts; App does not add a separate App-owned rollback verb, and managed update rollback remains owned by managed_update_plane/runtime substrate/package-channel owners.",
+          "manual_action_mapping": {
           "check": "opl update check --json",
           "apply_managed_component": "opl update apply --component <component_id> --json",
           "apply_allowed_components": [

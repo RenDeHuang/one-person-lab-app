@@ -23,6 +23,9 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   const pageStateMatrix = JSON.parse(
     fs.readFileSync(path.join(appRoot, 'contracts', 'app-page-state-matrix.json'), 'utf8'),
   );
+  const runtimeBridge = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-runtime-bridge.json'), 'utf8'),
+  );
   const productProfile = readProductProfile();
 
   assert.equal(guiContract.owner, 'one-person-lab-app');
@@ -105,6 +108,32 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     'task',
     'package',
   ]);
+  const packageActionMapRow = runtimeBridge.canonical_state_display_action_map.rows.find(
+    (row) => row.semantic_area === 'package',
+  );
+  assert.equal(
+    packageActionMapRow.action_owner_boundary,
+    'App and shells display/trigger Framework action refs only; rollback appears as rollback_ref/recovery reference, not an App or Framework package lifecycle action',
+  );
+  assert.deepEqual(packageActionMapRow.allowed_action_refs, [
+    'refresh_registry',
+    'install_from_manifest_url',
+    'agent_package_update',
+    'agent_package_repair',
+    'agent_package_uninstall',
+    'agent_package_preferences_set',
+  ]);
+  assert.ok(!packageActionMapRow.allowed_action_refs.includes('agent_package_rollback'));
+  assert.ok(!packageActionMapRow.allowed_action_refs.includes('agent_package_hide'));
+  assert.ok(!packageActionMapRow.allowed_action_refs.includes('agent_package_unhide'));
+  assert.ok(!packageActionMapRow.allowed_action_refs.includes('agent_package_enable'));
+  assert.ok(!packageActionMapRow.allowed_action_refs.includes('agent_package_disable'));
+  assert.ok(
+    packageActionMapRow.forbidden_overclaim.includes('app_owned_agent_package_rollback_verb'),
+  );
+  assert.ok(
+    packageActionMapRow.forbidden_overclaim.includes('framework_package_lifecycle_rollback_verb'),
+  );
   assert.deepEqual(guiContract.framework_surfaces.task_awareness.v2_field_groups.evidence_cards, taskRunProjectionV2FieldGroups.evidence_cards);
   assert.deepEqual(guiContract.framework_surfaces.task_awareness.v2_field_groups.action_cards, taskRunProjectionV2FieldGroups.action_cards);
   assert.deepEqual(guiContract.framework_surfaces.task_awareness.v2_field_groups.resource_cards, taskRunProjectionV2FieldGroups.resource_cards);
@@ -1127,6 +1156,10 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   assert.equal('legacy_developer_mode_alias' in guiContract.developer_profile, false);
   assert.ok(guiContract.module_path_source_policy.must_not_use.includes('raw OPL_MODULE_SOURCE_MODE as ordinary Settings UI'));
   assert.equal(guiContract.pages.settings_environment.module_path_source_policy_ref, 'module_path_source_policy');
+  assert.equal(
+    guiContract.framework_surfaces.managed_update_plane.ordinary_module_maintenance_entry.agent_package_rollback_boundary,
+    'Agent Package rows may display rollback_ref and Framework action receipts; App does not add a separate App-owned rollback verb, and managed update rollback remains owned by managed_update_plane/runtime substrate/package-channel owners.',
+  );
   assert.ok(guiContract.pages.about.must_show.includes('OPL Framework revision'));
   assert.equal(guiContract.theme_and_branding.default_theme_id, 'default-theme');
   assert.deepEqual(guiContract.theme_and_branding.allowed_theme_ids, ['default-theme', 'codex']);

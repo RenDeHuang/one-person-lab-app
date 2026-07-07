@@ -118,17 +118,14 @@
         "canonical_source": "opl app state --profile fast --json#app_state.agent_packages.directory + app_state.agent_packages.status_index",
         "aion_display_role": "Settings Capabilities package directory rows",
         "workbench_display_role": "Packages panel rows",
+        "action_owner_boundary": "App and shells display/trigger Framework action refs only; rollback appears as rollback_ref/recovery reference, not an App or Framework package lifecycle action",
         "allowed_action_refs": [
-          "agent_package_install",
+          "refresh_registry",
+          "install_from_manifest_url",
           "agent_package_update",
           "agent_package_repair",
-          "agent_package_rollback",
           "agent_package_uninstall",
-          "agent_package_hide",
-          "agent_package_unhide",
-          "agent_package_enable",
-          "agent_package_disable",
-          "agent_package_home_shortcut_preferences_set"
+          "agent_package_preferences_set"
         ],
         "fallback_policy": {
           "allowed_fallback_source": "opl app state --profile fast --json#app_state.modules.items[] + home_agent_shortcuts + task_awareness refs",
@@ -141,6 +138,8 @@
           "session_behavior",
           "domain_workflow",
           "domain_readiness",
+          "app_owned_agent_package_rollback_verb",
+          "framework_package_lifecycle_rollback_verb",
           "single_repair_bucket_for_dirty_or_behind_checkout",
           "second_skill_truth",
           "codex_surface_reload_proof"

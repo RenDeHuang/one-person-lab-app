@@ -277,14 +277,15 @@ URL follows OPL Framework validation, lock, rollback ref, receipt creation, and
 package list readback. Ordinary managed packages update through GHCR `latest`
 after daily gated promotion; Settings should show `latest` as the normal
 channel while details show the immutable version tag and resolved digest that
-the Framework locked. Updating, repairing, rolling back, uninstalling,
-hiding/unhiding, enabling/disabling, and status readback are Framework-owned
-lifecycle receipt routes that Settings may expose as App actions. Active shell
+the Framework locked. Updating, repairing, uninstalling, hiding/unhiding,
+enabling/disabling, and status readback are Framework-owned lifecycle receipt
+routes that Settings may expose as App actions; rollback appears only as
+rollback_ref recovery display and Managed Update owner routing. Active shell
 reads Framework-backed Home shortcut preference readback from App state, routes
 visibility/order changes through the Framework action, and keeps local
 preference storage as fallback/migration. Framework owns package Home shortcut
 preference readback through
-`agent_package_home_shortcut_preferences_set` and
+`agent_package_preferences_set` and
 `connect agent-packages list/status#home_shortcut_preferences`. Framework also
 owns manifest-declared local Codex plugin materialization and records it through
 package lock / lifecycle receipt `physical_surface`; Settings displays that
@@ -296,7 +297,7 @@ behavior.
 
 The ordinary model is:
 
-- Agent Package: install/update/repair/rollback/hide/unhide/uninstall unit;
+- Agent Package: install/update/repair/uninstall/exposure preference unit with rollback_ref recovery display;
 - Agent Registry: configurable GitHub/URL discovery list with manifest URLs,
   not an install or behavior authority;
 - Home Shortcut: user-selected launch entry over an installed package;
@@ -508,7 +509,7 @@ About shows:
 - feedback and issue links.
 
 It can link to Updates & Maintenance but must not be the primary maintenance
-page, and it must not host update/repair/rollback/package-maintenance controls.
+page, and it must not host update/repair/rollback_ref/package-maintenance controls.
 
 ## Visual System
 
