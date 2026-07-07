@@ -14,6 +14,7 @@ Files:
 
 - `template.json`: template identity and active Quarto output settings.
 - `styles.scss`: HTML/book styling for screenshot-heavy guides.
+- `marp-theme.css`: Marp slide theme copied by the macOS guide slide generator into the delivery generated theme path.
 - `header.tex`: XeLaTeX/KOMA-Script PDF polish for the current stable PDF path.
 
 Typst remains the preferred future PDF engine; XeLaTeX is the stable engine

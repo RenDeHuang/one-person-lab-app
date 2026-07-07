@@ -35,6 +35,13 @@ Last updated: 2026-07-07
 - No-safe boundary: do not collapse generated lifecycle text across guide scripts, because the guide Markdown and Marp deck machine-boundary text intentionally names different source/artifact authorities. Do not promote candidate evidence helpers into a new framework until another validator family shares the same package-manifest semantics.
 - Verification required for this slice: `git diff --check`, `npm run docs:docker-webui-guide`, `npm run docs:macos-guide:slides`, and `npm run validate:shell-candidates`.
 
+### 2026-07-07 macOS guide Marp theme extraction
+
+- Moved the macOS guide Marp theme CSS out of `scripts/build-user-guide-slides.ts` and into `docs/publishing/templates/opl-guide/marp-theme.css`, the existing guide-owned publishing template location.
+- `scripts/build-user-guide-slides.ts` now reads that static theme source and still writes the generated theme to `docs/delivery/user-guides/macos-app-install/generated/macos-app-install-marp-theme.css`.
+- Why safe: the generated path and Marp theme name stay unchanged; the generator keeps owning the delivery write, while the CSS source is reviewable as a static template asset.
+- Verification required for this slice: `npm run docs:macos-guide:slides` and `git diff --check`.
+
 ## No-Safe-Semantic-Split Boundaries
 
 The following cleanup classes must not be landed as broad mechanical refactors without a focused semantic split and matching verification:
