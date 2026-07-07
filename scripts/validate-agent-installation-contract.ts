@@ -1007,6 +1007,7 @@ function validateManagedAgentPackDistribution(contract: any): void {
     post_update_sync_required: ['codex_plugin_registry', 'plugin_packaged_skills', 'opl_generated_plugin_surface', 'codex_surface'],
     user_visible_channels: ['latest'],
     package_agent_ids: expectedRequiredAgentIds,
+    package_ids: [...expectedRequiredAgentIds, 'opl-flow'],
     activation_commands: ['opl connect reconcile-modules', 'opl connect sync-skills'],
     first_party_distribution_payload_required_fields: expectedFirstPartyDistributionPayloadFields,
     fallback_source_order: [
@@ -1016,6 +1017,17 @@ function validateManagedAgentPackDistribution(contract: any): void {
     ],
     forbidden_homebrew_formulae: ['one-person-lab-modules', 'one-person-lab-modules-nightly'],
   }, 'agent-pack distribution');
+  assertEqual(distribution?.package_kinds?.['opl-flow'], 'workflow_plugin_package', 'OPL Flow package kind');
+  assertFieldsEqual(distribution?.opl_flow_package, {
+    package_id: 'opl-flow',
+    package_kind: 'workflow_plugin_package',
+    consumer: 'optional_user_modes.intelligence_enhancement',
+    install_or_refresh_command: 'python3 scripts/install_local_plugin.py --no-profile',
+    profile_mutation_allowed: false,
+    workflow_profile_semantic_merge_ref: 'managed_update_plane.planes[workflow_profile]',
+    standard_updater_allowed: false,
+  }, 'OPL Flow package policy');
+  assertArrayEqual(distribution?.opl_flow_package?.required_before_actions, ['status', 'enable', 'repair'], 'OPL Flow package preflight actions');
   assertFieldsEqual(distribution?.auto_apply, {
     enabled_for: 'clean_managed_roots_only',
     trigger: 'daily_or_startup_latest_digest_check',

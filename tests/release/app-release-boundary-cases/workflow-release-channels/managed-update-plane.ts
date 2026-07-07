@@ -343,6 +343,16 @@ test('managed update plane exposes the v2 install/update taxonomy and legacy ali
   assert.equal(lanes.get('workflow_profile').adapter, 'workflow_profile_adapter');
   assert.equal(lanes.get('workflow_profile').policy, 'semantic_merge_required_no_silent_overwrite');
   assert.deepEqual(lanes.get('workflow_profile').managed_profile_parts, ['AGENTS.md', 'TASTE.md', 'prompts']);
+  assert.deepEqual(lanes.get('capability_packages').opl_flow_package, {
+    package_id: 'opl-flow',
+    package_kind: 'workflow_plugin_package',
+    consumer: 'optional_user_modes.intelligence_enhancement',
+    install_or_refresh_command: 'python3 scripts/install_local_plugin.py --no-profile',
+    required_before_actions: ['status', 'enable', 'repair'],
+    profile_mutation_allowed: false,
+    workflow_profile_semantic_merge_ref: 'managed_update_plane.planes[workflow_profile]',
+    standard_updater_allowed: false,
+  });
 });
 
 test('scheduler and UI surfaces consume new primary ids', () => {
@@ -444,6 +454,26 @@ test('OPL Packages stay the capability package layer with Codex Surface as subst
     'opl-bookforge',
     'scholarskills',
   ]);
+  assert.deepEqual(plane.capability_packages.package_ids, [
+    'med-autoscience',
+    'med-autogrant',
+    'redcube-ai',
+    'opl-meta-agent',
+    'opl-bookforge',
+    'scholarskills',
+    'opl-flow',
+  ]);
+  assert.equal(plane.capability_packages.package_kinds['opl-flow'], 'workflow_plugin_package');
+  assert.deepEqual(plane.capability_packages.opl_flow_package, {
+    package_id: 'opl-flow',
+    package_kind: 'workflow_plugin_package',
+    consumer: 'optional_user_modes.intelligence_enhancement',
+    install_or_refresh_command: 'python3 scripts/install_local_plugin.py --no-profile',
+    required_before_actions: ['status', 'enable', 'repair'],
+    profile_mutation_allowed: false,
+    workflow_profile_semantic_merge_ref: 'managed_update_plane.planes[workflow_profile]',
+    standard_updater_allowed: false,
+  });
   assert.equal(packagePolicy.default_update_mode, 'automatic_apply_for_clean_managed_roots');
   assert.equal(packagePolicy.distribution_format, 'ghcr_oci_artifact');
   assert.equal(packagePolicy.ordinary_user_channel_model, 'rolling_latest_only');

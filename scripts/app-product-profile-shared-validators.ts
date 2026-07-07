@@ -71,6 +71,7 @@ const agentPackageReceiptRequiredFields = [
   'required_skill_ids',
   'source',
 ];
+const oplFlowPayloadPreflightActions = ['status', 'enable', 'repair'];
 
 type GuiLike = NonNullable<ProductProfileLike['gui']>;
 type HomeLike = GuiLike['home'];
@@ -150,6 +151,11 @@ export function assertOplFlowIntelligenceEnhancementMode(
     mode.upstream_policy !== 'preserve_current_codex_provider_via_local_responses_proxy' ||
     mode.behavior_policy !== 'local_proxy_reasoning_continuation_no_prompt_injection_no_quick_action' ||
     mode.service_policy !== 'opl_flow_managed_persistent_service_macos_launch_agent_linux_systemd_user_docker_startup_repair' ||
+    mode.required_opl_package_id !== 'opl-flow' ||
+    mode.required_opl_package_kind !== 'workflow_plugin_package' ||
+    JSON.stringify(mode.required_opl_package_preflight_actions) !== JSON.stringify(oplFlowPayloadPreflightActions) ||
+    mode.required_opl_package_install_command !== 'python3 scripts/install_local_plugin.py --no-profile' ||
+    mode.profile_mutation_policy !== 'semantic_merge_packet_only_no_silent_overwrite' ||
     mode.status_action_id !== 'intelligence_enhancement_status' ||
     mode.enable_action_id !== 'intelligence_enhancement_enable' ||
     mode.disable_action_id !== 'intelligence_enhancement_disable' ||

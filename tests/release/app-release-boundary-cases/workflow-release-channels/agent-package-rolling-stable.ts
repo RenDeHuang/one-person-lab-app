@@ -32,8 +32,9 @@ const expectedAgentIds = [
   'opl-bookforge',
   'scholarskills',
 ];
+const expectedPackageIds = [...expectedAgentIds, 'opl-flow'];
 
-test('OPL Agent Packages ordinary-user channel is rolling latest, not stable or nightly', () => {
+test('OPL Packages ordinary-user channel is rolling latest, not stable or nightly', () => {
   const releaseContract = readReleaseContract();
   const packagePolicy = releaseContract.homebrew_tap_distribution.agent_pack_policy;
   const planePolicy = releaseContract.managed_update_plane.capability_packages;
@@ -44,7 +45,7 @@ test('OPL Agent Packages ordinary-user channel is rolling latest, not stable or 
   for (const policy of [packagePolicy, planePolicy]) {
     assert.equal(policy.registry, 'ghcr.io');
   }
-  assert.equal(planeEntry.source, 'GHCR OCI Agent Packages');
+  assert.equal(planeEntry.source, 'GHCR OCI OPL Packages');
 
   for (const policy of [packagePolicy, planePolicy, planeEntry]) {
     assert.equal(policy.distribution_format, 'ghcr_oci_artifact');
@@ -63,8 +64,15 @@ test('OPL Agent Packages ordinary-user channel is rolling latest, not stable or 
   assert.equal(installDistribution.stable_or_nightly_user_channels_allowed, false);
   assert.equal(installDistribution.must_not_depend_on_fixed_version_tag_by_default, true);
   assert.deepEqual(installDistribution.package_agent_ids, expectedAgentIds);
+  assert.deepEqual(installDistribution.package_ids, expectedPackageIds);
   assert.deepEqual(packagePolicy.managed_agent_ids, expectedAgentIds);
+  assert.deepEqual(packagePolicy.package_ids, expectedPackageIds);
+  assert.equal(packagePolicy.package_kinds['opl-flow'], 'workflow_plugin_package');
+  assert.deepEqual(packagePolicy.opl_flow_package, installDistribution.opl_flow_package);
   assert.deepEqual(planePolicy.package_agent_ids, expectedAgentIds);
+  assert.deepEqual(planePolicy.package_ids, expectedPackageIds);
+  assert.equal(planePolicy.package_kinds['opl-flow'], 'workflow_plugin_package');
+  assert.deepEqual(planePolicy.opl_flow_package, installDistribution.opl_flow_package);
 
   const visibleChannels = new Set([
     ...packagePolicy.user_visible_channels,
@@ -96,7 +104,7 @@ test('GHCR Agent Package publication uses immutable OCI tags, moving latest, and
   for (const policy of [packagePolicy, planePolicy]) {
     assert.equal(policy.registry, 'ghcr.io');
   }
-  assert.equal(planeEntry.source, 'GHCR OCI Agent Packages');
+  assert.equal(planeEntry.source, 'GHCR OCI OPL Packages');
 
   for (const policy of [packagePolicy, planePolicy, planeEntry]) {
     assert.equal(policy.distribution_format, 'ghcr_oci_artifact');

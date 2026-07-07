@@ -10,6 +10,8 @@ import {
   managedKernelRunnerResultRequiredFields,
   managedKernelStateVocabulary,
   managedKernelStatusProjectionRequiredFields,
+  managedOplPackageIds,
+  managedOplPackageKinds,
   managedUpdateActionSource,
   managedUpdateBackgroundFields,
   managedUpdateDisplayPlanes,
@@ -21,6 +23,7 @@ import {
   managedUpdateStateSources,
   managedUpdateStatusConsumptionPolicy,
   managedUpdateUiActions,
+  oplFlowPackagePolicy,
 } from './managed-update-plane-policy.ts';
 
 export { managedUpdateIpcSurfaces } from './managed-update-plane-policy.ts';
@@ -643,6 +646,9 @@ function validateManagedUpdateAgentPackageLane(agentPlane, capabilityPlane, agen
     ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-meta-agent', 'opl-bookforge', 'scholarskills'],
     'Managed update plane agent package ids',
   );
+  assertDeepEqualJson(agentPlane?.package_ids, managedOplPackageIds, 'Managed update plane OPL package ids');
+  assertDeepEqualJson(agentPlane?.package_kinds, managedOplPackageKinds, 'Managed update plane OPL package kinds');
+  assertDeepEqualJson(agentPlane?.opl_flow_package, oplFlowPackagePolicy, 'Managed update plane OPL Flow package policy');
   if (
     agentPlane?.display_group !== 'OPL Packages' ||
     agentPlane?.display_label_en !== 'OPL Packages' ||
@@ -661,7 +667,7 @@ function validateManagedUpdateAgentPackageLane(agentPlane, capabilityPlane, agen
     throw new Error('Managed update plane OPL Packages channel must declare clean managed background auto-apply policy');
   }
   if (
-    agentPlane?.source !== 'GHCR OCI Agent Packages' ||
+    agentPlane?.source !== 'GHCR OCI OPL Packages' ||
     agentPlane?.default_update_mode !== 'automatic_apply_for_clean_managed_roots' ||
     agentPlane?.distribution_format !== 'ghcr_oci_artifact' ||
     agentPlane?.ordinary_user_channel_model !== 'rolling_latest_only' ||
@@ -688,6 +694,9 @@ function validateManagedUpdateAgentPackageLane(agentPlane, capabilityPlane, agen
     ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-meta-agent', 'opl-bookforge', 'scholarskills'],
     'Managed update plane OPL Packages package ids',
   );
+  assertDeepEqualJson(agentPackageChannel?.package_ids, managedOplPackageIds, 'Managed update plane OPL Packages package ids');
+  assertDeepEqualJson(agentPackageChannel?.package_kinds, managedOplPackageKinds, 'Managed update plane OPL Packages package kinds');
+  assertDeepEqualJson(agentPackageChannel?.opl_flow_package, oplFlowPackagePolicy, 'Managed update plane OPL Flow package policy');
 }
 
 function validateManagedUpdateCompanionToolsLane(companionPlane, companionTools) {

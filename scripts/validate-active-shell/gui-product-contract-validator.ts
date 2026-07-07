@@ -271,8 +271,8 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   }
   for (const explanation of [
     'whether a module comes from the bundled Full runtime payload',
-    'whether a module comes from the App/CLI-managed GHCR OCI Agent Packages latest channel',
-    'whether a module comes from the App/CLI-managed GHCR OCI Agent Packages rolling latest channel',
+    'whether a module comes from the App/CLI-managed GHCR OCI OPL Packages latest channel',
+    'whether a module comes from the App/CLI-managed GHCR OCI OPL Packages rolling latest channel',
     'whether a module comes from a local domain repository checkout',
     'whether Developer Profile source_channel uses a GitHub repo or local checkout',
     'whether a module is managed by App/CLI maintenance',

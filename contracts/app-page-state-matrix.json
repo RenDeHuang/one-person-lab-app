@@ -1664,7 +1664,7 @@
         "Temporal status from app_state.provider.temporal",
         "MAS/MAG/RCA/OMA module version and source from app_state.modules",
         "module path source explanation",
-        "Developer Profile source_channel capability and managed GHCR OCI Agent Packages rolling latest default",
+        "Developer Profile source_channel capability and managed GHCR OCI OPL Packages rolling latest default",
         "section-level refresh state",
         "environment page named Local Environment, distinct from Project Progress",
         "OPL Runtime Fabric managed updater status from App state or opl update status",

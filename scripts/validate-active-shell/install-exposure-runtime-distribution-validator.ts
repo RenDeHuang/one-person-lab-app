@@ -1,5 +1,6 @@
 import { assertDeepEqualJson, assertIncludesAll } from './assertions.ts';
 import { temporalLocalServiceDefaults, temporalManagedCommands } from './app-contract-constants.ts';
+import { managedOplPackageIds, managedOplPackageKinds, oplFlowPackagePolicy } from './managed-update-plane-policy.ts';
 
 export function validateInstallExposureRuntimeAndDistribution(policy) {
   validateTemporalAutoConfiguration(policy.temporal_auto_configuration);
@@ -298,6 +299,21 @@ function validateHomebrewAgentPackPolicy(homebrew) {
     ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-meta-agent', 'opl-bookforge', 'scholarskills'],
     'Install exposure Homebrew managed agent ids',
   );
+  assertDeepEqualJson(
+    homebrew.agent_pack_policy?.package_ids,
+    managedOplPackageIds,
+    'Install exposure Homebrew OPL package ids',
+  );
+  assertDeepEqualJson(
+    homebrew.agent_pack_policy?.package_kinds,
+    managedOplPackageKinds,
+    'Install exposure Homebrew OPL package kinds',
+  );
+  assertDeepEqualJson(
+    homebrew.agent_pack_policy?.opl_flow_package,
+    oplFlowPackagePolicy,
+    'Install exposure Homebrew OPL Flow package policy',
+  );
   assertIncludesAll(
     homebrew.agent_pack_policy?.maintenance_commands,
     ['opl connect reconcile-modules', 'opl connect sync-skills'],
@@ -334,6 +350,21 @@ function validateManagedAgentPackDistribution(modulePackageDistribution) {
     modulePackageDistribution.package_agent_ids,
     ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-meta-agent', 'opl-bookforge', 'scholarskills'],
     'Install exposure capability package distribution agent ids',
+  );
+  assertDeepEqualJson(
+    modulePackageDistribution.package_ids,
+    managedOplPackageIds,
+    'Install exposure capability package distribution package ids',
+  );
+  assertDeepEqualJson(
+    modulePackageDistribution.package_kinds,
+    managedOplPackageKinds,
+    'Install exposure capability package distribution package kinds',
+  );
+  assertDeepEqualJson(
+    modulePackageDistribution.opl_flow_package,
+    oplFlowPackagePolicy,
+    'Install exposure OPL Flow package policy',
   );
   assertIncludesAll(
     modulePackageDistribution.activation_commands,

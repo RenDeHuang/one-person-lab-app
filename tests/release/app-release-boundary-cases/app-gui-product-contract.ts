@@ -1052,6 +1052,30 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     'postInstallSelfCheck',
   );
   assert.deepEqual(
+    guiContract.opl_flow_context.optional_user_modes.intelligence_enhancement,
+    productProfile.codex.opl_flow_context.optional_user_modes.intelligence_enhancement,
+  );
+  assert.equal(
+    guiContract.opl_flow_context.optional_user_modes.intelligence_enhancement.required_opl_package_id,
+    'opl-flow',
+  );
+  assert.equal(
+    guiContract.opl_flow_context.optional_user_modes.intelligence_enhancement.required_opl_package_kind,
+    'workflow_plugin_package',
+  );
+  assert.deepEqual(
+    guiContract.opl_flow_context.optional_user_modes.intelligence_enhancement.required_opl_package_preflight_actions,
+    ['status', 'enable', 'repair'],
+  );
+  assert.equal(
+    guiContract.opl_flow_context.optional_user_modes.intelligence_enhancement.required_opl_package_install_command,
+    'python3 scripts/install_local_plugin.py --no-profile',
+  );
+  assert.equal(
+    guiContract.opl_flow_context.optional_user_modes.intelligence_enhancement.profile_mutation_policy,
+    'semantic_merge_packet_only_no_silent_overwrite',
+  );
+  assert.deepEqual(
     guiContract.first_launch_readiness_policy.beginner_presentation.post_install_ai_self_check_entry.target_state_checks,
     [
       'codex_cli_callable',
@@ -1073,8 +1097,8 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     'app_state.modules[].source + app_state.modules[].path + app_state.paths',
   );
   assert.ok(guiContract.module_path_source_policy.must_explain.includes('whether a module comes from the bundled Full runtime payload'));
-  assert.ok(guiContract.module_path_source_policy.must_explain.includes('whether a module comes from the App/CLI-managed GHCR OCI Agent Packages latest channel'));
-  assert.ok(guiContract.module_path_source_policy.must_explain.includes('whether a module comes from the App/CLI-managed GHCR OCI Agent Packages rolling latest channel'));
+  assert.ok(guiContract.module_path_source_policy.must_explain.includes('whether a module comes from the App/CLI-managed GHCR OCI OPL Packages latest channel'));
+  assert.ok(guiContract.module_path_source_policy.must_explain.includes('whether a module comes from the App/CLI-managed GHCR OCI OPL Packages rolling latest channel'));
   assert.ok(guiContract.module_path_source_policy.must_explain.includes('whether a module comes from a local domain repository checkout'));
   assert.ok(guiContract.module_path_source_policy.must_explain.includes('whether Developer Profile source_channel uses a GitHub repo or local checkout'));
   assert.ok(guiContract.module_path_source_policy.must_explain.includes('whether a module is managed by App/CLI maintenance'));

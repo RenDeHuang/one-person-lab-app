@@ -763,6 +763,38 @@
           "opl-bookforge",
           "scholarskills"
         ],
+        "package_ids": [
+          "med-autoscience",
+          "med-autogrant",
+          "redcube-ai",
+          "opl-meta-agent",
+          "opl-bookforge",
+          "scholarskills",
+          "opl-flow"
+        ],
+        "package_kinds": {
+          "med-autoscience": "domain_agent_package",
+          "med-autogrant": "domain_agent_package",
+          "redcube-ai": "domain_agent_package",
+          "opl-meta-agent": "domain_agent_package",
+          "opl-bookforge": "domain_agent_package",
+          "scholarskills": "framework_capability_package",
+          "opl-flow": "workflow_plugin_package"
+        },
+        "opl_flow_package": {
+          "package_id": "opl-flow",
+          "package_kind": "workflow_plugin_package",
+          "consumer": "optional_user_modes.intelligence_enhancement",
+          "install_or_refresh_command": "python3 scripts/install_local_plugin.py --no-profile",
+          "required_before_actions": [
+            "status",
+            "enable",
+            "repair"
+          ],
+          "profile_mutation_allowed": false,
+          "workflow_profile_semantic_merge_ref": "managed_update_plane.planes[workflow_profile]",
+          "standard_updater_allowed": false
+        },
         "homebrew_distribution_allowed": false,
         "user_visible_formula_allowed": false,
         "activation_policy": "app_cli_managed_background_maintenance",
@@ -1220,6 +1252,38 @@
         "opl-bookforge",
         "scholarskills"
       ],
+      "package_ids": [
+        "med-autoscience",
+        "med-autogrant",
+        "redcube-ai",
+        "opl-meta-agent",
+        "opl-bookforge",
+        "scholarskills",
+        "opl-flow"
+      ],
+      "package_kinds": {
+        "med-autoscience": "domain_agent_package",
+        "med-autogrant": "domain_agent_package",
+        "redcube-ai": "domain_agent_package",
+        "opl-meta-agent": "domain_agent_package",
+        "opl-bookforge": "domain_agent_package",
+        "scholarskills": "framework_capability_package",
+        "opl-flow": "workflow_plugin_package"
+      },
+      "opl_flow_package": {
+        "package_id": "opl-flow",
+        "package_kind": "workflow_plugin_package",
+        "consumer": "optional_user_modes.intelligence_enhancement",
+        "install_or_refresh_command": "python3 scripts/install_local_plugin.py --no-profile",
+        "required_before_actions": [
+          "status",
+          "enable",
+          "repair"
+        ],
+        "profile_mutation_allowed": false,
+        "workflow_profile_semantic_merge_ref": "managed_update_plane.planes[workflow_profile]",
+        "standard_updater_allowed": false
+      },
       "activation_commands": [
         "opl connect reconcile-modules",
         "opl connect sync-skills"

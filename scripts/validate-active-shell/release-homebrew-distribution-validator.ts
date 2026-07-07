@@ -1,4 +1,5 @@
 import { assertDeepEqualJson, assertIncludesAll } from './assertions.ts';
+import { managedOplPackageIds, managedOplPackageKinds, oplFlowPackagePolicy } from './managed-update-plane-policy.ts';
 import { assertExpectedFields } from '../value-assertions.ts';
 
 export function validateReleaseHomebrewDistribution(releaseChannel, managedUpdatePlane) {
@@ -184,6 +185,9 @@ function validateReleaseHomebrewAgentPackPolicy(homebrew, managedUpdatePlane) {
     ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-meta-agent', 'opl-bookforge', 'scholarskills'],
     'Release channel managed update agent ids',
   );
+  assertDeepEqualJson(agentPack?.package_ids, managedOplPackageIds, 'Release channel managed OPL package ids');
+  assertDeepEqualJson(agentPack?.package_kinds, managedOplPackageKinds, 'Release channel managed OPL package kinds');
+  assertDeepEqualJson(agentPack?.opl_flow_package, oplFlowPackagePolicy, 'Release channel OPL Flow package policy');
   assertIncludesAll(
     agentPack?.forbidden_silent_overwrite_scope,
     managedUpdatePlane.forbidden_silent_overwrite_scope,

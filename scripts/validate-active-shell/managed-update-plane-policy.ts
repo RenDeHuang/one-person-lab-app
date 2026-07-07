@@ -190,3 +190,34 @@ export const managedUpdateDisplayPlanes = [
 export const managedUpdateStateSources = ['opl app state --profile fast --json#managed_update_plane', 'opl update status --json'];
 export const managedUpdateStatusConsumptionPolicy =
   'show status, conditions, progress refs, and repair action refs without reading artifact bodies or writing runtime/domain truth';
+
+export const managedOplPackageIds = [
+  'med-autoscience',
+  'med-autogrant',
+  'redcube-ai',
+  'opl-meta-agent',
+  'opl-bookforge',
+  'scholarskills',
+  'opl-flow',
+];
+
+export const managedOplPackageKinds = {
+  'med-autoscience': 'domain_agent_package',
+  'med-autogrant': 'domain_agent_package',
+  'redcube-ai': 'domain_agent_package',
+  'opl-meta-agent': 'domain_agent_package',
+  'opl-bookforge': 'domain_agent_package',
+  scholarskills: 'framework_capability_package',
+  'opl-flow': 'workflow_plugin_package',
+};
+
+export const oplFlowPackagePolicy = {
+  package_id: 'opl-flow',
+  package_kind: 'workflow_plugin_package',
+  consumer: 'optional_user_modes.intelligence_enhancement',
+  install_or_refresh_command: 'python3 scripts/install_local_plugin.py --no-profile',
+  required_before_actions: ['status', 'enable', 'repair'],
+  profile_mutation_allowed: false,
+  workflow_profile_semantic_merge_ref: 'managed_update_plane.planes[workflow_profile]',
+  standard_updater_allowed: false,
+};

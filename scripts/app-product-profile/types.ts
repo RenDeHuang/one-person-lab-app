@@ -239,6 +239,11 @@ export type AppProductProfile = {
           upstream_policy: string;
           behavior_policy: string;
           service_policy: string;
+          required_opl_package_id: string;
+          required_opl_package_kind: string;
+          required_opl_package_preflight_actions: string[];
+          required_opl_package_install_command: string;
+          profile_mutation_policy: string;
           status_action_id: string;
           enable_action_id: string;
           disable_action_id: string;

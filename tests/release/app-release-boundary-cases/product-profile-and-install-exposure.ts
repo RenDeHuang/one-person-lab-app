@@ -1228,6 +1228,29 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
     'opl-bookforge',
     'scholarskills',
   ]);
+  assert.deepEqual(policy.agent_installation_contract.managed_agent_pack_distribution.package_ids, [
+    'med-autoscience',
+    'med-autogrant',
+    'redcube-ai',
+    'opl-meta-agent',
+    'opl-bookforge',
+    'scholarskills',
+    'opl-flow',
+  ]);
+  assert.equal(
+    policy.agent_installation_contract.managed_agent_pack_distribution.package_kinds['opl-flow'],
+    'workflow_plugin_package',
+  );
+  assert.deepEqual(policy.agent_installation_contract.managed_agent_pack_distribution.opl_flow_package, {
+    package_id: 'opl-flow',
+    package_kind: 'workflow_plugin_package',
+    consumer: 'optional_user_modes.intelligence_enhancement',
+    install_or_refresh_command: 'python3 scripts/install_local_plugin.py --no-profile',
+    required_before_actions: ['status', 'enable', 'repair'],
+    profile_mutation_allowed: false,
+    workflow_profile_semantic_merge_ref: 'managed_update_plane.planes[workflow_profile]',
+    standard_updater_allowed: false,
+  });
   assert.deepEqual(policy.agent_installation_contract.managed_agent_pack_distribution.activation_commands, [
     'opl connect reconcile-modules',
     'opl connect sync-skills',
