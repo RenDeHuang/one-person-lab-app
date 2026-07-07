@@ -297,14 +297,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          OPL_RELEASE_NOTES_MODE: ai
-          OPL_RELEASE_NOTES_PROVIDER: openai_compatible
-          OPL_RELEASE_NOTES_CODEX_BASE_URL: ${{ vars.OPL_RELEASE_NOTES_CODEX_BASE_URL || 'https://gflabtoken.cn/v1' }}
-          OPL_RELEASE_NOTES_CODEX_API_KEY: ${{ secrets.OPL_RELEASE_NOTES_CODEX_API_KEY }}
-          OPL_RELEASE_NOTES_MODEL: ${{ vars.OPL_RELEASE_NOTES_MODEL || 'gpt-5.4-mini' }}
+          OPL_RELEASE_NOTES_MODE: template
         run: |
           set -euo pipefail
-          npm run release:notes:probe-ai
           npm run release:notes -- \
             --version "${{ inputs.opl_version }}" \
             --channel stable \
@@ -317,6 +312,7 @@ jobs:
             --output standard-release-notes-template.md
           npm run release:notes:prepare -- \
             --evidence standard-release-notes-evidence.json \
+            --input standard-release-notes-template.md \
             --output standard-release-notes.md
 
       - name: Upload prepared standard release notes
@@ -514,14 +510,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          OPL_RELEASE_NOTES_MODE: ai
-          OPL_RELEASE_NOTES_PROVIDER: openai_compatible
-          OPL_RELEASE_NOTES_CODEX_BASE_URL: ${{ vars.OPL_RELEASE_NOTES_CODEX_BASE_URL || 'https://gflabtoken.cn/v1' }}
-          OPL_RELEASE_NOTES_CODEX_API_KEY: ${{ secrets.OPL_RELEASE_NOTES_CODEX_API_KEY }}
-          OPL_RELEASE_NOTES_MODEL: ${{ vars.OPL_RELEASE_NOTES_MODEL || 'gpt-5.4-mini' }}
+          OPL_RELEASE_NOTES_MODE: template
         run: |
           set -euo pipefail
-          npm run release:notes:probe-ai
           npm run release:notes -- \
             --version "${{ inputs.opl_version }}" \
             --channel stable \
@@ -536,6 +527,7 @@ jobs:
             --output full-release-notes-template.md
           npm run release:notes:prepare -- \
             --evidence full-release-notes-evidence.json \
+            --input full-release-notes-template.md \
             --output full-release-notes.md
 
       - name: Upload prepared Full release notes

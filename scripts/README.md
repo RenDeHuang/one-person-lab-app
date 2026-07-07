@@ -357,11 +357,12 @@ updates that tag to the current workflow commit on same-day reruns, keeps
 Nightly, and runs the remote standard asset verifier without Full assets.
 
 AI release-note drafting is a pre-release preparation path, not publish/promote
-critical-path work. Stable desktop and Nightly release jobs prepare
-LLM-written notes with `OPL_RELEASE_NOTES_MODE=ai`, run the online provider
-probe first, and fail closed when no usable provider is configured. The
-deterministic template remains an evidence-backed prompt/input artifact and
-diagnostic fallback only. Online release drafting uses
+critical-path work. Stable desktop release jobs prepare release-blocking notes
+from the deterministic same-cohort template with `OPL_RELEASE_NOTES_MODE=template`;
+the prepared notes are still validated before publish. Nightly release jobs may
+prepare LLM-written notes with `OPL_RELEASE_NOTES_MODE=ai`, run the online
+provider probe first, and fail closed when no usable provider is configured.
+Online release drafting uses
 `OPL_RELEASE_NOTES_PROVIDER=openai_compatible` with the existing
 `OPL_RELEASE_NOTES_CODEX_BASE_URL=https://gflabtoken.cn/v1`,
 `OPL_RELEASE_NOTES_CODEX_API_KEY`, and
