@@ -4,15 +4,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { parseArgs as parseNodeArgs } from 'node:util';
 import {
   readAppReleaseOwnerVerdictContract,
   validateAppReleaseOwnerVerdictContract,
 } from './app-release-owner-verdict.ts';
 import { writeLinesFile } from './release-file-helpers.ts';
-import { applyStringOptionArg } from './cli-option-args.ts';
 import { arrayOrEmpty, recordOrNull } from './release-json-helpers.ts';
 import {
-  applySharedReleaseReadinessArg,
   assertSharedReleaseReadinessOptions,
   buildSharedReleaseReadinessOptions,
   parseStrictBoolean,
@@ -77,39 +76,64 @@ function parseArgs(argv: string[]): Options {
     allowBlocked: false,
   };
 
-  for (let index = 0; index < argv.length; index += 1) {
-    const token = argv[index];
-    if (token === '--allow-blocked') {
-      parsed.allowBlocked = true;
-      continue;
-    }
-    const sharedIndex = applySharedReleaseReadinessArg(argv, index, parsed, parseStrictBoolean);
-    if (sharedIndex !== null) {
-      index = sharedIndex;
-      continue;
-    }
-    const optionIndex = applyStringOptionArg(argv, index, {
-      '--app-commit': (value) => { parsed.appCommit = value; },
-      '--shell-ref': (value) => { parsed.shellRef = value; },
-      '--framework-ref': (value) => { parsed.frameworkRef = value; },
-      '--workflow-run-id': (value) => { parsed.workflowRunId = value; },
-      '--preflight': (value) => { parsed.preflightPath = value; },
-      '--readiness': (value) => { parsed.readinessPath = value; },
-      '--remote-verification': (value) => { parsed.remoteVerificationPath = value; },
-      '--job-results': (value) => { parsed.jobResultsPath = value; },
-      '--output': (value) => { parsed.output = value; },
-      '--markdown': (value) => { parsed.markdown = value; },
-      '--promotion-mode': (value) => { parsed.promotionMode = value; },
-      '--release-owner-verdict-ref': (value) => { parsed.releaseOwnerVerdictRef = value; },
-      '--release-owner-receipt-ref': (value) => { parsed.releaseOwnerReceiptRef = value; },
-      '--release-owner-typed-blocker-ref': (value) => { parsed.releaseOwnerTypedBlockerRef = value; },
-      '--release-owner-human-gate-ref': (value) => { parsed.humanGateRef = value; },
-    });
-    if (optionIndex !== null) {
-      index = optionIndex;
-      continue;
-    }
-    throw new Error(`Unknown argument: ${token}`);
+  const { values } = parseNodeArgs({
+    args: argv,
+    options: {
+      'allow-blocked': { type: 'boolean' },
+      version: { type: 'string' },
+      'release-mode': { type: 'string' },
+      'include-full-package': { type: 'string' },
+      'run-vm-smoke': { type: 'string' },
+      'publish-docker-webui': { type: 'string' },
+      'app-commit': { type: 'string' },
+      'shell-ref': { type: 'string' },
+      'framework-ref': { type: 'string' },
+      'workflow-run-id': { type: 'string' },
+      preflight: { type: 'string' },
+      readiness: { type: 'string' },
+      'remote-verification': { type: 'string' },
+      'job-results': { type: 'string' },
+      output: { type: 'string' },
+      markdown: { type: 'string' },
+      'promotion-mode': { type: 'string' },
+      'release-owner-verdict-ref': { type: 'string' },
+      'release-owner-receipt-ref': { type: 'string' },
+      'release-owner-typed-blocker-ref': { type: 'string' },
+      'release-owner-human-gate-ref': { type: 'string' },
+    },
+  });
+  if (values['allow-blocked']) parsed.allowBlocked = true;
+  if (typeof values.version === 'string') parsed.version = values.version;
+  if (typeof values['release-mode'] === 'string') parsed.releaseMode = values['release-mode'];
+  if (typeof values['include-full-package'] === 'string') {
+    parsed.includeFullPackage = parseStrictBoolean(values['include-full-package']);
+  }
+  if (typeof values['run-vm-smoke'] === 'string') parsed.runVmSmoke = parseStrictBoolean(values['run-vm-smoke']);
+  if (typeof values['publish-docker-webui'] === 'string') {
+    parsed.publishDockerWebui = parseStrictBoolean(values['publish-docker-webui'], true);
+  }
+  if (typeof values['app-commit'] === 'string') parsed.appCommit = values['app-commit'];
+  if (typeof values['shell-ref'] === 'string') parsed.shellRef = values['shell-ref'];
+  if (typeof values['framework-ref'] === 'string') parsed.frameworkRef = values['framework-ref'];
+  if (typeof values['workflow-run-id'] === 'string') parsed.workflowRunId = values['workflow-run-id'];
+  if (typeof values.preflight === 'string') parsed.preflightPath = values.preflight;
+  if (typeof values.readiness === 'string') parsed.readinessPath = values.readiness;
+  if (typeof values['remote-verification'] === 'string') parsed.remoteVerificationPath = values['remote-verification'];
+  if (typeof values['job-results'] === 'string') parsed.jobResultsPath = values['job-results'];
+  if (typeof values.output === 'string') parsed.output = values.output;
+  if (typeof values.markdown === 'string') parsed.markdown = values.markdown;
+  if (typeof values['promotion-mode'] === 'string') parsed.promotionMode = values['promotion-mode'];
+  if (typeof values['release-owner-verdict-ref'] === 'string') {
+    parsed.releaseOwnerVerdictRef = values['release-owner-verdict-ref'];
+  }
+  if (typeof values['release-owner-receipt-ref'] === 'string') {
+    parsed.releaseOwnerReceiptRef = values['release-owner-receipt-ref'];
+  }
+  if (typeof values['release-owner-typed-blocker-ref'] === 'string') {
+    parsed.releaseOwnerTypedBlockerRef = values['release-owner-typed-blocker-ref'];
+  }
+  if (typeof values['release-owner-human-gate-ref'] === 'string') {
+    parsed.humanGateRef = values['release-owner-human-gate-ref'];
   }
 
   assertSharedReleaseReadinessOptions(parsed);

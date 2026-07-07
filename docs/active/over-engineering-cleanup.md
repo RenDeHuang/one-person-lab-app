@@ -25,7 +25,7 @@ Last updated: 2026-07-07
 - Removed `docs/delivery/user-guides/macos-app-install/assets/06-research-data-folder.png`; current guide, generated delivery markdown, slide markdown, and verification refs point at the canonical `docs/guides/macos-app-install/screenshots/06-research-data-folder.png` source instead.
 - `scripts/generate-release-notes.ts` was already on `node:util.parseArgs`, so this slice left it unchanged.
 - `scripts/publish-release.ts` now uses `node:util.parseArgs` for its simple boolean and string release options instead of a hand-rolled argv loop.
-- Kept `scripts/cli-option-args.ts` because release cohort, readiness, operator, evidence, and Docker/WebUI dispatch scripts still import it.
+- At this point `scripts/cli-option-args.ts` stayed because release cohort, readiness, operator, evidence, and Docker/WebUI dispatch scripts still imported it; the later stdlib release helper cleanup slice removes it.
 - Verification required for this slice: `git diff --check`, focused parser probes for `generate-release-notes.ts` and `publish-release.ts`, and `rg` checks proving the deleted delivery asset path and `cli-option-args.ts` imports are understood.
 
 ### 2026-07-07 guide helper and candidate evidence duplicate shrink
@@ -48,6 +48,13 @@ Last updated: 2026-07-07
 - `scripts/validate-shell-candidates/candidate-evidence.ts` keeps Native Workbench and Hermes package evidence in their candidate-specific validators, but shares the local `.app` bundle executable/symlink/profile check and uses named expected-field tables for repeated non-adoption assertions.
 - Preserved product roles: AionUI remains the active GUI mainline, OPL Native Workbench remains the foreground alternative, Hermes remains the explicit reference candidate, and AGUI remains archived technical proof.
 - Verification required for this slice: `npm run validate:shell-candidates` and `git diff --check`.
+
+### 2026-07-07 stdlib release helper cleanup
+
+- `scripts/release-file-helpers.ts` now uses Node `fs.globSync` for file discovery and keeps exact basename matching in the helper instead of maintaining a manual recursive stack.
+- Removed the one-hop `scripts/cli-option-args.ts` helper. Release cohort, readiness, operator, candidate-record, gate-reuse, evidence-manifest, and Docker/WebUI dispatch parsers now use `node:util.parseArgs` or file-local pass-through parsing where a subcommand forwards arguments to an existing parser.
+- Updated release evidence validation fixture copies so temporary app roots no longer copy the deleted CLI option helper.
+- Verification required for this slice: `git diff --check`, focused parser probes for the changed CLI entrypoints, `node --test` release tests that cover cohort/operator/candidate/gate/evidence/dispatch behavior, and `rg` checks proving scripts/tests no longer depend on `cli-option-args.ts`.
 
 ## No-Safe-Semantic-Split Boundaries
 

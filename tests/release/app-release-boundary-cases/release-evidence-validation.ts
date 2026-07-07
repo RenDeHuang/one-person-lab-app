@@ -829,7 +829,6 @@ test('release evidence bundle validator rejects undersized WebP screenshot evide
   fs.copyFileSync(path.join(appRoot, 'scripts', 'release-evidence-json-shape-validator.ts'), path.join(tempAppRoot, 'scripts', 'release-evidence-json-shape-validator.ts'));
   fs.copyFileSync(path.join(appRoot, 'scripts', 'release-image-evidence.ts'), path.join(tempAppRoot, 'scripts', 'release-image-evidence.ts'));
   fs.copyFileSync(path.join(appRoot, 'scripts', 'release-evidence-paths.ts'), path.join(tempAppRoot, 'scripts', 'release-evidence-paths.ts'));
-  fs.copyFileSync(path.join(appRoot, 'scripts', 'cli-option-args.ts'), path.join(tempAppRoot, 'scripts', 'cli-option-args.ts'));
   fs.copyFileSync(path.join(appRoot, 'scripts', 'release-json-helpers.ts'), path.join(tempAppRoot, 'scripts', 'release-json-helpers.ts'));
   fs.copyFileSync(path.join(appRoot, 'scripts', 'release-evidence-cohort.ts'), path.join(tempAppRoot, 'scripts', 'release-evidence-cohort.ts'));
   fs.copyFileSync(path.join(appRoot, 'scripts', 'release-readiness-args.ts'), path.join(tempAppRoot, 'scripts', 'release-readiness-args.ts'));
@@ -894,7 +893,6 @@ test('release evidence bundle validator rejects image policy without image scope
   fs.copyFileSync(path.join(appRoot, 'scripts', 'release-evidence-json-shape-validator.ts'), path.join(tempAppRoot, 'scripts', 'release-evidence-json-shape-validator.ts'));
   fs.copyFileSync(path.join(appRoot, 'scripts', 'release-image-evidence.ts'), path.join(tempAppRoot, 'scripts', 'release-image-evidence.ts'));
   fs.copyFileSync(path.join(appRoot, 'scripts', 'release-evidence-paths.ts'), path.join(tempAppRoot, 'scripts', 'release-evidence-paths.ts'));
-  fs.copyFileSync(path.join(appRoot, 'scripts', 'cli-option-args.ts'), path.join(tempAppRoot, 'scripts', 'cli-option-args.ts'));
   fs.copyFileSync(path.join(appRoot, 'scripts', 'release-json-helpers.ts'), path.join(tempAppRoot, 'scripts', 'release-json-helpers.ts'));
   fs.copyFileSync(path.join(appRoot, 'scripts', 'release-evidence-cohort.ts'), path.join(tempAppRoot, 'scripts', 'release-evidence-cohort.ts'));
   fs.copyFileSync(path.join(appRoot, 'scripts', 'release-readiness-args.ts'), path.join(tempAppRoot, 'scripts', 'release-readiness-args.ts'));

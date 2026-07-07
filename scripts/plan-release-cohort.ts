@@ -4,10 +4,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { applyStringOptionArg } from './cli-option-args.ts';
+import { parseArgs as parseNodeArgs } from 'node:util';
 import { writeLinesFile } from './release-file-helpers.ts';
 import {
-  applySharedReleaseReadinessArg,
   assertSharedReleaseReadinessOptions,
   buildSharedReleaseReadinessOptions,
   parseStrictBoolean,
@@ -112,33 +111,46 @@ function defaultOptions(): ReleaseCohortPlanOptions {
 
 export function parseReleaseCohortPlanArgs(argv: string[]): ReleaseCohortPlanOptions {
   const parsed = defaultOptions();
-  for (let index = 0; index < argv.length; index += 1) {
-    const token = argv[index];
-    if (token === '--help' || token === '-h') {
-      usage();
-      process.exit(0);
-    }
-    const sharedIndex = applySharedReleaseReadinessArg(argv, index, parsed, parseStrictBoolean);
-    if (sharedIndex !== null) {
-      index = sharedIndex;
-      continue;
-    }
-    const optionIndex = applyStringOptionArg(argv, index, {
-      '--app-commit': (value) => { parsed.appCommit = value; },
-      '--app-ref': (value) => { parsed.appCommit = value; },
-      '--shell-ref': (value) => { parsed.shellRef = value; },
-      '--framework-ref': (value) => { parsed.frameworkRef = value; },
-      '--shell-root': (value) => { parsed.shellRoot = value; },
-      '--framework-root': (value) => { parsed.frameworkRoot = value; },
-      '--output': (value) => { parsed.output = value; },
-      '--markdown': (value) => { parsed.markdown = value; },
-    });
-    if (optionIndex !== null) {
-      index = optionIndex;
-      continue;
-    }
-    throw new Error(`Unknown argument: ${token}`);
+  const { values } = parseNodeArgs({
+    args: argv,
+    options: {
+      help: { type: 'boolean', short: 'h' },
+      version: { type: 'string' },
+      'release-mode': { type: 'string' },
+      'include-full-package': { type: 'string' },
+      'run-vm-smoke': { type: 'string' },
+      'publish-docker-webui': { type: 'string' },
+      'app-commit': { type: 'string' },
+      'app-ref': { type: 'string' },
+      'shell-ref': { type: 'string' },
+      'framework-ref': { type: 'string' },
+      'shell-root': { type: 'string' },
+      'framework-root': { type: 'string' },
+      output: { type: 'string' },
+      markdown: { type: 'string' },
+    },
+  });
+  if (values.help) {
+    usage();
+    process.exit(0);
   }
+  if (typeof values.version === 'string') parsed.version = values.version;
+  if (typeof values['release-mode'] === 'string') parsed.releaseMode = values['release-mode'];
+  if (typeof values['include-full-package'] === 'string') {
+    parsed.includeFullPackage = parseStrictBoolean(values['include-full-package']);
+  }
+  if (typeof values['run-vm-smoke'] === 'string') parsed.runVmSmoke = parseStrictBoolean(values['run-vm-smoke']);
+  if (typeof values['publish-docker-webui'] === 'string') {
+    parsed.publishDockerWebui = parseStrictBoolean(values['publish-docker-webui'], true);
+  }
+  if (typeof values['app-commit'] === 'string') parsed.appCommit = values['app-commit'];
+  if (typeof values['app-ref'] === 'string') parsed.appCommit = values['app-ref'];
+  if (typeof values['shell-ref'] === 'string') parsed.shellRef = values['shell-ref'];
+  if (typeof values['framework-ref'] === 'string') parsed.frameworkRef = values['framework-ref'];
+  if (typeof values['shell-root'] === 'string') parsed.shellRoot = values['shell-root'];
+  if (typeof values['framework-root'] === 'string') parsed.frameworkRoot = values['framework-root'];
+  if (typeof values.output === 'string') parsed.output = values.output;
+  if (typeof values.markdown === 'string') parsed.markdown = values.markdown;
 
   assertSharedReleaseReadinessOptions(parsed);
   if (!parsed.appCommit.trim()) throw new Error('Pass --app-ref <ref>/--app-commit <sha> or run from a git checkout.');

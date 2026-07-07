@@ -3,6 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { parseArgs as parseNodeArgs } from 'node:util';
 import {
   buildAppReleaseL5EvidenceReadout,
   validateAppReleaseL5ReadoutContract,
@@ -13,12 +14,10 @@ import {
   unknownReleaseEvidenceCohort,
 } from './release-evidence-cohort.ts';
 import {
-  applyReleaseEvidenceBundleDirArg,
   defaultReleaseEvidenceBundleDir,
   resolveEvidenceBundlePath as resolveBundlePath,
   resolveRequiredReleaseEvidenceBundleDir,
 } from './release-evidence-paths.ts';
-import { applyStringOptionArg } from './cli-option-args.ts';
 import { readJsonFile } from './release-json-helpers.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -37,30 +36,24 @@ function parseArgs(argv) {
       .filter(Boolean),
     overwrite: false,
   };
-  for (let index = 0; index < argv.length; index += 1) {
-    const token = argv[index];
-    if (token === '--overwrite') {
-      parsed.overwrite = true;
-      continue;
-    }
-    const bundleDirIndex = applyReleaseEvidenceBundleDirArg(argv, index, (value) => {
-      parsed.bundleDir = value;
-    });
-    if (bundleDirIndex !== null) {
-      index = bundleDirIndex;
-      continue;
-    }
-    const optionIndex = applyStringOptionArg(argv, index, {
-      '--classification': (value) => { parsed.classificationPath = value; },
-      '--version': (value) => { parsed.version = value; },
-      '--tag': (value) => { parsed.tag = value; },
-      '--require-conditional': (value) => { parsed.requiredConditionals.push(value); },
-    });
-    if (optionIndex !== null) {
-      index = optionIndex;
-      continue;
-    }
-    throw new Error(`Unknown argument: ${token}`);
+  const { values } = parseNodeArgs({
+    args: argv,
+    options: {
+      overwrite: { type: 'boolean' },
+      'bundle-dir': { type: 'string' },
+      classification: { type: 'string' },
+      version: { type: 'string' },
+      tag: { type: 'string' },
+      'require-conditional': { type: 'string', multiple: true },
+    },
+  });
+  if (values.overwrite) parsed.overwrite = true;
+  if (typeof values['bundle-dir'] === 'string') parsed.bundleDir = values['bundle-dir'];
+  if (typeof values.classification === 'string') parsed.classificationPath = values.classification;
+  if (typeof values.version === 'string') parsed.version = values.version;
+  if (typeof values.tag === 'string') parsed.tag = values.tag;
+  if (Array.isArray(values['require-conditional'])) {
+    parsed.requiredConditionals.push(...values['require-conditional']);
   }
   return {
     bundleDir: resolveRequiredReleaseEvidenceBundleDir(parsed.bundleDir),

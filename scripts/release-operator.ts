@@ -3,7 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { applyStringOptionArg, requiredOptionValue } from './cli-option-args.ts';
+import { parseArgs as parseNodeArgs } from 'node:util';
 import { runGitHubCli as runGh, writeLinesFile } from './release-file-helpers.ts';
 import {
   arrayOrEmpty as asArray,
@@ -250,12 +250,12 @@ function parsePlanArgs(argv: string[]): { cohort: ReleaseCohortPlanOptions; oper
   const cohortArgs: string[] = [];
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
-    const optionIndex = applyStringOptionArg(argv, index, {
-      '--output': (value) => { output.output = value; },
-      '--markdown': (value) => { output.markdown = value; },
-    });
-    if (optionIndex !== null) {
-      index = optionIndex;
+    if (token === '--output' || token === '--markdown') {
+      const value = argv[index + 1];
+      if (!value || value.startsWith('--')) throw new Error(`Missing value for ${token}`);
+      if (token === '--output') output.output = value;
+      else output.markdown = value;
+      index += 1;
       continue;
     }
     cohortArgs.push(token);
@@ -277,34 +277,38 @@ function parseDiagnoseVmArgs(argv: string[]): DiagnoseVmOptions {
     buildStandardArtifact: false,
     runVmDiagnostic: true,
   };
-  for (let index = 0; index < argv.length; index += 1) {
-    const token = argv[index];
-    if (token === '--help' || token === '-h') {
-      usage();
-      process.exit(0);
-    }
-    if (token === '--build-standard-artifact' || token === '--run-vm-diagnostic') {
-      const value = requiredOptionValue(argv, index, token);
-      if (token === '--build-standard-artifact') parsed.buildStandardArtifact = parseBoolean(value);
-      else parsed.runVmDiagnostic = parseBoolean(value);
-      index += 1;
-      continue;
-    }
-    const optionIndex = applyStringOptionArg(argv, index, {
-      '--version': (value) => { parsed.version = value; },
-      '--release-mode': (value) => { parsed.releaseMode = value; },
-      '--release-artifact-run-id': (value) => { parsed.releaseArtifactRunId = value; },
-      '--release-artifact-name': (value) => { parsed.releaseArtifactName = value; },
-      '--diagnostic-scope': (value) => { parsed.diagnosticScope = value; },
-      '--output': (value) => { parsed.output = value; },
-      '--markdown': (value) => { parsed.markdown = value; },
-    });
-    if (optionIndex !== null) {
-      index = optionIndex;
-      continue;
-    }
-    throw new Error(`Unknown argument: ${token}`);
+  const { values } = parseNodeArgs({
+    args: argv,
+    options: {
+      help: { type: 'boolean', short: 'h' },
+      version: { type: 'string' },
+      'release-mode': { type: 'string' },
+      'release-artifact-run-id': { type: 'string' },
+      'release-artifact-name': { type: 'string' },
+      'diagnostic-scope': { type: 'string' },
+      'build-standard-artifact': { type: 'string' },
+      'run-vm-diagnostic': { type: 'string' },
+      output: { type: 'string' },
+      markdown: { type: 'string' },
+    },
+  });
+  if (values.help) {
+    usage();
+    process.exit(0);
   }
+  if (typeof values.version === 'string') parsed.version = values.version;
+  if (typeof values['release-mode'] === 'string') parsed.releaseMode = values['release-mode'];
+  if (typeof values['release-artifact-run-id'] === 'string') parsed.releaseArtifactRunId = values['release-artifact-run-id'];
+  if (typeof values['release-artifact-name'] === 'string') parsed.releaseArtifactName = values['release-artifact-name'];
+  if (typeof values['diagnostic-scope'] === 'string') parsed.diagnosticScope = values['diagnostic-scope'];
+  if (typeof values['build-standard-artifact'] === 'string') {
+    parsed.buildStandardArtifact = parseBoolean(values['build-standard-artifact']);
+  }
+  if (typeof values['run-vm-diagnostic'] === 'string') {
+    parsed.runVmDiagnostic = parseBoolean(values['run-vm-diagnostic']);
+  }
+  if (typeof values.output === 'string') parsed.output = values.output;
+  if (typeof values.markdown === 'string') parsed.markdown = values.markdown;
   if (!parsed.version.trim()) throw new Error('Pass --version <version> or set OPL_RELEASE_VERSION.');
   if (!parsed.releaseArtifactRunId.trim()) {
     throw new Error('Pass --release-artifact-run-id <run-id> or set OPL_RELEASE_ARTIFACT_RUN_ID.');
@@ -325,31 +329,34 @@ function parseStatusArgs(argv: string[]): StatusOptions {
     runJsonPath: process.env.OPL_RELEASE_RUN_JSON || '',
     stdoutFormat: 'json',
   };
-  for (let index = 0; index < argv.length; index += 1) {
-    const token = argv[index];
-    if (token === '--help' || token === '-h') {
-      usage();
-      process.exit(0);
-    }
-    if (token === '--json' || token === '--summary') {
-      parsed.stdoutFormat = token === '--summary' ? 'summary' : 'json';
-      continue;
-    }
-    const optionIndex = applyStringOptionArg(argv, index, {
-      '--run-id': (value) => { parsed.runId = value; },
-      '--repo': (value) => { parsed.repo = value; },
-      '--version': (value) => { parsed.version = value; },
-      '--expected-head': (value) => { parsed.expectedHead = value; },
-      '--run-json': (value) => { parsed.runJsonPath = value; },
-      '--output': (value) => { parsed.output = value; },
-      '--markdown': (value) => { parsed.markdown = value; },
-    });
-    if (optionIndex !== null) {
-      index = optionIndex;
-      continue;
-    }
-    throw new Error(`Unknown argument: ${token}`);
+  const { values } = parseNodeArgs({
+    args: argv,
+    options: {
+      help: { type: 'boolean', short: 'h' },
+      json: { type: 'boolean' },
+      summary: { type: 'boolean' },
+      'run-id': { type: 'string' },
+      repo: { type: 'string' },
+      version: { type: 'string' },
+      'expected-head': { type: 'string' },
+      'run-json': { type: 'string' },
+      output: { type: 'string' },
+      markdown: { type: 'string' },
+    },
+  });
+  if (values.help) {
+    usage();
+    process.exit(0);
   }
+  if (values.json) parsed.stdoutFormat = 'json';
+  if (values.summary) parsed.stdoutFormat = 'summary';
+  if (typeof values['run-id'] === 'string') parsed.runId = values['run-id'];
+  if (typeof values.repo === 'string') parsed.repo = values.repo;
+  if (typeof values.version === 'string') parsed.version = values.version;
+  if (typeof values['expected-head'] === 'string') parsed.expectedHead = values['expected-head'];
+  if (typeof values['run-json'] === 'string') parsed.runJsonPath = values['run-json'];
+  if (typeof values.output === 'string') parsed.output = values.output;
+  if (typeof values.markdown === 'string') parsed.markdown = values.markdown;
   if (!parsed.runId.trim() && !parsed.runJsonPath.trim()) {
     throw new Error('Pass --run-id <id> or --run-json <path>.');
   }

@@ -2,7 +2,7 @@
 
 import fs from 'node:fs';
 import { spawnSync } from 'node:child_process';
-import { applyStringOptionArg } from './cli-option-args.ts';
+import { parseArgs as parseNodeArgs } from 'node:util';
 
 type RunnerInventoryEntry = {
   id?: number | string | null;
@@ -78,38 +78,40 @@ function defaultOptions(): Options {
 
 function parseArgs(argv: string[]): Options {
   const parsed = defaultOptions();
-  for (let index = 0; index < argv.length; index += 1) {
-    const token = argv[index];
-    if (token === '--help' || token === '-h') {
-      usage();
-      process.exit(0);
-    }
-    if (token === '--execute') {
-      parsed.execute = true;
-      continue;
-    }
-    if (token === '--json') {
-      parsed.json = true;
-      continue;
-    }
-    const optionIndex = applyStringOptionArg(argv, index, {
-      '--repo': (value) => { parsed.repo = value; },
-      '--ref': (value) => { parsed.ref = value; },
-      '--workflow': (value) => { parsed.workflow = value; },
-      '--runner-labels-json': (value) => { parsed.runnerLabelsJson = value; },
-      '--runner-inventory-json': (value) => { parsed.runnerInventoryJson = value; },
-      '--runner-inventory-file': (value) => { parsed.runnerInventoryFile = value; },
-      '--image': (value) => { parsed.image = value; },
-      '--artifact-name': (value) => { parsed.artifactName = value; },
-      '--port': (value) => { parsed.port = value; },
-      '--health-timeout': (value) => { parsed.healthTimeout = value; },
-    });
-    if (optionIndex !== null) {
-      index = optionIndex;
-      continue;
-    }
-    throw new Error(`Unknown argument: ${token}`);
+  const { values } = parseNodeArgs({
+    args: argv,
+    options: {
+      help: { type: 'boolean', short: 'h' },
+      execute: { type: 'boolean' },
+      json: { type: 'boolean' },
+      repo: { type: 'string' },
+      ref: { type: 'string' },
+      workflow: { type: 'string' },
+      'runner-labels-json': { type: 'string' },
+      'runner-inventory-json': { type: 'string' },
+      'runner-inventory-file': { type: 'string' },
+      image: { type: 'string' },
+      'artifact-name': { type: 'string' },
+      port: { type: 'string' },
+      'health-timeout': { type: 'string' },
+    },
+  });
+  if (values.help) {
+    usage();
+    process.exit(0);
   }
+  if (values.execute) parsed.execute = true;
+  if (values.json) parsed.json = true;
+  if (typeof values.repo === 'string') parsed.repo = values.repo;
+  if (typeof values.ref === 'string') parsed.ref = values.ref;
+  if (typeof values.workflow === 'string') parsed.workflow = values.workflow;
+  if (typeof values['runner-labels-json'] === 'string') parsed.runnerLabelsJson = values['runner-labels-json'];
+  if (typeof values['runner-inventory-json'] === 'string') parsed.runnerInventoryJson = values['runner-inventory-json'];
+  if (typeof values['runner-inventory-file'] === 'string') parsed.runnerInventoryFile = values['runner-inventory-file'];
+  if (typeof values.image === 'string') parsed.image = values.image;
+  if (typeof values['artifact-name'] === 'string') parsed.artifactName = values['artifact-name'];
+  if (typeof values.port === 'string') parsed.port = values.port;
+  if (typeof values['health-timeout'] === 'string') parsed.healthTimeout = values['health-timeout'];
   return parsed;
 }
 

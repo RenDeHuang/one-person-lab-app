@@ -4,11 +4,10 @@ import fs from 'node:fs';
 import crypto from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { applyStringOptionArg } from './cli-option-args.ts';
+import { parseArgs as parseNodeArgs } from 'node:util';
 import { fileSha256, writeLinesFile } from './release-file-helpers.ts';
 import { arrayOrEmpty, asRecord, readJsonFile, recordOrNull } from './release-json-helpers.ts';
 import {
-  applySharedReleaseReadinessArg,
   assertSharedReleaseReadinessOptions,
   buildSharedReleaseReadinessOptions,
   parseStrictBoolean,
@@ -69,30 +68,51 @@ function parseArgs(argv: string[]): Options {
     markdown: process.env.OPL_RELEASE_GATE_REUSE_MARKDOWN || '',
   };
 
-  for (let index = 0; index < argv.length; index += 1) {
-    const sharedIndex = applySharedReleaseReadinessArg(argv, index, parsed, parseStrictBoolean);
-    if (sharedIndex !== null) {
-      index = sharedIndex;
-      continue;
-    }
-    const optionIndex = applyStringOptionArg(argv, index, {
-      '--app-commit': (value) => { parsed.appCommit = value; },
-      '--shell-ref': (value) => { parsed.shellRef = value; },
-      '--framework-ref': (value) => { parsed.frameworkRef = value; },
-      '--current-preflight': (value) => { parsed.currentPreflightPath = value; },
-      '--current-remote-verification': (value) => { parsed.currentRemoteVerificationPath = value; },
-      '--previous-candidate-record': (value) => { parsed.previousCandidateRecordPath = value; },
-      '--previous-readiness': (value) => { parsed.previousReadinessPath = value; },
-      '--previous-remote-verification': (value) => { parsed.previousRemoteVerificationPath = value; },
-      '--output': (value) => { parsed.output = value; },
-      '--markdown': (value) => { parsed.markdown = value; },
-    });
-    if (optionIndex !== null) {
-      index = optionIndex;
-      continue;
-    }
-    throw new Error(`Unknown argument: ${argv[index]}`);
+  const { values } = parseNodeArgs({
+    args: argv,
+    options: {
+      version: { type: 'string' },
+      'release-mode': { type: 'string' },
+      'include-full-package': { type: 'string' },
+      'run-vm-smoke': { type: 'string' },
+      'publish-docker-webui': { type: 'string' },
+      'app-commit': { type: 'string' },
+      'shell-ref': { type: 'string' },
+      'framework-ref': { type: 'string' },
+      'current-preflight': { type: 'string' },
+      'current-remote-verification': { type: 'string' },
+      'previous-candidate-record': { type: 'string' },
+      'previous-readiness': { type: 'string' },
+      'previous-remote-verification': { type: 'string' },
+      output: { type: 'string' },
+      markdown: { type: 'string' },
+    },
+  });
+  if (typeof values.version === 'string') parsed.version = values.version;
+  if (typeof values['release-mode'] === 'string') parsed.releaseMode = values['release-mode'];
+  if (typeof values['include-full-package'] === 'string') {
+    parsed.includeFullPackage = parseStrictBoolean(values['include-full-package']);
   }
+  if (typeof values['run-vm-smoke'] === 'string') parsed.runVmSmoke = parseStrictBoolean(values['run-vm-smoke']);
+  if (typeof values['publish-docker-webui'] === 'string') {
+    parsed.publishDockerWebui = parseStrictBoolean(values['publish-docker-webui'], true);
+  }
+  if (typeof values['app-commit'] === 'string') parsed.appCommit = values['app-commit'];
+  if (typeof values['shell-ref'] === 'string') parsed.shellRef = values['shell-ref'];
+  if (typeof values['framework-ref'] === 'string') parsed.frameworkRef = values['framework-ref'];
+  if (typeof values['current-preflight'] === 'string') parsed.currentPreflightPath = values['current-preflight'];
+  if (typeof values['current-remote-verification'] === 'string') {
+    parsed.currentRemoteVerificationPath = values['current-remote-verification'];
+  }
+  if (typeof values['previous-candidate-record'] === 'string') {
+    parsed.previousCandidateRecordPath = values['previous-candidate-record'];
+  }
+  if (typeof values['previous-readiness'] === 'string') parsed.previousReadinessPath = values['previous-readiness'];
+  if (typeof values['previous-remote-verification'] === 'string') {
+    parsed.previousRemoteVerificationPath = values['previous-remote-verification'];
+  }
+  if (typeof values.output === 'string') parsed.output = values.output;
+  if (typeof values.markdown === 'string') parsed.markdown = values.markdown;
 
   assertSharedReleaseReadinessOptions(parsed);
   const requiredPaths = [

@@ -1,5 +1,3 @@
-import { requiredOptionValue } from './cli-option-args.ts';
-
 type SharedReleaseReadinessOptions = {
   version: string;
   releaseMode: string;
@@ -25,31 +23,6 @@ export function buildSharedReleaseReadinessOptions(parseBoolean: BooleanParser):
     runVmSmoke: parseBoolean(process.env.OPL_RUN_VM_SMOKE),
     publishDockerWebui: parseBoolean(process.env.OPL_PUBLISH_DOCKER_WEBUI, true),
   };
-}
-
-export function applySharedReleaseReadinessArg(
-  argv: string[],
-  index: number,
-  parsed: SharedReleaseReadinessOptions,
-  parseBoolean: BooleanParser,
-): number | null {
-  const token = argv[index];
-  if (token === '--include-full-package' || token === '--run-vm-smoke' || token === '--publish-docker-webui') {
-    const value = requiredOptionValue(argv, index, token);
-    if (token === '--include-full-package') parsed.includeFullPackage = parseBoolean(value);
-    else if (token === '--run-vm-smoke') parsed.runVmSmoke = parseBoolean(value);
-    else parsed.publishDockerWebui = parseBoolean(value, true);
-    return index + 1;
-  }
-  if (token === '--version') {
-    parsed.version = requiredOptionValue(argv, index, token);
-    return index + 1;
-  }
-  if (token === '--release-mode') {
-    parsed.releaseMode = requiredOptionValue(argv, index, token);
-    return index + 1;
-  }
-  return null;
 }
 
 export function assertSharedReleaseReadinessOptions(parsed: SharedReleaseReadinessOptions): void {

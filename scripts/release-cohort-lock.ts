@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { applyStringOptionArg } from './cli-option-args.ts';
+import { parseArgs as parseNodeArgs } from 'node:util';
 import { writeLinesFile } from './release-file-helpers.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -112,37 +112,34 @@ function defaultOptions(): ReleaseCohortLockOptions {
 
 export function parseReleaseCohortLockArgs(argv: string[]): ReleaseCohortLockOptions {
   const parsed = defaultOptions();
-  let shellRootProvided = Boolean(process.env.OPL_SHELL_ROOT);
-  let frameworkRootProvided = Boolean(process.env.OPL_FRAMEWORK_ROOT);
-  for (let index = 0; index < argv.length; index += 1) {
-    const token = argv[index];
-    if (token === '--help' || token === '-h') {
-      usage();
-      process.exit(0);
-    }
-    const optionIndex = applyStringOptionArg(argv, index, {
-      '--app-ref': (value) => { parsed.appRef = value; },
-      '--app-commit': (value) => { parsed.appRef = value; },
-      '--shell-ref': (value) => { parsed.shellRef = value; },
-      '--framework-ref': (value) => { parsed.frameworkRef = value; },
-      '--repo-root': (value) => { parsed.repoRoot = value; },
-      '--shell-root': (value) => {
-        parsed.shellRoot = value;
-        shellRootProvided = true;
-      },
-      '--framework-root': (value) => {
-        parsed.frameworkRoot = value;
-        frameworkRootProvided = true;
-      },
-      '--output': (value) => { parsed.output = value; },
-      '--markdown': (value) => { parsed.markdown = value; },
-    });
-    if (optionIndex !== null) {
-      index = optionIndex;
-      continue;
-    }
-    throw new Error(`Unknown argument: ${token}`);
+  const { values } = parseNodeArgs({
+    args: argv,
+    options: {
+      help: { type: 'boolean', short: 'h' },
+      'app-ref': { type: 'string' },
+      'app-commit': { type: 'string' },
+      'shell-ref': { type: 'string' },
+      'framework-ref': { type: 'string' },
+      'repo-root': { type: 'string' },
+      'shell-root': { type: 'string' },
+      'framework-root': { type: 'string' },
+      output: { type: 'string' },
+      markdown: { type: 'string' },
+    },
+  });
+  if (values.help) {
+    usage();
+    process.exit(0);
   }
+  if (typeof values['app-ref'] === 'string') parsed.appRef = values['app-ref'];
+  if (typeof values['app-commit'] === 'string') parsed.appRef = values['app-commit'];
+  if (typeof values['shell-ref'] === 'string') parsed.shellRef = values['shell-ref'];
+  if (typeof values['framework-ref'] === 'string') parsed.frameworkRef = values['framework-ref'];
+  if (typeof values['repo-root'] === 'string') parsed.repoRoot = values['repo-root'];
+  if (typeof values['shell-root'] === 'string') parsed.shellRoot = values['shell-root'];
+  if (typeof values['framework-root'] === 'string') parsed.frameworkRoot = values['framework-root'];
+  if (typeof values.output === 'string') parsed.output = values.output;
+  if (typeof values.markdown === 'string') parsed.markdown = values.markdown;
 
   if (!parsed.appRef.trim()) throw new Error('Pass --app-ref <ref>/--app-commit <sha> or run from a git checkout.');
   if (!parsed.shellRef.trim()) throw new Error('Pass --shell-ref <ref> or set OPL_SHELL_REF.');
@@ -152,9 +149,13 @@ export function parseReleaseCohortLockArgs(argv: string[]): ReleaseCohortLockOpt
   return {
     ...parsed,
     repoRoot,
-    shellRoot: path.resolve(shellRootProvided ? parsed.shellRoot : path.join(repoRoot, 'shells', 'aionui')),
+    shellRoot: path.resolve(
+      values['shell-root'] || process.env.OPL_SHELL_ROOT ? parsed.shellRoot : path.join(repoRoot, 'shells', 'aionui'),
+    ),
     frameworkRoot: path.resolve(
-      frameworkRootProvided ? parsed.frameworkRoot : path.resolve(repoRoot, '..', 'one-person-lab'),
+      values['framework-root'] || process.env.OPL_FRAMEWORK_ROOT
+        ? parsed.frameworkRoot
+        : path.resolve(repoRoot, '..', 'one-person-lab'),
     ),
     output: parsed.output ? path.resolve(parsed.output) : '',
     markdown: parsed.markdown ? path.resolve(parsed.markdown) : '',

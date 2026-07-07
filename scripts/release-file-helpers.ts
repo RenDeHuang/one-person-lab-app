@@ -11,13 +11,9 @@ type RunGhOptions = {
 
 export function findFileByName(root: string, name: string): string | null {
   if (!fs.existsSync(root)) return null;
-  const pending = [root];
-  while (pending.length > 0) {
-    const current = pending.pop() as string;
-    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
-      const entryPath = path.join(current, entry.name);
-      if (entry.isDirectory()) pending.push(entryPath);
-      else if (entry.isFile() && entry.name === name) return entryPath;
+  for (const entry of fs.globSync('**/*', { cwd: root, withFileTypes: true })) {
+    if (entry.isFile() && entry.name === name) {
+      return path.join(entry.parentPath, entry.name);
     }
   }
   return null;
