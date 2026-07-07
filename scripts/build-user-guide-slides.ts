@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -48,7 +47,16 @@ type SlideBlock = {
 };
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const { run, relativeToApp, readJson } = createGuideScriptHelpers(appRoot);
+const {
+  run,
+  relativeToApp,
+  readJson,
+  hashFile,
+  readPngDimensions,
+  expandTemplate: expandGuideTemplate,
+  scanText,
+  withGeneratedLifecycleFrontMatter,
+} = createGuideScriptHelpers(appRoot);
 const guideId = 'macos-app-install';
 const guideDir = path.join(appRoot, 'docs', 'guides', guideId);
 const deliveryDir = path.join(appRoot, 'docs', 'delivery', 'user-guides', guideId);
@@ -68,47 +76,11 @@ const verificationPath = path.join(deliveryDir, 'verification', 'macos-app-insta
 const marpPackage = process.env.MARP_CLI_PACKAGE || '@marp-team/marp-cli@4.4.0';
 const marpThemeName = 'opl-guide';
 
-const forbiddenSecretPatterns = [
-  /sk-[A-Za-z0-9_-]{20,}/,
-  /OPENAI_API_KEY/,
-  /CODEX_API_KEY/,
-  /OPL_CODEX_API_KEY\s*=\s*[^`\s]+/,
-  /opl-first-run-smoke-guide-key/,
-];
-
-function hashFile(filePath: string) {
-  return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
-}
-
-function readPngDimensions(filePath: string) {
-  const buf = fs.readFileSync(filePath);
-  if (buf.length < 24 || buf.toString('ascii', 1, 4) !== 'PNG') {
-    throw new Error(`Guide screenshot is not a PNG file: ${relativeToApp(filePath)}`);
-  }
-  return {
-    width: buf.readUInt32BE(16),
-    height: buf.readUInt32BE(20),
-  };
-}
-
 function expandTemplate(text: string, manifest: GuideManifest) {
-  let expanded = text
-    .replaceAll('{{title}}', manifest.title)
-    .replaceAll('{{short_title}}', manifest.short_title);
-  for (const [key, value] of Object.entries(manifest.download ?? {})) {
-    expanded = expanded.replaceAll(`{{download.${key}}}`, value);
-  }
-  return expanded;
-}
-
-function scanText(label: string, text: string) {
-  const secretHits = forbiddenSecretPatterns.filter((pattern) => pattern.test(text)).map(String);
-  if (secretHits.length > 0) {
-    throw new Error(`${label} contains forbidden sensitive marker(s): ${secretHits.join(', ')}`);
-  }
-  if (/\{\{[^}]+\}\}/.test(text)) {
-    throw new Error(`${label} contains unresolved template placeholder(s).`);
-  }
+  return expandGuideTemplate(text, {
+    title: manifest.title,
+    short_title: manifest.short_title,
+  }, manifest.download);
 }
 
 function referencedScreenshots(qmd: string) {
@@ -147,7 +119,7 @@ function validateScreenshots(qmd: string, screenshots: ScreenshotManifest) {
     if (!fs.existsSync(filePath)) {
       throw new Error(`Guide screenshot does not exist: ${relativeToApp(filePath)}`);
     }
-    const dimensions = readPngDimensions(filePath);
+    const dimensions = readPngDimensions(filePath, 'Guide screenshot');
     const sha256 = hashFile(filePath);
     if (screenshot.width && screenshot.width !== dimensions.width) {
       throw new Error(`Expected ${screenshot.file} width ${screenshot.width}, got ${dimensions.width}`);
@@ -258,12 +230,6 @@ function generatedLifecycleFrontMatter(manifest: GuideManifest) {
     '# State: `generated_payload`',
     `# Machine boundary: Generated Marp markdown snapshot. Human-readable source is \`${relativeToApp(sourceQmdPath)}\`; machine truth remains in \`${relativeToApp(manifestPath)}\`, \`${relativeToApp(screenshotManifestPath)}\`, slide generator scripts, verification JSON, public deck artifacts, release evidence, and App contracts.`,
   ].join('\n');
-}
-
-function withGeneratedLifecycleFrontMatter(markdown: string, lifecycle: string) {
-  return markdown.startsWith('---\n')
-    ? markdown.replace('---\n', `---\n${lifecycle}\n`)
-    : `${lifecycle}\n\n${markdown}`;
 }
 
 function imagePath(asset: string) {

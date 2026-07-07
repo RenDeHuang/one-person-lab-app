@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -72,7 +71,16 @@ type ScreenshotManifest = {
 };
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const { run, relativeToApp, readJson } = createGuideScriptHelpers(appRoot);
+const {
+  run,
+  relativeToApp,
+  readJson,
+  hashFile,
+  readPngDimensions,
+  expandTemplate: expandGuideTemplate,
+  scanText: scanGeneratedText,
+  withGeneratedLifecycleFrontMatter,
+} = createGuideScriptHelpers(appRoot);
 const guideId = process.argv[2];
 const manifestFileName = process.argv[3] ?? `${guideId}.guide.json`;
 
@@ -88,14 +96,6 @@ const outputDir = path.join(projectDir, '_book');
 const publishingRoot = path.join(appRoot, 'docs', 'publishing');
 const templatesRoot = path.join(publishingRoot, 'templates');
 
-const forbiddenSecretPatterns = [
-  /sk-[A-Za-z0-9_-]{20,}/,
-  /OPENAI_API_KEY/,
-  /CODEX_API_KEY/,
-  /OPL_CODEX_API_KEY\s*=\s*[^`\s]+/,
-  /opl-first-run-smoke-guide-key/,
-];
-
 function generatedLifecycleFrontMatter(manifest: GuideManifest) {
   return [
     `# Owner: \`${manifest.owner}\``,
@@ -103,12 +103,6 @@ function generatedLifecycleFrontMatter(manifest: GuideManifest) {
     '# State: `generated_payload`',
     `# Machine boundary: Generated Markdown snapshot. Human-readable source is \`${manifest.source_qmd}\`; machine truth remains in \`${relativeToApp(manifestPath)}\`, publishing templates, guide generator scripts, verification JSON, release evidence, screenshots manifest, and App contracts.`,
   ].join('\n');
-}
-
-function withGeneratedLifecycleFrontMatter(markdown: string, lifecycle: string) {
-  return markdown.startsWith('---\n')
-    ? markdown.replace('---\n', `---\n${lifecycle}\n`)
-    : `${lifecycle}\n\n${markdown}`;
 }
 
 function loadManifest() {
@@ -216,29 +210,16 @@ function outputPath(relativePath: string) {
 }
 
 function expandTemplate(text: string, manifest: GuideManifest) {
-  let expanded = text
-    .replaceAll('{{title}}', manifest.title)
-    .replaceAll('{{short_title}}', manifest.short_title)
-    .replaceAll('{{audience}}', manifest.audience)
-    .replaceAll('{{intro}}', manifest.intro);
-  for (const [key, value] of Object.entries(manifest.download ?? {})) {
-    expanded = expanded.replaceAll(`{{download.${key}}}`, value);
-  }
-  return expanded;
+  return expandGuideTemplate(text, {
+    title: manifest.title,
+    short_title: manifest.short_title,
+    audience: manifest.audience,
+    intro: manifest.intro,
+  }, manifest.download);
 }
 
 function scanText(label: string, text: string, manifest: GuideManifest) {
-  const secretHits = forbiddenSecretPatterns.filter((pattern) => pattern.test(text)).map(String);
-  if (secretHits.length > 0) {
-    throw new Error(`${label} contains forbidden sensitive marker(s): ${secretHits.join(', ')}`);
-  }
-  if (/\{\{[^}]+\}\}/.test(text)) {
-    throw new Error(`${label} contains unresolved template placeholder(s).`);
-  }
-  const forbiddenPhraseHits = (manifest.forbidden_phrases ?? []).filter((phrase) => text.includes(phrase));
-  if (forbiddenPhraseHits.length > 0) {
-    throw new Error(`${label} contains forbidden phrase(s): ${forbiddenPhraseHits.join(', ')}`);
-  }
+  scanGeneratedText(label, text, { forbiddenPhrases: manifest.forbidden_phrases });
 }
 
 function htmlVisibleText(html: string) {
@@ -250,21 +231,6 @@ function htmlVisibleText(html: string) {
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&amp;/g, '&');
-}
-
-function readPngDimensions(filePath: string) {
-  const buf = fs.readFileSync(filePath);
-  if (buf.length < 24 || buf.toString('ascii', 1, 4) !== 'PNG') {
-    throw new Error(`Guide asset is not a PNG file: ${relativeToApp(filePath)}`);
-  }
-  return {
-    width: buf.readUInt32BE(16),
-    height: buf.readUInt32BE(20),
-  };
-}
-
-function hashFile(filePath: string) {
-  return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
 }
 
 function referencedAssets(qmd: string) {
@@ -295,7 +261,7 @@ function validateAssets(manifest: GuideManifest, qmd: string) {
     if (!fs.existsSync(filePath)) {
       throw new Error(`Guide asset does not exist: ${relativeToApp(filePath)}`);
     }
-    const dimensions = readPngDimensions(filePath);
+    const dimensions = readPngDimensions(filePath, 'Guide asset');
     const sha256 = hashFile(filePath);
     if (asset.width && dimensions.width !== asset.width) {
       throw new Error(`Expected ${asset.file} width ${asset.width}, got ${dimensions.width}`);

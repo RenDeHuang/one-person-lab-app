@@ -28,6 +28,55 @@ import {
   validateActiveProjectLineStateModel,
 } from './shared.ts';
 
+type CandidateAppBundleManifest = {
+  status: string;
+  package_kind: string;
+  app_bundle_path: string;
+  app_bundle_executable?: string;
+  product_profile_owner?: string;
+};
+
+function validateCandidateAppBundleRoot(candidate: ShellCandidate, manifest: CandidateAppBundleManifest) {
+  if (manifest.status !== 'candidate_app_bundle_ready') {
+    throw new Error(`${candidate.id} package manifest must declare candidate_app_bundle_ready`);
+  }
+  if (manifest.package_kind !== 'explicit_candidate_app_bundle') {
+    throw new Error(`${candidate.id} package manifest must declare explicit_candidate_app_bundle`);
+  }
+  if (!manifest.app_bundle_path || !manifest.app_bundle_path.endsWith('.app')) {
+    throw new Error(`${candidate.id} package manifest must point at a .app bundle`);
+  }
+  assertRelativePath(manifest.app_bundle_path, `${candidate.id} package manifest app_bundle_path`);
+  const appBundleRoot = path.join(root, candidate.candidate_root, manifest.app_bundle_path);
+  assertDirectory(appBundleRoot, `${candidate.id} .app bundle`);
+  assertFile(path.join(appBundleRoot, 'Contents', 'Info.plist'), `${candidate.id} .app Info.plist`);
+  const macOsDir = path.join(appBundleRoot, 'Contents', 'MacOS');
+  assertDirectory(macOsDir, `${candidate.id} .app Contents/MacOS`);
+  return {
+    appBundleRoot,
+    macOsDir,
+    executable: findMacAppExecutable(macOsDir, candidate.id),
+  };
+}
+
+function assertAppOwnedProductProfile(candidate: ShellCandidate, manifest: CandidateAppBundleManifest): void {
+  if (manifest.product_profile_owner !== 'one-person-lab-app') {
+    throw new Error(`${candidate.id} package manifest must prove App-owned product profile input`);
+  }
+}
+
+function assertManifestFieldValues(
+  candidate: ShellCandidate,
+  manifest: Record<string, unknown>,
+  expectedValues: Record<string, string | boolean>,
+): void {
+  for (const [field, expected] of Object.entries(expectedValues)) {
+    if (manifest[field] !== expected) {
+      throw new Error(`${candidate.id} package manifest ${field} must be ${String(expected)}`);
+    }
+  }
+}
+
 export function runCandidateCommands(candidate: ShellCandidate): void {
   for (const entry of candidate.validation_commands) {
     if (entry.optional) {
@@ -76,28 +125,11 @@ function validateCandidatePackageManifest(candidate: ShellCandidate, options: { 
     product_profile_owner: string;
     home_purpose_entries: string[];
   }>(manifestPath);
-  if (manifest.status !== 'candidate_app_bundle_ready') {
-    throw new Error(`${candidate.id} package manifest must declare candidate_app_bundle_ready`);
-  }
-  if (manifest.package_kind !== 'explicit_candidate_app_bundle') {
-    throw new Error(`${candidate.id} package manifest must declare explicit_candidate_app_bundle`);
-  }
-  if (!manifest.app_bundle_path || !manifest.app_bundle_path.endsWith('.app')) {
-    throw new Error(`${candidate.id} package manifest must point at a .app bundle`);
-  }
-  assertRelativePath(manifest.app_bundle_path, `${candidate.id} package manifest app_bundle_path`);
-  const appBundleRoot = path.join(root, candidate.candidate_root, manifest.app_bundle_path);
-  assertDirectory(appBundleRoot, `${candidate.id} .app bundle`);
-  assertFile(path.join(appBundleRoot, 'Contents', 'Info.plist'), `${candidate.id} .app Info.plist`);
-  const macOsDir = path.join(appBundleRoot, 'Contents', 'MacOS');
-  assertDirectory(macOsDir, `${candidate.id} .app Contents/MacOS`);
-  findMacAppExecutable(macOsDir, candidate.id);
+  const { appBundleRoot } = validateCandidateAppBundleRoot(candidate, manifest);
   assertNoAbsoluteSymlinks(appBundleRoot, candidate.id);
-  if (manifest.product_profile_owner !== 'one-person-lab-app') {
-    throw new Error(`${candidate.id} package manifest must prove App-owned product profile input`);
-  }
+  assertAppOwnedProductProfile(candidate, manifest);
   assertStringArrayIncludes(manifest.home_purpose_entries, requiredHomeEntries, `${candidate.id} package manifest purpose entries`);
-  for (const [field, expected] of Object.entries({
+  assertManifestFieldValues(candidate, manifest, {
     page_state_matrix_mapping_status: 'passed',
     first_run_matrix_mapping_status: 'passed',
     runtime_summary_detail_action_bridge_status: 'passed',
@@ -107,11 +139,7 @@ function validateCandidatePackageManifest(candidate: ShellCandidate, options: { 
     bilingual_ui_status: 'passed',
     chat_event_rendering_status: 'passed',
     webui_parity_status: 'passed',
-  })) {
-    if ((manifest as Record<string, unknown>)[field] !== expected) {
-      throw new Error(`${candidate.id} package manifest ${field} must be ${expected}`);
-    }
-  }
+  });
   assertStringArrayIncludes(
     (manifest as { settings_tabs?: string[] }).settings_tabs ?? [],
     requiredSettingsTabs,
@@ -127,22 +155,18 @@ function validateCandidatePackageManifest(candidate: ShellCandidate, options: { 
     requiredActivityGroups,
     `${candidate.id} package manifest secondary runtime context groups`,
   );
-  for (const [field, expected] of Object.entries({
+  assertManifestFieldValues(candidate, manifest, {
     home_runtime_activity_visible: false,
     home_continue_work_visible: false,
     home_footer_quick_icons_visible: false,
-  })) {
-    if ((manifest as Record<string, unknown>)[field] !== expected) {
-      throw new Error(`${candidate.id} package manifest ${field} must be ${String(expected)}`);
-    }
-  }
+  });
   assertStringArrayIncludes(
     (manifest as { conversation_event_kinds?: string[] }).conversation_event_kinds ?? [],
     requiredConversationEventKinds,
     `${candidate.id} package manifest conversation event kinds`,
   );
   if (options.requireSmoke !== false) {
-    for (const [field, expected] of Object.entries({
+    assertManifestFieldValues(candidate, manifest, {
       copilotkit_ui_smoke_status: 'passed',
       codex_app_server_turn_status: 'passed',
       source_ui_smoke_status: 'passed',
@@ -150,11 +174,7 @@ function validateCandidatePackageManifest(candidate: ShellCandidate, options: { 
       webui_smoke_status: 'passed',
       action_dry_run_status: 'passed',
       responsive_context_layer_status: 'passed',
-    })) {
-      if ((manifest as Record<string, unknown>)[field] !== expected) {
-        throw new Error(`${candidate.id} package manifest ${field} must be ${expected}`);
-      }
-    }
+    });
     if (
       Number((manifest as Record<string, unknown>).responsive_context_layer_width ?? 9999) > 1020 ||
       (manifest as Record<string, unknown>).responsive_inspector_visible !== true ||
@@ -194,55 +214,30 @@ function validateNativeWorkbenchPackageManifest(candidate: ShellCandidate, optio
     implemented_capabilities?: string[];
     context_testids?: string[];
   }>(manifestPath);
-  if (manifest.status !== 'candidate_app_bundle_ready') {
-    throw new Error(`${candidate.id} package manifest must declare candidate_app_bundle_ready`);
-  }
-  if (manifest.package_kind !== 'explicit_candidate_app_bundle') {
-    throw new Error(`${candidate.id} package manifest must declare explicit_candidate_app_bundle`);
-  }
-  if (!manifest.app_bundle_path || !manifest.app_bundle_path.endsWith('.app')) {
-    throw new Error(`${candidate.id} package manifest must point at a .app bundle`);
-  }
-  assertRelativePath(manifest.app_bundle_path, `${candidate.id} package manifest app_bundle_path`);
-  const appBundleRoot = path.join(root, candidate.candidate_root, manifest.app_bundle_path);
-  assertDirectory(appBundleRoot, `${candidate.id} .app bundle`);
-  assertFile(path.join(appBundleRoot, 'Contents', 'Info.plist'), `${candidate.id} .app Info.plist`);
-  const macOsDir = path.join(appBundleRoot, 'Contents', 'MacOS');
-  assertDirectory(macOsDir, `${candidate.id} .app Contents/MacOS`);
-  const executable = findMacAppExecutable(macOsDir, candidate.id);
+  const { appBundleRoot, executable } = validateCandidateAppBundleRoot(candidate, manifest);
   if (manifest.app_bundle_executable !== 'One Person Lab Native Workbench Candidate' || executable !== manifest.app_bundle_executable) {
     throw new Error(`${candidate.id} .app bundle must use the OPL native workbench executable name`);
   }
   assertNoAbsoluteSymlinks(appBundleRoot, candidate.id);
-  if (manifest.product_profile_owner !== 'one-person-lab-app') {
-    throw new Error(`${candidate.id} package manifest must prove App-owned product profile input`);
-  }
-  for (const [field, expected] of Object.entries({
+  assertAppOwnedProductProfile(candidate, manifest);
+  assertManifestFieldValues(candidate, manifest, {
     default_release_shell_unchanged: true,
     active_shell_adopted: false,
     runtime_authority_transfer: false,
     domain_truth_owned: false,
-  })) {
-    if ((manifest as Record<string, unknown>)[field] !== expected) {
-      throw new Error(`${candidate.id} package manifest ${field} must be ${String(expected)}`);
-    }
-  }
+  });
   assertStringArrayIncludes(manifest.home_purpose_entries, requiredHomeEntries, `${candidate.id} package manifest purpose entries`);
   assertStringArrayIncludes(manifest.implemented_capabilities ?? [], requiredNativeCapabilities, `${candidate.id} package manifest implemented capabilities`);
   assertStringArrayIncludes(manifest.context_testids ?? [], requiredContextTestIds, `${candidate.id} package manifest context testids`);
   if (options.requireSmoke !== false) {
-    for (const [field, expected] of Object.entries({
+    assertManifestFieldValues(candidate, manifest, {
       source_ui_smoke_status: 'passed',
       packaged_ui_smoke_status: 'passed',
       webui_smoke_status: 'passed',
       state_model_status: 'passed',
       action_dry_run_status: 'passed',
       webui_parity_status: 'passed',
-    })) {
-      if ((manifest as Record<string, unknown>)[field] !== expected) {
-        throw new Error(`${candidate.id} package manifest ${field} must be ${expected}`);
-      }
-    }
+    });
   }
 }
 
@@ -266,22 +261,7 @@ function validateHermesCandidatePackageManifest(candidate: ShellCandidate, optio
     implemented_capabilities?: string[];
     deferred_until_feature_comparison?: string[];
   }>(manifestPath);
-  if (manifest.status !== 'candidate_app_bundle_ready') {
-    throw new Error(`${candidate.id} package manifest must declare candidate_app_bundle_ready`);
-  }
-  if (manifest.package_kind !== 'explicit_candidate_app_bundle') {
-    throw new Error(`${candidate.id} package manifest must declare explicit_candidate_app_bundle`);
-  }
-  if (!manifest.app_bundle_path || !manifest.app_bundle_path.endsWith('.app')) {
-    throw new Error(`${candidate.id} package manifest must point at a .app bundle`);
-  }
-  assertRelativePath(manifest.app_bundle_path, `${candidate.id} package manifest app_bundle_path`);
-  const appBundleRoot = path.join(root, candidate.candidate_root, manifest.app_bundle_path);
-  assertDirectory(appBundleRoot, `${candidate.id} .app bundle`);
-  assertFile(path.join(appBundleRoot, 'Contents', 'Info.plist'), `${candidate.id} .app Info.plist`);
-  const macOsDir = path.join(appBundleRoot, 'Contents', 'MacOS');
-  assertDirectory(macOsDir, `${candidate.id} .app Contents/MacOS`);
-  const executable = findMacAppExecutable(macOsDir, candidate.id);
+  const { appBundleRoot, macOsDir, executable } = validateCandidateAppBundleRoot(candidate, manifest);
   if (manifest.app_bundle_executable !== 'One Person Lab Hermes Candidate' || executable !== manifest.app_bundle_executable) {
     throw new Error(`${candidate.id} .app bundle must use the OPL branded executable name`);
   }
@@ -292,17 +272,13 @@ function validateHermesCandidatePackageManifest(candidate: ShellCandidate, optio
   if (options.requireSmoke !== false) {
     validateHermesPackagedSmoke(candidate);
   }
-  for (const [field, expected] of Object.entries({
+  assertManifestFieldValues(candidate, manifest, {
     default_release_shell_unchanged: true,
     active_shell_adopted: false,
     hermes_runtime_authority_transfer: false,
     official_hermes_backend_preserved: true,
     official_hermes_desktop_ui_reused: true,
-  })) {
-    if ((manifest as Record<string, unknown>)[field] !== expected) {
-      throw new Error(`${candidate.id} package manifest ${field} must be ${String(expected)}`);
-    }
-  }
+  });
   if (manifest.backend_bridge?.codex_runtime_reference !== 'codex app-server --listen stdio://') {
     throw new Error(`${candidate.id} package manifest must prove the Codex app-server runtime reference`);
   }

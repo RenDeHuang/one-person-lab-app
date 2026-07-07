@@ -28,6 +28,13 @@ Last updated: 2026-07-07
 - Kept `scripts/cli-option-args.ts` because release cohort, readiness, operator, evidence, and Docker/WebUI dispatch scripts still import it.
 - Verification required for this slice: `git diff --check`, focused parser probes for `generate-release-notes.ts` and `publish-release.ts`, and `rg` checks proving the deleted delivery asset path and `cli-option-args.ts` imports are understood.
 
+### 2026-07-07 guide helper and candidate evidence duplicate shrink
+
+- `scripts/guide-script-helpers.ts` now owns the shared guide-script primitives for file hashing, PNG dimension checks, template expansion, generated-text scanning, and generated lifecycle front-matter insertion. `scripts/build-quarto-guide.ts` and `scripts/build-user-guide-slides.ts` keep their guide-specific manifest and rendering logic.
+- `scripts/validate-shell-candidates/candidate-evidence.ts` now uses file-local helpers for the common candidate `.app` package manifest base checks and repeated expected-field assertions. Candidate-specific AGUI, native-workbench, and Hermes evidence rules stay in their original validator functions.
+- No-safe boundary: do not collapse generated lifecycle text across guide scripts, because the guide Markdown and Marp deck machine-boundary text intentionally names different source/artifact authorities. Do not promote candidate evidence helpers into a new framework until another validator family shares the same package-manifest semantics.
+- Verification required for this slice: `git diff --check`, `npm run docs:docker-webui-guide`, `npm run docs:macos-guide:slides`, and `npm run validate:shell-candidates`.
+
 ## No-Safe-Semantic-Split Boundaries
 
 The following cleanup classes must not be landed as broad mechanical refactors without a focused semantic split and matching verification:
