@@ -581,6 +581,8 @@ test('release workflows resolve moving refs once and pass fixed SHA cohort refs 
   assert.match(desktopWorkflow, /standard-build:[\s\S]*ref: \$\{\{ needs\.release-source-gate\.outputs\.app_sha \}\}[\s\S]*shell_ref: \$\{\{ needs\.release-source-gate\.outputs\.shell_sha \}\}/);
   assert.doesNotMatch(workflowJobBlock(desktopWorkflow, 'publish-standard'), /models: read/);
   assert.match(workflowJobBlock(desktopWorkflow, 'prepare-standard-release-notes'), /OPL_RELEASE_NOTES_PROVIDER: openai_compatible/);
+  assert.match(workflowJobBlock(desktopWorkflow, 'prepare-standard-release-notes'), /GH_TOKEN: \$\{\{ secrets\.GITHUB_TOKEN \}\}/);
+  assert.match(workflowJobBlock(desktopWorkflow, 'prepare-standard-release-notes'), /GITHUB_TOKEN: \$\{\{ secrets\.GITHUB_TOKEN \}\}/);
   assert.match(workflowJobBlock(desktopWorkflow, 'prepare-standard-release-notes'), /OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL: \$\{\{ vars\.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL \}\}/);
   assert.match(workflowJobBlock(desktopWorkflow, 'prepare-standard-release-notes'), /OPL_RELEASE_NOTES_CODEX_BASE_URL: \$\{\{ vars\.OPL_RELEASE_NOTES_CODEX_BASE_URL \}\}/);
   assert.match(workflowJobBlock(desktopWorkflow, 'publish-standard'), /OPL_RELEASE_NOTES_FILE: prepared-standard-release-notes\/standard-release-notes\.md/);
@@ -589,6 +591,8 @@ test('release workflows resolve moving refs once and pass fixed SHA cohort refs 
   assert.match(desktopWorkflow, /publish-standard:[\s\S]*outputs:[\s\S]*app_sha: \$\{\{ steps\.release-cohort\.outputs\.app_sha \}\}[\s\S]*shell_sha: \$\{\{ steps\.release-cohort\.outputs\.shell_sha \}\}[\s\S]*framework_sha: \$\{\{ steps\.release-cohort\.outputs\.framework_sha \}\}/);
   assert.doesNotMatch(workflowJobBlock(desktopWorkflow, 'publish-full-assets'), /models: read/);
   assert.match(workflowJobBlock(desktopWorkflow, 'prepare-full-release-notes'), /OPL_RELEASE_NOTES_PROVIDER: openai_compatible/);
+  assert.match(workflowJobBlock(desktopWorkflow, 'prepare-full-release-notes'), /GH_TOKEN: \$\{\{ secrets\.GITHUB_TOKEN \}\}/);
+  assert.match(workflowJobBlock(desktopWorkflow, 'prepare-full-release-notes'), /GITHUB_TOKEN: \$\{\{ secrets\.GITHUB_TOKEN \}\}/);
   assert.match(workflowJobBlock(desktopWorkflow, 'prepare-full-release-notes'), /OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY: \$\{\{ secrets\.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY \}\}/);
   assert.match(workflowJobBlock(desktopWorkflow, 'prepare-full-release-notes'), /OPL_RELEASE_NOTES_CODEX_API_KEY: \$\{\{ secrets\.OPL_RELEASE_NOTES_CODEX_API_KEY \}\}/);
   assert.match(workflowJobBlock(desktopWorkflow, 'publish-full-assets'), /OPL_RELEASE_NOTES_FILE: prepared-full-release-notes\/full-release-notes\.md/);
