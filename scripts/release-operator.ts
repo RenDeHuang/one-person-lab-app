@@ -183,6 +183,7 @@ type ReleaseSessionManifest = {
     status: string | null;
     conclusion: string | null;
     head_sha: string | null;
+    ref?: string;
   };
   failed_run_tax: {
     action: OperatorNextAction['action'];
@@ -191,12 +192,23 @@ type ReleaseSessionManifest = {
   };
   typed_next_action: OperatorNextAction;
   owner_receipt: {
-    state: 'not_provided' | 'not_required_for_current_state';
+    state: 'not_provided' | 'not_required_for_current_state' | 'provided';
     verify_command: string;
+    ref?: string;
+  };
+  release_truth_refs?: {
+    candidate_record?: string;
+    closeout?: string;
+    readback?: string;
   };
   post_publish_follow_up: {
-    state: 'not_applicable_until_release_published';
+    state:
+      | 'not_applicable_until_release_published'
+      | 'pending'
+      | 'completed'
+      | 'blocked';
     summary: string;
+    ref?: string;
   };
   truth_boundary: string;
 };
@@ -250,6 +262,14 @@ type StatusOptions = OperatorOutputOptions & {
   version: string;
   expectedHead: string;
   runJsonPath: string;
+  sessionInput: string;
+  ownerReceiptRef: string;
+  candidateRef: string;
+  closeoutRef: string;
+  readbackRef: string;
+  currentAuthorityRef: string;
+  postPublishFollowUpRef: string;
+  postPublishFollowUpState: ReleaseSessionManifest['post_publish_follow_up']['state'] | '';
   stdoutFormat: 'json' | 'summary';
 };
 
@@ -270,6 +290,22 @@ Common options:
   --markdown <path>    Write release-operator-state.md.
   --session-output <path>
                        Write release-session.json for status runs.
+  --session-input <path>
+                       Read an existing release-session.json before updating it.
+  --owner-receipt-ref <ref>
+                       Record an owner receipt reference in the session manifest.
+  --candidate-ref <ref>
+                       Record a candidate-record reference in the session manifest.
+  --closeout-ref <ref>
+                       Record a closeout reference in the session manifest.
+  --readback-ref <ref>
+                       Record a readback/currentness reference in the session manifest.
+  --current-authority-ref <ref>
+                       Record the current authority reference for this run.
+  --post-publish-follow-up-ref <ref>
+                       Record a post-publish follow-up reference.
+  --post-publish-follow-up-state <state>
+                       Record post-publish follow-up state: pending, completed, or blocked.
   --json               Print JSON to stdout.
   --summary            Print a one-screen human summary to stdout.
 `);
@@ -382,6 +418,14 @@ function parseStatusArgs(argv: string[]): StatusOptions {
     version: process.env.OPL_RELEASE_VERSION || '',
     expectedHead: process.env.OPL_RELEASE_EXPECTED_HEAD || '',
     runJsonPath: process.env.OPL_RELEASE_RUN_JSON || '',
+    sessionInput: '',
+    ownerReceiptRef: '',
+    candidateRef: '',
+    closeoutRef: '',
+    readbackRef: '',
+    currentAuthorityRef: '',
+    postPublishFollowUpRef: '',
+    postPublishFollowUpState: '',
     stdoutFormat: 'json',
   };
   const { values } = parseNodeArgs({
@@ -398,6 +442,14 @@ function parseStatusArgs(argv: string[]): StatusOptions {
       output: { type: 'string' },
       markdown: { type: 'string' },
       'session-output': { type: 'string' },
+      'session-input': { type: 'string' },
+      'owner-receipt-ref': { type: 'string' },
+      'candidate-ref': { type: 'string' },
+      'closeout-ref': { type: 'string' },
+      'readback-ref': { type: 'string' },
+      'current-authority-ref': { type: 'string' },
+      'post-publish-follow-up-ref': { type: 'string' },
+      'post-publish-follow-up-state': { type: 'string' },
     },
   });
   if (values.help) {
@@ -414,12 +466,27 @@ function parseStatusArgs(argv: string[]): StatusOptions {
   if (typeof values.output === 'string') parsed.output = values.output;
   if (typeof values.markdown === 'string') parsed.markdown = values.markdown;
   if (typeof values['session-output'] === 'string') parsed.sessionOutput = values['session-output'];
+  if (typeof values['session-input'] === 'string') parsed.sessionInput = values['session-input'];
+  if (typeof values['owner-receipt-ref'] === 'string') parsed.ownerReceiptRef = values['owner-receipt-ref'];
+  if (typeof values['candidate-ref'] === 'string') parsed.candidateRef = values['candidate-ref'];
+  if (typeof values['closeout-ref'] === 'string') parsed.closeoutRef = values['closeout-ref'];
+  if (typeof values['readback-ref'] === 'string') parsed.readbackRef = values['readback-ref'];
+  if (typeof values['current-authority-ref'] === 'string') parsed.currentAuthorityRef = values['current-authority-ref'];
+  if (typeof values['post-publish-follow-up-ref'] === 'string') parsed.postPublishFollowUpRef = values['post-publish-follow-up-ref'];
+  if (typeof values['post-publish-follow-up-state'] === 'string') {
+    const state = values['post-publish-follow-up-state'];
+    if (!['pending', 'completed', 'blocked', 'not_applicable_until_release_published'].includes(state)) {
+      throw new Error(`Invalid --post-publish-follow-up-state: ${state}`);
+    }
+    parsed.postPublishFollowUpState = state as StatusOptions['postPublishFollowUpState'];
+  }
   if (!parsed.runId.trim() && !parsed.runJsonPath.trim()) {
     throw new Error('Pass --run-id <id> or --run-json <path>.');
   }
   return {
     ...parsed,
     runJsonPath: parsed.runJsonPath ? path.resolve(parsed.runJsonPath) : '',
+    sessionInput: parsed.sessionInput ? path.resolve(parsed.sessionInput) : '',
     ...resolveOutputOptions(parsed),
   };
 }
@@ -778,34 +845,56 @@ function runSlaThresholds(run: RunStatusSummary): { profile: string; attention: 
 function buildReleaseSessionManifest(
   options: StatusOptions,
   state: Omit<OperatorState, 'session'>,
+  previous?: ReleaseSessionManifest,
 ): ReleaseSessionManifest | undefined {
   if (!state.run) return undefined;
   const version = options.version.trim() || '<version>';
   const ownerVerifyVersion = options.version.trim() || '<version>';
+  const currentRun = {
+    id: state.run.id,
+    workflow_name: state.run.workflow_name,
+    status: state.run.status,
+    conclusion: state.run.conclusion,
+    head_sha: state.run.head_sha,
+    url: state.run.url,
+    elapsed_seconds: state.elapsed?.seconds ?? null,
+  };
+  const runsById = new Map<string, typeof currentRun>();
+  for (const run of previous?.run_set.runs ?? []) {
+    runsById.set(run.id, run);
+  }
+  runsById.set(currentRun.id, currentRun);
+  const releaseTruthRefs = {
+    ...previous?.release_truth_refs,
+    ...(options.candidateRef ? { candidate_record: options.candidateRef } : {}),
+    ...(options.closeoutRef ? { closeout: options.closeoutRef } : {}),
+    ...(options.readbackRef ? { readback: options.readbackRef } : {}),
+  };
+  const hasReleaseTruthRefs = Object.values(releaseTruthRefs).some(Boolean);
+  const ownerReceiptRef = options.ownerReceiptRef || previous?.owner_receipt.ref;
+  const postPublishFollowUpRef = options.postPublishFollowUpRef || previous?.post_publish_follow_up.ref;
+  const postPublishFollowUpState = options.postPublishFollowUpState
+    || previous?.post_publish_follow_up.state
+    || 'not_applicable_until_release_published';
+  const previousAuthorityRef = previous?.current_authority_run.id === state.run.id
+    ? previous.current_authority_run.ref
+    : undefined;
+  const currentAuthorityRef = options.currentAuthorityRef || previousAuthorityRef;
   return {
     schema: 'opl_app_release_session_manifest.v1',
-    id: `release-session:${version}:${state.run.id}`,
+    id: previous?.id || `release-session:${version}:${state.run.id}`,
     generated_at: state.generated_at,
     version,
     run_set: {
       current_run_id: state.run.id,
-      runs: [
-        {
-          id: state.run.id,
-          workflow_name: state.run.workflow_name,
-          status: state.run.status,
-          conclusion: state.run.conclusion,
-          head_sha: state.run.head_sha,
-          url: state.run.url,
-          elapsed_seconds: state.elapsed?.seconds ?? null,
-        },
-      ],
+      runs: [...runsById.values()],
     },
     current_authority_run: {
       id: state.run.id,
       status: state.run.status,
       conclusion: state.run.conclusion,
       head_sha: state.run.head_sha,
+      ...(currentAuthorityRef ? { ref: currentAuthorityRef } : {}),
     },
     failed_run_tax: {
       action: state.next_action.action,
@@ -814,15 +903,31 @@ function buildReleaseSessionManifest(
     },
     typed_next_action: state.next_action,
     owner_receipt: {
-      state: state.status === 'ready_for_closeout_review' ? 'not_provided' : 'not_required_for_current_state',
+      state: ownerReceiptRef
+        ? 'provided'
+        : state.status === 'ready_for_closeout_review' ? 'not_provided' : 'not_required_for_current_state',
       verify_command: `npm run release:owner-candidate-record:verify -- --version ${ownerVerifyVersion}`,
+      ...(ownerReceiptRef ? { ref: ownerReceiptRef } : {}),
     },
+    ...(hasReleaseTruthRefs ? { release_truth_refs: releaseTruthRefs } : {}),
     post_publish_follow_up: {
-      state: 'not_applicable_until_release_published',
-      summary: 'Post-publish follow-up is not applicable until the candidate is promoted or a published-with-follow-up state exists.',
+      state: postPublishFollowUpState,
+      summary: postPublishFollowUpState === 'not_applicable_until_release_published'
+        ? 'Post-publish follow-up is not applicable until the candidate is promoted or a published-with-follow-up state exists.'
+        : `Post-publish follow-up is ${postPublishFollowUpState}.`,
+      ...(postPublishFollowUpRef ? { ref: postPublishFollowUpRef } : {}),
     },
     truth_boundary: 'release-session is an operator control surface derived from run status; it is not release truth and cannot publish, promote, or write runtime truth.',
   };
+}
+
+function readReleaseSessionManifest(filePath: string): ReleaseSessionManifest | undefined {
+  if (!filePath || !fs.existsSync(filePath)) return undefined;
+  const parsed = asRecord(readJson(filePath));
+  if (!parsed || parsed.schema !== 'opl_app_release_session_manifest.v1') {
+    throw new Error(`Existing session manifest is not opl_app_release_session_manifest.v1: ${filePath}`);
+  }
+  return parsed as ReleaseSessionManifest;
 }
 
 function buildRunSlaBudget(run: RunStatusSummary, elapsedSecondsValue: number | null) {
@@ -1162,9 +1267,10 @@ function buildStatusState(options: StatusOptions): OperatorState {
       operator_can_dispatch_workflow_without_explicit_user_action: false,
     },
   };
+  const previousSession = readReleaseSessionManifest(options.sessionInput || options.sessionOutput || '');
   return {
     ...state,
-    session: buildReleaseSessionManifest(options, state),
+    session: buildReleaseSessionManifest(options, state, previousSession),
   };
 }
 

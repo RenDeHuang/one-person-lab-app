@@ -574,6 +574,203 @@ test('release operator status writes release session manifest and one-screen fai
   assert.match(markdown, /Typed next action: inspect_primary_blocker/);
 });
 
+test('release operator status updates existing release session manifest with run set and refs', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-operator-status-session-update-'));
+  const runJsonPath = path.join(tempRoot, 'run.json');
+  const sessionPath = path.join(tempRoot, 'release-session.json');
+  writeJson(sessionPath, {
+    schema: 'opl_app_release_session_manifest.v1',
+    id: 'release-session:26.7.9:12351',
+    generated_at: '2026-07-08T00:00:00.000Z',
+    version: '26.7.9',
+    run_set: {
+      current_run_id: '12351',
+      runs: [
+        {
+          id: '12351',
+          workflow_name: 'OPL Desktop Release',
+          status: 'completed',
+          conclusion: 'failure',
+          head_sha: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+          url: 'https://github.example/runs/12351',
+          elapsed_seconds: 120,
+        },
+      ],
+    },
+    current_authority_run: {
+      id: '12351',
+      status: 'completed',
+      conclusion: 'failure',
+      head_sha: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+    },
+    failed_run_tax: {
+      action: 'inspect_primary_blocker',
+      primary_blocker: null,
+      elapsed_seconds: 120,
+    },
+    typed_next_action: {
+      action: 'inspect_primary_blocker',
+      command: 'gh run view 12351 --log-failed',
+      reason: 'Previous failed run.',
+    },
+    owner_receipt: {
+      state: 'not_provided',
+      verify_command: 'npm run release:owner-candidate-record:verify -- --version 26.7.9',
+    },
+    post_publish_follow_up: {
+      state: 'not_applicable_until_release_published',
+      summary: 'Post-publish follow-up is not applicable until the candidate is promoted or a published-with-follow-up state exists.',
+    },
+    truth_boundary: 'release-session is an operator control surface derived from run status; it is not release truth and cannot publish, promote, or write runtime truth.',
+  });
+  writeJson(runJsonPath, {
+    databaseId: 12352,
+    workflowName: 'OPL Desktop Release',
+    status: 'completed',
+    conclusion: 'success',
+    headSha: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    url: 'https://github.example/runs/12352',
+    jobs: [
+      {
+        name: 'release-readiness',
+        status: 'completed',
+        conclusion: 'success',
+      },
+    ],
+  });
+
+  const result = runScript('scripts/release-operator.ts', [
+    'status',
+    '--run-json',
+    runJsonPath,
+    '--version',
+    '26.7.9',
+    '--session-input',
+    sessionPath,
+    '--session-output',
+    sessionPath,
+    '--owner-receipt-ref',
+    'owner-receipts/v26.7.9.json',
+    '--candidate-ref',
+    'release-candidate-record.json',
+    '--closeout-ref',
+    'release-closeout.json',
+    '--readback-ref',
+    'tap-readback.json',
+    '--current-authority-ref',
+    'release-readiness-summary.json',
+    '--post-publish-follow-up-ref',
+    'post-publish-follow-up.json',
+    '--post-publish-follow-up-state',
+    'pending',
+    '--summary',
+  ]);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const session = readJson(sessionPath);
+  assert.equal(session.id, 'release-session:26.7.9:12351');
+  assert.equal(session.run_set.current_run_id, '12352');
+  assert.deepEqual(session.run_set.runs.map((run) => run.id), ['12351', '12352']);
+  assert.equal(session.current_authority_run.id, '12352');
+  assert.equal(session.current_authority_run.ref, 'release-readiness-summary.json');
+  assert.equal(session.failed_run_tax.action, 'inspect_release_closeout_evidence');
+  assert.equal(session.typed_next_action.action, 'inspect_release_closeout_evidence');
+  assert.equal(session.owner_receipt.state, 'provided');
+  assert.equal(session.owner_receipt.ref, 'owner-receipts/v26.7.9.json');
+  assert.equal(session.release_truth_refs.candidate_record, 'release-candidate-record.json');
+  assert.equal(session.release_truth_refs.closeout, 'release-closeout.json');
+  assert.equal(session.release_truth_refs.readback, 'tap-readback.json');
+  assert.equal(session.post_publish_follow_up.state, 'pending');
+  assert.equal(session.post_publish_follow_up.ref, 'post-publish-follow-up.json');
+  assert.match(session.truth_boundary, /not release truth/);
+});
+
+test('release operator status does not carry stale authority refs across current runs', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-operator-status-session-authority-ref-'));
+  const runJsonPath = path.join(tempRoot, 'run.json');
+  const sessionPath = path.join(tempRoot, 'release-session.json');
+  writeJson(sessionPath, {
+    schema: 'opl_app_release_session_manifest.v1',
+    id: 'release-session:26.7.9:12351',
+    generated_at: '2026-07-08T00:00:00.000Z',
+    version: '26.7.9',
+    run_set: {
+      current_run_id: '12351',
+      runs: [
+        {
+          id: '12351',
+          workflow_name: 'OPL Desktop Release',
+          status: 'completed',
+          conclusion: 'failure',
+          head_sha: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+          url: 'https://github.example/runs/12351',
+          elapsed_seconds: 120,
+        },
+      ],
+    },
+    current_authority_run: {
+      id: '12351',
+      status: 'completed',
+      conclusion: 'failure',
+      head_sha: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+      ref: 'old-closeout.json',
+    },
+    failed_run_tax: {
+      action: 'inspect_primary_blocker',
+      primary_blocker: null,
+      elapsed_seconds: 120,
+    },
+    typed_next_action: {
+      action: 'inspect_primary_blocker',
+      command: 'gh run view 12351 --log-failed',
+      reason: 'Previous failed run.',
+    },
+    owner_receipt: {
+      state: 'not_provided',
+      verify_command: 'npm run release:owner-candidate-record:verify -- --version 26.7.9',
+    },
+    post_publish_follow_up: {
+      state: 'not_applicable_until_release_published',
+      summary: 'Post-publish follow-up is not applicable until the candidate is promoted or a published-with-follow-up state exists.',
+    },
+    truth_boundary: 'release-session is an operator control surface derived from run status; it is not release truth and cannot publish, promote, or write runtime truth.',
+  });
+  writeJson(runJsonPath, {
+    databaseId: 12352,
+    workflowName: 'OPL Desktop Release',
+    status: 'in_progress',
+    conclusion: null,
+    headSha: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    url: 'https://github.example/runs/12352',
+    jobs: [
+      {
+        name: 'release-readiness',
+        status: 'in_progress',
+        conclusion: null,
+        steps: [{ name: 'Summarize release readiness', status: 'in_progress' }],
+      },
+    ],
+  });
+
+  const result = runScript('scripts/release-operator.ts', [
+    'status',
+    '--run-json',
+    runJsonPath,
+    '--version',
+    '26.7.9',
+    '--session-input',
+    sessionPath,
+    '--session-output',
+    sessionPath,
+    '--summary',
+  ]);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const session = readJson(sessionPath);
+  assert.equal(session.current_authority_run.id, '12352');
+  assert.equal(session.current_authority_run.ref, undefined);
+});
+
 test('release operator status --json writes only JSON stdout without default root state file', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-operator-status-json-'));
   const runJsonPath = path.join(tempRoot, 'run.json');
