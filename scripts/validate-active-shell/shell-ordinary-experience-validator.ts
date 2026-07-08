@@ -123,6 +123,7 @@ const runtimePageExpected = [
   'i18n.resolvedLanguage ?? i18n.language',
   "t('common.runtime.scopeSelector')",
   "t('common.runtime.primaryStates.inProgress')",
+  'const [selectedSavedViewId',
   'tasks.filter(',
   'scopeMatchesTask(task, scope) && savedViewMatchesTask(task, savedView) && !isModuleRuntimeTask(task)',
   'parseModuleStatusItems(',
