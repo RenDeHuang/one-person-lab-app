@@ -45,6 +45,7 @@ Runtime 页默认是任务运行 cockpit，不是 runtime 诊断页。默认页�
 - 下一 stage 或 action。
 - 下一步归属：用户、系统、智能体或具体 owner。
 - 加载时间、最近进展和 telemetry missing。
+- 当前阶段 token 消耗与任务累计 token 消耗；没有预算上限时只显示已消耗，不画进度条，不暗示剩余额度。
 
 默认页不展示 raw proof ref、receipt refs、`stage_attempt_id`、`run_id`、`workflow_id`、raw blocker route、Med Auto Science currentness drift 原文、`provider`、`projection`、`ledger`、`current_control_state` 或 full drilldown。这些字段只能出现在任务详情或高级信息折叠层。
 
@@ -52,6 +53,8 @@ Runtime 页默认是任务运行 cockpit，不是 runtime 诊断页。默认页�
 `oplmetaagent`、`submission_milestone_candidate::followthrough::followthrough-01`、
 `domain_route/reconcile-apply` 这类 agent/module/owner/stage id 必须转成 Med Auto Science、OPL Meta Agent、
 投稿包后续处理、复核运行结果等人类可读标签；raw id 只允许进入高级信息或任务详情。
+
+默认页也不展示 scope provenance、推断工作区、模块 dirty checkout 说明、模块版本号、metric hint 小字等诊断性补充信息。它们对排障有价值，但对第一眼判断“哪些任务需要我管、哪些系统还在跑”没有必要，应放到高级信息或设置/维护页。
 
 ## 顶层信息架构
 
@@ -107,16 +110,17 @@ Runtime 页必须显式支持范围切换。最小范围层级：
 ### 顶部
 
 - 范围切换器，默认保留 `全部项目`
-- 当前范围来源：`用户选择` / `系统推断`
-- 推断提示：例如“当前工作区推断为 `dm-cvd-mortality-risk`”
 - 刷新动作
+- 右上角 freshness：最后加载时间 / 正在刷新
 
 ### Freshness bar
 
 - 加载时间
 - 最近进展或最近 heartbeat
-- 当前状态来源
 - telemetry missing
+- 当前查看范围、可见任务数、自动运行数
+
+当前范围来源、推断工作区和 projection source 只进高级信息，不占用默认页。
 
 ### KPI 行
 
@@ -172,8 +176,9 @@ KPI 改成用户状态计数，而不是 runtime bucket：
 - Freshness bar：只回答“数据什么时候读的、是否已加载、是否缺 telemetry”。
 - KPI 行：只放用户状态计数，包括 `进行中`、`自动运行中`、`已交付，自动暂停`、`需要你决定` 和 `需要系统处理`。最近活动放在 Freshness bar，不再占用 KPI 位置。
 - 主任务列表：一行对应一个用户认知任务，默认按主状态分组；同一论文或项目被多个 runtime binding 投影时只能显示一行。
-- 范围切换：固定在顶部右侧；Freshness bar 显示范围来源和推断工作区，避免把“当前工作区推断”误当成唯一工作区。
+- 范围切换：固定在顶部右侧；Freshness bar 只显示当前查看范围、可见任务数、自动运行数和最近活动，范围来源和推断工作区进入高级信息。
 - 右侧模块 / 智能体状态：模块健康、自动 / 总任务负载和最后活动独立展示；没有 project / study 的 `module_runtime` 行不能进入主任务列表。
+- 模块表默认只显示模块名、健康、任务负载和最后活动；dirty checkout、版本号、install origin 等维护细节只进高级信息或设置页。
 - 高级信息：只放维护诊断、refs、receipts、stage/run/workflow IDs、safe actions 和 full drilldown。
 
 默认任务行的认知脊柱固定为：
@@ -252,7 +257,10 @@ runtime truth，也不能生成新的 owner receipt、typed blocker 或 stage tr
 ## 当前落地状态
 
 - App contract 已定义 `runtime_progress_page_display_policy`，固定默认 cockpit 与高级诊断边界。
-- Shell Runtime 页应按本文展示默认视图：顶部范围与刷新、freshness bar、KPI 行、主任务分组列表、右侧模块状态和高级信息；右栏不重复范围选择。
+- Shell Runtime 页应按本文展示默认视图：顶部范围与刷新、右上角 freshness、KPI 行、主任务分组列表、右侧模块状态和高级信息；右栏不重复范围选择。
+- saved views 是任务列表的局部筛选入口，应收在任务列表标题区，不应占用默认页单独一整行。
+- Token 默认只诚实显示当前阶段已消耗与任务累计消耗；没有预算上限时不画进度条，不暗示剩余额度。
+- 默认页不显示 scope provenance、推断工作区、metric hint 小字、模块 dirty checkout 说明和模块版本号；这些信息保留在高级信息或设置/维护页。
 - Framework 仍是 runtime truth owner。App 和 shell 只消费 `opl app state --profile fast --json` 与 drilldown refs，不写 runtime truth、domain truth、owner receipts 或 typed blockers。
 - 本文、contract 和 focused validation 不能作为 live/runtime readiness、release currentness 或 owner acceptance 证据。
 
@@ -266,8 +274,10 @@ runtime truth，也不能生成新的 owner receipt、typed blocker 或 stage tr
 | `module_runtime` 分流到右侧模块状态 | 100% | 4 | App contract 锁定 policy；active-shell validator 同时要求主列表过滤 `module_runtime`，右侧 `moduleStatusItems` 渲染存在，并展示去重任务负载 |
 | long next-step 人话归一 | 100% | 5 | App contract 锁定 policy；Shell companion lane 用 DOM test 验证 raw terminalization/readback 文案默认隐藏 |
 | 默认人类标签策略：agent/module/owner/stage id 不直出 | 100% | 6 | `default_label_policy` + release-boundary test；Shell companion lane 用 DOM test 验证 raw id 默认隐藏 |
-| 设计图布局：顶部范围、freshness、KPI、主列、右侧模块/高级 | 100% | 7 | `layout_regions` + Shell companion source/DOM evidence；不等同于 installed App 截图证据 |
-| scope / saved views 常用入口：全部、自动运行中、需要你决定、需要系统处理、MAS 论文 | 100% | 8 | Shell Runtime 页保留 scope selector，并增加 saved views 按钮；active-shell validator 和 DOM test 验证 `savedViewMatchesTask` 与常用入口存在 |
+| 设计图布局：顶部范围、右上 freshness、KPI、主列、右侧模块/高级 | 100% | 7 | `layout_regions` + Shell companion source/DOM evidence；不等同于 installed App 截图证据 |
+| scope / saved views 常用入口：全部、自动运行中、需要你决定、需要系统处理、MAS 论文 | 100% | 8 | Shell Runtime 页保留 scope selector，并把 saved views 收到任务列表标题区；active-shell validator 和 DOM test 验证 `savedViewMatchesTask` 与常用入口存在 |
+| Token 默认显示：当前阶段消耗 + 累计消耗，不画无上限进度条 | 100% | 8.5 | Shell DOM test 覆盖 `usageStageAndTotal`；预算上限不存在时不得用 progress bar 暗示剩余额度 |
+| 默认页低认知负担：scope provenance、推断工作区、metric hint、模块 dirty/version 后置 | 100% | 8.6 | Shell DOM test 验证默认页不出现这些诊断字段，高级信息保留 scope diagnostics / module detail |
 | canonical `WorkItemProjection`：Scope → Work Item → Agent → Stage → Attempt → Action → Evidence | 100%（App contract） | 9 | `contracts/app-runtime-bridge.json#work_item_projection` + validator；`attempt` 是 required field；Framework 仍是 projection producer |
 | Kubernetes-style `conditions[]`、`ActionEnvelope`、agent `stage_catalog` 合同 | 100%（App contract） | 10 | App contract 锁定 required fields / action kinds / catalog owner；不等同于 live payload 已包含所有字段 |
 | 任务详情层：Stage Map、timeline、evidence/actions/resources/diagnostics | 100%（App contract） | 11 | `work_item_projection.detail_layer_contract` 固化默认 tabs 和字段；Shell implementation / DOM 证据另由 shell lane 提供 |
