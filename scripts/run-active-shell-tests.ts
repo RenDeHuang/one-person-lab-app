@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { existsSync, readdirSync, statSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -11,7 +11,6 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 function parseArgs(argv) {
   const parsed = {
-    chunkSize: Number.parseInt(process.env.OPL_APP_TEST_CHUNK_SIZE ?? '1', 10),
     maxWorkers: Number.parseInt(process.env.OPL_APP_TEST_MAX_WORKERS ?? '1', 10),
     project: 'all',
     fileParallelism: false,
@@ -39,7 +38,6 @@ function parseArgs(argv) {
     if (!Number.isInteger(value) || value <= 0) {
       throw new Error('Expected a positive integer after --chunk-size');
     }
-    parsed.chunkSize = value;
   }
   if (values['max-workers']) {
     const value = Number.parseInt(values['max-workers'], 10);
@@ -61,117 +59,42 @@ function parseArgs(argv) {
   return parsed;
 }
 
-function walkFiles(dir) {
-  if (!existsSync(dir)) return [];
-  const entries = readdirSync(dir).sort();
-  const files = [];
-
-  for (const entry of entries) {
-    const fullPath = path.join(dir, entry);
-    const stats = statSync(fullPath);
-    if (stats.isDirectory()) {
-      files.push(...walkFiles(fullPath));
-      continue;
-    }
-    if (stats.isFile()) {
-      files.push(fullPath);
-    }
-  }
-
-  return files;
+function selectedProjects(project) {
+  return project === 'all' ? ['node', 'dom'] : [project];
 }
 
-function toPosix(relativePath) {
-  return relativePath.split(path.sep).join('/');
-}
-
-function collectTests(shellRoot) {
-  const testFiles = walkFiles(path.join(shellRoot, 'tests'))
-    .map((filePath) => toPosix(path.relative(shellRoot, filePath)))
-    .filter((relativePath) => /\.(ts|tsx)$/.test(relativePath));
-
-  const dom = [];
-  const node = [];
-
-  for (const relativePath of testFiles) {
-    if (/^tests\/unit\/.*\.dom\.test\.tsx?$/.test(relativePath)) {
-      dom.push(relativePath);
-      continue;
-    }
-    if (
-      /^tests\/unit\/.*\.test\.ts$/.test(relativePath) ||
-      /^tests\/unit\/(?:.*\/)?test_[^/]+\.ts$/.test(relativePath) ||
-      /^tests\/integration\/.*\.test\.ts$/.test(relativePath) ||
-      /^tests\/regression\/.*\.test\.ts$/.test(relativePath)
-    ) {
-      node.push(relativePath);
-    }
-  }
-
-  return {
-    node: node.sort(),
-    dom: dom.sort(),
-  };
-}
-
-function chunk(files, size) {
-  const chunks = [];
-  for (let index = 0; index < files.length; index += size) {
-    chunks.push(files.slice(index, index + size));
-  }
-  return chunks;
-}
-
-function runVitestChunk({ shellRoot, project, files, chunkIndex, chunkCount, fileParallelism, maxWorkers, passThrough }) {
-  const args = ['vitest', 'run', '--project', project, `--maxWorkers=${maxWorkers}`];
-  if (!fileParallelism) {
-    args.push('--no-file-parallelism');
-  }
-  args.push(...passThrough, ...files);
-
-  console.log(`\n==> ${project} chunk ${chunkIndex + 1}/${chunkCount} (${files.length} file(s))`);
-  const result = spawnSync('bunx', args, {
-    cwd: shellRoot,
-    stdio: 'inherit',
-    env: vitestProjectEnv(project),
-  });
-
-  if (result.status !== 0) {
-    throw new Error(`${project} chunk ${chunkIndex + 1}/${chunkCount} failed`);
-  }
-}
-
-function vitestProjectEnv(project) {
+function vitestProjectEnv(projects) {
   const env = { ...process.env };
-  if (project === 'dom') {
+  if (projects.includes('dom')) {
     env.VITEST_INCLUDE_DOM = '1';
   }
-  if (project === 'node') {
+  if (projects.includes('node')) {
     env.VITEST_INCLUDE_INTEGRATION = '1';
   }
   return env;
 }
 
-function runProject({ shellRoot, project, files, chunkSize, fileParallelism, maxWorkers, passThrough }) {
-  if (files.length === 0) {
-    console.log(`No ${project} tests discovered.`);
-    return;
+function runVitest({ shellRoot, projects, fileParallelism, maxWorkers, passThrough }) {
+  const args = ['vitest', 'run'];
+  for (const project of projects) {
+    args.push('--project', project);
   }
+  args.push(`--maxWorkers=${maxWorkers}`);
+  if (!fileParallelism) {
+    args.push('--no-file-parallelism');
+  }
+  args.push(...passThrough);
 
-  const chunks = chunk(files, chunkSize);
-  console.log(`Discovered ${files.length} ${project} test file(s); running ${chunks.length} chunk(s).`);
-  chunks.forEach((filesInChunk, index) => {
-    runVitestChunk({
-      shellRoot,
-      project,
-      files: filesInChunk,
-      chunkIndex: index,
-      chunkCount: chunks.length,
-      fileParallelism,
-      maxWorkers,
-      passThrough,
-    });
+  console.log(`\n==> ${projects.join(', ')} active shell project test(s)`);
+  const result = spawnSync('bunx', args, {
+    cwd: shellRoot,
+    stdio: 'inherit',
+    env: vitestProjectEnv(projects),
   });
+
+  if (result.status !== 0) {
+    throw new Error(`${projects.join(', ')} active shell test project(s) failed`);
+  }
 }
 
 const args = parseArgs(process.argv);
@@ -183,19 +106,14 @@ if (!existsSync(shellPaths.vitestConfigPath)) {
   throw new Error(`Missing active shell Vitest config: ${path.relative(root, shellPaths.vitestConfigPath)}`);
 }
 
-const tests = collectTests(shellRoot);
-const selectedProjects = args.project === 'all' ? ['node', 'dom'] : [args.project];
+const projects = selectedProjects(args.project);
 
-for (const project of selectedProjects) {
-  runProject({
-    shellRoot,
-    project,
-    files: tests[project],
-    chunkSize: args.chunkSize,
-    fileParallelism: args.fileParallelism,
-    maxWorkers: args.maxWorkers,
-    passThrough: args.passThrough,
-  });
-}
+runVitest({
+  shellRoot,
+  projects,
+  fileParallelism: args.fileParallelism,
+  maxWorkers: args.maxWorkers,
+  passThrough: args.passThrough,
+});
 
-console.log(`\nActive shell tests passed (${selectedProjects.map((project) => `${tests[project].length} ${project}`).join(', ')} file(s)).`);
+console.log(`\nActive shell tests passed (${projects.join(', ')} project(s)).`);
