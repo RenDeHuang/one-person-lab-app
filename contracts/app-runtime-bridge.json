@@ -439,7 +439,7 @@
       ],
       "telemetry_missing_copy": "module status unavailable"
     },
-    "mas_runtime_acceptance_display_policy": "show MAS owner consumption fields as user-facing acceptance/currentness status, e.g. 'MAS accepted this runtime result' and 'accepted result matches latest runtime closeout'; keep raw refs and stage attempt ids secondary as evidence, not the primary wording",
+    "mas_runtime_acceptance_display_policy": "show Med Auto Science owner consumption fields as user-facing acceptance/currentness status, e.g. 'Med Auto Science accepted this runtime result' and 'accepted result matches latest runtime closeout'; keep raw refs and stage attempt ids secondary as evidence, not the primary wording",
     "diagnostic_source_policy": "provider/projection/ref/ledger/current_control_state details stay secondary and are not the default page language",
     "must_not_default_display_terms": [
       "Temporal",
@@ -480,7 +480,6 @@
       "freshness_bar",
       "kpi_row",
       "main_task_grouped_list",
-      "right_scope_filter",
       "right_module_status",
       "right_advanced_information_disclosure"
     ],
@@ -496,7 +495,6 @@
         "main_task_grouped_list"
       ],
       "right": [
-        "right_scope_filter",
         "right_module_status",
         "right_advanced_information_disclosure"
       ]
@@ -519,6 +517,7 @@
       "attention_count",
       "in_progress_count",
       "automation_running_count",
+      "delivered_auto_paused_count",
       "system_attention_count",
       "owner_decision_count",
       "recent_activity_at",
@@ -556,15 +555,11 @@
         "telemetry_missing"
       ],
       "kpi_row": [
-        "running_task_count",
-        "active_project_count",
-        "queued_project_count",
-        "attention_count",
         "in_progress_count",
         "automation_running_count",
+        "delivered_auto_paused_count",
         "owner_decision_count",
-        "system_attention_count",
-        "recent_activity_at"
+        "system_attention_count"
       ],
       "main_task_grouped_list": [
         "agent_display_name",
@@ -617,11 +612,11 @@
       ],
       "default_copy_examples": {
         "agent_or_module": [
-          "MAS",
-          "MAG",
+          "Med Auto Science",
+          "Med Auto Grant",
           "RedCube AI",
-          "OMA",
-          "BookForge"
+          "OPL Meta Agent",
+          "OPL Book Forge"
         ],
         "stage": [
           "投稿包后续处理",

@@ -472,14 +472,13 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     top: ['top_scope_and_refresh', 'freshness_bar'],
     overview: ['kpi_row'],
     main: ['main_task_grouped_list'],
-    right: ['right_scope_filter', 'right_module_status', 'right_advanced_information_disclosure'],
+    right: ['right_module_status', 'right_advanced_information_disclosure'],
   });
   assertIncludesAll(runtimeDisplayPolicy.default_page_sections, [
     'top_scope_and_refresh',
     'freshness_bar',
     'kpi_row',
     'main_task_grouped_list',
-    'right_scope_filter',
     'right_module_status',
     'right_advanced_information_disclosure',
   ], 'Runtime display default sections');
@@ -638,7 +637,7 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
       telemetry_missing_copy: 'module status unavailable',
     },
     mas_runtime_acceptance_display_policy:
-      "show MAS owner consumption fields as user-facing acceptance/currentness status, e.g. 'MAS accepted this runtime result' and 'accepted result matches latest runtime closeout'; keep raw refs and stage attempt ids secondary as evidence, not the primary wording",
+      "show Med Auto Science owner consumption fields as user-facing acceptance/currentness status, e.g. 'Med Auto Science accepted this runtime result' and 'accepted result matches latest runtime closeout'; keep raw refs and stage attempt ids secondary as evidence, not the primary wording",
     diagnostic_source_policy:
       'provider/projection/ref/ledger/current_control_state details stay secondary and are not the default page language',
     must_not_default_display_terms: [
@@ -1515,7 +1514,7 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
       telemetry_missing_copy: 'module status unavailable',
     },
     mas_runtime_acceptance_display_policy:
-      "show MAS owner consumption fields as user-facing acceptance/currentness status, e.g. 'MAS accepted this runtime result' and 'accepted result matches latest runtime closeout'; keep raw refs and stage attempt ids secondary as evidence, not the primary wording",
+      "show Med Auto Science owner consumption fields as user-facing acceptance/currentness status, e.g. 'Med Auto Science accepted this runtime result' and 'accepted result matches latest runtime closeout'; keep raw refs and stage attempt ids secondary as evidence, not the primary wording",
     diagnostic_source_policy:
       'provider/projection/ref/ledger/current_control_state details stay secondary and are not the default page language',
     must_not_default_display_terms: [

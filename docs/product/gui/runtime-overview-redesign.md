@@ -7,7 +7,7 @@ Machine boundary: 本文是产品与落地设计。机器真相归 `contracts/`�
 
 ## 背景
 
-当前 Runtime 页能读到 OPL runtime queue 和 MAS paper line 的 refs，但产品表达仍然沿用
+当前 Runtime 页能读到 OPL runtime queue 和 Med Auto Science paper line 的 refs，但产品表达仍然沿用
 `running / attention / inactive` 这类运行时 bucket。对用户而言，这会把不同层级的信息
 混在一起：
 
@@ -16,7 +16,7 @@ Machine boundary: 本文是产品与落地设计。机器真相归 `contracts/`�
   只能推断，不能当唯一范围。
 - 任务列表直接暴露 `stage attempt`、`current_control_state`、`provider` 这类内部术语，
   用户很难判断“这篇论文到底是在做、停了、还是需要我决定”。
-- 当前 aggregation 只盯 active MAS workspace，导致展示面容易退化成“当前这个 DM workspace
+- 当前 aggregation 只盯 active Med Auto Science workspace，导致展示面容易退化成“当前这个 DM workspace
   的几篇论文”，而不是 OPL 项目总览。
 
 这次重构的目标，是把 Runtime 页改成一个**可切换范围的项目运行总览**：先说人话，再保留
@@ -39,18 +39,18 @@ Runtime 页默认回答五个问题：
 Runtime 页默认是任务运行 cockpit，不是 runtime 诊断页。默认页只展示用户判断项目进展需要的信息：
 
 - 项目 / 论文 / 任务名称。
-- 智能体或模块，例如 MAS。
+- 智能体或模块，例如 Med Auto Science。
 - 用户主状态和自动运行副状态。
 - 当前 stage。
 - 下一 stage 或 action。
 - 下一步归属：用户、系统、智能体或具体 owner。
 - 加载时间、最近进展和 telemetry missing。
 
-默认页不展示 raw proof ref、receipt refs、`stage_attempt_id`、`run_id`、`workflow_id`、raw blocker route、MAS currentness drift 原文、`provider`、`projection`、`ledger`、`current_control_state` 或 full drilldown。这些字段只能出现在任务详情或高级信息折叠层。
+默认页不展示 raw proof ref、receipt refs、`stage_attempt_id`、`run_id`、`workflow_id`、raw blocker route、Med Auto Science currentness drift 原文、`provider`、`projection`、`ledger`、`current_control_state` 或 full drilldown。这些字段只能出现在任务详情或高级信息折叠层。
 
 默认页也不把 runtime identifier 当作用户文案。`medautoscience`、`med-autoscience`、
 `oplmetaagent`、`submission_milestone_candidate::followthrough::followthrough-01`、
-`domain_route/reconcile-apply` 这类 agent/module/owner/stage id 必须转成 MAS、OMA、
+`domain_route/reconcile-apply` 这类 agent/module/owner/stage id 必须转成 Med Auto Science、OPL Meta Agent、
 投稿包后续处理、复核运行结果等人类可读标签；raw id 只允许进入高级信息或任务详情。
 
 ## 顶层信息架构
@@ -124,9 +124,9 @@ KPI 改成用户状态计数，而不是 runtime bucket：
 
 - `进行中`
 - `自动运行中`
+- `已交付，自动暂停`
 - `需要系统处理`
 - `需要你决定`
-- `最近活动时间`
 
 ### 主列表
 
@@ -154,7 +154,7 @@ KPI 改成用户状态计数，而不是 runtime bucket：
 - refs
 - receipts
 - stage/run/workflow IDs
-- MAS owner consumption/currentness diagnostics
+- Med Auto Science owner consumption/currentness diagnostics
 - raw blocker route
 - safe actions
 - provider diagnostics
@@ -162,16 +162,18 @@ KPI 改成用户状态计数，而不是 runtime bucket：
 
 ## 设计图对齐口径
 
+参考视觉稿：[runtime-cockpit-imagegen-20260708.png](assets/runtime-cockpit-imagegen-20260708.png)。
+
 本页按“先判断项目，再进入诊断”的顺序组织，而不是按 runtime 技术层级组织。
 设计图中的每个区域对应一个稳定职责：
 
 - 顶部标题和说明：告诉用户这是项目运行总览，不是日志页或 provider 诊断页。
 - 右上范围与刷新：用户先确定“我在看全部项目，还是某个智能体 / workspace / project / task”。
 - Freshness bar：只回答“数据什么时候读的、是否已加载、是否缺 telemetry”。
-- KPI 行：只放用户状态计数，包括 `进行中`、`自动运行中`、`需要系统处理`、`需要你决定` 和最近活动。
+- KPI 行：只放用户状态计数，包括 `进行中`、`自动运行中`、`已交付，自动暂停`、`需要你决定` 和 `需要系统处理`。最近活动放在 Freshness bar，不再占用 KPI 位置。
 - 主任务列表：一行对应一个用户认知任务，默认按主状态分组；同一论文或项目被多个 runtime binding 投影时只能显示一行。
-- 右侧范围卡：保留显式范围切换，避免把“当前工作区推断”误当成唯一工作区。
-- 右侧模块 / 智能体状态：模块健康和任务进展分离；没有 project / study 的 `module_runtime` 行不能进入主任务列表。
+- 范围切换：固定在顶部右侧；Freshness bar 显示范围来源和推断工作区，避免把“当前工作区推断”误当成唯一工作区。
+- 右侧模块 / 智能体状态：模块健康、自动 / 总任务负载和最后活动独立展示；没有 project / study 的 `module_runtime` 行不能进入主任务列表。
 - 高级信息：只放维护诊断、refs、receipts、stage/run/workflow IDs、safe actions 和 full drilldown。
 
 默认任务行的认知脊柱固定为：
@@ -250,7 +252,7 @@ runtime truth，也不能生成新的 owner receipt、typed blocker 或 stage tr
 ## 当前落地状态
 
 - App contract 已定义 `runtime_progress_page_display_policy`，固定默认 cockpit 与高级诊断边界。
-- Shell Runtime 页应按本文展示默认视图：顶部范围与刷新、freshness bar、KPI 行、主任务分组列表、右侧模块状态和高级信息。
+- Shell Runtime 页应按本文展示默认视图：顶部范围与刷新、freshness bar、KPI 行、主任务分组列表、右侧模块状态和高级信息；右栏不重复范围选择。
 - Framework 仍是 runtime truth owner。App 和 shell 只消费 `opl app state --profile fast --json` 与 drilldown refs，不写 runtime truth、domain truth、owner receipts 或 typed blockers。
 - 本文、contract 和 focused validation 不能作为 live/runtime readiness、release currentness 或 owner acceptance 证据。
 
@@ -261,11 +263,11 @@ runtime truth，也不能生成新的 owner receipt、typed blocker 或 stage tr
 | 产品信息架构：项目 cockpit 默认页，高级诊断后置 | 100% | 1 | 本文 + `contracts/app-runtime-bridge.json#runtime_progress_page_display_policy` |
 | 默认字段 allowlist 与 advanced-only 字段 | 100% | 2 | `contracts/app-runtime-bridge.json` + runtime bridge validator；default visible fields 必须属于 allowlist，advanced-only 字段精确校验 |
 | 任务去重：同一论文 / work item 只显示一行 | 100% | 3 | App contract 锁定 policy；Shell companion lane 用 DOM test 验证同一 DM003 binding 只显示一行 |
-| `module_runtime` 分流到右侧模块状态 | 100% | 4 | App contract 锁定 policy；active-shell validator 同时要求主列表过滤 `module_runtime` 且右侧 `moduleStatusItems` 渲染存在 |
+| `module_runtime` 分流到右侧模块状态 | 100% | 4 | App contract 锁定 policy；active-shell validator 同时要求主列表过滤 `module_runtime`，右侧 `moduleStatusItems` 渲染存在，并展示去重任务负载 |
 | long next-step 人话归一 | 100% | 5 | App contract 锁定 policy；Shell companion lane 用 DOM test 验证 raw terminalization/readback 文案默认隐藏 |
 | 默认人类标签策略：agent/module/owner/stage id 不直出 | 100% | 6 | `default_label_policy` + release-boundary test；Shell companion lane 用 DOM test 验证 raw id 默认隐藏 |
-| 设计图布局：顶部、freshness、KPI、主列、右侧范围/模块/高级 | 100% | 7 | `layout_regions` + Shell companion source/DOM evidence；不等同于 installed App 截图证据 |
-| installed App 本机视觉截图验收 | 100% | 8 | 本机安装版 `26.7.7` 已由 Electron renderer 读回验证：`/tmp/opl-runtime-installed-electron-cockpit-final-grouped-20260708.png`；截图 hash 为 `eebefc4628be2f42eafc549d350d642d67be96d13cdf423f1b44372e90688b40`；安装包 `app.asar` hash 为 `d204ebc18ec3a0b01b9d5248ca988e8d49f90dbcacf9efffc684c8e897d55ab4`。这不是 release currentness 证据 |
+| 设计图布局：顶部范围、freshness、KPI、主列、右侧模块/高级 | 100% | 7 | `layout_regions` + Shell companion source/DOM evidence；不等同于 installed App 截图证据 |
+| installed App 本机视觉截图验收 | 0%（本轮未声明） | 8 | 本轮落地只声明 source / DOM / contract 证据；installed App 截图、安装包 hash 和 release currentness 必须由独立 live/install 验证产生，不能由本文档或 focused tests 代替 |
 
 ## 完成标准
 
@@ -274,6 +276,6 @@ runtime truth，也不能生成新的 owner receipt、typed blocker 或 stage tr
 1. 文档、contracts、shell UI 对同一套范围模型和状态模型一致。
 2. Runtime 页默认不再把内部技术术语当作用户主状态。
 3. 用户可以看总览，也可以显式切换查看某个 workspace / project / paper。
-4. raw evidence、refs、receipts、stage/run IDs、MAS currentness diagnostics 和 full drilldown 默认收起。
+4. raw evidence、refs、receipts、stage/run IDs、Med Auto Science currentness diagnostics 和 full drilldown 默认收起。
 5. 默认页展示人类可读 agent/module/owner/stage 标签；raw id 只能在高级信息或任务详情出现。
 6. 验证证明 App contract 与 shell renderer 对齐；runtime/live readiness 另走 Framework 或 release owner 证据。

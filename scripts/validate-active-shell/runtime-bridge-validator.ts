@@ -559,7 +559,6 @@ function validateRuntimeProgressPageDisplayPolicy(runtimeBridge) {
     'freshness_bar',
     'kpi_row',
     'main_task_grouped_list',
-    'right_scope_filter',
     'right_module_status',
     'right_advanced_information_disclosure',
   ]) {
@@ -571,7 +570,7 @@ function validateRuntimeProgressPageDisplayPolicy(runtimeBridge) {
     top: ['top_scope_and_refresh', 'freshness_bar'],
     overview: ['kpi_row'],
     main: ['main_task_grouped_list'],
-    right: ['right_scope_filter', 'right_module_status', 'right_advanced_information_disclosure'],
+    right: ['right_module_status', 'right_advanced_information_disclosure'],
   }, 'Runtime progress page layout regions');
   assertIncludesAll(policy?.default_field_allowlist ?? [], [
     'project_display_name',

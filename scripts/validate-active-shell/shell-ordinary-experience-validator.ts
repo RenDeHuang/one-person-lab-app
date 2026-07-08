@@ -124,7 +124,10 @@ const runtimePageExpected = [
   "t('common.runtime.scopeSelector')",
   "t('common.runtime.primaryStates.inProgress')",
   'tasks.filter((task) => scopeMatchesTask(task, scope) && !isModuleRuntimeTask(task))',
-  'parseModuleStatusItems(appStateQuery.appState, t)',
+  'parseModuleStatusItems(',
+  'overview.sections.flatMap((section) => section.tasks)',
+  "t('common.runtime.moduleWorkloadText'",
+  "data-testid={`runtime-module-status-${item.id}`}",
   'moduleStatusItems.map((item) =>',
 ];
 
