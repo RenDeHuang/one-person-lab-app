@@ -490,6 +490,40 @@ only. It records the design target and the local workspace review vocabulary;
 it does not claim formal release readiness, installed/running currentness,
 runtime owner acceptance, notarization, or packaged App readiness.
 
+### 2026-07-08 UX Gap Closure Rules
+
+The Settings redesign board comparison produced a final UX closure pass for the
+active shell. The product rule from that pass is stricter than "all information
+is present": every ordinary page must make the user's decision path visible
+before showing supporting detail.
+
+The landed shell behavior follows these page-level rules:
+
+- Overview is not a directory wall. It shows overall usability, workspace
+  status, permission status, and compact entries to the ordinary work areas:
+  Access, Workspace, Capabilities, Resources & Connections, Remote Access,
+  Maintenance, Data & Storage, and Preferences. It does not add a second
+  bottom action bar competing with the recommended action.
+- Access answers connection readiness. OPL Gateway, Codex CLI, and browser
+  access to this computer are the primary facts. Server WebUI, hosted
+  workspaces, cloud, and external environments are a light link to Resources &
+  Connections instead of a first-screen deployment panel.
+- Workspace answers three facts in order: the work folder exists, the App can
+  access it, and the App can write there. Logs, module roots, and recent check
+  metadata remain troubleshooting detail instead of ordinary first-screen cards.
+- Resources & Connections shows one recommended next action for Server WebUI /
+  OPL Workspace, then hides the rest under "More actions" and advanced details.
+  Terms such as dry-run, payload, action id, raw route, and resource refs remain
+  collapsed unless the user opens details.
+- Preferences is organized around ordinary personal choices: interface
+  behavior, display and fonts, and theme appearance. Long theme catalogs and CSS
+  theme management stay collapsed behind advanced theme disclosure.
+
+This closure is an active-shell UX landing only. It proves the page organization
+and user-facing rendering slice when paired with shell DOM/i18n/diff checks. It
+does not prove installed App currentness, release readiness, notarization,
+runtime owner acceptance, or live resource availability.
+
 ### Storage & Data
 
 Storage & Data is its own Control Center group and uses user safety language.
