@@ -14,9 +14,6 @@ if [[ -n "${OPL_DOCS_BUILD_COMMAND:-}" ]]; then
 elif [[ -f package.json ]] && node -e "const p=require('./package.json'); process.exit(p.scripts && p.scripts['docs:latest'] ? 0 : 1)"; then
   echo "==> Building latest docs locally: npm run docs:latest"
   npm run docs:latest
-elif [[ -f scripts/build-opl-cloud-whitepaper.ts ]]; then
-  echo "==> Building latest docs locally: node --experimental-strip-types scripts/build-opl-cloud-whitepaper.ts"
-  node --experimental-strip-types scripts/build-opl-cloud-whitepaper.ts
 else
   echo "No docs build command found. Set OPL_DOCS_BUILD_COMMAND or add docs:latest." >&2
   exit 1

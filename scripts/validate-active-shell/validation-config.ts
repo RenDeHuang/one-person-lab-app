@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { parseArgs as parseNodeArgs } from 'node:util';
 
 export const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 export const guiProductContractPath = path.join(root, 'contracts', 'app-gui-product-contract.json');
@@ -16,21 +17,36 @@ export const commandMaxBuffer = 128 * 1024 * 1024;
 
 export function parseArgs(argv) {
   const parsed = { quick: false, only: new Set() };
-  for (let index = 2; index < argv.length; index += 1) {
-    const arg = argv[index];
-    if (arg === '--quick') {
+  const { tokens } = parseNodeArgs({
+    args: argv.slice(2),
+    options: {
+      quick: { type: 'boolean' },
+      only: { type: 'string' },
+    },
+    allowPositionals: true,
+    strict: false,
+    tokens: true,
+  });
+
+  for (const token of tokens) {
+    if (token.kind === 'positional') {
+      throw new Error(`Unknown argument: ${token.value}`);
+    }
+    if (token.inlineValue) {
+      throw new Error(`Unknown argument: ${token.rawName}=${token.value ?? ''}`);
+    }
+    if (token.name === 'quick') {
       parsed.quick = true;
       continue;
     }
-    if (arg === '--only') {
-      const value = argv[++index];
-      if (!value) throw new Error('Missing value for --only');
-      for (const id of value.split(',').map((entry) => entry.trim()).filter(Boolean)) {
+    if (token.name === 'only') {
+      if (!token.value || token.value.startsWith('--')) throw new Error('Missing value for --only');
+      for (const id of token.value.split(',').map((entry) => entry.trim()).filter(Boolean)) {
         parsed.only.add(id);
       }
       continue;
     }
-    throw new Error(`Unknown argument: ${arg}`);
+    throw new Error(`Unknown argument: ${token.rawName}`);
   }
   return parsed;
 }

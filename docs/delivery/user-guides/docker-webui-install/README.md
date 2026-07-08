@@ -24,8 +24,8 @@ Delivery and generated files:
 - [`source/docker-webui-install.guide.json`](source/docker-webui-install.guide.json):
   machine manifest for output paths, install commands, publishing template,
   screenshot manifest reference, required terms, and validation boundaries.
-- [`generated/docker-webui-install.md`](generated/docker-webui-install.md):
-  generated Markdown snapshot.
+- `generated/docker-webui-install.md`: generated Markdown snapshot, recreated
+  by `npm run docs:docker-webui-guide` and ignored by Git.
 - `verification/docker-webui-install-verification.json`: generated HTML/PDF
   verification record.
 
@@ -33,7 +33,6 @@ Generated reading artifacts:
 
 - [Docker/WebUI install HTML guide](../../../site/latest/docker-webui-install/docker-webui-install.html)
 - [Docker/WebUI install detailed PDF](../../../site/latest/docker-webui-install/docker-webui-install-detailed-guide.pdf)
-- [Docker/WebUI install Markdown](generated/docker-webui-install.md)
 
 Update flow:
 

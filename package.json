@@ -35,6 +35,7 @@
     "hygiene": "node --experimental-strip-types scripts/run-active-shell-command.ts bun run hygiene",
     "format": "node --experimental-strip-types scripts/run-active-shell-command.ts bun run format",
     "format:check": "node --experimental-strip-types scripts/run-active-shell-command.ts bun run format:check",
+    "cleanup:local-artifacts": "node --experimental-strip-types scripts/cleanup-local-artifacts.ts",
     "validate:packaged-runtime": "node --experimental-strip-types scripts/run-active-shell-command.ts bun run validate:packaged-runtime",
     "validate:opl-package": "node --experimental-strip-types scripts/run-active-shell-command.ts bun run validate:opl-package",
     "validate:app-root-boundary": "node --experimental-strip-types scripts/app-root-boundary.ts",

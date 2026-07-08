@@ -25,15 +25,15 @@ Markdown, or smoke gate runbook.
 - Public entry:
   [`https://gaofeng21cn.github.io/one-person-lab-app/latest/docker-webui-install/docker-webui-install.html`](https://gaofeng21cn.github.io/one-person-lab-app/latest/docker-webui-install/docker-webui-install.html)
   is the user-facing starting point.
-- Generated payload:
-  [`../user-guides/docker-webui-install/generated/docker-webui-install.md`](../user-guides/docker-webui-install/generated/docker-webui-install.md)
-  is a generated artifact and must not become a current truth owner.
+- Generated payload: `docs/delivery/user-guides/docker-webui-install/generated/`
+  is ignored local output recreated by `npm run docs:docker-webui-guide`; it
+  must not become a current truth owner.
 
 ## Canonical Entries
 
 - Maintainer QMD source and screenshot provenance:
   [`../../guides/docker-webui-install/guide.qmd`](../../guides/docker-webui-install/guide.qmd)
-- Generated Markdown, delivery manifest, and verification:
+- Delivery manifest, generated-output lifecycle, and verification:
   [`../user-guides/docker-webui-install/README.md`](../user-guides/docker-webui-install/README.md)
 - Latest public user guide:
   [`../../site/latest/docker-webui-install/docker-webui-install.html`](../../site/latest/docker-webui-install/docker-webui-install.html)

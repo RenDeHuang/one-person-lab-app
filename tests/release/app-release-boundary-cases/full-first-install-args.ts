@@ -1,8 +1,9 @@
 import { assert, path, test } from './helpers.ts';
-import { parseArgs } from '../../../scripts/build-full-first-install-package/env.ts';
+import { parseArgs as parseFullFirstInstallArgs } from '../../../scripts/build-full-first-install-package/env.ts';
+import { parseArgs as parseActiveShellArgs } from '../../../scripts/validate-active-shell/validation-config.ts';
 
 test('Full first-install args parse boolean and value options through one explicit option table', () => {
-  const options = parseArgs([
+  const options = parseFullFirstInstallArgs([
     '--skip-gui-build',
     '--split-runtime',
     '--reuse-gui-vite-output',
@@ -30,10 +31,50 @@ test('Full first-install args parse boolean and value options through one explic
 });
 
 test('Full first-install args reject missing values, unknown options, and unsupported cache modes', () => {
-  assert.throws(() => parseArgs(['--version']), /Missing value for --version/);
-  assert.throws(() => parseArgs(['--unknown-option', 'value']), /Unknown argument: --unknown-option/);
+  assert.throws(() => parseFullFirstInstallArgs(['--version']), /Missing value for --version/);
+  assert.throws(() => parseFullFirstInstallArgs(['--version', '--out-dir']), /Missing value for --version/);
   assert.throws(
-    () => parseArgs(['--runtime-cache-mode', 'writeonly']),
+    () => parseFullFirstInstallArgs(['--version=26.6.0']),
+    /Unknown argument: --version=26.6.0/,
+  );
+  assert.throws(
+    () => parseFullFirstInstallArgs(['--unknown-option', 'value']),
+    /Unknown argument: --unknown-option/,
+  );
+  assert.throws(
+    () => parseFullFirstInstallArgs(['--runtime-cache-mode', 'writeonly']),
     /Unsupported runtime cache mode: writeonly/,
+  );
+});
+
+test('Active shell args parse process argv shape for quick and only filters', () => {
+  const options = parseActiveShellArgs([
+    'node',
+    'scripts/validate-active-shell.ts',
+    '--quick',
+    '--only',
+    'i18n_types, typecheck,,',
+  ]);
+
+  assert.equal(options.quick, true);
+  assert.deepEqual([...options.only], ['i18n_types', 'typecheck']);
+});
+
+test('Active shell args reject missing values and unknown options', () => {
+  assert.throws(
+    () => parseActiveShellArgs(['node', 'scripts/validate-active-shell.ts', '--only']),
+    /Missing value for --only/,
+  );
+  assert.throws(
+    () => parseActiveShellArgs(['node', 'scripts/validate-active-shell.ts', '--only', '--quick']),
+    /Missing value for --only/,
+  );
+  assert.throws(
+    () => parseActiveShellArgs(['node', 'scripts/validate-active-shell.ts', '--quick=false']),
+    /Unknown argument: --quick=false/,
+  );
+  assert.throws(
+    () => parseActiveShellArgs(['node', 'scripts/validate-active-shell.ts', '--unknown-option']),
+    /Unknown argument: --unknown-option/,
   );
 });

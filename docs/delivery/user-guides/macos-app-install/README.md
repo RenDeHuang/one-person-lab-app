@@ -25,13 +25,14 @@ Delivery and generated files:
 - [`source/macos-app-install.quarto.json`](source/macos-app-install.quarto.json):
   machine manifest for output paths, download links, publishing template,
   screenshot manifest reference, required terms, and validation boundaries.
-- [`generated/macos-app-install.md`](generated/macos-app-install.md):
-  generated long-form Markdown snapshot.
-- [`generated/macos-app-install-slides.qmd`](generated/macos-app-install-slides.qmd):
-  generated expanded presentation snapshot.
+- `generated/macos-app-install.md`: generated long-form Markdown snapshot,
+  recreated by `npm run docs:macos-guide` and ignored by Git.
+- `generated/macos-app-install-slides.qmd`: generated expanded presentation
+  snapshot, recreated by `npm run docs:macos-guide` and ignored by Git.
 - `generated/macos-app-install-slides.md` and
   `generated/macos-app-install-marp-theme.css`: generated static Marp source
-  and theme used only for the slide PDF/PPTX special-case build.
+  and theme used only for the slide PDF/PPTX special-case build, recreated by
+  `npm run docs:macos-guide` and ignored by Git.
 - `verification/macos-app-install-verification.json`,
   `verification/macos-app-install-html-verification.json`, and
   `verification/macos-app-install-slides-verification.json`: generated

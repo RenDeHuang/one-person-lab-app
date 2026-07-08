@@ -2,7 +2,7 @@
 
 Status: active cleanup boundary
 Scope: guide generation, release helper scripts, and active-shell validator cleanup
-Last updated: 2026-07-07
+Last updated: 2026-07-08
 
 ## Landed Safe Slices
 
@@ -62,6 +62,33 @@ Last updated: 2026-07-07
 - `scripts/validate-webui-runtime-image.ts` and `scripts/validate-webui-runtime-smoke-receipts.ts` now reuse `scripts/value-assertions.ts` for repeated expected-field and string-array inclusion assertions instead of keeping duplicate file-local equality/includes helpers.
 - Why safe: the slice keeps each validator's parsing, required-field checks, summary output, and WebUI runtime receipt/image semantics in place. It does not add `validator-utils`, touch contracts, or reshape validator ownership.
 - Verification required for this slice: `git diff --check`, the existing WebUI runtime smoke receipt test, and a direct `validate-webui-runtime-image.ts` fixture command for the image validator.
+
+### 2026-07-08 local ignored artifact lifecycle
+
+- `scripts/cleanup-local-artifacts.ts` is the executable lifecycle entrypoint for local ignored generated output. `npm run cleanup:local-artifacts` defaults to dry-run; `--execute` is required before deletion.
+- Managed scopes are `tmp/`, `docs/site/latest/`, generated Full runtime payload dirs, and top-level `artifacts/*` run directories. `artifacts/*` uses `--keep-days` retention, defaulting to 7 days, so current release/debug evidence is not removed by an ordinary cleanup run.
+- Explicitly excluded: `.claude`, `.codegraph`, `.superpowers`, and ignored external shell checkouts under `shells/`.
+- Verification required for this slice: syntax check, dry-run for all scopes, an execute check on a recreateable scratch scope, and `git diff --check`.
+
+### 2026-07-08 generated guide snapshot cleanup
+
+- Removed tracked generated guide snapshots under `docs/delivery/user-guides/*/generated/`. The guide source QMD, source manifests, screenshot manifests, verification JSON, and publishing templates remain the maintained surfaces.
+- `.gitignore` now ignores regenerated user-guide snapshots so `npm run docs:*` can recreate them locally without polluting App main.
+- `scripts/publish-docs-latest.sh` now accepts only `OPL_DOCS_BUILD_COMMAND` or this repo's `docs:latest` script; the unrelated cloud-whitepaper fallback was removed.
+- Verification required for this slice: `bash -n scripts/publish-docs-latest.sh`, `git diff --check`, generated-link grep checks, and a future `npm run docs:guides` when guide publication output must be refreshed.
+
+### 2026-07-08 stdlib parser cleanup
+
+- `scripts/build-full-first-install-package/env.ts` and `scripts/validate-active-shell/validation-config.ts` now use Node `node:util.parseArgs` token parsing instead of hand-rolled argv loops.
+- The Full parser keeps the existing `--opl-root` alias, path resolution, boolean flags, runtime cache mode validation, and legacy rejection of `--key=value` inline syntax.
+- Focused parser coverage lives in `tests/release/app-release-boundary-cases/full-first-install-args.ts`.
+- Verification required for this slice: the focused parser test, an active-shell quick parser command with a real shell root, and `git diff --check`.
+
+### 2026-07-08 release workflow path duplicate cleanup
+
+- `tests/release/app-release-boundary-cases/helpers-core.ts` now re-exports `releaseWorkflowPaths` from `scripts/validate-release-boundary/release-checks.ts` instead of maintaining a second workflow path list.
+- Why safe: the release-boundary script remains the App-owned gate source; tests stop shadowing only the workflow path list and keep existing workflow invariant coverage.
+- Verification required for this slice: the release-boundary test entrypoint with an explicit active shell root and `git diff --check`.
 
 ## No-Safe-Semantic-Split Boundaries
 

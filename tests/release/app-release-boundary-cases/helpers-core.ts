@@ -10,6 +10,7 @@ import { deflateSync } from "node:zlib";
 import test from "node:test";
 
 export { assert, crypto, fs, os, path, spawnSync, deflateSync, test };
+export { releaseWorkflowPaths } from "../../../scripts/validate-release-boundary/release-checks.ts";
 
 export const appRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -23,23 +24,6 @@ export const externalShellRoot = process.env.OPL_APP_SHELL_ROOT?.trim()
   : null;
 export const activeShellRoot =
   externalShellRoot ?? path.join(appRoot, "shells", "aionui");
-export const releaseWorkflowPaths = [
-  ".github/workflows/_build-reusable.yml",
-  ".github/workflows/build-manual.yml",
-  ".github/workflows/desktop-release-cleanup-drafts.yml",
-  ".github/workflows/desktop-release-diagnostics.yml",
-  ".github/workflows/desktop-release-promote.yml",
-  ".github/workflows/desktop-release.yml",
-  ".github/workflows/docker-webui-clean-linux-vm.yml",
-  ".github/workflows/docker-webui-clean-windows-vm.yml",
-  ".github/workflows/full-first-install-release.yml",
-  ".github/workflows/full-runtime-cache-warmup.yml",
-  ".github/workflows/homebrew-tap-update.yml",
-  ".github/workflows/nightly-standard-release.yml",
-  ".github/workflows/non-release-validation.yml",
-  ".github/workflows/opl-first-run-vm.yml",
-  ".github/workflows/release-verify-remote.yml",
-];
 export const expectedDefaultCompanionSkillSyncIds = [
   "superpowers",
   "cron",
@@ -417,8 +401,19 @@ function escapedPattern(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+function objectKeyPattern(value: string) {
+  if (/^[A-Za-z_$][\w$]*$/.test(value)) {
+    return escapedPattern(value);
+  }
+  return `'${escapedPattern(value)}'`;
+}
+
 export function assertFullFirstInstallOptionTables(buildScript: string) {
-  assert.match(buildScript, /const booleanOptionSetters = new Map\(\[/);
+  assert.match(
+    buildScript,
+    /import \{ parseArgs as parseNodeArgs \} from 'node:util';/,
+  );
+  assert.match(buildScript, /const booleanOptionSetters = \{/);
   for (const option of [
     "--skip-gui-build",
     "--split-runtime",
@@ -426,12 +421,13 @@ export function assertFullFirstInstallOptionTables(buildScript: string) {
     "--print-runtime-cache-keys",
     "--include-bun-runtime",
   ]) {
+    const optionName = option.replace(/^--/, "");
     assert.match(
       buildScript,
-      new RegExp(`\\['${escapedPattern(option)}', \\(parsed\\) =>`),
+      new RegExp(`${objectKeyPattern(optionName)}: \\(parsed\\) =>`),
     );
   }
-  assert.match(buildScript, /const valueOptionSetters = new Map\(\[/);
+  assert.match(buildScript, /const valueOptionSetters = \{/);
   for (const option of [
     "--version",
     "--out-dir",
@@ -460,16 +456,20 @@ export function assertFullFirstInstallOptionTables(buildScript: string) {
     "--runtime-cache-dir",
     "--runtime-cache-mode",
   ]) {
+    const optionName = option.replace(/^--/, "");
     assert.match(
       buildScript,
-      new RegExp(`\\['${escapedPattern(option)}', \\(parsed, value\\) =>`),
+      new RegExp(`${objectKeyPattern(optionName)}: \\(parsed, value\\) =>`),
     );
   }
-  assert.match(buildScript, /const apply = booleanOptionSetters\.get\(token\)/);
-  assert.match(buildScript, /const apply = valueOptionSetters\.get\(token\)/);
+  assert.match(buildScript, /const nodeOptionConfig = Object\.fromEntries\(\[/);
+  assert.match(buildScript, /options: nodeOptionConfig/);
+  assert.match(buildScript, /tokens: true/);
+  assert.match(buildScript, /const applyBoolean = booleanOptionSetters\[token\.name\]/);
+  assert.match(buildScript, /const applyValue = valueOptionSetters\[token\.name\]/);
   assert.match(
     buildScript,
-    /throw new Error\(`Unknown argument: \$\{token\}`\)/,
+    /throw new Error\(`Unknown argument: \$\{rawArgument\(token\)\}`\)/,
   );
 }
 

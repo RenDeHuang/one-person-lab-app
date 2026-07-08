@@ -1,5 +1,6 @@
 import os from 'node:os';
 import path from 'node:path';
+import { parseArgs as parseNodeArgs } from 'node:util';
 
 import {
   FULL_FIRST_INSTALL_OUTPUT_DIR,
@@ -120,81 +121,96 @@ function defaultOptions() {
   };
 }
 
-const booleanOptionSetters = new Map([
-  ['--skip-gui-build', (parsed) => { parsed.skipGuiBuild = true; }],
-  ['--split-runtime', (parsed) => { parsed.splitRuntime = true; }],
-  ['--reuse-gui-vite-output', (parsed) => { parsed.reuseGuiViteOutput = true; }],
-  ['--print-runtime-cache-keys', (parsed) => { parsed.printRuntimeCacheKeys = true; }],
-  ['--include-bun-runtime', (parsed) => { parsed.includeBunRuntime = true; }],
-]);
+const booleanOptionSetters = {
+  'skip-gui-build': (parsed) => { parsed.skipGuiBuild = true; },
+  'split-runtime': (parsed) => { parsed.splitRuntime = true; },
+  'reuse-gui-vite-output': (parsed) => { parsed.reuseGuiViteOutput = true; },
+  'print-runtime-cache-keys': (parsed) => { parsed.printRuntimeCacheKeys = true; },
+  'include-bun-runtime': (parsed) => { parsed.includeBunRuntime = true; },
+};
 
-const valueOptionSetters = new Map([
-  ['--version', (parsed, value) => { parsed.version = value; }],
-  ['--out-dir', (parsed, value) => { parsed.outDir = path.resolve(value); }],
-  ['--framework-root', (parsed, value) => { parsed.frameworkRoot = path.resolve(value); }],
-  ['--opl-root', (parsed, value) => { parsed.frameworkRoot = path.resolve(value); }],
-  ['--gui-root', (parsed, value) => { parsed.guiRoot = path.resolve(value); }],
-  ['--mas-root', (parsed, value) => { parsed.masRoot = path.resolve(value); }],
-  ['--mag-root', (parsed, value) => { parsed.magRoot = path.resolve(value); }],
-  ['--rca-root', (parsed, value) => { parsed.rcaRoot = path.resolve(value); }],
-  ['--meta-agent-root', (parsed, value) => { parsed.metaAgentRoot = path.resolve(value); }],
-  ['--bookforge-root', (parsed, value) => { parsed.bookforgeRoot = path.resolve(value); }],
-  ['--superpowers-root', (parsed, value) => { parsed.superpowersRoot = path.resolve(value); }],
-  ['--codex-root', (parsed, value) => { parsed.codexRoot = path.resolve(value); }],
-  ['--node-bin', (parsed, value) => { parsed.nodeBin = path.resolve(value); }],
-  ['--bun-bin', (parsed, value) => { parsed.bunBin = path.resolve(value); }],
-  ['--uv-bin', (parsed, value) => { parsed.uvBin = path.resolve(value); }],
-  ['--temporal-cli-bin', (parsed, value) => { parsed.temporalCliBin = path.resolve(value); }],
-  ['--temporal-cli-archive', (parsed, value) => { parsed.temporalCliArchive = path.resolve(value); }],
-  ['--python-root', (parsed, value) => { parsed.pythonRoot = path.resolve(value); }],
-  ['--officecli-bin', (parsed, value) => { parsed.officeCliBin = path.resolve(value); }],
-  ['--officecli-root', (parsed, value) => { parsed.officeCliRoot = path.resolve(value); }],
-  ['--mineru-open-api-bin', (parsed, value) => { parsed.mineruOpenApiBin = path.resolve(value); }],
-  ['--mineru-root', (parsed, value) => { parsed.mineruRoot = path.resolve(value); }],
-  ['--mineru-document-extractor-root', (parsed, value) => {
+const valueOptionSetters = {
+  version: (parsed, value) => { parsed.version = value; },
+  'out-dir': (parsed, value) => { parsed.outDir = path.resolve(value); },
+  'framework-root': (parsed, value) => { parsed.frameworkRoot = path.resolve(value); },
+  'opl-root': (parsed, value) => { parsed.frameworkRoot = path.resolve(value); },
+  'gui-root': (parsed, value) => { parsed.guiRoot = path.resolve(value); },
+  'mas-root': (parsed, value) => { parsed.masRoot = path.resolve(value); },
+  'mag-root': (parsed, value) => { parsed.magRoot = path.resolve(value); },
+  'rca-root': (parsed, value) => { parsed.rcaRoot = path.resolve(value); },
+  'meta-agent-root': (parsed, value) => { parsed.metaAgentRoot = path.resolve(value); },
+  'bookforge-root': (parsed, value) => { parsed.bookforgeRoot = path.resolve(value); },
+  'superpowers-root': (parsed, value) => { parsed.superpowersRoot = path.resolve(value); },
+  'codex-root': (parsed, value) => { parsed.codexRoot = path.resolve(value); },
+  'node-bin': (parsed, value) => { parsed.nodeBin = path.resolve(value); },
+  'bun-bin': (parsed, value) => { parsed.bunBin = path.resolve(value); },
+  'uv-bin': (parsed, value) => { parsed.uvBin = path.resolve(value); },
+  'temporal-cli-bin': (parsed, value) => { parsed.temporalCliBin = path.resolve(value); },
+  'temporal-cli-archive': (parsed, value) => { parsed.temporalCliArchive = path.resolve(value); },
+  'python-root': (parsed, value) => { parsed.pythonRoot = path.resolve(value); },
+  'officecli-bin': (parsed, value) => { parsed.officeCliBin = path.resolve(value); },
+  'officecli-root': (parsed, value) => { parsed.officeCliRoot = path.resolve(value); },
+  'mineru-open-api-bin': (parsed, value) => { parsed.mineruOpenApiBin = path.resolve(value); },
+  'mineru-root': (parsed, value) => { parsed.mineruRoot = path.resolve(value); },
+  'mineru-document-extractor-root': (parsed, value) => {
     parsed.mineruDocumentExtractorRoot = path.resolve(value);
-  }],
-  ['--ui-ux-pro-max-root', (parsed, value) => { parsed.uiUxProMaxRoot = path.resolve(value); }],
-  ['--runtime-cache-dir', (parsed, value) => { parsed.runtimeCacheDir = path.resolve(value); }],
-  ['--runtime-cache-mode', (parsed, value) => { parsed.runtimeCacheMode = value; }],
+  },
+  'ui-ux-pro-max-root': (parsed, value) => { parsed.uiUxProMaxRoot = path.resolve(value); },
+  'runtime-cache-dir': (parsed, value) => { parsed.runtimeCacheDir = path.resolve(value); },
+  'runtime-cache-mode': (parsed, value) => { parsed.runtimeCacheMode = value; },
+};
+
+const nodeOptionConfig = Object.fromEntries([
+  ...Object.keys(booleanOptionSetters).map((name) => [name, { type: 'boolean' }]),
+  ...Object.keys(valueOptionSetters).map((name) => [name, { type: 'string' }]),
 ]);
 
-function applyBooleanOption(parsed, token) {
-  const apply = booleanOptionSetters.get(token);
-  if (!apply) {
-    return false;
-  }
-  apply(parsed);
-  return true;
+function rawArgument(token) {
+  return token.inlineValue ? `${token.rawName}=${token.value ?? ''}` : token.rawName;
 }
 
-function valueAfter(argv, index, token) {
-  const value = argv[index + 1];
-  if (!value || value.startsWith('--')) {
-    throw new Error(`Missing value for ${token}`);
-  }
-  return value;
+function parseOptionTokens(argv) {
+  return parseNodeArgs({
+    args: argv,
+    options: nodeOptionConfig,
+    allowPositionals: true,
+    strict: false,
+    tokens: true,
+  }).tokens;
 }
 
-function applyValueOption(parsed, token, value) {
-  const apply = valueOptionSetters.get(token);
-  if (!apply) {
-    throw new Error(`Unknown argument: ${token}`);
+function requireValueToken(token) {
+  if (token.inlineValue) {
+    throw new Error(`Unknown argument: ${rawArgument(token)}`);
   }
-  apply(parsed, value);
+  if (!token.value || token.value.startsWith('--')) {
+    throw new Error(`Missing value for ${token.rawName}`);
+  }
+  return token.value;
 }
 
 export function parseArgs(argv) {
   const parsed = defaultOptions();
 
-  for (let index = 0; index < argv.length; index += 1) {
-    const token = argv[index];
-    if (applyBooleanOption(parsed, token)) {
+  for (const token of parseOptionTokens(argv)) {
+    if (token.kind === 'positional') {
+      throw new Error(`Unknown argument: ${token.value}`);
+    }
+
+    const applyBoolean = booleanOptionSetters[token.name];
+    if (applyBoolean) {
+      if (token.inlineValue) {
+        throw new Error(`Unknown argument: ${rawArgument(token)}`);
+      }
+      applyBoolean(parsed);
       continue;
     }
 
-    applyValueOption(parsed, token, valueAfter(argv, index, token));
-    index += 1;
+    const applyValue = valueOptionSetters[token.name];
+    if (!applyValue) {
+      throw new Error(`Unknown argument: ${rawArgument(token)}`);
+    }
+    applyValue(parsed, requireValueToken(token));
   }
 
   if (!['readwrite', 'readonly', 'off'].includes(parsed.runtimeCacheMode)) {

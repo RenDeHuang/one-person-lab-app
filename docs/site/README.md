@@ -35,4 +35,6 @@ Generated output:
 
 Do not commit `docs/site/latest/` on `main`. Rebuild it with
 `npm run docs:latest`; publish it with `npm run docs:publish`. The publish
-script filters out process files such as generated Markdown and JSON.
+script filters out process files such as generated Markdown and JSON. Remove the
+local generated copy with `npm run cleanup:local-artifacts -- --scope docs --execute`
+when it is no longer needed for preview or publish.

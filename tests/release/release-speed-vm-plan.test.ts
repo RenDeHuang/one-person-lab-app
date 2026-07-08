@@ -427,7 +427,7 @@ test('Full first-install workflow caches npm, uv, Go, and Bun work and writes an
 
   const buildScript = readFullPackageBuilderSource();
   assertMatches(buildScript, /reuseGuiViteOutput:\s+process\.env\.OPL_FULL_REUSE_GUI_VITE_OUTPUT === '1'/, 'Full package script reads Vite reuse flag');
-  assertMatches(buildScript, /--reuse-gui-vite-output/, 'Full package script exposes Vite reuse CLI flag');
+  assertMatches(buildScript, /'reuse-gui-vite-output':\s+\(parsed\) => \{ parsed\.reuseGuiViteOutput = true; \}/, 'Full package parser exposes Vite reuse CLI flag');
   assertMatches(buildScript, /build-mac:arm64'[\s\S]*--skip-vite/, 'Full package script passes --skip-vite to active shell build when reuse is enabled');
   assertMatches(buildScript, /build-mac:arm64'[\s\S]*--dir-only/, 'Full package script asks the active shell for an app bundle only');
 
