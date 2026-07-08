@@ -190,20 +190,23 @@ Stable release flow:
    App/Shell/Framework SHAs as the recommended operator path.
 4. Run preflight and `release:source-gate` for that pinned cohort.
 5. Run the release workflow for the selected version/channel.
-6. Produce standard artifacts, then run standard remote verification, the
-   standard VM gate, and the one-shot installer smoke as the default Standard
-   stable readiness path.
-7. Continue Full, Docker/WebUI, Homebrew, and operator-evidence work as
-   same-cohort add-on gates/assets. Their status is recorded in
+6. Produce standard artifacts, publish standard, then run standard remote
+   verification, the standard VM gate, and the one-shot installer smoke as the
+   default Standard stable readiness path.
+7. Start Full build in parallel after preflight/source gate when requested, but
+   keep Full publish, Full remote verification, Full VM, and Full readiness
+   admission behind the Standard gate for the same cohort.
+8. Continue Docker/WebUI, Homebrew, and operator-evidence work as same-cohort
+   add-on gates/assets. Their status is recorded in
    `release-addon-readiness-summary` without delaying the Standard readiness
    record; release owner policy may still require them before promote.
-8. Produce `release-candidate-record.json` for the admitted readiness path while
+9. Produce `release-candidate-record.json` for the admitted readiness path while
    preserving add-on job results for the same cohort.
-9. Promote only when the promote workflow reads a ready candidate record for
+10. Promote only when the promote workflow reads a ready candidate record for
    the same cohort.
-10. Update Homebrew casks after the draft release is published and the matching
+11. Update Homebrew casks after the draft release is published and the matching
    policy assets exist.
-11. Run post-release user-guide/screenshots only after promotion; they are never
+12. Run post-release user-guide/screenshots only after promotion; they are never
    pre-promotion gates.
 
 Nightly and candidate flows follow the same SSOT contract but do not imply stable/latest promotion.
@@ -240,12 +243,24 @@ gate reuse decisions. Operators should restart from the manifest instead of
 hand-filling workflow inputs or rerunning the full train after a late gate
 failure.
 
+The release-session manifest is the operator-session wrapper around one or more
+workflow runs. It records the run set, failed-run tax, current authority
+surface, owner receipt state, typed next action, and post-publish follow-up. It
+is not release truth: release state still comes from the candidate record,
+closeout, remote verification, owner receipt, and published asset/readback
+surfaces for the same cohort.
+
+Full build is the only Full lane that may run in parallel with Standard before
+Standard admission. Full publish, Full VM, and Full readiness must wait for the
+Standard gate so a broken Standard path fails fast before expensive add-on
+publication or clean-install proof work expands the run.
+
 Critical-path targets:
 
 | Path | Target wall time | Owner action when exceeded |
 | --- | --- | --- |
-| Stable standard-only candidate | 35-50 minutes | Inspect `release-actions-timing-<version>` and the operator status for slow gates before rerunning. |
-| Stable with Full package, Docker/WebUI, and VM gates | 55-70 minutes for the release workflow; 75-90 minutes including normal operator interaction | At 75 minutes, run `release:operator status` and classify the active job/step before waiting longer. At 90 minutes, stop passive waiting and identify the blocker owner or same-cohort retry path. |
+| Stable standard-only candidate | 35-45 minutes | Inspect `release-actions-timing-<version>` and the operator status for slow gates before rerunning. |
+| Stable with Full package, Docker/WebUI, and VM gates | 43-50 minutes for the release workflow; 55-70 minutes including normal operator interaction and promote | At 75 minutes, run `release:operator status` and classify the active job/step before waiting longer. At 90 minutes, stop passive waiting and identify the blocker owner or same-cohort retry path. |
 | Same-cohort gate retry | 3-15 minutes | Use the cohort manifest to rerun only the failed gate or diagnostic path. |
 | Promote after owner receipt | 8-12 minutes | Promote from a ready candidate record; inspect at 10 minutes and treat 15 minutes as the hard-stop SLA for the promote workflow. Do not rerun desktop release to carry owner metadata. |
 
@@ -268,6 +283,38 @@ rerun the VM diagnostic or same-cohort gate from the manifest. The operator
 next action must be a same-artifact diagnostic unless the failure proves the
 artifact, source gate, or pinned refs are invalid. Dispatch a new cohort only
 after that boundary is proven.
+
+Late Homebrew, VM, evidence upload, closeout, or owner-receipt failures use the
+same rule: retry or diagnose the failed gate against the same published asset,
+tap commit, candidate record, or small evidence artifact first. Rerun the full
+desktop train only when the diagnostic proves the artifact, source gate, pinned
+cohort, or release-owner decision is invalid.
+
+## Artifact Attestation And Provenance
+
+Artifact attestation is build-integrity evidence for public release bytes, not
+release readiness. Attest these assets when the workflow publishes them:
+
+- Standard install/update bytes and metadata: standard DMG, updater ZIP,
+  `latest-arm64-mac.yml`, ZIP blockmap, and checksum assets.
+- Full first-install bytes and metadata: Full DMG, `opl-release-manifest.json`,
+  Full checksum assets, and offline runtime kit archives when published.
+- WebUI/GHCR bytes: the published OCI image digest and image manifest.
+
+The operator verification entry is the GitHub artifact-attestation verifier
+against the downloaded asset and this repo, for example:
+
+```bash
+gh attestation verify <asset-path> --repo gaofeng21cn/one-person-lab-app
+gh attestation verify oci://ghcr.io/gaofeng21cn/one-person-lab-webui@sha256:<digest> --repo gaofeng21cn/one-person-lab-app
+```
+
+SLSA provenance should bind the asset to the workflow identity, repo, run id,
+version, and pinned App/Shell/Framework SHAs. It does not replace checksum
+verification, remote asset readback, `codesign` / `spctl`, clean install/VM
+readiness, candidate-record validation, or release-owner receipt. Attesting a
+diagnostic JSON or evidence bundle can help traceability, but it cannot make
+that bundle a release truth source.
 
 ## Release Notes Runbook
 

@@ -19,7 +19,8 @@ same version cohort.
 The target operator experience is:
 
 1. Run or trigger one preflight.
-2. Build standard and Full lanes in parallel only after preflight passes.
+2. Build standard and Full lanes in parallel only after preflight/source gate
+   passes.
 3. Publish every normal Stable attempt to a draft candidate.
 4. Verify remote assets and checksums before user-path gates.
 5. Update Homebrew only after remote asset verification.
@@ -120,10 +121,15 @@ asset after owner approval; it is not the ordinary path for a new Stable
 version.
 
 `standard_build` and `full_build` are build lanes. They create artifacts and
-diagnostics only. They do not decide release readiness.
+diagnostics only. They do not decide release readiness. Full build may start in
+parallel with Standard after preflight/source gate, but Full publish, Full VM,
+and Full readiness remain serialized behind Standard admission for the same
+cohort.
 
 `publish_standard` and `publish_full_assets` are upload lanes. They normalize
 assets, release notes, and manifest evidence, then publish to the selected tag.
+`publish_full_assets` depends on the completed Standard publish path plus
+`full_build`; it is not an independent release path.
 
 `remote_verify_*` validates the GitHub Release as the user-facing byte source.
 This is the source for asset size, checksums, updater metadata, Full manifest,
@@ -162,6 +168,12 @@ unless the dispatch explicitly requires add-on gates for Stable readiness.
 may capture and refresh user-guide screenshots from the promoted Stable cohort,
 but it must not become a pre-promotion gate or a release readiness substitute.
 
+Late VM, Homebrew, evidence upload, owner-receipt, or closeout failures are
+same-artifact retry problems first. The retry entrypoint is the cohort/session
+manifest plus the failed gate's small diagnostic artifact. Dispatching a new
+desktop release is correct only when diagnosis proves the artifact, source
+gate, pinned refs, or release-owner decision is invalid.
+
 ## Implementation Surface
 
 This section records the current release-control design, not a proof ledger.
@@ -177,7 +189,9 @@ records, or `docs/history/process/`.
 | Release operator status | `npm run release:operator` is the no-watch control surface for current job/step, elapsed time, run update age, stale candidate state, primary blocker, and typed next action. | It is an operator state machine, not a release-ready claim or second release truth source. |
 | WebUI GHCR lane | Standalone WebUI publish is split into prepare, build, inspect/readback, smoke, tag, publish, and upload steps so the slow or failed boundary is visible. | WebUI/container evidence does not replace desktop App install evidence or stable promotion evidence. |
 | Release actions timing | `release-actions-timing.json/md` measures workflow wall time, failed/cancelled run tax, slow jobs, slow steps, and optional operator-loop gap. | Timing artifacts are delivery-health evidence, not release readiness or owner acceptance. |
-| Standard/add-on critical path | Standard Stable readiness requires standard publish, standard remote verification, the standard VM gate, and one-shot installer smoke. Full, Homebrew, and Docker/WebUI continue as same-cohort add-on gates and block only when explicitly required. | Standard and add-on lanes stay separate; standard evidence cannot prove Full first-install, Homebrew, or Docker/WebUI readiness. |
+| Release-session manifest | Records session id, run set, failed-run tax, current authority surface, typed next action, owner receipt state, and post-publish follow-up across one or more workflow runs. | It is a navigation and cost ledger only; release truth stays in same-cohort candidate records, closeout, remote verification, owner receipts, published assets, and tap/readiness readbacks. |
+| Standard/add-on critical path | Standard Stable readiness requires standard publish, standard remote verification, the standard VM gate, and one-shot installer smoke. Full build may run in parallel, but Full publish/VM/readiness wait for Standard admission. Homebrew and Docker/WebUI continue as same-cohort add-on gates and block only when explicitly required. | Standard and add-on lanes stay separate; standard evidence cannot prove Full first-install, Homebrew, or Docker/WebUI readiness. |
+| Artifact attestation / SLSA provenance | Public install/update assets carry attestations for the standard DMG/ZIP/updater metadata, Full DMG/manifest/checksum/offline kit assets, and WebUI OCI image digest when published. Verification uses `gh attestation verify` against the downloaded asset or OCI digest. | Attestation proves build provenance for bytes; it cannot replace checksums, remote readback, `codesign` / `spctl`, clean install/VM readiness, candidate-record validation, or owner receipt. |
 | Gate reuse plan | `npm run release:gate-reuse-plan` can emit `opl_release_gate_reuse_plan.v1` with per-gate `reuse_allowed` / `must_run` decisions and a stable digest. | It is advisory until workflows explicitly consume the artifact; no gate is skipped by prose. |
 | Tart prebake boundary | The release contract allows only host setup layers such as GUI session readiness, Homebrew prerequisites, Node prerequisites, and Codex install cache seed. | A prebaked base is not current release infrastructure until it has an image receipt, digest, profile, truth boundary, and validation command. |
 | Owner-resolution rebuild | Promote workflow may rebuild a candidate record from existing same-cohort small artifacts when only owner receipt/verdict refs arrived after the run. | It cannot repair failed gates or generate owner authority. |
@@ -194,7 +208,7 @@ records, or `docs/history/process/`.
 | Same-artifact diagnostic rerun command | Debug Full/standard VM failures after remote verification without rebuilding and reuploading the full release cohort. | One command dispatches the correct `OPL GUI First-Run VM` diagnostic lane for a release tag, direct DMG URL, or existing artifact run/name, and records the result next to the failed closeout. |
 | Workflow gate-reuse consumption | Turn advisory `opl_release_gate_reuse_plan.v1` into explicit workflow skip behavior for selected gates only after artifact shape and stop conditions are proven. | The workflow consumes the reuse plan and records which gates were reused or rerun for the same cohort. |
 | Tart prebake image receipts | Make standard/Homebrew base images current release infrastructure only when they have image digest evidence and validation output. | Release contract source variables change only alongside fresh image receipts. |
-| Release-session manifest | Add a durable session-level state file around existing one-run status, closeout, candidate-record, and timing commands. | The manifest records session id, run set, current authority, typed next action, timing, failed-run tax, owner receipt state, and post-publish follow-up without becoming a second release truth source. |
+| Release-session manifest command surface | Make the session manifest easy to create/update from operator status, closeout, candidate-record, timing, promote, and post-publish follow-up outputs. | One command updates the manifest run set, failed-run tax, current authority, owner receipt state, typed next action, and follow-up refs while preserving the same-cohort candidate/closeout/readback surfaces as release truth. |
 
 ## Validation
 
