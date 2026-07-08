@@ -267,7 +267,7 @@ runtime truth，也不能生成新的 owner receipt、typed blocker 或 stage tr
 | long next-step 人话归一 | 100% | 5 | App contract 锁定 policy；Shell companion lane 用 DOM test 验证 raw terminalization/readback 文案默认隐藏 |
 | 默认人类标签策略：agent/module/owner/stage id 不直出 | 100% | 6 | `default_label_policy` + release-boundary test；Shell companion lane 用 DOM test 验证 raw id 默认隐藏 |
 | 设计图布局：顶部范围、freshness、KPI、主列、右侧模块/高级 | 100% | 7 | `layout_regions` + Shell companion source/DOM evidence；不等同于 installed App 截图证据 |
-| canonical `WorkItemProjection`：Scope → Work Item → Agent → Stage → Attempt → Action → Evidence | 100%（App contract） | 8 | `contracts/app-runtime-bridge.json#work_item_projection` + validator；Framework 仍是 projection producer |
+| canonical `WorkItemProjection`：Scope → Work Item → Agent → Stage → Attempt → Action → Evidence | 100%（App contract） | 8 | `contracts/app-runtime-bridge.json#work_item_projection` + validator；`attempt` 是 required field；Framework 仍是 projection producer |
 | Kubernetes-style `conditions[]`、`ActionEnvelope`、agent `stage_catalog` 合同 | 100%（App contract） | 9 | App contract 锁定 required fields / action kinds / catalog owner；不等同于 live payload 已包含所有字段 |
 | 任务详情层：Stage Map、timeline、evidence/actions/resources/diagnostics | 100%（App contract） | 10 | `work_item_projection.detail_layer_contract` 固化默认 tabs 和字段；Shell implementation / DOM 证据另由 shell lane 提供 |
 | installed App 本机视觉截图验收 | 0%（本轮未声明） | 11 | 本轮落地只声明 source / DOM / contract 证据；installed App 截图、安装包 hash 和 release currentness 必须由独立 live/install 验证产生，不能由本文档或 focused tests 代替 |

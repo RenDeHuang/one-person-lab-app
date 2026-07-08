@@ -78,6 +78,7 @@ export const workItemProjectionRequiredFields = [
   "project_ref",
   "agent",
   "stage",
+  "attempt",
   "status",
   "conditions",
   "next_action",
