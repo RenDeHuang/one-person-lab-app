@@ -258,7 +258,10 @@ runtime truth，也不能生成新的 owner receipt、typed blocker 或 stage tr
 
 - App contract 已定义 `runtime_progress_page_display_policy`，固定默认 cockpit 与高级诊断边界。
 - Shell Runtime 页应按本文展示默认视图：顶部范围与刷新、右上角 freshness、KPI 行、主任务分组列表、右侧模块状态和高级信息；右栏不重复范围选择。
-- saved views 是任务列表的局部筛选入口，应收在任务列表标题区，不应占用默认页单独一整行。
+- 顶部范围选择只承担“全部 / 智能体 / 项目工作区”切换；论文或 task 级 raw scope 不进入默认下拉框，避免同一篇论文既作为范围又作为任务重复出现。
+- 项目工作区范围必须按真实 workspace path 去重和命名；自动任务、autopush、stage attempt 或 milestone binding 不能作为默认项目范围出现。
+- saved views 是任务列表内的状态筛选入口，只保留“全部、自动运行中、需要你决定、需要系统处理”；智能体与项目维度统一由顶部范围选择承担。
+- `需要系统处理` 只用于真实平台、provider、App 或 Framework repair；MAS 论文 owner typed blocker 如果没有自动流程在跑，默认显示为“已暂停，等待后续决定”，raw blocker 保留在详情或高级信息。
 - Token 默认只诚实显示当前阶段已消耗与任务累计消耗；没有预算上限时不画进度条，不暗示剩余额度。
 - 默认页不显示 scope provenance、推断工作区、metric hint 小字、模块 dirty checkout 说明和模块版本号；这些信息保留在高级信息或设置/维护页。
 - Framework 仍是 runtime truth owner。App 和 shell 只消费 `opl app state --profile fast --json` 与 drilldown refs，不写 runtime truth、domain truth、owner receipts 或 typed blockers。
@@ -275,7 +278,8 @@ runtime truth，也不能生成新的 owner receipt、typed blocker 或 stage tr
 | long next-step 人话归一 | 100% | 5 | App contract 锁定 policy；Shell companion lane 用 DOM test 验证 raw terminalization/readback 文案默认隐藏 |
 | 默认人类标签策略：agent/module/owner/stage id 不直出 | 100% | 6 | `default_label_policy` + release-boundary test；Shell companion lane 用 DOM test 验证 raw id 默认隐藏 |
 | 设计图布局：顶部范围、右上 freshness、KPI、主列、右侧模块/高级 | 100% | 7 | `layout_regions` + Shell companion source/DOM evidence；不等同于 installed App 截图证据 |
-| scope / saved views 常用入口：全部、自动运行中、需要你决定、需要系统处理、MAS 论文 | 100% | 8 | Shell Runtime 页保留 scope selector，并把 saved views 收到任务列表标题区；active-shell validator 和 DOM test 验证 `savedViewMatchesTask` 与常用入口存在 |
+| scope / saved views 常用入口：顶部范围为全部、智能体、项目工作区；任务列表 saved views 为全部、自动运行中、需要你决定、需要系统处理 | 100% | 8 | Shell Runtime 页保留 scope selector，并把 saved views 收到任务列表标题区；论文 / task 级 scope 默认隐藏；MAS 论文不再作为 saved view；项目工作区按 workspace path 去重，不显示 autopush / milestone binding |
+| 用户状态归一：MAS 论文 typed blocker 不冒充平台故障 | 100% | 8.1 | Shell DOM test 覆盖 `mas_owner_answer_typed_blocker_observed` + idle automation 显示为“已暂停，等待后续决定”；真实 system/provider failure 仍保留“需要系统处理” |
 | Token 默认显示：当前阶段消耗 + 累计消耗，不画无上限进度条 | 100% | 8.5 | Shell DOM test 覆盖 `usageStageAndTotal`；预算上限不存在时不得用 progress bar 暗示剩余额度 |
 | 默认页低认知负担：scope provenance、推断工作区、metric hint、模块 dirty/version 后置 | 100% | 8.6 | Shell DOM test 验证默认页不出现这些诊断字段，高级信息保留 scope diagnostics / module detail |
 | canonical `WorkItemProjection`：Scope → Work Item → Agent → Stage → Attempt → Action → Evidence | 100%（App contract） | 9 | `contracts/app-runtime-bridge.json#work_item_projection` + validator；`attempt` 是 required field；Framework 仍是 projection producer |
