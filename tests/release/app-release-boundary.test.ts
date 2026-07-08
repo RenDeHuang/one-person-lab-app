@@ -1,6 +1,5 @@
 import './app-release-boundary-cases/ownership-and-installation-contracts.ts';
 import './app-release-boundary-cases/app-root-boundary.ts';
-import './app-release-boundary-cases/product-profile-and-install-exposure.ts';
 import './app-release-boundary-cases/first-run-and-installer.ts';
 import './app-release-boundary-cases/runtime-page-evidence-boundary.ts';
 import './app-release-boundary-cases/runtime-page-release-evidence.ts';
@@ -10,7 +9,6 @@ import './app-release-boundary-cases/release-assets-and-remote-verification.ts';
 import './app-release-boundary-cases/release-plan-and-publishing.ts';
 import './app-release-boundary-cases/settings-control-plane-validation.ts';
 import './app-release-boundary-cases/shell-adapter-and-gui-contracts.ts';
-import './app-release-boundary-cases/app-gui-product-contract.ts';
 import './app-release-boundary-cases/workflow-release-channels.ts';
 import './app-release-boundary-cases/release-operations-workflows.ts';
 import './app-release-boundary-cases/release-owner-nonready-records.ts';

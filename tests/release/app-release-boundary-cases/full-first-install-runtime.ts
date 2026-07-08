@@ -28,10 +28,7 @@ test('Full first-install workflow has one MinerU checkout and keeps standalone b
   assert.match(workflow, /npm install -g "@openai\/codex@\$\{codex_latest\}"/);
   assert.match(workflow, /echo "OPL_FULL_CODEX_VERSION=\$codex_latest" >> "\$GITHUB_ENV"/);
   assert.match(workflow, /\[\[ "\$codex_version" == "codex-cli \$codex_latest" \]\]/);
-  assert.match(workflow, /brew install zstd temporal \|\| true/);
   assert.match(workflow, /temporal --version/);
-  assert.match(workflow, /echo "OPL_FULL_BUN_BIN=\$\(command -v bun\)" >> "\$GITHUB_ENV"/);
-  assert.match(workflow, /echo "OPL_FULL_TEMPORAL_CLI_BIN=\$\(command -v temporal\)" >> "\$GITHUB_ENV"/);
   assert.equal(matchCount(workflow, /name: Checkout MinerU Ecosystem/g), 1);
   assert.equal(matchCount(workflow, /repository: opendatalab\/MinerU-Ecosystem/g), 1);
   assert.equal(matchCount(workflow, /^\s+path: MinerU-Ecosystem$/gm), 1);
@@ -39,7 +36,6 @@ test('Full first-install workflow has one MinerU checkout and keeps standalone b
   assert.match(workflow, /mineru_built_at="\$\(git -C "\$GITHUB_WORKSPACE\/MinerU-Ecosystem" show -s --format=%cI HEAD\)"/);
   assert.doesNotMatch(workflow, /mineru_built_at="\$\(date -u/);
   assert.match(workflow, /cd "\$mineru_root"[\s\S]*go install -ldflags/);
-  assert.match(workflow, /GH_TOKEN: \$\{\{ github\.token \}\}/);
   assert.match(workflow, /github\.com\/opendatalab\/MinerU-Ecosystem\/cli\/mineru-open-api\/cmd\.version=\$mineru_version/);
   assert.match(workflow, /github\.com\/opendatalab\/MinerU-Ecosystem\/cli\/mineru-open-api\/cmd\.commit=\$mineru_commit/);
   assert.match(workflow, /github\.com\/opendatalab\/MinerU-Ecosystem\/cli\/mineru-open-api\/cmd\.date=\$mineru_built_at/);
@@ -56,8 +52,6 @@ test('Full first-install workflow has one MinerU checkout and keeps standalone b
   assert.match(workflow, /ELECTRON_CACHE: \$\{\{ runner\.temp \}\}\/\.cache\/electron/);
   assert.match(workflow, /ELECTRON_BUILDER_CACHE: \$\{\{ runner\.temp \}\}\/\.cache\/electron-builder/);
   assert.match(workflow, /opl-full-runtime-cache-aggregate-key\.json/);
-  assert.match(workflow, /export OPL_FULL_BUN_BIN="\$\{OPL_FULL_BUN_BIN:-\$\(command -v bun\)\}"/);
-  assert.match(workflow, /export OPL_FULL_TEMPORAL_CLI_BIN="\$\{OPL_FULL_TEMPORAL_CLI_BIN:-\$\(command -v temporal\)\}"/);
   assert.match(workflow, /input\.aggregate_key_input/);
   assert.match(workflow, /toolchain:\s+'toolchain'/);
   assert.match(workflow, /'domain-runtime':\s+'domain_runtime'/);
@@ -90,17 +84,9 @@ test('Full first-install workflow has one MinerU checkout and keeps standalone b
   assert.match(workflow, /OPL_FULL_DMG_COMPRESSION_LEVEL:\s+\$\{\{ inputs\.full_dmg_compression_level \|\| '9' \}\}/);
   assert.match(workflowStepBlock(workflow, 'Build Full first-install package'), /NODE_OPTIONS:\s+'--max-old-space-size=8192'/);
   assert.match(workflow, /echo "OPL_FULL_DISTRIBUTABLE_ASSETS=\$requires_distributable_assets" >> "\$GITHUB_ENV"/);
-  assert.match(workflow, /name: Inspect optional Full release signing secrets/);
-  assert.match(workflow, /Full first-install local authorization mode/);
-  assert.match(workflow, /Missing optional Apple signing secrets: \$\{missing_csv\}/);
   assert.match(workflow, /BUILD_CERTIFICATE_BASE64 P12_PASSWORD APPLE_ID APPLE_ID_PASSWORD TEAM_ID IDENTITY/);
-  assert.match(workflow, /Stable Full assets will use local authorization evidence instead of Developer ID notarization/);
-  assert.match(workflow, /local-authorization-policy\.ts[\s\S]*--package-kind app_full_first_install/);
-  assert.match(workflow, /mounted_app_path="\$\(find "\$mounted_app_dir" -maxdepth 2 -type d -name 'One Person Lab\.app'/);
   assert.match(workflow, /mounted_runtime_root="\$mounted_app_path\/Contents\/Resources\/opl-full-runtime\/runtime\/current"/);
   assert.match(workflow, /scripts\/assert-full-runtime-currentness\.ts[\s\S]*--runtime-root "\$mounted_runtime_root"[\s\S]*--framework-root "\$GITHUB_WORKSPACE\/one-person-lab"/);
-  assert.match(workflow, /codesign --verify --deep --strict --verbose=2 "\$mounted_app_path" \|\| true/);
-  assert.match(workflow, /--app-path "\$mounted_app_path"/);
   assert.match(workflow, /hdiutil detach "\$mounted_app_dir"/);
   assert.match(workflow, /name: Verify release upload plan[\s\S]*if:\s+\$\{\{ inputs\.publish_to_release \|\| inputs\.upload_full_package_artifact \}\}/);
   for (const expected of [
@@ -124,12 +110,10 @@ test('Full first-install workflow has one MinerU checkout and keeps standalone b
   assert.match(localAuthorizationStep, /if:\s+\$\{\{ inputs\.publish_to_release \|\| inputs\.upload_full_package_artifact \}\}[\s\S]*full-local-authorization-policy\.json/);
   assert.match(workflow, /upload_full_package_artifact:[\s\S]*default:\s+true/);
   assert.match(workflow, /Upload Full package workflow artifact[\s\S]*if:\s+\$\{\{ inputs\.publish_to_release \|\| inputs\.upload_full_package_artifact \}\}/);
-  assert.match(workflow, /Upload Full DMG-only workflow artifact[\s\S]*opl-full-first-install-dmg-\$\{\{ env\.OPL_RELEASE_VERSION \}\}-mac-arm64[\s\S]*One-Person-Lab-Full-\$\{\{ env\.OPL_RELEASE_VERSION \}\}-mac-arm64\.dmg/);
   assert.match(workflow, /bash "\$GITHUB_WORKSPACE\/OfficeCLI\/install\.sh"/);
   assert.doesNotMatch(workflow, /raw\.githubusercontent\.com\/iOfficeAI\/OfficeCLI\/main\/install\.sh/);
   const warmupWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'full-runtime-cache-warmup.yml'), 'utf8');
   assert.match(warmupWorkflow, /upload_full_package_artifact:\s+false/);
-  assert.match(warmupWorkflow, /publish_to_release:\s+false/);
   assert.match(workflow, /node -e 'const fs = require\("node:fs"\); const report = JSON\.parse\(fs\.readFileSync\(process\.argv\[1\], "utf8"\)\);/);
   assert.doesNotMatch(
     workflow,

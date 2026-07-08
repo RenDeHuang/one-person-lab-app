@@ -90,6 +90,14 @@ Last updated: 2026-07-08
 - Why safe: the release-boundary script remains the App-owned gate source; tests stop shadowing only the workflow path list and keep existing workflow invariant coverage.
 - Verification required for this slice: the release-boundary test entrypoint with an explicit active shell root and `git diff --check`.
 
+### 2026-07-08 release-boundary shadow test cleanup
+
+- Removed release-boundary tests that only duplicated App contract or workflow text already gated by `scripts/validate-release-boundary/*`, `scripts/validate-active-shell.ts`, `scripts/validate-agent-installation-contract.ts`, and focused release readiness tests.
+- Deleted `tests/release/release-speed-vm-plan.test.ts` and `tests/release/app-release-boundary-cases/workflow-release-channels/desktop-release-workflow.ts`; `tests/release/app-release-boundary-cases/workflow-release-channels.ts` now imports only the focused release-channel subcases.
+- Deleted the large contract snapshot tests `tests/release/app-release-boundary-cases/app-gui-product-contract.ts` and `tests/release/app-release-boundary-cases/product-profile-and-install-exposure.ts`. The App GUI/product profile/install exposure contract checks remain executable through active-shell validation, agent installation validation, release-boundary validation, and narrower behavior tests.
+- Kept behavior tests for release planning, preflight, readiness aggregation, release assets, evidence validation, active shell adapter behavior, settings, runtime page evidence, Full package behavior, and installer/runtime boundaries.
+- Verification required for this slice: `npm run test:release-boundary`, `npm run validate:release-boundary`, `npm run validate:active-shell -- --quick`, `npm run validate:agent-installation`, and `git diff --check`.
+
 ## No-Safe-Semantic-Split Boundaries
 
 The following cleanup classes must not be landed as broad mechanical refactors without a focused semantic split and matching verification:
