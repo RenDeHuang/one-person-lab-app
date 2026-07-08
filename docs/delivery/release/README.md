@@ -250,6 +250,30 @@ is not release truth: release state still comes from the candidate record,
 closeout, remote verification, owner receipt, and published asset/readback
 surfaces for the same cohort.
 
+Update it from `release:operator status` instead of hand-editing JSON. Use
+`--session-input` to carry the existing session forward and `--session-output`
+to write the next manifest, then attach the same-cohort refs that actually
+exist:
+
+```bash
+npm run release:operator -- status \
+  --run-id <github-actions-run-id> \
+  --version <version> \
+  --expected-head <app-sha> \
+  --session-input release-session.json \
+  --session-output release-session.json \
+  --candidate-ref release-candidate-record.json \
+  --closeout-ref release-closeout.json \
+  --readback-ref remote-release-verification.json \
+  --owner-receipt-ref docs/delivery/release/records/v<version>-release-owner-receipt.json
+```
+
+`--current-authority-ref`, `--post-publish-follow-up-ref`, and
+`--post-publish-follow-up-state pending|completed|blocked` are explicit
+operator inputs. A later status update must not carry an old current-authority
+or follow-up ref as if it were fresh evidence unless the operator supplies it
+again for that run.
+
 Full build is the only Full lane that may run in parallel with Standard before
 Standard admission. Full publish, Full VM, and Full readiness must wait for the
 Standard gate so a broken Standard path fails fast before expensive add-on
@@ -315,6 +339,14 @@ verification, remote asset readback, `codesign` / `spctl`, clean install/VM
 readiness, candidate-record validation, or release-owner receipt. Attesting a
 diagnostic JSON or evidence bundle can help traceability, but it cannot make
 that bundle a release truth source.
+
+Release closeout reads `release-attestation-verification-<version>` when it is
+present, accepting `attestation-verification.json` or
+`attestation-verification-summary.json`. If that artifact is absent, closeout
+marks `artifact_attestation_verification.state=missing` and prints the
+`gh attestation verify` commands above. If a verification payload is present
+but its status is not passed/success/verified, closeout marks it `failed`
+instead of treating the file's existence as proof.
 
 ## Release Notes Runbook
 
@@ -515,8 +547,11 @@ is active, queued, or cannot be checked, the scheduled run exits from the
 GitHub-hosted preflight with a skip summary instead of competing with the
 release's standard, Full, or Homebrew VM gates.
 
-`run_timeout_ms` and `smoke_timeout_ms` are workflow inputs and are passed to
-`opl-first-run-tart-smoke.mjs` as `--timeout-ms` and `--smoke-timeout-ms`.
+`run_timeout_ms` and `smoke_timeout_ms` default to 60 minutes, are workflow
+inputs, and are passed to `opl-first-run-tart-smoke.mjs` as `--timeout-ms` and
+`--smoke-timeout-ms`. The GitHub Actions clean-VM job hard-stops at 75 minutes
+so diagnostics and small artifact upload still have room after the guest smoke
+budget expires.
 `codex_install_phase_timeout_ms` and `codex_readiness_phase_timeout_ms` are
 workflow inputs that default to `smoke_timeout_ms` and are passed through as
 `--codex-install-phase-timeout-ms` and
