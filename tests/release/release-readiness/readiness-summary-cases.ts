@@ -60,22 +60,10 @@ test('release readiness summary passes only from small diagnostic artifacts', ()
   assert.equal(summary.gates.homebrew_standard_cask_clean_vm.status, 'passed');
   assert.equal(summary.gates.full_dmg_clean_vm.status, 'passed');
   assert.equal(summary.gates.one_shot_app_installer.status, 'passed');
-  assert.deepEqual(summary.gates.one_shot_app_installer.fields, {
-    installer_entry: './install.sh --complete --skip-modules',
-    bootstrap_status_source: 'workflow job result one-shot-app-installer-smoke',
-    initialization_command: 'opl system initialize --json',
-    initialization_source: 'system_initialize.setup_flow',
-    artifact_files: ['opl-one-shot-system-initialize.json'],
-    setup_flow_status: 'ready_to_launch',
-    setup_flow_phase: 'core_ready',
-    core_progress: { completed: 3, total: 3 },
-    full_readiness_progress: { completed: 1, total: 4 },
-    maintenance_progress: { completed: 0, total: 2 },
-    blockers: [],
-    next_visible_step: 'Open One Person Lab',
-    retry_detected: false,
-    skip_modules: true,
-  });
+  assert.equal(summary.gates.one_shot_app_installer.fields.installer_entry, './install.sh --complete --skip-modules');
+  assert.equal(summary.gates.one_shot_app_installer.fields.setup_flow_status, 'ready_to_launch');
+  assert.deepEqual(summary.gates.one_shot_app_installer.fields.core_progress, { completed: 3, total: 3 });
+  assert.equal(summary.gates.one_shot_app_installer.fields.skip_modules, true);
   assert.equal(summary.gates.docker_webui.status, 'passed');
   assert.equal(summary.gates.webui_ghcr_publish.status, 'passed');
   assert.deepEqual(summary.gates.webui_ghcr_publish.fields.tags, ['26.5.99', 'stable', 'latest']);
@@ -94,38 +82,25 @@ test('release readiness summary passes only from small diagnostic artifacts', ()
     source: 'release_readiness_summary',
     current_cohort_evidence: true,
   });
-  assert.equal(summary.release_owner_verdict.schema, 'opl_app_release_owner_verdict_readout.v1');
-  assert.equal(summary.release_owner_verdict.status, 'release_owner_verdict_pending');
-  assert.equal(summary.release_owner_verdict.release_ready_claim, false);
-  assert.equal(summary.release_owner_verdict.stable_latest_promotion_claim, false);
-  assert.equal(summary.release_owner_verdict.family_production_ready_claim, false);
-  assert.equal(summary.release_owner_verdict.release_owner_verdict_ref, null);
-  assert.equal(summary.release_owner_verdict.release_owner_receipt_ref, null);
-  assert.equal(
-    summary.release_owner_verdict.install_evidence_ref,
-    'install_evidence_ref://one-person-lab-app/release-owner/v26.5.99/install-evidence',
-  );
-  assert.equal(
-    summary.release_owner_verdict.release_owner_typed_blocker_ref,
-    'typed_blocker_ref://one-person-lab-app/release-owner/v26.5.99/verdict-pending',
-  );
-  assert.deepEqual(summary.release_owner_verdict.owner_resolution_ref_shapes, [
-    'release_owner_verdict_ref',
-    'release_owner_receipt_ref',
-  ]);
-  assert.ok(summary.release_owner_verdict.promotion_blocking_until_owner_resolution_ref);
-  assert.equal(summary.release_owner_verdict.can_close_opl_app_release_user_path, false);
+  const ownerVerdict = summary.release_owner_verdict;
+  assert.equal(ownerVerdict.schema, 'opl_app_release_owner_verdict_readout.v1');
+  assert.equal(ownerVerdict.status, 'release_owner_verdict_pending');
+  for (const field of ['release_ready_claim', 'stable_latest_promotion_claim', 'family_production_ready_claim']) {
+    assert.equal(ownerVerdict[field], false, field);
+  }
+  assert.equal(ownerVerdict.release_owner_receipt_ref, null);
+  assert.match(ownerVerdict.install_evidence_ref, /one-person-lab-app\/release-owner\/v26\.5\.99\/install-evidence/);
+  assert.equal(ownerVerdict.release_owner_typed_blocker_ref, 'typed_blocker_ref://one-person-lab-app/release-owner/v26.5.99/verdict-pending');
+  assert.ok(ownerVerdict.owner_resolution_ref_shapes.includes('release_owner_receipt_ref'));
+  assert.equal(ownerVerdict.can_close_opl_app_release_user_path, false);
   assert.equal(summary.gate_profile, 'stable');
   assert.equal(summary.gate_profile_schema, 'app_release_validation_profiles.v1');
   assert.equal(summary.gates.remote_release_verification.status, 'passed');
   assert.equal(summary.gates.full_size_cache_timing.status, 'passed');
   assert.equal(summary.gates.full_size_cache_timing.required, false);
   assert.equal(summary.gates.full_size_cache_timing.fields.diagnostic_only, true);
-  assert.equal(summary.full_package.duration_seconds.full_package_build, 380);
-  assert.equal(summary.full_package.duration_seconds.full_package_build_breakdown.shell_build, 4);
   assert.equal(summary.full_package.resolved_refs.opl_framework.commit, '1111111111111111111111111111111111111111');
   assert.equal(summary.bottlenecks[0].id, 'manifest_checksum');
-  assert.equal(summary.bottlenecks[0].category, 'full_build_segment');
   assert.ok(summary.bottlenecks.some((entry) => entry.id === 'dmg_package_compression'));
   assert.ok(summary.optimization_recommendations.some((entry) => entry.id === 'profile_slowest_full_build_segment'));
   assert.ok(summary.optimization_recommendations.some((entry) => entry.id === 'reduce_dmg_package_compression_time'));

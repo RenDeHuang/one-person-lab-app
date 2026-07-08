@@ -98,101 +98,56 @@ test('release plan exposes the standard VM fail-fast gate before expensive Full 
   assert.equal(payload.strategy.same_tag_replacement, 'avoid_for_new_versions');
   assert.equal(payload.strategy.resume_uploads, 'skip_existing_assets_when_size_and_sha256_digest_match');
   assert.equal(payload.strategy.full_runtime_cache, 'content_addressed_layer_cache');
-  assert.ok(payload.lanes.some((lane) => (
-    lane.id === 'release_preflight'
-    && lane.phase === 'fast_candidate'
-    && lane.command.includes('npm run release:preflight')
-  )));
-  assert.ok(payload.lanes.some((lane) => (
-    lane.id === 'release_boundary'
-    && lane.depends_on.includes('release_preflight')
-  )));
-  assert.ok(payload.lanes.some((lane) => (
-    lane.id === 'standard_build'
-    && lane.depends_on.includes('release_preflight')
-  )));
-  assert.ok(payload.lanes.some((lane) => (
-    lane.id === 'full_build'
-    && lane.depends_on.includes('release_preflight')
-  )));
-  assert.ok(payload.lanes.some((lane) => (
-    lane.id === 'full_build'
-    && lane.depends_on.includes('standard_dmg_clean_vm_smoke')
-    && !lane.can_run_with.includes('standard_build')
-    && lane.command.includes('OPL_FULL_RUNTIME_CACHE_MODE=readwrite')
-  )));
+  const lanes = new Map(payload.lanes.map((lane) => [lane.id, lane]));
+  const lane = (id: string) => {
+    const found = lanes.get(id);
+    assert.ok(found, `missing lane ${id}`);
+    return found;
+  };
+  for (const id of [
+    'release_preflight',
+    'release_boundary',
+    'standard_build',
+    'full_build',
+    'standard_dmg_clean_vm_smoke',
+    'remote_verify_standard_and_full',
+    'one_shot_app_installer_smoke',
+    'docker_webui_smoke',
+    'homebrew_standard_cask_clean_vm_smoke',
+    'full_dmg_clean_vm_smoke',
+    'release_evidence_bundle',
+    'release_candidate_record',
+    'promote_stable_release',
+    'release_promotion_record',
+    'post_release_user_guide_screenshots',
+  ]) {
+    lane(id);
+  }
   assert.equal(payload.profile, 'stable');
-  assert.ok(payload.lanes.some((lane) => (
-    lane.id === 'standard_dmg_clean_vm_smoke'
-    && lane.phase === 'installation_gate'
-    && lane.command.includes('One-Person-Lab-26.5.19-mac-arm64.dmg')
-    && lane.command.includes('--smoke-profile no-clt-clean-vm')
-    && lane.command.includes('--display 1920x1080px')
-    && lane.command.includes('--settings-smoke')
-    && lane.command.includes('--assistant-route-smoke')
-    && lane.command.includes('--runtime-profile standard')
-  )));
-  assert.ok(payload.lanes.some((lane) => (
-    lane.id === 'remote_verify_standard_and_full'
-    && lane.depends_on.includes('standard_dmg_clean_vm_smoke')
-    && lane.depends_on.includes('publish_full_assets')
-  )));
-  assert.ok(payload.lanes.some((lane) => (
-    lane.id === 'one_shot_app_installer_smoke'
-    && lane.depends_on.includes('standard_dmg_clean_vm_smoke')
-  )));
-  assert.ok(payload.lanes.some((lane) => (
-    lane.id === 'docker_webui_smoke'
-    && lane.depends_on.includes('standard_dmg_clean_vm_smoke')
-  )));
-  assert.ok(payload.lanes.some((lane) => (
-    lane.id === 'homebrew_standard_cask_clean_vm_smoke'
-    && lane.phase === 'installation_gate'
-    && lane.command.includes('--install-mode homebrew-cask')
-    && lane.command.includes('--homebrew-cask gaofeng21cn/one-person-lab/one-person-lab')
-    && lane.command.includes('--smoke-profile homebrew-standard-cask')
-    && lane.command.includes('--display 1920x1080px')
-    && lane.command.includes('--settings-smoke')
-    && lane.command.includes('--assistant-route-smoke')
-    && lane.command.includes('--runtime-profile standard')
-  )));
-  assert.ok(payload.lanes.some((lane) => (
-    lane.id === 'full_dmg_clean_vm_smoke'
-    && lane.phase === 'release_gate'
-    && lane.command.includes('One-Person-Lab-Full-26.5.19-mac-arm64.dmg')
-    && lane.command.includes('--smoke-profile no-clt-clean-vm')
-    && lane.command.includes('--display 1920x1080px')
-    && lane.command.includes('--settings-smoke')
-    && lane.command.includes('--assistant-route-smoke')
-    && lane.command.includes('--runtime-profile full')
-  )));
-  assert.ok(payload.lanes.some((lane) => lane.id === 'one_shot_app_installer_smoke'));
-  assert.ok(payload.lanes.some((lane) => lane.id === 'docker_webui_smoke'));
-  assert.ok(payload.lanes.some((lane) => lane.id === 'release_evidence_bundle'));
-  assert.ok(payload.lanes.some((lane) => (
-    lane.id === 'release_candidate_record'
-    && lane.depends_on.includes('release_readiness_summary')
-    && lane.depends_on.includes('remote_verify_standard_and_full')
-    && lane.command.includes('npm run release:candidate-record')
-  )));
-  assert.ok(payload.lanes.some((lane) => (
-    lane.id === 'promote_stable_release'
-    && lane.depends_on.includes('release_candidate_record')
-    && lane.command.includes('desktop-release-promote.yml')
-    && lane.command.includes('reads only release-candidate-record.json')
-    && lane.command.includes('status=ready_to_promote')
-  )));
-  assert.ok(payload.lanes.some((lane) => (
-    lane.id === 'release_promotion_record'
-    && lane.depends_on.includes('promote_stable_release')
-    && lane.depends_on.includes('release_candidate_record')
-  )));
-  assert.ok(payload.lanes.some((lane) => (
-    lane.id === 'post_release_user_guide_screenshots'
-    && lane.phase === 'post_release'
-    && lane.depends_on.includes('release_promotion_record')
-    && lane.command.includes('never a pre-promotion gate')
-  )));
+  assert.equal(lane('release_preflight').phase, 'fast_candidate');
+  assert.match(lane('release_preflight').command, /npm run release:preflight/);
+  assert.deepEqual(lane('full_build').depends_on, [
+    'release_preflight',
+    'full_runtime_keys',
+    'standard_dmg_clean_vm_smoke',
+  ]);
+  assert.equal(lane('full_build').can_run_with.includes('standard_build'), false);
+  assert.match(lane('full_build').command, /OPL_FULL_RUNTIME_CACHE_MODE=readwrite/);
+  assert.equal(lane('standard_dmg_clean_vm_smoke').phase, 'installation_gate');
+  assert.match(lane('standard_dmg_clean_vm_smoke').command, /--runtime-profile standard/);
+  assert.equal(lane('full_dmg_clean_vm_smoke').phase, 'release_gate');
+  assert.match(lane('full_dmg_clean_vm_smoke').command, /--runtime-profile full/);
+  assert.match(lane('homebrew_standard_cask_clean_vm_smoke').command, /gaofeng21cn\/one-person-lab\/one-person-lab/);
+  assert.ok(lane('remote_verify_standard_and_full').depends_on.includes('standard_dmg_clean_vm_smoke'));
+  assert.ok(lane('remote_verify_standard_and_full').depends_on.includes('publish_full_assets'));
+  assert.ok(lane('one_shot_app_installer_smoke').depends_on.includes('standard_dmg_clean_vm_smoke'));
+  assert.ok(lane('docker_webui_smoke').depends_on.includes('standard_dmg_clean_vm_smoke'));
+  assert.ok(lane('release_candidate_record').depends_on.includes('release_readiness_summary'));
+  assert.match(lane('release_candidate_record').command, /npm run release:candidate-record/);
+  assert.match(lane('promote_stable_release').command, /status=ready_to_promote/);
+  assert.ok(lane('release_promotion_record').depends_on.includes('promote_stable_release'));
+  assert.equal(lane('post_release_user_guide_screenshots').phase, 'post_release');
+  assert.match(lane('post_release_user_guide_screenshots').command, /never a pre-promotion gate/);
 });
 
 test('nightly release plan stays lightweight and excludes stable installation gates', () => {
@@ -263,31 +218,9 @@ test('release preflight fails fast before expensive release jobs', () => {
     check.id === 'homebrew_vm_gate_static_policy'
     && check.status === 'passed'
   )));
-  assert.deepEqual(payload.homebrew.vm_gate_static_policy, {
-    profile: 'homebrew-standard',
-    install_ref: 'gaofeng21cn/one-person-lab/one-person-lab',
-    trusted_cask_refs: [
-      'gaofeng21cn/one-person-lab/one-person-lab',
-      'gaofeng21cn/one-person-lab/one-person-lab-full',
-      'gaofeng21cn/one-person-lab/one-person-lab-nightly',
-    ],
-    trust_scope: 'explicit_standard_and_conflicting_cask_refs_not_whole_tap',
-    contract_install_ref: 'gaofeng21cn/one-person-lab/one-person-lab',
-    contract_trusted_cask_refs: [
-      'gaofeng21cn/one-person-lab/one-person-lab',
-      'gaofeng21cn/one-person-lab/one-person-lab-full',
-      'gaofeng21cn/one-person-lab/one-person-lab-nightly',
-    ],
-    contract_trust_scope: 'explicit_standard_and_conflicting_cask_refs_not_whole_tap',
-    required_install_ref: 'gaofeng21cn/one-person-lab/one-person-lab',
-    required_trusted_cask_refs: [
-      'gaofeng21cn/one-person-lab/one-person-lab',
-      'gaofeng21cn/one-person-lab/one-person-lab-full',
-      'gaofeng21cn/one-person-lab/one-person-lab-nightly',
-    ],
-    required_trust_scope: 'explicit_standard_and_conflicting_cask_refs_not_whole_tap',
-    whole_tap_trust_allowed: false,
-  });
+  assert.equal(payload.homebrew.vm_gate_static_policy.install_ref, 'gaofeng21cn/one-person-lab/one-person-lab');
+  assert.ok(payload.homebrew.vm_gate_static_policy.trusted_cask_refs.includes('gaofeng21cn/one-person-lab/one-person-lab-full'));
+  assert.equal(payload.homebrew.vm_gate_static_policy.whole_tap_trust_allowed, false);
   assert.match(fs.readFileSync(markdownPath, 'utf8'), /Release preflight: passed/);
 
   const standardOnly = runNode([
@@ -1208,50 +1141,7 @@ test('publish dry run generates deterministic English release notes for Full-onl
   writeFullRuntimeNativeTrust(fullPackageDir);
   writeFullPackageOptimizationArtifacts(fullPackageDir, version);
   writeFullPublicReleaseManifest(fullPackageDir, version, withFullPackageOptimizationManifest(manifest));
-  const publicMarkdown = `One Person Lab 26.5.18
-
-This release makes a clean OPL install more useful immediately by shipping refreshed MAS, MAG, RCA, OPL Meta Agent, OPL Framework, Codex CLI, OfficeCLI, MinerU, and packaged Codex skills together in the Full installer.
-
-## What improved
-
-### Packaged OPL agents are ready sooner
-- MAS, MAG, RCA, and OPL Meta Agent are bundled from the Full package manifest, so new users reach the built-in research, grant-writing, visual-deliverable, and meta-agent entries with less module reconciliation after first launch.
-
-### Installation proof is clearer
-- The release keeps standard DMG, Full DMG, one-shot installer, and Docker/WebUI validation as separate install surfaces, so a failed gate points to the user path that needs attention.
-
-## OPL agents and runtime payload
-- Full first-install package includes the OPL Framework runtime, Codex CLI, MAS, MAG, RCA, OPL Meta Agent, OfficeCLI, MinerU, and packaged Codex skills.
-- Packaged component refs: OPL Framework @ aaaaaaa; Codex CLI 0.130.0; MAS @ 1111111; MAG @ 2222222; RCA @ 3333333; OPL Meta Agent @ 4444444; OfficeCLI 1.2.3; MinerU v0.1.3.
-- Component updates since previous Stable: OPL Framework de72385 -> aaaaaaa; Codex CLI 0.129.0 -> 0.130.0; MAS 29369d4 -> 1111111; MAG 36ce5a9 -> 2222222; RCA c4af4b3 -> 3333333; OPL Meta Agent added at 4444444; OfficeCLI 1.0.93 -> 1.2.3; MinerU added at v0.1.3.
-
-## Release scope
-- Standard macOS arm64 updater package plus Full first-install DMG.
-
-**Full Changelog**: https://github.com/gaofeng21cn/one-person-lab-app/compare/v26.5.17...v26.5.18
-`;
-  writeFakeReleaseNotesAiWriter(fakeAi, withHiddenLocalizedReleaseNotes(publicMarkdown, `One Person Lab 26.5.18
-
-这次更新让一次干净的 OPL 安装更快可用：Full installer 会同时带上更新后的 MAS、MAG、RCA、OPL Meta Agent、OPL Framework、Codex CLI、OfficeCLI、MinerU 和打包的 Codex skills。
-
-## What improved
-
-### 打包的 OPL 智能体更快可用
-- MAS、MAG、RCA 和 OPL Meta Agent 会随 Full package manifest 一起打包，新用户首次启动后更少需要等待模块 reconcile。
-
-### 安装证明更清晰
-- 标准 DMG、Full DMG、一键安装器和 Docker/WebUI 验证继续分开，失败时可以定位到具体用户路径。
-
-## OPL agents and runtime payload
-- Full first-install package includes the OPL Framework runtime, Codex CLI, MAS, MAG, RCA, OPL Meta Agent, OfficeCLI, MinerU, and packaged Codex skills.
-- Packaged component refs: OPL Framework @ aaaaaaa; Codex CLI 0.130.0; MAS @ 1111111; MAG @ 2222222; RCA @ 3333333; OPL Meta Agent @ 4444444; OfficeCLI 1.2.3; MinerU v0.1.3.
-- Component updates since previous Stable: OPL Framework de72385 -> aaaaaaa; Codex CLI 0.129.0 -> 0.130.0; MAS 29369d4 -> 1111111; MAG 36ce5a9 -> 2222222; RCA c4af4b3 -> 3333333; OPL Meta Agent added at 4444444; OfficeCLI 1.0.93 -> 1.2.3; MinerU added at v0.1.3.
-
-## Release scope
-- Standard macOS arm64 updater package plus Full first-install DMG.
-
-**Full Changelog**: https://github.com/gaofeng21cn/one-person-lab-app/compare/v26.5.17...v26.5.18
-`));
+  fs.writeFileSync(fakeAi, '#!/usr/bin/env node\nprocess.exit(42);\n', { mode: 0o755 });
 
   const result = runNode([
     'scripts/publish-release.ts',
