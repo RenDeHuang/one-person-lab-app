@@ -59,20 +59,43 @@ The default surface gives conclusions and next actions. Raw paths, ids,
 receipts, component ids, JSON payloads, operation modes, and implementation
 diagnostics remain behind disclosure controls or Advanced pages.
 
+## IA Principles
+
+Settings IA is organized by the user's question first, then by scope and risk:
+
+- user question: what the user is trying to decide or do;
+- scope: whether the setting affects access, files, packages, resources,
+  maintenance, storage, or personal preference;
+- risk: read-only fact, safe configuration, state-changing maintenance,
+  destructive cleanup, or technical diagnostics.
+
+The ordinary layer shows only user-comprehensible state, facts, and next steps.
+Engineering details such as raw enums, manifests, hashes, payloads, refs,
+component ids, dry-run mechanics, root paths, CLI command shapes, and Docker or
+provider internals are collapsed by default. They can appear only in an
+explicit details disclosure, an Advanced route, or an abnormal state where the
+detail directly explains what action is safe.
+
+The 2026-07-08 Settings redesign board is the local design reference for this
+IA. The current board showed the main regressions to avoid: mixed Chinese and
+English navigation, implementation labels as first-screen nouns, empty next-step
+cards, maintenance content squeezed into narrow vertical columns, and long raw
+topic lists where the user needed grouped decisions instead.
+
 ## Information Architecture
 
 The target navigation groups are:
 
-| Group                 | Pages                                     | Primary user question                                             |
-| --------------------- | ----------------------------------------- | ----------------------------------------------------------------- |
-| Overview              | Overview                                  | Is the App usable now, and what should I do next?                 |
-| Access                | OPL Gateway, Codex CLI, local remote access | How do I connect the App and this computer?                       |
-| Capabilities          | Capabilities                              | What can OPL help me do?                                          |
-| Resources & Connections | Docker WebUI, OPL Workspace, SSH/HPC, Fabric, Console refs | Which local, remote, hosted, or managed resources can my tasks use? |
-| Maintenance & Updates | Updates & Maintenance, Local Services     | How do I keep the App foundation healthy and updated?             |
-| Data & Storage        | Storage & Data                            | How do I safely manage local App data?                            |
-| Preferences           | Appearance, Language & Notifications      | How should the App behave and look for me?                        |
-| Advanced              | Secondary: Developer & Diagnostics, About | Where are technical details, raw references, versions, and links? |
+| Group | Ordinary page | Primary user question |
+| --- | --- | --- |
+| Overview | 概览 | Is the App usable now, and what should I do next? |
+| Access | 访问方式 | How do I connect model access, Codex CLI, and browser access to this computer? |
+| Workspace | 工作目录 | Where are my files, and can the App write there? |
+| Capabilities | 智能体与能力 | Which installed OPL packages can I use, expose on Home, update, or repair? |
+| Resources & Connections | 资源与连接 | Which local, remote, hosted, or managed resources can my tasks use? |
+| Maintenance & Updates | 维护 | How do I keep the App foundation healthy and updated? |
+| Data & Storage | 存储 | How do I safely review and clean local App data? |
+| Preferences | 偏好 | How should the App behave and look for me? |
 
 Legacy routes such as `runtime`, `model`, `agent`, `assistants`, `skills-hub`,
 `tools`, `display`, `webui`, `pet`, and `system` remain compatibility redirects.
@@ -94,7 +117,24 @@ route ids:
   Resources & Connections, Maintenance & Updates, Data & Storage, and
   Preferences.
 
+The ordinary navigation labels should be localized and product-owned. English
+labels such as `Resources & Connections`, route ids such as `environment`, or
+raw enum names are implementation identifiers, not ordinary navigation copy.
+
 ## Page Contracts
+
+The eight ordinary Settings pages have these acceptance goals:
+
+| Page | Goal | Default content | Hidden by default |
+| --- | --- | --- | --- |
+| 概览 | Give a one-screen App usability summary and the next useful action. | Overall state, attention list, compact entries to the seven setup/management areas, and one primary action. | Raw readiness booleans, command names, receipt ids, refs, hashes, and root paths. |
+| 访问方式 | Explain how the App connects to model access, Codex CLI, and browser access to this computer. | OPL Gateway/API-key state, Codex CLI status and default model, local remote-access endpoint and account controls. | Provider internals, dry-run commands, raw payloads, token paths, Docker deployment detail, and base-url plumbing unless expanded. |
+| 工作目录 | Answer where user files and work products live and whether the App can write there. | Current workspace folder, existence/writability, product storage meaning, open/change/verify actions, and permission repair. | Root checkout paths, logs, module paths, maintenance folders, manifests, and diagnostics unless troubleshooting is expanded. |
+| 智能体与能力 | Show installed capability packages as usable packages, not as internal modules. | Package directory rows, Home shortcut controls, package status axes, tags, and one recommended action per row. | Manifest refs, package hashes, `physical_surface`, workflow refs, connector refs, receipt refs, raw git facts, and long required-skill/tool lists. |
+| 资源与连接 | Group the resources tasks may use without turning them into access settings. | Docker WebUI, OPL Workspace, SSH/HPC, Fabric refs, Environment Catalog refs, Console-managed refs, state, and next action. | Raw resource refs, connector bodies, credentials, billing internals, policy payloads, and empty next-step cards. |
+| 维护 | Keep the App foundation healthy with grouped, component-specific actions. | Four user buckets: App update, runtime environment, capability packages and Codex Surface sync, local services and repair. | Four-column narrow vertical layouts, task-progress monitoring, dry-run/payload details, module ids, receipts, and rollback refs unless expanded. |
+| 存储 | Let users review data size and cleanup safety before any destructive action. | Size summary, cleanup categories, safety classification, preview/open/clean actions, and receipt-backed confirmation. | Raw lifecycle refs, research body paths, SQLite sidecars, generic root paths, dry-run internals, and cleanup authority beyond App-owned data. |
+| 偏好 | Let users tune personal behavior and appearance without exposing diagnostics. | Language, theme, notifications, startup/tray, upload/Office preview, timeout, density, typography, sidebar, motion, and hardware acceleration. | Long theme catalogs, raw enum values, config files, implementation feature flags, and Advanced diagnostics. |
 
 ## Shared Protocols
 
@@ -423,6 +463,32 @@ This assessment maps to the current shell surface in
 `shells/aionui/packages/desktop/src/renderer/pages/settings/sections/RuntimeSettings.tsx`
 and its panel components in
 `shells/aionui/packages/desktop/src/renderer/pages/settings/sections/RuntimeSettingsPanels.tsx`.
+
+### Anti-Patterns From The 2026-07-08 Board Review
+
+The following regressions must be rejected in active-shell review for ordinary
+Settings pages:
+
+- English ordinary navigation mixed into the Chinese App surface.
+- Raw enum values, route ids, component ids, manifests, refs, hashes, or
+  `physical_surface` shown as default content.
+- Docker, dry-run, payload, provider, CLI, or mutation mechanics exposed before
+  the user asks for technical detail.
+- Empty "next step" or "open" cards that do not state a decision, action,
+  owner, or reason.
+- Maintenance laid out as four narrow vertical columns instead of four readable
+  user buckets with component-specific actions.
+- Long theme, tool, skill, topic, or resource lists used as the primary model
+  when the user needs grouped status and recommendations.
+- Root checkout paths, token paths, logs, module paths, and generated artifact
+  roots shown by default instead of product-level folder meaning.
+- Rollback refs, receipt refs, manifest refs, hashes, or package provenance
+  presented as ordinary readiness/currentness proof.
+
+Acceptance for this document is local product-design and active-shell UX review
+only. It records the design target and the local workspace review vocabulary;
+it does not claim formal release readiness, installed/running currentness,
+runtime owner acceptance, notarization, or packaged App readiness.
 
 ### Storage & Data
 
