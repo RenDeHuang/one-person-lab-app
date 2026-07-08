@@ -778,6 +778,27 @@ Fixed intake checklist:
 5. Keep runtime truth, domain truth, provider implementation, owner receipts,
    and release readiness outside the shell adapter.
 
+## Capabilities Action Rules
+
+The Capabilities page must keep package lifecycle actions separate from local
+developer checkout maintenance:
+
+- Display names come from App-owned product/profile contracts. The BookForge
+  user-facing name is `OPL Book Forge`; `opl-bookforge` remains the machine id,
+  Codex-visible entry, plugin id, and required skill id.
+- `recommended_action: update` on a `git_checkout` / `developer_mode` module
+  means the local source checkout is behind or dirty. The ordinary row should
+  show developer-source status and route the primary action to Maintenance,
+  not expose it as an OPL Package update.
+- `agent_package_update` is only for package lifecycle updates. When the UI
+  invokes it, the payload must include either `manifest_url` or
+  `registry_url + package_id` from Framework/App state readback. The UI must
+  not invent a registry or manifest URL from static starter metadata.
+- Repair, uninstall, and package update buttons stay disabled for developer
+  checkout rows. Home shortcut visibility/order can still use
+  `agent_package_preferences_set` because it changes App exposure preference,
+  not package source.
+
 ## Verification Expectations
 
 Structural landing requires:

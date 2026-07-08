@@ -1488,7 +1488,7 @@
     },
     {
       "package_id": "opl-bookforge",
-      "display_name": "OPL BookForge",
+      "display_name": "OPL Book Forge",
       "short_name": "OBF",
       "role": "book_authoring_agent",
       "package_kind": "starter_professional_agent_package",
@@ -1549,7 +1549,7 @@
     },
     {
       "id": "opl-bookforge",
-      "display_name": "OPL BookForge",
+      "display_name": "OPL Book Forge",
       "short_name": "OBF",
       "home_purpose_label": "写书",
       "home_entry_display_policy": "purpose_first",

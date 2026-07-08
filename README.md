@@ -213,7 +213,7 @@ The App decides what users see during install, first launch, task entry, and set
 
 The OPL App workbench spans three entry points: the local desktop App, Docker/WebUI in a browser, and hosted OPL Workspace. Docker/WebUI is not a second product; it is the browser runtime form of the same App experience. OPL Workspace is the hosted product form of that WebUI, with account, storage, and resource policy attached. All three share the same task, artifact, progress, and receipt language.
 
-OPL BookForge is admitted into the App-owned default Home and Codex-visible skill surface through product contracts and active-shell validation. That default visibility supports the user entry point; it does not authorize production-ready book-writing, publication approval, owner acceptance, or hosted runtime parity claims.
+OPL Book Forge is admitted into the App-owned default Home and Codex-visible skill surface through product contracts and active-shell validation. That default visibility supports the user entry point; it does not authorize production-ready book-writing, publication approval, owner acceptance, or hosted runtime parity claims.
 
 GUI product truth is App-owned as well. The current GUI mainline is the OPL-branded AionUI shell. Native Workbench is the developer backup and foreground candidate; Hermes Desktop is retained as a prior-candidate reference. `agui-codex`, PilotDeck, and similar references are archived technical verification or inspiration material; they are not routine implementation, validation, or polish lanes. The user-facing interface, default behavior, and release experience are governed by this App repository's product docs, contracts, and validation.
 

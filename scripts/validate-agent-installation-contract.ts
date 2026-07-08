@@ -506,7 +506,7 @@ function validateRegistryPolicyShape(contract: any): void {
     policy_surface: 'Settings Capabilities registry discovery, manifest URL install entry, and package receipt display',
     default_registry_ref: 'contracts/agent-package-registry.json',
     default_registry_source_kind: 'default_opl_registry',
-    default_registry_url: 'https://raw.githubusercontent.com/gaofeng21cn/opl-agent-registry/main/registry.json',
+    default_registry_url: 'https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/contracts/agent-package-registry.json',
     manifest_schema_ref: 'contracts/agent-package-surfaces.schema.json#/$defs/agent_package_manifest',
     home_shortcut_schema_ref: 'contracts/agent-package-surfaces.schema.json#/$defs/home_shortcut_metadata',
     invocation_receipt_schema_ref: 'contracts/agent-package-surfaces.schema.json#/$defs/invocation_receipt',

@@ -211,12 +211,12 @@ export function copyOplBookforgeSkill(targetRoot, options) {
         { encoding: 'utf8' },
       );
       if (generatedResult.status !== 0) {
-        throw new Error(`Failed to generate OPL BookForge skill surface: ${generatedResult.stderr || generatedResult.stdout}`);
+        throw new Error(`Failed to generate OPL Book Forge skill surface: ${generatedResult.stderr || generatedResult.stdout}`);
       }
       const result = JSON.parse(generatedResult.stdout);
       const generatedSkillPath = result?.installer_result?.generated_codex_plugin?.skill_entry_path;
       if (!generatedSkillPath || !fs.existsSync(generatedSkillPath)) {
-        throw new Error(`OPL BookForge generated skill surface not found: ${generatedSkillPath ?? 'missing skill_entry_path'}`);
+        throw new Error(`OPL Book Forge generated skill surface not found: ${generatedSkillPath ?? 'missing skill_entry_path'}`);
       }
       copySkillDirectory(path.dirname(generatedSkillPath), path.join(targetRoot, 'opl-bookforge'), 'opl-bookforge');
       return generated.sourcePath;

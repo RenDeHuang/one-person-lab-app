@@ -163,7 +163,7 @@
     },
     {
       "domain_id": "opl-bookforge",
-      "display_name": "OPL BookForge",
+      "display_name": "OPL Book Forge",
       "home_purpose_entry": "book",
       "default_home_visible": true,
       "codex_visible_entry": "opl-bookforge",
@@ -892,7 +892,7 @@
       "policy_surface": "Settings Capabilities registry discovery, manifest URL install entry, and package receipt display",
       "default_registry_ref": "contracts/agent-package-registry.json",
       "default_registry_source_kind": "default_opl_registry",
-      "default_registry_url": "https://raw.githubusercontent.com/gaofeng21cn/opl-agent-registry/main/registry.json",
+      "default_registry_url": "https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/contracts/agent-package-registry.json",
       "manifest_schema_ref": "contracts/agent-package-surfaces.schema.json#/$defs/agent_package_manifest",
       "home_shortcut_schema_ref": "contracts/agent-package-surfaces.schema.json#/$defs/home_shortcut_metadata",
       "invocation_receipt_schema_ref": "contracts/agent-package-surfaces.schema.json#/$defs/invocation_receipt",
@@ -1187,7 +1187,7 @@
       },
       {
         "agent_id": "opl-bookforge",
-        "display_name": "OPL BookForge",
+        "display_name": "OPL Book Forge",
         "default_home_visible": true,
         "preferred_distribution": "opl_generated_codex_plugin_surface",
         "codex_visible_entry": "opl-bookforge",

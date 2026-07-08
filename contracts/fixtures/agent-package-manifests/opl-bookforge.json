@@ -1,7 +1,7 @@
 {
   "package_id": "opl-bookforge",
   "agent_id": "opl-bookforge",
-  "display_name": "OPL BookForge",
+  "display_name": "OPL Book Forge",
   "publisher": "one-person-lab",
   "version": "0.1.0",
   "source": "first_party",

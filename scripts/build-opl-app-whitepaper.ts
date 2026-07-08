@@ -46,7 +46,7 @@ buildOplWhitepaper({
     'Med Auto Science',
     'Med Auto Grant',
     'RedCube AI',
-    'OPL BookForge',
+    'OPL Book Forge',
     'OPL Meta Agent',
     '为什么用户可以相信 OPL App 专业',
     '本文边界',

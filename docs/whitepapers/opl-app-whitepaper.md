@@ -61,7 +61,7 @@ OPL App 的第一件事，是把入口统一起来。用户面对的不是一排
 - 书稿：围绕大纲、章节、风格、修订和出版交接工作。
 - 智能体构建：围绕新 agent 的蓝图、能力、测试、运行边界和改进工作。
 
-这些入口背后可以分别对应 MAS、MAG、RCA、OPL BookForge、OPL Meta Agent 等 Foundry Agents。普通用户不需要先记住缩写。用户先选择自己要完成什么成果，OPL App 再把任务路由到对应专业能力和工作线。
+这些入口背后可以分别对应 MAS、MAG、RCA、OPL Book Forge、OPL Meta Agent 等 Foundry Agents。普通用户不需要先记住缩写。用户先选择自己要完成什么成果，OPL App 再把任务路由到对应专业能力和工作线。
 
 这也是 OPL App 与通用 agent dashboard 的区别。通用 dashboard 常常把 agent、model、tool、permission、backend、provider 都暴露给用户。OPL App 先把这些收敛成工作目的，让用户从“我要做什么”开始，而不是从“我要选哪个后端”开始。
 
@@ -75,7 +75,7 @@ Med Auto Grant 面向基金工作。用户看到的是基金方向、申请书�
 
 RedCube AI 面向演示和视觉交付。用户看到的是汇报、PPT、图表、故事线、视觉风格和导出包。背后需要 RCA 保留视觉交付质量、渲染、审阅和导出边界。
 
-OPL BookForge 面向书稿和长文档。用户看到的是大纲、章节、风格、修订、图表和出版交接。背后需要 BookForge 保留书稿结构、素材组织和出版交接边界。
+OPL Book Forge 面向书稿和长文档。用户看到的是大纲、章节、风格、修订、图表和出版交接。背后需要 BookForge 保留书稿结构、素材组织和出版交接边界。
 
 OPL Meta Agent 面向智能体构建和机制改进。用户看到的是“我要做一个能稳定完成某类工作的 agent”。背后需要 OMA 把目标、能力、测试、运行边界和可接力改进组织起来。
 
