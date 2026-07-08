@@ -1380,38 +1380,3 @@ test('Full-only release publish uses deterministic notes and does not call the A
   assert.equal(evidence.payload.include_full_package, true);
   assert.ok(evidence.payload.bundled_refs.some((line) => line.includes('MAS @ 1111111')));
 });
-
-test('existing same-tag standard plus Full publish uses deterministic full release notes body', () => {
-  const source = fs.readFileSync(path.join(appRoot, 'scripts', 'publish-release.ts'), 'utf8');
-  const fullWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'full-first-install-release.yml'), 'utf8');
-
-  assert.match(source, /else if \(options\.includeFullPackage && options\.fullPackageOnly\)/);
-  assert.match(source, /replaceReleaseNotes\(options\.releaseRepo, tag, releaseNotes\)/);
-  assert.match(source, /buildAiReleaseNotesDocument\(evidence\)/);
-  assert.match(source, /OPL_RELEASE_NOTES_EVIDENCE_OUTPUT/);
-  assert.match(source, /process\.env\.OPL_RELEASE_NOTES_MODE \|\| 'ai'/);
-  assert.match(source, /if \(mode === 'template'\)/);
-  assert.match(
-    source,
-    /else if \(options\.includeFullPackage\) {\s*replaceReleaseNotes\(options\.releaseRepo, tag, releaseNotes\);/
-  );
-  assert.doesNotMatch(source, /Bundled OPL runtime and agent versions/);
-  assert.doesNotMatch(source, /buildBundledModuleNotes/);
-  assert.match(source, /const required = \[fullDmgName, 'opl-release-manifest\.json'\]/);
-  assert.match(source, /readJsonFile\(releaseManifestPath\)\.manifest \?\? null/);
-  assert.doesNotMatch(fullWorkflow, /models: read/);
-  assert.match(fullWorkflow, /Verify release upload plan[\s\S]*OPL_RELEASE_NOTES_MODE: template/);
-  assert.match(fullWorkflow, /Prepare Full release notes[\s\S]*OPL_RELEASE_NOTES_MODE: ai/);
-  assert.match(fullWorkflow, /Prepare Full release notes[\s\S]*OPL_RELEASE_NOTES_PROVIDER: openai_compatible/);
-  assert.match(fullWorkflow, /Prepare Full release notes[\s\S]*OPL_RELEASE_NOTES_CODEX_BASE_URL: \$\{\{ vars\.OPL_RELEASE_NOTES_CODEX_BASE_URL \|\| 'https:\/\/gflabtoken\.cn\/v1' \}\}/);
-  assert.match(fullWorkflow, /Prepare Full release notes[\s\S]*OPL_RELEASE_NOTES_MODEL: \$\{\{ vars\.OPL_RELEASE_NOTES_MODEL \|\| 'gpt-5\.4-mini' \}\}/);
-  assert.match(fullWorkflow, /Prepare Full release notes[\s\S]*npm run release:notes:probe-ai/);
-  assert.doesNotMatch(fullWorkflow, /Prepare Full release notes[\s\S]*--input "\$RUNNER_TEMP\/full-release-notes-template\.md"/);
-  assert.match(fullWorkflow, /Upload prepared Full release notes for publish[\s\S]*OPL_RELEASE_NOTES_FILE: \$\{\{ runner\.temp \}\}\/full-release-notes\.md/);
-  assert.match(fullWorkflow, /Download prepared Full release notes[\s\S]*name: prepared-full-release-notes-\$\{\{ inputs\.opl_version \}\}/);
-  assert.match(fullWorkflow, /Publish GitHub Release assets[\s\S]*OPL_RELEASE_NOTES_FILE: \$\{\{ github\.workspace \}\}\/prepared-full-release-notes\/full-release-notes\.md/);
-  assert.match(fullWorkflow, /Publish GitHub Release assets[\s\S]*--release-notes-file "\$OPL_RELEASE_NOTES_FILE"/);
-  assert.doesNotMatch(fullWorkflow, /Publish GitHub Release assets[\s\S]*release-notes-ai-writer\.ts --probe-openai-compatible/);
-  assert.match(fullWorkflow, /readJson\('full-package-manifest\.json'\)/);
-  assert.match(fullWorkflow, /fs\.writeFileSync\(path\.join\(outDir, 'opl-release-manifest\.json'\)/);
-});

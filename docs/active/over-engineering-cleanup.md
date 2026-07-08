@@ -111,6 +111,12 @@ Last updated: 2026-07-08
 - Removed duplicated Full runtime packaging source-regex assertions from `tests/release/app-release-boundary-cases/full-first-install-cache-and-acceleration.ts`; the cache test keeps cache key, support files, gate reuse, compression, and release-acceleration assertions, while Full runtime packaging assertions stay in `tests/release/app-release-boundary-cases/full-first-install-runtime.ts`.
 - Verification required for this slice: focused Node test for the two touched case files, `npm run validate:release-boundary`, and `git diff --check`.
 
+### 2026-07-08 release notes source-regex shadow cleanup
+
+- Removed the release-boundary test that only regex-locked `scripts/publish-release.ts` and `.github/workflows/full-first-install-release.yml` source text for Full release notes.
+- Why safe: the same case file keeps behavior coverage for template, AI, prepared-file, same-tag, Full-only, and evidence-output release notes paths; workflow/source text remains owned by the release scripts and release-boundary validator.
+- Verification required for this slice: focused Node test for `tests/release/app-release-boundary-cases/release-plan-and-publishing.ts`, `npm run validate:release-boundary`, and `git diff --check`.
+
 ## No-Safe-Semantic-Split Boundaries
 
 The following cleanup classes must not be landed as broad mechanical refactors without a focused semantic split and matching verification:
