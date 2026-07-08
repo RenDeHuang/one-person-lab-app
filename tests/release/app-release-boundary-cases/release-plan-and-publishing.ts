@@ -1517,7 +1517,9 @@ test('existing same-tag standard plus Full publish uses deterministic full relea
   assert.match(fullWorkflow, /Prepare Full release notes[\s\S]*OPL_RELEASE_NOTES_MODEL: \$\{\{ vars\.OPL_RELEASE_NOTES_MODEL \|\| 'gpt-5\.4-mini' \}\}/);
   assert.match(fullWorkflow, /Prepare Full release notes[\s\S]*npm run release:notes:probe-ai/);
   assert.doesNotMatch(fullWorkflow, /Prepare Full release notes[\s\S]*--input "\$RUNNER_TEMP\/full-release-notes-template\.md"/);
-  assert.match(fullWorkflow, /Publish GitHub Release assets[\s\S]*OPL_RELEASE_NOTES_FILE: \$\{\{ runner\.temp \}\}\/full-release-notes\.md/);
+  assert.match(fullWorkflow, /Upload prepared Full release notes for publish[\s\S]*OPL_RELEASE_NOTES_FILE: \$\{\{ runner\.temp \}\}\/full-release-notes\.md/);
+  assert.match(fullWorkflow, /Download prepared Full release notes[\s\S]*name: prepared-full-release-notes-\$\{\{ inputs\.opl_version \}\}/);
+  assert.match(fullWorkflow, /Publish GitHub Release assets[\s\S]*OPL_RELEASE_NOTES_FILE: \$\{\{ github\.workspace \}\}\/prepared-full-release-notes\/full-release-notes\.md/);
   assert.match(fullWorkflow, /Publish GitHub Release assets[\s\S]*--release-notes-file "\$OPL_RELEASE_NOTES_FILE"/);
   assert.doesNotMatch(fullWorkflow, /Publish GitHub Release assets[\s\S]*release-notes-ai-writer\.ts --probe-openai-compatible/);
   assert.match(fullWorkflow, /readJson\('full-package-manifest\.json'\)/);

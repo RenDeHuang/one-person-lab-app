@@ -400,7 +400,7 @@ test('Full first-install workflow caches npm, uv, Go, and Bun work and writes an
   assert.doesNotMatch(diagnosticsStep, /full-gatekeeper-launch-policy\.json/, 'Full diagnostics artifact must not require release-only Gatekeeper evidence');
   assertMatches(localAuthorizationStep, /if:\s+\$\{\{ inputs\.publish_to_release \|\| inputs\.upload_full_package_artifact \}\}[\s\S]*full-local-authorization-policy\.json/, 'Full local authorization policy is uploaded for Stable assets');
   assertMatches(workflow, /upload_full_package_artifact:[\s\S]*default:\s+true/, 'Full package artifact upload defaults on for release-call consumers');
-  assertMatches(workflow, /Upload Full package workflow artifact[\s\S]*if:\s+\$\{\{ inputs\.upload_full_package_artifact \}\}/, 'large Full package artifact is explicitly gated');
+  assertMatches(workflow, /Upload Full package workflow artifact[\s\S]*if:\s+\$\{\{ inputs\.publish_to_release \|\| inputs\.upload_full_package_artifact \}\}/, 'large Full package artifact is explicitly gated');
   assertMatches(workflow, /cache:[\s\S]*full_runtime_layers/, 'Full telemetry cache fields');
   assertMatches(workflow, /full_dmg_format:[\s\S]*default:\s+ULMO[\s\S]*type:\s+string/, 'Full workflow defaults to ULMO DMG compression');
   assertMatches(workflow, /full_dmg_compression_level:[\s\S]*default:\s+'9'[\s\S]*type:\s+string/, 'Full workflow exposes explicit UDZO compression override');
