@@ -242,6 +242,14 @@ test('release closeout separates workflow wall time from Agent orchestration wal
   assert.equal(summary.decision.next_action, 'promote_from_candidate_record');
   assert.equal(summary.artifact_policy.downloads_large_artifacts, false);
   assert.deepEqual(summary.artifact_policy.downloaded_artifacts, []);
+  assert.equal(summary.artifact_attestation_verification.state, 'missing');
+  assert.equal(summary.artifact_attestation_verification.role, 'build_integrity_evidence');
+  assert.match(summary.artifact_attestation_verification.verify_commands.join('\n'), /gh attestation verify <downloaded-release-asset-path>/);
+  assert.match(summary.artifact_attestation_verification.verify_commands.join('\n'), /gh attestation verify oci:\/\/ghcr\.io\/gaofeng21cn\/one-person-lab-webui@sha256:<digest>/);
+  assert.match(summary.artifact_attestation_verification.does_not_replace.join('\n'), /checksum verification/);
+  assert.match(summary.artifact_attestation_verification.does_not_replace.join('\n'), /remote asset readback/);
+  assert.match(summary.artifact_attestation_verification.does_not_replace.join('\n'), /clean install\/VM readiness/);
+  assert.match(summary.artifact_attestation_verification.does_not_replace.join('\n'), /release-owner receipt/);
   assert.match(
     summary.artifact_policy.forbidden_large_artifact_patterns.join('\n'),
     /opl-full-first-install/,
@@ -272,6 +280,108 @@ test('release closeout separates workflow wall time from Agent orchestration wal
   assert.match(markdown, /Runtime cache miss_written layers: domain-runtime/);
   assert.match(markdown, /Monitor state: ready_to_promote/);
   assert.match(markdown, /No-watch monitor/);
+  assert.match(markdown, /Artifact Attestation Verification/);
+  assert.match(markdown, /build_integrity_evidence/);
+  assert.match(markdown, /Does not replace: checksum verification, remote asset readback/);
+  assert.match(markdown, /gh attestation verify <downloaded-release-asset-path>/);
+});
+
+test('release closeout reads attestation verification summary from small artifact inputs', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-closeout-attestation-'));
+  const artifactsRoot = path.join(tempRoot, 'artifacts');
+  const outDir = path.join(tempRoot, 'out');
+  const runPath = path.join(tempRoot, 'run.json');
+  writeCloseoutArtifacts(artifactsRoot);
+  writeJson(path.join(artifactsRoot, 'release-attestation-verification-26.5.99', 'attestation-verification.json'), {
+    schema: 'opl_release_attestation_verification.v1',
+    status: 'passed',
+    verified_assets: [
+      {
+        name: 'One-Person-Lab-26.5.99-arm64.dmg',
+        predicate_type: 'https://slsa.dev/provenance/v1',
+        workflow_run_id: '12345',
+      },
+    ],
+  });
+  writeJson(runPath, {
+    databaseId: '12345',
+    status: 'completed',
+    conclusion: 'success',
+    createdAt: '2026-06-12T10:38:58Z',
+    startedAt: '2026-06-12T10:38:58Z',
+    updatedAt: '2026-06-12T11:18:25Z',
+    workflowName: 'OPL Desktop Release',
+    headSha: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+  });
+
+  const result = runCloseout([
+    '--version',
+    '26.5.99',
+    '--run-json',
+    runPath,
+    '--artifacts-dir',
+    artifactsRoot,
+    '--out-dir',
+    outDir,
+    '--no-download',
+  ]);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const summary = readJson(path.join(outDir, 'release-closeout.json'));
+  assert.equal(summary.artifact_attestation_verification.state, 'verified');
+  assert.match(summary.source_paths.artifact_attestation_verification, /attestation-verification\.json/);
+  assert.equal(summary.artifact_attestation_verification.verification.status, 'passed');
+  assert.equal(summary.artifact_attestation_verification.verification.verified_assets[0].name, 'One-Person-Lab-26.5.99-arm64.dmg');
+  assert.deepEqual(summary.artifact_attestation_verification.verify_commands, []);
+  assert.match(summary.artifact_attestation_verification.rule, /not release readiness evidence/);
+  const markdown = fs.readFileSync(path.join(outDir, 'release-closeout.md'), 'utf8');
+  assert.match(markdown, /Artifact Attestation Verification/);
+  assert.match(markdown, /State: verified/);
+  assert.doesNotMatch(markdown, /<downloaded-release-asset-path>/);
+});
+
+test('release closeout marks failed attestation verification without treating it as readiness', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-closeout-attestation-failed-'));
+  const artifactsRoot = path.join(tempRoot, 'artifacts');
+  const outDir = path.join(tempRoot, 'out');
+  const runPath = path.join(tempRoot, 'run.json');
+  writeCloseoutArtifacts(artifactsRoot);
+  writeJson(path.join(artifactsRoot, 'release-attestation-verification-26.5.99', 'attestation-verification-summary.json'), {
+    schema: 'opl_release_attestation_verification.v1',
+    status: 'failed',
+    errors: ['No attestation found for One-Person-Lab-26.5.99-arm64.dmg.'],
+  });
+  writeJson(runPath, {
+    databaseId: '12345',
+    status: 'completed',
+    conclusion: 'success',
+    createdAt: '2026-06-12T10:38:58Z',
+    startedAt: '2026-06-12T10:38:58Z',
+    updatedAt: '2026-06-12T11:18:25Z',
+    workflowName: 'OPL Desktop Release',
+    headSha: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+  });
+
+  const result = runCloseout([
+    '--version',
+    '26.5.99',
+    '--run-json',
+    runPath,
+    '--artifacts-dir',
+    artifactsRoot,
+    '--out-dir',
+    outDir,
+    '--no-download',
+  ]);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const summary = readJson(path.join(outDir, 'release-closeout.json'));
+  assert.equal(summary.artifact_attestation_verification.state, 'failed');
+  assert.equal(summary.artifact_attestation_verification.verification.status, 'failed');
+  assert.match(summary.artifact_attestation_verification.rule, /not release readiness evidence/);
+  const markdown = fs.readFileSync(path.join(outDir, 'release-closeout.md'), 'utf8');
+  assert.match(markdown, /State: failed/);
+  assert.match(markdown, /Does not replace: checksum verification, remote asset readback/);
 });
 
 test('release closeout accepts output-dir as a clear alias for out-dir', () => {

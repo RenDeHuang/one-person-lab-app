@@ -67,6 +67,16 @@ type CandidatePromotionValidation = {
   errors: string[];
 };
 
+type AttestationVerificationSummary = {
+  state: 'verified' | 'failed' | 'missing';
+  role: 'build_integrity_evidence';
+  source_path: string | null;
+  verification: JsonRecord | null;
+  verify_commands: string[];
+  does_not_replace: string[];
+  rule: string;
+};
+
 const forbiddenLargeArtifactPatterns = [
   /^macos-build-/,
   /^opl-full-first-install-\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?-mac-arm64$/,
@@ -394,6 +404,54 @@ function readArtifactJson(options: Options, artifactName: string, fileName: stri
     path: path.relative(options.outDir, filePath),
     absolutePath: filePath,
     payload: asRecord(readJson(filePath)),
+  };
+}
+
+function readJsonByName(options: Options, fileName: string): ArtifactJson {
+  const filePath = findFileByName(options.artifactsDir, fileName);
+  if (!filePath) return { path: null, absolutePath: null, payload: null };
+  return {
+    path: path.relative(options.outDir, filePath),
+    absolutePath: filePath,
+    payload: asRecord(readJson(filePath)),
+  };
+}
+
+function attestationVerifyCommands(options: Options): string[] {
+  return [
+    `gh attestation verify <downloaded-release-asset-path> --repo ${options.repo}`,
+    `gh attestation verify oci://ghcr.io/gaofeng21cn/one-person-lab-webui@sha256:<digest> --repo ${options.repo}`,
+  ];
+}
+
+function summarizeAttestationVerification(options: Options): AttestationVerificationSummary {
+  const artifactName = `release-attestation-verification-${options.version}`;
+  const artifact = readArtifactJson(options, artifactName, 'attestation-verification.json');
+  const artifactSummary = artifact.payload
+    ? artifact
+    : readArtifactJson(options, artifactName, 'attestation-verification-summary.json');
+  const rootSummary = artifactSummary.payload
+    ? artifactSummary
+    : readJsonByName(options, 'attestation-verification.json');
+  const fallback = rootSummary.payload ? rootSummary : readJsonByName(options, 'attestation-verification-summary.json');
+  const verification = fallback.payload;
+  const status = verification ? sourceStatus(verification) : 'missing';
+  const verified = status === 'passed' || status === 'success' || status === 'verified';
+  return {
+    state: verification ? (verified ? 'verified' : 'failed') : 'missing',
+    role: 'build_integrity_evidence',
+    source_path: fallback.path,
+    verification,
+    verify_commands: verification ? [] : attestationVerifyCommands(options),
+    does_not_replace: [
+      'checksum verification',
+      'remote asset readback',
+      'codesign/spctl',
+      'clean install/VM readiness',
+      'candidate-record validation',
+      'release-owner receipt',
+    ],
+    rule: 'Artifact attestation verifies build integrity for public release bytes; it is not release readiness evidence by itself.',
   };
 }
 
@@ -771,6 +829,7 @@ function buildSummary(options: Options) {
   const remoteArtifact = readArtifactJson(options, `remote-release-verification-${options.version}`, 'remote-release-verification.json');
   const telemetryArtifact = readArtifactJson(options, `opl-full-workflow-telemetry-${options.version}`, 'full-workflow-telemetry.json');
   const diagnosticsArtifact = readArtifactJson(options, `opl-full-diagnostics-${options.version}`, 'runtime-cache-events.json');
+  const attestationVerification = summarizeAttestationVerification(options);
   const jobSummary = summarizeJobs(jobs);
   const timing = summarizeRunTiming(run, jobs);
   const agentWallTimeSeconds = options.agentWallTime
@@ -850,9 +909,11 @@ function buildSummary(options: Options) {
       release_addon_readiness_summary: addonReadinessArtifact.path,
       release_preflight_summary: preflightArtifact.path,
       remote_release_verification: remoteArtifact.path,
+      artifact_attestation_verification: attestationVerification.source_path,
       full_workflow_telemetry: telemetryArtifact.path,
       runtime_cache_events: diagnosticsArtifact.path,
     },
+    artifact_attestation_verification: attestationVerification,
     candidate_record: candidateArtifact.payload ? {
       status: sourceStatus(candidateArtifact.payload),
       blocked_reasons: asArray(candidateArtifact.payload.blocked_reasons),
@@ -897,6 +958,25 @@ function buildSummary(options: Options) {
       ],
     },
   };
+}
+
+function appendAttestationMarkdown(filePath: string, summary: ReturnType<typeof buildSummary>): void {
+  const attestation = summary.artifact_attestation_verification;
+  const lines = [
+    '',
+    '### Artifact Attestation Verification',
+    '',
+    `- State: ${attestation.state}`,
+    `- Role: ${attestation.role}`,
+    `- Source: ${attestation.source_path ?? 'not provided'}`,
+    `- Rule: ${attestation.rule}`,
+    `- Does not replace: ${attestation.does_not_replace.join(', ')}`,
+  ];
+  if (attestation.verify_commands.length > 0) {
+    lines.push('', 'Verify commands:');
+    for (const command of attestation.verify_commands) lines.push(`- \`${command}\``);
+  }
+  fs.appendFileSync(filePath, `${lines.join('\n')}\n`, 'utf8');
 }
 
 function buildMonitorSummary(summary: ReturnType<typeof buildSummary>) {
@@ -974,6 +1054,7 @@ function main() {
   writeJson(options.monitor, monitor);
   writeJson(options.notification, notification);
   writeCloseoutMarkdown(options.markdown, summary, monitor);
+  appendAttestationMarkdown(options.markdown, summary);
   console.log(JSON.stringify({
     status: summary.decision.next_action === 'promote_from_candidate_record'
       ? 'ready_to_promote'
