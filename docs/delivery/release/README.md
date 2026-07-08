@@ -333,6 +333,16 @@ gh attestation verify <asset-path> --repo gaofeng21cn/one-person-lab-app
 gh attestation verify oci://ghcr.io/gaofeng21cn/one-person-lab-webui@sha256:<digest> --repo gaofeng21cn/one-person-lab-app
 ```
 
+Use the structured verifier when preparing the closeout input:
+
+```bash
+npm run release:attestation:verify -- \
+  --version <version> \
+  --asset <downloaded-standard-or-full-release-asset> \
+  --oci oci://ghcr.io/gaofeng21cn/one-person-lab-webui@sha256:<digest> \
+  --output attestation-verification-summary.json
+```
+
 SLSA provenance should bind the asset to the workflow identity, repo, run id,
 version, and pinned App/Shell/Framework SHAs. It does not replace checksum
 verification, remote asset readback, `codesign` / `spctl`, clean install/VM
