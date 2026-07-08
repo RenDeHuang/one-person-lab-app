@@ -5,6 +5,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
+import { withHiddenLocalizedReleaseNotes } from './app-release-boundary-cases/release-notes-fixtures.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
@@ -103,18 +104,6 @@ function buildFullManifest(refs) {
 function publicFirstScreen(markdown) {
   const technicalDetails = markdown.indexOf('\n## Technical details\n');
   return technicalDetails === -1 ? markdown : markdown.slice(0, technicalDetails);
-}
-
-function withHiddenLocalizedReleaseNotes(publicMarkdown, zhMarkdown) {
-  return `${publicMarkdown.trimEnd()}
-
-<!-- OPL_RELEASE_NOTES:en-US
-${publicMarkdown.trimEnd()}
--->
-<!-- OPL_RELEASE_NOTES:zh-CN
-${zhMarkdown.trimEnd()}
--->
-`;
 }
 
 function assertUserFirstLead(markdown) {
