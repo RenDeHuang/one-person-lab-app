@@ -161,6 +161,46 @@ type OperatorBudget = {
   reason: string;
 };
 
+type ReleaseSessionManifest = {
+  schema: 'opl_app_release_session_manifest.v1';
+  id: string;
+  generated_at: string;
+  version: string;
+  run_set: {
+    current_run_id: string;
+    runs: Array<{
+      id: string;
+      workflow_name: string | null;
+      status: string | null;
+      conclusion: string | null;
+      head_sha: string | null;
+      url: string | null;
+      elapsed_seconds: number | null;
+    }>;
+  };
+  current_authority_run: {
+    id: string;
+    status: string | null;
+    conclusion: string | null;
+    head_sha: string | null;
+  };
+  failed_run_tax: {
+    action: OperatorNextAction['action'];
+    primary_blocker: PrimaryBlocker;
+    elapsed_seconds: number | null;
+  };
+  typed_next_action: OperatorNextAction;
+  owner_receipt: {
+    state: 'not_provided' | 'not_required_for_current_state';
+    verify_command: string;
+  };
+  post_publish_follow_up: {
+    state: 'not_applicable_until_release_published';
+    summary: string;
+  };
+  truth_boundary: string;
+};
+
 type OperatorState = {
   schema: 'opl_app_release_operator_state.v1';
   generated_at: string;
@@ -178,6 +218,7 @@ type OperatorState = {
   primary_blocker?: PrimaryBlocker;
   recommended_next_action?: OperatorNextAction;
   next_action: OperatorNextAction;
+  session?: ReleaseSessionManifest;
   operator_guidance?: OperatorGuidance;
   authority_boundary: {
     operator_can_publish_release: false;
@@ -189,6 +230,7 @@ type OperatorState = {
 type OperatorOutputOptions = {
   output: string;
   markdown: string;
+  sessionOutput?: string;
 };
 
 type DiagnoseVmOptions = OperatorOutputOptions & {
@@ -226,6 +268,8 @@ Subcommands:
 Common options:
   --output <path>      Write release-operator-state.json.
   --markdown <path>    Write release-operator-state.md.
+  --session-output <path>
+                       Write release-session.json for status runs.
   --json               Print JSON to stdout.
   --summary            Print a one-screen human summary to stdout.
 `);
@@ -241,6 +285,7 @@ function defaultOutputOptions(): OperatorOutputOptions {
   return {
     output: process.env.OPL_RELEASE_OPERATOR_STATE || '',
     markdown: process.env.OPL_RELEASE_OPERATOR_MARKDOWN || '',
+    sessionOutput: process.env.OPL_RELEASE_SESSION_MANIFEST || '',
   };
 }
 
@@ -248,6 +293,7 @@ function resolveOutputOptions(options: OperatorOutputOptions): OperatorOutputOpt
   return {
     output: options.output ? path.resolve(options.output) : '',
     markdown: options.markdown ? path.resolve(options.markdown) : '',
+    sessionOutput: options.sessionOutput ? path.resolve(options.sessionOutput) : '',
   };
 }
 
@@ -351,6 +397,7 @@ function parseStatusArgs(argv: string[]): StatusOptions {
       'run-json': { type: 'string' },
       output: { type: 'string' },
       markdown: { type: 'string' },
+      'session-output': { type: 'string' },
     },
   });
   if (values.help) {
@@ -366,6 +413,7 @@ function parseStatusArgs(argv: string[]): StatusOptions {
   if (typeof values['run-json'] === 'string') parsed.runJsonPath = values['run-json'];
   if (typeof values.output === 'string') parsed.output = values.output;
   if (typeof values.markdown === 'string') parsed.markdown = values.markdown;
+  if (typeof values['session-output'] === 'string') parsed.sessionOutput = values['session-output'];
   if (!parsed.runId.trim() && !parsed.runJsonPath.trim()) {
     throw new Error('Pass --run-id <id> or --run-json <path>.');
   }
@@ -702,28 +750,79 @@ function progressThresholdSeconds(run: RunStatusSummary, currentStep: CurrentSte
 }
 
 function runSlaThresholds(run: RunStatusSummary): { profile: string; attention: number; hardStop: number } | null {
-  const text = normalizeClassifierText(run.workflow_name, ...run.jobs.map((job) => job.name));
-  if (text.includes('desktop release promote')) {
+  const workflow = normalizeClassifierText(run.workflow_name);
+  const jobs = normalizeClassifierText(...run.jobs.map((job) => job.name));
+  if (workflow.includes('desktop release promote')) {
     return { profile: 'promote_after_owner_receipt', attention: 10 * 60, hardStop: 15 * 60 };
   }
-  if (text.includes('desktop release diagnostics')) {
+  if (workflow.includes('desktop release diagnostics')) {
     return { profile: 'same_cohort_diagnostic', attention: 15 * 60, hardStop: 30 * 60 };
   }
-  if (text.includes('first-run vm') || text.includes('first run vm')) {
+  if (workflow.includes('first-run vm') || workflow.includes('first run vm')) {
     return { profile: 'same_artifact_vm_gate', attention: 15 * 60, hardStop: 30 * 60 };
   }
-  if (text.includes('desktop release')) {
+  if (workflow.includes('desktop release')) {
     if (
-      text.includes('full first-install')
-      || text.includes('full-first-install')
-      || text.includes('full package')
-      || text.includes('full release')
+      jobs.includes('full first-install')
+      || jobs.includes('full-first-install')
+      || jobs.includes('full package')
+      || jobs.includes('full release')
     ) {
       return { profile: 'stable_full_docker_vm', attention: 75 * 60, hardStop: 90 * 60 };
     }
     return { profile: 'stable_standard_only', attention: 45 * 60, hardStop: 60 * 60 };
   }
   return null;
+}
+
+function buildReleaseSessionManifest(
+  options: StatusOptions,
+  state: Omit<OperatorState, 'session'>,
+): ReleaseSessionManifest | undefined {
+  if (!state.run) return undefined;
+  const version = options.version.trim() || '<version>';
+  const ownerVerifyVersion = options.version.trim() || '<version>';
+  return {
+    schema: 'opl_app_release_session_manifest.v1',
+    id: `release-session:${version}:${state.run.id}`,
+    generated_at: state.generated_at,
+    version,
+    run_set: {
+      current_run_id: state.run.id,
+      runs: [
+        {
+          id: state.run.id,
+          workflow_name: state.run.workflow_name,
+          status: state.run.status,
+          conclusion: state.run.conclusion,
+          head_sha: state.run.head_sha,
+          url: state.run.url,
+          elapsed_seconds: state.elapsed?.seconds ?? null,
+        },
+      ],
+    },
+    current_authority_run: {
+      id: state.run.id,
+      status: state.run.status,
+      conclusion: state.run.conclusion,
+      head_sha: state.run.head_sha,
+    },
+    failed_run_tax: {
+      action: state.next_action.action,
+      primary_blocker: state.primary_blocker ?? null,
+      elapsed_seconds: state.elapsed?.seconds ?? null,
+    },
+    typed_next_action: state.next_action,
+    owner_receipt: {
+      state: state.status === 'ready_for_closeout_review' ? 'not_provided' : 'not_required_for_current_state',
+      verify_command: `npm run release:owner-candidate-record:verify -- --version ${ownerVerifyVersion}`,
+    },
+    post_publish_follow_up: {
+      state: 'not_applicable_until_release_published',
+      summary: 'Post-publish follow-up is not applicable until the candidate is promoted or a published-with-follow-up state exists.',
+    },
+    truth_boundary: 'release-session is an operator control surface derived from run status; it is not release truth and cannot publish, promote, or write runtime truth.',
+  };
 }
 
 function buildRunSlaBudget(run: RunStatusSummary, elapsedSecondsValue: number | null) {
@@ -1041,7 +1140,7 @@ function buildStatusState(options: StatusOptions): OperatorState {
   const elapsed = buildElapsed(run, generatedAt);
   const budget = buildBudget(run, currentStep, elapsed, generatedAt);
   const recommendedNextAction = statusAction(options, run, status, primaryBlocker, budget);
-  return {
+  const state: Omit<OperatorState, 'session'> = {
     schema: 'opl_app_release_operator_state.v1',
     generated_at: generatedAt,
     command: 'status',
@@ -1062,6 +1161,10 @@ function buildStatusState(options: StatusOptions): OperatorState {
       operator_can_write_runtime_truth: false,
       operator_can_dispatch_workflow_without_explicit_user_action: false,
     },
+  };
+  return {
+    ...state,
+    session: buildReleaseSessionManifest(options, state),
   };
 }
 
@@ -1124,6 +1227,18 @@ function writeOperatorMarkdown(filePath: string, state: OperatorState): void {
       '',
     );
   }
+  if (state.session) {
+    lines.push(
+      '## Release session',
+      '',
+      `- Session id: ${state.session.id}`,
+      `- Current authority run: ${state.session.current_authority_run.id}`,
+      `- Failed-run tax: ${state.session.failed_run_tax.action}${state.session.failed_run_tax.primary_blocker ? ` - ${state.session.failed_run_tax.primary_blocker.reason}` : ''}`,
+      `- Typed next action: ${state.session.typed_next_action.action}`,
+      `- Truth boundary: ${state.session.truth_boundary}`,
+      '',
+    );
+  }
   if (state.diagnostic_commands) {
     lines.push('| Diagnostic | Dispatches workflow | Publishes release | Command |');
     lines.push('| --- | --- | --- | --- |');
@@ -1139,6 +1254,10 @@ function writeOperatorState(options: OperatorOutputOptions, state: OperatorState
   if (options.output) {
     fs.mkdirSync(path.dirname(options.output), { recursive: true });
     fs.writeFileSync(options.output, `${JSON.stringify(state, null, 2)}\n`, 'utf8');
+  }
+  if (options.sessionOutput && state.session) {
+    fs.mkdirSync(path.dirname(options.sessionOutput), { recursive: true });
+    fs.writeFileSync(options.sessionOutput, `${JSON.stringify(state.session, null, 2)}\n`, 'utf8');
   }
   writeOperatorMarkdown(options.markdown, state);
 }
@@ -1173,6 +1292,11 @@ function formatOperatorSummary(state: OperatorState): string {
       `Current step elapsed: ${state.budget.current_step_elapsed_seconds ?? 'unknown'}s`,
       `Run updated age: ${state.budget.run_updated_age_seconds ?? 'unknown'}s`,
       `Release SLA: ${state.budget.run_sla_status} (${state.budget.run_sla_profile ?? 'none'})`,
+    );
+  }
+  if (state.session) {
+    lines.push(
+      `Failed-run tax: ${state.session.failed_run_tax.action}${state.session.failed_run_tax.primary_blocker ? ` - ${state.session.failed_run_tax.primary_blocker.reason}` : ''}`,
     );
   }
   lines.push(

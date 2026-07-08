@@ -315,6 +315,11 @@ test('release operator status escalates Full stable runs after the 75-minute SLA
         conclusion: 'success',
       },
       {
+        name: 'Run Full first-run VM smoke / Clean VM first launch',
+        status: 'completed',
+        conclusion: 'success',
+      },
+      {
         name: 'Validate operator evidence bundle',
         status: 'in_progress',
         conclusion: null,
@@ -349,6 +354,56 @@ test('release operator status escalates Full stable runs after the 75-minute SLA
   assert.equal(state.budget.run_hard_stop_seconds, 5400);
   assert.equal(state.next_action.action, 'inspect_current_step_progress');
   assert.match(state.next_action.reason, /attention SLA/);
+});
+
+test('release operator status keeps independent First-Run VM workflow on same-artifact SLA', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-operator-status-vm-sla-'));
+  const runJsonPath = path.join(tempRoot, 'run.json');
+  const outputPath = path.join(tempRoot, 'release-operator-state.json');
+  const startedAt = new Date(Date.now() - 16 * 60 * 1000).toISOString();
+  const recentAt = new Date(Date.now() - 60 * 1000).toISOString();
+  writeJson(runJsonPath, {
+    databaseId: 12351,
+    workflowName: 'OPL GUI First-Run VM',
+    status: 'in_progress',
+    conclusion: null,
+    startedAt,
+    updatedAt: recentAt,
+    headSha: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    jobs: [
+      {
+        name: 'Run clean VM first launch smoke',
+        status: 'in_progress',
+        conclusion: null,
+        startedAt: recentAt,
+        steps: [
+          {
+            name: 'Run clean VM first launch smoke',
+            status: 'in_progress',
+            conclusion: null,
+            startedAt: recentAt,
+          },
+        ],
+      },
+    ],
+  });
+
+  const result = runScript('scripts/release-operator.ts', [
+    'status',
+    '--run-json',
+    runJsonPath,
+    '--output',
+    outputPath,
+  ]);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const state = readJson(outputPath);
+  assert.equal(state.status, 'waiting_for_run_completion');
+  assert.equal(state.budget.status, 'attention');
+  assert.equal(state.budget.run_sla_profile, 'same_artifact_vm_gate');
+  assert.equal(state.budget.run_sla_status, 'attention');
+  assert.equal(state.budget.run_attention_seconds, 900);
+  assert.equal(state.budget.run_hard_stop_seconds, 1800);
 });
 
 test('release operator status routes VM failures to same-artifact diagnostics instead of full release reruns', () => {
@@ -453,6 +508,70 @@ test('release operator status reports completed failure primary blocker', () => 
   assert.equal(state.authority_boundary.operator_can_publish_release, false);
   assert.equal(state.authority_boundary.operator_can_write_runtime_truth, false);
   assert.equal(state.authority_boundary.operator_can_dispatch_workflow_without_explicit_user_action, false);
+});
+
+test('release operator status writes release session manifest and one-screen failed-run tax', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-operator-status-session-'));
+  const runJsonPath = path.join(tempRoot, 'run.json');
+  const outputPath = path.join(tempRoot, 'release-operator-state.json');
+  const markdownPath = path.join(tempRoot, 'release-operator-state.md');
+  const sessionPath = path.join(tempRoot, 'release-session.json');
+  writeJson(runJsonPath, {
+    databaseId: 12352,
+    workflowName: 'OPL Desktop Release',
+    status: 'completed',
+    conclusion: 'failure',
+    headSha: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    url: 'https://github.example/runs/12352',
+    jobs: [
+      {
+        name: 'Build App-owned DMG',
+        status: 'completed',
+        conclusion: 'failure',
+        steps: [
+          { name: 'Package app', status: 'completed', conclusion: 'failure' },
+        ],
+      },
+    ],
+  });
+
+  const result = runScript('scripts/release-operator.ts', [
+    'status',
+    '--run-json',
+    runJsonPath,
+    '--version',
+    '26.7.9',
+    '--output',
+    outputPath,
+    '--markdown',
+    markdownPath,
+    '--session-output',
+    sessionPath,
+    '--summary',
+  ]);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.match(result.stdout, /^Failed-run tax: inspect_primary_blocker - Step Package app in job Build App-owned DMG concluded failure\.$/m);
+  assert.match(result.stdout, /^Next action: inspect_primary_blocker$/m);
+  const state = readJson(outputPath);
+  const session = readJson(sessionPath);
+  assert.equal(state.session.schema, 'opl_app_release_session_manifest.v1');
+  assert.equal(session.schema, 'opl_app_release_session_manifest.v1');
+  assert.equal(state.session.id, 'release-session:26.7.9:12352');
+  assert.equal(session.id, state.session.id);
+  assert.equal(session.version, '26.7.9');
+  assert.equal(session.run_set.runs[0].id, '12352');
+  assert.equal(session.current_authority_run.id, '12352');
+  assert.equal(session.failed_run_tax.action, 'inspect_primary_blocker');
+  assert.equal(session.failed_run_tax.primary_blocker.reason, 'Step Package app in job Build App-owned DMG concluded failure.');
+  assert.equal(session.typed_next_action.action, 'inspect_primary_blocker');
+  assert.match(session.owner_receipt.verify_command, /--version 26\.7\.9/);
+  assert.match(session.post_publish_follow_up.summary, /not applicable until/);
+  assert.match(session.truth_boundary, /operator control surface/);
+  const markdown = fs.readFileSync(markdownPath, 'utf8');
+  assert.match(markdown, /## Release session/);
+  assert.match(markdown, /Failed-run tax: inspect_primary_blocker/);
+  assert.match(markdown, /Typed next action: inspect_primary_blocker/);
 });
 
 test('release operator status --json writes only JSON stdout without default root state file', () => {
