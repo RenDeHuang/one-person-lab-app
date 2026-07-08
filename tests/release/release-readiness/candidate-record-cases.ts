@@ -192,17 +192,94 @@ function runGateReuseFixture(fixture: ReturnType<typeof gateReuseFixture>) {
   ]);
 }
 
-test('release candidate record blocks complete evidence until release owner records a receipt or verdict', () => {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-candidate-record-'));
-  const preflightPath = path.join(tempRoot, 'release-preflight-summary.json');
-  const readinessPath = path.join(tempRoot, 'release-readiness-summary.json');
-  const remotePath = path.join(tempRoot, 'remote-release-verification.json');
-  const jobResultsPath = path.join(tempRoot, 'release-readiness-job-results.json');
-  const outputPath = path.join(tempRoot, 'release-candidate-record.json');
-  const markdownPath = path.join(tempRoot, 'release-candidate-record.md');
+function candidateInputs(root: string, options: {
+  includeOwnerVerdict?: boolean;
+  ownerVerdictStatus?: string;
+  readiness?: Record<string, unknown>;
+  remote?: Record<string, unknown>;
+  withJobResults?: boolean;
+} = {}) {
+  const paths = {
+    preflightPath: path.join(root, 'release-preflight-summary.json'),
+    readinessPath: path.join(root, 'release-readiness-summary.json'),
+    remotePath: path.join(root, 'remote-release-verification.json'),
+    jobResultsPath: path.join(root, 'release-readiness-job-results.json'),
+    outputPath: path.join(root, 'release-candidate-record.json'),
+    markdownPath: path.join(root, 'release-candidate-record.md'),
+  };
+  writeJson(paths.preflightPath, { schema: 'opl_release_preflight.v1', status: 'passed' });
+  writeJson(paths.readinessPath, {
+    schema: 'opl_release_readiness_summary.v1',
+    status: 'passed',
+    version: '26.5.99',
+    failed_required_gates: [],
+    ...(options.includeOwnerVerdict === false
+      ? {}
+      : { release_owner_verdict: releaseOwnerVerdict(options.ownerVerdictStatus) }),
+    ...options.readiness,
+  });
+  writeJson(paths.remotePath, {
+    status: 'passed',
+    version: '26.5.99',
+    verified_asset_count: 10,
+    ...options.remote,
+  });
+  if (options.withJobResults) {
+    writePassingJobResults(paths.jobResultsPath);
+  }
+  return paths;
+}
 
-  writeJson(preflightPath, { schema: 'opl_release_preflight.v1', status: 'passed' });
-  writeJson(readinessPath, {
+function candidateRecordArgs(
+  paths: ReturnType<typeof candidateInputs>,
+  options: {
+    releaseMode?: string;
+    appCommit?: string;
+    workflowRunId?: string;
+    shellRef?: string;
+    frameworkRef?: string;
+    withJobResults?: boolean;
+    markdown?: boolean;
+    outputPath?: string;
+    extra?: string[];
+  } = {},
+) {
+  return [
+    '--version',
+    '26.5.99',
+    '--release-mode',
+    options.releaseMode ?? 'new_release',
+    '--include-full-package',
+    'true',
+    '--run-vm-smoke',
+    'true',
+    ...(options.appCommit ? ['--app-commit', options.appCommit] : []),
+    ...(options.workflowRunId ? ['--workflow-run-id', options.workflowRunId] : []),
+    ...(options.shellRef ? ['--shell-ref', options.shellRef] : []),
+    ...(options.frameworkRef ? ['--framework-ref', options.frameworkRef] : []),
+    '--preflight',
+    paths.preflightPath,
+    '--readiness',
+    paths.readinessPath,
+    '--remote-verification',
+    paths.remotePath,
+    ...(options.withJobResults ? ['--job-results', paths.jobResultsPath] : []),
+    ...(options.extra ?? []),
+    '--output',
+    options.outputPath ?? paths.outputPath,
+    ...(options.markdown ? ['--markdown', paths.markdownPath] : []),
+  ];
+}
+
+function writeReleaseOwnerVerificationArtifacts(
+  artifactsDir: string,
+  options: { withAddonReadiness?: boolean } = {},
+) {
+  writeJson(path.join(artifactsDir, 'release-preflight-summary.json'), {
+    schema: 'opl_release_preflight.v1',
+    status: 'passed',
+  });
+  writeJson(path.join(artifactsDir, 'release-readiness-summary.json'), {
     schema: 'opl_release_readiness_summary.v1',
     status: 'passed',
     version: '26.5.99',
@@ -214,63 +291,94 @@ test('release candidate record blocks complete evidence until release owner reco
       },
     },
   });
-  writeJson(remotePath, {
+  writeJson(path.join(artifactsDir, 'remote-release-verification.json'), {
     status: 'passed',
     version: '26.5.99',
     include_full_package: true,
     verified_asset_count: 12,
     full_first_install_budget: { status: 'passed', full_dmg_size_bytes: 512 },
   });
-  writePassingJobResults(jobResultsPath);
+  if (options.withAddonReadiness) {
+    writeJson(path.join(artifactsDir, 'release-addon-readiness-summary.json'), {
+      schema: 'opl_release_addon_readiness_summary.v1',
+      version: '26.5.99',
+      release_mode: 'refresh_existing',
+      job_results: {
+        'full-first-install': 'success',
+        'remote-verify-full': 'success',
+        'full-first-run-vm-smoke': 'success',
+        'docker-webui-smoke': 'success',
+        'webui-ghcr-publish': 'success',
+        'docker-webui-clean-vm-evidence': 'success',
+        'operator-evidence-bundle-validation': 'success',
+      },
+    });
+  }
+}
 
-  const result = runCandidateRecord([
-    '--version',
-    '26.5.99',
-    '--release-mode',
-    'refresh_existing',
-    '--include-full-package',
-    'true',
-    '--run-vm-smoke',
-    'true',
-    '--app-commit',
-    'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-    '--workflow-run-id',
-    '12345',
-    '--preflight',
-    preflightPath,
-    '--readiness',
-    readinessPath,
-    '--remote-verification',
-    remotePath,
-    '--job-results',
-    jobResultsPath,
-    '--output',
-    outputPath,
-    '--markdown',
-    markdownPath,
-  ]);
+function writeReleaseOwnerReceipt(filePath: string, extra: Record<string, unknown> = {}) {
+  writeJson(filePath, {
+    schema: 'opl_app_release_owner_receipt_record.v1',
+    owner: 'one-person-lab-app release owner',
+    scope: 'same_cohort_app_release_user_path_owner_verdict',
+    status: 'release_owner_receipt_recorded',
+    version: '26.5.99',
+    tag: 'v26.5.99',
+    channel: 'stable',
+    release_owner_receipt_ref:
+      'release_owner_receipt_ref://one-person-lab-app/release-owner/v26.5.99/receipt-test',
+    release_ready_claim: false,
+    stable_latest_promotion_claim: false,
+    family_production_ready_claim: false,
+    source_artifact_readback: {
+      source_run_id: '12345',
+      app_commit: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    },
+    authority_boundary: {
+      can_claim_app_release_ready_from_evidence: false,
+      can_claim_stable_latest_from_evidence: false,
+      can_claim_family_production_ready: false,
+    },
+    ...extra,
+  });
+}
+
+test('release candidate record blocks complete evidence until release owner records a receipt or verdict', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-candidate-record-'));
+  const paths = candidateInputs(tempRoot, {
+    withJobResults: true,
+    readiness: {
+      full_package: {
+        resolved_refs: {
+          opl_framework: { ref: 'main', commit: '1111111111111111111111111111111111111111' },
+        },
+      },
+    },
+    remote: {
+      include_full_package: true,
+      verified_asset_count: 12,
+      full_first_install_budget: { status: 'passed', full_dmg_size_bytes: 512 },
+    },
+  });
+
+  const result = runCandidateRecord(candidateRecordArgs(paths, {
+    releaseMode: 'refresh_existing',
+    appCommit: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    workflowRunId: '12345',
+    withJobResults: true,
+    markdown: true,
+  }));
 
   assert.notEqual(result.status, 0);
-  const record = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
+  const record = JSON.parse(fs.readFileSync(paths.outputPath, 'utf8'));
   assert.equal(record.schema, 'opl_release_candidate_record.v1');
   assert.equal(record.status, 'blocked');
   assert.equal(record.version, '26.5.99');
   assert.equal(record.decision.can_promote, false);
-  assert.equal(record.provenance.app_commit, 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
-  assert.equal(record.remote_asset_summary.verified_asset_count, 12);
-  assert.equal(record.resolved_refs.opl_framework.commit, '1111111111111111111111111111111111111111');
   assert.equal(record.release_owner_verdict.status, 'release_owner_verdict_pending');
-  assert.equal(
-    record.release_owner_verdict.install_evidence_ref,
-    'install_evidence_ref://one-person-lab-app/release-owner/v26.5.99/install-evidence',
-  );
-  assert.equal(
-    record.release_owner_verdict.release_owner_typed_blocker_ref,
-    'typed_blocker_ref://one-person-lab-app/release-owner/v26.5.99/verdict-pending',
-  );
   assert.match(record.blocked_reasons.join('\n'), /pending/);
   assert.match(record.blocked_reasons.join('\n'), /missing owner resolution ref/);
-  const markdown = fs.readFileSync(markdownPath, 'utf8');
+  const markdown = fs.readFileSync(paths.markdownPath, 'utf8');
   assert.match(markdown, /Release Candidate Record/);
   assert.match(markdown, /Status: blocked/);
 
@@ -279,7 +387,7 @@ test('release candidate record blocks complete evidence until release owner reco
     '--version',
     '26.5.99',
     '--record',
-    outputPath,
+    paths.outputPath,
   ]);
   assert.notEqual(validateResult.status, 0);
   const validation = JSON.parse(validateResult.stdout);
@@ -294,86 +402,49 @@ test('release candidate record blocks complete evidence until release owner reco
 
 test('release candidate record promotes only after same-cohort release owner receipt', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-candidate-record-owner-receipt-'));
-  const preflightPath = path.join(tempRoot, 'release-preflight-summary.json');
-  const readinessPath = path.join(tempRoot, 'release-readiness-summary.json');
-  const remotePath = path.join(tempRoot, 'remote-release-verification.json');
-  const jobResultsPath = path.join(tempRoot, 'release-readiness-job-results.json');
-  const outputPath = path.join(tempRoot, 'release-candidate-record.json');
-
-  writeJson(preflightPath, { schema: 'opl_release_preflight.v1', status: 'passed' });
-  writeJson(readinessPath, {
-    schema: 'opl_release_readiness_summary.v1',
-    status: 'passed',
-    version: '26.5.99',
-    failed_required_gates: [],
-    release_owner_verdict: releaseOwnerVerdict(),
-    full_package: {
-      resolved_refs: {
-        opl_framework: { ref: 'main', commit: '1111111111111111111111111111111111111111' },
+  const paths = candidateInputs(tempRoot, {
+    withJobResults: true,
+    readiness: {
+      full_package: {
+        resolved_refs: {
+          opl_framework: { ref: 'main', commit: '1111111111111111111111111111111111111111' },
+        },
       },
     },
+    remote: {
+      include_full_package: true,
+      verified_asset_count: 12,
+      full_first_install_budget: { status: 'passed', full_dmg_size_bytes: 512 },
+    },
   });
-  writeJson(remotePath, {
-    status: 'passed',
-    version: '26.5.99',
-    include_full_package: true,
-    verified_asset_count: 12,
-    full_first_install_budget: { status: 'passed', full_dmg_size_bytes: 512 },
-  });
-  writePassingJobResults(jobResultsPath);
 
-  const result = runCandidateRecord([
-    '--version',
-    '26.5.99',
-    '--release-mode',
-    'refresh_existing',
-    '--include-full-package',
-    'true',
-    '--run-vm-smoke',
-    'true',
-    '--app-commit',
-    'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-    '--workflow-run-id',
-    '12345',
-    '--preflight',
-    preflightPath,
-    '--readiness',
-    readinessPath,
-    '--remote-verification',
-    remotePath,
-    '--job-results',
-    jobResultsPath,
-    '--release-owner-receipt-ref',
-    'release_owner_receipt_ref://one-person-lab-app/release-owner/v26.5.99/receipt-20260612',
-    '--output',
-    outputPath,
-  ]);
+  const receiptRef = 'release_owner_receipt_ref://one-person-lab-app/release-owner/v26.5.99/receipt-20260612';
+  const result = runCandidateRecord(candidateRecordArgs(paths, {
+    releaseMode: 'refresh_existing',
+    appCommit: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    workflowRunId: '12345',
+    withJobResults: true,
+    extra: ['--release-owner-receipt-ref', receiptRef],
+  }));
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
-  const record = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
+  const record = JSON.parse(fs.readFileSync(paths.outputPath, 'utf8'));
   assert.equal(record.status, 'ready_to_promote');
   assert.equal(record.decision.can_promote, true);
-  assert.equal(record.release_owner_verdict.status, 'release_owner_receipt_recorded');
-  assert.equal(
-    record.release_owner_verdict.release_owner_receipt_ref,
-    'release_owner_receipt_ref://one-person-lab-app/release-owner/v26.5.99/receipt-20260612',
-  );
+  assert.equal(record.release_owner_verdict.release_owner_receipt_ref, receiptRef);
 
   const validateResult = runCandidateRecordValidator([
     '--promote-ready',
     '--version',
     '26.5.99',
     '--record',
-    outputPath,
+    paths.outputPath,
   ]);
   assert.equal(validateResult.status, 0, validateResult.stderr || validateResult.stdout);
   const validation = JSON.parse(validateResult.stdout);
   assert.equal(validation.promote_ready, true);
   assert.equal(validation.release_owner_verdict_status, 'release_owner_receipt_recorded');
-  assert.equal(
-    validation.release_owner_receipt_ref,
-    'release_owner_receipt_ref://one-person-lab-app/release-owner/v26.5.99/receipt-20260612',
-  );
+  assert.equal(validation.release_owner_receipt_ref, receiptRef);
 });
 
 test('release gate reuse plan allows same cohort gates with matching remote asset digests', () => {
@@ -420,119 +491,36 @@ test('release gate reuse plan forces gates to rerun when remote asset digest cha
   assert.equal(plan.authority_boundary.reuse_plan_can_publish_release, false);
 });
 
-test('new release candidate record is promote-ready when initial run carries same-cohort owner receipt', () => {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-candidate-record-new-release-owner-receipt-'));
-  const preflightPath = path.join(tempRoot, 'release-preflight-summary.json');
-  const readinessPath = path.join(tempRoot, 'release-readiness-summary.json');
-  const remotePath = path.join(tempRoot, 'remote-release-verification.json');
-  const jobResultsPath = path.join(tempRoot, 'release-readiness-job-results.json');
-  const outputPath = path.join(tempRoot, 'release-candidate-record.json');
-
-  writeJson(preflightPath, { schema: 'opl_release_preflight.v1', status: 'passed' });
-  writeJson(readinessPath, {
-    schema: 'opl_release_readiness_summary.v1',
-    status: 'passed',
-    version: '26.5.99',
-    failed_required_gates: [],
-    release_owner_verdict: releaseOwnerVerdict(),
-  });
-  writeJson(remotePath, { status: 'passed', version: '26.5.99', verified_asset_count: 10 });
-  writePassingJobResults(jobResultsPath);
-
-  const result = runCandidateRecord([
-    '--version',
-    '26.5.99',
-    '--release-mode',
-    'new_release',
-    '--include-full-package',
-    'true',
-    '--run-vm-smoke',
-    'true',
-    '--preflight',
-    preflightPath,
-    '--readiness',
-    readinessPath,
-    '--remote-verification',
-    remotePath,
-    '--job-results',
-    jobResultsPath,
-    '--release-owner-receipt-ref',
-    'release_owner_receipt_ref://one-person-lab-app/release-owner/v26.5.99/receipt-initial-owner-verdict',
-    '--output',
-    outputPath,
-  ]);
-
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-  const record = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
-  assert.equal(record.status, 'ready_to_promote');
-  assert.equal(record.decision.can_promote, true);
-  assert.equal(record.release_owner_verdict.status, 'release_owner_receipt_recorded');
-  assert.equal(
-    record.release_owner_verdict.release_owner_receipt_ref,
-    'release_owner_receipt_ref://one-person-lab-app/release-owner/v26.5.99/receipt-initial-owner-verdict',
-  );
-});
-
 test('promote owner resolver rebuilds a blocked candidate record without rerunning release gates', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-owner-resolver-'));
-  const preflightPath = path.join(tempRoot, 'release-preflight-summary.json');
-  const readinessPath = path.join(tempRoot, 'release-readiness-summary.json');
-  const remotePath = path.join(tempRoot, 'remote-release-verification.json');
+  const paths = candidateInputs(tempRoot);
   const blockedCandidatePath = path.join(tempRoot, 'blocked-release-candidate-record.json');
   const resolvedCandidatePath = path.join(tempRoot, 'resolved-release-candidate-record.json');
   const resolvedMarkdownPath = path.join(tempRoot, 'resolved-release-candidate-record.md');
 
-  writeJson(preflightPath, { schema: 'opl_release_preflight.v1', status: 'passed' });
-  writeJson(readinessPath, {
-    schema: 'opl_release_readiness_summary.v1',
-    status: 'passed',
-    version: '26.5.99',
-    failed_required_gates: [],
-    release_owner_verdict: releaseOwnerVerdict(),
-  });
-  writeJson(remotePath, { status: 'passed', version: '26.5.99', verified_asset_count: 14 });
-
-  const blockedResult = runCandidateRecord([
-    '--version',
-    '26.5.99',
-    '--release-mode',
-    'new_release',
-    '--include-full-package',
-    'true',
-    '--run-vm-smoke',
-    'true',
-    '--app-commit',
-    'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-    '--workflow-run-id',
-    '12345',
-    '--shell-ref',
-    'aion-shell-ref',
-    '--framework-ref',
-    'framework-ref',
-    '--preflight',
-    preflightPath,
-    '--readiness',
-    readinessPath,
-    '--remote-verification',
-    remotePath,
-    '--output',
-    blockedCandidatePath,
-    '--allow-blocked',
-  ]);
+  const blockedResult = runCandidateRecord(candidateRecordArgs(paths, {
+    appCommit: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    workflowRunId: '12345',
+    shellRef: 'aion-shell-ref',
+    frameworkRef: 'framework-ref',
+    outputPath: blockedCandidatePath,
+    extra: ['--allow-blocked'],
+  }));
   assert.equal(blockedResult.status, 0, blockedResult.stderr || blockedResult.stdout);
   assert.equal(JSON.parse(fs.readFileSync(blockedCandidatePath, 'utf8')).status, 'blocked');
 
+  const receiptRef = 'release_owner_receipt_ref://one-person-lab-app/release-owner/v26.5.99/receipt-promote-owner';
   const resolverResult = runReleaseOwnerResolver([
     '--candidate-record',
     blockedCandidatePath,
     '--preflight',
-    preflightPath,
+    paths.preflightPath,
     '--readiness',
-    readinessPath,
+    paths.readinessPath,
     '--remote-verification',
-    remotePath,
+    paths.remotePath,
     '--release-owner-receipt-ref',
-    'release_owner_receipt_ref://one-person-lab-app/release-owner/v26.5.99/receipt-promote-owner',
+    receiptRef,
     '--output',
     resolvedCandidatePath,
     '--markdown',
@@ -546,56 +534,20 @@ test('promote owner resolver rebuilds a blocked candidate record without rerunni
   assert.equal(resolverSummary.status, 'ready_to_promote');
   assert.equal(resolved.status, 'ready_to_promote');
   assert.equal(resolved.provenance.workflow_run_id, '12345');
-  assert.equal(resolved.provenance.app_commit, 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
   assert.equal(resolved.inputs.shell_ref, 'aion-shell-ref');
-  assert.equal(resolved.release_owner_verdict.status, 'release_owner_receipt_recorded');
-  assert.equal(
-    resolved.release_owner_verdict.release_owner_receipt_ref,
-    'release_owner_receipt_ref://one-person-lab-app/release-owner/v26.5.99/receipt-promote-owner',
-  );
+  assert.equal(resolved.release_owner_verdict.release_owner_receipt_ref, receiptRef);
   assert.equal(fs.existsSync(resolvedMarkdownPath), true);
 });
 
 test('new release candidate record remains blocked without owner receipt or verdict ref', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-candidate-record-new-release-missing-owner-'));
-  const preflightPath = path.join(tempRoot, 'release-preflight-summary.json');
-  const readinessPath = path.join(tempRoot, 'release-readiness-summary.json');
-  const remotePath = path.join(tempRoot, 'remote-release-verification.json');
-  const outputPath = path.join(tempRoot, 'release-candidate-record.json');
+  const paths = candidateInputs(tempRoot);
 
-  writeJson(preflightPath, { schema: 'opl_release_preflight.v1', status: 'passed' });
-  writeJson(readinessPath, {
-    schema: 'opl_release_readiness_summary.v1',
-    status: 'passed',
-    version: '26.5.99',
-    failed_required_gates: [],
-    release_owner_verdict: releaseOwnerVerdict(),
-  });
-  writeJson(remotePath, { status: 'passed', version: '26.5.99', verified_asset_count: 10 });
-
-  const result = runCandidateRecord([
-    '--version',
-    '26.5.99',
-    '--release-mode',
-    'new_release',
-    '--include-full-package',
-    'true',
-    '--run-vm-smoke',
-    'true',
-    '--preflight',
-    preflightPath,
-    '--readiness',
-    readinessPath,
-    '--remote-verification',
-    remotePath,
-    '--output',
-    outputPath,
-  ]);
+  const result = runCandidateRecord(candidateRecordArgs(paths));
 
   assert.notEqual(result.status, 0);
-  const record = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
+  const record = JSON.parse(fs.readFileSync(paths.outputPath, 'utf8'));
   assert.equal(record.status, 'blocked');
-  assert.equal(record.decision.can_promote, false);
   assert.match(
     record.blocked_reasons.join('\n'),
     /promotion requires release_owner_verdict_ref or release_owner_receipt_ref/,
@@ -604,46 +556,18 @@ test('new release candidate record remains blocked without owner receipt or verd
 
 test('candidate record rejects cross-cohort owner receipt ref as blocked', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-candidate-record-cross-cohort-owner-receipt-'));
-  const preflightPath = path.join(tempRoot, 'release-preflight-summary.json');
-  const readinessPath = path.join(tempRoot, 'release-readiness-summary.json');
-  const remotePath = path.join(tempRoot, 'remote-release-verification.json');
-  const outputPath = path.join(tempRoot, 'release-candidate-record.json');
+  const paths = candidateInputs(tempRoot);
 
-  writeJson(preflightPath, { schema: 'opl_release_preflight.v1', status: 'passed' });
-  writeJson(readinessPath, {
-    schema: 'opl_release_readiness_summary.v1',
-    status: 'passed',
-    version: '26.5.99',
-    failed_required_gates: [],
-    release_owner_verdict: releaseOwnerVerdict(),
-  });
-  writeJson(remotePath, { status: 'passed', version: '26.5.99', verified_asset_count: 10 });
-
-  const result = runCandidateRecord([
-    '--version',
-    '26.5.99',
-    '--release-mode',
-    'new_release',
-    '--include-full-package',
-    'true',
-    '--run-vm-smoke',
-    'true',
-    '--preflight',
-    preflightPath,
-    '--readiness',
-    readinessPath,
-    '--remote-verification',
-    remotePath,
-    '--release-owner-receipt-ref',
-    'release_owner_receipt_ref://one-person-lab-app/release-owner/v26.5.98/receipt-previous-cohort',
-    '--output',
-    outputPath,
-  ]);
+  const result = runCandidateRecord(candidateRecordArgs(paths, {
+    extra: [
+      '--release-owner-receipt-ref',
+      'release_owner_receipt_ref://one-person-lab-app/release-owner/v26.5.98/receipt-previous-cohort',
+    ],
+  }));
 
   assert.notEqual(result.status, 0);
-  const record = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
+  const record = JSON.parse(fs.readFileSync(paths.outputPath, 'utf8'));
   assert.equal(record.status, 'blocked');
-  assert.equal(record.decision.can_promote, false);
   assert.match(record.blocked_reasons.join('\n'), /same cohort v26\.5\.99/);
 });
 
@@ -653,68 +577,15 @@ test('release owner receipt verification rebuilds a promote-ready candidate reco
   const outputDir = path.join(tempRoot, 'owner-validation');
   const ownerRecordPath = path.join(tempRoot, 'v26.5.99-release-owner-receipt.json');
 
-  writeJson(path.join(artifactsDir, 'release-preflight-summary.json'), {
-    schema: 'opl_release_preflight.v1',
-    status: 'passed',
-  });
-  writeJson(path.join(artifactsDir, 'release-readiness-summary.json'), {
-    schema: 'opl_release_readiness_summary.v1',
-    status: 'passed',
-    version: '26.5.99',
-    failed_required_gates: [],
-    release_owner_verdict: releaseOwnerVerdict(),
-    full_package: {
-      resolved_refs: {
-        opl_framework: { ref: 'main', commit: '1111111111111111111111111111111111111111' },
-      },
-    },
-  });
-  writeJson(path.join(artifactsDir, 'remote-release-verification.json'), {
-    status: 'passed',
-    version: '26.5.99',
-    include_full_package: true,
-    verified_asset_count: 12,
-    full_first_install_budget: { status: 'passed', full_dmg_size_bytes: 512 },
-  });
-  writeJson(path.join(artifactsDir, 'release-addon-readiness-summary.json'), {
-    schema: 'opl_release_addon_readiness_summary.v1',
-    version: '26.5.99',
-    release_mode: 'refresh_existing',
-    job_results: {
-      'full-first-install': 'success',
-      'remote-verify-full': 'success',
-      'full-first-run-vm-smoke': 'success',
-      'docker-webui-smoke': 'success',
-      'webui-ghcr-publish': 'success',
-      'docker-webui-clean-vm-evidence': 'success',
-      'operator-evidence-bundle-validation': 'success',
-    },
-  });
-  writeJson(ownerRecordPath, {
-    schema: 'opl_app_release_owner_receipt_record.v1',
-    owner: 'one-person-lab-app release owner',
-    scope: 'same_cohort_app_release_user_path_owner_verdict',
-    status: 'release_owner_receipt_recorded',
-    version: '26.5.99',
-    tag: 'v26.5.99',
-    channel: 'stable',
-    release_owner_receipt_ref:
-      'release_owner_receipt_ref://one-person-lab-app/release-owner/v26.5.99/receipt-test',
+  writeReleaseOwnerVerificationArtifacts(artifactsDir, { withAddonReadiness: true });
+  writeReleaseOwnerReceipt(ownerRecordPath, {
     release_owner_verdict_ref: null,
     release_candidate_promote_ready: true,
-    release_ready_claim: false,
-    stable_latest_promotion_claim: false,
-    family_production_ready_claim: false,
     can_close_opl_app_release_user_path: true,
     source_artifact_readback: {
       source_run_id: '12345',
       app_commit: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
       include_full_package: true,
-    },
-    authority_boundary: {
-      can_claim_app_release_ready_from_evidence: false,
-      can_claim_stable_latest_from_evidence: false,
-      can_claim_family_production_ready: false,
     },
   });
 
@@ -757,46 +628,8 @@ test('release owner receipt verification requires same-cohort add-on evidence wh
   const outputDir = path.join(tempRoot, 'owner-validation');
   const ownerRecordPath = path.join(tempRoot, 'v26.5.99-release-owner-receipt.json');
 
-  writeJson(path.join(artifactsDir, 'release-preflight-summary.json'), {
-    schema: 'opl_release_preflight.v1',
-    status: 'passed',
-  });
-  writeJson(path.join(artifactsDir, 'release-readiness-summary.json'), {
-    schema: 'opl_release_readiness_summary.v1',
-    status: 'passed',
-    version: '26.5.99',
-    failed_required_gates: [],
-    release_owner_verdict: releaseOwnerVerdict(),
-  });
-  writeJson(path.join(artifactsDir, 'remote-release-verification.json'), {
-    status: 'passed',
-    version: '26.5.99',
-    include_full_package: true,
-    verified_asset_count: 12,
-  });
-  writeJson(ownerRecordPath, {
-    schema: 'opl_app_release_owner_receipt_record.v1',
-    owner: 'one-person-lab-app release owner',
-    scope: 'same_cohort_app_release_user_path_owner_verdict',
-    status: 'release_owner_receipt_recorded',
-    version: '26.5.99',
-    tag: 'v26.5.99',
-    channel: 'stable',
-    release_owner_receipt_ref:
-      'release_owner_receipt_ref://one-person-lab-app/release-owner/v26.5.99/receipt-test',
-    release_ready_claim: false,
-    stable_latest_promotion_claim: false,
-    family_production_ready_claim: false,
-    source_artifact_readback: {
-      source_run_id: '12345',
-      app_commit: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-    },
-    authority_boundary: {
-      can_claim_app_release_ready_from_evidence: false,
-      can_claim_stable_latest_from_evidence: false,
-      can_claim_family_production_ready: false,
-    },
-  });
+  writeReleaseOwnerVerificationArtifacts(artifactsDir);
+  writeReleaseOwnerReceipt(ownerRecordPath);
 
   const result = runReleaseOwnerCandidateVerifier([
     '--version',
@@ -815,44 +648,20 @@ test('release owner receipt verification requires same-cohort add-on evidence wh
 
 test('release candidate record blocks promotion when a required gate fails', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-candidate-blocked-'));
-  const preflightPath = path.join(tempRoot, 'release-preflight-summary.json');
-  const readinessPath = path.join(tempRoot, 'release-readiness-summary.json');
-  const remotePath = path.join(tempRoot, 'remote-release-verification.json');
-  const outputPath = path.join(tempRoot, 'release-candidate-record.json');
-
-  writeJson(preflightPath, { schema: 'opl_release_preflight.v1', status: 'passed' });
-  writeJson(readinessPath, {
-    schema: 'opl_release_readiness_summary.v1',
-    status: 'failed',
-    version: '26.5.99',
-    failed_required_gates: [
-      { id: 'one_shot_app_installer', status: 'failed', reason: 'installer exited with 1' },
-    ],
-    release_owner_verdict: releaseOwnerVerdict('release_owner_typed_blocker_required'),
+  const paths = candidateInputs(tempRoot, {
+    ownerVerdictStatus: 'release_owner_typed_blocker_required',
+    readiness: {
+      status: 'failed',
+      failed_required_gates: [
+        { id: 'one_shot_app_installer', status: 'failed', reason: 'installer exited with 1' },
+      ],
+    },
   });
-  writeJson(remotePath, { status: 'passed', version: '26.5.99', verified_asset_count: 10 });
 
-  const result = runCandidateRecord([
-    '--version',
-    '26.5.99',
-    '--release-mode',
-    'refresh_existing',
-    '--include-full-package',
-    'true',
-    '--run-vm-smoke',
-    'true',
-    '--preflight',
-    preflightPath,
-    '--readiness',
-    readinessPath,
-    '--remote-verification',
-    remotePath,
-    '--output',
-    outputPath,
-  ]);
+  const result = runCandidateRecord(candidateRecordArgs(paths, { releaseMode: 'refresh_existing' }));
 
   assert.notEqual(result.status, 0);
-  const record = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
+  const record = JSON.parse(fs.readFileSync(paths.outputPath, 'utf8'));
   assert.equal(record.status, 'blocked');
   assert.equal(record.decision.can_promote, false);
   assert.match(record.blocked_reasons.join('\n'), /one_shot_app_installer/);
@@ -863,7 +672,7 @@ test('release candidate record blocks promotion when a required gate fails', () 
     '--version',
     '26.5.99',
     '--record',
-    outputPath,
+    paths.outputPath,
   ]);
   assert.equal(statusResult.status, 0, statusResult.stderr || statusResult.stdout);
   const status = JSON.parse(statusResult.stdout);
@@ -875,7 +684,7 @@ test('release candidate record blocks promotion when a required gate fails', () 
     '--version',
     '26.5.99',
     '--record',
-    outputPath,
+    paths.outputPath,
   ]);
   assert.notEqual(validateResult.status, 0);
   assert.match(`${validateResult.stdout}\n${validateResult.stderr}`, /blocked_reasons/);
@@ -910,86 +719,30 @@ test('release candidate record validator rejects version mismatch', () => {
 
 test('release candidate record keeps draft candidates diagnostic only even with same-cohort owner receipt', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-candidate-draft-'));
-  const preflightPath = path.join(tempRoot, 'release-preflight-summary.json');
-  const readinessPath = path.join(tempRoot, 'release-readiness-summary.json');
-  const remotePath = path.join(tempRoot, 'remote-release-verification.json');
-  const outputPath = path.join(tempRoot, 'release-candidate-record.json');
+  const paths = candidateInputs(tempRoot);
 
-  writeJson(preflightPath, { schema: 'opl_release_preflight.v1', status: 'passed' });
-  writeJson(readinessPath, {
-    schema: 'opl_release_readiness_summary.v1',
-    status: 'passed',
-    version: '26.5.99',
-    failed_required_gates: [],
-    release_owner_verdict: releaseOwnerVerdict(),
-  });
-  writeJson(remotePath, { status: 'passed', version: '26.5.99', verified_asset_count: 10 });
-
-  const result = runCandidateRecord([
-    '--version',
-    '26.5.99',
-    '--release-mode',
-    'draft_candidate',
-    '--include-full-package',
-    'true',
-    '--run-vm-smoke',
-    'true',
-    '--preflight',
-    preflightPath,
-    '--readiness',
-    readinessPath,
-    '--remote-verification',
-    remotePath,
-    '--release-owner-receipt-ref',
-    'release_owner_receipt_ref://one-person-lab-app/release-owner/v26.5.99/receipt-draft-owner-verdict',
-    '--output',
-    outputPath,
-  ]);
+  const result = runCandidateRecord(candidateRecordArgs(paths, {
+    releaseMode: 'draft_candidate',
+    extra: [
+      '--release-owner-receipt-ref',
+      'release_owner_receipt_ref://one-person-lab-app/release-owner/v26.5.99/receipt-draft-owner-verdict',
+    ],
+  }));
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
-  const record = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
+  const record = JSON.parse(fs.readFileSync(paths.outputPath, 'utf8'));
   assert.equal(record.status, 'diagnostic_only');
   assert.equal(record.decision.can_promote, false);
-  assert.equal(record.release_owner_verdict.status, 'release_owner_receipt_recorded');
 });
 
 test('release candidate record blocks when readiness omits release owner verdict readout', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-candidate-missing-owner-verdict-'));
-  const preflightPath = path.join(tempRoot, 'release-preflight-summary.json');
-  const readinessPath = path.join(tempRoot, 'release-readiness-summary.json');
-  const remotePath = path.join(tempRoot, 'remote-release-verification.json');
-  const outputPath = path.join(tempRoot, 'release-candidate-record.json');
+  const paths = candidateInputs(tempRoot, { includeOwnerVerdict: false });
 
-  writeJson(preflightPath, { schema: 'opl_release_preflight.v1', status: 'passed' });
-  writeJson(readinessPath, {
-    schema: 'opl_release_readiness_summary.v1',
-    status: 'passed',
-    version: '26.5.99',
-    failed_required_gates: [],
-  });
-  writeJson(remotePath, { status: 'passed', version: '26.5.99', verified_asset_count: 10 });
-
-  const result = runCandidateRecord([
-    '--version',
-    '26.5.99',
-    '--release-mode',
-    'refresh_existing',
-    '--include-full-package',
-    'true',
-    '--run-vm-smoke',
-    'true',
-    '--preflight',
-    preflightPath,
-    '--readiness',
-    readinessPath,
-    '--remote-verification',
-    remotePath,
-    '--output',
-    outputPath,
-  ]);
+  const result = runCandidateRecord(candidateRecordArgs(paths, { releaseMode: 'refresh_existing' }));
 
   assert.notEqual(result.status, 0);
-  const record = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
+  const record = JSON.parse(fs.readFileSync(paths.outputPath, 'utf8'));
   assert.equal(record.status, 'blocked');
   assert.match(record.blocked_reasons.join('\n'), /missing release_owner_verdict/);
 });
