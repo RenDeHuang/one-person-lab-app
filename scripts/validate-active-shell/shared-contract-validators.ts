@@ -9,8 +9,12 @@ import {
   runtimeAutomationStateValues,
   runtimePrimaryStateValues,
   runtimeScopeRequiredFields,
+  actionEnvelopeKinds,
   taskRunProjectionV2FieldGroups,
   taskRunProjectionV2RequiredFields,
+  workItemConditionFields,
+  workItemDetailTabs,
+  workItemProjectionRequiredFields,
 } from './app-contract-constants.ts';
 import { assertOplFlowIntelligenceEnhancementMode } from '../app-product-profile-shared-validators.ts';
 
@@ -230,6 +234,99 @@ export function validateRuntimeScopeProjectionContract(projection, label) {
   assertDeepEqualJson(projection.required_fields, runtimeScopeRequiredFields, `${label} required_fields`);
   assertDeepEqualJson(projection.scope_option_kinds, ['all_projects', 'agent', 'workspace', 'project', 'task'], `${label} scope_option_kinds`);
   assertDeepEqualJson(projection.scope_source_values, ['default_global', 'user_selected', 'inferred'], `${label} scope_source_values`);
+}
+
+export function validateWorkItemProjectionContract(projection, label) {
+  if (!projection || typeof projection !== 'object') {
+    throw new Error(`${label} must be declared`);
+  }
+  for (const [field, expected] of Object.entries({
+    surface_kind: 'opl_work_item_projection',
+    schema_version: 'work-item-projection.v1',
+    authority: 'one_person_lab_canonical_work_item_projection',
+    display_policy: 'scope_work_item_agent_stage_action_evidence_default_diagnostics_on_demand',
+    app_role: 'display_only_work_item_projection_consumer',
+    shell_role: 'thin_renderer_no_projection_inference',
+  })) {
+    if (projection[field] !== expected) {
+      throw new Error(`${label} ${field} must be ${expected}`);
+    }
+  }
+  assertDeepEqualJson(
+    projection.model_chain,
+    ['Scope', 'Work Item', 'Agent', 'Stage', 'Attempt', 'Action', 'Evidence'],
+    `${label} model_chain`,
+  );
+  assertIncludesAll(
+    projection.required_fields,
+    workItemProjectionRequiredFields,
+    `${label} required_fields`,
+  );
+  assertIncludesAll(
+    projection.default_display_fields,
+    [
+      'project_display_name',
+      'work_item_display_name',
+      'agent_display_name',
+      'primary_state_label',
+      'automation_state_label',
+      'active_stage_label',
+      'next_visible_step',
+      'next_owner',
+    ],
+    `${label} default_display_fields`,
+  );
+  assertDeepEqualJson(
+    projection.condition_contract?.required_fields,
+    workItemConditionFields,
+    `${label} condition required_fields`,
+  );
+  assertDeepEqualJson(
+    projection.action_envelope_contract?.action_kinds,
+    actionEnvelopeKinds,
+    `${label} action envelope kinds`,
+  );
+  if (projection.action_envelope_contract?.default_action_source !== 'current_owner_delta_or_task_action_cards') {
+    throw new Error(`${label} action envelope must use current owner delta or task action cards`);
+  }
+  assertIncludesAll(
+    projection.stage_catalog_contract?.required_fields,
+    ['stage_id', 'display_name', 'description', 'owner_kind', 'next_action_template'],
+    `${label} stage catalog required_fields`,
+  );
+  assertDeepEqualJson(
+    projection.detail_layer_contract?.default_tabs,
+    workItemDetailTabs,
+    `${label} detail tabs`,
+  );
+  assertIncludesAll(
+    projection.detail_layer_contract?.stage_map_fields,
+    ['stage_id', 'display_name', 'state', 'owner', 'elapsed', 'usage', 'next_action'],
+    `${label} stage map fields`,
+  );
+  assertIncludesAll(
+    projection.detail_layer_contract?.timeline_event_fields,
+    ['event_id', 'event_type', 'at', 'stage_id', 'owner', 'summary', 'ref'],
+    `${label} timeline event fields`,
+  );
+  if (projection.detail_layer_contract?.default_visibility !== 'on_selected_work_item_only') {
+    throw new Error(`${label} detail layer must be opened only after selecting a work item`);
+  }
+  if (projection.refs_only !== true || projection.artifact_body_access !== false || projection.owner_receipt_write_access !== false) {
+    throw new Error(`${label} must remain refs-only and non-authoritative`);
+  }
+  assertIncludesAll(
+    projection.forbidden_claims,
+    [
+      'shell_runtime_truth',
+      'domain_truth',
+      'owner_receipt_authority',
+      'artifact_body',
+      'release_currentness',
+      'live_runtime_readiness',
+    ],
+    `${label} forbidden_claims`,
+  );
 }
 
 function validateTaskRunProjectionV2Contract(projection, label) {

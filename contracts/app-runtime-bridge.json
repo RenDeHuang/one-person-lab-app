@@ -459,6 +459,8 @@
     "page_role": "project_runtime_cockpit_not_runtime_diagnostics",
     "default_surface": "task_run_cockpit",
     "advanced_surface": "task_detail_or_diagnostics",
+    "work_item_projection_ref": "contracts/app-runtime-bridge.json#work_item_projection",
+    "detail_layer_ref": "contracts/app-runtime-bridge.json#work_item_projection.detail_layer_contract",
     "default_user_questions": [
       "which_project",
       "which_agent_or_module",
@@ -732,6 +734,176 @@
       "domain_truth_override"
     ],
     "app_role": "display_only_scope_projection_consumer"
+  },
+  "work_item_projection": {
+    "surface_kind": "opl_work_item_projection",
+    "schema_version": "work-item-projection.v1",
+    "source": "app_state.operator.workbench.task_run_projection_v2 + app_state.operator.workbench.activity_center + app_state.operator.visual_ref_groups",
+    "authority": "one_person_lab_canonical_work_item_projection",
+    "display_policy": "scope_work_item_agent_stage_action_evidence_default_diagnostics_on_demand",
+    "model_chain": [
+      "Scope",
+      "Work Item",
+      "Agent",
+      "Stage",
+      "Attempt",
+      "Action",
+      "Evidence"
+    ],
+    "projection_owner_boundary": {
+      "framework": "projects runtime refs into canonical work items, conditions, stage catalogs, action envelopes, timeline refs, and evidence refs",
+      "app": "defines field placement, display allowlist, validation, and advanced-only policy",
+      "shell": "renders the projection and opens details without deriving runtime truth"
+    },
+    "required_fields": [
+      "work_item_id",
+      "work_item_ref",
+      "project_ref",
+      "agent",
+      "stage",
+      "status",
+      "conditions",
+      "next_action",
+      "evidence"
+    ],
+    "identity_fields": [
+      "work_item_id",
+      "work_item_ref",
+      "project_ref",
+      "workspace_ref",
+      "study_id",
+      "paper_id",
+      "agent_id",
+      "task_ref"
+    ],
+    "default_display_fields": [
+      "project_display_name",
+      "work_item_display_name",
+      "agent_display_name",
+      "primary_state_label",
+      "automation_state_label",
+      "active_stage_label",
+      "active_stage_elapsed",
+      "stage_usage",
+      "task_total_usage",
+      "next_visible_step",
+      "next_owner"
+    ],
+    "condition_contract": {
+      "style": "kubernetes_conditions",
+      "required_fields": [
+        "type",
+        "status",
+        "reason",
+        "message",
+        "owner",
+        "last_transition_time",
+        "observed_generation"
+      ],
+      "standard_types": [
+        "Running",
+        "Succeeded",
+        "NeedsUserDecision",
+        "NeedsSystemRepair",
+        "Paused",
+        "TelemetryFresh"
+      ],
+      "display_policy": "one_line_reason_on_default_row_message_in_detail",
+      "raw_reason_advanced_only": false
+    },
+    "stage_catalog_contract": {
+      "source": "agent_package.stage_catalog",
+      "required_fields": [
+        "stage_id",
+        "display_name",
+        "description",
+        "owner_kind",
+        "next_action_template"
+      ],
+      "catalog_owner": "agent_package",
+      "fallback_policy": "if_catalog_missing_show_humanized_stage_id_and_mark_stage_catalog_missing",
+      "app_hardcoded_stage_names_allowed": false
+    },
+    "action_envelope_contract": {
+      "surface_kind": "opl_action_envelope",
+      "default_action_source": "current_owner_delta_or_task_action_cards",
+      "action_kinds": [
+        "user_action",
+        "system_action",
+        "agent_action",
+        "safe_action",
+        "blocked_no_action"
+      ],
+      "required_fields": [
+        "kind",
+        "title",
+        "owner",
+        "summary",
+        "action_ref",
+        "dry_run_required"
+      ],
+      "default_row_fields": [
+        "kind",
+        "title",
+        "owner"
+      ],
+      "mutating_actions_require_app_action_route": true,
+      "blocked_no_action_requires_reason": true
+    },
+    "detail_layer_contract": {
+      "surface": "runtime_work_item_detail",
+      "default_visibility": "on_selected_work_item_only",
+      "default_tabs": [
+        "stage_map",
+        "timeline",
+        "evidence",
+        "actions",
+        "resources",
+        "diagnostics"
+      ],
+      "stage_map_fields": [
+        "stage_id",
+        "display_name",
+        "state",
+        "owner",
+        "elapsed",
+        "usage",
+        "next_action"
+      ],
+      "timeline_event_fields": [
+        "event_id",
+        "event_type",
+        "at",
+        "stage_id",
+        "owner",
+        "summary",
+        "ref"
+      ],
+      "timeline_event_types": [
+        "stage_entered",
+        "attempt_started",
+        "heartbeat",
+        "artifact_generated",
+        "owner_receipt_observed",
+        "condition_changed",
+        "stopped"
+      ],
+      "diagnostics_policy": "raw_refs_receipts_provider_and_currentness_diagnostics_stay_in_diagnostics_tab"
+    },
+    "dedupe_policy_ref": "contracts/app-runtime-bridge.json#runtime_progress_page_display_policy.task_deduplication_policy",
+    "refs_only": true,
+    "artifact_body_access": false,
+    "owner_receipt_write_access": false,
+    "app_role": "display_only_work_item_projection_consumer",
+    "shell_role": "thin_renderer_no_projection_inference",
+    "forbidden_claims": [
+      "shell_runtime_truth",
+      "domain_truth",
+      "owner_receipt_authority",
+      "artifact_body",
+      "release_currentness",
+      "live_runtime_readiness"
+    ]
   },
   "task_awareness_projection": {
     "source": "app_state.operator.workbench.task_drilldowns",

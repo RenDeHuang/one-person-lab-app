@@ -72,6 +72,45 @@ export const runtimeAutomationStateValues = [
   "automation_failed",
 ];
 
+export const workItemProjectionRequiredFields = [
+  "work_item_id",
+  "work_item_ref",
+  "project_ref",
+  "agent",
+  "stage",
+  "status",
+  "conditions",
+  "next_action",
+  "evidence",
+];
+
+export const workItemConditionFields = [
+  "type",
+  "status",
+  "reason",
+  "message",
+  "owner",
+  "last_transition_time",
+  "observed_generation",
+];
+
+export const actionEnvelopeKinds = [
+  "user_action",
+  "system_action",
+  "agent_action",
+  "safe_action",
+  "blocked_no_action",
+];
+
+export const workItemDetailTabs = [
+  "stage_map",
+  "timeline",
+  "evidence",
+  "actions",
+  "resources",
+  "diagnostics",
+];
+
 export const appOwnedQueueStatusPolicy =
   "queued, pending, and waiting require explicit projected status; blocked or attention_needed stay blocked/attention states; stopped, parked, and checkpointed stay inactive; non-running must never be inferred as queued";
 

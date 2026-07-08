@@ -24,6 +24,7 @@ import {
   validateStructuredResultPanelProjectionContract,
   validateTaskRunProjectionV2Fixture,
   validateWorkflowSkillCandidateProjectionContract,
+  validateWorkItemProjectionContract,
   validateUserTaskStatusProjectionContract,
 } from './shared-contract-validators.ts';
 
@@ -547,6 +548,12 @@ function validateRuntimeProgressPageDisplayPolicy(runtimeBridge) {
   if (policy?.page_role !== 'project_runtime_cockpit_not_runtime_diagnostics') {
     throw new Error('Runtime progress page must declare itself as project cockpit, not runtime diagnostics');
   }
+  if (policy?.work_item_projection_ref !== 'contracts/app-runtime-bridge.json#work_item_projection') {
+    throw new Error('Runtime progress page must point at the canonical WorkItemProjection contract');
+  }
+  if (policy?.detail_layer_ref !== 'contracts/app-runtime-bridge.json#work_item_projection.detail_layer_contract') {
+    throw new Error('Runtime progress page must point at the WorkItemProjection detail layer contract');
+  }
   assertIncludesAll(policy?.default_task_row_spine ?? [], [
     'project_or_paper',
     'agent_or_module',
@@ -700,6 +707,10 @@ function validateRuntimeBridgeCommandResolutionPolicy(runtimeBridge) {
 }
 
 function validateRuntimeBridgeProjectionContracts(runtimeBridge) {
+  validateWorkItemProjectionContract(
+    runtimeBridge.work_item_projection,
+    'Runtime bridge WorkItemProjection',
+  );
   validateProjectProgressDisplayContract(runtimeBridge.project_progress_projection, 'Runtime bridge project progress projection');
   validateProviderReadinessRepairProjectionContract(
     runtimeBridge.provider_readiness_repair_projection,

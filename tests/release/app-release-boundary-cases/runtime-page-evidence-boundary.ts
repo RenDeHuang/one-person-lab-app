@@ -19,6 +19,7 @@ import {
   validateStructuredResultPanelProjectionContract,
   validateTaskAwarenessProjectionContract,
   validateWorkflowSkillCandidateProjectionContract,
+  validateWorkItemProjectionContract,
 } from '../../../scripts/validate-active-shell/shared-contract-validators.ts';
 import { assertIncludesAll } from '../../../scripts/validate-active-shell/assertions.ts';
 import {
@@ -26,8 +27,12 @@ import {
   runtimeAutomationStateValues,
   runtimePrimaryStateValues,
   runtimeScopeRequiredFields,
+  actionEnvelopeKinds,
   taskRunProjectionV2FieldGroups,
   taskRunProjectionV2RequiredFields,
+  workItemConditionFields,
+  workItemDetailTabs,
+  workItemProjectionRequiredFields,
 } from '../../../scripts/validate-active-shell/app-contract-constants.ts';
 
 test('runtime page consumes OPL App/operator drilldown instead of App-owned runtime truth', () => {
@@ -461,6 +466,11 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   );
   const runtimeDisplayPolicy = runtimeBridge.runtime_progress_page_display_policy;
   assert.equal(runtimeDisplayPolicy.page_role, 'project_runtime_cockpit_not_runtime_diagnostics');
+  assert.equal(runtimeDisplayPolicy.work_item_projection_ref, 'contracts/app-runtime-bridge.json#work_item_projection');
+  assert.equal(
+    runtimeDisplayPolicy.detail_layer_ref,
+    'contracts/app-runtime-bridge.json#work_item_projection.detail_layer_contract',
+  );
   assert.deepEqual(runtimeDisplayPolicy.default_task_row_spine, [
     'project_or_paper',
     'agent_or_module',
@@ -566,6 +576,28 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'current_control_state',
     'full_drilldown',
   ]);
+  assert.doesNotThrow(() =>
+    validateWorkItemProjectionContract(runtimeBridge.work_item_projection, 'Runtime bridge WorkItemProjection'),
+  );
+  assert.deepEqual(runtimeBridge.work_item_projection.required_fields, workItemProjectionRequiredFields);
+  assert.deepEqual(
+    runtimeBridge.work_item_projection.condition_contract.required_fields,
+    workItemConditionFields,
+  );
+  assert.deepEqual(
+    runtimeBridge.work_item_projection.action_envelope_contract.action_kinds,
+    actionEnvelopeKinds,
+  );
+  assert.deepEqual(
+    runtimeBridge.work_item_projection.detail_layer_contract.default_tabs,
+    workItemDetailTabs,
+  );
+  assert.equal(runtimeBridge.work_item_projection.stage_catalog_contract.catalog_owner, 'agent_package');
+  assert.equal(runtimeBridge.work_item_projection.stage_catalog_contract.app_hardcoded_stage_names_allowed, false);
+  assert.equal(runtimeBridge.work_item_projection.detail_layer_contract.default_visibility, 'on_selected_work_item_only');
+  assert.equal(runtimeBridge.work_item_projection.refs_only, true);
+  assert.equal(runtimeBridge.work_item_projection.artifact_body_access, false);
+  assert.equal(runtimeBridge.work_item_projection.owner_receipt_write_access, false);
   assert.deepEqual(runtimeBridge.user_task_status_projection, {
     source: 'app_state.operator.workbench.summary_cards + app_state.operator.workbench.activity_center + app_state.operator.workbench.task_drilldowns + app_state.operator.visual_ref_groups.active_project_refs',
     authority: 'opl_framework_refs_only_user_task_projection',
