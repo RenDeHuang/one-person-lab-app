@@ -59,8 +59,26 @@ const runtimeSettingsExpected = [
   'executeManagedUpdateRead',
   'executeManagedUpdateMutation',
   'runSettingsControlPlaneAction',
-  'RuntimeMaintenanceHub',
+  'maintenanceHubItems',
+  "data-testid='opl-maintenance-hub'",
+  'settings.oplEnvironmentPage.maintenanceHub.title',
+  'settings.oplEnvironmentPage.maintenanceHub.results.title',
+  "data-testid='opl-maintenance-advanced-details'",
   'RuntimeReadinessGrid',
+];
+
+const runtimeSettingsViewModelExpected = [
+  'const maintenanceHubItems',
+  "key: 'appUpdates'",
+  "key: 'runtimeEnvironment'",
+  "key: 'capabilitySurfaceSync'",
+  "key: 'localServicesRepair'",
+  'settings.oplEnvironmentPage.maintenanceHub.items.appUpdates.title',
+  'settings.oplEnvironmentPage.maintenanceHub.items.runtimeEnvironment.title',
+  'settings.oplEnvironmentPage.maintenanceHub.actions.repairRuntimeEnvironment',
+  'settings.oplEnvironmentPage.maintenanceHub.items.capabilitySurfaceSync.title',
+  'settings.oplEnvironmentPage.maintenanceHub.actions.syncCapabilityPacks',
+  'settings.oplEnvironmentPage.maintenanceHub.items.localServicesRepair.title',
 ];
 
 const trayStartupExpected = [
@@ -149,6 +167,12 @@ function validateRuntimeSettings(shellPaths) {
     runtimeSettings,
     /med[-_ ]?deep[-_ ]?scientist|module_id['"]?\s*:\s*['"]mds['"]/i,
     'Active shell Runtime settings must not default-display Med Deep Scientist/MDS.',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/settings/RuntimeSettings/runtimeSettingsViewModel.tsx',
+    runtimeSettingsViewModelExpected,
+    'Active shell Runtime settings maintenance hub view model',
   );
 }
 

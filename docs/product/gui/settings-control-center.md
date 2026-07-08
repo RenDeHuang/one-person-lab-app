@@ -679,6 +679,10 @@ Settings validation is split into three layers:
    `SettingsShellAdapterSlot`, including ordinary routes, secondary routes,
    legacy redirects, and extension anchor remaps. This is a slot and registry
    behavior check, not a source-code inventory of every Settings component.
+   Source probes for ordinary Settings pages should bind to current user-visible
+   anchors, route/view-model structure, and action-source boundaries. They
+   should not require retired component names after a page is folded into a
+   simpler ordinary-user layout.
 3. High-risk forbidden source probes: source-string probes remain appropriate
    only for rejected or dangerous upstream surfaces, including AionUI Team mode,
    Team MCP state, raw runtime/domain truth writes, owner receipt writes, silent
