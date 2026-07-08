@@ -238,11 +238,11 @@ test('Full first-install cache and release acceleration contract are explicit', 
   assert.match(releaseContract.release_acceleration.release_monitor.authority_boundary, /owner receipt/);
   assert.equal(
     releaseContract.release_acceleration.release_monitor.phase_budgets.full_build.warning_after_seconds,
-    5400,
+    3600,
   );
   assert.equal(
     releaseContract.release_acceleration.release_monitor.phase_budgets.full_build.timeout_after_seconds,
-    10800,
+    5400,
   );
   assert.deepEqual(
     releaseContract.release_acceleration.release_monitor.phase_budgets.full_build.recommended_next_actions,

@@ -271,8 +271,8 @@ test('first-run VM workflow preserves App-side diagnostics and visible timeout c
   assert.ok(match, 'first-run VM workflow must include clean-vm-first-run job');
   const job = match[0];
 
-  assert.match(workflow, /run_timeout_ms:[\s\S]*default: '900000'/);
-  assert.match(workflow, /smoke_timeout_ms:[\s\S]*default: '900000'/);
+  assert.match(workflow, /run_timeout_ms:[\s\S]*default: '3600000'/);
+  assert.match(workflow, /smoke_timeout_ms:[\s\S]*default: '3600000'/);
   assert.match(workflow, /release_artifact_run_id:/);
   assert.match(job, /run-id:\s+\$\{\{ inputs\.release_artifact_run_id \|\| github\.run_id \}\}/);
   assert.match(job, /workflow artifact \$\{\{ inputs\.release_artifact_name \}\} from run \$\{\{ inputs\.release_artifact_run_id \|\| github\.run_id \}\}/);

@@ -87,8 +87,8 @@ const requiredReleaseMonitorPhaseBudgets = {
       'homebrew-standard-first-run-vm-smoke',
       'full-first-run-vm-smoke',
     ],
-    warning_after_seconds: 3600,
-    timeout_after_seconds: 7200,
+    warning_after_seconds: 2700,
+    timeout_after_seconds: 4500,
     primary_blocker: 'vm_smoke_timeout_or_failure',
     recommended_next_actions: {
       warning: 'wait_for_runner_capacity',
@@ -101,8 +101,8 @@ const requiredReleaseMonitorPhaseBudgets = {
       'full-first-install',
       'publish-full-assets',
     ],
-    warning_after_seconds: 5400,
-    timeout_after_seconds: 10800,
+    warning_after_seconds: 3600,
+    timeout_after_seconds: 5400,
     primary_blocker: 'full_build_timeout_or_failure',
     recommended_next_actions: {
       warning: 'inspect_full_build_diagnostics',

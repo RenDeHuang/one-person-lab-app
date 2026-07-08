@@ -400,7 +400,18 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /guide_screenshots: \$\{\{ inputs\.guide_screenshots \}\}/);
   assert.match(fullWorkflow, /workflow_call:/);
   const fullWorkflowCallBlock = fullWorkflow.match(/\n  workflow_call:[\s\S]*?\npermissions:/)?.[0] ?? '';
+  const fullBuildJob = workflowJobBlock(fullWorkflow, 'full-first-install');
+  const fullPublishJob = workflowJobBlock(fullWorkflow, 'publish-full-release-assets');
   assert.doesNotMatch(fullWorkflowCallBlock, /secrets:[\s\S]*GH_TOKEN:/);
+  assert.match(fullWorkflow, /permissions:[\s\S]*contents: read/);
+  assert.match(fullBuildJob, /timeout-minutes: 90/);
+  assert.match(fullBuildJob, /permissions:[\s\S]*contents: read/);
+  assert.doesNotMatch(fullBuildJob, /contents: write/);
+  assert.match(fullPublishJob, /name: Publish Full GitHub Release assets/);
+  assert.match(fullPublishJob, /permissions:[\s\S]*actions: read[\s\S]*contents: write/);
+  assert.match(fullPublishJob, /Download Full package workflow artifact/);
+  assert.match(fullPublishJob, /Publish GitHub Release assets/);
+  assert.match(fullWorkflow, /Upload Full package workflow artifact[\s\S]*if: \$\{\{ inputs\.publish_to_release \|\| inputs\.upload_full_package_artifact \}\}/);
   assert.match(fullWorkflow, /shell_ref:[\s\S]*description: opl-aion-shell ref to bundle/);
   assert.match(fullWorkflow, /name: Checkout active shell[\s\S]*ref: \$\{\{ inputs\.shell_ref \|\| 'main' \}\}/);
   assert.match(fullWorkflow, /name: Checkout OPL Meta Agent/);
@@ -433,7 +444,11 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(vmWorkflow, /Validate active shell ref before VM runner work/);
   assert.match(vmWorkflow, /opl-aion-shell ref '\$shell_ref' does not exist; fix shell_ref before occupying the first-run VM harness/);
   assert.match(vmWorkflow, /clean-vm-first-run:[\s\S]*needs: validate-vm-inputs/);
+  assert.match(vmWorkflow, /clean-vm-first-run:[\s\S]*timeout-minutes: 75/);
   assert.match(vmWorkflow, /clean-vm-first-run:[\s\S]*permissions:[\s\S]*actions: read[\s\S]*contents: write/);
+  assert.match(vmWorkflow, /run_timeout_ms:[\s\S]*default: '3600000'[\s\S]*smoke_timeout_ms:[\s\S]*default: '3600000'/);
+  assert.match(vmWorkflow, /if \[ -z "\$RUN_TIMEOUT_MS" \]; then\s+RUN_TIMEOUT_MS="3600000"/);
+  assert.match(vmWorkflow, /if \[ -z "\$SMOKE_TIMEOUT_MS" \]; then\s+SMOKE_TIMEOUT_MS="3600000"/);
   assert.match(vmWorkflow, /PROFILE="\$\{\{ needs\.validate-vm-inputs\.outputs\.package_profile \}\}"/);
   assert.match(vmWorkflow, /name: Checkout active shell[\s\S]*ref: \$\{\{ needs\.validate-vm-inputs\.outputs\.shell_ref \}\}/);
   assert.match(vmWorkflow, /release_artifact_name:/);
@@ -508,6 +523,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(vmWorkflow, /--assistant-route-smoke/);
   assert.match(vmWorkflow, /diagnostic_scope != 'bootstrap_only'/);
   assert.match(vmWorkflow, /release_inputs:[\s\S]*diagnostic_scope: diagnosticScope/);
+  assert.match(vmWorkflow, /job_timeout_minutes: 75/);
   assert.match(vmWorkflow, /Write first-run VM preflight summary/);
   assert.match(vmWorkflow, /deterministic release-blocking clean VM first launch/);
   assert.match(vmWorkflow, /id:\s+vm_smoke/);
@@ -789,8 +805,8 @@ test('manual desktop release workflow supports new releases and same-tag refresh
           'homebrew-standard-first-run-vm-smoke',
           'full-first-run-vm-smoke',
         ],
-        warning_after_seconds: 3600,
-        timeout_after_seconds: 7200,
+        warning_after_seconds: 2700,
+        timeout_after_seconds: 4500,
         primary_blocker: 'vm_smoke_timeout_or_failure',
         recommended_next_actions: {
           warning: 'wait_for_runner_capacity',
@@ -804,8 +820,8 @@ test('manual desktop release workflow supports new releases and same-tag refresh
           'full-first-install',
           'publish-full-assets',
         ],
-        warning_after_seconds: 5400,
-        timeout_after_seconds: 10800,
+        warning_after_seconds: 3600,
+        timeout_after_seconds: 5400,
         primary_blocker: 'full_build_timeout_or_failure',
         recommended_next_actions: {
           warning: 'inspect_full_build_diagnostics',

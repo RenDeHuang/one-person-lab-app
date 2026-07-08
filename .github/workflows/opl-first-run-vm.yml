@@ -67,12 +67,12 @@ on:
       run_timeout_ms:
         description: 'Outer Tart run timeout passed to opl-first-run-tart-smoke.mjs.'
         required: false
-        default: '900000'
+        default: '3600000'
         type: string
       smoke_timeout_ms:
         description: 'Guest smoke timeout passed to opl-first-run-tart-smoke.mjs.'
         required: false
-        default: '900000'
+        default: '3600000'
         type: string
       codex_install_phase_timeout_ms:
         description: 'Codex install/setup phase timeout passed through to the active shell smoke. Empty inherits smoke_timeout_ms.'
@@ -152,12 +152,12 @@ on:
       run_timeout_ms:
         description: 'Outer Tart run timeout passed to opl-first-run-tart-smoke.mjs.'
         required: false
-        default: '900000'
+        default: '3600000'
         type: string
       smoke_timeout_ms:
         description: 'Guest smoke timeout passed to opl-first-run-tart-smoke.mjs.'
         required: false
-        default: '900000'
+        default: '3600000'
         type: string
       codex_install_phase_timeout_ms:
         description: 'Codex install/setup phase timeout passed through to the active shell smoke. Empty inherits smoke_timeout_ms.'
@@ -333,7 +333,7 @@ jobs:
     needs: validate-vm-inputs
     if: ${{ needs.validate-vm-inputs.outputs.skip_vm != 'true' }}
     runs-on: ${{ fromJson(vars.OPL_FIRST_RUN_RUNNER_LABELS || '["self-hosted","macOS","opl-gui-vm"]') }}
-    timeout-minutes: 90
+    timeout-minutes: 75
     permissions:
       actions: read
       contents: write
@@ -507,10 +507,10 @@ jobs:
           CODEX_READINESS_PHASE_TIMEOUT_MS="${{ inputs.codex_readiness_phase_timeout_ms }}"
 
           if [ -z "$RUN_TIMEOUT_MS" ]; then
-            RUN_TIMEOUT_MS="900000"
+            RUN_TIMEOUT_MS="3600000"
           fi
           if [ -z "$SMOKE_TIMEOUT_MS" ]; then
-            SMOKE_TIMEOUT_MS="900000"
+            SMOKE_TIMEOUT_MS="3600000"
           fi
           if [ -z "$CODEX_INSTALL_PHASE_TIMEOUT_MS" ]; then
             CODEX_INSTALL_PHASE_TIMEOUT_MS="$SMOKE_TIMEOUT_MS"
@@ -1361,7 +1361,7 @@ jobs:
               guide_screenshots: process.env.GUIDE_SCREENSHOTS === 'true',
             },
             timeouts: {
-              job_timeout_minutes: 90,
+              job_timeout_minutes: 75,
               run_timeout_ms: Number(process.env.RUN_TIMEOUT_MS),
               smoke_timeout_ms: Number(process.env.SMOKE_TIMEOUT_MS),
               codex_install_phase_timeout_ms: Number(process.env.CODEX_INSTALL_PHASE_TIMEOUT_MS),
@@ -1651,7 +1651,7 @@ jobs:
             echo "- DMG: ${{ steps.dmg.outputs.dmg_path }}"
             echo "- Homebrew cask: ${{ steps.package_profile.outputs.homebrew_cask }}"
             echo "- Artifacts: artifacts/opl-first-run-vm"
-            echo "- Job timeout: 90 minutes"
+            echo "- Job timeout: 75 minutes"
             echo "- Run timeout: ${{ steps.vm_timeouts.outputs.run_timeout_ms }} ms"
             echo "- Smoke timeout: ${{ steps.vm_timeouts.outputs.smoke_timeout_ms }} ms"
             echo "- Codex install phase timeout: ${{ steps.vm_timeouts.outputs.codex_install_phase_timeout_ms }} ms"

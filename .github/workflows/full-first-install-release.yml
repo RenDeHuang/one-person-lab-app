@@ -84,7 +84,7 @@ on:
         default: ULMO
         type: string
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: opl-full-first-install-${{ inputs.opl_version }}
@@ -97,7 +97,9 @@ jobs:
   full-first-install:
     name: Build App-owned Full first-install DMG
     runs-on: macos-latest
-    timeout-minutes: 150
+    timeout-minutes: 90
+    permissions:
+      contents: read
 
     steps:
       - name: Inspect optional Full release signing secrets
@@ -1029,7 +1031,7 @@ jobs:
             --output "$RUNNER_TEMP/full-release-notes.md"
 
       - name: Upload Full package workflow artifact
-        if: ${{ inputs.upload_full_package_artifact }}
+        if: ${{ inputs.publish_to_release || inputs.upload_full_package_artifact }}
         uses: actions/upload-artifact@v7
         with:
           name: opl-full-first-install-${{ env.OPL_RELEASE_VERSION }}-mac-arm64
@@ -1038,7 +1040,7 @@ jobs:
           retention-days: 14
 
       - name: Upload Full DMG-only workflow artifact
-        if: ${{ inputs.upload_full_package_artifact }}
+        if: ${{ inputs.publish_to_release || inputs.upload_full_package_artifact }}
         uses: actions/upload-artifact@v7
         with:
           name: opl-full-first-install-dmg-${{ env.OPL_RELEASE_VERSION }}-mac-arm64
@@ -1046,21 +1048,15 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - name: Publish GitHub Release assets
+      - name: Upload prepared Full release notes for publish
         if: ${{ inputs.publish_to_release }}
-        working-directory: one-person-lab-app
+        uses: actions/upload-artifact@v7
         env:
-          GH_TOKEN: ${{ github.token }}
-          GITHUB_TOKEN: ${{ github.token }}
           OPL_RELEASE_NOTES_FILE: ${{ runner.temp }}/full-release-notes.md
-        run: |
-          npm run release:publish -- \
-            --no-build \
-            --version "$OPL_RELEASE_VERSION" \
-            --repo "$GITHUB_REPOSITORY" \
-            --full-package-only \
-            --include-full-package \
-            --release-notes-file "$OPL_RELEASE_NOTES_FILE"
+        with:
+          name: prepared-full-release-notes-${{ env.OPL_RELEASE_VERSION }}
+          path: ${{ env.OPL_RELEASE_NOTES_FILE }}
+          if-no-files-found: error
 
       - name: Upload Full release-note evidence
         if: ${{ inputs.publish_to_release }}
@@ -1079,3 +1075,51 @@ jobs:
           if security list-keychains | grep -q build.keychain; then
             security delete-keychain build.keychain
           fi
+
+  publish-full-release-assets:
+    name: Publish Full GitHub Release assets
+    needs: full-first-install
+    if: ${{ inputs.publish_to_release }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: write
+
+    steps:
+      - name: Checkout App repo
+        uses: actions/checkout@v6
+        with:
+          path: one-person-lab-app
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Download Full package workflow artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: opl-full-first-install-${{ inputs.opl_version }}-mac-arm64
+          path: one-person-lab-app/dist/opl-full-release
+
+      - name: Download prepared Full release notes
+        uses: actions/download-artifact@v8
+        with:
+          name: prepared-full-release-notes-${{ inputs.opl_version }}
+          path: prepared-full-release-notes
+
+      - name: Publish GitHub Release assets
+        working-directory: one-person-lab-app
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+          OPL_RELEASE_VERSION: ${{ inputs.opl_version }}
+          OPL_RELEASE_NOTES_FILE: ${{ github.workspace }}/prepared-full-release-notes/full-release-notes.md
+        run: |
+          npm run release:publish -- \
+            --no-build \
+            --version "$OPL_RELEASE_VERSION" \
+            --repo "$GITHUB_REPOSITORY" \
+            --full-package-only \
+            --include-full-package \
+            --release-notes-file "$OPL_RELEASE_NOTES_FILE"
