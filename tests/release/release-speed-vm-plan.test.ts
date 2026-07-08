@@ -37,6 +37,13 @@ function workflowStepBlock(workflow: string, stepName: string) {
   return match[0];
 }
 
+function workflowJobBlock(workflow: string, jobId: string) {
+  const escaped = jobId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = workflow.match(new RegExp(`\\n  ${escaped}:[\\s\\S]*?(?=\\n  [a-z0-9-]+:\\n|$)`));
+  assert.ok(match, `workflow must include job: ${jobId}`);
+  return match[0];
+}
+
 function runReleasePlan(args: string[]) {
   const result = spawnSync(
     process.execPath,
@@ -84,12 +91,14 @@ test('desktop release workflow keeps the release DAG split by build, publish, ve
     'publish-standard job waits for source gate outputs and standard build',
   );
   assertMatches(workflow, /full-first-install:[\s\S]*?uses:\s+\.\/\.github\/workflows\/full-first-install-release\.yml/, 'Full package build job');
-  assertMatches(workflow, /full-first-install:[\s\S]*?needs:\s+standard-vm-smoke-gate-after-full/, 'Full package build waits for standard VM fail-fast gate');
+  const fullFirstInstallJob = workflowJobBlock(workflow, 'full-first-install');
+  assertMatches(fullFirstInstallJob, /needs:[\s\S]*?release-workflow-contract[\s\S]*?release-source-gate/, 'Full package build waits for cheap source gates');
   assertMatches(
-    workflow,
-    /full-first-install:[\s\S]*?needs\.standard-vm-smoke-gate-after-full\.result == 'success'/,
-    'Full package build is skipped unless the standard VM fail-fast gate passed',
+    fullFirstInstallJob,
+    /needs\.release-workflow-contract\.result == 'success'[\s\S]*?needs\.release-source-gate\.result == 'success'/,
+    'Full package build is skipped unless the cheap source gates passed',
   );
+  assert.doesNotMatch(fullFirstInstallJob, /standard-vm-smoke-gate-after-full/, 'Full build must not wait for the standard VM gate');
   assertMatches(workflow, /full-first-install:[\s\S]*?publish_to_release:\s+false/, 'Full package build-only job');
   assertMatches(workflow, /publish-full-assets:[\s\S]*?needs:[\s\S]*?publish-standard[\s\S]*?full-first-install/, 'Full package publish job');
   assertMatches(
@@ -115,7 +124,7 @@ test('desktop release workflow keeps the release DAG split by build, publish, ve
   );
   assertMatches(
     workflow,
-    /standard-vm-smoke-gate-after-full:[\s\S]*?Standard VM smoke must pass before Full build, remote verification, Homebrew, operator evidence, or readiness aggregation can run/,
+    /standard-vm-smoke-gate-after-full:[\s\S]*?Standard VM smoke must pass before Full publish, remote verification, Homebrew, operator evidence, or readiness aggregation can run/,
     'standard VM fail-fast gate for Full release path',
   );
   assertMatches(
@@ -167,7 +176,9 @@ test('desktop release workflow keeps the release DAG split by build, publish, ve
     'Full VM smoke is skipped unless the standard VM gate passed',
   );
   assertMatches(workflow, /one-shot-app-installer-smoke:[\s\S]*?needs:[\s\S]*?publish-standard[\s\S]*?standard-vm-smoke-gate-after-full/, 'one-shot installer smoke waits for standard VM fail-fast gate');
-  assertMatches(workflow, /docker-webui-smoke:[\s\S]*?needs:[\s\S]*?publish-standard[\s\S]*?standard-vm-smoke-gate-after-full/, 'Docker WebUI smoke waits for standard VM fail-fast gate');
+  const dockerWebuiJob = workflowJobBlock(workflow, 'docker-webui-smoke');
+  assertMatches(dockerWebuiJob, /needs:[\s\S]*?publish-standard/, 'Docker WebUI smoke waits for standard publish');
+  assert.doesNotMatch(dockerWebuiJob, /standard-vm-smoke-gate-after-full/, 'Docker WebUI smoke does not wait for the standard VM fail-fast gate');
   assertMatches(workflow, /same_job_after_docker_webui_smoke/, 'WebUI GHCR publish reuses the smoked image build');
   assertMatches(workflow, /repeated_docker_build: false/, 'WebUI publish summary records avoided rebuild');
   assertMatches(workflow, /webui-ghcr-publish:[\s\S]*Download WebUI GHCR publish summary[\s\S]*Verify WebUI GHCR publish summary/, 'WebUI GHCR gate verifies the publish summary without rebuilding');
@@ -492,7 +503,7 @@ test('Docker WebUI smoke records image size as a release-speed artifact', () => 
   assertMatches(workflow, /image[-_]size|size_bytes|Size/, 'Docker image size field');
   assertMatches(workflow, /\/tmp\/opl-webui-image-size[-\w]*\.(json|txt)|artifacts\/docker-webui-image-size/, 'Docker image size artifact path');
   assertMatches(workflow, /Upload Docker WebUI smoke artifacts[\s\S]*opl-webui-image-size/, 'Docker image size upload');
-  assert.equal((workflow.match(/docker build/g) ?? []).length, 2, 'stable WebUI release path should build full and slim variants once each');
+  assert.equal((workflow.match(/^\s+docker build \\/gm) ?? []).length, 2, 'stable WebUI release path should build full and slim variants once each');
   assertMatches(workflow, /-t "one-person-lab-webui:\$\{\{ inputs\.opl_version \}\}"/, 'Docker WebUI full image tag');
   assertMatches(workflow, /-t "one-person-lab-webui:\$\{\{ inputs\.opl_version \}\}-slim"/, 'Docker WebUI slim image tag');
   assertMatches(workflow, /"\$\{ghcr_image\}:\$\{\{ inputs\.opl_version \}\}"[\s\S]*"\$\{ghcr_image\}:\$\{\{ inputs\.opl_version \}\}-slim"[\s\S]*"\$\{ghcr_image\}:stable"/, 'stable remains a full image tag while slim is version-scoped');

@@ -93,9 +93,8 @@ on:
         type: string
 
 permissions:
-  contents: write
+  contents: read
   actions: read
-  packages: write
 
 concurrency:
   group: opl-desktop-release-${{ inputs.release_mode }}-${{ inputs.opl_version }}
@@ -331,6 +330,8 @@ jobs:
     permissions:
       contents: write
       actions: read
+      attestations: write
+      id-token: write
     needs:
       - prepare-standard-release-notes
       - release-source-gate
@@ -461,15 +462,22 @@ jobs:
           fi
           "${publish_args[@]}"
 
+      - name: Attest standard release assets
+        uses: actions/attest@v4
+        with:
+          subject-path: release-assets/*
+
   full-first-install:
     name: Build Full first-install assets
-    needs: standard-vm-smoke-gate-after-full
-    if: ${{ !cancelled() && inputs.include_full_package && needs.standard-vm-smoke-gate-after-full.result == 'success' }}
+    needs:
+      - release-workflow-contract
+      - release-source-gate
+    if: ${{ !cancelled() && inputs.include_full_package && needs.release-workflow-contract.result == 'success' && needs.release-source-gate.result == 'success' }}
     uses: ./.github/workflows/full-first-install-release.yml
     with:
       opl_version: ${{ inputs.opl_version }}
-      framework_ref: ${{ needs.standard-vm-smoke-gate-after-full.outputs.framework_sha }}
-      shell_ref: ${{ needs.standard-vm-smoke-gate-after-full.outputs.shell_sha }}
+      framework_ref: ${{ needs.release-source-gate.outputs.framework_sha }}
+      shell_ref: ${{ needs.release-source-gate.outputs.shell_sha }}
       publish_to_release: false
       force_rebuild_runtime_cache: ${{ inputs.force_rebuild_runtime_cache }}
     secrets: inherit
@@ -546,11 +554,14 @@ jobs:
     permissions:
       contents: write
       actions: read
+      attestations: write
+      id-token: write
     needs:
       - prepare-full-release-notes
       - publish-standard
       - full-first-install
-    if: ${{ !cancelled() && inputs.include_full_package && needs.publish-standard.result == 'success' && needs.full-first-install.result == 'success' && needs.prepare-full-release-notes.result == 'success' }}
+      - standard-vm-smoke-gate-after-full
+    if: ${{ !cancelled() && inputs.include_full_package && needs.publish-standard.result == 'success' && needs.full-first-install.result == 'success' && needs.prepare-full-release-notes.result == 'success' && needs.standard-vm-smoke-gate-after-full.result == 'success' }}
 
     steps:
       - name: Checkout App repo
@@ -590,6 +601,11 @@ jobs:
             --include-full-package \
             --full-package-dir full-package-artifacts \
             --release-notes-file "$OPL_RELEASE_NOTES_FILE"
+
+      - name: Attest Full first-install assets
+        uses: actions/attest@v4
+        with:
+          subject-path: full-package-artifacts/*
 
   remote-verify-standard:
     name: Verify remote standard release assets
@@ -758,7 +774,7 @@ jobs:
             exit 0
           fi
           if [ "${{ needs.standard-first-run-vm-smoke-after-full.result }}" != "success" ]; then
-            echo "::error::Standard VM smoke must pass before Full build, remote verification, Homebrew, operator evidence, or readiness aggregation can run. Result: ${{ needs.standard-first-run-vm-smoke-after-full.result }}"
+            echo "::error::Standard VM smoke must pass before Full publish, remote verification, Homebrew, operator evidence, or readiness aggregation can run. Result: ${{ needs.standard-first-run-vm-smoke-after-full.result }}"
             exit 1
           fi
 
@@ -875,7 +891,12 @@ jobs:
       - publish-standard
     if: ${{ !cancelled() && inputs.publish_docker_webui && inputs.run_vm_smoke && needs.publish-standard.result == 'success' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
 
     steps:
       - name: Checkout App repo
@@ -891,6 +912,7 @@ jobs:
           path: shells/aionui
 
       - name: Build, verify, and publish Docker WebUI
+        id: build_docker_webui
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -901,6 +923,8 @@ jobs:
           set -euo pipefail
           image_owner="$(printf '%s' "$GITHUB_REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')"
           ghcr_image="ghcr.io/${image_owner}/one-person-lab-webui"
+          full_digest=""
+          slim_digest=""
           write_publish_summary() {
             local status="$1"
             local error_code="${2:-}"
@@ -911,6 +935,10 @@ jobs:
             status: '${status}',
             image: '${ghcr_image}',
             tags: ['${{ inputs.opl_version }}', '${{ inputs.opl_version }}-slim', 'stable', 'latest'],
+            image_digests: {
+              webui_full: '${full_digest}',
+              webui_slim: '${slim_digest}',
+            },
             draft_candidate_push: false,
             source_repository: 'https://github.com/${GITHUB_REPOSITORY}',
             build_reuse: {
@@ -1081,7 +1109,30 @@ jobs:
             write_publish_summary "failed" "ghcr_write_package_denied" "GHCR stable tag push failed. Ensure the one-person-lab-webui package grants write Actions access to gaofeng21cn/one-person-lab-app."
             exit 0
           fi
+          full_digest="$(docker buildx imagetools inspect "${ghcr_image}:${{ inputs.opl_version }}" --format '{{.Manifest.Digest}}')"
+          slim_digest="$(docker buildx imagetools inspect "${ghcr_image}:${{ inputs.opl_version }}-slim" --format '{{.Manifest.Digest}}')"
+          echo "ghcr_image=$ghcr_image" >> "$GITHUB_OUTPUT"
+          echo "full_digest=$full_digest" >> "$GITHUB_OUTPUT"
+          echo "slim_digest=$slim_digest" >> "$GITHUB_OUTPUT"
           write_publish_summary "published"
+
+      - name: Attest WebUI full GHCR image
+        if: ${{ inputs.release_mode != 'draft_candidate' && steps.build_docker_webui.outputs.full_digest != '' }}
+        uses: actions/attest@v4
+        with:
+          subject-name: ${{ steps.build_docker_webui.outputs.ghcr_image }}
+          subject-digest: ${{ steps.build_docker_webui.outputs.full_digest }}
+          push-to-registry: true
+          create-storage-record: false
+
+      - name: Attest WebUI slim GHCR image
+        if: ${{ inputs.release_mode != 'draft_candidate' && steps.build_docker_webui.outputs.slim_digest != '' }}
+        uses: actions/attest@v4
+        with:
+          subject-name: ${{ steps.build_docker_webui.outputs.ghcr_image }}
+          subject-digest: ${{ steps.build_docker_webui.outputs.slim_digest }}
+          push-to-registry: true
+          create-storage-record: false
 
       - name: Upload Docker WebUI smoke artifacts
         uses: actions/upload-artifact@v7

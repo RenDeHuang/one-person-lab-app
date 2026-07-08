@@ -93,12 +93,15 @@ test('desktop release workflow fails fast before expensive builds and queues sam
   assert.match(workflow, /release-workflow-contract:[\s\S]*npm run validate:release-boundary/);
   assert.match(workflow, /release-workflow-contract:[\s\S]*npm run test:release-boundary/);
   assert.match(workflow, /standard-build:[\s\S]*needs:[\s\S]*release-workflow-contract[\s\S]*release-source-gate/);
-  assert.match(fullFirstInstallJob, /needs:\s+standard-vm-smoke-gate-after-full/);
-  assert.match(fullFirstInstallJob, /needs\.standard-vm-smoke-gate-after-full\.result == 'success'/);
+  assert.match(fullFirstInstallJob, /needs:[\s\S]*release-workflow-contract[\s\S]*release-source-gate/);
+  assert.match(fullFirstInstallJob, /needs\.release-workflow-contract\.result == 'success'/);
+  assert.match(fullFirstInstallJob, /needs\.release-source-gate\.result == 'success'/);
+  assert.doesNotMatch(fullFirstInstallJob, /standard-vm-smoke-gate-after-full/);
   assert.match(standardGateJob, /needs:[\s\S]*publish-standard[\s\S]*standard-first-run-vm-smoke-after-full/);
-  assert.match(standardGateJob, /Standard VM smoke must pass before Full build, remote verification, Homebrew, operator evidence, or readiness aggregation can run/);
+  assert.match(standardGateJob, /Standard VM smoke must pass before Full publish, remote verification, Homebrew, operator evidence, or readiness aggregation can run/);
   assert.match(publishFullAssetsJob, /needs\.publish-standard\.result == 'success'/);
   assert.match(publishFullAssetsJob, /needs\.full-first-install\.result == 'success'/);
+  assert.match(publishFullAssetsJob, /needs\.standard-vm-smoke-gate-after-full\.result == 'success'/);
   assert.match(workflow, /remote-verify-full:[\s\S]*needs:[\s\S]*publish-full-assets[\s\S]*standard-vm-smoke-gate-after-full/);
   assert.match(remoteVerifyFullJob, /needs\.publish-full-assets\.result == 'success'/);
   assert.match(remoteVerifyFullJob, /needs\.standard-vm-smoke-gate-after-full\.result == 'success'/);

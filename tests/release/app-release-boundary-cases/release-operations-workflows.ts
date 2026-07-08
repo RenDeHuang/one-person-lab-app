@@ -611,7 +611,7 @@ test('release workflows resolve moving refs once and pass fixed SHA cohort refs 
   assert.match(workflowJobBlock(desktopWorkflow, 'publish-full-assets'), /--release-notes-file "\$OPL_RELEASE_NOTES_FILE"/);
   assert.doesNotMatch(workflowJobBlock(desktopWorkflow, 'publish-full-assets'), /release-notes-ai-writer\.ts --probe-openai-compatible/);
   assert.match(desktopWorkflow, /name: Record fixed release cohort refs[\s\S]*APP_SHA: \$\{\{ needs\.release-source-gate\.outputs\.app_sha \}\}[\s\S]*FRAMEWORK_SHA: \$\{\{ needs\.release-source-gate\.outputs\.framework_sha \}\}/);
-  assert.match(desktopWorkflow, /full-first-install:[\s\S]*framework_ref: \$\{\{ needs\.standard-vm-smoke-gate-after-full\.outputs\.framework_sha \}\}[\s\S]*shell_ref: \$\{\{ needs\.standard-vm-smoke-gate-after-full\.outputs\.shell_sha \}\}/);
+  assert.match(desktopWorkflow, /full-first-install:[\s\S]*framework_ref: \$\{\{ needs\.release-source-gate\.outputs\.framework_sha \}\}[\s\S]*shell_ref: \$\{\{ needs\.release-source-gate\.outputs\.shell_sha \}\}/);
   assert.match(desktopWorkflow, /standard-first-run-vm-smoke-after-standard-only:[\s\S]*shell_ref: \$\{\{ needs\.publish-standard\.outputs\.shell_sha \}\}/);
   assert.match(desktopWorkflow, /standard-vm-smoke-gate-after-full:[\s\S]*outputs:[\s\S]*framework_sha: \$\{\{ steps\.release-cohort\.outputs\.framework_sha \}\}/);
   assert.match(desktopWorkflow, /one-shot-app-installer-smoke:[\s\S]*repository: gaofeng21cn\/one-person-lab[\s\S]*ref: \$\{\{ needs\.publish-standard\.outputs\.framework_sha \}\}/);
