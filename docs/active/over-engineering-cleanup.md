@@ -105,6 +105,12 @@ Last updated: 2026-07-08
 - Kept behavior coverage for release readiness aggregation, candidate records, release assets/remote verification, publishing behavior, release owner nonready records, Full first-install behavior, settings/runtime evidence, and installer/runtime boundaries.
 - Verification required for this slice: touched release test entrypoints, `npm run test:release-boundary`, `npm run validate:release-boundary`, `npm run validate:active-shell -- --quick`, `npm run validate:agent-installation`, and `git diff --check`.
 
+### 2026-07-08 focused test shadow cleanup
+
+- Removed the Node 24 workflow policy shadow test from `tests/release/app-release-boundary-cases/ownership-and-installation-contracts.ts`; the executable owner remains `scripts/validate-release-boundary/text-check-runner.ts#validateWorkflowNode24Policy`.
+- Removed duplicated Full runtime packaging source-regex assertions from `tests/release/app-release-boundary-cases/full-first-install-cache-and-acceleration.ts`; the cache test keeps cache key, support files, gate reuse, compression, and release-acceleration assertions, while Full runtime packaging assertions stay in `tests/release/app-release-boundary-cases/full-first-install-runtime.ts`.
+- Verification required for this slice: focused Node test for the two touched case files, `npm run validate:release-boundary`, and `git diff --check`.
+
 ## No-Safe-Semantic-Split Boundaries
 
 The following cleanup classes must not be landed as broad mechanical refactors without a focused semantic split and matching verification:

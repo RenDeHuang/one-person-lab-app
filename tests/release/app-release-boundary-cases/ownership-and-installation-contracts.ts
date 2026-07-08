@@ -6,7 +6,6 @@ import {
   spawnSync,
   test,
   appRoot,
-  releaseWorkflowPaths,
   runNode,
   writeFile,
   sha256,
@@ -441,17 +440,5 @@ test('agent installation validator accepts generated OMA local plugin roots', ()
     assert.match(result.stdout, /"opl-meta-agent":/);
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });
-  }
-});
-
-test('release workflows force JavaScript actions onto the Node 24 runtime', () => {
-  for (const workflowPath of releaseWorkflowPaths) {
-    const workflow = fs.readFileSync(path.join(appRoot, workflowPath), 'utf8');
-
-    assert.match(
-      workflow,
-      /\nenv:\n(?:  [A-Z0-9_]+: .+\n)*  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true\n/,
-      `${workflowPath} must declare the Node 24 JavaScript action runtime policy in top-level env`,
-    );
   }
 });
