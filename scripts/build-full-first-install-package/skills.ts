@@ -214,7 +214,10 @@ export function copyOplBookforgeSkill(targetRoot, options) {
         throw new Error(`Failed to generate OPL Book Forge skill surface: ${generatedResult.stderr || generatedResult.stdout}`);
       }
       const result = JSON.parse(generatedResult.stdout);
-      const generatedSkillPath = result?.installer_result?.generated_codex_plugin?.skill_entry_path;
+      const carrier =
+        result?.installer_result?.materialized_codex_plugin_carrier
+        ?? result?.installer_result?.generated_codex_plugin;
+      const generatedSkillPath = carrier?.skill_entry_path;
       if (!generatedSkillPath || !fs.existsSync(generatedSkillPath)) {
         throw new Error(`OPL Book Forge generated skill surface not found: ${generatedSkillPath ?? 'missing skill_entry_path'}`);
       }
