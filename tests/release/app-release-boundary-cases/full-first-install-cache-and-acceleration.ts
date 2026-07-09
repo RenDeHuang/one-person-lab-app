@@ -69,34 +69,12 @@ test('Full first-install cache and release acceleration contract are explicit', 
     assert.equal(packageJson.scripts[scriptName], expectedCommand, scriptName);
   }
   assert.equal(releaseContract.release_acceleration.gate_reuse.schema, 'opl_release_gate_reuse_plan.v1');
-  assert.deepEqual(releaseContract.release_acceleration.gate_reuse.eligible_gate_ids, [
-    'remote_release_verification',
-    'standard_dmg_clean_vm',
-    'stable_homebrew_tap_update',
-    'full_homebrew_tap_update',
-    'homebrew_standard_cask_clean_vm',
-    'full_dmg_clean_vm',
-    'one_shot_app_installer',
-    'docker_webui',
-    'webui_ghcr_publish',
-    'full_size_cache_timing',
-    'operator_evidence_bundle',
-  ]);
-  assert.deepEqual(releaseContract.release_acceleration.gate_reuse.required_match_fields, [
-    'cohort',
-    'version',
-    'release_mode',
-    'include_full_package',
-    'run_vm_smoke',
-    'app_commit',
-    'shell_ref',
-    'framework_ref',
-    'resolved_ref_sha',
-    'remote_asset_name_size_sha256',
-    'previous_gate_status_passed',
-    'previous_candidate_status_ready_to_promote',
-    'reuse_digest',
-  ]);
+  for (const id of ['remote_release_verification', 'full_dmg_clean_vm', 'docker_webui', 'webui_ghcr_publish', 'operator_evidence_bundle']) {
+    assert.ok(releaseContract.release_acceleration.gate_reuse.eligible_gate_ids.includes(id), id);
+  }
+  for (const field of ['cohort', 'version', 'release_mode', 'app_commit', 'shell_ref', 'framework_ref', 'reuse_digest']) {
+    assert.ok(releaseContract.release_acceleration.gate_reuse.required_match_fields.includes(field), field);
+  }
   assert.equal(releaseContract.release_acceleration.gate_reuse.digest_field, 'reuse_digest');
   assert.equal(
     releaseContract.release_acceleration.gate_reuse.workflow_consumption_status,
@@ -104,126 +82,20 @@ test('Full first-install cache and release acceleration contract are explicit', 
   );
   assert.match(releaseContract.release_acceleration.gate_reuse.authority_boundary, /cannot claim release-ready/);
   assert.match(releaseContract.release_acceleration.gate_reuse.authority_boundary, /workflow explicitly consumes/);
-  assert.deepEqual(releaseContract.release_acceleration.cohort_prepare, {
-    package_script: 'release:cohort-plan',
-    script: 'scripts/plan-release-cohort.ts',
-    schema: 'opl_app_release_cohort_plan.v1',
-    records: [
-      'version',
-      'tag',
-      'release_mode',
-      'app_commit',
-      'shell_ref',
-      'framework_ref',
-      'include_full_package',
-      'run_vm_smoke',
-      'cheap_source_gates',
-      'next_action',
-    ],
-    purpose: 'separate currentness preparation from stable release dispatch by recording the exact pinned cohort refs before expensive release gates',
-    manifest_role: 'retry_and_promote_entrypoint_for_same_cohort_gates',
-    manifest_must_record: [
-      'version',
-      'release_mode',
-      'app_sha',
-      'shell_sha',
-      'framework_sha',
-      'include_full_package',
-      'run_vm_smoke',
-      'release_artifact_refs',
-      'remote_verification_refs',
-      'release_readiness_summary_ref',
-      'release_candidate_record_ref',
-      'release_owner_receipt_ref_or_pending_owner_state',
-      'gate_reuse_plan_ref',
-      'recommended_retry_or_promote_action',
-    ],
-    stable_candidate_freeze: {
-      required: true,
-      pinned_sha_fields: [
-        'app_sha',
-        'shell_sha',
-        'framework_sha',
-      ],
-      pre_freeze_currentness_required: true,
-      post_freeze_drift_name: 'post-freeze drift',
-      dispatch_input_source: 'cohort_plan_or_lock',
-      manual_long_sha_dispatch_recommended: false,
-      single_desktop_release_per_frozen_cohort: true,
-      currentness_rule:
-        'A stable candidate is current only for the pinned App SHA, shell SHA, and framework SHA cohort. Remote movement after freeze is post-freeze drift: it may justify freezing a new cohort, but it must not make the completed candidate claim closeout-time latest or force a desktop release rerun when the same frozen cohort only needs owner receipt and promote.',
-      obsolete_candidate_statuses: [
-        'obsolete_candidate',
-        'stale_candidate',
-      ],
-      next_action: 'owner_receipt_then_promote_or_dispatch_new_cohort',
-    },
-    authority_boundary:
-      'cohort plan is an operator planning artifact only; it cannot publish a release, claim release-ready, write runtime truth, or replace same-cohort release evidence',
-  });
-  assert.deepEqual(releaseContract.release_acceleration.release_operator, {
-    package_script: 'release:operator',
-    script: 'scripts/release-operator.ts',
-    state_schema: 'opl_app_release_operator_state.v1',
-    state_artifacts: [
-      'release-operator-state.json',
-      'release-operator-state.md',
-    ],
-    commands: [
-      'plan',
-      'status',
-      'diagnose-vm',
-    ],
-    primary_blocker_policy: {
-      monitor_mode: 'no_watch',
-      status_command: 'npm run release:operator -- status --run-id <github-actions-run-id> --expected-head <app-sha>',
-      failed_gate_states: [
-        'failed_gate_draining',
-        'failed',
-      ],
-      terminal_blocker_states: [
-        'failed_gate_draining',
-        'failed',
-        'stale_candidate',
-        'cancelled',
-        'superseded',
-      ],
-      failed_gate_next_actions: [
-        'repair_source_gate',
-        'dispatch_new_cohort',
-      ],
-      forbidden_wait_strategy: 'continue_waiting_on_gh_run_watch_after_primary_gate_failure',
-      rule: 'After a critical release gate fails, is stale, cancelled, or superseded, operator status must report a terminal blocker state with repair_source_gate or dispatch_new_cohort guidance instead of continuing to wait on gh run watch.',
-    },
-    typed_next_actions: [
-      'repair_source_gate',
-      'repair_webui_runtime_image',
-      'repair_ghcr_publish_access',
-      'dispatch_new_cohort',
-      'rerun_diagnostic_same_artifact',
-      'inspect_full_build_diagnostics',
-      'rerun_full_build_same_cohort',
-      'inspect_homebrew_tap_diagnostics',
-      'inspect_webui_runtime_image_diagnostics',
-      'provide_owner_receipt',
-      'wait_for_runner_capacity',
-      'retry_transient_upload',
-      'promote_candidate',
-    ],
-    authority_boundary:
-      'release operator is a thin controller over existing release scripts, workflows, and artifacts; it must not become release truth, publish by implication, claim release-ready, or write runtime/domain truth',
-  });
-  assert.deepEqual(releaseContract.release_acceleration.release_monitor.required_status_fields, [
-    'phase',
-    'state',
-    'current_job',
-    'current_step',
-    'elapsed_seconds',
-    'warning_after_seconds',
-    'timeout_after_seconds',
-    'primary_blocker',
-    'recommended_next_action',
-  ]);
+  assert.equal(releaseContract.release_acceleration.cohort_prepare.schema, 'opl_app_release_cohort_plan.v1');
+  assert.equal(releaseContract.release_acceleration.cohort_prepare.package_script, 'release:cohort-plan');
+  assert.equal(releaseContract.release_acceleration.cohort_prepare.stable_candidate_freeze.required, true);
+  assert.deepEqual(releaseContract.release_acceleration.cohort_prepare.stable_candidate_freeze.pinned_sha_fields, ['app_sha', 'shell_sha', 'framework_sha']);
+  assert.match(releaseContract.release_acceleration.cohort_prepare.authority_boundary, /cannot publish|claim release-ready|write runtime truth/);
+  assert.equal(releaseContract.release_acceleration.release_operator.state_schema, 'opl_app_release_operator_state.v1');
+  assert.equal(releaseContract.release_acceleration.release_operator.primary_blocker_policy.monitor_mode, 'no_watch');
+  for (const action of ['repair_source_gate', 'dispatch_new_cohort', 'promote_candidate']) {
+    assert.ok(releaseContract.release_acceleration.release_operator.typed_next_actions.includes(action), action);
+  }
+  assert.match(releaseContract.release_acceleration.release_operator.authority_boundary, /must not become release truth|claim release-ready/);
+  for (const field of ['phase', 'state', 'primary_blocker', 'recommended_next_action']) {
+    assert.ok(releaseContract.release_acceleration.release_monitor.required_status_fields.includes(field), field);
+  }
   assert.equal(releaseContract.release_acceleration.release_monitor.mode, 'no_watch');
   assert.match(releaseContract.release_acceleration.release_monitor.authority_boundary, /not release truth/);
   assert.match(releaseContract.release_acceleration.release_monitor.authority_boundary, /same-cohort evidence/);

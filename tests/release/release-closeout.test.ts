@@ -87,6 +87,10 @@ function assertReadoutState(readout: ReturnType<typeof expectCloseout>, status: 
   assert.equal(readout.notification.state, monitorState);
 }
 
+function writeReleaseArtifact(root: string, version: string, artifact: string, file: string, payload: Record<string, unknown>) {
+  writeJson(path.join(root, `${artifact}-${version}`, file), payload);
+}
+
 function releaseOwnerVerdict(version = '26.5.99', options: {
   status?: string;
   releaseOwnerVerdictRef?: string | null;
@@ -116,16 +120,9 @@ function releaseOwnerVerdict(version = '26.5.99', options: {
 function writeCloseoutArtifacts(root: string, version = '26.5.99', options: {
   releaseOwnerVerdict?: Record<string, unknown>;
 } = {}) {
-  writeJson(path.join(root, `release-preflight-summary-${version}`, 'release-preflight-summary.json'), {
-    schema: 'opl_release_preflight.v1',
-    status: 'passed',
-  });
-  writeJson(path.join(root, `remote-release-verification-${version}`, 'remote-release-verification.json'), {
-    status: 'passed',
-    version,
-    include_full_package: true,
-  });
-  writeJson(path.join(root, `release-readiness-summary-${version}`, 'release-readiness-summary.json'), {
+  writeReleaseArtifact(root, version, 'release-preflight-summary', 'release-preflight-summary.json', { schema: 'opl_release_preflight.v1', status: 'passed' });
+  writeReleaseArtifact(root, version, 'remote-release-verification', 'remote-release-verification.json', { status: 'passed', version, include_full_package: true });
+  writeReleaseArtifact(root, version, 'release-readiness-summary', 'release-readiness-summary.json', {
     schema: 'opl_release_readiness_summary.v1',
     status: 'passed',
     version,
@@ -134,18 +131,9 @@ function writeCloseoutArtifacts(root: string, version = '26.5.99', options: {
     full_package: {
       duration_seconds: {
         full_package_build: 405,
-        full_package_build_breakdown: {
-          runtime_materialize: 20,
-          runtime_cache_materialize: 8,
-          payload_sync: 18,
-          shell_build: 187,
-          dmg_package_compression: 175,
-          manifest_checksum: 5,
-        },
+        full_package_build_breakdown: { runtime_materialize: 20, runtime_cache_materialize: 8, payload_sync: 18, shell_build: 187, dmg_package_compression: 175, manifest_checksum: 5 },
       },
-      cache: {
-        full_runtime_layers: 'toolchain:true;domain-runtime:true;opl-runtime:true;skills:true',
-      },
+      cache: { full_runtime_layers: 'toolchain:true;domain-runtime:true;opl-runtime:true;skills:true' },
       runtime_cache: {
         layer_status_counts: { hit: 2, miss_written: 1 },
         miss_written_layers: ['domain-runtime'],
@@ -153,24 +141,12 @@ function writeCloseoutArtifacts(root: string, version = '26.5.99', options: {
         written_layers: ['domain-runtime'],
         written_layer_count: 1,
       },
-      size_budget: {
-        full_dmg_size_bytes: 865000000,
-        warning_full_dmg_bytes: 700000000,
-        max_full_dmg_bytes: 750000000,
-        full_dmg_size_status: 'warning',
-      },
+      size_budget: { full_dmg_size_bytes: 865000000, warning_full_dmg_bytes: 700000000, max_full_dmg_bytes: 750000000, full_dmg_size_status: 'warning' },
       size_analysis: {
         schema: 'opl_full_package_size_summary.v1',
         source: 'test_fixture',
         budget: {
-          compressed_full_dmg: {
-            full_dmg_size_bytes: 865000000,
-            warning_full_dmg_bytes: 700000000,
-            max_full_dmg_bytes: 750000000,
-            warning_status: 'warning',
-            review_threshold_status: 'above_review_threshold',
-            release_blocking: false,
-          },
+          compressed_full_dmg: { full_dmg_size_bytes: 865000000, warning_full_dmg_bytes: 700000000, max_full_dmg_bytes: 750000000, warning_status: 'warning', review_threshold_status: 'above_review_threshold', release_blocking: false },
         },
         optimization_candidates: [
           { rank: 1, kind: 'layer', id: 'toolchain', size_bytes: 512000000, reason: 'largest_runtime_layer' },
@@ -179,7 +155,7 @@ function writeCloseoutArtifacts(root: string, version = '26.5.99', options: {
       },
     },
   });
-  writeJson(path.join(root, `release-candidate-record-${version}`, 'release-candidate-record.json'), {
+  writeReleaseArtifact(root, version, 'release-candidate-record', 'release-candidate-record.json', {
     schema: 'opl_release_candidate_record.v1',
     status: 'ready_to_promote',
     version,
@@ -191,7 +167,7 @@ function writeCloseoutArtifacts(root: string, version = '26.5.99', options: {
       promote_command: `gh release edit v${version} --repo gaofeng21cn/one-person-lab-app --draft=false --latest`,
     },
   });
-  writeJson(path.join(root, `release-addon-readiness-summary-${version}`, 'release-addon-readiness-summary.json'), {
+  writeReleaseArtifact(root, version, 'release-addon-readiness-summary', 'release-addon-readiness-summary.json', {
     schema: 'opl_release_addon_readiness_summary.v1',
     version,
     release_mode: 'new_release',

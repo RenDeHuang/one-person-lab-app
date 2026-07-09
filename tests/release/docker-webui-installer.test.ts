@@ -169,28 +169,33 @@ test('Docker/WebUI installer dry-run generates the compose-only startup plan', (
   );
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
-  assert.match(result.stdout, /image: ghcr\.io\/gaofeng21cn\/one-person-lab-webui:26\.6\.30/);
-  assert.match(result.stdout, /pull_policy: always/);
-  assert.match(result.stdout, /"127\.0\.0\.1:3917:3000"/);
-  assert.match(result.stdout, /AIONUI_ALLOW_REMOTE: "true"/);
-  assert.match(result.stdout, /AIONUI_DATA_DIR: \/data/);
-  assert.match(result.stdout, /OPL_PROJECTS_DIR: \/projects/);
-  assert.match(result.stdout, new RegExp(`${home.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/data-dir:/data`));
-  assert.match(result.stdout, new RegExp(`${home.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/projects-dir:/projects`));
-  assert.match(result.stdout, /Update mode: pull the configured WebUI image from the host and recreate the compose service/);
-  assert.match(result.stdout, /docker compose -f .*compose\.yaml pull/);
-  assert.match(result.stdout, /docker compose -f .*compose\.yaml up -d/);
-  assert.match(result.stdout, /Would wait up to 7s for WebUI HTTP health at http:\/\/localhost:3917\//);
-  assert.match(result.stdout, /Would write diagnostic directory: .*diagnostics-dir/);
-  assert.match(result.stdout, /Would include compose\.yaml, docker versions, compose ps\/logs, HTTP probe summary, directory\/port\/image metadata/);
-  assert.match(result.stdout, /Would write diagnostic archive: .*diagnostics\.tar\.gz/);
-  assert.match(result.stdout, /User path status:/);
-  assert.match(result.stdout, /one_click_install: create compose\.yaml, data\/projects directories, and start the WebUI image/);
-  assert.match(result.stdout, /access_key_settings: enter access keys in the WebUI first-run Access panel or Settings -> Access/);
-  assert.match(result.stdout, /runtime_proxy: WebUI uses \/api\/opl-runtime\/configure-codex -> opl system configure-codex --api-key-stdin --json/);
-  assert.match(result.stdout, /startup_recovery: if startup fails, collect redacted startup diagnostics/);
-  assert.match(result.stdout, /host_update: rerun this installer, or pass --update, to pull the WebUI image from the host/);
-  assert.match(result.stdout, /Image\/seed: default stable WebUI image uses the full seed/);
+  const escapedHome = home.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  for (const pattern of [
+    /image: ghcr\.io\/gaofeng21cn\/one-person-lab-webui:26\.6\.30/,
+    /pull_policy: always/,
+    /"127\.0\.0\.1:3917:3000"/,
+    /AIONUI_ALLOW_REMOTE: "true"/,
+    /AIONUI_DATA_DIR: \/data/,
+    /OPL_PROJECTS_DIR: \/projects/,
+    new RegExp(`${escapedHome}/data-dir:/data`),
+    new RegExp(`${escapedHome}/projects-dir:/projects`),
+    /Update mode: pull the configured WebUI image from the host and recreate the compose service/,
+    /docker compose -f .*compose\.yaml pull/,
+    /docker compose -f .*compose\.yaml up -d/,
+    /Would wait up to 7s for WebUI HTTP health at http:\/\/localhost:3917\//,
+    /Would write diagnostic directory: .*diagnostics-dir/,
+    /Would include compose\.yaml, docker versions, compose ps\/logs, HTTP probe summary, directory\/port\/image metadata/,
+    /Would write diagnostic archive: .*diagnostics\.tar\.gz/,
+    /User path status:/,
+    /one_click_install: create compose\.yaml, data\/projects directories, and start the WebUI image/,
+    /access_key_settings: enter access keys in the WebUI first-run Access panel or Settings -> Access/,
+    /runtime_proxy: WebUI uses \/api\/opl-runtime\/configure-codex -> opl system configure-codex --api-key-stdin --json/,
+    /startup_recovery: if startup fails, collect redacted startup diagnostics/,
+    /host_update: rerun this installer, or pass --update, to pull the WebUI image from the host/,
+    /Image\/seed: default stable WebUI image uses the full seed/,
+  ]) {
+    assert.match(result.stdout, pattern);
+  }
   assert.doesNotMatch(result.stdout, /docker run/);
   assert.doesNotMatch(result.stdout, /OPENAI_API_KEY|ANTHROPIC_API_KEY|api_key/i);
   assert.equal(fs.existsSync(path.join(home, 'OnePersonLab')), false, 'dry-run must not create host directories');

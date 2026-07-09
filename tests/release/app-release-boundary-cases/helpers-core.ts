@@ -79,13 +79,7 @@ export function assertFullFirstInstallOptionTables(buildScript: string) {
     /import \{ parseArgs as parseNodeArgs \} from 'node:util';/,
   );
   assert.match(buildScript, /const booleanOptionSetters = \{/);
-  for (const option of [
-    "--skip-gui-build",
-    "--split-runtime",
-    "--reuse-gui-vite-output",
-    "--print-runtime-cache-keys",
-    "--include-bun-runtime",
-  ]) {
+  for (const option of ["--skip-gui-build", "--split-runtime", "--reuse-gui-vite-output", "--print-runtime-cache-keys", "--include-bun-runtime"]) {
     const optionName = option.replace(/^--/, "");
     assert.match(
       buildScript,
@@ -94,32 +88,10 @@ export function assertFullFirstInstallOptionTables(buildScript: string) {
   }
   assert.match(buildScript, /const valueOptionSetters = \{/);
   for (const option of [
-    "--version",
-    "--out-dir",
-    "--framework-root",
-    "--opl-root",
-    "--gui-root",
-    "--mas-root",
-    "--mag-root",
-    "--rca-root",
-    "--meta-agent-root",
-    "--bookforge-root",
-    "--superpowers-root",
-    "--codex-root",
-    "--node-bin",
-    "--bun-bin",
-    "--uv-bin",
-    "--temporal-cli-bin",
-    "--temporal-cli-archive",
-    "--python-root",
-    "--officecli-bin",
-    "--officecli-root",
-    "--mineru-open-api-bin",
-    "--mineru-root",
-    "--mineru-document-extractor-root",
-    "--ui-ux-pro-max-root",
-    "--runtime-cache-dir",
-    "--runtime-cache-mode",
+    "--version", "--out-dir", "--framework-root", "--opl-root", "--gui-root", "--mas-root", "--mag-root", "--rca-root", "--meta-agent-root",
+    "--bookforge-root", "--superpowers-root", "--codex-root", "--node-bin", "--bun-bin", "--uv-bin", "--temporal-cli-bin", "--temporal-cli-archive",
+    "--python-root", "--officecli-bin", "--officecli-root", "--mineru-open-api-bin", "--mineru-root", "--mineru-document-extractor-root",
+    "--ui-ux-pro-max-root", "--runtime-cache-dir", "--runtime-cache-mode",
   ]) {
     const optionName = option.replace(/^--/, "");
     assert.match(
@@ -235,16 +207,8 @@ export function writeAssistantRouteSmokeScreenshots(tempRoot) {
   }
 }
 
-const canonicalAssistantRouteIds = [
-  "med-autoscience",
-  "med-autogrant",
-  "redcube-ai",
-];
-const canonicalAssistantShortNames = {
-  "med-autoscience": "MAS",
-  "med-autogrant": "MAG",
-  "redcube-ai": "RCA",
-};
+const canonicalAssistantRouteIds = ["med-autoscience", "med-autogrant", "redcube-ai"];
+const canonicalAssistantShortNames = { "med-autoscience": "MAS", "med-autogrant": "MAG", "redcube-ai": "RCA" };
 
 export function writeRuntimeEvidenceJsonFiles(tempRoot) {
   writeFile(
@@ -337,62 +301,20 @@ process.exit(2);
 }
 
 export function writeVmSmokeSummaryFiles(tempRoot, runtimeProfile = "full") {
-  const settingsSmoke = {
-    status: "passed",
-    pages: [
-      "general",
-      "access",
-      "capabilities",
-      "environment",
-      "appearance",
-      "advanced",
-      "about",
-    ],
-  };
-  const assistantRouteSmoke = {
-    status: "passed",
-    assistants: canonicalAssistantRouteIds,
-  };
+  const settingsSmoke = { status: "passed", pages: ["general"] };
+  const assistantRouteSmoke = { status: "passed", assistants: canonicalAssistantRouteIds };
   const codexFunctionalCheck = {
     schema: "opl_codex_functional_check_receipt.v1",
     status: "diagnostic_skipped",
-    ui_language: "zh-CN",
-    opl_flow_context_expected: {
-      status: "passed",
-      context_id: "opl-flow",
-      deterministic: true,
-    },
-    user_agents_policy: {
-      status: "passed",
-      agents_override_allowed: false,
-      deterministic: true,
-    },
-    codex_cli_invokable: {
-      status: "missing",
-      detected: false,
-      deterministic: true,
-    },
     assistant_route_receipts_checked: {
       status: "passed",
       required: canonicalAssistantRouteIds,
       checked: canonicalAssistantRouteIds,
       deterministic: true,
     },
-    skills_or_plugins_policy_checked: {
-      status: "passed",
-      companion_skills_policy: "codex_visible_companion_skills",
-      domain_routes_policy:
-        "plugin_visible_domain_routes_not_companion_skill_mirrors",
-      deterministic: true,
-    },
     blocking_release_gate: {
-      stable_vm_gate: "receipt_file_exists_and_deterministic_fields_passed",
       deterministic_fields_passed: true,
       llm_invocation_required: false,
-    },
-    future_codex_invocation: {
-      status: "diagnostic_skipped",
-      reason: "missing_codex_credentials",
     },
   };
   const codexAiSelfCheck = {
@@ -401,23 +323,14 @@ export function writeVmSmokeSummaryFiles(tempRoot, runtimeProfile = "full") {
     mode: "diagnose",
     mutations_allowed: false,
     blocking_release_gate: false,
-    codex_cli: {
-      command: "codex",
-      detected: false,
-      version: null,
-    },
-    skip_reason: "missing_codex_config",
   };
   const guestSummary = {
     surface_id: "opl_packaged_gui_first_run_smoke",
     status: "passed",
     runtime_profile: runtimeProfile,
     gui_ready: {
-      hash: "#/guid",
-      textLength: 240,
       hasGuidInput: true,
       hasGuidSendButton: true,
-      hasAgentPill: true,
     },
     codex_config_wizard_seen: runtimeProfile === "full",
     codex_config_wizard_submitted: runtimeProfile === "full",
@@ -443,21 +356,15 @@ export function writeVmSmokeSummaryFiles(tempRoot, runtimeProfile = "full") {
     `${JSON.stringify({
       surface_id: "opl_packaged_gui_assistant_route_smoke",
       status: "passed",
-      cdp_port: 9230,
       assistants: canonicalAssistantRouteIds.map((id) => {
         const shortName = canonicalAssistantShortNames[id];
         const badge = `@${shortName}`;
         return {
           id,
           badge,
-          ready: {
-            assistant_id: id,
-            badge,
-            selectors_hidden: true,
-          },
+          ready: { badge, selectors_hidden: true },
           receipt: {
             status: "passed",
-            conversation_id: `${id}-conversation`,
             conversation_type: "acp",
             backend: "codex",
             route: {

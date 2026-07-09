@@ -97,38 +97,18 @@ export function writeFullRuntimeNativeTrust(outDir) {
 
 function defaultReleaseBody(tagName) {
   const version = tagName.startsWith('v') ? tagName.slice(1) : tagName;
-  return `One Person Lab v${version}
-
-This Stable release is for users installing or upgrading One Person Lab App.
-
-## Highlights
-- Use one Stable install path for the App plus refreshed research tools.
-
-## What improved
-- Test release body.
-
-## Compatibility and action required
-- No manual migration is required beyond installing or upgrading this Stable release.
-
-## Technical details
-These details are included for operators who audit exactly what was packaged.
-
-## OPL agents and runtime payload
-- Full first-install package includes the OPL Framework runtime, Codex CLI, MAS, MAG, RCA, OPL Meta Agent, OfficeCLI, MinerU, and packaged Codex skills.
-- Packaged component refs: MAS @ 1234567.
-- Component updates since previous Stable: MAS 0000000 -> 1234567.
-
-## OPL family updates
-- MAS: Research sessions make study and paper status clearer (1 commit, audit ref 0000000 -> 1234567).
-
-## Install Stable
-\`install.sh --stable-macos-install --yes\`
-
-## Release scope
-- Standard macOS arm64 updater package plus Full first-install DMG.
-
-**Full Changelog**: https://github.com/gaofeng21cn/one-person-lab-app/compare/v26.0.0...v${version}
-`;
+  return [
+    `One Person Lab v${version}`,
+    'This Stable release is for users installing or upgrading One Person Lab App.',
+    '## Highlights',
+    '- Use one Stable install path for the App plus refreshed research tools.',
+    '## Technical details',
+    '## OPL agents and runtime payload',
+    '- Full first-install package includes the OPL Framework runtime, Codex CLI, MAS, MAG, RCA, OPL Meta Agent, OfficeCLI, MinerU, and packaged Codex skills.',
+    '- Packaged component refs: MAS @ 1234567.',
+    '- Component updates since previous Stable: MAS 0000000 -> 1234567.',
+    `**Full Changelog**: https://github.com/gaofeng21cn/one-person-lab-app/compare/v26.0.0...v${version}`,
+  ].join('\n\n');
 }
 
 export function buildRemoteReleaseView(assetDir, names, tagName, body = defaultReleaseBody(tagName)) {
@@ -229,75 +209,41 @@ export function writeStandardRemoteAssets(outDir, version, options = {}) {
 
 export function writeFullRemoteAssets(outDir, version, options = {}) {
   const fullDmgName = `One-Person-Lab-Full-${version}-mac-arm64.dmg`;
+  const protectedPayloads = [
+    'Contents/Resources/opl-full-runtime',
+    'Contents/Resources/bundled-aioncore',
+    'Contents/Resources/app.asar',
+    'Contents/Frameworks/Electron Framework.framework',
+  ];
   const trimReport = {
     schema: 'opl_full_app_bundle_trim_report.v1',
     mode: 'explicit_non_runtime_prune_only',
-    app_bundle_path: '/tmp/One Person Lab.app',
-    required_payload_boundary: {
-      full_runtime_resource_dir: 'Contents/Resources/opl-full-runtime',
-      protected_payloads: [
-        'Contents/Resources/opl-full-runtime',
-        'Contents/Resources/bundled-aioncore',
-        'Contents/Resources/app.asar',
-        'Contents/Resources/app.asar.unpacked',
-        'Contents/Frameworks/Electron Framework.framework',
-      ],
-      preserved: true,
-      rule: 'never trim the declared Full offline runtime payload from the App bundle staging pass',
-    },
     before_bytes: 1024,
     after_bytes: 960,
     bytes_removed: 64,
     removed_count: 2,
-    removed_paths: [
-      { path: 'Contents/Resources/app.asar.map', size_bytes: 32, reason: 'staged_app_non_runtime_file' },
-      { path: 'Contents/Resources/test-results', size_bytes: 32, reason: 'staged_app_non_runtime_directory' },
-    ],
+    required_payload_boundary: {
+      full_runtime_resource_dir: protectedPayloads[0],
+      protected_payloads: protectedPayloads,
+      preserved: true,
+      rule: 'never trim the declared Full offline runtime payload from the App bundle staging pass',
+    },
   };
   const boundaryAudit = {
     schema: 'opl_full_package_boundary_audit.v1',
-    app_bundle_path: '/tmp/One Person Lab.app',
     package_kind: 'opl_full_first_install_macos_arm64',
     version,
-    standard_app_boundary: {
-      standard_package_allowed_to_contain_full_runtime: false,
-      standard_payload_guard: 'scripts/prepare-standard-release-payload.ts removes packaged-runtimes/opl-full-runtime before standard builds',
-    },
+    standard_app_boundary: { standard_package_allowed_to_contain_full_runtime: false },
     full_package_boundary: {
       contains_opl_full_runtime: true,
       contains_shell_runtime: true,
       dedupe_policy: 'audit_only_without_same_cohort_full_clean_vm_evidence',
-      rule: 'Do not dedupe or remove declared offline Full runtime, shell runtime, native trust, or Core readiness payloads for size alone.',
     },
     entries: {
-      opl_full_runtime: {
-        path: 'Contents/Resources/opl-full-runtime',
-        owner: 'gaofeng21cn/one-person-lab',
-        role: 'Full offline first-install runtime payload assembled by the App repo as consumer/packager',
-        exists: true,
-        size_bytes: 128,
-      },
-      aionui_bundled_runtime: {
-        path: 'Contents/Resources/bundled-aioncore',
-        owner: 'active_shell',
-        role: 'AionUI shell runtime required by the App bundle',
-        exists: true,
-        size_bytes: 256,
-      },
-      app_asar: {
-        path: 'Contents/Resources/app.asar',
-        owner: 'active_shell',
-        role: 'AionUI renderer and process bundle',
-        exists: true,
-        size_bytes: 64,
-      },
-      electron_framework: {
-        path: 'Contents/Frameworks/Electron Framework.framework',
-        owner: 'active_shell/electron',
-        role: 'Electron runtime framework',
-        exists: true,
-        size_bytes: 512,
-      },
+      opl_full_runtime: { path: protectedPayloads[0], owner: 'gaofeng21cn/one-person-lab', exists: true, size_bytes: 128 },
+      aionui_bundled_runtime: { path: protectedPayloads[1], owner: 'active_shell', exists: true, size_bytes: 256 },
+      app_asar: { path: protectedPayloads[2], owner: 'active_shell', exists: true, size_bytes: 64 },
+      electron_framework: { path: protectedPayloads[3], owner: 'active_shell/electron', exists: true, size_bytes: 512 },
     },
   };
   const manifest = {
@@ -327,9 +273,7 @@ export function writeFullRemoteAssets(outDir, version, options = {}) {
         skills: { size_bytes: 8 },
       },
     },
-    distribution: {
-      updater_metadata_allowed: false,
-    },
+    distribution: { updater_metadata_allowed: false },
     package_optimization: {
       schema: 'opl_full_package_optimization.v1',
       offline_first_install_completeness_preserved: true,
@@ -350,17 +294,10 @@ export function writeFullRemoteAssets(outDir, version, options = {}) {
         contains_opl_full_runtime: boundaryAudit.full_package_boundary.contains_opl_full_runtime,
         contains_shell_runtime: boundaryAudit.full_package_boundary.contains_shell_runtime,
         dedupe_policy: boundaryAudit.full_package_boundary.dedupe_policy,
-        audited_entries: Object.fromEntries(
-          Object.entries(boundaryAudit.entries).map(([id, entry]) => [
-            id,
-            {
-              path: entry.path,
-              owner: entry.owner,
-              exists: entry.exists,
-              size_bytes: entry.size_bytes,
-            },
-          ]),
-        ),
+        audited_entries: Object.fromEntries(Object.entries(boundaryAudit.entries).map(([id, entry]) => [
+          id,
+          { path: entry.path, owner: entry.owner, exists: entry.exists, size_bytes: entry.size_bytes },
+        ])),
       },
     },
     components: {
@@ -386,14 +323,7 @@ export function writeFullRemoteAssets(outDir, version, options = {}) {
       },
     },
     optional_components: {
-      bun: {
-        source_path: null,
-        version: null,
-        size_bytes: 0,
-        role: 'optional_bun_cli_runtime_payload',
-        required: false,
-        status: 'not_packaged',
-      },
+      bun: { source_path: null, version: null, size_bytes: 0, role: 'optional_bun_cli_runtime_payload', required: false, status: 'not_packaged' },
     },
     ...(options.manifest ?? {}),
   };
@@ -414,18 +344,11 @@ export function writeFullRemoteAssets(outDir, version, options = {}) {
     `${JSON.stringify({
       mode: 'readwrite',
       dir: '/tmp/opl-full-runtime-cache-test',
-      keys: {
-        toolchain: 'full-runtime-v1-toolchain-test',
-        'domain-runtime': 'full-runtime-v1-domain-runtime-test',
-        'opl-runtime': 'full-runtime-v1-opl-runtime-test',
-        skills: 'full-runtime-v1-skills-test',
-      },
       events: [
         {
           layer_id: 'toolchain',
           key: 'full-runtime-v1-toolchain-test',
           status: 'hit',
-          archive_path: '/tmp/opl-full-runtime-cache-test/toolchain/full-runtime-v1-toolchain-test.tar.zst',
           read_archive: true,
           write_archive: false,
           build_layer: false,
@@ -463,14 +386,7 @@ export function writeFullRemoteAssets(outDir, version, options = {}) {
         package_kind: 'opl_full_first_install_macos_arm64',
         version,
         primary_install_asset: fullDmgName,
-        assets: [
-          {
-            name: fullDmgName,
-            role: 'full_first_install_carrier',
-            size_bytes: fs.statSync(path.join(outDir, fullDmgName)).size,
-            sha256: fileSha256(path.join(outDir, fullDmgName)),
-          },
-        ],
+        assets: [{ name: fullDmgName, role: 'full_first_install_carrier', size_bytes: fs.statSync(path.join(outDir, fullDmgName)).size, sha256: fileSha256(path.join(outDir, fullDmgName)) }],
         manifest,
         evidence: {
           runtime_cache_events: JSON.parse(fs.readFileSync(path.join(outDir, 'runtime-cache-events.json'), 'utf8')),
