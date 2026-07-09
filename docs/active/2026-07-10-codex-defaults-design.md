@@ -1,8 +1,8 @@
 # Codex 默认模型与 UI 同步设计
 
-Owner: `one-person-lab-app`  
-Purpose: `codex_default_model_and_ui_sync_design`  
-State: `accepted_for_implementation`  
+Owner: `one-person-lab-app`
+Purpose: `codex_default_model_and_ui_sync_design`
+State: `accepted_for_implementation`
 Machine boundary: 本文记录跨仓设计与验收边界；实际配置、GUI 产品真相和 shell 行为分别以 Framework Codex default profile、App machine-readable contracts 与 AionUI OPL profile consumer 为准。
 
 ## 目标
@@ -26,7 +26,7 @@ OPL App 新配置与新会话默认使用 `gpt-5.6-sol`，Codex `config.toml` �
 
 ## UI 行为
 
-自动选项解析为 `5.6 Sol / ultra`，主按钮显示 `5.6 Sol 极高`。推理菜单保留 `low / medium / high / ultra`，其中 `ultra` 的中文完整标签为“推理极高”、紧凑标签为“极高”，英文为 `Ultra reasoning` / `Ultra`。本次不增加截图中的速度或高级菜单，也不改变模型/推理的用户覆盖与恢复自动选择行为。
+自动选项解析为 `5.6 Sol / ultra`，主按钮显示 `5.6 Sol 极高`。推理菜单保留 `low / medium / high / xhigh / ultra`；`xhigh` 显示为“推理超高”/`Extra high reasoning`，`ultra` 显示为“推理极高”/`Ultra reasoning`，紧凑标签分别为“超高”和“极高”。本次不增加截图中的速度或高级菜单，也不改变模型/推理的用户覆盖与恢复自动选择行为。
 
 ## 失败保护与验证
 
