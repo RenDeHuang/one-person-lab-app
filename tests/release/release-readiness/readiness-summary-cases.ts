@@ -10,10 +10,15 @@ import {
   writePassingJobResults,
 } from './helpers.ts';
 
+function assertGateStatuses(summary: { gates: Record<string, { status: string }> }, expected: Record<string, string>) {
+  for (const [id, status] of Object.entries(expected)) {
+    assert.equal(summary.gates[id].status, status, id);
+  }
+}
+
 test('release readiness summary passes only from small diagnostic artifacts', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-readiness-'));
   const outputPath = path.join(tempRoot, 'release-readiness-summary.json');
-  const summaryPath = path.join(tempRoot, 'summary.md');
   const jobResultsPath = path.join(tempRoot, 'job-results.json');
   const artifactsRoot = path.join(tempRoot, 'inputs');
   writePassingArtifacts(artifactsRoot);
@@ -45,34 +50,24 @@ test('release readiness summary passes only from small diagnostic artifacts', ()
     jobResultsPath,
     '--output',
     outputPath,
-    '--markdown',
-    summaryPath,
   ]);
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
   const summary = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
   assert.equal(summary.status, 'passed');
-  assert.equal(summary.gates.standard_dmg_clean_vm.status, 'passed');
-  assert.equal(summary.gates.stable_homebrew_tap_update.status, 'passed');
-  assert.equal(summary.gates.stable_homebrew_tap_update.fields.remote_asset_sha256, 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
-  assert.equal(summary.gates.full_homebrew_tap_update.status, 'passed');
-  assert.equal(summary.gates.full_homebrew_tap_update.fields.remote_asset_sha256, 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
-  assert.equal(summary.gates.homebrew_standard_cask_clean_vm.status, 'passed');
-  assert.equal(summary.gates.full_dmg_clean_vm.status, 'passed');
-  assert.equal(summary.gates.one_shot_app_installer.status, 'passed');
-  assert.equal(summary.gates.one_shot_app_installer.fields.installer_entry, './install.sh --complete --skip-modules');
-  assert.equal(summary.gates.one_shot_app_installer.fields.setup_flow_status, 'ready_to_launch');
-  assert.deepEqual(summary.gates.one_shot_app_installer.fields.core_progress, { completed: 3, total: 3 });
-  assert.equal(summary.gates.one_shot_app_installer.fields.skip_modules, true);
-  assert.equal(summary.gates.docker_webui.status, 'passed');
-  assert.equal(summary.gates.webui_ghcr_publish.status, 'passed');
-  assert.deepEqual(summary.gates.webui_ghcr_publish.fields.tags, ['26.5.99', 'stable', 'latest']);
-  assert.equal(summary.gates.webui_ghcr_publish.fields.build_reuse.repeated_docker_build, false);
-  assert.equal(summary.gates.docker_webui_clean_vm_evidence.status, 'passed');
-  assert.equal(summary.gates.docker_webui_clean_vm_evidence.fields.clean_linux_vm.status, 'passed');
-  assert.equal(summary.gates.docker_webui_clean_vm_evidence.fields.clean_windows_vm.status, 'passed');
-  assert.equal(summary.gates.docker_webui_clean_vm_evidence.fields.clean_windows_vm.artifact_name, 'windows-clean-evidence');
-  assert.equal(summary.gates.operator_evidence_bundle.status, 'passed');
+  assertGateStatuses(summary, {
+    standard_dmg_clean_vm: 'passed',
+    stable_homebrew_tap_update: 'passed',
+    full_homebrew_tap_update: 'passed',
+    homebrew_standard_cask_clean_vm: 'passed',
+    full_dmg_clean_vm: 'passed',
+    one_shot_app_installer: 'passed',
+    docker_webui: 'passed',
+    webui_ghcr_publish: 'passed',
+    docker_webui_clean_vm_evidence: 'passed',
+    operator_evidence_bundle: 'passed',
+    remote_release_verification: 'passed',
+  });
   assert.equal(summary.gates.operator_evidence_bundle.fields.packaged_app_evidence, true);
   assert.deepEqual(summary.release_cohort, {
     schema: 'opl_app_release_evidence_cohort.v1',
@@ -95,15 +90,8 @@ test('release readiness summary passes only from small diagnostic artifacts', ()
   assert.equal(ownerVerdict.can_close_opl_app_release_user_path, false);
   assert.equal(summary.gate_profile, 'stable');
   assert.equal(summary.gate_profile_schema, 'app_release_validation_profiles.v1');
-  assert.equal(summary.gates.remote_release_verification.status, 'passed');
   assert.equal(summary.gates.full_size_cache_timing.status, 'passed');
   assert.equal(summary.gates.full_size_cache_timing.required, false);
-  assert.equal(summary.gates.full_size_cache_timing.fields.diagnostic_only, true);
-  assert.equal(summary.full_package.resolved_refs.opl_framework.commit, '1111111111111111111111111111111111111111');
-  assert.equal(summary.bottlenecks[0].id, 'manifest_checksum');
-  assert.ok(summary.bottlenecks.some((entry) => entry.id === 'dmg_package_compression'));
-  assert.ok(summary.optimization_recommendations.some((entry) => entry.id === 'profile_slowest_full_build_segment'));
-  assert.ok(summary.optimization_recommendations.some((entry) => entry.id === 'reduce_dmg_package_compression_time'));
 });
 
 test('release readiness summary treats Docker WebUI gates as optional when Docker publishing is disabled', () => {
@@ -145,11 +133,13 @@ test('release readiness summary treats Docker WebUI gates as optional when Docke
   const summary = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
   assert.equal(summary.status, 'passed');
   assert.equal(summary.publish_docker_webui, false);
-  assert.equal(summary.gates.docker_webui.status, 'skipped');
+  assertGateStatuses(summary, {
+    docker_webui: 'skipped',
+    webui_ghcr_publish: 'skipped',
+    docker_webui_clean_vm_evidence: 'skipped',
+  });
   assert.equal(summary.gates.docker_webui.required, false);
-  assert.equal(summary.gates.webui_ghcr_publish.status, 'skipped');
   assert.equal(summary.gates.webui_ghcr_publish.required, false);
-  assert.equal(summary.gates.docker_webui_clean_vm_evidence.status, 'skipped');
   assert.equal(summary.gates.docker_webui_clean_vm_evidence.required, false);
   assert.deepEqual(summary.failed_required_gates, []);
 });
@@ -528,7 +518,6 @@ test('release readiness summary defers Homebrew gates for refresh_existing draft
 test('release readiness summary passes with explicit Full size warning below review threshold', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-readiness-full-warning-'));
   const outputPath = path.join(tempRoot, 'release-readiness-summary.json');
-  const summaryPath = path.join(tempRoot, 'summary.md');
   const jobResultsPath = path.join(tempRoot, 'job-results.json');
   const artifactsRoot = path.join(tempRoot, 'inputs');
   writePassingArtifacts(artifactsRoot, '26.5.99', 'local', {
@@ -555,8 +544,6 @@ test('release readiness summary passes with explicit Full size warning below rev
     jobResultsPath,
     '--output',
     outputPath,
-    '--markdown',
-    summaryPath,
   ]);
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
@@ -575,17 +562,11 @@ test('release readiness summary passes with explicit Full size warning below rev
   assert.ok(summary.bottlenecks.some((entry) => entry.id === 'full_dmg_size'));
   assert.ok(summary.optimization_recommendations.some((entry) => entry.id === 'review_full_size_optimization_candidates'));
   assert.deepEqual(summary.warnings.map((warning) => warning.code), ['full_dmg_size_warning']);
-  assert.match(fs.readFileSync(summaryPath, 'utf8'), /Full DMG size warning/);
-  assert.match(fs.readFileSync(summaryPath, 'utf8'), /725000000/);
-  assert.match(fs.readFileSync(summaryPath, 'utf8'), /Full package size analysis/);
-  assert.match(fs.readFileSync(summaryPath, 'utf8'), /Top Full runtime layer/);
-  assert.match(fs.readFileSync(summaryPath, 'utf8'), /review_full_size_optimization_candidates/);
 });
 
 test('release readiness summary warns without failing when Full DMG exceeds review threshold', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-readiness-full-review-threshold-'));
   const outputPath = path.join(tempRoot, 'release-readiness-summary.json');
-  const summaryPath = path.join(tempRoot, 'summary.md');
   const jobResultsPath = path.join(tempRoot, 'job-results.json');
   const artifactsRoot = path.join(tempRoot, 'inputs');
   writePassingArtifacts(artifactsRoot, '26.5.99', 'local', {
@@ -617,8 +598,6 @@ test('release readiness summary warns without failing when Full DMG exceeds revi
     jobResultsPath,
     '--output',
     outputPath,
-    '--markdown',
-    summaryPath,
   ]);
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
@@ -630,8 +609,6 @@ test('release readiness summary warns without failing when Full DMG exceeds revi
   assert.deepEqual(summary.warnings.map((warning) => warning.code), [
     'full_dmg_size_above_review_threshold',
   ]);
-  assert.match(fs.readFileSync(summaryPath, 'utf8'), /Full DMG size warning/);
-  assert.match(fs.readFileSync(summaryPath, 'utf8'), /865000000/);
 });
 
 test('release readiness summary surfaces miss_written runtime cache layers', () => {

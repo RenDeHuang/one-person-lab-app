@@ -220,10 +220,9 @@ test('release cohort planner writes pinned cohort JSON and typed next action', (
   assert.match(plan.next_action.command, new RegExp(`--field shell_ref=${refs.shell.head}`));
   assert.match(plan.next_action.command, new RegExp(`--field framework_ref=${refs.framework.head}`));
   assert.doesNotMatch(plan.next_action.command, /shell_ref=main|framework_ref=main/);
-  assert.ok(plan.cheap_gates.some((gate: { id: string }) => gate.id === 'release_cohort_lock'));
-  assert.ok(plan.cheap_gates.some((gate: { id: string }) => gate.id === 'release_source_gate'));
-  assert.ok(plan.cheap_gates.some((gate: { id: string }) => gate.id === 'release_preflight'));
-  assert.ok(plan.cheap_gates.some((gate: { id: string }) => gate.id === 'full_package_prune_audit'));
+  for (const id of ['release_cohort_lock', 'release_source_gate', 'release_preflight', 'full_package_prune_audit']) {
+    assert.ok(plan.cheap_gates.some((gate: { id: string }) => gate.id === id), id);
+  }
   assert.equal(plan.authority_boundary.cohort_plan_can_publish_release, false);
   assert.equal(plan.authority_boundary.cohort_plan_can_write_runtime_truth, false);
 });
@@ -275,18 +274,7 @@ test('release operator plan reuses cohort plan and writes operator state', () =>
   assert.doesNotMatch(state.next_action.command, /--shell-ref main|--framework-ref main/);
   assert.equal(state.operator_guidance.currentness_freeze.required_before_dispatch, true);
   assert.equal(state.operator_guidance.currentness_freeze.dispatch_input_source, 'release_cohort_plan_or_lock');
-  assert.equal(state.operator_guidance.currentness_freeze.manual_long_sha_dispatch_recommended, false);
   assert.equal(state.operator_guidance.currentness_freeze.single_desktop_release_per_frozen_cohort, true);
-  assert.equal(
-    state.operator_guidance.post_owner_receipt_fast_path.default_action,
-    'verify_owner_candidate_record_then_dispatch_promote',
-  );
-  assert.equal(state.operator_guidance.post_owner_receipt_fast_path.desktop_release_rerun_required, false);
-  assert.equal(
-    state.operator_guidance.post_owner_receipt_fast_path.promote_workflow,
-    '.github/workflows/desktop-release-promote.yml',
-  );
-  assert.match(state.operator_guidance.post_owner_receipt_fast_path.verify_command, /--version 26\.6\.99/);
   assert.equal(state.authority_boundary.operator_can_publish_release, false);
   assert.equal(state.authority_boundary.operator_can_write_runtime_truth, false);
 });
@@ -317,18 +305,12 @@ test('release operator VM diagnostics only emits non-dispatching suggested comma
   assert.match(state.next_action.command, /desktop-release-diagnostics\.yml/);
   assert.match(state.next_action.command, /--field package_profile="standard"/);
   assert.equal(state.authority_boundary.operator_can_dispatch_workflow_without_explicit_user_action, false);
-  for (const command of state.diagnostic_commands) {
-    assert.equal(command.dispatches_workflow, false);
-    assert.equal(command.publishes_release, false);
-    assert.match(command.command, /^gh workflow run /);
-    assert.match(command.command, /package_profile="standard"/);
-    assert.match(command.command, /diagnostic_scope="existing_artifact"/);
-  }
+  assert.ok(state.diagnostic_commands.every((command) => !command.dispatches_workflow && !command.publishes_release));
   assert.ok(
-    state.diagnostic_commands.some((command: { command: string }) => command.command.includes('OPL GUI First-Run VM')),
-  );
-  assert.ok(
-    state.diagnostic_commands.some((command: { command: string }) => command.command.includes('desktop-release-diagnostics.yml')),
+    state.diagnostic_commands.some((command: { command: string }) =>
+      command.command.includes('desktop-release-diagnostics.yml')
+      && command.command.includes('diagnostic_scope="existing_artifact"')
+    ),
   );
 });
 

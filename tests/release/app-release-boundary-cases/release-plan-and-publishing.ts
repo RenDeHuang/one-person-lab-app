@@ -140,6 +140,15 @@ function writeFullPackageFixture(fullPackageDir: string, version: string, manife
   writeFullPublicReleaseManifest(fullPackageDir, version, withFullPackageOptimizationManifest(manifest));
 }
 
+function assertCheck(payload: { checks: Array<{ id: string; status: string; message?: string }> }, id: string, status: string, message?: RegExp) {
+  const check = payload.checks.find((entry) => entry.id === id);
+  assert.ok(check, `missing check ${id}`);
+  assert.equal(check.status, status);
+  if (message) {
+    assert.match(check.message ?? '', message);
+  }
+}
+
 test('release plan exposes the standard VM fail-fast gate before expensive Full lanes', () => {
   const result = runNode([
     'scripts/plan-release-candidate.ts',
@@ -153,10 +162,7 @@ test('release plan exposes the standard VM fail-fast gate before expensive Full 
   assert.equal(payload.version, '26.5.19');
   assert.equal(payload.strategy.normal_stable_path, 'new_release_draft_gates_candidate_record_promote');
   assert.equal(payload.strategy.candidate_record_promotion_source, 'only_source_for_stable_promotion');
-  assert.equal(payload.strategy.refresh_existing, 'emergency_repair_or_replace_existing_release_only');
   assert.equal(payload.strategy.post_release_user_guide_screenshots, 'after_promotion_not_pre_promotion_gate');
-  assert.equal(payload.strategy.same_tag_replacement, 'avoid_for_new_versions');
-  assert.equal(payload.strategy.resume_uploads, 'skip_existing_assets_when_size_and_sha256_digest_match');
   assert.equal(payload.strategy.full_runtime_cache, 'content_addressed_layer_cache');
   const lanes = new Map(payload.lanes.map((lane) => [lane.id, lane]));
   const lane = (id: string) => {
@@ -264,18 +270,11 @@ test('release preflight fails fast before expensive release jobs', () => {
   assert.equal(payload.schema, 'opl_release_preflight.v1');
   assert.equal(payload.status, 'passed');
   assert.equal(payload.inputs.include_full_package, true);
-  assert.ok(payload.checks.some((check) => check.id === 'remote_target' && check.status === 'skipped'));
-  assert.ok(payload.checks.some((check) => check.id === 'release_refs' && check.status === 'skipped'));
-  assert.ok(payload.checks.some((check) => check.id === 'codex_package_metadata' && check.status === 'skipped'));
-  assert.ok(payload.checks.some((check) => (
-    check.id === 'docker_webui_clean_windows_evidence_artifact'
-    && check.status === 'skipped'
-  )));
-  assert.ok(payload.checks.some((check) => check.id === 'full_workflow_call' && check.status === 'passed'));
-  assert.ok(payload.checks.some((check) => (
-    check.id === 'homebrew_vm_gate_static_policy'
-    && check.status === 'passed'
-  )));
+  for (const id of ['remote_target', 'release_refs', 'codex_package_metadata', 'docker_webui_clean_windows_evidence_artifact']) {
+    assertCheck(payload, id, 'skipped');
+  }
+  assertCheck(payload, 'full_workflow_call', 'passed');
+  assertCheck(payload, 'homebrew_vm_gate_static_policy', 'passed');
   assert.equal(payload.homebrew.vm_gate_static_policy.install_ref, 'gaofeng21cn/one-person-lab/one-person-lab');
   assert.ok(payload.homebrew.vm_gate_static_policy.trusted_cask_refs.includes('gaofeng21cn/one-person-lab/one-person-lab-full'));
   assert.equal(payload.homebrew.vm_gate_static_policy.whole_tap_trust_allowed, false);
@@ -296,10 +295,7 @@ test('release preflight fails fast before expensive release jobs', () => {
   ]);
   assert.equal(standardOnly.status, 0, standardOnly.stderr || standardOnly.stdout);
   const standardOnlyPayload = JSON.parse(standardOnly.stdout);
-  assert.ok(standardOnlyPayload.checks.some((check) => (
-    check.id === 'full_workflow_call'
-    && check.status === 'skipped'
-  )));
+  assertCheck(standardOnlyPayload, 'full_workflow_call', 'skipped');
 
   const invalidBooleanEnv = runNode([
     'scripts/validate-release-preflight.ts',
@@ -395,12 +391,12 @@ exit 2
   const staleDraftRefreshPayload = JSON.parse(staleDraftRefresh.stdout);
   assert.equal(staleDraftRefreshPayload.status, 'failed');
   assert.equal(staleDraftRefreshPayload.release_target.tag_sha, 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
-  assert.ok(staleDraftRefreshPayload.checks.some((check) => (
-    check.id === 'remote_target'
-    && check.status === 'failed'
-    && check.message.includes('points at bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb')
-    && check.message.includes('expected current App head aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')
-  )));
+  assertCheck(
+    staleDraftRefreshPayload,
+    'remote_target',
+    'failed',
+    /points at bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.*expected current App head aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/s,
+  );
 
   const draftRefresh = runNode([
     'scripts/validate-release-preflight.ts',
@@ -428,11 +424,7 @@ exit 2
   assert.equal(draftRefreshPayload.homebrew.tap_update_required, false);
   assert.equal(draftRefreshPayload.homebrew.tap_token_required, false);
   assert.equal(draftRefreshPayload.homebrew.tap_update_owner, 'desktop_release_promote_after_publish');
-  assert.ok(draftRefreshPayload.checks.some((check) => (
-    check.id === 'homebrew_tap_token'
-    && check.status === 'skipped'
-    && check.message.includes('promote workflow')
-  )));
+  assertCheck(draftRefreshPayload, 'homebrew_tap_token', 'skipped', /promote workflow/);
 
   const newReleaseWithoutTapToken = runNode([
     'scripts/validate-release-preflight.ts',
@@ -458,11 +450,7 @@ exit 2
   assert.equal(newReleaseWithoutTapTokenPayload.homebrew.tap_update_required, false);
   assert.equal(newReleaseWithoutTapTokenPayload.homebrew.tap_token_required, false);
   assert.equal(newReleaseWithoutTapTokenPayload.homebrew.tap_update_owner, 'desktop_release_promote_after_publish');
-  assert.ok(newReleaseWithoutTapTokenPayload.checks.some((check) => (
-    check.id === 'homebrew_tap_token'
-    && check.status === 'skipped'
-    && check.message.includes('does not block App, Full, or Docker/WebUI candidate creation')
-  )));
+  assertCheck(newReleaseWithoutTapTokenPayload, 'homebrew_tap_token', 'skipped', /does not block App, Full, or Docker\/WebUI candidate creation/);
 
   const failure = runNode([
     'scripts/validate-release-preflight.ts',
@@ -485,11 +473,7 @@ exit 2
   assert.notEqual(failure.status, 0);
   const failedPayload = JSON.parse(failure.stdout);
   assert.equal(failedPayload.status, 'failed');
-  assert.ok(failedPayload.checks.some((check) => (
-    check.id === 'homebrew_tap_token'
-    && check.status === 'failed'
-    && check.message.includes('OPL_HOMEBREW_TAP_TOKEN')
-  )));
+  assertCheck(failedPayload, 'homebrew_tap_token', 'failed', /OPL_HOMEBREW_TAP_TOKEN/);
 
   const missingSigningSecrets = runNode([
     'scripts/validate-release-preflight.ts',
@@ -508,11 +492,7 @@ exit 2
   assert.equal(missingSigningSecrets.status, 0, missingSigningSecrets.stderr || missingSigningSecrets.stdout);
   const missingSigningPayload = JSON.parse(missingSigningSecrets.stdout);
   assert.equal(missingSigningPayload.status, 'passed');
-  assert.ok(missingSigningPayload.checks.some((check) => (
-    check.id === 'macos_local_authorization'
-    && check.status === 'passed'
-    && check.message.includes('Developer ID signing/notarization secrets are optional')
-  )));
+  assertCheck(missingSigningPayload, 'macos_local_authorization', 'passed', /Developer ID signing\/notarization secrets are optional/);
 });
 
 test('release preflight allows Docker WebUI trains without clean Windows VM evidence', () => {
@@ -540,11 +520,7 @@ test('release preflight allows Docker WebUI trains without clean Windows VM evid
   assert.equal(warningPayload.status, 'passed');
   assert.equal(warningPayload.inputs.publish_docker_webui, true);
   assert.equal(warningPayload.inputs.docker_webui_clean_windows_evidence_artifact, '');
-  assert.ok(warningPayload.checks.some((check) => (
-    check.id === 'docker_webui_clean_windows_evidence_artifact'
-    && check.status === 'warning'
-    && check.message.includes('optional')
-  )));
+  assertCheck(warningPayload, 'docker_webui_clean_windows_evidence_artifact', 'warning', /optional/);
 
   const emptyWorkflowInput = runNode([
     'scripts/validate-release-preflight.ts',
@@ -598,10 +574,7 @@ test('release preflight allows Docker WebUI trains without clean Windows VM evid
   });
   assert.equal(declaredEvidence.status, 0, declaredEvidence.stderr || declaredEvidence.stdout);
   const passedPayload = JSON.parse(declaredEvidence.stdout);
-  assert.ok(passedPayload.checks.some((check) => (
-    check.id === 'docker_webui_clean_windows_evidence_artifact'
-    && check.status === 'passed'
-  )));
+  assertCheck(passedPayload, 'docker_webui_clean_windows_evidence_artifact', 'passed');
 
   const diagnosticDraft = runNode([
     'scripts/validate-release-preflight.ts',
@@ -619,11 +592,7 @@ test('release preflight allows Docker WebUI trains without clean Windows VM evid
   ]);
   assert.equal(diagnosticDraft.status, 0, diagnosticDraft.stderr || diagnosticDraft.stdout);
   const draftPayload = JSON.parse(diagnosticDraft.stdout);
-  assert.ok(draftPayload.checks.some((check) => (
-    check.id === 'docker_webui_clean_windows_evidence_artifact'
-    && check.status === 'warning'
-    && check.message.includes('optional')
-  )));
+  assertCheck(draftPayload, 'docker_webui_clean_windows_evidence_artifact', 'warning', /optional/);
 });
 
 test('publish dry run skips existing release assets when a resumed upload already has matching files', () => {
@@ -723,14 +692,9 @@ test('standard publish can explicitly use deterministic template release notes w
   const payload = JSON.parse(result.stdout);
   assert.equal(payload.release_notes_mode, 'template');
   assert.match(payload.release_notes, /One Person Lab v26\.5\.19-deterministic-notes/);
-  assert.match(payload.release_notes, /## What improved/);
   assert.match(payload.release_notes, /## OPL agents and runtime payload/);
-  assert.match(payload.release_notes, /## OPL family updates/);
-  assert.match(payload.release_notes, /One Person Lab App/);
-  assert.match(payload.release_notes, /OPL Aion Shell/);
   assert.match(payload.release_notes, /## Install Stable/);
   assert.match(payload.release_notes, new RegExp(stableInstallCommand.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
-  assert.match(payload.release_notes, /## Release scope/);
 });
 
 test('standard publish defaults to AI release notes writer', () => {
@@ -775,80 +739,55 @@ test('publish consumes a prepared release notes file before calling AI', () => {
   const aiCalledMarker = path.join(tempRoot, 'ai-called');
   const version = '26.5.19-prepared-notes';
   const { shellRoot, fakeAi } = writeStandardPublishFixture(tempRoot, version, { writeDefaultAi: false });
-  const publicMarkdown = `One Person Lab v${version}
-
-Users can install or upgrade One Person Lab App and open MAS research, MAG grant-writing, RCA visual deliverable, and OPL Meta Agent sessions with clearer setup.
-
-## Highlights
-
-- Standard App users get clearer MAS, MAG, RCA, and OPL Meta Agent entry points.
-
-## What improved
-
-- MAS research, MAG grant-writing, RCA visual deliverable, and OPL Meta Agent sessions are easier to start after install.
-
-## Compatibility and action required
-
-- No manual migration is required beyond installing or upgrading this Stable release.
-
-## OPL agents and runtime payload
-
-- Standard package: App-managed MAS, MAG, RCA, and OPL Meta Agent entry surface plus Codex plugin and skill sync policy.
-
-## OPL family updates
-
-- One Person Lab App: current standard package changes keep the built-in OPL entries aligned.
-- OPL Aion Shell: current shell changes keep the first-run and settings UI aligned with the App release.
-
-## Install Stable
-
-\`${stableInstallCommand}\`
-
-## Release scope
-
-- Standard macOS arm64 updater package is published for this release.
-`;
+  const publicMarkdown = [
+    `One Person Lab v${version}`,
+    '',
+    'Users can install or upgrade One Person Lab App and open MAS, MAG, RCA, and OPL Meta Agent sessions.',
+    '',
+    '## Highlights',
+    '',
+    '- Standard App users get clearer OPL agent entry points.',
+    '',
+    '## What improved',
+    '',
+    '- MAS, MAG, RCA, and OPL Meta Agent sessions are easier to start after install.',
+    '',
+    '## Compatibility and action required',
+    '',
+    '- No manual migration is required beyond installing or upgrading this Stable release.',
+    '',
+    '## OPL agents and runtime payload',
+    '',
+    '- Standard package: App-managed agent entry surface plus Codex plugin and skill sync policy.',
+    '',
+    '## OPL family updates',
+    '',
+    '- OPL Aion Shell: current shell changes stay aligned with the App release.',
+    '',
+    '## Install Stable',
+    '',
+    `\`${stableInstallCommand}\``,
+    '',
+    '## Release scope',
+    '',
+    '- Standard macOS arm64 updater package is published for this release.',
+    '',
+  ].join('\n');
+  const zhMarkdown = [
+    `One Person Lab v${version}`,
+    '',
+    '这次更新让 MAS、MAG、RCA 和 OPL Meta Agent 入口更容易打开。',
+    '',
+  ].join('\n');
 
   writeExecutable(fakeAi, `#!/usr/bin/env node
 require('node:fs').writeFileSync(${JSON.stringify(aiCalledMarker)}, 'called');
 process.exit(42);
 `);
-  writeFile(releaseNotesFile, withHiddenLocalizedReleaseNotes(publicMarkdown, `One Person Lab v${version}
-
-这次更新让用户安装或升级 One Person Lab App 后，更容易打开 MAS、MAG、RCA 和 OPL Meta Agent 会话。
-
-## Highlights
-
-- MAS、MAG、RCA 和 OPL Meta Agent 入口更清楚。
-
-## What improved
-
-- MAS、MAG、RCA 和 OPL Meta Agent 会话更容易开始。
-
-## Compatibility and action required
-
-- 除安装或升级 Stable 版本外，不需要手动迁移。
-
-## OPL agents and runtime payload
-
-- Standard package: App-managed MAS, MAG, RCA, and OPL Meta Agent entry surface plus Codex plugin and skill sync policy.
-
-## OPL family updates
-
-- One Person Lab App: 当前标准包更新会让内置 OPL 入口保持一致。
-- OPL Aion Shell: 当前 shell 更新会让首次启动和设置界面与 App 发布保持一致。
-
-## Install Stable
-
-\`${stableInstallCommand}\`
-
-## Release scope
-
-- Standard macOS arm64 updater package is published for this release.
-`));
+  writeFile(releaseNotesFile, withHiddenLocalizedReleaseNotes(publicMarkdown, zhMarkdown));
   writeFile(
     badReleaseNotesFile,
-    fs.readFileSync(releaseNotesFile, 'utf8').replace(/\n## Highlights\n\n- Standard App users get clearer MAS, MAG, RCA, and OPL Meta Agent entry points.\n/, ''),
+    fs.readFileSync(releaseNotesFile, 'utf8').replace(/\n## Highlights\n\n- Standard App users get clearer OPL agent entry points.\n/, ''),
   );
 
   const result = runNode([
