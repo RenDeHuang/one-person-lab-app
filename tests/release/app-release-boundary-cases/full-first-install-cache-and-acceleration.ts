@@ -59,23 +59,15 @@ test('Full first-install cache and release acceleration contract are explicit', 
     archiveExists: true,
   });
 
-  assert.equal(packageJson.scripts['release:plan'], 'node --experimental-strip-types scripts/plan-release-candidate.ts');
-  assert.equal(
-    packageJson.scripts['release:readiness-summary'],
-    'node --experimental-strip-types scripts/summarize-release-readiness.ts',
-  );
-  assert.equal(
-    packageJson.scripts['release:full:size'],
-    'node --experimental-strip-types scripts/analyze-full-package-size.ts',
-  );
-  assert.equal(
-    packageJson.scripts['release:full:prune-audit'],
-    'node --experimental-strip-types scripts/audit-full-runtime-prune-policy.ts',
-  );
-  assert.equal(
-    packageJson.scripts['release:gate-reuse-plan'],
-    'node --experimental-strip-types scripts/plan-release-gate-reuse.ts',
-  );
+  for (const [scriptName, expectedCommand] of Object.entries({
+    'release:plan': 'node --experimental-strip-types scripts/plan-release-candidate.ts',
+    'release:readiness-summary': 'node --experimental-strip-types scripts/summarize-release-readiness.ts',
+    'release:full:size': 'node --experimental-strip-types scripts/analyze-full-package-size.ts',
+    'release:full:prune-audit': 'node --experimental-strip-types scripts/audit-full-runtime-prune-policy.ts',
+    'release:gate-reuse-plan': 'node --experimental-strip-types scripts/plan-release-gate-reuse.ts',
+  })) {
+    assert.equal(packageJson.scripts[scriptName], expectedCommand, scriptName);
+  }
   assert.equal(releaseContract.release_acceleration.gate_reuse.schema, 'opl_release_gate_reuse_plan.v1');
   assert.deepEqual(releaseContract.release_acceleration.gate_reuse.eligible_gate_ids, [
     'remote_release_verification',
@@ -410,80 +402,39 @@ test('Full first-install cache and release acceleration contract are explicit', 
     },
   );
   assert.match(cacheHit.archive_path, /opl-runtime/);
-  assert.match(buildScript, /Library', 'Caches', 'One Person Lab', 'full-runtime-layers'/);
-  assert.match(buildScript, /runtimeCacheMode: process\.env\.OPL_FULL_RUNTIME_CACHE_MODE \|\| 'readwrite'/);
-  assert.match(buildScript, /CODEX_MACOS_ARM64_TARGET = 'aarch64-apple-darwin'/);
-  assert.match(buildScript, /siblingPlatformVendorRoot/);
-  assert.match(buildScript, /const vendorRoots = \[siblingPlatformVendorRoot, platformVendorRoot, localVendorRoot\]/);
-  assert.match(buildScript, /codexCandidatesForVendorRoot/);
-  assert.match(buildScript, /rgCandidatesForVendorRoot/);
-  assert.match(buildScript, /const vendorRoot = requireFirstVendorRoot\(\)/);
-  assert.match(buildScript, /return \{\s*vendorRoot,/);
-  assert.match(buildScript, /function findNodeToolchain\(explicitNodeBin\)/);
-  assert.match(buildScript, /npmBin: requireNodeToolchainFile\(nodeBinDir, 'npm'/);
-  assert.match(buildScript, /npxBin: requireNodeToolchainFile\(nodeBinDir, 'npx'/);
-  assert.match(buildScript, /npmRoot: requireNodeToolchainDirectory\(path\.join\(nodeRoot, 'lib', 'node_modules', 'npm'\)/);
-  assert.match(buildScript, /bunBin: envValue\('OPL_FULL_BUN_BIN', ''\)/);
-  assert.match(buildScript, /includeBunRuntime: process\.env\.OPL_FULL_INCLUDE_BUN_RUNTIME === '1'/);
-  assert.match(buildScript, /temporalCliBin: envValue\('OPL_FULL_TEMPORAL_CLI_BIN', ''\)/);
-  assert.match(buildScript, /temporalCliArchive: envValue\('OPL_FULL_TEMPORAL_CLI_ARCHIVE', ''\)/);
-  assert.doesNotMatch(buildScript, /--hermes-root/);
+  for (const pattern of [
+    /Library', 'Caches', 'One Person Lab', 'full-runtime-layers'/, /runtimeCacheMode: process\.env\.OPL_FULL_RUNTIME_CACHE_MODE \|\| 'readwrite'/,
+    /CODEX_MACOS_ARM64_TARGET = 'aarch64-apple-darwin'/, /siblingPlatformVendorRoot/,
+    /const vendorRoots = \[siblingPlatformVendorRoot, platformVendorRoot, localVendorRoot\]/, /codexCandidatesForVendorRoot/, /rgCandidatesForVendorRoot/,
+    /const vendorRoot = requireFirstVendorRoot\(\)/, /return \{\s*vendorRoot,/, /function findNodeToolchain\(explicitNodeBin\)/,
+    /npmBin: requireNodeToolchainFile\(nodeBinDir, 'npm'/, /npxBin: requireNodeToolchainFile\(nodeBinDir, 'npx'/,
+    /npmRoot: requireNodeToolchainDirectory\(path\.join\(nodeRoot, 'lib', 'node_modules', 'npm'\)/, /bunBin: envValue\('OPL_FULL_BUN_BIN', ''\)/,
+    /includeBunRuntime: process\.env\.OPL_FULL_INCLUDE_BUN_RUNTIME === '1'/, /temporalCliBin: envValue\('OPL_FULL_TEMPORAL_CLI_BIN', ''\)/,
+    /temporalCliArchive: envValue\('OPL_FULL_TEMPORAL_CLI_ARCHIVE', ''\)/, /function findBunBinary\(explicitBunBin\)/,
+    /function findTemporalCliBinary\(explicitBin\)/, /function findTemporalCliArchive\(explicitArchive\)/,
+    /options\.includeBunRuntime \? findBunBinary\(options\.bunBin\) : null/, /findTemporalCliArchive,/,
+    /meta_agent_skill_source: metaAgentSkillSnapshot\(options\)/, /bookforge_skill_source: bookforgeSkillSnapshot\(options\)/,
+    /bookforge_commit: readGitHead\(options\.bookforgeRoot\)/, /cron_skill_source: skillSourceSnapshot\(appCompanionSkillCandidates\('cron'\), 'skills\/cron'\)/,
+    /pdf_skill_source: skillSourceSnapshot\(appCompanionSkillCandidates\('pdf'\), 'skills\/pdf'\)/,
+    /mineru_document_extractor_source: skillSourceSnapshot\(mineruDocumentExtractorSkillCandidates\(options\), 'skills\/mineru-document-extractor'\)/,
+    /runtime_layer_builder_source_hash: functionSourceSha256/,
+    /support_files:\s+hashFiles\(appRepoRoot,[\s\S]*'contracts\/app-product-profile\.json'[\s\S]*'scripts\/build-full-first-install-package\/runtime-cache\.ts'[\s\S]*'scripts\/build-full-first-install-package\/runtime-layers\.ts'[\s\S]*'scripts\/build-full-first-install-package\/runtime-sources\.ts'[\s\S]*'scripts\/build-full-first-install-package\/skills\.ts'/,
+    /key_inputs: cacheKeyInputs/, /resolveFullDmgCompressionLevel\(\)/, /dmg_format: dmgFormat/, /process\.env\.CI === 'true' \? '9' : '7'/,
+    /dmg_compression_level: process\.env\.ELECTRON_BUILDER_COMPRESSION_LEVEL/, /guiRoot: envValue\('OPL_FULL_GUI_ROOT', resolveActiveShellPaths\(\)\.shellRoot\)/,
+    /syncAppProductProfileToShell\(options\.guiRoot\)/, /if \(cacheEvent\.read_archive\) {\s*extractLayer\(archivePath, targetRoot\);\s*return {\s*\.\.\.cacheEvent,\s*duration_seconds: durationSeconds\(startedAt, monotonicSeconds\(\)\),\s*};\s*}\s*const tempLayerRoot/,
+    /duration_seconds: durationSeconds\(startedAt, monotonicSeconds\(\)\)/, /aggregate_key_input: buildFullRuntimeAggregateCacheKeyInput\(\{ layers \}\)/,
+    /opl_runtime_environment_substrate: \{/, /contract_path: 'contracts\/opl-framework\/runtime-environment-substrate-contract\.json'/, /artifactNames\.runtimeCacheEvents/,
+  ]) assert.match(buildScript, pattern);
   assertFullFirstInstallOptionTables(buildScript);
-  assert.match(buildScript, /function findBunBinary\(explicitBunBin\)/);
-  assert.match(buildScript, /function findTemporalCliBinary\(explicitBin\)/);
-  assert.match(buildScript, /function findTemporalCliArchive\(explicitArchive\)/);
-  assert.match(buildScript, /options\.includeBunRuntime \? findBunBinary\(options\.bunBin\) : null/);
-  assert.match(buildScript, /findTemporalCliArchive,/);
-  assert.match(fullWorkflow, /repository: obra\/superpowers/);
-  assert.match(fullWorkflow, /path: superpowers/);
-  assert.match(fullWorkflow, /OPL_FULL_SUPERPOWERS_ROOT="\$GITHUB_WORKSPACE\/superpowers"/);
-  assert.match(buildScript, /meta_agent_skill_source: metaAgentSkillSnapshot\(options\)/);
-  assert.match(buildScript, /bookforge_skill_source: bookforgeSkillSnapshot\(options\)/);
-  assert.match(buildScript, /bookforge_commit: readGitHead\(options\.bookforgeRoot\)/);
-  assert.match(buildScript, /cron_skill_source: skillSourceSnapshot\(appCompanionSkillCandidates\('cron'\), 'skills\/cron'\)/);
-  assert.match(buildScript, /pdf_skill_source: skillSourceSnapshot\(appCompanionSkillCandidates\('pdf'\), 'skills\/pdf'\)/);
-  assert.match(buildScript, /mineru_document_extractor_source: skillSourceSnapshot\(mineruDocumentExtractorSkillCandidates\(options\), 'skills\/mineru-document-extractor'\)/);
-  assert.match(buildScript, /runtime_layer_builder_source_hash: functionSourceSha256/);
-  assert.match(buildScript, /support_files:\s+hashFiles\(appRepoRoot,[\s\S]*'contracts\/app-product-profile\.json'[\s\S]*'scripts\/build-full-first-install-package\/runtime-cache\.ts'[\s\S]*'scripts\/build-full-first-install-package\/runtime-layers\.ts'[\s\S]*'scripts\/build-full-first-install-package\/runtime-sources\.ts'[\s\S]*'scripts\/build-full-first-install-package\/skills\.ts'/);
-  assert.doesNotMatch(buildScript, /support_files:[\s\S]{0,1200}'scripts\/build-full-first-install-package\.ts'/);
-  assert.doesNotMatch(buildScript, /support_files:[\s\S]{0,1200}'scripts\/build-full-first-install-package\/archive-output\.ts'/);
-  assert.doesNotMatch(buildScript, /support_files:[\s\S]{0,1200}'scripts\/build-full-first-install-package\/manifest-checksum\.ts'/);
-  assert.match(buildScript, /key_inputs: cacheKeyInputs/);
-  assert.match(buildScript, /resolveFullDmgCompressionLevel\(\)/);
-  assert.match(buildScript, /dmg_format: dmgFormat/);
-  assert.match(buildScript, /process\.env\.CI === 'true' \? '9' : '7'/);
-  assert.match(buildScript, /dmg_compression_level: process\.env\.ELECTRON_BUILDER_COMPRESSION_LEVEL/);
-  assert.match(buildScript, /guiRoot: envValue\('OPL_FULL_GUI_ROOT', resolveActiveShellPaths\(\)\.shellRoot\)/);
-  assert.doesNotMatch(buildScript, /guiRoot: process\.env\.OPL_FULL_GUI_ROOT \|\| path\.join\(appRepoRoot, 'shells', 'aionui'\)/);
-  assert.match(buildScript, /syncAppProductProfileToShell\(options\.guiRoot\)/);
+  for (const pattern of [/--hermes-root/, /support_files:[\s\S]{0,1200}'scripts\/build-full-first-install-package\.ts'/, /support_files:[\s\S]{0,1200}'scripts\/build-full-first-install-package\/archive-output\.ts'/, /support_files:[\s\S]{0,1200}'scripts\/build-full-first-install-package\/manifest-checksum\.ts'/, /guiRoot: process\.env\.OPL_FULL_GUI_ROOT \|\| path\.join\(appRepoRoot, 'shells', 'aionui'\)/]) assert.doesNotMatch(buildScript, pattern);
+  for (const pattern of [/repository: obra\/superpowers/, /path: superpowers/, /OPL_FULL_SUPERPOWERS_ROOT="\$GITHUB_WORKSPACE\/superpowers"/]) assert.match(fullWorkflow, pattern);
   const fullRuntimeWrapperScript = fs.readFileSync(
     path.join(appRoot, 'scripts', 'full-first-install-runtime-wrappers.ts'),
     'utf8',
   );
-  assert.match(fullRuntimeWrapperScript, /OPL_MODULE_PATH_MEDAUTOSCIENCE="\$RUNTIME_HOME\/modules\/mas"/);
-  assert.match(fullRuntimeWrapperScript, /OPL_MODULE_PATH_MEDAUTOGRANT="\$RUNTIME_HOME\/modules\/mag"/);
-  assert.match(fullRuntimeWrapperScript, /OPL_MODULE_PATH_REDCUBE="\$RUNTIME_HOME\/modules\/rca"/);
-  assert.match(fullRuntimeWrapperScript, /OPL_MODULE_PATH_OPLMETAAGENT="\$RUNTIME_HOME\/modules\/meta-agent"/);
-  assert.match(fullRuntimeWrapperScript, /OPL_MODULE_PATH_OPLBOOKFORGE="\$RUNTIME_HOME\/modules\/bookforge"/);
-  assert.match(fullRuntimeWrapperScript, /OPL_TEMPORAL_ADDRESS="\\\$\{OPL_TEMPORAL_ADDRESS:-127\.0\.0\.1:7233\}"/);
-  assert.match(fullRuntimeWrapperScript, /OPL_TEMPORAL_NAMESPACE="\\\$\{OPL_TEMPORAL_NAMESPACE:-default\}"/);
-  assert.match(fullRuntimeWrapperScript, /OPL_TEMPORAL_TASK_QUEUE="\\\$\{OPL_TEMPORAL_TASK_QUEUE:-opl-stage-attempts\}"/);
-  assert.match(prepareStandardScript, /syncAppProductProfileToShell\(shellPaths\.shellRoot, \{ optional: true \}\)/);
-  assert.match(prepareStandardScript, /fs\.copyFileSync\(appInstallerPath, shellBootstrapInstallerPath\)/);
-  assert.match(prepareStandardScript, /fs\.chmodSync\(shellBootstrapInstallerPath, 0o755\)/);
+  for (const pattern of [/OPL_MODULE_PATH_MEDAUTOSCIENCE="\$RUNTIME_HOME\/modules\/mas"/, /OPL_MODULE_PATH_MEDAUTOGRANT="\$RUNTIME_HOME\/modules\/mag"/, /OPL_MODULE_PATH_REDCUBE="\$RUNTIME_HOME\/modules\/rca"/, /OPL_MODULE_PATH_OPLMETAAGENT="\$RUNTIME_HOME\/modules\/meta-agent"/, /OPL_MODULE_PATH_OPLBOOKFORGE="\$RUNTIME_HOME\/modules\/bookforge"/, /OPL_TEMPORAL_ADDRESS="\\\$\{OPL_TEMPORAL_ADDRESS:-127\.0\.0\.1:7233\}"/, /OPL_TEMPORAL_NAMESPACE="\\\$\{OPL_TEMPORAL_NAMESPACE:-default\}"/, /OPL_TEMPORAL_TASK_QUEUE="\\\$\{OPL_TEMPORAL_TASK_QUEUE:-opl-stage-attempts\}"/]) assert.match(fullRuntimeWrapperScript, pattern);
+  for (const pattern of [/syncAppProductProfileToShell\(shellPaths\.shellRoot, \{ optional: true \}\)/, /fs\.copyFileSync\(appInstallerPath, shellBootstrapInstallerPath\)/, /fs\.chmodSync\(shellBootstrapInstallerPath, 0o755\)/]) assert.match(prepareStandardScript, pattern);
   assert.match(electronBuilder, /from: resources\/opl-install\.sh\s+to: opl-install\.sh/);
-  assert.match(
-    buildScript,
-    /if \(cacheEvent\.read_archive\) {\s*extractLayer\(archivePath, targetRoot\);\s*return {\s*\.\.\.cacheEvent,\s*duration_seconds: durationSeconds\(startedAt, monotonicSeconds\(\)\),\s*};\s*}\s*const tempLayerRoot/,
-  );
-  assert.match(buildScript, /duration_seconds: durationSeconds\(startedAt, monotonicSeconds\(\)\)/);
-  assert.match(buildScript, /aggregate_key_input: buildFullRuntimeAggregateCacheKeyInput\(\{ layers \}\)/);
-  assert.match(buildScript, /opl_runtime_environment_substrate: \{/);
-  assert.match(buildScript, /contract_path: 'contracts\/opl-framework\/runtime-environment-substrate-contract\.json'/);
-  assert.match(buildScript, /artifactNames\.runtimeCacheEvents/);
-  assert.match(publishScript, /skipped_existing_artifacts/);
-  assert.match(publishScript, /--force-upload/);
-  assert.match(publishScript, /cleanupNewlyCreatedReleaseAfterUploadFailure/);
-  assert.match(publishScript, /'release', 'delete', tag, '--repo', repo, '--yes'\]/);
+  for (const pattern of [/skipped_existing_artifacts/, /--force-upload/, /cleanupNewlyCreatedReleaseAfterUploadFailure/, /'release', 'delete', tag, '--repo', repo, '--yes'\]/]) assert.match(publishScript, pattern);
   assert.doesNotMatch(publishScript, /cleanupNewlyCreatedReleaseAfterUploadFailure[\s\S]*--cleanup-tag/);
 });

@@ -350,32 +350,17 @@ export function writeFullRemoteAssets(outDir, version, options = {}) {
         contains_opl_full_runtime: boundaryAudit.full_package_boundary.contains_opl_full_runtime,
         contains_shell_runtime: boundaryAudit.full_package_boundary.contains_shell_runtime,
         dedupe_policy: boundaryAudit.full_package_boundary.dedupe_policy,
-        audited_entries: {
-          opl_full_runtime: {
-            path: boundaryAudit.entries.opl_full_runtime.path,
-            owner: boundaryAudit.entries.opl_full_runtime.owner,
-            exists: boundaryAudit.entries.opl_full_runtime.exists,
-            size_bytes: boundaryAudit.entries.opl_full_runtime.size_bytes,
-          },
-          aionui_bundled_runtime: {
-            path: boundaryAudit.entries.aionui_bundled_runtime.path,
-            owner: boundaryAudit.entries.aionui_bundled_runtime.owner,
-            exists: boundaryAudit.entries.aionui_bundled_runtime.exists,
-            size_bytes: boundaryAudit.entries.aionui_bundled_runtime.size_bytes,
-          },
-          app_asar: {
-            path: boundaryAudit.entries.app_asar.path,
-            owner: boundaryAudit.entries.app_asar.owner,
-            exists: boundaryAudit.entries.app_asar.exists,
-            size_bytes: boundaryAudit.entries.app_asar.size_bytes,
-          },
-          electron_framework: {
-            path: boundaryAudit.entries.electron_framework.path,
-            owner: boundaryAudit.entries.electron_framework.owner,
-            exists: boundaryAudit.entries.electron_framework.exists,
-            size_bytes: boundaryAudit.entries.electron_framework.size_bytes,
-          },
-        },
+        audited_entries: Object.fromEntries(
+          Object.entries(boundaryAudit.entries).map(([id, entry]) => [
+            id,
+            {
+              path: entry.path,
+              owner: entry.owner,
+              exists: entry.exists,
+              size_bytes: entry.size_bytes,
+            },
+          ]),
+        ),
       },
     },
     components: {
