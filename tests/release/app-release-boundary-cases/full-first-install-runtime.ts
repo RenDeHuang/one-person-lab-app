@@ -317,21 +317,26 @@ test('Full runtime node payload prunes package-only docs while preserving offlin
 
   copyNodeRuntimePayload(sourceRoot, targetRoot);
 
-  assert.equal(fs.existsSync(path.join(targetRoot, 'bin', 'node')), true);
-  assert.equal(fs.existsSync(path.join(targetRoot, 'bin', 'npm')), true);
-  assert.equal(fs.existsSync(path.join(targetRoot, 'bin', 'npx')), true);
-  assert.equal(fs.existsSync(path.join(targetRoot, 'include')), false);
-  assert.equal(fs.existsSync(path.join(targetRoot, 'share')), false);
-  assert.equal(fs.existsSync(path.join(targetRoot, 'lib', 'node_modules', 'npm', 'lib', 'cli.js')), true);
-  assert.equal(
-    fs.existsSync(path.join(targetRoot, 'lib', 'node_modules', 'npm', 'node_modules', '@npmcli', 'arborist', 'lib', 'index.js')),
-    true,
-  );
-  assert.equal(fs.existsSync(path.join(targetRoot, 'lib', 'node_modules', 'npm', 'docs')), false);
-  assert.equal(fs.existsSync(path.join(targetRoot, 'lib', 'node_modules', 'npm', 'man')), false);
-  assert.equal(fs.existsSync(path.join(targetRoot, 'lib', 'node_modules', 'npm', 'tap-snapshots')), false);
-  assert.equal(fs.existsSync(path.join(targetRoot, 'lib', 'node_modules', 'corepack', 'dist', 'corepack.js')), true);
-  assert.equal(fs.existsSync(path.join(targetRoot, 'lib', 'node_modules', 'corepack', 'tests')), false);
+  for (const relativePath of [
+    'bin/node',
+    'bin/npm',
+    'bin/npx',
+    'lib/node_modules/npm/lib/cli.js',
+    'lib/node_modules/npm/node_modules/@npmcli/arborist/lib/index.js',
+    'lib/node_modules/corepack/dist/corepack.js',
+  ]) {
+    assert.equal(fs.existsSync(path.join(targetRoot, relativePath)), true, relativePath);
+  }
+  for (const relativePath of [
+    'include',
+    'share',
+    'lib/node_modules/npm/docs',
+    'lib/node_modules/npm/man',
+    'lib/node_modules/npm/tap-snapshots',
+    'lib/node_modules/corepack/tests',
+  ]) {
+    assert.equal(fs.existsSync(path.join(targetRoot, relativePath)), false, relativePath);
+  }
 
   const runtimeRoot = path.join(tempRoot, 'runtime');
   writeExecutable(path.join(runtimeRoot, 'bin', 'codex'), '#!/bin/sh\nexit 0\n');
@@ -358,30 +363,15 @@ test('Full runtime node payload prunes package-only docs while preserving offlin
   assert.equal(assertions.prune_policy_id, 'full_runtime_offline_first_install_slim_v1');
   assert.match(assertions.prune_policy_hash, /^[a-f0-9]{64}$/);
   assert.deepEqual(assertions.packaged_global_node_packages, ['corepack', 'npm']);
-  assert.equal(
-    assertions.offline_required_payloads.find((entry) => entry.path === 'vendor/codex/codex_cli_darwin_arm64.tar.gz')?.exists,
-    true,
-  );
-  assert.equal(
-    assertions.offline_required_payloads.find((entry) => entry.path === 'vendor/temporal/temporal_cli_darwin_arm64.tar.gz')?.exists,
-    true,
-  );
-  assert.equal(
-    assertions.offline_required_payloads.find((entry) => entry.path === 'node/bin/npm')?.executable,
-    true,
-  );
-  assert.equal(
-    assertions.offline_required_payloads.find(
-      (entry) => entry.path === 'modules/mag/plugins/med-autogrant/.codex-plugin/plugin.json',
-    )?.exists,
-    true,
-  );
-  assert.equal(
-    assertions.offline_required_payloads.find(
-      (entry) => entry.path === 'modules/mag/plugins/med-autogrant/skills/med-autogrant/SKILL.md',
-    )?.exists,
-    true,
-  );
+  for (const [entryPath, field] of [
+    ['vendor/codex/codex_cli_darwin_arm64.tar.gz', 'exists'],
+    ['vendor/temporal/temporal_cli_darwin_arm64.tar.gz', 'exists'],
+    ['node/bin/npm', 'executable'],
+    ['modules/mag/plugins/med-autogrant/.codex-plugin/plugin.json', 'exists'],
+    ['modules/mag/plugins/med-autogrant/skills/med-autogrant/SKILL.md', 'exists'],
+  ]) {
+    assert.equal(assertions.offline_required_payloads.find((entry) => entry.path === entryPath)?.[field], true, entryPath);
+  }
   assert.doesNotThrow(() =>
     writeFullRuntimeManifest(runtimeRoot, { version: '26.7.7-test' }, '2026-07-07T00:00:00.000Z', {}, {}),
   );
@@ -393,12 +383,7 @@ test('Full runtime node payload prunes package-only docs while preserving offlin
     () => writeFullRuntimeManifest(runtimeRoot, { version: '26.7.7-test' }, '2026-07-07T00:00:00.000Z', {}, {}),
     /modules\/mag\/plugins\/med-autogrant\/\.codex-plugin\/plugin\.json/,
   );
-  assert.equal(
-    assertions.declared_pruned_paths.find((entry) => entry.path === 'node/include')?.present,
-    false,
-  );
-  assert.equal(
-    assertions.declared_pruned_paths.find((entry) => entry.path === 'node/lib/node_modules/npm/docs')?.present,
-    false,
-  );
+  for (const entryPath of ['node/include', 'node/lib/node_modules/npm/docs']) {
+    assert.equal(assertions.declared_pruned_paths.find((entry) => entry.path === entryPath)?.present, false, entryPath);
+  }
 });

@@ -69,6 +69,24 @@ function runCloseoutFixture(options: {
   ]);
 }
 
+function expectCloseout(options: Parameters<typeof runCloseoutFixture>[0]) {
+  const result = runCloseoutFixture(options);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  return {
+    stdout: JSON.parse(result.stdout),
+    summary: readJson(path.join(options.outDir, 'release-closeout.json')),
+    monitor: readJson(path.join(options.outDir, 'release-monitor.json')),
+    notification: readJson(path.join(options.outDir, 'release-notification.json')),
+  };
+}
+
+function assertReadoutState(readout: ReturnType<typeof expectCloseout>, status: string, monitorState = status) {
+  assert.equal(readout.stdout.status, status);
+  assert.equal(readout.stdout.monitor_state, monitorState);
+  assert.equal(readout.monitor.state, monitorState);
+  assert.equal(readout.notification.state, monitorState);
+}
+
 function releaseOwnerVerdict(version = '26.5.99', options: {
   status?: string;
   releaseOwnerVerdictRef?: string | null;
@@ -226,36 +244,29 @@ test('release closeout separates workflow wall time from Agent orchestration wal
     ],
   });
 
-  const result = runCloseoutFixture({
+  const readout = expectCloseout({
     runPath,
     jobsPath,
     artifactsRoot,
     outDir,
     extra: ['--agent-wall-time', '2h6m43s'],
   });
+  const { stdout, summary, monitor, notification } = readout;
 
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-  const stdout = JSON.parse(result.stdout);
-  const summary = readJson(path.join(outDir, 'release-closeout.json'));
-  const monitor = readJson(path.join(outDir, 'release-monitor.json'));
-  const notification = readJson(path.join(outDir, 'release-notification.json'));
   assert.equal(summary.schema, 'opl_release_closeout_summary.v1');
-  assert.equal(stdout.status, 'ready_to_promote');
-  assert.equal(stdout.monitor_state, 'ready_to_promote');
+  assertReadoutState(readout, 'ready_to_promote');
   assert.equal(stdout.monitor, path.relative(appRoot, path.join(outDir, 'release-monitor.json')));
   assert.equal(stdout.notification, path.relative(appRoot, path.join(outDir, 'release-notification.json')));
   assert.equal(summary.monitor.schema, 'opl_release_run_monitor.v1');
   assert.equal(summary.monitor.state, 'ready_to_promote');
   assert.equal(summary.notification_payload.schema, 'opl_release_run_notification.v1');
   assert.equal(monitor.schema, 'opl_release_run_monitor.v1');
-  assert.equal(monitor.state, 'ready_to_promote');
   assert.equal(monitor.recommended_next_action.action, 'promote_from_candidate_record');
   assert.equal(monitor.promote_ready, true);
   assert.equal(monitor.artifact_policy.downloads_large_artifacts, false);
   assert.match(monitor.no_watch_instructions.join('\n'), /gh run view 12345/);
   assert.match(monitor.no_watch_instructions.join('\n'), /release-monitor\.json/);
   assert.equal(notification.schema, 'opl_release_run_notification.v1');
-  assert.equal(notification.state, 'ready_to_promote');
   assert.equal(notification.machine_payload, 'release-monitor.json');
   assert.equal(summary.source_status.candidate_record, 'ready_to_promote');
   assert.equal(summary.decision.next_action, 'promote_from_candidate_record');
@@ -282,10 +293,7 @@ test('release closeout reads attestation verification summary from small artifac
   });
   writeRun(runPath);
 
-  const result = runCloseoutFixture({ runPath, artifactsRoot, outDir });
-
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-  const summary = readJson(path.join(outDir, 'release-closeout.json'));
+  const { summary } = expectCloseout({ runPath, artifactsRoot, outDir });
   assert.equal(summary.artifact_attestation_verification.state, 'verified');
   assert.match(summary.source_paths.artifact_attestation_verification, /attestation-verification\.json/);
   assert.equal(summary.artifact_attestation_verification.verification.status, 'passed');
@@ -304,10 +312,7 @@ test('release closeout marks failed attestation verification without treating it
   });
   writeRun(runPath);
 
-  const result = runCloseoutFixture({ runPath, artifactsRoot, outDir });
-
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-  const summary = readJson(path.join(outDir, 'release-closeout.json'));
+  const { summary } = expectCloseout({ runPath, artifactsRoot, outDir });
   assert.equal(summary.artifact_attestation_verification.state, 'failed');
   assert.equal(summary.artifact_attestation_verification.verification.status, 'failed');
   assert.match(summary.artifact_attestation_verification.rule, /not release readiness evidence/);
@@ -335,18 +340,10 @@ test('release closeout stops at readiness failed gates before raw log inspection
     updatedAt: '2026-06-12T10:10:00Z',
   });
 
-  const result = runCloseoutFixture({ runPath, artifactsRoot, outDir });
-
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-  const stdout = JSON.parse(result.stdout);
-  const summary = readJson(path.join(outDir, 'release-closeout.json'));
-  const monitor = readJson(path.join(outDir, 'release-monitor.json'));
-  const notification = readJson(path.join(outDir, 'release-notification.json'));
-  assert.equal(stdout.status, 'resolve_readiness_failed_gates');
-  assert.equal(stdout.monitor_state, 'failed');
-  assert.equal(monitor.state, 'failed');
+  const readout = expectCloseout({ runPath, artifactsRoot, outDir });
+  const { summary, monitor } = readout;
+  assertReadoutState(readout, 'resolve_readiness_failed_gates', 'failed');
   assert.equal(monitor.failed_gate_count, 1);
-  assert.equal(notification.state, 'failed');
   assert.equal(summary.decision.next_action, 'resolve_readiness_failed_gates');
   assert.match(summary.decision.command, /failed_required_gates/);
   assert.doesNotMatch(summary.decision.command, /--log-failed/);
@@ -400,15 +397,9 @@ test('release closeout separates published release state from failed post-publis
     ],
   });
 
-  const result = runCloseoutFixture({ runPath, jobsPath, artifactsRoot, outDir });
-
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-  const stdout = JSON.parse(result.stdout);
-  const summary = readJson(path.join(outDir, 'release-closeout.json'));
-  const monitor = readJson(path.join(outDir, 'release-monitor.json'));
-  assert.equal(stdout.status, 'resolve_post_publish_followup_gate');
-  assert.equal(stdout.monitor_state, 'published_with_post_publish_followup');
-  assert.equal(monitor.state, 'published_with_post_publish_followup');
+  const readout = expectCloseout({ runPath, jobsPath, artifactsRoot, outDir });
+  const { summary, monitor } = readout;
+  assertReadoutState(readout, 'resolve_post_publish_followup_gate', 'published_with_post_publish_followup');
   assert.equal(monitor.published, true);
   assert.equal(summary.decision.next_action, 'resolve_post_publish_followup_gate');
   assert.equal(summary.decision.post_publish.published_release_readback, true);
@@ -436,7 +427,7 @@ test('release closeout uses candidate record inside an in-progress workflow job'
     ],
   });
 
-  const result = runCloseoutFixture({
+  const readout = expectCloseout({
     runPath,
     jobsPath,
     artifactsRoot,
@@ -444,18 +435,11 @@ test('release closeout uses candidate record inside an in-progress workflow job'
     extra: ['--artifact-profile', 'diagnostics'],
   });
 
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-  const stdout = JSON.parse(result.stdout);
-  const summary = readJson(path.join(outDir, 'release-closeout.json'));
-  const monitor = readJson(path.join(outDir, 'release-monitor.json'));
-  const notification = readJson(path.join(outDir, 'release-notification.json'));
-  assert.equal(stdout.status, 'ready_to_promote');
-  assert.equal(stdout.monitor_state, 'ready_to_promote');
+  const { summary } = readout;
+  assertReadoutState(readout, 'ready_to_promote');
   assert.equal(summary.run.status, 'in_progress');
   assert.equal(summary.source_status.candidate_record, 'ready_to_promote');
   assert.equal(summary.decision.next_action, 'promote_from_candidate_record');
-  assert.equal(monitor.state, 'ready_to_promote');
-  assert.equal(notification.state, 'ready_to_promote');
   assert.doesNotMatch(summary.decision.reason, /not complete|wait/i);
   assert.equal(summary.artifact_policy.downloads_large_artifacts, false);
   assert.deepEqual(summary.artifact_policy.downloaded_artifacts, []);
@@ -478,23 +462,15 @@ test('release closeout requires owner-resolution validation before promote', () 
     url: 'https://github.com/gaofeng21cn/one-person-lab-app/actions/runs/12345',
   });
 
-  const result = runCloseoutFixture({ runPath, artifactsRoot, outDir });
-
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-  const stdout = JSON.parse(result.stdout);
-  const summary = readJson(path.join(outDir, 'release-closeout.json'));
-  const monitor = readJson(path.join(outDir, 'release-monitor.json'));
-  const notification = readJson(path.join(outDir, 'release-notification.json'));
+  const readout = expectCloseout({ runPath, artifactsRoot, outDir });
+  const { stdout, summary } = readout;
   assert.equal(summary.source_status.candidate_record, 'ready_to_promote');
   assert.equal(summary.decision.next_action, 'owner_needed_release_owner_resolution');
   assert.match(summary.decision.reason, /Release owner verdict status is release_owner_verdict_pending/);
   assert.match(summary.decision.reason, /missing release_owner_verdict_ref or release_owner_receipt_ref/);
   assert.match(summary.decision.command, /validate-release-candidate-record\.ts --promote-ready/);
   assert.match(summary.decision.owner_resolution.typed_blocker_ref, /typed_blocker_ref:\/\/one-person-lab-app\/release-owner\/v26\.5\.99\/verdict-pending/);
-  assert.equal(stdout.status, 'owner_needed_release_owner_resolution');
-  assert.equal(stdout.monitor_state, 'failed');
-  assert.equal(monitor.state, 'failed');
-  assert.equal(notification.state, 'failed');
+  assertReadoutState(readout, 'owner_needed_release_owner_resolution', 'failed');
   assert.equal(stdout.next_action, 'owner_needed_release_owner_resolution');
 });
 
@@ -508,19 +484,12 @@ test('release closeout monitor reports running while structured release evidence
     url: 'https://github.com/gaofeng21cn/one-person-lab-app/actions/runs/98765',
   });
 
-  const result = runCloseoutFixture({ runPath, artifactsRoot, outDir });
-
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-  const stdout = JSON.parse(result.stdout);
-  const monitor = readJson(path.join(outDir, 'release-monitor.json'));
-  const notification = readJson(path.join(outDir, 'release-notification.json'));
-  assert.equal(stdout.status, 'wait_for_release_run_completion');
-  assert.equal(stdout.monitor_state, 'running');
+  const readout = expectCloseout({ runPath, artifactsRoot, outDir });
+  const { stdout, monitor } = readout;
+  assertReadoutState(readout, 'wait_for_release_run_completion', 'running');
   assert.equal(stdout.next_action, 'wait_for_release_run_completion');
-  assert.equal(monitor.state, 'running');
   assert.equal(monitor.recommended_next_action.action, 'wait_for_release_run_completion');
   assert.equal(monitor.promote_ready, false);
-  assert.equal(notification.state, 'running');
 });
 
 test('release closeout monitor reports published from explicit release target evidence', () => {
@@ -544,18 +513,10 @@ test('release closeout monitor reports published from explicit release target ev
     url: 'https://github.com/gaofeng21cn/one-person-lab-app/actions/runs/24680',
   });
 
-  const result = runCloseoutFixture({ runPath, artifactsRoot, outDir });
-
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-  const stdout = JSON.parse(result.stdout);
-  const summary = readJson(path.join(outDir, 'release-closeout.json'));
-  const monitor = readJson(path.join(outDir, 'release-monitor.json'));
-  const notification = readJson(path.join(outDir, 'release-notification.json'));
-  assert.equal(stdout.status, 'inspect_missing_candidate_record');
-  assert.equal(stdout.monitor_state, 'published');
+  const readout = expectCloseout({ runPath, artifactsRoot, outDir });
+  const { summary, monitor } = readout;
+  assertReadoutState(readout, 'inspect_missing_candidate_record', 'published');
   assert.equal(summary.monitor.state, 'published');
-  assert.equal(monitor.state, 'published');
   assert.equal(monitor.published, true);
   assert.equal(monitor.promote_ready, false);
-  assert.equal(notification.state, 'published');
 });

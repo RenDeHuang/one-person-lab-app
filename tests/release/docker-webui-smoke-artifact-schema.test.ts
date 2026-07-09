@@ -10,8 +10,53 @@ import { validateDockerWebuiSmokeGateResult } from '../../scripts/docker-webui-s
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const smokeGatePath = path.join(appRoot, 'scripts', 'docker-webui-smoke-gate.ts');
+const webuiImageRef = 'ghcr.io/gaofeng21cn/one-person-lab-webui:stable';
 const imageDigest = 'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 const remoteImageDigest = 'sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
+
+function repoDigest(digest = imageDigest) {
+  return `ghcr.io/gaofeng21cn/one-person-lab-webui@${digest}`;
+}
+
+function imageIdentity(fields: Record<string, unknown> = {}) {
+  return {
+    repo_digests: [repoDigest()],
+    digest: imageDigest,
+    remote_ref: null,
+    remote_digest: null,
+    currentness_status: 'not_checked',
+    currentness_evidence_source: null,
+    currentness_claim: false,
+    ...fields,
+  };
+}
+
+function ordinaryUserStep(summary: string, evidence_ref: string, next_action: string | null = null) {
+  return { status: 'passed', summary, next_action, evidence_ref };
+}
+
+function ordinaryUserStatus() {
+  const steps: Array<[string, string, string, string?]> = [
+    ['one_click_install', 'One-click installer creates compose.yaml, host data/projects directories, and starts the WebUI image.', '/tmp/artifact/home/OnePersonLab/compose.yaml'],
+    ['browser_webui', 'Open the browser WebUI at http://localhost:3000/.', '/tmp/artifact/diagnostics/http-probe.txt'],
+    ['access_key_settings', 'Access keys are entered in the WebUI first-run Access panel or Settings -> Access.', '/tmp/artifact/api-key-flow-evidence.json'],
+    ['runtime_proxy', 'The WebUI runtime proxy calls /api/opl-runtime/configure-codex and forwards the key through stdin transport.', '/tmp/artifact/api-key-flow-evidence.json'],
+    ['startup_recovery', 'Startup diagnostics are redacted and show what to retry or repair for Docker, port, image, or data issues.', '/tmp/artifact/diagnostics'],
+    ['data_preservation', 'Host OnePersonLab/data and OnePersonLab/projects stay mounted and preserved across image/container replacement.', '/tmp/artifact/diagnostics/data-preservation.txt'],
+    ['host_update', 'Host updates rerun the installer or explicit update mode to pull the WebUI image and recreate the compose service.', '/tmp/artifact/home/OnePersonLab/compose.yaml', 'Use install-docker-webui.sh --update or install-docker-webui.ps1 -Update when the host image should be updated.'],
+  ];
+  return Object.fromEntries(
+    steps.map(([key, summary, evidenceRef, nextAction]) => [
+      key,
+      ordinaryUserStep(summary, evidenceRef, nextAction ?? null),
+    ]),
+  );
+}
+
+function runSmokeGateValidation(resultPath: string) {
+  const args = ['--experimental-strip-types', smokeGatePath, '--validate-result', resultPath, '--json'];
+  return spawnSync(process.execPath, args, { cwd: appRoot, encoding: 'utf8' });
+}
 
 function writeCompleteDiagnostics(root: string) {
   const files = {
@@ -20,7 +65,7 @@ function writeCompleteDiagnostics(root: string) {
     'compose.yaml': [
       'services:',
       '  webui:',
-      '    image: ghcr.io/gaofeng21cn/one-person-lab-webui:stable',
+      `    image: ${webuiImageRef}`,
       '    environment:',
       '      AIONUI_DATA_DIR: /data',
       '      OPL_PROJECTS_DIR: /projects',
@@ -36,7 +81,7 @@ function writeCompleteDiagnostics(root: string) {
     'docker-image.txt': JSON.stringify([
       {
         Id: imageDigest,
-        RepoDigests: [`ghcr.io/gaofeng21cn/one-person-lab-webui@${imageDigest}`],
+        RepoDigests: [repoDigest()],
       },
     ]),
     'http-probe.txt': 'url=http://localhost:3000/\nstatus=200\n',
@@ -82,29 +127,17 @@ function completeGateResult() {
       image_identity: {
         status: 'passed',
         image_id: imageDigest,
-        repo_digests: [`ghcr.io/gaofeng21cn/one-person-lab-webui@${imageDigest}`],
-        digest: imageDigest,
-        remote_ref: null,
-        remote_digest: null,
-        currentness_status: 'not_checked',
-        currentness_evidence_source: null,
-        currentness_claim: false,
+        ...imageIdentity(),
       },
     },
     health: { url: 'http://localhost:3000/', status: 'passed', http_status: 200 },
     compose: { path: '/tmp/artifact/home/OnePersonLab/compose.yaml', status: 'present' },
     container: { name: 'one-person-lab-webui', status: 'running', id: 'abc123' },
     image: {
-      ref: 'ghcr.io/gaofeng21cn/one-person-lab-webui:stable',
+      ref: webuiImageRef,
       status: 'present',
       id: imageDigest,
-      repo_digests: [`ghcr.io/gaofeng21cn/one-person-lab-webui@${imageDigest}`],
-      digest: imageDigest,
-      remote_ref: null,
-      remote_digest: null,
-      currentness_status: 'not_checked',
-      currentness_evidence_source: null,
-      currentness_claim: false,
+      ...imageIdentity(),
     },
     data_preservation: {
       status: 'passed',
@@ -123,48 +156,7 @@ function completeGateResult() {
     ordinary_user_status: {
       path_id: 'ordinary_docker_webui_user_path',
       priority: 'ordinary_user_path_before_evidence_bundle_language',
-      one_click_install: {
-        status: 'passed',
-        summary: 'One-click installer creates compose.yaml, host data/projects directories, and starts the WebUI image.',
-        next_action: null,
-        evidence_ref: '/tmp/artifact/home/OnePersonLab/compose.yaml',
-      },
-      browser_webui: {
-        status: 'passed',
-        summary: 'Open the browser WebUI at http://localhost:3000/.',
-        next_action: null,
-        evidence_ref: '/tmp/artifact/diagnostics/http-probe.txt',
-      },
-      access_key_settings: {
-        status: 'passed',
-        summary: 'Access keys are entered in the WebUI first-run Access panel or Settings -> Access.',
-        next_action: null,
-        evidence_ref: '/tmp/artifact/api-key-flow-evidence.json',
-      },
-      runtime_proxy: {
-        status: 'passed',
-        summary: 'The WebUI runtime proxy calls /api/opl-runtime/configure-codex and forwards the key through stdin transport.',
-        next_action: null,
-        evidence_ref: '/tmp/artifact/api-key-flow-evidence.json',
-      },
-      startup_recovery: {
-        status: 'passed',
-        summary: 'Startup diagnostics are redacted and show what to retry or repair for Docker, port, image, or data issues.',
-        next_action: null,
-        evidence_ref: '/tmp/artifact/diagnostics',
-      },
-      data_preservation: {
-        status: 'passed',
-        summary: 'Host OnePersonLab/data and OnePersonLab/projects stay mounted and preserved across image/container replacement.',
-        next_action: null,
-        evidence_ref: '/tmp/artifact/diagnostics/data-preservation.txt',
-      },
-      host_update: {
-        status: 'passed',
-        summary: 'Host updates rerun the installer or explicit update mode to pull the WebUI image and recreate the compose service.',
-        next_action: 'Use install-docker-webui.sh --update or install-docker-webui.ps1 -Update when the host image should be updated.',
-        evidence_ref: '/tmp/artifact/home/OnePersonLab/compose.yaml',
-      },
+      ...ordinaryUserStatus(),
       image_seed_selection: 'Default stable image must use the WebUI full seed; --tag/--image are explicit advanced overrides.',
       settings_entry: 'Settings -> Access',
       must_not_claim: [
@@ -284,7 +276,7 @@ test('Docker/WebUI diagnostics validator accepts Docker inspect capture output w
         [
           {
             Id: imageDigest,
-            RepoDigests: [`ghcr.io/gaofeng21cn/one-person-lab-webui@${imageDigest}`],
+            RepoDigests: [repoDigest()],
           },
         ],
         null,
@@ -297,7 +289,7 @@ test('Docker/WebUI diagnostics validator accepts Docker inspect capture output w
   const result = validateDockerWebuiDiagnostics(diagnostics);
   assert.equal(result.status, 'passed');
   assert.equal(result.image_identity.image_id, imageDigest);
-  assert.deepEqual(result.image_identity.repo_digests, [`ghcr.io/gaofeng21cn/one-person-lab-webui@${imageDigest}`]);
+  assert.deepEqual(result.image_identity.repo_digests, [repoDigest()]);
   assert.equal(result.image_identity.digest, imageDigest);
 });
 
@@ -422,22 +414,14 @@ test('Docker/WebUI smoke gate CLI validates uploaded gate result artifacts witho
   const resultPath = path.join(artifactRoot, 'docker-webui-smoke-gate-result.json');
   fs.writeFileSync(resultPath, `${JSON.stringify(completeGateResult(), null, 2)}\n`);
 
-  const valid = spawnSync(
-    process.execPath,
-    ['--experimental-strip-types', smokeGatePath, '--validate-result', resultPath, '--json'],
-    { cwd: appRoot, encoding: 'utf8' },
-  );
+  const valid = runSmokeGateValidation(resultPath);
   assert.equal(valid.status, 0, valid.stderr || valid.stdout);
   assert.equal(JSON.parse(valid.stdout).status, 'passed');
 
   const invalidPayload = completeGateResult() as Record<string, unknown>;
   delete invalidPayload.secret_scan;
   fs.writeFileSync(resultPath, `${JSON.stringify(invalidPayload, null, 2)}\n`);
-  const invalid = spawnSync(
-    process.execPath,
-    ['--experimental-strip-types', smokeGatePath, '--validate-result', resultPath, '--json'],
-    { cwd: appRoot, encoding: 'utf8' },
-  );
+  const invalid = runSmokeGateValidation(resultPath);
   assert.notEqual(invalid.status, 0);
   assert.ok(JSON.parse(invalid.stdout).missing_fields.includes('secret_scan'));
 });
