@@ -34,6 +34,10 @@ function writeJsonFixture(tempRoot, relativePath, value, space) {
   writeFile(path.join(tempRoot, ...relativePath.split("/")), `${JSON.stringify(value, null, space)}\n`);
 }
 
+function writeJsonFixtures(tempRoot, fixtures, space) {
+  for (const [relativePath, value] of fixtures) writeJsonFixture(tempRoot, relativePath, value, space);
+}
+
 export function writeExecutable(filePath, content) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, content, { encoding: "utf8", mode: 0o755 });
@@ -151,12 +155,8 @@ export function writeScreenshotPng(filePath, width = 640, height = 360) {
 
 export function writeWebpVp8x(filePath, width, height, minimumSize = 4096) {
   const payload = Buffer.alloc(10);
-  payload[4] = (width - 1) & 0xff;
-  payload[5] = ((width - 1) >> 8) & 0xff;
-  payload[6] = ((width - 1) >> 16) & 0xff;
-  payload[7] = (height - 1) & 0xff;
-  payload[8] = ((height - 1) >> 8) & 0xff;
-  payload[9] = ((height - 1) >> 16) & 0xff;
+  payload.writeUIntLE(width - 1, 4, 3);
+  payload.writeUIntLE(height - 1, 7, 3);
   const chunkSize = Buffer.alloc(4);
   chunkSize.writeUInt32LE(payload.length);
   const chunk = Buffer.concat([Buffer.from("VP8X", "ascii"), chunkSize, payload]);
@@ -186,10 +186,7 @@ function appStateFixture(profile, stageAttemptCount, actions = []) {
     app_state: {
       schema: "opl_app_state.v1",
       profile,
-      operator: {
-        summary: { stage_attempt_count: stageAttemptCount },
-        ...(actions.length ? { actions } : {}),
-      },
+      operator: { summary: { stage_attempt_count: stageAttemptCount }, ...(actions.length ? { actions } : {}) },
       provider: { temporal: { status: "ready" } },
     },
   };
@@ -220,59 +217,47 @@ function actionExecutionFixture(actionId, dryRun) {
 export function writeRuntimeEvidenceJsonFiles(tempRoot) {
   const triggerAction = { action_id: "provider-scheduler:temporal:trigger" };
   const stageActionId = "stage-production-attempt:medautoscience:analysis-campaign";
-  for (const [relativePath, value] of [
+  writeJsonFixtures(tempRoot, [
     ["app-state-summary.json", appStateFixture("fast", 1, [triggerAction])],
     ["app-state-full.json", appStateFixture("full", 1, [triggerAction])],
     ["drilldown-full.json", drilldownFixture(1)],
     ["action-dry-run-result.json", actionExecutionFixture(stageActionId, true)],
     ["action-execute-result.json", actionExecutionFixture(stageActionId, false)],
-  ]) {
-    writeJsonFixture(tempRoot, relativePath, value);
-  }
+  ]);
 }
 
 export function writeCollectorFakeOpl(fakeOpl, actionLog = "", outputs = {}) {
-  const fast = outputs.fast ?? appStateFixture("fast", 2);
-  const full = outputs.full ?? appStateFixture("full", 2);
-  const drilldown = outputs.drilldown ?? drilldownFixture(2);
-  fs.mkdirSync(path.dirname(fakeOpl), { recursive: true });
-  fs.writeFileSync(
-    fakeOpl,
-    `#!/usr/bin/env node
+  const responses = {
+    "app state --profile fast --json": outputs.fast ?? appStateFixture("fast", 2),
+    "app state --profile full --json": outputs.full ?? appStateFixture("full", 2),
+    "runtime app-operator-drilldown --detail full --json": outputs.drilldown ?? drilldownFixture(2),
+  };
+  writeExecutable(fakeOpl, `#!/usr/bin/env node
 const fs = require('node:fs');
 const args = process.argv.slice(2);
-const responses = ${JSON.stringify({ fast, full, drilldown }, null, 2)};
+const responses = ${JSON.stringify(responses, null, 2)};
 ${actionLog ? `fs.appendFileSync(${JSON.stringify(actionLog)}, JSON.stringify(args) + '\\n');` : ""}
-function out(value) {
-  process.stdout.write(JSON.stringify(value) + '\\n');
-}
-const routeResponse = {
-  'app state --profile fast --json': responses.fast,
-  'app state --profile full --json': responses.full,
-  'runtime app-operator-drilldown --detail full --json': responses.drilldown,
-}[args.join(' ')];
+const key = args.join(' ');
+const routeResponse = responses[key];
 if (routeResponse) {
-  out(routeResponse);
+  process.stdout.write(JSON.stringify(routeResponse) + '\\n');
   process.exit(0);
 }
 if (args.slice(0, 4).join(' ') === 'app action execute --action') {
   const dryRun = args.includes('--dry-run');
-  out({
-    app_action_execution: {
-      surface_kind: 'opl_app_action_execution.v1',
-      action_id: args[4],
-      dry_run: dryRun,
-      result: { execution: { execution_status: dryRun ? 'dry_run' : 'executed' } },
-      authority_boundary: { can_write_domain_truth: false }
-    }
-  });
+  const execution_status = dryRun ? 'dry_run' : 'executed';
+  process.stdout.write(JSON.stringify({ app_action_execution: {
+    surface_kind: 'opl_app_action_execution.v1',
+    action_id: args[4],
+    dry_run: dryRun,
+    result: { execution: { execution_status } },
+    authority_boundary: { can_write_domain_truth: false }
+  } }) + '\\n');
   process.exit(0);
 }
-console.error('unexpected opl args: ' + args.join(' '));
+console.error('unexpected opl args: ' + key);
 process.exit(2);
-`,
-    { mode: 0o755 },
-  );
+`);
 }
 
 export function writeVmSmokeSummaryFiles(tempRoot, runtimeProfile = "full") {
@@ -319,7 +304,7 @@ export function writeVmSmokeSummaryFiles(tempRoot, runtimeProfile = "full") {
       };
     }),
   };
-  for (const [relativePath, value] of [
+  writeJsonFixtures(tempRoot, [
     ["artifacts/smoke-summary.json", guestSummary],
     ["artifacts/codex-functional-check-summary.json", codexFunctionalCheck],
     ["artifacts/codex-ai-self-check-summary.json", codexAiSelfCheck],
@@ -335,9 +320,7 @@ export function writeVmSmokeSummaryFiles(tempRoot, runtimeProfile = "full") {
       codex_ai_self_check: codexAiSelfCheck,
       guest_summary: guestSummary,
     }],
-  ]) {
-    writeJsonFixture(tempRoot, relativePath, value);
-  }
+  ]);
 }
 
 export function writeTypedBlockerFile(tempRoot, artifactId, fields = {}) {
