@@ -79,6 +79,67 @@ function writeFullPublicReleaseManifest(outDir: string, version: string, manifes
   );
 }
 
+function writeStandardPublishFixture(tempRoot: string, version: string, options: {
+  writeDefaultAi?: boolean;
+} = {}) {
+  const shellRoot = path.join(tempRoot, 'shells', 'aionui');
+  const outDir = path.join(shellRoot, 'out');
+  const fakeAi = path.join(tempRoot, 'fake-release-notes-ai.js');
+  const dmgName = `One-Person-Lab-${version}-mac-arm64.dmg`;
+  const zipName = `One-Person-Lab-${version}-mac-arm64.zip`;
+  const dmgContent = 'dmg';
+  const zipContent = 'zip';
+
+  writeFile(path.join(outDir, dmgName), dmgContent);
+  writeFile(path.join(outDir, zipName), zipContent);
+  writeReleaseMetadata(outDir, version, dmgName);
+  writeStandardLocalAuthorizationPolicy(outDir);
+  if (options.writeDefaultAi !== false) {
+    writeFakeReleaseNotesAiWriter(fakeAi, validStandardAiReleaseNotes(version));
+  }
+
+  return { shellRoot, outDir, fakeAi, dmgName, zipName, dmgContent, zipContent };
+}
+
+function fullPackageManifest(componentOverrides: Record<string, unknown> = {}) {
+  return {
+    generated_at: '2026-05-20T12:00:00.000Z',
+    distribution: {
+      updater_metadata_allowed: false,
+    },
+    components: {
+      opl: { git_commit: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' },
+      codex: { version: 'codex-cli 0.130.0' },
+      mas: { git_commit: '1111111111111111111111111111111111111111' },
+      mag: { git_commit: '2222222222222222222222222222222222222222' },
+      rca: { git_commit: '3333333333333333333333333333333333333333' },
+      meta_agent: { git_commit: '4444444444444444444444444444444444444444' },
+      officecli: { version: '1.2.3' },
+      mineru_open_api: { version: 'mineru-open-api version v0.1.3' },
+      ...componentOverrides,
+    },
+  };
+}
+
+function writeFullPackageFixture(fullPackageDir: string, version: string, manifest = fullPackageManifest(), options: {
+  nativeTrustJson?: string;
+} = {}) {
+  writeFile(path.join(fullPackageDir, `One-Person-Lab-Full-${version}-mac-arm64.dmg`));
+  writeFile(path.join(fullPackageDir, 'full-package-manifest.json'), `${JSON.stringify(withFullPackageOptimizationManifest(manifest), null, 2)}\n`);
+  writeFile(path.join(fullPackageDir, 'runtime-cache-events.json'), '{"events":[{"layer_id":"toolchain","status":"hit"}]}\n');
+  writeFullRuntimeCurrentnessProbe(fullPackageDir, manifest);
+  writeFile(path.join(fullPackageDir, 'SHA256SUMS.txt'), 'test  artifact\n');
+  writeFile(path.join(fullPackageDir, 'README-Full-First-Install.txt'), 'One Person Lab Full First-Install Package\n');
+  writeFullLocalAuthorizationPolicy(fullPackageDir);
+  if (options.nativeTrustJson) {
+    writeFile(path.join(fullPackageDir, 'full-runtime-native-trust.json'), options.nativeTrustJson);
+  } else {
+    writeFullRuntimeNativeTrust(fullPackageDir);
+  }
+  writeFullPackageOptimizationArtifacts(fullPackageDir, version);
+  writeFullPublicReleaseManifest(fullPackageDir, version, withFullPackageOptimizationManifest(manifest));
+}
+
 test('release plan exposes the standard VM fail-fast gate before expensive Full lanes', () => {
   const result = runNode([
     'scripts/plan-release-candidate.ts',
@@ -103,50 +164,48 @@ test('release plan exposes the standard VM fail-fast gate before expensive Full 
     assert.ok(found, `missing lane ${id}`);
     return found;
   };
-  for (const id of [
-    'release_preflight',
-    'release_boundary',
-    'standard_build',
-    'full_build',
-    'standard_dmg_clean_vm_smoke',
-    'remote_verify_standard_and_full',
-    'one_shot_app_installer_smoke',
-    'docker_webui_smoke',
-    'homebrew_standard_cask_clean_vm_smoke',
-    'full_dmg_clean_vm_smoke',
-    'release_evidence_bundle',
-    'release_candidate_record',
-    'promote_stable_release',
-    'release_promotion_record',
-    'post_release_user_guide_screenshots',
-  ]) {
-    lane(id);
-  }
   assert.equal(payload.profile, 'stable');
-  assert.equal(lane('release_preflight').phase, 'fast_candidate');
-  assert.match(lane('release_preflight').command, /npm run release:preflight/);
-  assert.deepEqual(lane('full_build').depends_on, [
-    'release_preflight',
-    'full_runtime_keys',
-    'standard_dmg_clean_vm_smoke',
-  ]);
-  assert.equal(lane('full_build').can_run_with.includes('standard_build'), false);
-  assert.match(lane('full_build').command, /OPL_FULL_RUNTIME_CACHE_MODE=readwrite/);
-  assert.equal(lane('standard_dmg_clean_vm_smoke').phase, 'installation_gate');
-  assert.match(lane('standard_dmg_clean_vm_smoke').command, /--runtime-profile standard/);
-  assert.equal(lane('full_dmg_clean_vm_smoke').phase, 'release_gate');
-  assert.match(lane('full_dmg_clean_vm_smoke').command, /--runtime-profile full/);
-  assert.match(lane('homebrew_standard_cask_clean_vm_smoke').command, /gaofeng21cn\/one-person-lab\/one-person-lab/);
-  assert.ok(lane('remote_verify_standard_and_full').depends_on.includes('standard_dmg_clean_vm_smoke'));
-  assert.ok(lane('remote_verify_standard_and_full').depends_on.includes('publish_full_assets'));
-  assert.ok(lane('one_shot_app_installer_smoke').depends_on.includes('standard_dmg_clean_vm_smoke'));
-  assert.ok(lane('docker_webui_smoke').depends_on.includes('standard_dmg_clean_vm_smoke'));
-  assert.ok(lane('release_candidate_record').depends_on.includes('release_readiness_summary'));
-  assert.match(lane('release_candidate_record').command, /npm run release:candidate-record/);
-  assert.match(lane('promote_stable_release').command, /status=ready_to_promote/);
-  assert.ok(lane('release_promotion_record').depends_on.includes('promote_stable_release'));
-  assert.equal(lane('post_release_user_guide_screenshots').phase, 'post_release');
-  assert.match(lane('post_release_user_guide_screenshots').command, /never a pre-promotion gate/);
+  for (const [id, expected] of [
+    ['release_preflight', { phase: 'fast_candidate', command: /npm run release:preflight/ }],
+    ['release_boundary', {}],
+    ['standard_build', {}],
+    ['full_build', {
+      depends_on: ['release_preflight', 'full_runtime_keys', 'standard_dmg_clean_vm_smoke'],
+      cannot_run_with: 'standard_build',
+      command: /OPL_FULL_RUNTIME_CACHE_MODE=readwrite/,
+    }],
+    ['standard_dmg_clean_vm_smoke', { phase: 'installation_gate', command: /--runtime-profile standard/ }],
+    ['remote_verify_standard_and_full', { depends_on_includes: ['standard_dmg_clean_vm_smoke', 'publish_full_assets'] }],
+    ['one_shot_app_installer_smoke', { depends_on_includes: ['standard_dmg_clean_vm_smoke'] }],
+    ['docker_webui_smoke', { depends_on_includes: ['standard_dmg_clean_vm_smoke'] }],
+    ['homebrew_standard_cask_clean_vm_smoke', { command: /gaofeng21cn\/one-person-lab\/one-person-lab/ }],
+    ['full_dmg_clean_vm_smoke', { phase: 'release_gate', command: /--runtime-profile full/ }],
+    ['release_evidence_bundle', {}],
+    ['release_candidate_record', {
+      depends_on_includes: ['release_readiness_summary'],
+      command: /npm run release:candidate-record/,
+    }],
+    ['promote_stable_release', { command: /status=ready_to_promote/ }],
+    ['release_promotion_record', { depends_on_includes: ['promote_stable_release'] }],
+    ['post_release_user_guide_screenshots', { phase: 'post_release', command: /never a pre-promotion gate/ }],
+  ]) {
+    const current = lane(id);
+    if (expected.phase) {
+      assert.equal(current.phase, expected.phase);
+    }
+    if (expected.command) {
+      assert.match(current.command, expected.command);
+    }
+    if (expected.depends_on) {
+      assert.deepEqual(current.depends_on, expected.depends_on);
+    }
+    for (const dependency of expected.depends_on_includes ?? []) {
+      assert.ok(current.depends_on.includes(dependency));
+    }
+    if (expected.cannot_run_with) {
+      assert.equal(current.can_run_with.includes(expected.cannot_run_with), false);
+    }
+  }
 });
 
 test('nightly release plan stays lightweight and excludes stable installation gates', () => {
@@ -569,20 +628,8 @@ test('release preflight allows Docker WebUI trains without clean Windows VM evid
 
 test('publish dry run skips existing release assets when a resumed upload already has matching files', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-resume-'));
-  const shellRoot = path.join(tempRoot, 'shells', 'aionui');
-  const outDir = path.join(shellRoot, 'out');
-  const fakeAi = path.join(tempRoot, 'fake-release-notes-ai.js');
   const version = '26.5.19-resume';
-  const dmgName = `One-Person-Lab-${version}-mac-arm64.dmg`;
-  const zipName = `One-Person-Lab-${version}-mac-arm64.zip`;
-
-  const dmgContent = 'dmg';
-  const zipContent = 'zip';
-  writeFile(path.join(outDir, dmgName), dmgContent);
-  writeFile(path.join(outDir, zipName), zipContent);
-  writeReleaseMetadata(outDir, version, dmgName);
-  writeStandardLocalAuthorizationPolicy(outDir);
-  writeFakeReleaseNotesAiWriter(fakeAi, validStandardAiReleaseNotes(version));
+  const { shellRoot, outDir, fakeAi, dmgName, zipName, dmgContent, zipContent } = writeStandardPublishFixture(tempRoot, version);
 
   const existingAssets = [
     { name: dmgName, size: Buffer.byteLength(dmgContent), digest: `sha256:${sha256(dmgContent)}` },
@@ -620,18 +667,8 @@ test('publish dry run skips existing release assets when a resumed upload alread
 
 test('publish dry run reuploads same-size existing release assets when sha256 digest is missing or different', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-resume-strict-'));
-  const shellRoot = path.join(tempRoot, 'shells', 'aionui');
-  const outDir = path.join(shellRoot, 'out');
-  const fakeAi = path.join(tempRoot, 'fake-release-notes-ai.js');
   const version = '26.5.19-resume-strict';
-  const dmgName = `One-Person-Lab-${version}-mac-arm64.dmg`;
-  const zipName = `One-Person-Lab-${version}-mac-arm64.zip`;
-
-  writeFile(path.join(outDir, dmgName), 'dmg');
-  writeFile(path.join(outDir, zipName), 'zip');
-  writeReleaseMetadata(outDir, version, dmgName);
-  writeStandardLocalAuthorizationPolicy(outDir);
-  writeFakeReleaseNotesAiWriter(fakeAi, validStandardAiReleaseNotes(version));
+  const { shellRoot, fakeAi, dmgName, zipName } = writeStandardPublishFixture(tempRoot, version);
 
   const existingAssets = [
     { name: dmgName, size: 3 },
@@ -662,17 +699,8 @@ test('publish dry run reuploads same-size existing release assets when sha256 di
 
 test('standard publish can explicitly use deterministic template release notes without calling AI writer', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-standard-deterministic-notes-'));
-  const shellRoot = path.join(tempRoot, 'shells', 'aionui');
-  const outDir = path.join(shellRoot, 'out');
-  const fakeAi = path.join(tempRoot, 'fake-release-notes-ai.js');
   const version = '26.5.19-deterministic-notes';
-  const dmgName = `One-Person-Lab-${version}-mac-arm64.dmg`;
-  const zipName = `One-Person-Lab-${version}-mac-arm64.zip`;
-
-  writeFile(path.join(outDir, dmgName), 'dmg');
-  writeFile(path.join(outDir, zipName), 'zip');
-  writeReleaseMetadata(outDir, version, dmgName);
-  writeStandardLocalAuthorizationPolicy(outDir);
+  const { shellRoot, fakeAi } = writeStandardPublishFixture(tempRoot, version, { writeDefaultAi: false });
   fs.writeFileSync(fakeAi, '#!/usr/bin/env node\nprocess.exit(42);\n', { mode: 0o755 });
 
   const result = runNode([
@@ -707,18 +735,9 @@ test('standard publish can explicitly use deterministic template release notes w
 
 test('standard publish defaults to AI release notes writer', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-standard-ai-notes-'));
-  const shellRoot = path.join(tempRoot, 'shells', 'aionui');
-  const outDir = path.join(shellRoot, 'out');
-  const fakeAi = path.join(tempRoot, 'fake-release-notes-ai.js');
   const promptCapture = path.join(tempRoot, 'ai-prompt.txt');
   const version = '26.5.19-ai-default';
-  const dmgName = `One-Person-Lab-${version}-mac-arm64.dmg`;
-  const zipName = `One-Person-Lab-${version}-mac-arm64.zip`;
-
-  writeFile(path.join(outDir, dmgName), 'dmg');
-  writeFile(path.join(outDir, zipName), 'zip');
-  writeReleaseMetadata(outDir, version, dmgName);
-  writeStandardLocalAuthorizationPolicy(outDir);
+  const { shellRoot, fakeAi } = writeStandardPublishFixture(tempRoot, version, { writeDefaultAi: false });
   writeExecutable(fakeAi, `#!/usr/bin/env node
 const fs = require('node:fs');
 const input = fs.readFileSync(0, 'utf8');
@@ -751,15 +770,11 @@ process.stdout.write(${JSON.stringify(validStandardAiReleaseNotes(version))});
 
 test('publish consumes a prepared release notes file before calling AI', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-prepared-release-notes-'));
-  const shellRoot = path.join(tempRoot, 'shells', 'aionui');
-  const outDir = path.join(shellRoot, 'out');
-  const fakeAi = path.join(tempRoot, 'fake-release-notes-ai.js');
   const releaseNotesFile = path.join(tempRoot, 'prepared-notes.md');
   const badReleaseNotesFile = path.join(tempRoot, 'bad-notes.md');
   const aiCalledMarker = path.join(tempRoot, 'ai-called');
   const version = '26.5.19-prepared-notes';
-  const dmgName = `One-Person-Lab-${version}-mac-arm64.dmg`;
-  const zipName = `One-Person-Lab-${version}-mac-arm64.zip`;
+  const { shellRoot, fakeAi } = writeStandardPublishFixture(tempRoot, version, { writeDefaultAi: false });
   const publicMarkdown = `One Person Lab v${version}
 
 Users can install or upgrade One Person Lab App and open MAS research, MAG grant-writing, RCA visual deliverable, and OPL Meta Agent sessions with clearer setup.
@@ -794,10 +809,6 @@ Users can install or upgrade One Person Lab App and open MAS research, MAG grant
 - Standard macOS arm64 updater package is published for this release.
 `;
 
-  writeFile(path.join(outDir, dmgName), 'dmg');
-  writeFile(path.join(outDir, zipName), 'zip');
-  writeReleaseMetadata(outDir, version, dmgName);
-  writeStandardLocalAuthorizationPolicy(outDir);
   writeExecutable(fakeAi, `#!/usr/bin/env node
 require('node:fs').writeFileSync(${JSON.stringify(aiCalledMarker)}, 'called');
 process.exit(42);
@@ -887,21 +898,12 @@ process.exit(42);
 
 test('publish retries an individual release asset upload before failing the refresh', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-upload-retry-'));
-  const shellRoot = path.join(tempRoot, 'shells', 'aionui');
-  const outDir = path.join(shellRoot, 'out');
   const binDir = path.join(tempRoot, 'bin');
   const fakeGh = path.join(binDir, 'gh');
-  const fakeAi = path.join(tempRoot, 'fake-release-notes-ai.js');
   const logPath = path.join(tempRoot, 'gh-calls.log');
   const version = '26.5.19-upload-retry';
-  const dmgName = `One-Person-Lab-${version}-mac-arm64.dmg`;
   const zipName = `One-Person-Lab-${version}-mac-arm64.zip`;
-
-  writeFile(path.join(outDir, dmgName), 'dmg');
-  writeFile(path.join(outDir, zipName), 'zip');
-  writeReleaseMetadata(outDir, version, dmgName);
-  writeStandardLocalAuthorizationPolicy(outDir);
-  writeFakeReleaseNotesAiWriter(fakeAi, validStandardAiReleaseNotes(version));
+  const { shellRoot, fakeAi } = writeStandardPublishFixture(tempRoot, version);
   writeFile(
     fakeGh,
     [
@@ -955,21 +957,11 @@ test('publish retries an individual release asset upload before failing the refr
 
 test('new release upload failure deletes only the incomplete release and keeps tag for recovery', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-upload-failure-cleanup-'));
-  const shellRoot = path.join(tempRoot, 'shells', 'aionui');
-  const outDir = path.join(shellRoot, 'out');
   const binDir = path.join(tempRoot, 'bin');
   const fakeGh = path.join(binDir, 'gh');
-  const fakeAi = path.join(tempRoot, 'fake-release-notes-ai.js');
   const logPath = path.join(tempRoot, 'gh-calls.log');
   const version = '26.5.19-upload-failure';
-  const dmgName = `One-Person-Lab-${version}-mac-arm64.dmg`;
-  const zipName = `One-Person-Lab-${version}-mac-arm64.zip`;
-
-  writeFile(path.join(outDir, dmgName), 'dmg');
-  writeFile(path.join(outDir, zipName), 'zip');
-  writeReleaseMetadata(outDir, version, dmgName);
-  writeStandardLocalAuthorizationPolicy(outDir);
-  writeFakeReleaseNotesAiWriter(fakeAi, validStandardAiReleaseNotes(version));
+  const { shellRoot, fakeAi } = writeStandardPublishFixture(tempRoot, version);
   writeFile(
     fakeGh,
     [
@@ -1029,33 +1021,7 @@ test('publish dry run generates deterministic English release notes for Full-onl
   const fullPackageDir = path.join(tempRoot, 'full');
   const fakeAi = path.join(tempRoot, 'fake-release-notes-ai.js');
   const version = '26.5.18';
-  const manifest = {
-    generated_at: '2026-05-18T12:00:00.000Z',
-    distribution: {
-      updater_metadata_allowed: false,
-    },
-      components: {
-        opl: { git_commit: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' },
-        codex: { version: 'codex-cli 0.130.0' },
-        mas: { git_commit: '1111111111111111111111111111111111111111' },
-        mag: { git_commit: '2222222222222222222222222222222222222222' },
-        rca: { git_commit: '3333333333333333333333333333333333333333' },
-      meta_agent: { git_commit: '4444444444444444444444444444444444444444' },
-      officecli: { version: '1.2.3' },
-      mineru_open_api: { version: 'mineru-open-api version v0.1.3' },
-    },
-  };
-
-  writeFile(path.join(fullPackageDir, `One-Person-Lab-Full-${version}-mac-arm64.dmg`));
-  writeFile(path.join(fullPackageDir, 'full-package-manifest.json'), `${JSON.stringify(withFullPackageOptimizationManifest(manifest), null, 2)}\n`);
-  writeFile(path.join(fullPackageDir, 'runtime-cache-events.json'), '{"events":[{"layer_id":"toolchain","status":"hit"}]}\n');
-  writeFullRuntimeCurrentnessProbe(fullPackageDir, manifest);
-  writeFile(path.join(fullPackageDir, 'SHA256SUMS.txt'), 'test  artifact\n');
-  writeFile(path.join(fullPackageDir, 'README-Full-First-Install.txt'), 'One Person Lab Full First-Install Package\n');
-  writeFullLocalAuthorizationPolicy(fullPackageDir);
-  writeFullRuntimeNativeTrust(fullPackageDir);
-  writeFullPackageOptimizationArtifacts(fullPackageDir, version);
-  writeFullPublicReleaseManifest(fullPackageDir, version, withFullPackageOptimizationManifest(manifest));
+  writeFullPackageFixture(fullPackageDir, version);
   fs.writeFileSync(fakeAi, '#!/usr/bin/env node\nprocess.exit(42);\n', { mode: 0o755 });
 
   const result = runNode([
@@ -1102,32 +1068,7 @@ test('publish rejects Full notes when OPL Meta Agent release-note metadata is mi
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-notes-meta-agent-'));
   const fullPackageDir = path.join(tempRoot, 'full');
   const version = '26.5.19-meta-missing';
-  const manifest = {
-    generated_at: '2026-05-19T12:00:00.000Z',
-    distribution: {
-      updater_metadata_allowed: false,
-    },
-      components: {
-        opl: { git_commit: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' },
-        codex: { version: 'codex-cli 0.130.0' },
-        mas: { git_commit: '1111111111111111111111111111111111111111' },
-        mag: { git_commit: '2222222222222222222222222222222222222222' },
-        rca: { git_commit: '3333333333333333333333333333333333333333' },
-      officecli: { version: '1.2.3' },
-      mineru_open_api: { version: 'mineru-open-api version v0.1.3' },
-    },
-  };
-
-  writeFile(path.join(fullPackageDir, `One-Person-Lab-Full-${version}-mac-arm64.dmg`));
-  writeFile(path.join(fullPackageDir, 'full-package-manifest.json'), `${JSON.stringify(withFullPackageOptimizationManifest(manifest), null, 2)}\n`);
-  writeFile(path.join(fullPackageDir, 'runtime-cache-events.json'), '{"events":[{"layer_id":"toolchain","status":"hit"}]}\n');
-  writeFullRuntimeCurrentnessProbe(fullPackageDir, manifest);
-  writeFile(path.join(fullPackageDir, 'SHA256SUMS.txt'), 'test  artifact\n');
-  writeFile(path.join(fullPackageDir, 'README-Full-First-Install.txt'), 'One Person Lab Full First-Install Package\n');
-  writeFullLocalAuthorizationPolicy(fullPackageDir);
-  writeFullRuntimeNativeTrust(fullPackageDir);
-  writeFullPackageOptimizationArtifacts(fullPackageDir, version);
-  writeFullPublicReleaseManifest(fullPackageDir, version, withFullPackageOptimizationManifest(manifest));
+  writeFullPackageFixture(fullPackageDir, version, fullPackageManifest({ meta_agent: undefined }));
 
   const result = runNode([
     'scripts/publish-release.ts',
@@ -1148,34 +1089,8 @@ test('publish rejects Full package native trust when quarantine remains', () => 
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-full-native-trust-quarantine-'));
   const fullPackageDir = path.join(tempRoot, 'full');
   const version = '26.5.19-native-trust-quarantine';
-  const manifest = {
-    generated_at: '2026-05-19T12:00:00.000Z',
-    distribution: {
-      updater_metadata_allowed: false,
-    },
-    components: {
-      opl: { git_commit: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' },
-      codex: { version: 'codex-cli 0.130.0' },
-      mas: { git_commit: '1111111111111111111111111111111111111111' },
-      mag: { git_commit: '2222222222222222222222222222222222222222' },
-      rca: { git_commit: '3333333333333333333333333333333333333333' },
-      meta_agent: { git_commit: '4444444444444444444444444444444444444444' },
-      officecli: { version: '1.2.3' },
-      mineru_open_api: { version: 'mineru-open-api version v0.1.3' },
-    },
-  };
-
-  writeFile(path.join(fullPackageDir, `One-Person-Lab-Full-${version}-mac-arm64.dmg`));
-  writeFile(path.join(fullPackageDir, 'full-package-manifest.json'), `${JSON.stringify(withFullPackageOptimizationManifest(manifest), null, 2)}\n`);
-  writeFile(path.join(fullPackageDir, 'runtime-cache-events.json'), '{"events":[{"layer_id":"toolchain","status":"hit"}]}\n');
-  writeFullRuntimeCurrentnessProbe(fullPackageDir, manifest);
-  writeFile(path.join(fullPackageDir, 'SHA256SUMS.txt'), 'test  artifact\n');
-  writeFile(path.join(fullPackageDir, 'README-Full-First-Install.txt'), 'One Person Lab Full First-Install Package\n');
-  writeFullLocalAuthorizationPolicy(fullPackageDir);
-  writeFullPackageOptimizationArtifacts(fullPackageDir, version);
-  writeFile(
-    path.join(fullPackageDir, 'full-runtime-native-trust.json'),
-    `${JSON.stringify({
+  writeFullPackageFixture(fullPackageDir, version, fullPackageManifest(), {
+    nativeTrustJson: `${JSON.stringify({
       schema: 'opl_full_runtime_native_trust.v1',
       status: 'local_authorized_unsigned',
       executable_count: 1,
@@ -1191,8 +1106,7 @@ test('publish rejects Full package native trust when quarantine remains', () => 
         },
       ],
     }, null, 2)}\n`,
-  );
-  writeFullPublicReleaseManifest(fullPackageDir, version, withFullPackageOptimizationManifest(manifest));
+  });
 
   const result = runNode([
     'scripts/publish-release.ts',
@@ -1215,33 +1129,7 @@ test('Full-only release publish uses deterministic notes and does not call the A
   const fakeAi = path.join(tempRoot, 'fake-release-notes-ai.js');
   const evidencePath = path.join(tempRoot, 'full-release-notes-evidence.json');
   const version = '26.5.20-full-only-template';
-  const manifest = {
-    generated_at: '2026-05-20T12:00:00.000Z',
-    distribution: {
-      updater_metadata_allowed: false,
-    },
-    components: {
-      opl: { git_commit: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' },
-      codex: { version: 'codex-cli 0.130.0' },
-      mas: { git_commit: '1111111111111111111111111111111111111111' },
-      mag: { git_commit: '2222222222222222222222222222222222222222' },
-      rca: { git_commit: '3333333333333333333333333333333333333333' },
-      meta_agent: { git_commit: '4444444444444444444444444444444444444444' },
-      officecli: { version: '1.2.3' },
-      mineru_open_api: { version: 'mineru-open-api version v0.1.3' },
-    },
-  };
-
-  writeFile(path.join(fullPackageDir, `One-Person-Lab-Full-${version}-mac-arm64.dmg`));
-  writeFile(path.join(fullPackageDir, 'full-package-manifest.json'), `${JSON.stringify(withFullPackageOptimizationManifest(manifest), null, 2)}\n`);
-  writeFile(path.join(fullPackageDir, 'runtime-cache-events.json'), '{"events":[{"layer_id":"toolchain","status":"hit"}]}\n');
-  writeFullRuntimeCurrentnessProbe(fullPackageDir, manifest);
-  writeFile(path.join(fullPackageDir, 'SHA256SUMS.txt'), 'test  artifact\n');
-  writeFile(path.join(fullPackageDir, 'README-Full-First-Install.txt'), 'One Person Lab Full First-Install Package\n');
-  writeFullLocalAuthorizationPolicy(fullPackageDir);
-  writeFullRuntimeNativeTrust(fullPackageDir);
-  writeFullPackageOptimizationArtifacts(fullPackageDir, version);
-  writeFullPublicReleaseManifest(fullPackageDir, version, withFullPackageOptimizationManifest(manifest));
+  writeFullPackageFixture(fullPackageDir, version);
   fs.mkdirSync(path.dirname(fakeAi), { recursive: true });
   fs.writeFileSync(fakeAi, '#!/usr/bin/env node\nprocess.exit(42);\n', { mode: 0o755 });
 
