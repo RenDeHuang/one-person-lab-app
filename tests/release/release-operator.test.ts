@@ -80,6 +80,93 @@ function createReleaseRefCheckouts() {
   };
 }
 
+const releaseOperatorScript = 'scripts/release-operator.ts';
+const headA = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+const headB = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
+const headC = 'cccccccccccccccccccccccccccccccccccccccc';
+const headD = 'dddddddddddddddddddddddddddddddddddddddd';
+const headE = 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee';
+
+function runReleaseOperator(args: string[]) {
+  return runScript(releaseOperatorScript, args);
+}
+
+function releaseOperatorPaths(prefix: string) {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  return {
+    tempRoot,
+    runJsonPath: path.join(tempRoot, 'run.json'),
+    outputPath: path.join(tempRoot, 'release-operator-state.json'),
+  };
+}
+
+function runStatus(prefix: string, runPayload: unknown, args: string[] = []) {
+  const paths = releaseOperatorPaths(prefix);
+  writeJson(paths.runJsonPath, runPayload);
+  const result = runReleaseOperator([
+    'status',
+    '--run-json',
+    paths.runJsonPath,
+    ...args,
+    '--output',
+    paths.outputPath,
+  ]);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  return { ...paths, result, state: readJson(paths.outputPath) };
+}
+
+function writePreviousFailedSession(sessionPath: string, options: { currentAuthorityRef?: string } = {}) {
+  const currentAuthorityRun: Record<string, unknown> = {
+    id: '12351',
+    status: 'completed',
+    conclusion: 'failure',
+    head_sha: headB,
+  };
+  if (options.currentAuthorityRef) {
+    currentAuthorityRun.ref = options.currentAuthorityRef;
+  }
+  writeJson(sessionPath, {
+    schema: 'opl_app_release_session_manifest.v1',
+    id: 'release-session:26.7.9:12351',
+    generated_at: '2026-07-08T00:00:00.000Z',
+    version: '26.7.9',
+    run_set: {
+      current_run_id: '12351',
+      runs: [
+        {
+          id: '12351',
+          workflow_name: 'OPL Desktop Release',
+          status: 'completed',
+          conclusion: 'failure',
+          head_sha: headB,
+          url: 'https://github.example/runs/12351',
+          elapsed_seconds: 120,
+        },
+      ],
+    },
+    current_authority_run: currentAuthorityRun,
+    failed_run_tax: {
+      action: 'inspect_primary_blocker',
+      primary_blocker: null,
+      elapsed_seconds: 120,
+    },
+    typed_next_action: {
+      action: 'inspect_primary_blocker',
+      command: 'gh run view 12351 --log-failed',
+      reason: 'Previous failed run.',
+    },
+    owner_receipt: {
+      state: 'not_provided',
+      verify_command: 'npm run release:owner-candidate-record:verify -- --version 26.7.9',
+    },
+    post_publish_follow_up: {
+      state: 'not_applicable_until_release_published',
+      summary: 'Post-publish follow-up is not applicable until the candidate is promoted or a published-with-follow-up state exists.',
+    },
+    truth_boundary: 'release-session is an operator control surface derived from run status; it is not release truth and cannot publish, promote, or write runtime truth.',
+  });
+}
+
 test('release cohort planner writes pinned cohort JSON and typed next action', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-cohort-'));
   const refs = createReleaseRefCheckouts();
@@ -245,128 +332,95 @@ test('release operator VM diagnostics only emits non-dispatching suggested comma
   );
 });
 
-test('release operator status escalates Full stable runs after the 75-minute SLA boundary', () => {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-operator-status-sla-'));
-  const runJsonPath = path.join(tempRoot, 'run.json');
-  const outputPath = path.join(tempRoot, 'release-operator-state.json');
-  const startedAt = new Date(Date.now() - 76 * 60 * 1000).toISOString();
+test('release operator status applies Full and same-artifact SLA profiles', () => {
   const recentAt = new Date(Date.now() - 60 * 1000).toISOString();
-  writeJson(runJsonPath, {
-    databaseId: 12349,
-    workflowName: 'OPL Desktop Release',
-    status: 'in_progress',
-    conclusion: null,
-    startedAt,
-    updatedAt: recentAt,
-    headSha: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-    jobs: [
-      {
-        name: 'Build Full first-install assets / Build App-owned Full first-install DMG',
-        status: 'completed',
-        conclusion: 'success',
-      },
-      {
-        name: 'Run Full first-run VM smoke / Clean VM first launch',
-        status: 'completed',
-        conclusion: 'success',
-      },
-      {
-        name: 'Validate operator evidence bundle',
+  const cases = [
+    {
+      name: 'stable-full',
+      startedAt: new Date(Date.now() - 76 * 60 * 1000).toISOString(),
+      expectedProfile: 'stable_full_docker_vm',
+      expectedAttention: 4500,
+      expectedHardStop: 5400,
+      expectedNextActionReason: /attention SLA/,
+      run: {
+        databaseId: 12349,
+        workflowName: 'OPL Desktop Release',
         status: 'in_progress',
         conclusion: null,
-        startedAt: recentAt,
-        steps: [
+        updatedAt: recentAt,
+        headSha: headA,
+        jobs: [
           {
-            name: 'Collect operator evidence',
+            name: 'Build Full first-install assets / Build App-owned Full first-install DMG',
+            status: 'completed',
+            conclusion: 'success',
+          },
+          {
+            name: 'Run Full first-run VM smoke / Clean VM first launch',
+            status: 'completed',
+            conclusion: 'success',
+          },
+          {
+            name: 'Validate operator evidence bundle',
             status: 'in_progress',
             conclusion: null,
             startedAt: recentAt,
+            steps: [{ name: 'Collect operator evidence', status: 'in_progress', conclusion: null, startedAt: recentAt }],
           },
         ],
       },
-    ],
-  });
-
-  const result = runScript('scripts/release-operator.ts', [
-    'status',
-    '--run-json',
-    runJsonPath,
-    '--output',
-    outputPath,
-  ]);
-
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-  const state = readJson(outputPath);
-  assert.equal(state.status, 'waiting_for_run_completion');
-  assert.equal(state.budget.status, 'attention');
-  assert.equal(state.budget.run_sla_profile, 'stable_full_docker_vm');
-  assert.equal(state.budget.run_sla_status, 'attention');
-  assert.equal(state.budget.run_attention_seconds, 4500);
-  assert.equal(state.budget.run_hard_stop_seconds, 5400);
-  assert.equal(state.next_action.action, 'inspect_current_step_progress');
-  assert.match(state.next_action.reason, /attention SLA/);
-});
-
-test('release operator status keeps independent First-Run VM workflow on same-artifact SLA', () => {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-operator-status-vm-sla-'));
-  const runJsonPath = path.join(tempRoot, 'run.json');
-  const outputPath = path.join(tempRoot, 'release-operator-state.json');
-  const startedAt = new Date(Date.now() - 16 * 60 * 1000).toISOString();
-  const recentAt = new Date(Date.now() - 60 * 1000).toISOString();
-  writeJson(runJsonPath, {
-    databaseId: 12351,
-    workflowName: 'OPL GUI First-Run VM',
-    status: 'in_progress',
-    conclusion: null,
-    startedAt,
-    updatedAt: recentAt,
-    headSha: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-    jobs: [
-      {
-        name: 'Run clean VM first launch smoke',
+    },
+    {
+      name: 'same-artifact-vm',
+      startedAt: new Date(Date.now() - 16 * 60 * 1000).toISOString(),
+      expectedProfile: 'same_artifact_vm_gate',
+      expectedAttention: 900,
+      expectedHardStop: 1800,
+      run: {
+        databaseId: 12351,
+        workflowName: 'OPL GUI First-Run VM',
         status: 'in_progress',
         conclusion: null,
-        startedAt: recentAt,
-        steps: [
+        updatedAt: recentAt,
+        headSha: headA,
+        jobs: [
           {
             name: 'Run clean VM first launch smoke',
             status: 'in_progress',
             conclusion: null,
             startedAt: recentAt,
+            steps: [{ name: 'Run clean VM first launch smoke', status: 'in_progress', conclusion: null, startedAt: recentAt }],
           },
         ],
       },
-    ],
-  });
+    },
+  ];
 
-  const result = runScript('scripts/release-operator.ts', [
-    'status',
-    '--run-json',
-    runJsonPath,
-    '--output',
-    outputPath,
-  ]);
-
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-  const state = readJson(outputPath);
-  assert.equal(state.status, 'waiting_for_run_completion');
-  assert.equal(state.budget.status, 'attention');
-  assert.equal(state.budget.run_sla_profile, 'same_artifact_vm_gate');
-  assert.equal(state.budget.run_sla_status, 'attention');
-  assert.equal(state.budget.run_attention_seconds, 900);
-  assert.equal(state.budget.run_hard_stop_seconds, 1800);
+  for (const entry of cases) {
+    const { state } = runStatus(`opl-release-operator-status-${entry.name}-`, {
+      ...entry.run,
+      startedAt: entry.startedAt,
+    });
+    assert.equal(state.status, 'waiting_for_run_completion', entry.name);
+    assert.equal(state.budget.status, 'attention', entry.name);
+    assert.equal(state.budget.run_sla_profile, entry.expectedProfile, entry.name);
+    assert.equal(state.budget.run_sla_status, 'attention', entry.name);
+    assert.equal(state.budget.run_attention_seconds, entry.expectedAttention, entry.name);
+    assert.equal(state.budget.run_hard_stop_seconds, entry.expectedHardStop, entry.name);
+    if (entry.expectedNextActionReason) {
+      assert.equal(state.next_action.action, 'inspect_current_step_progress');
+      assert.match(state.next_action.reason, entry.expectedNextActionReason);
+    }
+  }
 });
 
 test('release operator status routes VM failures to same-artifact diagnostics instead of full release reruns', () => {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-operator-status-vm-diagnostic-'));
-  const runJsonPath = path.join(tempRoot, 'run.json');
-  const outputPath = path.join(tempRoot, 'release-operator-state.json');
-  writeJson(runJsonPath, {
+  const { state } = runStatus('opl-release-operator-status-vm-diagnostic-', {
     databaseId: 12350,
     workflowName: 'OPL Desktop Release Promote',
     status: 'completed',
     conclusion: 'failure',
-    headSha: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    headSha: headA,
     jobs: [
       {
         name: 'Run Homebrew standard first-run VM smoke / Clean VM first launch',
@@ -377,20 +431,8 @@ test('release operator status routes VM failures to same-artifact diagnostics in
         ],
       },
     ],
-  });
+  }, ['--version', '26.7.9']);
 
-  const result = runScript('scripts/release-operator.ts', [
-    'status',
-    '--run-json',
-    runJsonPath,
-    '--version',
-    '26.7.9',
-    '--output',
-    outputPath,
-  ]);
-
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-  const state = readJson(outputPath);
   assert.equal(state.status, 'failed');
   assert.equal(state.next_action.action, 'rerun_diagnostic_same_artifact');
   assert.match(state.next_action.command, /release:operator -- diagnose-vm/);
@@ -404,15 +446,12 @@ test('release operator status routes VM failures to same-artifact diagnostics in
 });
 
 test('release operator status reports completed failure primary blocker', () => {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-operator-status-failed-'));
-  const runJsonPath = path.join(tempRoot, 'run.json');
-  const outputPath = path.join(tempRoot, 'release-operator-state.json');
-  writeJson(runJsonPath, {
+  const { result, state } = runStatus('opl-release-operator-status-failed-', {
     databaseId: 12345,
     workflowName: 'OPL Desktop Release',
     status: 'completed',
     conclusion: 'failure',
-    headSha: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    headSha: headA,
     url: 'https://github.example/runs/12345',
     jobs: [
       {
@@ -433,17 +472,7 @@ test('release operator status reports completed failure primary blocker', () => 
     ],
   });
 
-  const result = runScript('scripts/release-operator.ts', [
-    'status',
-    '--run-json',
-    runJsonPath,
-    '--output',
-    outputPath,
-  ]);
-
-  assert.equal(result.status, 0, result.stderr || result.stdout);
   const stdout = JSON.parse(result.stdout);
-  const state = readJson(outputPath);
   assert.equal(stdout.status, 'failed');
   assert.equal(state.schema, 'opl_app_release_operator_state.v1');
   assert.equal(state.command, 'status');
@@ -523,57 +552,13 @@ test('release operator status updates existing release session manifest with run
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-operator-status-session-update-'));
   const runJsonPath = path.join(tempRoot, 'run.json');
   const sessionPath = path.join(tempRoot, 'release-session.json');
-  writeJson(sessionPath, {
-    schema: 'opl_app_release_session_manifest.v1',
-    id: 'release-session:26.7.9:12351',
-    generated_at: '2026-07-08T00:00:00.000Z',
-    version: '26.7.9',
-    run_set: {
-      current_run_id: '12351',
-      runs: [
-        {
-          id: '12351',
-          workflow_name: 'OPL Desktop Release',
-          status: 'completed',
-          conclusion: 'failure',
-          head_sha: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
-          url: 'https://github.example/runs/12351',
-          elapsed_seconds: 120,
-        },
-      ],
-    },
-    current_authority_run: {
-      id: '12351',
-      status: 'completed',
-      conclusion: 'failure',
-      head_sha: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
-    },
-    failed_run_tax: {
-      action: 'inspect_primary_blocker',
-      primary_blocker: null,
-      elapsed_seconds: 120,
-    },
-    typed_next_action: {
-      action: 'inspect_primary_blocker',
-      command: 'gh run view 12351 --log-failed',
-      reason: 'Previous failed run.',
-    },
-    owner_receipt: {
-      state: 'not_provided',
-      verify_command: 'npm run release:owner-candidate-record:verify -- --version 26.7.9',
-    },
-    post_publish_follow_up: {
-      state: 'not_applicable_until_release_published',
-      summary: 'Post-publish follow-up is not applicable until the candidate is promoted or a published-with-follow-up state exists.',
-    },
-    truth_boundary: 'release-session is an operator control surface derived from run status; it is not release truth and cannot publish, promote, or write runtime truth.',
-  });
+  writePreviousFailedSession(sessionPath);
   writeJson(runJsonPath, {
     databaseId: 12352,
     workflowName: 'OPL Desktop Release',
     status: 'completed',
     conclusion: 'success',
-    headSha: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    headSha: headA,
     url: 'https://github.example/runs/12352',
     jobs: [
       {
@@ -634,58 +619,13 @@ test('release operator status does not carry stale authority refs across current
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-operator-status-session-authority-ref-'));
   const runJsonPath = path.join(tempRoot, 'run.json');
   const sessionPath = path.join(tempRoot, 'release-session.json');
-  writeJson(sessionPath, {
-    schema: 'opl_app_release_session_manifest.v1',
-    id: 'release-session:26.7.9:12351',
-    generated_at: '2026-07-08T00:00:00.000Z',
-    version: '26.7.9',
-    run_set: {
-      current_run_id: '12351',
-      runs: [
-        {
-          id: '12351',
-          workflow_name: 'OPL Desktop Release',
-          status: 'completed',
-          conclusion: 'failure',
-          head_sha: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
-          url: 'https://github.example/runs/12351',
-          elapsed_seconds: 120,
-        },
-      ],
-    },
-    current_authority_run: {
-      id: '12351',
-      status: 'completed',
-      conclusion: 'failure',
-      head_sha: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
-      ref: 'old-closeout.json',
-    },
-    failed_run_tax: {
-      action: 'inspect_primary_blocker',
-      primary_blocker: null,
-      elapsed_seconds: 120,
-    },
-    typed_next_action: {
-      action: 'inspect_primary_blocker',
-      command: 'gh run view 12351 --log-failed',
-      reason: 'Previous failed run.',
-    },
-    owner_receipt: {
-      state: 'not_provided',
-      verify_command: 'npm run release:owner-candidate-record:verify -- --version 26.7.9',
-    },
-    post_publish_follow_up: {
-      state: 'not_applicable_until_release_published',
-      summary: 'Post-publish follow-up is not applicable until the candidate is promoted or a published-with-follow-up state exists.',
-    },
-    truth_boundary: 'release-session is an operator control surface derived from run status; it is not release truth and cannot publish, promote, or write runtime truth.',
-  });
+  writePreviousFailedSession(sessionPath, { currentAuthorityRef: 'old-closeout.json' });
   writeJson(runJsonPath, {
     databaseId: 12352,
     workflowName: 'OPL Desktop Release',
     status: 'in_progress',
     conclusion: null,
-    headSha: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    headSha: headA,
     url: 'https://github.example/runs/12352',
     jobs: [
       {
@@ -754,15 +694,12 @@ test('release operator status --json writes only JSON stdout without default roo
 });
 
 test('release operator status includes owner-receipt promote fast path guidance', () => {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-operator-status-owner-fast-path-'));
-  const runJsonPath = path.join(tempRoot, 'run.json');
-  const outputPath = path.join(tempRoot, 'release-operator-state.json');
-  writeJson(runJsonPath, {
+  const { state } = runStatus('opl-release-operator-status-owner-fast-path-', {
     databaseId: 12348,
     workflowName: 'OPL Desktop Release',
     status: 'completed',
     conclusion: 'success',
-    headSha: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    headSha: headA,
     jobs: [
       {
         name: 'release-readiness',
@@ -770,20 +707,8 @@ test('release operator status includes owner-receipt promote fast path guidance'
         conclusion: 'success',
       },
     ],
-  });
+  }, ['--version', '26.6.99']);
 
-  const result = runScript('scripts/release-operator.ts', [
-    'status',
-    '--run-json',
-    runJsonPath,
-    '--version',
-    '26.6.99',
-    '--output',
-    outputPath,
-  ]);
-
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-  const state = readJson(outputPath);
   assert.equal(state.status, 'ready_for_closeout_review');
   assert.equal(state.next_action.action, 'inspect_release_closeout_evidence');
   assert.match(state.next_action.reason, /desktop-release-promote\.yml/);
@@ -832,15 +757,12 @@ test('release operator status maps primary blockers to domain next actions', () 
   ];
 
   for (const entry of cases) {
-    const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), `opl-release-operator-blocker-${entry.name}-`));
-    const runJsonPath = path.join(tempRoot, 'run.json');
-    const outputPath = path.join(tempRoot, 'release-operator-state.json');
-    writeJson(runJsonPath, {
+    const { result, state } = runStatus(`opl-release-operator-blocker-${entry.name}-`, {
       databaseId: 50000,
       workflowName: entry.workflowName,
       status: 'completed',
       conclusion: 'failure',
-      headSha: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      headSha: headA,
       jobs: [
         {
           name: entry.jobName,
@@ -854,25 +776,13 @@ test('release operator status maps primary blockers to domain next actions', () 
       ],
     });
 
-    const result = runScript('scripts/release-operator.ts', [
-      'status',
-      '--run-json',
-      runJsonPath,
-      '--output',
-      outputPath,
-    ]);
-
     assert.equal(result.status, 0, `${entry.name}: ${result.stderr || result.stdout}`);
-    const state = readJson(outputPath);
     assert.equal(state.next_action.action, entry.expectedAction, entry.name);
   }
 });
 
 test('release operator status reports phase current step elapsed and budget for in-progress runs', () => {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-operator-status-progress-'));
-  const runJsonPath = path.join(tempRoot, 'run.json');
-  const outputPath = path.join(tempRoot, 'release-operator-state.json');
-  writeJson(runJsonPath, {
+  const { state } = runStatus('opl-release-operator-status-progress-', {
     databaseId: 56789,
     workflowName: 'OPL Desktop Release',
     status: 'in_progress',
@@ -913,16 +823,6 @@ test('release operator status reports phase current step elapsed and budget for 
     ],
   });
 
-  const result = runScript('scripts/release-operator.ts', [
-    'status',
-    '--run-json',
-    runJsonPath,
-    '--output',
-    outputPath,
-  ]);
-
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-  const state = readJson(outputPath);
   assert.equal(state.status, 'waiting_for_run_completion');
   assert.equal(state.phase, 'release_run_waiting');
   assert.equal(state.current_step.job_name, 'Build standard App assets / Active shell tests (dom)');
@@ -941,15 +841,12 @@ test('release operator status reports phase current step elapsed and budget for 
 });
 
 test('release operator status reports failed gate while run is draining', () => {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-operator-status-draining-'));
-  const runJsonPath = path.join(tempRoot, 'run.json');
-  const outputPath = path.join(tempRoot, 'release-operator-state.json');
-  writeJson(runJsonPath, {
+  const { state } = runStatus('opl-release-operator-status-draining-', {
     databaseId: 23456,
     workflowName: 'OPL Desktop Release',
     status: 'in_progress',
     conclusion: null,
-    headSha: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+    headSha: headB,
     jobs: [
       {
         name: 'release-preflight',
@@ -965,16 +862,6 @@ test('release operator status reports failed gate while run is draining', () => 
     ],
   });
 
-  const result = runScript('scripts/release-operator.ts', [
-    'status',
-    '--run-json',
-    runJsonPath,
-    '--output',
-    outputPath,
-  ]);
-
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-  const state = readJson(outputPath);
   assert.equal(state.status, 'failed_gate_draining');
   assert.equal(state.run.status, 'in_progress');
   assert.equal(state.run.conclusion, null);
