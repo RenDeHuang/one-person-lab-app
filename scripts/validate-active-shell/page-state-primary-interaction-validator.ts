@@ -65,7 +65,7 @@ function validateGuidHomeViewModelFields(homeViewModel) {
     codex_default_model: 'gpt-5.5',
     codex_default_reasoning_effort: 'xhigh',
     codex_default_display_label: 'GPT-5.5',
-    codex_precise_model_display_policy: 'friendly_model_primary_reasoning_configurable_in_model_menu',
+    codex_precise_model_display_policy: 'friendly_model_primary_reasoning_primary_model_and_intelligence_secondary_menus',
     codex_default_permission_mode: 'full-access',
     permission_mode_selector_visible: false,
     conversation_backend_selector_visible: false,

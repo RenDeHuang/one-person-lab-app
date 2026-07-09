@@ -156,6 +156,7 @@ export function assertOplFlowIntelligenceEnhancementMode(
     JSON.stringify(mode.required_opl_package_preflight_actions) !== JSON.stringify(oplFlowPayloadPreflightActions) ||
     mode.required_opl_package_install_command !== 'python3 scripts/install_local_plugin.py --no-profile' ||
     mode.profile_mutation_policy !== 'semantic_merge_packet_only_no_silent_overwrite' ||
+    mode.default_enabled !== true ||
     mode.status_action_id !== 'intelligence_enhancement_status' ||
     mode.enable_action_id !== 'intelligence_enhancement_enable' ||
     mode.disable_action_id !== 'intelligence_enhancement_disable' ||
@@ -218,7 +219,10 @@ function assertHomeCodexFixedExecutorFields(
       { actual: home?.conversation_model_selector_visible, expected: true },
       { actual: home?.conversation_permission_mode_selector_visible, expected: false },
       { actual: home?.codex_home_model_status_label, expected: 'GPT-5.5' },
-      { actual: home?.codex_precise_model_display_policy, expected: 'friendly_model_primary_reasoning_configurable_in_model_menu' },
+      {
+        actual: home?.codex_precise_model_display_policy,
+        expected: 'friendly_model_primary_reasoning_primary_model_and_intelligence_secondary_menus',
+      },
     ],
     `${label} GUI home must keep Codex CLI fixed while exposing App-owned model selectors`,
   );
@@ -281,7 +285,10 @@ function assertCodexModelDisplayShape(
   const visibleModels = displayOptions?.visible_models ?? [];
   assertExpectedFields(
     [
-      { actual: displayOptions?.display_policy, expected: 'friendly_model_name_primary_reasoning_configurable_in_model_menu' },
+      {
+        actual: displayOptions?.display_policy,
+        expected: 'friendly_model_name_primary_reasoning_primary_model_and_intelligence_secondary_menus',
+      },
       {
         actual: displayOptions?.button_label_policy,
         expected: 'auto_or_fixed_model_compact_label_with_selected_reasoning_effort',
@@ -291,11 +298,16 @@ function assertCodexModelDisplayShape(
       { actual: displayOptions?.reasoning_effort_menu_visible, expected: true },
       { actual: displayOptions?.reasoning_menu_title_zh, expected: '推理' },
       { actual: displayOptions?.reasoning_menu_title_en, expected: 'Reasoning' },
-      { actual: displayOptions?.reasoning_effort_override_surface, expected: 'model_configuration_menu' },
+      { actual: displayOptions?.reasoning_effort_override_surface, expected: 'model_selector_primary_menu' },
       { actual: displayOptions?.reasoning_effort_options_source, expected: 'acp_codex_config_options_enum' },
       { actual: displayOptions?.default_reasoning_effort, expected: profile.codex?.default_reasoning_effort },
       { actual: displayOptions?.auto_option_current_resolution_visible, expected: true },
-      { actual: displayOptions?.model_menu_policy, expected: 'last_submenu_collapsed_by_default' },
+      { actual: displayOptions?.model_menu_policy, expected: 'current_model_secondary_submenu' },
+      {
+        actual: displayOptions?.intelligence_enhancement_menu_policy,
+        expected: 'default_on_secondary_submenu_with_enable_disable_actions',
+      },
+      { actual: displayOptions?.intelligence_enhancement_default_enabled, expected: true },
       { actual: auto?.label_zh, expected: '自动（推荐）' },
       { actual: auto?.label_en, expected: 'Auto (recommended)' },
       { actual: auto?.resolved_model, expected: profile.codex?.default_model },

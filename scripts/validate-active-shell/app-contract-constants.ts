@@ -521,7 +521,7 @@ const appOwnedOrdinaryConversation = {
   provider_selector_visible: false,
   model_status_surface: "gui.home.codex_home_model_status_label",
   technical_details_policy:
-    "friendly_model_primary_reasoning_configurable_in_model_menu",
+    "friendly_model_primary_reasoning_primary_model_and_intelligence_secondary_menus",
 };
 export const appOwnedGuiContractOrdinaryConversation = {
   ...appOwnedOrdinaryConversation,

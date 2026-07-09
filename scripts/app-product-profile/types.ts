@@ -53,6 +53,7 @@ export type AppProductProfile = {
         model_list_source: string;
         frontier_model_preference_order_role: string;
         user_can_override_model: boolean;
+        user_can_override_reasoning_effort: boolean;
         user_can_restore_auto: boolean;
         selection_persists_into_conversation: boolean;
         frontier_model_preference_order: string[];
@@ -70,6 +71,8 @@ export type AppProductProfile = {
         default_reasoning_effort: string;
         auto_option_current_resolution_visible: boolean;
         model_menu_policy: string;
+        intelligence_enhancement_menu_policy: string;
+        intelligence_enhancement_default_enabled: boolean;
         auto_option: {
           id: string;
           label_zh: string;
@@ -244,6 +247,7 @@ export type AppProductProfile = {
           required_opl_package_preflight_actions: string[];
           required_opl_package_install_command: string;
           profile_mutation_policy: string;
+          default_enabled: boolean;
           status_action_id: string;
           enable_action_id: string;
           disable_action_id: string;

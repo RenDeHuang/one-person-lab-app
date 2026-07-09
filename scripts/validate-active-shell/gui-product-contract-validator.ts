@@ -408,9 +408,9 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   }
   if (
     pages.guid_home.conversation_feedback_policy?.model_status !==
-    'same model selector appears in Codex conversation composer; reasoning is configurable in the model menu'
+    'same model selector appears in Codex conversation composer; reasoning is a primary menu, model and intelligence enhancement are secondary menus'
   ) {
-    throw new Error('App GUI conversation must show the same model selector with reasoning configurable in the menu');
+    throw new Error('App GUI conversation must show the same model selector with primary reasoning and secondary model/intelligence menus');
   }
   if (!pages.guid_home.must_not_show?.includes('OPL Meta Agent as a default home assistant')) {
     throw new Error('App GUI home must keep OMA out of default home entries');
