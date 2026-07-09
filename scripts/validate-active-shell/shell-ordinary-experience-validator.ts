@@ -55,6 +55,7 @@ const productProfileDefaultsExpected = [
   '"codex_home_model_status_label": "5.6 Sol"',
   '"codex_precise_model_display_policy": "friendly_model_primary_reasoning_primary_model_and_intelligence_secondary_menus"',
   '"strategy": "codex_cli_auto_latest_available_frontier"',
+  '"frontier_model_preference_order_role": "exact_visible_model_allowlist_order_and_fallback_with_codex_cli_availability_filter"',
   '"user_can_override_model": true',
   '"user_can_restore_auto": true',
   '"display_policy": "friendly_model_name_primary_reasoning_primary_model_and_intelligence_secondary_menus"',
@@ -90,6 +91,10 @@ const productProfileDefaultsExpected = [
 
 const codexModelsExpected = [
   'getOplCodexFrontierModelPreferenceOrder',
+  'CODEX_FRONTIER_MODEL_PREFERENCE_INDEX',
+  'CODEX_FRONTIER_MODEL_PREFERENCE_INDEX.get(id)',
+  'preference === undefined',
+  'left.preference - right.preference',
   'DEFAULT_CODEX_MODELS',
   'availableModels.length > 0',
   'DEFAULT_CODEX_MODELS.map',

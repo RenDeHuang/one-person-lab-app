@@ -17,6 +17,18 @@ test('GUI contract rejects Codex model order drift from the App product profile'
   ));
 });
 
+test('GUI contract rejects Codex model availability role drift from the App product profile', () => {
+  const guiContract = structuredClone(readJson('contracts/app-gui-product-contract.json'));
+  guiContract.executor_policy.frontier_model_preference_order_role =
+    'fallback_when_codex_cli_model_list_unavailable';
+
+  assert.throws(() => validateAppGuiProductContract(
+    guiContract,
+    readJson('contracts/app-release-channel.json'),
+    readJson('contracts/app-install-exposure-policy.json'),
+  ));
+});
+
 test('page-state matrix rejects Codex model order drift', () => {
   const matrix = structuredClone(readJson('contracts/app-page-state-matrix.json'));
   const guidHome = matrix.pages.find(({ id }) => id === 'guid_home');

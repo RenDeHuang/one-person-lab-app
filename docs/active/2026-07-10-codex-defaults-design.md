@@ -26,7 +26,7 @@ OPL App 新配置与新会话默认使用 `gpt-5.6-sol`，Codex `config.toml` �
 
 ## UI 行为
 
-自动选项解析为 `5.6 Sol / ultra`，主按钮显示 `5.6 Sol 极高`。推理菜单保留 `low / medium / high / xhigh / ultra`；`xhigh` 显示为“推理超高”/`Extra high reasoning`，`ultra` 显示为“推理极高”/`Ultra reasoning`，紧凑标签分别为“超高”和“极高”。本次不增加截图中的速度或高级菜单，也不改变模型/推理的用户覆盖与恢复自动选择行为。
+自动选项解析为 `5.6 Sol / ultra`，主按钮显示 `5.6 Sol 极高`。普通 UI 只展示上述七个模型；ACP 返回的模型列表只用于裁剪七项中的实际可用项，展示顺序始终跟随 App profile，ACP 未返回可用列表时使用同一七项作为 fallback。推理菜单保留 `low / medium / high / xhigh / ultra`；`xhigh` 显示为“推理超高”/`Extra high reasoning`，`ultra` 显示为“推理极高”/`Ultra reasoning`，紧凑标签分别为“超高”和“极高”。本次不增加截图中的速度或高级菜单，也不改变模型/推理的用户覆盖与恢复自动选择行为。
 
 ## 失败保护与验证
 

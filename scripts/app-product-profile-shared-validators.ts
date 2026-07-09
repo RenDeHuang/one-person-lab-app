@@ -266,7 +266,7 @@ function assertHomeCodexAutoSelectionPolicy(
       { actual: autoSelection?.model_list_source, expected: 'codex_cli_handshake_available_models' },
       {
         actual: autoSelection?.frontier_model_preference_order_role,
-        expected: 'fallback_when_codex_cli_model_list_unavailable',
+        expected: 'exact_visible_model_allowlist_order_and_fallback_with_codex_cli_availability_filter',
       },
       { actual: autoSelection?.user_can_override_model, expected: true },
       { actual: autoSelection?.user_can_override_reasoning_effort, expected: true },

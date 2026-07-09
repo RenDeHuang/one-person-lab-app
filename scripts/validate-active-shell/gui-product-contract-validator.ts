@@ -79,6 +79,8 @@ function validateCodexModelPolicy(guiContract) {
       default_model_display_value: executorPolicy.default_model_display_value,
       home_model_status_label: executorPolicy.home_model_status_label,
       home_model_status_label_en: executorPolicy.home_model_status_label_en,
+      model_list_source: executorPolicy.model_list_source,
+      frontier_model_preference_order_role: executorPolicy.frontier_model_preference_order_role,
       frontier_model_preference_order: executorPolicy.frontier_model_preference_order,
       user_reasoning_effort_options: executorPolicy.model_display_options_policy?.user_reasoning_effort_options,
     },
@@ -88,6 +90,9 @@ function validateCodexModelPolicy(guiContract) {
       default_model_display_value: productHome.codex_home_model_status_label,
       home_model_status_label: productHome.codex_home_model_status_label,
       home_model_status_label_en: productHome.codex_home_model_status_label_en,
+      model_list_source: productHome.codex_auto_model_selection?.model_list_source,
+      frontier_model_preference_order_role:
+        productHome.codex_auto_model_selection?.frontier_model_preference_order_role,
       frontier_model_preference_order: productHome.codex_auto_model_selection?.frontier_model_preference_order,
       user_reasoning_effort_options: productHome.codex_model_display_options?.user_reasoning_effort_options,
     },
