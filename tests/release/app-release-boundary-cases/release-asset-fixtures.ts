@@ -8,6 +8,22 @@ import {
   writeFile,
 } from './helpers-core.ts';
 
+const FULL_BUNDLED_EVIDENCE_ASSET_NAMES = [
+  'full-package-manifest.json',
+  'runtime-cache-events.json',
+  'full-runtime-currentness-probe.json',
+  'full-runtime-native-trust.json',
+  'full-app-bundle-trim-report.json',
+  'full-package-boundary-audit.json',
+];
+
+const FULL_LEGACY_SEPARATE_ASSET_NAMES = [
+  ...FULL_BUNDLED_EVIDENCE_ASSET_NAMES,
+  'README-Full-First-Install.txt',
+  'SHA256SUMS.txt',
+  'full-local-authorization-policy.json',
+];
+
 export function writeReleaseMetadata(outDir, version, assetName) {
   writeFile(path.join(outDir, 'latest-arm64-mac.yml'), [
     `version: ${version}`,
@@ -448,20 +464,11 @@ export function writeFullRemoteAssets(outDir, version, options = {}) {
     }, null, 2)}\n`,
   );
   writeFile(path.join(outDir, 'README-Full-First-Install.txt'), 'One Person Lab Full First-Install Package\n');
-  const checksumNames = [
-    fullDmgName,
-    'full-package-manifest.json',
-    'runtime-cache-events.json',
-    'full-runtime-currentness-probe.json',
-    'full-runtime-native-trust.json',
-    'full-app-bundle-trim-report.json',
-    'full-package-boundary-audit.json',
-    'README-Full-First-Install.txt',
-    'full-local-authorization-policy.json',
-  ];
   writeFile(
     path.join(outDir, 'SHA256SUMS.txt'),
-    checksumNames.map((name) => `${fileSha256(path.join(outDir, name))}  ${name}`).join('\n') + '\n',
+    [fullDmgName, ...FULL_LEGACY_SEPARATE_ASSET_NAMES.filter((name) => name !== 'SHA256SUMS.txt')]
+      .map((name) => `${fileSha256(path.join(outDir, name))}  ${name}`)
+      .join('\n') + '\n',
   );
   if (!options.legacySeparateEvidenceAssets) {
     writeFile(
@@ -489,27 +496,10 @@ export function writeFullRemoteAssets(outDir, version, options = {}) {
           local_authorization_policy: JSON.parse(fs.readFileSync(path.join(outDir, 'full-local-authorization-policy.json'), 'utf8')),
           readme_text: fs.readFileSync(path.join(outDir, 'README-Full-First-Install.txt'), 'utf8'),
         },
-        transition_legacy_assets: [
-          'full-package-manifest.json',
-          'runtime-cache-events.json',
-          'full-runtime-currentness-probe.json',
-          'full-runtime-native-trust.json',
-          'full-app-bundle-trim-report.json',
-          'full-package-boundary-audit.json',
-        ],
+        transition_legacy_assets: FULL_BUNDLED_EVIDENCE_ASSET_NAMES,
       }, null, 2)}\n`,
     );
-    for (const name of [
-      'full-package-manifest.json',
-      'runtime-cache-events.json',
-      'full-runtime-currentness-probe.json',
-      'full-runtime-native-trust.json',
-      'full-app-bundle-trim-report.json',
-      'full-package-boundary-audit.json',
-      'README-Full-First-Install.txt',
-      'SHA256SUMS.txt',
-      'full-local-authorization-policy.json',
-    ]) {
+    for (const name of FULL_LEGACY_SEPARATE_ASSET_NAMES) {
       fs.rmSync(path.join(outDir, name), { force: true });
     }
     return [
@@ -519,14 +509,6 @@ export function writeFullRemoteAssets(outDir, version, options = {}) {
   }
   return [
     fullDmgName,
-    'full-package-manifest.json',
-    'runtime-cache-events.json',
-    'full-runtime-currentness-probe.json',
-    'full-runtime-native-trust.json',
-    'full-app-bundle-trim-report.json',
-    'full-package-boundary-audit.json',
-    'README-Full-First-Install.txt',
-    'SHA256SUMS.txt',
-    'full-local-authorization-policy.json',
+    ...FULL_LEGACY_SEPARATE_ASSET_NAMES,
   ];
 }
