@@ -33,6 +33,68 @@ const completeAttachedArtifacts = [
   'codex_ai_self_check_summary',
 ];
 
+const collectorActionId = 'provider-scheduler:temporal:trigger';
+
+function collectorFixture(prefix, options = {}) {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  const fakeBin = path.join(tempRoot, 'bin');
+  const bundleDir = path.join(tempRoot, 'bundle');
+  const actionLog = options.actionLogName ? path.join(tempRoot, options.actionLogName) : '';
+  writeCollectorFakeOpl(path.join(fakeBin, 'opl'), actionLog, options.outputs ?? {});
+  return {
+    tempRoot,
+    bundleDir,
+    actionLog,
+    collect(args = []) {
+      return runNode([
+        'scripts/collect-release-evidence.ts',
+        '--bundle-dir',
+        bundleDir,
+        '--action-id',
+        collectorActionId,
+        '--overwrite',
+        ...args,
+      ], {
+        env: { PATH: `${fakeBin}${path.delimiter}${process.env.PATH ?? ''}` },
+      });
+    },
+  };
+}
+
+function parseCollectedPayload(collected) {
+  assert.equal(collected.status, 0, collected.stderr || collected.stdout);
+  return JSON.parse(collected.stdout);
+}
+
+function validateBundle(bundleDir, allowMissing = false) {
+  const validation = runNode([
+    'scripts/validate-release-evidence-bundle.ts',
+    '--bundle-dir',
+    bundleDir,
+    ...(allowMissing ? ['--allow-missing-evidence'] : []),
+  ]);
+  assert.equal(validation.status, 0, validation.stderr || validation.stdout);
+  return JSON.parse(validation.stdout);
+}
+
+function assertPassedBundle(bundleDir, payload) {
+  assert.equal(payload.status, 'passed');
+  assert.equal(payload.packaged_app_evidence, true);
+  assert.deepEqual(payload.release_cohort, {
+    ...releaseEvidenceCohort(),
+    source: 'write-release-evidence-manifest',
+  });
+  assert.equal(payload.current_cohort_evidence, true);
+  assert.equal(payload.missing_artifact_count, 0);
+  assert.deepEqual(payload.attached_artifacts, completeAttachedArtifacts);
+
+  const validationPayload = validateBundle(bundleDir);
+  assert.equal(validationPayload.status, 'passed');
+  assert.equal(validationPayload.verified_artifact_count, 16);
+  assert.equal(validationPayload.verified_diagnostic_count, 1);
+  assert.equal(validationPayload.missing_artifact_count, 0);
+}
+
 test('release evidence collector preserves argument error boundaries', () => {
   const unknown = runNode(['scripts/collect-release-evidence.ts', '--unknown']);
   assert.notEqual(unknown.status, 0);
@@ -44,30 +106,15 @@ test('release evidence collector preserves argument error boundaries', () => {
 });
 
 test('release evidence collector captures live OPL runtime refs and keeps missing App evidence explicit', () => {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-collector-'));
-  const fakeBin = path.join(tempRoot, 'bin');
-  const bundleDir = path.join(tempRoot, 'bundle');
-  const actionLog = path.join(tempRoot, 'opl-actions.jsonl');
-  const fakeOpl = path.join(fakeBin, 'opl');
-  writeCollectorFakeOpl(fakeOpl, actionLog);
-
-  const collected = runNode([
-    'scripts/collect-release-evidence.ts',
-    '--bundle-dir',
-    bundleDir,
-    '--action-id',
-    'provider-scheduler:temporal:trigger',
-    '--execute-action',
-    '--overwrite',
-  ], {
-    env: { PATH: `${fakeBin}${path.delimiter}${process.env.PATH ?? ''}` },
+  const { actionLog, bundleDir, collect } = collectorFixture('opl-app-release-evidence-collector-', {
+    actionLogName: 'opl-actions.jsonl',
   });
+  const collected = collect(['--execute-action']);
 
-  assert.equal(collected.status, 0, collected.stderr || collected.stdout);
-  const payload = JSON.parse(collected.stdout);
+  const payload = parseCollectedPayload(collected);
   assert.equal(payload.status, 'missing_evidence');
   assert.equal(payload.packaged_app_evidence, false);
-  assert.equal(payload.action_id, 'provider-scheduler:temporal:trigger');
+  assert.equal(payload.action_id, collectorActionId);
   assert.deepEqual(payload.collected_artifacts, [
     'app_state_summary',
     'app_state_full',
@@ -89,14 +136,7 @@ test('release evidence collector captures live OPL runtime refs and keeps missin
     'remote_release_verification',
   ]);
 
-  const validation = runNode([
-    'scripts/validate-release-evidence-bundle.ts',
-    '--bundle-dir',
-    bundleDir,
-    '--allow-missing-evidence',
-  ]);
-  assert.equal(validation.status, 0, validation.stderr || validation.stdout);
-  const validationPayload = JSON.parse(validation.stdout);
+  const validationPayload = validateBundle(bundleDir, true);
   assert.equal(validationPayload.status, 'missing_evidence');
   assert.equal(validationPayload.verified_artifact_count, 5);
   assert.equal(validationPayload.missing_artifact_count, 11);
@@ -112,22 +152,10 @@ test('release evidence collector captures live OPL runtime refs and keeps missin
 });
 
 test('release evidence collector validates generated bundle shape before reporting success', () => {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-collector-invalid-'));
-  const fakeBin = path.join(tempRoot, 'bin');
-  const bundleDir = path.join(tempRoot, 'bundle');
-  const fakeOpl = path.join(fakeBin, 'opl');
-  writeCollectorFakeOpl(fakeOpl, '', { fast: { status: 'passed', refs_only: true } });
-
-  const collected = runNode([
-    'scripts/collect-release-evidence.ts',
-    '--bundle-dir',
-    bundleDir,
-    '--action-id',
-    'provider-scheduler:temporal:trigger',
-    '--overwrite',
-  ], {
-    env: { PATH: `${fakeBin}${path.delimiter}${process.env.PATH ?? ''}` },
+  const { collect } = collectorFixture('opl-app-release-evidence-collector-invalid-', {
+    outputs: { fast: { status: 'passed', refs_only: true } },
   });
+  const collected = collect();
 
   assert.notEqual(collected.status, 0);
   assert.match(collected.stderr, /Release evidence bundle validation failed/);
@@ -135,12 +163,8 @@ test('release evidence collector validates generated bundle shape before reporti
 });
 
 test('release evidence collector can attach externally produced contracted artifacts', () => {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-collector-attach-'));
-  const fakeBin = path.join(tempRoot, 'bin');
-  const bundleDir = path.join(tempRoot, 'bundle');
+  const { tempRoot, bundleDir, collect } = collectorFixture('opl-app-release-evidence-collector-attach-');
   const externalEvidence = path.join(tempRoot, 'external-evidence');
-  const fakeOpl = path.join(fakeBin, 'opl');
-  writeCollectorFakeOpl(fakeOpl);
   writeScreenshotPng(path.join(externalEvidence, 'runtime.png'));
   writeScreenshotPng(path.join(externalEvidence, 'full.png'));
   writeScreenshotPng(path.join(externalEvidence, 'action.png'));
@@ -148,13 +172,7 @@ test('release evidence collector can attach externally produced contracted artif
   writeAssistantRouteSmokeScreenshots(externalEvidence);
   writeRemoteReleaseVerificationSummary(externalEvidence);
 
-  const collected = runNode([
-    'scripts/collect-release-evidence.ts',
-    '--bundle-dir',
-    bundleDir,
-    '--action-id',
-    'provider-scheduler:temporal:trigger',
-    '--overwrite',
+  const collected = collect([
     '--execute-action',
     '--version',
     '26.6.5',
@@ -182,43 +200,14 @@ test('release evidence collector can attach externally produced contracted artif
     `assistant_route_smoke_rca_screenshot=${path.join(externalEvidence, 'artifacts', 'assistant-route-smoke', 'rca.png')}`,
     '--artifact',
     `remote_release_verification=${path.join(externalEvidence, 'remote-release-verification.json')}`,
-  ], {
-    env: { PATH: `${fakeBin}${path.delimiter}${process.env.PATH ?? ''}` },
-  });
-
-  assert.equal(collected.status, 0, collected.stderr || collected.stdout);
-  const payload = JSON.parse(collected.stdout);
-  assert.equal(payload.status, 'passed');
-  assert.equal(payload.packaged_app_evidence, true);
-  assert.deepEqual(payload.release_cohort, {
-    ...releaseEvidenceCohort(),
-    source: 'write-release-evidence-manifest',
-  });
-  assert.equal(payload.current_cohort_evidence, true);
-  assert.equal(payload.missing_artifact_count, 0);
-  assert.deepEqual(payload.attached_artifacts, completeAttachedArtifacts);
-
-  const validation = runNode([
-    'scripts/validate-release-evidence-bundle.ts',
-    '--bundle-dir',
-    bundleDir,
   ]);
-  assert.equal(validation.status, 0, validation.stderr || validation.stdout);
-  const validationPayload = JSON.parse(validation.stdout);
-  assert.equal(validationPayload.status, 'passed');
-  assert.equal(validationPayload.verified_artifact_count, 16);
-  assert.equal(validationPayload.verified_diagnostic_count, 1);
-  assert.equal(validationPayload.missing_artifact_count, 0);
+  assertPassedBundle(bundleDir, parseCollectedPayload(collected));
 });
 
 test('release evidence collector imports standard smoke source directories without hand-mapping every artifact', () => {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-collector-source-dir-'));
-  const fakeBin = path.join(tempRoot, 'bin');
-  const bundleDir = path.join(tempRoot, 'bundle');
+  const { tempRoot, bundleDir, collect } = collectorFixture('opl-app-release-evidence-collector-source-dir-');
   const sourceDir = path.join(tempRoot, 'standard-smoke-source');
   const overrideEvidence = path.join(tempRoot, 'override-evidence');
-  const fakeOpl = path.join(fakeBin, 'opl');
-  writeCollectorFakeOpl(fakeOpl);
 
   writeVmSmokeSummaryFiles(sourceDir);
   writeAssistantRouteSmokeScreenshots(sourceDir);
@@ -228,13 +217,7 @@ test('release evidence collector imports standard smoke source directories witho
   writeRemoteReleaseVerificationSummary(sourceDir);
   writeScreenshotPng(path.join(overrideEvidence, 'runtime.png'));
 
-  const collected = runNode([
-    'scripts/collect-release-evidence.ts',
-    '--bundle-dir',
-    bundleDir,
-    '--action-id',
-    'provider-scheduler:temporal:trigger',
-    '--overwrite',
+  const collected = collect([
     '--execute-action',
     '--version',
     '26.6.5',
@@ -242,47 +225,20 @@ test('release evidence collector imports standard smoke source directories witho
     sourceDir,
     '--artifact',
     `runtime_screenshot=${path.join(overrideEvidence, 'runtime.png')}`,
-  ], {
-    env: { PATH: `${fakeBin}${path.delimiter}${process.env.PATH ?? ''}` },
-  });
+  ]);
 
-  assert.equal(collected.status, 0, collected.stderr || collected.stdout);
-  const payload = JSON.parse(collected.stdout);
-  assert.equal(payload.status, 'passed');
-  assert.equal(payload.packaged_app_evidence, true);
-  assert.deepEqual(payload.release_cohort, {
-    ...releaseEvidenceCohort(),
-    source: 'write-release-evidence-manifest',
-  });
-  assert.equal(payload.current_cohort_evidence, true);
-  assert.equal(payload.missing_artifact_count, 0);
-  assert.deepEqual(payload.attached_artifacts, completeAttachedArtifacts);
+  const payload = parseCollectedPayload(collected);
+  assertPassedBundle(bundleDir, payload);
   assert.equal(
     fileSha256(path.join(bundleDir, 'screenshots', 'runtime.png')),
     fileSha256(path.join(overrideEvidence, 'runtime.png')),
   );
-
-  const validation = runNode([
-    'scripts/validate-release-evidence-bundle.ts',
-    '--bundle-dir',
-    bundleDir,
-  ]);
-  assert.equal(validation.status, 0, validation.stderr || validation.stdout);
-  const validationPayload = JSON.parse(validation.stdout);
-  assert.equal(validationPayload.status, 'passed');
-  assert.equal(validationPayload.verified_artifact_count, 16);
-  assert.equal(validationPayload.verified_diagnostic_count, 1);
-  assert.equal(validationPayload.missing_artifact_count, 0);
 });
 
 test('release evidence collector imports typed blockers as blocked evidence', () => {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-collector-blocker-'));
-  const fakeBin = path.join(tempRoot, 'bin');
-  const bundleDir = path.join(tempRoot, 'bundle');
+  const { tempRoot, bundleDir, collect } = collectorFixture('opl-app-release-evidence-collector-blocker-');
   const sourceDir = path.join(tempRoot, 'standard-smoke-source');
   const blockerRoot = path.join(tempRoot, 'blockers');
-  const fakeOpl = path.join(fakeBin, 'opl');
-  writeCollectorFakeOpl(fakeOpl);
 
   writeScreenshotPng(path.join(sourceDir, 'runtime.png'));
   writeScreenshotPng(path.join(sourceDir, 'first-run-beginner.png'));
@@ -295,24 +251,15 @@ test('release evidence collector imports typed blockers as blocked evidence', ()
     typed_blocker_ref: 'typed_blocker_ref://one-person-lab-app/test/collector-first-run-vm-summary',
   });
 
-  const collected = runNode([
-    'scripts/collect-release-evidence.ts',
-    '--bundle-dir',
-    bundleDir,
-    '--action-id',
-    'provider-scheduler:temporal:trigger',
-    '--overwrite',
+  const collected = collect([
     '--execute-action',
     '--evidence-source-dir',
     sourceDir,
     '--typed-blocker',
     `first_run_vm_summary=${path.join(blockerRoot, 'typed-blockers', 'first_run_vm_summary.json')}`,
-  ], {
-    env: { PATH: `${fakeBin}${path.delimiter}${process.env.PATH ?? ''}` },
-  });
+  ]);
 
-  assert.equal(collected.status, 0, collected.stderr || collected.stdout);
-  const payload = JSON.parse(collected.stdout);
+  const payload = parseCollectedPayload(collected);
   assert.equal(payload.status, 'blocked_evidence');
   assert.equal(payload.packaged_app_evidence, false);
   assert.deepEqual(payload.attached_artifacts, [
@@ -323,14 +270,7 @@ test('release evidence collector imports typed blockers as blocked evidence', ()
   assert.deepEqual(payload.blocked_artifacts, ['first_run_vm_summary']);
   assert.equal(payload.missing_artifact_count, 0);
 
-  const validation = runNode([
-    'scripts/validate-release-evidence-bundle.ts',
-    '--bundle-dir',
-    bundleDir,
-    '--allow-missing-evidence',
-  ]);
-  assert.equal(validation.status, 0, validation.stderr || validation.stdout);
-  const validationPayload = JSON.parse(validation.stdout);
+  const validationPayload = validateBundle(bundleDir, true);
   assert.equal(validationPayload.status, 'blocked_evidence');
   assert.equal(validationPayload.verified_artifact_count, 15);
   assert.equal(validationPayload.blocked_artifact_count, 1);
