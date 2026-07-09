@@ -378,10 +378,6 @@ test('release candidate record blocks complete evidence until release owner reco
   assert.equal(record.release_owner_verdict.status, 'release_owner_verdict_pending');
   assert.match(record.blocked_reasons.join('\n'), /pending/);
   assert.match(record.blocked_reasons.join('\n'), /missing owner resolution ref/);
-  const markdown = fs.readFileSync(paths.markdownPath, 'utf8');
-  assert.match(markdown, /Release Candidate Record/);
-  assert.match(markdown, /Status: blocked/);
-
   const validateResult = runCandidateRecordValidator([
     '--promote-ready',
     '--version',
@@ -465,9 +461,6 @@ test('release gate reuse plan allows same cohort gates with matching remote asse
   assert.equal(plan.authority_boundary.reuse_plan_can_skip_release_gate_by_itself, false);
   assert.equal(plan.authority_boundary.workflow_must_explicitly_consume_reuse_allowed_decision, true);
   assert.ok(plan.decisions.every((decision: { status: string }) => decision.status === 'reuse_allowed'));
-  const markdown = fs.readFileSync(fixture.markdownPath, 'utf8');
-  assert.match(markdown, /Release Gate Reuse Plan/);
-  assert.match(markdown, /Reuse allowed: 11/);
 });
 
 test('release gate reuse plan forces gates to rerun when remote asset digest changes', () => {

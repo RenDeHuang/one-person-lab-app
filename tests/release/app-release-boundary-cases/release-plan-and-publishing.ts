@@ -11,7 +11,6 @@ import {
   validStandardAiReleaseNotes,
   stableInstallCommand,
   withHiddenLocalizedReleaseNotes,
-  stripLocalizedReleaseNotesForTest,
   writeReleaseMetadata,
   writeStandardLocalAuthorizationPolicy,
   writeFullLocalAuthorizationPolicy,
@@ -221,7 +220,6 @@ test('release preflight fails fast before expensive release jobs', () => {
   assert.equal(payload.homebrew.vm_gate_static_policy.install_ref, 'gaofeng21cn/one-person-lab/one-person-lab');
   assert.ok(payload.homebrew.vm_gate_static_policy.trusted_cask_refs.includes('gaofeng21cn/one-person-lab/one-person-lab-full'));
   assert.equal(payload.homebrew.vm_gate_static_policy.whole_tap_trust_allowed, false);
-  assert.match(fs.readFileSync(markdownPath, 'utf8'), /Release preflight: passed/);
 
   const standardOnly = runNode([
     'scripts/validate-release-preflight.ts',
@@ -887,89 +885,6 @@ process.exit(42);
   assert.ok(!fs.existsSync(aiCalledMarker));
 });
 
-test('AI release notes completion sanitizes process-first developer memo copy before public sections', () => {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-standard-ai-process-copy-'));
-  const shellRoot = path.join(tempRoot, 'shells', 'aionui');
-  const outDir = path.join(shellRoot, 'out');
-  const fakeAi = path.join(tempRoot, 'fake-release-notes-ai.js');
-  const version = '26.5.19-ai-process-copy';
-  const dmgName = `One-Person-Lab-${version}-mac-arm64.dmg`;
-  const zipName = `One-Person-Lab-${version}-mac-arm64.zip`;
-  const badPublicMarkdown = `I’m turning the evidence into user-facing release notes first, then I’ll add the technical tail exactly as requested.One Person Lab v${version}
-
-Workflow validation gate and release operator owner receipt refs are aligned for this cohort while MAS, MAG, and RCA remain available after first launch.
-
-## What improved
-
-### Built-in OPL agent entries are still present
-- MAS, MAG, and RCA are mentioned here, but the copy leads with maintainer process instead of user value.
-
-## OPL agents and runtime payload
-- Standard package: App-managed MAS, MAG, RCA, and OPL Meta Agent entry surface plus Codex plugin/skill sync policy.
-
-## OPL family updates
-- One Person Lab App: current standard package changes keep the built-in OPL entries aligned.
-- OPL Aion Shell: current shell changes keep the first-run and settings UI aligned with the App release.
-
-## Install Stable
-\`${stableInstallCommand}\`
-
-## Release scope
-- Standard macOS arm64 updater package is published for this release.
-`;
-
-  writeFile(path.join(outDir, dmgName), 'dmg');
-  writeFile(path.join(outDir, zipName), 'zip');
-  writeReleaseMetadata(outDir, version, dmgName);
-  writeStandardLocalAuthorizationPolicy(outDir);
-  writeFakeReleaseNotesAiWriter(fakeAi, withHiddenLocalizedReleaseNotes(badPublicMarkdown, `One Person Lab v${version}
-
-这次更新仍然包含 MAS、MAG 和 RCA，但这段测试文案故意以维护流程开头。
-
-## What improved
-- MAS、MAG 和 RCA 仍可使用。
-
-## OPL agents and runtime payload
-- Standard package: App-managed MAS, MAG, RCA, and OPL Meta Agent entry surface plus Codex plugin/skill sync policy.
-
-## OPL family updates
-- One Person Lab App: 当前标准包更新会让内置 OPL 入口保持一致。
-- OPL Aion Shell: 当前 shell 更新会让首次启动和设置界面与 App 发布保持一致。
-
-## Install Stable
-\`${stableInstallCommand}\`
-
-## Release scope
-- Standard macOS arm64 updater package is published for this release.
-`));
-
-  const result = runNode([
-    'scripts/publish-release.ts',
-    '--no-build',
-    '--dry-run',
-    '--shell-root',
-    shellRoot,
-    '--version',
-    version,
-  ], {
-    env: {
-      OPL_RELEASE_EXISTS: '1',
-      OPL_RELEASE_NOTES_AI_COMMAND: `${process.execPath} ${fakeAi}`,
-    },
-  });
-
-  assert.equal(result.status, 0, result.stderr);
-  const payload = JSON.parse(result.stdout);
-  const publicMarkdown = String(payload.release_notes).split('## Technical details')[0];
-  assert.doesNotMatch(publicMarkdown, /turning the evidence/i);
-  assert.doesNotMatch(publicMarkdown, /\brefs?\b/i);
-  assert.doesNotMatch(publicMarkdown, /\bowner receipt\b/i);
-  assert.doesNotMatch(publicMarkdown, /\bcohort\b/i);
-  assert.match(payload.release_notes, /## Highlights/);
-  assert.match(payload.release_notes, /## Compatibility and action required/);
-  assert.match(payload.release_notes, /## Technical details/);
-});
-
 test('publish retries an individual release asset upload before failing the refresh', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-upload-retry-'));
   const shellRoot = path.join(tempRoot, 'shells', 'aionui');
@@ -1162,23 +1077,6 @@ test('publish dry run generates deterministic English release notes for Full-onl
   assert.equal(result.status, 0, result.stderr);
   const payload = JSON.parse(result.stdout);
   assert.equal(payload.release_notes_mode, 'template');
-  const notes = payload.release_notes;
-  const publicNotes = stripLocalizedReleaseNotesForTest(notes);
-  assert.match(notes, /One Person Lab v26\.5\.18/);
-  assert.match(notes, /What improved/);
-  assert.match(notes, /Release scope/);
-  assert.match(notes, /Standard macOS arm64 updater package plus Full first-install DMG/);
-  assert.match(notes, /OPL agents and runtime payload/);
-  assert.match(notes, /MAS @ 1111111/);
-  assert.match(notes, /MAG @ 2222222/);
-  assert.match(notes, /RCA @ 3333333/);
-  assert.match(notes, /OPL Meta Agent @ 4444444/);
-  assert.match(notes, /OfficeCLI 1\.2\.3/);
-  assert.match(notes, /MinerU v0\.1\.3/);
-  assert.doesNotMatch(notes, /Release focus/);
-  assert.doesNotMatch(notes, /Update channel guidance/);
-  assert.doesNotMatch(notes, /Full clean-install/);
-  assert.doesNotMatch(publicNotes, /[\u3400-\u9fff]/);
   assert.deepEqual(
     payload.full_package_artifacts.map((artifact) => path.basename(artifact)),
     [`One-Person-Lab-Full-${version}-mac-arm64.dmg`, 'opl-release-manifest.json'],

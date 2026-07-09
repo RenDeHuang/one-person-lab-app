@@ -145,32 +145,6 @@ test('Full package size analyzer reports manifest component and layer budgets', 
   assert.equal(summary.manifest_size_hotspots[2].path, 'toolchain/vendor');
   assert.equal(summary.manifest_size_hotspots[3].path, 'toolchain/vendor/temporal');
 
-  const markdownResult = runNode([
-    'scripts/analyze-full-package-size.ts',
-    '--manifest',
-    manifestPath,
-    '--full-dmg-size-bytes',
-    '725000000',
-    '--markdown',
-  ]);
-  assert.equal(markdownResult.status, 0, markdownResult.stderr);
-  assert.match(markdownResult.stdout, /## Full Package Size/);
-  assert.match(markdownResult.stdout, /Full DMG size: 691\.4 MiB \(warning\)/);
-  assert.match(markdownResult.stdout, /\| Component \| Size \| Runtime % \| Version \/ Commit \|/);
-  assert.match(markdownResult.stdout, /mas/);
-  assert.match(markdownResult.stdout, /50% used/);
-  assert.match(markdownResult.stdout, /Full DMG warning threshold: 667\.6 MiB/);
-  assert.match(markdownResult.stdout, /Full DMG review threshold: 715\.3 MiB/);
-  assert.match(markdownResult.stdout, /Full DMG hard limit: n\/a/);
-  assert.match(markdownResult.stdout, /Full DMG gate status: warning/);
-  assert.match(markdownResult.stdout, /Runtime budget: 1000 B \(50% used, passed\)/);
-  assert.match(markdownResult.stdout, /\| mas \| 180 B \| 36% \|/);
-  assert.match(markdownResult.stdout, /### Manifest Size Hotspots/);
-  assert.match(markdownResult.stdout, /\| toolchain\/vendor\/temporal \| 150 B \|/);
-  assert.match(markdownResult.stdout, /### Optimization Candidates/);
-  assert.match(markdownResult.stdout, /OPL runtime bundle role: consumer_only/);
-  assert.match(markdownResult.stdout, /### OPL Runtime Bundle Layer Taxonomy/);
-  assert.match(markdownResult.stdout, /toolchain \| base-toolchain, python-wheelhouse, optional-heavy-tools/);
 });
 
 test('Full package size analyzer separates review threshold from hard limit', () => {

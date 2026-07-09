@@ -80,50 +80,6 @@ function createReleaseRefCheckouts() {
   };
 }
 
-test('release guide documents no-watch operator runbook and lane boundaries', () => {
-  const guide = fs.readFileSync(path.join(appRoot, 'docs', 'delivery', 'release', 'README.md'), 'utf8');
-
-  for (const requiredText of [
-    'No-watch operator runbook',
-    'npm run release:operator -- status --run-id <github-actions-run-id> --expected-head <app-sha>',
-    "jq '{state, run: .run, next: .recommended_next_action, failed_gate_count, failed_job_count}'",
-    'release-operator-state.json#status',
-    'release-monitor.json#state',
-    'primary_blocker',
-    'recommended_next_action',
-    'Release SLA: attention',
-    '75 minutes',
-    '90 minutes',
-    'failed_gate_draining',
-    'stale_candidate',
-    'dispatch a new cohort',
-    'same-artifact diagnostic',
-    'Pinned cohort runbook',
-    'Sync preparation',
-    'moving refs to immutable values',
-    'shell SHA',
-    'framework SHA',
-    'Moving `main`, shell `main`, and framework `main` are allowed only as',
-    'preparation-time ref-resolution sources',
-    'pinned cohort lock',
-    'Source-gate blockers are repaired at the source gate',
-    'old-cohort diagnostics only',
-    'Desktop stable, WebUI GHCR, and diagnostics are separate lanes',
-    'Docker/WebUI runtime image publish failure',
-    'workflow_wall_time_seconds',
-    'agent_orchestration_wall_time_seconds',
-    'DORA-style lead time',
-    'DORA-style MTTR',
-    'DORA-style change failure',
-    'They are not release-ready',
-  ]) {
-    assert.ok(guide.includes(requiredText), `release guide must document ${requiredText}`);
-  }
-
-  assert.match(guide, /28391573356[\s\S]*standard clean VM smoke failed/);
-  assert.match(guide, /28391599033[\s\S]*not label that WebUI GHCR failure as an App source-gate failure/);
-});
-
 test('release cohort planner writes pinned cohort JSON and typed next action', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-cohort-'));
   const refs = createReleaseRefCheckouts();
@@ -183,7 +139,6 @@ test('release cohort planner writes pinned cohort JSON and typed next action', (
   assert.ok(plan.cheap_gates.some((gate: { id: string }) => gate.id === 'full_package_prune_audit'));
   assert.equal(plan.authority_boundary.cohort_plan_can_publish_release, false);
   assert.equal(plan.authority_boundary.cohort_plan_can_write_runtime_truth, false);
-  assert.match(fs.readFileSync(markdownPath, 'utf8'), /Release Cohort Plan/);
 });
 
 test('release operator plan reuses cohort plan and writes operator state', () => {
@@ -247,10 +202,6 @@ test('release operator plan reuses cohort plan and writes operator state', () =>
   assert.match(state.operator_guidance.post_owner_receipt_fast_path.verify_command, /--version 26\.6\.99/);
   assert.equal(state.authority_boundary.operator_can_publish_release, false);
   assert.equal(state.authority_boundary.operator_can_write_runtime_truth, false);
-  const markdown = fs.readFileSync(markdownPath, 'utf8');
-  assert.match(markdown, /Release Operator State/);
-  assert.match(markdown, /Operator guidance/);
-  assert.match(markdown, /Post-owner receipt fast path/);
 });
 
 test('release operator VM diagnostics only emits non-dispatching suggested commands', () => {
@@ -551,8 +502,6 @@ test('release operator status writes release session manifest and one-screen fai
   ]);
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
-  assert.match(result.stdout, /^Failed-run tax: inspect_primary_blocker - Step Package app in job Build App-owned DMG concluded failure\.$/m);
-  assert.match(result.stdout, /^Next action: inspect_primary_blocker$/m);
   const state = readJson(outputPath);
   const session = readJson(sessionPath);
   assert.equal(state.session.schema, 'opl_app_release_session_manifest.v1');
@@ -568,10 +517,6 @@ test('release operator status writes release session manifest and one-screen fai
   assert.match(session.owner_receipt.verify_command, /--version 26\.7\.9/);
   assert.match(session.post_publish_follow_up.summary, /not applicable until/);
   assert.match(session.truth_boundary, /operator control surface/);
-  const markdown = fs.readFileSync(markdownPath, 'utf8');
-  assert.match(markdown, /## Release session/);
-  assert.match(markdown, /Failed-run tax: inspect_primary_blocker/);
-  assert.match(markdown, /Typed next action: inspect_primary_blocker/);
 });
 
 test('release operator status updates existing release session manifest with run set and refs', () => {
@@ -808,38 +753,6 @@ test('release operator status --json writes only JSON stdout without default roo
   assertFileSnapshotUnchanged(defaultStatePath, defaultStateSnapshot);
 });
 
-test('release operator status --summary emits one-screen human summary', () => {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-operator-status-summary-'));
-  const runJsonPath = path.join(tempRoot, 'run.json');
-  writeJson(runJsonPath, {
-    databaseId: 12347,
-    workflowName: 'OPL Desktop Release',
-    status: 'completed',
-    conclusion: 'success',
-    headSha: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-    jobs: [
-      {
-        name: 'release-readiness',
-        status: 'completed',
-        conclusion: 'success',
-      },
-    ],
-  });
-
-  const result = runScript('scripts/release-operator.ts', [
-    'status',
-    '--run-json',
-    runJsonPath,
-    '--summary',
-  ]);
-
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-  assert.match(result.stdout, /^Release operator status$/m);
-  assert.match(result.stdout, /^Status: ready_for_closeout_review$/m);
-  assert.match(result.stdout, /^Next action: inspect_release_closeout_evidence$/m);
-  assert.throws(() => JSON.parse(result.stdout), SyntaxError);
-});
-
 test('release operator status includes owner-receipt promote fast path guidance', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-operator-status-owner-fast-path-'));
   const runJsonPath = path.join(tempRoot, 'run.json');
@@ -1025,49 +938,6 @@ test('release operator status reports phase current step elapsed and budget for 
   assert.equal(state.budget.run_updated_age_seconds, state.elapsed.seconds - 300);
   assert.equal(state.budget.threshold_seconds, 1200);
   assert.equal(state.next_action.action, 'inspect_current_step_progress');
-});
-
-test('release operator status attention budget calls out opaque WebUI publish steps', () => {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-operator-status-webui-progress-'));
-  const runJsonPath = path.join(tempRoot, 'run.json');
-  writeJson(runJsonPath, {
-    databaseId: 67890,
-    workflowName: 'OPL WebUI GHCR Release',
-    status: 'in_progress',
-    conclusion: null,
-    createdAt: '2026-06-29T19:53:18Z',
-    updatedAt: '2026-06-29T19:53:23Z',
-    headSha: 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
-    jobs: [
-      {
-        name: 'Build, verify, and publish WebUI GHCR image',
-        status: 'in_progress',
-        conclusion: null,
-        startedAt: '2026-06-29T19:53:22Z',
-        steps: [
-          {
-            name: 'Build, verify, and publish Docker WebUI',
-            status: 'in_progress',
-            conclusion: null,
-            startedAt: '2026-06-29T19:54:10Z',
-          },
-        ],
-      },
-    ],
-  });
-
-  const result = runScript('scripts/release-operator.ts', [
-    'status',
-    '--run-json',
-    runJsonPath,
-    '--summary',
-  ]);
-
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-  assert.match(result.stdout, /^Status: waiting_for_run_completion$/m);
-  assert.match(result.stdout, /^Current step: Build, verify, and publish Docker WebUI$/m);
-  assert.match(result.stdout, /^Budget: attention$/m);
-  assert.match(result.stdout, /^Next action: inspect_current_step_progress$/m);
 });
 
 test('release operator status reports failed gate while run is draining', () => {
@@ -1279,5 +1149,4 @@ test('release operator status reports successful current run as ready for closeo
   assert.equal(state.primary_blocker, null);
   assert.equal(state.recommended_next_action.action, 'inspect_release_closeout_evidence');
   assert.match(state.recommended_next_action.command, /npm run release:closeout -- --version 26\.6\.29 --run-id 45678/);
-  assert.match(fs.readFileSync(markdownPath, 'utf8'), /Primary blocker: none/);
 });

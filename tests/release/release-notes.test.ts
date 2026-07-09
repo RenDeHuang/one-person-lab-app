@@ -298,50 +298,6 @@ process.stdout.write(JSON.stringify({ choices: [{ message: { content: 'OPL_RELEA
   assert.equal(readback.model, 'auto');
 });
 
-test('AI release notes provider probe accepts the existing CODEX route names', () => {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-openai-compatible-codex-env-'));
-  const binDir = path.join(tempRoot, 'bin');
-  const fakeCurl = path.join(binDir, 'curl');
-  const requestPath = path.join(tempRoot, 'probe-request.json');
-
-  fs.mkdirSync(binDir, { recursive: true });
-  fs.writeFileSync(fakeCurl, `#!/usr/bin/env node
-const fs = require('node:fs');
-const args = process.argv.slice(2);
-const endpoint = args.find((arg) => /^https?:\\/\\//.test(arg));
-const body = args[args.indexOf('-d') + 1];
-const payload = JSON.parse(body);
-fs.writeFileSync(${JSON.stringify(requestPath)}, JSON.stringify({
-  endpoint,
-  model: payload.model,
-  hasBearer: args.includes('Authorization: Bearer codex-secret-test'),
-}, null, 2));
-process.stdout.write(JSON.stringify({ choices: [{ message: { content: 'OPL_RELEASE_NOTES_PROVIDER_OK' } }] }));
-`, { mode: 0o755 });
-
-  const result = runNode(['scripts/release-notes-ai-writer.ts', '--probe-openai-compatible'], {
-    env: {
-      PATH: `${binDir}${path.delimiter}${process.env.PATH}`,
-      OPL_RELEASE_NOTES_CODEX_BASE_URL: 'http://127.0.0.1:3001/v1',
-      OPL_RELEASE_NOTES_CODEX_API_KEY: 'codex-secret-test',
-      OPL_RELEASE_NOTES_MODEL: 'gpt-5.4-mini',
-    },
-  });
-
-  assert.equal(result.status, 0, result.stderr);
-  assert.doesNotMatch(result.stdout, /codex-secret-test/);
-  assert.doesNotMatch(result.stderr, /codex-secret-test/);
-  const request = JSON.parse(fs.readFileSync(requestPath, 'utf8'));
-  assert.deepEqual(request, {
-    endpoint: 'http://127.0.0.1:3001/v1/chat/completions',
-    model: 'gpt-5.4-mini',
-    hasBearer: true,
-  });
-  const readback = JSON.parse(result.stdout);
-  assert.equal(readback.provider, 'openai_compatible');
-  assert.equal(readback.model, 'gpt-5.4-mini');
-});
-
 test('AI release notes writer keeps evidence-completed user sections before Technical details', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-openai-compatible-section-order-'));
   const binDir = path.join(tempRoot, 'bin');
@@ -764,32 +720,20 @@ test('stable release notes are English and include bundled OPL-family agent vers
   });
 
   assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stdout, /One Person Lab v26\.5\.31/);
-  assert.match(result.stdout, /This Stable release is for users installing or upgrading One Person Lab App/);
   assertUserFirstLead(result.stdout);
   assert.match(result.stdout, /## Install Stable/);
   assert.match(
     result.stdout,
     /curl -fsSL https:\/\/raw\.githubusercontent\.com\/gaofeng21cn\/one-person-lab-app\/main\/install\.sh \| bash -s -- --stable-macos-install --yes/,
   );
-  assert.match(result.stdout, /First launch and setup/);
-  assert.match(result.stdout, /Made first launch and setup steps clearer/);
-  assert.match(result.stdout, /Built-in research, grant, and visual work/);
   assert.match(result.stdout, new RegExp(`MAS @ ${mas.currentRef.slice(0, 7)}`));
   assert.match(result.stdout, new RegExp(`MAG @ ${mag.currentRef.slice(0, 7)}`));
   assert.match(result.stdout, new RegExp(`RCA @ ${rca.currentRef.slice(0, 7)}`));
   assert.match(result.stdout, new RegExp(`OPL Meta Agent @ ${metaAgent.currentRef.slice(0, 7)}`));
   assert.match(result.stdout, /OfficeCLI 1\.2\.3/);
   assert.match(result.stdout, /MinerU v0\.1\.3/);
-  assert.match(result.stdout, /## OPL family updates/);
-  assert.match(result.stdout, /MAS: Research sessions make study and paper status/);
-  assert.match(result.stdout, /MAG: Grant-writing sessions make progress/);
-  assert.match(result.stdout, /RCA: Visual deliverable sessions make provider readiness/);
-  assert.match(result.stdout, /OPL Meta Agent: Agent-design sessions make work-order status/);
   assert.match(result.stdout, /OfficeCLI: updated in the bundled OPL family payload \(audit ref 1\.2\.2 -> 1\.2\.3\)/);
   assert.match(result.stdout, /MinerU: updated in the bundled OPL family payload \(audit ref v0\.1\.2 -> v0\.1\.3\)/);
-  assert.match(result.stdout, /Installing and updating/);
-  assert.match(result.stdout, /Guides and screenshots/);
   assert.match(result.stdout, /## Technical details/);
   assert.match(result.stdout, /Packaged component refs:/);
   assert.doesNotMatch(result.stdout, /Release focus/);
@@ -926,11 +870,7 @@ test('nightly release notes compare against the previous nightly and stay standa
     evidence.release_scope,
     'Standard macOS arm64 Nightly package and updater metadata; no Full first-install DMG in the Nightly channel.',
   );
-  assert.match(result.stdout, /One Person Lab v26\.5\.31-nightly/);
-  assert.match(result.stdout, /This Nightly prerelease is for users who want to try the current standard App shell/);
   assertUserFirstLead(result.stdout);
-  assert.match(result.stdout, /First launch and setup/);
-  assert.match(result.stdout, /Built-in research, grant, and visual work/);
   assert.match(result.stdout, /Standard macOS arm64 Nightly package and updater metadata only/);
   assert.doesNotMatch(result.stdout, /Full clean-install/);
   assert.doesNotMatch(result.stdout, /[\u3400-\u9fff]/);

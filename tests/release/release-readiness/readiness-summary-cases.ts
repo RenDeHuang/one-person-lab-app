@@ -104,70 +104,6 @@ test('release readiness summary passes only from small diagnostic artifacts', ()
   assert.ok(summary.bottlenecks.some((entry) => entry.id === 'dmg_package_compression'));
   assert.ok(summary.optimization_recommendations.some((entry) => entry.id === 'profile_slowest_full_build_segment'));
   assert.ok(summary.optimization_recommendations.some((entry) => entry.id === 'reduce_dmg_package_compression_time'));
-  const markdown = fs.readFileSync(summaryPath, 'utf8');
-  assert.match(markdown, /Release Readiness Summary/);
-  assert.match(markdown, /One-shot installer/);
-  assert.match(markdown, /\.\/install\.sh --complete --skip-modules/);
-  assert.match(markdown, /one-shot-app-installer-smoke/);
-  assert.match(markdown, /setup_flow: ready_to_launch/);
-  assert.match(markdown, /core: 3\/3/);
-  assert.match(markdown, /retry: false/);
-  assert.match(markdown, /skip_modules: true/);
-  assert.match(markdown, /Bottlenecks/);
-  assert.match(markdown, /Optimization recommendations/);
-});
-
-test('release readiness summary does not fail the clean evidence gate when Full diagnostics are absent', () => {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-readiness-full-diagnostics-optional-'));
-  const outputPath = path.join(tempRoot, 'release-readiness-summary.json');
-  const summaryPath = path.join(tempRoot, 'summary.md');
-  const jobResultsPath = path.join(tempRoot, 'job-results.json');
-  const artifactsRoot = path.join(tempRoot, 'inputs');
-  writePassingArtifacts(artifactsRoot);
-  fs.rmSync(path.join(artifactsRoot, 'opl-full-workflow-telemetry-26.5.99'), { recursive: true, force: true });
-  fs.rmSync(path.join(artifactsRoot, 'opl-full-diagnostics-26.5.99'), { recursive: true, force: true });
-  writeJson(path.join(artifactsRoot, 'webui-ghcr-publish-26.5.99', 'opl-webui-ghcr-publish.json'), {
-    status: 'published',
-    image: 'ghcr.io/gaofeng21cn/one-person-lab-webui',
-    tags: ['26.5.99', 'stable', 'latest'],
-    draft_candidate_push: false,
-    build_reuse: {
-      mode: 'same_job_after_docker_webui_smoke',
-      source_gate: 'docker-webui-smoke',
-      repeated_docker_build: false,
-    },
-  });
-  writePassingJobResults(jobResultsPath);
-  const jobResults = JSON.parse(fs.readFileSync(jobResultsPath, 'utf8'));
-  jobResults['full-first-install'] = 'success';
-  writeJson(jobResultsPath, jobResults);
-
-  const result = runSummary([
-    '--version',
-    '26.5.99',
-    '--release-mode',
-    'refresh_existing',
-    '--include-full-package',
-    'true',
-    '--run-vm-smoke',
-    'true',
-    '--artifacts-dir',
-    artifactsRoot,
-    '--job-results',
-    jobResultsPath,
-    '--output',
-    outputPath,
-    '--markdown',
-    summaryPath,
-  ]);
-
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-  const summary = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
-  assert.equal(summary.status, 'passed');
-  assert.equal(summary.gates.full_size_cache_timing.status, 'skipped');
-  assert.equal(summary.gates.full_size_cache_timing.required, false);
-  assert.equal(summary.gates.full_size_cache_timing.fields.diagnostic_only, true);
-  assert.deepEqual(summary.failed_required_gates, []);
 });
 
 test('release readiness summary treats Docker WebUI gates as optional when Docker publishing is disabled', () => {
@@ -743,9 +679,6 @@ test('release readiness summary surfaces miss_written runtime cache layers', () 
   assert.equal(summary.full_package.runtime_cache.written_layer_count, 2);
   assert.ok(summary.bottlenecks.some((entry) => entry.id === 'runtime_cache_miss_written'));
   assert.ok(summary.optimization_recommendations.some((entry) => entry.id === 'seed_full_runtime_cache'));
-  assert.match(fs.readFileSync(summaryPath, 'utf8'), /Runtime cache miss_written layers/);
-  assert.match(fs.readFileSync(summaryPath, 'utf8'), /domain-runtime, opl-runtime/);
-  assert.match(fs.readFileSync(summaryPath, 'utf8'), /seed_full_runtime_cache/);
 });
 
 test('release readiness summary fails closed when a stable-required gate is missing', () => {

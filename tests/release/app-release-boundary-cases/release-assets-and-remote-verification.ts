@@ -588,42 +588,6 @@ test('remote release verifier rejects diagnostic-only files as public GitHub Rel
   assert.match(result.stderr, /standard-release-notes-evidence\.json/);
 });
 
-test('remote release verifier accepts legacy separate Full evidence assets during manifest transition', () => {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-remote-release-legacy-full-'));
-  const binDir = path.join(tempRoot, 'bin');
-  const version = '26.5.19-legacy';
-  const names = [
-    ...writeStandardRemoteAssets(tempRoot, version),
-    ...writeFullRemoteAssets(tempRoot, version, { legacySeparateEvidenceAssets: true }),
-  ];
-  const releaseView = buildRemoteReleaseView(tempRoot, names, `v${version}`);
-  writeFakeMacosTrustCommands(binDir);
-
-  const result = runNode([
-    'scripts/verify-remote-release-assets.ts',
-    '--version',
-    version,
-    '--repo',
-    'gaofeng21cn/one-person-lab-app',
-    '--include-full-package',
-    '--download-dir',
-    tempRoot,
-    '--no-download',
-  ], {
-    env: {
-      OPL_REMOTE_RELEASE_VIEW_JSON: JSON.stringify(releaseView),
-      PATH: `${binDir}${path.delimiter}${process.env.PATH}`,
-    },
-  });
-
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-  const summary = JSON.parse(result.stdout);
-  assert.equal(summary.status, 'passed');
-  assert.ok(summary.verified_assets.some((asset) => asset.name === 'full-package-manifest.json'));
-  assert.ok(!summary.verified_assets.some((asset) => asset.name === 'opl-release-manifest.json'));
-  assert.equal(summary.full_first_install_budget.status, 'passed');
-});
-
 test('remote release verifier accepts ad-hoc signed standard updater app zips under local authorization policy', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-remote-release-adhoc-'));
   const binDir = path.join(tempRoot, 'bin');

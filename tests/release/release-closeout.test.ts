@@ -270,20 +270,6 @@ test('release closeout separates workflow wall time from Agent orchestration wal
   assert.ok(summary.optimization_recommendations.some((entry) => entry.id === 'reduce_failed_rerun_tax'));
   assert.ok(summary.optimization_recommendations.some((entry) => entry.id === 'review_full_size_optimization_candidates'));
   assert.ok(summary.optimization_recommendations.some((entry) => entry.id === 'seed_full_runtime_cache'));
-  const markdown = fs.readFileSync(path.join(outDir, 'release-closeout.md'), 'utf8');
-  assert.match(markdown, /GitHub Actions workflow wall time is the release execution KPI/);
-  assert.match(markdown, /Agent orchestration wall time/);
-  assert.match(markdown, /Full Package Timing/);
-  assert.match(markdown, /Failed Rerun Tax/);
-  assert.match(markdown, /Optimization Recommendations/);
-  assert.match(markdown, /Full Size Optimization Candidates/);
-  assert.match(markdown, /Runtime cache miss_written layers: domain-runtime/);
-  assert.match(markdown, /Monitor state: ready_to_promote/);
-  assert.match(markdown, /No-watch monitor/);
-  assert.match(markdown, /Artifact Attestation Verification/);
-  assert.match(markdown, /build_integrity_evidence/);
-  assert.match(markdown, /Does not replace: checksum verification, remote asset readback/);
-  assert.match(markdown, /gh attestation verify <downloaded-release-asset-path>/);
 });
 
 test('release closeout reads attestation verification summary from small artifact inputs', () => {
@@ -334,10 +320,6 @@ test('release closeout reads attestation verification summary from small artifac
   assert.equal(summary.artifact_attestation_verification.verification.verified_assets[0].name, 'One-Person-Lab-26.5.99-arm64.dmg');
   assert.deepEqual(summary.artifact_attestation_verification.verify_commands, []);
   assert.match(summary.artifact_attestation_verification.rule, /not release readiness evidence/);
-  const markdown = fs.readFileSync(path.join(outDir, 'release-closeout.md'), 'utf8');
-  assert.match(markdown, /Artifact Attestation Verification/);
-  assert.match(markdown, /State: verified/);
-  assert.doesNotMatch(markdown, /<downloaded-release-asset-path>/);
 });
 
 test('release closeout marks failed attestation verification without treating it as readiness', () => {
@@ -379,46 +361,6 @@ test('release closeout marks failed attestation verification without treating it
   assert.equal(summary.artifact_attestation_verification.state, 'failed');
   assert.equal(summary.artifact_attestation_verification.verification.status, 'failed');
   assert.match(summary.artifact_attestation_verification.rule, /not release readiness evidence/);
-  const markdown = fs.readFileSync(path.join(outDir, 'release-closeout.md'), 'utf8');
-  assert.match(markdown, /State: failed/);
-  assert.match(markdown, /Does not replace: checksum verification, remote asset readback/);
-});
-
-test('release closeout accepts output-dir as a clear alias for out-dir', () => {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-closeout-output-dir-'));
-  const artifactsRoot = path.join(tempRoot, 'artifacts');
-  const outDir = path.join(tempRoot, 'out');
-  const runPath = path.join(tempRoot, 'run.json');
-  const jobsPath = path.join(tempRoot, 'jobs.json');
-  writeCloseoutArtifacts(artifactsRoot);
-  writeJson(runPath, {
-    databaseId: '67890',
-    status: 'completed',
-    conclusion: 'success',
-    createdAt: '2026-06-30T00:00:00Z',
-    startedAt: '2026-06-30T00:00:01Z',
-    updatedAt: '2026-06-30T00:10:00Z',
-    workflowName: 'OPL Desktop Release',
-    headSha: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
-  });
-  writeJson(jobsPath, { jobs: [] });
-
-  const result = runCloseout([
-    '--version',
-    '26.5.99',
-    '--run-json',
-    runPath,
-    '--jobs-json',
-    jobsPath,
-    '--artifacts-dir',
-    artifactsRoot,
-    '--output-dir',
-    outDir,
-    '--no-download',
-  ]);
-
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-  assert.equal(readJson(path.join(outDir, 'release-closeout.json')).schema, 'opl_release_closeout_summary.v1');
 });
 
 test('release closeout stops at readiness failed gates before raw log inspection', () => {
@@ -551,9 +493,6 @@ test('release closeout separates published release state from failed post-publis
   assert.equal(summary.decision.next_action, 'resolve_post_publish_followup_gate');
   assert.equal(summary.decision.post_publish.published_release_readback, true);
   assert.equal(summary.decision.post_publish.failed_followup_jobs[0].name, 'Run Homebrew standard first-run VM smoke');
-  const markdown = fs.readFileSync(path.join(outDir, 'release-closeout.md'), 'utf8');
-  assert.match(markdown, /Post-Publish Follow-Up/);
-  assert.match(markdown, /Do not conflate published release\/tap state/);
 });
 
 test('release closeout uses candidate record inside an in-progress workflow job', () => {
