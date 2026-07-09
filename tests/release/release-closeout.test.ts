@@ -86,6 +86,7 @@ function expectCloseout(options: Parameters<typeof runCloseoutFixture>[0]) {
 function assertReadoutState(readout: ReturnType<typeof expectCloseout>, status: string, monitorState = status) {
   assert.equal(readout.stdout.status, status);
   assert.equal(readout.stdout.monitor_state, monitorState);
+  assert.equal(readout.summary.monitor.state, monitorState);
   assert.equal(readout.monitor.state, monitorState);
   assert.equal(readout.notification.state, monitorState);
 }
@@ -244,7 +245,6 @@ test('release closeout separates workflow wall time from Agent orchestration wal
   assert.equal(stdout.monitor, path.relative(appRoot, path.join(outDir, 'release-monitor.json')));
   assert.equal(stdout.notification, path.relative(appRoot, path.join(outDir, 'release-notification.json')));
   assert.equal(summary.monitor.schema, 'opl_release_run_monitor.v1');
-  assert.equal(summary.monitor.state, 'ready_to_promote');
   assert.equal(summary.notification_payload.schema, 'opl_release_run_notification.v1');
   assert.equal(monitor.schema, 'opl_release_run_monitor.v1');
   assert.equal(monitor.recommended_next_action.action, 'promote_from_candidate_record');
@@ -311,13 +311,6 @@ test('release closeout stops at readiness failed gates before raw log inspection
   };
   const { readout } = runCloseoutCase('opl-release-closeout-blocked-', {
     closeoutArtifacts: false,
-    run: {
-      status: 'completed',
-      conclusion: 'success',
-      createdAt: '2026-06-12T10:00:00Z',
-      startedAt: '2026-06-12T10:00:00Z',
-      updatedAt: '2026-06-12T10:10:00Z',
-    },
     setup: ({ artifactsRoot }) => writeReleaseArtifact(artifactsRoot, VERSION, 'release-readiness-summary', 'release-readiness-summary.json', {
       schema: 'opl_release_readiness_summary.v1',
       status: 'failed',
@@ -338,13 +331,8 @@ test('release closeout separates published release state from failed post-publis
   const { readout } = runCloseoutCase('opl-release-closeout-post-publish-', {
     closeoutArtifacts: false,
     run: {
-      databaseId: '67890',
       conclusion: 'failure',
-      createdAt: '2026-06-20T09:52:53Z',
-      startedAt: '2026-06-20T09:52:53Z',
-      updatedAt: '2026-06-20T10:18:32Z',
       workflowName: 'OPL Desktop Release Promote',
-      url: 'https://github.com/gaofeng21cn/one-person-lab-app/actions/runs/67890',
     },
     jobs: [
       completedJob('Verify and publish draft release', 'success', '2026-06-20T09:53:00Z', '2026-06-20T09:54:19Z'),
@@ -368,10 +356,8 @@ test('release closeout uses candidate record inside an in-progress workflow job'
     artifactDir: 'release-closeout-inputs',
     outDirName: 'release-closeout',
     run: {
-      databaseId: 12345,
       status: 'in_progress',
       conclusion: null,
-      url: 'https://github.com/gaofeng21cn/one-person-lab-app/actions/runs/12345',
     },
     jobs: [{
       name: 'Summarize release readiness',
@@ -406,10 +392,8 @@ test('release closeout requires owner-resolution validation before promote', () 
       }),
     },
     run: {
-      databaseId: 12345,
       status: 'in_progress',
       conclusion: null,
-      url: 'https://github.com/gaofeng21cn/one-person-lab-app/actions/runs/12345',
     },
   });
   const { stdout, summary } = readout;
@@ -429,11 +413,8 @@ test('release closeout monitor reports running while structured release evidence
     outDirName: 'release-closeout',
     closeoutArtifacts: false,
     run: {
-      databaseId: 98765,
       status: 'in_progress',
       conclusion: null,
-      updatedAt: '2026-06-12T10:45:00Z',
-      url: 'https://github.com/gaofeng21cn/one-person-lab-app/actions/runs/98765',
     },
   });
   const { stdout, monitor } = readout;
@@ -448,10 +429,6 @@ test('release closeout monitor reports published from explicit release target ev
     artifactDir: 'release-closeout-inputs',
     outDirName: 'release-closeout',
     closeoutArtifacts: false,
-    run: {
-      databaseId: 24680,
-      url: 'https://github.com/gaofeng21cn/one-person-lab-app/actions/runs/24680',
-    },
     setup: ({ artifactsRoot }) => writeReleaseArtifacts(artifactsRoot, [
       ['release-preflight-summary', 'release-preflight-summary.json', {
         schema: 'opl_release_preflight.v1',
@@ -463,7 +440,6 @@ test('release closeout monitor reports published from explicit release target ev
   });
   const { summary, monitor } = readout;
   assertReadoutState(readout, 'inspect_missing_candidate_record', 'published');
-  assert.equal(summary.monitor.state, 'published');
   assert.equal(monitor.published, true);
   assert.equal(monitor.promote_ready, false);
 });
