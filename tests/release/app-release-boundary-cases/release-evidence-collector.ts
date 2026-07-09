@@ -18,6 +18,21 @@ import {
   fileSha256,
 } from './helpers.ts';
 
+const completeAttachedArtifacts = [
+  'runtime_screenshot',
+  'full_screenshot',
+  'action_screenshot',
+  'first_run_vm_summary',
+  'guest_smoke_summary',
+  'assistant_route_smoke_summary',
+  'codex_functional_check_summary',
+  'assistant_route_smoke_mas_screenshot',
+  'assistant_route_smoke_mag_screenshot',
+  'assistant_route_smoke_rca_screenshot',
+  'remote_release_verification',
+  'codex_ai_self_check_summary',
+];
+
 test('release evidence collector preserves argument error boundaries', () => {
   const unknown = runNode(['scripts/collect-release-evidence.ts', '--unknown']);
   assert.notEqual(unknown.status, 0);
@@ -181,20 +196,7 @@ test('release evidence collector can attach externally produced contracted artif
   });
   assert.equal(payload.current_cohort_evidence, true);
   assert.equal(payload.missing_artifact_count, 0);
-  assert.deepEqual(payload.attached_artifacts, [
-    'runtime_screenshot',
-    'full_screenshot',
-    'action_screenshot',
-    'first_run_vm_summary',
-    'guest_smoke_summary',
-    'assistant_route_smoke_summary',
-    'codex_functional_check_summary',
-    'assistant_route_smoke_mas_screenshot',
-    'assistant_route_smoke_mag_screenshot',
-    'assistant_route_smoke_rca_screenshot',
-    'remote_release_verification',
-    'codex_ai_self_check_summary',
-  ]);
+  assert.deepEqual(payload.attached_artifacts, completeAttachedArtifacts);
 
   const validation = runNode([
     'scripts/validate-release-evidence-bundle.ts',
@@ -254,20 +256,7 @@ test('release evidence collector imports standard smoke source directories witho
   });
   assert.equal(payload.current_cohort_evidence, true);
   assert.equal(payload.missing_artifact_count, 0);
-  assert.deepEqual(payload.attached_artifacts, [
-    'runtime_screenshot',
-    'full_screenshot',
-    'action_screenshot',
-    'first_run_vm_summary',
-    'guest_smoke_summary',
-    'assistant_route_smoke_summary',
-    'codex_functional_check_summary',
-    'assistant_route_smoke_mas_screenshot',
-    'assistant_route_smoke_mag_screenshot',
-    'assistant_route_smoke_rca_screenshot',
-    'remote_release_verification',
-    'codex_ai_self_check_summary',
-  ]);
+  assert.deepEqual(payload.attached_artifacts, completeAttachedArtifacts);
   assert.equal(
     fileSha256(path.join(bundleDir, 'screenshots', 'runtime.png')),
     fileSha256(path.join(overrideEvidence, 'runtime.png')),
@@ -327,17 +316,7 @@ test('release evidence collector imports typed blockers as blocked evidence', ()
   assert.equal(payload.status, 'blocked_evidence');
   assert.equal(payload.packaged_app_evidence, false);
   assert.deepEqual(payload.attached_artifacts, [
-    'runtime_screenshot',
-    'full_screenshot',
-    'action_screenshot',
-    'guest_smoke_summary',
-    'assistant_route_smoke_summary',
-    'codex_functional_check_summary',
-    'assistant_route_smoke_mas_screenshot',
-    'assistant_route_smoke_mag_screenshot',
-    'assistant_route_smoke_rca_screenshot',
-    'remote_release_verification',
-    'codex_ai_self_check_summary',
+    ...completeAttachedArtifacts.filter((id) => id !== 'first_run_vm_summary'),
     'first_run_vm_summary:typed_blocker',
   ]);
   assert.equal(payload.blocked_artifact_count, 1);

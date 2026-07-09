@@ -41,25 +41,54 @@ test('release boundary guard wires App-owned installation validators', () => {
 test('Homebrew tap updater is a local cohort-bound manifest and checksum planner', () => {
   const tapRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-homebrew-tap-test-'));
   const digest = 'b'.repeat(64);
-
-  const stableResult = runNode([
+  const releaseUrl = (version: string, assetName: string) =>
+    `https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v${version}/${assetName}`;
+  const standardDmg = (version: string) => `One-Person-Lab-${version}-mac-arm64.dmg`;
+  const fullDmg = (version: string) => `One-Person-Lab-Full-${version}-mac-arm64.dmg`;
+  const runTap = ({
+    channel = 'stable',
+    packageKind,
+    version = '26.6.4',
+    targetFlag = '--cask',
+    target,
+    manifest,
+    download,
+    write = false,
+  }: {
+    channel?: string;
+    packageKind?: string;
+    version?: string;
+    targetFlag?: '--cask' | '--formula';
+    target: string;
+    manifest: string;
+    download: string;
+    write?: boolean;
+  }) => runNode([
     'scripts/update-homebrew-tap.ts',
     '--channel',
-    'stable',
+    channel,
+    ...(packageKind ? ['--package-kind', packageKind] : []),
     '--version',
-    '26.6.4',
+    version,
     '--tap-root',
     tapRoot,
-    '--cask',
-    'Casks/one-person-lab.rb',
+    targetFlag,
+    target,
     '--manifest-url',
-    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/latest-arm64-mac.yml',
+    releaseUrl(version, manifest),
     '--checksum-sha256',
     digest,
     '--download-url',
-    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/One-Person-Lab-26.6.4-mac-arm64.dmg',
-    '--write',
+    releaseUrl(version, download),
+    ...(write ? ['--write'] : []),
   ]);
+
+  const stableResult = runTap({
+    target: 'Casks/one-person-lab.rb',
+    manifest: 'latest-arm64-mac.yml',
+    download: standardDmg('26.6.4'),
+    write: true,
+  });
   assert.equal(stableResult.status, 0, stableResult.stderr || stableResult.stdout);
   const stablePlan = JSON.parse(stableResult.stdout);
   assert.equal(stablePlan.channel, 'stable');
@@ -82,26 +111,13 @@ test('Homebrew tap updater is a local cohort-bound manifest and checksum planner
   assert.match(stableCask, /agent_pack_activation_owner: app_cli_managed_background_maintenance/);
   assert.match(stableCask, /conflicts_with cask: \["one-person-lab-full", "one-person-lab-nightly"\]/);
 
-  const fullResult = runNode([
-    'scripts/update-homebrew-tap.ts',
-    '--channel',
-    'stable',
-    '--package-kind',
-    'app_full_first_install',
-    '--version',
-    '26.6.4',
-    '--tap-root',
-    tapRoot,
-    '--cask',
-    'Casks/one-person-lab-full.rb',
-    '--manifest-url',
-    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/opl-release-manifest.json',
-    '--checksum-sha256',
-    digest,
-    '--download-url',
-    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/One-Person-Lab-Full-26.6.4-mac-arm64.dmg',
-    '--write',
-  ]);
+  const fullResult = runTap({
+    packageKind: 'app_full_first_install',
+    target: 'Casks/one-person-lab-full.rb',
+    manifest: 'opl-release-manifest.json',
+    download: fullDmg('26.6.4'),
+    write: true,
+  });
   assert.equal(fullResult.status, 0, fullResult.stderr || fullResult.stdout);
   const fullPlan = JSON.parse(fullResult.stdout);
   assert.equal(fullPlan.channel, 'stable');
@@ -123,219 +139,104 @@ test('Homebrew tap updater is a local cohort-bound manifest and checksum planner
   assert.match(fullCask, /conflicts_with cask: \["one-person-lab", "one-person-lab-nightly"\]/);
   assert.match(fullCask, /Full assets stay outside standard updater metadata/);
 
-  const stableRefresh = runNode([
-    'scripts/update-homebrew-tap.ts',
-    '--channel',
-    'stable',
-    '--version',
-    '26.6.5',
-    '--tap-root',
-    tapRoot,
-    '--cask',
-    'Casks/one-person-lab.rb',
-    '--manifest-url',
-    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.5/latest-arm64-mac.yml',
-    '--checksum-sha256',
-    digest,
-    '--download-url',
-    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.5/One-Person-Lab-26.6.5-mac-arm64.dmg',
-    '--write',
-  ]);
+  const stableRefresh = runTap({
+    version: '26.6.5',
+    target: 'Casks/one-person-lab.rb',
+    manifest: 'latest-arm64-mac.yml',
+    download: standardDmg('26.6.5'),
+    write: true,
+  });
   assert.equal(stableRefresh.status, 0, stableRefresh.stderr || stableRefresh.stdout);
   const stableRefreshedCask = fs.readFileSync(path.join(tapRoot, 'Casks', 'one-person-lab.rb'), 'utf8');
   assert.match(stableRefreshedCask, /\n  # OPL_HOMEBREW_BOUNDARY_START\n  # channel: stable/);
 
-  const modulesPackageKind = runNode([
-    'scripts/update-homebrew-tap.ts',
-    '--channel',
-    'stable',
-    '--package-kind',
-    'modules_bundle',
-    '--version',
-    '26.6.4',
-    '--tap-root',
-    tapRoot,
-    '--formula',
-    'Formula/one-person-lab-modules.rb',
-    '--manifest-url',
-    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/opl-modules-manifest.json',
-    '--checksum-sha256',
-    digest,
-    '--download-url',
-    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/one-person-lab-modules-26.6.4.tar.gz',
-    '--write',
-  ]);
+  const modulesPackageKind = runTap({
+    packageKind: 'modules_bundle',
+    targetFlag: '--formula',
+    target: 'Formula/one-person-lab-modules.rb',
+    manifest: 'opl-modules-manifest.json',
+    download: 'one-person-lab-modules-26.6.4.tar.gz',
+    write: true,
+  });
   assert.notEqual(modulesPackageKind.status, 0);
   assert.match(modulesPackageKind.stderr, /Homebrew tap updates are App cask-only/);
 
-  const nightlyResult = runNode([
-    'scripts/update-homebrew-tap.ts',
-    '--channel',
-    'nightly',
-    '--version',
-    '26.6.4-nightly',
-    '--tap-root',
-    tapRoot,
-    '--cask',
-    'Casks/one-person-lab-nightly.rb',
-    '--manifest-url',
-    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4-nightly/latest-arm64-mac.yml',
-    '--checksum-sha256',
-    digest,
-    '--download-url',
-    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4-nightly/One-Person-Lab-26.6.4-nightly-mac-arm64.dmg',
-    '--write',
-  ]);
+  const nightlyResult = runTap({
+    channel: 'nightly',
+    version: '26.6.4-nightly',
+    target: 'Casks/one-person-lab-nightly.rb',
+    manifest: 'latest-arm64-mac.yml',
+    download: standardDmg('26.6.4-nightly'),
+    write: true,
+  });
   assert.equal(nightlyResult.status, 0, nightlyResult.stderr || nightlyResult.stdout);
   assert.equal(JSON.parse(nightlyResult.stdout).targets[0].path, 'Casks/one-person-lab-nightly.rb');
   const nightlyPlanRootCask = fs.readFileSync(path.join(tapRoot, 'Casks', 'one-person-lab-nightly.rb'), 'utf8');
   assert.match(nightlyPlanRootCask, /livecheck do[\s\S]*skip "Nightly casks track prerelease cohorts through App release automation"/);
 
-  const nightlyToStable = runNode([
-    'scripts/update-homebrew-tap.ts',
-    '--channel',
-    'nightly',
-    '--version',
-    '26.6.4-nightly',
-    '--tap-root',
-    tapRoot,
-    '--cask',
-    'Casks/one-person-lab.rb',
-    '--manifest-url',
-    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4-nightly/latest-arm64-mac.yml',
-    '--checksum-sha256',
-    digest,
-    '--download-url',
-    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4-nightly/One-Person-Lab-26.6.4-nightly-mac-arm64.dmg',
-  ]);
+  const nightlyToStable = runTap({
+    channel: 'nightly',
+    version: '26.6.4-nightly',
+    target: 'Casks/one-person-lab.rb',
+    manifest: 'latest-arm64-mac.yml',
+    download: standardDmg('26.6.4-nightly'),
+  });
   assert.notEqual(nightlyToStable.status, 0);
   assert.match(nightlyToStable.stderr, /Nightly Homebrew tap updates may only update nightly formula\/cask targets/);
 
-  const stableNightlyPromotion = runNode([
-    'scripts/update-homebrew-tap.ts',
-    '--channel',
-    'stable',
-    '--version',
-    '26.6.4-nightly',
-    '--tap-root',
-    tapRoot,
-    '--cask',
-    'Casks/one-person-lab.rb',
-    '--manifest-url',
-    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4-nightly/latest-arm64-mac.yml',
-    '--checksum-sha256',
-    digest,
-    '--download-url',
-    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4-nightly/One-Person-Lab-26.6.4-nightly-mac-arm64.dmg',
-  ]);
+  const stableNightlyPromotion = runTap({
+    version: '26.6.4-nightly',
+    target: 'Casks/one-person-lab.rb',
+    manifest: 'latest-arm64-mac.yml',
+    download: standardDmg('26.6.4-nightly'),
+  });
   assert.notEqual(stableNightlyPromotion.status, 0);
   assert.match(stableNightlyPromotion.stderr, /Stable Homebrew tap updates must not use a nightly version/);
 
-  const appToModules = runNode([
-    'scripts/update-homebrew-tap.ts',
-    '--channel',
-    'stable',
-    '--package-kind',
-    'app_standard',
-    '--version',
-    '26.6.4',
-    '--tap-root',
-    tapRoot,
-    '--formula',
-    'Formula/one-person-lab-modules.rb',
-    '--manifest-url',
-    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/opl-modules-manifest.json',
-    '--checksum-sha256',
-    digest,
-    '--download-url',
-    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/one-person-lab-modules-26.6.4.tar.gz',
-  ]);
+  const appToModules = runTap({
+    packageKind: 'app_standard',
+    targetFlag: '--formula',
+    target: 'Formula/one-person-lab-modules.rb',
+    manifest: 'opl-modules-manifest.json',
+    download: 'one-person-lab-modules-26.6.4.tar.gz',
+  });
   assert.notEqual(appToModules.status, 0);
   assert.match(appToModules.stderr, /Homebrew tap updates are App cask-only/);
 
-  const fullLeakInStandardPlan = runNode([
-    'scripts/update-homebrew-tap.ts',
-    '--channel',
-    'stable',
-    '--version',
-    '26.6.4',
-    '--tap-root',
-    tapRoot,
-    '--cask',
-    'Casks/one-person-lab.rb',
-    '--manifest-url',
-    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/opl-release-manifest.json',
-    '--checksum-sha256',
-    digest,
-    '--download-url',
-    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/One-Person-Lab-26.6.4-mac-arm64.dmg',
-  ]);
+  const fullLeakInStandardPlan = runTap({
+    target: 'Casks/one-person-lab.rb',
+    manifest: 'opl-release-manifest.json',
+    download: standardDmg('26.6.4'),
+  });
   assert.notEqual(fullLeakInStandardPlan.status, 0);
   assert.match(fullLeakInStandardPlan.stderr, /Full first-install payloads/);
 
-  const fullNightly = runNode([
-    'scripts/update-homebrew-tap.ts',
-    '--channel',
-    'nightly',
-    '--package-kind',
-    'app_full_first_install',
-    '--version',
-    '26.6.4-nightly',
-    '--tap-root',
-    tapRoot,
-    '--cask',
-    'Casks/one-person-lab-full.rb',
-    '--manifest-url',
-    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4-nightly/opl-release-manifest.json',
-    '--checksum-sha256',
-    digest,
-    '--download-url',
-    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4-nightly/One-Person-Lab-Full-26.6.4-nightly-mac-arm64.dmg',
-  ]);
+  const fullNightly = runTap({
+    channel: 'nightly',
+    packageKind: 'app_full_first_install',
+    version: '26.6.4-nightly',
+    target: 'Casks/one-person-lab-full.rb',
+    manifest: 'opl-release-manifest.json',
+    download: fullDmg('26.6.4-nightly'),
+  });
   assert.notEqual(fullNightly.status, 0);
   assert.match(fullNightly.stderr, /Full first-install Homebrew cask updates must stay on the stable channel/);
 
-  const fullToStandard = runNode([
-    'scripts/update-homebrew-tap.ts',
-    '--channel',
-    'stable',
-    '--package-kind',
-    'app_full_first_install',
-    '--version',
-    '26.6.4',
-    '--tap-root',
-    tapRoot,
-    '--cask',
-    'Casks/one-person-lab.rb',
-    '--manifest-url',
-    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/opl-release-manifest.json',
-    '--checksum-sha256',
-    digest,
-    '--download-url',
-    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/One-Person-Lab-Full-26.6.4-mac-arm64.dmg',
-  ]);
+  const fullToStandard = runTap({
+    packageKind: 'app_full_first_install',
+    target: 'Casks/one-person-lab.rb',
+    manifest: 'opl-release-manifest.json',
+    download: fullDmg('26.6.4'),
+  });
   assert.notEqual(fullToStandard.status, 0);
   assert.match(fullToStandard.stderr, /Full first-install Homebrew cask updates may only update Casks\/one-person-lab-full\.rb/);
 
-  const legacyFullManifestForFullCask = runNode([
-    'scripts/update-homebrew-tap.ts',
-    '--channel',
-    'stable',
-    '--package-kind',
-    'app_full_first_install',
-    '--version',
-    '26.6.4',
-    '--tap-root',
-    tapRoot,
-    '--cask',
-    'Casks/one-person-lab-full.rb',
-    '--manifest-url',
-    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/full-package-manifest.json',
-    '--checksum-sha256',
-    digest,
-    '--download-url',
-    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/One-Person-Lab-Full-26.6.4-mac-arm64.dmg',
-  ]);
+  const legacyFullManifestForFullCask = runTap({
+    packageKind: 'app_full_first_install',
+    target: 'Casks/one-person-lab-full.rb',
+    manifest: 'full-package-manifest.json',
+    download: fullDmg('26.6.4'),
+  });
   assert.notEqual(legacyFullManifestForFullCask.status, 0);
   assert.match(legacyFullManifestForFullCask.stderr, /opl-release-manifest\.json/);
 
