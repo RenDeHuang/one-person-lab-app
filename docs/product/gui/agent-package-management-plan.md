@@ -60,6 +60,39 @@ therefore:
 - explicit statement that canonical runtime projection is `agent_packages` and
   `modules.items[]` remains fallback-only compatibility.
 
+## Ordinary User Lifecycle UX
+
+Settings > 智能体与能力 is an App-owned product requirement, not a runtime
+authority surface. AionUI and Native Workbench must consume the same
+`app_state.agent_packages.directory + app_state.agent_packages.status_index`
+projection and the same `app_state.actions` refs. `app_state.modules.items[]`
+is fallback-only for older or partial runtime payloads and must not become a
+second package directory, package execution truth, currentness claim, or action
+authority.
+
+The ordinary package manager UX checklist is:
+
+- search package name, short name, purpose tag, source label, and description;
+- filter by install/update/source/trust/Codex Surface/Home visibility state;
+- explain install source in user language: OPL Packages, local developer
+  checkout, organization registry, user registry, or direct manifest URL;
+- show failure reason only when a package is failed, blocked, or needs user
+  action;
+- keep receipt refs, `physical_surface`, paths, manifest refs, cache config,
+  marketplace config, workflow refs, connector refs, and resource refs in the
+  detail panel or Advanced diagnostics, not primary row density;
+- use the same dry-run/confirmation/receipt pattern for hide, unhide, disable,
+  enable, update, repair, uninstall, manifest URL install, and launch;
+- show `rollback_ref` only as a recovery reference; do not add an App-owned
+  rollback verb.
+
+Details must include the physical Codex surface when Framework provides it:
+plugin id, required skill ids/paths, plugin cache path, marketplace path, Codex
+config path, materialization status, and whether reload is required. Health of
+the live installed Codex surface reload remains deferred release/runtime
+evidence; landing this product contract does not claim installed-surface reload,
+release readiness, or package execution readiness.
+
 ## Core Decision
 
 OPL App should not add a strong session contract for professional agents.

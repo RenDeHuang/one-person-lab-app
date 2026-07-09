@@ -2455,6 +2455,100 @@
         ],
         "completion_boundary": "this page-state target requires canonical agent_packages projection and allows modules.items fallback only as rollout compatibility"
       },
+      "agent_package_lifecycle_ux": {
+        "requirement_scope": "product_requirement_not_runtime_authority",
+        "primary_state_surface": "app_state.agent_packages.directory + app_state.agent_packages.status_index",
+        "fallback_state_surface": "app_state.modules.items[]",
+        "fallback_policy": "modules.items fallback is compatibility-only for older or partial payloads and cannot claim package currentness, execution readiness, or mutation authority",
+        "shell_consumers": ["aionui", "opl_native_workbench"],
+        "action_ref_source": "app_state.actions",
+        "action_route": "opl app action execute --action <action_id> [--payload <json>] [--dry-run] --json",
+        "field_behavior_checklist": [
+          "search_by_package_name_short_name_tag_source_or_description",
+          "filter_by_install_update_source_trust_codex_surface_and_home_visibility_state",
+          "explain_install_source_in_user_language",
+          "show_failure_reason_only_when_failed_blocked_or_needs_user_action",
+          "show_receipt_and_physical_surface_in_details_or_advanced_only",
+          "use_consistent_confirmation_and_receipt_pattern_for_hide_disable_update_repair_uninstall_install_and_launch",
+          "display_rollback_ref_as_recovery_reference_only_no_app_rollback_verb"
+        ],
+        "directory_controls": {
+          "top_controls": [
+            "refresh_registry",
+            "search_by_package_name_tag_or_description",
+            "status_filter",
+            "manifest_url_install"
+          ],
+          "filters": ["status", "source", "trust", "codex_surface", "home_visibility", "purpose_tag"],
+          "row_actions": [
+            "hide",
+            "unhide",
+            "disable",
+            "enable",
+            "update",
+            "repair",
+            "uninstall",
+            "launch",
+            "open_details"
+          ]
+        },
+        "source_explanation_fields": [
+          "source_label",
+          "source_kind",
+          "trust_tier",
+          "manifest_url",
+          "distribution_ref",
+          "developer_source_warning"
+        ],
+        "failure_reason_fields": [
+          "failure_reason",
+          "blocker_summary",
+          "last_action_receipt_ref",
+          "recommended_action"
+        ],
+        "receipt_physical_surface_detail_policy": {
+          "surface": "details_panel_or_advanced_diagnostics",
+          "default_primary_row_visible": false,
+          "receipt_fields": ["receipt_refs", "package_lock_ref", "action_receipt_ref", "rollback_ref"],
+          "physical_surface_fields": [
+            "status",
+            "plugin_id",
+            "marketplace_id",
+            "codex_plugin_cache_path",
+            "marketplace_path",
+            "codex_config_path",
+            "required_skill_ids",
+            "required_skill_paths",
+            "reload_required"
+          ]
+        },
+        "consistent_action_interaction": {
+          "exposure_actions": ["hide", "unhide", "disable", "enable"],
+          "lifecycle_actions": ["install", "update", "repair", "uninstall"],
+          "launch_action": "launch",
+          "required_confirmation_fields": [
+            "what_changes",
+            "what_does_not_change",
+            "receipt_or_recovery_ref",
+            "post_action_refresh"
+          ],
+          "dry_run_or_confirmation_required": true
+        },
+        "rollback_verb_allowed": false,
+        "session_contract_allowed": false,
+        "runtime_authority_allowed": false,
+        "package_execution_authority_allowed": false,
+        "live_codex_surface_reload_completion_policy": "deferred_release_runtime_evidence_not_product_contract_completion",
+        "must_not_own": [
+          "package_lifecycle_execution",
+          "package_execution_runtime",
+          "package_currentness_truth",
+          "live_codex_surface_reload_truth",
+          "domain_truth",
+          "domain_readiness",
+          "owner_receipt_authority"
+        ]
+      },
       "status_model": {
         "policy": "multi_axis_package_status_no_single_repair_bucket",
         "axes": [

@@ -173,6 +173,26 @@ ad hoc cards:
 - Unknown deep links redirect to the nearest App-owned Settings group; legacy
   deep links follow `settings_navigation.legacy_route_redirects`.
 
+### Agent Package Lifecycle UX
+
+The Capabilities page is package-directory-first. It consumes
+`app_state.agent_packages.directory + app_state.agent_packages.status_index`
+plus `app_state.actions`; Native Workbench and AionUI render the same state and
+action refs. `modules.items[]` remains fallback-only and cannot claim package
+currentness, execution readiness, or mutation authority.
+
+Ordinary users must be able to search, filter, understand the install source,
+see the failure reason when a package fails, inspect receipt/`physical_surface`
+details on demand, and apply the same interaction pattern for hide/unhide,
+disable/enable, update, repair, uninstall, manifest URL install, and launch.
+Those actions go through the App action route with confirmation or dry-run
+copy that states what changes, what does not change, the receipt or recovery
+reference, and the post-action refresh behavior.
+
+The page must not expose package execution/runtime/domain truth. A live installed
+Codex surface reload check is a deferred runtime/release evidence lane, not a
+condition for marking the App-owned product contract complete.
+
 ## Task Entries
 
 The OPL Control Center keeps eight top-level entries. User task entries are surfaced

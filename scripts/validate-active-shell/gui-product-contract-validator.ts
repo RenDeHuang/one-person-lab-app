@@ -159,6 +159,119 @@ function validateReadOnlyStorageLifecycleSurface(surface, label) {
   );
 }
 
+function validateAgentPackageLifecycleUx(surface, label) {
+  if (
+    surface?.requirement_scope !== 'product_requirement_not_runtime_authority' ||
+    surface.primary_state_surface !== 'app_state.agent_packages.directory + app_state.agent_packages.status_index' ||
+    surface.fallback_state_surface !== 'app_state.modules.items[]' ||
+    surface.action_ref_source !== 'app_state.actions' ||
+    surface.action_route !== appActionRoute
+  ) {
+    throw new Error(`${label} must define package-directory lifecycle UX as App product truth over App state/action refs`);
+  }
+  assertDeepEqualJson(surface.shell_consumers, ['aionui', 'opl_native_workbench'], `${label} shell consumers`);
+  assertIncludesAll(
+    surface.field_behavior_checklist,
+    [
+      'search_by_package_name_short_name_tag_source_or_description',
+      'filter_by_install_update_source_trust_codex_surface_and_home_visibility_state',
+      'explain_install_source_in_user_language',
+      'show_failure_reason_only_when_failed_blocked_or_needs_user_action',
+      'show_receipt_and_physical_surface_in_details_or_advanced_only',
+      'use_consistent_confirmation_and_receipt_pattern_for_hide_disable_update_repair_uninstall_install_and_launch',
+      'display_rollback_ref_as_recovery_reference_only_no_app_rollback_verb',
+    ],
+    `${label} checklist`,
+  );
+  assertIncludesAll(
+    surface.directory_controls?.top_controls,
+    ['refresh_registry', 'search_by_package_name_tag_or_description', 'status_filter', 'manifest_url_install'],
+    `${label} top controls`,
+  );
+  assertIncludesAll(
+    surface.directory_controls?.filters,
+    ['status', 'source', 'trust', 'codex_surface', 'home_visibility', 'purpose_tag'],
+    `${label} filters`,
+  );
+  assertIncludesAll(
+    surface.directory_controls?.row_actions,
+    ['hide', 'unhide', 'disable', 'enable', 'update', 'repair', 'uninstall', 'launch', 'open_details'],
+    `${label} row actions`,
+  );
+  assertIncludesAll(
+    surface.source_explanation_fields,
+    ['source_label', 'source_kind', 'trust_tier', 'manifest_url', 'distribution_ref', 'developer_source_warning'],
+    `${label} source explanation fields`,
+  );
+  assertIncludesAll(
+    surface.failure_reason_fields,
+    ['failure_reason', 'blocker_summary', 'last_action_receipt_ref', 'recommended_action'],
+    `${label} failure reason fields`,
+  );
+  const detail = surface.receipt_physical_surface_detail_policy;
+  if (detail?.surface !== 'details_panel_or_advanced_diagnostics' || detail.default_primary_row_visible !== false) {
+    throw new Error(`${label} must keep receipts and physical_surface out of primary row density`);
+  }
+  assertIncludesAll(
+    detail.receipt_fields,
+    ['receipt_refs', 'package_lock_ref', 'action_receipt_ref', 'rollback_ref'],
+    `${label} receipt fields`,
+  );
+  assertIncludesAll(
+    detail.physical_surface_fields,
+    [
+      'status',
+      'plugin_id',
+      'marketplace_id',
+      'codex_plugin_cache_path',
+      'marketplace_path',
+      'codex_config_path',
+      'required_skill_ids',
+      'required_skill_paths',
+      'reload_required',
+    ],
+    `${label} physical surface fields`,
+  );
+  assertDeepEqualJson(
+    surface.consistent_action_interaction?.exposure_actions,
+    ['hide', 'unhide', 'disable', 'enable'],
+    `${label} exposure actions`,
+  );
+  assertDeepEqualJson(
+    surface.consistent_action_interaction?.lifecycle_actions,
+    ['install', 'update', 'repair', 'uninstall'],
+    `${label} lifecycle actions`,
+  );
+  assertIncludesAll(
+    surface.consistent_action_interaction?.required_confirmation_fields,
+    ['what_changes', 'what_does_not_change', 'receipt_or_recovery_ref', 'post_action_refresh'],
+    `${label} confirmation fields`,
+  );
+  if (
+    surface.consistent_action_interaction?.dry_run_or_confirmation_required !== true ||
+    surface.rollback_verb_allowed !== false ||
+    surface.session_contract_allowed !== false ||
+    surface.runtime_authority_allowed !== false ||
+    surface.package_execution_authority_allowed !== false ||
+    surface.live_codex_surface_reload_completion_policy !== 'deferred_release_runtime_evidence_not_product_contract_completion'
+  ) {
+    throw new Error(`${label} must not own rollback verbs, sessions, runtime authority, execution authority, or live reload completion`);
+  }
+  assertIncludesAll(
+    surface.must_not_own,
+    [
+      'package_lifecycle_execution',
+      'package_execution_runtime',
+      'package_currentness_truth',
+      'live_codex_surface_reload_truth',
+      'domain_truth',
+      'domain_readiness',
+      'owner_receipt_authority',
+    ],
+    `${label} forbidden authority`,
+  );
+}
+
 export function validateAppGuiProductContract(guiContract, releaseChannel, installExposurePolicy) {
   validateGuiProductHomeContract(guiContract);
   validateGuiFrameworkSurfaces(guiContract, releaseChannel, installExposurePolicy);
@@ -610,6 +723,10 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   validateWorkflowSkillCandidateProjectionContract(
     pages.settings_capabilities.workflow_skill_candidate_policy,
     'Settings Capabilities workflow/skill candidate policy',
+  );
+  validateAgentPackageLifecycleUx(
+    pages.settings_capabilities.agent_package_lifecycle_ux,
+    'Settings Capabilities Agent Package lifecycle UX',
   );
   validateOplFlowContext(guiContract.opl_flow_context, 'App GUI OPL Flow Context');
   if (!pages.settings_advanced.sections?.includes('opl_flow_context')) {
