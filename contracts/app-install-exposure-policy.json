@@ -282,6 +282,38 @@
         },
         "api_key_policy": "never_pass_api_key_on_cli_or_environment_for_beginner_path",
         "api_key_entry_surface": "browser_webui_first_run_access_panel_or_settings_access",
+        "cloud_deployment_model": {
+          "status": "supported_template_for_server_or_cloud_deployment",
+          "template_dir": "deploy/docker-webui/cloud",
+          "installer_entrypoint": "install-docker-webui.sh --cloud-template",
+          "compose_files": [
+            "compose.yaml",
+            "compose.gateway-key.yaml"
+          ],
+          "reverse_proxy": "Caddy automatic HTTPS in front of the WebUI container",
+          "webui_auth": {
+            "default_username": "opl",
+            "username_env": "OPL_WEBUI_USERNAME",
+            "required_password_secret": "OPL_WEBUI_PASSWORD_FILE",
+            "fallback_password_env": "OPL_WEBUI_PASSWORD",
+            "deployment_mode_env": "OPL_WEBUI_DEPLOYMENT_MODE=cloud",
+            "auth_mode_env": "OPL_WEBUI_AUTH_MODE=password",
+            "auto_login": "disabled_when_cloud_or_password_or_gateway_secret_is_configured"
+          },
+          "gateway_api_key": {
+            "optional_secret": "OPL_GATEWAY_API_KEY_FILE",
+            "fallback_env": "OPL_GATEWAY_API_KEY",
+            "transport": "local_webui_runtime_proxy_to_opl_system_configure_codex_stdin_only",
+            "does_not_replace_webui_password": true
+          },
+          "fail_closed_rules": [
+            "cloud_or_password_mode_requires_OPL_WEBUI_PASSWORD_FILE_or_OPL_WEBUI_PASSWORD",
+            "gateway_api_key_secret_without_webui_password_secret_must_refuse_start",
+            "secret_files_must_be_readable_and_non_empty",
+            "configured_password_and_gateway_key_must_not_be_logged_or_written_to_diagnostics"
+          ],
+          "beginner_path_preserved": "no_cloud_or_secret_env_keeps_local_browser_auto_login_and_browser_first_access_key_entry"
+        },
         "runtime_proxy_smoke": {
           "mode": "webui_proxy_configure_codex",
           "endpoint": "/api/opl-runtime/configure-codex",

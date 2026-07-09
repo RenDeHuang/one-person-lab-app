@@ -1,0 +1,11 @@
+services:
+  one-person-lab-webui:
+    environment:
+      OPL_GATEWAY_API_KEY_FILE: /run/secrets/opl_gateway_api_key
+    secrets:
+      - source: opl_gateway_api_key
+        target: opl_gateway_api_key
+
+secrets:
+  opl_gateway_api_key:
+    file: ${OPL_GATEWAY_API_KEY_FILE:-./secrets/gateway_api_key}

@@ -1,0 +1,5 @@
+{$OPL_WEBUI_DOMAIN} {
+  encode zstd gzip
+  tls {$OPL_CADDY_EMAIL}
+  reverse_proxy one-person-lab-webui:3000
+}

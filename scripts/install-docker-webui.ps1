@@ -78,7 +78,7 @@ function ConvertFrom-DiagnosticSensitiveText {
   if ($null -eq $Text) {
     return ""
   }
-  $redacted = $Text -replace "(?i)([A-Za-z0-9_.-]*(api[_-]?key|token|credential)[A-Za-z0-9_.-]*\s*[:=]\s*)[^\s`"']+", '$1[redacted]'
+  $redacted = $Text -replace "(?i)([A-Za-z0-9_.-]*(api[_-]?key|token|credential|password)[A-Za-z0-9_.-]*\s*[:=]\s*)[^\s`"']+", '$1[redacted]'
   $redacted = $redacted -replace "(?i)(Bearer\s+)[A-Za-z0-9._~+/=-]+", '$1[redacted]'
   $redacted = $redacted -replace "sk-[A-Za-z0-9_-]{20,}", "sk-[redacted]"
   return $redacted

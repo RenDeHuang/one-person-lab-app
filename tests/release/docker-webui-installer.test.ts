@@ -11,6 +11,7 @@ const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..',
 const installerPath = path.join(appRoot, 'scripts', 'install-docker-webui.sh');
 const windowsInstallerPath = path.join(appRoot, 'scripts', 'install-docker-webui.ps1');
 const smokeGatePath = path.join(appRoot, 'scripts', 'docker-webui-smoke-gate.ts');
+const cloudTemplateDir = path.join(appRoot, 'deploy', 'docker-webui', 'cloud');
 const imageDigest = 'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 const diagnosticsFiles = [
   'metadata.txt',
@@ -180,6 +181,21 @@ test('Docker/WebUI installer dry-run generates the compose-only startup plan', (
   assert.equal(fs.existsSync(path.join(home, 'OnePersonLab')), false, 'dry-run must not create host directories');
 });
 
+test('Docker/WebUI installer dry-run can generate the cloud deployment template plan without starting Docker', () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-cloud-template-home-'));
+  const target = path.join(home, 'cloud');
+  const result = runInstaller(['--dry-run', '--cloud-template', '--cloud-template-dir', target], { HOME: home });
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.match(result.stdout, /Would copy cloud deployment template:/);
+  assert.match(result.stdout, /deploy\/docker-webui\/cloud/);
+  assert.match(result.stdout, new RegExp(target.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  assert.match(result.stdout, /create secrets\/webui_password/);
+  assert.match(result.stdout, /docker compose -f compose\.yaml up -d/);
+  assert.doesNotMatch(result.stdout, /docker compose -f .*compose\.yaml up -d\n/);
+  assert.equal(fs.existsSync(target), false, 'dry-run must not create the cloud template directory');
+});
+
 test('Docker/WebUI installer rejects API key parameters', () => {
   const result = runInstaller(['--dry-run', '--api-key', 'secret']);
   assert.notEqual(result.status, 0);
@@ -188,6 +204,25 @@ test('Docker/WebUI installer rejects API key parameters', () => {
   const providerKeyResult = runInstaller(['--dry-run', '--anthropic-api-key=secret']);
   assert.notEqual(providerKeyResult.status, 0);
   assert.match(providerKeyResult.stderr, /Do not pass API keys/);
+});
+
+test('Docker/WebUI cloud template uses Docker secrets, password auth, and optional Gateway key overlay', () => {
+  const compose = fs.readFileSync(path.join(cloudTemplateDir, 'compose.yaml'), 'utf8');
+  const gatewayOverlay = fs.readFileSync(path.join(cloudTemplateDir, 'compose.gateway-key.yaml'), 'utf8');
+  const envExample = fs.readFileSync(path.join(cloudTemplateDir, '.env.example'), 'utf8');
+  const readme = fs.readFileSync(path.join(cloudTemplateDir, 'README.md'), 'utf8');
+
+  assert.match(compose, /OPL_WEBUI_DEPLOYMENT_MODE: cloud/);
+  assert.match(compose, /OPL_WEBUI_AUTH_MODE: password/);
+  assert.match(compose, /OPL_WEBUI_USERNAME: \$\{OPL_WEBUI_USERNAME:-opl\}/);
+  assert.match(compose, /OPL_WEBUI_PASSWORD_FILE: \/run\/secrets\/opl_webui_password/);
+  assert.match(compose, /file: \$\{OPL_WEBUI_PASSWORD_FILE:-\.\/secrets\/webui_password\}/);
+  assert.match(compose, /image: caddy:2/);
+  assert.doesNotMatch(compose, /OPL_GATEWAY_API_KEY_FILE/);
+  assert.match(gatewayOverlay, /OPL_GATEWAY_API_KEY_FILE: \/run\/secrets\/opl_gateway_api_key/);
+  assert.match(gatewayOverlay, /file: \$\{OPL_GATEWAY_API_KEY_FILE:-\.\/secrets\/gateway_api_key\}/);
+  assert.match(envExample, /OPL_WEBUI_USERNAME=opl/);
+  assert.match(readme, /Gateway API key is not the WebUI login password/);
 });
 
 test('Docker/WebUI installer validates health timeout before running', () => {
@@ -241,6 +276,12 @@ test('Docker/WebUI diagnostic validator requires preservation evidence and rejec
   const secretResult = validateDockerWebuiDiagnostics(diagnostics);
   assert.equal(secretResult.status, 'failed');
   assert.ok(secretResult.forbidden_secret_markers.some((marker) => marker.includes('OPENAI_API_KEY')));
+
+  writeMinimalDiagnostics(diagnostics);
+  fs.writeFileSync(path.join(diagnostics, 'docker-compose-logs.txt'), 'OPL_WEBUI_PASSWORD=secret-password\n');
+  const webuiPasswordResult = validateDockerWebuiDiagnostics(diagnostics);
+  assert.equal(webuiPasswordResult.status, 'failed');
+  assert.ok(webuiPasswordResult.forbidden_secret_markers.some((marker) => marker.includes('OPL_WEBUI_PASSWORD')));
 
   writeMinimalDiagnostics(diagnostics);
   fs.rmSync(path.join(diagnostics, 'data-preservation.txt'));

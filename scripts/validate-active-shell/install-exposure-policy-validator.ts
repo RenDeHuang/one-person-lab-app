@@ -231,6 +231,43 @@ function validateInstallerSurfaces(policy) {
   if (dockerWebui.installer_model?.api_key_entry_surface !== 'browser_webui_first_run_access_panel_or_settings_access') {
     throw new Error('Docker/WebUI install exposure must make WebUI the first API key entry surface');
   }
+  const cloudDeployment = dockerWebui.installer_model?.cloud_deployment_model;
+  if (cloudDeployment?.template_dir !== 'deploy/docker-webui/cloud') {
+    throw new Error('Docker/WebUI cloud deployment must declare the deploy/docker-webui/cloud template directory');
+  }
+  if (cloudDeployment?.installer_entrypoint !== 'install-docker-webui.sh --cloud-template') {
+    throw new Error('Docker/WebUI cloud deployment must be generated through the explicit --cloud-template entrypoint');
+  }
+  assertIncludesAll(
+    cloudDeployment?.compose_files,
+    ['compose.yaml', 'compose.gateway-key.yaml'],
+    'Docker/WebUI cloud compose files',
+  );
+  if (
+    cloudDeployment?.webui_auth?.default_username !== 'opl' ||
+    cloudDeployment?.webui_auth?.required_password_secret !== 'OPL_WEBUI_PASSWORD_FILE' ||
+    cloudDeployment?.webui_auth?.auth_mode_env !== 'OPL_WEBUI_AUTH_MODE=password' ||
+    !String(cloudDeployment?.webui_auth?.auto_login ?? '').includes('disabled')
+  ) {
+    throw new Error('Docker/WebUI cloud deployment must require password auth and disable auto-login');
+  }
+  if (
+    cloudDeployment?.gateway_api_key?.optional_secret !== 'OPL_GATEWAY_API_KEY_FILE' ||
+    cloudDeployment?.gateway_api_key?.does_not_replace_webui_password !== true ||
+    !String(cloudDeployment?.gateway_api_key?.transport ?? '').includes('stdin_only')
+  ) {
+    throw new Error('Docker/WebUI cloud deployment must keep Gateway API key optional, stdin-only, and separate from WebUI password');
+  }
+  assertIncludesAll(
+    cloudDeployment?.fail_closed_rules,
+    [
+      'cloud_or_password_mode_requires_OPL_WEBUI_PASSWORD_FILE_or_OPL_WEBUI_PASSWORD',
+      'gateway_api_key_secret_without_webui_password_secret_must_refuse_start',
+      'secret_files_must_be_readable_and_non_empty',
+      'configured_password_and_gateway_key_must_not_be_logged_or_written_to_diagnostics',
+    ],
+    'Docker/WebUI cloud fail-closed rules',
+  );
   if (
     dockerWebui.installer_model?.runtime_proxy_smoke?.mode !== 'webui_proxy_configure_codex' ||
     dockerWebui.installer_model?.runtime_proxy_smoke?.endpoint !== '/api/opl-runtime/configure-codex' ||

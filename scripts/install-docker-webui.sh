@@ -2,10 +2,12 @@
 set -euo pipefail
 
 DEFAULT_IMAGE='ghcr.io/gaofeng21cn/one-person-lab-webui:stable'
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OPL_WEBUI_HOME=${OPL_WEBUI_HOME:-"$HOME/OnePersonLab"}
 DATA_DIR=${OPL_WEBUI_DATA_DIR:-"$OPL_WEBUI_HOME/data"}
 PROJECTS_DIR=${OPL_WEBUI_PROJECTS_DIR:-"$OPL_WEBUI_HOME/projects"}
 COMPOSE_FILE=${OPL_WEBUI_COMPOSE_FILE:-"$OPL_WEBUI_HOME/compose.yaml"}
+CLOUD_TEMPLATE_DIR=${OPL_WEBUI_CLOUD_TEMPLATE_DIR:-"$OPL_WEBUI_HOME/cloud"}
 IMAGE=${OPL_WEBUI_IMAGE:-"$DEFAULT_IMAGE"}
 PORT=${OPL_WEBUI_PORT:-3000}
 HEALTH_TIMEOUT=${OPL_WEBUI_HEALTH_TIMEOUT:-120}
@@ -17,6 +19,7 @@ YES=0
 UPDATE=0
 OPEN_BROWSER=1
 DETACH=1
+CLOUD_TEMPLATE=0
 PRE_DATA_INVENTORY=''
 PRE_PROJECTS_INVENTORY=''
 
@@ -35,6 +38,9 @@ Options:
   --diagnostics-dir <path>  Write a diagnostic directory after startup.
   --diagnostics-archive <path>
                             Write a .tar.gz diagnostic package after startup.
+  --cloud-template          Copy the cloud deployment compose/Caddy/secrets template and exit.
+  --cloud-template-dir <path>
+                            Target directory for --cloud-template (default: $OPL_WEBUI_HOME/cloud).
   --tag <tag>               Use ghcr.io/gaofeng21cn/one-person-lab-webui:<tag>.
   --image <image>           Use a full image reference instead of the default GHCR image.
   --data-dir <path>         Host directory mounted as /data.
@@ -150,6 +156,18 @@ while [ "$#" -gt 0 ]; do
       DIAGNOSTICS_ARCHIVE="${1#--diagnostics-archive=}"
       need_value --diagnostics-archive "$DIAGNOSTICS_ARCHIVE"
       ;;
+    --cloud-template)
+      CLOUD_TEMPLATE=1
+      ;;
+    --cloud-template-dir)
+      shift
+      need_value --cloud-template-dir "${1:-}"
+      CLOUD_TEMPLATE_DIR="$1"
+      ;;
+    --cloud-template-dir=*)
+      CLOUD_TEMPLATE_DIR="${1#--cloud-template-dir=}"
+      need_value --cloud-template-dir "$CLOUD_TEMPLATE_DIR"
+      ;;
     --tag)
       shift
       need_value --tag "${1:-}"
@@ -226,6 +244,7 @@ reject_compose_unsafe_value "Compose file path" "$COMPOSE_FILE"
 reject_compose_unsafe_value "Health URL" "$HEALTH_URL"
 reject_compose_unsafe_value "Diagnostics directory" "$DIAGNOSTICS_DIR"
 reject_compose_unsafe_value "Diagnostics archive" "$DIAGNOSTICS_ARCHIVE"
+reject_compose_unsafe_value "Cloud template directory" "$CLOUD_TEMPLATE_DIR"
 
 OS_NAME="$(uname -s)"
 
@@ -379,6 +398,29 @@ write_compose_file() {
   compose_content > "$COMPOSE_FILE"
 }
 
+write_cloud_template() {
+  local source_dir="$SCRIPT_DIR/../deploy/docker-webui/cloud"
+  if [ ! -d "$source_dir" ]; then
+    die "Cloud template source not found: $source_dir. Run this option from a checkout that includes deploy/docker-webui/cloud."
+  fi
+  if [ "$DRY_RUN" = "1" ]; then
+    log "Would copy cloud deployment template:"
+    log "  from: $source_dir"
+    log "  to:   $CLOUD_TEMPLATE_DIR"
+    log "Would then require: copy .env.example to .env, create secrets/webui_password, set domain/email, and run docker compose -f compose.yaml up -d."
+    return 0
+  fi
+  mkdir -p "$CLOUD_TEMPLATE_DIR"
+  cp -R "$source_dir"/. "$CLOUD_TEMPLATE_DIR"/
+  log "Cloud deployment template written: $CLOUD_TEMPLATE_DIR"
+  log "Next steps:"
+  log "  1. cd \"$CLOUD_TEMPLATE_DIR\""
+  log "  2. cp .env.example .env and set OPL_WEBUI_DOMAIN / OPL_CADDY_EMAIL"
+  log "  3. create secrets/webui_password"
+  log "  4. docker compose -f compose.yaml up -d"
+  log "Optional Gateway key overlay: docker compose -f compose.yaml -f compose.gateway-key.yaml up -d"
+}
+
 open_browser() {
   [ "$OPEN_BROWSER" = "1" ] || return 0
   local url="http://localhost:${PORT}/"
@@ -434,7 +476,7 @@ start_webui() {
 
 redact_diagnostic_stream() {
   sed -E \
-    -e 's/([A-Za-z0-9_.-]*(api[_-]?key|token|credential)[A-Za-z0-9_.-]*[[:space:]]*[:=][[:space:]]*)[^[:space:]"'\'']+/\1[redacted]/Ig' \
+    -e 's/([A-Za-z0-9_.-]*(api[_-]?key|token|credential|password)[A-Za-z0-9_.-]*[[:space:]]*[:=][[:space:]]*)[^[:space:]"'\'']+/\1[redacted]/Ig' \
     -e 's/(Bearer[[:space:]]+)[A-Za-z0-9._~+\/=-]+/\1[redacted]/Ig' \
     -e 's/sk-[A-Za-z0-9_-]{20,}/sk-[redacted]/g'
 }
@@ -673,6 +715,11 @@ fi
 log "Image/seed: default stable WebUI image uses the full seed; --tag and --image are advanced overrides."
 log "API keys are not accepted by this installer; enter access keys inside the WebUI first-run Access panel or Settings -> Access."
 log_user_path_status
+
+if [ "$CLOUD_TEMPLATE" = "1" ]; then
+  write_cloud_template
+  exit 0
+fi
 
 ensure_docker
 ensure_compose

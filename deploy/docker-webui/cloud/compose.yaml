@@ -1,0 +1,52 @@
+services:
+  one-person-lab-webui:
+    image: ${OPL_WEBUI_IMAGE:-ghcr.io/gaofeng21cn/one-person-lab-webui:stable}
+    pull_policy: always
+    restart: unless-stopped
+    expose:
+      - "3000"
+    environment:
+      AIONUI_ALLOW_REMOTE: "true"
+      AIONUI_DATA_DIR: /data
+      OPL_PROJECTS_DIR: /projects
+      OPL_WEBUI_DEPLOYMENT_MODE: cloud
+      OPL_WEBUI_AUTH_MODE: password
+      OPL_WEBUI_USERNAME: ${OPL_WEBUI_USERNAME:-opl}
+      OPL_WEBUI_PASSWORD_FILE: /run/secrets/opl_webui_password
+    secrets:
+      - source: opl_webui_password
+        target: opl_webui_password
+    volumes:
+      - ./data:/data
+      - ./projects:/projects
+    networks:
+      - opl_webui
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - one-person-lab-webui
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      OPL_WEBUI_DOMAIN: ${OPL_WEBUI_DOMAIN:?set OPL_WEBUI_DOMAIN in .env}
+      OPL_CADDY_EMAIL: ${OPL_CADDY_EMAIL:?set OPL_CADDY_EMAIL in .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - opl_webui
+
+secrets:
+  opl_webui_password:
+    file: ${OPL_WEBUI_PASSWORD_FILE:-./secrets/webui_password}
+
+volumes:
+  caddy_data:
+  caddy_config:
+
+networks:
+  opl_webui:

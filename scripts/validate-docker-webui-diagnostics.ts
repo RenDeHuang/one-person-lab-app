@@ -43,6 +43,8 @@ const SECRET_PATTERNS = [
   /sk-[A-Za-z0-9_-]{20,}/g,
   /OPENAI_API_KEY\s*[:=]\s*[^ \n\r]+/gi,
   /ANTHROPIC_API_KEY\s*[:=]\s*[^ \n\r]+/gi,
+  /OPL_WEBUI_PASSWORD\s*[:=]\s*[^ \n\r]+/gi,
+  /OPL_GATEWAY_API_KEY\s*[:=]\s*[^ \n\r]+/gi,
   /GFLABTOKEN\s*[:=]\s*[^ \n\r]+/gi,
   /Bearer\s+[A-Za-z0-9._~+/=-]{20,}/gi,
 ];

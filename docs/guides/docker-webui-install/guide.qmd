@@ -4,9 +4,11 @@ subtitle: "Linux / Windows 一键安装"
 lang: zh-CN
 ---
 
-适用对象：Linux、Windows 或服务器用户；默认没有 Docker 经验。
+适用对象：Linux、Windows、本机 Docker 用户和服务器管理员；默认没有 Docker 经验的用户走本机一键安装路径。
 
 新手主路径是先让 Docker 正常运行，再运行 One Person Lab 提供的一键安装器，最后在浏览器里完成首次配置。手动 Docker 命令只作为排障或高级部署路径保留。
+
+本机一键安装默认只绑定 `127.0.0.1:3000`，浏览器自动建立本机 WebUI 会话，不要求输入 WebUI 用户名和密码。云端或公网部署不是这个默认路径：只要显式设置 cloud/password 模式，或传入 WebUI 密码、OPL Gateway API Key 等外部 secret，就必须启用 WebUI 登录密码，默认用户名是 `opl`，并通过 Docker secrets 或 `*_FILE` 传入。
 
 镜像：`{{download.image}}`
 
@@ -162,7 +164,59 @@ projects mount readback
 
 如果启动失败，优先运行安装器自带 startup diagnostics 或让技术支持收集诊断包。诊断包应包含 `compose.yaml`、Docker 版本、compose 状态、容器日志、HTTP probe、目录 readback 和 data-preservation verdict；诊断包不能包含真实访问密钥。
 
-## 6. 在 WebUI 里填写访问密钥
+## 6. 云端部署：使用密码、secrets 和 TLS
+
+当 WebUI 部署在云服务器、VPS、办公室服务器或任何可能被非本机浏览器访问的位置时，不要使用默认免密码路径。云端部署使用仓库内的模板包：
+
+```bash
+sh ./scripts/install-docker-webui.sh --cloud-template \
+  --cloud-template-dir "$HOME/OnePersonLab/cloud"
+cd "$HOME/OnePersonLab/cloud"
+cp .env.example .env
+```
+
+编辑 `.env`：
+
+```dotenv
+OPL_WEBUI_DOMAIN=opl.example.com
+OPL_CADDY_EMAIL=admin@example.com
+OPL_WEBUI_IMAGE=ghcr.io/gaofeng21cn/one-person-lab-webui:stable
+OPL_WEBUI_USERNAME=opl
+OPL_WEBUI_PASSWORD_FILE=./secrets/webui_password
+OPL_GATEWAY_API_KEY_FILE=./secrets/gateway_api_key
+```
+
+创建 Docker secret 文件：
+
+```bash
+mkdir -p secrets data projects
+printf '%s\n' '<强 WebUI 登录密码>' > secrets/webui_password
+chmod 600 secrets/webui_password
+```
+
+启动带 Caddy HTTPS 反向代理的 WebUI：
+
+```bash
+docker compose -f compose.yaml up -d
+```
+
+如果管理员要提前配置 OPL Gateway API Key，再创建可选 secret，并叠加 overlay：
+
+```bash
+printf '%s\n' '<OPL Gateway API Key>' > secrets/gateway_api_key
+chmod 600 secrets/gateway_api_key
+docker compose -f compose.yaml -f compose.gateway-key.yaml up -d
+```
+
+云端规则：
+
+- WebUI 登录密码和 OPL Gateway API Key 是两件事；API Key 不能替代登录密码。
+- 只传 `OPL_GATEWAY_API_KEY_FILE` / `OPL_GATEWAY_API_KEY` 而没有 `OPL_WEBUI_PASSWORD_FILE` / `OPL_WEBUI_PASSWORD` 时，容器必须拒绝启动。
+- 推荐 Docker secrets 和 `*_FILE`；明文环境变量只作为高级兜底。
+- 公开访问只走 Caddy/反向代理的 HTTPS 地址，不把 WebUI 容器直接裸露到公网。
+- 云端模式禁用浏览器自动登录；用户访问域名时输入用户名 `opl` 或 `.env` 中的 `OPL_WEBUI_USERNAME`，以及 secret 文件里的 WebUI 密码。
+
+## 7. 在 WebUI 里填写访问密钥
 
 首次进入后，如果页面提示访问配置未完成，联系管理员获取模型/API 访问密钥。拿到密钥后，在首启访问页的输入框里粘贴并保存；之后也可以从“设置 -> 访问”进入同一个配置面。
 
@@ -187,7 +241,7 @@ projects mount readback
 
 ![设置里的访问入口](screenshots/04-settings-entry.png)
 
-## 7. 理解数据目录和项目目录
+## 8. 理解数据目录和项目目录
 
 一键安装器会把主机上的 `OnePersonLab/data` 挂载到容器 `/data`，把 `OnePersonLab/projects` 挂载到容器 `/projects`。
 
@@ -211,7 +265,7 @@ Linux/macOS: $HOME/OnePersonLab/projects -> /projects
 - 项目文件放 `/projects`，不要把 `/data` 当工作目录。
 - 容器可以替换；数据目录和项目目录才是用户状态。
 
-## 8. 下次打开、关闭和更新
+## 9. 下次打开、关闭和更新
 
 日常使用时，Windows 先启动 Docker Desktop；Linux 先确认 Docker Engine 正常。然后用安装器生成的 compose 入口启动 WebUI，浏览器访问 `http://localhost:3000/`。不用时停止 compose 服务。
 
@@ -238,7 +292,7 @@ ordinary_docker_webui_user_path：一键安装 -> 浏览器 WebUI -> Settings ->
 - Docker/WebUI 不通过浏览器 WebUI 挂载 Docker socket 自我更新容器，也不需要 Watchtower。
 - 定期或收到通知时在主机上拉取新镜像；替换容器前确认 `data/projects` 仍映射到同一个主机目录。
 
-## 9. 高级路径：手动 Docker 排障
+## 10. 高级路径：手动 Docker 排障
 
 手动 `docker run` 和 `docker compose` 不是新手主路径。它们保留给技术支持确认镜像、端口、挂载和环境变量。手动命令也不能携带模型/API 访问密钥；密钥仍然只在 WebUI 里填写。
 
@@ -254,7 +308,7 @@ docker run --rm -p 3000:3000 \
 
 `compose.yaml` 也必须保留 `/data`、`/projects` 和浏览器 WebUI-first key entry 边界。
 
-## 10. 发布验证边界
+## 11. 发布验证边界
 
 Docker/WebUI 发布验收不是只看文档、合同或本地容器启动。release/GHCR/smoke 结论只来自对应 workflow artifact、publish receipt、VM smoke result 或 typed blocker。clean Linux VM、clean Windows VM、已有 Docker 的机器、以及已有旧 `OnePersonLab/data` 的机器都要按各自 gate 读取，不能从教程、合同或本地单次容器启动直接推出通过状态。
 
