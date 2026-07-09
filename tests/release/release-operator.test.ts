@@ -115,6 +115,14 @@ function runStatus(prefix: string, runPayload: unknown, args: string[] = []) {
   return { ...paths, result, state: readJson(paths.outputPath) };
 }
 
+function assertNoOperatorAuthority(boundary: Record<string, boolean>) {
+  assert.equal(boundary.operator_can_publish_release, false);
+  assert.equal(boundary.operator_can_write_runtime_truth, false);
+  if ('operator_can_dispatch_workflow_without_explicit_user_action' in boundary) {
+    assert.equal(boundary.operator_can_dispatch_workflow_without_explicit_user_action, false);
+  }
+}
+
 function writePreviousFailedSession(sessionPath: string, options: { currentAuthorityRef?: string } = {}) {
   const currentAuthorityRun: Record<string, unknown> = {
     id: '12351',
@@ -275,8 +283,7 @@ test('release operator plan reuses cohort plan and writes operator state', () =>
   assert.equal(state.operator_guidance.currentness_freeze.required_before_dispatch, true);
   assert.equal(state.operator_guidance.currentness_freeze.dispatch_input_source, 'release_cohort_plan_or_lock');
   assert.equal(state.operator_guidance.currentness_freeze.single_desktop_release_per_frozen_cohort, true);
-  assert.equal(state.authority_boundary.operator_can_publish_release, false);
-  assert.equal(state.authority_boundary.operator_can_write_runtime_truth, false);
+  assertNoOperatorAuthority(state.authority_boundary);
 });
 
 test('release operator VM diagnostics only emits non-dispatching suggested commands', () => {
@@ -467,9 +474,7 @@ test('release operator status reports completed failure primary blocker', () => 
   assert.equal(state.primary_blocker.step_name, 'Package app');
   assert.equal(state.recommended_next_action.action, 'inspect_primary_blocker');
   assert.match(state.recommended_next_action.command, /gh run view 12345 --repo gaofeng21cn\/one-person-lab-app --log-failed/);
-  assert.equal(state.authority_boundary.operator_can_publish_release, false);
-  assert.equal(state.authority_boundary.operator_can_write_runtime_truth, false);
-  assert.equal(state.authority_boundary.operator_can_dispatch_workflow_without_explicit_user_action, false);
+  assertNoOperatorAuthority(state.authority_boundary);
 });
 
 test('release operator status writes release session manifest and one-screen failed-run tax', () => {

@@ -16,6 +16,21 @@ function assertGateStatuses(summary: { gates: Record<string, { status: string }>
   }
 }
 
+function writePublishedWebuiGhcrArtifact(root: string, version = '26.5.99', overrides: Record<string, unknown> = {}) {
+  writeJson(path.join(root, `webui-ghcr-publish-${version}`, 'opl-webui-ghcr-publish.json'), {
+    status: 'published',
+    image: 'ghcr.io/gaofeng21cn/one-person-lab-webui',
+    tags: [version, 'stable', 'latest'],
+    draft_candidate_push: false,
+    build_reuse: {
+      mode: 'same_job_after_docker_webui_smoke',
+      source_gate: 'docker-webui-smoke',
+      repeated_docker_build: false,
+    },
+    ...overrides,
+  });
+}
+
 test('release readiness summary passes only from small diagnostic artifacts', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-readiness-'));
   const outputPath = path.join(tempRoot, 'release-readiness-summary.json');
@@ -23,17 +38,7 @@ test('release readiness summary passes only from small diagnostic artifacts', ()
   const artifactsRoot = path.join(tempRoot, 'inputs');
   writePassingArtifacts(artifactsRoot);
   writePassingJobResults(jobResultsPath);
-  writeJson(path.join(artifactsRoot, 'webui-ghcr-publish-26.5.99', 'opl-webui-ghcr-publish.json'), {
-    status: 'published',
-    image: 'ghcr.io/gaofeng21cn/one-person-lab-webui',
-    tags: ['26.5.99', 'stable', 'latest'],
-    draft_candidate_push: false,
-    build_reuse: {
-      mode: 'same_job_after_docker_webui_smoke',
-      source_gate: 'docker-webui-smoke',
-      repeated_docker_build: false,
-    },
-  });
+  writePublishedWebuiGhcrArtifact(artifactsRoot);
 
   const result = runSummary([
     '--version',
@@ -103,12 +108,11 @@ test('release readiness summary treats Docker WebUI gates as optional when Docke
   fs.rmSync(path.join(artifactsRoot, 'docker-webui-smoke-26.5.99'), { recursive: true, force: true });
   fs.rmSync(path.join(artifactsRoot, 'webui-ghcr-publish-26.5.99'), { recursive: true, force: true });
   fs.rmSync(path.join(artifactsRoot, 'docker-webui-clean-vm-evidence-26.5.99'), { recursive: true, force: true });
-  writePassingJobResults(jobResultsPath);
-  const jobResults = JSON.parse(fs.readFileSync(jobResultsPath, 'utf8'));
-  jobResults['docker-webui-smoke'] = 'skipped';
-  jobResults['webui-ghcr-publish'] = 'skipped';
-  jobResults['docker-webui-clean-vm-evidence'] = 'skipped';
-  writeJson(jobResultsPath, jobResults);
+  writePassingJobResults(jobResultsPath, {
+    'docker-webui-smoke': 'skipped',
+    'webui-ghcr-publish': 'skipped',
+    'docker-webui-clean-vm-evidence': 'skipped',
+  });
 
   const result = runSummary([
     '--version',
@@ -151,17 +155,7 @@ test('release readiness summary allows missing optional Docker WebUI clean Windo
   const artifactsRoot = path.join(tempRoot, 'inputs');
   writePassingArtifacts(artifactsRoot);
   writePassingJobResults(jobResultsPath);
-  writeJson(path.join(artifactsRoot, 'webui-ghcr-publish-26.5.99', 'opl-webui-ghcr-publish.json'), {
-    status: 'published',
-    image: 'ghcr.io/gaofeng21cn/one-person-lab-webui',
-    tags: ['26.5.99', 'stable', 'latest'],
-    draft_candidate_push: false,
-    build_reuse: {
-      mode: 'same_job_after_docker_webui_smoke',
-      source_gate: 'docker-webui-smoke',
-      repeated_docker_build: false,
-    },
-  });
+  writePublishedWebuiGhcrArtifact(artifactsRoot);
   writeJson(path.join(artifactsRoot, 'docker-webui-clean-vm-evidence-26.5.99', 'docker-webui-clean-vm-evidence-validation.json'), {
     schema: 'opl_docker_webui_clean_vm_evidence_validation.v1',
     status: 'passed',
@@ -221,17 +215,7 @@ test('release readiness summary treats missing operator evidence bundle as diagn
   const artifactsRoot = path.join(tempRoot, 'inputs');
   writePassingArtifacts(artifactsRoot);
   writePassingJobResults(jobResultsPath);
-  writeJson(path.join(artifactsRoot, 'webui-ghcr-publish-26.5.99', 'opl-webui-ghcr-publish.json'), {
-    status: 'published',
-    image: 'ghcr.io/gaofeng21cn/one-person-lab-webui',
-    tags: ['26.5.99', 'stable', 'latest'],
-    draft_candidate_push: false,
-    build_reuse: {
-      mode: 'same_job_after_docker_webui_smoke',
-      source_gate: 'docker-webui-smoke',
-      repeated_docker_build: false,
-    },
-  });
+  writePublishedWebuiGhcrArtifact(artifactsRoot);
   fs.rmSync(path.join(artifactsRoot, 'release-evidence-bundle-26.5.99'), { recursive: true, force: true });
 
   const result = runSummary([
@@ -331,21 +315,8 @@ test('release readiness summary includes App L5 readout for current cohort evide
       ],
     },
   });
-  writeJson(jobResultsPath, {
-    'full-first-install': 'success',
-    'remote-verify-standard': 'skipped',
-    'remote-verify-full': 'success',
-    'standard-first-run-vm-smoke-after-standard-only': 'skipped',
-    'standard-first-run-vm-smoke-after-full': 'success',
-    'stable-homebrew-tap-update': 'success',
-    'full-homebrew-tap-update': 'success',
+  writePassingJobResults(jobResultsPath, {
     'homebrew-standard-first-run-vm-smoke': 'failure',
-    'full-first-run-vm-smoke': 'success',
-    'one-shot-app-installer-smoke': 'success',
-    'docker-webui-smoke': 'success',
-    'webui-ghcr-publish': 'success',
-    'docker-webui-clean-vm-evidence': 'success',
-    'operator-evidence-bundle-validation': 'success',
   });
 
   const result = runSummary([
@@ -443,12 +414,7 @@ test('release readiness summary defers Homebrew gates for refresh_existing draft
   const jobResultsPath = path.join(tempRoot, 'job-results.json');
   const artifactsRoot = path.join(tempRoot, 'inputs');
   writePassingArtifacts(artifactsRoot);
-  writeJson(path.join(artifactsRoot, 'webui-ghcr-publish-26.5.99', 'opl-webui-ghcr-publish.json'), {
-    status: 'published',
-    image: 'ghcr.io/gaofeng21cn/one-person-lab-webui',
-    tags: ['26.5.99', 'stable', 'latest'],
-    draft_candidate_push: false,
-  });
+  writePublishedWebuiGhcrArtifact(artifactsRoot);
   fs.rmSync(path.join(artifactsRoot, 'homebrew-tap-plan-stable-app_standard-26.5.99'), { recursive: true, force: true });
   fs.rmSync(path.join(artifactsRoot, 'homebrew-tap-plan-stable-app_full_first_install-26.5.99'), { recursive: true, force: true });
   fs.rmSync(path.join(artifactsRoot, 'opl-first-run-vm-homebrew-standard-local'), { recursive: true, force: true });
@@ -470,21 +436,10 @@ test('release readiness summary defers Homebrew gates for refresh_existing draft
       reason: 'Release target is a draft; Homebrew tap updates can read it only after promote publishes the draft.',
     },
   });
-  writeJson(jobResultsPath, {
-    'full-first-install': 'success',
-    'remote-verify-standard': 'skipped',
-    'remote-verify-full': 'success',
-    'standard-first-run-vm-smoke-after-standard-only': 'skipped',
-    'standard-first-run-vm-smoke-after-full': 'success',
+  writePassingJobResults(jobResultsPath, {
     'stable-homebrew-tap-update': 'skipped',
     'full-homebrew-tap-update': 'skipped',
     'homebrew-standard-first-run-vm-smoke': 'skipped',
-    'full-first-run-vm-smoke': 'success',
-    'one-shot-app-installer-smoke': 'success',
-    'docker-webui-smoke': 'success',
-    'webui-ghcr-publish': 'success',
-    'docker-webui-clean-vm-evidence': 'success',
-    'operator-evidence-bundle-validation': 'success',
   });
 
   const result = runSummary([
@@ -734,21 +689,10 @@ test('release readiness summary keeps one-shot failure diagnostics when the inst
   const jobResultsPath = path.join(tempRoot, 'job-results.json');
   const artifactsRoot = path.join(tempRoot, 'inputs');
   writePassingArtifacts(artifactsRoot);
-  writePassingJobResults(jobResultsPath);
-  writeJson(jobResultsPath, {
-    'full-first-install': 'success',
-    'remote-verify-standard': 'skipped',
-    'remote-verify-full': 'success',
-    'standard-first-run-vm-smoke-after-standard-only': 'skipped',
-    'standard-first-run-vm-smoke-after-full': 'success',
+  writePassingJobResults(jobResultsPath, {
     'stable-homebrew-tap-update': 'skipped',
     'full-homebrew-tap-update': 'skipped',
-    'homebrew-standard-first-run-vm-smoke': 'success',
-    'full-first-run-vm-smoke': 'success',
     'one-shot-app-installer-smoke': 'failure',
-    'docker-webui-smoke': 'success',
-    'webui-ghcr-publish': 'success',
-    'operator-evidence-bundle-validation': 'success',
   });
   writeJson(path.join(artifactsRoot, 'one-shot-app-installer-smoke-26.5.99', 'opl-one-shot-system-initialize.json'), {
     status: 'failed',
@@ -796,21 +740,10 @@ test('release readiness summary surfaces GHCR package Actions access failures', 
   const jobResultsPath = path.join(tempRoot, 'job-results.json');
   const artifactsRoot = path.join(tempRoot, 'inputs');
   writePassingArtifacts(artifactsRoot);
-  writePassingJobResults(jobResultsPath);
-  writeJson(jobResultsPath, {
-    'full-first-install': 'success',
-    'remote-verify-standard': 'skipped',
-    'remote-verify-full': 'success',
-    'standard-first-run-vm-smoke-after-standard-only': 'skipped',
-    'standard-first-run-vm-smoke-after-full': 'success',
+  writePassingJobResults(jobResultsPath, {
     'stable-homebrew-tap-update': 'skipped',
     'full-homebrew-tap-update': 'skipped',
-    'homebrew-standard-first-run-vm-smoke': 'success',
-    'full-first-run-vm-smoke': 'success',
-    'one-shot-app-installer-smoke': 'success',
-    'docker-webui-smoke': 'success',
     'webui-ghcr-publish': 'failure',
-    'operator-evidence-bundle-validation': 'success',
   });
   writeJson(path.join(artifactsRoot, 'webui-ghcr-publish-26.5.99', 'opl-webui-ghcr-publish.json'), {
     status: 'failed',

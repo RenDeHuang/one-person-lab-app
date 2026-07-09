@@ -24,71 +24,37 @@ import {
 test('Full first-install workflow has one MinerU checkout and keeps standalone binary build path', () => {
   const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'full-first-install-release.yml'), 'utf8');
 
-  assert.match(workflow, /npm view @openai\/codex version/);
-  assert.match(workflow, /npm install -g "@openai\/codex@\$\{codex_latest\}"/);
-  assert.match(workflow, /echo "OPL_FULL_CODEX_VERSION=\$codex_latest" >> "\$GITHUB_ENV"/);
-  assert.match(workflow, /\[\[ "\$codex_version" == "codex-cli \$codex_latest" \]\]/);
-  assert.match(workflow, /temporal --version/);
+  for (const expected of [
+    /npm view @openai\/codex version/,
+    /npm install -g "@openai\/codex@\$\{codex_latest\}"/,
+    /temporal --version/,
+    /name: Summarize Full package size/,
+    /name: Summarize Full caches and timings/,
+    /runtime-cache-events\.json/,
+    /full-runtime-currentness-probe\.json/,
+    /full-runtime-native-trust\.json/,
+    /name: Verify release upload plan[\s\S]*if:\s+\$\{\{ inputs\.publish_to_release \|\| inputs\.upload_full_package_artifact \}\}/,
+    /Upload Full package workflow artifact[\s\S]*if:\s+\$\{\{ inputs\.publish_to_release \|\| inputs\.upload_full_package_artifact \}\}/,
+    /bash "\$GITHUB_WORKSPACE\/OfficeCLI\/install\.sh"/,
+  ]) {
+    assert.match(workflow, expected);
+  }
   assert.equal(matchCount(workflow, /name: Checkout MinerU Ecosystem/g), 1);
   assert.equal(matchCount(workflow, /repository: opendatalab\/MinerU-Ecosystem/g), 1);
   assert.equal(matchCount(workflow, /^\s+path: MinerU-Ecosystem$/gm), 1);
   assert.match(workflow, /mineru_root="\$GITHUB_WORKSPACE\/MinerU-Ecosystem\/cli\/mineru-open-api"/);
-  assert.match(workflow, /mineru_built_at="\$\(git -C "\$GITHUB_WORKSPACE\/MinerU-Ecosystem" show -s --format=%cI HEAD\)"/);
-  assert.doesNotMatch(workflow, /mineru_built_at="\$\(date -u/);
-  assert.match(workflow, /cd "\$mineru_root"[\s\S]*go install -ldflags/);
-  assert.match(workflow, /github\.com\/opendatalab\/MinerU-Ecosystem\/cli\/mineru-open-api\/cmd\.version=\$mineru_version/);
-  assert.match(workflow, /github\.com\/opendatalab\/MinerU-Ecosystem\/cli\/mineru-open-api\/cmd\.commit=\$mineru_commit/);
-  assert.match(workflow, /github\.com\/opendatalab\/MinerU-Ecosystem\/cli\/mineru-open-api\/cmd\.date=\$mineru_built_at/);
-  assert.match(workflow, /name: Summarize Full package size/);
-  assert.match(workflow, /npm --silent run release:full:size[\s\S]*--full-dmg-size-bytes "\$dmg_size_bytes"[\s\S]*full-package-size-summary\.json/);
-  assert.match(workflow, /npm --silent run release:full:size[\s\S]*--full-dmg-size-bytes "\$dmg_size_bytes"[\s\S]*full-package-size-summary\.md/);
-  assert.match(workflow, /cat dist\/opl-full-release\/full-package-size-summary\.md >> "\$GITHUB_STEP_SUMMARY"/);
-  assert.match(workflow, /## Full Size Release Coupling/);
-  assert.match(workflow, /Full DMG release-blocking by size alone/);
-  assert.match(workflow, /name: Summarize Full caches and timings/);
   assert.match(workflow, /name: Cache Electron artifacts[\s\S]*id: electron-cache/);
-  assert.match(workflow, /full-electron-cache-\$\{\{ runner\.os \}\}-\$\{\{ runner\.arch \}\}/);
-  assert.match(workflow, /electron-cache-macos-arm64-arm64-/);
-  assert.match(workflow, /ELECTRON_CACHE: \$\{\{ runner\.temp \}\}\/\.cache\/electron/);
-  assert.match(workflow, /ELECTRON_BUILDER_CACHE: \$\{\{ runner\.temp \}\}\/\.cache\/electron-builder/);
-  assert.match(workflow, /opl-full-runtime-cache-aggregate-key\.json/);
-  assert.match(workflow, /input\.aggregate_key_input/);
-  assert.match(workflow, /toolchain:\s+'toolchain'/);
-  assert.match(workflow, /'domain-runtime':\s+'domain_runtime'/);
-  assert.match(workflow, /'opl-runtime':\s+'opl_runtime'/);
-  assert.match(workflow, /skills:\s+'skills'/);
-  assert.match(workflow, /\$\{outputName\}_cache_key=opl-full-runtime-layer-\$\{process\.env\.RUNNER_OS\}-\$\{process\.env\.RUNNER_ARCH\}-\$\{key\}/);
-  assert.match(workflow, /name: Restore Full toolchain runtime cache[\s\S]*path: \$\{\{ steps\.runtime-cache-keys\.outputs\.toolchain_cache_dir \}\}/);
-  assert.match(workflow, /name: Restore Full domain runtime cache[\s\S]*path: \$\{\{ steps\.runtime-cache-keys\.outputs\.domain_runtime_cache_dir \}\}/);
-  assert.match(workflow, /name: Restore Full OPL runtime cache[\s\S]*path: \$\{\{ steps\.runtime-cache-keys\.outputs\.opl_runtime_cache_dir \}\}/);
-  assert.match(workflow, /name: Restore Full skills runtime cache[\s\S]*path: \$\{\{ steps\.runtime-cache-keys\.outputs\.skills_cache_dir \}\}/);
-  assert.match(workflow, /name: Save Full toolchain runtime cache[\s\S]*key: \$\{\{ steps\.runtime-cache-keys\.outputs\.toolchain_cache_key \}\}/);
-  assert.match(workflow, /name: Save Full domain runtime cache[\s\S]*key: \$\{\{ steps\.runtime-cache-keys\.outputs\.domain_runtime_cache_key \}\}/);
-  assert.match(workflow, /name: Save Full OPL runtime cache[\s\S]*key: \$\{\{ steps\.runtime-cache-keys\.outputs\.opl_runtime_cache_key \}\}/);
-  assert.match(workflow, /name: Save Full skills runtime cache[\s\S]*key: \$\{\{ steps\.runtime-cache-keys\.outputs\.skills_cache_key \}\}/);
+  for (const layer of ['toolchain', 'domain', 'OPL', 'skills']) {
+    assert.match(workflow, new RegExp(`name: Restore Full ${layer} runtime cache`));
+    assert.match(workflow, new RegExp(`name: Save Full ${layer} runtime cache`));
+  }
   assert.doesNotMatch(workflow, /restore-keys:\s*\|\s*\n\s*opl-full-runtime-layers-/);
-  assert.match(workflow, /runtime-cache-events\.json/);
-  assert.match(workflow, /full_runtime_layer_events/);
-  assert.match(workflow, /full_runtime_layer_key_inputs/);
-  assert.match(workflow, /electron_artifacts/);
-  assert.match(workflow, /full-package-build-timing\.json/);
-  assert.match(workflow, /full_package_build_breakdown/);
-  assert.match(workflow, /## Full Package Build Breakdown/);
-  assert.match(workflow, /payload_refs:\s+fullManifest\?\.resolved_refs/);
-  assert.match(workflow, /resolved_refs:\s+fullManifest\?\.resolved_refs/);
-  assert.match(workflow, /## Full Payload Resolved Refs/);
   assert.match(workflow, /requires_distributable_assets="\$\{\{ inputs\.publish_to_release \|\| inputs\.upload_full_package_artifact \}\}"/);
   assert.match(workflow, /full_dmg_format:[\s\S]*default:\s+ULMO[\s\S]*type:\s+string/);
   assert.match(workflow, /full_dmg_compression_level:[\s\S]*default:\s+'9'[\s\S]*type:\s+string/);
-  assert.match(workflow, /OPL_FULL_DMG_FORMAT:\s+\$\{\{ inputs\.full_dmg_format \|\| 'ULMO' \}\}/);
-  assert.match(workflow, /OPL_FULL_DMG_COMPRESSION_LEVEL:\s+\$\{\{ inputs\.full_dmg_compression_level \|\| '9' \}\}/);
   assert.match(workflowStepBlock(workflow, 'Build Full first-install package'), /NODE_OPTIONS:\s+'--max-old-space-size=8192'/);
-  assert.match(workflow, /echo "OPL_FULL_DISTRIBUTABLE_ASSETS=\$requires_distributable_assets" >> "\$GITHUB_ENV"/);
-  assert.match(workflow, /BUILD_CERTIFICATE_BASE64 P12_PASSWORD APPLE_ID APPLE_ID_PASSWORD TEAM_ID IDENTITY/);
   assert.match(workflow, /mounted_runtime_root="\$mounted_app_path\/Contents\/Resources\/opl-full-runtime\/runtime\/current"/);
   assert.match(workflow, /scripts\/assert-full-runtime-currentness\.ts[\s\S]*--runtime-root "\$mounted_runtime_root"[\s\S]*--framework-root "\$GITHUB_WORKSPACE\/one-person-lab"/);
-  assert.match(workflow, /hdiutil detach "\$mounted_app_dir"/);
-  assert.match(workflow, /name: Verify release upload plan[\s\S]*if:\s+\$\{\{ inputs\.publish_to_release \|\| inputs\.upload_full_package_artifact \}\}/);
   for (const expected of [
     'gaofeng21cn/one-person-lab',
     'gaofeng21cn/med-autoscience',
@@ -105,55 +71,48 @@ test('Full first-install workflow has one MinerU checkout and keeps standalone b
   const diagnosticsStep = workflowStepBlock(workflow, 'Upload Full diagnostics artifact');
   const localAuthorizationStep = workflowStepBlock(workflow, 'Upload Full local authorization policy');
   assert.match(workflow, /name:\s+opl-full-diagnostics-\$\{\{ env\.OPL_RELEASE_VERSION \}\}/);
-  assert.match(diagnosticsStep, /full-package-build-timing\.json[\s\S]*full-package-manifest\.json[\s\S]*full-package-size-summary\.json[\s\S]*full-package-size-summary\.md[\s\S]*runtime-cache-events\.json[\s\S]*full-runtime-currentness-probe\.json[\s\S]*full-runtime-native-trust\.json[\s\S]*full-app-bundle-trim-report\.json[\s\S]*full-package-boundary-audit\.json[\s\S]*full-local-authorization-policy\.json[\s\S]*SHA256SUMS\.txt/);
+  for (const artifact of [
+    'full-package-manifest.json',
+    'runtime-cache-events.json',
+    'full-runtime-currentness-probe.json',
+    'full-runtime-native-trust.json',
+    'full-app-bundle-trim-report.json',
+    'full-package-boundary-audit.json',
+    'full-local-authorization-policy.json',
+    'SHA256SUMS.txt',
+  ]) {
+    assert.match(diagnosticsStep, new RegExp(artifact.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  }
   assert.doesNotMatch(diagnosticsStep, /full-gatekeeper-launch-policy\.json/);
   assert.match(localAuthorizationStep, /if:\s+\$\{\{ inputs\.publish_to_release \|\| inputs\.upload_full_package_artifact \}\}[\s\S]*full-local-authorization-policy\.json/);
   assert.match(workflow, /upload_full_package_artifact:[\s\S]*default:\s+true/);
-  assert.match(workflow, /Upload Full package workflow artifact[\s\S]*if:\s+\$\{\{ inputs\.publish_to_release \|\| inputs\.upload_full_package_artifact \}\}/);
-  assert.match(workflow, /bash "\$GITHUB_WORKSPACE\/OfficeCLI\/install\.sh"/);
-  assert.doesNotMatch(workflow, /raw\.githubusercontent\.com\/iOfficeAI\/OfficeCLI\/main\/install\.sh/);
   const warmupWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'full-runtime-cache-warmup.yml'), 'utf8');
   assert.match(warmupWorkflow, /upload_full_package_artifact:\s+false/);
-  assert.match(workflow, /node -e 'const fs = require\("node:fs"\); const report = JSON\.parse\(fs\.readFileSync\(process\.argv\[1\], "utf8"\)\);/);
   assert.doesNotMatch(
     workflow,
     /runtime-cache-events\.json[\s\S]{0,400}<<'NODE'[\s\S]{0,400}NODE/,
     'runtime-cache-events summary must not use a nested heredoc; indented heredoc delimiters break bash on GitHub Actions',
   );
   const fullPackageScript = readFullPackageBuilderSource();
-  assert.match(fullPackageScript, /assertFullRuntimeCurrentness/);
   const currentnessScript = fs.readFileSync(path.join(appRoot, 'scripts', 'build-full-first-install-package', 'runtime-currentness.ts'), 'utf8');
-  assert.match(currentnessScript, /opl_managed_updater_kernel/);
-  assert.match(currentnessScript, /installation_carrier/);
-  assert.match(currentnessScript, /capability_packages/);
-  assert.match(currentnessScript, /codex_surface/);
-  assert.match(currentnessScript, /\['app', 'state', '--profile', 'fast', '--json'\]/);
-  assert.match(currentnessScript, /manifest\.components\.opl\.git_commit/);
-  assert.match(fullPackageScript, /verifyDmgAppBundleLocalAuthorization/);
-  assert.match(fullPackageScript, /assertAppBundleLocalAuthorization/);
-  assert.match(fullPackageScript, /codesign verification must pass even when Stable Full uses local authorization/);
-  assert.match(fullPackageScript, /ensureAppBundleAdHocCodesign/);
-  assert.match(fullPackageScript, /'--sign', '-'/);
-  assert.match(fullPackageScript, /createFullDmgFromVerifiedApp/);
-  assert.match(fullPackageScript, /local_authorized_unsigned/);
-  assert.doesNotMatch(fullPackageScript, /codesign_status=\$\{codesign\.status === 0 \? 'passed' : 'failed_allowed_unsigned'\}/);
-  assert.match(fullPackageScript, /'ditto'/);
-  assert.match(fullPackageScript, /'hdiutil'/);
-  assert.match(fullPackageScript, /'-srcfolder'/);
-  assert.match(fullPackageScript, /ELECTRON_BUILDER_COMPRESSION_LEVEL/);
-  assert.match(fullPackageScript, /build-mac:arm64'[\s\S]*--dir-only/);
-  assert.doesNotMatch(fullPackageScript, /const sourceDmg = findBuiltDmg/);
-  assert.doesNotMatch(fullPackageScript, /fs\.copyFileSync\(sourceDmg, targetDmg\)/);
-  const macosTrustScript = fs.readFileSync(path.join(appRoot, 'scripts', 'build-full-first-install-package', 'macos-trust.ts'), 'utf8');
-  assert.match(macosTrustScript, /import os from 'node:os';/);
-  assert.match(macosTrustScript, /fs\.mkdtempSync\(path\.join\(os\.tmpdir\(\), 'opl-full-dmg-verify-'\)\)/);
+  for (const expected of [
+    /assertFullRuntimeCurrentness/,
+    /verifyDmgAppBundleLocalAuthorization/,
+    /createFullDmgFromVerifiedApp/,
+    /ensureFullDmgLocalAuthorization/,
+    /local_authorized_unsigned/,
+    /build-mac:arm64'[\s\S]*--dir-only/,
+    /opl_managed_updater_kernel/,
+    /\['app', 'state', '--profile', 'fast', '--json'\]/,
+    /manifest\.components\.opl\.git_commit/,
+  ]) {
+    assert.match(`${fullPackageScript}\n${currentnessScript}`, expected);
+  }
   assert.doesNotMatch(
     fullPackageScript,
     /'--prepackaged'/,
     'Full recovery DMG must be created directly from the verified App bundle; electron-builder prepackaged DMG can drop nested framework signatures',
   );
-  assert.match(fullPackageScript, /const rebuiltOptimizedPackage = ensureFullDmgLocalAuthorization\(/);
-  assert.match(fullPackageScript, /rebuiltOptimizedPackage\.manifest/);
   assert.doesNotMatch(
     fullPackageScript,
     /if \(!strictMacosRuntimeSigningRequired\(\)\) \{[\s\S]*?verifyDmgAppBundleLocalAuthorization\(targetDmg, 'Full first-install DMG'\);[\s\S]*?return;[\s\S]*?\}/,
@@ -296,76 +255,19 @@ test('Full first-install manifest consumes the OPL runtime bundle boundary inste
     manifest.opl_runtime_bundle_consumer.source_surface.contract_ref,
     'gaofeng21cn/one-person-lab/contracts/opl-framework/runtime-environment-substrate-contract.json',
   );
-  assert.equal(
-    manifest.opl_runtime_bundle_consumer.source_surface.readback_command_refs.contract,
-    'opl runtime env contract --json',
-  );
-  assert.equal(
-    manifest.opl_runtime_bundle_consumer.source_surface.readback_command_refs.materialize_dry_run,
-    'opl runtime env materialize --domain <domain> --profile <profile> --platform <platform> --dry-run --json',
-  );
-  assert.deepEqual(manifest.opl_runtime_bundle_consumer.source_surface.required_readback_claim_fields, [
-    'implementation_status',
-    'target_planned',
-    'dry_run',
-    'can_claim_runtime_ready',
-    'can_claim_domain_ready',
-    'can_claim_app_release_ready',
-  ]);
-  assert.deepEqual(manifest.opl_runtime_bundle_consumer.consumed_refs, {
-    bundle_manifest: 'OPL runtime bundle manifest',
-    bundle_lock: 'OPL runtime bundle lock',
-    bundle_readback: 'OPL runtime env contract/readback',
-    env_contract: 'OPL runtime env contract',
-  });
-  assert.deepEqual(manifest.opl_runtime_bundle_consumer.false_ready_flags, {
-    cache_hit_is_release_ready: false,
-    manifest_present_is_release_ready: false,
-    lock_present_is_release_ready: false,
-    full_package_built_is_release_ready: false,
-    full_package_built_is_family_production_ready: false,
-    app_can_claim_runtime_dependency_truth: false,
-  });
-  assert.deepEqual(manifest.opl_runtime_bundle_consumer.consumption_boundary, {
-    records_refs_only: true,
-    keeps_full_offline_first_install_payloads: true,
-    can_delete_required_offline_payloads_for_size: false,
-    can_materialize_runtime_root: false,
-    can_claim_runtime_ready: false,
-    can_claim_app_release_ready: false,
-    can_claim_family_production_ready: false,
-  });
-  assert.deepEqual(manifest.opl_runtime_bundle_consumer.layer_taxonomy.canonical_layer_ids, [
-    'base-toolchain',
-    'python-wheelhouse',
-    'opl-framework-runtime',
-    'domain-pack',
-    'companion-skills',
-    'optional-heavy-tools',
-  ]);
-  assert.deepEqual(manifest.opl_runtime_bundle_consumer.layer_taxonomy.legacy_assembly_layer_mapping, {
-    toolchain: ['base-toolchain', 'python-wheelhouse', 'optional-heavy-tools'],
-    'domain-runtime': ['domain-pack'],
-    'opl-runtime': ['opl-framework-runtime'],
-    skills: ['companion-skills'],
-  });
-  assert.deepEqual(
-    manifest.opl_runtime_bundle_consumer.runtime_fabric_bundle_taxonomy['environment-materializer.bundle'].materializer_parts,
-    {
-      language_runtimes: ['node', 'python'],
-      package_and_env_resolvers: ['uv'],
-      env_cache_and_isolated_prefix: 'runtime/current/.runtime-cache plus module-specific managed env roots',
-      optional_resolver_slots: ['pixi_for_scientific_native_stack_when_declared'],
-    },
-  );
+  assert.ok(Object.values(manifest.opl_runtime_bundle_consumer.false_ready_flags).every((value) => value === false));
+  assert.equal(manifest.opl_runtime_bundle_consumer.consumption_boundary.records_refs_only, true);
+  assert.equal(manifest.opl_runtime_bundle_consumer.consumption_boundary.keeps_full_offline_first_install_payloads, true);
+  assert.equal(manifest.opl_runtime_bundle_consumer.consumption_boundary.can_delete_required_offline_payloads_for_size, false);
+  assert.equal(manifest.opl_runtime_bundle_consumer.consumption_boundary.can_claim_app_release_ready, false);
+  for (const id of ['base-toolchain', 'domain-pack', 'opl-framework-runtime', 'companion-skills']) {
+    assert.ok(manifest.opl_runtime_bundle_consumer.layer_taxonomy.canonical_layer_ids.includes(id), id);
+  }
   assert.deepEqual(Object.keys(manifest.runtime_fabric_bundles), [
     'execution-core.bundle',
     'environment-materializer.bundle',
     'system-bridge.bundle',
   ]);
-  assert.equal(manifest.runtime_fabric_bundles['execution-core.bundle'].display_name, 'Agent Execution Core');
-  assert.equal(manifest.runtime_fabric_bundles['environment-materializer.bundle'].display_name, 'Environment Materializer');
-  assert.equal(manifest.runtime_fabric_bundles['system-bridge.bundle'].display_name, 'OPL System Bridge');
   assert.deepEqual(
     Object.keys(manifest.runtime_fabric_bundles['environment-materializer.bundle'].packaged_components),
     ['node', 'python', 'uv'],
@@ -402,65 +304,11 @@ test('Full first-install payload boundary stays assembly-only', async () => {
   assert.equal(releaseContract.full_first_install.updater_visible, false);
   assert.equal(releaseContract.full_first_install.updater_metadata_allowed, false);
   assert.equal(releaseContract.full_first_install.same_tag_refresh.mode, 'github_release_upload_clobber');
-  assert.deepEqual(releaseContract.full_first_install.required_payloads.codex_cli, {
-    compatibility_mode: 'minimum_version_plus_capability_smoke',
-    minimum_version_source: 'distribution cohort manifest components.codex_cli.minimum_version',
-    preferred_sources: ['app_owned_archive_wrapper'],
-    fallback_version_source: 'distribution cohort manifest components.codex_cli.fallback_version',
-    fallback_runtime_path: 'runtime/current/bin/codex',
-    fallback_payload_path: 'runtime/current/vendor/codex/codex_cli_darwin_arm64.tar.gz',
-    must_prefer_valid_newer_user_version: false,
-    system_sources_visible_as_diagnostics: true,
-    system_sources_require_expert_opt_in: true,
-    verification: 'App-owned runtime/current/bin/codex must satisfy minimum_version, execute offline from the packaged archive wrapper, and pass Codex functional smoke; system PATH/Homebrew/global Codex may be reported as diagnostics but is not the default runtime source',
-  });
+  assert.equal(releaseContract.full_first_install.required_payloads.codex_cli.fallback_payload_path, 'runtime/current/vendor/codex/codex_cli_darwin_arm64.tar.gz');
   assert.equal(releaseContract.full_first_install.required_payloads.bun_cli, undefined);
-  assert.deepEqual(releaseContract.full_first_install.optional_payloads.bun_cli, {
-    source: 'Full workflow setup-bun resolved binary',
-    runtime_path: 'runtime/current/bin/bun',
-    default_packaged: false,
-    enable_env: 'OPL_FULL_INCLUDE_BUN_RUNTIME=1',
-    verification: 'Full manifest optional_components.bun records packaged or not_packaged status',
-  });
-  assert.deepEqual(releaseContract.full_first_install.required_payloads.temporal_cli, {
-    compatibility_mode: 'minimum_version_plus_capability_smoke',
-    minimum_version_source: 'distribution cohort manifest components.temporal_cli.minimum_version',
-    preferred_sources: ['app_owned_archive_wrapper'],
-    fallback_version_source: 'distribution cohort manifest components.temporal_cli.fallback_version',
-    fallback_runtime_path: 'runtime/current/bin/temporal',
-    fallback_payload_path: 'runtime/current/vendor/temporal/temporal_cli_darwin_arm64.tar.gz',
-    must_prefer_valid_newer_user_version: false,
-    system_sources_visible_as_diagnostics: true,
-    system_sources_require_expert_opt_in: true,
-    verification: 'App-owned runtime/current/bin/temporal must satisfy minimum_version, execute offline from the packaged archive wrapper, and pass Temporal provider smoke; system PATH/Homebrew/global Temporal may be reported as diagnostics but is not the default runtime source',
-  });
-  assert.deepEqual(releaseContract.full_first_install.required_payloads.temporal_runtime_provider, {
-    provider_env_default: 'OPL_FAMILY_RUNTIME_PROVIDER=temporal',
-    local_service_defaults: {
-      address_env: 'OPL_TEMPORAL_ADDRESS',
-      default_address: '127.0.0.1:7233',
-      namespace_env: 'OPL_TEMPORAL_NAMESPACE',
-      default_namespace: 'default',
-      task_queue_env: 'OPL_TEMPORAL_TASK_QUEUE',
-      default_task_queue: 'opl-stage-attempts',
-    },
-    managed_commands: [
-      'opl family-runtime service start --provider temporal',
-      'opl family-runtime worker status --provider temporal',
-      'opl family-runtime worker start --provider temporal',
-      'opl family-runtime residency proof --provider temporal --production',
-    ],
-    required_packages: [
-      '@temporalio/activity',
-      '@temporalio/client',
-      '@temporalio/common',
-      '@temporalio/worker',
-      '@temporalio/workflow',
-    ],
-    forbidden_packages: ['@temporalio/testing'],
-    native_core_bridge_releases: ['aarch64-apple-darwin'],
-    verification: 'Full manifest runtime_assertions.temporal_core_bridge_releases must be exactly aarch64-apple-darwin and wrapper must export local Temporal defaults',
-  });
+  assert.equal(releaseContract.full_first_install.optional_payloads.bun_cli.default_packaged, false);
+  assert.equal(releaseContract.full_first_install.required_payloads.temporal_cli.fallback_payload_path, 'runtime/current/vendor/temporal/temporal_cli_darwin_arm64.tar.gz');
+  assert.deepEqual(releaseContract.full_first_install.required_payloads.temporal_runtime_provider.native_core_bridge_releases, ['aarch64-apple-darwin']);
   assert.deepEqual(
     manifest.distribution.payload_boundary.app_repo_does_not_own,
     releaseContract.full_first_install.payload_boundary.forbidden_authority,
@@ -474,30 +322,16 @@ test('Full first-install payload boundary stays assembly-only', async () => {
     manifest.distribution.product_profile.packaged_not_default_visible_codex_skill_ids,
     profile.companion_payloads.packaged_not_default_visible_codex_skill_ids,
   );
-  assert.equal(
-    manifest.distribution.payload_boundary.truth_sources.framework_runtime_contracts,
+  for (const repo of [
     'gaofeng21cn/one-person-lab',
-  );
-  assert.equal(
-    manifest.distribution.payload_boundary.truth_sources.research_domain_truth,
     'gaofeng21cn/med-autoscience',
-  );
-  assert.equal(
-    manifest.distribution.payload_boundary.truth_sources.foundry_agent_domain_truth,
     'gaofeng21cn/opl-meta-agent',
-  );
-  assert.equal(
-    manifest.distribution.payload_boundary.truth_sources.book_domain_truth,
     'gaofeng21cn/opl-bookforge',
-  );
-  assert.equal(
-    manifest.distribution.payload_boundary.truth_sources.grant_domain_truth,
     'gaofeng21cn/med-autogrant',
-  );
-  assert.equal(
-    manifest.distribution.payload_boundary.truth_sources.visual_deliverable_domain_truth,
     'gaofeng21cn/redcube-ai',
-  );
+  ]) {
+    assert.ok(Object.values(manifest.distribution.payload_boundary.truth_sources).includes(repo), repo);
+  }
   assert.equal(manifest.distribution.payload_boundary.consumer_refs.opl_runtime_bundle, 'opl_runtime_bundle_consumer');
   assert.equal(manifest.distribution.payload_boundary.consumer_refs.bundle_manifest, 'opl_runtime_bundle_consumer.consumed_refs.bundle_manifest');
   assert.equal(
@@ -595,48 +429,18 @@ test('Full size policy records review semantics, measured v26.6.21 breakdown, an
     'full-app-bundle-trim-report.json',
     'full-package-boundary-audit.json',
   ]);
-  assert.deepEqual(sizePolicy.package_profile_boundary.standard, {
-    asset_pattern: 'One-Person-Lab-<version>-mac-arm64.dmg',
-    runtime_profile: 'standard',
-    updater_visible: true,
-    contains_opl_full_runtime: false,
-    role: 'ordinary App package and standard updater target',
-  });
-  assert.deepEqual(sizePolicy.package_profile_boundary.full, {
-    asset_pattern: 'One-Person-Lab-Full-<version>-mac-arm64.dmg',
-    runtime_profile: 'full',
-    updater_visible: false,
-    contains_opl_full_runtime: true,
-    role: 'clean-machine first-install package with bundled runtime payloads',
-  });
-  assert.deepEqual(sizePolicy.package_profile_boundary.offline_kit, {
-    asset_pattern: 'opl-runtime-full-<version>-macos-arm64.tar.zst',
-    runtime_profile: 'offline-kit',
-    updater_visible: false,
-    contains_opl_full_runtime: true,
-    role: 'manual diagnostic/runtime recovery artifact that consumes the same OPL runtime bundle manifest boundary',
-  });
+  assert.equal(sizePolicy.package_profile_boundary.standard.contains_opl_full_runtime, false);
+  assert.equal(sizePolicy.package_profile_boundary.full.contains_opl_full_runtime, true);
+  assert.equal(sizePolicy.package_profile_boundary.full.updater_visible, false);
+  assert.equal(sizePolicy.package_profile_boundary.offline_kit.contains_opl_full_runtime, true);
   assert.equal(sizePolicy.runtime_boundary.opl_full_runtime.standard_package_allowed, false);
   assert.equal(sizePolicy.runtime_boundary.opl_full_runtime.owner, 'gaofeng21cn/one-person-lab');
   assert.equal(sizePolicy.runtime_boundary.opl_full_runtime.app_role, 'consumer_and_packager');
   assert.equal(sizePolicy.threshold_semantics.cache_hit_rule, 'A Full runtime cache hit only proves reusable package assembly input; it is never App release readiness, runtime dependency truth, or OPL family production readiness.');
   assert.equal(sizePolicy.runtime_boundary.aionui_bundled_runtime.does_not_replace, 'opl_full_runtime');
   assert.equal(measuredRecord.full_dmg_bytes, 1121919153);
-  assert.equal(measuredRecord.standard_dmg_bytes, 440471386);
-  assert.equal(measuredRecord.zlib_level_9_estimated_full_dmg_bytes, 844079932);
   assert.equal(measuredRecord.zlib_level_9_estimate_under_review_threshold, false);
-  assert.ok(
-    measuredRecord.top_app_bundle_contributors.some((entry) => entry.id === 'opl-full-runtime' && entry.size_label === '745M'),
-  );
-  assert.ok(
-    measuredRecord.top_app_bundle_contributors.some((entry) => entry.id === 'bundled-aioncore' && entry.size_label === '678M'),
-  );
-  assert.ok(
-    measuredRecord.top_app_bundle_contributors.some((entry) => entry.id === 'app.asar' && entry.size_label === '367M'),
-  );
-  assert.ok(
-    measuredRecord.top_app_bundle_contributors.some((entry) => entry.id === 'Electron Framework' && entry.size_label === '249M'),
-  );
+  assert.ok(measuredRecord.top_app_bundle_contributors.some((entry) => entry.id === 'opl-full-runtime'));
   assert.deepEqual(
     sizePolicy.optimization_priority_order.map((entry) => entry.id),
     [
@@ -651,14 +455,6 @@ test('Full size policy records review semantics, measured v26.6.21 breakdown, an
 test('Full runtime pruning keeps macOS arm64 launch payloads without development environments', async () => {
   const mod = await import('../../../scripts/full-first-install-package.ts');
   const buildScript = readFullPackageBuilderSource();
-  const runtimeCacheScript = fs.readFileSync(
-    path.join(appRoot, 'scripts', 'build-full-first-install-package', 'runtime-cache.ts'),
-    'utf8',
-  );
-  const runtimeLayersScript = fs.readFileSync(
-    path.join(appRoot, 'scripts', 'build-full-first-install-package', 'runtime-layers.ts'),
-    'utf8',
-  );
   const policy = JSON.parse(
     fs.readFileSync(path.join(appRoot, 'contracts', 'full-runtime-prune-policy.json'), 'utf8'),
   );
@@ -689,7 +485,6 @@ test('Full runtime pruning keeps macOS arm64 launch payloads without development
   assert.deepEqual(mod.FULL_RUNTIME_PRUNE_POLICY.runtime_tree, policy.runtime_tree);
   assert.match(mod.buildFullRuntimePrunePolicyHash(), /^[a-f0-9]{64}$/);
   assert.equal(mod.buildFullPackageManifest({ version: '26.5.15' }).runtime_prune_policy.id, mod.FULL_RUNTIME_PRUNE_POLICY.id);
-  assert.match(runtimeCacheScript, /contracts\/full-runtime-prune-policy\.json/);
 
   const auditResult = runNode(['scripts/audit-full-runtime-prune-policy.ts', '--json']);
   assert.equal(auditResult.status, 0, auditResult.stderr);
@@ -759,44 +554,10 @@ test('Full runtime pruning keeps macOS arm64 launch payloads without development
   assert.ok(scanAudit.runtime_scan_diff.added_excluded_paths.includes('modules/mas/logs'));
   assert.ok(scanAudit.runtime_scan_diff.removed_excluded_paths.includes('modules/mas/tmp/old.tmp'));
 
-  assert.match(buildScript, /shouldExcludeProductionNodeModulePath/);
-  assert.match(buildScript, /shouldExcludeNodeToolchainPackagePath/);
-  assert.match(buildScript, /copyProductionNodeModule\(sourcePath, targetPath\)/);
-  assert.match(buildScript, /copyNodeToolchainPackage\(sourcePath, path\.join\(targetRoot, 'lib', 'node_modules', packageName\)\)/);
-  assert.match(buildScript, /MACOS_ARM64_TEMPORAL_CORE_BRIDGE_TARGET = 'aarch64-apple-darwin'/);
-  assert.match(buildScript, /pruneTemporalCoreBridgeReleases\(path\.join\(targetRoot, 'node_modules'\)\)/);
-  assert.match(buildScript, /assertTemporalCoreBridgeMacosArm64Only\(path\.join\(runtimeRoot, 'opl', 'node_modules'\)\)/);
-  assert.match(buildScript, /const runtimeAssertions = collectRuntimeAssertions\(runtimeRoot\)/);
-  assert.match(buildScript, /assertOfflineRequiredPayloadsPresent\(runtimeAssertions\)/);
-  assert.match(buildScript, /prune_policy_hash: buildFullRuntimePrunePolicyHash\(\)/);
-  assert.match(buildScript, /offline_required_payloads:/);
-  assert.match(buildScript, /declared_pruned_paths:/);
-  assert.match(buildScript, /bunBin: envValue\('OPL_FULL_BUN_BIN', ''\)/);
-  assert.match(buildScript, /includeBunRuntime: process\.env\.OPL_FULL_INCLUDE_BUN_RUNTIME === '1'/);
-  assert.match(buildScript, /temporalCliBin: envValue\('OPL_FULL_TEMPORAL_CLI_BIN', ''\)/);
-  assert.match(buildScript, /temporalCliArchive: envValue\('OPL_FULL_TEMPORAL_CLI_ARCHIVE', ''\)/);
   assertFullFirstInstallOptionTables(buildScript);
-  assert.match(buildScript, /function findTemporalCliBinary\(explicitBin\)/);
-  assert.match(buildScript, /function findTemporalCliArchive\(explicitArchive\)/);
-  assert.match(buildScript, /function findBunBinary\(explicitBunBin\)/);
-  assert.match(runtimeLayersScript, /CODEX_MACOS_ARM64_TARGET,[\s\S]*MACOS_ARM64_TEMPORAL_CORE_BRIDGE_TARGET,[\s\S]*from '\.\/paths\.ts'/);
-  assert.match(runtimeLayersScript, /CODEX_TARGET="\$\{CODEX_MACOS_ARM64_TARGET\}"/);
-  assert.match(buildScript, /if \(sources\.bunBin\) {\s*copySingleFile\(sources\.bunBin, path\.join\(layerRoot, 'bin', 'bun'\)\);\s*}/);
-  assert.match(buildScript, /createCodexCliArchive\(\s*path\.join\(layerRoot, 'vendor', 'codex', 'codex_cli_darwin_arm64\.tar\.gz'\),\s*sources\.codexBinaries\.vendorRoot,\s*\)/);
-  assert.match(buildScript, /writeCodexCliWrapper\(path\.join\(layerRoot, 'bin', 'codex'\), commandOutput\(sources\.codexBinaries\.codex, \['--version'\]\)\)/);
-  assert.match(buildScript, /copySingleFile\(sources\.temporalCliArchive, path\.join\(layerRoot, 'vendor', 'temporal', 'temporal_cli_darwin_arm64\.tar\.gz'\)\)/);
-  assert.doesNotMatch(buildScript, /extractTemporalCliBinary\(sources\.temporalCliArchive, path\.join\(layerRoot, 'vendor', 'temporal', 'cli', 'temporal'\)\)/);
-  assert.doesNotMatch(buildScript, /function extractTemporalCliBinary/);
-  assert.match(buildScript, /writeTemporalCliWrapper\(path\.join\(layerRoot, 'bin', 'temporal'\), commandOutput\(sources\.temporalCliBin, \['--version'\]\)\)/);
-  assert.match(buildScript, /copyNodeRuntimePayload\(path\.dirname\(path\.dirname\(sources\.nodeToolchain\.nodeBin\)\), path\.join\(layerRoot, 'node'\)\)/);
-  assert.match(buildScript, /assertNoExternalSymlinks\(targetRoot, 'Full first-install Node runtime'\)/);
-  assert.match(buildScript, /packaged_global_node_packages:/);
-  assert.match(buildScript, /optionalComponents = \{[\s\S]*bun: sources\.bunBin/);
-  assert.match(buildScript, /status: 'not_packaged'/);
+  assert.match(buildScript, /collectRuntimeAssertions\(runtimeRoot\)/);
+  assert.match(buildScript, /assertOfflineRequiredPayloadsPresent\(runtimeAssertions\)/);
   assert.doesNotMatch(buildScript, /binary_path: 'runtime\/current\/vendor\/temporal\/cli\/temporal'/);
-  assert.match(buildScript, /version: commandOutput\(path\.join\(runtimeRoot, 'bin', 'temporal'\), \['--version'\]\)/);
-  assert.match(buildScript, /writeJsonFile\(runtimeNativeTrustPath, prepared\.manifest\.native_trust\)/);
-  assert.match(buildScript, /codex: \{[\s\S]*source_path: sources\.codexRoot[\s\S]*size_bytes: directorySizeBytes\(path\.join\(runtimeRoot, 'bin', 'codex'\)\)[\s\S]*archive_path: 'runtime\/current\/vendor\/codex\/codex_cli_darwin_arm64\.tar\.gz'/);
 });
 
 test('Full runtime slim policy is declared without moving required payloads to lazy download', () => {

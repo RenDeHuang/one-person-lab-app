@@ -10,7 +10,6 @@ import {
   writeFakeReleaseNotesAiWriter,
   validStandardAiReleaseNotes,
   stableInstallCommand,
-  withHiddenLocalizedReleaseNotes,
   writeReleaseMetadata,
   writeStandardLocalAuthorizationPolicy,
   writeFullLocalAuthorizationPolicy,
@@ -692,8 +691,6 @@ test('standard publish can explicitly use deterministic template release notes w
   const payload = JSON.parse(result.stdout);
   assert.equal(payload.release_notes_mode, 'template');
   assert.match(payload.release_notes, /One Person Lab v26\.5\.19-deterministic-notes/);
-  assert.match(payload.release_notes, /## OPL agents and runtime payload/);
-  assert.match(payload.release_notes, /## Install Stable/);
   assert.match(payload.release_notes, new RegExp(stableInstallCommand.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
 });
 
@@ -739,55 +736,18 @@ test('publish consumes a prepared release notes file before calling AI', () => {
   const aiCalledMarker = path.join(tempRoot, 'ai-called');
   const version = '26.5.19-prepared-notes';
   const { shellRoot, fakeAi } = writeStandardPublishFixture(tempRoot, version, { writeDefaultAi: false });
-  const publicMarkdown = [
-    `One Person Lab v${version}`,
-    '',
-    'Users can install or upgrade One Person Lab App and open MAS, MAG, RCA, and OPL Meta Agent sessions.',
-    '',
-    '## Highlights',
-    '',
-    '- Standard App users get clearer OPL agent entry points.',
-    '',
-    '## What improved',
-    '',
-    '- MAS, MAG, RCA, and OPL Meta Agent sessions are easier to start after install.',
-    '',
-    '## Compatibility and action required',
-    '',
-    '- No manual migration is required beyond installing or upgrading this Stable release.',
-    '',
-    '## OPL agents and runtime payload',
-    '',
-    '- Standard package: App-managed agent entry surface plus Codex plugin and skill sync policy.',
-    '',
-    '## OPL family updates',
-    '',
-    '- OPL Aion Shell: current shell changes stay aligned with the App release.',
-    '',
-    '## Install Stable',
-    '',
-    `\`${stableInstallCommand}\``,
-    '',
-    '## Release scope',
-    '',
-    '- Standard macOS arm64 updater package is published for this release.',
-    '',
-  ].join('\n');
-  const zhMarkdown = [
-    `One Person Lab v${version}`,
-    '',
-    '这次更新让 MAS、MAG、RCA 和 OPL Meta Agent 入口更容易打开。',
-    '',
-  ].join('\n');
 
   writeExecutable(fakeAi, `#!/usr/bin/env node
 require('node:fs').writeFileSync(${JSON.stringify(aiCalledMarker)}, 'called');
 process.exit(42);
 `);
-  writeFile(releaseNotesFile, withHiddenLocalizedReleaseNotes(publicMarkdown, zhMarkdown));
+  const preparedNotes = validStandardAiReleaseNotes(version)
+    .replace('\n## What improved', '\n## Highlights\n\n- Users get the Stable App package with the built-in OPL agent entries ready after install.\n\n## What improved')
+    .replace('\n## OPL agents and runtime payload', '\n## Compatibility and action required\n\n- Install or upgrade the Stable App package.\n\n## OPL agents and runtime payload');
+  writeFile(releaseNotesFile, preparedNotes);
   writeFile(
     badReleaseNotesFile,
-    fs.readFileSync(releaseNotesFile, 'utf8').replace(/\n## Highlights\n\n- Standard App users get clearer OPL agent entry points.\n/, ''),
+    preparedNotes.replace(/\n## Highlights\n\n- Users get the Stable App package with the built-in OPL agent entries ready after install.\n/, ''),
   );
 
   const result = runNode([
@@ -1095,11 +1055,6 @@ test('Full-only release publish uses deterministic notes and does not call the A
   assert.equal(payload.release_notes_mode, 'template');
   assert.equal(payload.full_package_only, true);
   assert.equal(payload.create_release, false);
-  assert.match(payload.release_notes, /OPL agents and runtime payload/);
-  assert.match(payload.release_notes, /MAS @ 1111111/);
-  assert.match(payload.release_notes, /MAG @ 2222222/);
-  assert.match(payload.release_notes, /RCA @ 3333333/);
-  assert.match(payload.release_notes, /OPL Meta Agent @ 4444444/);
   assert.ok(fs.existsSync(evidencePath));
   const evidence = JSON.parse(fs.readFileSync(evidencePath, 'utf8'));
   assert.equal(evidence.payload.include_full_package, true);

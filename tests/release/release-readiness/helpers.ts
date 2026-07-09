@@ -320,7 +320,7 @@ export function writePassingArtifacts(root: string, version = '26.5.99', runId =
   });
 }
 
-export function writePassingJobResults(filePath: string) {
+export function writePassingJobResults(filePath: string, overrides: Record<string, string> = {}) {
   writeJson(filePath, {
     'full-first-install': 'success',
     'remote-verify-standard': 'skipped',
@@ -336,5 +336,6 @@ export function writePassingJobResults(filePath: string) {
     'webui-ghcr-publish': 'success',
     'docker-webui-clean-vm-evidence': 'success',
     'operator-evidence-bundle-validation': 'success',
+    ...overrides,
   });
 }
