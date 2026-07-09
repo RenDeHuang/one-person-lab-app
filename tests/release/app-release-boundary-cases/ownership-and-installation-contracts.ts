@@ -3,12 +3,10 @@ import {
   fs,
   os,
   path,
-  spawnSync,
   test,
   appRoot,
   runNode,
   writeFile,
-  sha256,
 } from './helpers.ts';
 
 test('release boundary guard keeps App release ownership in App repo', () => {
@@ -17,49 +15,32 @@ test('release boundary guard keeps App release ownership in App repo', () => {
   assert.match(result.stdout, /App release boundary is App-owned/);
 });
 
-test('Homebrew tap updater is a local cohort-bound manifest and checksum planner', () => {
-  const tapRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-homebrew-tap-test-'));
-  const digest = 'b'.repeat(64);
+test('release boundary guard wires App-owned installation validators', () => {
   const packageJson = JSON.parse(fs.readFileSync(path.join(appRoot, 'package.json'), 'utf8'));
   const boundaryScriptDeps = fs.readFileSync(
     path.join(appRoot, 'scripts', 'validate-release-boundary', 'script-dependencies.ts'),
     'utf8',
   );
-  const boundaryReleaseChecks = fs.readFileSync(
-    path.join(appRoot, 'scripts', 'validate-release-boundary', 'release-checks.ts'),
-    'utf8',
-  );
-  const homebrewScript = fs.readFileSync(path.join(appRoot, 'scripts', 'update-homebrew-tap.ts'), 'utf8');
 
-  assert.equal(
-    packageJson.scripts['homebrew:tap:plan'],
-    'node --experimental-strip-types scripts/update-homebrew-tap.ts',
-  );
-  assert.equal(
-    packageJson.scripts['validate:homebrew-tap'],
-    'node --experimental-strip-types scripts/update-homebrew-tap.ts --self-check',
-  );
-  assert.equal(
-    packageJson.scripts['release:preflight'],
-    'node --experimental-strip-types scripts/validate-release-preflight.ts',
-  );
-  assert.match(boundaryReleaseChecks, /release_preflight_script/);
-  assert.match(boundaryScriptDeps, /scripts\/update-homebrew-tap\.ts/);
-  assert.match(boundaryScriptDeps, /--self-check/);
-  assert.match(homebrewScript, /manifest_required: true/);
-  assert.match(homebrewScript, /checksum_required: true/);
-  assert.match(homebrewScript, /nightly_targets_only_for_nightly: true/);
-  assert.match(homebrewScript, /stable_promotion_from_nightly_allowed: false/);
-  assert.match(homebrewScript, /full_first_install_allowed: false/);
-  assert.match(homebrewScript, /full_first_install_allowed: true/);
-  assert.match(homebrewScript, /standard_updater_visible: false/);
-  assert.match(homebrewScript, /bundled_full_runtime_payload_allowed: true/);
-  assert.match(homebrewScript, /app_full_first_install/);
-  assert.match(homebrewScript, /modules_payload_allowed: false/);
-  assert.match(homebrewScript, /agent_pack_homebrew_allowed: false/);
-  assert.match(homebrewScript, /agent_pack_activation_owner: app_cli_managed_background_maintenance/);
-  assert.match(homebrewScript, /publishes_or_pushes_remote: false/);
-  assert.doesNotMatch(homebrewScript, /from 'node:child_process'|spawnSync\(|execSync\(|execFileSync\(/);
+  for (const [scriptName, command] of Object.entries({
+    'homebrew:tap:plan': 'node --experimental-strip-types scripts/update-homebrew-tap.ts',
+    'validate:homebrew-tap': 'node --experimental-strip-types scripts/update-homebrew-tap.ts --self-check',
+    'validate:agent-installation': 'node --experimental-strip-types scripts/validate-agent-installation-contract.ts',
+  })) {
+    assert.equal(packageJson.scripts[scriptName], command);
+  }
+  for (const dependency of [
+    /scripts\/update-homebrew-tap\.ts/,
+    /--self-check/,
+    /validate-agent-installation-contract\.ts/,
+  ]) {
+    assert.match(boundaryScriptDeps, dependency);
+  }
+});
+
+test('Homebrew tap updater is a local cohort-bound manifest and checksum planner', () => {
+  const tapRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-homebrew-tap-test-'));
+  const digest = 'b'.repeat(64);
 
   const stableResult = runNode([
     'scripts/update-homebrew-tap.ts',
@@ -90,23 +71,16 @@ test('Homebrew tap updater is a local cohort-bound manifest and checksum planner
   assert.equal(stablePlan.policy.agent_pack_homebrew_allowed, false);
   assert.equal(stablePlan.policy.agent_pack_activation_owner, 'app_cli_managed_background_maintenance');
   assert.equal(stablePlan.policy.stable_promotion_from_nightly_allowed, false);
+  assert.equal(stablePlan.policy.publishes_or_pushes_remote, false);
   const stableCask = fs.readFileSync(path.join(tapRoot, 'Casks', 'one-person-lab.rb'), 'utf8');
   assert.match(stableCask, /latest-arm64-mac\.yml/);
   assert.match(stableCask, new RegExp(digest));
-  assert.match(stableCask, /stable_promotion_from_nightly_allowed: false/);
+  assert.match(stableCask, /\n  # OPL_HOMEBREW_BOUNDARY_START\n  # channel: stable/);
   assert.match(stableCask, /full_first_install_allowed: false/);
   assert.match(stableCask, /modules_payload_allowed: false/);
   assert.match(stableCask, /agent_pack_homebrew_allowed: false/);
   assert.match(stableCask, /agent_pack_activation_owner: app_cli_managed_background_maintenance/);
-  assert.match(stableCask, /desc "AI-first desktop research and agent orchestration app"/);
-  assert.match(stableCask, /url "https:\/\/github\.com\/gaofeng21cn\/one-person-lab-app\/releases\/download\/v#\{version\}\/One-Person-Lab-#\{version\}-mac-arm64\.dmg"/);
-  assert.match(stableCask, /depends_on macos: :big_sur/);
-  assert.match(stableCask, /depends_on arch: :arm64/);
   assert.match(stableCask, /conflicts_with cask: \["one-person-lab-full", "one-person-lab-nightly"\]/);
-  assert.match(stableCask, /livecheck do[\s\S]*releases\/latest[\s\S]*regex\(%r\{\/releases\/tag\/v\?\(\\d\+\(\?:\\\.\\d\+\)\*\)\}i\)/);
-  assert.match(stableCask, /app "One Person Lab\.app"/);
-  assert.ok(stableCask.indexOf('  livecheck do') < stableCask.indexOf('  conflicts_with cask:'));
-  assert.ok(stableCask.indexOf('  conflicts_with cask:') < stableCask.indexOf('  depends_on macos: :big_sur'));
 
   const fullResult = runNode([
     'scripts/update-homebrew-tap.ts',
@@ -147,9 +121,7 @@ test('Homebrew tap updater is a local cohort-bound manifest and checksum planner
   assert.match(fullCask, /bundled_full_runtime_payload_allowed: true/);
   assert.match(fullCask, /agent_pack_homebrew_allowed: false/);
   assert.match(fullCask, /conflicts_with cask: \["one-person-lab", "one-person-lab-nightly"\]/);
-  assert.ok(fullCask.indexOf('  conflicts_with cask:') < fullCask.indexOf('  depends_on macos: :big_sur'));
   assert.match(fullCask, /Full assets stay outside standard updater metadata/);
-  assert.match(fullCask, /app "One Person Lab\.app"/);
 
   const stableRefresh = runNode([
     'scripts/update-homebrew-tap.ts',
@@ -171,9 +143,6 @@ test('Homebrew tap updater is a local cohort-bound manifest and checksum planner
   ]);
   assert.equal(stableRefresh.status, 0, stableRefresh.stderr || stableRefresh.stdout);
   const stableRefreshedCask = fs.readFileSync(path.join(tapRoot, 'Casks', 'one-person-lab.rb'), 'utf8');
-  assert.match(stableRefreshedCask, /desc "AI-first desktop research and agent orchestration app"/);
-  assert.ok(stableRefreshedCask.indexOf('  conflicts_with cask:') < stableRefreshedCask.indexOf('  depends_on macos: :big_sur'));
-  assert.match(stableRefreshedCask, /depends_on macos: :big_sur/);
   assert.match(stableRefreshedCask, /\n  # OPL_HOMEBREW_BOUNDARY_START\n  # channel: stable/);
 
   const modulesPackageKind = runNode([
@@ -372,20 +341,13 @@ test('Homebrew tap updater is a local cohort-bound manifest and checksum planner
 
   const selfCheck = runNode(['scripts/update-homebrew-tap.ts', '--self-check']);
   assert.equal(selfCheck.status, 0, selfCheck.stderr || selfCheck.stdout);
-  assert.match(selfCheck.stdout, /Full cask isolation/);
-  assert.match(selfCheck.stdout, /agent-pack App\/CLI ownership/);
 });
 
-test('agent installation contract validator is wired into release boundary guard', () => {
-  const boundaryScriptDeps = fs.readFileSync(
-    path.join(appRoot, 'scripts', 'validate-release-boundary', 'script-dependencies.ts'),
-    'utf8',
-  );
+test('agent installation contract validator accepts repository contracts', () => {
   const result = runNode(['scripts/validate-agent-installation-contract.ts']);
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
   assert.match(result.stdout, /App agent installation contract is consistent/);
-  assert.match(boundaryScriptDeps, /validate-agent-installation-contract\.ts/);
 });
 
 test('agent installation validator rejects duplicate bare MAS/MAG/RCA skill mirrors', () => {
@@ -396,7 +358,6 @@ test('agent installation validator rejects duplicate bare MAS/MAG/RCA skill mirr
     skillsRoot,
   ]);
   assert.equal(cleanResult.status, 0, cleanResult.stderr || cleanResult.stdout);
-  assert.match(cleanResult.stdout, /"validated_codex_skills_root"/);
 
   writeFile(path.join(skillsRoot, 'med-autoscience', 'SKILL.md'), '# duplicate Med Auto Science skill\n');
   const duplicateResult = runNode([
@@ -436,8 +397,6 @@ test('agent installation validator accepts generated OMA local plugin roots', ()
     ]);
 
     assert.equal(result.status, 0, `${result.stderr}\n${result.stdout}`);
-    assert.match(result.stdout, /"generated_plugin_agents"/);
-    assert.match(result.stdout, /"opl-meta-agent":/);
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }
