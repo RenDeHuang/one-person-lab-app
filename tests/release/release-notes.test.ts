@@ -3,11 +3,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
 import test from 'node:test';
+import { appRoot } from './release-readiness/helpers.ts';
 import { withHiddenLocalizedReleaseNotes } from './app-release-boundary-cases/release-notes-fixtures.ts';
-
-const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 function runNode(args, options = {}) {
   return spawnSync(process.execPath, ['--experimental-strip-types', ...args], {

@@ -3,12 +3,11 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { validateDockerWebuiDiagnostics } from '../../scripts/validate-docker-webui-diagnostics.ts';
 import { validateDockerWebuiSmokeGateResult } from '../../scripts/docker-webui-smoke-gate.ts';
+import { appRoot } from './release-readiness/helpers.ts';
 
-const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const smokeGatePath = path.join(appRoot, 'scripts', 'docker-webui-smoke-gate.ts');
 const webuiImageRef = 'ghcr.io/gaofeng21cn/one-person-lab-webui:stable';
 const imageDigest = 'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';

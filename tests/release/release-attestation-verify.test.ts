@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import test from 'node:test';
-import { appRoot } from './release-readiness/helpers.ts';
+import { appRoot, readJson } from './release-readiness/helpers.ts';
 
 function writeFakeGh(binDir: string, body: string): string {
   fs.mkdirSync(binDir, { recursive: true });
@@ -24,10 +24,6 @@ function runVerifier(args: string[], env: NodeJS.ProcessEnv = {}) {
       env: { ...process.env, ...env },
     },
   );
-}
-
-function readJson(filePath: string) {
-  return JSON.parse(fs.readFileSync(filePath, 'utf8'));
 }
 
 test('release attestation verifier writes a passed summary for verified assets and OCI refs', () => {

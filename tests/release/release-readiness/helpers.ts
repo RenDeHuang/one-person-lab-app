@@ -14,6 +14,10 @@ export function writeJson(filePath: string, payload: unknown) {
   writeFile(filePath, `${JSON.stringify(payload, null, 2)}\n`);
 }
 
+export function readJson(filePath: string) {
+  return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+}
+
 export function runSummary(args: string[], env: NodeJS.ProcessEnv = {}) {
   return spawnSync(
     process.execPath,

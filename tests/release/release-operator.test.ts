@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import test from 'node:test';
-import { appRoot } from './release-readiness/helpers.ts';
+import { appRoot, readJson, writeJson } from './release-readiness/helpers.ts';
 
 function cleanEnv() {
   const {
@@ -37,14 +37,6 @@ function runScript(script: string, args: string[]) {
       env: cleanEnv(),
     },
   );
-}
-
-function readJson(filePath: string) {
-  return JSON.parse(fs.readFileSync(filePath, 'utf8'));
-}
-
-function writeJson(filePath: string, payload: unknown): void {
-  fs.writeFileSync(filePath, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
 }
 
 function snapshotFile(filePath: string): string | null {
@@ -97,6 +89,7 @@ function releaseOperatorPaths(prefix: string) {
     tempRoot,
     runJsonPath: path.join(tempRoot, 'run.json'),
     outputPath: path.join(tempRoot, 'release-operator-state.json'),
+    markdownPath: path.join(tempRoot, 'release-operator-state.md'),
   };
 }
 
@@ -110,6 +103,8 @@ function runStatus(prefix: string, runPayload: unknown, args: string[] = []) {
     ...args,
     '--output',
     paths.outputPath,
+    '--markdown',
+    paths.markdownPath,
   ]);
   assert.equal(result.status, 0, result.stderr || result.stdout);
   return { ...paths, result, state: readJson(paths.outputPath) };
@@ -330,17 +325,13 @@ test('release operator status reports completed failure primary blocker', () => 
 });
 
 test('release operator status reports successful current run as ready for closeout review', () => {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-operator-status-ready-'));
-  const runJsonPath = path.join(tempRoot, 'run.json');
-  const outputPath = path.join(tempRoot, 'release-operator-state.json');
-  const markdownPath = path.join(tempRoot, 'release-operator-state.md');
-  writeJson(runJsonPath, {
+  const { state } = runStatus('opl-release-operator-status-ready-', {
     databaseId: 45678,
     workflowName: 'OPL Desktop Release',
     displayTitle: 'Release v26.6.99',
     status: 'completed',
     conclusion: 'success',
-    headSha: 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+    headSha: headE,
     url: 'https://github.example/runs/45678',
     jobs: [
       {
@@ -350,24 +341,7 @@ test('release operator status reports successful current run as ready for closeo
         steps: [{ name: 'Aggregate release readiness', status: 'completed', conclusion: 'success' }],
       },
     ],
-  });
-
-  const result = runScript('scripts/release-operator.ts', [
-    'status',
-    '--run-json',
-    runJsonPath,
-    '--version',
-    '26.6.29',
-    '--expected-head',
-    'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
-    '--output',
-    outputPath,
-    '--markdown',
-    markdownPath,
-  ]);
-
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-  const state = readJson(outputPath);
+  }, ['--version', '26.6.29', '--expected-head', headE]);
   assert.equal(state.status, 'ready_for_closeout_review');
   assert.equal(state.run.id, '45678');
   assert.equal(state.run.conclusion, 'success');

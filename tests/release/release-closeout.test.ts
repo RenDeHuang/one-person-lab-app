@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import test from 'node:test';
-import { appRoot, writeJson } from './release-readiness/helpers.ts';
+import { appRoot, readJson, writeJson } from './release-readiness/helpers.ts';
 
 const VERSION = '26.5.99';
 type JsonRecord = Record<string, unknown>;
@@ -19,10 +19,6 @@ function runCloseout(args: string[]) {
       env: { ...process.env },
     },
   );
-}
-
-function readJson(filePath: string) {
-  return JSON.parse(fs.readFileSync(filePath, 'utf8'));
 }
 
 function closeoutFixture(prefix: string, artifactDir = 'artifacts', outDirName = 'out') {
