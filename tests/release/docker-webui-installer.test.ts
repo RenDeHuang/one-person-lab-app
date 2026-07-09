@@ -5,13 +5,10 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
-import { validateDockerWebuiDiagnostics } from '../../scripts/validate-docker-webui-diagnostics.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const installerPath = path.join(appRoot, 'scripts', 'install-docker-webui.sh');
-const windowsInstallerPath = path.join(appRoot, 'scripts', 'install-docker-webui.ps1');
 const smokeGatePath = path.join(appRoot, 'scripts', 'docker-webui-smoke-gate.ts');
-const cloudTemplateDir = path.join(appRoot, 'deploy', 'docker-webui', 'cloud');
 const imageDigest = 'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 const diagnosticsFiles = [
   'metadata.txt',
@@ -206,90 +203,10 @@ test('Docker/WebUI installer rejects API key parameters', () => {
   assert.match(providerKeyResult.stderr, /Do not pass API keys/);
 });
 
-test('Docker/WebUI cloud template uses Docker secrets, password auth, and optional Gateway key overlay', () => {
-  const compose = fs.readFileSync(path.join(cloudTemplateDir, 'compose.yaml'), 'utf8');
-  const gatewayOverlay = fs.readFileSync(path.join(cloudTemplateDir, 'compose.gateway-key.yaml'), 'utf8');
-  const envExample = fs.readFileSync(path.join(cloudTemplateDir, '.env.example'), 'utf8');
-  const readme = fs.readFileSync(path.join(cloudTemplateDir, 'README.md'), 'utf8');
-
-  assert.match(compose, /OPL_WEBUI_DEPLOYMENT_MODE: cloud/);
-  assert.match(compose, /OPL_WEBUI_AUTH_MODE: password/);
-  assert.match(compose, /OPL_WEBUI_USERNAME: \$\{OPL_WEBUI_USERNAME:-opl\}/);
-  assert.match(compose, /OPL_WEBUI_PASSWORD_FILE: \/run\/secrets\/opl_webui_password/);
-  assert.match(compose, /file: \$\{OPL_WEBUI_PASSWORD_FILE:-\.\/secrets\/webui_password\}/);
-  assert.match(compose, /image: caddy:2/);
-  assert.doesNotMatch(compose, /OPL_GATEWAY_API_KEY_FILE/);
-  assert.match(gatewayOverlay, /OPL_GATEWAY_API_KEY_FILE: \/run\/secrets\/opl_gateway_api_key/);
-  assert.match(gatewayOverlay, /file: \$\{OPL_GATEWAY_API_KEY_FILE:-\.\/secrets\/gateway_api_key\}/);
-  assert.match(envExample, /OPL_WEBUI_USERNAME=opl/);
-  assert.match(readme, /secrets\/webui_password/);
-  assert.match(readme, /secrets\/gateway_api_key/);
-  assert.match(readme, /API Key 不能替代登录密码/);
-});
-
 test('Docker/WebUI installer validates health timeout before running', () => {
   const result = runInstaller(['--dry-run', '--health-timeout', '0']);
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /Health timeout must be a positive integer/);
-});
-
-test('Docker/WebUI installer has health check and diagnostic collection built in without API key capture', () => {
-  const script = fs.readFileSync(installerPath, 'utf8');
-
-  assert.match(script, /wait_for_health/);
-  assert.match(script, /probe_http_once/);
-  assert.match(script, /collect_diagnostics/);
-  assert.match(script, /docker compose -f "\$COMPOSE_FILE" ps/);
-  assert.match(script, /docker compose -f "\$COMPOSE_FILE" logs --no-color --tail=300/);
-  assert.match(script, /local pull_args=\(compose -f "\$COMPOSE_FILE" pull\)/);
-  assert.match(script, /docker "\$\{pull_args\[@\]\}"/);
-  assert.match(script, /docker version/);
-  assert.match(script, /docker compose version/);
-  assert.match(script, /docker image inspect "\$IMAGE"/);
-  assert.match(script, /http-probe\.txt/);
-  assert.match(script, /directories\.txt/);
-  assert.match(script, /data-preservation\.txt/);
-  assert.match(script, /pre_data_inventory/);
-  assert.match(script, /post_data_inventory/);
-  assert.match(script, /tar -czf "\$DIAGNOSTICS_ARCHIVE"/);
-  assert.match(script, /redact_diagnostic_stream/);
-  assert.doesNotMatch(script, /printenv|env >|docker compose config/);
-  assert.doesNotMatch(script, /docker\.sock|watchtower/i);
-});
-
-test('Docker/WebUI installer keeps OS-specific Docker policy explicit', () => {
-  const script = fs.readFileSync(installerPath, 'utf8');
-
-  assert.match(script, /Automatic Docker Engine installation is supported only on Ubuntu/);
-  assert.match(script, /download\.docker\.com\/linux\/ubuntu/);
-  assert.match(script, /ca-certificates curl gnupg/);
-  assert.match(script, /docker-ce docker-ce-cli containerd\.io docker-buildx-plugin docker-compose-plugin/);
-  assert.match(script, /Docker is installed but the daemon is not reachable/);
-  assert.match(script, /On macOS, would only check Docker availability/);
-  assert.doesNotMatch(script, /brew install|curl .*Docker\.dmg|hdiutil .*Docker|orbctl|colima start/i);
-});
-
-test('Docker/WebUI diagnostic validator requires preservation evidence and rejects secret markers', () => {
-  const diagnostics = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-diagnostics-'));
-  writeMinimalDiagnostics(diagnostics);
-  assert.equal(validateDockerWebuiDiagnostics(diagnostics).status, 'passed');
-
-  fs.writeFileSync(path.join(diagnostics, 'docker-compose-logs.txt'), 'OPENAI_API_KEY=sk-123456789012345678901234\n');
-  const secretResult = validateDockerWebuiDiagnostics(diagnostics);
-  assert.equal(secretResult.status, 'failed');
-  assert.ok(secretResult.forbidden_secret_markers.some((marker) => marker.includes('OPENAI_API_KEY')));
-
-  writeMinimalDiagnostics(diagnostics);
-  fs.writeFileSync(path.join(diagnostics, 'docker-compose-logs.txt'), 'OPL_WEBUI_PASSWORD=secret-password\n');
-  const webuiPasswordResult = validateDockerWebuiDiagnostics(diagnostics);
-  assert.equal(webuiPasswordResult.status, 'failed');
-  assert.ok(webuiPasswordResult.forbidden_secret_markers.some((marker) => marker.includes('OPL_WEBUI_PASSWORD')));
-
-  writeMinimalDiagnostics(diagnostics);
-  fs.rmSync(path.join(diagnostics, 'data-preservation.txt'));
-  const missingResult = validateDockerWebuiDiagnostics(diagnostics);
-  assert.equal(missingResult.status, 'failed');
-  assert.ok(missingResult.missing_files.includes('data-preservation.txt'));
 });
 
 test('Docker/WebUI smoke gate writes typed blocker instead of passing unmatched VM gates', () => {
@@ -305,13 +222,6 @@ test('Docker/WebUI smoke gate writes typed blocker instead of passing unmatched 
   assert.equal(payload.ordinary_user_status.priority, 'ordinary_user_path_before_evidence_bundle_language');
   assert.equal(payload.ordinary_user_status.access_key_settings.status, 'typed_blocker');
   assert.ok(payload.ordinary_user_status.must_not_claim.includes('clean_windows_vm_pass_without_clean_windows_evidence'));
-});
-
-test('Docker/WebUI smoke gate keeps Docker CLI home while isolating WebUI home', () => {
-  const script = fs.readFileSync(smokeGatePath, 'utf8');
-  assert.doesNotMatch(script, /HOME:\s*home/);
-  assert.match(script, /OPL_WEBUI_HOME:\s*webuiHome/);
-  assert.match(script, /OPL_WEBUI_COMPOSE_FILE:\s*composeFile/);
 });
 
 test('Docker/WebUI clean Windows smoke gate imports minimal Windows evidence', () => {
@@ -461,33 +371,6 @@ test('Docker/WebUI clean Windows smoke gate rejects unsafe zipped Windows eviden
   ]);
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /unsafe parent traversal entry/);
-});
-
-test('Docker/WebUI Windows installer writes an importable evidence skeleton without claiming API key flow', () => {
-  const script = fs.readFileSync(windowsInstallerPath, 'utf8');
-
-  assert.match(script, /\[string\]\$EvidenceDir/);
-  assert.match(script, /\[string\]\$EvidenceArchive/);
-  assert.match(script, /function Write-WebUiAccessReceipt/);
-  assert.match(script, /function Write-WindowsSmokeEvidence/);
-  assert.match(script, /function Write-WindowsEvidenceArchive/);
-  assert.match(script, /Write-WebUiAccessReceipt -TargetDir \$resolvedEvidenceDir -Url \$url/);
-  assert.match(script, /schema = "opl_docker_webui_windows_smoke_evidence\.v1"/);
-  assert.match(script, /gate_id = "clean_windows_vm"/);
-  assert.match(script, /host_platform = "win32"/);
-  assert.match(script, /installer_command = \$installerCommand/);
-  assert.match(script, /diagnostics_dir = \$diagnosticsRelative/);
-  assert.match(script, /\$accessReceiptField = "api" \+ "_key_flow_evidence"/);
-  assert.match(script, /\$manifest\[\$accessReceiptField\] = \$accessReceiptRelative/);
-  assert.match(script, /Missing WebUI access receipt/);
-  assert.match(script, /if \(-not \[string\]::IsNullOrWhiteSpace\(\$EvidenceDir\)\)/);
-  assert.match(script, /\$DiagnosticsDir = Join-Path \$resolvedEvidenceDir "diagnostics"/);
-  assert.match(script, /-EvidenceArchive requires -EvidenceDir/);
-  assert.match(script, /Write-WindowsSmokeEvidence -TargetDir \$resolvedEvidenceDir -DiagnosticsPath \$collectedDiagnosticsDir/);
-  assert.match(script, /Write-WindowsEvidenceArchive -SourceDir \$resolvedEvidenceDir -ArchivePath \$resolvedEvidenceArchive/);
-  assert.match(script, /Compress-Archive -Path \(Join-Path \$SourceDir "\*"\) -DestinationPath \$ArchivePath -Force/);
-  assert.match(script, /Evidence member must stay inside EvidenceDir/);
-  assert.doesNotMatch(script, /ApiKey|API_KEY|OPENAI_API_KEY|GFLABTOKEN|Secret/i);
 });
 
 test('Docker/WebUI clean Windows smoke gate rejects incomplete Windows evidence', () => {

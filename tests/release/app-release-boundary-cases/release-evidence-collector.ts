@@ -34,69 +34,7 @@ test('release evidence collector captures live OPL runtime refs and keeps missin
   const bundleDir = path.join(tempRoot, 'bundle');
   const actionLog = path.join(tempRoot, 'opl-actions.jsonl');
   const fakeOpl = path.join(fakeBin, 'opl');
-  fs.mkdirSync(fakeBin, { recursive: true });
-  fs.writeFileSync(fakeOpl, `#!/usr/bin/env node
-const fs = require('node:fs');
-const args = process.argv.slice(2);
-fs.appendFileSync(${JSON.stringify(actionLog)}, JSON.stringify(args) + '\\n');
-function out(value) {
-  process.stdout.write(JSON.stringify(value) + '\\n');
-}
-if (args.join(' ') === 'app state --profile fast --json') {
-  out({
-    app_state: {
-      schema: 'opl_app_state.v1',
-      profile: 'fast',
-      operator: {
-        summary: { stage_attempt_count: 2 },
-        actions: [{ action_id: 'provider-scheduler:temporal:trigger' }]
-      },
-      provider: { temporal: { status: 'ready' } }
-    }
-  });
-  process.exit(0);
-}
-if (args.join(' ') === 'app state --profile full --json') {
-  out({
-    app_state: {
-      schema: 'opl_app_state.v1',
-      profile: 'full',
-      operator: {
-        summary: { stage_attempt_count: 2 },
-        actions: [{ action_id: 'provider-scheduler:temporal:trigger' }]
-      },
-      provider: { temporal: { status: 'ready' } }
-    }
-  });
-  process.exit(0);
-}
-if (args.join(' ') === 'runtime app-operator-drilldown --detail full --json') {
-  out({
-    app_operator_drilldown: {
-      surface_kind: 'opl_app_operator_drilldown_read_model',
-      detail_level: 'full',
-      summary: { stage_attempt_count: 2 }
-    }
-  });
-  process.exit(0);
-}
-if (args.slice(0, 4).join(' ') === 'app action execute --action') {
-  const actionId = args[4];
-  const dryRun = args.includes('--dry-run');
-  out({
-    app_action_execution: {
-      surface_kind: 'opl_app_action_execution.v1',
-      action_id: actionId,
-      dry_run: dryRun,
-      result: { execution: { execution_status: dryRun ? 'dry_run' : 'executed' } },
-      authority_boundary: { can_write_domain_truth: false }
-    }
-  });
-  process.exit(0);
-}
-console.error('unexpected opl args: ' + args.join(' '));
-process.exit(2);
-`, { mode: 0o755 });
+  writeCollectorFakeOpl(fakeOpl, actionLog);
 
   const collected = runNode([
     'scripts/collect-release-evidence.ts',
@@ -163,53 +101,7 @@ test('release evidence collector validates generated bundle shape before reporti
   const fakeBin = path.join(tempRoot, 'bin');
   const bundleDir = path.join(tempRoot, 'bundle');
   const fakeOpl = path.join(fakeBin, 'opl');
-  fs.mkdirSync(fakeBin, { recursive: true });
-  fs.writeFileSync(fakeOpl, `#!/usr/bin/env node
-const args = process.argv.slice(2);
-function out(value) {
-  process.stdout.write(JSON.stringify(value) + '\\n');
-}
-if (args.join(' ') === 'app state --profile fast --json') {
-  out({ status: 'passed', refs_only: true });
-  process.exit(0);
-}
-if (args.join(' ') === 'app state --profile full --json') {
-  out({
-    app_state: {
-      schema: 'opl_app_state.v1',
-      profile: 'full',
-      operator: { summary: { stage_attempt_count: 2 } },
-      provider: { temporal: { status: 'ready' } }
-    }
-  });
-  process.exit(0);
-}
-if (args.join(' ') === 'runtime app-operator-drilldown --detail full --json') {
-  out({
-    app_operator_drilldown: {
-      surface_kind: 'opl_app_operator_drilldown_read_model',
-      detail_level: 'full',
-      summary: { stage_attempt_count: 2 }
-    }
-  });
-  process.exit(0);
-}
-if (args.slice(0, 4).join(' ') === 'app action execute --action') {
-  const dryRun = args.includes('--dry-run');
-  out({
-    app_action_execution: {
-      surface_kind: 'opl_app_action_execution.v1',
-      action_id: args[4],
-      dry_run: dryRun,
-      result: { execution: { execution_status: dryRun ? 'dry_run' : 'executed' } },
-      authority_boundary: { can_write_domain_truth: false }
-    }
-  });
-  process.exit(0);
-}
-console.error('unexpected opl args: ' + args.join(' '));
-process.exit(2);
-`, { mode: 0o755 });
+  writeCollectorFakeOpl(fakeOpl, '', { fast: { status: 'passed', refs_only: true } });
 
   const collected = runNode([
     'scripts/collect-release-evidence.ts',
@@ -233,60 +125,7 @@ test('release evidence collector can attach externally produced contracted artif
   const bundleDir = path.join(tempRoot, 'bundle');
   const externalEvidence = path.join(tempRoot, 'external-evidence');
   const fakeOpl = path.join(fakeBin, 'opl');
-  fs.mkdirSync(fakeBin, { recursive: true });
-  fs.writeFileSync(fakeOpl, `#!/usr/bin/env node
-const args = process.argv.slice(2);
-function out(value) {
-  process.stdout.write(JSON.stringify(value) + '\\n');
-}
-if (args.join(' ') === 'app state --profile fast --json') {
-  out({
-    app_state: {
-      schema: 'opl_app_state.v1',
-      profile: 'fast',
-      operator: { summary: { stage_attempt_count: 2 } },
-      provider: { temporal: { status: 'ready' } }
-    }
-  });
-  process.exit(0);
-}
-if (args.join(' ') === 'app state --profile full --json') {
-  out({
-    app_state: {
-      schema: 'opl_app_state.v1',
-      profile: 'full',
-      operator: { summary: { stage_attempt_count: 2 } },
-      provider: { temporal: { status: 'ready' } }
-    }
-  });
-  process.exit(0);
-}
-if (args.join(' ') === 'runtime app-operator-drilldown --detail full --json') {
-  out({
-    app_operator_drilldown: {
-      surface_kind: 'opl_app_operator_drilldown_read_model',
-      detail_level: 'full',
-      summary: { stage_attempt_count: 2 }
-    }
-  });
-  process.exit(0);
-}
-if (args.slice(0, 4).join(' ') === 'app action execute --action') {
-  const dryRun = args.includes('--dry-run');
-  out({
-    app_action_execution: {
-      surface_kind: 'opl_app_action_execution.v1',
-      action_id: args[4],
-      dry_run: dryRun,
-      result: { execution: { execution_status: dryRun ? 'dry_run' : 'executed' } },
-      authority_boundary: { can_write_domain_truth: false }
-    }
-  });
-  process.exit(0);
-}
-console.error('unexpected opl args: ' + args.join(' '));
-process.exit(2);
-`, { mode: 0o755 });
+  writeCollectorFakeOpl(fakeOpl);
   writeScreenshotPng(path.join(externalEvidence, 'runtime.png'));
   writeScreenshotPng(path.join(externalEvidence, 'full.png'));
   writeScreenshotPng(path.join(externalEvidence, 'action.png'));

@@ -269,47 +269,51 @@ export function writeRuntimeEvidenceJsonFiles(tempRoot) {
   );
 }
 
-export function writeCollectorFakeOpl(fakeOpl, actionLog = "") {
+export function writeCollectorFakeOpl(fakeOpl, actionLog = "", outputs = {}) {
+  const fast = outputs.fast ?? {
+    app_state: {
+      schema: "opl_app_state.v1",
+      profile: "fast",
+      operator: { summary: { stage_attempt_count: 2 } },
+      provider: { temporal: { status: "ready" } },
+    },
+  };
+  const full = outputs.full ?? {
+    app_state: {
+      schema: "opl_app_state.v1",
+      profile: "full",
+      operator: { summary: { stage_attempt_count: 2 } },
+      provider: { temporal: { status: "ready" } },
+    },
+  };
+  const drilldown = outputs.drilldown ?? {
+    app_operator_drilldown: {
+      surface_kind: "opl_app_operator_drilldown_read_model",
+      detail_level: "full",
+      summary: { stage_attempt_count: 2 },
+    },
+  };
   fs.mkdirSync(path.dirname(fakeOpl), { recursive: true });
   fs.writeFileSync(
     fakeOpl,
     `#!/usr/bin/env node
 const fs = require('node:fs');
 const args = process.argv.slice(2);
+const responses = ${JSON.stringify({ fast, full, drilldown }, null, 2)};
 ${actionLog ? `fs.appendFileSync(${JSON.stringify(actionLog)}, JSON.stringify(args) + '\\n');` : ""}
 function out(value) {
   process.stdout.write(JSON.stringify(value) + '\\n');
 }
 if (args.join(' ') === 'app state --profile fast --json') {
-  out({
-    app_state: {
-      schema: 'opl_app_state.v1',
-      profile: 'fast',
-      operator: { summary: { stage_attempt_count: 2 } },
-      provider: { temporal: { status: 'ready' } }
-    }
-  });
+  out(responses.fast);
   process.exit(0);
 }
 if (args.join(' ') === 'app state --profile full --json') {
-  out({
-    app_state: {
-      schema: 'opl_app_state.v1',
-      profile: 'full',
-      operator: { summary: { stage_attempt_count: 2 } },
-      provider: { temporal: { status: 'ready' } }
-    }
-  });
+  out(responses.full);
   process.exit(0);
 }
 if (args.join(' ') === 'runtime app-operator-drilldown --detail full --json') {
-  out({
-    app_operator_drilldown: {
-      surface_kind: 'opl_app_operator_drilldown_read_model',
-      detail_level: 'full',
-      summary: { stage_attempt_count: 2 }
-    }
-  });
+  out(responses.drilldown);
   process.exit(0);
 }
 if (args.slice(0, 4).join(' ') === 'app action execute --action') {
