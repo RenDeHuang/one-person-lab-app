@@ -349,6 +349,9 @@
             "console_policy_ref",
             "environment_template_ref",
             "environment_version_ref",
+            "source_material_refs",
+            "source_material_receipt_refs",
+            "reference_design_packet_refs",
             "structured_result_panel",
             "artifact_provenance_card",
             "ref_level_follow_up_refs"
@@ -475,6 +478,9 @@
             "resource_receipt_ref",
             "cost_estimate_ref",
             "openscience_console_projection_ref",
+            "source_material_refs",
+            "source_material_receipt_refs",
+            "reference_design_packet_refs",
             "structured_result_panel",
             "artifact_provenance_card",
             "ref_level_follow_up_refs",
@@ -488,6 +494,7 @@
           "slice_policy": "same_task_run_projection_v2_filtered_by_current_conversation_or_selected_task",
           "structured_result_panel_ref": "contracts/app-runtime-bridge.json#structured_result_panel_projection",
           "artifact_provenance_projection_ref": "contracts/app-runtime-bridge.json#artifact_provenance_bundle_projection",
+          "source_material_projection_ref": "contracts/app-runtime-bridge.json#source_material_projection",
           "ref_level_follow_up_ref": "contracts/app-runtime-bridge.json#ref_level_follow_up_projection"
         },
         "must_not_own": [
@@ -1476,6 +1483,7 @@
         "authority boundary fields",
         "structured result panel refs projected to conversation/current-task/right inspector",
         "artifact provenance refs-only drawer/card",
+        "source material refs and ingest receipt refs from dropped files or PDFs",
         "ref-level review, request-change, and follow-up prompt/action refs",
         "workflow/skill candidate report-first refs surfaced in Settings Capabilities"
       ],

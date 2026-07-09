@@ -230,3 +230,66 @@ test('release evidence bundle records Runtime page acceptance artifacts without 
     ],
   });
 });
+
+test('source material user path stays refs-only before domain agent handoff', () => {
+  const runtimeBridge = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-runtime-bridge.json'), 'utf8'),
+  );
+  const guiContract = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-gui-product-contract.json'), 'utf8'),
+  );
+  const pageStateMatrix = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-page-state-matrix.json'), 'utf8'),
+  );
+  const sourceMaterial = runtimeBridge.source_material_projection;
+  const guiRoute = guiContract.source_material_user_path;
+  const ordinaryPage = pageStateMatrix.pages.find((page) => page.id === 'ordinary_conversation');
+  const inspectorPage = pageStateMatrix.pages.find((page) => page.id === 'right_context_inspector');
+  const requiredRefs = [
+    'source_material_refs',
+    'source_material_receipt_refs',
+    'reference_design_packet_refs',
+  ];
+
+  assert.equal(
+    sourceMaterial.ingest_command,
+    'opl workspace source ingest --workspace <workspace_ref> --files <file_refs> --goal <user_goal> --json',
+  );
+  assert.equal(sourceMaterial.authority, 'opl_framework_source_material_refs_projection');
+  assert.equal(sourceMaterial.reference_design_consumer, 'opl-meta-agent');
+  assert.equal(sourceMaterial.refs_only, true);
+  assert.equal(sourceMaterial.source_body_access, false);
+  assert.equal(sourceMaterial.pdf_parse_access, false);
+  assert.equal(sourceMaterial.artifact_body_access, false);
+  assert.equal(sourceMaterial.domain_truth_write_access, false);
+  assert.equal(sourceMaterial.owner_receipt_write_access, false);
+  assert.equal(sourceMaterial.domain_verdict_authority, false);
+  assert.equal(sourceMaterial.readiness_authority, false);
+  for (const refField of requiredRefs) {
+    assert.ok(sourceMaterial.required_ref_fields.includes(refField), refField);
+    assert.ok(guiRoute.machine_ref_fields.includes(refField), refField);
+    assert.ok(guiContract.ordinary_conversation.current_task_slice.fields.includes(refField), refField);
+    assert.ok(guiContract.right_context_inspector.current_task_evidence.fields.includes(refField), refField);
+    assert.ok(ordinaryPage.conversation_view_model.current_task_slice.fields.includes(refField), refField);
+    assert.ok(inspectorPage.inspector_view_model.current_task_evidence.fields.includes(refField), refField);
+  }
+  for (const forbiddenClaim of [
+    'source_body',
+    'pdf_parse_quality',
+    'reference_design_quality_verdict',
+    'domain_truth',
+    'owner_receipt_authority',
+    'app_release_readiness',
+  ]) {
+    assert.ok(sourceMaterial.forbidden_claims.includes(forbiddenClaim), forbiddenClaim);
+  }
+  assert.equal(guiRoute.route_contract_ref, 'contracts/app-runtime-bridge.json#source_material_projection');
+  assert.equal(guiRoute.framework_ingest_command, sourceMaterial.ingest_command);
+  assert.equal(guiRoute.ui_implementation_status, 'route_contract_landed_no_live_drag_drop_ui_evidence');
+  assert.match(guiRoute.domain_handoff_policy, /OMA/);
+  assert.match(guiRoute.domain_handoff_policy, /MAS/);
+  assert.equal(
+    inspectorPage.inspector_view_model.current_task_evidence.source_material_projection_ref,
+    'contracts/app-runtime-bridge.json#source_material_projection',
+  );
+});

@@ -1020,6 +1020,9 @@
         "console_policy_ref",
         "environment_template_ref",
         "environment_version_ref",
+        "source_material_refs",
+        "source_material_receipt_refs",
+        "reference_design_packet_refs",
         "structured_result_panel",
         "artifact_provenance_card",
         "ref_level_follow_up_refs"
@@ -1122,6 +1125,9 @@
         "resource_receipt_ref",
         "cost_estimate_ref",
         "openscience_console_projection_ref",
+        "source_material_refs",
+        "source_material_receipt_refs",
+        "reference_design_packet_refs",
         "structured_result_panel",
         "artifact_provenance_card",
         "ref_level_follow_up_refs",
@@ -1135,6 +1141,7 @@
       "slice_policy": "same_task_run_projection_v2_filtered_by_current_conversation_or_selected_task",
       "structured_result_panel_ref": "contracts/app-runtime-bridge.json#structured_result_panel_projection",
       "artifact_provenance_projection_ref": "contracts/app-runtime-bridge.json#artifact_provenance_bundle_projection",
+      "source_material_projection_ref": "contracts/app-runtime-bridge.json#source_material_projection",
       "ref_level_follow_up_ref": "contracts/app-runtime-bridge.json#ref_level_follow_up_projection"
     },
     "must_not_own": [
@@ -1333,6 +1340,39 @@
         "rollback_or_receipt"
       ]
     }
+  },
+  "source_material_user_path": {
+    "surface_id": "source_material_user_path",
+    "ordinary_user_labels": {
+      "primary_label_zh": "资料",
+      "primary_label_en": "Source material",
+      "action_label_zh": "添加 PDF/文件",
+      "handoff_label_en": "Use source material"
+    },
+    "route_contract_ref": "contracts/app-runtime-bridge.json#source_material_projection",
+    "source_material_projection_ref": "contracts/app-runtime-bridge.json#source_material_projection",
+    "framework_ingest_command": "opl workspace source ingest --workspace <workspace_ref> --files <file_refs> --goal <user_goal> --json",
+    "entry_surfaces": [
+      "guid_home.file_attachment_control",
+      "ordinary_conversation.file_attachment_control",
+      "right_context_inspector.files"
+    ],
+    "machine_ref_fields": [
+      "source_material_refs",
+      "source_material_receipt_refs",
+      "reference_design_packet_refs"
+    ],
+    "conversation_starter_policy": "user_file_plus_goal_first_routes_to_framework_source_ingest_then_professional_agent_consumes_refs",
+    "domain_handoff_policy": "OMA may distill reference_design_packet_refs; MAS, MAG, RCA, and OBF consume source_material_refs only through their own domain authority.",
+    "display_policy": "show filename/source/provenance and refs-only handoff status without reading file body or claiming parse quality",
+    "refs_only": true,
+    "source_body_access": false,
+    "pdf_parse_access": false,
+    "artifact_body_access": false,
+    "domain_verdict_authority": false,
+    "owner_receipt_write_access": false,
+    "release_readiness_authority": false,
+    "ui_implementation_status": "route_contract_landed_no_live_drag_drop_ui_evidence"
   },
   "home_purpose_entries": [
     {

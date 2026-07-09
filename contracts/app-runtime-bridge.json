@@ -1123,6 +1123,9 @@
       "console_policy_ref",
       "environment_template_ref",
       "environment_version_ref",
+      "source_material_refs",
+      "source_material_receipt_refs",
+      "reference_design_packet_refs",
       "structured_result_panel",
       "artifact_provenance_card",
       "ref_level_follow_up_refs"
@@ -1163,6 +1166,9 @@
       "resource_receipt_ref",
       "cost_estimate_ref",
       "openscience_console_projection_ref",
+      "source_material_refs",
+      "source_material_receipt_refs",
+      "reference_design_packet_refs",
       "structured_result_panel",
       "artifact_provenance_card",
       "ref_level_follow_up_refs",
@@ -1495,6 +1501,82 @@
     "card_surface": "right_context_inspector.artifacts.provenance_card",
     "card_route_policy": "shows_refs_only_summary_and_opens_refs_only_drawer_no_body_read",
     "drawer_or_card_policy": "drawer_and_card_are_refs_only_projection_surfaces_not_artifact_body_or_quality_verdict_surfaces"
+  },
+  "source_material_projection": {
+    "source": "app_state.operator.workbench.task_run_projection_v2.tasks[].source_material_refs",
+    "receipt_source": "app_state.operator.workbench.task_run_projection_v2.tasks[].source_material_receipt_refs",
+    "reference_design_packet_source": "app_state.operator.workbench.task_run_projection_v2.tasks[].reference_design_packet_refs",
+    "ingest_command": "opl workspace source ingest --workspace <workspace_ref> --files <file_refs> --goal <user_goal> --json",
+    "authority": "opl_framework_source_material_refs_projection",
+    "producer_owner": "one-person-lab",
+    "projection_kind": "source_material_refs_projection",
+    "surface_kind": "source_material_and_attachment_refs",
+    "user_path": "user_drops_pdf_or_file_and_states_goal",
+    "display_policy": "source_material_refs_and_provenance_only_no_pdf_body_no_parse_quality_no_domain_verdict",
+    "handoff_policy": "framework_ingest_receipts_route_source_refs_to_professional_agent_package_for_domain_work",
+    "domain_consumers": [
+      "med-autoscience",
+      "med-autogrant",
+      "redcube-ai",
+      "opl-bookforge",
+      "opl-meta-agent"
+    ],
+    "reference_design_consumer": "opl-meta-agent",
+    "required_ref_fields": [
+      "source_material_refs",
+      "source_material_receipt_refs",
+      "reference_design_packet_refs",
+      "user_goal_ref",
+      "provenance_ref"
+    ],
+    "optional_ref_fields": [
+      "attachment_refs",
+      "source_manifest_ref",
+      "content_hash_refs",
+      "source_kind_refs",
+      "workspace_ref",
+      "domain_handoff_ref",
+      "reference_design_distillation_ref"
+    ],
+    "allowed_input_labels": [
+      "PDF",
+      "file",
+      "folder",
+      "URL",
+      "notes"
+    ],
+    "conversation_surfaces": [
+      "guid_home.file_attachment_control",
+      "ordinary_conversation.current_task_slice",
+      "right_context_inspector.files",
+      "right_context_inspector.artifacts"
+    ],
+    "refs_only": true,
+    "source_body_access": false,
+    "pdf_parse_access": false,
+    "artifact_body_access": false,
+    "memory_body_access": false,
+    "domain_truth_write_access": false,
+    "owner_receipt_write_access": false,
+    "domain_verdict_authority": false,
+    "quality_verdict_authority": false,
+    "readiness_authority": false,
+    "source_readiness_authority": false,
+    "app_role": "display_only_source_material_refs_consumer_and_framework_ingest_route_starter",
+    "ui_implementation_status": "route_contract_landed_no_live_drag_drop_ui_evidence",
+    "forbidden_claims": [
+      "source_body",
+      "pdf_body",
+      "pdf_parse_quality",
+      "source_readiness",
+      "reference_design_quality_verdict",
+      "domain_truth",
+      "domain_quality_verdict",
+      "domain_readiness",
+      "owner_receipt_authority",
+      "app_release_readiness",
+      "family_production_readiness"
+    ]
   },
   "structured_result_panel_projection": {
     "source": "app_state.operator.workbench.task_run_projection_v2.tasks[].structured_result_panel",

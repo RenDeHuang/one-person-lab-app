@@ -153,6 +153,10 @@ function sameStringSet(actual: unknown, expected: string[]) {
   );
 }
 
+function stringArrayIncludesAll(actual: unknown, expected: string[]) {
+  return Array.isArray(actual) && expected.every((entry) => actual.includes(entry));
+}
+
 function validateReleaseMonitorPolicy(releaseMonitor: Record<string, any>, typedNextActions: unknown): number {
   let failures = 0;
   if (
@@ -759,6 +763,120 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
   return failures;
 }
 
+function validateSourceMaterialRouteContract(appRoot: string): number {
+  const runtimeBridge = readJson(appRoot, 'contracts/app-runtime-bridge.json');
+  const guiContract = readJson(appRoot, 'contracts/app-gui-product-contract.json');
+  const pageStateMatrix = readJson(appRoot, 'contracts/app-page-state-matrix.json');
+  const sourceMaterial = runtimeBridge.source_material_projection;
+  const guiRoute = guiContract.source_material_user_path;
+  const ordinaryPage = Array.isArray(pageStateMatrix.pages)
+    ? pageStateMatrix.pages.find((page) => page.id === 'ordinary_conversation')
+    : null;
+  const inspectorPage = Array.isArray(pageStateMatrix.pages)
+    ? pageStateMatrix.pages.find((page) => page.id === 'right_context_inspector')
+    : null;
+  const requiredRefs = [
+    'source_material_refs',
+    'source_material_receipt_refs',
+    'reference_design_packet_refs',
+  ];
+  let failures = 0;
+
+  if (
+    sourceMaterial?.ingest_command !== 'opl workspace source ingest --workspace <workspace_ref> --files <file_refs> --goal <user_goal> --json' ||
+    sourceMaterial?.authority !== 'opl_framework_source_material_refs_projection' ||
+    sourceMaterial?.producer_owner !== 'one-person-lab' ||
+    sourceMaterial?.reference_design_consumer !== 'opl-meta-agent'
+  ) {
+    console.error('FAIL source_material_route_contract: source material must route through Framework ingest and OMA reference design consumption');
+    failures += 1;
+  }
+  if (
+    !stringArrayIncludesAll(sourceMaterial?.required_ref_fields, requiredRefs) ||
+    !stringArrayIncludesAll(sourceMaterial?.domain_consumers, [
+      'med-autoscience',
+      'med-autogrant',
+      'redcube-ai',
+      'opl-bookforge',
+      'opl-meta-agent',
+    ])
+  ) {
+    console.error('FAIL source_material_route_contract: source material projection must require source/receipt/reference-design refs and domain consumers');
+    failures += 1;
+  }
+  if (
+    sourceMaterial?.refs_only !== true ||
+    sourceMaterial?.source_body_access !== false ||
+    sourceMaterial?.pdf_parse_access !== false ||
+    sourceMaterial?.artifact_body_access !== false ||
+    sourceMaterial?.domain_truth_write_access !== false ||
+    sourceMaterial?.owner_receipt_write_access !== false ||
+    sourceMaterial?.domain_verdict_authority !== false ||
+    sourceMaterial?.readiness_authority !== false ||
+    sourceMaterial?.source_readiness_authority !== false
+  ) {
+    console.error('FAIL source_material_route_contract: App must remain refs-only with no source/PDF body, domain truth, owner receipt, or readiness authority');
+    failures += 1;
+  }
+  if (
+    !stringArrayIncludesAll(sourceMaterial?.forbidden_claims, [
+      'source_body',
+      'pdf_parse_quality',
+      'reference_design_quality_verdict',
+      'domain_truth',
+      'owner_receipt_authority',
+      'app_release_readiness',
+    ])
+  ) {
+    console.error('FAIL source_material_route_contract: forbidden claims must block body parsing quality, domain truth, owner receipt, and release readiness claims');
+    failures += 1;
+  }
+  if (
+    guiRoute?.route_contract_ref !== 'contracts/app-runtime-bridge.json#source_material_projection' ||
+    guiRoute?.source_material_projection_ref !== 'contracts/app-runtime-bridge.json#source_material_projection' ||
+    guiRoute?.framework_ingest_command !== sourceMaterial?.ingest_command ||
+    guiRoute?.ui_implementation_status !== 'route_contract_landed_no_live_drag_drop_ui_evidence' ||
+    guiRoute?.refs_only !== true ||
+    guiRoute?.source_body_access !== false ||
+    guiRoute?.pdf_parse_access !== false ||
+    guiRoute?.artifact_body_access !== false ||
+    guiRoute?.domain_verdict_authority !== false ||
+    guiRoute?.owner_receipt_write_access !== false ||
+    guiRoute?.release_readiness_authority !== false ||
+    !stringArrayIncludesAll(guiRoute?.machine_ref_fields, requiredRefs)
+  ) {
+    console.error('FAIL source_material_route_contract: GUI source-material user path must mirror refs-only Framework route without live UI/readiness claims');
+    failures += 1;
+  }
+
+  const guiConversationFields = guiContract.ordinary_conversation?.current_task_slice?.fields;
+  const guiInspectorEvidence = guiContract.right_context_inspector?.current_task_evidence;
+  const pageConversationSlice = ordinaryPage?.conversation_view_model?.current_task_slice;
+  const pageInspectorEvidence = inspectorPage?.inspector_view_model?.current_task_evidence;
+  for (const [surface, fields] of [
+    ['gui ordinary conversation', guiConversationFields],
+    ['gui right inspector', guiInspectorEvidence?.fields],
+    ['page-state ordinary conversation', pageConversationSlice?.fields],
+    ['page-state right inspector', pageInspectorEvidence?.fields],
+  ] as const) {
+    if (!stringArrayIncludesAll(fields, requiredRefs)) {
+      console.error(`FAIL source_material_route_contract: ${surface} must expose source material refs, receipt refs, and reference design packet refs`);
+      failures += 1;
+    }
+  }
+  for (const [surface, evidence] of [
+    ['gui right inspector', guiInspectorEvidence],
+    ['page-state right inspector', pageInspectorEvidence],
+  ] as const) {
+    if (evidence?.source_material_projection_ref !== 'contracts/app-runtime-bridge.json#source_material_projection') {
+      console.error(`FAIL source_material_route_contract: ${surface} must point to source material projection`);
+      failures += 1;
+    }
+  }
+
+  return failures;
+}
+
 export function validateReleaseContractPolicies(appRoot: string): number {
   const releaseContract = readJson(appRoot, 'contracts/app-release-channel.json');
   const firstRunMatrix = readJson(appRoot, 'contracts/app-first-run-test-matrix.json');
@@ -770,6 +888,7 @@ export function validateReleaseContractPolicies(appRoot: string): number {
   failures += validateHomebrewVmGateStaticPolicy(appRoot, releaseContract, firstRunMatrix);
   failures += validateWebuiPackagePolicy(releaseContract);
   failures += validateReleaseAccelerationPolicy(releaseContract);
+  failures += validateSourceMaterialRouteContract(appRoot);
 
   return failures;
 }
