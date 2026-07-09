@@ -113,7 +113,7 @@ OPL thin shell：
   Hermes Agent installer。
 - 普通 executor 固定为 Codex CLI / Codex app-server；用户不选择 backend。
 - 模型选择显示为 App-owned 策略：`Auto` 表示跟随 OPL/Codex 推荐的最新最强模型，
-  当前有效模型是 `GPT-5.5` + `xhigh`。`auto` 不是持久模型 id，也不进入 provider
+  当前有效模型是 `5.6 Sol` + `ultra`。`auto` 不是持久模型 id，也不进入 provider
   model list。
 - 模型访问只配置 gflabtoken API key。底层 env 名可继续是 `OPENAI_API_KEY`，这是
   Codex/OpenAI-compatible 配置兼容名，不代表普通 UI 开放 OpenAI-compatible
@@ -150,7 +150,7 @@ Agent installer 语义，也不把所有启动工作合并成一个 first-run ga
 
 | Surface | OPL 语义 | 当前目标行为 |
 | --- | --- | --- |
-| 主模型显示 | 模型策略 | `Auto · GPT-5.5 Max` 这类显示表达“自动策略 + 当前有效模型”。不显示第二个 `Auto` 模型选项。 |
+| 主模型显示 | 模型策略 | 主按钮显示 `5.6 Sol 极高`；自动状态由菜单中的“自动（推荐）”选中态表达，不显示第二个 `Auto` 模型选项。 |
 | 模型设置 | 模型策略 | 只展示当前 OPL/Codex 有效模型和推理强度。辅助任务默认跟随主模型，不提供独立 provider 槽位作为普通能力。 |
 | Provider 设置 | 模型访问 | 改名为“模型访问”。只显示 gflabtoken API key。 |
 | `/api/env` | 模型访问目录 | 普通路径只返回 `OPENAI_API_KEY`。拒绝 `OPENAI_BASE_URL` 和其它 provider key 写入。 |

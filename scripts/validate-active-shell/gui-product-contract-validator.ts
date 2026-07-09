@@ -69,6 +69,32 @@ const expectedFirstRunCoreItems = assertNonEmptyStringArray(
 const expectedFullReadinessItems = (productProfile.first_run?.full_readiness_layers ?? [])
   .filter((item) => item !== 'core');
 
+function validateCodexModelPolicy(guiContract) {
+  const executorPolicy = guiContract.executor_policy ?? {};
+  const productHome = productProfile.gui?.home ?? {};
+  assertDeepEqualJson(
+    {
+      default_model: executorPolicy.default_model,
+      default_reasoning_effort: executorPolicy.default_reasoning_effort,
+      default_model_display_value: executorPolicy.default_model_display_value,
+      home_model_status_label: executorPolicy.home_model_status_label,
+      home_model_status_label_en: executorPolicy.home_model_status_label_en,
+      frontier_model_preference_order: executorPolicy.frontier_model_preference_order,
+      user_reasoning_effort_options: executorPolicy.model_display_options_policy?.user_reasoning_effort_options,
+    },
+    {
+      default_model: productProfile.codex?.default_model,
+      default_reasoning_effort: productProfile.codex?.default_reasoning_effort,
+      default_model_display_value: productHome.codex_home_model_status_label,
+      home_model_status_label: productHome.codex_home_model_status_label,
+      home_model_status_label_en: productHome.codex_home_model_status_label_en,
+      frontier_model_preference_order: productHome.codex_auto_model_selection?.frontier_model_preference_order,
+      user_reasoning_effort_options: productHome.codex_model_display_options?.user_reasoning_effort_options,
+    },
+    'App GUI Codex model policy',
+  );
+}
+
 function validateManagedUpdatePageSurface(page, label) {
   validateManagedUpdatePageBasics(page, label, {
     actionSourceError: `${label} must expose managed update actions through the shell IPC bridge`,
@@ -274,6 +300,7 @@ function validateAgentPackageLifecycleUx(surface, label) {
 
 export function validateAppGuiProductContract(guiContract, releaseChannel, installExposurePolicy) {
   validateGuiProductHomeContract(guiContract);
+  validateCodexModelPolicy(guiContract);
   validateGuiFrameworkSurfaces(guiContract, releaseChannel, installExposurePolicy);
   validateSettingsControlPlaneBehavior({ guiContract });
 
@@ -358,8 +385,8 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     full_readiness_blocks_launch: false,
     default_provider: 'gflab',
     default_base_url: 'https://gflabtoken.cn/v1',
-    default_model: 'gpt-5.5',
-    default_reasoning_effort: 'xhigh',
+    default_model: 'gpt-5.6-sol',
+    default_reasoning_effort: 'ultra',
     default_executor: 'codex_cli',
     full_runtime_provider: 'temporal',
   })) {
@@ -504,7 +531,7 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   if (!pages.guid_home.must_show?.includes('selected assistant shown as a compact @ purpose tag')) {
     throw new Error('App GUI home must show selected assistant as a compact @ purpose tag');
   }
-  if (pages.guid_home.model_status?.display_value !== 'GPT-5.5') {
+  if (pages.guid_home.model_status?.display_value !== '5.6 Sol') {
     throw new Error('App GUI home model selector must keep the friendly default model without repeating reasoning');
   }
   if (pages.guid_home.model_status?.standalone_home_subtitle_visible !== false) {

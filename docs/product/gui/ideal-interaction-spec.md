@@ -213,9 +213,10 @@ Composer 是紧凑的 Codex-style command surface：
   直接控件。
 - 可以切换 purpose，但不暴露 backend 或 provider choice。
 - Model 信息是可见选择器。Home 和 Codex conversation composer 都应紧凑显示
-  默认模型，例如 `GPT-5.5`；默认 Auto 跟随最新最强模型，手动模型和推理强度
-  从同一模型配置菜单覆盖，普通输入栏不重复显示推理强度。默认值、退休模型过滤
-  和选择持久化来源是 App product profile，不来自 shell-local provider policy。
+  默认模型 `5.6 Sol`；默认 Auto 跟随最新最强模型并使用 `ultra` 推理，手动模型和
+  推理强度从同一模型配置菜单覆盖，普通输入栏不重复显示推理强度。模型顺序、
+  显示名、默认值、退休模型过滤和选择持久化来源是 App product profile，不来自
+  shell-local provider policy。
 - Send 状态明确：idle、running、stopping、blocked、failed。
 - Composer 支持 keyboard-only navigation。
 

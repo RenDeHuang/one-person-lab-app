@@ -1,8 +1,8 @@
 const expectedProvider = 'gflab';
 const expectedBaseUrl = 'https://gflabtoken.cn/v1';
 const expectedExecutor = 'codex_cli';
-const expectedModel = 'gpt-5.5';
-const expectedReasoningEffort = 'xhigh';
+const expectedModel = 'gpt-5.6-sol';
+const expectedReasoningEffort = 'ultra';
 
 export function assertDefaultCodexSessionProfile(profile, options = {}) {
   const label = options.label ?? 'App product profile';

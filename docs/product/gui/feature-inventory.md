@@ -51,7 +51,7 @@ Runtime 页这次的总览重构设计看
 
 - 从已选 workspace directory 开始 conversation。
 - 固定 Codex CLI 作为 executor，并把模型控制收敛为 App-owned selector。默认
-  必须从 App product profile 派生为最新最强模型，例如 `GPT-5.5`；用户可以在
+  必须从 App product profile 派生为 `5.6 Sol` / `ultra`；用户可以在
   同一模型菜单里切换模型和推理强度，但 executor、backend 和 permission 仍不是
   普通选择项。
 - Home entries 路由到 OPL capabilities：Research/MAS、Grant/MAG、

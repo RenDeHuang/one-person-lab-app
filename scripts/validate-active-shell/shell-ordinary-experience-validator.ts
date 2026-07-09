@@ -43,16 +43,16 @@ const guidHomeRuntimeForbidden = [
 ];
 
 const productProfileDefaultsExpected = [
-  '"default_model": "gpt-5.5"',
-  '"default_reasoning_effort": "xhigh"',
+  '"default_model": "gpt-5.6-sol"',
+  '"default_reasoning_effort": "ultra"',
   '"codex_cli_fixed_executor": true',
   '"home_executor_selector_visible": false',
   '"codex_model_selector_visible": true',
   '"codex_model_list_visible": true',
   '"codex_model_policy": "codex_cli_latest_strongest_model_selector_visible"',
   '"codex_model_auto_option_visible": true',
-  '"codex_default_model": "gpt-5.5"',
-  '"codex_home_model_status_label": "GPT-5.5"',
+  '"codex_default_model": "gpt-5.6-sol"',
+  '"codex_home_model_status_label": "5.6 Sol"',
   '"codex_precise_model_display_policy": "friendly_model_primary_reasoning_primary_model_and_intelligence_secondary_menus"',
   '"strategy": "codex_cli_auto_latest_available_frontier"',
   '"user_can_override_model": true',
@@ -66,8 +66,18 @@ const productProfileDefaultsExpected = [
   '"intelligence_enhancement_default_enabled": true',
   '"reasoning_effort_options_source": "acp_codex_config_options_enum"',
   '"label_zh": "自动（推荐）"',
-  '"description_zh": "当前 GPT-5.5 · 推理超高 · 跟随最新最强"',
-  '"label_zh": "GPT-5.4"',
+  '"description_zh": "当前 5.6 Sol · 推理极高 · 跟随最新最强"',
+  '"zh": "推理超高"',
+  '"en": "Extra high reasoning"',
+  '"zh": "推理极高"',
+  '"en": "Ultra reasoning"',
+  '"label_zh": "5.6 Sol"',
+  '"label_zh": "5.5"',
+  '"label_zh": "5.6 Terra"',
+  '"label_zh": "5.6 Luna"',
+  '"label_zh": "5.4"',
+  '"label_zh": "5.4 Mini"',
+  '"label_zh": "5.3 Codex Spark"',
   '"id": "med-autoscience"',
   '"id": "med-autogrant"',
   '"id": "redcube-ai"',
@@ -178,7 +188,15 @@ function validateGuidAgentSelection(shellPaths) {
 
 function assertProductProfileFrontierModelPreferenceOrder(productProfileJson) {
   const actual = productProfileJson?.gui?.home?.codex_auto_model_selection?.frontier_model_preference_order;
-  const expected = ['gpt-5.5', 'gpt-5.4'];
+  const expected = [
+    'gpt-5.6-sol',
+    'gpt-5.5',
+    'gpt-5.6-terra',
+    'gpt-5.6-luna',
+    'gpt-5.4',
+    'gpt-5.4-mini',
+    'gpt-5.3-codex-spark',
+  ];
   if (JSON.stringify(actual) !== JSON.stringify(expected)) {
     throw new Error(
       `Active shell product profile must carry App Codex default frontier_model_preference_order=${JSON.stringify(expected)}`,

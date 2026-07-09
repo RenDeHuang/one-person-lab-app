@@ -685,10 +685,10 @@ function validateHermesTargetStateContracts(
     modelAccess.ordinary_provider !== 'gflabtoken'
     || modelAccess.api_key_env !== 'OPENAI_API_KEY'
     || modelAccess.provider_base_url !== 'https://gflabtoken.cn/v1'
-    || modelAccess.default_model !== 'gpt-5.5'
-    || modelAccess.reasoning_effort !== 'xhigh'
+    || modelAccess.default_model !== 'gpt-5.6-sol'
+    || modelAccess.reasoning_effort !== 'ultra'
   ) {
-    throw new Error(`${candidate.id}.model_access_policy must define gflabtoken-only GPT-5.5 xhigh access`);
+    throw new Error(`${candidate.id}.model_access_policy must define gflabtoken-only gpt-5.6-sol ultra access`);
   }
   assertStringArrayIncludes(modelAccess.ordinary_ui_surfaces, [
     'model access wizard',
@@ -834,7 +834,7 @@ function validateHermesFirstRunContract(candidate: ShellCandidate): void {
     || contract.model_access_wizard.api_key_provider !== 'gflabtoken'
     || contract.model_access_wizard.api_key_command !== 'opl system configure-codex --api-key-stdin --json'
     || contract.model_access_wizard.provider_base_url !== 'https://gflabtoken.cn/v1'
-    || contract.model_access_wizard.default_model !== 'gpt-5.5'
+    || contract.model_access_wizard.default_model !== 'gpt-5.6-sol'
     || contract.model_access_wizard.api_key_env !== 'OPENAI_API_KEY'
     || contract.model_access_wizard.ordinary_ui_policy !== 'show_only_model_access_api_key_no_base_url_provider_marketplace_or_oauth_accounts'
   ) {
