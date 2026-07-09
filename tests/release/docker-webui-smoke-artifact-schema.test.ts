@@ -180,6 +180,17 @@ function completeGateResult() {
   };
 }
 
+function expectInvalidSmokeGateResult(mutator: (payload: any) => void, invalidFields: string[]) {
+  const payload = completeGateResult();
+  mutator(payload);
+
+  const result = validateDockerWebuiSmokeGateResult(payload);
+  assert.equal(result.status, 'failed');
+  for (const field of invalidFields) {
+    assert.ok(result.invalid_fields.includes(field));
+  }
+}
+
 test('Docker/WebUI diagnostics validator fails when manifest, compose, logs, or data preservation evidence is missing', () => {
   for (const requiredFile of [
     'diagnostics-manifest.json',
@@ -316,32 +327,34 @@ test('Docker/WebUI smoke gate result readback fails when required artifact schem
   }
 });
 
-test('Docker/WebUI smoke gate result readback rejects passed gates without API key stdin flow evidence', () => {
-  const payload = completeGateResult();
-  payload.api_key_flow = {
-    status: 'failed',
-    mode: 'webui_proxy_configure_codex',
-    endpoint: 'http://127.0.0.1:3000/api/opl-runtime/configure-codex',
-    command: 'opl system configure-codex --api-key-stdin --json',
-    stdin_transport: false,
-    receipt_path: '/tmp/artifact/api-key-flow-evidence.json',
-    errors: ['missing stdin transport'],
-  };
-
-  const result = validateDockerWebuiSmokeGateResult(payload);
-  assert.equal(result.status, 'failed');
-  assert.ok(result.invalid_fields.includes('api_key_flow.status'));
-  assert.ok(result.invalid_fields.includes('api_key_flow.stdin_transport'));
-});
-
-test('Docker/WebUI smoke gate result readback rejects passed gates with failed health', () => {
-  const payload = completeGateResult();
-  payload.health = { url: 'http://localhost:3000/', status: 'failed', http_status: null };
-
-  const result = validateDockerWebuiSmokeGateResult(payload);
-  assert.equal(result.status, 'failed');
-  assert.ok(result.invalid_fields.includes('health.status'));
-});
+for (const { name, mutate, invalidFields } of [
+  {
+    name: 'without API key stdin flow evidence',
+    mutate(payload: any) {
+      payload.api_key_flow = {
+        status: 'failed',
+        mode: 'webui_proxy_configure_codex',
+        endpoint: 'http://127.0.0.1:3000/api/opl-runtime/configure-codex',
+        command: 'opl system configure-codex --api-key-stdin --json',
+        stdin_transport: false,
+        receipt_path: '/tmp/artifact/api-key-flow-evidence.json',
+        errors: ['missing stdin transport'],
+      };
+    },
+    invalidFields: ['api_key_flow.status', 'api_key_flow.stdin_transport'],
+  },
+  {
+    name: 'with failed health',
+    mutate(payload: any) {
+      payload.health = { url: 'http://localhost:3000/', status: 'failed', http_status: null };
+    },
+    invalidFields: ['health.status'],
+  },
+]) {
+  test(`Docker/WebUI smoke gate result readback rejects passed gates ${name}`, () => {
+    expectInvalidSmokeGateResult(mutate, invalidFields);
+  });
+}
 
 test('Docker/WebUI smoke gate result readback rejects passed gates without image digest identity', () => {
   const payload = completeGateResult();
@@ -378,27 +391,31 @@ test('Docker/WebUI smoke gate result readback accepts remote currentness compari
   assert.ok(claimed.invalid_fields.includes('image.currentness_claim'));
 });
 
-test('Docker/WebUI smoke gate result readback rejects passed gates without diagnostics proof fields', () => {
-  const payload = completeGateResult();
-  payload.diagnostics_validation = { status: 'passed' };
-
-  const result = validateDockerWebuiSmokeGateResult(payload);
-  assert.equal(result.status, 'failed');
-  assert.ok(result.invalid_fields.includes('diagnostics_validation.compose_volume_mapping.status'));
-  assert.ok(result.invalid_fields.includes('diagnostics_validation.preservation_evidence.status'));
-  assert.ok(result.invalid_fields.includes('diagnostics_validation.image_identity.digest'));
-});
-
-test('Docker/WebUI smoke gate result readback rejects passed gates without ordinary user path status', () => {
-  const payload = completeGateResult();
-  payload.ordinary_user_status.browser_webui.status = 'not_run';
-  payload.ordinary_user_status.must_not_claim = ['release_ready'];
-
-  const result = validateDockerWebuiSmokeGateResult(payload);
-  assert.equal(result.status, 'failed');
-  assert.ok(result.invalid_fields.includes('ordinary_user_status.browser_webui.status'));
-  assert.ok(result.invalid_fields.includes('ordinary_user_status.must_not_claim.desktop_release_ready'));
-});
+for (const { name, mutate, invalidFields } of [
+  {
+    name: 'without diagnostics proof fields',
+    mutate(payload: any) {
+      payload.diagnostics_validation = { status: 'passed' };
+    },
+    invalidFields: [
+      'diagnostics_validation.compose_volume_mapping.status',
+      'diagnostics_validation.preservation_evidence.status',
+      'diagnostics_validation.image_identity.digest',
+    ],
+  },
+  {
+    name: 'without ordinary user path status',
+    mutate(payload: any) {
+      payload.ordinary_user_status.browser_webui.status = 'not_run';
+      payload.ordinary_user_status.must_not_claim = ['release_ready'];
+    },
+    invalidFields: ['ordinary_user_status.browser_webui.status', 'ordinary_user_status.must_not_claim.desktop_release_ready'],
+  },
+]) {
+  test(`Docker/WebUI smoke gate result readback rejects passed gates ${name}`, () => {
+    expectInvalidSmokeGateResult(mutate, invalidFields);
+  });
+}
 
 test('Docker/WebUI smoke gate CLI validates uploaded gate result artifacts without running Docker', () => {
   const artifactRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-gate-result-'));

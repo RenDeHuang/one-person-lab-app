@@ -117,6 +117,24 @@ function runSmokeGate(args: string[]) {
   });
 }
 
+function runWindowsEvidenceGate(evidence: string) {
+  const artifacts = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-gate-artifacts-'));
+  const result = runSmokeGate(['--gate', 'clean_windows_vm', '--evidence', evidence, '--artifacts', artifacts, '--json']);
+  const resultPath = path.join(artifacts, 'docker-webui-smoke-gate-result.json');
+  const payload = fs.existsSync(resultPath) ? JSON.parse(fs.readFileSync(resultPath, 'utf8')) : null;
+  return { artifacts, result, payload };
+}
+
+function zipEvidence(evidence: string) {
+  const archivePath = path.join(
+    fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-evidence-archive-')),
+    'windows-clean-evidence.zip',
+  );
+  const zipped = spawnSync('zip', ['-qr', archivePath, '.'], { cwd: evidence, encoding: 'utf8' });
+  assert.equal(zipped.status, 0, zipped.stderr || zipped.stdout);
+  return archivePath;
+}
+
 test('Docker/WebUI installer shell parses cleanly', () => {
   const result = spawnSync('bash', ['-n', installerPath], {
     cwd: appRoot,
@@ -225,22 +243,12 @@ test('Docker/WebUI smoke gate writes typed blocker instead of passing unmatched 
 });
 
 test('Docker/WebUI clean Windows smoke gate imports minimal Windows evidence', () => {
-  const artifacts = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-gate-artifacts-'));
   const evidence = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-evidence-'));
   writeWindowsEvidence(evidence);
 
-  const result = runSmokeGate([
-    '--gate',
-    'clean_windows_vm',
-    '--evidence',
-    evidence,
-    '--artifacts',
-    artifacts,
-    '--json',
-  ]);
+  const { result, payload } = runWindowsEvidenceGate(evidence);
   assert.equal(result.status, 0, result.stderr || result.stdout);
 
-  const payload = JSON.parse(fs.readFileSync(path.join(artifacts, 'docker-webui-smoke-gate-result.json'), 'utf8'));
   assert.equal(payload.status, 'passed');
   assert.equal(payload.gate_id, 'clean_windows_vm');
   assert.equal(payload.host_platform, process.platform);
@@ -263,28 +271,13 @@ test('Docker/WebUI clean Windows smoke gate imports minimal Windows evidence', (
 });
 
 test('Docker/WebUI clean Windows smoke gate imports zipped Windows evidence', () => {
-  const artifacts = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-gate-artifacts-'));
   const evidence = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-evidence-'));
   writeWindowsEvidence(evidence);
-  const archivePath = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-evidence-archive-')), 'windows-clean-evidence.zip');
-  const zipped = spawnSync('zip', ['-qr', archivePath, '.'], {
-    cwd: evidence,
-    encoding: 'utf8',
-  });
-  assert.equal(zipped.status, 0, zipped.stderr || zipped.stdout);
+  const archivePath = zipEvidence(evidence);
 
-  const result = runSmokeGate([
-    '--gate',
-    'clean_windows_vm',
-    '--evidence',
-    archivePath,
-    '--artifacts',
-    artifacts,
-    '--json',
-  ]);
+  const { result, payload } = runWindowsEvidenceGate(archivePath);
   assert.equal(result.status, 0, result.stderr || result.stdout);
 
-  const payload = JSON.parse(fs.readFileSync(path.join(artifacts, 'docker-webui-smoke-gate-result.json'), 'utf8'));
   assert.equal(payload.status, 'passed');
   assert.equal(payload.gate_id, 'clean_windows_vm');
   assert.equal(payload.evidence_validation.status, 'passed');
@@ -293,7 +286,6 @@ test('Docker/WebUI clean Windows smoke gate imports zipped Windows evidence', ()
 });
 
 test('Docker/WebUI clean Windows smoke gate imports PowerShell-style zipped Windows evidence', () => {
-  const artifacts = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-gate-artifacts-'));
   const evidence = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-evidence-'));
   const { diagnostics } = writeWindowsEvidence(evidence);
   for (const bomFile of [
@@ -327,18 +319,9 @@ test('Docker/WebUI clean Windows smoke gate imports PowerShell-style zipped Wind
   );
   assert.equal(createArchive.status, 0, createArchive.stderr || createArchive.stdout);
 
-  const result = runSmokeGate([
-    '--gate',
-    'clean_windows_vm',
-    '--evidence',
-    archivePath,
-    '--artifacts',
-    artifacts,
-    '--json',
-  ]);
+  const { result, payload } = runWindowsEvidenceGate(archivePath);
   assert.equal(result.status, 0, result.stderr || result.stdout);
 
-  const payload = JSON.parse(fs.readFileSync(path.join(artifacts, 'docker-webui-smoke-gate-result.json'), 'utf8'));
   assert.equal(payload.status, 'passed');
   assert.equal(payload.gate_id, 'clean_windows_vm');
   assert.equal(payload.evidence_validation.status, 'passed');
@@ -350,7 +333,6 @@ test('Docker/WebUI clean Windows smoke gate imports PowerShell-style zipped Wind
 });
 
 test('Docker/WebUI clean Windows smoke gate rejects unsafe zipped Windows evidence paths', () => {
-  const artifacts = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-gate-artifacts-'));
   const archiveRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-unsafe-archive-'));
   const archivePath = path.join(archiveRoot, 'windows-clean-evidence.zip');
   fs.writeFileSync(path.join(archiveRoot, '..', 'evil.txt'), 'unsafe\n');
@@ -360,88 +342,49 @@ test('Docker/WebUI clean Windows smoke gate rejects unsafe zipped Windows eviden
   });
   assert.equal(zipped.status, 0, zipped.stderr || zipped.stdout);
 
-  const result = runSmokeGate([
-    '--gate',
-    'clean_windows_vm',
-    '--evidence',
-    archivePath,
-    '--artifacts',
-    artifacts,
-    '--json',
-  ]);
+  const { result } = runWindowsEvidenceGate(archivePath);
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /unsafe parent traversal entry/);
 });
 
-test('Docker/WebUI clean Windows smoke gate rejects incomplete Windows evidence', () => {
-  const artifacts = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-gate-artifacts-'));
-  const evidence = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-evidence-'));
-  const { diagnostics } = writeWindowsEvidence(evidence);
-  fs.rmSync(path.join(diagnostics, 'http-probe.txt'));
+for (const { name, mutate, assertPayload } of [
+  {
+    name: 'incomplete Windows evidence',
+    mutate({ diagnostics }: { diagnostics: string }) {
+      fs.rmSync(path.join(diagnostics, 'http-probe.txt'));
+    },
+    assertPayload(payload: any) {
+      assert.ok(payload.diagnostics_validation.missing_files.includes('http-probe.txt'));
+    },
+  },
+  {
+    name: 'secret-like markers in imported evidence',
+    mutate({ diagnostics }: { diagnostics: string }) {
+      fs.writeFileSync(path.join(diagnostics, 'docker-compose-logs.txt'), 'Bearer abcdefghijklmnopqrstuvwxyz123456\n');
+    },
+    assertPayload(payload: any) {
+      assert.ok(payload.evidence_validation.forbidden_secret_markers.some((marker: string) => marker.includes('Bearer')));
+    },
+  },
+  {
+    name: 'evidence without API key UI flow receipt',
+    mutate({ evidence }: { evidence: string }) {
+      fs.rmSync(path.join(evidence, 'api-key-flow-evidence.json'));
+    },
+    assertPayload(payload: any) {
+      assert.ok(payload.evidence_validation.errors.some((error: string) => error.includes('API key flow evidence validation failed')));
+    },
+  },
+]) {
+  test(`Docker/WebUI clean Windows smoke gate rejects ${name}`, () => {
+    const evidence = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-evidence-'));
+    const { diagnostics } = writeWindowsEvidence(evidence);
+    mutate({ evidence, diagnostics });
 
-  const result = runSmokeGate([
-    '--gate',
-    'clean_windows_vm',
-    '--evidence',
-    evidence,
-    '--artifacts',
-    artifacts,
-    '--json',
-  ]);
-  assert.equal(result.status, 1, result.stderr || result.stdout);
-
-  const payload = JSON.parse(fs.readFileSync(path.join(artifacts, 'docker-webui-smoke-gate-result.json'), 'utf8'));
-  assert.equal(payload.status, 'failed');
-  assert.equal(payload.evidence_validation.status, 'failed');
-  assert.ok(payload.diagnostics_validation.missing_files.includes('http-probe.txt'));
-});
-
-test('Docker/WebUI clean Windows smoke gate rejects secret-like markers in imported evidence', () => {
-  const artifacts = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-gate-artifacts-'));
-  const evidence = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-evidence-'));
-  const { diagnostics } = writeWindowsEvidence(evidence);
-  fs.writeFileSync(path.join(diagnostics, 'docker-compose-logs.txt'), 'Bearer abcdefghijklmnopqrstuvwxyz123456\n');
-
-  const result = runSmokeGate([
-    '--gate',
-    'clean_windows_vm',
-    '--evidence',
-    evidence,
-    '--artifacts',
-    artifacts,
-    '--json',
-  ]);
-  assert.equal(result.status, 1, result.stderr || result.stdout);
-
-  const payload = JSON.parse(fs.readFileSync(path.join(artifacts, 'docker-webui-smoke-gate-result.json'), 'utf8'));
-  assert.equal(payload.status, 'failed');
-  assert.equal(payload.evidence_validation.status, 'failed');
-  assert.ok(payload.evidence_validation.forbidden_secret_markers.some((marker: string) => marker.includes('Bearer')));
-});
-
-test('Docker/WebUI clean Windows smoke gate rejects evidence without API key UI flow receipt', () => {
-  const artifacts = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-gate-artifacts-'));
-  const evidence = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-evidence-'));
-  writeWindowsEvidence(evidence);
-  fs.rmSync(path.join(evidence, 'api-key-flow-evidence.json'));
-
-  const result = runSmokeGate([
-    '--gate',
-    'clean_windows_vm',
-    '--evidence',
-    evidence,
-    '--artifacts',
-    artifacts,
-    '--json',
-  ]);
-  assert.equal(result.status, 1, result.stderr || result.stdout);
-
-  const payload = JSON.parse(fs.readFileSync(path.join(artifacts, 'docker-webui-smoke-gate-result.json'), 'utf8'));
-  assert.equal(payload.status, 'failed');
-  assert.equal(payload.evidence_validation.status, 'failed');
-  assert.ok(
-    payload.evidence_validation.errors.some((error: string) =>
-      error.includes('API key flow evidence validation failed'),
-    ),
-  );
-});
+    const { result, payload } = runWindowsEvidenceGate(evidence);
+    assert.equal(result.status, 1, result.stderr || result.stdout);
+    assert.equal(payload.status, 'failed');
+    assert.equal(payload.evidence_validation.status, 'failed');
+    assertPayload(payload);
+  });
+}
