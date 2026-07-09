@@ -222,7 +222,9 @@ test('Docker/WebUI cloud template uses Docker secrets, password auth, and option
   assert.match(gatewayOverlay, /OPL_GATEWAY_API_KEY_FILE: \/run\/secrets\/opl_gateway_api_key/);
   assert.match(gatewayOverlay, /file: \$\{OPL_GATEWAY_API_KEY_FILE:-\.\/secrets\/gateway_api_key\}/);
   assert.match(envExample, /OPL_WEBUI_USERNAME=opl/);
-  assert.match(readme, /Gateway API key is not the WebUI login password/);
+  assert.match(readme, /secrets\/webui_password/);
+  assert.match(readme, /secrets\/gateway_api_key/);
+  assert.match(readme, /API Key 不能替代登录密码/);
 });
 
 test('Docker/WebUI installer validates health timeout before running', () => {

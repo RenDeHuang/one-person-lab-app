@@ -175,7 +175,7 @@ cd "$HOME/OnePersonLab/cloud"
 cp .env.example .env
 ```
 
-编辑 `.env`：
+编辑 `.env`。这里放域名、邮箱、镜像和用户名；不要把真实 WebUI 密码或 API Key 直接写进 `.env`：
 
 ```dotenv
 OPL_WEBUI_DOMAIN=opl.example.com
@@ -186,7 +186,7 @@ OPL_WEBUI_PASSWORD_FILE=./secrets/webui_password
 OPL_GATEWAY_API_KEY_FILE=./secrets/gateway_api_key
 ```
 
-创建 Docker secret 文件：
+创建必需的 WebUI 登录密码文件。这个密码用于浏览器登录 WebUI，不是模型/API 访问密钥：
 
 ```bash
 mkdir -p secrets data projects
@@ -208,9 +208,25 @@ chmod 600 secrets/gateway_api_key
 docker compose -f compose.yaml -f compose.gateway-key.yaml up -d
 ```
 
+云端 secret 放置位置：
+
+| 内容 | 主机文件 | `.env` 指向 | 容器内路径 | 用途 |
+| --- | --- | --- | --- | --- |
+| WebUI 登录密码 | `secrets/webui_password` | `OPL_WEBUI_PASSWORD_FILE=./secrets/webui_password` | `/run/secrets/opl_webui_password` | 浏览器登录 WebUI，云端部署必需 |
+| OPL Gateway API Key | `secrets/gateway_api_key` | `OPL_GATEWAY_API_KEY_FILE=./secrets/gateway_api_key` | `/run/secrets/opl_gateway_api_key` | 可选；启动时预配置 Gateway/Codex 访问 |
+
+访问方式：
+
+```text
+浏览器地址：https://<OPL_WEBUI_DOMAIN>/
+用户名：.env 里的 OPL_WEBUI_USERNAME，默认 opl
+密码：secrets/webui_password 文件里的内容
+```
+
 云端规则：
 
 - WebUI 登录密码和 OPL Gateway API Key 是两件事；API Key 不能替代登录密码。
+- `secrets/webui_password` 是必需文件；`secrets/gateway_api_key` 只有需要启动时预配置 Gateway 才创建。
 - 只传 `OPL_GATEWAY_API_KEY_FILE` / `OPL_GATEWAY_API_KEY` 而没有 `OPL_WEBUI_PASSWORD_FILE` / `OPL_WEBUI_PASSWORD` 时，容器必须拒绝启动。
 - 推荐 Docker secrets 和 `*_FILE`；明文环境变量只作为高级兜底。
 - 公开访问只走 Caddy/反向代理的 HTTPS 地址，不把 WebUI 容器直接裸露到公网。
