@@ -18,36 +18,70 @@ import {
   writeDockerWebuiCleanVmEvidenceSummary,
 } from './helpers.ts';
 
-test('release evidence bundle validator accepts the declared Runtime page artifact set', () => {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-'));
-  const releaseContract = JSON.parse(
+function readReleaseContract() {
+  return JSON.parse(
     fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
   );
-  const artifacts = releaseContract.operator_evidence_bundle.required_artifacts;
+}
+
+function presentArtifacts(artifacts) {
+  return artifacts.map((artifact) => ({ ...artifact, status: 'present' }));
+}
+
+function writeEvidenceManifest(tempRoot, fields) {
   writeFile(path.join(tempRoot, 'evidence-manifest.json'), `${JSON.stringify({
     schema_version: 1,
     purpose: 'app_release_evidence_bundle',
-    status: 'passed',
-    packaged_app_evidence: true,
-    release_cohort: releaseEvidenceCohort(),
-    current_cohort_evidence: true,
     acceptance_path: 'Runtime page',
     runtime_page_contract: 'contracts/app-page-state-matrix.json#runtime',
     refs_only: true,
     authority_boundary: 'refs_only_no_runtime_truth_domain_truth_artifact_or_quality_authority',
-    artifacts: artifacts.map((artifact) => ({ ...artifact, status: 'present' })),
     missing_evidence: [],
     blocked_evidence: [],
+    ...fields,
   }, null, 2)}\n`);
+}
+
+function writeEvidenceScreenshots(tempRoot, ids = ['runtime', 'full', 'action']) {
+  for (const id of ids) {
+    writeScreenshotPng(path.join(tempRoot, 'screenshots', `${id}.png`));
+  }
+}
+
+function writePackagedEvidenceFiles(tempRoot, options = {}) {
   writeRuntimeEvidenceJsonFiles(tempRoot);
   writeVmSmokeSummaryFiles(tempRoot);
   writeAssistantRouteSmokeScreenshots(tempRoot);
-  writeRemoteReleaseVerificationSummary(tempRoot);
-  writeDockerWebuiCleanVmEvidenceSummary(tempRoot);
-  writeAssistantRouteSmokeScreenshots(tempRoot);
-  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
-  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'full.png'));
-  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'action.png'));
+  writeRemoteReleaseVerificationSummary(tempRoot, options.remoteVersion);
+  writeDockerWebuiCleanVmEvidenceSummary(tempRoot, options.dockerWebuiCleanVmEvidence);
+  writeEvidenceScreenshots(tempRoot, options.screenshotIds);
+}
+
+function evidenceGaps(artifacts, predicate) {
+  return artifacts
+    .filter(predicate)
+    .map((artifact) => ({
+      id: artifact.id,
+      path: artifact.path,
+      status: artifact.status,
+      reason: artifact.missing_reason ?? artifact.reason,
+      ...(artifact.typed_blocker_ref ? { typed_blocker_ref: artifact.typed_blocker_ref } : {}),
+      ...(artifact.not_applicable_reason ? { not_applicable_reason: artifact.not_applicable_reason } : {}),
+    }));
+}
+
+test('release evidence bundle validator accepts the declared Runtime page artifact set', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-'));
+  const releaseContract = readReleaseContract();
+  const artifacts = releaseContract.operator_evidence_bundle.required_artifacts;
+  writeEvidenceManifest(tempRoot, {
+    status: 'passed',
+    packaged_app_evidence: true,
+    release_cohort: releaseEvidenceCohort(),
+    current_cohort_evidence: true,
+    artifacts: presentArtifacts(artifacts),
+  });
+  writePackagedEvidenceFiles(tempRoot);
 
   const result = runNode([
     'scripts/validate-release-evidence-bundle.ts',
@@ -97,28 +131,16 @@ test('release evidence bundle validator accepts the declared Runtime page artifa
 
 test('release evidence bundle validator rejects Codex functional checks without packaged route receipt coverage', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-weak-codex-check-'));
-  const releaseContract = JSON.parse(
-    fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
-  );
+  const releaseContract = readReleaseContract();
   const artifacts = releaseContract.operator_evidence_bundle.required_artifacts;
-  writeFile(path.join(tempRoot, 'evidence-manifest.json'), `${JSON.stringify({
-    schema_version: 1,
-    purpose: 'app_release_evidence_bundle',
+  writeEvidenceManifest(tempRoot, {
     status: 'passed',
     packaged_app_evidence: true,
     release_cohort: releaseEvidenceCohort(),
     current_cohort_evidence: true,
-    acceptance_path: 'Runtime page',
-    runtime_page_contract: 'contracts/app-page-state-matrix.json#runtime',
-    refs_only: true,
-    authority_boundary: 'refs_only_no_runtime_truth_domain_truth_artifact_or_quality_authority',
-    artifacts: artifacts.map((artifact) => ({ ...artifact, status: 'present' })),
-    missing_evidence: [],
-    blocked_evidence: [],
-  }, null, 2)}\n`);
-  writeRuntimeEvidenceJsonFiles(tempRoot);
-  writeVmSmokeSummaryFiles(tempRoot);
-  writeAssistantRouteSmokeScreenshots(tempRoot);
+    artifacts: presentArtifacts(artifacts),
+  });
+  writePackagedEvidenceFiles(tempRoot);
   writeFile(
     path.join(tempRoot, 'artifacts', 'codex-functional-check-summary.json'),
     `${JSON.stringify({
@@ -131,11 +153,6 @@ test('release evidence bundle validator rejects Codex functional checks without 
       },
     })}\n`,
   );
-  writeRemoteReleaseVerificationSummary(tempRoot);
-  writeDockerWebuiCleanVmEvidenceSummary(tempRoot);
-  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
-  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'full.png'));
-  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'action.png'));
 
   const result = runNode([
     'scripts/validate-release-evidence-bundle.ts',
@@ -149,35 +166,18 @@ test('release evidence bundle validator rejects Codex functional checks without 
 
 test('release evidence bundle validator accepts optional Codex AI self-check diagnostics without making them required', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-ai-diagnostic-'));
-  const releaseContract = JSON.parse(
-    fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
-  );
+  const releaseContract = readReleaseContract();
   const requiredArtifacts = releaseContract.operator_evidence_bundle.required_artifacts;
   const diagnostics = releaseContract.operator_evidence_bundle.optional_diagnostic_artifacts;
-  writeFile(path.join(tempRoot, 'evidence-manifest.json'), `${JSON.stringify({
-    schema_version: 1,
-    purpose: 'app_release_evidence_bundle',
+  writeEvidenceManifest(tempRoot, {
     status: 'passed',
     packaged_app_evidence: true,
     release_cohort: releaseEvidenceCohort(),
     current_cohort_evidence: true,
-    acceptance_path: 'Runtime page',
-    runtime_page_contract: 'contracts/app-page-state-matrix.json#runtime',
-    refs_only: true,
-    authority_boundary: 'refs_only_no_runtime_truth_domain_truth_artifact_or_quality_authority',
-    artifacts: requiredArtifacts.map((artifact) => ({ ...artifact, status: 'present' })),
-    diagnostics: diagnostics.map((artifact) => ({ ...artifact, status: 'present' })),
-    missing_evidence: [],
-    blocked_evidence: [],
-  }, null, 2)}\n`);
-  writeRuntimeEvidenceJsonFiles(tempRoot);
-  writeVmSmokeSummaryFiles(tempRoot);
-  writeAssistantRouteSmokeScreenshots(tempRoot);
-  writeRemoteReleaseVerificationSummary(tempRoot);
-  writeDockerWebuiCleanVmEvidenceSummary(tempRoot);
-  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
-  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'full.png'));
-  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'action.png'));
+    artifacts: presentArtifacts(requiredArtifacts),
+    diagnostics: presentArtifacts(diagnostics),
+  });
+  writePackagedEvidenceFiles(tempRoot);
 
   const result = runNode([
     'scripts/validate-release-evidence-bundle.ts',
@@ -198,36 +198,19 @@ test('release evidence bundle validator accepts optional Codex AI self-check dia
 
 test('release evidence bundle validator requires Docker WebUI clean VM aggregate only on Docker publish path', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-docker-webui-'));
-  const releaseContract = JSON.parse(
-    fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
-  );
+  const releaseContract = readReleaseContract();
   const artifacts = [
     ...releaseContract.operator_evidence_bundle.required_artifacts,
     ...releaseContract.operator_evidence_bundle.conditional_artifacts,
   ];
-  writeFile(path.join(tempRoot, 'evidence-manifest.json'), `${JSON.stringify({
-    schema_version: 1,
-    purpose: 'app_release_evidence_bundle',
+  writeEvidenceManifest(tempRoot, {
     status: 'passed',
     packaged_app_evidence: true,
     release_cohort: releaseEvidenceCohort(),
     current_cohort_evidence: true,
-    acceptance_path: 'Runtime page',
-    runtime_page_contract: 'contracts/app-page-state-matrix.json#runtime',
-    refs_only: true,
-    authority_boundary: 'refs_only_no_runtime_truth_domain_truth_artifact_or_quality_authority',
-    artifacts: artifacts.map((artifact) => ({ ...artifact, status: 'present' })),
-    missing_evidence: [],
-    blocked_evidence: [],
-  }, null, 2)}\n`);
-  writeRuntimeEvidenceJsonFiles(tempRoot);
-  writeVmSmokeSummaryFiles(tempRoot);
-  writeAssistantRouteSmokeScreenshots(tempRoot);
-  writeRemoteReleaseVerificationSummary(tempRoot);
-  writeDockerWebuiCleanVmEvidenceSummary(tempRoot);
-  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
-  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'full.png'));
-  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'action.png'));
+    artifacts: presentArtifacts(artifacts),
+  });
+  writePackagedEvidenceFiles(tempRoot);
 
   const result = runNode([
     'scripts/validate-release-evidence-bundle.ts',
@@ -246,56 +229,41 @@ test('release evidence bundle validator requires Docker WebUI clean VM aggregate
 
 test('release evidence bundle validator accepts Docker WebUI clean VM aggregate with optional Windows skip', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-docker-webui-missing-windows-'));
-  const releaseContract = JSON.parse(
-    fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
-  );
+  const releaseContract = readReleaseContract();
   const artifacts = [
     ...releaseContract.operator_evidence_bundle.required_artifacts,
     ...releaseContract.operator_evidence_bundle.conditional_artifacts,
   ];
-  writeFile(path.join(tempRoot, 'evidence-manifest.json'), `${JSON.stringify({
-    schema_version: 1,
-    purpose: 'app_release_evidence_bundle',
+  writeEvidenceManifest(tempRoot, {
     status: 'passed',
     packaged_app_evidence: true,
     release_cohort: releaseEvidenceCohort(),
     current_cohort_evidence: true,
-    acceptance_path: 'Runtime page',
-    runtime_page_contract: 'contracts/app-page-state-matrix.json#runtime',
-    refs_only: true,
-    authority_boundary: 'refs_only_no_runtime_truth_domain_truth_artifact_or_quality_authority',
-    artifacts: artifacts.map((artifact) => ({ ...artifact, status: 'present' })),
-    missing_evidence: [],
-    blocked_evidence: [],
-  }, null, 2)}\n`);
-  writeRuntimeEvidenceJsonFiles(tempRoot);
-  writeVmSmokeSummaryFiles(tempRoot);
-  writeAssistantRouteSmokeScreenshots(tempRoot);
-  writeRemoteReleaseVerificationSummary(tempRoot);
-  writeDockerWebuiCleanVmEvidenceSummary(tempRoot, {
-    summaries: [
-      {
-        schema: 'opl_docker_webui_clean_vm_evidence_validation.v1',
-        gate_id: 'clean_linux_vm',
-        status: 'passed',
-        artifact_name: 'same_job_ubuntu_clean_vm_generated',
-        result_path: 'clean_linux_vm/docker-webui-smoke-gate-result.json',
-        validation: { status: 'passed' },
-      },
-      {
-        schema: 'opl_docker_webui_clean_vm_evidence_validation.v1',
-        gate_id: 'clean_windows_vm',
-        status: 'skipped',
-        artifact_name: 'windows-clean-evidence',
-        result_path: 'clean_windows_vm/docker-webui-smoke-gate-result.json',
-        validation: { status: 'missing' },
-        optional: true,
-      },
-    ],
+    artifacts: presentArtifacts(artifacts),
   });
-  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
-  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'full.png'));
-  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'action.png'));
+  writePackagedEvidenceFiles(tempRoot, {
+    dockerWebuiCleanVmEvidence: {
+      summaries: [
+        {
+          schema: 'opl_docker_webui_clean_vm_evidence_validation.v1',
+          gate_id: 'clean_linux_vm',
+          status: 'passed',
+          artifact_name: 'same_job_ubuntu_clean_vm_generated',
+          result_path: 'clean_linux_vm/docker-webui-smoke-gate-result.json',
+          validation: { status: 'passed' },
+        },
+        {
+          schema: 'opl_docker_webui_clean_vm_evidence_validation.v1',
+          gate_id: 'clean_windows_vm',
+          status: 'skipped',
+          artifact_name: 'windows-clean-evidence',
+          result_path: 'clean_windows_vm/docker-webui-smoke-gate-result.json',
+          validation: { status: 'missing' },
+          optional: true,
+        },
+      ],
+    },
+  });
 
   const result = runNode([
     'scripts/validate-release-evidence-bundle.ts',
@@ -310,9 +278,7 @@ test('release evidence bundle validator accepts Docker WebUI clean VM aggregate 
 
 test('release evidence bundle validator fails closed for incomplete packaged App evidence', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-missing-'));
-  const releaseContract = JSON.parse(
-    fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
-  );
+  const releaseContract = readReleaseContract();
   const missingArtifactIds = new Set([
     'first_run_vm_summary',
     'guest_smoke_summary',
@@ -335,29 +301,14 @@ test('release evidence bundle validator fails closed for incomplete packaged App
           status: 'present',
         }
   ));
-  writeFile(path.join(tempRoot, 'evidence-manifest.json'), `${JSON.stringify({
-    schema_version: 1,
-    purpose: 'app_release_evidence_bundle',
+  writeEvidenceManifest(tempRoot, {
     status: 'missing_evidence',
     packaged_app_evidence: false,
-    acceptance_path: 'Runtime page',
-    runtime_page_contract: 'contracts/app-page-state-matrix.json#runtime',
-    refs_only: true,
-    authority_boundary: 'refs_only_no_runtime_truth_domain_truth_artifact_or_quality_authority',
     artifacts,
-    missing_evidence: artifacts
-    .filter((artifact) => artifact.status === 'missing')
-    .map((artifact) => ({
-      id: artifact.id,
-      path: artifact.path,
-      status: artifact.status,
-      reason: artifact.missing_reason,
-    })),
-  }, null, 2)}\n`);
+    missing_evidence: evidenceGaps(artifacts, (artifact) => artifact.status === 'missing'),
+  });
   writeRuntimeEvidenceJsonFiles(tempRoot);
-  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
-  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'full.png'));
-  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'action.png'));
+  writeEvidenceScreenshots(tempRoot);
 
   const blocked = runNode([
     'scripts/validate-release-evidence-bundle.ts',
@@ -395,9 +346,7 @@ test('release evidence bundle validator fails closed for incomplete packaged App
 
 test('release evidence bundle validator classifies typed blockers and not-applicable artifacts without packaged evidence', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-classified-'));
-  const releaseContract = JSON.parse(
-    fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
-  );
+  const releaseContract = readReleaseContract();
   const nonPresentById = new Map([
     ['first_run_vm_summary', {
       status: 'typed_blocker',
@@ -421,35 +370,13 @@ test('release evidence bundle validator classifies typed blockers and not-applic
           status: 'present',
         }
   ));
-  writeFile(path.join(tempRoot, 'evidence-manifest.json'), `${JSON.stringify({
-    schema_version: 1,
-    purpose: 'app_release_evidence_bundle',
+  writeEvidenceManifest(tempRoot, {
     status: 'missing_evidence',
     packaged_app_evidence: false,
-    acceptance_path: 'Runtime page',
-    runtime_page_contract: 'contracts/app-page-state-matrix.json#runtime',
-    refs_only: true,
-    authority_boundary: 'refs_only_no_runtime_truth_domain_truth_artifact_or_quality_authority',
     artifacts,
-    missing_evidence: artifacts
-      .filter((artifact) => artifact.status !== 'present')
-      .map((artifact) => ({
-        id: artifact.id,
-        path: artifact.path,
-        status: artifact.status,
-        reason: artifact.reason,
-        ...(artifact.typed_blocker_ref ? { typed_blocker_ref: artifact.typed_blocker_ref } : {}),
-        ...(artifact.not_applicable_reason ? { not_applicable_reason: artifact.not_applicable_reason } : {}),
-      })),
-  }, null, 2)}\n`);
-  writeRuntimeEvidenceJsonFiles(tempRoot);
-  writeVmSmokeSummaryFiles(tempRoot);
-  writeRemoteReleaseVerificationSummary(tempRoot);
-  writeDockerWebuiCleanVmEvidenceSummary(tempRoot);
-  writeAssistantRouteSmokeScreenshots(tempRoot);
-  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
-  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'full.png'));
-  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'action.png'));
+    missing_evidence: evidenceGaps(artifacts, (artifact) => artifact.status !== 'present'),
+  });
+  writePackagedEvidenceFiles(tempRoot);
 
   const blocked = runNode([
     'scripts/validate-release-evidence-bundle.ts',
@@ -492,9 +419,7 @@ test('release evidence bundle validator classifies typed blockers and not-applic
 
 test('release evidence bundle validator emits App-scoped L5 evidence readout for current cohort gaps', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-l5-readout-'));
-  const releaseContract = JSON.parse(
-    fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
-  );
+  const releaseContract = readReleaseContract();
   const missingArtifactIds = new Set([
     'guest_smoke_summary',
     'assistant_route_smoke_summary',
@@ -535,24 +460,11 @@ test('release evidence bundle validator emits App-scoped L5 evidence readout for
     evidence_refs: ['github-actions:opl-first-run-vm#blocked-no-runner'],
     next_action: 'rerun clean first-run VM smoke on an available macOS VM host',
   }, null, 2)}\n`);
-  writeFile(path.join(tempRoot, 'evidence-manifest.json'), `${JSON.stringify({
-    schema_version: 1,
-    purpose: 'app_release_evidence_bundle',
+  writeEvidenceManifest(tempRoot, {
     status: 'blocked_evidence',
     packaged_app_evidence: false,
-    acceptance_path: 'Runtime page',
-    runtime_page_contract: 'contracts/app-page-state-matrix.json#runtime',
-    refs_only: true,
-    authority_boundary: 'refs_only_no_runtime_truth_domain_truth_artifact_or_quality_authority',
     artifacts,
-    missing_evidence: artifacts
-      .filter((artifact) => artifact.status === 'missing')
-      .map((artifact) => ({
-        id: artifact.id,
-        path: artifact.path,
-        status: artifact.status,
-        reason: artifact.missing_reason,
-      })),
+    missing_evidence: evidenceGaps(artifacts, (artifact) => artifact.status === 'missing'),
     blocked_evidence: [
       {
         id: 'first_run_vm_summary',
@@ -560,11 +472,9 @@ test('release evidence bundle validator emits App-scoped L5 evidence readout for
         typed_blocker_path: 'typed-blockers/first_run_vm_summary.json',
       },
     ],
-  }, null, 2)}\n`);
+  });
   writeRuntimeEvidenceJsonFiles(tempRoot);
-  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
-  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'full.png'));
-  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'action.png'));
+  writeEvidenceScreenshots(tempRoot);
 
   const allowed = runNode([
     'scripts/validate-release-evidence-bundle.ts',
@@ -621,9 +531,7 @@ test('release evidence manifest generator applies explicit artifact classificati
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-classified-generated-'));
   const classificationPath = path.join(tempRoot, 'artifact-classifications.json');
   writeRuntimeEvidenceJsonFiles(tempRoot);
-  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
-  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'full.png'));
-  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'action.png'));
+  writeEvidenceScreenshots(tempRoot);
   writeFile(path.join(classificationPath), `${JSON.stringify({
     artifact_classifications: [
       {
@@ -684,27 +592,14 @@ test('release evidence manifest generator applies explicit artifact classificati
 
 test('release evidence bundle validator rejects contract-only runtime JSON placeholders', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-placeholder-'));
-  const releaseContract = JSON.parse(
-    fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
-  );
-  writeFile(path.join(tempRoot, 'evidence-manifest.json'), `${JSON.stringify({
-    schema_version: 1,
-    purpose: 'app_release_evidence_bundle',
+  const releaseContract = readReleaseContract();
+  writeEvidenceManifest(tempRoot, {
     status: 'passed',
     packaged_app_evidence: true,
     release_cohort: releaseEvidenceCohort(),
     current_cohort_evidence: true,
-    acceptance_path: 'Runtime page',
-    runtime_page_contract: 'contracts/app-page-state-matrix.json#runtime',
-    refs_only: true,
-    authority_boundary: 'refs_only_no_runtime_truth_domain_truth_artifact_or_quality_authority',
-    artifacts: releaseContract.operator_evidence_bundle.required_artifacts.map((artifact) => ({
-      ...artifact,
-      status: 'present',
-    })),
-    missing_evidence: [],
-    blocked_evidence: [],
-  }, null, 2)}\n`);
+    artifacts: presentArtifacts(releaseContract.operator_evidence_bundle.required_artifacts),
+  });
   for (const name of [
     'app-state-summary.json',
     'app-state-full.json',
@@ -718,9 +613,7 @@ test('release evidence bundle validator rejects contract-only runtime JSON place
   }
   writeVmSmokeSummaryFiles(tempRoot);
   writeAssistantRouteSmokeScreenshots(tempRoot);
-  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
-  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'full.png'));
-  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'action.png'));
+  writeEvidenceScreenshots(tempRoot);
 
   const result = runNode([
     'scripts/validate-release-evidence-bundle.ts',
@@ -734,33 +627,13 @@ test('release evidence bundle validator rejects contract-only runtime JSON place
 
 test('release evidence bundle validator requires known release cohort before packaged evidence', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-missing-cohort-'));
-  const releaseContract = JSON.parse(
-    fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
-  );
-  writeFile(path.join(tempRoot, 'evidence-manifest.json'), `${JSON.stringify({
-    schema_version: 1,
-    purpose: 'app_release_evidence_bundle',
+  const releaseContract = readReleaseContract();
+  writeEvidenceManifest(tempRoot, {
     status: 'passed',
     packaged_app_evidence: true,
-    acceptance_path: 'Runtime page',
-    runtime_page_contract: 'contracts/app-page-state-matrix.json#runtime',
-    refs_only: true,
-    authority_boundary: 'refs_only_no_runtime_truth_domain_truth_artifact_or_quality_authority',
-    artifacts: releaseContract.operator_evidence_bundle.required_artifacts.map((artifact) => ({
-      ...artifact,
-      status: 'present',
-    })),
-    missing_evidence: [],
-    blocked_evidence: [],
-  }, null, 2)}\n`);
-  writeRuntimeEvidenceJsonFiles(tempRoot);
-  writeVmSmokeSummaryFiles(tempRoot);
-  writeAssistantRouteSmokeScreenshots(tempRoot);
-  writeRemoteReleaseVerificationSummary(tempRoot);
-  writeDockerWebuiCleanVmEvidenceSummary(tempRoot);
-  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
-  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'full.png'));
-  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'action.png'));
+    artifacts: presentArtifacts(releaseContract.operator_evidence_bundle.required_artifacts),
+  });
+  writePackagedEvidenceFiles(tempRoot);
 
   const result = runNode([
     'scripts/validate-release-evidence-bundle.ts',
@@ -774,35 +647,15 @@ test('release evidence bundle validator requires known release cohort before pac
 
 test('release evidence bundle validator rejects remote verification from a different release cohort', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-cohort-mismatch-'));
-  const releaseContract = JSON.parse(
-    fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
-  );
-  writeFile(path.join(tempRoot, 'evidence-manifest.json'), `${JSON.stringify({
-    schema_version: 1,
-    purpose: 'app_release_evidence_bundle',
+  const releaseContract = readReleaseContract();
+  writeEvidenceManifest(tempRoot, {
     status: 'passed',
     packaged_app_evidence: true,
     release_cohort: releaseEvidenceCohort('26.6.5'),
     current_cohort_evidence: true,
-    acceptance_path: 'Runtime page',
-    runtime_page_contract: 'contracts/app-page-state-matrix.json#runtime',
-    refs_only: true,
-    authority_boundary: 'refs_only_no_runtime_truth_domain_truth_artifact_or_quality_authority',
-    artifacts: releaseContract.operator_evidence_bundle.required_artifacts.map((artifact) => ({
-      ...artifact,
-      status: 'present',
-    })),
-    missing_evidence: [],
-    blocked_evidence: [],
-  }, null, 2)}\n`);
-  writeRuntimeEvidenceJsonFiles(tempRoot);
-  writeVmSmokeSummaryFiles(tempRoot);
-  writeAssistantRouteSmokeScreenshots(tempRoot);
-  writeRemoteReleaseVerificationSummary(tempRoot, '26.6.4');
-  writeDockerWebuiCleanVmEvidenceSummary(tempRoot);
-  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
-  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'full.png'));
-  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'action.png'));
+    artifacts: presentArtifacts(releaseContract.operator_evidence_bundle.required_artifacts),
+  });
+  writePackagedEvidenceFiles(tempRoot, { remoteVersion: '26.6.4' });
 
   const result = runNode([
     'scripts/validate-release-evidence-bundle.ts',
@@ -820,9 +673,7 @@ test('release evidence bundle validator rejects undersized WebP screenshot evide
   const tempScriptPath = path.join(tempAppRoot, 'scripts', 'validate-release-evidence-bundle.ts');
   const tempReadoutScriptPath = path.join(tempAppRoot, 'scripts', 'app-release-l5-readout.ts');
   const tempContractPath = path.join(tempAppRoot, 'contracts', 'app-release-channel.json');
-  const releaseContract = JSON.parse(
-    fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
-  );
+  const releaseContract = readReleaseContract();
   fs.mkdirSync(path.dirname(tempScriptPath), { recursive: true });
   fs.copyFileSync(path.join(appRoot, 'scripts', 'validate-release-evidence-bundle.ts'), tempScriptPath);
   fs.copyFileSync(path.join(appRoot, 'scripts', 'app-release-l5-readout.ts'), tempReadoutScriptPath);
@@ -839,29 +690,15 @@ test('release evidence bundle validator rejects undersized WebP screenshot evide
   ));
   const artifacts = releaseContract.operator_evidence_bundle.required_artifacts;
   writeFile(tempContractPath, `${JSON.stringify(releaseContract, null, 2)}\n`);
-  writeFile(path.join(tempRoot, 'evidence-manifest.json'), `${JSON.stringify({
-    schema_version: 1,
-    purpose: 'app_release_evidence_bundle',
+  writeEvidenceManifest(tempRoot, {
     status: 'passed',
     packaged_app_evidence: true,
     release_cohort: releaseEvidenceCohort(),
     current_cohort_evidence: true,
-    acceptance_path: 'Runtime page',
-    runtime_page_contract: 'contracts/app-page-state-matrix.json#runtime',
-    refs_only: true,
-    authority_boundary: 'refs_only_no_runtime_truth_domain_truth_artifact_or_quality_authority',
     artifacts,
-    missing_evidence: [],
-    blocked_evidence: [],
-  }, null, 2)}\n`);
-  writeRuntimeEvidenceJsonFiles(tempRoot);
-  writeVmSmokeSummaryFiles(tempRoot);
-  writeAssistantRouteSmokeScreenshots(tempRoot);
-  writeRemoteReleaseVerificationSummary(tempRoot);
-  writeDockerWebuiCleanVmEvidenceSummary(tempRoot);
+  });
+  writePackagedEvidenceFiles(tempRoot, { screenshotIds: ['full', 'action'] });
   writeWebpVp8x(path.join(tempRoot, 'screenshots', 'runtime.webp'), 1, 1);
-  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'full.png'));
-  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'action.png'));
 
   const result = spawnSync(process.execPath, [
     '--experimental-strip-types',
@@ -884,9 +721,7 @@ test('release evidence bundle validator rejects image policy without image scope
   const tempScriptPath = path.join(tempAppRoot, 'scripts', 'validate-release-evidence-bundle.ts');
   const tempReadoutScriptPath = path.join(tempAppRoot, 'scripts', 'app-release-l5-readout.ts');
   const tempContractPath = path.join(tempAppRoot, 'contracts', 'app-release-channel.json');
-  const releaseContract = JSON.parse(
-    fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
-  );
+  const releaseContract = readReleaseContract();
   fs.mkdirSync(path.dirname(tempScriptPath), { recursive: true });
   fs.copyFileSync(path.join(appRoot, 'scripts', 'validate-release-evidence-bundle.ts'), tempScriptPath);
   fs.copyFileSync(path.join(appRoot, 'scripts', 'app-release-l5-readout.ts'), tempReadoutScriptPath);
@@ -898,15 +733,9 @@ test('release evidence bundle validator rejects image policy without image scope
   fs.copyFileSync(path.join(appRoot, 'scripts', 'release-readiness-args.ts'), path.join(tempAppRoot, 'scripts', 'release-readiness-args.ts'));
   releaseContract.operator_evidence_bundle.image_evidence_policy.applies_to_kind = 'json';
   writeFile(tempContractPath, `${JSON.stringify(releaseContract, null, 2)}\n`);
-  writeFile(path.join(tempRoot, 'evidence-manifest.json'), `${JSON.stringify({
-    schema_version: 1,
-    purpose: 'app_release_evidence_bundle',
+  writeEvidenceManifest(tempRoot, {
     status: 'missing_evidence',
     packaged_app_evidence: false,
-    acceptance_path: 'Runtime page',
-    runtime_page_contract: 'contracts/app-page-state-matrix.json#runtime',
-    refs_only: true,
-    authority_boundary: 'refs_only_no_runtime_truth_domain_truth_artifact_or_quality_authority',
     artifacts: releaseContract.operator_evidence_bundle.required_artifacts.map((artifact) => ({
       ...artifact,
       status: 'missing',
@@ -917,8 +746,7 @@ test('release evidence bundle validator rejects image policy without image scope
       path: artifact.path,
       reason: `${artifact.producer} output was not generated in this environment`,
     })),
-    blocked_evidence: [],
-  }, null, 2)}\n`);
+  });
 
   const result = spawnSync(process.execPath, [
     '--experimental-strip-types',
@@ -939,9 +767,7 @@ test('release evidence bundle validator rejects image policy without image scope
 test('release evidence manifest generator records missing artifacts without claiming packaged App evidence', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-generated-'));
   writeRuntimeEvidenceJsonFiles(tempRoot);
-  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
-  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'full.png'));
-  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'action.png'));
+  writeEvidenceScreenshots(tempRoot);
 
   const generated = runNode([
     'scripts/write-release-evidence-manifest.ts',
