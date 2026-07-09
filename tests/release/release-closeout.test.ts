@@ -6,6 +6,9 @@ import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 import { appRoot, writeJson } from './release-readiness/helpers.ts';
 
+const VERSION = '26.5.99';
+type JsonRecord = Record<string, unknown>;
+
 function runCloseout(args: string[]) {
   return spawnSync(
     process.execPath,
@@ -33,7 +36,7 @@ function closeoutFixture(prefix: string, artifactDir = 'artifacts', outDirName =
   };
 }
 
-function writeRun(filePath: string, fields: Record<string, unknown> = {}) {
+function writeRun(filePath: string, fields: JsonRecord = {}) {
   writeJson(filePath, {
     databaseId: '12345',
     status: 'completed',
@@ -56,7 +59,7 @@ function runCloseoutFixture(options: {
 }) {
   return runCloseout([
     '--version',
-    '26.5.99',
+    VERSION,
     '--run-json',
     options.runPath,
     ...(options.jobsPath ? ['--jobs-json', options.jobsPath] : []),
@@ -87,8 +90,48 @@ function assertReadoutState(readout: ReturnType<typeof expectCloseout>, status: 
   assert.equal(readout.notification.state, monitorState);
 }
 
-function writeReleaseArtifact(root: string, version: string, artifact: string, file: string, payload: Record<string, unknown>) {
+type CloseoutFixture = ReturnType<typeof closeoutFixture>;
+
+function writeJobs(filePath: string, jobs: JsonRecord[]) {
+  writeJson(filePath, { jobs });
+}
+
+function completedJob(name: string, conclusion: string, startedAt: string, completedAt: string) {
+  return { name, status: 'completed', conclusion, startedAt, completedAt };
+}
+
+function writeReleaseArtifact(root: string, version: string, artifact: string, file: string, payload: JsonRecord) {
   writeJson(path.join(root, `${artifact}-${version}`, file), payload);
+}
+
+function writeReleaseArtifacts(root: string, artifacts: Array<[string, string, JsonRecord]>, version = VERSION) {
+  for (const [artifact, file, payload] of artifacts) writeReleaseArtifact(root, version, artifact, file, payload);
+}
+
+function runCloseoutCase(prefix: string, options: {
+  artifactDir?: string;
+  outDirName?: string;
+  closeoutArtifacts?: false | Parameters<typeof writeCloseoutArtifacts>[2];
+  run?: false | JsonRecord;
+  jobs?: JsonRecord[];
+  extra?: string[];
+  setup?: (fixture: CloseoutFixture) => void;
+} = {}) {
+  const fixture = closeoutFixture(prefix, options.artifactDir ?? 'artifacts', options.outDirName ?? 'out');
+  if (options.closeoutArtifacts !== false) writeCloseoutArtifacts(fixture.artifactsRoot, VERSION, options.closeoutArtifacts ?? {});
+  if (options.run !== false) writeRun(fixture.runPath, options.run ?? {});
+  if (options.jobs) writeJobs(fixture.jobsPath, options.jobs);
+  options.setup?.(fixture);
+  return {
+    ...fixture,
+    readout: expectCloseout({
+      runPath: fixture.runPath,
+      jobsPath: options.jobs ? fixture.jobsPath : undefined,
+      artifactsRoot: fixture.artifactsRoot,
+      outDir: fixture.outDir,
+      extra: options.extra,
+    }),
+  };
 }
 
 function releaseOwnerVerdict(version = '26.5.99', options: {
@@ -118,7 +161,7 @@ function releaseOwnerVerdict(version = '26.5.99', options: {
 }
 
 function writeCloseoutArtifacts(root: string, version = '26.5.99', options: {
-  releaseOwnerVerdict?: Record<string, unknown>;
+  releaseOwnerVerdict?: JsonRecord;
 } = {}) {
   writeReleaseArtifact(root, version, 'release-preflight-summary', 'release-preflight-summary.json', { schema: 'opl_release_preflight.v1', status: 'passed' });
   writeReleaseArtifact(root, version, 'remote-release-verification', 'remote-release-verification.json', { status: 'passed', version, include_full_package: true });
@@ -130,27 +173,17 @@ function writeCloseoutArtifacts(root: string, version = '26.5.99', options: {
     warnings: [],
     full_package: {
       duration_seconds: {
-        full_package_build: 405,
-        full_package_build_breakdown: { runtime_materialize: 20, runtime_cache_materialize: 8, payload_sync: 18, shell_build: 187, dmg_package_compression: 175, manifest_checksum: 5 },
+        full_package_build_breakdown: { shell_build: 187, dmg_package_compression: 175 },
       },
-      cache: { full_runtime_layers: 'toolchain:true;domain-runtime:true;opl-runtime:true;skills:true' },
-      runtime_cache: {
-        layer_status_counts: { hit: 2, miss_written: 1 },
-        miss_written_layers: ['domain-runtime'],
-        miss_written_count: 1,
-        written_layers: ['domain-runtime'],
-        written_layer_count: 1,
-      },
-      size_budget: { full_dmg_size_bytes: 865000000, warning_full_dmg_bytes: 700000000, max_full_dmg_bytes: 750000000, full_dmg_size_status: 'warning' },
+      runtime_cache: { miss_written_layers: ['domain-runtime'], miss_written_count: 1 },
       size_analysis: {
         schema: 'opl_full_package_size_summary.v1',
         source: 'test_fixture',
         budget: {
-          compressed_full_dmg: { full_dmg_size_bytes: 865000000, warning_full_dmg_bytes: 700000000, max_full_dmg_bytes: 750000000, warning_status: 'warning', review_threshold_status: 'above_review_threshold', release_blocking: false },
+          compressed_full_dmg: { full_dmg_size_bytes: 865000000, warning_status: 'warning', review_threshold_status: 'above_review_threshold' },
         },
         optimization_candidates: [
           { rank: 1, kind: 'layer', id: 'toolchain', size_bytes: 512000000, reason: 'largest_runtime_layer' },
-          { rank: 2, kind: 'component', id: 'codex', size_bytes: 384000000, reason: 'largest_packaged_component' },
         ],
       },
     },
@@ -184,47 +217,24 @@ function writeCloseoutArtifacts(root: string, version = '26.5.99', options: {
 }
 
 test('release closeout separates workflow wall time from Agent orchestration wall time and avoids large artifacts', () => {
-  const { artifactsRoot, outDir, runPath, jobsPath } = closeoutFixture('opl-release-closeout-');
-  writeCloseoutArtifacts(artifactsRoot);
-  writeRun(runPath, {
-    displayTitle: 'v26.5.99 stable release',
-    headBranch: 'main',
-    url: 'https://github.com/gaofeng21cn/one-person-lab-app/actions/runs/12345',
-    previous_runs: [
-      {
+  const { outDir, readout } = runCloseoutCase('opl-release-closeout-', {
+    run: {
+      displayTitle: 'v26.5.99 stable release',
+      headBranch: 'main',
+      url: 'https://github.com/gaofeng21cn/one-person-lab-app/actions/runs/12345',
+      previous_runs: [{
         id: '12222',
         status: 'completed',
         conclusion: 'failure',
         createdAt: '2026-06-12T09:00:00Z',
         updatedAt: '2026-06-12T09:31:01Z',
         url: 'https://github.com/gaofeng21cn/one-person-lab-app/actions/runs/12222',
-      },
-    ],
-  });
-  writeJson(jobsPath, {
+      }],
+    },
     jobs: [
-      {
-        name: 'Build Full first-install assets',
-        status: 'completed',
-        conclusion: 'success',
-        startedAt: '2026-06-12T10:50:00Z',
-        completedAt: '2026-06-12T11:04:42Z',
-      },
-      {
-        name: 'Summarize release readiness',
-        status: 'completed',
-        conclusion: 'success',
-        startedAt: '2026-06-12T11:17:00Z',
-        completedAt: '2026-06-12T11:18:25Z',
-      },
+      completedJob('Build Full first-install assets', 'success', '2026-06-12T10:50:00Z', '2026-06-12T11:04:42Z'),
+      completedJob('Summarize release readiness', 'success', '2026-06-12T11:17:00Z', '2026-06-12T11:18:25Z'),
     ],
-  });
-
-  const readout = expectCloseout({
-    runPath,
-    jobsPath,
-    artifactsRoot,
-    outDir,
     extra: ['--agent-wall-time', '2h6m43s'],
   });
   const { stdout, summary, monitor, notification } = readout;
@@ -253,127 +263,98 @@ test('release closeout separates workflow wall time from Agent orchestration wal
   assert.equal(summary.failed_rerun_tax.failed_rerun_tax_seconds, 1861);
 });
 
-test('release closeout reads attestation verification summary from small artifact inputs', () => {
-  const { artifactsRoot, outDir, runPath } = closeoutFixture('opl-release-closeout-attestation-');
-  writeCloseoutArtifacts(artifactsRoot);
-  writeJson(path.join(artifactsRoot, 'release-attestation-verification-26.5.99', 'attestation-verification.json'), {
-    schema: 'opl_release_attestation_verification.v1',
-    status: 'passed',
-    verified_assets: [
-      {
-        name: 'One-Person-Lab-26.5.99-arm64.dmg',
-        predicate_type: 'https://slsa.dev/provenance/v1',
-        workflow_run_id: '12345',
-      },
-    ],
+for (const scenario of [
+  {
+    name: 'release closeout reads attestation verification summary from small artifact inputs',
+    prefix: 'opl-release-closeout-attestation-',
+    file: 'attestation-verification.json',
+    state: 'verified',
+    payload: {
+      schema: 'opl_release_attestation_verification.v1',
+      status: 'passed',
+      verified_assets: [{ name: 'One-Person-Lab-26.5.99-arm64.dmg', predicate_type: 'https://slsa.dev/provenance/v1', workflow_run_id: '12345' }],
+    },
+  },
+  {
+    name: 'release closeout marks failed attestation verification without treating it as readiness',
+    prefix: 'opl-release-closeout-attestation-failed-',
+    file: 'attestation-verification-summary.json',
+    state: 'failed',
+    payload: {
+      schema: 'opl_release_attestation_verification.v1',
+      status: 'failed',
+      errors: ['No attestation found for One-Person-Lab-26.5.99-arm64.dmg.'],
+    },
+  },
+]) {
+  test(scenario.name, () => {
+    const { readout: { summary } } = runCloseoutCase(scenario.prefix, {
+      setup: ({ artifactsRoot }) => writeReleaseArtifact(artifactsRoot, VERSION, 'release-attestation-verification', scenario.file, scenario.payload),
+    });
+
+    assert.equal(summary.artifact_attestation_verification.state, scenario.state);
+    assert.equal(summary.artifact_attestation_verification.verification.status, scenario.payload.status);
+    assert.deepEqual(summary.artifact_attestation_verification.verify_commands, []);
+    assert.match(summary.artifact_attestation_verification.rule, /not release readiness evidence/);
+    if (scenario.state === 'verified') {
+      assert.match(summary.source_paths.artifact_attestation_verification, /attestation-verification\.json/);
+      assert.equal(summary.artifact_attestation_verification.verification.verified_assets[0].name, 'One-Person-Lab-26.5.99-arm64.dmg');
+    }
   });
-  writeRun(runPath);
-
-  const { summary } = expectCloseout({ runPath, artifactsRoot, outDir });
-  assert.equal(summary.artifact_attestation_verification.state, 'verified');
-  assert.match(summary.source_paths.artifact_attestation_verification, /attestation-verification\.json/);
-  assert.equal(summary.artifact_attestation_verification.verification.status, 'passed');
-  assert.equal(summary.artifact_attestation_verification.verification.verified_assets[0].name, 'One-Person-Lab-26.5.99-arm64.dmg');
-  assert.deepEqual(summary.artifact_attestation_verification.verify_commands, []);
-  assert.match(summary.artifact_attestation_verification.rule, /not release readiness evidence/);
-});
-
-test('release closeout marks failed attestation verification without treating it as readiness', () => {
-  const { artifactsRoot, outDir, runPath } = closeoutFixture('opl-release-closeout-attestation-failed-');
-  writeCloseoutArtifacts(artifactsRoot);
-  writeJson(path.join(artifactsRoot, 'release-attestation-verification-26.5.99', 'attestation-verification-summary.json'), {
-    schema: 'opl_release_attestation_verification.v1',
-    status: 'failed',
-    errors: ['No attestation found for One-Person-Lab-26.5.99-arm64.dmg.'],
-  });
-  writeRun(runPath);
-
-  const { summary } = expectCloseout({ runPath, artifactsRoot, outDir });
-  assert.equal(summary.artifact_attestation_verification.state, 'failed');
-  assert.equal(summary.artifact_attestation_verification.verification.status, 'failed');
-  assert.match(summary.artifact_attestation_verification.rule, /not release readiness evidence/);
-});
+}
 
 test('release closeout stops at readiness failed gates before raw log inspection', () => {
-  const { artifactsRoot, outDir, runPath } = closeoutFixture('opl-release-closeout-blocked-');
-  writeJson(path.join(artifactsRoot, 'release-readiness-summary-26.5.99', 'release-readiness-summary.json'), {
-    schema: 'opl_release_readiness_summary.v1',
+  const failedGate = {
+    id: 'homebrew_standard_cask_clean_vm',
     status: 'failed',
-    version: '26.5.99',
-    failed_required_gates: [
-      {
-        id: 'homebrew_standard_cask_clean_vm',
-        status: 'failed',
-        reason: 'Homebrew VM smoke status is failed.',
-      },
-    ],
+    reason: 'Homebrew VM smoke status is failed.',
+  };
+  const { readout } = runCloseoutCase('opl-release-closeout-blocked-', {
+    closeoutArtifacts: false,
+    run: {
+      status: 'completed',
+      conclusion: 'success',
+      createdAt: '2026-06-12T10:00:00Z',
+      startedAt: '2026-06-12T10:00:00Z',
+      updatedAt: '2026-06-12T10:10:00Z',
+    },
+    setup: ({ artifactsRoot }) => writeReleaseArtifact(artifactsRoot, VERSION, 'release-readiness-summary', 'release-readiness-summary.json', {
+      schema: 'opl_release_readiness_summary.v1',
+      status: 'failed',
+      version: VERSION,
+      failed_required_gates: [failedGate],
+    }),
   });
-  writeRun(runPath, {
-    status: 'completed',
-    conclusion: 'success',
-    createdAt: '2026-06-12T10:00:00Z',
-    startedAt: '2026-06-12T10:00:00Z',
-    updatedAt: '2026-06-12T10:10:00Z',
-  });
-
-  const readout = expectCloseout({ runPath, artifactsRoot, outDir });
   const { summary, monitor } = readout;
   assertReadoutState(readout, 'resolve_readiness_failed_gates', 'failed');
   assert.equal(monitor.failed_gate_count, 1);
   assert.equal(summary.decision.next_action, 'resolve_readiness_failed_gates');
   assert.match(summary.decision.command, /failed_required_gates/);
   assert.doesNotMatch(summary.decision.command, /--log-failed/);
-  assert.deepEqual(summary.readiness.failed_required_gates, [
-    {
-      id: 'homebrew_standard_cask_clean_vm',
-      status: 'failed',
-      reason: 'Homebrew VM smoke status is failed.',
-    },
-  ]);
+  assert.deepEqual(summary.readiness.failed_required_gates, [failedGate]);
 });
 
 test('release closeout separates published release state from failed post-publish proof gates', () => {
-  const { artifactsRoot, outDir, runPath, jobsPath } = closeoutFixture('opl-release-closeout-post-publish-');
-  writeJson(path.join(artifactsRoot, 'remote-release-verification-26.5.99', 'remote-release-verification.json'), {
-    status: 'passed',
-    version: '26.5.99',
-    isDraft: false,
-    publishedAt: '2026-06-20T09:54:13Z',
-  });
-  writeJson(path.join(artifactsRoot, 'release-preflight-summary-26.5.99', 'release-preflight-summary.json'), {
-    schema: 'opl_release_preflight.v1',
-    status: 'passed',
-    release_target: { kind: 'draft_release' },
-  });
-  writeRun(runPath, {
-    databaseId: '67890',
-    conclusion: 'failure',
-    createdAt: '2026-06-20T09:52:53Z',
-    startedAt: '2026-06-20T09:52:53Z',
-    updatedAt: '2026-06-20T10:18:32Z',
-    workflowName: 'OPL Desktop Release Promote',
-    url: 'https://github.com/gaofeng21cn/one-person-lab-app/actions/runs/67890',
-  });
-  writeJson(jobsPath, {
+  const { readout } = runCloseoutCase('opl-release-closeout-post-publish-', {
+    closeoutArtifacts: false,
+    run: {
+      databaseId: '67890',
+      conclusion: 'failure',
+      createdAt: '2026-06-20T09:52:53Z',
+      startedAt: '2026-06-20T09:52:53Z',
+      updatedAt: '2026-06-20T10:18:32Z',
+      workflowName: 'OPL Desktop Release Promote',
+      url: 'https://github.com/gaofeng21cn/one-person-lab-app/actions/runs/67890',
+    },
     jobs: [
-      {
-        name: 'Verify and publish draft release',
-        status: 'completed',
-        conclusion: 'success',
-        startedAt: '2026-06-20T09:53:00Z',
-        completedAt: '2026-06-20T09:54:19Z',
-      },
-      {
-        name: 'Run Homebrew standard first-run VM smoke',
-        status: 'completed',
-        conclusion: 'failure',
-        startedAt: '2026-06-20T09:54:34Z',
-        completedAt: '2026-06-20T10:18:32Z',
-      },
+      completedJob('Verify and publish draft release', 'success', '2026-06-20T09:53:00Z', '2026-06-20T09:54:19Z'),
+      completedJob('Run Homebrew standard first-run VM smoke', 'failure', '2026-06-20T09:54:34Z', '2026-06-20T10:18:32Z'),
     ],
+    setup: ({ artifactsRoot }) => writeReleaseArtifacts(artifactsRoot, [
+      ['remote-release-verification', 'remote-release-verification.json', { status: 'passed', version: VERSION, isDraft: false, publishedAt: '2026-06-20T09:54:13Z' }],
+      ['release-preflight-summary', 'release-preflight-summary.json', { schema: 'opl_release_preflight.v1', status: 'passed', release_target: { kind: 'draft_release' } }],
+    ]),
   });
-
-  const readout = expectCloseout({ runPath, jobsPath, artifactsRoot, outDir });
   const { summary, monitor } = readout;
   assertReadoutState(readout, 'resolve_post_publish_followup_gate', 'published_with_post_publish_followup');
   assert.equal(monitor.published, true);
@@ -383,31 +364,22 @@ test('release closeout separates published release state from failed post-publis
 });
 
 test('release closeout uses candidate record inside an in-progress workflow job', () => {
-  const { artifactsRoot, outDir, runPath, jobsPath } = closeoutFixture('opl-release-closeout-default-', 'release-closeout-inputs', 'release-closeout');
-  writeCloseoutArtifacts(artifactsRoot);
-  writeRun(runPath, {
-    databaseId: 12345,
-    status: 'in_progress',
-    conclusion: null,
-    url: 'https://github.com/gaofeng21cn/one-person-lab-app/actions/runs/12345',
-  });
-  writeJson(jobsPath, {
-    jobs: [
-      {
-        name: 'Summarize release readiness',
-        status: 'in_progress',
-        conclusion: null,
-        startedAt: '2026-06-12T11:17:00Z',
-        completedAt: null,
-      },
-    ],
-  });
-
-  const readout = expectCloseout({
-    runPath,
-    jobsPath,
-    artifactsRoot,
-    outDir,
+  const { readout } = runCloseoutCase('opl-release-closeout-default-', {
+    artifactDir: 'release-closeout-inputs',
+    outDirName: 'release-closeout',
+    run: {
+      databaseId: 12345,
+      status: 'in_progress',
+      conclusion: null,
+      url: 'https://github.com/gaofeng21cn/one-person-lab-app/actions/runs/12345',
+    },
+    jobs: [{
+      name: 'Summarize release readiness',
+      status: 'in_progress',
+      conclusion: null,
+      startedAt: '2026-06-12T11:17:00Z',
+      completedAt: null,
+    }],
     extra: ['--artifact-profile', 'diagnostics'],
   });
 
@@ -424,21 +396,22 @@ test('release closeout uses candidate record inside an in-progress workflow job'
 });
 
 test('release closeout requires owner-resolution validation before promote', () => {
-  const { artifactsRoot, outDir, runPath } = closeoutFixture('opl-release-closeout-owner-needed-', 'release-closeout-inputs', 'release-closeout');
-  writeCloseoutArtifacts(artifactsRoot, '26.5.99', {
-    releaseOwnerVerdict: releaseOwnerVerdict('26.5.99', {
-      status: 'release_owner_verdict_pending',
-      releaseOwnerReceiptRef: null,
-    }),
+  const { readout } = runCloseoutCase('opl-release-closeout-owner-needed-', {
+    artifactDir: 'release-closeout-inputs',
+    outDirName: 'release-closeout',
+    closeoutArtifacts: {
+      releaseOwnerVerdict: releaseOwnerVerdict(VERSION, {
+        status: 'release_owner_verdict_pending',
+        releaseOwnerReceiptRef: null,
+      }),
+    },
+    run: {
+      databaseId: 12345,
+      status: 'in_progress',
+      conclusion: null,
+      url: 'https://github.com/gaofeng21cn/one-person-lab-app/actions/runs/12345',
+    },
   });
-  writeRun(runPath, {
-    databaseId: 12345,
-    status: 'in_progress',
-    conclusion: null,
-    url: 'https://github.com/gaofeng21cn/one-person-lab-app/actions/runs/12345',
-  });
-
-  const readout = expectCloseout({ runPath, artifactsRoot, outDir });
   const { stdout, summary } = readout;
   assert.equal(summary.source_status.candidate_record, 'ready_to_promote');
   assert.equal(summary.decision.next_action, 'owner_needed_release_owner_resolution');
@@ -451,16 +424,18 @@ test('release closeout requires owner-resolution validation before promote', () 
 });
 
 test('release closeout monitor reports running while structured release evidence is still unavailable', () => {
-  const { artifactsRoot, outDir, runPath } = closeoutFixture('opl-release-closeout-running-', 'release-closeout-inputs', 'release-closeout');
-  writeRun(runPath, {
-    databaseId: 98765,
-    status: 'in_progress',
-    conclusion: null,
-    updatedAt: '2026-06-12T10:45:00Z',
-    url: 'https://github.com/gaofeng21cn/one-person-lab-app/actions/runs/98765',
+  const { readout } = runCloseoutCase('opl-release-closeout-running-', {
+    artifactDir: 'release-closeout-inputs',
+    outDirName: 'release-closeout',
+    closeoutArtifacts: false,
+    run: {
+      databaseId: 98765,
+      status: 'in_progress',
+      conclusion: null,
+      updatedAt: '2026-06-12T10:45:00Z',
+      url: 'https://github.com/gaofeng21cn/one-person-lab-app/actions/runs/98765',
+    },
   });
-
-  const readout = expectCloseout({ runPath, artifactsRoot, outDir });
   const { stdout, monitor } = readout;
   assertReadoutState(readout, 'wait_for_release_run_completion', 'running');
   assert.equal(stdout.next_action, 'wait_for_release_run_completion');
@@ -469,27 +444,23 @@ test('release closeout monitor reports running while structured release evidence
 });
 
 test('release closeout monitor reports published from explicit release target evidence', () => {
-  const { artifactsRoot, outDir, runPath } = closeoutFixture('opl-release-closeout-published-', 'release-closeout-inputs', 'release-closeout');
-  writeJson(path.join(artifactsRoot, 'release-preflight-summary-26.5.99', 'release-preflight-summary.json'), {
-    schema: 'opl_release_preflight.v1',
-    status: 'passed',
-    release_target: {
-      kind: 'published_release',
-      tag: 'v26.5.99',
-      published_at: '2026-06-12T12:00:00Z',
+  const { readout } = runCloseoutCase('opl-release-closeout-published-', {
+    artifactDir: 'release-closeout-inputs',
+    outDirName: 'release-closeout',
+    closeoutArtifacts: false,
+    run: {
+      databaseId: 24680,
+      url: 'https://github.com/gaofeng21cn/one-person-lab-app/actions/runs/24680',
     },
+    setup: ({ artifactsRoot }) => writeReleaseArtifacts(artifactsRoot, [
+      ['release-preflight-summary', 'release-preflight-summary.json', {
+        schema: 'opl_release_preflight.v1',
+        status: 'passed',
+        release_target: { kind: 'published_release', tag: `v${VERSION}`, published_at: '2026-06-12T12:00:00Z' },
+      }],
+      ['remote-release-verification', 'remote-release-verification.json', { status: 'passed', version: VERSION, include_full_package: true }],
+    ]),
   });
-  writeJson(path.join(artifactsRoot, 'remote-release-verification-26.5.99', 'remote-release-verification.json'), {
-    status: 'passed',
-    version: '26.5.99',
-    include_full_package: true,
-  });
-  writeRun(runPath, {
-    databaseId: 24680,
-    url: 'https://github.com/gaofeng21cn/one-person-lab-app/actions/runs/24680',
-  });
-
-  const readout = expectCloseout({ runPath, artifactsRoot, outDir });
   const { summary, monitor } = readout;
   assertReadoutState(readout, 'inspect_missing_candidate_record', 'published');
   assert.equal(summary.monitor.state, 'published');
