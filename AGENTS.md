@@ -19,8 +19,9 @@ contracts, docs, and source truth.
 ## Repository Boundaries
 
 - `origin/main` is the clean One Person Lab App product mainline.
-- `shells/aionui/` is an external checkout of the OPL-maintained AionUI shell
-  repository, currently `gaofeng21cn/opl-aion-shell`.
+- `shells/aionui/` is an external checkout of the upstream-following AionUI fork
+  repository, currently `gaofeng21cn/opl-aion-shell`; it is an implementation
+  carrier, not an App-owned design surface.
 - The App repo must not merge or vendor the AionUI Git history into its default
   branch. Keep AionUI upstream intake and shell implementation commits in the
   shell repository.
@@ -32,7 +33,10 @@ contracts, docs, and source truth.
 Root `docs/`, `contracts/`, and `scripts/` describe the App product layer.
 AionUI-specific source, package metadata, tests, shell release hooks, and
 upstream intake rules live in the shell repository and are consumed here through
-the active shell checkout.
+the active shell checkout. Do not use App work to slim, refactor, restyle, or
+rewrite upstream AionUI fork-body code or tests; App-owned work is limited to
+contracts, adapters, OPL overlays, packaging/readback hooks, and validation of
+those surfaces.
 When a behavior changes what users see, what page state is accepted, or what
 counts as release-ready, change the App-owned contract, docs, and tests first;
 then implement the shell behavior in the shell checkout. Do not let shell code,
@@ -57,8 +61,8 @@ source of App truth.
   runtime/Operator full drilldown exception. Mutations go through
   `opl app action execute --action <id> [--payload <json>] [--dry-run] --json`.
 - `shells/aionui/` is the current implementation carrier and upstream-sync
-  surface. It may change shape as AionUI evolves, but it must implement the App
-  repo's GUI truth rather than become the source of product authority.
+  surface. It may change shape as AionUI evolves, but upstream fork-body code is
+  read-only by default and must not become the source of product authority.
 - When a GUI behavior is implemented in the shell repo, keep the App-level
   rationale and acceptance boundary in this repo, then apply the shell code
   change in the shell checkout.
@@ -72,7 +76,9 @@ source of App truth.
 ## Working Rules
 
 - Start App product work from `origin/main`.
-- Use the shell repository for AionUI upstream-intake work.
+- Use the shell repository only for explicit AionUI upstream-intake or
+  OPL-owned overlay/adapter work; do not route general cleanup or test slimming
+  into the fork body.
 - Keep App-level changes at the root when they define product, release, testing,
   or user documentation behavior.
 - Keep shell implementation changes in the shell repository unless they are
