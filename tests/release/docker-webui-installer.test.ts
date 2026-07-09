@@ -125,6 +125,30 @@ function runWindowsEvidenceGate(evidence: string) {
   return { artifacts, result, payload };
 }
 
+function assertPassedWindowsEvidencePayload(payload: any) {
+  assert.equal(payload.status, 'passed');
+  assert.equal(payload.gate_id, 'clean_windows_vm');
+  assert.equal(payload.diagnostics_validation.status, 'passed');
+  assert.equal(payload.diagnostics_validation.compose_volume_mapping.status, 'passed');
+  assert.equal(payload.diagnostics_validation.preservation_evidence.status, 'passed');
+  assert.equal(payload.diagnostics_validation.image_identity.digest, imageDigest);
+  assert.equal(payload.image.digest, imageDigest);
+  assert.equal(payload.image.currentness_claim, false);
+  assert.equal(payload.api_key_flow.status, 'passed');
+  assert.equal(payload.api_key_flow.stdin_transport, true);
+  assert.equal(payload.evidence_validation.status, 'passed');
+  assert.equal(payload.ordinary_user_status.path_id, 'ordinary_docker_webui_user_path');
+  assert.equal(payload.ordinary_user_status.access_key_settings.status, 'passed');
+  assert.equal(payload.ordinary_user_status.runtime_proxy.status, 'passed');
+}
+
+function runPassedWindowsEvidenceGate(evidence: string) {
+  const { result, payload } = runWindowsEvidenceGate(evidence);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assertPassedWindowsEvidencePayload(payload);
+  return payload;
+}
+
 function zipEvidence(evidence: string) {
   const archivePath = path.join(
     fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-evidence-archive-')),
@@ -251,27 +275,11 @@ test('Docker/WebUI clean Windows smoke gate imports minimal Windows evidence', (
   const evidence = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-evidence-'));
   writeWindowsEvidence(evidence);
 
-  const { result, payload } = runWindowsEvidenceGate(evidence);
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-
-  assert.equal(payload.status, 'passed');
-  assert.equal(payload.gate_id, 'clean_windows_vm');
+  const payload = runPassedWindowsEvidenceGate(evidence);
   assert.equal(payload.host_platform, process.platform);
-  assert.equal(payload.diagnostics_validation.status, 'passed');
-  assert.equal(payload.diagnostics_validation.compose_volume_mapping.status, 'passed');
-  assert.equal(payload.diagnostics_validation.preservation_evidence.status, 'passed');
-  assert.equal(payload.diagnostics_validation.image_identity.digest, imageDigest);
-  assert.equal(payload.image.digest, imageDigest);
-  assert.equal(payload.image.currentness_claim, false);
-  assert.equal(payload.api_key_flow.status, 'passed');
-  assert.equal(payload.api_key_flow.stdin_transport, true);
-  assert.equal(payload.evidence_validation.status, 'passed');
   assert.equal(payload.evidence.windows_evidence_dir, evidence);
   assert.equal(payload.evidence.windows_diagnostics_dir, path.join(evidence, 'diagnostics'));
   assert.equal(payload.evidence.windows_api_key_flow_evidence, path.join(evidence, 'api-key-flow-evidence.json'));
-  assert.equal(payload.ordinary_user_status.path_id, 'ordinary_docker_webui_user_path');
-  assert.equal(payload.ordinary_user_status.access_key_settings.status, 'passed');
-  assert.equal(payload.ordinary_user_status.runtime_proxy.status, 'passed');
   assert.equal(payload.ordinary_user_status.settings_entry, 'Settings -> Access');
 });
 
@@ -280,12 +288,7 @@ test('Docker/WebUI clean Windows smoke gate imports zipped Windows evidence', ()
   writeWindowsEvidence(evidence);
   const archivePath = zipEvidence(evidence);
 
-  const { result, payload } = runWindowsEvidenceGate(archivePath);
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-
-  assert.equal(payload.status, 'passed');
-  assert.equal(payload.gate_id, 'clean_windows_vm');
-  assert.equal(payload.evidence_validation.status, 'passed');
+  const payload = runPassedWindowsEvidenceGate(archivePath);
   assert.equal(payload.evidence.windows_evidence_archive, archivePath);
   assert.match(payload.evidence.windows_evidence_dir, /windows-evidence-archive/);
 });
@@ -324,12 +327,7 @@ test('Docker/WebUI clean Windows smoke gate imports PowerShell-style zipped Wind
   );
   assert.equal(createArchive.status, 0, createArchive.stderr || createArchive.stdout);
 
-  const { result, payload } = runWindowsEvidenceGate(archivePath);
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-
-  assert.equal(payload.status, 'passed');
-  assert.equal(payload.gate_id, 'clean_windows_vm');
-  assert.equal(payload.evidence_validation.status, 'passed');
+  const payload = runPassedWindowsEvidenceGate(archivePath);
   assert.equal(payload.diagnostics_validation.preservation_verdict, 'preserved_or_reused');
   assert.equal(payload.data_preservation.status, 'passed');
   assert.equal(payload.evidence.windows_evidence_archive, archivePath);
