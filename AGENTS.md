@@ -36,7 +36,8 @@ upstream intake rules live in the shell repository and are consumed here through
 the active shell checkout. Do not use App work to slim, refactor, restyle, or
 rewrite upstream AionUI fork-body code or tests; App-owned work is limited to
 contracts, adapters, OPL overlays, packaging/readback hooks, and validation of
-those surfaces.
+those surfaces. If fork-body files are touched by mistake, revert that local
+change before continuing.
 When a behavior changes what users see, what page state is accepted, or what
 counts as release-ready, change the App-owned contract, docs, and tests first;
 then implement the shell behavior in the shell checkout. Do not let shell code,
