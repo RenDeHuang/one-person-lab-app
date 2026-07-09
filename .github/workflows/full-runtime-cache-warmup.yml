@@ -82,4 +82,10 @@ jobs:
       publish_to_release: false
       upload_full_package_artifact: false
       force_rebuild_runtime_cache: ${{ github.event_name == 'workflow_dispatch' && inputs.force_rebuild_runtime_cache == true }}
-    secrets: inherit
+    secrets:
+      BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+      P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+      TEAM_ID: ${{ secrets.TEAM_ID }}
+      IDENTITY: ${{ secrets.IDENTITY }}

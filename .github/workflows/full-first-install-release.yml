@@ -83,6 +83,19 @@ on:
         required: false
         default: ULMO
         type: string
+    secrets:
+      BUILD_CERTIFICATE_BASE64:
+        required: false
+      P12_PASSWORD:
+        required: false
+      APPLE_ID:
+        required: false
+      APPLE_ID_PASSWORD:
+        required: false
+      TEAM_ID:
+        required: false
+      IDENTITY:
+        required: false
 permissions:
   contents: read
 
