@@ -36,9 +36,8 @@ Carrier 角色和候选边界读取 active adapter、`contracts/app-shell-candid
 `contracts/shell-adapters/opl-native-workbench.json`。后者只描述实现/候选边界，不能
 覆盖上面的 App product authority。
 
-Active AionUI 默认状态通过动态 marker
-`active_aionui.state_source=contracts/app-product-profile.json#gui.home.home_layout`
-读取。本快照解析为 `collapsed`；该值可随 owner contract 与实现收敛而变化。
+Active AionUI 默认状态通过 README 治理段声明的动态 state source 读取。本快照解析为
+`collapsed`；该值可随 owner contract 与实现收敛而变化。
 
 ## 验证入口
 

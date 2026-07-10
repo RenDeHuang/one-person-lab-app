@@ -9,10 +9,6 @@ surfaces。
 
 设计体系入口见 [`README.md`](README.md)。
 
-Active implementation state source:
-`active_aionui.state_source=contracts/app-product-profile.json#gui.home.home_layout`。
-该 marker 用于动态读取 active AionUI state，不把当前值固化为永久产品规则。
-
 ## 文档职责
 
 本文只回答两个问题：

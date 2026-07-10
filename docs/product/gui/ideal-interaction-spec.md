@@ -8,10 +8,6 @@ Machine boundary: 本文是 shell-neutral 的人读交互目标。机器可读�
 
 设计体系入口见 [`README.md`](README.md)。
 
-Active implementation state source:
-`active_aionui.state_source=contracts/app-product-profile.json#gui.home.home_layout`。
-该 marker 用于动态读取 active AionUI state，不把当前值固化为永久产品规则。
-
 ## 文档职责
 
 本文回答“用户怎样在 OPL App 中完成工作”。功能目录见

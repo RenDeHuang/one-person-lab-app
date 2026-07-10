@@ -8,10 +8,6 @@ carrier 状态和 release evidence 仍归 contracts、source/tests、validators 
 
 设计体系入口见 [`README.md`](README.md)。
 
-Active implementation state source:
-`active_aionui.state_source=contracts/app-product-profile.json#gui.home.home_layout`。
-该 marker 用于动态读取 active AionUI state，不把当前值固化为永久产品规则。
-
 ## 审计目标
 
 本审计不记录某一轮“缺口清单”。它固定每类元素为什么放在当前位置，以及 shell、

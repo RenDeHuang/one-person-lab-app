@@ -50,6 +50,20 @@ OPL App GUI 使用三层设计体系：
 [`shell-conformance-matrix.md`](shell-conformance-matrix.md) 标成明确偏差，再由拥有
 contract 的 lane 决定是否修改 machine truth、实现或目标。
 
+## 治理标记（供 validator 读取）
+
+本段只声明入口、authority 和动态默认状态来源，不复制 machine truth：
+
+- `product_definition=docs/product/gui/feature-inventory.md,docs/product/gui/ideal-interaction-spec.md,docs/product/gui/codex-to-opl-app-delta.md,docs/product/gui/element-audit.md`
+- `visual_system=docs/product/gui/visual-system.md`
+- `shell_implementation_conformance=docs/product/gui/shell-implementation-guide.md,docs/product/gui/shell-conformance-matrix.md`
+- `gui_shell_authority: implementation_only`
+- `ideal_target.workspace_session_rail_default_visible=true`
+- `ideal_target.inspector_default_visible=false`
+- `active_aionui.state_source=contracts/app-product-profile.json#gui.home.home_layout`
+- `entry_docs=docs/product/gui/README.md,docs/product/gui/feature-inventory.md,docs/product/gui/ideal-interaction-spec.md,docs/product/gui/visual-system.md,docs/product/gui/codex-to-opl-app-delta.md,docs/product/gui/element-audit.md,docs/product/gui/shell-implementation-guide.md,docs/product/gui/shell-conformance-matrix.md`
+- `contract_refs=contracts/app-gui-product-contract.json,contracts/app-product-profile.json,contracts/app-page-state-matrix.json`
+
 ## 当前目标与实现边界
 
 当前 Codex-based ideal target 是：
@@ -61,12 +75,11 @@ contract 的 lane 决定是否修改 machine truth、实现或目标。
 - 模型策略只读取 `contracts/app-product-profile.json`；当前默认仍是
   `5.6 Sol / ultra`，本文档族不复制具体模型 allowlist。
 
-Active AionUI 通过动态 marker
-`active_aionui.state_source=contracts/app-product-profile.json#gui.home.home_layout`
-读取默认状态，本快照解析为 `collapsed`；`opl-native-workbench` candidate contract
-则把 rail 记为 default visible。这是可收敛的目标/实现差异，不是两个产品目标，也
-不把当前值固化为永久规则。右侧 inspector 在目标、active AionUI 和 native
-candidate 中均默认关闭。具体状态、允许偏差和验证入口只在
+Active AionUI 通过上面的动态 state-source marker 读取默认状态，本快照解析为
+`collapsed`；`opl-native-workbench` candidate contract 则把 rail 记为 default visible。
+这是可收敛的目标/实现差异，不是两个产品目标，也不把当前值固化为永久规则。右侧
+inspector 在目标、active AionUI 和 native candidate 中均默认关闭。具体状态、允许
+偏差和验证入口只在
 [`shell-conformance-matrix.md`](shell-conformance-matrix.md) 维护。
 
 ## 变更流程
