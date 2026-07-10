@@ -1,653 +1,146 @@
-# OPL App GUI 能力清单
+# OPL App GUI 功能目录
 
 Owner: `one-person-lab-app`
 Purpose: `product_level_gui_feature_inventory`
 State: `active`
-Machine boundary: 本文是人读能力清单。机器可读 GUI 真相在 App-owned contracts、
-page-state matrices、adapter contracts 和 release evidence 中。
+Machine boundary: 本文是人读功能目录。机器可读 GUI truth 仍归
+`contracts/app-gui-product-contract.json`、
+`contracts/app-product-profile.json`、
+`contracts/app-page-state-matrix.json`、Settings/adapter/release contracts、source、
+tests 与 evidence。
 
-本文列出 One Person Lab App 不依赖当前 shell implementation 的目标 GUI 能力。
-它不是 AionUI 修改列表。AionUI 和未来 shell 必须通过 App-owned contracts、
-page-state matrices 和 release validation 实现这份清单。
+设计体系入口见 [`README.md`](README.md)。
 
-因为当前 active shell 是 AionUI fork，清单里的能力不应默认解释为“继续深改
-AionUI”。每个能力都应先有 App-owned contract/profile/source，再由 shell 用
-thin adapter delta 表达：读取 generated profile、复用 existing primitives、
-映射 legacy routes、调用 App state/action bridge，并用 focused tests 和 App-root
-validation 证明。这样后续跟随 AionUI upstream 或替换为其他 shell 时，迁移的是
-contract implementation，而不是 fork-local 产品逻辑。
+Active implementation state source:
+`active_aionui.state_source=contracts/app-product-profile.json#gui.home.home_layout`。
+该 marker 用于动态读取 active AionUI state，不把当前值固化为永久产品规则。
 
-对 `opl-native-workbench` 这样的 foreground alternative candidate，清单里的能力
-也不应解释为“从零重写整个 App”。候选 workbench 先通过 App-owned candidate
-registry、adapter、state/action bridge、shared renderer 和 explicit package
-wrapper 进入 OPL App，再按
-[`opl-native-workbench-plan.md`](opl-native-workbench-plan.md) 的 `adopt` /
-`adapt` / `watch_only` / `reject` 分类吸收 K-Dense、OpenClaudeScience /
-Claude Science、AGUI 和 Hermes 的成熟经验。
+## 文档职责
 
-本文是能力清单，不是完整交互细则。理想且不绑定具体 shell 的交互模型看
-[`ideal-interaction-spec.md`](ideal-interaction-spec.md)；
-Codex App 变成 OPL App 的产品增量看
-[`codex-to-opl-app-delta.md`](codex-to-opl-app-delta.md)。
-Runtime 页这次的总览重构设计看
-[`runtime-overview-redesign.md`](runtime-overview-redesign.md)。
+本文只回答“OPL App GUI 必须提供哪些用户能力”，不定义视觉 token、不记录某个 shell
+的实现历史，也不维护完成度。交互顺序见
+[`ideal-interaction-spec.md`](ideal-interaction-spec.md)，视觉见
+[`visual-system.md`](visual-system.md)，carrier 承接见
+[`shell-conformance-matrix.md`](shell-conformance-matrix.md)。
 
-## 读法与 SSOT
+功能项是产品目录，不是独立 machine schema。功能的字段、默认值、状态来源和验收条件
+必须回到现有 contracts；本文不复制模型 allowlist、route registry 或 page-state 列表。
 
-- `ideal-interaction-spec.md` 定义不绑定 shell 的理想交互模型。
-- 本文只列产品级 GUI 能力和外部参考到 OPL App 的映射，不保存实现完成流水。
-- `codex-to-opl-app-delta.md` 只解释 Codex App-like 产品增量。
-- `opl-native-workbench-plan.md` 记录 foreground alternative candidate 的决策、
-  外部学习归类和 staged evidence 顺序。
-- Settings 的机器边界归 `contracts/app-settings-control-plane.json`；Settings 设计归
-  `settings-control-center.md`；完成审计只读
-  `settings-control-center-completion-audit.md` 的当前结论。
-- 版本、run id、截图 proof、candidate smoke、release readback 和 worktree closeout
-  进入 release/candidate artifacts、history/process 或 git history，不进入本清单。
+## 产品框架
 
-## 产品形态
-
-理想 OPL App GUI 是 Codex App 形态的 chat-first desktop surface：
-
-- 从已选 workspace directory 开始 conversation。
-- 固定 Codex CLI 作为 executor，并把模型控制收敛为 App-owned selector。默认
-  必须从 App product profile 派生为 `5.6 Sol` / `max`；用户可以在
-  同一模型菜单里切换模型和推理强度，但 executor、backend 和 permission 仍不是
-  普通选择项。
-- Home entries 路由到 OPL capabilities：Research/MAS、Grant/MAG、
-  Presentation/RCA。
-- 第一屏保持 chat-first，不出现 dashboard 或解释性 landing page copy。
-- 第一屏不展示 runtime activity、continue-work、per-assistant running badges、
-  needs/active/recent refs 或底部 feedback/favorite/web 图标。
-- 提供持久 workspace frame，包含轻量 workspace/session rail、conversation
-  area 和可收起右侧 context panel。
-- Backend 和 permission choices 不进入普通 home 和 conversation flow；模型选择器
-  可以进入普通路径，但必须服从 App-owned 默认与退休模型过滤策略。
-- 支持简体中文/英文双语 UI；普通界面同屏单一语言呈现，不随机中英混排。繁体中文
-  和日文不进入 OPL App 普通维护范围。
-
-这份清单描述的是 App 总目标，不是当前 AionUI shell 的改动列表。合格 shell
-应该像一个专门服务 OPL 工作的 Codex App：workspace-aware、chat-first、
-executor-first，并能展示 runtime status、purpose routing、receipts 和 packaged
-App settings，同时不把第一屏变成 dashboard。
-
-第一屏规范以
-[`ideal-interaction-spec.md`](ideal-interaction-spec.md) 为准：
-普通 home 打开即是 chat canvas，workspace/session rail 和右侧 inspector 默认
-收起，contextual surfaces 只在用户主动触发时打开。
-
-## Codex App 目标功能集
-
-App 目标是专门服务 OPL 工作的 Codex App 体验，不是通用 agent dashboard。
-完整功能集包括：
-
-- 在已选 workspace directory 上打开 App，并在 frame 中保持 workspace 可见。
-- 新建 conversation、恢复 recent conversations，并把 thread/session history
-  放在 workspace rail 中。
-- 主 surface 保持工作 chat canvas，带 pinned composer、compact route tag、
-  file/context controls 和 visible run state。
-- 普通 turns 绑定 Codex app-server/Codex CLI，作为固定 executor。
-- 把 assistant text、tool/process progress、user-input prompts 和 receipts
-  streaming 到用户安全的 conversation surfaces。
-- 为选中的 workspace/conversation 展示 file 和 artifact refs，但不拥有
-  artifact bodies。
-- Backend 发出 diff、command/process output、review refs、runtime receipts
-  时，在 conversation 附近展示。
-- 提供可收起右侧 panel，用于 secondary context、runtime inspection 和
-  App-owned settings，同时保持 chat canvas 为主面。
-- 提供右侧 contextual inspector tabs：Files、Skills/Capabilities、
-  Routing/runtime refs、Memory refs、Always-On/Automations、Settings；这些
-  tabs 不能和主 chat canvas 竞争。
-- MAS/MAG/RCA/BookForge/OMA 是 Codex 之上的 first-party starter packages 和
-  home shortcuts。普通 chrome 使用 `科研`、`基金`、`演示` 或
-  `Research`、`Grant`、`Presentation` 等用户标签，invocation receipts 和
-  technical refs 再记录具体 package/plugin，不把它们当 separate backend choices。
-- UI labels、empty states、button titles、aria labels、first-run、runtime、
-  activity 和 settings copy 有简体中文/英文两套显示；切换语言不改变 runtime truth、
-  route receipt 或 workspace/thread state。
-- Workspace/session rail、context inspector、context tabs 和 routing summary
-  是普通用户层 chrome，必须按当前语言完整渲染；隐藏 DOM 或 raw details 可以
-  保留技术标签，但可见中文普通层不能混入 `New Codex turn`、`Local assistant`、
-  `Codex CLI`、`MAS/MAG/RCA`，英文普通层不能残留中文目的/状态标签。
-- Backend、provider、permission mode selectors 不进入普通 home 和
-  conversation flows；model selector 只能作为 App-owned Codex 模型控制出现。
-- Codex conversation composer 仍要显示同一个 App-owned model selector/status，
-  并在 pending/running 时显示已经等待的秒数。
-- 当前 turn 的运行状态应作为 conversation live artifact 呈现，包含 elapsed time、
-  最近 tool/process/file/diff/receipt refs、permission/action 状态和完成/失败摘要。
-  它不是全局 workbench 面板；跨项目 runtime refs 仍进入 Runtime 页或 inspector。
-- Runtime 页必须是可切换范围的项目运行总览：先展示用户主状态、自动运行副状态、
-  阶段、时长、token 和下一步，再把 provider/runtime 细节放到折叠层。
-- Desktop Electron 和 WebUI surfaces 使用同一套 App product truth。
-- 窄桌面和 WebUI 宽度下，二级 context 不变成首页工作台；用户打开后必须以
-  overlay/drawer/右侧浮层形式可见，至少保证 `opl-context-tabs` 和
-  `opl-routing-panel` 实际显示。
-
-WebUI 目标与 foreground alternative shell 共享同一个 renderer。对
-`opl-native-workbench`，Electron 与 WebUI 必须使用同一 App-owned renderer shape，
-只替换 delivery-surface adapter。对已归档 AGUI proof，Electron 与 WebUI 曾共享
-React/CopilotKit renderer；这只作为 explicit replay 边界保留。Electron 通过 native
-preload/IPC 提供 candidate bridge；browser mode 通过 local Web transport bridge
-暴露同样 App-owned API shape，使用 HTTP actions 和 SSE Codex events。WebUI 是同一
-chat-first surface 的 delivery surface，不是拥有独立 state 或 authority 的第二个产品。
-
-Hermes Desktop 的同源 renderer 经验作为 prior-candidate reference 保留。当前正确做法
-仍是保留同一 renderer 和 App product profile，只把 Electron preload/IPC adapter
-替换为 browser shim + Web server transport。Docker/WebUI 的 server 负责连接 Codex
-CLI、OPL CLI、workspace volume、HTTP/WebSocket/SSE events 和 file/preview APIs；
-浏览器只消费 bridge，不取得 runtime truth 或宿主机任意文件系统 authority。
-
-## PilotDeck 启发的信息组织
-
-PilotDeck 可作为 interaction 和 visual reference 来学习 information
-organization，但不能作为 source code、runtime authority 或第一屏 workbench
-template。PilotDeck 的 evaluated ref、license、reference value 和 forbidden
-reuse 由 `contracts/app-shell-candidates.json#design_references` 持有；本文只保留
-App-owned feature mapping。PilotDeck 是 AGPL-3.0，而本 App repo 是 Apache-2.0；
-没有明确 license 决策前，OPL 不能复制或 vendoring PilotDeck 代码。可复用经验是
-信息组织方式：
-
-- 轻量 left rail 按 workspace 或 project 分组，再按 conversation 分组，但不
-  成为 primary UI。
-- Main pane 保持 chat-first，并把 composer 固定在底部，让第一屏是工作面，
-  而不是 dashboard 或 landing page。
-- Compact grouped tabs 暴露相邻 context，且不强迫用户离开 selected chat：
-  PilotDeck 中是 Agent、Files、Skills、Routing、Memory、Always-On；OPL 应映射
-  为右侧可收起 inspector tabs：conversation context、Files、Capabilities、
-  Runtime/cost refs、Memory refs、Automations、Settings。
-- File browsing、process traces、routing/cost readouts、memory inspection 和
-  long-running work views 是 chat 背后或旁边的 contextual surfaces，不是和
-  conversation 竞争的 first-screen panels。
-- Composer 用紧凑 controls 表达 mode、attachments、mentions、context usage 和
-  send state。OPL 应保留这种密度，但普通界面使用 App-owned purpose labels、
-  file attachment、refs 和 Codex status 替代 mode、permission controls 和
-  `@MAS`/`@MAG`/`@RCA` 技术标签。
-
-OPL adaptation 故意比 PilotDeck 窄。OPL 保持 Codex app-server 作为 primary
-backend，App-owned purpose routing 作为普通路径，OPL Framework/domain
-projections 作为 runtime、memory、action、artifact refs 的来源。PilotDeck 的
-gateway、agent runtime、memory store、router、always-on store、provider model
-list 和 WorkSpace state model 只是可研究的 implementation material，不是 App
-authority。
-
-## Codex App-like 视觉目标与 Stitch 工具边界
-
-`opl-native-workbench`、Hermes prior candidate 和未来 foreground shell 的主目标是
-Codex App-like chat-first surface：
-中心对话、底部多行 composer、轻量顶部 chrome、窄 icon rail，以及默认收起的
-workspace/session rail 和右侧 inspector。Google Stitch 可以持续作为在线设计
-工具，用来生成草图、校准比例、字体、圆角、留白和视觉层次；它不是唯一参考，
-更不是 product truth。任何 Stitch、PilotDeck、CopilotKit 或 AG-UI demo 的输出
-都必须回到 Codex App-like 目标上评估。
-
-这里的目标不是持续沿用某一次 Google Stitch 设计稿，而是持续逼近 Codex App
-的一比一普通交互。Stitch 只是设计工具：可以用它生成新的视觉建议、比较比例或
-检查美术风格，但不能把生成稿里的信息架构、demo 数据、默认 inspector、工作台
-密度或组件层级当成 OPL App 的验收标准。
-
-Google Stitch reference 的 source URL、本地 artifact、evaluated state、
-reference value 和 forbidden reuse 由
-`contracts/app-shell-candidates.json#design_references` 持有。本文只保留对未来
-foreground shell 仍有效的 visual-token mapping：美术风格、视觉比例和
-组件语言可以参考，源码和 demo 语义不能采纳：
-
-- 主屏保持 chat-first，使用约 780-820px fixed reading lane，避免大面积居中卡片。
-- Bottom composer 是第一屏视觉锚点，位于底部渐隐层上，带目的 chips、attach
-  和 send 控件。
-- Nav rail 是窄 icon rail，active state 用浅灰 tonal fill，不用高饱和色块。
-- 右侧 inspector 是可收起的次级 surface，用 Runtime、Files、Context、
-  Automations 等 tabs 组织信息。
-- 视觉系统采用 Quiet Utility：`#f8f9fa` canvas、`#ffffff` active surface、
-  `#e1e3e4/#c6c6cd` outline、`#111827/#191c1d` primary text/action、4px spacing
-  base、pill/circle controls、约 32-36px radius 的 composer sheet、轻 outline
-  替代重 shadow。
-- Typography 使用 Inter 为主，JetBrains Mono 仅用于 code、receipt、process 和
-  technical refs。
-- Header route line、model status 和 composer status 必须保持辅助权重；主视觉
-  锚点是 conversation reading lane 和 composer input。右侧 inspector 打开后要用
-  spacing、outline 和清晰标题分层，避免所有 cards 同权重堆叠成 workbench。
-- Composer 是底部唯一主 action surface。第三方 chat input 的外层 adapter
-  container 必须透明，真正可见的输入 pill/sheet 只能有一层背景、一层 outline、
-  一组 shadow 和统一圆角裁剪；不能在圆角输入框背后露出白色矩形底板。Purpose、
-  workspace、send/stop 和 context controls 使用 pill/circle 形态，避免 4-10px
-  随机小圆角造成的方块感。
-- Composer 不能被做成过度装饰的大卡片。它应该像 Codex App 的任务输入区：
-  底部固定、可多行、轻 outline、克制 shadow、工具行可见但不抢主输入焦点。
-- Composer 默认必须像 Codex App 一样能承载多行任务描述：桌面默认 surface 高度
-  至少约 100px，内部 textarea 至少约 60px，字号约 16px，line-height 约 22-24px；
-  不能让用户感觉只能打一行字。
-- 双语界面中，中文 first screen 主标签使用 `科研`、`基金`、`演示`、`本机助手`
-  和 `自动`，英文界面使用 `Research`、`Grant`、`Presentation`、
-  `Local assistant` 和 `Auto`；`Codex CLI`、`MAS/MAG/RCA` 等技术标签进入
-  二级详情、diagnostics 或 evidence，不作为中文普通首页主要文案。
-
-OPL adaptation 必须比 Stitch 窄：不要复制 Stitch HTML、Tailwind class 或生成
-源码；不要采用其中的 local inference、model/VRAM 或 demo data 语义；不要让
-示范 inspector 默认打开。App-owned 规则仍是 ordinary home 默认 chat-first，
-workspace rail 和 inspector 默认收起，运行与 continue-work 信息进入 Runtime 或
-secondary context，不在 composer 附近显示 compact entry。若 Stitch 生成稿偏向
-workbench、表格化 dashboard 或默认右侧 inspector，应只吸收视觉 token，不吸收
-信息架构。
-
-## Core Conversation 功能
-
-- 创建 new conversation。
-- 发送前选择或更改 workspace directory。
-- 向 Codex 发送 text instruction。
-- Shell 支持 native file picking 时，可以 attach files 或 folders。
-- Codex 运行中展示 streaming 或 pending assistant state。
-- 当前 turn 运行中展示 live run artifact；完成后保留 compact receipt，必要时可
-  展开查看事件 refs。
-- Assistant replies 保持在可读 chat thread 中。
-- 不离开 conversation 也可以切换 purpose routing。
-- 选中的 purpose route 以普通语言标签保留；`@MAS`、`@MAG`、`@RCA` 只作为
-  route receipt 或 diagnostics 技术信息。
-- Conversation history 可从 navigation rail 访问。
-- 支持 pop-out 或可收起右侧 Copilot panel 作为 secondary context。
-- Backend 发出 safe tool、process、diff、file/context events 时展示这些事件，
-  但不把 protocol details 变成用户导航。
-- Codex 需要 decision 时，user-input prompts 和 permission confirmations 留在
-  conversation 中。
-- Logs、raw protocol frames、adapter diagnostics 留在 technical 或 developer
-  surfaces，而不是 ordinary chat UI。
-- Composer 保持高密度且面向工作：purpose tag、file attach、mention/ref
-  insertion、context status、send/stop state 要能共存，同时不把 composer 变成
-  backend settings panel。
-- Composer 的运行反馈必须能被用户直接看见：发送后显示处理中状态和 elapsed
-  seconds，直到 response 完成、停止或失败。
-
-## OPL Capability Entries
-
-- `科研` 路由到 MAS。
-- `基金` 路由到 MAG。
-- `演示` 路由到 RCA，用于 PPT、汇报和视觉交付物。`ppt` 是 App contracts、
-  product profile 和 page-state matrix 当前稳定的内部 purpose id，只在机器合同
-  和 route receipt 语境使用，不进入普通中文 chrome。
-- OMA 保持 explicit 或 settings-only，直到产品决策让它默认可见。
-- Assistant-scoped skills 来自 App-owned packaged skill profiles，而不是
-  shell-local discovery。
-
-## Runtime 与 Settings 功能
-
-- 普通 page state 从 `opl app state --profile fast --json` 读取。
-- 普通 page state refresh 也使用同一个 fast profile。
-- Full state 和 Operator full drilldown 只在 explicit diagnostic/release paths
-  使用。
-- Runtime 页默认展示 `opl app state --profile fast --json` 的用户任务和项目线：
-  summary cards、activity center、task drilldowns 和 active project refs。Operator
-  drilldown 和 `current_control_state` 是 secondary diagnostics，不是普通运行任务
-  计数来源。
-- Running task 只由显式 `running`、`in_progress` 或 `advancing` status/state
-  产生；`active_run_id` 可显示为上下文，但不能单独证明正在运行。
-- Runtime/inspector 中的“进行中项目”来自 `opl app state --profile fast --json`
-  的 `operator.workbench.activity_center.active_projects`、summary card 和
-  `operator.visual_ref_groups.active_project_refs`。它表示用户视角仍在推进的
-  project/paper line；`queued`、`escalated` 等 owner-handled 状态可以计入，但
-  UI 必须同时展示 status、active_run_id 和 next visible step，避免误读为 active
-  worker execution。
-- Queued、waiting、stopped、parked、checkpointed、blocked 或其它非运行项目线
-  默认折叠，只在 Runtime 页显示数量、状态和下一步摘要，用户展开后再看具体 refs。
-- Home 不展示 runtime activity、continue-work、needs-attention/active/recent
-  refs、per-assistant running badges 或底部 feedback/favorite/web 图标；这些信息
-  进入 Runtime 页、右侧 inspector、drawer 或其他 secondary context surface。
-- Module 和 path 只作为 refs 展示，不取得 runtime 或 domain authority。
-- Settings sections 是 Overview、Setup & Access、Capabilities、
-  Maintenance & Updates、Data & Storage、Preferences、Advanced；
-  About、Update、Theme 是 secondary surfaces。
-- Agents & Capabilities 的 package/skill 列表和自动注入技能只展示 App packaged
-  skill policy、installed package manifests 和 active shortcut 允许的技能；
-  AionUI implementation helper 如 `aionui-skills` 不作为 OPL 能力展示。
-- Home/new conversation 的普通技能/MCP 选择不使用完整 packaged skill dump 或
-  AionUI backend MCP catalog。普通技能来自 active package shortcut 和 App packaged skill policy；
-  MCP 默认空白名单，只能由 App product profile 显式加入。
-- AionUI upstream Team 入口不作为 OPL 普通能力、普通导航或 Settings tab 暴露；
-  Team sidebar section、Team 自动跳转和 Team deep link 默认禁用，兼容 route 只做
-  App-owned redirect。
-- Update state 和 release channel labels 本地化。
-- Runtime、memory、automations、files、capabilities 作为可收起 contextual
-  tabs 或 inspector surfaces 展示，并 scoped 到 selected workspace/conversation。
-- Inspector 在窄桌面/WebUI 下仍是可收起次级层。若横向空间不足，用 overlay 或
-  drawer 保持可用宽度；不能让 context toggle 进入 active 状态但 tabs 和 Routing
-  panel 不可见。
-- Long-running work 呈现为 plans、runs、receipts、deliverable refs 和 operator
-  actions；不要表现成无人管理的 background daemon。
-- Cost/routing/model details 作为 technical 或 connected-state readouts 展示，
-  不作为 home 或 ordinary conversation path 上的普通 model picker。
-
-## First-Run 功能
-
-- Launch readiness 只 gate Core items：workspace root、Codex CLI、可用 Codex 模型访问。
-- 从 `opl system initialize --json` 展示 first-run phase、Core progress、Full
-  readiness progress、background maintenance counts、blockers 和 next visible
-  step。
-- Core readiness 完成后，允许用户进入 main guide。
-- Full readiness 和 background maintenance 保持非阻塞，除非 App-owned
-  contract 另有声明。
-
-## Shell 要求
-
-任何 shell candidate 必须实现这份清单，但不能成为 product authority：
-
-- 消费 adapter contract 生成的 App product profile。
-- 使用 App-owned state/action command surfaces。
-- 通过 App wrapper 编译为可启动 `.app`。
-- 用 thin-shell delta 实现 OPL product behavior：profile consumer、route
-  redirects、bridge calls、局部 renderer 组合、CSS/i18n 和 focused tests。
-- 实现 App-owned bilingual copy policy：普通 UI 在简体中文/英文下分别一致呈现，
-  中文普通首页不混入 `Med Auto Science`、`Med Auto Grant`、`RedCube AI`、
-  `PPT`、`Codex CLI`、`Local assistant` 这类英文技术/产品文案；workspace rail、composer、
-  context inspector 和 routing summary 也不得混入 `MAS`、`MAG`、`RCA`、
-  `app_state.actions`、`opl_app_state.v1` 等技术标签；协议或 backend 名称不进入
-  ordinary chat surface。
-- 新 Home/Settings/capability/runtime/first-run 产品行为先进入 App contract，
-  再进入 shell implementation。
-- 声称 WebUI support 时，使用与 Electron shell 相同的 renderer 和 App-owned
-  bridge shape，并提供 Web transport evidence 和 WebUI smoke。
-- Adoption 前通过 App-owned page-state 和 first-run matrices。
-- Adoption 前只能通过 explicit candidate adapter 被选择。
-- 修改 primary chat surface 时，用 visible pixels 证明 source 和 packaged UI
-  smoke。
-
-## OPL Native Workbench Candidate 投影
-
-`opl-native-workbench` 是 foreground alternative GUI route，作为独立 shell
-repo/checkout 挂载到 `shells/opl-native-workbench`。它和 AionUI、Hermes、AGUI 同类：
-shell implementation history 不进入 App repo 默认分支，App repo 只通过
-`contracts/app-shell-candidates.json`、`contracts/shell-adapters/opl-native-workbench.json`、
-App-owned GUI contracts、page-state matrices、candidate validation 和 release gates
-管控。
-
-第一版落地顺序来自
-[`opl-native-workbench-plan.md`](opl-native-workbench-plan.md)：
-
-1. Candidate registration：registry 把 foreground alternative 指向
-   `opl-native-workbench`。
-2. Adapter：新增 `contracts/shell-adapters/opl-native-workbench.json`，但默认 release
-   shell 仍由 `contracts/app-shell-adapter.json` 指向 AionUI。
-3. External repo / checkout：`shells/opl-native-workbench` 作为外部 checkout，不
-   vendoring shell history。
-4. State/action bridge：只消费 `opl app state --profile fast --json` 和
-   `opl app action execute ... --json`。
-5. Basic UI modules：workbench root、topbar、chat canvas、composer、
-   workspace/session rail、context inspector、Runtime slice 和 Settings slice
-   是当前 non-live product surface 的最小模块面。
-6. Artifact preview tabs：files、results、deliverables、receipts、review refs
-   以 preview tabs 或 inspector panes 呈现，只显示 refs，不接管 artifact body
-   或 quality/export verdict。
-7. Provenance drawer：source refs、receipts、owner handoff、next action
-   provenance 放进 drawer/inspector，不把 runtime truth、memory body、
-   artifact body 或 owner receipts 移进 shell。
-8. Starter forms：科研、基金、演示 starter forms 只准备 App action payload 和
-   dry-run preview，不执行 shell-local workflow。
-9. Confirmation / interview cards：user-input、permission、confirmation、
-   interview prompt 以明确 card 展示 accepted return shape，并保持 dry-run /
-   execute 分离。
-10. Desktop/WebUI same renderer：Electron 和明确 claim 的 WebUI 使用同一
-   App-owned renderer shape，只替换 delivery-surface adapter。
-11. Source visual smoke：source-level visual smoke 要证明这些 non-live modules
-   paint visible pixels；packaged/VM visual evidence 仍是后续 evidence lane。
-12. Package manifest：explicit candidate package 产出真实 `.app` manifest，不改变
-   stable/nightly release packaging。
-13. Source/WebUI smoke：只证明该 candidate cohort 的技术路径。
-14. Docs/runbook：本文、status、product index、scripts guide 和 plan 对齐。
-15. Later live evidence：packaged smoke、clean VM、same-cohort user path
-   和 owner acceptance 以后单独证明。
-
-外部学习归类：
-
-| Pattern | Class | OPL landing |
+| 功能 | 用户结果 | Authority / machine owner |
 | --- | --- | --- |
-| K-Dense delivery experience、project sandbox、file/preview/result delivery、structured forms | adopt/adapt | 作为 workspace/project UX、delivery refs 和 App action dry-run / confirmation 形态。 |
-| OpenClaudeScience / Claude Science workbench framing | adapt | 借鉴“一个工作台、结果带来路、资源连续、连接器和 reviewer refs”的用户表达，落到 Runtime task awareness 和 inspector。 |
-| AGUI shared renderer / bridge proof | adapt | 保留 shared renderer 和 delivery adapter 经验，不复活 AGUI ordinary UI 或 debug protocol copy。 |
-| External runtime/agent authority、Pi/DeepAgents/LangGraph-like runtimes、provider/backend marketplace | watch_only/reject | 只作为研究材料，不进入普通 App executor、provider truth、runtime authority 或 marketplace。 |
-| Domain truth、artifact authority、owner receipts、release readiness | reject | 继续归 Framework、domain owners、release artifacts 和 owner receipts。 |
+| Workspace-aware App frame | 用户始终知道当前工作目录和 conversation context。 | GUI contract、product profile、workspace state/action refs。 |
+| Project/conversation navigation | 用户可按 workspace/project 新建、恢复、切换和重置 conversation。 | GUI contract、page-state matrix；具体呈现由理想交互层定义。 |
+| Chat-first main canvas | 打开 App 后可以直接开始或继续工作，不先经过 dashboard/landing。 | GUI contract、page-state matrix。 |
+| Secondary context surfaces | Files、Runtime、artifacts、Capabilities、Memory、Automations 和 Settings 可按需查看。 | GUI contract、runtime bridge、domain/runtime refs。 |
+| Product identity | 所有可见产品面使用 One Person Lab App 品牌，而不是 carrier/upstream 品牌。 | GUI contract、release assets、shell branding validation。 |
 
-当前可关闭的是 non-live candidate product surface：上面这些 UI / preview /
-provenance / form / card / same-renderer / source-visual-smoke 目标已经进入
-App-owned 产品口径。它不表示 Live Evidence、VM、owner acceptance、
-active-shell-adopted、release-ready、production-ready、domain-ready 或 packaged GUI
-acceptance。切默认 release shell 必须以后显式改
-`contracts/app-shell-adapter.json` 并通过 gates。
+## Home 与 Conversation
 
-## Hermes Desktop Prior Candidate 投影
+| 功能 | 用户结果 | Authority / machine owner |
+| --- | --- | --- |
+| New conversation | 在已选 workspace 中开始新的 Codex thread。 | GUI contract、conversation page state、Codex bridge。 |
+| Resume conversation | 找回 recent conversation，并保留关联 workspace。 | Conversation state/bridge；shell 只持有实现所需 session refs。 |
+| Text instruction | 向固定 Codex executor 发送多行任务说明。 | Product profile、ordinary conversation contract。 |
+| Streaming assistant output | 持续看到 assistant response，不需要查看 raw protocol。 | Codex/App bridge 与 conversation page state。 |
+| Pending/running feedback | 看到当前 turn 正在处理、elapsed time、stop 和失败状态。 | Page-state matrix、bridge events。 |
+| Tool/process event summary | 在当前 turn 中理解 command、tool、diff、file、permission 和 receipt 发生了什么。 | Codex/App bridge；raw details 保持 diagnostics。 |
+| File/folder attachment | 发送前加入本地材料，并可预览或移除。 | Workspace/file platform adapter 与 App workspace policy。 |
+| Workspace selection | 发送前选择或确认任务执行目录。 | App workspace state/action。 |
+| Model/reasoning control | 在 Home 与普通 conversation 使用同一 App-owned 模型控制。 | `contracts/app-product-profile.json`；文档不复制 allowlist。 |
+| Purpose selection | 在不切换 executor/backend 的情况下选择科研、基金、演示、写书等工作目的。 | Product profile、GUI contract、route receipt policy。 |
+| Assistant-scoped capabilities | 只显示当前 package/purpose 允许的 required/optional skills。 | App packaged skill profiles 与 ordinary capability policy。 |
+| User-input and permission prompt | Codex 需要选择、补充信息或授权时，在 conversation 中完成。 | Bridge event/action contract。 |
+| Turn receipt | 用户可查看本轮 route、action、result 和恢复 refs，不默认暴露 raw JSON。 | App/domain/runtime receipt refs；GUI 不拥有 receipt authority。 |
 
-`hermes-codex` 是 prior foreground alternative GUI route。它的来源是
-`NousResearch/hermes-agent` 的 `apps/desktop`，许可证记录为 MIT。Hermes 的价值
-在于它比通用 agent dashboard 更接近 Codex-like desktop 形态；但它仍必须通过
-App-owned contracts、adapter 和验证脚本进入 OPL App，不能直接成为 product truth。
+## OPL Purpose 与 Agent Packages
 
-Hermes 的候选策略是 upstream-first，而不是 blank-slate。它应该先回官方 Hermes
-Desktop 功能基线，把官方 `apps/desktop` 当成可升级参考系：后续跟随 upstream 时
-记录 ref，对比 `apps/desktop` 和 shared package 变化，再重放 OPL 最小 delta。
-最小 delta 只包括 OPL candidate branding、中文/英文 copy、图标、bundle metadata、
-OPL App-managed first-run、OPL Gateway / 模型访问配置、Codex app-server-backed
-Hermes gateway adapter、MAS/MAG/RCA Codex Skill 入口和 explicit candidate wrapper。
-除这些面外，任何新增 OPL surface 都要先说明 upstream 已有能力、OPL 需要保留/隐藏/
-替换什么、truth owner 是谁，以及是否触发 App-owned adoption gate。
+| 功能 | 用户结果 | Authority / machine owner |
+| --- | --- | --- |
+| Research shortcut | 从普通入口开始科研和论文相关工作。 | Product profile/package registry；domain owner 为 MAS。 |
+| Grant shortcut | 从普通入口开始基金工作。 | Product profile/package registry；domain owner 为 MAG。 |
+| Presentation shortcut | 从普通入口开始演示、汇报和视觉交付工作。 | Product profile/package registry；domain owner 为 RCA。 |
+| Book shortcut | 从普通入口开始书稿工作。 | Product profile/package registry；domain owner 为 BookForge。 |
+| Optional package shortcuts | 用户可按安装状态和个人选择显示其它 compliant packages。 | Agent package registry、App shortcut preference。 |
+| Package directory | 查看已安装 package、exposure、状态轴、来源和推荐动作。 | `app_state.agent_packages`、App action catalog。 |
+| Package lifecycle actions | 通过统一 preview/confirm/receipt flow 安装、更新、修复、隐藏、禁用或卸载。 | App state/action；shell 不直接修改 package/runtime truth。 |
 
-Hermes 第一版接入边界：
+Purpose shortcut 只改变 route context 和 capability profile，不定义 domain workflow、
+artifact schema、quality verdict 或 readiness。普通用户标签描述工作目的；package id、
+short name 和 technical refs 进入 details/receipt。
 
-- Candidate registry：`contracts/app-shell-candidates.json` 中的 `hermes-codex`。
-- Explicit adapter：`contracts/shell-adapters/hermes-codex.json`。
-- Source checkout：优先 `shells/hermes`；可接受同级外部 checkout
-  `../opl-hermes-shell`；两者都不存在时，验证报告 `blocked_missing_checkout`。
-- Build wrapper：
-  `OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/hermes-codex.json npm run package`。
-- Active shell：仍为 AionUI；Hermes 不进入默认 stable/nightly release packaging。
-- Current role：保留为 prior foreground alternative reference，不再是默认
-  foreground implementation scope。
+## Runtime、Progress 与 Evidence
 
-Hermes 第一版按三阶段路线推进。当前 Phase 1 不是“实现所有 Hermes Desktop
-功能”，而是 compatibility firewall：每个 upstream 前端依赖必须被分类为
-`implement`、`adapt`、`diagnostic_only` 或 `hide_or_remove`。能自然映射到 Codex
-App-like OPL 普通路径的能力才实现；能帮助排障但不应给普通用户管理感的能力进入
-Advanced/Diagnostics；Profiles、Cron mutations、Skills/Toolsets、Messaging/Handoff、
-provider marketplace、update/restart、audio/media remote helpers 等 full-Hermes
-backend 面默认从普通入口隐藏或降为诊断。Phase 2 才把 OPL 品牌化能力做成更自然的
-产品入口；Phase 3 才评估完整 App product profile 和 active-shell adoption。
+| 功能 | 用户结果 | Authority / machine owner |
+| --- | --- | --- |
+| Runtime overview | 看到任务/项目主状态、阶段、进度、下一步和责任方。 | `opl app state --profile fast --json` 的 App projection。 |
+| Scope switching | 在全局、workspace 或选中任务范围查看状态。 | App runtime view model。 |
+| Active/queued/attention separation | 区分真实 running、仍在推进的 project line、排队和需要关注。 | Framework-owned projection；UI 保留原始 status。 |
+| Current-turn run artifact | 在 conversation 内查看本轮最近事件和恢复动作。 | Current task slice / bridge refs。 |
+| Task/project drilldown | 按需查看 evidence、blocker、owner、resource 和 next-action refs。 | Runtime bridge / domain-owned refs。 |
+| Safe action | 对允许的运行或维护动作先 preview，再 confirm/execute。 | `opl app action execute ... --json`。 |
+| Files and artifact refs | 从 conversation 或 inspector 打开输入、输出和交付引用。 | Workspace/domain artifact refs；App 不拥有 artifact body。 |
+| Provenance and receipts | 查看来源、owner handoff、action result 和 lineage refs。 | Domain/runtime/release owner refs。 |
 
-Hermes 第一版只替换最小几类上游面，才能声称 minimal candidate package acceptance：
+Home 不承担跨项目 Runtime、continue-work、needs-attention、activity grid 或 evidence
+dashboard；这些能力进入 Runtime 或按需 context surface。
 
-- Branding：替换为 One Person Lab App candidate 产品名、bundle id 和图标。
-- Bilingual copy：通过 Hermes i18n catalog 管理简体中文/英文普通 UI；不维护
-  繁体中文或日文 locale。
-- First-run / startup：复用 Hermes onboarding/progress UI，但实际行为由 OPL CLI
-  和 App-owned startup contract 执行，不下载或执行 Hermes Agent installer。启动
-  分成四条线：每次启动轻量检查 marker、One Person Lab CLI、Codex CLI、可用 Codex
-  模型访问和 Codex adapter startup；marker 缺失、过旧或核心组件缺失时才显示
-  一次性本机初始化 checklist；完全没有可用模型访问时显示单独的“OPL Gateway”配置，
-  保存时调用 `opl system configure-codex --api-key-stdin --json`；已有 Codex/OpenAI
-  登录或其它 provider 时可跳过首启 Gateway 配置，Settings 保留 Gateway 配置入口；`opl system initialize --json`、
-  startup maintenance、module reconcile、MAS/MAG/RCA 状态和 contract diagnostics
-  在 adapter ready、主界面可见后后台异步刷新，不进入热启动阻塞路径。
-- Renderer bootstrap routes：fallback Codex adapter 必须提供 `/api/profiles`、
-  `/api/profiles/active`、`/api/profiles/sessions`、`/api/config`、
-  `/api/config/defaults`、`/api/config/schema` 和 `/api/cron/jobs` 的
-  renderer-safe 形状，避免复用官方 Hermes UI 时首页、侧栏或 settings 因基础数据
-  缺失而空白。这些 route 只提供默认 profile/config/empty automation 投影，不接管
-  完整 Hermes profile/runtime/cron authority；Cron mutation 不能在普通 UI 中显示成
-  已有真实 scheduler。
-- Icon：使用 OPL/AionUI 官方图标族，1024px 资源必须保留 macOS Dock safe margin；
-  当前候选要求 alpha bounds 不超过 900px，目标为 `840x840+92+92`。
-- Executor/Skill adapter：新增 Hermes-compatible Codex app-server adapter；
-  Hermes UI 继续调用 `session.create` / `prompt.submit`，adapter 内部启动
-  `codex app-server --listen stdio://`，并将 `session.create` 映射到
-  `thread/start`、`prompt.submit` 映射到 `turn/start`、`item/agentMessage/delta`
-  映射成 Hermes `message.delta`、`turn/completed` 映射成 Hermes `message.complete`。
-  MAS/MAG/RCA/BookForge/OMA 作为 Codex Skill/Plugin/package 调用入口，由 GUI
-  shortcut 或 slash shortcut 转成显式 skill prompt，并由 Codex app-server 的 structured skill input
-  与本机 Skill/Plugin/MCP registry 决定实际加载；GUI 不做关键词 route，不直接执行
-  domain CLI，也不拥有 runtime/domain truth。
-- Candidate package wrapper：使用 explicit adapter packaging，不能进入默认
-  stable/nightly release packaging。
+## Settings / OPL Control Center
 
-普通用户体验目标是套壳 Codex App，而不是把 Hermes 的通用 backend/provider 工作台
-暴露为 OPL home。用户应看到 workspace-aware chat、Codex conversation、Skill
-shortcuts 和必要 refs；Hermes backend/runtime/provider 细节只在 Advanced、diagnostics
-或明确 technical refs 中出现。Codex/MAS/MAG/RCA 接入是 Skill/Plugin/package extension，
-不是全量替换 Hermes backend。
+Settings 功能按用户问题组织，具体 ordinary/secondary route、label 和 registry 由
+GUI contract 与 Settings Control Plane 拥有。
 
-以下面必须先做 Hermes 原生功能对比，再决定是否进入候选：
+| 功能组 | 用户结果 | Authority / machine owner |
+| --- | --- | --- |
+| Overview | 判断 App 当前是否可用，以及最重要的下一步。 | Settings Control Plane、fast App state。 |
+| Access | 配置或检查模型访问、Codex CLI 和远程访问。 | App state/action、access contracts。 |
+| Workspace | 查看、切换、验证工作目录和权限。 | Workspace state/action。 |
+| Capabilities | 管理 packages、Home shortcuts 和 capability exposure。 | Agent package state/action 与 product profile。 |
+| Resources & Connections | 查看本机、远程、托管资源与连接 refs。 | Framework/Gateway/Fabric/Console refs；App 只展示。 |
+| Maintenance & Updates | 查看 App、runtime、packages、Codex Surface 和本机服务维护动作。 | Managed update/status/action contracts。 |
+| Data & Storage | 查看空间、数据分类、preview 和安全 cleanup action。 | App-owned storage lifecycle state/action。 |
+| Preferences | 配置语言、主题、通知、启动、密度、字体和 motion。 | App settings/profile；不承载 runtime diagnostics。 |
+| Advanced / About / Update details | 按需查看 raw refs、logs、版本、链接和 release/update details。 | Secondary routes、release/settings contracts。 |
 
-- App product profile generated config。
-- `opl app state/action` bridge。
-- App page-state / first-run matrix mapping。
-- Full packaged runtime。
-- Stable release asset normalization / verification。
-- WebUI parity wrapper。
-- 自定义 workspace/session rail、right inspector、Runtime、Memory、Always-On 或
-  其它 workbench-like surface。
+Legacy/upstream routes 只作为 compatibility redirects，不构成功能目录中的新 ordinary
+页面。Settings 详细设计见
+[`settings-control-center.md`](settings-control-center.md)。
 
-当前 Hermes contract/build wrapper/docs 第一版只表达 candidate 接入和明确 blocker；
-它不表示 release-ready、active-shell-adopted、production-ready 或 full-release-ready。
-但候选包的“能启动并进入 OPL App”必须包含 first-run owner 修正：packaged smoke
-需要证明没有 fetch/execute `install.sh` 或 `install.ps1`，有 OPL bootstrap events，
-有 OPL Codex adapter startup，并且完全缺模型访问时进入 OPL Gateway onboarding；维护命令
-只能作为 adapter ready 后的后台动作。
+## First-run 与安装
 
-Hermes WebUI parity TODO：
+| 功能 | 用户结果 | Authority / machine owner |
+| --- | --- | --- |
+| Core readiness check | 知道 workspace、Codex CLI 和模型访问是否足以进入 App。 | First-run contracts/page-state。 |
+| Guided blocker resolution | 看到当前 blocker、下一步和可执行配置/修复动作。 | App state/action；技术命令按需展开。 |
+| Initialization progress | 看到阶段、elapsed time、完成/失败和恢复路径。 | OPL initialization event/readback。 |
+| Background maintenance | 进入 App 后继续处理 Full readiness 和非阻塞维护。 | Framework/managed update refs。 |
+| Release/update separation | 区分普通 updater、Full first-install 和 candidate package。 | App release/install contracts。 |
 
-- 盘点 renderer 依赖的 `window.hermesDesktop` 方法，划分 desktop-only、web-equivalent
-  和 unavailable/diagnostic 三类。
-- 定义 browser bridge：保持 App-owned bridge shape，使用 HTTP actions、
-  WebSocket/SSE event stream 和 workspace volume APIs。
-- 实现 Docker/WebUI server wrapper：静态托管同一 renderer，启动/代理 Codex CLI 与
-  OPL state/action，不引入第二 runtime truth。
-- 建立 WebUI smoke：同一 renderer paint、bridge init、Codex turn、workspace/file
-  access、preview/tool output 和 settings 基本路径。
-- 通过 App-owned Docker/WebUI release gates 后，再把 `webui_parity` 从 deferred
-  surfaces 提升为 Hermes prior-candidate capability。
+## Delivery Surface
 
-Hermes 后续 OPL 定制的优先级：
+| 功能 | 用户结果 | Authority / machine owner |
+| --- | --- | --- |
+| macOS desktop | 使用 native window、directory picker、notifications 和 packaged App。 | Active/candidate adapter、release packaging。 |
+| WebUI | 在受控 workspace/volume 中使用同一产品语义。 | App product profile、bridge contract、Web delivery adapter。 |
+| Shared semantics | Desktop/WebUI 使用相同功能、状态、action 和 authority boundary。 | App contracts；transport 可以不同。 |
+| Responsive context | 窄窗口仍能打开 rail、inspector、popover 和 Settings navigation。 | Ideal interaction/visual system、shell visual evidence。 |
 
-- **保留：** upstream Hermes chat-first frame、files/previews、tool output、
-  settings/onboarding、i18n 和 native packaging，只要不冲突。
-- **品牌化/双语：** 产品名、bundle id、图标、普通文案和 OPL purpose labels；
-  简体中文/英文 copy 跟随 Hermes i18n。
-- **启动与首启：** 复用 Hermes onboarding/checklist UI 承载 OPL 一次性本机准备；
-  模型访问是独立向导，热启动只做轻量检查，维护和 full status refresh 不阻塞进入 chat。
-- **桥接：** Codex app-server adapter、route receipt、App state/action 和
-  runtime refs，但必须等对应 App contract/gate 明确。
-- **WebUI：** 通过同源 React/Vite renderer 加 browser transport adapter 提供
-  Docker/WebUI，不复制第二套 UI。
-- **隐藏/收窄：** 普通 OPL 路径不展示 provider/backend/permission/Hermes runtime
-  细节；必要时留在 diagnostics、Advanced 或 explicit mode。
-- **不替换 backend：** Codex 和 MAS/MAG/RCA 是 executor/purpose/agent route
-  extension，不是重写 Hermes runtime 或拥有 OPL authority 的新 backend。
-- **替换：** 只有 upstream 功能与 App-owned truth 冲突，或不能满足 Codex/OPL
-  必需语义时才替换。
+## 双语、可访问性与状态
 
-## AG-UI/CopilotKit Archived Proof 投影
+- 普通 UI 支持简体中文和英文，同屏保持单一语言。
+- 所有主要流程可 keyboard-only 完成，并提供 visible focus、accessible names、
+  contrast 和 reduced-motion support。
+- Interactive controls 定义 default、hover、focus、selected、disabled、loading、
+  success、warning、error 和 empty/unavailable states。
+- Disabled、failed、blocked 和 stale 必须给出可理解原因和下一步，不能只显示 raw id。
+- Shell 可以使用不同组件库，但必须保持相同用户结果和 authority boundary。
 
-AG-UI/CopilotKit 已从 foreground candidate 降为 archived technical proof。以下内容
-只用于回放历史技术验证或在用户明确要求 AGUI 时恢复上下文；默认 GUI 完善路线不再
-更新 AGUI。当前 App GUI 主线是 AionUI，foreground alternative 是
-`opl-native-workbench`；Hermes Desktop / `hermes-codex` 是 prior foreground
-alternative reference。
+## 功能层 Non-goals
 
-AG-UI/CopilotKit proof 使用：
-
-- CopilotKit React v2 作为用户可见 UI/runtime layer，承载 chat、popup、
-  sidebar 和 agent runtime binding。
-- AG-UI events 作为 renderer runtime 与 Codex 或 ACP adapters 之间的内部
-  event/protocol layer。
-- Codex app-server 作为 protocol boundary 后面的 primary Codex backend。
-- `codex-acp` 只作为测试 external ACP clients 或 non-Codex agents 时的 ACP
-  interoperability lane。
-- CopilotKit examples 作为 UI integration reference，尤其是 v2 React Router
-  和 React demo examples。
-- AG-UI Dojo 作为 protocol capability 和 debugging reference，而不是直接复制
-  的 desktop shell。
-- `namanrajpal/acp-to-agui` 作为最接近的公开 ACP-to-AG-UI reference，因为它
-  把 ACP agent streams bridge 到 AG-UI，并包含 CopilotKit demo。
-- `agentclientprotocol/agent-client-protocol` 作为 ACP wire contract 和
-  capability negotiation reference。
-- Zed `codex-acp`、AionUi ACP setup、`formulahendry/acp-ui`、Harnss、
-  OpenClaw `acpx`、Datalayer Agent Runtimes、`beyond5959/acp-adapter`、
-  `cola-io/codex-acp`、`0xcaff/codex-web` 作为 compatibility 和 implementation
-  references，而不是 primary OPL Codex path。
-- OpenBMB PilotDeck 作为 polished lightweight workspace/session rail、
-  chat-first main pane，以及 grouped Files、Skills、Routing、Memory、
-  Always-On context 的信息组织参考。PilotDeck 的 AGPL code 和 runtime 不能复制
-  到 App repo；OPL 应通过 App-owned contracts 和 selected shell 重新表达可用的
-  organization pattern。
-- Google Stitch `One Person Lab` 设计稿作为 Quiet Utility 视觉参考：灰阶
-  tonal layers、1px outline、760px reading lane、底部 pinned composer、窄 rail
-  和右侧 inspector。它不能成为源码或 runtime authority。
-
-AG-UI/CopilotKit reference inventory、research conclusion、adapter policy 和
-explicit replay gate 由 `contracts/app-shell-candidates.json` 持有。当前产品
-读法是：还没有成熟公开项目可以直接作为完整 Codex ACP adapter 到
-AG-UI/CopilotKit desktop shell；可复用部分仍是分散的。Codex app-server 提供
-native Codex GUI protocol，codex-acp style adapters 提供 ACP compatibility，
-AG-UI 加 CopilotKit 提供 visible event/UI layer。因此 OPL 保留 normalized
-adapter contract，把 Codex 或 ACP session events 映射到 AG-UI events。
-
-AG-UI 不是普通 App path 的用户可见产品概念。用户应该看到 OPL chat surface、
-purpose entries、conversation state、receipts 和 runtime status。Protocol names、
-event frames、debug dashboards 只属于 diagnostics 或 developer verification
-material。
-
-当前 archived proof path 的命令、最低验收和 evidence lifecycle 由
-`docs/history/shell-candidates/agui-codex-candidate-verification.md`、candidate manifest、shell artifacts、
-CI logs 和 App-root validation output 持有。本文只保留 feature-level target shape：
-
-- Electron thin shell 加载 generated App product profile。
-- Renderer 使用 CopilotKit React v2 chat primitives 和紧凑 OPL frame；形态来自
-  public chat-agent demo，而不是 dashboard 或解释性 landing page。
-- 同一个 renderer 必须能作为 WebUI 使用；Electron preload 缺失时，browser
-  bridge 创建 `window.oplCandidate`。
-- Main process 拥有 Codex app-server JSON-RPC over stdio。
-- WebUI gateway 拥有 local HTTP action routes 和 SSE Codex event stream，同时
-  继续消费 App-owned `opl app state/action` 和 Codex app-server surfaces。
-- Explicit replay 必须通过 shell-side `npm run validate:state-model`，证明 active
-  project line projection/state model 来自 `opl app state --profile fast --json`，
-  且只作为 refs/projection consumption 使用。
-- Codex `thread/start`、`turn/start`、`item/agentMessage/delta` events 映射到
-  AG-UI run/text/step events。
-- Workspace selector 打开 native directory picker；切换 directory 会在该
-  workspace 中为后续 Codex turns 启动 fresh app-server thread。
-- New-conversation action reset 当前 Codex thread，同时保留 selected workspace。
-- 普通 UI 保持 chat-first，带 lightweight workspace/session rail 和右侧可收起
-  Files/Skills/Routing/Memory/Always-On inspector tabs；信息组织参考 PilotDeck。
-- Continue-work refs 和运行活动只能进入 Runtime 或 secondary context，
-  不能在 ordinary home 第一屏显示为 compact entry 或 Activity/refs grid。
-- Explicit replay packaging 必须产出可启动 `.app`，并通过真实 Codex backend 的 source
-  与 packaged UI smoke。
-- Explicit replay WebUI smoke 必须证明 shared renderer、browser transport bridge、
-  HTTP action routes 和 SSE event stream。
-- Explicit replay UI smoke 必须包含 pixel-visible paint check，避免 DOM-only pass
-  掩盖视觉空白窗口。
-- Explicit replay UI smoke 必须包含 chat-first visual polish gate：composer 内层输入
-  surface 至少 32px radius、默认高度至少约 100px、textarea 至少约 60px 且呈
-  多行输入体验；overflow clipping 生效、外层 Copilot/adapter 容器透明、内部
-  layout 子层无额外白底/阴影，send/chip controls 达到 pill/circle 半径要求。
-- Explicit replay UI smoke 必须保持 AG-UI 作为内部 event boundary，并拒绝 ordinary
-  chat surface 上出现用户可见 AG-UI/debug dashboard copy。
-
-## AG-UI/CopilotKit Archived Proof 验证 Owner
-
-本文只保留 AG-UI/CopilotKit archived proof 的 GUI 能力清单、reference mapping 和
-产品语义投影。回放 shell 的命令、最低验收、evidence lifecycle 和 release
-isolation gate 由下列 owner 承接：
-
-| 验证主题 | Current owner |
-| --- | --- |
-| Archived proof runbook、命令顺序、最低验收、evidence lifecycle | `docs/history/shell-candidates/agui-codex-candidate-verification.md` |
-| Archived proof registry、explicit adapter participation、explicit replay gate、reference implementations | `contracts/app-shell-candidates.json` |
-| Explicit adapter selection and shell root | `contracts/shell-adapters/agui-codex.json`; `opl-native-workbench` uses `contracts/shell-adapters/opl-native-workbench.json`; Hermes uses `contracts/shell-adapters/hermes-codex.json` as prior-candidate reference |
-| Archived proof registry validation | `scripts/validate-shell-candidates.ts` and `npm run validate:shell-candidates -- --candidate agui-codex` |
-| Default active-shell guard | `contracts/app-shell-adapter.json` and `scripts/validate-active-shell.ts --quick` |
-| Archived proof evidence | candidate manifests, shell artifacts, CI logs, source/WebUI/package smoke, and App-root validation output |
-
-`agui-codex` 当前是 archived technical proof。默认 release shell 仍是 AionUI；
-除非用户明确要求 AGUI，否则不再更新、完善或作为默认验证路线。本文不维护
-AGUI 的 active-shell adoption 路径；若 App owner 未来重新打开 AGUI，必须先改写
-GUI route policy、active-shell contract 和 release gates，而不是从 archived replay
-证据直接推导默认 stable/nightly release path。
-
-`opl-native-workbench` 是 foreground alternative candidate。缺
-`shells/opl-native-workbench` checkout 或 adapter contract 时，验证结果应停在明确
-blocker。Hermes 缺 checkout 时，只影响 prior-candidate reference replay，不阻断
-`opl-native-workbench` docs 或 candidate-structure lane。
+- 不定义 AionUI、native workbench、Hermes 或 AGUI 的组件/目录结构。
+- 不记录 candidate/release 完成度、截图 proof、commit 或 run id。
+- 不复制模型 allowlist、Settings route registry、action catalog 或 page-state payload。
+- 不把 runtime、domain、artifact、memory、owner receipt 或 release truth 移入 App GUI。
+- 不把普通 Home 变成 dashboard、multi-agent launcher、provider marketplace 或
+  protocol monitor。

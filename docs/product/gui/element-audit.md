@@ -1,119 +1,127 @@
-# OPL App GUI 页面元素审计
+# OPL App GUI 元素位置与漂移审计
 
 Owner: `one-person-lab-app`
-Purpose: `app_gui_element_audit_and_interaction_logic_review`
+Purpose: `app_gui_stable_element_placement_and_drift_review`
 State: `active_design_review`
-Machine boundary: 本文是人读 GUI 元素审计。机器可读 GUI 真相仍在
-`contracts/app-gui-product-contract.json`、
-`contracts/app-page-state-matrix.json`、active shell validation、UI smoke
-和 release evidence 中。
+Machine boundary: 本文是人读元素位置理由与漂移检查。机器可读 GUI truth、当前
+carrier 状态和 release evidence 仍归 contracts、source/tests、validators 与 artifacts。
 
-本文逐页说明 One Person Lab App 普通用户路径上的关键元素、作用、缺口和位置。
-审计对象是 App-owned 产品界面：first-run、全局 frame、Home/Guid、
-conversation、workspace/session rail、右侧 context inspector、Runtime、
-Settings、About/Updates。当前实现 carrier 是 `shells/aionui`，但页面目的与
-位置判断以 App repo contracts、page-state matrix 和本文为准；active shell 只
-承担可替换实现职责。
+设计体系入口见 [`README.md`](README.md)。
 
-## Source Of Truth
+Active implementation state source:
+`active_aionui.state_source=contracts/app-product-profile.json#gui.home.home_layout`。
+该 marker 用于动态读取 active AionUI state，不把当前值固化为永久产品规则。
 
-| 层级 | Owner | Purpose | Machine boundary |
+## 审计目标
+
+本审计不记录某一轮“缺口清单”。它固定每类元素为什么放在当前位置，以及 shell、
+响应式或产品迭代时要检查哪些漂移。功能归
+[`feature-inventory.md`](feature-inventory.md)，交互归
+[`ideal-interaction-spec.md`](ideal-interaction-spec.md)，视觉归
+[`visual-system.md`](visual-system.md)，实现差距归
+[`shell-conformance-matrix.md`](shell-conformance-matrix.md)。
+
+## 稳定位置表
+
+| 元素 | 稳定位置 | 位置理由 | 漂移信号 |
 | --- | --- | --- | --- |
-| App GUI product truth | `one-person-lab-app` | 定义普通用户可见 GUI 行为、页面状态、Settings IA、文档和 release/user-path 验收边界。 | `contracts/app-gui-product-contract.json`、`contracts/app-page-state-matrix.json`、`contracts/app-shell-adapter.json`、App-root validation、release evidence。 |
-| Runtime state/action | `one-person-lab` Framework | 产生 App state、operator/runtime projection 和 safe action 执行结果。 | `opl app state --profile fast --json`、显式 full state、`opl app action execute ... --json`。 |
-| Domain truth | MAS/MAG/RCA/BookForge/OMA and future agents | 拥有 domain truth、quality/export verdict、memory body、artifact body、owner receipt 和 typed blocker。 | Domain-owned projections/receipts；App 只展示 refs。 |
-| Shell implementation | active shell checkout | 渲染 App-owned 产品定义并桥接 App state/action。 | Active shell source/tests、adapter contract、App wrapper build/smoke。 |
+| Product identity | Window/titlebar、About、release assets | 用户必须知道正在使用 One Person Lab App，而不是 carrier/upstream。 | Carrier name/logo 进入 ordinary chrome。 |
+| Current workspace | Rail header 或 main header 的低权重稳定位置 | Workspace 决定文件权限和 turn context，应持续可见。 | 只在 Settings/raw path 中可见，或被做成 Home 大卡片。 |
+| Project/conversation rail | 宽桌面左侧 persistent；窄窗口 drawer | Navigation 是连续工作所需，不应占用 conversation 主区。 | 宽桌面缺失、被移到 Home grid，或关闭 drawer 后丢 selection。 |
+| New/resume conversation | Rail header 与 conversation rows | 与 conversation history 同属 navigation task。 | 藏在 Settings、command palette only 或 dashboard card。 |
+| Conversation timeline | Main canvas | 用户需要按时间理解任务、输出和决策。 | 与 Runtime/Files 并列成多个主面，或被 dashboard 替代。 |
+| Composer | Main canvas bottom | 输入是普通路径主动作，应始终接近当前 conversation。 | 变成浮动营销卡、单行 input、settings bar 或多层 card。 |
+| Purpose control | Composer control row / compact conversation context | Purpose 是当前 turn 的工作意图，与输入最相关。 | 变成 backend selector、agent dashboard 或 rail 一级产品树。 |
+| Model/reasoning control | Composer 中的 App-owned model control | 用户可见但不应抢占输入；策略由 product profile 统一。 | Shell 复制 allowlist、Home/Conversation 不一致、provider 进入普通层。 |
+| Attach/context controls | Composer action row | 附件和 refs 直接影响下一次发送。 | 藏在 Settings，或 overlay 覆盖输入/不可点击。 |
+| Send/stop | Composer 主动作 | 与当前 draft/running state 同一决策点。 | 位置随状态跳动、running 时无 stop、disabled 无原因。 |
+| Pending/elapsed state | 当前 assistant turn 或 composer status | 用户需要持续知道请求仍在推进。 | 只在 console/raw event 中可见，或 tool event 后状态消失。 |
+| Tool/process/diff/file event | 对应 turn 内 compact disclosure | 事件属于当前 conversation，但细节不应压过正文。 | 全部 raw log 常驻，或移到独立主 dashboard 导致上下文断裂。 |
+| Permission/user-input prompt | 对应 turn 内 | 决策必须和触发它的工作上下文相邻。 | 跳到不相关全局 modal，关闭后无法找回触发原因。 |
+| Turn receipt / result refs | Turn summary/details | 证明本轮发生了什么，同时保持 timeline 可读。 | Raw JSON 默认展开，或 receipt 被当成 domain/release verdict。 |
+| Right inspector toggle | Header/composer 附近的次级 icon action | Context 必须随时可达，但不占普通路径主权重。 | Toggle active 但 panel hidden，或默认把 inspector 常驻打开。 |
+| Files/Artifacts/Runtime inspector | Right inspector / responsive drawer | 它们是 selected conversation 的相邻上下文。 | 放回 Home activity grid，或取得 artifact/runtime authority。 |
+| Runtime overview | 独立 Runtime page | 跨 project/conversation 状态需要更大 scope 与筛选。 | Running/queued/attention 混成 Home badge 或 assistant card。 |
+| Safe runtime action | Runtime/Settings 的 action area 与 confirmation surface | Action 需要状态、影响和 receipt context。 | Composer 直接执行隐藏 mutation，或绕过 dry-run/confirmation。 |
+| Settings ordinary navigation | OPL Control Center | 全局配置、维护和偏好需要稳定信息架构。 | Upstream tabs 自动加入、每个功能新增一级 route。 |
+| Raw diagnostics | Details disclosure / Advanced | 技术信息用于解释异常，不是 ordinary user task。 | Paths、ids、schema、JSON 成为首屏主文案。 |
+| First-run blocker / next step | First-run 主区 | 新用户只需知道能否进入 App 和下一步。 | Full maintenance、domain status 或 terminal narrative 抢占 Core gate。 |
 
-## 总体结论
+## 位置理由
 
-OPL App 的正确 GUI 方向是 `chat-first command center`：Home 让用户直接在选中
-workspace 中向 Codex executor 下达任务；Runtime、continue-work、evidence refs、
-Files、Memory、Automations 和 Settings 都是相邻上下文。以前的 App docs 已经写清
-contracts 和能力清单，但缺少元素级说明，导致 shell 迭代时容易把元素放回
-dashboard、settings bar 或通用 agent 控制台。
+### Home 与 Conversation
 
-当前必须保持的三个位置判断是：
+Home 的用户问题是“我现在要在这个 workspace 里做什么”。因此主区只保留
+conversation、composer、purpose、model、attachments 和 current-turn feedback。
+跨项目 Runtime、continue-work、evidence ledger、package maintenance 和 raw diagnostics
+必须留在 secondary surface。
 
-- Home 是 composer-first：主元素是 conversation canvas、composer、workspace、
-  purpose route、Codex model/status、attach/context、send/stop 和少量示例。
-- Runtime/continue-work/evidence refs 不放普通 Home：它们进入 Runtime 页或右侧
-  inspector。
-- 右侧 inspector 是辅助上下文：Files、Runtime/Routing、Capabilities、Memory、
-  Automations 和 Settings shortcuts 在右侧默认收起，打开后辅助当前 conversation。
+### Rail
 
-## 元素审计
+Rail 的用户问题是“我在哪个项目/对话，下一步切到哪里”。宽桌面 persistent 可以减少
+恢复成本；窄窗口 drawer 化可以保护 main canvas。Rail 不应承担运行总览、provider
+配置或 package catalog。
 
-| 区域 | 元素 | 作用 | 正确位置 | 当前判断 |
-| --- | --- | --- | --- | --- |
-| First-run | Core readiness summary | 告诉新用户是否满足进入 App 的最低条件：workspace root、Codex CLI、Codex config。 | First-run 主视图。 | 正确；Full readiness 和后台维护保持次级。 |
-| First-run | Next visible step | 给出用户当前唯一最重要的下一步。 | First-run 主动作区。 | 应保持用户语言；raw command 进入 details。 |
-| Frame | Product identity | 明确这是 One Person Lab App，而不是 upstream AionUI 或候选 shell。 | titlebar、header、About、manifest。 | 必需；shell branding 不应回流成 App identity。 |
-| Frame | Workspace path | 告诉用户 Codex turn 会在哪个目录执行。 | Header 或 composer 附近的低权重稳定位置。 | 必需；不应做成 Home 大卡片。 |
-| Home/Guid | Conversation canvas | 提供第一工作面。 | 中心 reading lane。 | Home 必须 chat-first，不是 dashboard-first。 |
-| Home/Guid | Composer input | 接收用户任务。 | Home 视觉中心或 pinned command surface。 | 主元素；不能被 Runtime/continue-work grid 抢占。 |
-| Home/Guid | Purpose entries | 快速选择 `科研`、`基金`、`演示`/RCA route intent。 | Composer 附近的 compact click-to-start options。 | Contract-backed；中文 chrome 当前为 `演示`。 |
-| Home/Guid | Compact purpose tag | 显示当前 route，不把 assistant 做成 dashboard。 | Composer prefix、input header 或 conversation header。 | 必需；receipt details 可展开。 |
-| Home/Guid | Codex model/status | 表示固定 Codex CLI executor、默认 5.6 Sol / max 和 Codex App 顺序的可见模型选择策略；推理强度在模型菜单内配置。 | Header 或 composer 低权重状态。 | 当前 contracts 允许 Home/conversation 显示 model selector/status，但仍禁止 backend/provider/permission selector。 |
-| Home/Guid | Assistant-scoped skill menu | 展示 selected purpose 的 required/optional App packaged skills。 | Composer 次级菜单。 | Required skill locked；shell-local helper skills 不进普通 Home。 |
-| Home/Guid | Workspace selector | 发送前选择或确认 workspace。 | Header 或 composer-adjacent control。 | 合理；应支持近期目录和明确状态。 |
-| Home/Guid | File/folder attach | 加入本轮本地上下文。 | Composer action row。 | 需要预览、移除和 refs 表示。 |
-| Home/Guid | Send/stop | 发送、停止或反映 running/stopping 状态。 | Composer 主动作。 | 必须常显、状态明确。 |
-| Home/Guid | Runtime activity / continue-work / evidence refs | 展示运行项目、attention、recent activity、ledger refs。 | Runtime 页或右侧 inspector。 | 不应放普通 Home。 |
-| Conversation | Message timeline | 展示 user、assistant、tool/process、errors、prompts、receipts。 | 主 chat canvas。 | 必需；raw protocol frame 进 diagnostics。 |
-| Conversation | Pending elapsed state | 告诉用户 Codex 仍在工作。 | 当前 assistant turn 或 composer 状态。 | 必需；应显示等待反馈和 elapsed seconds。 |
-| Conversation | Route receipt | 证明 turn 通过 App-owned purpose 和 Codex CLI 路由。 | Turn details 或 compact receipt chip。 | 要可审计，但不默认展示 raw JSON。 |
-| Workspace/session rail | Recent conversations | 找回 selected workspace 下的 thread/session。 | 左侧 rail/drawer，用户显式打开。 | 必要缺口；不应漂回 Home grid。 |
-| Workspace/session rail | New/resume/reset | 新建、恢复、重置 conversation。 | Rail header 和 list item actions。 | Codex-like session ergonomics 必需。 |
-| Right inspector | Files refs | 查看 workspace/conversation 文件引用。 | 右侧 inspector tab。 | 主要缺口；应成为普通 auxiliary surface。 |
-| Right inspector | Runtime/Routing refs | 查看 route receipt、current run refs、next owner、blockers、safe actions。 | 右侧 Runtime/Routing tab。 | 必需；不要放 Home。 |
-| Right inspector | Capabilities refs | 查看 active assistant profile 和 loaded App packaged skills。 | 右侧 tab；全局 catalog 在 Settings。 | 需要补强。 |
-| Right inspector | Memory/receipts refs | 查看 memory 和 receipt refs。 | 右侧 tab。 | 只展示 refs，不拥有 body。 |
-| Right inspector | Automations/Always-On refs | 查看长周期任务、monitor 或 scheduled work。 | 右侧 tab 或 secondary page。 | 需要明确；不放普通 Home。 |
-| Runtime | User task status | 首先回答任务是否在跑、哪些活跃、哪些排队、哪些需要关注。 | Runtime 首屏。 | 来源必须是 Framework user-task projection。 |
-| Runtime | Project progress refs | 展示 active/queued/escalated project lines、stage、next owner、next step。 | Runtime 第二层。 | 保留原始 status，不把 queued/escalated 伪装成 active worker。 |
-| Runtime | Safe actions | dry-run/execute App-owned operator action。 | Runtime action/advanced 区。 | Mutation 走 `opl app action execute ... --json`。 |
-| Settings | General | 普通设置入口和概览。 | Settings ordinary tab。 | 当前 machine truth。 |
-| Settings | Access | Codex CLI/provider access、账号或配置可用性。 | Settings ordinary tab；`/guid` shortcut 进入这里。 | 正确。 |
-| Settings | Capabilities | Installed Agent Packages、starter shortcuts、third-party/user packages 和 App packaged skill 边界。 | Settings ordinary tab。 | Global package/skill catalog；Home 显示用户选择的快捷入口。 |
-| Settings | Local Environment | runtime connection/readiness、module path source 和 refs。 | Settings ordinary tab。 | 配置面，不承载 project progress。 |
-| Settings | Advanced | OPL Flow Context、兼容技术项和高级配置。 | Settings ordinary tab。 | 不变成 runtime dashboard。 |
-| Settings | About & Updates | App version、shell version、release channel、updates、provenance。 | About surface。 | standard updater 与 Full first-install 必须分清。 |
+### Inspector
 
-## 现有缺口
+Inspector 的用户问题是“当前 conversation 旁边还有哪些上下文”。它默认关闭，打开后
+只扩展 selected scope，并保留 timeline、draft 和 scroll。Files、Artifacts、Runtime、
+Capabilities、Memory 与 Settings shortcuts 可以共存，但都只展示 refs/projections。
 
-1. **Workspace/session rail 需要稳定承接 session history。** Recent conversations、
-   resume、reset、running/blocked badges 应在 rail，不应回到 Home activity grid。
+### Runtime 与 Settings
 
-2. **Conversation receipts 需要产品化表达。** 用户应看得出本 turn 走了 `科研`、
-   `基金` 或 RCA/演示 route，并由 Codex CLI 执行；schema id、raw JSON、protocol name
-   应在 details 或 diagnostics。
+Runtime 回答“工作现在处于什么状态、下一步是谁”；Settings 回答“App 如何配置、维护
+和个性化”。把 progress 放进 Settings 会混淆配置与工作，把 maintenance 放进 Runtime
+会混淆任务与平台。两者可以互相 deep link，但不合并 authority 或首屏。
 
-3. **Runtime refs 层级需要更明显。** 用户首先关心 user task status，其次是
-   project progress refs，再是 safe action，最后才是 full detail/evidence ledger。
+## 漂移检查
 
-4. **空状态和恢复动作需要元素级定义。** Home、Runtime、Files、Memory、Automations、
-   Access、Local Environment 都应展示短原因和下一步动作，不能只显示 raw command failure。
+### 结构漂移
 
-## 位置复盘
+- 宽桌面是否仍有 persistent project/conversation rail？
+- Main 是否仍是一条 timeline，而不是 dashboard 或三列 workbench？
+- Right inspector 是否默认关闭，且打开/关闭不丢 draft、scroll、selection？
+- 窄窗口是否把 secondary context 变成可见 drawer，而不是 hidden DOM？
+- Composer、toolbar、rail rows 和 icon controls 是否保持稳定尺寸？
 
-Home 的用户预期是“我已经在某个工作目录里，可以直接交代任务”。因此 Home 上正确的
-元素是 composer、workspace、purpose、Codex model/status、attach、send/stop、少量
-prompt examples。Runtime dashboard、continue-work grid、needs-attention/active/recent refs、
-per-assistant running badges、footer quick icons、backend/provider/permission selectors
-都不符合 Home composer-first 预期。
+### Authority 漂移
 
-Conversation 的用户预期是“这轮任务发生了什么、下一步能做什么”。Message timeline、
-pending elapsed state、tool/process summary、queue、stop、attach preview、route receipt
-放在 conversation 内符合预期。
+- Model/reasoning 是否只读 product profile，而非 shell-local list？
+- State 是否来自 App state，mutation 是否来自 App action？
+- Runtime/domain/artifact/memory/receipt/release truth 是否仍由原 owner 持有？
+- Settings route/label/redirect 是否来自 Control Plane，而非 upstream discovery？
+- UI 是否把 docs、cache、module dirt 或 active id 包装成 ready/running/current？
 
-Runtime 的用户预期是“现在有没有任务真的在跑、下一步是谁、是否卡住”。它应 user
-task status first、project progress refs second、safe action third、full detail/evidence
-ledger on demand。
+### 交互漂移
 
-Right inspector 的用户预期是“当前 conversation 旁边有哪些有用上下文”。它默认收起，
-打开后保留当前 conversation、scroll position 和 composer draft，只展示 refs、receipts
-和 next actions，不拥有 runtime truth 或 domain artifact body。
+- 发送后是否持续有 pending/elapsed feedback？
+- Error/disabled/blocked 是否说明原因和 next action？
+- Permission、user-input 和 confirmation 是否保留触发上下文？
+- Popover/drawer 关闭后是否把焦点返回触发器？
+- Rail、timeline、inspector 与 Settings 是否都可 keyboard-only 使用？
 
-Settings 的用户预期是“App 如何配置、系统是否 ready”。它管全局配置、access、
-capabilities、appearance、advanced、about/update；project progress、continue-work、
-evidence refs 应在 Runtime 或 inspector。
+### 视觉与文案漂移
+
+- 是否出现 card-in-card、双层 composer、随机 radius、重 shadow 或营销 hero？
+- 中文/英文普通 chrome 是否同屏单一语言？
+- Carrier、protocol、route id、command、receipt id 是否进入 ordinary first screen？
+- 长中文/英文是否换行或扩容，而不是缩小字体、负字距或遮挡相邻控件？
+- 状态是否同时使用文字/图标，不只靠颜色？
+
+## 审计输出格式
+
+实际审计应逐项给出：
+
+| Field | 内容 |
+| --- | --- |
+| `element` | 被检查的稳定元素。 |
+| `expected_location` | 本文定义的位置。 |
+| `observed_surface` | Source、packaged App 或 WebUI 的实际位置。 |
+| `status` | `aligned / drift / not_evidenced`。 |
+| `source_ref` | Contract、source/test、route/viewport screenshot 或 package ref。 |
+| `impact` | 对用户流程、authority、响应式或可访问性的影响。 |
+| `owner_route` | 应修改 product contract、shell adapter、visual CSS、bridge、validator 或 evidence 的 owner。 |
+
+Docs-only 检查不能把 `not_evidenced` 改写成 `aligned`。当前 carrier 的默认差异只在
+[`shell-conformance-matrix.md`](shell-conformance-matrix.md) 记录，元素位置理由保持
+shell-neutral。
