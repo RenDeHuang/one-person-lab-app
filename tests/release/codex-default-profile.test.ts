@@ -41,6 +41,18 @@ test('product profile rejects pre-Codex-baseline interaction states', () => {
   }
 });
 
+test('product profile rejects the superseded quiet Settings visual policy', () => {
+  const installExposure = readJson('contracts/app-install-exposure-policy.json');
+  for (const mutate of [
+    (profile: any) => { profile.settings.control_plane.experience_contract.visual_system.style = 'codex_app_quiet_workbench'; },
+    (profile: any) => { profile.settings.control_plane.experience_contract.visual_system.card_policy = 'few_cards_only_for_summary_or_repeated_entities'; },
+  ]) {
+    const profile = structuredClone(readJson('contracts/app-product-profile.json'));
+    mutate(profile);
+    assert.throws(() => validateProductProfile(profile, installExposure));
+  }
+});
+
 test('active-shell source gate requires Home starters and Capabilities routing instead of retired selectors', () => {
   const currentSources = {
     guidPage: [

@@ -2954,8 +2954,8 @@
         "source_contract_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia",
         "page_state_matrix_ref": "contracts/app-page-state-matrix.json#pages",
         "visual_system": {
-          "style": "codex_app_quiet_workbench",
-          "card_policy": "few_cards_only_for_summary_or_repeated_entities",
+          "style": "opl_baseline_card_control_center",
+          "card_policy": "bounded_page_section_cards_with_flat_internal_rows",
           "nested_cards_allowed": false,
           "page_sections_as_floating_cards_allowed": false,
           "max_border_radius_px": 8,

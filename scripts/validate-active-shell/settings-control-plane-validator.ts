@@ -487,6 +487,11 @@ function validateCrossContractConsistency(controlPlane, guiContract, pageStateMa
     controlPlane.state_action_policy?.recommended_action_ids,
     'Product profile settings.control_plane recommended action ids',
   );
+  assertDeepEqualJson(
+    productProfile?.settings?.control_plane?.experience_contract?.visual_system,
+    controlPlane.experience_contract?.visual_system,
+    'Product profile Settings visual system vs control plane',
+  );
 }
 
 function assertEveryRouteHasSlot(controlPlane) {

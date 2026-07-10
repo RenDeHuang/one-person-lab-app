@@ -7,6 +7,7 @@ import {
   assertAppProductProfileGuiInteractionBaseline,
   assertAppProductProfileHomeCodexPolicy,
   assertAppProductProfileRouteReceiptPolicy,
+  assertAppProductProfileSettingsVisualSystem,
   assertOplFlowIntelligenceEnhancementMode,
   assertProfessionalAgentPackagePolicy,
   managedShortcutIds,
@@ -458,6 +459,7 @@ function assertCodexOplFlowContext(profile: AppProductProfile): void {
 function assertHomeCodexProfileShape(profile: AppProductProfile): void {
   assertAppProductProfileGuiAuthority(profile);
   assertAppProductProfileGuiInteractionBaseline(profile);
+  assertAppProductProfileSettingsVisualSystem(profile);
   assertAppProductProfileHomeCodexPolicy(profile, 'App product profile', {
     requireEnglishStatusLabel: true,
     requireSelectionPersistence: true,

@@ -28,6 +28,7 @@ import {
   assertAppProductProfileGuiInteractionBaseline,
   assertAppProductProfileHomeCodexPolicy,
   assertAppProductProfileRouteReceiptPolicy,
+  assertAppProductProfileSettingsVisualSystem,
   assertProfessionalAgentPackagePolicy,
   managedShortcutIds,
   managedShortcutPackageIds,
@@ -126,6 +127,7 @@ function validateProductProfileCodexDefaults(profile) {
   assertDefaultCodexSessionProfile(profile, { label: 'product profile', requireLiteralDefaults: true });
   assertAppProductProfileGuiAuthority(profile, 'Product profile');
   assertAppProductProfileGuiInteractionBaseline(profile, 'Product profile');
+  assertAppProductProfileSettingsVisualSystem(profile, 'Product profile');
   assertAppProductProfileHomeCodexPolicy(profile, 'Product profile');
   assertAppProductProfileCodexModelDisplayOptions(profile, 'Product profile');
   assertAppProductProfileRouteReceiptPolicy(profile, 'Product profile');

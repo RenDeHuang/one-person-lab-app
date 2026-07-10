@@ -30,6 +30,13 @@ type ProductProfileLike = {
     builtin_assistant_route_receipt_policy?: Record<string, unknown>;
     agent_package_invocation_receipt_policy?: Record<string, unknown>;
   };
+  settings?: {
+    control_plane?: {
+      experience_contract?: {
+        visual_system?: Record<string, unknown>;
+      };
+    };
+  };
 };
 
 type HomePolicyOptions = {
@@ -293,6 +300,26 @@ export function assertAppProductProfileGuiInteractionBaseline(
   if (Array.isArray(inspector?.tabs)) {
     throw new Error(`${label} GUI right context inspector must not restore equal-weight tabs`);
   }
+}
+
+export function assertAppProductProfileSettingsVisualSystem(
+  profile: ProductProfileLike,
+  label = 'App product profile',
+): void {
+  const visualSystem = profile.settings?.control_plane?.experience_contract?.visual_system;
+  assertExpectedFields(
+    [
+      { actual: visualSystem?.style, expected: 'opl_baseline_card_control_center' },
+      {
+        actual: visualSystem?.card_policy,
+        expected: 'bounded_page_section_cards_with_flat_internal_rows',
+      },
+      { actual: visualSystem?.nested_cards_allowed, expected: false },
+      { actual: visualSystem?.page_sections_as_floating_cards_allowed, expected: false },
+      { actual: visualSystem?.max_border_radius_px, expected: 8 },
+    ],
+    `${label} Settings visual system must preserve the OPL bounded-card baseline`,
+  );
 }
 
 function assertHomeCodexEnglishStatusLabel(
