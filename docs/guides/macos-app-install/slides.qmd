@@ -86,7 +86,7 @@ OPL 会先检查开始使用所需的关键项：工作目录、本机助手和�
 
 第一条任务可直接用自然语言描述，让 MAS 先判断研究方向、证据缺口和下一步。
 
-![](screenshots/07-first-research-entry.png){width=76%}
+![](screenshots/05-opl-ready-research-entry.png){width=76%}
 
 示例提示词：
 

@@ -295,13 +295,12 @@ function copyDir(src: string, dst: string) {
   fs.rmSync(dst, { recursive: true, force: true });
   fs.mkdirSync(dst, { recursive: true });
   if (!fs.existsSync(src)) return;
-  for (const entry of fs.readdirSync(src)) {
-    const from = path.join(src, entry);
-    const to = path.join(dst, entry);
-    const stat = fs.statSync(from);
-    if (stat.isDirectory()) copyDir(from, to);
-    else fs.copyFileSync(from, to);
-  }
+  fs.cpSync(src, dst, {
+    recursive: true,
+    dereference: true,
+    force: true,
+    errorOnExist: false,
+  });
 }
 
 function trimLineEndings(text: string) {
@@ -311,7 +310,7 @@ function trimLineEndings(text: string) {
     .join('\n');
 }
 
-function writeProject(manifest: GuideManifest, qmd: string) {
+function writeProject(manifest: GuideManifest) {
   const screenshotManifest = loadScreenshotManifest(manifest);
   const sourceAssetsDir = screenshotAssetsDir(manifest);
   fs.rmSync(projectDir, { recursive: true, force: true });
@@ -437,7 +436,7 @@ function main() {
     .join('\n\n');
   scanText('QMD source', qmd, manifest);
   const assetVerification = validateAssets(manifest, qmd);
-  writeProject(manifest, qmd);
+  writeProject(manifest);
   renderQuarto();
 
   const publicDir = outputPath(manifest.output.public_dir);
@@ -445,10 +444,6 @@ function main() {
   const pdfOutputPath = outputPath(manifest.output.pdf);
   const generatedMarkdownPath = outputPath(manifest.output.generated_markdown);
   const verificationPath = outputPath(manifest.output.verification);
-  const htmlVerificationPath = guideId === 'macos-app-install'
-    ? path.join(path.dirname(verificationPath), 'macos-app-install-html-verification.json')
-    : null;
-
   fs.mkdirSync(publicDir, { recursive: true });
   fs.mkdirSync(path.dirname(generatedMarkdownPath), { recursive: true });
   fs.mkdirSync(path.dirname(verificationPath), { recursive: true });
@@ -522,9 +517,6 @@ function main() {
     forbidden_phrases_status: 'absent',
   };
   fs.writeFileSync(verificationPath, `${JSON.stringify(verification, null, 2)}\n`, 'utf8');
-  if (htmlVerificationPath) {
-    fs.writeFileSync(htmlVerificationPath, `${JSON.stringify(verification, null, 2)}\n`, 'utf8');
-  }
   console.log(JSON.stringify(verification, null, 2));
 }
 

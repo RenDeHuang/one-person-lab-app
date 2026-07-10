@@ -12,6 +12,7 @@ import { budgetStatus, formatBytes, percent } from './release-size-reporting.ts'
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const defaultManifestPath = path.join(appRoot, FULL_RELEASE_OUTPUT_DIR, 'full-package-manifest.json');
+const ALL_DESCENDANTS = ['**/*', '**/.*', '**/.*/**/*'];
 
 function parseArgs(argv: string[]) {
   const { values, tokens } = parseNodeArgs({
@@ -74,21 +75,14 @@ function sizeBytes(root: string): number {
   if (!root || !fs.existsSync(root)) return 0;
   const stat = fs.lstatSync(root);
   if (stat.isFile()) return stat.size;
-  let total = 0;
-  const stack = [root];
-  while (stack.length > 0) {
-    const current = stack.pop();
-    if (!current) continue;
-    const currentStat = fs.lstatSync(current);
-    if (currentStat.isDirectory()) {
-      for (const entry of fs.readdirSync(current)) {
-        stack.push(path.join(current, entry));
-      }
-    } else if (currentStat.isFile()) {
-      total += currentStat.size;
-    }
-  }
-  return total;
+  if (!stat.isDirectory()) return 0;
+  return fs.globSync(ALL_DESCENDANTS, {
+    cwd: root,
+    withFileTypes: true,
+    exclude: (entry) => entry.isSymbolicLink(),
+  }).reduce((total, entry) => (
+    entry.isFile() ? total + fs.lstatSync(path.join(entry.parentPath, entry.name)).size : total
+  ), 0);
 }
 
 function compressedFullDmgStatus(args: {

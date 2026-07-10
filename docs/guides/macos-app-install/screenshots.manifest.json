@@ -156,7 +156,7 @@
       "vm_artifact_source": "docs/delivery/user-guides/macos-app-install/fixtures/runtime-environment-currentness.fixture.json"
     },
     {
-      "file": "07-first-research-entry.png",
+      "file": "05-opl-ready-research-entry.png",
       "role": "first_research_task",
       "title": "First MAS research prompt entry screen",
       "description": "First research task entry.",
@@ -173,7 +173,8 @@
         "科研",
         "任务"
       ],
-      "vm_artifact_status": "copied",
+      "note": "The first-task role reuses the byte-identical canonical research-entry screenshot instead of tracking a second PNG.",
+      "vm_artifact_status": "reused_canonical_research_entry",
       "vm_artifact_source": "/tmp/opl-first-run-smoke/artifacts/assistant-route-smoke/mas.png"
     },
     {

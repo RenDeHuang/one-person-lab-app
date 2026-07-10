@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs as parseNodeArgs } from 'node:util';
 
 const LOCAL_AUTHORIZATION_POLICY_SCHEMA = 'opl_local_authorized_macos_policy.v1';
+const ALL_DESCENDANTS = ['**/*', '**/.*', '**/.*/**/*'];
 
 export function assertLocalAuthorizationPolicy(policy, packageKind, name = 'local authorization policy') {
   if (
@@ -85,19 +86,23 @@ function quarantineCount(target) {
   if (!commandExists('xattr') || !fs.existsSync(target)) {
     return null;
   }
+  const symlinks = new Set();
+  const descendants = fs.lstatSync(target).isDirectory()
+    ? fs.globSync(ALL_DESCENDANTS, {
+      cwd: target,
+      withFileTypes: true,
+      exclude(entry) {
+        if (entry.isSymbolicLink()) {
+          symlinks.add(path.join(entry.parentPath, entry.name));
+          return true;
+        }
+        return false;
+      },
+    }).map((entry) => path.join(entry.parentPath, entry.name))
+    : [];
   let count = 0;
-  const stack = [target];
-  while (stack.length > 0) {
-    const current = stack.pop();
-    const stat = fs.lstatSync(current);
-    if (stat.isDirectory()) {
-      for (const entry of fs.readdirSync(current)) {
-        stack.push(path.join(current, entry));
-      }
-    }
-    if (runCapture('xattr', ['-p', 'com.apple.quarantine', current]).status === 0) {
-      count += 1;
-    }
+  for (const current of [target, ...descendants, ...symlinks]) {
+    if (runCapture('xattr', ['-p', 'com.apple.quarantine', current]).status === 0) count += 1;
   }
   return count;
 }

@@ -33,8 +33,7 @@ Delivery and generated files:
   `generated/macos-app-install-marp-theme.css`: generated static Marp source
   and theme used only for the slide PDF/PPTX special-case build, recreated by
   `npm run docs:macos-guide` and ignored by Git.
-- `verification/macos-app-install-verification.json`,
-  `verification/macos-app-install-html-verification.json`, and
+- `verification/macos-app-install-verification.json` and
   `verification/macos-app-install-slides-verification.json`: generated
   verification records.
 

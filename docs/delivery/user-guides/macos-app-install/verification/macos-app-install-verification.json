@@ -130,8 +130,8 @@
     {
       "role": "first_research_task",
       "description": "First research task entry.",
-      "file": "docs/guides/macos-app-install/screenshots/07-first-research-entry.png",
-      "public_file": "screenshots/07-first-research-entry.png",
+      "file": "docs/guides/macos-app-install/screenshots/05-opl-ready-research-entry.png",
+      "public_file": "screenshots/05-opl-ready-research-entry.png",
       "width": 1536,
       "height": 912,
       "sha256": "23dbb11274b0a18cc64cef4ee3fad1deb0f32ca2dd9b5430d05e6e1f2cf39cb9",
@@ -142,7 +142,8 @@
       "expected_ui_text": [
         "科研",
         "任务"
-      ]
+      ],
+      "note": "The first-task role reuses the byte-identical canonical research-entry screenshot instead of tracking a second PNG."
     },
     {
       "role": "runtime_status",

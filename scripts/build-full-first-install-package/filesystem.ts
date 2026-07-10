@@ -8,6 +8,8 @@ import {
   shouldExcludeRuntimePath,
 } from '../full-first-install-package.ts';
 
+const ALL_DESCENDANTS = ['**/*', '**/.*', '**/.*/**/*'];
+
 export function requirePath(filePath, label) {
   if (!filePath || !fs.existsSync(filePath)) {
     throw new Error(`${label} not found: ${filePath || '(empty)'}`);
@@ -16,71 +18,53 @@ export function requirePath(filePath, label) {
 }
 
 export function directorySizeBytes(root) {
-  let total = 0;
   if (!fs.existsSync(root)) {
     return 0;
   }
-  if (fs.statSync(root).isFile()) {
-    return fs.statSync(root).size;
+  const rootStat = fs.lstatSync(root);
+  if (!rootStat.isDirectory()) {
+    return rootStat.size;
   }
-  const stack = [root];
-  while (stack.length > 0) {
-    const current = stack.pop();
-    const stat = fs.lstatSync(current);
-    if (stat.isDirectory()) {
-      for (const entry of fs.readdirSync(current)) {
-        stack.push(path.join(current, entry));
+
+  const symlinks = new Set();
+  const entries = fs.globSync(ALL_DESCENDANTS, {
+    cwd: root,
+    withFileTypes: true,
+    exclude(entry) {
+      if (entry.isSymbolicLink()) {
+        symlinks.add(path.join(entry.parentPath, entry.name));
+        return true;
       }
-    } else {
-      total += stat.size;
+      return false;
+    },
+  });
+  let total = 0;
+  for (const entry of entries) {
+    if (!entry.isDirectory()) {
+      total += fs.lstatSync(path.join(entry.parentPath, entry.name)).size;
     }
   }
+  for (const symlink of symlinks) total += fs.lstatSync(symlink).size;
   return total;
 }
 
 export function copyTreeFiltered(sourceRoot, targetRoot, runtimePrefix) {
   fs.rmSync(targetRoot, { recursive: true, force: true });
   fs.mkdirSync(targetRoot, { recursive: true });
-
-  const copyEntry = (sourcePath, targetPath, relativeFromSource) => {
-    const runtimeRelative = path.posix.join(runtimePrefix, relativeFromSource.split(path.sep).join('/'));
-    if (shouldExcludeRuntimePath(runtimeRelative)) {
-      return;
-    }
-
-    const stat = fs.lstatSync(sourcePath);
-    if (stat.isDirectory()) {
-      fs.mkdirSync(targetPath, { recursive: true });
-      for (const entry of fs.readdirSync(sourcePath)) {
-        copyEntry(path.join(sourcePath, entry), path.join(targetPath, entry), path.join(relativeFromSource, entry));
-      }
-      return;
-    }
-
-    if (stat.isSymbolicLink()) {
-      const realPath = fs.realpathSync(sourcePath);
-      const realStat = fs.statSync(realPath);
-      if (realStat.isDirectory()) {
-        fs.mkdirSync(targetPath, { recursive: true });
-        for (const entry of fs.readdirSync(realPath)) {
-          copyEntry(path.join(realPath, entry), path.join(targetPath, entry), path.join(relativeFromSource, entry));
-        }
-        return;
-      }
-      if (realStat.isFile()) {
-        copyFileWithMode(realPath, targetPath, realStat);
-      }
-      return;
-    }
-
-    if (stat.isFile()) {
-      copyFileWithMode(sourcePath, targetPath, stat);
-    }
-  };
-
-  for (const entry of fs.readdirSync(sourceRoot)) {
-    copyEntry(path.join(sourceRoot, entry), path.join(targetRoot, entry), entry);
-  }
+  fs.cpSync(sourceRoot, targetRoot, {
+    recursive: true,
+    dereference: true,
+    force: true,
+    errorOnExist: false,
+    filter(sourcePath) {
+      const relativePath = path.relative(sourceRoot, sourcePath);
+      if (!relativePath) return true;
+      const runtimeRelative = path.posix.join(runtimePrefix, relativePath.split(path.sep).join('/'));
+      if (shouldExcludeRuntimePath(runtimeRelative)) return false;
+      const stat = fs.lstatSync(sourcePath);
+      return stat.isDirectory() || stat.isFile() || stat.isSymbolicLink();
+    },
+  });
 }
 
 export function copySingleFile(sourcePath, targetPath) {
@@ -156,20 +140,25 @@ export function copyPortableTree(sourceRoot, targetRoot) {
 
 export function assertNoExternalSymlinks(root, label) {
   const rootPath = path.resolve(root);
+  const symlinks = new Set();
+  const rootStat = fs.lstatSync(rootPath);
+  if (rootStat.isSymbolicLink()) {
+    symlinks.add(rootPath);
+  } else if (rootStat.isDirectory()) {
+    fs.globSync(ALL_DESCENDANTS, {
+      cwd: rootPath,
+      withFileTypes: true,
+      exclude(entry) {
+        if (entry.isSymbolicLink()) {
+          symlinks.add(path.join(entry.parentPath, entry.name));
+          return true;
+        }
+        return false;
+      },
+    });
+  }
   const violations = [];
-  const stack = [rootPath];
-  while (stack.length > 0) {
-    const current = stack.pop();
-    const stat = fs.lstatSync(current);
-    if (stat.isDirectory()) {
-      for (const entry of fs.readdirSync(current)) {
-        stack.push(path.join(current, entry));
-      }
-      continue;
-    }
-    if (!stat.isSymbolicLink()) {
-      continue;
-    }
+  for (const current of symlinks) {
     const linkTarget = fs.readlinkSync(current);
     const resolvedTarget = path.resolve(path.dirname(current), linkTarget);
     if (path.isAbsolute(linkTarget) || !isInsidePath(rootPath, resolvedTarget)) {

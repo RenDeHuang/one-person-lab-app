@@ -7,10 +7,9 @@ Machine boundary: Source prose for public whitepapers. Generated HTML/PDF live
 under local `docs/site/latest/` and are published from the local build to the
 latest GitHub Pages copy, not tracked release-by-release files on `main`.
 
-OPL-family whitepapers use the shared local builder
-`scripts/opl-whitepaper-builder.ts`; this repo's
-`scripts/build-opl-app-whitepaper.ts` is only the App-specific configuration
-wrapper for the common Pandoc/XeLaTeX style profile.
+This repo builds the App whitepaper directly through
+`scripts/build-opl-app-whitepaper.ts`, which owns the App-specific
+Pandoc/XeLaTeX style profile and verification boundary.
 
 This repo follows the OPL-wide whitepaper pattern:
 

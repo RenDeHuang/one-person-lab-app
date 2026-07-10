@@ -2,9 +2,31 @@
 
 Status: active cleanup boundary
 Scope: guide generation, release helper scripts, and active-shell validator cleanup
-Last updated: 2026-07-08
+Last updated: 2026-07-10
+
+## 2026-07-10 One-Step Completion Plan
+
+The approved cleanup is executing in three isolated, parallel lanes and is only complete after each candidate is absorbed to `main`, the combined diff is verified, and the worktrees are removed.
+
+| Slice | Scope | State recorded by this branch | Main closeout evidence |
+| --- | --- | --- | --- |
+| platform and docs | guide asset/verification deduplication, whitepaper builder inlining, Node `fs.cpSync` / `fs.globSync` replacement | `implemented_in_candidate`; absorption pending | generator readback, behavior probes, combined tests, absorbed commit |
+| release-dead | dead release-note setup surface and unused release helpers | `pending_parallel_lane_readback` | parallel-lane commit, diff review, focused release validation, absorbed commit |
+| tests-release-dead | orphan release fixtures, dead aliases, and unused test exports | `pending_parallel_lane_readback` | parallel-lane commit, diff review, focused/full release tests, absorbed commit |
+
+The last two rows are deliberate closeout placeholders, not completion claims. The main absorption owner must replace them with the actual commit, verification, and absorption result or record a concrete blocker.
 
 ## Landed Safe Slices
+
+### 2026-07-10 guide, whitepaper, and Node platform simplification candidate
+
+- Reused `05-opl-ready-research-entry.png` for both `research_entry` and `first_research_task`; the manifest and generated Quarto/slide verification records retain both semantic roles while the byte-identical `07-first-research-entry.png` is removed.
+- Removed the byte-identical `macos-app-install-html-verification.json` and the guide-specific duplicate-write branch. `macos-app-install-verification.json` is the single long-form HTML/PDF verification record; slide verification remains separate because it describes a different renderer and artifact set.
+- Replaced the guide's recursive screenshot copier with Node `fs.cpSync` using explicit recursive, dereference, and overwrite behavior, and removed the unused `writeProject` QMD parameter.
+- Inlined the sole whitepaper builder consumer into `scripts/build-opl-app-whitepaper.ts` and removed the unused generic configuration layer and `scripts/opl-whitepaper-builder.ts`. Source, output paths, validation messages, command execution, verification schema, and rendered-page hashes remain unchanged.
+- Replaced `copyTreeFiltered` with Node `fs.cpSync` and replaced size, quarantine, and external-symlink traversal loops with Node `fs.globSync`. The glob pattern set explicitly includes hidden entries; symlinks are collected through `exclude` so they remain countable/checkable without being traversed.
+- Preserved invariants: missing and root-file size behavior, root symlink behavior, regular-file-only analysis totals, hidden descendants, external symlink detection, filtered runtime paths, dereferenced copy output, executable mode bits, and root inclusion for quarantine checks.
+- Required verification for this slice: `npm run docs:publishing-templates`, `npm run docs:macos-guide:quarto`, `npm run docs:macos-guide:slides`, `npm run docs:whitepaper`, focused Node probes for copy/glob/root/symlink/mode behavior, relevant Full/guide release tests, `git diff --check`, stale-reference scans, generated verification readback, and final worktree evidence binding before absorption.
 
 ### 2026-07-07 guide generation and delivery assets
 
@@ -86,8 +108,8 @@ Last updated: 2026-07-08
 
 ### 2026-07-08 release workflow path duplicate cleanup
 
-- `tests/release/app-release-boundary-cases/helpers-core.ts` now re-exports `releaseWorkflowPaths` from `scripts/validate-release-boundary/release-checks.ts` instead of maintaining a second workflow path list.
-- Why safe: the release-boundary script remains the App-owned gate source; tests stop shadowing only the workflow path list and keep existing workflow invariant coverage.
+- The duplicated workflow path list was first replaced with a re-export from `scripts/validate-release-boundary/release-checks.ts`; the remaining test-only re-export is removed in the 2026-07-10 dead-fixture cleanup after its last consumer is deleted.
+- Why safe: the release-boundary script remains the App-owned gate source, while tests neither shadow nor expose an unused copy of that surface.
 - Verification required for this slice: the release-boundary test entrypoint with an explicit active shell root and `git diff --check`.
 
 ### 2026-07-08 release-boundary shadow test cleanup
