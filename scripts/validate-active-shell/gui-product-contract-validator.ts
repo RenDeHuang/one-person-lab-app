@@ -2,7 +2,6 @@ import { assertDeepEqualJson, assertForbiddenCapabilityPolicy, assertIncludesAll
 import {
   appActionRoute,
   appOwnedTaskAwarenessRefFields,
-  beginnerFirstRunTestIds,
   focusedFirstRunPresentationPolicy,
   homeActivityCenterForbiddenDisplays,
 } from './app-contract-constants.ts';
@@ -21,7 +20,6 @@ import {
   validateArtifactNativeDrilldownProjectionContract,
   validateBeginnerFirstRunPresentation,
   validateOplFlowContext,
-  validateProviderReadinessRepairProjectionContract,
   validateProgressDeltaDisplayContract,
   validateRefLevelFollowUpProjectionContract,
   validateStateIndexSidecarProjectionContract,

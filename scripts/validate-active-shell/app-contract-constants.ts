@@ -514,16 +514,6 @@ export const legacySettingsRouteRedirects = {
   webui: "resources",
   pet: "appearance",
 };
-const homeActivityCenterItemFields = [
-  "task_id",
-  "title",
-  "domain_label",
-  "state",
-  "active_stage_label",
-  "next_visible_step",
-  "blocker_ref_count",
-  "last_progress_at",
-];
 export const homeActivityCenterForbiddenDisplays = [
   "domain artifact body",
   "memory body",
