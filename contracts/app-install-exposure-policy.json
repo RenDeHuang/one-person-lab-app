@@ -88,10 +88,9 @@
     },
     {
       "id": "companion_tools_codex_skills",
-      "owner": "one-person-lab-app",
+      "owner": "upstream_skill_owners_with_opl_distribution_policy",
       "members": [
         "superpowers",
-        "cron",
         "officecli",
         "officecli-docx",
         "officecli-pptx",
@@ -100,16 +99,45 @@
         "officecli-data-dashboard",
         "officecli-financial-model",
         "officecli-pitch-deck",
-        "pdf",
         "mineru-document-extractor",
         "ui-ux-pro-max"
       ],
-      "default_app_visible": true,
+      "default_app_visible": false,
+      "codex_discovery_policy": "installed_and_task_routed_without_ordinary_app_skill_menu_visibility",
       "sync_target": "codex_user_skill_discovery_path",
       "must_not_sync_to": [
         "domain_plugin_semantic_mirror"
       ],
       "legacy_alias": "companion_skill_sync"
+    },
+    {
+      "id": "official_codex_runtime_capabilities",
+      "owner": "openai_primary_runtime",
+      "members": [
+        "documents",
+        "presentations",
+        "spreadsheets",
+        "pdf"
+      ],
+      "default_app_visible": false,
+      "codex_discovery_policy": "official_plugin_task_routing",
+      "sync_target": "official_codex_plugin_registry",
+      "must_not_sync_to": [
+        "opl_companion_skill_mirror"
+      ]
+    },
+    {
+      "id": "native_automation_surface",
+      "owner": "one-person-lab-app",
+      "members": [
+        "scheduled_tasks",
+        "aionui_cron"
+      ],
+      "default_app_visible": true,
+      "sync_target": "app_automation_surface",
+      "must_not_sync_to": [
+        "codex_user_skill_discovery_path"
+      ]
     },
     {
       "id": "runtime_substrate_payloads",
@@ -827,14 +855,16 @@
         "opl_flow_package": {
           "package_id": "opl-flow",
           "package_kind": "workflow_plugin_package",
-          "consumer": "optional_user_modes.intelligence_enhancement",
-          "install_or_refresh_command": "python3 scripts/install_local_plugin.py --no-profile",
+          "consumer": "standard_and_full_workflow_baseline",
+          "optional_feature_consumer": "optional_user_modes.intelligence_enhancement",
+          "install_or_refresh_command": "python3 scripts/install_local_plugin.py",
           "required_before_actions": [
             "status",
             "enable",
             "repair"
           ],
           "profile_mutation_allowed": false,
+          "profile_sync_policy": "install_missing_or_emit_semantic_merge_packet_preserving_unmanaged_content",
           "workflow_profile_semantic_merge_ref": "managed_update_plane.planes[workflow_profile]",
           "standard_updater_allowed": false
         },
@@ -1317,14 +1347,16 @@
       "opl_flow_package": {
         "package_id": "opl-flow",
         "package_kind": "workflow_plugin_package",
-        "consumer": "optional_user_modes.intelligence_enhancement",
-        "install_or_refresh_command": "python3 scripts/install_local_plugin.py --no-profile",
+        "consumer": "standard_and_full_workflow_baseline",
+        "optional_feature_consumer": "optional_user_modes.intelligence_enhancement",
+        "install_or_refresh_command": "python3 scripts/install_local_plugin.py",
         "required_before_actions": [
           "status",
           "enable",
           "repair"
         ],
         "profile_mutation_allowed": false,
+        "profile_sync_policy": "install_missing_or_emit_semantic_merge_packet_preserving_unmanaged_content",
         "workflow_profile_semantic_merge_ref": "managed_update_plane.planes[workflow_profile]",
         "standard_updater_allowed": false
       },

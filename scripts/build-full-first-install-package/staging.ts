@@ -11,6 +11,7 @@ import {
   writeFullRuntimeManifest,
 } from './manifest-checksum.ts';
 import { commandOutput } from './process.ts';
+import { assertOfficeCliBinaryMatchesRelease } from './upstream-release.ts';
 import {
   buildRuntimeCacheKeyInputs,
   buildRuntimeCacheKeysFromInputs,
@@ -53,6 +54,8 @@ export function prepareRuntime(options, sources) {
   writeDomainMarkers(runtimeRoot, options, packagedAt);
   const nativeTrust = ensureFullRuntimeNativeTrust(runtimeRoot);
 
+  const officeCliVersion = commandOutput(path.join(runtimeRoot, 'bin', 'officecli'), ['--version']);
+  assertOfficeCliBinaryMatchesRelease(officeCliVersion, options.officeCliRelease);
   const components = {
     opl: { source_path: options.frameworkRoot, git_commit: readGitHead(options.frameworkRoot), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'opl')) },
     codex: {
@@ -68,6 +71,7 @@ export function prepareRuntime(options, sources) {
     rca: { source_path: options.rcaRoot, git_commit: readGitHead(options.rcaRoot), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'modules', 'rca')) },
     meta_agent: { source_path: options.metaAgentRoot, git_commit: readGitHead(options.metaAgentRoot), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'modules', 'meta-agent')) },
     bookforge: { source_path: options.bookforgeRoot, git_commit: readGitHead(options.bookforgeRoot), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'modules', 'bookforge')) },
+    opl_flow: { source_path: options.oplFlowRoot, git_commit: readGitHead(options.oplFlowRoot), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'modules', 'opl-flow')) },
     node: { source_path: sources.nodeToolchain.nodeBin, version: commandOutput(path.join(runtimeRoot, 'node', 'bin', 'node'), ['--version']), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'node')) },
     python: { source_path: sources.pythonRoot, version: commandOutput(path.join(runtimeRoot, 'python', path.basename(sources.pythonRoot), 'bin', 'python3'), ['--version']), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'python')) },
     uv: { source_path: sources.uvBin, version: commandOutput(path.join(runtimeRoot, 'uv', 'bin', 'uv'), ['--version']), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'uv')) },
@@ -78,7 +82,7 @@ export function prepareRuntime(options, sources) {
       archive_path: 'runtime/current/vendor/temporal/temporal_cli_darwin_arm64.tar.gz',
       archive_size_bytes: fs.statSync(sources.temporalCliArchive).size,
     },
-    officecli: { source_path: sources.officeCliBin, version: commandOutput(path.join(runtimeRoot, 'bin', 'officecli'), ['--version']), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'bin', 'officecli')) },
+    officecli: { source_path: sources.officeCliBin, version: officeCliVersion, size_bytes: directorySizeBytes(path.join(runtimeRoot, 'bin', 'officecli')) },
     mineru_open_api: { source_path: sources.mineruOpenApiBin, version: commandOutput(sources.mineruOpenApiBin, ['version']), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'bin', 'mineru-open-api')) },
     skills: { source_path: path.join(os.homedir(), '.codex', 'skills'), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'skills')) },
   };

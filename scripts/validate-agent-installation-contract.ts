@@ -36,7 +36,6 @@ const expectedGeneratedSemanticPackRoots: Record<string, string> = {
 };
 const expectedCompanionSkillSyncIds = [
   'superpowers',
-  'cron',
   'officecli',
   'officecli-docx',
   'officecli-pptx',
@@ -45,7 +44,6 @@ const expectedCompanionSkillSyncIds = [
   'officecli-data-dashboard',
   'officecli-financial-model',
   'officecli-pitch-deck',
-  'pdf',
   'mineru-document-extractor',
   'ui-ux-pro-max',
 ];
@@ -1014,9 +1012,11 @@ function validateManagedAgentPackDistribution(contract: any): void {
   assertFieldsEqual(distribution?.opl_flow_package, {
     package_id: 'opl-flow',
     package_kind: 'workflow_plugin_package',
-    consumer: 'optional_user_modes.intelligence_enhancement',
-    install_or_refresh_command: 'python3 scripts/install_local_plugin.py --no-profile',
+    consumer: 'standard_and_full_workflow_baseline',
+    optional_feature_consumer: 'optional_user_modes.intelligence_enhancement',
+    install_or_refresh_command: 'python3 scripts/install_local_plugin.py',
     profile_mutation_allowed: false,
+    profile_sync_policy: 'install_missing_or_emit_semantic_merge_packet_preserving_unmanaged_content',
     workflow_profile_semantic_merge_ref: 'managed_update_plane.planes[workflow_profile]',
     standard_updater_allowed: false,
   }, 'OPL Flow package policy');
@@ -1083,7 +1083,7 @@ function validateProfileCompanionPayloads(profile: any): void {
   assertEqual(companionPayloads?.domain_plugin_skills_must_not_be_companion_mirrors, true, 'profile domain plugin mirror guard');
   assertArrayFieldsInclude(companionPayloads, {
     default_packaged_codex_skill_ids: expectedDefaultVisibleDomainSkillIds,
-    packaged_not_default_visible_codex_skill_ids: ['opl-meta-agent'],
+    packaged_not_default_visible_codex_skill_ids: ['opl-meta-agent', ...expectedCompanionSkillSyncIds],
   }, 'profile companion payloads');
 }
 

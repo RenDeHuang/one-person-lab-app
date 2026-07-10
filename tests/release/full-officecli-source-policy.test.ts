@@ -1,0 +1,77 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+
+import {
+  assertOfficeCliBinaryMatchesRelease,
+  parseLatestStableGitTag,
+  resolveOfficeCliReleaseSource,
+} from '../../scripts/build-full-first-install-package/upstream-release.ts';
+
+test('OfficeCLI Full source policy selects the highest stable semantic-version tag', () => {
+  const latest = parseLatestStableGitTag([
+    '1111111111111111111111111111111111111111\trefs/tags/v1.0.134',
+    '2222222222222222222222222222222222222222\trefs/tags/v1.0.135',
+    '3333333333333333333333333333333333333333\trefs/tags/v1.0.136-beta.1',
+    '4444444444444444444444444444444444444444\trefs/tags/not-a-release',
+  ].join('\n'));
+
+  assert.deepEqual(latest, {
+    tag: 'v1.0.135',
+    version: '1.0.135',
+    commit: '2222222222222222222222222222222222222222',
+  });
+});
+
+test('OfficeCLI Full source policy uses peeled commits for annotated tags', () => {
+  const latest = parseLatestStableGitTag([
+    'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\trefs/tags/v1.0.135',
+    'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\trefs/tags/v1.0.135^{}',
+  ].join('\n'));
+
+  assert.equal(latest.commit, 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
+});
+
+test('OfficeCLI Full source policy verifies latest stable checkout and binary version', () => {
+  const head = '2222222222222222222222222222222222222222';
+  const calls: string[] = [];
+  const release = resolveOfficeCliReleaseSource('/tmp/OfficeCLI', 'latest-stable', (command, args) => {
+    calls.push([command, ...args].join(' '));
+    if (args[0] === 'rev-parse') return { status: 0, stdout: `${head}\n`, stderr: '' };
+    return {
+      status: 0,
+      stdout: `${head}\trefs/tags/v1.0.135\n`,
+      stderr: '',
+    };
+  });
+
+  assert.equal(release.latest_stable_verified, true);
+  assert.equal(release.resolved_ref, 'v1.0.135');
+  assert.equal(assertOfficeCliBinaryMatchesRelease('officecli 1.0.135', release), '1.0.135');
+  assert.deepEqual(calls, [
+    'git rev-parse HEAD',
+    'git ls-remote --tags origin',
+  ]);
+});
+
+test('OfficeCLI Full source policy rejects a stale checkout or mismatched binary', () => {
+  assert.throws(
+    () => resolveOfficeCliReleaseSource('/tmp/OfficeCLI', 'latest-stable', (_command, args) => {
+      if (args[0] === 'rev-parse') {
+        return { status: 0, stdout: '1111111111111111111111111111111111111111\n', stderr: '' };
+      }
+      return {
+        status: 0,
+        stdout: '2222222222222222222222222222222222222222\trefs/tags/v1.0.135\n',
+        stderr: '',
+      };
+    }),
+    /not latest stable/,
+  );
+  assert.throws(
+    () => assertOfficeCliBinaryMatchesRelease('officecli 1.0.134', {
+      version: '1.0.135',
+      resolved_ref: 'v1.0.135',
+    }),
+    /does not match source release/,
+  );
+});

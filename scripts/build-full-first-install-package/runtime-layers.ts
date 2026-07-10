@@ -305,6 +305,11 @@ export function collectRuntimeAssertions(runtimeRoot) {
       runtimePayloadStatus(runtimeRoot, 'skills/redcube-ai/SKILL.md'),
       runtimePayloadStatus(runtimeRoot, 'skills/opl-bookforge/SKILL.md'),
       runtimePayloadStatus(runtimeRoot, 'skills/superpowers/.codex-plugin/plugin.json'),
+      runtimePayloadStatus(runtimeRoot, 'modules/opl-flow/.codex-plugin/plugin.json'),
+      runtimePayloadStatus(runtimeRoot, 'modules/opl-flow/scripts/install_local_plugin.py'),
+      runtimePayloadStatus(runtimeRoot, 'modules/opl-flow/skills/opl-flow/SKILL.md'),
+      runtimePayloadStatus(runtimeRoot, 'modules/opl-flow/skills/risk-based-development-flow/SKILL.md'),
+      runtimePayloadStatus(runtimeRoot, 'modules/opl-flow/skills/codex-ops-kit/SKILL.md'),
       ...domainPluginPayloadStatuses(runtimeRoot),
     ],
     declared_pruned_paths: declaredPrunedPathAssertions(runtimeRoot),
@@ -345,6 +350,7 @@ export function buildDomainLayer(layerRoot, options) {
   copyTreeFiltered(options.rcaRoot, path.join(layerRoot, 'modules', 'rca'), 'modules/rca');
   copyTreeFiltered(options.metaAgentRoot, path.join(layerRoot, 'modules', 'meta-agent'), 'modules/meta-agent');
   copyTreeFiltered(options.bookforgeRoot, path.join(layerRoot, 'modules', 'bookforge'), 'modules/bookforge');
+  copyTreeFiltered(options.oplFlowRoot, path.join(layerRoot, 'modules', 'opl-flow'), 'modules/opl-flow');
 }
 
 export function writeDomainMarkers(runtimeRoot, options, packagedAt) {
@@ -381,6 +387,13 @@ export function writeDomainMarkers(runtimeRoot, options, packagedAt) {
     repoName: 'opl-bookforge',
     sourcePath: options.bookforgeRoot,
     headSha: readGitHead(options.bookforgeRoot),
+    packagedAt,
+  }));
+  writePackagedModuleMarker(path.join(runtimeRoot, 'modules', 'opl-flow'), buildPackagedModuleMarker({
+    moduleId: 'oplflow',
+    repoName: 'opl-flow',
+    sourcePath: options.oplFlowRoot,
+    headSha: readGitHead(options.oplFlowRoot),
     packagedAt,
   }));
 }

@@ -457,6 +457,13 @@ export function buildFullPackageManifest(input: FullPackageManifestInput = {}) {
         required: true,
         visible_in_first_run_ui: true,
       },
+      opl_flow: {
+        ...normalizeComponent(components.opl_flow),
+        role: 'required_workflow_plugin_package',
+        truth_owner: 'gaofeng21cn/opl-flow',
+        required: true,
+        visible_in_first_run_ui: false,
+      },
       node: {
         ...normalizeComponent(components.node),
         role: 'runtime_binary',
@@ -661,7 +668,7 @@ export function buildFullFirstInstallReadme(input: {
     '3. The runtime version is recorded only in current.json and current/.opl-full-runtime-installed.json; it is not encoded in the runtime directory name.',
     '4. Bundled MAS, MAG, RCA, and OPL Meta Agent payloads are launch sources inside the Full runtime. Managed repo reconciliation may later populate the standard module directory, but it is deferred maintenance and does not block first launch:',
     '   ~/Library/Application Support/OPL/state/modules/<repo-name>',
-    `5. The Full runtime includes the Codex CLI, officecli CLI binary, mineru-open-api CLI binary, OPL Meta Agent, and recommended companion skills such as ${companionSkills}. App initialization makes those payloads visible to Codex without requiring Command Line Tools or git to finish first.`,
+    `5. The Full runtime includes the Codex CLI, the required OPL Flow workflow plugin package, officecli CLI binary, mineru-open-api CLI binary, OPL Meta Agent, and task-routed companion skills such as ${companionSkills}. App initialization installs them into Codex discovery without making every packaged skill an ordinary App menu entry or requiring Command Line Tools or git to finish first.`,
     `6. The bundled Codex profile seeds ${codexProfile} for first-run App sessions after OPL Gateway is configured; existing usable Codex login or provider access can satisfy first-launch model access without forcing Gateway setup.`,
     '7. The Full package only assembles and validates declared framework/runtime, domain module, and companion tool payloads. Runtime truth, provider implementation, domain truth, domain quality verdicts, and artifact authority remain owned by the OPL Framework and the domain agents.',
     '8. The Full package includes local state and module material required by the family runtime provider. OPL Framework source and contracts are runtime payload inputs, not owners of the App release flow. Production durable stage attempts are governed by the Temporal provider contract.',

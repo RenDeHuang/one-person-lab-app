@@ -9,6 +9,17 @@ import { copyTreeFiltered } from './filesystem.ts';
 import { readGitHead } from './git.ts';
 import { directoryFingerprint, existingFileSha256 } from './hashing.ts';
 
+export const OFFICECLI_ATOMIC_SKILL_IDS = [
+  'officecli',
+  'officecli-docx',
+  'officecli-pptx',
+  'officecli-xlsx',
+  'officecli-academic-paper',
+  'officecli-data-dashboard',
+  'officecli-financial-model',
+  'officecli-pitch-deck',
+];
+
 export function copySkillDirectory(sourceRoot, targetRoot, skillName) {
   if (!fs.existsSync(path.join(sourceRoot, 'SKILL.md'))) {
     throw new Error(`Skill source missing SKILL.md for ${skillName}: ${sourceRoot}`);
@@ -116,7 +127,7 @@ export function officeCliCoreSkillSnapshot(options) {
   if (fs.existsSync(path.join(options.officeCliRoot, 'SKILL.md'))) {
     return skillFileSourceSnapshot([options.officeCliRoot]);
   }
-  return skillSourceSnapshot(officeCliCoreSkillCandidates(options).slice(1), 'skills/officecli');
+  return skillSourceSnapshot([path.join(options.officeCliRoot, 'skills', 'officecli')], 'skills/officecli');
 }
 
 export function magSkillCandidates(options) {
@@ -255,7 +266,31 @@ export function copyOfficeCliCoreSkill(targetRoot, options) {
     fs.copyFileSync(path.join(options.officeCliRoot, 'SKILL.md'), path.join(target, 'SKILL.md'));
     return options.officeCliRoot;
   }
-  return copyFirstSkillSource('officecli', targetRoot, officeCliCoreSkillCandidates(options).slice(1));
+  return copyFirstSkillSource('officecli', targetRoot, [
+    path.join(options.officeCliRoot, 'skills', 'officecli'),
+  ]);
+}
+
+function officeCliUpstreamSkillRoot(options, skillId) {
+  if (skillId === 'officecli' && fs.existsSync(path.join(options.officeCliRoot, 'SKILL.md'))) {
+    return options.officeCliRoot;
+  }
+  return path.join(options.officeCliRoot, 'skills', skillId);
+}
+
+export function assertOfficeCliAtomicSkillSet(options) {
+  const missing = OFFICECLI_ATOMIC_SKILL_IDS.filter((skillId) => (
+    !fs.existsSync(path.join(officeCliUpstreamSkillRoot(options, skillId), 'SKILL.md'))
+  ));
+  if (missing.length > 0) {
+    throw new Error(
+      `OfficeCLI Full payload must come from one complete upstream release; missing skills: ${missing.join(', ')}`,
+    );
+  }
+}
+
+function copyOfficeCliUpstreamSkill(skillId, targetRoot, options) {
+  return copyFirstSkillSource(skillId, targetRoot, [officeCliUpstreamSkillRoot(options, skillId)]);
 }
 
 export function copyUiUxProMaxSkill(targetRoot, options) {
@@ -286,17 +321,15 @@ export const packagedSkillCopyHandlers = {
   'redcube-ai': (targetRoot, options) => copyFirstSkillSource('redcube-ai', targetRoot, rcaSkillCandidates(options)),
   'opl-bookforge': (targetRoot, options) => copyOplBookforgeSkill(targetRoot, options),
   superpowers: (targetRoot, options) => copySuperpowersBundle(targetRoot, options),
-  cron: (targetRoot) => copyFirstSkillSource('cron', targetRoot, appCompanionSkillCandidates('cron')),
   'opl-meta-agent': (targetRoot, options) => copyOplMetaAgentSkill(targetRoot, options),
   officecli: (targetRoot, options) => copyOfficeCliCoreSkill(targetRoot, options),
-  'officecli-docx': (targetRoot, options) => copyFirstSkillSource('officecli-docx', targetRoot, officeCliSkillCandidates(options, 'officecli-docx')),
-  'officecli-pptx': (targetRoot, options) => copyFirstSkillSource('officecli-pptx', targetRoot, officeCliSkillCandidates(options, 'officecli-pptx')),
-  'officecli-xlsx': (targetRoot, options) => copyFirstSkillSource('officecli-xlsx', targetRoot, officeCliSkillCandidates(options, 'officecli-xlsx')),
-  'officecli-academic-paper': (targetRoot, options) => copyFirstSkillSource('officecli-academic-paper', targetRoot, officeCliSkillCandidates(options, 'officecli-academic-paper')),
-  'officecli-data-dashboard': (targetRoot, options) => copyFirstSkillSource('officecli-data-dashboard', targetRoot, officeCliSkillCandidates(options, 'officecli-data-dashboard')),
-  'officecli-financial-model': (targetRoot, options) => copyFirstSkillSource('officecli-financial-model', targetRoot, officeCliSkillCandidates(options, 'officecli-financial-model')),
-  'officecli-pitch-deck': (targetRoot, options) => copyFirstSkillSource('officecli-pitch-deck', targetRoot, officeCliSkillCandidates(options, 'officecli-pitch-deck')),
-  pdf: (targetRoot) => copyFirstSkillSource('pdf', targetRoot, appCompanionSkillCandidates('pdf')),
+  'officecli-docx': (targetRoot, options) => copyOfficeCliUpstreamSkill('officecli-docx', targetRoot, options),
+  'officecli-pptx': (targetRoot, options) => copyOfficeCliUpstreamSkill('officecli-pptx', targetRoot, options),
+  'officecli-xlsx': (targetRoot, options) => copyOfficeCliUpstreamSkill('officecli-xlsx', targetRoot, options),
+  'officecli-academic-paper': (targetRoot, options) => copyOfficeCliUpstreamSkill('officecli-academic-paper', targetRoot, options),
+  'officecli-data-dashboard': (targetRoot, options) => copyOfficeCliUpstreamSkill('officecli-data-dashboard', targetRoot, options),
+  'officecli-financial-model': (targetRoot, options) => copyOfficeCliUpstreamSkill('officecli-financial-model', targetRoot, options),
+  'officecli-pitch-deck': (targetRoot, options) => copyOfficeCliUpstreamSkill('officecli-pitch-deck', targetRoot, options),
   'ui-ux-pro-max': (targetRoot, options) => copyUiUxProMaxSkill(targetRoot, options),
   'mineru-document-extractor': (targetRoot, options) => copyFirstSkillSource(
     'mineru-document-extractor',
@@ -313,6 +346,9 @@ export function copyPackagedSkills(targetRoot, options) {
     ...productProfile.companion_payloads.default_packaged_codex_skill_ids,
     ...productProfile.companion_payloads.packaged_not_default_visible_codex_skill_ids,
   ];
+  if (packagedSkillIds.some((skillId) => OFFICECLI_ATOMIC_SKILL_IDS.includes(skillId))) {
+    assertOfficeCliAtomicSkillSet(options);
+  }
   for (const skillId of packagedSkillIds) {
     const copySkill = packagedSkillCopyHandlers[skillId];
     if (!copySkill) {

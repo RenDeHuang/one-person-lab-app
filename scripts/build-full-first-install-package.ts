@@ -29,6 +29,7 @@ import { durationSeconds, monotonicSeconds, run } from './build-full-first-insta
 import { buildRuntimeCacheKeyReport } from './build-full-first-install-package/runtime-cache.ts';
 import { resolveRuntimeSources } from './build-full-first-install-package/runtime-sources.ts';
 import { prepareRuntime } from './build-full-first-install-package/staging.ts';
+import { resolveOfficeCliReleaseSource } from './build-full-first-install-package/upstream-release.ts';
 import { fileSha256 } from './release-file-helpers.ts';
 
 function readJsonIfExists(filePath) {
@@ -86,11 +87,14 @@ function main() {
     ['RCA root', options.rcaRoot],
     ['OPL Meta Agent root', options.metaAgentRoot],
     ['OPL Book Forge root', options.bookforgeRoot],
+    ['OPL Flow root', options.oplFlowRoot],
     ['Superpowers root', options.superpowersRoot],
+    ['OfficeCLI root', options.officeCliRoot],
   ]) {
     requirePath(source, label);
   }
 
+  options.officeCliRelease = resolveOfficeCliReleaseSource(options.officeCliRoot, options.officeCliRef);
   const sources = resolveRuntimeSources(options);
   if (options.printRuntimeCacheKeys) {
     console.log(JSON.stringify(buildRuntimeCacheKeyReport(options, sources), null, 2));
