@@ -539,9 +539,9 @@ function validateNativeWorkbenchImplementationEvidence(candidate: ShellCandidate
     codexAlignment?.settings_locale_surface !== 'settings' ||
     codexAlignment?.model_policy_source !== 'one-person-lab-app/contracts/app-product-profile.json#gui.home.codex_model_display_options' ||
     codexAlignment?.default_model !== 'gpt-5.6-sol' ||
-    codexAlignment?.default_reasoning_effort !== 'ultra'
+    codexAlignment?.default_reasoning_effort !== 'max'
   ) {
-    throw new Error(`${candidate.id} evidence must prove the Codex 26.707.31123 project rail, single timeline, App-owned 5.6 Sol/ultra composer controls, floating environment, and Settings locale surface`);
+    throw new Error(`${candidate.id} evidence must prove the Codex 26.707.31123 project rail, single timeline, App-owned 5.6 Sol/max composer controls, floating environment, and Settings locale surface`);
   }
   assertStringArrayIncludes(
     codexAlignment.required_surfaces ?? [],

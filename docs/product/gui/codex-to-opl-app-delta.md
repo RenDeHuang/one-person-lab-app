@@ -91,7 +91,7 @@ OPL App 隐藏或重构通用 agent app 控件：
 - 普通路径隐藏 backend 和 provider selection。
 - Model selector 是普通控件，但必须由 App product profile 控制：默认选择最新、
   最强模型并显示为 `5.6 Sol`，Home 与 Codex conversation composer 保持一致；
-  推理强度默认 `ultra`，在同一个模型配置菜单中可手动覆盖，不在普通输入栏重复
+  推理强度默认 `max`，在同一个模型配置菜单中可手动覆盖，不在普通输入栏重复
   显示。普通列表按 Codex App 顺序展示 `5.6 Sol`、`5.5`、`5.6 Terra`、
   `5.6 Luna`、`5.4`、`5.4 Mini`、`5.3 Codex Spark`，其它退休模型保持隐藏。
 - Permission-mode selection 不是普通 composer UI。

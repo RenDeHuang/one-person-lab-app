@@ -167,9 +167,9 @@ function validateTargetStateContracts(label: string, target: HermesTargetStateCo
     || modelAccess.api_key_env !== 'OPENAI_API_KEY'
     || modelAccess.provider_base_url !== 'https://gflabtoken.cn/v1'
     || modelAccess.default_model !== 'gpt-5.6-sol'
-    || modelAccess.reasoning_effort !== 'ultra'
+    || modelAccess.reasoning_effort !== 'max'
   ) {
-    throw new Error(`Hermes ${label}.model_access_policy must be gflabtoken-only gpt-5.6-sol ultra access`);
+    throw new Error(`Hermes ${label}.model_access_policy must be gflabtoken-only gpt-5.6-sol max access`);
   }
   assertIncludes(modelAccess.ordinary_ui_surfaces, [
     'model access wizard',

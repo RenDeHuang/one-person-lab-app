@@ -113,7 +113,7 @@ OPL thin shell：
   Hermes Agent installer。
 - 普通 executor 固定为 Codex CLI / Codex app-server；用户不选择 backend。
 - 模型选择显示为 App-owned 策略：`Auto` 表示跟随 OPL/Codex 推荐的最新最强模型，
-  当前有效模型是 `5.6 Sol` + `ultra`。`auto` 不是持久模型 id，也不进入 provider
+  当前有效模型是 `5.6 Sol` + `max`。`auto` 不是持久模型 id，也不进入 provider
   model list。
 - 模型访问只配置 gflabtoken API key。底层 env 名可继续是 `OPENAI_API_KEY`，这是
   Codex/OpenAI-compatible 配置兼容名，不代表普通 UI 开放 OpenAI-compatible

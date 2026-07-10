@@ -63,7 +63,7 @@ function validateGuidHomeViewModelFields(homeViewModel) {
     codex_model_policy: 'codex_cli_latest_strongest_model_selector_visible',
     codex_model_auto_option_visible: true,
     codex_default_model: 'gpt-5.6-sol',
-    codex_default_reasoning_effort: 'ultra',
+    codex_default_reasoning_effort: 'max',
     codex_default_display_label: '5.6 Sol',
     codex_default_model_display_value: '5.6 Sol',
     conversation_model_status_display_policy:
