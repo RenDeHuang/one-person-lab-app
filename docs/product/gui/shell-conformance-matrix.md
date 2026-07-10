@@ -51,17 +51,22 @@ Active AionUI 默认状态通过 README 治理段声明的动态 state source �
 
 ## Snapshot evidence
 
-- AionUI source snapshot：`opl-aion-shell@fa95c1933c5662c4b1adee34e2faed77475e94ad`；
-  已完成 fresh source audit。此前启动断点与截图均未绑定该精确 source snapshot，
-  因此视觉路径保守记为 `pixel_unverified`，不沿用旧截图充当当前证据。
+- AionUI source snapshot：`opl-aion-shell@5fc28058b56d46861b47ff2968e94bfcadb6d6e6`；
+  已完成 Home、rail、conversation/context、Settings、startup、projectless 和模型策略的
+  fresh source/test audit。最终 package 与 route-bound screenshot 尚未在该精确 snapshot
+  上生成，因此当前视觉路径仍保守记为 `pixel_unverified`。
 - Native source snapshot：`opl-native-workbench@43569d8beb5119d674c6fecae367b2915eacbfb0`；
   `npm test` 与 native live smoke 通过，像素证据为 candidate repo
   `out/native-live-smoke.png`。该证据不改变 `active_shell_adopted=false`、
   `release_ready=false`。
-- Source anchors：AionUI 的 rail/Home/inspector 主要读取
+- Source anchors：AionUI 的 rail/Home/conversation/context 主要读取
   `packages/desktop/src/renderer/components/layout/Layout.tsx`、
-  `pages/guid/GuidPage.tsx`、`pages/guid/components/AssistantSelectionArea.tsx`、
-  `pages/guid/index.module.css`；Native 的数据和页面主要读取
+  `components/layout/Sider/`、`pages/guid/GuidPage.tsx`、
+  `pages/guid/components/HomeStarters.tsx`、
+  `pages/conversation/platforms/acp/AcpSendBox.tsx`、
+  `pages/conversation/components/ChatLayout/`、
+  `pages/conversation/components/ChatSlider.tsx` 和
+  `pages/conversation/runtime/CurrentTaskAwareness.tsx`；Native 的数据和页面主要读取
   `src/workbench/workbenchModel.ts`、`src/workbench/App.tsx`。
 
 ## 验证入口
@@ -82,37 +87,37 @@ Active AionUI 默认状态通过 README 治理段声明的动态 state source �
 | 功能或交互要求 | AionUI contract | AionUI source | AionUI pixel | Native contract | Native source | Native pixel | 验证入口与当前差距 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | App repo 拥有 GUI product truth | `aligned_contract` | `source_implemented` | `not_applicable` | `candidate_target` | `source_implemented` | `not_applicable` | `A1/A2`, `N1/N2`；两边 adapter 均禁止 authority transfer。 |
-| ChatGPT Codex macOS 26.707.31428 是当前交互基线 | `current_contract_deviation` | `source_partial` | `pixel_unverified` | `current_contract_deviation` | `source_partial` | `pixel_verified` | App contract 已更新；AionUI 未做 31428 source/pixel 验收，Native contract/pixel 仍绑定 superseded `26.707.31123`，现有像素不能证明新基线 parity。 |
-| Home 是动态问题标题、最多四个 starter，不是 dashboard/landing | `current_contract_deviation` | `source_partial` | `pixel_unverified` | `current_contract_deviation` | `source_partial` | `pixel_verified` | AionUI 仍由静态 hero + assistant card launcher 开场；Native 像素只证明旧 candidate 画面非空。 |
-| 宽桌面 rail 默认展开且 `280-340px` 可调 | `current_contract_deviation` | `source_partial` | `pixel_unverified` | `candidate_target` | `source_partial` | `pixel_verified` | AionUI profile 当前仍声明 collapsed，source 默认展开但宽度/resize 未按新目标验收；Native rail 可见但 project 切换不完整。 |
-| 窄窗口 rail 可收起并以 drawer/overlay 打开 | `aligned_contract` | `source_not_assessed` | `pixel_unverified` | `candidate_target` | `source_partial` | `pixel_unverified` | 需要窄 viewport 的 open/close/focus 像素与行为证据；不能把 hidden DOM 当 drawer。 |
-| Rail 顶部 New task/Archived/Capabilities，底部 account/help/Settings | `current_contract_deviation` | `source_partial` | `pixel_unverified` | `current_contract_deviation` | `source_missing` | `pixel_unverified` | AionUI/Native 均未完整证明该全局骨架；Sites/Chat 禁止项也缺 route-bound pixels。 |
-| Project task 与 projectless conversation | `current_contract_deviation` | `source_not_assessed` | `pixel_unverified` | `current_contract_deviation` | `source_partial` | `pixel_unverified` | 无 workspace 文字聊天、文件/project 限制与解释尚无 fresh source/user-path evidence。 |
+| ChatGPT Codex macOS 26.707.31428 是当前交互基线 | `aligned_contract` | `source_partial` | `pixel_unverified` | `current_contract_deviation` | `source_partial` | `pixel_verified` | AionUI contract 和主要交互已转向 31428；像素 parity 仍待最终 snapshot。Native 仍绑定 superseded `26.707.31123`。 |
+| Home 是动态问题标题、最多四个 starter，不是 dashboard/landing | `aligned_contract` | `source_implemented` | `pixel_unverified` | `current_contract_deviation` | `source_partial` | `pixel_verified` | AionUI `GuidPage + HomeStarters` 已实现动态标题、四个以内 starter 和 composer-first Home。 |
+| 宽桌面 rail 默认展开且 `280-340px` 可调 | `aligned_contract` | `source_implemented` | `pixel_unverified` | `candidate_target` | `source_partial` | `pixel_verified` | AionUI `Layout` 固定 `280/300/340` min/default/max，并提供 resize handle；最终像素待绑定。 |
+| 窄窗口 rail 可收起并以 drawer/overlay 打开 | `aligned_contract` | `source_implemented` | `pixel_unverified` | `candidate_target` | `source_partial` | `pixel_unverified` | AionUI mobile rail 使用实际 overlay/drawer，并保留 selection；窄 viewport 像素待绑定。 |
+| Rail 顶部 New task/Archived/Capabilities，底部 account/help/Settings | `aligned_contract` | `source_implemented` | `pixel_unverified` | `current_contract_deviation` | `source_missing` | `pixel_unverified` | AionUI `SiderToolbar/SiderPrimaryNav/SiderFooter` 已闭合全局骨架和路由。 |
+| Project task 与 projectless conversation | `aligned_contract` | `source_implemented` | `pixel_unverified` | `current_contract_deviation` | `source_partial` | `pixel_unverified` | AionUI 支持无 workspace 文字聊天，并对 attach/paste/drop/`/open` 给出 project-required 限制。 |
 | 项目选择器切换真实 active project | `aligned_contract` | `source_implemented` | `pixel_unverified` | `candidate_target` | `source_missing` | `pixel_unverified` | AionUI 有 workspace/project 路径；Native 当前没有真实项目切换闭环。 |
 | 项目 Context inputs 可选、可增删 | `aligned_contract` | `source_partial` | `pixel_unverified` | `candidate_target` | `source_partial` | `pixel_verified` | Native `App.tsx` 仍固定生成四个虚构 project inputs；AionUI 已有上下文入口但未按理想 rail 组织完成。 |
 | 项目附件可添加、查看、移除 | `aligned_contract` | `source_implemented` | `pixel_unverified` | `candidate_target` | `source_missing` | `pixel_unverified` | Native 缺真实 attachment actions；AionUI 附件能力已存在，但缺绑定当前 source 的像素证据。 |
 | 一个项目对应 N 个最近对话 | `aligned_contract` | `source_implemented` | `pixel_unverified` | `candidate_target` | `source_partial` | `pixel_verified` | Native 有 history/timeline 形态，但 project-scoped persistence 与切换还不完整。 |
-| 对话 search/pin/rename/archive/reset 与独立 Archived | `current_contract_deviation` | `source_partial` | `pixel_unverified` | `current_contract_deviation` | `source_missing` | `pixel_unverified` | AionUI 已有部分 search/rename/archive，但 pin/reset/独立 Archived 未完成新目标闭环；Native 缺日用管理。 |
+| 对话 search/pin/rename/archive/reset 与独立 Archived | `aligned_contract` | `source_implemented` | `pixel_unverified` | `current_contract_deviation` | `source_missing` | `pixel_unverified` | AionUI 已实现独立 Archived、pin/rename/archive/reset、分页 search 和 workspace expansion 隔离。 |
 | 主区保持单一 conversation timeline | `aligned_contract` | `source_implemented` | `pixel_unverified` | `candidate_target` | `source_implemented` | `pixel_verified` | 两边已有 timeline source；AionUI Home 默认入口仍偏离 chat-first。 |
-| Composer 是 context strip + textarea + bottom action row | `current_contract_deviation` | `source_partial` | `pixel_unverified` | `current_contract_deviation` | `source_partial` | `pixel_verified` | 两边有可输入 composer，但 project/local/branch、active chip、voice、safe inset 和稳定 action row 未整体证明。 |
+| Composer 是 context strip + textarea + bottom action row | `aligned_contract` | `source_partial` | `pixel_unverified` | `current_contract_deviation` | `source_partial` | `pixel_verified` | AionUI 已有稳定 action row、voice、attach/context、model/access/send；完整 project/local/branch strip 仍需收敛。 |
 | 模型与推理策略由 App profile 驱动 | `aligned_contract` | `source_implemented` | `pixel_unverified` | `candidate_target` | `source_partial` | `pixel_verified` | Native 已显示模型控制并消费默认值，完整动态 catalog/readback 仍需验证；文档不得复制 allowlist。 |
-| Permission/access mode 在 composer 可见且不用 backend/provider 术语 | `current_contract_deviation` | `source_partial` | `pixel_unverified` | `current_contract_deviation` | `source_missing` | `pixel_unverified` | AionUI generated profile 的 Home/conversation visibility 仍为 false；Native candidate 也声明 false。 |
-| Purpose 从 Home/Capabilities 选择，composer 只显示 active capability chip | `current_contract_deviation` | `source_partial` | `pixel_unverified` | `current_contract_deviation` | `source_partial` | `pixel_verified` | AionUI 仍有 assistant selection/purpose switcher；Native purpose 映射不全且像素绑定旧目标。 |
-| 可 pin current-task summary bar | `current_contract_deviation` | `source_partial` | `pixel_unverified` | `current_contract_deviation` | `source_partial` | `pixel_unverified` | 两边尚未证明 status/elapsed/progress/next action/stop 共用一条 projection。 |
-| Environment popover 与 side panel 分离 | `current_contract_deviation` | `source_partial` | `pixel_unverified` | `current_contract_deviation` | `source_partial` | `pixel_unverified` | 当前 AionUI inspector 信息架构未按 workspace/local/git/subtasks/sources popover 分离。 |
-| Side panel 默认关闭、可调，核心 Review/Terminal/Browser/Files | `current_contract_deviation` | `source_partial` | `pixel_unverified` | `current_contract_deviation` | `source_partial` | `pixel_verified` | AionUI 约 188px 且沿用多 tabs；Native 折叠形态仍是旧 refs-only 结构，现有像素不证明四核心工具目标。 |
-| Artifacts/Runtime/Actions/Memory 使用 secondary sections | `current_contract_deviation` | `source_partial` | `pixel_unverified` | `current_contract_deviation` | `source_partial` | `pixel_verified` | 两边均未证明不再使用九个同权 tabs。 |
-| Bottom panel/File tree/Terminal/Browser 默认关闭 | `current_contract_deviation` | `source_not_assessed` | `pixel_unverified` | `current_contract_deviation` | `source_not_assessed` | `pixel_unverified` | 缺启动默认值、显式打开/关闭、resize/focus 的 source 与 pixel evidence。 |
+| Permission/access mode 在 composer 可见且不用 backend/provider 术语 | `aligned_contract` | `source_implemented` | `pixel_unverified` | `current_contract_deviation` | `source_missing` | `pixel_unverified` | AionUI Home 与 conversation 共用 App profile visibility，并呈现用户语言 access mode。 |
+| Purpose 从 Home/Capabilities 选择，composer 只显示 active capability chip | `aligned_contract` | `source_implemented` | `pixel_unverified` | `current_contract_deviation` | `source_partial` | `pixel_verified` | AionUI 使用 `HomeStarters + CapabilitiesPage`，普通 composer 不再持久显示 purpose selector。 |
+| 可 pin current-task summary bar | `aligned_contract` | `source_implemented` | `pixel_unverified` | `current_contract_deviation` | `source_partial` | `pixel_unverified` | `CurrentTaskAwareness` 提供 pin、status、elapsed、progress、next action 和 stop。 |
+| Environment popover 与 side panel 分离 | `aligned_contract` | `source_implemented` | `pixel_unverified` | `current_contract_deviation` | `source_partial` | `pixel_unverified` | `ConversationEnvironmentPopover` 与工具 side panel 分离。 |
+| Side panel 默认关闭、可调，核心 Review/Terminal/Browser/Files | `aligned_contract` | `source_implemented` | `pixel_unverified` | `current_contract_deviation` | `source_partial` | `pixel_verified` | AionUI side panel 默认关闭，wide split、compact overlay，并保留四个核心工具。 |
+| Artifacts/Runtime/Actions/Memory 使用 secondary sections | `aligned_contract` | `source_implemented` | `pixel_unverified` | `current_contract_deviation` | `source_partial` | `pixel_verified` | AionUI `ChatSlider` 将四项放入默认折叠的 secondary disclosure。 |
+| Bottom panel/File tree/Terminal/Browser 默认关闭 | `aligned_contract` | `source_partial` | `pixel_unverified` | `current_contract_deviation` | `source_not_assessed` | `pixel_unverified` | 主要工具按需打开；bottom panel/file tree 的完整默认值与 keyboard 路径仍需系统验收。 |
 | Codex CLI 固定 executor；普通路径隐藏 backend/provider | `aligned_contract` | `source_implemented` | `not_applicable` | `candidate_target` | `source_implemented` | `not_applicable` | 两边走既有 Codex/App bridge；permission/access 可见不等于暴露 backend/provider。 |
 | 普通 state 读取走 fast App state | `aligned_contract` | `source_implemented` | `not_applicable` | `candidate_target` | `source_implemented` | `not_applicable` | `A1/A2`, `N2/N3`；Full/detail 只允许进入明确 diagnostics。 |
 | Mutation 走 App action preview/confirm/execute/receipt | `aligned_contract` | `source_implemented` | `not_applicable` | `candidate_target` | `source_partial` | `not_applicable` | Native 已有 preview/action bridge，但完整高风险确认、receipt、rollback UX 尚未覆盖全部动作。 |
 | Runtime/Files/Memory/Artifacts 只展示 refs | `aligned_contract` | `source_implemented` | `not_applicable` | `candidate_target` | `source_partial` | `not_applicable` | Native `workbenchModel.ts` 仍保留 `GlycoFold` 等 demo fallback，必须去除后才能算完整真实投影。 |
 | Artifact Markdown/PDF/Mermaid/Code/KaTeX preview | `aligned_contract` | `source_partial` | `pixel_unverified` | `candidate_target` | `source_partial` | `pixel_unverified` | 两边都有部分 preview surface；缺覆盖各 renderer、错误态和 export 的绑定证据。 |
-| Settings 使用 full-window return/search/grouped rows 且 OPL IA 不变 | `aligned_contract` | `source_not_assessed` | `pixel_unverified` | `current_contract_deviation` | `source_partial` | `pixel_unverified` | Settings owner contract 已在 main；本 baseline lane 未重审 active shell source/pixels，Native 缺完整 Settings。 |
-| 白色 main、灰色 rail/subtle surface、OPL teal | `current_contract_deviation` | `source_partial` | `pixel_unverified` | `current_contract_deviation` | `source_partial` | `pixel_verified` | 现有 Native pixels 绑定旧 source/基线；AionUI 无当前 route-bound pixels。 |
-| Desktop Back/Forward、Previous/Next Task、New Window | `current_contract_deviation` | `source_not_assessed` | `pixel_unverified` | `current_contract_deviation` | `source_not_assessed` | `pixel_unverified` | 缺 menu/titlebar/keyboard source 与 desktop pixels。 |
+| Settings 使用 full-window return/search/grouped rows且 OPL IA 不变 | `aligned_contract` | `source_implemented` | `pixel_unverified` | `current_contract_deviation` | `source_partial` | `pixel_unverified` | AionUI 保留 8+2 IA、search/redirect/state/action semantics，并使用 bounded page-section cards + flat rows。 |
+| 白色 main、灰色 rail/subtle surface、OPL teal | `aligned_contract` | `source_partial` | `pixel_unverified` | `current_contract_deviation` | `source_partial` | `pixel_verified` | AionUI token/layout 已对齐目标方向；最终 route-bound pixels 尚未绑定。 |
+| Desktop Back/Forward、Previous/Next Task、New Window | `aligned_contract` | `source_partial` | `pixel_unverified` | `current_contract_deviation` | `source_not_assessed` | `pixel_unverified` | titlebar/menu 有现有桌面入口，但完整快捷键和 task navigation 验收未闭合。 |
 | OPL 品牌、双语与普通语言一致 | `aligned_contract` | `source_partial` | `pixel_unverified` | `candidate_target` | `source_partial` | `pixel_verified` | 仍需逐 route 检查 carrier branding、混合语言、technical ids 与字号层级。 |
-| Keyboard、focus、contrast、reduced motion | `aligned_contract` | `source_not_assessed` | `pixel_unverified` | `candidate_target` | `source_partial` | `pixel_unverified` | 视觉相似不能替代 accessibility；需 focused keyboard/focus/contrast/motion evidence。 |
+| Keyboard、focus、contrast、reduced motion | `aligned_contract` | `source_partial` | `pixel_unverified` | `candidate_target` | `source_partial` | `pixel_unverified` | rail/context focus、Escape、inert 和 reduced-motion 已有 focused coverage；contrast 与全键盘矩阵仍待验收。 |
 | First-run 使用 App-owned readiness/page-state | `aligned_contract` | `source_implemented` | `pixel_unverified` | `candidate_target` | `source_missing` | `pixel_unverified` | Native 尚无完整 FirstRun；contract 和 test matrix 不能替代 clean-machine path。 |
 | Desktop/WebUI 同 product semantics | `not_claimed` | `source_not_assessed` | `not_applicable` | `candidate_target` | `source_partial` | `pixel_unverified` | Native 共享 renderer/bridge 有基础，但缺当前 Desktop/WebUI route-by-route parity evidence。 |
 | Release role | `aligned_contract` | `source_implemented` | `not_applicable` | `candidate_target` | `source_implemented` | `not_applicable` | AionUI 仍是 active stable shell；Native 是 experimental candidate，package/smoke 不得推导 adoption 或 release-ready。 |
@@ -121,14 +126,10 @@ Active AionUI 默认状态通过 README 治理段声明的动态 state source �
 
 合同与人读 target 已更新，不代表 active implementation 完成。当前 exact gaps：
 
-- **Generated profile：** rail 仍为 `collapsed`；Home/conversation permission selector
-  仍为 `false`；composer、Home 与 inspector 仍是旧结构。Validator 必须继续报告
-  `current_contract_deviation`，不能为了通过设计 gate 修改 generated profile。
-- **AionUI source：** 未完成 projectless/no-workspace 限制、rail 全局骨架与 resize、
-  purpose 移出 composer、可见 permission/access、完整 composer 三层、pinnable summary
-  bar、environment popover/side-panel 分离、四核心工具、advanced surfaces 默认关闭、
-  全量 conversation management 与 desktop affordance 的新目标验收。
-- **AionUI pixels：** 当前 source snapshot 没有绑定 31428 target 的 route/viewport pixels；
+- **AionUI source：** 主要结构已落地；剩余 source gap 是完整 project/local/branch
+  composer context strip、rail 内可编辑 project inputs、bottom panel/file-tree 默认值、
+  artifact renderer/export breadth、desktop menu/task navigation、contrast 和全键盘矩阵。
+- **AionUI pixels：** 当前最终 source snapshot 尚未绑定 31428 target 的 route/viewport pixels；
   Home、conversation、rail drawer、side panel、Settings、light/dark 和双语均为
   `pixel_unverified`。
 - **Native contract/source：** candidate contract 与 visual parity 仍绑定 superseded
