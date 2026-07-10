@@ -17,9 +17,39 @@ package scripts, validation output, and candidate package artifacts.
 | Retained candidate | `hermes-codex` | `shells/hermes` or `../opl-hermes-shell` | `contracts/shell-adapters/hermes-codex.json` | Explicit candidate validation and package builds |
 | Archived proof | `agui-codex` | `shells/agui-codex` | `contracts/shell-adapters/agui-codex.json` | Explicit AGUI replay only |
 
+Stable role marker:
+`gui_shell_roles: active=aionui; foreground=opl-native-workbench; retained=hermes-codex; archived=agui-codex`.
+
 Hermes Desktop / `hermes-codex` is not cleanup waste. It is a retained
 candidate line: keep its adapter contract, wrapper commands, and checkout
 policy unless the App owner explicitly retires the candidate.
+
+## Design System Governance
+
+The governance entry is `docs/product/gui/README.md`. It routes
+the three-layer definition stack and the four foundation documents:
+
+- Product definition: `docs/product/gui/README.md`,
+  `docs/product/gui/ideal-interaction-spec.md`,
+  `docs/product/gui/codex-to-opl-app-delta.md`,
+  `docs/product/gui/feature-inventory.md`, and App contracts.
+- Visual system: `docs/product/gui/visual-system.md`.
+- Shell implementation and conformance:
+  `docs/product/gui/shell-implementation-guide.md` and
+  `docs/product/gui/shell-conformance-matrix.md`.
+
+The priority marker is
+`gui_definition_stack: product_definition > visual_system > shell_implementation_conformance`.
+Shell authority is `gui_shell_authority: implementation_only`: a shell
+implements the higher layers and records deviations, but cannot reverse-define
+the product from renderer code, screenshots, upstream defaults, or visual QA.
+
+The current visual and interaction reference is ChatGPT Codex macOS
+`26.707.31123` observed on `2026-07-10`. The ideal/native target keeps the
+desktop workspace/session rail visible and the inspector closed by default.
+The active AionUI product profile currently keeps both collapsed; the
+conformance matrix must show that deviation explicitly instead of forcing the
+active contract to match the ideal target.
 
 ## Commands
 

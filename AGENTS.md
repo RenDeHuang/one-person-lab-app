@@ -25,10 +25,12 @@ contracts, docs, and source truth.
 - The App repo must not merge or vendor the AionUI Git history into its default
   branch. Keep AionUI upstream intake and shell implementation commits in the
   shell repository.
-- Current GUI direction is fixed: AionUI is the mainline implementation carrier,
-  Hermes Desktop / `hermes-codex` is the only foreground alternative, and
-  AGUI / `agui-codex` is archived technical proof. Do not update or polish AGUI
-  unless the user explicitly requests AGUI replay work.
+- Current GUI direction is fixed: AionUI is the active implementation carrier,
+  `opl-native-workbench` is the foreground alternative, Hermes Desktop /
+  `hermes-codex` is a retained reference candidate, and AGUI / `agui-codex` is
+  archived technical proof. Do not update or polish AGUI unless the user
+  explicitly requests AGUI replay work.
+- GUI role marker: `gui_shell_roles: active=aionui; foreground=opl-native-workbench; retained=hermes-codex; archived=agui-codex`.
 
 Root `docs/`, `contracts/`, and `scripts/` describe the App product layer.
 AionUI-specific source, package metadata, tests, shell release hooks, and
@@ -73,6 +75,22 @@ source of App truth.
   must remain under `shells/<candidate>` until the App shell adapter, product
   profile sync, page-state matrix, first-run matrix, active-shell validation,
   GUI package compile, and external checkout history policy all pass.
+
+## GUI Design System Governance
+
+- Start GUI design and implementation work from
+  `docs/product/gui/README.md`.
+- The definition priority is
+  `gui_definition_stack: product_definition > visual_system > shell_implementation_conformance`.
+  Product docs and App contracts define behavior first, the visual system
+  translates that product truth, and shell guides/matrices implement and verify
+  it.
+- Shell authority is `gui_shell_authority: implementation_only`. A shell may
+  implement or report a tracked deviation, but it cannot redefine App product
+  truth from renderer code, screenshots, upstream defaults, or local behavior.
+- The current visual and interaction reference is ChatGPT Codex macOS
+  `26.707.31123` observed on `2026-07-10`. It is a reference only; OPL contracts
+  remain authoritative.
 
 ## Working Rules
 

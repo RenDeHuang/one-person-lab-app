@@ -34,6 +34,86 @@
   "product_profile_contract": "contracts/app-product-profile.json",
   "page_state_matrix": "contracts/app-page-state-matrix.json",
   "first_run_matrix": "contracts/app-first-run-test-matrix.json",
+  "design_system_governance": {
+    "schema": "opl_app_gui_design_system_governance.v1",
+    "entry_doc": "docs/product/gui/README.md",
+    "foundation_docs": {
+      "readme": "docs/product/gui/README.md",
+      "visual_system": "docs/product/gui/visual-system.md",
+      "shell_implementation_guide": "docs/product/gui/shell-implementation-guide.md",
+      "shell_conformance_matrix": "docs/product/gui/shell-conformance-matrix.md"
+    },
+    "definition_stack": [
+      {
+        "id": "product_definition",
+        "priority": 1,
+        "entry_docs": [
+          "docs/product/gui/README.md",
+          "docs/product/gui/ideal-interaction-spec.md",
+          "docs/product/gui/codex-to-opl-app-delta.md",
+          "docs/product/gui/feature-inventory.md"
+        ],
+        "contract_refs": [
+          "contracts/app-gui-product-contract.json",
+          "contracts/app-product-profile.json",
+          "contracts/app-page-state-matrix.json"
+        ]
+      },
+      {
+        "id": "visual_system",
+        "priority": 2,
+        "entry_docs": [
+          "docs/product/gui/visual-system.md"
+        ],
+        "contract_refs": [
+          "contracts/app-gui-product-contract.json",
+          "contracts/app-product-profile.json",
+          "contracts/app-page-state-matrix.json"
+        ]
+      },
+      {
+        "id": "shell_implementation_conformance",
+        "priority": 3,
+        "entry_docs": [
+          "docs/product/gui/shell-implementation-guide.md",
+          "docs/product/gui/shell-conformance-matrix.md"
+        ],
+        "contract_refs": [
+          "contracts/app-gui-product-contract.json",
+          "contracts/app-product-profile.json",
+          "contracts/app-page-state-matrix.json",
+          "contracts/app-shell-candidates.json",
+          "contracts/app-shell-adapter.json"
+        ]
+      }
+    ],
+    "priority_order": [
+      "product_definition",
+      "visual_system",
+      "shell_implementation_conformance"
+    ],
+    "shell_authority": "implementation_only_cannot_redefine_product",
+    "codex_reference": {
+      "comparison_baseline": "ChatGPT Codex macOS 26.707.31123 (2026-07-10)",
+      "source_usage": "visual_and_interaction_reference_only_no_code_or_brand_copy"
+    },
+    "state_boundary": {
+      "ideal_target": {
+        "source_candidate": "opl-native-workbench",
+        "workspace_session_rail_default_visible": true,
+        "inspector_default_visible": false
+      },
+      "active_aionui": {
+        "source": "contracts/app-product-profile.json#gui.home.home_layout",
+        "workspace_session_rail_default_state": "collapsed",
+        "right_context_inspector_default_state": "collapsed"
+      }
+    },
+    "evidence_boundary": {
+      "validation_scope": "design_system_governance_consistency_only",
+      "docs_or_visual_qa_can_claim_release_ready": false
+    }
+  },
   "candidate_policy": {
     "candidate_root_pattern": "shells/<candidate>",
     "candidate_state": "foreground_alternative_or_archived_technical_proof",

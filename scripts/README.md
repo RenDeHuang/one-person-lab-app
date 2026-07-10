@@ -4,9 +4,8 @@ The root `scripts/` directory exposes App-level wrappers. The active Electron
 shell implementation is checked out from `gaofeng21cn/opl-aion-shell` and
 exposes its shell-specific helpers under `shells/aionui/scripts/`.
 By default wrappers read `contracts/app-shell-adapter.json`. AionUI is the
-mainline GUI carrier, `opl-native-workbench` is the foreground alternative
-candidate when selected by `contracts/app-shell-candidates.json`, Hermes
-Desktop / `hermes-codex` is the prior foreground alternative reference, and
+active GUI carrier, `opl-native-workbench` is the foreground alternative,
+Hermes Desktop / `hermes-codex` is a retained reference candidate, and
 AGUI / `agui-codex` is archived technical proof rather than a routine
 implementation, validation, or polish lane. Technical
 verification can select a different linked shell repo with
@@ -18,7 +17,8 @@ AGUI selection should happen only when AGUI replay is explicitly requested.
 | `ensure-active-shell.ts` | Clones or validates the selected external shell checkout, defaulting to `shells/aionui`. |
 | `verify.sh` | App-root verification wrapper for smoke, active-shell, release-boundary, candidate-shell, structure, and full lanes without running release packaging by default. |
 | `validate-active-shell.ts` | Validates the selected shell adapter contract and runs selected validation commands. |
-| `validate-shell-candidates.ts` | Validates the foreground GUI alternative from `contracts/app-shell-candidates.json` by default. `opl-native-workbench` is the foreground alternative when the registry selects it; Hermes is prior foreground reference; archived AGUI proof is checked only with `--candidate agui-codex`. Selectable candidates are packageable only through an explicit adapter contract env override and must emit a real `.app` bundle manifest. |
+| `validate-shell-candidates.ts` | Validates the foreground GUI alternative from `contracts/app-shell-candidates.json` by default. `opl-native-workbench` is the foreground alternative, Hermes is a retained reference candidate, and archived AGUI proof is checked only with `--candidate agui-codex`. Selectable candidates are packageable only through an explicit adapter contract env override and must emit a real `.app` bundle manifest. |
+| `validate-gui-design-system.ts` | Validates the three-layer GUI definition stack, foundation-doc refs, shell roles, ideal/native versus active AionUI state markers, profile-owned model defaults, and the non-release evidence boundary. It fails closed when foundation docs are absent and never promotes docs or visual QA into release readiness. |
 | `prepare-release-assets.ts` | Calls the active shell release asset normalizer from the App root. |
 | `validate-release.ts` | Verifies release assets and enforces that standard updater metadata excludes Full first-install assets. |
 | `verify-remote-release-assets.ts` | Downloads GitHub Release assets and verifies remote size, sha256 digest, updater metadata, Full manifest, Full README language, Full checksums, and Full size budgets. |
@@ -48,7 +48,7 @@ AGUI selection should happen only when AGUI replay is explicitly requested.
 | `smoke-hermes-candidate-tart.ts` | Runs the packaged `One Person Lab Hermes Candidate.app` first-run fixture smoke inside a Tart clean VM, copying guest artifacts back to the App repo. This is candidate technical verification only and does not promote Hermes to the release shell. |
 
 Stable App-root npm entries are `verify`, `validate:release-boundary`,
-`validate:gui-shell`, `test:smoke`, `test:full`, `release:evidence:manifest`,
+`validate:gui-design-system`, `validate:gui-shell`, `test:smoke`, `test:full`, `release:evidence:manifest`,
 `release:evidence:validate`, and `hygiene:fallow`. `npm test` aliases the smoke
 entry so ordinary development does not run the full active-shell DOM portfolio;
 full shell Vitest evidence remains explicit through `npm run test:full`,
@@ -100,6 +100,7 @@ npm run cleanup:local-artifacts
 npm run cleanup:local-artifacts -- --execute
 npm run cleanup:local-artifacts -- --scope artifacts --keep-days 0 --execute
 npm run validate:release-boundary
+npm run validate:gui-design-system
 npm run release:evidence:manifest -- --bundle-dir release-evidence/<version>
 node --experimental-strip-types scripts/collect-release-evidence.ts --bundle-dir release-evidence/<version> --action-id <opl-runtime-safe-action-id> --execute-action --overwrite --evidence-source-dir artifacts/opl-first-run-vm --artifact runtime_screenshot=/path/to/runtime.png
 npm run release:evidence:validate -- --bundle-dir release-evidence/<version>
