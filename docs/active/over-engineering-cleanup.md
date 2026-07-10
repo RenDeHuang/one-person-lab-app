@@ -10,11 +10,15 @@ The approved cleanup is executing in three isolated, parallel lanes and is only 
 
 | Slice | Scope | State recorded by this branch | Main closeout evidence |
 | --- | --- | --- | --- |
-| platform and docs | guide asset/verification deduplication, whitepaper builder inlining, Node `fs.cpSync` / `fs.globSync` replacement | `implemented_in_candidate`; absorption pending | generator readback, behavior probes, combined tests, absorbed commit |
-| release-dead | dead release-note setup surface and unused release helpers | `pending_parallel_lane_readback` | parallel-lane commit, diff review, focused release validation, absorbed commit |
-| tests-release-dead | orphan release fixtures, dead aliases, and unused test exports | `pending_parallel_lane_readback` | parallel-lane commit, diff review, focused/full release tests, absorbed commit |
+| platform and docs | guide asset/verification deduplication, whitepaper builder inlining, Node `fs.cpSync` / `fs.globSync` replacement | combined in integration at `32d6fea`; semantic fixes at `76fcb14` and `ea4f555`; absorption pending | independent review passed; post-rebase generator, behavior, and combined verification still required before absorption |
+| release-dead | dead release-note setup surface and unused release helpers | combined in integration at `8613888`; absorption pending | lane diff review and focused release validation passed; post-rebase combined verification still required before absorption |
+| tests-release-dead | orphan release fixtures, dead aliases, and unused test exports | combined in integration at `71bf61e`; absorption pending | lane diff review and full release tests passed; post-rebase combined verification still required before absorption |
 
-The last two rows are deliberate closeout placeholders, not completion claims. The main absorption owner must replace them with the actual commit, verification, and absorption result or record a concrete blocker.
+The integration branch was rebased onto App `main` after the model-policy update. The final absorption owner must replace these candidate states with the verified `main` commit and remote readback.
+
+The `ea4f555` regression fix preserves the pre-cleanup rule that a nested directory symlink is counted and checked once without traversal. Its test-first reproductions failed at `17 != 10` bytes and at two quarantine checks for the same symlink before the fix; the focused tests and release-boundary suite passed after the fix.
+
+Three active-shell residuals intentionally remain outside this integration branch because the concurrent FirstRun lane owns the same hunk: `homeActivityCenterItemFields`, the unused `beginnerFirstRunTestIds` import, and the unused `validateProviderReadinessRepairProjectionContract` import. Delete them only after FirstRun is absorbed to App `main`, then rerun TypeScript diagnostics and active-shell validation on that final mainline.
 
 ## Landed Safe Slices
 
