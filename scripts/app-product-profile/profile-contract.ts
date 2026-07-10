@@ -20,8 +20,9 @@ const requiredDefaultPackagedSkillIds = [
   'med-autogrant',
   'redcube-ai',
   'opl-bookforge',
+];
+const requiredCompanionSkillSyncIds = [
   'superpowers',
-  'cron',
   'officecli',
   'officecli-docx',
   'officecli-pptx',
@@ -30,13 +31,9 @@ const requiredDefaultPackagedSkillIds = [
   'officecli-data-dashboard',
   'officecli-financial-model',
   'officecli-pitch-deck',
-  'pdf',
   'mineru-document-extractor',
   'ui-ux-pro-max',
 ];
-const requiredCompanionSkillSyncIds = requiredDefaultPackagedSkillIds.filter((skillId) => (
-  !['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge'].includes(skillId)
-));
 const developerProfileCapabilityAxes = [
   'source_channel',
   'workspace_trust',
@@ -351,9 +348,17 @@ function assertCompanionPayloadProfileShape(
   const visibleSkills = new Set(profile.codex.default_visible_skills);
   const defaultPackagedSkills = new Set(profile.companion_payloads.default_packaged_codex_skill_ids);
   const packagedExplicitSkills = new Set(profile.companion_payloads.packaged_not_default_visible_codex_skill_ids);
+  const officialRuntimeCapabilities = new Set(
+    profile.companion_payloads.official_codex_runtime_capabilities?.preferred_capability_ids ?? [],
+  );
+  const allAvailableSkills = new Set([
+    ...defaultPackagedSkills,
+    ...packagedExplicitSkills,
+    ...officialRuntimeCapabilities,
+  ]);
   for (const entry of skillProfiles) {
     const unpackagedProfileSkills = [...entry.required_skills, ...entry.optional_skills]
-      .filter((skill) => !defaultPackagedSkills.has(skill));
+      .filter((skill) => !allAvailableSkills.has(skill));
     if (unpackagedProfileSkills.length > 0) {
       throw new Error(
         `App product profile assistant ${entry.assistant_id} references skills outside the App packaged set: ${unpackagedProfileSkills.join(', ')}`,
@@ -383,13 +388,13 @@ function assertCompanionPayloadProfileShape(
       `App product profile packaged_not_default_visible skills must stay out of default_visible_skills: ${overlappingExplicitSkills.join(', ')}`,
     );
   }
-  if (!defaultPackagedSkills.has('superpowers')) {
-    throw new Error('App product profile must package superpowers when it is default visible');
+  if (!packagedExplicitSkills.has('superpowers')) {
+    throw new Error('App product profile must package superpowers without default App visibility');
   }
   assertIncludesAll(
-    profile.companion_payloads.default_packaged_codex_skill_ids,
-    requiredDefaultPackagedSkillIds,
-    'companion_payloads.default_packaged_codex_skill_ids',
+    profile.companion_payloads.packaged_not_default_visible_codex_skill_ids,
+    requiredCompanionSkillSyncIds,
+    'companion_payloads.packaged_not_default_visible_codex_skill_ids',
   );
   assertIncludesAll(
     profile.companion_payloads.companion_skill_sync_default_ids,

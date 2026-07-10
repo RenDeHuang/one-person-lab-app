@@ -923,7 +923,7 @@
             "enable",
             "repair"
           ],
-          "required_opl_package_install_command": "python3 scripts/install_local_plugin.py --no-profile",
+          "required_opl_package_install_command": "python3 scripts/install_local_plugin.py",
           "profile_mutation_policy": "semantic_merge_packet_only_no_silent_overwrite",
           "default_enabled": true,
           "status_action_id": "intelligence_enhancement_status",
@@ -938,39 +938,13 @@
       "med-autoscience",
       "med-autogrant",
       "redcube-ai",
-      "opl-bookforge",
-      "superpowers",
-      "cron",
-      "officecli",
-      "officecli-docx",
-      "officecli-pptx",
-      "officecli-xlsx",
-      "officecli-academic-paper",
-      "officecli-data-dashboard",
-      "officecli-financial-model",
-      "officecli-pitch-deck",
-      "pdf",
-      "mineru-document-extractor",
-      "ui-ux-pro-max"
+      "opl-bookforge"
     ],
     "skill_priority": [
       "med-autoscience",
       "med-autogrant",
       "redcube-ai",
-      "opl-bookforge",
-      "superpowers",
-      "cron",
-      "officecli",
-      "officecli-docx",
-      "officecli-pptx",
-      "officecli-xlsx",
-      "officecli-academic-paper",
-      "officecli-data-dashboard",
-      "officecli-financial-model",
-      "officecli-pitch-deck",
-      "pdf",
-      "mineru-document-extractor",
-      "ui-ux-pro-max"
+      "opl-bookforge"
     ],
     "session_context_lines": [
       "## OPL App 默认会话规则",
@@ -3029,13 +3003,53 @@
       "opl-meta-agent": "app_or_cli_managed",
       "opl-bookforge": "app_or_cli_managed"
     },
+    "upstream_packages": {
+      "officecli": {
+        "owner": "iOfficeAI/OfficeCLI",
+        "source_policy": "latest_stable_at_full_build",
+        "release_lock_policy": "resolve_latest_then_pin_exact_version_commit_and_digest",
+        "package_unit": "atomic_upstream_release",
+        "skill_ids": [
+          "officecli",
+          "officecli-docx",
+          "officecli-pptx",
+          "officecli-xlsx",
+          "officecli-academic-paper",
+          "officecli-data-dashboard",
+          "officecli-financial-model",
+          "officecli-pitch-deck"
+        ],
+        "default_app_visible": false,
+        "codex_exposure": "task_routed_native_skill_discovery",
+        "semantic_vendoring_allowed": false
+      }
+    },
+    "official_codex_runtime_capabilities": {
+      "owner": "openai_primary_runtime",
+      "preferred_capability_ids": [
+        "documents",
+        "presentations",
+        "spreadsheets",
+        "pdf"
+      ],
+      "distribution_policy": "preinstall_or_verify_official_plugin_without_opl_skill_mirror",
+      "fallback_policy": "officecli_for_offline_or_deterministic_office_workflows",
+      "default_app_visible": false
+    },
+    "native_automation": {
+      "owner": "app_automation_surface",
+      "cron_skill_packaged": false,
+      "exposure": "automation_page_and_task_routing"
+    },
     "default_packaged_codex_skill_ids": [
       "med-autoscience",
       "med-autogrant",
       "redcube-ai",
-      "opl-bookforge",
+      "opl-bookforge"
+    ],
+    "packaged_not_default_visible_codex_skill_ids": [
+      "opl-meta-agent",
       "superpowers",
-      "cron",
       "officecli",
       "officecli-docx",
       "officecli-pptx",
@@ -3044,16 +3058,11 @@
       "officecli-data-dashboard",
       "officecli-financial-model",
       "officecli-pitch-deck",
-      "pdf",
       "mineru-document-extractor",
       "ui-ux-pro-max"
     ],
-    "packaged_not_default_visible_codex_skill_ids": [
-      "opl-meta-agent"
-    ],
     "companion_skill_sync_default_ids": [
       "superpowers",
-      "cron",
       "officecli",
       "officecli-docx",
       "officecli-pptx",
@@ -3062,7 +3071,6 @@
       "officecli-data-dashboard",
       "officecli-financial-model",
       "officecli-pitch-deck",
-      "pdf",
       "mineru-document-extractor",
       "ui-ux-pro-max"
     ],

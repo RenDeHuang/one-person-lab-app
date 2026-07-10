@@ -171,7 +171,7 @@ export function assertOplFlowIntelligenceEnhancementMode(
     mode.required_opl_package_id !== 'opl-flow' ||
     mode.required_opl_package_kind !== 'workflow_plugin_package' ||
     JSON.stringify(mode.required_opl_package_preflight_actions) !== JSON.stringify(oplFlowPayloadPreflightActions) ||
-    mode.required_opl_package_install_command !== 'python3 scripts/install_local_plugin.py --no-profile' ||
+    mode.required_opl_package_install_command !== 'python3 scripts/install_local_plugin.py' ||
     mode.profile_mutation_policy !== 'semantic_merge_packet_only_no_silent_overwrite' ||
     mode.default_enabled !== true ||
     mode.status_action_id !== 'intelligence_enhancement_status' ||

@@ -11,7 +11,7 @@ export function formatCodexProfilePhrase(profile = readAppProductProfile()): str
 }
 
 export function formatRecommendedCompanionSkills(profile = readAppProductProfile()): string {
-  return profile.companion_payloads.default_packaged_codex_skill_ids.join(', ');
+  return profile.companion_payloads.companion_skill_sync_default_ids.join(', ');
 }
 
 export function syncAppProductProfileToShell(

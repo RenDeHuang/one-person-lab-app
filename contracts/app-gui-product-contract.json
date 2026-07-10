@@ -1217,7 +1217,7 @@
         "required_opl_package_id": "opl-flow",
         "required_opl_package_kind": "workflow_plugin_package",
         "required_opl_package_preflight_actions": ["status", "enable", "repair"],
-        "required_opl_package_install_command": "python3 scripts/install_local_plugin.py --no-profile",
+        "required_opl_package_install_command": "python3 scripts/install_local_plugin.py",
         "profile_mutation_policy": "semantic_merge_packet_only_no_silent_overwrite",
         "default_enabled": true,
         "status_action_id": "intelligence_enhancement_status",

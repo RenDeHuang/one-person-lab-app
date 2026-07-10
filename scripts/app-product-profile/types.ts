@@ -437,6 +437,28 @@ export type AppProductProfile = {
     };
     tools: string[];
     domain_modules: string[];
+    upstream_packages: Record<string, {
+      owner: string;
+      source_policy: string;
+      release_lock_policy: string;
+      package_unit: string;
+      skill_ids: string[];
+      default_app_visible: boolean;
+      codex_exposure: string;
+      semantic_vendoring_allowed: boolean;
+    }>;
+    official_codex_runtime_capabilities: {
+      owner: string;
+      preferred_capability_ids: string[];
+      distribution_policy: string;
+      fallback_policy: string;
+      default_app_visible: boolean;
+    };
+    native_automation: {
+      owner: string;
+      cron_skill_packaged: boolean;
+      exposure: string;
+    };
     default_packaged_codex_skill_ids: string[];
     packaged_not_default_visible_codex_skill_ids: string[];
     companion_skill_sync_default_ids: string[];

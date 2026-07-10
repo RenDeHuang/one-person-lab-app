@@ -247,7 +247,11 @@ function validateAssistantSkillProfiles(profile) {
   if (JSON.stringify(productSkillProfiles.map((entry) => entry.assistant_id)) !== JSON.stringify(['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge'])) {
     throw new Error('Product profile assistant skill profiles must target MAS, MAG, RCA, and BookForge');
   }
-  const defaultPackagedSkillIds = new Set(profile.companion_payloads?.default_packaged_codex_skill_ids ?? []);
+  const availableSkillIds = new Set([
+    ...(profile.companion_payloads?.default_packaged_codex_skill_ids ?? []),
+    ...(profile.companion_payloads?.packaged_not_default_visible_codex_skill_ids ?? []),
+    ...(profile.companion_payloads?.official_codex_runtime_capabilities?.preferred_capability_ids ?? []),
+  ]);
   const requiredSkillByAssistantId = {
     'med-autoscience': 'med-autoscience',
     'med-autogrant': 'med-autogrant',
@@ -269,7 +273,7 @@ function validateAssistantSkillProfiles(profile) {
       throw new Error(`Product profile assistant ${entry.assistant_id} must not carry UI hiding policy`);
     }
     const unpackagedProfileSkills = [...(entry.required_skills ?? []), ...(entry.optional_skills ?? [])]
-      .filter((skill) => !defaultPackagedSkillIds.has(skill));
+      .filter((skill) => !availableSkillIds.has(skill));
     if (unpackagedProfileSkills.length > 0) {
       throw new Error(
         `Product profile assistant ${entry.assistant_id} references skills outside the App packaged set: ${unpackagedProfileSkills.join(', ')}`,
@@ -279,26 +283,20 @@ function validateAssistantSkillProfiles(profile) {
 }
 
 function validateProductProfileCodexSkills(profile) {
-  if (!Array.isArray(profile.codex?.default_visible_skills) || !profile.codex.default_visible_skills.includes('mineru-document-extractor')) {
-    throw new Error('Product profile must include mineru-document-extractor as a default visible skill');
-  }
-  if (!Array.isArray(profile.codex?.default_visible_skills) || !profile.codex.default_visible_skills.includes('ui-ux-pro-max')) {
-    throw new Error('Product profile must include ui-ux-pro-max as a default visible skill');
-  }
-  if (!Array.isArray(profile.codex?.default_visible_skills) || !profile.codex.default_visible_skills.includes('superpowers')) {
-    throw new Error('Product profile must include superpowers as a default visible packaged skill');
+  if (!Array.isArray(profile.codex?.default_visible_skills)) {
+    throw new Error('Product profile must declare default visible skills');
   }
   for (const skillId of defaultCompanionSkillSyncIds) {
-    if (!profile.codex.default_visible_skills.includes(skillId)) {
-      throw new Error(`Product profile must include ${skillId} as a default visible skill`);
+    if (profile.codex.default_visible_skills.includes(skillId)) {
+      throw new Error(`Product profile companion skill ${skillId} must be task-routed rather than default visible`);
     }
   }
-  if (!Array.isArray(profile.companion_payloads?.default_packaged_codex_skill_ids) || !profile.companion_payloads.default_packaged_codex_skill_ids.includes('superpowers')) {
-    throw new Error('Product profile must include superpowers in default packaged Codex skills');
+  if (!Array.isArray(profile.companion_payloads?.packaged_not_default_visible_codex_skill_ids)) {
+    throw new Error('Product profile must declare packaged non-default-visible Codex skills');
   }
   for (const skillId of defaultCompanionSkillSyncIds) {
-    if (!profile.companion_payloads.default_packaged_codex_skill_ids.includes(skillId)) {
-      throw new Error(`Product profile must include ${skillId} in default packaged Codex skills`);
+    if (!profile.companion_payloads.packaged_not_default_visible_codex_skill_ids.includes(skillId)) {
+      throw new Error(`Product profile must package ${skillId} without default App visibility`);
     }
   }
   if (
