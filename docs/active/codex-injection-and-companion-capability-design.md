@@ -27,7 +27,7 @@ Being packaged does not make a capability default-visible.
 
 ## OPL Flow
 
-`opl-flow` is a required Standard and Full workflow plugin. Intelligence enhancement is an optional feature of that installed plugin, not the reason the plugin exists.
+`opl-flow` is a required Standard and Full workflow plugin. Intelligence enhancement is an optional, default-off feature of that installed plugin; users must explicitly enable it when needed.
 
 The plugin keeps three separate skills:
 

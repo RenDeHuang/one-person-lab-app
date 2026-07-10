@@ -172,7 +172,7 @@ export function assertOplFlowIntelligenceEnhancementMode(
     JSON.stringify(mode.required_opl_package_preflight_actions) !== JSON.stringify(oplFlowPayloadPreflightActions) ||
     mode.required_opl_package_install_command !== 'python3 scripts/install_local_plugin.py' ||
     mode.profile_mutation_policy !== 'semantic_merge_packet_only_no_silent_overwrite' ||
-    mode.default_enabled !== true ||
+    mode.default_enabled !== false ||
     mode.status_action_id !== 'intelligence_enhancement_status' ||
     mode.enable_action_id !== 'intelligence_enhancement_enable' ||
     mode.disable_action_id !== 'intelligence_enhancement_disable' ||
@@ -321,9 +321,9 @@ function assertCodexModelDisplayShape(
       { actual: displayOptions?.model_menu_policy, expected: 'current_model_secondary_submenu' },
       {
         actual: displayOptions?.intelligence_enhancement_menu_policy,
-        expected: 'default_on_secondary_submenu_with_enable_disable_actions',
+        expected: 'default_off_secondary_submenu_with_enable_disable_actions',
       },
-      { actual: displayOptions?.intelligence_enhancement_default_enabled, expected: true },
+      { actual: displayOptions?.intelligence_enhancement_default_enabled, expected: false },
       { actual: auto?.label_zh, expected: '自动（推荐）' },
       { actual: auto?.label_en, expected: 'Auto (recommended)' },
       { actual: auto?.resolved_model, expected: profile.codex?.default_model },
