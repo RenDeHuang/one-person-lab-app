@@ -2069,7 +2069,7 @@ export function validateBeginnerFirstRunPresentation(presentation, label, expect
   if (presentation.presentation_mode !== "simplified_first_run") {
     throw new Error(`${label} must use simplified_first_run presentation`);
   }
-  if (presentation.primary_user_goal !== "reach_guid_with_codex_ready") {
+  if (presentation.primary_user_goal !== "complete_first_run_then_explicitly_enter_guid") {
     throw new Error(`${label} must focus on reaching /guid with Codex ready`);
   }
   assertIncludesAll(presentation.primary_steps, expectedCoreItems, `${label} primary steps`);

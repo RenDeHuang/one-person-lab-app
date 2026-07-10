@@ -43,12 +43,12 @@ lang: zh-CN
 
 ## 3. 配置访问权限
 
-首次启动会先检查模型访问；已有可用 Codex/OpenAI 登录或其它 provider 时，可先跳过 OPL Gateway 配置。完全没有可用模型访问时，可向本团队获取 OPL Gateway 访问密钥，并在首启页面完成配置。
+首次启动会先检查模型访问；已有可用 Codex/OpenAI 登录或其它 provider 时，选择“已有 Codex 配置”并重新检测。完全没有可用模型访问时，可向本团队获取 OPL Gateway 访问密钥，并在首启页面完成配置。
 
 ![](screenshots/03-codex-config-needed.png){width=76%}
 
 - 拿到访问密钥后，在页面输入 OPL Gateway 访问密钥。
-- 点击配置 OPL Gateway 后继续首启检查；跳过的用户之后仍可在 Settings 中切换到 OPL Gateway。
+- 点击配置 OPL Gateway 后继续首启检查；已有配置的用户点击“重新检测已有配置”，之后仍可在 Settings 中切换到 OPL Gateway。
 - 不要截图、转发或保存密钥到研究目录。
 
 ## 4. 等待首次环境检查
@@ -57,7 +57,7 @@ OPL 会先检查开始使用所需的关键项：工作目录、本机助手和�
 
 ![](screenshots/04-first-run-checking.png){width=76%}
 
-- 首屏只显示“正在准备 / 可以开始 / 需要处理”的简短状态。
+- 检查期间首屏显示“正在检查这台设备”和当前检查项；结束后才显示“可以开始”或“需要处理”。
 - 技术 phase、刷新和原始错误默认收在技术细节里。
 - 遇到阻塞时先阅读界面提示。
 

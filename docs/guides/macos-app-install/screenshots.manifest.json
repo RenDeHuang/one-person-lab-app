@@ -3,8 +3,8 @@
   "guide_id": "macos-app-install",
   "status": "active",
   "source_summary": {
-    "kind": "macos_tart_vm_guide_artifact",
-    "source": "macos_tart_vm_1920x1080_zh",
+    "kind": "mixed_macos_tart_vm_and_current_shell_playwright_guide_assets",
+    "source": "macos_tart_vm_1920x1080_zh_and_current_shell_playwright_1536x912_zh",
     "release_url": "https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/v26.6.27",
     "release_asset": "One-Person-Lab-26.6.27-mac-arm64.dmg",
     "release_asset_sha256": "9f07deaa3d92be20b87c069452b23414144111c861c8fc670ca041a9be9f7a5c",
@@ -19,10 +19,14 @@
     "guest_user": "admin",
     "status": "passed",
     "guide_status": "passed",
-    "captured_at": "2026-06-28T03:52:40Z"
+    "captured_at": "2026-06-28T03:52:40Z",
+    "current_shell_commit": "301cfc5a1dda9a59460324847030468a24bafb48",
+    "current_shell_capture_run": "2026-07-10T06-44-12-348Z",
+    "current_shell_capture_locale": "zh-CN",
+    "current_shell_capture_viewport": "1536x912px"
   },
   "release_run": {
-    "id": "mixed-vm-and-rendered-guide-assets-2026-07-03",
+    "id": "mixed-vm-and-current-shell-playwright-assets-2026-07-10T06-44-12-348Z",
     "url": "/Users/gaofeng/workspace/one-person-lab-app/docs/guides/macos-app-install/screenshots",
     "conclusion": "success"
   },
@@ -73,44 +77,49 @@
       "file": "03-codex-config-needed.png",
       "role": "configure_access",
       "title": "First-run model access setup screen",
-      "description": "First-run model access screen showing optional OPL Gateway configuration when existing Codex/OpenAI/provider access is already available.",
-      "source_kind": "rendered_current_first_run_copy",
-      "source": "Rendered guide screenshot from current first-run copy after OPL Gateway optional-first-launch policy update.",
+      "description": "First-run model access screen showing OPL Gateway and existing Codex configuration paths.",
+      "source_kind": "current_shell_electron_playwright_capture",
+      "source": "opl-aion-shell@301cfc5a1dda9a59460324847030468a24bafb48 FirstRun renderer, Electron Playwright guide capture 2026-07-10T06-44-12-348Z.",
       "locale": "zh-CN",
       "width": 1536,
       "height": 912,
-      "sha256": "ce860b51f8e99ba2af64194eda67cd13c125b001f7617ab3f1fdec8fcd2e7cf8",
+      "sha256": "785acf7dff231db9bf110781f0ba0bcb186fbd6b075c3806ffcc967a2c8de8ab",
       "source_width": 1536,
       "source_height": 912,
-      "source_sha256": "ce860b51f8e99ba2af64194eda67cd13c125b001f7617ab3f1fdec8fcd2e7cf8",
+      "source_sha256": "785acf7dff231db9bf110781f0ba0bcb186fbd6b075c3806ffcc967a2c8de8ab",
       "expected_ui_text": [
+        "首次设置",
+        "连接模型服务",
         "OPL Gateway",
-        "我已配置，跳过"
+        "已有 Codex 配置"
       ],
-      "note": "Updated after first-launch policy changed: existing Codex/OpenAI/provider access can proceed without mandatory OPL Gateway setup.",
-      "vm_artifact_status": "replaced_by_rendered_current_copy",
-      "vm_artifact_source": "/Users/gaofeng/workspace/one-person-lab-app/docs/guides/macos-app-install/screenshots/03-codex-config-needed.png"
+      "note": "Captured from pushed Shell main on the standalone FirstRun route with both access paths visible before any access key is entered.",
+      "vm_artifact_status": "replaced_by_current_shell_playwright_capture",
+      "vm_artifact_source": "opl-aion-shell@301cfc5a1dda9a59460324847030468a24bafb48 Electron Playwright guide capture 2026-07-10T06-44-12-348Z"
     },
     {
       "file": "04-first-run-checking.png",
       "role": "first_run_check",
       "title": "First-run beginner readiness screen",
-      "description": "First-run environment check screen.",
-      "source_kind": "macos_tart_vm_app_cdp_capture",
-      "source": "artifacts/first-run-beginner.png from standard VM smoke",
+      "description": "First-run environment check pending screen.",
+      "source_kind": "current_shell_electron_playwright_capture",
+      "source": "opl-aion-shell@301cfc5a1dda9a59460324847030468a24bafb48 FirstRun renderer, Electron Playwright guide capture 2026-07-10T06-44-12-348Z.",
       "locale": "zh-CN",
       "width": 1536,
       "height": 912,
-      "sha256": "523ac9ed1d3f002ddbdadde8138437770a321fd327b785820cf6cba102e2b1db",
+      "sha256": "427020d0a0661b785e89ed501e81c79f1d2306f1588b27a1342cc53ece51c1c3",
       "source_width": 1536,
       "source_height": 912,
-      "source_sha256": "523ac9ed1d3f002ddbdadde8138437770a321fd327b785820cf6cba102e2b1db",
+      "source_sha256": "427020d0a0661b785e89ed501e81c79f1d2306f1588b27a1342cc53ece51c1c3",
       "expected_ui_text": [
-        "正在准备",
-        "可以开始"
+        "首次设置",
+        "正在检查这台设备",
+        "当前检查",
+        "正在检查"
       ],
-      "vm_artifact_status": "copied",
-      "vm_artifact_source": "/tmp/opl-first-run-smoke/artifacts/first-run-beginner.png"
+      "note": "Captured from pushed Shell main while the initialize event stream was pending, before the terminal payload was returned.",
+      "vm_artifact_status": "replaced_by_current_shell_playwright_capture",
+      "vm_artifact_source": "opl-aion-shell@301cfc5a1dda9a59460324847030468a24bafb48 Electron Playwright guide capture 2026-07-10T06-44-12-348Z"
     },
     {
       "file": "05-opl-ready-research-entry.png",

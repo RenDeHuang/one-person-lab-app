@@ -103,7 +103,9 @@ function assertFirstRunProfileShape(profile: AppProductProfile): void {
   if (
     beginnerPresentation.layout_mode !== 'focused_setup_workspace' ||
     beginnerPresentation.ordinary_navigation_policy !== 'hidden_until_user_enters_guid' ||
-    beginnerPresentation.completion_navigation_policy !== 'manual_ready_entry_only_no_automatic_route_from_first_run'
+    beginnerPresentation.completion_navigation_policy !== 'manual_ready_entry_only_no_automatic_route_from_first_run' ||
+    beginnerPresentation.core_readiness_status_policy !== 'required_core_items_never_treat_disabled_as_ready' ||
+    beginnerPresentation.minimum_window_primary_action_policy !== '400x600_keeps_current_primary_action_visible'
   ) {
     throw new Error('Invalid App product profile first_run.beginner_presentation focused setup policy');
   }

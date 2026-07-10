@@ -6,7 +6,7 @@
   "download_url": "https://github.com/gaofeng21cn/one-person-lab-app/releases/latest",
   "stable_install_command": "curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh | bash -s -- --stable-macos-install --yes",
   "screenshot_release_run": {
-    "id": "mixed-vm-and-rendered-guide-assets-2026-07-03",
+    "id": "mixed-vm-and-current-shell-playwright-assets-2026-07-10T06-44-12-348Z",
     "url": "/Users/gaofeng/workspace/one-person-lab-app/docs/guides/macos-app-install/screenshots",
     "conclusion": "success"
   },
@@ -54,28 +54,32 @@
     },
     {
       "role": "configure_access",
-      "description": "First-run model access screen showing optional OPL Gateway configuration when existing Codex/OpenAI/provider access is already available.",
+      "description": "First-run model access screen showing OPL Gateway and existing Codex configuration paths.",
       "file": "docs/guides/macos-app-install/screenshots/03-codex-config-needed.png",
       "width": 1536,
       "height": 912,
-      "sha256": "ce860b51f8e99ba2af64194eda67cd13c125b001f7617ab3f1fdec8fcd2e7cf8",
+      "sha256": "785acf7dff231db9bf110781f0ba0bcb186fbd6b075c3806ffcc967a2c8de8ab",
       "referenced": true,
       "expected_ui_text": [
+        "首次设置",
+        "连接模型服务",
         "OPL Gateway",
-        "我已配置，跳过"
+        "已有 Codex 配置"
       ]
     },
     {
       "role": "first_run_check",
-      "description": "First-run environment check screen.",
+      "description": "First-run environment check pending screen.",
       "file": "docs/guides/macos-app-install/screenshots/04-first-run-checking.png",
       "width": 1536,
       "height": 912,
-      "sha256": "523ac9ed1d3f002ddbdadde8138437770a321fd327b785820cf6cba102e2b1db",
+      "sha256": "427020d0a0661b785e89ed501e81c79f1d2306f1588b27a1342cc53ece51c1c3",
       "referenced": true,
       "expected_ui_text": [
-        "正在准备",
-        "可以开始"
+        "首次设置",
+        "正在检查这台设备",
+        "当前检查",
+        "正在检查"
       ]
     },
     {

@@ -21,7 +21,7 @@
   },
   "rendered_pages": 12,
   "rendered_dir": "tmp/quarto-guides/macos-app-install/rendered",
-  "html_bytes": 4598035,
+  "html_bytes": 4580129,
   "screenshot_assets": [
     {
       "role": "download_release",
@@ -59,38 +59,43 @@
     },
     {
       "role": "configure_access",
-      "description": "First-run model access screen showing optional OPL Gateway configuration when existing Codex/OpenAI/provider access is already available.",
+      "description": "First-run model access screen showing OPL Gateway and existing Codex configuration paths.",
       "file": "docs/guides/macos-app-install/screenshots/03-codex-config-needed.png",
       "public_file": "screenshots/03-codex-config-needed.png",
       "width": 1536,
       "height": 912,
-      "sha256": "ce860b51f8e99ba2af64194eda67cd13c125b001f7617ab3f1fdec8fcd2e7cf8",
+      "sha256": "785acf7dff231db9bf110781f0ba0bcb186fbd6b075c3806ffcc967a2c8de8ab",
       "referenced": true,
-      "source_kind": "rendered_current_first_run_copy",
-      "source": "Rendered guide screenshot from current first-run copy after OPL Gateway optional-first-launch policy update.",
+      "source_kind": "current_shell_electron_playwright_capture",
+      "source": "opl-aion-shell@301cfc5a1dda9a59460324847030468a24bafb48 FirstRun renderer, Electron Playwright guide capture 2026-07-10T06-44-12-348Z.",
       "locale": "zh-CN",
       "expected_ui_text": [
+        "首次设置",
+        "连接模型服务",
         "OPL Gateway",
-        "我已配置，跳过"
+        "已有 Codex 配置"
       ],
-      "note": "Updated after first-launch policy changed: existing Codex/OpenAI/provider access can proceed without mandatory OPL Gateway setup."
+      "note": "Captured from pushed Shell main on the standalone FirstRun route with both access paths visible before any access key is entered."
     },
     {
       "role": "first_run_check",
-      "description": "First-run environment check screen.",
+      "description": "First-run environment check pending screen.",
       "file": "docs/guides/macos-app-install/screenshots/04-first-run-checking.png",
       "public_file": "screenshots/04-first-run-checking.png",
       "width": 1536,
       "height": 912,
-      "sha256": "523ac9ed1d3f002ddbdadde8138437770a321fd327b785820cf6cba102e2b1db",
+      "sha256": "427020d0a0661b785e89ed501e81c79f1d2306f1588b27a1342cc53ece51c1c3",
       "referenced": true,
-      "source_kind": "macos_tart_vm_app_cdp_capture",
-      "source": "artifacts/first-run-beginner.png from standard VM smoke",
+      "source_kind": "current_shell_electron_playwright_capture",
+      "source": "opl-aion-shell@301cfc5a1dda9a59460324847030468a24bafb48 FirstRun renderer, Electron Playwright guide capture 2026-07-10T06-44-12-348Z.",
       "locale": "zh-CN",
       "expected_ui_text": [
-        "正在准备",
-        "可以开始"
-      ]
+        "首次设置",
+        "正在检查这台设备",
+        "当前检查",
+        "正在检查"
+      ],
+      "note": "Captured from pushed Shell main while the initialize event stream was pending, before the terminal payload was returned."
     },
     {
       "role": "research_entry",

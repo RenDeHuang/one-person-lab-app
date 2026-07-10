@@ -422,6 +422,14 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     expectedFirstRunProgressModel,
     'App GUI first-launch',
   );
+  for (const [field, expected] of Object.entries({
+    first_run_route_policy: 'authenticated_standalone_route_outside_ordinary_product_layout',
+    unknown_readiness_escape_policy: 'startup_skip_enters_first_run_never_guid',
+  })) {
+    if (firstLaunchPolicy?.startup_runtime_policy?.[field] !== expected) {
+      throw new Error('App GUI first-launch startup runtime ' + field + ' must be ' + expected);
+    }
+  }
 
   const modulePathPolicy = guiContract.module_path_source_policy;
   if (modulePathPolicy?.source !== 'app_state.modules[].source + app_state.modules[].path + app_state.paths') {

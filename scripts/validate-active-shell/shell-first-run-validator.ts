@@ -4,6 +4,8 @@ import { readShellText } from './shell-implementation-helpers.ts';
 export function validateFirstRunImplementation(shellPaths) {
   const rendererMain = readShellText(shellPaths, 'packages/desktop/src/renderer/main.tsx');
   const appLoader = readShellText(shellPaths, 'packages/desktop/src/renderer/components/layout/AppLoader.tsx');
+  const router = readShellText(shellPaths, 'packages/desktop/src/renderer/components/layout/Router.tsx');
+  const startupGate = readShellText(shellPaths, 'packages/desktop/src/renderer/components/layout/StartupGate.tsx');
   const firstRunPage = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/FirstRun/index.tsx');
   const firstRunStyles = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/FirstRun/FirstRun.module.css');
   const firstRunModel = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/FirstRun/initializeModel.ts');
@@ -22,6 +24,29 @@ export function validateFirstRunImplementation(shellPaths) {
     if (!appLoader.includes(expected)) {
       throw new Error(`Active shell AppLoader must expose progress steps without a blank startup window: ${expected}`);
     }
+  }
+  const firstRunRouteIndex = router.indexOf("path='/first-run'");
+  const ordinaryLayoutIndex = router.indexOf('element={<ProtectedLayout layout={layout} />}');
+  const authenticatedFirstRunRoute =
+    /<Route\s+path='\/first-run'\s+element=\{\s*<ProtectedRoute>\s*\{withRouteFallback\(FirstRun\)\}\s*<\/ProtectedRoute>\s*\}\s*\/>/.test(
+      router,
+    );
+  if (
+    !router.includes('const ProtectedRoute') ||
+    !authenticatedFirstRunRoute ||
+    firstRunRouteIndex < 0 ||
+    ordinaryLayoutIndex < 0 ||
+    firstRunRouteIndex > ordinaryLayoutIndex ||
+    router.slice(ordinaryLayoutIndex).includes("path='/first-run'")
+  ) {
+    throw new Error('Active shell FirstRun must render as an authenticated standalone route outside the ordinary product layout');
+  }
+  const skipStartupCheck = startupGate.match(/const skipStartupCheck = \(\) => \{[\s\S]*?\n  \};/)?.[0] ?? '';
+  if (
+    !skipStartupCheck.includes("navigate('/first-run', { replace: true })") ||
+    skipStartupCheck.includes("navigate('/guid'")
+  ) {
+    throw new Error('Active shell StartupGate skip must enter FirstRun instead of bypassing unknown readiness');
   }
   for (const expected of [
     'ipcBridge.oplRuntime.getInitialize.invoke()',
@@ -91,6 +116,7 @@ export function validateFirstRunImplementation(shellPaths) {
     "removeAttribute('aria-hidden')",
     "page.focus({ preventScroll: true })",
     "readyEntryRef.current?.focus({ preventScroll: true })",
+    "taskPanelRef.current?.focus({ preventScroll: true })",
   ]) {
     if (!firstRunPage.includes(expected)) {
       throw new Error(
@@ -129,6 +155,33 @@ export function validateFirstRunImplementation(shellPaths) {
   if (firstRunStyles.includes("--text-tertiary") || !firstRunStyles.includes("min-height: 44px;")) {
     throw new Error("Active shell FirstRun must use defined text tokens and 44px touch targets");
   }
+  if (!firstRunStyles.includes('grid-template-columns: repeat(3, minmax(0, 1fr));')) {
+    throw new Error('Active shell FirstRun must keep a compact three-step rail on narrow screens');
+  }
+  if (!firstRunStyles.includes('.firstRunStep:not(:last-child)::after {\n    display: block;')) {
+    throw new Error('Active shell FirstRun must render the compact narrow-screen step connector');
+  }
+  const shortWindowStyles = firstRunStyles.slice(
+    firstRunStyles.indexOf('@media (max-width: 600px) and (max-height: 700px)'),
+  );
+  for (const expected of [
+    '.firstRunStepRailHeader,',
+    '.firstRunStepProgress,',
+    '.firstRunStepCounter,',
+    '.firstRunStateIcon,',
+    '.firstRunAttentionStrip,',
+    '.firstRunTaskContext {',
+    'display: none;',
+  ]) {
+    if (!shortWindowStyles.includes(expected)) {
+      throw new Error(`Active shell FirstRun must keep the primary action visible at 400x600: ${expected}`);
+    }
+  }
+  const coreReadyStatusBlock =
+    firstRunModel.match(/const CORE_READY_ITEM_STATUSES = new Set\(\[[^\]]*\]\);/)?.[0] ?? '';
+  if (!coreReadyStatusBlock || coreReadyStatusBlock.includes("'disabled'")) {
+    throw new Error('Active shell FirstRun must never treat disabled required Core items as ready');
+  }
   for (const forbidden of ["coreProgressPercent", "<Progress", "firstRunProgressPercent"]) {
     if (
       firstRunPage.includes(forbidden) ||
@@ -165,6 +218,7 @@ export function validateFirstRunImplementation(shellPaths) {
     "redactSensitiveValue(message, trimmed)",
     "redactCommandResult(result, trimmed)",
     "throw new Error('OPL initialize payload is missing or invalid.')",
+    "matchMedia?.('(prefers-reduced-motion: reduce)')",
     "aria-labelledby='opl-first-run-setup-title'",
     "id='opl-first-run-setup-title'",
   ]) {
@@ -226,6 +280,9 @@ export function validateFirstRunImplementation(shellPaths) {
     }
   }
   for (const expected of [
+    "typeof entry.required === 'boolean'",
+    'declaredBlockingItems',
+    'setupFlow.ready_to_launch === (readyCoreItems.length === CORE_ITEM_IDS.length)',
     'ready_full_readiness_count',
     'total_full_readiness_count',
     'ready_optional_count',

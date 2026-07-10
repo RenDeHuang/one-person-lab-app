@@ -31,6 +31,8 @@ focused tests 与用户路径截图。
 ## 桌面布局
 
 - 使用全视口 `focused_setup_workspace`，覆盖普通 Titlebar、Sider 和会话历史区。
+- `/first-run` 是认证后的独立路由，不挂载普通 Layout，因此普通快捷键、托盘、deep link 和通知导航不会卸载首启。
+- StartupGate 在 readiness 未确认时只能进入 `/first-run`，不得通过“跳过检查”进入 `/guid`。
 - 顶部是精简品牌栏，只显示 One Person Lab 品牌与帮助入口。
 - macOS 品牌栏保留 traffic lights 安全区；Windows/Linux 复用现有最小化、最大化和关闭按钮。
 - 主工作区最大宽度约 1040px，采用 `240px + 1fr` 两栏。
@@ -40,7 +42,7 @@ focused tests 与用户路径截图。
 - 技术详情在工作区下方折叠，帮助入口可以打开该折叠区。
 
 普通导航在用户主动进入 `/guid` 之前不可见，包括 `ready_to_launch` 已成立但仍停留在完成态时。
-背景 shell 同时必须设置 `inert` 和 `aria-hidden`，首焦点留在 FirstRun；卸载首启页时恢复原属性。
+普通 Layout 不挂载；FirstRun 仍对根节点内的非自身 sibling 设置 `inert` 和 `aria-hidden`，首焦点留在 FirstRun；卸载首启页时恢复原属性。
 首启页不得把新会话、搜索、定时任务、运行状态、设置或空会话历史作为首次配置的视觉或交互竞争项。
 
 ## 模型访问
@@ -87,6 +89,7 @@ focused tests 与用户路径截图。
 
 - 窄屏下步骤栏移动到任务面板上方，保持三步顺序和状态语义。
 - 输入框、分段控件和主按钮在手机宽度下改为单列，不产生横向滚动。
+- 在 App 允许的 400×600 最小窗口中，隐藏重复标题、完成计数、提示性图标和二级上下文，保留紧凑三步轨道、当前任务、必要输入与完整主操作；主按钮必须在首屏可见。
 - 状态必须同时使用图标和文本，不只依赖颜色。
 - 交互控件触控目标不小于 44px。
 - 所有交互使用 Arco 组件，保留键盘焦点与可见字段标签；可访问名称使用本地化可见文本或 `aria-labelledby`，不得使用 testid。
@@ -98,6 +101,7 @@ focused tests 与用户路径截图。
 ## 不做的事
 
 - 不改变 `ready_to_launch` 语义和 Core required items。
+- required Core item 的 `disabled` 状态不得计为 ready；只有真实可用状态、非 blocking、计数和 blocking 集合一致时才接受 `ready_to_launch`。
 - 不让 full readiness 或后台维护阻塞进入 `/guid`。
 - 不增加新的 runtime、provider 或配置真相源。
 - 不修改 AionUI 通用 Layout/Sider fork body；专注模式由 OPL FirstRun overlay 实现。
@@ -111,4 +115,4 @@ focused tests 与用户路径截图。
 - first-run test matrix 覆盖专注模式、三步栏、无百分比和两条访问路径。
 - active shell DOM 测试覆盖 initialize pending、Gateway 配置、已有 Codex 重检、完成态和技术详情。
 - i18n、TypeScript 与 package build 通过。
-- 桌面与窄屏截图证明普通导航被遮蔽、文本无溢出、主操作清晰、状态切换不造成结构跳动。
+- 桌面、常规窄屏与 400×600 最小窗口截图证明普通导航不存在、文本无溢出、主操作清晰、状态切换不造成结构跳动。

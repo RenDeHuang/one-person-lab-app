@@ -319,6 +319,8 @@ export type AppProductProfile = {
       technical_detail_navigation_policy: string;
       request_exclusivity_policy: string;
       pending_state_policy: string;
+      core_readiness_status_policy: string;
+      minimum_window_primary_action_policy: string;
       background_shell_interaction_policy: string;
       window_control_policy: string;
       raw_error_policy: string;

@@ -272,6 +272,8 @@ export const focusedFirstRunPresentationPolicy = {
   technical_detail_navigation_policy: "in_place_no_ordinary_settings_route_before_guid",
   request_exclusivity_policy: "single_inflight_initialize_or_action_across_first_run_controls",
   pending_state_policy: "no_ready_or_no_blocker_claim_before_initialize_payload",
+  core_readiness_status_policy: "required_core_items_never_treat_disabled_as_ready",
+  minimum_window_primary_action_policy: "400x600_keeps_current_primary_action_visible",
   background_shell_interaction_policy: "inert_and_aria_hidden_until_user_enters_guid",
   window_control_policy: "preserve_mac_traffic_light_safe_area_and_render_non_mac_desktop_controls",
   raw_error_policy: "localized_inline_current_task_and_technical_details_only_no_beginner_toast",
