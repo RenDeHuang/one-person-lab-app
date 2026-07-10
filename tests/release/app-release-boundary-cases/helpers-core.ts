@@ -42,65 +42,6 @@ export function writeExecutable(filePath, content) {
   fs.writeFileSync(filePath, content, { encoding: "utf8", mode: 0o755 });
 }
 
-export function readFullPackageBuilderSource() {
-  const partsRoot = path.join(appRoot, "scripts", "build-full-first-install-package");
-  return [
-    fs.readFileSync(
-      path.join(appRoot, "scripts", "build-full-first-install-package.ts"),
-      "utf8",
-    ),
-    ...fs
-      .readdirSync(partsRoot)
-      .filter((entry) => entry.endsWith(".ts"))
-      .sort()
-      .map((entry) => fs.readFileSync(path.join(partsRoot, entry), "utf8")),
-  ].join("\n");
-}
-
-function escapedPattern(value: string) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function objectKeyPattern(value: string) {
-  if (/^[A-Za-z_$][\w$]*$/.test(value)) {
-    return escapedPattern(value);
-  }
-  return `'${escapedPattern(value)}'`;
-}
-
-function assertOptionSetters(buildScript, tableName, options, callbackPattern) {
-  assert.match(buildScript, new RegExp(`const ${tableName} = \\{`));
-  for (const option of options) {
-    assert.match(
-      buildScript,
-      new RegExp(`${objectKeyPattern(option.replace(/^--/, ""))}: ${callbackPattern}`),
-    );
-  }
-}
-
-export function assertFullFirstInstallOptionTables(buildScript: string) {
-  assert.match(buildScript, /import \{ parseArgs as parseNodeArgs \} from 'node:util';/);
-  assertOptionSetters(buildScript, "booleanOptionSetters", [
-    "--skip-gui-build", "--split-runtime", "--reuse-gui-vite-output", "--print-runtime-cache-keys", "--include-bun-runtime",
-  ], "\\(parsed\\) =>");
-  assertOptionSetters(buildScript, "valueOptionSetters", [
-    "--version", "--out-dir", "--framework-root", "--opl-root", "--gui-root", "--mas-root", "--mag-root", "--rca-root", "--meta-agent-root",
-    "--bookforge-root", "--superpowers-root", "--codex-root", "--node-bin", "--bun-bin", "--uv-bin", "--temporal-cli-bin", "--temporal-cli-archive",
-    "--python-root", "--officecli-bin", "--officecli-root", "--mineru-open-api-bin", "--mineru-root", "--mineru-document-extractor-root",
-    "--ui-ux-pro-max-root", "--runtime-cache-dir", "--runtime-cache-mode",
-  ], "\\(parsed, value\\) =>");
-  for (const pattern of [
-    /const nodeOptionConfig = Object\.fromEntries\(\[/,
-    /options: nodeOptionConfig/,
-    /tokens: true/,
-    /const applyBoolean = booleanOptionSetters\[token\.name\]/,
-    /const applyValue = valueOptionSetters\[token\.name\]/,
-    /throw new Error\(`Unknown argument: \$\{rawArgument\(token\)\}`\)/,
-  ]) {
-    assert.match(buildScript, pattern);
-  }
-}
-
 export function writeBinaryFile(filePath, content) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, content);

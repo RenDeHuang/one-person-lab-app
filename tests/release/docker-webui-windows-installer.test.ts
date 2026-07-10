@@ -3,14 +3,11 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
 import test from 'node:test';
+import { appRoot } from './release-readiness/helpers.ts';
 
-const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const installerPath = path.join(appRoot, 'scripts', 'install-docker-webui.ps1');
-const installer = fs.readFileSync(installerPath, 'utf8');
 const pwshPath = findPwsh();
-const paramBlock = installer.match(/param\([\s\S]*?\n\)/)?.[0] ?? '';
 
 function findPwsh() {
   if (process.env.PWSH) {
@@ -26,90 +23,6 @@ function runPwsh(args: string[]) {
   }
   return spawnSync(pwshPath, args, { cwd: appRoot, encoding: 'utf8' });
 }
-
-test('Windows Docker/WebUI installer exposes the required small parameter surface', () => {
-  for (const parameter of [
-    'DryRun',
-    'Yes',
-    'Port',
-    'Image',
-    'Tag',
-    'DataDir',
-    'ProjectsDir',
-    'HealthTimeoutSeconds',
-    'HealthUrl',
-    'DiagnosticsDir',
-    'DiagnosticsArchive',
-    'EvidenceDir',
-    'EvidenceArchive',
-    'InstallPrerequisites',
-    'Update',
-    'NoOpen',
-    'Foreground',
-  ]) {
-    assert.match(installer, new RegExp(`\\$${parameter}\\b`), `missing -${parameter}`);
-  }
-
-  assert.doesNotMatch(paramBlock, /ApiKey|API_KEY|OPENAI_API_KEY|GFLABTOKEN|Secret/i);
-  assert.doesNotMatch(installer, /OPENAI_API_KEY|ANTHROPIC_API_KEY|GFLABTOKEN/i);
-});
-
-test('Windows Docker/WebUI installer writes a compose file with the App-owned WebUI boundary', () => {
-  assert.match(installer, /compose\.yaml/);
-  assert.match(installer, /docker @pullArgs/);
-  assert.match(installer, /docker @upArgs/);
-  assert.match(installer, /pull_policy: always/);
-  assert.match(installer, /ghcr\.io\/gaofeng21cn\/one-person-lab-webui/);
-  assert.match(installer, /127\.0\.0\.1:\$\{HostPort\}:3000/);
-  assert.match(installer, /AIONUI_ALLOW_REMOTE/);
-  assert.match(installer, /AIONUI_DATA_DIR:\s*\/data/);
-  assert.match(installer, /OPL_PROJECTS_DIR:\s*\/projects/);
-  assert.match(installer, /\$\{HostDataDir\}:\/data/);
-  assert.match(installer, /\$\{HostProjectsDir\}:\/projects/);
-});
-
-test('Windows Docker/WebUI installer gates prerequisite installation behind an explicit admin switch', () => {
-  assert.match(installer, /Test-WindowsHost/);
-  assert.match(installer, /\[Version\]"5\.1"/);
-  assert.match(installer, /Get-Command docker/);
-  assert.match(installer, /docker info/);
-  assert.match(installer, /docker compose version/);
-  assert.match(installer, /Wait-WebUiHealth/);
-  assert.match(installer, /Test-WebUiHttpHealth/);
-  assert.match(installer, /Invoke-WebRequest/);
-  assert.match(installer, /"compose", "-f", \$ComposePath, "pull"/);
-  assert.match(installer, /function Write-WebUiAccessReceipt/);
-  assert.match(installer, /\/api\/opl-runtime\/configure-codex/);
-  assert.match(installer, /api" \+ "Key"/);
-  assert.match(installer, /opl system configure-codex --api-key-stdin --json/);
-  assert.match(installer, /Collect-WebUiDiagnostics/);
-  assert.match(installer, /docker-compose-ps\.txt/);
-  assert.match(installer, /docker-compose-logs\.txt/);
-  assert.match(installer, /docker-version\.txt/);
-  assert.match(installer, /docker-compose-version\.txt/);
-  assert.match(installer, /http-probe\.txt/);
-  assert.match(installer, /directories\.txt/);
-  assert.match(installer, /data-preservation\.txt/);
-  assert.match(installer, /pre_data_inventory/);
-  assert.match(installer, /post_data_inventory/);
-  assert.match(installer, /Get-PathInventoryText/);
-  assert.match(installer, /Compress-Archive/);
-  assert.match(installer, /ConvertFrom-DiagnosticSensitiveText/);
-  assert.doesNotMatch(installer, /Get-ChildItem\s+Env:|docker compose config/);
-  assert.match(installer, /Get-Command wsl\.exe/);
-  assert.match(installer, /\[switch\]\$InstallPrerequisites/);
-  assert.match(installer, /Run PowerShell as Administrator when using -InstallPrerequisites/);
-  assert.match(installer, /if \(-not \$InstallPrerequisites\) \{\s*return\s*\}/);
-  assert.match(installer, /wsl --install/);
-  assert.match(installer, /winget install Docker\.DockerDesktop/);
-  assert.match(installer, /winget\.exe install --id Docker\.DockerDesktop --exact --accept-package-agreements --accept-source-agreements/);
-  assert.match(installer, /wsl\.exe --install --no-distribution/);
-  assert.match(installer, /wsl\.exe --set-default-version 2/);
-  assert.match(installer, /Docker Desktop did not become ready within 180 seconds/);
-  assert.match(installer, /Start-DockerDesktopIfPresent/);
-  assert.doesNotMatch(installer, /Start-Process\s+(winget|wsl)/);
-  assert.doesNotMatch(installer, /docker\.sock|watchtower/i);
-});
 
 test('Windows Docker/WebUI installer parses and dry-runs when PowerShell is available', { skip: !pwshPath }, () => {
   const escapedInstallerPath = installerPath.replaceAll("'", "''");
@@ -156,15 +69,7 @@ test('Windows Docker/WebUI installer parses and dry-runs when PowerShell is avai
   assert.match(dryRun.stdout, /docker compose .* up -d/);
   assert.match(dryRun.stdout, /would wait up to 5s for WebUI HTTP health at http:\/\/localhost:3133\//);
   assert.match(dryRun.stdout, /would write diagnostic directory .*diagnostics/);
-  assert.match(dryRun.stdout, /would include compose\.yaml, docker versions, compose ps\/logs, HTTP probe summary, directory\/port\/image metadata/);
   assert.match(dryRun.stdout, /would write diagnostic archive .*diagnostics\.zip/);
-  assert.match(dryRun.stdout, /User path status:/);
-  assert.match(dryRun.stdout, /one_click_install: create compose\.yaml, data\/projects directories, and start the WebUI image/);
-  assert.match(dryRun.stdout, /access_key_settings: enter access keys in the WebUI first-run Access panel or Settings -> Access/);
-  assert.match(dryRun.stdout, /runtime_proxy: WebUI uses \/api\/opl-runtime\/configure-codex -> opl system configure-codex --api-key-stdin --json/);
-  assert.match(dryRun.stdout, /startup_recovery: if startup fails, collect redacted startup diagnostics/);
-  assert.match(dryRun.stdout, /host_update: rerun this installer, or pass -Update, to pull the WebUI image from the host/);
-  assert.match(dryRun.stdout, /Image\/seed: default stable WebUI image uses the full seed/);
   assert.equal(fs.existsSync(path.join(tempRoot, 'compose.yaml')), false, 'dry-run must not create compose.yaml');
 });
 

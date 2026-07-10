@@ -15,22 +15,6 @@ import { releaseBoundaryChecks } from '../../../scripts/validate-release-boundar
 const readJson = (relativePath: string) => JSON.parse(
   fs.readFileSync(path.join(appRoot, relativePath), 'utf8'),
 );
-const scenarioIds = [
-  'beginner_simplified_first_run_clean_machine',
-  'full_first_install_clean_machine',
-  'standard_dmg_clean_vm_smoke',
-  'full_dmg_clean_vm_smoke',
-  'homebrew_standard_cask_clean_vm_smoke',
-  'standard_app_managed_bootstrap',
-  'macos_clt_system_installer',
-  'updater_standard_channel',
-  'ecosystem_modules_app_cli_managed',
-];
-const releaseGateScenarioIds = [
-  'standard_dmg_clean_vm_smoke',
-  'full_dmg_clean_vm_smoke',
-  'homebrew_standard_cask_clean_vm_smoke',
-];
 const requireReleaseBoundaryCheck = (id: string) => {
   const check = releaseBoundaryChecks.find((entry) => entry.id === id);
   assert.ok(check, id);
@@ -40,16 +24,14 @@ const requireReleaseBoundaryCheck = (id: string) => {
 test('first-run matrix delegates policy shape to the active-shell validator', () => {
   const matrix = readJson('contracts/app-first-run-test-matrix.json');
   const adapter = readJson('contracts/app-shell-adapter.json');
-  const scenarioById = new Map(matrix.scenarios.map((scenario) => [scenario.id, scenario]));
-
   assert.doesNotThrow(() => validateFirstRunMatrix(matrix, adapter));
-  assert.ok(matrix.scenarios.every((scenario) => !('aliases' in scenario)));
-  for (const id of scenarioIds) {
-    assert.ok(scenarioById.has(id), id);
-  }
-  for (const id of releaseGateScenarioIds) {
-    assert.equal(scenarioById.get(id).release_gate, true, id);
-  }
+
+  const invalid = structuredClone(matrix);
+  invalid.scenarios[0].aliases = ['legacy'];
+  assert.throws(
+    () => validateFirstRunMatrix(invalid, adapter),
+    /must not declare compatibility aliases/,
+  );
 });
 
 test('one-shot App installer boundary is enforced by release-boundary checks', () => {

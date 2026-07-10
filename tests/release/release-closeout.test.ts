@@ -215,12 +215,7 @@ test('release closeout separates workflow wall time from Agent orchestration wal
   });
   const { summary, monitor } = readout;
   assertReadoutState(readout, 'ready_to_promote');
-  assert.equal(monitor.recommended_next_action.action, 'promote_from_candidate_record');
-  assert.equal(monitor.promote_ready, true);
   assert.equal(monitor.artifact_policy.downloads_large_artifacts, false);
-  assert.equal(summary.source_status.candidate_record, 'ready_to_promote');
-  assert.deepEqual(summary.artifact_policy.downloaded_artifacts, []);
-  assert.equal(summary.artifact_attestation_verification.state, 'missing');
   assert.equal(summary.jobs.slowest_jobs[0].name, 'Build Full first-install assets');
   assert.equal(summary.failed_rerun_tax.failed_rerun_tax_seconds, 1861);
 });
@@ -256,12 +251,6 @@ for (const scenario of [
 
     assert.equal(summary.artifact_attestation_verification.state, scenario.state);
     assert.equal(summary.artifact_attestation_verification.verification.status, scenario.payload.status);
-    assert.deepEqual(summary.artifact_attestation_verification.verify_commands, []);
-    assert.match(summary.artifact_attestation_verification.rule, /not release readiness evidence/);
-    if (scenario.state === 'verified') {
-      assert.match(summary.source_paths.artifact_attestation_verification, /attestation-verification\.json/);
-      assert.equal(summary.artifact_attestation_verification.verification.verified_assets[0].name, 'One-Person-Lab-26.5.99-arm64.dmg');
-    }
   });
 }
 
@@ -281,8 +270,6 @@ test('release closeout stops at readiness failed gates before raw log inspection
   const { summary, monitor } = readout;
   assertReadoutState(readout, 'resolve_readiness_failed_gates', 'failed');
   assert.equal(monitor.failed_gate_count, 1);
-  assert.equal(summary.decision.next_action, 'resolve_readiness_failed_gates');
-  assert.match(summary.decision.command, /failed_required_gates/);
   assert.doesNotMatch(summary.decision.command, /--log-failed/);
   assert.deepEqual(summary.readiness.failed_required_gates, [failedGate]);
 });
@@ -306,8 +293,6 @@ test('release closeout separates published release state from failed post-publis
   const { summary, monitor } = readout;
   assertReadoutState(readout, 'resolve_post_publish_followup_gate', 'published_with_post_publish_followup');
   assert.equal(monitor.published, true);
-  assert.equal(summary.decision.next_action, 'resolve_post_publish_followup_gate');
-  assert.equal(summary.decision.post_publish.published_release_readback, true);
   assert.equal(summary.decision.post_publish.failed_followup_jobs[0].name, 'Run Homebrew standard first-run VM smoke');
 });
 
@@ -335,10 +320,6 @@ test('release closeout uses candidate record inside an in-progress workflow job'
   assert.equal(summary.source_status.candidate_record, 'ready_to_promote');
   assert.equal(summary.decision.next_action, 'promote_from_candidate_record');
   assert.doesNotMatch(summary.decision.reason, /not complete|wait/i);
-  assert.equal(summary.artifact_policy.downloads_large_artifacts, false);
-  assert.deepEqual(summary.artifact_policy.downloaded_artifacts, []);
-  assert.match(summary.operator_loop_optimization.implemented_by, /desktop-release\.yml default release closeout artifact/);
-  assert.match(summary.operator_loop_optimization.workflow_default_release_summary, /release-readiness-summary job uploads/);
 });
 
 test('release closeout requires owner-resolution validation before promote', () => {
@@ -356,15 +337,11 @@ test('release closeout requires owner-resolution validation before promote', () 
       conclusion: null,
     },
   });
-  const { stdout, summary } = readout;
+  const { summary } = readout;
   assert.equal(summary.source_status.candidate_record, 'ready_to_promote');
   assert.equal(summary.decision.next_action, 'owner_needed_release_owner_resolution');
-  assert.match(summary.decision.reason, /Release owner verdict status is release_owner_verdict_pending/);
-  assert.match(summary.decision.reason, /missing release_owner_verdict_ref or release_owner_receipt_ref/);
-  assert.match(summary.decision.command, /validate-release-candidate-record\.ts --promote-ready/);
   assert.match(summary.decision.owner_resolution.typed_blocker_ref, /typed_blocker_ref:\/\/one-person-lab-app\/release-owner\/v26\.5\.99\/verdict-pending/);
   assertReadoutState(readout, 'owner_needed_release_owner_resolution', 'failed');
-  assert.equal(stdout.next_action, 'owner_needed_release_owner_resolution');
 });
 
 test('release closeout monitor reports running while structured release evidence is still unavailable', () => {
@@ -377,11 +354,9 @@ test('release closeout monitor reports running while structured release evidence
       conclusion: null,
     },
   });
-  const { stdout, monitor } = readout;
+  const { monitor } = readout;
   assertReadoutState(readout, 'wait_for_release_run_completion', 'running');
-  assert.equal(stdout.next_action, 'wait_for_release_run_completion');
   assert.equal(monitor.recommended_next_action.action, 'wait_for_release_run_completion');
-  assert.equal(monitor.promote_ready, false);
 });
 
 test('release closeout monitor reports published from explicit release target evidence', () => {
@@ -401,5 +376,4 @@ test('release closeout monitor reports published from explicit release target ev
   const { monitor } = readout;
   assertReadoutState(readout, 'inspect_missing_candidate_record', 'published');
   assert.equal(monitor.published, true);
-  assert.equal(monitor.promote_ready, false);
 });

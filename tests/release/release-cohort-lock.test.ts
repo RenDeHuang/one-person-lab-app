@@ -4,7 +4,11 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import test from 'node:test';
-import { appRoot } from './release-readiness/helpers.ts';
+import {
+  appRoot,
+  createGitCheckout,
+  runGit,
+} from './release-readiness/helpers.ts';
 
 function cleanEnv() {
   const {
@@ -31,28 +35,6 @@ function runScript(args: string[]) {
       env: cleanEnv(),
     },
   );
-}
-
-function runGit(cwd: string, args: string[]): string {
-  const result = spawnSync('git', args, { cwd, encoding: 'utf8' });
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-  return result.stdout.trim();
-}
-
-function createGitCheckout(prefix: string): { root: string; head: string } {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
-  return createGitCheckoutAt(root, prefix);
-}
-
-function createGitCheckoutAt(root: string, label: string): { root: string; head: string } {
-  fs.mkdirSync(root, { recursive: true });
-  runGit(root, ['init', '-b', 'main']);
-  runGit(root, ['config', 'user.email', 'release-test@example.com']);
-  runGit(root, ['config', 'user.name', 'Release Test']);
-  fs.writeFileSync(path.join(root, 'README.md'), `${label}\n`, 'utf8');
-  runGit(root, ['add', 'README.md']);
-  runGit(root, ['commit', '-m', 'Initial test commit']);
-  return { root, head: runGit(root, ['rev-parse', 'HEAD']) };
 }
 
 test('release cohort lock resolves requested refs to immutable SHAs', () => {
@@ -120,12 +102,12 @@ test('release cohort lock fails unresolved source refs before emitting dispatch 
 test('release cohort lock derives default source roots from an explicit repo root', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-lock-repo-root-'));
   const parentRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-lock-parent-'));
-  const app = createGitCheckoutAt(path.join(parentRoot, 'app'), 'explicit-app-root');
+  const app = createGitCheckout('explicit-app-root', path.join(parentRoot, 'app'));
   const shellRoot = path.join(app.root, 'shells', 'aionui');
   const frameworkRoot = path.join(parentRoot, 'one-person-lab');
   fs.mkdirSync(path.dirname(shellRoot), { recursive: true });
-  createGitCheckoutAt(shellRoot, 'nested-shell-root');
-  createGitCheckoutAt(frameworkRoot, 'sibling-framework-root');
+  createGitCheckout('nested-shell-root', shellRoot);
+  createGitCheckout('sibling-framework-root', frameworkRoot);
 
   const outputPath = path.join(tempRoot, 'release-cohort-lock.json');
   const result = runScript([

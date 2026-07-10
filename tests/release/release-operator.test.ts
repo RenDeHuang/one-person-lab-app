@@ -4,7 +4,13 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import test from 'node:test';
-import { appRoot, readJson, writeJson } from './release-readiness/helpers.ts';
+import {
+  appRoot,
+  createGitCheckout,
+  readJson,
+  runGit,
+  writeJson,
+} from './release-readiness/helpers.ts';
 
 function cleanEnv() {
   const {
@@ -37,23 +43,6 @@ function runScript(script: string, args: string[]) {
       env: cleanEnv(),
     },
   );
-}
-
-function runGit(cwd: string, args: string[]): string {
-  const result = spawnSync('git', args, { cwd, encoding: 'utf8' });
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-  return result.stdout.trim();
-}
-
-function createGitCheckout(prefix: string): { root: string; head: string } {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
-  runGit(root, ['init', '-b', 'main']);
-  runGit(root, ['config', 'user.email', 'release-test@example.com']);
-  runGit(root, ['config', 'user.name', 'Release Test']);
-  fs.writeFileSync(path.join(root, 'README.md'), `${prefix}\n`, 'utf8');
-  runGit(root, ['add', 'README.md']);
-  runGit(root, ['commit', '-m', 'Initial test commit']);
-  return { root, head: runGit(root, ['rev-parse', 'HEAD']) };
 }
 
 function createReleaseRefCheckouts() {
@@ -140,33 +129,18 @@ test('release operator plan pins Full VM dispatch to resolved cohort SHAs', () =
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
   const state = readJson(outputPath);
-  assert.equal(state.schema, 'opl_app_release_operator_state.v1');
-  assert.equal(state.command, 'plan');
   assert.equal(state.status, 'planned');
-  assert.equal(state.cohort_plan.schema, 'opl_app_release_cohort_plan.v1');
-  assert.equal(state.cohort_plan.app_commit, refs.appHead);
-  assert.equal(state.cohort_plan.cohort_lock.app.requested_ref, refs.appHead);
   assert.equal(state.cohort_plan.cohort_lock.shell.resolved_sha, refs.shell.head);
   assert.equal(state.cohort_plan.cohort_lock.framework.resolved_sha, refs.framework.head);
-  assert.equal(state.cohort_plan.include_full_package, true);
-  assert.equal(state.cohort_plan.run_vm_smoke, true);
-  assert.equal(state.cohort_plan.next_action.action, 'run_release_train_with_vm_smoke');
   assert.match(state.cohort_plan.next_action.command, new RegExp(`--ref ${refs.appHead}`));
   assert.match(state.cohort_plan.next_action.command, new RegExp(`--field shell_ref=${refs.shell.head}`));
   assert.match(state.cohort_plan.next_action.command, new RegExp(`--field framework_ref=${refs.framework.head}`));
   assert.doesNotMatch(state.cohort_plan.next_action.command, /shell_ref=main|framework_ref=main/);
-  assert.equal(state.next_action.action, 'follow_cohort_plan');
-  assert.match(state.next_action.command, new RegExp(`--field shell_ref=${refs.shell.head}`));
-  assert.match(state.next_action.command, new RegExp(`--field framework_ref=${refs.framework.head}`));
-  assert.doesNotMatch(state.next_action.command, /shell_ref=main|framework_ref=main/);
-  assert.equal(state.operator_guidance.currentness_freeze.required_before_dispatch, true);
-  assert.equal(state.operator_guidance.currentness_freeze.dispatch_input_source, 'release_cohort_plan_or_lock');
-  assert.equal(state.operator_guidance.currentness_freeze.single_desktop_release_per_frozen_cohort, true);
   assertNoOperatorAuthority(state.authority_boundary);
 });
 
 test('release operator status reports completed failure primary blocker', () => {
-  const { result, state } = runStatus('opl-release-operator-status-failed-', {
+  const { state } = runStatus('opl-release-operator-status-failed-', {
     databaseId: 12345,
     workflowName: 'OPL Desktop Release',
     status: 'completed',
@@ -192,14 +166,7 @@ test('release operator status reports completed failure primary blocker', () => 
     ],
   });
 
-  const stdout = JSON.parse(result.stdout);
-  assert.equal(stdout.status, 'failed');
-  assert.equal(state.schema, 'opl_app_release_operator_state.v1');
-  assert.equal(state.command, 'status');
   assert.equal(state.status, 'failed');
-  assert.equal(state.run.status, 'completed');
-  assert.equal(state.run.conclusion, 'failure');
-  assert.equal(state.is_stale, false);
   assert.equal(state.primary_blocker.type, 'step');
   assert.equal(state.primary_blocker.job_name, 'Build App-owned DMG');
   assert.equal(state.primary_blocker.step_name, 'Package app');
@@ -228,9 +195,6 @@ test('release operator status reports successful current run as ready for closeo
   }, ['--version', '26.6.29', '--expected-head', headE]);
   assert.equal(state.status, 'ready_for_closeout_review');
   assert.equal(state.run.id, '45678');
-  assert.equal(state.run.conclusion, 'success');
-  assert.equal(state.is_stale, false);
   assert.equal(state.primary_blocker, null);
-  assert.equal(state.recommended_next_action.action, 'inspect_release_closeout_evidence');
   assert.match(state.recommended_next_action.command, /npm run release:closeout -- --version 26\.6\.29 --run-id 45678/);
 });

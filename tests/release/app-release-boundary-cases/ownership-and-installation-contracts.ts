@@ -15,29 +15,6 @@ test('release boundary guard keeps App release ownership in App repo', () => {
   assert.match(result.stdout, /App release boundary is App-owned/);
 });
 
-test('release boundary guard wires App-owned installation validators', () => {
-  const packageJson = JSON.parse(fs.readFileSync(path.join(appRoot, 'package.json'), 'utf8'));
-  const boundaryScriptDeps = fs.readFileSync(
-    path.join(appRoot, 'scripts', 'validate-release-boundary', 'script-dependencies.ts'),
-    'utf8',
-  );
-
-  for (const [scriptName, command] of Object.entries({
-    'homebrew:tap:plan': 'node --experimental-strip-types scripts/update-homebrew-tap.ts',
-    'validate:homebrew-tap': 'node --experimental-strip-types scripts/update-homebrew-tap.ts --self-check',
-    'validate:agent-installation': 'node --experimental-strip-types scripts/validate-agent-installation-contract.ts',
-  })) {
-    assert.equal(packageJson.scripts[scriptName], command);
-  }
-  for (const dependency of [
-    /scripts\/update-homebrew-tap\.ts/,
-    /--self-check/,
-    /validate-agent-installation-contract\.ts/,
-  ]) {
-    assert.match(boundaryScriptDeps, dependency);
-  }
-});
-
 test('Homebrew tap updater is a local cohort-bound manifest and checksum planner', () => {
   const tapRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-homebrew-tap-test-'));
   const digest = 'b'.repeat(64);

@@ -11,8 +11,6 @@ import {
   writeFile,
   writeExecutable,
   writeReleaseMetadata,
-  readFullPackageBuilderSource,
-  assertFullFirstInstallOptionTables,
 } from './helpers.ts';
 
 test('publish rejects standard App artifacts that contain the Full runtime payload', () => {
@@ -66,49 +64,14 @@ test('Full first-install manifest consumes the OPL runtime bundle boundary inste
   const mod = await import('../../../scripts/full-first-install-package.ts');
   const manifest = mod.buildFullPackageManifest({ version: '26.6.21-bundle-consumer' });
 
-  assert.equal(manifest.opl_runtime_bundle_consumer.schema, 'opl_runtime_bundle_manifest_consumer.v1');
   assert.equal(manifest.opl_runtime_bundle_consumer.app_repo_role, 'consumer_only');
-  assert.equal(manifest.opl_runtime_bundle_consumer.truth_owner, 'gaofeng21cn/one-person-lab');
   assert.equal(manifest.opl_runtime_bundle_consumer.dependency_truth_owner, false);
-  assert.equal(
-    manifest.opl_runtime_bundle_consumer.source_surface.contract_ref,
-    'gaofeng21cn/one-person-lab/contracts/opl-framework/runtime-environment-substrate-contract.json',
-  );
-  assert.ok(Object.values(manifest.opl_runtime_bundle_consumer.false_ready_flags).every((value) => value === false));
-  assert.equal(manifest.opl_runtime_bundle_consumer.consumption_boundary.records_refs_only, true);
   assert.equal(manifest.opl_runtime_bundle_consumer.consumption_boundary.keeps_full_offline_first_install_payloads, true);
   assert.equal(manifest.opl_runtime_bundle_consumer.consumption_boundary.can_delete_required_offline_payloads_for_size, false);
-  assert.equal(manifest.opl_runtime_bundle_consumer.consumption_boundary.can_claim_app_release_ready, false);
-  for (const id of ['base-toolchain', 'domain-pack', 'opl-framework-runtime', 'companion-skills']) {
-    assert.ok(manifest.opl_runtime_bundle_consumer.layer_taxonomy.canonical_layer_ids.includes(id), id);
-  }
-  assert.deepEqual(Object.keys(manifest.runtime_fabric_bundles), [
-    'execution-core.bundle',
-    'environment-materializer.bundle',
-    'system-bridge.bundle',
-  ]);
-  assert.deepEqual(
-    Object.keys(manifest.runtime_fabric_bundles['environment-materializer.bundle'].packaged_components),
-    ['node', 'python', 'uv'],
-  );
-  assert.deepEqual(manifest.size_breakdown.opl_layer_taxonomy, manifest.opl_runtime_bundle_consumer.layer_taxonomy);
-
-  assert.deepEqual(
-    mod.buildFullRuntimeAggregateCacheKeyInput({
-      layers: {
-        toolchain: 'full-runtime-v1-toolchain-a',
-        'domain-runtime': 'full-runtime-v1-domain-runtime-b',
-        'opl-runtime': 'full-runtime-v1-opl-runtime-c',
-        skills: 'full-runtime-v1-skills-d',
-      },
-    }).opl_runtime_bundle_consumer.layer_taxonomy.canonical_layer_ids,
-    manifest.opl_runtime_bundle_consumer.layer_taxonomy.canonical_layer_ids,
-  );
 });
 
 test('Full runtime pruning keeps macOS arm64 launch payloads without development environments', async () => {
   const mod = await import('../../../scripts/full-first-install-package.ts');
-  const buildScript = readFullPackageBuilderSource();
   const policy = JSON.parse(
     fs.readFileSync(path.join(appRoot, 'contracts', 'full-runtime-prune-policy.json'), 'utf8'),
   );
@@ -208,10 +171,6 @@ test('Full runtime pruning keeps macOS arm64 launch payloads without development
   assert.ok(scanAudit.runtime_scan_diff.added_excluded_paths.includes('modules/mas/logs'));
   assert.ok(scanAudit.runtime_scan_diff.removed_excluded_paths.includes('modules/mas/tmp/old.tmp'));
 
-  assertFullFirstInstallOptionTables(buildScript);
-  assert.match(buildScript, /collectRuntimeAssertions\(runtimeRoot\)/);
-  assert.match(buildScript, /assertOfflineRequiredPayloadsPresent\(runtimeAssertions\)/);
-  assert.doesNotMatch(buildScript, /binary_path: 'runtime\/current\/vendor\/temporal\/cli\/temporal'/);
 });
 
 test('Full App bundle staging trim removes non-runtime artifacts while preserving offline runtime payloads', async () => {

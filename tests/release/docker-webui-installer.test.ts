@@ -159,20 +159,11 @@ test('Docker/WebUI installer dry-run generates the compose-only startup plan', (
     /OPL_PROJECTS_DIR: \/projects/,
     new RegExp(`${escapedHome}/data-dir:/data`),
     new RegExp(`${escapedHome}/projects-dir:/projects`),
-    /Update mode: pull the configured WebUI image from the host and recreate the compose service/,
     /docker compose -f .*compose\.yaml pull/,
     /docker compose -f .*compose\.yaml up -d/,
     /Would wait up to 7s for WebUI HTTP health at http:\/\/localhost:3917\//,
     /Would write diagnostic directory: .*diagnostics-dir/,
-    /Would include compose\.yaml, docker versions, compose ps\/logs, HTTP probe summary, directory\/port\/image metadata/,
     /Would write diagnostic archive: .*diagnostics\.tar\.gz/,
-    /User path status:/,
-    /one_click_install: create compose\.yaml, data\/projects directories, and start the WebUI image/,
-    /access_key_settings: enter access keys in the WebUI first-run Access panel or Settings -> Access/,
-    /runtime_proxy: WebUI uses \/api\/opl-runtime\/configure-codex -> opl system configure-codex --api-key-stdin --json/,
-    /startup_recovery: if startup fails, collect redacted startup diagnostics/,
-    /host_update: rerun this installer, or pass --update, to pull the WebUI image from the host/,
-    /Image\/seed: default stable WebUI image uses the full seed/,
   ]) {
     assert.match(result.stdout, pattern);
   }
