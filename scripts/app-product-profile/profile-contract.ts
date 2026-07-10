@@ -64,7 +64,8 @@ function assertPostInstallAiSelfCheckEntry(
   entry: AppProductProfile['first_run']['beginner_presentation']['post_install_ai_self_check_entry'],
 ): void {
   if (
-    entry?.target_route !== '/guid' ||
+    entry?.trigger !== 'explicit ready entry after ready_to_launch first-run completion' ||
+    entry.target_route !== '/guid' ||
     entry.route_state !== 'postInstallSelfCheck' ||
     entry.prompt_policy !==
       'localized Codex CLI post-install self-check prompt describing target OPL working mode and repair path' ||
@@ -98,6 +99,14 @@ function assertFirstRunProfileShape(profile: AppProductProfile): void {
   assertStringArray(profile.first_run.first_conversation.must_wait_for, 'first_run.first_conversation.must_wait_for');
   assertStringArray(profile.first_run.first_conversation.must_not_wait_for, 'first_run.first_conversation.must_not_wait_for');
   assertStringArray(profile.first_run.beginner_presentation.primary_steps, 'first_run.beginner_presentation.primary_steps');
+  const beginnerPresentation = profile.first_run.beginner_presentation;
+  if (
+    beginnerPresentation.layout_mode !== 'focused_setup_workspace' ||
+    beginnerPresentation.ordinary_navigation_policy !== 'hidden_until_user_enters_guid' ||
+    beginnerPresentation.completion_navigation_policy !== 'manual_ready_entry_only_no_automatic_route_from_first_run'
+  ) {
+    throw new Error('Invalid App product profile first_run.beginner_presentation focused setup policy');
+  }
   assertPostInstallAiSelfCheckEntry(profile.first_run.beginner_presentation.post_install_ai_self_check_entry);
   if (
     profile.first_run.first_conversation.gate !== 'acp_warmup_before_initial_send' ||

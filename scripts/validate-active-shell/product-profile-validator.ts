@@ -2,6 +2,7 @@ import path from 'node:path';
 import { assertDeepEqualJson, assertForbiddenCapabilityPolicy, assertIncludesAll } from './assertions.ts';
 import {
   forbiddenAuthorityOwners,
+  focusedFirstRunPresentationPolicy,
 } from './app-contract-constants.ts';
 import {
   defaultActiveShellContractPath,
@@ -401,6 +402,13 @@ function validateFullFirstInstallCoreReadyPolicy(profile) {
     'Product profile first-run beginner presentation',
     firstRunCoreItems,
   );
+  for (const [field, expected] of Object.entries(focusedFirstRunPresentationPolicy)) {
+    if (profile.first_run?.beginner_presentation?.[field] !== expected) {
+      throw new Error(
+        `Product profile first-run beginner presentation ${field} must be ${expected}`,
+      );
+    }
+  }
   validateReadyToLaunchGate(profile, firstRunCoreItems);
   validateFirstConversationPolicy(profile);
   validateFullFirstInstallBackgroundPolicy(profile);

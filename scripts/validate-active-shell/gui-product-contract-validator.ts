@@ -3,6 +3,7 @@ import {
   appActionRoute,
   appOwnedTaskAwarenessRefFields,
   beginnerFirstRunTestIds,
+  focusedFirstRunPresentationPolicy,
   homeActivityCenterForbiddenDisplays,
 } from './app-contract-constants.ts';
 import { validateGuiFrameworkSurfaces } from './gui-framework-surfaces-validator.ts';
@@ -405,6 +406,16 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     firstLaunchPolicy?.beginner_presentation,
     'App GUI first-launch beginner presentation',
     expectedFirstRunCoreItems,
+  );
+  for (const [field, expected] of Object.entries(focusedFirstRunPresentationPolicy)) {
+    if (firstLaunchPolicy?.beginner_presentation?.[field] !== expected) {
+      throw new Error(`App GUI first-launch beginner presentation ${field} must be ${expected}`);
+    }
+  }
+  assertDeepEqualJson(
+    firstLaunchPolicy?.beginner_presentation?.primary_steps,
+    expectedFirstRunCoreItems,
+    "App GUI first-launch beginner presentation primary steps",
   );
   assertFirstRunProgressModelMatches(
     firstLaunchPolicy?.progress_model,

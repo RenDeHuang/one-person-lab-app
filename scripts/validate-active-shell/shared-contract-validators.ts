@@ -2087,6 +2087,7 @@ export function validateBeginnerFirstRunPresentation(presentation, label, expect
     throw new Error(`${label} must define post_install_ai_self_check_entry`);
   }
   for (const [field, expected] of Object.entries({
+    trigger: "explicit ready entry after ready_to_launch first-run completion",
     target_route: "/guid",
     route_state: "postInstallSelfCheck",
     prompt_policy:

@@ -182,6 +182,22 @@ export function validateFirstRunMatrix(matrix, contract) {
     'Chinese locale first-run primary area uses beginner labels such as 工作目录, 本机助手, and 模型访问 even when initialize checklist labels are English',
     'Chinese locale first-run primary area does not expose Codex API Configuration, Unknown, Needs setup, raw setup_flow fields, or opl system commands',
     'OPL Gateway access key entry uses beginner-facing 访问密钥 copy while existing usable Codex model access can skip first-launch Gateway setup',
+    'first-run uses a focused full-window setup workspace and hides ordinary product navigation until the user enters /guid',
+    'the three Core items render as a stable step rail while only the current task occupies the main panel',
+    'the active rail step and task panel select the first unready Core item in fixed step order before completion',
+    'Core progress uses completed step count without percentage progress',
+    'model access offers functional OPL Gateway and existing Codex configuration paths without competing primary actions',
+    'model access method switching and alternate actions remain disabled until the current request settles',
+    'ready state replaces the current task in place and keeps one primary entry action',
+    'FirstRun never navigates automatically after initialize and only the ready entry action opens /guid',
+    'technical details stay inside FirstRun and do not expose ordinary Settings navigation',
+    'all initialize, model access, and maintenance actions share one in-flight interaction lock',
+    'initialize pending does not claim ready or no blockers before a payload returns',
+    'background App shell is inert and aria-hidden until the user enters /guid',
+    'macOS preserves traffic-light safe area while Windows and Linux retain desktop window controls',
+    'interactive controls use localized accessible names rather than testid strings',
+    'beginner errors are localized inline while raw diagnostics remain in technical details',
+    'submitted access keys are redacted before any renderer diagnostic is stored or rendered',
   ]) {
     if (!beginnerScenario.expects?.includes(expected)) {
       throw new Error(`Beginner first-run scenario must require localized beginner setup UX: ${expected}`);

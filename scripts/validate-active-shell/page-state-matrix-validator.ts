@@ -4,6 +4,7 @@ import {
   appOwnedQueueStatusPolicy,
   appOwnedProjectGroupExpansionPolicy,
   beginnerFirstRunTestIds,
+  focusedFirstRunPresentationPolicy,
 } from './app-contract-constants.ts';
 import {
   assertNonEmptyStringArray,
@@ -84,6 +85,16 @@ export function validatePageStateMatrix(matrix, contract, guiProductContract) {
     'First-launch readiness beginner view model',
     expectedFirstRunCoreItems,
   );
+  for (const [field, expected] of Object.entries(focusedFirstRunPresentationPolicy)) {
+    if (firstLaunchPage.beginner_view_model?.[field] !== expected) {
+      throw new Error(`First-launch readiness beginner view model ${field} must be ${expected}`);
+    }
+  }
+  assertDeepEqualJson(
+    firstLaunchPage.beginner_view_model?.primary_steps,
+    expectedFirstRunCoreItems,
+    "First-launch readiness beginner primary steps",
+  );
   assertIncludesAll(
     firstLaunchPage.beginner_view_model?.required_shell_testids,
     beginnerFirstRunTestIds,
@@ -112,6 +123,16 @@ export function validatePageStateMatrix(matrix, contract, guiProductContract) {
     'next visible step',
     'beginner-facing readiness summary',
     'primary start action',
+    'focused setup workspace before user enters /guid',
+    'fixed three-step rail with one current task panel',
+    'active rail step and task panel stay aligned to the first unready Core item',
+    'functional OPL Gateway and existing Codex access choices',
+    'model access method switching and alternate actions disabled while a request is active',
+    'pending state without premature ready or no-blocker claims',
+    'background shell inert and aria-hidden while first-run is active',
+    'macOS traffic-light safe area and non-mac desktop window controls',
+    'localized accessible names without testid labels',
+    'localized inline errors with raw diagnostics only in technical details',
     'background maintenance collapsed technical disclosure',
     'technical details toggle',
   ]) {
@@ -126,6 +147,14 @@ export function validatePageStateMatrix(matrix, contract, guiProductContract) {
     'English runtime checklist labels in the Chinese beginner primary area',
     'Codex API Configuration, Unknown, or Needs setup in the Chinese beginner primary area',
     'background maintenance counters or labels in the beginner primary area',
+    'ordinary product navigation before the user enters /guid',
+    'focusable or screen-reader-visible ordinary shell before the user enters /guid',
+    'percentage progress as the dominant first-run signal',
+    'simultaneous competing primary actions',
+    'ready or no-blocker claims before initialize returns',
+    'raw technical errors in beginner toasts',
+    'testid strings as accessible names',
+    'concurrent model access method actions',
   ]) {
     if (!firstLaunchPage.must_not_show?.includes(hiddenSignal)) {
       throw new Error(`First-launch readiness page must not show ${hiddenSignal}`);

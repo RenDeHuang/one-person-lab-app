@@ -306,6 +306,24 @@ export type AppProductProfile = {
       advanced_progress_disclosure: string;
       background_maintenance_presentation: string;
       technical_detail_policy: string;
+      layout_mode: string;
+      ordinary_navigation_policy: string;
+      step_navigation_policy: string;
+      current_task_policy: string;
+      current_task_selection_policy: string;
+      progress_display_policy: string;
+      model_access_choice_policy: string;
+      model_access_inflight_policy: string;
+      completion_transition_policy: string;
+      completion_navigation_policy: string;
+      technical_detail_navigation_policy: string;
+      request_exclusivity_policy: string;
+      pending_state_policy: string;
+      background_shell_interaction_policy: string;
+      window_control_policy: string;
+      raw_error_policy: string;
+      secret_diagnostic_policy: string;
+      accessible_name_policy: string;
       post_install_ai_self_check_entry: {
         trigger: string;
         target_route: string;
