@@ -37,9 +37,6 @@ export function validateContractShape(contract) {
   }
   const defaultReleaseAdapter = isDefaultReleaseAdapter(contract);
   validateGuiAuthority(contract, defaultReleaseAdapter);
-  if (defaultReleaseAdapter) {
-    validateUpstreamIntakePolicy(contract);
-  }
   validateShellReplacementPolicy(contract);
   validateShellContractCapabilities(contract);
   validateGuiProductContractPolicy(contract);
@@ -52,6 +49,7 @@ export function validateContractShape(contract) {
   if (defaultReleaseAdapter) {
     assertFile(shellPaths.vitestConfigPath, 'active shell vitest config');
     assertFile(shellPaths.electronBuilderConfigPath, 'active shell electron-builder config');
+    validateUpstreamIntakePolicy(contract, shellPaths);
   }
 
   validateValidationCommands(contract, shellPaths, resolveValidationCwd);

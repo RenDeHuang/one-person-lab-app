@@ -95,9 +95,9 @@ IDs, classification, owner ref, release gate, dependencies, and evidence.
 | Intake item | Classification | App gate |
 | --- | --- | --- |
 | Backend startup directories | `absorbed` | Shell startup focused tests plus App quick validation |
-| Corrupted database recovery | `absorbed` | Adapter code is present, but release remains blocked until the AionCore dependency is admitted |
-| AionCore database-recovery boundary | `deferred` dependency | Requires `aioncoreVersion >= v0.1.44` and verified `BOOTSTRAP_DATA_INIT_FAILED` / `database.recoverable_corruption` evidence |
-| Feedback diagnostics privacy | `deferred` | Blocked until redaction/privacy evidence covers attached shell, AionCore, and AionRS logs |
+| Corrupted database recovery | `absorbed` | Adapter code and its AionCore dependency are admitted; App release authority remains separate |
+| AionCore database-recovery boundary | `absorbed` dependency | Requires actual `aioncoreVersion >= v0.1.44`, verified `BOOTSTRAP_DATA_INIT_FAILED` / `database.recoverable_corruption` evidence, and a remediation ancestor |
+| Feedback diagnostics privacy | `absorbed` | Redaction/privacy evidence is bound to a remediation ancestor for attached shell, AionCore, and AionRS logs |
 | Cron history | `absorbed` | Shell Cron focused tests plus App quick validation |
 | `/guid` slash allowlist | `absorbed` | OPL allowlist-focused tests plus App quick validation |
 | Settings/i18n refinements | `absorbed` | Settings/i18n focused checks plus App quick validation; App Settings IA remains authoritative |
@@ -109,6 +109,24 @@ record and a JSON self-declared list cannot make the gate pass. It rejects
 missing records or fields, duplicate or unknown IDs, invalid classifications,
 unresolved dependencies, missing evidence, an unblocked capability with a
 non-absorbed dependency, and weakened AionCore version/capability gates.
+
+Validation is also bound to the resolved active shell checkout. The App reads
+the shell `package.json` and requires its actual `aioncoreVersion` to match the
+contract's `selective_absorption_version`. The selective absorption ref and any
+record-level `remediation_ref` must be ancestors of the current shell `HEAD`;
+`HEAD` may advance and is not required to remain exactly equal to either ref.
+Moving AionCore recovery from `deferred` to `absorbed` therefore requires only
+the final contract values and shell evidence: admitted version state, verified
+capability evidence, an unblocked release gate, and a remediation SHA already
+contained in active shell history.
+
+The current active shell source package reports `aioncoreVersion=v0.1.44`, so
+the version gate is `meets_minimum` and the recovery capability is `verified`.
+The feedback privacy remediation ancestor is
+`5f786a6dbe9232f1cc3192db8d35df81ea74d2d6`. The final managed-retry AionCore
+remediation ancestor is `a5811dd3947e72b3da69ad5a4457f4e9f5acf71c`.
+Source package and ancestry readback do not substitute for App release-owner
+evidence.
 
 This is an App adapter/intake gate, not an upstream parity or release claim.
 Shell commits remain implementation evidence; App release readiness still

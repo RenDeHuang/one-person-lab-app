@@ -1,4 +1,5 @@
-import { assertDeepEqualJson } from './assertions.ts';
+import { spawnSync } from 'node:child_process';
+import { assertDeepEqualJson, readJson } from './assertions.ts';
 
 const ALLOWED_CLASSIFICATIONS = ['absorbed', 'rejected', 'deferred'];
 const REQUIRED_RECORD_FIELDS = [
@@ -10,97 +11,81 @@ const REQUIRED_RECORD_FIELDS = [
   'dependencies',
   'evidence',
 ];
-
-const REQUIRED_SOURCE_REFS = {
-  fork_base: {
-    ref: '70974c59a275e565e8fc2bd7ecaf2dcac74227f0',
-    role: 'shared_fork_base',
-  },
-  evaluated_upstream: {
-    release: 'v2.1.31',
-    ref: 'e49cd94935f4e461f002a1260a47c1b7b2ce81ca',
-    role: 'evaluated_upstream_release',
-  },
-  selective_absorption_head: {
-    ref: 'e38b00ba37cafe56d704b498a4882264836463e4',
-    role: 'scoped_absorption_and_intake_record_head',
-  },
-};
-
-const REQUIRED_CAPABILITIES = [
-  {
-    id: 'startup_directories',
+const REQUIRED_CAPABILITY_RULES = {
+  startup_directories: {
     classification: 'absorbed',
     releaseGate: 'shell_startup_focused_tests_plus_app_quick_gate',
     dependencies: [],
   },
-  {
-    id: 'database_recovery',
+  database_recovery: {
     classification: 'absorbed',
-    releaseGate: 'blocked_until_aioncore_database_recovery_dependency_absorbed',
+    releaseGate: 'database_recovery_dependency_satisfied',
     dependencies: ['aioncore_database_recovery'],
   },
-  {
-    id: 'feedback_diagnostics_privacy',
-    classification: 'deferred',
-    releaseGate: 'blocked_until_feedback_privacy_redaction_evidence',
+  feedback_diagnostics_privacy: {
+    classification: 'absorbed',
+    releaseGate: 'feedback_privacy_redaction_verified',
     dependencies: [],
+    remediationRequired: true,
   },
-  {
-    id: 'cron_history',
+  cron_history: {
     classification: 'absorbed',
     releaseGate: 'shell_cron_focused_tests_plus_app_quick_gate',
     dependencies: [],
   },
-  {
-    id: 'guid_slash_allowlist',
+  guid_slash_allowlist: {
     classification: 'absorbed',
     releaseGate: 'guid_slash_allowlist_focused_tests_plus_app_quick_gate',
     dependencies: [],
   },
-  {
-    id: 'settings_i18n',
+  settings_i18n: {
     classification: 'absorbed',
     releaseGate: 'settings_i18n_focused_tests_plus_app_quick_gate',
     dependencies: [],
   },
-  {
-    id: 'non_zh_en_locales',
+  non_zh_en_locales: {
     classification: 'rejected',
     releaseGate: 'non_zh_en_locale_payload_must_remain_absent',
     dependencies: [],
   },
-  {
-    id: 'aionui_team',
+  aionui_team: {
     classification: 'rejected',
     releaseGate: 'implementation_probes.aionui_team_disabled_surface',
     dependencies: [],
   },
-];
-
-const REQUIRED_DEPENDENCIES = [
-  {
-    id: 'aioncore_database_recovery',
-    classification: 'deferred',
-    releaseGate: 'blocked_until_version_and_capability_gate_verified',
-    dependencies: [],
-  },
-];
-
-const AIONCORE_VERSION_GATE = {
-  field_ref: 'package.json#aioncoreVersion',
-  minimum_version: 'v0.1.44',
-  evaluated_upstream_version: 'v0.1.44',
-  selective_absorption_version: 'v0.1.28',
-  state: 'below_minimum',
 };
-
-const AIONCORE_CAPABILITY_GATE = {
+const REQUIRED_DEPENDENCY_RULES = {
+  aioncore_database_recovery: {
+    classification: 'absorbed',
+    releaseGate: 'aioncore_database_recovery_verified',
+    dependencies: [],
+    remediationRequired: true,
+  },
+};
+const REQUIRED_CAPABILITY_IDS = Object.keys(REQUIRED_CAPABILITY_RULES);
+const REQUIRED_DEPENDENCY_IDS = Object.keys(REQUIRED_DEPENDENCY_RULES);
+const REQUIRED_SOURCE_REF_ROLES = {
+  fork_base: 'shared_fork_base',
+  evaluated_upstream: 'evaluated_upstream_release',
+  selective_absorption_head: 'scoped_absorption_and_intake_record_head',
+};
+const REQUIRED_AIONCORE_VERSION = 'v0.1.44';
+const REQUIRED_AIONCORE_EVIDENCE = 'packaged_aioncore_boundary_and_recovery_smoke';
+const REQUIRED_AIONCORE_BOUNDARY = {
   required_boundary_code: 'BOOTSTRAP_DATA_INIT_FAILED',
   required_boundary_stage: 'database.recoverable_corruption',
-  state: 'unverified',
-  required_evidence: 'packaged_aioncore_boundary_and_recovery_smoke',
 };
+const REQUIRED_TEAM_PROBE_IDS = [
+  'team_mode_disabled',
+  'team_route_redirect',
+  'team_sidebar_gate',
+  'team_created_redirect_noop',
+  'ordinary_conversation_team_snapshot_scrub',
+  'agent_switching_drops_team_mcp',
+  'team_deep_link_not_whitelisted',
+  'team_bridge_mutation_gate',
+];
+const GIT_SHA_PATTERN = /^[0-9a-f]{40}$/;
 
 function assertNonEmptyString(value, label) {
   if (typeof value !== 'string' || !value.trim()) {
@@ -118,11 +103,14 @@ function assertStringArray(value, label, { allowEmpty = false } = {}) {
   }
 }
 
-function assertUniqueIds(records, label) {
-  const ids = records.map((record) => record?.id);
-  if (new Set(ids).size !== ids.length) {
-    throw new Error(`${label} must not contain duplicate ids`);
+function assertGitSha(value, label) {
+  if (typeof value !== 'string' || !GIT_SHA_PATTERN.test(value)) {
+    throw new Error(`${label} must be a full lowercase Git SHA`);
   }
+}
+
+function isBlockedReleaseGate(value) {
+  return value.startsWith('blocked_');
 }
 
 function validateRecordShape(record, label) {
@@ -137,12 +125,15 @@ function validateRecordShape(record, label) {
   for (const field of ['id', 'upstream_surface', 'classification', 'owner_ref', 'release_gate']) {
     assertNonEmptyString(record[field], `${label}.${field}`);
   }
+  if (record.remediation_ref !== undefined) {
+    assertGitSha(record.remediation_ref, `${label}.remediation_ref`);
+  }
   assertStringArray(record.dependencies, `${label}.dependencies`, { allowEmpty: true });
   assertStringArray(record.evidence, `${label}.evidence`);
   if (!ALLOWED_CLASSIFICATIONS.includes(record.classification)) {
     throw new Error(`${label}.classification must be one of ${ALLOWED_CLASSIFICATIONS.join(', ')}`);
   }
-  if (record.classification === 'deferred' && !record.release_gate.startsWith('blocked_')) {
+  if (record.classification === 'deferred' && !isBlockedReleaseGate(record.release_gate)) {
     throw new Error(`${label} deferred classification must use a blocked release gate`);
   }
   if (record.classification === 'rejected' && record.dependencies.length > 0) {
@@ -150,45 +141,87 @@ function validateRecordShape(record, label) {
   }
 }
 
-function validateRequiredRecords(records, requirements, dependencyRecords, label) {
+function indexRequiredRecords(records, rules, label) {
   if (!Array.isArray(records)) {
     throw new Error(`${label} must be an array`);
   }
-  assertUniqueIds(records, label);
-  assertDeepEqualJson(
-    records.map((record) => record.id),
-    requirements.map((requirement) => requirement.id),
-    `${label} ids`,
-  );
-  const dependencyById = new Map(dependencyRecords.map((record) => [record.id, record]));
-  for (const requirement of requirements) {
-    const record = records.find((entry) => entry.id === requirement.id);
-    validateRecordShape(record, `${label}.${requirement.id}`);
+  const requiredIds = Object.keys(rules);
+  const ids = records.map((record) => record?.id);
+  if (new Set(ids).size !== ids.length) {
+    throw new Error(`${label} must not contain duplicate ids`);
+  }
+  assertDeepEqualJson(ids, requiredIds, `${label} ids`);
+  const byId = new Map();
+  for (const record of records) {
+    validateRecordShape(record, `${label}.${record.id}`);
+    const rule = rules[record.id];
+    if (record.classification !== rule.classification) {
+      throw new Error(`${label}.${record.id}.classification must be ${rule.classification}`);
+    }
+    if (record.release_gate !== rule.releaseGate) {
+      throw new Error(`${label}.${record.id}.release_gate must be ${rule.releaseGate}`);
+    }
+    assertDeepEqualJson(record.dependencies, rule.dependencies, `${label}.${record.id}.dependencies`);
+    if (rule.remediationRequired) {
+      if (!record.remediation_ref) {
+        throw new Error(`${label}.${record.id} requires remediation_ref`);
+      }
+      if (!record.evidence.includes(`shell_commit:${record.remediation_ref}`)) {
+        throw new Error(`${label}.${record.id} evidence must bind shell_commit to remediation_ref`);
+      }
+    }
+    byId.set(record.id, record);
+  }
+  return byId;
+}
+
+function validateDependencyTopology(capabilityById, dependencyById) {
+  for (const [id, record] of capabilityById) {
     for (const dependencyId of record.dependencies) {
       if (!dependencyById.has(dependencyId)) {
-        throw new Error(`${label}.${requirement.id} references unknown dependency ${dependencyId}`);
+        throw new Error(`Active shell upstream intake capabilities.${id} references unknown dependency ${dependencyId}`);
       }
     }
-    if (record.classification !== requirement.classification) {
-      throw new Error(
-        `${label}.${requirement.id}.classification must be ${requirement.classification}, received ${record.classification}`,
-      );
-    }
-    if (record.release_gate !== requirement.releaseGate) {
-      throw new Error(`${label}.${requirement.id}.release_gate must be ${requirement.releaseGate}`);
-    }
-    assertDeepEqualJson(record.dependencies, requirement.dependencies, `${label}.${requirement.id}.dependencies`);
+    if (record.classification !== 'absorbed') continue;
+
     const unresolvedDependencies = record.dependencies.filter(
-      (dependencyId) => dependencyById.get(dependencyId)?.classification !== 'absorbed',
+      (dependencyId) => dependencyById.get(dependencyId).classification !== 'absorbed',
     );
-    if (record.classification === 'absorbed') {
-      if (unresolvedDependencies.length > 0 && !record.release_gate.startsWith('blocked_')) {
-        throw new Error(`${label}.${requirement.id} must stay release-blocked while a dependency is not absorbed`);
-      }
-      if (unresolvedDependencies.length === 0 && record.release_gate.startsWith('blocked_')) {
-        throw new Error(`${label}.${requirement.id} has a blocked release gate without an unresolved dependency`);
-      }
+    if (unresolvedDependencies.length > 0 && !isBlockedReleaseGate(record.release_gate)) {
+      throw new Error(`Active shell upstream intake capabilities.${id} must stay release-blocked while a dependency is not absorbed`);
     }
+    if (unresolvedDependencies.length === 0 && isBlockedReleaseGate(record.release_gate)) {
+      throw new Error(`Active shell upstream intake capabilities.${id} has a blocked release gate without an unresolved dependency`);
+    }
+  }
+}
+
+function validateSourceRefs(upstreamIntake) {
+  const sourceRefs = upstreamIntake.source_refs;
+  if (!sourceRefs || typeof sourceRefs !== 'object' || Array.isArray(sourceRefs)) {
+    throw new Error('Active shell upstream intake source_refs must be an object');
+  }
+  assertDeepEqualJson(
+    Object.keys(sourceRefs).toSorted(),
+    Object.keys(REQUIRED_SOURCE_REF_ROLES).toSorted(),
+    'Active shell upstream intake source ref ids',
+  );
+  for (const [id, role] of Object.entries(REQUIRED_SOURCE_REF_ROLES)) {
+    const sourceRef = sourceRefs[id];
+    if (!sourceRef || typeof sourceRef !== 'object' || Array.isArray(sourceRef)) {
+      throw new Error(`Active shell upstream intake source_refs.${id} must be an object`);
+    }
+    assertGitSha(sourceRef.ref, `Active shell upstream intake source_refs.${id}.ref`);
+    if (sourceRef.role !== role) {
+      throw new Error(`Active shell upstream intake source_refs.${id}.role must be ${role}`);
+    }
+  }
+  if (sourceRefs.evaluated_upstream.release !== 'v2.1.31') {
+    throw new Error('Active shell upstream intake evaluated release must be v2.1.31');
+  }
+  const refs = Object.values(sourceRefs).map((sourceRef) => sourceRef.ref);
+  if (new Set(refs).size !== refs.length) {
+    throw new Error('Active shell upstream intake source refs must identify distinct commits');
   }
 }
 
@@ -207,53 +240,154 @@ function compareVersions(left, right) {
   return 0;
 }
 
-function validateAionCoreRecoveryGate(dependency) {
-  assertDeepEqualJson(
-    dependency.version_gate,
-    AIONCORE_VERSION_GATE,
-    'Active shell AionCore database recovery version gate',
+function validateAionCoreRecoveryGate(dependency, shellPackage) {
+  if (!dependency.version_gate || typeof dependency.version_gate !== 'object') {
+    throw new Error('Active shell AionCore database recovery version_gate must be an object');
+  }
+  const versionGate = dependency.version_gate;
+  for (const field of [
+    'field_ref',
+    'minimum_version',
+    'evaluated_upstream_version',
+    'selective_absorption_version',
+    'state',
+  ]) {
+    assertNonEmptyString(versionGate[field], `Active shell AionCore database recovery version_gate.${field}`);
+  }
+  if (versionGate.field_ref !== 'package.json#aioncoreVersion') {
+    throw new Error('Active shell AionCore database recovery version_gate.field_ref must be package.json#aioncoreVersion');
+  }
+  if (versionGate.minimum_version !== REQUIRED_AIONCORE_VERSION) {
+    throw new Error(`Active shell AionCore database recovery version_gate.minimum_version must be ${REQUIRED_AIONCORE_VERSION}`);
+  }
+  if (versionGate.evaluated_upstream_version !== REQUIRED_AIONCORE_VERSION) {
+    throw new Error(
+      `Active shell AionCore database recovery version_gate.evaluated_upstream_version must be ${REQUIRED_AIONCORE_VERSION}`,
+    );
+  }
+
+  assertNonEmptyString(shellPackage?.aioncoreVersion, 'Active shell package aioncoreVersion');
+  if (shellPackage.aioncoreVersion !== versionGate.selective_absorption_version) {
+    throw new Error(
+      `active shell package aioncoreVersion ${shellPackage.aioncoreVersion} must match selective_absorption_version ${versionGate.selective_absorption_version}`,
+    );
+  }
+
+  const selectedVersion = parseVersion(
+    versionGate.selective_absorption_version,
+    'Active shell AionCore selective absorption version',
   );
+  const minimumVersion = parseVersion(versionGate.minimum_version, 'Active shell AionCore minimum recovery version');
+  const evaluatedVersion = parseVersion(
+    versionGate.evaluated_upstream_version,
+    'Active shell evaluated upstream AionCore version',
+  );
+  if (compareVersions(evaluatedVersion, minimumVersion) < 0) {
+    throw new Error('Evaluated upstream AionCore version must satisfy the minimum recovery version');
+  }
+  const meetsMinimum = compareVersions(selectedVersion, minimumVersion) >= 0;
+  const expectedVersionState = meetsMinimum ? 'meets_minimum' : 'below_minimum';
+  if (versionGate.state !== expectedVersionState) {
+    throw new Error(`Active shell AionCore database recovery version_gate.state must be ${expectedVersionState}`);
+  }
+
   const capabilityGate = dependency.capability_gate;
   if (!capabilityGate || typeof capabilityGate !== 'object' || Array.isArray(capabilityGate)) {
     throw new Error('Active shell AionCore database recovery capability gate must be an object');
   }
-  for (const [field, expected] of Object.entries(AIONCORE_CAPABILITY_GATE)) {
+  for (const [field, expected] of Object.entries(REQUIRED_AIONCORE_BOUNDARY)) {
     if (capabilityGate[field] !== expected) {
       throw new Error(`Active shell AionCore database recovery capability_gate.${field} must be ${expected}`);
     }
   }
+  if (!['unverified', 'verified'].includes(capabilityGate.state)) {
+    throw new Error('Active shell AionCore database recovery capability_gate.state must be unverified or verified');
+  }
+  assertNonEmptyString(
+    capabilityGate.required_evidence,
+    'Active shell AionCore database recovery capability_gate.required_evidence',
+  );
+  if (capabilityGate.required_evidence !== REQUIRED_AIONCORE_EVIDENCE) {
+    throw new Error(
+      `Active shell AionCore database recovery capability_gate.required_evidence must be ${REQUIRED_AIONCORE_EVIDENCE}`,
+    );
+  }
   assertStringArray(capabilityGate.evidence, 'Active shell AionCore database recovery capability_gate.evidence', {
-    allowEmpty: true,
+    allowEmpty: capabilityGate.state !== 'verified',
   });
+  if (
+    capabilityGate.state === 'verified' &&
+    !capabilityGate.evidence.some((entry) => entry.startsWith(`${REQUIRED_AIONCORE_EVIDENCE}:`))
+  ) {
+    throw new Error('verified AionCore database recovery capability gate must bind its required evidence');
+  }
 
-  const selectedVersion = parseVersion(
-    dependency.version_gate.selective_absorption_version,
-    'Active shell AionCore selective absorption version',
-  );
-  const minimumVersion = parseVersion(
-    dependency.version_gate.minimum_version,
-    'Active shell AionCore minimum recovery version',
-  );
-  if (compareVersions(selectedVersion, minimumVersion) >= 0) {
-    throw new Error('Deferred AionCore database recovery dependency must remain below the admitted minimum version');
+  if (!['deferred', 'absorbed'].includes(dependency.classification)) {
+    throw new Error('AionCore database recovery dependency classification must be deferred or absorbed');
   }
   if (dependency.classification === 'absorbed') {
-    if (compareVersions(selectedVersion, minimumVersion) < 0 || capabilityGate.state !== 'verified') {
-      throw new Error('AionCore database recovery cannot be absorbed before version and capability gates pass');
+    if (isBlockedReleaseGate(dependency.release_gate)) {
+      throw new Error('absorbed AionCore database recovery dependency must not remain release-blocked');
     }
-    assertStringArray(
-      capabilityGate.evidence,
-      'Active shell verified AionCore database recovery capability_gate.evidence',
-    );
+    if (!meetsMinimum) {
+      throw new Error('absorbed AionCore database recovery dependency must satisfy its minimum version');
+    }
+    if (capabilityGate.state !== 'verified') {
+      throw new Error('absorbed AionCore database recovery dependency requires capability_gate.state=verified');
+    }
+    if (!dependency.remediation_ref) {
+      throw new Error('absorbed AionCore database recovery dependency requires remediation_ref');
+    }
   }
 }
 
-function validateTeamPolicy(contract, teamIntake) {
+function defaultIsGitAncestor(ref, shellRoot) {
+  const result = spawnSync('git', ['merge-base', '--is-ancestor', ref, 'HEAD'], {
+    cwd: shellRoot,
+    encoding: 'utf8',
+    stdio: 'pipe',
+  });
+  if (result.error) throw result.error;
+  if (result.status === 0) return true;
+  if (result.status === 1) return false;
+  const detail = (result.stderr || result.stdout || '').trim();
+  throw new Error(`Unable to verify active shell ancestor ${ref}: ${detail || `git exited ${result.status}`}`);
+}
+
+function validateActiveShellAncestry(upstreamIntake, records, shellRoot, isGitAncestor) {
+  const refs = [{
+    label: 'selective absorption',
+    ref: upstreamIntake.source_refs.selective_absorption_head.ref,
+  }];
+  for (const record of records) {
+    if (record.remediation_ref) refs.push({ label: 'remediation', ref: record.remediation_ref });
+  }
+
+  const checked = new Set();
+  for (const entry of refs) {
+    if (checked.has(entry.ref)) continue;
+    checked.add(entry.ref);
+    if (!isGitAncestor(entry.ref, shellRoot)) {
+      throw new Error(`active shell HEAD must contain ${entry.label} ref ${entry.ref}`);
+    }
+  }
+}
+
+function validateRejectedBoundaries(contract, capabilityById) {
+  const nonZhEnLocales = capabilityById.get('non_zh_en_locales');
   if (
-    teamIntake?.classification !== 'rejected' ||
-    teamIntake?.ordinary_surface !== 'forbidden' ||
-    teamIntake?.owner_ref !== 'contracts/app-gui-product-contract.json#settings_navigation.team_surface_policy' ||
-    teamIntake?.release_gate !== 'implementation_probes.aionui_team_disabled_surface'
+    nonZhEnLocales.classification !== 'rejected' ||
+    nonZhEnLocales.release_gate !== 'non_zh_en_locale_payload_must_remain_absent'
+  ) {
+    throw new Error('Active shell upstream intake must keep non-Chinese/English locale payloads rejected');
+  }
+
+  const teamIntake = capabilityById.get('aionui_team');
+  if (
+    teamIntake.classification !== 'rejected' ||
+    teamIntake.ordinary_surface !== 'forbidden' ||
+    teamIntake.owner_ref !== 'contracts/app-gui-product-contract.json#settings_navigation.team_surface_policy' ||
+    teamIntake.release_gate !== 'implementation_probes.aionui_team_disabled_surface'
   ) {
     throw new Error('Active shell upstream intake must classify AionUI Team as rejected for ordinary surfaces');
   }
@@ -280,16 +414,7 @@ function validateTeamPolicy(contract, teamIntake) {
   }
   assertDeepEqualJson(
     (probeGroup.probes ?? []).map((probe) => probe.id),
-    [
-      'team_mode_disabled',
-      'team_route_redirect',
-      'team_sidebar_gate',
-      'team_created_redirect_noop',
-      'ordinary_conversation_team_snapshot_scrub',
-      'agent_switching_drops_team_mcp',
-      'team_deep_link_not_whitelisted',
-      'team_bridge_mutation_gate',
-    ],
+    REQUIRED_TEAM_PROBE_IDS,
     'Active shell AionUI Team implementation probe ids',
   );
   for (const probe of probeGroup.probes ?? []) {
@@ -304,7 +429,7 @@ function validateTeamPolicy(contract, teamIntake) {
   }
 }
 
-export function validateUpstreamIntakePolicy(contract) {
+export function validateUpstreamIntakePolicy(contract, shellPaths, options = {}) {
   const upstreamIntake = contract.upstream_intake;
   if (
     upstreamIntake?.classification_policy !==
@@ -317,7 +442,10 @@ export function validateUpstreamIntakePolicy(contract) {
   if (upstreamIntake.schema_version !== 1) {
     throw new Error('Active shell upstream_intake.schema_version must be 1');
   }
-  assertDeepEqualJson(upstreamIntake.source_refs, REQUIRED_SOURCE_REFS, 'Active shell upstream intake source refs');
+  if (!shellPaths?.shellRoot || !shellPaths?.packageManifestPath) {
+    throw new Error('Active shell upstream intake validation requires resolved shell paths');
+  }
+  validateSourceRefs(upstreamIntake);
   assertDeepEqualJson(
     upstreamIntake.allowed_classifications,
     ALLOWED_CLASSIFICATIONS,
@@ -330,31 +458,38 @@ export function validateUpstreamIntakePolicy(contract) {
   );
   assertDeepEqualJson(
     upstreamIntake.required_capability_ids,
-    REQUIRED_CAPABILITIES.map((requirement) => requirement.id),
+    REQUIRED_CAPABILITY_IDS,
     'Active shell upstream intake required capability ids',
   );
   assertDeepEqualJson(
     upstreamIntake.required_dependency_ids,
-    REQUIRED_DEPENDENCIES.map((requirement) => requirement.id),
+    REQUIRED_DEPENDENCY_IDS,
     'Active shell upstream intake required dependency ids',
   );
 
-  const dependencyRecords = upstreamIntake.dependency_classifications;
-  validateRequiredRecords(
-    dependencyRecords,
-    REQUIRED_DEPENDENCIES,
-    dependencyRecords ?? [],
+  const dependencyById = indexRequiredRecords(
+    upstreamIntake.dependency_classifications,
+    REQUIRED_DEPENDENCY_RULES,
     'Active shell upstream intake dependencies',
   );
-  validateRequiredRecords(
+  const capabilityById = indexRequiredRecords(
     upstreamIntake.capability_classifications,
-    REQUIRED_CAPABILITIES,
-    dependencyRecords,
+    REQUIRED_CAPABILITY_RULES,
     'Active shell upstream intake capabilities',
   );
+  validateDependencyTopology(capabilityById, dependencyById);
+  validateRejectedBoundaries(contract, capabilityById);
 
-  const aionCoreDependency = dependencyRecords.find((entry) => entry.id === 'aioncore_database_recovery');
-  validateAionCoreRecoveryGate(aionCoreDependency);
-  const teamIntake = upstreamIntake.capability_classifications.find((entry) => entry.id === 'aionui_team');
-  validateTeamPolicy(contract, teamIntake);
+  const readJsonFile = options.readJsonFile ?? readJson;
+  const shellPackage = readJsonFile(shellPaths.packageManifestPath);
+  const aionCoreDependency = dependencyById.get('aioncore_database_recovery');
+  validateAionCoreRecoveryGate(aionCoreDependency, shellPackage);
+
+  const isGitAncestor = options.isGitAncestor ?? defaultIsGitAncestor;
+  validateActiveShellAncestry(
+    upstreamIntake,
+    [...capabilityById.values(), ...dependencyById.values()],
+    shellPaths.shellRoot,
+    isGitAncestor,
+  );
 }

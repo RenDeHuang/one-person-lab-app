@@ -212,6 +212,7 @@ type UpstreamIntakeRecord = {
   ordinary_surface?: string;
   owner_ref: string;
   release_gate: string;
+  remediation_ref?: string;
   dependencies: string[];
   evidence: string[];
 };
