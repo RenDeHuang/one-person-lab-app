@@ -215,6 +215,7 @@ test('release closeout separates workflow wall time from Agent orchestration wal
   });
   const { summary, monitor } = readout;
   assertReadoutState(readout, 'ready_to_promote');
+  assert.equal(monitor.promote_ready, true);
   assert.equal(monitor.artifact_policy.downloads_large_artifacts, false);
   assert.equal(summary.jobs.slowest_jobs[0].name, 'Build Full first-install assets');
   assert.equal(summary.failed_rerun_tax.failed_rerun_tax_seconds, 1861);
@@ -251,6 +252,9 @@ for (const scenario of [
 
     assert.equal(summary.artifact_attestation_verification.state, scenario.state);
     assert.equal(summary.artifact_attestation_verification.verification.status, scenario.payload.status);
+    if (scenario.state === 'verified') {
+      assert.equal(summary.artifact_attestation_verification.verification.verified_assets[0].name, 'One-Person-Lab-26.5.99-arm64.dmg');
+    }
   });
 }
 
@@ -357,6 +361,7 @@ test('release closeout monitor reports running while structured release evidence
   const { monitor } = readout;
   assertReadoutState(readout, 'wait_for_release_run_completion', 'running');
   assert.equal(monitor.recommended_next_action.action, 'wait_for_release_run_completion');
+  assert.equal(monitor.promote_ready, false);
 });
 
 test('release closeout monitor reports published from explicit release target evidence', () => {
@@ -376,4 +381,5 @@ test('release closeout monitor reports published from explicit release target ev
   const { monitor } = readout;
   assertReadoutState(readout, 'inspect_missing_candidate_record', 'published');
   assert.equal(monitor.published, true);
+  assert.equal(monitor.promote_ready, false);
 });

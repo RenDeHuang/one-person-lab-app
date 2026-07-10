@@ -24,7 +24,9 @@ test('AI release notes writer auto provider prefers the OpenAI-compatible online
   const requestPath = path.join(tempRoot, 'request.json');
   const evidencePath = path.join(tempRoot, 'evidence.json');
   const outputPath = path.join(tempRoot, 'notes.md');
-  const aiMarkdown = validStandardAiReleaseNotes('26.9.1');
+  const remoteMarker = '<!-- OPENAI_COMPATIBLE_REMOTE_FIXTURE -->';
+  const aiMarkdown = validStandardAiReleaseNotes('26.9.1')
+    .replace('## What improved', `${remoteMarker}\n\n## What improved`);
 
   fs.mkdirSync(binDir, { recursive: true });
   fs.writeFileSync(path.join(binDir, 'curl'), `#!/usr/bin/env node
@@ -97,5 +99,39 @@ process.stdout.write(JSON.stringify({ choices: [{ message: { content: ${JSON.str
     contentIncludesEvidence: true,
     hasBearer: true,
   });
-  assert.match(fs.readFileSync(outputPath, 'utf8'), /One Person Lab v26\.9\.1/);
+  assert.match(fs.readFileSync(outputPath, 'utf8'), /OPENAI_COMPATIBLE_REMOTE_FIXTURE/);
+});
+
+test('stable manifest notes expose install, component refs, and version changes', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-notes-manifest-'));
+  const currentPath = path.join(tempRoot, 'current.json');
+  const previousPath = path.join(tempRoot, 'previous.json');
+  fs.writeFileSync(currentPath, JSON.stringify({ components: {
+    mas: { git_commit: 'a'.repeat(40) },
+    officecli: { version: '1.2.3' },
+  } }));
+  fs.writeFileSync(previousPath, JSON.stringify({ components: {
+    mas: { git_commit: 'b'.repeat(40) },
+    officecli: { version: '1.2.2' },
+  } }));
+
+  const result = runNode([
+    'scripts/generate-release-notes.ts',
+    '--version', '26.9.2',
+    '--channel', 'stable',
+    '--previous-tag', 'v26.9.1',
+    '--current-tag', 'v26.9.2',
+    '--shell-root', appRoot,
+    '--previous-app-ref', 'HEAD',
+    '--current-app-ref', 'HEAD',
+    '--previous-shell-ref', 'HEAD',
+    '--current-shell-ref', 'HEAD',
+    '--full-package-manifest', currentPath,
+    '--previous-full-package-manifest', previousPath,
+  ], { env: { OPL_RELEASE_NOTES_SKIP_REMOTE_FAMILY_REPOS: '1' } });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.ok(result.stdout.includes(stableInstallCommand));
+  assert.match(result.stdout, /Packaged component refs: MAS @ aaaaaaa; OfficeCLI 1\.2\.3/);
+  assert.match(result.stdout, /Component updates since previous Stable: MAS bbbbbbb -> aaaaaaa; OfficeCLI 1\.2\.2 -> 1\.2\.3/);
 });

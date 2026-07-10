@@ -4,7 +4,6 @@ import {
   os,
   path,
   test,
-  appRoot,
   runNode,
   writeFile,
 } from './helpers.ts';
