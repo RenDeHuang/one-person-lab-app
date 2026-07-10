@@ -68,15 +68,7 @@ function validateGuidHomeViewModelFields(homeViewModel) {
     codex_default_model_display_value: '5.6 Sol',
     conversation_model_status_display_policy:
       'single_model_selector_in_codex_conversation_composer_no_separate_status_pill',
-    codex_frontier_model_preference_order: [
-      'gpt-5.6-sol',
-      'gpt-5.6-terra',
-      'gpt-5.6-luna',
-      'gpt-5.5',
-      'gpt-5.4',
-      'gpt-5.4-mini',
-      'gpt-5.2',
-    ],
+    codex_auto_model_policy_ref: 'contracts/app-product-profile.json#codex.auto_model_policy',
     codex_precise_model_display_policy: 'friendly_model_primary_reasoning_primary_model_and_intelligence_secondary_menus',
     codex_default_permission_mode: 'full-access',
     permission_mode_selector_visible: false,

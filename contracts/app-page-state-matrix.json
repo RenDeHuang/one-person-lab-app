@@ -42,15 +42,7 @@
         "conversation_backend_selector_visible": false,
         "conversation_model_selector_visible": true,
         "conversation_permission_mode_selector_visible": true,
-        "codex_frontier_model_preference_order": [
-          "gpt-5.6-sol",
-          "gpt-5.6-terra",
-          "gpt-5.6-luna",
-          "gpt-5.5",
-          "gpt-5.4",
-          "gpt-5.4-mini",
-          "gpt-5.2"
-        ],
+        "codex_auto_model_policy_ref": "contracts/app-product-profile.json#codex.auto_model_policy",
         "codex_user_can_override_model": true,
         "codex_user_can_restore_auto": true,
         "retired_codex_models_must_not_be_exposed": [

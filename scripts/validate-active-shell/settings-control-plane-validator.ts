@@ -988,6 +988,7 @@ function validateSettingsModelReasoningPolicy(controlPlane, guiContract, product
     policy?.source_refs,
     [
       'contracts/app-product-profile.json#codex',
+      'contracts/app-product-profile.json#codex.auto_model_policy',
       'contracts/app-product-profile.json#gui.home.codex_model_display_options',
       'contracts/app-gui-product-contract.json#executor_policy',
     ],
@@ -998,6 +999,9 @@ function validateSettingsModelReasoningPolicy(controlPlane, guiContract, product
   }
   if (policy.default_reasoning_effort_ref !== 'contracts/app-product-profile.json#codex.default_reasoning_effort') {
     throw new Error('Settings default reasoning effort must be derived from the App product profile');
+  }
+  if (policy.auto_model_policy_ref !== 'contracts/app-product-profile.json#codex.auto_model_policy') {
+    throw new Error('Settings Auto model policy must be derived from the App product profile');
   }
   if (policy.settings_surface !== 'settings_access.model_access') {
     throw new Error('Settings model/reasoning policy must surface through the Access model section');
@@ -1010,6 +1014,7 @@ function validateSettingsModelReasoningPolicy(controlPlane, guiContract, product
     [
       'default model',
       'frontier model preference order',
+      'Auto model resolution and persistence policy',
       'reasoning effort options',
       'model access readiness truth',
       'provider selector as ordinary UI',

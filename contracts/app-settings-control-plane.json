@@ -408,17 +408,20 @@
     "owner": "one-person-lab-app",
     "source_refs": [
       "contracts/app-product-profile.json#codex",
+      "contracts/app-product-profile.json#codex.auto_model_policy",
       "contracts/app-product-profile.json#gui.home.codex_model_display_options",
       "contracts/app-gui-product-contract.json#executor_policy"
     ],
     "default_model_ref": "contracts/app-product-profile.json#codex.default_model",
     "default_reasoning_effort_ref": "contracts/app-product-profile.json#codex.default_reasoning_effort",
+    "auto_model_policy_ref": "contracts/app-product-profile.json#codex.auto_model_policy",
     "ordinary_surface": "home_and_conversation_model_selector_primary_reasoning_with_secondary_model_and_intelligence_menus",
     "settings_surface": "settings_access.model_access",
     "adapter_policy": "Aion/Hermes/shell render App-derived model and reasoning policy only",
     "shell_must_not_own": [
       "default model",
       "frontier model preference order",
+      "Auto model resolution and persistence policy",
       "reasoning effort options",
       "model access readiness truth",
       "provider selector as ordinary UI"

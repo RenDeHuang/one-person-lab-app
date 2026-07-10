@@ -4,6 +4,7 @@ type ProductProfileLike = {
   codex?: {
     default_model?: unknown;
     default_reasoning_effort?: unknown;
+    auto_model_policy?: Record<string, unknown>;
   };
   gui?: {
     authority?: unknown;
@@ -209,7 +210,7 @@ export function assertAppProductProfileHomeCodexPolicy(
   const home = profile.gui?.home;
   assertHomeCodexFixedExecutorFields(profile, home, label);
   assertHomeCodexEnglishStatusLabel(home, label, options);
-  assertHomeCodexAutoSelectionPolicy(home, label, options);
+  assertHomeCodexAutoSelectionPolicy(profile, home, label, options);
 }
 
 function assertHomeCodexFixedExecutorFields(
@@ -255,6 +256,7 @@ function assertHomeCodexEnglishStatusLabel(
 }
 
 function assertHomeCodexAutoSelectionPolicy(
+  profile: ProductProfileLike,
   home: HomeLike,
   label: string,
   options: HomePolicyOptions,
@@ -262,12 +264,7 @@ function assertHomeCodexAutoSelectionPolicy(
   const autoSelection = home?.codex_auto_model_selection;
   assertExpectedFields(
     [
-      { actual: autoSelection?.strategy, expected: 'codex_cli_auto_latest_available_frontier' },
-      { actual: autoSelection?.model_list_source, expected: 'codex_cli_handshake_available_models' },
-      {
-        actual: autoSelection?.frontier_model_preference_order_role,
-        expected: 'exact_visible_model_allowlist_order_and_fallback_with_codex_cli_availability_filter',
-      },
+      { actual: autoSelection?.policy_source_ref, expected: 'contracts/app-product-profile.json#codex.auto_model_policy' },
       { actual: autoSelection?.user_can_override_model, expected: true },
       { actual: autoSelection?.user_can_override_reasoning_effort, expected: true },
       { actual: autoSelection?.user_can_restore_auto, expected: true },
@@ -277,6 +274,46 @@ function assertHomeCodexAutoSelectionPolicy(
   if (options.requireSelectionPersistence && autoSelection?.selection_persists_into_conversation !== true) {
     throw new Error(`${label} GUI home Codex model selection must persist into conversation`);
   }
+  assertCodexAutoModelPolicy(profile.codex?.auto_model_policy, profile, label);
+}
+
+function assertCodexAutoModelPolicy(
+  policy: Record<string, unknown> | undefined,
+  profile: ProductProfileLike,
+  label: string,
+): void {
+  assertExpectedFields(
+    [
+      { actual: policy?.authority, expected: 'one-person-lab-app' },
+      { actual: policy?.mode_default, expected: 'auto' },
+      { actual: policy?.model_catalog_source, expected: 'codex_cli_model_list' },
+      { actual: policy?.catalog_default_model_field, expected: 'isDefault' },
+      { actual: policy?.catalog_supported_reasoning_efforts_field, expected: 'supportedReasoningEfforts' },
+      { actual: policy?.catalog_reasoning_effort_order_policy, expected: 'last_advertised_supported_reasoning_effort_is_highest' },
+      { actual: policy?.frontier_model_preference_order_role, expected: 'known_model_fallback_and_fixed_option_preference_not_allowlist' },
+      { actual: policy?.unknown_default_model_policy, expected: 'accept_catalog_default_even_when_not_in_frontier_model_preference_order' },
+      { actual: policy?.unknown_model_reasoning_effort_policy, expected: 'highest_supported_reasoning_effort_from_catalog' },
+      { actual: policy?.catalog_without_default_policy, expected: 'first_available_known_model_then_first_catalog_model' },
+    ],
+    `${label} Codex Auto model policy must follow the Codex CLI catalog`,
+  );
+  assertExactStringArray(
+    policy?.frontier_model_preference_order,
+    expectedCodexVisibleModels.map((model) => model.id),
+    `${label} Codex known model preference order`,
+  );
+  if (JSON.stringify(policy?.known_model_reasoning_effort_overrides) !== JSON.stringify({ 'gpt-5.6-sol': 'xhigh' })) {
+    throw new Error(`${label} Codex known model reasoning override must keep gpt-5.6-sol at xhigh`);
+  }
+  if (JSON.stringify(policy?.catalog_unavailable_fallback) !== JSON.stringify({ model: 'gpt-5.6-sol', reasoning_effort: 'xhigh' })) {
+    throw new Error(`${label} Codex catalog fallback must be gpt-5.6-sol with xhigh reasoning`);
+  }
+  if (JSON.stringify(policy?.persistence_policy) !== JSON.stringify({
+    auto: 'persist_auto_mode_only_resolve_model_and_reasoning_from_fresh_catalog',
+    fixed: 'persist_selected_model_and_reasoning_effort',
+  })) {
+    throw new Error(`${label} Codex persistence must keep Auto dynamic and fixed overrides durable`);
+  }
 }
 
 export function assertAppProductProfileCodexModelDisplayOptions(
@@ -285,7 +322,7 @@ export function assertAppProductProfileCodexModelDisplayOptions(
   options: ModelDisplayOptions = {},
 ): void {
   const displayOptions = profile.gui?.home?.codex_model_display_options;
-  const frontierOrder = profile.gui?.home?.codex_auto_model_selection?.frontier_model_preference_order;
+  const frontierOrder = profile.codex?.auto_model_policy?.frontier_model_preference_order;
   assertCodexModelDisplayShape(profile, displayOptions, frontierOrder, label);
   assertCodexAutoModelOptionDescription(displayOptions?.auto_option, label, options);
   assertVisibleCodexModelsUseFriendlyDefaults(displayOptions?.visible_models ?? [], label);

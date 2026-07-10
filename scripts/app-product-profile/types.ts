@@ -49,14 +49,11 @@ export type AppProductProfile = {
       codex_home_model_status_label_en: string;
       codex_precise_model_display_policy: string;
       codex_auto_model_selection: {
-        strategy: string;
-        model_list_source: string;
-        frontier_model_preference_order_role: string;
+        policy_source_ref: string;
         user_can_override_model: boolean;
         user_can_override_reasoning_effort: boolean;
         user_can_restore_auto: boolean;
         selection_persists_into_conversation: boolean;
-        frontier_model_preference_order: string[];
       };
       codex_model_display_options: {
         display_policy: string;
@@ -225,6 +222,28 @@ export type AppProductProfile = {
     default_model: string;
     default_model_description: string;
     default_reasoning_effort: string;
+    auto_model_policy: {
+      authority: string;
+      mode_default: string;
+      model_catalog_source: string;
+      catalog_default_model_field: string;
+      catalog_supported_reasoning_efforts_field: string;
+      catalog_reasoning_effort_order_policy: string;
+      frontier_model_preference_order_role: string;
+      frontier_model_preference_order: string[];
+      known_model_reasoning_effort_overrides: Record<string, string>;
+      unknown_default_model_policy: string;
+      unknown_model_reasoning_effort_policy: string;
+      catalog_without_default_policy: string;
+      catalog_unavailable_fallback: {
+        model: string;
+        reasoning_effort: string;
+      };
+      persistence_policy: {
+        auto: string;
+        fixed: string;
+      };
+    };
     opl_flow_context: {
       flow_id: string;
       source: string;

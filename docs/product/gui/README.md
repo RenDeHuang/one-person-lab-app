@@ -31,7 +31,9 @@ OPL App GUI 使用三层设计体系：
 专题设计继续由现有 owner 文档承接：Settings 见
 [`settings-control-center.md`](settings-control-center.md)，Runtime 见
 [`runtime-overview-redesign.md`](runtime-overview-redesign.md)，候选 shell 的 staged
-计划见对应 candidate plan。专题文档不得反向覆盖三层体系或 machine contracts。
+计划见对应 candidate plan；Codex Auto 模型策略见
+[`codex-auto-model-policy.md`](codex-auto-model-policy.md)。专题文档不得反向覆盖三层
+体系或 machine contracts。
 
 ## Authority 与优先级
 
@@ -74,6 +76,7 @@ Conformance 必须按 `contract_status`、`source_status`、`pixel_status` 三�
 - `ideal_target.permission_access_mode_visible=true`
 - `ideal_target.side_panel_primary_tools=review,terminal,browser,files`
 - `entry_docs=docs/product/gui/README.md,docs/product/gui/feature-inventory.md,docs/product/gui/ideal-interaction-spec.md,docs/product/gui/visual-system.md,docs/product/gui/codex-to-opl-app-delta.md,docs/product/gui/element-audit.md,docs/product/gui/shell-implementation-guide.md,docs/product/gui/shell-conformance-matrix.md`
+- `codex_auto_model_policy=contracts/app-product-profile.json#codex.auto_model_policy`
 - `contract_refs=contracts/app-gui-product-contract.json,contracts/app-product-profile.json,contracts/app-page-state-matrix.json,contracts/app-shell-candidates.json,contracts/app-shell-adapter.json`
 
 ## 当前目标与实现边界

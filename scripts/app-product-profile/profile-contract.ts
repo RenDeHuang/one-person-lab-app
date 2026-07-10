@@ -461,8 +461,8 @@ function assertHomeCodexProfileShape(profile: AppProductProfile): void {
     requireSelectionPersistence: true,
   });
   assertStringArray(
-    profile.gui.home.codex_auto_model_selection.frontier_model_preference_order,
-    'gui.home.codex_auto_model_selection.frontier_model_preference_order',
+    profile.codex.auto_model_policy.frontier_model_preference_order,
+    'codex.auto_model_policy.frontier_model_preference_order',
   );
   assertAppProductProfileCodexModelDisplayOptions(profile, 'App product profile', {
     requireAutoIdAndDescriptions: true,

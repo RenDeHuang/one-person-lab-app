@@ -1047,8 +1047,7 @@
     "executor_tab_visible_when_single_executor": false,
     "default_model": "gpt-5.6-sol",
     "default_model_strategy": "codex_cli_auto_latest_available_frontier",
-    "model_list_source": "codex_cli_handshake_available_models",
-    "frontier_model_preference_order_role": "exact_visible_model_allowlist_order_and_fallback_with_codex_cli_availability_filter",
+    "auto_model_policy_source_ref": "contracts/app-product-profile.json#codex.auto_model_policy",
     "default_reasoning_effort": "xhigh",
     "default_model_display_value": "5.6 Sol",
     "home_model_status_label": "5.6 Sol",
@@ -1068,15 +1067,6 @@
     "user_model_override_allowed": true,
     "user_reasoning_effort_override_allowed": true,
     "restore_auto_model_selection_allowed": true,
-    "frontier_model_preference_order": [
-      "gpt-5.6-sol",
-      "gpt-5.6-terra",
-      "gpt-5.6-luna",
-      "gpt-5.5",
-      "gpt-5.4",
-      "gpt-5.4-mini",
-      "gpt-5.2"
-    ],
     "model_display_options_policy": {
       "source": "contracts/app-product-profile.json#gui.home.codex_model_display_options",
       "display_policy": "friendly_model_name_primary_reasoning_primary_model_and_intelligence_secondary_menus",
@@ -1095,7 +1085,8 @@
       "user_reasoning_effort_options": ["low", "medium", "high", "xhigh", "ultra"],
       "auto_option_label_policy": "auto_recommended_with_current_model_reasoning_and_latest_strongest_description",
       "fixed_option_label_policy": "friendly_model_name_plus_reasoning_with_fixed_model_description",
-      "visible_models_must_match_frontier_preference_order": true,
+      "known_visible_models_follow_frontier_preference_order": true,
+      "unknown_catalog_default_must_remain_visible_in_auto": true,
       "ordinary_home_and_conversation_must_share_formatter": true
     },
     "send_after_model_display_policy": "must_not_require_model_or_executor_choice_before_send"

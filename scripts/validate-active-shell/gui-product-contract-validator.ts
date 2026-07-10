@@ -81,11 +81,13 @@ function validateCodexModelPolicy(guiContract) {
       default_model_display_value: executorPolicy.default_model_display_value,
       home_model_status_label: executorPolicy.home_model_status_label,
       home_model_status_label_en: executorPolicy.home_model_status_label_en,
-      model_list_source: executorPolicy.model_list_source,
-      frontier_model_preference_order_role: executorPolicy.frontier_model_preference_order_role,
-      frontier_model_preference_order: executorPolicy.frontier_model_preference_order,
+      auto_model_policy_source_ref: executorPolicy.auto_model_policy_source_ref,
       button_label_policy: executorPolicy.model_display_options_policy?.button_label_policy,
       user_reasoning_effort_options: executorPolicy.model_display_options_policy?.user_reasoning_effort_options,
+      known_visible_models_follow_frontier_preference_order:
+        executorPolicy.model_display_options_policy?.known_visible_models_follow_frontier_preference_order,
+      unknown_catalog_default_must_remain_visible_in_auto:
+        executorPolicy.model_display_options_policy?.unknown_catalog_default_must_remain_visible_in_auto,
     },
     {
       default_model: productProfile.codex?.default_model,
@@ -93,12 +95,11 @@ function validateCodexModelPolicy(guiContract) {
       default_model_display_value: productHome.codex_home_model_status_label,
       home_model_status_label: productHome.codex_home_model_status_label,
       home_model_status_label_en: productHome.codex_home_model_status_label_en,
-      model_list_source: productHome.codex_auto_model_selection?.model_list_source,
-      frontier_model_preference_order_role:
-        productHome.codex_auto_model_selection?.frontier_model_preference_order_role,
-      frontier_model_preference_order: productHome.codex_auto_model_selection?.frontier_model_preference_order,
+      auto_model_policy_source_ref: productHome.codex_auto_model_selection?.policy_source_ref,
       button_label_policy: productHome.codex_model_display_options?.button_label_policy,
       user_reasoning_effort_options: productHome.codex_model_display_options?.user_reasoning_effort_options,
+      known_visible_models_follow_frontier_preference_order: true,
+      unknown_catalog_default_must_remain_visible_in_auto: true,
     },
     'App GUI Codex model policy',
   );

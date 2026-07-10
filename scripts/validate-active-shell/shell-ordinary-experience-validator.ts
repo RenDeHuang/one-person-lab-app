@@ -57,8 +57,15 @@ const productProfileDefaultsExpected = [
   '"codex_home_model_status_label": "5.6 Sol"',
   '"codex_precise_model_display_policy": "friendly_model_primary_reasoning_primary_model_and_intelligence_secondary_menus"',
   '"button_label_policy": "resolved_model_compact_label_with_selected_reasoning_effort_no_auto_prefix"',
-  '"strategy": "codex_cli_auto_latest_available_frontier"',
-  '"frontier_model_preference_order_role": "exact_visible_model_allowlist_order_and_fallback_with_codex_cli_availability_filter"',
+  '"policy_source_ref": "contracts/app-product-profile.json#codex.auto_model_policy"',
+  '"model_catalog_source": "codex_cli_model_list"',
+  '"catalog_default_model_field": "isDefault"',
+  '"catalog_supported_reasoning_efforts_field": "supportedReasoningEfforts"',
+  '"frontier_model_preference_order_role": "known_model_fallback_and_fixed_option_preference_not_allowlist"',
+  '"unknown_default_model_policy": "accept_catalog_default_even_when_not_in_frontier_model_preference_order"',
+  '"unknown_model_reasoning_effort_policy": "highest_supported_reasoning_effort_from_catalog"',
+  '"auto": "persist_auto_mode_only_resolve_model_and_reasoning_from_fresh_catalog"',
+  '"fixed": "persist_selected_model_and_reasoning_effort"',
   '"user_can_override_model": true',
   '"user_can_restore_auto": true',
   '"display_policy": "friendly_model_name_primary_reasoning_primary_model_and_intelligence_secondary_menus"',
@@ -93,11 +100,13 @@ const productProfileDefaultsExpected = [
 ];
 
 const codexModelsExpected = [
-  'getOplCodexFrontierModelPreferenceOrder',
-  'CODEX_FRONTIER_MODEL_PREFERENCE_INDEX',
-  'CODEX_FRONTIER_MODEL_PREFERENCE_INDEX.get(id)',
-  'preference === undefined',
-  'left.preference - right.preference',
+  'getOplCodexAutoModelPolicy',
+  'resolveOplCodexAutoSelection',
+  'frontier_model_preference_order',
+  'unknown_default_model_policy',
+  'known_model_reasoning_effort_overrides',
+  'catalog_unavailable_fallback',
+  'persistence_policy',
   'DEFAULT_CODEX_MODELS',
   'handshakeModels == null',
   'normalizeCodexModelInfo(handshakeModels).available_models',
@@ -197,7 +206,7 @@ function validateGuidAgentSelection(shellPaths) {
 }
 
 function assertProductProfileFrontierModelPreferenceOrder(productProfileJson) {
-  const actual = productProfileJson?.gui?.home?.codex_auto_model_selection?.frontier_model_preference_order;
+  const actual = productProfileJson?.codex?.auto_model_policy?.frontier_model_preference_order;
   const expected = [
     'gpt-5.6-sol',
     'gpt-5.6-terra',
@@ -209,7 +218,7 @@ function assertProductProfileFrontierModelPreferenceOrder(productProfileJson) {
   ];
   if (JSON.stringify(actual) !== JSON.stringify(expected)) {
     throw new Error(
-      `Active shell product profile must carry App Codex default frontier_model_preference_order=${JSON.stringify(expected)}`,
+      `Active shell product profile must carry App Codex known frontier_model_preference_order=${JSON.stringify(expected)}`,
     );
   }
 }
@@ -249,7 +258,7 @@ function validateGuidAssistantsAndSkills(shellPaths, guidPage) {
 function validateCodexModelControls(shellPaths) {
   assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/components/agent/AcpModelSelector.tsx', ['useAcpModelInfo', 'canSwitch', 'if (!canSwitch)', 'selectAutoModel()', 'onClick={handleAutoSelect}'], 'Active shell ACP model selector fixed Codex model guard');
   assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/hooks/agent/useAcpModelInfo.ts', ['isOplCodexCliFixedExecutor', 'shouldShowOplCodexModelList', "backend === 'codex'", 'shouldShowOplCodexModelList()', "backend === 'codex' ? normalizeCodexModelInfo(nextModelInfo) : nextModelInfo", 'reportedCodexCurrentModelIdRef', 'reportedCodexCurrentModelIdRef.current ?? model_info.current_model_id', 'updateModelInfo(info)', 'updateModelInfo(incoming)', 'updateModelInfo(confirmedModelInfo)', 'selectAutoModel', 'requestModelSelection(defaultModelId, false)', 'savePreferredModelId(backend, null)', 'canSwitch'], 'Active shell ACP model hook App-owned Codex model controls');
-  assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/utils/model/oplCodexModelDisplay.ts', ['selectDefaultCodexModelId(input.availableModels)', 'options.auto_option.resolved_reasoning_effort'], 'Active shell Codex Auto option resolved target display');
+  assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/utils/model/oplCodexModelDisplay.ts', ['resolveOplCodexAutoSelection'], 'Active shell Codex Auto option resolved target display');
   assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/pages/conversation/platforms/acp/AcpSendBox.tsx', ['useAcpModelInfo', 'selectAutoModel', 'handleSheetAutoSelect', 'onClick: handleSheetAutoSelect'], 'Active shell mobile ACP model selector shared Auto resolver');
 }
 
