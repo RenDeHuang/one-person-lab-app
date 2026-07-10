@@ -59,13 +59,20 @@ const productProfileDefaultsExpected = [
   '"button_label_policy": "resolved_model_compact_label_with_selected_reasoning_effort_no_auto_prefix"',
   '"policy_source_ref": "contracts/app-product-profile.json#codex.auto_model_policy"',
   '"model_catalog_source": "codex_cli_model_list"',
+  '"catalog_response_models_field": "data"',
   '"catalog_default_model_field": "isDefault"',
   '"catalog_supported_reasoning_efforts_field": "supportedReasoningEfforts"',
+  '"catalog_supported_reasoning_effort_option_value_field": "reasoningEffort"',
+  '"catalog_pagination_request_cursor_field": "cursor"',
+  '"catalog_pagination_response_cursor_field": "nextCursor"',
+  '"catalog_pagination_completion_policy": "exhaust_pages_until_next_cursor_is_null"',
+  '"catalog_hidden_model_policy": "exclude_hidden_models_from_auto_and_fixed_options"',
   '"frontier_model_preference_order_role": "known_model_fallback_and_fixed_option_preference_not_allowlist"',
   '"unknown_default_model_policy": "accept_catalog_default_even_when_not_in_frontier_model_preference_order"',
   '"unknown_model_reasoning_effort_policy": "highest_supported_reasoning_effort_from_catalog"',
   '"auto": "persist_auto_mode_only_resolve_model_and_reasoning_from_fresh_catalog"',
   '"fixed": "persist_selected_model_and_reasoning_effort"',
+  '"reasoning_override_from_auto": "pin_current_resolved_model_and_exit_auto"',
   '"user_can_override_model": true',
   '"user_can_restore_auto": true',
   '"display_policy": "friendly_model_name_primary_reasoning_primary_model_and_intelligence_secondary_menus"',
@@ -77,7 +84,9 @@ const productProfileDefaultsExpected = [
   '"intelligence_enhancement_default_enabled": false',
   '"reasoning_effort_options_source": "acp_codex_config_options_enum"',
   '"label_zh": "自动（推荐）"',
-  '"description_zh": "当前 5.6 Sol · 推理超高 · 跟随最新最强"',
+  '"description_zh": "跟随 Codex CLI 当前默认模型与 App 推理策略"',
+  '"catalog_unavailable_fallback_model": "gpt-5.6-sol"',
+  '"catalog_unavailable_fallback_reasoning_effort": "xhigh"',
   '"zh": "推理超高"',
   '"en": "Extra high reasoning"',
   '"zh": "推理极高"',
@@ -106,10 +115,11 @@ const codexModelsExpected = [
   'unknown_default_model_policy',
   'known_model_reasoning_effort_overrides',
   'catalog_unavailable_fallback',
-  'persistence_policy',
+  'model.hidden === true',
   'DEFAULT_CODEX_MODELS',
   'handshakeModels == null',
-  'normalizeCodexModelInfo(handshakeModels).available_models',
+  'normalizeCodexModelInfo(handshakeModels)',
+  'normalized?.available_models',
   'DEFAULT_CODEX_MODELS.map',
   'available_models: visibleModels',
 ];
@@ -257,7 +267,7 @@ function validateGuidAssistantsAndSkills(shellPaths, guidPage) {
 
 function validateCodexModelControls(shellPaths) {
   assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/components/agent/AcpModelSelector.tsx', ['useAcpModelInfo', 'canSwitch', 'if (!canSwitch)', 'selectAutoModel()', 'onClick={handleAutoSelect}'], 'Active shell ACP model selector fixed Codex model guard');
-  assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/hooks/agent/useAcpModelInfo.ts', ['isOplCodexCliFixedExecutor', 'shouldShowOplCodexModelList', "backend === 'codex'", 'shouldShowOplCodexModelList()', "backend === 'codex' ? normalizeCodexModelInfo(nextModelInfo) : nextModelInfo", 'reportedCodexCurrentModelIdRef', 'reportedCodexCurrentModelIdRef.current ?? model_info.current_model_id', 'updateModelInfo(info)', 'updateModelInfo(incoming)', 'updateModelInfo(confirmedModelInfo)', 'selectAutoModel', 'requestModelSelection(defaultModelId, false)', 'savePreferredModelId(backend, null)', 'canSwitch'], 'Active shell ACP model hook App-owned Codex model controls');
+  assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/hooks/agent/useAcpModelInfo.ts', ['isOplCodexCliFixedExecutor', 'shouldShowOplCodexModelList', "backend === 'codex'", 'shouldShowOplCodexModelList()', "backend === 'codex' ? normalizeCodexModelInfo(nextModelInfo) : nextModelInfo", 'reportedCodexCurrentModelIdRef', 'reportedCodexCurrentModelIdRef.current ?? model_info.current_model_id', 'updateModelInfo(info)', 'updateModelInfo(incoming)', 'updateModelInfo(confirmedModelInfo)', 'selectAutoModel', 'selectReasoningEffort', 'savePreferredModelId(backend, null)', 'savePreferredModelId(backend, currentModelId)', 'canSwitch'], 'Active shell ACP model hook App-owned Codex model controls');
   assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/utils/model/oplCodexModelDisplay.ts', ['resolveOplCodexAutoSelection'], 'Active shell Codex Auto option resolved target display');
   assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/pages/conversation/platforms/acp/AcpSendBox.tsx', ['useAcpModelInfo', 'selectAutoModel', 'handleSheetAutoSelect', 'onClick: handleSheetAutoSelect'], 'Active shell mobile ACP model selector shared Auto resolver');
 }

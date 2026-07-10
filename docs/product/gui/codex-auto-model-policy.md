@@ -11,18 +11,22 @@ Machine boundary: 本文解释 App-owned Codex Auto 产品策略。机器真相�
 ## 结论
 
 One Person Lab App 默认保存的是 `Auto` 模式，不是某次解析得到的具体模型。每次需要
-解析 Auto 时，消费者读取 Codex CLI `model/list`：
+解析 Auto 时，消费者读取 Codex CLI `model/list`，用 `cursor` 继续翻页，直到响应
+`nextCursor=null` 后才把 `data` 视为完整目录：
 
 1. CLI 用 `isDefault` 标记的模型是 App 当前自动模型候选。
 2. 已知模型可使用 App 明确覆盖；当前 `gpt-5.6-sol` 固定使用 `xhigh`。
 3. 未知新默认模型不得因为不在已知列表中被过滤；它使用 CLI
-   `supportedReasoningEfforts` 广告顺序中的最高档。
+   `supportedReasoningEfforts` 对象数组最后一项的 `reasoningEffort`。
 4. CLI 目录不可用时回退到 `gpt-5.6-sol + xhigh`。
-5. 用户选择固定模型或固定推理档后，持久化具体选择；用户恢复 Auto 后，只持久化
-   Auto 模式，下次重新读取目录。
+5. 用户选择固定模型后持久化模型与推理档；在 Auto 下手动修改推理档时，固定当前
+   已解析模型并退出 Auto。用户恢复 Auto 后不保留模型快照，下次重新读取完整目录。
+6. 已固定模型从目录消失时保留为“不可用的固定选择”，直到用户恢复 Auto 或选择
+   可用模型；不得静默改回另一个模型。
 
-因此，如果未来 Codex CLI 将 GPT-6 标记为 `isDefault`，即使 App 尚未发布包含 GPT-6
-名称的新版静态列表，Auto 也必须选择 GPT-6，并使用 CLI 为它声明的最高推理档。
+因此，如果未来 Codex CLI 将 GPT-6 标记为 `isDefault`，即使它位于后续分页、App 尚未
+发布包含 GPT-6 名称的新版静态列表，Auto 也必须选择 GPT-6，并使用 CLI 为它声明的
+最高推理档。
 
 ## 已知列表的角色
 
@@ -33,6 +37,10 @@ One Person Lab App 默认保存的是 `Auto` 模式，不是某次解析得到�
 
 它不是 allowlist。未知的 CLI 默认模型仍可进入 Auto；固定模型菜单是否展示其它目录
 模型属于 Shell 展示适配，但不得影响 Auto 解析结果。
+
+直接调用 Codex app-server 的消费者必须自行读完所有分页。通过 ACP 或其它 adapter 接收
+目录的 Shell，只能把 adapter 已完整收集的目录交给 Auto resolver；不完整目录应按
+catalog unavailable 处理，不能把首屏结果冒充完整目录。
 
 ## Owner 边界
 

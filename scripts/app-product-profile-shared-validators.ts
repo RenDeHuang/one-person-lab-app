@@ -287,9 +287,16 @@ function assertCodexAutoModelPolicy(
       { actual: policy?.authority, expected: 'one-person-lab-app' },
       { actual: policy?.mode_default, expected: 'auto' },
       { actual: policy?.model_catalog_source, expected: 'codex_cli_model_list' },
+      { actual: policy?.catalog_response_models_field, expected: 'data' },
       { actual: policy?.catalog_default_model_field, expected: 'isDefault' },
       { actual: policy?.catalog_supported_reasoning_efforts_field, expected: 'supportedReasoningEfforts' },
+      { actual: policy?.catalog_supported_reasoning_effort_option_value_field, expected: 'reasoningEffort' },
       { actual: policy?.catalog_reasoning_effort_order_policy, expected: 'last_advertised_supported_reasoning_effort_is_highest' },
+      { actual: policy?.catalog_pagination_request_cursor_field, expected: 'cursor' },
+      { actual: policy?.catalog_pagination_response_cursor_field, expected: 'nextCursor' },
+      { actual: policy?.catalog_pagination_completion_policy, expected: 'exhaust_pages_until_next_cursor_is_null' },
+      { actual: policy?.catalog_hidden_model_field, expected: 'hidden' },
+      { actual: policy?.catalog_hidden_model_policy, expected: 'exclude_hidden_models_from_auto_and_fixed_options' },
       { actual: policy?.frontier_model_preference_order_role, expected: 'known_model_fallback_and_fixed_option_preference_not_allowlist' },
       { actual: policy?.unknown_default_model_policy, expected: 'accept_catalog_default_even_when_not_in_frontier_model_preference_order' },
       { actual: policy?.unknown_model_reasoning_effort_policy, expected: 'highest_supported_reasoning_effort_from_catalog' },
@@ -311,6 +318,9 @@ function assertCodexAutoModelPolicy(
   if (JSON.stringify(policy?.persistence_policy) !== JSON.stringify({
     auto: 'persist_auto_mode_only_resolve_model_and_reasoning_from_fresh_catalog',
     fixed: 'persist_selected_model_and_reasoning_effort',
+    state_encoding: 'auto_has_no_model_snapshot_fixed_has_model_and_reasoning',
+    reasoning_override_from_auto: 'pin_current_resolved_model_and_exit_auto',
+    stale_fixed_model: 'preserve_fixed_selection_as_unavailable_until_user_restores_auto_or_selects_available_model',
   })) {
     throw new Error(`${label} Codex persistence must keep Auto dynamic and fixed overrides durable`);
   }
@@ -363,8 +373,11 @@ function assertCodexModelDisplayShape(
       { actual: displayOptions?.intelligence_enhancement_default_enabled, expected: false },
       { actual: auto?.label_zh, expected: '自动（推荐）' },
       { actual: auto?.label_en, expected: 'Auto (recommended)' },
-      { actual: auto?.resolved_model, expected: profile.codex?.default_model },
-      { actual: auto?.resolved_reasoning_effort, expected: profile.codex?.default_reasoning_effort },
+      { actual: auto?.catalog_unavailable_fallback_model, expected: profile.codex?.default_model },
+      {
+        actual: auto?.catalog_unavailable_fallback_reasoning_effort,
+        expected: profile.codex?.default_reasoning_effort,
+      },
       { actual: auto?.follows_latest_strongest, expected: true },
       { actual: displayOptions?.fixed_model_description_zh, expected: '固定此模型' },
       { actual: displayOptions?.fixed_model_description_en, expected: 'Use this model' },
@@ -415,14 +428,14 @@ function assertCodexAutoModelOptionDescription(
     (
       auto!.id !== '__auto' ||
       typeof auto!.description_zh !== 'string' ||
-      !auto!.description_zh.includes('5.6 Sol') ||
-      !auto!.description_zh.includes('推理超高') ||
+      !auto!.description_zh.includes('Codex CLI') ||
+      !auto!.description_zh.includes('App 推理策略') ||
       typeof auto!.description_en !== 'string' ||
-      !auto!.description_en.includes('5.6 Sol') ||
-      !auto!.description_en.includes('Extra high reasoning')
+      !auto!.description_en.includes('Codex CLI') ||
+      !auto!.description_en.includes('App reasoning policy')
     )
   ) {
-    throw new Error(`${label} Codex auto model option must describe latest strongest default reasoning`);
+    throw new Error(`${label} Codex auto model option must describe dynamic catalog resolution without a static snapshot`);
   }
 }
 

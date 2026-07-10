@@ -56,6 +56,41 @@ test('product profile rejects Codex CLI catalog field drift', () => {
   ));
 });
 
+test('product profile freezes the real paginated Codex model/list response shape', () => {
+  const productProfile = structuredClone(readJson('contracts/app-product-profile.json'));
+  const policy = productProfile.codex.auto_model_policy;
+
+  assert.equal(policy.catalog_response_models_field, 'data');
+  assert.equal(policy.catalog_pagination_request_cursor_field, 'cursor');
+  assert.equal(policy.catalog_pagination_response_cursor_field, 'nextCursor');
+  assert.equal(policy.catalog_pagination_completion_policy, 'exhaust_pages_until_next_cursor_is_null');
+  assert.equal(policy.catalog_supported_reasoning_effort_option_value_field, 'reasoningEffort');
+  assert.equal(policy.catalog_hidden_model_field, 'hidden');
+  assert.equal(policy.catalog_hidden_model_policy, 'exclude_hidden_models_from_auto_and_fixed_options');
+});
+
+test('Auto display contract keeps runtime resolution out of the static App profile', () => {
+  const productProfile = structuredClone(readJson('contracts/app-product-profile.json'));
+  const auto = productProfile.gui.home.codex_model_display_options.auto_option;
+
+  assert.equal('resolved_model' in auto, false);
+  assert.equal('resolved_reasoning_effort' in auto, false);
+  assert.equal(auto.catalog_unavailable_fallback_model, 'gpt-5.6-sol');
+  assert.equal(auto.catalog_unavailable_fallback_reasoning_effort, 'xhigh');
+});
+
+test('Auto persistence contract defines reasoning override and stale fixed selection behavior', () => {
+  const productProfile = structuredClone(readJson('contracts/app-product-profile.json'));
+  const persistence = productProfile.codex.auto_model_policy.persistence_policy;
+
+  assert.equal(persistence.state_encoding, 'auto_has_no_model_snapshot_fixed_has_model_and_reasoning');
+  assert.equal(persistence.reasoning_override_from_auto, 'pin_current_resolved_model_and_exit_auto');
+  assert.equal(
+    persistence.stale_fixed_model,
+    'preserve_fixed_selection_as_unavailable_until_user_restores_auto_or_selects_available_model',
+  );
+});
+
 test('product profile rejects known 5.6 Sol reasoning override drift', () => {
   const productProfile = structuredClone(readJson('contracts/app-product-profile.json'));
   productProfile.codex.auto_model_policy.known_model_reasoning_effort_overrides['gpt-5.6-sol'] = 'ultra';

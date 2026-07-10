@@ -76,10 +76,8 @@ export type AppProductProfile = {
           label_en: string;
           description_zh: string;
           description_en: string;
-          resolved_model: string;
-          resolved_model_label_zh: string;
-          resolved_model_label_en: string;
-          resolved_reasoning_effort: string;
+          catalog_unavailable_fallback_model: string;
+          catalog_unavailable_fallback_reasoning_effort: string;
           follows_latest_strongest: boolean;
         };
         fixed_model_description_zh: string;
@@ -226,9 +224,16 @@ export type AppProductProfile = {
       authority: string;
       mode_default: string;
       model_catalog_source: string;
+      catalog_response_models_field: string;
       catalog_default_model_field: string;
       catalog_supported_reasoning_efforts_field: string;
+      catalog_supported_reasoning_effort_option_value_field: string;
       catalog_reasoning_effort_order_policy: string;
+      catalog_pagination_request_cursor_field: string;
+      catalog_pagination_response_cursor_field: string;
+      catalog_pagination_completion_policy: string;
+      catalog_hidden_model_field: string;
+      catalog_hidden_model_policy: string;
       frontier_model_preference_order_role: string;
       frontier_model_preference_order: string[];
       known_model_reasoning_effort_overrides: Record<string, string>;
@@ -242,6 +247,9 @@ export type AppProductProfile = {
       persistence_policy: {
         auto: string;
         fixed: string;
+        state_encoding: string;
+        reasoning_override_from_auto: string;
+        stale_fixed_model: string;
       };
     };
     opl_flow_context: {
