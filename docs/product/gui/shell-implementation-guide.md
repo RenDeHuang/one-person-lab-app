@@ -134,8 +134,9 @@ adapter slot 承接，而不是遍历 upstream settings pages 后临时隐藏。
 
 ## 视觉实现边界
 
-- ChatGPT Codex macOS 26.707.31123 是当前布局、密度、composer、timeline、project
-  rail、Settings 和 floating details 基准；OPL branding 与 product contracts 是例外。
+- ChatGPT Codex macOS 26.707.31428 是当前布局、密度、composer、timeline、project
+  rail、Settings 和 floating details 基准；同日 build 26.707.31123 仅保留为 superseded
+  observation。OPL branding 与 product contracts 是例外。
 - AionUI 是 active implementation carrier 和 native candidate 的 regression floor，
   不是理想视觉 authority。
 - 优先通过 tokens、CSS、existing layout primitives、composition 和 i18n 对齐。

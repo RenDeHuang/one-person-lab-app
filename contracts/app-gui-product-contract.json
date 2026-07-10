@@ -3,6 +3,119 @@
   "owner": "one-person-lab-app",
   "purpose": "app_owned_gui_product_contract",
   "state": "active",
+  "interaction_baseline": {
+    "schema": "opl_app_codex_interaction_baseline.v1",
+    "current_reference": {
+      "product": "ChatGPT Codex macOS",
+      "build": "26.707.31428",
+      "observed_on": "2026-07-10",
+      "usage": "visual_and_interaction_reference_only_no_code_brand_account_or_authority_copy"
+    },
+    "superseded_observations": [
+      {
+        "product": "ChatGPT Codex macOS",
+        "build": "26.707.31123",
+        "observed_on": "2026-07-10",
+        "status": "superseded_observation_only"
+      }
+    ],
+    "acceptance_boundary": {
+      "human_target_owner": "one-person-lab-app",
+      "active_shell": "aionui",
+      "active_shell_role": "current_implementation_conformance_only",
+      "docs_or_contract_imply_source_complete": false,
+      "docs_or_contract_imply_pixel_complete": false,
+      "docs_or_contract_imply_release_ready": false
+    },
+    "navigation_rail": {
+      "wide_desktop_default": "expanded",
+      "narrow_window_mode": "drawer",
+      "resizable_width_px": {
+        "min": 280,
+        "max": 340
+      },
+      "top_entries": ["new_task", "archived", "capabilities"],
+      "capabilities_mapping": "opl_capabilities_map_codex_plugins_without_exposing_backend_or_provider",
+      "forbidden_entries_without_opl_product_capability": ["sites", "chat"],
+      "bottom_entries": ["account", "help", "settings"],
+      "desktop_affordances": ["back", "forward", "previous_task", "next_task", "new_window"]
+    },
+    "conversation_scope": {
+      "project_task_supported": true,
+      "projectless_conversation_supported": true,
+      "text_chat_without_workspace": "available",
+      "file_and_project_features_without_workspace": "restricted_with_explanation",
+      "conversation_management": ["search", "pin", "rename", "archive", "reset"],
+      "archived_surface": "independent"
+    },
+    "home": {
+      "surface_role": "new_or_projectless_conversation_not_landing_or_dashboard",
+      "title_policy": "dynamic_question_title",
+      "starter_policy": "lightweight_opl_capability_starters",
+      "starter_limit": 4
+    },
+    "capability_selection": {
+      "selection_surfaces": ["home_starter", "capabilities"],
+      "composer_persistent_variable_selector": false,
+      "composer_context_surface": "active_capability_chip",
+      "contextual_change_allowed": true,
+      "backend_or_provider_semantics": false
+    },
+    "composer": {
+      "placement": "floating_bottom_with_safe_inset",
+      "context_strip": ["project", "local", "branch", "active_capability"],
+      "body": "multiline_textarea",
+      "bottom_action_row": ["attach", "context", "permission_access_mode", "model_reasoning", "voice_optional", "send_stop"],
+      "model_reasoning_control": "single_compact_menu",
+      "voice": "optional",
+      "primary_running_action": "stop"
+    },
+    "permission_access_mode": {
+      "visible_on": ["home_composer", "conversation_composer"],
+      "language_policy": "user_language_for_automation_and_file_access",
+      "provider_or_backend_terms_visible": false,
+      "security_transparency_required": true
+    },
+    "current_task_summary_bar": {
+      "pin_supported": true,
+      "fields": ["status", "elapsed", "progress", "next_action", "stop"],
+      "shared_projection": "long_running_turn_and_opl_current_task_projection"
+    },
+    "context_surfaces": {
+      "environment_popover": {
+        "summary_fields": ["workspace", "local", "git", "subtasks", "sources"],
+        "role": "anchored_summary_not_side_panel"
+      },
+      "side_panel": {
+        "wide_desktop": "resizable_split",
+        "default_state": "closed",
+        "primary_tools": ["review", "terminal", "browser", "files"],
+        "secondary_sections": ["artifacts", "runtime", "actions", "memory"],
+        "secondary_presentation": "sections_or_disclosures_not_equal_weight_tabs"
+      },
+      "advanced_work_surfaces": ["bottom_panel", "file_tree", "terminal", "browser"],
+      "advanced_work_surfaces_default": "closed"
+    },
+    "settings_shell": {
+      "frame": "codex_full_window_return_search_grouped_rows",
+      "information_architecture": "existing_opl_settings_ia_unchanged"
+    },
+    "visual_target": {
+      "main_canvas": "white",
+      "rail_and_subtle_surfaces": "neutral_gray",
+      "side_panel_resizable": true,
+      "composer": "floating_or_bottom_safe_inset",
+      "opl_teal_and_brand_retained": true
+    },
+    "opl_retained_differences": [
+      "brand",
+      "purpose_and_package_semantics",
+      "runtime_action_and_receipt_authority",
+      "settings_information_architecture",
+      "first_run",
+      "bilingual_ui"
+    ]
+  },
   "machine_boundary": "App-owned GUI product requirements for active shell implementations. This contract defines user-facing GUI truth and allowed state/action surfaces; it does not own OPL runtime truth, provider implementation, domain truth, quality verdicts, or artifact authority.",
   "active_shell": "aionui",
   "implementation_carrier": "opl-aion-shell",
@@ -904,11 +1017,12 @@
     "conversation_pending_feedback_policy": "display_elapsed_seconds_while_ai_processing_or_backend_running",
     "precise_model_display_policy": "friendly_model_primary_reasoning_primary_model_and_intelligence_secondary_menus",
     "default_permission_mode": "full-access",
-    "permission_mode_selector_visible_on_home": false,
+    "permission_mode_selector_visible_on_home": true,
+    "permission_mode_language_policy": "automation_and_file_access_in_user_language_without_provider_or_backend_terms",
     "model_selector_visible_on_new_conversation": true,
     "model_selector_visible_in_conversation": true,
     "backend_selector_visible_in_conversation": false,
-    "permission_mode_selector_visible_in_conversation": false,
+    "permission_mode_selector_visible_in_conversation": true,
     "model_selection_auto_option_visible": true,
     "user_model_override_allowed": true,
     "user_reasoning_effort_override_allowed": true,
@@ -948,16 +1062,23 @@
   "home_layout": {
     "default_mode": "composer_first_chat_canvas",
     "first_screen_policy": "chat_first_no_dashboard_or_landing_copy",
-    "composer_position": "pinned_bottom",
+    "composer_position": "floating_bottom_with_safe_inset",
     "composer_primary": true,
     "workspace_selector_visible": true,
     "purpose_entries_visible": ["research", "grant", "ppt", "book"],
-    "workspace_session_rail_default_state": "collapsed",
+    "purpose_entry_placement": "home_starters_and_capabilities_not_persistent_composer_selector",
+    "dynamic_question_title": true,
+    "starter_limit": 4,
+    "projectless_conversation_supported": true,
+    "text_chat_without_workspace": "available",
+    "workspace_session_rail_default_state": "visible_wide_drawer_narrow",
     "right_context_inspector_default_state": "collapsed",
     "must_not_show": [
       "dashboard-first home",
       "explanatory landing page",
       "backend settings panel in composer",
+      "Sites entry without an OPL product capability",
+      "Chat entry without an OPL product capability",
       "AionUI Team nav entry",
       "AionUI Team page as ordinary App surface"
     ]
@@ -984,23 +1105,29 @@
   },
   "ordinary_conversation": {
     "path_id": "ordinary_codex_conversation",
-    "entry_source": "home_purpose_entry_or_new_conversation",
+    "entry_source": "home_starter_capabilities_project_task_or_projectless_new_conversation",
     "executor": "codex_cli",
-    "composer_position": "pinned_bottom",
-    "purpose_tag_visible": true,
+    "composer_position": "floating_bottom_with_safe_inset",
+    "active_capability_chip_visible": true,
+    "persistent_purpose_selector_visible": false,
     "agent_package_invocation_receipt_required": true,
     "assistant_route_receipt_required": true,
     "backend_selector_visible": false,
     "model_selector_visible": true,
-    "permission_mode_selector_visible": false,
+    "permission_mode_selector_visible": true,
+    "permission_mode_language_policy": "automation_and_file_access_in_user_language",
     "provider_selector_visible": false,
     "model_status_surface": "executor_policy.default_model_display_value",
-    "technical_details_policy": "friendly_model_primary_reasoning_primary_model_and_intelligence_secondary_menus",
+    "technical_details_policy": "single_compact_model_reasoning_menu_without_backend_or_provider",
+    "composer_context_strip": ["project", "local", "branch", "active_capability"],
+    "composer_bottom_action_row": ["attach", "context", "permission_access_mode", "model_reasoning", "voice_optional", "send_stop"],
+    "projectless_conversation_supported": true,
     "current_task_slice": {
       "source": "contracts/app-runtime-bridge.json#current_task_slice_projection",
       "state_source": "opl app state --profile fast --json",
       "scope": "current_conversation_or_selected_task",
-      "default_visibility": "inline_compact_when_task_active",
+      "default_visibility": "pinnable_summary_bar_when_task_active",
+      "summary_bar_fields": ["status", "elapsed", "progress", "next_action", "stop"],
       "fields": [
         "task_id",
         "status",
@@ -1042,25 +1169,44 @@
   },
   "right_context_inspector": {
     "placement": "right",
+    "surface_kind": "resizable_side_panel",
     "default_state": "collapsed",
     "opens_on_user_request_only": true,
     "chat_canvas_remains_primary": true,
     "scope": "selected_workspace_and_conversation",
-    "tabs": [
+    "wide_desktop_mode": "resizable_split",
+    "primary_tools": [
+      {
+        "id": "review",
+        "label": "Review",
+        "authority": "review_receipt_refs_only"
+      },
+      {
+        "id": "terminal",
+        "label": "Terminal",
+        "authority": "shell_execution_surface_under_workspace_and_permission_policy"
+      },
+      {
+        "id": "browser",
+        "label": "Browser",
+        "authority": "shell_browser_surface_under_workspace_and_permission_policy"
+      },
       {
         "id": "files",
         "label": "Files",
         "authority": "workspace_refs_only"
-      },
+      }
+    ],
+    "secondary_sections": [
       {
         "id": "artifacts",
         "label": "Artifacts",
         "authority": "artifact_refs_only_no_body"
       },
       {
-        "id": "review",
-        "label": "Review",
-        "authority": "review_receipt_refs_only"
+        "id": "runtime",
+        "label": "Runtime",
+        "authority": "opl_app_state_refs_only"
       },
       {
         "id": "actions",
@@ -1068,35 +1214,17 @@
         "authority": "app_action_receipt_refs"
       },
       {
-        "id": "capabilities",
-        "label": "Capabilities",
-        "authority": "app_packaged_skill_profiles"
-      },
-      {
-        "id": "runtime",
-        "label": "Routing/runtime refs",
-        "authority": "opl_app_state_refs_only"
-      },
-      {
         "id": "memory",
         "label": "Memory refs",
         "authority": "refs_only_no_memory_body_authority"
-      },
-      {
-        "id": "automations",
-        "label": "Always-On/Automations",
-        "authority": "app_state_action_refs"
-      },
-      {
-        "id": "settings",
-        "label": "Settings",
-        "authority": "app_owned_settings"
       }
     ],
+    "secondary_presentation": "sections_or_disclosures_not_equal_weight_tabs",
+    "environment_popover_ref": "interaction_baseline.context_surfaces.environment_popover",
     "current_task_evidence": {
       "source": "contracts/app-runtime-bridge.json#current_task_slice_projection",
       "state_source": "opl app state --profile fast --json",
-      "tabs": ["files", "artifacts", "review", "actions", "runtime"],
+      "surfaces": ["files", "artifacts", "review", "actions", "runtime"],
       "fields": [
         "artifact_or_blocker",
         "review_receipt",
@@ -2788,7 +2916,7 @@
       "assistant_source_ref": "default_assistants",
       "purpose_entry_source_ref": "home_purpose_entries",
       "assistant_skill_profile_source_ref": "assistant_skill_profiles",
-      "hero_prompt": "把研究、基金、汇报和写书交给 One Person Lab 自动推进",
+      "hero_prompt_policy": "dynamic_question_title",
       "model_status": {
         "value_source": "default_session_profile.model on Home; normalized active ACP model_info in conversation",
         "display_value": "5.6 Sol",
@@ -2806,16 +2934,16 @@
         "Codex model selector defaults to 5.6 Sol",
         "reasoning effort configurable inside the Codex model menu",
         "conversation pending elapsed seconds while Codex is working",
-        "purpose-first assistants Research/Grant/Presentation/Book as click-to-start entries",
-        "selected assistant shown as a compact @ purpose tag",
-        "selected assistant keeps purpose entry switcher visible",
+        "at most four lightweight OPL starters for Research/Grant/Presentation/Book",
+        "active capability shown as a compact chip",
         "assistant-scoped skill menu with required skill checked",
         "ordinary skill selector filtered to App-owned assistant profile skill allowlist",
         "workspace selector",
         "file attachment control",
         "send action",
-        "single composer-first home input",
-        "workspace/session rail collapsed by default",
+        "single composer-first home input with context strip and bottom action row",
+        "permission and access mode in user language",
+        "workspace/session rail visible on wide desktop and drawer on narrow windows",
         "right context inspector collapsed by default",
         "runtime/task progress available from Runtime page, not Home activity grid"
       ],
@@ -2823,8 +2951,8 @@
         "executor selector on the home input",
         "Aion CLI or Claude Code backend choices on the home input",
         "retired Codex model choices on the home input",
-        "permission mode selector on the home input",
-        "backend or permission selectors after entering an ordinary Codex conversation",
+        "provider or backend terms in the permission and access mode",
+        "persistent variable purpose selector in the composer",
         "OPL Meta Agent as a default home assistant",
         "selected assistant full name as the hero title",
         "skills outside the App packaged skill set in home skill menu",
@@ -2879,15 +3007,18 @@
       "legacy_route_receipt_alias_ref": "builtin_assistant_route_receipt_policy",
       "must_show": [
         "Codex CLI ordinary conversation",
-        "pinned composer",
-        "compact purpose tag",
+        "floating bottom composer with safe inset",
+        "compact active capability chip",
+        "permission and access mode in user language",
+        "projectless text conversation when no workspace is selected",
         "assistant route receipt",
         "Codex default model and reasoning status"
       ],
       "must_not_show": [
         "backend selector as normal conversation control",
-        "permission mode selector as normal conversation control",
-        "provider selector as normal conversation control"
+        "provider selector as normal conversation control",
+        "provider or backend language inside permission and access mode",
+        "persistent variable purpose selector in the composer"
       ]
     },
     "right_context_inspector": {
@@ -2895,13 +3026,14 @@
       "refresh_source": "opl app state --profile fast --json",
       "right_context_inspector_ref": "right_context_inspector",
       "must_show": [
-        "right-side collapsible inspector",
-        "Files refs tab",
-        "Capabilities tab",
-        "Routing/runtime refs tab",
-        "Memory refs tab",
-        "Always-On/Automations tab",
-        "Settings tab"
+        "right-side resizable split panel closed by default",
+        "Review, Terminal, Browser, and Files primary tools",
+        "Artifacts, Runtime, Actions, and Memory secondary sections or disclosures",
+        "environment popover kept distinct from the side panel"
+      ],
+      "must_not_show": [
+        "nine equal-weight side-panel tabs",
+        "advanced work surfaces open by default"
       ],
       "must_not_own": [
         "runtime truth",

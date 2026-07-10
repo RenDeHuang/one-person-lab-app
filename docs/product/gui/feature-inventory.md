@@ -26,26 +26,29 @@ tests 与 evidence。
 
 | 功能 | 用户结果 | Authority / machine owner |
 | --- | --- | --- |
-| Workspace-aware App frame | 用户始终知道当前工作目录和 conversation context。 | GUI contract、product profile、workspace state/action refs。 |
-| Project/conversation navigation | 用户可按 workspace/project 新建、恢复、切换和重置 conversation。 | GUI contract、page-state matrix；具体呈现由理想交互层定义。 |
+| Workspace-aware App frame | 用户始终知道当前 project/local/branch context；无 workspace 时仍可普通文字聊天，文件与项目能力明确受限。 | GUI contract、product profile、workspace state/action refs。 |
+| Project/conversation navigation | 宽桌面 rail 默认展开，窄窗口变 drawer；用户可按 project 新建、搜索、pin、rename、archive、reset conversation，并从独立 Archived surface 恢复。 | GUI contract、page-state matrix；具体呈现由理想交互层定义。 |
 | Chat-first main canvas | 打开 App 后可以直接开始或继续工作，不先经过 dashboard/landing。 | GUI contract、page-state matrix。 |
-| Secondary context surfaces | Files、Runtime、artifacts、Capabilities、Memory、Automations 和 Settings 可按需查看。 | GUI contract、runtime bridge、domain/runtime refs。 |
+| Projectless conversation | 不建立 project 也能持续普通对话；只有依赖 workspace、文件或 Git 的能力被限制。 | GUI contract、conversation state/bridge。 |
+| Secondary context surfaces | Environment popover 与 resizable side panel 分工；Review、Terminal、Browser、Files 是核心工具，Artifacts、Runtime、Actions、Memory 按需展开。 | GUI contract、runtime bridge、domain/runtime refs。 |
 | Product identity | 所有可见产品面使用 One Person Lab App 品牌，而不是 carrier/upstream 品牌。 | GUI contract、release assets、shell branding validation。 |
 
 ## Home 与 Conversation
 
 | 功能 | 用户结果 | Authority / machine owner |
 | --- | --- | --- |
-| New conversation | 在已选 workspace 中开始新的 Codex thread。 | GUI contract、conversation page state、Codex bridge。 |
+| New conversation | 在 project 中开始 task，或直接开始 projectless Codex conversation。 | GUI contract、conversation page state、Codex bridge。 |
 | Resume conversation | 找回 recent conversation，并保留关联 workspace。 | Conversation state/bridge；shell 只持有实现所需 session refs。 |
+| Conversation management | Search、pin、rename、archive、reset conversation，并在独立 Archived surface 管理归档。 | GUI contract、conversation state/bridge。 |
 | Text instruction | 向固定 Codex executor 发送多行任务说明。 | Product profile、ordinary conversation contract。 |
 | Streaming assistant output | 持续看到 assistant response，不需要查看 raw protocol。 | Codex/App bridge 与 conversation page state。 |
 | Pending/running feedback | 看到当前 turn 正在处理、elapsed time、stop 和失败状态。 | Page-state matrix、bridge events。 |
 | Tool/process event summary | 在当前 turn 中理解 command、tool、diff、file、permission 和 receipt 发生了什么。 | Codex/App bridge；raw details 保持 diagnostics。 |
 | File/folder attachment | 发送前加入本地材料，并可预览或移除。 | Workspace/file platform adapter 与 App workspace policy。 |
-| Workspace selection | 发送前选择或确认任务执行目录。 | App workspace state/action。 |
-| Model/reasoning control | 在 Home 与普通 conversation 使用同一 App-owned 模型控制。 | `contracts/app-product-profile.json`；文档不复制 allowlist。 |
-| Purpose selection | 在不切换 executor/backend 的情况下选择科研、基金、演示、写书等工作目的。 | Product profile、GUI contract、route receipt policy。 |
+| Composer context strip | 在输入上方持续看到 project/local/branch 与 active capability；缺 workspace 时看到能力限制。 | GUI contract、workspace/App state refs。 |
+| Model/reasoning control | Home 与普通 conversation 共用一个紧凑 App-owned model/reasoning menu。 | `contracts/app-product-profile.json`；文档不复制 allowlist。 |
+| Permission/access mode | 在 Home 与 conversation composer 以自动化和文件权限的用户语言显示，保留安全透明度但不暴露 provider/backend。 | GUI contract、workspace/access policy。 |
+| Purpose selection | 从 Home starter 或 Capabilities 选择科研、基金、演示、写书等工作目的；composer 只保留 active capability chip。 | Product profile、GUI contract、route receipt policy。 |
 | Assistant-scoped capabilities | 只显示当前 package/purpose 允许的 required/optional skills。 | App packaged skill profiles 与 ordinary capability policy。 |
 | User-input and permission prompt | Codex 需要选择、补充信息或授权时，在 conversation 中完成。 | Bridge event/action contract。 |
 | Turn receipt | 用户可查看本轮 route、action、result 和恢复 refs，不默认暴露 raw JSON。 | App/domain/runtime receipt refs；GUI 不拥有 receipt authority。 |
@@ -73,10 +76,11 @@ short name 和 technical refs 进入 details/receipt。
 | Runtime overview | 看到任务/项目主状态、阶段、进度、下一步和责任方。 | `opl app state --profile fast --json` 的 App projection。 |
 | Scope switching | 在全局、workspace 或选中任务范围查看状态。 | App runtime view model。 |
 | Active/queued/attention separation | 区分真实 running、仍在推进的 project line、排队和需要关注。 | Framework-owned projection；UI 保留原始 status。 |
+| Pinnable current-task summary | 长任务与 OPL current-task projection 共用 status、elapsed、progress、next action、stop summary bar，并允许 pin。 | Current task slice / bridge refs。 |
 | Current-turn run artifact | 在 conversation 内查看本轮最近事件和恢复动作。 | Current task slice / bridge refs。 |
 | Task/project drilldown | 按需查看 evidence、blocker、owner、resource 和 next-action refs。 | Runtime bridge / domain-owned refs。 |
 | Safe action | 对允许的运行或维护动作先 preview，再 confirm/execute。 | `opl app action execute ... --json`。 |
-| Files and artifact refs | 从 conversation 或 inspector 打开输入、输出和交付引用。 | Workspace/domain artifact refs；App 不拥有 artifact body。 |
+| Files and artifact refs | 从 conversation 或 side panel 打开输入、输出和交付引用。 | Workspace/domain artifact refs；App 不拥有 artifact body。 |
 | Provenance and receipts | 查看来源、owner handoff、action result 和 lineage refs。 | Domain/runtime/release owner refs。 |
 
 Home 不承担跨项目 Runtime、continue-work、needs-attention、activity grid 或 evidence
@@ -120,7 +124,9 @@ Legacy/upstream routes 只作为 compatibility redirects，不构成功能目录
 | macOS desktop | 使用 native window、directory picker、notifications 和 packaged App。 | Active/candidate adapter、release packaging。 |
 | WebUI | 在受控 workspace/volume 中使用同一产品语义。 | App product profile、bridge contract、Web delivery adapter。 |
 | Shared semantics | Desktop/WebUI 使用相同功能、状态、action 和 authority boundary。 | App contracts；transport 可以不同。 |
-| Responsive context | 窄窗口仍能打开 rail、inspector、popover 和 Settings navigation。 | Ideal interaction/visual system、shell visual evidence。 |
+| Responsive context | 窄窗口仍能打开 rail drawer、environment popover、side-panel overlay 和 Settings navigation。 | Ideal interaction/visual system、shell visual evidence。 |
+| Desktop affordances | Back/Forward、Previous/Next Task、New Window 在 desktop 可达，不改变 WebUI 产品语义。 | GUI contract、desktop shell adapter。 |
+| Advanced work surfaces | Bottom panel、file tree、Terminal、Browser 保留给需要的工作流，但启动默认关闭。 | GUI contract、shell adapter/source evidence。 |
 
 ## 双语、可访问性与状态
 

@@ -65,7 +65,14 @@ Conformance 必须按 `contract_status`、`source_status`、`pixel_status` 三�
 - `ideal_target.inspector_default_visible=false`
 - `active_aionui.state_source=contracts/app-product-profile.json#gui.home.home_layout`
 - `active_shell_switch_contract=contracts/app-shell-adapter.json`
-- `visual_reference=ChatGPT Codex macOS 26.707.31123 (2026-07-10)`
+- `current_interaction_reference=ChatGPT Codex macOS 26.707.31428 (2026-07-10)`
+- `superseded_interaction_observation=ChatGPT Codex macOS 26.707.31123 (2026-07-10)`
+- `human_target.owner=one-person-lab-app`
+- `active_aionui.role=current_implementation_conformance_only`
+- `docs_or_contract_imply_source_complete=false`
+- `docs_or_contract_imply_pixel_complete=false`
+- `ideal_target.permission_access_mode_visible=true`
+- `ideal_target.side_panel_primary_tools=review,terminal,browser,files`
 - `entry_docs=docs/product/gui/README.md,docs/product/gui/feature-inventory.md,docs/product/gui/ideal-interaction-spec.md,docs/product/gui/visual-system.md,docs/product/gui/codex-to-opl-app-delta.md,docs/product/gui/element-audit.md,docs/product/gui/shell-implementation-guide.md,docs/product/gui/shell-conformance-matrix.md`
 - `contract_refs=contracts/app-gui-product-contract.json,contracts/app-product-profile.json,contracts/app-page-state-matrix.json,contracts/app-shell-candidates.json,contracts/app-shell-adapter.json`
 
@@ -74,16 +81,28 @@ Conformance 必须按 `contract_status`、`source_status`、`pixel_status` 三�
 当前 Codex-based ideal target 是：
 
 - 宽桌面默认显示项目/对话 rail，保持 workspace 和 conversation history 可见；
-  窄窗口改为可收起 drawer 或 overlay。
-- 主区保持单一 conversation timeline 和底部 composer。
-- 右侧 inspector 默认关闭，仅在用户请求上下文时打开。
+  rail 在 `280-340px` 内可调，窄窗口改为 drawer。
+- Rail 顶部固定 New task、Archived、Capabilities，底部固定 account/help/Settings；
+  Sites/Chat 没有 OPL 对应能力时不成为普通入口。
+- Home 是动态问题标题、最多四个轻量 OPL starter 和 composer，不是 landing/dashboard；
+  project task 与 projectless conversation 都可用，无 workspace 时普通文字聊天仍可发送。
+- Purpose 由 Home starter 或 Capabilities 选择；composer 只显示 active capability chip，
+  以及 project/local/branch context strip、textarea、bottom action row。
+- Model/reasoning 使用单一紧凑 menu；permission/access mode 使用自动化和文件权限的
+  用户语言并保持可见，不暴露 provider/backend。
+- 当前任务使用可 pin summary bar，统一显示 status、elapsed、progress、next action、stop。
+- Environment 是 anchored popover；wide side panel 是默认关闭的可调 split，主工具只有
+  Review、Terminal、Browser、Files，Artifacts/Runtime/Actions/Memory 进入次级 section。
+- Bottom panel、file tree、Terminal、Browser 等 advanced work surfaces 保留但默认关闭。
+- Settings 采用 Codex full-window return/search/grouped-row shell，同时保持现有 OPL IA。
 - 模型策略与当前默认值只读取 `contracts/app-product-profile.json`；本文档族不复制
   当前 model/reasoning 值或具体模型 allowlist。
 
 Active AionUI 通过上面的动态 state-source marker 读取默认状态；
 `opl-native-workbench` candidate contract 则把 rail 记为 default visible。当前是否
-收敛由 validator readback 动态计算，不在本文复制 profile 值。右侧 inspector 的理想
-目标与 candidate 均为默认关闭。具体状态、允许偏差和验证入口只在
+收敛由 validator readback 动态计算，不在本文复制 profile 值。右侧 side panel 的理想
+目标与 candidate 均为默认关闭。Product target、active source 和 pixel evidence 必须
+分轴记录；合同或文档落地不表示 AionUI source 或像素已经完成。具体状态、允许偏差和验证入口只在
 [`shell-conformance-matrix.md`](shell-conformance-matrix.md) 维护。
 
 ## 变更流程

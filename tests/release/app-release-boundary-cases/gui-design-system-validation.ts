@@ -9,7 +9,8 @@ import {
 } from './helpers.ts';
 
 const shellAuthorityMarker = 'gui_shell_authority: implementation_only';
-const codexReference = 'ChatGPT Codex macOS 26.707.31123 (2026-07-10)';
+const codexReference = 'ChatGPT Codex macOS 26.707.31428 (2026-07-10)';
+const supersededCodexReference = 'ChatGPT Codex macOS 26.707.31123 (2026-07-10)';
 const designRoot = 'docs/product/gui';
 
 const conformanceMatrix = `# Shell conformance matrix
@@ -62,9 +63,16 @@ function createFixture(): string {
     `entry_docs=${designRoot}/README.md,${designRoot}/feature-inventory.md,${designRoot}/ideal-interaction-spec.md,${designRoot}/visual-system.md,${designRoot}/codex-to-opl-app-delta.md,${designRoot}/element-audit.md,${designRoot}/shell-implementation-guide.md,${designRoot}/shell-conformance-matrix.md`,
     'contract_refs=contracts/app-gui-product-contract.json,contracts/app-product-profile.json,contracts/app-page-state-matrix.json,contracts/app-shell-candidates.json,contracts/app-shell-adapter.json',
     shellAuthorityMarker,
-    codexReference,
+    `current_interaction_reference=${codexReference}`,
+    `superseded_interaction_observation=${supersededCodexReference}`,
+    'human_target.owner=one-person-lab-app',
+    'active_aionui.role=current_implementation_conformance_only',
+    'docs_or_contract_imply_source_complete=false',
+    'docs_or_contract_imply_pixel_complete=false',
     'ideal_target.workspace_session_rail_default_visible=true',
     'ideal_target.inspector_default_visible=false',
+    'ideal_target.permission_access_mode_visible=true',
+    'ideal_target.side_panel_primary_tools=review,terminal,browser,files',
     'active_aionui.state_source=contracts/app-product-profile.json#gui.home.home_layout',
   ].join('\n');
   writeFile(root, `${designRoot}/README.md`, `${readme}\n`);
@@ -80,10 +88,18 @@ test('GUI design-system validator accepts a complete fixture without promoting r
   const profile = JSON.parse(fs.readFileSync(path.join(root, 'contracts/app-product-profile.json'), 'utf8'));
   assert.equal(summary.status, 'consistent');
   assert.equal(summary.release_ready, false);
+  assert.equal(summary.codex_reference, codexReference);
+  assert.equal(summary.superseded_codex_reference, supersededCodexReference);
+  assert.equal(summary.reference_boundary.app_contract_status, 'aligned_contract');
+  assert.equal(summary.reference_boundary.page_state_status, 'aligned_contract');
+  assert.equal(summary.reference_boundary.native_candidate_status, 'current_contract_deviation');
   assert.equal(summary.state_boundary.ideal_native_rail_visible, true);
   assert.equal(summary.state_boundary.active_aionui_rail_state, 'collapsed');
   assert.equal(summary.state_boundary.active_aionui_conformance.rail_matches_ideal, false);
+  assert.equal(summary.state_boundary.active_aionui_conformance.rail_status, 'current_contract_deviation');
   assert.equal(summary.state_boundary.active_aionui_conformance.inspector_matches_ideal, true);
+  assert.equal(summary.state_boundary.active_aionui_conformance.permission_access_mode_status, 'current_contract_deviation');
+  assert.equal(summary.state_boundary.active_aionui_conformance.side_panel_information_architecture_status, 'current_contract_deviation');
   assert.deepEqual(summary.model_defaults, {
     model: profile.codex.default_model,
     reasoning_effort: profile.codex.default_reasoning_effort,
@@ -118,8 +134,47 @@ test('GUI design-system validator accepts an active AionUI rail that has converg
   const summary = validateGuiDesignSystem(root);
   assert.equal(summary.state_boundary.active_aionui_rail_state, 'visible');
   assert.equal(summary.state_boundary.active_aionui_conformance.rail_matches_ideal, true);
+  assert.equal(summary.state_boundary.active_aionui_conformance.rail_status, 'aligned_contract');
   assert.equal(summary.state_boundary.active_aionui_inspector_state, 'collapsed');
   assert.equal(summary.state_boundary.active_aionui_conformance.inspector_matches_ideal, true);
+});
+
+test('GUI design-system validator rejects a missing current interaction reference marker', () => {
+  const root = createFixture();
+  const readmePath = path.join(root, designRoot, 'README.md');
+  const readme = fs.readFileSync(readmePath, 'utf8').replace(
+    `current_interaction_reference=${codexReference}`,
+    'current_interaction_reference=missing',
+  );
+  fs.writeFileSync(readmePath, readme, 'utf8');
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /must include exact marker current_interaction_reference=/,
+  );
+});
+
+test('GUI design-system validator rejects a stale App-owned current baseline', () => {
+  const root = createFixture();
+  const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
+  const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+  contract.interaction_baseline.current_reference.build = '26.707.31123';
+  writeJson(root, 'contracts/app-gui-product-contract.json', contract);
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /interaction_baseline current reference must be ChatGPT Codex macOS 26\.707\.31428/,
+  );
+});
+
+test('GUI design-system validator rejects a page-state boundary that promotes contract target to source completion', () => {
+  const root = createFixture();
+  const matrixPath = path.join(root, 'contracts/app-page-state-matrix.json');
+  const matrix = JSON.parse(fs.readFileSync(matrixPath, 'utf8'));
+  matrix.acceptance_boundary.contract_target_implies_source_complete = true;
+  writeJson(root, 'contracts/app-page-state-matrix.json', matrix);
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /page-state acceptance boundary must keep human target separate from source and pixel completion/,
+  );
 });
 
 test('GUI design-system validator rejects a stale foreground role marker', () => {

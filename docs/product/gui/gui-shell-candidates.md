@@ -45,7 +45,8 @@ implements the higher layers and records deviations, but cannot reverse-define
 the product from renderer code, screenshots, upstream defaults, or visual QA.
 
 The current visual and interaction reference is ChatGPT Codex macOS
-`26.707.31123` observed on `2026-07-10`. The ideal/native target keeps the
+`26.707.31428` observed on `2026-07-10`. Build `26.707.31123` is retained only
+as a superseded same-day observation. The ideal/native target keeps the
 desktop workspace/session rail visible and the inspector closed by default.
 The conformance matrix reads active AionUI state from
 `contracts/app-product-profile.json#gui.home.home_layout`, compares it with the

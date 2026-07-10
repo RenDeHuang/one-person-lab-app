@@ -22,16 +22,21 @@ surfaces。
 
 ## Codex Baseline
 
-当前 baseline 固定为 **ChatGPT Codex macOS 26.707.31123 (2026-07-10)**。
+当前 baseline 固定为 **ChatGPT Codex macOS 26.707.31428 (2026-07-10)**；同日 build
+`26.707.31123` 只保留为 superseded observation。
 OPL App 继承其工作模型，而不复制源码、品牌资产、账户权限或产品 authority：
 
-- 宽桌面 persistent project/conversation rail。
+- 宽桌面默认展开、可调宽度的 project/conversation rail；窄窗口使用 drawer。
+- Rail 顶部 New task、Archived、Capabilities，底部 account/help/Settings。
 - 单一 conversation timeline。
-- 底部多行 composer。
-- Composer 内可见的 model/reasoning controls。
-- Files、environment、artifacts 和 details 按需以 popover/drawer/inspector 打开。
-- Right inspector 不作为默认第三列。
-- Settings 是独立、可扫描的配置 surface。
+- 动态问题标题、最多四个轻量 starter 的 Home，而非 landing/dashboard。
+- Project task 与 projectless conversation；无 workspace 时文字聊天可用、文件能力受限。
+- 带 project/local/branch context strip、textarea、bottom action row 的浮动/安全距 composer。
+- 单一紧凑 model/reasoning menu、可选 voice、send/stop 和可见 permission/access mode。
+- 可 pin current-task summary bar，含 status/elapsed/progress/next action/stop。
+- Environment popover 与默认关闭、可调 split 的 side panel 分离。
+- Side panel 核心工具为 Review/Terminal/Browser/Files；其它 OPL surfaces 次级展开。
+- Settings 是有 return/search/grouped rows 的 full-window surface。
 - Workspace-first、keyboard-centric、summary-first 的连续工作体验。
 
 这组 baseline 定义 composition 和 interaction quality，不定义 OPL runtime、domain、
@@ -42,11 +47,11 @@ package、Settings IA、release 或 evidence truth。
 | Baseline area | OPL 增量 | Authority owner |
 | --- | --- | --- |
 | Product identity | 使用 One Person Lab App 名称、icon、窗口与 release identity。 | App GUI/release contracts 与 assets。 |
-| Workspace/chat | 在 Codex workspace conversation 上增加 OPL purpose、package 和 refs context。 | App product profile、GUI contract。 |
+| Workspace/chat | 支持 project task 与 projectless conversation，并增加 OPL purpose、package 和 refs context。 | App product profile、GUI contract。 |
 | Model control | 保持 Codex-like model/reasoning control，但策略只由 App product profile 提供。 | `contracts/app-product-profile.json`。 |
 | Capabilities | 把普通 agent/tool 入口收敛为 installed OPL Agent Packages 与 assistant-scoped skills。 | App package registry/profile。 |
-| Runtime context | 增加 Framework-backed progress、blocker、owner、receipt 与 safe action refs。 | Framework state/action 与 domain refs。 |
-| Settings | 把通用 settings 收敛为 OPL Control Center。 | App GUI contract、Settings Control Plane。 |
+| Runtime context | 增加 Framework-backed current-task summary、progress、blocker、owner、receipt 与 safe action refs。 | Framework state/action 与 domain refs。 |
+| Settings | 采用 Codex full-window shell，同时保留 OPL Control Center IA。 | App GUI contract、Settings Control Plane。 |
 | First-run | 增加 Core readiness、guided setup 和 background maintenance。 | App first-run/install contracts。 |
 | Delivery | 增加 desktop/WebUI/Workspace 的同产品语义与受控资源入口。 | App adapters、Framework/Gateway/Fabric refs。 |
 | Evidence | 增加 route/action/release/visual evidence 边界。 | App/domain/runtime/release owner surfaces。 |
@@ -65,15 +70,19 @@ package、Settings IA、release 或 evidence truth。
 Codex App 的模型控制在 OPL App 中进一步收敛：
 
 - Codex CLI 是 ordinary conversation 的固定 executor。
-- Backend、provider 和 permission mode 不作为普通 Home/composer controls。
-- Home 与 conversation 使用同一个 App-owned model/reasoning control。
+- Backend、provider 不作为普通 Home/composer controls。
+- Permission/access mode 在 Home 与 conversation 可见，以自动化和文件权限的用户语言
+  表达；不暴露 backend/provider，但保留安全透明度。
+- Home 与 conversation 使用同一个紧凑 App-owned model/reasoning menu。
 - 模型策略与当前默认值只引用 `contracts/app-product-profile.json`；本文不复制
   model/reasoning 值、allowlist、排序、退休列表或 fallback 逻辑。
 - Profile 缺失或不兼容时显示明确 blocker，不静默采用 shell/upstream default。
 
 ## Purpose 与 Agent Package 增量
 
-OPL App 在普通 Codex conversation 上增加工作目的和 package shortcuts：
+OPL App 在普通 Codex conversation 上增加工作目的和 package shortcuts。Purpose 从
+composer 常驻 selector 移出，只能从 Home starter 或 Capabilities 选择；composer/context
+strip 只显示 active capability chip：
 
 | 用户目的 | 用户结果 | Domain owner |
 | --- | --- | --- |
@@ -86,6 +95,7 @@ OPL App 在普通 Codex conversation 上增加工作目的和 package shortcuts�
 
 - 只改变 route context、package shortcut 和 assistant-scoped capability profile；
 - 不改变 executor/backend；
+- active capability 可按上下文更换，但不表现为 backend/provider；
 - 不把 domain workflow、stage、artifact schema 或 verdict 写进 GUI；
 - 产生 launch/route refs，供用户按需审计；
 - 是否显示由 App product profile、安装状态和用户 shortcut preference 决定。
@@ -106,9 +116,11 @@ OPL App 在普通 Codex conversation 上增加工作目的和 package shortcuts�
 普通 Codex timeline 主要关心当前 turn；OPL App 额外提供跨项目 runtime context：
 
 - Runtime overview 展示真实 running、仍在推进的 project lines、queued 和 attention。
-- Current-turn artifact 在 timeline 中展示 elapsed、events、action/permission 与 result。
-- Inspector 按需展示 Files、Artifacts、Runtime/Routing、Capabilities、Memory、
-  Automations 和 Settings refs。
+- Current-turn artifact 与 OPL current-task projection 共用可 pin summary bar，展示
+  status、elapsed、progress、next action、stop。
+- Environment popover 汇总 workspace/local/git/subtasks/sources。
+- Side panel 以 Review、Terminal、Browser、Files 为核心工具；Artifacts、Runtime、
+  Actions、Memory 通过 secondary sections/disclosures 扩展。
 - Mutation 统一走 App action route，并保留 dry-run、confirmation 与 receipt。
 - Progress 区分 deliverable progress、platform repair、human gate 和 typed blocker。
 - UI 不从 active id、module dirt、provider completion、docs 或 test pass 推断 domain、
@@ -120,6 +132,8 @@ Route receipt、action receipt、artifact ref、owner handoff 和 release eviden
 ## Settings Control Center 增量
 
 OPL App 把通用 Agent App settings 收敛为用户任务导向的 Control Center：
+
+- Shell 采用 Codex full-window return/search/grouped-row 结构；OPL IA 不变。
 
 - Overview：App 是否可用、下一步是什么。
 - Access：模型访问、Codex CLI 和远程访问。
@@ -169,10 +183,10 @@ OPL App 在 Codex baseline 上增加可解释的本机准备：
 普通路径不展示：
 
 - executor/backend/provider marketplace；
-- permission mode selector；
+- provider/backend 术语化的 permission selector；
 - raw AG-UI/ACP/app-server/protocol event names；
 - upstream Team、多 agent launcher 或 shell-local agent hierarchy；
-- 默认打开的 artifact/runtime inspector；
+- 默认打开的 side panel、bottom panel、file tree、Terminal 或 Browser；
 - Home activity dashboard、continue-work grid 或 full evidence ledger；
 - 未经 App allowlist 接受的 skills/MCP/tools；
 - 由 module dirt、cache 或 local UI state 推断的 readiness。
@@ -193,10 +207,12 @@ OPL App 在 Codex baseline 上增加可解释的本机准备：
 OPL App 应让用户在 Codex-like 低摩擦工作流中：
 
 - 从 persistent project/conversation rail 进入 workspace conversation；
+- 不依赖 workspace 进入 projectless text conversation，并理解文件/project 能力限制；
 - 使用 single timeline 和 bottom composer 发送任务；
-- 选择 OPL purpose/package，而不是 backend；
+- 从 Home/Capabilities 选择 OPL purpose/package，composer 只显示 active capability chip；
 - 使用 App-profile model/reasoning control，并动态呈现当前默认值；
+- 以用户语言查看 permission/access mode，而不是 provider/backend；
 - 在 turn 中理解进度、prompt、error、result 和 receipt；
-- 只在需要时打开 Files、Runtime、Artifacts、Capabilities、Memory 或 Settings；
+- 只在需要时打开 environment popover、side panel 或 advanced work surfaces；
 - 理解 first-run、maintenance、resource 和 release 边界；
 - 不把任何 GUI projection 误读为 runtime/domain/artifact/release authority。
