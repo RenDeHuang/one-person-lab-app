@@ -658,9 +658,20 @@
       "codex_config"
     ],
     "first_conversation_readiness": {
-      "gate": "acp_warmup_before_initial_send",
+      "gate": "capability_prerequisites_then_acp_warmup_before_initial_send",
       "source_command": "opl system initialize --json",
-      "ready_to_launch_must_be_true": true,
+      "ready_to_launch_must_be_true": false,
+      "required_before_plain_send": [
+        "codex_cli",
+        "codex_config"
+      ],
+      "required_before_file_or_project_send": [
+        "workspace_root",
+        "codex_cli",
+        "codex_config"
+      ],
+      "unknown_readiness_policy": "allow_attempt_without_mutating_readiness",
+      "blocked_feedback": "localized_inline_non_modal_setup_notice_preserves_prompt",
       "must_wait_for": [
         "conversation_record_ready",
         "acp_warmup_complete"

@@ -88,7 +88,15 @@ focused tests 与用户路径截图。
 - 进入 `/guid` 时继续携带 `postInstallSelfCheck` route state。
 
 未就绪时的“进入 OPL”属于 defer entry：它不携带 `postInstallSelfCheck`，不调用 initialize/configure/action/maintenance bridge，
-不修改或合成 `ready_to_launch`。`ready_to_launch` 继续约束首次会话发送和对应 Core 能力，不约束 App 主界面导航。
+不修改或合成 `ready_to_launch`。`ready_to_launch` 不约束 App 主界面导航；进入普通 shell 后改用能力级前置条件。
+
+## 进入 OPL 后的渐进式恢复
+
+- 普通侧栏在任一 Core 前置条件未完成时持续显示“完成首次设置”，点击后返回 `/first-run`；它不是模态框，也不会自动改变当前路由。
+- 普通文字对话只要求本机助手与模型访问。发送被拦截时保留草稿，在输入区下方显示本地化原因和“完成设置”动作。
+- 工作目录未完成时，文件选择、文件粘贴、文件拖放和项目工作区选择不可用；不含文件或项目上下文的普通文字对话仍可发送。
+- readiness 尚未读取成功时，不合成失败状态、不修改 `ready_to_launch`，也不凭缓存之外的信息阻断普通操作尝试。
+- 所有恢复提示必须非模态、可键盘访问，并给出直接返回首启工作台的合法入口。
 
 ## 响应式与可访问性
 
@@ -105,7 +113,7 @@ focused tests 与用户路径截图。
 
 ## 不做的事
 
-- 不改变 `ready_to_launch` 语义和 Core required items。
+- 不改变 `ready_to_launch` 的 Core 汇总语义和 required items；普通 shell 使用更细的能力级前置条件。
 - required Core item 的 `disabled` 状态不得计为 ready；只有真实可用状态、非 blocking、计数和 blocking 集合一致时才接受 `ready_to_launch`。
 - 不让 Core readiness、full readiness、初始化读取或后台维护阻塞用户显式进入 `/guid`；未就绪能力可以在主界面中保持不可用或提示继续设置。
 - 不增加新的 runtime、provider 或配置真相源。

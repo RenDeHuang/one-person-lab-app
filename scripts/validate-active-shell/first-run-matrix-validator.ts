@@ -3,6 +3,7 @@ import { isDefaultReleaseAdapter } from './active-shell-contract.ts';
 import {
   beginnerFirstRunTestIds,
   firstRunEcosystemModules,
+  progressiveFirstRunRecoveryTestIds,
 } from './app-contract-constants.ts';
 import { assertNonEmptyStringArray, assertSharedFirstRunProgressModelMatches } from './shared-contract-validators.ts';
 import { productProfilePath } from './validation-config.ts';
@@ -208,6 +209,27 @@ export function validateFirstRunMatrix(matrix, contract) {
   ]) {
     if (!beginnerScenario.expects?.includes(expected)) {
       throw new Error(`Beginner first-run scenario must require localized beginner setup UX: ${expected}`);
+    }
+  }
+  const progressiveRecovery = scenarioById.get('ordinary_shell_progressive_first_run_recovery');
+  if (!progressiveRecovery) {
+    throw new Error('First-run matrix is missing ordinary_shell_progressive_first_run_recovery');
+  }
+  assertIncludesAll(
+    progressiveRecovery.required_shell_testids,
+    progressiveFirstRunRecoveryTestIds,
+    'Progressive first-run recovery shell test ids',
+  );
+  for (const expected of [
+    'incomplete Core readiness never blocks authenticated navigation to /guid',
+    'ordinary sidebar keeps a non-modal localized entry back to /first-run until Core prerequisites are complete',
+    'plain conversation send requires Codex CLI and model access but does not require workspace_root',
+    'blocked send keeps the draft prompt and shows an inline localized recovery action',
+    'missing workspace_root disables file dialog, file paste, file drag, and project workspace selection only',
+    'unknown readiness does not synthesize failure or mutate ready_to_launch',
+  ]) {
+    if (!progressiveRecovery.expects?.includes(expected)) {
+      throw new Error(`Progressive first-run recovery scenario must require: ${expected}`);
     }
   }
   validateStandardBootstrapScenario(scenarioById.get('standard_app_managed_bootstrap'));

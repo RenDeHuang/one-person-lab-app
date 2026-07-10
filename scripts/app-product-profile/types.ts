@@ -280,9 +280,35 @@ export type AppProductProfile = {
       gate: string;
       source_command: string;
       ready_to_launch_must_be_true: boolean;
+      required_before_plain_send: string[];
+      required_before_file_or_project_send: string[];
+      unknown_readiness_policy: string;
+      blocked_feedback: string;
       must_wait_for: string[];
       must_not_wait_for: string[];
       failure_policy: string;
+    };
+    ordinary_shell_recovery: {
+      persistent_setup_entry: {
+        visibility: string;
+        surface: string;
+        target_route: string;
+        label_policy: string;
+        must_preserve_current_route_until_clicked: boolean;
+      };
+      plain_conversation: {
+        required_items: string[];
+        workspace_root_required: boolean;
+        blocked_feedback: string;
+        must_preserve_prompt: boolean;
+      };
+      file_and_project_context: {
+        required_items: string[];
+        restricted_capabilities: string[];
+        blocked_feedback: string;
+        plain_conversation_remains_available: boolean;
+      };
+      unknown_readiness_policy: string;
     };
     progress_model: {
       source_command: string;

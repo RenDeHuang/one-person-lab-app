@@ -2123,6 +2123,9 @@
         "authenticated standalone first-run route outside the ordinary product layout",
         "startup preflight escape into /guid while readiness is unknown without mutating readiness",
         "explicit enter OPL action before readiness without mutating readiness",
+        "persistent non-modal complete-first-setup entry in the ordinary sidebar while Core prerequisites remain incomplete",
+        "plain conversation send blocked only by Codex CLI or model access readiness with an inline recovery action that preserves the prompt",
+        "workspace root readiness restricts only file attachment and project workspace controls while plain conversation remains available",
         "functional OPL Gateway and existing Codex access choices",
         "model access method switching and alternate actions disabled while a request is active",
         "pending state without premature ready or no-blocker claims",
@@ -2255,6 +2258,19 @@
             "opl system"
           ]
         }
+      },
+      "ordinary_shell_recovery": {
+        "persistent_setup_entry_route": "/first-run",
+        "plain_conversation_required_items": ["codex_cli", "codex_config"],
+        "file_and_project_required_items": ["workspace_root"],
+        "unknown_readiness_policy": "do_not_synthesize_failure_or_mutate_readiness",
+        "required_shell_testids": [
+          "opl-first-run-resume-entry",
+          "opl-guid-setup-notice",
+          "opl-guid-setup-notice-action",
+          "opl-guid-file-access-disabled",
+          "opl-guid-workspace-access-disabled"
+        ]
       },
       "must_not_show": [
         "Homebrew, Node, Git, CLT, module, provider, or runtime maintenance as primary first-screen terminal goals",

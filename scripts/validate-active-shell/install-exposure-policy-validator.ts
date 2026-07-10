@@ -1,4 +1,4 @@
-import { assertIncludesAll, readJson } from './assertions.ts';
+import { assertDeepEqualJson, assertIncludesAll, readJson } from './assertions.ts';
 import {
   forbiddenAuthorityOwners,
 } from './app-contract-constants.ts';
@@ -553,13 +553,25 @@ function validateSetupFlowContract(setupFlow) {
   );
   const firstConversation = setupFlow.first_conversation_readiness;
   if (
-    firstConversation?.gate !== 'acp_warmup_before_initial_send' ||
+    firstConversation?.gate !== expectedFirstConversation.gate ||
     firstConversation?.source_command !== expectedFirstRunProgressModel.source_command ||
-    firstConversation?.ready_to_launch_must_be_true !== true ||
+    firstConversation?.ready_to_launch_must_be_true !== false ||
+    firstConversation?.unknown_readiness_policy !== expectedFirstConversation.unknown_readiness_policy ||
+    firstConversation?.blocked_feedback !== expectedFirstConversation.blocked_feedback ||
     firstConversation?.failure_policy !== expectedFirstConversationFailurePolicy
   ) {
-    throw new Error('Install exposure first conversation readiness must gate initial send on ready_to_launch and ACP warmup');
+    throw new Error('Install exposure first conversation readiness must apply granular prerequisites before ACP warmup');
   }
+  assertDeepEqualJson(
+    firstConversation.required_before_plain_send,
+    expectedFirstConversation.required_before_plain_send,
+    'Install exposure plain send prerequisites',
+  );
+  assertDeepEqualJson(
+    firstConversation.required_before_file_or_project_send,
+    expectedFirstConversation.required_before_file_or_project_send,
+    'Install exposure file/project send prerequisites',
+  );
   assertIncludesAll(
     firstConversation.must_wait_for,
     expectedFirstConversationMustWaitFor,

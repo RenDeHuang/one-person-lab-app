@@ -60,6 +60,12 @@ function assertIncludesAll(actual: string[], expected: string[], label: string):
   }
 }
 
+function assertDeepEqualJson(actual: unknown, expected: unknown, label: string): void {
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+    throw new Error(`${label} must equal ${JSON.stringify(expected)}`);
+  }
+}
+
 function assertPostInstallAiSelfCheckEntry(
   entry: AppProductProfile['first_run']['beginner_presentation']['post_install_ai_self_check_entry'],
 ): void {
@@ -104,6 +110,14 @@ function assertFirstRunProfileShape(profile: AppProductProfile): void {
   assertStringArray(profile.first_run.deferred_blockers, 'first_run.deferred_blockers');
   assertStringArray(profile.first_run.first_conversation.must_wait_for, 'first_run.first_conversation.must_wait_for');
   assertStringArray(profile.first_run.first_conversation.must_not_wait_for, 'first_run.first_conversation.must_not_wait_for');
+  assertStringArray(
+    profile.first_run.first_conversation.required_before_plain_send,
+    'first_run.first_conversation.required_before_plain_send',
+  );
+  assertStringArray(
+    profile.first_run.first_conversation.required_before_file_or_project_send,
+    'first_run.first_conversation.required_before_file_or_project_send',
+  );
   assertStringArray(profile.first_run.beginner_presentation.primary_steps, 'first_run.beginner_presentation.primary_steps');
   const beginnerPresentation = profile.first_run.beginner_presentation;
   if (
@@ -118,13 +132,47 @@ function assertFirstRunProfileShape(profile: AppProductProfile): void {
   }
   assertPostInstallAiSelfCheckEntry(profile.first_run.beginner_presentation.post_install_ai_self_check_entry);
   if (
-    profile.first_run.first_conversation.gate !== 'acp_warmup_before_initial_send' ||
+    profile.first_run.first_conversation.gate !== 'capability_prerequisites_then_acp_warmup_before_initial_send' ||
     profile.first_run.first_conversation.source_command !== 'opl system initialize --json' ||
-    profile.first_run.first_conversation.ready_to_launch_must_be_true !== true ||
+    profile.first_run.first_conversation.ready_to_launch_must_be_true !== false ||
+    profile.first_run.first_conversation.unknown_readiness_policy !== 'allow_attempt_without_mutating_readiness' ||
+    profile.first_run.first_conversation.blocked_feedback !==
+      'localized_inline_non_modal_setup_notice_preserves_prompt' ||
     profile.first_run.first_conversation.failure_policy !== 'show_retryable_initial_message_error_without_losing_user_prompt'
   ) {
-    throw new Error('App product profile first_run.first_conversation must gate initial send on ready_to_launch and ACP warmup');
+    throw new Error('App product profile first_run.first_conversation must apply granular prerequisites before ACP warmup');
   }
+  assertDeepEqualJson(
+    profile.first_run.first_conversation.required_before_plain_send,
+    ['codex_cli', 'codex_config'],
+    'first_run.first_conversation.required_before_plain_send',
+  );
+  assertDeepEqualJson(
+    profile.first_run.first_conversation.required_before_file_or_project_send,
+    ['workspace_root', 'codex_cli', 'codex_config'],
+    'first_run.first_conversation.required_before_file_or_project_send',
+  );
+  const ordinaryRecovery = profile.first_run.ordinary_shell_recovery;
+  if (
+    ordinaryRecovery.persistent_setup_entry.target_route !== '/first-run' ||
+    ordinaryRecovery.persistent_setup_entry.surface !== 'ordinary_sidebar_non_modal_entry' ||
+    ordinaryRecovery.plain_conversation.workspace_root_required !== false ||
+    ordinaryRecovery.plain_conversation.must_preserve_prompt !== true ||
+    ordinaryRecovery.file_and_project_context.plain_conversation_remains_available !== true ||
+    ordinaryRecovery.unknown_readiness_policy !== 'do_not_synthesize_failure_or_mutate_readiness'
+  ) {
+    throw new Error('Invalid App product profile first_run.ordinary_shell_recovery policy');
+  }
+  assertDeepEqualJson(
+    ordinaryRecovery.plain_conversation.required_items,
+    ['codex_cli', 'codex_config'],
+    'first_run.ordinary_shell_recovery.plain_conversation.required_items',
+  );
+  assertDeepEqualJson(
+    ordinaryRecovery.file_and_project_context.required_items,
+    ['workspace_root'],
+    'first_run.ordinary_shell_recovery.file_and_project_context.required_items',
+  );
   assertIncludesAll(
     profile.first_run.first_conversation.must_wait_for,
     ['conversation_record_ready', 'acp_warmup_complete'],

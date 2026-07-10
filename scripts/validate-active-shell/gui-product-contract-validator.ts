@@ -4,6 +4,8 @@ import {
   appOwnedTaskAwarenessRefFields,
   focusedFirstRunPresentationPolicy,
   homeActivityCenterForbiddenDisplays,
+  progressiveFirstRunRecoveryPolicy,
+  progressiveFirstRunRecoveryTestIds,
 } from './app-contract-constants.ts';
 import { validateGuiFrameworkSurfaces } from './gui-framework-surfaces-validator.ts';
 import { validateGuiProductHomeContract } from './gui-product-home-validator.ts';
@@ -434,6 +436,34 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
       throw new Error('App GUI first-launch startup runtime ' + field + ' must be ' + expected);
     }
   }
+  const ordinaryRecovery = firstLaunchPolicy?.ordinary_shell_recovery_policy;
+  if (
+    ordinaryRecovery?.persistent_setup_entry?.target_route !==
+      progressiveFirstRunRecoveryPolicy.persistent_setup_entry_route ||
+    ordinaryRecovery?.persistent_setup_entry?.surface !== 'ordinary_sidebar_non_modal_entry' ||
+    ordinaryRecovery?.persistent_setup_entry?.must_preserve_current_route_until_clicked !== true ||
+    ordinaryRecovery?.plain_conversation?.workspace_root_required !== false ||
+    ordinaryRecovery?.plain_conversation?.must_preserve_prompt !== true ||
+    ordinaryRecovery?.file_and_project_context?.plain_conversation_remains_available !== true ||
+    ordinaryRecovery?.unknown_readiness_policy !== progressiveFirstRunRecoveryPolicy.unknown_readiness_policy
+  ) {
+    throw new Error('App GUI first-launch ordinary shell recovery policy is invalid');
+  }
+  assertDeepEqualJson(
+    ordinaryRecovery.plain_conversation.required_items,
+    progressiveFirstRunRecoveryPolicy.plain_conversation_required_items,
+    'App GUI first-launch plain conversation prerequisites',
+  );
+  assertDeepEqualJson(
+    ordinaryRecovery.file_and_project_context.required_items,
+    progressiveFirstRunRecoveryPolicy.file_and_project_required_items,
+    'App GUI first-launch file and project prerequisites',
+  );
+  assertIncludesAll(
+    ordinaryRecovery.required_shell_testids,
+    progressiveFirstRunRecoveryTestIds,
+    'App GUI first-launch progressive recovery shell test ids',
+  );
 
   const modulePathPolicy = guiContract.module_path_source_policy;
   if (modulePathPolicy?.source !== 'app_state.modules[].source + app_state.modules[].path + app_state.paths') {

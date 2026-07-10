@@ -282,6 +282,19 @@ export const focusedFirstRunPresentationPolicy = {
   secret_diagnostic_policy: "redact_submitted_access_key_from_renderer_diagnostics",
   accessible_name_policy: "localized_visible_label_or_aria_labelledby_no_testid_names",
 };
+export const progressiveFirstRunRecoveryTestIds = [
+  "opl-first-run-resume-entry",
+  "opl-guid-setup-notice",
+  "opl-guid-setup-notice-action",
+  "opl-guid-file-access-disabled",
+  "opl-guid-workspace-access-disabled",
+];
+export const progressiveFirstRunRecoveryPolicy = {
+  persistent_setup_entry_route: "/first-run",
+  plain_conversation_required_items: ["codex_cli", "codex_config"],
+  file_and_project_required_items: ["workspace_root"],
+  unknown_readiness_policy: "do_not_synthesize_failure_or_mutate_readiness",
+};
 export const appOwnedSettingsTabs = [
   "general",
   "access",

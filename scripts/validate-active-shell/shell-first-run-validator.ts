@@ -1,4 +1,4 @@
-import { beginnerFirstRunTestIds } from './app-contract-constants.ts';
+import { beginnerFirstRunTestIds, progressiveFirstRunRecoveryTestIds } from './app-contract-constants.ts';
 import { readShellText } from './shell-implementation-helpers.ts';
 
 export function validateFirstRunImplementation(shellPaths) {
@@ -9,6 +9,28 @@ export function validateFirstRunImplementation(shellPaths) {
   const firstRunPage = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/FirstRun/index.tsx');
   const firstRunStyles = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/FirstRun/FirstRun.module.css');
   const firstRunModel = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/FirstRun/initializeModel.ts');
+  const corePrerequisitesHook = readShellText(
+    shellPaths,
+    'packages/desktop/src/renderer/hooks/system/useCoreLaunchPrerequisites.ts',
+  );
+  const firstRunSetupEntry = readShellText(
+    shellPaths,
+    'packages/desktop/src/renderer/components/layout/Sider/FirstRunSetupEntry.tsx',
+  );
+  const sider = readShellText(shellPaths, 'packages/desktop/src/renderer/components/layout/Sider/index.tsx');
+  const guidPage = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/guid/GuidPage.tsx');
+  const guidActionRow = readShellText(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/guid/components/GuidActionRow.tsx',
+  );
+  const guidSetupNotice = readShellText(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/guid/components/GuidSetupNotice.tsx',
+  );
+  const guidWorkspaceFootnote = readShellText(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/guid/components/GuidWorkspaceFootnote.tsx',
+  );
   const firstRunBridge = readShellText(shellPaths, 'packages/desktop/src/process/bridge/oplRuntimeBridge.ts');
   for (const expected of [
     "testId='opl-startup-preflight'",
@@ -81,6 +103,53 @@ export function validateFirstRunImplementation(shellPaths) {
     deferredEntry.includes('POST_INSTALL_SELF_CHECK_STATE')
   ) {
     throw new Error('Active shell FirstRun must keep a pure, always-enabled /guid entry before readiness');
+  }
+  for (const expected of ['readCoreLaunchPrerequisiteState', "useOplAppState('fast')"]) {
+    if (!corePrerequisitesHook.includes(expected)) {
+      throw new Error(`Active shell progressive first-run readiness hook must include ${expected}`);
+    }
+  }
+  for (const expected of [
+    "void navigate('/first-run')",
+    "data-testid='opl-first-run-resume-entry'",
+    'if (!readiness.known || readiness.readyToLaunch) return null',
+  ]) {
+    if (!firstRunSetupEntry.includes(expected)) {
+      throw new Error(`Active shell persistent first-run recovery entry must include ${expected}`);
+    }
+  }
+  if (!sider.includes('<FirstRunSetupEntry collapsed={collapsed} isMobile={isMobile} onNavigate={onSessionClick} />')) {
+    throw new Error('Active shell ordinary sidebar must mount the persistent FirstRun recovery entry');
+  }
+  for (const expected of [
+    "setSetupNoticeKind('local_assistant')",
+    "setSetupNoticeKind('model_access')",
+    "setSetupNoticeKind('workspace')",
+    'sendWithPrerequisiteCheck',
+    'fileAccessEnabled: !fileAccessBlocked',
+  ]) {
+    if (!guidPage.includes(expected)) {
+      throw new Error(`Active shell Guid progressive first-run recovery must include ${expected}`);
+    }
+  }
+  if (!guidActionRow.includes("'opl-guid-file-access-disabled'")) {
+    throw new Error('Active shell Guid file attachment must expose the workspace prerequisite disabled state');
+  }
+  if (!guidWorkspaceFootnote.includes("'opl-guid-workspace-access-disabled'")) {
+    throw new Error('Active shell Guid project workspace control must expose the workspace prerequisite disabled state');
+  }
+  for (const expected of [
+    "data-testid='opl-guid-setup-notice'",
+    "data-testid='opl-guid-setup-notice-action'",
+  ]) {
+    if (!guidSetupNotice.includes(expected)) {
+      throw new Error(`Active shell Guid setup notice must include ${expected}`);
+    }
+  }
+  for (const testId of progressiveFirstRunRecoveryTestIds) {
+    if (![firstRunSetupEntry, guidPage, guidActionRow, guidWorkspaceFootnote, guidSetupNotice].some((source) => source.includes(testId))) {
+      throw new Error(`Active shell progressive first-run recovery must implement ${testId}`);
+    }
   }
   for (const forbidden of [
     "shouldEnterGuidAutomatically",

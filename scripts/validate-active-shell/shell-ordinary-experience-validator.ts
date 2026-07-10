@@ -19,6 +19,8 @@ const guidHomeExpected = [
   'MentionSelectorBadge',
   'selectedAgentLabelOverride',
   'onClear={() =>',
+  'useCoreLaunchPrerequisites',
+  'GuidSetupNotice',
 ];
 
 const guidLocaleExpected = {

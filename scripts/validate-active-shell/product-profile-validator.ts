@@ -452,17 +452,54 @@ function validateFirstConversationPolicy(profile) {
     firstConversation?.must_wait_for,
     'Product profile first conversation must_wait_for',
   );
+  const requiredBeforePlainSend = assertNonEmptyStringArray(
+    firstConversation?.required_before_plain_send,
+    'Product profile first conversation required_before_plain_send',
+  );
+  const requiredBeforeFileOrProjectSend = assertNonEmptyStringArray(
+    firstConversation?.required_before_file_or_project_send,
+    'Product profile first conversation required_before_file_or_project_send',
+  );
   if (typeof firstConversation?.failure_policy !== 'string' || !firstConversation.failure_policy.trim()) {
     throw new Error('Product profile first conversation must define a failure_policy');
   }
   assertFirstRunProgressModelShape(progressModel, 'Product profile first-run progress model');
   if (
-    firstConversation?.gate !== 'acp_warmup_before_initial_send' ||
+    firstConversation?.gate !== 'capability_prerequisites_then_acp_warmup_before_initial_send' ||
     firstConversation?.source_command !== progressModel.source_command ||
-    firstConversation?.ready_to_launch_must_be_true !== true
+    firstConversation?.ready_to_launch_must_be_true !== false ||
+    firstConversation?.unknown_readiness_policy !== 'allow_attempt_without_mutating_readiness' ||
+    firstConversation?.blocked_feedback !== 'localized_inline_non_modal_setup_notice_preserves_prompt'
   ) {
-    throw new Error('Product profile first conversation must gate initial send on ready_to_launch and ACP warmup');
+    throw new Error('Product profile first conversation must apply granular prerequisites before ACP warmup');
   }
+  assertDeepEqualJson(requiredBeforePlainSend, ['codex_cli', 'codex_config'], 'Product profile plain send prerequisites');
+  assertDeepEqualJson(
+    requiredBeforeFileOrProjectSend,
+    ['workspace_root', 'codex_cli', 'codex_config'],
+    'Product profile file/project send prerequisites',
+  );
+  const ordinaryRecovery = profile.first_run?.ordinary_shell_recovery;
+  if (
+    ordinaryRecovery?.persistent_setup_entry?.target_route !== '/first-run' ||
+    ordinaryRecovery?.persistent_setup_entry?.surface !== 'ordinary_sidebar_non_modal_entry' ||
+    ordinaryRecovery?.plain_conversation?.workspace_root_required !== false ||
+    ordinaryRecovery?.plain_conversation?.must_preserve_prompt !== true ||
+    ordinaryRecovery?.file_and_project_context?.plain_conversation_remains_available !== true ||
+    ordinaryRecovery?.unknown_readiness_policy !== 'do_not_synthesize_failure_or_mutate_readiness'
+  ) {
+    throw new Error('Product profile ordinary shell recovery policy is invalid');
+  }
+  assertDeepEqualJson(
+    ordinaryRecovery.plain_conversation.required_items,
+    ['codex_cli', 'codex_config'],
+    'Product profile ordinary plain conversation prerequisites',
+  );
+  assertDeepEqualJson(
+    ordinaryRecovery.file_and_project_context.required_items,
+    ['workspace_root'],
+    'Product profile ordinary file/project prerequisites',
+  );
   assertIncludesAll(
     firstConversation.must_wait_for,
     firstConversationMustWaitFor,

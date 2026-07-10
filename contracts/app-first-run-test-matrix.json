@@ -131,6 +131,25 @@
       "event_stream_policy": "explicit_configuration_or_diagnostics_only"
     },
     {
+      "id": "ordinary_shell_progressive_first_run_recovery",
+      "package_type": "standard_or_full",
+      "required_shell_testids": [
+        "opl-first-run-resume-entry",
+        "opl-guid-setup-notice",
+        "opl-guid-setup-notice-action",
+        "opl-guid-file-access-disabled",
+        "opl-guid-workspace-access-disabled"
+      ],
+      "expects": [
+        "incomplete Core readiness never blocks authenticated navigation to /guid",
+        "ordinary sidebar keeps a non-modal localized entry back to /first-run until Core prerequisites are complete",
+        "plain conversation send requires Codex CLI and model access but does not require workspace_root",
+        "blocked send keeps the draft prompt and shows an inline localized recovery action",
+        "missing workspace_root disables file dialog, file paste, file drag, and project workspace selection only",
+        "unknown readiness does not synthesize failure or mutate ready_to_launch"
+      ]
+    },
+    {
       "id": "full_first_install_clean_machine",
       "package_type": "full",
       "clean_machine_missing_tools": [

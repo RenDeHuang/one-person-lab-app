@@ -5,6 +5,8 @@ import {
   appOwnedProjectGroupExpansionPolicy,
   beginnerFirstRunTestIds,
   focusedFirstRunPresentationPolicy,
+  progressiveFirstRunRecoveryPolicy,
+  progressiveFirstRunRecoveryTestIds,
 } from './app-contract-constants.ts';
 import {
   assertNonEmptyStringArray,
@@ -103,6 +105,28 @@ export function validatePageStateMatrix(matrix, contract, guiProductContract) {
     firstLaunchPage.beginner_view_model?.required_shell_testids,
     beginnerFirstRunTestIds,
     'First-launch readiness beginner shell test ids',
+  );
+  const ordinaryRecovery = firstLaunchPage.ordinary_shell_recovery;
+  if (
+    ordinaryRecovery?.persistent_setup_entry_route !== progressiveFirstRunRecoveryPolicy.persistent_setup_entry_route ||
+    ordinaryRecovery?.unknown_readiness_policy !== progressiveFirstRunRecoveryPolicy.unknown_readiness_policy
+  ) {
+    throw new Error('First-launch page-state ordinary shell recovery policy is invalid');
+  }
+  assertDeepEqualJson(
+    ordinaryRecovery.plain_conversation_required_items,
+    progressiveFirstRunRecoveryPolicy.plain_conversation_required_items,
+    'First-launch page-state plain conversation prerequisites',
+  );
+  assertDeepEqualJson(
+    ordinaryRecovery.file_and_project_required_items,
+    progressiveFirstRunRecoveryPolicy.file_and_project_required_items,
+    'First-launch page-state file and project prerequisites',
+  );
+  assertIncludesAll(
+    ordinaryRecovery.required_shell_testids,
+    progressiveFirstRunRecoveryTestIds,
+    'First-launch page-state progressive recovery shell test ids',
   );
   for (const item of expectedFirstRunCoreItems) {
     if (!firstLaunchPage.launch_gate?.required_core_items?.includes(item)) {
