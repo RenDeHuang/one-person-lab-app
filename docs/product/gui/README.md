@@ -61,8 +61,10 @@ contract 的 lane 决定是否修改 machine truth、实现或目标。
 - `ideal_target.workspace_session_rail_default_visible=true`
 - `ideal_target.inspector_default_visible=false`
 - `active_aionui.state_source=contracts/app-product-profile.json#gui.home.home_layout`
+- `active_shell_switch_contract=contracts/app-shell-adapter.json`
+- `visual_reference=ChatGPT Codex macOS 26.707.31123 (2026-07-10)`
 - `entry_docs=docs/product/gui/README.md,docs/product/gui/feature-inventory.md,docs/product/gui/ideal-interaction-spec.md,docs/product/gui/visual-system.md,docs/product/gui/codex-to-opl-app-delta.md,docs/product/gui/element-audit.md,docs/product/gui/shell-implementation-guide.md,docs/product/gui/shell-conformance-matrix.md`
-- `contract_refs=contracts/app-gui-product-contract.json,contracts/app-product-profile.json,contracts/app-page-state-matrix.json`
+- `contract_refs=contracts/app-gui-product-contract.json,contracts/app-product-profile.json,contracts/app-page-state-matrix.json,contracts/app-shell-candidates.json,contracts/app-shell-adapter.json`
 
 ## 当前目标与实现边界
 
