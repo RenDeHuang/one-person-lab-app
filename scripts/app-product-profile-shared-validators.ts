@@ -21,6 +21,12 @@ type ProductProfileLike = {
         visible_models?: Array<Record<string, unknown>>;
       };
     };
+    ordinary_conversation?: Record<string, unknown>;
+    right_context_inspector?: Record<string, unknown> & {
+      primary_tools?: Array<Record<string, unknown>>;
+      secondary_sections?: Array<Record<string, unknown>>;
+      tabs?: unknown;
+    };
     builtin_assistant_route_receipt_policy?: Record<string, unknown>;
     agent_package_invocation_receipt_policy?: Record<string, unknown>;
   };
@@ -231,10 +237,10 @@ function assertHomeCodexFixedExecutorFields(
       { actual: home?.codex_default_model, expected: profile.codex?.default_model },
       { actual: home?.codex_default_reasoning_effort, expected: profile.codex?.default_reasoning_effort },
       { actual: home?.codex_default_permission_mode, expected: 'full-access' },
-      { actual: home?.permission_mode_selector_visible, expected: false },
+      { actual: home?.permission_mode_selector_visible, expected: true },
       { actual: home?.conversation_backend_selector_visible, expected: false },
       { actual: home?.conversation_model_selector_visible, expected: true },
-      { actual: home?.conversation_permission_mode_selector_visible, expected: false },
+      { actual: home?.conversation_permission_mode_selector_visible, expected: true },
       { actual: home?.codex_home_model_status_label, expected: '5.6 Sol' },
       {
         actual: home?.codex_precise_model_display_policy,
@@ -243,6 +249,46 @@ function assertHomeCodexFixedExecutorFields(
     ],
     `${label} GUI home must keep Codex CLI fixed while exposing App-owned model selectors`,
   );
+}
+
+export function assertAppProductProfileGuiInteractionBaseline(
+  profile: ProductProfileLike,
+  label = 'App product profile',
+): void {
+  const homeLayout = profile.gui?.home?.home_layout as Record<string, unknown> | undefined;
+  const conversation = profile.gui?.ordinary_conversation;
+  const inspector = profile.gui?.right_context_inspector;
+  assertExpectedFields(
+    [
+      { actual: homeLayout?.composer_position, expected: 'floating_bottom_with_safe_inset' },
+      { actual: homeLayout?.workspace_session_rail_default_state, expected: 'visible_wide_drawer_narrow' },
+      { actual: homeLayout?.right_context_inspector_default_state, expected: 'collapsed' },
+      { actual: conversation?.composer_position, expected: 'floating_bottom_with_safe_inset' },
+      { actual: conversation?.permission_mode_selector_visible, expected: true },
+      { actual: inspector?.placement, expected: 'right' },
+      { actual: inspector?.surface_kind, expected: 'resizable_side_panel' },
+      { actual: inspector?.default_state, expected: 'collapsed' },
+      { actual: inspector?.wide_desktop_mode, expected: 'resizable_split' },
+      {
+        actual: inspector?.secondary_presentation,
+        expected: 'sections_or_disclosures_not_equal_weight_tabs',
+      },
+    ],
+    `${label} GUI interaction profile must match the Codex baseline`,
+  );
+  assertExactStringArray(
+    inspector?.primary_tools?.map((entry) => String(entry.id)),
+    ['review', 'terminal', 'browser', 'files'],
+    `${label} GUI right context primary tools`,
+  );
+  assertExactStringArray(
+    inspector?.secondary_sections?.map((entry) => String(entry.id)),
+    ['artifacts', 'runtime', 'actions', 'memory'],
+    `${label} GUI right context secondary sections`,
+  );
+  if (Array.isArray(inspector?.tabs)) {
+    throw new Error(`${label} GUI right context inspector must not restore equal-weight tabs`);
+  }
 }
 
 function assertHomeCodexEnglishStatusLabel(

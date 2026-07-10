@@ -4,6 +4,7 @@ import { assertAppProductProfileIdentity } from '../app-product-profile-identity
 import {
   assertAppProductProfileCodexModelDisplayOptions,
   assertAppProductProfileGuiAuthority,
+  assertAppProductProfileGuiInteractionBaseline,
   assertAppProductProfileHomeCodexPolicy,
   assertAppProductProfileRouteReceiptPolicy,
   assertOplFlowIntelligenceEnhancementMode,
@@ -456,6 +457,7 @@ function assertCodexOplFlowContext(profile: AppProductProfile): void {
 
 function assertHomeCodexProfileShape(profile: AppProductProfile): void {
   assertAppProductProfileGuiAuthority(profile);
+  assertAppProductProfileGuiInteractionBaseline(profile);
   assertAppProductProfileHomeCodexPolicy(profile, 'App product profile', {
     requireEnglishStatusLabel: true,
     requireSelectionPersistence: true,

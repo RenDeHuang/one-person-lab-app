@@ -1,8 +1,9 @@
 import { assertDeepEqualJson, assertIncludesAll } from './assertions.ts';
 import {
-  appOwnedHomeLayout,
+  appOwnedPageStateHomeLayout,
   appOwnedPageStateOrdinaryConversation,
-  appOwnedRightContextInspectorTabIds,
+  appOwnedRightContextInspectorPrimaryToolIds,
+  appOwnedRightContextInspectorSecondarySectionIds,
   homeActivityCenterForbiddenDisplays,
 } from './app-contract-constants.ts';
 
@@ -71,10 +72,10 @@ function validateGuidHomeViewModelFields(homeViewModel) {
     codex_auto_model_policy_ref: 'contracts/app-product-profile.json#codex.auto_model_policy',
     codex_precise_model_display_policy: 'friendly_model_primary_reasoning_primary_model_and_intelligence_secondary_menus',
     codex_default_permission_mode: 'full-access',
-    permission_mode_selector_visible: false,
+    permission_mode_selector_visible: true,
     conversation_backend_selector_visible: false,
     conversation_model_selector_visible: true,
-    conversation_permission_mode_selector_visible: false,
+    conversation_permission_mode_selector_visible: true,
   };
   assertDeepEqualJson(fieldsFrom(homeViewModel, expectedFields), expectedFields, 'Guid home page view model fields');
 }
@@ -82,7 +83,7 @@ function validateGuidHomeViewModelFields(homeViewModel) {
 function validateGuidHomeLayout(homeViewModel) {
   assertDeepEqualJson(
     homeViewModel.home_layout,
-    appOwnedHomeLayout,
+    appOwnedPageStateHomeLayout,
     'Guid home page layout',
   );
   assertDeepEqualJson(homeViewModel.ordinary_visible_mcp_server_ids, [], 'Guid home ordinary MCP allowlist');
@@ -162,15 +163,18 @@ function validateGuidHomeVisibleSignals(guidHomePage) {
     'Codex CLI fixed executor experience',
     'Codex model selector defaulting to 5.6 Sol',
     'reasoning effort configurable inside the Codex model menu',
+    'conversation pending elapsed seconds while Codex is working',
     'purpose-first entries 科研/MAS, 基金/MAG, 演示/RCA, 写书/OBF',
-    'selected assistant keeps purpose entry switcher visible',
+    'active capability shown as a compact chip',
+    'at most four lightweight OPL starters outside the composer',
     'assistant-scoped skill menu with required skill checked',
     'ordinary skill selector filtered to App-owned assistant profile skill allowlist',
     'workspace selector',
     'file attachment control',
     'send action',
-    'single composer-first home input',
-    'workspace/session rail collapsed by default',
+    'single composer-first home input with context strip and bottom action row',
+    'permission and access mode in user language',
+    'workspace/session rail visible on wide desktop and drawer on narrow windows',
     'right context inspector collapsed by default',
     'runtime/task progress available from Runtime page, not Home activity grid',
   ], 'Guid home page visible signals');
@@ -181,8 +185,8 @@ function validateGuidHomeHiddenSignals(guidHomePage) {
     'executor selector on the home input',
     'Aion CLI or Claude Code backend choices on the home input',
     'retired Codex model choices on the home input',
-    'permission mode selector on the home input',
-    'backend or permission selectors after entering an ordinary Codex conversation',
+    'provider or backend terms in the permission and access mode',
+    'persistent variable purpose selector in the composer',
     'full assistant names as default home entry labels',
     'skills outside the App packaged skill set in home skill menu',
     'AionUI implementation skills such as aionui-skills',
@@ -277,15 +281,18 @@ function validateOrdinaryConversationPage(matrix) {
   );
   assertIncludesAll(ordinaryConversationPage.must_show, [
     'Codex CLI ordinary conversation',
-    'pinned composer',
-    'compact purpose tag',
+    'floating bottom composer with safe inset',
+    'compact active capability chip',
+    'permission and access mode in user language',
+    'projectless text conversation when no workspace is selected',
     'assistant route receipt',
     'Codex default model and reasoning status',
   ], 'Ordinary conversation page visible signals');
   assertIncludesAll(ordinaryConversationPage.must_not_show, [
     'backend selector as normal conversation control',
-    'permission mode selector as normal conversation control',
     'provider selector as normal conversation control',
+    'provider or backend language inside permission and access mode',
+    'persistent variable purpose selector in the composer',
   ], 'Ordinary conversation page hidden signals');
 }
 
@@ -293,16 +300,28 @@ function validateRightContextInspectorPage(matrix) {
   const rightContextInspectorPage = pageById(matrix, 'right_context_inspector', 'right_context_inspector');
   const inspectorViewModel = rightContextInspectorPage.inspector_view_model;
   assertDeepEqualJson(
-    (inspectorViewModel?.tabs ?? []).map((tab) => tab.id),
-    appOwnedRightContextInspectorTabIds,
-    'Right context inspector tabs',
+    (inspectorViewModel?.primary_tools ?? []).map((tool) => tool.id),
+    appOwnedRightContextInspectorPrimaryToolIds,
+    'Right context inspector primary tools',
   );
+  assertDeepEqualJson(
+    (inspectorViewModel?.secondary_sections ?? []).map((section) => section.id),
+    appOwnedRightContextInspectorSecondarySectionIds,
+    'Right context inspector secondary sections',
+  );
+  if (Array.isArray(inspectorViewModel?.tabs)) {
+    throw new Error('Right context inspector must not restore equal-weight tabs');
+  }
   const expectedFields = {
     placement: 'right',
+    surface_kind: 'resizable_side_panel',
     default_state: 'collapsed',
     opens_on_user_request_only: true,
     chat_canvas_remains_primary: true,
     scope: 'selected_workspace_and_conversation',
+    wide_desktop_mode: 'resizable_split',
+    secondary_presentation: 'sections_or_disclosures_not_equal_weight_tabs',
+    environment_popover_ref: 'contracts/app-gui-product-contract.json#interaction_baseline.context_surfaces.environment_popover',
   };
   assertDeepEqualJson(
     fieldsFrom(inspectorViewModel, expectedFields),
@@ -310,14 +329,15 @@ function validateRightContextInspectorPage(matrix) {
     'Right context inspector fields',
   );
   assertIncludesAll(rightContextInspectorPage.must_show, [
-    'right-side collapsible inspector',
-    'Files refs tab',
-    'Capabilities tab',
-    'Routing/runtime refs tab',
-    'Memory refs tab',
-    'Always-On/Automations tab',
-    'Settings tab',
+    'right-side resizable split panel closed by default',
+    'Review, Terminal, Browser, and Files primary tools',
+    'Artifacts, Runtime, Actions, and Memory secondary sections or disclosures',
+    'environment popover kept distinct from the side panel',
   ], 'Right context inspector page visible signals');
+  assertIncludesAll(rightContextInspectorPage.must_not_show, [
+    'nine equal-weight side-panel tabs',
+    'advanced work surfaces open by default',
+  ], 'Right context inspector page hidden signals');
   assertIncludesAll(
     rightContextInspectorPage.must_not_own,
     ['runtime truth', 'domain truth', 'artifact body', 'memory body', 'backend selection authority'],

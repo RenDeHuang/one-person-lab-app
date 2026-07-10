@@ -722,12 +722,30 @@ export const homeActivityCenterForbiddenDisplays = [
 export const appOwnedHomeLayout = {
   default_mode: "composer_first_chat_canvas",
   first_screen_policy: "chat_first_no_dashboard_or_landing_copy",
-  composer_position: "pinned_bottom",
+  composer_position: "floating_bottom_with_safe_inset",
   composer_primary: true,
   workspace_selector_visible: true,
   purpose_entries_visible: ["research", "grant", "ppt", "book"],
-  workspace_session_rail_default_state: "collapsed",
+  purpose_entry_placement:
+    "home_starters_and_capabilities_not_persistent_composer_selector",
+  dynamic_question_title: true,
+  starter_limit: 4,
+  projectless_conversation_supported: true,
+  text_chat_without_workspace: "available",
+  workspace_session_rail_default_state: "visible_wide_drawer_narrow",
   right_context_inspector_default_state: "collapsed",
+  must_not_show: [
+    "dashboard-first home",
+    "explanatory landing page",
+    "backend settings panel in composer",
+    "Sites entry without an OPL product capability",
+    "Chat entry without an OPL product capability",
+    "AionUI Team nav entry",
+    "AionUI Team page as ordinary App surface",
+  ],
+};
+export const appOwnedPageStateHomeLayout = {
+  ...appOwnedHomeLayout,
   must_not_show: [
     "dashboard-first home",
     "explanatory landing page",
@@ -738,18 +756,32 @@ export const appOwnedHomeLayout = {
 };
 const appOwnedOrdinaryConversation = {
   path_id: "ordinary_codex_conversation",
-  entry_source: "home_purpose_entry_or_new_conversation",
+  entry_source:
+    "home_starter_capabilities_project_task_or_projectless_new_conversation",
   executor: "codex_cli",
-  composer_position: "pinned_bottom",
-  purpose_tag_visible: true,
+  composer_position: "floating_bottom_with_safe_inset",
+  active_capability_chip_visible: true,
+  persistent_purpose_selector_visible: false,
   assistant_route_receipt_required: true,
   backend_selector_visible: false,
   model_selector_visible: true,
-  permission_mode_selector_visible: false,
+  permission_mode_selector_visible: true,
+  permission_mode_language_policy:
+    "automation_and_file_access_in_user_language",
   provider_selector_visible: false,
-  model_status_surface: "gui.home.codex_home_model_status_label",
+  model_status_surface: "executor_policy.default_model_display_value",
   technical_details_policy:
-    "friendly_model_primary_reasoning_primary_model_and_intelligence_secondary_menus",
+    "single_compact_model_reasoning_menu_without_backend_or_provider",
+  composer_context_strip: ["project", "local", "branch", "active_capability"],
+  composer_bottom_action_row: [
+    "attach",
+    "context",
+    "permission_access_mode",
+    "model_reasoning",
+    "voice_optional",
+    "send_stop",
+  ],
+  projectless_conversation_supported: true,
 };
 export const appOwnedGuiContractOrdinaryConversation = {
   ...appOwnedOrdinaryConversation,
@@ -759,7 +791,8 @@ export const appOwnedCurrentTaskSlice = {
   source: "contracts/app-runtime-bridge.json#current_task_slice_projection",
   state_source: "opl app state --profile fast --json",
   scope: "current_conversation_or_selected_task",
-  default_visibility: "inline_compact_when_task_active",
+  default_visibility: "pinnable_summary_bar_when_task_active",
+  summary_bar_fields: ["status", "elapsed", "progress", "next_action", "stop"],
   fields: [
     "task_id",
     "status",
@@ -787,6 +820,9 @@ export const appOwnedCurrentTaskSlice = {
     "console_policy_ref",
     "environment_template_ref",
     "environment_version_ref",
+    "source_material_refs",
+    "source_material_receipt_refs",
+    "reference_design_packet_refs",
     "structured_result_panel",
     "artifact_provenance_card",
     "ref_level_follow_up_refs",
@@ -798,27 +834,28 @@ export const appOwnedCurrentTaskSlice = {
 };
 export const appOwnedPageStateOrdinaryConversation = {
   ...Object.fromEntries(
-    Object.entries(appOwnedOrdinaryConversation).filter(
-      ([key]) =>
-        key !== "model_status_surface" && key !== "technical_details_policy",
+    Object.entries(appOwnedOrdinaryConversation).map(([key, value]) =>
+      key === "model_status_surface"
+        ? [
+            "model_status_surface_ref",
+            "contracts/app-gui-product-contract.json#executor_policy.default_model_display_value",
+          ]
+        : [key, value],
     ),
   ),
-  model_status_surface_ref:
-    "contracts/app-gui-product-contract.json#executor_policy.default_model_display_value",
-  technical_details_policy:
-    appOwnedOrdinaryConversation.technical_details_policy,
   current_task_slice: appOwnedCurrentTaskSlice,
 };
-export const appOwnedRightContextInspectorTabIds = [
-  "files",
-  "artifacts",
+export const appOwnedRightContextInspectorPrimaryToolIds = [
   "review",
-  "actions",
-  "capabilities",
+  "terminal",
+  "browser",
+  "files",
+];
+export const appOwnedRightContextInspectorSecondarySectionIds = [
+  "artifacts",
   "runtime",
+  "actions",
   "memory",
-  "automations",
-  "settings",
 ];
 export const firstRunEcosystemModules = [
   "officecli",

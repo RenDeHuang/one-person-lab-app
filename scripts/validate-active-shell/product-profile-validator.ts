@@ -25,6 +25,7 @@ import { assertAppProductProfileIdentity } from '../app-product-profile-identity
 import {
   assertAppProductProfileCodexModelDisplayOptions,
   assertAppProductProfileGuiAuthority,
+  assertAppProductProfileGuiInteractionBaseline,
   assertAppProductProfileHomeCodexPolicy,
   assertAppProductProfileRouteReceiptPolicy,
   assertProfessionalAgentPackagePolicy,
@@ -124,6 +125,7 @@ function validateProductProfileCodexDefaults(profile) {
   }
   assertDefaultCodexSessionProfile(profile, { label: 'product profile', requireLiteralDefaults: true });
   assertAppProductProfileGuiAuthority(profile, 'Product profile');
+  assertAppProductProfileGuiInteractionBaseline(profile, 'Product profile');
   assertAppProductProfileHomeCodexPolicy(profile, 'Product profile');
   assertAppProductProfileCodexModelDisplayOptions(profile, 'Product profile');
   assertAppProductProfileRouteReceiptPolicy(profile, 'Product profile');

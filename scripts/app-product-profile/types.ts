@@ -123,6 +123,55 @@ export type AppProductProfile = {
         must_not_display: string[];
         footer_quick_actions_policy: string;
       };
+      home_layout: {
+        default_mode: string;
+        first_screen_policy: string;
+        composer_position: string;
+        composer_primary: boolean;
+        workspace_selector_visible: boolean;
+        purpose_entries_visible: string[];
+        purpose_entry_placement: string;
+        dynamic_question_title: boolean;
+        starter_limit: number;
+        projectless_conversation_supported: boolean;
+        text_chat_without_workspace: string;
+        workspace_session_rail_default_state: string;
+        right_context_inspector_default_state: string;
+        must_not_show: string[];
+      };
+    };
+    ordinary_conversation: {
+      path_id: string;
+      entry_source: string;
+      executor: string;
+      composer_position: string;
+      active_capability_chip_visible: boolean;
+      persistent_purpose_selector_visible: boolean;
+      agent_package_invocation_receipt_required: boolean;
+      assistant_route_receipt_required: boolean;
+      backend_selector_visible: boolean;
+      model_selector_visible: boolean;
+      permission_mode_selector_visible: boolean;
+      permission_mode_language_policy: string;
+      provider_selector_visible: boolean;
+      model_status_surface: string;
+      technical_details_policy: string;
+      composer_context_strip: string[];
+      composer_bottom_action_row: string[];
+      projectless_conversation_supported: boolean;
+    };
+    right_context_inspector: {
+      placement: string;
+      surface_kind: string;
+      default_state: string;
+      opens_on_user_request_only: boolean;
+      chat_canvas_remains_primary: boolean;
+      scope: string;
+      wide_desktop_mode: string;
+      primary_tools: Array<{ id: string; label: string; authority: string }>;
+      secondary_sections: Array<{ id: string; label: string; authority: string }>;
+      secondary_presentation: string;
+      must_not_own: string[];
     };
     agent_package_invocation_receipt_policy: {
       scope: string;

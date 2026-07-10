@@ -7,6 +7,38 @@ import { validateProductProfile } from '../../scripts/validate-active-shell/prod
 
 const readJson = (relativePath: string) => JSON.parse(fs.readFileSync(relativePath, 'utf8'));
 
+test('Codex interaction surfaces stay aligned across the App profile and contracts', () => {
+  const installExposure = readJson('contracts/app-install-exposure-policy.json');
+  assert.doesNotThrow(() => validateProductProfile(
+    readJson('contracts/app-product-profile.json'),
+    installExposure,
+  ));
+  assert.doesNotThrow(() => validateAppGuiProductContract(
+    readJson('contracts/app-gui-product-contract.json'),
+    readJson('contracts/app-release-channel.json'),
+    installExposure,
+  ));
+  assert.doesNotThrow(() => validatePrimaryInteractionPages(
+    readJson('contracts/app-page-state-matrix.json'),
+  ));
+});
+
+test('product profile rejects pre-Codex-baseline interaction states', () => {
+  const installExposure = readJson('contracts/app-install-exposure-policy.json');
+  for (const mutate of [
+    (profile: any) => { profile.gui.home.permission_mode_selector_visible = false; },
+    (profile: any) => { profile.gui.home.conversation_permission_mode_selector_visible = false; },
+    (profile: any) => { profile.gui.home.home_layout.workspace_session_rail_default_state = 'collapsed'; },
+    (profile: any) => { profile.gui.ordinary_conversation.composer_position = 'pinned_bottom'; },
+    (profile: any) => { profile.gui.ordinary_conversation.permission_mode_selector_visible = false; },
+    (profile: any) => { profile.gui.right_context_inspector.tabs = []; },
+  ]) {
+    const profile = structuredClone(readJson('contracts/app-product-profile.json'));
+    mutate(profile);
+    assert.throws(() => validateProductProfile(profile, installExposure));
+  }
+});
+
 test('GUI contract rejects Auto model policy source drift from the App product profile', () => {
   const guiContract = structuredClone(readJson('contracts/app-gui-product-contract.json'));
   guiContract.executor_policy.auto_model_policy_source_ref = 'shell-local-policy';

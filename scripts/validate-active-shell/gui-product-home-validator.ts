@@ -3,7 +3,8 @@ import {
   appOwnedCurrentTaskSlice,
   appOwnedGuiContractOrdinaryConversation,
   appOwnedHomeLayout,
-  appOwnedRightContextInspectorTabIds,
+  appOwnedRightContextInspectorPrimaryToolIds,
+  appOwnedRightContextInspectorSecondarySectionIds,
 } from './app-contract-constants.ts';
 import {
   assertProfessionalAgentPackagePolicy,
@@ -18,10 +19,14 @@ import { validateGuiProductAuthority } from './gui-product-authority-validator.t
 
 const rightInspectorExpected = {
   placement: 'right',
+  surface_kind: 'resizable_side_panel',
   default_state: 'collapsed',
   opens_on_user_request_only: true,
   chat_canvas_remains_primary: true,
   scope: 'selected_workspace_and_conversation',
+  wide_desktop_mode: 'resizable_split',
+  secondary_presentation: 'sections_or_disclosures_not_equal_weight_tabs',
+  environment_popover_ref: 'interaction_baseline.context_surfaces.environment_popover',
 };
 const rightInspectorForbiddenOwners = [
   'runtime truth',
@@ -141,10 +146,18 @@ function validateAiFirstInteractionModel(guiContract) {
 
 function validateRightContextInspector(guiContract) {
   assertDeepEqualJson(
-    (guiContract.right_context_inspector?.tabs ?? []).map((tab) => tab.id),
-    appOwnedRightContextInspectorTabIds,
-    'App GUI right context inspector tabs',
+    (guiContract.right_context_inspector?.primary_tools ?? []).map((tool) => tool.id),
+    appOwnedRightContextInspectorPrimaryToolIds,
+    'App GUI right context inspector primary tools',
   );
+  assertDeepEqualJson(
+    (guiContract.right_context_inspector?.secondary_sections ?? []).map((section) => section.id),
+    appOwnedRightContextInspectorSecondarySectionIds,
+    'App GUI right context inspector secondary sections',
+  );
+  if (Array.isArray(guiContract.right_context_inspector?.tabs)) {
+    throw new Error('App GUI right context inspector must not restore equal-weight tabs');
+  }
   for (const [field, expected] of Object.entries(rightInspectorExpected)) {
     if (guiContract.right_context_inspector?.[field] !== expected) {
       throw new Error(`App GUI right context inspector ${field} must be ${expected}`);

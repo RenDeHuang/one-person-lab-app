@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 type JsonRecord = Record<string, unknown>;
-type ActiveSurfaceState = 'collapsed' | 'visible';
+type ActiveSurfaceState = 'collapsed' | 'visible' | 'visible_wide_drawer_narrow';
 type ContractConformanceStatus = 'aligned_contract' | 'current_contract_deviation';
 
 const conformanceStatusVocabulary = {
@@ -564,11 +564,12 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   const activeAionui = record(stateBoundary.active_aionui);
   const activeRailState = homeLayout.workspace_session_rail_default_state;
   const activeInspectorState = homeLayout.right_context_inspector_default_state;
-  const allowedActiveStates = ['collapsed', 'visible'];
-  if (!allowedActiveStates.includes(String(activeRailState))) {
-    issues.add('active AionUI rail state must be collapsed or visible in app-product-profile');
+  const allowedActiveRailStates = ['collapsed', 'visible_wide_drawer_narrow'];
+  const allowedActiveInspectorStates = ['collapsed', 'visible'];
+  if (!allowedActiveRailStates.includes(String(activeRailState))) {
+    issues.add('active AionUI rail state must be collapsed or visible_wide_drawer_narrow in app-product-profile');
   }
-  if (!allowedActiveStates.includes(String(activeInspectorState))) {
+  if (!allowedActiveInspectorStates.includes(String(activeInspectorState))) {
     issues.add('active AionUI inspector state must be collapsed or visible in app-product-profile');
   }
   if (activeAionui.source !== 'contracts/app-product-profile.json#gui.home.home_layout') {
@@ -580,7 +581,11 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   if (JSON.stringify(Object.keys(activeAionui).sort()) !== JSON.stringify(['conformance_policy', 'source'])) {
     issues.add('active AionUI governance must store only source and conformance_policy');
   }
-  const railMatchesIdeal = activeRailState === (idealTarget.workspace_session_rail_default_visible ? 'visible' : 'collapsed');
+  const railMatchesIdeal = activeRailState === (
+    idealTarget.workspace_session_rail_default_visible
+      ? 'visible_wide_drawer_narrow'
+      : 'collapsed'
+  );
   const inspectorMatchesIdeal = activeInspectorState === (idealTarget.inspector_default_visible ? 'visible' : 'collapsed');
   const permissionAccessModeMatchesIdeal = (
     profileHome.permission_mode_selector_visible === true &&
@@ -588,8 +593,11 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     activeConversation.permission_mode_selector_visible === true
   );
   const sidePanelInformationArchitectureMatchesIdeal = (
+    activeInspector.surface_kind === 'resizable_side_panel' &&
+    activeInspector.wide_desktop_mode === 'resizable_split' &&
     sameStrings(idArray(activeInspector.primary_tools), stringArray(sidePanel.primary_tools)) &&
     sameStrings(idArray(activeInspector.secondary_sections), stringArray(sidePanel.secondary_sections)) &&
+    activeInspector.secondary_presentation === 'sections_or_disclosures_not_equal_weight_tabs' &&
     !Array.isArray(activeInspector.tabs)
   );
 

@@ -631,11 +631,11 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     assertCommandSurface(pages[pageId].state_source, 'opl app state --profile fast --json', `App GUI ${pageId} state source`);
     assertCommandSurface(pages[pageId].refresh_source, 'opl app state --profile fast --json', `App GUI ${pageId} refresh source`);
   }
-  if (!pages.guid_home.must_show?.includes('purpose-first assistants Research/Grant/Presentation/Book as click-to-start entries')) {
-    throw new Error('App GUI home must show purpose-first Research/Grant/Presentation/Book entries');
+  if (!pages.guid_home.must_show?.includes('at most four lightweight OPL starters for Research/Grant/Presentation/Book')) {
+    throw new Error('App GUI home must show at most four lightweight OPL starters');
   }
-  if (!pages.guid_home.must_show?.includes('selected assistant shown as a compact @ purpose tag')) {
-    throw new Error('App GUI home must show selected assistant as a compact @ purpose tag');
+  if (!pages.guid_home.must_show?.includes('active capability shown as a compact chip')) {
+    throw new Error('App GUI home must show the active capability as a compact chip');
   }
   if (pages.guid_home.model_status?.display_value !== '5.6 Sol') {
     throw new Error('App GUI home model selector must keep the friendly default model without repeating reasoning');

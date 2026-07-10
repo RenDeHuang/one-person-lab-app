@@ -94,12 +94,12 @@ test('GUI design-system validator accepts a complete fixture without promoting r
   assert.equal(summary.reference_boundary.page_state_status, 'aligned_contract');
   assert.equal(summary.reference_boundary.native_candidate_status, 'current_contract_deviation');
   assert.equal(summary.state_boundary.ideal_native_rail_visible, true);
-  assert.equal(summary.state_boundary.active_aionui_rail_state, 'collapsed');
-  assert.equal(summary.state_boundary.active_aionui_conformance.rail_matches_ideal, false);
-  assert.equal(summary.state_boundary.active_aionui_conformance.rail_status, 'current_contract_deviation');
+  assert.equal(summary.state_boundary.active_aionui_rail_state, 'visible_wide_drawer_narrow');
+  assert.equal(summary.state_boundary.active_aionui_conformance.rail_matches_ideal, true);
+  assert.equal(summary.state_boundary.active_aionui_conformance.rail_status, 'aligned_contract');
   assert.equal(summary.state_boundary.active_aionui_conformance.inspector_matches_ideal, true);
-  assert.equal(summary.state_boundary.active_aionui_conformance.permission_access_mode_status, 'current_contract_deviation');
-  assert.equal(summary.state_boundary.active_aionui_conformance.side_panel_information_architecture_status, 'current_contract_deviation');
+  assert.equal(summary.state_boundary.active_aionui_conformance.permission_access_mode_status, 'aligned_contract');
+  assert.equal(summary.state_boundary.active_aionui_conformance.side_panel_information_architecture_status, 'aligned_contract');
   assert.deepEqual(summary.model_defaults, {
     model: profile.codex.default_model,
     reasoning_effort: profile.codex.default_reasoning_effort,
@@ -124,17 +124,17 @@ test('GUI design-system validator follows a changed App-profile reasoning defaul
   assert.equal(validateGuiDesignSystem(root).model_defaults.reasoning_effort, 'future-effort');
 });
 
-test('GUI design-system validator accepts an active AionUI rail that has converged to visible', () => {
+test('GUI design-system validator reports a collapsed active AionUI rail as a contract deviation', () => {
   const root = createFixture();
   const profilePath = path.join(root, 'contracts', 'app-product-profile.json');
   const profile = JSON.parse(fs.readFileSync(profilePath, 'utf8'));
-  profile.gui.home.home_layout.workspace_session_rail_default_state = 'visible';
+  profile.gui.home.home_layout.workspace_session_rail_default_state = 'collapsed';
   writeJson(root, 'contracts/app-product-profile.json', profile);
 
   const summary = validateGuiDesignSystem(root);
-  assert.equal(summary.state_boundary.active_aionui_rail_state, 'visible');
-  assert.equal(summary.state_boundary.active_aionui_conformance.rail_matches_ideal, true);
-  assert.equal(summary.state_boundary.active_aionui_conformance.rail_status, 'aligned_contract');
+  assert.equal(summary.state_boundary.active_aionui_rail_state, 'collapsed');
+  assert.equal(summary.state_boundary.active_aionui_conformance.rail_matches_ideal, false);
+  assert.equal(summary.state_boundary.active_aionui_conformance.rail_status, 'current_contract_deviation');
   assert.equal(summary.state_boundary.active_aionui_inspector_state, 'collapsed');
   assert.equal(summary.state_boundary.active_aionui_conformance.inspector_matches_ideal, true);
 });
