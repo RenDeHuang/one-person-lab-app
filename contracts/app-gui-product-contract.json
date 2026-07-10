@@ -9,6 +9,7 @@
       "product": "ChatGPT Codex macOS",
       "build": "26.707.31428",
       "observed_on": "2026-07-10",
+      "observation_ref": "docs/product/gui/codex-to-opl-app-delta.md#literal-observation-boundary",
       "usage": "visual_and_interaction_reference_only_no_code_brand_account_or_authority_copy"
     },
     "superseded_observations": [
@@ -27,7 +28,38 @@
       "docs_or_contract_imply_pixel_complete": false,
       "docs_or_contract_imply_release_ready": false
     },
+    "literal_observation": {
+      "boundary": "only_directly_observed_codex_composition_and_interaction_patterns",
+      "observed_patterns": [
+        "conversation_navigation_rail",
+        "single_chat_canvas",
+        "conversation_header_controls",
+        "bottom_composer",
+        "on_demand_secondary_surfaces",
+        "quiet_dense_visual_hierarchy"
+      ],
+      "must_not_claim_as_codex_observation": [
+        "opl_capability_entries",
+        "opl_archived_capabilities_settings_rail_placement",
+        "opl_side_panel_tool_taxonomy",
+        "opl_runtime_action_receipt_authority",
+        "opl_settings_information_architecture"
+      ]
+    },
+    "opl_target_translation": [
+      "navigation_rail",
+      "conversation_scope",
+      "home",
+      "capability_selection",
+      "composer",
+      "permission_access_mode",
+      "current_task_summary_bar",
+      "context_surfaces",
+      "settings_shell",
+      "visual_target"
+    ],
     "navigation_rail": {
+      "definition_role": "opl_target_translation_not_literal_codex_observation",
       "wide_desktop_default": "expanded",
       "narrow_window_mode": "drawer",
       "resizable_width_px": {
@@ -41,6 +73,7 @@
       "desktop_affordances": ["back", "forward", "previous_task", "next_task", "new_window"]
     },
     "conversation_scope": {
+      "definition_role": "opl_target_translation_not_literal_codex_observation",
       "project_task_supported": true,
       "projectless_conversation_supported": true,
       "text_chat_without_workspace": "available",
@@ -49,12 +82,14 @@
       "archived_surface": "independent"
     },
     "home": {
+      "definition_role": "opl_target_translation_not_literal_codex_observation",
       "surface_role": "new_or_projectless_conversation_not_landing_or_dashboard",
       "title_policy": "dynamic_question_title",
       "starter_policy": "lightweight_opl_capability_starters",
       "starter_limit": 4
     },
     "capability_selection": {
+      "definition_role": "opl_target_translation_not_literal_codex_observation",
       "selection_surfaces": ["home_starter", "capabilities"],
       "composer_persistent_variable_selector": false,
       "composer_context_surface": "active_capability_chip",
@@ -62,6 +97,7 @@
       "backend_or_provider_semantics": false
     },
     "composer": {
+      "definition_role": "opl_target_translation_not_literal_codex_observation",
       "placement": "floating_bottom_with_safe_inset",
       "context_strip": ["project", "local", "branch", "active_capability"],
       "body": "multiline_textarea",
@@ -71,17 +107,20 @@
       "primary_running_action": "stop"
     },
     "permission_access_mode": {
+      "definition_role": "opl_target_translation_not_literal_codex_observation",
       "visible_on": ["home_composer", "conversation_composer"],
       "language_policy": "user_language_for_automation_and_file_access",
       "provider_or_backend_terms_visible": false,
       "security_transparency_required": true
     },
     "current_task_summary_bar": {
+      "definition_role": "opl_target_translation_not_literal_codex_observation",
       "pin_supported": true,
       "fields": ["status", "elapsed", "progress", "next_action", "stop"],
       "shared_projection": "long_running_turn_and_opl_current_task_projection"
     },
     "context_surfaces": {
+      "definition_role": "opl_target_translation_not_literal_codex_observation",
       "environment_popover": {
         "summary_fields": ["workspace", "local", "git", "subtasks", "sources"],
         "role": "anchored_summary_not_side_panel"
@@ -97,10 +136,12 @@
       "advanced_work_surfaces_default": "closed"
     },
     "settings_shell": {
+      "definition_role": "opl_target_translation_not_literal_codex_observation",
       "frame": "codex_full_window_return_search_grouped_rows",
       "information_architecture": "existing_opl_settings_ia_unchanged"
     },
     "visual_target": {
+      "definition_role": "opl_target_translation_not_literal_codex_observation",
       "main_canvas": "white",
       "rail_and_subtle_surfaces": "neutral_gray",
       "side_panel_resizable": true,

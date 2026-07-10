@@ -392,6 +392,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     currentReference.product !== 'ChatGPT Codex macOS' ||
     currentReference.build !== '26.707.31428' ||
     currentReference.observed_on !== '2026-07-10' ||
+    currentReference.observation_ref !== 'docs/product/gui/codex-to-opl-app-delta.md#literal-observation-boundary' ||
     currentReference.usage !== 'visual_and_interaction_reference_only_no_code_brand_account_or_authority_copy'
   ) {
     issues.add(`interaction_baseline current reference must be ${codexReference}`);
@@ -418,6 +419,41 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     acceptanceBoundary.docs_or_contract_imply_release_ready !== false
   ) {
     issues.add('interaction baseline must keep the human target separate from source, pixel, and release completion');
+  }
+
+  const literalObservation = record(interactionBaseline.literal_observation);
+  const oplTargetTranslation = [
+    'navigation_rail',
+    'conversation_scope',
+    'home',
+    'capability_selection',
+    'composer',
+    'permission_access_mode',
+    'current_task_summary_bar',
+    'context_surfaces',
+    'settings_shell',
+    'visual_target',
+  ];
+  if (
+    literalObservation.boundary !== 'only_directly_observed_codex_composition_and_interaction_patterns' ||
+    !sameStrings(literalObservation.observed_patterns, [
+      'conversation_navigation_rail',
+      'single_chat_canvas',
+      'conversation_header_controls',
+      'bottom_composer',
+      'on_demand_secondary_surfaces',
+      'quiet_dense_visual_hierarchy',
+    ]) ||
+    !sameStrings(literalObservation.must_not_claim_as_codex_observation, [
+      'opl_capability_entries',
+      'opl_archived_capabilities_settings_rail_placement',
+      'opl_side_panel_tool_taxonomy',
+      'opl_runtime_action_receipt_authority',
+      'opl_settings_information_architecture',
+    ]) ||
+    !sameStrings(interactionBaseline.opl_target_translation, oplTargetTranslation)
+  ) {
+    issues.add('interaction baseline must separate literal Codex observations from OPL-owned target translation');
   }
 
   const navigationRail = record(interactionBaseline.navigation_rail);
@@ -468,6 +504,10 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   const sidePanel = record(contextSurfaces.side_panel);
   const settingsShell = record(interactionBaseline.settings_shell);
   const visualTarget = record(interactionBaseline.visual_target);
+  const targetDefinitionRole = 'opl_target_translation_not_literal_codex_observation';
+  if (oplTargetTranslation.some((key) => record(interactionBaseline[key]).definition_role !== targetDefinitionRole)) {
+    issues.add('each OPL target translation section must declare that it is not a literal Codex observation');
+  }
   if (
     !sameStrings(environmentPopover.summary_fields, ['workspace', 'local', 'git', 'subtasks', 'sources']) ||
     sidePanel.wide_desktop !== 'resizable_split' ||
@@ -586,12 +626,17 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   const nativeCandidateReference = typeof nativeVisualContract.comparison_baseline === 'string'
     ? nativeVisualContract.comparison_baseline
     : '';
-  const allowedCandidateReferences = [codexReference, supersededCodexReference];
+  if (codexGovernance.comparison_baseline !== codexReference) {
+    issues.add(`global Codex comparison baseline must be ${codexReference}`);
+  }
+  if (![codexReference, supersededCodexReference].includes(nativeCandidateReference)) {
+    issues.add(`native candidate Codex comparison baseline must be ${codexReference} or the declared superseded observation`);
+  }
   if (
-    !allowedCandidateReferences.includes(String(codexGovernance.comparison_baseline)) ||
-    nativeCandidateReference !== codexGovernance.comparison_baseline
+    nativeCandidateReference === supersededCodexReference &&
+    nativeVisualContract.current_reference_status !== 'superseded_reference_candidate_deviation'
   ) {
-    issues.add(`candidate Codex comparison baseline must be ${codexReference} or the declared superseded observation`);
+    issues.add('native candidate must explicitly declare its superseded Codex reference as a candidate deviation');
   }
   if (
     codexGovernance.source_usage !== 'visual_and_interaction_reference_only_no_code_or_brand_copy' ||

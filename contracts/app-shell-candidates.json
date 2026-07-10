@@ -118,7 +118,7 @@
       "pixel_verified_claim": "fresh_pixels_exist_not_visual_parity_or_release_readiness"
     },
     "codex_reference": {
-      "comparison_baseline": "ChatGPT Codex macOS 26.707.31123 (2026-07-10)",
+      "comparison_baseline": "ChatGPT Codex macOS 26.707.31428 (2026-07-10)",
       "source_usage": "visual_and_interaction_reference_only_no_code_or_brand_copy"
     },
     "state_boundary": {
@@ -859,6 +859,7 @@
       "candidate_stage": "opl_native_workbench_candidate_skeleton",
       "visual_parity_contract": {
         "comparison_baseline": "ChatGPT Codex macOS 26.707.31123 (2026-07-10)",
+        "current_reference_status": "superseded_reference_candidate_deviation",
         "regression_floor": "AionUI active release shell",
         "source_usage": "visual_and_interaction_reference_only_no_code_or_brand_copy",
         "minimum_bar": "one_to_one_codex_layout_density_typography_composer_timeline_project_rail_settings_and_floating_environment_details",

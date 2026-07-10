@@ -165,6 +165,43 @@ test('GUI design-system validator rejects a stale App-owned current baseline', (
   );
 });
 
+test('GUI design-system validator rejects mixing OPL target entries into literal Codex observation', () => {
+  const root = createFixture();
+  const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
+  const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+  delete contract.interaction_baseline.literal_observation;
+  writeJson(root, 'contracts/app-gui-product-contract.json', contract);
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /must separate literal Codex observations from OPL-owned target translation/,
+  );
+});
+
+test('GUI design-system validator rejects a stale global Codex governance baseline', () => {
+  const root = createFixture();
+  const registryPath = path.join(root, 'contracts/app-shell-candidates.json');
+  const registry = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
+  registry.design_system_governance.codex_reference.comparison_baseline = supersededCodexReference;
+  writeJson(root, 'contracts/app-shell-candidates.json', registry);
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /global Codex comparison baseline must be ChatGPT Codex macOS 26\.707\.31428/,
+  );
+});
+
+test('GUI design-system validator requires an explicit Native superseded-reference deviation', () => {
+  const root = createFixture();
+  const registryPath = path.join(root, 'contracts/app-shell-candidates.json');
+  const registry = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
+  delete registry.candidates.find((candidate) => candidate.id === 'opl-native-workbench')
+    .visual_parity_contract.current_reference_status;
+  writeJson(root, 'contracts/app-shell-candidates.json', registry);
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /native candidate must explicitly declare its superseded Codex reference as a candidate deviation/,
+  );
+});
+
 test('GUI design-system validator rejects a page-state boundary that promotes contract target to source completion', () => {
   const root = createFixture();
   const matrixPath = path.join(root, 'contracts/app-page-state-matrix.json');

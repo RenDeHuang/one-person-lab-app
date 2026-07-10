@@ -20,27 +20,39 @@ surfaces。
 [`ideal-interaction-spec.md`](ideal-interaction-spec.md)，视觉细则见
 [`visual-system.md`](visual-system.md)。本文不描述具体 shell 实现或候选路线。
 
-## Codex Baseline
+## Literal Observation Boundary
 
 当前 baseline 固定为 **ChatGPT Codex macOS 26.707.31428 (2026-07-10)**；同日 build
-`26.707.31123` 只保留为 superseded observation。
-OPL App 继承其工作模型，而不复制源码、品牌资产、账户权限或产品 authority：
+`26.707.31123` 只保留为 superseded observation。直接观察只支持以下抽象层结论：
 
-- 宽桌面默认展开、可调宽度的 project/conversation rail；窄窗口使用 drawer。
-- Rail 顶部 New task、Archived、Capabilities，底部 account/help/Settings。
-- 单一 conversation timeline。
-- 动态问题标题、最多四个轻量 starter 的 Home，而非 landing/dashboard。
-- Project task 与 projectless conversation；无 workspace 时文字聊天可用、文件能力受限。
-- 带 project/local/branch context strip、textarea、bottom action row 的浮动/安全距 composer。
-- 单一紧凑 model/reasoning menu、可选 voice、send/stop 和可见 permission/access mode。
-- 可 pin current-task summary bar，含 status/elapsed/progress/next action/stop。
-- Environment popover 与默认关闭、可调 split 的 side panel 分离。
-- Side panel 核心工具为 Review/Terminal/Browser/Files；其它 OPL surfaces 次级展开。
-- Settings 是有 return/search/grouped rows 的 full-window surface。
-- Workspace-first、keyboard-centric、summary-first 的连续工作体验。
+- conversation navigation rail 与单一 chat canvas 形成主工作面；
+- conversation header 放当前任务相关 controls，composer 固定在底部；
+- 次级信息按需展开，不用 dashboard/card wall 抢占 chat；
+- 视觉层级安静、紧凑、可扫描，主要动作靠近当前对象。
 
-这组 baseline 定义 composition 和 interaction quality，不定义 OPL runtime、domain、
-package、Settings IA、release 或 evidence truth。
+以下项目不是 Codex 31428 的 literal observation，必须视为 OPL-owned target translation：
+
+- 固定 `Archived / Capabilities / Settings` 的 rail 位置；
+- OPL capability starters、purpose/package 语义和 active capability chip；
+- `Review / Terminal / Browser / Files` 四工具及 OPL secondary sections；
+- OPL runtime/action/receipt、Settings IA、first-run 与双语规则。
+
+因此，Codex baseline 只定义 composition 和 interaction quality，不定义 OPL 的具体入口、
+runtime、domain、package、Settings IA、release 或 evidence truth。
+
+## OPL Target Translation
+
+OPL App 采用下列目标结构；这是 App 产品决策，不是假装从 Codex 逐项抄录的观察事实：
+
+- 宽桌面 rail 默认展开并可调宽度，窄窗口使用 drawer；顶部放 New task、Archived、
+  Capabilities，底部放 account/help/Settings。
+- Home 使用动态问题标题和最多四个 OPL starter，支持 project task 与 projectless text
+  conversation；无 workspace 时明确限制文件能力。
+- Composer 采用 project/local/branch/active capability context strip、textarea 和 bottom
+  action row；模型/推理、permission/access 与 send/stop 按 App policy 呈现。
+- Current-task summary、Environment popover、side panel 与 advanced work surfaces 按需出现；
+  side panel 的 OPL taxonomy 为 Review、Terminal、Browser、Files 加次级 refs sections。
+- Settings 使用 full-window return/search/grouped-row shell，但信息架构继续归 OPL。
 
 ## 增量摘要
 
