@@ -96,6 +96,12 @@ on:
         required: false
       IDENTITY:
         required: false
+      KEYCHAIN_PASSWORD:
+        required: false
+      APP_ID:
+        required: false
+      OPL_RELEASE_NOTES_CODEX_API_KEY:
+        required: false
 permissions:
   contents: read
 
