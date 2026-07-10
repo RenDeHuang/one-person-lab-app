@@ -97,9 +97,12 @@
       ],
       "expects": [
         "startup preflight renders visible desktop session, app configuration, and initialization status steps instead of a blank window before FirstRun or /guid",
+        "startup readiness uses a bounded opl app state --profile fast --json payload that stays below the desktop bridge output limit; when that command fails, authoritative opl system initialize readiness decides the route instead of treating the command failure as incomplete setup",
         "initialize pending state renders explicit progress copy and item summaries before opl system initialize returns",
         "first screen shows a plain readiness summary instead of a technical checklist as the dominant view",
         "ready state primary action leads to /guid with post-install self-check while a separate enter OPL action remains available before readiness",
+        "entering /guid after ready_to_launch renders a non-empty Home composer without a fatal renderer error or root unmount",
+        "a subsequent launch with the same ready Core state routes directly to /guid instead of reopening FirstRun",
         "workspace root, Codex CLI, and model access are the only primary steps",
         "Chinese locale first-run primary area uses beginner labels such as 工作目录, 本机助手, and 模型访问 even when initialize checklist labels are English",
         "Chinese locale first-run primary area does not expose Codex API Configuration, Unknown, Needs setup, raw setup_flow fields, or opl system commands",

@@ -105,6 +105,41 @@ IDs, classification, owner ref, release gate, dependencies, and evidence.
 | Non-Chinese/English locale payload | `rejected` | Additional upstream locale payload must remain absent |
 | AionUI Team | `rejected` | Existing fail-closed route, mutation, sidebar, deep-link, and MCP scrub probes |
 
+### Startup and `/guid` Behavior Regression
+
+The installed-App startup path exposed two behavior regressions that structural
+intake and Settings-only visual QA did not detect:
+
+- `opl app state --profile fast --json` expanded to hundreds of megabytes when
+  the local stage-attempt ledger contained thousands of historical work units.
+  The desktop bridge rejected the output at its bounded command-output limit,
+  and `StartupGate` incorrectly interpreted the command failure as incomplete
+  first-run setup even though `opl system initialize --json` reported
+  `ready_to_launch=true`.
+- The upstream React 19 runtime plus Arco Design `Input.TextArea` layout effect
+  made a previously tolerated unstable `autoSize` object identity fatal on
+  `/guid`. Entering the App triggered `Maximum update depth exceeded`, unmounted
+  the renderer root, and left a white window.
+
+These are capability and behavior intake concerns, not cosmetic code drift.
+Future AionUI intake must therefore prove the complete installed user path, not
+only route presence or Settings rendering:
+
+1. Exercise `fast` App state against a non-empty, large historical runtime
+   ledger and enforce the Framework-owned fast JSON size budget before the
+   payload reaches the desktop bridge.
+2. Keep startup route truth authoritative: the normal path uses bounded fast
+   App state; command failure falls back to `system initialize` readiness and
+   never creates a second local completion flag.
+3. From a completed FirstRun state, activate the explicit entry action and
+   prove `/guid` renders a non-empty Home composer with no fatal renderer error
+   or root unmount.
+4. Relaunch with the same user data and prove the App routes directly to
+   `/guid` rather than reopening FirstRun.
+5. Treat dependency/runtime upgrades as behavior changes when they alter
+   component lifecycle semantics. Stable object/function identity required by
+   third-party layout effects belongs in focused shell regression coverage.
+
 The validator owns the required ID set. Removing an item from both the JSON
 record and a JSON self-declared list cannot make the gate pass. It rejects
 missing records or fields, duplicate or unknown IDs, invalid classifications,
@@ -240,6 +275,7 @@ Allowed AionUI shell delta for Settings:
 - `SettingsHost` and `SettingsShellAdapterSlot` rendering and route sync;
 - thin renderer components for App-owned Settings slots;
 - App state reads through `opl app state --profile fast --json`;
+- bounded fast App state consumption with large-history regression evidence;
 - App mutations through `opl app action execute --action <id> ... --json`;
 - shell-local styling, i18n, layout, focused tests, and screenshot hooks needed
   to prove the App contract.
@@ -289,6 +325,8 @@ For future Settings behavior changes, use the existing boundaries:
 
 - root active-shell validation after contract or wrapper changes;
 - focused shell Settings tests for renderer behavior;
+- focused startup and `/guid` DOM tests plus an installed-App ready-entry and
+  relaunch smoke using the same user data;
 - Settings visual QA manifest for screenshot/framing claims;
 - release-owner evidence for packaged App readiness, currentness, notarization,
   and release promotion.
