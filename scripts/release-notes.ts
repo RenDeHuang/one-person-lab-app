@@ -11,7 +11,6 @@ import {
   buildBundledVersionLines,
   buildOplPayloadLines,
   buildPayloadUpdateLines,
-  collectComponentChangeSubjects,
 } from './release-notes/payload.ts';
 import { readRemoteFullPackageManifest } from './release-notes/remote-manifest.ts';
 import {
@@ -32,15 +31,6 @@ export type {
 export { buildReleaseTitle } from './release-notes/tags.ts';
 
 const stableInstallCommand = 'curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh | bash -s -- --stable-macos-install --yes';
-
-const releaseNotesAgentRuntimeEvidenceBoundary = {
-  collectComponentChangeSubjects,
-  roles: [
-    'research automation and study workflow agent',
-    'grant-writing and funding workflow agent',
-    'visual deliverable, slide, and report graphics agent',
-  ],
-} as const;
 
 export function buildReleaseNotesEvidence(options: ReleaseNoteOptions): ReleaseNotesEvidence {
   const currentTag = normalizeTag(options.currentTag || options.version);

@@ -5,9 +5,8 @@ import { assertDeepEqualJson, assertIncludesAll } from './assertions.ts';
 import { forbiddenAuthorityOwners } from './app-contract-constants.ts';
 import { isDefaultReleaseAdapter } from './active-shell-contract.ts';
 import { assertFile, commandMaxBuffer, root } from './validation-config.ts';
-import { assertCommandSurface, lookupPath } from './value-helpers.ts';
+import { lookupPath } from './value-helpers.ts';
 import {
-  validateActiveProjectLineProjectionContract,
   validateArtifactNativeDrilldownFixture,
   validateArtifactNativeDrilldownProjectionContract,
   validateArtifactProvenanceBundleProjectionContract,

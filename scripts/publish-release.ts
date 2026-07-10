@@ -135,10 +135,6 @@ function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-function artifactMatchesMacArch(name, macArch) {
-  return name.includes(`-mac-${macArch}`);
-}
-
 function metadataMatchesMacArch(metadata, macArch) {
   return metadata.includes(`-mac-${macArch}.`);
 }
@@ -474,7 +470,7 @@ function suggestDefaultReleaseVersion(repo, dateVersion) {
   throw new Error(`No available same-day suffix for GUI release date version ${dateVersion}.`);
 }
 
-function releaseNotesMode(options = {}) {
+function releaseNotesMode() {
   const mode = (process.env.OPL_RELEASE_NOTES_MODE || 'ai').trim().toLowerCase();
   if (mode !== 'ai' && mode !== 'template') {
     throw new Error(`Unsupported OPL_RELEASE_NOTES_MODE: ${process.env.OPL_RELEASE_NOTES_MODE}`);
@@ -512,7 +508,7 @@ function buildReleaseNotes(version, includeFullPackage, shellRoot, fullPackageMa
       notes,
     };
   }
-  const mode = releaseNotesMode(options);
+  const mode = releaseNotesMode();
   if (mode === 'template') {
     return {
       mode,

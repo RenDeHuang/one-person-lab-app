@@ -2,11 +2,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { ShellCandidate, ShellCandidateRegistry, ValidationCommand } from './types.ts';
 import {
-  activeAdapterPath,
   assertFile,
   assertStringArrayIncludes,
   expectedFrameworkSurfaces,
-  firstRunMatrixPath,
   forbiddenAuthority,
   requiredCapabilities,
   requiredContextSurfaces,

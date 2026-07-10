@@ -26,7 +26,6 @@ function addUnique(target: string[], value: string) {
 }
 
 function classifySubject(subject: string): { bucket: ChangeBucketId; bullet: string } {
-  const normalized = normalizedSubject(subject);
   if (/^docs(?:\([^)]+\))?!?:/i.test(subject) || /(readme|guide|screenshot|tutorial)/i.test(subject)) {
     return {
       bucket: 'docs',

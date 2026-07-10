@@ -1011,10 +1011,6 @@ function listSafeWindowsEvidenceArchiveEntries(archivePath: string): WindowsEvid
   return readWindowsEvidenceArchiveEntries(archivePath);
 }
 
-function assertSafeZipEntries(archivePath: string) {
-  listSafeWindowsEvidenceArchiveEntries(archivePath);
-}
-
 function extractWindowsEvidenceArchive(archivePath: string, extractedRoot: string) {
   const entries = listSafeWindowsEvidenceArchiveEntries(archivePath);
   const root = path.resolve(extractedRoot);

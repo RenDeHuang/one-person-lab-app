@@ -288,7 +288,7 @@ export function assertAppProductProfileCodexModelDisplayOptions(
   const frontierOrder = profile.gui?.home?.codex_auto_model_selection?.frontier_model_preference_order;
   assertCodexModelDisplayShape(profile, displayOptions, frontierOrder, label);
   assertCodexAutoModelOptionDescription(displayOptions?.auto_option, label, options);
-  assertVisibleCodexModelsUseFriendlyDefaults(displayOptions?.visible_models ?? [], profile, label);
+  assertVisibleCodexModelsUseFriendlyDefaults(displayOptions?.visible_models ?? [], label);
 }
 
 function assertCodexModelDisplayShape(
@@ -391,7 +391,6 @@ function assertCodexAutoModelOptionDescription(
 
 function assertVisibleCodexModelsUseFriendlyDefaults(
   visibleModels: NonNullable<CodexModelDisplayOptionsLike['visible_models']>,
-  profile: ProductProfileLike,
   label: string,
 ): void {
   const normalizedModels = visibleModels.map((model) => ({

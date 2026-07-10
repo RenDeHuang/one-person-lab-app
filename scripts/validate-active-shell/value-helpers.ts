@@ -12,8 +12,3 @@ export function lookupPath(value, dotPath) {
     return current[key];
   }, value);
 }
-
-function resolveLiveGateEnabled(gate) {
-  const envName = gate?.enable_env;
-  return typeof envName === 'string' && process.env[envName]?.trim() === '1';
-}

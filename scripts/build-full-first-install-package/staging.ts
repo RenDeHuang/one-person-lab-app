@@ -10,7 +10,7 @@ import {
   buildResolvedFullPayloadRefs,
   writeFullRuntimeManifest,
 } from './manifest-checksum.ts';
-import { commandOutput, durationSeconds, monotonicSeconds } from './process.ts';
+import { commandOutput } from './process.ts';
 import {
   buildRuntimeCacheKeyInputs,
   buildRuntimeCacheKeysFromInputs,

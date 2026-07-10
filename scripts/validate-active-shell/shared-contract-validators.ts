@@ -1774,7 +1774,7 @@ export function validateStageRunCockpitFixture(task, label) {
   }
 }
 
-export function validateActiveProjectLineProjectionContract(
+function validateActiveProjectLineProjectionContract(
   activeProjectLineProjection,
   label,
   options = {},

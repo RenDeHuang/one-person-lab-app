@@ -32,11 +32,6 @@ function pathHasSegment(relativePath: string, segment: string) {
   return relativePath.split('/').includes(segment);
 }
 
-function isInsideFullRuntimeResource(relativePath: string) {
-  return relativePath === `Contents/Resources/${FULL_RUNTIME_RESOURCE_DIR}`
-    || relativePath.startsWith(`Contents/Resources/${FULL_RUNTIME_RESOURCE_DIR}/`);
-}
-
 function isInsideProtectedAppBundlePayload(relativePath: string) {
   return PROTECTED_APP_BUNDLE_PAYLOADS.some((protectedPath) => {
     return relativePath === protectedPath || relativePath.startsWith(`${protectedPath}/`);

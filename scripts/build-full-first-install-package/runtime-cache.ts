@@ -215,10 +215,6 @@ export function buildRuntimeCacheKeyInputs(options, sources) {
   };
 }
 
-function buildRuntimeCacheKeys(options, sources) {
-  return buildRuntimeCacheKeysFromInputs(buildRuntimeCacheKeyInputs(options, sources));
-}
-
 export function buildRuntimeCacheKeysFromInputs(layerInputs) {
   return {
     toolchain: buildFullRuntimeCacheKey({

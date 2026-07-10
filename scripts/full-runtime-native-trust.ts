@@ -1,5 +1,3 @@
-import fs from 'node:fs';
-
 function requiredFullRuntimeNativeTrustPaths(manifest: any): string[] {
   const temporalBinaryPath = manifest?.components?.temporal_cli?.binary_path;
   return [
@@ -39,16 +37,4 @@ export function assertFullRuntimeNativeTrustObject(
       throw new Error(`Full runtime native executable is not locally authorized: ${entry?.relative_path || '(unknown)'}.`);
     }
   }
-}
-
-export function assertFullRuntimeNativeTrustFile(
-  trustPath: string,
-  manifest: any,
-  options: { missingMessage?: string } = {},
-): void {
-  if (options.missingMessage && !fs.existsSync(trustPath)) {
-    throw new Error(options.missingMessage);
-  }
-  const trust = JSON.parse(fs.readFileSync(trustPath, 'utf8'));
-  assertFullRuntimeNativeTrustObject(trust, manifest);
 }

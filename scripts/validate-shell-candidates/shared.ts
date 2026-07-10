@@ -9,7 +9,6 @@ export const registryPath = path.join(root, 'contracts', 'app-shell-candidates.j
 export const activeAdapterPath = path.join(root, 'contracts', 'app-shell-adapter.json');
 export const guiContractPath = path.join(root, 'contracts', 'app-gui-product-contract.json');
 export const runtimeBridgePath = path.join(root, 'contracts', 'app-runtime-bridge.json');
-const productProfilePath = path.join(root, 'contracts', 'app-product-profile.json');
 export const pageStateMatrixPath = path.join(root, 'contracts', 'app-page-state-matrix.json');
 export const firstRunMatrixPath = path.join(root, 'contracts', 'app-first-run-test-matrix.json');
 export const requiredHomeEntries = ['research', 'grant', 'ppt'];
