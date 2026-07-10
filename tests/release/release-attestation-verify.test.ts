@@ -37,15 +37,17 @@ fs.appendFileSync(logPath, JSON.stringify(process.argv.slice(2)) + '\\n');
 console.log('verified ' + process.argv[4]);
 `);
   const output = path.join(tempRoot, 'attestation-verification-summary.json');
+  const assetPath = path.join(tempRoot, 'One-Person-Lab-26.7.8-arm64.dmg');
+  const ociSubject = 'oci://ghcr.io/gaofeng21cn/one-person-lab-webui@sha256:abc123';
   const result = runVerifier([
     '--version',
     '26.7.8',
     '--repo',
     'gaofeng21cn/one-person-lab-app',
     '--asset',
-    path.join(tempRoot, 'One-Person-Lab-26.7.8-arm64.dmg'),
+    assetPath,
     '--oci',
-    'oci://ghcr.io/gaofeng21cn/one-person-lab-webui@sha256:abc123',
+    ociSubject,
     '--output',
     output,
   ], {
@@ -61,9 +63,11 @@ console.log('verified ' + process.argv[4]);
   assert.equal(summary.failed_assets.length, 0);
   assert.match(summary.command_results[0].command.join(' '), /gh attestation verify/);
   assert.match(summary.rule, /not release readiness evidence/);
-  const log = fs.readFileSync(logPath, 'utf8');
-  assert.match(log, /attestation/);
-  assert.match(log, /--repo/);
+  const calls = fs.readFileSync(logPath, 'utf8').trim().split('\n').map((line) => JSON.parse(line));
+  assert.deepEqual(calls, [
+    ['attestation', 'verify', assetPath, '--repo', 'gaofeng21cn/one-person-lab-app'],
+    ['attestation', 'verify', ociSubject, '--repo', 'gaofeng21cn/one-person-lab-app'],
+  ]);
 });
 
 test('release attestation verifier writes a failed summary when gh verification fails', () => {

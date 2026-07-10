@@ -25,6 +25,15 @@ test('first-run matrix delegates policy shape to the active-shell validator', ()
   const matrix = readJson('contracts/app-first-run-test-matrix.json');
   const adapter = readJson('contracts/app-shell-adapter.json');
   assert.doesNotThrow(() => validateFirstRunMatrix(matrix, adapter));
+  for (const id of [
+    'standard_dmg_clean_vm_smoke',
+    'full_dmg_clean_vm_smoke',
+    'homebrew_standard_cask_clean_vm_smoke',
+  ]) {
+    const scenario = matrix.scenarios.find((entry) => entry.id === id);
+    assert.ok(scenario, id);
+    assert.equal(scenario.release_gate, true, id);
+  }
 
   const invalid = structuredClone(matrix);
   invalid.scenarios[0].aliases = ['legacy'];

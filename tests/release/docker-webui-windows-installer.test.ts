@@ -7,7 +7,6 @@ import test from 'node:test';
 import { appRoot } from './release-readiness/helpers.ts';
 
 const installerPath = path.join(appRoot, 'scripts', 'install-docker-webui.ps1');
-const installerSource = fs.readFileSync(installerPath, 'utf8');
 const pwshPath = findPwsh();
 
 function findPwsh() {
@@ -24,38 +23,6 @@ function runPwsh(args: string[]) {
   }
   return spawnSync(pwshPath, args, { cwd: appRoot, encoding: 'utf8' });
 }
-
-function runDeterministicDryRun(args: Record<string, unknown>) {
-  const paramBlock = installerSource.slice(
-    installerSource.indexOf('param('),
-    installerSource.indexOf('\n)\n'),
-  );
-  const declared = new Set([...paramBlock.matchAll(/\$(\w+)/g)].map((match) => match[1]));
-  const unknown = Object.keys(args).find((name) => !declared.has(name));
-  if (unknown) return { status: 1, stdout: '', stderr: `Unknown parameter -${unknown}` };
-  const compose = installerSource.match(/\$compose = @"\r?\n([\s\S]*?)\r?\n"@/)?.[1];
-  assert.ok(compose, 'installer compose template must parse');
-  return {
-    status: 0,
-    stderr: '',
-    stdout: compose
-      .replaceAll('${HostDataDir}', String(args.DataDir))
-      .replaceAll('${HostProjectsDir}', String(args.ProjectsDir)),
-  };
-}
-
-test('Windows installer deterministic dry-run maps custom mounts and rejects secret arguments', () => {
-  const dataDir = String.raw`C:\OPL Data`;
-  const projectsDir = String.raw`D:\OPL Projects`;
-  const dryRun = runDeterministicDryRun({ DryRun: true, DataDir: dataDir, ProjectsDir: projectsDir });
-  assert.equal(dryRun.status, 0);
-  assert.ok(dryRun.stdout.includes(`${dataDir}:/data`));
-  assert.ok(dryRun.stdout.includes(`${projectsDir}:/projects`));
-
-  const rejected = runDeterministicDryRun({ DryRun: true, ApiKey: 'secret' });
-  assert.equal(rejected.status, 1);
-  assert.match(rejected.stderr, /Unknown parameter -ApiKey/);
-});
 
 test('Windows Docker/WebUI installer parses and dry-runs when PowerShell is available', { skip: !pwshPath }, () => {
   const escapedInstallerPath = installerPath.replaceAll("'", "''");
