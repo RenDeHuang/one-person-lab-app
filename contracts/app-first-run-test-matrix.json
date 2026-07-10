@@ -320,7 +320,7 @@
         "Codex remains the default executor path",
         "standard state modules are visible after initialization",
         "Domain modules, family runtime provider, recommended skills, native helpers, repo sync, CLT, and ecosystem updates do not block ready_to_launch",
-        "Packaged GUI route smoke selects MAS, MAG, and RCA professional Agent Package shortcuts, hides ordinary backend/model/permission selectors, and records launch-only Codex CLI agent_package_shortcut invocation receipts"
+        "Packaged GUI route smoke selects MAS, MAG, and RCA professional Agent Package shortcuts, hides ordinary backend/provider selectors, shows the App-owned model/reasoning and permission/access controls, and records launch-only Codex CLI agent_package_shortcut invocation receipts"
       ],
       "release_evidence_artifacts": [
         "app-wrapper-diagnostics.json",
@@ -466,7 +466,7 @@
         "App launches without Full-only runtime equivalence checks",
         "GUID entry is usable through packaged App CDP with input, send control, and default assistant surface",
         "Settings pages are navigable after first-run initialization",
-        "Packaged GUI route smoke selects MAS, MAG, and RCA professional Agent Package shortcuts, hides ordinary backend/model/permission selectors, and records launch-only Codex CLI agent_package_shortcut invocation receipts"
+        "Packaged GUI route smoke selects MAS, MAG, and RCA professional Agent Package shortcuts, hides ordinary backend/provider selectors, shows the App-owned model/reasoning and permission/access controls, and records launch-only Codex CLI agent_package_shortcut invocation receipts"
       ],
       "release_evidence_artifacts": [
         "app-wrapper-diagnostics.json",
@@ -778,7 +778,7 @@
         "Codex model access is ready before the first conversation; OPL Gateway is configured only when no existing Codex login or other usable provider is available",
         "Domain modules and family runtime provider readiness are verified as Full readiness after ready_to_launch",
         "Settings pages are navigable after first-run initialization",
-        "Packaged GUI route smoke selects MAS, MAG, and RCA professional Agent Package shortcuts, hides ordinary backend/model/permission selectors, and records launch-only Codex CLI agent_package_shortcut invocation receipts"
+        "Packaged GUI route smoke selects MAS, MAG, and RCA professional Agent Package shortcuts, hides ordinary backend/provider selectors, shows the App-owned model/reasoning and permission/access controls, and records launch-only Codex CLI agent_package_shortcut invocation receipts"
       ],
       "release_evidence_artifacts": [
         "app-wrapper-diagnostics.json",

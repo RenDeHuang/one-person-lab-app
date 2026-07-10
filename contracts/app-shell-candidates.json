@@ -217,7 +217,7 @@
       ],
       "opl_mapping": [
         "OPL ordinary home keeps the chat canvas as the visual center",
-        "OPL composer uses purpose chips, attach, and send controls without backend/provider/permission selectors or runtime summaries while model control stays App-owned",
+        "OPL composer uses purpose chips, attach, and send controls without backend/provider selectors or runtime summaries while App-owned model/reasoning and permission/access controls remain visible",
         "OPL context details remain in collapsible inspector tabs rather than first-screen panels",
         "OPL visual tokens prefer gray tonal surfaces, 1px outlines, restrained shadows, and cards with radius no larger than 8px"
       ],

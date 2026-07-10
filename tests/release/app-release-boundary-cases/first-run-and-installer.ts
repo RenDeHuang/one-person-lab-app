@@ -34,6 +34,15 @@ test('first-run matrix delegates policy shape to the active-shell validator', ()
     assert.ok(scenario, id);
     assert.equal(scenario.release_gate, true, id);
   }
+  const routeSmokeExpectations = matrix.scenarios
+    .flatMap((scenario) => scenario.expects ?? [])
+    .filter((expectation) => expectation.includes('Packaged GUI route smoke selects MAS'));
+  assert.equal(routeSmokeExpectations.length, 3);
+  for (const expectation of routeSmokeExpectations) {
+    assert.match(expectation, /hides ordinary backend\/provider selectors/);
+    assert.match(expectation, /shows the App-owned model\/reasoning and permission\/access controls/);
+    assert.doesNotMatch(expectation, /hides ordinary backend\/model\/permission selectors/);
+  }
 
   const invalid = structuredClone(matrix);
   invalid.scenarios[0].aliases = ['legacy'];
