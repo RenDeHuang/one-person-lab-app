@@ -307,7 +307,7 @@ function assertCodexModelDisplayShape(
       },
       {
         actual: displayOptions?.button_label_policy,
-        expected: 'auto_or_fixed_model_compact_label_with_selected_reasoning_effort',
+        expected: 'resolved_model_compact_label_with_selected_reasoning_effort_no_auto_prefix',
       },
       { actual: displayOptions?.raw_model_id_visible_in_ordinary_ui, expected: false },
       { actual: displayOptions?.reasoning_effort_visible_for_every_option, expected: false },

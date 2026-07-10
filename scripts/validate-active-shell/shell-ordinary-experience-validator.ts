@@ -54,6 +54,7 @@ const productProfileDefaultsExpected = [
   '"codex_default_model": "gpt-5.6-sol"',
   '"codex_home_model_status_label": "5.6 Sol"',
   '"codex_precise_model_display_policy": "friendly_model_primary_reasoning_primary_model_and_intelligence_secondary_menus"',
+  '"button_label_policy": "resolved_model_compact_label_with_selected_reasoning_effort_no_auto_prefix"',
   '"strategy": "codex_cli_auto_latest_available_frontier"',
   '"frontier_model_preference_order_role": "exact_visible_model_allowlist_order_and_fallback_with_codex_cli_availability_filter"',
   '"user_can_override_model": true',
@@ -96,7 +97,8 @@ const codexModelsExpected = [
   'preference === undefined',
   'left.preference - right.preference',
   'DEFAULT_CODEX_MODELS',
-  'availableModels.length > 0',
+  'handshakeModels == null',
+  'normalizeCodexModelInfo(handshakeModels).available_models',
   'DEFAULT_CODEX_MODELS.map',
   'available_models: visibleModels',
 ];
@@ -124,8 +126,6 @@ const guidPageSkillExpected = [
 
 const acpSendBoxExpected = [
   'isOplCodexCliFixedExecutor',
-  'getOplModelStatusDisplayText',
-  "data-testid='opl-conversation-model-status'",
   'shouldShowOplConversationPermissionModeSelector',
   "backend === 'codex'",
   'const showModeSelector',
@@ -242,13 +242,16 @@ function validateGuidAssistantsAndSkills(shellPaths, guidPage) {
 }
 
 function validateCodexModelControls(shellPaths) {
-  assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/components/agent/AcpModelSelector.tsx', ['useAcpModelInfo', 'canSwitch', 'if (!canSwitch)'], 'Active shell ACP model selector fixed Codex model guard');
-  assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/hooks/agent/useAcpModelInfo.ts', ['isOplCodexCliFixedExecutor', 'shouldShowOplCodexModelList', "backend === 'codex'", 'shouldShowOplCodexModelList()', 'canSwitch'], 'Active shell ACP model hook App-owned Codex model controls');
+  assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/components/agent/AcpModelSelector.tsx', ['useAcpModelInfo', 'canSwitch', 'if (!canSwitch)', 'selectAutoModel()', 'onClick={handleAutoSelect}'], 'Active shell ACP model selector fixed Codex model guard');
+  assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/hooks/agent/useAcpModelInfo.ts', ['isOplCodexCliFixedExecutor', 'shouldShowOplCodexModelList', "backend === 'codex'", 'shouldShowOplCodexModelList()', "backend === 'codex' ? normalizeCodexModelInfo(nextModelInfo) : nextModelInfo", 'reportedCodexCurrentModelIdRef', 'reportedCodexCurrentModelIdRef.current ?? model_info.current_model_id', 'updateModelInfo(info)', 'updateModelInfo(incoming)', 'updateModelInfo(confirmedModelInfo)', 'selectAutoModel', 'requestModelSelection(defaultModelId, false)', 'savePreferredModelId(backend, null)', 'canSwitch'], 'Active shell ACP model hook App-owned Codex model controls');
+  assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/utils/model/oplCodexModelDisplay.ts', ['selectDefaultCodexModelId(input.availableModels)', 'options.auto_option.resolved_reasoning_effort'], 'Active shell Codex Auto option resolved target display');
+  assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/pages/conversation/platforms/acp/AcpSendBox.tsx', ['useAcpModelInfo', 'selectAutoModel', 'handleSheetAutoSelect', 'onClick: handleSheetAutoSelect'], 'Active shell mobile ACP model selector shared Auto resolver');
 }
 
 function validateCodexConversationSurfaces(shellPaths) {
   assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/pages/conversation/components/ChatConversation.tsx', ['shouldShowOplConversationModelSelector', "extra.backend === 'codex'", 'AcpModelSelector'], 'Active shell ordinary Codex conversation model selector');
-  assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/pages/conversation/platforms/acp/AcpSendBox.tsx', acpSendBoxExpected, 'Active shell ordinary Codex conversation permission selector');
+  const acpSendBox = assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/pages/conversation/platforms/acp/AcpSendBox.tsx', acpSendBoxExpected, 'Active shell ordinary Codex conversation permission selector');
+  assertTextExcludesAll(acpSendBox, ['getOplModelStatusDisplayText', "data-testid='opl-conversation-model-status'"], 'Active shell ordinary Codex conversation duplicate model status pill');
   assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/pages/conversation/platforms/acp/useAcpInitialMessage.ts', ["import { warmupConversation } from '../../utils/warmupConversation'", 'await warmupConversation(conversation_id)', 'ipcBridge.acpConversation.sendMessage.invoke'], 'Active shell ACP initial-message flow warm up before first send');
   assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/components/chat/ThoughtDisplay.tsx', ['formatElapsedTime', "t('conversation.chat.processing')", 'elapsedTime'], 'Active shell ThoughtDisplay elapsed processing feedback');
 }

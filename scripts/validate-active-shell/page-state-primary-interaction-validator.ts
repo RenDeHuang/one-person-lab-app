@@ -66,6 +66,8 @@ function validateGuidHomeViewModelFields(homeViewModel) {
     codex_default_reasoning_effort: 'ultra',
     codex_default_display_label: '5.6 Sol',
     codex_default_model_display_value: '5.6 Sol',
+    conversation_model_status_display_policy:
+      'single_model_selector_in_codex_conversation_composer_no_separate_status_pill',
     codex_frontier_model_preference_order: [
       'gpt-5.6-sol',
       'gpt-5.5',

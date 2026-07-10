@@ -82,6 +82,7 @@ function validateCodexModelPolicy(guiContract) {
       model_list_source: executorPolicy.model_list_source,
       frontier_model_preference_order_role: executorPolicy.frontier_model_preference_order_role,
       frontier_model_preference_order: executorPolicy.frontier_model_preference_order,
+      button_label_policy: executorPolicy.model_display_options_policy?.button_label_policy,
       user_reasoning_effort_options: executorPolicy.model_display_options_policy?.user_reasoning_effort_options,
     },
     {
@@ -94,6 +95,7 @@ function validateCodexModelPolicy(guiContract) {
       frontier_model_preference_order_role:
         productHome.codex_auto_model_selection?.frontier_model_preference_order_role,
       frontier_model_preference_order: productHome.codex_auto_model_selection?.frontier_model_preference_order,
+      button_label_policy: productHome.codex_model_display_options?.button_label_policy,
       user_reasoning_effort_options: productHome.codex_model_display_options?.user_reasoning_effort_options,
     },
     'App GUI Codex model policy',
@@ -539,6 +541,15 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   if (pages.guid_home.model_status?.display_value !== '5.6 Sol') {
     throw new Error('App GUI home model selector must keep the friendly default model without repeating reasoning');
   }
+  if (
+    pages.guid_home.model_status?.value_source !==
+    'default_session_profile.model on Home; normalized active ACP model_info in conversation'
+  ) {
+    throw new Error('App GUI model selector must use the default profile on Home and active ACP model info in conversation');
+  }
+  if (pages.guid_home.model_status?.placement !== 'inside the Home and ordinary Codex conversation model selector buttons only') {
+    throw new Error('App GUI model status must stay inside the Home and conversation selector buttons');
+  }
   if (pages.guid_home.model_status?.standalone_home_subtitle_visible !== false) {
     throw new Error('App GUI home must not show a standalone model subtitle');
   }
@@ -553,9 +564,9 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   }
   if (
     pages.guid_home.conversation_feedback_policy?.model_status !==
-    'same model selector appears in Codex conversation composer; reasoning is a primary menu, model and intelligence enhancement are secondary menus'
+    'single model selector appears in Codex conversation composer with no separate status pill; reasoning is a primary menu, model and intelligence enhancement are secondary menus'
   ) {
-    throw new Error('App GUI conversation must show the same model selector with primary reasoning and secondary model/intelligence menus');
+    throw new Error('App GUI conversation must use one model selector with no separate status pill');
   }
   if (!pages.guid_home.must_not_show?.includes('OPL Meta Agent as a default home assistant')) {
     throw new Error('App GUI home must keep OMA out of default home entries');

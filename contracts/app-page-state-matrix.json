@@ -62,7 +62,7 @@
         "purpose_entry_source_ref": "contracts/app-gui-product-contract.json#home_purpose_entries",
         "assistant_skill_profile_source_ref": "contracts/app-gui-product-contract.json#assistant_skill_profiles",
         "conversation_pending_feedback_policy": "elapsed_seconds_visible_while_ai_processing_or_backend_running",
-        "conversation_model_status_display_policy": "same_model_status_and_selector_in_codex_conversation_composer",
+        "conversation_model_status_display_policy": "single_model_selector_in_codex_conversation_composer_no_separate_status_pill",
         "ordinary_capability_selector_policy_ref": "contracts/app-product-profile.json#gui.ordinary_capability_selector_policy",
         "home_layout": {
           "default_mode": "composer_first_chat_canvas",

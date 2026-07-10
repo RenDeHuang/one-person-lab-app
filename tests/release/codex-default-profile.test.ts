@@ -29,6 +29,18 @@ test('GUI contract rejects Codex model availability role drift from the App prod
   ));
 });
 
+test('GUI contract rejects Codex selector button policies that allow an Auto prefix', () => {
+  const guiContract = structuredClone(readJson('contracts/app-gui-product-contract.json'));
+  guiContract.executor_policy.model_display_options_policy.button_label_policy =
+    'auto_or_fixed_model_compact_label_with_selected_reasoning_effort';
+
+  assert.throws(() => validateAppGuiProductContract(
+    guiContract,
+    readJson('contracts/app-release-channel.json'),
+    readJson('contracts/app-install-exposure-policy.json'),
+  ));
+});
+
 test('page-state matrix rejects Codex model order drift', () => {
   const matrix = structuredClone(readJson('contracts/app-page-state-matrix.json'));
   const guidHome = matrix.pages.find(({ id }) => id === 'guid_home');

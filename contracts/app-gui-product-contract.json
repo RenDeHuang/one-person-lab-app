@@ -900,7 +900,7 @@
     "home_model_status_label": "5.6 Sol",
     "home_model_status_label_en": "5.6 Sol",
     "home_model_status_policy": "display_default_model_with_primary_reasoning_menu_and_secondary_model_intelligence_menus",
-    "conversation_model_status_policy": "display_same_model_selector_with_primary_reasoning_menu_and_secondary_model_intelligence_menus",
+    "conversation_model_status_policy": "display_single_model_selector_with_primary_reasoning_menu_and_secondary_model_intelligence_menus_no_separate_status_pill",
     "conversation_pending_feedback_policy": "display_elapsed_seconds_while_ai_processing_or_backend_running",
     "precise_model_display_policy": "friendly_model_primary_reasoning_primary_model_and_intelligence_secondary_menus",
     "default_permission_mode": "full-access",
@@ -925,7 +925,7 @@
     "model_display_options_policy": {
       "source": "contracts/app-product-profile.json#gui.home.codex_model_display_options",
       "display_policy": "friendly_model_name_primary_reasoning_primary_model_and_intelligence_secondary_menus",
-      "button_label_policy": "auto_or_fixed_model_compact_label_with_selected_reasoning_effort",
+      "button_label_policy": "resolved_model_compact_label_with_selected_reasoning_effort_no_auto_prefix",
       "raw_model_id_visible_in_ordinary_ui": false,
       "reasoning_effort_visible_for_every_option": false,
       "reasoning_effort_menu_visible": true,
@@ -2621,15 +2621,15 @@
       "assistant_skill_profile_source_ref": "assistant_skill_profiles",
       "hero_prompt": "把研究、基金、汇报和写书交给 One Person Lab 自动推进",
       "model_status": {
-        "value_source": "default_session_profile.model",
+        "value_source": "default_session_profile.model on Home; normalized active ACP model_info in conversation",
         "display_value": "5.6 Sol",
-        "placement": "inside Home model selector and ordinary Codex conversation composer",
+        "placement": "inside the Home and ordinary Codex conversation model selector buttons only",
         "standalone_home_subtitle_visible": false,
         "selector_visible": true
       },
       "conversation_feedback_policy": {
         "pending_indicator": "visible elapsed seconds while request is pending or backend is running",
-        "model_status": "same model selector appears in Codex conversation composer; reasoning is a primary menu, model and intelligence enhancement are secondary menus",
+        "model_status": "single model selector appears in Codex conversation composer with no separate status pill; reasoning is a primary menu, model and intelligence enhancement are secondary menus",
         "raw_trace_visible": false
       },
       "must_show": [
