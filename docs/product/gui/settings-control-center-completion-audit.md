@@ -8,12 +8,16 @@ and focused contract tests
 
 ## Conclusion
 
-The App product-authority slice is `done`. The contracts now fully describe the
+The App product-authority and Shell implementation slices are `done`. The
+contracts, Shell source, DOM tests, search behavior, anchors, redirects, action
+state machines, and visual evidence collector now describe and implement the
 confirmed Codex-style Settings experience.
 
-The Shell implementation slice is `partial` until the parallel Aion shell lane
-implements and proves the required DOM, search, anchors, redirects, and visual
-behavior.
+Fresh screenshot pixels remain a separate blocked evidence item. In the current
+Codex sandbox, a locally re-signed Electron runtime still aborts in macOS
+`_RegisterApplication`, while the packaged build cannot download AionCore
+because external DNS is unavailable. The post-absorption App owner must run the
+declared screenshot command outside this sandbox.
 
 No runtime, installed-App, currentness, notarization, or release-ready claim is
 made by this audit.
@@ -22,26 +26,27 @@ made by this audit.
 
 | Item | Status | Completion | Fresh evidence | Remaining gap / next action |
 | --- | --- | ---: | --- | --- |
-| Eight ordinary product pages | done | 100% | `ordinary_routes[].product_page_id` maps to `overview/access/workspace/capabilities/resources/maintenance/storage/preferences` | Shell must render the eight entries in contract order |
-| Secondary page boundary | done | 100% | `secondary_pages` contains only `advanced` and `about` | Shell must keep About at `/settings/about` |
-| Compatibility redirects | done | 100% | Machine contract fixes `update -> environment#updates`, `theme -> appearance#themes`, `local-services -> environment#services` | Shell must parse route plus anchor, using `?section=` under the hash router |
-| About independence | done | 100% | `about` is absent from `legacy_route_redirects` and `extension_anchor_remap` | Shell route readback must confirm no About-to-Advanced redirect |
-| Single global search contract | done | 100% | `global_entry_count=1`, bilingual item index, `page > item` format, route-plus-anchor selection | Shell must remove duplicate Settings search inputs and render item results |
-| Codex-style visual contract | done | 100% | Quiet workbench, no nested cards, radius <= 8, 12/16/24 spacing, compact headings, one primary action, muted normal state, collapsed details | Desktop/mobile screenshot QA remains |
-| Per-page experience contracts | done | 100% | Ten page contracts define primary information, primary action, exception state, technical details, DOM, anchors, search ids, Access browser entry, AssistantSettings tab, and resource action behavior | Shell must implement every declared page contract |
-| Prior UX audit incorporation | done | 100% | 概览、访问方式、工作区、智能体与能力、资源与连接、维护、数据与存储、偏好、高级、关于 requirements are encoded in contracts and docs | Shell behavior and copy readback remain |
-| Page-state matrix | done | 100% | Product pages mirror DOM/anchor/search requirements; Update and Local Services are redirect states; Preferences uses ordinary `appearance` route | Shell page tests must consume the matrix |
-| Contract validators | done | 100% | Validators reject product-label drift, secondary/About drift, compatibility and search-anchor drift, missing bilingual fields, missing browser access, empty AssistantSettings tab, resource dry-run completion claims, and matrix drift | Re-run after Shell lane lands |
-| Focused negative tests | done | 100% | Fresh run: `settings-control-plane-validation.ts` passes 4/4 focused tests | Keep the test focused; do not expand into duplicate release shadow coverage |
+| Eight ordinary product pages | done | 100% | `ordinary_routes[].product_page_id` maps to `overview/access/workspace/capabilities/resources/maintenance/storage/preferences`; Shell DOM tests cover all entries | None |
+| Secondary page boundary | done | 100% | `secondary_pages` contains only `advanced` and `about`; About has an independent render slot and route | None |
+| Compatibility redirects | done | 100% | Machine contract and Shell router implement `update -> environment#updates`, `theme -> appearance#themes`, `local-services -> environment#services` with `?section=` anchors | None |
+| About independence | done | 100% | `about` is absent from redirect maps and renders `AboutModalContent` at `/settings/about` | None |
+| Single global search contract | done | 100% | One `settings-search-input`, bilingual item indexing, `page > item` labels, Enter navigation, and anchor focus are covered by DOM and E2E source tests | Fresh pixel capture remains separate |
+| Codex-style visual contract | done | 100% | Shell CSS and component tests enforce the quiet workbench, compact hierarchy, radius, spacing, single primary action, muted normal state, responsive navigation, and collapsed details | Fresh screenshot comparison remains separate |
+| Per-page experience contracts | done | 100% | Ten page contracts are implemented with declared primary information, action, exception, technical details, DOM anchors, Access browser entry, AssistantSettings tab, and resource action lifecycle | None in source/DOM scope |
+| Prior UX audit incorporation | done | 100% | 概览、访问方式、工作区、智能体与能力、资源与连接、维护、数据与存储、偏好、高级、关于 requirements are present in Shell source and focused tests | None in source/DOM scope |
+| Page-state matrix | done | 100% | Product pages, redirect states, Preferences route, anchors, and action states are consumed by App validators and Shell tests | None |
+| Contract validators | done | 100% | Active-shell quick validation passes against the Settings Shell checkout, including ordinary-conversation Team MCP scrub evidence | Re-run on absorbed main |
+| Focused and full tests | done | 100% | Shell `bun run test:full`: 248 files passed, 1 skipped; 1873 tests passed, 3 skipped. App release boundary: 158 passed, 2 platform skips | Re-run on absorbed main |
 | Product documentation | done | 100% | `settings-control-center.md` is the current route, search, visual, page, DOM, and evidence boundary | None in App authority scope |
-| Shell DOM and interaction implementation | partial | 0% verified | Fresh `validate:active-shell -- --quick` reached Shell implementation validation and failed first at missing `workspace_root_set` in `SystemModalContent`; no complete Settings DOM/behavior evidence is available | Shell owner fixes the current substrate probe, then implements and verifies the exact DOM/behavior list below |
-| Shell visual QA | not_started | 0% | No fresh desktop/mobile screenshot manifest for this contract revision | Run declared Settings screenshot command after Shell behavior passes |
+| Shell DOM and interaction implementation | done | 100% | Full node/DOM/integration suite, TypeScript, i18n, lint, format, and production Vite package build pass | Re-run on absorbed main |
+| Visual QA collector | done | 100% | E2E source covers desktop/narrow viewports, eight ordinary routes, Advanced/About, compatibility redirects, bilingual Enter search, action confirmation, anchor evidence, screenshots, and manifest output | None in collector implementation |
+| Fresh Shell screenshot pixels | blocked | 0% | Electron is locally re-signed and passes `codesign --verify`, but launch aborts in macOS `_RegisterApplication`; packaged build is blocked by sandbox DNS while fetching AionCore v0.1.44 | App owner runs the declared E2E command outside the Codex sandbox after absorption |
 | Running-shell/runtime evidence | not_started | 0% | Contract and tests intentionally do not provide live runtime proof | Collect live readback only when runtime evidence is requested |
 | Installed App / release currentness | blocked | 0% | Separate release-owner gate required | Release owner supplies installed version, signing/notarization, artifact, and currentness evidence |
 
-## Shell Handoff
+## Implemented Shell Contract
 
-The Shell lane must implement and verify:
+The Shell lane implements and tests:
 
 1. Exactly one mounted `settings-search-input`.
 2. Chinese and English item-level indexing.
@@ -94,10 +99,7 @@ The terminal Settings product claim requires both:
 - App authority evidence from this lane;
 - fresh Shell DOM/behavior and visual evidence from the Shell owner lane.
 
-Release/currentness remains outside Settings completion.
-
-Fresh repository-wide `test:release-boundary` evidence is also separate: 117 of
-122 tests passed, 2 were skipped, and 3 failed because this App worktree does
-not contain the external `shells/aionui` checkout files expected by those
-release tests. Those failures do not prove a Settings contract defect and were
-not repaired from this lane.
+Release/currentness remains outside Settings completion. The remaining Settings
+evidence action is fresh screenshot capture outside the current macOS GUI
+sandbox; managed-agent owns the subsequent build, installation, running-App
+readback, and release/currentness checks.

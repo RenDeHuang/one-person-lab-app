@@ -29,7 +29,7 @@ const settingsModalExpected = [
 
 const settingsHostExpected = [
   'buildSettingsModalMenuItems',
-  'getSearchableSecondarySettingsModalItems',
+  'getSettingsSearchEntries',
   'getSettingsRenderSlot',
   'resolveSettingsRenderTarget',
   'ExtensionSettingsTabContent',
@@ -47,6 +47,7 @@ const settingsShellAdapterSlotExpected = [
   'AccessSettingsContent',
   'ResourcesSettingsContent',
   'AppearanceModalContent',
+  'AboutModalContent',
   'SystemModalContent',
   'StorageSettings',
   'withWrapper={false}',
@@ -198,14 +199,14 @@ function validateOrdinaryCapabilityScrub(shellPaths) {
   );
   assertShellTextIncludesAll(
     shellPaths,
-    'packages/desktop/src/renderer/components/agent/AgentSetupCard.tsx',
+    'tests/unit/common-config/oplProductProfile.test.ts',
     [
+      'scrubs AionUI Team MCP state from ordinary OPL conversation snapshots',
       'sanitizeOplOrdinaryConversationExtra',
-      'filterOplOrdinarySessionMcpServers',
-      'selected_mcp_server_ids: undefined',
-      'selected_session_mcp_servers: sessionMcpServers?.length ? sessionMcpServers : undefined',
+      "team_lead_conversation_id: 'conversation-1'",
+      'session_mcp_servers: []',
     ],
-    'Active shell agent switching disabled Team MCP state',
+    'Active shell ordinary conversation Team MCP scrub regression',
   );
 }
 

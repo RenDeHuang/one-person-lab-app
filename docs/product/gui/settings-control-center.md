@@ -62,7 +62,9 @@ The contract stores `target_route_id` and `anchor` separately. The current shell
 uses a hash router, so it must not append a second URL fragment. It should parse
 the compatibility record, navigate to the target route, preserve
 `section=<anchor>` in the route query, then focus or scroll to the element whose
-`data-settings-anchor` equals the anchor.
+`id` equals the anchor. Anchor targets must be programmatically focusable so
+route and search navigation leave both the viewport and keyboard focus at the
+same owning section.
 
 Compatibility routes must resolve before page rendering. They must not mount
 their historical slot as an independent ordinary or secondary page.
@@ -106,6 +108,10 @@ Settings uses a Codex App-style quiet workbench:
 - normal states are visually muted;
 - only attention or failure states receive accent emphasis;
 - technical details are collapsed by default;
+- full-page routes let the page wrapper own scrolling, while modal content keeps
+  its own reachable scroll area;
+- when an inline confirmation is rendered away from the triggering control, it
+  is scrolled into view and receives keyboard focus;
 - letter spacing is 0.
 
 The ordinary first screen must describe user impact and the next decision. Raw
@@ -145,6 +151,9 @@ Primary information:
 Primary action: configure model access when missing or when the user explicitly
 requests a change.
 
+Codex CLI installation or model-readback attention must not promote the Gateway
+key button. The primary-action emphasis follows model-access readiness only.
+
 Exception state: missing, expired, or unreachable access with one corrective
 action.
 
@@ -175,6 +184,11 @@ Required anchors: `current-workspace`, `permissions`.
 
 Normal path, writability, trust, and permission must not become four separate
 cards.
+
+Filesystem evidence owns workspace usability. `workspace_root.writable=false`
+or an unhealthy workspace state must render as attention even when the App
+executor permission mode is `full_auto`; executor scope cannot make an
+inaccessible or read-only directory usable.
 
 ### Agents & Capabilities / 智能体与能力
 
@@ -214,6 +228,12 @@ Primary information:
 
 Primary action: open an available resource action only when the action is
 projected as executable.
+
+An action that requires input but has no legal App input flow is not promoted as
+the primary action. It remains visible under more actions with a plain-language
+blocked reason, so the page never reports "no actions" when the App did project
+one. A model-access action may route to Access when that page owns the required
+input flow.
 
 Read-only actions must complete their declared behavior:
 
@@ -275,6 +295,11 @@ Primary information:
 - cleanup history.
 
 Primary action: preview cleanup when reclaimable items exist.
+
+Cleanup execution confirmations must be immediately reachable from every
+category row. If the confirmation is rendered at the page summary rather than
+beside the triggering row, the App scrolls it into view and moves keyboard focus
+to it.
 
 Exception state: unsafe or unprotected candidates are emphasized and execution
 is disabled.
@@ -362,9 +387,9 @@ Pages with a visible primary action render:
 
 - `settings-<product_page_id>-primary-action`.
 
-Each page also renders its declared `data-settings-anchor` values. Conditional
-actions may be absent when their availability condition is false; the page-level
-limit remains one.
+Each page also renders its declared anchor values as stable section `id`
+attributes. Conditional actions may be absent when their availability condition
+is false; the page-level limit remains one.
 
 ## State And Action Boundary
 
@@ -390,6 +415,12 @@ The shell may render state, confirmations, progress, and receipts. It must not
 write runtime truth, provider implementation, domain truth, owner receipts, or
 release readiness.
 
+Mutation-capable Settings surfaces are single-flight. While a read, precheck,
+mutation, doctor, or recovery operation is pending, every competing action and
+pending confirmation on that surface is disabled. A second interaction must not
+issue another bridge call, and the visible result remains bound to the operation
+that produced it.
+
 ## Verification Boundary
 
 Contract and focused validation prove the App-owned product requirement and
@@ -402,7 +433,7 @@ Shell acceptance requires:
 - the single search input and bilingual item results;
 - route plus `section` parsing for all compatibility redirects;
 - all required page roots, primary regions, actions, exception regions,
-  technical-details disclosures, and anchors;
+  technical-details disclosures, and stable section-id anchors;
 - `settings-access-browser-access` remains visible on Access;
 - legacy `assistants` opens the third on-demand `AssistantSettings` tab and
   focuses `custom-assistants`;

@@ -216,7 +216,10 @@ function validateProductProfileSettings(profile) {
     queryFreeControlPlaneRedirects,
     'Product profile legacy settings route redirects',
   );
-  if (profile.settings?.control_plane?.source_contract_ref !== 'contracts/app-settings-control-plane.json') {
+  if (
+    profile.settings?.control_plane?.source_contract_ref !==
+    'contracts/app-gui-product-contract.json#settings_navigation'
+  ) {
     throw new Error('Product profile settings.control_plane must project the App Settings control plane');
   }
   assertDeepEqualJson(

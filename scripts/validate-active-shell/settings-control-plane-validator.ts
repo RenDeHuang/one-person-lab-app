@@ -241,6 +241,14 @@ export function validateSettingsControlPlane(controlPlane, guiContract, pageStat
   if (controlPlane.state_action_policy?.action_route !== appActionRoute) {
     throw new Error('Settings control plane must route mutations through opl app action execute');
   }
+  if (
+    controlPlane.state_action_policy?.request_exclusivity_policy !==
+      'single_inflight_read_or_action_per_settings_surface' ||
+    controlPlane.state_action_policy?.result_binding_policy !==
+      'visible_progress_and_result_remain_bound_to_the_triggering_operation'
+  ) {
+    throw new Error('Settings control plane must keep reads and actions single-flight with operation-bound results');
+  }
   assertDeepEqualJson(
     controlPlane.state_action_policy?.recommended_action_ids,
     { doctor: 'doctor', repair: 'repair' },
@@ -981,6 +989,8 @@ export function validateSettingsExperienceContract(experience) {
     search.index_granularity !== 'item' ||
     search.result_label_format !== '{page_label} > {entry_label}' ||
     search.result_navigation !== 'route_id_plus_anchor' ||
+    search.keyboard_activation_policy !== 'enter_activates_first_visible_result' ||
+    search.destination_focus_policy !== 'scroll_and_focus_declared_anchor' ||
     search.anchor_query_param !== 'section' ||
     search.hash_router_policy !==
       'use_route_query_section_when_a_second_hash_fragment_is_not_supported' ||
@@ -1069,6 +1079,12 @@ export function validateSettingsExperienceContract(experience) {
   );
   if (!pageContracts.access.required_dom.always.includes('settings-access-browser-access')) {
     throw new Error('Settings Access must keep browser access to this computer in the required DOM');
+  }
+  if (
+    pageContracts.workspace.readiness_precedence !==
+    'filesystem_writability_and_health_override_executor_permission_mode'
+  ) {
+    throw new Error('Settings Workspace readiness must follow filesystem writability and health before executor mode');
   }
   assertDeepEqualJson(
     pageContracts.capabilities.tab_contract,

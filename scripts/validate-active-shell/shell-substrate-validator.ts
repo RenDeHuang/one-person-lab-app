@@ -16,16 +16,17 @@ const runtimeBridgeExpected = [
 
 const systemSettingsExpected = [
   "useOplAppState('fast')",
-  "actionId: 'workspace_root_set'",
+  "data-testid='settings-page-advanced'",
+  "data-testid='settings-advanced-primary'",
+  "data-testid='settings-advanced-technical-details'",
+  "id='working-directories'",
   'workspace_root_path',
   'selected_path',
   'logs_dir',
-  'opl_flow_context',
-  'settings.oplFlowContext',
 ];
 
 const systemSettingsPathExpected = [
-  'const appPaths = oplRecord(appState.paths)',
+  'const appPaths = oplRecord(appStateQuery.appState.paths)',
   'oplString(appPaths.workspace_root_path)',
   'oplPathString(appPaths.workspace_root)',
   'oplString(appPaths.logs_dir)',
@@ -34,6 +35,9 @@ const systemSettingsPathExpected = [
 const systemSettingsForbidden = [
   'application.updateSystemInfo.invoke',
   'shell.runOplCommand.invoke',
+  "actionId: 'workspace_root_set'",
+  'opl_flow_context',
+  'settings.oplFlowContext',
 ];
 
 const firstRunLocaleExpected = ['"firstRun"', 'One Person Lab', 'Codex'];
@@ -62,7 +66,6 @@ const runtimeSettingsExpected = [
   'maintenanceHubItems',
   "data-testid='opl-maintenance-hub'",
   'settings.oplEnvironmentPage.maintenanceHub.title',
-  'settings.oplEnvironmentPage.maintenanceHub.results.title',
   "data-testid='opl-maintenance-advanced-details'",
   'RuntimeReadinessGrid',
 ];

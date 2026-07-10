@@ -3,7 +3,6 @@ import {
   assert,
   fs,
   path,
-  readProductProfile,
   test,
 } from './helpers.ts';
 import { validateSettingsControlPlane } from '../../../scripts/validate-active-shell/settings-control-plane-validator.ts';
@@ -17,7 +16,7 @@ function contracts() {
     controlPlane: readJson('contracts/app-settings-control-plane.json'),
     guiContract: readJson('contracts/app-gui-product-contract.json'),
     pageStateMatrix: readJson('contracts/app-page-state-matrix.json'),
-    productProfile: readProductProfile(),
+    productProfile: readJson('contracts/app-product-profile.json'),
     adapterContract: readJson('contracts/app-shell-adapter.json'),
   };
 }
@@ -94,6 +93,10 @@ test('Settings validator rejects duplicate search, missing bilingual index data,
   duplicateSearch.controlPlane.experience_contract.global_search.global_entry_count = 2;
   assert.throws(() => validate(duplicateSearch), /one bilingual item-level/);
 
+  const keyboardSearch = contracts();
+  keyboardSearch.controlPlane.experience_contract.global_search.keyboard_activation_policy = 'pointer_only';
+  assert.throws(() => validate(keyboardSearch), /one bilingual item-level/);
+
   const missingEnglish = contracts();
   missingEnglish.controlPlane.experience_contract.search_index.entries[0].keywords_en = [];
   assert.throws(() => validate(missingEnglish), /indexed in Chinese and English/);
@@ -108,6 +111,17 @@ test('Settings validator rejects duplicate search, missing bilingual index data,
     'model',
   ];
   assert.throws(() => validate(changedAnchorContract), /Access anchors|access anchors/);
+});
+
+test('Settings validator preserves workspace truth precedence and single-flight actions', () => {
+  const workspaceTruth = contracts();
+  workspaceTruth.controlPlane.experience_contract.page_contracts.workspace.readiness_precedence =
+    'executor_mode_overrides_filesystem';
+  assert.throws(() => validate(workspaceTruth), /filesystem writability and health/);
+
+  const concurrentActions = contracts();
+  concurrentActions.controlPlane.state_action_policy.request_exclusivity_policy = 'parallel_actions_allowed';
+  assert.throws(() => validate(concurrentActions), /single-flight/);
 });
 
 test('Settings validator rejects page-state DOM and search-entry drift', () => {

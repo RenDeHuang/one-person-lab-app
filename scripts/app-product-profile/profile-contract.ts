@@ -207,8 +207,13 @@ function assertFirstRunProfileShape(profile: AppProductProfile): void {
 function assertSettingsProfileShape(profile: AppProductProfile): void {
   assertStringArray(profile.settings.visible_tabs, 'settings.visible_tabs');
   const controlPlane = profile.settings.control_plane;
-  if (!controlPlane || controlPlane.source_contract_ref !== 'contracts/app-settings-control-plane.json') {
-    throw new Error('App product profile settings.control_plane must project contracts/app-settings-control-plane.json');
+  if (
+    !controlPlane ||
+    controlPlane.source_contract_ref !== 'contracts/app-gui-product-contract.json#settings_navigation'
+  ) {
+    throw new Error(
+      'App product profile settings.control_plane must project contracts/app-gui-product-contract.json#settings_navigation'
+    );
   }
   const ordinaryRoutes = Array.isArray(controlPlane.ordinary_routes) ? controlPlane.ordinary_routes : [];
   const secondaryPages = Array.isArray(controlPlane.secondary_pages) ? controlPlane.secondary_pages : [];
