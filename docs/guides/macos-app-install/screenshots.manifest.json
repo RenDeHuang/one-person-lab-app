@@ -20,13 +20,13 @@
     "status": "passed",
     "guide_status": "passed",
     "captured_at": "2026-06-28T03:52:40Z",
-    "current_shell_commit": "301cfc5a1dda9a59460324847030468a24bafb48",
-    "current_shell_capture_run": "2026-07-10T06-44-12-348Z",
+    "current_shell_commit": "9a9e1fecf45823d0a1b5790df7b46d00a867cb5b",
+    "current_shell_capture_run": "2026-07-10T08-20-15Z",
     "current_shell_capture_locale": "zh-CN",
     "current_shell_capture_viewport": "1536x912px"
   },
   "release_run": {
-    "id": "mixed-vm-and-current-shell-playwright-assets-2026-07-10T06-44-12-348Z",
+    "id": "mixed-vm-and-current-shell-playwright-assets-2026-07-10T08-20-15Z",
     "url": "/Users/gaofeng/workspace/one-person-lab-app/docs/guides/macos-app-install/screenshots",
     "conclusion": "success"
   },
@@ -79,23 +79,24 @@
       "title": "First-run model access setup screen",
       "description": "First-run model access screen showing OPL Gateway and existing Codex configuration paths.",
       "source_kind": "current_shell_electron_playwright_capture",
-      "source": "opl-aion-shell@301cfc5a1dda9a59460324847030468a24bafb48 FirstRun renderer, Electron Playwright guide capture 2026-07-10T06-44-12-348Z.",
+      "source": "opl-aion-shell@9a9e1fecf45823d0a1b5790df7b46d00a867cb5b FirstRun renderer, Electron Playwright guide capture 2026-07-10T08-20-15Z.",
       "locale": "zh-CN",
       "width": 1536,
       "height": 912,
-      "sha256": "785acf7dff231db9bf110781f0ba0bcb186fbd6b075c3806ffcc967a2c8de8ab",
+      "sha256": "e3a4bf072ba68f36445360d631521b9a724e1d80f9b43e00325f3f37487123e7",
       "source_width": 1536,
       "source_height": 912,
-      "source_sha256": "785acf7dff231db9bf110781f0ba0bcb186fbd6b075c3806ffcc967a2c8de8ab",
+      "source_sha256": "e3a4bf072ba68f36445360d631521b9a724e1d80f9b43e00325f3f37487123e7",
       "expected_ui_text": [
         "首次设置",
         "连接模型服务",
         "OPL Gateway",
-        "已有 Codex 配置"
+        "已有 Codex 配置",
+        "进入 OPL"
       ],
-      "note": "Captured from pushed Shell main on the standalone FirstRun route with both access paths visible before any access key is entered.",
+      "note": "Captured from the committed Shell FirstRun route with both access paths and the nonblocking OPL entry visible before any access key is entered.",
       "vm_artifact_status": "replaced_by_current_shell_playwright_capture",
-      "vm_artifact_source": "opl-aion-shell@301cfc5a1dda9a59460324847030468a24bafb48 Electron Playwright guide capture 2026-07-10T06-44-12-348Z"
+      "vm_artifact_source": "opl-aion-shell@9a9e1fecf45823d0a1b5790df7b46d00a867cb5b Electron Playwright guide capture 2026-07-10T08-20-15Z"
     },
     {
       "file": "04-first-run-checking.png",
@@ -103,23 +104,24 @@
       "title": "First-run beginner readiness screen",
       "description": "First-run environment check pending screen.",
       "source_kind": "current_shell_electron_playwright_capture",
-      "source": "opl-aion-shell@301cfc5a1dda9a59460324847030468a24bafb48 FirstRun renderer, Electron Playwright guide capture 2026-07-10T06-44-12-348Z.",
+      "source": "opl-aion-shell@9a9e1fecf45823d0a1b5790df7b46d00a867cb5b FirstRun renderer, Electron Playwright guide capture 2026-07-10T08-20-15Z.",
       "locale": "zh-CN",
       "width": 1536,
       "height": 912,
-      "sha256": "427020d0a0661b785e89ed501e81c79f1d2306f1588b27a1342cc53ece51c1c3",
+      "sha256": "8e5f494fca5f503fe92af7ab917f1aa72082b8bb543295bc726d7da70024b82f",
       "source_width": 1536,
       "source_height": 912,
-      "source_sha256": "427020d0a0661b785e89ed501e81c79f1d2306f1588b27a1342cc53ece51c1c3",
+      "source_sha256": "8e5f494fca5f503fe92af7ab917f1aa72082b8bb543295bc726d7da70024b82f",
       "expected_ui_text": [
         "首次设置",
         "正在检查这台设备",
         "当前检查",
-        "正在检查"
+        "正在检查",
+        "进入 OPL"
       ],
-      "note": "Captured from pushed Shell main while the initialize event stream was pending, before the terminal payload was returned.",
+      "note": "Captured from the committed Shell FirstRun route while initialization was pending, with the nonblocking OPL entry remaining available before the terminal payload returned.",
       "vm_artifact_status": "replaced_by_current_shell_playwright_capture",
-      "vm_artifact_source": "opl-aion-shell@301cfc5a1dda9a59460324847030468a24bafb48 Electron Playwright guide capture 2026-07-10T06-44-12-348Z"
+      "vm_artifact_source": "opl-aion-shell@9a9e1fecf45823d0a1b5790df7b46d00a867cb5b Electron Playwright guide capture 2026-07-10T08-20-15Z"
     },
     {
       "file": "05-opl-ready-research-entry.png",

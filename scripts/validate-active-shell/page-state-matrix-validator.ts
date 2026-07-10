@@ -74,8 +74,12 @@ export function validatePageStateMatrix(matrix, contract, guiProductContract) {
   if (!firstLaunchPage) {
     throw new Error('Page-state matrix is missing first_launch_readiness page');
   }
-  if (firstLaunchPage.launch_gate?.id !== 'ready_to_launch' || firstLaunchPage.launch_gate?.ui_order !== 'before_guid') {
-    throw new Error('First-launch readiness page must gate ready_to_launch before /guid');
+  if (
+    firstLaunchPage.launch_gate?.id !== 'ready_to_launch' ||
+    firstLaunchPage.launch_gate?.ui_order !== 'before_first_conversation_not_before_guid' ||
+    firstLaunchPage.launch_gate?.guid_navigation_blocking !== false
+  ) {
+    throw new Error('First-launch readiness page must gate first conversation without blocking /guid navigation');
   }
   if (firstLaunchPage.launch_gate?.full_readiness_blocks_ready_to_launch !== false) {
     throw new Error('First-launch readiness page must keep full readiness non-blocking for ready_to_launch');
@@ -114,7 +118,7 @@ export function validatePageStateMatrix(matrix, contract, guiProductContract) {
     'workspace root readiness',
     'Codex CLI readiness',
     'Codex model access readiness',
-    'ready_to_launch before /guid',
+    'ready_to_launch before first conversation, not before /guid',
     'full readiness and background maintenance state',
     'current initialization phase',
     'Core completed and total count',
@@ -127,7 +131,8 @@ export function validatePageStateMatrix(matrix, contract, guiProductContract) {
     'fixed three-step rail with one current task panel',
     'active rail step and task panel stay aligned to the first unready Core item',
     'authenticated standalone first-run route outside the ordinary product layout',
-    'startup preflight escape into first-run while readiness is unknown',
+    'startup preflight escape into /guid while readiness is unknown without mutating readiness',
+    'explicit enter OPL action before readiness without mutating readiness',
     'functional OPL Gateway and existing Codex access choices',
     'model access method switching and alternate actions disabled while a request is active',
     'pending state without premature ready or no-blocker claims',
@@ -153,7 +158,7 @@ export function validatePageStateMatrix(matrix, contract, guiProductContract) {
     'background maintenance counters or labels in the beginner primary area',
     'ordinary product navigation before the user enters /guid',
     'focusable or screen-reader-visible ordinary shell before the user enters /guid',
-    'startup preflight skip to /guid while readiness is unknown',
+    'navigation to /guid mutating or synthesizing ready_to_launch',
     'ordinary shortcut, tray, deep-link, or notification navigation mounted during first-run',
     'percentage progress as the dominant first-run signal',
     'simultaneous competing primary actions',

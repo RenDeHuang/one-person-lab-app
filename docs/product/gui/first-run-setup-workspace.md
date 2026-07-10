@@ -14,8 +14,9 @@ focused tests 与用户路径截图。
 它能展示状态，但更像运行状态面板，不像面向首次使用者的设置流程。用户需要先解释多个重复信号，
 才能找到真正要完成的模型访问配置。
 
-2026-07-10 已批准的目标，是把首启改成一个专注的三步设置工作台。首启流程内始终隐藏普通产品导航；
-配置完成后先在原位显示完成态，只有用户主动点击“进入 OPL”才恢复正常 App shell 并进入 `/guid`。
+2026-07-10 已批准的目标，是把首启改成一个专注但不阻断的三步设置工作台。首启流程内隐藏普通产品导航，
+但检查中、需要操作和错误状态都保留显式“进入 OPL”动作；用户可以先进入 `/guid`，以后再继续设置。
+配置完成后仍在原位显示完成态，并由用户主动进入正常 App shell。
 
 ## 目标
 
@@ -24,7 +25,7 @@ focused tests 与用户路径截图。
 1. 当前是三步中的哪一步。
 2. 已经完成了什么。
 3. 现在只需要做什么。
-4. 完成后从哪里进入 OPL。
+4. 现在如何进入 OPL，或继续完成设置。
 
 页面必须保留真实启动 gate、阻塞原因、初始化阶段、后台维护和诊断能力，但技术信息默认折叠。
 
@@ -32,8 +33,8 @@ focused tests 与用户路径截图。
 
 - 使用全视口 `focused_setup_workspace`，覆盖普通 Titlebar、Sider 和会话历史区。
 - `/first-run` 是认证后的独立路由，不挂载普通 Layout，因此普通快捷键、托盘、deep link 和通知导航不会卸载首启。
-- StartupGate 在 readiness 未确认时只能进入 `/first-run`，不得通过“跳过检查”进入 `/guid`。
-- 顶部是精简品牌栏，只显示 One Person Lab 品牌与帮助入口。
+- StartupGate 在 readiness 未确认时默认进入 `/first-run`；用户点击“跳过检查”时直接进入 `/guid`，且不得修改 readiness。
+- 顶部是精简品牌栏，显示 One Person Lab 品牌、未就绪时始终可用的“进入 OPL”动作与帮助入口。
 - macOS 品牌栏保留 traffic lights 安全区；Windows/Linux 复用现有最小化、最大化和关闭按钮。
 - 主工作区最大宽度约 1040px，采用 `240px + 1fr` 两栏。
 - 左侧固定三步：工作目录、本机助手、模型访问。
@@ -62,7 +63,7 @@ focused tests 与用户路径截图。
 
 - 当前步骤显示明确的检查状态。
 - 右侧显示 initialize event 的用户可读标签和耗时。
-- 不显示伪精确百分比，不允许进入 OPL。
+- 不显示伪精确百分比；允许用户显式进入 OPL，但不得把该导航解释为 readiness 已成立。
 - initialize payload 返回前不得显示“没有待处理项”或“可以开始使用”。
 
 ### 需要操作
@@ -71,6 +72,7 @@ focused tests 与用户路径截图。
 - 多个 Core 项同时未就绪时，按固定三步顺序选择第一个未就绪项，rail active 状态与右侧任务必须一致。
 - 正文解释缺少什么、为什么需要、下一步是什么。
 - 错误靠近当前任务显示本地化文案；技术原文只放在技术详情，不进入 beginner toast。
+- “进入 OPL”保持可用，只导航到 `/guid`，不触发配置、App action 或维护命令。
 
 ### 验证中
 
@@ -85,11 +87,14 @@ focused tests 与用户路径截图。
 - initialize 结果不得自动跳转；只有用户点击完成态主操作才进入 `/guid`。
 - 进入 `/guid` 时继续携带 `postInstallSelfCheck` route state。
 
+未就绪时的“进入 OPL”属于 defer entry：它不携带 `postInstallSelfCheck`，不调用 initialize/configure/action/maintenance bridge，
+不修改或合成 `ready_to_launch`。`ready_to_launch` 继续约束首次会话发送和对应 Core 能力，不约束 App 主界面导航。
+
 ## 响应式与可访问性
 
 - 窄屏下步骤栏移动到任务面板上方，保持三步顺序和状态语义。
 - 输入框、分段控件和主按钮在手机宽度下改为单列，不产生横向滚动。
-- 在 App 允许的 400×600 最小窗口中，隐藏重复标题、完成计数、提示性图标和二级上下文，保留紧凑三步轨道、当前任务、必要输入与完整主操作；主按钮必须在首屏可见。
+- 在 App 允许的 400×600 最小窗口中，隐藏重复标题、完成计数、提示性图标和二级上下文，保留紧凑三步轨道、当前任务、必要输入与完整主操作；当前主操作和顶栏“进入 OPL”均不得被裁切或遮挡。
 - 状态必须同时使用图标和文本，不只依赖颜色。
 - 交互控件触控目标不小于 44px。
 - 所有交互使用 Arco 组件，保留键盘焦点与可见字段标签；可访问名称使用本地化可见文本或 `aria-labelledby`，不得使用 testid。
@@ -102,7 +107,7 @@ focused tests 与用户路径截图。
 
 - 不改变 `ready_to_launch` 语义和 Core required items。
 - required Core item 的 `disabled` 状态不得计为 ready；只有真实可用状态、非 blocking、计数和 blocking 集合一致时才接受 `ready_to_launch`。
-- 不让 full readiness 或后台维护阻塞进入 `/guid`。
+- 不让 Core readiness、full readiness、初始化读取或后台维护阻塞用户显式进入 `/guid`；未就绪能力可以在主界面中保持不可用或提示继续设置。
 - 不增加新的 runtime、provider 或配置真相源。
 - 不修改 AionUI 通用 Layout/Sider fork body；专注模式由 OPL FirstRun overlay 实现。
 - 不引入新 UI 依赖、插画、渐变、玻璃效果或营销式首屏。
@@ -113,6 +118,6 @@ focused tests 与用户路径截图。
 
 - App 合同和 page-state matrix 校验通过。
 - first-run test matrix 覆盖专注模式、三步栏、无百分比和两条访问路径。
-- active shell DOM 测试覆盖 initialize pending、Gateway 配置、已有 Codex 重检、完成态和技术详情。
+- active shell DOM 测试覆盖 initialize pending、Gateway 配置、已有 Codex 重检、完成态、技术详情，以及未就绪/后台请求期间始终可用的纯导航入口。
 - i18n、TypeScript 与 package build 通过。
 - 桌面、常规窄屏与 400×600 最小窗口截图证明普通导航不存在、文本无溢出、主操作清晰、状态切换不造成结构跳动。

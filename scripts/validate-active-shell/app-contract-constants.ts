@@ -251,6 +251,7 @@ export const beginnerFirstRunTestIds = [
   "opl-first-run-codex-api-key-input",
   "opl-first-run-configure-codex-button",
   "opl-first-run-recheck-existing",
+  "opl-first-run-enter-app",
   "opl-first-run-ready-entry",
   "opl-first-run-window-actions",
   "opl-first-run-step-workspace_root",
@@ -268,7 +269,8 @@ export const focusedFirstRunPresentationPolicy = {
   model_access_inflight_policy:
     "disable_method_switch_and_alternate_action_until_current_request_settles",
   completion_transition_policy: "replace_current_task_in_place",
-  completion_navigation_policy: "manual_ready_entry_only_no_automatic_route_from_first_run",
+  completion_navigation_policy: "manual_guid_entry_available_before_or_after_ready_no_automatic_route",
+  defer_navigation_policy: "explicit_enter_guid_available_before_ready_without_mutating_readiness",
   technical_detail_navigation_policy: "in_place_no_ordinary_settings_route_before_guid",
   request_exclusivity_policy: "single_inflight_initialize_or_action_across_first_run_controls",
   pending_state_policy: "no_ready_or_no_blocker_claim_before_initialize_payload",

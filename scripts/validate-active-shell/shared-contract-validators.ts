@@ -2069,8 +2069,8 @@ export function validateBeginnerFirstRunPresentation(presentation, label, expect
   if (presentation.presentation_mode !== "simplified_first_run") {
     throw new Error(`${label} must use simplified_first_run presentation`);
   }
-  if (presentation.primary_user_goal !== "complete_first_run_then_explicitly_enter_guid") {
-    throw new Error(`${label} must focus on reaching /guid with Codex ready`);
+  if (presentation.primary_user_goal !== "enter_guid_now_or_complete_guided_setup_first") {
+    throw new Error(`${label} must keep /guid explicitly available before readiness while preserving guided setup`);
   }
   assertIncludesAll(presentation.primary_steps, expectedCoreItems, `${label} primary steps`);
   for (const [field, expected] of Object.entries({

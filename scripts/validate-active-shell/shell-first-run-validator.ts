@@ -43,10 +43,10 @@ export function validateFirstRunImplementation(shellPaths) {
   }
   const skipStartupCheck = startupGate.match(/const skipStartupCheck = \(\) => \{[\s\S]*?\n  \};/)?.[0] ?? '';
   if (
-    !skipStartupCheck.includes("navigate('/first-run', { replace: true })") ||
-    skipStartupCheck.includes("navigate('/guid'")
+    !skipStartupCheck.includes("navigate('/guid', { replace: true })") ||
+    skipStartupCheck.includes("navigate('/first-run'")
   ) {
-    throw new Error('Active shell StartupGate skip must enter FirstRun instead of bypassing unknown readiness');
+    throw new Error('Active shell StartupGate skip must enter /guid without mutating unknown readiness');
   }
   for (const expected of [
     'ipcBridge.oplRuntime.getInitialize.invoke()',
@@ -73,6 +73,15 @@ export function validateFirstRunImplementation(shellPaths) {
   if (firstRunPage.includes("ipcBridge.oplRuntime.getAppState.invoke({ profile: 'fast' })")) {
     throw new Error('Active shell FirstRun page must not auto-enter /guid from fast App state; use opl system initialize first-run setup_flow');
   }
+  const deferredEntry = firstRunPage.match(/\{!readyToLaunch && \([\s\S]*?data-testid='opl-first-run-enter-app'[\s\S]*?\)\}/)?.[0] ?? '';
+  if (
+    !deferredEntry.includes("onClick={() => navigate('/guid')}") ||
+    deferredEntry.includes('disabled=') ||
+    deferredEntry.includes('loading=') ||
+    deferredEntry.includes('POST_INSTALL_SELF_CHECK_STATE')
+  ) {
+    throw new Error('Active shell FirstRun must keep a pure, always-enabled /guid entry before readiness');
+  }
   for (const forbidden of [
     "shouldEnterGuidAutomatically",
     "navigate('/guid', { replace: true })",
@@ -81,7 +90,7 @@ export function validateFirstRunImplementation(shellPaths) {
   ]) {
     if (firstRunPage.includes(forbidden)) {
       throw new Error(
-        `Active shell FirstRun must remain in place until the user activates the ready entry: ${forbidden}`,
+        `Active shell FirstRun must not navigate automatically or bypass the explicit entry policies: ${forbidden}`,
       );
     }
   }
@@ -108,6 +117,13 @@ export function validateFirstRunImplementation(shellPaths) {
     if (!firstRunPage.includes(expected)) {
       throw new Error(`Active shell FirstRun focused task binding must include ${expected}`);
     }
+  }
+  const readyEntryButton = firstRunPage.match(/<Button\s+ref=\{readyEntryRef\}[\s\S]*?<\/Button>/)?.[0] ?? '';
+  if (
+    !readyEntryButton.includes("navigate('/guid', { state: POST_INSTALL_SELF_CHECK_STATE })") ||
+    readyEntryButton.includes('disabled=')
+  ) {
+    throw new Error('Active shell ready entry must stay enabled and preserve post-install self-check state');
   }
   for (const expected of [
     "setAttribute('inert', '')",

@@ -94,6 +94,12 @@ function assertFirstRunProfileShape(profile: AppProductProfile): void {
   assertStringArray(profile.first_run.readiness_layers, 'first_run.readiness_layers');
   assertStringArray(profile.first_run.ready_to_launch_gate.required_core_items, 'first_run.ready_to_launch_gate.required_core_items');
   assertStringArray(profile.first_run.ready_to_launch_gate.must_not_require, 'first_run.ready_to_launch_gate.must_not_require');
+  if (
+    profile.first_run.ready_to_launch_gate.ui_order !== 'before_first_conversation_not_before_guid' ||
+    profile.first_run.ready_to_launch_gate.guid_navigation_blocking !== false
+  ) {
+    throw new Error('App product profile ready_to_launch must gate first conversation without blocking /guid navigation');
+  }
   assertStringArray(profile.first_run.full_readiness_layers, 'first_run.full_readiness_layers');
   assertStringArray(profile.first_run.deferred_blockers, 'first_run.deferred_blockers');
   assertStringArray(profile.first_run.first_conversation.must_wait_for, 'first_run.first_conversation.must_wait_for');
@@ -103,7 +109,8 @@ function assertFirstRunProfileShape(profile: AppProductProfile): void {
   if (
     beginnerPresentation.layout_mode !== 'focused_setup_workspace' ||
     beginnerPresentation.ordinary_navigation_policy !== 'hidden_until_user_enters_guid' ||
-    beginnerPresentation.completion_navigation_policy !== 'manual_ready_entry_only_no_automatic_route_from_first_run' ||
+    beginnerPresentation.completion_navigation_policy !== 'manual_guid_entry_available_before_or_after_ready_no_automatic_route' ||
+    beginnerPresentation.defer_navigation_policy !== 'explicit_enter_guid_available_before_ready_without_mutating_readiness' ||
     beginnerPresentation.core_readiness_status_policy !== 'required_core_items_never_treat_disabled_as_ready' ||
     beginnerPresentation.minimum_window_primary_action_policy !== '400x600_keeps_current_primary_action_visible'
   ) {

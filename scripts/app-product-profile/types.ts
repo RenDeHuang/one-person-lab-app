@@ -266,6 +266,7 @@ export type AppProductProfile = {
     ready_to_launch_gate: {
       id: string;
       ui_order: string;
+      guid_navigation_blocking: boolean;
       required_core_items: string[];
       must_not_require: string[];
     };
@@ -316,6 +317,7 @@ export type AppProductProfile = {
       model_access_inflight_policy: string;
       completion_transition_policy: string;
       completion_navigation_policy: string;
+      defer_navigation_policy: string;
       technical_detail_navigation_policy: string;
       request_exclusivity_policy: string;
       pending_state_policy: string;

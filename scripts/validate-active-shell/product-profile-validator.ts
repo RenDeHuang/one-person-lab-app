@@ -417,8 +417,12 @@ function validateFullFirstInstallCoreReadyPolicy(profile) {
 
 function validateReadyToLaunchGate(profile, firstRunCoreItems) {
   const launchGate = profile.first_run?.ready_to_launch_gate;
-  if (launchGate?.id !== 'ready_to_launch' || launchGate?.ui_order !== 'before_guid') {
-    throw new Error('Product profile ready_to_launch gate must run before /guid');
+  if (
+    launchGate?.id !== 'ready_to_launch' ||
+    launchGate?.ui_order !== 'before_first_conversation_not_before_guid' ||
+    launchGate?.guid_navigation_blocking !== false
+  ) {
+    throw new Error('Product profile ready_to_launch must gate first conversation without blocking /guid navigation');
   }
   for (const item of firstRunCoreItems) {
     if (!launchGate?.required_core_items?.includes(item)) {

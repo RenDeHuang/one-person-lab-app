@@ -376,8 +376,12 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     throw new Error('App GUI settings navigation refresh must use fast App state');
   }
   const firstLaunchPolicy = guiContract.first_launch_readiness_policy;
-  if (firstLaunchPolicy?.launch_gate !== 'ready_to_launch' || firstLaunchPolicy?.ui_order !== 'before_guid') {
-    throw new Error('App GUI first-launch readiness must gate ready_to_launch before /guid');
+  if (
+    firstLaunchPolicy?.launch_gate !== 'ready_to_launch' ||
+    firstLaunchPolicy?.ui_order !== 'before_first_conversation_not_before_guid' ||
+    firstLaunchPolicy?.guid_navigation_blocking !== false
+  ) {
+    throw new Error('App GUI first-launch readiness must gate first conversation without blocking /guid navigation');
   }
   for (const item of expectedFirstRunCoreItems) {
     if (!firstLaunchPolicy?.core_required_items?.includes(item)) {
@@ -424,7 +428,9 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   );
   for (const [field, expected] of Object.entries({
     first_run_route_policy: 'authenticated_standalone_route_outside_ordinary_product_layout',
-    unknown_readiness_escape_policy: 'startup_skip_enters_first_run_never_guid',
+    unknown_readiness_escape_policy: 'startup_skip_enters_guid_without_mutating_readiness',
+    guid_navigation_blocked_by_readiness: false,
+    core_capability_use_blocked_when_prerequisites_fail: true,
   })) {
     if (firstLaunchPolicy?.startup_runtime_policy?.[field] !== expected) {
       throw new Error('App GUI first-launch startup runtime ' + field + ' must be ' + expected);

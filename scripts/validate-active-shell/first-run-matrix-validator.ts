@@ -48,8 +48,11 @@ function validateFullFirstInstallScenario(fullClean) {
   if (fullClean?.core_ready_source !== 'bundled_runtime') {
     throw new Error('Full first-install clean-machine scenario must reach Core ready from bundled_runtime');
   }
-  if (fullClean?.ready_to_launch_gate?.ui_order !== 'before_guid') {
-    throw new Error('Full first-install clean-machine scenario must gate ready_to_launch before /guid');
+  if (
+    fullClean?.ready_to_launch_gate?.ui_order !== 'before_first_conversation_not_before_guid' ||
+    fullClean?.ready_to_launch_gate?.guid_navigation_blocking !== false
+  ) {
+    throw new Error('Full first-install clean-machine scenario must gate first conversation without blocking /guid navigation');
   }
   if (fullClean?.ready_to_launch_gate?.blocks_on_full_readiness !== false) {
     throw new Error('Full first-install ready_to_launch must not block on full readiness');
@@ -184,14 +187,14 @@ export function validateFirstRunMatrix(matrix, contract) {
     'OPL Gateway access key entry uses beginner-facing 访问密钥 copy while existing usable Codex model access can skip first-launch Gateway setup',
     'first-run uses a focused full-window setup workspace and hides ordinary product navigation until the user enters /guid',
     'first-run renders as an authenticated standalone route outside the ordinary product layout',
-    'startup preflight skip enters focused first-run instead of /guid while readiness is unknown',
+    'startup preflight skip enters /guid while readiness is unknown without mutating readiness',
     'the three Core items render as a stable step rail while only the current task occupies the main panel',
     'the active rail step and task panel select the first unready Core item in fixed step order before completion',
     'Core progress uses completed step count without percentage progress',
     'model access offers functional OPL Gateway and existing Codex configuration paths without competing primary actions',
     'model access method switching and alternate actions remain disabled until the current request settles',
     'ready state replaces the current task in place and keeps one primary entry action',
-    'FirstRun never navigates automatically after initialize and only the ready entry action opens /guid',
+    'FirstRun never navigates automatically after initialize and explicit user entry can open /guid before or after readiness',
     'technical details stay inside FirstRun and do not expose ordinary Settings navigation',
     'all initialize, model access, and maintenance actions share one in-flight interaction lock',
     'initialize pending does not claim ready or no blockers before a payload returns',
