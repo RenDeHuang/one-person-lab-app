@@ -335,7 +335,7 @@
     },
     "ordinary_conversation": {
       "path_id": "ordinary_codex_conversation",
-      "entry_source": "home_purpose_entry_or_new_conversation",
+      "entry_source": "home_starter_capabilities_project_task_or_projectless_new_conversation",
       "executor": "codex_cli",
       "composer_position": "floating_bottom_with_safe_inset",
       "active_capability_chip_visible": true,

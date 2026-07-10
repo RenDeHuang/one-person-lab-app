@@ -29,6 +29,7 @@ test('product profile rejects pre-Codex-baseline interaction states', () => {
     (profile: any) => { profile.gui.home.permission_mode_selector_visible = false; },
     (profile: any) => { profile.gui.home.conversation_permission_mode_selector_visible = false; },
     (profile: any) => { profile.gui.home.home_layout.workspace_session_rail_default_state = 'collapsed'; },
+    (profile: any) => { profile.gui.ordinary_conversation.entry_source = 'home_purpose_entry_or_new_conversation'; },
     (profile: any) => { profile.gui.ordinary_conversation.composer_position = 'pinned_bottom'; },
     (profile: any) => { profile.gui.ordinary_conversation.permission_mode_selector_visible = false; },
     (profile: any) => { profile.gui.right_context_inspector.tabs = []; },
