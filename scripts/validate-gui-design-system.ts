@@ -166,8 +166,8 @@ function requireCellStatus(
   requirement: string,
   issues: Set<string>,
 ): void {
-  const matches = allowed.filter((status) => new RegExp(`\\b${status}\\b`).test(cell));
-  if (matches.length !== 1) {
+  const normalized = cell.replace(/^`|`$/g, '');
+  if (!allowed.includes(normalized)) {
     issues.add(`conformance row "${requirement}" must declare exactly one ${shell} ${axis}`);
   }
 }

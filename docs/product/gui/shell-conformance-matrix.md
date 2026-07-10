@@ -51,9 +51,9 @@ Active AionUI 默认状态通过 README 治理段声明的动态 state source �
 
 ## Snapshot evidence
 
-- AionUI source snapshot：`opl-aion-shell@621037a1f4af6805efcb85f7584f79a2faf9f15e`；
-  focused DOM tests `53/53` 通过。Fresh dev launch 因开发态 AionCore binary 解析失败，
-  因此本 snapshot 对 Home 等视觉路径记为 `pixel_blocked`，不沿用旧截图充当当前证据。
+- AionUI source snapshot：`opl-aion-shell@fa95c1933c5662c4b1adee34e2faed77475e94ad`；
+  已完成 fresh source audit。此前启动断点与截图均未绑定该精确 source snapshot，
+  因此视觉路径保守记为 `pixel_unverified`，不沿用旧截图充当当前证据。
 - Native source snapshot：`opl-native-workbench@43569d8beb5119d674c6fecae367b2915eacbfb0`；
   `npm test` 与 native live smoke 通过，像素证据为 candidate repo
   `out/native-live-smoke.png`。该证据不改变 `active_shell_adopted=false`、
@@ -82,27 +82,27 @@ Active AionUI 默认状态通过 README 治理段声明的动态 state source �
 | 功能或交互要求 | AionUI contract | AionUI source | AionUI pixel | Native contract | Native source | Native pixel | 验证入口与当前差距 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | App repo 拥有 GUI product truth | `aligned_contract` | `source_implemented` | `not_applicable` | `candidate_target` | `source_implemented` | `not_applicable` | `A1/A2`, `N1/N2`；两边 adapter 均禁止 authority transfer。 |
-| Home 是 chat-first，不是 dashboard/landing | `aligned_contract` | `source_partial` | `pixel_blocked` | `candidate_target` | `source_implemented` | `pixel_verified` | AionUI 仍由 hero + assistant card launcher 开场；Native 已有空 chat、timeline、composer，但像素证据不代表 1:1 parity。 |
-| 宽桌面项目/对话 rail 默认可见 | `current_contract_deviation` | `source_partial` | `pixel_blocked` | `candidate_target` | `source_partial` | `pixel_verified` | AionUI profile 当前声明 collapsed，而 `Layout.tsx` source 默认展开；Native rail 可见，但真实项目切换未完成。 |
+| Home 是 chat-first，不是 dashboard/landing | `aligned_contract` | `source_partial` | `pixel_unverified` | `candidate_target` | `source_implemented` | `pixel_verified` | AionUI 仍由 hero + assistant card launcher 开场；Native 已有空 chat、timeline、composer，但像素证据不代表 1:1 parity。 |
+| 宽桌面项目/对话 rail 默认可见 | `current_contract_deviation` | `source_partial` | `pixel_unverified` | `candidate_target` | `source_partial` | `pixel_verified` | AionUI profile 当前声明 collapsed，而 `Layout.tsx` source 默认展开；Native rail 可见，但真实项目切换未完成。 |
 | 窄窗口 rail 可收起并以 drawer/overlay 打开 | `aligned_contract` | `source_not_assessed` | `pixel_unverified` | `candidate_target` | `source_partial` | `pixel_unverified` | 需要窄 viewport 的 open/close/focus 像素与行为证据；不能把 hidden DOM 当 drawer。 |
-| 项目选择器切换真实 active project | `aligned_contract` | `source_implemented` | `pixel_blocked` | `candidate_target` | `source_missing` | `pixel_unverified` | AionUI 有 workspace/project 路径；Native 当前没有真实项目切换闭环。 |
-| 项目 Context inputs 可选、可增删 | `aligned_contract` | `source_partial` | `pixel_blocked` | `candidate_target` | `source_partial` | `pixel_verified` | Native `App.tsx` 仍固定生成四个虚构 project inputs；AionUI 已有上下文入口但未按理想 rail 组织完成。 |
-| 项目附件可添加、查看、移除 | `aligned_contract` | `source_implemented` | `pixel_blocked` | `candidate_target` | `source_missing` | `pixel_unverified` | Native 缺真实 attachment actions；AionUI 附件能力已存在但当前像素路径被启动断点阻断。 |
-| 一个项目对应 N 个最近对话 | `aligned_contract` | `source_implemented` | `pixel_blocked` | `candidate_target` | `source_partial` | `pixel_verified` | Native 有 history/timeline 形态，但 project-scoped persistence 与切换还不完整。 |
-| 对话搜索、rename、archive | `aligned_contract` | `source_implemented` | `pixel_blocked` | `candidate_target` | `source_missing` | `pixel_unverified` | Native 尚未形成可日用的会话管理；AionUI 已有较完整 conversation management。 |
-| Right inspector 默认关闭并可折叠 | `aligned_contract` | `source_partial` | `pixel_blocked` | `candidate_target` | `source_partial` | `pixel_verified` | AionUI inspector 仅约 188px、tabs 缺实际切换且 `<1120px` 隐藏；Native 有折叠形态，内容仍多为 partial/refs-only。 |
-| 主区保持单一 conversation timeline | `aligned_contract` | `source_implemented` | `pixel_blocked` | `candidate_target` | `source_implemented` | `pixel_verified` | 两边已有 timeline source；AionUI Home 默认入口仍偏离 chat-first。 |
-| Composer 是底部主 command surface | `aligned_contract` | `source_implemented` | `pixel_blocked` | `candidate_target` | `source_implemented` | `pixel_verified` | 两边已有可输入 composer；视觉位置和密度仍需 route-bound parity。 |
-| 模型与推理策略由 App profile 驱动 | `aligned_contract` | `source_implemented` | `pixel_blocked` | `candidate_target` | `source_partial` | `pixel_verified` | Native 已显示模型控制并消费默认值，完整动态 catalog/readback 仍需验证；文档不得复制 allowlist。 |
+| 项目选择器切换真实 active project | `aligned_contract` | `source_implemented` | `pixel_unverified` | `candidate_target` | `source_missing` | `pixel_unverified` | AionUI 有 workspace/project 路径；Native 当前没有真实项目切换闭环。 |
+| 项目 Context inputs 可选、可增删 | `aligned_contract` | `source_partial` | `pixel_unverified` | `candidate_target` | `source_partial` | `pixel_verified` | Native `App.tsx` 仍固定生成四个虚构 project inputs；AionUI 已有上下文入口但未按理想 rail 组织完成。 |
+| 项目附件可添加、查看、移除 | `aligned_contract` | `source_implemented` | `pixel_unverified` | `candidate_target` | `source_missing` | `pixel_unverified` | Native 缺真实 attachment actions；AionUI 附件能力已存在，但缺绑定当前 source 的像素证据。 |
+| 一个项目对应 N 个最近对话 | `aligned_contract` | `source_implemented` | `pixel_unverified` | `candidate_target` | `source_partial` | `pixel_verified` | Native 有 history/timeline 形态，但 project-scoped persistence 与切换还不完整。 |
+| 对话搜索、rename、archive | `aligned_contract` | `source_implemented` | `pixel_unverified` | `candidate_target` | `source_missing` | `pixel_unverified` | Native 尚未形成可日用的会话管理；AionUI 已有较完整 conversation management。 |
+| Right inspector 默认关闭并可折叠 | `aligned_contract` | `source_partial` | `pixel_unverified` | `candidate_target` | `source_partial` | `pixel_verified` | AionUI inspector 仅约 188px、tabs 缺实际切换且 `<1120px` 隐藏；Native 有折叠形态，内容仍多为 partial/refs-only。 |
+| 主区保持单一 conversation timeline | `aligned_contract` | `source_implemented` | `pixel_unverified` | `candidate_target` | `source_implemented` | `pixel_verified` | 两边已有 timeline source；AionUI Home 默认入口仍偏离 chat-first。 |
+| Composer 是底部主 command surface | `aligned_contract` | `source_implemented` | `pixel_unverified` | `candidate_target` | `source_implemented` | `pixel_verified` | 两边已有可输入 composer；视觉位置和密度仍需 route-bound parity。 |
+| 模型与推理策略由 App profile 驱动 | `aligned_contract` | `source_implemented` | `pixel_unverified` | `candidate_target` | `source_partial` | `pixel_verified` | Native 已显示模型控制并消费默认值，完整动态 catalog/readback 仍需验证；文档不得复制 allowlist。 |
 | Codex CLI 固定 executor；普通路径隐藏 backend/provider/permission | `aligned_contract` | `source_implemented` | `not_applicable` | `candidate_target` | `source_implemented` | `not_applicable` | 两边走既有 Codex/App bridge；不得新增第二套 ACP/runtime authority。 |
-| OPL purpose 与 package shortcuts | `aligned_contract` | `source_implemented` | `pixel_blocked` | `candidate_target` | `source_partial` | `pixel_verified` | Native purpose 仍为 research/grant/presentation/review，缺 profile-defined `book` 等完整映射。 |
+| OPL purpose 与 package shortcuts | `aligned_contract` | `source_implemented` | `pixel_unverified` | `candidate_target` | `source_partial` | `pixel_verified` | Native purpose 仍为 research/grant/presentation/review，缺 profile-defined `book` 等完整映射。 |
 | 普通 state 读取走 fast App state | `aligned_contract` | `source_implemented` | `not_applicable` | `candidate_target` | `source_implemented` | `not_applicable` | `A1/A2`, `N2/N3`；Full/detail 只允许进入明确 diagnostics。 |
 | Mutation 走 App action preview/confirm/execute/receipt | `aligned_contract` | `source_implemented` | `not_applicable` | `candidate_target` | `source_partial` | `not_applicable` | Native 已有 preview/action bridge，但完整高风险确认、receipt、rollback UX 尚未覆盖全部动作。 |
 | Runtime/Files/Memory/Artifacts 只展示 refs | `aligned_contract` | `source_implemented` | `not_applicable` | `candidate_target` | `source_partial` | `not_applicable` | Native `workbenchModel.ts` 仍保留 `GlycoFold` 等 demo fallback，必须去除后才能算完整真实投影。 |
-| Artifact Markdown/PDF/Mermaid/Code/KaTeX preview | `aligned_contract` | `source_partial` | `pixel_blocked` | `candidate_target` | `source_partial` | `pixel_unverified` | 两边都有部分 preview surface；缺覆盖各 renderer、错误态和 export 的绑定证据。 |
-| Settings/Control Plane 完整、语言切换位于 Settings | `aligned_contract` | `source_implemented` | `pixel_blocked` | `candidate_target` | `source_partial` | `pixel_unverified` | AionUI Settings/Runtime 较完整；Native 缺完整 Settings、持久化和 readback，语言入口不得回到 composer。 |
-| ChatGPT Codex macOS 26.707.31123 视觉基准 | `current_contract_deviation` | `source_partial` | `pixel_blocked` | `candidate_target` | `source_partial` | `pixel_verified` | AionUI 是 regression floor 但 Home IA 不同；Native 构图更接近，仍未完成元素级和 pixel parity。 |
-| OPL 品牌、双语与普通语言一致 | `aligned_contract` | `source_partial` | `pixel_blocked` | `candidate_target` | `source_partial` | `pixel_verified` | 仍需逐 route 检查 carrier branding、混合语言、technical ids 与字号层级。 |
+| Artifact Markdown/PDF/Mermaid/Code/KaTeX preview | `aligned_contract` | `source_partial` | `pixel_unverified` | `candidate_target` | `source_partial` | `pixel_unverified` | 两边都有部分 preview surface；缺覆盖各 renderer、错误态和 export 的绑定证据。 |
+| Settings/Control Plane 完整、语言切换位于 Settings | `aligned_contract` | `source_implemented` | `pixel_unverified` | `candidate_target` | `source_partial` | `pixel_unverified` | AionUI Settings/Runtime 较完整；Native 缺完整 Settings、持久化和 readback，语言入口不得回到 composer。 |
+| ChatGPT Codex macOS 26.707.31123 视觉基准 | `current_contract_deviation` | `source_partial` | `pixel_unverified` | `candidate_target` | `source_partial` | `pixel_verified` | AionUI 是 regression floor 但 Home IA 不同；Native 构图更接近，仍未完成元素级和 pixel parity。 |
+| OPL 品牌、双语与普通语言一致 | `aligned_contract` | `source_partial` | `pixel_unverified` | `candidate_target` | `source_partial` | `pixel_verified` | 仍需逐 route 检查 carrier branding、混合语言、technical ids 与字号层级。 |
 | Keyboard、focus、contrast、reduced motion | `aligned_contract` | `source_not_assessed` | `pixel_unverified` | `candidate_target` | `source_partial` | `pixel_unverified` | 视觉相似不能替代 accessibility；需 focused keyboard/focus/contrast/motion evidence。 |
 | First-run 使用 App-owned readiness/page-state | `aligned_contract` | `source_implemented` | `pixel_unverified` | `candidate_target` | `source_missing` | `pixel_unverified` | Native 尚无完整 FirstRun；contract 和 test matrix 不能替代 clean-machine path。 |
 | Desktop/WebUI 同 product semantics | `not_claimed` | `source_not_assessed` | `not_applicable` | `candidate_target` | `source_partial` | `pixel_unverified` | Native 共享 renderer/bridge 有基础，但缺当前 Desktop/WebUI route-by-route parity evidence。 |
