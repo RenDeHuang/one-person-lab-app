@@ -124,6 +124,41 @@ test('Settings validator preserves workspace truth precedence and single-flight 
   assert.throws(() => validate(concurrentActions), /single-flight/);
 });
 
+test('Settings visual QA enforces dense grouping, route-title preflight, and responsive color evidence', () => {
+  const values = contracts();
+  const visualQa = values.guiContract.settings_navigation.settings_ia.protocols.visual_qa_expectations;
+
+  assert.doesNotThrow(() => validate(values));
+  assert.deepStrictEqual(visualQa.visual_character, ['quiet', 'dense', 'scannable']);
+  assert.deepStrictEqual(visualQa.evidence_dimensions.required_viewports, ['desktop', 'narrow']);
+  assert.deepStrictEqual(visualQa.evidence_dimensions.required_color_schemes, ['light', 'dark']);
+
+  const sparseLayout = contracts();
+  sparseLayout.guiContract.settings_navigation.settings_ia.protocols.visual_qa_expectations
+    .surface_grouping.page_wide_bare_divider_layout = 'allowed';
+  assert.throws(() => validate(sparseLayout), /surface grouping/);
+
+  const multipleSelectedItems = contracts();
+  multipleSelectedItems.guiContract.settings_navigation.settings_ia.protocols.visual_qa_expectations
+    .sidebar_selection.selected_item_count = 2;
+  assert.throws(() => validate(multipleSelectedItems), /sidebar selection/);
+
+  const repeatedLabels = contracts();
+  repeatedLabels.guiContract.settings_navigation.settings_ia.protocols.visual_qa_expectations
+    .repeated_entity_layout.row_field_label_policy = 'repeat_labels_per_row';
+  assert.throws(() => validate(repeatedLabels), /repeated entity layout/);
+
+  const uncheckedCapture = contracts();
+  uncheckedCapture.guiContract.settings_navigation.settings_ia.protocols.visual_qa_expectations
+    .capture_preflight.mismatch_policy = 'capture_anyway';
+  assert.throws(() => validate(uncheckedCapture), /capture preflight/);
+
+  const lightOnly = contracts();
+  lightOnly.guiContract.settings_navigation.settings_ia.protocols.visual_qa_expectations
+    .evidence_dimensions.required_color_schemes = ['light'];
+  assert.throws(() => validate(lightOnly), /evidence dimensions/);
+});
+
 test('Settings validator rejects page-state DOM and search-entry drift', () => {
   const values = contracts();
   const overview = values.pageStateMatrix.pages.find((page) => page.id === 'settings_general');

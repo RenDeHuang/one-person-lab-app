@@ -709,6 +709,81 @@ function validateSettingsProtocols(protocols) {
     appOwnedSettingsVisualQaTargets,
     'Settings control plane visual QA targets',
   );
+  validateSettingsVisualQaExpectations(protocols.visual_qa_expectations);
+}
+
+function validateSettingsVisualQaExpectations(expectations) {
+  assertDeepEqualJson(
+    expectations?.visual_character,
+    ['quiet', 'dense', 'scannable'],
+    'Settings visual QA character',
+  );
+  assertDeepEqualJson(
+    expectations?.surface_grouping,
+    {
+      allowed_bounded_group_kinds: ['summary', 'repeated_entity'],
+      bounded_group_nesting: 'single_layer_only',
+      page_section_card_policy: 'forbidden',
+      page_wide_bare_divider_layout: 'forbidden',
+    },
+    'Settings visual QA surface grouping',
+  );
+  assertDeepEqualJson(
+    expectations?.sidebar_selection,
+    {
+      selected_item_count: 1,
+      selection_source: 'resolved_route_after_compatibility_redirect',
+    },
+    'Settings visual QA sidebar selection',
+  );
+  assertDeepEqualJson(
+    expectations?.repeated_entity_layout,
+    {
+      column_header_policy: 'one_shared_column_header_row_per_group',
+      row_field_label_policy: 'do_not_repeat_field_labels_in_each_row',
+    },
+    'Settings visual QA repeated entity layout',
+  );
+  assertDeepEqualJson(
+    expectations?.primary_action_placement,
+    {
+      policy: 'adjacent_to_owned_object_or_section',
+      detached_page_toolbar_action: 'forbidden',
+    },
+    'Settings visual QA primary action placement',
+  );
+  assertDeepEqualJson(
+    expectations?.capture_preflight,
+    {
+      required_fields: ['requested_route', 'resolved_route', 'expected_page_title', 'visible_page_title'],
+      route_policy: 'resolved_route_must_match_requested_route_or_declared_compatibility_target',
+      title_policy: 'visible_page_title_must_match_expected_page_title',
+      mismatch_policy: 'fail_capture_and_do_not_record_visual_evidence',
+    },
+    'Settings visual QA capture preflight',
+  );
+  assertDeepEqualJson(
+    expectations?.evidence_dimensions,
+    {
+      required_viewports: ['desktop', 'narrow'],
+      required_color_schemes: ['light', 'dark'],
+      coverage_policy: 'desktop_narrow_and_dark_each_require_fresh_visual_evidence',
+    },
+    'Settings visual QA evidence dimensions',
+  );
+  assertIncludesAll(
+    expectations?.must_check,
+    [
+      'Settings remains quiet, dense, and scannable without a sparse page-wide bare-divider layout',
+      'summary and repeated-entity bounded groups use one layer only',
+      'the Settings sidebar has exactly one selected item',
+      'repeated entities use shared column headers instead of per-row field labels',
+      'the primary action stays adjacent to its owning object or section',
+      'capture preflight verifies the resolved route and visible page title before recording a screenshot',
+      'desktop, narrow-screen, and dark-mode evidence are all present',
+    ],
+    'Settings visual QA acceptance checks',
+  );
 }
 
 function validateSettingsPageStateMatrix(

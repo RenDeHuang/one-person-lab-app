@@ -235,6 +235,12 @@ Settings 采用安静、密集、可扫描的 Control Center 形态：
   contracts/Control Plane 读取，不由 shell 自行扩展。
 - 左侧 section navigation 稳定，右侧内容使用 section、row、table/list 和 disclosure，
   不把每项设置做成营销 card。
+- 侧栏在任一时刻只显示一个选中项；兼容路由完成跳转后，选中态归属实际落地页。
+- Summary 或 repeated entity 可以使用一层 bounded group；禁止 nested group，也禁止用
+  贯穿全页的裸横线堆叠出空旷、低密度的页面。
+- 重复实体使用一组共享列头；逐行重复“名称 / 状态 / 来源 / 操作”等字段标签会降低
+  扫描效率，不作为默认布局。
+- 主操作贴近其拥有的对象或 section；不把对象级动作抽离成远端页面工具栏动作。
 - 首屏先给结论、影响范围和下一步；raw path、id、receipt、JSON 和诊断默认折叠。
 - 二元设置用 toggle/checkbox，模式用 segmented control，数值用 input/stepper/slider，
   多选项用 menu，颜色用 swatch，命令才使用 text 或 icon + text button。
@@ -306,6 +312,10 @@ Loading 不用无限旋转器代替进度。可获得阶段或 elapsed time 时�
    OPL branding exception 的明确说明。
 7. Environment popover 与 side panel 分离；side panel resizable 且只有四个核心工具，
    advanced work surfaces 默认关闭。
+8. Settings 截图在记录证据前校验 requested/resolved route 与 expected/visible page title；
+   任一不匹配即停止截图，避免把 Resources、Appearance 或其他页面记到错误目标。
+9. Settings 至少分别有桌面、窄屏和深色 fresh visual evidence，并检查单一侧栏选中态、
+   bounded group、重复实体列头和对象附近主操作。
 
 Source screenshot、DOM test 或 contract validation 只证明对应层。Packaged App、
 WebUI parity、clean VM、release readiness 和 owner acceptance 必须由各自 evidence

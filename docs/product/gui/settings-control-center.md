@@ -98,12 +98,19 @@ contract and routes the user to the owning item.
 
 Settings uses a Codex App-style quiet workbench:
 
-- few cards, only for summaries or repeated entities;
+- quiet, dense, and scannable is the default visual character;
+- summaries and repeated entities may use one bounded group layer;
 - no nested cards;
 - page sections are not floating cards;
+- a page-wide stack of bare horizontal dividers that creates sparse empty space
+  is forbidden;
 - maximum border radius is 8 px;
 - spacing uses 12 / 16 / 24 px;
 - headings are compact;
+- the Settings sidebar has exactly one selected item after route resolution;
+- repeated entities use one shared column-header row instead of repeating field
+  labels in every row;
+- the primary action stays adjacent to the object or section it acts on;
 - each page shows at most one primary action;
 - normal states are visually muted;
 - only attention or failure states receive accent emphasis;
@@ -432,6 +439,8 @@ Shell acceptance requires:
 
 - the single search input and bilingual item results;
 - route plus `section` parsing for all compatibility redirects;
+- screenshot preflight matches requested and resolved routes and matches the
+  expected and visible page titles before capture; mismatches fail closed;
 - all required page roots, primary regions, actions, exception regions,
   technical-details disclosures, and stable section-id anchors;
 - `settings-access-browser-access` remains visible on Access;
@@ -439,8 +448,11 @@ Shell acceptance requires:
   focuses `custom-assistants`;
 - resource `Open`, `Diagnose`, and mutating actions obey their execution and
   dry-run claim boundaries;
-- desktop and mobile visual QA;
-- no nested cards, no duplicated global search, no text overlap, and no more
-  than one primary action per page.
+- fresh desktop, narrow-screen, and dark-mode visual evidence;
+- exactly one selected sidebar item, one-layer bounded groups only for summaries
+  or repeated entities, shared repeated-entity column headers, and primary
+  actions adjacent to their owning object or section;
+- no nested cards, no sparse page-wide bare-divider layout, no duplicated global
+  search, no text overlap, and no more than one primary action per page.
 
 Release and runtime currentness remain separate owner gates.
