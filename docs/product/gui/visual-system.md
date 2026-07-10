@@ -228,16 +228,17 @@ Composer 是底部唯一主 command surface：
 
 ## Settings
 
-Settings 采用安静、密集、可扫描的 Control Center 形态：
+Settings 采用 OPL 既有的卡片式 Control Center 基线：
 
 - 使用 full-window shell，提供明确 return、search 和 grouped rows。
 - Ordinary navigation 按当前 App-owned Settings IA 渲染；具体 route、label 和顺序从
   contracts/Control Plane 读取，不由 shell 自行扩展。
-- 左侧 section navigation 稳定，右侧内容使用 section、row、table/list 和 disclosure，
-  不把每项设置做成营销 card。
+- 左侧 section navigation 稳定；右侧每个有独立用户问题的 page section 使用一张
+  8px bounded card，内部继续使用 row、table/list 和 disclosure，不为每个字段或操作
+  再套一层 card。
 - 侧栏在任一时刻只显示一个选中项；兼容路由完成跳转后，选中态归属实际落地页。
-- Summary 或 repeated entity 可以使用一层 bounded group；禁止 nested group，也禁止用
-  贯穿全页的裸横线堆叠出空旷、低密度的页面。
+- 卡片用于清晰分组；禁止 nested group，也禁止用贯穿全页的裸横线堆叠出空旷、
+  低密度页面，或把同一个用户问题拆成营销式卡片墙。
 - 重复实体使用一组共享列头；逐行重复“名称 / 状态 / 来源 / 操作”等字段标签会降低
   扫描效率，不作为默认布局。
 - 主操作贴近其拥有的对象或 section；不把对象级动作抽离成远端页面工具栏动作。

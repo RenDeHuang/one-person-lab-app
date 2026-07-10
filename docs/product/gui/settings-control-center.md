@@ -21,7 +21,7 @@ These contracts own:
 - the single Settings search index;
 - each page's primary information, primary action, exception state, technical
   detail boundary, required DOM, anchors, and search entries;
-- the Codex App visual grammar for Settings.
+- the established OPL bounded-card visual grammar for Settings.
 
 They do not own runtime truth, provider implementation, domain truth, release
 readiness, installed App currentness, or owner acceptance.
@@ -96,14 +96,14 @@ contract and routes the user to the owning item.
 
 ## Visual Contract
 
-Settings uses a Codex App-style quiet workbench:
+Settings uses the established OPL card-based control-center baseline:
 
-- quiet, dense, and scannable is the default visual character;
-- summaries and repeated entities may use one bounded group layer;
+- each meaningful page section has one bounded card surface;
+- rows, controls, and disclosures stay flat inside the owning card;
 - no nested cards;
-- page sections are not floating cards;
-- a page-wide stack of bare horizontal dividers that creates sparse empty space
-  is forbidden;
+- cards remain in the normal document flow and do not become floating dashboard tiles;
+- a page-wide stack of bare horizontal dividers that creates sparse empty space,
+  and a decorative card wall that fragments one user question, are forbidden;
 - maximum border radius is 8 px;
 - spacing uses 12 / 16 / 24 px;
 - headings are compact;
@@ -120,6 +120,11 @@ Settings uses a Codex App-style quiet workbench:
 - when an inline confirmation is rendered away from the triggering control, it
   is scrolled into view and receives keyboard focus;
 - letter spacing is 0.
+
+`contracts/app-product-profile.json` and the active Shell generated product
+profile must project the same `visual_system.style` and `card_policy` values as
+`contracts/app-settings-control-plane.json`; a stale profile may not silently
+restore the superseded quiet-workbench style.
 
 The ordinary first screen must describe user impact and the next decision. Raw
 ids, raw statuses, command mappings, paths, payloads, and receipts belong in the
@@ -449,9 +454,9 @@ Shell acceptance requires:
 - resource `Open`, `Diagnose`, and mutating actions obey their execution and
   dry-run claim boundaries;
 - fresh desktop, narrow-screen, and dark-mode visual evidence;
-- exactly one selected sidebar item, one-layer bounded groups only for summaries
-  or repeated entities, shared repeated-entity column headers, and primary
-  actions adjacent to their owning object or section;
+- exactly one selected sidebar item, bounded page-section cards with flat
+  internal rows, shared repeated-entity column headers, and primary actions
+  adjacent to their owning object or section;
 - no nested cards, no sparse page-wide bare-divider layout, no duplicated global
   search, no text overlap, and no more than one primary action per page.
 

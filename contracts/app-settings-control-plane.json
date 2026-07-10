@@ -3,7 +3,7 @@
   "owner": "one-person-lab-app",
   "purpose": "app_owned_settings_control_plane",
   "state": "active",
-  "machine_boundary": "Hydrated Settings registry and Codex-style experience input for active shell adapters. This contract owns ordinary and secondary page routing, compatibility redirects, slots, bilingual item search, page DOM/anchor requirements, visual behavior, and state/action source classification. It does not own OPL runtime truth, provider implementation, domain truth, release readiness, or shell-local rendering details.",
+  "machine_boundary": "Hydrated Settings registry and OPL card-based control-center input for active shell adapters. This contract owns ordinary and secondary page routing, compatibility redirects, slots, bilingual item search, page DOM/anchor requirements, visual behavior, and state/action source classification. It does not own OPL runtime truth, provider implementation, domain truth, release readiness, or shell-local rendering details.",
   "source_contract_ref": "contracts/app-gui-product-contract.json#settings_navigation",
   "page_state_matrix_ref": "contracts/app-page-state-matrix.json#pages",
   "product_profile_projection_target": "settings.control_plane",
@@ -821,7 +821,7 @@
         "evidence_required": [
           "App contract names the Control Center",
           "page copy is user-task first",
-          "visual contract requires Codex App quiet-workbench behavior"
+          "visual contract requires bounded OPL page-section cards with flat internal rows"
         ]
       },
       {
@@ -1021,7 +1021,7 @@
       {
         "id": "visual_system",
         "track": "visual_qa",
-        "goal": "Settings uses Codex App quiet-workbench visuals with limited cards and stable spacing.",
+        "goal": "Settings uses the established OPL bounded-card baseline with flat internal rows and stable spacing.",
         "evidence_required": [
           "nested cards are forbidden",
           "radius is at most eight pixels",
@@ -1285,8 +1285,8 @@
     "source_contract_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia",
     "page_state_matrix_ref": "contracts/app-page-state-matrix.json#pages",
     "visual_system": {
-      "style": "codex_app_quiet_workbench",
-      "card_policy": "few_cards_only_for_summary_or_repeated_entities",
+      "style": "opl_baseline_card_control_center",
+      "card_policy": "bounded_page_section_cards_with_flat_internal_rows",
       "nested_cards_allowed": false,
       "page_sections_as_floating_cards_allowed": false,
       "max_border_radius_px": 8,

@@ -570,8 +570,8 @@ export const appOwnedSettingsSearchProtocol = {
   empty_state: "show_no_matching_settings_without_exposing_internal_route_ids",
 };
 export const appOwnedSettingsVisualSystem = {
-  style: "codex_app_quiet_workbench",
-  card_policy: "few_cards_only_for_summary_or_repeated_entities",
+  style: "opl_baseline_card_control_center",
+  card_policy: "bounded_page_section_cards_with_flat_internal_rows",
   nested_cards_allowed: false,
   page_sections_as_floating_cards_allowed: false,
   max_border_radius_px: 8,

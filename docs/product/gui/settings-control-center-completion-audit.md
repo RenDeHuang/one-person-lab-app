@@ -8,16 +8,22 @@ and focused contract tests
 
 ## Conclusion
 
-The App product-authority and Shell implementation slices are `done`. The
-contracts, Shell source, DOM tests, search behavior, anchors, redirects, action
-state machines, and visual evidence collector now describe and implement the
-confirmed Codex-style Settings experience.
+The App product-authority and Shell implementation slices recorded by this
+audit were `done` for the then-current decision. The Codex-style quiet visual
+direction was superseded on 2026-07-10 by an explicit owner decision to restore
+the established OPL card-based Settings baseline while retaining the page
+organization, state projection, and action semantics. This audit remains a
+historical implementation record, not current visual authority.
 
-Fresh screenshot pixels remain a separate blocked evidence item. In the current
-Codex sandbox, a locally re-signed Electron runtime still aborts in macOS
-`_RegisterApplication`, while the packaged build cannot download AionCore
-because external DNS is unavailable. The post-absorption App owner must run the
-declared screenshot command outside this sandbox.
+Integration must synchronize the App product profile and active Shell generated
+profile to `opl_baseline_card_control_center` and
+`bounded_page_section_cards_with_flat_internal_rows`. The restoration is not
+contract-complete while either projection still publishes the superseded
+quiet-workbench values.
+
+Fresh screenshot pixels were generated on the baseline-restoration Shell lane.
+They remain implementation evidence for that exact lane commit; the integration
+owner must rerun the declared screenshot command after semantic absorption.
 
 No runtime, installed-App, currentness, notarization, or release-ready claim is
 made by this audit.
@@ -31,7 +37,7 @@ made by this audit.
 | Compatibility redirects | done | 100% | Machine contract and Shell router implement `update -> environment#updates`, `theme -> appearance#themes`, `local-services -> environment#services` with `?section=` anchors | None |
 | About independence | done | 100% | `about` is absent from redirect maps and renders `AboutModalContent` at `/settings/about` | None |
 | Single global search contract | done | 100% | One `settings-search-input`, bilingual item indexing, `page > item` labels, Enter navigation, and anchor focus are covered by DOM and E2E source tests | Fresh pixel capture remains separate |
-| Codex-style visual contract | done | 100% | Shell CSS and component tests enforce the quiet workbench, compact hierarchy, radius, spacing, single primary action, muted normal state, responsive navigation, and collapsed details | Fresh screenshot comparison remains separate |
+| Codex-style visual contract | superseded | 0% current authority | The prior quiet-workbench CSS and contract were implemented and tested | Current authority is the OPL card-based Settings baseline in `settings-control-center.md` and `app-settings-control-plane.json` |
 | Per-page experience contracts | done | 100% | Ten page contracts are implemented with declared primary information, action, exception, technical details, DOM anchors, Access browser entry, AssistantSettings tab, and resource action lifecycle | None in source/DOM scope |
 | Prior UX audit incorporation | done | 100% | 概览、访问方式、工作区、智能体与能力、资源与连接、维护、数据与存储、偏好、高级、关于 requirements are present in Shell source and focused tests | None in source/DOM scope |
 | Page-state matrix | done | 100% | Product pages, redirect states, Preferences route, anchors, and action states are consumed by App validators and Shell tests | None |
@@ -39,8 +45,8 @@ made by this audit.
 | Focused and full tests | done | 100% | Shell `bun run test:full`: 248 files passed, 1 skipped; 1873 tests passed, 3 skipped. App release boundary: 158 passed, 2 platform skips | Re-run on absorbed main |
 | Product documentation | done | 100% | `settings-control-center.md` is the current route, search, visual, page, DOM, and evidence boundary | None in App authority scope |
 | Shell DOM and interaction implementation | done | 100% | Full node/DOM/integration suite, TypeScript, i18n, lint, format, and production Vite package build pass | Re-run on absorbed main |
-| Visual QA collector | done | 100% | E2E source covers desktop/narrow viewports, eight ordinary routes, Advanced/About, compatibility redirects, bilingual Enter search, action confirmation, anchor evidence, screenshots, and manifest output | None in collector implementation |
-| Fresh Shell screenshot pixels | blocked | 0% | Electron is locally re-signed and passes `codesign --verify`, but launch aborts in macOS `_RegisterApplication`; packaged build is blocked by sandbox DNS while fetching AionCore v0.1.44 | App owner runs the declared E2E command outside the Codex sandbox after absorption |
+| Visual QA collector | partial | 95% | E2E source covers desktop/narrow viewports, eight ordinary routes, Advanced/About, compatibility redirects, bilingual Enter search, anchor evidence, screenshots, and manifest output. State-changing confirmation remains covered by focused DOM tests. | The backend-independent visual fixture records action confirmation as an explicit coverage gap instead of claiming pixels it did not capture. |
+| Fresh Shell screenshot pixels | done | 100% | The baseline-restoration lane generated and reviewed 28 desktop/mobile route, redirect, and interaction-state screenshots plus the manifest. | Re-run on the absorbed integration commit before installation. |
 | Running-shell/runtime evidence | not_started | 0% | Contract and tests intentionally do not provide live runtime proof | Collect live readback only when runtime evidence is requested |
 | Installed App / release currentness | blocked | 0% | Separate release-owner gate required | Release owner supplies installed version, signing/notarization, artifact, and currentness evidence |
 
