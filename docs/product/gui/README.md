@@ -77,11 +77,10 @@ contract 的 lane 决定是否修改 machine truth、实现或目标。
 - 模型策略与当前默认值只读取 `contracts/app-product-profile.json`；本文档族不复制
   当前 model/reasoning 值或具体模型 allowlist。
 
-Active AionUI 通过上面的动态 state-source marker 读取默认状态，本快照解析为
-`collapsed`；`opl-native-workbench` candidate contract 则把 rail 记为 default visible。
-这是可收敛的目标/实现差异，不是两个产品目标，也不把当前值固化为永久规则。右侧
-inspector 在目标、active AionUI 和 native candidate 中均默认关闭。具体状态、允许
-偏差和验证入口只在
+Active AionUI 通过上面的动态 state-source marker 读取默认状态；
+`opl-native-workbench` candidate contract 则把 rail 记为 default visible。当前是否
+收敛由 validator readback 动态计算，不在本文复制 profile 值。右侧 inspector 的理想
+目标与 candidate 均为默认关闭。具体状态、允许偏差和验证入口只在
 [`shell-conformance-matrix.md`](shell-conformance-matrix.md) 维护。
 
 ## 变更流程

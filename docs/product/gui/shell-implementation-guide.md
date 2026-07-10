@@ -38,10 +38,10 @@ fork-local 产品逻辑。
    [`shell-conformance-matrix.md`](shell-conformance-matrix.md)。
 
 若现有 shell 行为与目标不同，先分类差异，不在 renderer 中偷偷建立新默认。当前
-Codex-based ideal target 是宽桌面 persistent project/conversation rail；README
-治理段声明的 active AionUI 动态 state source 在本快照解析为 `collapsed`，native
-candidate contract 记录 default visible。这是可收敛的 conformance gap，不是永久
-规则；应由产品 contract/实现收敛 lane 处理。右侧 inspector 在各方均默认关闭。
+Codex-based ideal target 是宽桌面 persistent project/conversation rail；active
+AionUI 读取动态 state source，native candidate contract 记录 ideal target。两者是否
+收敛由 validator readback 动态计算，不在人读实现指引复制当前 profile 值；应由产品
+contract/实现收敛 lane 处理。
 
 ## Thin Adapter 结构
 

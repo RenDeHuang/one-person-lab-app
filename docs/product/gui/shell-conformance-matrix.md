@@ -36,8 +36,8 @@ Carrier 角色和候选边界读取 active adapter、`contracts/app-shell-candid
 `contracts/shell-adapters/opl-native-workbench.json`。后者只描述实现/候选边界，不能
 覆盖上面的 App product authority。
 
-Active AionUI 默认状态通过 README 治理段声明的动态 state source 读取。本快照解析为
-`collapsed`；该值可随 owner contract 与实现收敛而变化。
+Active AionUI 默认状态通过 README 治理段声明的动态 state source 读取；当前值与
+理想目标的差异由 `validate:gui-design-system` readback 计算，不在本文复制。
 
 ## 验证入口
 
@@ -58,9 +58,9 @@ Active AionUI 默认状态通过 README 治理段声明的动态 state source �
 | --- | --- | --- | --- | --- |
 | App repo 拥有 GUI product truth | `aligned-contract`：active adapter 明确 shell 只是 implementation carrier。 | `candidate-target`：candidate adapter 同样禁止 authority transfer。 | `A1/A2`, `N1/N2` | 不允许 shell-local product truth。 |
 | Home 是 chat-first，不是 dashboard/landing | `aligned-contract` requirement；是否完成由 active validation 和 visual evidence 决定。 | `candidate-target`，明确 composer-first 与 single timeline。 | `A2`, `N3`, `V1` | 不允许普通 Home 回到 activity grid 或三列 workbench。 |
-| 宽桌面项目/对话 rail 默认可见 | `current-deviation`：动态 active state marker 在本快照解析为 `collapsed`。 | `aligned-contract` target：candidate contract 为 `workspace_session_rail_default_visible: true`。 | `A2`, `N1-N4`, `V1` | AionUI 的当前 collapsed 状态是可收敛的 implementation deviation，只可作为 transition 记录，不能写成永久规则、ideal 或 Codex visual parity 已对齐。 |
+| 宽桌面项目/对话 rail 默认可见 | 动态读取 active profile；当前 conformance 由 validator summary 报告。 | `aligned-contract` target：candidate contract 为 `workspace_session_rail_default_visible: true`。 | `A2`, `N1-N4`, `V1` | Active 当前值只能作为 transition readback，不能写成永久规则、ideal 或 Codex visual parity 已对齐。 |
 | 窄窗口 rail 可收起并以 drawer/overlay 打开 | `evidence-required`。 | `candidate-target`; visual proof required。 | `A2`, `N3/N4`, `V1` | 可因 viewport 收起；不能点击后仍是 hidden DOM 或 0 宽。 |
-| Right inspector 默认关闭 | `aligned-contract`：`collapsed`。 | `aligned-contract` candidate target：`inspector_default_visible: false`。 | `A1/A2`, `N1-N4`, `V1` | 无默认打开例外；用户请求后可按 viewport 变 drawer。 |
+| Right inspector 默认关闭 | 动态读取 active profile；当前 conformance 由 validator summary 报告。 | `aligned-contract` candidate target：`inspector_default_visible: false`。 | `A1/A2`, `N1-N4`, `V1` | 无 ideal/candidate 默认打开例外；用户请求后可按 viewport 变 drawer。 |
 | 主区保持单一 conversation timeline | `aligned-contract` requirement，视觉一致性仍需证据。 | `candidate-target` 的 explicit required surface。 | `A2`, `N3/N4`, `V1` | 不允许把 Runtime、Files、artifact board 常驻成并列主区。 |
 | Composer 是底部主 command surface | `aligned-contract` requirement。 | `candidate-target`，包含 model/reasoning controls。 | `A2`, `N3/N4`, `V1` | 允许 shell primitive 不同；不允许双层 composer、settings bar 或单行退化。 |
 | 模型与推理策略由 App profile 驱动 | `aligned-contract` requirement。 | `candidate-target`，visual parity contract 引用 product profile。 | `A1/A2`, `N2/N3` | 文档和 shell 都不得复制当前默认值或 allowlist。 |
@@ -82,14 +82,14 @@ Active AionUI 默认状态通过 README 治理段声明的动态 state source �
 Rail 是当前唯一被明确允许记录的目标/实现默认差异：
 
 - 理想交互与视觉层：宽桌面 persistent rail。
-- Active AionUI dynamic readback：本快照为 `collapsed`，可随 owner contract/实现收敛。
+- Active AionUI dynamic readback：从 owner profile 读取，不在本文复制当前值。
 - Native candidate contract：default visible。
 - Right inspector：三方均默认关闭。
 
-在 App contracts 被 owner lane 显式修改并通过 validators 前，active AionUI 的 machine
-读数仍按 `collapsed` 解释；但任何基础设计文档、视觉验收或新 candidate 不应把它
-当成理想目标。未来收敛时必须同步 product profile、GUI contract、page-state matrix、
-active-shell behavior、validators 和 visual evidence，不能只改本文。
+Active AionUI 的 machine 读数始终按 owner profile 解释；任何基础设计文档、视觉验收
+或新 candidate 不应把 active 当前值当成理想目标。未来收敛时必须同步 product
+profile、GUI contract、page-state matrix、active-shell behavior、validators 和 visual
+evidence，不能只改本文。
 
 ## 更新规则
 
