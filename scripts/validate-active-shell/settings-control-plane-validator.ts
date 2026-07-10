@@ -2,7 +2,10 @@ import { assertDeepEqualJson, assertIncludesAll } from './assertions.ts';
 import {
   appActionRoute,
   appOwnedSecondarySettingsPages,
+  appOwnedSettingsAccessBrowserEntry,
+  appOwnedSettingsCompatibilityRedirects,
   appOwnedSettingsCardFields,
+  appOwnedSettingsCapabilitiesTabContract,
   appOwnedSettingsConfirmationFields,
   appOwnedSettingsIaGroupIds,
   appOwnedSettingsIssueStatuses,
@@ -13,14 +16,22 @@ import {
   appOwnedSettingsProjectionItemFields,
   appOwnedSettingsProjectionSectionIds,
   appOwnedSettingsPostUpdateNoticeFields,
+  appOwnedSettingsPageExperienceFields,
+  appOwnedSettingsPageAnchors,
+  appOwnedSettingsPageSearchEntryIds,
+  appOwnedSettingsProductPageIds,
+  appOwnedSettingsResourceActionBehavior,
   appOwnedSettingsRouteScopes,
+  appOwnedSettingsSearchEntryFields,
   appOwnedSettingsSearchProtocol,
   appOwnedSettingsTabs,
   appOwnedSettingsTaskEntryMetadataFields,
   appOwnedSettingsTopLevelEntryIds,
+  appOwnedSettingsTopLevelLabels,
   appOwnedSettingsUpstreamIntakeClassifications,
   appOwnedSettingsTaskEntryIds,
   appOwnedSettingsVisualQaTargets,
+  appOwnedSettingsVisualSystem,
   legacySettingsRouteRedirects,
 } from './app-contract-constants.ts';
 import { validateSettingsCapabilitiesResourceGrouping } from './shared-contract-validators.ts';
@@ -34,7 +45,6 @@ const expectedLegacyRedirects = {
   ...legacySettingsRouteRedirects,
   'skills-hub': 'capabilities?tab=skills',
   tools: 'capabilities?tab=tools',
-  about: 'advanced',
 };
 
 const expectedAnchorRemap = Object.fromEntries(
@@ -83,15 +93,18 @@ const expectedVisualQaRoutes = [
 const expectedVisualQaSecondaryRoutes = [
   '/settings/advanced',
   '/settings/about',
-  '/settings/update',
-  '/settings/theme',
-  '/settings/local-services',
+];
+const expectedVisualQaCompatibilityRedirects = [
+  'update->environment#updates',
+  'theme->appearance#themes',
+  'local-services->environment#services',
 ];
 const expectedVisualQaStatusAnchors = [
+  'single_global_search',
   'diagnostics_collapsed_by_default',
-  'state_changing_action_confirmation',
-  'post_action_recovery_notice',
-  'legacy_redirect_landing',
+  'single_primary_action_max',
+  'exception_only_emphasis',
+  'legacy_or_compatibility_redirect_landing',
 ];
 const expectedVisualQaManifestFields = [
   'command',
@@ -152,6 +165,21 @@ export function validateSettingsControlPlane(controlPlane, guiContract, pageStat
     'Settings control plane ordinary route ids',
   );
   assertDeepEqualJson(
+    controlPlane.ordinary_routes?.map((route) => route.product_page_id),
+    appOwnedSettingsTopLevelEntryIds,
+    'Settings control plane ordinary product page ids',
+  );
+  assertDeepEqualJson(
+    Object.fromEntries(
+      (controlPlane.ordinary_routes ?? []).map((route) => [
+        route.product_page_id,
+        { label_zh: route.default_label_zh, label_en: route.default_label_en },
+      ]),
+    ),
+    appOwnedSettingsTopLevelLabels,
+    'Settings control plane top-level product labels',
+  );
+  assertDeepEqualJson(
     controlPlane.secondary_pages?.map((page) => page.id),
     appOwnedSecondarySettingsPages,
     'Settings control plane secondary page ids',
@@ -178,6 +206,14 @@ export function validateSettingsControlPlane(controlPlane, guiContract, pageStat
   assertDeepEqualJson(controlPlane.legacy_route_redirects, expectedLegacyRedirects, 'Settings control plane legacy redirects');
   assertDeepEqualJson(controlPlane.extension_anchor_remap, expectedAnchorRemap, 'Settings control plane extension anchor remap');
   assertDeepEqualJson(
+    controlPlane.compatibility_redirects,
+    appOwnedSettingsCompatibilityRedirects,
+    'Settings control plane compatibility redirects',
+  );
+  if (controlPlane.legacy_route_redirects?.about || controlPlane.extension_anchor_remap?.about) {
+    throw new Error('Settings About must remain an independent /settings/about page');
+  }
+  assertDeepEqualJson(
     Object.keys(controlPlane.slot_registry ?? {}),
     expectedSlotKeys,
     'Settings control plane slot registry keys',
@@ -187,6 +223,7 @@ export function validateSettingsControlPlane(controlPlane, guiContract, pageStat
   validateSettingsShellAdapterSlotContract(controlPlane);
   validateSettingsModelReasoningPolicy(controlPlane, guiContract, productProfile);
   validateSettingsProjection(controlPlane.settings_projection);
+  validateSettingsExperienceContract(controlPlane.experience_contract);
   validateSettingsPageAdapterPolicy(controlPlane);
   validateSettingsVisualQaPolicy(controlPlane);
   validateSettingsProductSystemChecklist(controlPlane);
@@ -216,7 +253,11 @@ export function validateSettingsControlPlane(controlPlane, guiContract, pageStat
   );
   validateCrossContractConsistency(controlPlane, guiContract, pageStateMatrix, productProfile);
   validateSettingsIa(guiContract?.settings_navigation?.settings_ia);
-  validateSettingsPageStateMatrix(pageStateMatrix);
+  validateSettingsPageStateMatrix(
+    pageStateMatrix,
+    controlPlane.experience_contract,
+    controlPlane.compatibility_redirects,
+  );
   validateProductProfileSettings(productProfile, controlPlane);
   validateSettingsShellAdapterSlot(adapterContract);
 }
@@ -266,6 +307,7 @@ function buildHydratedSettingsRegistry(controlPlane) {
         component_key: slot?.component_key ?? null,
       };
     }),
+    compatibility_redirects: controlPlane.compatibility_redirects ?? {},
     legacy_route_redirects: controlPlane.legacy_route_redirects ?? {},
     extension_anchor_remap: controlPlane.extension_anchor_remap ?? {},
   };
@@ -281,9 +323,29 @@ function resolveSettingsControlPlaneRoute(controlPlane, routeId) {
   if (secondaryRoute) {
     return settingsRouteResolution(routeId, secondaryRoute.id, secondaryRoute, 'secondary_or_deep_link');
   }
+  const compatibilityRedirect = registry.compatibility_redirects[routeId];
+  if (compatibilityRedirect) {
+    const targetRoute = registry.ordinary_routes.find(
+      (route) => route.id === compatibilityRedirect.target_route_id,
+    );
+    if (!targetRoute) {
+      throw new Error(
+        `Settings compatibility route ${routeId} redirects to unknown Settings route ${compatibilityRedirect.target_route_id}`,
+      );
+    }
+    return settingsRouteResolution(
+      routeId,
+      targetRoute.id,
+      targetRoute,
+      'compatibility_redirect',
+      compatibilityRedirect.anchor,
+      compatibilityRedirect.anchor_query_param,
+    );
+  }
   const redirectTarget = registry.legacy_route_redirects[routeId];
   if (redirectTarget) {
-    const [targetId, query] = String(redirectTarget).split('?');
+    const [targetWithQuery, anchor] = String(redirectTarget).split('#');
+    const [targetId, query] = targetWithQuery.split('?');
     const targetRoute =
       registry.ordinary_routes.find((route) => route.id === targetId) ??
       registry.secondary_pages.find((route) => route.id === targetId);
@@ -295,9 +357,11 @@ function resolveSettingsControlPlaneRoute(controlPlane, routeId) {
       targetRoute.id,
       {
         ...targetRoute,
-        path: query ? `${targetRoute.path}?${query}` : targetRoute.path,
+        path: buildSettingsRoutePath(targetRoute.path, query, anchor),
       },
       'legacy_redirect',
+      anchor ?? null,
+      anchor ? 'section' : null,
     );
   }
   return settingsRouteResolution(
@@ -306,6 +370,11 @@ function resolveSettingsControlPlaneRoute(controlPlane, routeId) {
     registry.secondary_pages.find((route) => route.id === 'advanced'),
     'unknown_redirect',
   );
+}
+
+function buildSettingsRoutePath(path, query, anchor) {
+  const parameters = [query, anchor ? `section=${encodeURIComponent(anchor)}` : null].filter(Boolean);
+  return parameters.length > 0 ? `${path}?${parameters.join('&')}` : path;
 }
 
 function remapSettingsExtensionAnchor(controlPlane, anchorId) {
@@ -337,10 +406,30 @@ function validateCrossContractConsistency(controlPlane, guiContract, pageStateMa
     'Settings control plane secondary pages vs GUI contract settings IA',
   );
   assertDeepEqualJson(
+    settingsNavigation?.compatibility_redirects,
+    controlPlane.compatibility_redirects,
+    'Settings control plane compatibility redirects vs GUI contract',
+  );
+  assertDeepEqualJson(
+    guiContract?.pages?.settings_access?.browser_access_entry,
+    controlPlane.experience_contract?.page_contracts?.access?.browser_access_entry,
+    'Settings Access browser entry vs GUI contract',
+  );
+  assertDeepEqualJson(
+    guiContract?.pages?.settings_capabilities?.codex_plugin_directory_target?.tab_contract,
+    controlPlane.experience_contract?.page_contracts?.capabilities?.tab_contract,
+    'Settings Agents & Capabilities tab contract vs GUI contract',
+  );
+  assertDeepEqualJson(
+    guiContract?.pages?.settings_resources?.action_behavior,
+    controlPlane.experience_contract?.page_contracts?.resources?.action_behavior,
+    'Settings Resources action behavior vs GUI contract',
+  );
+  assertDeepEqualJson(
     Object.fromEntries(
       Object.entries(controlPlane.legacy_route_redirects).filter(([id]) => id !== 'about').map(([id, target]) => [
         id,
-        String(target).split('?')[0],
+        id === 'assistants' ? target : String(target).split('?')[0],
       ]),
     ),
     settingsNavigation?.legacy_route_redirects,
@@ -363,12 +452,20 @@ function validateCrossContractConsistency(controlPlane, guiContract, pageStateMa
     'Product profile settings.control_plane ordinary route ids',
   );
   assertDeepEqualJson(
-    productProfile?.settings?.control_plane?.legacy_route_redirects,
-    controlPlane.legacy_route_redirects,
+    Object.fromEntries(
+      Object.entries(productProfile?.settings?.control_plane?.legacy_route_redirects ?? {})
+        .filter(([id]) => id !== 'about' && id !== 'assistants'),
+    ),
+    Object.fromEntries(
+      Object.entries(controlPlane.legacy_route_redirects).filter(([id]) => id !== 'assistants'),
+    ),
     'Product profile settings.control_plane legacy redirects',
   );
   assertDeepEqualJson(
-    productProfile?.settings?.control_plane?.extension_anchor_remap,
+    Object.fromEntries(
+      Object.entries(productProfile?.settings?.control_plane?.extension_anchor_remap ?? {})
+        .filter(([id]) => id !== 'about'),
+    ),
     controlPlane.extension_anchor_remap,
     'Product profile settings.control_plane extension anchors',
   );
@@ -412,6 +509,14 @@ function validateSettingsIa(settingsIa) {
     appOwnedSecondarySettingsPages,
     'Settings control plane secondary/deep-link route ids',
   );
+  assertDeepEqualJson(
+    settingsIa.compatibility_route_ids,
+    Object.keys(appOwnedSettingsCompatibilityRedirects),
+    'Settings control plane compatibility route ids',
+  );
+  if (settingsIa.experience_contract_ref !== 'contracts/app-settings-control-plane.json#experience_contract') {
+    throw new Error('Settings IA must reference the Settings experience contract');
+  }
   assertDeepEqualJson(settingsIa.group_ids, appOwnedSettingsIaGroupIds, 'Settings control plane IA group ids');
   if (settingsIa.route_identity_policy !== 'keep_current_shell_route_ids_distinct_from_user_facing_ia_groups') {
     throw new Error('Settings control plane must keep shell route ids distinct from user-facing IA groups');
@@ -447,6 +552,16 @@ function validateSettingsIa(settingsIa) {
       assertKnownSettingsRoute(routeId, `Settings control plane task entry ${entry.id} secondary route`);
     }
   }
+  const customAssistantEntry = (settingsIa.user_task_entries ?? []).find((entry) => entry.id === 'custom_assistant');
+  if (
+    customAssistantEntry?.route_id !== 'capabilities' ||
+    customAssistantEntry.tab_id !== 'assistants' ||
+    customAssistantEntry.anchor_id !== 'custom-assistants' ||
+    customAssistantEntry.component_key !== 'AssistantSettings' ||
+    customAssistantEntry.entry_policy !== 'open_assistant_creation_or_management_not_package_repair'
+  ) {
+    throw new Error('Settings custom assistant entry must mount AssistantSettings in the on-demand assistants tab');
+  }
   validateSettingsProtocols(settingsIa.protocols);
 }
 
@@ -456,10 +571,13 @@ function validateSettingsTopLevelEntries(entries, policy) {
     policy?.workspace_visibility !== 'workspace_is_user_visible_top_level_navigation_entry' ||
     policy?.resources_visibility !== 'resources_is_user_visible_top_level_navigation_entry' ||
     policy?.advanced_visibility !== 'advanced_is_secondary_or_deep_link_not_ordinary_navigation' ||
+    policy?.about_visibility !== 'about_is_independent_secondary_page' ||
+    policy?.compatibility_route_policy !==
+      'update_theme_and_local_services_redirect_to_owner_route_and_anchor' ||
     policy?.shell_route_compatibility !==
-      'workspace_route_is_ordinary_user_visible_top_level_navigation'
+      'carrier_route_ids_remain_stable_while_product_page_ids_are_canonical'
   ) {
-    throw new Error('Settings IA must declare Workspace and Resources as user-visible top-level entries and Advanced as secondary');
+    throw new Error('Settings IA must declare eight product pages, independent About, and compatibility anchor routes');
   }
   assertDeepEqualJson(
     (entries ?? []).map((entry) => entry.id),
@@ -482,6 +600,14 @@ function validateSettingsTopLevelEntries(entries, policy) {
   ) {
     throw new Error('Settings IA Resources must be ordinary top-level navigation');
   }
+  assertDeepEqualJson(
+    Object.fromEntries((entries ?? []).map((entry) => [entry.id, {
+      label_zh: entry.label_zh,
+      label_en: entry.label_en,
+    }])),
+    appOwnedSettingsTopLevelLabels,
+    'Settings IA top-level product labels',
+  );
   for (const entry of entries ?? []) {
     assertKnownSettingsRoute(entry.route_id, `Settings IA top-level entry ${entry.id}`);
     assertIncludesAll(
@@ -563,9 +689,12 @@ function validateSettingsProtocols(protocols) {
   if (
     protocols.deep_link_policy?.unknown_route_policy !== 'redirect_to_nearest_app_owned_settings_group' ||
     protocols.deep_link_policy?.legacy_route_policy !== 'redirect_using_settings_navigation.legacy_route_redirects' ||
-    protocols.deep_link_policy?.secondary_route_policy !== 'open_as_secondary_or_deep_link_without_ordinary_tab_promotion'
+    protocols.deep_link_policy?.secondary_route_policy !==
+      'open_advanced_or_about_without_ordinary_tab_promotion' ||
+    protocols.deep_link_policy?.compatibility_route_policy !==
+      'resolve_settings_navigation.compatibility_redirects_then_navigate_route_id_and_anchor'
   ) {
-    throw new Error('Settings control plane deep links must use App-owned redirect and secondary-route policy');
+    throw new Error('Settings control plane deep links must separate legacy, secondary, and compatibility routes');
   }
   assertDeepEqualJson(
     protocols.visual_qa_expectations?.required_targets,
@@ -574,7 +703,16 @@ function validateSettingsProtocols(protocols) {
   );
 }
 
-function validateSettingsPageStateMatrix(pageStateMatrix) {
+function validateSettingsPageStateMatrix(
+  pageStateMatrix,
+  experienceContract = null,
+  compatibilityRedirects = appOwnedSettingsCompatibilityRedirects,
+) {
+  assertDeepEqualJson(
+    pageStateMatrix?.settings_compatibility_redirects,
+    compatibilityRedirects,
+    'Page-state Settings compatibility redirects',
+  );
   for (const [pageId, expected] of Object.entries(matrixRouteScopes)) {
     const page = pageById(pageStateMatrix, pageId);
     if (page.settings_ia_ref !== settingsIaRef) {
@@ -588,6 +726,66 @@ function validateSettingsPageStateMatrix(pageStateMatrix) {
     }
     if (page.ia_group !== expectedIaGroupByMatrixPageId[pageId]) {
       throw new Error(`${pageId} ia_group must be ${expectedIaGroupByMatrixPageId[pageId]}`);
+    }
+  }
+  assertDeepEqualJson(
+    pageById(pageStateMatrix, 'update').compatibility_redirect,
+    compatibilityRedirects.update,
+    'Update compatibility redirect page state',
+  );
+  assertDeepEqualJson(
+    pageById(pageStateMatrix, 'settings_local_services').compatibility_redirect,
+    compatibilityRedirects['local-services'],
+    'Local Services compatibility redirect page state',
+  );
+  if (!experienceContract) return;
+  for (const [productPageId, contract] of Object.entries(experienceContract.page_contracts ?? {})) {
+    const page = pageById(pageStateMatrix, contract.matrix_page_id);
+    if (
+      page.product_page_id !== productPageId ||
+      page.experience_contract_ref !==
+        `contracts/app-settings-control-plane.json#experience_contract.page_contracts.${productPageId}` ||
+      page.primary_action_id !== contract.primary_action.id ||
+      page.technical_details_default !== 'collapsed' ||
+      page.exception_emphasis !== 'attention_only'
+    ) {
+      throw new Error(`Page-state ${contract.matrix_page_id} must mirror ${productPageId} experience semantics`);
+    }
+    assertDeepEqualJson(
+      page.required_dom,
+      contract.required_dom,
+      `Page-state ${productPageId} required DOM`,
+    );
+    assertDeepEqualJson(
+      page.required_anchors,
+      contract.required_anchors,
+      `Page-state ${productPageId} required anchors`,
+    );
+    assertDeepEqualJson(
+      page.search_entry_ids,
+      contract.search_entry_ids,
+      `Page-state ${productPageId} search entries`,
+    );
+    if (productPageId === 'access') {
+      assertDeepEqualJson(
+        page.browser_access_entry,
+        contract.browser_access_entry,
+        'Page-state Access browser entry',
+      );
+    }
+    if (productPageId === 'capabilities') {
+      assertDeepEqualJson(
+        page.codex_plugin_directory_target?.tab_contract,
+        contract.tab_contract,
+        'Page-state Agents & Capabilities tab contract',
+      );
+    }
+    if (productPageId === 'resources') {
+      assertDeepEqualJson(
+        page.action_behavior,
+        contract.action_behavior,
+        'Page-state Resources action behavior',
+      );
     }
   }
 }
@@ -637,6 +835,17 @@ function validateHydratedSettingsRegistry(controlPlane) {
       throw new Error(`Settings route ${routeId} must resolve as ordinary or secondary/deep-link`);
     }
   }
+  for (const [routeId, redirect] of Object.entries(appOwnedSettingsCompatibilityRedirects)) {
+    const resolution = resolveSettingsControlPlaneRoute(controlPlane, routeId);
+    if (
+      resolution.route_scope !== 'compatibility_redirect' ||
+      resolution.target_id !== redirect.target_route_id ||
+      resolution.anchor !== redirect.anchor ||
+      resolution.anchor_query_param !== 'section'
+    ) {
+      throw new Error(`Settings compatibility route ${routeId} must resolve to its owner route and anchor`);
+    }
+  }
   for (const legacyRoute of Object.keys(expectedLegacyRedirects)) {
     const redirectTarget = String(controlPlane.legacy_route_redirects[legacyRoute]).split('?')[0];
     const knownTargets = new Set([...appOwnedSettingsTabs, ...appOwnedSecondarySettingsPages]);
@@ -652,6 +861,15 @@ function validateHydratedSettingsRegistry(controlPlane) {
     if (!knownTargets.has(remapSettingsExtensionAnchor(controlPlane, legacyRoute))) {
       throw new Error(`Settings extension anchor ${legacyRoute} must remap to a known Settings route`);
     }
+  }
+  const assistantsResolution = resolveSettingsControlPlaneRoute(controlPlane, 'assistants');
+  if (
+    assistantsResolution.target_id !== 'capabilities' ||
+    assistantsResolution.path !== '/settings/capabilities?tab=assistants&section=custom-assistants' ||
+    assistantsResolution.anchor !== 'custom-assistants' ||
+    assistantsResolution.anchor_query_param !== 'section'
+  ) {
+    throw new Error('Settings legacy assistants route must open AssistantSettings at custom-assistants');
   }
 }
 
@@ -698,8 +916,8 @@ function validateSettingsModelReasoningPolicy(controlPlane, guiContract, product
   if (policy.default_reasoning_effort_ref !== 'contracts/app-product-profile.json#codex.default_reasoning_effort') {
     throw new Error('Settings default reasoning effort must be derived from the App product profile');
   }
-  if (policy.settings_surface !== 'settings_access.opl_gateway') {
-    throw new Error('Settings model/reasoning policy must surface through Settings Access OPL Gateway');
+  if (policy.settings_surface !== 'settings_access.model_access') {
+    throw new Error('Settings model/reasoning policy must surface through the Access model section');
   }
   if (policy.adapter_policy !== 'Aion/Hermes/shell render App-derived model and reasoning policy only') {
     throw new Error('Settings model/reasoning policy must keep shells as adapters only');
@@ -729,6 +947,192 @@ function validateSettingsModelReasoningPolicy(controlPlane, guiContract, product
   }
   if (!String(policy.release_evidence_policy ?? '').includes('does not prove release cohort')) {
     throw new Error('Settings model/reasoning policy must keep release/live evidence separate');
+  }
+}
+
+export function validateSettingsExperienceContract(experience) {
+  if (
+    experience?.schema !== 'settings_codex_style_experience.v1' ||
+    experience.owner !== 'one-person-lab-app' ||
+    experience.purpose !== 'machine_verifiable_settings_visual_search_page_and_dom_contract'
+  ) {
+    throw new Error('Settings experience contract must be active App-owned Codex-style behavior');
+  }
+  if (
+    experience.source_contract_ref !==
+      'contracts/app-gui-product-contract.json#settings_navigation.settings_ia' ||
+    experience.page_state_matrix_ref !== 'contracts/app-page-state-matrix.json#pages'
+  ) {
+    throw new Error('Settings experience contract must bind GUI authority and the page-state matrix');
+  }
+  assertDeepEqualJson(
+    experience.visual_system,
+    appOwnedSettingsVisualSystem,
+    'Settings experience visual system',
+  );
+
+  const search = experience.global_search;
+  if (
+    search?.global_entry_count !== 1 ||
+    search.entry_testid !== 'settings-search-input' ||
+    search.results_testid !== 'settings-search-results' ||
+    search.result_item_testid !== 'settings-search-result' ||
+    search.empty_state_testid !== 'settings-search-empty' ||
+    search.index_granularity !== 'item' ||
+    search.result_label_format !== '{page_label} > {entry_label}' ||
+    search.result_navigation !== 'route_id_plus_anchor' ||
+    search.anchor_query_param !== 'section' ||
+    search.hash_router_policy !==
+      'use_route_query_section_when_a_second_hash_fragment_is_not_supported' ||
+    search.compatibility_index_policy !==
+      'index_update_theme_and_local_services_under_their_owner_page_anchors'
+  ) {
+    throw new Error('Settings search must be one bilingual item-level route-and-anchor search');
+  }
+  assertDeepEqualJson(search.languages, ['zh-CN', 'en'], 'Settings search languages');
+  assertDeepEqualJson(
+    search.forbidden_duplicate_entry_testids,
+    ['settings-sider-search-input', 'settings-route-search'],
+    'Settings duplicate search entry testids',
+  );
+
+  const pageContracts = experience.page_contracts ?? {};
+  assertDeepEqualJson(
+    Object.keys(pageContracts),
+    appOwnedSettingsProductPageIds,
+    'Settings experience product page ids',
+  );
+  const routeByProductPage = new Map([
+    ...appOwnedSettingsTopLevelEntryIds.map((pageId, index) => [pageId, appOwnedSettingsTabs[index]]),
+    ...appOwnedSecondarySettingsPages.map((pageId) => [pageId, pageId]),
+  ]);
+  for (const [pageId, page] of Object.entries(pageContracts)) {
+    assertIncludesAll(
+      Object.keys(page),
+      appOwnedSettingsPageExperienceFields,
+      `Settings experience ${pageId} fields`,
+    );
+    if (
+      page.product_page_id !== pageId ||
+      page.route_id !== routeByProductPage.get(pageId) ||
+      typeof page.matrix_page_id !== 'string' ||
+      page.matrix_page_id.length === 0
+    ) {
+      throw new Error(`Settings experience ${pageId} must bind its product, route, and matrix ids`);
+    }
+    for (const field of ['label_zh', 'label_en', 'exception_state', 'technical_details_boundary']) {
+      if (typeof page[field] !== 'string' || page[field].trim() === '') {
+        throw new Error(`Settings experience ${pageId} must declare ${field}`);
+      }
+    }
+    if (appOwnedSettingsTopLevelLabels[pageId]) {
+      assertDeepEqualJson(
+        { label_zh: page.label_zh, label_en: page.label_en },
+        appOwnedSettingsTopLevelLabels[pageId],
+        `Settings experience ${pageId} product label`,
+      );
+    }
+    if (!Array.isArray(page.primary_information) || page.primary_information.length === 0) {
+      throw new Error(`Settings experience ${pageId} must declare primary information`);
+    }
+    if (
+      typeof page.primary_action?.id !== 'string' ||
+      typeof page.primary_action?.availability !== 'string' ||
+      page.primary_action.max_visible !== 1
+    ) {
+      throw new Error(`Settings experience ${pageId} must declare at most one primary action`);
+    }
+    if (
+      !Array.isArray(page.required_dom?.always) ||
+      !page.required_dom.always.includes(`settings-page-${pageId}`) ||
+      !page.required_dom.always.includes(`settings-${pageId}-primary`) ||
+      !page.required_dom.always.includes(`settings-${pageId}-technical-details`) ||
+      !Array.isArray(page.required_dom?.conditional)
+    ) {
+      throw new Error(`Settings experience ${pageId} must declare stable DOM testids`);
+    }
+    assertDeepEqualJson(
+      page.required_anchors,
+      appOwnedSettingsPageAnchors[pageId],
+      `Settings experience ${pageId} anchors`,
+    );
+    assertDeepEqualJson(
+      page.search_entry_ids,
+      appOwnedSettingsPageSearchEntryIds[pageId],
+      `Settings experience ${pageId} search entry ids`,
+    );
+  }
+  assertDeepEqualJson(
+    pageContracts.access.browser_access_entry,
+    appOwnedSettingsAccessBrowserEntry,
+    'Settings Access browser entry',
+  );
+  if (!pageContracts.access.required_dom.always.includes('settings-access-browser-access')) {
+    throw new Error('Settings Access must keep browser access to this computer in the required DOM');
+  }
+  assertDeepEqualJson(
+    pageContracts.capabilities.tab_contract,
+    appOwnedSettingsCapabilitiesTabContract,
+    'Settings Agents & Capabilities tab contract',
+  );
+  assertDeepEqualJson(
+    pageContracts.resources.action_behavior,
+    appOwnedSettingsResourceActionBehavior,
+    'Settings Resources action behavior',
+  );
+
+  if (experience.search_index?.schema !== 'settings_bilingual_item_search_index.v1') {
+    throw new Error('Settings search index must use settings_bilingual_item_search_index.v1');
+  }
+  const entries = experience.search_index?.entries ?? [];
+  const entryIds = new Set();
+  for (const entry of entries) {
+    assertIncludesAll(
+      Object.keys(entry),
+      appOwnedSettingsSearchEntryFields,
+      `Settings search entry ${entry?.id ?? '<missing id>'} fields`,
+    );
+    if (entryIds.has(entry.id)) {
+      throw new Error(`Settings search entry ${entry.id} must be unique`);
+    }
+    entryIds.add(entry.id);
+    const page = pageContracts[entry.page_id];
+    if (!page || !page.required_anchors.includes(entry.anchor)) {
+      throw new Error(`Settings search entry ${entry.id} must target a declared page anchor`);
+    }
+    if (
+      typeof entry.label_zh !== 'string' ||
+      entry.label_zh.trim() === '' ||
+      typeof entry.label_en !== 'string' ||
+      entry.label_en.trim() === '' ||
+      !Array.isArray(entry.keywords_zh) ||
+      entry.keywords_zh.length === 0 ||
+      !Array.isArray(entry.keywords_en) ||
+      entry.keywords_en.length === 0
+    ) {
+      throw new Error(`Settings search entry ${entry.id} must be indexed in Chinese and English`);
+    }
+  }
+  for (const [pageId, page] of Object.entries(pageContracts)) {
+    assertDeepEqualJson(
+      page.search_entry_ids,
+      entries.filter((entry) => entry.page_id === pageId).map((entry) => entry.id),
+      `Settings search entries for ${pageId}`,
+    );
+  }
+  for (const redirect of Object.values(appOwnedSettingsCompatibilityRedirects)) {
+    const targetPage = pageContracts[redirect.product_page_id];
+    if (!targetPage?.required_anchors.includes(redirect.anchor)) {
+      throw new Error(
+        `Settings compatibility route ${redirect.source_route_id} must target a declared owner-page anchor`,
+      );
+    }
+  }
+  if (
+    experience.live_evidence_boundary !==
+    'contract_matrix_validator_and_focused_tests_do_not_prove_running_shell_runtime_or_release_readiness'
+  ) {
+    throw new Error('Settings experience contract must preserve the live evidence boundary');
   }
 }
 
@@ -894,27 +1298,46 @@ function validateSettingsCapabilitiesDirectoryProjection(capabilitiesPage) {
 }
 
 function validateSettingsAccessCloudBoundary(accessPage) {
+  if (accessPage?.model_access_source !== 'app_state.core.codex.model_access_source') {
+    throw new Error('Settings Access must read the real Codex model_access_source');
+  }
+  assertDeepEqualJson(
+    accessPage.browser_access_entry,
+    appOwnedSettingsAccessBrowserEntry,
+    'Settings Access browser entry',
+  );
   const presentation = accessPage?.normal_state_presentation;
   if (!presentation || typeof presentation !== 'object') {
     throw new Error('Settings Access page adapter must declare normal_state_presentation');
   }
   assertDeepEqualJson(
     presentation.user_facing_groups,
-    ['model_access', 'local_runtime_ability', 'remote_access'],
+    ['model_access', 'local_browser_access'],
     'Settings Access normal-state groups',
   );
-  if (presentation.default_policy !== 'conclusion_and_necessary_action_first') {
-    throw new Error('Settings Access normal state must show conclusion and necessary action first');
+  assertDeepEqualJson(
+    presentation.supporting_details,
+    ['codex_cli'],
+    'Settings Access supporting details',
+  );
+  if (presentation.default_policy !== 'real_provider_source_browser_access_and_necessary_action_first') {
+    throw new Error('Settings Access must show the real model source, browser access, and necessary action first');
   }
-  if (presentation.details_policy !== 'internal_diagnostics_only_in_details_or_abnormal_state') {
+  if (
+    presentation.details_policy !==
+    'base_url_token_paths_cli_and_provider_internals_only_in_details_or_abnormal_state'
+  ) {
     throw new Error('Settings Access diagnostics must stay in details or abnormal states');
   }
   if (
     presentation.resources_route !== 'resources' ||
     presentation.resources_route_policy !==
-      'Docker WebUI, OPL Workspace, SSH/HPC, cloud, Fabric, and Console-managed refs live on the ordinary Resources & Connections route'
+      'Docker WebUI, OPL Workspace, SSH/HPC, cloud, Fabric, and Console-managed refs live on Resources & Connections' ||
+    presentation.local_browser_access_route !== 'access' ||
+    presentation.local_browser_access_policy !==
+      'preserve_local_browser_access_to_this_computer_without_exposing_shell_provenance'
   ) {
-    throw new Error('Settings Access must route resource and deployment refs to Settings Resources');
+    throw new Error('Settings Access must keep local browser access and route resource surfaces to Settings Resources');
   }
   assertIncludesAll(
     presentation.hidden_normal_state_terms,
@@ -931,8 +1354,11 @@ function validateSettingsAccessCloudBoundary(accessPage) {
     ['App', 'Workspace', 'Gateway', 'Fabric', 'Console'],
     'Settings Access cloud remote boundary terms',
   );
-  if (boundary.display_policy !== 'summarize_remote_access_without_advanced_deployment_refs; resource and deployment refs route to Settings Resources') {
-    throw new Error('Settings Access cloud remote boundary must route resource/deployment refs to Settings Resources');
+  if (
+    boundary.display_policy !==
+    'preserve local browser access to this computer on Access; resource and deployment refs route to Settings Resources'
+  ) {
+    throw new Error('Settings Access must preserve local browser access while routing resource refs to Settings Resources');
   }
   if (boundary.refs_only !== true) {
     throw new Error('Settings Access cloud remote boundary refs_only must be true');
@@ -957,6 +1383,11 @@ function validateSettingsVisualQaPolicy(controlPlane) {
     'Settings visual QA secondary routes',
   );
   assertDeepEqualJson(
+    policy.required_compatibility_redirects,
+    expectedVisualQaCompatibilityRedirects,
+    'Settings visual QA compatibility redirects',
+  );
+  assertDeepEqualJson(
     policy.required_status_anchors,
     expectedVisualQaStatusAnchors,
     'Settings visual QA status anchors',
@@ -972,9 +1403,11 @@ function validateSettingsVisualQaPolicy(controlPlane) {
   if (
     policy.evidence_manifest?.viewport_policy !== 'each required route is captured for desktop and mobile viewports' ||
     policy.evidence_manifest?.secondary_route_policy !==
-      'advanced, about, update, theme, and local-services are captured or explicitly marked route_unit_covered with no screenshot claim'
+      'advanced and about are captured as independent secondary pages' ||
+    policy.evidence_manifest?.compatibility_route_policy !==
+      'update, theme, and local-services are captured as redirect landing evidence on their owner route and anchor'
   ) {
-    throw new Error('Settings visual QA manifest must declare viewport and secondary route evidence policy');
+    throw new Error('Settings visual QA manifest must declare ordinary, secondary, and compatibility evidence policy');
   }
   if (!String(policy.evidence_command ?? '').includes('E2E_SCREENSHOTS=1')) {
     throw new Error('Settings visual QA policy must require screenshot evidence');
@@ -1034,7 +1467,7 @@ function validateSettingsProductSystemChecklist(controlPlane) {
     [
       'release_currentness_policy separates this item from Settings tests',
       'visual QA and contract validators list what they do not prove',
-      'release owner gate supplies any future installed/release evidence',
+      'release owner gate supplies any future installed or release evidence',
     ],
     'Settings release/currentness checklist evidence',
   );
@@ -1042,9 +1475,9 @@ function validateSettingsProductSystemChecklist(controlPlane) {
   assertIncludesAll(
     screenshotItem?.evidence_required,
     [
-      'visual_qa_policy declares required routes and anchors',
-      'manifest includes command, commit, viewport, route, screenshot_path, and status_anchors',
-      'visual QA does not claim release or currentness readiness',
+      'visual_qa_policy lists ordinary and secondary routes',
+      'compatibility redirects are captured as landing evidence',
+      'visual QA does not prove release or currentness readiness',
     ],
     'Settings screenshot QA checklist evidence',
   );
@@ -1183,7 +1616,11 @@ function validateSettingsShellAdapterSlot(adapterContract) {
 }
 
 function assertKnownSettingsRoute(routeId, label) {
-  const knownRouteIds = new Set([...appOwnedSettingsTabs, ...appOwnedSecondarySettingsPages]);
+  const knownRouteIds = new Set([
+    ...appOwnedSettingsTabs,
+    ...appOwnedSecondarySettingsPages,
+    ...Object.keys(appOwnedSettingsCompatibilityRedirects),
+  ]);
   if (!knownRouteIds.has(routeId)) {
     throw new Error(`${label} references unknown Settings route ${routeId}`);
   }
@@ -1197,7 +1634,7 @@ function pageById(matrix, id) {
   return page;
 }
 
-function settingsRouteResolution(input, targetId, route, routeScope) {
+function settingsRouteResolution(input, targetId, route, routeScope, anchor = null, anchorQueryParam = null) {
   return {
     input,
     id: input,
@@ -1206,5 +1643,7 @@ function settingsRouteResolution(input, targetId, route, routeScope) {
     route_scope: routeScope,
     slot_id: route?.slot_id ?? 'settings_advanced',
     component_key: route?.component_key ?? null,
+    anchor,
+    anchor_query_param: anchorQueryParam,
   };
 }

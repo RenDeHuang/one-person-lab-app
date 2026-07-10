@@ -1593,45 +1593,22 @@
       "id": "environment",
       "expected_source": "OPL App state projection",
       "must_show": [
-        "Codex CLI version and default profile from app_state.core",
-        "Temporal status from app_state.provider.temporal",
-        "MAS/MAG/RCA/OMA module version and source from app_state.modules",
-        "module path source explanation",
-        "Developer Profile source_channel capability and managed GHCR OCI OPL Packages rolling latest default",
-        "section-level refresh state",
-        "environment page named Local Environment, distinct from Project Progress",
-        "OPL Runtime Fabric managed updater status from App state or opl update status",
-        "OPL Packages status and post-update sync status",
-        "OPL Packages Codex Surface sync substatus",
-        "user-facing OPL Packages maintenance entry under Local Environment",
-        "OBF module maintenance status alongside MAS/MAG/RCA/OMA",
-        "MAS Scholar Skills module maintenance status alongside MAS/MAG/RCA/OMA/OBF",
-        "OPL Packages state, Codex Surface substatus, and recommended action",
-        "manual check/apply/repair/rollback mappings through opl update or App action routes",
-        "health summary for whether the local App foundation can run now",
-        "grouped Core, Runtime, Capabilities, and Maintenance sections",
-        "user-facing action language for checks, repairs, updates, and rollback",
-        "diagnostics collapsed by default with raw booleans, ids, paths, and receipts hidden",
-        "environment page placed under OPL Control Center Maintenance & Updates",
-        "Local Environment limited to service health rather than broad local runtime preferences",
-        "Maintenance hub for App updates, OPL Runtime Fabric, companion tools, OPL Packages, storage cleanup, and repair recommendations",
-        "storage cleanup entry routed to Storage & Data without making cleanup a raw diagnostic card",
-        "single recommended repair or maintenance action before advanced manual actions"
+        "health, updates, local services, and OPL Packages grouped by user impact",
+        "single recommended repair or maintenance action",
+        "module path source explanation in technical details",
+        "update status and service status in user language",
+        "update and local-service anchors owned by Maintenance"
       ],
       "machine_source": "opl app state --profile fast --json",
       "refresh_source": "opl app state --profile fast --json",
       "page_contract": "settings_environment",
       "sections": [
-        "health_summary",
-        "maintenance_hub",
-        "core.codex",
-        "provider.temporal",
-        "modules",
-        "module_maintenance",
-        "managed_update_plane",
-        "storage_cleanup_entry",
-        "repair_recommendations",
-        "diagnostics"
+        "health",
+        "updates",
+        "services",
+        "packages",
+        "recommended_action",
+        "technical_details"
       ],
       "state_sections": [
         "core.codex",
@@ -1644,23 +1621,11 @@
       "module_path_source_policy_ref": "contracts/app-gui-product-contract.json#module_path_source_policy",
       "must_not_show": [
         "Med Deep Scientist as a default module",
-        "page-wide spinner while one section refreshes",
-        "GUI-owned Temporal restart judgment",
-        "backend/provider selector as normal App configuration",
-        "raw OPL_MODULE_SOURCE_MODE as ordinary Settings UI",
-        "project progress as a settings runtime page",
-        "new Settings top-level tab for module maintenance",
-        "Developer Profile checkout as a silent update target",
-        "dirty checkout overwrite as a repair action",
-        "developer checkout/dirty checkout as a silent update target",
-        "module maintenance writing runtime/domain truth or update receipts directly",
-        "Homebrew/global tool silent upgrade controls",
-        "current project or in-progress task list as Maintenance & Updates content",
-        "raw booleans, ids, component ids, receipts, or payload details as ordinary first-screen Local Environment content",
-        "three equal maintenance buttons with shared ambiguous loading state",
-        "workspace directory as a buried Local Environment detail instead of an independent ordinary entry",
-        "appearance, language, startup, or tray preferences as Local Environment runtime health",
-        "update, repair, package maintenance, and storage cleanup scattered across unrelated pages without a Maintenance hub"
+        "raw action ids, component ids, raw statuses, command mappings, paths, or receipts on the main surface",
+        "three equal maintenance buttons with shared loading state",
+        "current project or in-progress task list",
+        "workspace, storage, or About navigation duplicated as maintenance cards",
+        "update or local-services rendered as independent product pages"
       ],
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
       "managed_update_plane_ref": "contracts/app-release-channel.json#managed_update_plane",
@@ -1677,7 +1642,14 @@
           "managed_update_plane.capability_packages",
           "managed_update_plane.codex_surface"
         ],
-        "required_modules": ["MAS", "MAG", "RCA", "OMA", "OBF", "MAS Scholar Skills"],
+        "required_modules": [
+          "MAS",
+          "MAG",
+          "RCA",
+          "OMA",
+          "OBF",
+          "MAS Scholar Skills"
+        ],
         "required_status": [
           "OPL Packages state and Codex Surface substatus",
           "recommended action",
@@ -1689,7 +1661,9 @@
           "refresh": "opl update status --json",
           "check": "opl update check --json",
           "apply_managed_component": "opl update apply --component <component_id> --json",
-          "apply_allowed_components": ["capability_packages"],
+          "apply_allowed_components": [
+            "capability_packages"
+          ],
           "apply_forbidden_components": [
             "installation_carrier",
             "runtime_substrate",
@@ -1714,76 +1688,104 @@
       "maintenance_action_policy_ref": "contracts/app-gui-product-contract.json#pages.settings_environment.maintenance_action_policy",
       "route_id": "environment",
       "route_scope": "ordinary",
-      "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia"
+      "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia",
+      "product_page_id": "maintenance",
+      "experience_contract_ref": "contracts/app-settings-control-plane.json#experience_contract.page_contracts.maintenance",
+      "required_dom": {
+        "always": [
+          "settings-page-maintenance",
+          "settings-maintenance-primary",
+          "settings-maintenance-technical-details"
+        ],
+        "conditional": [
+          {
+            "testid": "settings-maintenance-exception",
+            "when": "attention_required"
+          },
+          {
+            "testid": "settings-maintenance-primary-action",
+            "when": "attention_only"
+          }
+        ]
+      },
+      "required_anchors": [
+        "health",
+        "updates",
+        "services",
+        "packages"
+      ],
+      "search_entry_ids": [
+        "maintenance.health",
+        "maintenance.updates",
+        "maintenance.services",
+        "maintenance.packages"
+      ],
+      "primary_action_id": "run_recommended_maintenance",
+      "technical_details_default": "collapsed",
+      "exception_emphasis": "attention_only"
     },
     {
       "id": "settings_local_services",
-      "expected_source": "OPL App state core/provider projection and App-owned settings information architecture",
-      "machine_source": "opl app state --profile fast --json#app_state.core_and_provider",
-      "refresh_source": "opl app state --profile fast --json",
+      "expected_source": "App Settings compatibility redirect contract",
+      "machine_source": "contracts/app-settings-control-plane.json#compatibility_redirects.local-services",
+      "refresh_source": "not_applicable",
       "page_contract": "settings_local_services",
       "sections": [
-        "codex_service_health",
-        "temporal_service_health",
-        "native_helpers",
-        "service_repair_entry",
-        "diagnostics_disclosure"
+        "compatibility_redirect"
       ],
-      "state_sections": ["core.codex", "provider.temporal", "provider.native_helpers"],
+      "state_sections": [],
       "must_show": [
-        "Codex CLI health from app_state.core.codex",
-        "Temporal or local service health from app_state.provider.temporal",
-        "OPL System Bridge readiness when present in App state",
-        "single user-facing repair or refresh action before diagnostics",
-        "Local Services page reachable as a secondary deep link from Maintenance & Updates"
+        "compatibility redirect to Maintenance route environment and anchor services"
       ],
       "must_not_show": [
-        "updates, package maintenance, storage cleanup, or rollback controls as the primary Local Services task",
-        "workspace directory as a local service health detail",
-        "raw booleans, ids, paths, receipts, or command output before diagnostics disclosure"
+        "independent Local Services product page",
+        "Local Services ordinary or secondary navigation entry"
       ],
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
       "ia_group": "maintenance",
       "route_id": "local-services",
-      "route_scope": "secondary_or_deep_link",
-      "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia"
+      "route_scope": "compatibility_redirect",
+      "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia",
+      "compatibility_redirect": {
+        "source_route_id": "local-services",
+        "source_path": "/settings/local-services",
+        "target_route_id": "environment",
+        "target_path": "/settings/environment",
+        "product_page_id": "maintenance",
+        "anchor": "services",
+        "anchor_query_param": "section",
+        "navigation_encoding": "route_id_plus_anchor_field",
+        "shell_transport_hint": "hash_router_uses_query_param_section"
+      }
     },
     {
       "id": "storage",
       "expected_source": "active shell local data lifecycle service and App release lifecycle contract",
       "must_show": [
-        "storage inventory for updater cache, user data artifacts, OPL Runtime Fabric roots, and logs",
-        "path, exists, bytes, cleanup_mode, and silent_delete_allowed for each local data root",
-        "conversation archive/export receipt and restore proof before delete can execute",
-        "OPL Runtime Fabric pointer-prune dry-run plan before execute can remove unreferenced runtime roots",
-        "log rotation dry-run candidates by age, count, and size before execute can remove logs",
-        "updater cache cleanup scoped to stale installer packages only",
-        "safe cleanup language: preview, archive, restore proof, prune plan, or rotate logs",
-        "Storage placed under OPL Control Center Data & Storage",
-        "data lifecycle planes from OPL/MAS read-model refs",
-        "large body refs without artifact body access",
-        "small-file pressure refs without scanning workspace trees",
-        "runtime compact dry-run refs as preview-only lifecycle guidance",
-        "completed-project closeout refs from OPL/MAS projections",
-        "forbidden generic cleanup boundary"
+        "one merged storage category list with size, safety, and next action",
+        "user-facing cleanup preview before destructive action",
+        "plain-language archive, restore, and cleanup history",
+        "Storage placed under OPL Control Center Data & Storage"
       ],
       "machine_source": "active shell local data lifecycle service",
       "refresh_source": "Settings / Storage refresh inventory",
       "page_contract": "settings_storage",
-      "sections": ["updater_cache", "user_data_artifacts", "runtime_substrate", "logs"],
-      "state_sections": ["local_data_lifecycle"],
+      "sections": [
+        "storage_categories",
+        "cleanup_preview",
+        "cleanup_history",
+        "technical_details"
+      ],
+      "state_sections": [
+        "local_data_lifecycle"
+      ],
       "local_data_lifecycle_ref": "contracts/app-release-channel.json#local_data_lifecycle",
       "must_not_show": [
-        "silent user data artifact deletion",
-        "OPL Runtime Fabric cleanup without current or rollback pointer protection",
-        "log cleanup as proof that user artifacts were archived or deleted",
-        "Homebrew/global tool silent cleanup controls",
-        "domain artifact bodies",
-        "dangerous cleanup wording such as wipe, purge, nuke, or force delete as ordinary Storage copy",
-        "direct SQLite reads or writes",
-        "App-owned file deletion or cleanup execution authority",
-        "generic cleanup recommendations without owner refs and dry-run or closeout refs",
-        "App-owned data lifecycle authority"
+        "separate card wall for every lifecycle category",
+        "dry-run, plan, receipt_ref, lifecycle id, SQLite, or raw path as ordinary copy",
+        "silent user data deletion",
+        "generic cleanup without owner refs and preview or closeout evidence",
+        "App-owned runtime or domain data authority"
       ],
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
       "ia_group": "data_storage",
@@ -1838,181 +1840,137 @@
           "typed blockers",
           "filesystem deletes or cleanup execution"
         ]
-      }
+      },
+      "product_page_id": "storage",
+      "experience_contract_ref": "contracts/app-settings-control-plane.json#experience_contract.page_contracts.storage",
+      "required_dom": {
+        "always": [
+          "settings-page-storage",
+          "settings-storage-primary",
+          "settings-storage-technical-details"
+        ],
+        "conditional": [
+          {
+            "testid": "settings-storage-exception",
+            "when": "attention_required"
+          },
+          {
+            "testid": "settings-storage-primary-action",
+            "when": "reclaimable_items_available"
+          }
+        ]
+      },
+      "required_anchors": [
+        "storage-categories",
+        "cleanup-preview",
+        "cleanup-history"
+      ],
+      "search_entry_ids": [
+        "storage.categories",
+        "storage.preview",
+        "storage.history"
+      ],
+      "primary_action_id": "preview_cleanup",
+      "technical_details_default": "collapsed",
+      "exception_emphasis": "attention_only"
     },
     {
       "id": "about",
       "expected_source": "OPL App state projection",
       "must_show": [
         "One Person Lab App version",
-        "GUI shell version",
-        "OPL Framework revision",
         "Stable or Nightly channel",
-        "documentation, release notes, support, and maintenance links",
-        "Maintenance link that routes update and repair actions to Control Center Maintenance"
+        "update status",
+        "one Check for updates action",
+        "technical details collapsed by default"
       ],
       "machine_source": "opl app state --profile fast --json",
       "refresh_source": "opl app state --profile fast --json",
       "page_contract": "about",
-      "state_sections": ["release", "managed_update_plane"],
+      "state_sections": [
+        "release",
+        "managed_update_plane"
+      ],
       "must_not_show": [
-        "AionUI version as the App version",
-        "raw i18n keys",
-        "raw update error codes as user-facing copy",
-        "developer checkout as a silent update target",
-        "update, repair, rollback, package maintenance, or storage cleanup controls on About"
+        "about redirected to Advanced",
+        "GUI shell version or OPL Framework revision on the main surface",
+        "raw update error codes on the main surface",
+        "repair, rollback, package maintenance, or storage cleanup controls"
       ],
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
-      "sections": ["release", "links"],
+      "sections": [
+        "version",
+        "channel",
+        "updates",
+        "technical_details"
+      ],
       "ia_group": "advanced",
       "route_id": "about",
       "route_scope": "secondary_or_deep_link",
-      "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia"
+      "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia",
+      "product_page_id": "about",
+      "experience_contract_ref": "contracts/app-settings-control-plane.json#experience_contract.page_contracts.about",
+      "required_dom": {
+        "always": [
+          "settings-page-about",
+          "settings-about-primary",
+          "settings-about-technical-details",
+          "settings-about-primary-action"
+        ],
+        "conditional": [
+          {
+            "testid": "settings-about-exception",
+            "when": "attention_required"
+          }
+        ]
+      },
+      "required_anchors": [
+        "version",
+        "channel",
+        "updates"
+      ],
+      "search_entry_ids": [
+        "about.version",
+        "about.channel",
+        "about.updates"
+      ],
+      "primary_action_id": "check_updates",
+      "technical_details_default": "collapsed",
+      "exception_emphasis": "attention_only"
     },
     {
       "id": "update",
-      "expected_source": "OPL App managed update plane projection",
+      "expected_source": "App Settings compatibility redirect contract",
+      "machine_source": "contracts/app-settings-control-plane.json#compatibility_redirects.update",
+      "refresh_source": "not_applicable",
+      "page_contract": "update",
+      "sections": [
+        "compatibility_redirect"
+      ],
+      "state_sections": [],
       "must_show": [
-        "Installation carrier status",
-        "OPL Runtime Fabric status",
-        "Companion tools managed updater status",
-        "OPL Packages managed updater status",
-        "OPL Packages Codex Surface readiness and sync substatus",
-        "Workflow profile semantic merge status when profile changes are available",
-        "conditions and repair actions from App state or opl update status",
-        "user-facing OPL Packages maintenance entry under Local Environment",
-        "manual check/apply/repair/rollback action mapping for OPL Packages"
+        "compatibility redirect to Maintenance route environment and anchor updates"
       ],
       "must_not_show": [
-        "Full first-install asset as a standard updater target",
-        "Developer Profile checkout as a silent update target",
-        "dirty checkout overwrite as a repair action",
-        "developer checkout/dirty checkout as a silent update target",
-        "domain truth write controls",
-        "owner receipt mutation controls",
-        "quality/export verdict controls",
-        "Homebrew/global tool silent upgrade controls",
-        "artifact bodies"
+        "independent Update product page",
+        "Update ordinary or secondary navigation entry"
       ],
-      "machine_source": "opl app state --profile fast --json#managed_update_plane or opl update status --json",
-      "refresh_source": "opl app state --profile fast --json",
-      "page_contract": "updates_and_maintenance",
-      "state_sections": ["release", "managed_update_plane"],
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
-      "status_source": "opl update status --json",
-      "sections": [
-        "installation_carrier",
-        "runtime_substrate",
-        "companion_tools",
-        "opl_packages",
-        "workflow_profile"
-      ],
-      "managed_update_plane": {
-        "page_id": "updates_and_maintenance",
-        "label_en": "Updates & Maintenance",
-        "label_zh": "更新与维护",
-        "source_ref": "contracts/app-release-channel.json#managed_update_plane",
-        "state_sources": [
-          "opl app state --profile fast --json#managed_update_plane",
-          "opl update status --json"
-        ],
-        "action_source": "app_state.actions",
-        "action_route": "opl app action execute --action <action_id> [--payload <json>] [--dry-run] --json",
-        "display_planes": [
-          "installation_carrier",
-          "runtime_substrate",
-          "companion_tools",
-          "capability_packages",
-          "workflow_profile"
-        ],
-        "app_role": "status_conditions_repair_actions_consumer_only",
-        "framework_role": "managed_update_kernel_owner",
-        "status_consumption_policy": "show status, conditions, progress refs, and repair action refs without reading artifact bodies or writing runtime/domain truth",
-        "must_show": [
-          "Installation carrier status",
-          "OPL Runtime Fabric status",
-          "Companion tools managed updater status",
-          "OPL Packages managed updater status",
-          "OPL Packages Codex Surface readiness and sync substatus",
-          "Workflow profile semantic merge status when profile changes are available",
-          "conditions and repair actions from App state or opl update status",
-          "user-facing OPL Packages maintenance entry under Local Environment",
-          "manual check/apply/repair/rollback action mapping for OPL Packages"
-        ],
-        "must_not_show": [
-          "Full first-install asset as a standard updater target",
-          "Developer Profile checkout as a silent update target",
-          "dirty checkout overwrite as a repair action",
-          "developer checkout/dirty checkout as a silent update target",
-          "domain truth write controls",
-          "owner receipt mutation controls",
-          "quality/export verdict controls",
-          "Homebrew/global tool silent upgrade controls",
-          "artifact bodies"
-        ],
-        "background_scheduler": {
-          "triggers": [
-            "app_startup_after_core_ready",
-            "daily_background_maintenance",
-            "manual_check_updates"
-          ],
-          "lock_source": "managed_update.idempotency_lock.status",
-          "backoff_policy": "bounded_retry_with_last_failure_projection",
-          "user_blocking": false,
-          "must_project_last_run_and_next_run": true,
-          "auto_apply_policy": "auto_apply_capability_packages_only_when_clean_managed_and_latest_digest_changed",
-          "auto_apply_components": ["capability_packages"],
-          "never_auto_apply_components": [
-            "installation_carrier",
-            "runtime_substrate",
-            "companion_tools",
-            "workflow_profile"
-          ],
-          "must_project_recent_actions_and_skip_reasons": true
-        },
-        "ui_actions": {
-          "refresh": "opl update status --json",
-          "check": "opl update check --json",
-          "plan": "opl update plan --json",
-          "apply_managed_component": "opl update apply --component <component_id> --json",
-          "apply_allowed_components": [
-            "runtime_substrate",
-            "capability_packages",
-            "companion_tools"
-          ],
-          "apply_forbidden_components": [
-            "installation_carrier",
-            "codex_surface",
-            "workflow_profile"
-          ],
-          "carrier_host_update_route": "carrier-specific host update route from installation_carrier.carrier_variants; Docker/WebUI image replacement requires host executor or manual route plus data volume preservation proof; updating the OPL body inside Linux/Docker managed roots stays on runtime_substrate",
-          "repair_receipt": "opl update repair --receipt <receipt_id> --json",
-          "rollback_component": "opl update rollback --component <component_id> --json"
-        },
-        "ipc_bridge_required": [
-          "opl-runtime.get-managed-update-status",
-          "opl-runtime.get-managed-update-check",
-          "opl-runtime.get-managed-update-plan",
-          "opl-runtime.run-managed-update-apply",
-          "opl-runtime.run-managed-update-repair",
-          "opl-runtime.run-managed-update-rollback"
-        ]
-      },
-      "action_source": "managed component apply/repair/rollback through shell IPC; installation carrier updates through carrier-specific host route action refs",
-      "background_maintenance_status_fields": [
-        "last_run_at",
-        "next_run_at",
-        "last_failure",
-        "idempotency_lock.status",
-        "execution.status",
-        "recent_actions",
-        "skipped_reasons",
-        "reload_guidance"
-      ],
       "ia_group": "maintenance",
       "route_id": "update",
-      "route_scope": "secondary_or_deep_link",
-      "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia"
+      "route_scope": "compatibility_redirect",
+      "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia",
+      "compatibility_redirect": {
+        "source_route_id": "update",
+        "source_path": "/settings/update",
+        "target_route_id": "environment",
+        "target_path": "/settings/environment",
+        "product_page_id": "maintenance",
+        "anchor": "updates",
+        "anchor_query_param": "section",
+        "navigation_encoding": "route_id_plus_anchor_field",
+        "shell_transport_hint": "hash_router_uses_query_param_section"
+      }
     },
     {
       "id": "login",
@@ -2062,26 +2020,71 @@
     },
     {
       "id": "settings_theme",
-      "expected_source": "OPL App state projection",
+      "expected_source": "OPL App state user preferences projection",
       "must_show": [
-        "Default theme option",
-        "Codex theme option",
-        "current theme from app_state.settings.theme",
-        "theme choice as App product preference"
+        "reply waiting time in human units",
+        "tray and close-window behavior",
+        "hardware acceleration in user language",
+        "Default and Codex theme choices under the themes anchor",
+        "restart-required notice next to the affected setting when applicable"
       ],
       "must_not_show": [
+        "raw timeout milliseconds",
+        "Electron command-line flags",
         "AionUI theme as product authority",
-        "theme choice as runtime or domain readiness"
+        "maintenance, account, or About controls",
+        "theme as an independent product page"
       ],
       "machine_source": "opl app state --profile fast --json",
       "refresh_source": "opl app state --profile fast --json",
       "page_contract": "settings_theme",
-      "state_sections": ["theme"],
+      "state_sections": [
+        "settings",
+        "desktop_startup",
+        "theme"
+      ],
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
       "ia_group": "preferences",
-      "route_id": "theme",
-      "route_scope": "secondary_or_deep_link",
-      "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia"
+      "route_id": "appearance",
+      "route_scope": "ordinary",
+      "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia",
+      "sections": [
+        "behavior",
+        "tray",
+        "hardware",
+        "themes",
+        "technical_details"
+      ],
+      "product_page_id": "preferences",
+      "experience_contract_ref": "contracts/app-settings-control-plane.json#experience_contract.page_contracts.preferences",
+      "required_dom": {
+        "always": [
+          "settings-page-preferences",
+          "settings-preferences-primary",
+          "settings-preferences-technical-details"
+        ],
+        "conditional": [
+          {
+            "testid": "settings-preferences-exception",
+            "when": "attention_required"
+          }
+        ]
+      },
+      "required_anchors": [
+        "behavior",
+        "tray",
+        "hardware",
+        "themes"
+      ],
+      "search_entry_ids": [
+        "preferences.behavior",
+        "preferences.tray",
+        "preferences.hardware",
+        "preferences.themes"
+      ],
+      "primary_action_id": "none",
+      "technical_details_default": "collapsed",
+      "exception_emphasis": "attention_only"
     },
     {
       "id": "first_launch_readiness",
@@ -2301,35 +2304,62 @@
       "refresh_source": "opl app state --profile fast --json",
       "page_contract": "settings_general",
       "sections": [
-        "control_center_summary",
-        "workspace",
-        "task_entry_hub",
-        "workspace_entry",
-        "startup",
-        "tray",
-        "language"
+        "status_summary",
+        "next_action",
+        "technical_details"
       ],
-      "state_sections": ["paths", "settings", "desktop_startup"],
+      "state_sections": [
+        "paths",
+        "settings",
+        "desktop_startup"
+      ],
       "must_show": [
-        "workspace root from app_state.paths",
-        "startup and tray preferences as App product preferences",
-        "language preference",
-        "Control Center Overview positioning",
-        "workspace as an independent ordinary entry",
-        "short links to Access, Capabilities, Maintenance & Updates, Data & Storage, Preferences, Advanced, and Project Progress",
-        "task entry hub for Workspace, OPL Gateway, Maintenance, Capabilities, and Remote Access",
-        "workspace path, open/change/verify actions, and permission status as ordinary user-facing content"
+        "overall usability and attention count",
+        "one next useful action",
+        "Overview without duplicated sidebar navigation or page-directory cards",
+        "normal state visually muted and attention state emphasized"
       ],
       "must_not_show": [
-        "raw OPL internal state files",
-        "provider implementation internals as ordinary General settings",
-        "workspace buried only under Advanced diagnostics or raw paths"
+        "sidebar route list copied into the page body",
+        "one card per Settings page",
+        "workspace, access, capability, and maintenance navigation duplicated as a dashboard wall",
+        "raw OPL internal state files"
       ],
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
       "ia_group": "overview",
       "route_id": "general",
       "route_scope": "ordinary",
-      "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia"
+      "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia",
+      "product_page_id": "overview",
+      "experience_contract_ref": "contracts/app-settings-control-plane.json#experience_contract.page_contracts.overview",
+      "required_dom": {
+        "always": [
+          "settings-page-overview",
+          "settings-overview-primary",
+          "settings-overview-technical-details"
+        ],
+        "conditional": [
+          {
+            "testid": "settings-overview-exception",
+            "when": "attention_required"
+          },
+          {
+            "testid": "settings-overview-primary-action",
+            "when": "attention_only"
+          }
+        ]
+      },
+      "required_anchors": [
+        "status",
+        "next-action"
+      ],
+      "search_entry_ids": [
+        "overview.status",
+        "overview.next_action"
+      ],
+      "primary_action_id": "open_first_attention_item",
+      "technical_details_default": "collapsed",
+      "exception_emphasis": "attention_only"
     },
     {
       "id": "settings_workspace",
@@ -2338,29 +2368,58 @@
       "refresh_source": "opl app state --profile fast --json",
       "page_contract": "settings_workspace",
       "sections": [
-        "workspace_root",
-        "workspace_actions",
-        "workspace_permissions",
-        "workspace_diagnostics_disclosure"
+        "workspace_summary",
+        "workspace_action",
+        "technical_details"
       ],
-      "state_sections": ["paths", "developer_profile.workspace_trust"],
+      "state_sections": [
+        "paths",
+        "developer_profile.workspace_trust"
+      ],
       "must_show": [
-        "workspace root from app_state.paths",
-        "open workspace action",
-        "change or verify workspace action through App action route when available",
-        "permission or trust status in user-facing language",
-        "workspace page reachable as a top-level Settings entry and from Overview task links"
+        "current workspace identity, path, and writability merged into one normal-state summary",
+        "permission or trust explanation only when attention is required",
+        "one change workspace action",
+        "workspace page reachable as a top-level Settings entry"
       ],
       "must_not_show": [
-        "workspace buried only inside Local Environment or Advanced diagnostics",
-        "raw path JSON or provider implementation details as the primary page language",
-        "workspace changes without confirmation when mutation is required"
+        "separate normal-state cards for path, writability, trust, and permission",
+        "workspace buried inside Maintenance or Advanced",
+        "raw path JSON as primary page language",
+        "workspace changes without confirmation"
       ],
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
       "ia_group": "overview",
       "route_id": "workspace",
       "route_scope": "ordinary",
-      "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia"
+      "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia",
+      "product_page_id": "workspace",
+      "experience_contract_ref": "contracts/app-settings-control-plane.json#experience_contract.page_contracts.workspace",
+      "required_dom": {
+        "always": [
+          "settings-page-workspace",
+          "settings-workspace-primary",
+          "settings-workspace-technical-details",
+          "settings-workspace-primary-action"
+        ],
+        "conditional": [
+          {
+            "testid": "settings-workspace-exception",
+            "when": "attention_required"
+          }
+        ]
+      },
+      "required_anchors": [
+        "current-workspace",
+        "permissions"
+      ],
+      "search_entry_ids": [
+        "workspace.current",
+        "workspace.permissions"
+      ],
+      "primary_action_id": "change_workspace",
+      "technical_details_default": "collapsed",
+      "exception_emphasis": "attention_only"
     },
     {
       "id": "access",
@@ -2368,38 +2427,84 @@
       "machine_source": "opl app state --profile fast --json",
       "refresh_source": "opl app state --profile fast --json",
       "page_contract": "settings_access",
-      "sections": ["model_access", "codex_cli", "remote_access"],
-      "state_sections": ["core.codex", "provider", "access"],
+      "sections": [
+        "model_access_summary",
+        "provider_source",
+        "model",
+        "authentication",
+        "local_browser_access",
+        "technical_details"
+      ],
+      "state_sections": [
+        "core.codex.model_access_ready",
+        "core.codex.model_access_source",
+        "core.codex.model",
+        "access.api_key_present"
+      ],
       "must_show": [
-        "whether Codex CLI can run now",
-        "whether configured provider access can work now",
-        "API key and base URL controls behind advanced disclosure",
-        "section-level refresh state",
-        "Access placed under OPL Control Center Access",
-        "three first-screen Access groups: OPL Gateway, Codex CLI, and local remote access",
-        "Resources & Connections deep link for Docker WebUI, OPL Workspace, cloud, hosted, SSH/HPC, Fabric, and Console-managed refs",
-        "normal state shows conclusion and necessary action before diagnostics",
-        "OPL Gateway group with configured model access, default model, reasoning, and provider policy refs behind configuration disclosure",
-        "Codex CLI group with installed version and default model read from Codex configuration",
-        "Local remote access group for browser access to this computer, including port, account, password, and local network reachability controls"
+        "page label Access or 访问方式",
+        "model access readiness",
+        "real access source from app_state.core.codex.model_access_source",
+        "selected model and authentication state",
+        "browser access to this computer as a visible user entry",
+        "one configure model access action when missing or explicitly requested"
       ],
       "must_not_show": [
-        "raw base URL and token paths as first-screen content",
-        "backend selector as ordinary App configuration",
-        "WebUI as the primary access mental model",
-        "backend/provider raw selector as the Access primary control",
-        "Console billing or managed-cloud entitlement as an App-owned decision",
-        "Cloud service availability as release-ready or runtime-ready proof",
-        "repeated OPL Gateway summary lines in normal state",
-        "raw action_available, diagnose_with_doctor, available, or CLI dry-run commands in normal state",
-        "Docker WebUI, OPL Workspace, cloud, hosted, SSH/HPC, Fabric, or Console-managed refs as Access first-screen cards",
-        "provider/runtime internals outside details disclosure or abnormal state"
+        "OPL Gateway as a hard-coded provider source",
+        "Docker WebUI, OPL Workspace, SSH/HPC, cloud, Fabric, or Console-managed resource cards as Access content",
+        "raw base URL, environment variable, token path, or provider id before technical-details disclosure",
+        "backend/provider raw selector as the primary control",
+        "repeated access summary lines in normal state",
+        "browser access removed because model access is the primary status"
       ],
+      "browser_access_entry": {
+        "label_zh": "这台电脑的浏览器访问",
+        "label_en": "Browser access to this computer",
+        "placement": "access_primary_information",
+        "visibility": "always",
+        "action_policy": "open_existing_local_browser_access_settings",
+        "implementation_provenance_visibility": "technical_details_only",
+        "resources_boundary": "Docker WebUI, OPL Workspace, SSH/HPC, cloud, Fabric, and Console-managed refs stay on Resources & Connections"
+      },
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
       "ia_group": "setup_access",
       "route_id": "access",
       "route_scope": "ordinary",
-      "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia"
+      "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia",
+      "product_page_id": "access",
+      "experience_contract_ref": "contracts/app-settings-control-plane.json#experience_contract.page_contracts.access",
+      "required_dom": {
+        "always": [
+          "settings-page-access",
+          "settings-access-primary",
+          "settings-access-browser-access",
+          "settings-access-technical-details"
+        ],
+        "conditional": [
+          {
+            "testid": "settings-access-exception",
+            "when": "attention_required"
+          },
+          {
+            "testid": "settings-access-primary-action",
+            "when": "missing_or_user_requested_change"
+          }
+        ]
+      },
+      "required_anchors": [
+        "provider-source",
+        "model",
+        "authentication"
+      ],
+      "search_entry_ids": [
+        "access.provider_source",
+        "access.model",
+        "access.authentication"
+      ],
+      "primary_action_id": "configure_model_access",
+      "technical_details_default": "collapsed",
+      "exception_emphasis": "attention_only",
+      "provider_source": "app_state.core.codex.model_access_source"
     },
     {
       "id": "settings_resources",
@@ -2407,7 +2512,12 @@
       "machine_source": "opl app state --profile fast --json#settings_control_center.app_settings_read_model.resource_sources + docker_webui",
       "refresh_source": "opl app state --profile fast --json",
       "page_contract": "settings_resources",
-      "sections": ["docker_webui_actions", "resource_sources", "managed_resource_refs"],
+      "sections": [
+        "resource_readiness",
+        "action_readiness",
+        "external_resources",
+        "technical_details"
+      ],
       "state_sections": [
         "settings_control_center.app_settings_read_model.docker_webui",
         "settings_control_center.app_settings_read_model.resource_sources",
@@ -2416,22 +2526,87 @@
         "core.codex"
       ],
       "must_show": [
-        "Docker WebUI and OPL Workspace deployment actions as resources, not normal Access setup",
-        "cloud, hosted, SSH/HPC, Fabric, and Console-managed resource refs when provided by App state",
-        "self-managed versus Console-managed resource context",
-        "dry-run or input-required action boundary before deployment changes"
+        "resource readiness and action executability as separate states",
+        "owner or management mode",
+        "Docker WebUI, OPL Workspace, SSH/HPC, cloud, Fabric, and Console-managed refs when projected",
+        "one available action only when the related operation is executable",
+        "read-only Open navigates the shell to the projected browser_url",
+        "read-only Diagnose executes the projected diagnose action and renders its result",
+        "mutating resource actions use precheck, explicit confirmation, execution, and result or receipt"
       ],
       "must_not_show": [
+        "selected local workspace path, change-workspace controls, or permission summary duplicated from Workspace",
+        "resource readiness used as proof that an operation is executable",
         "resource availability as release-ready or runtime-ready proof",
-        "Console billing, quota, or permission refs unless Framework projection provides them",
-        "Docker WebUI or OPL Workspace as the primary Access mental model",
-        "state-changing resource deployment without App action route or confirmation boundary"
+        "raw connector, quota, billing, credential, or deployment payloads before technical-details disclosure",
+        "dry-run success presented as resource opened, diagnosis completed, deployment completed, or mutation completed"
       ],
+      "action_behavior": {
+        "read_only_actions": {
+          "open": {
+            "execution_policy": "navigate_shell_to_projected_browser_url",
+            "required_projection_field": "browser_url",
+            "completion_evidence": "shell_navigation_dispatched_to_exact_browser_url"
+          },
+          "diagnose": {
+            "execution_policy": "invoke_projected_diagnose_action_and_render_result",
+            "completion_evidence": "diagnose_result_or_action_receipt_visible"
+          }
+        },
+        "mutating_actions": {
+          "precheck_required": true,
+          "explicit_confirmation_required": true,
+          "execution_policy": "execute_projected_mutation_only_after_successful_precheck_and_explicit_confirmation",
+          "completion_evidence": "mutation_result_or_action_receipt_visible"
+        },
+        "dry_run_boundary": {
+          "role": "precheck_only",
+          "allowed_claim": "precheck_passed",
+          "forbidden_completion_claims": [
+            "resource_opened",
+            "diagnosis_completed_without_diagnose_execution",
+            "deployment_completed",
+            "mutation_completed"
+          ]
+        }
+      },
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
       "ia_group": "resources",
       "route_id": "resources",
       "route_scope": "ordinary",
-      "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia"
+      "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia",
+      "product_page_id": "resources",
+      "experience_contract_ref": "contracts/app-settings-control-plane.json#experience_contract.page_contracts.resources",
+      "required_dom": {
+        "always": [
+          "settings-page-resources",
+          "settings-resources-primary",
+          "settings-resources-technical-details"
+        ],
+        "conditional": [
+          {
+            "testid": "settings-resources-exception",
+            "when": "attention_required"
+          },
+          {
+            "testid": "settings-resources-primary-action",
+            "when": "executable_action_available"
+          }
+        ]
+      },
+      "required_anchors": [
+        "resource-readiness",
+        "action-readiness",
+        "external-resources"
+      ],
+      "search_entry_ids": [
+        "resources.readiness",
+        "resources.executable",
+        "resources.external"
+      ],
+      "primary_action_id": "open_selected_resource_action",
+      "technical_details_default": "collapsed",
+      "exception_emphasis": "attention_only"
     },
     {
       "id": "capabilities",
@@ -2440,14 +2615,12 @@
       "refresh_source": "opl app state --profile fast --json",
       "page_contract": "settings_capabilities",
       "sections": [
-        "package_directory",
-        "home_shortcut_management",
-        "package_details_panel",
-        "capability_status",
-        "skills_supporting_surface",
-        "tools_supporting_surface",
-        "external_tools_voice",
-        "custom_assistants"
+        "availability",
+        "source",
+        "home_visibility",
+        "custom_assistants",
+        "package_details",
+        "technical_details"
       ],
       "state_sections": [
         "agent_packages.directory",
@@ -2484,6 +2657,29 @@
       "codex_plugin_directory_target": {
         "target_label_zh": "智能体与能力",
         "target_label_en": "Agents & Capabilities",
+        "tab_contract": {
+          "surface_label_zh": "智能体与能力",
+          "surface_label_en": "Agents & Capabilities",
+          "tab_order": [
+            "skills",
+            "tools",
+            "assistants"
+          ],
+          "default_tab": "skills",
+          "on_demand_tab_ids": [
+            "assistants"
+          ],
+          "assistants": {
+            "tab_id": "assistants",
+            "position": 3,
+            "component_key": "AssistantSettings",
+            "anchor": "custom-assistants",
+            "legacy_route_id": "assistants",
+            "legacy_target": "capabilities?tab=assistants#custom-assistants",
+            "hash_router_target_path": "/settings/capabilities?tab=assistants&section=custom-assistants",
+            "top_level_or_secondary_page_allowed": false
+          }
+        },
         "mental_model": "codex_app_plugin_manager_compact_package_directory",
         "primary_layout": "compact_package_table_or_list_with_right_details_panel",
         "top_controls": [
@@ -2517,19 +2713,36 @@
       "builtin_skill_catalog_policy": {
         "source": "active shell builtin skill catalog filtered by App product profile packaged skills",
         "allowed_set_ref": "contracts/app-product-profile.json#companion_payloads.default_packaged_codex_skill_ids + packaged_not_default_visible_codex_skill_ids",
-        "forbidden_examples": ["aionui-skills", "aionui-webui-setup", "skill-creator"]
+        "forbidden_examples": [
+          "aionui-skills",
+          "aionui-webui-setup",
+          "skill-creator"
+        ]
       },
       "auto_injected_skills_policy": {
         "source": "active shell builtin-auto list filtered by App product profile packaged skills",
         "allowed_set_ref": "contracts/app-product-profile.json#companion_payloads.default_packaged_codex_skill_ids",
-        "forbidden_examples": ["aionui-skills", "aionui-webui-setup", "skill-creator"]
+        "forbidden_examples": [
+          "aionui-skills",
+          "aionui-webui-setup",
+          "skill-creator"
+        ]
       },
       "package_directory_policy": {
         "surface": "installed_package_directory",
-        "package_identity_fields": ["package_id", "display_name", "package_short_name"],
+        "package_identity_fields": [
+          "package_id",
+          "display_name",
+          "package_short_name"
+        ],
         "purpose_role": "secondary_tag_filter_only",
         "home_shortcut_integration": "inline_visibility_and_order_controls_on_package_rows",
-        "supporting_surfaces": ["skills", "tools", "external_tools_voice", "custom_assistants"]
+        "supporting_surfaces": [
+          "skills",
+          "tools",
+          "external_tools_voice",
+          "custom_assistants"
+        ]
       },
       "current_runtime_projection_boundary": {
         "canonical_projection": "opl app state --profile fast --json#app_state.agent_packages.directory + app_state.agent_packages.status_index",
@@ -2550,7 +2763,10 @@
         "primary_state_surface": "app_state.agent_packages.directory + app_state.agent_packages.status_index",
         "fallback_state_surface": "app_state.modules.items[]",
         "fallback_policy": "modules.items fallback is compatibility-only for older or partial payloads and cannot claim package currentness, execution readiness, or mutation authority",
-        "shell_consumers": ["aionui", "opl_native_workbench"],
+        "shell_consumers": [
+          "aionui",
+          "opl_native_workbench"
+        ],
         "action_ref_source": "app_state.actions",
         "action_route": "opl app action execute --action <action_id> [--payload <json>] [--dry-run] --json",
         "field_behavior_checklist": [
@@ -2569,7 +2785,14 @@
             "status_filter",
             "manifest_url_install"
           ],
-          "filters": ["status", "source", "trust", "codex_surface", "home_visibility", "purpose_tag"],
+          "filters": [
+            "status",
+            "source",
+            "trust",
+            "codex_surface",
+            "home_visibility",
+            "purpose_tag"
+          ],
           "row_actions": [
             "hide",
             "unhide",
@@ -2599,7 +2822,12 @@
         "receipt_physical_surface_detail_policy": {
           "surface": "details_panel_or_advanced_diagnostics",
           "default_primary_row_visible": false,
-          "receipt_fields": ["receipt_refs", "package_lock_ref", "action_receipt_ref", "rollback_ref"],
+          "receipt_fields": [
+            "receipt_refs",
+            "package_lock_ref",
+            "action_receipt_ref",
+            "rollback_ref"
+          ],
           "physical_surface_fields": [
             "status",
             "plugin_id",
@@ -2613,8 +2841,18 @@
           ]
         },
         "consistent_action_interaction": {
-          "exposure_actions": ["hide", "unhide", "disable", "enable"],
-          "lifecycle_actions": ["install", "update", "repair", "uninstall"],
+          "exposure_actions": [
+            "hide",
+            "unhide",
+            "disable",
+            "enable"
+          ],
+          "lifecycle_actions": [
+            "install",
+            "update",
+            "repair",
+            "uninstall"
+          ],
           "launch_action": "launch",
           "required_confirmation_fields": [
             "what_changes",
@@ -2741,7 +2979,10 @@
         "workflow and skill candidate report-first refs with review, needs changes, and continue in conversation actions",
         "Capabilities detail default layer shows only purpose, status, Codex availability, Home shortcut, version, user-language source, last sync, and failure reason only when failed",
         "connector, reusable workflow, environment resource, and reproducibility export blocks only when real projection data or action refs exist",
-        "package id, Codex-visible entry, receipts, paths, manifest, cache, and marketplace configuration collapsed under Advanced diagnostics"
+        "package id, Codex-visible entry, receipts, paths, manifest, cache, and marketplace configuration collapsed under Advanced diagnostics",
+        "separate availability, source, and Home visibility fields",
+        "custom assistants mount AssistantSettings in the third on-demand assistants tab at custom-assistants",
+        "normal capability rows stay visually quiet"
       ],
       "must_not_show": [
         "assistant or purpose cards as the primary Capabilities surface",
@@ -2760,7 +3001,11 @@
         "auto-enabled skills, skill body writes, or workflow body writes from Settings Capabilities candidate refs",
         "package_id, codex_visible_entry, receipt refs, paths, manifest, cache, or marketplace config as default capability detail fields",
         "未报告 or Not reported placeholders for empty capability detail fields",
-        "empty connector, workflow, environment resource, or export-action blocks in default capability details"
+        "empty connector, workflow, environment resource, or export-action blocks in default capability details",
+        "availability, source, and Home visibility collapsed into one opaque status",
+        "custom assistant entry routed to package update or repair",
+        "custom-assistants as a search-only anchor without mounted AssistantSettings",
+        "assistants promoted to a top-level or secondary Settings page"
       ],
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
       "ia_group": "capabilities",
@@ -2783,7 +3028,11 @@
           "available_actions",
           "content_policy"
         ],
-        "allowed_actions": ["review", "needs_changes", "continue_in_conversation"],
+        "allowed_actions": [
+          "review",
+          "needs_changes",
+          "continue_in_conversation"
+        ],
         "report_first": true,
         "auto_enable_allowed": false,
         "app_role": "display_only_workflow_skill_candidate_refs_consumer",
@@ -2863,45 +3112,92 @@
             "raw_refs_json"
           ]
         }
-      }
+      },
+      "product_page_id": "capabilities",
+      "experience_contract_ref": "contracts/app-settings-control-plane.json#experience_contract.page_contracts.capabilities",
+      "required_dom": {
+        "always": [
+          "settings-page-capabilities",
+          "settings-capabilities-primary",
+          "settings-capabilities-technical-details",
+          "settings-capabilities-primary-action"
+        ],
+        "conditional": [
+          {
+            "testid": "settings-capabilities-exception",
+            "when": "attention_required"
+          }
+        ]
+      },
+      "required_anchors": [
+        "availability",
+        "source",
+        "home-visibility",
+        "custom-assistants"
+      ],
+      "search_entry_ids": [
+        "capabilities.availability",
+        "capabilities.source",
+        "capabilities.home_visibility",
+        "capabilities.custom_assistants"
+      ],
+      "primary_action_id": "add_capability",
+      "technical_details_default": "collapsed",
+      "exception_emphasis": "attention_only"
     },
     {
       "id": "advanced",
-      "expected_source": "OPL App state projection for developer and diagnostic refs",
+      "expected_source": "OPL App state read-only working-directory projection",
       "machine_source": "opl app state --profile fast --json",
       "refresh_source": "opl app state --profile fast --json",
       "page_contract": "settings_advanced",
       "sections": [
-        "developer_profile",
-        "developer_profile_status",
-        "paths",
-        "logs",
-        "opl_flow_context",
-        "diagnostics"
+        "working_directories",
+        "technical_details"
       ],
-      "state_sections": ["developer_profile", "paths", "logs", "opl_flow_context"],
+      "state_sections": [
+        "paths"
+      ],
       "must_show": [
-        "Developer Profile effective state and capabilities from app_state.developer_profile",
-        "Developer Profile explicit opt-in state for repo or local checkout source_channel",
-        "workspace path from app_state.paths",
-        "logs path from app_state.paths",
-        "OPL Flow Context",
-        "diagnostics and raw refs behind Advanced navigation",
-        "Advanced placed under Control Center Advanced",
-        "Developer Profile status for local checkout source, auto-update impact, and dirty checkout risk"
+        "read-only working directories from app_state.paths",
+        "user-facing labels for workspace, logs, runtime, modules, and configuration directories when present",
+        "copy-only technical details disclosure"
       ],
       "must_not_show": [
-        "delayed developer mode flip from a shell-local cache",
-        "AionUI local directory as OPL path truth",
-        "Developer Profile as ordinary first-level user setup",
-        "single Developer Mode switch as the only capability expression",
-        "Developer Profile as a one-click ordinary setup shortcut"
+        "Developer Mode or Developer Profile controls",
+        "OPL Flow Context as an editable Settings surface",
+        "mutable source-channel, update, runtime, provider, or domain controls",
+        "shell-local paths presented as App truth"
       ],
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
       "ia_group": "advanced",
       "route_id": "advanced",
       "route_scope": "secondary_or_deep_link",
-      "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia"
+      "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia",
+      "product_page_id": "advanced",
+      "experience_contract_ref": "contracts/app-settings-control-plane.json#experience_contract.page_contracts.advanced",
+      "required_dom": {
+        "always": [
+          "settings-page-advanced",
+          "settings-advanced-primary",
+          "settings-advanced-technical-details"
+        ],
+        "conditional": [
+          {
+            "testid": "settings-advanced-exception",
+            "when": "attention_required"
+          }
+        ]
+      },
+      "required_anchors": [
+        "working-directories"
+      ],
+      "search_entry_ids": [
+        "advanced.directories"
+      ],
+      "primary_action_id": "none",
+      "technical_details_default": "collapsed",
+      "exception_emphasis": "attention_only"
     }
   ],
   "gui_product_contract": "contracts/app-gui-product-contract.json",
@@ -2923,5 +3219,41 @@
   "full_detail_exception": {
     "command": "opl runtime app-operator-drilldown --detail full --json",
     "policy": "on_demand_only"
+  }
+,
+  "settings_compatibility_redirects": {
+    "update": {
+      "source_route_id": "update",
+      "source_path": "/settings/update",
+      "target_route_id": "environment",
+      "target_path": "/settings/environment",
+      "product_page_id": "maintenance",
+      "anchor": "updates",
+      "anchor_query_param": "section",
+      "navigation_encoding": "route_id_plus_anchor_field",
+      "shell_transport_hint": "hash_router_uses_query_param_section"
+    },
+    "theme": {
+      "source_route_id": "theme",
+      "source_path": "/settings/theme",
+      "target_route_id": "appearance",
+      "target_path": "/settings/appearance",
+      "product_page_id": "preferences",
+      "anchor": "themes",
+      "anchor_query_param": "section",
+      "navigation_encoding": "route_id_plus_anchor_field",
+      "shell_transport_hint": "hash_router_uses_query_param_section"
+    },
+    "local-services": {
+      "source_route_id": "local-services",
+      "source_path": "/settings/local-services",
+      "target_route_id": "environment",
+      "target_path": "/settings/environment",
+      "product_page_id": "maintenance",
+      "anchor": "services",
+      "anchor_query_param": "section",
+      "navigation_encoding": "route_id_plus_anchor_field",
+      "shell_transport_hint": "hash_router_uses_query_param_section"
+    }
   }
 }

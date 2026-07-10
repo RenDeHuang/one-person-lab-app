@@ -1,837 +1,415 @@
+
 # Settings Control Center
 
-Owner: `one-person-lab-app`
-Purpose: `settings_control_center_product_design`
-State: `active_design_target`
-Machine boundary: Human-readable product design. Machine-readable truth lives in
-`contracts/app-gui-product-contract.json`,
-`contracts/app-settings-control-plane.json`,
-`contracts/app-page-state-matrix.json`, active shell source, validation scripts,
-and release/user-path evidence.
+State: active product authority
+Owner: one-person-lab-app
+Machine contract: `contracts/app-settings-control-plane.json`
+GUI product contract: `contracts/app-gui-product-contract.json#settings_navigation`
+Page-state contract: `contracts/app-page-state-matrix.json#pages`
 
-Current validation boundary: `contracts/app-settings-control-plane.json` is the
-active Settings Control Plane contract. It hydrates the Settings registry,
-legacy redirect table, extension anchor remap, route behavior, state/action
-source policy, and `SettingsHost` / `SettingsShellAdapterSlot` adapter slot.
-`settings_ia.v1` in
-`contracts/app-gui-product-contract.json#settings_navigation.settings_ia` remains
-the App GUI source contract consumed by that control plane.
+## Product Boundary
 
-Current implementation boundary: the ideal Capabilities IA in this document is
-package-directory-first, and the target visual model is Settings > 智能体与能力 as
-a Codex App plugin-manager-like compact package directory. Canonical runtime
-readback is now
-`app_state.agent_packages.directory + app_state.agent_packages.status_index`.
-The current shell may still fall back to `opl app state --profile fast --json`
-module projection data, especially `app_state.modules.items[]`,
-Home-shortcut preferences, and task-awareness refs, while older payloads or
-partial projections remain in circulation. Recent local evidence shows why this
-matters: MAS/MAG/RCA may be `health_status: dirty` with
-`effective_install_update_source: git_checkout`, `configured_by: developer_mode`,
-`git.sync_status: behind`, and `git.dirty: true`, while OBF/OMA can be
-`health_status: ready` but still carry `recommended_action: update`. The UX and
-contracts therefore must model status as multiple axes instead of collapsing
-everything into one `repair` bucket.
+Settings is the App-owned OPL Control Center. The active shell is an
+implementation carrier and must not derive product navigation, page meaning,
+search behavior, or readiness claims from upstream AionUI defaults.
 
-## Reading Order And SSOT
+These contracts own:
 
-Use this document for the human product design of Settings as the OPL Control
-Center. Use `contracts/app-settings-control-plane.json` for route, checklist,
-registry, redirect, adapter-slot, and validator truth. Use
-`settings-control-center-completion-audit.md` only as a compact audit pointer;
-it must not grow back into a dated evidence ledger, release proof transcript, or
-installed-currentness record.
+- the eight ordinary product pages;
+- the two secondary product pages;
+- compatibility redirect targets and anchors;
+- the single Settings search index;
+- each page's primary information, primary action, exception state, technical
+  detail boundary, required DOM, anchors, and search entries;
+- the Codex App visual grammar for Settings.
 
-## Goal
+They do not own runtime truth, provider implementation, domain truth, release
+readiness, installed App currentness, or owner acceptance.
 
-Settings is the One Person Lab App OPL Control Center, not an upstream AionUI
-configuration dump. It should answer user questions in this order:
+## Canonical Information Architecture
 
-1. Can I use the App now?
-2. What do I need to configure?
-3. What OPL capabilities can I use?
-4. What needs maintenance?
-5. How do I safely manage local data?
-6. Which local, remote, or managed resources can my tasks use?
-7. Where are technical diagnostics when I need them?
+Product page ids are stable product semantics. Carrier route ids remain stable
+implementation ids so the shell can migrate without changing user-facing IA.
 
-The default surface gives conclusions and next actions. Raw paths, ids,
-receipts, component ids, JSON payloads, operation modes, and implementation
-diagnostics remain behind disclosure controls or Advanced pages.
+| Product page | Chinese label | Carrier route | Path | Scope |
+| --- | --- | --- | --- | --- |
+| `overview` | 概览 | `general` | `/settings/general` | ordinary |
+| `access` | 访问方式 | `access` | `/settings/access` | ordinary |
+| `workspace` | 工作区 | `workspace` | `/settings/workspace` | ordinary |
+| `capabilities` | 智能体与能力 | `capabilities` | `/settings/capabilities` | ordinary |
+| `resources` | 资源与连接 | `resources` | `/settings/resources` | ordinary |
+| `maintenance` | 维护 | `environment` | `/settings/environment` | ordinary |
+| `storage` | 数据与存储 | `storage` | `/settings/storage` | ordinary |
+| `preferences` | 偏好 | `appearance` | `/settings/appearance` | ordinary |
+| `advanced` | 高级 | `advanced` | `/settings/advanced` | secondary |
+| `about` | 关于 | `about` | `/settings/about` | secondary |
 
-## IA Principles
+`secondary_pages` contains only `advanced` and `about`. About is an independent
+page and must never be redirected to Advanced.
 
-Settings IA is organized by the user's question first, then by scope and risk:
+## Compatibility Redirects
 
-- user question: what the user is trying to decide or do;
-- scope: whether the setting affects access, files, packages, resources,
-  maintenance, storage, or personal preference;
-- risk: read-only fact, safe configuration, state-changing maintenance,
-  destructive cleanup, or technical diagnostics.
+`update`, `theme`, and `local-services` are not product pages. They are
+machine-readable compatibility redirects:
 
-The ordinary layer shows only user-comprehensible state, facts, and next steps.
-Engineering details such as raw enums, manifests, hashes, payloads, refs,
-component ids, dry-run mechanics, root paths, CLI command shapes, and Docker or
-provider internals are collapsed by default. They can appear only in an
-explicit details disclosure, an Advanced route, or an abnormal state where the
-detail directly explains what action is safe.
+| Source route | Target route | Anchor | Hash-router transport |
+| --- | --- | --- | --- |
+| `/settings/update` | `environment` | `updates` | `/settings/environment?section=updates` |
+| `/settings/theme` | `appearance` | `themes` | `/settings/appearance?section=themes` |
+| `/settings/local-services` | `environment` | `services` | `/settings/environment?section=services` |
 
-The 2026-07-08 Settings redesign board is the local design reference for this
-IA. The current board showed the main regressions to avoid: mixed Chinese and
-English navigation, implementation labels as first-screen nouns, empty next-step
-cards, maintenance content squeezed into narrow vertical columns, and long raw
-topic lists where the user needed grouped decisions instead.
+The contract stores `target_route_id` and `anchor` separately. The current shell
+uses a hash router, so it must not append a second URL fragment. It should parse
+the compatibility record, navigate to the target route, preserve
+`section=<anchor>` in the route query, then focus or scroll to the element whose
+`data-settings-anchor` equals the anchor.
 
-## Information Architecture
+Compatibility routes must resolve before page rendering. They must not mount
+their historical slot as an independent ordinary or secondary page.
 
-The target navigation groups are:
+## Global Search
 
-| Group | Ordinary page | Primary user question |
-| --- | --- | --- |
-| Overview | 概览 | Is the App usable now, and what should I do next? |
-| Access | 访问方式 | How do I connect model access, Codex CLI, and browser access to this computer? |
-| Workspace | 工作目录 | Where are my files, and can the App write there? |
-| Capabilities | 智能体与能力 | Which installed OPL packages can I use, expose on Home, update, or repair? |
-| Resources & Connections | 资源与连接 | Which local, remote, hosted, or managed resources can my tasks use? |
-| Maintenance & Updates | 维护 | How do I keep the App foundation healthy and updated? |
-| Data & Storage | 存储 | How do I safely review and clean local App data? |
-| Preferences | 偏好 | How should the App behave and look for me? |
+Settings exposes exactly one global search input:
 
-Legacy routes such as `runtime`, `model`, `agent`, `assistants`, `skills-hub`,
-`tools`, `display`, `webui`, `pet`, and `system` remain compatibility redirects.
-They must not reappear as ordinary navigation.
+- test id: `settings-search-input`;
+- index granularity: item, not page;
+- languages: Chinese and English;
+- result label: `{page_label} > {entry_label}`;
+- result selection: navigate to the owner carrier route and focus its anchor;
+- compatibility terms: Update, Theme, and Local Services resolve to
+  `maintenance.updates`, `preferences.themes`, and `maintenance.services`;
+- duplicate global inputs such as `settings-sider-search-input` and
+  `settings-route-search` are forbidden.
 
-`contracts/app-settings-control-plane.json` is the machine-readable registry and
-route resolver for this design. It consumes `settings_ia.v1` at
-`contracts/app-gui-product-contract.json#settings_navigation.settings_ia` and
-is mirrored by route metadata in `contracts/app-page-state-matrix.json#pages`.
-The control plane deliberately separates user-facing groups from current shell
-route ids:
+Every search entry declares:
 
-- ordinary route ids remain `general`, `access`, `workspace`, `capabilities`,
-  `resources`, `environment`, `storage`, and `appearance`;
-- `advanced`, `about`, `update`, `theme`, and `local-services` are secondary or
-  deep-link route ids unless the contract, page-state matrix, validators, and
-  release-boundary tests are deliberately changed together;
-- user-facing groups remain Overview, Access, Workspace, Capabilities,
-  Resources & Connections, Maintenance & Updates, Data & Storage, and
-  Preferences.
+- `id`;
+- `page_id`;
+- `anchor`;
+- Chinese and English labels;
+- Chinese and English keyword arrays.
 
-The ordinary navigation labels should be localized and product-owned. English
-labels such as `Resources & Connections`, route ids such as `environment`, or
-raw enum names are implementation identifiers, not ordinary navigation copy.
+Search does not create a second state source. It only indexes the product
+contract and routes the user to the owning item.
+
+## Visual Contract
+
+Settings uses a Codex App-style quiet workbench:
+
+- few cards, only for summaries or repeated entities;
+- no nested cards;
+- page sections are not floating cards;
+- maximum border radius is 8 px;
+- spacing uses 12 / 16 / 24 px;
+- headings are compact;
+- each page shows at most one primary action;
+- normal states are visually muted;
+- only attention or failure states receive accent emphasis;
+- technical details are collapsed by default;
+- letter spacing is 0.
+
+The ordinary first screen must describe user impact and the next decision. Raw
+ids, raw statuses, command mappings, paths, payloads, and receipts belong in the
+page's technical-details disclosure.
 
 ## Page Contracts
 
-The eight ordinary Settings pages have these acceptance goals:
-
-| Page | Goal | Default content | Hidden by default |
-| --- | --- | --- | --- |
-| 概览 | Give a one-screen App usability summary and the next useful action. | Overall state, attention list, compact entries to the seven setup/management areas, and one primary action. | Raw readiness booleans, command names, receipt ids, refs, hashes, and root paths. |
-| 访问方式 | Explain how the App connects to model access, Codex CLI, and browser access to this computer. | OPL Gateway/API-key state, Codex CLI status and default model, local remote-access endpoint and account controls. | Provider internals, dry-run commands, raw payloads, token paths, Docker deployment detail, and base-url plumbing unless expanded. |
-| 工作目录 | Answer where user files and work products live and whether the App can write there. | Current workspace folder, existence/writability, product storage meaning, open/change/verify actions, and permission repair. | Root checkout paths, logs, module paths, maintenance folders, manifests, and diagnostics unless troubleshooting is expanded. |
-| 智能体与能力 | Show installed capability packages as usable packages, not as internal modules. | Package directory rows, Home shortcut controls, package status axes, tags, and one recommended action per row. | Manifest refs, package hashes, `physical_surface`, workflow refs, connector refs, receipt refs, raw git facts, and long required-skill/tool lists. |
-| 资源与连接 | Group the resources tasks may use without turning them into access settings. | Docker WebUI, OPL Workspace, SSH/HPC, Fabric refs, Environment Catalog refs, Console-managed refs, state, and next action. | Raw resource refs, connector bodies, credentials, billing internals, policy payloads, and empty next-step cards. |
-| 维护 | Keep the App foundation healthy with grouped, component-specific actions. | Four user buckets: App update, runtime environment, capability packages and Codex Surface sync, local services and repair. | Four-column narrow vertical layouts, task-progress monitoring, dry-run/payload details, module ids, receipts, and rollback refs unless expanded. |
-| 存储 | Let users review data size and cleanup safety before any destructive action. | Size summary, cleanup categories, safety classification, preview/open/clean actions, and receipt-backed confirmation. | Raw lifecycle refs, research body paths, SQLite sidecars, generic root paths, dry-run internals, and cleanup authority beyond App-owned data. |
-| 偏好 | Let users tune personal behavior and appearance without exposing diagnostics. | Language, theme, notifications, startup/tray, upload/Office preview, timeout, density, typography, sidebar, motion, and hardware acceleration. | Long theme catalogs, raw enum values, config files, implementation feature flags, and Advanced diagnostics. |
-
-## Shared Protocols
-
-Settings pages use the same Control Center protocol instead of page-specific
-ad hoc cards:
-
-- Issue queue entries use `needs_action`, `in_progress`, `resolved`, `blocked`,
-  and `dismissed`.
-- Actions come from `app_state.actions` and mutate only through
-  `opl app action execute --action <action_id> [--payload <json>] [--dry-run]
---json`.
-- The Maintenance hub may expose one primary "Make OPL usable" action. It is a
-  shell-orchestrated composite over existing repair prep and managed update
-  actions: it may check status, repair components with explicit repair receipts,
-  apply safe non-restart package/capability sync actions, and refresh fast App
-  state. It must not implement a second updater kernel, silently update dirty or
-  developer checkouts, silently apply restart-required OPL Runtime Fabric changes,
-  auto-rollback, or write runtime/domain truth.
-- Settings search filters ordinary route labels, task entries, and action
-  keywords. It is a navigation aid only: selecting a result changes the page,
-  but search results do not create a second status source or expose internal
-  route ids.
-- Summary cards require id, title, state, summary, recommended action, last
-  checked time, and details disclosure.
-- State-changing or destructive actions use a confirmation drawer that states
-  what changes, what does not change, and which rollback or receipt reference
-  will exist before the mutation runs. The implementation may render this as a
-  drawer, modal, or inline confirmation surface as long as the same required
-  fields are visible before confirmation.
-- Post-update notices show component id, result, receipt ref, next check, and
-  restart or reload guidance in the ordinary Settings layer after a manual or
-  background action, without claiming domain, production, currentness, or
-  release readiness.
-- Diagnostics, raw ids, paths, receipts, JSON, and component ids are collapsed
-  by default and live under Advanced or explicit disclosure.
-- Unknown deep links redirect to the nearest App-owned Settings group; legacy
-  deep links follow `settings_navigation.legacy_route_redirects`.
-
-### Agent Package Lifecycle UX
-
-The Capabilities page is package-directory-first. It consumes
-`app_state.agent_packages.directory + app_state.agent_packages.status_index`
-plus `app_state.actions`; Native Workbench and AionUI render the same state and
-action refs. `modules.items[]` remains fallback-only and cannot claim package
-currentness, execution readiness, or mutation authority.
-
-Ordinary users must be able to search, filter, understand the install source,
-see the failure reason when a package fails, inspect receipt/`physical_surface`
-details on demand, and apply the same interaction pattern for hide/unhide,
-disable/enable, update, repair, uninstall, manifest URL install, and launch.
-Those actions go through the App action route with confirmation or dry-run
-copy that states what changes, what does not change, the receipt or recovery
-reference, and the post-action refresh behavior.
-
-The page must not expose package execution/runtime/domain truth. A live installed
-Codex surface reload check is a deferred runtime/release evidence lane, not a
-condition for marking the App-owned product contract complete.
-
-## Task Entries
-
-The OPL Control Center keeps eight top-level entries. User task entries are surfaced
-inside those groups instead of adding more tabs.
-
-P0 entries:
-
-- Access: three user-facing groups: model access, local runtime ability, and
-  remote access. Normal state shows the conclusion and the
-  next useful action first; repeated diagnostics stay behind details or appear
-  only when the state is abnormal.
-- Workspace: current path, open/change/verify actions, and permission status.
-  It is an ordinary top-level setup entry and also appears in Overview.
-- Maintenance Hub: App update, runtime environment, capability/Codex Surface
-  sync, and local service repair buckets. It belongs to Maintenance & Updates.
-- Capability Status: installed package directory rows show what is installed,
-  how each package is exposed on Home, and which purpose tags apply. It belongs
-  to Capabilities.
-- Resources & Connections: Docker WebUI, OPL Workspace, user-provided SSH/HPC,
-  cloud/hosted resources, Fabric resource-source refs, Environment Catalog refs,
-  and Console-managed refs. It is an ordinary top-level route.
-
-P1 entries:
-
-- Remote access: direct route for users who need browser access to this
-  computer's OPL. Deployment/resource choices route to Resources & Connections.
-- Developer Profile Status: local checkout source, auto-update impact, and
-  dirty checkout risk. It belongs to Advanced.
-- External Tools & Voice: ordinary label for tools, MCP support, and voice.
-  MCP is explanatory detail, not the primary entry name.
-  K-Dense BYOK learning reinforces this product boundary: users see External
-  Tools or OPL Connect refs, while MCP server names, transports, and tool lists
-  stay implementation detail behind disclosure.
-- Custom Assistant: secondary or Advanced capability depending on product
-  policy; it must not replace the installed package directory as the primary
-  capability surface.
-
-The ordinary UI must not expose AionUI Team, backend/provider raw selectors,
-AG-UI implementation surfaces, AionUI implementation skills, or raw
-runtime/provider internals as product capabilities.
-
 ### Overview
 
-The overview is a summary-first dashboard. It shows:
+Primary information:
 
-- a single overall state: usable, needs attention, or blocked;
-- status chips for access, workspace, local services, and capabilities;
-- one recommended primary action and at most two secondary actions;
-- direct entries for Workspace, Access, Resources & Connections, Maintenance &
-  Updates, Data & Storage, Capabilities, and Remote Access;
-- last maintenance check and next background check when known;
-- a collapsed technical detail section.
+- overall usability and attention count;
+- one next useful action.
 
-The overview must not show raw readiness booleans, OPL command names, framework
-phase names, git state, or package receipt ids as first-screen content.
+Primary action: open the highest-priority attention item, only when one exists.
 
-### Access
+Exception state: emphasize one actionable issue, not every status.
 
-Access owns first-screen connection readiness through three groups:
+Technical details: raw state keys, timestamps, paths, and receipts stay
+collapsed.
 
-- OPL Gateway: configured model access/API-key state, default model and
-  reasoning selection, and provider policy refs behind configuration disclosure.
-- Codex CLI: installed CLI version and the default model read from Codex config
-  / App state.
-- Remote access: browser access to this computer's OPL, including port,
-  account, password, and local network reachability controls.
+Required anchors: `status`, `next-action`.
 
-Resources & Connections is the ordinary top-level route for deployment and
-resource context: Docker WebUI, OPL Workspace, user-provided SSH/HPC, OPL
-Cloud-managed compute or storage refs, OPL Fabric resource-source status,
-Environment Catalog refs, and Console-managed policy, quota, billing, and
-permission refs.
+Overview must not copy the Settings sidebar into page cards or render a
+directory wall for the other pages.
 
-In the normal state, Access shows the conclusion and necessary action for each
-group. Repeated gateway summary lines, raw `action_available`,
-`diagnose_with_doctor`, `available`, CLI dry-run commands, status ids, and
-provider/runtime internals are hidden by default. They may appear only in an
-explicit details disclosure or when an abnormal state needs diagnostic evidence.
+### Access / 访问方式
 
-Base URLs, token paths, raw config files, and provider internals are advanced
-details, not first-screen content. Console billing, organization policy, and
-managed-resource entitlement are displayed only as Console-managed refs; the App
-does not make those decisions.
+Primary information:
 
-Access page refinement on 2026-07-06 produced reusable Settings design rules:
+- model access readiness;
+- the real source from `app_state.core.codex.model_access_source`;
+- selected model and authentication state;
+- browser access to this computer as a visible user entry.
 
-- Show a fact only when it helps the user decide or act. For example, OPL
-  Gateway in the normal ready state needs one status plus a "configure key"
-  action; repeated "connected / current source" lines are not additional user
-  value.
-- Name the user-facing capability, not the implementation origin. "Remote
-  access" is better first-screen wording than "AionUI native remote access";
-  implementation provenance belongs in details.
-- Use stable mental buckets before showing diagnostics: OPL Gateway, Codex CLI,
-  local remote access, and Resources & Connections. Do not flatten Docker WebUI,
-  OPL Workspace, local browser access, model keys, and dry-run routes into one
-  list.
-- Normal state is conclusion-first: "ready", "needs key", "open settings", or
-  "check path". Raw status ids, CLI commands, receipt refs, and internal owner
-  names appear only when abnormal or expanded.
-- Technical labels must match their source. Codex default model comes from
-  Codex config / App state `core.codex.default_model`; bundled default profile
-  is only fallback and must not be presented as the user's current default.
+Primary action: configure model access when missing or when the user explicitly
+requests a change.
+
+Exception state: missing, expired, or unreachable access with one corrective
+action.
+
+Technical details: base URL, environment variables, token paths, Codex CLI
+details, and raw provider ids.
+
+Required anchors: `provider-source`, `model`, `authentication`.
+
+The browser entry is labeled `这台电脑的浏览器访问`, opens the existing local
+browser-access settings, and keeps shell implementation provenance in technical
+details. Docker WebUI, OPL Workspace, SSH/HPC, cloud, Fabric, and
+Console-managed resources belong to Resources & Connections.
 
 ### Workspace
 
-Workspace is an independent ordinary setup task page, not hidden inside Local
-Environment and not a generic diagnostics page. Search and Overview task
-entries route to it. It shows:
+Primary information:
 
-- current workspace folder;
-- whether the folder exists and is writable;
-- where App work products and project files are stored by default;
-- open folder, change folder, verify access, and repair-permission actions;
-- logs and maintenance paths only as supporting detail or troubleshooting
-  links, not as the first-screen mental model.
+- current workspace identity, path, and writability in one normal-state summary;
+- permission or trust detail only when attention is required.
 
-Workspace must answer "where are my files and can the App write there?" before
-showing modules, logs, maintenance folders, or other implementation paths.
+Primary action: change workspace.
 
-### Capabilities
+Exception state: inaccessible, read-only, or untrusted workspace.
 
-Ideal state: Settings > 智能体与能力 is an installed Codex-plugin-style package
-directory with integrated Home shortcut management. Purpose is still useful, but
-only as a tag/filter dimension instead of the primary identity. First-party
-starter registry entries and starter shortcuts are defaults, not the only
-packages OPL App can manage.
+Technical details: raw path JSON, trust refs, and repair commands.
 
-Current implementation boundary: the canonical source is
-`app_state.agent_packages.directory + app_state.agent_packages.status_index`.
-The shell may still fall back to `app_state.modules.items[]` plus Home shortcut
-preference readback and task-awareness refs while older runtime payloads or
-partial projections remain in circulation. That is exactly why the UI must stop
-using purpose cards and single repair badges as the primary model: the runtime
-now distinguishes dirty developer checkouts, managed update-needed modules, and
-ready-but-stale packages in ways a single-purpose-card summary hides.
+Required anchors: `current-workspace`, `permissions`.
 
-The package discovery source is the OPL Agent Registry. Users may point it at a
-GitHub-hosted JSON file or another configured URL; Settings uses it to show
-available packages and starter shortcuts. Installing from a selected manifest
-URL follows OPL Framework validation, lock, rollback ref, receipt creation, and
-package list readback. Ordinary managed packages update through GHCR `latest`
-after daily gated promotion; Settings should show `latest` as the normal
-channel while details show the immutable version tag and resolved digest that
-the Framework locked. Updating, repairing, uninstalling, hiding/unhiding,
-enabling/disabling, and status readback are Framework-owned lifecycle receipt
-routes that Settings may expose as App actions; rollback appears only as
-rollback_ref recovery display and Managed Update owner routing. Active shell
-reads Framework-backed Home shortcut preference readback from App state, routes
-visibility/order changes through the Framework action, and keeps local
-preference storage as fallback/migration. Framework owns package Home shortcut
-preference readback through
-`agent_package_preferences_set` and
-`connect agent-packages list/status#home_shortcut_preferences`. Framework also
-owns manifest-declared local Codex plugin materialization and records it through
-package lock / lifecycle receipt `physical_surface`; Settings displays that
-`physical_surface` as package state, plugin id, marketplace id, Codex config
-path, materialized required skill ids/paths, and reload required status.
-First-party distribution payload refs and remote payload manifest fields are non-live contract/Framework evidence; installed Codex-surface reload proof and live install readiness remain runtime or release-owner evidence; Settings must not present contract/readback evidence as
-live install readiness. The Registry never defines the agent's business
-behavior.
+Normal path, writability, trust, and permission must not become four separate
+cards.
 
-The ordinary model is:
+### Agents & Capabilities / 智能体与能力
 
-- Agent Package: install/update/repair/uninstall/exposure preference unit with rollback_ref recovery display;
-- Agent Registry: configurable GitHub/URL discovery list with manifest URLs,
-  not an install or behavior authority;
-- Home Shortcut: user-selected launch entry over an installed package;
-- Codex Surface: plugin registry, required skills, optional companion tools,
-  and post-apply sync state;
-- Invocation Receipt: launch fact only, not a session-behavior contract.
+Primary information is split into:
 
-The ordinary top bar supports registry refresh, search by package name/tag or
-description, status filtering, and an "Add capability" entry. Manifest URL
-install remains an advanced add method behind disclosure. The ordinary
-package-directory row shows:
+- availability;
+- source;
+- Home visibility;
+- custom assistant entry.
 
-- package identity first: package id, display name, short name;
-- inline Home shortcut visibility and order;
-- purpose tags as secondary metadata and filters;
-- multi-axis status: install/update/source/trust/Codex Surface;
-- one recommended action when action is needed.
+Primary action: add a capability.
 
-The ordinary first screen must not use receipt refs, `physical_surface`,
-workflow refs, connector refs, resource refs, or raw git facts as the primary
-density. Required Skills and optional Tools are supporting details and are
-collapsed by default unless the user explicitly opens them.
+Exception state: failed or blocked capabilities are emphasized; normal packages
+remain quiet.
 
-The capability detail panel is three-layered:
+Technical details: package ids, receipts, paths, manifests, physical surfaces,
+and raw status axes.
 
-- User detail layer: purpose, status, Codex availability, Home shortcut
-  visibility/order, version, user-language source label, last sync, and failure
-  reason only when there is a real failed or blocked state. Empty values are
-  hidden; the UI must not show `未报告`, `Not reported`, raw ids, or raw paths as
-  ordinary content.
-- Supporting context layer: connector readiness, reusable workflow,
-  environment/resource context, and reproducibility export actions appear only
-  when App state provides real refs or action refs. This layer summarizes the
-  user-facing title, state, owner, or next action; raw refs remain diagnostic.
-- Advanced diagnostics layer: package id, Codex-visible entry, receipt refs,
-  rollback/action receipts, `physical_surface`, manifest/cache/marketplace
-  config, paths, and raw refs are collapsed under advanced diagnostics or an
-  advanced route. These fields are useful for support and release/debug work,
-  not for normal package selection.
+Required anchors: `availability`, `source`, `home-visibility`,
+`custom-assistants`.
 
-Current-runtime UX rule: developer checkout semantics are explicit state, not a
-generic repair badge. `git_checkout`, `configured_by: developer_mode`,
-`git.sync_status: behind`, `git.dirty: true`, `health_status: dirty`, and
-`recommended_action: update` each map to different row axes so the user can see
-whether a package is developer-owned, drifted, stale, or merely waiting for a
-safe update. OBF/OMA-style `ready + update` must stay distinct from
-dirty/developer-source packages. Git repo or local checkout sources are
-Developer Profile state only; they must not be presented as ordinary `latest`
-installs or silently updated by the package directory. Skills, external tools, MCP, voice, and custom
-assistants are collapsed supporting sections below the package directory, not a
-second primary list or a default long catalog.
+The page has `skills`, `tools`, and a third on-demand `assistants` tab. The
+`assistants` tab mounts the real `AssistantSettings` surface at
+`custom-assistants`; it is not a search-only placeholder and is not a top-level
+or secondary page. Legacy `assistants` resolves to
+`capabilities?tab=assistants#custom-assistants`. Under the hash router, the
+shell must preserve `tab=assistants` and encode the anchor as
+`section=custom-assistants`.
 
-Settings must not introduce a strong Session Contract. Shortcut/profile
-metadata may describe label, package id, required skill ids, optional companion
-refs, source, and refs-only display policy. It must not describe a domain
-workflow, agent stage behavior, prompt internals, artifact schema, readiness
-verdict, quality/export verdict, or owner receipt authority.
+### Resources & Connections
 
-Connector readiness appears as OPL Connect refs grouped by user purpose, such
-as literature databases, research databases, storage, tools/API, internal
-systems, and compute schedulers. Environment and resource-source readiness
-appears as OPL Fabric refs. Environment Catalog appears as read-only template,
-version, source, and task-fit refs. Settings must not expose connector
-credentials, connector bodies, environment bodies, or domain verdicts.
-External-tool implementation details such as MCP transport shape remain OPL
-Connect disclosure details, not separate ordinary capability categories.
+Primary information:
 
-### Updates & Maintenance
+- resource readiness;
+- whether the related operation is executable;
+- owner or management mode.
 
-Updates & Maintenance owns normal maintenance and update actions, while About
-and Update stay discoverable secondary destinations for version, channel,
-release notes, and explicit update detail. Maintenance is not the surface for
-in-progress task monitoring, artifact progress, or project execution state. The
-first screen has exactly four ordinary user buckets:
+Primary action: open an available resource action only when the action is
+projected as executable.
 
-- App update;
-- Runtime environment;
-- Capability packages and Codex Surface sync;
-- Local services and repair.
+Read-only actions must complete their declared behavior:
 
-Each group uses the same structure: current state, user summary, recommended
-action, last check, next check, and details disclosure. Apply, repair, and
-rollback actions are per component and show component-specific loading state.
-Dangerous or state-changing actions require a confirmation surface explaining
-what will change, what will not change, and what rollback or receipt reference
-will exist before the mutation runs.
+- `Open` navigates the shell to the exact projected `browser_url`;
+- `Diagnose` executes the projected diagnose action and renders its result or
+  action receipt.
 
-The primary "Make OPL usable" action is a convenience entry, not a new authority
-surface. It sequences existing App/Framework actions and only applies safe
-non-restart repairs or capability sync actions. Restart-required runtime changes,
-dirty/developer checkouts, cleanup execution, and rollback remain explicit
-per-component actions with their own confirmation and guidance.
+Mutating resource actions require a successful precheck, explicit user
+confirmation, execution, and a visible result or receipt. A successful
+`--dry-run` proves only that the precheck passed; it must never be presented as
+the resource having opened, diagnosis having run, deployment having completed,
+or mutation having completed.
 
-Component ids, module names, dry-run commands, payload requirements, managed
-update details, and package receipts remain under details or a component drill
-down. The App remains a consumer of OPL/App action routes and managed updater
-status; it must not implement the update kernel or write runtime/domain truth.
+Exception state: distinguish resource unavailable from action blocked and name
+the responsible next step.
 
-Current Maintenance page assessment on 2026-07-06:
+Technical details: connector refs, quota, billing, credentials, and deployment
+payloads.
 
-- Keep: the page has the right core materials for a maintenance hub: health
-  summary, "Make OPL usable", managed update components, package maintenance,
-  confirmation before mutation, post-action receipts, reload guidance, and
-  collapsed diagnostics.
-- Change: `进行中的任务` and task-run details belong to Runtime / Run Status, not
-  Settings. They answer "what is my work doing?", while Maintenance should
-  answer "what foundation needs update or repair?"
-- Change: Workspace, Storage, and version/update are useful cross-links, but
-  should be compact entries. Full workspace status belongs to Workspace; cleanup
-  details belong to Storage; version/channel and release notes belong to About
-  and Update.
-- Change: labels such as `OPL 系统桥接` and `必要能力` are implementation-shaped.
-  Ordinary copy should use `维护与更新`, `运行环境`, `能力包同步`, `本机服务与修复`,
-  and `应用更新` unless the user opens technical details.
-- Change: module maintenance and managed updates currently overlap. The first
-  screen should show one recommended action per user bucket, then route into
-  component-specific apply / repair / rollback controls only when needed.
-- Target structure: four ordinary sections only: `应用更新`, `运行环境`,
-  `能力包与 Codex Surface 同步`, and `本机服务与修复`. Storage is a link-out,
-  task progress is removed, diagnostics remain collapsed.
+Required anchors: `resource-readiness`, `action-readiness`,
+`external-resources`.
 
-This assessment maps to the current shell surface in
-`shells/aionui/packages/desktop/src/renderer/pages/settings/sections/RuntimeSettings.tsx`
-and its panel components in
-`shells/aionui/packages/desktop/src/renderer/pages/settings/sections/RuntimeSettingsPanels.tsx`.
+The page may list OPL Workspace as a managed or remote resource, but it must not
+duplicate the selected local workspace path, change-workspace control, or local
+permission summary.
 
-### Anti-Patterns From The 2026-07-08 Board Review
+### Maintenance
 
-The following regressions must be rejected in active-shell review for ordinary
-Settings pages:
+Primary information:
 
-- English ordinary navigation mixed into the Chinese App surface.
-- Raw enum values, route ids, component ids, manifests, refs, hashes, or
-  `physical_surface` shown as default content.
-- Docker, dry-run, payload, provider, CLI, or mutation mechanics exposed before
-  the user asks for technical detail.
-- Empty "next step" or "open" cards that do not state a decision, action,
-  owner, or reason.
-- Maintenance laid out as four narrow vertical columns instead of four readable
-  user buckets with component-specific actions.
-- Long theme, tool, skill, topic, or resource lists used as the primary model
-  when the user needs grouped status and recommendations.
-- Root checkout paths, token paths, logs, module paths, and generated artifact
-  roots shown by default instead of product-level folder meaning.
-- Rollback refs, receipt refs, manifest refs, hashes, or package provenance
-  presented as ordinary readiness/currentness proof.
+- health;
+- updates;
+- local services;
+- OPL Packages;
+- one recommended action.
 
-Acceptance for this document is local product-design and active-shell UX review
-only. It records the design target and the local workspace review vocabulary;
-it does not claim formal release readiness, installed/running currentness,
-runtime owner acceptance, notarization, or packaged App readiness.
+Primary action: run the recommended maintenance action when attention is
+required.
 
-### 2026-07-08 UX Gap Closure Rules
+Exception state: emphasize only components that need action and explain user
+impact before action.
 
-The Settings redesign board comparison produced a final UX closure pass for the
-active shell. The product rule from that pass is stricter than "all information
-is present": every ordinary page must make the user's decision path visible
-before showing supporting detail.
+Technical details: raw action ids, component ids, raw statuses, command
+mappings, paths, and receipts.
 
-The landed shell behavior follows these page-level rules:
+Required anchors: `health`, `updates`, `services`, `packages`.
 
-- Overview is not a directory wall. It shows overall usability, workspace
-  status, permission status, and compact entries to the ordinary work areas:
-  Access, Workspace, Capabilities, Resources & Connections, Remote Access,
-  Maintenance, Data & Storage, and Preferences. It does not add a second
-  bottom action bar competing with the recommended action.
-- Access answers connection readiness. OPL Gateway, Codex CLI, and browser
-  access to this computer are the primary facts. Server WebUI, hosted
-  workspaces, cloud, and external environments are a light link to Resources &
-  Connections instead of a first-screen deployment panel.
-- Workspace answers three facts in order: the work folder exists, the App can
-  access it, and the App can write there. Logs, module roots, and recent check
-  metadata remain troubleshooting detail instead of ordinary first-screen cards.
-- Resources & Connections shows one recommended next action for Server WebUI /
-  OPL Workspace, then hides the rest under "More actions" and advanced details.
-  Terms such as dry-run, payload, action id, raw route, and resource refs remain
-  collapsed unless the user opens details.
-- Preferences is organized around ordinary personal choices: interface
-  behavior, display and fonts, and theme appearance. Long theme catalogs and CSS
-  theme management stay collapsed behind advanced theme disclosure.
+Update and Local Services are anchors on this page. Maintenance must not show a
+second navigation directory, a runtime task board, or three equal action buttons
+sharing one loading state.
 
-This closure is an active-shell UX landing only. It proves the page organization
-and user-facing rendering slice when paired with shell DOM/i18n/diff checks. It
-does not prove installed App currentness, release readiness, notarization,
-runtime owner acceptance, or live resource availability.
+### Data & Storage
 
-### Storage & Data
+Primary information:
 
-Storage & Data is its own Control Center group and uses user safety language.
-The ordinary first-level labels are:
+- one merged category list;
+- size, safety, and next action for each category;
+- cleanup preview;
+- cleanup history.
 
-- Runtime cache;
-- Logs;
-- Conversation archives;
-- Install package cache;
-- Workspace files and work products.
+Primary action: preview cleanup when reclaimable items exist.
 
-The first screen shows size, safety classification, and the recommended action.
-Terms such as OPL Runtime Fabric, research lifecycle, dry-run, and receipt refs
-are supporting details. Primary copy says "Preview cleanup plan", "Open folder",
-or "Clean selected cache". Destructive actions stay disabled until the required
-preview, archive, restore proof, or receipt exists.
+Exception state: unsafe or unprotected candidates are emphasized and execution
+is disabled.
 
-For research workspaces, Storage & Data is a read-only consumer of OPL/MAS
-lifecycle refs. It can show lifecycle planes, large body refs, small-file
-pressure, runtime compact dry-run refs, completed-project closeout refs, and
-forbidden generic-cleanup boundaries. The App must not read SQLite sidecars
-directly, scan workspace trees to infer cleanup candidates, delete clinical
-data bodies, write runtime/domain truth, or authorize artifact cleanup.
+Technical details: `dry-run`, plans, receipt refs, lifecycle ids, SQLite details,
+and raw paths.
 
-### Local Services
+Required anchors: `storage-categories`, `cleanup-preview`, `cleanup-history`.
 
-Local Services is an independent service-health task page under Maintenance &
-Updates. It answers whether the local foundation can run without mixing in
-package update, rollback, storage cleanup, or workspace management controls:
-
-- Codex executor;
-- local background service;
-- Temporal worker when present;
-- OPL System Bridge and runtime support;
-- module loading health.
-
-It offers diagnose, refresh, start/restart, and repair actions. Module paths,
-repo urls, git status, and component receipt refs stay collapsed.
+Ordinary copy uses "preview cleanup", "items that will be removed", "archive",
+"restore", and "cleanup record" rather than raw lifecycle terminology.
 
 ### Preferences
 
-Preferences owns ordinary user behavior and appearance, not Maintenance &
-Updates, Data & Storage, Local Runtime, or Advanced. It owns:
+Primary information:
 
-- visual theme;
-- language;
-- notifications;
-- startup and tray behavior;
-- upload and Office preview behavior;
-- prompt and agent idle timeout;
-- hardware acceleration when supported;
-- density;
-- typography scale when supported;
-- sidebar behavior;
-- reduced-motion or animation preference when supported.
+- reply waiting time in human units;
+- tray and close-window behavior;
+- hardware acceleration;
+- themes and appearance.
 
-The page should use a compact preview plus setting rows. Advanced must not
-duplicate these ordinary preferences.
+Primary action: none. Preferences use inline controls.
 
-### Developer & Diagnostics
+Exception state: restart-required or unsupported hardware states appear next to
+the affected setting only.
 
-Developer & Diagnostics owns power-user detail:
+Technical details: raw millisecond values, Electron flags, and theme
+implementation ids.
 
-- Developer Profile capabilities;
-- raw paths and logs;
-- OPL Flow context;
-- JSON/read-model references;
-- copy diagnostics actions.
+Required anchors: `behavior`, `tray`, `hardware`, `themes`.
 
-This page is not part of the ordinary setup path. It may link back to
-Preferences for ordinary behavior settings, but it should not own language,
-notifications, startup, tray, upload, Office preview, timeout, or appearance
+Theme is an anchor on Preferences, not an independent page.
+
+### Advanced
+
+Primary information: read-only working directories with user-facing labels.
+
+Primary action: none.
+
+Exception state: missing or inaccessible directories without shell-owned repair
 controls.
+
+Technical details: raw path refs may be copied from collapsed details but cannot
+be edited here.
+
+Required anchor: `working-directories`.
+
+Advanced must not contain Developer Mode, Developer Profile, OPL Flow editing,
+source-channel mutation, provider controls, or runtime/domain mutation.
 
 ### About
 
-About shows:
+Primary information:
 
-- App version and channel;
-- GUI shell version;
-- OPL Framework revision;
-- release notes and documentation links;
-- feedback and issue links.
+- One Person Lab App version;
+- Stable or Nightly channel;
+- update status.
 
-It can link to Updates & Maintenance but must not be the primary maintenance
-page, and it must not host update/repair/rollback_ref/package-maintenance controls.
+Primary action: Check for updates.
 
-## Visual System
+Exception state: update available or update check failed, without raw error
+codes on the main surface.
 
-Settings should feel like a quiet engineering control center:
+Technical details: GUI shell version, OPL Framework revision, build ids, and raw
+update refs.
 
-- left navigation on desktop, horizontally scrollable section nav on narrow
-  screens;
-- one page header pattern: title, short description, state badge, last refresh,
-  and primary action;
-- setting rows for ordinary controls;
-- cards only for summary states, package rows, and repeated entities;
-- 8px radius, restrained borders, semantic color, and no decorative gradients;
-- one icon family with consistent stroke width;
-- at most one primary action per page;
-- danger actions separated from ordinary actions.
+Required anchors: `version`, `channel`, `updates`.
 
-## Maintainability Rules
+About stays at `/settings/about`. Repair, rollback, package maintenance, and
+storage cleanup remain on their owner pages.
 
-The App must not maintain several hidden copies of Settings IA.
-`contracts/app-settings-control-plane.json` is the long-term source for:
+## DOM Contract
 
-- visible navigation groups and page ids;
-- route redirects;
-- extension anchor remaps;
-- `SettingsHost` / `SettingsShellAdapterSlot` ownership;
-- upstream intake classification before registry or slot changes;
-- i18n key coverage;
-- page-state matrix expectations;
-- validation fixtures and smoke route ids;
-- screenshot/user-guide targets.
+Every product page always renders:
 
-The AionUI fork maintenance strategy is
-`docs/architecture/opl-aionui-fork-maintenance-strategy.md`: strengthen this
-control plane, keep the shell adapter thin, and classify upstream Settings
-intake before changing the registry or adapter slot. Do not create a parallel
-Settings package, plugin ecosystem, or shell-owned product IA to solve fork
-maintenance.
+- `settings-page-<product_page_id>`;
+- `settings-<product_page_id>-primary`;
+- `settings-<product_page_id>-technical-details`.
 
-The route identity rule is part of maintainability: current shell route ids are
-implementation facts, while the eight IA entries are user-facing product groups.
-Do not rename shell routes to match prose group labels, and do not promote
-secondary/deep-link routes such as Advanced, Local Services, About, Update, or Theme into
-ordinary routes without updating the contract, matrix, validators, tests, and
-visual QA targets.
+Attention states render:
 
-Implementation components must consume explicit typed view-model adapters for
-the ordinary pages that carry OPL state/action semantics:
+- `settings-<product_page_id>-exception`.
 
-- Access: `packages/desktop/src/renderer/pages/settings/accessProjection.ts`;
-- Maintenance & Updates: `packages/desktop/src/renderer/pages/settings/RuntimeSettings/runtimeSettingsViewModel.ts`;
-- Data & Storage: `packages/desktop/src/renderer/pages/settings/storageProjection.ts`;
-- Capabilities: `packages/desktop/src/renderer/pages/settings/capabilitiesProjection.ts`.
+Pages with a visible primary action render:
 
-Large mixed pages such as Maintenance & Updates should stay split into summary,
-action, maintenance, and diagnostics components so each part has one owner and
-one test surface. Renderers may own layout and event wiring; adapters own the
-normalization from App state, managed-update projections, and local lifecycle
-receipts into user-facing view models.
+- `settings-<product_page_id>-primary-action`.
 
-## Product System Checklist
+Each page also renders its declared `data-settings-anchor` values. Conditional
+actions may be absent when their availability condition is false; the page-level
+limit remains one.
 
-Completion audits for Settings Control Center work use
-`contracts/app-settings-control-plane.json#product_system_checklist` as the
-machine-readable checklist. The checklist tracks product-system outcomes rather
-than only page names:
+## State And Action Boundary
 
-| Track                 | Checklist items                                                                                                                                                              |
-| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Product positioning   | Control Center positioning                                                                                                                                                   |
-| IA and routes         | Eight-entry IA, secondary route strategy, Settings search                                                                                                                    |
-| Control plane         | Single control plane, contract validators                                                                                                                                    |
-| Shell adapter         | Host adapter slot, view-model layer                                                                                                                                          |
-| State/action protocol | Issue/action protocol, Make OPL usable reconcile                                                                                                                             |
-| User task UX          | Maintenance noise reduction, update/rollback UX, Workspace, Local Services, Access, Capabilities, Data & Storage, Preferences, Advanced, Developer Profile, user copy system |
-| Visual QA             | Visual system, screenshot QA                                                                                                                                                 |
-| Ops hygiene           | Worktree/lane hygiene                                                                                                                                                        |
-| Release/currentness   | Installed/release currentness                                                                                                                                                |
+Default reads use:
 
-Each item is audited against fresh evidence. Docs, contracts, tests,
-screenshots, and shell code prove only the slice they directly cover. The
-installed/release currentness item stays in the checklist so audits cannot omit
-it, but it remains a release-owner gate. Settings tests, visual QA, contract
-validation, and pushed source commits must not be used as installed App,
-notarization, running-version, or release-ready evidence.
-
-## Validation Boundary
-
-Settings validation is split into three layers:
-
-1. App behavior contracts: `scripts/validate-active-shell/settings-control-plane-validator.ts`
-   validates Settings Control Plane behavior from
-   `contracts/app-settings-control-plane.json`, `settings_ia.v1`,
-   `contracts/app-page-state-matrix.json`, `contracts/app-product-profile.json`,
-   and the active shell adapter contract. This layer owns the hydrated registry
-   snapshot, ordinary and secondary route behavior, legacy redirects, extension
-   anchor remaps, route ids, route scopes, IA groups, task entries, action
-   routing, confirmation protocols, diagnostics visibility, post-update notice
-   policy, upstream intake classification, and route promotion rules.
-2. Shell adapter slot: active-shell validation may verify that the shell consumes
-   the App-owned Settings registry through `SettingsHost` and
-   `SettingsShellAdapterSlot`, including ordinary routes, secondary routes,
-   legacy redirects, and extension anchor remaps. This is a slot and registry
-   behavior check, not a source-code inventory of every Settings component.
-   Source probes for ordinary Settings pages should bind to current user-visible
-   anchors, route/view-model structure, and action-source boundaries. They
-   should not require retired component names after a page is folded into a
-   simpler ordinary-user layout.
-3. High-risk forbidden source probes: source-string probes remain appropriate
-   only for rejected or dangerous upstream surfaces, including AionUI Team mode,
-   Team MCP state, raw runtime/domain truth writes, owner receipt writes, silent
-   dirty/developer checkout updates, and direct reads of OPL internal state
-   files.
-
-Visual/UX QA is shell behavior evidence, not release evidence. The fixed
-Settings Control Center visual command is:
-
-```bash
-E2E_SCREENSHOTS=1 bun run test:e2e -- tests/e2e/specs/navigation.e2e.ts --grep "Settings Pages|Sidebar Navigation"
+```text
+opl app state --profile fast --json
 ```
 
-That evidence must cover desktop and mobile viewports for the ordinary routes
-`/settings/general`, `/settings/access`, `/settings/workspace`,
-`/settings/capabilities`, `/settings/resources`, `/settings/environment`,
-`/settings/storage`, and `/settings/appearance`. Advanced, About, Update, Theme,
-and Local Services are secondary/deep-link task pages; visual evidence must
-capture them or explicitly mark them as route-unit-covered without claiming
-screenshot coverage.
+Explicit detail refreshes use:
 
-The shell evidence bundle must write
-`tests/e2e/screenshots/settings-control-center-manifest.json` with the command,
-commit, viewport, route, screenshot path, and status anchors observed for each
-entry. Status anchors include collapsed diagnostics, confirmation before
-state-changing actions, post-action recovery notice, and legacy redirect
-landing behavior. Passing visual QA proves that the active shell can render the
-Settings Control Center without obvious navigation, overlap, or route-framing
-regressions. It does not prove release readiness, packaged App readiness,
-runtime currentness, or owner acceptance.
+```text
+opl app state --profile full --json
+```
 
-## Upstream Intake Classification
+Mutations use:
 
-Incoming upstream AionUI Settings changes are classified before they enter the
-Settings registry, `SettingsHost`, or `SettingsShellAdapterSlot`:
+```text
+opl app action execute --action <action_id> [--payload <json>] [--dry-run] --json
+```
 
-- `accepted`: layout, styling, accessibility, i18n, flicker, and extension tab
-  rendering fixes that implement existing App-owned routes, task entries,
-  protocols, or visual QA targets without changing authority.
-- `adapt`: upstream skills/tools, assistant, provider/model, remote-access, or
-  route changes that can be consumed only through the App registry, adapter
-  slot, page-state matrix, and App action/state routes.
-- `redirect`: upstream setup shortcuts or raw configuration affordances that
-  remain only as compatibility redirects or extension-anchor remaps to an
-  App-owned Settings group.
-- `reject`: exposes upstream-only configuration, Team mode, raw provider or
-  runtime internals, domain truth mutation, owner receipt mutation, silent
-  developer checkout updates, or another forbidden ordinary-user surface.
+The shell may render state, confirmations, progress, and receipts. It must not
+write runtime truth, provider implementation, domain truth, owner receipts, or
+release readiness.
 
-Fixed intake checklist:
+## Verification Boundary
 
-1. Record the upstream Settings surface and user-visible behavior.
-2. Classify it as `accepted`, `adapt`, `redirect`, or `reject` before changing
-   the Settings registry or adapter slot.
-3. Bind `accepted` and `adapt` entries to `SettingsHost` /
-   `SettingsShellAdapterSlot` evidence.
-4. Route `redirect` and `reject` entries through legacy redirects, extension
-   anchor remaps, or forbidden probes.
-5. Keep runtime truth, domain truth, provider implementation, owner receipts,
-   and release readiness outside the shell adapter.
+Contract and focused validation prove the App-owned product requirement and
+matrix consistency. They do not prove that the running shell implements the DOM,
+that every anchor scrolls correctly, that visual screenshots pass, that an
+installed App is current, or that a release is ready.
 
-## Capabilities Action Rules
+Shell acceptance requires:
 
-The Capabilities page must keep package lifecycle actions separate from local
-developer checkout maintenance:
+- the single search input and bilingual item results;
+- route plus `section` parsing for all compatibility redirects;
+- all required page roots, primary regions, actions, exception regions,
+  technical-details disclosures, and anchors;
+- `settings-access-browser-access` remains visible on Access;
+- legacy `assistants` opens the third on-demand `AssistantSettings` tab and
+  focuses `custom-assistants`;
+- resource `Open`, `Diagnose`, and mutating actions obey their execution and
+  dry-run claim boundaries;
+- desktop and mobile visual QA;
+- no nested cards, no duplicated global search, no text overlap, and no more
+  than one primary action per page.
 
-- Display names come from App-owned product/profile contracts. The BookForge
-  user-facing name is `OPL Book Forge`; `opl-bookforge` remains the machine id,
-  Codex-visible entry, plugin id, and required skill id.
-- `recommended_action: update` on a `git_checkout` / `developer_mode` module
-  means the local source checkout is behind or dirty. The ordinary row should
-  show developer-source status and route the primary action to Maintenance,
-  not expose it as an OPL Package update.
-- `agent_package_update` is only for package lifecycle updates. When the UI
-  invokes it, the payload must include either `manifest_url` or
-  `registry_url + package_id` from Framework/App state readback. The UI must
-  not invent a registry or manifest URL from static starter metadata.
-- Repair, uninstall, and package update buttons stay disabled for developer
-  checkout rows. Home shortcut visibility/order can still use
-  `agent_package_preferences_set` because it changes App exposure preference,
-  not package source.
-
-## Verification Expectations
-
-Structural landing requires:
-
-- App contracts and page-state matrix updated;
-- `settings_ia.v1` route ids, user task entries, protocols, and visual QA
-  targets covered by active-shell validation and release-boundary tests;
-- active shell navigation and routes updated;
-- i18n labels updated in English and Chinese;
-- active-shell validation passing;
-- affected shell typecheck or focused UI checks passing;
-- docs decisions/invariants updated.
-
-This does not by itself prove release readiness, packaged App readiness, VM
-smoke, or production readiness. Those remain release-owner and runtime evidence
-lanes.
+Release and runtime currentness remain separate owner gates.

@@ -327,10 +327,42 @@ export const appOwnedTaskAwarenessRefFields = [
 export const appOwnedSecondarySettingsPages = [
   "advanced",
   "about",
-  "update",
-  "theme",
-  "local-services",
 ];
+export const appOwnedSettingsCompatibilityRedirects = {
+  update: {
+    source_route_id: "update",
+    source_path: "/settings/update",
+    target_route_id: "environment",
+    target_path: "/settings/environment",
+    product_page_id: "maintenance",
+    anchor: "updates",
+    anchor_query_param: "section",
+    navigation_encoding: "route_id_plus_anchor_field",
+    shell_transport_hint: "hash_router_uses_query_param_section",
+  },
+  theme: {
+    source_route_id: "theme",
+    source_path: "/settings/theme",
+    target_route_id: "appearance",
+    target_path: "/settings/appearance",
+    product_page_id: "preferences",
+    anchor: "themes",
+    anchor_query_param: "section",
+    navigation_encoding: "route_id_plus_anchor_field",
+    shell_transport_hint: "hash_router_uses_query_param_section",
+  },
+  "local-services": {
+    source_route_id: "local-services",
+    source_path: "/settings/local-services",
+    target_route_id: "environment",
+    target_path: "/settings/environment",
+    product_page_id: "maintenance",
+    anchor: "services",
+    anchor_query_param: "section",
+    navigation_encoding: "route_id_plus_anchor_field",
+    shell_transport_hint: "hash_router_uses_query_param_section",
+  },
+};
 export const appActionRoute =
   "opl app action execute --action <action_id> [--payload <json>] [--dry-run] --json";
 export const appOwnedSettingsIaGroupIds = [
@@ -350,14 +382,14 @@ export const appOwnedSettingsRouteScopes = {
   resources: { route_id: "resources", route_scope: "ordinary" },
   environment: { route_id: "environment", route_scope: "ordinary" },
   storage: { route_id: "storage", route_scope: "ordinary" },
-  settings_theme: { route_id: "theme", route_scope: "secondary_or_deep_link" },
+  settings_theme: { route_id: "appearance", route_scope: "ordinary" },
   advanced: { route_id: "advanced", route_scope: "secondary_or_deep_link" },
   about: { route_id: "about", route_scope: "secondary_or_deep_link" },
-  update: { route_id: "update", route_scope: "secondary_or_deep_link" },
+  update: { route_id: "update", route_scope: "compatibility_redirect" },
   workspace: { route_id: "workspace", route_scope: "ordinary" },
   local_services: {
     route_id: "local-services",
-    route_scope: "secondary_or_deep_link",
+    route_scope: "compatibility_redirect",
   },
 };
 export const appOwnedSettingsTaskEntryIds = [
@@ -388,6 +420,117 @@ export const appOwnedSettingsTopLevelEntryIds = [
   "storage",
   "preferences",
 ];
+export const appOwnedSettingsTopLevelLabels = {
+  overview: { label_zh: "概览", label_en: "Overview" },
+  access: { label_zh: "访问方式", label_en: "Access" },
+  workspace: { label_zh: "工作区", label_en: "Workspace" },
+  capabilities: { label_zh: "智能体与能力", label_en: "Agents & Capabilities" },
+  resources: { label_zh: "资源与连接", label_en: "Resources & Connections" },
+  maintenance: { label_zh: "维护", label_en: "Maintenance" },
+  storage: { label_zh: "数据与存储", label_en: "Data & Storage" },
+  preferences: { label_zh: "偏好", label_en: "Preferences" },
+};
+export const appOwnedSettingsProductPageIds = [
+  ...appOwnedSettingsTopLevelEntryIds,
+  ...appOwnedSecondarySettingsPages,
+];
+export const appOwnedSettingsPageAnchors = {
+  overview: ["status", "next-action"],
+  access: ["provider-source", "model", "authentication"],
+  workspace: ["current-workspace", "permissions"],
+  capabilities: ["availability", "source", "home-visibility", "custom-assistants"],
+  resources: ["resource-readiness", "action-readiness", "external-resources"],
+  maintenance: ["health", "updates", "services", "packages"],
+  storage: ["storage-categories", "cleanup-preview", "cleanup-history"],
+  preferences: ["behavior", "tray", "hardware", "themes"],
+  advanced: ["working-directories"],
+  about: ["version", "channel", "updates"],
+};
+export const appOwnedSettingsPageSearchEntryIds = {
+  overview: ["overview.status", "overview.next_action"],
+  access: ["access.provider_source", "access.model", "access.authentication"],
+  workspace: ["workspace.current", "workspace.permissions"],
+  capabilities: [
+    "capabilities.availability",
+    "capabilities.source",
+    "capabilities.home_visibility",
+    "capabilities.custom_assistants",
+  ],
+  resources: ["resources.readiness", "resources.executable", "resources.external"],
+  maintenance: [
+    "maintenance.health",
+    "maintenance.updates",
+    "maintenance.services",
+    "maintenance.packages",
+  ],
+  storage: ["storage.categories", "storage.preview", "storage.history"],
+  preferences: [
+    "preferences.behavior",
+    "preferences.tray",
+    "preferences.hardware",
+    "preferences.themes",
+  ],
+  advanced: ["advanced.directories"],
+  about: ["about.version", "about.channel", "about.updates"],
+};
+export const appOwnedSettingsCapabilitiesTabContract = {
+  surface_label_zh: "智能体与能力",
+  surface_label_en: "Agents & Capabilities",
+  tab_order: ["skills", "tools", "assistants"],
+  default_tab: "skills",
+  on_demand_tab_ids: ["assistants"],
+  assistants: {
+    tab_id: "assistants",
+    position: 3,
+    component_key: "AssistantSettings",
+    anchor: "custom-assistants",
+    legacy_route_id: "assistants",
+    legacy_target: "capabilities?tab=assistants#custom-assistants",
+    hash_router_target_path:
+      "/settings/capabilities?tab=assistants&section=custom-assistants",
+    top_level_or_secondary_page_allowed: false,
+  },
+};
+export const appOwnedSettingsAccessBrowserEntry = {
+  label_zh: "这台电脑的浏览器访问",
+  label_en: "Browser access to this computer",
+  placement: "access_primary_information",
+  visibility: "always",
+  action_policy: "open_existing_local_browser_access_settings",
+  implementation_provenance_visibility: "technical_details_only",
+  resources_boundary:
+    "Docker WebUI, OPL Workspace, SSH/HPC, cloud, Fabric, and Console-managed refs stay on Resources & Connections",
+};
+export const appOwnedSettingsResourceActionBehavior = {
+  read_only_actions: {
+    open: {
+      execution_policy: "navigate_shell_to_projected_browser_url",
+      required_projection_field: "browser_url",
+      completion_evidence: "shell_navigation_dispatched_to_exact_browser_url",
+    },
+    diagnose: {
+      execution_policy: "invoke_projected_diagnose_action_and_render_result",
+      completion_evidence: "diagnose_result_or_action_receipt_visible",
+    },
+  },
+  mutating_actions: {
+    precheck_required: true,
+    explicit_confirmation_required: true,
+    execution_policy:
+      "execute_projected_mutation_only_after_successful_precheck_and_explicit_confirmation",
+    completion_evidence: "mutation_result_or_action_receipt_visible",
+  },
+  dry_run_boundary: {
+    role: "precheck_only",
+    allowed_claim: "precheck_passed",
+    forbidden_completion_claims: [
+      "resource_opened",
+      "diagnosis_completed_without_diagnose_execution",
+      "deployment_completed",
+      "mutation_completed",
+    ],
+  },
+};
 export const appOwnedSettingsProjectionSectionIds = [
   "summary",
   "access",
@@ -415,11 +558,54 @@ export const appOwnedSettingsIssueStatuses = [
   "dismissed",
 ];
 export const appOwnedSettingsSearchProtocol = {
-  scope: "ordinary_route_labels_user_task_entries_and_action_keywords",
-  result_policy:
-    "filter_settings_navigation_without_changing_current_page_until_user_selects_a_result",
+  global_entry_count: 1,
+  entry_testid: "settings-search-input",
+  scope: "bilingual_item_level_index",
+  languages: ["zh-CN", "en"],
+  result_label_format: "{page_label} > {entry_label}",
+  result_policy: "select_result_navigates_to_owner_route_and_anchor",
+  anchor_transport: "route_id_plus_anchor_field_with_section_query_fallback",
+  compatibility_index_policy:
+    "index_update_theme_and_local_services_under_owner_page_anchors",
   empty_state: "show_no_matching_settings_without_exposing_internal_route_ids",
 };
+export const appOwnedSettingsVisualSystem = {
+  style: "codex_app_quiet_workbench",
+  card_policy: "few_cards_only_for_summary_or_repeated_entities",
+  nested_cards_allowed: false,
+  page_sections_as_floating_cards_allowed: false,
+  max_border_radius_px: 8,
+  spacing_scale_px: [12, 16, 24],
+  heading_density: "compact",
+  primary_action_per_page_max: 1,
+  normal_state_emphasis: "muted",
+  exception_state_emphasis: "accent_only_when_attention_required",
+  technical_details_default: "collapsed",
+  letter_spacing_px: 0,
+};
+export const appOwnedSettingsPageExperienceFields = [
+  "product_page_id",
+  "route_id",
+  "matrix_page_id",
+  "label_zh",
+  "label_en",
+  "primary_information",
+  "primary_action",
+  "exception_state",
+  "technical_details_boundary",
+  "required_dom",
+  "required_anchors",
+  "search_entry_ids",
+];
+export const appOwnedSettingsSearchEntryFields = [
+  "id",
+  "page_id",
+  "anchor",
+  "label_zh",
+  "label_en",
+  "keywords_zh",
+  "keywords_en",
+];
 export const appOwnedSettingsCardFields = [
   "id",
   "title",
@@ -480,21 +666,21 @@ export const appOwnedSettingsProductSystemItemIds = [
   "control_center_positioning",
   "eight_entry_ia",
   "secondary_route_strategy",
+  "compatibility_anchor_routes",
   "single_control_plane",
   "host_adapter_slot",
+  "per_page_experience_contracts",
   "view_model_layer",
   "issue_action_protocol",
-  "make_opl_usable_reconcile",
   "maintenance_noise_reduction",
-  "update_rollback_ux",
-  "workspace_task_page",
-  "local_services_page",
-  "access_information_architecture",
+  "workspace_normal_state",
+  "model_access_source",
   "capabilities_experience",
+  "resources_readiness_boundary",
   "data_storage_safety",
-  "preferences_purity",
-  "advanced_diagnostics",
-  "developer_profile_warning",
+  "preferences_user_language",
+  "advanced_read_only_paths",
+  "about_update_summary",
   "user_copy_system",
   "settings_search",
   "visual_system",
@@ -520,7 +706,7 @@ export const legacySettingsRouteRedirects = {
   system: "advanced",
   model: "environment",
   agent: "capabilities",
-  assistants: "capabilities",
+  assistants: "capabilities?tab=assistants#custom-assistants",
   "skills-hub": "capabilities",
   tools: "capabilities",
   display: "appearance",

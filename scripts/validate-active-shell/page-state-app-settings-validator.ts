@@ -1,22 +1,31 @@
-import { assertDeepEqualJson, assertIncludesAll } from './assertions.ts';
+import { assertDeepEqualJson, assertIncludesAll, readJson } from './assertions.ts';
 import {
+  appOwnedSettingsAccessBrowserEntry,
+  appOwnedSettingsCapabilitiesTabContract,
+  appOwnedSettingsCompatibilityRedirects,
+  appOwnedSettingsResourceActionBehavior,
   appOwnedTaskAwarenessRefFields,
 } from './app-contract-constants.ts';
 import {
   validateEnvironmentModuleMaintenanceEntry,
-  validateManagedUpdatePageBasics,
-  validateManagedUpdatePlaneBinding,
 } from './managed-update-plane-validator.ts';
+import { settingsControlPlanePath } from './validation-config.ts';
 import { validateSettingsControlPlaneBehavior } from './settings-control-plane-validator.ts';
 
 const guiSettingsPageToMatrixPage = {
   settings_general: 'settings_general',
   settings_access: 'access',
+  settings_workspace: 'settings_workspace',
   settings_capabilities: 'capabilities',
+  settings_resources: 'settings_resources',
   settings_environment: 'environment',
   settings_storage: 'storage',
+  settings_theme: 'settings_theme',
   settings_advanced: 'advanced',
+  about: 'about',
 };
+
+const settingsControlPlane = readJson(settingsControlPlanePath);
 
 export function validateAppSettingsPages(matrix, guiContract) {
   validateSettingsControlPlaneBehavior({ pageStateMatrix: matrix });
@@ -46,12 +55,30 @@ export function validateAppSettingsPages(matrix, guiContract) {
     assertIncludesAll(page.must_not_show, expected.must_not_show, `${matrixPageId} must_not_show`);
   }
 
+  const accessPage = pageById(matrix, 'access');
+  if (
+    accessPage.provider_source !== 'app_state.core.codex.model_access_source' ||
+    !accessPage.state_sections?.includes('core.codex.model_access_source')
+  ) {
+    throw new Error('Access page must use the real Codex model_access_source');
+  }
+  assertDeepEqualJson(
+    accessPage.browser_access_entry,
+    appOwnedSettingsAccessBrowserEntry,
+    'Access page browser entry',
+  );
+  if (!accessPage.required_dom?.always?.includes('settings-access-browser-access')) {
+    throw new Error('Access page must preserve browser access to this computer');
+  }
+
   validateCapabilitiesPage(matrix, guiContract);
+  validateResourcesPage(matrix, guiContract);
   validateEnvironmentPage(matrix);
   validateAdvancedPage(matrix);
   validateAboutPage(matrix);
-  validateUpdatePage(matrix);
+  validateCompatibilityRedirectPages(matrix, guiContract);
   validateSettingsThemePage(matrix);
+  validateSettingsPageExperience(matrix);
 }
 
 function pageById(matrix, id) {
@@ -67,6 +94,16 @@ function validateCapabilitiesPage(matrix, guiContract) {
   if (capabilitiesPage.refresh_source !== 'opl app state --profile fast --json') {
     throw new Error('Capabilities page must refresh through opl app state --profile fast --json');
   }
+  assertDeepEqualJson(
+    capabilitiesPage.codex_plugin_directory_target?.tab_contract,
+    appOwnedSettingsCapabilitiesTabContract,
+    'Capabilities page AssistantSettings tab contract',
+  );
+  assertDeepEqualJson(
+    guiContract.pages?.settings_capabilities?.codex_plugin_directory_target?.tab_contract,
+    appOwnedSettingsCapabilitiesTabContract,
+    'App GUI Capabilities AssistantSettings tab contract',
+  );
   if (
     capabilitiesPage.machine_source !==
     'opl app state --profile fast --json#app_state.agent_packages.directory + app_state.agent_packages.status_index + home_agent_shortcuts + operator.workbench.task_drilldowns'
@@ -224,6 +261,20 @@ function validateCapabilitiesPage(matrix, guiContract) {
   );
 }
 
+function validateResourcesPage(matrix, guiContract) {
+  const resourcesPage = pageById(matrix, 'settings_resources');
+  assertDeepEqualJson(
+    resourcesPage.action_behavior,
+    appOwnedSettingsResourceActionBehavior,
+    'Resources page action behavior',
+  );
+  assertDeepEqualJson(
+    guiContract.pages?.settings_resources?.action_behavior,
+    appOwnedSettingsResourceActionBehavior,
+    'App GUI Resources action behavior',
+  );
+}
+
 function expectedAgentPackageLifecycleUx() {
   return {
     requirement_scope: 'product_requirement_not_runtime_authority',
@@ -367,8 +418,8 @@ function validateEnvironmentPage(matrix) {
   if (environmentPage.module_path_source_policy_ref !== 'contracts/app-gui-product-contract.json#module_path_source_policy') {
     throw new Error('Environment page must reference the App GUI module path source policy');
   }
-  if (!environmentPage.must_show?.includes('module path source explanation')) {
-    throw new Error('Environment page must show module path source explanation');
+  if (!environmentPage.must_show?.includes('module path source explanation in technical details')) {
+    throw new Error('Maintenance page must keep module path source explanation in technical details');
   }
   validateEnvironmentModuleMaintenanceEntry(environmentPage.module_maintenance_entry, 'Environment page');
   if (!environmentPage.must_not_show?.includes('Med Deep Scientist as a default module')) {
@@ -381,17 +432,13 @@ function validateEnvironmentPage(matrix) {
 
 function validateAdvancedPage(matrix) {
   const advancedPage = pageById(matrix, 'advanced');
-  if (!advancedPage.state_sections?.includes('opl_flow_context')) {
-    throw new Error('Advanced page state_sections must include opl_flow_context');
-  }
-  if (advancedPage.state_sections?.includes('opl_agent_codex_context')) {
-    throw new Error('Advanced page state_sections must not retain opl_agent_codex_context');
-  }
-  if ((advancedPage.legacy_state_sections ?? []).length > 0) {
-    throw new Error('Advanced page legacy_state_sections must be retired');
-  }
-  if (!advancedPage.must_show?.includes('OPL Flow Context')) {
-    throw new Error('Advanced page must show OPL Flow Context');
+  if (
+    !advancedPage.state_sections?.includes('paths') ||
+    advancedPage.state_sections?.includes('opl_flow_context') ||
+    !advancedPage.must_show?.includes('read-only working directories from app_state.paths') ||
+    !advancedPage.must_not_show?.includes('Developer Mode or Developer Profile controls')
+  ) {
+    throw new Error('Advanced page must be read-only working directories');
   }
 }
 
@@ -400,33 +447,79 @@ function validateAboutPage(matrix) {
   if (!aboutPage.must_show?.includes('Stable or Nightly channel')) {
     throw new Error('About page must show Stable or Nightly channel');
   }
-  if (!aboutPage.must_show?.includes('Maintenance link that routes update and repair actions to Control Center Maintenance')) {
-    throw new Error('About page must link update and repair actions to Control Center Maintenance');
-  }
-  if (aboutPage.managed_update_plane_ref) {
-    throw new Error('About page must not own the App release managed update plane');
-  }
-  if (!aboutPage.must_not_show?.includes('update, repair, rollback, package maintenance, or storage cleanup controls on About')) {
-    throw new Error('About page must keep update, repair, rollback, package maintenance, and cleanup controls out of About');
+  if (
+    aboutPage.route_id !== 'about' ||
+    aboutPage.route_scope !== 'secondary_or_deep_link' ||
+    !aboutPage.must_show?.includes('update status') ||
+    !aboutPage.must_show?.includes('one Check for updates action') ||
+    !aboutPage.must_not_show?.includes('about redirected to Advanced')
+  ) {
+    throw new Error('About page must remain independent with version, channel, and update status');
   }
 }
 
-function validateUpdatePage(matrix) {
+function validateCompatibilityRedirectPages(matrix, guiContract) {
   const updatePage = pageById(matrix, 'update');
-  validateManagedUpdatePageBasics(updatePage, 'Update page', { requirePageContract: true });
-  validateManagedUpdatePlaneBinding(updatePage.managed_update_plane, 'Update page');
+  const localServicesPage = pageById(matrix, 'settings_local_services');
+  assertDeepEqualJson(
+    updatePage.compatibility_redirect,
+    appOwnedSettingsCompatibilityRedirects.update,
+    'Update compatibility redirect',
+  );
+  assertDeepEqualJson(
+    localServicesPage.compatibility_redirect,
+    appOwnedSettingsCompatibilityRedirects['local-services'],
+    'Local Services compatibility redirect',
+  );
+  assertDeepEqualJson(
+    matrix.settings_compatibility_redirects,
+    appOwnedSettingsCompatibilityRedirects,
+    'Page-state compatibility redirect map',
+  );
+  assertDeepEqualJson(
+    guiContract.settings_navigation.compatibility_redirects,
+    appOwnedSettingsCompatibilityRedirects,
+    'GUI compatibility redirect map',
+  );
 }
 
 function validateSettingsThemePage(matrix) {
   const settingsThemePage = pageById(matrix, 'settings_theme');
+  if (
+    settingsThemePage.route_id !== 'appearance' ||
+    settingsThemePage.route_scope !== 'ordinary' ||
+    settingsThemePage.product_page_id !== 'preferences'
+  ) {
+    throw new Error('Settings Preferences must use the ordinary appearance carrier route');
+  }
   for (const signal of [
-    'Default theme option',
-    'Codex theme option',
-    'current theme from app_state.settings.theme',
-    'theme choice as App product preference',
+    'reply waiting time in human units',
+    'tray and close-window behavior',
+    'hardware acceleration in user language',
+    'Default and Codex theme choices under the themes anchor',
   ]) {
     if (!settingsThemePage.must_show?.includes(signal)) {
-      throw new Error(`Settings theme page must show ${signal}`);
+      throw new Error(`Settings Preferences page must show ${signal}`);
     }
+  }
+}
+
+function validateSettingsPageExperience(matrix) {
+  const experience = settingsControlPlane.experience_contract;
+  for (const [productPageId, contract] of Object.entries(experience.page_contracts ?? {})) {
+    const page = pageById(matrix, contract.matrix_page_id);
+    if (
+      page.product_page_id !== productPageId ||
+      page.experience_contract_ref !==
+        `contracts/app-settings-control-plane.json#experience_contract.page_contracts.${productPageId}` ||
+      page.primary_action_id !== contract.primary_action.id ||
+      page.technical_details_default !== 'collapsed' ||
+      page.exception_emphasis !== 'attention_only'
+    ) {
+      throw new Error(`${contract.matrix_page_id} must mirror the ${productPageId} experience contract`);
+    }
+    assertDeepEqualJson(page.required_dom, contract.required_dom, `${productPageId} required DOM`);
+    assertDeepEqualJson(page.required_anchors, contract.required_anchors, `${productPageId} required anchors`);
+    assertDeepEqualJson(page.search_entry_ids, contract.search_entry_ids, `${productPageId} search entries`);
   }
 }

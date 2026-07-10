@@ -1,6 +1,9 @@
 import { assertDeepEqualJson, assertForbiddenCapabilityPolicy, assertIncludesAll, readJson } from './assertions.ts';
 import {
   appActionRoute,
+  appOwnedSettingsAccessBrowserEntry,
+  appOwnedSettingsCapabilitiesTabContract,
+  appOwnedSettingsResourceActionBehavior,
   appOwnedTaskAwarenessRefFields,
   focusedFirstRunPresentationPolicy,
   homeActivityCenterForbiddenDisplays,
@@ -11,9 +14,7 @@ import { validateGuiFrameworkSurfaces } from './gui-framework-surfaces-validator
 import { validateGuiProductHomeContract } from './gui-product-home-validator.ts';
 import { assertCommandSurface } from './value-helpers.ts';
 import {
-  validateManagedUpdatePageBasics,
   validateEnvironmentModuleMaintenanceEntry,
-  validateManagedUpdatePlaneBinding,
 } from './managed-update-plane-validator.ts';
 import { productProfilePath, runtimeBridgePath, settingsControlPlanePath } from './validation-config.ts';
 import { validateSettingsControlPlaneBehavior } from './settings-control-plane-validator.ts';
@@ -328,7 +329,18 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
       throw new Error(`App GUI theme list must include ${themeId}`);
     }
   }
-  for (const section of ['general', 'access', 'capabilities', 'environment', 'storage', 'appearance', 'advanced', 'about', 'update', 'theme']) {
+  for (const section of [
+    'general',
+    'access',
+    'workspace',
+    'capabilities',
+    'resources',
+    'environment',
+    'storage',
+    'appearance',
+    'advanced',
+    'about',
+  ]) {
     if (!guiContract.settings_navigation?.required_sections?.includes(section)) {
       throw new Error(`App GUI settings navigation must include ${section}`);
     }
@@ -344,11 +356,21 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     'App GUI settings navigation secondary page ids',
   );
   assertDeepEqualJson(
+    guiContract.settings_navigation?.compatibility_redirects,
+    settingsControlPlane.compatibility_redirects,
+    'App GUI settings compatibility redirects',
+  );
+  assertDeepEqualJson(
+    guiContract.settings_navigation?.ordinary_hidden_compatibility_routes,
+    ['update', 'theme', 'local-services'],
+    'App GUI hidden compatibility routes',
+  );
+  assertDeepEqualJson(
     guiContract.settings_navigation?.legacy_route_redirects,
     Object.fromEntries(
       Object.entries(settingsControlPlane.legacy_route_redirects ?? {})
         .filter(([id]) => id !== 'about')
-        .map(([id, target]) => [id, String(target).split('?')[0]]),
+        .map(([id, target]) => [id, id === 'assistants' ? target : String(target).split('?')[0]]),
     ),
     'App GUI settings navigation legacy route redirects',
   );
@@ -357,6 +379,18 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     Object.keys(guiContract.settings_navigation?.legacy_route_redirects ?? {}),
     'App GUI settings navigation ordinary hidden legacy tabs',
   );
+  if (
+    guiContract.settings_navigation?.legacy_route_redirects?.about ||
+    settingsControlPlane.legacy_route_redirects?.about
+  ) {
+    throw new Error('App GUI About must remain an independent /settings/about page');
+  }
+  if (
+    guiContract.settings_navigation?.legacy_route_redirects?.assistants !==
+    'capabilities?tab=assistants#custom-assistants'
+  ) {
+    throw new Error('App GUI legacy assistants route must target the AssistantSettings tab and anchor');
+  }
   assertIncludesAll(
     guiContract.settings_navigation?.ordinary_hidden_upstream_surfaces,
     ['AionUI Team', 'Team nav entry', 'Team leader configuration', 'team deep link navigation'],
@@ -567,12 +601,15 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     'guid_home',
     'settings_general',
     'settings_access',
+    'settings_workspace',
     'settings_capabilities',
+    'settings_resources',
     'settings_environment',
     'settings_advanced',
     'about',
     'update',
     'settings_theme',
+    'settings_local_services',
     'runtime_status',
   ]) {
     if (!pages[pageId]) {
@@ -766,6 +803,68 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     assertNonEmptyStringArray(page.must_show, `App GUI ${pageId} must_show`);
     assertNonEmptyStringArray(page.must_not_show, `App GUI ${pageId} must_not_show`);
   }
+  const settingsExperiencePages = {
+    settings_general: 'overview',
+    settings_access: 'access',
+    settings_workspace: 'workspace',
+    settings_capabilities: 'capabilities',
+    settings_resources: 'resources',
+    settings_environment: 'maintenance',
+    settings_storage: 'storage',
+    settings_theme: 'preferences',
+    settings_advanced: 'advanced',
+    about: 'about',
+  };
+  for (const [pageId, productPageId] of Object.entries(settingsExperiencePages)) {
+    if (
+      pages[pageId]?.product_page_id !== productPageId ||
+      pages[pageId]?.experience_contract_ref !==
+        `contracts/app-settings-control-plane.json#experience_contract.page_contracts.${productPageId}`
+    ) {
+      throw new Error(`App GUI ${pageId} must reference the ${productPageId} experience contract`);
+    }
+  }
+  if (pages.settings_access.model_access_source !== 'app_state.core.codex.model_access_source') {
+    throw new Error('Settings Access must use app_state.core.codex.model_access_source');
+  }
+  assertDeepEqualJson(
+    pages.settings_access.browser_access_entry,
+    appOwnedSettingsAccessBrowserEntry,
+    'Settings Access browser entry',
+  );
+  assertIncludesAll(
+    pages.settings_access.must_show,
+    ['page label Access or 访问方式', 'browser access to this computer as a visible user entry'],
+    'Settings Access user entry contract',
+  );
+  assertIncludesAll(
+    pages.settings_resources.must_show,
+    ['resource readiness and action executability as separate states'],
+    'Settings Resources readiness boundary',
+  );
+  assertIncludesAll(
+    pages.settings_resources.must_not_show,
+    [
+      'selected local workspace path, change-workspace controls, or permission summary duplicated from Workspace',
+      'dry-run success presented as resource opened, diagnosis completed, deployment completed, or mutation completed',
+    ],
+    'Settings Resources Workspace deduplication',
+  );
+  assertDeepEqualJson(
+    pages.settings_resources.action_behavior,
+    appOwnedSettingsResourceActionBehavior,
+    'Settings Resources action behavior',
+  );
+  assertDeepEqualJson(
+    pages.settings_capabilities.codex_plugin_directory_target?.tab_contract,
+    appOwnedSettingsCapabilitiesTabContract,
+    'Settings Agents & Capabilities tab contract',
+  );
+  assertIncludesAll(
+    pages.settings_capabilities.must_show,
+    ['custom assistants mount AssistantSettings in the third on-demand assistants tab at custom-assistants'],
+    'Settings Agents & Capabilities AssistantSettings surface',
+  );
   if (
     pages.settings_capabilities.builtin_skill_catalog_policy?.allowed_set_ref !==
     'contracts/app-product-profile.json#companion_payloads.default_packaged_codex_skill_ids + packaged_not_default_visible_codex_skill_ids'
@@ -833,37 +932,33 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     'Settings Capabilities Agent Package lifecycle UX',
   );
   validateOplFlowContext(guiContract.opl_flow_context, 'App GUI OPL Flow Context');
-  if (!pages.settings_advanced.sections?.includes('opl_flow_context')) {
-    throw new Error('Settings Advanced sections must include opl_flow_context');
-  }
-  if (pages.settings_advanced.sections?.includes('opl_agent_codex_context')) {
-    throw new Error('Settings Advanced must not retain legacy opl_agent_codex_context as an active section');
-  }
-  if ((pages.settings_advanced.legacy_state_sections ?? []).length > 0) {
-    throw new Error('Settings Advanced legacy state sections must be retired');
-  }
-  if (!pages.settings_advanced.must_show?.includes('OPL Flow Context')) {
-    throw new Error('Settings Advanced must show OPL Flow Context');
+  if (
+    !pages.settings_advanced.sections?.includes('working_directories') ||
+    pages.settings_advanced.sections?.includes('opl_flow_context') ||
+    !pages.settings_advanced.must_show?.includes('read-only working directories from app_state.paths') ||
+    !pages.settings_advanced.must_not_show?.includes('Developer Mode or Developer Profile controls')
+  ) {
+    throw new Error('Settings Advanced must be a read-only working-directories page');
   }
   if (
     pages.settings_workspace?.ia_group !== 'overview' ||
-    !pages.settings_workspace.must_show?.includes('workspace page reachable as a top-level Settings entry and from Overview task links') ||
-    !pages.settings_workspace.must_not_show?.includes('workspace buried only inside Local Environment or Advanced diagnostics')
+    !pages.settings_workspace.must_show?.includes('workspace page reachable as a top-level Settings entry') ||
+    !pages.settings_workspace.must_not_show?.includes('workspace buried inside Maintenance or Advanced')
   ) {
     throw new Error('Settings Workspace must be an independent top-level page under Overview');
   }
   if (
-    pages.settings_local_services?.ia_group !== 'maintenance' ||
-    !pages.settings_local_services.must_show?.includes('Local Services page reachable as a secondary deep link from Maintenance & Updates') ||
-    !pages.settings_local_services.must_not_show?.includes('updates, package maintenance, storage cleanup, or rollback controls as the primary Local Services task')
+    pages.settings_local_services?.page_kind !== 'compatibility_redirect' ||
+    pages.settings_local_services.compatibility_redirect?.target_route_id !== 'environment' ||
+    pages.settings_local_services.compatibility_redirect?.anchor !== 'services'
   ) {
-    throw new Error('Settings Local Services must be an independent service-health page under Maintenance');
+    throw new Error('Settings Local Services must redirect to Maintenance#services');
   }
   if (pages.settings_environment.module_path_source_policy_ref !== 'module_path_source_policy') {
     throw new Error('Settings Environment must reference the App GUI module path source policy');
   }
-  if (!pages.settings_environment.must_show?.includes('module path source explanation')) {
-    throw new Error('Settings Environment must show module path source explanation');
+  if (!pages.settings_environment.must_show?.includes('module path source explanation in technical details')) {
+    throw new Error('Settings Maintenance must keep module path source explanation in technical details');
   }
   validateEnvironmentModuleMaintenanceEntry(pages.settings_environment.module_maintenance_entry, 'Settings Environment');
   if (!pages.settings_environment.must_not_show?.includes('Med Deep Scientist as a default module')) {
@@ -889,18 +984,28 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   if (!pages.about.must_show?.includes('Stable or Nightly channel')) {
     throw new Error('About page must show Stable or Nightly channel');
   }
-  if (!pages.about.must_show?.includes('Maintenance link that routes update and repair actions to Control Center Maintenance')) {
-    throw new Error('About page must link update and repair actions to Control Center Maintenance');
+  if (
+    !pages.about.must_show?.includes('update status') ||
+    !pages.about.must_show?.includes('one Check for updates action') ||
+    !pages.about.must_not_show?.includes('about redirected to Advanced') ||
+    pages.about.product_page_id !== 'about'
+  ) {
+    throw new Error('About must remain independent with version, channel, and update status');
   }
-  if (pages.about.managed_update_plane_ref) {
-    throw new Error('About page must not own the managed update plane');
+  if (
+    pages.update?.page_kind !== 'compatibility_redirect' ||
+    pages.update.compatibility_redirect?.target_route_id !== 'environment' ||
+    pages.update.compatibility_redirect?.anchor !== 'updates'
+  ) {
+    throw new Error('Update must redirect to Maintenance#updates');
   }
-  if (!pages.about.must_not_show?.includes('update, repair, rollback, package maintenance, or storage cleanup controls on About')) {
-    throw new Error('About page must keep update, repair, rollback, package maintenance, and cleanup controls out of About');
-  }
-  validateManagedUpdatePageSurface(pages.update, 'App GUI Updates & Maintenance page');
-  if (!pages.settings_theme.must_show?.includes('Default theme option') || !pages.settings_theme.must_show?.includes('Codex theme option')) {
-    throw new Error('Settings theme page must show default and Codex theme options');
+  if (
+    pages.settings_theme.product_page_id !== 'preferences' ||
+    !pages.settings_theme.must_show?.includes('reply waiting time in human units') ||
+    !pages.settings_theme.must_show?.includes('hardware acceleration in user language') ||
+    !pages.settings_theme.must_show?.includes('Default and Codex theme choices under the themes anchor')
+  ) {
+    throw new Error('Settings Preferences must use user language for timeout, tray, hardware, and themes');
   }
   validateProgressDeltaDisplayContract(
     pages.runtime_status.progress_delta_policy,
