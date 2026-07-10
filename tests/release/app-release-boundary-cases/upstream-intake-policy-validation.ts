@@ -24,6 +24,28 @@ const shellPaths = {
   packageManifestPath: '/fixture/active-shell/package.json',
 };
 
+const observedAionCoreFailureBoundaries = [
+  {
+    stage: 'database.recoverable_corruption',
+    required_corruption_markers_any_of: [],
+  },
+  {
+    stage: 'database.open',
+    required_corruption_markers_any_of: [
+      'sqlite_corrupt',
+      'sqlite_notadb',
+      'database disk image is malformed',
+      'file is not a database',
+      'malformed database schema',
+    ],
+  },
+];
+
+const observedAionCoreRecoverySuccessBoundary = {
+  code: 'BOOTSTRAP_RECOVERED_DATABASE_CORRUPTION',
+  stage: 'database.recovery',
+};
+
 function validateContract(contract, options = {}) {
   return validateUpstreamIntakePolicy(contract, shellPaths, {
     readJsonFile: () => ({
@@ -76,12 +98,8 @@ test('AionUI v2.1.31 intake contract validates the fixed source refs and classif
   const aionCoreRecovery = dependency(contract, 'aioncore_database_recovery');
   assert.equal(aionCoreRecovery.classification, 'absorbed');
   assert.equal(aionCoreRecovery.release_gate, 'aioncore_database_recovery_verified');
-  assert.equal(aionCoreRecovery.remediation_ref, 'a5811dd3947e72b3da69ad5a4457f4e9f5acf71c');
+  assert.equal(aionCoreRecovery.remediation_ref, '81c8b37fdc067549341b41539d7648b09aa31d37');
   assert.equal(aionCoreRecovery.version_gate.minimum_version, 'v0.1.44');
-  assert.equal(
-    aionCoreRecovery.capability_gate.required_boundary_stage,
-    'database.recoverable_corruption',
-  );
   assert.equal(aionCoreRecovery.capability_gate.state, 'verified');
 });
 
@@ -137,14 +155,54 @@ test('AionUI intake validator rejects missing evidence', () => {
   );
 });
 
-test('AionUI intake validator rejects a weakened AionCore capability gate', () => {
+test('AionUI intake validator rejects a weakened AionCore boundary code', () => {
   const contract = readContract();
-  dependency(contract, 'aioncore_database_recovery').capability_gate.required_boundary_stage =
-    'database.recovery_optional';
+  dependency(contract, 'aioncore_database_recovery').capability_gate.required_boundary_code =
+    'BOOTSTRAP_DATA_INIT_WARNING';
 
   assert.throws(
     () => validateContract(contract),
-    /capability_gate\.required_boundary_stage must be database\.recoverable_corruption/,
+    /AionCore database recovery boundary contract/,
+  );
+});
+
+test('AionUI intake contract accepts typed corruption or strict open-stage corruption and records recovery success', () => {
+  const contract = readContract();
+  const capabilityGate = dependency(contract, 'aioncore_database_recovery').capability_gate;
+
+  assert.equal(capabilityGate.required_boundary_stage, undefined);
+  assert.deepEqual(capabilityGate.accepted_failure_boundaries, observedAionCoreFailureBoundaries);
+  assert.deepEqual(capabilityGate.recovery_success_boundary, observedAionCoreRecoverySuccessBoundary);
+  assert.doesNotThrow(() => validateContract(contract));
+});
+
+test('AionUI intake validator rejects database.open recovery without a strict corruption marker', () => {
+  const contract = readContract();
+  const capabilityGate = dependency(contract, 'aioncore_database_recovery').capability_gate;
+  delete capabilityGate.required_boundary_stage;
+  capabilityGate.accepted_failure_boundaries = structuredClone(observedAionCoreFailureBoundaries);
+  capabilityGate.accepted_failure_boundaries[1].required_corruption_markers_any_of = [];
+  capabilityGate.recovery_success_boundary = structuredClone(observedAionCoreRecoverySuccessBoundary);
+
+  assert.throws(
+    () => validateContract(contract),
+    /AionCore database recovery boundary contract/,
+  );
+});
+
+test('AionUI intake validator rejects a recovery success boundary outside database.recovery', () => {
+  const contract = readContract();
+  const capabilityGate = dependency(contract, 'aioncore_database_recovery').capability_gate;
+  delete capabilityGate.required_boundary_stage;
+  capabilityGate.accepted_failure_boundaries = structuredClone(observedAionCoreFailureBoundaries);
+  capabilityGate.recovery_success_boundary = {
+    code: 'BOOTSTRAP_RECOVERED_DATABASE_CORRUPTION',
+    stage: 'database.open',
+  };
+
+  assert.throws(
+    () => validateContract(contract),
+    /AionCore database recovery boundary contract/,
   );
 });
 

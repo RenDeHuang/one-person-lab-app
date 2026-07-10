@@ -227,7 +227,14 @@ type UpstreamIntakeDependencyRecord = UpstreamIntakeRecord & {
   };
   capability_gate?: {
     required_boundary_code: string;
-    required_boundary_stage: string;
+    accepted_failure_boundaries: Array<{
+      stage: string;
+      required_corruption_markers_any_of: string[];
+    }>;
+    recovery_success_boundary: {
+      code: string;
+      stage: string;
+    };
     state: string;
     required_evidence: string;
     evidence: string[];

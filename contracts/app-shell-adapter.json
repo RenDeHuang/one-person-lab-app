@@ -343,13 +343,13 @@
         "classification": "absorbed",
         "owner_ref": "iOfficeAI/AionCore:recoverable_database_boundary",
         "release_gate": "aioncore_database_recovery_verified",
-        "remediation_ref": "a5811dd3947e72b3da69ad5a4457f4e9f5acf71c",
+        "remediation_ref": "81c8b37fdc067549341b41539d7648b09aa31d37",
         "dependencies": [],
         "evidence": [
           "evaluated_upstream:e49cd94935f4e461f002a1260a47c1b7b2ce81ca#package.json.aioncoreVersion=v0.1.44",
           "selective_absorption_head:e38b00ba37cafe56d704b498a4882264836463e4#package.json.aioncoreVersion=v0.1.28",
           "active_shell_package_readback:aioncoreVersion=v0.1.44",
-          "shell_commit:a5811dd3947e72b3da69ad5a4457f4e9f5acf71c",
+          "shell_commit:81c8b37fdc067549341b41539d7648b09aa31d37",
           "shell_source:packages/desktop/src/process/startup/backendStartupFailure.ts",
           "shell_test:packages/web-host/src/backend-launcher.test.ts",
           "shell_smoke:scripts/smoke-test-web-cli.sh"
@@ -363,11 +363,31 @@
         },
         "capability_gate": {
           "required_boundary_code": "BOOTSTRAP_DATA_INIT_FAILED",
-          "required_boundary_stage": "database.recoverable_corruption",
+          "accepted_failure_boundaries": [
+            {
+              "stage": "database.recoverable_corruption",
+              "required_corruption_markers_any_of": []
+            },
+            {
+              "stage": "database.open",
+              "required_corruption_markers_any_of": [
+                "sqlite_corrupt",
+                "sqlite_notadb",
+                "database disk image is malformed",
+                "file is not a database",
+                "malformed database schema"
+              ]
+            }
+          ],
+          "recovery_success_boundary": {
+            "code": "BOOTSTRAP_RECOVERED_DATABASE_CORRUPTION",
+            "stage": "database.recovery"
+          },
           "state": "verified",
           "required_evidence": "packaged_aioncore_boundary_and_recovery_smoke",
           "evidence": [
             "packaged_aioncore_boundary_and_recovery_smoke:scripts/smoke-test-web-cli.sh",
+            "shell_commit:81c8b37fdc067549341b41539d7648b09aa31d37",
             "shell_test:packages/web-host/src/backend-launcher.test.ts",
             "shell_test:tests/unit/bootstrap/backendStartupFailure.test.ts"
           ]

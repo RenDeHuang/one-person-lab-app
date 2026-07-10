@@ -96,7 +96,7 @@ IDs, classification, owner ref, release gate, dependencies, and evidence.
 | --- | --- | --- |
 | Backend startup directories | `absorbed` | Shell startup focused tests plus App quick validation |
 | Corrupted database recovery | `absorbed` | Adapter code and its AionCore dependency are admitted; App release authority remains separate |
-| AionCore database-recovery boundary | `absorbed` dependency | Requires actual `aioncoreVersion >= v0.1.44`, verified `BOOTSTRAP_DATA_INIT_FAILED` / `database.recoverable_corruption` evidence, and a remediation ancestor |
+| AionCore database-recovery boundary | `absorbed` dependency | Requires actual `aioncoreVersion >= v0.1.44`, a typed corruption failure or strict corruption-marked `database.open` failure, verified `database.recovery` success, and a remediation ancestor |
 | Feedback diagnostics privacy | `absorbed` | Redaction/privacy evidence is bound to a remediation ancestor for attached shell, AionCore, and AionRS logs |
 | Cron history | `absorbed` | Shell Cron focused tests plus App quick validation |
 | `/guid` slash allowlist | `absorbed` | OPL allowlist-focused tests plus App quick validation |
@@ -122,11 +122,19 @@ contained in active shell history.
 
 The current active shell source package reports `aioncoreVersion=v0.1.44`, so
 the version gate is `meets_minimum` and the recovery capability is `verified`.
-The feedback privacy remediation ancestor is
-`5f786a6dbe9232f1cc3192db8d35df81ea74d2d6`. The final managed-retry AionCore
-remediation ancestor is `a5811dd3947e72b3da69ad5a4457f4e9f5acf71c`.
-Source package and ancestry readback do not substitute for App release-owner
-evidence.
+The AionCore `v0.1.44` runtime probe establishes two valid failure boundaries:
+`BOOTSTRAP_DATA_INIT_FAILED` at `database.recoverable_corruption`, or the same
+code at `database.open` only when AionCore output also contains a strict SQLite
+corruption marker such as `file is not a database`. Lock, permission, and
+ordinary open failures remain generic. Successful recovery preserves the
+original bytes in backup, creates a `SQLite format 3` database, emits
+`BOOTSTRAP_RECOVERED_DATABASE_CORRUPTION` at `database.recovery`, and reaches
+the listening state.
+
+The feedback privacy remediation ancestor remains
+`5f786a6dbe9232f1cc3192db8d35df81ea74d2d6`. The AionCore recovery remediation
+ancestor is `81c8b37fdc067549341b41539d7648b09aa31d37`. Source package and ancestry
+readback do not substitute for App release-owner evidence.
 
 This is an App adapter/intake gate, not an upstream parity or release claim.
 Shell commits remain implementation evidence; App release readiness still
