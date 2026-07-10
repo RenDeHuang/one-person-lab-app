@@ -21,6 +21,10 @@ export function directorySizeBytes(root) {
   if (!fs.existsSync(root)) {
     return 0;
   }
+  const resolvedRootStat = fs.statSync(root);
+  if (resolvedRootStat.isFile()) {
+    return resolvedRootStat.size;
+  }
   const rootStat = fs.lstatSync(root);
   if (!rootStat.isDirectory()) {
     return rootStat.size;
@@ -65,6 +69,13 @@ export function copyTreeFiltered(sourceRoot, targetRoot, runtimePrefix) {
       return stat.isDirectory() || stat.isFile() || stat.isSymbolicLink();
     },
   });
+  const directoryMode = 0o777 & ~process.umask();
+  fs.chmodSync(targetRoot, directoryMode);
+  for (const entry of fs.globSync(ALL_DESCENDANTS, { cwd: targetRoot, withFileTypes: true })) {
+    if (entry.isDirectory()) {
+      fs.chmodSync(path.join(entry.parentPath, entry.name), directoryMode);
+    }
+  }
 }
 
 export function copySingleFile(sourcePath, targetPath) {
