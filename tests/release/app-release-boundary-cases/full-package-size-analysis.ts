@@ -8,6 +8,18 @@ import {
   writeFile,
 } from './helpers.ts';
 import { buildFullPackageManifest } from '../../../scripts/full-first-install-package.ts';
+import { directorySizeBytes } from '../../../scripts/build-full-first-install-package/filesystem.ts';
+
+test('directory size counts a nested directory symlink once without following it', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-directory-size-symlink-'));
+  writeFile(path.join(root, 'real', 'sub', 'f'), 'abc');
+  fs.mkdirSync(path.join(root, 'plain'), { recursive: true });
+  const link = path.join(root, 'plain', 'link');
+  fs.symlinkSync('../real', link);
+
+  assert.equal(fs.lstatSync(link).size, 7);
+  assert.equal(directorySizeBytes(root), 10);
+});
 
 function analyzeManifest(manifest: Record<string, any>, args: string[] = []) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-full-size-analysis-'));

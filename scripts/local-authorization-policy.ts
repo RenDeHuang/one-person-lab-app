@@ -86,22 +86,24 @@ function quarantineCount(target) {
   if (!commandExists('xattr') || !fs.existsSync(target)) {
     return null;
   }
-  const symlinks = new Set();
-  const descendants = fs.lstatSync(target).isDirectory()
-    ? fs.globSync(ALL_DESCENDANTS, {
+  const paths = new Set([target]);
+  if (fs.lstatSync(target).isDirectory()) {
+    for (const entry of fs.globSync(ALL_DESCENDANTS, {
       cwd: target,
       withFileTypes: true,
       exclude(entry) {
         if (entry.isSymbolicLink()) {
-          symlinks.add(path.join(entry.parentPath, entry.name));
+          paths.add(path.join(entry.parentPath, entry.name));
           return true;
         }
         return false;
       },
-    }).map((entry) => path.join(entry.parentPath, entry.name))
-    : [];
+    })) {
+      paths.add(path.join(entry.parentPath, entry.name));
+    }
+  }
   let count = 0;
-  for (const current of [target, ...descendants, ...symlinks]) {
+  for (const current of paths) {
     if (runCapture('xattr', ['-p', 'com.apple.quarantine', current]).status === 0) count += 1;
   }
   return count;

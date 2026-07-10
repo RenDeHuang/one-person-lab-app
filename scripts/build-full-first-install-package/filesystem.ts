@@ -44,7 +44,7 @@ export function directorySizeBytes(root) {
   });
   let total = 0;
   for (const entry of entries) {
-    if (!entry.isDirectory()) {
+    if (!entry.isDirectory() && !entry.isSymbolicLink()) {
       total += fs.lstatSync(path.join(entry.parentPath, entry.name)).size;
     }
   }

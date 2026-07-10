@@ -1,9 +1,13 @@
 import {
   assert,
   fs,
+  os,
   path,
   test,
   appRoot,
+  runNode,
+  writeExecutable,
+  writeFile,
 } from './helpers.ts';
 import { validateFirstRunMatrix } from '../../../scripts/validate-active-shell/first-run-matrix-validator.ts';
 import { releaseBoundaryChecks } from '../../../scripts/validate-release-boundary/release-checks.ts';
@@ -59,4 +63,44 @@ test('one-shot App installer boundary is enforced by release-boundary checks', (
   assert.ok(stable.required.some((entry) => entry.includes('install.sh')));
   assert.ok(stable.required.some((entry) => entry.includes('--stable-macos-install')));
   assert.equal(fs.existsSync(path.join(appRoot, 'install-free.sh')), false);
+});
+
+test('local authorization checks each nested directory symlink path once', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-local-authorization-symlink-'));
+  const appPath = path.join(tempRoot, 'One Person Lab.app');
+  writeFile(path.join(appPath, 'real', 'sub', 'f'), 'abc');
+  fs.mkdirSync(path.join(appPath, 'plain'), { recursive: true });
+  fs.symlinkSync('../real', path.join(appPath, 'plain', 'link'));
+
+  const fakeBin = path.join(tempRoot, 'bin');
+  const xattrLog = path.join(tempRoot, 'xattr.log');
+  const output = path.join(tempRoot, 'local-authorization-policy.json');
+  writeExecutable(path.join(fakeBin, 'xattr'), `#!/bin/sh
+printf '%s\\n' "$3" >> "$OPL_XATTR_LOG"
+exit 0
+`);
+
+  const result = runNode([
+    'scripts/local-authorization-policy.ts',
+    '--package-kind',
+    'app_standard',
+    '--app-path',
+    appPath,
+    '--output',
+    output,
+  ], {
+    env: {
+      PATH: `${fakeBin}${path.delimiter}${process.env.PATH ?? ''}`,
+      OPL_XATTR_LOG: xattrLog,
+    },
+  });
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /must prove quarantine is absent or removed/);
+  const checkedPaths = fs.readFileSync(xattrLog, 'utf8').trim().split('\n');
+  assert.deepEqual(
+    checkedPaths.map((entry) => path.relative(appPath, entry) || '.').sort(),
+    ['.', 'plain', 'plain/link', 'real', 'real/sub', 'real/sub/f'],
+  );
+  assert.equal(JSON.parse(fs.readFileSync(output, 'utf8')).quarantine_attribute_count, 6);
 });
