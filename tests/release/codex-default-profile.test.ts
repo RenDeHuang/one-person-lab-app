@@ -4,6 +4,7 @@ import test from 'node:test';
 import { validateAppGuiProductContract } from '../../scripts/validate-active-shell/gui-product-contract-validator.ts';
 import { validatePrimaryInteractionPages } from '../../scripts/validate-active-shell/page-state-primary-interaction-validator.ts';
 import { validateProductProfile } from '../../scripts/validate-active-shell/product-profile-validator.ts';
+import { assertCurrentGuidHomeSelectionSources } from '../../scripts/validate-active-shell/shell-ordinary-experience-validator.ts';
 
 const readJson = (relativePath: string) => JSON.parse(fs.readFileSync(relativePath, 'utf8'));
 
@@ -38,6 +39,34 @@ test('product profile rejects pre-Codex-baseline interaction states', () => {
     mutate(profile);
     assert.throws(() => validateProductProfile(profile, installExposure));
   }
+});
+
+test('active-shell source gate requires Home starters and Capabilities routing instead of retired selectors', () => {
+  const currentSources = {
+    guidPage: [
+      'HomeStarters',
+      'activeCapabilityId={selectedAssistantRecord?.id}',
+      'onSelect={(assistantId) =>',
+      'onClear={() =>',
+    ].join('\n'),
+    homeStarters: [
+      "data-testid='opl-home-starters'",
+      'aria-pressed={active}',
+      'active && onClear ? onClear() : onSelect(assistant.id)',
+    ].join('\n'),
+    capabilitiesPage: [
+      'useCustomAgentsLoader',
+      "navigate('/guid', {",
+      'state: { selectedCapabilityId: capability.id }',
+    ].join('\n'),
+  };
+  assert.doesNotThrow(() => assertCurrentGuidHomeSelectionSources(currentSources));
+  assert.throws(() =>
+    assertCurrentGuidHomeSelectionSources({
+      ...currentSources,
+      guidPage: `${currentSources.guidPage}\nAssistantSelectionArea\nMentionSelectorBadge`,
+    }),
+  );
 });
 
 test('GUI contract rejects Auto model policy source drift from the App product profile', () => {

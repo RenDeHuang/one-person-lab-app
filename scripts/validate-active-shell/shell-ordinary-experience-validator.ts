@@ -14,14 +14,55 @@ const guidHomeExpected = [
   'POST_INSTALL_SELF_CHECK_PROMPT_DEFAULTS',
   'postInstallSelfCheckRequested',
   "navigate(`${location.pathname}${location.search}${location.hash}`, { replace: true, state: null })",
-  'AssistantSelectionArea',
   'GuidModelSelector',
-  'MentionSelectorBadge',
   'selectedAgentLabelOverride',
   'onClear={() =>',
+  'fileContextEnabled={!fileAccessBlocked && Boolean(guidInput.dir)}',
   'useCoreLaunchPrerequisites',
   'GuidSetupNotice',
 ];
+
+const guidHomeSelectionForbidden = ['AssistantSelectionArea', 'MentionSelectorBadge'];
+
+export function assertCurrentGuidHomeSelectionSources({
+  guidPage,
+  homeStarters,
+  capabilitiesPage,
+}: {
+  guidPage: string;
+  homeStarters: string;
+  capabilitiesPage: string;
+}): void {
+  assertTextIncludesAll(
+    guidPage,
+    [
+      'HomeStarters',
+      'activeCapabilityId={selectedAssistantRecord?.id}',
+      'onSelect={(assistantId) =>',
+      'onClear={() =>',
+    ],
+    'Active shell Guid Home starter selection',
+  );
+  assertTextIncludesAll(
+    homeStarters,
+    [
+      "data-testid='opl-home-starters'",
+      'aria-pressed={active}',
+      'active && onClear ? onClear() : onSelect(assistant.id)',
+    ],
+    'Active shell Guid Home starter component',
+  );
+  assertTextIncludesAll(
+    capabilitiesPage,
+    [
+      'useCustomAgentsLoader',
+      "navigate('/guid', {",
+      'state: { selectedCapabilityId: capability.id }',
+    ],
+    'Active shell Capabilities selection route',
+  );
+  assertTextExcludesAll(guidPage, guidHomeSelectionForbidden, 'Active shell retired Guid selector surfaces');
+}
 
 const guidLocaleExpected = {
   'zh-CN': ['安装后智能自检', '程序化初始化已经完成', 'OPL Flow 与用户已有工作区规则可以共存', 'MAS/MAG/RCA/OMA/OBF', '后台维护'],
@@ -188,6 +229,9 @@ function validateGuidHomeImplementation(shellPaths) {
     'Active shell Guid home',
   );
   const guidInputCard = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/guid/components/GuidInputCard.tsx');
+  const homeStarters = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/guid/components/HomeStarters.tsx');
+  const capabilitiesPage = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/guid/CapabilitiesPage.tsx');
+  assertCurrentGuidHomeSelectionSources({ guidPage, homeStarters, capabilitiesPage });
   for (const [locale, expectedStrings] of Object.entries(guidLocaleExpected)) {
     const localeText = readShellText(shellPaths, `packages/desktop/src/renderer/services/i18n/locales/${locale}/guid.json`);
     assertTextIncludesAll(localeText, expectedStrings, `Active shell ${locale} Guid locale post-install self-check copy`);
