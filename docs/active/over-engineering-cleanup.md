@@ -1,28 +1,33 @@
 # Over-Engineering Cleanup Boundary
 
-Status: active cleanup boundary
-Scope: guide generation, release helper scripts, and active-shell validator cleanup
+Status: completed
+Scope: eight approved safe slices across release fixtures/tests, guide generation, filesystem helpers, whitepaper generation, and active-shell validator dead symbols
 Last updated: 2026-07-10
 
-## 2026-07-10 One-Step Completion Plan
+## 2026-07-10 Completion
 
-The approved cleanup is executing in three isolated, parallel lanes and is only complete after each candidate is absorbed to `main`, the combined diff is verified, and the worktrees are removed.
+The eight approved cleanup items are implemented by App commits `71bf61e`, `8613888`, `32d6fea`, `76fcb14`, `ea4f555`, and final residual code commit `5aab2f1`. Final verification ran after the residual write against App base `35d23f14badc0afe9a0b5743574d51285737b9d7` and active Shell `621037a1f4af6805efcb85f7584f79a2faf9f15e`. This boundary covers only the eight approved items; broader consolidation candidates are closed by scope below rather than treated as pending implementation.
 
-| Slice | Scope | State recorded by this branch | Main closeout evidence |
+| # | Approved cleanup | Implementation | Completion evidence |
 | --- | --- | --- | --- |
-| platform and docs | guide asset/verification deduplication, whitepaper builder inlining, Node `fs.cpSync` / `fs.globSync` replacement | combined in integration at `32d6fea`; semantic fixes at `76fcb14` and `ea4f555`; absorption pending | independent review passed; post-rebase generator, behavior, and combined verification still required before absorption |
-| release-dead | dead release-note setup surface and unused release helpers | combined in integration at `8613888`; absorption pending | lane diff review and focused release validation passed; post-rebase combined verification still required before absorption |
-| tests-release-dead | orphan release fixtures, dead aliases, and unused test exports | combined in integration at `71bf61e`; absorption pending | lane diff review and full release tests passed; post-rebase combined verification still required before absorption |
+| 1 | Delete the orphan release-plan Full-package fixture graph | `71bf61e` | `release-plan-full-package-fixtures.ts` and its dead helper graph are absent; fresh release tests pass `133 / 2 skipped / 0 failed`, and the release validator passes. |
+| 2 | Delete the obsolete release-note Codex CI setup surface | `8613888` | The setup script and Fallow entry are absent; the release validator keeps only the intentional forbidden-path regression guard, and fresh Fallow reports `check.total_issues=0`. |
+| 3 | Delete proven production dead symbols | `8613888`, `5aab2f1` | The final `homeActivityCenterItemFields` declaration and two unused imports are absent; targeted oxlint reports zero warnings/errors, and full active-shell validation passes. This is dead-symbol removal, not validator consolidation. |
+| 4 | Deduplicate macOS guide screenshots and verification authority | `32d6fea` | Canonical `05-opl-ready-research-entry.png` serves both semantic roles; `07-first-research-entry.png` and the duplicate HTML verification record remain absent; Quarto and slides regenerate successfully. |
+| 5 | Delete the dead npm alias and test-only export surface | `71bf61e` | `test:packaged:bun`, the unused release workflow re-export, and dependent dead helpers are absent; release tests pass. |
+| 6 | Replace recursive copy helpers with Node `fs.cpSync` | `32d6fea`, `76fcb14` | Root-file, dereference, filter, file-mode, and process-umask directory-mode behavior remains covered by release tests and guide generation. |
+| 7 | Replace manual tree walks with Node `fs.globSync` | `32d6fea`, `ea4f555` | Hidden/root/symlink behavior is preserved; nested directory symlinks are counted and checked exactly once without traversal. |
+| 8 | Collapse the whitepaper builder to one implementation | `32d6fea` | The single consumer is inlined, `opl-whitepaper-builder.ts` remains absent, and the whitepaper regenerates successfully. |
 
-The integration branch was rebased onto App `main` after the model-policy update. The final absorption owner must replace these candidate states with the verified `main` commit and remote readback.
+The final executable evidence is: targeted App oxlint `0` warnings / `0` errors; release boundary tests `133` pass / `2` platform skip / `0` fail; release validator pass; active-shell `1847` pass / `3` fixture skip / `0` fail; Shell lint `827` existing warnings / `0` errors; Fallow advisory `check.total_issues=0` with no local worktree `node_modules`; publishing templates pass; Quarto `12 / 12` PDF/rendered pages; slides `10 / 10 / 10` source/PDF/PPTX-roundtrip pages with `0` layout issues; whitepaper `7 / 7` PDF/rendered pages; owner-scoped stale symbol/path scans have no active references except the intentional release forbidden-path guard; and `git diff --check` passes.
 
 The `ea4f555` regression fix preserves the pre-cleanup rule that a nested directory symlink is counted and checked once without traversal. Its test-first reproductions failed at `17 != 10` bytes and at two quarantine checks for the same symlink before the fix; the focused tests and release-boundary suite passed after the fix.
 
-Three active-shell residuals intentionally remain outside this integration branch because the concurrent FirstRun lane owns the same hunk: `homeActivityCenterItemFields`, the unused `beginnerFirstRunTestIds` import, and the unused `validateProviderReadinessRepairProjectionContract` import. Delete them only after FirstRun is absorbed to App `main`, then rerun TypeScript diagnostics and active-shell validation on that final mainline.
+Decision: `reject (no-safe-semantic-split)`, closed by scope rather than pending implementation. Broad runner/JSON helper unification, active-shell or Hermes validator consolidation, contract shrink, first-run schema redesign, release cleanup helper expansion, and timing-helper consolidation are excluded from the eight approved cleanup items. Reopening one requires a separate owner-approved semantic slice and focused behavior evidence. The independently approved nonblocking FirstRun change does not approve a first-run schema redesign.
 
 ## Landed Safe Slices
 
-### 2026-07-10 guide, whitepaper, and Node platform simplification candidate
+### 2026-07-10 guide, whitepaper, and Node platform simplification
 
 - Reused `05-opl-ready-research-entry.png` for both `research_entry` and `first_research_task`; the manifest and generated Quarto/slide verification records retain both semantic roles while the byte-identical `07-first-research-entry.png` is removed.
 - Removed the byte-identical `macos-app-install-html-verification.json` and the guide-specific duplicate-write branch. `macos-app-install-verification.json` is the single long-form HTML/PDF verification record; slide verification remains separate because it describes a different renderer and artifact set.
@@ -30,7 +35,7 @@ Three active-shell residuals intentionally remain outside this integration branc
 - Inlined the sole whitepaper builder consumer into `scripts/build-opl-app-whitepaper.ts` and removed the unused generic configuration layer and `scripts/opl-whitepaper-builder.ts`. Source, output paths, validation messages, command execution, verification schema, and rendered-page hashes remain unchanged.
 - Replaced `copyTreeFiltered` with Node `fs.cpSync` and replaced size, quarantine, and external-symlink traversal loops with Node `fs.globSync`. The glob pattern set explicitly includes hidden entries; symlinks are collected through `exclude` so they remain countable/checkable without being traversed.
 - Preserved invariants: missing and root-file size behavior, root symlink behavior, regular-file-only analysis totals, hidden descendants, external symlink detection, filtered runtime paths, dereferenced copy output, source file modes, process-umask directory modes, and root inclusion for quarantine checks.
-- Required verification for this slice: `npm run docs:publishing-templates`, `npm run docs:macos-guide:quarto`, `npm run docs:macos-guide:slides`, `npm run docs:whitepaper`, focused Node probes for copy/glob/root/symlink/mode behavior, relevant Full/guide release tests, `git diff --check`, stale-reference scans, generated verification readback, and final worktree evidence binding before absorption.
+- Historical slice evidence used `npm run docs:publishing-templates`, `npm run docs:macos-guide:quarto`, `npm run docs:macos-guide:slides`, `npm run docs:whitepaper`, focused copy/glob/root/symlink/mode behavior tests, release tests, `git diff --check`, stale-reference scans, generated verification readback, and worktree absorption evidence. The fresh final evidence is recorded once in the completion block above.
 
 ### 2026-07-07 guide generation and delivery assets
 
@@ -72,7 +77,7 @@ Three active-shell residuals intentionally remain outside this integration branc
 
 - Removed `scripts/validate-shell-candidates.ts`'s file-list blocker projection. Missing checkout and implementation-file failures now stay with the candidate contract and evidence validators instead of a second hand-maintained Native/Hermes list in the CLI summary.
 - `scripts/validate-shell-candidates/candidate-evidence.ts` keeps Native Workbench and Hermes package evidence in their candidate-specific validators, but shares the local `.app` bundle executable/symlink/profile check and uses named expected-field tables for repeated non-adoption assertions.
-- Preserved product roles: AionUI remains the active GUI mainline, OPL Native Workbench remains the foreground alternative, Hermes remains the explicit reference candidate, and AGUI remains archived technical proof.
+- Candidate roles remain owned by `contracts/app-shell-candidates.json`; this cleanup does not restate or alter them.
 - Verification required for this slice: `npm run validate:shell-candidates` and `git diff --check`.
 
 ### 2026-07-07 stdlib release helper cleanup
@@ -154,7 +159,7 @@ The following cleanup classes must not be landed as broad mechanical refactors w
 - Active-shell validator cleanup under `scripts/validate-active-shell/*`.
   Validator structure encodes App product truth and shell adapter expectations. Do not reshape it for aesthetics; first identify one validator rule, its owning contract/doc, and the command proving that rule still gates the intended behavior.
 - Hermes validator consolidation.
-  Merging Hermes candidate validator paths is `no-safe-semantic-split`: Hermes is a reference candidate with different adoption status, evidence shape, and shell boundary from the active AionUI path and the OPL Native Workbench foreground alternative. Any consolidation needs an owner-approved semantic split that names the preserved candidate role and focused validator evidence.
+  Merging Hermes candidate validator paths is `no-safe-semantic-split`: candidate roles and adoption status remain owned by `contracts/app-shell-candidates.json`, while the validator paths retain distinct evidence shapes and shell boundaries. Any consolidation needs an owner-approved semantic split and focused validator evidence.
 - Contract shrink.
   Shrinking App product, release, install exposure, shell adapter, or page-state contracts is `no-safe-semantic-split`: contracts are the App-owned truth surface, not just duplicate prose. A shrink must first prove which owner surface now holds each removed requirement and which validator/readback still gates it.
 - First-run matrix schema redesign.
