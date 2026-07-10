@@ -86,7 +86,6 @@ const expectedReasoningLabels = {
   medium: { zh: '推理中', en: 'Medium reasoning' },
   high: { zh: '推理高', en: 'High reasoning' },
   xhigh: { zh: '推理超高', en: 'Extra high reasoning' },
-  max: { zh: '推理最大', en: 'Max reasoning' },
   ultra: { zh: '推理极高', en: 'Ultra reasoning' },
 };
 
@@ -352,13 +351,13 @@ function assertReasoningOptions(
   profile: ProductProfileLike,
   label: string,
 ): void {
-  const expectedOptions = ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'];
+  const expectedOptions = ['low', 'medium', 'high', 'xhigh', 'ultra'];
   const options = displayOptions?.user_reasoning_effort_options;
   if (JSON.stringify(options) !== JSON.stringify(expectedOptions)) {
     throw new Error(`${label} Codex reasoning effort options must be ${JSON.stringify(expectedOptions)}`);
   }
-  if (profile.codex?.default_reasoning_effort !== 'max') {
-    throw new Error(`${label} Codex default reasoning effort must be max`);
+  if (profile.codex?.default_reasoning_effort !== 'xhigh') {
+    throw new Error(`${label} Codex default reasoning effort must be xhigh`);
   }
   for (const effort of expectedOptions) {
     const labels = displayOptions?.reasoning_labels?.[effort];
@@ -380,10 +379,10 @@ function assertCodexAutoModelOptionDescription(
       auto!.id !== '__auto' ||
       typeof auto!.description_zh !== 'string' ||
       !auto!.description_zh.includes('5.6 Sol') ||
-      !auto!.description_zh.includes('推理最大') ||
+      !auto!.description_zh.includes('推理超高') ||
       typeof auto!.description_en !== 'string' ||
       !auto!.description_en.includes('5.6 Sol') ||
-      !auto!.description_en.includes('Max reasoning')
+      !auto!.description_en.includes('Extra high reasoning')
     )
   ) {
     throw new Error(`${label} Codex auto model option must describe latest strongest default reasoning`);
