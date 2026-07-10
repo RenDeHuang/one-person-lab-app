@@ -54,8 +54,8 @@ contract 的 lane 决定是否修改 machine truth、实现或目标。
 
 本段只声明入口、authority 和动态默认状态来源，不复制 machine truth：
 
-- `product_definition=docs/product/gui/feature-inventory.md,docs/product/gui/ideal-interaction-spec.md,docs/product/gui/codex-to-opl-app-delta.md,docs/product/gui/element-audit.md`
-- `visual_system=docs/product/gui/visual-system.md`
+- `product_definition=docs/product/gui/README.md,docs/product/gui/feature-inventory.md`
+- `visual_system=docs/product/gui/ideal-interaction-spec.md,docs/product/gui/visual-system.md,docs/product/gui/codex-to-opl-app-delta.md,docs/product/gui/element-audit.md`
 - `shell_implementation_conformance=docs/product/gui/shell-implementation-guide.md,docs/product/gui/shell-conformance-matrix.md`
 - `gui_shell_authority: implementation_only`
 - `ideal_target.workspace_session_rail_default_visible=true`

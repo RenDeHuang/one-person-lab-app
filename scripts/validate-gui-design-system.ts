@@ -56,8 +56,6 @@ const expectedStack = [
     priority: 1,
     entry_docs: [
       foundationDocs.readme,
-      'docs/product/gui/ideal-interaction-spec.md',
-      'docs/product/gui/codex-to-opl-app-delta.md',
       'docs/product/gui/feature-inventory.md',
     ],
     contract_refs: [
@@ -69,7 +67,12 @@ const expectedStack = [
   {
     id: 'visual_system',
     priority: 2,
-    entry_docs: [foundationDocs.visual_system],
+    entry_docs: [
+      'docs/product/gui/ideal-interaction-spec.md',
+      foundationDocs.visual_system,
+      'docs/product/gui/codex-to-opl-app-delta.md',
+      'docs/product/gui/element-audit.md',
+    ],
     contract_refs: [
       'contracts/app-gui-product-contract.json',
       'contracts/app-product-profile.json',
@@ -219,32 +222,32 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   }
   requireMarker(agents, foundationDocs.readme, 'AGENTS.md', issues);
 
-  const foundationPaths = Object.values(foundationDocs);
-  const foundationFilesPresent = foundationPaths.every((relativePath) => fs.existsSync(path.join(root, relativePath)));
-  const foundationText = foundationPaths
+  const governedDocPaths = [...new Set(expectedStack.flatMap((layer) => layer.entry_docs))];
+  const governedDocsPresent = governedDocPaths.every((relativePath) => fs.existsSync(path.join(root, relativePath)));
+  const governedText = governedDocPaths
     .map((relativePath) => readText(root, relativePath, issues))
     .join('\n');
   const foundationReadme = readText(root, foundationDocs.readme, issues);
-  if (foundationFilesPresent) {
+  if (governedDocsPresent) {
     for (const layer of expectedStack) {
-      requireMarker(foundationText, layer.id, 'GUI design-system foundation docs', issues);
+      requireMarker(foundationReadme, layer.id, foundationDocs.readme, issues);
       for (const relativePath of layer.entry_docs) {
         if (relativePath !== foundationDocs.readme) {
           requireMarker(foundationReadme, relativePath, foundationDocs.readme, issues);
         }
       }
       for (const contractRef of layer.contract_refs) {
-        requireMarker(foundationText, contractRef, 'GUI design-system foundation docs', issues);
+        requireMarker(foundationReadme, contractRef, foundationDocs.readme, issues);
       }
     }
-    requireMarker(foundationText, shellAuthorityMarker, 'GUI design-system foundation docs', issues);
-    requireMarker(foundationText, codexReference, 'GUI design-system foundation docs', issues);
+    requireMarker(foundationReadme, shellAuthorityMarker, foundationDocs.readme, issues);
+    requireMarker(foundationReadme, codexReference, foundationDocs.readme, issues);
     for (const marker of [
       'ideal_target.workspace_session_rail_default_visible=true',
       'ideal_target.inspector_default_visible=false',
       'active_aionui.state_source=contracts/app-product-profile.json#gui.home.home_layout',
     ]) {
-      requireMarker(foundationText, marker, 'GUI design-system foundation docs', issues);
+      requireMarker(foundationReadme, marker, foundationDocs.readme, issues);
     }
   }
 
@@ -258,8 +261,13 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   if (nativeShape.inspector_default_visible !== false || idealTarget.inspector_default_visible !== false) {
     issues.add('native candidate and ideal target must keep the inspector closed by default');
   }
-  if (idealTarget.source_candidate !== 'opl-native-workbench') {
-    issues.add('ideal target state must point to opl-native-workbench');
+  if (
+    idealTarget.owner !== 'one-person-lab-app' ||
+    idealTarget.authority !== 'app_product_and_visual_system' ||
+    idealTarget.conformance_direction !== 'ideal_target_to_shells' ||
+    'source_candidate' in idealTarget
+  ) {
+    issues.add('ideal target must be App-owned and flow one-way to shells without a source candidate');
   }
 
   const homeLayout = record(record(record(profile.gui).home).home_layout);
@@ -297,14 +305,19 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   ) {
     issues.add('native candidate model defaults must derive from app-product-profile');
   }
-  const mentionedModels = new Set((foundationText.match(/\bgpt-[a-z0-9.-]+\b/gi) ?? []).map((value) => value.toLowerCase()));
+  const mentionedModels = new Set((governedText.match(/\bgpt-[a-z0-9.-]+\b/gi) ?? []).map((value) => value.toLowerCase()));
   for (const model of mentionedModels) {
     if (model !== defaultModel) {
-      issues.add(`foundation docs must not copy model catalogs or name non-default model ${model}`);
+      issues.add(`governed GUI docs must not copy model catalogs or name non-default model ${model}`);
     }
   }
-  if (/\brelease[_ -]ready\s*[:=]\s*true\b/i.test(foundationText)) {
-    issues.add('foundation docs must not mark release readiness true');
+  const readinessText = [governedText, agents, decisions, invariants, candidateDoc].join('\n');
+  const positiveReadinessClaims = [
+    /\b(?:release|production)[_ -]ready\s*[:=]\s*(?:true|yes)\b/i,
+    /\b(?:candidate|shell|app)\s+(?:is|are)\s+(?!not\b)(?:release|production)[ -]ready\b/i,
+  ];
+  if (positiveReadinessClaims.some((pattern) => pattern.test(readinessText))) {
+    issues.add('governed GUI docs must not make a positive release or production readiness claim');
   }
 
   const codexGovernance = record(governance.codex_reference);

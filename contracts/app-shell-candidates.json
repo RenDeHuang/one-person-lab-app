@@ -49,8 +49,6 @@
         "priority": 1,
         "entry_docs": [
           "docs/product/gui/README.md",
-          "docs/product/gui/ideal-interaction-spec.md",
-          "docs/product/gui/codex-to-opl-app-delta.md",
           "docs/product/gui/feature-inventory.md"
         ],
         "contract_refs": [
@@ -63,7 +61,10 @@
         "id": "visual_system",
         "priority": 2,
         "entry_docs": [
-          "docs/product/gui/visual-system.md"
+          "docs/product/gui/ideal-interaction-spec.md",
+          "docs/product/gui/visual-system.md",
+          "docs/product/gui/codex-to-opl-app-delta.md",
+          "docs/product/gui/element-audit.md"
         ],
         "contract_refs": [
           "contracts/app-gui-product-contract.json",
@@ -99,7 +100,9 @@
     },
     "state_boundary": {
       "ideal_target": {
-        "source_candidate": "opl-native-workbench",
+        "owner": "one-person-lab-app",
+        "authority": "app_product_and_visual_system",
+        "conformance_direction": "ideal_target_to_shells",
         "workspace_session_rail_default_visible": true,
         "inspector_default_visible": false
       },

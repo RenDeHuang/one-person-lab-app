@@ -35,6 +35,7 @@ function createFixture(): string {
     'docs/product/gui/gui-shell-candidates.md',
     'docs/product/gui/ideal-interaction-spec.md',
     'docs/product/gui/codex-to-opl-app-delta.md',
+    'docs/product/gui/element-audit.md',
     'docs/product/gui/feature-inventory.md',
     'contracts/app-shell-candidates.json',
     'contracts/app-product-profile.json',
@@ -52,6 +53,7 @@ function createFixture(): string {
     'shell_implementation_conformance',
     'docs/product/gui/ideal-interaction-spec.md',
     'docs/product/gui/codex-to-opl-app-delta.md',
+    `${designRoot}/element-audit.md`,
     'docs/product/gui/feature-inventory.md',
     `${designRoot}/visual-system.md`,
     `${designRoot}/shell-implementation-guide.md`,
@@ -135,7 +137,28 @@ test('GUI design-system validator rejects a stale model copied into foundation d
   fs.appendFileSync(path.join(root, designRoot, 'visual-system.md'), 'current_model=gpt-5.3-codex-spark\n');
   assert.throws(
     () => validateGuiDesignSystem(root),
-    /foundation docs must not copy model catalogs or name non-default model gpt-5\.3-codex-spark/,
+    /governed GUI docs must not copy model catalogs or name non-default model gpt-5\.3-codex-spark/,
+  );
+});
+
+test('GUI design-system validator rejects a positive readiness claim anywhere in the governed stack', () => {
+  const root = createFixture();
+  fs.appendFileSync(path.join(root, designRoot, 'feature-inventory.md'), '\nThe candidate is release-ready.\n');
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /must not make a positive release or production readiness claim/,
+  );
+});
+
+test('GUI design-system validator rejects a candidate-owned ideal target', () => {
+  const root = createFixture();
+  const registryPath = path.join(root, 'contracts', 'app-shell-candidates.json');
+  const registry = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
+  registry.design_system_governance.state_boundary.ideal_target.source_candidate = 'opl-native-workbench';
+  writeJson(root, 'contracts/app-shell-candidates.json', registry);
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /ideal target must be App-owned and flow one-way to shells without a source candidate/,
   );
 });
 
