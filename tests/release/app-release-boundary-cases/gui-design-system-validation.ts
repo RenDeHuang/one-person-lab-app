@@ -48,21 +48,11 @@ function createFixture(): string {
   }
 
   const readme = [
-    'product_definition',
-    'visual_system',
-    'shell_implementation_conformance',
-    'docs/product/gui/ideal-interaction-spec.md',
-    'docs/product/gui/codex-to-opl-app-delta.md',
-    `${designRoot}/element-audit.md`,
-    'docs/product/gui/feature-inventory.md',
-    `${designRoot}/visual-system.md`,
-    `${designRoot}/shell-implementation-guide.md`,
-    `${designRoot}/shell-conformance-matrix.md`,
-    'contracts/app-gui-product-contract.json',
-    'contracts/app-product-profile.json',
-    'contracts/app-page-state-matrix.json',
-    'contracts/app-shell-candidates.json',
-    'contracts/app-shell-adapter.json',
+    `product_definition=${designRoot}/README.md,${designRoot}/feature-inventory.md`,
+    `visual_system=${designRoot}/ideal-interaction-spec.md,${designRoot}/visual-system.md,${designRoot}/codex-to-opl-app-delta.md,${designRoot}/element-audit.md`,
+    `shell_implementation_conformance=${designRoot}/shell-implementation-guide.md,${designRoot}/shell-conformance-matrix.md`,
+    `entry_docs=${designRoot}/README.md,${designRoot}/feature-inventory.md,${designRoot}/ideal-interaction-spec.md,${designRoot}/visual-system.md,${designRoot}/codex-to-opl-app-delta.md,${designRoot}/element-audit.md,${designRoot}/shell-implementation-guide.md,${designRoot}/shell-conformance-matrix.md`,
+    'contract_refs=contracts/app-gui-product-contract.json,contracts/app-product-profile.json,contracts/app-page-state-matrix.json,contracts/app-shell-candidates.json,contracts/app-shell-adapter.json',
     shellAuthorityMarker,
     codexReference,
     'ideal_target.workspace_session_rail_default_visible=true',
@@ -130,6 +120,20 @@ test('GUI design-system validator rejects a stale foreground role marker', () =>
     'utf8',
   );
   assert.throws(() => validateGuiDesignSystem(root), /AGENTS\.md must include gui_shell_roles/);
+});
+
+test('GUI design-system validator rejects a document assigned to the wrong layer', () => {
+  const root = createFixture();
+  const readmePath = path.join(root, designRoot, 'README.md');
+  const readme = fs.readFileSync(readmePath, 'utf8').replace(
+    `product_definition=${designRoot}/README.md,${designRoot}/feature-inventory.md`,
+    `product_definition=${designRoot}/README.md,${designRoot}/feature-inventory.md,${designRoot}/ideal-interaction-spec.md`,
+  );
+  fs.writeFileSync(readmePath, readme, 'utf8');
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /docs\/product\/gui\/README\.md must include exact marker product_definition=/,
+  );
 });
 
 test('GUI design-system validator rejects a stale model copied into foundation docs', () => {

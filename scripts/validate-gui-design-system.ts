@@ -136,6 +136,13 @@ function requireMarker(text: string, marker: string, label: string, issues: Set<
   if (!text.includes(marker)) issues.add(`${label} must include ${marker}`);
 }
 
+function requireExactMarkerLine(text: string, marker: string, label: string, issues: Set<string>): void {
+  const present = text.split(/\r?\n/).some((line) => line.trim()
+    .replace(/^-\s+/, '')
+    .replace(/^`|`$/g, '') === marker);
+  if (!present) issues.add(`${label} must include exact marker ${marker}`);
+}
+
 export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemValidation {
   const issues = new Set<string>();
   const registry = readJson(root, 'contracts/app-shell-candidates.json', issues);
@@ -230,16 +237,26 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   const foundationReadme = readText(root, foundationDocs.readme, issues);
   if (governedDocsPresent) {
     for (const layer of expectedStack) {
-      requireMarker(foundationReadme, layer.id, foundationDocs.readme, issues);
-      for (const relativePath of layer.entry_docs) {
-        if (relativePath !== foundationDocs.readme) {
-          requireMarker(foundationReadme, relativePath, foundationDocs.readme, issues);
-        }
-      }
-      for (const contractRef of layer.contract_refs) {
-        requireMarker(foundationReadme, contractRef, foundationDocs.readme, issues);
-      }
+      requireExactMarkerLine(
+        foundationReadme,
+        `${layer.id}=${layer.entry_docs.join(',')}`,
+        foundationDocs.readme,
+        issues,
+      );
     }
+    requireExactMarkerLine(
+      foundationReadme,
+      `entry_docs=${governedDocPaths.join(',')}`,
+      foundationDocs.readme,
+      issues,
+    );
+    const contractRefs = [...new Set(expectedStack.flatMap((layer) => layer.contract_refs))];
+    requireExactMarkerLine(
+      foundationReadme,
+      `contract_refs=${contractRefs.join(',')}`,
+      foundationDocs.readme,
+      issues,
+    );
     requireMarker(foundationReadme, shellAuthorityMarker, foundationDocs.readme, issues);
     requireMarker(foundationReadme, codexReference, foundationDocs.readme, issues);
     for (const marker of [
