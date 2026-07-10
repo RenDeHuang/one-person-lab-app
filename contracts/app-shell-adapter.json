@@ -181,28 +181,186 @@
     ]
   },
   "upstream_intake": {
-    "classification_policy": "classify_each_upstream_feature_before_app_release",
+    "schema_version": 1,
+    "classification_policy": "classify_every_required_capability_and_dependency_before_app_release",
+    "source_refs": {
+      "fork_base": {
+        "ref": "70974c59a275e565e8fc2bd7ecaf2dcac74227f0",
+        "role": "shared_fork_base"
+      },
+      "evaluated_upstream": {
+        "release": "v2.1.31",
+        "ref": "e49cd94935f4e461f002a1260a47c1b7b2ce81ca",
+        "role": "evaluated_upstream_release"
+      },
+      "selective_absorption_head": {
+        "ref": "e38b00ba37cafe56d704b498a4882264836463e4",
+        "role": "scoped_absorption_and_intake_record_head"
+      }
+    },
     "allowed_classifications": [
-      "accepted",
+      "absorbed",
       "rejected",
-      "redirected",
-      "requires_app_contract"
+      "deferred"
     ],
-    "required_feature_record_fields": [
+    "required_capability_ids": [
+      "startup_directories",
+      "database_recovery",
+      "feedback_diagnostics_privacy",
+      "cron_history",
+      "guid_slash_allowlist",
+      "settings_i18n",
+      "non_zh_en_locales",
+      "aionui_team"
+    ],
+    "required_dependency_ids": [
+      "aioncore_database_recovery"
+    ],
+    "required_record_fields": [
       "id",
       "upstream_surface",
       "classification",
-      "app_contract_ref",
-      "release_gate"
+      "owner_ref",
+      "release_gate",
+      "dependencies",
+      "evidence"
     ],
-    "feature_classifications": [
+    "capability_classifications": [
+      {
+        "id": "startup_directories",
+        "upstream_surface": "Backend startup directory preparation and typed startup-directory failure classification",
+        "classification": "absorbed",
+        "owner_ref": "gaofeng21cn/opl-aion-shell:startup_adapter",
+        "release_gate": "shell_startup_focused_tests_plus_app_quick_gate",
+        "dependencies": [],
+        "evidence": [
+          "shell_commit:7c02fd4e55ff732f64f8fad01b454731340a245e",
+          "shell_test:tests/unit/bootstrap/backendStartupFailure.test.ts",
+          "shell_test:packages/web-host/src/backend-launcher.test.ts"
+        ]
+      },
+      {
+        "id": "database_recovery",
+        "upstream_surface": "Corrupted database confirmation and backend restart/rebuild flow",
+        "classification": "absorbed",
+        "owner_ref": "gaofeng21cn/opl-aion-shell:startup_recovery_adapter",
+        "release_gate": "blocked_until_aioncore_database_recovery_dependency_absorbed",
+        "dependencies": [
+          "aioncore_database_recovery"
+        ],
+        "evidence": [
+          "shell_commit:7c02fd4e55ff732f64f8fad01b454731340a245e",
+          "shell_source:packages/desktop/src/process/startup/recoverCorruptedDatabase.ts",
+          "selective_absorption_package:aioncoreVersion=v0.1.28"
+        ]
+      },
+      {
+        "id": "feedback_diagnostics_privacy",
+        "upstream_surface": "Feedback attachments include dated shell, AionCore, and AionRS logs",
+        "classification": "deferred",
+        "owner_ref": "one-person-lab-app:app_release_privacy_gate",
+        "release_gate": "blocked_until_feedback_privacy_redaction_evidence",
+        "dependencies": [],
+        "evidence": [
+          "shell_commit:7c02fd4e55ff732f64f8fad01b454731340a245e",
+          "shell_source:packages/desktop/src/process/feedback/logs.ts",
+          "shell_test:tests/unit/feedback/feedbackBridge.test.ts"
+        ]
+      },
+      {
+        "id": "cron_history",
+        "upstream_surface": "Scheduled task run titles, history batch delete, and history refetch",
+        "classification": "absorbed",
+        "owner_ref": "gaofeng21cn/opl-aion-shell:cron_history_renderer",
+        "release_gate": "shell_cron_focused_tests_plus_app_quick_gate",
+        "dependencies": [],
+        "evidence": [
+          "shell_commit:f24d3fa5b7d93f528f2952b77883abe8f01bd070",
+          "shell_test:tests/unit/cron/cronUtils.test.ts",
+          "shell_test:tests/unit/cron/TaskDetailPage.dom.test.tsx"
+        ]
+      },
+      {
+        "id": "guid_slash_allowlist",
+        "upstream_surface": "/guid slash command menu filtered through the OPL capability allowlist",
+        "classification": "absorbed",
+        "owner_ref": "contracts/app-product-profile.json#gui.ordinary_capability_selector_policy",
+        "release_gate": "guid_slash_allowlist_focused_tests_plus_app_quick_gate",
+        "dependencies": [],
+        "evidence": [
+          "shell_commit:ea4b5a107d654eec614542d411f7a7b97cfd8c92",
+          "shell_test:tests/unit/chat/guidSlashCommands.test.ts",
+          "shell_test:tests/unit/renderer/useSlashCommandController.test.ts"
+        ]
+      },
+      {
+        "id": "settings_i18n",
+        "upstream_surface": "Settings navigation context and Chinese/English i18n refinements",
+        "classification": "absorbed",
+        "owner_ref": "contracts/app-settings-control-plane.json#upstream_intake_classification",
+        "release_gate": "settings_i18n_focused_tests_plus_app_quick_gate",
+        "dependencies": [],
+        "evidence": [
+          "shell_commit:bb35cff740757610141afa5a8557e42834a8c2ab",
+          "shell_command:bun run i18n:types",
+          "shell_command:node scripts/check-i18n.js"
+        ]
+      },
+      {
+        "id": "non_zh_en_locales",
+        "upstream_surface": "Upstream locale payloads outside Chinese and English, including es-ES and fa-IR",
+        "classification": "rejected",
+        "owner_ref": "one-person-lab-app:locale_product_policy",
+        "release_gate": "non_zh_en_locale_payload_must_remain_absent",
+        "dependencies": [],
+        "evidence": [
+          "shell_record:docs/history/aionui-upstream-intake-2026-07-09.md#Absorption-Result",
+          "shell_source:packages/desktop/src/common/config/i18n.ts",
+          "supported_locales:zh-CN,en-US"
+        ]
+      },
       {
         "id": "aionui_team",
         "upstream_surface": "Team mode, /team routes, Team sidebar, Team-created redirects, and Team MCP snapshots",
         "classification": "rejected",
         "ordinary_surface": "forbidden",
-        "app_contract_ref": "contracts/app-gui-product-contract.json#settings_navigation.team_surface_policy",
-        "release_gate": "implementation_probes.aionui_team_disabled_surface"
+        "owner_ref": "contracts/app-gui-product-contract.json#settings_navigation.team_surface_policy",
+        "release_gate": "implementation_probes.aionui_team_disabled_surface",
+        "dependencies": [],
+        "evidence": [
+          "app_contract:contracts/app-gui-product-contract.json#settings_navigation.team_surface_policy",
+          "app_probe:implementation_probes.aionui_team_disabled_surface",
+          "shell_record:docs/history/aionui-upstream-intake-2026-07-09.md#Absorption-Result"
+        ]
+      }
+    ],
+    "dependency_classifications": [
+      {
+        "id": "aioncore_database_recovery",
+        "upstream_surface": "AionCore emits the recoverable database corruption boundary consumed by the shell recovery flow",
+        "classification": "deferred",
+        "owner_ref": "iOfficeAI/AionCore:recoverable_database_boundary",
+        "release_gate": "blocked_until_version_and_capability_gate_verified",
+        "dependencies": [],
+        "evidence": [
+          "evaluated_upstream:e49cd94935f4e461f002a1260a47c1b7b2ce81ca#package.json.aioncoreVersion=v0.1.44",
+          "selective_absorption_head:e38b00ba37cafe56d704b498a4882264836463e4#package.json.aioncoreVersion=v0.1.28",
+          "shell_source:packages/desktop/src/process/startup/backendStartupFailure.ts"
+        ],
+        "version_gate": {
+          "field_ref": "package.json#aioncoreVersion",
+          "minimum_version": "v0.1.44",
+          "evaluated_upstream_version": "v0.1.44",
+          "selective_absorption_version": "v0.1.28",
+          "state": "below_minimum"
+        },
+        "capability_gate": {
+          "required_boundary_code": "BOOTSTRAP_DATA_INIT_FAILED",
+          "required_boundary_stage": "database.recoverable_corruption",
+          "state": "unverified",
+          "required_evidence": "packaged_aioncore_boundary_and_recovery_smoke",
+          "evidence": []
+        }
       }
     ]
   },

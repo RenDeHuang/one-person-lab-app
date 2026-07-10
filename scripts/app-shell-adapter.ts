@@ -205,6 +205,34 @@ export const FORBIDDEN_GUI_TRUTH_SOURCES = [
   'direct reads of OPL internal state files',
 ] as const;
 
+type UpstreamIntakeRecord = {
+  id: string;
+  upstream_surface: string;
+  classification: string;
+  ordinary_surface?: string;
+  owner_ref: string;
+  release_gate: string;
+  dependencies: string[];
+  evidence: string[];
+};
+
+type UpstreamIntakeDependencyRecord = UpstreamIntakeRecord & {
+  version_gate?: {
+    field_ref: string;
+    minimum_version: string;
+    evaluated_upstream_version: string;
+    selective_absorption_version: string;
+    state: string;
+  };
+  capability_gate?: {
+    required_boundary_code: string;
+    required_boundary_stage: string;
+    state: string;
+    required_evidence: string;
+    evidence: string[];
+  };
+};
+
 export type ShellAdapterContract = {
   schema_version: number;
   owner: string;
@@ -236,17 +264,19 @@ export type ShellAdapterContract = {
     upstream_intake_policy: string;
   };
   upstream_intake?: {
+    schema_version: number;
     classification_policy: string;
+    source_refs: {
+      fork_base: { ref: string; role: string };
+      evaluated_upstream: { release: string; ref: string; role: string };
+      selective_absorption_head: { ref: string; role: string };
+    };
     allowed_classifications: string[];
-    required_feature_record_fields: string[];
-    feature_classifications: Array<{
-      id: string;
-      upstream_surface: string;
-      classification: string;
-      ordinary_surface?: string;
-      app_contract_ref: string;
-      release_gate: string;
-    }>;
+    required_capability_ids: string[];
+    required_dependency_ids: string[];
+    required_record_fields: string[];
+    capability_classifications: UpstreamIntakeRecord[];
+    dependency_classifications: UpstreamIntakeDependencyRecord[];
   };
   implementation_probes?: Record<string, {
     source: string;
@@ -433,10 +463,13 @@ function assertAdapterGuiAuthority(contract: ShellAdapterContract): void {
 
 function assertActiveShellSpecificPolicy(contract: ShellAdapterContract): void {
   if (contract.active_shell === 'aionui') {
-    if (contract.upstream_intake?.classification_policy !== 'classify_each_upstream_feature_before_app_release') {
-      throw new Error('active shell upstream intake must classify upstream features before release');
+    if (
+      contract.upstream_intake?.classification_policy !==
+      'classify_every_required_capability_and_dependency_before_app_release'
+    ) {
+      throw new Error('active shell upstream intake must classify required capabilities and dependencies before release');
     }
-    if (!contract.upstream_intake.feature_classifications?.some((entry) => (
+    if (!contract.upstream_intake.capability_classifications?.some((entry) => (
       entry.id === 'aionui_team' &&
       entry.classification === 'rejected' &&
       entry.ordinary_surface === 'forbidden'

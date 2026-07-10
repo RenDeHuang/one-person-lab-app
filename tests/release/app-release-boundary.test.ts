@@ -1,5 +1,6 @@
 import './app-release-boundary-cases/ownership-and-installation-contracts.ts';
 import './app-release-boundary-cases/app-root-boundary.ts';
+import './app-release-boundary-cases/upstream-intake-policy-validation.ts';
 import './app-release-boundary-cases/first-run-and-installer.ts';
 import './app-release-boundary-cases/release-evidence-validation.ts';
 import './app-release-boundary-cases/release-evidence-collector.ts';

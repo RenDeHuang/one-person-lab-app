@@ -1,13 +1,15 @@
-# ADR: AionUI Settings Fork Maintenance Strategy
+# ADR: AionUI Fork Maintenance and Intake Strategy
 
 Owner: `one-person-lab-app`
-Purpose: `aionui_settings_fork_maintenance_strategy`
+Purpose: `aionui_fork_maintenance_and_intake_strategy`
 State: `accepted`
 Date: `2026-06-30`
+Updated: `2026-07-10`
 Machine boundary: Human-readable architecture strategy. Machine-readable truth
 lives in `contracts/app-settings-control-plane.json`,
 `contracts/app-gui-product-contract.json`, `contracts/app-shell-adapter.json`,
-active shell source, validation scripts, and release/user-path evidence.
+`scripts/validate-active-shell/upstream-intake-policy-validator.ts`, active shell
+source, validation scripts, and release/user-path evidence.
 
 ## Context
 
@@ -48,8 +50,10 @@ Maintain the AionUI fork through the existing App-owned control path:
    styling, process/preload details, package metadata, and focused shell tests.
    It must not own product IA, model/provider policy, runtime/domain truth,
    release readiness, or owner receipt authority.
-3. **Upstream intake gate** classifies every upstream Settings surface before it
-   enters the registry, `SettingsHost`, or `SettingsShellAdapterSlot`.
+3. **Upstream intake gate** classifies every required shell capability and
+   dependency before App release admission. Settings-specific changes must also
+   pass their own classification before entering the registry, `SettingsHost`,
+   or `SettingsShellAdapterSlot`.
 4. **Visual QA is behavior evidence only.** It can prove Settings route framing,
    overlap, screenshot, and rendering behavior for the active shell. It cannot
    prove release readiness, packaged App readiness, runtime currentness, owner
@@ -72,7 +76,50 @@ upstream fixes, but only after checking them against App-owned contracts.
 | Add broad sync scripts and conflict analyzers as a strategy prerequisite | Do not adopt here | Sync automation belongs in the shell repo only when an observed repeatable failure justifies it. This ADR is not a script work order. |
 | Claim numeric ROI such as 300%, 2/10, 10-day savings | Remove | The repo has no fresh evidence for those measurements. Maintenance claims must stay qualitative unless backed by live timing or release records. |
 
+## AionUI v2.1.31 Executable Intake
+
+The July 2026 selective intake is pinned to three different Git roles. They
+must not be collapsed into one generic "upstream ref":
+
+- fork base: `70974c59a275e565e8fc2bd7ecaf2dcac74227f0`;
+- evaluated upstream release: `v2.1.31` at
+  `e49cd94935f4e461f002a1260a47c1b7b2ce81ca`;
+- selective absorption and intake-record head:
+  `e38b00ba37cafe56d704b498a4882264836463e4`.
+
+The App does not track the current shell HEAD as proof of this intake because
+the shell may contain later unrelated work. `contracts/app-shell-adapter.json`
+records the fixed source refs, required capability IDs, required dependency
+IDs, classification, owner ref, release gate, dependencies, and evidence.
+
+| Intake item | Classification | App gate |
+| --- | --- | --- |
+| Backend startup directories | `absorbed` | Shell startup focused tests plus App quick validation |
+| Corrupted database recovery | `absorbed` | Adapter code is present, but release remains blocked until the AionCore dependency is admitted |
+| AionCore database-recovery boundary | `deferred` dependency | Requires `aioncoreVersion >= v0.1.44` and verified `BOOTSTRAP_DATA_INIT_FAILED` / `database.recoverable_corruption` evidence |
+| Feedback diagnostics privacy | `deferred` | Blocked until redaction/privacy evidence covers attached shell, AionCore, and AionRS logs |
+| Cron history | `absorbed` | Shell Cron focused tests plus App quick validation |
+| `/guid` slash allowlist | `absorbed` | OPL allowlist-focused tests plus App quick validation |
+| Settings/i18n refinements | `absorbed` | Settings/i18n focused checks plus App quick validation; App Settings IA remains authoritative |
+| Non-Chinese/English locale payload | `rejected` | Additional upstream locale payload must remain absent |
+| AionUI Team | `rejected` | Existing fail-closed route, mutation, sidebar, deep-link, and MCP scrub probes |
+
+The validator owns the required ID set. Removing an item from both the JSON
+record and a JSON self-declared list cannot make the gate pass. It rejects
+missing records or fields, duplicate or unknown IDs, invalid classifications,
+unresolved dependencies, missing evidence, an unblocked capability with a
+non-absorbed dependency, and weakened AionCore version/capability gates.
+
+This is an App adapter/intake gate, not an upstream parity or release claim.
+Shell commits remain implementation evidence; App release readiness still
+requires the separate release-owner path.
+
 ## Upstream Intake Policy
+
+Broad shell intake uses `absorbed`, `rejected`, and `deferred` in
+`contracts/app-shell-adapter.json`. Settings-specific intake continues to use
+its narrower `accepted`, `adapt`, `redirect`, and `reject` buckets because it
+routes changes through the App-owned Settings registry and adapter slot.
 
 For Settings changes from upstream AionUI:
 
@@ -135,7 +182,12 @@ Forbidden shell delta:
 
 ## Verification
 
-For this ADR update, docs-only landing requires `git diff --check`.
+For the v2.1.31 executable intake contract, run:
+
+- JSON parse for `contracts/app-shell-adapter.json`;
+- focused upstream-intake release tests;
+- `npm run validate:active-shell -- --quick`;
+- `git diff --check`.
 
 For future Settings behavior changes, use the existing boundaries:
 
