@@ -59,6 +59,23 @@ type CandidateAdapterContract = {
   visual_parity_contract?: ShellCandidate['visual_parity_contract'];
 };
 
+type NativeVisualParityContract = NonNullable<ShellCandidate['visual_parity_contract']> & {
+  regression_floor?: string;
+  source_usage?: string;
+  model_policy_source?: string;
+  default_model?: string;
+  default_reasoning_effort?: string;
+  required_surfaces?: string[];
+};
+
+export const requiredNativeVisualParitySurfaces = [
+  'persistent_project_rail',
+  'single_conversation_timeline',
+  'composer_model_and_reasoning_controls',
+  'floating_on_demand_environment',
+  'settings_locale_surface',
+];
+
 export type CandidateValidationPolicy = {
   onlyForegroundAlternative: string;
   defaultCandidateValidationScope: string[];
@@ -228,16 +245,17 @@ function validateCandidateImplementationBasis(candidate: ShellCandidate): void {
 }
 
 function validateCandidateTargetProductShape(candidate: ShellCandidate): void {
+  const expectedWorkspaceRail = candidate.id === 'opl-native-workbench';
   if (
     candidate.target_product_shape.codex_cli_fixed_executor !== true ||
     candidate.target_product_shape.home_executor_selector_visible !== false ||
     candidate.target_product_shape.home_backend_selector_visible !== false ||
     candidate.target_product_shape.home_model_selector_visible !== true ||
     candidate.target_product_shape.permission_mode_selector_visible !== false ||
-    candidate.target_product_shape.workspace_session_rail_default_visible !== false ||
+    candidate.target_product_shape.workspace_session_rail_default_visible !== expectedWorkspaceRail ||
     candidate.target_product_shape.inspector_default_visible !== false
   ) {
-    throw new Error(`${candidate.id} must preserve Codex fixed-executor chat-first home with App-owned model selector and without backend/permission/default side context`);
+    throw new Error(`${candidate.id} must preserve Codex fixed-executor chat-first home with App-owned model selector, the candidate-specific project rail default, and no backend/permission/default inspector`);
   }
   assertStringArrayIncludes(candidate.target_product_shape.purpose_entries, requiredHomeEntries, `${candidate.id}.target_product_shape.purpose_entries`);
   if (candidate.target_product_shape.settings_policy !== 'app_state_refs_only') {
@@ -601,9 +619,33 @@ function validateNativeWorkbenchCandidateContract(candidate: ShellCandidate): vo
   ) {
     throw new Error(`${candidate.id}.build_wrapper must route through the App-root explicit adapter and allow missing-checkout blocker reporting`);
   }
-  if (candidate.visual_parity_contract?.docs_or_contract_only_completion_allowed !== false) {
-    throw new Error(`${candidate.id}.visual_parity_contract must forbid docs-only visual completion`);
+  const visual = candidate.visual_parity_contract as NativeVisualParityContract | undefined;
+  if (
+    visual?.comparison_baseline !== 'ChatGPT Codex macOS 26.707.31123 (2026-07-10)' ||
+    visual.regression_floor !== 'AionUI active release shell' ||
+    visual.source_usage !== 'visual_and_interaction_reference_only_no_code_or_brand_copy' ||
+    visual.minimum_bar !== 'one_to_one_codex_layout_density_typography_composer_timeline_project_rail_settings_and_floating_environment_details' ||
+    visual.model_policy_source !== 'contracts/app-product-profile.json#gui.home.codex_model_display_options' ||
+    visual.default_model !== 'gpt-5.6-sol' ||
+    visual.default_reasoning_effort !== 'ultra' ||
+    visual.docs_or_contract_only_completion_allowed !== false
+  ) {
+    throw new Error(`${candidate.id}.visual_parity_contract must use ChatGPT Codex macOS 26.707.31123, consume the App-owned 5.6 Sol/ultra model policy, preserve the AionUI regression floor, and forbid docs-only completion`);
   }
+  assertStringArrayIncludes(
+    visual.required_surfaces ?? [],
+    requiredNativeVisualParitySurfaces,
+    `${candidate.id}.visual_parity_contract.required_surfaces`,
+  );
+  assertStringArrayIncludes(visual.required_evidence, [
+    'desktop screenshot comparison against ChatGPT Codex macOS 26.707.31123',
+    'persistent project rail and single conversation timeline screenshot comparison',
+    'composer model and reasoning controls screenshot comparison',
+    'floating on-demand environment screenshot comparison',
+    'Settings locale surface screenshot comparison',
+    'webui screenshot comparison against desktop renderer',
+    'packaged app screenshot or VM smoke artifact',
+  ], `${candidate.id}.visual_parity_contract.required_evidence`);
 }
 
 function validateHermesCandidateContract(candidate: ShellCandidate): void {

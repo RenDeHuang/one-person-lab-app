@@ -2,7 +2,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import type { ActiveProjectLineStateModel, ShellCandidate } from './types.ts';
-import { validateCandidateImplementationFiles } from './candidate-contract.ts';
+import {
+  requiredNativeVisualParitySurfaces,
+  validateCandidateImplementationFiles,
+} from './candidate-contract.ts';
 import {
   assertDirectory,
   assertFile,
@@ -518,12 +521,33 @@ function validateNativeWorkbenchImplementationEvidence(candidate: ShellCandidate
   }
   assertStringArrayIncludes(evidence.bilingual_ui?.supported_locales ?? [], ['zh', 'en'], `${candidate.id} evidence bilingual_ui.supported_locales`);
   if (
-    evidence.default_home_layout?.policy !== 'ordinary home opens on the chat canvas only; workspace/session rail and inspector stay collapsed until the user explicitly opens them' ||
-    evidence.default_home_layout?.workspace_rail_default_open !== false ||
+    evidence.default_home_layout?.policy !== 'ordinary home opens with the Codex project and conversation rail visible, the chat canvas dominant, model and reasoning controls in the composer, and the inspector closed until explicitly requested' ||
+    evidence.default_home_layout?.workspace_rail_default_open !== true ||
     evidence.default_home_layout?.inspector_default_open !== false
   ) {
-    throw new Error(`${candidate.id} evidence must prove ordinary home defaults to collapsed side context`);
+    throw new Error(`${candidate.id} evidence must prove the Codex project rail is visible and the environment inspector is closed by default`);
   }
+  const codexAlignment = evidence.default_home_layout?.codex_2026_07_10_alignment;
+  if (
+    codexAlignment?.reference_product !== 'ChatGPT Codex macOS' ||
+    codexAlignment?.reference_version !== '26.707.31123' ||
+    codexAlignment?.project_rail !== 'persistent' ||
+    codexAlignment?.timeline !== 'single_conversation_timeline' ||
+    codexAlignment?.model_controls !== 'composer_bottom_row' ||
+    codexAlignment?.reasoning_controls !== 'composer_bottom_row' ||
+    codexAlignment?.environment_details !== 'floating_on_demand' ||
+    codexAlignment?.settings_locale_surface !== 'settings' ||
+    codexAlignment?.model_policy_source !== 'one-person-lab-app/contracts/app-product-profile.json#gui.home.codex_model_display_options' ||
+    codexAlignment?.default_model !== 'gpt-5.6-sol' ||
+    codexAlignment?.default_reasoning_effort !== 'ultra'
+  ) {
+    throw new Error(`${candidate.id} evidence must prove the Codex 26.707.31123 project rail, single timeline, App-owned 5.6 Sol/ultra composer controls, floating environment, and Settings locale surface`);
+  }
+  assertStringArrayIncludes(
+    codexAlignment.required_surfaces ?? [],
+    requiredNativeVisualParitySurfaces,
+    `${candidate.id} evidence default_home_layout.codex_2026_07_10_alignment.required_surfaces`,
+  );
   if (
     evidence.webui_transport?.renderer !== 'src/workbench/App.tsx' ||
     evidence.webui_transport?.electron_transport !== 'src/bridge/electronPreload.ts' ||
@@ -620,6 +644,20 @@ function validateCandidateImplementationEvidence(candidate: ShellCandidate): voi
       stage_classes: string[];
       workspace_rail_default_open: boolean;
       inspector_default_open: boolean;
+      codex_2026_07_10_alignment?: {
+        reference_product: string;
+        reference_version: string;
+        project_rail: string;
+        timeline: string;
+        model_controls: string;
+        reasoning_controls: string;
+        environment_details: string;
+        settings_locale_surface: string;
+        model_policy_source: string;
+        default_model: string;
+        default_reasoning_effort: string;
+        required_surfaces: string[];
+      };
     };
     responsive_context_layers?: {
       policy: string;

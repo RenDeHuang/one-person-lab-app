@@ -751,10 +751,26 @@
       },
       "candidate_stage": "opl_native_workbench_candidate_skeleton",
       "visual_parity_contract": {
-        "comparison_baseline": "AionUI active release shell",
-        "minimum_bar": "not_lower_than_aionui_for_chat_first_reading_composer_settings_result_preview_and_packaged_smoke_visual_quality",
+        "comparison_baseline": "ChatGPT Codex macOS 26.707.31123 (2026-07-10)",
+        "regression_floor": "AionUI active release shell",
+        "source_usage": "visual_and_interaction_reference_only_no_code_or_brand_copy",
+        "minimum_bar": "one_to_one_codex_layout_density_typography_composer_timeline_project_rail_settings_and_floating_environment_details",
+        "model_policy_source": "contracts/app-product-profile.json#gui.home.codex_model_display_options",
+        "default_model": "gpt-5.6-sol",
+        "default_reasoning_effort": "ultra",
+        "required_surfaces": [
+          "persistent_project_rail",
+          "single_conversation_timeline",
+          "composer_model_and_reasoning_controls",
+          "floating_on_demand_environment",
+          "settings_locale_surface"
+        ],
         "required_evidence": [
-          "desktop screenshot comparison against AionUI baseline",
+          "desktop screenshot comparison against ChatGPT Codex macOS 26.707.31123",
+          "persistent project rail and single conversation timeline screenshot comparison",
+          "composer model and reasoning controls screenshot comparison",
+          "floating on-demand environment screenshot comparison",
+          "Settings locale surface screenshot comparison",
           "webui screenshot comparison against desktop renderer",
           "packaged app screenshot or VM smoke artifact"
         ],
@@ -768,7 +784,7 @@
         "home_backend_selector_visible": false,
         "home_model_selector_visible": true,
         "permission_mode_selector_visible": false,
-        "workspace_session_rail_default_visible": false,
+        "workspace_session_rail_default_visible": true,
         "inspector_default_visible": false,
         "default_visual_basis": "codex_app_composer_first",
         "right_context_user_request_only": true,

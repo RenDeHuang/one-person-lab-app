@@ -21,6 +21,13 @@ Machine boundary: 本文是人读产品增量定义。机器可读真相在 `con
 - 查看 refs、diffs、command output、files 和 user-input prompts。
 - 主 surface 保持 chat-first。
 
+当前 native candidate 的视觉与交互基准固定为 2026-07-10 的 ChatGPT
+Codex macOS 26.707.31123：桌面默认显示项目/对话 rail，主区保持单一对话
+时间线，模型与推理强度位于 composer 底部，环境/文件/产物详情按需以浮层打开，
+不挤压主对话区。该基准只用于视觉与交互对齐，不复制 ChatGPT/Codex 源码、
+品牌资产或产品权限。K-Dense、Open Science 等外部项目只继续提供交付与科研
+预览功能经验，不再决定普通 Home 的视觉结构。
+
 OPL App 应保留这些预期。下面的增量把 Codex App 专门化为 OPL family 产品，
 同时不把它变成通用 dashboard。
 

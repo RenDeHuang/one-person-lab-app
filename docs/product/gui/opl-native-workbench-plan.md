@@ -70,8 +70,8 @@ or release package has changed.
 | 2 | Adapter contract | `contracts/shell-adapters/opl-native-workbench.json` selects the independent shell checkout and explicit candidate build path. | Adapter validation and no active-shell switch. |
 | 3 | External repo / checkout | `shells/opl-native-workbench` or its source repo is available as an external checkout without vendoring history into the App repo. | Checkout readback and source ref. |
 | 4 | State/action bridge | Candidate consumes `opl app state --profile fast --json` and `opl app action execute ... --json` only. | Source tests or bridge smoke. |
-| 5 | Codex app-server conversation bridge | Candidate uses Codex app-server thread/turn JSON-RPC (`initialize`, `thread/start`, `turn/start`, streaming delta notifications, `turn/completed`, and resume-capable thread ids) instead of a shell-owned one-shot `codex exec` wrapper. | Native bridge compile, app-server protocol smoke, and candidate package manifest. |
-| 6 | Basic UI modules | The candidate product target includes a workbench root, top bar, chat canvas, composer, workspace/session rail, context inspector, Runtime slice, and Settings route as reusable modules, not a one-off static shell. Global settings such as language, model/account access, workspace, and runtime connection belong in Settings; the composer keeps only prompt-local actions. | Source module inspection, source validation, and no hidden runtime/domain authority. |
+| 5 | Codex app-server conversation bridge | Candidate uses Codex app-server JSON-RPC (`initialize`, `model/list`, `thread/start`, `turn/start`, model/effort overrides, streaming delta notifications, `turn/completed`, and resume-capable thread ids) instead of a shell-owned one-shot `codex exec` wrapper. `model/list` is intersected with the App-owned allowlist before Auto resolves a model and supported effort. | Native bridge compile, app-server protocol smoke, and candidate package manifest. |
+| 6 | Basic UI modules | The candidate follows ChatGPT Codex macOS 26.707.31123: a persistent project/conversation rail, one dominant chat timeline, compact conversation header, functional model/reasoning controls in the composer, floating user-requested environment details, and a separate Settings route. Language, persistent model defaults, workspace, and runtime connection belong in Settings; the composer controls write the same persisted model/reasoning values and pass them to app-server. | Source module inspection, source validation, screenshot comparison, and no hidden runtime/domain authority. |
 | 7 | Artifact preview tabs | Files, result refs, delivery refs, receipts, and review refs are shown through preview tabs or equivalent inspector panes. They are refs-only; artifact bodies and quality/export verdicts stay domain-owned. | Source UI evidence plus App state/action refs proving the preview is not shell-owned artifact authority. |
 | 8 | Provenance drawer | A drawer or inspector panel shows source refs, receipts, owner handoff state, and next action provenance without owning memory body, artifact body, runtime truth, or owner receipts. | Source UI evidence plus explicit forbidden-authority checks. |
 | 9 | Starter forms | Research, Grant, and Presentation starters become structured forms that prepare App action payloads and dry-run previews. They do not execute hidden shell-local workflows. | Source form evidence plus dry-run action receipt mapping. |
@@ -92,15 +92,17 @@ manifest. This remains candidate technical evidence only: it does not prove
 clean-VM behavior, visual owner acceptance, active-shell adoption, release
 readiness, or live App release currentness.
 
-The July 5, 2026 visual restyle pass also uses an OPL-owned image-generated
-mockup as a design anchor for the light chat-first shell, with Codex App,
-K-Dense, and Open Science treated as hierarchy and layout references only.
-The current candidate renderer now targets the accepted imagegen mockup's
-project-first information architecture: left sidebar order is Current project,
-Context inputs, Attachments / outputs, then Project chats; the center top bar
-holds model/access configuration above the chat-first canvas; the right
-contextual inspector opens on Preview by default; Settings remains an explicit
-route rather than a composer-side overflow surface.
+The current visual acceptance baseline is ChatGPT Codex macOS 26.707.31123,
+inspected on July 10, 2026. The candidate aligns its layout density,
+typography, project/conversation hierarchy, single timeline, compact header,
+bottom composer, model/reasoning placement, floating environment details, and
+account-row Settings entry to that build. OPL branding and OPL-owned contracts
+remain authoritative; no ChatGPT/Codex source or brand asset is copied.
+K-Dense and Open Science are demoted to feature references for delivery,
+scientific previews, provenance, and structured actions. Their three-column
+workbench layouts are not ordinary Home references. The older July 5 imagegen
+mockup remains historical input only and is no longer a visual acceptance
+baseline.
 The current landing target also converges packaged macOS candidate, WebUI, and
 source around one renderer entry and one bridge/event shape. That is a
 candidate-structure claim only; it still does not imply same-cohort visual
@@ -110,11 +112,11 @@ parity acceptance, active-shell adoption, clean-VM proof, or release readiness.
 
 | Status | Scope | Evidence boundary |
 | --- | --- | --- |
-| Implemented | Codex chat runtime path | Source validators require `codex app-server --stdio`, `initialize`, `thread/start`, `turn/start`, `item/agentMessage/delta`, `turn/completed`, and `thread/resume` markers across the bridge and native host. |
+| Implemented | Codex chat runtime path | Source validators require `codex app-server --stdio`, `initialize`, `model/list`, App allowlist intersection, Auto resolution, `thread/start`, `turn/start`, `model` / `effort` overrides, `item/agentMessage/delta`, `turn/completed`, and `thread/resume` markers across the bridge and native host. |
 | Implemented | Chat history and local session resume | Candidate sidebar persists local chat sessions, reopens saved drafts, and reuses a saved Codex `threadId` when available. |
 | Implemented | OPL App state context | Source validators require fast state, full state, full drilldown, secondary runtime context, and active-project-line markers. |
 | Implemented | App action preview and receipt | Source validators require `opl app action execute --action`, `--dry-run`, visible action preview controls, visible receipt markers, confirmed execute, and rollback-preview request markers. |
-| Implemented | Settings route | Source validators require the Settings route, model/account access entry, locale toggle, packaged route switch markers, runtime profile readback, and refresh controls. |
+| Implemented | Settings route | Source validators require the Settings route, App-profile-injected model order, default `5.6 Sol` / `ultra`, all five reasoning efforts, locale toggle, packaged route switch markers, runtime profile readback, and refresh controls. The locale choice drives ordinary user-visible chrome in the shared renderer. |
 | Implemented | Bridge readback normalization | Candidate bridge normalizes state, drilldown, action receipt, message, and event readbacks into typed envelopes consumable by the renderer. |
 | Implemented candidate evidence | Local packaged `.app` smoke | Candidate repo `npm run smoke:native-live` launches the packaged AppKit/WKWebView `.app`, records process/window evidence, and writes a local screenshot artifact. |
 | Partial | Packaged/WebUI/source shared renderer convergence | Current checks prove one candidate renderer target plus source/package/local-live/WebUI structural evidence. They do not prove same-cohort owner-accepted user-path behavior, clean-VM behavior, or release adoption. |
