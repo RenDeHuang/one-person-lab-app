@@ -8,22 +8,21 @@ and focused contract tests
 
 ## Conclusion
 
-The App product-authority and Shell implementation slices recorded by this
-audit were `done` for the then-current decision. The Codex-style quiet visual
-direction was superseded on 2026-07-10 by an explicit owner decision to restore
-the established OPL card-based Settings baseline while retaining the page
-organization, state projection, and action semantics. This audit remains a
-historical implementation record, not current visual authority.
+The current Settings direction restores the established OPL card-based visual
+baseline while retaining the reorganized page structure, state projection, and
+action semantics. The App product profile and active Shell generated profile
+publish `opl_baseline_card_control_center` and
+`bounded_page_section_cards_with_flat_internal_rows`: bounded section cards at
+page level, with flat rows, lists, controls, and disclosures inside each card.
 
-Integration must synchronize the App product profile and active Shell generated
-profile to `opl_baseline_card_control_center` and
-`bounded_page_section_cards_with_flat_internal_rows`. The restoration is not
-contract-complete while either projection still publishes the superseded
-quiet-workbench values.
-
-Fresh screenshot pixels were generated on the baseline-restoration Shell lane.
-They remain implementation evidence for that exact lane commit; the integration
-owner must rerun the declared screenshot command after semantic absorption.
+Fresh final-integration evidence is bound to Shell commit
+`5fc28058b56d46861b47ff2968e94bfcadb6d6e6`. On that exact clean commit, the
+production package completed, the focused Settings visual E2E passed `2/2`,
+and the collector generated 28 desktop/mobile screenshots plus a manifest whose
+28 entries all record the same commit. The compatibility captures start from a
+cleared search state, Preferences uses one bounded section card with a flat
+theme swatch list, and Access renders an unread model state as neutral rather
+than an exception.
 
 No runtime, installed-App, currentness, notarization, or release-ready claim is
 made by this audit.
@@ -36,17 +35,17 @@ made by this audit.
 | Secondary page boundary | done | 100% | `secondary_pages` contains only `advanced` and `about`; About has an independent render slot and route | None |
 | Compatibility redirects | done | 100% | Machine contract and Shell router implement `update -> environment#updates`, `theme -> appearance#themes`, `local-services -> environment#services` with `?section=` anchors | None |
 | About independence | done | 100% | `about` is absent from redirect maps and renders `AboutModalContent` at `/settings/about` | None |
-| Single global search contract | done | 100% | One `settings-search-input`, bilingual item indexing, `page > item` labels, Enter navigation, and anchor focus are covered by DOM and E2E source tests | Fresh pixel capture remains separate |
-| Codex-style visual contract | superseded | 0% current authority | The prior quiet-workbench CSS and contract were implemented and tested | Current authority is the OPL card-based Settings baseline in `settings-control-center.md` and `app-settings-control-plane.json` |
+| Single global search contract | done | 100% | One `settings-search-input`, bilingual item indexing, `page > item` labels, Enter navigation, and anchor focus are covered by DOM and E2E source tests; desktop/mobile empty-state pixels are included in the final manifest | None in declared search scope |
+| OPL card-based visual contract | done | 100% | App and Shell profiles publish `opl_baseline_card_control_center` plus `bounded_page_section_cards_with_flat_internal_rows`; final-integration screenshots are bound to Shell `5fc28058b56d46861b47ff2968e94bfcadb6d6e6` | None in Settings source/visual scope |
 | Per-page experience contracts | done | 100% | Ten page contracts are implemented with declared primary information, action, exception, technical details, DOM anchors, Access browser entry, AssistantSettings tab, and resource action lifecycle | None in source/DOM scope |
 | Prior UX audit incorporation | done | 100% | 概览、访问方式、工作区、智能体与能力、资源与连接、维护、数据与存储、偏好、高级、关于 requirements are present in Shell source and focused tests | None in source/DOM scope |
 | Page-state matrix | done | 100% | Product pages, redirect states, Preferences route, anchors, and action states are consumed by App validators and Shell tests | None |
 | Contract validators | done | 100% | Active-shell quick validation passes against the Settings Shell checkout, including ordinary-conversation Team MCP scrub evidence | Re-run on absorbed main |
 | Focused and full tests | done | 100% | Shell `bun run test:full`: 248 files passed, 1 skipped; 1873 tests passed, 3 skipped. App release boundary: 158 passed, 2 platform skips | Re-run on absorbed main |
 | Product documentation | done | 100% | `settings-control-center.md` is the current route, search, visual, page, DOM, and evidence boundary | None in App authority scope |
-| Shell DOM and interaction implementation | done | 100% | Full node/DOM/integration suite, TypeScript, i18n, lint, format, and production Vite package build pass | Re-run on absorbed main |
-| Visual QA collector | partial | 95% | E2E source covers desktop/narrow viewports, eight ordinary routes, Advanced/About, compatibility redirects, bilingual Enter search, anchor evidence, screenshots, and manifest output. State-changing confirmation remains covered by focused DOM tests. | The backend-independent visual fixture records action confirmation as an explicit coverage gap instead of claiming pixels it did not capture. |
-| Fresh Shell screenshot pixels | done | 100% | The baseline-restoration lane generated and reviewed 28 desktop/mobile route, redirect, and interaction-state screenshots plus the manifest. | Re-run on the absorbed integration commit before installation. |
+| Shell DOM and interaction implementation | done | 100% | Focused Settings DOM coverage includes the actual theme component; access projection tests pass; the Arco edit-event type mismatch is fixed; format, TypeScript, and production package pass on the restored baseline implementation | Broader combined gates remain owned by final integration |
+| Visual QA collector | partial | 95% | The collector covers desktop/mobile viewports, eight ordinary routes, Advanced/About, compatibility redirects, search empty state, anchor evidence, screenshots, and manifest output. Compatibility captures explicitly clear the search state before navigation. | State-changing action confirmation is covered by focused DOM tests but remains an explicit pixel coverage gap in the backend-independent fixture. |
+| Fresh Shell screenshot pixels | done | 100% | Exact Shell `5fc28058b56d46861b47ff2968e94bfcadb6d6e6`: production package passed, Settings visual E2E passed `2/2`, and 28 screenshots plus `tests/e2e/screenshots/settings-control-center-manifest.json` were generated. All 28 manifest entries record the exact commit. | None in declared screenshot scope |
 | Running-shell/runtime evidence | not_started | 0% | Contract and tests intentionally do not provide live runtime proof | Collect live readback only when runtime evidence is requested |
 | Installed App / release currentness | blocked | 0% | Separate release-owner gate required | Release owner supplies installed version, signing/notarization, artifact, and currentness evidence |
 
@@ -96,16 +95,18 @@ The Shell lane implements and tests:
 
 ## Evidence Boundary
 
-`done` above means the App-owned authority artifact and its validator coverage
-exist and pass. It does not mean the parallel shell implementation, running App,
-packaged App, or release is ready.
+`done` above means the App-owned authority artifact and the stated Shell
+implementation or visual evidence exist for their exact recorded commits. It
+does not mean the running App, installed App, or release is current or ready.
 
-The terminal Settings product claim requires both:
+The Settings product claim is supported by both:
 
-- App authority evidence from this lane;
-- fresh Shell DOM/behavior and visual evidence from the Shell owner lane.
+- App authority evidence at App commit
+  `18e053f0b9500a849d3b5a49da9c92e7a31fbd59`;
+- fresh Shell DOM/behavior and visual evidence at exact Shell commit
+  `5fc28058b56d46861b47ff2968e94bfcadb6d6e6`.
 
-Release/currentness remains outside Settings completion. The remaining Settings
-evidence action is fresh screenshot capture outside the current macOS GUI
-sandbox; managed-agent owns the subsequent build, installation, running-App
-readback, and release/currentness checks.
+Release/currentness remains outside Settings completion. Final integration owns
+the combined gates, rebuilt installation, running-App readback, release
+currentness, and worktree cleanup. The visual manifest intentionally sets
+`release_readiness_claim` to `false`.
