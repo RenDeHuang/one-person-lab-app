@@ -15,10 +15,16 @@ const designRoot = 'docs/product/gui';
 
 const conformanceMatrix = `# Shell conformance matrix
 
+- AionUI source snapshot：\`opl-aion-shell@0000000000000000000000000000000000000000\`；fixture only。
+
 | 功能或交互要求 | AionUI contract | AionUI source | AionUI pixel | Native contract | Native source | Native pixel | 验证入口与边界 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Product authority | \`aligned_contract\` | \`source_implemented\` | \`not_applicable\` | \`candidate_target\` | \`source_implemented\` | \`not_applicable\` | Contract only. |
 | Chat-first visual | \`current_contract_deviation\` | \`source_partial\` | \`pixel_blocked\` | \`candidate_target\` | \`source_partial\` | \`pixel_verified\` | Pixel evidence does not imply parity. |
+| 宽桌面 rail 默认展开且 \`280-340px\` 可调 | \`aligned_contract\` | \`source_partial\` | \`pixel_unverified\` | \`candidate_target\` | \`source_partial\` | \`pixel_unverified\` | Contract readback. |
+| Permission/access mode 在 composer 可见且不用 backend/provider 术语 | \`aligned_contract\` | \`source_partial\` | \`pixel_unverified\` | \`current_contract_deviation\` | \`source_missing\` | \`pixel_unverified\` | Contract readback. |
+| Side panel 默认关闭、可调，核心 Review/Terminal/Browser/Files | \`aligned_contract\` | \`source_partial\` | \`pixel_unverified\` | \`current_contract_deviation\` | \`source_partial\` | \`pixel_verified\` | Contract readback. |
+| Artifacts/Runtime/Actions/Memory 使用 secondary sections | \`aligned_contract\` | \`source_partial\` | \`pixel_unverified\` | \`current_contract_deviation\` | \`source_partial\` | \`pixel_verified\` | Contract readback. |
 `;
 
 function writeFile(root: string, relativePath: string, contents: string): void {
@@ -104,7 +110,7 @@ test('GUI design-system validator accepts a complete fixture without promoting r
     model: profile.codex.default_model,
     reasoning_effort: profile.codex.default_reasoning_effort,
   });
-  assert.equal(summary.conformance_matrix.rows_validated, 2);
+  assert.equal(summary.conformance_matrix.rows_validated, 6);
   assert.deepEqual(summary.conformance_matrix.status_axes, ['contract_status', 'source_status', 'pixel_status']);
   assert.equal(summary.conformance_matrix.pixel_verified_implies_visual_parity, false);
 });
@@ -130,6 +136,15 @@ test('GUI design-system validator reports a collapsed active AionUI rail as a co
   const profile = JSON.parse(fs.readFileSync(profilePath, 'utf8'));
   profile.gui.home.home_layout.workspace_session_rail_default_state = 'collapsed';
   writeJson(root, 'contracts/app-product-profile.json', profile);
+  const matrixPath = path.join(root, designRoot, 'shell-conformance-matrix.md');
+  fs.writeFileSync(
+    matrixPath,
+    fs.readFileSync(matrixPath, 'utf8').replace(
+      '| 宽桌面 rail 默认展开且 `280-340px` 可调 | `aligned_contract`',
+      '| 宽桌面 rail 默认展开且 `280-340px` 可调 | `current_contract_deviation`',
+    ),
+    'utf8',
+  );
 
   const summary = validateGuiDesignSystem(root);
   assert.equal(summary.state_boundary.active_aionui_rail_state, 'collapsed');
@@ -301,6 +316,37 @@ test('GUI design-system validator rejects an unknown matrix status', () => {
   assert.throws(
     () => validateGuiDesignSystem(root),
     /must declare exactly one AionUI source_status/,
+  );
+});
+
+test('GUI design-system validator rejects a stale dynamic AionUI contract row', () => {
+  const root = createFixture();
+  const matrixPath = path.join(root, designRoot, 'shell-conformance-matrix.md');
+  fs.writeFileSync(
+    matrixPath,
+    fs.readFileSync(matrixPath, 'utf8').replace(
+      '| Permission/access mode 在 composer 可见且不用 backend/provider 术语 | `aligned_contract`',
+      '| Permission/access mode 在 composer 可见且不用 backend/provider 术语 | `current_contract_deviation`',
+    ),
+    'utf8',
+  );
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /Permission\/access mode.*must report AionUI contract_status aligned_contract/,
+  );
+});
+
+test('GUI design-system validator requires an exact AionUI source snapshot', () => {
+  const root = createFixture();
+  const matrixPath = path.join(root, designRoot, 'shell-conformance-matrix.md');
+  fs.writeFileSync(
+    matrixPath,
+    fs.readFileSync(matrixPath, 'utf8').replace(/opl-aion-shell@[0-9a-f]{40}/, 'opl-aion-shell@stale'),
+    'utf8',
+  );
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /must bind an exact 40-character AionUI source snapshot/,
   );
 });
 

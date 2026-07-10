@@ -2283,11 +2283,12 @@
           ],
           "surface_grouping": {
             "allowed_bounded_group_kinds": [
+              "page_section",
               "summary",
               "repeated_entity"
             ],
             "bounded_group_nesting": "single_layer_only",
-            "page_section_card_policy": "forbidden",
+            "page_section_card_policy": "bounded_required_with_flat_internal_rows",
             "page_wide_bare_divider_layout": "forbidden"
           },
           "sidebar_selection": {

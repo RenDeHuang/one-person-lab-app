@@ -2,6 +2,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 type JsonRecord = Record<string, unknown>;
@@ -236,6 +237,52 @@ function validateConformanceMatrix(text: string, issues: Set<string>): number {
   return rowsValidated;
 }
 
+function matrixRow(text: string, requirement: string): string[] | null {
+  for (const line of text.split(/\r?\n/)) {
+    if (!line.trim().startsWith('|')) continue;
+    const cells = markdownCells(line);
+    if (cells[0] === requirement) return cells;
+  }
+  return null;
+}
+
+function requireAionuiContractStatus(
+  text: string,
+  requirement: string,
+  expected: ContractConformanceStatus,
+  issues: Set<string>,
+): void {
+  const row = matrixRow(text, requirement);
+  if (!row) {
+    issues.add(`shell conformance matrix must include current AionUI contract row "${requirement}"`);
+    return;
+  }
+  if (row[1]?.replace(/^`|`$/g, '') !== expected) {
+    issues.add(`shell conformance row "${requirement}" must report AionUI contract_status ${expected}`);
+  }
+}
+
+function validateAionuiSnapshot(root: string, text: string, issues: Set<string>): void {
+  const match = text.match(/AionUI source snapshot：`opl-aion-shell@([0-9a-f]{40})`/);
+  if (!match) {
+    issues.add('shell conformance matrix must bind an exact 40-character AionUI source snapshot');
+    return;
+  }
+  if (text.includes('pages/guid/components/AssistantSelectionArea.tsx')) {
+    issues.add('shell conformance matrix must not retain the retired AssistantSelectionArea source anchor');
+  }
+  const shellRoot = path.join(root, 'shells', 'aionui');
+  if (!fs.existsSync(shellRoot)) return;
+  try {
+    const currentHead = execFileSync('git', ['-C', shellRoot, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+    if (match[1] !== currentHead) {
+      issues.add(`shell conformance matrix AionUI snapshot must match current shell HEAD ${currentHead}`);
+    }
+  } catch (error) {
+    issues.add(`unable to read active AionUI source snapshot: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
 export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemValidation {
   const issues = new Set<string>();
   const registry = readJson(root, 'contracts/app-shell-candidates.json', issues);
@@ -345,6 +392,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   const foundationReadme = readText(root, foundationDocs.readme, issues);
   const conformanceMatrix = readText(root, foundationDocs.shell_conformance_matrix, issues);
   const conformanceRowsValidated = validateConformanceMatrix(conformanceMatrix, issues);
+  validateAionuiSnapshot(root, conformanceMatrix, issues);
   if (governedDocsPresent) {
     for (const layer of expectedStack) {
       requireExactMarkerLine(
@@ -600,6 +648,29 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     activeInspector.secondary_presentation === 'sections_or_disclosures_not_equal_weight_tabs' &&
     !Array.isArray(activeInspector.tabs)
   );
+  requireAionuiContractStatus(
+    conformanceMatrix,
+    '宽桌面 rail 默认展开且 `280-340px` 可调',
+    conformanceStatus(railMatchesIdeal),
+    issues,
+  );
+  requireAionuiContractStatus(
+    conformanceMatrix,
+    'Permission/access mode 在 composer 可见且不用 backend/provider 术语',
+    conformanceStatus(permissionAccessModeMatchesIdeal),
+    issues,
+  );
+  for (const requirement of [
+    'Side panel 默认关闭、可调，核心 Review/Terminal/Browser/Files',
+    'Artifacts/Runtime/Actions/Memory 使用 secondary sections',
+  ]) {
+    requireAionuiContractStatus(
+      conformanceMatrix,
+      requirement,
+      conformanceStatus(sidePanelInformationArchitectureMatchesIdeal),
+      issues,
+    );
+  }
 
   const codex = record(profile.codex);
   const defaultModel = typeof codex.default_model === 'string' ? codex.default_model : '';

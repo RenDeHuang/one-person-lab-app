@@ -130,6 +130,12 @@ test('Settings visual QA enforces dense grouping, route-title preflight, and res
 
   assert.doesNotThrow(() => validate(values));
   assert.deepStrictEqual(visualQa.visual_character, ['quiet', 'dense', 'scannable']);
+  assert.deepStrictEqual(visualQa.surface_grouping, {
+    allowed_bounded_group_kinds: ['page_section', 'summary', 'repeated_entity'],
+    bounded_group_nesting: 'single_layer_only',
+    page_section_card_policy: 'bounded_required_with_flat_internal_rows',
+    page_wide_bare_divider_layout: 'forbidden',
+  });
   assert.deepStrictEqual(visualQa.evidence_dimensions.required_viewports, ['desktop', 'narrow']);
   assert.deepStrictEqual(visualQa.evidence_dimensions.required_color_schemes, ['light', 'dark']);
 
@@ -137,6 +143,11 @@ test('Settings visual QA enforces dense grouping, route-title preflight, and res
   sparseLayout.guiContract.settings_navigation.settings_ia.protocols.visual_qa_expectations
     .surface_grouping.page_wide_bare_divider_layout = 'allowed';
   assert.throws(() => validate(sparseLayout), /surface grouping/);
+
+  const missingPageSectionCards = contracts();
+  missingPageSectionCards.guiContract.settings_navigation.settings_ia.protocols.visual_qa_expectations
+    .surface_grouping.page_section_card_policy = 'forbidden';
+  assert.throws(() => validate(missingPageSectionCards), /surface grouping/);
 
   const multipleSelectedItems = contracts();
   multipleSelectedItems.guiContract.settings_navigation.settings_ia.protocols.visual_qa_expectations

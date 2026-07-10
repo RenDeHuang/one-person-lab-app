@@ -158,6 +158,19 @@ export function validateSettingsControlPlane(controlPlane, guiContract, pageStat
   if (controlPlane.product_profile_projection_target !== 'settings.control_plane') {
     throw new Error('Settings control plane must project to settings.control_plane');
   }
+  if (productProfile?.settings?.control_plane?.machine_boundary !== controlPlane.machine_boundary) {
+    throw new Error('Product profile Settings control plane machine boundary must match the source contract');
+  }
+  assertDeepEqualJson(
+    productProfile?.settings?.control_plane?.model_reasoning_policy_source,
+    controlPlane.model_reasoning_policy_source,
+    'Product profile Settings model/reasoning policy projection',
+  );
+  assertDeepEqualJson(
+    productProfile?.settings?.control_plane?.product_system_checklist,
+    controlPlane.product_system_checklist,
+    'Product profile Settings checklist projection',
+  );
   assertDeepEqualJson(controlPlane.ordinary_visible_tabs, appOwnedSettingsTabs, 'Settings control plane ordinary tabs');
   assertDeepEqualJson(
     controlPlane.ordinary_routes?.map((route) => route.id),
@@ -726,9 +739,9 @@ function validateSettingsVisualQaExpectations(expectations) {
   assertDeepEqualJson(
     expectations?.surface_grouping,
     {
-      allowed_bounded_group_kinds: ['summary', 'repeated_entity'],
+      allowed_bounded_group_kinds: ['page_section', 'summary', 'repeated_entity'],
       bounded_group_nesting: 'single_layer_only',
-      page_section_card_policy: 'forbidden',
+      page_section_card_policy: 'bounded_required_with_flat_internal_rows',
       page_wide_bare_divider_layout: 'forbidden',
     },
     'Settings visual QA surface grouping',
@@ -779,8 +792,9 @@ function validateSettingsVisualQaExpectations(expectations) {
   assertIncludesAll(
     expectations?.must_check,
     [
+      'page sections use bounded cards with flat internal rows, nested cards are absent, radius is at most 8px, and spacing uses 12/16/24',
       'Settings remains quiet, dense, and scannable without a sparse page-wide bare-divider layout',
-      'summary and repeated-entity bounded groups use one layer only',
+      'bounded page-section cards do not become a decorative card wall',
       'the Settings sidebar has exactly one selected item',
       'repeated entities use shared column headers instead of per-row field labels',
       'the primary action stays adjacent to its owning object or section',
@@ -1049,7 +1063,7 @@ export function validateSettingsExperienceContract(experience) {
     experience.owner !== 'one-person-lab-app' ||
     experience.purpose !== 'machine_verifiable_settings_visual_search_page_and_dom_contract'
   ) {
-    throw new Error('Settings experience contract must be active App-owned Codex-style behavior');
+    throw new Error('Settings experience contract must be active App-owned control-center behavior');
   }
   if (
     experience.source_contract_ref !==
