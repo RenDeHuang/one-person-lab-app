@@ -21,44 +21,34 @@ function runCohortManifest(args: string[]) {
 
 test('release cohort manifest binds candidate, readiness, remote assets, and retry commands', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-cohort-manifest-'));
-  const candidatePath = path.join(tempRoot, 'release-candidate-record.json');
-  const readinessPath = path.join(tempRoot, 'release-readiness-summary.json');
-  const remotePath = path.join(tempRoot, 'remote-release-verification.json');
-  const preflightPath = path.join(tempRoot, 'release-preflight-summary.json');
-  const gateReusePath = path.join(tempRoot, 'release-gate-reuse-plan.json');
-  const outputPath = path.join(tempRoot, 'release-cohort-manifest.json');
-  const markdownPath = path.join(tempRoot, 'release-cohort-manifest.md');
+  const fixturePath = (name: string) => path.join(tempRoot, name);
+  const candidatePath = fixturePath('release-candidate-record.json');
+  const readinessPath = fixturePath('release-readiness-summary.json');
+  const remotePath = fixturePath('remote-release-verification.json');
+  const preflightPath = fixturePath('release-preflight-summary.json');
+  const gateReusePath = fixturePath('release-gate-reuse-plan.json');
+  const outputPath = fixturePath('release-cohort-manifest.json');
+  const markdownPath = fixturePath('release-cohort-manifest.md');
+  const shellRef = '1'.repeat(40);
+  const frameworkRef = '2'.repeat(40);
 
   writeJson(candidatePath, releaseCandidateFixture('26.7.5', {
     release_mode: 'refresh_existing',
-    inputs: {
-      include_full_package: true,
-      run_vm_smoke: true,
-      shell_ref: '1111111111111111111111111111111111111111',
-      framework_ref: '2222222222222222222222222222222222222222',
-    },
-    provenance: {
-      app_commit: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-      workflow_run_id: '12345',
-    },
+    inputs: { include_full_package: true, run_vm_smoke: true, shell_ref: shellRef, framework_ref: frameworkRef },
+    provenance: { app_commit: 'a'.repeat(40), workflow_run_id: '12345' },
     resolved_refs: {
-      opl_framework: {
-        ref: '2222222222222222222222222222222222222222',
-        commit: '2222222222222222222222222222222222222222',
-      },
+      opl_framework: { ref: frameworkRef, commit: frameworkRef },
     },
   }));
   writeJson(readinessPath, releaseReadinessFixture('26.7.5', {
     gates: {
       remote_release_verification: {
-        status: 'passed',
-        required: true,
+        status: 'passed', required: true,
         artifact_name: 'remote-release-verification-26.7.5',
         artifact_path: 'remote-release-verification-26.7.5/remote-release-verification.json',
       },
       full_dmg_clean_vm: {
-        status: 'passed',
-        required: true,
+        status: 'passed', required: true,
         artifact_name: 'opl-first-run-vm-full-12345',
         artifact_path: 'opl-first-run-vm-full-12345/tart-smoke-summary.json',
       },
@@ -70,13 +60,11 @@ test('release cohort manifest binds candidate, readiness, remote assets, and ret
     verified_assets: [
       {
         name: 'One-Person-Lab-Full-26.7.5-mac-arm64.dmg',
-        size: 2048,
-        sha256: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+        size: 2048, sha256: 'b'.repeat(64),
       },
       {
         name: 'One-Person-Lab-26.7.5-mac-arm64.dmg',
-        size: 1024,
-        sha256: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        size: 1024, sha256: 'a'.repeat(64),
       },
     ],
   });
@@ -86,8 +74,7 @@ test('release cohort manifest binds candidate, readiness, remote assets, and ret
     release_refs: [
       {
         repository: 'gaofeng21cn/opl-aion-shell',
-        ref: 'main',
-        resolved_sha: '1111111111111111111111111111111111111111',
+        ref: 'main', resolved_sha: shellRef,
       },
     ],
   });
@@ -97,8 +84,7 @@ test('release cohort manifest binds candidate, readiness, remote assets, and ret
     decisions: [
       {
         gate_id: 'remote_release_verification',
-        status: 'reuse_allowed',
-        reason: 'same version, refs, and asset digest',
+        status: 'reuse_allowed', reason: 'same version, refs, and asset digest',
       },
     ],
   });
@@ -137,14 +123,13 @@ test('release cohort manifest binds candidate, readiness, remote assets, and ret
     ['One-Person-Lab-26.7.5-mac-arm64.dmg', 'One-Person-Lab-Full-26.7.5-mac-arm64.dmg'],
   );
   assert.equal(manifest.gates.length, 2);
+  const gate = (id: string) => manifest.gates.find((entry: { id: string }) => entry.id === id);
   assert.ok(
-    manifest.gates
-      .find((gate: { id: string }) => gate.id === 'remote_release_verification')
+    gate('remote_release_verification')
       ?.retry_command.includes('npm run verify-remote-release -- --version 26.7.5 --include-full-package'),
   );
   assert.ok(
-    manifest.gates
-      .find((gate: { id: string }) => gate.id === 'full_dmg_clean_vm')
+    gate('full_dmg_clean_vm')
       ?.retry_command.includes('release_artifact_name=opl-full-first-install-dmg-26.7.5-mac-arm64'),
   );
   assert.equal(manifest.reusable_gates[0].status, 'reuse_allowed');

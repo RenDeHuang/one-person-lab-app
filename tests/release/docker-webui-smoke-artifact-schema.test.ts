@@ -34,15 +34,8 @@ function ordinaryUserStep(summary: string, evidence_ref: string, next_action: st
 }
 
 function ordinaryUserStatus() {
-  return Object.fromEntries([
-    'one_click_install',
-    'browser_webui',
-    'access_key_settings',
-    'runtime_proxy',
-    'startup_recovery',
-    'data_preservation',
-    'host_update',
-  ].map((key) => [key, ordinaryUserStep(key, `/tmp/artifact/${key}`)]));
+  const ids = ['one_click_install', 'browser_webui', 'access_key_settings', 'runtime_proxy', 'startup_recovery', 'data_preservation', 'host_update'];
+  return Object.fromEntries(ids.map((key) => [key, ordinaryUserStep(key, `/tmp/artifact/${key}`)]));
 }
 
 function runSmokeGateValidation(resultPath: string) {
@@ -66,10 +59,7 @@ function completeGateResult() {
       status: 'passed',
       compose_volume_mapping: { status: 'passed' },
       preservation_evidence: { status: 'passed' },
-      image_identity: {
-        status: 'passed',
-        ...imageIdentity(),
-      },
+      image_identity: { status: 'passed', ...imageIdentity() },
     },
     health: { status: 'passed' },
     compose: { status: 'present' },
@@ -83,12 +73,7 @@ function completeGateResult() {
       ...ordinaryUserStatus(),
       image_seed_selection: 'Default stable image must use the WebUI full seed; --tag/--image are explicit advanced overrides.',
       settings_entry: 'Settings -> Access',
-      must_not_claim: [
-        'desktop_release_ready',
-        'real_install_ready',
-        'clean_windows_vm_pass_without_clean_windows_evidence',
-        'release_ready',
-      ],
+      must_not_claim: ['desktop_release_ready', 'real_install_ready', 'clean_windows_vm_pass_without_clean_windows_evidence', 'release_ready'],
     },
     secret_scan: { status: 'passed' },
     commands: [],
@@ -102,9 +87,7 @@ function expectInvalidSmokeGateResult(mutator: (payload: any) => void, invalidFi
 
   const result = validateDockerWebuiSmokeGateResult(payload);
   assert.equal(result.status, 'failed');
-  for (const field of invalidFields) {
-    assert.ok(result.invalid_fields.includes(field));
-  }
+  for (const field of invalidFields) assert.ok(result.invalid_fields.includes(field));
 }
 
 test('Docker/WebUI diagnostics validator fails when manifest, compose, logs, or data preservation evidence is missing', () => {
@@ -135,35 +118,38 @@ test('Docker/WebUI diagnostics validator rejects secret-like content in required
 });
 
 test('Docker/WebUI diagnostics validator requires compose mounts, preservation inventories, and image digest identity', () => {
-  const diagnostics = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-diagnostics-proof-'));
-  writeDockerWebuiDiagnostics(diagnostics);
-  assert.equal(validateDockerWebuiDiagnostics(diagnostics).status, 'passed');
+  const baseline = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-diagnostics-proof-'));
+  writeDockerWebuiDiagnostics(baseline);
+  assert.equal(validateDockerWebuiDiagnostics(baseline).status, 'passed');
 
-  fs.writeFileSync(
-    path.join(diagnostics, 'compose.yaml'),
-    'services:\n  webui:\n    image: ghcr.io/gaofeng21cn/one-person-lab-webui:stable\n',
-  );
-  const missingMounts = validateDockerWebuiDiagnostics(diagnostics);
-  assert.equal(missingMounts.status, 'failed');
-  assert.ok(missingMounts.invalid_evidence.includes('compose.yaml:host_data_dir -> /data'));
-  assert.ok(missingMounts.invalid_evidence.includes('compose.yaml:host_projects_dir -> /projects'));
-
-  writeDockerWebuiDiagnostics(diagnostics);
-  fs.writeFileSync(
-    path.join(diagnostics, 'data-preservation.txt'),
-    'verdict=preserved_or_reused\n[pre_data_inventory]\nexists=true\n[post_data_inventory]\nexists=true\n',
-  );
-  const missingProjectsInventory = validateDockerWebuiDiagnostics(diagnostics);
-  assert.equal(missingProjectsInventory.status, 'failed');
-  assert.ok(missingProjectsInventory.invalid_evidence.includes('data-preservation.txt:pre_projects_inventory'));
-  assert.ok(missingProjectsInventory.invalid_evidence.includes('data-preservation.txt:post_projects_inventory'));
-
-  writeDockerWebuiDiagnostics(diagnostics);
-  fs.writeFileSync(path.join(diagnostics, 'docker-image.txt'), JSON.stringify([{ Id: 'sha256:not-a-real-digest' }]));
-  const missingDigest = validateDockerWebuiDiagnostics(diagnostics);
-  assert.equal(missingDigest.status, 'failed');
-  assert.ok(missingDigest.invalid_evidence.includes('docker-image.txt:image_digest'));
-  assert.equal(missingDigest.image_identity.currentness_claim, false);
+  for (const { file, content, invalidEvidence } of [
+    {
+      file: 'compose.yaml',
+      content: 'services:\n  webui:\n    image: ghcr.io/gaofeng21cn/one-person-lab-webui:stable\n',
+      invalidEvidence: ['compose.yaml:host_data_dir -> /data', 'compose.yaml:host_projects_dir -> /projects'],
+    },
+    {
+      file: 'data-preservation.txt',
+      content: 'verdict=preserved_or_reused\n[pre_data_inventory]\nexists=true\n[post_data_inventory]\nexists=true\n',
+      invalidEvidence: [
+        'data-preservation.txt:pre_projects_inventory',
+        'data-preservation.txt:post_projects_inventory',
+      ],
+    },
+    {
+      file: 'docker-image.txt',
+      content: JSON.stringify([{ Id: 'sha256:not-a-real-digest' }]),
+      invalidEvidence: ['docker-image.txt:image_digest'],
+    },
+  ]) {
+    const diagnostics = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-diagnostics-proof-'));
+    writeDockerWebuiDiagnostics(diagnostics);
+    fs.writeFileSync(path.join(diagnostics, file), content);
+    const result = validateDockerWebuiDiagnostics(diagnostics);
+    assert.equal(result.status, 'failed');
+    for (const evidence of invalidEvidence) assert.ok(result.invalid_evidence.includes(evidence));
+    if (file === 'docker-image.txt') assert.equal(result.image_identity.currentness_claim, false);
+  }
 });
 
 test('Docker/WebUI diagnostics validator treats remote image currentness as optional status-only evidence', () => {
@@ -171,50 +157,61 @@ test('Docker/WebUI diagnostics validator treats remote image currentness as opti
   writeDockerWebuiDiagnostics(diagnostics);
 
   const notChecked = validateDockerWebuiDiagnostics(diagnostics);
-  assert.equal(notChecked.status, 'passed');
-  assert.equal(notChecked.image_identity.digest, imageDigest);
-  assert.equal(notChecked.image_identity.remote_digest, null);
-  assert.equal(notChecked.image_identity.currentness_status, 'not_checked');
-  assert.equal(notChecked.image_identity.currentness_claim, false);
+  assert.deepEqual({
+    status: notChecked.status,
+    digest: notChecked.image_identity.digest,
+    remote_digest: notChecked.image_identity.remote_digest,
+    currentness_status: notChecked.image_identity.currentness_status,
+    currentness_claim: notChecked.image_identity.currentness_claim,
+  }, { status: 'passed', digest: imageDigest, remote_digest: null, currentness_status: 'not_checked', currentness_claim: false });
 
   fs.writeFileSync(
     path.join(diagnostics, 'remote-image-digest.txt'),
     `remote_ref=ghcr.io/gaofeng21cn/one-person-lab-webui:stable\nremote_digest=${remoteImageDigest}\n`,
   );
   const updateAvailable = validateDockerWebuiDiagnostics(diagnostics);
-  assert.equal(updateAvailable.status, 'passed');
-  assert.equal(updateAvailable.image_identity.remote_digest, remoteImageDigest);
-  assert.equal(updateAvailable.image_identity.currentness_status, 'update_available');
-  assert.equal(updateAvailable.image_identity.currentness_evidence_source, 'remote-image-digest.txt');
-  assert.equal(updateAvailable.image_identity.currentness_claim, false);
+  assert.deepEqual({
+    status: updateAvailable.status,
+    remote_digest: updateAvailable.image_identity.remote_digest,
+    currentness_status: updateAvailable.image_identity.currentness_status,
+    source: updateAvailable.image_identity.currentness_evidence_source,
+    currentness_claim: updateAvailable.image_identity.currentness_claim,
+  }, { status: 'passed', remote_digest: remoteImageDigest, currentness_status: 'update_available', source: 'remote-image-digest.txt', currentness_claim: false });
 });
 
 test('Docker/WebUI diagnostics validator accepts Docker inspect capture output with a command prefix', () => {
   const diagnostics = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-diagnostics-image-capture-'));
   writeDockerWebuiDiagnostics(diagnostics);
+  const inspect = [{
+    Id: imageDigest,
+    RepoTags: ['ghcr.io/gaofeng21cn/one-person-lab-webui:stable'],
+    RepoDigests: [repoDigest()],
+    Architecture: 'arm64',
+    Os: 'linux',
+  }];
   fs.writeFileSync(
     path.join(diagnostics, 'docker-image.txt'),
     [
       '$ docker image inspect ghcr.io/gaofeng21cn/one-person-lab-webui:stable',
-      JSON.stringify(
-        [
-          {
-            Id: imageDigest,
-            RepoDigests: [repoDigest()],
-          },
-        ],
-        null,
-        2,
-      ),
+      JSON.stringify(inspect, null, 2),
       '',
     ].join('\n'),
   );
 
   const result = validateDockerWebuiDiagnostics(diagnostics);
-  assert.equal(result.status, 'passed');
-  assert.equal(result.image_identity.image_id, imageDigest);
-  assert.deepEqual(result.image_identity.repo_digests, [repoDigest()]);
-  assert.equal(result.image_identity.digest, imageDigest);
+  assert.deepEqual({
+    status: result.status,
+    image_id: result.image_identity.image_id,
+    repo_digests: result.image_identity.repo_digests,
+    digest: result.image_identity.digest,
+    currentness_claim: result.image_identity.currentness_claim,
+  }, {
+    status: 'passed',
+    image_id: imageDigest,
+    repo_digests: [repoDigest()],
+    digest: imageDigest,
+    currentness_claim: false,
+  });
 });
 
 test('Docker/WebUI smoke gate result readback fails when required artifact schema fields are missing', () => {
@@ -243,60 +240,72 @@ test('Docker/WebUI smoke gate result readback fails when required artifact schem
   }
 });
 
-for (const { name, mutate, invalidFields } of [
+const invalidGateCases = [
   {
     name: 'without API key stdin flow evidence',
     mutate(payload: any) {
-      payload.api_key_flow = {
-        status: 'failed',
-        mode: 'webui_proxy_configure_codex',
-        endpoint: 'http://127.0.0.1:3000/api/opl-runtime/configure-codex',
-        command: 'opl system configure-codex --api-key-stdin --json',
-        stdin_transport: false,
-        receipt_path: '/tmp/artifact/api-key-flow-evidence.json',
-        errors: ['missing stdin transport'],
-      };
+      payload.api_key_flow = { status: 'failed', stdin_transport: false };
     },
     invalidFields: ['api_key_flow.status', 'api_key_flow.stdin_transport'],
   },
   {
     name: 'with failed health',
-    mutate(payload: any) {
-      payload.health = { url: 'http://localhost:3000/', status: 'failed', http_status: null };
-    },
+    mutate(payload: any) { payload.health = { status: 'failed' }; },
     invalidFields: ['health.status'],
   },
-]) {
+  {
+    name: 'without image digest identity',
+    mutate(payload: any) { payload.image.digest = null; },
+    invalidFields: ['image.digest'],
+  },
+  {
+    name: 'with an unsupported currentness claim',
+    mutate(payload: any) { payload.image.currentness_claim = true; },
+    invalidFields: ['image.currentness_claim'],
+  },
+  {
+    name: 'without diagnostics proof fields',
+    mutate(payload: any) { payload.diagnostics_validation = { status: 'passed' }; },
+    invalidFields: [
+      'diagnostics_validation.compose_volume_mapping.status',
+      'diagnostics_validation.preservation_evidence.status',
+      'diagnostics_validation.image_identity.digest',
+    ],
+  },
+  {
+    name: 'without stable image seed selection',
+    mutate(payload: any) { delete payload.ordinary_user_status.image_seed_selection; },
+    invalidFields: ['ordinary_user_status.image_seed_selection'],
+  },
+  {
+    name: 'without ordinary user path status',
+    mutate(payload: any) {
+      payload.ordinary_user_status.browser_webui.status = 'not_run';
+      payload.ordinary_user_status.must_not_claim = ['release_ready'];
+    },
+    invalidFields: [
+      'ordinary_user_status.browser_webui.status',
+      'ordinary_user_status.must_not_claim.desktop_release_ready',
+    ],
+  },
+];
+
+for (const { name, mutate, invalidFields } of invalidGateCases) {
   test(`Docker/WebUI smoke gate result readback rejects passed gates ${name}`, () => {
     expectInvalidSmokeGateResult(mutate, invalidFields);
   });
 }
 
-test('Docker/WebUI smoke gate result readback rejects passed gates without image digest identity', () => {
-  const payload = completeGateResult();
-  payload.image.digest = null;
-
-  const result = validateDockerWebuiSmokeGateResult(payload);
-  assert.equal(result.status, 'failed');
-  assert.ok(result.invalid_fields.includes('image.digest'));
-
-  payload.image.digest = imageDigest;
-  payload.image.currentness_claim = true;
-  const falseCurrentness = validateDockerWebuiSmokeGateResult(payload);
-  assert.equal(falseCurrentness.status, 'failed');
-  assert.ok(falseCurrentness.invalid_fields.includes('image.currentness_claim'));
-});
-
 test('Docker/WebUI smoke gate result readback accepts remote currentness comparison only as status readback', () => {
   const payload = completeGateResult();
-  payload.image.remote_ref = 'ghcr.io/gaofeng21cn/one-person-lab-webui:stable';
-  payload.image.remote_digest = remoteImageDigest;
-  payload.image.currentness_status = 'update_available';
-  payload.image.currentness_evidence_source = 'remote-image-digest.txt';
-  payload.diagnostics_validation.image_identity.remote_ref = payload.image.remote_ref;
-  payload.diagnostics_validation.image_identity.remote_digest = remoteImageDigest;
-  payload.diagnostics_validation.image_identity.currentness_status = 'update_available';
-  payload.diagnostics_validation.image_identity.currentness_evidence_source = 'remote-image-digest.txt';
+  const currentness = {
+    remote_ref: 'ghcr.io/gaofeng21cn/one-person-lab-webui:stable',
+    remote_digest: remoteImageDigest,
+    currentness_status: 'update_available',
+    currentness_evidence_source: 'remote-image-digest.txt',
+  };
+  Object.assign(payload.image, currentness);
+  Object.assign(payload.diagnostics_validation.image_identity, currentness);
 
   const result = validateDockerWebuiSmokeGateResult(payload);
   assert.equal(result.status, 'passed');
@@ -307,36 +316,10 @@ test('Docker/WebUI smoke gate result readback accepts remote currentness compari
   assert.ok(claimed.invalid_fields.includes('image.currentness_claim'));
 });
 
-for (const { name, mutate, invalidFields } of [
-  {
-    name: 'without diagnostics proof fields',
-    mutate(payload: any) {
-      payload.diagnostics_validation = { status: 'passed' };
-    },
-    invalidFields: [
-      'diagnostics_validation.compose_volume_mapping.status',
-      'diagnostics_validation.preservation_evidence.status',
-      'diagnostics_validation.image_identity.digest',
-    ],
-  },
-  {
-    name: 'without ordinary user path status',
-    mutate(payload: any) {
-      payload.ordinary_user_status.browser_webui.status = 'not_run';
-      payload.ordinary_user_status.must_not_claim = ['release_ready'];
-    },
-    invalidFields: ['ordinary_user_status.browser_webui.status', 'ordinary_user_status.must_not_claim.desktop_release_ready'],
-  },
-]) {
-  test(`Docker/WebUI smoke gate result readback rejects passed gates ${name}`, () => {
-    expectInvalidSmokeGateResult(mutate, invalidFields);
-  });
-}
-
 test('Docker/WebUI smoke gate CLI validates uploaded gate result artifacts without running Docker', () => {
   const artifactRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-gate-result-'));
   const resultPath = path.join(artifactRoot, 'docker-webui-smoke-gate-result.json');
-  fs.writeFileSync(resultPath, `${JSON.stringify(completeGateResult(), null, 2)}\n`);
+  fs.writeFileSync(resultPath, JSON.stringify(completeGateResult()));
 
   const valid = runSmokeGateValidation(resultPath);
   assert.equal(valid.status, 0, valid.stderr || valid.stdout);
@@ -344,7 +327,7 @@ test('Docker/WebUI smoke gate CLI validates uploaded gate result artifacts witho
 
   const invalidPayload = completeGateResult() as Record<string, unknown>;
   delete invalidPayload.secret_scan;
-  fs.writeFileSync(resultPath, `${JSON.stringify(invalidPayload, null, 2)}\n`);
+  fs.writeFileSync(resultPath, JSON.stringify(invalidPayload));
   const invalid = runSmokeGateValidation(resultPath);
   assert.notEqual(invalid.status, 0);
   assert.ok(JSON.parse(invalid.stdout).missing_fields.includes('secret_scan'));

@@ -17,6 +17,42 @@ function runTimingSummary(args: string[]) {
   );
 }
 
+const timestamp = (day: string, time: string) => `2026-06-${day}T${time}Z`;
+
+function step(name: string, startedAt: string, completedAt: string, conclusion = 'success', day = '18') {
+  return {
+    name,
+    status: 'completed',
+    conclusion,
+    startedAt: timestamp(day, startedAt),
+    completedAt: timestamp(day, completedAt),
+  };
+}
+
+function job(name: string, startedAt: string, completedAt: string, conclusion: string, steps = [], day = '18') {
+  return { ...step(name, startedAt, completedAt, conclusion, day), steps };
+}
+
+function run(
+  databaseId: number,
+  createdAt: string,
+  updatedAt: string,
+  conclusion: string,
+  jobs: unknown[],
+  workflowName = 'OPL Desktop Release',
+  day = '18',
+) {
+  return {
+    databaseId,
+    workflowName,
+    status: conclusion ? 'completed' : 'in_progress',
+    conclusion,
+    createdAt: timestamp(day, createdAt),
+    updatedAt: timestamp(day, updatedAt),
+    jobs,
+  };
+}
+
 test('GitHub Actions timing summarizer profiles multi-run release wall time and failed run tax', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-actions-timing-'));
   const runJsonPath = path.join(tempRoot, 'runs.json');
@@ -25,147 +61,32 @@ test('GitHub Actions timing summarizer profiles multi-run release wall time and 
 
   writeJson(runJsonPath, {
     runs: [
-      {
-        databaseId: 27732095094,
-        workflowName: 'OPL Desktop Release',
-        status: 'completed',
-        conclusion: 'cancelled',
-        createdAt: '2026-06-18T02:08:57Z',
-        updatedAt: '2026-06-18T02:13:36Z',
-        jobs: [
-          {
-            name: 'Build standard App assets / TypeScript type check',
-            status: 'completed',
-            conclusion: 'cancelled',
-            startedAt: '2026-06-18T02:09:18Z',
-            completedAt: '2026-06-18T02:13:31Z',
-            steps: [
-              {
-                name: 'Setup active shell dependencies',
-                status: 'completed',
-                conclusion: 'success',
-                startedAt: '2026-06-18T02:09:25Z',
-                completedAt: '2026-06-18T02:11:25Z',
-              },
-            ],
-          },
-        ],
-      },
-      {
-        databaseId: 27732257823,
-        workflowName: 'OPL Desktop Release',
-        status: 'completed',
-        conclusion: 'failure',
-        createdAt: '2026-06-18T02:13:52Z',
-        updatedAt: '2026-06-18T02:46:27Z',
-        jobs: [
-          {
-            name: 'Build Full first-install assets / Build App-owned Full first-install DMG',
-            status: 'completed',
-            conclusion: 'failure',
-            startedAt: '2026-06-18T02:14:10Z',
-            completedAt: '2026-06-18T02:46:20Z',
-            steps: [
-              {
-                name: 'Build Full first-install package',
-                status: 'completed',
-                conclusion: 'failure',
-                startedAt: '2026-06-18T02:20:00Z',
-                completedAt: '2026-06-18T02:46:00Z',
-              },
-            ],
-          },
-        ],
-      },
-      {
-        databaseId: 27740551584,
-        workflowName: 'OPL Desktop Release',
-        status: 'completed',
-        conclusion: 'success',
-        createdAt: '2026-06-18T06:13:49Z',
-        updatedAt: '2026-06-18T06:46:15Z',
-        jobs: [
-          {
-            name: 'Build Full first-install assets / Build App-owned Full first-install DMG',
-            status: 'completed',
-            conclusion: 'success',
-            startedAt: '2026-06-18T06:15:24Z',
-            completedAt: '2026-06-18T06:29:10Z',
-            steps: [
-              {
-                name: 'Build Full first-install package',
-                status: 'completed',
-                conclusion: 'success',
-                startedAt: '2026-06-18T06:19:25Z',
-                completedAt: '2026-06-18T06:24:12Z',
-              },
-              {
-                name: 'Upload Full package workflow artifact',
-                status: 'completed',
-                conclusion: 'success',
-                startedAt: '2026-06-18T06:28:26Z',
-                completedAt: '2026-06-18T06:28:58Z',
-              },
-            ],
-          },
-          {
-            name: 'Run clean Full first-run VM smoke / Clean VM first launch',
-            status: 'completed',
-            conclusion: 'success',
-            startedAt: '2026-06-18T06:34:37Z',
-            completedAt: '2026-06-18T06:45:10Z',
-            steps: [
-              {
-                name: 'Checkout active shell',
-                status: 'completed',
-                conclusion: 'success',
-                startedAt: '2026-06-18T06:34:51Z',
-                completedAt: '2026-06-18T06:37:28Z',
-              },
-              {
-                name: 'Download release DMG artifact',
-                status: 'completed',
-                conclusion: 'success',
-                startedAt: '2026-06-18T06:37:32Z',
-                completedAt: '2026-06-18T06:41:01Z',
-              },
-            ],
-          },
-        ],
-      },
-      {
-        databaseId: 27741971528,
-        workflowName: 'OPL Desktop Release Promote',
-        status: 'completed',
-        conclusion: 'success',
-        createdAt: '2026-06-18T06:48:11Z',
-        updatedAt: '2026-06-18T07:03:33Z',
-        jobs: [
-          {
-            name: 'Run Homebrew standard first-run VM smoke / Clean VM first launch',
-            status: 'completed',
-            conclusion: 'success',
-            startedAt: '2026-06-18T06:50:50Z',
-            completedAt: '2026-06-18T07:03:32Z',
-            steps: [
-              {
-                name: 'Checkout active shell',
-                status: 'completed',
-                conclusion: 'success',
-                startedAt: '2026-06-18T06:51:02Z',
-                completedAt: '2026-06-18T06:56:37Z',
-              },
-              {
-                name: 'Run clean VM first launch smoke',
-                status: 'completed',
-                conclusion: 'success',
-                startedAt: '2026-06-18T06:56:50Z',
-                completedAt: '2026-06-18T07:02:58Z',
-              },
-            ],
-          },
-        ],
-      },
+      run(27732095094, '02:08:57', '02:13:36', 'cancelled', [
+        job('Build standard App assets / TypeScript type check', '02:09:18', '02:13:31', 'cancelled', [
+          step('Setup active shell dependencies', '02:09:25', '02:11:25'),
+        ]),
+      ]),
+      run(27732257823, '02:13:52', '02:46:27', 'failure', [
+        job('Build Full first-install assets / Build App-owned Full first-install DMG', '02:14:10', '02:46:20', 'failure', [
+          step('Build Full first-install package', '02:20:00', '02:46:00', 'failure'),
+        ]),
+      ]),
+      run(27740551584, '06:13:49', '06:46:15', 'success', [
+        job('Build Full first-install assets / Build App-owned Full first-install DMG', '06:15:24', '06:29:10', 'success', [
+          step('Build Full first-install package', '06:19:25', '06:24:12'),
+          step('Upload Full package workflow artifact', '06:28:26', '06:28:58'),
+        ]),
+        job('Run clean Full first-run VM smoke / Clean VM first launch', '06:34:37', '06:45:10', 'success', [
+          step('Checkout active shell', '06:34:51', '06:37:28'),
+          step('Download release DMG artifact', '06:37:32', '06:41:01'),
+        ]),
+      ]),
+      run(27741971528, '06:48:11', '07:03:33', 'success', [
+        job('Run Homebrew standard first-run VM smoke / Clean VM first launch', '06:50:50', '07:03:32', 'success', [
+          step('Checkout active shell', '06:51:02', '06:56:37'),
+          step('Run clean VM first launch smoke', '06:56:50', '07:02:58'),
+        ]),
+      ], 'OPL Desktop Release Promote'),
     ],
   });
 
@@ -210,23 +131,9 @@ test('GitHub Actions timing summarizer does not count in-progress runs as failed
 
   writeJson(runJsonPath, {
     runs: [
-      {
-        databaseId: 27866803313,
-        workflowName: 'OPL Desktop Release',
-        status: 'in_progress',
-        conclusion: '',
-        createdAt: '2026-06-20T09:19:26Z',
-        updatedAt: '2026-06-20T09:50:48Z',
-        jobs: [
-          {
-            name: 'Build Full first-install assets / Build App-owned Full first-install DMG',
-            status: 'completed',
-            conclusion: 'success',
-            startedAt: '2026-06-20T09:19:50Z',
-            completedAt: '2026-06-20T09:35:46Z',
-          },
-        ],
-      },
+      run(27866803313, '09:19:26', '09:50:48', '', [
+        job('Build Full first-install assets / Build App-owned Full first-install DMG', '09:19:50', '09:35:46', 'success', [], '20'),
+      ], 'OPL Desktop Release', '20'),
     ],
   });
 

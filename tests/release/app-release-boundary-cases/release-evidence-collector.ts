@@ -17,22 +17,43 @@ import {
   fileSha256,
 } from './helpers.ts';
 
-const completeAttachedArtifacts = [
-  'runtime_screenshot',
-  'full_screenshot',
-  'action_screenshot',
-  'first_run_vm_summary',
-  'guest_smoke_summary',
-  'assistant_route_smoke_summary',
-  'codex_functional_check_summary',
-  'assistant_route_smoke_mas_screenshot',
-  'assistant_route_smoke_mag_screenshot',
-  'assistant_route_smoke_rca_screenshot',
-  'remote_release_verification',
-  'codex_ai_self_check_summary',
-];
+const attachedArtifactPaths = {
+  runtime_screenshot: 'runtime.png',
+  full_screenshot: 'full.png',
+  action_screenshot: 'action.png',
+  first_run_vm_summary: 'tart-smoke-summary.json',
+  guest_smoke_summary: 'artifacts/smoke-summary.json',
+  assistant_route_smoke_summary: 'artifacts/assistant-route-smoke-summary.json',
+  codex_functional_check_summary: 'artifacts/codex-functional-check-summary.json',
+  assistant_route_smoke_mas_screenshot: 'artifacts/assistant-route-smoke/mas.png',
+  assistant_route_smoke_mag_screenshot: 'artifacts/assistant-route-smoke/mag.png',
+  assistant_route_smoke_rca_screenshot: 'artifacts/assistant-route-smoke/rca.png',
+  remote_release_verification: 'remote-release-verification.json',
+  codex_ai_self_check_summary: 'artifacts/codex-ai-self-check-summary.json',
+};
+const completeAttachedArtifacts = Object.keys(attachedArtifactPaths);
 
 const collectorActionId = 'provider-scheduler:temporal:trigger';
+
+function writeCompleteEvidence(root, {
+  runtime = 'runtime.png',
+  full = 'full.png',
+  action = 'action.png',
+} = {}) {
+  for (const file of [runtime, full, action]) {
+    writeScreenshotPng(path.join(root, file));
+  }
+  writeVmSmokeSummaryFiles(root);
+  writeAssistantRouteSmokeScreenshots(root);
+  writeRemoteReleaseVerificationSummary(root);
+}
+
+function artifactArgs(root) {
+  return Object.entries(attachedArtifactPaths).flatMap(([id, relativePath]) => [
+    '--artifact',
+    `${id}=${path.join(root, relativePath)}`,
+  ]);
+}
 
 function collectorFixture(prefix, options = {}) {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -77,21 +98,25 @@ function validateBundle(bundleDir, allowMissing = false) {
 }
 
 function assertPassedBundle(bundleDir, payload) {
-  assert.equal(payload.status, 'passed');
-  assert.equal(payload.packaged_app_evidence, true);
+  assert.deepEqual({
+    status: payload.status,
+    packaged_app_evidence: payload.packaged_app_evidence,
+    current_cohort_evidence: payload.current_cohort_evidence,
+    missing_artifact_count: payload.missing_artifact_count,
+  }, { status: 'passed', packaged_app_evidence: true, current_cohort_evidence: true, missing_artifact_count: 0 });
   assert.deepEqual(payload.release_cohort, {
     ...releaseEvidenceCohort(),
     source: 'write-release-evidence-manifest',
   });
-  assert.equal(payload.current_cohort_evidence, true);
-  assert.equal(payload.missing_artifact_count, 0);
   assert.deepEqual(payload.attached_artifacts, completeAttachedArtifacts);
 
   const validationPayload = validateBundle(bundleDir);
-  assert.equal(validationPayload.status, 'passed');
-  assert.equal(validationPayload.verified_artifact_count, 16);
-  assert.equal(validationPayload.verified_diagnostic_count, 1);
-  assert.equal(validationPayload.missing_artifact_count, 0);
+  assert.deepEqual({
+    status: validationPayload.status,
+    verified_artifact_count: validationPayload.verified_artifact_count,
+    verified_diagnostic_count: validationPayload.verified_diagnostic_count,
+    missing_artifact_count: validationPayload.missing_artifact_count,
+  }, { status: 'passed', verified_artifact_count: 16, verified_diagnostic_count: 1, missing_artifact_count: 0 });
 }
 
 test('release evidence collector preserves argument error boundaries', () => {
@@ -121,24 +146,14 @@ test('release evidence collector captures live OPL runtime refs and keeps missin
     'action_dry_run_result',
     'action_execute_result',
   ]);
-  assert.deepEqual(payload.missing_artifacts, [
-    'runtime_screenshot',
-    'full_screenshot',
-    'action_screenshot',
-    'first_run_vm_summary',
-    'guest_smoke_summary',
-    'assistant_route_smoke_summary',
-    'codex_functional_check_summary',
-    'assistant_route_smoke_mas_screenshot',
-    'assistant_route_smoke_mag_screenshot',
-    'assistant_route_smoke_rca_screenshot',
-    'remote_release_verification',
-  ]);
+  assert.deepEqual(payload.missing_artifacts, completeAttachedArtifacts.filter((id) => id !== 'codex_ai_self_check_summary'));
 
   const validationPayload = validateBundle(bundleDir, true);
-  assert.equal(validationPayload.status, 'missing_evidence');
-  assert.equal(validationPayload.verified_artifact_count, 5);
-  assert.equal(validationPayload.missing_artifact_count, 11);
+  assert.deepEqual([
+    validationPayload.status,
+    validationPayload.verified_artifact_count,
+    validationPayload.missing_artifact_count,
+  ], ['missing_evidence', 5, 11]);
 
   const actionArgs = fs.readFileSync(actionLog, 'utf8').trim().split('\n').map((line) => JSON.parse(line));
   assert.deepEqual(actionArgs, [
@@ -164,42 +179,9 @@ test('release evidence collector validates generated bundle shape before reporti
 test('release evidence collector can attach externally produced contracted artifacts', () => {
   const { tempRoot, bundleDir, collect } = collectorFixture('opl-app-release-evidence-collector-attach-');
   const externalEvidence = path.join(tempRoot, 'external-evidence');
-  writeScreenshotPng(path.join(externalEvidence, 'runtime.png'));
-  writeScreenshotPng(path.join(externalEvidence, 'full.png'));
-  writeScreenshotPng(path.join(externalEvidence, 'action.png'));
-  writeVmSmokeSummaryFiles(externalEvidence);
-  writeAssistantRouteSmokeScreenshots(externalEvidence);
-  writeRemoteReleaseVerificationSummary(externalEvidence);
+  writeCompleteEvidence(externalEvidence);
 
-  const collected = collect([
-    '--execute-action',
-    '--version',
-    '26.6.5',
-    '--artifact',
-    `runtime_screenshot=${path.join(externalEvidence, 'runtime.png')}`,
-    '--artifact',
-    `full_screenshot=${path.join(externalEvidence, 'full.png')}`,
-    '--artifact',
-    `action_screenshot=${path.join(externalEvidence, 'action.png')}`,
-    '--artifact',
-    `first_run_vm_summary=${path.join(externalEvidence, 'tart-smoke-summary.json')}`,
-    '--artifact',
-    `guest_smoke_summary=${path.join(externalEvidence, 'artifacts', 'smoke-summary.json')}`,
-    '--artifact',
-    `assistant_route_smoke_summary=${path.join(externalEvidence, 'artifacts', 'assistant-route-smoke-summary.json')}`,
-    '--artifact',
-    `codex_functional_check_summary=${path.join(externalEvidence, 'artifacts', 'codex-functional-check-summary.json')}`,
-    '--artifact',
-    `codex_ai_self_check_summary=${path.join(externalEvidence, 'artifacts', 'codex-ai-self-check-summary.json')}`,
-    '--artifact',
-    `assistant_route_smoke_mas_screenshot=${path.join(externalEvidence, 'artifacts', 'assistant-route-smoke', 'mas.png')}`,
-    '--artifact',
-    `assistant_route_smoke_mag_screenshot=${path.join(externalEvidence, 'artifacts', 'assistant-route-smoke', 'mag.png')}`,
-    '--artifact',
-    `assistant_route_smoke_rca_screenshot=${path.join(externalEvidence, 'artifacts', 'assistant-route-smoke', 'rca.png')}`,
-    '--artifact',
-    `remote_release_verification=${path.join(externalEvidence, 'remote-release-verification.json')}`,
-  ]);
+  const collected = collect(['--execute-action', '--version', '26.6.5', ...artifactArgs(externalEvidence)]);
   assertPassedBundle(bundleDir, parseCollectedPayload(collected));
 });
 
@@ -207,14 +189,15 @@ test('release evidence collector imports standard smoke source directories witho
   const { tempRoot, bundleDir, collect } = collectorFixture('opl-app-release-evidence-collector-source-dir-');
   const sourceDir = path.join(tempRoot, 'standard-smoke-source');
   const overrideEvidence = path.join(tempRoot, 'override-evidence');
+  const sourceScreenshot = path.join(sourceDir, 'settings-pages', 'runtime.png');
+  const overrideScreenshot = path.join(overrideEvidence, 'runtime.png');
 
-  writeVmSmokeSummaryFiles(sourceDir);
-  writeAssistantRouteSmokeScreenshots(sourceDir);
-  writeScreenshotPng(path.join(sourceDir, 'first-run-beginner.png'));
-  writeScreenshotPng(path.join(sourceDir, 'action.png'));
-  writeScreenshotPng(path.join(sourceDir, 'settings-pages', 'runtime.png'), 1, 1);
-  writeRemoteReleaseVerificationSummary(sourceDir);
-  writeScreenshotPng(path.join(overrideEvidence, 'runtime.png'));
+  writeCompleteEvidence(sourceDir, {
+    runtime: 'settings-pages/runtime.png',
+    full: 'first-run-beginner.png',
+  });
+  writeScreenshotPng(overrideScreenshot, 800, 450);
+  assert.notEqual(fileSha256(sourceScreenshot), fileSha256(overrideScreenshot));
 
   const collected = collect([
     '--execute-action',
@@ -223,14 +206,14 @@ test('release evidence collector imports standard smoke source directories witho
     '--evidence-source-dir',
     sourceDir,
     '--artifact',
-    `runtime_screenshot=${path.join(overrideEvidence, 'runtime.png')}`,
+    `runtime_screenshot=${overrideScreenshot}`,
   ]);
 
   const payload = parseCollectedPayload(collected);
   assertPassedBundle(bundleDir, payload);
   assert.equal(
     fileSha256(path.join(bundleDir, 'screenshots', 'runtime.png')),
-    fileSha256(path.join(overrideEvidence, 'runtime.png')),
+    fileSha256(overrideScreenshot),
   );
 });
 
@@ -239,12 +222,7 @@ test('release evidence collector imports typed blockers as blocked evidence', ()
   const sourceDir = path.join(tempRoot, 'standard-smoke-source');
   const blockerRoot = path.join(tempRoot, 'blockers');
 
-  writeScreenshotPng(path.join(sourceDir, 'runtime.png'));
-  writeScreenshotPng(path.join(sourceDir, 'first-run-beginner.png'));
-  writeScreenshotPng(path.join(sourceDir, 'action.png'));
-  writeVmSmokeSummaryFiles(sourceDir);
-  writeAssistantRouteSmokeScreenshots(sourceDir);
-  writeRemoteReleaseVerificationSummary(sourceDir);
+  writeCompleteEvidence(sourceDir, { full: 'first-run-beginner.png' });
   fs.rmSync(path.join(sourceDir, 'tart-smoke-summary.json'), { force: true });
   writeTypedBlockerFile(blockerRoot, 'first_run_vm_summary', {
     typed_blocker_ref: 'typed_blocker_ref://one-person-lab-app/test/collector-first-run-vm-summary',
@@ -259,35 +237,33 @@ test('release evidence collector imports typed blockers as blocked evidence', ()
   ]);
 
   const payload = parseCollectedPayload(collected);
-  assert.equal(payload.status, 'blocked_evidence');
-  assert.equal(payload.packaged_app_evidence, false);
+  assert.deepEqual([
+    payload.status,
+    payload.packaged_app_evidence,
+    payload.blocked_artifact_count,
+    payload.missing_artifact_count,
+  ], ['blocked_evidence', false, 1, 0]);
   assert.deepEqual(payload.attached_artifacts, [
     ...completeAttachedArtifacts.filter((id) => id !== 'first_run_vm_summary'),
     'first_run_vm_summary:typed_blocker',
   ]);
-  assert.equal(payload.blocked_artifact_count, 1);
   assert.deepEqual(payload.blocked_artifacts, ['first_run_vm_summary']);
-  assert.equal(payload.missing_artifact_count, 0);
 
   const validationPayload = validateBundle(bundleDir, true);
-  assert.equal(validationPayload.status, 'blocked_evidence');
-  assert.equal(validationPayload.verified_artifact_count, 15);
-  assert.equal(validationPayload.blocked_artifact_count, 1);
-  assert.equal(
+  assert.deepEqual([
+    validationPayload.status,
+    validationPayload.verified_artifact_count,
+    validationPayload.blocked_artifact_count,
     validationPayload.blocked_artifacts[0].typed_blocker_ref,
-    'typed_blocker_ref://one-person-lab-app/test/collector-first-run-vm-summary',
-  );
+  ], ['blocked_evidence', 15, 1, 'typed_blocker_ref://one-person-lab-app/test/collector-first-run-vm-summary']);
 });
 
 test('release evidence bundle validator rejects non-canonical typed blocker paths', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-blocker-path-'));
   writeRuntimeEvidenceJsonFiles(tempRoot);
-  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
-  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'full.png'));
-  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'action.png'));
-  writeVmSmokeSummaryFiles(tempRoot);
-  writeAssistantRouteSmokeScreenshots(tempRoot);
-  writeRemoteReleaseVerificationSummary(tempRoot);
+  writeCompleteEvidence(tempRoot, {
+    runtime: 'screenshots/runtime.png', full: 'screenshots/full.png', action: 'screenshots/action.png',
+  });
   fs.rmSync(path.join(tempRoot, 'tart-smoke-summary.json'), { force: true });
   writeTypedBlockerFile(tempRoot, 'first_run_vm_summary');
 
@@ -304,11 +280,8 @@ test('release evidence bundle validator rejects non-canonical typed blocker path
   const blockedEvidence = manifest.blocked_evidence.find((artifact) => artifact.id === 'first_run_vm_summary');
   blockedArtifact.typed_blocker_path = 'typed-blockers/noncanonical-first-run-vm-summary.json';
   blockedEvidence.typed_blocker_path = blockedArtifact.typed_blocker_path;
-  fs.copyFileSync(
-    path.join(tempRoot, 'typed-blockers', 'first_run_vm_summary.json'),
-    path.join(tempRoot, blockedArtifact.typed_blocker_path),
-  );
-  writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+  fs.copyFileSync(path.join(tempRoot, 'typed-blockers', 'first_run_vm_summary.json'), path.join(tempRoot, blockedArtifact.typed_blocker_path));
+  writeFile(manifestPath, JSON.stringify(manifest));
 
   const validation = runNode([
     'scripts/validate-release-evidence-bundle.ts',

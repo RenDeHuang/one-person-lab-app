@@ -3,46 +3,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
 import test from 'node:test';
-
-const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-
-function writeFakeGh(tempRoot: string) {
-  const binDir = path.join(tempRoot, 'bin');
-  fs.mkdirSync(binDir, { recursive: true });
-  const ghPath = path.join(binDir, 'gh');
-  fs.writeFileSync(
-    ghPath,
-    `#!/usr/bin/env node
-const fs = require('node:fs');
-const args = process.argv.slice(2);
-if (args[0] === 'release' && args[1] === 'view') {
-  if (!process.env.FAKE_STABLE_RELEASE_JSON) process.exit(1);
-  process.stdout.write(process.env.FAKE_STABLE_RELEASE_JSON);
-  process.stdout.write('\\n');
-  process.exit(0);
-}
-if (args[0] === 'api') {
-  const releases = JSON.parse(process.env.FAKE_RELEASES_JSON || '[]');
-  for (const release of releases) {
-    process.stdout.write(JSON.stringify(release));
-    process.stdout.write('\\n');
-  }
-  process.exit(0);
-}
-if (args[0] === 'release' && args[1] === 'delete') {
-  fs.appendFileSync(process.env.FAKE_GH_LOG, JSON.stringify(args) + '\\n');
-  process.exit(0);
-}
-console.error('unexpected gh args: ' + JSON.stringify(args));
-process.exit(2);
-`,
-    'utf8',
-  );
-  fs.chmodSync(ghPath, 0o755);
-  return binDir;
-}
+import { appRoot } from './release-readiness/helpers.ts';
+import { fakeGhEnv, writeFakeGh } from './fake-gh-fixture.ts';
 
 function runCleanup(args: string[], env: NodeJS.ProcessEnv) {
   return spawnSync(
@@ -56,60 +19,34 @@ function runCleanup(args: string[], env: NodeJS.ProcessEnv) {
   );
 }
 
-const releases = [
-  {
-    id: 1,
-    tag_name: 'v26.5.99-draft.20260528103712',
-    name: 'One Person Lab 26.5.99-draft.20260528103712',
+function release(id: number, tag: string, fields: Record<string, unknown> = {}) {
+  return {
+    id,
+    tag_name: tag,
+    name: `One Person Lab ${tag.slice(1)}`,
     draft: true,
     prerelease: false,
+    created_at: '2026-05-28T04:28:32Z',
+    html_url: `https://example.test/${id}`,
+    assets: [],
+    ...fields,
+  };
+}
+
+const releases = [
+  release(1, 'v26.5.99-draft.20260528103712', {
     created_at: '2026-05-28T10:33:30Z',
-    html_url: 'https://example.test/draft',
     assets: [
       { name: 'One-Person-Lab-26.5.99-draft.20260528103712-mac-arm64.dmg', size: 271 },
       { name: 'One-Person-Lab-Full-26.5.99-draft.20260528103712-mac-arm64.dmg', size: 529 },
     ],
-  },
-  {
-    id: 2,
-    tag_name: 'v26.5.99-readiness.20260528040857',
-    name: 'One Person Lab 26.5.99-readiness.20260528040857',
-    draft: true,
-    prerelease: false,
-    created_at: '2026-05-28T04:28:32Z',
-    html_url: 'https://example.test/readiness',
+  }),
+  release(2, 'v26.5.99-readiness.20260528040857', {
     assets: [{ name: 'full-package-manifest.json', size: 14 }],
-  },
-  {
-    id: 3,
-    tag_name: 'v26.5.99-draft.bad',
-    name: 'Malformed draft candidate',
-    draft: true,
-    prerelease: false,
-    created_at: '2026-05-28T04:28:32Z',
-    html_url: 'https://example.test/bad',
-    assets: [],
-  },
-  {
-    id: 4,
-    tag_name: 'v26.5.98-draft.20260528103712',
-    name: 'Different version',
-    draft: true,
-    prerelease: false,
-    created_at: '2026-05-28T04:28:32Z',
-    html_url: 'https://example.test/other',
-    assets: [],
-  },
-  {
-    id: 5,
-    tag_name: 'v26.5.99-draft.20260528111111',
-    name: 'Published candidate must be preserved',
-    draft: false,
-    prerelease: false,
-    created_at: '2026-05-28T11:11:11Z',
-    html_url: 'https://example.test/published',
-    assets: [],
-  },
+  }),
+  release(3, 'v26.5.99-draft.bad'),
+  release(4, 'v26.5.98-draft.20260528103712'),
+  release(5, 'v26.5.99-draft.20260528111111', { draft: false }),
 ];
 
 test('draft cleanup dry-run lists only matching draft/readiness candidates', () => {
@@ -118,12 +55,10 @@ test('draft cleanup dry-run lists only matching draft/readiness candidates', () 
   const summaryPath = path.join(tempRoot, 'summary.json');
   const logPath = path.join(tempRoot, 'gh.log');
 
-  const result = runCleanup(['--version', '26.5.99', '--repo', 'owner/repo', '--summary-path', summaryPath], {
-    PATH: `${binDir}${path.delimiter}${process.env.PATH}`,
+  const result = runCleanup(['--version', '26.5.99', '--repo', 'owner/repo', '--summary-path', summaryPath], fakeGhEnv(binDir, logPath, {
     FAKE_STABLE_RELEASE_JSON: JSON.stringify({ tagName: 'v26.5.99', isDraft: false, isPrerelease: false }),
     FAKE_RELEASES_JSON: JSON.stringify(releases),
-    FAKE_GH_LOG: logPath,
-  });
+  }));
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
   assert.equal(fs.existsSync(logPath), false, 'dry-run must not delete remote releases');
@@ -151,12 +86,10 @@ test('draft cleanup execute deletes candidates with matching tags and cleanup-ta
     '--summary-path',
     summaryPath,
     '--execute',
-  ], {
-    PATH: `${binDir}${path.delimiter}${process.env.PATH}`,
+  ], fakeGhEnv(binDir, logPath, {
     FAKE_STABLE_RELEASE_JSON: JSON.stringify({ tagName: 'v26.5.99', isDraft: false, isPrerelease: false }),
     FAKE_RELEASES_JSON: JSON.stringify(releases),
-    FAKE_GH_LOG: logPath,
-  });
+  }));
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
   const deleted = fs.readFileSync(logPath, 'utf8').trim().split('\n').map((line) => JSON.parse(line));
@@ -178,12 +111,10 @@ test('draft cleanup refuses to run unless the stable release is published', () =
   const summaryPath = path.join(tempRoot, 'summary.json');
   const logPath = path.join(tempRoot, 'gh.log');
 
-  const result = runCleanup(['--version', '26.5.99', '--repo', 'owner/repo', '--summary-path', summaryPath], {
-    PATH: `${binDir}${path.delimiter}${process.env.PATH}`,
+  const result = runCleanup(['--version', '26.5.99', '--repo', 'owner/repo', '--summary-path', summaryPath], fakeGhEnv(binDir, logPath, {
     FAKE_STABLE_RELEASE_JSON: JSON.stringify({ tagName: 'v26.5.99', isDraft: false, isPrerelease: true }),
     FAKE_RELEASES_JSON: JSON.stringify(releases),
-    FAKE_GH_LOG: logPath,
-  });
+  }));
 
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /must be a published stable release/);

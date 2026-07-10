@@ -8,6 +8,8 @@ import test from 'node:test';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const validatorPath = path.join(appRoot, 'scripts', 'validate-webui-runtime-smoke-receipts.ts');
+const seedComponentIds = ['opl_framework', 'codex_cli', 'companion_skills', 'domain_modules'];
+const managedUpdateIds = ['installation_carrier', 'runtime_substrate', 'capability_packages', 'codex_surface', 'companion_tools'];
 
 function component(id: string, kind = 'image_seed') {
   return {
@@ -32,105 +34,52 @@ function receipt(id: string, operation = 'image_seed') {
   };
 }
 
+function proxyEnvelope(surface: string, command: string, parsed: unknown) {
+  return { success: true, data: { surface, command, stdout: JSON.stringify(parsed), parsed } };
+}
+
 function installManifest(overrides: Record<string, unknown> = {}) {
-  const seedComponents = ['opl_framework', 'codex_cli', 'companion_skills', 'domain_modules'];
+  const migrations = ['data_dir', 'projects_dir'];
   return {
     surface_kind: 'opl_seed_install_manifest',
     schema_version: 'opl_seed_install_manifest.v1',
     status: 'applied',
-    image: {
-      seed_strategy_status: 'accepted',
-      seed_strategy: 'payload_manifest',
-      manifest: {
-        image_profile: 'webui-full',
-        data_dir: '/data',
-        projects_dir: '/projects',
-      },
-    },
+    image: { seed_strategy_status: 'accepted', seed_strategy: 'payload_manifest', manifest: {
+      image_profile: 'webui-full', data_dir: '/data', projects_dir: '/projects',
+    } },
     seed_metadata: {
       metadata_status: 'found',
-      manifest: {
-        strategy: 'payload_preheated',
-        data_dir: '/data',
-        projects_dir: '/projects',
-      },
+      manifest: { strategy: 'payload_preheated', data_dir: '/data', projects_dir: '/projects' },
     },
-    install: {
-      data_dir: '/data',
-      projects_dir: '/projects',
-      manifest_file: '/data/opl/state/install-manifest.json',
-    },
-    components: [
-      ...seedComponents.map((id) => component(id)),
-      component('data_dir', 'migration'),
-      component('projects_dir', 'migration'),
-    ],
-    receipts: [
-      ...seedComponents.map((id) => receipt(id)),
-      receipt('data_dir', 'migration'),
-      receipt('projects_dir', 'migration'),
-    ],
-    reconcile: {
-      status: 'applied',
-      image_seed_receipts_count: 5,
-      migration_receipts_count: 2,
-    },
+    install: { data_dir: '/data', projects_dir: '/projects', manifest_file: '/data/opl/state/install-manifest.json' },
+    components: [...seedComponentIds.map((id) => component(id)), ...migrations.map((id) => component(id, 'migration'))],
+    receipts: [...seedComponentIds.map((id) => receipt(id)), ...migrations.map((id) => receipt(id, 'migration'))],
+    reconcile: { status: 'applied', image_seed_receipts_count: 5, migration_receipts_count: 2 },
     ...overrides,
   };
 }
 
-function proxyEnvelope(surface: string, command: string, parsed: unknown) {
-  return {
-    success: true,
-    data: {
-      surface,
-      command,
-      stdout: JSON.stringify(parsed),
-      parsed,
+function startupMaintenance(manualRequired = false) {
+  const details: Record<string, unknown> = {
+    surface_kind: 'opl_app_startup_maintenance',
+    summary: { total_targets_count: 1 },
+    seed_boundary: {
+      surface_kind: 'opl_seed_install_manifest',
+      install: { data_dir: '/data', projects_dir: '/projects', manifest_file: '/data/opl/state/install-manifest.json' },
     },
   };
-}
-
-function startupMaintenance() {
+  if (manualRequired) {
+    details.framework_targets = [{ target_type: 'framework', target_id: 'opl-framework', status: 'manual_required', reason: 'framework_update_target_invalid' }];
+  }
   return proxyEnvelope('startup_maintenance', 'opl system startup-maintenance --json', {
     version: 'g2',
     system_action: {
       action: 'startup_maintenance',
-      status: 'completed',
-      workspace_root: {
-        selected_path: '/projects',
-        health_status: 'ready',
-      },
-      details: {
-        surface_kind: 'opl_app_startup_maintenance',
-        summary: {
-          total_targets_count: 1,
-        },
-        seed_boundary: {
-          surface_kind: 'opl_seed_install_manifest',
-          install: {
-            data_dir: '/data',
-            projects_dir: '/projects',
-            manifest_file: '/data/opl/state/install-manifest.json',
-          },
-        },
-      },
+      status: manualRequired ? 'manual_required' : 'completed',
+      workspace_root: { selected_path: '/projects', health_status: 'ready' },
+      details,
     },
   });
-}
-
-function startupMaintenanceWithFrameworkManualRequired() {
-  const envelope = structuredClone(startupMaintenance());
-  const action = envelope.data.parsed.system_action;
-  action.status = 'manual_required';
-  action.details.framework_targets = [{
-    target_type: 'framework',
-    target_id: 'opl-framework',
-    status: 'manual_required',
-    reason: 'framework_update_target_invalid',
-  }];
-  envelope.data.stdout = JSON.stringify(envelope.data.parsed);
-  return envelope;
 }
 
 function managedUpdateComponent(id: string) {
@@ -154,31 +103,20 @@ function runtimeSubstrateWithFrameworkUpdate() {
   return {
     ...managedUpdateComponent('runtime_substrate'),
     state: 'update_available',
-    current: {
-      opl_framework_runtime: {
-        update_available: true,
-        channel_artifact: 'ghcr.io/gaofeng21cn/one-person-lab-framework:26.7.1',
-        channel_version: '26.7.1',
-        channel_source_archive_sha256: 'a'.repeat(64),
-        command_ref: 'opl update apply --component runtime_substrate --json',
-        rollback_command_ref: 'opl update rollback --component runtime_substrate --json',
-      },
+    current: { opl_framework_runtime: {
+      update_available: true,
+      channel_artifact: 'ghcr.io/gaofeng21cn/one-person-lab-framework:26.7.1',
+      channel_version: '26.7.1',
+      channel_source_archive_sha256: 'a'.repeat(64),
+      command_ref: 'opl update apply --component runtime_substrate --json',
+      rollback_command_ref: 'opl update rollback --component runtime_substrate --json',
+    },
     },
   };
 }
 
-const managedUpdateIds = [
-  'installation_carrier',
-  'runtime_substrate',
-  'capability_packages',
-  'codex_surface',
-  'companion_tools',
-];
-
 function managedUpdateComponents(runtimeSubstrate = managedUpdateComponent('runtime_substrate')) {
-  return managedUpdateIds.map((id) => (
-    id === 'runtime_substrate' ? runtimeSubstrate : managedUpdateComponent(id)
-  ));
+  return managedUpdateIds.map((id) => id === 'runtime_substrate' ? runtimeSubstrate : managedUpdateComponent(id));
 }
 
 function updateStatus(overrides: Record<string, unknown> = {}) {
@@ -188,10 +126,7 @@ function updateStatus(overrides: Record<string, unknown> = {}) {
       surface_id: 'opl_managed_updater_kernel',
       operation: 'status',
       operation_mode: 'read_only_projection',
-      workspace_root: {
-        selected_path: '/projects',
-        health_status: 'ready',
-      },
+      workspace_root: { selected_path: '/projects', health_status: 'ready' },
       lifecycle: ['read_manifest', 'verify', 'activate', 'write_receipt', 'report_status_or_repair'],
       components: managedUpdateComponents(),
       receipts: {
@@ -205,84 +140,58 @@ function updateStatus(overrides: Record<string, unknown> = {}) {
 }
 
 function writeJson(root: string, file: string, value: unknown) {
-  const filePath = path.join(root, file);
-  fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`);
-  return filePath;
+  fs.writeFileSync(path.join(root, file), JSON.stringify(value));
 }
 
-function runValidator(root: string) {
-  return spawnSync(
-    process.execPath,
-    [
-      '--experimental-strip-types',
-      validatorPath,
-      '--startup-maintenance',
-      path.join(root, 'startup.json'),
-      '--update-status',
-      path.join(root, 'update.json'),
-      '--install-manifest',
-      path.join(root, 'install-manifest.json'),
-      '--summary-path',
-      path.join(root, 'summary.json'),
-    ],
-    { cwd: appRoot, encoding: 'utf8' },
-  );
+function validateFixture({
+  startup = startupMaintenance(),
+  update = updateStatus(),
+  manifest = installManifest(),
+}: Record<string, any> = {}) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-runtime-receipts-'));
+  for (const [file, value] of [['startup.json', startup], ['update.json', update], ['install-manifest.json', manifest]]) {
+    writeJson(root, file, value);
+  }
+  const result = spawnSync(process.execPath, [
+    '--experimental-strip-types',
+    validatorPath,
+    '--startup-maintenance', path.join(root, 'startup.json'),
+    '--update-status', path.join(root, 'update.json'),
+    '--install-manifest', path.join(root, 'install-manifest.json'),
+    '--summary-path', path.join(root, 'summary.json'),
+  ], { cwd: appRoot, encoding: 'utf8' });
+  return { result, summary: () => JSON.parse(fs.readFileSync(path.join(root, 'summary.json'), 'utf8')) };
 }
 
 test('WebUI runtime smoke receipt validator accepts seed, migration, and managed update receipts', () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-runtime-receipts-'));
-  writeJson(root, 'startup.json', startupMaintenance());
-  writeJson(root, 'update.json', updateStatus());
-  writeJson(root, 'install-manifest.json', installManifest());
-
-  const result = runValidator(root);
+  const { result, summary } = validateFixture();
   assert.equal(result.status, 0, result.stderr || result.stdout);
-  const summary = JSON.parse(fs.readFileSync(path.join(root, 'summary.json'), 'utf8'));
-  assert.equal(summary.status, 'passed');
-  assert.deepEqual(summary.migration_components, ['data_dir', 'projects_dir']);
+  assert.equal(summary().status, 'passed');
+  assert.deepEqual(summary().migration_components, ['data_dir', 'projects_dir']);
 });
 
 test('WebUI runtime smoke receipt validator accepts framework self-update pending runtime_substrate apply', () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-runtime-receipts-'));
-  const update = updateStatus({
-    components: managedUpdateComponents(runtimeSubstrateWithFrameworkUpdate()),
+  const { result, summary } = validateFixture({
+    startup: startupMaintenance(true),
+    update: updateStatus({ components: managedUpdateComponents(runtimeSubstrateWithFrameworkUpdate()) }),
   });
-  writeJson(root, 'startup.json', startupMaintenanceWithFrameworkManualRequired());
-  writeJson(root, 'update.json', update);
-  writeJson(root, 'install-manifest.json', installManifest());
-
-  const result = runValidator(root);
   assert.equal(result.status, 0, result.stderr || result.stdout);
-  const summary = JSON.parse(fs.readFileSync(path.join(root, 'summary.json'), 'utf8'));
-  assert.equal(summary.status, 'passed');
+  assert.equal(summary().status, 'passed');
 });
 
 test('WebUI runtime smoke receipt validator rejects missing /projects migration receipt', () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-runtime-receipts-'));
-  const manifest = installManifest();
+  const manifest: any = installManifest();
   manifest.receipts = manifest.receipts.filter((item) => item.component_id !== 'projects_dir');
-  writeJson(root, 'startup.json', startupMaintenance());
-  writeJson(root, 'update.json', updateStatus());
-  writeJson(root, 'install-manifest.json', manifest);
-
-  const result = runValidator(root);
+  const { result } = validateFixture({ manifest });
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /install manifest receipts must include projects_dir/);
 });
 
 test('WebUI runtime smoke receipt validator rejects managed update components without receipt schema', () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-runtime-receipts-'));
-  const update = updateStatus({
-    components: managedUpdateComponents({
-      ...managedUpdateComponent('runtime_substrate'),
-      receipt: { required: true },
-    }),
+  const runtimeSubstrate = { ...managedUpdateComponent('runtime_substrate'), receipt: { required: true } };
+  const { result } = validateFixture({
+    update: updateStatus({ components: managedUpdateComponents(runtimeSubstrate) }),
   });
-  writeJson(root, 'startup.json', startupMaintenance());
-  writeJson(root, 'update.json', update);
-  writeJson(root, 'install-manifest.json', installManifest());
-
-  const result = runValidator(root);
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /managed update component runtime_substrate receipt schema/);
 });

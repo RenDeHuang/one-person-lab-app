@@ -3,40 +3,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
 import test from 'node:test';
-
-const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-
-function writeFakeGh(tempRoot: string) {
-  const binDir = path.join(tempRoot, 'bin');
-  fs.mkdirSync(binDir, { recursive: true });
-  const ghPath = path.join(binDir, 'gh');
-  fs.writeFileSync(
-    ghPath,
-    `#!/usr/bin/env node
-const fs = require('node:fs');
-const args = process.argv.slice(2);
-if (args[0] === 'api' && args.includes('--jq')) {
-  const versions = JSON.parse(process.env.FAKE_PACKAGE_VERSIONS_JSON || '[]');
-  for (const version of versions) {
-    process.stdout.write(JSON.stringify(version));
-    process.stdout.write('\\n');
-  }
-  process.exit(0);
-}
-if (args[0] === 'api' && args.includes('-X') && args.includes('DELETE')) {
-  fs.appendFileSync(process.env.FAKE_GH_LOG, JSON.stringify(args) + '\\n');
-  process.exit(0);
-}
-console.error('unexpected gh args: ' + JSON.stringify(args));
-process.exit(2);
-`,
-    'utf8',
-  );
-  fs.chmodSync(ghPath, 0o755);
-  return binDir;
-}
+import { appRoot } from './release-readiness/helpers.ts';
+import { fakeGhEnv, writeFakeGh } from './fake-gh-fixture.ts';
 
 function runCleanup(args: string[], env: NodeJS.ProcessEnv) {
   return spawnSync(
@@ -50,82 +19,26 @@ function runCleanup(args: string[], env: NodeJS.ProcessEnv) {
   );
 }
 
+function version(id: number, date: string, tags: string[]) {
+  return { id, updated_at: `2026-${date}T01:11:19Z`, metadata: { container: { tags } } };
+}
+
 const versions = [
-  {
-    id: 101,
-    updated_at: '2026-06-02T01:11:19Z',
-    metadata: { container: { tags: ['nightly', '26.6.2-nightly'] } },
-  },
-  {
-    id: 102,
-    updated_at: '2026-06-01T01:11:19Z',
-    metadata: { container: { tags: ['26.6.1-nightly'] } },
-  },
-  {
-    id: 103,
-    updated_at: '2026-05-31T01:11:19Z',
-    metadata: { container: { tags: ['26.5.31-nightly'] } },
-  },
-  {
-    id: 104,
-    updated_at: '2026-05-30T01:11:19Z',
-    metadata: { container: { tags: ['26.5.30-nightly'] } },
-  },
-  {
-    id: 105,
-    updated_at: '2026-05-29T01:11:19Z',
-    metadata: { container: { tags: ['26.5.29-nightly'] } },
-  },
-  {
-    id: 106,
-    updated_at: '2026-05-28T01:11:19Z',
-    metadata: { container: { tags: ['26.5.28-nightly'] } },
-  },
-  {
-    id: 107,
-    updated_at: '2026-05-27T01:11:19Z',
-    metadata: { container: { tags: ['26.5.27-nightly'] } },
-  },
-  {
-    id: 108,
-    updated_at: '2026-05-26T01:11:19Z',
-    metadata: { container: { tags: ['26.5.26-nightly'] } },
-  },
-  {
-    id: 109,
-    updated_at: '2026-05-25T01:11:19Z',
-    metadata: { container: { tags: ['26.5.25-nightly'] } },
-  },
-  {
-    id: 201,
-    updated_at: '2026-06-01T00:00:00Z',
-    metadata: { container: { tags: ['latest', 'stable', '26.6.1'] } },
-  },
-  {
-    id: 202,
-    updated_at: '2026-05-25T00:00:00Z',
-    metadata: { container: { tags: ['26.5.25'] } },
-  },
-  {
-    id: 203,
-    updated_at: '2026-05-24T00:00:00Z',
-    metadata: { container: { tags: ['26.5.24'] } },
-  },
-  {
-    id: 204,
-    updated_at: '2026-05-23T00:00:00Z',
-    metadata: { container: { tags: ['26.5.23'] } },
-  },
-  {
-    id: 205,
-    updated_at: '2026-05-22T00:00:00Z',
-    metadata: { container: { tags: ['26.5.22'] } },
-  },
-  {
-    id: 206,
-    updated_at: '2026-05-21T00:00:00Z',
-    metadata: { container: { tags: ['26.5.21'] } },
-  },
+  version(101, '06-02', ['nightly', '26.6.2-nightly']),
+  version(102, '06-01', ['26.6.1-nightly']),
+  version(103, '05-31', ['26.5.31-nightly']),
+  version(104, '05-30', ['26.5.30-nightly']),
+  version(105, '05-29', ['26.5.29-nightly']),
+  version(106, '05-28', ['26.5.28-nightly']),
+  version(107, '05-27', ['26.5.27-nightly']),
+  version(108, '05-26', ['26.5.26-nightly']),
+  version(109, '05-25', ['26.5.25-nightly']),
+  version(201, '06-01', ['latest', 'stable', '26.6.1']),
+  version(202, '05-25', ['26.5.25']),
+  version(203, '05-24', ['26.5.24']),
+  version(204, '05-23', ['26.5.23']),
+  version(205, '05-22', ['26.5.22']),
+  version(206, '05-21', ['26.5.21']),
 ];
 
 test('WebUI GHCR cleanup dry-run keeps protected tags and recent retention windows', () => {
@@ -134,11 +47,9 @@ test('WebUI GHCR cleanup dry-run keeps protected tags and recent retention windo
   const summaryPath = path.join(tempRoot, 'summary.json');
   const logPath = path.join(tempRoot, 'gh.log');
 
-  const result = runCleanup(['--owner', 'owner', '--summary-path', summaryPath, '--rollback-tag', '26.5.21'], {
-    PATH: `${binDir}${path.delimiter}${process.env.PATH}`,
+  const result = runCleanup(['--owner', 'owner', '--summary-path', summaryPath, '--rollback-tag', '26.5.21'], fakeGhEnv(binDir, logPath, {
     FAKE_PACKAGE_VERSIONS_JSON: JSON.stringify(versions),
-    FAKE_GH_LOG: logPath,
-  });
+  }));
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
   assert.equal(fs.existsSync(logPath), false, 'dry-run must not delete package versions');
@@ -160,11 +71,9 @@ test('WebUI GHCR cleanup execute deletes only dry-run candidate version ids', ()
   const summaryPath = path.join(tempRoot, 'summary.json');
   const logPath = path.join(tempRoot, 'gh.log');
 
-  const result = runCleanup(['--owner', 'owner', '--summary-path', summaryPath, '--rollback-tag', '26.5.21', '--execute'], {
-    PATH: `${binDir}${path.delimiter}${process.env.PATH}`,
+  const result = runCleanup(['--owner', 'owner', '--summary-path', summaryPath, '--rollback-tag', '26.5.21', '--execute'], fakeGhEnv(binDir, logPath, {
     FAKE_PACKAGE_VERSIONS_JSON: JSON.stringify(versions),
-    FAKE_GH_LOG: logPath,
-  });
+  }));
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
   const deleted = fs.readFileSync(logPath, 'utf8').trim().split('\n').map((line) => JSON.parse(line));
