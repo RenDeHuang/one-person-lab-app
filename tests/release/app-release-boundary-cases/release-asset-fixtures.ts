@@ -60,36 +60,6 @@ export function writeStandardLocalAuthorizationPolicy(outDir) {
   );
 }
 
-export function writeFullLocalAuthorizationPolicy(outDir) {
-  writeFile(
-    path.join(outDir, 'full-local-authorization-policy.json'),
-    localAuthorizationPolicy('app_full_first_install'),
-  );
-}
-
-export function writeFullRuntimeNativeTrust(outDir) {
-  writeFile(
-    path.join(outDir, 'full-runtime-native-trust.json'),
-    `${JSON.stringify({
-      schema: 'opl_full_runtime_native_trust.v1',
-      status: 'passed',
-      executable_count: 1,
-      executables: [
-        {
-          relative_path: 'runtime/current/node/bin/node',
-          assessment_kind: 'launched_executable',
-          codesign_status: 'passed',
-          spctl_status: 'passed',
-          team_identifier: 'TESTTEAMID',
-          signature: 'Developer ID Application: Test',
-          quarantine_status: 'absent',
-          provenance_status: 'absent',
-        },
-      ],
-    }, null, 2)}\n`,
-  );
-}
-
 function defaultReleaseBody(tagName) {
   const version = tagName.startsWith('v') ? tagName.slice(1) : tagName;
   return [

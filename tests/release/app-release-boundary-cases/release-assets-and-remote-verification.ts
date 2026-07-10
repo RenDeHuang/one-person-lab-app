@@ -3,9 +3,7 @@ import {
   fs,
   os,
   path,
-  spawnSync,
   test,
-  appRoot,
   runNode,
   writeFile,
   writeExecutable,
@@ -18,7 +16,6 @@ import {
   buildRemoteReleaseView,
   writeStandardRemoteAssets,
   writeFullRemoteAssets,
-  walkFiles,
 } from './helpers.ts';
 
 function validFullReleaseNotes(version) {

@@ -4,7 +4,6 @@ import {
   os,
   path,
   test,
-  require,
   runNode,
   writeFile,
   writeScreenshotPng,

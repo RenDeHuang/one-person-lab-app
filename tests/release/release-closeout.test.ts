@@ -398,7 +398,7 @@ test('release closeout monitor reports published from explicit release target ev
       ['remote-release-verification', 'remote-release-verification.json', { status: 'passed', version: VERSION, include_full_package: true }],
     ]),
   });
-  const { summary, monitor } = readout;
+  const { monitor } = readout;
   assertReadoutState(readout, 'inspect_missing_candidate_record', 'published');
   assert.equal(monitor.published, true);
   assert.equal(monitor.promote_ready, false);

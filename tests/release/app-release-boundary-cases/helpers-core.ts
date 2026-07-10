@@ -10,7 +10,6 @@ import { deflateSync } from "node:zlib";
 import test from "node:test";
 
 export { assert, crypto, fs, os, path, spawnSync, deflateSync, test };
-export { releaseWorkflowPaths } from "../../../scripts/validate-release-boundary/release-checks.ts";
 
 export const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 export const require = createRequire(import.meta.url);
@@ -150,25 +149,6 @@ export function writeScreenshotPng(filePath, width = 640, height = 360) {
     pngChunk("IHDR", ihdr),
     pngChunk("IDAT", deflateSync(raw)),
     pngChunk("IEND", Buffer.alloc(0)),
-  ]));
-}
-
-export function writeWebpVp8x(filePath, width, height, minimumSize = 4096) {
-  const payload = Buffer.alloc(10);
-  payload.writeUIntLE(width - 1, 4, 3);
-  payload.writeUIntLE(height - 1, 7, 3);
-  const chunkSize = Buffer.alloc(4);
-  chunkSize.writeUInt32LE(payload.length);
-  const chunk = Buffer.concat([Buffer.from("VP8X", "ascii"), chunkSize, payload]);
-  const padding = Buffer.alloc(Math.max(0, minimumSize - 12 - chunk.length));
-  const riffSize = Buffer.alloc(4);
-  riffSize.writeUInt32LE(4 + chunk.length + padding.length);
-  writeBinaryFile(filePath, Buffer.concat([
-    Buffer.from("RIFF", "ascii"),
-    riffSize,
-    Buffer.from("WEBP", "ascii"),
-    chunk,
-    padding,
   ]));
 }
 

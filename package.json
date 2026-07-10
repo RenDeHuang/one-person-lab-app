@@ -28,7 +28,6 @@
     "test:coverage": "node --experimental-strip-types scripts/run-active-shell-command.ts bun run test:coverage",
     "test:contract": "node --experimental-strip-types scripts/run-active-shell-command.ts bun run test:contract",
     "test:e2e": "node --experimental-strip-types scripts/run-active-shell-command.ts bun run test:e2e",
-    "test:packaged:bun": "node --experimental-strip-types scripts/run-active-shell-command.ts bun run validate:opl-package",
     "test:opl-first-run-vm": "node --experimental-strip-types scripts/run-active-shell-command.ts bun run test:opl-first-run-vm",
     "test:opl-first-run-vm:tart": "node --experimental-strip-types scripts/run-active-shell-command.ts bun run test:opl-first-run-vm:tart",
     "lint": "node --experimental-strip-types scripts/run-active-shell-command.ts bun run lint",
