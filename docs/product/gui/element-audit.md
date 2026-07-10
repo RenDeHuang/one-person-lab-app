@@ -24,7 +24,9 @@ carrier 状态和 release evidence 仍归 contracts、source/tests、validators 
 | Product identity | Window/titlebar、About、release assets | 用户必须知道正在使用 One Person Lab App，而不是 carrier/upstream。 | Carrier name/logo 进入 ordinary chrome。 |
 | Current context | Composer context strip 与 rail 的低权重稳定位置 | Project/local/branch 决定文件、Git 和 turn context；无 workspace 时也要说明限制。 | 只在 Settings/raw path 中可见，或无 workspace 时静默禁用。 |
 | Project/conversation rail | 宽桌面左侧 `280-340px` 可调；窄窗口 drawer | Navigation 是连续工作所需，不应占用 conversation 主区。 | 宽桌面缺失、被移到 Home grid，或关闭 drawer 后丢 selection。 |
-| Rail global skeleton | 顶部 New task/Archived/Capabilities，底部 account/help/Settings | 稳定全局入口与 project history 分层；Capabilities 承接 OPL 对 Plugins 的映射。 | Sites/Chat 无 OPL 能力仍出现，或 Settings 混入 conversation rows。 |
+| Rail global skeleton | 顶部少量全局入口，主体 project hierarchy，底部 account/help | 稳定全局入口与 project history 分层；Capabilities 承接 OPL 对 Plugins 的映射。 | 无真实能力的入口照搬，或 Settings 混入 conversation rows。 |
+| Project context refs | Selected project 下、recent conversations 之前 | Context 属于 project，可选且影响该项目后续 task；不能伪装成 attachment 或全局设置。 | Context 堆进 composer、跨 project 泄漏、强制添加或用虚构默认项填充。 |
+| Project attachments | Selected project 的 context 邻近入口与 composer attach | 长期 project 材料和单次发送附件认知相邻但生命周期不同。 | 两者混成一个列表，或附件只能从 Settings 添加。 |
 | Conversation management | Rail rows、search 与独立 Archived surface | Search/pin/rename/archive/reset 属于持续工作管理。 | Archive 无独立 surface，或 reset 与 delete 语义混淆。 |
 | Conversation timeline | Main canvas | 用户需要按时间理解任务、输出和决策。 | 与 Runtime/Files 并列成多个主面，或被 dashboard 替代。 |
 | Home question/starters | Main 空 conversation；动态问题标题 + 最多四个轻量 starter | 帮助开始任务，但不建立 landing/dashboard。 | 静态营销 hero、starter card grid 或超过四个同权入口。 |
@@ -39,10 +41,9 @@ carrier 状态和 release evidence 仍归 contracts、source/tests、validators 
 | Tool/process/diff/file event | 对应 turn 内 compact disclosure | 事件属于当前 conversation，但细节不应压过正文。 | 全部 raw log 常驻，或移到独立主 dashboard 导致上下文断裂。 |
 | Permission/user-input prompt | 对应 turn 内 | 决策必须和触发它的工作上下文相邻。 | 跳到不相关全局 modal，关闭后无法找回触发原因。 |
 | Turn receipt / result refs | Turn summary/details | 证明本轮发生了什么，同时保持 timeline 可读。 | Raw JSON 默认展开，或 receipt 被当成 domain/release verdict。 |
-| Environment popover | Context strip 的 anchored popover | Workspace/local/git/subtasks/sources 是快速摘要，不应占完整 side panel。 | 与 side panel 混为一体，或默认展开完整 diagnostics。 |
-| Side panel toggle | Header/composer 附近的次级 icon action | Context 必须随时可达，但不占普通路径主权重。 | Toggle active 但 panel hidden，或默认把 panel 常驻打开。 |
-| Side panel primary tools | Resizable right split / responsive drawer | Review、Terminal、Browser、Files 是高频工作工具。 | 九个同权 tabs，或面板不可调且挤压 main。 |
-| OPL secondary sections | Side panel disclosures | Artifacts、Runtime、Actions、Memory 是按需投影。 | 与核心工具同权常驻，或取得 artifact/runtime authority。 |
+| Environment trigger | Conversation 右上次级 icon action | 当前环境随时可达，但不占普通路径主权重。 | Toggle active 但 surface hidden，或默认常驻打开。 |
+| Environment floating details | 右上 anchored floating surface；窄屏 drawer | Changes/local/branch/commit/subagents/sources 是当前 task 的快速摘要。 | 变成默认全高第三列、完整 diagnostics 或跨项目 dashboard。 |
+| OPL secondary refs | Environment 次级 section、preview 或 turn disclosure | Artifacts、Evidence、Runtime、Actions 是按需投影。 | 与环境摘要同权常驻，或取得 artifact/runtime authority。 |
 | Advanced work surfaces | Bottom panel/file tree/Terminal/Browser | 保留高级工作能力，但默认关闭。 | App 启动即打开，遮挡 timeline/composer。 |
 | Runtime overview | 独立 Runtime page | 跨 project/conversation 状态需要更大 scope 与筛选。 | Running/queued/attention 混成 Home badge 或 assistant card。 |
 | Safe runtime action | Runtime/Settings 的 action area 与 confirmation surface | Action 需要状态、影响和 receipt context。 | Composer 直接执行隐藏 mutation，或绕过 dry-run/confirmation。 |
@@ -66,11 +67,12 @@ Rail 的用户问题是“我在哪个项目/对话，下一步切到哪里”�
 project history 分层；宽桌面 persistent 可以减少恢复成本，窄窗口 drawer 化保护 main。
 Rail 不应承担运行总览、provider 配置或无对应 OPL 能力的 Sites/Chat 入口。
 
-### Popover 与 Side Panel
+### Environment 与 Advanced Surfaces
 
-Environment popover 回答“当前环境摘要是什么”；side panel 回答“当前 conversation 旁边
-要操作什么”。Side panel 默认关闭并可调，只把 Review/Terminal/Browser/Files 作为核心
-工具，其余 OPL refs 进入 disclosures；两者都不拥有 runtime/domain/artifact truth。
+Environment floating details 回答“当前 task 在什么环境里工作”；artifact preview 和
+advanced surfaces 回答“需要检查什么结果或工具”。它们默认关闭，按当前 conversation
+渐进披露；OPL refs 进入次级 section、preview 或 turn disclosure，均不拥有
+runtime/domain/artifact truth。
 
 ### Runtime 与 Settings
 
@@ -85,8 +87,8 @@ Runtime 回答“工作现在处于什么状态、下一步是谁”；Settings 
 - 宽桌面是否仍有 persistent project/conversation rail？
 - Rail 是否保持 `280-340px`、全局骨架和独立 Archived surface？
 - Main 是否仍是一条 timeline，而不是 dashboard 或三列 workbench？
-- Side panel 是否默认关闭、可调，且打开/关闭不丢 draft、scroll、selection？
-- Environment popover 是否与 side panel 分离？
+- Environment details 是否默认关闭、anchored，且打开/关闭不丢 draft、scroll、selection？
+- OPL artifact/evidence 是否作为次级内容，而不是默认全高第三列？
 - Advanced work surfaces 是否默认关闭？
 - 窄窗口是否把 secondary context 变成可见 drawer，而不是 hidden DOM？
 - Composer、toolbar、rail rows 和 icon controls 是否保持稳定尺寸？
@@ -107,7 +109,7 @@ Runtime 回答“工作现在处于什么状态、下一步是谁”；Settings 
 - Permission、user-input 和 confirmation 是否保留触发上下文？
 - Permission/access mode 是否使用用户语言且不暴露 backend/provider？
 - Popover/drawer 关闭后是否把焦点返回触发器？
-- Rail、timeline、side panel 与 Settings 是否都可 keyboard-only 使用？
+- Rail、timeline、Environment/details 与 Settings 是否都可 keyboard-only 使用？
 
 ### 视觉与文案漂移
 

@@ -22,6 +22,19 @@ tests 与 evidence。
 功能项是产品目录，不是独立 machine schema。功能的字段、默认值、状态来源和验收条件
 必须回到现有 contracts；本文不复制模型 allowlist、route registry 或 page-state 列表。
 
+## 产品优先级
+
+功能不能按页面数量平均分配设计和实现资源：
+
+| Priority | Product layer | 包含 | 完成定义 |
+| --- | --- | --- | --- |
+| `P0 Codex Core` | 日常主工作流 | App frame、project/conversation rail、New task、conversation timeline、composer、streaming、history、model/reasoning、access/permission。 | 用户不离开 chat canvas 即可开始、继续和完成普通任务。 |
+| `P1 OPL Professional` | OPL 专业增量 | Project context refs、capability selection、task progress、approval、evidence/artifact preview、safe action 与 receipt。 | 增量嵌入 P0 稳定位置，不引入 dashboard 或第二套导航。 |
+| `P2 Administration` | 配置和运维 | Settings、Runtime 跨项目总览、first-run、安装、更新、诊断。 | 可发现、可恢复，但不反向决定 P0/P1 的布局和视觉。 |
+
+任何工作若只改善 `P2`，不能据此声称 GUI 主体验已对齐 Codex。设计评审和视觉证据
+默认先覆盖 `P0`，再覆盖 `P1`，最后覆盖 `P2`。
+
 ## 产品框架
 
 | 功能 | 用户结果 | Authority / machine owner |
@@ -30,7 +43,7 @@ tests 与 evidence。
 | Project/conversation navigation | 宽桌面 rail 默认展开，窄窗口变 drawer；用户可按 project 新建、搜索、pin、rename、archive、reset conversation，并从独立 Archived surface 恢复。 | GUI contract、page-state matrix；具体呈现由理想交互层定义。 |
 | Chat-first main canvas | 打开 App 后可以直接开始或继续工作，不先经过 dashboard/landing。 | GUI contract、page-state matrix。 |
 | Projectless conversation | 不建立 project 也能持续普通对话；只有依赖 workspace、文件或 Git 的能力被限制。 | GUI contract、conversation state/bridge。 |
-| Secondary context surfaces | Environment popover 与 resizable side panel 分工；Review、Terminal、Browser、Files 是核心工具，Artifacts、Runtime、Actions、Memory 按需展开。 | GUI contract、runtime bridge、domain/runtime refs。 |
+| Secondary context surfaces | 右上 Environment floating details 汇总当前 workspace/git/subagents/sources；artifact/evidence preview 与 advanced tools 按需展开。 | GUI contract、runtime bridge、domain/runtime refs。 |
 | Product identity | 所有可见产品面使用 One Person Lab App 品牌，而不是 carrier/upstream 品牌。 | GUI contract、release assets、shell branding validation。 |
 
 ## Home 与 Conversation
@@ -80,7 +93,7 @@ short name 和 technical refs 进入 details/receipt。
 | Current-turn run artifact | 在 conversation 内查看本轮最近事件和恢复动作。 | Current task slice / bridge refs。 |
 | Task/project drilldown | 按需查看 evidence、blocker、owner、resource 和 next-action refs。 | Runtime bridge / domain-owned refs。 |
 | Safe action | 对允许的运行或维护动作先 preview，再 confirm/execute。 | `opl app action execute ... --json`。 |
-| Files and artifact refs | 从 conversation 或 side panel 打开输入、输出和交付引用。 | Workspace/domain artifact refs；App 不拥有 artifact body。 |
+| Files and artifact refs | 从 conversation、Environment details 或 preview 打开输入、输出和交付引用。 | Workspace/domain artifact refs；App 不拥有 artifact body。 |
 | Provenance and receipts | 查看来源、owner handoff、action result 和 lineage refs。 | Domain/runtime/release owner refs。 |
 
 Home 不承担跨项目 Runtime、continue-work、needs-attention、activity grid 或 evidence
@@ -124,7 +137,7 @@ Legacy/upstream routes 只作为 compatibility redirects，不构成功能目录
 | macOS desktop | 使用 native window、directory picker、notifications 和 packaged App。 | Active/candidate adapter、release packaging。 |
 | WebUI | 在受控 workspace/volume 中使用同一产品语义。 | App product profile、bridge contract、Web delivery adapter。 |
 | Shared semantics | Desktop/WebUI 使用相同功能、状态、action 和 authority boundary。 | App contracts；transport 可以不同。 |
-| Responsive context | 窄窗口仍能打开 rail drawer、environment popover、side-panel overlay 和 Settings navigation。 | Ideal interaction/visual system、shell visual evidence。 |
+| Responsive context | 窄窗口仍能打开 rail drawer、Environment/details drawer 和 Settings navigation。 | Ideal interaction/visual system、shell visual evidence。 |
 | Desktop affordances | Back/Forward、Previous/Next Task、New Window 在 desktop 可达，不改变 WebUI 产品语义。 | GUI contract、desktop shell adapter。 |
 | Advanced work surfaces | Bottom panel、file tree、Terminal、Browser 保留给需要的工作流，但启动默认关闭。 | GUI contract、shell adapter/source evidence。 |
 
