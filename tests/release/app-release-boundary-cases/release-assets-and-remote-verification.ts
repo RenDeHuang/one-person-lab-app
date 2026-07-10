@@ -8,6 +8,7 @@ import {
   appRoot,
   runNode,
   writeFile,
+  writeExecutable,
   writeFakeReleaseNotesAiWriter,
   stableInstallCommand,
   validStandardAiReleaseNotes,
@@ -59,10 +60,12 @@ These details are included for operators who audit exactly what was packaged. Th
 `;
 }
 
-test('publish dry run defaults to the App GitHub Release repo', () => {
+test('publish defaults to the App repo and cleans only a newly-created failed release', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-'));
   const shellRoot = path.join(tempRoot, 'shells', 'aionui');
   const outDir = path.join(shellRoot, 'out');
+  const binDir = path.join(tempRoot, 'bin');
+  const ghLogPath = path.join(tempRoot, 'gh.log');
   const fakeAi = path.join(tempRoot, 'fake-release-notes-ai.js');
   const version = '26.5.15-test';
   const dmgName = `One-Person-Lab-${version}-mac-arm64.dmg`;
@@ -72,6 +75,12 @@ test('publish dry run defaults to the App GitHub Release repo', () => {
   writeReleaseMetadata(outDir, version, dmgName);
   writeStandardLocalAuthorizationPolicy(outDir);
   writeFakeReleaseNotesAiWriter(fakeAi, validStandardAiReleaseNotes(version));
+  writeExecutable(path.join(binDir, 'gh'), `#!/usr/bin/env node
+const fs = require('node:fs');
+const args = process.argv.slice(2);
+fs.appendFileSync(process.env.FAKE_GH_LOG, JSON.stringify(args) + '\\n');
+process.exit(args[0] === 'release' && args[1] === 'upload' ? 1 : 0);
+`);
 
   const result = runNode([
     'scripts/publish-release.ts',
@@ -83,6 +92,7 @@ test('publish dry run defaults to the App GitHub Release repo', () => {
     version,
   ], {
     env: {
+      OPL_RELEASE_EXISTS: '0',
       OPL_RELEASE_NOTES_MODE: 'ai',
       OPL_RELEASE_NOTES_AI_COMMAND: `${process.execPath} ${fakeAi}`,
     },
@@ -94,6 +104,53 @@ test('publish dry run defaults to the App GitHub Release repo', () => {
   assert.equal(payload.tag, `v${version}`);
   assert.equal(payload.release_notes_mode, 'ai');
   assert.ok(payload.artifacts.some((artifact) => artifact.endsWith(dmgName)));
+
+  const publishArgs = [
+    'scripts/publish-release.ts',
+    '--no-build',
+    '--shell-root',
+    shellRoot,
+    '--version',
+    version,
+  ];
+  const publishEnv = {
+    PATH: `${binDir}${path.delimiter}${process.env.PATH}`,
+    FAKE_GH_LOG: ghLogPath,
+    OPL_RELEASE_NOTES_MODE: 'template',
+    OPL_RELEASE_UPLOAD_ATTEMPTS: '1',
+  };
+  const newReleaseFailure = runNode(publishArgs, {
+    env: { ...publishEnv, OPL_RELEASE_EXISTS: '0' },
+  });
+  assert.notEqual(newReleaseFailure.status, 0);
+  const newReleaseCommands = fs.readFileSync(ghLogPath, 'utf8').trim().split('\n').map((line) => JSON.parse(line));
+  const newReleaseLifecycle = newReleaseCommands.filter((args) => ['create', 'upload', 'delete'].includes(args[1]));
+  assert.deepEqual(newReleaseLifecycle.map((args) => args.slice(0, 2)), [
+    ['release', 'create'],
+    ['release', 'upload'],
+    ['release', 'delete'],
+  ]);
+  assert.deepEqual(newReleaseLifecycle.at(-1), [
+    'release',
+    'delete',
+    `v${version}`,
+    '--repo',
+    'gaofeng21cn/one-person-lab-app',
+    '--yes',
+  ]);
+
+  fs.writeFileSync(ghLogPath, '', 'utf8');
+  const existingReleaseFailure = runNode(publishArgs, {
+    env: {
+      ...publishEnv,
+      OPL_RELEASE_EXISTS: '1',
+      OPL_RELEASE_EXISTING_ASSETS_JSON: '[]',
+    },
+  });
+  assert.notEqual(existingReleaseFailure.status, 0);
+  const existingReleaseCommands = fs.readFileSync(ghLogPath, 'utf8').trim().split('\n').map((line) => JSON.parse(line));
+  const existingReleaseLifecycle = existingReleaseCommands.filter((args) => ['create', 'upload', 'delete'].includes(args[1]));
+  assert.deepEqual(existingReleaseLifecycle.map((args) => args.slice(0, 2)), [['release', 'upload']]);
 });
 
 test('publish dry run accepts prebuilt standard release assets from GitHub Actions', () => {

@@ -5,6 +5,7 @@ import './app-release-boundary-cases/release-evidence-validation.ts';
 import './app-release-boundary-cases/release-evidence-collector.ts';
 import './app-release-boundary-cases/release-assets-and-remote-verification.ts';
 import './app-release-boundary-cases/release-plan-and-publishing.ts';
+import './app-release-boundary-cases/release-owner-nonready-records.ts';
 import './app-release-boundary-cases/full-first-install-runtime.ts';
 import './app-release-boundary-cases/full-package-size-analysis.ts';
 import './app-release-boundary-cases/full-first-install-cache-and-acceleration.ts';

@@ -107,7 +107,7 @@ function assertNoOperatorAuthority(boundary: Record<string, boolean>) {
   }
 }
 
-test('release operator plan reuses cohort plan and writes operator state', () => {
+test('release operator plan pins Full VM dispatch to resolved cohort SHAs', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-operator-plan-'));
   const refs = createReleaseRefCheckouts();
   const outputPath = path.join(tempRoot, 'release-operator-state.json');
@@ -119,9 +119,9 @@ test('release operator plan reuses cohort plan and writes operator state', () =>
     '--release-mode',
     'new_release',
     '--include-full-package',
-    'false',
+    'true',
     '--run-vm-smoke',
-    'false',
+    'true',
     '--app-commit',
     refs.appHead,
     '--shell-ref',
@@ -148,10 +148,17 @@ test('release operator plan reuses cohort plan and writes operator state', () =>
   assert.equal(state.cohort_plan.cohort_lock.app.requested_ref, refs.appHead);
   assert.equal(state.cohort_plan.cohort_lock.shell.resolved_sha, refs.shell.head);
   assert.equal(state.cohort_plan.cohort_lock.framework.resolved_sha, refs.framework.head);
+  assert.equal(state.cohort_plan.include_full_package, true);
+  assert.equal(state.cohort_plan.run_vm_smoke, true);
+  assert.equal(state.cohort_plan.next_action.action, 'run_release_train_with_vm_smoke');
+  assert.match(state.cohort_plan.next_action.command, new RegExp(`--ref ${refs.appHead}`));
+  assert.match(state.cohort_plan.next_action.command, new RegExp(`--field shell_ref=${refs.shell.head}`));
+  assert.match(state.cohort_plan.next_action.command, new RegExp(`--field framework_ref=${refs.framework.head}`));
+  assert.doesNotMatch(state.cohort_plan.next_action.command, /shell_ref=main|framework_ref=main/);
   assert.equal(state.next_action.action, 'follow_cohort_plan');
-  assert.match(state.next_action.command, new RegExp(`--shell-ref ${refs.shell.head}`));
-  assert.match(state.next_action.command, new RegExp(`--framework-ref ${refs.framework.head}`));
-  assert.doesNotMatch(state.next_action.command, /--shell-ref main|--framework-ref main/);
+  assert.match(state.next_action.command, new RegExp(`--field shell_ref=${refs.shell.head}`));
+  assert.match(state.next_action.command, new RegExp(`--field framework_ref=${refs.framework.head}`));
+  assert.doesNotMatch(state.next_action.command, /shell_ref=main|framework_ref=main/);
   assert.equal(state.operator_guidance.currentness_freeze.required_before_dispatch, true);
   assert.equal(state.operator_guidance.currentness_freeze.dispatch_input_source, 'release_cohort_plan_or_lock');
   assert.equal(state.operator_guidance.currentness_freeze.single_desktop_release_per_frozen_cohort, true);
