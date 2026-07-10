@@ -74,12 +74,12 @@ const agentPackageReceiptRequiredFields = [
 const oplFlowPayloadPreflightActions = ['status', 'enable', 'repair'];
 const expectedCodexVisibleModels = [
   { id: 'gpt-5.6-sol', label_zh: '5.6 Sol', label_en: '5.6 Sol' },
-  { id: 'gpt-5.5', label_zh: '5.5', label_en: '5.5' },
   { id: 'gpt-5.6-terra', label_zh: '5.6 Terra', label_en: '5.6 Terra' },
   { id: 'gpt-5.6-luna', label_zh: '5.6 Luna', label_en: '5.6 Luna' },
+  { id: 'gpt-5.5', label_zh: '5.5', label_en: '5.5' },
   { id: 'gpt-5.4', label_zh: '5.4', label_en: '5.4' },
   { id: 'gpt-5.4-mini', label_zh: '5.4 Mini', label_en: '5.4 Mini' },
-  { id: 'gpt-5.3-codex-spark', label_zh: '5.3 Codex Spark', label_en: '5.3 Codex Spark' },
+  { id: 'gpt-5.2', label_zh: '5.2', label_en: '5.2' },
 ];
 const expectedReasoningLabels = {
   low: { zh: '推理低', en: 'Low reasoning' },
@@ -419,7 +419,13 @@ function assertRetiredCodexModelsHidden(
   visibleModels: NonNullable<CodexModelDisplayOptionsLike['visible_models']>,
   label: string,
 ): void {
-  const forbidden = new Set(['gpt-5.3-codex', 'gpt-5.2', 'gpt-5.2-codex', 'gpt-5.1-codex-max', 'gpt-5.1-codex-mini']);
+  const forbidden = new Set([
+    'gpt-5.3-codex-spark',
+    'gpt-5.3-codex',
+    'gpt-5.2-codex',
+    'gpt-5.1-codex-max',
+    'gpt-5.1-codex-mini',
+  ]);
   for (const model of visibleModels) {
     if (typeof model.id === 'string' && forbidden.has(model.id)) {
       throw new Error(`${label} GUI home must not expose retired Codex model ${model.id} as an ordinary visible model`);

@@ -74,12 +74,12 @@ const productProfileDefaultsExpected = [
   '"zh": "推理极高"',
   '"en": "Ultra reasoning"',
   '"label_zh": "5.6 Sol"',
-  '"label_zh": "5.5"',
   '"label_zh": "5.6 Terra"',
   '"label_zh": "5.6 Luna"',
+  '"label_zh": "5.5"',
   '"label_zh": "5.4"',
   '"label_zh": "5.4 Mini"',
-  '"label_zh": "5.3 Codex Spark"',
+  '"label_zh": "5.2"',
   '"id": "med-autoscience"',
   '"id": "med-autogrant"',
   '"id": "redcube-ai"',
@@ -195,12 +195,12 @@ function assertProductProfileFrontierModelPreferenceOrder(productProfileJson) {
   const actual = productProfileJson?.gui?.home?.codex_auto_model_selection?.frontier_model_preference_order;
   const expected = [
     'gpt-5.6-sol',
-    'gpt-5.5',
     'gpt-5.6-terra',
     'gpt-5.6-luna',
+    'gpt-5.5',
     'gpt-5.4',
     'gpt-5.4-mini',
-    'gpt-5.3-codex-spark',
+    'gpt-5.2',
   ];
   if (JSON.stringify(actual) !== JSON.stringify(expected)) {
     throw new Error(

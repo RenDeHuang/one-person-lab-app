@@ -915,12 +915,12 @@
     "restore_auto_model_selection_allowed": true,
     "frontier_model_preference_order": [
       "gpt-5.6-sol",
-      "gpt-5.5",
       "gpt-5.6-terra",
       "gpt-5.6-luna",
+      "gpt-5.5",
       "gpt-5.4",
       "gpt-5.4-mini",
-      "gpt-5.3-codex-spark"
+      "gpt-5.2"
     ],
     "model_display_options_policy": {
       "source": "contracts/app-product-profile.json#gui.home.codex_model_display_options",
