@@ -180,6 +180,8 @@ Composer 是底部唯一主 command surface：
 - 顶部 context strip 承载 project/local/branch 与 active capability chip；中间 textarea
   承载任务正文；底部 action row 承载 attach/context、permission/access mode、单一紧凑
   model/reasoning menu、可选 voice 和 send/stop。
+- Project Context inputs 使用同一层 compact ref chips，位于 textarea 之前并允许移除；
+  conversation attachments 使用文件预览，不把两类内容画成第二层卡片或隐藏注入。
 - Purpose 不作为常驻可变 selector；active capability chip 可按上下文更换，但不得呈现
   为 backend/provider。
 - 模型与推理状态及当前默认值读取 App product profile，不得在 shell 或文档复制
@@ -195,12 +197,16 @@ Composer 是底部唯一主 command surface：
 - 宽桌面默认可见，宽度在 `280-340px` 内可调，窄窗口改 drawer。
 - 顶部固定 New task、Archived、Capabilities；Sites/Chat 没有 OPL 对应能力时不显示。
 - 中段按 project 组织 conversations，同时容纳 projectless conversations。
+- Project 展开后按 `Context -> Conversations` 排列；Context 使用紧凑 refs rows 和单一添加动作，
+  空状态不生成占位卡片，Attachments 仍由当前 conversation composer 管理。
 - 底部固定 account、help、Settings；常用 row actions 在 hover/focus
   出现，但 keyboard 用户可达。
 - Active row 使用 tonal fill、清晰标题和轻量状态；不使用大色块或每行独立 card。
 - 标题单行截断，完整值在 tooltip 或 details；状态 badge 不改变行高。
 - 窄窗口转为 drawer，关闭后不丢失 selection；重新打开时保留 scroll position。
 - Search、pin、rename、archive、reset 不改变 row 稳定尺寸；Archived 使用独立 surface。
+- Desktop application menu 与 conversation header 共享 Back/Forward、Previous/Next Task
+  和 New Window 语义；不可用项 disabled，不能用无反馈菜单伪装成功。
 
 ## Conversation Timeline
 

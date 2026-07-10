@@ -96,7 +96,7 @@ Active AionUI 默认状态通过 README 治理段声明的动态 state source �
 | Rail 顶部 New task/Archived/Capabilities，底部 account/help/Settings | `aligned_contract` | `source_implemented` | `pixel_unverified` | `current_contract_deviation` | `source_missing` | `pixel_unverified` | AionUI `SiderToolbar/SiderPrimaryNav/SiderFooter` 已闭合全局骨架和路由。 |
 | Project task 与 projectless conversation | `aligned_contract` | `source_implemented` | `pixel_unverified` | `current_contract_deviation` | `source_partial` | `pixel_unverified` | AionUI 支持无 workspace 文字聊天，并对 attach/paste/drop/`/open` 给出 project-required 限制。 |
 | 项目选择器切换真实 active project | `aligned_contract` | `source_implemented` | `pixel_unverified` | `candidate_target` | `source_missing` | `pixel_unverified` | AionUI 有 workspace/project 路径；Native 当前没有真实项目切换闭环。 |
-| 项目 Context inputs 可选、可增删 | `aligned_contract` | `source_partial` | `pixel_unverified` | `candidate_target` | `source_partial` | `pixel_verified` | Native `App.tsx` 仍固定生成四个虚构 project inputs；AionUI 已有上下文入口但未按理想 rail 组织完成。 |
+| 项目 Context inputs 可选、可增删 | `aligned_contract` | `source_partial` | `pixel_unverified` | `candidate_target` | `source_partial` | `pixel_verified` | App contract 已冻结 workspace 文件/目录 refs、无虚构默认项、rail 增删和 composer 可见预载；AionUI 实现仍待本轮闭合。Native `App.tsx` 仍固定生成四个虚构 inputs。 |
 | 项目附件可添加、查看、移除 | `aligned_contract` | `source_implemented` | `pixel_unverified` | `candidate_target` | `source_missing` | `pixel_unverified` | Native 缺真实 attachment actions；AionUI 附件能力已存在，但缺绑定当前 source 的像素证据。 |
 | 一个项目对应 N 个最近对话 | `aligned_contract` | `source_implemented` | `pixel_unverified` | `candidate_target` | `source_partial` | `pixel_verified` | Native 有 history/timeline 形态，但 project-scoped persistence 与切换还不完整。 |
 | 对话 search/pin/rename/archive/reset 与独立 Archived | `aligned_contract` | `source_implemented` | `pixel_unverified` | `current_contract_deviation` | `source_missing` | `pixel_unverified` | AionUI 已实现独立 Archived、pin/rename/archive/reset、分页 search 和 workspace expansion 隔离。 |
@@ -129,7 +129,7 @@ Active AionUI 默认状态通过 README 治理段声明的动态 state source �
 合同与人读 target 已更新，不代表 active implementation 完成。当前 exact gaps：
 
 - **AionUI source：** 主要结构已落地；剩余 source gap 是完整 project/local/branch
-  composer context strip、rail 内可编辑 project inputs、bottom panel/file-tree 默认值、
+  composer context strip、rail 内 workspace-ref project inputs 的增删/持久化/可见预载、bottom panel/file-tree 默认值、
   artifact renderer/export breadth、desktop menu/task navigation、contrast 和全键盘矩阵。
 - **AionUI pixels：** Settings 已绑定当前最终 source snapshot 的 28 张 desktop/mobile
   route/interaction 截图；这证明 Settings 路径非空且符合已声明的 OPL 卡片基线，不证明

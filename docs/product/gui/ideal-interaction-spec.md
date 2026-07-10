@@ -78,6 +78,11 @@ Rail 负责 navigation，不承担 dashboard：
 - Sites/Chat 没有 OPL 对应产品能力时不作为普通入口。
 - 中段先显示 selected project，再显示 project-scoped conversation history；同时允许
   projectless conversation。
+- 展开的 project 在 conversations 之前显示可选 Context inputs；每项是该 workspace
+  内的文件或目录引用，支持添加和移除，不生成示例项，也不复制 artifact body。
+- Context inputs 按 canonical workspace path 持久化，并在该 project 新建 conversation 时
+  作为可见、可移除的 composer context 预载。Attachments 仍属于当前 conversation draft，
+  不自动继承为 project defaults。
 - 支持 search、pin、rename、archive、reset；Archived 是独立 surface。
 - 底部固定 account、help、Settings。
 - Active conversation、running/blocked/completed 等状态只用轻量标记，不改变 row 布局。
@@ -87,7 +92,8 @@ Rail 负责 navigation，不承担 dashboard：
 
 宽桌面 rail persistent 且在 `280-340px` 内可调；窄窗口 drawer 化。关闭 drawer 不清除
 selection 或当前草稿。Back/Forward、Previous/Next Task、New Window 是 desktop
-affordance，不扩张 WebUI 产品 IA。
+affordance，通过 application menu 与现有 conversation header 提供，并保持键盘可达；
+Previous/Next 只在当前可见 ordinary conversations 中移动，不扩张 WebUI 产品 IA。
 
 ## Home / New Conversation
 
@@ -125,6 +131,8 @@ Composer 是普通路径唯一主 command surface：
 - 文本输入默认可用，支持多行、paste、keyboard shortcuts 和 IME。
 - 上层 context strip 显示 project/local/branch 与 active capability chip；active capability
   可按上下文更换，但不得表现为 backend。
+- Project Context inputs 进入 context strip/附件预览上方的可见 refs，发送前可逐项移除；
+  不允许 hidden prompt injection，也不把项目默认 context 与当前 conversation attachments 混为一类。
 - 中层是 textarea；底层 action row 放 attachments/context、permission/access mode、
   单一紧凑 model/reasoning menu、可选 voice 和 send/stop。
 - Home 与 ordinary conversation 使用同一 App-owned model control。

@@ -506,6 +506,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
 
   const navigationRail = record(interactionBaseline.navigation_rail);
   const railWidth = record(navigationRail.resizable_width_px);
+  const desktopAffordancePolicy = record(navigationRail.desktop_affordance_policy);
   if (
     navigationRail.wide_desktop_default !== 'expanded' ||
     navigationRail.narrow_window_mode !== 'drawer' ||
@@ -514,7 +515,13 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     !sameStrings(navigationRail.top_entries, ['new_task', 'archived', 'capabilities']) ||
     !sameStrings(navigationRail.forbidden_entries_without_opl_product_capability, ['sites', 'chat']) ||
     !sameStrings(navigationRail.bottom_entries, ['account', 'help', 'settings']) ||
-    !sameStrings(navigationRail.desktop_affordances, ['back', 'forward', 'previous_task', 'next_task', 'new_window'])
+    !sameStrings(navigationRail.desktop_affordances, ['back', 'forward', 'previous_task', 'next_task', 'new_window']) ||
+    !sameStrings(desktopAffordancePolicy.surfaces, ['application_menu', 'conversation_header']) ||
+    desktopAffordancePolicy.keyboard_access_required !== true ||
+    desktopAffordancePolicy.unavailable_command_state !== 'disabled' ||
+    desktopAffordancePolicy.previous_next_scope !== 'visible_ordinary_conversations' ||
+    desktopAffordancePolicy.new_window_scope !== 'desktop_only' ||
+    desktopAffordancePolicy.webui_information_architecture_expansion_allowed !== false
   ) {
     issues.add('interaction baseline navigation rail must preserve the governed desktop and narrow-window skeleton');
   }
@@ -523,6 +530,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   const homeTarget = record(interactionBaseline.home);
   const capabilitySelection = record(interactionBaseline.capability_selection);
   const composerTarget = record(interactionBaseline.composer);
+  const projectContextInputs = record(conversationScope.project_context_inputs);
   const permissionTarget = record(interactionBaseline.permission_access_mode);
   const taskSummaryTarget = record(interactionBaseline.current_task_summary_bar);
   if (
@@ -532,6 +540,15 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     conversationScope.file_and_project_features_without_workspace !== 'restricted_with_explanation' ||
     !sameStrings(conversationScope.conversation_management, ['search', 'pin', 'rename', 'archive', 'reset']) ||
     conversationScope.archived_surface !== 'independent' ||
+    projectContextInputs.scope !== 'canonical_workspace_path' ||
+    projectContextInputs.optional !== true ||
+    projectContextInputs.item_kind !== 'workspace_file_or_directory_ref' ||
+    !sameStrings(projectContextInputs.mutations, ['add', 'remove']) ||
+    projectContextInputs.persistence !== 'shell_client_configuration_keyed_by_workspace' ||
+    projectContextInputs.composer_application !==
+      'visible_removable_context_refs_preloaded_for_project_conversations' ||
+    projectContextInputs.fabricated_defaults_allowed !== false ||
+    projectContextInputs.artifact_body_copy_allowed !== false ||
     homeTarget.title_policy !== 'dynamic_question_title' ||
     homeTarget.starter_limit !== 4 ||
     capabilitySelection.composer_persistent_variable_selector !== false ||
