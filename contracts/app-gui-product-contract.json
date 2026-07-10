@@ -131,7 +131,7 @@
         "ordinary_refresh_command": "opl app state --profile fast --json",
         "deep_initialize_trigger": "explicit_user_configuration_or_diagnostics_only",
         "deep_initialize_stream": "opl system initialize --events --json",
-        "blocking_policy": "ordinary_startup_is_non_blocking_unless_core_prerequisites_fail",
+        "blocking_policy": "ordinary_startup_and_guid_navigation_are_non_blocking_core_failures_only_restrict_dependent_capabilities",
         "core_prerequisites": ["workspace_root", "codex_cli", "codex_config"],
         "full_readiness_blocks_launch": false,
         "renderer_role": "render_fast_state_and_event_stream_progress_without_private_truth",

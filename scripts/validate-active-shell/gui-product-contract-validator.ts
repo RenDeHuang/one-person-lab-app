@@ -312,6 +312,14 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   validateGuiFrameworkSurfaces(guiContract, releaseChannel, installExposurePolicy);
   validateSettingsControlPlaneBehavior({ guiContract });
 
+  const startupReadModelPolicy = guiContract.framework_surfaces?.canonical_state?.startup_read_model_policy;
+  if (
+    startupReadModelPolicy?.blocking_policy !==
+    'ordinary_startup_and_guid_navigation_are_non_blocking_core_failures_only_restrict_dependent_capabilities'
+  ) {
+    throw new Error('App GUI startup read model must keep Guid navigation non-blocking');
+  }
+
   if (guiContract.theme_and_branding?.default_theme_id !== 'default-theme') {
     throw new Error('App GUI default theme must be default-theme');
   }
