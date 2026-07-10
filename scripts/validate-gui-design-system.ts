@@ -20,8 +20,8 @@ export type GuiDesignSystemValidation = {
   };
   codex_reference: string;
   model_defaults: {
-    model: 'gpt-5.6-sol';
-    reasoning_effort: 'ultra';
+    model: string;
+    reasoning_effort: string;
   };
   state_boundary: {
     ideal_native_rail_visible: true;
@@ -284,18 +284,22 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   }
 
   const codex = record(profile.codex);
-  if (codex.default_model !== 'gpt-5.6-sol' || codex.default_reasoning_effort !== 'ultra') {
-    issues.add('app-product-profile Codex defaults must be gpt-5.6-sol with ultra reasoning');
+  const defaultModel = typeof codex.default_model === 'string' ? codex.default_model : '';
+  const defaultReasoningEffort = typeof codex.default_reasoning_effort === 'string'
+    ? codex.default_reasoning_effort
+    : '';
+  if (!defaultModel || !defaultReasoningEffort) {
+    issues.add('app-product-profile Codex defaults must be non-empty strings');
   }
   if (
-    nativeVisualContract.default_model !== codex.default_model ||
-    nativeVisualContract.default_reasoning_effort !== codex.default_reasoning_effort
+    nativeVisualContract.default_model !== defaultModel ||
+    nativeVisualContract.default_reasoning_effort !== defaultReasoningEffort
   ) {
     issues.add('native candidate model defaults must derive from app-product-profile');
   }
   const mentionedModels = new Set((foundationText.match(/\bgpt-[a-z0-9.-]+\b/gi) ?? []).map((value) => value.toLowerCase()));
   for (const model of mentionedModels) {
-    if (model !== codex.default_model) {
+    if (model !== defaultModel) {
       issues.add(`foundation docs must not copy model catalogs or name non-default model ${model}`);
     }
   }
@@ -351,8 +355,8 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     },
     codex_reference: codexReference,
     model_defaults: {
-      model: 'gpt-5.6-sol',
-      reasoning_effort: 'ultra',
+      model: defaultModel,
+      reasoning_effort: defaultReasoningEffort,
     },
     state_boundary: {
       ideal_native_rail_visible: true,

@@ -67,8 +67,8 @@ Codex App 的模型控制在 OPL App 中进一步收敛：
 - Codex CLI 是 ordinary conversation 的固定 executor。
 - Backend、provider 和 permission mode 不作为普通 Home/composer controls。
 - Home 与 conversation 使用同一个 App-owned model/reasoning control。
-- 模型策略只引用 `contracts/app-product-profile.json`；当前默认仍为
-  `5.6 Sol / ultra`，本文不复制 allowlist、排序、退休列表或 fallback 逻辑。
+- 模型策略与当前默认值只引用 `contracts/app-product-profile.json`；本文不复制
+  model/reasoning 值、allowlist、排序、退休列表或 fallback 逻辑。
 - Profile 缺失或不兼容时显示明确 blocker，不静默采用 shell/upstream default。
 
 ## Purpose 与 Agent Package 增量
@@ -195,7 +195,7 @@ OPL App 应让用户在 Codex-like 低摩擦工作流中：
 - 从 persistent project/conversation rail 进入 workspace conversation；
 - 使用 single timeline 和 bottom composer 发送任务；
 - 选择 OPL purpose/package，而不是 backend；
-- 使用 App-profile model/reasoning control，当前默认 `5.6 Sol / ultra`；
+- 使用 App-profile model/reasoning control，并动态呈现当前默认值；
 - 在 turn 中理解进度、prompt、error、result 和 receipt；
 - 只在需要时打开 Files、Runtime、Artifacts、Capabilities、Memory 或 Settings；
 - 理解 first-run、maintenance、resource 和 release 边界；

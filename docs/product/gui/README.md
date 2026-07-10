@@ -74,8 +74,8 @@ contract 的 lane 决定是否修改 machine truth、实现或目标。
   窄窗口改为可收起 drawer 或 overlay。
 - 主区保持单一 conversation timeline 和底部 composer。
 - 右侧 inspector 默认关闭，仅在用户请求上下文时打开。
-- 模型策略只读取 `contracts/app-product-profile.json`；当前默认仍是
-  `5.6 Sol / ultra`，本文档族不复制具体模型 allowlist。
+- 模型策略与当前默认值只读取 `contracts/app-product-profile.json`；本文档族不复制
+  当前 model/reasoning 值或具体模型 allowlist。
 
 Active AionUI 通过上面的动态 state-source marker 读取默认状态，本快照解析为
 `collapsed`；`opl-native-workbench` candidate contract 则把 rail 记为 default visible。

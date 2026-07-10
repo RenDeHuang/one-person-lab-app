@@ -63,7 +63,7 @@ Active AionUI 默认状态通过 README 治理段声明的动态 state source �
 | Right inspector 默认关闭 | `aligned-contract`：`collapsed`。 | `aligned-contract` candidate target：`inspector_default_visible: false`。 | `A1/A2`, `N1-N4`, `V1` | 无默认打开例外；用户请求后可按 viewport 变 drawer。 |
 | 主区保持单一 conversation timeline | `aligned-contract` requirement，视觉一致性仍需证据。 | `candidate-target` 的 explicit required surface。 | `A2`, `N3/N4`, `V1` | 不允许把 Runtime、Files、artifact board 常驻成并列主区。 |
 | Composer 是底部主 command surface | `aligned-contract` requirement。 | `candidate-target`，包含 model/reasoning controls。 | `A2`, `N3/N4`, `V1` | 允许 shell primitive 不同；不允许双层 composer、settings bar 或单行退化。 |
-| 模型与推理策略由 App profile 驱动 | `aligned-contract` requirement。 | `candidate-target`，visual parity contract 引用 product profile。 | `A1/A2`, `N2/N3` | 文档和 shell 都不得复制 allowlist；当前默认读数为 `5.6 Sol / ultra`。 |
+| 模型与推理策略由 App profile 驱动 | `aligned-contract` requirement。 | `candidate-target`，visual parity contract 引用 product profile。 | `A1/A2`, `N2/N3` | 文档和 shell 都不得复制当前默认值或 allowlist。 |
 | Codex CLI 固定 executor；普通路径隐藏 backend/provider/permission | `aligned-contract` requirement。 | `candidate-target`。 | `A2`, `N2/N3` | 无普通用户例外；技术信息只进 details/diagnostics。 |
 | OPL purpose 与 package shortcuts | `aligned-contract` requirement，具体 exposure 从 profile/package state 读取。 | `candidate-target`。 | `A2`, `N3`, page-state probes | Shell 不拥有 workflow、stage、artifact 或 domain verdict。 |
 | 普通 state 读取走 fast App state | `aligned-contract` bridge requirement。 | `candidate-target` bridge requirement。 | `A1/A2`, `N2/N3` | Full/detail 只能在明确 diagnostic path；不得本地推断 readiness。 |

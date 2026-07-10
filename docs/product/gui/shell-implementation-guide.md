@@ -65,7 +65,7 @@ candidate contract 记录 default visible。这是可收敛的 conformance gap�
 Generated product profile 是 shell 的默认值入口：
 
 - Home/conversation 的模型、推理、purpose 和 capability exposure 从 profile 读取。
-- 当前默认 `5.6 Sol / ultra`；具体模型列表、顺序、退休策略和持久化规则只引用
+- 当前默认值、具体模型列表、顺序、退休策略和持久化规则只引用
   `contracts/app-product-profile.json`，不在 shell 或人读实现文档复制。
 - Branding、locale、ordinary capability allowlist 和 optional modes 使用同一 profile。
 - Profile 缺失、schema 不兼容或字段无效时 fail closed，显示可理解 blocker；不要

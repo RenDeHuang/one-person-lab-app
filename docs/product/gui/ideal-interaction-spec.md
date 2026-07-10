@@ -110,8 +110,8 @@ Composer 是普通路径唯一主 command surface：
 - 文本输入默认可用，支持多行、paste、keyboard shortcuts 和 IME。
 - Purpose、attachments、workspace/context、model/reasoning、send/stop 是直接控件。
 - Home 与 ordinary conversation 使用同一 App-owned model control。
-- 模型策略只读取 `contracts/app-product-profile.json`；当前默认为
-  `5.6 Sol / ultra`，本文不复制 allowlist、顺序或退休列表。
+- 模型策略与当前默认值只读取 `contracts/app-product-profile.json`；本文不复制
+  model/reasoning 值、allowlist、顺序或退休列表。
 - Executor 固定为 Codex CLI；backend、provider 和 permission mode 不作为普通控件。
 - Attachments 在发送前可预览、移除并显示访问失败。
 - Running 时 send 转为 stop 或明确 queue 行为；stopping、blocked、failed 有可理解状态。
@@ -234,7 +234,7 @@ First-run 的目标是让用户尽快进入可工作的 App：
 - 窄窗口 rail 可收起并能以 drawer 重新打开。
 - Right inspector 默认关闭，打开后不破坏 conversation/draft。
 - Home/chat-first 且没有 dashboard、backend/provider/permission controls。
-- Model/reasoning 来自 App product profile，当前默认 `5.6 Sol / ultra`。
+- Model/reasoning 及当前默认值来自 App product profile。
 - Pending、elapsed、tool/process、permission、failure 和 receipt 在 turn 中可理解。
 - Runtime/Settings 使用 App state/action/Control Plane，不拥有 owner truth。
 - 中英文、keyboard、focus、contrast、responsive panel 均可用。

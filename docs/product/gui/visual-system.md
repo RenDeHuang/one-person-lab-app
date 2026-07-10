@@ -20,8 +20,8 @@ OPL App 在基准上保留以下产品例外：
 
 - 产品名、App icon、窗口 identity 和可见品牌必须是 One Person Lab App。
 - 普通工作入口使用 OPL purpose language，例如科研、基金、演示和写书。
-- Executor、模型策略和默认值由 `contracts/app-product-profile.json` 决定；当前默认
-  为 `5.6 Sol / ultra`，本文不复制模型 allowlist。
+- Executor、模型策略和当前默认值由 `contracts/app-product-profile.json` 决定；本文
+  不复制 model/reasoning 值或模型 allowlist。
 - Runtime、Capabilities、Settings、first-run、receipts 和 action refs 使用
   App-owned contracts 与 OPL authority boundary。
 - OPL accent、状态语义和双语 copy 可以偏离 Codex 品牌，但不能改变 Codex-based
@@ -176,8 +176,8 @@ Composer 是底部唯一主 command surface：
 - 只保留一层 visible surface。外部 bridge/adapter container 必须透明。
 - 第一行承载任务正文；底部 control row 承载 purpose、attach/context、模型与推理、
   send/stop 等直接动作。
-- 模型与推理状态读取 App product profile；当前默认 `5.6 Sol / ultra`，不得在 shell
-  或文档复制 allowlist。
+- 模型与推理状态及当前默认值读取 App product profile，不得在 shell 或文档复制
+  model/reasoning 值或 allowlist。
 - Backend、provider、executor 和 permission mode 不进入普通 composer。
 - Send/stop 使用稳定圆形主动作；running、stopping、blocked、failed 有明确文本或
   tooltip，不靠颜色猜测。

@@ -75,14 +75,34 @@ function createFixture(): string {
 }
 
 test('GUI design-system validator accepts a complete fixture without promoting release readiness', () => {
-  const summary = validateGuiDesignSystem(createFixture());
+  const root = createFixture();
+  const summary = validateGuiDesignSystem(root);
+  const profile = JSON.parse(fs.readFileSync(path.join(root, 'contracts/app-product-profile.json'), 'utf8'));
   assert.equal(summary.status, 'consistent');
   assert.equal(summary.release_ready, false);
   assert.equal(summary.state_boundary.ideal_native_rail_visible, true);
   assert.equal(summary.state_boundary.active_aionui_rail_state, 'collapsed');
   assert.equal(summary.state_boundary.active_aionui_conformance.rail_matches_ideal, false);
   assert.equal(summary.state_boundary.active_aionui_conformance.inspector_matches_ideal, true);
-  assert.deepEqual(summary.model_defaults, { model: 'gpt-5.6-sol', reasoning_effort: 'ultra' });
+  assert.deepEqual(summary.model_defaults, {
+    model: profile.codex.default_model,
+    reasoning_effort: profile.codex.default_reasoning_effort,
+  });
+});
+
+test('GUI design-system validator follows a changed App-profile reasoning default', () => {
+  const root = createFixture();
+  const profilePath = path.join(root, 'contracts/app-product-profile.json');
+  const registryPath = path.join(root, 'contracts/app-shell-candidates.json');
+  const profile = JSON.parse(fs.readFileSync(profilePath, 'utf8'));
+  const registry = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
+  profile.codex.default_reasoning_effort = 'future-effort';
+  registry.candidates.find((candidate) => candidate.id === 'opl-native-workbench')
+    .visual_parity_contract.default_reasoning_effort = 'future-effort';
+  writeJson(root, 'contracts/app-product-profile.json', profile);
+  writeJson(root, 'contracts/app-shell-candidates.json', registry);
+
+  assert.equal(validateGuiDesignSystem(root).model_defaults.reasoning_effort, 'future-effort');
 });
 
 test('GUI design-system validator accepts an active AionUI rail that has converged to visible', () => {
