@@ -5,6 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 type JsonRecord = Record<string, unknown>;
+type ActiveSurfaceState = 'collapsed' | 'visible';
 
 export type GuiDesignSystemValidation = {
   schema: 'opl_app_gui_design_system_validation.v1';
@@ -25,8 +26,12 @@ export type GuiDesignSystemValidation = {
   state_boundary: {
     ideal_native_rail_visible: true;
     ideal_native_inspector_visible: false;
-    active_aionui_rail_state: 'collapsed';
-    active_aionui_inspector_state: 'collapsed';
+    active_aionui_rail_state: ActiveSurfaceState;
+    active_aionui_inspector_state: ActiveSurfaceState;
+    active_aionui_conformance: {
+      rail_matches_ideal: boolean;
+      inspector_matches_ideal: boolean;
+    };
   };
   evidence_scope: 'design_system_governance_consistency_only';
   release_ready: false;
@@ -237,8 +242,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     for (const marker of [
       'ideal_target.workspace_session_rail_default_visible=true',
       'ideal_target.inspector_default_visible=false',
-      'active_aionui.workspace_session_rail_default_state=collapsed',
-      'active_aionui.right_context_inspector_default_state=collapsed',
+      'active_aionui.state_source=contracts/app-product-profile.json#gui.home.home_layout',
     ]) {
       requireMarker(foundationText, marker, 'GUI design-system foundation docs', issues);
     }
@@ -260,20 +264,23 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
 
   const homeLayout = record(record(record(profile.gui).home).home_layout);
   const activeAionui = record(stateBoundary.active_aionui);
-  if (
-    homeLayout.workspace_session_rail_default_state !== 'collapsed' ||
-    activeAionui.workspace_session_rail_default_state !== 'collapsed'
-  ) {
-    issues.add('active AionUI rail deviation must remain explicitly recorded as collapsed');
+  const activeRailState = homeLayout.workspace_session_rail_default_state;
+  const activeInspectorState = homeLayout.right_context_inspector_default_state;
+  const allowedActiveStates = ['collapsed', 'visible'];
+  if (!allowedActiveStates.includes(String(activeRailState))) {
+    issues.add('active AionUI rail state must be collapsed or visible in app-product-profile');
   }
-  if (
-    homeLayout.right_context_inspector_default_state !== 'collapsed' ||
-    activeAionui.right_context_inspector_default_state !== 'collapsed'
-  ) {
-    issues.add('active AionUI inspector state must remain explicitly recorded as collapsed');
+  if (!allowedActiveStates.includes(String(activeInspectorState))) {
+    issues.add('active AionUI inspector state must be collapsed or visible in app-product-profile');
   }
   if (activeAionui.source !== 'contracts/app-product-profile.json#gui.home.home_layout') {
-    issues.add('active AionUI deviation must source app-product-profile gui.home.home_layout');
+    issues.add('active AionUI state must source app-product-profile gui.home.home_layout');
+  }
+  if (activeAionui.conformance_policy !== 'read_current_profile_state_and_compare_to_ideal_without_freezing_values') {
+    issues.add('active AionUI conformance policy must compare current profile state to ideal without freezing values');
+  }
+  if (JSON.stringify(Object.keys(activeAionui).sort()) !== JSON.stringify(['conformance_policy', 'source'])) {
+    issues.add('active AionUI governance must store only source and conformance_policy');
   }
 
   const codex = record(profile.codex);
@@ -350,8 +357,12 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     state_boundary: {
       ideal_native_rail_visible: true,
       ideal_native_inspector_visible: false,
-      active_aionui_rail_state: 'collapsed',
-      active_aionui_inspector_state: 'collapsed',
+      active_aionui_rail_state: activeRailState as ActiveSurfaceState,
+      active_aionui_inspector_state: activeInspectorState as ActiveSurfaceState,
+      active_aionui_conformance: {
+        rail_matches_ideal: activeRailState === (idealTarget.workspace_session_rail_default_visible ? 'visible' : 'collapsed'),
+        inspector_matches_ideal: activeInspectorState === (idealTarget.inspector_default_visible ? 'visible' : 'collapsed'),
+      },
     },
     evidence_scope: 'design_system_governance_consistency_only',
     release_ready: false,

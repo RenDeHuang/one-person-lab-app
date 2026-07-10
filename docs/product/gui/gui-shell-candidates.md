@@ -48,8 +48,9 @@ The current visual and interaction reference is ChatGPT Codex macOS
 `26.707.31123` observed on `2026-07-10`. The ideal/native target keeps the
 desktop workspace/session rail visible and the inspector closed by default.
 The active AionUI product profile currently keeps both collapsed; the
-conformance matrix must show that deviation explicitly instead of forcing the
-active contract to match the ideal target.
+conformance matrix must read that current state from
+`contracts/app-product-profile.json#gui.home.home_layout`, show the deviation
+explicitly, and allow later active convergence without freezing today's values.
 
 ## Commands
 

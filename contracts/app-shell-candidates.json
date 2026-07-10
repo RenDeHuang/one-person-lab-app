@@ -105,8 +105,7 @@
       },
       "active_aionui": {
         "source": "contracts/app-product-profile.json#gui.home.home_layout",
-        "workspace_session_rail_default_state": "collapsed",
-        "right_context_inspector_default_state": "collapsed"
+        "conformance_policy": "read_current_profile_state_and_compare_to_ideal_without_freezing_values"
       }
     },
     "evidence_boundary": {

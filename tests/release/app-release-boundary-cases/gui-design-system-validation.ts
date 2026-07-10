@@ -65,8 +65,7 @@ function createFixture(): string {
     codexReference,
     'ideal_target.workspace_session_rail_default_visible=true',
     'ideal_target.inspector_default_visible=false',
-    'active_aionui.workspace_session_rail_default_state=collapsed',
-    'active_aionui.right_context_inspector_default_state=collapsed',
+    'active_aionui.state_source=contracts/app-product-profile.json#gui.home.home_layout',
   ].join('\n');
   writeFile(root, `${designRoot}/README.md`, `${readme}\n`);
   writeFile(root, `${designRoot}/visual-system.md`, '# Visual system\n');
@@ -81,7 +80,23 @@ test('GUI design-system validator accepts a complete fixture without promoting r
   assert.equal(summary.release_ready, false);
   assert.equal(summary.state_boundary.ideal_native_rail_visible, true);
   assert.equal(summary.state_boundary.active_aionui_rail_state, 'collapsed');
+  assert.equal(summary.state_boundary.active_aionui_conformance.rail_matches_ideal, false);
+  assert.equal(summary.state_boundary.active_aionui_conformance.inspector_matches_ideal, true);
   assert.deepEqual(summary.model_defaults, { model: 'gpt-5.6-sol', reasoning_effort: 'ultra' });
+});
+
+test('GUI design-system validator accepts an active AionUI rail that has converged to visible', () => {
+  const root = createFixture();
+  const profilePath = path.join(root, 'contracts', 'app-product-profile.json');
+  const profile = JSON.parse(fs.readFileSync(profilePath, 'utf8'));
+  profile.gui.home.home_layout.workspace_session_rail_default_state = 'visible';
+  writeJson(root, 'contracts/app-product-profile.json', profile);
+
+  const summary = validateGuiDesignSystem(root);
+  assert.equal(summary.state_boundary.active_aionui_rail_state, 'visible');
+  assert.equal(summary.state_boundary.active_aionui_conformance.rail_matches_ideal, true);
+  assert.equal(summary.state_boundary.active_aionui_inspector_state, 'collapsed');
+  assert.equal(summary.state_boundary.active_aionui_conformance.inspector_matches_ideal, true);
 });
 
 test('GUI design-system validator rejects a stale foreground role marker', () => {
@@ -104,7 +119,7 @@ test('GUI design-system validator rejects a stale model copied into foundation d
   );
 });
 
-test('GUI design-system validator rejects a native rail regression while active AionUI remains collapsed', () => {
+test('GUI design-system validator rejects a native ideal rail regression', () => {
   const root = createFixture();
   const registryPath = path.join(root, 'contracts', 'app-shell-candidates.json');
   const registry = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
