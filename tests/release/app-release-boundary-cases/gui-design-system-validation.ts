@@ -12,6 +12,14 @@ const shellAuthorityMarker = 'gui_shell_authority: implementation_only';
 const codexReference = 'ChatGPT Codex macOS 26.707.31123 (2026-07-10)';
 const designRoot = 'docs/product/gui';
 
+const conformanceMatrix = `# Shell conformance matrix
+
+| 功能或交互要求 | AionUI contract | AionUI source | AionUI pixel | Native contract | Native source | Native pixel | 验证入口与边界 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Product authority | \`aligned_contract\` | \`source_implemented\` | \`not_applicable\` | \`candidate_target\` | \`source_implemented\` | \`not_applicable\` | Contract only. |
+| Chat-first visual | \`current_contract_deviation\` | \`source_partial\` | \`pixel_blocked\` | \`candidate_target\` | \`source_partial\` | \`pixel_verified\` | Pixel evidence does not imply parity. |
+`;
+
 function writeFile(root: string, relativePath: string, contents: string): void {
   const filePath = path.join(root, relativePath);
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -62,7 +70,7 @@ function createFixture(): string {
   writeFile(root, `${designRoot}/README.md`, `${readme}\n`);
   writeFile(root, `${designRoot}/visual-system.md`, '# Visual system\n');
   writeFile(root, `${designRoot}/shell-implementation-guide.md`, '# Shell implementation guide\n');
-  writeFile(root, `${designRoot}/shell-conformance-matrix.md`, '# Shell conformance matrix\n');
+  writeFile(root, `${designRoot}/shell-conformance-matrix.md`, conformanceMatrix);
   return root;
 }
 
@@ -80,6 +88,9 @@ test('GUI design-system validator accepts a complete fixture without promoting r
     model: profile.codex.default_model,
     reasoning_effort: profile.codex.default_reasoning_effort,
   });
+  assert.equal(summary.conformance_matrix.rows_validated, 2);
+  assert.deepEqual(summary.conformance_matrix.status_axes, ['contract_status', 'source_status', 'pixel_status']);
+  assert.equal(summary.conformance_matrix.pixel_verified_implies_visual_parity, false);
 });
 
 test('GUI design-system validator follows a changed App-profile reasoning default', () => {
@@ -177,4 +188,41 @@ test('GUI design-system validator rejects a native ideal rail regression', () =>
     () => validateGuiDesignSystem(root),
     /native candidate and ideal target must keep the desktop workspace\/session rail visible/,
   );
+});
+
+test('GUI design-system validator rejects a matrix row with no source status', () => {
+  const root = createFixture();
+  const matrixPath = path.join(root, designRoot, 'shell-conformance-matrix.md');
+  const matrix = fs.readFileSync(matrixPath, 'utf8').replace('`source_implemented` | `not_applicable`', ' | `not_applicable`');
+  fs.writeFileSync(matrixPath, matrix, 'utf8');
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /must declare exactly one AionUI source_status/,
+  );
+});
+
+test('GUI design-system validator rejects an unknown matrix status', () => {
+  const root = createFixture();
+  const matrixPath = path.join(root, designRoot, 'shell-conformance-matrix.md');
+  const matrix = fs.readFileSync(matrixPath, 'utf8').replace('`source_partial`', '`source_unknown`');
+  fs.writeFileSync(matrixPath, matrix, 'utf8');
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /must declare exactly one AionUI source_status/,
+  );
+});
+
+test('GUI design-system validator rejects legacy aligned-contract-only status', () => {
+  const root = createFixture();
+  const matrixPath = path.join(root, designRoot, 'shell-conformance-matrix.md');
+  fs.appendFileSync(matrixPath, '\nLegacy: aligned-contract\n');
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /must not use legacy aligned-contract without independent source and pixel status/,
+  );
+});
+
+test('GUI design-system validator allows pixel_verified with source_partial', () => {
+  const root = createFixture();
+  assert.doesNotThrow(() => validateGuiDesignSystem(root));
 });

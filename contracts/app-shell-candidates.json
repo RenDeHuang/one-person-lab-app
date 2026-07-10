@@ -94,6 +94,29 @@
       "shell_implementation_conformance"
     ],
     "shell_authority": "implementation_only_cannot_redefine_product",
+    "conformance_status_vocabulary": {
+      "contract_status": [
+        "aligned_contract",
+        "current_contract_deviation",
+        "candidate_target",
+        "not_claimed"
+      ],
+      "source_status": [
+        "source_implemented",
+        "source_partial",
+        "source_missing",
+        "source_not_assessed"
+      ],
+      "pixel_status": [
+        "pixel_verified",
+        "pixel_unverified",
+        "pixel_blocked",
+        "not_applicable"
+      ],
+      "axis_policy": "contract_source_pixel_independent",
+      "matrix_row_policy": "every_implementation_requirement_has_both_shells_all_three_axes",
+      "pixel_verified_claim": "fresh_pixels_exist_not_visual_parity_or_release_readiness"
+    },
     "codex_reference": {
       "comparison_baseline": "ChatGPT Codex macOS 26.707.31123 (2026-07-10)",
       "source_usage": "visual_and_interaction_reference_only_no_code_or_brand_copy"
@@ -113,7 +136,9 @@
     },
     "evidence_boundary": {
       "validation_scope": "design_system_governance_consistency_only",
-      "docs_or_visual_qa_can_claim_release_ready": false
+      "docs_or_visual_qa_can_claim_release_ready": false,
+      "pixel_verified_implies_visual_parity": false,
+      "pixel_verified_implies_release_ready": false
     }
   },
   "candidate_policy": {

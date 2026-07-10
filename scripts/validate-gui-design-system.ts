@@ -7,6 +7,12 @@ import { fileURLToPath } from 'node:url';
 type JsonRecord = Record<string, unknown>;
 type ActiveSurfaceState = 'collapsed' | 'visible';
 
+const conformanceStatusVocabulary = {
+  contract_status: ['aligned_contract', 'current_contract_deviation', 'candidate_target', 'not_claimed'],
+  source_status: ['source_implemented', 'source_partial', 'source_missing', 'source_not_assessed'],
+  pixel_status: ['pixel_verified', 'pixel_unverified', 'pixel_blocked', 'not_applicable'],
+} as const;
+
 export type GuiDesignSystemValidation = {
   schema: 'opl_app_gui_design_system_validation.v1';
   status: 'consistent';
@@ -34,6 +40,11 @@ export type GuiDesignSystemValidation = {
     };
   };
   evidence_scope: 'design_system_governance_consistency_only';
+  conformance_matrix: {
+    rows_validated: number;
+    status_axes: ['contract_status', 'source_status', 'pixel_status'];
+    pixel_verified_implies_visual_parity: false;
+  };
   release_ready: false;
 };
 
@@ -143,6 +154,65 @@ function requireExactMarkerLine(text: string, marker: string, label: string, iss
   if (!present) issues.add(`${label} must include exact marker ${marker}`);
 }
 
+function markdownCells(line: string): string[] {
+  return line.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map((cell) => cell.trim());
+}
+
+function requireCellStatus(
+  cell: string,
+  allowed: readonly string[],
+  axis: string,
+  shell: string,
+  requirement: string,
+  issues: Set<string>,
+): void {
+  const matches = allowed.filter((status) => new RegExp(`\\b${status}\\b`).test(cell));
+  if (matches.length !== 1) {
+    issues.add(`conformance row "${requirement}" must declare exactly one ${shell} ${axis}`);
+  }
+}
+
+function validateConformanceMatrix(text: string, issues: Set<string>): number {
+  const lines = text.split(/\r?\n/);
+  const expectedHeader = [
+    '功能或交互要求',
+    'AionUI contract',
+    'AionUI source',
+    'AionUI pixel',
+    'Native contract',
+    'Native source',
+    'Native pixel',
+  ];
+  const headerIndex = lines.findIndex((line) => {
+    const cells = markdownCells(line);
+    return expectedHeader.every((header, index) => cells[index] === header);
+  });
+  if (headerIndex < 0) {
+    issues.add('shell conformance matrix must provide separate contract/source/pixel columns for AionUI and Native');
+    return 0;
+  }
+
+  if (/\baligned-contract\b/.test(text)) {
+    issues.add('shell conformance matrix must not use legacy aligned-contract without independent source and pixel status');
+  }
+
+  let rowsValidated = 0;
+  for (let index = headerIndex + 2; index < lines.length && lines[index].trim().startsWith('|'); index += 1) {
+    const cells = markdownCells(lines[index]);
+    if (cells.length < expectedHeader.length || /^[-: ]+$/.test(cells[0])) continue;
+    const requirement = cells[0] || `row ${index + 1}`;
+    requireCellStatus(cells[1], conformanceStatusVocabulary.contract_status, 'contract_status', 'AionUI', requirement, issues);
+    requireCellStatus(cells[2], conformanceStatusVocabulary.source_status, 'source_status', 'AionUI', requirement, issues);
+    requireCellStatus(cells[3], conformanceStatusVocabulary.pixel_status, 'pixel_status', 'AionUI', requirement, issues);
+    requireCellStatus(cells[4], conformanceStatusVocabulary.contract_status, 'contract_status', 'Native', requirement, issues);
+    requireCellStatus(cells[5], conformanceStatusVocabulary.source_status, 'source_status', 'Native', requirement, issues);
+    requireCellStatus(cells[6], conformanceStatusVocabulary.pixel_status, 'pixel_status', 'Native', requirement, issues);
+    rowsValidated += 1;
+  }
+  if (rowsValidated === 0) issues.add('shell conformance matrix must contain implementation requirement rows');
+  return rowsValidated;
+}
+
 export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemValidation {
   const issues = new Set<string>();
   const registry = readJson(root, 'contracts/app-shell-candidates.json', issues);
@@ -188,6 +258,19 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   }
   if (governance.shell_authority !== 'implementation_only_cannot_redefine_product') {
     issues.add('design_system_governance.shell_authority must keep shells implementation-only');
+  }
+  const declaredStatusVocabulary = record(governance.conformance_status_vocabulary);
+  for (const [axis, statuses] of Object.entries(conformanceStatusVocabulary)) {
+    if (!sameStrings(declaredStatusVocabulary[axis], statuses)) {
+      issues.add(`design_system_governance.conformance_status_vocabulary.${axis} must match the governed status vocabulary`);
+    }
+  }
+  if (
+    declaredStatusVocabulary.axis_policy !== 'contract_source_pixel_independent' ||
+    declaredStatusVocabulary.matrix_row_policy !== 'every_implementation_requirement_has_both_shells_all_three_axes' ||
+    declaredStatusVocabulary.pixel_verified_claim !== 'fresh_pixels_exist_not_visual_parity_or_release_readiness'
+  ) {
+    issues.add('conformance status axes must remain independent and pixel_verified must stay evidence-only');
   }
 
   const mainline = record(registry.active_gui_mainline);
@@ -235,6 +318,8 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     .map((relativePath) => readText(root, relativePath, issues))
     .join('\n');
   const foundationReadme = readText(root, foundationDocs.readme, issues);
+  const conformanceMatrix = readText(root, foundationDocs.shell_conformance_matrix, issues);
+  const conformanceRowsValidated = validateConformanceMatrix(conformanceMatrix, issues);
   if (governedDocsPresent) {
     for (const layer of expectedStack) {
       requireExactMarkerLine(
@@ -355,6 +440,8 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   if (
     evidenceBoundary.validation_scope !== 'design_system_governance_consistency_only' ||
     evidenceBoundary.docs_or_visual_qa_can_claim_release_ready !== false ||
+    evidenceBoundary.pixel_verified_implies_visual_parity !== false ||
+    evidenceBoundary.pixel_verified_implies_release_ready !== false ||
     nativeVisualContract.docs_or_contract_only_completion_allowed !== false
   ) {
     issues.add('design-system validation and visual/docs evidence must not claim release readiness');
@@ -399,6 +486,11 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
       },
     },
     evidence_scope: 'design_system_governance_consistency_only',
+    conformance_matrix: {
+      rows_validated: conformanceRowsValidated,
+      status_axes: ['contract_status', 'source_status', 'pixel_status'],
+      pixel_verified_implies_visual_parity: false,
+    },
     release_ready: false,
   };
 }

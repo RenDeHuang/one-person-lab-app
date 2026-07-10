@@ -50,6 +50,9 @@ OPL App GUI 使用三层设计体系：
 [`shell-conformance-matrix.md`](shell-conformance-matrix.md) 标成明确偏差，再由拥有
 contract 的 lane 决定是否修改 machine truth、实现或目标。
 
+Conformance 必须按 `contract_status`、`source_status`、`pixel_status` 三条独立轴读取；
+`pixel_verified` 只证明存在当前像素证据，不等于视觉对齐或 release-ready。
+
 ## 治理标记（供 validator 读取）
 
 本段只声明入口、authority 和动态默认状态来源，不复制 machine truth：
