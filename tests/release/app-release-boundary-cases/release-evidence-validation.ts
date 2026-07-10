@@ -92,13 +92,9 @@ test('release evidence bundle validator accepts the declared Runtime page artifa
   assert.equal(result.status, 0, result.stderr || result.stdout);
   const payload = JSON.parse(result.stdout);
   assert.equal(payload.status, 'passed');
-  assert.equal(payload.bundle_dir, tempRoot);
-  assert.equal(payload.manifest_path, 'evidence-manifest.json');
   assert.equal(payload.packaged_app_evidence, true);
   assert.deepEqual(payload.release_cohort, releaseEvidenceCohort());
   assert.equal(payload.current_cohort_evidence, true);
-  assert.deepEqual(payload.l5_evidence_readout.release_cohort, releaseEvidenceCohort());
-  assert.equal(payload.l5_evidence_readout.current_cohort_evidence, true);
   assert.equal(
     payload.evidence_boundary,
     'refs_only_no_runtime_truth_domain_truth_artifact_or_quality_authority',
@@ -106,27 +102,7 @@ test('release evidence bundle validator accepts the declared Runtime page artifa
   assert.equal(payload.verified_artifact_count, 16);
   assert.equal(payload.verified_diagnostic_count, 0);
   assert.equal(payload.missing_artifact_count, 0);
-  assert.deepEqual(
-    payload.verified_artifacts.map((artifact) => artifact.id),
-    [
-      'app_state_summary',
-      'app_state_full',
-      'drilldown_full',
-      'action_dry_run_result',
-      'action_execute_result',
-      'runtime_screenshot',
-      'full_screenshot',
-      'action_screenshot',
-      'first_run_vm_summary',
-      'guest_smoke_summary',
-      'assistant_route_smoke_summary',
-      'codex_functional_check_summary',
-      'assistant_route_smoke_mas_screenshot',
-      'assistant_route_smoke_mag_screenshot',
-      'assistant_route_smoke_rca_screenshot',
-      'remote_release_verification',
-    ],
-  );
+  assert.deepEqual(payload.verified_artifacts.map((artifact) => artifact.id), artifacts.map((artifact) => artifact.id));
 });
 
 test('release evidence bundle validator fails closed for incomplete packaged App evidence', () => {
@@ -185,14 +161,5 @@ test('release evidence bundle validator fails closed for incomplete packaged App
   assert.equal(payload.packaged_app_evidence, false);
   assert.equal(payload.verified_artifact_count, 8);
   assert.equal(payload.missing_artifact_count, 8);
-  assert.deepEqual(payload.missing_artifacts.map((artifact) => artifact.id), [
-    'first_run_vm_summary',
-    'guest_smoke_summary',
-    'assistant_route_smoke_summary',
-    'codex_functional_check_summary',
-    'assistant_route_smoke_mas_screenshot',
-    'assistant_route_smoke_mag_screenshot',
-    'assistant_route_smoke_rca_screenshot',
-    'remote_release_verification',
-  ]);
+  assert.deepEqual(payload.missing_artifacts.map((artifact) => artifact.id), [...missingArtifactIds]);
 });

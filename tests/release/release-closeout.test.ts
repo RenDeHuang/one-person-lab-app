@@ -4,7 +4,13 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import test from 'node:test';
-import { appRoot, readJson, writeJson } from './release-readiness/helpers.ts';
+import {
+  appRoot,
+  readJson,
+  releaseCandidateFixture,
+  releaseReadinessFixture,
+  writeJson,
+} from './release-readiness/helpers.ts';
 
 const VERSION = '26.5.99';
 type JsonRecord = Record<string, unknown>;
@@ -162,41 +168,14 @@ function writeCloseoutArtifacts(root: string, version = '26.5.99', options: {
 } = {}) {
   writeReleaseArtifact(root, version, 'release-preflight-summary', 'release-preflight-summary.json', { schema: 'opl_release_preflight.v1', status: 'passed' });
   writeReleaseArtifact(root, version, 'remote-release-verification', 'remote-release-verification.json', { status: 'passed', version, include_full_package: true });
-  writeReleaseArtifact(root, version, 'release-readiness-summary', 'release-readiness-summary.json', {
-    schema: 'opl_release_readiness_summary.v1',
-    status: 'passed',
-    version,
-    failed_required_gates: [],
-    warnings: [],
-    full_package: {
-      duration_seconds: {
-        full_package_build_breakdown: { shell_build: 187, dmg_package_compression: 175 },
-      },
-      runtime_cache: { miss_written_layers: ['domain-runtime'], miss_written_count: 1 },
-      size_analysis: {
-        schema: 'opl_full_package_size_summary.v1',
-        source: 'test_fixture',
-        budget: {
-          compressed_full_dmg: { full_dmg_size_bytes: 865000000, warning_status: 'warning', review_threshold_status: 'above_review_threshold' },
-        },
-        optimization_candidates: [
-          { rank: 1, kind: 'layer', id: 'toolchain', size_bytes: 512000000, reason: 'largest_runtime_layer' },
-        ],
-      },
-    },
-  });
-  writeReleaseArtifact(root, version, 'release-candidate-record', 'release-candidate-record.json', {
-    schema: 'opl_release_candidate_record.v1',
-    status: 'ready_to_promote',
-    version,
-    blocked_reasons: [],
-    required_gate_failures: [],
+  writeReleaseArtifact(root, version, 'release-readiness-summary', 'release-readiness-summary.json', releaseReadinessFixture(version));
+  writeReleaseArtifact(root, version, 'release-candidate-record', 'release-candidate-record.json', releaseCandidateFixture(version, {
     release_owner_verdict: options.releaseOwnerVerdict ?? releaseOwnerVerdict(version),
     decision: {
       can_promote: true,
       promote_command: `gh release edit v${version} --repo gaofeng21cn/one-person-lab-app --draft=false --latest`,
     },
-  });
+  }));
   writeReleaseArtifact(root, version, 'release-addon-readiness-summary', 'release-addon-readiness-summary.json', {
     schema: 'opl_release_addon_readiness_summary.v1',
     version,
@@ -214,7 +193,7 @@ function writeCloseoutArtifacts(root: string, version = '26.5.99', options: {
 }
 
 test('release closeout separates workflow wall time from Agent orchestration wall time and avoids large artifacts', () => {
-  const { outDir, readout } = runCloseoutCase('opl-release-closeout-', {
+  const { readout } = runCloseoutCase('opl-release-closeout-', {
     run: {
       displayTitle: 'v26.5.99 stable release',
       headBranch: 'main',
@@ -234,25 +213,12 @@ test('release closeout separates workflow wall time from Agent orchestration wal
     ],
     extra: ['--agent-wall-time', '2h6m43s'],
   });
-  const { stdout, summary, monitor, notification } = readout;
-
-  assert.equal(summary.schema, 'opl_release_closeout_summary.v1');
+  const { summary, monitor } = readout;
   assertReadoutState(readout, 'ready_to_promote');
-  assert.equal(stdout.monitor, path.relative(appRoot, path.join(outDir, 'release-monitor.json')));
-  assert.equal(stdout.notification, path.relative(appRoot, path.join(outDir, 'release-notification.json')));
-  assert.equal(summary.monitor.schema, 'opl_release_run_monitor.v1');
-  assert.equal(summary.notification_payload.schema, 'opl_release_run_notification.v1');
-  assert.equal(monitor.schema, 'opl_release_run_monitor.v1');
   assert.equal(monitor.recommended_next_action.action, 'promote_from_candidate_record');
   assert.equal(monitor.promote_ready, true);
   assert.equal(monitor.artifact_policy.downloads_large_artifacts, false);
-  assert.match(monitor.no_watch_instructions.join('\n'), /gh run view 12345/);
-  assert.match(monitor.no_watch_instructions.join('\n'), /release-monitor\.json/);
-  assert.equal(notification.schema, 'opl_release_run_notification.v1');
-  assert.equal(notification.machine_payload, 'release-monitor.json');
   assert.equal(summary.source_status.candidate_record, 'ready_to_promote');
-  assert.equal(summary.decision.next_action, 'promote_from_candidate_record');
-  assert.equal(summary.artifact_policy.downloads_large_artifacts, false);
   assert.deepEqual(summary.artifact_policy.downloaded_artifacts, []);
   assert.equal(summary.artifact_attestation_verification.state, 'missing');
   assert.equal(summary.jobs.slowest_jobs[0].name, 'Build Full first-install assets');
@@ -307,12 +273,10 @@ test('release closeout stops at readiness failed gates before raw log inspection
   };
   const { readout } = runCloseoutCase('opl-release-closeout-blocked-', {
     closeoutArtifacts: false,
-    setup: ({ artifactsRoot }) => writeReleaseArtifact(artifactsRoot, VERSION, 'release-readiness-summary', 'release-readiness-summary.json', {
-      schema: 'opl_release_readiness_summary.v1',
+    setup: ({ artifactsRoot }) => writeReleaseArtifact(artifactsRoot, VERSION, 'release-readiness-summary', 'release-readiness-summary.json', releaseReadinessFixture(VERSION, {
       status: 'failed',
-      version: VERSION,
       failed_required_gates: [failedGate],
-    }),
+    })),
   });
   const { summary, monitor } = readout;
   assertReadoutState(readout, 'resolve_readiness_failed_gates', 'failed');

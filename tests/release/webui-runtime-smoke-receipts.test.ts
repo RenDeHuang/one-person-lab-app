@@ -120,39 +120,17 @@ function startupMaintenance() {
 }
 
 function startupMaintenanceWithFrameworkManualRequired() {
-  return proxyEnvelope('startup_maintenance', 'opl system startup-maintenance --json', {
-    version: 'g2',
-    system_action: {
-      action: 'startup_maintenance',
-      status: 'manual_required',
-      workspace_root: {
-        selected_path: '/projects',
-        health_status: 'ready',
-      },
-      details: {
-        surface_kind: 'opl_app_startup_maintenance',
-        summary: {
-          total_targets_count: 1,
-        },
-        seed_boundary: {
-          surface_kind: 'opl_seed_install_manifest',
-          install: {
-            data_dir: '/data',
-            projects_dir: '/projects',
-            manifest_file: '/data/opl/state/install-manifest.json',
-          },
-        },
-        framework_targets: [
-          {
-            target_type: 'framework',
-            target_id: 'opl-framework',
-            status: 'manual_required',
-            reason: 'framework_update_target_invalid',
-          },
-        ],
-      },
-    },
-  });
+  const envelope = structuredClone(startupMaintenance());
+  const action = envelope.data.parsed.system_action;
+  action.status = 'manual_required';
+  action.details.framework_targets = [{
+    target_type: 'framework',
+    target_id: 'opl-framework',
+    status: 'manual_required',
+    reason: 'framework_update_target_invalid',
+  }];
+  envelope.data.stdout = JSON.stringify(envelope.data.parsed);
+  return envelope;
 }
 
 function managedUpdateComponent(id: string) {
@@ -189,6 +167,20 @@ function runtimeSubstrateWithFrameworkUpdate() {
   };
 }
 
+const managedUpdateIds = [
+  'installation_carrier',
+  'runtime_substrate',
+  'capability_packages',
+  'codex_surface',
+  'companion_tools',
+];
+
+function managedUpdateComponents(runtimeSubstrate = managedUpdateComponent('runtime_substrate')) {
+  return managedUpdateIds.map((id) => (
+    id === 'runtime_substrate' ? runtimeSubstrate : managedUpdateComponent(id)
+  ));
+}
+
 function updateStatus(overrides: Record<string, unknown> = {}) {
   return proxyEnvelope('update_status', 'opl update status --json', {
     version: 'g2',
@@ -201,13 +193,7 @@ function updateStatus(overrides: Record<string, unknown> = {}) {
         health_status: 'ready',
       },
       lifecycle: ['read_manifest', 'verify', 'activate', 'write_receipt', 'report_status_or_repair'],
-      components: [
-        'installation_carrier',
-        'runtime_substrate',
-        'capability_packages',
-        'codex_surface',
-        'companion_tools',
-      ].map((id) => managedUpdateComponent(id)),
+      components: managedUpdateComponents(),
       receipts: {
         component_receipt_schema: 'opl_managed_update_component_receipt.v1',
         component_receipt_ledger_file: '/data/opl/state/managed-update-component-receipts.json',
@@ -259,13 +245,7 @@ test('WebUI runtime smoke receipt validator accepts seed, migration, and managed
 test('WebUI runtime smoke receipt validator accepts framework self-update pending runtime_substrate apply', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-runtime-receipts-'));
   const update = updateStatus({
-    components: [
-      managedUpdateComponent('installation_carrier'),
-      runtimeSubstrateWithFrameworkUpdate(),
-      managedUpdateComponent('capability_packages'),
-      managedUpdateComponent('codex_surface'),
-      managedUpdateComponent('companion_tools'),
-    ],
+    components: managedUpdateComponents(runtimeSubstrateWithFrameworkUpdate()),
   });
   writeJson(root, 'startup.json', startupMaintenanceWithFrameworkManualRequired());
   writeJson(root, 'update.json', update);
@@ -293,13 +273,10 @@ test('WebUI runtime smoke receipt validator rejects missing /projects migration 
 test('WebUI runtime smoke receipt validator rejects managed update components without receipt schema', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-runtime-receipts-'));
   const update = updateStatus({
-    components: [
-      managedUpdateComponent('installation_carrier'),
-      { ...managedUpdateComponent('runtime_substrate'), receipt: { required: true } },
-      managedUpdateComponent('capability_packages'),
-      managedUpdateComponent('codex_surface'),
-      managedUpdateComponent('companion_tools'),
-    ],
+    components: managedUpdateComponents({
+      ...managedUpdateComponent('runtime_substrate'),
+      receipt: { required: true },
+    }),
   });
   writeJson(root, 'startup.json', startupMaintenance());
   writeJson(root, 'update.json', update);

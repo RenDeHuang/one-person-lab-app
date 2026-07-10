@@ -7,15 +7,14 @@ import test from 'node:test';
 import { validateDockerWebuiDiagnostics } from '../../scripts/validate-docker-webui-diagnostics.ts';
 import { validateDockerWebuiSmokeGateResult } from '../../scripts/docker-webui-smoke-gate.ts';
 import { appRoot } from './release-readiness/helpers.ts';
+import {
+  dockerWebuiImageDigest as imageDigest,
+  dockerWebuiRepoDigest as repoDigest,
+  writeDockerWebuiDiagnostics,
+} from './docker-webui-fixtures.ts';
 
 const smokeGatePath = path.join(appRoot, 'scripts', 'docker-webui-smoke-gate.ts');
-const webuiImageRef = 'ghcr.io/gaofeng21cn/one-person-lab-webui:stable';
-const imageDigest = 'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 const remoteImageDigest = 'sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
-
-function repoDigest(digest = imageDigest) {
-  return `ghcr.io/gaofeng21cn/one-person-lab-webui@${digest}`;
-}
 
 function imageIdentity(fields: Record<string, unknown> = {}) {
   return {
@@ -35,63 +34,20 @@ function ordinaryUserStep(summary: string, evidence_ref: string, next_action: st
 }
 
 function ordinaryUserStatus() {
-  const steps: Array<[string, string, string, string?]> = [
-    ['one_click_install', 'One-click installer creates compose.yaml, host data/projects directories, and starts the WebUI image.', '/tmp/artifact/home/OnePersonLab/compose.yaml'],
-    ['browser_webui', 'Open the browser WebUI at http://localhost:3000/.', '/tmp/artifact/diagnostics/http-probe.txt'],
-    ['access_key_settings', 'Access keys are entered in the WebUI first-run Access panel or Settings -> Access.', '/tmp/artifact/api-key-flow-evidence.json'],
-    ['runtime_proxy', 'The WebUI runtime proxy calls /api/opl-runtime/configure-codex and forwards the key through stdin transport.', '/tmp/artifact/api-key-flow-evidence.json'],
-    ['startup_recovery', 'Startup diagnostics are redacted and show what to retry or repair for Docker, port, image, or data issues.', '/tmp/artifact/diagnostics'],
-    ['data_preservation', 'Host OnePersonLab/data and OnePersonLab/projects stay mounted and preserved across image/container replacement.', '/tmp/artifact/diagnostics/data-preservation.txt'],
-    ['host_update', 'Host updates rerun the installer or explicit update mode to pull the WebUI image and recreate the compose service.', '/tmp/artifact/home/OnePersonLab/compose.yaml', 'Use install-docker-webui.sh --update or install-docker-webui.ps1 -Update when the host image should be updated.'],
-  ];
-  return Object.fromEntries(
-    steps.map(([key, summary, evidenceRef, nextAction]) => [
-      key,
-      ordinaryUserStep(summary, evidenceRef, nextAction ?? null),
-    ]),
-  );
+  return Object.fromEntries([
+    'one_click_install',
+    'browser_webui',
+    'access_key_settings',
+    'runtime_proxy',
+    'startup_recovery',
+    'data_preservation',
+    'host_update',
+  ].map((key) => [key, ordinaryUserStep(key, `/tmp/artifact/${key}`)]));
 }
 
 function runSmokeGateValidation(resultPath: string) {
   const args = ['--experimental-strip-types', smokeGatePath, '--validate-result', resultPath, '--json'];
   return spawnSync(process.execPath, args, { cwd: appRoot, encoding: 'utf8' });
-}
-
-function writeCompleteDiagnostics(root: string) {
-  const files = {
-    'metadata.txt': 'gate=existing_docker\n',
-    'diagnostics-manifest.json': JSON.stringify({ schema: 'opl_docker_webui_diagnostics_manifest.v1' }),
-    'compose.yaml': [
-      'services:',
-      '  webui:',
-      `    image: ${webuiImageRef}`,
-      '    environment:',
-      '      AIONUI_DATA_DIR: /data',
-      '      OPL_PROJECTS_DIR: /projects',
-      '    volumes:',
-      '      - "/tmp/data:/data"',
-      '      - "/tmp/projects:/projects"',
-      '',
-    ].join('\n'),
-    'docker-version.txt': 'Docker version 27.0.0\n',
-    'docker-compose-version.txt': 'Docker Compose version v2.0.0\n',
-    'docker-compose-ps.txt': 'webui running\n',
-    'docker-compose-logs.txt': 'ready\n',
-    'docker-image.txt': JSON.stringify([
-      {
-        Id: imageDigest,
-        RepoDigests: [repoDigest()],
-      },
-    ]),
-    'http-probe.txt': 'url=http://localhost:3000/\nstatus=200\n',
-    'directories.txt': 'data_dir=/tmp/data\nprojects_dir=/tmp/projects\n',
-    'data-preservation.txt':
-      'verdict=preserved_or_reused\n[pre_data_inventory]\nexists=true\n[post_data_inventory]\nexists=true\n[pre_projects_inventory]\nexists=true\n[post_projects_inventory]\nexists=true\n',
-  };
-  fs.mkdirSync(root, { recursive: true });
-  for (const [file, contents] of Object.entries(files)) {
-    fs.writeFileSync(path.join(root, file), `${contents}`);
-  }
 }
 
 function completeGateResult() {
@@ -108,50 +64,19 @@ function completeGateResult() {
     diagnostics_dir: '/tmp/artifact/diagnostics',
     diagnostics_validation: {
       status: 'passed',
-      compose_volume_mapping: {
-        status: 'passed',
-        required_mounts: ['host_data_dir -> /data', 'host_projects_dir -> /projects'],
-        missing_mounts: [],
-      },
-      preservation_evidence: {
-        status: 'passed',
-        required_sections: [
-          'pre_data_inventory',
-          'post_data_inventory',
-          'pre_projects_inventory',
-          'post_projects_inventory',
-        ],
-        missing_sections: [],
-      },
+      compose_volume_mapping: { status: 'passed' },
+      preservation_evidence: { status: 'passed' },
       image_identity: {
         status: 'passed',
-        image_id: imageDigest,
         ...imageIdentity(),
       },
     },
-    health: { url: 'http://localhost:3000/', status: 'passed', http_status: 200 },
-    compose: { path: '/tmp/artifact/home/OnePersonLab/compose.yaml', status: 'present' },
-    container: { name: 'one-person-lab-webui', status: 'running', id: 'abc123' },
-    image: {
-      ref: webuiImageRef,
-      status: 'present',
-      id: imageDigest,
-      ...imageIdentity(),
-    },
-    data_preservation: {
-      status: 'passed',
-      verdict: 'preserved_or_reused',
-      summary: 'pre and post inventories captured',
-    },
-    api_key_flow: {
-      status: 'passed',
-      mode: 'webui_proxy_configure_codex',
-      endpoint: 'http://127.0.0.1:3000/api/opl-runtime/configure-codex',
-      command: 'opl system configure-codex --api-key-stdin --json',
-      stdin_transport: true,
-      receipt_path: '/tmp/artifact/api-key-flow-evidence.json',
-      errors: [],
-    },
+    health: { status: 'passed' },
+    compose: { status: 'present' },
+    container: {},
+    image: { status: 'present', ...imageIdentity() },
+    data_preservation: { status: 'passed' },
+    api_key_flow: { status: 'passed', stdin_transport: true },
     ordinary_user_status: {
       path_id: 'ordinary_docker_webui_user_path',
       priority: 'ordinary_user_path_before_evidence_bundle_language',
@@ -165,7 +90,7 @@ function completeGateResult() {
         'release_ready',
       ],
     },
-    secret_scan: { status: 'passed', forbidden_secret_markers: [] },
+    secret_scan: { status: 'passed' },
     commands: [],
     evidence: {},
   };
@@ -190,7 +115,7 @@ test('Docker/WebUI diagnostics validator fails when manifest, compose, logs, or 
     'data-preservation.txt',
   ]) {
     const diagnostics = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-diagnostics-schema-'));
-    writeCompleteDiagnostics(diagnostics);
+    writeDockerWebuiDiagnostics(diagnostics);
     fs.rmSync(path.join(diagnostics, requiredFile));
 
     const result = validateDockerWebuiDiagnostics(diagnostics);
@@ -201,7 +126,7 @@ test('Docker/WebUI diagnostics validator fails when manifest, compose, logs, or 
 
 test('Docker/WebUI diagnostics validator rejects secret-like content in required files', () => {
   const diagnostics = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-diagnostics-secret-'));
-  writeCompleteDiagnostics(diagnostics);
+  writeDockerWebuiDiagnostics(diagnostics);
   fs.writeFileSync(path.join(diagnostics, 'docker-compose-logs.txt'), 'Bearer abcdefghijklmnopqrstuvwxyz123456\n');
 
   const result = validateDockerWebuiDiagnostics(diagnostics);
@@ -211,7 +136,7 @@ test('Docker/WebUI diagnostics validator rejects secret-like content in required
 
 test('Docker/WebUI diagnostics validator requires compose mounts, preservation inventories, and image digest identity', () => {
   const diagnostics = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-diagnostics-proof-'));
-  writeCompleteDiagnostics(diagnostics);
+  writeDockerWebuiDiagnostics(diagnostics);
   assert.equal(validateDockerWebuiDiagnostics(diagnostics).status, 'passed');
 
   fs.writeFileSync(
@@ -223,7 +148,7 @@ test('Docker/WebUI diagnostics validator requires compose mounts, preservation i
   assert.ok(missingMounts.invalid_evidence.includes('compose.yaml:host_data_dir -> /data'));
   assert.ok(missingMounts.invalid_evidence.includes('compose.yaml:host_projects_dir -> /projects'));
 
-  writeCompleteDiagnostics(diagnostics);
+  writeDockerWebuiDiagnostics(diagnostics);
   fs.writeFileSync(
     path.join(diagnostics, 'data-preservation.txt'),
     'verdict=preserved_or_reused\n[pre_data_inventory]\nexists=true\n[post_data_inventory]\nexists=true\n',
@@ -233,7 +158,7 @@ test('Docker/WebUI diagnostics validator requires compose mounts, preservation i
   assert.ok(missingProjectsInventory.invalid_evidence.includes('data-preservation.txt:pre_projects_inventory'));
   assert.ok(missingProjectsInventory.invalid_evidence.includes('data-preservation.txt:post_projects_inventory'));
 
-  writeCompleteDiagnostics(diagnostics);
+  writeDockerWebuiDiagnostics(diagnostics);
   fs.writeFileSync(path.join(diagnostics, 'docker-image.txt'), JSON.stringify([{ Id: 'sha256:not-a-real-digest' }]));
   const missingDigest = validateDockerWebuiDiagnostics(diagnostics);
   assert.equal(missingDigest.status, 'failed');
@@ -243,7 +168,7 @@ test('Docker/WebUI diagnostics validator requires compose mounts, preservation i
 
 test('Docker/WebUI diagnostics validator treats remote image currentness as optional status-only evidence', () => {
   const diagnostics = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-diagnostics-currentness-'));
-  writeCompleteDiagnostics(diagnostics);
+  writeDockerWebuiDiagnostics(diagnostics);
 
   const notChecked = validateDockerWebuiDiagnostics(diagnostics);
   assert.equal(notChecked.status, 'passed');
@@ -266,7 +191,7 @@ test('Docker/WebUI diagnostics validator treats remote image currentness as opti
 
 test('Docker/WebUI diagnostics validator accepts Docker inspect capture output with a command prefix', () => {
   const diagnostics = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-diagnostics-image-capture-'));
-  writeCompleteDiagnostics(diagnostics);
+  writeDockerWebuiDiagnostics(diagnostics);
   fs.writeFileSync(
     path.join(diagnostics, 'docker-image.txt'),
     [

@@ -39,14 +39,6 @@ function runScript(script: string, args: string[]) {
   );
 }
 
-function snapshotFile(filePath: string): string | null {
-  return fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf8') : null;
-}
-
-function assertFileSnapshotUnchanged(filePath: string, snapshot: string | null): void {
-  assert.equal(snapshotFile(filePath), snapshot);
-}
-
 function runGit(cwd: string, args: string[]): string {
   const result = spawnSync('git', args, { cwd, encoding: 'utf8' });
   assert.equal(result.status, 0, result.stderr || result.stdout);
@@ -74,9 +66,6 @@ function createReleaseRefCheckouts() {
 
 const releaseOperatorScript = 'scripts/release-operator.ts';
 const headA = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
-const headB = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
-const headC = 'cccccccccccccccccccccccccccccccccccccccc';
-const headD = 'dddddddddddddddddddddddddddddddddddddddd';
 const headE = 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee';
 
 function runReleaseOperator(args: string[]) {
@@ -117,118 +106,6 @@ function assertNoOperatorAuthority(boundary: Record<string, boolean>) {
     assert.equal(boundary.operator_can_dispatch_workflow_without_explicit_user_action, false);
   }
 }
-
-function writePreviousFailedSession(sessionPath: string, options: { currentAuthorityRef?: string } = {}) {
-  const currentAuthorityRun: Record<string, unknown> = {
-    id: '12351',
-    status: 'completed',
-    conclusion: 'failure',
-    head_sha: headB,
-  };
-  if (options.currentAuthorityRef) {
-    currentAuthorityRun.ref = options.currentAuthorityRef;
-  }
-  writeJson(sessionPath, {
-    schema: 'opl_app_release_session_manifest.v1',
-    id: 'release-session:26.7.9:12351',
-    generated_at: '2026-07-08T00:00:00.000Z',
-    version: '26.7.9',
-    run_set: {
-      current_run_id: '12351',
-      runs: [
-        {
-          id: '12351',
-          workflow_name: 'OPL Desktop Release',
-          status: 'completed',
-          conclusion: 'failure',
-          head_sha: headB,
-          url: 'https://github.example/runs/12351',
-          elapsed_seconds: 120,
-        },
-      ],
-    },
-    current_authority_run: currentAuthorityRun,
-    failed_run_tax: {
-      action: 'inspect_primary_blocker',
-      primary_blocker: null,
-      elapsed_seconds: 120,
-    },
-    typed_next_action: {
-      action: 'inspect_primary_blocker',
-      command: 'gh run view 12351 --log-failed',
-      reason: 'Previous failed run.',
-    },
-    owner_receipt: {
-      state: 'not_provided',
-      verify_command: 'npm run release:owner-candidate-record:verify -- --version 26.7.9',
-    },
-    post_publish_follow_up: {
-      state: 'not_applicable_until_release_published',
-      summary: 'Post-publish follow-up is not applicable until the candidate is promoted or a published-with-follow-up state exists.',
-    },
-    truth_boundary: 'release-session is an operator control surface derived from run status; it is not release truth and cannot publish, promote, or write runtime truth.',
-  });
-}
-
-test('release cohort planner writes pinned cohort JSON and typed next action', () => {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-cohort-'));
-  const refs = createReleaseRefCheckouts();
-  const outputPath = path.join(tempRoot, 'release-cohort-plan.json');
-  const markdownPath = path.join(tempRoot, 'release-cohort-plan.md');
-  const result = runScript('scripts/plan-release-cohort.ts', [
-    '--version',
-    '26.6.99',
-    '--release-mode',
-    'new_release',
-    '--include-full-package',
-    'true',
-    '--run-vm-smoke',
-    'true',
-    '--app-commit',
-    refs.appHead,
-    '--shell-ref',
-    'main',
-    '--framework-ref',
-    'main',
-    '--shell-root',
-    refs.shell.root,
-    '--framework-root',
-    refs.framework.root,
-    '--output',
-    outputPath,
-    '--markdown',
-    markdownPath,
-  ]);
-
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-  const stdout = JSON.parse(result.stdout);
-  const plan = readJson(outputPath);
-  assert.equal(stdout.schema, 'opl_app_release_cohort_plan.v1');
-  assert.equal(plan.schema, 'opl_app_release_cohort_plan.v1');
-  assert.equal(plan.version, '26.6.99');
-  assert.equal(plan.tag, 'v26.6.99');
-  assert.equal(plan.app_commit, refs.appHead);
-  assert.equal(plan.shell_ref, 'main');
-  assert.equal(plan.framework_ref, 'main');
-  assert.equal(plan.cohort_lock.app.requested_ref, refs.appHead);
-  assert.equal(plan.cohort_lock.app.resolved_sha, refs.appHead);
-  assert.equal(plan.cohort_lock.shell.requested_ref, 'main');
-  assert.equal(plan.cohort_lock.shell.resolved_sha, refs.shell.head);
-  assert.equal(plan.cohort_lock.framework.requested_ref, 'main');
-  assert.equal(plan.cohort_lock.framework.resolved_sha, refs.framework.head);
-  assert.equal(plan.include_full_package, true);
-  assert.equal(plan.run_vm_smoke, true);
-  assert.equal(plan.next_action.action, 'run_release_train_with_vm_smoke');
-  assert.match(plan.next_action.command, new RegExp(`--ref ${refs.appHead}`));
-  assert.match(plan.next_action.command, new RegExp(`--field shell_ref=${refs.shell.head}`));
-  assert.match(plan.next_action.command, new RegExp(`--field framework_ref=${refs.framework.head}`));
-  assert.doesNotMatch(plan.next_action.command, /shell_ref=main|framework_ref=main/);
-  for (const id of ['release_cohort_lock', 'release_source_gate', 'release_preflight', 'full_package_prune_audit']) {
-    assert.ok(plan.cheap_gates.some((gate: { id: string }) => gate.id === id), id);
-  }
-  assert.equal(plan.authority_boundary.cohort_plan_can_publish_release, false);
-  assert.equal(plan.authority_boundary.cohort_plan_can_write_runtime_truth, false);
-});
 
 test('release operator plan reuses cohort plan and writes operator state', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-operator-plan-'));

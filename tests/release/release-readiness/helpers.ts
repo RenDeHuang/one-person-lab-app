@@ -16,3 +16,25 @@ export function writeJson(filePath: string, payload: unknown) {
 export function readJson(filePath: string) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));
 }
+
+export function releaseReadinessFixture(version: string, fields: Record<string, unknown> = {}) {
+  return {
+    schema: 'opl_release_readiness_summary.v1',
+    status: 'passed',
+    version,
+    failed_required_gates: [],
+    warnings: [],
+    ...fields,
+  };
+}
+
+export function releaseCandidateFixture(version: string, fields: Record<string, unknown> = {}) {
+  return {
+    schema: 'opl_release_candidate_record.v1',
+    status: 'ready_to_promote',
+    version,
+    blocked_reasons: [],
+    required_gate_failures: [],
+    ...fields,
+  };
+}

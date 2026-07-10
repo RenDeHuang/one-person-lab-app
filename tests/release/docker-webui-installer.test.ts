@@ -5,23 +5,14 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
+import {
+  dockerWebuiImageDigest as imageDigest,
+  writeDockerWebuiDiagnostics,
+} from './docker-webui-fixtures.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const installerPath = path.join(appRoot, 'scripts', 'install-docker-webui.sh');
 const smokeGatePath = path.join(appRoot, 'scripts', 'docker-webui-smoke-gate.ts');
-const imageDigest = 'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
-const diagnosticsFiles = [
-  'metadata.txt',
-  'diagnostics-manifest.json',
-  'compose.yaml',
-  'docker-version.txt',
-  'docker-compose-version.txt',
-  'docker-compose-ps.txt',
-  'docker-compose-logs.txt',
-  'docker-image.txt',
-  'http-probe.txt',
-  'directories.txt',
-] as const;
 
 function runInstaller(args: string[], env: NodeJS.ProcessEnv = {}) {
   return spawnSync('bash', [installerPath, ...args], {
@@ -31,44 +22,9 @@ function runInstaller(args: string[], env: NodeJS.ProcessEnv = {}) {
   });
 }
 
-function writeMinimalDiagnostics(diagnostics: string) {
-  fs.mkdirSync(diagnostics, { recursive: true });
-  for (const file of diagnosticsFiles) {
-    let content = `${file}\n`;
-    if (file === 'http-probe.txt') {
-      content = 'url=http://localhost:3000/\nstatus=200\n';
-    } else if (file === 'compose.yaml') {
-      content = [
-        'services:',
-        '  webui:',
-        '    image: ghcr.io/gaofeng21cn/one-person-lab-webui:stable',
-        '    environment:',
-        '      AIONUI_DATA_DIR: /data',
-        '      OPL_PROJECTS_DIR: /projects',
-        '    volumes:',
-        '      - "/tmp/data:/data"',
-        '      - "/tmp/projects:/projects"',
-        '',
-      ].join('\n');
-    } else if (file === 'docker-image.txt') {
-      content = JSON.stringify([
-        {
-          Id: imageDigest,
-          RepoDigests: [`ghcr.io/gaofeng21cn/one-person-lab-webui@${imageDigest}`],
-        },
-      ]);
-    }
-    fs.writeFileSync(path.join(diagnostics, file), content);
-  }
-  fs.writeFileSync(
-    path.join(diagnostics, 'data-preservation.txt'),
-    'verdict=preserved_or_reused\n[pre_data_inventory]\nexists=true\n[post_data_inventory]\nexists=true\n[pre_projects_inventory]\nexists=true\n[post_projects_inventory]\nexists=true\n',
-  );
-}
-
 function writeWindowsEvidence(root: string, overrides: Record<string, unknown> = {}) {
   const diagnostics = path.join(root, 'diagnostics');
-  writeMinimalDiagnostics(diagnostics);
+  writeDockerWebuiDiagnostics(diagnostics);
   fs.writeFileSync(
     path.join(root, 'api-key-flow-evidence.json'),
     `${JSON.stringify(

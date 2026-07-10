@@ -4,7 +4,12 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import test from 'node:test';
-import { appRoot, writeJson } from './release-readiness/helpers.ts';
+import {
+  appRoot,
+  releaseCandidateFixture,
+  releaseReadinessFixture,
+  writeJson,
+} from './release-readiness/helpers.ts';
 
 function runCohortManifest(args: string[]) {
   return spawnSync(
@@ -24,10 +29,7 @@ test('release cohort manifest binds candidate, readiness, remote assets, and ret
   const outputPath = path.join(tempRoot, 'release-cohort-manifest.json');
   const markdownPath = path.join(tempRoot, 'release-cohort-manifest.md');
 
-  writeJson(candidatePath, {
-    schema: 'opl_release_candidate_record.v1',
-    status: 'ready_to_promote',
-    version: '26.7.5',
+  writeJson(candidatePath, releaseCandidateFixture('26.7.5', {
     release_mode: 'refresh_existing',
     inputs: {
       include_full_package: true,
@@ -45,10 +47,8 @@ test('release cohort manifest binds candidate, readiness, remote assets, and ret
         commit: '2222222222222222222222222222222222222222',
       },
     },
-  });
-  writeJson(readinessPath, {
-    schema: 'opl_release_readiness_summary.v1',
-    status: 'passed',
+  }));
+  writeJson(readinessPath, releaseReadinessFixture('26.7.5', {
     gates: {
       remote_release_verification: {
         status: 'passed',
@@ -63,7 +63,7 @@ test('release cohort manifest binds candidate, readiness, remote assets, and ret
         artifact_path: 'opl-first-run-vm-full-12345/tart-smoke-summary.json',
       },
     },
-  });
+  }));
   writeJson(remotePath, {
     schema: 'opl_remote_release_verification.v1',
     status: 'passed',

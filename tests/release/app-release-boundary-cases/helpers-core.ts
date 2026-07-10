@@ -429,18 +429,6 @@ export function writeFakeMacosTrustCommands(binDir, options = {}) {
   );
 }
 
-function readAppJson(...segments) {
-  return JSON.parse(fs.readFileSync(path.join(appRoot, ...segments), "utf8"));
-}
-
-export function readProductProfile() {
-  return readAppJson("contracts", "app-product-profile.json");
-}
-
-export function readInstallExposurePolicy() {
-  return readAppJson("contracts", "app-install-exposure-policy.json");
-}
-
 export function walkFiles(dir) {
   return fs
     .readdirSync(dir, { withFileTypes: true })
@@ -449,8 +437,4 @@ export function walkFiles(dir) {
       const entryPath = path.join(dir, entry.name);
       return entry.isDirectory() ? walkFiles(entryPath) : entry.isFile() ? [entryPath] : [];
     });
-}
-
-export function matchCount(source, pattern) {
-  return Array.from(source.matchAll(pattern)).length;
 }

@@ -77,10 +77,3 @@ ${zhMarkdown.trimEnd()}
 -->
 `;
 }
-
-export function stripLocalizedReleaseNotesForTest(markdown) {
-  return `${markdown
-    .replace(/<!--\s*OPL_RELEASE_NOTES:[A-Za-z-]+\s*\n[\s\S]*?\n?-->\s*/g, '')
-    .replace(/<!--\s*OPL_RELEASE_NOTES:[A-Za-z-]+\s*-->[\s\S]*?<!--\s*\/OPL_RELEASE_NOTES:[A-Za-z-]+\s*-->\s*/g, '')
-    .trimEnd()}\n`;
-}

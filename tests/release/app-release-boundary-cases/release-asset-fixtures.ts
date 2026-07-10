@@ -7,6 +7,8 @@ import {
   writeExecutable,
   writeFile,
 } from './helpers-core.ts';
+import { buildFullPackageManifest } from '../../../scripts/full-first-install-package.ts';
+import { withFullPackageOptimization } from '../../../scripts/build-full-first-install-package/package-optimization.ts';
 
 const FULL_BUNDLED_EVIDENCE_ASSET_NAMES = [
   'full-package-manifest.json',
@@ -15,13 +17,6 @@ const FULL_BUNDLED_EVIDENCE_ASSET_NAMES = [
   'full-runtime-native-trust.json',
   'full-app-bundle-trim-report.json',
   'full-package-boundary-audit.json',
-];
-
-const FULL_LEGACY_SEPARATE_ASSET_NAMES = [
-  ...FULL_BUNDLED_EVIDENCE_ASSET_NAMES,
-  'README-Full-First-Install.txt',
-  'SHA256SUMS.txt',
-  'full-local-authorization-policy.json',
 ];
 
 export function writeReleaseMetadata(outDir, version, assetName) {
@@ -207,7 +202,7 @@ export function writeStandardRemoteAssets(outDir, version, options = {}) {
   return names;
 }
 
-export function writeFullRemoteAssets(outDir, version, options = {}) {
+export function writeFullRemoteAssets(outDir, version) {
   const fullDmgName = `One-Person-Lab-Full-${version}-mac-arm64.dmg`;
   const protectedPayloads = [
     'Contents/Resources/opl-full-runtime',
@@ -246,58 +241,35 @@ export function writeFullRemoteAssets(outDir, version, options = {}) {
       electron_framework: { path: protectedPayloads[3], owner: 'active_shell/electron', exists: true, size_bytes: 512 },
     },
   };
-  const manifest = {
-    manifest_version: 2,
+  const nativeTrust = {
+    schema: 'opl_full_runtime_native_trust.v1',
+    status: 'passed',
+    executable_count: 1,
+    executables: [{
+      relative_path: 'runtime/current/node/bin/node',
+      assessment_kind: 'launched_executable',
+      codesign_status: 'passed',
+      spctl_status: 'passed',
+      team_identifier: 'TESTTEAMID',
+      signature: 'Developer ID Application: Test',
+      quarantine_status: 'absent',
+      provenance_status: 'absent',
+    }],
+  };
+  const manifest = withFullPackageOptimization(buildFullPackageManifest({
     version,
-    package_kind: 'opl_full_first_install_macos_arm64',
-    size_budget: {
-      platform_scope: 'macos-arm64',
-      warning_full_dmg_bytes: 700000000,
-      max_full_dmg_bytes: 750000000,
-      max_runtime_uncompressed_bytes: 1000000000,
-    },
-    measurement_policy: {
-      full_dmg_bytes: 'github_release_asset_size_bytes',
-      runtime_uncompressed_bytes: 'manifest_size_breakdown_total_runtime_uncompressed_bytes',
-    },
-    runtime_assertions: {
+    runtimeAssertions: {
       temporal_core_bridge_releases: ['aarch64-apple-darwin'],
       excluded_module_venv_count: 0,
     },
-    size_breakdown: {
+    nativeTrust,
+    sizeBreakdown: {
       total_runtime_uncompressed_bytes: 128,
       layers: {
         toolchain: { size_bytes: 64 },
         'domain-runtime': { size_bytes: 32 },
         'opl-runtime': { size_bytes: 24 },
         skills: { size_bytes: 8 },
-      },
-    },
-    distribution: { updater_metadata_allowed: false },
-    package_optimization: {
-      schema: 'opl_full_package_optimization.v1',
-      offline_first_install_completeness_preserved: true,
-      size_review_release_blocking_by_size_alone: false,
-      app_bundle_trim: {
-        schema: trimReport.schema,
-        mode: trimReport.mode,
-        before_bytes: trimReport.before_bytes,
-        after_bytes: trimReport.after_bytes,
-        bytes_removed: trimReport.bytes_removed,
-        removed_count: trimReport.removed_count,
-        required_payload_boundary: trimReport.required_payload_boundary,
-      },
-      package_boundary_audit: {
-        schema: boundaryAudit.schema,
-        standard_package_allowed_to_contain_full_runtime:
-          boundaryAudit.standard_app_boundary.standard_package_allowed_to_contain_full_runtime,
-        contains_opl_full_runtime: boundaryAudit.full_package_boundary.contains_opl_full_runtime,
-        contains_shell_runtime: boundaryAudit.full_package_boundary.contains_shell_runtime,
-        dedupe_policy: boundaryAudit.full_package_boundary.dedupe_policy,
-        audited_entries: Object.fromEntries(Object.entries(boundaryAudit.entries).map(([id, entry]) => [
-          id,
-          { path: entry.path, owner: entry.owner, exists: entry.exists, size_bytes: entry.size_bytes },
-        ])),
       },
     },
     components: {
@@ -322,94 +294,58 @@ export function writeFullRemoteAssets(outDir, version, options = {}) {
         archive_size_bytes: 114835528,
       },
     },
-    optional_components: {
+    optionalComponents: {
       bun: { source_path: null, version: null, size_bytes: 0, role: 'optional_bun_cli_runtime_payload', required: false, status: 'not_packaged' },
     },
-    ...(options.manifest ?? {}),
+  }), { trimReport, boundaryAudit });
+  const runtimeCacheEvents = {
+    mode: 'readwrite',
+    dir: '/tmp/opl-full-runtime-cache-test',
+    events: [{
+      layer_id: 'toolchain',
+      key: 'full-runtime-v1-toolchain-test',
+      status: 'hit',
+      read_archive: true,
+      write_archive: false,
+      build_layer: false,
+    }],
   };
-  writeFile(path.join(outDir, fullDmgName), options.dmgContent ?? 'full-dmg');
-  writeFile(path.join(outDir, 'full-package-manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
-  writeFullLocalAuthorizationPolicy(outDir);
-  writeFullRuntimeNativeTrust(outDir);
+  const runtimeCurrentnessProbe = {
+    schema: 'opl_full_runtime_currentness_probe.v1',
+    status: 'passed',
+    framework_commit: 'a'.repeat(40),
+    managed_update_surface_id: 'opl_managed_updater_kernel',
+    managed_update_components: ['installation_carrier', 'runtime_substrate', 'capability_packages', 'codex_surface', 'companion_tools'],
+    app_state_schema_version: 'opl_app_state.v1',
+    app_state_module_count: 5,
+  };
+  const readme = 'One Person Lab Full First-Install Package\n';
+  writeFile(path.join(outDir, fullDmgName), 'full-dmg');
   writeFile(
-    path.join(outDir, 'full-app-bundle-trim-report.json'),
-    `${JSON.stringify(trimReport, null, 2)}\n`,
-  );
-  writeFile(
-    path.join(outDir, 'full-package-boundary-audit.json'),
-    `${JSON.stringify(boundaryAudit, null, 2)}\n`,
-  );
-  writeFile(
-    path.join(outDir, 'runtime-cache-events.json'),
+    path.join(outDir, 'opl-release-manifest.json'),
     `${JSON.stringify({
-      mode: 'readwrite',
-      dir: '/tmp/opl-full-runtime-cache-test',
-      events: [
-        {
-          layer_id: 'toolchain',
-          key: 'full-runtime-v1-toolchain-test',
-          status: 'hit',
-          read_archive: true,
-          write_archive: false,
-          build_layer: false,
-        },
-      ],
+      schema: 'opl_public_release_manifest.v1',
+      package_kind: 'opl_full_first_install_macos_arm64',
+      version,
+      primary_install_asset: fullDmgName,
+      assets: [{
+        name: fullDmgName,
+        role: 'full_first_install_carrier',
+        size_bytes: fs.statSync(path.join(outDir, fullDmgName)).size,
+        sha256: fileSha256(path.join(outDir, fullDmgName)),
+      }],
+      manifest,
+      evidence: {
+        runtime_cache_events: runtimeCacheEvents,
+        runtime_currentness_probe: runtimeCurrentnessProbe,
+        runtime_native_trust: nativeTrust,
+        app_bundle_trim_report: trimReport,
+        package_boundary_audit: boundaryAudit,
+        local_authorization_policy: JSON.parse(localAuthorizationPolicy('app_full_first_install')),
+        readme_text: readme,
+      },
+      transition_legacy_assets: FULL_BUNDLED_EVIDENCE_ASSET_NAMES,
     }, null, 2)}\n`,
   );
-  writeFile(
-    path.join(outDir, 'full-runtime-currentness-probe.json'),
-    `${JSON.stringify({
-      schema: 'opl_full_runtime_currentness_probe.v1',
-      status: options.currentnessProbe?.status ?? 'passed',
-      framework_commit: options.currentnessProbe?.framework_commit
-        ?? manifest.components?.opl?.git_commit
-        ?? 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-      managed_update_surface_id: options.currentnessProbe?.managed_update_surface_id ?? 'opl_managed_updater_kernel',
-      managed_update_components: options.currentnessProbe?.managed_update_components
-        ?? ['installation_carrier', 'runtime_substrate', 'capability_packages', 'codex_surface', 'companion_tools'],
-      app_state_schema_version: options.currentnessProbe?.app_state_schema_version ?? 'opl_app_state.v1',
-      app_state_module_count: options.currentnessProbe?.app_state_module_count ?? 5,
-    }, null, 2)}\n`,
-  );
-  writeFile(path.join(outDir, 'README-Full-First-Install.txt'), 'One Person Lab Full First-Install Package\n');
-  writeFile(
-    path.join(outDir, 'SHA256SUMS.txt'),
-    [fullDmgName, ...FULL_LEGACY_SEPARATE_ASSET_NAMES.filter((name) => name !== 'SHA256SUMS.txt')]
-      .map((name) => `${fileSha256(path.join(outDir, name))}  ${name}`)
-      .join('\n') + '\n',
-  );
-  if (!options.legacySeparateEvidenceAssets) {
-    writeFile(
-      path.join(outDir, 'opl-release-manifest.json'),
-      `${JSON.stringify({
-        schema: 'opl_public_release_manifest.v1',
-        package_kind: 'opl_full_first_install_macos_arm64',
-        version,
-        primary_install_asset: fullDmgName,
-        assets: [{ name: fullDmgName, role: 'full_first_install_carrier', size_bytes: fs.statSync(path.join(outDir, fullDmgName)).size, sha256: fileSha256(path.join(outDir, fullDmgName)) }],
-        manifest,
-        evidence: {
-          runtime_cache_events: JSON.parse(fs.readFileSync(path.join(outDir, 'runtime-cache-events.json'), 'utf8')),
-          runtime_currentness_probe: JSON.parse(fs.readFileSync(path.join(outDir, 'full-runtime-currentness-probe.json'), 'utf8')),
-          runtime_native_trust: JSON.parse(fs.readFileSync(path.join(outDir, 'full-runtime-native-trust.json'), 'utf8')),
-          app_bundle_trim_report: trimReport,
-          package_boundary_audit: boundaryAudit,
-          local_authorization_policy: JSON.parse(fs.readFileSync(path.join(outDir, 'full-local-authorization-policy.json'), 'utf8')),
-          readme_text: fs.readFileSync(path.join(outDir, 'README-Full-First-Install.txt'), 'utf8'),
-        },
-        transition_legacy_assets: FULL_BUNDLED_EVIDENCE_ASSET_NAMES,
-      }, null, 2)}\n`,
-    );
-    for (const name of FULL_LEGACY_SEPARATE_ASSET_NAMES) {
-      fs.rmSync(path.join(outDir, name), { force: true });
-    }
-    return [
-      fullDmgName,
-      'opl-release-manifest.json',
-    ];
-  }
-  return [
-    fullDmgName,
-    ...FULL_LEGACY_SEPARATE_ASSET_NAMES,
-  ];
+  return [fullDmgName, 'opl-release-manifest.json'];
 }
