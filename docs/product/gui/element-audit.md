@@ -29,6 +29,7 @@ carrier 状态和 release evidence 仍归 contracts、source/tests、validators 
 | Conversation timeline | Main canvas | 用户需要按时间理解任务、输出和决策。 | 与 Runtime/Files 并列成多个主面，或被 dashboard 替代。 |
 | Home question/starters | Main 空 conversation；动态问题标题 + 最多四个轻量 starter | 帮助开始任务，但不建立 landing/dashboard。 | 静态营销 hero、starter card grid 或超过四个同权入口。 |
 | Composer | Main canvas bottom，浮动或保留安全距 | 输入是普通路径主动作，应始终接近当前 conversation。 | 变成营销卡、单行 input、settings bar、多层 card 或贴边遮挡。 |
+| Project Context inputs | 展开的 project 内、conversation rows 之前 | 项目级文件/目录 refs 需要可见、可增删并在新 conversation 中显式预载。 | 虚构默认项、hidden prompt injection、与当前 conversation attachments 混成一类。 |
 | Active capability chip | Composer context strip | 显示已选 OPL 能力；选择动作归 Home starter/Capabilities。 | 常驻可变 purpose selector、backend selector 或 agent dashboard。 |
 | Model/reasoning control | Composer 中的 App-owned model control | 用户可见但不应抢占输入；策略由 product profile 统一。 | Shell 复制 allowlist、Home/Conversation 不一致、provider 进入普通层。 |
 | Permission/access mode | Home/conversation bottom action row | 用用户语言解释自动化与文件权限，保留安全透明度。 | 隐藏关键权限，或显示 provider/backend 术语。 |

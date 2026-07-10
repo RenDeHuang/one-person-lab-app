@@ -159,6 +159,16 @@ export type AppProductProfile = {
       composer_context_strip: string[];
       composer_bottom_action_row: string[];
       projectless_conversation_supported: boolean;
+      project_context_inputs: {
+        scope: string;
+        optional: boolean;
+        item_kind: string;
+        mutations: string[];
+        persistence: string;
+        composer_application: string;
+        fabricated_defaults_allowed: boolean;
+        artifact_body_copy_allowed: boolean;
+      };
     };
     right_context_inspector: {
       placement: string;
