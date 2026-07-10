@@ -260,10 +260,10 @@
         "classification": "absorbed",
         "owner_ref": "one-person-lab-app:app_release_privacy_gate",
         "release_gate": "feedback_privacy_redaction_verified",
-        "remediation_ref": "5f786a6dbe9232f1cc3192db8d35df81ea74d2d6",
+        "remediation_ref": "9059e992324d18c00de1f2f7503f7da3e77706ba",
         "dependencies": [],
         "evidence": [
-          "shell_commit:5f786a6dbe9232f1cc3192db8d35df81ea74d2d6",
+          "shell_commit:9059e992324d18c00de1f2f7503f7da3e77706ba",
           "shell_source:packages/desktop/src/process/feedback/logs.ts",
           "shell_test:tests/unit/feedback/feedbackBridge.test.ts",
           "shell_test:tests/unit/feedback/FeedbackReportModal.dom.test.tsx"

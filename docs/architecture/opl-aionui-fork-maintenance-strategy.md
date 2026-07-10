@@ -97,7 +97,7 @@ IDs, classification, owner ref, release gate, dependencies, and evidence.
 | Backend startup directories | `absorbed` | Shell startup focused tests plus App quick validation |
 | Corrupted database recovery | `absorbed` | Adapter code and its AionCore dependency are admitted; App release authority remains separate |
 | AionCore database-recovery boundary | `absorbed` dependency | Requires actual `aioncoreVersion >= v0.1.44`, a typed corruption failure or strict corruption-marked `database.open` failure, verified `database.recovery` success, and a remediation ancestor |
-| Feedback diagnostics privacy | `absorbed` | Redaction/privacy evidence is bound to a remediation ancestor for attached shell, AionCore, and AionRS logs |
+| Feedback diagnostics privacy | `absorbed` | Redaction/privacy evidence and queue-only user messaging are bound to a remediation ancestor for attached shell, AionCore, and AionRS logs |
 | Cron history | `absorbed` | Shell Cron focused tests plus App quick validation |
 | `/guid` slash allowlist | `absorbed` | OPL allowlist-focused tests plus App quick validation |
 | Settings/i18n refinements | `absorbed` | Settings/i18n focused checks plus App quick validation; App Settings IA remains authoritative |
@@ -131,10 +131,13 @@ original bytes in backup, creates a `SQLite format 3` database, emits
 `BOOTSTRAP_RECOVERED_DATABASE_CORRUPTION` at `database.recovery`, and reaches
 the listening state.
 
-The feedback privacy remediation ancestor remains
-`5f786a6dbe9232f1cc3192db8d35df81ea74d2d6`. The AionCore recovery remediation
-ancestor is `81c8b37fdc067549341b41539d7648b09aa31d37`. Source package and ancestry
-readback do not substitute for App release-owner evidence.
+The feedback privacy remediation ancestor is
+`9059e992324d18c00de1f2f7503f7da3e77706ba`. It keeps diagnostic attachments
+opt-in, redacts credential and local-path material, and reports only queue
+confirmation rather than server acceptance or delivery. The AionCore recovery
+remediation ancestor is `81c8b37fdc067549341b41539d7648b09aa31d37`.
+Source package and ancestry readback do not substitute for App release-owner
+evidence.
 
 This is an App adapter/intake gate, not an upstream parity or release claim.
 Shell commits remain implementation evidence; App release readiness still
