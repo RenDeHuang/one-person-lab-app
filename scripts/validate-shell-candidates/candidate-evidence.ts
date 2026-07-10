@@ -40,6 +40,7 @@ type CandidateAppBundleManifest = {
 };
 
 type CandidateAppBundleExpectation = {
+  manifestStatus: string;
   executable: string;
   executableError: string;
   forbiddenExecutable?: string;
@@ -62,9 +63,9 @@ const hermesPackageFields = {
   official_hermes_desktop_ui_reused: true,
 };
 
-function validateCandidateAppBundleRoot(candidate: ShellCandidate, manifest: CandidateAppBundleManifest) {
-  if (manifest.status !== 'candidate_app_bundle_ready') {
-    throw new Error(`${candidate.id} package manifest must declare candidate_app_bundle_ready`);
+function validateCandidateAppBundleRoot(candidate: ShellCandidate, manifest: CandidateAppBundleManifest, expectedStatus: string) {
+  if (manifest.status !== expectedStatus) {
+    throw new Error(`${candidate.id} package manifest must declare ${expectedStatus}`);
   }
   if (manifest.package_kind !== 'explicit_candidate_app_bundle') {
     throw new Error(`${candidate.id} package manifest must declare explicit_candidate_app_bundle`);
@@ -90,7 +91,7 @@ function validateCandidateAppBundleEvidence(
   manifest: CandidateAppBundleManifest,
   expectation: CandidateAppBundleExpectation,
 ) {
-  const bundle = validateCandidateAppBundleRoot(candidate, manifest);
+  const bundle = validateCandidateAppBundleRoot(candidate, manifest, expectation.manifestStatus);
   if (manifest.app_bundle_executable !== expectation.executable || bundle.executable !== expectation.executable) {
     throw new Error(expectation.executableError);
   }
@@ -170,7 +171,7 @@ function validateCandidatePackageManifest(candidate: ShellCandidate, options: { 
     product_profile_owner: string;
     home_purpose_entries: string[];
   }>(manifestPath);
-  const { appBundleRoot } = validateCandidateAppBundleRoot(candidate, manifest);
+  const { appBundleRoot } = validateCandidateAppBundleRoot(candidate, manifest, 'candidate_app_bundle_ready');
   assertNoAbsoluteSymlinks(appBundleRoot, candidate.id);
   assertAppOwnedProductProfile(candidate, manifest);
   assertStringArrayIncludes(manifest.home_purpose_entries, requiredHomeEntries, `${candidate.id} package manifest purpose entries`);
@@ -260,6 +261,7 @@ function validateNativeWorkbenchPackageManifest(candidate: ShellCandidate, optio
     context_testids?: string[];
   }>(manifestPath);
   validateCandidateAppBundleEvidence(candidate, manifest, {
+    manifestStatus: 'candidate_app_bundle_built',
     executable: 'One Person Lab Native Workbench Candidate',
     executableError: `${candidate.id} .app bundle must use the OPL native workbench executable name`,
     requireAppOwnedProductProfile: true,
@@ -301,6 +303,7 @@ function validateHermesCandidatePackageManifest(candidate: ShellCandidate, optio
     deferred_until_feature_comparison?: string[];
   }>(manifestPath);
   validateCandidateAppBundleEvidence(candidate, manifest, {
+    manifestStatus: 'candidate_app_bundle_ready',
     executable: 'One Person Lab Hermes Candidate',
     executableError: `${candidate.id} .app bundle must use the OPL branded executable name`,
     forbiddenExecutable: 'Electron',
@@ -538,10 +541,9 @@ function validateNativeWorkbenchImplementationEvidence(candidate: ShellCandidate
     codexAlignment?.environment_details !== 'floating_on_demand' ||
     codexAlignment?.settings_locale_surface !== 'settings' ||
     codexAlignment?.model_policy_source !== 'one-person-lab-app/contracts/app-product-profile.json#gui.home.codex_model_display_options' ||
-    codexAlignment?.default_model !== 'gpt-5.6-sol' ||
-    codexAlignment?.default_reasoning_effort !== 'max'
+    codexAlignment?.model_policy_consumption !== 'dynamic_build_injection_with_minimal_offline_fallback'
   ) {
-    throw new Error(`${candidate.id} evidence must prove the Codex 26.707.31123 project rail, single timeline, App-owned 5.6 Sol/max composer controls, floating environment, and Settings locale surface`);
+    throw new Error(`${candidate.id} evidence must prove the Codex 26.707.31123 project rail, single timeline, dynamically injected App-owned model controls, floating environment, and Settings locale surface`);
   }
   assertStringArrayIncludes(
     codexAlignment.required_surfaces ?? [],

@@ -144,6 +144,7 @@ const ordinaryStatusRows = [
   'data_preservation',
   'host_update',
 ] as const;
+const expectedImageSeedSelection = 'Default stable image must use the WebUI full seed; --tag/--image are explicit advanced overrides.';
 
 const ordinaryMustNotClaim = [
   'desktop_release_ready',
@@ -441,7 +442,7 @@ function makeOrdinaryUserStatus(input: {
           : 'Finish the one-click installer before using host update mode.',
       evidence_ref: input.composePath,
     },
-    image_seed_selection: 'Default stable image must use the WebUI full seed; --tag/--image are explicit advanced overrides.',
+    image_seed_selection: expectedImageSeedSelection,
     settings_entry: 'Settings -> Access',
     must_not_claim: [...ordinaryMustNotClaim],
   };
@@ -1199,6 +1200,9 @@ export function validateDockerWebuiSmokeGateResult(payload: unknown): GateResult
     }
     if (ordinaryStatus.settings_entry !== 'Settings -> Access') {
       invalidFields.push('ordinary_user_status.settings_entry');
+    }
+    if (ordinaryStatus.image_seed_selection !== expectedImageSeedSelection) {
+      invalidFields.push('ordinary_user_status.image_seed_selection');
     }
     if (!Array.isArray(ordinaryStatus.must_not_claim)) {
       invalidFields.push('ordinary_user_status.must_not_claim');
