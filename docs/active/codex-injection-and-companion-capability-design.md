@@ -19,10 +19,10 @@ Being packaged does not make a capability default-visible.
 ## Codex Configuration Ownership
 
 - A missing Codex config receives the current OPL provider, model, reasoning effort, and submitted Gateway credential.
-- An existing `gflab` config is OPL-managed. Auto-managed model and reasoning values follow the current App profile.
-- The CodexCont intelligence proxy URL is preserved. OPL identity is determined from provider identity and receipts, not from the direct Gateway URL alone.
+- An active provider that points to the direct OPL Gateway is OPL-managed regardless of its local provider alias. Auto-managed model and reasoning values follow the current App profile while unowned provider-table keys remain intact.
+- The CodexCont intelligence proxy URL is preserved only when an OPL Flow intelligence receipt or matching OPL config-management receipt proves ownership. A third-party provider named `gflab` is not OPL-managed by ID alone.
 - A user edit that differs from the last OPL-applied model or reasoning value becomes a local override and is preserved.
-- A non-OPL active provider remains active. OPL may register or refresh the inactive `gflab` provider entry without replacing the user's root provider, model, or reasoning values.
+- A non-OPL active provider remains active. OPL may register or refresh an inactive OPL Gateway provider entry without replacing the user's root provider, model, or reasoning values, and must choose a non-conflicting provider ID when `gflab` is already user-owned.
 - Every mutation creates a backup and an OPL-owned receipt with the managed keys, last applied values, route, and selection mode.
 
 ## OPL Flow

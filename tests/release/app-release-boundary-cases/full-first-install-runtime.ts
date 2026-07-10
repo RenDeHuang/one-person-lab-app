@@ -317,6 +317,15 @@ test('Full runtime node payload prunes package-only docs while preserving offlin
     writeFile(path.join(runtimeRoot, modulePath, 'plugins', pluginId, '.codex-plugin', 'plugin.json'), '{}\n');
     writeFile(path.join(runtimeRoot, modulePath, 'plugins', pluginId, 'skills', pluginId, 'SKILL.md'), '# skill\n');
   }
+  for (const relativePath of [
+    'modules/opl-flow/.codex-plugin/plugin.json',
+    'modules/opl-flow/scripts/install_local_plugin.py',
+    'modules/opl-flow/skills/opl-flow/SKILL.md',
+    'modules/opl-flow/skills/risk-based-development-flow/SKILL.md',
+    'modules/opl-flow/skills/codex-ops-kit/SKILL.md',
+  ]) {
+    writeFile(path.join(runtimeRoot, relativePath), relativePath.endsWith('.json') ? '{}\n' : '# fixture\n');
+  }
 
   const assertions = collectRuntimeAssertions(runtimeRoot);
   assert.equal(assertions.prune_policy_id, 'full_runtime_offline_first_install_slim_v1');

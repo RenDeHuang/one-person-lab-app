@@ -76,7 +76,6 @@ const deferredMaintenanceItems = [
 const ecosystemModuleIds = ['officecli', 'mineru', 'opl-meta-agent'];
 const defaultCompanionSkillSyncIds = [
   'superpowers',
-  'cron',
   'officecli',
   'officecli-docx',
   'officecli-pptx',
@@ -85,7 +84,6 @@ const defaultCompanionSkillSyncIds = [
   'officecli-data-dashboard',
   'officecli-financial-model',
   'officecli-pitch-deck',
-  'pdf',
   'mineru-document-extractor',
   'ui-ux-pro-max',
 ];

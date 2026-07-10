@@ -142,6 +142,47 @@ export function resolveOfficeCliReleaseSource(
   };
 }
 
+export function prepareOfficeCliLatestStableCheckout(
+  root: string,
+  runner: CommandRunner = run,
+) {
+  const remoteResult = runner('git', ['ls-remote', '--tags', 'origin'], { cwd: root });
+  if (remoteResult.status !== 0) throw commandFailure('git', ['ls-remote', '--tags', 'origin'], remoteResult);
+  const latest = parseLatestStableGitTag(remoteResult.stdout);
+  const fetchArgs = [
+    'fetch',
+    '--force',
+    '--depth=1',
+    'origin',
+    `refs/tags/${latest.tag}:refs/tags/${latest.tag}`,
+  ];
+  let fetchResult = runner('git', fetchArgs, { cwd: root });
+  for (let attempt = 2; fetchResult.status !== 0 && attempt <= 3; attempt += 1) {
+    fetchResult = runner('git', fetchArgs, { cwd: root });
+  }
+  if (fetchResult.status !== 0) throw commandFailure('git', fetchArgs, fetchResult);
+
+  const checkoutArgs = ['checkout', '--detach', latest.commit];
+  const checkoutResult = runner('git', checkoutArgs, { cwd: root });
+  if (checkoutResult.status !== 0) throw commandFailure('git', checkoutArgs, checkoutResult);
+
+  const headResult = runner('git', ['rev-parse', 'HEAD'], { cwd: root });
+  const head = firstLine(headResult.stdout);
+  if (headResult.status !== 0 || head !== latest.commit) {
+    throw new Error(
+      `OfficeCLI latest stable checkout failed: expected ${latest.tag} (${latest.commit}), got ${head || 'missing HEAD'}.`,
+    );
+  }
+  return {
+    policy: 'latest_stable_prepared_for_full_build',
+    requested_ref: 'latest-stable',
+    resolved_ref: latest.tag,
+    resolved_commit: latest.commit,
+    latest_stable_verified: true,
+    version: latest.version,
+  };
+}
+
 export function assertOfficeCliBinaryMatchesRelease(
   reportedVersion: string | null,
   release: { version: string | null; resolved_ref: string },

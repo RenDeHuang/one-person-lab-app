@@ -244,6 +244,12 @@ jobs:
             one-person-lab/package-lock.json
             redcube-ai/package-lock.json
 
+      - name: Resolve latest stable OfficeCLI release
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --experimental-strip-types "$GITHUB_WORKSPACE/one-person-lab-app/scripts/prepare-officecli-release-source.ts" "$GITHUB_WORKSPACE/OfficeCLI"
+
       - name: Setup bun
         uses: oven-sh/setup-bun@v2
         with:
