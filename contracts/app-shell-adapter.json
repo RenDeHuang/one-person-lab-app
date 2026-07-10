@@ -141,6 +141,16 @@
       "command": "bunx tsc --noEmit"
     },
     {
+      "id": "managed_agent_behavior_node",
+      "cwd": "shells/aionui",
+      "command": "bunx vitest run tests/unit/common-adapter/ipcBridgeAgents.test.ts tests/unit/common-adapter/apiModelMapper.test.ts tests/unit/common-adapter/ipcBridgeTeamGate.test.ts tests/unit/conversation/createConversationParams.test.ts tests/unit/assistants/migrateAssistants.test.ts tests/unit/renderer/channelAssistantOptions.test.ts tests/unit/cron/resolveCronAgentConfig.test.ts tests/unit/common-adapter/teamMapper.test.ts"
+    },
+    {
+      "id": "managed_agent_behavior_dom",
+      "cwd": "shells/aionui",
+      "command": "VITEST_INCLUDE_DOM=1 bunx vitest run --project dom tests/unit/guid/useGuidSend.oplWhitelist.dom.test.tsx tests/unit/assistants/useAssistantEditor.dom.test.ts"
+    },
+    {
       "id": "test",
       "cwd": ".",
       "command": "bun run test:full"
@@ -206,6 +216,7 @@
     "required_capability_ids": [
       "startup_directories",
       "database_recovery",
+      "managed_agent_api",
       "feedback_diagnostics_privacy",
       "cron_history",
       "guid_slash_allowlist",
@@ -225,6 +236,164 @@
       "dependencies",
       "evidence"
     ],
+    "managed_agent_api_contract": {
+      "source": "aioncore_v0.1.44_live_api_compatibility",
+      "root_cause_guard": "prevent_v2.1.31_managed_agent_capability_migration_omission",
+      "required_aioncore_version": "v0.1.44",
+      "assistant_identity_policy": {
+        "canonical_identity_source": "Assistant.id",
+        "allowed_assistant_kinds": [
+          "generated",
+          "preset"
+        ],
+        "runtime_identity_policy": "runtime_ids_may_support_display_or_execution_but_never_replace_Assistant.id_on_wire"
+      },
+      "business_assistant_catalog": {
+        "consumer": "business_assistant_selection",
+        "source_policy": "consume_assistants_catalog_only",
+        "method": "GET",
+        "route": "/api/assistants",
+        "response": "Assistant[]"
+      },
+      "managed_agent_catalog": {
+        "consumers": [
+          "agent_settings",
+          "agent_diagnostics",
+          "runtime_metadata"
+        ],
+        "method": "GET",
+        "route": "/api/agents/management",
+        "response": "ManagedAgent[]"
+      },
+      "managed_agent_health_check": {
+        "consumer": "agent_diagnostics",
+        "method": "POST",
+        "route_template": "/api/agents/{id}/health-check",
+        "success_status": 200
+      },
+      "migration_policy": {
+        "import_checkpoint": "persist_immediately_after_legacy_import",
+        "deleted_assistant_policy": "must_not_reimport_after_user_deletion"
+      },
+      "implementation_surfaces": {
+        "source_root": "packages/desktop/src",
+        "bridge": "packages/desktop/src/common/adapter/ipcBridge.ts",
+        "conversation_writer": "packages/desktop/src/common/adapter/apiModelMapper.ts",
+        "conversation_parameter_builder": "packages/desktop/src/common/utils/buildAgentConversationParams.ts",
+        "team_mapper": "packages/desktop/src/common/adapter/teamMapper.ts",
+        "team_types": "packages/desktop/src/common/types/team/teamTypes.ts",
+        "migration": "packages/desktop/src/process/utils/migrateAssistants.ts",
+        "managed_hook": "packages/desktop/src/renderer/hooks/agent/useManagedAgents.ts",
+        "managed_types": "packages/desktop/src/renderer/utils/model/agentTypes.ts",
+        "assistant_catalog_hook": "packages/desktop/src/renderer/hooks/assistant/useAssistantList.ts",
+        "assistant_editor": "packages/desktop/src/renderer/hooks/assistant/useAssistantEditor.ts",
+        "guid_business_loader": "packages/desktop/src/renderer/pages/guid/hooks/useCustomAgentsLoader.ts",
+        "guid_agent_selection": "packages/desktop/src/renderer/pages/guid/hooks/useGuidAgentSelection.ts",
+        "conversation_agents": "packages/desktop/src/renderer/pages/conversation/hooks/useConversationAgents.ts",
+        "conversation_parameter_resolver": "packages/desktop/src/renderer/pages/conversation/utils/createConversationParams.ts",
+        "conversation_guid_callers": "packages/desktop/src/renderer/pages/guid/hooks/useGuidSend.ts",
+        "channel_assistant_selection": "packages/desktop/src/renderer/components/settings/SettingsModal/contents/channels/assistantOptions.ts",
+        "channel_forms": [
+          "packages/desktop/src/renderer/components/settings/SettingsModal/contents/channels/TelegramConfigForm.tsx",
+          "packages/desktop/src/renderer/components/settings/SettingsModal/contents/channels/LarkConfigForm.tsx",
+          "packages/desktop/src/renderer/components/settings/SettingsModal/contents/channels/WecomConfigForm.tsx",
+          "packages/desktop/src/renderer/components/settings/SettingsModal/contents/channels/DingTalkConfigForm.tsx",
+          "packages/desktop/src/renderer/components/settings/SettingsModal/contents/channels/WeixinConfigForm.tsx"
+        ],
+        "cron_create_dialog": "packages/desktop/src/renderer/pages/cron/ScheduledTasksPage/CreateTaskDialog.tsx",
+        "cron_agent_config_resolver": "packages/desktop/src/renderer/pages/cron/ScheduledTasksPage/resolveCronAgentConfig.ts",
+        "team_agent_options": "packages/desktop/src/renderer/pages/team/components/agentSelectUtils.tsx",
+        "team_create_modal": "packages/desktop/src/renderer/pages/team/components/TeamCreateModal.tsx",
+        "team_add_agent_caller": "packages/desktop/src/renderer/pages/team/hooks/useTeamSession.ts"
+      },
+      "focused_tests": {
+        "node": [
+          "tests/unit/common-adapter/ipcBridgeAgents.test.ts",
+          "tests/unit/common-adapter/apiModelMapper.test.ts",
+          "tests/unit/common-adapter/ipcBridgeTeamGate.test.ts",
+          "tests/unit/conversation/createConversationParams.test.ts",
+          "tests/unit/assistants/migrateAssistants.test.ts",
+          "tests/unit/renderer/channelAssistantOptions.test.ts",
+          "tests/unit/cron/resolveCronAgentConfig.test.ts",
+          "tests/unit/common-adapter/teamMapper.test.ts"
+        ],
+        "dom": [
+          "tests/unit/guid/useGuidSend.oplWhitelist.dom.test.tsx",
+          "tests/unit/assistants/useAssistantEditor.dom.test.ts"
+        ]
+      },
+      "retired_facade_paths": [
+        "packages/desktop/src/renderer/hooks/agent/useAgents.ts",
+        "packages/desktop/src/renderer/hooks/assistant/useDetectedAgents.ts"
+      ],
+      "verification_policy": {
+        "quick_gate_claim": "contract_structure_remediation_ancestry_required_paths_and_retired_facade_absence_only",
+        "quick_gate_runs_focused_tests": false,
+        "required_path_claim": "presence_only_not_behavior",
+        "focused_behavior_command_ids": [
+          "managed_agent_behavior_node",
+          "managed_agent_behavior_dom"
+        ],
+        "focused_behavior_claim": "only_successful_command_execution_proves_behavior",
+        "full_active_shell_policy": "focused_behavior_commands_execute_before_test_full"
+      },
+      "write_contracts": {
+        "assistant": {
+          "route": "/api/assistants",
+          "runtime_binding_field": "agent_id"
+        },
+        "conversation": {
+          "create_method": "POST",
+          "create_route": "/api/conversations",
+          "assistant_identity_path": "assistant.id",
+          "assistant_placement": "top_level",
+          "caller_ids": [
+            "openclaw_gateway",
+            "nanobot",
+            "aionrs",
+            "acp_remote_custom_and_preset_fallbacks"
+          ]
+        },
+        "channel": {
+          "read_method": "GET",
+          "read_route_template": "/api/channel/settings/{platform}",
+          "write_method": "PUT",
+          "write_route_template": "/api/channel/settings/{platform}/assistant",
+          "selection_hook": "useChannelAssistantSelection",
+          "identity_field": "assistant_id",
+          "identity_source": "Assistant.id"
+        },
+        "cron": {
+          "create_endpoint": "addJob",
+          "update_endpoint": "updateJob",
+          "identity_path": "agent_config.assistant_id",
+          "schedule_field_map": {
+            "atMs": "at_ms",
+            "everyMs": "every_ms"
+          },
+          "existing_conversation_update_agent_config": "omit",
+          "aionrs_provider_identity_path": "agent_config.model.provider_id"
+        },
+        "team": {
+          "create_endpoint": "create",
+          "add_agent_endpoint": "addAgent",
+          "shared_mapper": "toBackendAgent",
+          "identity_field": "assistant_id",
+          "identity_source": "Assistant.id",
+          "response_members_field": "assistants",
+          "response_leader_field": "leader_assistant_id",
+          "events": {
+            "team.agentStatusChanged": "fromBackendTeamAgentStatusEvent",
+            "team.agentSpawned": "fromBackendTeamAgentSpawnedEvent",
+            "team.agentRemoved": "passthrough",
+            "team.agentRenamed": "fromBackendTeamAgentRenamedEvent",
+            "team.listChanged": "passthrough",
+            "team.teammateMessage": "passthrough"
+          }
+        }
+      },
+      "release_claim_policy": "contract_and_gate_pass_do_not_prove_installed_runtime_ready"
+    },
     "capability_classifications": [
       {
         "id": "startup_directories",
@@ -252,6 +421,23 @@
           "shell_commit:7c02fd4e55ff732f64f8fad01b454731340a245e",
           "shell_source:packages/desktop/src/process/startup/recoverCorruptedDatabase.ts",
           "active_shell_package_readback:aioncoreVersion=v0.1.44"
+        ]
+      },
+      {
+        "id": "managed_agent_api",
+        "upstream_surface": "AionCore v0.1.44 managed-agent catalog and per-id health-check compatibility",
+        "classification": "absorbed",
+        "owner_ref": "contracts/app-shell-adapter.json#upstream_intake.managed_agent_api_contract",
+        "release_gate": "managed_agent_api_contract_and_shell_semantic_gate",
+        "remediation_ref": "6875ada9fa6e800b64980dadb02180def6b0f6e2",
+        "dependencies": [],
+        "evidence": [
+          "shell_commit:6875ada9fa6e800b64980dadb02180def6b0f6e2",
+          "aioncore_live_api:GET /api/agents/management -> 200 ManagedAgent[]",
+          "aioncore_live_api:POST /api/agents/{id}/health-check -> 200",
+          "app_gate:scripts/validate-active-shell/upstream-intake-policy-validator.ts",
+          "app_validation_command:managed_agent_behavior_node",
+          "app_validation_command:managed_agent_behavior_dom"
         ]
       },
       {

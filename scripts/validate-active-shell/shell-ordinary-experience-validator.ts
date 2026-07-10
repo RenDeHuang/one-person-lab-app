@@ -186,7 +186,10 @@ function validateGuidAgentSelection(shellPaths) {
     [
       'getOplDefaultExecutorAgentKey',
       'resolveOplDefaultAgentKey(undefined)',
-      "agent_type: assistant.preset_agent_type || getOplDefaultExecutorAgentKey()",
+      'assistantRuntimeKey',
+      'const runtimeKey = assistantRuntimeKey(assistant) || getOplDefaultExecutorAgentKey()',
+      "agent_type: assistant.agent?.type || 'acp'",
+      'backend: runtimeKey',
       'useState<string>(CODEX_MODE_NATIVE_FULL_ACCESS)',
     ],
     'Active shell Guid agent selection App-owned default',

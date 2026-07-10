@@ -97,6 +97,7 @@ IDs, classification, owner ref, release gate, dependencies, and evidence.
 | Backend startup directories | `absorbed` | Shell startup focused tests plus App quick validation |
 | Corrupted database recovery | `absorbed` | Adapter code and its AionCore dependency are admitted; App release authority remains separate |
 | AionCore database-recovery boundary | `absorbed` dependency | Requires actual `aioncoreVersion >= v0.1.44`, a typed corruption failure or strict corruption-marked `database.open` failure, verified `database.recovery` success, and a remediation ancestor |
+| AionCore managed-agent API compatibility | `absorbed` | Quick validation checks the pinned remediation ancestor, required source/test paths, retired-facade absence, and exact focused-command registration; the focused Node/DOM commands prove DTO and caller behavior |
 | Feedback diagnostics privacy | `absorbed` | Redaction/privacy evidence and queue-only user messaging are bound to a remediation ancestor for attached shell, AionCore, and AionRS logs |
 | Cron history | `absorbed` | Shell Cron focused tests plus App quick validation |
 | `/guid` slash allowlist | `absorbed` | OPL allowlist-focused tests plus App quick validation |
@@ -136,12 +137,66 @@ The feedback privacy remediation ancestor is
 opt-in, redacts credential and local-path material, and reports only queue
 confirmation rather than server acceptance or delivery. The AionCore recovery
 remediation ancestor is `81c8b37fdc067549341b41539d7648b09aa31d37`.
+The managed-agent/AionCore write and event-contract remediation ancestor is
+`6875ada9fa6e800b64980dadb02180def6b0f6e2`.
 Source package and ancestry readback do not substitute for App release-owner
 evidence.
 
-This is an App adapter/intake gate, not an upstream parity or release claim.
-Shell commits remain implementation evidence; App release readiness still
-requires the separate release-owner path.
+### Managed-Agent API Compatibility Guard
+
+The v2.1.31 intake originally missed the managed-agent migration even though the
+selected shell already required AionCore `v0.1.44`. The direct cause was an
+evidence-layer gap: App quick validation knew the intake matrix and AionCore
+version, but no capability remediation ancestor or executable focused behavior
+command was bound to the managed-agent contract.
+
+`contracts/app-shell-adapter.json#upstream_intake.managed_agent_api_contract`
+records the required wire behavior:
+
+- business assistant selection uses `GET /api/assistants`;
+- Agent Settings, diagnostics, and runtime metadata use
+  `GET /api/agents/management`;
+- managed-agent health checks use `POST /api/agents/{id}/health-check`;
+- Conversation writes Assistant identity at top-level `assistant.id`;
+- Channel settings use the centralized Assistant selector and canonical
+  `assistant_id` GET/PUT boundary;
+- Cron writes `agent_config.assistant_id`, `at_ms`, and `every_ms`;
+- Team create/add uses the shared `assistant_id` mapper, canonical AionCore
+  response fields, and the recorded Team WebSocket event adapters.
+
+The managed-agent quick gate is structural. It proves only that:
+
+- the contract has the exact required shape;
+- the `managed_agent_api` capability is pinned to remediation ancestor
+  `6875ada9fa6e800b64980dadb02180def6b0f6e2`, and active shell `HEAD`
+  contains it;
+- required source and focused-test paths exist;
+- retired `useAgents.ts` and `useDetectedAgents.ts` facade paths are absent;
+- the exact focused behavior command IDs and command bodies are registered
+  before the full-test command.
+
+Quick validation deliberately does not parse TypeScript source text and does
+not execute focused tests. A fixture containing only `export {};` is therefore
+valid structural evidence when all required paths are present; it is not
+semantic or runtime behavior evidence.
+
+Behavior is proved by two executable validation commands:
+
+- `managed_agent_behavior_node` runs the exact adapter, migration,
+  Conversation, Channel, Cron, and Team Node/Vitest files;
+- `managed_agent_behavior_dom` runs the exact Guid caller and Assistant editor
+  DOM files with the DOM Vitest project enabled.
+
+Non-quick `validate:active-shell` executes both commands before the existing
+full-test command. Only a successful command execution proves the focused
+behavior suite passed. The subsequent full test portfolio broadens regression
+coverage but still does not prove that an installed App contains the tested
+shell.
+
+Packaged-runtime validation, installed-App readback, user-path acceptance, and
+release-owner evidence remain separate. Contract structure, remediation
+ancestry, focused tests, and full tests must not be presented as packaged or
+release readiness.
 
 ## Upstream Intake Policy
 
@@ -215,8 +270,20 @@ For the v2.1.31 executable intake contract, run:
 
 - JSON parse for `contracts/app-shell-adapter.json`;
 - focused upstream-intake release tests;
-- `npm run validate:active-shell -- --quick`;
+- `npm run validate:active-shell -- --quick` for structural contract,
+  remediation ancestry, required-path, retired-facade, and command-registration
+  proof only;
+- `npm run validate:active-shell -- --only managed_agent_behavior_node` for
+  focused non-DOM managed-agent behavior;
+- `npm run validate:active-shell -- --only managed_agent_behavior_dom` for
+  focused Guid/Assistant DOM behavior;
+- non-quick `npm run validate:active-shell` for both focused commands plus the
+  full configured validation chain;
 - `git diff --check`.
+
+None of these commands alone proves packaged App or release readiness. Use
+packaged-runtime validation, installed-App readback, user-path acceptance, and
+release-owner evidence for those claims.
 
 For future Settings behavior changes, use the existing boundaries:
 

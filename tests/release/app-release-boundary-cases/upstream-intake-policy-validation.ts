@@ -17,6 +17,40 @@ const shellPaths = {
   shellRoot: '/fixture/active-shell',
   packageManifestPath: '/fixture/active-shell/package.json',
 };
+const MANAGED_AGENT_REMEDIATION_REF = '6875ada9fa6e800b64980dadb02180def6b0f6e2';
+const MANAGED_AGENT_NODE_TESTS = [
+  'tests/unit/common-adapter/ipcBridgeAgents.test.ts',
+  'tests/unit/common-adapter/apiModelMapper.test.ts',
+  'tests/unit/common-adapter/ipcBridgeTeamGate.test.ts',
+  'tests/unit/conversation/createConversationParams.test.ts',
+  'tests/unit/assistants/migrateAssistants.test.ts',
+  'tests/unit/renderer/channelAssistantOptions.test.ts',
+  'tests/unit/cron/resolveCronAgentConfig.test.ts',
+  'tests/unit/common-adapter/teamMapper.test.ts',
+];
+const MANAGED_AGENT_DOM_TESTS = [
+  'tests/unit/guid/useGuidSend.oplWhitelist.dom.test.tsx',
+  'tests/unit/assistants/useAssistantEditor.dom.test.ts',
+];
+const MANAGED_AGENT_NODE_COMMAND = `bunx vitest run ${MANAGED_AGENT_NODE_TESTS.join(' ')}`;
+const MANAGED_AGENT_DOM_COMMAND =
+  `VITEST_INCLUDE_DOM=1 bunx vitest run --project dom ${MANAGED_AGENT_DOM_TESTS.join(' ')}`;
+
+function managedAgentStructuralFiles(contract) {
+  const managedAgentContract = contract.upstream_intake.managed_agent_api_contract;
+  const sourcePaths = Object.entries(managedAgentContract.implementation_surfaces).flatMap(([key, value]) => {
+    if (key === 'source_root') return [];
+    return Array.isArray(value) ? value : [value];
+  });
+  const testPaths = Object.values(managedAgentContract.focused_tests).flatMap((value) =>
+    Array.isArray(value) ? value : [value],
+  );
+  return [...new Set([...sourcePaths, ...testPaths])].map((relativePath) => ({
+    relativePath,
+    text: 'export {};',
+  }));
+}
+
 const failureBoundaries = [
   { stage: 'database.recoverable_corruption', required_corruption_markers_any_of: [] },
   {
@@ -41,6 +75,7 @@ function validateContract(contract, options = {}) {
     readJsonFile: () => ({
       aioncoreVersion: dependency(contract, 'aioncore_database_recovery').version_gate.selective_absorption_version,
     }),
+    readShellSourceFiles: () => managedAgentStructuralFiles(contract),
     isGitAncestor: () => true,
     ...options,
   });
@@ -65,6 +100,7 @@ test('AionUI v2.1.31 intake contract validates the fixed source refs and classif
   assert.equal(packagePath, shellPaths.packageManifestPath);
   assert.deepEqual(checkedRefs, [
     intake.source_refs.selective_absorption_head.ref,
+    MANAGED_AGENT_REMEDIATION_REF,
     capability(contract, 'feedback_diagnostics_privacy').remediation_ref,
     dependency(contract, 'aioncore_database_recovery').remediation_ref,
   ]);
@@ -80,6 +116,7 @@ test('AionUI v2.1.31 intake contract validates the fixed source refs and classif
     capability(contract, 'non_zh_en_locales').classification,
     capability(contract, 'aionui_team').classification,
   ], ['absorbed', 'database_recovery_dependency_satisfied', 'absorbed', 'feedback_privacy_redaction_verified', 'rejected', 'rejected']);
+  assert.equal(capability(contract, 'managed_agent_api').remediation_ref, MANAGED_AGENT_REMEDIATION_REF);
   const aionCore = dependency(contract, 'aioncore_database_recovery');
   assert.deepEqual([
     aionCore.classification,
@@ -153,4 +190,159 @@ test('AionUI intake validator accepts verified AionCore package and ancestor evi
   assert.doesNotThrow(() => validateContract(contract, {
     readJsonFile: () => ({ aioncoreVersion: 'v0.1.44' }),
   }));
+});
+
+test('AionUI intake contract records managed-agent wire and focused verification policy', () => {
+  const contract = readContract();
+  const managed = contract.upstream_intake.managed_agent_api_contract;
+
+  assert.deepEqual(managed.assistant_identity_policy.allowed_assistant_kinds, ['generated', 'preset']);
+  assert.deepEqual(
+    [
+      managed.write_contracts.conversation.assistant_identity_path,
+      managed.write_contracts.conversation.assistant_placement,
+      managed.write_contracts.channel.selection_hook,
+      managed.write_contracts.channel.read_method,
+      managed.write_contracts.channel.write_method,
+      managed.write_contracts.cron.identity_path,
+      managed.write_contracts.team.shared_mapper,
+      managed.write_contracts.team.identity_field,
+      managed.write_contracts.team.response_members_field,
+      managed.write_contracts.team.response_leader_field,
+    ],
+    [
+      'assistant.id',
+      'top_level',
+      'useChannelAssistantSelection',
+      'GET',
+      'PUT',
+      'agent_config.assistant_id',
+      'toBackendAgent',
+      'assistant_id',
+      'assistants',
+      'leader_assistant_id',
+    ],
+  );
+  assert.equal(managed.write_contracts.conversation.caller_ids.length, 4);
+  assert.deepEqual(managed.write_contracts.cron.schedule_field_map, { atMs: 'at_ms', everyMs: 'every_ms' });
+  assert.deepEqual(managed.write_contracts.team.events, {
+    'team.agentStatusChanged': 'fromBackendTeamAgentStatusEvent',
+    'team.agentSpawned': 'fromBackendTeamAgentSpawnedEvent',
+    'team.agentRemoved': 'passthrough',
+    'team.agentRenamed': 'fromBackendTeamAgentRenamedEvent',
+    'team.listChanged': 'passthrough',
+    'team.teammateMessage': 'passthrough',
+  });
+  assert.deepEqual(managed.focused_tests, {
+    node: MANAGED_AGENT_NODE_TESTS,
+    dom: MANAGED_AGENT_DOM_TESTS,
+  });
+  assert.deepEqual(managed.verification_policy.focused_behavior_command_ids, [
+    'managed_agent_behavior_node',
+    'managed_agent_behavior_dom',
+  ]);
+  assert.equal(
+    contract.validation_commands.find((entry) => entry.id === 'managed_agent_behavior_node')?.command,
+    MANAGED_AGENT_NODE_COMMAND,
+  );
+  assert.equal(
+    contract.validation_commands.find((entry) => entry.id === 'managed_agent_behavior_dom')?.command,
+    MANAGED_AGENT_DOM_COMMAND,
+  );
+  assert.doesNotThrow(() => validateContract(contract));
+});
+
+test('AionUI quick gate requires managed-agent source and focused-test paths', () => {
+  const contract = readContract();
+  const managed = contract.upstream_intake.managed_agent_api_contract;
+  const requiredPaths = [
+    managed.implementation_surfaces.conversation_writer,
+    managed.implementation_surfaces.conversation_guid_callers,
+    managed.implementation_surfaces.team_mapper,
+    managed.implementation_surfaces.team_types,
+    'tests/unit/common-adapter/apiModelMapper.test.ts',
+    'tests/unit/guid/useGuidSend.oplWhitelist.dom.test.tsx',
+    'tests/unit/common-adapter/ipcBridgeAgents.test.ts',
+    'tests/unit/common-adapter/teamMapper.test.ts',
+  ];
+
+  for (const missingPath of requiredPaths) {
+    const evidence = managedAgentStructuralFiles(contract).filter(
+      (sourceFile) => sourceFile.relativePath !== missingPath,
+    );
+    assert.throws(
+      () => validateContract(contract, { readShellSourceFiles: () => evidence }),
+      new RegExp(`required managed-agent evidence missing ${missingPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`),
+    );
+  }
+});
+
+test('AionUI intake validator rejects managed-agent contract, ancestry, command, and wire drift', () => {
+  const missingContract = readContract();
+  delete missingContract.upstream_intake.managed_agent_api_contract;
+  assert.throws(() => validateContract(missingContract), /managed-agent API compatibility contract/);
+
+  const missingRemediation = readContract();
+  delete capability(missingRemediation, 'managed_agent_api').remediation_ref;
+  assert.throws(() => validateContract(missingRemediation), /managed_agent_api requires remediation_ref/);
+
+  const wrongRemediation = readContract();
+  const managedCapability = capability(wrongRemediation, 'managed_agent_api');
+  const wrongRef = 'e'.repeat(40);
+  managedCapability.remediation_ref = wrongRef;
+  managedCapability.evidence = managedCapability.evidence.map((entry) =>
+    entry.startsWith('shell_commit:') ? `shell_commit:${wrongRef}` : entry,
+  );
+  assert.throws(
+    () => validateContract(wrongRemediation),
+    new RegExp(`managed_agent_api\\.remediation_ref must be ${MANAGED_AGENT_REMEDIATION_REF}`),
+  );
+
+  const commandDrift = readContract();
+  commandDrift.validation_commands = commandDrift.validation_commands.map((entry) =>
+    entry.id === 'managed_agent_behavior_node'
+      ? { ...entry, command: 'bunx vitest run tests/unit/common-adapter/apiModelMapper.test.ts' }
+      : entry,
+  );
+  assert.throws(
+    () => validateContract(commandDrift),
+    /managed-agent focused behavior command managed_agent_behavior_node/,
+  );
+
+  for (const mutate of [
+    (contract) => {
+      contract.upstream_intake.managed_agent_api_contract.write_contracts.conversation.assistant_identity_path =
+        'extra.assistant.id';
+    },
+    (contract) => {
+      contract.upstream_intake.managed_agent_api_contract.write_contracts.channel.selection_hook =
+        'direct_form_config_write';
+    },
+    (contract) => {
+      contract.upstream_intake.managed_agent_api_contract.write_contracts.cron.identity_path = 'assistant_id';
+    },
+    (contract) => {
+      contract.upstream_intake.managed_agent_api_contract.write_contracts.team.identity_field = 'runtime_agent_id';
+    },
+  ]) {
+    const contract = readContract();
+    mutate(contract);
+    assert.throws(() => validateContract(contract), /managed-agent API compatibility contract/);
+  }
+});
+
+test('AionUI quick gate rejects retired managed-agent facade paths', () => {
+  const contract = readContract();
+
+  for (const retiredPath of contract.upstream_intake.managed_agent_api_contract.retired_facade_paths) {
+    assert.throws(
+      () => validateContract(contract, {
+        readShellSourceFiles: () => [
+          ...managedAgentStructuralFiles(contract),
+          { relativePath: retiredPath, text: 'export {};' },
+        ],
+      }),
+      new RegExp(`retired managed-agent facade path.*${path.basename(retiredPath)}`),
+    );
+  }
 });
