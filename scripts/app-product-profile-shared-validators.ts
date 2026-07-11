@@ -100,6 +100,7 @@ const expectedReasoningLabels = {
   medium: { zh: '推理中', en: 'Medium reasoning' },
   high: { zh: '推理高', en: 'High reasoning' },
   xhigh: { zh: '推理超高', en: 'Extra high reasoning' },
+  max: { zh: '推理最大', en: 'Maximum reasoning' },
   ultra: { zh: '推理极高', en: 'Ultra reasoning' },
 };
 
@@ -386,11 +387,11 @@ function assertCodexAutoModelPolicy(
     expectedCodexVisibleModels.map((model) => model.id),
     `${label} Codex known model preference order`,
   );
-  if (JSON.stringify(policy?.known_model_reasoning_effort_overrides) !== JSON.stringify({ 'gpt-5.6-sol': 'xhigh' })) {
-    throw new Error(`${label} Codex known model reasoning override must keep gpt-5.6-sol at xhigh`);
+  if (JSON.stringify(policy?.known_model_reasoning_effort_overrides) !== JSON.stringify({ 'gpt-5.6-sol': 'max' })) {
+    throw new Error(`${label} Codex known model reasoning override must keep gpt-5.6-sol at max`);
   }
-  if (JSON.stringify(policy?.catalog_unavailable_fallback) !== JSON.stringify({ model: 'gpt-5.6-sol', reasoning_effort: 'xhigh' })) {
-    throw new Error(`${label} Codex catalog fallback must be gpt-5.6-sol with xhigh reasoning`);
+  if (JSON.stringify(policy?.catalog_unavailable_fallback) !== JSON.stringify({ model: 'gpt-5.6-sol', reasoning_effort: 'max' })) {
+    throw new Error(`${label} Codex catalog fallback must be gpt-5.6-sol with max reasoning`);
   }
   if (JSON.stringify(policy?.persistence_policy) !== JSON.stringify({
     auto: 'persist_auto_mode_only_resolve_model_and_reasoning_from_fresh_catalog',
@@ -478,13 +479,13 @@ function assertReasoningOptions(
   profile: ProductProfileLike,
   label: string,
 ): void {
-  const expectedOptions = ['low', 'medium', 'high', 'xhigh', 'ultra'];
+  const expectedOptions = ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'];
   const options = displayOptions?.user_reasoning_effort_options;
   if (JSON.stringify(options) !== JSON.stringify(expectedOptions)) {
     throw new Error(`${label} Codex reasoning effort options must be ${JSON.stringify(expectedOptions)}`);
   }
-  if (profile.codex?.default_reasoning_effort !== 'xhigh') {
-    throw new Error(`${label} Codex default reasoning effort must be xhigh`);
+  if (profile.codex?.default_reasoning_effort !== 'max') {
+    throw new Error(`${label} Codex default reasoning effort must be max`);
   }
   for (const effort of expectedOptions) {
     const labels = displayOptions?.reasoning_labels?.[effort];

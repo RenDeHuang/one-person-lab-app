@@ -87,7 +87,7 @@ const guidHomeRuntimeForbidden = [
 
 const productProfileDefaultsExpected = [
   '"default_model": "gpt-5.6-sol"',
-  '"default_reasoning_effort": "xhigh"',
+  '"default_reasoning_effort": "max"',
   '"codex_cli_fixed_executor": true',
   '"home_executor_selector_visible": false',
   '"codex_model_selector_visible": true',
@@ -127,7 +127,7 @@ const productProfileDefaultsExpected = [
   '"label_zh": "自动（推荐）"',
   '"description_zh": "跟随 Codex CLI 当前默认模型与 App 推理策略"',
   '"catalog_unavailable_fallback_model": "gpt-5.6-sol"',
-  '"catalog_unavailable_fallback_reasoning_effort": "xhigh"',
+  '"catalog_unavailable_fallback_reasoning_effort": "max"',
   '"zh": "推理超高"',
   '"en": "Extra high reasoning"',
   '"zh": "推理极高"',

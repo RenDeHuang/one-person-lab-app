@@ -625,10 +625,10 @@ function validateNativeWorkbenchCandidateContract(candidate: ShellCandidate): vo
     visual.minimum_bar !== 'one_to_one_codex_layout_density_typography_composer_timeline_project_rail_settings_and_floating_environment_details' ||
     visual.model_policy_source !== 'contracts/app-product-profile.json#gui.home.codex_model_display_options' ||
     visual.default_model !== 'gpt-5.6-sol' ||
-    visual.default_reasoning_effort !== 'xhigh' ||
+    visual.default_reasoning_effort !== 'max' ||
     visual.docs_or_contract_only_completion_allowed !== false
   ) {
-    throw new Error(`${candidate.id}.visual_parity_contract must use ChatGPT Codex macOS 26.707.31123, consume the App-owned 5.6 Sol/xhigh model policy, preserve the AionUI regression floor, and forbid docs-only completion`);
+    throw new Error(`${candidate.id}.visual_parity_contract must use ChatGPT Codex macOS 26.707.31123, consume the App-owned 5.6 Sol/max model policy, preserve the AionUI regression floor, and forbid docs-only completion`);
   }
   assertStringArrayIncludes(
     visual.required_surfaces ?? [],

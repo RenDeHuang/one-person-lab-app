@@ -150,7 +150,7 @@ test('Auto display contract keeps runtime resolution out of the static App profi
   assert.equal('resolved_model' in auto, false);
   assert.equal('resolved_reasoning_effort' in auto, false);
   assert.equal(auto.catalog_unavailable_fallback_model, 'gpt-5.6-sol');
-  assert.equal(auto.catalog_unavailable_fallback_reasoning_effort, 'xhigh');
+  assert.equal(auto.catalog_unavailable_fallback_reasoning_effort, 'max');
 });
 
 test('Auto persistence contract defines reasoning override and stale fixed selection behavior', () => {
@@ -185,7 +185,7 @@ test('product profile rejects persisting Auto as a resolved model snapshot', () 
   ));
 });
 
-test('product profile rejects catalog fallback drift from 5.6 Sol xhigh', () => {
+test('product profile rejects catalog fallback drift from 5.6 Sol max', () => {
   const productProfile = structuredClone(readJson('contracts/app-product-profile.json'));
   productProfile.codex.auto_model_policy.catalog_unavailable_fallback.reasoning_effort = 'high';
 
