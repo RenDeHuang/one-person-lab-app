@@ -55,18 +55,15 @@ Active AionUI 默认状态通过 README 治理段声明的动态 state source �
   `2026-07-11` 宽桌面 conversation 状态观察。App contracts/validators 与 active AionUI
   仍基于前一观察 `26.707.31428`，因此基准同步状态为
   `current_contract_deviation`；文档更新不提升 source/pixel 状态。
-- AionUI source snapshot：`opl-aion-shell@5e46f49ab33fea3734db9a6fb6db79f73507bf07`；
-  已完成 Home、rail、conversation/context、Settings、startup、projectless 和模型策略的
-  fresh source/test audit。该精确 snapshot 的 production package 和 Settings visual E2E
-  已通过，`tests/e2e/screenshots/settings-control-center-manifest.json` 的 28 个
-  desktop/mobile 条目在 `2026-07-10T15:41:59.631Z` 全部绑定同一 commit；该证据只
-  提升 Settings 路径，不外推为 Home、rail、conversation 或全局视觉 parity。
-- Unabsorbed GUI lane：`dbff7370fa956541ace3378296c5a000eb64399d` 相对 main 改动
-  56 files（其中 37 个 renderer/process source files，`+2767/-204`）。它包含 project
-  context、artifact export、desktop navigation 和新的 visual harness，但基于旧
-  Environment/side-panel target；在 41301 文档基线下必须逐项分类为 keep/adapt/drop，
-  不能整体吸收或用其测试结果提升本表 main 状态。
-  逐提交与已落地主线残留的 disposition 见
+- AionUI source snapshot：`opl-aion-shell@1752ba496377a0534ae88e6343f8051d961f79a5`；
+  Home、rail、conversation/context、Settings、startup、projectless 和模型策略的 source/test
+  audit 已通过。Settings visual E2E 的 28 个 desktop/mobile 条目仍绑定历史 snapshot
+  `5e46f49ab33fea3734db9a6fb6db79f73507bf07`；该证据不提升当前 snapshot 的 pixel 状态，
+  也不外推为 Home、rail、conversation 或全局视觉 parity。
+- Absorbed GUI integration：`dbff7370fa956541ace3378296c5a000eb64399d` 已进入当前 shell
+  main，包含 project context、artifact export、desktop navigation 和 visual harness。
+  App authority resolution 与 TypeScript、unit、DOM、i18n、active-shell source gates 已通过；
+  该结果不替代 production package 或 current pixel evidence。逐提交 disposition 见
   [`aionui-41301-delta-audit.md`](aionui-41301-delta-audit.md)。
 - Native source snapshot：`opl-native-workbench@43569d8beb5119d674c6fecae367b2915eacbfb0`；
   `npm test` 与 native live smoke 通过，像素证据为 candidate repo
