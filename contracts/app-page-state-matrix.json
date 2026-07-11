@@ -31,7 +31,7 @@
         "codex_model_policy": "codex_cli_latest_strongest_model_selector_visible",
         "codex_model_auto_option_visible": true,
         "codex_default_model": "gpt-5.6-sol",
-        "codex_default_reasoning_effort": "xhigh",
+        "codex_default_reasoning_effort": "max",
         "codex_default_display_label": "5.6 Sol",
         "codex_default_model_display_value": "5.6 Sol",
         "codex_model_status_display_policy": "default_model_status_with_primary_reasoning_menu_and_secondary_model_intelligence_menus",
@@ -333,7 +333,7 @@
         "provider_selector_visible": false,
         "model_status_surface_ref": "contracts/app-gui-product-contract.json#executor_policy.default_model_display_value",
         "technical_details_policy": "single_compact_model_reasoning_menu_without_backend_or_provider",
-        "composer_context_strip": ["project", "local", "branch", "active_capability"],
+        "composer_context_strip": ["project_context_refs", "active_capability"],
         "composer_bottom_action_row": ["attach", "context", "permission_access_mode", "model_reasoning", "voice_optional", "send_stop"],
         "projectless_conversation_supported": true,
         "project_context_inputs": {

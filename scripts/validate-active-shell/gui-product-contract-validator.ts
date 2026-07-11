@@ -440,8 +440,8 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     full_readiness_blocks_launch: false,
     default_provider: 'gflab',
     default_base_url: 'https://gflabtoken.cn/v1',
-    default_model: 'gpt-5.6-sol',
-    default_reasoning_effort: 'xhigh',
+    default_model: productProfile.codex.default_model,
+    default_reasoning_effort: productProfile.codex.default_reasoning_effort,
     default_executor: 'codex_cli',
     full_runtime_provider: 'temporal',
   })) {

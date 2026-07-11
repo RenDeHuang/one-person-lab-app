@@ -60,6 +60,25 @@ contract/实现收敛 lane 处理。
 只有在现有 primitive 无法表达 App contract 时才新增 shell-local component。新增组件
 应围绕一个明确 slot 或 page-state，而不是创建未来可能使用的 framework。
 
+## AionUI 最小定制阶梯
+
+AionUI 主线定制必须从维护成本最低的层开始，前一层能完成就不得进入后一层：
+
+| Level | 优先手段 | 适用内容 | Closeout 要求 |
+| --- | --- | --- | --- |
+| `L1 profile/data` | Generated profile、registry、已有配置 | 品牌、labels、默认值、可见入口、capability exposure。 | 不修改 upstream component tree。 |
+| `L2 bridge/adapter` | 既有 IPC/API adapter、App state/action bridge | Codex/OPL data、actions、receipts、platform capability。 | 单一 truth、typed failure、focused bridge coverage。 |
+| `L3 composition/token` | Existing layout primitive、slot、wrapper、CSS variable、i18n | Rail section、composer strip、timeline event、Environment secondary content、视觉 token。 | 不复制状态模型，不整页重写，不用广域 CSS selector 接管 upstream DOM。 |
+| `L4 fork-body patch` | 对 upstream component 的最小直接修改 | 只有稳定边界无法表达且属于 P0/P1 的交互。 | 记录 upstream file、必要性、冲突热点、focused regression 和下一次 intake 处理。 |
+
+以下情况不是进入 `L4` 的理由：现有组件样式不完全一致、测试更容易写、短期绕过
+profile hydration、或 Settings 页面已有类似布局。视觉对齐优先复用 composition/token，
+不能通过重写大组件把 AionUI 变成第二套私有 shell。
+
+每次主线 GUI 工作都应输出 delta inventory：修改的 upstream fork-body 文件、OPL-owned
+overlay/adapter 文件、tests/evidence 文件分别计数。文件数不是机械 gate，但 fork-body
+范围持续扩大时必须先重新检查是否能退回 `L1-L3`。
+
 ## Profile-driven
 
 Generated product profile 是 shell 的默认值入口：
@@ -118,9 +137,10 @@ adapter slot 承接，而不是遍历 upstream settings pages 后临时隐藏。
 - Upstream 新增 Settings 页面必须先经过下面的 intake classification，不能自动进入
   ordinary navigation。
 
-## Upstream Intake 分类
+## Settings Upstream Intake 分类
 
-对每个 AionUI upstream 或外部 GUI 变化，使用四类判定：
+Broad AionUI intake 先使用 adapter contract 的 `absorbed / rejected / deferred`。只有
+Settings route、registry、slot 与 compatibility 变化再使用以下四类判定：
 
 | Class | 何时使用 | 实现动作 |
 | --- | --- | --- |
@@ -134,14 +154,14 @@ adapter slot 承接，而不是遍历 upstream settings pages 后临时隐藏。
 
 ## 视觉实现边界
 
-- ChatGPT Codex macOS 26.707.31428 是当前布局、密度、composer、timeline、project
-  rail、Settings 和 floating details 基准；同日 build 26.707.31123 仅保留为 superseded
+- ChatGPT macOS 26.707.41301 是当前布局、密度、composer、timeline、project rail 和
+  Environment floating details 基准；`26.707.31428` 与 `26.707.31123` 仅保留为历史
   observation。OPL branding 与 product contracts 是例外。
 - AionUI 是 active implementation carrier 和 native candidate 的 regression floor，
   不是理想视觉 authority。
 - 优先通过 tokens、CSS、existing layout primitives、composition 和 i18n 对齐。
 - 不复制 ChatGPT/Codex、AionUI upstream 或外部 demo 源码来建立产品层。
-- DOM presence 不能证明视觉可用。Rail、drawer、inspector、popover 和 canvas 必须在
+- DOM presence 不能证明视觉可用。Rail、drawer、Environment/details 和 canvas 必须在
   目标 viewport 中有可见像素、正确尺寸、可操作 controls 和无重叠布局。
 - Visual change 不得以恢复旧 UI 的方式满足 stale validator；先判断 contract/gate
   是否已经落后于产品目标。
@@ -156,18 +176,23 @@ adapter slot 承接，而不是遍历 upstream settings pages 后临时隐藏。
 | Packaged screenshot/smoke | 某一 package cohort 可启动并渲染目标路径。 | Stable promotion、owner acceptance、domain readiness。 |
 | Same-cohort user-path/VM evidence | 指定构建在目标环境完成验收路径。 | 未经 release authority 的发布或 currentness claim。 |
 
-视觉 QA 至少覆盖宽桌面、窄桌面、inspector open、Settings、light/dark、简体中文/英文
-和 composer running/error states。截图必须绑定 route、viewport、source/package ref、
+视觉 QA 先覆盖 P0/P1：宽桌面、窄桌面、rail、Home、conversation、composer、
+Environment open、light/dark、简体中文/英文和 composer running/error。Settings 属于
+P2 独立矩阵，不能替代主工作流证据。截图必须绑定 route、viewport、source/package ref、
 command 和可见状态 anchor。
 
 ## 实现步骤
 
-1. 读 App contracts、三层文档和当前 adapter；确认 target 与 current deviation。
-2. 用 `accepted / adapt / redirect / reject` 分类现有 shell primitive。
-3. 只实现 profile consumer、bridge、slot、route、presentation 所需最小 delta。
-4. 为用户可见行为增加 focused existing-test coverage；视觉变化增加截图/pixel evidence。
-5. 运行 adapter 对应 validation，不用 candidate evidence替代 active-shell evidence。
-6. 更新 conformance matrix 的 source refs 和状态；未取得的 evidence 保持
+1. 读 App contracts、三层文档和当前 adapter；先确认精确 Codex observation、OPL delta
+   与 current deviation。
+2. 按 `P0 Codex Core -> P1 OPL Professional -> P2 Administration` 排序，不用 Settings
+   完成度替代主体验。
+3. 先用 `absorbed / rejected / deferred` 分类 broad AionUI intake；Settings 变化再追加
+   `accepted / adapt / redirect / reject`，然后从 `L1-L4` 定制阶梯选择第一个可行层级。
+4. 只实现 profile consumer、bridge、slot、route、presentation 所需最小 delta。
+5. 为用户可见行为增加 focused existing-test coverage；视觉变化增加截图/pixel evidence。
+6. 运行 adapter 对应 validation，不用 candidate evidence 替代 active-shell evidence。
+7. 更新 conformance matrix 的 source refs 和状态；未取得的 evidence 保持
    `not evidenced` 或 current deviation。
 
 ## 反模式
@@ -189,7 +214,7 @@ command 和可见状态 anchor。
 
 - App product profile 被读取，模型策略没有 shell-local 分叉；
 - ordinary state/action 只通过 App bridge；
-- Home/chat-first、timeline、composer、rail 和 inspector 行为符合对应 target 或被明确
+- Home/chat-first、timeline、composer、rail 和 Environment/details 行为符合对应 target 或被明确
   标成 current deviation；
 - Settings 从 Control Plane registry/slots 渲染，legacy routes 只 redirect；
 - 普通 UI 不拥有 runtime/domain/artifact/release truth；

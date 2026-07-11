@@ -865,7 +865,7 @@
         "minimum_bar": "one_to_one_codex_layout_density_typography_composer_timeline_project_rail_settings_and_floating_environment_details",
         "model_policy_source": "contracts/app-product-profile.json#gui.home.codex_model_display_options",
         "default_model": "gpt-5.6-sol",
-        "default_reasoning_effort": "xhigh",
+        "default_reasoning_effort": "max",
         "required_surfaces": [
           "persistent_project_rail",
           "single_conversation_timeline",

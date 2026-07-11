@@ -26,14 +26,19 @@ Machine boundary: 本文是 shell-neutral 的人读交互目标。机器可读�
    没有 workspace 时仍允许普通文字聊天，并明确文件与项目能力受限。
 3. **One primary timeline。** 当前任务、assistant output 和 turn-local events 在同一
    conversation flow 中发生。
-4. **Secondary context on demand。** Environment popover、side panel 和 advanced work
-   surfaces 分层按需打开，不把九个工具做成同权 tabs。
+4. **Secondary context on demand。** Environment floating details、preview 和 advanced
+   work surfaces 分层按需打开，不默认形成第三列，也不把九个工具做成同权 tabs。
 5. **Purpose, not backend。** 用户选择科研、基金、演示、写书等工作目的，不管理
    executor/provider/backend orchestration。
 6. **Summary first, evidence available。** 首先显示结论、下一步和影响；refs、receipts
    与 raw detail 可按需展开。
 7. **Authority aware。** UI 展示 state/action/domain/release refs，但不推断或接管
    owner truth。
+
+没有明确 OPL delta 的主流程默认继承
+[`codex-to-opl-app-delta.md`](codex-to-opl-app-delta.md) 记录的
+ChatGPT `26.707.41301` 空间关系和交互位置。Shell 不能因为已有组件更方便，就把模型移到
+header、隐藏 project rail、默认打开 inspector，或用 Settings/card layout 重新定义 Home。
 
 ## 默认桌面状态
 
@@ -44,14 +49,15 @@ Machine boundary: 本文是 shell-neutral 的人读交互目标。机器可读�
 - 主区域是一条 conversation timeline；空 conversation 仍使用同一工作画布。
 - Composer 浮于主区底部并保留安全距，可直接输入多行任务。
 - Project/local/branch context、active capability chip、模型/推理和 permission/access
-  mode 可见但保持辅助权重；access mode 使用自动化与文件权限的用户语言。
-- 右侧 side panel 默认关闭；bottom panel、file tree、Terminal、Browser 也默认关闭。
+  mode 位于 composer 附近并保持辅助权重；access mode 使用自动化与文件权限的用户语言。
+- 右上 Environment details 默认关闭；bottom panel、file tree、Terminal、Browser 和
+  独立 artifact preview 也默认关闭。
 - 不显示解释性 landing、marketing hero、activity grid、continue-work dashboard、
   backend/provider selector 或 raw protocol monitor。
 
 当窗口不足以同时保留 rail 和可读 main canvas 时，rail 转为用户可开关的 drawer；
-这属于响应式变化，不改变宽桌面的 persistent target。Side panel 在所有 viewport
-均由用户主动打开。
+这属于响应式变化，不改变宽桌面的 persistent target。Environment/details surfaces 在
+所有 viewport 均由用户主动打开。
 
 ## 核心用户流程
 
@@ -64,8 +70,9 @@ Machine boundary: 本文是 shell-neutral 的人读交互目标。机器可读�
 4. **提交任务。** 用户输入说明、附加材料、确认模型/推理状态并发送。
 5. **观察执行。** Timeline 显示 pending、elapsed time、assistant output、tool/process
    summary、permission/input prompt 和当前 turn result。
-6. **查看上下文。** 需要时打开 environment popover，或在 side panel 使用 Review、
-   Terminal、Browser、Files，并按需展开 Artifacts、Runtime、Actions、Memory。
+6. **查看上下文与结果。** 需要时打开 Environment floating details 查看 workspace、
+   changes、branch、subagents 和 sources；artifact/evidence 使用次级 section、preview 或
+   conversation disclosure，Terminal/Browser/Files 仅在任务需要时打开。
 7. **继续或恢复。** Turn 完成后保留 compact receipt/next action；用户可继续提问、
    切换 conversation 或回到 Runtime 处理跨项目工作。
 
@@ -73,16 +80,16 @@ Machine boundary: 本文是 shell-neutral 的人读交互目标。机器可读�
 
 Rail 负责 navigation，不承担 dashboard：
 
-- 顶部全局骨架固定为 New task、Archived、Capabilities；Capabilities 映射 Codex
-  Plugins 的产品位置，但只展示 OPL 能力，不展示 backend/provider。
-- Sites/Chat 没有 OPL 对应产品能力时不作为普通入口。
-- 中段先显示 selected project，再显示 project-scoped conversation history；同时允许
-  projectless conversation。
-- 展开的 project 在 conversations 之前显示可选 Context inputs；每项是该 workspace
-  内的文件或目录引用，支持添加和移除，不生成示例项，也不复制 artifact body。
-- Context inputs 按 canonical workspace path 持久化，并在该 project 新建 conversation 时
-  作为可见、可移除的 composer context 预载。Attachments 仍属于当前 conversation draft，
-  不自动继承为 project defaults。
+- 顶部先保留 New task、Archived 和 Capabilities；Capabilities 占用 Codex Plugins 的
+  认知位置，但只展示 OPL 能力，不展示 backend/provider。其它全局入口仅在 OPL 有真实
+  对应能力时保留。
+- 中段按 project 分组 conversation。Selected project 下依次组织可选 context refs、
+  attachments 入口和最近 conversations；context 与 attachments 都不是建项前置条件。
+- Projectless conversation 继续可用，但不伪造 project/context 层级。
+- Context refs 是该 workspace 内的文件或目录引用，支持添加和移除，不生成示例项，也不复制
+  artifact body；按 canonical workspace path 持久化，并在该 project 新建 conversation 时
+  作为可见、可移除的 context 预载。Attachments 仍属于当前 conversation draft，不自动继承为
+  project defaults。
 - 支持 search、pin、rename、archive、reset；Archived 是独立 surface。
 - 底部固定 account、help、Settings。
 - Active conversation、running/blocked/completed 等状态只用轻量标记，不改变 row 布局。
@@ -119,7 +126,7 @@ Timeline 按时间顺序组织用户可理解的工作事实：
 - Permission request 与 user-input request 留在相应 turn 中，不跳到独立 control panel。
 - Error 显示 direct reason、影响范围和 App-owned next action；raw stack/protocol 在 details。
 - Turn 完成后保留 result summary、artifact/receipt refs 和继续工作入口。
-- 跨项目 status、长 evidence list 和 full ledger 进入 Runtime/side panel，不挤占 timeline。
+- 跨项目 status、长 evidence list 和 full ledger 进入 Runtime/details，不挤占 timeline。
 
 Streaming 期间用户始终知道 App 仍在工作。即使已有 tool event，也不能移除 pending
 反馈或让 timeline 看起来停止响应。
@@ -129,10 +136,11 @@ Streaming 期间用户始终知道 App 仍在工作。即使已有 tool event，
 Composer 是普通路径唯一主 command surface：
 
 - 文本输入默认可用，支持多行、paste、keyboard shortcuts 和 IME。
-- 上层 context strip 显示 project/local/branch 与 active capability chip；active capability
-  可按上下文更换，但不得表现为 backend。
-- Project Context inputs 进入 context strip/附件预览上方的可见 refs，发送前可逐项移除；
-  不允许 hidden prompt injection，也不把项目默认 context 与当前 conversation attachments 混为一类。
+- 41301 human target 不在 composer 常驻重复 project/local/branch：project 由 rail 表达，
+  branch/locality 由 Environment 表达；composer 只保留与下一次发送直接相关的 attachment、
+  project context refs 和 active capability。
+- Project Context inputs 以可见 refs 预载，发送前可逐项移除；不允许 hidden prompt injection，
+  也不把项目默认 context 与当前 conversation attachments 混为一类。
 - 中层是 textarea；底层 action row 放 attachments/context、permission/access mode、
   单一紧凑 model/reasoning menu、可选 voice 和 send/stop。
 - Home 与 ordinary conversation 使用同一 App-owned model control。
@@ -142,7 +150,9 @@ Composer 是普通路径唯一主 command surface：
   在 Home 与 conversation 可见，以自动化和文件权限表达并保留安全透明度。
 - Attachments 在发送前可预览、移除并显示访问失败。
 - Running 时 send 转为 stop 或明确 queue 行为；stopping、blocked、failed 有可理解状态。
-- Composer draft 不因打开 side panel、切换 details、window resize 或临时 error 丢失。
+- Model/reasoning 与 permission/access 不在 conversation header 或 Settings 快捷条中重复。
+- Composer draft 不因打开 Environment/preview、切换 details、window resize 或临时 error
+  丢失。
 
 视觉尺寸、radius、control placement 与状态样式见
 [`visual-system.md`](visual-system.md)。
@@ -151,7 +161,7 @@ Composer 是普通路径唯一主 command surface：
 
 - 普通标签描述用户工作：科研、基金、演示、写书等。
 - Purpose 只从 Home starter 或 Capabilities 选择；不再是 composer 的常驻可变 selector。
-- Composer/context strip 只显示 active capability chip；更换 capability 改变 route context
+- Composer 只以低权重显示 active capability；更换 capability 改变 route context
   与 assistant-scoped profile，不改变 executor。
 - Required skills 可见且 locked；optional skills 由 App packaged profile 控制。
 - Package id、MAS/MAG/RCA 等 short name、route id 和 schema refs 进入 receipt/details。
@@ -159,18 +169,20 @@ Composer 是普通路径唯一主 command surface：
   discovery 自动加入。
 - Ordinary capability selector 不展示未被 App allowlist 接受的 helper skill 或 MCP。
 
-## Environment Popover 与 Side Panel
+## Environment Floating Details 与 Advanced Surfaces
 
-Environment popover 是 anchored summary，只显示 workspace、local、git、subtasks、sources；
-它不是 side panel，也不承载完整工具。
+Environment details 继承 Codex 的右上 anchored floating surface，默认关闭。首层只显示
+当前 conversation 直接相关的 changes、local、branch、commit/push、compare、subagents
+和 sources；它不是常驻 inspector，也不承载完整 Runtime dashboard。
 
-Wide side panel 是 selected conversation 的可调 split，默认关闭：
+OPL 增量按以下顺序进入：
 
-- 核心工具只有 Review、Terminal、Browser、Files；
-- OPL Artifacts、Runtime、Actions、Memory 进入 secondary sections/disclosures；
-- 不把上述能力做成九个同权 tab；Capabilities 从 rail/Home 管理，Settings 使用独立 shell。
+1. 与当前 task 直接相关的 artifact/evidence refs 进入 Environment 次级 section；
+2. 需要阅读的 Markdown/PDF/code/result 在独立 preview 或 conversation disclosure 打开；
+3. Terminal、Browser、Files 等 advanced surfaces 只在任务实际调用时出现；
+4. 跨项目 Runtime、Actions、Memory 管理保持独立 route，不并列成九个 tabs。
 
-打开 side panel 时：
+打开任何 details/preview surface 时：
 
 - 保留 conversation、scroll、selection 和 composer draft；
 - 默认展示 summary，不自动展开 raw refs；
@@ -204,8 +216,8 @@ Runtime 专题设计见
 
 Settings 是 OPL Control Center，不是 upstream 配置列表：
 
-- 使用 Codex full-window shell：明确 return、search 和 grouped rows；不把 Settings 塞进
-  side panel。
+- 使用独立 Settings route：明确 return、search 和 grouped rows；不把 Settings 塞进
+  Environment/details。
 - Ordinary navigation 按 App-owned Settings IA 组织 Overview、Access、Workspace、
   Capabilities、Resources & Connections、Maintenance & Updates、Data & Storage 和
   Preferences；Advanced/About/Update 等保持 secondary。
@@ -245,7 +257,7 @@ First-run 的目标是让用户尽快进入可工作的 App：
 ## 响应式与 WebUI
 
 - Desktop 与 WebUI 保持同一产品语义；transport 和 native affordance 可以不同。
-- 宽桌面保留 persistent rail；窄窗口把 rail 与 side panel 变为 drawer/overlay。
+- 宽桌面保留 persistent rail；窄窗口把 rail 与 Environment/details 变为 drawer/overlay。
 - Main timeline 与 composer 始终优先获得可读宽度。
 - Native file picker 在 WebUI 可映射为受控 path/volume action，但不得扩大文件权限。
 - 用户打开 secondary context 后，panel 必须真实可见、可滚动、可关闭和 keyboard 可达。
@@ -266,15 +278,17 @@ First-run 的目标是让用户尽快进入可工作的 App：
 
 - 宽桌面打开即显示 project/conversation rail、single timeline 和 composer。
 - 窄窗口 rail 可收起并能以 drawer 重新打开。
-- Side panel 默认关闭且可调，打开后不破坏 conversation/draft；environment popover 与其分离。
+- Environment details 默认关闭且 anchored，打开后不破坏 conversation/draft。
 - Home 使用动态问题标题与最多四个 starter，不是 dashboard/landing。
 - Project task 与 projectless conversation 均可用；无 workspace 时文字聊天可用且文件能力受限。
-- Composer 只有 context strip、textarea 和 bottom action row；purpose 不再常驻可变 selector。
+- Composer 只有 textarea、send-local controls 和 bottom action row；purpose 不再常驻可变
+  selector，project/local/branch 不与 rail/Environment 重复。
 - Permission/access mode 可见并用用户语言表达，不暴露 backend/provider。
 - Model/reasoning 及当前默认值来自 App product profile。
 - Current-task summary bar 可 pin，并包含 status/elapsed/progress/next action/stop。
 - Rail/Archived/conversation management 与 desktop affordances 完整可达。
-- Review/Terminal/Browser/Files 为 side panel 核心工具，其它 OPL surfaces 为次级 sections。
+- Environment 首层保持 changes/local/branch/subagents/sources；OPL artifact/evidence 为
+  次级 section/preview，advanced tools 默认关闭。
 - Settings 使用 full-window shell，OPL IA、first-run、品牌和双语边界保持不变。
 - Pending、elapsed、tool/process、permission、failure 和 receipt 在 turn 中可理解。
 - Runtime/Settings 使用 App state/action/Control Plane，不拥有 owner truth。

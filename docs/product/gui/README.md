@@ -20,6 +20,16 @@ OPL App GUI 使用三层设计体系：
 三层必须分开维护。功能或理想目标不能从某个 shell 的现状反推；shell 实现文档也
 不能把局部代码、截图或 focused test 提升成 App product truth。
 
+产品方向固定为：**先继承 ChatGPT Codex 的主工作流和空间关系，再增加 OPL
+专业能力**。Rail、单列 conversation、底部 composer 和按需环境详情构成基础壳；
+OPL project context、capabilities、progress、evidence、artifacts 与 safe actions 必须
+嵌入这些稳定位置，不得把 Home 改造成 dashboard、launcher 或 card wall。
+
+当前人读观察基准是本机 ChatGPT macOS `26.707.41301`（观察于 `2026-07-11`）。
+它取代 `26.707.31428` 作为设计参考，但在 contracts、validators 与 active shell
+完成同步前，只能形成明确的 `pending_contract_sync` / `current_source_deviation`，
+不能靠修改本文宣称实现已经对齐。
+
 ## 三层与文件归属
 
 | 层级 | 核心问题 | 人读文件 | 不应包含 |
@@ -67,6 +77,11 @@ Conformance 必须按 `contract_status`、`source_status`、`pixel_status` 三�
 - `ideal_target.inspector_default_visible=false`
 - `active_aionui.state_source=contracts/app-product-profile.json#gui.home.home_layout`
 - `active_shell_switch_contract=contracts/app-shell-adapter.json`
+- `human_observed_interaction_reference=ChatGPT macOS 26.707.41301 (2026-07-11)`
+- `human_superseded_interaction_observation=ChatGPT Codex macOS 26.707.31428 (2026-07-10)`
+- 以下 `current_interaction_reference`、`superseded_interaction_observation` 与
+  `side_panel_primary_tools` 是 validator 仍消费的 legacy `31428` machine markers，
+  不属于 `41301` human ideal；状态为 `pending_contract_sync`：
 - `current_interaction_reference=ChatGPT Codex macOS 26.707.31428 (2026-07-10)`
 - `superseded_interaction_observation=ChatGPT Codex macOS 26.707.31123 (2026-07-10)`
 - `human_target.owner=one-person-lab-app`
@@ -74,6 +89,8 @@ Conformance 必须按 `contract_status`、`source_status`、`pixel_status` 三�
 - `docs_or_contract_imply_source_complete=false`
 - `docs_or_contract_imply_pixel_complete=false`
 - `ideal_target.permission_access_mode_visible=true`
+- `ideal_target.environment_details_primary=changes,local,branch,commit_push,subagents,sources`
+- `ideal_target.advanced_tools_default_visible=false`
 - `ideal_target.side_panel_primary_tools=review,terminal,browser,files`
 - `entry_docs=docs/product/gui/README.md,docs/product/gui/feature-inventory.md,docs/product/gui/ideal-interaction-spec.md,docs/product/gui/visual-system.md,docs/product/gui/codex-to-opl-app-delta.md,docs/product/gui/element-audit.md,docs/product/gui/shell-implementation-guide.md,docs/product/gui/shell-conformance-matrix.md`
 - `codex_auto_model_policy=contracts/app-product-profile.json#codex.auto_model_policy`
@@ -83,28 +100,31 @@ Conformance 必须按 `contract_status`、`source_status`、`pixel_status` 三�
 
 当前 Codex-based ideal target 是：
 
-- 宽桌面默认显示项目/对话 rail，保持 workspace 和 conversation history 可见；
-  rail 在 `280-340px` 内可调，窄窗口改为 drawer。
-- Rail 顶部固定 New task、Archived、Capabilities，底部固定 account/help/Settings；
-  Sites/Chat 没有 OPL 对应能力时不成为普通入口。
-- Home 是动态问题标题、最多四个轻量 OPL starter 和 composer，不是 landing/dashboard；
-  project task 与 projectless conversation 都可用，无 workspace 时普通文字聊天仍可发送。
-- Purpose 由 Home starter 或 Capabilities 选择；composer 只显示 active capability chip，
-  以及 project/local/branch context strip、textarea、bottom action row。
-- Model/reasoning 使用单一紧凑 menu；permission/access mode 使用自动化和文件权限的
-  用户语言并保持可见，不暴露 provider/backend。
-- 当前任务使用可 pin summary bar，统一显示 status、elapsed、progress、next action、stop。
-- Environment 是 anchored popover；wide side panel 是默认关闭的可调 split，主工具只有
-  Review、Terminal、Browser、Files，Artifacts/Runtime/Actions/Memory 进入次级 section。
+- 宽桌面默认显示项目/对话 rail，保持 project hierarchy 和 conversation history 可见；
+  窄窗口改为 drawer，不能为增加工具而压缩主阅读列。
+- Rail 顶部保持少量全局入口，主体按 project 分组 conversation，底部承载 account/help；
+  OPL 在 project 下增加可选 context refs，不创建第二套导航体系。
+- Home/New task 与普通 conversation 共用同一 chat canvas 和 composer，不是
+  landing/dashboard；project task 与 projectless text conversation 都可用。
+- Conversation 顶部只保留当前 task identity 与直接动作。Model/reasoning、
+  permission/access、attach 和 send/stop 均留在 composer；不在 header 重复配置。
+- Purpose 从 Home starter 或 Capabilities 选择；选中后只显示轻量 active capability，
+  不用大型入口卡片长期占据主画布。
+- 当前 task progress、tool events、approval 与 receipts 进入 timeline；跨项目总览才进入
+  Runtime。
+- Environment 使用右上按需浮层，汇总 changes、local、branch、commit/push、subagents
+  与 sources。OPL artifacts/evidence 可在同一浮层的次级 section 或专用 preview 中展开，
+  不默认形成全高第三列。
 - Bottom panel、file tree、Terminal、Browser 等 advanced work surfaces 保留但默认关闭。
-- Settings 采用 Codex full-window return/search/grouped-row shell，同时保持现有 OPL IA。
+- Settings 是次级配置面，保持现有 OPL IA；它不得决定 Home、rail、conversation 或
+  composer 的产品结构。
 - 模型策略与当前默认值只读取 `contracts/app-product-profile.json`；本文档族不复制
   当前 model/reasoning 值或具体模型 allowlist。
 
 Active AionUI 通过上面的动态 state-source marker 读取默认状态；
 `opl-native-workbench` candidate contract 则把 rail 记为 default visible。当前是否
-收敛由 validator readback 动态计算，不在本文复制 profile 值。右侧 side panel 的理想
-目标与 candidate 均为默认关闭。Product target、active source 和 pixel evidence 必须
+收敛由 validator readback 动态计算，不在本文复制 profile 值。右上 Environment/details
+的理想目标为默认关闭。Product target、active source 和 pixel evidence 必须
 分轴记录；合同或文档落地不表示 AionUI source 或像素已经完成。具体状态、允许偏差和验证入口只在
 [`shell-conformance-matrix.md`](shell-conformance-matrix.md) 维护。
 
@@ -145,10 +165,11 @@ artifact、owner acceptance 或 release authority 提供 fresh evidence。
 
 ## 推荐阅读顺序
 
-1. [`feature-inventory.md`](feature-inventory.md)
-2. [`ideal-interaction-spec.md`](ideal-interaction-spec.md)
-3. [`visual-system.md`](visual-system.md)
-4. [`codex-to-opl-app-delta.md`](codex-to-opl-app-delta.md)
+1. [`codex-to-opl-app-delta.md`](codex-to-opl-app-delta.md)
+2. [`feature-inventory.md`](feature-inventory.md)
+3. [`ideal-interaction-spec.md`](ideal-interaction-spec.md)
+4. [`visual-system.md`](visual-system.md)
 5. [`element-audit.md`](element-audit.md)
 6. [`shell-implementation-guide.md`](shell-implementation-guide.md)
 7. [`shell-conformance-matrix.md`](shell-conformance-matrix.md)
+8. [`aionui-41301-delta-audit.md`](aionui-41301-delta-audit.md)

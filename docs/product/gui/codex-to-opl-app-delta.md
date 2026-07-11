@@ -22,37 +22,57 @@ surfaces。
 
 ## Literal Observation Boundary
 
-当前 baseline 固定为 **ChatGPT Codex macOS 26.707.31428 (2026-07-10)**；同日 build
-`26.707.31123` 只保留为 superseded observation。直接观察只支持以下抽象层结论：
+当前人读 baseline 固定为 **ChatGPT macOS 26.707.41301**，本机 bundle build `5103`，
+观察于 `2026-07-11`。`26.707.31428` 与 `26.707.31123` 都降级为历史 observation。
+本次观察来自标准宽桌面 conversation 状态，不把未实际展开的菜单、空状态、Settings、
+移动端或隐藏功能写成 literal fact。
 
-- conversation navigation rail 与单一 chat canvas 形成主工作面；
-- conversation header 放当前任务相关 controls，composer 固定在底部；
-- 次级信息按需展开，不用 dashboard/card wall 抢占 chat；
-- 视觉层级安静、紧凑、可扫描，主要动作靠近当前对象。
+| Area | 26.707.41301 直接观察 | OPL disposition |
+| --- | --- | --- |
+| App frame | 左 rail、中央单列 conversation、底部 composer 与右上按需环境浮层构成主工作面。 | `inherit_1_to_1` |
+| Rail global entry | 顶部有 New task、Archived、Plugins、Sites、Pull requests、Chat；主体按 project 分组 conversations；底部是 account/help。 | `inherit_structure_adapt_labels` |
+| Project hierarchy | Project 是 conversation 的认知父级；同一 project 下可见多条 task/conversation。 | `inherit_and_extend_context_refs` |
+| Main canvas | 中央正文保持窄 reading lane，大量宽屏空间用于留白，不转成 dashboard。 | `inherit_1_to_1` |
+| Conversation chrome | 左上只显示当前 task identity 和轻量动作，不放常驻模型配置栏。 | `inherit_1_to_1` |
+| Timeline | Assistant 正文大多 unframed；用户输入、系统提示和可展开细节使用轻量 bounded surface。 | `inherit_1_to_1` |
+| Composer | 固定在底部中央；左侧为 add/access，右侧为 model/reasoning、voice 与 send/stop。 | `inherit_and_bind_app_policy` |
+| Environment details | 右上浮层按需显示 changes、local、branch、commit/push、compare、subagents 与 sources。 | `inherit_and_extend_opl_refs` |
+| Visual grammar | 白色主画布、浅灰 rail、细边界、低对比选中态、小圆角和紧凑字号；几乎没有页面级卡片。 | `inherit_1_to_1` |
 
-以下项目不是 Codex 31428 的 literal observation，必须视为 OPL-owned target translation：
+以下项目不是 26.707.41301 的 literal observation，必须明确标为 OPL-owned delta：
 
-- 固定 `Archived / Capabilities / Settings` 的 rail 位置；
-- OPL capability starters、purpose/package 语义和 active capability chip；
-- `Review / Terminal / Browser / Files` 四工具及 OPL secondary sections；
-- OPL runtime/action/receipt、Settings IA、first-run 与双语规则。
+- project 下的可选 context refs、附件边界与 OPL workspace state；
+- Research、Grant、Presentation、Book 等 capability/package 语义；
+- OPL task progress、evidence、artifact、action confirmation 与 receipt；
+- OPL Settings IA、first-run、双语、runtime 和 release authority。
 
-因此，Codex baseline 只定义 composition 和 interaction quality，不定义 OPL 的具体入口、
-runtime、domain、package、Settings IA、release 或 evidence truth。
+因此，Codex baseline 定义主 composition、空间关系、交互位置和视觉质量；OPL 只在这些
+位置增加专业能力，不复制 ChatGPT 品牌、账户、服务端产品或 authority。
 
 ## OPL Target Translation
 
-OPL App 采用下列目标结构；这是 App 产品决策，不是假装从 Codex 逐项抄录的观察事实：
+OPL App 采用下列翻译规则；没有明确 delta 的区域默认继承 baseline：
 
-- 宽桌面 rail 默认展开并可调宽度，窄窗口使用 drawer；顶部放 New task、Archived、
-  Capabilities，底部放 account/help/Settings。
-- Home 使用动态问题标题和最多四个 OPL starter，支持 project task 与 projectless text
-  conversation；无 workspace 时明确限制文件能力。
-- Composer 采用 project/local/branch/active capability context strip、textarea 和 bottom
-  action row；模型/推理、permission/access 与 send/stop 按 App policy 呈现。
-- Current-task summary、Environment popover、side panel 与 advanced work surfaces 按需出现；
-  side panel 的 OPL taxonomy 为 Review、Terminal、Browser、Files 加次级 refs sections。
-- Settings 使用 full-window return/search/grouped-row shell，但信息架构继续归 OPL。
+1. **Project-first rail。** 保留 Codex project -> N conversations 结构，在选中 project 下
+   增加可选、可移除的 context refs 与附件入口；不增加并列的第二导航栏。
+2. **Chat-first canvas。** Home/New task 和已有 conversation 使用同一 canvas、timeline
+   与 composer。Starter 只帮助选择 purpose，不形成长期 dashboard。
+3. **Composer owns execution controls。** Model/reasoning、access、attachment、active
+   capability 与 send/stop 都在 composer 附近；header 不重复这些配置。
+4. **Timeline owns task interaction。** Streaming、tool/process、approval、progress、result
+   和 receipt 在当前 conversation 中完成；Runtime 只做跨项目管理。
+5. **Environment owns secondary context。** 先继承右上按需浮层，再把 OPL refs、artifact
+   与 evidence 作为次级 section/preview 扩展；默认不打开全高 inspector。
+6. **Settings stays secondary。** Settings 只负责持久配置和控制面，不决定主工作流。
+
+### Inherit / Adapt / Add / Reject
+
+| Class | 内容 | 设计约束 |
+| --- | --- | --- |
+| `inherit_1_to_1` | App frame、project/conversation rail、单列 timeline、底部 composer、environment floating details、quiet visual grammar。 | 除品牌与平台差异外，不重新发明位置或交互。 |
+| `adapt` | Global rail labels、model/access policy、project state、Settings IA、desktop/WebUI affordance。 | 保持 Codex 认知位置，只替换数据和用户语言。 |
+| `add` | Project context refs、OPL capabilities、progress、evidence/artifacts、safe actions/receipts。 | 渐进披露；不得抢占主 timeline 或制造 card wall。 |
+| `reject` | Home dashboard、状态卡片墙、常驻 provider/backend selector、多套 inspector、普通路径 raw runtime/protocol。 | 不以“OPL 专业性”为理由恢复。 |
 
 ## 增量摘要
 
@@ -63,7 +83,7 @@ OPL App 采用下列目标结构；这是 App 产品决策，不是假装从 Cod
 | Model control | 保持 Codex-like model/reasoning control，但策略只由 App product profile 提供。 | `contracts/app-product-profile.json`。 |
 | Capabilities | 把普通 agent/tool 入口收敛为 installed OPL Agent Packages 与 assistant-scoped skills。 | App package registry/profile。 |
 | Runtime context | 增加 Framework-backed current-task summary、progress、blocker、owner、receipt 与 safe action refs。 | Framework state/action 与 domain refs。 |
-| Settings | 采用 Codex full-window shell，同时保留 OPL Control Center IA。 | App GUI contract、Settings Control Plane。 |
+| Settings | 作为次级配置面保留 OPL Control Center IA，不反向定义主工作流。 | App GUI contract、Settings Control Plane。 |
 | First-run | 增加 Core readiness、guided setup 和 background maintenance。 | App first-run/install contracts。 |
 | Delivery | 增加 desktop/WebUI/Workspace 的同产品语义与受控资源入口。 | App adapters、Framework/Gateway/Fabric refs。 |
 | Evidence | 增加 route/action/release/visual evidence 边界。 | App/domain/runtime/release owner surfaces。 |
@@ -130,9 +150,9 @@ strip 只显示 active capability chip：
 - Runtime overview 展示真实 running、仍在推进的 project lines、queued 和 attention。
 - Current-turn artifact 与 OPL current-task projection 共用可 pin summary bar，展示
   status、elapsed、progress、next action、stop。
-- Environment popover 汇总 workspace/local/git/subtasks/sources。
-- Side panel 以 Review、Terminal、Browser、Files 为核心工具；Artifacts、Runtime、
-  Actions、Memory 通过 secondary sections/disclosures 扩展。
+- Environment 浮层继承 changes/local/branch/commit/subagents/sources 的紧凑结构。
+- Artifacts、Evidence、Runtime 与 Actions 作为浮层次级 section、preview 或 conversation
+  disclosure 按需出现；不默认形成全高第三列。
 - Mutation 统一走 App action route，并保留 dry-run、confirmation 与 receipt。
 - Progress 区分 deliverable progress、platform repair、human gate 和 typed blocker。
 - UI 不从 active id、module dirt、provider completion、docs 或 test pass 推断 domain、
@@ -145,7 +165,8 @@ Route receipt、action receipt、artifact ref、owner handoff 和 release eviden
 
 OPL App 把通用 Agent App settings 收敛为用户任务导向的 Control Center：
 
-- Shell 采用 Codex full-window return/search/grouped-row 结构；OPL IA 不变。
+- Settings 是 secondary route；可以借鉴 Codex 的返回、搜索和 grouped-row 交互，但
+  OPL IA 不变，且 Settings 视觉不得成为 Home/Conversation 的设计来源。
 
 - Overview：App 是否可用、下一步是什么。
 - Access：模型访问、Codex CLI 和远程访问。
@@ -198,7 +219,7 @@ OPL App 在 Codex baseline 上增加可解释的本机准备：
 - provider/backend 术语化的 permission selector；
 - raw AG-UI/ACP/app-server/protocol event names；
 - upstream Team、多 agent launcher 或 shell-local agent hierarchy；
-- 默认打开的 side panel、bottom panel、file tree、Terminal 或 Browser；
+- 默认打开的 Environment/details、bottom panel、file tree、Terminal 或 Browser；
 - Home activity dashboard、continue-work grid 或 full evidence ledger；
 - 未经 App allowlist 接受的 skills/MCP/tools；
 - 由 module dirt、cache 或 local UI state 推断的 readiness。
@@ -207,7 +228,7 @@ OPL App 在 Codex baseline 上增加可解释的本机准备：
 
 ## Non-goals
 
-- 重建或复制 Codex App。
+- 复制 ChatGPT/Codex 的专有实现、品牌或服务端产品；交互与视觉基线本身应尽量直接继承。
 - 让 OPL branding 覆盖 Codex-based interaction quality。
 - 让 MAS/MAG/RCA/BookForge 成为独立 backend choices。
 - 把 runtime、domain、artifact、memory、owner receipt 或 release truth 移入 App GUI。
@@ -225,6 +246,6 @@ OPL App 应让用户在 Codex-like 低摩擦工作流中：
 - 使用 App-profile model/reasoning control，并动态呈现当前默认值；
 - 以用户语言查看 permission/access mode，而不是 provider/backend；
 - 在 turn 中理解进度、prompt、error、result 和 receipt；
-- 只在需要时打开 environment popover、side panel 或 advanced work surfaces；
+- 只在需要时打开 environment floating details、preview 或 advanced work surfaces；
 - 理解 first-run、maintenance、resource 和 release 边界；
 - 不把任何 GUI projection 误读为 runtime/domain/artifact/release authority。

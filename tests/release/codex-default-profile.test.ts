@@ -5,10 +5,22 @@ import { validateAppGuiProductContract } from '../../scripts/validate-active-she
 import { validatePrimaryInteractionPages } from '../../scripts/validate-active-shell/page-state-primary-interaction-validator.ts';
 import { validateProductProfile } from '../../scripts/validate-active-shell/product-profile-validator.ts';
 import { assertCurrentGuidHomeSelectionSources } from '../../scripts/validate-active-shell/shell-ordinary-experience-validator.ts';
+import {
+  assertCodexModelPolicyProjection,
+  projectCodexModelPolicyContracts,
+} from '../../scripts/app-product-profile/codex-model-policy-projection.ts';
 
 const readJson = (relativePath: string) => JSON.parse(fs.readFileSync(relativePath, 'utf8'));
 
+const readModelPolicyBundle = () => ({
+  productProfile: readJson('contracts/app-product-profile.json'),
+  guiProductContract: readJson('contracts/app-gui-product-contract.json'),
+  pageStateMatrix: readJson('contracts/app-page-state-matrix.json'),
+  shellCandidates: readJson('contracts/app-shell-candidates.json'),
+});
+
 test('Codex interaction surfaces stay aligned across the App profile and contracts', () => {
+  assert.doesNotThrow(() => assertCodexModelPolicyProjection(readModelPolicyBundle()));
   const installExposure = readJson('contracts/app-install-exposure-policy.json');
   assert.doesNotThrow(() => validateProductProfile(
     readJson('contracts/app-product-profile.json'),
@@ -146,11 +158,12 @@ test('product profile freezes the real paginated Codex model/list response shape
 test('Auto display contract keeps runtime resolution out of the static App profile', () => {
   const productProfile = structuredClone(readJson('contracts/app-product-profile.json'));
   const auto = productProfile.gui.home.codex_model_display_options.auto_option;
+  const configuredDefault = productProfile.codex.auto_model_policy.configured_default;
 
   assert.equal('resolved_model' in auto, false);
   assert.equal('resolved_reasoning_effort' in auto, false);
-  assert.equal(auto.catalog_unavailable_fallback_model, 'gpt-5.6-sol');
-  assert.equal(auto.catalog_unavailable_fallback_reasoning_effort, 'xhigh');
+  assert.equal(auto.catalog_unavailable_fallback_model, configuredDefault.model);
+  assert.equal(auto.catalog_unavailable_fallback_reasoning_effort, configuredDefault.reasoning_effort);
 });
 
 test('Auto persistence contract defines reasoning override and stale fixed selection behavior', () => {
@@ -165,9 +178,10 @@ test('Auto persistence contract defines reasoning override and stale fixed selec
   );
 });
 
-test('product profile rejects known 5.6 Sol reasoning override drift', () => {
+test('product profile rejects configured-default reasoning override drift', () => {
   const productProfile = structuredClone(readJson('contracts/app-product-profile.json'));
-  productProfile.codex.auto_model_policy.known_model_reasoning_effort_overrides['gpt-5.6-sol'] = 'ultra';
+  const configuredDefault = productProfile.codex.auto_model_policy.configured_default;
+  productProfile.codex.auto_model_policy.known_model_reasoning_effort_overrides[configuredDefault.model] = 'drift';
 
   assert.throws(() => validateProductProfile(
     productProfile,
@@ -185,7 +199,7 @@ test('product profile rejects persisting Auto as a resolved model snapshot', () 
   ));
 });
 
-test('product profile rejects catalog fallback drift from 5.6 Sol xhigh', () => {
+test('product profile rejects catalog fallback drift from the configured default', () => {
   const productProfile = structuredClone(readJson('contracts/app-product-profile.json'));
   productProfile.codex.auto_model_policy.catalog_unavailable_fallback.reasoning_effort = 'high';
 
@@ -193,6 +207,34 @@ test('product profile rejects catalog fallback drift from 5.6 Sol xhigh', () => 
     productProfile,
     readJson('contracts/app-install-exposure-policy.json'),
   ));
+});
+
+test('one configured default projects across every App model-policy contract', () => {
+  const bundle = readModelPolicyBundle();
+  bundle.productProfile.codex.auto_model_policy.configured_default = {
+    model: 'gpt-future',
+    reasoning_effort: 'future-deep',
+  };
+
+  const projected = projectCodexModelPolicyContracts(bundle);
+  const home = projected.productProfile.gui.home;
+  const guidHome = projected.pageStateMatrix.pages.find(({ id }) => id === 'guid_home');
+  const native = projected.shellCandidates.candidates.find(({ id }) => id === 'opl-native-workbench');
+  const hermes = projected.shellCandidates.candidates.find(({ id }) => id === 'hermes-codex');
+
+  assert.equal(projected.productProfile.codex.default_model, 'gpt-future');
+  assert.equal(projected.productProfile.gui.home.codex_model_display_options.visible_models[0].id, 'gpt-future');
+  assert.equal(projected.productProfile.codex.auto_model_policy.frontier_model_preference_order[0], 'gpt-future');
+  assert.equal(projected.productProfile.default_session_profile.reasoning_effort, 'future-deep');
+  assert.equal(home.codex_model_display_options.auto_option.catalog_unavailable_fallback_model, 'gpt-future');
+  assert.equal(projected.guiProductContract.executor_policy.default_reasoning_effort, 'future-deep');
+  assert.equal(guidHome.home_view_model.codex_default_model, 'gpt-future');
+  assert.equal(native.visual_parity_contract.default_reasoning_effort, 'future-deep');
+  assert.equal(hermes.model_access_policy.default_model, 'gpt-future');
+  assert.equal(
+    projected.productProfile.codex.auto_model_policy.known_model_reasoning_effort_overrides['gpt-future'],
+    'future-deep',
+  );
 });
 
 test('GUI contract rejects Codex selector button policies that allow an Auto prefix', () => {

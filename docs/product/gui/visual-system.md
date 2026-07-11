@@ -11,10 +11,10 @@ shell source 承接；机器可读产品状态、模型策略、page-state 和 r
 
 ## 基准与例外
 
-当前视觉与交互基准固定为 **ChatGPT Codex macOS 26.707.31428
-(2026-07-10)**。同日 build `26.707.31123` 只保留为 superseded observation，不再称为
-latest/current。使用范围仅限布局、密度、层级、时间线、composer、项目 rail、
-Settings 和按需详情交互的对齐；不得复制 ChatGPT/Codex 源码、品牌资产、文案、
+当前视觉与交互基准固定为 **ChatGPT macOS 26.707.41301
+(2026-07-11)**。`26.707.31428` 与 `26.707.31123` 只保留为历史 observation，不再称为
+latest/current。使用范围仅限布局、密度、层级、时间线、composer、项目 rail 和按需
+环境详情交互的对齐；不得复制 ChatGPT/Codex 源码、品牌资产、文案、
 账户权限或产品 authority。
 
 OPL App 在基准上保留以下产品例外：
@@ -36,8 +36,8 @@ Codex baseline 是视觉参照，不是 machine truth。当前 carrier 的差异
 1. **Conversation first。** 主视觉锚点是单一对话时间线和底部 composer。
 2. **Quiet utility。** 用层级、留白、细边界和稳定尺寸表达结构，不用装饰性 hero、
    渐变、浮动装饰物或大面积营销卡片。
-3. **Secondary context on demand。** Files、environment、artifacts、Runtime 和
-   Settings details 以 popover、drawer 或 side panel 按需出现。
+3. **Secondary context on demand。** Environment、files、artifacts 与 Runtime details
+   以 floating surface、preview 或 drawer 按需出现。
 4. **Dense where repeated。** Rail、Settings 列表、tool events 可以紧凑；空白 Home
    和 conversation reading lane 保持呼吸感。
 5. **State before decoration。** 颜色、图标和动效首先表达可操作状态，不承担纯装饰。
@@ -52,16 +52,16 @@ Codex baseline 是视觉参照，不是 machine truth。当前 carrier 的差异
 | --- | --- | --- |
 | 项目/对话 rail | 默认可见，承载全局入口、project 和 conversation history。 | `280-340px` 可调；列表滚动，不随动态标签改变宽度。 |
 | Main canvas | 单一 conversation timeline 与 composer。 | 可用宽度不得低于 `620px`；reading lane 目标 `760-840px`。 |
-| Header | 当前 workspace、conversation、轻量状态和直接动作。 | `44-52px` 高；不做第二工具栏。 |
-| Side panel | Review、Terminal、Browser、Files 与次级 OPL sections。 | 默认关闭；wide desktop 是 resizable split，空间不足时改 overlay/drawer。 |
+| Conversation chrome | 当前 task identity、轻量状态和直接动作。 | 不承载 model/access 等 composer 配置，不做第二工具栏。 |
+| Environment details | Changes、local、branch、commit/push、subagents、sources 与 OPL 次级 refs。 | 默认关闭；wide desktop 使用右上 anchored floating surface，空间不足时改 drawer。 |
 
 布局规则：
 
 - 宽桌面保持项目/对话 rail persistent；当 rail 加 main minimum width 无法同时成立时，
   rail 转为 drawer，不压缩 conversation 到不可读。
-- 右侧 side panel 不作为默认第三列。打开时保留 timeline scroll、composer draft 和
-  当前 selection；关闭后不改变主区布局状态之外的业务数据。
-- Header、timeline 和 composer 使用同一水平节奏。宽屏增加外侧留白，不无限拉宽
+- Environment/details 不作为默认第三列。打开时保留 timeline scroll、composer draft
+  和当前 selection；关闭后不改变业务数据。
+- Conversation chrome、timeline 和 composer 使用同一水平节奏。宽屏增加外侧留白，不无限拉宽
   正文或把 composer 缩成小卡片。
 - Home、Runtime、Settings 是全宽页面/主布局，不把整个 section 包成悬浮 card。
 
@@ -177,9 +177,9 @@ Composer 是底部唯一主 command surface：
 - Composer 浮于底部或贴近底部安全距，不能与窗口边缘、bottom panel 或系统 safe area
   相撞。
 - 只保留一层 visible surface。外部 bridge/adapter container 必须透明。
-- 顶部 context strip 承载 project/local/branch 与 active capability chip；中间 textarea
-  承载任务正文；底部 action row 承载 attach/context、permission/access mode、单一紧凑
-  model/reasoning menu、可选 voice 和 send/stop。
+- Project/local/branch 不在 composer 常驻重复：project 由 rail 表达，branch/locality 由
+  Environment 表达。Textarea 承载任务正文；底部 action row 承载 attachment、active
+  capability、permission/access mode、单一紧凑 model/reasoning menu、可选 voice 和 send/stop。
 - Project Context inputs 使用同一层 compact ref chips，位于 textarea 之前并允许移除；
   conversation attachments 使用文件预览，不把两类内容画成第二层卡片或隐藏注入。
 - Purpose 不作为常驻可变 selector；active capability chip 可按上下文更换，但不得呈现
@@ -220,15 +220,16 @@ Composer 是底部唯一主 command surface：
 - Raw protocol、schema id、路径和完整 JSON 在 details/diagnostics 中显示。
 - 长文本、代码和表格必须在 main width 内换行或滚动，不遮挡 composer 和后续消息。
 
-## Popover、Drawer 与 Side Panel
+## Popover、Drawer 与 Environment Details
 
 - Model/reasoning、workspace switch 和 compact action sets 使用 anchored
   popover；短选项不升级为整页。
-- Environment 使用独立 anchored popover，只汇总 workspace/local/git/subtasks/sources。
-- Side panel 是默认关闭的 resizable split，核心工具仅 Review、Terminal、Browser、Files；
-  Artifacts、Runtime、Actions、Memory 使用 secondary sections/disclosures，不做九个同权 tab。
+- Environment 使用右上 anchored floating surface，首层汇总 changes、local、branch、
+  commit/push、subagents 和 sources。
+- OPL Artifacts/Evidence 进入 Environment 次级 section、preview 或 conversation
+  disclosure；Runtime/Actions/Memory 不升级为同权 tabs。
 - Popover 关闭后焦点回到触发器；drawer 有明确标题、close control 和焦点边界。
-- Side panel 打开时是当前 conversation 的辅助层，不是独立 dashboard。
+- Environment/details 打开时是当前 conversation 的辅助层，不是独立 dashboard。
 - Drawer 内避免卡片套卡片；用 section header、divider、row 和 disclosure 表达层级。
 - Bottom panel、file tree、Terminal、Browser 默认关闭；打开时尺寸稳定且不得遮挡 composer。
 
@@ -270,7 +271,7 @@ Loading 不用无限旋转器代替进度。可获得阶段或 elapsed time 时�
 ## 响应式
 
 - 不按 viewport 缩放字体。
-- 优先保住 main canvas minimum width；空间不足时依次把 side panel、project rail
+- 优先保住 main canvas minimum width；空间不足时依次把 Environment/details、project rail
   转成 overlay/drawer，而不是压扁所有列。
 - 窄桌面/平板保持 timeline 与 composer；secondary context 以全高 drawer 打开。
 - 极窄宽度下 composer controls 可以换行或进入 overflow menu，但 send/stop、输入、
@@ -310,15 +311,15 @@ Loading 不用无限旋转器代替进度。可获得阶段或 elapsed time 时�
 
 实现视觉变更时至少检查：
 
-1. 宽桌面：persistent project rail、单一 timeline、composer、side panel closed。
-2. Side panel open：主区仍可读，close/focus/scroll 正常。
-3. 窄桌面/WebUI：rail 与 side panel 以 drawer/overlay 实际可见，不是 hidden DOM。
+1. 宽桌面：persistent project rail、单一 timeline、composer、Environment details closed。
+2. Environment/details open：右上浮层不遮挡关键内容，close/focus/scroll 正常。
+3. 窄桌面/WebUI：rail 与 Environment/details 以 drawer/overlay 实际可见，不是 hidden DOM。
 4. Home、conversation、Runtime、Settings、first-run 的 light/dark 与中英文。
 5. Composer 的单层 surface、稳定尺寸、model/reasoning controls、send/stop states。
-6. Baseline screenshot 与 ChatGPT Codex macOS 26.707.31428 的布局/密度比较，以及
+6. Baseline screenshot 与 ChatGPT macOS 26.707.41301 的布局/密度比较，以及
    OPL branding exception 的明确说明。
-7. Environment popover 与 side panel 分离；side panel resizable 且只有四个核心工具，
-   advanced work surfaces 默认关闭。
+7. Environment floating details 保持按需、anchored 和 summary-first；OPL 次级 refs 与
+   advanced work surfaces 默认折叠或关闭。
 8. Settings 截图在记录证据前校验 requested/resolved route 与 expected/visible page title；
    任一不匹配即停止截图，避免把 Resources、Appearance 或其他页面记到错误目标。
 9. Settings 至少分别有桌面、窄屏和深色 fresh visual evidence，并检查单一侧栏选中态、

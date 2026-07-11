@@ -1,0 +1,118 @@
+# AionUI 41301 Delta Audit
+
+Owner: `one-person-lab-app`
+Purpose: `aionui_41301_keep_adapt_drop_read_model`
+State: `active_implementation_audit`
+Date: `2026-07-11`
+Machine boundary: 本文是 App-owned implementation read model。产品目标来自
+[`codex-to-opl-app-delta.md`](codex-to-opl-app-delta.md) 与
+[`ideal-interaction-spec.md`](ideal-interaction-spec.md)；实际行为仍以 Shell source/tests
+为准。本文不吸收分支、不改变 contracts、active shell 或 release readiness。
+
+## 结论
+
+`codex/gui-final-integration-20260711@dbff7370fa956541ace3378296c5a000eb64399d`
+不能整体吸收，也不应按原提交顺序重放。
+
+- Branch 相对 Shell main `5e46f49ab33fea3734db9a6fb6db79f73507bf07`
+  有 14 commits、56 files、`+2767/-204`。
+- 37 个实现文件中约 20 个属于 `L4 fork-body patch`；27 个实现路径已经与当前
+  upstream change surface 重叠。
+- 19 个测试文件贡献 1824 行新增，约占全部新增行的 66%。视觉 harness 与
+  mock-heavy tests 占比过高，并
+  反向要求 product DOM 保持旧结构。
+- 有价值的能力包括 project context、artifact export、desktop navigation、rail
+  alignment、Settings anchor focus 与 evidence hardening；但没有一个完整提交同时满足
+  41301 交互位置、OPL authority 和最小 upstream delta。
+
+因此，final disposition 是：**保留行为意图，拆分实现；废弃旧视觉目标与分支级
+absorption。** 新 integration 必须从当前 Shell main 与 App authority 重新建立，不能以
+`dbff7370f` 为 merge base。
+
+## 分类词汇
+
+| Status | 含义 | 后续动作 |
+| --- | --- | --- |
+| `keep` | 行为、位置、authority 与维护边界均符合新目标。 | 可在新 integration 中复用现有实现或最小 patch。 |
+| `adapt` | 用户能力有价值，但位置、状态链、authority 或 fork delta 不符合。 | 重新实现最小边界，不整提交 cherry-pick。 |
+| `drop` | 属于 superseded 31428 target、重复状态面、危险默认或无对应产品目标。 | 不进入新 integration；必要时保留历史 commit。 |
+| `evidence_only` | 只保留验证意图或算法，不保留旧 target/selector/fixture。 | 在 41301 source 完成后重建证据。 |
+
+## 未吸收分支逐提交审计
+
+| Commit | Scope | Disposition | 保留内容 | 必须重做或删除 | Absorption |
+| --- | --- | --- | --- | --- | --- |
+| `96cb196c9` | Single/batch ZIP export、filename、preview tests | `adapt` | Transcript export、显式 filename/folder、失败可见、existing export platform bridge。 | 默认递归打包整个 workspace、10k message silent boundary、renderer 内存聚合、artifact authority 混写；拆成 transcript export 与显式确认的 local file bundle。 | 禁止整提交吸收。 |
+| `36a021d62` | Project context refs、rail section、Home/conversation plumbing、composer strip | `adapt` | Workspace-scoped refs、path normalization/dedupe、rail 中可选增删、new task 读取同一 project context。 | 删除 route-state copy 和 Guid local duplicate state；长期 context 不并入单次 attachment `files` 生命周期。Composer `project/local/branch` strip 当前存在 authority conflict：41301 observation/新 human target 倾向 project 归 rail、branch/locality 归 Environment，但旧 profile/page-state 仍要求 strip；必须先同步 authority，不能在 Shell lane 单方面删除或保留。 | 禁止整提交吸收。 |
+| `2f668449c` | Native menu、New Window、Back/Forward、Previous/Next Task、menu state IPC | `adapt` | Native menu affordance、localized labels、Back/Forward 与 adjacent task semantics。 | 拆开无关 language-startup change；menu state 必须绑定 focused window，不能使用 process-global stale state；减少 ChatLayout/i18n 冲突面。 | 禁止整提交吸收。 |
+| `5262d9112` | Route-bound Playwright GUI evidence 与 manifest writer | `evidence_only` | Clean exact HEAD、route/viewport/theme/locale/anchor/layout bounds、claim boundary。 | 删除 Home/side-panel 旧 target；HEAD/manifest binding 归 App evidence owner；不为测试新增 fork-body DOM shape。 | 只提取证据协议。 |
+| `68b45b367` | Generated project-context profile | `adapt` | Project context schema projection。 | `31cc78b72e485ed4e3756fff91eff80330df406b` 只是 5.6 Sol `max` policy base，尚无 project-context authority。必须在 composer/context 决策写入 App contracts 后，从同时包含 `max + context` 的新 App commit 完整生成；禁止重放旧 JSON blob。 | Regenerate only。 |
+| `0920b87b1` | Context-strip mocks | `drop` | 无独立产品价值。 | Composer strip 不原样保留；测试随新 context consumer 重写。 | 不吸收。 |
+| `5b7e5de01` | Evidence backend readiness | `evidence_only` | 要求真实可用 test backend port，避免 about:blank/fake page。 | 不外推为 live runtime、packaged App 或 release evidence。 | 合并进新 harness。 |
+| `4760b7044` | Deterministic rail state | `evidence_only` | 每个场景显式设置 rail state。 | 不依赖残留 localStorage；场景改为 41301。 | 合并进新 harness。 |
+| `33bd30698` | Rendered-DOM rail selector | `evidence_only` | 减少生产 test-only attributes 的意图。 | 避免 `:has()` 和 Arco incidental DOM；优先 role/aria/composition root。 | 重写 selector。 |
+| `1a5876a4a` | Overflow diagnostics | `evidence_only` | 失败时输出元素、文字和 bounds。 | 不保留中间实现。 | 与后两项 squash。 |
+| `c4f2dae3c` | Range text measurement | `evidence_only` | 测量 rendered text bounds。 | 控制换行与 nested text 误报。 | 与前后项 squash。 |
+| `d46ab4827` | Hidden-text filtering | `evidence_only` | 最终 visible text-node overflow 检查。 | 控制 DOM traversal 成本，不绑定旧 side-panel。 | 作为单一 helper 重写。 |
+| `d4c9e0916` | Rail icon/label alignment | `adapt` | Icon 与 label 同行、稳定尺寸、无错位的视觉结果。 | 不锁死“禁止 Arco icon slot”或直属 span 数量；优先 token/CSS，再做最小 JSX patch。 | 禁止整提交吸收。 |
+| `dbff7370f` | Mobile Settings anchor focus | `adapt` | Compatibility redirect 后只调整横向 nav，不把页面拉回顶部。 | 使用明确 nav-container ref，避免假设 `parentElement`；保持 P2 scoped。 | 禁止整提交吸收。 |
+
+## 已进入 Shell Main 的 31428 残留
+
+只审计 `dbff7370f` 不足以完成 41301 对齐。以下行为已经在 Shell main，必须进入新
+integration 的 keep/adapt/drop 决策。
+
+| Surface | Current source / behavior | Disposition | Required target |
+| --- | --- | --- | --- |
+| Project/conversation rail | `Layout.tsx`、`SiderPrimaryNav.tsx`、`GroupedHistory/index.tsx`、`SiderFooter.tsx` 已提供 wide rail、narrow drawer、New task/Archived/Capabilities、project grouping 和 account/help/Settings。 | `keep` | 不重写 rail；只在 selected project 下增加统一 context consumer。 |
+| Environment summary | `ConversationEnvironmentPopover.tsx` 已是右上 anchored、default-closed summary，显示 workspace/locality/branch/subtasks/sources。 | `keep + adapt` | 增加 changes、commit/push、compare 与 OPL artifact/evidence secondary refs；首层不显示完整 Runtime。 |
+| Multi-tool side panel taxonomy | `ChatSlider.tsx` 把 Review/Terminal/Browser/Files 设为一级 tabs，再把 Artifacts/Runtime/Actions/Memory 设为二级入口。 | `drop taxonomy` | 删除八类综合 inspector 与 More Context；保留底层 Files/Terminal/Browser/Preview 能力，按任务或显式动作打开。 |
+| Side-panel infrastructure | `ChatLayout/index.tsx` 提供 resize、overlay、focus/backdrop 与 preview layout。 | `adapt` | 作为单一 advanced surface/preview 基础设施，不与 Environment 并列成常驻第三列；preview 不自动打开综合 inspector。 |
+| Desktop model/reasoning location | `ChatConversation.tsx` 将 model control 作为 `actionsSlot` 放入 `ChatSlider -> Actions`；desktop `AcpSendBox` 没有模型控件。 | `adapt P0` | 保留 resolver/data flow，把 model/reasoning 放回 composer right tools；Home/conversation 共用 policy。 |
+| Permission/access | Composer 已显示 permission，mobile sheet 还有 model。 | `keep + adapt` | Desktop/mobile 都在 composer，不能由 side panel 或 Settings 代替。 |
+| Home layout | `GuidPage.tsx` 使用独立居中 hero、2x2 starters 和 composer，`index.module.css` 垂直居中并上移。 | `adapt` | Home 是 empty conversation canvas；composer 采用与 conversation 相同的底部关系。Home 空状态尚未完成 41301 literal observation，因此 starter 数量/位置保持 `not_evidenced`，不伪装为 1:1。 |
+| CurrentTaskAwareness | Timeline 顶部 compact summary 默认 pinned，同时在 `ChatSlider -> Runtime` 重复挂载。 | `adapt + drop duplicate` | 保留 status/elapsed/progress/next action/stop；默认 inline/unpinned，长任务或用户动作才 pin；删除 side-panel Runtime duplicate。 |
+| Settings scoped UI | `.settings-page-wrapper` / `.opl-settings-*` 卡片规则主要限定在 Settings。 | `keep P2` | 进入维护模式，不再驱动 P0/P1。 |
+| Global OPL Codex theme | `opl-codex.css` 广域覆盖 `.arco-card`、`.arco-btn`、inputs、composer 和 rail。 | `adapt` | 保留颜色/字体/token，收窄或删除依赖 incidental global DOM 的 component overrides。 |
+
+## 最小维护边界
+
+新 integration 按以下顺序执行，避免继续扩大 fork：
+
+1. **Authority sync。** 先裁决 composer context：推荐 project 归 rail、branch/locality
+   归 Environment、active capability 留在 composer；在决定写入 App contracts/page-state
+   前不得改 Shell。以 App `31cc78b72e485ed4e3756fff91eff80330df406b` 作为
+   `gpt-5.6-sol + max` policy base，在其上形成同时包含 41301 context authority 的新
+   commit，再生成最终 Shell profile。Shell max commit
+   `6a65d62fc1706eeac9dfa56d1a671811d5b2fcf6` 只作语义输入，不重放旧 JSON。
+2. **P0 composer。** 把 desktop model/reasoning 移到 composer，保持 access/send/stop
+   同一决策点；删除 `ChatSlider.actionsSlot` 的模型控制。
+3. **P0 Environment。** 保留并扩展 anchored Environment；删除综合 side-panel taxonomy，
+   将 preview/files/terminal/browser 作为按需 advanced surface。
+4. **P0/P1 project context。** 一个 workspace-keyed L1 source；rail 负责编辑，new task 与
+   send 直接消费，不经过 route-state/local-state/多层 props；长期 context 与单次 attachment
+   分开。
+5. **P1 task awareness。** 单一 inline summary，删除 Runtime duplicate，expanded refs
+   进入 Environment/preview/turn disclosure。
+6. **P1 export 与 desktop menu。** 分别用最小 platform adapter 重做，不与 rail/context
+   大提交捆绑。
+7. **Evidence。** Shell 保留 route-state Playwright 与最小 behavior tests；App evidence
+   owner 绑定 clean HEAD/manifest。先覆盖 rail/conversation/composer/Environment，再覆盖
+   Home、P1 和 Settings。
+
+## Forbidden Absorption
+
+- 不 merge、rebase 或 cherry-pick 整个 `dbff7370f` branch。
+- 不把旧 side-panel screenshots、DOM tests 或 manifest 作为 41301 pixels。
+- 不重放 `68b45b367` generated JSON；最终 profile 必须来自 App authority。
+- 不把 project context 同时存入 config、route state、Guid local state 和 attachment files；
+  composer strip 在 authority 消歧前保持未决，不由 Shell 自行裁决。
+- 不为了 visual harness 修改生产 DOM shape 或锁死 Arco 内部结构。
+- 不用 Settings 完成度、旧 focused tests 或 docs-only target 声称 P0/P1 已完成。
+
+## Evidence Boundary
+
+本审计由 commit diff、current Shell source、App product docs 与静态 file/delta inventory
+支持。它足以决定 lane disposition 和下一次 integration 边界；它不证明重做后的行为、
+像素、package 或 installed App 已完成。后续每个 `adapt` 项必须取得对应 source/behavior
+evidence，41301 alignment 还需要基于最终 clean source 的 fresh pixels。

@@ -4,7 +4,7 @@ Owner: `one-person-lab-app`
 Purpose: `aionui_fork_maintenance_and_intake_strategy`
 State: `accepted`
 Date: `2026-06-30`
-Updated: `2026-07-10`
+Updated: `2026-07-11`
 Machine boundary: Human-readable architecture strategy. Machine-readable truth
 lives in `contracts/app-settings-control-plane.json`,
 `contracts/app-gui-product-contract.json`, `contracts/app-shell-adapter.json`,
@@ -16,14 +16,16 @@ source, validation scripts, and release/user-path evidence.
 The active One Person Lab App shell is the OPL-maintained AionUI fork under
 `shells/aionui/`, backed by the external shell repository
 `gaofeng21cn/opl-aion-shell`. Upstream AionUI remains useful implementation
-material, but the App repo owns GUI product truth, Settings information
-architecture, App state/action boundaries, page-state expectations, screenshots,
-release/user docs, and release gates.
+material, but the App repo owns GUI product truth, Codex-reference translation,
+Settings information architecture, App state/action boundaries, page-state
+expectations, screenshots, release/user docs, and release gates.
 
-Claude's original assessment correctly identified that upstream Settings changes
-can conflict with OPL Settings work. The current repo has already moved the
-owner boundary away from "keep a large fork synchronized by hand" and toward an
-App-owned Settings Control Plane:
+Settings conflicts exposed the wider maintenance problem: OPL cannot keep a large
+private renderer rewrite synchronized by hand. The owner boundary therefore applies
+to the whole GUI, not only Settings. App contracts and design docs define the target;
+AionUI provides the runtime, route/component primitives and upstream update stream;
+OPL customization is constrained to explicit profile, bridge, composition and token
+surfaces wherever possible.
 
 - `contracts/app-settings-control-plane.json` owns the Settings registry, route
   behavior, legacy redirects, extension anchor remaps, state/action source
@@ -36,33 +38,64 @@ App-owned Settings Control Plane:
 
 ## Decision
 
-Do not create a new three-layer architecture, new integration package, plugin
-ecosystem, or standalone extension framework for Settings maintenance.
+Do not create a new integration package, private component framework, plugin ecosystem
+or second shell-local product model to maintain the GUI.
 
 Maintain the AionUI fork through the existing App-owned control path:
 
-1. **App-owned Settings Control Plane** stays the source for Settings product
-   IA, ordinary and secondary routes, legacy redirects, extension anchor remaps,
-   state/action source policy, page adapter policy, intake classification, and
-   visual QA expectations.
+1. **App-owned product definition** stays the source for Codex baseline translation,
+   OPL deltas, ordinary navigation, page-state, model/access policy, Settings IA,
+   state/action source policy and visual acceptance.
 2. **Thin shell adapter** remains the implementation boundary. AionUI may own
-   renderer layout, route sync, tab switching, slot mounting, shell-local i18n,
-   styling, process/preload details, package metadata, and focused shell tests.
+   upstream renderer primitives, route sync, slot mounting, shell-local i18n,
+   styling, process/preload details, package metadata and focused shell tests.
    It must not own product IA, model/provider policy, runtime/domain truth,
    release readiness, or owner receipt authority.
 3. **Upstream intake gate** classifies every required shell capability and
    dependency before App release admission. Settings-specific changes must also
    pass their own classification before entering the registry, `SettingsHost`,
    or `SettingsShellAdapterSlot`.
-4. **Visual QA is behavior evidence only.** It can prove Settings route framing,
-   overlap, screenshot, and rendering behavior for the active shell. It cannot
+4. **Core workflow has priority.** Evidence is collected in the order
+   `P0 Codex Core -> P1 OPL Professional -> P2 Administration`. Settings evidence
+   cannot substitute for rail/Home/conversation/composer evidence.
+5. **Visual QA is behavior evidence only.** It can prove route framing, overlap,
+   screenshot and rendering behavior for the active shell. It cannot
    prove release readiness, packaged App readiness, runtime currentness, owner
    acceptance, or production readiness.
 
 This keeps the App contract first and the shell delta thin. The fork can absorb
 upstream fixes, but only after checking them against App-owned contracts.
 
-## Claude Proposal Disposition
+## GUI Customization Model
+
+The allowed customization ladder is deliberately short:
+
+1. `profile/data`: generated product profile, registry and existing config;
+2. `bridge/adapter`: App state/action, Codex transport and platform adapter;
+3. `composition/token`: existing slots, wrappers, layout primitives, CSS variables
+   and i18n;
+4. `fork-body patch`: minimum direct upstream component change only when levels 1-3
+   cannot express a P0/P1 requirement.
+
+Every level-4 patch records the upstream file, why the stable boundaries were
+insufficient, focused regression coverage and expected intake conflict. Broad page
+rewrites, duplicated state models and CSS coupled to incidental upstream DOM are not
+thin adaptation.
+
+The product mapping is also fixed:
+
+- inherit the ChatGPT `26.707.41301` project/conversation rail, single timeline,
+  bottom composer, quiet visual grammar and on-demand Environment details;
+- adapt labels, product profile, model/access policy and desktop/WebUI affordances;
+- add project context refs, OPL capabilities, progress, evidence/artifacts and safe
+  action receipts through progressive disclosure;
+- reject Home dashboards, card walls, ordinary provider/backend controls, permanent
+  third columns and raw runtime/protocol surfaces.
+
+The exact observed baseline and OPL delta live in
+`docs/product/gui/codex-to-opl-app-delta.md`; this ADR owns maintenance strategy only.
+
+## Historical Settings Proposal Disposition
 
 | Claude proposal | Disposition | Reason |
 | --- | --- | --- |
@@ -268,22 +301,30 @@ The fixed intake sequence is:
 
 ## Shell Delta Budget
 
-Allowed AionUI shell delta for Settings:
+Allowed AionUI shell delta:
 
-- hydrated product profile and Settings registry consumption;
+- hydrated product profile and registry consumption;
+- App-owned bridge and platform adapters;
+- composition slots for rail context, composer context, timeline events and
+  Environment secondary refs;
 - route and tab compatibility redirects;
 - `SettingsHost` and `SettingsShellAdapterSlot` rendering and route sync;
 - thin renderer components for App-owned Settings slots;
 - App state reads through `opl app state --profile fast --json`;
 - bounded fast App state consumption with large-history regression evidence;
 - App mutations through `opl app action execute --action <id> ... --json`;
-- shell-local styling, i18n, layout, focused tests, and screenshot hooks needed
-  to prove the App contract.
+- shell-local token mapping, i18n, focused tests and screenshot hooks needed to prove
+  the App contract;
+- minimum fork-body changes that have a recorded upstream conflict owner and cannot
+  be expressed through profile, bridge or composition boundaries.
 
 Forbidden shell delta:
 
-- shell-owned product IA or ordinary Settings tabs;
+- shell-owned product IA, ordinary navigation or Settings tabs;
 - shell-owned model/provider/reasoning policy;
+- duplicate project/conversation/runtime state models;
+- broad rewrites whose only justification is visual similarity;
+- Home dashboard/card wall or a permanent third-column inspector;
 - direct runtime/domain truth reads or writes;
 - owner receipt or domain artifact authority;
 - release/currentness claims from Settings UI tests or screenshots;
@@ -293,8 +334,8 @@ Forbidden shell delta:
 ## Consequences
 
 - Upstream AionUI remains implementation material, not App truth.
-- Settings maintenance work should usually change contracts/docs first, then
-  shell rendering if behavior changes.
+- GUI maintenance work should change product docs/contracts first, then choose the
+  lowest viable customization level; Settings remains a secondary surface.
 - The cheapest durable fix is to strengthen the existing control plane or
   adapter slot when a real gap appears, not to create a parallel package layer.
 - Release/currentness remains release-owner evidence, even if Settings contract
@@ -321,12 +362,13 @@ None of these commands alone proves packaged App or release readiness. Use
 packaged-runtime validation, installed-App readback, user-path acceptance, and
 release-owner evidence for those claims.
 
-For future Settings behavior changes, use the existing boundaries:
+For future GUI behavior changes, use the existing boundaries:
 
 - root active-shell validation after contract or wrapper changes;
-- focused shell Settings tests for renderer behavior;
+- focused shell tests for the changed P0/P1/P2 renderer behavior;
 - focused startup and `/guid` DOM tests plus an installed-App ready-entry and
   relaunch smoke using the same user data;
-- Settings visual QA manifest for screenshot/framing claims;
+- core GUI visual evidence for rail/Home/conversation/composer/Environment claims;
+- Settings visual QA manifest only for Settings screenshot/framing claims;
 - release-owner evidence for packaged App readiness, currentness, notarization,
   and release promotion.

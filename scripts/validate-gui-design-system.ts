@@ -554,7 +554,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     capabilitySelection.composer_persistent_variable_selector !== false ||
     capabilitySelection.composer_context_surface !== 'active_capability_chip' ||
     composerTarget.placement !== 'floating_bottom_with_safe_inset' ||
-    !sameStrings(composerTarget.context_strip, ['project', 'local', 'branch', 'active_capability']) ||
+    !sameStrings(composerTarget.context_strip, ['project_context_refs', 'active_capability']) ||
     composerTarget.model_reasoning_control !== 'single_compact_menu' ||
     !sameStrings(permissionTarget.visible_on, ['home_composer', 'conversation_composer']) ||
     permissionTarget.provider_or_backend_terms_visible !== false ||

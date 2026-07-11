@@ -74,6 +74,12 @@ export const requiredNativeVisualParitySurfaces = [
   'settings_locale_surface',
 ];
 
+const appProductProfile = readJson<{
+  codex: { default_model: string; default_reasoning_effort: string };
+}>(path.join(root, 'contracts', 'app-product-profile.json'));
+const configuredDefaultModel = appProductProfile.codex.default_model;
+const configuredDefaultReasoningEffort = appProductProfile.codex.default_reasoning_effort;
+
 export type CandidateValidationPolicy = {
   onlyForegroundAlternative: string;
   defaultCandidateValidationScope: string[];
@@ -624,11 +630,11 @@ function validateNativeWorkbenchCandidateContract(candidate: ShellCandidate): vo
     visual.source_usage !== 'visual_and_interaction_reference_only_no_code_or_brand_copy' ||
     visual.minimum_bar !== 'one_to_one_codex_layout_density_typography_composer_timeline_project_rail_settings_and_floating_environment_details' ||
     visual.model_policy_source !== 'contracts/app-product-profile.json#gui.home.codex_model_display_options' ||
-    visual.default_model !== 'gpt-5.6-sol' ||
-    visual.default_reasoning_effort !== 'xhigh' ||
+    visual.default_model !== configuredDefaultModel ||
+    visual.default_reasoning_effort !== configuredDefaultReasoningEffort ||
     visual.docs_or_contract_only_completion_allowed !== false
   ) {
-    throw new Error(`${candidate.id}.visual_parity_contract must use ChatGPT Codex macOS 26.707.31123, consume the App-owned 5.6 Sol/xhigh model policy, preserve the AionUI regression floor, and forbid docs-only completion`);
+    throw new Error(`${candidate.id}.visual_parity_contract must consume the App-owned configured model policy, preserve the AionUI regression floor, and forbid docs-only completion`);
   }
   assertStringArrayIncludes(
     visual.required_surfaces ?? [],
@@ -725,10 +731,10 @@ function validateHermesTargetStateContracts(
     modelAccess.ordinary_provider !== 'gflabtoken'
     || modelAccess.api_key_env !== 'OPENAI_API_KEY'
     || modelAccess.provider_base_url !== 'https://gflabtoken.cn/v1'
-    || modelAccess.default_model !== 'gpt-5.6-sol'
-    || modelAccess.reasoning_effort !== 'max'
+    || modelAccess.default_model !== configuredDefaultModel
+    || modelAccess.reasoning_effort !== configuredDefaultReasoningEffort
   ) {
-    throw new Error(`${candidate.id}.model_access_policy must define gflabtoken-only gpt-5.6-sol max access`);
+    throw new Error(`${candidate.id}.model_access_policy must define gflabtoken-only App-configured model access`);
   }
   assertStringArrayIncludes(modelAccess.ordinary_ui_surfaces, [
     'model access wizard',
@@ -874,7 +880,7 @@ function validateHermesFirstRunContract(candidate: ShellCandidate): void {
     || contract.model_access_wizard.api_key_provider !== 'gflabtoken'
     || contract.model_access_wizard.api_key_command !== 'opl system configure-codex --api-key-stdin --json'
     || contract.model_access_wizard.provider_base_url !== 'https://gflabtoken.cn/v1'
-    || contract.model_access_wizard.default_model !== 'gpt-5.6-sol'
+    || contract.model_access_wizard.default_model !== configuredDefaultModel
     || contract.model_access_wizard.api_key_env !== 'OPENAI_API_KEY'
     || contract.model_access_wizard.ordinary_ui_policy !== 'show_only_model_access_api_key_no_base_url_provider_marketplace_or_oauth_accounts'
   ) {

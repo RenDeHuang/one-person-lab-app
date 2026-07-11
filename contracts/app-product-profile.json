@@ -29,7 +29,7 @@
     "base_url": "https://gflabtoken.cn/v1",
     "executor": "codex_cli",
     "model": "gpt-5.6-sol",
-    "reasoning_effort": "xhigh",
+    "reasoning_effort": "max",
     "applies_after": "codex_openai_api_key_configured",
     "authority": "app_session_default_only"
   },
@@ -51,7 +51,7 @@
       "codex_model_policy": "codex_cli_latest_strongest_model_selector_visible",
       "codex_model_auto_option_visible": true,
       "codex_default_model": "gpt-5.6-sol",
-      "codex_default_reasoning_effort": "xhigh",
+      "codex_default_reasoning_effort": "max",
       "codex_default_permission_mode": "full-access",
       "permission_mode_selector_visible": true,
       "conversation_backend_selector_visible": false,
@@ -106,7 +106,7 @@
         "reasoning_menu_title_en": "Reasoning",
         "reasoning_effort_override_surface": "model_selector_primary_menu",
         "reasoning_effort_options_source": "acp_codex_config_options_enum",
-        "default_reasoning_effort": "xhigh",
+        "default_reasoning_effort": "max",
         "auto_option_current_resolution_visible": true,
         "model_menu_policy": "current_model_secondary_submenu",
         "intelligence_enhancement_menu_policy": "default_off_secondary_submenu_with_enable_disable_actions",
@@ -118,7 +118,7 @@
           "description_zh": "跟随 Codex CLI 当前默认模型与 App 推理策略",
           "description_en": "Follows the current Codex CLI default model and App reasoning policy",
           "catalog_unavailable_fallback_model": "gpt-5.6-sol",
-          "catalog_unavailable_fallback_reasoning_effort": "xhigh",
+          "catalog_unavailable_fallback_reasoning_effort": "max",
           "follows_latest_strongest": true
         },
         "fixed_model_description_zh": "固定此模型",
@@ -140,6 +140,10 @@
             "zh": "推理超高",
             "en": "Extra high reasoning"
           },
+          "max": {
+            "zh": "推理最大",
+            "en": "Maximum reasoning"
+          },
           "ultra": {
             "zh": "推理极高",
             "en": "Ultra reasoning"
@@ -150,6 +154,7 @@
           "medium",
           "high",
           "xhigh",
+          "max",
           "ultra"
         ],
         "visible_models": [
@@ -350,9 +355,7 @@
       "model_status_surface": "executor_policy.default_model_display_value",
       "technical_details_policy": "single_compact_model_reasoning_menu_without_backend_or_provider",
       "composer_context_strip": [
-        "project",
-        "local",
-        "branch",
+        "project_context_refs",
         "active_capability"
       ],
       "composer_bottom_action_row": [
@@ -897,9 +900,13 @@
   "codex": {
     "default_model": "gpt-5.6-sol",
     "default_model_description": "System Codex default model when configured",
-    "default_reasoning_effort": "xhigh",
+    "default_reasoning_effort": "max",
     "auto_model_policy": {
       "authority": "one-person-lab-app",
+      "configured_default": {
+        "model": "gpt-5.6-sol",
+        "reasoning_effort": "max"
+      },
       "mode_default": "auto",
       "model_catalog_source": "codex_cli_model_list",
       "catalog_response_models_field": "data",
@@ -923,14 +930,14 @@
         "gpt-5.2"
       ],
       "known_model_reasoning_effort_overrides": {
-        "gpt-5.6-sol": "xhigh"
+        "gpt-5.6-sol": "max"
       },
       "unknown_default_model_policy": "accept_catalog_default_even_when_not_in_frontier_model_preference_order",
       "unknown_model_reasoning_effort_policy": "highest_supported_reasoning_effort_from_catalog",
       "catalog_without_default_policy": "first_available_known_model_then_first_catalog_model",
       "catalog_unavailable_fallback": {
         "model": "gpt-5.6-sol",
-        "reasoning_effort": "xhigh"
+        "reasoning_effort": "max"
       },
       "persistence_policy": {
         "auto": "persist_auto_mode_only_resolve_model_and_reasoning_from_fresh_catalog",
