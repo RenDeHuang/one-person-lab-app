@@ -7,6 +7,28 @@ Scope: Settings product contracts, page-state matrix, documentation, validators,
 and focused contract tests
 Visual evidence status: current baseline-card active-shell evidence
 
+## 2026-07-11 Surface-Ownership Correction
+
+The prior bounded-card remediation restored visual hierarchy but applied cards
+mechanically and left diagnostic disclosures inline. The current correction is
+accepted only when the final Shell evidence proves the following items; the
+historical manifest below does not prove them.
+
+| Item | Required terminal state |
+| --- | --- |
+| Card eligibility | Pure state is never a standalone card; columns are limited to comparable independent decisions |
+| Workspace | One owner card containing path, writability, actions, and attention-only recovery |
+| Preferences | Two full-width groups; no 2+1 card grid |
+| Themes | Built-in choices are exactly Light and Codex; user-managed themes and manual add remain |
+| Diagnostics | Raw paths, refs, action ids, receipts, enums, payloads, and logs are absent inline and available from one explicit modal/drawer entry |
+| Capabilities | User-facing source labels never fall through to raw enums; Home visibility and Manage are discoverable on each row |
+| Home shortcut state | Settings and Home share one reactive owner; successful actions commit and failed actions roll back |
+| About | Version/channel/update share one card; update action is adjacent to status; help arrows reach the row edge |
+
+This correction remains `partial` until the Shell lanes are integrated, focused
+tests and package compile pass on the exact final SHA, fresh screenshots are
+inspected, and the installed App is rebuilt and read back.
+
 ## Conclusion
 
 Current visual evidence binds to `opl-aion-shell`

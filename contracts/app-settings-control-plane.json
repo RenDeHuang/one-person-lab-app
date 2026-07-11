@@ -1299,6 +1299,42 @@
       "technical_details_default": "collapsed",
       "letter_spacing_px": 0
     },
+    "surface_model": {
+      "configuration_group": {
+        "presentation": "bounded_card_when_eligible_otherwise_flat_owner_section",
+        "card_eligibility_any_of": [
+          "two_or_more_related_controls",
+          "one_consequential_primary_action",
+          "exception_or_recovery_workflow",
+          "independent_user_decision_boundary"
+        ],
+        "pure_state_card_allowed": false
+      },
+      "status_row": {
+        "presentation": "inside_owning_configuration_group",
+        "standalone_card_allowed": false,
+        "normal_state_emphasis": "muted",
+        "attention_state_emphasis": "inline_with_recovery_action"
+      },
+      "diagnostic_surface": {
+        "ordinary_page_inline_allowed": false,
+        "entry_presentation": "explicit_diagnostics_action",
+        "container": "modal_or_drawer",
+        "summary_first": true,
+        "raw_details_secondary": true,
+        "raw_fields": [
+          "paths",
+          "refs",
+          "action_ids",
+          "receipts",
+          "runtime_enums",
+          "payloads",
+          "logs"
+        ]
+      },
+      "desktop_layout_policy": "use_columns_only_for_independent_groups_with_comparable_density",
+      "default_layout_policy": "full_width_vertical_groups"
+    },
     "global_search": {
       "global_entry_count": 1,
       "entry_testid": "settings-search-input",
@@ -1447,11 +1483,13 @@
           "where project and task artifacts are stored",
           "open workspace as an inline action and change workspace as the sole primary action"
         ],
-        "first_viewport_groups": [
-          "workspace_location",
-          "access_and_artifacts",
-          "workspace_actions"
-        ],
+        "first_viewport_groups": ["workspace_configuration"],
+        "surface_rules": {
+          "workspace_card_count": 1,
+          "permission_presentation": "status_row_inside_workspace_card",
+          "maintenance_action_visibility": "attention_only",
+          "diagnostics_entry": "explicit_modal_action"
+        },
         "readiness_precedence": "filesystem_writability_and_health_override_executor_permission_mode",
         "primary_action": {
           "id": "change_workspace",
@@ -1490,11 +1528,18 @@
         "label_zh": "智能体与能力",
         "label_en": "Agents & Capabilities",
         "primary_information": [
-          "capability catalog with availability and source",
-          "Home visibility and shortcut order on capability rows",
+          "capability catalog with availability and user-facing source labels",
+          "Home visibility, shortcut order, and lifecycle management on capability rows",
           "Skills, Tools, and Custom Assistants as internal tabs or sections",
           "custom assistants open the real AssistantSettings surface in the third on-demand tab"
         ],
+        "management_discoverability": {
+          "primary_row_controls": ["home_visibility", "manage"],
+          "lifecycle_actions": ["update", "repair", "enable", "disable", "uninstall"],
+          "raw_source_fallback_allowed": false,
+          "diagnostic_refs_location": "diagnostics_modal",
+          "home_preference_policy": "single_reactive_owner_with_success_commit_and_failure_rollback"
+        },
         "first_viewport_groups": [
           "capability_summary",
           "capability_catalog",
@@ -1778,11 +1823,16 @@
           "theme and appearance including hardware acceleration where relevant"
         ],
         "first_viewport_groups": [
-          "app_behavior",
-          "notifications",
-          "display_and_fonts",
-          "themes"
+          "application_behavior_and_notifications",
+          "display_and_themes"
         ],
+        "surface_rules": {
+          "full_width_group_count": 2,
+          "two_plus_one_grid_allowed": false,
+          "builtin_theme_ids": ["light", "codex"],
+          "extension_themes_default_visible": false,
+          "custom_theme_management": "preserved"
+        },
         "primary_action": {
           "id": "none",
           "availability": "inline_controls_only",
@@ -1863,10 +1913,14 @@
           "help and feedback entry points"
         ],
         "first_viewport_groups": [
-          "version_and_channel",
-          "updates",
+          "version_channel_and_updates",
           "help_and_feedback"
         ],
+        "surface_rules": {
+          "version_update_card_count": 1,
+          "update_action_placement": "same_row_as_update_status",
+          "help_link_layout": "full_width_row_with_trailing_icon_at_container_edge"
+        },
         "primary_action": {
           "id": "check_updates",
           "availability": "always",

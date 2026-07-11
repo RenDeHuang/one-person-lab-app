@@ -1478,6 +1478,55 @@ function validateSettingsModelReasoningPolicy(
   }
 }
 
+function validateSettingsSurfaceModel(surfaceModel) {
+  assertDeepEqualJson(
+    surfaceModel?.configuration_group?.card_eligibility_any_of,
+    [
+      "two_or_more_related_controls",
+      "one_consequential_primary_action",
+      "exception_or_recovery_workflow",
+      "independent_user_decision_boundary",
+    ],
+    "Settings configuration-group card eligibility",
+  );
+  if (
+    surfaceModel?.configuration_group?.pure_state_card_allowed !== false ||
+    surfaceModel?.status_row?.standalone_card_allowed !== false ||
+    surfaceModel?.status_row?.presentation !==
+      "inside_owning_configuration_group"
+  ) {
+    throw new Error(
+      "Settings pure status must remain a row inside its owning configuration group",
+    );
+  }
+  if (
+    surfaceModel?.diagnostic_surface?.ordinary_page_inline_allowed !== false ||
+    surfaceModel?.diagnostic_surface?.entry_presentation !==
+      "explicit_diagnostics_action" ||
+    surfaceModel?.diagnostic_surface?.container !== "modal_or_drawer" ||
+    surfaceModel?.diagnostic_surface?.summary_first !== true ||
+    surfaceModel?.diagnostic_surface?.raw_details_secondary !== true
+  ) {
+    throw new Error(
+      "Settings diagnostics must open explicitly in a summary-first modal or drawer",
+    );
+  }
+  assertIncludesAll(
+    surfaceModel?.diagnostic_surface?.raw_fields,
+    ["paths", "refs", "action_ids", "receipts", "runtime_enums", "payloads", "logs"],
+    "Settings diagnostic raw fields",
+  );
+  if (
+    surfaceModel?.desktop_layout_policy !==
+      "use_columns_only_for_independent_groups_with_comparable_density" ||
+    surfaceModel?.default_layout_policy !== "full_width_vertical_groups"
+  ) {
+    throw new Error(
+      "Settings layout must default to full-width groups and use columns only for comparable independent decisions",
+    );
+  }
+}
+
 export function validateSettingsExperienceContract(experience) {
   if (
     experience?.schema !== "settings_opl_card_experience.v1" ||
@@ -1504,6 +1553,7 @@ export function validateSettingsExperienceContract(experience) {
     appOwnedSettingsVisualSystem,
     "Settings experience visual system",
   );
+  validateSettingsSurfaceModel(experience.surface_model);
 
   const search = experience.global_search;
   if (
@@ -1595,13 +1645,13 @@ export function validateSettingsExperienceContract(experience) {
     }
     if (
       !Array.isArray(page.first_viewport_groups) ||
-      page.first_viewport_groups.length < 2 ||
+      page.first_viewport_groups.length < 1 ||
       page.first_viewport_groups.length > 4 ||
       new Set(page.first_viewport_groups).size !==
         page.first_viewport_groups.length
     ) {
       throw new Error(
-        `Settings experience ${pageId} must declare two to four distinct first-viewport groups`,
+        `Settings experience ${pageId} must declare one to four distinct first-viewport groups`,
       );
     }
     if (
@@ -1663,6 +1713,48 @@ export function validateSettingsExperienceContract(experience) {
       "Settings Workspace readiness must follow filesystem writability and health before executor mode",
     );
   }
+  assertDeepEqualJson(
+    pageContracts.workspace.surface_rules,
+    {
+      workspace_card_count: 1,
+      permission_presentation: "status_row_inside_workspace_card",
+      maintenance_action_visibility: "attention_only",
+      diagnostics_entry: "explicit_modal_action",
+    },
+    "Settings Workspace surface rules",
+  );
+  assertDeepEqualJson(
+    pageContracts.capabilities.management_discoverability,
+    {
+      primary_row_controls: ["home_visibility", "manage"],
+      lifecycle_actions: ["update", "repair", "enable", "disable", "uninstall"],
+      raw_source_fallback_allowed: false,
+      diagnostic_refs_location: "diagnostics_modal",
+      home_preference_policy:
+        "single_reactive_owner_with_success_commit_and_failure_rollback",
+    },
+    "Settings capability management discoverability",
+  );
+  assertDeepEqualJson(
+    pageContracts.preferences.surface_rules,
+    {
+      full_width_group_count: 2,
+      two_plus_one_grid_allowed: false,
+      builtin_theme_ids: ["light", "codex"],
+      extension_themes_default_visible: false,
+      custom_theme_management: "preserved",
+    },
+    "Settings Preferences surface rules",
+  );
+  assertDeepEqualJson(
+    pageContracts.about.surface_rules,
+    {
+      version_update_card_count: 1,
+      update_action_placement: "same_row_as_update_status",
+      help_link_layout: "full_width_row_with_trailing_icon_at_container_edge",
+    },
+    "Settings About surface rules",
+  );
   assertDeepEqualJson(
     pageContracts.capabilities.tab_contract,
     appOwnedSettingsCapabilitiesTabContract,

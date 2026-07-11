@@ -316,6 +316,45 @@ test("Settings visual QA enforces bounded-card grouping, compact footer, recogni
   assert.throws(() => validate(lightOnly), /evidence dimensions/);
 });
 
+test("Settings separates configuration groups, status rows, and diagnostic surfaces", () => {
+  const values = contracts();
+  const experience = values.controlPlane.experience_contract;
+
+  assert.doesNotThrow(() => validate(values));
+  assert.equal(
+    experience.surface_model.configuration_group.pure_state_card_allowed,
+    false,
+  );
+  assert.equal(experience.surface_model.status_row.standalone_card_allowed, false);
+  assert.equal(
+    experience.surface_model.diagnostic_surface.ordinary_page_inline_allowed,
+    false,
+  );
+  assert.equal(
+    experience.page_contracts.workspace.surface_rules.workspace_card_count,
+    1,
+  );
+  assert.deepStrictEqual(
+    experience.page_contracts.preferences.surface_rules.builtin_theme_ids,
+    ["light", "codex"],
+  );
+  assert.equal(
+    experience.page_contracts.capabilities.management_discoverability
+      .raw_source_fallback_allowed,
+    false,
+  );
+
+  const standaloneStatus = contracts();
+  standaloneStatus.controlPlane.experience_contract.surface_model.status_row.standalone_card_allowed =
+    true;
+  assert.throws(() => validate(standaloneStatus), /pure status/);
+
+  const inlineDiagnostics = contracts();
+  inlineDiagnostics.controlPlane.experience_contract.surface_model.diagnostic_surface.ordinary_page_inline_allowed =
+    true;
+  assert.throws(() => validate(inlineDiagnostics), /diagnostics must open explicitly/);
+});
+
 test("Settings validator rejects page-state DOM and search-entry drift", () => {
   const values = contracts();
   const overview = values.pageStateMatrix.pages.find(
@@ -343,10 +382,10 @@ test("Settings validator rejects page-state DOM and search-entry drift", () => {
 
   const flatFirstViewport = contracts();
   flatFirstViewport.controlPlane.experience_contract.page_contracts.overview.first_viewport_groups =
-    ["status"];
+    [];
   assert.throws(
     () => validate(flatFirstViewport),
-    /two to four distinct first-viewport groups/,
+    /one to four distinct first-viewport groups/,
   );
 
   const assistantValues = contracts();

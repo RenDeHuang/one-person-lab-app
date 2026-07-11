@@ -99,8 +99,9 @@ Settings uses the established OPL bounded-card control-center baseline, not a
 Codex quiet-list layout. `quiet`, `dense`, and `scannable` describe visual tone;
 they do not permit a page-wide list wall.
 
-- each user question or decision has one bounded card surface;
-- each first viewport contains two to four independent spatial groups;
+- a bounded card is used only for a configuration group with at least two related controls, one consequential action, an exception/recovery workflow, or an independent decision boundary;
+- pure readiness, path, count, or permission state stays as a muted row inside its owning configuration group and never becomes a standalone card;
+- each first viewport contains one to four independent spatial groups; columns are used only when sibling groups have comparable density and independent decisions;
 - rows, controls, and disclosures stay flat inside the owning card;
 - no nested cards;
 - cards remain in the normal document flow and do not become floating dashboard tiles;
@@ -122,7 +123,7 @@ they do not permit a page-wide list wall.
 - each page shows at most one primary action;
 - normal states are visually muted;
 - only attention or failure states receive accent emphasis;
-- technical details are collapsed by default;
+- raw diagnostics are absent from the ordinary page and open only through an explicit Diagnostics action into a summary-first modal or drawer;
 - full-page routes let the page wrapper own scrolling, while modal content keeps
   its own reachable scroll area;
 - when an inline confirmation is rendered away from the triggering control, it
@@ -143,7 +144,30 @@ preserve or improve hierarchy against Shell baseline
 
 The ordinary first screen must describe user impact and the next decision. Raw
 ids, raw statuses, command mappings, paths, payloads, and receipts belong in the
-page's technical-details disclosure.
+page's diagnostic modal or drawer.
+
+### Surface Ownership
+
+Settings has three surface types. This distinction prevents implementation data
+from deciding the page layout.
+
+1. **Configuration group**: interactive controls and consequential actions. It
+   may use one bounded card when it satisfies the card eligibility rule.
+2. **Status row**: read-only evidence that supports a nearby configuration. It
+   remains inside the owning group; normal state is muted and an exception may
+   add one recovery action.
+3. **Diagnostic surface**: paths, refs, action ids, receipts, runtime enums,
+   payloads, and logs. These values never remain inline on an ordinary Settings
+   page. One explicit Diagnostics action opens a modal or drawer with a
+   plain-language summary first and raw fields second.
+
+Workspace therefore uses one owner card containing location, writability, and
+actions. Preferences uses two full-width groups rather than a 2+1 grid. Agents
+and Capabilities exposes Home visibility and Manage on each row, while package
+refs remain diagnostic. Resources and Storage keep configuration and user-safe
+status on the page and move control-plane details into one diagnostic surface.
+About combines version, channel, update state, and update action in one card;
+help links are full-width rows with their trailing icon on the container edge.
 
 ## Page Contracts
 
