@@ -180,6 +180,67 @@ test("Settings validator preserves workspace truth precedence and single-flight 
   assert.throws(() => validate(concurrentActions), /single-flight/);
 });
 
+test("Settings configuration catalog projection preserves owner, page, persistence, and secret boundaries", () => {
+  const values = contracts();
+  const projection =
+    values.controlPlane.configuration_catalog_projection;
+
+  assert.doesNotThrow(() => validate(values));
+  assert.deepStrictEqual(projection.owner_classes, [
+    "framework",
+    "app_local",
+    "credential_connection",
+  ]);
+  assert.equal(
+    projection.items.some(
+      (item) => item.configuration_id === "resource_connections",
+    ),
+    true,
+  );
+  assert.deepStrictEqual(
+    values.productProfile.settings.control_plane
+      .configuration_catalog_projection,
+    projection,
+  );
+
+  const duplicateId = contracts();
+  duplicateId.controlPlane.configuration_catalog_projection.items[1].stable_id =
+    duplicateId.controlPlane.configuration_catalog_projection.items[0].stable_id;
+  duplicateId.productProfile.settings.control_plane.configuration_catalog_projection =
+    structuredClone(duplicateId.controlPlane.configuration_catalog_projection);
+  assert.throws(
+    () => validate(duplicateId),
+    /unique stable and configuration ids/,
+  );
+
+  const copiedFrameworkValue = contracts();
+  copiedFrameworkValue.controlPlane.configuration_catalog_projection.items[0].current_value =
+    "/tmp/copied-runtime-truth";
+  copiedFrameworkValue.productProfile.settings.control_plane.configuration_catalog_projection =
+    structuredClone(
+      copiedFrameworkValue.controlPlane.configuration_catalog_projection,
+    );
+  assert.throws(
+    () => validate(copiedFrameworkValue),
+    /delegate current values and action metadata/,
+  );
+
+  const credentialSecret = contracts();
+  const credentialItem =
+    credentialSecret.controlPlane.configuration_catalog_projection.items.find(
+      (item) => item.configuration_id === "model_access_credential",
+    );
+  credentialItem.token = "must-not-enter-the-contract";
+  credentialSecret.productProfile.settings.control_plane.configuration_catalog_projection =
+    structuredClone(
+      credentialSecret.controlPlane.configuration_catalog_projection,
+    );
+  assert.throws(
+    () => validate(credentialSecret),
+    /must not contain secret or current-value fields/,
+  );
+});
+
 test("Settings visual QA enforces bounded-card grouping, compact footer, recognizable theme previews, and responsive color evidence", () => {
   const values = contracts();
   const visualSystem = values.controlPlane.experience_contract.visual_system;

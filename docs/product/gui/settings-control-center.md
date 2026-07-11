@@ -25,6 +25,43 @@ These contracts own:
 They do not own runtime truth, provider implementation, domain truth, release
 readiness, installed App currentness, or owner acceptance.
 
+## Configuration Catalog
+
+Settings presents one product catalog assembled from three owner classes. This
+is a projection protocol, not a second runtime database:
+
+| Owner class | Truth and persistence owner | Examples | App responsibility |
+| --- | --- | --- | --- |
+| `framework` | OPL Framework | workspace root, update channel, developer supervisor, capability Home visibility | Place the Framework item on the correct page and invoke the action exposed by the Framework catalog. Do not copy its current value or redefine its action metadata. |
+| `app_local` | Desktop App or active-shell adapter | model and reasoning preference, startup/window behavior, keep-awake, notifications, upload/Office behavior, fonts, scale and theme | Use the existing App store or bridge and provide local readback. Do not create a second Settings store. |
+| `credential_connection` | Credential, Gateway, remote-access or OPL Connect owner | Codex/Gateway access, remote access and external connections | Display redacted readiness or a credential handle and delegate writes to the owner. Secret bodies never enter the App contract, App state, logs or generic action JSON. |
+
+Every item has one stable id, one page and anchor, one truth owner, one write
+route, one persistence target and one verification route. Framework items are
+read from
+`app_state.settings_control_center.configuration_catalog.items`; managed
+connections are read from
+`app_state.settings_control_center.connection_registry`. The App contract owns
+placement and user meaning only.
+
+The catalog closes the current product gaps without broad AionUI fork-body
+rewrites:
+
+- model and reasoning selections use the existing Codex client setting;
+- update checks consume the Framework `stable|preview` preference through one
+  updater-channel mapping;
+- the existing keep-awake bridge becomes reachable from Preferences;
+- a valid conversation archive receipt can be restored after reopening the
+  Storage page without weakening archive-before-delete;
+- OPL Connect gains a handle-only connection registry with create, edit, test,
+  default and delete actions;
+- Resources & Connections renders that registry through the existing OPL App
+  state/action bridge.
+
+AionUI custom assistants remain outside this catalog because they are not an
+adopted OPL App product capability. Hiding their entry does not authorize
+deleting the underlying AionUI data.
+
 ## Canonical Information Architecture
 
 Product page ids are stable product semantics. Carrier route ids remain stable

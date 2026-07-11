@@ -196,6 +196,107 @@ export function validateSettingsControlPlane(
       "Product profile Settings control plane machine boundary must match the source contract",
     );
   }
+  const configurationProjection =
+    controlPlane.configuration_catalog_projection;
+  if (
+    configurationProjection?.schema !==
+      "opl_app_settings_configuration_catalog_projection.v1" ||
+    configurationProjection.framework_source_ref !==
+      "app_state.settings_control_center.configuration_catalog.items" ||
+    configurationProjection.connection_source_ref !==
+      "app_state.settings_control_center.connection_registry"
+  ) {
+    throw new Error(
+      "Settings configuration catalog projection must consume the Framework and connection owner read models",
+    );
+  }
+  assertDeepEqualJson(
+    productProfile?.settings?.control_plane
+      ?.configuration_catalog_projection,
+    configurationProjection,
+    "Product profile Settings configuration catalog projection",
+  );
+  const configurationItems = configurationProjection.items ?? [];
+  const requiredConfigurationFields =
+    configurationProjection.required_fields ?? [];
+  const allowedOwnerClasses = new Set(
+    configurationProjection.owner_classes ?? [],
+  );
+  if (
+    configurationItems.length === 0 ||
+    new Set(configurationItems.map((item) => item.stable_id)).size !==
+      configurationItems.length ||
+    new Set(configurationItems.map((item) => item.configuration_id)).size !==
+      configurationItems.length
+  ) {
+    throw new Error(
+      "Settings configuration catalog projection requires unique stable and configuration ids",
+    );
+  }
+  const pageContracts =
+    controlPlane.experience_contract?.page_contracts ?? {};
+  const forbiddenCredentialKeys = new Set([
+    "api_key",
+    "token",
+    "secret",
+    "password",
+    "current_value",
+  ]);
+  for (const item of configurationItems) {
+    if (
+      !requiredConfigurationFields.every((field) =>
+        Object.prototype.hasOwnProperty.call(item, field),
+      )
+    ) {
+      throw new Error(
+        `Settings configuration item ${item.stable_id ?? "unknown"} is missing required fields`,
+      );
+    }
+    if (!allowedOwnerClasses.has(item.owner_class)) {
+      throw new Error(
+        `Settings configuration item ${item.stable_id} has an unknown owner class`,
+      );
+    }
+    const owningPage = pageContracts[item.page_id];
+    if (!owningPage?.required_anchors?.includes(item.anchor)) {
+      throw new Error(
+        `Settings configuration item ${item.stable_id} must reference an existing page anchor`,
+      );
+    }
+    if (
+      item.owner_class === "framework" &&
+      (!String(item.current_value_source_ref).startsWith("app_state.") ||
+        Object.prototype.hasOwnProperty.call(item, "action_id") ||
+        Object.prototype.hasOwnProperty.call(item, "current_value"))
+    ) {
+      throw new Error(
+        `Framework configuration item ${item.stable_id} must delegate current values and action metadata`,
+      );
+    }
+    if (
+      item.owner_class === "app_local" &&
+      (!item.persistence_target_ref || !item.write_route)
+    ) {
+      throw new Error(
+        `App-local configuration item ${item.stable_id} requires an existing persistence and write route`,
+      );
+    }
+    if (item.owner_class === "credential_connection") {
+      if (![
+        "secret_ref_only",
+        "redacted_status",
+      ].includes(item.sensitivity)) {
+        throw new Error(
+          `Credential configuration item ${item.stable_id} must be secret-ref-only or redacted status`,
+        );
+      }
+      if (Object.keys(item).some((key) => forbiddenCredentialKeys.has(key))) {
+        throw new Error(
+          `Credential configuration item ${item.stable_id} must not contain secret or current-value fields`,
+        );
+      }
+    }
+  }
   assertDeepEqualJson(
     productProfile?.settings?.control_plane?.model_reasoning_policy_source,
     controlPlane.model_reasoning_policy_source,
