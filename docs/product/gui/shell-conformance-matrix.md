@@ -55,11 +55,10 @@ Active AionUI 默认状态通过 README 治理段声明的动态 state source �
   `2026-07-11` 宽桌面 conversation 状态观察。App contracts/validators 与 active AionUI
   仍基于前一观察 `26.707.31428`，因此基准同步状态为
   `current_contract_deviation`；文档更新不提升 source/pixel 状态。
-- AionUI source snapshot：`opl-aion-shell@1752ba496377a0534ae88e6343f8051d961f79a5`；
+- AionUI source snapshot：`opl-aion-shell@71ddfafaded5d86f40a9ca584c587ed59f818fa9`；
   Home、rail、conversation/context、Settings、startup、projectless 和模型策略的 source/test
-  audit 已通过。Settings visual E2E 的 28 个 desktop/mobile 条目仍绑定历史 snapshot
-  `5e46f49ab33fea3734db9a6fb6db79f73507bf07`；该证据不提升当前 snapshot 的 pixel 状态，
-  也不外推为 Home、rail、conversation 或全局视觉 parity。
+  audit 已通过。Settings visual E2E 的 28 个 desktop/mobile 条目绑定当前 snapshot；该证据仅
+  验证 Settings 的 pixel 状态，不外推为 Home、rail、conversation 或全局视觉 parity。
 - Absorbed GUI integration：`dbff7370fa956541ace3378296c5a000eb64399d` 已进入当前 shell
   main，包含 project context、artifact export、desktop navigation 和 visual harness。
   App authority resolution 与 TypeScript、unit、DOM、i18n、active-shell source gates 已通过；
@@ -96,7 +95,7 @@ Active AionUI 默认状态通过 README 治理段声明的动态 state source �
 
 本表是主线决策入口。先看 P0/P1，再看 P2；Settings 完成不能抵消核心工作流偏差。
 
-| Priority | Product surface | 26.707.41301 / OPL target | AionUI main `5e46f49` | Status | Next decision |
+| Priority | Product surface | 26.707.41301 / OPL target | AionUI main `71ddfaf` | Status | Next decision |
 | --- | --- | --- | --- | --- | --- |
 | P0 | App frame | 左 project/conversation rail + 中央单列 timeline + 底部 composer + 右上按需 Environment details。 | Rail/timeline/composer 已有；右侧仍采用 Environment popover 与 resizable multi-tool side panel 的旧目标。 | `source_partial`, `pixel_unverified` | 保留 rail/timeline/composer；重新评估 side-panel rewrite，不默认吸收。 |
 | P0 | Project hierarchy | Project 是 N conversations 的父级；selected project 下可增加可选 context refs。 | Project/conversation history 已有；可编辑 project context 尚未进入 main。 | `source_partial`, `pixel_unverified` | 先定 project/context lifecycle，再选择 L1-L3 实现。 |
@@ -108,7 +107,7 @@ Active AionUI 默认状态通过 README 治理段声明的动态 state source �
 | P1 | OPL capabilities | Plugins 认知位置映射到专业 capability；composer 只显示 active capability。 | Home/Capabilities 基础已实现。 | `source_implemented`, `pixel_unverified` | 保持渐进披露，不扩成 launcher/card wall。 |
 | P1 | Progress / approval / receipt | 进入当前 timeline 与 task summary。 | Current-task summary 和 action/receipt 基础存在。 | `source_partial`, `pixel_unverified` | 补真实用户路径，不建设第二状态面。 |
 | P1 | Artifacts / evidence | Environment 次级 refs、preview 或 turn disclosure。 | Preview/runtime refs 部分存在，旧 side-panel taxonomy 需要重审。 | `source_partial`, `pixel_unverified` | 保留 renderer/bridge，重审入口与默认状态。 |
-| P2 | Settings | Secondary configuration/control surface，保持 OPL IA。 | OPL Control Center source 与 28 张 Settings evidence 已完成旧目标。 | `source_implemented`, `pixel_verified` | 进入维护模式，不再驱动主 GUI 设计。 |
+| P2 | Settings | Secondary configuration/control surface，保持 OPL IA。 | OPL Control Center source 与 28 张 Settings evidence 已完成当前 OPL 卡片基线。 | `source_implemented`, `pixel_verified` | 进入维护模式，不再驱动主 GUI 设计。 |
 
 ## Cross-shell Detail Appendix
 
@@ -144,7 +143,7 @@ Native candidate 不得与 active-shell P0 差距竞争实施资源。
 | Mutation 走 App action preview/confirm/execute/receipt | `aligned_contract` | `source_implemented` | `not_applicable` | `candidate_target` | `source_partial` | `not_applicable` | Native 已有 preview/action bridge，但完整高风险确认、receipt、rollback UX 尚未覆盖全部动作。 |
 | Runtime/Files/Memory/Artifacts 只展示 refs | `aligned_contract` | `source_implemented` | `not_applicable` | `candidate_target` | `source_partial` | `not_applicable` | Native `workbenchModel.ts` 仍保留 `GlycoFold` 等 demo fallback，必须去除后才能算完整真实投影。 |
 | Artifact Markdown/PDF/Mermaid/Code/KaTeX preview | `aligned_contract` | `source_partial` | `pixel_unverified` | `candidate_target` | `source_partial` | `pixel_unverified` | 两边都有部分 preview surface；缺覆盖各 renderer、错误态和 export 的绑定证据。 |
-| Settings 使用 full-window return/search/grouped rows且 OPL IA 不变 | `aligned_contract` | `source_implemented` | `pixel_verified` | `current_contract_deviation` | `source_partial` | `pixel_unverified` | AionUI 保留 8+2 IA、search/redirect/state/action semantics，并使用 bounded page-section cards + flat rows；Shell `5e46f49ab33fea3734db9a6fb6db79f73507bf07` 的 manifest 绑定 28 张 desktop/mobile Settings 截图。 |
+| Settings 使用 full-window return/search/grouped rows且 OPL IA 不变 | `aligned_contract` | `source_implemented` | `pixel_verified` | `current_contract_deviation` | `source_partial` | `pixel_unverified` | AionUI 保留 8+2 IA、search/redirect/state/action semantics，并使用 bounded page-section cards + flat rows；Shell `71ddfafaded5d86f40a9ca584c587ed59f818fa9` 的 manifest 绑定 28 张 desktop/mobile Settings 截图。 |
 | 白色 main、灰色 rail/subtle surface、OPL teal | `aligned_contract` | `source_partial` | `pixel_unverified` | `current_contract_deviation` | `source_partial` | `pixel_verified` | AionUI token/layout 已对齐目标方向；最终 route-bound pixels 尚未绑定。 |
 | Desktop Back/Forward、Previous/Next Task、New Window | `aligned_contract` | `source_partial` | `pixel_unverified` | `current_contract_deviation` | `source_not_assessed` | `pixel_unverified` | titlebar/menu 有现有桌面入口，但完整快捷键和 task navigation 验收未闭合。 |
 | OPL 品牌、双语与普通语言一致 | `aligned_contract` | `source_partial` | `pixel_unverified` | `candidate_target` | `source_partial` | `pixel_verified` | 仍需逐 route 检查 carrier branding、混合语言、technical ids 与字号层级。 |
