@@ -284,6 +284,7 @@ export function validateSettingsControlPlane(
     "Settings control plane slot registry keys",
   );
   assertEveryRouteHasSlot(controlPlane);
+  validateCustomAssistantDataBoundary(controlPlane);
   validateHydratedSettingsRegistry(controlPlane);
   validateSettingsShellAdapterSlotContract(controlPlane);
   validateSettingsModelReasoningPolicy(
@@ -651,6 +652,23 @@ function assertEveryRouteHasSlot(controlPlane) {
       );
     }
   }
+}
+
+function validateCustomAssistantDataBoundary(controlPlane) {
+  assertDeepEqualJson(
+    controlPlane.aionui_custom_assistant_boundary,
+    {
+      opl_app_product_surface: false,
+      ordinary_navigation_entry_allowed: false,
+      entry_may_be_hidden: true,
+      legacy_assistants_target: "capabilities?tab=skills",
+      underlying_user_data_owner: "aionui",
+      underlying_user_data_deletion_policy:
+        "forbidden_without_explicit_app_contract_and_migration_or_deletion_evidence",
+      route_or_entry_removal_proves_data_migration: false,
+    },
+    "Settings AionUI custom-assistant product and data boundary",
+  );
 }
 
 function validateSettingsIa(settingsIa) {
@@ -1466,40 +1484,97 @@ function validateSettingsModelReasoningPolicy(
 }
 
 function validateSettingsSurfaceModel(surfaceModel) {
+  const surfaceTypes = ["configuration", "status", "action", "diagnostic"];
   assertDeepEqualJson(
-    surfaceModel?.configuration_group?.card_eligibility_any_of,
+    surfaceModel?.surface_types,
+    surfaceTypes,
+    "Settings surface types",
+  );
+  if (
+    surfaceModel?.classification_policy !==
+      "every_page_surface_has_exactly_one_type_and_one_page_owner" ||
+    surfaceModel?.advanced_page_type !== "diagnostic"
+  ) {
+    throw new Error(
+      "Settings surfaces must have exactly one of four types and Advanced must be diagnostic",
+    );
+  }
+  assertDeepEqualJson(
+    Object.keys(surfaceModel ?? {}),
+    [
+      "surface_types",
+      "classification_policy",
+      ...surfaceTypes,
+      "advanced_page_type",
+      "desktop_layout_policy",
+      "default_layout_policy",
+    ],
+    "Settings strict four-surface model keys",
+  );
+  for (const surfaceType of surfaceTypes) {
+    for (const field of [
+      "presentation",
+      "interaction",
+      "visual_rule",
+      "ownership_rule",
+    ]) {
+      if (
+        typeof surfaceModel?.[surfaceType]?.[field] !== "string" ||
+        surfaceModel[surfaceType][field].trim() === ""
+      ) {
+        throw new Error(
+          `Settings ${surfaceType} surface must declare ${field}`,
+        );
+      }
+    }
+  }
+  assertDeepEqualJson(
+    surfaceModel?.configuration?.card_eligibility_any_of,
     [
       "two_or_more_related_controls",
-      "one_consequential_primary_action",
+      "one_consequential_persistent_setting",
       "exception_or_recovery_workflow",
       "independent_user_decision_boundary",
     ],
     "Settings configuration-group card eligibility",
   );
   if (
-    surfaceModel?.configuration_group?.pure_state_card_allowed !== false ||
-    surfaceModel?.status_row?.standalone_card_allowed !== false ||
-    surfaceModel?.status_row?.presentation !==
-      "inside_owning_configuration_group"
+    surfaceModel?.configuration?.interaction !==
+      "persistent_value_controls_only" ||
+    surfaceModel?.configuration?.pure_state_card_allowed !== false ||
+    surfaceModel?.configuration?.one_time_action_allowed !== false ||
+    surfaceModel?.status?.standalone_card_allowed !== false ||
+    surfaceModel?.status?.presentation !==
+      "muted_row_inside_owning_page_section_or_configuration_group"
   ) {
     throw new Error(
-      "Settings pure status must remain a row inside its owning configuration group",
+      "Settings configuration must be persistent and pure status must remain a muted owning-page row",
     );
   }
   if (
-    surfaceModel?.diagnostic_surface?.ordinary_page_inline_allowed !== false ||
-    surfaceModel?.diagnostic_surface?.entry_presentation !==
+    surfaceModel?.action?.interaction !==
+      "explicit_one_time_command_with_confirmation_progress_and_receipt_as_required" ||
+    surfaceModel?.action?.persistent_value_allowed !== false ||
+    surfaceModel?.action?.maintenance_and_storage_are_settings !== false
+  ) {
+    throw new Error(
+      "Settings one-time actions must be independent from persistent configuration",
+    );
+  }
+  if (
+    surfaceModel?.diagnostic?.ordinary_page_inline_allowed !== false ||
+    surfaceModel?.diagnostic?.entry_presentation !==
       "explicit_diagnostics_action" ||
-    surfaceModel?.diagnostic_surface?.container !== "modal_or_drawer" ||
-    surfaceModel?.diagnostic_surface?.summary_first !== true ||
-    surfaceModel?.diagnostic_surface?.raw_details_secondary !== true
+    surfaceModel?.diagnostic?.container !== "modal_or_drawer" ||
+    surfaceModel?.diagnostic?.summary_first !== true ||
+    surfaceModel?.diagnostic?.raw_details_secondary !== true
   ) {
     throw new Error(
       "Settings diagnostics must open explicitly in a summary-first modal or drawer",
     );
   }
   assertIncludesAll(
-    surfaceModel?.diagnostic_surface?.raw_fields,
+    surfaceModel?.diagnostic?.raw_fields,
     ["paths", "refs", "action_ids", "receipts", "runtime_enums", "payloads", "logs"],
     "Settings diagnostic raw fields",
   );
@@ -1511,6 +1586,61 @@ function validateSettingsSurfaceModel(surfaceModel) {
     throw new Error(
       "Settings layout must default to full-width groups and use columns only for comparable independent decisions",
     );
+  }
+}
+
+function validatePageSurfaceInventory(pageId, inventory) {
+  const surfaceTypes = ["configuration", "status", "action", "diagnostic"];
+  assertDeepEqualJson(
+    Object.keys(inventory ?? {}),
+    surfaceTypes,
+    `Settings experience ${pageId} surface inventory types`,
+  );
+
+  const seenIds = new Set();
+  for (const surfaceType of surfaceTypes) {
+    const entries = inventory?.[surfaceType];
+    if (!Array.isArray(entries)) {
+      throw new Error(
+        `Settings experience ${pageId} ${surfaceType} inventory must be an array`,
+      );
+    }
+    for (const entry of entries) {
+      if (
+        Object.keys(entry ?? {}).length !== 2 ||
+        typeof entry?.id !== "string" ||
+        entry.id.trim() === "" ||
+        entry.owner !== pageId
+      ) {
+        throw new Error(
+          `Settings experience ${pageId} ${surfaceType} inventory must declare id and page ownership`,
+        );
+      }
+      if (seenIds.has(entry.id)) {
+        throw new Error(
+          `Settings experience ${pageId} surface ${entry.id} cannot mix surface types`,
+        );
+      }
+      seenIds.add(entry.id);
+    }
+  }
+
+  if (pageId === "advanced") {
+    if (
+      inventory.configuration.length !== 0 ||
+      inventory.status.length !== 0 ||
+      inventory.action.length !== 0 ||
+      inventory.diagnostic.length === 0
+    ) {
+      throw new Error("Settings Advanced must be a diagnostic-only page");
+    }
+  }
+  if (["maintenance", "storage"].includes(pageId)) {
+    if (inventory.configuration.length !== 0 || inventory.action.length === 0) {
+      throw new Error(
+        `Settings ${pageId} operations are actions, not persistent settings`,
+      );
+    }
   }
 }
 
@@ -1605,6 +1735,7 @@ export function validateSettingsExperienceContract(experience) {
         `Settings experience ${pageId} must bind its product, route, and matrix ids`,
       );
     }
+    validatePageSurfaceInventory(pageId, page.surface_inventory);
     for (const field of [
       "label_zh",
       "label_en",

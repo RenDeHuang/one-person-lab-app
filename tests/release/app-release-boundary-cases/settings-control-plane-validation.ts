@@ -79,6 +79,19 @@ test("Settings contract keeps eight product pages, two secondary pages, and anch
     values.controlPlane.legacy_route_redirects.assistants,
     "capabilities?tab=skills",
   );
+  assert.deepStrictEqual(
+    values.controlPlane.aionui_custom_assistant_boundary,
+    {
+      opl_app_product_surface: false,
+      ordinary_navigation_entry_allowed: false,
+      entry_may_be_hidden: true,
+      legacy_assistants_target: "capabilities?tab=skills",
+      underlying_user_data_owner: "aionui",
+      underlying_user_data_deletion_policy:
+        "forbidden_without_explicit_app_contract_and_migration_or_deletion_evidence",
+      route_or_entry_removal_proves_data_migration: false,
+    },
+  );
 });
 
 test("Settings validator rejects secondary-page and compatibility-route regressions", () => {
@@ -109,6 +122,14 @@ test("Settings validator rejects secondary-page and compatibility-route regressi
   assert.throws(
     () => validate(assistantsRegression),
     /legacy redirects|legacy assistants/,
+  );
+
+  const destructiveAssistantCleanup = contracts();
+  destructiveAssistantCleanup.controlPlane.aionui_custom_assistant_boundary.underlying_user_data_deletion_policy =
+    "delete_when_entry_hidden";
+  assert.throws(
+    () => validate(destructiveAssistantCleanup),
+    /custom-assistant product and data boundary/,
   );
 });
 
@@ -316,19 +337,63 @@ test("Settings visual QA enforces bounded-card grouping, compact footer, recogni
   assert.throws(() => validate(staleDarkMatrix), /evidence dimensions/);
 });
 
-test("Settings separates configuration groups, status rows, and diagnostic surfaces", () => {
+test("Settings strictly separates configuration, status, action, and diagnostic surfaces", () => {
   const values = contracts();
   const experience = values.controlPlane.experience_contract;
 
   assert.doesNotThrow(() => validate(values));
+  assert.deepStrictEqual(experience.surface_model.surface_types, [
+    "configuration",
+    "status",
+    "action",
+    "diagnostic",
+  ]);
   assert.equal(
-    experience.surface_model.configuration_group.pure_state_card_allowed,
+    experience.surface_model.configuration.pure_state_card_allowed,
     false,
   );
-  assert.equal(experience.surface_model.status_row.standalone_card_allowed, false);
   assert.equal(
-    experience.surface_model.diagnostic_surface.ordinary_page_inline_allowed,
+    experience.surface_model.configuration.one_time_action_allowed,
     false,
+  );
+  assert.equal(experience.surface_model.status.standalone_card_allowed, false);
+  assert.equal(experience.surface_model.action.persistent_value_allowed, false);
+  assert.equal(
+    experience.surface_model.diagnostic.ordinary_page_inline_allowed,
+    false,
+  );
+  for (const page of Object.values(experience.page_contracts)) {
+    assert.deepStrictEqual(Object.keys(page.surface_inventory), [
+      "configuration",
+      "status",
+      "action",
+      "diagnostic",
+    ]);
+  }
+  assert.equal(
+    experience.page_contracts.maintenance.surface_inventory.configuration.length,
+    0,
+  );
+  assert.ok(
+    experience.page_contracts.maintenance.surface_inventory.action.length > 0,
+  );
+  assert.equal(
+    experience.page_contracts.storage.surface_inventory.configuration.length,
+    0,
+  );
+  assert.ok(experience.page_contracts.storage.surface_inventory.action.length > 0);
+  assert.ok(
+    experience.page_contracts.storage.surface_inventory.diagnostic.some(
+      (surface) => surface.id === "storage_restore_probe",
+    ),
+  );
+  assert.deepStrictEqual(
+    Object.fromEntries(
+      Object.entries(experience.page_contracts.advanced.surface_inventory).map(
+        ([type, entries]) => [type, entries.length],
+      ),
+    ),
+    { configuration: 0, status: 0, action: 0, diagnostic: 1 },
   );
   assert.equal(
     experience.page_contracts.workspace.surface_rules.workspace_card_count,
@@ -358,14 +423,49 @@ test("Settings separates configuration groups, status rows, and diagnostic surfa
   );
 
   const standaloneStatus = contracts();
-  standaloneStatus.controlPlane.experience_contract.surface_model.status_row.standalone_card_allowed =
+  standaloneStatus.controlPlane.experience_contract.surface_model.status.standalone_card_allowed =
     true;
   assert.throws(() => validate(standaloneStatus), /pure status/);
 
   const inlineDiagnostics = contracts();
-  inlineDiagnostics.controlPlane.experience_contract.surface_model.diagnostic_surface.ordinary_page_inline_allowed =
+  inlineDiagnostics.controlPlane.experience_contract.surface_model.diagnostic.ordinary_page_inline_allowed =
     true;
   assert.throws(() => validate(inlineDiagnostics), /diagnostics must open explicitly/);
+
+  const legacySurfaceType = contracts();
+  legacySurfaceType.controlPlane.experience_contract.surface_model.status_row = {};
+  assert.throws(() => validate(legacySurfaceType), /strict four-surface model/);
+
+  const missingInventoryType = contracts();
+  delete missingInventoryType.controlPlane.experience_contract.page_contracts.access
+    .surface_inventory.action;
+  assert.throws(() => validate(missingInventoryType), /surface inventory types/);
+
+  const mixedSurface = contracts();
+  mixedSurface.controlPlane.experience_contract.page_contracts.workspace
+    .surface_inventory.status.push({ id: "workspace_selection", owner: "workspace" });
+  assert.throws(() => validate(mixedSurface), /cannot mix surface types/);
+
+  const wrongOwner = contracts();
+  wrongOwner.controlPlane.experience_contract.page_contracts.about.surface_inventory.status[0].owner =
+    "maintenance";
+  assert.throws(() => validate(wrongOwner), /page ownership/);
+
+  const maintenanceAsSetting = contracts();
+  maintenanceAsSetting.controlPlane.experience_contract.page_contracts.maintenance
+    .surface_inventory.configuration.push({
+      id: "run_repair_as_setting",
+      owner: "maintenance",
+    });
+  assert.throws(() => validate(maintenanceAsSetting), /actions, not persistent settings/);
+
+  const advancedConfiguration = contracts();
+  advancedConfiguration.controlPlane.experience_contract.page_contracts.advanced
+    .surface_inventory.configuration.push({
+      id: "developer_mode",
+      owner: "advanced",
+    });
+  assert.throws(() => validate(advancedConfiguration), /diagnostic-only page/);
 });
 
 test("Settings validator rejects page-state DOM and search-entry drift", () => {

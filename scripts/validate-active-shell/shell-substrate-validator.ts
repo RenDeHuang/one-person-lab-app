@@ -66,7 +66,9 @@ const runtimeSettingsExpected = [
   'maintenanceHubItems',
   "data-testid='opl-maintenance-hub'",
   'settings.oplEnvironmentPage.maintenanceHub.title',
-  "data-testid='opl-maintenance-advanced-details'",
+  "data-testid='settings-maintenance-diagnostics-action'",
+  "data-testid='settings-maintenance-technical-details'",
+  'visible={diagnosticsVisible}',
   'RuntimeReadinessGrid',
 ];
 

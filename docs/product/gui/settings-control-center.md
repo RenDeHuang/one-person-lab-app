@@ -46,6 +46,12 @@ implementation ids so the shell can migrate without changing user-facing IA.
 `secondary_pages` contains only `advanced` and `about`. About is an independent
 page and must never be redirected to Advanced.
 
+AionUI custom assistants are not an OPL App product surface or ordinary tab.
+Their entry may be hidden, and legacy `assistants` may redirect to
+`capabilities?tab=skills`. Hiding or redirecting an entry does not authorize
+deletion of underlying AionUI user data. Such deletion requires an explicit App
+contract plus migration or deletion evidence.
+
 ## Compatibility Redirects
 
 `update`, `theme`, and `local-services` are not product pages. They are
@@ -99,7 +105,7 @@ Settings uses the established OPL bounded-card control-center baseline, not a
 Codex quiet-list layout. `quiet`, `dense`, and `scannable` describe visual tone;
 they do not permit a page-wide list wall.
 
-- a bounded card is used only for a configuration group with at least two related controls, one consequential action, an exception/recovery workflow, or an independent decision boundary;
+- a bounded card is used only for a configuration group with at least two related persistent controls, one consequential persistent setting, an exception/recovery workflow, or an independent decision boundary;
 - pure readiness, path, count, or permission state stays as a muted row inside its owning configuration group and never becomes a standalone card;
 - each first viewport contains one to four independent spatial groups; columns are used only when sibling groups have comparable density and independent decisions;
 - rows, controls, and disclosures stay flat inside the owning card;
@@ -149,18 +155,24 @@ page's diagnostic modal or drawer.
 
 ### Surface Ownership
 
-Settings has three surface types. This distinction prevents implementation data
-from deciding the page layout.
+Settings has exactly four surface types. Every surface belongs to one type and
+one page owner; every page contract declares all four inventory arrays, including
+empty arrays. An item cannot appear in more than one array.
 
-1. **Configuration group**: interactive controls and consequential actions. It
-   may use one bounded card when it satisfies the card eligibility rule.
-2. **Status row**: read-only evidence that supports a nearby configuration. It
-   remains inside the owning group; normal state is muted and an exception may
-   add one recovery action.
-3. **Diagnostic surface**: paths, refs, action ids, receipts, runtime enums,
-   payloads, and logs. These values never remain inline on an ordinary Settings
-   page. One explicit Diagnostics action opens a modal or drawer with a
-   plain-language summary first and raw fields second.
+1. **Configuration**: persisted user, workspace, or App preferences. Related
+   controls may use one bounded card when they satisfy the existing card
+   eligibility rule. A one-time command can never be modeled as configuration.
+2. **Status**: read-only evidence and readiness. It is a muted row inside its
+   owning page section or configuration group; it never becomes a standalone
+   status card. Attention remains inline and may route to an owning action.
+3. **Action**: an explicit one-time command such as check, open, diagnose,
+   repair, update, cleanup, archive, restore, or deploy. It stays adjacent to
+   the object or section it operates on and exposes confirmation, progress, and
+   receipt when required. It is visually a command, never a persistent setting.
+4. **Diagnostic**: paths, refs, action ids, receipts, runtime enums, payloads,
+   and logs. Ordinary pages open these through an explicit Diagnostics action
+   into a summary-first modal or drawer. Advanced is itself a diagnostic page;
+   it is not a Settings/configuration page.
 
 Workspace therefore uses one owner card containing location, writability, and
 actions. Preferences uses two full-width groups rather than a 2+1 grid. Agents
@@ -172,6 +184,11 @@ header status rather than a standalone card, and move control-plane details into
 one diagnostic surface.
 About combines version, channel, update state, and update action in one card;
 help links are full-width rows with their trailing icon on the container edge.
+Maintenance and Data & Storage may contain status, actions, and diagnostics,
+but their repair/update/cleanup/archive operations are actions, not settings.
+Neither page owns persistent configuration in this contract. Storage restore
+probe evidence belongs to diagnostics and does not require a duplicate ordinary
+Restore button.
 
 ## Page Contracts
 
@@ -264,8 +281,9 @@ Required anchors: `availability`, `source`, `home-visibility`.
 
 The page has `skills` and `tools` supporting tabs. AionUI `AssistantSettings`,
 custom assistant catalogs, and shell-specific assistants are not OPL product
-surfaces. Legacy `assistants` resolves to `capabilities?tab=skills` so old links
-land on the OPL capability directory instead of exposing upstream UI.
+surfaces. Legacy `assistants` resolves to `capabilities?tab=skills`. Removing or
+hiding that upstream entry must not delete its underlying user data without an
+explicit App contract and migration or deletion evidence.
 
 ### Resources & Connections
 
@@ -360,6 +378,8 @@ Required anchors: `storage-categories`, `cleanup-preview`, `cleanup-history`.
 
 Ordinary copy uses "preview cleanup", "items that will be removed", "archive",
 "restore", and "cleanup record" rather than raw lifecycle terminology.
+The restore probe is diagnostic evidence. It may appear in Storage diagnostics
+without adding or duplicating an ordinary Restore button.
 
 ### Preferences
 
@@ -383,6 +403,8 @@ Required anchors: `behavior`, `tray`, `hardware`, `themes`.
 Theme is an anchor on Preferences, not an independent page.
 
 ### Advanced
+
+Surface type: diagnostic page, not Settings/configuration.
 
 Primary information: read-only working directories with user-facing labels.
 
@@ -491,7 +513,8 @@ Shell acceptance requires:
   non-duplicative diagnostic surfaces, and stable section-id anchors;
 - `settings-resources-browser-access` remains visible on Resources & Connections;
 - legacy `assistants` returns to the OPL capability directory and never mounts
-  AionUI `AssistantSettings`;
+  AionUI `AssistantSettings`; hiding the entry does not authorize deletion of
+  underlying AionUI user data;
 - resource `Open`, `Diagnose`, and mutating actions obey their execution and
   dry-run claim boundaries;
 - one fresh default desktop light check for the ordinary and secondary routes;
