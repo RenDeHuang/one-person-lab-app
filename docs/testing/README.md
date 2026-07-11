@@ -71,11 +71,11 @@ The App page-state matrix is declared in
 The App GUI product contract is declared in
 `contracts/app-gui-product-contract.json`; `validate-active-shell.ts --quick`
 checks the Codex CLI fixed executor, purpose-first Research/Grant/Presentation/Book
-home entries routed to MAS/MAG/RCA/BookForge, hidden home-path executor/provider/permission
-selectors with App-owned Codex model selector/status, home prompt, App-owned
-ordinary Settings navigation for Overview, Setup & Access, Capabilities,
-Maintenance & Updates, Data & Storage, Preferences, and Advanced, with
-About/Update/Theme as secondary surfaces, legacy upstream route
+home entries routed to MAS/MAG/RCA/BookForge, hidden home-path executor/provider
+selectors with visible App-owned model/reasoning and user-language permission/access
+controls, home prompt, App-owned ordinary Settings navigation for Overview, Access,
+Workspace, Agents & Capabilities, Resources & Connections, Maintenance, Data & Storage,
+and Preferences, with Advanced/About/Update/Theme/Local Services as secondary surfaces, legacy upstream route
 redirects, module path source explanation, stable/nightly release gating, MDS
 non-default display, and OPL Flow context before shell validation runs.
 The App product profile is declared in

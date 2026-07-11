@@ -33,7 +33,7 @@ OPL project context、capabilities、progress、evidence、artifacts 与 safe ac
 当前人读观察基准是本机 ChatGPT macOS `26.707.41301`（观察于 `2026-07-11`）。
 App machine authority 已升为 baseline schema v2；AionUI implementation、generated profile、
 完整 Node/DOM/TypeScript/format/i18n、App active-shell/release-boundary 与 packaged 8 场景
-visual matrix 已绑定 Shell final integration candidate `bbf94f2e44ef806e33451da568a3814658484619`。
+visual matrix 已绑定当前 Shell local/remote main `0ebc1fdd278e8a79602458e15e28cf814dfd917d`。
 这些证据证明当前 source cohort 与指定 route/layout 状态，不证明 1:1 pixel parity、公开
 release-ready 或远端 currentness。`26.707.31428` 与 `26.707.31123` 只作为 superseded
 observations 保留。
@@ -94,7 +94,7 @@ package/user path。当前 contract/source 与 packaged route visual evidence �
 - `superseded_interaction_observations=ChatGPT Codex macOS 26.707.31428 (2026-07-10),ChatGPT Codex macOS 26.707.31123 (2026-07-10)`
 - `human_target.owner=one-person-lab-app`
 - `active_aionui.role=current_implementation_conformance_only`
-- `active_aionui.final_shell_sha=bbf94f2e44ef806e33451da568a3814658484619`
+- `active_aionui.final_shell_sha=0ebc1fdd278e8a79602458e15e28cf814dfd917d`
 - `docs_or_contract_imply_source_complete=false`
 - `docs_or_contract_imply_pixel_complete=false`
 - `ideal_target.permission_access_mode_visible=true`

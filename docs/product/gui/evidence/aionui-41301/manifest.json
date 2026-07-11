@@ -1,11 +1,11 @@
 {
   "schema": "opl_app_gui_visual_evidence.v1",
   "owner": "one-person-lab-app",
+  "generated_at": "2026-07-11T21:16:06.183Z",
+  "shell_head": "0ebc1fdd278e8a79602458e15e28cf814dfd917d",
   "source_shell_repo": "gaofeng21cn/opl-aion-shell",
-  "shell_head": "bbf94f2e44ef806e33451da568a3814658484619",
   "source_manifest": "docs/product/gui/evidence/aionui-41301/source-manifest.json",
-  "source_manifest_sha256": "c8f4447d674f5302200509e8c531f6d65ab5469b4e17ff570d135eb5fd8463c5",
-  "generated_at": "2026-07-11T20:13:31.648Z",
+  "source_manifest_sha256": "2b5231a5441bbfe6385fe111c732811ceb507d2c81e03cdf4fb3a8eedfc93a54",
   "command": "AIONUI_E2E_PRODUCT_PROFILE=1 E2E_PACKAGED=1 E2E_SCREENSHOTS=1 bun run test:e2e -- tests/e2e/features/visual-evidence/gui-baseline.e2e.ts",
   "evidence_scope": "route_state_non_empty_and_layout_only",
   "claims": {
@@ -22,8 +22,8 @@
       "theme": "light",
       "locale": "zh-CN",
       "screenshot_path": "docs/product/gui/evidence/aionui-41301/screenshots/home-desktop-light-zh-CN-rail-expanded.png",
-      "bytes": 58259,
-      "sha256": "3aedfc223d7b32762490a1bf042adf34926b317c81bba5bbb6ce42a79f652888"
+      "bytes": 60079,
+      "sha256": "06093e1e81efcf36f1e0f5c062279a099f208011ac6b7b504f1f7d99e0576378"
     },
     {
       "id": "home-mobile-dark-en-US-rail-closed",
@@ -31,8 +31,8 @@
       "theme": "dark",
       "locale": "en-US",
       "screenshot_path": "docs/product/gui/evidence/aionui-41301/screenshots/home-mobile-dark-en-US-rail-closed.png",
-      "bytes": 33288,
-      "sha256": "28caeadf1dc5d43c97943265e46cb871d28efff05e883504a7889bfd8a23025c"
+      "bytes": 34832,
+      "sha256": "ce386f12fd59a98f783c4a29910c56b6cd19cffcad2964abf339dccfa7b43a9e"
     },
     {
       "id": "home-mobile-dark-en-US-action-sheet-open",
@@ -40,8 +40,8 @@
       "theme": "dark",
       "locale": "en-US",
       "screenshot_path": "docs/product/gui/evidence/aionui-41301/screenshots/home-mobile-dark-en-US-action-sheet-open.png",
-      "bytes": 45867,
-      "sha256": "b2f8e4679aefcc287a3d39f6c7b4f00c43f46f5a600aa90aecea7f27f080b09b"
+      "bytes": 47788,
+      "sha256": "2be503803b347de123ed047f40a7685f9cc3140cff5ac36af862cfd4704ddb3a"
     },
     {
       "id": "conversation-desktop-light-en-US-composer-controls",
@@ -49,8 +49,8 @@
       "theme": "light",
       "locale": "en-US",
       "screenshot_path": "docs/product/gui/evidence/aionui-41301/screenshots/conversation-desktop-light-en-US-composer-controls.png",
-      "bytes": 113312,
-      "sha256": "4a4af2db7607bf108259607ccde78a082fcbc47cd088470e873a09b7825d790e"
+      "bytes": 113676,
+      "sha256": "204dfe9aa3ea770c9eec91c3fc0af1b1e0626266e18ceb208aa5415af5177870"
     },
     {
       "id": "conversation-desktop-light-en-US-model-menu-open",
@@ -58,8 +58,8 @@
       "theme": "light",
       "locale": "en-US",
       "screenshot_path": "docs/product/gui/evidence/aionui-41301/screenshots/conversation-desktop-light-en-US-model-menu-open.png",
-      "bytes": 119011,
-      "sha256": "f02ed33d11021e2ec0c1ca4f2cb2fcb15a376c81571772950a6533406b82d942"
+      "bytes": 120195,
+      "sha256": "75d2429dfe51c045c7137372ea798b901b0c64ffdd46265aacc73488aadd186a"
     },
     {
       "id": "conversation-desktop-dark-zh-CN-environment-open",
@@ -76,8 +76,8 @@
       "theme": "dark",
       "locale": "zh-CN",
       "screenshot_path": "docs/product/gui/evidence/aionui-41301/screenshots/conversation-desktop-dark-zh-CN-files-open.png",
-      "bytes": 123497,
-      "sha256": "d6ef06d45b8bbcd2d161895630290628674aeaeda27c7f0d6feeeca7e0f9efa9"
+      "bytes": 123521,
+      "sha256": "36b23f262c513be3e9bfd7a31bc13ab1bbe2478bd7237cde8c2694af72ad0f03"
     },
     {
       "id": "conversation-mobile-light-en-US-preview-open",
@@ -85,8 +85,8 @@
       "theme": "light",
       "locale": "en-US",
       "screenshot_path": "docs/product/gui/evidence/aionui-41301/screenshots/conversation-mobile-light-en-US-preview-open.png",
-      "bytes": 22025,
-      "sha256": "2432ccc4e772523ddc941114c94524b9740f33c7f1b298dd72c1b344a6e19f40"
+      "bytes": 22026,
+      "sha256": "6f09d43e708b8135570d3b6db1f595acace48ac437e4a64eb6d8a452df6e3310"
     }
   ]
 }

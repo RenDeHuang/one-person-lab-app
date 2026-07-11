@@ -54,12 +54,13 @@ Active AionUI 默认状态通过 README 治理段声明的动态 state source �
 - Current human reference：本机 ChatGPT macOS `26.707.41301`（bundle build `5103`），
   `2026-07-11` 观察。App GUI contract、product profile 与 page-state matrix 已统一为 schema v2；
   `26.707.31428/31123` 只保留为 superseded observations。
-- AionUI source snapshot：`opl-aion-shell@bbf94f2e44ef806e33451da568a3814658484619`（final integration candidate）。
-  该 cohort 位于 integration branch，基于 local Shell main 但尚未吸收进 Shell main/remote；包含 Home/project controls、composer model/reasoning/
+- AionUI source snapshot：`opl-aion-shell@0ebc1fdd278e8a79602458e15e28cf814dfd917d`（current local/remote main）。
+  该 cohort 已吸收并推送到 Shell main；包含 Home/project controls、composer model/reasoning/
   access、mobile action sheet、Environment、按需 Files/Preview/Terminal/Browser、timeline task
   summary、cursor-safe transcript export 与 generated profile v2 reader。
-- Fresh source gates：Shell Node `154 files / 1360 tests`、DOM `127 files / 682 tests`、
-  TypeScript、1486-file format、i18n 与 lint `0 errors / 854 warnings`；App active-shell
+- Fresh source gates：Shell `test:full` 为 `282 files pass / 1 skip`、`2044 tests pass / 3 skip`；
+  其中 Node `155 files / 1362 tests`、DOM `127 files / 682 tests`。TypeScript、1487-file
+  format、i18n 与 lint `0 errors / 854 warnings`；App active-shell
   quick/full 和 release-boundary `205 pass / 2 platform skip`。这些结果证明对应 source/test
   surface，不是 runtime 或公开发布证明。
 - Packaged visual evidence：[`evidence/aionui-41301/manifest.json`](evidence/aionui-41301/manifest.json)
@@ -101,7 +102,7 @@ Active AionUI 默认状态通过 README 治理段声明的动态 state source �
 
 本表是主线决策入口。先看 P0/P1，再看 P2；Settings 完成不能抵消核心工作流偏差。
 
-| Priority | Product surface | OPL-owned target translated from 26.707.41301 | AionUI `30f5457d` | Status | Next decision |
+| Priority | Product surface | OPL-owned target translated from 26.707.41301 | AionUI `0ebc1fdd` | Status | Next decision |
 | --- | --- | --- | --- | --- | --- |
 | P0 | App frame | 左 project/conversation rail + 中央单列 timeline + 底部 composer + 右上按需 Environment details。 | Rail/timeline/composer/Environment 已按目标组合；默认无综合第三列。 | `source_implemented`, `pixel_verified` | 进入维护模式，只在上游 intake 时防回归。 |
 | P0 | Project hierarchy | Project 是 N conversations 的父级；selected project 下可增加可选 context refs。 | Project/conversation history、active workspace selector、registered-directory management 与 context refs 共用单一 source。 | `source_implemented`, `pixel_verified` | 后续只补真实数据覆盖，不再复制状态。 |

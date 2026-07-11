@@ -95,7 +95,7 @@ source of App truth.
   implement or report a tracked deviation, but it cannot redefine App product
   truth from renderer code, screenshots, upstream defaults, or local behavior.
 - The current visual and interaction reference is ChatGPT Codex macOS
-  `26.707.31123` observed on `2026-07-10`. It is a reference only; OPL contracts
+  `26.707.41301` observed on `2026-07-11`. It is a reference only; OPL contracts
   remain authoritative.
 
 ## Working Rules

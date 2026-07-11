@@ -6,7 +6,7 @@ State: `current_cohort_evidence`
 
 This directory promotes the final packaged route screenshots from the Shell-local
 ignored evidence directory into an App-owned, manifest-backed evidence surface.
-It is bound to `opl-aion-shell@bbf94f2e44ef806e33451da568a3814658484619`.
+It is bound to `opl-aion-shell@0ebc1fdd278e8a79602458e15e28cf814dfd917d`.
 
 The evidence proves that the eight declared Home and ordinary-conversation states
 rendered non-empty pixels and passed their required anchor and layout checks in the

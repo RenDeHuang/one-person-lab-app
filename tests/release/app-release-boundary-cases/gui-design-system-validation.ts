@@ -162,7 +162,9 @@ test('GUI design-system validator rejects a fixed Home shortcut limit', () => {
 test('GUI design-system validator rejects a stale convergence plan snapshot', () => {
   const root = createFixture();
   const planPath = path.join(root, 'docs/active/aionui-mainline-gui-convergence-plan.md');
-  const plan = fs.readFileSync(planPath, 'utf8').replace('State: `release_closeout_in_progress`', 'State: `active_plan`');
+  const currentPlan = fs.readFileSync(planPath, 'utf8');
+  assert.match(currentPlan, /^State: `(release_closeout_in_progress|complete)`$/m);
+  const plan = currentPlan.replace(/^State: `(release_closeout_in_progress|complete)`$/m, 'State: `active_plan`');
   fs.writeFileSync(planPath, plan, 'utf8');
 
   assert.throws(() => validateGuiDesignSystem(root), /must be in release_closeout_in_progress or complete state/);

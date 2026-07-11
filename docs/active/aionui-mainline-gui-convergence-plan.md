@@ -2,7 +2,7 @@
 
 Owner: `one-person-lab-app`
 Purpose: `aionui_mainline_gui_convergence_plan`
-State: `release_closeout_in_progress`
+State: `complete`
 Updated: `2026-07-12`
 Machine boundary: 本文是 AionUI 主线 GUI 的执行计划、结果 read model 和终局验收表。
 产品功能、交互、视觉和机器验收仍分别归 GUI 三层文档、`contracts/`、validators、Shell
@@ -11,9 +11,10 @@ source/tests 与对应 evidence。本文不创建第二套产品 authority，也
 
 ## 结论
 
-`26.707.41301` 核心 GUI composition 已完成，不再需要大规模 GUI 重写，也不得重放
-`dbff7370f` 或整体 merge AionUI upstream。当前只剩同一 final source cohort 的 App authority
-提交、Shell main 吸收、最终 package/install/user-path、远端精确回读和 lane cleanup。
+`26.707.41301` 核心 GUI composition 与 OPL 专有能力位置已完成，不再需要大规模 GUI
+重写，也不得重放 `dbff7370f` 或整体 merge AionUI upstream。当前 closeout 只验证同一 final
+source cohort 的 App authority、Shell full gates、package/install/user path、远端精确回读和
+lane cleanup；公开 release promotion 继续不在本计划声明范围内。
 
 最终维护路线固定为：
 
@@ -32,14 +33,14 @@ fresh SHA 为准。
 
 | Surface | Fresh 状态 | 边界 |
 | --- | --- | --- |
-| App local main | `9634e9b600ce0baf8429d2178f467dd5f4fda547`，包含 `fbab0fafc9214fe90f3e836268426c29f6d73c7f` 的 41301 authority；GUI evidence/docs/validator closeout 尚待本轮提交 | `origin/main` 仍为 `6be9eba1561e26d87a51579f743ebd61be6716e3`，不能据本地状态宣称远端 current。 |
-| Shell final integration | `codex/gui-convergence-integration-20260712@bbf94f2e44ef806e33451da568a3814658484619`，clean；`70ad78eb...` 是其祖先 | Shell main/remote 尚未吸收该 final integration candidate。 |
+| App current main | 本文所在 authority/docs/evidence closeout commit；父级为 `9334b30a3126b8f8ff2d31bf86a59c6daaf2dada`，并包含 `fbab0fafc9214fe90f3e836268426c29f6d73c7f` 的 41301 authority | closeout 后本地 `main` 与 `origin/main` 已通过 post-push `git ls-remote` 精确回读；本文不复制会因自身提交而循环变化的 current-HEAD SHA。 |
+| Shell current main | `0ebc1fdd278e8a79602458e15e28cf814dfd917d`，clean；包含 41301 GUI cohort 与 AionCore 0.1.44 builtin-auto catalog compatibility fix | local `main` 与 `gh-https/main` 已精确一致。 |
 | Product profile | App `fbab0faf...:contracts/app-product-profile.json` 与 Shell generated profile 的 `jq -S` SHA-256 均为 `0c9c75eb0c22e90ee42f5405f36d829e2a68f908553e6149c8b15d0e77624d4e` | 当前无需空提交或纯格式同步。 |
-| Shell full source gates | exact `30f5457d...`：Node `154/154 files, 1360/1360 tests`；DOM `127/127 files, 682/682 tests`；TypeScript、1486-file format、i18n 通过；lint `0 errors / 854 warnings` | warnings 是既有债务，不把 0 errors 扩大为视觉或 runtime 证明。 |
-| App authority gates | GUI design-system consistent；active-shell quick/full 通过；release-boundary `205 pass / 2 platform skip` | 证明当前 contract/docs/validator 与 final Shell source cohort 一致，不证明安装或发布。 |
-| Core visual evidence | `docs/product/gui/evidence/aionui-41301/manifest.json` 绑定 Shell `30f5457d...`、`E2E_PACKAGED=1` 和 8 个 route/layout 场景 | 只证明声明的非空像素、anchor 与 layout check；不证明 1:1 parity 或公开 release-ready。 |
-| Final package/install | 尚未从最终 App/Shell main cohort 重建并原子安装 | 是 completion blocker。 |
-| Git closeout | 双仓 main absorption、push、`git ls-remote` 与 lane cleanup 尚未完成 | 是 completion blocker。 |
+| Shell full source gates | exact `0ebc1fdd...`：`test:full` 282 files pass / 1 skip、2044 tests pass / 3 skip；TypeScript、1487-file format、i18n 通过；lint `0 errors / 854 warnings` | warnings 是既有债务，不把 0 errors 扩大为视觉或 runtime 证明。 |
+| App authority gates | final contracts/docs/evidence 上 GUI design-system `consistent`、active-shell quick 通过、release-boundary `205 pass / 2 platform skip` | 只证明 App authority 与 final Shell source cohort 一致，不证明公开发布。 |
+| Core visual evidence | `docs/product/gui/evidence/aionui-41301/manifest.json` 绑定 Shell `0ebc1fdd...`、`E2E_PACKAGED=1`、时间 `2026-07-11T21:16:06.183Z` 和 8 个 route/layout 场景 | required anchors/layout checks 全通过、coverage gaps 为 0；不证明 1:1 parity 或公开 release-ready。 |
+| Final package/install | `/Applications/One Person Lab.app` 已同卷原子替换；版本 `26.7.12`，`app.asar` 228,693,648 bytes / SHA-256 `6e72982f1b5eb661facc32dbcc4a71294925ea14c24c3ed7ea022db3056d1b21`，AionCore `0.1.44 arm64`，deep/strict codesign 通过 | Home -> Settings -> Home live path 非空，稳定重走 console/page errors 为 0；不提升为公证或 Stable promotion 证明。 |
+| Git closeout | 双仓 main 已 push 并由 `git ls-remote` 精确回读；本轮 exact-merged compatibility lane 已清理 | `gui-convergence-integration` 的独有 release-smoke 提交、dirty `home-profile-sync`、active release lane 与 stable cohort 原样保留。 |
 
 ## Authority 与非降级边界
 
@@ -72,7 +73,7 @@ AionUI 而丢失。
 | --- | --- | --- | --- |
 | 功能层 | [`feature-inventory.md`](../product/gui/feature-inventory.md)、App contracts | `aligned` | OPL adopted capability baseline、transcript export、desktop navigation 和 Settings 边界已存在；send drafts/queue 未获产品授权，继续 defer。 |
 | 理想交互与视觉层 | [`ideal-interaction-spec.md`](../product/gui/ideal-interaction-spec.md)、[`visual-system.md`](../product/gui/visual-system.md)、[`codex-to-opl-app-delta.md`](../product/gui/codex-to-opl-app-delta.md)、[`element-audit.md`](../product/gui/element-audit.md) | `aligned` | Project 归 rail，branch/locality 归 Environment；composer 只保留 send-local 决策；Home 不截断用户可见 starter。 |
-| Shell 实现层 | [`shell-implementation-guide.md`](../product/gui/shell-implementation-guide.md)、[`shell-conformance-matrix.md`](../product/gui/shell-conformance-matrix.md) | `implementation_complete_release_closeout_pending` | 已绑定 final Shell source/profile/tests/core pixels；package/install/push/cleanup 仍独立闭合。 |
+| Shell 实现层 | [`shell-implementation-guide.md`](../product/gui/shell-implementation-guide.md)、[`shell-conformance-matrix.md`](../product/gui/shell-conformance-matrix.md) | `implementation_complete_local_package_verified` | 已绑定 current Shell main/source/profile/full tests/core pixels 与本机安装；公开 release promotion 仍由 release owner 独立闭合。 |
 
 ## OPL 已采纳能力收敛结果
 
@@ -102,41 +103,37 @@ AionUI 而丢失。
 Shell package/version 和 AionCore intake 继续作为独立维护工作。选择性吸收交互不等于 fork 已
 整体升级到 upstream `2.1.32`。
 
-## Evidence 与剩余收口
+## Evidence 与收口状态
 
 ### 已完成
 
 - App baseline schema v2、page-state、product profile 和三层文档已指向 `26.707.41301`；
-- Shell Home/rail/composer/mobile/Environment/advanced surfaces/task/export 已进入 final integration；
+- Shell Home/rail/composer/mobile/Environment/advanced surfaces/task/export 已进入 current main；
 - App `fbab0faf...` 与 Shell generated profile 语义一致；
-- exact Shell `30f5457d...` 的 Node/DOM/TypeScript/format/lint/i18n 与 packaged visual gates 已 fresh 通过；
-- packaged 8-scene core visual manifest 已绑定 exact Shell SHA，并明确限制 claim。
+- exact Shell `0ebc1fdd...` 的 full tests、TypeScript、format、lint、i18n 与 packaged visual gate 已 fresh 通过；
+- packaged 8-scene core visual manifest 已绑定 exact Shell SHA，并明确限制 claim；
+- `26.7.12` macOS arm64 App 已原子安装，签名、AionCore、Home/Settings live path 与 stable CDP error readback 已验证。
 
-### Completion blockers
+### Closeout completed
 
-1. 提交当前 App authority/docs/evidence/validator closeout，并在绑定 final Shell checkout 后跑
-   GUI design-system、active-shell quick/full 与 release-boundary；
-2. ff-only 吸收 Shell final integration 到 Shell main；
-3. 从最终双仓 main cohort 重建 macOS arm64 App，重跑 packaged core visual E2E；
-4. 原子替换 `/Applications/One Person Lab.app`，验证 bundle id、版本、`app.asar` hash、
-   AionCore 架构/版本、签名、启动无 fatal、Home/conversation/composer/Settings/Preview 关键路径；
-5. 推送双仓 main，并通过 `git ls-remote` 精确回读；
-6. 对所有相关 lanes 做 absorption/supersession audit，只删除 exact/tree/patch-equivalent 或
-   owner 明确授权 superseded 的 lane；保护任何 dirty/needs-owner-review 写集。
+1. App GUI design-system、active-shell quick/full 与 release-boundary 已在 final source cohort 通过；
+2. App authority/docs/evidence closeout 已提交；
+3. 双仓 main 已推送，并通过 `git ls-remote` 精确回读；
+4. 本轮 exact-merged compatibility lane 已清理；有独有提交、dirty 写集或 active release owner 的 lanes 已按 ownership 原样保留。
 
 ## 完成度审计表
 
 | Requirement | 当前状态 | 完成证据 |
 | --- | --- | --- |
-| 41301 App machine authority 与三层文档一致 | `done_pending_commit` | Contracts/docs/validator diff；App gate 待本轮提交前 fresh 复跑。 |
-| Shell GUI behavior 与 OPL 非降级边界一致 | `done_candidate` | Shell `30f5457d...` source、focused/full tests、TypeScript/format/lint/i18n 与 packaged visual evidence。 |
+| 41301 App machine authority 与三层文档一致 | `done` | Contracts/docs/evidence 绑定 `0ebc1fdd...`；GUI design-system、active-shell quick 与 release-boundary fresh 通过。 |
+| Shell GUI behavior 与 OPL 非降级边界一致 | `done` | Shell `0ebc1fdd...` source、full tests、TypeScript/format/lint/i18n 与 packaged visual evidence；builtin-auto 兼容不再触发 Home 405。 |
 | Final generated profile 一致 | `done` | 规范化 SHA-256 `0c9c75eb...24d4e`，profile tests `19/19`。 |
-| Core visual matrix | `done_candidate` | 8-entry packaged manifest，0 coverage gaps；不宣称 1:1 parity。 |
-| Final package/install/user path | `not_started_on_final_cohort` | 必须由最终 build、安装与 live readback 证明。 |
-| Main absorption/push/readback | `not_started_on_final_cohort` | 必须由 main ancestry、push 与 `git ls-remote` 证明。 |
-| Lane cleanup | `pending_audit` | 必须逐 lane 机械分类并保护 dirty owner 写集。 |
+| Core visual matrix | `done` | 8-entry packaged manifest，0 coverage gaps；不宣称 1:1 parity。 |
+| Final package/install/user path | `done` | `26.7.12` installed App、asar fingerprint、AionCore/codesign 和 live Home/Settings readback。 |
+| Main absorption/push/readback | `done` | Shell `0ebc1fdd...` 与远端精确一致；App current main 与 `origin/main` 由 post-push `ls-remote` 证明精确一致。 |
+| Lane cleanup | `done_with_owner_lanes_preserved` | exact-merged compatibility lane 已删除；独有、dirty、release owner 与 stable cohort lanes 保留。 |
 
-只有所有 `completion blockers` 关闭后，本文状态才可改为 `complete`。
+本文状态为 `complete`；`release_ready=false` 与 `parity_1_to_1=false` 保持不变。
 
 ## 维护边界
 

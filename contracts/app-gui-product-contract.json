@@ -38,9 +38,9 @@
       "source_evidence_status": "full_shell_and_app_gates_passed",
       "pixel_evidence_status": "packaged_route_visual_matrix_verified",
       "release_evidence_status": "local_packaged_visual_evidence_complete_release_not_claimed",
-      "final_shell_sha": "bbf94f2e44ef806e33451da568a3814658484619",
+      "final_shell_sha": "0ebc1fdd278e8a79602458e15e28cf814dfd917d",
       "final_shell_sha_binding_status": "bound_to_clean_verified_shell",
-      "source_evidence_ref": "opl-aion-shell@bbf94f2e44ef806e33451da568a3814658484619",
+      "source_evidence_ref": "opl-aion-shell@0ebc1fdd278e8a79602458e15e28cf814dfd917d",
       "pixel_evidence_ref": "docs/product/gui/evidence/aionui-41301/manifest.json",
       "pixel_evidence_entry_count": 8,
       "final_shell_sha_must_not_be_inferred_from_worktree_head": true

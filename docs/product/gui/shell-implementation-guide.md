@@ -198,7 +198,7 @@ command 和可见状态 anchor。
 ## 反模式
 
 - 在 shell 中复制模型 allowlist、Settings IA、purpose list 或 page-state rules。
-- 让 upstream route、Team、多 backend/provider/permission controls 回到 ordinary UI。
+- 让 upstream route、Team、多 backend/provider controls 或 raw permission-mode terminology 回到 ordinary UI；App-owned user-language permission/access control 必须保留在 composer。
 - 从 module health、Git dirt、active id、缓存或 DOM 推断 runtime/domain readiness。
 - 直接执行 domain CLI、写 artifact body、memory body、owner receipt 或 release truth。
 - 为兼容一个 carrier 新建 App-wide wrapper/factory 或第二 bridge protocol。

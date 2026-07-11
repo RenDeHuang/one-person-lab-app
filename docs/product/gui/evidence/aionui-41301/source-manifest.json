@@ -1,7 +1,7 @@
 {
   "schema": "opl_aionui_gui_route_visual_evidence.v1",
-  "generated_at": "2026-07-11T20:13:31.648Z",
-  "shell_head": "bbf94f2e44ef806e33451da568a3814658484619",
+  "generated_at": "2026-07-11T21:16:06.183Z",
+  "shell_head": "0ebc1fdd278e8a79602458e15e28cf814dfd917d",
   "command": "AIONUI_E2E_PRODUCT_PROFILE=1 E2E_PACKAGED=1 E2E_SCREENSHOTS=1 bun run test:e2e -- tests/e2e/features/visual-evidence/gui-baseline.e2e.ts",
   "evidence_scope": "route_state_non_empty_and_layout_only",
   "claims": {
@@ -17,7 +17,7 @@
   "entries": [
     {
       "id": "home-desktop-light-zh-CN-rail-expanded",
-      "shell_head": "bbf94f2e44ef806e33451da568a3814658484619",
+      "shell_head": "0ebc1fdd278e8a79602458e15e28cf814dfd917d",
       "route": "/guid",
       "viewport": {
         "name": "desktop",
@@ -88,7 +88,7 @@
     },
     {
       "id": "home-mobile-dark-en-US-rail-closed",
-      "shell_head": "bbf94f2e44ef806e33451da568a3814658484619",
+      "shell_head": "0ebc1fdd278e8a79602458e15e28cf814dfd917d",
       "route": "/guid",
       "viewport": {
         "name": "mobile",
@@ -150,7 +150,7 @@
     },
     {
       "id": "home-mobile-dark-en-US-action-sheet-open",
-      "shell_head": "bbf94f2e44ef806e33451da568a3814658484619",
+      "shell_head": "0ebc1fdd278e8a79602458e15e28cf814dfd917d",
       "route": "/guid",
       "viewport": {
         "name": "mobile",
@@ -240,8 +240,8 @@
     },
     {
       "id": "conversation-desktop-light-en-US-composer-controls",
-      "shell_head": "bbf94f2e44ef806e33451da568a3814658484619",
-      "route": "/conversation/1b607601",
+      "shell_head": "0ebc1fdd278e8a79602458e15e28cf814dfd917d",
+      "route": "/conversation/5e0ba24b",
       "viewport": {
         "name": "desktop",
         "width": 1440,
@@ -335,8 +335,8 @@
     },
     {
       "id": "conversation-desktop-light-en-US-model-menu-open",
-      "shell_head": "bbf94f2e44ef806e33451da568a3814658484619",
-      "route": "/conversation/1b607601",
+      "shell_head": "0ebc1fdd278e8a79602458e15e28cf814dfd917d",
+      "route": "/conversation/5e0ba24b",
       "viewport": {
         "name": "desktop",
         "width": 1440,
@@ -395,7 +395,7 @@
         {
           "id": "conversation_model_menu_within_viewport",
           "passed": true,
-          "details": "box={\"x\":823.1015625,\"y\":785.1302490234375,\"width\":350.359375,\"height\":34.3656005859375} viewport=1440x960"
+          "details": "box={\"x\":823.1015625,\"y\":787.9261474609375,\"width\":350.359375,\"height\":33.474853515625} viewport=1440x960"
         },
         {
           "id": "conversation_model_menu_text_does_not_overflow",
@@ -413,8 +413,8 @@
     },
     {
       "id": "conversation-desktop-dark-zh-CN-environment-open",
-      "shell_head": "bbf94f2e44ef806e33451da568a3814658484619",
-      "route": "/conversation/1b607601",
+      "shell_head": "0ebc1fdd278e8a79602458e15e28cf814dfd917d",
+      "route": "/conversation/5e0ba24b",
       "viewport": {
         "name": "desktop",
         "width": 1440,
@@ -509,8 +509,8 @@
     },
     {
       "id": "conversation-desktop-dark-zh-CN-files-open",
-      "shell_head": "bbf94f2e44ef806e33451da568a3814658484619",
-      "route": "/conversation/1b607601",
+      "shell_head": "0ebc1fdd278e8a79602458e15e28cf814dfd917d",
+      "route": "/conversation/5e0ba24b",
       "viewport": {
         "name": "desktop",
         "width": 1440,
@@ -610,8 +610,8 @@
     },
     {
       "id": "conversation-mobile-light-en-US-preview-open",
-      "shell_head": "bbf94f2e44ef806e33451da568a3814658484619",
-      "route": "/conversation/1b607601",
+      "shell_head": "0ebc1fdd278e8a79602458e15e28cf814dfd917d",
+      "route": "/conversation/5e0ba24b",
       "viewport": {
         "name": "mobile",
         "width": 420,
