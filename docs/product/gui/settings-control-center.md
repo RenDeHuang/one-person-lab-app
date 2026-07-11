@@ -33,7 +33,7 @@ implementation ids so the shell can migrate without changing user-facing IA.
 | Product page   | Chinese label | Carrier route  | Path                     | Scope     |
 | -------------- | ------------- | -------------- | ------------------------ | --------- |
 | `overview`     | 概览          | `general`      | `/settings/general`      | ordinary  |
-| `access`       | 访问方式      | `access`       | `/settings/access`       | ordinary  |
+| `access`       | 模型与访问    | `access`       | `/settings/access`       | ordinary  |
 | `workspace`    | 工作区        | `workspace`    | `/settings/workspace`    | ordinary  |
 | `capabilities` | 智能体与能力  | `capabilities` | `/settings/capabilities` | ordinary  |
 | `resources`    | 资源与连接    | `resources`    | `/settings/resources`    | ordinary  |

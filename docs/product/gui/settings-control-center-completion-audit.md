@@ -10,20 +10,20 @@ Visual evidence status: current baseline-card active-shell evidence
 ## Conclusion
 
 Current visual evidence binds to `opl-aion-shell`
-`71ddfafaded5d86f40a9ca584c587ed59f818fa9` and its
+`3b0581306047866d6a974002104ad0c017aa4f42` and its
 `tests/e2e/screenshots/settings-control-center-manifest.json`. The manifest was
-generated at `2026-07-11T02:48:51.850Z`, contains 28 desktop/mobile route,
-secondary-route, compatibility-route, and interaction-state screenshots, and
-sets `release_readiness_claim` to `false`. Its SHA-256 is
-`80eca74827d39276b4300dd3e225200b6203be4ccc2747ad23bc0e5772307445`.
+generated at `2026-07-11T05:06:38.902Z`, contains 42 desktop, mobile, and
+desktop-dark route, secondary-route, compatibility-route, and interaction-state
+screenshots, and sets `release_readiness_claim` to `false`. Its SHA-256 is
+`6ea70a0b36090f7976c57983ed6594a3617207d5c4127f1d6bff419a36078138`.
 
 The evidence verifies the remediated bounded-card baseline: one user question
 per page-section card, flat internal rows, a compact return-to-chat/theme
 footer, recognizable theme preview tiles, and correct navigation state before
 each capture. Listed routes expose one current item; mobile secondary routes
-expose no stale primary selection. Screenshot capture moves the pointer away
-from navigation items so an old `:hover` state cannot masquerade as the selected
-route.
+expose no stale primary selection. Screenshot capture moves the pointer away,
+clears focus, and waits for navigation color transitions to finish so a stale
+interaction frame cannot masquerade as a second selected route.
 
 No runtime, installed-App, currentness, notarization, or release-ready claim is
 made by this audit.
@@ -37,16 +37,16 @@ made by this audit.
 | Compatibility redirects | done | 100% | Machine contract and Shell router implement `update -> environment#updates`, `theme -> appearance#themes`, `local-services -> environment#services` with `?section=` anchors | None |
 | About independence | done | 100% | `about` is absent from redirect maps and renders `AboutModalContent` at `/settings/about` | None |
 | Single global search contract | done | 100% | One `settings-search-input`, bilingual item indexing, `page > item` labels, Enter navigation, and anchor focus are covered by DOM and E2E source tests | None in active-shell source scope |
-| OPL card-based visual contract | done | 100% | App bounded-card contract plus Shell `71ddfafaded5d86f40a9ca584c587ed59f818fa9` screenshots verify one-question card grouping, flat rows, compact footer, and theme preview tiles | Installed-App evidence remains separate |
-| Per-page experience contracts | done | 100% | Ten page contracts are implemented with declared primary information, action, exception, technical details, DOM anchors, Access browser entry, AssistantSettings tab, and resource action lifecycle | None in source/DOM scope |
-| Prior UX audit incorporation | done | 100% | 概览、访问方式、工作区、智能体与能力、资源与连接、维护、数据与存储、偏好、高级、关于 requirements are present in Shell source and focused tests | None in source/DOM scope |
+| OPL card-based visual contract | done | 100% | App bounded-card contract plus Shell `3b0581306047866d6a974002104ad0c017aa4f42` screenshots verify one-question card grouping, flat rows, compact footer, light/dark dividers, and uncropped card actions | Installed-App evidence remains separate |
+| Per-page experience contracts | done | 100% | Ten page contracts are implemented with declared primary information, action, exception, technical details, DOM anchors, model/access ownership, AssistantSettings tab, and resource action lifecycle | None in source/DOM scope |
+| Prior UX audit incorporation | done | 100% | 概览、模型与访问、工作区、智能体与能力、资源与连接、维护、数据与存储、偏好、高级、关于 requirements are present in Shell source and focused tests | None in source/DOM scope |
 | Page-state matrix | done | 100% | Product pages, redirect states, Preferences route, anchors, and action states are consumed by App validators and Shell tests | None |
 | Contract validators | done | 100% | `OPL_APP_SHELL_ROOT=<pinned shell> bun run validate:active-shell -- --quick` passed; `npm run validate:gui-design-system` reported `consistent` | None in App contract scope |
-| Focused product validation | done | 100% | Shell `bun run package`, `bunx tsc --noEmit`, Settings DOM `13 files / 86 tests`, and Settings visual E2E `2 tests` passed; App `npm run test:release-boundary` passed | Full-suite and installed-App evidence are separate, non-required claims |
+| Focused product validation | done | 100% | Shell `bun run package`, `bunx tsc --noEmit`, Settings DOM `15 files / 84 tests`, and Settings visual E2E `2 tests` passed; App `npm run test:release-boundary` passed | Full-suite and installed-App evidence are separate, non-required claims |
 | Product documentation | done | 100% | `settings-control-center.md` is the current route, search, visual, page, DOM, and evidence boundary | None in App authority scope |
 | Shell DOM and interaction implementation | done | 100% | The focused Shell DOM suite covers 13 Settings surfaces and the E2E route loop asserts a unique selected item before capture | None in active-shell source scope |
-| Visual QA collector | done | 100% | Collector waits for the resolved selected route, clears sidebar hover, and records route/viewport/anchor evidence | None in active-shell source scope |
-| Fresh Shell screenshot pixels | done | 100% | Exact Shell `71ddfafaded5d86f40a9ca584c587ed59f818fa9`: 28 entries in the 2026-07-11 manifest across desktop and mobile | No release/currentness claim is implied |
+| Visual QA collector | done | 100% | Collector waits for the resolved selected route, clears focus and hover, settles navigation transitions, and records route/viewport/anchor evidence | None in active-shell source scope |
+| Fresh Shell screenshot pixels | done | 100% | Exact Shell `3b0581306047866d6a974002104ad0c017aa4f42`: 42 entries across desktop, mobile, desktop-dark, light, and dark evidence | No release/currentness claim is implied |
 | Running-shell/runtime evidence | not_started | 0% | Contract and tests intentionally do not provide live runtime proof | Collect live readback only when runtime evidence is requested |
 | Installed App / release currentness | blocked | 0% | Separate release-owner gate required | Release owner supplies installed version, signing/notarization, artifact, and currentness evidence |
 
@@ -83,9 +83,9 @@ visual acceptance.
     no more than one primary action, muted normal states, exception-only
     emphasis, and collapsed technical details. It does not prove the remediated
     grouping, footer, or theme gallery structure.
-13. Access is labeled `访问方式`, reads
-    `app_state.core.codex.model_access_source`, and always renders
-    `settings-access-browser-access` for browser access to this computer.
+13. Access was previously labeled `访问方式` and owned browser access. The
+    current product page is `模型与访问`; browser/WebUI/remote connection
+    ownership now belongs to Resources & Connections.
 14. Legacy `assistants` resolves to
     `/settings/capabilities?tab=assistants&section=custom-assistants`, opens the
     third on-demand tab, mounts `AssistantSettings`, and focuses the anchor.
