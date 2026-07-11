@@ -1,4 +1,3 @@
-
 # Settings Control Center
 
 State: active product authority
@@ -31,18 +30,18 @@ readiness, installed App currentness, or owner acceptance.
 Product page ids are stable product semantics. Carrier route ids remain stable
 implementation ids so the shell can migrate without changing user-facing IA.
 
-| Product page | Chinese label | Carrier route | Path | Scope |
-| --- | --- | --- | --- | --- |
-| `overview` | 概览 | `general` | `/settings/general` | ordinary |
-| `access` | 访问方式 | `access` | `/settings/access` | ordinary |
-| `workspace` | 工作区 | `workspace` | `/settings/workspace` | ordinary |
-| `capabilities` | 智能体与能力 | `capabilities` | `/settings/capabilities` | ordinary |
-| `resources` | 资源与连接 | `resources` | `/settings/resources` | ordinary |
-| `maintenance` | 维护 | `environment` | `/settings/environment` | ordinary |
-| `storage` | 数据与存储 | `storage` | `/settings/storage` | ordinary |
-| `preferences` | 偏好 | `appearance` | `/settings/appearance` | ordinary |
-| `advanced` | 高级 | `advanced` | `/settings/advanced` | secondary |
-| `about` | 关于 | `about` | `/settings/about` | secondary |
+| Product page   | Chinese label | Carrier route  | Path                     | Scope     |
+| -------------- | ------------- | -------------- | ------------------------ | --------- |
+| `overview`     | 概览          | `general`      | `/settings/general`      | ordinary  |
+| `access`       | 访问方式      | `access`       | `/settings/access`       | ordinary  |
+| `workspace`    | 工作区        | `workspace`    | `/settings/workspace`    | ordinary  |
+| `capabilities` | 智能体与能力  | `capabilities` | `/settings/capabilities` | ordinary  |
+| `resources`    | 资源与连接    | `resources`    | `/settings/resources`    | ordinary  |
+| `maintenance`  | 维护          | `environment`  | `/settings/environment`  | ordinary  |
+| `storage`      | 数据与存储    | `storage`      | `/settings/storage`      | ordinary  |
+| `preferences`  | 偏好          | `appearance`   | `/settings/appearance`   | ordinary  |
+| `advanced`     | 高级          | `advanced`     | `/settings/advanced`     | secondary |
+| `about`        | 关于          | `about`        | `/settings/about`        | secondary |
 
 `secondary_pages` contains only `advanced` and `about`. About is an independent
 page and must never be redirected to Advanced.
@@ -52,10 +51,10 @@ page and must never be redirected to Advanced.
 `update`, `theme`, and `local-services` are not product pages. They are
 machine-readable compatibility redirects:
 
-| Source route | Target route | Anchor | Hash-router transport |
-| --- | --- | --- | --- |
-| `/settings/update` | `environment` | `updates` | `/settings/environment?section=updates` |
-| `/settings/theme` | `appearance` | `themes` | `/settings/appearance?section=themes` |
+| Source route               | Target route  | Anchor     | Hash-router transport                    |
+| -------------------------- | ------------- | ---------- | ---------------------------------------- |
+| `/settings/update`         | `environment` | `updates`  | `/settings/environment?section=updates`  |
+| `/settings/theme`          | `appearance`  | `themes`   | `/settings/appearance?section=themes`    |
 | `/settings/local-services` | `environment` | `services` | `/settings/environment?section=services` |
 
 The contract stores `target_route_id` and `anchor` separately. The current shell
@@ -101,6 +100,7 @@ Codex quiet-list layout. `quiet`, `dense`, and `scannable` describe visual tone;
 they do not permit a page-wide list wall.
 
 - each user question or decision has one bounded card surface;
+- each first viewport contains two to four independent spatial groups;
 - rows, controls, and disclosures stay flat inside the owning card;
 - no nested cards;
 - cards remain in the normal document flow and do not become floating dashboard tiles;
@@ -111,7 +111,10 @@ they do not permit a page-wide list wall.
 - the theme gallery uses recognizable preview tiles, never a flat swatch list;
 - maximum border radius is 8 px;
 - spacing uses 12 / 16 / 24 px;
-- headings are compact;
+- desktop groups use a responsive two-column grid where space allows and mobile groups stack;
+- visual anchors use 28 px; page titles use `20/28/600`, card titles
+  `14-16/20-24/600`, descriptions `13/20`, and supporting copy `12/18`;
+- normal, warning, error, and action states use muted, orange, red, and brand semantics;
 - the Settings sidebar has exactly one selected item after route resolution;
 - repeated entities use one shared column-header row instead of repeating field
   labels in every row;
@@ -134,7 +137,9 @@ by the Shell/main integration lane, not by this App authority lane.
 
 Visual verification asserts the real card grouping, footer structure, and theme
 preview structure. Radius and spacing checks are supplementary and cannot by
-themselves establish visual conformance.
+themselves establish visual conformance. Fresh same-route screenshots must
+preserve or improve hierarchy against Shell baseline
+`409dd0c3b693f1c7c93551654dfac8fb9420843d`.
 
 The ordinary first screen must describe user impact and the next decision. Raw
 ids, raw statuses, command mappings, paths, payloads, and receipts belong in the
@@ -146,8 +151,8 @@ page's technical-details disclosure.
 
 Primary information:
 
-- overall usability and attention count;
-- one next useful action.
+- model access, workspace, background services, capabilities, and updates;
+- an impact-ordered issue queue, one next useful action, and contextual common entries.
 
 Primary action: open the highest-priority attention item, only when one exists.
 
@@ -156,19 +161,19 @@ Exception state: emphasize one actionable issue, not every status.
 Technical details: raw state keys, timestamps, paths, and receipts stay
 collapsed.
 
-Required anchors: `status`, `next-action`.
+Required anchors: `status`, `attention`, `next-action`, `common-actions`.
 
 Overview must not copy the Settings sidebar into page cards or render a
 directory wall for the other pages.
 
-### Access / 访问方式
+### Models & Access / 模型与访问
 
 Primary information:
 
 - model access readiness;
 - the real source from `app_state.core.codex.model_access_source`;
-- selected model and authentication state;
-- browser access to this computer as a visible user entry.
+- selected and default model;
+- OPL Gateway, Codex CLI, and account or API-key state.
 
 Primary action: configure model access when missing or when the user explicitly
 requests a change.
@@ -182,11 +187,9 @@ action.
 Technical details: base URL, environment variables, token paths, Codex CLI
 details, and raw provider ids.
 
-Required anchors: `provider-source`, `model`, `authentication`.
+Required anchors: `provider-source`, `model`, `codex-cli`, `authentication`.
 
-The browser entry is labeled `这台电脑的浏览器访问`, opens the existing local
-browser-access settings, and keeps shell implementation provenance in technical
-details. Docker WebUI, OPL Workspace, SSH/HPC, cloud, Fabric, and
+Local browser access, Docker WebUI, OPL Workspace, SSH/HPC, cloud, Fabric, and
 Console-managed resources belong to Resources & Connections.
 
 ### Workspace
@@ -458,7 +461,7 @@ Shell acceptance requires:
   expected and visible page titles before capture; mismatches fail closed;
 - all required page roots, primary regions, actions, exception regions,
   technical-details disclosures, and stable section-id anchors;
-- `settings-access-browser-access` remains visible on Access;
+- `settings-resources-browser-access` remains visible on Resources & Connections;
 - legacy `assistants` opens the third on-demand `AssistantSettings` tab and
   focuses `custom-assistants`;
 - resource `Open`, `Diagnose`, and mutating actions obey their execution and

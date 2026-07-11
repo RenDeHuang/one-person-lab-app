@@ -263,24 +263,37 @@ export const focusedFirstRunPresentationPolicy = {
   ordinary_navigation_policy: "hidden_until_user_enters_guid",
   step_navigation_policy: "fixed_three_step_rail",
   current_task_policy: "one_current_task_panel",
-  current_task_selection_policy: "first_unready_core_item_in_fixed_step_order_then_completion",
+  current_task_selection_policy:
+    "first_unready_core_item_in_fixed_step_order_then_completion",
   progress_display_policy: "completed_step_count_no_percentage",
   model_access_choice_policy: "opl_gateway_or_existing_codex_configuration",
   model_access_inflight_policy:
     "disable_method_switch_and_alternate_action_until_current_request_settles",
   completion_transition_policy: "replace_current_task_in_place",
-  completion_navigation_policy: "manual_guid_entry_available_before_or_after_ready_no_automatic_route",
-  defer_navigation_policy: "explicit_enter_guid_available_before_ready_without_mutating_readiness",
-  technical_detail_navigation_policy: "in_place_no_ordinary_settings_route_before_guid",
-  request_exclusivity_policy: "single_inflight_initialize_or_action_across_first_run_controls",
-  pending_state_policy: "no_ready_or_no_blocker_claim_before_initialize_payload",
-  core_readiness_status_policy: "required_core_items_never_treat_disabled_as_ready",
-  minimum_window_primary_action_policy: "400x600_keeps_current_primary_action_visible",
-  background_shell_interaction_policy: "inert_and_aria_hidden_until_user_enters_guid",
-  window_control_policy: "preserve_mac_traffic_light_safe_area_and_render_non_mac_desktop_controls",
-  raw_error_policy: "localized_inline_current_task_and_technical_details_only_no_beginner_toast",
-  secret_diagnostic_policy: "redact_submitted_access_key_from_renderer_diagnostics",
-  accessible_name_policy: "localized_visible_label_or_aria_labelledby_no_testid_names",
+  completion_navigation_policy:
+    "manual_guid_entry_available_before_or_after_ready_no_automatic_route",
+  defer_navigation_policy:
+    "explicit_enter_guid_available_before_ready_without_mutating_readiness",
+  technical_detail_navigation_policy:
+    "in_place_no_ordinary_settings_route_before_guid",
+  request_exclusivity_policy:
+    "single_inflight_initialize_or_action_across_first_run_controls",
+  pending_state_policy:
+    "no_ready_or_no_blocker_claim_before_initialize_payload",
+  core_readiness_status_policy:
+    "required_core_items_never_treat_disabled_as_ready",
+  minimum_window_primary_action_policy:
+    "400x600_keeps_current_primary_action_visible",
+  background_shell_interaction_policy:
+    "inert_and_aria_hidden_until_user_enters_guid",
+  window_control_policy:
+    "preserve_mac_traffic_light_safe_area_and_render_non_mac_desktop_controls",
+  raw_error_policy:
+    "localized_inline_current_task_and_technical_details_only_no_beginner_toast",
+  secret_diagnostic_policy:
+    "redact_submitted_access_key_from_renderer_diagnostics",
+  accessible_name_policy:
+    "localized_visible_label_or_aria_labelledby_no_testid_names",
 };
 export const progressiveFirstRunRecoveryTestIds = [
   "opl-first-run-resume-entry",
@@ -324,10 +337,7 @@ export const appOwnedTaskAwarenessRefFields = [
   "candidate_report_refs",
   "workflow_skill_candidate_refs",
 ];
-export const appOwnedSecondarySettingsPages = [
-  "advanced",
-  "about",
-];
+export const appOwnedSecondarySettingsPages = ["advanced", "about"];
 export const appOwnedSettingsCompatibilityRedirects = {
   update: {
     source_route_id: "update",
@@ -422,7 +432,7 @@ export const appOwnedSettingsTopLevelEntryIds = [
 ];
 export const appOwnedSettingsTopLevelLabels = {
   overview: { label_zh: "概览", label_en: "Overview" },
-  access: { label_zh: "访问方式", label_en: "Access" },
+  access: { label_zh: "模型与访问", label_en: "Models & Access" },
   workspace: { label_zh: "工作区", label_en: "Workspace" },
   capabilities: { label_zh: "智能体与能力", label_en: "Agents & Capabilities" },
   resources: { label_zh: "资源与连接", label_en: "Resources & Connections" },
@@ -435,43 +445,90 @@ export const appOwnedSettingsProductPageIds = [
   ...appOwnedSecondarySettingsPages,
 ];
 export const appOwnedSettingsPageAnchors = {
-  overview: ["status", "next-action"],
-  access: ["provider-source", "model", "authentication"],
-  workspace: ["current-workspace", "permissions"],
-  capabilities: ["availability", "source", "home-visibility", "custom-assistants"],
-  resources: ["resource-readiness", "action-readiness", "external-resources"],
-  maintenance: ["health", "updates", "services", "packages"],
-  storage: ["storage-categories", "cleanup-preview", "cleanup-history"],
-  preferences: ["behavior", "tray", "hardware", "themes"],
-  advanced: ["working-directories"],
-  about: ["version", "channel", "updates"],
+  overview: ["status", "attention", "next-action", "common-actions"],
+  access: ["provider-source", "model", "codex-cli", "authentication"],
+  workspace: ["current-workspace", "permissions", "artifacts"],
+  capabilities: [
+    "availability",
+    "source",
+    "home-visibility",
+    "custom-assistants",
+  ],
+  resources: [
+    "local-browser-access",
+    "web-access",
+    "resource-readiness",
+    "action-readiness",
+    "external-resources",
+  ],
+  maintenance: ["health", "updates", "services", "repair-rollback", "receipts"],
+  storage: [
+    "storage-categories",
+    "archives",
+    "cleanup-preview",
+    "cleanup-history",
+  ],
+  preferences: ["behavior", "notifications", "display-fonts", "themes"],
+  advanced: ["working-directories", "diagnostics"],
+  about: ["version", "channel", "updates", "help-feedback"],
 };
 export const appOwnedSettingsPageSearchEntryIds = {
-  overview: ["overview.status", "overview.next_action"],
-  access: ["access.provider_source", "access.model", "access.authentication"],
-  workspace: ["workspace.current", "workspace.permissions"],
+  overview: [
+    "overview.status",
+    "overview.attention",
+    "overview.next_action",
+    "overview.common_actions",
+  ],
+  access: [
+    "access.provider_source",
+    "access.model",
+    "access.codex_cli",
+    "access.authentication",
+  ],
+  workspace: [
+    "workspace.current",
+    "workspace.permissions",
+    "workspace.artifacts",
+  ],
   capabilities: [
     "capabilities.availability",
     "capabilities.source",
     "capabilities.home_visibility",
     "capabilities.custom_assistants",
   ],
-  resources: ["resources.readiness", "resources.executable", "resources.external"],
+  resources: [
+    "resources.local_browser_access",
+    "resources.web_access",
+    "resources.readiness",
+    "resources.executable",
+    "resources.external",
+  ],
   maintenance: [
     "maintenance.health",
     "maintenance.updates",
     "maintenance.services",
-    "maintenance.packages",
+    "maintenance.repair_rollback",
+    "maintenance.receipts",
   ],
-  storage: ["storage.categories", "storage.preview", "storage.history"],
+  storage: [
+    "storage.categories",
+    "storage.archives",
+    "storage.preview",
+    "storage.history",
+  ],
   preferences: [
     "preferences.behavior",
-    "preferences.tray",
-    "preferences.hardware",
+    "preferences.notifications",
+    "preferences.display_fonts",
     "preferences.themes",
   ],
-  advanced: ["advanced.directories"],
-  about: ["about.version", "about.channel", "about.updates"],
+  advanced: ["advanced.directories", "advanced.diagnostics"],
+  about: [
+    "about.version",
+    "about.channel",
+    "about.help_feedback",
+    "about.updates",
+  ],
 };
 export const appOwnedSettingsCapabilitiesTabContract = {
   surface_label_zh: "智能体与能力",
@@ -491,15 +548,13 @@ export const appOwnedSettingsCapabilitiesTabContract = {
     top_level_or_secondary_page_allowed: false,
   },
 };
-export const appOwnedSettingsAccessBrowserEntry = {
+export const appOwnedSettingsResourcesBrowserEntry = {
   label_zh: "这台电脑的浏览器访问",
   label_en: "Browser access to this computer",
-  placement: "access_primary_information",
+  placement: "resources_primary_information",
   visibility: "always",
   action_policy: "open_existing_local_browser_access_settings",
   implementation_provenance_visibility: "technical_details_only",
-  resources_boundary:
-    "Docker WebUI, OPL Workspace, SSH/HPC, cloud, Fabric, and Console-managed refs stay on Resources & Connections",
 };
 export const appOwnedSettingsResourceActionBehavior = {
   read_only_actions: {
@@ -572,10 +627,29 @@ export const appOwnedSettingsSearchProtocol = {
 export const appOwnedSettingsVisualSystem = {
   style: "opl_baseline_card_control_center",
   style_exclusion: "codex_quiet_list",
+  baseline_shell_commit: "409dd0c3b693f1c7c93551654dfac8fb9420843d",
+  baseline_comparison_policy:
+    "fresh_same_route_screenshots_must_preserve_or_improve_information_hierarchy",
   card_policy: "one_bounded_card_per_user_question_with_flat_internal_rows",
+  first_viewport_spatial_group_range: { min: 2, max: 4 },
   nested_cards_allowed: false,
   page_wide_list_wall_allowed: false,
   page_sections_as_floating_cards_allowed: false,
+  desktop_group_layout: "responsive_two_column_grid_where_space_allows",
+  mobile_group_layout: "single_column_stack",
+  icon_slot_px: 28,
+  typography: {
+    page_title: "20/28/600",
+    card_title: "14-16/20-24/600",
+    description: "13/20/400",
+    supporting: "12/18/400",
+  },
+  status_color_semantics: {
+    normal: "muted",
+    warning: "orange",
+    error: "red",
+    action: "brand",
+  },
   footer_layout: "compact",
   footer_controls: ["return_to_chat", "theme_switcher"],
   footer_secondary_navigation_allowed: false,
@@ -597,6 +671,7 @@ export const appOwnedSettingsPageExperienceFields = [
   "label_zh",
   "label_en",
   "primary_information",
+  "first_viewport_groups",
   "primary_action",
   "exception_state",
   "technical_details_boundary",

@@ -138,8 +138,8 @@
       "id": "access",
       "path": "/settings/access",
       "label_key": "settings.onboarding",
-      "default_label_en": "Access",
-      "default_label_zh": "访问方式",
+      "default_label_en": "Models & Access",
+      "default_label_zh": "模型与访问",
       "icon_token": "access",
       "ia_group": "setup_access",
       "slot_id": "settings_access",
@@ -437,14 +437,9 @@
         "renderer_entry": "packages/desktop/src/renderer/pages/settings/sections/AccessSettings.tsx",
         "state_source": "opl app state --profile fast --json#app_state.core.codex.model_access_ready + app_state.core.codex.model_access_source + app_state.core.codex.model + app_state.access.api_key_present",
         "normal_state_presentation": {
-          "user_facing_groups": [
-            "model_access",
-            "local_browser_access"
-          ],
-          "supporting_details": [
-            "codex_cli"
-          ],
-          "default_policy": "real_provider_source_browser_access_and_necessary_action_first",
+          "user_facing_groups": ["model_access"],
+          "supporting_details": ["codex_cli", "authentication"],
+          "default_policy": "real_provider_source_model_cli_authentication_and_necessary_action_first",
           "details_policy": "base_url_token_paths_cli_and_provider_internals_only_in_details_or_abnormal_state",
           "hidden_normal_state_terms": [
             "repeated OPL Gateway summary lines",
@@ -453,10 +448,8 @@
             "available",
             "CLI dry-run commands"
           ],
-          "local_browser_access_route": "access",
-          "local_browser_access_policy": "preserve_local_browser_access_to_this_computer_without_exposing_shell_provenance",
           "resources_route": "resources",
-          "resources_route_policy": "Docker WebUI, OPL Workspace, SSH/HPC, cloud, Fabric, and Console-managed refs live on Resources & Connections"
+          "resources_route_policy": "local browser access, Docker WebUI, OPL Workspace, SSH/HPC, cloud, Fabric, and Console-managed refs live on Resources & Connections"
         },
         "cloud_remote_boundary": {
           "required_boundary_terms": [
@@ -466,7 +459,7 @@
             "Fabric",
             "Console"
           ],
-          "display_policy": "preserve local browser access to this computer on Access; resource and deployment refs route to Settings Resources",
+          "display_policy": "model access stays on Models & Access; browser, resource, and deployment refs route to Settings Resources",
           "refs_only": true,
           "forbidden_claims": [
             "runtime_truth",
@@ -475,15 +468,6 @@
             "domain_readiness",
             "app_release_readiness"
           ]
-        },
-        "browser_access_entry": {
-          "label_zh": "这台电脑的浏览器访问",
-          "label_en": "Browser access to this computer",
-          "placement": "access_primary_information",
-          "visibility": "always",
-          "action_policy": "open_existing_local_browser_access_settings",
-          "implementation_provenance_visibility": "technical_details_only",
-          "resources_boundary": "Docker WebUI, OPL Workspace, SSH/HPC, cloud, Fabric, and Console-managed refs stay on Resources & Connections"
         },
         "forbidden_sources": [
           "raw provider selector as ordinary UI",
@@ -543,10 +527,7 @@
           "display_policy": "capability_health_connector_workflow_and_export_refs_only_no_skill_body_no_domain_verdict",
           "resource_grouping_policy": {
             "grouping_source": "OPL Connect/Fabric resource refs",
-            "allowed_groups": [
-              "OPL Connect",
-              "Fabric resources"
-            ]
+            "allowed_groups": ["OPL Connect", "Fabric resources"]
           },
           "action_policy": "export_bundle_action_ref_may_open_app_action_dry_run_receipt_only_until_domain_owner_execute_exists",
           "refs_only": true,
@@ -609,10 +590,7 @@
   },
   "visual_qa_policy": {
     "policy": "settings_control_center_visual_qa_is_shell_behavior_evidence",
-    "required_viewports": [
-      "desktop",
-      "mobile"
-    ],
+    "required_viewports": ["desktop", "mobile"],
     "required_routes": [
       "/settings/general",
       "/settings/access",
@@ -623,15 +601,13 @@
       "/settings/storage",
       "/settings/appearance"
     ],
-    "required_secondary_routes": [
-      "/settings/advanced",
-      "/settings/about"
-    ],
+    "required_secondary_routes": ["/settings/advanced", "/settings/about"],
     "required_status_anchors": [
       "single_global_search",
       "diagnostics_collapsed_by_default",
       "single_primary_action_max",
       "exception_only_emphasis",
+      "bounded_card_hierarchy_baseline_comparison",
       "legacy_or_compatibility_redirect_landing"
     ],
     "evidence_manifest": {
@@ -642,13 +618,17 @@
         "viewport",
         "route",
         "screenshot_path",
-        "status_anchors"
+        "status_anchors",
+        "baseline_ref",
+        "hierarchy_comparison_result"
       ],
       "viewport_policy": "each required route is captured for desktop and mobile viewports",
       "secondary_route_policy": "advanced and about are captured as independent secondary pages",
       "compatibility_route_policy": "update, theme, and local-services are captured as redirect landing evidence on their owner route and anchor"
     },
     "evidence_command": "E2E_SCREENSHOTS=1 bun run test:e2e -- tests/e2e/specs/navigation.e2e.ts --grep \"Settings Pages|Sidebar Navigation\"",
+    "baseline_ref": "opl-aion-shell@409dd0c3b693f1c7c93551654dfac8fb9420843d",
+    "baseline_comparison_policy": "same_route_final_screenshots_must_preserve_or_improve_spatial_and_typographic_hierarchy",
     "does_not_prove": [
       "release readiness",
       "packaged App readiness",
@@ -699,12 +679,7 @@
   },
   "upstream_intake_checklist": {
     "policy": "classify_aionui_settings_upstream_before_registry_or_slot_changes",
-    "allowed_classifications": [
-      "accepted",
-      "adapt",
-      "redirect",
-      "reject"
-    ],
+    "allowed_classifications": ["accepted", "adapt", "redirect", "reject"],
     "required_steps": [
       "record the upstream Settings surface and user-visible behavior",
       "classify as accepted/adapt/redirect/reject before changing registry or slots",
@@ -739,10 +714,7 @@
           "route_id": "capabilities",
           "slot_id": "settings_capabilities",
           "adapter_slot": "SettingsShellAdapterSlot",
-          "legacy_redirects": [
-            "skills-hub",
-            "tools"
-          ]
+          "legacy_redirects": ["skills-hub", "tools"]
         },
         "required_evidence": [
           "legacy skills-hub and tools routes redirect to capabilities subroutes",
@@ -927,11 +899,11 @@
       {
         "id": "model_access_source",
         "track": "user_task_ux",
-        "goal": "Access uses the real Codex model_access_source while preserving browser access to this computer.",
+        "goal": "Models & Access owns model source, default model, Gateway, Codex CLI, and account or API-key configuration without mixing browser deployment entries.",
         "evidence_required": [
-          "Access is labeled Access / 访问方式",
+          "Access is labeled Models & Access / 模型与访问",
           "provider source path is machine-readable",
-          "local browser access remains a visible user entry",
+          "local browser access is owned by Resources & Connections",
           "base URL and token paths remain technical details"
         ]
       },
@@ -949,8 +921,9 @@
       {
         "id": "resources_readiness_boundary",
         "track": "user_task_ux",
-        "goal": "Resources distinguishes resource readiness from action executability, completes read-only actions, and gates mutations without duplicating Workspace.",
+        "goal": "Resources owns local browser access, WebUI, OPL Workspace, SSH or HPC, cloud, and external connections while distinguishing readiness from executability.",
         "evidence_required": [
+          "local browser access is a visible Resources entry",
           "resource and action readiness use separate anchors",
           "selected workspace controls stay on Workspace",
           "Open navigates to browser_url and Diagnose renders an executed diagnostic result",
@@ -1021,11 +994,13 @@
       {
         "id": "visual_system",
         "track": "visual_qa",
-        "goal": "Settings uses the established OPL bounded-card baseline with flat internal rows and stable spacing.",
+        "goal": "Settings preserves the 409dd0c3 OPL bounded-card hierarchy with two to four first-viewport groups, flat internal rows, semantic status color, and responsive layout.",
         "evidence_required": [
           "nested cards are forbidden",
-          "radius is at most eight pixels",
-          "spacing scale is 12/16/24 and headings stay compact"
+          "each card answers one user question and the first viewport contains two to four spatial groups",
+          "desktop uses responsive grids and mobile stacks groups",
+          "icon, typography, status color, radius, and spacing tokens meet the baseline contract",
+          "fresh screenshots are compared with shell baseline 409dd0c3 without hierarchy regression"
         ]
       },
       {
@@ -1142,8 +1117,8 @@
             "scope": "user",
             "owner": "one-person-lab-app",
             "risk": "reversible",
-            "normal_summary": "Access shows the real model access source, selected model, authentication state, and browser access to this computer.",
-            "next_action": "configure model access when needed or open the existing local browser access settings",
+            "normal_summary": "Models & Access shows the real model source, selected and default model, Gateway, Codex CLI, and authentication state.",
+            "next_action": "configure model access only when the source or credential needs attention",
             "details_ref": "contracts/app-gui-product-contract.json#pages.settings_access",
             "editable_reason": "access key changes are user-initiated and reversible"
           }
@@ -1187,7 +1162,7 @@
             "scope": "resource",
             "owner": "one-person-lab-app",
             "risk": "confirmation_required",
-            "normal_summary": "Resources separate readiness from action executability without duplicating the selected Workspace.",
+            "normal_summary": "Resources owns local browser access, WebUI, OPL Workspace, and external connections while separating readiness from action executability.",
             "next_action": "open an available resource action only when the projected action is executable",
             "details_ref": "contracts/app-gui-product-contract.json#pages.settings_resources",
             "editable_reason": "resource deployment actions require dry-run or input confirmation"
@@ -1240,8 +1215,7 @@
         ]
       }
     }
-  }
-,
+  },
   "compatibility_redirects": {
     "update": {
       "source_route_id": "update",
@@ -1276,10 +1250,9 @@
       "navigation_encoding": "route_id_plus_anchor_field",
       "shell_transport_hint": "hash_router_uses_query_param_section"
     }
-  }
-,
+  },
   "experience_contract": {
-    "schema": "settings_codex_style_experience.v1",
+    "schema": "settings_opl_card_experience.v1",
     "owner": "one-person-lab-app",
     "purpose": "machine_verifiable_settings_visual_search_page_and_dom_contract",
     "source_contract_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia",
@@ -1287,24 +1260,38 @@
     "visual_system": {
       "style": "opl_baseline_card_control_center",
       "style_exclusion": "codex_quiet_list",
+      "baseline_shell_commit": "409dd0c3b693f1c7c93551654dfac8fb9420843d",
+      "baseline_comparison_policy": "fresh_same_route_screenshots_must_preserve_or_improve_information_hierarchy",
       "card_policy": "one_bounded_card_per_user_question_with_flat_internal_rows",
+      "first_viewport_spatial_group_range": {
+        "min": 2,
+        "max": 4
+      },
       "nested_cards_allowed": false,
       "page_wide_list_wall_allowed": false,
       "page_sections_as_floating_cards_allowed": false,
+      "desktop_group_layout": "responsive_two_column_grid_where_space_allows",
+      "mobile_group_layout": "single_column_stack",
+      "icon_slot_px": 28,
+      "typography": {
+        "page_title": "20/28/600",
+        "card_title": "14-16/20-24/600",
+        "description": "13/20/400",
+        "supporting": "12/18/400"
+      },
+      "status_color_semantics": {
+        "normal": "muted",
+        "warning": "orange",
+        "error": "red",
+        "action": "brand"
+      },
       "footer_layout": "compact",
-      "footer_controls": [
-        "return_to_chat",
-        "theme_switcher"
-      ],
+      "footer_controls": ["return_to_chat", "theme_switcher"],
       "footer_secondary_navigation_allowed": false,
       "theme_gallery_presentation": "recognizable_preview_tiles",
       "theme_swatch_list_allowed": false,
       "max_border_radius_px": 8,
-      "spacing_scale_px": [
-        12,
-        16,
-        24
-      ],
+      "spacing_scale_px": [12, 16, 24],
       "heading_density": "compact",
       "primary_action_per_page_max": 1,
       "normal_state_emphasis": "muted",
@@ -1319,10 +1306,7 @@
       "result_item_testid": "settings-search-result",
       "empty_state_testid": "settings-search-empty",
       "index_granularity": "item",
-      "languages": [
-        "zh-CN",
-        "en"
-      ],
+      "languages": ["zh-CN", "en"],
       "result_label_format": "{page_label} > {entry_label}",
       "result_navigation": "route_id_plus_anchor",
       "keyboard_activation_policy": "enter_activates_first_visible_result",
@@ -1343,8 +1327,16 @@
         "label_zh": "概览",
         "label_en": "Overview",
         "primary_information": [
-          "overall usability and attention count",
-          "one next useful action without duplicating the Settings navigation"
+          "model access, workspace, background services, capabilities, and updates as distinct status domains",
+          "issue queue ordered by user impact",
+          "one next useful action without duplicating the Settings navigation",
+          "contextual common entries that open the owning page without copying the whole sidebar"
+        ],
+        "first_viewport_groups": [
+          "system_status",
+          "attention_queue",
+          "next_action",
+          "common_entries"
         ],
         "primary_action": {
           "id": "open_first_attention_item",
@@ -1374,24 +1366,35 @@
         },
         "required_anchors": [
           "status",
-          "next-action"
+          "attention",
+          "next-action",
+          "common-actions"
         ],
         "search_entry_ids": [
           "overview.status",
-          "overview.next_action"
+          "overview.attention",
+          "overview.next_action",
+          "overview.common_actions"
         ]
       },
       "access": {
         "product_page_id": "access",
         "route_id": "access",
         "matrix_page_id": "access",
-        "label_zh": "访问方式",
-        "label_en": "Access",
+        "label_zh": "模型与访问",
+        "label_en": "Models & Access",
         "primary_information": [
           "model access readiness",
           "real access source from app_state.core.codex.model_access_source",
-          "selected model and authentication state",
-          "browser access to this computer"
+          "selected and default model",
+          "OPL Gateway configuration state",
+          "Codex CLI installation and version",
+          "account or API-key authentication state"
+        ],
+        "first_viewport_groups": [
+          "model_access",
+          "codex_cli",
+          "authentication"
         ],
         "primary_action": {
           "id": "configure_model_access",
@@ -1400,22 +1403,12 @@
           "label_zh": "配置模型访问",
           "label_en": "Configure model access"
         },
-        "browser_access_entry": {
-          "label_zh": "这台电脑的浏览器访问",
-          "label_en": "Browser access to this computer",
-          "placement": "access_primary_information",
-          "visibility": "always",
-          "action_policy": "open_existing_local_browser_access_settings",
-          "implementation_provenance_visibility": "technical_details_only",
-          "resources_boundary": "Docker WebUI, OPL Workspace, SSH/HPC, cloud, Fabric, and Console-managed refs stay on Resources & Connections"
-        },
         "exception_state": "highlight missing, expired, or unreachable model access and the one corrective action",
         "technical_details_boundary": "base URL, environment variables, token paths, Codex CLI details, and raw provider ids stay collapsed",
         "required_dom": {
           "always": [
             "settings-page-access",
             "settings-access-primary",
-            "settings-access-browser-access",
             "settings-access-technical-details"
           ],
           "conditional": [
@@ -1432,11 +1425,13 @@
         "required_anchors": [
           "provider-source",
           "model",
+          "codex-cli",
           "authentication"
         ],
         "search_entry_ids": [
           "access.provider_source",
           "access.model",
+          "access.codex_cli",
           "access.authentication"
         ]
       },
@@ -1448,7 +1443,14 @@
         "label_en": "Workspace",
         "primary_information": [
           "current workspace identity, path, and writability merged into one normal-state summary",
-          "permission or trust explanation only when attention is required"
+          "permission or trust explanation only when attention is required",
+          "where project and task artifacts are stored",
+          "open workspace as an inline action and change workspace as the sole primary action"
+        ],
+        "first_viewport_groups": [
+          "workspace_location",
+          "access_and_artifacts",
+          "workspace_actions"
         ],
         "readiness_precedence": "filesystem_writability_and_health_override_executor_permission_mode",
         "primary_action": {
@@ -1474,13 +1476,11 @@
             }
           ]
         },
-        "required_anchors": [
-          "current-workspace",
-          "permissions"
-        ],
+        "required_anchors": ["current-workspace", "permissions", "artifacts"],
         "search_entry_ids": [
           "workspace.current",
-          "workspace.permissions"
+          "workspace.permissions",
+          "workspace.artifacts"
         ]
       },
       "capabilities": {
@@ -1490,10 +1490,15 @@
         "label_zh": "智能体与能力",
         "label_en": "Agents & Capabilities",
         "primary_information": [
-          "availability",
-          "source",
-          "Home visibility",
+          "capability catalog with availability and source",
+          "Home visibility and shortcut order on capability rows",
+          "Skills, Tools, and Custom Assistants as internal tabs or sections",
           "custom assistants open the real AssistantSettings surface in the third on-demand tab"
+        ],
+        "first_viewport_groups": [
+          "capability_summary",
+          "capability_catalog",
+          "capability_details"
         ],
         "primary_action": {
           "id": "add_capability",
@@ -1505,15 +1510,9 @@
         "tab_contract": {
           "surface_label_zh": "智能体与能力",
           "surface_label_en": "Agents & Capabilities",
-          "tab_order": [
-            "skills",
-            "tools",
-            "assistants"
-          ],
+          "tab_order": ["skills", "tools", "assistants"],
           "default_tab": "skills",
-          "on_demand_tab_ids": [
-            "assistants"
-          ],
+          "on_demand_tab_ids": ["assistants"],
           "assistants": {
             "tab_id": "assistants",
             "position": 3,
@@ -1561,10 +1560,25 @@
         "label_zh": "资源与连接",
         "label_en": "Resources & Connections",
         "primary_information": [
+          "local browser access to this computer",
+          "Docker WebUI and OPL Workspace deployment entries",
           "resource readiness",
           "whether the related operation is executable",
-          "owner or management mode without duplicating the selected Workspace page"
+          "SSH, HPC, cloud, and external resources with owner or management mode without duplicating the selected Workspace page"
         ],
+        "first_viewport_groups": [
+          "local_browser_access",
+          "deployed_web_access",
+          "external_resources"
+        ],
+        "browser_access_entry": {
+          "label_zh": "这台电脑的浏览器访问",
+          "label_en": "Browser access to this computer",
+          "placement": "resources_primary_information",
+          "visibility": "always",
+          "action_policy": "open_existing_local_browser_access_settings",
+          "implementation_provenance_visibility": "technical_details_only"
+        },
         "primary_action": {
           "id": "open_selected_resource_action",
           "availability": "executable_action_available",
@@ -1607,6 +1621,7 @@
           "always": [
             "settings-page-resources",
             "settings-resources-primary",
+            "settings-resources-browser-access",
             "settings-resources-technical-details"
           ],
           "conditional": [
@@ -1621,11 +1636,15 @@
           ]
         },
         "required_anchors": [
+          "local-browser-access",
+          "web-access",
           "resource-readiness",
           "action-readiness",
           "external-resources"
         ],
         "search_entry_ids": [
+          "resources.local_browser_access",
+          "resources.web_access",
           "resources.readiness",
           "resources.executable",
           "resources.external"
@@ -1640,7 +1659,14 @@
         "primary_information": [
           "health summary",
           "updates and local services grouped by user impact",
+          "repair and rollback choices with impact explained before action",
+          "service status and receipts without duplicating capability package management",
           "one recommended maintenance action"
+        ],
+        "first_viewport_groups": [
+          "health_and_services",
+          "updates",
+          "repair_rollback_receipts"
         ],
         "primary_action": {
           "id": "run_recommended_maintenance",
@@ -1672,13 +1698,15 @@
           "health",
           "updates",
           "services",
-          "packages"
+          "repair-rollback",
+          "receipts"
         ],
         "search_entry_ids": [
           "maintenance.health",
           "maintenance.updates",
           "maintenance.services",
-          "maintenance.packages"
+          "maintenance.repair_rollback",
+          "maintenance.receipts"
         ]
       },
       "storage": {
@@ -1688,9 +1716,15 @@
         "label_zh": "数据与存储",
         "label_en": "Data & Storage",
         "primary_information": [
-          "one merged category list with size, safety, and next action",
+          "storage usage by conversations, runtime data, logs, updater data, and user artifacts",
+          "archives and restore availability",
           "cleanup preview before any destructive action",
           "plain-language archive, restore, and cleanup history"
+        ],
+        "first_viewport_groups": [
+          "usage_summary",
+          "data_categories",
+          "cleanup_and_archives"
         ],
         "primary_action": {
           "id": "preview_cleanup",
@@ -1720,11 +1754,13 @@
         },
         "required_anchors": [
           "storage-categories",
+          "archives",
           "cleanup-preview",
           "cleanup-history"
         ],
         "search_entry_ids": [
           "storage.categories",
+          "storage.archives",
           "storage.preview",
           "storage.history"
         ]
@@ -1736,10 +1772,16 @@
         "label_zh": "偏好",
         "label_en": "Preferences",
         "primary_information": [
-          "reply waiting time in human units",
-          "tray and close-window behavior",
-          "hardware acceleration",
-          "theme and appearance"
+          "application behavior including startup, close-window behavior, uploads, and reply waiting time",
+          "notifications",
+          "language, display scale, chat, Markdown, and code font sizes",
+          "theme and appearance including hardware acceleration where relevant"
+        ],
+        "first_viewport_groups": [
+          "app_behavior",
+          "notifications",
+          "display_and_fonts",
+          "themes"
         ],
         "primary_action": {
           "id": "none",
@@ -1763,14 +1805,14 @@
         },
         "required_anchors": [
           "behavior",
-          "tray",
-          "hardware",
+          "notifications",
+          "display-fonts",
           "themes"
         ],
         "search_entry_ids": [
           "preferences.behavior",
-          "preferences.tray",
-          "preferences.hardware",
+          "preferences.notifications",
+          "preferences.display_fonts",
           "preferences.themes"
         ]
       },
@@ -1781,8 +1823,10 @@
         "label_zh": "高级",
         "label_en": "Advanced",
         "primary_information": [
-          "read-only working directories with user-facing labels"
+          "read-only diagnostic paths with user-facing labels",
+          "raw diagnostic details only after explicit disclosure"
         ],
+        "first_viewport_groups": ["diagnostic_paths", "diagnostic_details"],
         "primary_action": {
           "id": "none",
           "availability": "read_only_page",
@@ -1803,12 +1847,8 @@
             }
           ]
         },
-        "required_anchors": [
-          "working-directories"
-        ],
-        "search_entry_ids": [
-          "advanced.directories"
-        ]
+        "required_anchors": ["working-directories", "diagnostics"],
+        "search_entry_ids": ["advanced.directories", "advanced.diagnostics"]
       },
       "about": {
         "product_page_id": "about",
@@ -1819,7 +1859,13 @@
         "primary_information": [
           "App version",
           "update channel",
-          "update status"
+          "update status",
+          "help and feedback entry points"
+        ],
+        "first_viewport_groups": [
+          "version_and_channel",
+          "updates",
+          "help_and_feedback"
         ],
         "primary_action": {
           "id": "check_updates",
@@ -1844,14 +1890,11 @@
             }
           ]
         },
-        "required_anchors": [
-          "version",
-          "channel",
-          "updates"
-        ],
+        "required_anchors": ["version", "channel", "updates", "help-feedback"],
         "search_entry_ids": [
           "about.version",
           "about.channel",
+          "about.help_feedback",
           "about.updates"
         ]
       }
@@ -1865,16 +1908,17 @@
           "anchor": "status",
           "label_zh": "整体状态",
           "label_en": "Overall status",
-          "keywords_zh": [
-            "状态",
-            "可用",
-            "概览"
-          ],
-          "keywords_en": [
-            "status",
-            "ready",
-            "overview"
-          ]
+          "keywords_zh": ["状态", "可用", "概览"],
+          "keywords_en": ["status", "ready", "overview"]
+        },
+        {
+          "id": "overview.attention",
+          "page_id": "overview",
+          "anchor": "attention",
+          "label_zh": "需要处理",
+          "label_en": "Needs attention",
+          "keywords_zh": ["问题", "异常", "待处理"],
+          "keywords_en": ["issue", "attention", "problem"]
         },
         {
           "id": "overview.next_action",
@@ -1882,16 +1926,17 @@
           "anchor": "next-action",
           "label_zh": "下一步",
           "label_en": "Next action",
-          "keywords_zh": [
-            "下一步",
-            "处理",
-            "异常"
-          ],
-          "keywords_en": [
-            "next action",
-            "attention",
-            "issue"
-          ]
+          "keywords_zh": ["下一步", "处理", "异常"],
+          "keywords_en": ["next action", "attention", "issue"]
+        },
+        {
+          "id": "overview.common_actions",
+          "page_id": "overview",
+          "anchor": "common-actions",
+          "label_zh": "常用入口",
+          "label_en": "Common entries",
+          "keywords_zh": ["常用", "入口", "配置"],
+          "keywords_en": ["common", "entry", "configure"]
         },
         {
           "id": "access.provider_source",
@@ -1899,18 +1944,8 @@
           "anchor": "provider-source",
           "label_zh": "访问来源",
           "label_en": "Access source",
-          "keywords_zh": [
-            "来源",
-            "供应商",
-            "登录",
-            "密钥"
-          ],
-          "keywords_en": [
-            "source",
-            "provider",
-            "login",
-            "api key"
-          ]
+          "keywords_zh": ["来源", "供应商", "登录", "密钥"],
+          "keywords_en": ["source", "provider", "login", "api key"]
         },
         {
           "id": "access.model",
@@ -1918,35 +1953,26 @@
           "anchor": "model",
           "label_zh": "模型",
           "label_en": "Model",
-          "keywords_zh": [
-            "模型",
-            "推理"
-          ],
-          "keywords_en": [
-            "model",
-            "reasoning"
-          ]
+          "keywords_zh": ["模型", "推理"],
+          "keywords_en": ["model", "reasoning"]
+        },
+        {
+          "id": "access.codex_cli",
+          "page_id": "access",
+          "anchor": "codex-cli",
+          "label_zh": "Codex CLI",
+          "label_en": "Codex CLI",
+          "keywords_zh": ["Codex CLI", "版本", "安装"],
+          "keywords_en": ["codex cli", "version", "installed"]
         },
         {
           "id": "access.authentication",
           "page_id": "access",
           "anchor": "authentication",
-          "label_zh": "认证与浏览器访问",
-          "label_en": "Authentication and browser access",
-          "keywords_zh": [
-            "认证",
-            "密钥",
-            "账号",
-            "浏览器访问",
-            "这台电脑"
-          ],
-          "keywords_en": [
-            "authentication",
-            "credential",
-            "account",
-            "browser access",
-            "this computer"
-          ]
+          "label_zh": "账号与访问密钥",
+          "label_en": "Account and API key",
+          "keywords_zh": ["认证", "密钥", "账号"],
+          "keywords_en": ["authentication", "credential", "account"]
         },
         {
           "id": "workspace.current",
@@ -1954,16 +1980,8 @@
           "anchor": "current-workspace",
           "label_zh": "当前工作区",
           "label_en": "Current workspace",
-          "keywords_zh": [
-            "工作区",
-            "目录",
-            "项目"
-          ],
-          "keywords_en": [
-            "workspace",
-            "folder",
-            "project"
-          ]
+          "keywords_zh": ["工作区", "目录", "项目"],
+          "keywords_en": ["workspace", "folder", "project"]
         },
         {
           "id": "workspace.permissions",
@@ -1971,16 +1989,17 @@
           "anchor": "permissions",
           "label_zh": "访问权限",
           "label_en": "Access permissions",
-          "keywords_zh": [
-            "权限",
-            "可写",
-            "信任"
-          ],
-          "keywords_en": [
-            "permissions",
-            "writable",
-            "trust"
-          ]
+          "keywords_zh": ["权限", "可写", "信任"],
+          "keywords_en": ["permissions", "writable", "trust"]
+        },
+        {
+          "id": "workspace.artifacts",
+          "page_id": "workspace",
+          "anchor": "artifacts",
+          "label_zh": "任务产物位置",
+          "label_en": "Artifact location",
+          "keywords_zh": ["产物", "文件", "保存位置"],
+          "keywords_en": ["artifact", "files", "location"]
         },
         {
           "id": "capabilities.availability",
@@ -1988,16 +2007,8 @@
           "anchor": "availability",
           "label_zh": "可用状态",
           "label_en": "Availability",
-          "keywords_zh": [
-            "可用",
-            "安装",
-            "启用"
-          ],
-          "keywords_en": [
-            "available",
-            "installed",
-            "enabled"
-          ]
+          "keywords_zh": ["可用", "安装", "启用"],
+          "keywords_en": ["available", "installed", "enabled"]
         },
         {
           "id": "capabilities.source",
@@ -2005,16 +2016,8 @@
           "anchor": "source",
           "label_zh": "能力来源",
           "label_en": "Source",
-          "keywords_zh": [
-            "来源",
-            "本地",
-            "能力包"
-          ],
-          "keywords_en": [
-            "source",
-            "local",
-            "package"
-          ]
+          "keywords_zh": ["来源", "本地", "能力包"],
+          "keywords_en": ["source", "local", "package"]
         },
         {
           "id": "capabilities.home_visibility",
@@ -2022,16 +2025,8 @@
           "anchor": "home-visibility",
           "label_zh": "首页显示",
           "label_en": "Home visibility",
-          "keywords_zh": [
-            "首页",
-            "显示",
-            "快捷入口"
-          ],
-          "keywords_en": [
-            "home",
-            "visibility",
-            "shortcut"
-          ]
+          "keywords_zh": ["首页", "显示", "快捷入口"],
+          "keywords_en": ["home", "visibility", "shortcut"]
         },
         {
           "id": "capabilities.custom_assistants",
@@ -2039,11 +2034,7 @@
           "anchor": "custom-assistants",
           "label_zh": "自定义助手",
           "label_en": "Custom assistants",
-          "keywords_zh": [
-            "自定义助手",
-            "创建助手",
-            "管理助手"
-          ],
+          "keywords_zh": ["自定义助手", "创建助手", "管理助手"],
           "keywords_en": [
             "custom assistant",
             "create assistant",
@@ -2051,21 +2042,31 @@
           ]
         },
         {
+          "id": "resources.local_browser_access",
+          "page_id": "resources",
+          "anchor": "local-browser-access",
+          "label_zh": "本机浏览器访问",
+          "label_en": "Local browser access",
+          "keywords_zh": ["浏览器访问", "端口", "账号", "密码"],
+          "keywords_en": ["browser access", "port", "account", "password"]
+        },
+        {
+          "id": "resources.web_access",
+          "page_id": "resources",
+          "anchor": "web-access",
+          "label_zh": "WebUI 与 OPL Workspace",
+          "label_en": "WebUI and OPL Workspace",
+          "keywords_zh": ["WebUI", "OPL Workspace", "部署"],
+          "keywords_en": ["webui", "opl workspace", "deployment"]
+        },
+        {
           "id": "resources.readiness",
           "page_id": "resources",
           "anchor": "resource-readiness",
           "label_zh": "资源就绪",
           "label_en": "Resource readiness",
-          "keywords_zh": [
-            "资源",
-            "就绪",
-            "连接"
-          ],
-          "keywords_en": [
-            "resource",
-            "ready",
-            "connection"
-          ]
+          "keywords_zh": ["资源", "就绪", "连接"],
+          "keywords_en": ["resource", "ready", "connection"]
         },
         {
           "id": "resources.executable",
@@ -2073,16 +2074,8 @@
           "anchor": "action-readiness",
           "label_zh": "操作可执行",
           "label_en": "Action readiness",
-          "keywords_zh": [
-            "可执行",
-            "操作",
-            "权限"
-          ],
-          "keywords_en": [
-            "executable",
-            "action",
-            "permission"
-          ]
+          "keywords_zh": ["可执行", "操作", "权限"],
+          "keywords_en": ["executable", "action", "permission"]
         },
         {
           "id": "resources.external",
@@ -2090,18 +2083,8 @@
           "anchor": "external-resources",
           "label_zh": "外部资源",
           "label_en": "External resources",
-          "keywords_zh": [
-            "远程",
-            "云",
-            "SSH",
-            "HPC"
-          ],
-          "keywords_en": [
-            "remote",
-            "cloud",
-            "ssh",
-            "hpc"
-          ]
+          "keywords_zh": ["远程", "云", "SSH", "HPC"],
+          "keywords_en": ["remote", "cloud", "ssh", "hpc"]
         },
         {
           "id": "maintenance.health",
@@ -2109,16 +2092,8 @@
           "anchor": "health",
           "label_zh": "健康状态",
           "label_en": "Health",
-          "keywords_zh": [
-            "健康",
-            "修复",
-            "状态"
-          ],
-          "keywords_en": [
-            "health",
-            "repair",
-            "status"
-          ]
+          "keywords_zh": ["健康", "修复", "状态"],
+          "keywords_en": ["health", "repair", "status"]
         },
         {
           "id": "maintenance.updates",
@@ -2126,16 +2101,8 @@
           "anchor": "updates",
           "label_zh": "更新",
           "label_en": "Updates",
-          "keywords_zh": [
-            "更新",
-            "版本",
-            "能力包"
-          ],
-          "keywords_en": [
-            "updates",
-            "version",
-            "packages"
-          ]
+          "keywords_zh": ["更新", "版本", "能力包"],
+          "keywords_en": ["updates", "version", "packages"]
         },
         {
           "id": "maintenance.services",
@@ -2143,33 +2110,26 @@
           "anchor": "services",
           "label_zh": "本地服务",
           "label_en": "Local services",
-          "keywords_zh": [
-            "服务",
-            "Codex",
-            "后台"
-          ],
-          "keywords_en": [
-            "services",
-            "codex",
-            "background"
-          ]
+          "keywords_zh": ["服务", "Codex", "后台"],
+          "keywords_en": ["services", "codex", "background"]
         },
         {
-          "id": "maintenance.packages",
+          "id": "maintenance.repair_rollback",
           "page_id": "maintenance",
-          "anchor": "packages",
-          "label_zh": "能力包维护",
-          "label_en": "Package maintenance",
-          "keywords_zh": [
-            "能力包",
-            "同步",
-            "来源"
-          ],
-          "keywords_en": [
-            "packages",
-            "sync",
-            "source"
-          ]
+          "anchor": "repair-rollback",
+          "label_zh": "修复与回滚",
+          "label_en": "Repair and rollback",
+          "keywords_zh": ["修复", "回滚", "恢复"],
+          "keywords_en": ["repair", "rollback", "recovery"]
+        },
+        {
+          "id": "maintenance.receipts",
+          "page_id": "maintenance",
+          "anchor": "receipts",
+          "label_zh": "操作结果",
+          "label_en": "Action results",
+          "keywords_zh": ["结果", "回执", "记录"],
+          "keywords_en": ["result", "receipt", "history"]
         },
         {
           "id": "storage.categories",
@@ -2177,16 +2137,17 @@
           "anchor": "storage-categories",
           "label_zh": "存储分类",
           "label_en": "Storage categories",
-          "keywords_zh": [
-            "存储",
-            "分类",
-            "占用"
-          ],
-          "keywords_en": [
-            "storage",
-            "category",
-            "usage"
-          ]
+          "keywords_zh": ["存储", "分类", "占用"],
+          "keywords_en": ["storage", "category", "usage"]
+        },
+        {
+          "id": "storage.archives",
+          "page_id": "storage",
+          "anchor": "archives",
+          "label_zh": "归档与恢复",
+          "label_en": "Archives and restore",
+          "keywords_zh": ["归档", "恢复", "备份"],
+          "keywords_en": ["archive", "restore", "backup"]
         },
         {
           "id": "storage.preview",
@@ -2194,16 +2155,8 @@
           "anchor": "cleanup-preview",
           "label_zh": "清理预览",
           "label_en": "Cleanup preview",
-          "keywords_zh": [
-            "预览",
-            "清理",
-            "释放空间"
-          ],
-          "keywords_en": [
-            "preview",
-            "cleanup",
-            "reclaim space"
-          ]
+          "keywords_zh": ["预览", "清理", "释放空间"],
+          "keywords_en": ["preview", "cleanup", "reclaim space"]
         },
         {
           "id": "storage.history",
@@ -2211,16 +2164,8 @@
           "anchor": "cleanup-history",
           "label_zh": "清理记录",
           "label_en": "Cleanup history",
-          "keywords_zh": [
-            "记录",
-            "回执",
-            "恢复"
-          ],
-          "keywords_en": [
-            "history",
-            "receipt",
-            "restore"
-          ]
+          "keywords_zh": ["记录", "回执", "恢复"],
+          "keywords_en": ["history", "receipt", "restore"]
         },
         {
           "id": "preferences.behavior",
@@ -2228,49 +2173,31 @@
           "anchor": "behavior",
           "label_zh": "等待与行为",
           "label_en": "Waiting and behavior",
-          "keywords_zh": [
-            "等待时间",
-            "超时",
-            "行为"
-          ],
-          "keywords_en": [
-            "waiting time",
-            "timeout",
-            "behavior"
-          ]
+          "keywords_zh": ["等待时间", "超时", "行为"],
+          "keywords_en": ["waiting time", "timeout", "behavior"]
         },
         {
-          "id": "preferences.tray",
+          "id": "preferences.notifications",
           "page_id": "preferences",
-          "anchor": "tray",
-          "label_zh": "托盘与关闭",
-          "label_en": "Tray and close behavior",
-          "keywords_zh": [
-            "托盘",
-            "关闭窗口",
-            "启动"
-          ],
-          "keywords_en": [
-            "tray",
-            "close window",
-            "startup"
-          ]
+          "anchor": "notifications",
+          "label_zh": "通知",
+          "label_en": "Notifications",
+          "keywords_zh": ["通知", "任务完成", "提醒"],
+          "keywords_en": ["notification", "task complete", "alert"]
         },
         {
-          "id": "preferences.hardware",
+          "id": "preferences.display_fonts",
           "page_id": "preferences",
-          "anchor": "hardware",
-          "label_zh": "硬件加速",
-          "label_en": "Hardware acceleration",
-          "keywords_zh": [
-            "硬件加速",
-            "显卡",
-            "性能"
-          ],
+          "anchor": "display-fonts",
+          "label_zh": "显示与字体",
+          "label_en": "Display and fonts",
+          "keywords_zh": ["显示", "字体", "缩放", "硬件加速", "语言"],
           "keywords_en": [
+            "display",
+            "font",
+            "scale",
             "hardware acceleration",
-            "gpu",
-            "performance"
+            "language"
           ]
         },
         {
@@ -2279,17 +2206,8 @@
           "anchor": "themes",
           "label_zh": "主题",
           "label_en": "Themes",
-          "keywords_zh": [
-            "主题",
-            "外观",
-            "明暗"
-          ],
-          "keywords_en": [
-            "theme",
-            "appearance",
-            "light",
-            "dark"
-          ]
+          "keywords_zh": ["主题", "外观", "明暗"],
+          "keywords_en": ["theme", "appearance", "light", "dark"]
         },
         {
           "id": "advanced.directories",
@@ -2297,16 +2215,17 @@
           "anchor": "working-directories",
           "label_zh": "工作目录",
           "label_en": "Working directories",
-          "keywords_zh": [
-            "工作目录",
-            "日志目录",
-            "运行目录"
-          ],
-          "keywords_en": [
-            "working directory",
-            "logs path",
-            "runtime path"
-          ]
+          "keywords_zh": ["工作目录", "日志目录", "运行目录"],
+          "keywords_en": ["working directory", "logs path", "runtime path"]
+        },
+        {
+          "id": "advanced.diagnostics",
+          "page_id": "advanced",
+          "anchor": "diagnostics",
+          "label_zh": "诊断详情",
+          "label_en": "Diagnostic details",
+          "keywords_zh": ["诊断", "日志", "详情"],
+          "keywords_en": ["diagnostics", "logs", "details"]
         },
         {
           "id": "about.version",
@@ -2314,14 +2233,8 @@
           "anchor": "version",
           "label_zh": "版本",
           "label_en": "Version",
-          "keywords_zh": [
-            "版本",
-            "应用版本"
-          ],
-          "keywords_en": [
-            "version",
-            "app version"
-          ]
+          "keywords_zh": ["版本", "应用版本"],
+          "keywords_en": ["version", "app version"]
         },
         {
           "id": "about.channel",
@@ -2329,16 +2242,17 @@
           "anchor": "channel",
           "label_zh": "更新通道",
           "label_en": "Update channel",
-          "keywords_zh": [
-            "通道",
-            "稳定版",
-            "夜间版"
-          ],
-          "keywords_en": [
-            "channel",
-            "stable",
-            "nightly"
-          ]
+          "keywords_zh": ["通道", "稳定版", "夜间版"],
+          "keywords_en": ["channel", "stable", "nightly"]
+        },
+        {
+          "id": "about.help_feedback",
+          "page_id": "about",
+          "anchor": "help-feedback",
+          "label_zh": "帮助与反馈",
+          "label_en": "Help and feedback",
+          "keywords_zh": ["帮助", "反馈", "支持"],
+          "keywords_en": ["help", "feedback", "support"]
         },
         {
           "id": "about.updates",
@@ -2346,14 +2260,8 @@
           "anchor": "updates",
           "label_zh": "更新状态",
           "label_en": "Update status",
-          "keywords_zh": [
-            "更新",
-            "检查更新"
-          ],
-          "keywords_en": [
-            "update",
-            "check updates"
-          ]
+          "keywords_zh": ["更新", "检查更新"],
+          "keywords_en": ["update", "check updates"]
         }
       ]
     },
