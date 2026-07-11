@@ -339,7 +339,7 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
     can_run_with: options.includeFullPackage
       ? ['full_build', 'publish_full_assets', 'docker_webui_smoke']
       : ['standard_dmg_clean_vm_smoke', 'docker_webui_smoke'],
-    command: 'OPL_INSTALL_SCRIPT_URL=file://<framework-checkout>/install.sh ./install.sh --complete --skip-modules',
+    command: 'OPL_INSTALL_SCRIPT_URL=file://<framework-checkout>/install.sh ./install.sh --with-app --skip-modules',
     required_for: ['stable_release'],
   });
 

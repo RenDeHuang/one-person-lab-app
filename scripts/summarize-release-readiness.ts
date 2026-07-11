@@ -456,7 +456,7 @@ function buildOneShotGate(options: Options, artifactName: string) {
       const systemInitialize = recordOrNull(payload.system_initialize);
       const setupFlow = recordOrNull(systemInitialize?.setup_flow);
       const fields: Record<string, unknown> = {
-        installer_entry: './install.sh --complete --skip-modules',
+        installer_entry: './install.sh --with-app --skip-modules',
         bootstrap_status_source: 'workflow job result one-shot-app-installer-smoke',
         initialization_command: 'opl system initialize --json',
         initialization_source: 'system_initialize.setup_flow',

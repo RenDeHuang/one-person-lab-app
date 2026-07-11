@@ -117,9 +117,10 @@ runtime environment and installs or opens the desktop App:
 curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh | bash
 ```
 
-The installer uses the same App-first setup model: a clean Mac can open the App
-before Git-backed maintenance finishes. Use `--complete` when you explicitly
-want the full framework/module install from the terminal.
+The App installer explicitly requests `--with-app --skip-modules`: it installs
+the same independently usable OPL base, then adds the optional GUI without
+silently installing Agent packages. For a base-only machine, use the OPL
+Framework installer directly.
 
 Stable macOS users who do not want Homebrew can use the stable install helper:
 

@@ -258,18 +258,21 @@ test('App install policy selects exactly one compatible OPL Framework carrier', 
     },
     {
       install_origin: 'dmg_or_direct_download',
-      carrier: 'app_private_install',
+      carrier: 'framework_managed_install',
       locator: '~/.opl/one-person-lab',
+      installer: 'opl-install.sh --headless --skip-modules',
     },
   ]);
   assert.deepEqual(carrier.pre_formula_transition, {
     allowed: true,
     condition: 'homebrew_cask_receipt_present_and_formula_absent',
-    carrier: 'app_private_install',
+    carrier: 'framework_managed_install',
     locator: '~/.opl/one-person-lab',
+    installer: 'opl-install.sh --headless --skip-modules',
     selection_status: 'pre_formula_transition',
     must_end_when_formula_available: true,
     incompatible_formula_must_not_fallback: true,
+    creates_second_framework_semantics: false,
   });
   assert.deepEqual(carrier.compatibility_handshake, {
     required_before_activation: true,
@@ -291,12 +294,12 @@ test('App install policy selects exactly one compatible OPL Framework carrier', 
     active_framework_count: 1,
     dual_runtime_allowed: false,
     split_brain_allowed: false,
-    private_fallback_may_activate_when_formula_selected: false,
+    second_framework_fallback_may_activate: false,
   });
   assert.deepEqual(carrier.release_authority, {
-    app_and_cask_release_truth_owner: 'one-person-lab-app',
-    formula_framework_release_truth_owner: 'one-person-lab',
-    app_release_must_not_publish_or_promote_formula_framework: true,
+    app_carrier_release_truth_owner: 'one-person-lab-app',
+    opl_base_release_truth_owner: 'one-person-lab',
+    app_release_must_not_publish_or_promote_opl_base: true,
   });
 
   const splitBrainPolicy = structuredClone(policy);
@@ -305,6 +308,43 @@ test('App install policy selects exactly one compatible OPL Framework carrier', 
     () => validateInstallExposureRuntimeAndDistribution(splitBrainPolicy),
     /OPL Framework activation invariants/,
   );
+});
+
+test('App is an optional GUI over the same OPL base installed by every channel', () => {
+  const policy = JSON.parse(
+    fs.readFileSync(path.join(process.cwd(), 'contracts', 'app-install-exposure-policy.json'), 'utf8'),
+  );
+  const install = policy.opl_base_install_contract;
+
+  assert.deepEqual(install.product_roles, {
+    opl_base: 'headless_framework_cli_runtime_required_before_any_opl_package',
+    opl_app: 'optional_gui_control_plane_for_opl_base_and_managed_opl_components',
+  });
+  assert.deepEqual(install.channel_semantics, {
+    homebrew: 'formula_installs_opl_base_then_optional_cask_installs_gui',
+    dmg_or_direct: 'app_carrier_install_then_framework_installer_reconciles_same_opl_base_into_managed_root',
+    headless: 'framework_installer_installs_opl_base_without_app',
+  });
+  assert.deepEqual(install.two_phase_install, {
+    phase_1: 'install_selected_carrier',
+    phase_2: 'reconcile_opl_base_and_selected_components_through_framework',
+    app_reconcile_command: 'opl-install.sh --headless --skip-modules',
+    app_managed_root: '~/.opl/one-person-lab',
+    app_owns_framework_semantics: false,
+  });
+  assert.deepEqual(install.app_managed_update_classes, [
+    'runtime_substrate',
+    'capability_packages',
+    'companion_tools',
+    'codex_surface',
+  ]);
+  assert.deepEqual(install.forbidden_app_install_bypasses, [
+    '--bootstrap-only',
+    '--complete',
+    '--skip-native-helper',
+    '--skip-native-helper-repair',
+    '--no-online-runtime',
+  ]);
 });
 
 test('agent installation validator rejects duplicate bare MAS/MAG/RCA skill mirrors', () => {

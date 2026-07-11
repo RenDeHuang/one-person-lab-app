@@ -1833,7 +1833,7 @@
           "rule": "Scheduled maintenance must not occupy the self-hosted first-run VM runner while a desktop release is active, queued, or cannot be checked."
         },
         "cancel_in_progress": "schedule_only",
-        "rule": "Scheduled VM smokes collapse stale backlog and default to a standard bootstrap-only diagnostic; stable release-called VM profiles must use run/profile-scoped groups so standard, Homebrew, and Full install gates cannot cancel or replace each other."
+        "rule": "Scheduled VM smokes collapse stale backlog and default to a focused bootstrap-launch diagnostic; stable release-called VM profiles must use run/profile-scoped groups so standard, Homebrew, and Full install gates cannot cancel or replace each other."
       },
       "first_run_vm_artifact_handoff": {
         "same_run_inputs": [

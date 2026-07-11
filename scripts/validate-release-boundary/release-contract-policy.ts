@@ -742,11 +742,11 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
   }
   if (
     typeof firstRunVmConcurrency?.rule !== 'string' ||
-    !firstRunVmConcurrency.rule.includes('standard bootstrap-only diagnostic') ||
+    !firstRunVmConcurrency.rule.includes('focused bootstrap-launch diagnostic') ||
     typeof scheduledVmGuard?.rule !== 'string' ||
     !scheduledVmGuard.rule.includes('self-hosted first-run VM runner')
   ) {
-    console.error('FAIL scheduled_first_run_vm_policy: scheduled VM policy must explain bootstrap-only diagnostics and VM runner protection');
+    console.error('FAIL scheduled_first_run_vm_policy: scheduled VM policy must explain focused bootstrap-launch diagnostics and VM runner protection');
     failures += 1;
   }
   for (const gate of vmGates) {

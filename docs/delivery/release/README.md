@@ -39,7 +39,7 @@ may stay machine-readable, but they must not become the primary user taxonomy.
 | Layer | User-facing meaning | Update boundary |
 | --- | --- | --- |
 | Installation Carrier | The host/container installation carrier: macOS App bundle, Docker/WebUI image, or Linux package carrier. | macOS uses standard stable/nightly updater and Homebrew cohorts. Docker/WebUI and Linux carrier updates stay host-route: carrier status, host update route, `host_executor_required` or `manual_required`, and mounted data/projects preservation proof. Local and optional remote image digests are status readbacks only; they do not prove release-ready/current/latest. Linux package carriers expose read-only host package-manager/package metadata fields and route through the host package manager or a documented host executor; OPL does not ship a privileged Linux host executor until an explicit operator opt-in policy exists. |
-| OPL Runtime Payload / Fabric | Runtime foundation needed to launch or recover OPL. User-facing grouping is Agent Execution Core (Codex executor, Temporal task runner, OPL Framework runtime), Environment Materializer (managed language runtimes, package/env resolvers, env cache, isolated prefixes, and receipts), and OPL System Bridge (native helper only where platform boundaries require it). | Managed under stable/nightly/release-host routing; `runtime_substrate` remains the machine id. Homebrew-origin installs select a compatible system `opl` Formula once published, while DMG/direct installs select the App-managed private install at `~/.opl/one-person-lab`. A Caskroom-detected install may use the private carrier only during explicit Formula pre-publication transition. Exactly one Framework core may be active, and identity/API compatibility fails closed before activation. |
+| OPL Runtime Payload / Fabric | The headless OPL base needed before any OPL Package can run. User-facing grouping is Agent Execution Core (Codex executor, Temporal task runner, OPL Framework runtime), Environment Materializer (managed language runtimes, package/env resolvers, env cache, isolated prefixes, and receipts), and OPL System Bridge (native helper only where platform boundaries require it). | Every channel installs the same `opl-framework` identity. Homebrew uses Formula `opl`; headless installs use the Framework installer; DMG/direct first installs the App carrier and then runs `opl-install.sh --headless --skip-modules` against `~/.opl/one-person-lab`. Before Formula publication, Cask installs may use the same managed root with an explicit transition receipt; once Formula exists there is no fallback. Exactly one compatible base may be active. |
 | OPL Packages | MAS/MAG/RCA/OMA/BookForge/MAS Scholar Skills and OPL Flow packages. Domain agents use `domain_agent_package`; MAS Scholar Skills uses `framework_capability_package`; OPL Flow uses `workflow_plugin_package`. | Ordinary managed packages use the shared OPL Packages lifecycle with one rolling `latest` pointer when release-published: daily CI promotes only gated package candidates to `latest`, while immutable version tags plus resolved OCI digests are the installed truth. Background maintenance may auto-apply only clean managed package updates and Codex Surface sync through Framework receipts; dirty checkouts, developer checkouts, locks, verification failures, permission changes, and manual-required states are not overwritten. Repair/rollback/destructive changes require explicit user or release-owner action. |
 | Companion Tools | OfficeCLI, MinerU, PDF/UI helpers, Superpowers, cron, and similar workflow helpers. | Maintained as helper payloads/skills, not domain-authority or Installation Carrier assets. |
 | Codex Surface | Codex plugin registry, plugin-packaged skills, generated OMA/BookForge surfaces, post-apply sync, readiness, and reload guidance. | A visibility/readiness projection over installed Codex plugin payloads. OPL Flow reaches this surface through its standard OPL Package entry, not through a separate updater. |
@@ -60,7 +60,7 @@ standard updater metadata.
 | Full first-install DMG | Clean-machine package that can reach Core ready without CLT, Homebrew, Node, or Git first. It consumes the OPL runtime bundle manifest/lock/readback and does not own dependency truth. | Full DMG, `opl-release-manifest.json` with `opl_runtime_bundle_consumer`, native runtime trust record, VM smoke when requested, manifest-carried local authorization policy, remote size and manifest verification. |
 | Offline runtime kit | Manual diagnostic or recovery artifact for the same Full runtime bundle payload. It is not updater-visible and is not a release-ready claim. | Runtime archive, checksums, Full manifest refs, and the same OPL bundle consumer boundary as the Full DMG. |
 | Stable promotion | Human release-owner promotion from candidate to stable/latest. | Candidate record with `status=ready_to_promote`, release readiness summary, same-cohort evidence, promote workflow output. |
-| Homebrew | Cask transport and index for standard and explicit Full first-install App packages; the install consumes the system `opl` Formula as its Framework carrier. | Published App release assets, standard local authorization policy asset or Full manifest ref, tap update output, compatible Formula handshake receipt, single-active-core readback, and Homebrew VM smoke where required. App release remains App/Cask authority and does not publish or promote Formula Framework release truth. |
+| Homebrew | Formula `opl` installs the headless OPL base; standard/nightly/Full Casks install the optional App GUI and depend on the Formula. | Framework Formula manifest/readback, published App assets, tap update output, compatibility handshake receipt, single-active-core readback, and Homebrew VM smoke where required. Framework owns base/Formula release truth; App owns App/Cask release truth. |
 | WebUI/GHCR | App-owned preheated Docker/WebUI runtime image for browser-first Linux/container deployment. It is not the desktop App GUI shell install path and is not an OPL Packages member. | OCI source label, package access, publish output, image manifest/volume boundary, image smoke/evidence artifacts. |
 | Managed maintenance | Framework-runner maintenance for OPL Runtime Payload / Fabric, OPL Packages, Companion Tools, and Codex Surface readiness. | OPL update runner receipts, lock/runner status, Framework artifact channel/readback/checksum/rollback evidence, repair/rollback status, post-apply sync status. |
 
@@ -677,7 +677,11 @@ mutate Homebrew/system tools, or claim MAS/MAG/RCA quality/export verdicts.
 
 ## Homebrew Distribution Boundary
 
-Homebrew is cask transport and index only. It points terminal users and automation at the same App release cohorts through `one-person-lab`, `one-person-lab-nightly`, and explicit stable `one-person-lab-full` casks.
+Homebrew exposes two independent products with aligned semantics: Formula `opl`
+installs the headless OPL base, while `one-person-lab`,
+`one-person-lab-nightly`, and `one-person-lab-full` Casks install the optional
+GUI. Installing a Cask consumes Formula `opl`; installing only Formula `opl`
+remains a supported terminal/Codex setup.
 
 Stable standard cask installs use the fully qualified cask ref:
 
@@ -691,7 +695,11 @@ cask refs, `one-person-lab-full` and `one-person-lab-nightly`, because Homebrew
 may load those casks while resolving conflicts. It does not grant broad
 `brew trust` approval for the entire tap.
 
-Homebrew does not own App activation, user workspace state, module readiness, agent-pack distribution, skill/plugin semantics, updater policy, stable/latest promotion, or domain readiness. After Homebrew install or upgrade, activation and user-state setup still come from OPL/App surfaces such as:
+Homebrew does not own App activation, user workspace state, module readiness,
+agent-pack distribution, skill/plugin semantics, or domain readiness. Framework
+owns Formula/base release truth and App owns Cask/App release truth. After
+Homebrew install or upgrade, activation and user-state setup still come from
+OPL/App surfaces such as:
 
 ```bash
 opl system initialize --json

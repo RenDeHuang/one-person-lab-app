@@ -3,6 +3,7 @@ import { temporalLocalServiceDefaults, temporalManagedCommands } from './app-con
 import { managedOplPackageIds, managedOplPackageKinds, oplFlowPackagePolicy } from './managed-update-plane-policy.ts';
 
 export function validateInstallExposureRuntimeAndDistribution(policy) {
+  validateOplBaseInstallContract(policy.opl_base_install_contract);
   validateTemporalAutoConfiguration(policy.temporal_auto_configuration);
   validateSyncAndInstallContract(policy.sync_and_install_contract);
   validateRuntimeSubstrateAutoUpdate(policy.runtime_substrate_auto_update);
@@ -10,6 +11,47 @@ export function validateInstallExposureRuntimeAndDistribution(policy) {
   validateHomebrewDistribution(policy.distribution_channels?.homebrew);
   validateManagedAgentPackDistribution(policy.agent_installation_contract?.managed_agent_pack_distribution);
   validateReleaseValidation(policy.release_validation);
+}
+
+function validateOplBaseInstallContract(install) {
+  assertDeepEqualJson(
+    install?.product_roles,
+    {
+      opl_base: 'headless_framework_cli_runtime_required_before_any_opl_package',
+      opl_app: 'optional_gui_control_plane_for_opl_base_and_managed_opl_components',
+    },
+    'Install exposure OPL base product roles',
+  );
+  assertDeepEqualJson(
+    install?.channel_semantics,
+    {
+      homebrew: 'formula_installs_opl_base_then_optional_cask_installs_gui',
+      dmg_or_direct: 'app_carrier_install_then_framework_installer_reconciles_same_opl_base_into_managed_root',
+      headless: 'framework_installer_installs_opl_base_without_app',
+    },
+    'Install exposure OPL base channel semantics',
+  );
+  assertDeepEqualJson(
+    install?.two_phase_install,
+    {
+      phase_1: 'install_selected_carrier',
+      phase_2: 'reconcile_opl_base_and_selected_components_through_framework',
+      app_reconcile_command: 'opl-install.sh --headless --skip-modules',
+      app_managed_root: '~/.opl/one-person-lab',
+      app_owns_framework_semantics: false,
+    },
+    'Install exposure OPL base two-phase install',
+  );
+  assertDeepEqualJson(
+    install?.app_managed_update_classes,
+    ['runtime_substrate', 'capability_packages', 'companion_tools', 'codex_surface'],
+    'Install exposure App-managed update classes',
+  );
+  assertDeepEqualJson(
+    install?.forbidden_app_install_bypasses,
+    ['--bootstrap-only', '--complete', '--skip-native-helper', '--skip-native-helper-repair', '--no-online-runtime'],
+    'Install exposure forbidden App install bypasses',
+  );
 }
 
 function validateTemporalAutoConfiguration(temporalAutoConfig) {
@@ -268,8 +310,9 @@ function validateFrameworkCoreCarrier(homebrew) {
       },
       {
         install_origin: 'dmg_or_direct_download',
-        carrier: 'app_private_install',
+        carrier: 'framework_managed_install',
         locator: '~/.opl/one-person-lab',
+        installer: 'opl-install.sh --headless --skip-modules',
       },
     ],
     'Install exposure OPL Framework locator precedence',
@@ -279,11 +322,13 @@ function validateFrameworkCoreCarrier(homebrew) {
     {
       allowed: true,
       condition: 'homebrew_cask_receipt_present_and_formula_absent',
-      carrier: 'app_private_install',
+      carrier: 'framework_managed_install',
       locator: '~/.opl/one-person-lab',
+      installer: 'opl-install.sh --headless --skip-modules',
       selection_status: 'pre_formula_transition',
       must_end_when_formula_available: true,
       incompatible_formula_must_not_fallback: true,
+      creates_second_framework_semantics: false,
     },
     'Install exposure OPL Framework pre-Formula transition',
   );
@@ -313,16 +358,16 @@ function validateFrameworkCoreCarrier(homebrew) {
       active_framework_count: 1,
       dual_runtime_allowed: false,
       split_brain_allowed: false,
-      private_fallback_may_activate_when_formula_selected: false,
+      second_framework_fallback_may_activate: false,
     },
     'Install exposure OPL Framework activation invariants',
   );
   assertDeepEqualJson(
     carrier.release_authority,
     {
-      app_and_cask_release_truth_owner: 'one-person-lab-app',
-      formula_framework_release_truth_owner: 'one-person-lab',
-      app_release_must_not_publish_or_promote_formula_framework: true,
+      app_carrier_release_truth_owner: 'one-person-lab-app',
+      opl_base_release_truth_owner: 'one-person-lab',
+      app_release_must_not_publish_or_promote_opl_base: true,
     },
     'Install exposure OPL Framework release authority',
   );

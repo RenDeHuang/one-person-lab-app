@@ -251,7 +251,7 @@ export const releaseBoundaryChecks: ReleaseBoundaryCheck[] = [
       'release-addon-readiness-summary-${{ inputs.opl_version }}',
       'OPL_INSTALL_SCRIPT_URL: file://${{ github.workspace }}/one-person-lab/install.sh',
       'bash -n ./install-stable.sh',
-      './install.sh --complete --skip-modules',
+      './install.sh --with-app --skip-modules',
       '--label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}"',
       '--label "org.opencontainers.image.revision=${SHELL_SHA}"',
       'docker build',

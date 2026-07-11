@@ -418,7 +418,7 @@ function validateHermesImplementation(checkoutPath: string): void {
     "'app', 'state', '--profile', 'fast', '--json'",
     "'system', 'initialize', '--json'",
     "startup_path: 'lightweight_probe'",
-    "'install', '--skip-gui-open', '--skip-modules', '--skip-native-helper-repair', '--json'",
+    "'install', '--headless', '--skip-modules', '--json'",
     "'system', 'startup-maintenance', '--json'",
     "'system', 'reconcile-modules', '--json'",
     'maintenanceDeferred',
