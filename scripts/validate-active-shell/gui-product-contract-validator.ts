@@ -1,7 +1,7 @@
 import { assertDeepEqualJson, assertForbiddenCapabilityPolicy, assertIncludesAll, readJson } from './assertions.ts';
 import {
   appActionRoute,
-  appOwnedSettingsAccessBrowserEntry,
+  appOwnedSettingsResourcesBrowserEntry,
   appOwnedSettingsCapabilitiesTabContract,
   appOwnedSettingsResourceActionBehavior,
   appOwnedTaskAwarenessRefFields,
@@ -104,7 +104,6 @@ function validateCodexModelPolicy(guiContract) {
     'App GUI Codex model policy',
   );
 }
-
 function validateManagedUpdatePageSurface(page, label) {
   validateManagedUpdatePageBasics(page, label, {
     actionSourceError: `${label} must expose managed update actions through the shell IPC bridge`,
@@ -828,19 +827,25 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   if (pages.settings_access.model_access_source !== 'app_state.core.codex.model_access_source') {
     throw new Error('Settings Access must use app_state.core.codex.model_access_source');
   }
-  assertDeepEqualJson(
-    pages.settings_access.browser_access_entry,
-    appOwnedSettingsAccessBrowserEntry,
-    'Settings Access browser entry',
-  );
   assertIncludesAll(
     pages.settings_access.must_show,
-    ['page label Access or 访问方式', 'browser access to this computer as a visible user entry'],
+    ['page label Models & Access or 模型与访问', 'selected and default model'],
     'Settings Access user entry contract',
+  );
+  if (pages.settings_access.browser_access_entry !== undefined) {
+    throw new Error('Settings Models & Access must not own browser access');
+  }
+  assertDeepEqualJson(
+    pages.settings_resources.browser_access_entry,
+    appOwnedSettingsResourcesBrowserEntry,
+    'Settings Resources browser entry',
   );
   assertIncludesAll(
     pages.settings_resources.must_show,
-    ['resource readiness and action executability as separate states'],
+    [
+      'browser access to this computer with port, account, and password management entry',
+      'resource readiness and action executability as separate states',
+    ],
     'Settings Resources readiness boundary',
   );
   assertIncludesAll(

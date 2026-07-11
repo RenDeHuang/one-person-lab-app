@@ -1,6 +1,6 @@
 import { assertDeepEqualJson, assertIncludesAll, readJson } from './assertions.ts';
 import {
-  appOwnedSettingsAccessBrowserEntry,
+  appOwnedSettingsResourcesBrowserEntry,
   appOwnedSettingsCapabilitiesTabContract,
   appOwnedSettingsCompatibilityRedirects,
   appOwnedSettingsResourceActionBehavior,
@@ -62,13 +62,21 @@ export function validateAppSettingsPages(matrix, guiContract) {
   ) {
     throw new Error('Access page must use the real Codex model_access_source');
   }
+  if (
+    accessPage.browser_access_entry !== undefined ||
+    accessPage.required_dom?.always?.includes('settings-access-browser-access')
+  ) {
+    throw new Error('Models & Access must not own browser access to this computer');
+  }
+
+  const resourcesPage = pageById(matrix, 'settings_resources');
   assertDeepEqualJson(
-    accessPage.browser_access_entry,
-    appOwnedSettingsAccessBrowserEntry,
-    'Access page browser entry',
+    resourcesPage.browser_access_entry,
+    appOwnedSettingsResourcesBrowserEntry,
+    'Resources page browser entry',
   );
-  if (!accessPage.required_dom?.always?.includes('settings-access-browser-access')) {
-    throw new Error('Access page must preserve browser access to this computer');
+  if (!resourcesPage.required_dom?.always?.includes('settings-resources-browser-access')) {
+    throw new Error('Resources & Connections must preserve browser access to this computer');
   }
 
   validateCapabilitiesPage(matrix, guiContract);
@@ -80,7 +88,6 @@ export function validateAppSettingsPages(matrix, guiContract) {
   validateSettingsThemePage(matrix);
   validateSettingsPageExperience(matrix);
 }
-
 function pageById(matrix, id) {
   const page = (matrix.pages ?? []).find((entry) => entry.id === id);
   if (!page) {
