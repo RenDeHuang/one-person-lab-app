@@ -20,6 +20,11 @@ OPL App GUI 使用三层设计体系：
 三层必须分开维护。功能或理想目标不能从某个 shell 的现状反推；shell 实现文档也
 不能把局部代码、截图或 focused test 提升成 App product truth。
 
+当前 AionUI 主线的执行顺序、非降级边界、current-main disposition 与收口条件由
+[`../../active/aionui-mainline-gui-convergence-plan.md`](../../active/aionui-mainline-gui-convergence-plan.md)
+维护。该 active plan 只组织实施，不拥有三层产品定义，也不能把计划状态提升为 source、
+pixel 或 release 完成。
+
 产品方向固定为：**先继承 ChatGPT Codex 的主工作流和空间关系，再增加 OPL
 专业能力**。Rail、单列 conversation、底部 composer 和按需环境详情构成基础壳；
 OPL project context、capabilities、progress、evidence、artifacts 与 safe actions 必须
@@ -172,4 +177,5 @@ artifact、owner acceptance 或 release authority 提供 fresh evidence。
 5. [`element-audit.md`](element-audit.md)
 6. [`shell-implementation-guide.md`](shell-implementation-guide.md)
 7. [`shell-conformance-matrix.md`](shell-conformance-matrix.md)
-8. [`aionui-41301-delta-audit.md`](aionui-41301-delta-audit.md)
+8. [`../../active/aionui-mainline-gui-convergence-plan.md`](../../active/aionui-mainline-gui-convergence-plan.md)
+9. [`aionui-41301-delta-audit.md`](aionui-41301-delta-audit.md)（历史 `dbff7370f` 审计）

@@ -2,12 +2,19 @@
 
 Owner: `one-person-lab-app`
 Purpose: `aionui_41301_keep_adapt_drop_read_model`
-State: `active_implementation_audit`
+State: `historical_branch_audit`
 Date: `2026-07-11`
 Machine boundary: 本文是 App-owned implementation read model。产品目标来自
 [`codex-to-opl-app-delta.md`](codex-to-opl-app-delta.md) 与
 [`ideal-interaction-spec.md`](ideal-interaction-spec.md)；实际行为仍以 Shell source/tests
 为准。本文不吸收分支、不改变 contracts、active shell 或 release readiness。
+
+Historical boundary: 本文记录 `dbff7370f` 尚未进入 Shell main 时的逐提交判断。后续
+Shell merge `1752ba496377a0534ae88e6343f8051d961f79a5` 已把该 lineage 纳入 main，
+因此“禁止整分支吸收”不再是可执行的前置动作。不要重放或整体回退该分支；当前主线的
+功能级 `keep / adapt / hide / reject / defer`、OPL adopted-capability 非降级边界与实施顺序
+改由 [`../../active/aionui-mainline-gui-convergence-plan.md`](../../active/aionui-mainline-gui-convergence-plan.md)
+维护。
 
 ## 结论
 
