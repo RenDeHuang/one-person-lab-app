@@ -1545,7 +1545,6 @@
           "home_preference_policy": "single_reactive_owner_with_success_commit_and_failure_rollback"
         },
         "first_viewport_groups": [
-          "capability_summary",
           "capability_catalog",
           "capability_details"
         ],
@@ -1775,10 +1774,14 @@
           "plain-language archive, restore, and cleanup history"
         ],
         "first_viewport_groups": [
-          "usage_summary",
           "data_categories",
           "cleanup_and_archives"
         ],
+        "surface_rules": {
+          "total_usage_presentation": "status_row_in_page_header",
+          "pure_usage_summary_card_allowed": false,
+          "diagnostics_entry": "explicit_modal_action"
+        },
         "primary_action": {
           "id": "preview_cleanup",
           "availability": "reclaimable_items_available",

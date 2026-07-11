@@ -1753,6 +1753,15 @@ export function validateSettingsExperienceContract(experience) {
     "Settings Preferences surface rules",
   );
   assertDeepEqualJson(
+    pageContracts.storage.surface_rules,
+    {
+      total_usage_presentation: "status_row_in_page_header",
+      pure_usage_summary_card_allowed: false,
+      diagnostics_entry: "explicit_modal_action",
+    },
+    "Settings Storage surface rules",
+  );
+  assertDeepEqualJson(
     pageContracts.about.surface_rules,
     {
       version_update_card_count: 1,

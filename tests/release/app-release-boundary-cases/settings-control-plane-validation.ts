@@ -339,6 +339,11 @@ test("Settings separates configuration groups, status rows, and diagnostic surfa
     ["light", "codex"],
   );
   assert.equal(
+    experience.page_contracts.storage.surface_rules
+      .pure_usage_summary_card_allowed,
+    false,
+  );
+  assert.equal(
     experience.page_contracts.capabilities.management_discoverability
       .raw_source_fallback_allowed,
     false,

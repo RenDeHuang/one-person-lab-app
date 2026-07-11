@@ -163,9 +163,12 @@ from deciding the page layout.
 
 Workspace therefore uses one owner card containing location, writability, and
 actions. Preferences uses two full-width groups rather than a 2+1 grid. Agents
-and Capabilities exposes Home visibility and Manage on each row, while package
-refs remain diagnostic. Resources and Storage keep configuration and user-safe
-status on the page and move control-plane details into one diagnostic surface.
+and Capabilities keeps catalog, conversation, and Home counts as one compact
+status row inside the catalog card, exposes Home visibility and Manage on each
+item row, and keeps package refs diagnostic. Resources and Storage keep
+configuration and user-safe status on the page, show total storage use as a
+header status rather than a standalone card, and move control-plane details into
+one diagnostic surface.
 About combines version, channel, update state, and update action in one card;
 help links are full-width rows with their trailing icon on the container edge.
 
