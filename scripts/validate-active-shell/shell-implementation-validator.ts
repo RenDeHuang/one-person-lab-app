@@ -58,7 +58,13 @@ export function validateActiveShellImplementation(shellPaths) {
     shellPaths,
     'packages/desktop/src/renderer/components/settings/SettingsModal/contents/AboutModalContent.tsx',
   );
-  for (const expected of ['useOplAppState', 'guiVersion', 'frameworkRevision', 'includeNightlyUpdates']) {
+  for (const expected of [
+    'useOplAppState',
+    'guiVersion',
+    'frameworkRevision',
+    'resolveUpdaterChannel',
+    "loadAppState('fast', { background: true })",
+  ]) {
     if (!about.includes(expected)) {
       throw new Error(`Active shell About page must implement ${expected}`);
     }
