@@ -29,7 +29,7 @@ carrier 状态和 release evidence 仍归 contracts、source/tests、validators 
 | Project attachments | Selected project 的 context 邻近入口与 composer attach | 长期 project 材料和单次发送附件认知相邻但生命周期不同。 | 两者混成一个列表，或附件只能从 Settings 添加。 |
 | Conversation management | Rail rows、search 与独立 Archived surface | Search/pin/rename/archive/reset 属于持续工作管理。 | Archive 无独立 surface，或 reset 与 delete 语义混淆。 |
 | Conversation timeline | Main canvas | 用户需要按时间理解任务、输出和决策。 | 与 Runtime/Files 并列成多个主面，或被 dashboard 替代。 |
-| Home question/starters | Main 空 conversation；动态问题标题 + 最多四个轻量 starter | 帮助开始任务，但不建立 landing/dashboard。 | 静态营销 hero、starter card grid 或超过四个同权入口。 |
+| Home question/starters | Main 空 conversation；动态问题标题 + 全部用户可见 configured starters，稳定排序并响应式换行 | 帮助开始任务，但不建立 landing/dashboard；用户显式启用的入口不能被静默截断。 | 静态营销 hero、starter card grid、隐藏用户已启用入口或无序重排。 |
 | Composer | Main canvas bottom，浮动或保留安全距 | 输入是普通路径主动作，应始终接近当前 conversation。 | 变成营销卡、单行 input、settings bar、多层 card 或贴边遮挡。 |
 | Project Context inputs | 展开的 project 内、conversation rows 之前 | 项目级文件/目录 refs 需要可见、可增删并在新 conversation 中显式预载。 | 虚构默认项、hidden prompt injection、与当前 conversation attachments 混成一类。 |
 | Active capability chip | Composer action row 邻近的低权重位置 | 显示已选 OPL 能力；选择动作归 Home starter/Capabilities。 | 常驻可变 purpose selector、backend selector 或 agent dashboard。 |
@@ -43,7 +43,7 @@ carrier 状态和 release evidence 仍归 contracts、source/tests、validators 
 | Permission/user-input prompt | 对应 turn 内 | 决策必须和触发它的工作上下文相邻。 | 跳到不相关全局 modal，关闭后无法找回触发原因。 |
 | Turn receipt / result refs | Turn summary/details | 证明本轮发生了什么，同时保持 timeline 可读。 | Raw JSON 默认展开，或 receipt 被当成 domain/release verdict。 |
 | Environment trigger | Conversation 右上次级 icon action | 当前环境随时可达，但不占普通路径主权重。 | Toggle active 但 surface hidden，或默认常驻打开。 |
-| Environment floating details | 右上 anchored floating surface；窄屏 drawer | Changes/local/branch/commit/subagents/sources 是当前 task 的快速摘要。 | 变成默认全高第三列、完整 diagnostics 或跨项目 dashboard。 |
+| Environment floating details | 右上 anchored floating surface；窄屏 drawer | Workspace/locality/branch/changes/subtasks/sources 是当前 task 的快速摘要。 | 变成默认全高第三列、完整 diagnostics 或跨项目 dashboard。 |
 | OPL secondary refs | Environment 次级 section、preview 或 turn disclosure | Artifacts、Evidence、Runtime、Actions 是按需投影。 | 与环境摘要同权常驻，或取得 artifact/runtime authority。 |
 | Advanced work surfaces | Bottom panel/file tree/Terminal/Browser | 保留高级工作能力，但默认关闭。 | App 启动即打开，遮挡 timeline/composer。 |
 | Runtime overview | 独立 Runtime page | 跨 project/conversation 状态需要更大 scope 与筛选。 | Running/queued/attention 混成 Home badge 或 assistant card。 |
@@ -56,7 +56,8 @@ carrier 状态和 release evidence 仍归 contracts、source/tests、validators 
 
 ### Home 与 Conversation
 
-Home 的用户问题是“我现在要做什么”。因此主区只保留动态问题标题、最多四个 starter、
+Home 的用户问题是“我现在要做什么”。因此主区只保留动态问题标题、全部用户可见且
+稳定排序的轻量 starter、
 conversation、composer、active capability、model/access 和 current-turn feedback。
 Projectless text chat 不依赖 workspace；文件和 project capability 必须说明限制。
 跨项目 Runtime、continue-work、evidence ledger、package maintenance 和 raw diagnostics

@@ -1,0 +1,92 @@
+{
+  "schema": "opl_app_gui_visual_evidence.v1",
+  "owner": "one-person-lab-app",
+  "source_shell_repo": "gaofeng21cn/opl-aion-shell",
+  "shell_head": "30f5457d1adde4c4535fbe216d4aacd8a180a868",
+  "source_manifest": "docs/product/gui/evidence/aionui-41301/source-manifest.json",
+  "source_manifest_sha256": "f998cd62ec03fcfe09c4edc9c6a885495451d5be4561112a54710368f05f561b",
+  "generated_at": "2026-07-11T19:47:15.132Z",
+  "command": "AIONUI_E2E_PRODUCT_PROFILE=1 E2E_PACKAGED=1 E2E_SCREENSHOTS=1 bun run test:e2e -- tests/e2e/features/visual-evidence/gui-baseline.e2e.ts",
+  "evidence_scope": "route_state_non_empty_and_layout_only",
+  "claims": {
+    "route_state_non_empty": true,
+    "layout_bounds_checked": true,
+    "parity_1_to_1": false,
+    "release_ready": false
+  },
+  "entry_count": 8,
+  "entries": [
+    {
+      "id": "home-desktop-light-zh-CN-rail-expanded",
+      "viewport": "1440x960",
+      "theme": "light",
+      "locale": "zh-CN",
+      "screenshot_path": "docs/product/gui/evidence/aionui-41301/screenshots/home-desktop-light-zh-CN-rail-expanded.png",
+      "bytes": 58259,
+      "sha256": "3aedfc223d7b32762490a1bf042adf34926b317c81bba5bbb6ce42a79f652888"
+    },
+    {
+      "id": "home-mobile-dark-en-US-rail-closed",
+      "viewport": "420x844",
+      "theme": "dark",
+      "locale": "en-US",
+      "screenshot_path": "docs/product/gui/evidence/aionui-41301/screenshots/home-mobile-dark-en-US-rail-closed.png",
+      "bytes": 32611,
+      "sha256": "0dcb47aa567c68383e86b5491653d995a26a938a3a27f3c521881449cfb33e52"
+    },
+    {
+      "id": "home-mobile-dark-en-US-action-sheet-open",
+      "viewport": "420x844",
+      "theme": "dark",
+      "locale": "en-US",
+      "screenshot_path": "docs/product/gui/evidence/aionui-41301/screenshots/home-mobile-dark-en-US-action-sheet-open.png",
+      "bytes": 45617,
+      "sha256": "93564af9e92886e74a89631c7884fbfb04fa5ba8bd16b642f08615ee01840b44"
+    },
+    {
+      "id": "conversation-desktop-light-en-US-composer-controls",
+      "viewport": "1440x960",
+      "theme": "light",
+      "locale": "en-US",
+      "screenshot_path": "docs/product/gui/evidence/aionui-41301/screenshots/conversation-desktop-light-en-US-composer-controls.png",
+      "bytes": 113312,
+      "sha256": "4a4af2db7607bf108259607ccde78a082fcbc47cd088470e873a09b7825d790e"
+    },
+    {
+      "id": "conversation-desktop-light-en-US-model-menu-open",
+      "viewport": "1440x960",
+      "theme": "light",
+      "locale": "en-US",
+      "screenshot_path": "docs/product/gui/evidence/aionui-41301/screenshots/conversation-desktop-light-en-US-model-menu-open.png",
+      "bytes": 119773,
+      "sha256": "d5ae35ab3378f1590f74d4c1b8ba0a8d3070271192f9949d9ffeeec1c6f20452"
+    },
+    {
+      "id": "conversation-desktop-dark-zh-CN-environment-open",
+      "viewport": "1440x960",
+      "theme": "dark",
+      "locale": "zh-CN",
+      "screenshot_path": "docs/product/gui/evidence/aionui-41301/screenshots/conversation-desktop-dark-zh-CN-environment-open.png",
+      "bytes": 117937,
+      "sha256": "102173369d8264f75e0cb7ae99401ab8a69c2f463c00ff6dcf51077719d5694a"
+    },
+    {
+      "id": "conversation-desktop-dark-zh-CN-files-open",
+      "viewport": "1440x960",
+      "theme": "dark",
+      "locale": "zh-CN",
+      "screenshot_path": "docs/product/gui/evidence/aionui-41301/screenshots/conversation-desktop-dark-zh-CN-files-open.png",
+      "bytes": 123489,
+      "sha256": "5c0d59420bb9bd1675b85ebff4e47b231c351b4b74f27d981955f75cdd4fc400"
+    },
+    {
+      "id": "conversation-mobile-light-en-US-preview-open",
+      "viewport": "420x844",
+      "theme": "light",
+      "locale": "en-US",
+      "screenshot_path": "docs/product/gui/evidence/aionui-41301/screenshots/conversation-mobile-light-en-US-preview-open.png",
+      "bytes": 22025,
+      "sha256": "2432ccc4e772523ddc941114c94524b9740f33c7f1b298dd72c1b344a6e19f40"
+    }
+  ]
+}

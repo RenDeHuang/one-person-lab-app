@@ -1,12 +1,6 @@
 import { validateGuiDesignSystem } from '../../../scripts/validate-gui-design-system.ts';
-import {
-  assert,
-  fs,
-  os,
-  path,
-  test,
-  appRoot,
-} from './helpers.ts';
+import { createHash } from 'node:crypto';
+import { assert, fs, os, path, test, appRoot } from './helpers.ts';
 
 const shellAuthorityMarker = 'gui_shell_authority: implementation_only';
 const codexReference = 'ChatGPT Codex macOS 26.707.41301 (2026-07-11)';
@@ -42,6 +36,20 @@ function copyFixtureFile(root: string, relativePath: string): void {
   writeFile(root, relativePath, fs.readFileSync(path.join(appRoot, relativePath), 'utf8'));
 }
 
+function copyFixtureAsset(root: string, relativePath: string): void {
+  const target = path.join(root, relativePath);
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  fs.copyFileSync(path.join(appRoot, relativePath), target);
+}
+
+function refreshSourceManifestHash(root: string): void {
+  const sourcePath = path.join(root, 'docs/product/gui/evidence/aionui-41301/source-manifest.json');
+  const manifestPath = path.join(root, 'docs/product/gui/evidence/aionui-41301/manifest.json');
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+  manifest.source_manifest_sha256 = createHash('sha256').update(fs.readFileSync(sourcePath)).digest('hex');
+  writeJson(root, 'docs/product/gui/evidence/aionui-41301/manifest.json', manifest);
+}
+
 function createFixture(): string {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-gui-design-system-'));
   for (const relativePath of [
@@ -53,15 +61,23 @@ function createFixture(): string {
     'docs/product/gui/codex-to-opl-app-delta.md',
     'docs/product/gui/element-audit.md',
     'docs/product/gui/feature-inventory.md',
+    'docs/active/aionui-mainline-gui-convergence-plan.md',
     'contracts/app-shell-candidates.json',
     'contracts/app-product-profile.json',
     'contracts/app-gui-product-contract.json',
     'contracts/app-page-state-matrix.json',
     'contracts/app-shell-adapter.json',
+    'docs/product/gui/evidence/aionui-41301/manifest.json',
+    'docs/product/gui/evidence/aionui-41301/source-manifest.json',
     'package.json',
   ]) {
     copyFixtureFile(root, relativePath);
   }
+
+  const guiContract = JSON.parse(fs.readFileSync(path.join(root, 'contracts/app-gui-product-contract.json'), 'utf8'));
+  const finalShellSha = guiContract.interaction_baseline.acceptance_boundary.final_shell_sha;
+  const evidenceManifest = JSON.parse(fs.readFileSync(path.join(root, 'docs/product/gui/evidence/aionui-41301/manifest.json'), 'utf8'));
+  for (const entry of evidenceManifest.entries) copyFixtureAsset(root, entry.screenshot_path);
 
   const readme = [
     `product_definition=${designRoot}/README.md,${designRoot}/feature-inventory.md`,
@@ -74,6 +90,7 @@ function createFixture(): string {
     `superseded_interaction_observations=${supersededCodexReference},${earlierSupersededCodexReference}`,
     'human_target.owner=one-person-lab-app',
     'active_aionui.role=current_implementation_conformance_only',
+    `active_aionui.final_shell_sha=${finalShellSha}`,
     'docs_or_contract_imply_source_complete=false',
     'docs_or_contract_imply_pixel_complete=false',
     'ideal_target.workspace_session_rail_default_visible=true',
@@ -86,7 +103,11 @@ function createFixture(): string {
   writeFile(root, `${designRoot}/README.md`, `${readme}\n`);
   writeFile(root, `${designRoot}/visual-system.md`, '# Visual system\n');
   writeFile(root, `${designRoot}/shell-implementation-guide.md`, '# Shell implementation guide\n');
-  writeFile(root, `${designRoot}/shell-conformance-matrix.md`, conformanceMatrix);
+  writeFile(
+    root,
+    `${designRoot}/shell-conformance-matrix.md`,
+    conformanceMatrix.replace('0000000000000000000000000000000000000000', finalShellSha),
+  );
   return root;
 }
 
@@ -94,6 +115,8 @@ test('GUI design-system validator accepts a complete fixture without promoting r
   const root = createFixture();
   const summary = validateGuiDesignSystem(root);
   const profile = JSON.parse(fs.readFileSync(path.join(root, 'contracts/app-product-profile.json'), 'utf8'));
+  const contract = JSON.parse(fs.readFileSync(path.join(root, 'contracts/app-gui-product-contract.json'), 'utf8'));
+  const finalShellSha = contract.interaction_baseline.acceptance_boundary.final_shell_sha;
   assert.equal(summary.status, 'consistent');
   assert.equal(summary.release_ready, false);
   assert.equal(summary.codex_reference, codexReference);
@@ -115,6 +138,12 @@ test('GUI design-system validator accepts a complete fixture without promoting r
   assert.equal(summary.conformance_matrix.rows_validated, 6);
   assert.deepEqual(summary.conformance_matrix.status_axes, ['contract_status', 'source_status', 'pixel_status']);
   assert.equal(summary.conformance_matrix.pixel_verified_implies_visual_parity, false);
+  assert.deepEqual(summary.visual_evidence, {
+    manifest: 'docs/product/gui/evidence/aionui-41301/manifest.json',
+    shell_head: finalShellSha,
+    entries_verified: 8,
+    packaged_command: true,
+  });
 });
 
 test('GUI design-system validator rejects a fixed Home shortcut limit', () => {
@@ -130,6 +159,15 @@ test('GUI design-system validator rejects a fixed Home shortcut limit', () => {
   );
 });
 
+test('GUI design-system validator rejects a stale convergence plan snapshot', () => {
+  const root = createFixture();
+  const planPath = path.join(root, 'docs/active/aionui-mainline-gui-convergence-plan.md');
+  const plan = fs.readFileSync(planPath, 'utf8').replace('State: `release_closeout_in_progress`', 'State: `active_plan`');
+  fs.writeFileSync(planPath, plan, 'utf8');
+
+  assert.throws(() => validateGuiDesignSystem(root), /must be in release_closeout_in_progress or complete state/);
+});
+
 test('GUI design-system validator follows a changed App-profile reasoning default', () => {
   const root = createFixture();
   const profilePath = path.join(root, 'contracts/app-product-profile.json');
@@ -137,8 +175,8 @@ test('GUI design-system validator follows a changed App-profile reasoning defaul
   const profile = JSON.parse(fs.readFileSync(profilePath, 'utf8'));
   const registry = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
   profile.codex.default_reasoning_effort = 'future-effort';
-  registry.candidates.find((candidate) => candidate.id === 'opl-native-workbench')
-    .visual_parity_contract.default_reasoning_effort = 'future-effort';
+  registry.candidates.find((candidate) => candidate.id === 'opl-native-workbench').visual_parity_contract.default_reasoning_effort =
+    'future-effort';
   writeJson(root, 'contracts/app-product-profile.json', profile);
   writeJson(root, 'contracts/app-shell-candidates.json', registry);
 
@@ -154,10 +192,12 @@ test('GUI design-system validator reports a collapsed active AionUI rail as a co
   const matrixPath = path.join(root, designRoot, 'shell-conformance-matrix.md');
   fs.writeFileSync(
     matrixPath,
-    fs.readFileSync(matrixPath, 'utf8').replace(
-      '| 宽桌面 rail 默认展开且 `280-340px` 可调 | `aligned_contract`',
-      '| 宽桌面 rail 默认展开且 `280-340px` 可调 | `current_contract_deviation`',
-    ),
+    fs
+      .readFileSync(matrixPath, 'utf8')
+      .replace(
+        '| 宽桌面 rail 默认展开且 `280-340px` 可调 | `aligned_contract`',
+        '| 宽桌面 rail 默认展开且 `280-340px` 可调 | `current_contract_deviation`',
+      ),
     'utf8',
   );
 
@@ -172,15 +212,11 @@ test('GUI design-system validator reports a collapsed active AionUI rail as a co
 test('GUI design-system validator rejects a missing current interaction reference marker', () => {
   const root = createFixture();
   const readmePath = path.join(root, designRoot, 'README.md');
-  const readme = fs.readFileSync(readmePath, 'utf8').replace(
-    `current_interaction_reference=${codexReference}`,
-    'current_interaction_reference=missing',
-  );
+  const readme = fs
+    .readFileSync(readmePath, 'utf8')
+    .replace(`current_interaction_reference=${codexReference}`, 'current_interaction_reference=missing');
   fs.writeFileSync(readmePath, readme, 'utf8');
-  assert.throws(
-    () => validateGuiDesignSystem(root),
-    /must include exact marker current_interaction_reference=/,
-  );
+  assert.throws(() => validateGuiDesignSystem(root), /must include exact marker current_interaction_reference=/);
 });
 
 test('GUI design-system validator rejects a stale App-owned current baseline', () => {
@@ -189,10 +225,7 @@ test('GUI design-system validator rejects a stale App-owned current baseline', (
   const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
   contract.interaction_baseline.current_reference.build = '26.707.31123';
   writeJson(root, 'contracts/app-gui-product-contract.json', contract);
-  assert.throws(
-    () => validateGuiDesignSystem(root),
-    /schema v2 with current reference ChatGPT Codex macOS 26\.707\.41301/,
-  );
+  assert.throws(() => validateGuiDesignSystem(root), /schema v2 with current reference ChatGPT Codex macOS 26\.707\.41301/);
 });
 
 test('GUI design-system validator rejects the superseded v1 interaction baseline schema', () => {
@@ -202,33 +235,17 @@ test('GUI design-system validator rejects the superseded v1 interaction baseline
   contract.schema_version = 1;
   contract.interaction_baseline.schema = 'opl_app_codex_interaction_baseline.v1';
   writeJson(root, 'contracts/app-gui-product-contract.json', contract);
-  assert.throws(
-    () => validateGuiDesignSystem(root),
-    /schema v2/,
-  );
+  assert.throws(() => validateGuiDesignSystem(root), /schema v2/);
 });
 
 test('GUI design-system validator rejects the legacy eight-surface inspector taxonomy', () => {
   const root = createFixture();
   const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
   const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
-  contract.interaction_baseline.context_surfaces.side_panel.primary_tools = [
-    'review',
-    'terminal',
-    'browser',
-    'files',
-  ];
-  contract.interaction_baseline.context_surfaces.side_panel.secondary_sections = [
-    'artifacts',
-    'runtime',
-    'actions',
-    'memory',
-  ];
+  contract.interaction_baseline.context_surfaces.side_panel.primary_tools = ['review', 'terminal', 'browser', 'files'];
+  contract.interaction_baseline.context_surfaces.side_panel.secondary_sections = ['artifacts', 'runtime', 'actions', 'memory'];
   writeJson(root, 'contracts/app-gui-product-contract.json', contract);
-  assert.throws(
-    () => validateGuiDesignSystem(root),
-    /legacy equal-weight inspector taxonomy/,
-  );
+  assert.throws(() => validateGuiDesignSystem(root), /legacy equal-weight inspector taxonomy/);
 });
 
 test('GUI design-system validator rejects mixing OPL target entries into literal Codex observation', () => {
@@ -237,10 +254,7 @@ test('GUI design-system validator rejects mixing OPL target entries into literal
   const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
   delete contract.interaction_baseline.literal_observation;
   writeJson(root, 'contracts/app-gui-product-contract.json', contract);
-  assert.throws(
-    () => validateGuiDesignSystem(root),
-    /must separate literal Codex observations from OPL-owned target translation/,
-  );
+  assert.throws(() => validateGuiDesignSystem(root), /must separate literal Codex observations from OPL-owned target translation/);
 });
 
 test('GUI design-system validator rejects removing the OPL Runtime entry for Codex parity', () => {
@@ -259,8 +273,7 @@ test('GUI design-system validator rejects an undeclared candidate-registry Codex
   const root = createFixture();
   const registryPath = path.join(root, 'contracts/app-shell-candidates.json');
   const registry = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
-  registry.design_system_governance.codex_reference.comparison_baseline =
-    'ChatGPT Codex macOS 0.0.0 (2026-07-11)';
+  registry.design_system_governance.codex_reference.comparison_baseline = 'ChatGPT Codex macOS 0.0.0 (2026-07-11)';
   writeJson(root, 'contracts/app-shell-candidates.json', registry);
   assert.throws(
     () => validateGuiDesignSystem(root),
@@ -272,8 +285,7 @@ test('GUI design-system validator requires an explicit Native superseded-referen
   const root = createFixture();
   const registryPath = path.join(root, 'contracts/app-shell-candidates.json');
   const registry = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
-  delete registry.candidates.find((candidate) => candidate.id === 'opl-native-workbench')
-    .visual_parity_contract.current_reference_status;
+  delete registry.candidates.find((candidate) => candidate.id === 'opl-native-workbench').visual_parity_contract.current_reference_status;
   writeJson(root, 'contracts/app-shell-candidates.json', registry);
   assert.throws(
     () => validateGuiDesignSystem(root),
@@ -293,6 +305,17 @@ test('GUI design-system validator rejects a page-state boundary that promotes co
   );
 });
 
+test('GUI design-system validator rejects a final Shell binding that drifts from the conformance snapshot', () => {
+  const root = createFixture();
+  const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
+  const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+  contract.interaction_baseline.acceptance_boundary.final_shell_sha = '0000000000000000000000000000000000000000';
+  contract.interaction_baseline.acceptance_boundary.source_evidence_ref = 'opl-aion-shell@0000000000000000000000000000000000000000';
+  writeJson(root, 'contracts/app-gui-product-contract.json', contract);
+
+  assert.throws(() => validateGuiDesignSystem(root), /shell conformance matrix AionUI snapshot must match the App-bound final_shell_sha/);
+});
+
 test('GUI design-system validator rejects a stale foreground role marker', () => {
   const root = createFixture();
   const agentsPath = path.join(root, 'AGENTS.md');
@@ -307,15 +330,14 @@ test('GUI design-system validator rejects a stale foreground role marker', () =>
 test('GUI design-system validator rejects a document assigned to the wrong layer', () => {
   const root = createFixture();
   const readmePath = path.join(root, designRoot, 'README.md');
-  const readme = fs.readFileSync(readmePath, 'utf8').replace(
-    `product_definition=${designRoot}/README.md,${designRoot}/feature-inventory.md`,
-    `product_definition=${designRoot}/README.md,${designRoot}/feature-inventory.md,${designRoot}/ideal-interaction-spec.md`,
-  );
+  const readme = fs
+    .readFileSync(readmePath, 'utf8')
+    .replace(
+      `product_definition=${designRoot}/README.md,${designRoot}/feature-inventory.md`,
+      `product_definition=${designRoot}/README.md,${designRoot}/feature-inventory.md,${designRoot}/ideal-interaction-spec.md`,
+    );
   fs.writeFileSync(readmePath, readme, 'utf8');
-  assert.throws(
-    () => validateGuiDesignSystem(root),
-    /docs\/product\/gui\/README\.md must include exact marker product_definition=/,
-  );
+  assert.throws(() => validateGuiDesignSystem(root), /docs\/product\/gui\/README\.md must include exact marker product_definition=/);
 });
 
 test('GUI design-system validator rejects a stale model copied into foundation docs', () => {
@@ -330,10 +352,7 @@ test('GUI design-system validator rejects a stale model copied into foundation d
 test('GUI design-system validator rejects a positive readiness claim anywhere in the governed stack', () => {
   const root = createFixture();
   fs.appendFileSync(path.join(root, designRoot, 'feature-inventory.md'), '\nThe candidate is release-ready.\n');
-  assert.throws(
-    () => validateGuiDesignSystem(root),
-    /must not make a positive release or production readiness claim/,
-  );
+  assert.throws(() => validateGuiDesignSystem(root), /must not make a positive release or production readiness claim/);
 });
 
 test('GUI design-system validator rejects a candidate-owned ideal target', () => {
@@ -352,8 +371,9 @@ test('GUI design-system validator rejects a native ideal rail regression', () =>
   const root = createFixture();
   const registryPath = path.join(root, 'contracts', 'app-shell-candidates.json');
   const registry = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
-  registry.candidates.find((candidate) => candidate.id === 'opl-native-workbench')
-    .target_product_shape.workspace_session_rail_default_visible = false;
+  registry.candidates.find(
+    (candidate) => candidate.id === 'opl-native-workbench',
+  ).target_product_shape.workspace_session_rail_default_visible = false;
   writeJson(root, 'contracts/app-shell-candidates.json', registry);
   assert.throws(
     () => validateGuiDesignSystem(root),
@@ -366,10 +386,7 @@ test('GUI design-system validator rejects a matrix row with no source status', (
   const matrixPath = path.join(root, designRoot, 'shell-conformance-matrix.md');
   const matrix = fs.readFileSync(matrixPath, 'utf8').replace('`source_implemented` | `not_applicable`', ' | `not_applicable`');
   fs.writeFileSync(matrixPath, matrix, 'utf8');
-  assert.throws(
-    () => validateGuiDesignSystem(root),
-    /must declare exactly one AionUI source_status/,
-  );
+  assert.throws(() => validateGuiDesignSystem(root), /must declare exactly one AionUI source_status/);
 });
 
 test('GUI design-system validator rejects an unknown matrix status', () => {
@@ -377,10 +394,7 @@ test('GUI design-system validator rejects an unknown matrix status', () => {
   const matrixPath = path.join(root, designRoot, 'shell-conformance-matrix.md');
   const matrix = fs.readFileSync(matrixPath, 'utf8').replace('`source_partial`', '`source_unknown`');
   fs.writeFileSync(matrixPath, matrix, 'utf8');
-  assert.throws(
-    () => validateGuiDesignSystem(root),
-    /must declare exactly one AionUI source_status/,
-  );
+  assert.throws(() => validateGuiDesignSystem(root), /must declare exactly one AionUI source_status/);
 });
 
 test('GUI design-system validator rejects a stale dynamic AionUI contract row', () => {
@@ -388,43 +402,76 @@ test('GUI design-system validator rejects a stale dynamic AionUI contract row', 
   const matrixPath = path.join(root, designRoot, 'shell-conformance-matrix.md');
   fs.writeFileSync(
     matrixPath,
-    fs.readFileSync(matrixPath, 'utf8').replace(
-      '| Permission/access mode 在 composer 可见且不用 backend/provider 术语 | `aligned_contract`',
-      '| Permission/access mode 在 composer 可见且不用 backend/provider 术语 | `current_contract_deviation`',
-    ),
+    fs
+      .readFileSync(matrixPath, 'utf8')
+      .replace(
+        '| Permission/access mode 在 composer 可见且不用 backend/provider 术语 | `aligned_contract`',
+        '| Permission/access mode 在 composer 可见且不用 backend/provider 术语 | `current_contract_deviation`',
+      ),
     'utf8',
   );
-  assert.throws(
-    () => validateGuiDesignSystem(root),
-    /Permission\/access mode.*must report AionUI contract_status aligned_contract/,
-  );
+  assert.throws(() => validateGuiDesignSystem(root), /Permission\/access mode.*must report AionUI contract_status aligned_contract/);
 });
 
 test('GUI design-system validator requires an exact AionUI source snapshot', () => {
   const root = createFixture();
   const matrixPath = path.join(root, designRoot, 'shell-conformance-matrix.md');
-  fs.writeFileSync(
-    matrixPath,
-    fs.readFileSync(matrixPath, 'utf8').replace(/opl-aion-shell@[0-9a-f]{40}/, 'opl-aion-shell@stale'),
-    'utf8',
-  );
-  assert.throws(
-    () => validateGuiDesignSystem(root),
-    /must bind an exact 40-character AionUI source snapshot/,
-  );
+  fs.writeFileSync(matrixPath, fs.readFileSync(matrixPath, 'utf8').replace(/opl-aion-shell@[0-9a-f]{40}/, 'opl-aion-shell@stale'), 'utf8');
+  assert.throws(() => validateGuiDesignSystem(root), /must bind an exact 40-character AionUI source snapshot/);
 });
 
 test('GUI design-system validator rejects legacy aligned-contract-only status', () => {
   const root = createFixture();
   const matrixPath = path.join(root, designRoot, 'shell-conformance-matrix.md');
   fs.appendFileSync(matrixPath, '\nLegacy: aligned-contract\n');
-  assert.throws(
-    () => validateGuiDesignSystem(root),
-    /must not use legacy aligned-contract without independent source and pixel status/,
-  );
+  assert.throws(() => validateGuiDesignSystem(root), /must not use legacy aligned-contract without independent source and pixel status/);
 });
 
 test('GUI design-system validator allows pixel_verified with source_partial', () => {
   const root = createFixture();
   assert.doesNotThrow(() => validateGuiDesignSystem(root));
+});
+
+test('GUI design-system validator rejects promoted and source evidence timestamp drift', () => {
+  const root = createFixture();
+  const sourcePath = path.join(root, 'docs/product/gui/evidence/aionui-41301/source-manifest.json');
+  const source = JSON.parse(fs.readFileSync(sourcePath, 'utf8'));
+  source.generated_at = '2026-07-11T00:00:00.000Z';
+  writeJson(root, 'docs/product/gui/evidence/aionui-41301/source-manifest.json', source);
+  refreshSourceManifestHash(root);
+
+  assert.throws(() => validateGuiDesignSystem(root), /must share one exact ISO generated_at timestamp/);
+});
+
+test('GUI design-system validator rejects promoted and source evidence scope drift', () => {
+  const root = createFixture();
+  const sourcePath = path.join(root, 'docs/product/gui/evidence/aionui-41301/source-manifest.json');
+  const source = JSON.parse(fs.readFileSync(sourcePath, 'utf8'));
+  source.evidence_scope = 'route_state_only';
+  writeJson(root, 'docs/product/gui/evidence/aionui-41301/source-manifest.json', source);
+  refreshSourceManifestHash(root);
+
+  assert.throws(() => validateGuiDesignSystem(root), /must share the route-state and layout-only evidence_scope/);
+});
+
+test('GUI design-system validator rejects promoted and source evidence claim drift', () => {
+  const root = createFixture();
+  const sourcePath = path.join(root, 'docs/product/gui/evidence/aionui-41301/source-manifest.json');
+  const source = JSON.parse(fs.readFileSync(sourcePath, 'utf8'));
+  source.claims.parity_1_to_1 = true;
+  writeJson(root, 'docs/product/gui/evidence/aionui-41301/source-manifest.json', source);
+  refreshSourceManifestHash(root);
+
+  assert.throws(() => validateGuiDesignSystem(root), /evidence claims must be identical and limited to the governed claim set/);
+});
+
+test('GUI design-system validator rejects promoted and source evidence entry ID drift', () => {
+  const root = createFixture();
+  const sourcePath = path.join(root, 'docs/product/gui/evidence/aionui-41301/source-manifest.json');
+  const source = JSON.parse(fs.readFileSync(sourcePath, 'utf8'));
+  source.entries[0].id = 'stale-entry-id';
+  writeJson(root, 'docs/product/gui/evidence/aionui-41301/source-manifest.json', source);
+  refreshSourceManifestHash(root);
+
+  assert.throws(() => validateGuiDesignSystem(root), /must preserve the same ordered entry ID set/);
 });

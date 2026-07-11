@@ -13,7 +13,7 @@ surfaces。
 
 本文只回答两个问题：
 
-1. OPL App 从当前 Codex desktop interaction baseline 继承什么？
+1. OPL App 从当前 Codex desktop interaction reference 借鉴什么？
 2. 为服务 OPL 工作，增加、隐藏或改名什么？
 
 功能全集见 [`feature-inventory.md`](feature-inventory.md)，完整交互见
@@ -29,15 +29,15 @@ surfaces。
 
 | Area | 26.707.41301 直接观察 | OPL disposition |
 | --- | --- | --- |
-| App frame | 左 rail、中央单列 conversation、底部 composer 与右上按需环境浮层构成主工作面。 | `inherit_1_to_1` |
+| App frame | 左 rail、中央单列 conversation、底部 composer 与右上按需环境浮层构成主工作面。 | `adopt_composition_pattern` |
 | Rail global entry | 顶部有 New task、Archived、Plugins、Sites、Pull requests、Chat；主体按 project 分组 conversations；底部是 account/help。 | `inherit_structure_adapt_labels` |
 | Project hierarchy | Project 是 conversation 的认知父级；同一 project 下可见多条 task/conversation。 | `inherit_and_extend_context_refs` |
-| Main canvas | 中央正文保持窄 reading lane，大量宽屏空间用于留白，不转成 dashboard。 | `inherit_1_to_1` |
-| Conversation chrome | 左上只显示当前 task identity 和轻量动作，不放常驻模型配置栏。 | `inherit_1_to_1` |
-| Timeline | Assistant 正文大多 unframed；用户输入、系统提示和可展开细节使用轻量 bounded surface。 | `inherit_1_to_1` |
+| Main canvas | 中央正文保持窄 reading lane，大量宽屏空间用于留白，不转成 dashboard。 | `adopt_composition_pattern` |
+| Conversation chrome | 左上只显示当前 task identity 和轻量动作，不放常驻模型配置栏。 | `adopt_composition_pattern` |
+| Timeline | Assistant 正文大多 unframed；用户输入、系统提示和可展开细节使用轻量 bounded surface。 | `adopt_composition_pattern` |
 | Composer | 固定在底部中央；左侧为 add/access，右侧为 model/reasoning、voice 与 send/stop。 | `inherit_and_bind_app_policy` |
 | Environment details | 右上浮层按需显示 changes、local、branch、commit/push、compare、subagents 与 sources。 | `inherit_and_extend_opl_refs` |
-| Visual grammar | 白色主画布、浅灰 rail、细边界、低对比选中态、小圆角和紧凑字号；几乎没有页面级卡片。 | `inherit_1_to_1` |
+| Visual grammar | 白色主画布、浅灰 rail、细边界、低对比选中态、小圆角和紧凑字号；几乎没有页面级卡片。 | `adopt_composition_pattern` |
 
 以下项目不是 26.707.41301 的 literal observation，必须明确标为 OPL-owned delta：
 
@@ -51,7 +51,8 @@ surfaces。
 
 ## OPL Target Translation
 
-OPL App 采用下列翻译规则；没有明确 delta 的区域默认继承 baseline：
+OPL App 采用下列翻译规则；没有明确 delta 的区域默认复用 reference 的 composition pattern，
+不把外部产品行为或像素解释为 1:1 authority：
 
 1. **Project-first rail。** 保留 Codex project -> N conversations 结构，在选中 project 下
    增加可选、可移除的 context refs 与附件入口；不增加并列的第二导航栏。
@@ -79,7 +80,7 @@ Capabilities、first-run、OPL Settings、domain package entry 和双语等 OPL-
 
 | Class | 内容 | 设计约束 |
 | --- | --- | --- |
-| `inherit_1_to_1` | App frame、project/conversation rail、单列 timeline、底部 composer、environment floating details、quiet visual grammar。 | 除品牌与平台差异外，不重新发明位置或交互。 |
+| `adopt_composition_pattern` | App frame、project/conversation rail、单列 timeline、底部 composer、environment floating details、quiet visual grammar。 | 保持参考产品验证过的认知位置，再由 OPL contracts 决定功能、数据、文案和可见状态；不宣称逐像素或逐行为复制。 |
 | `adapt` | Global rail labels、model/access policy、project state、Settings IA、desktop/WebUI affordance。 | 保持 Codex 认知位置，只替换数据和用户语言；不能借适配删除 OPL-owned capability。 |
 | `add` | Project context refs、OPL capabilities、progress、evidence/artifacts、safe actions/receipts。 | 渐进披露；不得抢占主 timeline 或制造 card wall。 |
 | `reject` | Home dashboard、状态卡片墙、常驻 provider/backend selector、多套 inspector、普通路径 raw runtime/protocol。 | 不以“OPL 专业性”为理由恢复。 |
@@ -160,7 +161,8 @@ strip 只显示 active capability chip：
 - Runtime overview 展示真实 running、仍在推进的 project lines、queued 和 attention。
 - Current-turn artifact 与 OPL current-task projection 共用可 pin summary bar，展示
   status、elapsed、progress、next action、stop。
-- Environment 浮层继承 changes/local/branch/commit/subagents/sources 的紧凑结构。
+- Environment 浮层采用 workspace/locality/branch/changes/subtasks/sources 的紧凑结构；
+  commit/push/compare 等只有在真实 action/ref 存在时才按需出现。
 - Artifacts、Evidence、Runtime 与 Actions 作为浮层次级 section、preview 或 conversation
   disclosure 按需出现；不默认形成全高第三列。
 - Mutation 统一走 App action route，并保留 dry-run、confirmation 与 receipt。

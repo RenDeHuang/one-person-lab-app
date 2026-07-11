@@ -2,6 +2,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
@@ -58,6 +59,12 @@ export type GuiDesignSystemValidation = {
     status_axes: ['contract_status', 'source_status', 'pixel_status'];
     pixel_verified_implies_visual_parity: false;
   };
+  visual_evidence: {
+    manifest: 'docs/product/gui/evidence/aionui-41301/manifest.json';
+    shell_head: string;
+    entries_verified: 8;
+    packaged_command: true;
+  };
   release_ready: false;
 };
 
@@ -77,14 +84,13 @@ const foundationDocs = {
   shell_conformance_matrix: 'docs/product/gui/shell-conformance-matrix.md',
 } as const;
 
+const convergencePlanPath = 'docs/active/aionui-mainline-gui-convergence-plan.md';
+
 const expectedStack = [
   {
     id: 'product_definition',
     priority: 1,
-    entry_docs: [
-      foundationDocs.readme,
-      'docs/product/gui/feature-inventory.md',
-    ],
+    entry_docs: [foundationDocs.readme, 'docs/product/gui/feature-inventory.md'],
     contract_refs: [
       'contracts/app-gui-product-contract.json',
       'contracts/app-product-profile.json',
@@ -121,15 +127,11 @@ const expectedStack = [
 ] as const;
 
 function record(value: unknown): JsonRecord {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
-    ? value as JsonRecord
-    : {};
+  return value !== null && typeof value === 'object' && !Array.isArray(value) ? (value as JsonRecord) : {};
 }
 
 function stringArray(value: unknown): string[] {
-  return Array.isArray(value) && value.every((item) => typeof item === 'string')
-    ? value
-    : [];
+  return Array.isArray(value) && value.every((item) => typeof item === 'string') ? value : [];
 }
 
 function sameStrings(actual: unknown, expected: readonly string[]): boolean {
@@ -163,19 +165,142 @@ function readText(root: string, relativePath: string, issues: Set<string>): stri
   return fs.readFileSync(filePath, 'utf8');
 }
 
+function sha256(filePath: string): string {
+  return createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
+}
+
+function isExactIsoTimestamp(value: unknown): value is string {
+  if (typeof value !== 'string') return false;
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) && new Date(timestamp).toISOString() === value;
+}
+
+function hasExactRecord(actual: JsonRecord, expected: JsonRecord): boolean {
+  const actualKeys = Object.keys(actual).sort();
+  const expectedKeys = Object.keys(expected).sort();
+  return JSON.stringify(actualKeys) === JSON.stringify(expectedKeys) && expectedKeys.every((key) => actual[key] === expected[key]);
+}
+
+function validateVisualEvidence(root: string, finalShellSha: string, issues: Set<string>): number {
+  const manifestPath = 'docs/product/gui/evidence/aionui-41301/manifest.json';
+  const manifest = readJson(root, manifestPath, issues);
+  const sourceManifestPath = 'docs/product/gui/evidence/aionui-41301/source-manifest.json';
+  const sourceManifest = readJson(root, sourceManifestPath, issues);
+  const entries = Array.isArray(manifest.entries) ? manifest.entries.map(record) : [];
+  const sourceEntries = Array.isArray(sourceManifest.entries) ? sourceManifest.entries.map(record) : [];
+  const claims = record(manifest.claims);
+  const sourceClaims = record(sourceManifest.claims);
+  const expectedClaims = {
+    route_state_non_empty: true,
+    layout_bounds_checked: true,
+    parity_1_to_1: false,
+    release_ready: false,
+  };
+
+  if (
+    manifest.schema !== 'opl_app_gui_visual_evidence.v1' ||
+    manifest.owner !== 'one-person-lab-app' ||
+    manifest.shell_head !== finalShellSha ||
+    manifest.source_manifest !== sourceManifestPath ||
+    manifest.entry_count !== 8 ||
+    entries.length !== 8 ||
+    typeof manifest.command !== 'string' ||
+    !manifest.command.includes('E2E_PACKAGED=1') ||
+    !hasExactRecord(claims, expectedClaims)
+  ) {
+    issues.add('AionUI 41301 visual evidence manifest must bind eight packaged route/layout entries without parity or release claims');
+  }
+
+  const sourcePath = path.join(root, sourceManifestPath);
+  if (
+    !fs.existsSync(sourcePath) ||
+    manifest.source_manifest_sha256 !== sha256(sourcePath) ||
+    sourceManifest.schema !== 'opl_aionui_gui_route_visual_evidence.v1' ||
+    sourceManifest.shell_head !== finalShellSha ||
+    sourceManifest.command !== manifest.command ||
+    sourceEntries.length !== 8
+  ) {
+    issues.add('AionUI 41301 promoted evidence must preserve the exact source manifest and final Shell binding');
+  }
+
+  if (
+    !isExactIsoTimestamp(manifest.generated_at) ||
+    !isExactIsoTimestamp(sourceManifest.generated_at) ||
+    manifest.generated_at !== sourceManifest.generated_at
+  ) {
+    issues.add('AionUI 41301 promoted and source evidence must share one exact ISO generated_at timestamp');
+  }
+  if (
+    manifest.evidence_scope !== 'route_state_non_empty_and_layout_only' ||
+    sourceManifest.evidence_scope !== manifest.evidence_scope
+  ) {
+    issues.add('AionUI 41301 promoted and source evidence must share the route-state and layout-only evidence_scope');
+  }
+  if (!hasExactRecord(sourceClaims, expectedClaims) || !hasExactRecord(sourceClaims, claims)) {
+    issues.add('AionUI 41301 promoted and source evidence claims must be identical and limited to the governed claim set');
+  }
+
+  const ids = new Set<string>();
+  for (const entry of entries) {
+    const id = typeof entry.id === 'string' ? entry.id : '';
+    const screenshotPath = typeof entry.screenshot_path === 'string' ? entry.screenshot_path : '';
+    const filePath = path.join(root, screenshotPath);
+    if (
+      !id ||
+      ids.has(id) ||
+      !screenshotPath.startsWith('docs/product/gui/evidence/aionui-41301/screenshots/') ||
+      !fs.existsSync(filePath) ||
+      entry.bytes !== fs.statSync(filePath).size ||
+      entry.sha256 !== sha256(filePath)
+    ) {
+      issues.add(
+        `AionUI 41301 visual evidence entry ${id || '<missing>'} must bind a unique promoted screenshot with exact bytes and SHA-256`,
+      );
+    }
+    ids.add(id);
+  }
+
+  const promotedEntryIds = entries.map((entry) => entry.id);
+  const sourceEntryIds = sourceEntries.map((entry) => entry.id);
+  if (JSON.stringify(promotedEntryIds) !== JSON.stringify(sourceEntryIds)) {
+    issues.add('AionUI 41301 promoted and source evidence must preserve the same ordered entry ID set');
+  }
+
+  for (const entry of sourceEntries) {
+    const anchors = Array.isArray(entry.anchors) ? entry.anchors.map(record) : [];
+    const layoutChecks = Array.isArray(entry.layout_checks) ? entry.layout_checks.map(record) : [];
+    const coverageGaps = Array.isArray(entry.coverage_gaps) ? entry.coverage_gaps : [];
+    if (
+      entry.shell_head !== finalShellSha ||
+      anchors.length === 0 ||
+      anchors.some((anchor) => anchor.matched !== true) ||
+      layoutChecks.length === 0 ||
+      layoutChecks.some((check) => check.passed !== true) ||
+      coverageGaps.length !== 0
+    ) {
+      issues.add(`AionUI 41301 source evidence entry ${String(entry.id)} must pass every anchor/layout check with no declared gap`);
+    }
+  }
+
+  return entries.length;
+}
+
 function requireMarker(text: string, marker: string, label: string, issues: Set<string>): void {
   if (!text.includes(marker)) issues.add(`${label} must include ${marker}`);
 }
 
 function requireExactMarkerLine(text: string, marker: string, label: string, issues: Set<string>): void {
-  const present = text.split(/\r?\n/).some((line) => line.trim()
-    .replace(/^-\s+/, '')
-    .replace(/^`|`$/g, '') === marker);
+  const present = text.split(/\r?\n/).some((line) => line.trim().replace(/^-\s+/, '').replace(/^`|`$/g, '') === marker);
   if (!present) issues.add(`${label} must include exact marker ${marker}`);
 }
 
 function markdownCells(line: string): string[] {
-  return line.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map((cell) => cell.trim());
+  return line
+    .trim()
+    .replace(/^\|/, '')
+    .replace(/\|$/, '')
+    .split('|')
+    .map((cell) => cell.trim());
 }
 
 function requireCellStatus(
@@ -242,12 +367,7 @@ function matrixRow(text: string, requirement: string): string[] | null {
   return null;
 }
 
-function requireAionuiContractStatus(
-  text: string,
-  requirement: string,
-  expected: ContractConformanceStatus,
-  issues: Set<string>,
-): void {
+function requireAionuiContractStatus(text: string, requirement: string, expected: ContractConformanceStatus, issues: Set<string>): void {
   const row = matrixRow(text, requirement);
   if (!row) {
     issues.add(`shell conformance matrix must include current AionUI contract row "${requirement}"`);
@@ -270,7 +390,9 @@ function validateAionuiSnapshot(root: string, text: string, issues: Set<string>)
   const shellRoot = path.join(root, 'shells', 'aionui');
   if (!fs.existsSync(shellRoot)) return;
   try {
-    const currentHead = execFileSync('git', ['-C', shellRoot, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+    const currentHead = execFileSync('git', ['-C', shellRoot, 'rev-parse', 'HEAD'], {
+      encoding: 'utf8',
+    }).trim();
     if (match[1] !== currentHead) {
       issues.add(`shell conformance matrix AionUI snapshot must match current shell HEAD ${currentHead}`);
     }
@@ -321,7 +443,12 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
       if (!fs.existsSync(path.join(root, relativePath))) issues.add(`missing ${relativePath}`);
     }
   });
-  if (!sameStrings(governance.priority_order, expectedStack.map((layer) => layer.id))) {
+  if (
+    !sameStrings(
+      governance.priority_order,
+      expectedStack.map((layer) => layer.id),
+    )
+  ) {
     issues.add('design_system_governance.priority_order must follow product, visual, then shell conformance');
   }
   if (governance.shell_authority !== 'implementation_only_cannot_redefine_product') {
@@ -382,35 +509,19 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
 
   const governedDocPaths = [...new Set(expectedStack.flatMap((layer) => layer.entry_docs))];
   const governedDocsPresent = governedDocPaths.every((relativePath) => fs.existsSync(path.join(root, relativePath)));
-  const governedText = governedDocPaths
-    .map((relativePath) => readText(root, relativePath, issues))
-    .join('\n');
+  const governedText = governedDocPaths.map((relativePath) => readText(root, relativePath, issues)).join('\n');
   const foundationReadme = readText(root, foundationDocs.readme, issues);
   const conformanceMatrix = readText(root, foundationDocs.shell_conformance_matrix, issues);
+  const convergencePlan = readText(root, convergencePlanPath, issues);
   const conformanceRowsValidated = validateConformanceMatrix(conformanceMatrix, issues);
   validateAionuiSnapshot(root, conformanceMatrix, issues);
   if (governedDocsPresent) {
     for (const layer of expectedStack) {
-      requireExactMarkerLine(
-        foundationReadme,
-        `${layer.id}=${layer.entry_docs.join(',')}`,
-        foundationDocs.readme,
-        issues,
-      );
+      requireExactMarkerLine(foundationReadme, `${layer.id}=${layer.entry_docs.join(',')}`, foundationDocs.readme, issues);
     }
-    requireExactMarkerLine(
-      foundationReadme,
-      `entry_docs=${governedDocPaths.join(',')}`,
-      foundationDocs.readme,
-      issues,
-    );
+    requireExactMarkerLine(foundationReadme, `entry_docs=${governedDocPaths.join(',')}`, foundationDocs.readme, issues);
     const contractRefs = [...new Set(expectedStack.flatMap((layer) => layer.contract_refs))];
-    requireExactMarkerLine(
-      foundationReadme,
-      `contract_refs=${contractRefs.join(',')}`,
-      foundationDocs.readme,
-      issues,
-    );
+    requireExactMarkerLine(foundationReadme, `contract_refs=${contractRefs.join(',')}`, foundationDocs.readme, issues);
     requireMarker(foundationReadme, shellAuthorityMarker, foundationDocs.readme, issues);
     for (const marker of [
       `current_interaction_reference=${codexReference}`,
@@ -449,17 +560,21 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     ? interactionBaseline.superseded_observations.map(record)
     : [];
   for (const build of ['26.707.31428', '26.707.31123']) {
-    if (!supersededObservations.some((observation) => (
-      observation.product === 'ChatGPT Codex macOS' &&
-      observation.build === build &&
-      observation.observed_on === '2026-07-10' &&
-      observation.status === 'superseded_observation_only'
-    ))) {
+    if (
+      !supersededObservations.some(
+        (observation) =>
+          observation.product === 'ChatGPT Codex macOS' &&
+          observation.build === build &&
+          observation.observed_on === '2026-07-10' &&
+          observation.status === 'superseded_observation_only',
+      )
+    ) {
       issues.add(`interaction_baseline must retain ${build} only as a superseded observation`);
     }
   }
 
   const acceptanceBoundary = record(interactionBaseline.acceptance_boundary);
+  const finalShellSha = typeof acceptanceBoundary.final_shell_sha === 'string' ? acceptanceBoundary.final_shell_sha : '';
   if (
     acceptanceBoundary.human_target_owner !== 'one-person-lab-app' ||
     acceptanceBoundary.active_shell !== 'aionui' ||
@@ -467,17 +582,42 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     acceptanceBoundary.docs_or_contract_imply_source_complete !== false ||
     acceptanceBoundary.docs_or_contract_imply_pixel_complete !== false ||
     acceptanceBoundary.docs_or_contract_imply_release_ready !== false ||
-    acceptanceBoundary.authority_status !== 'authority_candidate_pending_root_absorption' ||
-    acceptanceBoundary.shell_implementation_status !== 'implementation_candidate_final_sha_pending' ||
-    acceptanceBoundary.source_evidence_status !== 'focused_candidate_evidence_only' ||
-    acceptanceBoundary.pixel_evidence_status !== 'not_complete' ||
-    acceptanceBoundary.release_evidence_status !== 'not_complete' ||
-    acceptanceBoundary.final_shell_sha !== null ||
-    acceptanceBoundary.final_shell_sha_binding_status !== 'pending_root_binding' ||
+    acceptanceBoundary.authority_status !== 'active_mainline_authority' ||
+    acceptanceBoundary.shell_implementation_status !== 'final_shell_sha_bound_and_verified' ||
+    acceptanceBoundary.source_evidence_status !== 'full_shell_and_app_gates_passed' ||
+    acceptanceBoundary.pixel_evidence_status !== 'packaged_route_visual_matrix_verified' ||
+    acceptanceBoundary.release_evidence_status !== 'local_packaged_visual_evidence_complete_release_not_claimed' ||
+    !/^[0-9a-f]{40}$/.test(finalShellSha) ||
+    acceptanceBoundary.final_shell_sha_binding_status !== 'bound_to_clean_verified_shell' ||
+    acceptanceBoundary.source_evidence_ref !== `opl-aion-shell@${finalShellSha}` ||
+    acceptanceBoundary.pixel_evidence_ref !== 'docs/product/gui/evidence/aionui-41301/manifest.json' ||
+    acceptanceBoundary.pixel_evidence_entry_count !== 8 ||
     acceptanceBoundary.final_shell_sha_must_not_be_inferred_from_worktree_head !== true
   ) {
     issues.add('interaction baseline must keep the human target separate from source, pixel, and release completion');
   }
+  if (!/^State: `(release_closeout_in_progress|complete)`$/m.test(convergencePlan)) {
+    issues.add('AionUI mainline convergence plan must be in release_closeout_in_progress or complete state');
+  }
+  if (!convergencePlan.includes(finalShellSha)) {
+    issues.add('AionUI mainline convergence plan must bind the App-owned final Shell SHA');
+  }
+  for (const staleMarker of [
+    '5204a68d41d799287a4567e61897df3c25345dc4',
+    'Machine interaction target | 仍有 `26.707.31428` legacy markers',
+    'P0 authority sync 未完成',
+    '最多四个 starter',
+  ]) {
+    if (convergencePlan.includes(staleMarker)) {
+      issues.add(`AionUI mainline convergence plan must not retain stale marker: ${staleMarker}`);
+    }
+  }
+  requireExactMarkerLine(foundationReadme, `active_aionui.final_shell_sha=${finalShellSha}`, foundationDocs.readme, issues);
+  const matrixSnapshot = conformanceMatrix.match(/AionUI source snapshot：`opl-aion-shell@([0-9a-f]{40})`/);
+  if (matrixSnapshot?.[1] !== finalShellSha) {
+    issues.add('shell conformance matrix AionUI snapshot must match the App-bound final_shell_sha');
+  }
+  const visualEvidenceEntries = validateVisualEvidence(root, finalShellSha, issues);
 
   const literalObservation = record(interactionBaseline.literal_observation);
   const featurePreservation = record(interactionBaseline.feature_preservation_policy);
@@ -609,8 +749,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     composerTarget.placement !== 'floating_bottom_with_safe_inset' ||
     !sameStrings(composerTarget.persistent_context, ['active_capability']) ||
     !sameStrings(composerTarget.send_scoped_inputs, ['attachments', 'project_refs']) ||
-    composerTarget.send_scoped_consumption_policy !==
-      'consumed_by_current_send_not_persisted_in_context_strip' ||
+    composerTarget.send_scoped_consumption_policy !== 'consumed_by_current_send_not_persisted_in_context_strip' ||
     !sameStrings(composerTarget.forbidden_persistent_context, [
       'project',
       'workspace',
@@ -619,12 +758,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
       'attachments',
       'project_refs',
     ]) ||
-    !sameStrings(composerTarget.desktop_action_row, [
-      'attach',
-      'permission_access_mode',
-      'model_reasoning',
-      'send_stop',
-    ]) ||
+    !sameStrings(composerTarget.desktop_action_row, ['attach', 'permission_access_mode', 'model_reasoning', 'send_stop']) ||
     !sameStrings(mobileActionSheet.allowed_actions, [
       'attach',
       'project_refs',
@@ -632,13 +766,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
       'model_reasoning',
       'active_capability',
     ]) ||
-    !sameStrings(mobileActionSheet.forbidden_actions, [
-      'backend',
-      'provider',
-      'team',
-      'raw_mcp',
-      'arbitrary_skills',
-    ]) ||
+    !sameStrings(mobileActionSheet.forbidden_actions, ['backend', 'provider', 'team', 'raw_mcp', 'arbitrary_skills']) ||
     mobileActionSheet.send_stop_location !== 'composer_primary_action_outside_sheet' ||
     composerTarget.model_reasoning_control !== 'single_compact_menu' ||
     !sameStrings(permissionTarget.visible_on, ['home_composer', 'conversation_composer']) ||
@@ -710,10 +838,11 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     pageStateBoundary.contract_target_implies_source_complete !== false ||
     pageStateBoundary.contract_target_implies_pixel_complete !== false ||
     pageStateBoundary.contract_target_implies_release_complete !== false ||
-    pageStateBoundary.authority_status !== 'authority_candidate_pending_root_absorption' ||
-    pageStateBoundary.shell_implementation_status !== 'implementation_candidate_final_sha_pending' ||
-    pageStateBoundary.final_shell_sha !== null ||
-    pageStateBoundary.final_shell_sha_binding_status !== 'pending_root_binding'
+    pageStateBoundary.authority_status !== 'active_mainline_authority' ||
+    pageStateBoundary.shell_implementation_status !== 'final_shell_sha_bound_and_verified' ||
+    pageStateBoundary.final_shell_sha !== finalShellSha ||
+    pageStateBoundary.final_shell_sha_binding_status !== 'bound_to_clean_verified_shell' ||
+    pageStateBoundary.pixel_evidence_ref !== 'docs/product/gui/evidence/aionui-41301/manifest.json'
   ) {
     issues.add('page-state acceptance boundary must keep human target separate from source and pixel completion');
   }
@@ -762,18 +891,14 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   if (JSON.stringify(Object.keys(activeAionui).sort()) !== JSON.stringify(['conformance_policy', 'source'])) {
     issues.add('active AionUI governance must store only source and conformance_policy');
   }
-  const railMatchesIdeal = activeRailState === (
-    idealTarget.workspace_session_rail_default_visible
-      ? 'visible_wide_drawer_narrow'
-      : 'collapsed'
-  );
+  const railMatchesIdeal =
+    activeRailState === (idealTarget.workspace_session_rail_default_visible ? 'visible_wide_drawer_narrow' : 'collapsed');
   const inspectorMatchesIdeal = activeInspectorState === (idealTarget.inspector_default_visible ? 'visible' : 'collapsed');
-  const permissionAccessModeMatchesIdeal = (
+  const permissionAccessModeMatchesIdeal =
     profileHome.permission_mode_selector_visible === true &&
     profileHome.conversation_permission_mode_selector_visible === true &&
-    activeConversation.permission_mode_selector_visible === true
-  );
-  const sidePanelInformationArchitectureMatchesIdeal = (
+    activeConversation.permission_mode_selector_visible === true;
+  const sidePanelInformationArchitectureMatchesIdeal =
     activeInspector.surface_kind === 'on_demand_workspace_surface' &&
     activeInspector.default_third_column_visible === false &&
     record(activeInspector.workspace_surface).id === 'files_changes' &&
@@ -785,14 +910,8 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     activeInspector.runtime_duplicate_allowed === false &&
     !('primary_tools' in activeInspector) &&
     !('secondary_sections' in activeInspector) &&
-    !('tabs' in activeInspector)
-  );
-  requireAionuiContractStatus(
-    conformanceMatrix,
-    '宽桌面 rail 默认展开且 `280-340px` 可调',
-    conformanceStatus(railMatchesIdeal),
-    issues,
-  );
+    !('tabs' in activeInspector);
+  requireAionuiContractStatus(conformanceMatrix, '宽桌面 rail 默认展开且 `280-340px` 可调', conformanceStatus(railMatchesIdeal), issues);
   requireAionuiContractStatus(
     conformanceMatrix,
     'Permission/access mode 在 composer 可见且不用 backend/provider 术语',
@@ -801,16 +920,11 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   );
   const codex = record(profile.codex);
   const defaultModel = typeof codex.default_model === 'string' ? codex.default_model : '';
-  const defaultReasoningEffort = typeof codex.default_reasoning_effort === 'string'
-    ? codex.default_reasoning_effort
-    : '';
+  const defaultReasoningEffort = typeof codex.default_reasoning_effort === 'string' ? codex.default_reasoning_effort : '';
   if (!defaultModel || !defaultReasoningEffort) {
     issues.add('app-product-profile Codex defaults must be non-empty strings');
   }
-  if (
-    nativeVisualContract.default_model !== defaultModel ||
-    nativeVisualContract.default_reasoning_effort !== defaultReasoningEffort
-  ) {
+  if (nativeVisualContract.default_model !== defaultModel || nativeVisualContract.default_reasoning_effort !== defaultReasoningEffort) {
     issues.add('native candidate model defaults must derive from app-product-profile');
   }
   const mentionedModels = new Set((governedText.match(/\bgpt-[a-z0-9.-]+\b/gi) ?? []).map((value) => value.toLowerCase()));
@@ -829,9 +943,8 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   }
 
   const codexGovernance = record(governance.codex_reference);
-  const nativeCandidateReference = typeof nativeVisualContract.comparison_baseline === 'string'
-    ? nativeVisualContract.comparison_baseline
-    : '';
+  const nativeCandidateReference =
+    typeof nativeVisualContract.comparison_baseline === 'string' ? nativeVisualContract.comparison_baseline : '';
   if (![codexReference, ...supersededCodexReferences].includes(String(codexGovernance.comparison_baseline))) {
     issues.add(`candidate registry Codex comparison baseline must be current or a declared superseded observation`);
   }
@@ -866,7 +979,10 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   if (scripts['validate:gui-design-system'] !== 'node --experimental-strip-types scripts/validate-gui-design-system.ts') {
     issues.add('package.json must expose validate:gui-design-system');
   }
-  if (typeof scripts['validate:shell-convergence'] !== 'string' || !scripts['validate:shell-convergence'].includes('npm run validate:gui-design-system')) {
+  if (
+    typeof scripts['validate:shell-convergence'] !== 'string' ||
+    !scripts['validate:shell-convergence'].includes('npm run validate:gui-design-system')
+  ) {
     issues.add('validate:shell-convergence must include validate:gui-design-system');
   }
 
@@ -916,6 +1032,12 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
       rows_validated: conformanceRowsValidated,
       status_axes: ['contract_status', 'source_status', 'pixel_status'],
       pixel_verified_implies_visual_parity: false,
+    },
+    visual_evidence: {
+      manifest: 'docs/product/gui/evidence/aionui-41301/manifest.json',
+      shell_head: finalShellSha,
+      entries_verified: visualEvidenceEntries as 8,
+      packaged_command: true,
     },
     release_ready: false,
   };

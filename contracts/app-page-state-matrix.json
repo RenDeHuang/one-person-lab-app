@@ -10,10 +10,11 @@
     "contract_target_implies_source_complete": false,
     "contract_target_implies_pixel_complete": false,
     "contract_target_implies_release_complete": false,
-    "authority_status": "authority_candidate_pending_root_absorption",
-    "shell_implementation_status": "implementation_candidate_final_sha_pending",
-    "final_shell_sha": null,
-    "final_shell_sha_binding_status": "pending_root_binding"
+    "authority_status": "active_mainline_authority",
+    "shell_implementation_status": "final_shell_sha_bound_and_verified",
+    "final_shell_sha": "30f5457d1adde4c4535fbe216d4aacd8a180a868",
+    "final_shell_sha_binding_status": "bound_to_clean_verified_shell",
+    "pixel_evidence_ref": "docs/product/gui/evidence/aionui-41301/manifest.json"
   },
   "active_shell": "aionui",
   "shell_root": "shells/aionui",

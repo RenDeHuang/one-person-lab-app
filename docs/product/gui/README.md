@@ -31,10 +31,12 @@ OPL project context、capabilities、progress、evidence、artifacts 与 safe ac
 嵌入这些稳定位置，不得把 Home 改造成 dashboard、launcher 或 card wall。
 
 当前人读观察基准是本机 ChatGPT macOS `26.707.41301`（观察于 `2026-07-11`）。
-App machine authority 已在本 lane 升为 baseline schema v2；在 root 吸收前状态为
-`authority_candidate_pending_root_absorption`。AionUI 已有对应 implementation candidate，
-但 final Shell SHA 尚未绑定，当前不得宣称 source cohort、pixel parity 或 release complete。
-`26.707.31428` 与 `26.707.31123` 只作为 superseded observations 保留。
+App machine authority 已升为 baseline schema v2；AionUI implementation、generated profile、
+完整 Node/DOM/TypeScript/format/i18n、App active-shell/release-boundary 与 packaged 8 场景
+visual matrix 已绑定 Shell final integration candidate `30f5457d1adde4c4535fbe216d4aacd8a180a868`。
+这些证据证明当前 source cohort 与指定 route/layout 状态，不证明 1:1 pixel parity、公开
+release-ready 或远端 currentness。`26.707.31428` 与 `26.707.31123` 只作为 superseded
+observations 保留。
 
 ## 三层与文件归属
 
@@ -72,9 +74,9 @@ Conformance 必须按 `contract_status`、`source_status`、`pixel_status` 三�
 `pixel_verified` 只证明存在当前像素证据，不等于视觉对齐或 release-ready。
 
 证据分层固定为：`docs` 解释意图，`contract` 决定 machine acceptance，`source/tests`
-证明 implementation candidate，`pixel` 证明指定 cohort 的可见结果，`release` 证明最终
-package/user path。当前只允许前两层形成 authority candidate、第三层形成 implementation
-candidate；final Shell SHA、pixel matrix 与 release cohort 均待 root 后续绑定。
+证明 implementation，`pixel` 证明指定 cohort 的可见结果，`release` 证明最终
+package/user path。当前 contract/source 与 packaged route visual evidence 已绑定；公开发布、
+远端 currentness 与 owner promotion 仍必须由 release authority 独立证明。
 
 ## 治理标记（供 validator 读取）
 
@@ -92,7 +94,7 @@ candidate；final Shell SHA、pixel matrix 与 release cohort 均待 root 后续
 - `superseded_interaction_observations=ChatGPT Codex macOS 26.707.31428 (2026-07-10),ChatGPT Codex macOS 26.707.31123 (2026-07-10)`
 - `human_target.owner=one-person-lab-app`
 - `active_aionui.role=current_implementation_conformance_only`
-- `active_aionui.final_shell_sha=pending_root_binding`
+- `active_aionui.final_shell_sha=30f5457d1adde4c4535fbe216d4aacd8a180a868`
 - `docs_or_contract_imply_source_complete=false`
 - `docs_or_contract_imply_pixel_complete=false`
 - `ideal_target.permission_access_mode_visible=true`

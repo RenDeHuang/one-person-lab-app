@@ -35,9 +35,9 @@ Machine boundary: 本文是 shell-neutral 的人读交互目标。机器可读�
 7. **Authority aware。** UI 展示 state/action/domain/release refs，但不推断或接管
    owner truth。
 
-没有明确 OPL delta 的主流程默认继承
+没有明确 OPL delta 的主流程默认采用 OPL contracts 对
 [`codex-to-opl-app-delta.md`](codex-to-opl-app-delta.md) 记录的
-ChatGPT `26.707.41301` 空间关系和交互位置。Shell 不能因为已有组件更方便，就把模型移到
+ChatGPT `26.707.41301` reference 所做的 composition 翻译。Shell 不能因为已有组件更方便，就把模型移到
 header、隐藏 project rail、默认打开 inspector，或用 Settings/card layout 重新定义 Home。
 
 ## 默认桌面状态
@@ -48,8 +48,9 @@ header、隐藏 project rail、默认打开 inspector，或用 Settings/card lay
   conversations。
 - 主区域是一条 conversation timeline；空 conversation 仍使用同一工作画布。
 - Composer 浮于主区底部并保留安全距，可直接输入多行任务。
-- Project/local/branch context、active capability chip、模型/推理和 permission/access
-  mode 位于 composer 附近并保持辅助权重；access mode 使用自动化与文件权限的用户语言。
+- Project identity 与 project context management 位于 rail；locality/branch 位于 Environment。
+  Composer 只保留 active capability、send-scoped attachments/project refs、模型/推理和
+  permission/access mode；access mode 使用自动化与文件权限的用户语言。
 - 右上 Environment details 默认关闭；bottom panel、file tree、Terminal、Browser 和
   独立 artifact preview 也默认关闭。
 - 不显示解释性 landing、marketing hero、activity grid、continue-work dashboard、
@@ -71,8 +72,8 @@ header、隐藏 project rail、默认打开 inspector，或用 Settings/card lay
 5. **观察执行。** Timeline 显示 pending、elapsed time、assistant output、tool/process
    summary、permission/input prompt 和当前 turn result。
 6. **查看上下文与结果。** 需要时打开 Environment floating details 查看 workspace、
-   changes、branch、subagents 和 sources；artifact/evidence 使用次级 section、preview 或
-   conversation disclosure，Terminal/Browser/Files 仅在任务需要时打开。
+   locality、branch、changes、subtasks 和 sources；artifact/evidence 使用次级 section、
+   preview 或 conversation disclosure，Terminal/Browser/Files 从 Environment 或任务需要打开。
 7. **继续或恢复。** Turn 完成后保留 compact receipt/next action；用户可继续提问、
    切换 conversation 或回到 Runtime 处理跨项目工作。
 
@@ -110,7 +111,8 @@ Previous/Next 只在当前可见 ordinary conversations 中移动，不扩张 We
 空 Home 不是 landing page，而是未开始的 conversation：
 
 - 使用动态问题标题，保留 rail、context 和 composer。
-- 最多展示四个轻量 OPL starter，不解释产品功能或堆叠大卡片。
+- 展示所有由安装状态与用户偏好标记为可见的轻量 OPL starter，按稳定配置顺序响应式换行，
+  不静默截断，也不解释产品功能或堆叠大卡片。
 - Starter click-to-start 只准备 route context 与 active capability，不自动执行隐藏 workflow。
 - 无 workspace 时普通文字聊天可发送；附件、文件、Git 与 project actions 显示受限原因。
 - Home 不查询或渲染跨项目 activity、needs-attention、recent refs 或 per-assistant
@@ -139,12 +141,12 @@ Streaming 期间用户始终知道 App 仍在工作。即使已有 tool event，
 Composer 是普通路径唯一主 command surface：
 
 - 文本输入默认可用，支持多行、paste、keyboard shortcuts 和 IME。
-- 41301 human target 不在 composer 常驻重复 project/local/branch：project 由 rail 表达，
+- 由 41301 reference 翻译出的 OPL-owned target 不在 composer 常驻重复 project/local/branch：project 由 rail 表达，
   branch/locality 由 Environment 表达；composer 只保留与下一次发送直接相关的 attachment、
   project context refs 和 active capability。
 - Project Context inputs 以可见 refs 预载，发送前可逐项移除；不允许 hidden prompt injection，
   也不把项目默认 context 与当前 conversation attachments 混为一类。
-- 中层是 textarea；底层 action row 放 attachments/context、permission/access mode、
+- 中层是 textarea；底层 action row 放 attachments/project refs、permission/access mode、
   单一紧凑 model/reasoning menu、可选 voice 和 send/stop。
 - Home 与 ordinary conversation 使用同一 App-owned model control。
 - 模型策略与当前默认值只读取 `contracts/app-product-profile.json`；本文不复制
@@ -174,15 +176,15 @@ Composer 是普通路径唯一主 command surface：
 
 ## Environment Floating Details 与 Advanced Surfaces
 
-Environment details 继承 Codex 的右上 anchored floating surface，默认关闭。首层只显示
-当前 conversation 直接相关的 changes、local、branch、commit/push、compare、subagents
-和 sources；它不是常驻 inspector，也不承载完整 Runtime dashboard。
+Environment details 采用 Codex reference 的右上 anchored floating surface，默认关闭。首层只显示
+当前 conversation 直接相关的 workspace、locality、branch、changes、subtasks 和 sources；
+它不是常驻 inspector，也不承载完整 Runtime dashboard。
 
 OPL 增量按以下顺序进入：
 
 1. 与当前 task 直接相关的 artifact/evidence refs 进入 Environment 次级 section；
 2. 需要阅读的 Markdown/PDF/code/result 在独立 preview 或 conversation disclosure 打开；
-3. Terminal、Browser、Files 等 advanced surfaces 只在任务实际调用时出现；
+3. Terminal、Browser、Files 等 advanced surfaces 只从 Environment 或任务需要打开；
 4. 跨项目 Runtime、Actions、Memory 管理保持独立 route，不并列成九个 tabs。
 
 打开任何 details/preview surface 时：
@@ -282,7 +284,8 @@ First-run 的目标是让用户尽快进入可工作的 App：
 - 宽桌面打开即显示 project/conversation rail、single timeline 和 composer。
 - 窄窗口 rail 可收起并能以 drawer 重新打开。
 - Environment details 默认关闭且 anchored，打开后不破坏 conversation/draft。
-- Home 使用动态问题标题与最多四个 starter，不是 dashboard/landing。
+- Home 使用动态问题标题与全部用户可见 configured starters，不静默截断，也不是
+  dashboard/landing。
 - Project task 与 projectless conversation 均可用；无 workspace 时文字聊天可用且文件能力受限。
 - Composer 只有 textarea、send-local controls 和 bottom action row；purpose 不再常驻可变
   selector，project/local/branch 不与 rail/Environment 重复。
@@ -290,7 +293,7 @@ First-run 的目标是让用户尽快进入可工作的 App：
 - Model/reasoning 及当前默认值来自 App product profile。
 - Current-task summary bar 可 pin，并包含 status/elapsed/progress/next action/stop。
 - Rail/Archived/conversation management 与 desktop affordances 完整可达。
-- Environment 首层保持 changes/local/branch/subagents/sources；OPL artifact/evidence 为
+- Environment 首层保持 workspace/locality/branch/changes/subtasks/sources；OPL artifact/evidence 为
   次级 section/preview，advanced tools 默认关闭。
 - Settings 使用 full-window shell，OPL IA、first-run、品牌和双语边界保持不变。
 - Pending、elapsed、tool/process、permission、failure 和 receipt 在 turn 中可理解。

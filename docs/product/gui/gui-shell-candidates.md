@@ -30,10 +30,12 @@ The governance entry is `docs/product/gui/README.md`. It routes
 the three-layer definition stack and the four foundation documents:
 
 - Product definition: `docs/product/gui/README.md`,
-  `docs/product/gui/ideal-interaction-spec.md`,
-  `docs/product/gui/codex-to-opl-app-delta.md`,
   `docs/product/gui/feature-inventory.md`, and App contracts.
-- Visual system: `docs/product/gui/visual-system.md`.
+- Visual and ideal interaction system:
+  `docs/product/gui/ideal-interaction-spec.md`,
+  `docs/product/gui/visual-system.md`,
+  `docs/product/gui/codex-to-opl-app-delta.md`, and
+  `docs/product/gui/element-audit.md`.
 - Shell implementation and conformance:
   `docs/product/gui/shell-implementation-guide.md` and
   `docs/product/gui/shell-conformance-matrix.md`.
@@ -45,8 +47,8 @@ implements the higher layers and records deviations, but cannot reverse-define
 the product from renderer code, screenshots, upstream defaults, or visual QA.
 
 The current visual and interaction reference is ChatGPT Codex macOS
-`26.707.31428` observed on `2026-07-10`. Build `26.707.31123` is retained only
-as a superseded same-day observation. The ideal/native target keeps the
+`26.707.41301` observed on `2026-07-11`. Builds `26.707.31428` and
+`26.707.31123` are retained only as superseded observations. The ideal/native target keeps the
 desktop workspace/session rail visible and the inspector closed by default.
 The conformance matrix reads active AionUI state from
 `contracts/app-product-profile.json#gui.home.home_layout`, compares it with the
