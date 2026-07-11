@@ -30,7 +30,7 @@ Machine boundary: 本文是 AionUI 主线 GUI 的执行计划与当前差距 rea
 
 | Surface | 当前事实 | 规划含义 |
 | --- | --- | --- |
-| App local main | `ed72e6644fd2f9453b959653d59be500b8338400`；相对 `origin/main@3681950d1866334dac04b973cdb03fd43c9cdb20` ahead 2 | 当前 Settings authority 基础，仍等待四类表面 lane 完成。 |
+| App pre-plan authority base | `ed72e6644fd2f9453b959653d59be500b8338400`；当时相对 `origin/main@3681950d1866334dac04b973cdb03fd43c9cdb20` ahead 2 | 本文自身落地会继续推进 App main；Settings lane 仍以该 authority base 开始，最终 integration 必须重基到届时 main。 |
 | Shell local main | `5204a68d41d799287a4567e61897df3c25345dc4`；相对 `gh-https/main@d981101b31c2534fe23c439fd0be0c0be2fb22b2` ahead 1 | Settings 仍有并行未提交写集，不是最终 core-GUI integration base。 |
 | AionUI upstream | `0a903d835948fea6d2717a2cb93f85ed82f95245`，upstream `2.1.32` | 只做逐能力 intake，不整体 merge。 |
 | Shell package/runtime | package `2.1.17`，AionCore pin `v0.1.44` | 版本号和 runtime intake 独立于 GUI 对齐。 |
