@@ -271,6 +271,10 @@ export type AppProductProfile = {
     default_reasoning_effort: string;
     auto_model_policy: {
       authority: string;
+      configured_default: {
+        model: string;
+        reasoning_effort: string;
+      };
       mode_default: string;
       model_catalog_source: string;
       catalog_response_models_field: string;

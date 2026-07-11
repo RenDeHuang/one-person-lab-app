@@ -360,6 +360,15 @@ function assertCodexAutoModelPolicy(
   profile: ProductProfileLike,
   label: string,
 ): void {
+  const configuredDefault = policy?.configured_default as Record<string, unknown> | undefined;
+  if (
+    typeof configuredDefault?.model !== 'string' ||
+    !configuredDefault.model.trim() ||
+    typeof configuredDefault?.reasoning_effort !== 'string' ||
+    !configuredDefault.reasoning_effort.trim()
+  ) {
+    throw new Error(`${label} Codex Auto model policy must define one configured default model and reasoning effort`);
+  }
   assertExpectedFields(
     [
       { actual: policy?.authority, expected: 'one-person-lab-app' },
@@ -382,16 +391,18 @@ function assertCodexAutoModelPolicy(
     ],
     `${label} Codex Auto model policy must follow the Codex CLI catalog`,
   );
+  const visibleModelIds = profile.gui?.home?.codex_model_display_options?.visible_models?.map((model) => model.id);
   assertExactStringArray(
     policy?.frontier_model_preference_order,
-    expectedCodexVisibleModels.map((model) => model.id),
+    visibleModelIds as string[],
     `${label} Codex known model preference order`,
   );
-  if (JSON.stringify(policy?.known_model_reasoning_effort_overrides) !== JSON.stringify({ 'gpt-5.6-sol': 'max' })) {
-    throw new Error(`${label} Codex known model reasoning override must keep gpt-5.6-sol at max`);
+  const overrides = policy?.known_model_reasoning_effort_overrides as Record<string, unknown> | undefined;
+  if (overrides?.[configuredDefault.model] !== configuredDefault.reasoning_effort) {
+    throw new Error(`${label} Codex configured default reasoning must project into known model overrides`);
   }
-  if (JSON.stringify(policy?.catalog_unavailable_fallback) !== JSON.stringify({ model: 'gpt-5.6-sol', reasoning_effort: 'max' })) {
-    throw new Error(`${label} Codex catalog fallback must be gpt-5.6-sol with max reasoning`);
+  if (JSON.stringify(policy?.catalog_unavailable_fallback) !== JSON.stringify(configuredDefault)) {
+    throw new Error(`${label} Codex catalog fallback must derive from the configured default`);
   }
   if (JSON.stringify(policy?.persistence_policy) !== JSON.stringify({
     auto: 'persist_auto_mode_only_resolve_model_and_reasoning_from_fresh_catalog',
@@ -479,15 +490,14 @@ function assertReasoningOptions(
   profile: ProductProfileLike,
   label: string,
 ): void {
-  const expectedOptions = ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'];
   const options = displayOptions?.user_reasoning_effort_options;
-  if (JSON.stringify(options) !== JSON.stringify(expectedOptions)) {
-    throw new Error(`${label} Codex reasoning effort options must be ${JSON.stringify(expectedOptions)}`);
+  if (!Array.isArray(options) || !options.every((effort) => typeof effort === 'string' && effort.trim())) {
+    throw new Error(`${label} Codex reasoning effort options must be non-empty strings`);
   }
-  if (profile.codex?.default_reasoning_effort !== 'max') {
-    throw new Error(`${label} Codex default reasoning effort must be max`);
+  if (!options.includes(profile.codex?.default_reasoning_effort)) {
+    throw new Error(`${label} Codex reasoning effort options must include the configured default`);
   }
-  for (const effort of expectedOptions) {
+  for (const effort of Object.keys(expectedReasoningLabels)) {
     const labels = displayOptions?.reasoning_labels?.[effort];
     const expectedLabels = expectedReasoningLabels[effort as keyof typeof expectedReasoningLabels];
     if (labels?.zh !== expectedLabels.zh || labels?.en !== expectedLabels.en) {
@@ -521,13 +531,11 @@ function assertVisibleCodexModelsUseFriendlyDefaults(
   visibleModels: NonNullable<CodexModelDisplayOptionsLike['visible_models']>,
   label: string,
 ): void {
-  const normalizedModels = visibleModels.map((model) => ({
-    id: model.id,
-    label_zh: model.label_zh,
-    label_en: model.label_en,
-  }));
-  if (JSON.stringify(normalizedModels) !== JSON.stringify(expectedCodexVisibleModels)) {
-    throw new Error(`${label} GUI home Codex model order and labels must match Codex App`);
+  for (const expected of expectedCodexVisibleModels) {
+    const actual = visibleModels.find((model) => model.id === expected.id);
+    if (actual?.label_zh !== expected.label_zh || actual?.label_en !== expected.label_en) {
+      throw new Error(`${label} GUI home known Codex model ${expected.id} must keep its App label`);
+    }
   }
   for (const model of visibleModels) {
     if (

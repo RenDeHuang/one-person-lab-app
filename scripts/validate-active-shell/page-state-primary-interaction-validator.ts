@@ -63,10 +63,6 @@ function validateGuidHomeViewModelFields(homeViewModel) {
     codex_model_list_visible: true,
     codex_model_policy: 'codex_cli_latest_strongest_model_selector_visible',
     codex_model_auto_option_visible: true,
-    codex_default_model: 'gpt-5.6-sol',
-    codex_default_reasoning_effort: 'max',
-    codex_default_display_label: '5.6 Sol',
-    codex_default_model_display_value: '5.6 Sol',
     conversation_model_status_display_policy:
       'single_model_selector_in_codex_conversation_composer_no_separate_status_pill',
     codex_auto_model_policy_ref: 'contracts/app-product-profile.json#codex.auto_model_policy',
@@ -78,6 +74,16 @@ function validateGuidHomeViewModelFields(homeViewModel) {
     conversation_permission_mode_selector_visible: true,
   };
   assertDeepEqualJson(fieldsFrom(homeViewModel, expectedFields), expectedFields, 'Guid home page view model fields');
+  for (const field of [
+    'codex_default_model',
+    'codex_default_reasoning_effort',
+    'codex_default_display_label',
+    'codex_default_model_display_value',
+  ]) {
+    if (typeof homeViewModel[field] !== 'string' || !homeViewModel[field].trim()) {
+      throw new Error(`Guid home page view model ${field} must be a non-empty App projection`);
+    }
+  }
 }
 
 function validateGuidHomeLayout(homeViewModel) {

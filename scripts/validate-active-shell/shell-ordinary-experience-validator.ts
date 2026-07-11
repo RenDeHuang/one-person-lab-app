@@ -86,15 +86,13 @@ const guidHomeRuntimeForbidden = [
 ];
 
 const productProfileDefaultsExpected = [
-  '"default_model": "gpt-5.6-sol"',
-  '"default_reasoning_effort": "max"',
+  '"configured_default": {',
   '"codex_cli_fixed_executor": true',
   '"home_executor_selector_visible": false',
   '"codex_model_selector_visible": true',
   '"codex_model_list_visible": true',
   '"codex_model_policy": "codex_cli_latest_strongest_model_selector_visible"',
   '"codex_model_auto_option_visible": true',
-  '"codex_default_model": "gpt-5.6-sol"',
   '"codex_home_model_status_label": "5.6 Sol"',
   '"codex_precise_model_display_policy": "friendly_model_primary_reasoning_primary_model_and_intelligence_secondary_menus"',
   '"button_label_policy": "resolved_model_compact_label_with_selected_reasoning_effort_no_auto_prefix"',
@@ -126,8 +124,6 @@ const productProfileDefaultsExpected = [
   '"reasoning_effort_options_source": "acp_codex_config_options_enum"',
   '"label_zh": "自动（推荐）"',
   '"description_zh": "跟随 Codex CLI 当前默认模型与 App 推理策略"',
-  '"catalog_unavailable_fallback_model": "gpt-5.6-sol"',
-  '"catalog_unavailable_fallback_reasoning_effort": "max"',
   '"zh": "推理超高"',
   '"en": "Extra high reasoning"',
   '"zh": "推理极高"',
