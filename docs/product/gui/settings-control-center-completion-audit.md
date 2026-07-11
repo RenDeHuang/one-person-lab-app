@@ -12,10 +12,10 @@ Visual evidence status: current baseline-card active-shell evidence
 Current visual evidence binds to `opl-aion-shell`
 `90a9e692464ac870b464e01080ad25fd71604483` and its
 `tests/e2e/screenshots/settings-control-center-manifest.json`. The manifest was
-generated at `2026-07-11T02:27:19.698Z`, contains 28 desktop/mobile route,
+generated at `2026-07-11T02:37:46.320Z`, contains 28 desktop/mobile route,
 secondary-route, compatibility-route, and interaction-state screenshots, and
 sets `release_readiness_claim` to `false`. Its SHA-256 is
-`d1fc0bf10eabe0cb7e094d0b20a35ce5813def5710c7e48915327b3856315951`.
+`35038208f1d2be9e5b3232870612932da7c312bb625c66ce7007461cacc05057`.
 
 The evidence verifies the remediated bounded-card baseline: one user question
 per page-section card, flat internal rows, a compact return-to-chat/theme
