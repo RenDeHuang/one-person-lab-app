@@ -387,9 +387,9 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   }
   if (
     guiContract.settings_navigation?.legacy_route_redirects?.assistants !==
-    'capabilities?tab=assistants#custom-assistants'
+    'capabilities?tab=skills'
   ) {
-    throw new Error('App GUI legacy assistants route must target the AssistantSettings tab and anchor');
+    throw new Error('App GUI legacy assistants route must target the OPL capability directory');
   }
   assertIncludesAll(
     guiContract.settings_navigation?.ordinary_hidden_upstream_surfaces,
@@ -867,9 +867,9 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     'Settings Agents & Capabilities tab contract',
   );
   assertIncludesAll(
-    pages.settings_capabilities.must_show,
-    ['custom assistants mount AssistantSettings in the third on-demand assistants tab at custom-assistants'],
-    'Settings Agents & Capabilities AssistantSettings surface',
+    pages.settings_capabilities.must_not_show,
+    ['AionUI AssistantSettings or custom assistant catalogs exposed from OPL Settings'],
+    'Settings Agents & Capabilities OPL-only surface',
   );
   if (
     pages.settings_capabilities.builtin_skill_catalog_policy?.allowed_set_ref !==

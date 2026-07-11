@@ -1838,6 +1838,8 @@
       "must_show": [
         "one merged storage category list with size, safety, and next action",
         "user-facing cleanup preview before destructive action",
+        "zero-byte categories show nothing to clean and no action buttons",
+        "one progressive action per category from preview or archive to confirmation",
         "plain-language archive, restore, and cleanup history",
         "Storage placed under OPL Control Center Data & Storage"
       ],
@@ -2495,8 +2497,7 @@
         "provider_source",
         "model",
         "codex_cli",
-        "authentication",
-        "technical_details"
+        "authentication"
       ],
       "state_sections": [
         "core.codex.model_access_ready",
@@ -2515,7 +2516,7 @@
       "must_not_show": [
         "OPL Gateway as a hard-coded provider source",
         "Docker WebUI, OPL Workspace, SSH/HPC, cloud, Fabric, or Console-managed resource cards as Access content",
-        "raw base URL, environment variable, token path, or provider id before technical-details disclosure",
+        "raw base URL, environment variable, token path, or provider id on the ordinary Access surface",
         "backend/provider raw selector as the primary control",
         "repeated access summary lines in normal state",
         "local browser access, WebUI, Workspace, or remote resource entries"
@@ -2530,8 +2531,7 @@
       "required_dom": {
         "always": [
           "settings-page-access",
-          "settings-access-primary",
-          "settings-access-technical-details"
+          "settings-access-primary"
         ],
         "conditional": [
           {
@@ -2557,7 +2557,7 @@
         "access.authentication"
       ],
       "primary_action_id": "configure_model_access",
-      "technical_details_default": "collapsed",
+      "technical_details_default": "not_applicable",
       "exception_emphasis": "attention_only",
       "provider_source": "app_state.core.codex.model_access_source"
     },
@@ -2694,7 +2694,6 @@
         "availability",
         "source",
         "home_visibility",
-        "custom_assistants",
         "package_details",
         "technical_details"
       ],
@@ -2736,19 +2735,9 @@
         "tab_contract": {
           "surface_label_zh": "智能体与能力",
           "surface_label_en": "Agents & Capabilities",
-          "tab_order": ["skills", "tools", "assistants"],
+          "tab_order": ["skills", "tools"],
           "default_tab": "skills",
-          "on_demand_tab_ids": ["assistants"],
-          "assistants": {
-            "tab_id": "assistants",
-            "position": 3,
-            "component_key": "AssistantSettings",
-            "anchor": "custom-assistants",
-            "legacy_route_id": "assistants",
-            "legacy_target": "capabilities?tab=assistants#custom-assistants",
-            "hash_router_target_path": "/settings/capabilities?tab=assistants&section=custom-assistants",
-            "top_level_or_secondary_page_allowed": false
-          }
+          "on_demand_tab_ids": []
         },
         "mental_model": "codex_app_plugin_manager_compact_package_directory",
         "primary_layout": "compact_package_table_or_list_with_right_details_panel",
@@ -2810,8 +2799,7 @@
         "supporting_surfaces": [
           "skills",
           "tools",
-          "external_tools_voice",
-          "custom_assistants"
+          "external_tools_voice"
         ]
       },
       "current_runtime_projection_boundary": {
@@ -3038,7 +3026,7 @@
         "connector, reusable workflow, environment resource, and reproducibility export blocks only when real projection data or action refs exist",
         "package id, Codex-visible entry, receipts, paths, manifest, cache, and marketplace configuration collapsed under Advanced diagnostics",
         "separate availability, source, and Home visibility fields",
-        "custom assistants mount AssistantSettings in the third on-demand assistants tab at custom-assistants",
+        "AionUI custom assistants excluded from the OPL product surface",
         "normal capability rows stay visually quiet"
       ],
       "must_not_show": [
@@ -3060,8 +3048,7 @@
         "未报告 or Not reported placeholders for empty capability detail fields",
         "empty connector, workflow, environment resource, or export-action blocks in default capability details",
         "availability, source, and Home visibility collapsed into one opaque status",
-        "custom assistant entry routed to package update or repair",
-        "custom-assistants as a search-only anchor without mounted AssistantSettings",
+        "AionUI AssistantSettings or custom assistant catalogs exposed from OPL Settings",
         "assistants promoted to a top-level or secondary Settings page"
       ],
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
@@ -3189,14 +3176,12 @@
       "required_anchors": [
         "availability",
         "source",
-        "home-visibility",
-        "custom-assistants"
+        "home-visibility"
       ],
       "search_entry_ids": [
         "capabilities.availability",
         "capabilities.source",
-        "capabilities.home_visibility",
-        "capabilities.custom_assistants"
+        "capabilities.home_visibility"
       ],
       "primary_action_id": "add_capability",
       "technical_details_default": "collapsed",
@@ -3208,12 +3193,12 @@
       "machine_source": "opl app state --profile fast --json",
       "refresh_source": "opl app state --profile fast --json",
       "page_contract": "settings_advanced",
-      "sections": ["working_directories", "technical_details"],
+      "sections": ["working_directories"],
       "state_sections": ["paths"],
       "must_show": [
         "read-only working directories from app_state.paths",
-        "user-facing labels for workspace, logs, runtime, modules, and configuration directories when present",
-        "copy-only technical details disclosure"
+        "user-facing labels and direct open actions for workspace and logs when present",
+        "paths shown once without a duplicate summary or disclosure"
       ],
       "must_not_show": [
         "Developer Mode or Developer Profile controls",
@@ -3231,20 +3216,14 @@
       "required_dom": {
         "always": [
           "settings-page-advanced",
-          "settings-advanced-primary",
-          "settings-advanced-technical-details"
+          "settings-advanced-primary"
         ],
-        "conditional": [
-          {
-            "testid": "settings-advanced-exception",
-            "when": "attention_required"
-          }
-        ]
+        "conditional": []
       },
-      "required_anchors": ["working-directories", "diagnostics"],
-      "search_entry_ids": ["advanced.directories", "advanced.diagnostics"],
+      "required_anchors": ["working-directories"],
+      "search_entry_ids": ["advanced.directories"],
       "primary_action_id": "none",
-      "technical_details_default": "collapsed",
+      "technical_details_default": "not_applicable",
       "exception_emphasis": "attention_only"
     }
   ],

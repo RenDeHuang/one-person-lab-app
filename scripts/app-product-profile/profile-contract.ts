@@ -291,7 +291,7 @@ function assertSettingsProfileShape(profile: AppProductProfile): void {
   );
   assertIncludesAll(
     taskEntryPolicy.p1_entries ?? [],
-    ['remote_access', 'advanced_deployment', 'developer_profile_status', 'external_tools_voice', 'custom_assistants'],
+    ['remote_access', 'advanced_deployment', 'developer_profile_status', 'external_tools_voice'],
     'settings_information_architecture.task_entry_policy.p1_entries',
   );
   assertIncludesAll(

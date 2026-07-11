@@ -104,12 +104,12 @@ function validateCapabilitiesPage(matrix, guiContract) {
   assertDeepEqualJson(
     capabilitiesPage.codex_plugin_directory_target?.tab_contract,
     appOwnedSettingsCapabilitiesTabContract,
-    'Capabilities page AssistantSettings tab contract',
+    'Capabilities page OPL supporting tab contract',
   );
   assertDeepEqualJson(
     guiContract.pages?.settings_capabilities?.codex_plugin_directory_target?.tab_contract,
     appOwnedSettingsCapabilitiesTabContract,
-    'App GUI Capabilities AssistantSettings tab contract',
+    'App GUI Capabilities OPL supporting tab contract',
   );
   if (
     capabilitiesPage.machine_source !==
@@ -151,7 +151,7 @@ function validateCapabilitiesPage(matrix, guiContract) {
       package_identity_fields: ['package_id', 'display_name', 'package_short_name'],
       purpose_role: 'secondary_tag_filter_only',
       home_shortcut_integration: 'inline_visibility_and_order_controls_on_package_rows',
-      supporting_surfaces: ['skills', 'tools', 'external_tools_voice', 'custom_assistants'],
+      supporting_surfaces: ['skills', 'tools', 'external_tools_voice'],
     },
     'Capabilities page package directory policy',
   );
@@ -515,12 +515,15 @@ function validateSettingsPageExperience(matrix) {
   const experience = settingsControlPlane.experience_contract;
   for (const [productPageId, contract] of Object.entries(experience.page_contracts ?? {})) {
     const page = pageById(matrix, contract.matrix_page_id);
+    const expectedTechnicalDetailsDefault = ['access', 'advanced'].includes(productPageId)
+      ? 'not_applicable'
+      : 'collapsed';
     if (
       page.product_page_id !== productPageId ||
       page.experience_contract_ref !==
         `contracts/app-settings-control-plane.json#experience_contract.page_contracts.${productPageId}` ||
       page.primary_action_id !== contract.primary_action.id ||
-      page.technical_details_default !== 'collapsed' ||
+      page.technical_details_default !== expectedTechnicalDetailsDefault ||
       page.exception_emphasis !== 'attention_only'
     ) {
       throw new Error(`${contract.matrix_page_id} must mirror the ${productPageId} experience contract`);

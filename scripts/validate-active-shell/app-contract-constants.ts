@@ -412,7 +412,6 @@ export const appOwnedSettingsTaskEntryIds = [
   "advanced_deployment",
   "developer_profile_status",
   "external_tools_voice",
-  "custom_assistant",
 ];
 export const appOwnedSettingsTaskEntryMetadataFields = [
   "scope",
@@ -448,12 +447,7 @@ export const appOwnedSettingsPageAnchors = {
   overview: ["status", "attention", "next-action", "common-actions"],
   access: ["provider-source", "model", "codex-cli", "authentication"],
   workspace: ["current-workspace", "permissions", "artifacts"],
-  capabilities: [
-    "availability",
-    "source",
-    "home-visibility",
-    "custom-assistants",
-  ],
+  capabilities: ["availability", "source", "home-visibility"],
   resources: [
     "local-browser-access",
     "web-access",
@@ -469,7 +463,7 @@ export const appOwnedSettingsPageAnchors = {
     "cleanup-history",
   ],
   preferences: ["behavior", "notifications", "display-fonts", "themes"],
-  advanced: ["working-directories", "diagnostics"],
+  advanced: ["working-directories"],
   about: ["version", "channel", "updates", "help-feedback"],
 };
 export const appOwnedSettingsPageSearchEntryIds = {
@@ -494,7 +488,6 @@ export const appOwnedSettingsPageSearchEntryIds = {
     "capabilities.availability",
     "capabilities.source",
     "capabilities.home_visibility",
-    "capabilities.custom_assistants",
   ],
   resources: [
     "resources.local_browser_access",
@@ -522,7 +515,7 @@ export const appOwnedSettingsPageSearchEntryIds = {
     "preferences.display_fonts",
     "preferences.themes",
   ],
-  advanced: ["advanced.directories", "advanced.diagnostics"],
+  advanced: ["advanced.directories"],
   about: [
     "about.version",
     "about.channel",
@@ -533,20 +526,9 @@ export const appOwnedSettingsPageSearchEntryIds = {
 export const appOwnedSettingsCapabilitiesTabContract = {
   surface_label_zh: "智能体与能力",
   surface_label_en: "Agents & Capabilities",
-  tab_order: ["skills", "tools", "assistants"],
+  tab_order: ["skills", "tools"],
   default_tab: "skills",
-  on_demand_tab_ids: ["assistants"],
-  assistants: {
-    tab_id: "assistants",
-    position: 3,
-    component_key: "AssistantSettings",
-    anchor: "custom-assistants",
-    legacy_route_id: "assistants",
-    legacy_target: "capabilities?tab=assistants#custom-assistants",
-    hash_router_target_path:
-      "/settings/capabilities?tab=assistants&section=custom-assistants",
-    top_level_or_secondary_page_allowed: false,
-  },
+  on_demand_tab_ids: [],
 };
 export const appOwnedSettingsResourcesBrowserEntry = {
   label_zh: "这台电脑的浏览器访问",
@@ -650,6 +632,8 @@ export const appOwnedSettingsVisualSystem = {
     error: "red",
     action: "brand",
   },
+  object_accent_policy:
+    "use restrained multi-hue navigation icons and card-edge accents to distinguish access, workspace, capabilities, maintenance, and storage without tinting whole pages",
   footer_layout: "compact",
   footer_controls: ["return_to_chat", "theme_switcher"],
   footer_secondary_navigation_allowed: false,
@@ -735,8 +719,6 @@ export const appOwnedSettingsVisualQaTargets = [
   "desktop_settings_maintenance",
   "desktop_settings_storage",
   "desktop_settings_preferences",
-  "mobile_settings_section_nav",
-  "mobile_settings_preferences",
 ];
 export const appOwnedSettingsUpstreamIntakeClassifications = [
   "accepted",
@@ -788,7 +770,7 @@ export const legacySettingsRouteRedirects = {
   system: "advanced",
   model: "environment",
   agent: "capabilities",
-  assistants: "capabilities?tab=assistants#custom-assistants",
+  assistants: "capabilities?tab=skills",
   "skills-hub": "capabilities",
   tools: "capabilities",
   display: "appearance",

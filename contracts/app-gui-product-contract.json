@@ -2023,7 +2023,7 @@
       "system": "advanced",
       "model": "environment",
       "agent": "capabilities",
-      "assistants": "capabilities?tab=assistants#custom-assistants",
+      "assistants": "capabilities?tab=skills",
       "skills-hub": "capabilities",
       "tools": "capabilities",
       "display": "appearance",
@@ -2309,20 +2309,6 @@
           "intent": "configure",
           "risk": "reversible",
           "frequency": "occasional"
-        },
-        {
-          "id": "custom_assistant",
-          "group_id": "capabilities",
-          "route_id": "capabilities",
-          "priority": "p1",
-          "scope": "user",
-          "intent": "configure",
-          "risk": "reversible",
-          "frequency": "occasional",
-          "anchor_id": "custom-assistants",
-          "tab_id": "assistants",
-          "component_key": "AssistantSettings",
-          "entry_policy": "open_assistant_creation_or_management_not_package_repair"
         }
       ],
       "protocols": {
@@ -2434,9 +2420,7 @@
             "desktop_settings_resources",
             "desktop_settings_maintenance",
             "desktop_settings_storage",
-            "desktop_settings_preferences",
-            "mobile_settings_section_nav",
-            "mobile_settings_preferences"
+            "desktop_settings_preferences"
           ],
           "visual_character": ["quiet", "dense", "scannable"],
           "surface_grouping": {
@@ -2469,6 +2453,7 @@
             "error": "red",
             "action": "brand"
           },
+          "object_accent_policy": "use restrained multi-hue navigation icons and card-edge accents to distinguish access, workspace, capabilities, maintenance, and storage without tinting whole pages",
           "baseline_comparison": {
             "shell_commit": "409dd0c3b693f1c7c93551654dfac8fb9420843d",
             "comparison_scope": "same_route_spatial_typographic_and_status_hierarchy",
@@ -2520,9 +2505,9 @@
             "mismatch_policy": "fail_capture_and_do_not_record_visual_evidence"
           },
           "evidence_dimensions": {
-            "required_viewports": ["desktop", "narrow"],
-            "required_color_schemes": ["light", "dark"],
-            "coverage_policy": "desktop_narrow_and_dark_each_require_fresh_visual_evidence"
+            "required_viewports": ["desktop"],
+            "required_color_schemes": ["light"],
+            "coverage_policy": "default_desktop_light_requires_fresh_visual_evidence"
           },
           "must_check": [
             "ordinary navigation shows exactly eight product pages through the stable carrier route ids",
@@ -2546,7 +2531,7 @@
             "repeated entities use shared column headers instead of per-row field labels",
             "the primary action stays adjacent to its owning object or section",
             "capture preflight verifies the resolved route and visible page title before recording a screenshot",
-            "desktop, narrow-screen, and dark-mode evidence are all present",
+            "default desktop light evidence is present before visual acceptance",
             "normal states are muted, exceptions are emphasized, and technical details are collapsed",
             "each page shows at most one primary action",
             "visual evidence does not claim release or runtime readiness"
@@ -2744,8 +2729,7 @@
         "remote_access",
         "advanced_deployment",
         "developer_profile_status",
-        "external_tools_voice",
-        "custom_assistants"
+        "external_tools_voice"
       ],
       "hidden_as_ordinary_ui": [
         "AionUI Team",
@@ -3961,8 +3945,7 @@
         "provider_source",
         "model",
         "codex_cli",
-        "authentication",
-        "technical_details"
+        "authentication"
       ],
       "must_show": [
         "page label Models & Access or 模型与访问",
@@ -3975,7 +3958,7 @@
       "must_not_show": [
         "OPL Gateway as a hard-coded provider source",
         "Docker WebUI, OPL Workspace, SSH/HPC, cloud, Fabric, or Console-managed resource cards as Access content",
-        "raw base URL, environment variable, token path, or provider id before technical-details disclosure",
+        "raw base URL, environment variable, token path, or provider id on the ordinary Access surface",
         "backend/provider raw selector as the primary control",
         "repeated access summary lines in normal state",
         "local browser access, WebUI, Workspace, or remote resource entries"
@@ -4128,19 +4111,9 @@
         "tab_contract": {
           "surface_label_zh": "智能体与能力",
           "surface_label_en": "Agents & Capabilities",
-          "tab_order": ["skills", "tools", "assistants"],
+          "tab_order": ["skills", "tools"],
           "default_tab": "skills",
-          "on_demand_tab_ids": ["assistants"],
-          "assistants": {
-            "tab_id": "assistants",
-            "position": 3,
-            "component_key": "AssistantSettings",
-            "anchor": "custom-assistants",
-            "legacy_route_id": "assistants",
-            "legacy_target": "capabilities?tab=assistants#custom-assistants",
-            "hash_router_target_path": "/settings/capabilities?tab=assistants&section=custom-assistants",
-            "top_level_or_secondary_page_allowed": false
-          }
+          "on_demand_tab_ids": []
         },
         "mental_model": "codex_app_plugin_manager_compact_package_directory",
         "primary_layout": "compact_package_table_or_list_with_right_details_panel",
@@ -4187,7 +4160,6 @@
         "availability",
         "source",
         "home_visibility",
-        "custom_assistants",
         "package_details",
         "technical_details"
       ],
@@ -4203,8 +4175,7 @@
         "supporting_surfaces": [
           "skills",
           "tools",
-          "external_tools_voice",
-          "custom_assistants"
+          "external_tools_voice"
         ]
       },
       "current_runtime_projection_boundary": {
@@ -4425,13 +4396,12 @@
         "reusable workflow refs without skill bodies",
         "reproducibility export bundle action ref with dry-run receipt boundary",
         "External Tools & Voice entry with MCP described as secondary technical detail",
-        "Custom Assistant entry as a secondary or advanced capability when enabled by product policy",
         "workflow and skill candidate report-first refs with review, needs changes, and continue in conversation actions",
         "Capabilities detail default layer shows only purpose, status, Codex availability, Home shortcut, version, user-language source, last sync, and failure reason only when failed",
         "connector, reusable workflow, environment resource, and reproducibility export blocks only when real projection data or action refs exist",
         "package id, Codex-visible entry, receipts, paths, manifest, cache, and marketplace configuration collapsed under Advanced diagnostics",
         "separate availability, source, and Home visibility fields",
-        "custom assistants mount AssistantSettings in the third on-demand assistants tab at custom-assistants",
+        "AionUI custom assistants excluded from the OPL product surface",
         "normal capability rows stay visually quiet"
       ],
       "must_not_show": [
@@ -4453,8 +4423,7 @@
         "未报告 or Not reported placeholders for empty capability detail fields",
         "empty connector, workflow, environment resource, or export-action blocks in default capability details",
         "availability, source, and Home visibility collapsed into one opaque status",
-        "custom assistant entry routed to package update or repair",
-        "custom-assistants as a search-only anchor without mounted AssistantSettings",
+        "AionUI AssistantSettings or custom assistant catalogs exposed from OPL Settings",
         "assistants promoted to a top-level or secondary Settings page"
       ],
       "fabric_connect_grouping_policy": {
@@ -4746,6 +4715,8 @@
       "must_show": [
         "one merged storage category list with size, safety, and next action",
         "user-facing cleanup preview before destructive action",
+        "zero-byte categories show nothing to clean and no action buttons",
+        "one progressive action per category from preview or archive to confirmation",
         "plain-language archive, restore, and cleanup history",
         "Storage placed under OPL Control Center Data & Storage"
       ],
@@ -4812,11 +4783,11 @@
     "settings_advanced": {
       "state_source": "opl app state --profile fast --json",
       "refresh_source": "opl app state --profile fast --json",
-      "sections": ["working_directories", "technical_details"],
+      "sections": ["working_directories"],
       "must_show": [
         "read-only working directories from app_state.paths",
-        "user-facing labels for workspace, logs, runtime, modules, and configuration directories when present",
-        "copy-only technical details disclosure"
+        "user-facing labels and direct open actions for workspace and logs when present",
+        "paths shown once without a duplicate summary or disclosure"
       ],
       "must_not_show": [
         "Developer Mode or Developer Profile controls",

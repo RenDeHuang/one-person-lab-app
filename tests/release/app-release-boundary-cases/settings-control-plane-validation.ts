@@ -77,7 +77,7 @@ test("Settings contract keeps eight product pages, two secondary pages, and anch
   assert.equal(values.controlPlane.legacy_route_redirects.about, undefined);
   assert.equal(
     values.controlPlane.legacy_route_redirects.assistants,
-    "capabilities?tab=assistants#custom-assistants",
+    "capabilities?tab=skills",
   );
 });
 
@@ -105,7 +105,7 @@ test("Settings validator rejects secondary-page and compatibility-route regressi
 
   const assistantsRegression = contracts();
   assistantsRegression.controlPlane.legacy_route_redirects.assistants =
-    "capabilities";
+    "capabilities?tab=assistants#custom-assistants";
   assert.throws(
     () => validate(assistantsRegression),
     /legacy redirects|legacy assistants/,
@@ -193,6 +193,8 @@ test("Settings visual QA enforces bounded-card grouping, compact footer, recogni
       error: "red",
       action: "brand",
     },
+    object_accent_policy:
+      "use restrained multi-hue navigation icons and card-edge accents to distinguish access, workspace, capabilities, maintenance, and storage without tinting whole pages",
     footer_layout: "compact",
     footer_controls: ["return_to_chat", "theme_switcher"],
     footer_secondary_navigation_allowed: false,
@@ -250,11 +252,9 @@ test("Settings visual QA enforces bounded-card grouping, compact footer, recogni
   });
   assert.deepStrictEqual(visualQa.evidence_dimensions.required_viewports, [
     "desktop",
-    "narrow",
   ]);
   assert.deepStrictEqual(visualQa.evidence_dimensions.required_color_schemes, [
     "light",
-    "dark",
   ]);
 
   const sparseLayout = contracts();
@@ -310,10 +310,10 @@ test("Settings visual QA enforces bounded-card grouping, compact footer, recogni
     "capture_anyway";
   assert.throws(() => validate(uncheckedCapture), /capture preflight/);
 
-  const lightOnly = contracts();
-  lightOnly.guiContract.settings_navigation.settings_ia.protocols.visual_qa_expectations.evidence_dimensions.required_color_schemes =
-    ["light"];
-  assert.throws(() => validate(lightOnly), /evidence dimensions/);
+  const staleDarkMatrix = contracts();
+  staleDarkMatrix.guiContract.settings_navigation.settings_ia.protocols.visual_qa_expectations.evidence_dimensions.required_color_schemes =
+    ["light", "dark"];
+  assert.throws(() => validate(staleDarkMatrix), /evidence dimensions/);
 });
 
 test("Settings separates configuration groups, status rows, and diagnostic surfaces", () => {
@@ -342,6 +342,14 @@ test("Settings separates configuration groups, status rows, and diagnostic surfa
     experience.page_contracts.storage.surface_rules
       .pure_usage_summary_card_allowed,
     false,
+  );
+  assert.equal(
+    experience.page_contracts.storage.surface_rules.zero_byte_policy,
+    "show_nothing_to_clean_and_hide_actions",
+  );
+  assert.equal(
+    experience.page_contracts.storage.surface_rules.cleanup_action_policy,
+    "single_progressive_action_preview_then_confirm",
   );
   assert.equal(
     experience.page_contracts.capabilities.management_discoverability
@@ -394,12 +402,11 @@ test("Settings validator rejects page-state DOM and search-entry drift", () => {
   );
 
   const assistantValues = contracts();
-  assistantValues.pageStateMatrix.pages.find(
-    (page) => page.id === "capabilities",
-  ).codex_plugin_directory_target.tab_contract.assistants.component_key =
-    "EmptyState";
+  assistantValues.pageStateMatrix.pages
+    .find((page) => page.id === "capabilities")
+    .codex_plugin_directory_target.tab_contract.tab_order.push("assistants");
   assert.throws(
     () => validate(assistantValues),
-    /Capabilities tab contract|AssistantSettings tab contract/,
+    /Capabilities tab contract/,
   );
 });

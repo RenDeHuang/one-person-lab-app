@@ -18,7 +18,6 @@ const systemSettingsExpected = [
   "useOplAppState('fast')",
   "data-testid='settings-page-advanced'",
   "data-testid='settings-advanced-primary'",
-  "data-testid='settings-advanced-technical-details'",
   "id='working-directories'",
   'workspace_root_path',
   'selected_path',
@@ -33,6 +32,7 @@ const systemSettingsPathExpected = [
 ];
 
 const systemSettingsForbidden = [
+  "data-testid='settings-advanced-technical-details'",
   'application.updateSystemInfo.invoke',
   'shell.runOplCommand.invoke',
   "actionId: 'workspace_root_set'",

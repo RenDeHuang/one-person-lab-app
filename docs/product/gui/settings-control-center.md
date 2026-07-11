@@ -116,6 +116,7 @@ they do not permit a page-wide list wall.
 - visual anchors use 28 px; page titles use `20/28/600`, card titles
   `14-16/20-24/600`, descriptions `13/20`, and supporting copy `12/18`;
 - normal, warning, error, and action states use muted, orange, red, and brand semantics;
+- access, workspace, capabilities, maintenance, and storage use restrained multi-hue navigation icons and card-edge accents so long pages remain distinguishable without tinting whole surfaces;
 - the Settings sidebar has exactly one selected item after route resolution;
 - repeated entities use one shared column-header row instead of repeating field
   labels in every row;
@@ -249,7 +250,7 @@ Primary information is split into:
 - availability;
 - source;
 - Home visibility;
-- custom assistant entry.
+- OPL skills and external tools as supporting configuration.
 
 Primary action: add a capability.
 
@@ -259,16 +260,12 @@ remain quiet.
 Technical details: package ids, receipts, paths, manifests, physical surfaces,
 and raw status axes.
 
-Required anchors: `availability`, `source`, `home-visibility`,
-`custom-assistants`.
+Required anchors: `availability`, `source`, `home-visibility`.
 
-The page has `skills`, `tools`, and a third on-demand `assistants` tab. The
-`assistants` tab mounts the real `AssistantSettings` surface at
-`custom-assistants`; it is not a search-only placeholder and is not a top-level
-or secondary page. Legacy `assistants` resolves to
-`capabilities?tab=assistants#custom-assistants`. Under the hash router, the
-shell must preserve `tab=assistants` and encode the anchor as
-`section=custom-assistants`.
+The page has `skills` and `tools` supporting tabs. AionUI `AssistantSettings`,
+custom assistant catalogs, and shell-specific assistants are not OPL product
+surfaces. Legacy `assistants` resolves to `capabilities?tab=skills` so old links
+land on the OPL capability directory instead of exposing upstream UI.
 
 ### Resources & Connections
 
@@ -429,7 +426,11 @@ Every product page always renders:
 
 - `settings-page-<product_page_id>`;
 - `settings-<product_page_id>-primary`;
-- `settings-<product_page_id>-technical-details`.
+
+Pages render `settings-<product_page_id>-technical-details` only when the detail
+surface contains information not already visible on the page. Access and
+Advanced intentionally omit it because their former disclosures repeated the
+same model/CLI facts or paths.
 
 Attention states render:
 
@@ -487,13 +488,13 @@ Shell acceptance requires:
 - screenshot preflight matches requested and resolved routes and matches the
   expected and visible page titles before capture; mismatches fail closed;
 - all required page roots, primary regions, actions, exception regions,
-  technical-details disclosures, and stable section-id anchors;
+  non-duplicative diagnostic surfaces, and stable section-id anchors;
 - `settings-resources-browser-access` remains visible on Resources & Connections;
-- legacy `assistants` opens the third on-demand `AssistantSettings` tab and
-  focuses `custom-assistants`;
+- legacy `assistants` returns to the OPL capability directory and never mounts
+  AionUI `AssistantSettings`;
 - resource `Open`, `Diagnose`, and mutating actions obey their execution and
   dry-run claim boundaries;
-- fresh desktop, narrow-screen, and dark-mode visual evidence;
+- one fresh default desktop light check for the ordinary and secondary routes;
 - exactly one selected sidebar item, bounded page-section cards with flat
   internal rows, shared repeated-entity column headers, and primary actions
   adjacent to their owning object or section;

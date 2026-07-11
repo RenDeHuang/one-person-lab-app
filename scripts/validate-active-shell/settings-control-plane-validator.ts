@@ -759,21 +759,6 @@ function validateSettingsIa(settingsIa) {
       );
     }
   }
-  const customAssistantEntry = (settingsIa.user_task_entries ?? []).find(
-    (entry) => entry.id === "custom_assistant",
-  );
-  if (
-    customAssistantEntry?.route_id !== "capabilities" ||
-    customAssistantEntry.tab_id !== "assistants" ||
-    customAssistantEntry.anchor_id !== "custom-assistants" ||
-    customAssistantEntry.component_key !== "AssistantSettings" ||
-    customAssistantEntry.entry_policy !==
-      "open_assistant_creation_or_management_not_package_repair"
-  ) {
-    throw new Error(
-      "Settings custom assistant entry must mount AssistantSettings in the on-demand assistants tab",
-    );
-  }
   validateSettingsProtocols(settingsIa.protocols);
 }
 
@@ -1099,10 +1084,9 @@ function validateSettingsVisualQaExpectations(expectations) {
   assertDeepEqualJson(
     expectations?.evidence_dimensions,
     {
-      required_viewports: ["desktop", "narrow"],
-      required_color_schemes: ["light", "dark"],
-      coverage_policy:
-        "desktop_narrow_and_dark_each_require_fresh_visual_evidence",
+      required_viewports: ["desktop"],
+      required_color_schemes: ["light"],
+      coverage_policy: "default_desktop_light_requires_fresh_visual_evidence",
     },
     "Settings visual QA evidence dimensions",
   );
@@ -1124,7 +1108,7 @@ function validateSettingsVisualQaExpectations(expectations) {
       "repeated entities use shared column headers instead of per-row field labels",
       "the primary action stays adjacent to its owning object or section",
       "capture preflight verifies the resolved route and visible page title before recording a screenshot",
-      "desktop, narrow-screen, and dark-mode evidence are all present",
+      "default desktop light evidence is present before visual acceptance",
     ],
     "Settings visual QA acceptance checks",
   );
@@ -1172,12 +1156,17 @@ function validateSettingsPageStateMatrix(
     experienceContract.page_contracts ?? {},
   )) {
     const page = pageById(pageStateMatrix, contract.matrix_page_id);
+    const expectedTechnicalDetailsDefault = ["access", "advanced"].includes(
+      productPageId,
+    )
+      ? "not_applicable"
+      : "collapsed";
     if (
       page.product_page_id !== productPageId ||
       page.experience_contract_ref !==
         `contracts/app-settings-control-plane.json#experience_contract.page_contracts.${productPageId}` ||
       page.primary_action_id !== contract.primary_action.id ||
-      page.technical_details_default !== "collapsed" ||
+      page.technical_details_default !== expectedTechnicalDetailsDefault ||
       page.exception_emphasis !== "attention_only"
     ) {
       throw new Error(
@@ -1330,13 +1319,11 @@ function validateHydratedSettingsRegistry(controlPlane) {
   );
   if (
     assistantsResolution.target_id !== "capabilities" ||
-    assistantsResolution.path !==
-      "/settings/capabilities?tab=assistants&section=custom-assistants" ||
-    assistantsResolution.anchor !== "custom-assistants" ||
-    assistantsResolution.anchor_query_param !== "section"
+    assistantsResolution.path !== "/settings/capabilities?tab=skills" ||
+    assistantsResolution.anchor !== null
   ) {
     throw new Error(
-      "Settings legacy assistants route must open AssistantSettings at custom-assistants",
+      "Settings legacy assistants route must open the OPL capability directory",
     );
   }
 }
@@ -1664,6 +1651,7 @@ export function validateSettingsExperienceContract(experience) {
       );
     }
     const technicalDetailsTestId = `settings-${pageId}-technical-details`;
+    const technicalDetailsOptional = ["access", "advanced"].includes(pageId);
     const hasTechnicalDetailsSurface =
       page.required_dom.always.includes(technicalDetailsTestId) ||
       page.required_dom.conditional.some(
@@ -1676,7 +1664,7 @@ export function validateSettingsExperienceContract(experience) {
       !page.required_dom.always.includes(`settings-page-${pageId}`) ||
       !page.required_dom.always.includes(`settings-${pageId}-primary`) ||
       !Array.isArray(page.required_dom?.conditional) ||
-      !hasTechnicalDetailsSurface
+      (!technicalDetailsOptional && !hasTechnicalDetailsSurface)
     ) {
       throw new Error(
         `Settings experience ${pageId} must declare stable DOM testids`,
@@ -1723,7 +1711,8 @@ export function validateSettingsExperienceContract(experience) {
     pageContracts.workspace.surface_rules,
     {
       workspace_card_count: 1,
-      permission_presentation: "status_row_inside_workspace_card",
+      permission_presentation:
+        "one merged writability status inside the workspace card",
       maintenance_action_visibility: "attention_only",
       diagnostics_entry: "explicit_modal_action",
     },
@@ -1758,6 +1747,8 @@ export function validateSettingsExperienceContract(experience) {
       total_usage_presentation: "status_row_in_page_header",
       pure_usage_summary_card_allowed: false,
       diagnostics_entry: "explicit_modal_action",
+      zero_byte_policy: "show_nothing_to_clean_and_hide_actions",
+      cleanup_action_policy: "single_progressive_action_preview_then_confirm",
     },
     "Settings Storage surface rules",
   );
@@ -2205,7 +2196,7 @@ function validateSettingsVisualQaPolicy(controlPlane) {
   }
   assertDeepEqualJson(
     policy.required_viewports,
-    ["desktop", "mobile"],
+    ["desktop"],
     "Settings visual QA required viewports",
   );
   assertDeepEqualJson(
@@ -2243,7 +2234,7 @@ function validateSettingsVisualQaPolicy(controlPlane) {
   );
   if (
     policy.evidence_manifest?.viewport_policy !==
-      "each required route is captured for desktop and mobile viewports" ||
+      "each required route is checked once at the default desktop viewport" ||
     policy.evidence_manifest?.secondary_route_policy !==
       "advanced and about are captured as independent secondary pages" ||
     policy.evidence_manifest?.compatibility_route_policy !==
