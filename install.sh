@@ -129,6 +129,9 @@ done
 
 arg_present() {
   local expected="$1"
+  if [ "${#INSTALL_ARGS[@]}" -eq 0 ]; then
+    return 1
+  fi
   for arg in "${INSTALL_ARGS[@]}"; do
     if [ "$arg" = "$expected" ]; then
       return 0

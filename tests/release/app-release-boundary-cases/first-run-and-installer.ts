@@ -9,6 +9,7 @@ import {
   writeExecutable,
   writeFile,
 } from './helpers.ts';
+import { spawnSync } from 'node:child_process';
 import { validateFirstRunMatrix } from '../../../scripts/validate-active-shell/first-run-matrix-validator.ts';
 import { releaseBoundaryChecks } from '../../../scripts/validate-release-boundary/release-checks.ts';
 
@@ -63,6 +64,34 @@ test('one-shot App installer boundary is enforced by release-boundary checks', (
   assert.ok(stable.required.some((entry) => entry.includes('install.sh')));
   assert.ok(stable.required.some((entry) => entry.includes('--stable-macos-install')));
   assert.equal(fs.existsSync(path.join(appRoot, 'install-free.sh')), false);
+});
+
+test('one-shot App installer defaults to the shared base plus optional GUI without Agents', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-installer-args-'));
+  const fakeCurl = path.join(tempRoot, 'curl');
+  const capturePath = path.join(tempRoot, 'args.txt');
+  writeExecutable(fakeCurl, `#!/bin/sh
+cat <<'INNER'
+#!/bin/bash
+printf '%s\\n' "$*" > "$OPL_INSTALL_ARGS_CAPTURE"
+INNER
+`);
+
+  try {
+    const result = spawnSync('/bin/bash', [path.join(appRoot, 'install.sh')], {
+      cwd: appRoot,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        OPL_INSTALL_ARGS_CAPTURE: capturePath,
+        PATH: `${tempRoot}:/usr/bin:/bin`,
+      },
+    });
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.equal(fs.readFileSync(capturePath, 'utf8').trim(), '--with-app --skip-modules');
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
 });
 
 test('local authorization checks each nested directory symlink path once', () => {
