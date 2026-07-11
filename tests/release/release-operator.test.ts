@@ -99,6 +99,7 @@ function assertNoOperatorAuthority(boundary: Record<string, boolean>) {
 test('release operator plan pins Full VM dispatch to resolved cohort SHAs', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-operator-plan-'));
   const refs = createReleaseRefCheckouts();
+  const appMain = runGit(appRoot, ['rev-parse', 'main']);
   const outputPath = path.join(tempRoot, 'release-operator-state.json');
   const markdownPath = path.join(tempRoot, 'release-operator-state.md');
   const result = runScript('scripts/release-operator.ts', [
@@ -133,7 +134,7 @@ test('release operator plan pins Full VM dispatch to resolved cohort SHAs', () =
   assert.equal(state.cohort_plan.cohort_lock.shell.resolved_sha, refs.shell.head);
   assert.equal(state.cohort_plan.cohort_lock.framework.resolved_sha, refs.framework.head);
   assert.match(state.cohort_plan.next_action.command, /--ref main/);
-  assert.equal(state.cohort_plan.cohort_lock.app.resolved_sha, refs.appHead);
+  assert.equal(state.cohort_plan.cohort_lock.app.resolved_sha, appMain);
   assert.match(state.cohort_plan.next_action.command, new RegExp(`--field shell_ref=${refs.shell.head}`));
   assert.match(state.cohort_plan.next_action.command, new RegExp(`--field framework_ref=${refs.framework.head}`));
   assert.doesNotMatch(state.cohort_plan.next_action.command, /shell_ref=main|framework_ref=main/);
