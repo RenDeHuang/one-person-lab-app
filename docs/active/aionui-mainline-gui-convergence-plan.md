@@ -31,13 +31,14 @@ Machine boundary: 本文是 AionUI 主线 GUI 的执行计划与当前差距 rea
 | Surface | 当前事实 | 规划含义 |
 | --- | --- | --- |
 | App pre-plan authority base | `ed72e6644fd2f9453b959653d59be500b8338400`；当时相对 `origin/main@3681950d1866334dac04b973cdb03fd43c9cdb20` ahead 2 | 本文自身落地会继续推进 App main；Settings lane 仍以该 authority base 开始，最终 integration 必须重基到届时 main。 |
+| Settings App authority | `90a7be44ba4d994b4f669664ae6021947a8be1ca` 已进入 App main | 四类 surface 的 App contract/doc/validator 已落地；Shell 与 Framework consumer 仍需独立收口。 |
 | Shell local main | `5204a68d41d799287a4567e61897df3c25345dc4`；相对 `gh-https/main@d981101b31c2534fe23c439fd0be0c0be2fb22b2` ahead 1 | Settings 仍有并行未提交写集，不是最终 core-GUI integration base。 |
 | AionUI upstream | `0a903d835948fea6d2717a2cb93f85ed82f95245`，upstream `2.1.32` | 只做逐能力 intake，不整体 merge。 |
 | Shell package/runtime | package `2.1.17`，AionCore pin `v0.1.44` | 版本号和 runtime intake 独立于 GUI 对齐。 |
 | `dbff7370f` | 已通过 Shell merge `1752ba496377a0534ae88e6343f8051d961f79a5` 进入 main ancestry | 禁止重放，也不整体回退；从当前 tree 做功能级纠偏。 |
 | Human interaction target | ChatGPT macOS `26.707.41301`，观察于 `2026-07-11` | 只作为布局与交互参考。 |
 | Machine interaction target | 仍有 `26.707.31428` legacy markers | P0 authority sync 未完成。 |
-| Settings | 正在从 `configuration / status / diagnostic` 升级为 `configuration / status / action / diagnostic` | 等最终 App/Shell/Framework SHA 后再冻结 ordinary IA。 |
+| Settings | App authority 已升级为 `configuration / status / action / diagnostic`；Shell/Framework consumer 尚待最终吸收 | 等最终三仓 SHA 后再冻结 ordinary IA。 |
 
 ## Authority 与非降级边界
 
@@ -97,7 +98,7 @@ Capabilities、project context、preview、Files、Terminal、Browser、Settings
 | P1 | Transcript export | 已进入 main | `keep + harden` | 默认脱敏 Markdown/JSON；显式文件名/目录；分页完整；失败可见；workspace bundle 必须逐项选择和二次确认。 |
 | P1 | Desktop navigation | Back/Forward、Previous/Next、New Window 已进入 main | `keep + harden` | 按 focused window 隔离状态；不为 WebUI 创建第二 IA。 |
 | Candidate | Send drafts/queue | 上游有实现材料，App 功能层尚未正式冻结 | `defer pending product decision` | 先定义用户语义、持久化和 running-turn 行为，再决定 intake。 |
-| P2 | Settings | 普通 IA 已形成，四类 surface/Framework configuration catalog 正在并行收敛 | `active prerequisite` | 当前 lane 完成后冻结 IA；随后只修回归，不驱动 P0/P1。 |
+| P2 | Settings | 普通 IA 与 App 四类 surface authority 已落地；Shell consumer 与 Framework configuration catalog 正在收敛 | `active prerequisite` | 完成剩余两仓 consumer 后冻结 IA；随后只修回归，不驱动 P0/P1。 |
 | P2 | Visual evidence | 已有旧 harness 与 Settings evidence，尚无最终 `41301` core matrix | `rebuild evidence` | 在最终 clean source 上覆盖 rail/Home/conversation/composer/Environment/model/mobile。 |
 | Separate | AionCore `0.1.45` | 未 intake | `defer/separate` | 独立验证 recovery、managed-agent、ACP、startup 和 package 后再决定。 |
 
@@ -121,7 +122,7 @@ Shell package version 只有完成独立 upstream/runtime intake 后才能更新
 
 ### 0. 收敛当前前置写集
 
-- 完成 Settings 四类 surface 的 App/Shell/Framework lanes；
+- App 四类 surface authority 已落地；完成 Shell consumer 与 Framework configuration catalog lanes；
 - 以用户纠正后的边界隐藏未采纳的 AionUI custom assistants，不建立 OPL compatibility
   产品入口，也不主动删除底层数据；
 - 回读最终三仓 SHA、clean 状态、功能迁移清单与 focused gate；
