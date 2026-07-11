@@ -55,10 +55,12 @@ Active AionUI 默认状态通过 README 治理段声明的动态 state source �
   `2026-07-11` 宽桌面 conversation 状态观察。App contracts/validators 与 active AionUI
   仍基于前一观察 `26.707.31428`，因此基准同步状态为
   `current_contract_deviation`；文档更新不提升 source/pixel 状态。
-- AionUI source snapshot：`opl-aion-shell@74848adf77360903c5ac7d64c32455a78fb3901a`；
-  Home、rail、conversation/context、Settings、startup、projectless 和模型策略的 source/test
-  audit 已通过。Settings visual E2E 的 42 个 desktop/mobile/desktop-dark 条目绑定当前 snapshot；该证据仅
-  验证 Settings 的 pixel 状态，不外推为 Home、rail、conversation 或全局视觉 parity。
+- AionUI source snapshot：`opl-aion-shell@5204a68d41d799287a4567e61897df3c25345dc4`；
+  当前 tree 已包含 absorbed GUI integration、model-policy consumer 与后续 Settings hierarchy
+  调整。Settings visual E2E 的 42 个 desktop/mobile/desktop-dark 条目仍绑定较早的
+  `74848adf77360903c5ac7d64c32455a78fb3901a` cohort，因此只保留为历史像素证据，不能外推
+  为当前 snapshot、Home、rail、conversation 或全局视觉 parity。Settings 四类 surface
+  follow-up 仍在独立 lane，完成后必须再次更新本 snapshot 与 pixel status。
 - Absorbed GUI integration：`dbff7370fa956541ace3378296c5a000eb64399d` 已进入当前 shell
   main，包含 project context、artifact export、desktop navigation 和 visual harness。
   App authority resolution 与 TypeScript、unit、DOM、i18n、active-shell source gates 已通过；
@@ -95,10 +97,10 @@ Active AionUI 默认状态通过 README 治理段声明的动态 state source �
 
 本表是主线决策入口。先看 P0/P1，再看 P2；Settings 完成不能抵消核心工作流偏差。
 
-| Priority | Product surface | 26.707.41301 / OPL target | AionUI `3b05813` | Status | Next decision |
+| Priority | Product surface | 26.707.41301 / OPL target | AionUI `5204a68d` | Status | Next decision |
 | --- | --- | --- | --- | --- | --- |
 | P0 | App frame | 左 project/conversation rail + 中央单列 timeline + 底部 composer + 右上按需 Environment details。 | Rail/timeline/composer 已有；右侧仍采用 Environment popover 与 resizable multi-tool side panel 的旧目标。 | `source_partial`, `pixel_unverified` | 保留 rail/timeline/composer；重新评估 side-panel rewrite，不默认吸收。 |
-| P0 | Project hierarchy | Project 是 N conversations 的父级；selected project 下可增加可选 context refs。 | Project/conversation history 已有；可编辑 project context 尚未进入 main。 | `source_partial`, `pixel_unverified` | 先定 project/context lifecycle，再选择 L1-L3 实现。 |
+| P0 | Project hierarchy | Project 是 N conversations 的父级；selected project 下可增加可选 context refs。 | Project/conversation history、workspace-keyed context refs、rail 编辑和 send plumbing 已进入 main；composer 仍重复 project/local/branch strip。 | `source_partial`, `pixel_unverified` | 保留单一 context source，先同步 41301 context authority，再删除重复 strip/local state。 |
 | P0 | Home / New task | 与 conversation 共用 chat canvas/composer，不是 dashboard。 | Chat-first Home 基础存在，但需按 41301 重新观察空状态、starter 和 chrome。 | `source_partial`, `pixel_unverified` | 不从旧设计稿或 Settings visual 反推。 |
 | P0 | Conversation chrome | 只显示 task identity/直接动作；model/access 留在 composer。 | 主要 controls 已接近目标，尚无 41301 逐元素审计。 | `source_partial`, `pixel_unverified` | 做 element-level source/pixel comparison。 |
 | P0 | Composer | Add/access 在左，model/reasoning/voice/send-stop 在右；单层 surface；不重复 rail/Environment context。 | Model control 仍在 side-panel Actions，旧 machine contract 还要求 project/local/branch strip。 | `current_contract_deviation`, `pixel_unverified` | 先做 context authority sync，再把 model/access/active capability 收敛到 composer。 |
@@ -107,7 +109,7 @@ Active AionUI 默认状态通过 README 治理段声明的动态 state source �
 | P1 | OPL capabilities | Plugins 认知位置映射到专业 capability；composer 只显示 active capability。 | Home/Capabilities 基础已实现。 | `source_implemented`, `pixel_unverified` | 保持渐进披露，不扩成 launcher/card wall。 |
 | P1 | Progress / approval / receipt | 进入当前 timeline 与 task summary。 | Current-task summary 和 action/receipt 基础存在。 | `source_partial`, `pixel_unverified` | 补真实用户路径，不建设第二状态面。 |
 | P1 | Artifacts / evidence | Environment 次级 refs、preview 或 turn disclosure。 | Preview/runtime refs 部分存在，旧 side-panel taxonomy 需要重审。 | `source_partial`, `pixel_unverified` | 保留 renderer/bridge，重审入口与默认状态。 |
-| P2 | Settings | Secondary configuration/control surface，保持 OPL IA。 | OPL Control Center source 与 42 张 Settings evidence 已完成当前 OPL 卡片基线。 | `source_implemented`, `pixel_verified` | 进入维护模式，不再驱动主 GUI 设计。 |
+| P2 | Settings | Secondary configuration/control surface，保持 OPL IA。 | OPL Control Center source 已进入四类 surface 收敛前置；现有 42 张 evidence 绑定较早 cohort，不证明当前 tree。 | `source_partial`, `pixel_unverified` | 完成四类 surface/Framework catalog 后冻结 IA，再重建 current snapshot 的最小 evidence。 |
 
 ## Cross-shell Detail Appendix
 
@@ -156,13 +158,14 @@ Native candidate 不得与 active-shell P0 差距竞争实施资源。
 
 合同与人读 target 已更新，不代表 active implementation 完成。当前 exact gaps：
 
-- **AionUI source：** 主要结构已落地；剩余 source gap 是 rail 内 workspace-ref project inputs
-  的增删/持久化/可见预载、bottom panel/file-tree 默认值、
-  artifact renderer/export breadth、desktop menu/task navigation、contrast 和全键盘矩阵。
-- **AionUI pixels：** Settings 已绑定当前 source snapshot 的 42 张 desktop/mobile/desktop-dark
-  route/interaction 截图；这证明 Settings 路径非空且符合已声明的 OPL 卡片基线，不证明
-  全局 41301 alignment。Home、conversation、rail drawer、Environment details、light/dark 和完整双语
-  视觉矩阵仍为 `pixel_unverified`。
+- **AionUI source：** Project context、artifact export、desktop navigation 和 visual harness
+  已进入 main。剩余核心 source gap 是 41301 machine authority、composer model/access 位置、
+  project/local/branch strip 去重、综合 side-panel taxonomy、Environment refs、task-summary
+  duplicate、export/menu hardening，以及当前 Settings 四类 surface follow-up。
+- **AionUI pixels：** 42 张 Settings desktop/mobile/desktop-dark route/interaction 截图绑定
+  `74848adf77360903c5ac7d64c32455a78fb3901a`，不再是当前 Shell snapshot 的 pixel evidence。
+  Home、conversation、rail drawer、Environment details、composer/model、light/dark 和完整双语
+  视觉矩阵均保持 `pixel_unverified`。
 - **Native contract/source：** candidate contract 与 visual parity 仍绑定 superseded
   `26.707.31123`，permission hidden，purpose/side-panel/Settings/project semantics 不完整。
 - **Native pixels：** `out/native-live-smoke.png` 只证明旧 candidate source 非空；不能证明
