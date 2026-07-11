@@ -55,7 +55,7 @@ Active AionUI 默认状态通过 README 治理段声明的动态 state source �
   `2026-07-11` 宽桌面 conversation 状态观察。App contracts/validators 与 active AionUI
   仍基于前一观察 `26.707.31428`，因此基准同步状态为
   `current_contract_deviation`；文档更新不提升 source/pixel 状态。
-- AionUI source snapshot：`opl-aion-shell@3b0581306047866d6a974002104ad0c017aa4f42`；
+- AionUI source snapshot：`opl-aion-shell@74848adf77360903c5ac7d64c32455a78fb3901a`；
   Home、rail、conversation/context、Settings、startup、projectless 和模型策略的 source/test
   audit 已通过。Settings visual E2E 的 42 个 desktop/mobile/desktop-dark 条目绑定当前 snapshot；该证据仅
   验证 Settings 的 pixel 状态，不外推为 Home、rail、conversation 或全局视觉 parity。
@@ -143,7 +143,7 @@ Native candidate 不得与 active-shell P0 差距竞争实施资源。
 | Mutation 走 App action preview/confirm/execute/receipt | `aligned_contract` | `source_implemented` | `not_applicable` | `candidate_target` | `source_partial` | `not_applicable` | Native 已有 preview/action bridge，但完整高风险确认、receipt、rollback UX 尚未覆盖全部动作。 |
 | Runtime/Files/Memory/Artifacts 只展示 refs | `aligned_contract` | `source_implemented` | `not_applicable` | `candidate_target` | `source_partial` | `not_applicable` | Native `workbenchModel.ts` 仍保留 `GlycoFold` 等 demo fallback，必须去除后才能算完整真实投影。 |
 | Artifact Markdown/PDF/Mermaid/Code/KaTeX preview | `aligned_contract` | `source_partial` | `pixel_unverified` | `candidate_target` | `source_partial` | `pixel_unverified` | 两边都有部分 preview surface；缺覆盖各 renderer、错误态和 export 的绑定证据。 |
-| Settings 使用 full-window return/search/grouped rows且 OPL IA 不变 | `aligned_contract` | `source_implemented` | `pixel_verified` | `current_contract_deviation` | `source_partial` | `pixel_unverified` | AionUI 保留 8+2 IA、search/redirect/state/action semantics，并使用 bounded page-section cards + flat rows；Shell `3b0581306047866d6a974002104ad0c017aa4f42` 的 manifest 绑定 42 张 desktop/mobile/desktop-dark Settings 截图。 |
+| Settings 使用 full-window return/search/grouped rows且 OPL IA 不变 | `aligned_contract` | `source_implemented` | `pixel_verified` | `current_contract_deviation` | `source_partial` | `pixel_unverified` | AionUI 保留 8+2 IA、search/redirect/state/action semantics，并使用 bounded page-section cards + flat rows；Shell `74848adf77360903c5ac7d64c32455a78fb3901a` 的 manifest 绑定 42 张 desktop/mobile/desktop-dark Settings 截图。 |
 | 白色 main、灰色 rail/subtle surface、OPL teal | `aligned_contract` | `source_partial` | `pixel_unverified` | `current_contract_deviation` | `source_partial` | `pixel_verified` | AionUI token/layout 已对齐目标方向；最终 route-bound pixels 尚未绑定。 |
 | Desktop Back/Forward、Previous/Next Task、New Window | `aligned_contract` | `source_partial` | `pixel_unverified` | `current_contract_deviation` | `source_not_assessed` | `pixel_unverified` | titlebar/menu 有现有桌面入口，但完整快捷键和 task navigation 验收未闭合。 |
 | OPL 品牌、双语与普通语言一致 | `aligned_contract` | `source_partial` | `pixel_unverified` | `candidate_target` | `source_partial` | `pixel_verified` | 仍需逐 route 检查 carrier branding、混合语言、technical ids 与字号层级。 |

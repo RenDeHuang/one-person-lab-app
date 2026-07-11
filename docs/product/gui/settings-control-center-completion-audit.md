@@ -25,19 +25,19 @@ historical manifest below does not prove them.
 | Home shortcut state | Settings and Home share one reactive owner; successful actions commit and failed actions roll back |
 | About | Version/channel/update share one card; update action is adjacent to status; help arrows reach the row edge |
 
-This correction remains `partial` until the Shell lanes are integrated, focused
-tests and package compile pass on the exact final SHA, fresh screenshots are
-inspected, and the installed App is rebuilt and read back.
+This correction is `done`. The Shell lanes are integrated and cleaned; focused
+tests, TypeScript, package compilation, fresh screenshots, and installed-App
+readback all bind to the final source recorded below.
 
 ## Conclusion
 
 Current visual evidence binds to `opl-aion-shell`
-`3b0581306047866d6a974002104ad0c017aa4f42` and its
+`74848adf77360903c5ac7d64c32455a78fb3901a` and its
 `tests/e2e/screenshots/settings-control-center-manifest.json`. The manifest was
-generated at `2026-07-11T05:29:39.549Z`, contains 42 desktop, mobile, and
+generated at `2026-07-11T10:37:05.886Z`, contains 42 desktop, mobile, and
 desktop-dark route, secondary-route, compatibility-route, and interaction-state
 screenshots, and sets `release_readiness_claim` to `false`. Its SHA-256 is
-`aea524fbf6e1ab050138f3fe0b66ba2c75617b93146453349fc5d507712fabf5`.
+`cfa858eb9d08965916d9e59410cdc8e3a4b84828990d468f2a6106c8082b29c2`.
 
 The evidence verifies the remediated bounded-card baseline: one user question
 per page-section card, flat internal rows, a compact return-to-chat/theme
@@ -47,8 +47,10 @@ expose no stale primary selection. Screenshot capture moves the pointer away,
 clears focus, and waits for navigation color transitions to finish so a stale
 interaction frame cannot masquerade as a second selected route.
 
-No runtime, installed-App, currentness, notarization, or release-ready claim is
-made by this audit.
+The local arm64 build was installed at `/Applications/One Person Lab.app` and
+read back as version `26.7.11`; its main and renderer processes launch from the
+installed bundle and deep signature verification passes. This local ad-hoc
+build is not notarized and does not establish public release currentness.
 
 ## Plan Completion Audit
 
@@ -59,18 +61,18 @@ made by this audit.
 | Compatibility redirects | done | 100% | Machine contract and Shell router implement `update -> environment#updates`, `theme -> appearance#themes`, `local-services -> environment#services` with `?section=` anchors | None |
 | About independence | done | 100% | `about` is absent from redirect maps and renders `AboutModalContent` at `/settings/about` | None |
 | Single global search contract | done | 100% | One `settings-search-input`, bilingual item indexing, `page > item` labels, Enter navigation, and anchor focus are covered by DOM and E2E source tests | None in active-shell source scope |
-| OPL card-based visual contract | done | 100% | App bounded-card contract plus Shell `3b0581306047866d6a974002104ad0c017aa4f42` screenshots verify one-question card grouping, flat rows, compact footer, light/dark dividers, and uncropped card actions | Installed-App evidence remains separate |
+| OPL card-based visual contract | done | 100% | App bounded-card contract plus Shell `74848adf77360903c5ac7d64c32455a78fb3901a` screenshots verify decision-based card grouping, flat internal rows, compact footer, light/dark dividers, and uncropped actions | None |
 | Per-page experience contracts | done | 100% | Ten page contracts are implemented with declared primary information, action, exception, technical details, DOM anchors, model/access ownership, AssistantSettings tab, and resource action lifecycle | None in source/DOM scope |
 | Prior UX audit incorporation | done | 100% | 概览、模型与访问、工作区、智能体与能力、资源与连接、维护、数据与存储、偏好、高级、关于 requirements are present in Shell source and focused tests | None in source/DOM scope |
 | Page-state matrix | done | 100% | Product pages, redirect states, Preferences route, anchors, and action states are consumed by App validators and Shell tests | None |
 | Contract validators | done | 100% | `OPL_APP_SHELL_ROOT=<pinned shell> bun run validate:active-shell -- --quick` passed; `npm run validate:gui-design-system` reported `consistent` | None in App contract scope |
-| Focused product validation | done | 100% | Shell `bun run package`, `bunx tsc --noEmit`, Settings DOM `15 files / 84 tests`, and Settings visual E2E `2 tests` passed; App `npm run test:release-boundary` passed | Full-suite and installed-App evidence are separate, non-required claims |
+| Focused product validation | done | 100% | Shell `bun run package`, `bunx tsc --noEmit`, Settings DOM `15 files / 85 tests`, Settings visual E2E `2 tests`, and App Settings contract tests `7/7` passed | None in Settings scope |
 | Product documentation | done | 100% | `settings-control-center.md` is the current route, search, visual, page, DOM, and evidence boundary | None in App authority scope |
 | Shell DOM and interaction implementation | done | 100% | The focused Shell DOM suite covers 13 Settings surfaces and the E2E route loop asserts a unique selected item before capture | None in active-shell source scope |
 | Visual QA collector | done | 100% | Collector waits for the resolved selected route, clears focus and hover, settles navigation transitions, and records route/viewport/anchor evidence | None in active-shell source scope |
-| Fresh Shell screenshot pixels | done | 100% | Exact Shell `3b0581306047866d6a974002104ad0c017aa4f42`: 42 entries across desktop, mobile, desktop-dark, light, and dark evidence | No release/currentness claim is implied |
-| Running-shell/runtime evidence | not_started | 0% | Contract and tests intentionally do not provide live runtime proof | Collect live readback only when runtime evidence is requested |
-| Installed App / release currentness | blocked | 0% | Separate release-owner gate required | Release owner supplies installed version, signing/notarization, artifact, and currentness evidence |
+| Fresh Shell screenshot pixels | done | 100% | Exact Shell `74848adf77360903c5ac7d64c32455a78fb3901a`: 42 entries across desktop, mobile, desktop-dark, light, and dark evidence | No public release claim is implied |
+| Running installed App | done | 100% | `/Applications/One Person Lab.app` version `26.7.11`; main and renderer process paths and deep signature were read back after launch | None for local testing |
+| Public release currentness | not_started | 0% | Local build is intentionally ad-hoc signed and not notarized | Separate release-owner evidence is required before a public release claim |
 
 ## Historical Shell Contract
 
