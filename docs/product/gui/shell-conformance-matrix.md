@@ -54,7 +54,7 @@ Active AionUI 默认状态通过 README 治理段声明的动态 state source �
 - Current human reference：本机 ChatGPT macOS `26.707.41301`（bundle build `5103`），
   `2026-07-11` 观察。App GUI contract、product profile 与 page-state matrix 已统一为 schema v2；
   `26.707.31428/31123` 只保留为 superseded observations。
-- AionUI source snapshot：`opl-aion-shell@30f5457d1adde4c4535fbe216d4aacd8a180a868`（final integration candidate）。
+- AionUI source snapshot：`opl-aion-shell@bbf94f2e44ef806e33451da568a3814658484619`（final integration candidate）。
   该 cohort 位于 integration branch，基于 local Shell main 但尚未吸收进 Shell main/remote；包含 Home/project controls、composer model/reasoning/
   access、mobile action sheet、Environment、按需 Files/Preview/Terminal/Browser、timeline task
   summary、cursor-safe transcript export 与 generated profile v2 reader。

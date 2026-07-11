@@ -12,7 +12,7 @@
     "contract_target_implies_release_complete": false,
     "authority_status": "active_mainline_authority",
     "shell_implementation_status": "final_shell_sha_bound_and_verified",
-    "final_shell_sha": "30f5457d1adde4c4535fbe216d4aacd8a180a868",
+    "final_shell_sha": "bbf94f2e44ef806e33451da568a3814658484619",
     "final_shell_sha_binding_status": "bound_to_clean_verified_shell",
     "pixel_evidence_ref": "docs/product/gui/evidence/aionui-41301/manifest.json"
   },

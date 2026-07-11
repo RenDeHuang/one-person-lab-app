@@ -33,7 +33,7 @@ fresh SHA 为准。
 | Surface | Fresh 状态 | 边界 |
 | --- | --- | --- |
 | App local main | `9634e9b600ce0baf8429d2178f467dd5f4fda547`，包含 `fbab0fafc9214fe90f3e836268426c29f6d73c7f` 的 41301 authority；GUI evidence/docs/validator closeout 尚待本轮提交 | `origin/main` 仍为 `6be9eba1561e26d87a51579f743ebd61be6716e3`，不能据本地状态宣称远端 current。 |
-| Shell final integration | `codex/gui-convergence-integration-20260712@30f5457d1adde4c4535fbe216d4aacd8a180a868`，clean；`70ad78eb...` 是其祖先 | Shell main/remote 尚未吸收该 final integration candidate。 |
+| Shell final integration | `codex/gui-convergence-integration-20260712@bbf94f2e44ef806e33451da568a3814658484619`，clean；`70ad78eb...` 是其祖先 | Shell main/remote 尚未吸收该 final integration candidate。 |
 | Product profile | App `fbab0faf...:contracts/app-product-profile.json` 与 Shell generated profile 的 `jq -S` SHA-256 均为 `0c9c75eb0c22e90ee42f5405f36d829e2a68f908553e6149c8b15d0e77624d4e` | 当前无需空提交或纯格式同步。 |
 | Shell full source gates | exact `30f5457d...`：Node `154/154 files, 1360/1360 tests`；DOM `127/127 files, 682/682 tests`；TypeScript、1486-file format、i18n 通过；lint `0 errors / 854 warnings` | warnings 是既有债务，不把 0 errors 扩大为视觉或 runtime 证明。 |
 | App authority gates | GUI design-system consistent；active-shell quick/full 通过；release-boundary `205 pass / 2 platform skip` | 证明当前 contract/docs/validator 与 final Shell source cohort 一致，不证明安装或发布。 |

@@ -1,7 +1,7 @@
 {
   "schema": "opl_aionui_gui_route_visual_evidence.v1",
   "generated_at": "2026-07-11T20:13:31.648Z",
-  "shell_head": "30f5457d1adde4c4535fbe216d4aacd8a180a868",
+  "shell_head": "bbf94f2e44ef806e33451da568a3814658484619",
   "command": "AIONUI_E2E_PRODUCT_PROFILE=1 E2E_PACKAGED=1 E2E_SCREENSHOTS=1 bun run test:e2e -- tests/e2e/features/visual-evidence/gui-baseline.e2e.ts",
   "evidence_scope": "route_state_non_empty_and_layout_only",
   "claims": {
@@ -17,7 +17,7 @@
   "entries": [
     {
       "id": "home-desktop-light-zh-CN-rail-expanded",
-      "shell_head": "30f5457d1adde4c4535fbe216d4aacd8a180a868",
+      "shell_head": "bbf94f2e44ef806e33451da568a3814658484619",
       "route": "/guid",
       "viewport": {
         "name": "desktop",
@@ -88,7 +88,7 @@
     },
     {
       "id": "home-mobile-dark-en-US-rail-closed",
-      "shell_head": "30f5457d1adde4c4535fbe216d4aacd8a180a868",
+      "shell_head": "bbf94f2e44ef806e33451da568a3814658484619",
       "route": "/guid",
       "viewport": {
         "name": "mobile",
@@ -150,7 +150,7 @@
     },
     {
       "id": "home-mobile-dark-en-US-action-sheet-open",
-      "shell_head": "30f5457d1adde4c4535fbe216d4aacd8a180a868",
+      "shell_head": "bbf94f2e44ef806e33451da568a3814658484619",
       "route": "/guid",
       "viewport": {
         "name": "mobile",
@@ -240,7 +240,7 @@
     },
     {
       "id": "conversation-desktop-light-en-US-composer-controls",
-      "shell_head": "30f5457d1adde4c4535fbe216d4aacd8a180a868",
+      "shell_head": "bbf94f2e44ef806e33451da568a3814658484619",
       "route": "/conversation/1b607601",
       "viewport": {
         "name": "desktop",
@@ -335,7 +335,7 @@
     },
     {
       "id": "conversation-desktop-light-en-US-model-menu-open",
-      "shell_head": "30f5457d1adde4c4535fbe216d4aacd8a180a868",
+      "shell_head": "bbf94f2e44ef806e33451da568a3814658484619",
       "route": "/conversation/1b607601",
       "viewport": {
         "name": "desktop",
@@ -413,7 +413,7 @@
     },
     {
       "id": "conversation-desktop-dark-zh-CN-environment-open",
-      "shell_head": "30f5457d1adde4c4535fbe216d4aacd8a180a868",
+      "shell_head": "bbf94f2e44ef806e33451da568a3814658484619",
       "route": "/conversation/1b607601",
       "viewport": {
         "name": "desktop",
@@ -509,7 +509,7 @@
     },
     {
       "id": "conversation-desktop-dark-zh-CN-files-open",
-      "shell_head": "30f5457d1adde4c4535fbe216d4aacd8a180a868",
+      "shell_head": "bbf94f2e44ef806e33451da568a3814658484619",
       "route": "/conversation/1b607601",
       "viewport": {
         "name": "desktop",
@@ -610,7 +610,7 @@
     },
     {
       "id": "conversation-mobile-light-en-US-preview-open",
-      "shell_head": "30f5457d1adde4c4535fbe216d4aacd8a180a868",
+      "shell_head": "bbf94f2e44ef806e33451da568a3814658484619",
       "route": "/conversation/1b607601",
       "viewport": {
         "name": "mobile",
