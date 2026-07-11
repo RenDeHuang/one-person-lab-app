@@ -174,10 +174,20 @@ function boolText(value: boolean): string {
   return value ? 'true' : 'false';
 }
 
+function workflowDispatchRef(lock: ReleaseCohortLock): string {
+  const ref = lock.app.requested_ref.trim();
+  if (/^[0-9a-f]{7,40}$/i.test(ref)) {
+    throw new Error(
+      'App release dispatch requires a branch or tag ref; pass --app-ref <branch-or-tag> that resolves to the locked App SHA.',
+    );
+  }
+  return ref;
+}
+
 function releaseCommand(options: ReleaseCohortPlanOptions, lock: ReleaseCohortLock): string {
   return [
     'gh workflow run "OPL Desktop Release"',
-    `--ref ${lock.app.resolved_sha}`,
+    `--ref ${workflowDispatchRef(lock)}`,
     `--field opl_version=${options.version}`,
     `--field release_mode=${options.releaseMode}`,
     `--field include_full_package=${boolText(options.includeFullPackage)}`,

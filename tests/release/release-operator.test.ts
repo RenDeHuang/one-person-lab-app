@@ -111,8 +111,8 @@ test('release operator plan pins Full VM dispatch to resolved cohort SHAs', () =
     'true',
     '--run-vm-smoke',
     'true',
-    '--app-commit',
-    refs.appHead,
+    '--app-ref',
+    'main',
     '--shell-ref',
     'main',
     '--framework-ref',
@@ -132,11 +132,43 @@ test('release operator plan pins Full VM dispatch to resolved cohort SHAs', () =
   assert.equal(state.status, 'planned');
   assert.equal(state.cohort_plan.cohort_lock.shell.resolved_sha, refs.shell.head);
   assert.equal(state.cohort_plan.cohort_lock.framework.resolved_sha, refs.framework.head);
-  assert.match(state.cohort_plan.next_action.command, new RegExp(`--ref ${refs.appHead}`));
+  assert.match(state.cohort_plan.next_action.command, /--ref main/);
+  assert.equal(state.cohort_plan.cohort_lock.app.resolved_sha, refs.appHead);
   assert.match(state.cohort_plan.next_action.command, new RegExp(`--field shell_ref=${refs.shell.head}`));
   assert.match(state.cohort_plan.next_action.command, new RegExp(`--field framework_ref=${refs.framework.head}`));
   assert.doesNotMatch(state.cohort_plan.next_action.command, /shell_ref=main|framework_ref=main/);
   assertNoOperatorAuthority(state.authority_boundary);
+});
+
+test('release operator plan rejects a raw App SHA as a workflow dispatch ref', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-operator-plan-sha-'));
+  const refs = createReleaseRefCheckouts();
+  const result = runScript('scripts/release-operator.ts', [
+    'plan',
+    '--version',
+    '26.6.99',
+    '--release-mode',
+    'new_release',
+    '--include-full-package',
+    'true',
+    '--run-vm-smoke',
+    'true',
+    '--app-ref',
+    refs.appHead,
+    '--shell-ref',
+    'main',
+    '--framework-ref',
+    'main',
+    '--shell-root',
+    refs.shell.root,
+    '--framework-root',
+    refs.framework.root,
+    '--output',
+    path.join(tempRoot, 'release-operator-state.json'),
+  ]);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /requires a branch or tag ref/);
 });
 
 test('release operator status reports completed failure primary blocker', () => {
