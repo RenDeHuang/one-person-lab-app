@@ -232,20 +232,111 @@ function validateRuntimeToolchainCleanMachineRequirement(cleanMachineRequirement
 
 function validateHomebrewDistribution(homebrew) {
   validateHomebrewTransportBoundary(homebrew);
+  validateFrameworkCoreCarrier(homebrew);
   validateHomebrewCaskNames(homebrew);
   validateHomebrewUserTargets(homebrew);
   validateHomebrewAgentPackPolicy(homebrew);
 }
 
+function validateFrameworkCoreCarrier(homebrew) {
+  const carrier = homebrew?.framework_core_carrier;
+  if (
+    carrier?.component !== 'opl_framework' ||
+    carrier?.selection_policy !== 'developer_mode_then_install_origin_and_formula_availability_then_compatibility_handshake'
+  ) {
+    throw new Error('Install exposure OPL Framework carrier must select developer mode or install-origin carrier before compatibility handshake');
+  }
+  assertDeepEqualJson(
+    homebrew.formulae,
+    { framework_core: 'opl' },
+    'Install exposure Homebrew Framework formula carrier',
+  );
+  assertDeepEqualJson(
+    carrier.locator_precedence,
+    [
+      {
+        install_origin: 'explicit_developer_mode',
+        carrier: 'developer_checkout',
+        locator: '<selected-workspace>/one-person-lab',
+      },
+      {
+        install_origin: 'homebrew_cask',
+        carrier: 'system_homebrew_formula',
+        formula: 'opl',
+        locator: '/opt/homebrew/bin/opl or /usr/local/bin/opl',
+        origin_evidence: 'Homebrew Caskroom receipt',
+      },
+      {
+        install_origin: 'dmg_or_direct_download',
+        carrier: 'app_private_install',
+        locator: '~/.opl/one-person-lab',
+      },
+    ],
+    'Install exposure OPL Framework locator precedence',
+  );
+  assertDeepEqualJson(
+    carrier.pre_formula_transition,
+    {
+      allowed: true,
+      condition: 'homebrew_cask_receipt_present_and_formula_absent',
+      carrier: 'app_private_install',
+      locator: '~/.opl/one-person-lab',
+      selection_status: 'pre_formula_transition',
+      must_end_when_formula_available: true,
+      incompatible_formula_must_not_fallback: true,
+    },
+    'Install exposure OPL Framework pre-Formula transition',
+  );
+  assertDeepEqualJson(
+    carrier.compatibility_handshake,
+    {
+      required_before_activation: true,
+      producer_owner: 'one-person-lab',
+      app_requirement_owner: 'one-person-lab-app',
+      required_package_name: 'opl-framework',
+      fail_closed_on_missing_or_incompatible: true,
+      receipt_fields: [
+        'selected_carrier',
+        'framework_version',
+        'framework_api_version',
+        'app_required_api_range',
+        'compatibility_status',
+        'selection_status',
+        'active_framework_count',
+      ],
+    },
+    'Install exposure OPL Framework compatibility handshake',
+  );
+  assertDeepEqualJson(
+    carrier.activation_invariants,
+    {
+      active_framework_count: 1,
+      dual_runtime_allowed: false,
+      split_brain_allowed: false,
+      private_fallback_may_activate_when_formula_selected: false,
+    },
+    'Install exposure OPL Framework activation invariants',
+  );
+  assertDeepEqualJson(
+    carrier.release_authority,
+    {
+      app_and_cask_release_truth_owner: 'one-person-lab-app',
+      formula_framework_release_truth_owner: 'one-person-lab',
+      app_release_must_not_publish_or_promote_formula_framework: true,
+    },
+    'Install exposure OPL Framework release authority',
+  );
+}
+
 function validateHomebrewTransportBoundary(homebrew) {
   if (
-    homebrew?.role !== 'app_cask_transport_and_install_index_only' ||
+    homebrew?.role !== 'app_cask_and_framework_formula_install_index' ||
     homebrew?.tap !== 'gaofeng21cn/one-person-lab' ||
     homebrew?.must_not_own_agent_semantics !== true ||
     homebrew?.must_not_write_user_codex_state !== true ||
     homebrew?.user_state_activation_owner !== 'opl_framework'
   ) {
-    throw new Error('Install exposure Homebrew distribution must stay transport-only and delegate activation to OPL Framework');
+    throw new Error('Install exposure Homebrew distribution must index only App casks and the Framework formula, and delegate activation to OPL Framework');
   }
   assertIncludesAll(
     homebrew.activation_commands,
@@ -256,7 +347,6 @@ function validateHomebrewTransportBoundary(homebrew) {
 
 function validateHomebrewCaskNames(homebrew) {
   if (
-    JSON.stringify(homebrew.formulae) !== JSON.stringify({}) ||
     homebrew.casks?.standard_app !== 'one-person-lab' ||
     homebrew.casks?.nightly_standard_app !== 'one-person-lab-nightly' ||
     homebrew.casks?.full_first_install_app !== 'one-person-lab-full' ||

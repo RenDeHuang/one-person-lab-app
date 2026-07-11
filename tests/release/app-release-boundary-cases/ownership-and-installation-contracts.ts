@@ -7,6 +7,7 @@ import {
   runNode,
   writeFile,
 } from './helpers.ts';
+import { validateInstallExposureRuntimeAndDistribution } from '../../../scripts/validate-active-shell/install-exposure-runtime-distribution-validator.ts';
 
 test('release boundary guard keeps App release ownership in App repo', () => {
   const result = runNode(['scripts/validate-release-boundary.ts']);
@@ -225,6 +226,85 @@ test('agent installation contract validator accepts repository contracts', () =>
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
   assert.match(result.stdout, /App agent installation contract is consistent/);
+});
+
+test('App install policy selects exactly one compatible OPL Framework carrier', () => {
+  const policy = JSON.parse(
+    fs.readFileSync(path.join(process.cwd(), 'contracts', 'app-install-exposure-policy.json'), 'utf8'),
+  );
+  const carrier = policy.distribution_channels.homebrew.framework_core_carrier;
+
+  assert.equal(
+    policy.distribution_channels.homebrew.role,
+    'app_cask_and_framework_formula_install_index',
+  );
+  assert.equal(carrier.component, 'opl_framework');
+  assert.equal(
+    carrier.selection_policy,
+    'developer_mode_then_install_origin_and_formula_availability_then_compatibility_handshake',
+  );
+  assert.deepEqual(carrier.locator_precedence, [
+    {
+      install_origin: 'explicit_developer_mode',
+      carrier: 'developer_checkout',
+      locator: '<selected-workspace>/one-person-lab',
+    },
+    {
+      install_origin: 'homebrew_cask',
+      carrier: 'system_homebrew_formula',
+      formula: 'opl',
+      locator: '/opt/homebrew/bin/opl or /usr/local/bin/opl',
+      origin_evidence: 'Homebrew Caskroom receipt',
+    },
+    {
+      install_origin: 'dmg_or_direct_download',
+      carrier: 'app_private_install',
+      locator: '~/.opl/one-person-lab',
+    },
+  ]);
+  assert.deepEqual(carrier.pre_formula_transition, {
+    allowed: true,
+    condition: 'homebrew_cask_receipt_present_and_formula_absent',
+    carrier: 'app_private_install',
+    locator: '~/.opl/one-person-lab',
+    selection_status: 'pre_formula_transition',
+    must_end_when_formula_available: true,
+    incompatible_formula_must_not_fallback: true,
+  });
+  assert.deepEqual(carrier.compatibility_handshake, {
+    required_before_activation: true,
+    producer_owner: 'one-person-lab',
+    app_requirement_owner: 'one-person-lab-app',
+    required_package_name: 'opl-framework',
+    fail_closed_on_missing_or_incompatible: true,
+    receipt_fields: [
+      'selected_carrier',
+      'framework_version',
+      'framework_api_version',
+      'app_required_api_range',
+      'compatibility_status',
+      'selection_status',
+      'active_framework_count',
+    ],
+  });
+  assert.deepEqual(carrier.activation_invariants, {
+    active_framework_count: 1,
+    dual_runtime_allowed: false,
+    split_brain_allowed: false,
+    private_fallback_may_activate_when_formula_selected: false,
+  });
+  assert.deepEqual(carrier.release_authority, {
+    app_and_cask_release_truth_owner: 'one-person-lab-app',
+    formula_framework_release_truth_owner: 'one-person-lab',
+    app_release_must_not_publish_or_promote_formula_framework: true,
+  });
+
+  const splitBrainPolicy = structuredClone(policy);
+  splitBrainPolicy.distribution_channels.homebrew.framework_core_carrier.activation_invariants.split_brain_allowed = true;
+  assert.throws(
+    () => validateInstallExposureRuntimeAndDistribution(splitBrainPolicy),
+    /OPL Framework activation invariants/,
+  );
 });
 
 test('agent installation validator rejects duplicate bare MAS/MAG/RCA skill mirrors', () => {
