@@ -184,10 +184,14 @@ const guidPageSkillExpected = [
 
 const acpSendBoxExpected = [
   'isOplCodexCliFixedExecutor',
+  'shouldShowOplConversationModelSelector',
   'shouldShowOplConversationPermissionModeSelector',
   "backend === 'codex'",
+  'const showConversationModelSelector',
   'const showModeSelector',
-  'showModeSelector ?',
+  "data-testid='acp-sendbox-decision-controls'",
+  '<AcpModelSelector conversation_id={conversation_id} backend={backend} waitForWarmup />',
+  '(showConversationModelSelector || showModeSelector) ?',
   '<ThoughtDisplay running={isBusy}',
 ];
 
@@ -313,8 +317,21 @@ function validateCodexModelControls(shellPaths) {
 }
 
 function validateCodexConversationSurfaces(shellPaths) {
-  assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/pages/conversation/components/ChatConversation.tsx', ['shouldShowOplConversationModelSelector', "extra.backend === 'codex'", 'AcpModelSelector'], 'Active shell ordinary Codex conversation model selector');
-  const acpSendBox = assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/pages/conversation/platforms/acp/AcpSendBox.tsx', acpSendBoxExpected, 'Active shell ordinary Codex conversation permission selector');
+  const chatConversation = readShellText(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/conversation/components/ChatConversation.tsx',
+  );
+  assertTextExcludesAll(
+    chatConversation,
+    ['shouldShowOplConversationModelSelector', 'AcpModelSelector'],
+    'Active shell ordinary Codex conversation duplicate header model selector',
+  );
+  const acpSendBox = assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/conversation/platforms/acp/AcpSendBox.tsx',
+    acpSendBoxExpected,
+    'Active shell ordinary Codex conversation composer model and permission selectors',
+  );
   assertTextExcludesAll(acpSendBox, ['getOplModelStatusDisplayText', "data-testid='opl-conversation-model-status'"], 'Active shell ordinary Codex conversation duplicate model status pill');
   assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/pages/conversation/platforms/acp/useAcpInitialMessage.ts', ["import { warmupConversation } from '../../utils/warmupConversation'", 'await warmupConversation(conversation_id)', 'ipcBridge.acpConversation.sendMessage.invoke'], 'Active shell ACP initial-message flow warm up before first send');
   assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/components/chat/ThoughtDisplay.tsx', ['formatElapsedTime', "t('conversation.chat.processing')", 'elapsedTime'], 'Active shell ThoughtDisplay elapsed processing feedback');
