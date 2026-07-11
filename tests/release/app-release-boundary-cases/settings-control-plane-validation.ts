@@ -161,7 +161,7 @@ test("Settings validator rejects duplicate search, missing bilingual index data,
     ["provider-source", "model"];
   assert.throws(
     () => validate(changedAnchorContract),
-    /Access anchors|access anchors/,
+    /Access anchors|access anchors|existing page anchor/,
   );
 });
 
