@@ -19,7 +19,7 @@ historical manifest below does not prove them.
 | Card eligibility | Pure state is never a standalone card; columns are limited to comparable independent decisions |
 | Workspace | One owner card containing path, writability, actions, and attention-only recovery |
 | Preferences | Two full-width groups; no 2+1 card grid |
-| Themes | Built-in choices are exactly Light and Codex; user-managed themes and manual add remain |
+| Themes | Built-in choices are exactly Light, Dark, and Codex; user-managed themes and manual add remain |
 | Diagnostics | Raw paths, refs, action ids, receipts, enums, payloads, and logs are absent inline and available from one explicit modal/drawer entry |
 | Capabilities | User-facing source labels never fall through to raw enums; Home visibility and Manage are discoverable on each row |
 | Home shortcut state | Settings and Home share one reactive owner; successful actions commit and failed actions roll back |

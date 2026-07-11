@@ -336,7 +336,7 @@ test("Settings separates configuration groups, status rows, and diagnostic surfa
   );
   assert.deepStrictEqual(
     experience.page_contracts.preferences.surface_rules.builtin_theme_ids,
-    ["light", "codex"],
+    ["light", "dark", "codex"],
   );
   assert.equal(
     experience.page_contracts.storage.surface_rules

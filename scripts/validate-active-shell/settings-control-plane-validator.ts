@@ -1746,7 +1746,7 @@ export function validateSettingsExperienceContract(experience) {
     {
       full_width_group_count: 2,
       two_plus_one_grid_allowed: false,
-      builtin_theme_ids: ["light", "codex"],
+      builtin_theme_ids: ["light", "dark", "codex"],
       extension_themes_default_visible: false,
       custom_theme_management: "preserved",
     },
