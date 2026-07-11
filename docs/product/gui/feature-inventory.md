@@ -58,7 +58,7 @@ tests 与 evidence。
 | Pending/running feedback | 看到当前 turn 正在处理、elapsed time、stop 和失败状态。 | Page-state matrix、bridge events。 |
 | Tool/process event summary | 在当前 turn 中理解 command、tool、diff、file、permission 和 receipt 发生了什么。 | Codex/App bridge；raw details 保持 diagnostics。 |
 | File/folder attachment | 发送前加入本地材料，并可预览或移除。 | Workspace/file platform adapter 与 App workspace policy。 |
-| Composer context strip | 在输入上方持续看到 project/local/branch 与 active capability；缺 workspace 时看到能力限制。 | GUI contract、workspace/App state refs。 |
+| Current execution context | Project 在 rail、branch/locality 在 Environment、active capability 与 attachment 在 composer 附近；缺 workspace 时看到能力限制。旧 machine context-strip contract 在同步前保持显式 deviation。 | GUI contract、workspace/App state refs。 |
 | Model/reasoning control | Home 与普通 conversation 共用一个紧凑 App-owned model/reasoning menu。 | `contracts/app-product-profile.json`；文档不复制 allowlist。 |
 | Permission/access mode | 在 Home 与 conversation composer 以自动化和文件权限的用户语言显示，保留安全透明度但不暴露 provider/backend。 | GUI contract、workspace/access policy。 |
 | Purpose selection | 从 Home starter 或 Capabilities 选择科研、基金、演示、写书等工作目的；composer 只保留 active capability chip。 | Product profile、GUI contract、route receipt policy。 |

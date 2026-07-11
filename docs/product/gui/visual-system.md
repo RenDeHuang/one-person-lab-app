@@ -177,9 +177,10 @@ Composer 是底部唯一主 command surface：
 - Composer 浮于底部或贴近底部安全距，不能与窗口边缘、bottom panel 或系统 safe area
   相撞。
 - 只保留一层 visible surface。外部 bridge/adapter container 必须透明。
-- 顶部 context strip 承载 project/local/branch 与 active capability chip；中间 textarea
-  承载任务正文；底部 action row 承载 attach/context、permission/access mode、单一紧凑
-  model/reasoning menu、可选 voice 和 send/stop。
+- Project/local/branch 不在 composer 常驻重复：project 由 rail 表达，branch/locality 由
+  Environment 表达。Textarea 承载任务正文；底部 action row 承载 attachment、active
+  capability、permission/access mode、单一紧凑 model/reasoning menu、可选 voice 和
+  send/stop。旧 machine context-strip target 在 contract sync 前保持显式 deviation。
 - Purpose 不作为常驻可变 selector；active capability chip 可按上下文更换，但不得呈现
   为 backend/provider。
 - 模型与推理状态及当前默认值读取 App product profile，不得在 shell 或文档复制

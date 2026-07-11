@@ -172,3 +172,4 @@ artifact、owner acceptance 或 release authority 提供 fresh evidence。
 5. [`element-audit.md`](element-audit.md)
 6. [`shell-implementation-guide.md`](shell-implementation-guide.md)
 7. [`shell-conformance-matrix.md`](shell-conformance-matrix.md)
+8. [`aionui-41301-delta-audit.md`](aionui-41301-delta-audit.md)

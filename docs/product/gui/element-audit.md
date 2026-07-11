@@ -22,7 +22,7 @@ carrier 状态和 release evidence 仍归 contracts、source/tests、validators 
 | 元素 | 稳定位置 | 位置理由 | 漂移信号 |
 | --- | --- | --- | --- |
 | Product identity | Window/titlebar、About、release assets | 用户必须知道正在使用 One Person Lab App，而不是 carrier/upstream。 | Carrier name/logo 进入 ordinary chrome。 |
-| Current context | Composer context strip 与 rail 的低权重稳定位置 | Project/local/branch 决定文件、Git 和 turn context；无 workspace 时也要说明限制。 | 只在 Settings/raw path 中可见，或无 workspace 时静默禁用。 |
+| Current context | Project 在 rail，branch/locality 在 Environment，active capability/attachment 在 composer 附近 | Context 必须可理解，但不应在多个 surface 重复。 | 只在 Settings/raw path 中可见、无 workspace 时静默禁用，或 composer 重复 rail/Environment 全量状态。 |
 | Project/conversation rail | 宽桌面左侧 `280-340px` 可调；窄窗口 drawer | Navigation 是连续工作所需，不应占用 conversation 主区。 | 宽桌面缺失、被移到 Home grid，或关闭 drawer 后丢 selection。 |
 | Rail global skeleton | 顶部少量全局入口，主体 project hierarchy，底部 account/help | 稳定全局入口与 project history 分层；Capabilities 承接 OPL 对 Plugins 的映射。 | 无真实能力的入口照搬，或 Settings 混入 conversation rows。 |
 | Project context refs | Selected project 下、recent conversations 之前 | Context 属于 project，可选且影响该项目后续 task；不能伪装成 attachment 或全局设置。 | Context 堆进 composer、跨 project 泄漏、强制添加或用虚构默认项填充。 |
@@ -31,7 +31,7 @@ carrier 状态和 release evidence 仍归 contracts、source/tests、validators 
 | Conversation timeline | Main canvas | 用户需要按时间理解任务、输出和决策。 | 与 Runtime/Files 并列成多个主面，或被 dashboard 替代。 |
 | Home question/starters | Main 空 conversation；动态问题标题 + 最多四个轻量 starter | 帮助开始任务，但不建立 landing/dashboard。 | 静态营销 hero、starter card grid 或超过四个同权入口。 |
 | Composer | Main canvas bottom，浮动或保留安全距 | 输入是普通路径主动作，应始终接近当前 conversation。 | 变成营销卡、单行 input、settings bar、多层 card 或贴边遮挡。 |
-| Active capability chip | Composer context strip | 显示已选 OPL 能力；选择动作归 Home starter/Capabilities。 | 常驻可变 purpose selector、backend selector 或 agent dashboard。 |
+| Active capability chip | Composer action row 邻近的低权重位置 | 显示已选 OPL 能力；选择动作归 Home starter/Capabilities。 | 常驻可变 purpose selector、backend selector 或 agent dashboard。 |
 | Model/reasoning control | Composer 中的 App-owned model control | 用户可见但不应抢占输入；策略由 product profile 统一。 | Shell 复制 allowlist、Home/Conversation 不一致、provider 进入普通层。 |
 | Permission/access mode | Home/conversation bottom action row | 用用户语言解释自动化与文件权限，保留安全透明度。 | 隐藏关键权限，或显示 provider/backend 术语。 |
 | Attach/context controls | Composer action row | 附件和 refs 直接影响下一次发送。 | 藏在 Settings，或 overlay 覆盖输入/不可点击。 |

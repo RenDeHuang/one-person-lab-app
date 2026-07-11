@@ -66,6 +66,8 @@ Active AionUI 默认状态通过 README 治理段声明的动态 state source �
   context、artifact export、desktop navigation 和新的 visual harness，但基于旧
   Environment/side-panel target；在 41301 文档基线下必须逐项分类为 keep/adapt/drop，
   不能整体吸收或用其测试结果提升本表 main 状态。
+  逐提交与已落地主线残留的 disposition 见
+  [`aionui-41301-delta-audit.md`](aionui-41301-delta-audit.md)。
 - Native source snapshot：`opl-native-workbench@43569d8beb5119d674c6fecae367b2915eacbfb0`；
   `npm test` 与 native live smoke 通过，像素证据为 candidate repo
   `out/native-live-smoke.png`。该证据不改变 `active_shell_adopted=false`、
@@ -103,7 +105,7 @@ Active AionUI 默认状态通过 README 治理段声明的动态 state source �
 | P0 | Project hierarchy | Project 是 N conversations 的父级；selected project 下可增加可选 context refs。 | Project/conversation history 已有；可编辑 project context 尚未进入 main。 | `source_partial`, `pixel_unverified` | 先定 project/context lifecycle，再选择 L1-L3 实现。 |
 | P0 | Home / New task | 与 conversation 共用 chat canvas/composer，不是 dashboard。 | Chat-first Home 基础存在，但需按 41301 重新观察空状态、starter 和 chrome。 | `source_partial`, `pixel_unverified` | 不从旧设计稿或 Settings visual 反推。 |
 | P0 | Conversation chrome | 只显示 task identity/直接动作；model/access 留在 composer。 | 主要 controls 已接近目标，尚无 41301 逐元素审计。 | `source_partial`, `pixel_unverified` | 做 element-level source/pixel comparison。 |
-| P0 | Composer | Add/access 在左，model/reasoning/voice/send-stop 在右；单层 surface。 | Model/access/send-stop 已实现并受 App profile 驱动；context strip 仍不完整。 | `source_partial`, `pixel_unverified` | 保留稳定 data flow，收敛视觉与 context。 |
+| P0 | Composer | Add/access 在左，model/reasoning/voice/send-stop 在右；单层 surface；不重复 rail/Environment context。 | Model control 仍在 side-panel Actions，旧 machine contract 还要求 project/local/branch strip。 | `current_contract_deviation`, `pixel_unverified` | 先做 context authority sync，再把 model/access/active capability 收敛到 composer。 |
 | P0 | Environment details | 右上 anchored floating summary，默认关闭。 | Environment summary 与 multi-tool side panel 分离，但后者超出新 baseline。 | `current_contract_deviation`, `pixel_unverified` | 以 floating summary 为主，advanced tools 按任务打开。 |
 | P0 | Visual grammar | 白 main、浅灰 rail、窄 reading lane、低对比、小圆角、极少页面卡片。 | 方向部分一致；没有绑定 41301 的核心 GUI pixels。 | `source_partial`, `pixel_unverified` | 先验 rail/Home/conversation/composer，不先扩 Settings。 |
 | P1 | OPL capabilities | Plugins 认知位置映射到专业 capability；composer 只显示 active capability。 | Home/Capabilities 基础已实现。 | `source_implemented`, `pixel_unverified` | 保持渐进披露，不扩成 launcher/card wall。 |
@@ -131,7 +133,7 @@ Native candidate 不得与 active-shell P0 差距竞争实施资源。
 | 一个项目对应 N 个最近对话 | `aligned_contract` | `source_implemented` | `pixel_unverified` | `candidate_target` | `source_partial` | `pixel_verified` | Native 有 history/timeline 形态，但 project-scoped persistence 与切换还不完整。 |
 | 对话 search/pin/rename/archive/reset 与独立 Archived | `aligned_contract` | `source_implemented` | `pixel_unverified` | `current_contract_deviation` | `source_missing` | `pixel_unverified` | AionUI 已实现独立 Archived、pin/rename/archive/reset、分页 search 和 workspace expansion 隔离。 |
 | 主区保持单一 conversation timeline | `aligned_contract` | `source_implemented` | `pixel_unverified` | `candidate_target` | `source_implemented` | `pixel_verified` | 两边已有 timeline source；AionUI Home 默认入口仍偏离 chat-first。 |
-| Composer 是 context strip + textarea + bottom action row | `aligned_contract` | `source_partial` | `pixel_unverified` | `current_contract_deviation` | `source_partial` | `pixel_verified` | AionUI 已有稳定 action row、voice、attach/context、model/access/send；完整 project/local/branch strip 仍需收敛。 |
+| Composer 是 context strip + textarea + bottom action row | `aligned_contract` | `source_partial` | `pixel_unverified` | `current_contract_deviation` | `source_partial` | `pixel_verified` | Legacy 31428 machine target；41301 human target 不重复 project/local/branch，pending contract sync。 |
 | 模型与推理策略由 App profile 驱动 | `aligned_contract` | `source_implemented` | `pixel_unverified` | `candidate_target` | `source_partial` | `pixel_verified` | Native 已显示模型控制并消费默认值，完整动态 catalog/readback 仍需验证；文档不得复制 allowlist。 |
 | Permission/access mode 在 composer 可见且不用 backend/provider 术语 | `aligned_contract` | `source_implemented` | `pixel_unverified` | `current_contract_deviation` | `source_missing` | `pixel_unverified` | AionUI Home 与 conversation 共用 App profile visibility，并呈现用户语言 access mode。 |
 | Purpose 从 Home/Capabilities 选择，composer 只显示 active capability chip | `aligned_contract` | `source_implemented` | `pixel_unverified` | `current_contract_deviation` | `source_partial` | `pixel_verified` | AionUI 使用 `HomeStarters + CapabilitiesPage`，普通 composer 不再持久显示 purpose selector。 |
@@ -158,8 +160,8 @@ Native candidate 不得与 active-shell P0 差距竞争实施资源。
 
 合同与人读 target 已更新，不代表 active implementation 完成。当前 exact gaps：
 
-- **AionUI source：** 主要结构已落地；剩余 source gap 是完整 project/local/branch
-  composer context strip、rail 内可编辑 project inputs、bottom panel/file-tree 默认值、
+- **AionUI source：** 主要结构已落地；剩余 source gap 是 composer context authority
+  消歧、rail 内可编辑 project inputs、bottom panel/file-tree 默认值、
   artifact renderer/export breadth、desktop menu/task navigation、contrast 和全键盘矩阵。
 - **AionUI pixels：** Settings 已绑定当前 source snapshot 的 28 张 desktop/mobile
   route/interaction 截图；这证明 Settings 路径非空且符合已声明的 OPL 卡片基线，不证明

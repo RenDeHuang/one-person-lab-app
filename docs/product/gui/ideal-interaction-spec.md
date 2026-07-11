@@ -131,8 +131,10 @@ Streaming 期间用户始终知道 App 仍在工作。即使已有 tool event，
 Composer 是普通路径唯一主 command surface：
 
 - 文本输入默认可用，支持多行、paste、keyboard shortcuts 和 IME。
-- 上层 context strip 显示 project/local/branch 与 active capability chip；active capability
-  可按上下文更换，但不得表现为 backend。
+- 41301 human target 不在 composer 常驻重复 project/local/branch：project 由 rail 表达，
+  branch/locality 由 Environment 表达；composer 只保留与下一次发送直接相关的 attachment
+  和 active capability。旧 machine profile/page-state 仍要求完整 context strip，状态为
+  `pending_contract_sync`，Shell 实现前必须先完成 authority 消歧。
 - 中层是 textarea；底层 action row 放 attachments/context、permission/access mode、
   单一紧凑 model/reasoning menu、可选 voice 和 send/stop。
 - Home 与 ordinary conversation 使用同一 App-owned model control。
@@ -153,7 +155,7 @@ Composer 是普通路径唯一主 command surface：
 
 - 普通标签描述用户工作：科研、基金、演示、写书等。
 - Purpose 只从 Home starter 或 Capabilities 选择；不再是 composer 的常驻可变 selector。
-- Composer/context strip 只显示 active capability chip；更换 capability 改变 route context
+- Composer 只以低权重显示 active capability；更换 capability 改变 route context
   与 assistant-scoped profile，不改变 executor。
 - Required skills 可见且 locked；optional skills 由 App packaged profile 控制。
 - Package id、MAS/MAG/RCA 等 short name、route id 和 schema refs 进入 receipt/details。
@@ -273,7 +275,8 @@ First-run 的目标是让用户尽快进入可工作的 App：
 - Environment details 默认关闭且 anchored，打开后不破坏 conversation/draft。
 - Home 使用动态问题标题与最多四个 starter，不是 dashboard/landing。
 - Project task 与 projectless conversation 均可用；无 workspace 时文字聊天可用且文件能力受限。
-- Composer 只有 context strip、textarea 和 bottom action row；purpose 不再常驻可变 selector。
+- Composer 只有 textarea、send-local controls 和 bottom action row；purpose 不再常驻可变
+  selector，project/local/branch 不与 rail/Environment 重复。
 - Permission/access mode 可见并用用户语言表达，不暴露 backend/provider。
 - Model/reasoning 及当前默认值来自 App product profile。
 - Current-task summary bar 可 pin，并包含 status/elapsed/progress/next action/stop。
