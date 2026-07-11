@@ -2,12 +2,15 @@ import { assertDeepEqualJson, assertIncludesAll } from './assertions.ts';
 import {
   appOwnedPageStateHomeLayout,
   appOwnedPageStateOrdinaryConversation,
-  appOwnedRightContextInspectorPrimaryToolIds,
-  appOwnedRightContextInspectorSecondarySectionIds,
+  appOwnedRightContextInspectorForbiddenOwners,
+  appOwnedRightContextInspectorPolicy,
   homeActivityCenterForbiddenDisplays,
 } from './app-contract-constants.ts';
 
 export function validatePrimaryInteractionPages(matrix) {
+  if (matrix.schema_version !== 2) {
+    throw new Error('App page-state matrix schema_version must be 2');
+  }
   validateGuidHomePage(matrix);
   validateOrdinaryConversationPage(matrix);
   validateRightContextInspectorPage(matrix);
@@ -181,7 +184,7 @@ function validateGuidHomeVisibleSignals(guidHomePage) {
     'single composer-first home input with context strip and bottom action row',
     'permission and access mode in user language',
     'workspace/session rail visible on wide desktop and drawer on narrow windows',
-    'right context inspector collapsed by default',
+    'advanced work surfaces closed by default with no third column',
     'runtime/task progress available from Runtime page, not Home activity grid',
   ], 'Guid home page visible signals');
 }
@@ -289,64 +292,66 @@ function validateOrdinaryConversationPage(matrix) {
     'Codex CLI ordinary conversation',
     'floating bottom composer with safe inset',
     'compact active capability chip',
+    'desktop attach, permission and access, model and reasoning, and send or stop controls in the composer',
+    'mobile plus sheet limited to OPL attach, project refs, access, model and reasoning, and active capability actions',
+    'attachments and project refs consumed by the current send only',
     'permission and access mode in user language',
     'projectless text conversation when no workspace is selected',
     'assistant route receipt',
     'Codex default model and reasoning status',
+    'single current task instance in the message timeline, inline and unpinned for ordinary tasks',
+    'current task becomes sticky only after user pin or a true long_running signal',
+    'complete paginated redacted transcript export with Markdown default, strict JSON, explicit directory and filename',
   ], 'Ordinary conversation page visible signals');
   assertIncludesAll(ordinaryConversationPage.must_not_show, [
     'backend selector as normal conversation control',
     'provider selector as normal conversation control',
     'provider or backend language inside permission and access mode',
     'persistent variable purpose selector in the composer',
+    'persistent project, workspace, locality, branch, attachment, or project-ref context strip',
+    'backend, provider, Team, raw MCP, or arbitrary skills in the mobile plus sheet',
+    'duplicate current task or Runtime summary outside the message timeline',
+    'workspace bundle export authorization',
   ], 'Ordinary conversation page hidden signals');
 }
 
 function validateRightContextInspectorPage(matrix) {
   const rightContextInspectorPage = pageById(matrix, 'right_context_inspector', 'right_context_inspector');
   const inspectorViewModel = rightContextInspectorPage.inspector_view_model;
-  assertDeepEqualJson(
-    (inspectorViewModel?.primary_tools ?? []).map((tool) => tool.id),
-    appOwnedRightContextInspectorPrimaryToolIds,
-    'Right context inspector primary tools',
-  );
-  assertDeepEqualJson(
-    (inspectorViewModel?.secondary_sections ?? []).map((section) => section.id),
-    appOwnedRightContextInspectorSecondarySectionIds,
-    'Right context inspector secondary sections',
-  );
-  if (Array.isArray(inspectorViewModel?.tabs)) {
-    throw new Error('Right context inspector must not restore equal-weight tabs');
-  }
-  const expectedFields = {
-    placement: 'right',
-    surface_kind: 'resizable_side_panel',
-    default_state: 'collapsed',
-    opens_on_user_request_only: true,
-    chat_canvas_remains_primary: true,
-    scope: 'selected_workspace_and_conversation',
-    wide_desktop_mode: 'resizable_split',
-    secondary_presentation: 'sections_or_disclosures_not_equal_weight_tabs',
-    environment_popover_ref: 'contracts/app-gui-product-contract.json#interaction_baseline.context_surfaces.environment_popover',
+  const expectedPolicy = {
+    ...appOwnedRightContextInspectorPolicy,
+    environment_popover_ref:
+      'contracts/app-gui-product-contract.json#interaction_baseline.context_surfaces.environment_popover',
   };
   assertDeepEqualJson(
-    fieldsFrom(inspectorViewModel, expectedFields),
-    expectedFields,
-    'Right context inspector fields',
+    Object.fromEntries(
+      Object.entries(inspectorViewModel ?? {}).filter(
+        ([key]) => !['current_task_evidence', 'must_not_own'].includes(key),
+      ),
+    ),
+    expectedPolicy,
+    'On-demand advanced workspace surface policy',
   );
+  for (const legacyField of ['tabs', 'primary_tools', 'secondary_sections']) {
+    if (legacyField in (inspectorViewModel ?? {})) {
+      throw new Error(`Page state must not restore legacy inspector taxonomy field ${legacyField}`);
+    }
+  }
   assertIncludesAll(rightContextInspectorPage.must_show, [
-    'right-side resizable split panel closed by default',
-    'Review, Terminal, Browser, and Files primary tools',
-    'Artifacts, Runtime, Actions, and Memory secondary sections or disclosures',
-    'environment popover kept distinct from the side panel',
-  ], 'Right context inspector page visible signals');
+    'no third column mounted by default',
+    'Files and Changes workspace surface opened only by user or task need',
+    'Preview opened as an independent surface for artifact, file, URL, or result',
+    'Terminal and Browser opened from Environment or task need',
+    'environment popover kept distinct from advanced work surfaces',
+  ], 'Advanced workspace surface page visible signals');
   assertIncludesAll(rightContextInspectorPage.must_not_show, [
-    'nine equal-weight side-panel tabs',
+    'legacy equal-weight Review, Terminal, Browser, Files, Artifacts, Runtime, Actions, and Memory taxonomy',
+    'Runtime duplicate outside the message timeline current task instance',
     'advanced work surfaces open by default',
-  ], 'Right context inspector page hidden signals');
+  ], 'Advanced workspace surface page hidden signals');
   assertIncludesAll(
     rightContextInspectorPage.must_not_own,
-    ['runtime truth', 'domain truth', 'artifact body', 'memory body', 'backend selection authority'],
-    'Right context inspector forbidden owners',
+    appOwnedRightContextInspectorForbiddenOwners,
+    'Advanced workspace surface forbidden owners',
   );
 }

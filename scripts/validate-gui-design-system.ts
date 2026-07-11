@@ -65,8 +65,10 @@ const defaultRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
 const roleMarker = 'gui_shell_roles: active=aionui; foreground=opl-native-workbench; retained=hermes-codex; archived=agui-codex';
 const stackMarker = 'gui_definition_stack: product_definition > visual_system > shell_implementation_conformance';
 const shellAuthorityMarker = 'gui_shell_authority: implementation_only';
-const codexReference = 'ChatGPT Codex macOS 26.707.31428 (2026-07-10)';
-const supersededCodexReference = 'ChatGPT Codex macOS 26.707.31123 (2026-07-10)';
+const codexReference = 'ChatGPT Codex macOS 26.707.41301 (2026-07-11)';
+const supersededCodexReference = 'ChatGPT Codex macOS 26.707.31428 (2026-07-10)';
+const earlierSupersededCodexReference = 'ChatGPT Codex macOS 26.707.31123 (2026-07-10)';
+const supersededCodexReferences = [supersededCodexReference, earlierSupersededCodexReference];
 
 const foundationDocs = {
   readme: 'docs/product/gui/README.md',
@@ -132,12 +134,6 @@ function stringArray(value: unknown): string[] {
 
 function sameStrings(actual: unknown, expected: readonly string[]): boolean {
   return JSON.stringify(stringArray(actual)) === JSON.stringify(expected);
-}
-
-function idArray(value: unknown): string[] {
-  return Array.isArray(value)
-    ? value.map(record).map((item) => item.id).filter((id): id is string => typeof id === 'string')
-    : [];
 }
 
 function conformanceStatus(matches: boolean): ContractConformanceStatus {
@@ -418,7 +414,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     requireMarker(foundationReadme, shellAuthorityMarker, foundationDocs.readme, issues);
     for (const marker of [
       `current_interaction_reference=${codexReference}`,
-      `superseded_interaction_observation=${supersededCodexReference}`,
+      `superseded_interaction_observations=${supersededCodexReferences.join(',')}`,
       'human_target.owner=one-person-lab-app',
       'active_aionui.role=current_implementation_conformance_only',
       'docs_or_contract_imply_source_complete=false',
@@ -426,7 +422,8 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
       'ideal_target.workspace_session_rail_default_visible=true',
       'ideal_target.inspector_default_visible=false',
       'ideal_target.permission_access_mode_visible=true',
-      'ideal_target.side_panel_primary_tools=review,terminal,browser,files',
+      'ideal_target.default_third_column_visible=false',
+      'ideal_target.advanced_workspace_surfaces=files_changes,preview,terminal,browser',
       'active_aionui.state_source=contracts/app-product-profile.json#gui.home.home_layout',
     ]) {
       requireExactMarkerLine(foundationReadme, marker, foundationDocs.readme, issues);
@@ -436,25 +433,30 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   const interactionBaseline = record(guiContract.interaction_baseline);
   const currentReference = record(interactionBaseline.current_reference);
   if (
-    interactionBaseline.schema !== 'opl_app_codex_interaction_baseline.v1' ||
+    guiContract.schema_version !== 2 ||
+    profile.schema_version !== 2 ||
+    pageStateMatrix.schema_version !== 2 ||
+    interactionBaseline.schema !== 'opl_app_codex_interaction_baseline.v2' ||
     currentReference.product !== 'ChatGPT Codex macOS' ||
-    currentReference.build !== '26.707.31428' ||
-    currentReference.observed_on !== '2026-07-10' ||
+    currentReference.build !== '26.707.41301' ||
+    currentReference.observed_on !== '2026-07-11' ||
     currentReference.observation_ref !== 'docs/product/gui/codex-to-opl-app-delta.md#literal-observation-boundary' ||
     currentReference.usage !== 'visual_and_interaction_reference_only_no_code_brand_account_or_authority_copy'
   ) {
-    issues.add(`interaction_baseline current reference must be ${codexReference}`);
+    issues.add(`interaction baseline and App authority contracts must use schema v2 with current reference ${codexReference}`);
   }
   const supersededObservations = Array.isArray(interactionBaseline.superseded_observations)
     ? interactionBaseline.superseded_observations.map(record)
     : [];
-  if (!supersededObservations.some((observation) => (
-    observation.product === 'ChatGPT Codex macOS' &&
-    observation.build === '26.707.31123' &&
-    observation.observed_on === '2026-07-10' &&
-    observation.status === 'superseded_observation_only'
-  ))) {
-    issues.add(`interaction_baseline must retain ${supersededCodexReference} only as a superseded observation`);
+  for (const build of ['26.707.31428', '26.707.31123']) {
+    if (!supersededObservations.some((observation) => (
+      observation.product === 'ChatGPT Codex macOS' &&
+      observation.build === build &&
+      observation.observed_on === '2026-07-10' &&
+      observation.status === 'superseded_observation_only'
+    ))) {
+      issues.add(`interaction_baseline must retain ${build} only as a superseded observation`);
+    }
   }
 
   const acceptanceBoundary = record(interactionBaseline.acceptance_boundary);
@@ -464,7 +466,15 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     acceptanceBoundary.active_shell_role !== 'current_implementation_conformance_only' ||
     acceptanceBoundary.docs_or_contract_imply_source_complete !== false ||
     acceptanceBoundary.docs_or_contract_imply_pixel_complete !== false ||
-    acceptanceBoundary.docs_or_contract_imply_release_ready !== false
+    acceptanceBoundary.docs_or_contract_imply_release_ready !== false ||
+    acceptanceBoundary.authority_status !== 'authority_candidate_pending_root_absorption' ||
+    acceptanceBoundary.shell_implementation_status !== 'implementation_candidate_final_sha_pending' ||
+    acceptanceBoundary.source_evidence_status !== 'focused_candidate_evidence_only' ||
+    acceptanceBoundary.pixel_evidence_status !== 'not_complete' ||
+    acceptanceBoundary.release_evidence_status !== 'not_complete' ||
+    acceptanceBoundary.final_shell_sha !== null ||
+    acceptanceBoundary.final_shell_sha_binding_status !== 'pending_root_binding' ||
+    acceptanceBoundary.final_shell_sha_must_not_be_inferred_from_worktree_head !== true
   ) {
     issues.add('interaction baseline must keep the human target separate from source, pixel, and release completion');
   }
@@ -559,6 +569,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   const projectContextInputs = record(conversationScope.project_context_inputs);
   const permissionTarget = record(interactionBaseline.permission_access_mode);
   const taskSummaryTarget = record(interactionBaseline.current_task_summary_bar);
+  const mobileActionSheet = record(composerTarget.mobile_action_sheet);
   if (
     conversationScope.project_task_supported !== true ||
     conversationScope.projectless_conversation_supported !== true ||
@@ -571,8 +582,9 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     projectContextInputs.item_kind !== 'workspace_file_or_directory_ref' ||
     !sameStrings(projectContextInputs.mutations, ['add', 'remove']) ||
     projectContextInputs.persistence !== 'shell_client_configuration_keyed_by_workspace' ||
-    projectContextInputs.composer_application !==
-      'visible_removable_context_refs_preloaded_for_project_conversations' ||
+    projectContextInputs.management_surface !== 'navigation_rail_project' ||
+    projectContextInputs.composer_consumption !== 'send_scoped_removable_refs' ||
+    projectContextInputs.composer_persistence_after_send !== 'none' ||
     projectContextInputs.fabricated_defaults_allowed !== false ||
     projectContextInputs.artifact_body_copy_allowed !== false ||
     homeTarget.title_policy !== 'dynamic_question_title' ||
@@ -595,11 +607,49 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     capabilitySelection.composer_persistent_variable_selector !== false ||
     capabilitySelection.composer_context_surface !== 'active_capability_chip' ||
     composerTarget.placement !== 'floating_bottom_with_safe_inset' ||
-    !sameStrings(composerTarget.context_strip, ['project_context_refs', 'active_capability']) ||
+    !sameStrings(composerTarget.persistent_context, ['active_capability']) ||
+    !sameStrings(composerTarget.send_scoped_inputs, ['attachments', 'project_refs']) ||
+    composerTarget.send_scoped_consumption_policy !==
+      'consumed_by_current_send_not_persisted_in_context_strip' ||
+    !sameStrings(composerTarget.forbidden_persistent_context, [
+      'project',
+      'workspace',
+      'locality',
+      'branch',
+      'attachments',
+      'project_refs',
+    ]) ||
+    !sameStrings(composerTarget.desktop_action_row, [
+      'attach',
+      'permission_access_mode',
+      'model_reasoning',
+      'send_stop',
+    ]) ||
+    !sameStrings(mobileActionSheet.allowed_actions, [
+      'attach',
+      'project_refs',
+      'permission_access_mode',
+      'model_reasoning',
+      'active_capability',
+    ]) ||
+    !sameStrings(mobileActionSheet.forbidden_actions, [
+      'backend',
+      'provider',
+      'team',
+      'raw_mcp',
+      'arbitrary_skills',
+    ]) ||
+    mobileActionSheet.send_stop_location !== 'composer_primary_action_outside_sheet' ||
     composerTarget.model_reasoning_control !== 'single_compact_menu' ||
     !sameStrings(permissionTarget.visible_on, ['home_composer', 'conversation_composer']) ||
     permissionTarget.provider_or_backend_terms_visible !== false ||
-    taskSummaryTarget.pin_supported !== true ||
+    taskSummaryTarget.placement !== 'message_timeline' ||
+    taskSummaryTarget.single_instance !== true ||
+    taskSummaryTarget.default_mode !== 'inline_unpinned' ||
+    !sameStrings(taskSummaryTarget.sticky_when, ['user_pinned', 'long_running_true']) ||
+    taskSummaryTarget.ordinary_task_sticky !== false ||
+    taskSummaryTarget.long_running_signal_field !== 'long_running' ||
+    taskSummaryTarget.duplicate_surface_allowed !== false ||
     !sameStrings(taskSummaryTarget.fields, ['status', 'elapsed', 'progress', 'next_action', 'stop'])
   ) {
     issues.add('interaction baseline Home, conversation, composer, access, and task summary markers must match the App target');
@@ -615,21 +665,41 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     issues.add('each OPL target translation section must declare that it is not a literal Codex observation');
   }
   if (
-    !sameStrings(environmentPopover.summary_fields, ['workspace', 'local', 'git', 'subtasks', 'sources']) ||
-    sidePanel.wide_desktop !== 'resizable_split' ||
+    !sameStrings(environmentPopover.primary_fields, ['workspace', 'locality', 'branch', 'changes', 'subtasks', 'sources']) ||
+    !sameStrings(environmentPopover.secondary_ref_fields, ['artifact_refs', 'evidence_refs', 'receipt_refs']) ||
+    environmentPopover.render_policy !== 'real_non_empty_values_only' ||
     sidePanel.default_state !== 'closed' ||
-    !sameStrings(sidePanel.primary_tools, ['review', 'terminal', 'browser', 'files']) ||
-    !sameStrings(sidePanel.secondary_sections, ['artifacts', 'runtime', 'actions', 'memory']) ||
-    sidePanel.secondary_presentation !== 'sections_or_disclosures_not_equal_weight_tabs' ||
-    !sameStrings(contextSurfaces.advanced_work_surfaces, ['bottom_panel', 'file_tree', 'terminal', 'browser']) ||
+    sidePanel.default_third_column_visible !== false ||
+    sidePanel.workspace_surface !== 'files_changes' ||
+    sidePanel.preview_surface !== 'independent' ||
+    sidePanel.terminal_browser_entry_policy !== 'environment_or_task_need_only' ||
+    sidePanel.equal_weight_tool_taxonomy_allowed !== false ||
+    sidePanel.runtime_duplicate_allowed !== false ||
+    'primary_tools' in sidePanel ||
+    'secondary_sections' in sidePanel ||
+    !sameStrings(sidePanel.legacy_taxonomy_ids_forbidden, [
+      'review',
+      'terminal',
+      'browser',
+      'files',
+      'artifacts',
+      'runtime',
+      'actions',
+      'memory',
+    ]) ||
+    !sameStrings(contextSurfaces.advanced_work_surfaces, ['files_changes', 'preview', 'terminal', 'browser']) ||
     contextSurfaces.advanced_work_surfaces_default !== 'closed' ||
     settingsShell.frame !== 'codex_full_window_return_search_grouped_rows' ||
     settingsShell.information_architecture !== 'existing_opl_settings_ia_unchanged' ||
+    settingsShell.role !== 'maintenance_only' ||
+    settingsShell.home_or_conversation_structure_authority !== false ||
+    settingsShell.settings_objects_or_model_policy_changed_by_41301 !== false ||
+    settingsShell.installer_or_runtime_truth_authority !== false ||
     visualTarget.main_canvas !== 'white' ||
     visualTarget.rail_and_subtle_surfaces !== 'neutral_gray' ||
     visualTarget.opl_teal_and_brand_retained !== true
   ) {
-    issues.add('interaction baseline context surfaces, Settings shell, and visual target must match the App target');
+    issues.add('interaction baseline must reject the legacy equal-weight inspector taxonomy and keep Settings in maintenance');
   }
 
   const pageStateBoundary = record(pageStateMatrix.acceptance_boundary);
@@ -638,7 +708,12 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     pageStateBoundary.human_target_owner !== 'one-person-lab-app' ||
     pageStateBoundary.active_aionui_role !== 'current_implementation_conformance_only' ||
     pageStateBoundary.contract_target_implies_source_complete !== false ||
-    pageStateBoundary.contract_target_implies_pixel_complete !== false
+    pageStateBoundary.contract_target_implies_pixel_complete !== false ||
+    pageStateBoundary.contract_target_implies_release_complete !== false ||
+    pageStateBoundary.authority_status !== 'authority_candidate_pending_root_absorption' ||
+    pageStateBoundary.shell_implementation_status !== 'implementation_candidate_final_sha_pending' ||
+    pageStateBoundary.final_shell_sha !== null ||
+    pageStateBoundary.final_shell_sha_binding_status !== 'pending_root_binding'
   ) {
     issues.add('page-state acceptance boundary must keep human target separate from source and pixel completion');
   }
@@ -699,12 +774,18 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     activeConversation.permission_mode_selector_visible === true
   );
   const sidePanelInformationArchitectureMatchesIdeal = (
-    activeInspector.surface_kind === 'resizable_side_panel' &&
-    activeInspector.wide_desktop_mode === 'resizable_split' &&
-    sameStrings(idArray(activeInspector.primary_tools), stringArray(sidePanel.primary_tools)) &&
-    sameStrings(idArray(activeInspector.secondary_sections), stringArray(sidePanel.secondary_sections)) &&
-    activeInspector.secondary_presentation === 'sections_or_disclosures_not_equal_weight_tabs' &&
-    !Array.isArray(activeInspector.tabs)
+    activeInspector.surface_kind === 'on_demand_workspace_surface' &&
+    activeInspector.default_third_column_visible === false &&
+    record(activeInspector.workspace_surface).id === 'files_changes' &&
+    record(activeInspector.preview_surface).id === 'preview' &&
+    record(activeInspector.preview_surface).independent === true &&
+    sameStrings(record(record(activeInspector.on_demand_task_tools).terminal).entry_points, ['environment', 'task_need']) &&
+    sameStrings(record(record(activeInspector.on_demand_task_tools).browser).entry_points, ['environment', 'task_need']) &&
+    activeInspector.equal_weight_tool_taxonomy_allowed === false &&
+    activeInspector.runtime_duplicate_allowed === false &&
+    !('primary_tools' in activeInspector) &&
+    !('secondary_sections' in activeInspector) &&
+    !('tabs' in activeInspector)
   );
   requireAionuiContractStatus(
     conformanceMatrix,
@@ -718,18 +799,6 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     conformanceStatus(permissionAccessModeMatchesIdeal),
     issues,
   );
-  for (const requirement of [
-    'Side panel 默认关闭、可调，核心 Review/Terminal/Browser/Files',
-    'Artifacts/Runtime/Actions/Memory 使用 secondary sections',
-  ]) {
-    requireAionuiContractStatus(
-      conformanceMatrix,
-      requirement,
-      conformanceStatus(sidePanelInformationArchitectureMatchesIdeal),
-      issues,
-    );
-  }
-
   const codex = record(profile.codex);
   const defaultModel = typeof codex.default_model === 'string' ? codex.default_model : '';
   const defaultReasoningEffort = typeof codex.default_reasoning_effort === 'string'
@@ -763,14 +832,14 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   const nativeCandidateReference = typeof nativeVisualContract.comparison_baseline === 'string'
     ? nativeVisualContract.comparison_baseline
     : '';
-  if (codexGovernance.comparison_baseline !== codexReference) {
-    issues.add(`global Codex comparison baseline must be ${codexReference}`);
+  if (![codexReference, ...supersededCodexReferences].includes(String(codexGovernance.comparison_baseline))) {
+    issues.add(`candidate registry Codex comparison baseline must be current or a declared superseded observation`);
   }
-  if (![codexReference, supersededCodexReference].includes(nativeCandidateReference)) {
-    issues.add(`native candidate Codex comparison baseline must be ${codexReference} or the declared superseded observation`);
+  if (![codexReference, ...supersededCodexReferences].includes(nativeCandidateReference)) {
+    issues.add(`native candidate Codex comparison baseline must be ${codexReference} or a declared superseded observation`);
   }
   if (
-    nativeCandidateReference === supersededCodexReference &&
+    supersededCodexReferences.includes(nativeCandidateReference) &&
     nativeVisualContract.current_reference_status !== 'superseded_reference_candidate_deviation'
   ) {
     issues.add('native candidate must explicitly declare its superseded Codex reference as a candidate deviation');

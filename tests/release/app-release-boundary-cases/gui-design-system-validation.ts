@@ -9,8 +9,9 @@ import {
 } from './helpers.ts';
 
 const shellAuthorityMarker = 'gui_shell_authority: implementation_only';
-const codexReference = 'ChatGPT Codex macOS 26.707.31428 (2026-07-10)';
-const supersededCodexReference = 'ChatGPT Codex macOS 26.707.31123 (2026-07-10)';
+const codexReference = 'ChatGPT Codex macOS 26.707.41301 (2026-07-11)';
+const supersededCodexReference = 'ChatGPT Codex macOS 26.707.31428 (2026-07-10)';
+const earlierSupersededCodexReference = 'ChatGPT Codex macOS 26.707.31123 (2026-07-10)';
 const designRoot = 'docs/product/gui';
 
 const conformanceMatrix = `# Shell conformance matrix
@@ -23,8 +24,8 @@ const conformanceMatrix = `# Shell conformance matrix
 | Chat-first visual | \`current_contract_deviation\` | \`source_partial\` | \`pixel_blocked\` | \`candidate_target\` | \`source_partial\` | \`pixel_verified\` | Pixel evidence does not imply parity. |
 | 宽桌面 rail 默认展开且 \`280-340px\` 可调 | \`aligned_contract\` | \`source_partial\` | \`pixel_unverified\` | \`candidate_target\` | \`source_partial\` | \`pixel_unverified\` | Contract readback. |
 | Permission/access mode 在 composer 可见且不用 backend/provider 术语 | \`aligned_contract\` | \`source_partial\` | \`pixel_unverified\` | \`current_contract_deviation\` | \`source_missing\` | \`pixel_unverified\` | Contract readback. |
-| Side panel 默认关闭、可调，核心 Review/Terminal/Browser/Files | \`aligned_contract\` | \`source_partial\` | \`pixel_unverified\` | \`current_contract_deviation\` | \`source_partial\` | \`pixel_verified\` | Contract readback. |
-| Artifacts/Runtime/Actions/Memory 使用 secondary sections | \`aligned_contract\` | \`source_partial\` | \`pixel_unverified\` | \`current_contract_deviation\` | \`source_partial\` | \`pixel_verified\` | Contract readback. |
+| Advanced surfaces 默认无第三列；Files/Changes按需，Preview独立 | \`aligned_contract\` | \`source_partial\` | \`pixel_unverified\` | \`current_contract_deviation\` | \`source_partial\` | \`pixel_verified\` | Contract readback. |
+| Terminal/Browser 从 Environment 或任务需要按需打开，无 Runtime duplicate | \`aligned_contract\` | \`source_partial\` | \`pixel_unverified\` | \`current_contract_deviation\` | \`source_partial\` | \`pixel_verified\` | Contract readback. |
 `;
 
 function writeFile(root: string, relativePath: string, contents: string): void {
@@ -70,7 +71,7 @@ function createFixture(): string {
     'contract_refs=contracts/app-gui-product-contract.json,contracts/app-product-profile.json,contracts/app-page-state-matrix.json,contracts/app-shell-candidates.json,contracts/app-shell-adapter.json',
     shellAuthorityMarker,
     `current_interaction_reference=${codexReference}`,
-    `superseded_interaction_observation=${supersededCodexReference}`,
+    `superseded_interaction_observations=${supersededCodexReference},${earlierSupersededCodexReference}`,
     'human_target.owner=one-person-lab-app',
     'active_aionui.role=current_implementation_conformance_only',
     'docs_or_contract_imply_source_complete=false',
@@ -78,7 +79,8 @@ function createFixture(): string {
     'ideal_target.workspace_session_rail_default_visible=true',
     'ideal_target.inspector_default_visible=false',
     'ideal_target.permission_access_mode_visible=true',
-    'ideal_target.side_panel_primary_tools=review,terminal,browser,files',
+    'ideal_target.default_third_column_visible=false',
+    'ideal_target.advanced_workspace_surfaces=files_changes,preview,terminal,browser',
     'active_aionui.state_source=contracts/app-product-profile.json#gui.home.home_layout',
   ].join('\n');
   writeFile(root, `${designRoot}/README.md`, `${readme}\n`);
@@ -189,7 +191,43 @@ test('GUI design-system validator rejects a stale App-owned current baseline', (
   writeJson(root, 'contracts/app-gui-product-contract.json', contract);
   assert.throws(
     () => validateGuiDesignSystem(root),
-    /interaction_baseline current reference must be ChatGPT Codex macOS 26\.707\.31428/,
+    /schema v2 with current reference ChatGPT Codex macOS 26\.707\.41301/,
+  );
+});
+
+test('GUI design-system validator rejects the superseded v1 interaction baseline schema', () => {
+  const root = createFixture();
+  const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
+  const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+  contract.schema_version = 1;
+  contract.interaction_baseline.schema = 'opl_app_codex_interaction_baseline.v1';
+  writeJson(root, 'contracts/app-gui-product-contract.json', contract);
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /schema v2/,
+  );
+});
+
+test('GUI design-system validator rejects the legacy eight-surface inspector taxonomy', () => {
+  const root = createFixture();
+  const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
+  const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+  contract.interaction_baseline.context_surfaces.side_panel.primary_tools = [
+    'review',
+    'terminal',
+    'browser',
+    'files',
+  ];
+  contract.interaction_baseline.context_surfaces.side_panel.secondary_sections = [
+    'artifacts',
+    'runtime',
+    'actions',
+    'memory',
+  ];
+  writeJson(root, 'contracts/app-gui-product-contract.json', contract);
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /legacy equal-weight inspector taxonomy/,
   );
 });
 
@@ -217,15 +255,16 @@ test('GUI design-system validator rejects removing the OPL Runtime entry for Cod
   );
 });
 
-test('GUI design-system validator rejects a stale global Codex governance baseline', () => {
+test('GUI design-system validator rejects an undeclared candidate-registry Codex baseline', () => {
   const root = createFixture();
   const registryPath = path.join(root, 'contracts/app-shell-candidates.json');
   const registry = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
-  registry.design_system_governance.codex_reference.comparison_baseline = supersededCodexReference;
+  registry.design_system_governance.codex_reference.comparison_baseline =
+    'ChatGPT Codex macOS 0.0.0 (2026-07-11)';
   writeJson(root, 'contracts/app-shell-candidates.json', registry);
   assert.throws(
     () => validateGuiDesignSystem(root),
-    /global Codex comparison baseline must be ChatGPT Codex macOS 26\.707\.31428/,
+    /candidate registry Codex comparison baseline must be current or a declared superseded observation/,
   );
 });
 

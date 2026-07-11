@@ -31,9 +31,10 @@ OPL project context、capabilities、progress、evidence、artifacts 与 safe ac
 嵌入这些稳定位置，不得把 Home 改造成 dashboard、launcher 或 card wall。
 
 当前人读观察基准是本机 ChatGPT macOS `26.707.41301`（观察于 `2026-07-11`）。
-它取代 `26.707.31428` 作为设计参考，但在 contracts、validators 与 active shell
-完成同步前，只能形成明确的 `pending_contract_sync` / `current_source_deviation`，
-不能靠修改本文宣称实现已经对齐。
+App machine authority 已在本 lane 升为 baseline schema v2；在 root 吸收前状态为
+`authority_candidate_pending_root_absorption`。AionUI 已有对应 implementation candidate，
+但 final Shell SHA 尚未绑定，当前不得宣称 source cohort、pixel parity 或 release complete。
+`26.707.31428` 与 `26.707.31123` 只作为 superseded observations 保留。
 
 ## 三层与文件归属
 
@@ -70,6 +71,11 @@ contract 的 lane 决定是否修改 machine truth、实现或目标。
 Conformance 必须按 `contract_status`、`source_status`、`pixel_status` 三条独立轴读取；
 `pixel_verified` 只证明存在当前像素证据，不等于视觉对齐或 release-ready。
 
+证据分层固定为：`docs` 解释意图，`contract` 决定 machine acceptance，`source/tests`
+证明 implementation candidate，`pixel` 证明指定 cohort 的可见结果，`release` 证明最终
+package/user path。当前只允许前两层形成 authority candidate、第三层形成 implementation
+candidate；final Shell SHA、pixel matrix 与 release cohort 均待 root 后续绑定。
+
 ## 治理标记（供 validator 读取）
 
 本段只声明入口、authority 和动态默认状态来源，不复制 machine truth：
@@ -82,21 +88,18 @@ Conformance 必须按 `contract_status`、`source_status`、`pixel_status` 三�
 - `ideal_target.inspector_default_visible=false`
 - `active_aionui.state_source=contracts/app-product-profile.json#gui.home.home_layout`
 - `active_shell_switch_contract=contracts/app-shell-adapter.json`
-- `human_observed_interaction_reference=ChatGPT macOS 26.707.41301 (2026-07-11)`
-- `human_superseded_interaction_observation=ChatGPT Codex macOS 26.707.31428 (2026-07-10)`
-- 以下 `current_interaction_reference`、`superseded_interaction_observation` 与
-  `side_panel_primary_tools` 是 validator 仍消费的 legacy `31428` machine markers，
-  不属于 `41301` human ideal；状态为 `pending_contract_sync`：
-- `current_interaction_reference=ChatGPT Codex macOS 26.707.31428 (2026-07-10)`
-- `superseded_interaction_observation=ChatGPT Codex macOS 26.707.31123 (2026-07-10)`
+- `current_interaction_reference=ChatGPT Codex macOS 26.707.41301 (2026-07-11)`
+- `superseded_interaction_observations=ChatGPT Codex macOS 26.707.31428 (2026-07-10),ChatGPT Codex macOS 26.707.31123 (2026-07-10)`
 - `human_target.owner=one-person-lab-app`
 - `active_aionui.role=current_implementation_conformance_only`
+- `active_aionui.final_shell_sha=pending_root_binding`
 - `docs_or_contract_imply_source_complete=false`
 - `docs_or_contract_imply_pixel_complete=false`
 - `ideal_target.permission_access_mode_visible=true`
-- `ideal_target.environment_details_primary=changes,local,branch,commit_push,subagents,sources`
+- `ideal_target.environment_details_primary=workspace,locality,branch,changes,subtasks,sources`
 - `ideal_target.advanced_tools_default_visible=false`
-- `ideal_target.side_panel_primary_tools=review,terminal,browser,files`
+- `ideal_target.default_third_column_visible=false`
+- `ideal_target.advanced_workspace_surfaces=files_changes,preview,terminal,browser`
 - `entry_docs=docs/product/gui/README.md,docs/product/gui/feature-inventory.md,docs/product/gui/ideal-interaction-spec.md,docs/product/gui/visual-system.md,docs/product/gui/codex-to-opl-app-delta.md,docs/product/gui/element-audit.md,docs/product/gui/shell-implementation-guide.md,docs/product/gui/shell-conformance-matrix.md`
 - `codex_auto_model_policy=contracts/app-product-profile.json#codex.auto_model_policy`
 - `contract_refs=contracts/app-gui-product-contract.json,contracts/app-product-profile.json,contracts/app-page-state-matrix.json,contracts/app-shell-candidates.json,contracts/app-shell-adapter.json`
@@ -116,13 +119,17 @@ Conformance 必须按 `contract_status`、`source_status`、`pixel_status` 三�
 - Purpose 从 Home starter 或 Capabilities 选择；选中后只显示轻量 active capability，
   不用大型入口卡片长期占据主画布。
 - 当前 task progress、tool events、approval 与 receipts 进入 timeline；跨项目总览才进入
-  Runtime。
-- Environment 使用右上按需浮层，汇总 changes、local、branch、commit/push、subagents
-  与 sources。OPL artifacts/evidence 可在同一浮层的次级 section 或专用 preview 中展开，
-  不默认形成全高第三列。
-- Bottom panel、file tree、Terminal、Browser 等 advanced work surfaces 保留但默认关闭。
-- Settings 是次级配置面，保持现有 OPL IA；它不得决定 Home、rail、conversation 或
-  composer 的产品结构。
+  Runtime。Current task 只有 timeline 单一实例；普通任务 inline/unpinned，只有用户 pin
+  或真实 `long_running` 信号才 sticky，并保留 status/elapsed/progress/next/stop。
+- Environment 使用右上按需浮层，只渲染真实
+  workspace/locality/branch/changes/subtasks/sources；artifact、
+  evidence、receipt refs 属于次级信息，不默认形成全高第三列。
+- Files/Changes 是按需 workspace surface，Preview 独立；Terminal/Browser 只从 Environment
+  或任务需要打开。旧八类 inspector taxonomy 与会话级 Runtime duplicate 不再是产品面。
+- Transcript export 只导出完整分页后的、脱敏的 user/assistant text；Markdown 默认、
+  strict JSON 可选，目录与文件名显式选择，不授权 workspace bundle。
+- Settings 已进入 maintenance；保持现有 OPL IA/object 和 model policy，不得决定 Home、
+  rail、conversation 或 composer 结构，也不拥有 installer/runtime truth。
 - 模型策略与当前默认值只读取 `contracts/app-product-profile.json`；本文档族不复制
   当前 model/reasoning 值或具体模型 allowlist。
 

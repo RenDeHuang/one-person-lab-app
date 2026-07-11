@@ -1,5 +1,5 @@
 export type AppProductProfile = {
-  schema_version: number;
+  schema_version: 2;
   owner: string;
   purpose: string;
   state: string;
@@ -176,7 +176,17 @@ export type AppProductProfile = {
       model_status_surface: string;
       technical_details_policy: string;
       composer_context_strip: string[];
+      composer_send_scoped_inputs: string[];
+      composer_send_scoped_consumption_policy: string;
+      composer_forbidden_persistent_context: string[];
       composer_bottom_action_row: string[];
+      composer_optional_actions: string[];
+      mobile_action_sheet: {
+        trigger: string;
+        allowed_actions: string[];
+        send_stop_location: string;
+        forbidden_actions: string[];
+      };
       projectless_conversation_supported: boolean;
       project_context_inputs: {
         scope: string;
@@ -184,22 +194,49 @@ export type AppProductProfile = {
         item_kind: string;
         mutations: string[];
         persistence: string;
-        composer_application: string;
+        management_surface: string;
+        composer_consumption: string;
+        composer_persistence_after_send: string;
         fabricated_defaults_allowed: boolean;
         artifact_body_copy_allowed: boolean;
       };
+      transcript_export: {
+        scope: string;
+        history_loading_policy: string;
+        incomplete_history_policy: string;
+        silent_truncation_allowed: boolean;
+        shareable_roles: string[];
+        shareable_message_types: string[];
+        excluded_content: string[];
+        default_format: string;
+        allowed_formats: string[];
+        strict_json_document_fields: string[];
+        strict_json_message_fields: string[];
+        redaction_required: boolean;
+        explicit_directory_required: boolean;
+        explicit_filename_required: boolean;
+        filename_extension_follows_format: boolean;
+        errors_visible: boolean;
+        workspace_bundle_authorized: boolean;
+      };
     };
     right_context_inspector: {
+      compatibility_name: string;
+      product_role: string;
       placement: string;
       surface_kind: string;
       default_state: string;
-      opens_on_user_request_only: boolean;
+      default_third_column_visible: boolean;
+      opens_on_user_or_task_request_only: boolean;
       chat_canvas_remains_primary: boolean;
       scope: string;
-      wide_desktop_mode: string;
-      primary_tools: Array<{ id: string; label: string; authority: string }>;
-      secondary_sections: Array<{ id: string; label: string; authority: string }>;
-      secondary_presentation: string;
+      workspace_surface: Record<string, unknown>;
+      preview_surface: Record<string, unknown>;
+      on_demand_task_tools: Record<string, unknown>;
+      equal_weight_tool_taxonomy_allowed: boolean;
+      legacy_taxonomy_ids_forbidden: string[];
+      runtime_duplicate_allowed: boolean;
+      environment_popover_ref: string;
       must_not_own: string[];
     };
     agent_package_invocation_receipt_policy: {

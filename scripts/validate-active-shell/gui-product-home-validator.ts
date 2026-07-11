@@ -3,8 +3,8 @@ import {
   appOwnedCurrentTaskSlice,
   appOwnedGuiContractOrdinaryConversation,
   appOwnedHomeLayout,
-  appOwnedRightContextInspectorPrimaryToolIds,
-  appOwnedRightContextInspectorSecondarySectionIds,
+  appOwnedRightContextInspectorForbiddenOwners,
+  appOwnedRightContextInspectorPolicy,
 } from './app-contract-constants.ts';
 import {
   assertProfessionalAgentPackagePolicy,
@@ -17,26 +17,10 @@ import {
 } from '../app-product-profile-shared-validators.ts';
 import { validateGuiProductAuthority } from './gui-product-authority-validator.ts';
 
-const rightInspectorExpected = {
-  placement: 'right',
-  surface_kind: 'resizable_side_panel',
-  default_state: 'collapsed',
-  opens_on_user_request_only: true,
-  chat_canvas_remains_primary: true,
-  scope: 'selected_workspace_and_conversation',
-  wide_desktop_mode: 'resizable_split',
-  secondary_presentation: 'sections_or_disclosures_not_equal_weight_tabs',
-  environment_popover_ref: 'interaction_baseline.context_surfaces.environment_popover',
-};
-const rightInspectorForbiddenOwners = [
-  'runtime truth',
-  'domain truth',
-  'artifact body',
-  'memory body',
-  'backend selection authority',
-];
-
 function validateGuiProductIdentity(guiContract) {
+  if (guiContract.schema_version !== 2) {
+    throw new Error('App GUI product contract schema_version must be 2');
+  }
   if (guiContract.owner !== 'one-person-lab-app') {
     throw new Error(`Unexpected App GUI product contract owner: ${guiContract.owner}`);
   }
@@ -107,6 +91,20 @@ function validateHomeLayout(guiContract) {
     ],
     'App GUI ordinary conversation current task slice fields',
   );
+  assertIncludesAll(guiContract.pages?.ordinary_conversation?.must_show, [
+    'desktop attach, permission and access, model and reasoning, and send or stop controls in the composer',
+    'mobile plus sheet limited to OPL attach, project refs, access, model and reasoning, and active capability actions',
+    'attachments and project refs consumed by the current send only',
+    'single current task instance in the message timeline, inline and unpinned for ordinary tasks',
+    'current task becomes sticky only after user pin or a true long_running signal',
+    'complete paginated redacted transcript export with Markdown default, strict JSON, explicit directory and filename',
+  ], 'App GUI ordinary conversation visible 41301 signals');
+  assertIncludesAll(guiContract.pages?.ordinary_conversation?.must_not_show, [
+    'persistent project, workspace, locality, branch, attachment, or project-ref context strip',
+    'backend, provider, Team, raw MCP, or arbitrary skills in the mobile plus sheet',
+    'duplicate current task or Runtime summary outside the message timeline',
+    'workspace bundle export authorization',
+  ], 'App GUI ordinary conversation forbidden 41301 signals');
 }
 
 function validateAiFirstInteractionModel(guiContract) {
@@ -115,7 +113,7 @@ function validateAiFirstInteractionModel(guiContract) {
     !model ||
     model.default_visual_basis !== 'codex_app_composer_first' ||
     model.primary_policy !== 'maximize_direct_ai_interaction_on_the_chat_canvas' ||
-    model.right_context_policy !== 'collapsed_user_requested_secondary_layer' ||
+    model.right_context_policy !== 'on_demand_advanced_surfaces_no_default_third_column' ||
     model.mas_autonomy_policy !== 'MAS_runs_as_autonomous_research_execution_not_co_scientist_pair_work' ||
     model.open_science_learning_policy !== 'adopt_artifact_provenance_review_and_plain_language_data_flow_patterns_as_secondary_context_only'
   ) {
@@ -124,7 +122,7 @@ function validateAiFirstInteractionModel(guiContract) {
   assertIncludesAll(
     model.allowed_adoptions,
     [
-      'artifact_provenance_review_refs_in_collapsible_inspector',
+      'artifact_provenance_review_refs_in_on_demand_preview_or_timeline_disclosure',
       'plain_language_data_flow_and_safety_copy',
       'workflow_starters_as_purpose_entries_or_app_actions',
       'scientific_preview_affordances_on_demand',
@@ -145,29 +143,38 @@ function validateAiFirstInteractionModel(guiContract) {
 }
 
 function validateRightContextInspector(guiContract) {
+  const inspector = guiContract.right_context_inspector ?? {};
   assertDeepEqualJson(
-    (guiContract.right_context_inspector?.primary_tools ?? []).map((tool) => tool.id),
-    appOwnedRightContextInspectorPrimaryToolIds,
-    'App GUI right context inspector primary tools',
+    Object.fromEntries(
+      Object.entries(inspector).filter(([key]) => !['current_task_evidence', 'must_not_own'].includes(key)),
+    ),
+    appOwnedRightContextInspectorPolicy,
+    'App GUI on-demand advanced workspace surface policy',
   );
-  assertDeepEqualJson(
-    (guiContract.right_context_inspector?.secondary_sections ?? []).map((section) => section.id),
-    appOwnedRightContextInspectorSecondarySectionIds,
-    'App GUI right context inspector secondary sections',
-  );
-  if (Array.isArray(guiContract.right_context_inspector?.tabs)) {
-    throw new Error('App GUI right context inspector must not restore equal-weight tabs');
-  }
-  for (const [field, expected] of Object.entries(rightInspectorExpected)) {
-    if (guiContract.right_context_inspector?.[field] !== expected) {
-      throw new Error(`App GUI right context inspector ${field} must be ${expected}`);
+  for (const legacyField of ['tabs', 'primary_tools', 'secondary_sections']) {
+    if (legacyField in inspector) {
+      throw new Error(`App GUI must not restore legacy equal-weight inspector taxonomy field ${legacyField}`);
     }
   }
-  for (const forbiddenOwner of rightInspectorForbiddenOwners) {
-    if (!guiContract.right_context_inspector?.must_not_own?.includes(forbiddenOwner)) {
+  if (inspector.runtime_duplicate_allowed !== false) {
+    throw new Error('App GUI advanced workspace surfaces must not duplicate Runtime');
+  }
+  for (const forbiddenOwner of appOwnedRightContextInspectorForbiddenOwners) {
+    if (!inspector.must_not_own?.includes(forbiddenOwner)) {
       throw new Error(`App GUI right context inspector must not own ${forbiddenOwner}`);
     }
   }
+  assertIncludesAll(guiContract.pages?.right_context_inspector?.must_show, [
+    'no third column mounted by default',
+    'Files and Changes workspace surface opened only by user or task need',
+    'Preview opened as an independent surface for artifact, file, URL, or result',
+    'Terminal and Browser opened from Environment or task need',
+  ], 'App GUI advanced workspace visible signals');
+  assertIncludesAll(guiContract.pages?.right_context_inspector?.must_not_show, [
+    'legacy equal-weight Review, Terminal, Browser, Files, Artifacts, Runtime, Actions, and Memory taxonomy',
+    'Runtime duplicate outside the message timeline current task instance',
+    'advanced work surfaces open by default',
+  ], 'App GUI advanced workspace forbidden signals');
 }
 
 function validateDefaultAssistants(guiContract) {

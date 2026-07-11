@@ -855,15 +855,43 @@ const appOwnedOrdinaryConversation = {
   model_status_surface: "executor_policy.default_model_display_value",
   technical_details_policy:
     "single_compact_model_reasoning_menu_without_backend_or_provider",
-  composer_context_strip: ["project_context_refs", "active_capability"],
+  composer_context_strip: ["active_capability"],
+  composer_send_scoped_inputs: ["attachments", "project_refs"],
+  composer_send_scoped_consumption_policy:
+    "consumed_by_current_send_not_persisted_in_context_strip",
+  composer_forbidden_persistent_context: [
+    "project",
+    "workspace",
+    "locality",
+    "branch",
+    "attachments",
+    "project_refs",
+  ],
   composer_bottom_action_row: [
     "attach",
-    "context",
     "permission_access_mode",
     "model_reasoning",
-    "voice_optional",
     "send_stop",
   ],
+  composer_optional_actions: ["voice"],
+  mobile_action_sheet: {
+    trigger: "+",
+    allowed_actions: [
+      "attach",
+      "project_refs",
+      "permission_access_mode",
+      "model_reasoning",
+      "active_capability",
+    ],
+    send_stop_location: "composer_primary_action_outside_sheet",
+    forbidden_actions: [
+      "backend",
+      "provider",
+      "team",
+      "raw_mcp",
+      "arbitrary_skills",
+    ],
+  },
   projectless_conversation_supported: true,
   project_context_inputs: {
     scope: "canonical_workspace_path",
@@ -871,22 +899,56 @@ const appOwnedOrdinaryConversation = {
     item_kind: "workspace_file_or_directory_ref",
     mutations: ["add", "remove"],
     persistence: "shell_client_configuration_keyed_by_workspace",
-    composer_application:
-      "visible_removable_context_refs_preloaded_for_project_conversations",
+    management_surface: "navigation_rail_project",
+    composer_consumption: "send_scoped_removable_refs",
+    composer_persistence_after_send: "none",
     fabricated_defaults_allowed: false,
     artifact_body_copy_allowed: false,
   },
 };
+export const appOwnedTranscriptExport = {
+  scope: "current_conversation_transcript_only",
+  history_loading_policy: "load_all_pages_before_export",
+  incomplete_history_policy: "explicit_error_no_partial_export",
+  silent_truncation_allowed: false,
+  shareable_roles: ["user", "assistant"],
+  shareable_message_types: ["text"],
+  excluded_content: [
+    "system_messages",
+    "hidden_messages",
+    "tool_calls",
+    "runtime_events",
+    "provider_payloads",
+    "receipts",
+  ],
+  default_format: "markdown",
+  allowed_formats: ["markdown", "json"],
+  strict_json_document_fields: ["title", "exported_at", "messages", "redacted"],
+  strict_json_message_fields: ["role", "content"],
+  redaction_required: true,
+  explicit_directory_required: true,
+  explicit_filename_required: true,
+  filename_extension_follows_format: true,
+  errors_visible: true,
+  workspace_bundle_authorized: false,
+};
 export const appOwnedGuiContractOrdinaryConversation = {
   ...appOwnedOrdinaryConversation,
   model_status_surface: "executor_policy.default_model_display_value",
+  transcript_export: appOwnedTranscriptExport,
 };
 export const appOwnedCurrentTaskSlice = {
   source: "contracts/app-runtime-bridge.json#current_task_slice_projection",
   state_source: "opl app state --profile fast --json",
   scope: "current_conversation_or_selected_task",
-  default_visibility: "pinnable_summary_bar_when_task_active",
-  summary_bar_fields: ["status", "elapsed", "progress", "next_action", "stop"],
+  placement: "message_timeline",
+  single_instance: true,
+  default_visibility: "inline_unpinned_when_task_active",
+  ordinary_task_sticky: false,
+  sticky_when: ["user_pinned", "long_running_true"],
+  long_running_signal_field: "long_running",
+  duplicate_surface_allowed: false,
+  summary_fields: ["status", "elapsed", "progress", "next_action", "stop"],
   fields: [
     "task_id",
     "status",
@@ -937,19 +999,65 @@ export const appOwnedPageStateOrdinaryConversation = {
         : [key, value],
     ),
   ),
+  transcript_export: appOwnedTranscriptExport,
   current_task_slice: appOwnedCurrentTaskSlice,
 };
-export const appOwnedRightContextInspectorPrimaryToolIds = [
-  "review",
-  "terminal",
-  "browser",
-  "files",
-];
-export const appOwnedRightContextInspectorSecondarySectionIds = [
-  "artifacts",
-  "runtime",
-  "actions",
-  "memory",
+export const appOwnedRightContextInspectorPolicy = {
+  compatibility_name: "right_context_inspector",
+  product_role: "on_demand_advanced_workspace_and_task_evidence_host",
+  placement: "right_or_mobile_overlay",
+  surface_kind: "on_demand_workspace_surface",
+  default_state: "closed",
+  default_third_column_visible: false,
+  opens_on_user_or_task_request_only: true,
+  chat_canvas_remains_primary: true,
+  scope: "selected_workspace_and_conversation",
+  workspace_surface: {
+    id: "files_changes",
+    label: "Files / Changes",
+    default_state: "closed",
+    opens_when: [
+      "user_requests_files_or_changes",
+      "task_requires_workspace_inspection",
+    ],
+  },
+  preview_surface: {
+    id: "preview",
+    independent: true,
+    default_state: "closed",
+    opens_for: ["artifact", "file", "url", "result"],
+  },
+  on_demand_task_tools: {
+    terminal: {
+      entry_points: ["environment", "task_need"],
+      default_state: "closed",
+    },
+    browser: {
+      entry_points: ["environment", "task_need"],
+      default_state: "closed",
+    },
+  },
+  equal_weight_tool_taxonomy_allowed: false,
+  legacy_taxonomy_ids_forbidden: [
+    "review",
+    "terminal",
+    "browser",
+    "files",
+    "artifacts",
+    "runtime",
+    "actions",
+    "memory",
+  ],
+  runtime_duplicate_allowed: false,
+  environment_popover_ref:
+    "interaction_baseline.context_surfaces.environment_popover",
+};
+export const appOwnedRightContextInspectorForbiddenOwners = [
+  "runtime truth",
+  "domain truth",
+  "artifact body",
+  "memory body",
+  "backend selection authority",
 ];
 export const firstRunEcosystemModules = [
   "officecli",

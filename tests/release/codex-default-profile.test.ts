@@ -276,6 +276,95 @@ test('Home authority rejects the retired four-starter limit and copy', () => {
   assert.throws(() => validatePrimaryInteractionPages(matrix));
 });
 
+test('41301 machine authority rejects v1 contract schemas', () => {
+  const installExposure = readJson('contracts/app-install-exposure-policy.json');
+
+  const guiContract = structuredClone(readJson('contracts/app-gui-product-contract.json'));
+  guiContract.schema_version = 1;
+  assert.throws(
+    () => validateAppGuiProductContract(
+      guiContract,
+      readJson('contracts/app-release-channel.json'),
+      installExposure,
+    ),
+    /schema_version must be 2/,
+  );
+
+  const productProfile = structuredClone(readJson('contracts/app-product-profile.json'));
+  productProfile.schema_version = 1;
+  assert.throws(
+    () => validateProductProfile(productProfile, installExposure),
+    /schema_version must be 2/,
+  );
+
+  const matrix = structuredClone(readJson('contracts/app-page-state-matrix.json'));
+  matrix.schema_version = 1;
+  assert.throws(
+    () => validatePrimaryInteractionPages(matrix),
+    /schema_version must be 2/,
+  );
+});
+
+test('41301 GUI contract rejects persistent project context and legacy inspector taxonomy', () => {
+  const validate = (contract: any) => validateAppGuiProductContract(
+    contract,
+    readJson('contracts/app-release-channel.json'),
+    readJson('contracts/app-install-exposure-policy.json'),
+  );
+
+  for (const mutate of [
+    (contract: any) => {
+      contract.ordinary_conversation.composer_context_strip = ['project_context_refs', 'active_capability'];
+    },
+    (contract: any) => {
+      contract.right_context_inspector.primary_tools = [
+        { id: 'review' },
+        { id: 'terminal' },
+        { id: 'browser' },
+        { id: 'files' },
+      ];
+    },
+    (contract: any) => {
+      contract.right_context_inspector.runtime_duplicate_allowed = true;
+    },
+    (contract: any) => {
+      contract.ordinary_conversation.current_task_slice.default_visibility =
+        'pinnable_summary_bar_when_task_active';
+    },
+    (contract: any) => {
+      contract.ordinary_conversation.transcript_export.workspace_bundle_authorized = true;
+    },
+  ]) {
+    const contract = structuredClone(readJson('contracts/app-gui-product-contract.json'));
+    mutate(contract);
+    assert.throws(() => validate(contract));
+  }
+});
+
+test('41301 profile and page state reject the legacy eight-surface inspector', () => {
+  const installExposure = readJson('contracts/app-install-exposure-policy.json');
+  const profile = structuredClone(readJson('contracts/app-product-profile.json'));
+  profile.gui.right_context_inspector.primary_tools = [
+    { id: 'review' },
+    { id: 'terminal' },
+    { id: 'browser' },
+    { id: 'files' },
+  ];
+  profile.gui.right_context_inspector.secondary_sections = [
+    { id: 'artifacts' },
+    { id: 'runtime' },
+    { id: 'actions' },
+    { id: 'memory' },
+  ];
+  assert.throws(() => validateProductProfile(profile, installExposure));
+
+  const matrix = structuredClone(readJson('contracts/app-page-state-matrix.json'));
+  const inspector = matrix.pages.find(({ id }: { id: string }) => id === 'right_context_inspector');
+  inspector.inspector_view_model.primary_tools = profile.gui.right_context_inspector.primary_tools;
+  inspector.inspector_view_model.secondary_sections = profile.gui.right_context_inspector.secondary_sections;
+  assert.throws(() => validatePrimaryInteractionPages(matrix));
+});
+
 test('page-state matrix rejects Codex Auto policy source drift', () => {
   const matrix = structuredClone(readJson('contracts/app-page-state-matrix.json'));
   const guidHome = matrix.pages.find(({ id }) => id === 'guid_home');

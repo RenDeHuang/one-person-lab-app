@@ -1,6 +1,12 @@
 import { assertExpectedFields, assertStringArrayIncludes } from './value-assertions.ts';
+import {
+  appOwnedRightContextInspectorForbiddenOwners,
+  appOwnedRightContextInspectorPolicy,
+  appOwnedTranscriptExport,
+} from './validate-active-shell/app-contract-constants.ts';
 
 type ProductProfileLike = {
+  schema_version?: unknown;
   codex?: {
     default_model?: unknown;
     default_reasoning_effort?: unknown;
@@ -22,11 +28,7 @@ type ProductProfileLike = {
       };
     };
     ordinary_conversation?: Record<string, unknown>;
-    right_context_inspector?: Record<string, unknown> & {
-      primary_tools?: Array<Record<string, unknown>>;
-      secondary_sections?: Array<Record<string, unknown>>;
-      tabs?: unknown;
-    };
+    right_context_inspector?: Record<string, unknown>;
     builtin_assistant_route_receipt_policy?: Record<string, unknown>;
     agent_package_invocation_receipt_policy?: Record<string, unknown>;
   };
@@ -263,6 +265,9 @@ export function assertAppProductProfileGuiInteractionBaseline(
   profile: ProductProfileLike,
   label = 'App product profile',
 ): void {
+  if (profile.schema_version !== 2) {
+    throw new Error(`${label} schema_version must be 2`);
+  }
   const homeLayout = profile.gui?.home?.home_layout as Record<string, unknown> | undefined;
   const conversation = profile.gui?.ordinary_conversation;
   const inspector = profile.gui?.right_context_inspector;
@@ -277,29 +282,59 @@ export function assertAppProductProfileGuiInteractionBaseline(
       },
       { actual: conversation?.composer_position, expected: 'floating_bottom_with_safe_inset' },
       { actual: conversation?.permission_mode_selector_visible, expected: true },
-      { actual: inspector?.placement, expected: 'right' },
-      { actual: inspector?.surface_kind, expected: 'resizable_side_panel' },
-      { actual: inspector?.default_state, expected: 'collapsed' },
-      { actual: inspector?.wide_desktop_mode, expected: 'resizable_split' },
-      {
-        actual: inspector?.secondary_presentation,
-        expected: 'sections_or_disclosures_not_equal_weight_tabs',
-      },
+      { actual: inspector?.default_third_column_visible, expected: false },
+      { actual: inspector?.runtime_duplicate_allowed, expected: false },
+      { actual: inspector?.equal_weight_tool_taxonomy_allowed, expected: false },
     ],
     `${label} GUI interaction profile must match the Codex baseline`,
   );
   assertExactStringArray(
-    inspector?.primary_tools?.map((entry) => String(entry.id)),
-    ['review', 'terminal', 'browser', 'files'],
-    `${label} GUI right context primary tools`,
+    conversation?.composer_context_strip,
+    ['active_capability'],
+    `${label} GUI composer persistent context`,
   );
   assertExactStringArray(
-    inspector?.secondary_sections?.map((entry) => String(entry.id)),
-    ['artifacts', 'runtime', 'actions', 'memory'],
-    `${label} GUI right context secondary sections`,
+    conversation?.composer_send_scoped_inputs,
+    ['attachments', 'project_refs'],
+    `${label} GUI composer send-scoped inputs`,
   );
-  if (Array.isArray(inspector?.tabs)) {
-    throw new Error(`${label} GUI right context inspector must not restore equal-weight tabs`);
+  if (
+    JSON.stringify(conversation?.transcript_export) !== JSON.stringify(appOwnedTranscriptExport)
+  ) {
+    throw new Error(`${label} GUI transcript export must remain shareable transcript only`);
+  }
+  if (
+    JSON.stringify(
+      Object.fromEntries(
+        Object.entries(inspector ?? {}).filter(([key]) => key !== 'must_not_own'),
+      ),
+    ) !== JSON.stringify(appOwnedRightContextInspectorPolicy)
+  ) {
+    throw new Error(`${label} GUI advanced workspace surfaces must match the 41301 policy`);
+  }
+  for (const legacyField of ['tabs', 'primary_tools', 'secondary_sections']) {
+    if (legacyField in (inspector ?? {})) {
+      throw new Error(`${label} GUI must not restore legacy inspector taxonomy field ${legacyField}`);
+    }
+  }
+  assertExactStringArray(
+    inspector?.must_not_own,
+    appOwnedRightContextInspectorForbiddenOwners,
+    `${label} GUI advanced workspace forbidden owners`,
+  );
+  const mobileActionSheet = conversation?.mobile_action_sheet as Record<string, unknown> | undefined;
+  assertExactStringArray(
+    mobileActionSheet?.allowed_actions,
+    ['attach', 'project_refs', 'permission_access_mode', 'model_reasoning', 'active_capability'],
+    `${label} GUI mobile action sheet allowed actions`,
+  );
+  assertExactStringArray(
+    mobileActionSheet?.forbidden_actions,
+    ['backend', 'provider', 'team', 'raw_mcp', 'arbitrary_skills'],
+    `${label} GUI mobile action sheet forbidden actions`,
+  );
+  if (mobileActionSheet?.send_stop_location !== 'composer_primary_action_outside_sheet') {
+    throw new Error(`${label} GUI mobile send/stop must remain the composer primary action`);
   }
 }
 
