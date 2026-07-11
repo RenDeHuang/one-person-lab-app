@@ -37,7 +37,7 @@ after a production package build because page organization is still being
 refined. Visual evidence never establishes release readiness or runtime currentness.
 
 The current screenshot binds to Shell
-`a2571751bdee6382c69187ade743ebbf0e97f399` and is archived at
+`5204a68d41d799287a4567e61897df3c25345dc4` and is archived at
 `docs/product/gui/assets/settings-capabilities-desktop-light-20260711.png`.
 Its SHA-256 is
 `ae13e05988cb9fbeb14d36354c61574cc02b7c4b8575580b8af10088715a8d74`.
@@ -76,7 +76,7 @@ build is not notarized and does not establish public release currentness.
 | Product documentation | done | 100% | `settings-control-center.md` is the current route, search, visual, page, DOM, and evidence boundary | None in App authority scope |
 | Shell DOM and interaction implementation | done | 100% | The focused Shell DOM suite covers 13 Settings surfaces and the E2E route loop asserts a unique selected item before capture | None in active-shell source scope |
 | Visual QA collector | done | 100% | Collector waits for the resolved selected route, clears focus and hover, settles navigation transitions, and records route/viewport/anchor evidence | None in active-shell source scope |
-| Fresh Shell screenshot pixels | done | 100% | Exact Shell `a2571751bdee6382c69187ade743ebbf0e97f399`; archived desktop Light capability screenshot SHA-256 `ae13e05988cb9fbeb14d36354c61574cc02b7c4b8575580b8af10088715a8d74` | No public release or runtime-currentness claim is implied |
+| Fresh Shell screenshot pixels | done | 100% | Exact Shell `5204a68d41d799287a4567e61897df3c25345dc4`; archived desktop Light capability screenshot SHA-256 `ae13e05988cb9fbeb14d36354c61574cc02b7c4b8575580b8af10088715a8d74` | No public release or runtime-currentness claim is implied |
 | Running installed App | done | 100% | `/Applications/One Person Lab.app` version `26.7.11`; main and renderer process paths and deep signature were read back after launch | None for local testing |
 | Public release currentness | not_started | 0% | Local build is intentionally ad-hoc signed and not notarized | Separate release-owner evidence is required before a public release claim |
 
