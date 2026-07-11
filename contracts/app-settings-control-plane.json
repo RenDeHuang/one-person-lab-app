@@ -1504,13 +1504,17 @@
           "always": [
             "settings-page-workspace",
             "settings-workspace-primary",
-            "settings-workspace-technical-details",
+            "settings-workspace-diagnostics-action",
             "settings-workspace-primary-action"
           ],
           "conditional": [
             {
               "testid": "settings-workspace-exception",
               "when": "attention_required"
+            },
+            {
+              "testid": "settings-workspace-technical-details",
+              "when": "diagnostics_open"
             }
           ]
         },
@@ -1667,7 +1671,7 @@
             "settings-page-resources",
             "settings-resources-primary",
             "settings-resources-browser-access",
-            "settings-resources-technical-details"
+            "settings-resources-diagnostics-action"
           ],
           "conditional": [
             {
@@ -1677,6 +1681,10 @@
             {
               "testid": "settings-resources-primary-action",
               "when": "executable_action_available"
+            },
+            {
+              "testid": "settings-resources-technical-details",
+              "when": "diagnostics_open"
             }
           ]
         },
@@ -1784,7 +1792,7 @@
           "always": [
             "settings-page-storage",
             "settings-storage-primary",
-            "settings-storage-technical-details"
+            "settings-storage-diagnostics-action"
           ],
           "conditional": [
             {
@@ -1794,6 +1802,10 @@
             {
               "testid": "settings-storage-primary-action",
               "when": "reclaimable_items_available"
+            },
+            {
+              "testid": "settings-storage-technical-details",
+              "when": "diagnostics_open"
             }
           ]
         },
@@ -1934,13 +1946,17 @@
           "always": [
             "settings-page-about",
             "settings-about-primary",
-            "settings-about-technical-details",
+            "settings-about-diagnostics-action",
             "settings-about-primary-action"
           ],
           "conditional": [
             {
               "testid": "settings-about-exception",
               "when": "attention_required"
+            },
+            {
+              "testid": "settings-about-technical-details",
+              "when": "diagnostics_open"
             }
           ]
         },

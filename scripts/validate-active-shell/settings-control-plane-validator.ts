@@ -1663,14 +1663,20 @@ export function validateSettingsExperienceContract(experience) {
         `Settings experience ${pageId} must declare at most one primary action`,
       );
     }
+    const technicalDetailsTestId = `settings-${pageId}-technical-details`;
+    const hasTechnicalDetailsSurface =
+      page.required_dom.always.includes(technicalDetailsTestId) ||
+      page.required_dom.conditional.some(
+        (entry) =>
+          entry.testid === technicalDetailsTestId &&
+          entry.when === "diagnostics_open",
+      );
     if (
       !Array.isArray(page.required_dom?.always) ||
       !page.required_dom.always.includes(`settings-page-${pageId}`) ||
       !page.required_dom.always.includes(`settings-${pageId}-primary`) ||
-      !page.required_dom.always.includes(
-        `settings-${pageId}-technical-details`,
-      ) ||
-      !Array.isArray(page.required_dom?.conditional)
+      !Array.isArray(page.required_dom?.conditional) ||
+      !hasTechnicalDetailsSurface
     ) {
       throw new Error(
         `Settings experience ${pageId} must declare stable DOM testids`,
