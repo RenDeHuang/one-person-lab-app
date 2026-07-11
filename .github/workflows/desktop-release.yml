@@ -93,7 +93,9 @@ on:
         type: string
 
 permissions:
-  contents: read
+  # Reusable Full/VM workflows contain publish jobs that request contents: write.
+  # GitHub validates the caller permission ceiling before starting any job.
+  contents: write
   actions: read
 
 concurrency:
