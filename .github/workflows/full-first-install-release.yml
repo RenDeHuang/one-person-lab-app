@@ -425,6 +425,7 @@ jobs:
           uv sync --project med-autoscience --no-dev
           uv sync --project med-autogrant --no-dev
           npm ci --prefix redcube-ai
+          npm install --prefix redcube-ai --no-save --package-lock=false "$GITHUB_WORKSPACE/one-person-lab"
           npm run --prefix redcube-ai build
           echo "OPL_FULL_DOMAIN_DEPS_READY_AT=$(date +%s)" >> "$GITHUB_ENV"
 

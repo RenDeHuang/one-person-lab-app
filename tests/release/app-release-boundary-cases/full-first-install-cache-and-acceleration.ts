@@ -1,9 +1,19 @@
 import {
+  appRoot,
   assert,
+  fs,
   os,
   path,
   test,
 } from './helpers.ts';
+
+test('Full domain build links the pinned local Framework package into RedCube', () => {
+  const workflow = fs.readFileSync(path.join(appRoot, '.github/workflows/full-first-install-release.yml'), 'utf8');
+  assert.match(
+    workflow,
+    /npm install --prefix redcube-ai --no-save --package-lock=false "\$GITHUB_WORKSPACE\/one-person-lab"\s+npm run --prefix redcube-ai build/,
+  );
+});
 
 test('Full runtime cache classifies hit and miss modes from one canonical key', async () => {
   const mod = await import('../../../scripts/full-first-install-package.ts');
