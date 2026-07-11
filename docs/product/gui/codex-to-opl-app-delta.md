@@ -65,12 +65,22 @@ OPL App 采用下列翻译规则；没有明确 delta 的区域默认继承 base
    与 evidence 作为次级 section/preview 扩展；默认不打开全高 inspector。
 6. **Settings stays secondary。** Settings 只负责持久配置和控制面，不决定主工作流。
 
+### OPL Feature Preservation Gate
+
+Codex baseline 只能帮助确定信息放在哪里、怎样交互，不能决定 OPL 有哪些功能。对 Runtime、
+Capabilities、first-run、OPL Settings、domain package entry 和双语等 OPL-owned capability：
+
+- 可以在用户认知更清晰时调整位置，但不得因 Codex 没有同名入口而删除；
+- 旧入口只能在同一变更已经提供可见、键盘可达的替代入口后移除；
+- contract、shell source、navigation tests 和需要的 visual evidence 必须一起更新；
+- 跨项目 Runtime cockpit 与会话级 Runtime details 是两个不同职责，后者不能替代前者。
+
 ### Inherit / Adapt / Add / Reject
 
 | Class | 内容 | 设计约束 |
 | --- | --- | --- |
 | `inherit_1_to_1` | App frame、project/conversation rail、单列 timeline、底部 composer、environment floating details、quiet visual grammar。 | 除品牌与平台差异外，不重新发明位置或交互。 |
-| `adapt` | Global rail labels、model/access policy、project state、Settings IA、desktop/WebUI affordance。 | 保持 Codex 认知位置，只替换数据和用户语言。 |
+| `adapt` | Global rail labels、model/access policy、project state、Settings IA、desktop/WebUI affordance。 | 保持 Codex 认知位置，只替换数据和用户语言；不能借适配删除 OPL-owned capability。 |
 | `add` | Project context refs、OPL capabilities、progress、evidence/artifacts、safe actions/receipts。 | 渐进披露；不得抢占主 timeline 或制造 card wall。 |
 | `reject` | Home dashboard、状态卡片墙、常驻 provider/backend selector、多套 inspector、普通路径 raw runtime/protocol。 | 不以“OPL 专业性”为理由恢复。 |
 

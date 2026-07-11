@@ -80,9 +80,10 @@ header、隐藏 project rail、默认打开 inspector，或用 Settings/card lay
 
 Rail 负责 navigation，不承担 dashboard：
 
-- 顶部先保留 New task、Archived 和 Capabilities；Capabilities 占用 Codex Plugins 的
-  认知位置，但只展示 OPL 能力，不展示 backend/provider。其它全局入口仅在 OPL 有真实
-  对应能力时保留。
+- 顶部依次保留 New task、Runtime、Archived 和 Capabilities；Runtime 是跨项目工作状态
+  cockpit，Capabilities 占用 Codex Plugins 的认知位置但只展示 OPL 能力。会话级 Runtime
+  details 只能补充当前任务，不能替代全局 Runtime 入口。其它全局入口仅在 OPL 有真实对应
+  能力时保留。
 - 中段按 project 分组 conversation。Selected project 下依次组织可选 context refs、
   attachments 入口和最近 conversations；context 与 attachments 都不是建项前置条件。
 - Projectless conversation 继续可用，但不伪造 project/context 层级。
@@ -96,6 +97,8 @@ Rail 负责 navigation，不承担 dashboard：
 - 切换 conversation 保留各自 scroll、draft 和 refs context。
 - Workspace switch 明确说明新 turn 会在哪个目录执行。
 - Backend、provider、permission、router 和 raw runtime state 不作为 rail 层级。
+- 外部交互参考可以改变入口位置，但不得删除 OPL-owned capability；任何迁移必须在同一
+  变更提供可见、键盘可达的替代入口，并同步更新 contract、source 和 navigation tests。
 
 宽桌面 rail persistent 且在 `280-340px` 内可调；窄窗口 drawer 化。关闭 drawer 不清除
 selection 或当前草稿。Back/Forward、Previous/Next Task、New Window 是 desktop

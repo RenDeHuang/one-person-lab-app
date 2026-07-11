@@ -470,6 +470,9 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   }
 
   const literalObservation = record(interactionBaseline.literal_observation);
+  const featurePreservation = record(interactionBaseline.feature_preservation_policy);
+  const relocationGate = record(featurePreservation.relocation_gate);
+  const runtimeSurfaceRoles = record(featurePreservation.runtime_surface_roles);
   const oplTargetTranslation = [
     'navigation_rail',
     'conversation_scope',
@@ -497,11 +500,33 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
       'opl_archived_capabilities_settings_rail_placement',
       'opl_side_panel_tool_taxonomy',
       'opl_runtime_action_receipt_authority',
+      'opl_runtime_cross_project_navigation',
       'opl_settings_information_architecture',
     ]) ||
     !sameStrings(interactionBaseline.opl_target_translation, oplTargetTranslation)
   ) {
     issues.add('interaction baseline must separate literal Codex observations from OPL-owned target translation');
+  }
+
+  if (
+    featurePreservation.authority !== 'opl_product_capability_over_external_reference_parity' ||
+    featurePreservation.external_reference_role !== 'placement_and_interaction_reference_only' ||
+    !sameStrings(featurePreservation.protected_surfaces, [
+      'runtime_cross_project_overview',
+      'agent_capabilities',
+      'first_run',
+      'opl_settings',
+      'domain_package_entries',
+      'bilingual_ui',
+    ]) ||
+    relocationGate.replacement_reachable_in_same_change !== true ||
+    relocationGate.contract_source_tests_updated_together !== true ||
+    relocationGate.removal_before_replacement_forbidden !== true ||
+    runtimeSurfaceRoles.navigation_runtime !== 'cross_project_work_status_cockpit' ||
+    runtimeSurfaceRoles.context_runtime !== 'selected_conversation_or_task_details' ||
+    runtimeSurfaceRoles.context_runtime_can_replace_navigation_runtime !== false
+  ) {
+    issues.add('Codex reference alignment must preserve OPL-owned capabilities and same-change reachability');
   }
 
   const navigationRail = record(interactionBaseline.navigation_rail);
@@ -512,7 +537,8 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     navigationRail.narrow_window_mode !== 'drawer' ||
     railWidth.min !== 280 ||
     railWidth.max !== 340 ||
-    !sameStrings(navigationRail.top_entries, ['new_task', 'archived', 'capabilities']) ||
+    !sameStrings(navigationRail.top_entries, ['new_task', 'runtime', 'archived', 'capabilities']) ||
+    navigationRail.runtime_entry_role !== 'cross_project_work_status_cockpit' ||
     !sameStrings(navigationRail.forbidden_entries_without_opl_product_capability, ['sites', 'chat']) ||
     !sameStrings(navigationRail.bottom_entries, ['account', 'help', 'settings']) ||
     !sameStrings(navigationRail.desktop_affordances, ['back', 'forward', 'previous_task', 'next_task', 'new_window']) ||

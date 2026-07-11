@@ -192,6 +192,18 @@ test('GUI design-system validator rejects mixing OPL target entries into literal
   );
 });
 
+test('GUI design-system validator rejects removing the OPL Runtime entry for Codex parity', () => {
+  const root = createFixture();
+  const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
+  const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+  contract.interaction_baseline.navigation_rail.top_entries = ['new_task', 'archived', 'capabilities'];
+  writeJson(root, 'contracts/app-gui-product-contract.json', contract);
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /interaction baseline navigation rail must preserve the governed desktop and narrow-window skeleton/,
+  );
+});
+
 test('GUI design-system validator rejects a stale global Codex governance baseline', () => {
   const root = createFixture();
   const registryPath = path.join(root, 'contracts/app-shell-candidates.json');

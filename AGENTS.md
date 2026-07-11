@@ -71,6 +71,12 @@ source of App truth.
   change in the shell checkout.
 - Upstream AionUI behavior can be reused as implementation material only after
   checking it against App-owned GUI requirements and contracts.
+- Codex and other external products are interaction references, not feature
+  authorities. Alignment may relocate an OPL-owned capability, but it must not
+  remove it. Any entry relocation must land a visible and keyboard-reachable
+  replacement in the same change, update contract/source/tests together, and
+  preserve the cross-project Runtime cockpit separately from conversation-level
+  Runtime details.
 - Replacing the GUI shell changes the implementation carrier only. Future shells
   must remain under `shells/<candidate>` until the App shell adapter, product
   profile sync, page-state matrix, first-run matrix, active-shell validation,

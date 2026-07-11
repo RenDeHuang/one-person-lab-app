@@ -326,6 +326,29 @@ function validateCodexConversationImplementation(shellPaths) {
 }
 
 function validateRuntimePageImplementation(shellPaths) {
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/components/layout/Sider/SiderNav/SiderPrimaryNav.tsx',
+    [
+      "key: 'runtime'",
+      "t('common.runtime.sidebarEntry')",
+      "active: pathname.startsWith('/runtime')",
+      'onClick: onRuntimeClick',
+    ],
+    'Active shell cross-project Runtime primary navigation entry',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/components/layout/Sider/index.tsx',
+    ["handlePrimaryNavigate = (path: '/runtime'", "onRuntimeClick={() => handlePrimaryNavigate('/runtime')}"],
+    'Active shell cross-project Runtime navigation route',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/components/layout/Router.tsx',
+    ["path='/runtime'", 'element={withRouteFallback(RuntimePage)}'],
+    'Active shell cross-project Runtime page route',
+  );
   const runtimePage = assertShellTextIncludesAll(
     shellPaths,
     'packages/desktop/src/renderer/pages/runtime/index.tsx',

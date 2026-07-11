@@ -28,6 +28,28 @@
       "docs_or_contract_imply_pixel_complete": false,
       "docs_or_contract_imply_release_ready": false
     },
+    "feature_preservation_policy": {
+      "authority": "opl_product_capability_over_external_reference_parity",
+      "external_reference_role": "placement_and_interaction_reference_only",
+      "protected_surfaces": [
+        "runtime_cross_project_overview",
+        "agent_capabilities",
+        "first_run",
+        "opl_settings",
+        "domain_package_entries",
+        "bilingual_ui"
+      ],
+      "relocation_gate": {
+        "replacement_reachable_in_same_change": true,
+        "contract_source_tests_updated_together": true,
+        "removal_before_replacement_forbidden": true
+      },
+      "runtime_surface_roles": {
+        "navigation_runtime": "cross_project_work_status_cockpit",
+        "context_runtime": "selected_conversation_or_task_details",
+        "context_runtime_can_replace_navigation_runtime": false
+      }
+    },
     "literal_observation": {
       "boundary": "only_directly_observed_codex_composition_and_interaction_patterns",
       "observed_patterns": [
@@ -43,6 +65,7 @@
         "opl_archived_capabilities_settings_rail_placement",
         "opl_side_panel_tool_taxonomy",
         "opl_runtime_action_receipt_authority",
+        "opl_runtime_cross_project_navigation",
         "opl_settings_information_architecture"
       ]
     },
@@ -66,7 +89,8 @@
         "min": 280,
         "max": 340
       },
-      "top_entries": ["new_task", "archived", "capabilities"],
+      "top_entries": ["new_task", "runtime", "archived", "capabilities"],
+      "runtime_entry_role": "cross_project_work_status_cockpit",
       "capabilities_mapping": "opl_capabilities_map_codex_plugins_without_exposing_backend_or_provider",
       "forbidden_entries_without_opl_product_capability": ["sites", "chat"],
       "bottom_entries": ["account", "help", "settings"],
