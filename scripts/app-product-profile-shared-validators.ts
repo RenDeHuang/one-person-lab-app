@@ -311,16 +311,25 @@ export function assertAppProductProfileSettingsVisualSystem(
   assertExpectedFields(
     [
       { actual: visualSystem?.style, expected: 'opl_baseline_card_control_center' },
+      { actual: visualSystem?.style_exclusion, expected: 'codex_quiet_list' },
       {
         actual: visualSystem?.card_policy,
-        expected: 'bounded_page_section_cards_with_flat_internal_rows',
+        expected: 'one_bounded_card_per_user_question_with_flat_internal_rows',
       },
       { actual: visualSystem?.nested_cards_allowed, expected: false },
+      { actual: visualSystem?.page_wide_list_wall_allowed, expected: false },
       { actual: visualSystem?.page_sections_as_floating_cards_allowed, expected: false },
+      { actual: visualSystem?.footer_layout, expected: 'compact' },
+      { actual: visualSystem?.footer_secondary_navigation_allowed, expected: false },
+      { actual: visualSystem?.theme_gallery_presentation, expected: 'recognizable_preview_tiles' },
+      { actual: visualSystem?.theme_swatch_list_allowed, expected: false },
       { actual: visualSystem?.max_border_radius_px, expected: 8 },
     ],
     `${label} Settings visual system must preserve the OPL bounded-card baseline`,
   );
+  if (JSON.stringify(visualSystem?.footer_controls) !== JSON.stringify(['return_to_chat', 'theme_switcher'])) {
+    throw new Error(`${label} Settings footer must only expose return-to-chat and theme-switcher controls`);
+  }
 }
 
 function assertHomeCodexEnglishStatusLabel(

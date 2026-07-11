@@ -741,10 +741,41 @@ function validateSettingsVisualQaExpectations(expectations) {
     {
       allowed_bounded_group_kinds: ['page_section', 'summary', 'repeated_entity'],
       bounded_group_nesting: 'single_layer_only',
-      page_section_card_policy: 'bounded_required_with_flat_internal_rows',
+      page_section_card_policy: 'one_bounded_card_per_user_question_with_flat_internal_rows',
       page_wide_bare_divider_layout: 'forbidden',
+      page_wide_list_wall: 'forbidden',
     },
     'Settings visual QA surface grouping',
+  );
+  assertDeepEqualJson(
+    expectations?.footer_structure,
+    {
+      layout: 'compact',
+      controls: ['return_to_chat', 'theme_switcher'],
+      account_help_navigation: 'forbidden',
+    },
+    'Settings visual QA footer structure',
+  );
+  assertDeepEqualJson(
+    expectations?.theme_gallery,
+    {
+      presentation: 'recognizable_preview_tiles',
+      flat_swatch_list: 'forbidden',
+    },
+    'Settings visual QA theme gallery',
+  );
+  assertDeepEqualJson(
+    expectations?.assertion_focus,
+    {
+      required_structure: [
+        'user_question_to_bounded_card',
+        'flat_rows_inside_card',
+        'compact_footer',
+        'recognizable_theme_preview_tiles',
+      ],
+      radius_and_spacing_only: 'insufficient',
+    },
+    'Settings visual QA assertion focus',
   );
   assertDeepEqualJson(
     expectations?.sidebar_selection,
@@ -793,8 +824,12 @@ function validateSettingsVisualQaExpectations(expectations) {
     expectations?.must_check,
     [
       'page sections use bounded cards with flat internal rows, nested cards are absent, radius is at most 8px, and spacing uses 12/16/24',
+      'each user question is one bounded card with flat internal rows; page-wide list walls and nested cards are absent',
       'Settings remains quiet, dense, and scannable without a sparse page-wide bare-divider layout',
       'bounded page-section cards do not become a decorative card wall',
+      'the compact Settings footer has return-to-chat and theme-switcher controls, not a second account/help navigation group',
+      'the theme gallery uses recognizable preview tiles rather than a flat swatch list',
+      'visual assertions verify grouping, footer, and theme-gallery structure; radius and spacing alone are insufficient',
       'the Settings sidebar has exactly one selected item',
       'repeated entities use shared column headers instead of per-row field labels',
       'the primary action stays adjacent to its owning object or section',

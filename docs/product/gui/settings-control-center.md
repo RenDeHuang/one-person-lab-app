@@ -96,14 +96,19 @@ contract and routes the user to the owning item.
 
 ## Visual Contract
 
-Settings uses the established OPL card-based control-center baseline:
+Settings uses the established OPL bounded-card control-center baseline, not a
+Codex quiet-list layout. `quiet`, `dense`, and `scannable` describe visual tone;
+they do not permit a page-wide list wall.
 
-- each meaningful page section has one bounded card surface;
+- each user question or decision has one bounded card surface;
 - rows, controls, and disclosures stay flat inside the owning card;
 - no nested cards;
 - cards remain in the normal document flow and do not become floating dashboard tiles;
-- a page-wide stack of bare horizontal dividers that creates sparse empty space,
-  and a decorative card wall that fragments one user question, are forbidden;
+- page-wide list walls, a sparse stack of bare horizontal dividers, and a
+  decorative card wall that fragments one user question are forbidden;
+- the compact footer contains only return-to-chat and theme-switcher controls;
+  it is not a second account/help navigation group;
+- the theme gallery uses recognizable preview tiles, never a flat swatch list;
 - maximum border radius is 8 px;
 - spacing uses 12 / 16 / 24 px;
 - headings are compact;
@@ -122,9 +127,14 @@ Settings uses the established OPL card-based control-center baseline:
 - letter spacing is 0.
 
 `contracts/app-product-profile.json` and the active Shell generated product
-profile must project the same `visual_system.style` and `card_policy` values as
+profile must project the complete `visual_system` object from
 `contracts/app-settings-control-plane.json`; a stale profile may not silently
-restore the superseded quiet-workbench style.
+restore the superseded quiet-list style. The Shell generated profile is updated
+by the Shell/main integration lane, not by this App authority lane.
+
+Visual verification asserts the real card grouping, footer structure, and theme
+preview structure. Radius and spacing checks are supplementary and cannot by
+themselves establish visual conformance.
 
 The ordinary first screen must describe user impact and the next decision. Raw
 ids, raw statuses, command mappings, paths, payloads, and receipts belong in the

@@ -124,17 +124,62 @@ test('Settings validator preserves workspace truth precedence and single-flight 
   assert.throws(() => validate(concurrentActions), /single-flight/);
 });
 
-test('Settings visual QA enforces dense grouping, route-title preflight, and responsive color evidence', () => {
+test('Settings visual QA enforces bounded-card grouping, compact footer, recognizable theme previews, and responsive color evidence', () => {
   const values = contracts();
+  const visualSystem = values.controlPlane.experience_contract.visual_system;
   const visualQa = values.guiContract.settings_navigation.settings_ia.protocols.visual_qa_expectations;
 
   assert.doesNotThrow(() => validate(values));
+  assert.deepStrictEqual(visualSystem, {
+    style: 'opl_baseline_card_control_center',
+    style_exclusion: 'codex_quiet_list',
+    card_policy: 'one_bounded_card_per_user_question_with_flat_internal_rows',
+    nested_cards_allowed: false,
+    page_wide_list_wall_allowed: false,
+    page_sections_as_floating_cards_allowed: false,
+    footer_layout: 'compact',
+    footer_controls: ['return_to_chat', 'theme_switcher'],
+    footer_secondary_navigation_allowed: false,
+    theme_gallery_presentation: 'recognizable_preview_tiles',
+    theme_swatch_list_allowed: false,
+    max_border_radius_px: 8,
+    spacing_scale_px: [12, 16, 24],
+    heading_density: 'compact',
+    primary_action_per_page_max: 1,
+    normal_state_emphasis: 'muted',
+    exception_state_emphasis: 'accent_only_when_attention_required',
+    technical_details_default: 'collapsed',
+    letter_spacing_px: 0,
+  });
+  assert.deepStrictEqual(
+    values.productProfile.settings.control_plane.experience_contract.visual_system,
+    visualSystem,
+  );
   assert.deepStrictEqual(visualQa.visual_character, ['quiet', 'dense', 'scannable']);
   assert.deepStrictEqual(visualQa.surface_grouping, {
     allowed_bounded_group_kinds: ['page_section', 'summary', 'repeated_entity'],
     bounded_group_nesting: 'single_layer_only',
-    page_section_card_policy: 'bounded_required_with_flat_internal_rows',
+    page_section_card_policy: 'one_bounded_card_per_user_question_with_flat_internal_rows',
     page_wide_bare_divider_layout: 'forbidden',
+    page_wide_list_wall: 'forbidden',
+  });
+  assert.deepStrictEqual(visualQa.footer_structure, {
+    layout: 'compact',
+    controls: ['return_to_chat', 'theme_switcher'],
+    account_help_navigation: 'forbidden',
+  });
+  assert.deepStrictEqual(visualQa.theme_gallery, {
+    presentation: 'recognizable_preview_tiles',
+    flat_swatch_list: 'forbidden',
+  });
+  assert.deepStrictEqual(visualQa.assertion_focus, {
+    required_structure: [
+      'user_question_to_bounded_card',
+      'flat_rows_inside_card',
+      'compact_footer',
+      'recognizable_theme_preview_tiles',
+    ],
+    radius_and_spacing_only: 'insufficient',
   });
   assert.deepStrictEqual(visualQa.evidence_dimensions.required_viewports, ['desktop', 'narrow']);
   assert.deepStrictEqual(visualQa.evidence_dimensions.required_color_schemes, ['light', 'dark']);
@@ -148,6 +193,35 @@ test('Settings visual QA enforces dense grouping, route-title preflight, and res
   missingPageSectionCards.guiContract.settings_navigation.settings_ia.protocols.visual_qa_expectations
     .surface_grouping.page_section_card_policy = 'forbidden';
   assert.throws(() => validate(missingPageSectionCards), /surface grouping/);
+
+  const listWall = contracts();
+  listWall.guiContract.settings_navigation.settings_ia.protocols.visual_qa_expectations
+    .surface_grouping.page_wide_list_wall = 'allowed';
+  assert.throws(() => validate(listWall), /surface grouping/);
+
+  const secondaryFooterNavigation = contracts();
+  secondaryFooterNavigation.guiContract.settings_navigation.settings_ia.protocols.visual_qa_expectations
+    .footer_structure.account_help_navigation = 'allowed';
+  assert.throws(() => validate(secondaryFooterNavigation), /footer structure/);
+
+  const swatchList = contracts();
+  swatchList.guiContract.settings_navigation.settings_ia.protocols.visual_qa_expectations
+    .theme_gallery.presentation = 'flat_swatch_list';
+  assert.throws(() => validate(swatchList), /theme gallery/);
+
+  const metricsOnly = contracts();
+  metricsOnly.guiContract.settings_navigation.settings_ia.protocols.visual_qa_expectations
+    .assertion_focus.radius_and_spacing_only = 'sufficient';
+  assert.throws(() => validate(metricsOnly), /assertion focus/);
+
+  const quietList = contracts();
+  quietList.controlPlane.experience_contract.visual_system.style_exclusion = 'allowed';
+  assert.throws(() => validate(quietList), /visual system/);
+
+  const staleProfileVisualSystem = contracts();
+  staleProfileVisualSystem.productProfile.settings.control_plane.experience_contract.visual_system
+    .theme_swatch_list_allowed = true;
+  assert.throws(() => validate(staleProfileVisualSystem), /visual system/);
 
   const multipleSelectedItems = contracts();
   multipleSelectedItems.guiContract.settings_navigation.settings_ia.protocols.visual_qa_expectations
