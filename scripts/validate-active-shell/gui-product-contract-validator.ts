@@ -630,8 +630,12 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     assertCommandSurface(pages[pageId].state_source, 'opl app state --profile fast --json', `App GUI ${pageId} state source`);
     assertCommandSurface(pages[pageId].refresh_source, 'opl app state --profile fast --json', `App GUI ${pageId} refresh source`);
   }
-  if (!pages.guid_home.must_show?.includes('at most four lightweight OPL starters for Research/Grant/Presentation/Book')) {
-    throw new Error('App GUI home must show at most four lightweight OPL starters');
+  if (
+    !pages.guid_home.must_show?.includes(
+      'all user-visible configured OPL starters in stable order without silent truncation',
+    )
+  ) {
+    throw new Error('App GUI home must show every user-visible configured OPL starter without silent truncation');
   }
   if (!pages.guid_home.must_show?.includes('active capability shown as a compact chip')) {
     throw new Error('App GUI home must show the active capability as a compact chip');

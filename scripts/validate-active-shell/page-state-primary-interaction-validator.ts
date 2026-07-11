@@ -172,7 +172,7 @@ function validateGuidHomeVisibleSignals(guidHomePage) {
     'conversation pending elapsed seconds while Codex is working',
     'purpose-first entries 科研/MAS, 基金/MAG, 演示/RCA, 写书/OBF',
     'active capability shown as a compact chip',
-    'at most four lightweight OPL starters outside the composer',
+    'all user-visible configured OPL starters in stable order without silent truncation',
     'assistant-scoped skill menu with required skill checked',
     'ordinary skill selector filtered to App-owned assistant profile skill allowlist',
     'workspace selector',

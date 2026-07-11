@@ -576,7 +576,22 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     projectContextInputs.fabricated_defaults_allowed !== false ||
     projectContextInputs.artifact_body_copy_allowed !== false ||
     homeTarget.title_policy !== 'dynamic_question_title' ||
-    homeTarget.starter_limit !== 4 ||
+    homeTarget.starter_limit !== null ||
+    homeTarget.starter_visibility_policy !== 'all_user_visible_configured_shortcuts' ||
+    homeTarget.starter_order_policy !== 'stable_configured_order' ||
+    homeTarget.starter_layout_policy !== 'responsive_wrap' ||
+    homeTarget.starter_truncation_allowed !== false ||
+    record(homeTarget.workspace_selector_policy).primary_scope !== 'active_workspace_only' ||
+    record(homeTarget.workspace_selector_policy).inactive_recent_directories_visible !== false ||
+    record(homeTarget.workspace_selector_policy).management_entry !== 'registered_directories_modal' ||
+    record(homeTarget.workspace_selector_policy).management_scope !== 'registered_workspaces' ||
+    record(homeTarget.workspace_selector_policy).unregister_effect !== 'remove_registration_only' ||
+    record(homeTarget.workspace_selector_policy).filesystem_delete_allowed !== false ||
+    record(homeTarget.workspace_selector_policy).active_conversation_change_on_unregister !== false ||
+    record(homeTarget.home_shortcut_mutation_policy).pending_scope !== 'single_shortcut' ||
+    record(homeTarget.home_shortcut_mutation_policy).pending_key !== 'shortcut_id' ||
+    record(homeTarget.home_shortcut_mutation_policy).other_shortcuts_remain_interactive !== true ||
+    record(homeTarget.home_shortcut_mutation_policy).readback_mode !== 'background_no_page_loading' ||
     capabilitySelection.composer_persistent_variable_selector !== false ||
     capabilitySelection.composer_context_surface !== 'active_capability_chip' ||
     composerTarget.placement !== 'floating_bottom_with_safe_inset' ||

@@ -132,7 +132,26 @@ export type AppProductProfile = {
         purpose_entries_visible: string[];
         purpose_entry_placement: string;
         dynamic_question_title: boolean;
-        starter_limit: number;
+        starter_limit: number | null;
+        starter_visibility_policy: string;
+        starter_order_policy: string;
+        starter_layout_policy: string;
+        starter_truncation_allowed: boolean;
+        workspace_selector_policy: {
+          primary_scope: string;
+          inactive_recent_directories_visible: boolean;
+          management_entry: string;
+          management_scope: string;
+          unregister_effect: string;
+          filesystem_delete_allowed: boolean;
+          active_conversation_change_on_unregister: boolean;
+        };
+        home_shortcut_mutation_policy: {
+          pending_scope: string;
+          pending_key: string;
+          other_shortcuts_remain_interactive: boolean;
+          readback_mode: string;
+        };
         projectless_conversation_supported: boolean;
         text_chat_without_workspace: string;
         workspace_session_rail_default_state: string;

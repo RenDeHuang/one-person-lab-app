@@ -115,6 +115,19 @@ test('GUI design-system validator accepts a complete fixture without promoting r
   assert.equal(summary.conformance_matrix.pixel_verified_implies_visual_parity, false);
 });
 
+test('GUI design-system validator rejects a fixed Home shortcut limit', () => {
+  const root = createFixture();
+  const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
+  const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+  contract.interaction_baseline.home.starter_limit = 4;
+  writeJson(root, 'contracts/app-gui-product-contract.json', contract);
+
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /interaction baseline Home, conversation, composer, access, and task summary markers must match the App target/,
+  );
+});
+
 test('GUI design-system validator follows a changed App-profile reasoning default', () => {
   const root = createFixture();
   const profilePath = path.join(root, 'contracts/app-product-profile.json');

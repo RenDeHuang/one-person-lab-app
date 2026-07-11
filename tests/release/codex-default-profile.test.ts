@@ -249,6 +249,33 @@ test('GUI contract rejects Codex selector button policies that allow an Auto pre
   ));
 });
 
+test('Home authority rejects the retired four-starter limit and copy', () => {
+  const guiContract = structuredClone(readJson('contracts/app-gui-product-contract.json'));
+  guiContract.home_layout.starter_limit = 4;
+  guiContract.pages.guid_home.must_show = guiContract.pages.guid_home.must_show.map((entry: string) =>
+    entry === 'all user-visible configured OPL starters in stable order without silent truncation'
+      ? 'at most four lightweight OPL starters for Research/Grant/Presentation/Book'
+      : entry,
+  );
+  assert.throws(() =>
+    validateAppGuiProductContract(
+      guiContract,
+      readJson('contracts/app-release-channel.json'),
+      readJson('contracts/app-install-exposure-policy.json'),
+    ),
+  );
+
+  const matrix = structuredClone(readJson('contracts/app-page-state-matrix.json'));
+  const guidHome = matrix.pages.find(({ id }: { id: string }) => id === 'guid_home');
+  guidHome.home_view_model.home_layout.starter_limit = 4;
+  guidHome.must_show = guidHome.must_show.map((entry: string) =>
+    entry === 'all user-visible configured OPL starters in stable order without silent truncation'
+      ? 'at most four lightweight OPL starters outside the composer'
+      : entry,
+  );
+  assert.throws(() => validatePrimaryInteractionPages(matrix));
+});
+
 test('page-state matrix rejects Codex Auto policy source drift', () => {
   const matrix = structuredClone(readJson('contracts/app-page-state-matrix.json'));
   const guidHome = matrix.pages.find(({ id }) => id === 'guid_home');
