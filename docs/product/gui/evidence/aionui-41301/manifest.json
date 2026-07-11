@@ -4,8 +4,8 @@
   "source_shell_repo": "gaofeng21cn/opl-aion-shell",
   "shell_head": "30f5457d1adde4c4535fbe216d4aacd8a180a868",
   "source_manifest": "docs/product/gui/evidence/aionui-41301/source-manifest.json",
-  "source_manifest_sha256": "f998cd62ec03fcfe09c4edc9c6a885495451d5be4561112a54710368f05f561b",
-  "generated_at": "2026-07-11T19:47:15.132Z",
+  "source_manifest_sha256": "0de050cbd79004f3bc0a585512103c85d6646f95f7fd0b88cc85cabab2ed723b",
+  "generated_at": "2026-07-11T20:13:31.648Z",
   "command": "AIONUI_E2E_PRODUCT_PROFILE=1 E2E_PACKAGED=1 E2E_SCREENSHOTS=1 bun run test:e2e -- tests/e2e/features/visual-evidence/gui-baseline.e2e.ts",
   "evidence_scope": "route_state_non_empty_and_layout_only",
   "claims": {
@@ -31,8 +31,8 @@
       "theme": "dark",
       "locale": "en-US",
       "screenshot_path": "docs/product/gui/evidence/aionui-41301/screenshots/home-mobile-dark-en-US-rail-closed.png",
-      "bytes": 32611,
-      "sha256": "0dcb47aa567c68383e86b5491653d995a26a938a3a27f3c521881449cfb33e52"
+      "bytes": 33288,
+      "sha256": "28caeadf1dc5d43c97943265e46cb871d28efff05e883504a7889bfd8a23025c"
     },
     {
       "id": "home-mobile-dark-en-US-action-sheet-open",
@@ -40,8 +40,8 @@
       "theme": "dark",
       "locale": "en-US",
       "screenshot_path": "docs/product/gui/evidence/aionui-41301/screenshots/home-mobile-dark-en-US-action-sheet-open.png",
-      "bytes": 45617,
-      "sha256": "93564af9e92886e74a89631c7884fbfb04fa5ba8bd16b642f08615ee01840b44"
+      "bytes": 45867,
+      "sha256": "b2f8e4679aefcc287a3d39f6c7b4f00c43f46f5a600aa90aecea7f27f080b09b"
     },
     {
       "id": "conversation-desktop-light-en-US-composer-controls",
@@ -58,8 +58,8 @@
       "theme": "light",
       "locale": "en-US",
       "screenshot_path": "docs/product/gui/evidence/aionui-41301/screenshots/conversation-desktop-light-en-US-model-menu-open.png",
-      "bytes": 119773,
-      "sha256": "d5ae35ab3378f1590f74d4c1b8ba0a8d3070271192f9949d9ffeeec1c6f20452"
+      "bytes": 119011,
+      "sha256": "f02ed33d11021e2ec0c1ca4f2cb2fcb15a376c81571772950a6533406b82d942"
     },
     {
       "id": "conversation-desktop-dark-zh-CN-environment-open",
@@ -76,8 +76,8 @@
       "theme": "dark",
       "locale": "zh-CN",
       "screenshot_path": "docs/product/gui/evidence/aionui-41301/screenshots/conversation-desktop-dark-zh-CN-files-open.png",
-      "bytes": 123489,
-      "sha256": "5c0d59420bb9bd1675b85ebff4e47b231c351b4b74f27d981955f75cdd4fc400"
+      "bytes": 123497,
+      "sha256": "d6ef06d45b8bbcd2d161895630290628674aeaeda27c7f0d6feeeca7e0f9efa9"
     },
     {
       "id": "conversation-mobile-light-en-US-preview-open",

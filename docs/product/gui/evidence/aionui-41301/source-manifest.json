@@ -1,6 +1,6 @@
 {
   "schema": "opl_aionui_gui_route_visual_evidence.v1",
-  "generated_at": "2026-07-11T19:47:15.132Z",
+  "generated_at": "2026-07-11T20:13:31.648Z",
   "shell_head": "30f5457d1adde4c4535fbe216d4aacd8a180a868",
   "command": "AIONUI_E2E_PRODUCT_PROFILE=1 E2E_PACKAGED=1 E2E_SCREENSHOTS=1 bun run test:e2e -- tests/e2e/features/visual-evidence/gui-baseline.e2e.ts",
   "evidence_scope": "route_state_non_empty_and_layout_only",
@@ -241,7 +241,7 @@
     {
       "id": "conversation-desktop-light-en-US-composer-controls",
       "shell_head": "30f5457d1adde4c4535fbe216d4aacd8a180a868",
-      "route": "/conversation/a23a9d07",
+      "route": "/conversation/1b607601",
       "viewport": {
         "name": "desktop",
         "width": 1440,
@@ -336,7 +336,7 @@
     {
       "id": "conversation-desktop-light-en-US-model-menu-open",
       "shell_head": "30f5457d1adde4c4535fbe216d4aacd8a180a868",
-      "route": "/conversation/a23a9d07",
+      "route": "/conversation/1b607601",
       "viewport": {
         "name": "desktop",
         "width": 1440,
@@ -395,7 +395,7 @@
         {
           "id": "conversation_model_menu_within_viewport",
           "passed": true,
-          "details": "box={\"x\":823.1015625,\"y\":787.92724609375,\"width\":350.359375,\"height\":33.4744873046875} viewport=1440x960"
+          "details": "box={\"x\":823.1015625,\"y\":785.1302490234375,\"width\":350.359375,\"height\":34.3656005859375} viewport=1440x960"
         },
         {
           "id": "conversation_model_menu_text_does_not_overflow",
@@ -414,7 +414,7 @@
     {
       "id": "conversation-desktop-dark-zh-CN-environment-open",
       "shell_head": "30f5457d1adde4c4535fbe216d4aacd8a180a868",
-      "route": "/conversation/a23a9d07",
+      "route": "/conversation/1b607601",
       "viewport": {
         "name": "desktop",
         "width": 1440,
@@ -510,7 +510,7 @@
     {
       "id": "conversation-desktop-dark-zh-CN-files-open",
       "shell_head": "30f5457d1adde4c4535fbe216d4aacd8a180a868",
-      "route": "/conversation/a23a9d07",
+      "route": "/conversation/1b607601",
       "viewport": {
         "name": "desktop",
         "width": 1440,
@@ -611,7 +611,7 @@
     {
       "id": "conversation-mobile-light-en-US-preview-open",
       "shell_head": "30f5457d1adde4c4535fbe216d4aacd8a180a868",
-      "route": "/conversation/a23a9d07",
+      "route": "/conversation/1b607601",
       "viewport": {
         "name": "mobile",
         "width": 420,
