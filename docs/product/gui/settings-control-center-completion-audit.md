@@ -1,27 +1,29 @@
 
 # Settings Control Center Completion Audit
 
-Audit date: 2026-07-10
+Audit date: 2026-07-11
 Authority owner: one-person-lab-app
 Scope: Settings product contracts, page-state matrix, documentation, validators,
 and focused contract tests
-Visual evidence status: historical evidence superseded by the 2026-07-11
-baseline-card remediation
+Visual evidence status: current baseline-card active-shell evidence
 
 ## Conclusion
 
-This document retains a historical 2026-07-10 snapshot. It is not the current
-visual acceptance authority. User testing rejected the Preferences flat theme
-swatch list, so the visual conclusion tied to Shell
-`5e46f49ab33fea3734db9a6fb6db79f73507bf07` is superseded by the baseline-card
-remediation in `settings-control-center.md` and
-`contracts/app-settings-control-plane.json`.
+Current visual evidence binds to `opl-aion-shell`
+`90a9e692464ac870b464e01080ad25fd71604483` and its
+`tests/e2e/screenshots/settings-control-center-manifest.json`. The manifest was
+generated at `2026-07-11T02:27:19.698Z`, contains 28 desktop/mobile route,
+secondary-route, compatibility-route, and interaction-state screenshots, and
+sets `release_readiness_claim` to `false`. Its SHA-256 is
+`d1fc0bf10eabe0cb7e094d0b20a35ce5813def5710c7e48915327b3856315951`.
 
-The 28 screenshots, visual E2E result, and manifest recorded below remain
-historical evidence for that exact Shell commit only. They do not demonstrate
-the remediated one-question-per-card grouping, compact return-to-chat/theme
-footer, or recognizable theme preview tiles. This App authority lane records no
-replacement screenshot or pixel claim.
+The evidence verifies the remediated bounded-card baseline: one user question
+per page-section card, flat internal rows, a compact return-to-chat/theme
+footer, recognizable theme preview tiles, and correct navigation state before
+each capture. Listed routes expose one current item; mobile secondary routes
+expose no stale primary selection. Screenshot capture moves the pointer away
+from navigation items so an old `:hover` state cannot masquerade as the selected
+route.
 
 No runtime, installed-App, currentness, notarization, or release-ready claim is
 made by this audit.
@@ -34,24 +36,26 @@ made by this audit.
 | Secondary page boundary | done | 100% | `secondary_pages` contains only `advanced` and `about`; About has an independent render slot and route | None |
 | Compatibility redirects | done | 100% | Machine contract and Shell router implement `update -> environment#updates`, `theme -> appearance#themes`, `local-services -> environment#services` with `?section=` anchors | None |
 | About independence | done | 100% | `about` is absent from redirect maps and renders `AboutModalContent` at `/settings/about` | None |
-| Single global search contract | done | 100% | One `settings-search-input`, bilingual item indexing, `page > item` labels, Enter navigation, and anchor focus are covered by DOM and E2E source tests | Old screenshot pixels are historical only and do not establish current visual acceptance |
-| OPL card-based visual contract | superseded | not accepted | The prior card/swatch conclusion and Shell `5e46f49ab33fea3734db9a6fb6db79f73507bf07` screenshots are historical evidence only | Shell/main integration must sync the generated profile and collect fresh baseline-card visual evidence |
+| Single global search contract | done | 100% | One `settings-search-input`, bilingual item indexing, `page > item` labels, Enter navigation, and anchor focus are covered by DOM and E2E source tests | None in active-shell source scope |
+| OPL card-based visual contract | done | 100% | App bounded-card contract plus Shell `90a9e692464ac870b464e01080ad25fd71604483` screenshots verify one-question card grouping, flat rows, compact footer, and theme preview tiles | Installed-App evidence remains separate |
 | Per-page experience contracts | done | 100% | Ten page contracts are implemented with declared primary information, action, exception, technical details, DOM anchors, Access browser entry, AssistantSettings tab, and resource action lifecycle | None in source/DOM scope |
 | Prior UX audit incorporation | done | 100% | 概览、访问方式、工作区、智能体与能力、资源与连接、维护、数据与存储、偏好、高级、关于 requirements are present in Shell source and focused tests | None in source/DOM scope |
 | Page-state matrix | done | 100% | Product pages, redirect states, Preferences route, anchors, and action states are consumed by App validators and Shell tests | None |
-| Contract validators | done | 100% | Active-shell quick validation passes against the Settings Shell checkout, including ordinary-conversation Team MCP scrub evidence | Re-run on absorbed main |
-| Focused and full tests | done | 100% | Shell `bun run test:full`: 248 files passed, 1 skipped; 1873 tests passed, 3 skipped. App release boundary: 158 passed, 2 platform skips | Re-run on absorbed main |
+| Contract validators | done | 100% | `OPL_APP_SHELL_ROOT=<pinned shell> bun run validate:active-shell -- --quick` passed; `npm run validate:gui-design-system` reported `consistent` | None in App contract scope |
+| Focused product validation | done | 100% | Shell `bun run package`, `bunx tsc --noEmit`, Settings DOM `13 files / 86 tests`, and Settings visual E2E `2 tests` passed; App `npm run test:release-boundary` passed | Full-suite and installed-App evidence are separate, non-required claims |
 | Product documentation | done | 100% | `settings-control-center.md` is the current route, search, visual, page, DOM, and evidence boundary | None in App authority scope |
-| Shell DOM and interaction implementation | historical_only | not current | Focused Settings DOM and interaction evidence is retained for the recorded Shell revision | Shell integration must implement and verify the remediated card/footer/gallery structure |
-| Visual QA collector | superseded | not accepted | The collector and manifest shape are historical implementation evidence | Re-run it only after the remediated Shell generated profile and UI are integrated |
-| Fresh Shell screenshot pixels | superseded | not accepted | Exact Shell `5e46f49ab33fea3734db9a6fb6db79f73507bf07`: 28 screenshots were generated at `2026-07-10T15:41:59.631Z` | They include the rejected flat swatch-list baseline; no new screenshot claim is made here |
+| Shell DOM and interaction implementation | done | 100% | The focused Shell DOM suite covers 13 Settings surfaces and the E2E route loop asserts a unique selected item before capture | None in active-shell source scope |
+| Visual QA collector | done | 100% | Collector waits for the resolved selected route, clears sidebar hover, and records route/viewport/anchor evidence | None in active-shell source scope |
+| Fresh Shell screenshot pixels | done | 100% | Exact Shell `90a9e692464ac870b464e01080ad25fd71604483`: 28 entries in the 2026-07-11 manifest across desktop and mobile | No release/currentness claim is implied |
 | Running-shell/runtime evidence | not_started | 0% | Contract and tests intentionally do not provide live runtime proof | Collect live readback only when runtime evidence is requested |
 | Installed App / release currentness | blocked | 0% | Separate release-owner gate required | Release owner supplies installed version, signing/notarization, artifact, and currentness evidence |
 
 ## Historical Shell Contract
 
-The following records the previous Shell lane only. It does not assert current
-visual acceptance after the baseline-card remediation:
+The following records the prior route and action surface. The 2026-07-10
+flat-swatch screenshots at Shell `5e46f49ab33fea3734db9a6fb6db79f73507bf07`
+remain historical comparison evidence only; they do not establish current
+visual acceptance.
 
 1. Exactly one mounted `settings-search-input`.
 2. Chinese and English item-level indexing.
@@ -97,14 +101,10 @@ visual acceptance after the baseline-card remediation:
 ## Evidence Boundary
 
 Historical `done` rows preserve what existed at their exact recorded commits.
-They do not establish current visual acceptance for the remediated baseline.
-
-The current App authority is the Settings control-plane contract and its
-profile projection. The Shell/main integration lane must regenerate its product
-profile and collect new UI and screenshot evidence before any visual acceptance
-claim. This document adds no replacement screenshots or pixel evidence.
+The current visual claim is limited to the manifest-bound Shell source listed
+above and the App contracts it consumes.
 
 Release/currentness remains outside Settings completion. Final integration owns
 the combined gates, rebuilt installation, running-App readback, release
-currentness, and worktree cleanup. The visual manifest intentionally sets
-`release_readiness_claim` to `false`.
+currentness, and worktree cleanup. The current visual manifest intentionally
+sets `release_readiness_claim` to `false`.
