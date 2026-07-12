@@ -10,6 +10,7 @@ import {
 
 const requiredScripts = {
   'validate:app-root-boundary': 'node --experimental-strip-types scripts/app-root-boundary.ts',
+  'typecheck': 'tsc --noEmit -p tsconfig.json',
   'validate:active-shell': 'node --experimental-strip-types scripts/validate-active-shell.ts',
   'validate:release-boundary': 'node --experimental-strip-types scripts/validate-release-boundary.ts',
   'release:prepare-standard': 'node --experimental-strip-types scripts/prepare-standard-release-payload.ts',
@@ -26,6 +27,10 @@ function writeRootPackage(root: string, overrides = {}): void {
       private: true,
       type: 'module',
       scripts: requiredScripts,
+      devDependencies: {
+        '@types/node': '22.15.3',
+        typescript: '5.8.3',
+      },
       ...overrides,
     }, null, 2)}\n`,
     'utf8',
