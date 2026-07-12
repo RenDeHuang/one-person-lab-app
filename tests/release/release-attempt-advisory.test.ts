@@ -142,6 +142,18 @@ test("Full VM validation rejects Framework injection into an already-built DMG",
   assert.match(firstRunVmWorkflow, /framework_args=\(--framework-sha/);
 });
 
+test("Full build artifacts survive release-note provider failure and notes use a bounded fallback", () => {
+  assert.match(fullWorkflow, /id: full_package_build/);
+  assert.match(fullWorkflow, /OPL_RELEASE_NOTES_AI_TIMEOUT_SECONDS: '30'/);
+  assert.match(fullWorkflow, /AI release notes were unavailable; using the deterministic release-note template/);
+  assert.match(fullWorkflow, /OPL_RELEASE_NOTES_MODE=template npm run release:notes:prepare/);
+  assert.match(fullWorkflow, /--input "\$RUNNER_TEMP\/full-release-notes-template\.md"/);
+  assert.match(
+    fullWorkflow,
+    /name: Upload Full DMG-only workflow artifact\n\s+if: \$\{\{ always\(\) && steps\.full_package_build\.outcome == 'success'/,
+  );
+});
+
 test("Docker release evidence keeps failure diagnostics without uploading the seeded data volume", () => {
   assert.match(workflow, /OPL_FLOW_SHA: 06cb8e15490e6a98b1196bfc6d526bd50471ecbc/);
   assert.match(workflow, /--build-arg OPL_FLOW_REF="\$\{OPL_FLOW_SHA\}"/);

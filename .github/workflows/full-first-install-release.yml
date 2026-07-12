@@ -598,6 +598,7 @@ jobs:
           fi
 
       - name: Build Full first-install package
+        id: full_package_build
         working-directory: one-person-lab-app
         shell: bash
         env:
@@ -1063,9 +1064,9 @@ jobs:
           OPL_RELEASE_NOTES_CODEX_BASE_URL: ${{ vars.OPL_RELEASE_NOTES_CODEX_BASE_URL || 'https://gflabtoken.cn/v1' }}
           OPL_RELEASE_NOTES_CODEX_API_KEY: ${{ secrets.OPL_RELEASE_NOTES_CODEX_API_KEY }}
           OPL_RELEASE_NOTES_MODEL: ${{ vars.OPL_RELEASE_NOTES_MODEL || 'gpt-5.4-mini' }}
+          OPL_RELEASE_NOTES_AI_TIMEOUT_SECONDS: '30'
         run: |
           set -euo pipefail
-          npm run release:notes:probe-ai
           npm run release:notes -- \
             --version "$OPL_RELEASE_VERSION" \
             --channel stable \
@@ -1076,12 +1077,23 @@ jobs:
             --current-tag "v${OPL_RELEASE_VERSION}" \
             --evidence-output "$RUNNER_TEMP/full-release-notes-evidence.json" \
             --output "$RUNNER_TEMP/full-release-notes-template.md"
-          npm run release:notes:prepare -- \
-            --evidence "$RUNNER_TEMP/full-release-notes-evidence.json" \
-            --output "$RUNNER_TEMP/full-release-notes.md"
+          ai_notes_ready=false
+          if npm run release:notes:probe-ai && \
+             npm run release:notes:prepare -- \
+               --evidence "$RUNNER_TEMP/full-release-notes-evidence.json" \
+               --output "$RUNNER_TEMP/full-release-notes.md"; then
+            ai_notes_ready=true
+          fi
+          if [ "$ai_notes_ready" != "true" ]; then
+            echo "::warning::AI release notes were unavailable; using the deterministic release-note template."
+            OPL_RELEASE_NOTES_MODE=template npm run release:notes:prepare -- \
+              --evidence "$RUNNER_TEMP/full-release-notes-evidence.json" \
+              --input "$RUNNER_TEMP/full-release-notes-template.md" \
+              --output "$RUNNER_TEMP/full-release-notes.md"
+          fi
 
       - name: Upload Full package workflow artifact
-        if: ${{ inputs.publish_to_release || inputs.upload_full_package_artifact }}
+        if: ${{ always() && steps.full_package_build.outcome == 'success' && (inputs.publish_to_release || inputs.upload_full_package_artifact) }}
         uses: actions/upload-artifact@v7
         with:
           name: opl-full-first-install-${{ env.OPL_RELEASE_VERSION }}-mac-arm64
@@ -1090,7 +1102,7 @@ jobs:
           retention-days: 14
 
       - name: Write Full build artifact cohort manifest
-        if: ${{ inputs.publish_to_release || inputs.upload_full_package_artifact }}
+        if: ${{ always() && steps.full_package_build.outcome == 'success' && (inputs.publish_to_release || inputs.upload_full_package_artifact) }}
         shell: bash
         run: |
           set -euo pipefail
@@ -1112,7 +1124,7 @@ jobs:
           NODE
 
       - name: Upload Full build artifact cohort manifest
-        if: ${{ inputs.publish_to_release || inputs.upload_full_package_artifact }}
+        if: ${{ always() && steps.full_package_build.outcome == 'success' && (inputs.publish_to_release || inputs.upload_full_package_artifact) }}
         uses: actions/upload-artifact@v7
         with:
           name: opl-full-first-install-dmg-${{ env.OPL_RELEASE_VERSION }}-mac-arm64-cohort
@@ -1121,7 +1133,7 @@ jobs:
           retention-days: 14
 
       - name: Upload Full DMG-only workflow artifact
-        if: ${{ inputs.publish_to_release || inputs.upload_full_package_artifact }}
+        if: ${{ always() && steps.full_package_build.outcome == 'success' && (inputs.publish_to_release || inputs.upload_full_package_artifact) }}
         uses: actions/upload-artifact@v7
         with:
           name: opl-full-first-install-dmg-${{ env.OPL_RELEASE_VERSION }}-mac-arm64
