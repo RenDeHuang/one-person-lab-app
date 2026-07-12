@@ -107,9 +107,9 @@ function validateProductProfileCodexDefaults(profile) {
     !Array.isArray(sessionContextI18n?.['zh-CN']) ||
     !sessionContextI18n['zh-CN'].some((line) => typeof line === 'string' && line.includes('你正在 One Person Lab App')) ||
     !Array.isArray(sessionContextI18n?.['en-US']) ||
-    !sessionContextI18n['en-US'].some((line) => typeof line === 'string' && line.includes('You are working inside a Codex session'))
+    !sessionContextI18n['en-US'].some((line) => typeof line === 'string' && line.includes('You are in a Codex session'))
   ) {
-    throw new Error('Product profile must declare localized OPL Flow session context');
+    throw new Error('Product profile must declare localized OPL App session context');
   }
   assertDefaultCodexSessionProfile(profile, { label: 'product profile', requireLiteralDefaults: true });
   assertAppProductProfileGuiAuthority(profile, 'Product profile');

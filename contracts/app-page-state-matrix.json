@@ -2186,12 +2186,15 @@
         "reply waiting time in human units",
         "tray and close-window behavior",
         "hardware acceleration in user language",
+        "editable system-level AGENTS.md with current-path and stale-write protection",
+        "editable OPL App session context with automatic and custom modes",
         "Default and Codex theme choices under the themes anchor",
         "restart-required notice next to the affected setting when applicable"
       ],
       "must_not_show": [
         "raw timeout milliseconds",
         "Electron command-line flags",
+        "OPL Flow described as the owner of per-session App context",
         "AionUI theme as product authority",
         "maintenance, account, or About controls",
         "theme as an independent product page"
@@ -2199,7 +2202,7 @@
       "machine_source": "opl app state --profile fast --json",
       "refresh_source": "opl app state --profile fast --json",
       "page_contract": "settings_theme",
-      "state_sections": ["settings", "desktop_startup", "theme"],
+      "state_sections": ["settings", "desktop_startup", "personalization", "theme"],
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
       "ia_group": "preferences",
       "route_id": "appearance",
@@ -2209,6 +2212,7 @@
         "behavior",
         "tray",
         "hardware",
+        "instructions_context",
         "themes",
         "technical_details"
       ],
@@ -2218,6 +2222,9 @@
         "always": [
           "settings-page-preferences",
           "settings-preferences-primary",
+          "settings-preferences-instructions",
+          "settings-system-agents-editor",
+          "settings-opl-app-context-editor",
           "settings-preferences-technical-details"
         ],
         "conditional": [
@@ -2230,6 +2237,9 @@
       "required_anchors": [
         "behavior",
         "notifications",
+        "instructions-context",
+        "system-agents",
+        "opl-app-context",
         "display-fonts",
         "themes"
       ],
@@ -2237,6 +2247,8 @@
         "preferences.behavior",
         "preferences.notifications",
         "preferences.display_fonts",
+        "preferences.system_agents",
+        "preferences.opl_app_context",
         "preferences.themes"
       ],
       "primary_action_id": "none",
@@ -2375,7 +2387,7 @@
           "target_state_checks": [
             "codex_cli_callable",
             "ui_language_policy",
-            "session_scoped_opl_flow_context",
+            "session_scoped_opl_app_context",
             "user_agents_md_respected_no_overwrite",
             "mas_mag_rca_routes_visible",
             "opl_meta_agent_capability_visible",

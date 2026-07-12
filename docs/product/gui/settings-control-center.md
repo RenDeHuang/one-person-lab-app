@@ -212,7 +212,12 @@ empty arrays. An item cannot appear in more than one array.
    it is not a Settings/configuration page.
 
 Workspace therefore uses one owner card containing location, writability, and
-actions. Preferences uses two full-width groups rather than a 2+1 grid. Agents
+actions. Preferences uses three full-width groups rather than a 2+1 grid:
+application behavior, instructions and session context, and display/themes. The
+instructions group edits the user-owned `$CODEX_HOME/AGENTS.md` through the
+Framework action boundary and manages the App-owned new-conversation context.
+OPL Flow installs and semantically merges the user profile; it does not own the
+per-session App prompt. Agents
 and Capabilities keeps catalog, conversation, and Home counts as one compact
 status row inside the catalog card, exposes Home visibility and Manage on each
 item row, and keeps package refs diagnostic. Resources and Storage keep
@@ -226,6 +231,14 @@ but their repair/update/cleanup/archive operations are actions, not settings.
 Neither page owns persistent configuration in this contract. Storage restore
 probe evidence belongs to diagnostics and does not require a duplicate ordinary
 Restore button.
+
+The OPL App session context is generated from
+`gui.professional_agent_packages[].session_routing_summary_i18n`, so MAS, MAG,
+RCA, OBF, OMA, and future adopted packages update through the product profile
+instead of a second handwritten prompt. Automatic is the default. A custom
+override is local to the App and takes effect only for newly created Codex
+conversations. User and repository `AGENTS.md` remain independent Codex-owned
+instruction layers.
 
 Capability package sync is a single-click Maintenance action. The Shell must
 call `settings_sync_capabilities` through `opl app action execute` immediately,

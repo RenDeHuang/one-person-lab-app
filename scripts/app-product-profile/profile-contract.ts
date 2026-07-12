@@ -70,7 +70,7 @@ function assertPostInstallAiSelfCheckEntry(
     [
       'codex_cli_callable',
       'ui_language_policy',
-      'session_scoped_opl_flow_context',
+      'session_scoped_opl_app_context',
       'user_agents_md_respected_no_overwrite',
       'mas_mag_rca_routes_visible',
       'opl_meta_agent_capability_visible',
@@ -418,19 +418,33 @@ function assertCodexOplFlowContext(profile: AppProductProfile): void {
     profile.codex.opl_flow_context?.flow_id !== 'opl-flow' ||
     profile.codex.opl_flow_context.source !== 'opl-flow-package-policy' ||
     profile.codex.opl_flow_context.policy_source_ref !== 'gaofeng21cn/opl-flow:contracts/workflow-policy.json' ||
-    profile.codex.opl_flow_context.delivery !== 'package_installed_profile_and_session_context' ||
+    profile.codex.opl_flow_context.delivery !== 'package_installed_user_profile_only' ||
     profile.codex.opl_flow_context.user_agents_policy !== 'respect_user_agents_no_overwrite_detect_conflicts' ||
-    profile.codex.opl_flow_context.language_policy !== 'follow_ui_locale_zh_only_when_ui_zh'
+    profile.codex.opl_flow_context.language_policy !== 'follow_ui_locale_zh_only_when_ui_zh' ||
+    profile.codex.opl_flow_context.app_role !== 'install_sync_diagnose_user_profile_only'
   ) {
     throw new Error('App product profile must consume the OPL Flow package context policy');
+  }
+  if (
+    profile.codex.opl_app_session_context?.owner !== 'one-person-lab-app' ||
+    profile.codex.opl_app_session_context.source !== 'gui.professional_agent_packages.session_routing_summary_i18n' ||
+    profile.codex.opl_app_session_context.delivery !== 'new_codex_conversation_preset_context' ||
+    profile.codex.opl_app_session_context.customization.default_mode !== 'automatic'
+  ) {
+    throw new Error('App product profile must own the editable OPL App session context');
   }
   if (
     !Array.isArray(profile.codex.session_context_i18n?.['zh-CN']) ||
     !profile.codex.session_context_i18n['zh-CN'].some((line) => line.includes('你正在 One Person Lab App')) ||
     !Array.isArray(profile.codex.session_context_i18n?.['en-US']) ||
-    !profile.codex.session_context_i18n['en-US'].some((line) => line.includes('You are working inside a Codex session'))
+    !profile.codex.session_context_i18n['en-US'].some((line) => line.includes('You are in a Codex session'))
   ) {
-    throw new Error('App product profile must declare localized OPL Flow session context');
+    throw new Error('App product profile must declare localized OPL App session context');
+  }
+  for (const agent of profile.gui.professional_agent_packages) {
+    if (!agent.session_routing_summary_i18n?.['zh-CN'] || !agent.session_routing_summary_i18n?.['en-US']) {
+      throw new Error(`App product profile agent ${agent.package_id} must declare localized session routing summaries`);
+    }
   }
 }
 

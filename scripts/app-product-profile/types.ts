@@ -294,6 +294,7 @@ export type AppProductProfile = {
       home_shortcut_ids: string[];
       required_skill_ids: string[];
       optional_skill_ids: string[];
+      session_routing_summary_i18n: Record<'zh-CN' | 'en-US', string>;
       required_skill_policy: string;
       optional_skill_policy: string;
       skill_menu_policy: string;
@@ -382,6 +383,21 @@ export type AppProductProfile = {
       app_role: string;
       dependency_policy: string;
       migration_policy: string;
+    };
+    opl_app_session_context: {
+      owner: string;
+      source: string;
+      delivery: string;
+      generation_policy: string;
+      update_policy: string;
+      user_agents_policy: string;
+      customization: {
+        mode_key: string;
+        custom_content_key: string;
+        modes: string[];
+        default_mode: string;
+        effect: string;
+      };
     };
     default_visible_skills: string[];
     skill_priority: string[];

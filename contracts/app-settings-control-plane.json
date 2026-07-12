@@ -211,6 +211,42 @@
         "editable_reason": "The user controls which local completion notifications are shown."
       },
       {
+        "stable_id": "settings.configuration.codex_user_instructions",
+        "configuration_id": "codex_user_instructions",
+        "owner_class": "framework",
+        "truth_owner": "user_codex_home",
+        "page_id": "preferences",
+        "anchor": "system-agents",
+        "lifecycle": "persistent_user_instruction_file",
+        "value_type": "markdown_text",
+        "sensitivity": "user_authored",
+        "current_value_source_ref": "app_state.codex_personalization.user_agents",
+        "write_route": "opl app action execute --action codex_user_instructions_set",
+        "persistence_target_ref": "$CODEX_HOME/AGENTS.md",
+        "verify_ref": "app_state.codex_personalization.user_agents.sha256",
+        "risk": "low_with_stale_write_guard",
+        "confirmation_required": false,
+        "editable_reason": "Codex reads this user-owned instruction file for every task; the App provides a safe editor without making OPL Flow the session prompt owner."
+      },
+      {
+        "stable_id": "settings.configuration.opl_app_session_context",
+        "configuration_id": "opl_app_session_context",
+        "owner_class": "app_local",
+        "truth_owner": "one-person-lab-app",
+        "page_id": "preferences",
+        "anchor": "opl-app-context",
+        "lifecycle": "persistent_new_conversation_configuration",
+        "value_type": "automatic_or_custom_markdown_text",
+        "sensitivity": "ordinary",
+        "current_value_source_ref": "app product profile agent routes + desktop client context override",
+        "write_route": "configService:codex.oplAppSessionContextMode + codex.oplAppSessionContextCustom",
+        "persistence_target_ref": "desktop_client_settings",
+        "verify_ref": "new conversation preset_context",
+        "risk": "low_next_conversation_only",
+        "confirmation_required": false,
+        "editable_reason": "This App-owned context explains available OPL agents and routing without duplicating user or repository AGENTS.md."
+      },
+      {
         "stable_id": "settings.configuration.display_preferences",
         "configuration_id": "display_preferences",
         "owner_class": "app_local",
@@ -1245,7 +1281,7 @@
         "track": "user_task_ux",
         "goal": "Preferences explains timeout, tray, hardware acceleration, and themes in user language.",
         "evidence_required": [
-          "preferences anchors include behavior/tray/hardware/themes",
+          "preferences anchors include behavior/instructions-context/system-agents/opl-app-context/display-fonts/themes",
           "raw milliseconds and Electron flags stay collapsed",
           "Preferences has inline controls and no page-level primary action"
         ]
@@ -2244,16 +2280,21 @@
         "primary_information": [
           "application behavior including startup, close-window behavior, uploads, and reply waiting time",
           "notifications",
+          "system-level Codex user instructions from the user-owned AGENTS.md",
+          "OPL App new-conversation context with automatic agent routing or a local custom override",
           "language, display scale, chat, Markdown, and code font sizes",
           "theme and appearance including hardware acceleration where relevant"
         ],
         "first_viewport_groups": [
           "application_behavior_and_notifications",
+          "instructions_and_session_context",
           "display_and_themes"
         ],
         "surface_inventory": {
           "configuration": [
             { "id": "application_behavior_and_notifications", "owner": "preferences" },
+            { "id": "codex_user_instructions", "owner": "preferences" },
+            { "id": "opl_app_session_context", "owner": "preferences" },
             { "id": "display_and_themes", "owner": "preferences" }
           ],
           "status": [
@@ -2265,7 +2306,7 @@
           ]
         },
         "surface_rules": {
-          "full_width_group_count": 2,
+          "full_width_group_count": 3,
           "two_plus_one_grid_allowed": false,
           "builtin_theme_ids": ["light", "dark", "codex"],
           "extension_themes_default_visible": false,
@@ -2282,6 +2323,9 @@
           "always": [
             "settings-page-preferences",
             "settings-preferences-primary",
+            "settings-preferences-instructions",
+            "settings-system-agents-editor",
+            "settings-opl-app-context-editor",
             "settings-preferences-technical-details"
           ],
           "conditional": [
@@ -2294,6 +2338,9 @@
         "required_anchors": [
           "behavior",
           "notifications",
+          "instructions-context",
+          "system-agents",
+          "opl-app-context",
           "display-fonts",
           "themes"
         ],
@@ -2301,6 +2348,8 @@
           "preferences.behavior",
           "preferences.notifications",
           "preferences.display_fonts",
+          "preferences.system_agents",
+          "preferences.opl_app_context",
           "preferences.themes"
         ]
       },
@@ -2697,6 +2746,24 @@
             "hardware acceleration",
             "language"
           ]
+        },
+        {
+          "id": "preferences.system_agents",
+          "page_id": "preferences",
+          "anchor": "system-agents",
+          "label_zh": "系统级 AGENTS.md",
+          "label_en": "System AGENTS.md",
+          "keywords_zh": ["指令", "系统提示", "AGENTS.md", "个性化"],
+          "keywords_en": ["instructions", "system prompt", "AGENTS.md", "personalization"]
+        },
+        {
+          "id": "preferences.opl_app_context",
+          "page_id": "preferences",
+          "anchor": "opl-app-context",
+          "label_zh": "OPL App 会话上下文",
+          "label_en": "OPL App session context",
+          "keywords_zh": ["会话上下文", "智能体路由", "新对话", "OPL"],
+          "keywords_en": ["session context", "agent routing", "new conversation", "OPL"]
         },
         {
           "id": "preferences.themes",

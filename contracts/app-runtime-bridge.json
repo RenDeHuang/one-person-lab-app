@@ -161,9 +161,34 @@
           "second_skill_truth",
           "codex_surface_reload_proof"
         ]
+      },
+      {
+        "semantic_area": "personalization",
+        "canonical_source": "opl app state --profile fast --json#app_state.codex_personalization.user_agents + app product profile codex.opl_app_session_context",
+        "aion_display_role": "Preferences instructions and session context editor",
+        "workbench_display_role": "Preferences instructions and session context editor",
+        "action_owner_boundary": "Framework safely reads and writes the user-owned Codex AGENTS.md; App profile and App-local settings own new-conversation context generation and customization",
+        "allowed_action_refs": ["codex_user_instructions_set"],
+        "sensitive_payload_transport": "stdin_only_not_command_line_or_logs",
+        "required_projection_fields": {
+          "app_state.codex_personalization.user_agents": [
+            "status",
+            "path",
+            "content",
+            "sha256",
+            "size_bytes",
+            "max_editable_bytes"
+          ]
+        },
+        "forbidden_overclaim": [
+          "opl_flow_owns_per_session_app_context",
+          "shell_direct_user_agents_file_write",
+          "app_context_replaces_user_or_repository_agents",
+          "save_affects_existing_conversations"
+        ]
       }
     ],
-    "required_semantic_areas": ["runtime", "task", "package"]
+    "required_semantic_areas": ["runtime", "task", "package", "personalization"]
   },
   "command_resolution_policy": {
     "owner": "one-person-lab-app",

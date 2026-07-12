@@ -1607,14 +1607,26 @@
     "flow_id": "opl-flow",
     "source": "opl-flow-package-policy",
     "policy_source_ref": "gaofeng21cn/opl-flow:contracts/workflow-policy.json",
-    "delivery": "package_installed_profile_and_session_context",
+    "delivery": "package_installed_user_profile_only",
     "user_agents_policy": "respect_user_agents_no_overwrite_detect_conflicts",
     "language_policy": "follow_ui_locale_zh_only_when_ui_zh",
-    "user_agents_mutation_allowed": false,
+    "user_agents_mutation_allowed": true,
+    "user_agents_mutation_route": "opl app action execute --action codex_user_instructions_set",
     "conflict_detection_required": true,
-    "app_role": "show_package_state_progress_and_user_overrides",
+    "app_role": "install_sync_diagnose_user_profile_only",
     "dependency_policy": "full_bundles_opl_flow_requires_and_recommends_closure",
     "migration_policy": "framework_executes_conflict_retirement_with_backup_receipt_and_rollback"
+  },
+  "opl_app_session_context": {
+    "owner": "one-person-lab-app",
+    "source": "professional_agent_packages.session_routing_summary_i18n",
+    "delivery": "new_codex_conversation_preset_context",
+    "generation_policy": "profile_agent_routes",
+    "update_policy": "regenerated_when_app_product_profile_syncs",
+    "settings_route": "/settings/appearance#instructions-context",
+    "modes": ["automatic", "custom"],
+    "default_mode": "automatic",
+    "effect": "next_new_conversation"
   },
   "agent_package_invocation_receipt_policy": {
     "scope": "package_shortcut_launch_to_codex_conversation",
@@ -1923,6 +1935,10 @@
         "officecli-docx",
         "officecli-xlsx"
       ],
+      "session_routing_summary_i18n": {
+        "zh-CN": "科研、论文、数据分析、审稿、返修和投稿",
+        "en-US": "research, papers, data analysis, peer review, revision, and submission"
+      },
       "required_skill_policy": "checked_locked",
       "optional_skill_policy": "unchecked_user_selectable",
       "skill_menu_policy": "assistant_scoped_required_checked_optional_visible"
@@ -1943,6 +1959,10 @@
         "officecli-xlsx",
         "mineru-document-extractor"
       ],
+      "session_routing_summary_i18n": {
+        "zh-CN": "基金选题、标书、申请书、预算说明和评审回复",
+        "en-US": "grant topics, proposals, applications, budget narratives, and reviewer responses"
+      },
       "required_skill_policy": "checked_locked",
       "optional_skill_policy": "unchecked_user_selectable",
       "skill_menu_policy": "assistant_scoped_required_checked_optional_visible"
@@ -1959,6 +1979,10 @@
       "home_shortcut_ids": ["ppt"],
       "required_skill_ids": ["redcube-ai"],
       "optional_skill_ids": ["officecli-pptx", "ui-ux-pro-max"],
+      "session_routing_summary_i18n": {
+        "zh-CN": "PPT、汇报、图表、视觉设计和演示材料",
+        "en-US": "slides, reports, charts, visual design, and presentation materials"
+      },
       "required_skill_policy": "checked_locked",
       "optional_skill_policy": "unchecked_user_selectable",
       "skill_menu_policy": "assistant_scoped_required_checked_optional_visible"
@@ -1979,6 +2003,10 @@
         "pdf",
         "mineru-document-extractor"
       ],
+      "session_routing_summary_i18n": {
+        "zh-CN": "写书、章节、插图表格、排版、审校和导出",
+        "en-US": "book writing, chapters, figures and tables, layout, editing, and export"
+      },
       "required_skill_policy": "checked_locked",
       "optional_skill_policy": "unchecked_user_selectable",
       "skill_menu_policy": "assistant_scoped_required_checked_optional_visible"
@@ -1995,6 +2023,10 @@
       "home_shortcut_ids": ["oma"],
       "required_skill_ids": ["opl-meta-agent"],
       "optional_skill_ids": [],
+      "session_routing_summary_i18n": {
+        "zh-CN": "创建、接管、检查和改进 OPL Foundry Agent",
+        "en-US": "create, take over, inspect, and improve OPL Foundry Agents"
+      },
       "required_skill_policy": "checked_locked",
       "optional_skill_policy": "unchecked_user_selectable",
       "skill_menu_policy": "assistant_scoped_required_checked_optional_visible"
@@ -3009,7 +3041,7 @@
         "target_state_checks": [
           "codex_cli_callable",
           "ui_language_policy",
-          "session_scoped_opl_flow_context",
+          "session_scoped_opl_app_context",
           "user_agents_md_respected_no_overwrite",
           "mas_mag_rca_routes_visible",
           "opl_meta_agent_capability_visible",
@@ -3490,6 +3522,7 @@
         "behavior",
         "tray",
         "hardware",
+        "instructions_context",
         "themes",
         "technical_details"
       ],
@@ -3497,12 +3530,15 @@
         "reply waiting time in human units",
         "tray and close-window behavior",
         "hardware acceleration in user language",
+        "editable system-level AGENTS.md with current-path and stale-write protection",
+        "editable OPL App session context with automatic and custom modes",
         "Default and Codex theme choices under the themes anchor",
         "restart-required notice next to the affected setting when applicable"
       ],
       "must_not_show": [
         "raw timeout milliseconds",
         "Electron command-line flags",
+        "OPL Flow described as the owner of per-session App context",
         "AionUI theme as product authority",
         "maintenance, account, or About controls",
         "theme as an independent product page"

@@ -2115,7 +2115,7 @@ export function validateBeginnerFirstRunPresentation(presentation, label, expect
     [
       "codex_cli_callable",
       "ui_language_policy",
-      "session_scoped_opl_flow_context",
+      "session_scoped_opl_app_context",
       "user_agents_md_respected_no_overwrite",
       "mas_mag_rca_routes_visible",
       "opl_meta_agent_capability_visible",
@@ -2134,10 +2134,10 @@ export function validateOplFlowContext(context, label) {
     flow_id: "opl-flow",
     source: "opl-flow-package-policy",
     policy_source_ref: "gaofeng21cn/opl-flow:contracts/workflow-policy.json",
-    delivery: "package_installed_profile_and_session_context",
+    delivery: "package_installed_user_profile_only",
     user_agents_policy: "respect_user_agents_no_overwrite_detect_conflicts",
     language_policy: "follow_ui_locale_zh_only_when_ui_zh",
-    app_role: "show_package_state_progress_and_user_overrides",
+    app_role: "install_sync_diagnose_user_profile_only",
     dependency_policy: "full_bundles_opl_flow_requires_and_recommends_closure",
     migration_policy: "framework_executes_conflict_retirement_with_backup_receipt_and_rollback",
   })) {

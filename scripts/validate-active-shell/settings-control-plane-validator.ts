@@ -1965,7 +1965,7 @@ export function validateSettingsExperienceContract(experience) {
   assertDeepEqualJson(
     pageContracts.preferences.surface_rules,
     {
-      full_width_group_count: 2,
+      full_width_group_count: 3,
       two_plus_one_grid_allowed: false,
       builtin_theme_ids: ["light", "dark", "codex"],
       extension_themes_default_visible: false,
