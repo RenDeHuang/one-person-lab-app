@@ -168,14 +168,14 @@ test("Full build rejects App and Shell product profile drift before Electron pac
   assert.ok(profileGate < packageBuild, "profile gate must run before Full package build");
 });
 
-test("Full build verifies managed carrier bootstrap before expensive packaging", () => {
-  const carrierGate = fullWorkflow.indexOf("name: Verify managed Full carrier bootstrap before packaging");
+test("Full build verifies managed carrier and Home readiness before expensive packaging", () => {
+  const carrierGate = fullWorkflow.indexOf("name: Verify Full bootstrap and Home readiness before packaging");
   const packageBuild = fullWorkflow.indexOf("id: full_package_build");
 
   assert.ok(carrierGate >= 0, "missing managed Full carrier bootstrap gate");
   assert.match(
     fullWorkflow.slice(carrierGate, packageBuild),
-    /bun vitest run tests\/unit\/opl-runtime\/oplRuntimeBridge\.test\.ts/,
+    /bun vitest run[\s\S]*tests\/unit\/opl-runtime\/oplRuntimeBridge\.test\.ts[\s\S]*tests\/unit\/guid\/oplHomeAssistants\.test\.ts[\s\S]*VITEST_INCLUDE_DOM=1 bun vitest run --project dom[\s\S]*tests\/unit\/guid\/HomeStarters\.dom\.test\.tsx[\s\S]*tests\/unit\/guid\/useGuidSend\.oplWhitelist\.dom\.test\.tsx/,
   );
   assert.ok(carrierGate < packageBuild, "managed carrier gate must run before Full package build");
 });

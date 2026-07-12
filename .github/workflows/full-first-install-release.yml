@@ -414,12 +414,17 @@ jobs:
           cd shells/aionui
           bun vitest run tests/unit/common-config/oplProductProfile.test.ts
 
-      - name: Verify managed Full carrier bootstrap before packaging
+      - name: Verify Full bootstrap and Home readiness before packaging
         working-directory: one-person-lab-app/shells/aionui
         shell: bash
         run: |
           set -euo pipefail
-          bun vitest run tests/unit/opl-runtime/oplRuntimeBridge.test.ts
+          bun vitest run \
+            tests/unit/opl-runtime/oplRuntimeBridge.test.ts \
+            tests/unit/guid/oplHomeAssistants.test.ts
+          VITEST_INCLUDE_DOM=1 bun vitest run --project dom \
+            tests/unit/guid/HomeStarters.dom.test.tsx \
+            tests/unit/guid/useGuidSend.oplWhitelist.dom.test.tsx
 
       - name: Resolve App shell Electron version
         id: shell-electron-version
