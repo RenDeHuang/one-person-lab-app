@@ -2182,7 +2182,6 @@ export function validateOplFlowContext(context, label) {
   assertIncludesAll(
     ponytailRouting.non_override_guards,
     [
-      "risk-based-development-flow",
       "codex-ops-kit",
       "debugger",
       "verifier",

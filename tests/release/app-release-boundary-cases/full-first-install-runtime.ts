@@ -320,7 +320,6 @@ test('Full runtime node payload prunes package-only docs while preserving offlin
     'modules/opl-flow/.codex-plugin/plugin.json',
     'modules/opl-flow/scripts/install_local_plugin.py',
     'modules/opl-flow/skills/opl-flow/SKILL.md',
-    'modules/opl-flow/skills/risk-based-development-flow/SKILL.md',
     'modules/opl-flow/skills/codex-ops-kit/SKILL.md',
   ]) {
     writeFile(path.join(runtimeRoot, relativePath), relativePath.endsWith('.json') ? '{}\n' : '# fixture\n');

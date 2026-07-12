@@ -307,7 +307,6 @@ export function collectRuntimeAssertions(runtimeRoot) {
       runtimePayloadStatus(runtimeRoot, 'modules/opl-flow/.codex-plugin/plugin.json'),
       runtimePayloadStatus(runtimeRoot, 'modules/opl-flow/scripts/install_local_plugin.py'),
       runtimePayloadStatus(runtimeRoot, 'modules/opl-flow/skills/opl-flow/SKILL.md'),
-      runtimePayloadStatus(runtimeRoot, 'modules/opl-flow/skills/risk-based-development-flow/SKILL.md'),
       runtimePayloadStatus(runtimeRoot, 'modules/opl-flow/skills/codex-ops-kit/SKILL.md'),
       ...domainPluginPayloadStatuses(runtimeRoot),
     ],

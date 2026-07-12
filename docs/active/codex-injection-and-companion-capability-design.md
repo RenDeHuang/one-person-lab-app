@@ -29,10 +29,9 @@ Being packaged does not make a capability default-visible.
 
 `opl-flow` is a required Standard and Full workflow plugin. Intelligence enhancement is an optional, default-off feature of that installed plugin; users must explicitly enable it when needed.
 
-The plugin keeps three separate skills:
+The plugin keeps two separate skills:
 
-- `opl-flow`: thin routing and workflow entry.
-- `risk-based-development-flow`: risk class, evidence budget, and TDD selection.
+- `opl-flow`: thin routing and workflow entry, including risk and evidence-budget selection.
 - `codex-ops-kit`: deterministic Git lane and public GitHub release checks.
 
 Existing user instructions are preserved outside managed marker blocks. Reusable algorithms stay in their owning skill instead of being repeated in `AGENTS.md`.
