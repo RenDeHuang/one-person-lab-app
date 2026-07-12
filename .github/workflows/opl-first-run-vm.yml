@@ -1681,6 +1681,15 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+      - name: Prune VM preseed inputs before evidence upload
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          rm -rf \
+            artifacts/opl-first-run-vm/codex-npm-cache \
+            artifacts/opl-first-run-vm/codex-package-tarballs \
+            artifacts/opl-first-run-vm/framework-source
+
       - name: Upload first-run VM artifacts
         if: ${{ always() }}
         uses: actions/upload-artifact@v7

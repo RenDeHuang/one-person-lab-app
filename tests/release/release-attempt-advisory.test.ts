@@ -23,6 +23,10 @@ const dockerCleanLinuxWorkflow = fs.readFileSync(
   path.join(appRoot, ".github", "workflows", "docker-webui-clean-linux-vm.yml"),
   "utf8",
 );
+const firstRunVmWorkflow = fs.readFileSync(
+  path.join(appRoot, ".github", "workflows", "opl-first-run-vm.yml"),
+  "utf8",
+);
 
 test("release attempt telemetry forces a same-cohort reuse strategy without abandoning the release", () => {
   assert.match(workflow, /name: Summarize recent release attempts/);
@@ -140,5 +144,12 @@ test("Docker release evidence keeps failure diagnostics without uploading the se
   assert.match(
     dockerCleanLinuxWorkflow,
     /name: Stop Docker\/WebUI smoke container and prune generated volumes[\s\S]*sudo rm -rf[\s\S]*OnePersonLab\/data[\s\S]*OnePersonLab\/projects[\s\S]*name: Upload clean Linux VM Docker\/WebUI evidence/,
+  );
+});
+
+test("VM evidence upload excludes preseed caches and package inputs", () => {
+  assert.match(
+    firstRunVmWorkflow,
+    /name: Prune VM preseed inputs before evidence upload[\s\S]*codex-npm-cache[\s\S]*codex-package-tarballs[\s\S]*framework-source[\s\S]*name: Upload first-run VM artifacts/,
   );
 });
