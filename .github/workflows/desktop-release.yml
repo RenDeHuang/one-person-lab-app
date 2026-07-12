@@ -262,6 +262,7 @@ jobs:
       - name: Validate release workflow contract
         env:
           OPL_FLOW_WORKFLOW_POLICY: ${{ github.workspace }}/opl-flow/contracts/workflow-policy.json
+          OPL_FULL_OPL_FLOW_ROOT: ${{ github.workspace }}/opl-flow
         run: |
           npm run validate:release-boundary
           npm run test:release-boundary

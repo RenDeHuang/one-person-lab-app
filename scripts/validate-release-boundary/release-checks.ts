@@ -186,6 +186,7 @@ export const releaseBoundaryChecks: ReleaseBoundaryCheck[] = [
       'ref: 5ae0625f5240a13fa820b4c92362f1d06bdce857',
       'path: opl-flow',
       'OPL_FLOW_WORKFLOW_POLICY: ${{ github.workspace }}/opl-flow/contracts/workflow-policy.json',
+      'OPL_FULL_OPL_FLOW_ROOT: ${{ github.workspace }}/opl-flow',
       'npm run test:release-boundary',
       'release-source-gate:',
       'name: Release source gate',
