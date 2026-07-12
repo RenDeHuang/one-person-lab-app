@@ -4,160 +4,40 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs as parseNodeArgs } from 'node:util';
-import { inflateRawSync } from 'node:zlib';
 import { validateDockerWebuiDiagnostics } from './validate-docker-webui-diagnostics.ts';
+import {
+  apiKeyFlowEvidenceSchema,
+  expectedImageSeedSelection,
+  ordinaryMustNotClaim,
+  resultSchema,
+  windowsEvidenceManifestName,
+  type GateId,
+  type GateResult,
+  type ImageIdentity,
+  type OrdinaryUserStatus,
+} from './docker-webui-smoke-gate-parts/contract.ts';
+import { validateDockerWebuiSmokeGateResult } from './docker-webui-smoke-gate-parts/result-validator.ts';
+import {
+  fileStatus,
+  isObject,
+  readJson,
+  readKeyValue,
+  scanDirectoryForSecretMarkers,
+  writeJson,
+} from './docker-webui-smoke-gate-parts/support.ts';
+import { importWindowsEvidenceGate } from './docker-webui-smoke-gate-parts/windows-evidence.ts';
 
-type ImageIdentity = ReturnType<typeof validateDockerWebuiDiagnostics>['image_identity'];
-
-type GateId = 'clean_linux_vm' | 'clean_windows_vm' | 'existing_docker' | 'existing_old_onepersonlab_data_dir';
-
-type GateResult = {
-  schema: 'opl_docker_webui_smoke_gate_result.v1';
-  gate: GateId;
-  gate_id: GateId;
-  status: 'passed' | 'typed_blocker' | 'failed';
-  typed_blocker: GateResultBlocker | null;
-  observed_at: string;
-  host_platform: NodeJS.Platform;
-  required_environment: string;
-  artifact_dir: string;
-  diagnostics_dir: string;
-  diagnostics_validation?: ReturnType<typeof validateDockerWebuiDiagnostics>;
-  evidence_validation?: {
-    status: 'passed' | 'failed';
-    evidence_dir: string;
-    manifest_path: string;
-    errors: string[];
-    forbidden_secret_markers: string[];
-  };
-  blocker?: GateResultBlocker;
-  health: { url: string; status: 'passed' | 'failed' | 'not_run'; http_status: number | null };
-  compose: { path: string; status: 'present' | 'missing' | 'not_run' };
-  container: { name: string; status: string; id: string | null };
-  image: {
-    ref: string;
-    status: 'present' | 'missing' | 'not_run';
-    id: string | null;
-    repo_digests: string[];
-    digest: string | null;
-    remote_ref: string | null;
-    remote_digest: string | null;
-    currentness_status: 'not_checked' | 'current' | 'update_available' | 'unknown';
-    currentness_evidence_source: string | null;
-    currentness_claim: false;
-  };
-  data_preservation: { status: 'passed' | 'failed' | 'not_run'; verdict: string | null; summary: string };
-  api_key_flow: {
-    status: 'passed' | 'failed' | 'not_run';
-    mode: 'webui_proxy_configure_codex' | 'imported_evidence' | 'not_run';
-    endpoint: string | null;
-    command: string | null;
-    stdin_transport: boolean;
-    receipt_path: string | null;
-    errors: string[];
-  };
-  ordinary_user_status: OrdinaryUserStatus;
-  secret_scan: { status: 'passed' | 'failed' | 'not_run'; forbidden_secret_markers: string[] };
-  commands: Array<{ command: string; status: number | null; stdout_path: string; stderr_path: string }>;
-  evidence: Record<string, string>;
-};
-
-type OrdinaryUserStatus = {
-  path_id: 'ordinary_docker_webui_user_path';
-  priority: 'ordinary_user_path_before_evidence_bundle_language';
-  one_click_install: OrdinaryStatusRow;
-  browser_webui: OrdinaryStatusRow;
-  access_key_settings: OrdinaryStatusRow;
-  runtime_proxy: OrdinaryStatusRow;
-  startup_recovery: OrdinaryStatusRow;
-  data_preservation: OrdinaryStatusRow;
-  host_update: OrdinaryStatusRow;
-  image_seed_selection: string;
-  settings_entry: 'Settings -> Access';
-  must_not_claim: string[];
-};
-
-type OrdinaryStatusRow = {
-  status: 'passed' | 'typed_blocker' | 'failed' | 'not_run';
-  summary: string;
-  next_action: string | null;
-  evidence_ref: string | null;
-};
-
-type GateResultBlocker = {
-  code: string;
-  owner: string;
-  message: string;
-  required_next_action: string;
-};
-
-type GateResultValidation = {
-  status: 'passed' | 'failed';
-  missing_fields: string[];
-  invalid_fields: string[];
-};
+export { validateDockerWebuiSmokeGateResult } from './docker-webui-smoke-gate-parts/result-validator.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const resultSchema = 'opl_docker_webui_smoke_gate_result.v1';
-const windowsEvidenceManifestName = 'windows-smoke-evidence.json';
-const windowsEvidenceSchema = 'opl_docker_webui_windows_smoke_evidence.v1';
-const apiKeyFlowEvidenceSchema = 'opl_docker_webui_api_key_flow_evidence.v1';
 const apiKeyFlowRequestTimeoutMs = 10_000;
 const apiKeyFlowRetryIntervalMs = 2_000;
 const apiKeyFlowMaxWaitMs = 120_000;
-const secretPatterns = [
-  /sk-[A-Za-z0-9_-]{20,}/g,
-  /OPENAI_API_KEY\s*[:=]\s*[^ \n\r]+/gi,
-  /ANTHROPIC_API_KEY\s*[:=]\s*[^ \n\r]+/gi,
-  /OPL_WEBUI_PASSWORD\s*[:=]\s*[^ \n\r]+/gi,
-  /OPL_GATEWAY_API_KEY\s*[:=]\s*[^ \n\r]+/gi,
-  /GFLABTOKEN\s*[:=]\s*[^ \n\r]+/gi,
-  /Bearer\s+[A-Za-z0-9._~+/=-]{20,}/gi,
-];
-const requiredResultFields = [
-  'schema',
-  'gate',
-  'gate_id',
-  'status',
-  'typed_blocker',
-  'observed_at',
-  'host_platform',
-  'required_environment',
-  'artifact_dir',
-  'diagnostics_dir',
-  'diagnostics_validation',
-  'health',
-  'compose',
-  'container',
-  'image',
-  'data_preservation',
-  'api_key_flow',
-  'ordinary_user_status',
-  'secret_scan',
-  'commands',
-  'evidence',
-];
 
-const ordinaryStatusRows = [
-  'one_click_install',
-  'browser_webui',
-  'access_key_settings',
-  'runtime_proxy',
-  'startup_recovery',
-  'data_preservation',
-  'host_update',
-] as const;
-const expectedImageSeedSelection = 'Default stable image must use the WebUI full seed; --tag/--image are explicit advanced overrides.';
-
-const ordinaryMustNotClaim = [
-  'desktop_release_ready',
-  'real_install_ready',
-  'clean_windows_vm_pass_without_clean_windows_evidence',
-  'release_ready',
-] as const;
-const imageCurrentnessStatuses = ['not_checked', 'current', 'update_available', 'unknown'] as const;
-
-function emptyDiagnosticsValidation(diagnosticsDir: string, missingFiles = ['diagnostics not run']) {
+function emptyDiagnosticsValidation(
+  diagnosticsDir: string,
+  missingFiles = ['diagnostics not run'],
+): ReturnType<typeof validateDockerWebuiDiagnostics> {
   return {
     status: 'failed' as const,
     diagnostics_dir: diagnosticsDir,
@@ -511,64 +391,6 @@ function dockerAvailable(): boolean {
   return result.status === 0;
 }
 
-function writeJson(filePath: string, payload: unknown) {
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  fs.writeFileSync(filePath, `${JSON.stringify(payload, null, 2)}\n`);
-}
-
-function readJson(filePath: string): Record<string, unknown> {
-  return JSON.parse(fs.readFileSync(filePath, 'utf8').replace(/^\uFEFF/, '')) as Record<string, unknown>;
-}
-
-function isNonEmptyString(value: unknown): value is string {
-  return typeof value === 'string' && value.trim().length > 0;
-}
-
-function resolveEvidenceMember(evidenceDir: string, value: unknown, label: string, errors: string[]): string {
-  if (!isNonEmptyString(value)) {
-    errors.push(`${label} must be a relative path string`);
-    return '';
-  }
-  if (path.isAbsolute(value) || value.includes('\0')) {
-    errors.push(`${label} must be relative to the evidence directory`);
-    return '';
-  }
-  const resolved = path.resolve(evidenceDir, value);
-  const relative = path.relative(evidenceDir, resolved);
-  if (relative.startsWith('..') || path.isAbsolute(relative)) {
-    errors.push(`${label} must stay inside the evidence directory`);
-    return '';
-  }
-  return resolved;
-}
-
-function scanDirectoryForSecretMarkers(rootDir: string, scanRoot = rootDir): string[] {
-  const markers: string[] = [];
-  if (!fs.existsSync(rootDir)) {
-    return markers;
-  }
-  const entries = fs.readdirSync(rootDir, { withFileTypes: true });
-  for (const entry of entries) {
-    const fullPath = path.join(rootDir, entry.name);
-    if (entry.isDirectory()) {
-      markers.push(...scanDirectoryForSecretMarkers(fullPath, scanRoot));
-      continue;
-    }
-    if (!entry.isFile()) {
-      continue;
-    }
-    const relativePath = path.relative(scanRoot, fullPath);
-    const text = fs.readFileSync(fullPath).toString('utf8');
-    for (const pattern of secretPatterns) {
-      const matches = text.match(pattern);
-      if (matches) {
-        markers.push(...matches.map((match) => `${relativePath}:${match.slice(0, 48)}`));
-      }
-    }
-  }
-  return markers;
-}
-
 function validateApiKeyFlowEvidence(filePath: string) {
   const errors: string[] = [];
   let payload: Record<string, unknown> = {};
@@ -603,20 +425,6 @@ function validateApiKeyFlowEvidence(filePath: string) {
     forbiddenSecretMarkers,
     payload,
   };
-}
-
-function readKeyValue(filePath: string): Record<string, string> {
-  if (!fs.existsSync(filePath)) return {};
-  const values: Record<string, string> = {};
-  for (const line of fs.readFileSync(filePath, 'utf8').replace(/^\uFEFF/, '').split(/\r?\n/)) {
-    const match = line.match(/^([^=\s]+)=(.*)$/);
-    if (match) values[match[1]] = match[2];
-  }
-  return values;
-}
-
-function fileStatus(filePath: string): 'present' | 'missing' {
-  return fs.existsSync(filePath) ? 'present' : 'missing';
 }
 
 function readHttpStatus(httpProbe: Record<string, string>): number | null {
@@ -764,7 +572,7 @@ function collectApiKeyFlowEvidence(result: GateResult, options: ReturnType<typeo
 
   const payload = {
     schema: apiKeyFlowEvidenceSchema,
-    status: errors.length === 0 ? 'passed' : 'failed',
+    status: errors.length === 0 ? ('passed' as const) : ('failed' as const),
     mode: 'webui_proxy_configure_codex',
     endpoint,
     response_http_status: observation.responseStatus,
@@ -888,511 +696,6 @@ function attachDiagnosticsReadback(result: GateResult, options: ReturnType<typeo
   return validation;
 }
 
-function validateWindowsEvidence(evidenceDir: string) {
-  const errors: string[] = [];
-  const manifestPath = path.join(evidenceDir, windowsEvidenceManifestName);
-  let manifest: Record<string, unknown> = {};
-
-  if (!fs.existsSync(evidenceDir) || !fs.statSync(evidenceDir).isDirectory()) {
-    errors.push(`evidence directory not found: ${evidenceDir}`);
-  } else if (!fs.existsSync(manifestPath)) {
-    errors.push(`missing ${windowsEvidenceManifestName}`);
-  } else {
-    try {
-      manifest = readJson(manifestPath);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      errors.push(`${windowsEvidenceManifestName} must be valid JSON: ${message}`);
-    }
-  }
-
-  if (Object.keys(manifest).length > 0) {
-    if (manifest.schema !== windowsEvidenceSchema) errors.push(`manifest.schema must be ${windowsEvidenceSchema}`);
-    if (manifest.gate_id !== 'clean_windows_vm') errors.push('manifest.gate_id must be clean_windows_vm');
-    if (manifest.status !== 'passed') errors.push('manifest.status must be passed');
-    if (manifest.host_platform !== 'win32') errors.push('manifest.host_platform must be win32');
-    if (!isNonEmptyString(manifest.observed_at)) errors.push('manifest.observed_at must be a non-empty string');
-    if (!isNonEmptyString(manifest.installer_command) || !manifest.installer_command.includes('install-docker-webui.ps1')) {
-      errors.push('manifest.installer_command must reference install-docker-webui.ps1');
-    }
-    if (isNonEmptyString(manifest.installer_command) && !/(^|\s)-Yes(\s|$)/.test(manifest.installer_command)) {
-      errors.push('manifest.installer_command must include -Yes');
-    }
-  }
-
-  const diagnosticsDir = resolveEvidenceMember(evidenceDir, manifest.diagnostics_dir, 'manifest.diagnostics_dir', errors);
-  const apiKeyFlowEvidencePath = resolveEvidenceMember(
-    evidenceDir,
-    manifest.api_key_flow_evidence,
-    'manifest.api_key_flow_evidence',
-    errors,
-  );
-  const diagnosticsValidation = diagnosticsDir
-    ? validateDockerWebuiDiagnostics(diagnosticsDir)
-    : (emptyDiagnosticsValidation('', ['diagnostics_dir']) as ReturnType<typeof validateDockerWebuiDiagnostics>);
-  if (diagnosticsValidation.status !== 'passed') {
-    errors.push('diagnostics validation failed');
-  }
-  const apiKeyFlowValidation = apiKeyFlowEvidencePath
-    ? validateApiKeyFlowEvidence(apiKeyFlowEvidencePath)
-    : {
-        status: 'failed' as const,
-        filePath: '',
-        errors: ['missing api_key_flow_evidence'],
-        forbiddenSecretMarkers: [],
-        payload: {},
-      };
-  if (apiKeyFlowValidation.status !== 'passed') {
-    errors.push('API key flow evidence validation failed');
-  }
-
-  const forbiddenSecretMarkers = scanDirectoryForSecretMarkers(evidenceDir);
-  if (forbiddenSecretMarkers.length > 0) {
-    errors.push('evidence contains forbidden secret-like markers');
-  }
-
-  return {
-    status: errors.length === 0 && forbiddenSecretMarkers.length === 0 ? ('passed' as const) : ('failed' as const),
-    evidenceDir,
-    manifestPath,
-    diagnosticsDir,
-    diagnosticsValidation,
-    apiKeyFlowEvidencePath,
-    apiKeyFlowValidation,
-    errors,
-    forbiddenSecretMarkers,
-    manifest,
-  };
-}
-
-type WindowsEvidenceArchiveEntry = {
-  raw: string;
-  normalized: string;
-  isDirectory: boolean;
-  payload: Buffer | null;
-};
-
-function normalizeWindowsEvidenceArchiveEntry(entry: string) {
-  if (entry.startsWith('/') || entry.startsWith('\\') || /^[A-Za-z]:/.test(entry) || entry.includes('\0')) {
-    throw new Error(`Windows evidence archive contains an unsafe absolute entry: ${entry}`);
-  }
-  const normalized = entry.replaceAll('\\', '/');
-  const pathForCheck = normalized.endsWith('/') ? normalized.slice(0, -1) : normalized;
-  const segments = pathForCheck.split('/');
-  if (segments.some((segment) => segment === '' || segment === '.' || segment === '..')) {
-    throw new Error(`Windows evidence archive contains an unsafe parent traversal entry: ${entry}`);
-  }
-  return {
-    raw: entry,
-    normalized,
-    isDirectory: normalized.endsWith('/'),
-  };
-}
-
-function findZipEndOfCentralDirectory(archive: Buffer, archivePath: string) {
-  const minimumEocdSize = 22;
-  const maxCommentSize = 0xffff;
-  const searchStart = Math.max(0, archive.length - minimumEocdSize - maxCommentSize);
-  for (let offset = archive.length - minimumEocdSize; offset >= searchStart; offset--) {
-    if (archive.readUInt32LE(offset) === 0x06054b50) {
-      return offset;
-    }
-  }
-  throw new Error(`Failed to locate Windows evidence archive central directory: ${archivePath}`);
-}
-
-function readWindowsEvidenceArchiveEntries(archivePath: string): WindowsEvidenceArchiveEntry[] {
-  const archive = fs.readFileSync(archivePath);
-  const eocd = findZipEndOfCentralDirectory(archive, archivePath);
-  const entriesOnDisk = archive.readUInt16LE(eocd + 8);
-  const totalEntries = archive.readUInt16LE(eocd + 10);
-  const centralDirectorySize = archive.readUInt32LE(eocd + 12);
-  const centralDirectoryOffset = archive.readUInt32LE(eocd + 16);
-  if (entriesOnDisk !== totalEntries) {
-    throw new Error(`Windows evidence archive spans multiple disks, which is unsupported: ${archivePath}`);
-  }
-  if (totalEntries === 0) {
-    throw new Error(`Windows evidence archive is empty: ${archivePath}`);
-  }
-  const centralDirectoryEnd = centralDirectoryOffset + centralDirectorySize;
-  if (centralDirectoryEnd > archive.length) {
-    throw new Error(`Windows evidence archive central directory is out of range: ${archivePath}`);
-  }
-
-  const entries: WindowsEvidenceArchiveEntry[] = [];
-  let cursor = centralDirectoryOffset;
-  while (cursor < centralDirectoryEnd) {
-    if (archive.readUInt32LE(cursor) !== 0x02014b50) {
-      throw new Error(`Windows evidence archive central directory is invalid at offset ${cursor}: ${archivePath}`);
-    }
-    const flags = archive.readUInt16LE(cursor + 8);
-    const method = archive.readUInt16LE(cursor + 10);
-    const compressedSize = archive.readUInt32LE(cursor + 20);
-    const uncompressedSize = archive.readUInt32LE(cursor + 24);
-    const fileNameLength = archive.readUInt16LE(cursor + 28);
-    const extraLength = archive.readUInt16LE(cursor + 30);
-    const commentLength = archive.readUInt16LE(cursor + 32);
-    const localHeaderOffset = archive.readUInt32LE(cursor + 42);
-    if ([compressedSize, uncompressedSize, localHeaderOffset].some((value) => value === 0xffffffff)) {
-      throw new Error(`Windows evidence archive uses ZIP64 entries, which are unsupported: ${archivePath}`);
-    }
-    const fileNameStart = cursor + 46;
-    const fileNameEnd = fileNameStart + fileNameLength;
-    const raw = archive.subarray(fileNameStart, fileNameEnd).toString('utf8');
-    const normalized = normalizeWindowsEvidenceArchiveEntry(raw);
-    if ((flags & 0x1) !== 0) {
-      throw new Error(`Windows evidence archive contains an encrypted entry: ${raw}`);
-    }
-
-    let payload: Buffer | null = null;
-    if (!normalized.isDirectory) {
-      if (![0, 8].includes(method)) {
-        throw new Error(`Windows evidence archive entry uses unsupported compression method ${method}: ${raw}`);
-      }
-      if (archive.readUInt32LE(localHeaderOffset) !== 0x04034b50) {
-        throw new Error(`Windows evidence archive local header is invalid for entry: ${raw}`);
-      }
-      const localFileNameLength = archive.readUInt16LE(localHeaderOffset + 26);
-      const localExtraLength = archive.readUInt16LE(localHeaderOffset + 28);
-      const dataStart = localHeaderOffset + 30 + localFileNameLength + localExtraLength;
-      const dataEnd = dataStart + compressedSize;
-      if (dataEnd > archive.length) {
-        throw new Error(`Windows evidence archive entry data is out of range: ${raw}`);
-      }
-      const compressedPayload = archive.subarray(dataStart, dataEnd);
-      payload = method === 0 ? Buffer.from(compressedPayload) : inflateRawSync(compressedPayload);
-      if (payload.length !== uncompressedSize) {
-        throw new Error(`Windows evidence archive entry size mismatch: ${raw}`);
-      }
-    }
-
-    entries.push({ ...normalized, payload });
-    cursor = fileNameEnd + extraLength + commentLength;
-  }
-  if (entries.length !== totalEntries) {
-    throw new Error(`Windows evidence archive entry count mismatch: ${archivePath}`);
-  }
-  return entries;
-}
-
-function listSafeWindowsEvidenceArchiveEntries(archivePath: string): WindowsEvidenceArchiveEntry[] {
-  return readWindowsEvidenceArchiveEntries(archivePath);
-}
-
-function extractWindowsEvidenceArchive(archivePath: string, extractedRoot: string) {
-  const entries = listSafeWindowsEvidenceArchiveEntries(archivePath);
-  const root = path.resolve(extractedRoot);
-  const seenFiles = new Set<string>();
-
-  for (const entry of entries) {
-    const destination = path.resolve(root, entry.normalized);
-    if (destination !== root && !destination.startsWith(root + path.sep)) {
-      throw new Error(`Windows evidence archive contains an unsafe entry outside extraction root: ${entry.raw}`);
-    }
-    if (entry.isDirectory) {
-      fs.mkdirSync(destination, { recursive: true });
-      continue;
-    }
-    if (seenFiles.has(entry.normalized)) {
-      throw new Error(`Windows evidence archive contains duplicate normalized entry: ${entry.raw}`);
-    }
-    seenFiles.add(entry.normalized);
-
-    fs.mkdirSync(path.dirname(destination), { recursive: true });
-    fs.writeFileSync(destination, entry.payload ?? Buffer.alloc(0));
-  }
-}
-
-function prepareWindowsEvidenceDir(evidencePath: string, artifactDir: string) {
-  const resolved = path.resolve(evidencePath);
-  if (!fs.existsSync(resolved)) {
-    throw new Error(`Windows evidence path not found: ${resolved}`);
-  }
-  const stat = fs.statSync(resolved);
-  if (stat.isDirectory()) {
-    return {
-      evidenceDir: resolved,
-      evidenceArchive: null as string | null,
-    };
-  }
-  if (!stat.isFile() || path.extname(resolved).toLowerCase() !== '.zip') {
-    throw new Error(`Windows evidence must be a directory or .zip archive: ${resolved}`);
-  }
-
-  const extractedRoot = path.join(artifactDir, 'windows-evidence-archive');
-  fs.rmSync(extractedRoot, { recursive: true, force: true });
-  fs.mkdirSync(extractedRoot, { recursive: true });
-  extractWindowsEvidenceArchive(resolved, extractedRoot);
-
-  const directManifest = path.join(extractedRoot, windowsEvidenceManifestName);
-  if (fs.existsSync(directManifest)) {
-    return {
-      evidenceDir: extractedRoot,
-      evidenceArchive: resolved,
-    };
-  }
-  const childDirs = fs.readdirSync(extractedRoot, { withFileTypes: true }).filter((entry) => entry.isDirectory());
-  const manifestDirs = childDirs
-    .map((entry) => path.join(extractedRoot, entry.name))
-    .filter((dir) => fs.existsSync(path.join(dir, windowsEvidenceManifestName)));
-  if (manifestDirs.length === 1) {
-    return {
-      evidenceDir: manifestDirs[0],
-      evidenceArchive: resolved,
-    };
-  }
-  throw new Error(`Windows evidence archive must contain ${windowsEvidenceManifestName} at the archive root or in one top-level directory.`);
-}
-
-function importWindowsEvidenceGate(result: GateResult, options: ReturnType<typeof parseArgs>): GateResult {
-  const prepared = prepareWindowsEvidenceDir(options.evidence, result.artifact_dir);
-  const evidenceDir = prepared.evidenceDir;
-  const validation = validateWindowsEvidence(evidenceDir);
-  result.diagnostics_dir = validation.diagnosticsDir || result.diagnostics_dir;
-  result.diagnostics_validation = validation.diagnosticsValidation;
-  result.secret_scan = {
-    status:
-      validation.diagnosticsValidation.secret_scan.status === 'passed' && validation.forbiddenSecretMarkers.length === 0
-        ? 'passed'
-        : 'failed',
-    forbidden_secret_markers: [
-      ...validation.diagnosticsValidation.secret_scan.forbidden_secret_markers,
-      ...validation.forbiddenSecretMarkers,
-    ],
-  };
-  result.evidence_validation = {
-    status: validation.status,
-    evidence_dir: evidenceDir,
-    manifest_path: validation.manifestPath,
-    errors: validation.errors,
-    forbidden_secret_markers: validation.forbiddenSecretMarkers,
-  };
-  result.evidence.windows_evidence_dir = evidenceDir;
-  result.evidence.windows_evidence_manifest = validation.manifestPath;
-  if (prepared.evidenceArchive) {
-    result.evidence.windows_evidence_archive = prepared.evidenceArchive;
-  }
-  if (validation.diagnosticsDir) {
-    result.evidence.windows_diagnostics_dir = validation.diagnosticsDir;
-    readDiagnosticsSummary(result, options, validation.diagnosticsValidation.image_identity);
-  }
-  if (validation.apiKeyFlowEvidencePath) {
-    result.api_key_flow = {
-      status: validation.apiKeyFlowValidation.status,
-      mode: 'imported_evidence',
-      endpoint:
-        typeof validation.apiKeyFlowValidation.payload.endpoint === 'string'
-          ? validation.apiKeyFlowValidation.payload.endpoint
-          : null,
-      command:
-        typeof validation.apiKeyFlowValidation.payload.command === 'string'
-          ? validation.apiKeyFlowValidation.payload.command
-          : null,
-      stdin_transport: validation.apiKeyFlowValidation.payload.stdin_transport === true,
-      receipt_path: validation.apiKeyFlowEvidencePath,
-      errors: validation.apiKeyFlowValidation.errors,
-    };
-    result.evidence.windows_api_key_flow_evidence = validation.apiKeyFlowEvidencePath;
-  }
-  if (validation.diagnosticsValidation.preservation_verdict) {
-    result.data_preservation = {
-      status: 'passed',
-      verdict: validation.diagnosticsValidation.preservation_verdict,
-      summary: `verdict=${validation.diagnosticsValidation.preservation_verdict}`,
-    };
-  }
-
-  const summaryPath = path.join(result.artifact_dir, 'windows-evidence-import-summary.json');
-  writeJson(summaryPath, {
-    schema: 'opl_docker_webui_windows_evidence_import_summary.v1',
-    status: validation.status,
-    evidence_dir: evidenceDir,
-    evidence_archive: prepared.evidenceArchive,
-    manifest_path: validation.manifestPath,
-    diagnostics_dir: validation.diagnosticsDir,
-    diagnostics_validation: validation.diagnosticsValidation,
-    api_key_flow_validation: validation.apiKeyFlowValidation,
-    errors: validation.errors,
-    forbidden_secret_markers: validation.forbiddenSecretMarkers,
-    manifest: validation.manifest,
-  });
-  result.evidence.windows_evidence_import_summary = summaryPath;
-  result.status = validation.status === 'passed' ? 'passed' : 'failed';
-  return result;
-}
-
-function isObject(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
-}
-
-export function validateDockerWebuiSmokeGateResult(payload: unknown): GateResultValidation {
-  const missingFields: string[] = [];
-  const invalidFields: string[] = [];
-  if (!isObject(payload)) {
-    return {
-      status: 'failed',
-      missing_fields: [...requiredResultFields],
-      invalid_fields: ['payload'],
-    };
-  }
-  for (const field of requiredResultFields) {
-    if (!(field in payload)) missingFields.push(field);
-  }
-  if (payload.schema !== resultSchema) invalidFields.push('schema');
-  if (!['clean_linux_vm', 'clean_windows_vm', 'existing_docker', 'existing_old_onepersonlab_data_dir'].includes(String(payload.gate))) {
-    invalidFields.push('gate');
-  }
-  if (!['passed', 'typed_blocker', 'failed'].includes(String(payload.status))) invalidFields.push('status');
-  if (payload.status === 'typed_blocker' && !isObject(payload.typed_blocker)) invalidFields.push('typed_blocker');
-  for (const objectField of [
-    'diagnostics_validation',
-    'health',
-    'compose',
-    'container',
-    'image',
-    'data_preservation',
-    'ordinary_user_status',
-    'secret_scan',
-  ]) {
-    if (objectField in payload && !isObject(payload[objectField])) invalidFields.push(objectField);
-  }
-  if ('api_key_flow' in payload && !isObject(payload.api_key_flow)) invalidFields.push('api_key_flow');
-  if (isObject(payload.ordinary_user_status)) {
-    const ordinaryStatus = payload.ordinary_user_status;
-    if (ordinaryStatus.path_id !== 'ordinary_docker_webui_user_path') {
-      invalidFields.push('ordinary_user_status.path_id');
-    }
-    if (ordinaryStatus.priority !== 'ordinary_user_path_before_evidence_bundle_language') {
-      invalidFields.push('ordinary_user_status.priority');
-    }
-    if (ordinaryStatus.settings_entry !== 'Settings -> Access') {
-      invalidFields.push('ordinary_user_status.settings_entry');
-    }
-    if (ordinaryStatus.image_seed_selection !== expectedImageSeedSelection) {
-      invalidFields.push('ordinary_user_status.image_seed_selection');
-    }
-    if (!Array.isArray(ordinaryStatus.must_not_claim)) {
-      invalidFields.push('ordinary_user_status.must_not_claim');
-    } else {
-      for (const claim of ordinaryMustNotClaim) {
-        if (!ordinaryStatus.must_not_claim.includes(claim)) {
-          invalidFields.push(`ordinary_user_status.must_not_claim.${claim}`);
-        }
-      }
-    }
-    for (const rowName of ordinaryStatusRows) {
-      const row = ordinaryStatus[rowName];
-      if (!isObject(row)) {
-        invalidFields.push(`ordinary_user_status.${rowName}`);
-        continue;
-      }
-      if (!['passed', 'typed_blocker', 'failed', 'not_run'].includes(String(row.status))) {
-        invalidFields.push(`ordinary_user_status.${rowName}.status`);
-      }
-      if (!isNonEmptyString(row.summary)) {
-        invalidFields.push(`ordinary_user_status.${rowName}.summary`);
-      }
-    }
-  }
-  if (payload.status === 'passed') {
-    if (!isObject(payload.diagnostics_validation) || payload.diagnostics_validation.status !== 'passed') {
-      invalidFields.push('diagnostics_validation.status');
-    }
-    if (
-      !isObject(payload.diagnostics_validation) ||
-      !isObject(payload.diagnostics_validation.compose_volume_mapping) ||
-      payload.diagnostics_validation.compose_volume_mapping.status !== 'passed'
-    ) {
-      invalidFields.push('diagnostics_validation.compose_volume_mapping.status');
-    }
-    if (
-      !isObject(payload.diagnostics_validation) ||
-      !isObject(payload.diagnostics_validation.preservation_evidence) ||
-      payload.diagnostics_validation.preservation_evidence.status !== 'passed'
-    ) {
-      invalidFields.push('diagnostics_validation.preservation_evidence.status');
-    }
-    if (
-      !isObject(payload.diagnostics_validation) ||
-      !isObject(payload.diagnostics_validation.image_identity) ||
-      payload.diagnostics_validation.image_identity.status !== 'passed' ||
-      !isNonEmptyString(payload.diagnostics_validation.image_identity.digest) ||
-      !/^sha256:[a-f0-9]{64}$/i.test(payload.diagnostics_validation.image_identity.digest)
-    ) {
-      invalidFields.push('diagnostics_validation.image_identity.digest');
-    }
-    if (
-      !isObject(payload.diagnostics_validation) ||
-      !isObject(payload.diagnostics_validation.image_identity) ||
-      payload.diagnostics_validation.image_identity.currentness_claim !== false
-    ) {
-      invalidFields.push('diagnostics_validation.image_identity.currentness_claim');
-    }
-    if (
-      !isObject(payload.diagnostics_validation) ||
-      !isObject(payload.diagnostics_validation.image_identity) ||
-      !imageCurrentnessStatuses.includes(String(payload.diagnostics_validation.image_identity.currentness_status) as typeof imageCurrentnessStatuses[number])
-    ) {
-      invalidFields.push('diagnostics_validation.image_identity.currentness_status');
-    }
-    if (
-      isObject(payload.diagnostics_validation) &&
-      isObject(payload.diagnostics_validation.image_identity) &&
-      payload.diagnostics_validation.image_identity.remote_digest !== null &&
-      (!isNonEmptyString(payload.diagnostics_validation.image_identity.remote_digest) ||
-        !/^sha256:[a-f0-9]{64}$/i.test(payload.diagnostics_validation.image_identity.remote_digest))
-    ) {
-      invalidFields.push('diagnostics_validation.image_identity.remote_digest');
-    }
-    if (!isObject(payload.health) || payload.health.status !== 'passed') invalidFields.push('health.status');
-    if (!isObject(payload.compose) || payload.compose.status !== 'present') invalidFields.push('compose.status');
-    if (!isObject(payload.image) || payload.image.status !== 'present') invalidFields.push('image.status');
-    if (
-      !isObject(payload.image) ||
-      !isNonEmptyString(payload.image.digest) ||
-      !/^sha256:[a-f0-9]{64}$/i.test(payload.image.digest)
-    ) {
-      invalidFields.push('image.digest');
-    }
-    if (!isObject(payload.image) || payload.image.currentness_claim !== false) {
-      invalidFields.push('image.currentness_claim');
-    }
-    if (!isObject(payload.image) || !imageCurrentnessStatuses.includes(String(payload.image.currentness_status) as typeof imageCurrentnessStatuses[number])) {
-      invalidFields.push('image.currentness_status');
-    }
-    if (
-      isObject(payload.image) &&
-      payload.image.remote_digest !== null &&
-      (!isNonEmptyString(payload.image.remote_digest) || !/^sha256:[a-f0-9]{64}$/i.test(payload.image.remote_digest))
-    ) {
-      invalidFields.push('image.remote_digest');
-    }
-    if (!isObject(payload.data_preservation) || payload.data_preservation.status !== 'passed') {
-      invalidFields.push('data_preservation.status');
-    }
-    if (!isObject(payload.api_key_flow) || payload.api_key_flow.status !== 'passed') invalidFields.push('api_key_flow.status');
-    if (!isObject(payload.api_key_flow) || payload.api_key_flow.stdin_transport !== true) {
-      invalidFields.push('api_key_flow.stdin_transport');
-    }
-    if (!isObject(payload.ordinary_user_status)) {
-      invalidFields.push('ordinary_user_status');
-    } else {
-      for (const rowName of ordinaryStatusRows) {
-        const row = payload.ordinary_user_status[rowName];
-        if (!isObject(row) || row.status !== 'passed') {
-          invalidFields.push(`ordinary_user_status.${rowName}.status`);
-        }
-      }
-    }
-    if (!isObject(payload.secret_scan) || payload.secret_scan.status !== 'passed') invalidFields.push('secret_scan.status');
-  }
-  return {
-    status: missingFields.length === 0 && invalidFields.length === 0 ? 'passed' : 'failed',
-    missing_fields: missingFields,
-    invalid_fields: invalidFields,
-  };
-}
-
 function runInstallGate(result: GateResult, options: ReturnType<typeof parseArgs>): GateResult {
   fs.mkdirSync(result.artifact_dir, { recursive: true });
   const home = path.join(result.artifact_dir, 'home');
@@ -1497,11 +800,15 @@ function main() {
   }
   const artifactDir = path.resolve(options.artifacts);
   fs.mkdirSync(artifactDir, { recursive: true });
-  let result = makeResult(options.gate, artifactDir);
+  let result = makeResult(options.gate as GateId, artifactDir);
   result.diagnostics_validation = emptyDiagnosticsValidation(result.diagnostics_dir);
 
   if (options.gate === 'clean_windows_vm' && options.evidence) {
-    result = importWindowsEvidenceGate(result, options);
+    result = importWindowsEvidenceGate(result, options, {
+      emptyDiagnosticsValidation,
+      validateApiKeyFlowEvidence,
+      readDiagnosticsSummary,
+    });
   } else if (options.gate === 'clean_windows_vm') {
     result = blocker(
       result,
