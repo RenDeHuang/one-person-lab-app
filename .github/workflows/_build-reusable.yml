@@ -86,6 +86,13 @@ jobs:
         with:
           ref: ${{ inputs.ref }}
 
+      - name: Checkout OPL Flow policy source
+        uses: actions/checkout@v6
+        with:
+          repository: gaofeng21cn/opl-flow
+          ref: 5ae0625f5240a13fa820b4c92362f1d06bdce857
+          path: opl-flow
+
       - name: Setup active shell dependencies
         uses: ./.github/actions/setup-active-shell-deps
         with:
@@ -150,6 +157,9 @@ jobs:
           install-dependencies: 'false'
 
       - name: Run release-boundary tests
+        env:
+          OPL_FLOW_WORKFLOW_POLICY: ${{ github.workspace }}/opl-flow/contracts/workflow-policy.json
+          OPL_FULL_OPL_FLOW_ROOT: ${{ github.workspace }}/opl-flow
         run: npm run test:release-boundary
 
       - name: Validate release-boundary contract

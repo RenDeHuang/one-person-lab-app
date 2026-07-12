@@ -25,6 +25,13 @@ jobs:
       - name: Checkout App repo
         uses: actions/checkout@v6
 
+      - name: Checkout OPL Flow policy source
+        uses: actions/checkout@v6
+        with:
+          repository: gaofeng21cn/opl-flow
+          ref: 5ae0625f5240a13fa820b4c92362f1d06bdce857
+          path: opl-flow
+
       - name: Setup active shell
         uses: ./.github/actions/setup-active-shell-deps
         with:
@@ -42,6 +49,9 @@ jobs:
         run: node --experimental-strip-types scripts/release-notes-ai-writer.ts --probe-openai-compatible
 
       - name: Run release-boundary tests
+        env:
+          OPL_FLOW_WORKFLOW_POLICY: ${{ github.workspace }}/opl-flow/contracts/workflow-policy.json
+          OPL_FULL_OPL_FLOW_ROOT: ${{ github.workspace }}/opl-flow
         run: npm run test:release-boundary
 
       - name: Validate release-boundary contract
