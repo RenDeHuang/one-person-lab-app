@@ -15,7 +15,6 @@ const defaultAppRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url))
 const forbiddenRootPackageFields = [
   'aioncoreVersion',
   'dependencies',
-  'devDependencies',
   'electronRebuild',
   'engines',
   'lint-staged',
@@ -30,7 +29,7 @@ const forbiddenRootPackageFields = [
 
 const requiredRootScripts = {
   'validate:app-root-boundary': 'node --experimental-strip-types scripts/app-root-boundary.ts',
-  'typecheck': 'npx --yes -p typescript@5.8.3 -p @types/node@22.15.3 -c "tsc --noEmit -p tsconfig.json"',
+  'typecheck': 'tsc --noEmit -p tsconfig.json',
   'validate:active-shell': 'node --experimental-strip-types scripts/validate-active-shell.ts',
   'validate:release-boundary': 'node --experimental-strip-types scripts/validate-release-boundary.ts',
   'release:prepare-standard': 'node --experimental-strip-types scripts/prepare-standard-release-payload.ts',
@@ -84,6 +83,21 @@ function assertRootPackageJson(packageJsonPath: string, failures: string[]): voi
   }
 
   assertRootScripts(packageJson, failures);
+
+  const devDependencies = packageJson.devDependencies;
+  const expectedDevDependencies = {
+    '@types/node': '22.15.3',
+    typescript: '5.8.3',
+  };
+  const normalizedDevDependencies = devDependencies && typeof devDependencies === 'object'
+    ? Object.fromEntries(Object.entries(devDependencies).sort(([left], [right]) => left.localeCompare(right)))
+    : devDependencies;
+  const normalizedExpectedDevDependencies = Object.fromEntries(
+    Object.entries(expectedDevDependencies).sort(([left], [right]) => left.localeCompare(right)),
+  );
+  if (JSON.stringify(normalizedDevDependencies) !== JSON.stringify(normalizedExpectedDevDependencies)) {
+    failures.push('package.json devDependencies must pin the App root typecheck toolchain');
+  }
 
   for (const field of forbiddenRootPackageFields) {
     if (Object.hasOwn(packageJson, field)) {
