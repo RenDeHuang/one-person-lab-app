@@ -443,6 +443,18 @@ export const appOwnedSettingsProductPageIds = [
   ...appOwnedSettingsTopLevelEntryIds,
   ...appOwnedSecondarySettingsPages,
 ];
+export const appOwnedSettingsTechnicalDetailsDefault = {
+  overview: "explicit_action_modal",
+  access: "explicit_action_modal",
+  workspace: "explicit_action_modal",
+  capabilities: "collapsed",
+  resources: "explicit_action_modal",
+  maintenance: "explicit_action_modal",
+  storage: "explicit_action_modal",
+  preferences: "not_applicable",
+  advanced: "not_applicable",
+  about: "explicit_action_modal",
+};
 export const appOwnedSettingsPageAnchors = {
   overview: ["status", "attention", "next-action", "common-actions"],
   access: ["provider-source", "model", "codex-cli", "authentication"],
@@ -465,6 +477,7 @@ export const appOwnedSettingsPageAnchors = {
   preferences: [
     "behavior",
     "notifications",
+    "models-performance",
     "instructions-context",
     "system-agents",
     "opl-app-context",
@@ -520,6 +533,7 @@ export const appOwnedSettingsPageSearchEntryIds = {
   preferences: [
     "preferences.behavior",
     "preferences.notifications",
+    "preferences.performance",
     "preferences.display_fonts",
     "preferences.system_agents",
     "preferences.opl_app_context",

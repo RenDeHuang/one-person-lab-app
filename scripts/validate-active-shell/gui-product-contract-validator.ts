@@ -1071,11 +1071,13 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   }
   if (
     pages.settings_theme.product_page_id !== 'preferences' ||
-    !pages.settings_theme.must_show?.includes('reply waiting time in human units') ||
-    !pages.settings_theme.must_show?.includes('hardware acceleration in user language') ||
-    !pages.settings_theme.must_show?.includes('Default and Codex theme choices under the themes anchor')
+    !pages.settings_theme.must_show?.includes('application behavior and notifications in a full-width group') ||
+    !pages.settings_theme.must_show?.includes(
+      'reply waiting time, idle-assistant release, and hardware acceleration in a named performance and background activity group',
+    ) ||
+    !pages.settings_theme.must_show?.includes('Light, Dark, and Codex theme choices under the themes anchor')
   ) {
-    throw new Error('Settings Preferences must use user language for timeout, tray, hardware, and themes');
+    throw new Error('Settings Preferences must expose behavior, performance, personalization, and themes as user configuration');
   }
   validateProgressDeltaDisplayContract(
     pages.runtime_status.progress_delta_policy,

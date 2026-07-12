@@ -133,6 +133,40 @@ test("Settings validator rejects secondary-page and compatibility-route regressi
   );
 });
 
+test("Settings hides unclassified extension entries without deleting extension data", () => {
+  const values = contracts();
+
+  assert.doesNotThrow(() => validate(values));
+  assert.equal(
+    values.controlPlane.extension_tab_policy.default_visibility,
+    "hidden_until_app_classified",
+  );
+  assert.deepStrictEqual(
+    values.controlPlane.extension_tab_policy.mount_allowlist,
+    [],
+  );
+  assert.equal(
+    values.controlPlane.extension_tab_policy.extension_data_deletion_policy,
+    "never_delete_extension_data_when_hiding_or_redirecting_an_entry",
+  );
+
+  const legacyUnknownFallback = contracts();
+  legacyUnknownFallback.controlPlane.extension_tab_policy.unknown_anchor =
+    "treat_as_unanchored";
+  assert.throws(
+    () => validate(legacyUnknownFallback),
+    /hide unclassified extension entries/,
+  );
+
+  const destructiveHide = contracts();
+  destructiveHide.controlPlane.extension_tab_policy.extension_data_deletion_policy =
+    "delete_hidden_extension_data";
+  assert.throws(
+    () => validate(destructiveHide),
+    /preserve their data/,
+  );
+});
+
 test("Settings validator rejects duplicate search, missing bilingual index data, and invalid anchors", () => {
   const duplicateSearch = contracts();
   duplicateSearch.controlPlane.experience_contract.global_search.global_entry_count = 2;
@@ -423,6 +457,21 @@ test("Settings strictly separates configuration, status, action, and diagnostic 
     experience.surface_model.diagnostic.ordinary_page_inline_allowed,
     false,
   );
+  assert.equal(
+    values.controlPlane.state_action_policy.diagnostic_policy,
+    "diagnostic_surfaces_are_read_only_and_must_not_mount_apply_repair_rollback_install_uninstall_or_persistent_setting_controls",
+  );
+  assert.deepStrictEqual(
+    values.controlPlane.state_action_policy.status_vocabulary,
+    [
+      "checking",
+      "not_checked",
+      "not_applicable",
+      "ready",
+      "needs_attention",
+      "failed",
+    ],
+  );
   for (const page of Object.values(experience.page_contracts)) {
     assert.deepStrictEqual(Object.keys(page.surface_inventory), [
       "configuration",
@@ -433,7 +482,12 @@ test("Settings strictly separates configuration, status, action, and diagnostic 
   }
   assert.equal(
     experience.page_contracts.maintenance.surface_inventory.configuration.length,
-    0,
+    1,
+  );
+  assert.equal(
+    experience.page_contracts.maintenance.surface_inventory.configuration[0]
+      .id,
+    "update_channel",
   );
   assert.ok(
     experience.page_contracts.maintenance.surface_inventory.action.length > 0,
@@ -465,6 +519,14 @@ test("Settings strictly separates configuration, status, action, and diagnostic 
     ["light", "dark", "codex"],
   );
   assert.equal(
+    experience.page_contracts.preferences.surface_rules.full_width_group_count,
+    4,
+  );
+  assert.equal(
+    experience.page_contracts.preferences.surface_inventory.diagnostic.length,
+    0,
+  );
+  assert.equal(
     experience.page_contracts.storage.surface_rules
       .pure_usage_summary_card_allowed,
     false,
@@ -476,6 +538,14 @@ test("Settings strictly separates configuration, status, action, and diagnostic 
   assert.equal(
     experience.page_contracts.storage.surface_rules.cleanup_action_policy,
     "single_progressive_action_preview_then_confirm",
+  );
+  assert.equal(
+    experience.page_contracts.storage.surface_rules.conversation_archive_policy,
+    "archive_receipt_is_required_before_delete_and_the_same_archive_exposes_a_confirmed_restore_action",
+  );
+  assert.equal(
+    experience.page_contracts.storage.surface_rules.restore_collision_policy,
+    "never_overwrite_an_existing_conversation_without_an_explicit_collision_decision",
   );
   assert.equal(
     experience.page_contracts.capabilities.management_discoverability
@@ -513,12 +583,16 @@ test("Settings strictly separates configuration, status, action, and diagnostic 
   assert.throws(() => validate(wrongOwner), /page ownership/);
 
   const maintenanceAsSetting = contracts();
-  maintenanceAsSetting.controlPlane.experience_contract.page_contracts.maintenance
-    .surface_inventory.configuration.push({
+  maintenanceAsSetting.controlPlane.experience_contract.page_contracts.maintenance.surface_inventory.configuration.push(
+    {
       id: "run_repair_as_setting",
       owner: "maintenance",
-    });
-  assert.throws(() => validate(maintenanceAsSetting), /actions, not persistent settings/);
+    },
+  );
+  assert.throws(
+    () => validate(maintenanceAsSetting),
+    /update channel|maintenance operations remain actions/,
+  );
 
   const advancedConfiguration = contracts();
   advancedConfiguration.controlPlane.experience_contract.page_contracts.advanced

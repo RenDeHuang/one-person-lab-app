@@ -4,6 +4,7 @@ import {
   appOwnedSettingsCapabilitiesTabContract,
   appOwnedSettingsCompatibilityRedirects,
   appOwnedSettingsResourceActionBehavior,
+  appOwnedSettingsTechnicalDetailsDefault,
   appOwnedTaskAwarenessRefFields,
 } from './app-contract-constants.ts';
 import {
@@ -582,10 +583,10 @@ function validateSettingsThemePage(matrix) {
     throw new Error('Settings Preferences must use the ordinary appearance carrier route');
   }
   for (const signal of [
-    'reply waiting time in human units',
+    'application behavior and notifications in a full-width group',
+    'reply waiting time, idle-assistant release, and hardware acceleration in a named performance and background activity group',
     'tray and close-window behavior',
-    'hardware acceleration in user language',
-    'Default and Codex theme choices under the themes anchor',
+    'Light, Dark, and Codex theme choices under the themes anchor',
   ]) {
     if (!settingsThemePage.must_show?.includes(signal)) {
       throw new Error(`Settings Preferences page must show ${signal}`);
@@ -597,9 +598,7 @@ function validateSettingsPageExperience(matrix) {
   const experience = settingsControlPlane.experience_contract;
   for (const [productPageId, contract] of Object.entries(experience.page_contracts ?? {})) {
     const page = pageById(matrix, contract.matrix_page_id);
-    const expectedTechnicalDetailsDefault = ['access', 'advanced'].includes(productPageId)
-      ? 'not_applicable'
-      : 'collapsed';
+    const expectedTechnicalDetailsDefault = appOwnedSettingsTechnicalDetailsDefault[productPageId];
     if (
       page.product_page_id !== productPageId ||
       page.experience_contract_ref !==

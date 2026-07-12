@@ -2351,6 +2351,7 @@
         ],
         "first_viewport_groups": [
           "application_behavior_and_notifications",
+          "performance_and_waiting",
           "instructions_and_session_context",
           "display_and_themes"
         ],
@@ -2366,12 +2367,10 @@
             { "id": "restart_and_hardware_support", "owner": "preferences" }
           ],
           "action": [],
-          "diagnostic": [
-            { "id": "preference_implementation_details", "owner": "preferences" }
-          ]
+          "diagnostic": []
         },
         "surface_rules": {
-          "full_width_group_count": 3,
+          "full_width_group_count": 4,
           "two_plus_one_grid_allowed": false,
           "builtin_theme_ids": ["light", "dark", "codex"],
           "extension_themes_default_visible": false,
@@ -2385,7 +2384,7 @@
           "max_visible": 1
         },
         "exception_state": "show restart-required or unsupported hardware states next to the affected setting only",
-        "technical_details_boundary": "raw millisecond values, Electron flags, and theme implementation ids stay collapsed",
+        "technical_details_boundary": "no dedicated diagnostic disclosure; raw millisecond values, Electron flags, and theme implementation ids are not rendered",
         "required_dom": {
           "always": [
             "settings-page-preferences",
@@ -2393,7 +2392,7 @@
             "settings-preferences-instructions",
             "settings-system-agents-editor",
             "settings-opl-app-context-editor",
-            "settings-preferences-technical-details"
+            "preferences-performance-section"
           ],
           "conditional": [
             {
@@ -2405,6 +2404,7 @@
         "required_anchors": [
           "behavior",
           "notifications",
+          "models-performance",
           "instructions-context",
           "system-agents",
           "opl-app-context",
@@ -2414,6 +2414,7 @@
         "search_entry_ids": [
           "preferences.behavior",
           "preferences.notifications",
+          "preferences.performance",
           "preferences.display_fonts",
           "preferences.system_agents",
           "preferences.opl_app_context",
@@ -2785,10 +2786,10 @@
           "id": "preferences.behavior",
           "page_id": "preferences",
           "anchor": "behavior",
-          "label_zh": "等待与行为",
-          "label_en": "Waiting and behavior",
-          "keywords_zh": ["等待时间", "超时", "行为"],
-          "keywords_en": ["waiting time", "timeout", "behavior"]
+          "label_zh": "应用行为",
+          "label_en": "App behavior",
+          "keywords_zh": ["启动", "窗口", "上传", "行为"],
+          "keywords_en": ["startup", "window", "uploads", "behavior"]
         },
         {
           "id": "preferences.notifications",
@@ -2798,6 +2799,15 @@
           "label_en": "Notifications",
           "keywords_zh": ["通知", "任务完成", "提醒"],
           "keywords_en": ["notification", "task complete", "alert"]
+        },
+        {
+          "id": "preferences.performance",
+          "page_id": "preferences",
+          "anchor": "models-performance",
+          "label_zh": "性能与后台活动",
+          "label_en": "Performance and background activity",
+          "keywords_zh": ["等待时间", "超时", "硬件加速", "空闲助手"],
+          "keywords_en": ["waiting time", "timeout", "hardware acceleration", "idle assistant"]
         },
         {
           "id": "preferences.display_fonts",

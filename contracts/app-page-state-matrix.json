@@ -1778,7 +1778,9 @@
       "expected_source": "OPL App state projection",
       "must_show": [
         "health, updates, local services, and OPL Packages grouped by user impact",
+        "update channel as an inline persistent configuration",
         "single recommended repair or maintenance action",
+        "apply, repair, rollback, and package maintenance inside an explicit management modal",
         "module path source explanation in technical details",
         "update status and service status in user language",
         "update and local-service anchors owned by Maintenance"
@@ -1792,7 +1794,8 @@
         "services",
         "packages",
         "recommended_action",
-        "technical_details"
+        "management",
+        "diagnostics"
       ],
       "state_sections": [
         "core.codex",
@@ -1872,7 +1875,8 @@
         "always": [
           "settings-page-maintenance",
           "settings-maintenance-primary",
-          "settings-maintenance-technical-details"
+          "settings-maintenance-management-action",
+          "settings-maintenance-diagnostics-action"
         ],
         "conditional": [
           {
@@ -1882,6 +1886,14 @@
           {
             "testid": "settings-maintenance-primary-action",
             "when": "attention_only"
+          },
+          {
+            "testid": "settings-maintenance-management-details",
+            "when": "management_open"
+          },
+          {
+            "testid": "settings-maintenance-technical-details",
+            "when": "diagnostics_open"
           }
         ]
       },
@@ -1900,7 +1912,7 @@
         "maintenance.receipts"
       ],
       "primary_action_id": "run_recommended_maintenance",
-      "technical_details_default": "collapsed",
+      "technical_details_default": "explicit_action_modal",
       "exception_emphasis": "attention_only"
     },
     {
@@ -2054,7 +2066,7 @@
         "storage.history"
       ],
       "primary_action_id": "preview_cleanup",
-      "technical_details_default": "collapsed",
+      "technical_details_default": "explicit_action_modal",
       "exception_emphasis": "attention_only"
     },
     {
@@ -2111,7 +2123,7 @@
         "about.updates"
       ],
       "primary_action_id": "check_updates",
-      "technical_details_default": "collapsed",
+      "technical_details_default": "explicit_action_modal",
       "exception_emphasis": "attention_only"
     },
     {
@@ -2199,12 +2211,12 @@
       "id": "settings_theme",
       "expected_source": "OPL App state user preferences projection",
       "must_show": [
-        "reply waiting time in human units",
+        "application behavior and notifications in a full-width group",
+        "reply waiting time, idle-assistant release, and hardware acceleration in a named performance and background activity group",
         "tray and close-window behavior",
-        "hardware acceleration in user language",
         "editable system-level AGENTS.md with current-path and stale-write protection",
         "editable OPL App session context with automatic and custom modes",
-        "Default and Codex theme choices under the themes anchor",
+        "Light, Dark, and Codex theme choices under the themes anchor",
         "restart-required notice next to the affected setting when applicable"
       ],
       "must_not_show": [
@@ -2213,7 +2225,8 @@
         "OPL Flow described as the owner of per-session App context",
         "AionUI theme as product authority",
         "maintenance, account, or About controls",
-        "theme as an independent product page"
+        "theme as an independent product page",
+        "interactive settings inside a Technical details disclosure"
       ],
       "machine_source": "opl app state --profile fast --json",
       "refresh_source": "opl app state --profile fast --json",
@@ -2225,12 +2238,10 @@
       "route_scope": "ordinary",
       "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia",
       "sections": [
-        "behavior",
-        "tray",
-        "hardware",
+        "application_behavior_and_notifications",
+        "performance_and_waiting",
         "instructions_context",
-        "themes",
-        "technical_details"
+        "display_and_themes"
       ],
       "product_page_id": "preferences",
       "experience_contract_ref": "contracts/app-settings-control-plane.json#experience_contract.page_contracts.preferences",
@@ -2241,7 +2252,7 @@
           "settings-preferences-instructions",
           "settings-system-agents-editor",
           "settings-opl-app-context-editor",
-          "settings-preferences-technical-details"
+          "preferences-performance-section"
         ],
         "conditional": [
           {
@@ -2253,6 +2264,7 @@
       "required_anchors": [
         "behavior",
         "notifications",
+        "models-performance",
         "instructions-context",
         "system-agents",
         "opl-app-context",
@@ -2262,13 +2274,14 @@
       "search_entry_ids": [
         "preferences.behavior",
         "preferences.notifications",
+        "preferences.performance",
         "preferences.display_fonts",
         "preferences.system_agents",
         "preferences.opl_app_context",
         "preferences.themes"
       ],
       "primary_action_id": "none",
-      "technical_details_default": "collapsed",
+      "technical_details_default": "not_applicable",
       "exception_emphasis": "attention_only"
     },
     {
@@ -2488,7 +2501,7 @@
       "machine_source": "opl app state --profile fast --json",
       "refresh_source": "opl app state --profile fast --json",
       "page_contract": "settings_general",
-      "sections": ["status_summary", "next_action", "technical_details"],
+      "sections": ["status_summary", "attention_queue", "next_action_and_context", "diagnostics"],
       "state_sections": ["paths", "settings", "desktop_startup"],
       "must_show": [
         "overall usability and attention count",
@@ -2513,7 +2526,7 @@
         "always": [
           "settings-page-overview",
           "settings-overview-primary",
-          "settings-overview-technical-details"
+          "settings-overview-diagnostics-action"
         ],
         "conditional": [
           {
@@ -2523,6 +2536,10 @@
           {
             "testid": "settings-overview-primary-action",
             "when": "attention_only"
+          },
+          {
+            "testid": "settings-overview-technical-details",
+            "when": "diagnostics_open"
           }
         ]
       },
@@ -2539,7 +2556,7 @@
         "overview.common_actions"
       ],
       "primary_action_id": "open_first_attention_item",
-      "technical_details_default": "collapsed",
+      "technical_details_default": "explicit_action_modal",
       "exception_emphasis": "attention_only"
     },
     {
@@ -2598,7 +2615,7 @@
         "workspace.artifacts"
       ],
       "primary_action_id": "change_workspace",
-      "technical_details_default": "collapsed",
+      "technical_details_default": "explicit_action_modal",
       "exception_emphasis": "attention_only"
     },
     {
@@ -2612,7 +2629,9 @@
         "provider_source",
         "model",
         "codex_cli",
-        "authentication"
+        "authentication",
+        "model_preferences",
+        "diagnostics"
       ],
       "state_sections": [
         "core.codex.model_access_ready",
@@ -2625,6 +2644,7 @@
         "model access readiness",
         "real access source from app_state.core.codex.model_access_source",
         "selected and default model",
+        "persistent default model and reasoning effort for new conversations",
         "OPL Gateway, Codex CLI, and account or API-key state",
         "one configure model access action when missing or explicitly requested"
       ],
@@ -2646,7 +2666,9 @@
       "required_dom": {
         "always": [
           "settings-page-access",
-          "settings-access-primary"
+          "settings-access-primary",
+          "settings-access-model-preference",
+          "settings-access-diagnostics-action"
         ],
         "conditional": [
           {
@@ -2656,6 +2678,10 @@
           {
             "testid": "settings-access-primary-action",
             "when": "missing_or_user_requested_change"
+          },
+          {
+            "testid": "settings-access-technical-details",
+            "when": "diagnostics_open"
           }
         ]
       },
@@ -2672,7 +2698,7 @@
         "access.authentication"
       ],
       "primary_action_id": "configure_model_access",
-      "technical_details_default": "not_applicable",
+      "technical_details_default": "explicit_action_modal",
       "exception_emphasis": "attention_only",
       "provider_source": "app_state.core.codex.model_access_source"
     },
@@ -2796,7 +2822,7 @@
         "resources.external"
       ],
       "primary_action_id": "open_selected_resource_action",
-      "technical_details_default": "collapsed",
+      "technical_details_default": "explicit_action_modal",
       "exception_emphasis": "attention_only"
     },
     {

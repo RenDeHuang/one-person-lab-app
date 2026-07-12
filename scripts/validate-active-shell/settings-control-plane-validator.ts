@@ -26,6 +26,7 @@ import {
   appOwnedSettingsSearchProtocol,
   appOwnedSettingsTabs,
   appOwnedSettingsTaskEntryMetadataFields,
+  appOwnedSettingsTechnicalDetailsDefault,
   appOwnedSettingsTopLevelEntryIds,
   appOwnedSettingsTopLevelLabels,
   appOwnedSettingsUpstreamIntakeClassifications,
@@ -413,10 +414,29 @@ export function validateSettingsControlPlane(
     );
   }
   if (
-    controlPlane.extension_tab_policy?.legacy_anchor_remap_required !== true
+    controlPlane.extension_tab_policy?.legacy_anchor_remap_required !== true ||
+    controlPlane.extension_tab_policy?.default_visibility !==
+      "hidden_until_app_classified" ||
+    !Array.isArray(controlPlane.extension_tab_policy?.mount_allowlist) ||
+    Object.prototype.hasOwnProperty.call(
+      controlPlane.extension_tab_policy ?? {},
+      "unknown_anchor",
+    ) ||
+    Object.prototype.hasOwnProperty.call(
+      controlPlane.extension_tab_policy ?? {},
+      "anchored_tabs",
+    ) ||
+    Object.prototype.hasOwnProperty.call(
+      controlPlane.extension_tab_policy ?? {},
+      "unanchored_tabs",
+    ) ||
+    controlPlane.extension_tab_policy?.unclassified_or_unknown_anchor !==
+      "hide_and_report_in_intake_diagnostics" ||
+    controlPlane.extension_tab_policy?.extension_data_deletion_policy !==
+      "never_delete_extension_data_when_hiding_or_redirecting_an_entry"
   ) {
     throw new Error(
-      "Settings control plane must require extension legacy anchor remapping",
+      "Settings control plane must hide unclassified extension entries, preserve their data, and require legacy anchor remapping",
     );
   }
   if (controlPlane.state_action_policy?.action_route !== appActionRoute) {
@@ -434,6 +454,32 @@ export function validateSettingsControlPlane(
       "Settings control plane must keep reads and actions single-flight with operation-bound results",
     );
   }
+  if (
+    controlPlane.state_action_policy?.configuration_action_policy !==
+      "framework_owned_persistent_controls_consume_configuration_catalog_action_ids_and_verify_refs_without_shell_hardcoding" ||
+    controlPlane.state_action_policy?.one_time_action_policy !==
+      "maintenance_resource_storage_and_capability_commands_consume_action_catalog_entries_without_becoming_configuration" ||
+    controlPlane.state_action_policy?.diagnostic_policy !==
+      "diagnostic_surfaces_are_read_only_and_must_not_mount_apply_repair_rollback_install_uninstall_or_persistent_setting_controls" ||
+    controlPlane.state_action_policy?.unknown_status_policy !==
+      "unknown_is_reserved_for_malformed_or_unsupported_projection_and_is_never_used_for_loading_or_not_checked"
+  ) {
+    throw new Error(
+      "Settings control plane must separate persistent configuration, one-time actions, read-only diagnostics, and status vocabulary",
+    );
+  }
+  assertDeepEqualJson(
+    controlPlane.state_action_policy?.status_vocabulary,
+    [
+      "checking",
+      "not_checked",
+      "not_applicable",
+      "ready",
+      "needs_attention",
+      "failed",
+    ],
+    "Settings state vocabulary",
+  );
   assertDeepEqualJson(
     controlPlane.state_action_policy?.recommended_action_ids,
     { doctor: "doctor", repair: "repair" },
@@ -608,11 +654,6 @@ function remapSettingsExtensionAnchor(controlPlane, anchorId) {
   const remapped = controlPlane.extension_anchor_remap?.[anchorId];
   if (remapped) {
     return remapped;
-  }
-  if (
-    controlPlane.extension_tab_policy?.unknown_anchor === "treat_as_unanchored"
-  ) {
-    return "advanced";
   }
   throw new Error(`Settings extension anchor ${anchorId} is unknown`);
 }
@@ -1275,11 +1316,8 @@ function validateSettingsPageStateMatrix(
     experienceContract.page_contracts ?? {},
   )) {
     const page = pageById(pageStateMatrix, contract.matrix_page_id);
-    const expectedTechnicalDetailsDefault = ["access", "advanced"].includes(
-      productPageId,
-    )
-      ? "not_applicable"
-      : "collapsed";
+    const expectedTechnicalDetailsDefault =
+      appOwnedSettingsTechnicalDetailsDefault[productPageId];
     if (
       page.product_page_id !== productPageId ||
       page.experience_contract_ref !==
@@ -1736,10 +1774,21 @@ function validatePageSurfaceInventory(pageId, inventory) {
       throw new Error("Settings Advanced must be a diagnostic-only page");
     }
   }
-  if (["maintenance", "storage"].includes(pageId)) {
+  if (pageId === "maintenance") {
+    if (
+      inventory.configuration.length !== 1 ||
+      inventory.configuration[0]?.id !== "update_channel" ||
+      inventory.action.length === 0
+    ) {
+      throw new Error(
+        "Settings Maintenance may persist only the update channel; maintenance operations remain actions",
+      );
+    }
+  }
+  if (pageId === "storage") {
     if (inventory.configuration.length !== 0 || inventory.action.length === 0) {
       throw new Error(
-        `Settings ${pageId} operations are actions, not persistent settings`,
+        "Settings Storage operations are actions, not persistent settings",
       );
     }
   }
@@ -1883,7 +1932,9 @@ export function validateSettingsExperienceContract(experience) {
       );
     }
     const technicalDetailsTestId = `settings-${pageId}-technical-details`;
-    const technicalDetailsOptional = ["access", "advanced"].includes(pageId);
+    const technicalDetailsOptional = ["advanced", "preferences"].includes(
+      pageId,
+    );
     const hasTechnicalDetailsSurface =
       page.required_dom.always.includes(technicalDetailsTestId) ||
       page.required_dom.conditional.some(
@@ -1965,13 +2016,31 @@ export function validateSettingsExperienceContract(experience) {
   assertDeepEqualJson(
     pageContracts.preferences.surface_rules,
     {
-      full_width_group_count: 3,
+      full_width_group_count: 4,
       two_plus_one_grid_allowed: false,
       builtin_theme_ids: ["light", "dark", "codex"],
       extension_themes_default_visible: false,
       custom_theme_management: "preserved",
+      interactive_controls_inside_diagnostic_surface_allowed: false,
+      performance_and_waiting_policy:
+        "advanced_but_persistent_controls_use_a_named_configuration_group_not_a_technical_details_disclosure",
     },
     "Settings Preferences surface rules",
+  );
+  assertDeepEqualJson(
+    pageContracts.maintenance.surface_rules,
+    {
+      configuration_location:
+        "update_channel_is_an_inline_persistent_control_in_the_updates_section",
+      management_surface:
+        "component_apply_repair_rollback_and_capability_sync_live_in_an_explicit_management_modal",
+      diagnostic_surface:
+        "read_only_status_paths_receipts_and_raw_projection_only",
+      diagnostic_mutation_controls_allowed: false,
+      unknown_state_copy:
+        "distinguish_checking_not_checked_not_applicable_and_needs_attention",
+    },
+    "Settings Maintenance surface rules",
   );
   assertDeepEqualJson(
     pageContracts.storage.surface_rules,
@@ -1981,6 +2050,10 @@ export function validateSettingsExperienceContract(experience) {
       diagnostics_entry: "explicit_modal_action",
       zero_byte_policy: "show_nothing_to_clean_and_hide_actions",
       cleanup_action_policy: "single_progressive_action_preview_then_confirm",
+      conversation_archive_policy:
+        "archive_receipt_is_required_before_delete_and_the_same_archive_exposes_a_confirmed_restore_action",
+      restore_collision_policy:
+        "never_overwrite_an_existing_conversation_without_an_explicit_collision_decision",
     },
     "Settings Storage surface rules",
   );

@@ -212,8 +212,9 @@ empty arrays. An item cannot appear in more than one array.
    it is not a Settings/configuration page.
 
 Workspace therefore uses one owner card containing location, writability, and
-actions. Preferences uses three full-width groups rather than a 2+1 grid:
-application behavior, instructions and session context, and display/themes. The
+actions. Preferences uses four full-width groups rather than a 2+1 grid:
+application behavior, performance and background activity, instructions and
+session context, and display/themes. The
 instructions group edits the user-owned `$CODEX_HOME/AGENTS.md` through the
 Framework action boundary and manages the App-owned new-conversation context.
 OPL Flow installs and semantically merges the user profile; it does not own the
@@ -473,11 +474,14 @@ Primary action: none. Preferences use inline controls.
 Exception state: restart-required or unsupported hardware states appear next to
 the affected setting only.
 
-Technical details: raw millisecond values, Electron flags, and theme
-implementation ids. Interactive timeout or hardware controls must not be
-placed inside a surface labelled Technical details.
+Technical details: Preferences has no dedicated diagnostic disclosure. Raw
+millisecond values, Electron flags, and theme implementation ids are not
+rendered; interactive timeout, idle-assistant, and hardware controls remain in
+the named configuration group.
 
-Required anchors: `behavior`, `tray`, `hardware`, `themes`.
+Required anchors: `behavior`, `notifications`, `models-performance`,
+`instructions-context`, `system-agents`, `opl-app-context`, `display-fonts`, and
+`themes`.
 
 Theme is an anchor on Preferences, not an independent page.
 

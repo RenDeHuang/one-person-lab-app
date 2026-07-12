@@ -3545,20 +3545,18 @@
       "state_source": "opl app state --profile fast --json",
       "refresh_source": "opl app state --profile fast --json",
       "sections": [
-        "behavior",
-        "tray",
-        "hardware",
+        "application_behavior_and_notifications",
+        "performance_and_waiting",
         "instructions_context",
-        "themes",
-        "technical_details"
+        "display_and_themes"
       ],
       "must_show": [
-        "reply waiting time in human units",
+        "application behavior and notifications in a full-width group",
+        "reply waiting time, idle-assistant release, and hardware acceleration in a named performance and background activity group",
         "tray and close-window behavior",
-        "hardware acceleration in user language",
         "editable system-level AGENTS.md with current-path and stale-write protection",
         "editable OPL App session context with automatic and custom modes",
-        "Default and Codex theme choices under the themes anchor",
+        "Light, Dark, and Codex theme choices under the themes anchor",
         "restart-required notice next to the affected setting when applicable"
       ],
       "must_not_show": [
@@ -3567,7 +3565,8 @@
         "OPL Flow described as the owner of per-session App context",
         "AionUI theme as product authority",
         "maintenance, account, or About controls",
-        "theme as an independent product page"
+        "theme as an independent product page",
+        "interactive settings inside a Technical details disclosure"
       ],
       "ia_group": "preferences",
       "product_page_id": "preferences",
@@ -4137,7 +4136,7 @@
     "settings_general": {
       "state_source": "opl app state --profile fast --json",
       "refresh_source": "opl app state --profile fast --json",
-      "sections": ["status_summary", "next_action", "technical_details"],
+      "sections": ["status_summary", "attention_queue", "next_action_and_context", "diagnostics"],
       "must_show": [
         "overall usability and attention count",
         "one next useful action",
@@ -4163,13 +4162,16 @@
         "provider_source",
         "model",
         "codex_cli",
-        "authentication"
+        "authentication",
+        "model_preferences",
+        "diagnostics"
       ],
       "must_show": [
         "page label Models & Access or 模型与访问",
         "model access readiness",
         "real access source from app_state.core.codex.model_access_source",
         "selected and default model",
+        "persistent default model and reasoning effort for new conversations",
         "OPL Gateway, Codex CLI, and account or API-key state",
         "one configure model access action when missing or explicitly requested"
       ],
@@ -4877,12 +4879,15 @@
         "services",
         "packages",
         "recommended_action",
-        "technical_details"
+        "management",
+        "diagnostics"
       ],
       "module_path_source_policy_ref": "module_path_source_policy",
       "must_show": [
         "health, updates, local services, and OPL Packages grouped by user impact",
+        "update channel as an inline persistent configuration",
         "single recommended repair or maintenance action",
+        "apply, repair, rollback, and package maintenance inside an explicit management modal",
         "module path source explanation in technical details",
         "update status and service status in user language",
         "update and local-service anchors owned by Maintenance"
