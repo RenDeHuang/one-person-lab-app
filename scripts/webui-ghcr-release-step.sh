@@ -90,6 +90,9 @@ docker_build_args() {
   if [ -n "${OPL_FRAMEWORK_SHA:-}" ]; then
     printf '%s\0' --build-arg "OPL_FRAMEWORK_REF=${OPL_FRAMEWORK_SHA}"
   fi
+  if [ -n "${OPL_FLOW_SHA:-}" ]; then
+    printf '%s\0' --build-arg "OPL_FLOW_REF=${OPL_FLOW_SHA}"
+  fi
 }
 
 case "$phase" in

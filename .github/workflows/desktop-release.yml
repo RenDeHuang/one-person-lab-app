@@ -1014,6 +1014,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_MODE: ${{ inputs.release_mode }}
           OPL_FRAMEWORK_SHA: ${{ needs.publish-standard.outputs.framework_sha }}
+          OPL_FLOW_SHA: 5ae0625f5240a13fa820b4c92362f1d06bdce857
           SHELL_SHA: ${{ needs.publish-standard.outputs.shell_sha }}
         run: |
           set -euo pipefail
@@ -1080,6 +1081,7 @@ jobs:
           NODE
           docker build \
             --build-arg OPL_FRAMEWORK_REF="${OPL_FRAMEWORK_SHA}" \
+            --build-arg OPL_FLOW_REF="${OPL_FLOW_SHA}" \
             --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
             --label "org.opencontainers.image.revision=${SHELL_SHA}" \
             -t "one-person-lab-webui:${{ inputs.opl_version }}" \
@@ -1087,6 +1089,7 @@ jobs:
           docker build \
             --build-arg OPL_WEBUI_IMAGE_PROFILE=webui-slim \
             --build-arg OPL_FRAMEWORK_REF="${OPL_FRAMEWORK_SHA}" \
+            --build-arg OPL_FLOW_REF="${OPL_FLOW_SHA}" \
             --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
             --label "org.opencontainers.image.revision=${SHELL_SHA}" \
             -t "one-person-lab-webui:${{ inputs.opl_version }}-slim" \
@@ -1375,10 +1378,11 @@ jobs:
               --gate clean_windows_vm \
               --evidence "$windows_zip_evidence" \
               --artifacts "$output_dir/clean-windows-vm-import" \
-              --json > "$output_dir/clean-windows-vm-import-output.json" || true
+            --json > "$output_dir/clean-windows-vm-import-output.json" || true
           fi
 
-          node <<'NODE'
+          validation_status=0
+          node <<'NODE' || validation_status=$?
           const fs = require('node:fs');
           const path = require('node:path');
           const { spawnSync } = require('node:child_process');
@@ -1533,6 +1537,19 @@ jobs:
             process.exitCode = 1;
           }
           NODE
+
+          if [ "$LINUX_ARTIFACT_NAME" = "same_job_ubuntu_clean_vm_generated" ]; then
+            compose_file="$linux_generated_dir/home/OnePersonLab/compose.yaml"
+            result_file="$linux_generated_dir/docker-webui-smoke-gate-result.json"
+            if [ -f "$compose_file" ] && [ -f "$result_file" ]; then
+              compose_project="$(node -e 'const fs=require("node:fs"); const value=JSON.parse(fs.readFileSync(process.argv[1],"utf8")); process.stdout.write(value.evidence?.compose_project_name || "")' "$result_file")"
+              if [ -n "$compose_project" ]; then
+                docker compose -p "$compose_project" -f "$compose_file" down >/dev/null 2>&1 || true
+              fi
+            fi
+            rm -rf "$linux_generated_dir/home/OnePersonLab/data" "$linux_generated_dir/home/OnePersonLab/projects"
+          fi
+          exit "$validation_status"
 
       - name: Upload clean VM evidence validation
         if: ${{ always() }}

@@ -216,6 +216,11 @@ test('Docker/WebUI configure-codex probe retries runtime startup races but stops
     timeoutMs: 120_000,
   }), false);
   assert.equal(shouldRetryConfigureCodexProbe({
+    errors: ['configure-codex proxy response did not report success=true: surface_not_found: Mandatory OPL Flow plugin installer was not found.'],
+    elapsedMs: 2_000,
+    timeoutMs: 120_000,
+  }), false);
+  assert.equal(shouldRetryConfigureCodexProbe({
     errors: ['configure-codex proxy response did not report success=true'],
     elapsedMs: 120_000,
     timeoutMs: 120_000,

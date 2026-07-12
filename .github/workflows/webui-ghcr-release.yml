@@ -17,6 +17,11 @@ on:
         required: false
         default: main
         type: string
+      opl_flow_ref:
+        description: Immutable OPL Flow ref required by the WebUI configure-codex route.
+        required: false
+        default: 5ae0625f5240a13fa820b4c92362f1d06bdce857
+        type: string
 
 permissions:
   contents: read
@@ -115,6 +120,7 @@ jobs:
             echo 'OPL_VERSION=${{ inputs.opl_version }}'
             echo 'SHELL_SHA=${{ steps.release-source-gate.outputs.shell_sha }}'
             echo 'OPL_FRAMEWORK_SHA=${{ steps.release-source-gate.outputs.framework_sha }}'
+            echo 'OPL_FLOW_SHA=${{ inputs.opl_flow_ref }}'
             echo 'WEBUI_CHANNEL_TAGS=stable'
             echo 'WEBUI_WORKFLOW_JOB=publish-webui-ghcr'
             echo 'WEBUI_BUILD_REUSE_MODE=webui_only_release_workflow'

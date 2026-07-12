@@ -11,6 +11,14 @@ const workflow = fs.readFileSync(
   path.join(appRoot, ".github", "workflows", "desktop-release.yml"),
   "utf8",
 );
+const readinessSummarizer = fs.readFileSync(
+  path.join(appRoot, "scripts", "summarize-release-readiness.ts"),
+  "utf8",
+);
+const fullWorkflow = fs.readFileSync(
+  path.join(appRoot, ".github", "workflows", "full-first-install-release.yml"),
+  "utf8",
+);
 
 test("release attempt telemetry forces a same-cohort reuse strategy without abandoning the release", () => {
   assert.match(workflow, /name: Summarize recent release attempts/);
@@ -94,4 +102,35 @@ test("gate reuse planning rejects a stale current preflight from another cohort"
   assert.ok(plan.global_blockers.some((reason: string) => reason.includes("does not match requested framework ref")));
   assert.equal(plan.reuse_allowed_count, 0);
   assert.equal(plan.must_run_count, 11);
+});
+
+test("standard readiness does not require Homebrew add-on gates before they run", () => {
+  assert.match(
+    workflow,
+    /name: Build final release readiness summary[\s\S]*--include-full-package false[\s\S]*--publish-docker-webui false/,
+  );
+  assert.match(
+    readinessSummarizer,
+    /const stableHomebrewRequired = options\.includeFullPackage && homebrewReadiness\.tap_update_required === true/,
+  );
+});
+
+test("Full DMG artifacts carry the cohort manifest required by the VM gate", () => {
+  assert.match(fullWorkflow, /name: Write Full build artifact cohort manifest/);
+  assert.match(fullWorkflow, /schema: 'opl_app_build_artifact_cohort\.v1'/);
+  assert.match(
+    fullWorkflow,
+    /name: opl-full-first-install-dmg-\$\{\{ env\.OPL_RELEASE_VERSION \}\}-mac-arm64-cohort/,
+  );
+  assert.match(fullWorkflow, /path: \$\{\{ runner\.temp \}\}\/opl-build-cohort\.json/);
+});
+
+test("Docker release evidence keeps failure diagnostics without uploading the seeded data volume", () => {
+  assert.match(workflow, /OPL_FLOW_SHA: 5ae0625f5240a13fa820b4c92362f1d06bdce857/);
+  assert.match(workflow, /--build-arg OPL_FLOW_REF="\$\{OPL_FLOW_SHA\}"/);
+  assert.match(workflow, /docker compose -p "\$compose_project" -f "\$compose_file" down/);
+  assert.match(
+    workflow,
+    /rm -rf "\$linux_generated_dir\/home\/OnePersonLab\/data" "\$linux_generated_dir\/home\/OnePersonLab\/projects"/,
+  );
 });

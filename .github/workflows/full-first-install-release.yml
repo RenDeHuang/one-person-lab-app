@@ -1089,6 +1089,35 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      - name: Write Full build artifact cohort manifest
+        if: ${{ inputs.publish_to_release || inputs.upload_full_package_artifact }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP_SHA="$(git -C one-person-lab-app rev-parse HEAD)" \
+          SHELL_SHA="$(git -C one-person-lab-app/shells/aionui rev-parse HEAD)" \
+          OPL_BUILD_VERSION="$OPL_RELEASE_VERSION" \
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const output = path.join(process.env.RUNNER_TEMP, 'opl-build-cohort.json');
+          fs.writeFileSync(output, `${JSON.stringify({
+            schema: 'opl_app_build_artifact_cohort.v1',
+            app_sha: process.env.APP_SHA,
+            shell_sha: process.env.SHELL_SHA,
+            version: process.env.OPL_BUILD_VERSION,
+          }, null, 2)}\n`);
+          NODE
+
+      - name: Upload Full build artifact cohort manifest
+        if: ${{ inputs.publish_to_release || inputs.upload_full_package_artifact }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: opl-full-first-install-dmg-${{ env.OPL_RELEASE_VERSION }}-mac-arm64-cohort
+          path: ${{ runner.temp }}/opl-build-cohort.json
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Upload Full DMG-only workflow artifact
         if: ${{ inputs.publish_to_release || inputs.upload_full_package_artifact }}
         uses: actions/upload-artifact@v7

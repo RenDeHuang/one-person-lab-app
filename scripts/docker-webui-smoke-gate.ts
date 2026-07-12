@@ -684,6 +684,7 @@ export function shouldRetryConfigureCodexProbe(observation: {
   timeoutMs: number;
 }) {
   if (observation.errors.some((error) => error.includes('leaked the submitted API key placeholder'))) return false;
+  if (observation.errors.some((error) => /surface_not_found|Mandatory OPL Flow plugin installer/i.test(error))) return false;
   return observation.errors.length > 0 && observation.elapsedMs < observation.timeoutMs;
 }
 
@@ -693,6 +694,8 @@ function inspectConfigureCodexResponse(response: ReturnType<typeof runNodeHttpPo
   let responseSuccess = false;
   let command = 'opl system configure-codex --api-key-stdin --json';
   let stdinTransport = false;
+  let responseErrorCode: string | null = null;
+  let responseErrorMessage: string | null = null;
 
   if (response.status !== 0) {
     errors.push(`configure-codex proxy request failed: ${response.stderr.trim() || response.stdout.trim() || 'unknown error'}`);
@@ -703,20 +706,38 @@ function inspectConfigureCodexResponse(response: ReturnType<typeof runNodeHttpPo
     const body = parseJsonObject(bodyText);
     responseSuccess = body?.success === true;
     const data = isObject(body?.data) ? body.data : null;
+    const dataError = isObject(data?.error) ? data.error : null;
+    responseErrorCode = typeof dataError?.code === 'string' ? dataError.code : null;
+    responseErrorMessage = typeof dataError?.message === 'string'
+      ? dataError.message.replaceAll('opl-smoke-placeholder-key', '<redacted>')
+      : typeof body?.error === 'string'
+        ? body.error.replaceAll('opl-smoke-placeholder-key', '<redacted>')
+        : null;
     const observedCommand = typeof data?.command === 'string' ? data.command : typeof data?.redactedCommand === 'string' ? data.redactedCommand : '';
     if (observedCommand) command = observedCommand;
     stdinTransport = Array.isArray(data?.args)
       ? data.args.includes('--api-key-stdin')
       : command.includes('--api-key-stdin');
     if (responseStatus !== 200) errors.push(`configure-codex proxy returned HTTP ${responseStatus ?? 'unknown'}`);
-    if (!responseSuccess) errors.push('configure-codex proxy response did not report success=true');
+    if (!responseSuccess) {
+      const reason = [responseErrorCode, responseErrorMessage].filter(Boolean).join(': ');
+      errors.push(`configure-codex proxy response did not report success=true${reason ? `: ${reason}` : ''}`);
+    }
     if (!stdinTransport) errors.push('configure-codex command did not expose --api-key-stdin transport');
     if (JSON.stringify(body).includes('opl-smoke-placeholder-key') || response.stdout.includes('opl-smoke-placeholder-key')) {
       errors.push('configure-codex response leaked the submitted API key placeholder');
     }
   }
 
-  return { errors, responseStatus, responseSuccess, command, stdinTransport };
+  return {
+    errors,
+    responseStatus,
+    responseSuccess,
+    responseErrorCode,
+    responseErrorMessage,
+    command,
+    stdinTransport,
+  };
 }
 
 function collectApiKeyFlowEvidence(result: GateResult, options: ReturnType<typeof parseArgs>) {
@@ -748,6 +769,8 @@ function collectApiKeyFlowEvidence(result: GateResult, options: ReturnType<typeo
     endpoint,
     response_http_status: observation.responseStatus,
     response_success: observation.responseSuccess,
+    response_error_code: observation.responseErrorCode,
+    response_error_message: observation.responseErrorMessage,
     command: observation.command,
     stdin_transport: observation.stdinTransport,
     attempt_count: attemptCount,
