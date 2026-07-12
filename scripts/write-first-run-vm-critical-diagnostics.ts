@@ -11,6 +11,7 @@ type FailureType =
   | 'release_asset_missing'
   | 'vm_launch_failed'
   | 'opl_configure_codex_failed'
+  | 'settings_smoke_failed'
   | 'app_ready_failed'
   | 'vm_smoke_failed'
   | 'vm_harness_preflight_failed';
@@ -136,6 +137,23 @@ function classifyFailure(): {
       type: 'opl_configure_codex_failed',
       boundary: 'guest_opl_configuration',
       reason: 'Guest OPL configure-codex failed before App readiness checks. Inspect the codex-configure diagnostics in the VM artifact.',
+      tartSummary,
+      guestSummary,
+    };
+  }
+  if (
+    failureStage === 'run_guest_smoke' &&
+    includesAny(errorText, [
+      'advanced settings',
+      'settings smoke',
+      'settings did not expose',
+      'settings page did not',
+    ])
+  ) {
+    return {
+      type: 'settings_smoke_failed',
+      boundary: 'guest_settings_smoke',
+      reason: 'Guest App launched, but a Settings page contract did not pass.',
       tartSummary,
       guestSummary,
     };

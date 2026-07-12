@@ -128,3 +128,26 @@ test('VM critical diagnostics classify OPL configure-codex failures before App r
   assert.equal(summary.failure.boundary, 'guest_opl_configuration');
   assert.match(summary.failure.reason, /before App readiness checks/);
 });
+
+test('VM critical diagnostics keep Settings contract failures out of App readiness', () => {
+  const summary = runDiagnostics(
+    {
+      RELEASE_ARTIFACT_DOWNLOAD_OUTCOME: 'success',
+      DMG_CONCLUSION: 'success',
+      VM_SMOKE_CONCLUSION: 'failure',
+    },
+    (cwd) => writeJson(cwd, 'artifacts/opl-first-run-vm/tart-smoke-summary.json', {
+      status: 'failed',
+      failure_stage: 'run_guest_smoke',
+      error: 'Advanced Settings did not expose the OPL Developer Profile status after page readiness polling',
+      guest_summary: {
+        status: 'failed',
+        error: 'Advanced Settings did not expose the OPL Developer Profile status',
+      },
+    }),
+  );
+
+  assert.equal(summary.failure.type, 'settings_smoke_failed');
+  assert.equal(summary.failure.boundary, 'guest_settings_smoke');
+  assert.notEqual(summary.failure.type, 'app_ready_failed');
+});
