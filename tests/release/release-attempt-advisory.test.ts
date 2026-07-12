@@ -19,6 +19,10 @@ const fullWorkflow = fs.readFileSync(
   path.join(appRoot, ".github", "workflows", "full-first-install-release.yml"),
   "utf8",
 );
+const dockerCleanLinuxWorkflow = fs.readFileSync(
+  path.join(appRoot, ".github", "workflows", "docker-webui-clean-linux-vm.yml"),
+  "utf8",
+);
 
 test("release attempt telemetry forces a same-cohort reuse strategy without abandoning the release", () => {
   assert.match(workflow, /name: Summarize recent release attempts/);
@@ -132,5 +136,9 @@ test("Docker release evidence keeps failure diagnostics without uploading the se
   assert.match(
     workflow,
     /rm -rf "\$linux_generated_dir\/home\/OnePersonLab\/data" "\$linux_generated_dir\/home\/OnePersonLab\/projects"/,
+  );
+  assert.match(
+    dockerCleanLinuxWorkflow,
+    /name: Stop Docker\/WebUI smoke container and prune generated volumes[\s\S]*sudo rm -rf[\s\S]*OnePersonLab\/data[\s\S]*OnePersonLab\/projects[\s\S]*name: Upload clean Linux VM Docker\/WebUI evidence/,
   );
 });

@@ -65,6 +65,17 @@ jobs:
             --validate-result docker-webui-clean-linux-vm/docker-webui-smoke-gate-result.json \
             --json | tee docker-webui-clean-linux-vm-validation.json
 
+      - name: Stop Docker/WebUI smoke container and prune generated volumes
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          if [ -f docker-webui-clean-linux-vm/home/OnePersonLab/compose.yaml ]; then
+            docker compose -f docker-webui-clean-linux-vm/home/OnePersonLab/compose.yaml down --remove-orphans || true
+          fi
+          sudo rm -rf \
+            docker-webui-clean-linux-vm/home/OnePersonLab/data \
+            docker-webui-clean-linux-vm/home/OnePersonLab/projects
+
       - name: Upload clean Linux VM Docker/WebUI evidence
         if: ${{ always() }}
         uses: actions/upload-artifact@v7
@@ -75,11 +86,3 @@ jobs:
             docker-webui-clean-linux-vm-output.json
             docker-webui-clean-linux-vm-validation.json
           if-no-files-found: error
-
-      - name: Stop Docker/WebUI smoke container
-        if: ${{ always() }}
-        shell: bash
-        run: |
-          if [ -f docker-webui-clean-linux-vm/home/OnePersonLab/compose.yaml ]; then
-            docker compose -f docker-webui-clean-linux-vm/home/OnePersonLab/compose.yaml down --remove-orphans || true
-          fi
