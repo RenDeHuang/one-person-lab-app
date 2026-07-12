@@ -25,7 +25,7 @@ on:
       upload_full_package_artifact:
         description: Upload the large Full package workflow artifact for downstream publish/VM jobs
         required: false
-        default: true
+        default: false
         type: boolean
       force_rebuild_runtime_cache:
         description: Ignore restored Full runtime layer cache and rebuild all layers
@@ -71,7 +71,7 @@ on:
       upload_full_package_artifact:
         description: Upload the large Full package workflow artifact for downstream publish/VM jobs
         required: false
-        default: true
+        default: false
         type: boolean
       force_rebuild_runtime_cache:
         description: Ignore restored Full runtime layer cache and rebuild all layers
@@ -1146,7 +1146,7 @@ jobs:
           retention-days: 14
 
       - name: Write Full build artifact cohort manifest
-        if: ${{ always() && steps.full_package_build.outcome == 'success' && (inputs.publish_to_release || inputs.upload_full_package_artifact) }}
+        if: ${{ always() && steps.full_package_build.outcome == 'success' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -1168,7 +1168,7 @@ jobs:
           NODE
 
       - name: Upload Full build artifact cohort manifest
-        if: ${{ always() && steps.full_package_build.outcome == 'success' && (inputs.publish_to_release || inputs.upload_full_package_artifact) }}
+        if: ${{ always() && steps.full_package_build.outcome == 'success' }}
         uses: actions/upload-artifact@v7
         with:
           name: opl-full-first-install-dmg-${{ env.OPL_RELEASE_VERSION }}-mac-arm64-cohort
@@ -1177,7 +1177,7 @@ jobs:
           retention-days: 14
 
       - name: Upload Full DMG-only workflow artifact
-        if: ${{ always() && steps.full_package_build.outcome == 'success' && (inputs.publish_to_release || inputs.upload_full_package_artifact) }}
+        if: ${{ always() && steps.full_package_build.outcome == 'success' }}
         uses: actions/upload-artifact@v7
         with:
           name: opl-full-first-install-dmg-${{ env.OPL_RELEASE_VERSION }}-mac-arm64

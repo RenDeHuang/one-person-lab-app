@@ -124,7 +124,20 @@ test("standard readiness does not require Homebrew add-on gates before they run"
 });
 
 test("Full DMG artifacts carry the cohort manifest required by the VM gate", () => {
+  assert.equal(
+    (fullWorkflow.match(/upload_full_package_artifact:[\s\S]*?default: false/g) ?? []).length,
+    2,
+    "large Full package uploads should be opt-in for dispatch and reusable calls",
+  );
+  assert.match(
+    fullWorkflow,
+    /name: Upload Full package workflow artifact\n\s+if: \$\{\{ always\(\) && steps\.full_package_build\.outcome == 'success' && \(inputs\.publish_to_release \|\| inputs\.upload_full_package_artifact\) \}\}/,
+  );
   assert.match(fullWorkflow, /name: Write Full build artifact cohort manifest/);
+  assert.match(
+    fullWorkflow,
+    /name: Write Full build artifact cohort manifest\n\s+if: \$\{\{ always\(\) && steps\.full_package_build\.outcome == 'success' \}\}/,
+  );
   assert.match(fullWorkflow, /schema: 'opl_app_build_artifact_cohort\.v1'/);
   assert.match(fullWorkflow, /framework_sha: process\.env\.FRAMEWORK_SHA/);
   assert.match(
@@ -132,6 +145,14 @@ test("Full DMG artifacts carry the cohort manifest required by the VM gate", () 
     /name: opl-full-first-install-dmg-\$\{\{ env\.OPL_RELEASE_VERSION \}\}-mac-arm64-cohort/,
   );
   assert.match(fullWorkflow, /path: \$\{\{ runner\.temp \}\}\/opl-build-cohort\.json/);
+  assert.match(
+    fullWorkflow,
+    /name: Upload Full build artifact cohort manifest\n\s+if: \$\{\{ always\(\) && steps\.full_package_build\.outcome == 'success' \}\}/,
+  );
+  assert.match(
+    fullWorkflow,
+    /name: Upload Full DMG-only workflow artifact\n\s+if: \$\{\{ always\(\) && steps\.full_package_build\.outcome == 'success' \}\}/,
+  );
 });
 
 test("Full VM validation rejects Framework injection into an already-built DMG", () => {
