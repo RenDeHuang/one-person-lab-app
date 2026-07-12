@@ -178,6 +178,10 @@ function currentRefSha(preflight: Record<string, unknown>, repository: string) {
   return stringValue(refs.find((entry) => entry.repository === repository)?.resolved_sha);
 }
 
+function currentPreflightAppCommit(preflight: Record<string, unknown>) {
+  return stringValue(recordOrNull(preflight.inputs)?.expected_app_head);
+}
+
 function previousFrameworkSha(candidate: Record<string, unknown>) {
   const refs = recordOrNull(candidate.resolved_refs);
   const framework = recordOrNull(refs?.opl_framework);
@@ -212,12 +216,25 @@ function collectGlobalBlockers(options: Options, inputs: {
 
   const currentShellSha = currentRefSha(inputs.currentPreflight, 'gaofeng21cn/opl-aion-shell');
   const currentFrameworkSha = currentRefSha(inputs.currentPreflight, 'gaofeng21cn/one-person-lab');
+  const currentAppCommit = currentPreflightAppCommit(inputs.currentPreflight);
   const previousFrameworkCommit = previousFrameworkSha(inputs.previousCandidate);
   if (currentFrameworkSha && previousFrameworkCommit && currentFrameworkSha !== previousFrameworkCommit) {
     blockers.push(`framework commit changed from ${previousFrameworkCommit} to ${currentFrameworkSha}`);
   }
+  if (!currentAppCommit) blockers.push('current preflight did not record app commit');
+  else if (options.appCommit && currentAppCommit !== options.appCommit) {
+    blockers.push(`current preflight app commit ${currentAppCommit} does not match requested app commit ${options.appCommit}`);
+  }
   if (!currentShellSha) blockers.push('current preflight did not resolve shell ref sha');
+  else if (currentShellSha !== options.shellRef) {
+    blockers.push(`current preflight shell sha ${currentShellSha} does not match requested shell ref ${options.shellRef}`);
+  }
   if (options.includeFullPackage && !currentFrameworkSha) blockers.push('current preflight did not resolve framework ref sha');
+  else if (currentFrameworkSha && currentFrameworkSha !== options.frameworkRef) {
+    blockers.push(
+      `current preflight framework sha ${currentFrameworkSha} does not match requested framework ref ${options.frameworkRef}`,
+    );
+  }
 
   if (!sameJson(sortedRemoteAssets(inputs.currentRemote), sortedRemoteAssets(inputs.previousRemote))) {
     blockers.push('remote verified asset name/size/sha256 set changed');
@@ -306,6 +323,7 @@ function buildPlan(options: Options) {
     app_commit: options.appCommit,
     shell_ref: options.shellRef,
     framework_ref: options.frameworkRef,
+    current_app_commit: currentPreflightAppCommit(currentPreflight),
     current_shell_sha: currentRefSha(currentPreflight, 'gaofeng21cn/opl-aion-shell'),
     current_framework_sha: currentRefSha(currentPreflight, 'gaofeng21cn/one-person-lab'),
     remote_asset_name_size_sha256: sortedRemoteAssets(currentRemote),
