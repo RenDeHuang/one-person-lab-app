@@ -109,3 +109,22 @@ test('VM critical diagnostics distinguish Tart launch failure from App readiness
   assert.equal(appReadySummary.failure.type, 'app_ready_failed');
   assert.equal(appReadySummary.failure.boundary, 'guest_app_ready');
 });
+
+test('VM critical diagnostics classify OPL configure-codex failures before App readiness', () => {
+  const summary = runDiagnostics(
+    {
+      RELEASE_ARTIFACT_DOWNLOAD_OUTCOME: 'success',
+      DMG_CONCLUSION: 'success',
+      VM_SMOKE_CONCLUSION: 'failure',
+    },
+    (cwd) => writeJson(cwd, 'artifacts/opl-first-run-vm/tart-smoke-summary.json', {
+      status: 'failed',
+      failure_stage: 'run_guest_smoke',
+      error: 'opl system configure-codex --api-key-stdin --json failed before bootstrap readiness',
+    }),
+  );
+
+  assert.equal(summary.failure.type, 'opl_configure_codex_failed');
+  assert.equal(summary.failure.boundary, 'guest_opl_configuration');
+  assert.match(summary.failure.reason, /before App readiness checks/);
+});

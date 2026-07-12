@@ -204,6 +204,13 @@ jobs:
           ref: main
           path: opl-bookforge
 
+      - name: Checkout OPL Flow
+        uses: actions/checkout@v6
+        with:
+          repository: gaofeng21cn/opl-flow
+          ref: main
+          path: opl-flow
+
       - name: Checkout OfficeCLI
         uses: actions/checkout@v6
         with:
@@ -224,6 +231,30 @@ jobs:
           repository: nextlevelbuilder/ui-ux-pro-max-skill
           ref: main
           path: ui-ux-pro-max-skill
+
+      - name: Validate Full source roots
+        shell: bash
+        run: |
+          set -euo pipefail
+          required_paths=(
+            one-person-lab/package.json
+            one-person-lab-app/shells/aionui/package.json
+            med-autoscience/pyproject.toml
+            med-autogrant/pyproject.toml
+            redcube-ai/package.json
+            opl-meta-agent/package.json
+            opl-bookforge/package.json
+            opl-flow/.codex-plugin/plugin.json
+            OfficeCLI/README.md
+            MinerU-Ecosystem/README.md
+            ui-ux-pro-max-skill/README.md
+          )
+          for required_path in "${required_paths[@]}"; do
+            if [ ! -f "$GITHUB_WORKSPACE/$required_path" ]; then
+              echo "::error::Required Full source is missing: $required_path"
+              exit 1
+            fi
+          done
 
       - name: Resolve release version
         shell: bash
@@ -440,6 +471,7 @@ jobs:
           export OPL_FULL_RCA_ROOT="$GITHUB_WORKSPACE/redcube-ai"
           export OPL_FULL_META_AGENT_ROOT="$GITHUB_WORKSPACE/opl-meta-agent"
           export OPL_FULL_BOOKFORGE_ROOT="$GITHUB_WORKSPACE/opl-bookforge"
+          export OPL_FULL_OPL_FLOW_ROOT="$GITHUB_WORKSPACE/opl-flow"
           export OPL_FULL_OFFICECLI_ROOT="$GITHUB_WORKSPACE/OfficeCLI"
           export OPL_FULL_MINERU_ROOT="$GITHUB_WORKSPACE/MinerU-Ecosystem"
           export OPL_FULL_MINERU_OPEN_API_BIN="$(command -v mineru-open-api)"
@@ -606,6 +638,7 @@ jobs:
           export OPL_FULL_RCA_ROOT="$GITHUB_WORKSPACE/redcube-ai"
           export OPL_FULL_META_AGENT_ROOT="$GITHUB_WORKSPACE/opl-meta-agent"
           export OPL_FULL_BOOKFORGE_ROOT="$GITHUB_WORKSPACE/opl-bookforge"
+          export OPL_FULL_OPL_FLOW_ROOT="$GITHUB_WORKSPACE/opl-flow"
           export OPL_FULL_OFFICECLI_ROOT="$GITHUB_WORKSPACE/OfficeCLI"
           export OPL_FULL_MINERU_ROOT="$GITHUB_WORKSPACE/MinerU-Ecosystem"
           export OPL_FULL_MINERU_OPEN_API_BIN="$(command -v mineru-open-api)"

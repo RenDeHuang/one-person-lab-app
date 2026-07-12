@@ -10,6 +10,7 @@ type FailureType =
   | 'artifact_download_failed'
   | 'release_asset_missing'
   | 'vm_launch_failed'
+  | 'opl_configure_codex_failed'
   | 'app_ready_failed'
   | 'vm_smoke_failed'
   | 'vm_harness_preflight_failed';
@@ -123,6 +124,18 @@ function classifyFailure(): {
       type: 'vm_launch_failed',
       boundary: failureStage,
       reason: `Tart VM failed during ${failureStage}.`,
+      tartSummary,
+      guestSummary,
+    };
+  }
+  if (
+    failureStage === 'run_guest_smoke' &&
+    includesAny(errorText, ['opl system configure-codex', "'system' 'configure-codex'"])
+  ) {
+    return {
+      type: 'opl_configure_codex_failed',
+      boundary: 'guest_opl_configuration',
+      reason: 'Guest OPL configure-codex failed before App readiness checks. Inspect the codex-configure diagnostics in the VM artifact.',
       tartSummary,
       guestSummary,
     };
