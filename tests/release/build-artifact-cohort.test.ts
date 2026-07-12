@@ -10,8 +10,9 @@ const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..",
 const validator = path.join(appRoot, "scripts", "validate-build-artifact-cohort.ts");
 const appSha = "a".repeat(40);
 const shellSha = "b".repeat(40);
+const frameworkSha = "c".repeat(40);
 
-function run(expectedShellSha = shellSha) {
+function run(expectedShellSha = shellSha, expectedFrameworkSha = frameworkSha) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "opl-build-cohort-"));
   const manifest = path.join(root, "opl-build-cohort.json");
   fs.writeFileSync(
@@ -20,6 +21,7 @@ function run(expectedShellSha = shellSha) {
       schema: "opl_app_build_artifact_cohort.v1",
       app_sha: appSha,
       shell_sha: shellSha,
+      framework_sha: frameworkSha,
       version: "26.7.12",
     }),
   );
@@ -34,6 +36,8 @@ function run(expectedShellSha = shellSha) {
       appSha,
       "--shell-sha",
       expectedShellSha,
+      "--framework-sha",
+      expectedFrameworkSha,
       "--version",
       "26.7.12",
     ],
@@ -41,15 +45,22 @@ function run(expectedShellSha = shellSha) {
   );
 }
 
-test("accepts an exact App and Shell build cohort", () => {
+test("accepts an exact App, Shell, and Framework build cohort", () => {
   const result = run();
   assert.equal(result.status, 0, result.stderr);
   assert.equal(JSON.parse(result.stdout).status, "passed");
 });
 
 test("rejects a new smoke harness against an older Shell artifact cohort", () => {
-  const result = run("c".repeat(40));
+  const result = run("d".repeat(40));
   assert.equal(result.status, 1);
   assert.match(result.stderr, /refusing cross-cohort VM smoke/);
   assert.match(result.stderr, /shell_sha expected/);
+});
+
+test("rejects a Full artifact built with another Framework cohort", () => {
+  const result = run(shellSha, "d".repeat(40));
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /refusing cross-cohort VM smoke/);
+  assert.match(result.stderr, /framework_sha expected/);
 });

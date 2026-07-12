@@ -1096,6 +1096,7 @@ jobs:
           set -euo pipefail
           APP_SHA="$(git -C one-person-lab-app rev-parse HEAD)" \
           SHELL_SHA="$(git -C one-person-lab-app/shells/aionui rev-parse HEAD)" \
+          FRAMEWORK_SHA="$(git -C one-person-lab rev-parse HEAD)" \
           OPL_BUILD_VERSION="$OPL_RELEASE_VERSION" \
           node <<'NODE'
           const fs = require('node:fs');
@@ -1105,6 +1106,7 @@ jobs:
             schema: 'opl_app_build_artifact_cohort.v1',
             app_sha: process.env.APP_SHA,
             shell_sha: process.env.SHELL_SHA,
+            framework_sha: process.env.FRAMEWORK_SHA,
             version: process.env.OPL_BUILD_VERSION,
           }, null, 2)}\n`);
           NODE

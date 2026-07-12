@@ -126,11 +126,20 @@ test("standard readiness does not require Homebrew add-on gates before they run"
 test("Full DMG artifacts carry the cohort manifest required by the VM gate", () => {
   assert.match(fullWorkflow, /name: Write Full build artifact cohort manifest/);
   assert.match(fullWorkflow, /schema: 'opl_app_build_artifact_cohort\.v1'/);
+  assert.match(fullWorkflow, /framework_sha: process\.env\.FRAMEWORK_SHA/);
   assert.match(
     fullWorkflow,
     /name: opl-full-first-install-dmg-\$\{\{ env\.OPL_RELEASE_VERSION \}\}-mac-arm64-cohort/,
   );
   assert.match(fullWorkflow, /path: \$\{\{ runner\.temp \}\}\/opl-build-cohort\.json/);
+});
+
+test("Full VM validation rejects Framework injection into an already-built DMG", () => {
+  assert.match(
+    firstRunVmWorkflow,
+    /package_profile=full executes the Framework bundled inside the DMG; framework_ref cannot override/,
+  );
+  assert.match(firstRunVmWorkflow, /framework_args=\(--framework-sha/);
 });
 
 test("Docker release evidence keeps failure diagnostics without uploading the seeded data volume", () => {

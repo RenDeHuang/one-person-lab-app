@@ -302,6 +302,14 @@ jobs:
               exit 1
               ;;
           esac
+          if [ "$profile" = "full" ] && [ -n "${{ inputs.framework_ref }}" ] && [ -z "${{ inputs.release_artifact_name }}" ]; then
+            echo "::error::package_profile=full executes the Framework bundled inside the DMG; framework_ref cannot override a release_tag or release_dmg_url asset. Build a same-cohort Full artifact and pass release_artifact_name plus release_artifact_run_id."
+            exit 1
+          fi
+          if [ "$profile" = "full" ] && [ -n "${{ inputs.release_artifact_name }}" ] && [ -z "${{ inputs.framework_ref }}" ]; then
+            echo "::error::package_profile=full artifact validation requires framework_ref so the bundled Framework can be checked before VM allocation."
+            exit 1
+          fi
           echo "profile=$profile" >> "$GITHUB_OUTPUT"
           echo "shell_ref=$shell_ref" >> "$GITHUB_OUTPUT"
           echo "diagnostic_scope=$diagnostic_scope" >> "$GITHUB_OUTPUT"
@@ -388,13 +396,18 @@ jobs:
           version="${{ inputs.release_tag }}"
           version="${version#v}"
           version_args=()
+          framework_args=()
           if [ -n "$version" ]; then
             version_args=(--version "$version")
+          fi
+          if [ "${{ steps.diagnostic_inputs.outputs.profile }}" = "full" ]; then
+            framework_args=(--framework-sha "${{ steps.framework_ref.outputs.framework_sha }}")
           fi
           node --experimental-strip-types scripts/validate-build-artifact-cohort.ts \
             --manifest artifacts/release-cohort/opl-build-cohort.json \
             --app-sha "$GITHUB_SHA" \
             --shell-sha "${{ steps.shell_ref.outputs.shell_sha }}" \
+            "${framework_args[@]}" \
             "${version_args[@]}"
 
   clean-vm-first-run:
