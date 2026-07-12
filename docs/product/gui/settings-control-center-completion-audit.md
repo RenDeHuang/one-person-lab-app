@@ -1,139 +1,108 @@
-
 # Settings Control Center Completion Audit
 
-Audit date: 2026-07-11
-Authority owner: one-person-lab-app
-Scope: Settings product contracts, page-state matrix, documentation, validators,
-and focused contract tests
-Visual evidence status: default desktop Light check bound to final Settings source
+Audit date: 2026-07-12
 
-## 2026-07-11 Surface-Ownership Correction
+Authority owner: `one-person-lab-app`
 
-The prior bounded-card remediation restored visual hierarchy but applied cards
-mechanically and left repeated status and diagnostic disclosures inline. The
-current correction uses focused DOM/type/package checks and one default desktop
-light inspection; the historical 42-image manifest does not prove this source.
+App Settings authority source: `1dd03b0f0f720d2314d4a8a77360c147b5635173`
 
-| Item | Required terminal state |
-| --- | --- |
-| Card eligibility | Pure state is never a standalone card; columns are limited to comparable independent decisions |
-| Workspace | One owner card containing path, writability, actions, and attention-only recovery |
-| Preferences | Two full-width groups; no 2+1 card grid |
-| Themes | Built-in choices are exactly Light, Dark, and Codex; user-managed themes and manual add remain |
-| Diagnostics | Raw paths, refs, action ids, receipts, enums, payloads, and logs are absent inline and available from one explicit modal/drawer entry |
-| Capabilities | User-facing source labels never fall through to raw enums; Home visibility and Manage are discoverable; AionUI custom assistants are absent |
-| Home shortcut state | Settings and Home share one reactive owner; successful actions commit and failed actions roll back |
-| About | Version/channel/update share one card; update action is adjacent to status; help arrows reach the row edge |
-
-This correction is `done`. The current Shell source passes focused tests,
-TypeScript, package compilation, and one default desktop Light check.
+Verified Shell source: `fadd91f9f0808eb090087f48c34d7c26d69df6ab`
 
 ## Conclusion
 
-The 42-image manifest at Shell
-`74848adf77360903c5ac7d64c32455a78fb3901a` is historical comparison evidence.
-Current Settings acceptance intentionally uses one default desktop light check
-after a production package build because page organization is still being
-refined. Visual evidence never establishes release readiness or runtime currentness.
+The Settings control center is complete for its current product scope. The
+implementation now separates four different user concerns instead of mixing
+them in generic cards or technical-detail lists:
 
-The current screenshot binds to Shell
-`5204a68d41d799287a4567e61897df3c25345dc4` and is archived at
-`docs/product/gui/assets/settings-capabilities-desktop-light-20260711.png`.
-Its SHA-256 is
-`ae13e05988cb9fbeb14d36354c61574cc02b7c4b8575580b8af10088715a8d74`.
-It verifies a stable loaded page, restrained multi-hue navigation icons, a
-visible capability object accent, bounded-card hierarchy, no custom-assistant
-surface, and no overlap or clipping at the default desktop viewport.
+1. **Configure**: values the user can change and persist.
+2. **View**: concise current state needed for a decision.
+3. **Act**: explicit checks, repairs, updates, archive, restore, cleanup, and
+   navigation actions with result or receipt semantics.
+4. **Diagnose**: raw paths, refs, payloads, logs, receipts, and implementation
+   detail behind one deliberate diagnostic entry.
 
-The evidence verifies the remediated bounded-card baseline: one user question
-per page-section card, flat internal rows, a compact return-to-chat/theme
-footer, recognizable theme preview tiles, and correct navigation state before
-each capture. Listed routes expose one current item; mobile secondary routes
-expose no stale primary selection. Screenshot capture moves the pointer away,
-clears focus, and waits for navigation color transitions to finish so a stale
-interaction frame cannot masquerade as a second selected route.
+The UI keeps the OPL bounded-card hierarchy without turning every state into a
+card. Cards group one user question or a set of comparable decisions; internal
+settings remain flat rows. Normal state stays quiet, attention state is
+selectively colored, and the navigation uses restrained multi-hue identity
+cues. AionUI custom assistants remain outside the OPL product surface and their
+underlying data is not deleted.
 
-The local arm64 build was installed at `/Applications/One Person Lab.app` and
-read back as version `26.7.11`; its main and renderer processes launch from the
-installed bundle and deep signature verification passes. This local ad-hoc
-build is not notarized and does not establish public release currentness.
+## Page Audit
 
-## Plan Completion Audit
+| Page | Configure | View | Act | Diagnose | Terminal state |
+| --- | --- | --- | --- | --- | --- |
+| Overview | None; it is a control-center summary | Overall readiness, attention count, capability and workspace summaries | Open the owning page for the next action | One diagnostic entry | No empty overview and no duplicated technical state |
+| Model & Access | Model, reasoning, access source and supported credential choices | Codex CLI and Gateway readiness | Open the owning access flow | Non-duplicative access diagnostics only | Model/access ownership is explicit |
+| Workspace | Workspace location and supported workspace behavior | Current path and meaningful writability/attention state | Choose or open workspace | Raw path detail only when needed | One owner surface; no repeated `available` badges |
+| Agents & Capabilities | Home visibility for adopted OPL capabilities | Canonical package identity, purpose and readiness | Open capability management/maintenance owner | Package/source detail on demand | No AionUI custom-assistant product entry |
+| Resources & Connections | OPL Connect handle-based connection records | Redacted connection and resource readiness | Create, edit, test, set default, delete, open or diagnose as supported | Connection receipts and raw transport detail on demand | Secrets never enter generic App state or logs |
+| Maintenance | Update channel where supported | Health, update, service and package attention summaries | Check, update, repair and rollback through owner actions | Raw logs, refs, locks, payloads and receipts on demand | Unknown backend fields are not presented as ordinary errors |
+| Data & Storage | Retention choices where supported | Category usage and cleanup/archive state | Preview, archive, restore, delete and clean with required confirmation | Restore proof and cleanup receipts on demand | Archive-before-delete is preserved; restore remains reachable after reopen |
+| Preferences | App behavior, notifications, performance, display, fonts, system `AGENTS.md`, OPL App additional context, and themes | Current local preference values | Apply, restore supported defaults, and manage user themes | No generic technical-details list | Built-ins are exactly Light, Dark and Codex; personalization is not degraded |
+| Advanced | No duplicated ordinary preference | Canonical working, runtime and log paths | Open/copy a path where supported | The page itself is the secondary expert surface | No redundant summary plus collapsed copy |
+| About | Update channel only where it is a real preference | App/Shell version and update state | Check updates and open help/feedback destinations | Version receipts on demand | Version, update action and help rows align as one coherent surface |
 
-| Item | Status | Completion | Fresh evidence | Remaining gap / next action |
-| --- | --- | ---: | --- | --- |
-| Eight ordinary product pages | done | 100% | `ordinary_routes[].product_page_id` maps to `overview/access/workspace/capabilities/resources/maintenance/storage/preferences`; Shell DOM tests cover all entries | None |
-| Secondary page boundary | done | 100% | `secondary_pages` contains only `advanced` and `about`; About has an independent render slot and route | None |
-| Compatibility redirects | done | 100% | Machine contract and Shell router implement `update -> environment#updates`, `theme -> appearance#themes`, `local-services -> environment#services` with `?section=` anchors | None |
-| About independence | done | 100% | `about` is absent from redirect maps and renders `AboutModalContent` at `/settings/about` | None |
-| Single global search contract | done | 100% | One `settings-search-input`, bilingual item indexing, `page > item` labels, Enter navigation, and anchor focus are covered by DOM and E2E source tests | None in active-shell source scope |
-| OPL card-based visual contract | done | 100% | App bounded-card contract plus Shell `74848adf77360903c5ac7d64c32455a78fb3901a` screenshots verify decision-based card grouping, flat internal rows, compact footer, light/dark dividers, and uncropped actions | None |
-| Per-page experience contracts | done | 100% | Ten page contracts declare primary information, action, exception, non-duplicative diagnostics, DOM anchors, model/access ownership, OPL-only capability tabs, and resource action lifecycle | None in source/DOM scope |
-| Prior UX audit incorporation | done | 100% | 概览、模型与访问、工作区、智能体与能力、资源与连接、维护、数据与存储、偏好、高级、关于 requirements are present in Shell source and focused tests | None in source/DOM scope |
-| Page-state matrix | done | 100% | Product pages, redirect states, Preferences route, anchors, and action states are consumed by App validators and Shell tests | None |
-| Contract validators | done | 100% | `OPL_APP_SHELL_ROOT=<pinned shell> bun run validate:active-shell -- --quick` passed; `npm run validate:gui-design-system` reported `consistent` | None in App contract scope |
-| Focused product validation | done | 100% | Shell `bun run package`, `bunx tsc --noEmit`, Settings DOM `15 files / 85 tests`, Settings visual E2E `2 tests`, and App Settings contract tests `7/7` passed | None in Settings scope |
-| Product documentation | done | 100% | `settings-control-center.md` is the current route, search, visual, page, DOM, and evidence boundary | None in App authority scope |
-| Shell DOM and interaction implementation | done | 100% | The focused Shell DOM suite covers 13 Settings surfaces and the E2E route loop asserts a unique selected item before capture | None in active-shell source scope |
-| Visual QA collector | done | 100% | Collector waits for the resolved selected route, clears focus and hover, settles navigation transitions, and records route/viewport/anchor evidence | None in active-shell source scope |
-| Fresh Shell screenshot pixels | done | 100% | Exact Shell `5204a68d41d799287a4567e61897df3c25345dc4`; archived desktop Light capability screenshot SHA-256 `ae13e05988cb9fbeb14d36354c61574cc02b7c4b8575580b8af10088715a8d74` | No public release or runtime-currentness claim is implied |
-| Running installed App | done | 100% | `/Applications/One Person Lab.app` version `26.7.11`; main and renderer process paths and deep signature were read back after launch | None for local testing |
-| Public release currentness | not_started | 0% | Local build is intentionally ad-hoc signed and not notarized | Separate release-owner evidence is required before a public release claim |
+## Contract And Interaction Audit
 
-## Historical Shell Contract
+| Boundary | Result | Evidence |
+| --- | --- | --- |
+| Information architecture | Done | Eight ordinary routes, Advanced and About as secondary routes, and three compatibility redirects are machine contracted |
+| Single global search | Done | One bilingual item-level search routes to the owner page and anchor; empty state has visual evidence |
+| Configuration ownership | Done | Framework, App-local and credential/connection items each declare one truth owner, write route, persistence target and verification route |
+| State/action separation | Done | Read models do not masquerade as actions; mutating actions retain precheck, confirmation and result/receipt semantics |
+| Diagnostic separation | Done | Raw implementation data is absent from ordinary rows and available through explicit diagnostic surfaces |
+| Visual hierarchy | Done | Decision-based bounded cards, flat internal rows, selective status color and stable desktop layout |
+| Capability scope | Done | Adopted OPL packages remain manageable; unadopted AionUI custom assistants are hidden without deleting data |
+| Personalization | Done | System `AGENTS.md` restore uses confirmation and stale guards; OPL App context keeps a generated read-only base plus editable additional instructions |
+| Compatibility | Done | `update`, `theme`, and `local-services` resolve to their current owner route and anchor before rendering |
+| Upstream maintainability | Done | Product truth stays in App contracts; Shell changes remain OPL overlays/adapters and do not redefine Settings from upstream defaults |
 
-The following records the prior route and action surface. The 2026-07-10
-flat-swatch screenshots at Shell `5e46f49ab33fea3734db9a6fb6db79f73507bf07`
-remain historical comparison evidence only; they do not establish current
-visual acceptance.
+## Fresh Verification
 
-1. Exactly one mounted `settings-search-input`.
-2. Chinese and English item-level indexing.
-3. Search labels formatted as `页面 > 条目`.
-4. Search selection routes to the owner page and focuses
-   `data-settings-anchor`.
-5. `update` resolves to `environment` plus `updates`.
-6. `theme` resolves to `appearance` plus `themes`.
-7. `local-services` resolves to `environment` plus `services`.
-8. The hash router carries the anchor as `section=<anchor>` or an equivalent
-   internal route-id-plus-anchor object.
-9. About remains an independent `/settings/about` page.
-10. All `settings-page-*`, primary, action, exception, and non-duplicative
-    diagnostic test ids declared by `experience_contract`.
-11. Exact anchors: Overview `status/next-action`; Access
-    `provider-source/model/authentication`; Workspace
-    `current-workspace/permissions`; Agents & Capabilities
-    `availability/source/home-visibility`; Resources
-    `resource-readiness/action-readiness/external-resources`; Maintenance
-    `health/updates/services/packages`; Data & Storage
-    `storage-categories/cleanup-preview/cleanup-history`; Preferences
-    `behavior/tray/hardware/themes`; Advanced `working-directories`; About
-    `version/channel/updates`.
-12. The old evidence records no nested cards, no page-directory duplication,
-    no more than one primary action, muted normal states, exception-only
-    emphasis, and collapsed technical details. It does not prove the remediated
-    grouping, footer, or theme gallery structure.
-13. Access was previously labeled `访问方式` and owned browser access. The
-    current product page is `模型与访问`; browser/WebUI/remote connection
-    ownership now belongs to Resources & Connections.
-14. Legacy `assistants` now resolves to `/settings/capabilities?tab=skills`;
-    AionUI `AssistantSettings` is intentionally excluded from OPL Settings.
-15. Resource `Open` navigates to the exact projected `browser_url`; `Diagnose`
-    executes and renders a result or receipt; mutating actions require precheck,
-    explicit confirmation, execution, and a result or receipt. Dry-run success
-    is precheck evidence only.
-16. Preferences exposes timeout, tray, hardware acceleration, and themes in
-    user language.
-17. Advanced is read-only working directories.
-18. About main surface is version, channel, and update status only.
+The final Shell source passed:
+
+- full lint, format, TypeScript, and i18n validation;
+- 155 test files and 1,390 tests;
+- focused canonical package and runtime projection tests: 2 files and 9 tests;
+- production `bun run package`;
+- Settings visual E2E: 2 tests;
+- remote readback of `gh-https/main` at
+  `fadd91f9f0808eb090087f48c34d7c26d69df6ab`.
+
+The App Settings authority passed 9 focused contract tests and active-shell
+quick validation against the synchronized product profile.
+
+## Visual Evidence
+
+Visual acceptance is intentionally limited to the default desktop Light mode
+while the page organization is the primary acceptance target. It does not use
+the historical 42-image desktop/mobile/light/dark matrix.
+
+- Contact sheet:
+  `docs/product/gui/assets/settings-desktop-light-contact-sheet-20260712.png`
+- Contact sheet SHA-256:
+  `411b38a6ac1538df6311ab1c76d58ab887cc698f75aac3631a57aa4ded0a3649`
+- Machine manifest:
+  `docs/product/gui/assets/settings-desktop-light-manifest-20260712.json`
+- Manifest SHA-256:
+  `48e753193a77290f2df093ee9cda5eccd39c337385292874cb3f736767fb435d`
+- Manifest binding: 14 entries, desktop, Light, exact Shell commit
+  `fadd91f9f0808eb090087f48c34d7c26d69df6ab`, and zero entry-level anchor
+  gaps.
+
+The contact sheet contains the ten actual Settings pages. The manifest also
+records the search empty state and three compatibility redirects. Confirmation
+dialogs for backend mutations remain covered by focused interaction tests rather
+than the backend-independent visual fixture; this is recorded in the manifest
+and is not hidden as visual proof.
 
 ## Evidence Boundary
 
-Historical `done` rows preserve what existed at their exact recorded commits.
-The current visual claim is limited to the manifest-bound Shell source listed
-above and the App contracts it consumes.
-
-Release/currentness remains outside Settings completion. Final integration owns
-the combined gates, rebuilt installation, running-App readback, release
-currentness, and worktree cleanup. The current visual manifest intentionally
-sets `release_readiness_claim` to `false`.
+This audit proves Settings product contracts, source behavior, focused
+interaction coverage, production compilation, and default desktop visual
+conformance at the exact commits above. It does **not** prove that an installed
+App bundle is current, that the running process uses these bytes, that Framework
+runtime state is ready, or that a public release is signed/notarized. Those
+claims require a rebuilt bundle plus installed/running and release-owner
+readback after final cross-repository integration.
