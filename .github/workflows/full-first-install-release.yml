@@ -405,6 +405,15 @@ jobs:
           bun run postinstall || true
           echo "OPL_FULL_SHELL_NODE_DEPS_READY_AT=$(date +%s)" >> "$GITHUB_ENV"
 
+      - name: Verify App product profile against Shell consumer
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd one-person-lab-app
+          node --experimental-strip-types scripts/app-product-profile.ts
+          cd shells/aionui
+          bun vitest run tests/unit/common-config/oplProductProfile.test.ts
+
       - name: Resolve App shell Electron version
         id: shell-electron-version
         working-directory: one-person-lab-app/shells/aionui

@@ -154,6 +154,20 @@ test("Full build artifacts survive release-note provider failure and notes use a
   );
 });
 
+test("Full build rejects App and Shell product profile drift before Electron packaging", () => {
+  const profileGate = fullWorkflow.indexOf("name: Verify App product profile against Shell consumer");
+  const electronRebuild = fullWorkflow.indexOf("name: Rebuild App shell native modules for Electron");
+  const packageBuild = fullWorkflow.indexOf("id: full_package_build");
+
+  assert.ok(profileGate >= 0, "missing Full product-profile compatibility gate");
+  assert.match(
+    fullWorkflow.slice(profileGate, electronRebuild),
+    /node --experimental-strip-types scripts\/app-product-profile\.ts[\s\S]*bun vitest run tests\/unit\/common-config\/oplProductProfile\.test\.ts/,
+  );
+  assert.ok(profileGate < electronRebuild, "profile gate must run before Electron native rebuild");
+  assert.ok(profileGate < packageBuild, "profile gate must run before Full package build");
+});
+
 test("Docker release evidence keeps failure diagnostics without uploading the seeded data volume", () => {
   assert.match(workflow, /OPL_FLOW_SHA: 06cb8e15490e6a98b1196bfc6d526bd50471ecbc/);
   assert.match(workflow, /--build-arg OPL_FLOW_REF="\$\{OPL_FLOW_SHA\}"/);
