@@ -153,21 +153,22 @@ Daily updates are handled by Homebrew or the in-app update channel, depending on
 how the App was installed. Release asset, updater metadata, and Full
 first-install boundaries are governed by the App release guide and contracts.
 
-### Install And Update Layers
+### Install And Update Objects
 
 Full first-install packages are preloaded payloads for clean machines, not a
-long-term update channel. After install, App maintenance is split into seven
-user-facing layers:
+long-term update channel. After install, App maintenance exposes exactly three
+software objects. Runtime, integration, Codex projection, and profile migration
+details stay nested under their owning object instead of becoming separate
+updaters:
 
-| Layer | What it means |
+| Object | What it means |
 | --- | --- |
-| Installation Carrier | How OPL is installed and updated at the host/container layer: macOS App bundle, Docker/WebUI image, or Linux package carrier. macOS uses the standard updater/Homebrew; Docker/WebUI uses image status plus a host update route; Linux package carriers use host package-manager or host-executor routing. |
-| Runtime Substrate | App-owned runtime roots and fallback executors needed to launch and run OPL. `embedded_codex_executor` means the App-owned Codex CLI executor payload; it does not upgrade or rewrite the user's global Codex/Homebrew install. |
-| Capability Packages | MAS/MAG/RCA/OMA/BookForge/MAS Scholar Skills OPL Packages. Clean managed roots may update quietly; dirty checkouts, developer checkouts, and manual-required states are not overwritten. |
-| Workflow dependencies | OPL Flow recommends OfficeCLI, MinerU, and selected UI helpers; Framework installs them and App Full bundles the offline closure. Superpowers, Ponytail, and CodexCont are migration conflicts, not App payloads. |
-| Codex Surface | Codex-visible plugin registry entries, packaged skills, generated surfaces, and reload guidance. This layer exposes one semantic entry instead of duplicate skill/plugin meanings. |
-| Workflow Profile | OPL Flow workflow guidance and profile material. Existing user `AGENTS.md` / `TASTE.md` content is not silently overwritten; profile changes use a Codex semantic merge packet. |
-| User Data / Artifacts | Workspaces, conversations, generated deliverables, logs, caches, and receipts. User artifacts require inventory, archive/restore proof, and explicit confirmation before deletion. |
+| OPL Base | The Framework-owned headless prerequisite. Runtime substrate, the isolated embedded Codex CLI, Temporal, native helpers, and companion-tool integration are dependency or integration details under Base. Homebrew Formula `opl` and the Framework installer are carrier adapters for this same object. |
+| OPL App | The GUI and control plane. The standard updater, Homebrew Cask, and signed installer update only the App carrier; they do not mutate Base or Packages. |
+| OPL Packages | Framework-managed Agent, capability, and workflow packages, including MAS/MAG/RCA/OMA/OBF, MAS Scholar Skills, and OPL Flow. Codex Surface readiness and workflow-profile migration are package transaction substatus, not separate software objects or update channels. |
+
+User Data / Artifacts is a separate storage, retention, and cleanup boundary. It
+is not installable software and never becomes a fourth updater object.
 
 For Docker or server deployment, Linux, Windows, server, and cloud-VM users should start
 from the Docker/WebUI one-click installer path in the
@@ -303,7 +304,7 @@ runtime bridge policy is declared in
 release-channel policy is declared in
 [`contracts/app-release-channel.json`](contracts/app-release-channel.json).
 Those contracts own user-facing install surfaces, standard versus Full package
-boundaries, the seven App install/update layers, updater visibility, Homebrew
+boundaries, the three software objects and their nested status details, updater visibility, Homebrew
 cask policy, Runtime page bridge behavior, App-managed Codex exposure, Workflow
 Profile merge boundaries, and release validation gates.
 

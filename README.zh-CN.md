@@ -141,20 +141,19 @@ macOS 可以通过 DMG、一键安装、Homebrew 或 Docker/WebUI 安装。首�
 
 日常更新由 Homebrew 或应用内更新通道完成，取决于安装方式。release asset、updater metadata 和 Full first-install 边界由 App release guide 与 contracts 维护。
 
-### 安装与更新分层
+### 安装与更新对象
 
 Full 首装包是给干净机器准备的预置载荷，不是长期更新通道。安装完成后，App
-维护按 7 层理解：
+维护只暴露三个软件对象。运行时、集成、Codex 投影和 profile migration
+都只是所属对象内部的状态详情，不形成独立 updater：
 
-| 层 | 用户应如何理解 |
+| 对象 | 用户应如何理解 |
 | --- | --- |
-| Installation Carrier | OPL 在宿主机/容器层面的安装和更新载体：macOS App bundle、Docker/WebUI image 或 Linux package carrier。macOS 走 standard updater/Homebrew；Docker/WebUI 走 image status 与 host update route；Linux package carrier 走宿主机包管理器或 host executor。 |
-| Runtime Substrate | App 管理的运行底座和启动所需 fallback executor。`embedded_codex_executor` 指 App-owned Codex CLI executor payload；它不升级、不重写用户全局 Codex 或 Homebrew 安装。 |
-| Capability Packages | MAS/MAG/RCA/OMA/BookForge/MAS Scholar Skills 等 OPL Packages。clean managed roots 可以静默更新；dirty checkout、developer checkout 或 manual required 状态不会被覆盖。 |
-| Companion Tools | OfficeCLI、MinerU、PDF/UI helpers 等辅助工具和技能。它们支撑工作流，但不持有领域判断；Superpowers 由用户自行管理，OPL App 不打包。 |
-| Codex Surface | Codex 可见的 plugin registry、packaged skills、generated surfaces 和 reload guidance。这里暴露同一语义入口，不制造重复 skill/plugin 语义。 |
-| Workflow Profile | OPL Flow workflow guidance 与 profile material。已有用户 `AGENTS.md` / `TASTE.md` 不会被静默覆盖；已有 profile 变更走 Codex semantic merge packet。 |
-| User Data / Artifacts | 工作区、对话、生成交付物、日志、缓存和 receipts。用户产物删除前需要 inventory、archive/restore proof 和明确确认。 |
+| OPL Base | Framework 持有的无界面运行前提。Runtime substrate、隔离的 embedded Codex CLI、Temporal、native helpers 和 companion-tool integration 都是 Base 内部的依赖或集成状态。Homebrew Formula `opl` 与 Framework installer 只是同一 Base 对象的不同 carrier。 |
+| OPL App | GUI 与控制面。standard updater、Homebrew Cask 和 signed installer 只更新 App carrier，不修改 Base 或 Packages。 |
+| OPL Packages | Framework 管理的 Agent、能力和工作流 package，包括 MAS/MAG/RCA/OMA/OBF、MAS Scholar Skills 与 OPL Flow。Codex Surface readiness 和 workflow-profile migration 是 package transaction 子状态，不是独立软件对象或更新通道。 |
+
+User Data / Artifacts 属于独立的存储、保留与清理边界，不是可安装软件，也不会成为第四个 updater 对象。
 
 Linux、Windows、服务器或云主机用户默认使用 Docker/WebUI，请从
 [Docker/WebUI install guide](https://gaofeng21cn.github.io/one-person-lab-app/latest/docker-webui-install/docker-webui-install.html) 开始；同一份
