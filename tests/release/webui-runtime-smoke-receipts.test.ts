@@ -108,8 +108,8 @@ function runtimeSubstrateWithFrameworkUpdate() {
       channel_artifact: 'ghcr.io/gaofeng21cn/one-person-lab-framework:26.7.1',
       channel_version: '26.7.1',
       channel_source_archive_sha256: 'a'.repeat(64),
-      command_ref: 'opl update apply --component runtime_substrate --json',
-      rollback_command_ref: 'opl update rollback --component runtime_substrate --json',
+      command_ref: 'opl update apply --json',
+      rollback_command_ref: 'opl update rollback --json',
     },
     },
   };

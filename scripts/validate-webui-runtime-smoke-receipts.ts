@@ -273,8 +273,8 @@ function validateRuntimeSubstrateFrameworkUpdate(component: Record<string, unkno
   requireString(frameworkRuntime.channel_source_archive_sha256, 'runtime_substrate framework channel_source_archive_sha256');
   assertExpectedFields(
     [
-      { actual: frameworkRuntime.command_ref, expected: 'opl update apply --component runtime_substrate --json' },
-      { actual: frameworkRuntime.rollback_command_ref, expected: 'opl update rollback --component runtime_substrate --json' },
+      { actual: frameworkRuntime.command_ref, expected: 'opl update apply --json' },
+      { actual: frameworkRuntime.rollback_command_ref, expected: 'opl update rollback --json' },
     ],
     'runtime_substrate framework update and rollback command refs must match managed updater commands',
   );

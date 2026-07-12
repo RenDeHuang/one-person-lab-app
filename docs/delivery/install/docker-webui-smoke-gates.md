@@ -84,11 +84,11 @@ release readiness, live latest/currentness, or that a host update was applied.
 
 OPL body updates inside WebUI use the Linux runtime maintenance path, not the
 Docker image lane. The accepted user action is the Settings/Updates
-`runtime_substrate` apply route, backed by:
+Framework-owned apply route, backed by:
 
 ```bash
-opl update apply --component runtime_substrate --json
-opl update rollback --component runtime_substrate --json
+opl update apply --json
+opl update rollback --json
 ```
 
 For Docker/WebUI this must apply the OPL Framework runtime artifact under the
