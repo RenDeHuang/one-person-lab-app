@@ -872,6 +872,20 @@ jobs:
         with:
           node-version: '24'
 
+      - name: Install Codex CLI for OPL Flow preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          codex_latest="$(npm view @openai/codex version)"
+          npm install --global "@openai/codex@${codex_latest}" \
+            --fetch-retries=3 \
+            --fetch-retry-mintimeout=2000 \
+            --fetch-retry-maxtimeout=20000 \
+            --fetch-timeout=60000
+          command -v codex
+          codex_version="$(codex --version)"
+          [[ "$codex_version" == "codex-cli $codex_latest" ]]
+
       - name: Smoke App one-shot installer
         shell: bash
         env:
