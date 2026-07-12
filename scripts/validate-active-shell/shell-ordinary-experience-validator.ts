@@ -133,10 +133,6 @@ const productProfileDefaultsExpected = [
   '"label_zh": "5.4"',
   '"label_zh": "5.4 Mini"',
   '"label_zh": "5.2"',
-  '"id": "med-autoscience"',
-  '"id": "med-autogrant"',
-  '"id": "redcube-ai"',
-  '"id": "opl-meta-agent"',
   '"assistant_skill_profiles"',
   '"required_skills"',
   '"skill_menu_policy": "assistant_scoped_required_checked_optional_visible"',
@@ -279,6 +275,11 @@ function validateProductProfileDefaults(shellPaths) {
   const productProfilePath = 'packages/desktop/src/common/config/oplProductProfile/oplProductProfile.generated.json';
   const productProfile = readShellText(shellPaths, productProfilePath);
   const productProfileJson = readShellJson(shellPaths, productProfilePath, 'product profile');
+  const professionalAgentIds = productProfileJson?.gui?.professional_agent_packages
+    ?.map((entry: { package_id?: unknown }) => entry.package_id);
+  if (JSON.stringify(professionalAgentIds) !== JSON.stringify(['mas', 'mag', 'rca', 'obf', 'oma'])) {
+    throw new Error('Active shell product profile must carry the five canonical professional Agent package ids');
+  }
   assertProductProfileFrontierModelPreferenceOrder(productProfileJson);
   assertTextIncludesAll(productProfile, productProfileDefaultsExpected, 'Active shell product profile App Codex default');
 }
