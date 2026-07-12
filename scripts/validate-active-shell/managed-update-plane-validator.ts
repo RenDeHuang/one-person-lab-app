@@ -28,6 +28,7 @@ const manualActionMapping = {
   update_opl_app: 'standard_updater_or_carrier_host_update_route',
   install_opl_package: 'opl packages install ... --json',
   update_opl_package: 'opl packages update ... --json',
+  optimize_opl_flow: 'opl packages optimize opl-flow --json',
   repair_opl_package: 'opl packages repair --package-id <package_id> --json',
   uninstall_opl_package: 'opl packages uninstall --package-id <package_id> --json',
 };

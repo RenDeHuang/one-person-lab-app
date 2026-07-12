@@ -5,12 +5,44 @@ import { managedUpdateCarrierAdapters, managedUpdateSoftwareObjectIds } from './
 
 export function validateReleaseChannelContract(releaseChannel) {
   const managedUpdatePlane = releaseChannel.managed_update_plane;
+  validateStandardUpdater(releaseChannel.standard_updater);
   validateLocalDataLifecycle(releaseChannel.local_data_lifecycle);
   validateWebuiGhcrImage(releaseChannel.webui_ghcr_image);
   validateManagedUpdatePlane(managedUpdatePlane);
   validateReleaseExecutionPolicy(releaseChannel.release_acceleration);
   validateReleaseHomebrewDistribution(releaseChannel);
   validateReleaseFullFirstInstallPayloads(releaseChannel);
+}
+
+function validateStandardUpdater(updater) {
+  const reconcile = updater?.post_update_dependency_reconcile;
+  if (
+    updater?.scope !== 'desktop_app_assets_only' ||
+    updater?.module_package_update_allowed !== false ||
+    updater?.opl_flow_install_allowed !== false ||
+    reconcile?.trigger !== 'running_version_switched_only' ||
+    reconcile?.owner !== 'one-person-lab' ||
+    reconcile?.app_role !== 'request_framework_transaction_and_project_result' ||
+    reconcile?.command !== 'opl packages optimize opl-flow --json' ||
+    reconcile?.workflow_owner !== 'opl-flow' ||
+    reconcile?.requires_previous_or_profile_declared_opl_flow !== true ||
+    reconcile?.idempotency !== 'once_per_downloaded_target_version' ||
+    reconcile?.readback !== 'auto-update-diagnostics.json#opl_flow_optimize_*' ||
+    reconcile?.direct_skill_delete_allowed !== false ||
+    reconcile?.direct_agents_write_allowed !== false
+  ) {
+    throw new Error('Standard updater must remain App-binary-only and request Framework-owned OPL Flow reconciliation after version switch');
+  }
+  assertDeepEqualJson(
+    reconcile.framework_transaction_effects,
+    [
+      'archive_policy_declared_conflicts',
+      'remove_conflicting_config_and_stop_declared_services',
+      'codex_semantic_merge_agents_profile',
+      'write_backup_and_rollback_receipt',
+    ],
+    'Standard updater post-update OPL Flow reconcile effects',
+  );
 }
 
 function validateReleaseExecutionPolicy(acceleration) {
@@ -311,6 +343,7 @@ function validateManagedUpdatePlane(managedUpdatePlane) {
       'internal_transaction_states_are_not_peer_products_or_updaters',
       'ordinary_component_picker_and_public_component_flag_are_forbidden',
       'standard_updater_targets_opl_app_only',
+      'successful_app_update_requests_framework_owned_opl_flow_optimization',
     ],
     'Managed update release-boundary cases',
   );
@@ -351,6 +384,7 @@ function validateSoftwareLifecycle(lifecycle) {
     lifecycle.public_actions?.update_opl_app !== 'standard_updater_or_carrier_host_update_route' ||
     !String(lifecycle.public_actions?.install_opl_package).startsWith('opl packages install ') ||
     !String(lifecycle.public_actions?.update_opl_package).startsWith('opl packages update ') ||
+    lifecycle.public_actions?.optimize_opl_flow !== 'opl packages optimize opl-flow --json' ||
     !String(lifecycle.public_actions?.repair_opl_package).startsWith('opl packages repair ') ||
     !String(lifecycle.public_actions?.uninstall_opl_package).startsWith('opl packages uninstall ')
   ) {

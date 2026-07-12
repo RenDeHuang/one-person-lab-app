@@ -77,6 +77,8 @@ Installation and maintenance expose exactly three software objects:
 | OPL App | The App-owned GUI/control plane and the only software object the App mutates. Homebrew Cask and signed installer/DMG are carrier adapters for the same App identity. Standard updater and host-route state remain App details through `host_update_route` and `host_executor_required`; carrier choice does not change ownership. |
 | OPL Packages | Framework-managed capability packages such as MAS/MAG/RCA/OMA/BookForge/MAS Scholar Skills/OPL Flow. Install, update, repair, and uninstall use the canonical `opl packages` lifecycle. Codex visibility/reload becomes `projection_status`; OPL Flow/profile semantic merge becomes `profile_migration_status`. Neither is a fourth product or updater, and Homebrew must not manage Packages. |
 
+标准 App updater 仍只替换 `opl_app` 二进制。只有新版本通过 post-restart version gate 并进入 `running_version_switched` 后，App 才请求一次独立的 `opl packages optimize opl-flow --json` Framework transaction；该事务按 OPL Flow policy 归档冲突 skill、清理声明的配置/服务、由 Codex 语义整理 `AGENTS.md`，并写 backup/rollback receipt。App 不复制冲突名单、不直接删除 skill，也不直接写用户 profile。
+
 `managed_update.components` therefore has exactly `opl_base`, `opl_app`, and `opl_packages`. The ordinary App has no component picker and no legacy component mapping. Full carriers may seed Base or Package payload bytes for first install, but activation and later mutation still route to the owning lifecycle. User data/artifacts remain a separate storage and cleanup boundary, not a software updater object.
 
 The runtime page contract is display and routing only. Its default user view

@@ -1024,6 +1024,20 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     throw new Error('Settings Environment must reference the canonical three-object software lifecycle');
   }
   validateFrameworkModuleMaintenanceEntry(guiContract.framework_surfaces?.managed_update_plane?.ordinary_module_maintenance_entry);
+  const postAppUpdateReconcile = guiContract.framework_surfaces?.managed_update_plane?.post_app_update_reconcile;
+  if (
+    postAppUpdateReconcile?.trigger !== 'running_version_switched_only' ||
+    postAppUpdateReconcile?.command !== 'opl packages optimize opl-flow --json' ||
+    postAppUpdateReconcile?.execution_owner !== 'one-person-lab' ||
+    postAppUpdateReconcile?.policy_owner !== 'opl-flow' ||
+    postAppUpdateReconcile?.app_role !== 'request_and_project_framework_receipt' ||
+    postAppUpdateReconcile?.idempotency !== 'once_per_downloaded_target_version' ||
+    postAppUpdateReconcile?.readback !== 'auto-update-diagnostics.json#opl_flow_optimize_*' ||
+    postAppUpdateReconcile?.direct_skill_delete_allowed !== false ||
+    postAppUpdateReconcile?.direct_agents_write_allowed !== false
+  ) {
+    throw new Error('App GUI must request Framework-owned OPL Flow optimization only after the running App version switches');
+  }
   if (pages.settings_storage.release_contract_ref !== 'contracts/app-release-channel.json#local_data_lifecycle') {
     throw new Error('Settings Storage must reference the App local data lifecycle contract');
   }
@@ -1174,6 +1188,7 @@ function validateFrameworkModuleMaintenanceEntry(entry) {
       update_opl_app: 'standard_updater_or_carrier_host_update_route',
       install_opl_package: 'opl packages install ... --json',
       update_opl_package: 'opl packages update ... --json',
+      optimize_opl_flow: 'opl packages optimize opl-flow --json',
       repair_opl_package: 'opl packages repair --package-id <package_id> --json',
       uninstall_opl_package: 'opl packages uninstall --package-id <package_id> --json',
     },

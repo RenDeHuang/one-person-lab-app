@@ -173,6 +173,26 @@
         "diagnostic_ref": "auto-update-diagnostics.json#install-not-applied"
       }
     },
+    "post_update_dependency_reconcile": {
+      "trigger": "running_version_switched_only",
+      "owner": "one-person-lab",
+      "app_role": "request_framework_transaction_and_project_result",
+      "command": "opl packages optimize opl-flow --json",
+      "workflow_owner": "opl-flow",
+      "requires_previous_or_profile_declared_opl_flow": true,
+      "idempotency": "once_per_downloaded_target_version",
+      "readback": "auto-update-diagnostics.json#opl_flow_optimize_*",
+      "direct_skill_delete_allowed": false,
+      "direct_agents_write_allowed": false,
+      "framework_transaction_effects": [
+        "archive_policy_declared_conflicts",
+        "remove_conflicting_config_and_stop_declared_services",
+        "codex_semantic_merge_agents_profile",
+        "write_backup_and_rollback_receipt"
+      ],
+      "fallback": "preserve_original_agents_and_project_reviewable_merge_packet",
+      "rule": "After the new App version is actually running, the App requests the Framework-owned OPL Flow optimize transaction. The standard updater still targets only the App binary and never implements skill cleanup or profile mutation itself."
+    },
     "forbidden_software_object_targets": [
       "opl_base",
       "opl_packages"
@@ -2624,6 +2644,7 @@
         "update_opl_app": "standard_updater_or_carrier_host_update_route",
         "install_opl_package": "opl packages install ... --json",
         "update_opl_package": "opl packages update ... --json",
+        "optimize_opl_flow": "opl packages optimize opl-flow --json",
         "repair_opl_package": "opl packages repair --package-id <package_id> --json",
         "uninstall_opl_package": "opl packages uninstall --package-id <package_id> --json"
       },
@@ -2676,7 +2697,8 @@
       "carrier_adapters_preserve_software_object_and_lifecycle_owner",
       "internal_transaction_states_are_not_peer_products_or_updaters",
       "ordinary_component_picker_and_public_component_flag_are_forbidden",
-      "standard_updater_targets_opl_app_only"
+      "standard_updater_targets_opl_app_only",
+      "successful_app_update_requests_framework_owned_opl_flow_optimization"
     ]
   }
 }

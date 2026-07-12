@@ -1144,8 +1144,21 @@
         "update_opl_app": "standard_updater_or_carrier_host_update_route",
         "install_opl_package": "opl packages install ... --json",
         "update_opl_package": "opl packages update ... --json",
+        "optimize_opl_flow": "opl packages optimize opl-flow --json",
         "repair_opl_package": "opl packages repair --package-id <package_id> --json",
         "uninstall_opl_package": "opl packages uninstall --package-id <package_id> --json"
+      },
+      "post_app_update_reconcile": {
+        "trigger": "running_version_switched_only",
+        "command": "opl packages optimize opl-flow --json",
+        "execution_owner": "one-person-lab",
+        "policy_owner": "opl-flow",
+        "app_role": "request_and_project_framework_receipt",
+        "idempotency": "once_per_downloaded_target_version",
+        "readback": "auto-update-diagnostics.json#opl_flow_optimize_*",
+        "direct_skill_delete_allowed": false,
+        "direct_agents_write_allowed": false,
+        "failure_display": "show_framework_error_or_profile_merge_packet_without_claiming_optimization_complete"
       },
       "ordinary_component_picker_allowed": false,
       "ordinary_module_maintenance_entry": {
@@ -1180,6 +1193,7 @@
           "update_opl_app": "standard_updater_or_carrier_host_update_route",
           "install_opl_package": "opl packages install ... --json",
           "update_opl_package": "opl packages update ... --json",
+          "optimize_opl_flow": "opl packages optimize opl-flow --json",
           "repair_opl_package": "opl packages repair --package-id <package_id> --json",
           "uninstall_opl_package": "opl packages uninstall --package-id <package_id> --json"
         },
@@ -4833,6 +4847,7 @@
           "update_opl_app": "standard_updater_or_carrier_host_update_route",
           "install_opl_package": "opl packages install ... --json",
           "update_opl_package": "opl packages update ... --json",
+          "optimize_opl_flow": "opl packages optimize opl-flow --json",
           "repair_opl_package": "opl packages repair --package-id <package_id> --json",
           "uninstall_opl_package": "opl packages uninstall --package-id <package_id> --json"
         },

@@ -119,8 +119,8 @@ Run `npm run ensure:shell` before local build or validation if
 
 ## OPL App Full Profile Boundary
 
-- OPL App does not package, auto-install, delete, or overwrite Superpowers.
-- OPL Flow owns the workflow profile; independently installed specialist skills remain user-owned.
+- OPL App does not directly delete skills or write the user profile. After a user-initiated App update reaches `running_version_switched`, it may request `opl packages optimize opl-flow`; OPL Framework executes the OPL Flow conflict-retirement and profile transaction with backup and rollback receipts.
+- OPL Flow owns the recommended workflow profile and its explicit conflict policy. Skills outside that declared policy remain user-owned.
 
 <!-- OPL_FLOW_MANAGED_START -->
 OPL Flow managed surface: repo_agent_instructions
