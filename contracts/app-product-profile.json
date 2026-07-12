@@ -4243,7 +4243,6 @@
     ],
     "packaged_not_default_visible_codex_skill_ids": [
       "opl-meta-agent",
-      "superpowers",
       "officecli",
       "officecli-docx",
       "officecli-pptx",
@@ -4256,7 +4255,6 @@
       "ui-ux-pro-max"
     ],
     "companion_skill_sync_default_ids": [
-      "superpowers",
       "officecli",
       "officecli-docx",
       "officecli-pptx",

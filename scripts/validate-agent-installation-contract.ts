@@ -35,7 +35,6 @@ const expectedGeneratedSemanticPackRoots: Record<string, string> = {
   'opl-meta-agent': 'github:gaofeng21cn/opl-meta-agent/agent',
 };
 const expectedCompanionSkillSyncIds = [
-  'superpowers',
   'officecli',
   'officecli-docx',
   'officecli-pptx',

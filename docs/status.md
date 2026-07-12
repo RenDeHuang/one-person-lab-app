@@ -129,8 +129,8 @@ and plugin-visible domain skills, not companion skill mirrors under
 `~/.codex/skills/{med-autoscience,med-autogrant,redcube-ai}`. OPL Meta Agent remains an OPL-generated Codex
 surface and an App/CLI-managed ecosystem module, but not a default home
 assistant. Companion skill sync stays limited to the App-level packaged
-whitelist such as Superpowers, cron, the OfficeCLI family, PDF, MinerU, and
-UI/UX helpers. AionUI builtin skills remain candidate shell capabilities unless
+whitelist such as cron, the OfficeCLI family, PDF, MinerU, and UI/UX helpers;
+Superpowers is user-owned and not packaged. AionUI builtin skills remain candidate shell capabilities unless
 the App profile explicitly whitelists them. `agent_installation_contract` now
 also separates ordinary module/agent-pack maintenance from Developer Profile
 checkout overrides: ordinary users consume App/CLI-managed maintenance after the

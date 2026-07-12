@@ -244,20 +244,6 @@ export function copyOplBookforgeSkill(targetRoot, options) {
   ]);
 }
 
-export function copySuperpowersBundle(targetRoot, options) {
-  const sourceRoot = options.superpowersRoot;
-  const skillsRoot = path.join(sourceRoot, 'skills');
-  if (
-    !fs.existsSync(path.join(sourceRoot, '.codex-plugin', 'plugin.json')) ||
-    !fs.existsSync(path.join(skillsRoot, 'using-superpowers', 'SKILL.md')) ||
-    !fs.existsSync(path.join(skillsRoot, 'verification-before-completion', 'SKILL.md'))
-  ) {
-    throw new Error(`Required Full companion skill source not found: superpowers bundle at ${sourceRoot}`);
-  }
-  copyTreeFiltered(sourceRoot, path.join(targetRoot, 'superpowers'), 'skills/superpowers');
-  return sourceRoot;
-}
-
 export function copyOfficeCliCoreSkill(targetRoot, options) {
   const target = path.join(targetRoot, 'officecli');
   if (fs.existsSync(path.join(options.officeCliRoot, 'SKILL.md'))) {
@@ -320,7 +306,6 @@ export const packagedSkillCopyHandlers = {
   'med-autogrant': (targetRoot, options) => copyFirstSkillSource('med-autogrant', targetRoot, magSkillCandidates(options)),
   'redcube-ai': (targetRoot, options) => copyFirstSkillSource('redcube-ai', targetRoot, rcaSkillCandidates(options)),
   'opl-bookforge': (targetRoot, options) => copyOplBookforgeSkill(targetRoot, options),
-  superpowers: (targetRoot, options) => copySuperpowersBundle(targetRoot, options),
   'opl-meta-agent': (targetRoot, options) => copyOplMetaAgentSkill(targetRoot, options),
   officecli: (targetRoot, options) => copyOfficeCliCoreSkill(targetRoot, options),
   'officecli-docx': (targetRoot, options) => copyOfficeCliUpstreamSkill('officecli-docx', targetRoot, options),

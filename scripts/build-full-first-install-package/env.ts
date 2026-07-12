@@ -60,7 +60,6 @@ function defaultWorkspaceRoots() {
     metaAgentRoot: envValue('OPL_FULL_META_AGENT_ROOT', path.join(workspaceRoot, 'opl-meta-agent')),
     bookforgeRoot: envValue('OPL_FULL_BOOKFORGE_ROOT', path.join(workspaceRoot, 'opl-bookforge')),
     oplFlowRoot: envValue('OPL_FULL_OPL_FLOW_ROOT', path.join(workspaceRoot, 'opl-flow')),
-    superpowersRoot: envValue('OPL_FULL_SUPERPOWERS_ROOT', path.join(os.homedir(), '.codex', 'superpowers')),
     officeCliRoot: envValue('OPL_FULL_OFFICECLI_ROOT', path.join(workspaceRoot, 'OfficeCLI')),
     mineruRoot: envValue('OPL_FULL_MINERU_ROOT', path.join(workspaceRoot, 'MinerU-Ecosystem')),
     mineruDocumentExtractorRoot: envValue(
@@ -106,7 +105,6 @@ function defaultRuntimeRefs() {
     metaAgentRef: defaultMainRef('OPL_FULL_META_AGENT_REF'),
     bookforgeRef: defaultMainRef('OPL_FULL_BOOKFORGE_REF'),
     oplFlowRef: defaultMainRef('OPL_FULL_OPL_FLOW_REF'),
-    superpowersRef: defaultMainRef('OPL_FULL_SUPERPOWERS_REF'),
     officeCliRef: envValue('OPL_FULL_OFFICECLI_REF', 'latest-stable'),
     mineruRef: defaultMainRef('OPL_FULL_MINERU_REF'),
     uiUxProMaxRef: defaultMainRef('OPL_FULL_UI_UX_PRO_MAX_REF'),
@@ -143,7 +141,6 @@ const valueOptionSetters = {
   'meta-agent-root': (parsed, value) => { parsed.metaAgentRoot = path.resolve(value); },
   'bookforge-root': (parsed, value) => { parsed.bookforgeRoot = path.resolve(value); },
   'opl-flow-root': (parsed, value) => { parsed.oplFlowRoot = path.resolve(value); },
-  'superpowers-root': (parsed, value) => { parsed.superpowersRoot = path.resolve(value); },
   'codex-root': (parsed, value) => { parsed.codexRoot = path.resolve(value); },
   'node-bin': (parsed, value) => { parsed.nodeBin = path.resolve(value); },
   'bun-bin': (parsed, value) => { parsed.bunBin = path.resolve(value); },

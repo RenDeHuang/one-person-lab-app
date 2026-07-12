@@ -76,14 +76,6 @@ export function buildResolvedFullPayloadRefs(options, sources, components) {
       resolved_commit: components.opl_flow?.git_commit ?? readGitHead(options.oplFlowRoot),
       package_kind: 'workflow_plugin_package',
     },
-    superpowers: {
-      label: 'Superpowers',
-      source_path: options.superpowersRoot,
-      repository: readGitOriginUrl(options.superpowersRoot) || 'obra/superpowers',
-      requested_ref: options.superpowersRef,
-      resolved_commit: readGitHead(options.superpowersRoot),
-      version: packageJsonVersion(path.join(options.superpowersRoot, 'package.json')),
-    },
     officecli: {
       label: 'OfficeCLI',
       source_path: options.officeCliRoot,

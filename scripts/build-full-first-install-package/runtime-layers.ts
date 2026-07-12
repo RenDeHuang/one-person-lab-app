@@ -304,7 +304,6 @@ export function collectRuntimeAssertions(runtimeRoot) {
       runtimePayloadStatus(runtimeRoot, 'skills/med-autogrant/SKILL.md'),
       runtimePayloadStatus(runtimeRoot, 'skills/redcube-ai/SKILL.md'),
       runtimePayloadStatus(runtimeRoot, 'skills/opl-bookforge/SKILL.md'),
-      runtimePayloadStatus(runtimeRoot, 'skills/superpowers/.codex-plugin/plugin.json'),
       runtimePayloadStatus(runtimeRoot, 'modules/opl-flow/.codex-plugin/plugin.json'),
       runtimePayloadStatus(runtimeRoot, 'modules/opl-flow/scripts/install_local_plugin.py'),
       runtimePayloadStatus(runtimeRoot, 'modules/opl-flow/skills/opl-flow/SKILL.md'),

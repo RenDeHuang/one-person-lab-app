@@ -24,7 +24,6 @@ const requiredDefaultPackagedSkillIds = [
   'opl-bookforge',
 ];
 const requiredCompanionSkillSyncIds = [
-  'superpowers',
   'officecli',
   'officecli-docx',
   'officecli-pptx',
@@ -394,9 +393,6 @@ function assertCompanionPayloadProfileShape(
     throw new Error(
       `App product profile packaged_not_default_visible skills must stay out of default_visible_skills: ${overlappingExplicitSkills.join(', ')}`,
     );
-  }
-  if (!packagedExplicitSkills.has('superpowers')) {
-    throw new Error('App product profile must package superpowers without default App visibility');
   }
   assertIncludesAll(
     profile.companion_payloads.packaged_not_default_visible_codex_skill_ids,

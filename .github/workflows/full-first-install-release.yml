@@ -225,13 +225,6 @@ jobs:
           ref: main
           path: ui-ux-pro-max-skill
 
-      - name: Checkout Superpowers bundle
-        uses: actions/checkout@v6
-        with:
-          repository: obra/superpowers
-          ref: main
-          path: superpowers
-
       - name: Resolve release version
         shell: bash
         run: |
@@ -452,7 +445,6 @@ jobs:
           export OPL_FULL_MINERU_OPEN_API_BIN="$(command -v mineru-open-api)"
           export OPL_FULL_MINERU_DOCUMENT_EXTRACTOR_ROOT="$GITHUB_WORKSPACE/one-person-lab-app/assets/companion-skills/mineru-document-extractor"
           export OPL_FULL_UI_UX_PRO_MAX_ROOT="$GITHUB_WORKSPACE/ui-ux-pro-max-skill"
-          export OPL_FULL_SUPERPOWERS_ROOT="$GITHUB_WORKSPACE/superpowers"
           npm --silent run release:full -- \
             --version "$OPL_RELEASE_VERSION" \
             --runtime-cache-dir "$cache_dir" \
@@ -619,7 +611,6 @@ jobs:
           export OPL_FULL_MINERU_OPEN_API_BIN="$(command -v mineru-open-api)"
           export OPL_FULL_MINERU_DOCUMENT_EXTRACTOR_ROOT="$GITHUB_WORKSPACE/one-person-lab-app/assets/companion-skills/mineru-document-extractor"
           export OPL_FULL_UI_UX_PRO_MAX_ROOT="$GITHUB_WORKSPACE/ui-ux-pro-max-skill"
-          export OPL_FULL_SUPERPOWERS_ROOT="$GITHUB_WORKSPACE/superpowers"
           if [ "${{ steps.restore-shell-vite-output.outputs.cache-hit || 'false' }}" = "true" ]; then
             npm run release:full -- \
               --version "$OPL_RELEASE_VERSION" \

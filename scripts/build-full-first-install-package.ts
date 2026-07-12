@@ -88,7 +88,6 @@ function main() {
     ['OPL Meta Agent root', options.metaAgentRoot],
     ['OPL Book Forge root', options.bookforgeRoot],
     ['OPL Flow root', options.oplFlowRoot],
-    ['Superpowers root', options.superpowersRoot],
     ['OfficeCLI root', options.officeCliRoot],
   ]) {
     requirePath(source, label);

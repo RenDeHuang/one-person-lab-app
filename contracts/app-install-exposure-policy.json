@@ -121,7 +121,6 @@
       "id": "companion_tools_codex_skills",
       "owner": "upstream_skill_owners_with_opl_distribution_policy",
       "members": [
-        "superpowers",
         "officecli",
         "officecli-docx",
         "officecli-pptx",

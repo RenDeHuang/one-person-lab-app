@@ -308,7 +308,6 @@ test('Full runtime node payload prunes package-only docs while preserving offlin
   for (const skillId of ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge']) {
     writeFile(path.join(runtimeRoot, 'skills', skillId, 'SKILL.md'), '# skill\n');
   }
-  writeFile(path.join(runtimeRoot, 'skills', 'superpowers', '.codex-plugin', 'plugin.json'), '{}\n');
   for (const [modulePath, pluginId] of [
     ['modules/mas', 'med-autoscience'],
     ['modules/mag', 'med-autogrant'],

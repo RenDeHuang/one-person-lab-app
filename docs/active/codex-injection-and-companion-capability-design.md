@@ -39,7 +39,7 @@ Existing user instructions are preserved outside managed marker blocks. Reusable
 
 ## Companion Payloads
 
-- Superpowers is packaged as the current stable upstream release, locked by exact release identity in each Full artifact. Full remains available while the ordinary profile stays Lite.
+- Superpowers is user-owned and is not packaged or auto-installed by OPL App.
 - OfficeCLI is packaged as one upstream-owned atomic release. Full resolves the latest stable release before publishing, then records the exact version, commit, and digest. All eight upstream skills stay owned by OfficeCLI and are task-routed rather than default-visible.
 - MinerU Document Extractor is packaged and task-routed for OCR, scans, complex PDF extraction, tables, and formulas.
 - UI UX Pro Max is packaged but exposed only for design, RCA, and frontend tasks.
