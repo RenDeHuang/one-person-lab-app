@@ -16,7 +16,7 @@ import {
 } from '../../../scripts/build-full-first-install-package/skills.ts';
 
 test('App Full packages the OPL Flow offline skill closure without retired workflow plugins', () => {
-  const oplFlowRoot = path.resolve(appRoot, '..', 'opl-flow');
+  const oplFlowRoot = process.env.OPL_FULL_OPL_FLOW_ROOT?.trim() || path.resolve(appRoot, '..', 'opl-flow');
   const closure = readOplFlowFullSkillDependencyClosure(oplFlowRoot);
   const expected = [
     'officecli',
