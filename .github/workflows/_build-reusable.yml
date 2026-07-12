@@ -780,6 +780,35 @@ jobs:
           echo "Remaining artifacts:"
           ls -lh out/ || true
 
+      - name: Write build artifact cohort manifest
+        if: success()
+        shell: bash
+        env:
+          OPL_BUILD_VERSION: ${{ steps.opl-release-version.outputs.version }}
+        run: |
+          set -euo pipefail
+          APP_SHA="$(git -C ../.. rev-parse HEAD)"
+          SHELL_SHA="$(git rev-parse HEAD)"
+          APP_SHA="$APP_SHA" SHELL_SHA="$SHELL_SHA" node <<'NODE'
+          const fs = require('node:fs');
+          fs.mkdirSync('out', { recursive: true });
+          fs.writeFileSync('out/opl-build-cohort.json', `${JSON.stringify({
+            schema: 'opl_app_build_artifact_cohort.v1',
+            app_sha: process.env.APP_SHA,
+            shell_sha: process.env.SHELL_SHA,
+            version: process.env.OPL_BUILD_VERSION,
+          }, null, 2)}\n`);
+          NODE
+
+      - name: Upload build artifact cohort manifest
+        uses: actions/upload-artifact@v7
+        if: success() && startsWith(matrix.platform, 'macos')
+        with:
+          name: ${{ inputs.append_commit_hash && format('{0}-{1}-dmg-cohort', matrix.artifact-name, steps.commit.outputs.short) || format('{0}-dmg-cohort', matrix.artifact-name) }}
+          path: shells/aionui/out/opl-build-cohort.json
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@v7
         if: success()
@@ -803,7 +832,9 @@ jobs:
         if: success() && startsWith(matrix.platform, 'macos')
         with:
           name: ${{ inputs.append_commit_hash && format('{0}-{1}-dmg', matrix.artifact-name, steps.commit.outputs.short) || format('{0}-dmg', matrix.artifact-name) }}
-          path: shells/aionui/out/*.dmg
+          path: |
+            shells/aionui/out/*.dmg
+            shells/aionui/out/opl-build-cohort.json
           if-no-files-found: error
           retention-days: 7
 

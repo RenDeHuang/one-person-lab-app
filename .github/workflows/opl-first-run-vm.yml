@@ -196,11 +196,15 @@ jobs:
     outputs:
       package_profile: ${{ steps.diagnostic_inputs.outputs.profile }}
       shell_ref: ${{ steps.diagnostic_inputs.outputs.shell_ref }}
+      shell_sha: ${{ steps.shell_ref.outputs.shell_sha }}
       diagnostic_scope: ${{ steps.diagnostic_inputs.outputs.diagnostic_scope }}
       skip_vm: ${{ steps.scheduled_release_guard.outputs.skip_vm || 'false' }}
       skip_reason: ${{ steps.scheduled_release_guard.outputs.skip_reason || '' }}
 
     steps:
+      - name: Checkout App repo
+        uses: actions/checkout@v6
+
       - name: Skip scheduled VM while desktop release is active
         id: scheduled_release_guard
         if: ${{ github.event_name == 'schedule' }}
@@ -302,18 +306,21 @@ jobs:
           echo "diagnostic_scope=$diagnostic_scope" >> "$GITHUB_OUTPUT"
 
       - name: Validate active shell ref before VM runner work
+        id: shell_ref
         shell: bash
         run: |
           set -euo pipefail
           shell_ref="${{ steps.diagnostic_inputs.outputs.shell_ref }}"
           repo_url="https://github.com/gaofeng21cn/opl-aion-shell.git"
-          if git ls-remote --exit-code "$repo_url" "refs/heads/$shell_ref" >/dev/null 2>&1 ||
-             git ls-remote --exit-code "$repo_url" "refs/tags/$shell_ref" >/dev/null 2>&1 ||
-             git ls-remote --exit-code "$repo_url" "$shell_ref" >/dev/null 2>&1; then
+          shell_sha="$(git ls-remote "$repo_url" "refs/heads/$shell_ref" "refs/tags/$shell_ref" "$shell_ref" | awk 'NR==1 {print $1}')"
+          if [[ "$shell_sha" =~ ^[0-9a-fA-F]{40}$ ]]; then
+            echo "shell_sha=$shell_sha" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           if [[ "$shell_ref" =~ ^[0-9a-fA-F]{7,39}$ ]] &&
-             git ls-remote "$repo_url" | awk '{print $1}' | grep -E "^${shell_ref}" >/dev/null 2>&1; then
+             shell_sha="$(git ls-remote "$repo_url" | awk -v ref="$shell_ref" '$1 ~ "^" ref {print $1; exit}')" &&
+             [[ "$shell_sha" =~ ^[0-9a-fA-F]{40}$ ]]; then
+            echo "shell_sha=$shell_sha" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           if [[ "$shell_ref" =~ ^[0-9a-fA-F]{40}$ ]]; then
@@ -322,11 +329,39 @@ jobs:
             git -C "$tmp_dir" init -q
             git -C "$tmp_dir" remote add origin "$repo_url"
             if git -C "$tmp_dir" fetch --depth=1 origin "$shell_ref" >/dev/null 2>&1; then
+              shell_sha="$(git -C "$tmp_dir" rev-parse FETCH_HEAD)"
+              echo "shell_sha=$shell_sha" >> "$GITHUB_OUTPUT"
               exit 0
             fi
           fi
           echo "::error::opl-aion-shell ref '$shell_ref' does not exist; fix shell_ref before occupying the first-run VM harness."
           exit 1
+
+      - name: Download build artifact cohort manifest
+        if: ${{ inputs.release_artifact_name != '' }}
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ inputs.release_artifact_name }}-cohort
+          run-id: ${{ inputs.release_artifact_run_id || github.run_id }}
+          github-token: ${{ github.token }}
+          path: artifacts/release-cohort
+
+      - name: Reject cross-cohort artifact reuse before VM allocation
+        if: ${{ inputs.release_artifact_name != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${{ inputs.release_tag }}"
+          version="${version#v}"
+          version_args=()
+          if [ -n "$version" ]; then
+            version_args=(--version "$version")
+          fi
+          node --experimental-strip-types scripts/validate-build-artifact-cohort.ts \
+            --manifest artifacts/release-cohort/opl-build-cohort.json \
+            --app-sha "$GITHUB_SHA" \
+            --shell-sha "${{ steps.shell_ref.outputs.shell_sha }}" \
+            "${version_args[@]}"
 
   clean-vm-first-run:
     name: Clean VM first launch

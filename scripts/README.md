@@ -271,7 +271,11 @@ stays in the preflight summary as provenance and remote release verification
 remains the published-asset gate. Stable release workflows pass DMG-only
 same-run artifacts (`macos-build-arm64-dmg` and
 `opl-full-first-install-dmg-<version>-mac-arm64`) into VM gates while retaining
-the complete standard and Full artifacts for publish jobs.
+the complete standard and Full artifacts for publish jobs. Each macOS DMG
+artifact has a sibling `-cohort` artifact containing the exact App SHA, Shell
+SHA, and version. The VM workflow validates that manifest before allocating the
+self-hosted VM and rejects an older DMG paired with newer App or Shell smoke
+contracts.
 Branch-lane evidence runs that should not publish release assets may pass the
 same DMG-only artifact name plus `release_artifact_run_id` to download the
 artifact from the source Actions run through `actions/download-artifact@v8`

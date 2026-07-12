@@ -1,4 +1,5 @@
 name: OPL Desktop Release
+run-name: OPL Desktop Release v${{ inputs.opl_version }}
 
 on:
   workflow_dispatch:
@@ -126,6 +127,41 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: '24'
+
+      - name: Summarize recent release attempts
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api \
+            "repos/$GITHUB_REPOSITORY/actions/workflows/desktop-release.yml/runs?event=workflow_dispatch&per_page=100" \
+            > release-attempt-runs.json
+          VERSION="${{ inputs.opl_version }}" CURRENT_RUN_ID="$GITHUB_RUN_ID" node <<'NODE'
+          const fs = require('node:fs');
+          const runs = JSON.parse(fs.readFileSync('release-attempt-runs.json', 'utf8')).workflow_runs || [];
+          const now = Date.now();
+          const expectedTitle = `OPL Desktop Release v${process.env.VERSION}`;
+          const attempts = runs.filter((run) =>
+            String(run.id) !== process.env.CURRENT_RUN_ID &&
+            run.display_title === expectedTitle &&
+            Number.isFinite(Date.parse(run.created_at || '')) &&
+            Date.parse(run.created_at) >= now - 90 * 60_000 &&
+            Date.parse(run.created_at) <= now
+          );
+          const summary = [
+            '## Release attempt efficiency',
+            '',
+            `- Version: ${process.env.VERSION}`,
+            `- Prior attempts in 90 minutes: ${attempts.length}`,
+            '- Policy: elapsed time and attempt count trigger diagnosis and evidence reuse; they never stop an authorized release.',
+          ];
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${summary.join('\n')}\n`);
+          if (attempts.length >= 3) {
+            console.log(`::warning::${attempts.length} prior release attempts detected in 90 minutes. Continue toward the release goal, but classify the repeated failure and reuse the same cohort before rebuilding.`);
+          }
+          NODE
 
       - name: Run release preflight
         id: release-preflight
