@@ -485,6 +485,11 @@ the actual checkout, managed fallback, developer checkout, and any fallback
 reason. The five Developer Profile capability axes remain supporting status;
 they must not become five peer cards or hide the source controls.
 
+The source selector and safe-maintenance switch are independent. Changing
+maintenance permission must not change the selected Framework or package
+checkout, and changing source must not silently grant repository or runtime
+mutation permission.
+
 ### About
 
 Primary information:

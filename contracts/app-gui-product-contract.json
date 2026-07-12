@@ -3209,7 +3209,8 @@
       "safe_maintenance": {
         "control": "switch",
         "off_value": "external_observe",
-        "on_value": "developer_apply_safe"
+        "on_value": "developer_apply_safe",
+        "independent_from_source_selection": true
       },
       "package_source": {
         "control": "segmented_control_in_package_details",

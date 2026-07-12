@@ -566,6 +566,7 @@ export type AppProductProfile = {
       settings_page: string;
       global_control: string;
       safe_maintenance_control: string;
+      safe_maintenance_independent_from_source_selection: boolean;
       package_source_control: string;
       fallback_policy: string;
       capability_axes: string[];

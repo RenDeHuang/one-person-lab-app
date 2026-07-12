@@ -310,6 +310,7 @@ function assertSettingsProfileShape(profile: AppProductProfile): void {
     developerProfile.settings_page !== 'settings_capabilities' ||
     developerProfile.global_control !== 'managed_automatic_developer_segmented_control' ||
     developerProfile.safe_maintenance_control !== 'switch' ||
+    developerProfile.safe_maintenance_independent_from_source_selection !== true ||
     developerProfile.package_source_control !== 'auto_managed_developer_segmented_control_in_package_details' ||
     developerProfile.fallback_policy !== 'developer_checkout_missing_falls_back_to_managed_with_visible_reason' ||
     developerProfile.hide_machine_status !== true
