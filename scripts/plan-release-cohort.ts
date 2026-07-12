@@ -215,7 +215,6 @@ type ReleaseOperatorPlanIdentity = {
   releaseMode: string;
   releaseIntent: string;
   fullOmissionReason: string;
-  gateReusePlanRef: string;
   includeFullPackage: boolean;
   runVmSmoke: boolean;
   publishDockerWebui: boolean;
@@ -230,7 +229,6 @@ export function buildReleaseOperatorPlanRef(identity: ReleaseOperatorPlanIdentit
     release_mode: identity.releaseMode,
     release_intent: identity.releaseIntent,
     full_omission_reason: identity.fullOmissionReason.trim(),
-    gate_reuse_plan_ref: identity.gateReusePlanRef.trim(),
     include_full_package: identity.includeFullPackage,
     run_vm_smoke: identity.runVmSmoke,
     publish_docker_webui: identity.publishDockerWebui,
@@ -247,7 +245,6 @@ function operatorPlanRef(options: ReleaseCohortPlanOptions, lock: ReleaseCohortL
     releaseMode: options.releaseMode,
     releaseIntent: options.releaseIntent,
     fullOmissionReason: options.fullOmissionReason,
-    gateReusePlanRef: options.gateReusePlanRef,
     includeFullPackage: options.includeFullPackage,
     runVmSmoke: options.runVmSmoke,
     publishDockerWebui: options.publishDockerWebui,

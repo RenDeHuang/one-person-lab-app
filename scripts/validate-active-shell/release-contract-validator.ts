@@ -40,7 +40,7 @@ function validateReleaseExecutionPolicy(acceleration) {
   }
   assertIncludesAll(
     operatorPlan.binds,
-    ['release_intent', 'full_omission_reason', 'gate_reuse_plan_ref', 'app_sha', 'shell_sha', 'framework_sha'],
+    ['release_intent', 'full_omission_reason', 'app_sha', 'shell_sha', 'framework_sha'],
     'Release operator plan binding fields',
   );
   if (

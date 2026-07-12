@@ -1186,7 +1186,6 @@
           "release_mode",
           "release_intent",
           "full_omission_reason",
-          "gate_reuse_plan_ref",
           "include_full_package",
           "run_vm_smoke",
           "publish_docker_webui",

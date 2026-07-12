@@ -425,7 +425,6 @@ function checkReleaseOperatorPlan(options: Options, refs: RefPreflight[] | undef
     releaseMode: options.releaseMode,
     releaseIntent: options.releaseIntent,
     fullOmissionReason: options.fullOmissionReason,
-    gateReusePlanRef: options.gateReusePlanRef,
     includeFullPackage: options.includeFullPackage,
     runVmSmoke: options.runVmSmoke,
     publishDockerWebui: options.publishDockerWebui,
