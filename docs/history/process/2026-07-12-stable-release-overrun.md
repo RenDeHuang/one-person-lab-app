@@ -46,6 +46,9 @@ Process defects amplified both failures:
 8. The 90-minute checkpoint was treated as advisory and did not force an early
    strategy change. It is an efficiency threshold, not permission to abandon an
    authorized release.
+9. The pre-package Home gate covered renderer fixtures but not the packaged VM
+   smoke contract, so canonical package-id drift was found only after a Full DMG
+   had been built.
 
 ## Corrective Actions
 
@@ -63,6 +66,8 @@ Process defects amplified both failures:
 - Qualify the DMG-only Full artifact in a clean VM before public Full upload and
   Homebrew promotion.
 - Keep large VM evidence as an artifact and cap the job-summary preview at 64 KB.
+- Run both host and guest first-run smoke contract tests in the pre-package gate,
+  including canonical package ids and route receipts.
 - Read exact SHAs from Git or cohort manifests; never manually complete SHA text.
 - Preserve the release version as `26.7.12`; calendar rollover during the task
   must not produce a `26.7.13` build.

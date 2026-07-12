@@ -1758,27 +1758,6 @@ jobs:
             fi
             if [ -f artifacts/opl-first-run-vm/tart-smoke-summary.json ]; then
               echo
-              node <<'NODE'
-              const fs = require('node:fs');
-              const summaryPath = 'artifacts/opl-first-run-vm/tart-smoke-summary.json';
-              const maxBytes = 64 * 1024;
-              const compact = (value, depth = 0) => {
-                if (typeof value === 'string') {
-                  return value.length > 2000 ? `${value.slice(0, 2000)}...[truncated]` : value;
-                }
-                if (value === null || typeof value !== 'object') return value;
-                if (depth >= 6) return '[max depth reached]';
-                if (Array.isArray(value)) return value.slice(0, 20).map((item) => compact(item, depth + 1));
-                return Object.fromEntries(
-                  Object.entries(value).slice(0, 80).map(([key, item]) => [key, compact(item, depth + 1)]),
-                );
-              };
-              const parsed = JSON.parse(fs.readFileSync(summaryPath, 'utf8'));
-              let rendered = JSON.stringify(compact(parsed), null, 2);
-              if (Buffer.byteLength(rendered, 'utf8') > maxBytes) {
-                rendered = `${Buffer.from(rendered, 'utf8').subarray(0, maxBytes).toString('utf8')}\n...[summary truncated at ${maxBytes} bytes]`;
-              }
-              process.stdout.write(`\n\`\`\`text\n${rendered}\n\`\`\`\n`);
-              NODE
+              node -e 'const fs=require("node:fs");const data=fs.readFileSync(process.argv[1]);const max=64*1024;process.stdout.write("```text\n"+data.subarray(0,max).toString("utf8")+(data.length>max?"\n...[summary truncated at 65536 bytes]":"")+"\n```\n")' artifacts/opl-first-run-vm/tart-smoke-summary.json
             fi
           } >> "$GITHUB_STEP_SUMMARY"

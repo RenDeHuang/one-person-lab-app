@@ -196,7 +196,7 @@ test("Full build verifies managed carrier and Home readiness before expensive pa
   assert.ok(carrierGate >= 0, "missing managed Full carrier bootstrap gate");
   assert.match(
     fullWorkflow.slice(carrierGate, packageBuild),
-    /bun vitest run[\s\S]*tests\/unit\/opl-runtime\/oplRuntimeBridge\.test\.ts[\s\S]*tests\/unit\/guid\/oplHomeAssistants\.test\.ts[\s\S]*VITEST_INCLUDE_DOM=1 bun vitest run --project dom[\s\S]*tests\/unit\/guid\/HomeStarters\.dom\.test\.tsx[\s\S]*tests\/unit\/guid\/useGuidSend\.oplWhitelist\.dom\.test\.tsx/,
+    /bun vitest run[\s\S]*tests\/unit\/opl-runtime\/oplRuntimeBridge\.test\.ts[\s\S]*tests\/unit\/opl-runtime\/firstRunVmSmoke\.test\.ts[\s\S]*tests\/unit\/opl-runtime\/firstRunVmSmokeScripts\.test\.ts[\s\S]*tests\/unit\/guid\/oplHomeAssistants\.test\.ts[\s\S]*VITEST_INCLUDE_DOM=1 bun vitest run --project dom[\s\S]*tests\/unit\/guid\/HomeStarters\.dom\.test\.tsx[\s\S]*tests\/unit\/guid\/useGuidSend\.oplWhitelist\.dom\.test\.tsx/,
   );
   assert.ok(carrierGate < packageBuild, "managed carrier gate must run before Full package build");
 });
@@ -227,6 +227,6 @@ test("VM job summary bounds large smoke diagnostics instead of exceeding GitHub 
     firstRunVmWorkflow,
     /cat artifacts\/opl-first-run-vm\/tart-smoke-summary\.json/,
   );
-  assert.match(firstRunVmWorkflow, /const maxBytes = 64 \* 1024/);
-  assert.match(firstRunVmWorkflow, /summary truncated at \$\{maxBytes\} bytes/);
+  assert.match(firstRunVmWorkflow, /const max=64\*1024/);
+  assert.match(firstRunVmWorkflow, /summary truncated at 65536 bytes/);
 });
