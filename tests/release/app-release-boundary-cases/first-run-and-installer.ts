@@ -99,6 +99,19 @@ test('reusable build validates the Shell consumer after syncing the App product 
   );
 });
 
+test('reusable release-boundary job checks out its OPL Flow authority source', () => {
+  const workflow = fs.readFileSync(path.join(appRoot, '.github/workflows/_build-reusable.yml'), 'utf8');
+  const jobStart = workflow.indexOf('  release-boundary:');
+  const jobEnd = workflow.indexOf('\n  active-shell-tests:', jobStart);
+  const job = workflow.slice(jobStart, jobEnd);
+
+  assert.ok(jobStart >= 0 && jobEnd > jobStart, 'missing reusable release-boundary job');
+  assert.match(job, /name: Checkout OPL Flow policy source[\s\S]*repository: gaofeng21cn\/opl-flow/);
+  assert.match(job, /ref: 5ae0625f5240a13fa820b4c92362f1d06bdce857[\s\S]*path: opl-flow/);
+  assert.match(job, /OPL_FLOW_WORKFLOW_POLICY:.*opl-flow\/contracts\/workflow-policy\.json/);
+  assert.match(job, /OPL_FULL_OPL_FLOW_ROOT:.*opl-flow/);
+});
+
 test('one-shot App installer defaults to the shared base plus optional GUI without Agents', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-installer-args-'));
   const fakeCurl = path.join(tempRoot, 'curl');

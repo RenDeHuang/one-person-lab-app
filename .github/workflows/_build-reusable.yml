@@ -86,13 +86,6 @@ jobs:
         with:
           ref: ${{ inputs.ref }}
 
-      - name: Checkout OPL Flow policy source
-        uses: actions/checkout@v6
-        with:
-          repository: gaofeng21cn/opl-flow
-          ref: 5ae0625f5240a13fa820b4c92362f1d06bdce857
-          path: opl-flow
-
       - name: Setup active shell dependencies
         uses: ./.github/actions/setup-active-shell-deps
         with:
@@ -149,6 +142,13 @@ jobs:
         uses: actions/checkout@v6
         with:
           ref: ${{ inputs.ref }}
+
+      - name: Checkout OPL Flow policy source
+        uses: actions/checkout@v6
+        with:
+          repository: gaofeng21cn/opl-flow
+          ref: 5ae0625f5240a13fa820b4c92362f1d06bdce857
+          path: opl-flow
 
       - name: Setup active shell
         uses: ./.github/actions/setup-active-shell-deps
