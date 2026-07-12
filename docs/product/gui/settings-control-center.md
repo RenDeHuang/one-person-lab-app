@@ -236,10 +236,13 @@ Restore button.
 The OPL App session context is generated from
 `gui.professional_agent_packages[].session_routing_summary_i18n`, so MAS, MAG,
 RCA, OBF, OMA, and future adopted packages update through the product profile
-instead of a second handwritten prompt. Automatic is the default. A custom
-override is local to the App and takes effect only for newly created Codex
-conversations. User and repository `AGENTS.md` remain independent Codex-owned
-instruction layers.
+instead of a second handwritten prompt. The generated base is read-only; users
+may append local instructions, and Restore Default clears only that appendix.
+The effective result takes effect only for newly created Codex conversations.
+User and repository `AGENTS.md` remain independent Codex-owned instruction
+layers. The system-level editor separately offers Restore OPL Flow Default,
+which reads the canonical `templates/AGENTS.md` from the selected current OPL
+Flow package and applies it through the same SHA-guarded Framework write path.
 
 Capability package sync is a single-click Maintenance action. The Shell must
 call `settings_sync_capabilities` through `opl app action execute` immediately,

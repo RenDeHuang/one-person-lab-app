@@ -2215,7 +2215,7 @@
         "reply waiting time, idle-assistant release, and hardware acceleration in a named performance and background activity group",
         "tray and close-window behavior",
         "editable system-level AGENTS.md with current-path and stale-write protection",
-        "editable OPL App session context with automatic and custom modes",
+        "generated OPL App session context with editable additional instructions and restore-default action",
         "Light, Dark, and Codex theme choices under the themes anchor",
         "restart-required notice next to the affected setting when applicable"
       ],

@@ -429,7 +429,11 @@ function assertCodexOplFlowContext(profile: AppProductProfile): void {
     profile.codex.opl_app_session_context?.owner !== 'one-person-lab-app' ||
     profile.codex.opl_app_session_context.source !== 'gui.professional_agent_packages.session_routing_summary_i18n' ||
     profile.codex.opl_app_session_context.delivery !== 'new_codex_conversation_preset_context' ||
-    profile.codex.opl_app_session_context.customization.default_mode !== 'automatic'
+    profile.codex.opl_app_session_context.customization.additional_instructions_key !==
+      'codex.oplAppSessionContextAdditional' ||
+    profile.codex.opl_app_session_context.customization.base_context_edit_policy !== 'generated_read_only' ||
+    profile.codex.opl_app_session_context.customization.user_edit_policy !== 'append_additional_instructions_only' ||
+    profile.codex.opl_app_session_context.customization.reset_behavior !== 'clear_additional_instructions'
   ) {
     throw new Error('App product profile must own the editable OPL App session context');
   }

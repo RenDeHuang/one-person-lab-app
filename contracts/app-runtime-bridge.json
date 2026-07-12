@@ -186,7 +186,10 @@
         "aion_display_role": "Preferences instructions and session context editor",
         "workbench_display_role": "Preferences instructions and session context editor",
         "action_owner_boundary": "Framework safely reads and writes the user-owned Codex AGENTS.md; App profile and App-local settings own new-conversation context generation and customization",
-        "allowed_action_refs": ["codex_user_instructions_set"],
+        "allowed_action_refs": [
+          "codex_user_instructions_set",
+          "codex_user_instructions_restore_opl_flow_default"
+        ],
         "sensitive_payload_transport": "stdin_only_not_command_line_or_logs",
         "required_projection_fields": {
           "app_state.codex_personalization.user_agents": [
@@ -196,12 +199,20 @@
             "sha256",
             "size_bytes",
             "max_editable_bytes"
+          ],
+          "app_state.codex_personalization.opl_flow_default_user_agents": [
+            "status",
+            "content",
+            "sha256",
+            "source_path",
+            "package_version"
           ]
         },
         "forbidden_overclaim": [
           "opl_flow_owns_per_session_app_context",
           "shell_direct_user_agents_file_write",
           "app_context_replaces_user_or_repository_agents",
+          "user_additional_context_replaces_generated_agent_routes",
           "save_affects_existing_conversations"
         ]
       }

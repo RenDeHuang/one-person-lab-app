@@ -408,10 +408,10 @@ export type AppProductProfile = {
       update_policy: string;
       user_agents_policy: string;
       customization: {
-        mode_key: string;
-        custom_content_key: string;
-        modes: string[];
-        default_mode: string;
+        additional_instructions_key: string;
+        base_context_edit_policy: string;
+        user_edit_policy: string;
+        reset_behavior: string;
         effect: string;
       };
     };
