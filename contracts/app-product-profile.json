@@ -4305,9 +4305,9 @@
         "direct_skill_semantics_required": true
       }
     ],
-    "class": "companion_tools",
-    "codex_surface_ref": "contracts/app-install-exposure-policy.json#exposure_classes.codex_surface",
-    "capability_packages_ref": "contracts/app-install-exposure-policy.json#agent_installation_contract.managed_agent_pack_distribution"
+    "class": "opl_base_integrations",
+    "opl_packages_projection_ref": "contracts/app-install-exposure-policy.json#exposure_classes.codex_surface",
+    "opl_packages_lifecycle_ref": "contracts/app-install-exposure-policy.json#agent_installation_contract.managed_agent_pack_distribution"
   },
   "boundary": {
     "app_owns": [
@@ -4389,24 +4389,52 @@
   },
   "install_update_taxonomy": {
     "source_refs": [
-      "contracts/app-release-channel.json#managed_update_plane.taxonomy",
-      "contracts/app-install-exposure-policy.json"
+      "contracts/app-release-channel.json#managed_update_plane.software_lifecycle",
+      "contracts/app-install-exposure-policy.json#software_lifecycle"
     ],
-    "user_semantic_classes": [
-      "installation_carrier",
+    "public_software_objects": [
+      "opl_base",
+      "opl_app",
+      "opl_packages"
+    ],
+    "managed_update_component_keys": [
+      "opl_base",
+      "opl_app",
+      "opl_packages"
+    ],
+    "ordinary_component_picker_allowed": false,
+    "transaction_internal_state_ids": [
       "runtime_substrate",
       "capability_packages",
       "companion_tools",
       "codex_surface",
-      "workflow_profile",
-      "user_data_artifacts"
+      "workflow_profile"
     ],
-    "ordinary_ui_must_not_use_legacy_names": [
+    "ordinary_ui_must_not_expose_as_peer_objects": [
       "app_binary",
       "runtime_toolchain",
       "agent_package_channel",
       "capability_exposure",
-      "codex_cli_fallback"
-    ]
+      "codex_cli_fallback",
+      "runtime_substrate",
+      "capability_packages",
+      "companion_tools",
+      "codex_surface",
+      "workflow_profile"
+    ],
+    "internal_detail_fields": {
+      "opl_base": [
+        "dependency_status",
+        "integration_status"
+      ],
+      "opl_app": [
+        "host_update_route",
+        "host_executor_required"
+      ],
+      "opl_packages": [
+        "projection_status",
+        "profile_migration_status"
+      ]
+    }
   }
 }

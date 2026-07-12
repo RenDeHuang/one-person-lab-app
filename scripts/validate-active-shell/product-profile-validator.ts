@@ -320,41 +320,60 @@ function validateProductProfileCodexSkills(profile) {
 
 function validateInstallUpdateTaxonomy(profile) {
   assertDeepEqualJson(
-    profile.install_update_taxonomy?.user_semantic_classes,
-    [
-      'installation_carrier',
-      'runtime_substrate',
-      'capability_packages',
-      'companion_tools',
-      'codex_surface',
-      'workflow_profile',
-      'user_data_artifacts',
-    ],
-    'Product profile install/update taxonomy classes',
+    profile.install_update_taxonomy?.public_software_objects,
+    ['opl_base', 'opl_app', 'opl_packages'],
+    'Product profile public software objects',
   );
   assertDeepEqualJson(
-    profile.install_update_taxonomy?.ordinary_ui_must_not_use_legacy_names,
+    profile.install_update_taxonomy?.managed_update_component_keys,
+    ['opl_base', 'opl_app', 'opl_packages'],
+    'Product profile managed update component keys',
+  );
+  assertDeepEqualJson(
+    profile.install_update_taxonomy?.transaction_internal_state_ids,
+    ['runtime_substrate', 'capability_packages', 'companion_tools', 'codex_surface', 'workflow_profile'],
+    'Product profile transaction internal state ids',
+  );
+  assertDeepEqualJson(
+    profile.install_update_taxonomy?.ordinary_ui_must_not_expose_as_peer_objects,
     [
       'app_binary',
       'runtime_toolchain',
       'agent_package_channel',
       'capability_exposure',
       'codex_cli_fallback',
+      'runtime_substrate',
+      'capability_packages',
+      'companion_tools',
+      'codex_surface',
+      'workflow_profile',
     ],
-    'Product profile install/update taxonomy forbidden legacy UI names',
+    'Product profile forbidden peer software objects',
   );
+  assertDeepEqualJson(
+    profile.install_update_taxonomy?.internal_detail_fields,
+    {
+      opl_base: ['dependency_status', 'integration_status'],
+      opl_app: ['host_update_route', 'host_executor_required'],
+      opl_packages: ['projection_status', 'profile_migration_status'],
+    },
+    'Product profile managed update internal detail fields',
+  );
+  if (profile.install_update_taxonomy?.ordinary_component_picker_allowed !== false) {
+    throw new Error('Product profile ordinary component picker must be disabled');
+  }
   assertDeepEqualJson(
     profile.companion_payloads?.tools,
     ['officecli', 'mineru_open_api'],
     'Product profile companion tools',
   );
   if (
-    profile.companion_payloads?.class !== 'companion_tools' ||
-    profile.companion_payloads?.codex_surface_ref !== 'contracts/app-install-exposure-policy.json#exposure_classes.codex_surface' ||
-    profile.companion_payloads?.capability_packages_ref !==
+    profile.companion_payloads?.class !== 'opl_base_integrations' ||
+    profile.companion_payloads?.opl_packages_projection_ref !== 'contracts/app-install-exposure-policy.json#exposure_classes.codex_surface' ||
+    profile.companion_payloads?.opl_packages_lifecycle_ref !==
       'contracts/app-install-exposure-policy.json#agent_installation_contract.managed_agent_pack_distribution'
   ) {
-    throw new Error('Product profile companion payloads must reference companion tools, Codex surface, and capability packages taxonomy');
+    throw new Error('Product profile payloads must map Base integrations and Packages projection/lifecycle without peer updater classes');
   }
 }
 

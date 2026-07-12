@@ -1,8 +1,7 @@
 import { assertDeepEqualJson, assertIncludesAll } from './assertions.ts';
-import { managedOplPackageIds, managedOplPackageKinds, oplFlowPackagePolicy } from './managed-update-plane-policy.ts';
 import { assertExpectedFields } from '../value-assertions.ts';
 
-export function validateReleaseHomebrewDistribution(releaseChannel, managedUpdatePlane) {
+export function validateReleaseHomebrewDistribution(releaseChannel) {
   const homebrew = releaseChannel.homebrew_tap_distribution;
   if (
     homebrew?.owner !== 'one-person-lab-app' ||
@@ -14,10 +13,29 @@ export function validateReleaseHomebrewDistribution(releaseChannel, managedUpdat
   }
   assertDeepEqualJson(homebrew.formulae, [], 'Release channel Homebrew formulae');
   assertDeepEqualJson(homebrew.casks, ['one-person-lab', 'one-person-lab-full'], 'Release channel Homebrew casks');
+  assertDeepEqualJson(homebrew.carrier_adapter_semantics, {
+    formula: {
+      software_object: 'opl_base',
+      formula: 'opl',
+      lifecycle_owner: 'one-person-lab',
+      app_tap_manages_formula: false,
+      opl_packages_allowed: false,
+    },
+    cask: {
+      software_object: 'opl_app',
+      lifecycle_owner: 'one-person-lab-app',
+      base_or_packages_mutation_allowed: false,
+    },
+    equivalent_direct_carriers: {
+      opl_base: 'framework_installer',
+      opl_app: 'signed_installer_or_dmg',
+    },
+    carrier_choice_changes_lifecycle_owner: false,
+  }, 'Release channel Homebrew carrier adapter semantics');
   validateReleaseHomebrewCaskInstallPolicy(homebrew);
   validateReleaseHomebrewTapUpdatePolicy(homebrew);
   validateReleaseHomebrewVmGate(releaseChannel);
-  validateReleaseHomebrewAgentPackPolicy(homebrew, managedUpdatePlane);
+  validateReleaseHomebrewOplPackagesBoundary(homebrew);
   validateReleaseHomebrewCodexTemporalPolicy(homebrew);
 }
 
@@ -135,79 +153,17 @@ function validateReleaseHomebrewVmGate(releaseChannel) {
   );
 }
 
-function validateReleaseHomebrewAgentPackPolicy(homebrew, managedUpdatePlane) {
-  const agentPack = homebrew.agent_pack_policy;
-  assertExpectedFields(
-    [
-      { actual: agentPack?.package_kind, expected: 'app_cli_managed_opl_packages' },
-      { actual: agentPack?.semantic_authority, expected: 'one-person-lab_and_domain_repositories' },
-      { actual: agentPack?.homebrew_role, expected: 'not_a_distribution_target' },
-      { actual: agentPack?.activation_owner, expected: 'app_cli_managed_background_maintenance' },
-      { actual: agentPack?.default_update_mode, expected: 'automatic_apply_for_clean_managed_roots' },
-      { actual: agentPack?.default_manifest_tag, expected: 'latest' },
-      { actual: agentPack?.distribution_format, expected: 'ghcr_oci_artifact' },
-      { actual: agentPack?.ordinary_user_channel_model, expected: 'rolling_latest_only' },
-      { actual: agentPack?.publication_cadence, expected: 'daily_when_source_digest_changes' },
-      { actual: agentPack?.digest_lock_required, expected: true },
-      { actual: agentPack?.stable_or_nightly_user_channels_allowed, expected: false },
-      { actual: agentPack?.homebrew_distribution_allowed, expected: false },
-      { actual: agentPack?.homebrew_formula_allowed, expected: false },
-      { actual: agentPack?.must_not_write_user_codex_state, expected: true },
-      { actual: agentPack?.must_not_define_agent_semantics, expected: true },
-      {
-        actual: homebrew.full_first_install_policy,
-        expected: 'stable_full_cask_or_github_release_first_install_asset; never standard updater metadata',
-      },
-    ],
-    'Release channel Homebrew agent-pack policy must keep agent packs outside Homebrew distribution',
-  );
-  assertExpectedFields(
-    [
-      { actual: agentPack?.managed_update_plane, expected: 'capability_packages' },
-      { actual: agentPack?.kernel, expected: 'opl_managed_updater_kernel' },
-      { actual: agentPack?.source_role, expected: 'ordinary_user_non_development_rolling_latest_oci_agent_package_source' },
-      { actual: agentPack?.registry, expected: 'ghcr.io' },
-      { actual: agentPack?.adapter, expected: 'capability_packages_adapter' },
-      { actual: agentPack?.policy, expected: 'ordinary_user_non_development_rolling_latest_auto_apply' },
-      {
-        actual: agentPack?.post_apply,
-        expected: 'sync_plugin_registry_plugin_packaged_skills_generated_surfaces_and_codex_surface_readiness',
-      },
-      {
-        actual: agentPack?.developer_checkout_override_policy,
-        expected: 'explicit_developer_profile_source_channel_only',
-      },
-    ],
-    'Release channel OPL Packages policy must bind GHCR OPL Packages to the managed update plane',
-  );
-  assertDeepEqualJson(
-    agentPack?.managed_agent_ids,
-    ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-meta-agent', 'opl-bookforge', 'mas-scholar-skills'],
-    'Release channel managed update agent ids',
-  );
-  assertDeepEqualJson(agentPack?.package_ids, managedOplPackageIds, 'Release channel managed OPL package ids');
-  assertDeepEqualJson(agentPack?.package_kinds, managedOplPackageKinds, 'Release channel managed OPL package kinds');
-  assertDeepEqualJson(agentPack?.opl_flow_package, oplFlowPackagePolicy, 'Release channel OPL Flow package policy');
-  assertIncludesAll(
-    agentPack?.forbidden_silent_overwrite_scope,
-    managedUpdatePlane.forbidden_silent_overwrite_scope,
-    'Release channel agent-pack forbidden silent overwrite scope',
-  );
-  assertIncludesAll(
-    agentPack?.post_update_sync_required,
-    ['codex_plugin_registry', 'plugin_packaged_skills', 'opl_generated_plugin_surface'],
-    'Release channel Homebrew agent-pack post-update sync requirements',
-  );
-  assertIncludesAll(
-    agentPack?.activation_commands,
-    ['opl connect reconcile-modules', 'opl connect sync-skills'],
-    'Release channel Homebrew agent-pack activation commands',
-  );
-  assertDeepEqualJson(
-    agentPack?.forbidden_formulae,
-    ['one-person-lab-modules', 'one-person-lab-modules-nightly'],
-    'Release channel agent-pack forbidden formulae',
-  );
+function validateReleaseHomebrewOplPackagesBoundary(homebrew) {
+  assertDeepEqualJson(homebrew.opl_packages_boundary, {
+    software_object: 'opl_packages',
+    lifecycle_owner: 'one-person-lab',
+    app_role: 'status_action_and_receipt_projection_only',
+    homebrew_role: 'not_a_distribution_target',
+    homebrew_distribution_allowed: false,
+    homebrew_formula_allowed: false,
+    canonical_lifecycle: 'opl packages',
+    forbidden_formulae: ['one-person-lab-modules', 'one-person-lab-modules-nightly'],
+  }, 'Release channel Homebrew OPL Packages boundary');
 }
 
 function validateReleaseHomebrewCodexTemporalPolicy(homebrew) {

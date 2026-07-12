@@ -5,11 +5,9 @@ import { readGitHead } from './git.ts';
 import { run } from './process.ts';
 
 const REQUIRED_MANAGED_UPDATE_COMPONENTS = [
-  'installation_carrier',
-  'runtime_substrate',
-  'capability_packages',
-  'codex_surface',
-  'companion_tools',
+  'opl_base',
+  'opl_app',
+  'opl_packages',
 ] as const;
 
 function parseJsonCommand(command: string, args: string[], env: NodeJS.ProcessEnv): unknown {
@@ -93,14 +91,21 @@ function assertManagedUpdateProbe(payload: unknown): Record<string, unknown> {
     );
   }
 
-  const componentIds = new Set(
-    arrayValue(managedUpdate.components, 'managed_update.components')
-      .map((component) => objectValue(component, 'managed_update.components[]').component_id)
-      .filter((componentId): componentId is string => typeof componentId === 'string'),
-  );
+  const components = objectValue(managedUpdate.components, 'managed_update.components');
+  const componentIds = new Set(Object.keys(components));
   const missing = REQUIRED_MANAGED_UPDATE_COMPONENTS.filter((componentId) => !componentIds.has(componentId));
   if (missing.length > 0) {
     throw new Error(`Full runtime managed update probe is missing component(s): ${missing.join(', ')}.`);
+  }
+  const unexpected = [...componentIds].filter(
+    (componentId) => !REQUIRED_MANAGED_UPDATE_COMPONENTS.includes(componentId as typeof REQUIRED_MANAGED_UPDATE_COMPONENTS[number]),
+  );
+  if (unexpected.length > 0) {
+    throw new Error(`Full runtime managed update probe has unexpected public component(s): ${unexpected.join(', ')}.`);
+  }
+  const appComponent = objectValue(components.opl_app, 'managed_update.components.opl_app');
+  if (typeof appComponent.host_update_route !== 'string' || typeof appComponent.host_executor_required !== 'boolean') {
+    throw new Error('Full runtime OPL App update projection must include host_update_route and host_executor_required.');
   }
   return managedUpdate;
 }

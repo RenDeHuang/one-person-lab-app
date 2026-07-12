@@ -186,7 +186,7 @@ jobs:
             fail('Homebrew tap updates must not read draft GitHub Releases.');
           }
           if (packageKind !== 'app_standard' && packageKind !== 'app_full_first_install') {
-            fail('Homebrew tap updates support app_standard and app_full_first_install only; agent packs are App/CLI-managed.');
+            fail('Homebrew tap updates support app_standard and app_full_first_install only; OPL Packages are Framework-managed.');
           }
           if (packageKind === 'app_full_first_install' && channel !== 'stable') {
             fail('Full first-install Homebrew cask updates must stay on the stable channel.');
@@ -226,7 +226,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ "$OPL_HOMEBREW_PACKAGE_KIND" != "app_standard" ] && [ "$OPL_HOMEBREW_PACKAGE_KIND" != "app_full_first_install" ]; then
-            echo "::error::Homebrew tap updates are App cask-only; agent packs are App/CLI-managed."
+            echo "::error::Homebrew tap updates are App cask-only; OPL Packages are Framework-managed."
             exit 1
           fi
           target=()

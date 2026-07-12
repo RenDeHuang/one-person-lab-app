@@ -21,36 +21,30 @@ The App repository owns desktop packaging, release assets, updater metadata, rel
 
 | Theme | Current owner |
 | --- | --- |
-| Release channel policy, standard/Full separation, seven-layer install/update taxonomy, updater metadata, release evidence requirements | `contracts/app-release-channel.json` |
+| Release channel policy, standard/Full separation, three-object software lifecycle, updater metadata, release evidence requirements | `contracts/app-release-channel.json` |
 | Release workflow shape and publish/promote sequencing | `.github/workflows/desktop-release*.yml`, `.github/workflows/homebrew-tap-update.yml`, release scripts |
 | Release evidence classification and boundary validation | `scripts/validate-release-boundary.ts`, `scripts/validate-release.ts`, release-boundary tests |
 | Full payload and size budgets | `contracts/app-release-channel.json#full_first_install.size_budget`, `contracts/app-release-channel.json#full_first_install.opl_runtime_bundle_consumer`, Full manifest `opl_runtime_bundle_consumer`, `scripts/verify-remote-release-assets.ts`, `npm run release:full:size`, `scripts/analyze-full-package-size.ts`, and `scripts/release-size-reporting.ts` |
 | App/root shell boundary | `contracts/app-shell-adapter.json`, `scripts/app-root-boundary.ts`, `scripts/validate-active-shell.ts` |
 | Install exposure and Agent Package visibility | `contracts/app-install-exposure-policy.json`, `npm run validate:agent-installation` |
-| OPL Runtime Payload / Fabric and OPL Packages managed execution | OPL Framework `opl update status/check/plan/apply/repair/rollback --json` runner outputs |
-| OPL Framework runtime artifact gate | `contracts/app-release-channel.json#runtime_substrate_updater.framework_artifact_gate`, Framework artifact channel/readback/checksum/rollback receipts |
+| OPL Base and OPL Packages managed execution | OPL Framework `opl update status/check/plan --json`, canonical `opl packages`, and lifecycle receipts |
+| OPL Base artifact gate | `contracts/app-release-channel.json#managed_update_plane.software_lifecycle.objects.opl_base`, Framework artifact channel/readback/checksum/rollback receipts |
 | Release history and retired workflow no-resurrection notes | `docs/history/process/` and `docs/history/process/retired-surface-provenance.md` |
 
 ## Install And Update Taxonomy
 
-Release docs and user docs use seven user-facing layers. Contract/readback ids
-may stay machine-readable, but they must not become the primary user taxonomy.
+Release docs and user docs expose exactly three software objects. Framework
+dependency and projection details remain nested status, never peer updaters.
 
-| Layer | User-facing meaning | Update boundary |
+| Object | User-facing meaning | Lifecycle boundary |
 | --- | --- | --- |
-| Installation Carrier | The host/container installation carrier: macOS App bundle, Docker/WebUI image, or Linux package carrier. | macOS uses standard stable/nightly updater and Homebrew cohorts. Docker/WebUI and Linux carrier updates stay host-route: carrier status, host update route, `host_executor_required` or `manual_required`, and mounted data/projects preservation proof. Local and optional remote image digests are status readbacks only; they do not prove release-ready/current/latest. Linux package carriers expose read-only host package-manager/package metadata fields and route through the host package manager or a documented host executor; OPL does not ship a privileged Linux host executor until an explicit operator opt-in policy exists. |
-| OPL Runtime Payload / Fabric | The headless OPL base needed before any OPL Package can run. User-facing grouping is Agent Execution Core (Codex executor, Temporal task runner, OPL Framework runtime), Environment Materializer (managed language runtimes, package/env resolvers, env cache, isolated prefixes, and receipts), and OPL System Bridge (native helper only where platform boundaries require it). | Every channel installs the same `opl-framework` identity. Homebrew uses Formula `opl`; headless installs use the Framework installer; DMG/direct first installs the App carrier and then runs `opl-install.sh --headless --skip-modules` against `~/.opl/one-person-lab`. Before Formula publication, Cask installs may use the same managed root with an explicit transition receipt; once Formula exists there is no fallback. Exactly one compatible base may be active. |
-| OPL Packages | MAS/MAG/RCA/OMA/BookForge/MAS Scholar Skills and OPL Flow packages. Domain agents use `domain_agent_package`; MAS Scholar Skills uses `framework_capability_package`; OPL Flow uses `workflow_plugin_package`. | Ordinary managed packages use the shared OPL Packages lifecycle with one rolling `latest` pointer when release-published: daily CI promotes only gated package candidates to `latest`, while immutable version tags plus resolved OCI digests are the installed truth. Background maintenance may auto-apply only clean managed package updates and Codex Surface sync through Framework receipts; dirty checkouts, developer checkouts, locks, verification failures, permission changes, and manual-required states are not overwritten. Repair/rollback/destructive changes require explicit user or release-owner action. |
-| Companion Tools | OfficeCLI, MinerU, PDF/UI helpers, cron, and similar workflow helpers. Superpowers is not packaged. | Maintained as helper payloads/skills, not domain-authority or Installation Carrier assets. |
-| Codex Surface | Codex plugin registry, plugin-packaged skills, generated OMA/BookForge surfaces, post-apply sync, readiness, and reload guidance. | A visibility/readiness projection over installed Codex plugin payloads. OPL Flow reaches this surface through its standard OPL Package entry, not through a separate updater. |
-| Workflow Profile | `AGENTS.md`, `TASTE.md`, prompts, and other Codex profile material. | Profile sync must not silently overwrite existing `AGENTS.md` or `TASTE.md`; existing profiles route through a Codex semantic merge packet. |
-| User Data/Artifacts | Workspaces, conversations, generated deliverables, logs, caches, receipts, and archive/restore state. | Never a silent updater target; destructive cleanup requires inventory, archive/restore proof, and explicit confirmation. |
+| OPL Base | Headless Framework/CLI/runtime prerequisite. | Framework owns mutation. Formula `opl` and `opl-install.sh --headless --skip-modules` are carrier adapters for the same identity. The App may bootstrap a missing Base and show `dependency_status` / `integration_status`, but cannot mutate Base itself. |
+| OPL App | GUI and control plane. | App owns its binary. Cask and signed installer/DMG are carrier adapters; standard updater or host route supplies `host_update_route` and `host_executor_required`. |
+| OPL Packages | MAS/MAG/RCA/OMA/BookForge/MAS Scholar Skills/OPL Flow capability packages. | Framework `opl packages` owns install/update/repair/uninstall. Codex visibility is `projection_status`; profile semantic merge is `profile_migration_status`. Homebrew and App do not mutate Packages. |
 
-Full first-install assets are preloaded payloads for clean machines. They can
-carry OPL Runtime Payload / Fabric, OPL Packages, Companion Tools, Codex Surface
-seeds, and Workflow Profile material so first launch can reach Core readiness,
-but Full is not a long-term update channel and must never be selected by
-standard updater metadata.
+Full first-install assets may seed App, Base, and Package payload bytes for a
+clean machine, but they do not change lifecycle ownership and are not a
+long-term update channel. Standard updater metadata targets OPL App only.
 
 ## Release Lanes
 
@@ -62,7 +56,7 @@ standard updater metadata.
 | Stable promotion | Human release-owner promotion from candidate to stable/latest. | Candidate record with `status=ready_to_promote`, release readiness summary, same-cohort evidence, promote workflow output. |
 | Homebrew | Formula `opl` installs the headless OPL base; standard/nightly/Full Casks install the optional App GUI and depend on the Formula. | Framework Formula manifest/readback, published App assets, tap update output, compatibility handshake receipt, single-active-core readback, and Homebrew VM smoke where required. Framework owns base/Formula release truth; App owns App/Cask release truth. |
 | WebUI/GHCR | App-owned preheated Docker/WebUI runtime image for browser-first Linux/container deployment. It is not the desktop App GUI shell install path and is not an OPL Packages member. | OCI source label, package access, publish output, image manifest/volume boundary, image smoke/evidence artifacts. |
-| Managed maintenance | Framework-runner maintenance for OPL Runtime Payload / Fabric, OPL Packages, Companion Tools, and Codex Surface readiness. | OPL update runner receipts, lock/runner status, Framework artifact channel/readback/checksum/rollback evidence, repair/rollback status, post-apply sync status. |
+| Managed maintenance | Framework lifecycle for OPL Base and OPL Packages; App self-update remains App/carrier-owned. | Three-object status, Framework receipts, Base dependency/integration detail, Packages projection/profile-migration detail, and App host-route readback. |
 
 Standard macOS DMGs use electron-builder-supported `ULFO` / LZFSE compression
 by default. Current electron-builder 26.8.1 does not accept `ULMO` in
@@ -97,7 +91,7 @@ maintenance receipts, Codex configuration, logs, cache, and managed runtime
 state belong under the mounted `/data`; project files belong under `/projects`.
 Image replacement updates the WebUI/container entry layer, while OPL Framework
 owns managed reconciliation and module/toolchain updates inside `/data`.
-The OPL Framework runtime artifact is a release gate under OPL Runtime Payload / Fabric:
+The OPL Framework runtime artifact is a release gate under OPL Base:
 the candidate must carry Framework artifact channel readback, artifact ref
 readback, sha256 checksum evidence, and a rollback ref/receipt. The App consumes
 those refs and checksums only. This gate does not authorize the App or Framework
@@ -600,10 +594,9 @@ The standard updater follows Electron's background-download plus visible restart
 
 The current macOS install path is App-managed local authorization: the ZIP must contain the expected `One Person Lab.app` bundle, the installer replaces the local App bundle, clears quarantine, records `codesign` / `spctl` diagnostics, and relaunches the App. The active-shell gate requires both the local authorized installer path and the post-restart `quit-and-install` / `install-not-applied` diagnostics so a release cannot regress to a download-only success claim.
 
-The standard updater updates only the macOS App carrier variant. It does not update Runtime
-Payload / Substrate, OPL Packages, Companion Tools, Codex Surface, Workflow Profile,
-Developer Profile checkout sources, WebUI images, Homebrew/system tools, global
-Codex, user artifacts, or domain readiness.
+The standard updater updates OPL App only. It does not mutate OPL Base, OPL
+Packages, developer checkouts, WebUI images, Homebrew Formula/global tools,
+user artifacts, or domain readiness.
 
 Intelligence Enhancement is the exception to the old mental split of "App updated
 but OPL Flow may be stale": the action path treats OPL Flow as the standard OPL
@@ -622,12 +615,15 @@ opl update check --json
 opl update plan --json
 ```
 
-Controlled execution stays in Framework runner outputs:
+OPL Base bootstrap and OPL Packages execution use owner routes rather than a
+public component selector:
 
 ```bash
-opl update apply --component <component_id> --json
-opl update repair --receipt <receipt_id> --json
-opl update rollback --component <component_id> --json
+opl-install.sh --headless --skip-modules
+opl packages install ... --json
+opl packages update ... --json
+opl packages repair --package-id <package_id> --json
+opl packages uninstall --package-id <package_id> --json
 ```
 
 The active shell must expose these commands through the OPL runtime bridge, not
@@ -644,25 +640,15 @@ Framework idempotency lock, use bounded retry/backoff, and project `last_run_at`
 `next_run_at`, `last_failure`, lock status, execution status, recent actions,
 skip reasons, and reload guidance into the Updates & Maintenance surface.
 
-For ordinary users, clean managed OPL Packages are the only background
-auto-apply component. GHCR OPL Packages use OCI
-artifacts with one ordinary rolling pointer: `latest`. Daily package CI may
-publish a candidate only after gates pass, then moves `latest`; the Framework
-resolves that tag to an immutable OCI digest before install/update and records
-the immutable version tag plus digest in the package lock/receipt. There is no
-user-visible nightly/stable split for OPL Packages. The legacy internal ids
-`agent_package_channel` and `capability_exposure` may appear in contract JSON or
-Framework readbacks, but user surfaces label them as OPL Packages and Codex
-Surface readiness. If `opl update check` or `opl update plan` reports those
-components as clean managed and updateable, the shell may call the Framework
-runner to apply them and then display the recorded receipt refs, post-apply
-hooks, skill/plugin sync result, and reload guidance. Codex Surface is the
-post-apply projection and reload/readiness status for that same semantic entry,
-not another update source. Installation Carrier updates and Runtime Payload
-updates remain conservative stable/nightly/host-route flows: they can be
-checked, staged, repaired, or shown as requiring restart, but the shell must not
-silently replace the App bundle, replace Docker/WebUI images, switch runtime
-pointers, upgrade Homebrew/system tools, or mutate developer / dirty checkouts.
+`managed_update.components` contains exactly `opl_base`, `opl_app`, and
+`opl_packages`. OPL Base may nest only dependency/integration status; OPL App
+keeps host update route/executor-required state; OPL Packages may nest only
+projection/profile-migration status. Runtime substrate, companion tools, Codex
+surface, and workflow profile are internal transaction details, never peer
+cards or updater choices. The ordinary App has no component picker and no
+public `--component` action. Framework receipts still preserve the detailed
+identity, verification, rollback, post-apply sync, and reload guidance needed
+for diagnostics and recovery.
 
 Git repo and local checkout package sources are Developer Profile sources only.
 They can be detected and shown with clean/dirty/behind/ahead status, but they

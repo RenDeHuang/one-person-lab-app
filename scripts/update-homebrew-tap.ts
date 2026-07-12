@@ -99,7 +99,7 @@ function parseArgs(argv: string[]): Options {
   }
   if (values['package-kind'] !== undefined) {
     if (values['package-kind'] !== 'app_standard' && values['package-kind'] !== 'app_full_first_install') {
-      throw new Error('--package-kind must be app_standard or app_full_first_install. Homebrew tap updates are App cask-only; agent packs are App/CLI-managed.');
+      throw new Error('--package-kind must be app_standard or app_full_first_install. Homebrew tap updates are App cask-only; OPL Packages are Framework-managed.');
     }
     parsed.packageKind = values['package-kind'];
   }
@@ -193,7 +193,7 @@ function validateOptions(options: Options): ResolvedOptions {
     assertRelativeTapTarget(targetPath);
     const isNightlyTarget = /nightly/i.test(path.basename(targetPath));
     if (classifyTarget(targetPath) !== 'cask') {
-      throw new Error('Homebrew tap updates are App cask-only; agent packs are App/CLI-managed, not Homebrew formulae.');
+      throw new Error('Homebrew tap updates are App cask-only; OPL Packages are Framework-managed, not Homebrew formulae.');
     }
     if (packageKind === 'app_full_first_install') {
       if (targetPath !== fullFirstInstallCaskTarget) {
@@ -203,7 +203,7 @@ function validateOptions(options: Options): ResolvedOptions {
     }
     assertNoFullPayloadReference('Homebrew tap target', targetPath);
     if (!standardAppCaskTargets.has(targetPath)) {
-      throw new Error('Homebrew tap updates are App cask-only; agent packs are App/CLI-managed, not Homebrew formulae.');
+      throw new Error('Homebrew tap updates are App cask-only; OPL Packages are Framework-managed, not Homebrew formulae.');
     }
     if (options.channel === 'nightly' && !isNightlyTarget) {
       throw new Error('Nightly Homebrew tap updates may only update nightly formula/cask targets.');
@@ -232,10 +232,10 @@ function boundaryBlock(options: ResolvedOptions): string {
   lines.push(
     `# cohort: ${fullFirstInstall ? 'full_first_install_homebrew_distribution' : 'standard_desktop_homebrew_distribution'}`,
     `# standard_updater_visible: ${fullFirstInstall ? 'false' : 'true'}`,
-    '# modules_payload_allowed: false',
+    '# opl_packages_payload_allowed: false',
     `# bundled_full_runtime_payload_allowed: ${fullFirstInstall ? 'true' : 'false'}`,
-    '# agent_pack_homebrew_allowed: false',
-    '# agent_pack_activation_owner: app_cli_managed_background_maintenance',
+    '# opl_packages_homebrew_allowed: false',
+    '# opl_packages_lifecycle_owner: one-person-lab',
     '# forbidden_module_formulae: one-person-lab-modules,one-person-lab-modules-nightly',
     '# must_not_write_user_codex_state: true',
     '# must_not_define_agent_semantics: true',
@@ -266,7 +266,7 @@ function skeletonContent(targetPath: string, options: ResolvedOptions): string {
   const fullFirstInstall = options.packageKind === 'app_full_first_install';
   const conflicts = caskConflictMap[token] ?? [];
   if (classifyTarget(targetPath) === 'formula') {
-    throw new Error('Homebrew tap updates are App cask-only; agent packs are App/CLI-managed, not Homebrew formulae.');
+    throw new Error('Homebrew tap updates are App cask-only; OPL Packages are Framework-managed, not Homebrew formulae.');
   }
   return [
     `cask "${token}" do`,
@@ -385,17 +385,17 @@ function validateUpdatedContent(target: TapUpdateTarget, options: ResolvedOption
       throw new Error(`${target.path} must declare Homebrew cask conflict with ${conflictingCask}.`);
     }
   }
-  if (!target.content.includes('modules_payload_allowed: false')) {
+  if (!target.content.includes('opl_packages_payload_allowed: false')) {
     throw new Error(`${target.path} must declare that standard App Homebrew distribution does not carry module payloads.`);
   }
   for (const required of [
-    'agent_pack_homebrew_allowed: false',
-    'agent_pack_activation_owner: app_cli_managed_background_maintenance',
+    'opl_packages_homebrew_allowed: false',
+    'opl_packages_lifecycle_owner: one-person-lab',
     'must_not_write_user_codex_state: true',
     'must_not_define_agent_semantics: true',
   ]) {
     if (!target.content.includes(required)) {
-      throw new Error(`${target.path} must declare App/CLI-managed agent-pack boundaries.`);
+      throw new Error(`${target.path} must declare Framework-managed OPL Packages boundaries.`);
     }
   }
 }
@@ -451,11 +451,11 @@ function buildPlan(inputOptions: Options): {
       full_first_install_allowed: options.packageKind === 'app_full_first_install',
       standard_updater_visible: options.packageKind !== 'app_full_first_install',
       full_cask_install_surface: options.packageKind === 'app_full_first_install',
-      modules_payload_allowed: false,
+      opl_packages_payload_allowed: false,
       bundled_full_runtime_payload_allowed: options.packageKind === 'app_full_first_install',
       modules_activation_owner: 'app_cli_maintenance',
-      agent_pack_homebrew_allowed: false,
-      agent_pack_activation_owner: 'app_cli_managed_background_maintenance',
+      opl_packages_homebrew_allowed: false,
+      opl_packages_lifecycle_owner: 'one-person-lab',
       must_not_write_user_codex_state: true,
       must_not_define_agent_semantics: true,
       publishes_or_pushes_remote: options.remoteWriteMode === 'direct_commit',

@@ -479,7 +479,7 @@ function validateAgentInstallationContract(policy: any): any {
     may_use_developer_checkout_by_default: false,
     developer_checkout_override_policy: 'explicit_opt_in_only',
     developer_checkout_override_surface: 'Developer Profile source_channel capability',
-    ordinary_user_module_source: 'app_cli_managed_ghcr_oci_agent_packages_latest_channel',
+    ordinary_user_module_source: 'framework_managed_ghcr_oci_opl_packages_latest_channel',
     duplicate_bare_skill_policy: 'forbid_domain_plugin_skill_mirrors',
   }, 'agent contract');
   assertArrayEqual(contract.required_agent_ids, expectedRequiredAgentIds, 'required agent ids');
@@ -840,7 +840,7 @@ function validatePackageManagerLifecycle(contract: any): void {
     domain_truth_authority_allowed: false,
     home_shortcut_preferences_owner: 'one-person-lab',
     home_shortcut_preferences_action: 'agent_package_preferences_set',
-    home_shortcut_preferences_readback: 'opl connect agent-packages list/status#home_shortcut_preferences',
+    home_shortcut_preferences_readback: 'opl packages list/status#home_shortcut_preferences',
   }, 'package manager lifecycle');
   assertArrayEqual(lifecycle?.actions, expectedPackageLifecycleActions, 'package manager lifecycle actions');
   assertFieldsEqual(lifecycle?.automatic_apply_policy, {
@@ -970,8 +970,12 @@ function validateAtomicBundlePolicy(contract: any): void {
 function validateManagedAgentPackDistribution(contract: any): void {
   const distribution = contract.managed_agent_pack_distribution;
   assertFieldsEqual(distribution, {
+    software_object: 'opl_packages',
+    lifecycle_owner: 'one-person-lab',
+    app_role: 'request_status_progress_and_receipt_projection_only',
+    transaction_visibility: 'package_lifecycle_with_internal_projection_and_profile_migration_status',
     channel_id: 'opl_agent_packages_rolling_latest',
-    default_transport: 'app_cli_managed_background_maintenance',
+    default_transport: 'framework_package_lifecycle',
     default_update_mode: 'automatic_apply_for_clean_managed_roots',
     default_manifest_tag: 'latest',
     distribution_format: 'ghcr_oci_artifact',
@@ -1002,7 +1006,7 @@ function validateManagedAgentPackDistribution(contract: any): void {
     first_party_distribution_payload_required_fields: expectedFirstPartyDistributionPayloadFields,
     fallback_source_order: [
       'bundled_full_runtime_modules',
-      'app_cli_managed_ghcr_oci_agent_packages_latest_channel',
+      'framework_managed_ghcr_oci_opl_packages_latest_channel',
       'explicit_developer_checkout_override',
     ],
     forbidden_homebrew_formulae: ['one-person-lab-modules', 'one-person-lab-modules-nightly'],
@@ -1016,7 +1020,7 @@ function validateManagedAgentPackDistribution(contract: any): void {
     install_or_refresh_command: 'python3 scripts/install_local_plugin.py',
     profile_mutation_allowed: false,
     profile_sync_policy: 'install_missing_or_emit_semantic_merge_packet_preserving_unmanaged_content',
-    workflow_profile_semantic_merge_ref: 'managed_update_plane.planes[workflow_profile]',
+    workflow_profile_semantic_merge_ref: 'managed_update_plane.software_lifecycle.objects.opl_packages.optional_internal_fields#profile_migration_status',
     standard_updater_allowed: false,
   }, 'OPL Flow package policy');
   assertArrayEqual(distribution?.opl_flow_package?.required_before_actions, ['status', 'enable', 'repair'], 'OPL Flow package preflight actions');
@@ -1051,7 +1055,8 @@ function validateExposureClasses(policy: any, contract: any): void {
   const domainPluginClass = findExposureClass(policy, 'codex_surface');
   assertArrayEqual(domainPluginClass.members, expectedDefaultVisibleDomainSkillIds, 'domain plugin exposure members');
   assertEqual(domainPluginClass.sync_target, contract.codex_plugin_registry_target, 'domain plugin sync target');
-  assertEqual(domainPluginClass.legacy_alias, 'family_domain_plugin_surfaces', 'domain plugin exposure legacy alias');
+  assertEqual(domainPluginClass.software_object, 'opl_packages', 'domain plugin exposure software object');
+  assertEqual(domainPluginClass.visibility_scope, 'package_capability_visibility_only_not_software_object', 'domain plugin visibility scope');
   assertArrayEqual(domainPluginClass.must_not_sync_to, [
     '~/.codex/skills/med-autoscience',
     '~/.codex/skills/med-autogrant',
@@ -1065,7 +1070,8 @@ function validateExposureClasses(policy: any, contract: any): void {
 
   const companionClass = findExposureClass(policy, 'companion_tools_codex_skills');
   assertArrayEqual(companionClass.members, expectedCompanionSkillSyncIds, 'companion skill sync members');
-  assertEqual(companionClass.legacy_alias, 'companion_skill_sync', 'companion skill sync legacy alias');
+  assertEqual(companionClass.software_object, 'opl_base', 'companion integration software object');
+  assertEqual(companionClass.visibility_scope, 'base_integration_projection_only_not_software_object', 'companion integration visibility scope');
   for (const skillId of expectedDefaultVisibleDomainSkillIds) {
     if (companionClass.members.includes(skillId)) {
       fail(`companion skill sync must not include domain plugin ${skillId}`);

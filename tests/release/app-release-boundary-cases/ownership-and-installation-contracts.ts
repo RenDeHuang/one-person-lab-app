@@ -8,6 +8,7 @@ import {
   writeFile,
 } from './helpers.ts';
 import { validateInstallExposureRuntimeAndDistribution } from '../../../scripts/validate-active-shell/install-exposure-runtime-distribution-validator.ts';
+import { validateReleaseChannelContract } from '../../../scripts/validate-active-shell/release-contract-validator.ts';
 
 test('release boundary guard keeps App release ownership in App repo', () => {
   const result = runNode(['scripts/validate-release-boundary.ts']);
@@ -73,9 +74,9 @@ test('Homebrew tap updater is a local cohort-bound manifest and checksum planner
   assert.equal(stablePlan.policy.manifest_required, true);
   assert.equal(stablePlan.policy.checksum_required, true);
   assert.equal(stablePlan.policy.full_first_install_allowed, false);
-  assert.equal(stablePlan.policy.modules_payload_allowed, false);
-  assert.equal(stablePlan.policy.agent_pack_homebrew_allowed, false);
-  assert.equal(stablePlan.policy.agent_pack_activation_owner, 'app_cli_managed_background_maintenance');
+  assert.equal(stablePlan.policy.opl_packages_payload_allowed, false);
+  assert.equal(stablePlan.policy.opl_packages_homebrew_allowed, false);
+  assert.equal(stablePlan.policy.opl_packages_lifecycle_owner, 'one-person-lab');
   assert.equal(stablePlan.policy.stable_promotion_from_nightly_allowed, false);
   assert.equal(stablePlan.policy.publishes_or_pushes_remote, false);
   const stableCask = fs.readFileSync(path.join(tapRoot, 'Casks', 'one-person-lab.rb'), 'utf8');
@@ -83,9 +84,9 @@ test('Homebrew tap updater is a local cohort-bound manifest and checksum planner
   assert.match(stableCask, new RegExp(digest));
   assert.match(stableCask, /\n  # OPL_HOMEBREW_BOUNDARY_START\n  # channel: stable/);
   assert.match(stableCask, /full_first_install_allowed: false/);
-  assert.match(stableCask, /modules_payload_allowed: false/);
-  assert.match(stableCask, /agent_pack_homebrew_allowed: false/);
-  assert.match(stableCask, /agent_pack_activation_owner: app_cli_managed_background_maintenance/);
+  assert.match(stableCask, /opl_packages_payload_allowed: false/);
+  assert.match(stableCask, /opl_packages_homebrew_allowed: false/);
+  assert.match(stableCask, /opl_packages_lifecycle_owner: one-person-lab/);
   assert.match(stableCask, /conflicts_with cask: \["one-person-lab-full", "one-person-lab-nightly"\]/);
 
   const fullResult = runTap({
@@ -103,7 +104,7 @@ test('Homebrew tap updater is a local cohort-bound manifest and checksum planner
   assert.equal(fullPlan.policy.standard_updater_visible, false);
   assert.equal(fullPlan.policy.full_cask_install_surface, true);
   assert.equal(fullPlan.policy.bundled_full_runtime_payload_allowed, true);
-  assert.equal(fullPlan.policy.agent_pack_homebrew_allowed, false);
+  assert.equal(fullPlan.policy.opl_packages_homebrew_allowed, false);
   const fullCask = fs.readFileSync(path.join(tapRoot, 'Casks', 'one-person-lab-full.rb'), 'utf8');
   assert.match(fullCask, /One-Person-Lab-Full-#\{version\}-mac-arm64\.dmg/);
   assert.match(fullCask, /opl-release-manifest\.json/);
@@ -112,7 +113,7 @@ test('Homebrew tap updater is a local cohort-bound manifest and checksum planner
   assert.match(fullCask, /standard_updater_visible: false/);
   assert.match(fullCask, /cohort: full_first_install_homebrew_distribution/);
   assert.match(fullCask, /bundled_full_runtime_payload_allowed: true/);
-  assert.match(fullCask, /agent_pack_homebrew_allowed: false/);
+  assert.match(fullCask, /opl_packages_homebrew_allowed: false/);
   assert.match(fullCask, /conflicts_with cask: \["one-person-lab", "one-person-lab-nightly"\]/);
   assert.match(fullCask, /Full assets stay outside standard updater metadata/);
 
@@ -310,41 +311,58 @@ test('App install policy selects exactly one compatible OPL Framework carrier', 
   );
 });
 
-test('App is an optional GUI over the same OPL base installed by every channel', () => {
+test('App exposes three software objects while Framework owns Base and Packages lifecycle', () => {
   const policy = JSON.parse(
     fs.readFileSync(path.join(process.cwd(), 'contracts', 'app-install-exposure-policy.json'), 'utf8'),
   );
-  const install = policy.opl_base_install_contract;
+  const lifecycle = policy.software_lifecycle;
 
-  assert.deepEqual(install.product_roles, {
-    opl_base: 'headless_framework_cli_runtime_required_before_any_opl_package',
-    opl_app: 'optional_gui_control_plane_for_opl_base_and_managed_opl_components',
+  assert.deepEqual(lifecycle.public_objects, ['opl_base', 'opl_app', 'opl_packages']);
+  assert.deepEqual(lifecycle.lifecycle_owners, {
+    opl_base: 'one-person-lab',
+    opl_app: 'one-person-lab-app',
+    opl_packages: 'one-person-lab',
   });
-  assert.deepEqual(install.channel_semantics, {
-    homebrew: 'formula_installs_opl_base_then_optional_cask_installs_gui',
-    dmg_or_direct: 'app_carrier_install_then_framework_installer_reconciles_same_opl_base_into_managed_root',
-    headless: 'framework_installer_installs_opl_base_without_app',
+  assert.deepEqual(lifecycle.app_mutation_scope, ['opl_app']);
+  assert.equal(lifecycle.base_bootstrap.bootstrap_route, 'opl-install.sh --headless --skip-modules');
+  assert.equal(lifecycle.base_bootstrap.app_must_not_implement_installer, true);
+  assert.equal(lifecycle.ordinary_component_picker_allowed, false);
+  assert.equal(lifecycle.legacy_component_mapping_allowed, false);
+  assert.equal(lifecycle.packages_carrier_allowed, false);
+  assert.deepEqual(lifecycle.transaction_internal_states, {
+    opl_base: ['runtime_substrate', 'companion_tools'],
+    opl_packages: ['capability_packages', 'codex_surface', 'workflow_profile'],
   });
-  assert.deepEqual(install.two_phase_install, {
-    phase_1: 'install_selected_carrier',
-    phase_2: 'reconcile_opl_base_and_selected_components_through_framework',
-    app_reconcile_command: 'opl-install.sh --headless --skip-modules',
-    app_managed_root: '~/.opl/one-person-lab',
-    app_owns_framework_semantics: false,
-  });
-  assert.deepEqual(install.app_managed_update_classes, [
-    'runtime_substrate',
-    'capability_packages',
-    'companion_tools',
-    'codex_surface',
-  ]);
-  assert.deepEqual(install.forbidden_app_install_bypasses, [
-    '--bootstrap-only',
-    '--complete',
-    '--skip-native-helper',
-    '--skip-native-helper-repair',
-    '--no-online-runtime',
-  ]);
+
+  const invalid = structuredClone(policy);
+  invalid.software_lifecycle.app_mutation_scope.push('opl_packages');
+  assert.throws(
+    () => validateInstallExposureRuntimeAndDistribution(invalid),
+    /App mutation scope/,
+  );
+});
+
+test('managed update payload and public actions use only the three software objects', () => {
+  const release = JSON.parse(
+    fs.readFileSync(path.join(process.cwd(), 'contracts', 'app-release-channel.json'), 'utf8'),
+  );
+  const lifecycle = release.managed_update_plane.software_lifecycle;
+
+  assert.doesNotThrow(() => validateReleaseChannelContract(release));
+  assert.deepEqual(lifecycle.public_component_keys, ['opl_base', 'opl_app', 'opl_packages']);
+  assert.deepEqual(lifecycle.objects.opl_base.optional_internal_fields, ['dependency_status', 'integration_status']);
+  assert.deepEqual(lifecycle.objects.opl_app.required_fields, ['host_update_route', 'host_executor_required']);
+  assert.deepEqual(lifecycle.objects.opl_packages.optional_internal_fields, ['projection_status', 'profile_migration_status']);
+  assert.equal(lifecycle.public_actions.bootstrap_missing_opl_base, 'opl-install.sh --headless --skip-modules');
+  assert.match(lifecycle.public_actions.install_opl_package, /^opl packages install /);
+  assert.equal(Object.values(lifecycle.public_actions).some((action) => String(action).includes('--component')), false);
+  assert.equal('runtime_substrate_updater' in release, false);
+  assert.equal('companion_tools_updater' in release, false);
+  assert.equal('planes' in release.managed_update_plane, false);
+
+  const legacyComponent = structuredClone(release);
+  legacyComponent.managed_update_plane.software_lifecycle.public_component_keys.push('runtime_substrate');
+  assert.throws(() => validateReleaseChannelContract(legacyComponent), /public component keys/);
 });
 
 test('agent installation validator rejects duplicate bare MAS/MAG/RCA skill mirrors', () => {

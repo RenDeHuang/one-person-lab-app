@@ -285,7 +285,7 @@ export function writeFullRemoteAssets(outDir, version) {
     status: 'passed',
     framework_commit: 'a'.repeat(40),
     managed_update_surface_id: 'opl_managed_updater_kernel',
-    managed_update_components: ['installation_carrier', 'runtime_substrate', 'capability_packages', 'codex_surface', 'companion_tools'],
+    managed_update_components: ['opl_base', 'opl_app', 'opl_packages'],
     app_state_schema_version: 'opl_app_state.v1',
     app_state_module_count: 5,
   };

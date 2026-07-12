@@ -53,41 +53,90 @@
     "app_must_not_require_plugin_for_cli_semantics": true,
     "app_must_not_mirror_plugin_skill_as_duplicate_bare_skill": true
   },
-  "opl_base_install_contract": {
-    "product_roles": {
-      "opl_base": "headless_framework_cli_runtime_required_before_any_opl_package",
-      "opl_app": "optional_gui_control_plane_for_opl_base_and_managed_opl_components"
+  "software_lifecycle": {
+    "schema": "opl_software_lifecycle.v1",
+    "public_objects": [
+      "opl_base",
+      "opl_app",
+      "opl_packages"
+    ],
+    "lifecycle_owners": {
+      "opl_base": "one-person-lab",
+      "opl_app": "one-person-lab-app",
+      "opl_packages": "one-person-lab"
+    },
+    "app_mutation_scope": [
+      "opl_app"
+    ],
+    "app_projection_scope": [
+      "opl_base",
+      "opl_packages"
+    ],
+    "base_bootstrap": {
+      "availability": "one_click_when_opl_base_is_missing",
+      "bootstrap_route": "opl-install.sh --headless --skip-modules",
+      "executor_owner": "one-person-lab",
+      "mutation_owner": "one-person-lab",
+      "receipt_owner": "one-person-lab",
+      "app_role": "request_progress_and_receipt_projection_only",
+      "success_gate": "compatible_opl_base_readback_after_framework_receipt",
+      "app_must_not_implement_installer": true
     },
     "channel_semantics": {
-      "homebrew": "formula_installs_opl_base_then_optional_cask_installs_gui",
-      "dmg_or_direct": "app_carrier_install_then_framework_installer_reconciles_same_opl_base_into_managed_root",
-      "headless": "framework_installer_installs_opl_base_without_app"
+      "homebrew": "formula_is_opl_base_carrier_and_cask_is_opl_app_carrier",
+      "dmg_or_direct": "signed_installer_or_dmg_is_opl_app_carrier_then_app_requests_framework_owned_opl_base_bootstrap_if_missing",
+      "headless": "framework_installer_is_opl_base_carrier_without_opl_app"
     },
-    "two_phase_install": {
-      "phase_1": "install_selected_carrier",
-      "phase_2": "reconcile_opl_base_and_selected_components_through_framework",
-      "app_reconcile_command": "opl-install.sh --headless --skip-modules",
-      "app_managed_root": "~/.opl/one-person-lab",
-      "app_owns_framework_semantics": false
+    "carrier_adapters": {
+      "homebrew_formula": {
+        "carries": "opl_base",
+        "lifecycle_owner": "one-person-lab",
+        "opl_packages_allowed": false
+      },
+      "framework_installer": {
+        "carries": "opl_base",
+        "lifecycle_owner": "one-person-lab",
+        "opl_packages_allowed": false
+      },
+      "homebrew_cask": {
+        "carries": "opl_app",
+        "lifecycle_owner": "one-person-lab-app",
+        "base_or_packages_mutation_allowed": false
+      },
+      "signed_installer_or_dmg": {
+        "carries": "opl_app",
+        "lifecycle_owner": "one-person-lab-app",
+        "base_or_packages_mutation_allowed": false
+      }
     },
-    "app_managed_update_classes": [
-      "runtime_substrate",
-      "capability_packages",
-      "companion_tools",
-      "codex_surface"
-    ],
-    "forbidden_app_install_bypasses": [
-      "--bootstrap-only",
-      "--complete",
-      "--skip-native-helper",
-      "--skip-native-helper-repair",
-      "--no-online-runtime"
+    "transaction_internal_states": {
+      "opl_base": [
+        "runtime_substrate",
+        "companion_tools"
+      ],
+      "opl_packages": [
+        "capability_packages",
+        "codex_surface",
+        "workflow_profile"
+      ]
+    },
+    "ordinary_component_picker_allowed": false,
+    "legacy_component_mapping_allowed": false,
+    "packages_carrier_allowed": false,
+    "full_first_install_boundary": "A Full carrier may seed Base and Packages payloads, but Framework lifecycle owns activation and every later mutation.",
+    "forbidden_app_mutations": [
+      "opl_base_install_update_repair_or_rollback",
+      "opl_packages_install_update_repair_or_rollback",
+      "homebrew_formula_upgrade",
+      "package_registry_or_lock_write_without_framework_action"
     ]
   },
   "exposure_classes": [
     {
       "id": "codex_surface",
       "owner": "one-person-lab",
+      "software_object": "opl_packages",
+      "visibility_scope": "package_capability_visibility_only_not_software_object",
       "members": [
         "med-autoscience",
         "med-autogrant",
@@ -101,12 +150,12 @@
         "~/.codex/skills/med-autogrant",
         "~/.codex/skills/redcube-ai",
         "~/.codex/skills/opl-bookforge"
-      ],
-      "legacy_alias": "family_domain_plugin_surfaces"
+      ]
     },
     {
       "id": "opl_generated_plugin_surfaces",
       "owner": "one-person-lab",
+      "software_object": "opl_packages",
       "members": [
         "opl-meta-agent",
         "opl-bookforge"
@@ -120,6 +169,8 @@
     {
       "id": "companion_tools_codex_skills",
       "owner": "upstream_skill_owners_with_opl_distribution_policy",
+      "software_object": "opl_base",
+      "visibility_scope": "base_integration_projection_only_not_software_object",
       "members": [
         "officecli",
         "officecli-docx",
@@ -137,8 +188,7 @@
       "sync_target": "codex_user_skill_discovery_path",
       "must_not_sync_to": [
         "domain_plugin_semantic_mirror"
-      ],
-      "legacy_alias": "companion_skill_sync"
+      ]
     },
     {
       "id": "official_codex_runtime_capabilities",
@@ -170,22 +220,26 @@
       ]
     },
     {
-      "id": "runtime_substrate_payloads",
-      "owner": "one-person-lab-app",
-      "brand_name": "OPL Runtime Fabric",
-      "brand_role": "shared runtime fabric for OPL capability modules, not a user-facing brand module",
+      "id": "opl_base_payloads",
+      "owner": "one-person-lab",
+      "software_object": "opl_base",
+      "visibility_scope": "base_dependency_status_only_not_software_object",
       "members": [
-        "runtime_substrate",
-        "capability_packages",
-        "companion_tools",
-        "native_helpers"
+        "embedded_codex_executor",
+        "temporal_cli_archive",
+        "node_runtime",
+        "python_runtime",
+        "uv_runtime",
+        "native_helper",
+        "opl_framework_runtime",
+        "officecli",
+        "mineru_open_api"
       ],
       "default_app_visible": false,
       "sync_target": "bundled_runtime_payload_refs",
       "must_not_sync_to": [
         "implicit_user_codex_skill_install_without_managed_sync"
-      ],
-      "legacy_alias": "packaged_full_runtime_payloads"
+      ]
     }
   ],
   "domain_exposure": [
@@ -682,7 +736,13 @@
   "first_run_user_presentation": {
     "default_mode": "beginner_first",
     "skill_plugin_distinction_visible_by_default": false,
-    "primary_message": "One Person Lab is preparing Codex and the workspace.",
+    "primary_message": "One Person Lab is preparing OPL Base, OPL App, and OPL Packages.",
+    "visible_software_objects": [
+      "opl_base",
+      "opl_app",
+      "opl_packages"
+    ],
+    "ordinary_component_picker_allowed": false,
     "primary_steps": [
       "workspace_root",
       "codex_cli",
@@ -715,6 +775,13 @@
       "codex_cli",
       "codex_config"
     ],
+    "software_object_projection": {
+      "opl_base": "aggregate_framework_initialize_state",
+      "opl_app": "aggregate_app_carrier_and_running_version_state",
+      "opl_packages": "aggregate_framework_package_lifecycle_state"
+    },
+    "internal_state_visibility": "collapsed_under_owning_software_object_unless_diagnostics_or_repair_requires_detail",
+    "ordinary_component_picker_allowed": false,
     "first_conversation_readiness": {
       "gate": "capability_prerequisites_then_acp_warmup_before_initial_send",
       "source_command": "opl system initialize --json",
@@ -816,6 +883,23 @@
     "homebrew": {
       "role": "app_cask_and_framework_formula_install_index",
       "tap": "gaofeng21cn/one-person-lab",
+      "carrier_adapter_semantics": {
+        "formula": {
+          "object": "opl_base",
+          "formula": "opl",
+          "lifecycle_owner": "one-person-lab",
+          "packages_allowed": false
+        },
+        "cask": {
+          "object": "opl_app",
+          "lifecycle_owner": "one-person-lab-app",
+          "base_or_packages_mutation_allowed": false
+        },
+        "equivalent_direct_carriers": {
+          "opl_base": "framework_installer",
+          "opl_app": "signed_installer_or_dmg"
+        }
+      },
       "cask_install_policy": {
         "fully_qualified_cask_install": true
       },
@@ -918,57 +1002,13 @@
         "one-person-lab-modules",
         "one-person-lab-modules-nightly"
       ],
-      "agent_pack_policy": {
-        "package_kind": "app_cli_managed_opl_packages",
-        "managed_agent_ids": [
-          "med-autoscience",
-          "med-autogrant",
-          "redcube-ai",
-          "opl-meta-agent",
-          "opl-bookforge",
-          "mas-scholar-skills"
-        ],
-        "package_ids": [
-          "med-autoscience",
-          "med-autogrant",
-          "redcube-ai",
-          "opl-meta-agent",
-          "opl-bookforge",
-          "mas-scholar-skills",
-          "opl-flow"
-        ],
-        "package_kinds": {
-          "med-autoscience": "domain_agent_package",
-          "med-autogrant": "domain_agent_package",
-          "redcube-ai": "domain_agent_package",
-          "opl-meta-agent": "domain_agent_package",
-          "opl-bookforge": "domain_agent_package",
-          "mas-scholar-skills": "framework_capability_package",
-          "opl-flow": "workflow_plugin_package"
-        },
-        "opl_flow_package": {
-          "package_id": "opl-flow",
-          "package_kind": "workflow_plugin_package",
-          "consumer": "standard_and_full_workflow_baseline",
-          "optional_feature_consumer": "optional_user_modes.intelligence_enhancement",
-          "install_or_refresh_command": "python3 scripts/install_local_plugin.py",
-          "required_before_actions": [
-            "status",
-            "enable",
-            "repair"
-          ],
-          "profile_mutation_allowed": false,
-          "profile_sync_policy": "install_missing_or_emit_semantic_merge_packet_preserving_unmanaged_content",
-          "workflow_profile_semantic_merge_ref": "managed_update_plane.planes[workflow_profile]",
-          "standard_updater_allowed": false
-        },
+      "opl_packages_boundary": {
+        "lifecycle_owner": "one-person-lab",
+        "app_role": "status_action_and_receipt_projection_only",
+        "canonical_lifecycle": "opl packages",
         "homebrew_distribution_allowed": false,
-        "user_visible_formula_allowed": false,
-        "activation_policy": "app_cli_managed_background_maintenance",
-        "maintenance_commands": [
-          "opl connect reconcile-modules",
-          "opl connect sync-skills"
-        ]
+        "homebrew_formula_allowed": false,
+        "ordinary_component_picker_allowed": false
       }
     }
   },
@@ -982,7 +1022,11 @@
     ],
     "codex_plugin_registry_owner": "one-person-lab",
     "app_release_payload_owner": "one-person-lab-app",
-    "companion_skill_management": "app_or_cli_managed_background_maintenance",
+    "base_and_package_mutation_owner": "one-person-lab",
+    "app_role": "request_status_progress_and_receipt_projection_only",
+    "companion_skill_management": "framework_transaction_internal_post_apply_state",
+    "codex_surface_management": "framework_package_transaction_internal_post_apply_state",
+    "workflow_profile_management": "framework_package_transaction_internal_semantic_merge_state",
     "duplicate_prevention": [
       "plugin-packaged MAS/MAG/RCA skills must not be mirrored into duplicate bare skill directories",
       "OPL Meta Agent is surfaced as an OPL-generated local Codex plugin surface",
@@ -1043,7 +1087,7 @@
     "may_use_developer_checkout_by_default": false,
     "developer_checkout_override_policy": "explicit_opt_in_only",
     "developer_checkout_override_surface": "Developer Profile source_channel capability",
-    "ordinary_user_module_source": "app_cli_managed_ghcr_oci_agent_packages_latest_channel",
+    "ordinary_user_module_source": "framework_managed_ghcr_oci_opl_packages_latest_channel",
     "module_package_channel_agent_ids": [
       "med-autoscience",
       "med-autogrant",
@@ -1138,7 +1182,7 @@
       "domain_truth_authority_allowed": false,
       "home_shortcut_preferences_owner": "one-person-lab",
       "home_shortcut_preferences_action": "agent_package_preferences_set",
-      "home_shortcut_preferences_readback": "opl connect agent-packages list/status#home_shortcut_preferences",
+      "home_shortcut_preferences_readback": "opl packages list/status#home_shortcut_preferences",
       "automatic_apply_policy": {
         "cadence": "daily_after_core_ready_and_app_startup_check",
         "user_visible_channel": "latest",
@@ -1388,8 +1432,12 @@
       }
     ],
     "managed_agent_pack_distribution": {
+      "software_object": "opl_packages",
+      "lifecycle_owner": "one-person-lab",
+      "app_role": "request_status_progress_and_receipt_projection_only",
+      "transaction_visibility": "package_lifecycle_with_internal_projection_and_profile_migration_status",
       "channel_id": "opl_agent_packages_rolling_latest",
-      "default_transport": "app_cli_managed_background_maintenance",
+      "default_transport": "framework_package_lifecycle",
       "default_update_mode": "automatic_apply_for_clean_managed_roots",
       "default_manifest_tag": "latest",
       "first_party_distribution_payload_required_fields": [
@@ -1451,7 +1499,7 @@
         ],
         "profile_mutation_allowed": false,
         "profile_sync_policy": "install_missing_or_emit_semantic_merge_packet_preserving_unmanaged_content",
-        "workflow_profile_semantic_merge_ref": "managed_update_plane.planes[workflow_profile]",
+        "workflow_profile_semantic_merge_ref": "managed_update_plane.software_lifecycle.objects.opl_packages.optional_internal_fields#profile_migration_status",
         "standard_updater_allowed": false
       },
       "activation_commands": [
@@ -1460,7 +1508,7 @@
       ],
       "fallback_source_order": [
         "bundled_full_runtime_modules",
-        "app_cli_managed_ghcr_oci_agent_packages_latest_channel",
+        "framework_managed_ghcr_oci_opl_packages_latest_channel",
         "explicit_developer_checkout_override"
       ],
       "must_not_depend_on_fixed_version_tag_by_default": true,
@@ -1475,7 +1523,6 @@
       "must_not_define_agent_semantics": true,
       "cohort_manifest_required": true,
       "class": "capability_packages",
-      "legacy_alias": "agent_package_channel",
       "distribution_format": "ghcr_oci_artifact",
       "registry": "ghcr.io",
       "ordinary_user_channel_model": "rolling_latest_only",
@@ -1519,132 +1566,6 @@
       "Core ready before /guid",
       "non-blocking companion skill and plugin maintenance",
       "Codex-visible MAS/MAG/RCA/OMA entries without duplicate semantics"
-    ]
-  },
-  "runtime_substrate_auto_update": {
-    "owner": "one-person-lab-app",
-    "producer_owner": "one-person-lab",
-    "app_role": "define_runtime_substrate_update_policy_surface_release_channel_and_install_exposure",
-    "framework_role": "apply_verified_staged_runtime_during_startup_maintenance",
-    "brand_name": "OPL Runtime Fabric",
-    "brand_role": "shared runtime fabric for OPL capability modules, not a MAS/MAG/RCA/OMA/OBF/MAS Scholar Skills brand module",
-    "entrypoint": "opl system startup-maintenance",
-    "ready_to_launch_blocking": false,
-    "channel_model": "stable_nightly_release_cohort",
-    "rolling_latest_allowed": false,
-    "default_policy": {
-      "auto_check": true,
-      "download": "silent_background",
-      "stage": "verify_then_stage_app_owned_runtime",
-      "apply": "next_app_restart",
-      "rollback": "previous_runtime_pointer_on_startup_smoke_failure"
-    },
-    "managed_components": [
-      "embedded_codex_executor",
-      "temporal_cli_archive",
-      "node_runtime",
-      "python_runtime",
-      "uv_runtime",
-      "native_helper",
-      "opl_framework_runtime"
-    ],
-    "managed_subsystems": {
-      "agent_execution_core": [
-        "embedded_codex_executor",
-        "temporal_cli_archive",
-        "opl_framework_runtime"
-      ],
-      "environment_materializer": {
-        "role": "materialize module-declared sandbox-like runtime environments from managed App-owned materials",
-        "language_runtimes": [
-          "node_runtime",
-          "python_runtime"
-        ],
-        "package_and_env_resolvers": [
-          "uv_runtime"
-        ],
-        "optional_resolver_slots": [
-          "pixi_for_scientific_native_stack_when_declared"
-        ],
-        "env_cache_and_isolated_prefix": "module-specific managed env roots and package cache under the App-owned runtime/state root",
-        "receipt_fields": [
-          "language_runtime_versions",
-          "resolver_versions",
-          "lock_refs",
-          "materialized_env_root",
-          "cache_root",
-          "sha256",
-          "rollback_ref"
-        ]
-      },
-      "opl_system_bridge": [
-        "native_helper"
-      ]
-    },
-    "user_global_tool_policy": {
-      "prefer_compatible_newer_system_tool": false,
-      "system_sources_default_used": false,
-      "system_sources_visible_as_diagnostics": true,
-      "system_sources_require_expert_opt_in": true,
-      "silent_homebrew_upgrade_allowed": false,
-      "silent_system_tool_mutation_allowed": false,
-      "opt_in_global_upgrade_surface": "Developer Profile explicit maintenance action"
-    },
-    "clean_machine_requirement": {
-      "full_first_install_must_remain_self_contained": true,
-      "required_release_smoke": "full_dmg_clean_vm_smoke",
-      "standard_core_ready_must_not_require_homebrew_node_git_or_clt": true
-    },
-    "fail_closed_states": [
-      "runtime_update_manifest_invalid",
-      "runtime_update_asset_sha256_mismatch",
-      "runtime_update_capability_smoke_failed",
-      "runtime_update_startup_smoke_failed"
-    ],
-    "legacy_alias": "runtime_toolchain_auto_update",
-    "companion_tools_ref": "companion_tools_auto_update"
-  },
-  "companion_tools_auto_update": {
-    "owner": "one-person-lab-app",
-    "producer_owner": "one-person-lab",
-    "app_role": "define_companion_tool_update_policy_surface_release_channel_and_install_exposure",
-    "framework_role": "apply_verified_staged_companion_tools_during_startup_maintenance",
-    "entrypoint": "opl system startup-maintenance",
-    "ready_to_launch_blocking": false,
-    "channel_model": "stable_nightly_release_cohort",
-    "rolling_latest_allowed": false,
-    "default_policy": {
-      "auto_check": true,
-      "download": "silent_background",
-      "stage": "verify_then_stage_app_owned_runtime",
-      "apply": "next_app_restart",
-      "rollback": "previous_runtime_pointer_on_startup_smoke_failure"
-    },
-    "managed_tools": [
-      "officecli",
-      "mineru_open_api"
-    ],
-    "shared_kernel_lifecycle_allowed": true,
-    "must_not_be_grouped_under_runtime_substrate": true,
-    "user_global_tool_policy": {
-      "prefer_compatible_newer_system_tool": false,
-      "system_sources_default_used": false,
-      "system_sources_visible_as_diagnostics": true,
-      "system_sources_require_expert_opt_in": true,
-      "silent_homebrew_upgrade_allowed": false,
-      "silent_system_tool_mutation_allowed": false,
-      "opt_in_global_upgrade_surface": "Developer Profile explicit maintenance action"
-    },
-    "clean_machine_requirement": {
-      "full_first_install_must_remain_self_contained": true,
-      "required_release_smoke": "full_dmg_clean_vm_smoke",
-      "standard_core_ready_must_not_require_homebrew_node_git_or_clt": true
-    },
-    "fail_closed_states": [
-      "companion_tool_update_manifest_invalid",
-      "companion_tool_update_asset_sha256_mismatch",
-      "companion_tool_capability_smoke_failed",
-      "companion_tool_startup_smoke_failed"
     ]
   }
 }

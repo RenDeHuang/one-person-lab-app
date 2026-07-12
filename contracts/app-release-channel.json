@@ -148,7 +148,11 @@
       "mode": "github_actions_prebuilt_assets_upload_clobber",
       "scope": "standard App DMG, ZIP, ZIP blockmap, canonical arm64 updater metadata, and local authorization policy for an existing release"
     },
-    "managed_update_plane": "installation_carrier.macos_app_only",
+    "software_object": "opl_app",
+    "carrier_adapters": [
+      "homebrew_cask",
+      "signed_installer_or_dmg"
+    ],
     "apply_lifecycle": {
       "downloaded_state_is_not_success": true,
       "states": [
@@ -169,12 +173,11 @@
         "diagnostic_ref": "auto-update-diagnostics.json#install-not-applied"
       }
     },
-    "forbidden_managed_update_targets": [
-      "runtime_substrate",
-      "capability_packages",
-      "codex_surface",
-      "companion_tools",
-      "workflow_profile",
+    "forbidden_software_object_targets": [
+      "opl_base",
+      "opl_packages"
+    ],
+    "forbidden_external_targets": [
       "developer_checkout_selection",
       "homebrew_or_global_tool_upgrade"
     ]
@@ -275,12 +278,11 @@
         "confirmed_at",
         "created_at"
       ],
-      "rule": "Conversations, workspaces, generated artifacts, results, papers, baselines, reports, and narrative/intermediate deliverables are user data artifacts. The App must not silently delete them; cleanup requires inventory, archive/export, restore-proof, and explicit user confirmation.",
-      "legacy_alias": "conversation_artifacts"
+      "rule": "Conversations, workspaces, generated artifacts, results, papers, baselines, reports, and narrative/intermediate deliverables are user data artifacts. The App must not silently delete them; cleanup requires inventory, archive/export, restore-proof, and explicit user confirmation."
     },
     "runtime_substrate": {
       "default_policy": "retain_current_and_declared_rollback_runtime",
-      "owner_ref": "contracts/app-release-channel.json#runtime_substrate_updater",
+      "owner_ref": "contracts/app-release-channel.json#managed_update_plane.software_lifecycle.objects.opl_base",
       "cleanup_execution": "pointer_based_dry_run_first_explicit_execute_required",
       "protected_refs": {
         "current_pointer": "~/Library/Application Support/OPL/runtime/current.json",
@@ -298,8 +300,7 @@
         "deleted_bytes",
         "created_at"
       ],
-      "rule": "OPL Runtime Fabric cleanup follows the managed runtime pointer and rollback policy, not the Electron standard updater cache policy. Prune must start as a dry-run plan and may only target runtime roots not referenced by current or rollback pointers.",
-      "legacy_alias": "runtime_toolchain"
+      "rule": "OPL Runtime Fabric cleanup follows the managed runtime pointer and rollback policy, not the Electron standard updater cache policy. Prune must start as a dry-run plan and may only target runtime roots not referenced by current or rollback pointers."
     }
   },
   "nightly_standard": {
@@ -504,6 +505,25 @@
     "owner": "one-person-lab-app",
     "tap_repo": "gaofeng21cn/homebrew-one-person-lab",
     "role": "external_app_cask_index_for_distribution_cohorts",
+    "carrier_adapter_semantics": {
+      "formula": {
+        "software_object": "opl_base",
+        "formula": "opl",
+        "lifecycle_owner": "one-person-lab",
+        "app_tap_manages_formula": false,
+        "opl_packages_allowed": false
+      },
+      "cask": {
+        "software_object": "opl_app",
+        "lifecycle_owner": "one-person-lab-app",
+        "base_or_packages_mutation_allowed": false
+      },
+      "equivalent_direct_carriers": {
+        "opl_base": "framework_installer",
+        "opl_app": "signed_installer_or_dmg"
+      },
+      "carrier_choice_changes_lifecycle_owner": false
+    },
     "cohort_manifest_required": true,
     "formulae": [],
     "casks": [
@@ -583,102 +603,18 @@
       "one-person-lab-modules",
       "one-person-lab-modules-nightly"
     ],
-    "agent_pack_policy": {
-      "package_kind": "app_cli_managed_opl_packages",
-      "semantic_authority": "one-person-lab_and_domain_repositories",
+    "opl_packages_boundary": {
+      "software_object": "opl_packages",
+      "lifecycle_owner": "one-person-lab",
+      "app_role": "status_action_and_receipt_projection_only",
       "homebrew_role": "not_a_distribution_target",
-      "activation_owner": "app_cli_managed_background_maintenance",
-      "default_update_mode": "automatic_apply_for_clean_managed_roots",
-      "default_manifest_tag": "latest",
-      "post_update_sync_required": [
-        "codex_plugin_registry",
-        "plugin_packaged_skills",
-        "opl_generated_plugin_surface",
-        "codex_surface"
-      ],
       "homebrew_distribution_allowed": false,
       "homebrew_formula_allowed": false,
+      "canonical_lifecycle": "opl packages",
       "forbidden_formulae": [
         "one-person-lab-modules",
         "one-person-lab-modules-nightly"
-      ],
-      "activation_commands": [
-        "opl connect reconcile-modules",
-        "opl connect sync-skills"
-      ],
-      "must_not_write_user_codex_state": true,
-      "must_not_define_agent_semantics": true,
-      "managed_update_plane": "capability_packages",
-      "kernel": "opl_managed_updater_kernel",
-      "source_role": "ordinary_user_non_development_rolling_latest_oci_agent_package_source",
-      "registry": "ghcr.io",
-      "adapter": "capability_packages_adapter",
-      "policy": "ordinary_user_non_development_rolling_latest_auto_apply",
-      "post_apply": "sync_plugin_registry_plugin_packaged_skills_generated_surfaces_and_codex_surface_readiness",
-      "managed_agent_ids": [
-        "med-autoscience",
-        "med-autogrant",
-        "redcube-ai",
-        "opl-meta-agent",
-        "opl-bookforge",
-        "mas-scholar-skills"
-      ],
-      "package_ids": [
-        "med-autoscience",
-        "med-autogrant",
-        "redcube-ai",
-        "opl-meta-agent",
-        "opl-bookforge",
-        "mas-scholar-skills",
-        "opl-flow"
-      ],
-      "package_kinds": {
-        "med-autoscience": "domain_agent_package",
-        "med-autogrant": "domain_agent_package",
-        "redcube-ai": "domain_agent_package",
-        "opl-meta-agent": "domain_agent_package",
-        "opl-bookforge": "domain_agent_package",
-        "mas-scholar-skills": "framework_capability_package",
-        "opl-flow": "workflow_plugin_package"
-      },
-      "opl_flow_package": {
-        "package_id": "opl-flow",
-        "package_kind": "workflow_plugin_package",
-        "consumer": "standard_and_full_workflow_baseline",
-        "optional_feature_consumer": "optional_user_modes.intelligence_enhancement",
-        "install_or_refresh_command": "python3 scripts/install_local_plugin.py",
-        "required_before_actions": [
-          "status",
-          "enable",
-          "repair"
-        ],
-        "profile_mutation_allowed": false,
-        "profile_sync_policy": "install_missing_or_emit_semantic_merge_packet_preserving_unmanaged_content",
-        "workflow_profile_semantic_merge_ref": "managed_update_plane.planes[workflow_profile]",
-        "standard_updater_allowed": false
-      },
-      "developer_checkout_override_policy": "explicit_developer_profile_source_channel_only",
-      "forbidden_silent_overwrite_scope": [
-        "Developer Profile checkout",
-        "dirty checkout",
-        "domain truth",
-        "owner receipt",
-        "quality verdict",
-        "export verdict",
-        "Homebrew/global tools"
-      ],
-      "legacy_alias": "agent_package_channel",
-      "distribution_format": "ghcr_oci_artifact",
-      "ordinary_user_channel_model": "rolling_latest_only",
-      "user_visible_channels": [
-        "latest"
-      ],
-      "internal_candidate_channel": "candidate_ci_only_not_user_visible",
-      "publication_cadence": "daily_when_source_digest_changes",
-      "promotion_policy": "build_candidate_validate_manifest_skill_plugin_surface_install_smoke_sign_then_promote_latest",
-      "immutable_tag_required": true,
-      "digest_lock_required": true,
-      "stable_or_nightly_user_channels_allowed": false
+      ]
     }
   },
   "full_first_install": {
@@ -2455,665 +2391,164 @@
   "managed_update_plane": {
     "owner": "one-person-lab-app",
     "producer_owner": "one-person-lab",
-    "product_role": "define_app_update_ux_contract_release_boundary_and_status_consumption",
-    "framework_role": "own_managed_update_kernel_status_conditions_repair_actions_and_apply_execution",
+    "product_role": "define_gui_lifecycle_contract_and_consume_framework_status_actions_and_receipts",
+    "framework_role": "own_opl_base_and_opl_packages_lifecycle_execution_truth_and_receipts",
     "ui_page": "Updates & Maintenance",
     "status_source_priority": [
-      "opl app state --profile fast --json#managed_update_plane",
-      "opl update status --json"
+      "opl app state --profile fast --json#managed_update",
+      "opl update status --json#managed_update"
     ],
     "action_route": "opl app action execute --action <action_id> [--payload <json>] [--dry-run] --json",
-    "status_consumption_policy": "App consumes status, conditions, progress refs, and repair action refs only; App does not read artifact bodies, write domain truth, or implement the Framework update kernel.",
-    "standard_updater_boundary": {
-      "plane": "installation_carrier.macos_app",
-      "owned_by": "one-person-lab-app",
-      "updater": "electron_standard_updater",
-      "scope": "desktop_app_assets_only",
-      "allowed_metadata": [
-        "latest-arm64-mac.yml"
+    "status_consumption_policy": "App consumes status, conditions, progress refs, and repair action refs only; App does not implement OPL Base or OPL Packages mutation.",
+    "software_lifecycle": {
+      "schema": "opl_software_lifecycle.v1",
+      "public_component_path": "managed_update.components",
+      "public_component_keys": [
+        "opl_base",
+        "opl_app",
+        "opl_packages"
       ],
-      "legacy_metadata": [
-        "latest-mac.yml"
-      ],
-      "allowed_assets": [
-        "One-Person-Lab-*-mac-arm64.dmg",
-        "One-Person-Lab-*-mac-arm64.zip",
-        "One-Person-Lab-*-mac-arm64.zip.blockmap"
-      ],
-      "apply_lifecycle": {
-        "downloaded_state_is_not_success": true,
-        "apply_started_receipt": "auto-update-diagnostics.json#quit-and-install",
-        "post_restart_version_gate": "running_app_version_must_be_gte_downloaded_target_version",
-        "failure_state": "install-not-applied",
-        "recovery_action": "install_downloaded_update_now"
+      "additional_component_keys_allowed": false,
+      "ordinary_component_picker_allowed": false,
+      "legacy_component_mapping_allowed": false,
+      "objects": {
+        "opl_base": {
+          "display_label": "OPL Base",
+          "lifecycle_owner": "one-person-lab",
+          "app_role": "bootstrap_request_status_progress_and_receipt_projection",
+          "app_mutation_allowed": false,
+          "missing_state_bootstrap_route": "opl-install.sh --headless --skip-modules",
+          "mutation_route": "framework_lifecycle_only",
+          "optional_internal_fields": [
+            "dependency_status",
+            "integration_status"
+          ],
+          "internal_state_ids": [
+            "runtime_substrate",
+            "companion_tools"
+          ],
+          "dependency_ids": [
+            "embedded_codex_executor",
+            "temporal_cli_archive",
+            "node_runtime",
+            "python_runtime",
+            "uv_runtime",
+            "native_helper",
+            "opl_framework_runtime",
+            "officecli",
+            "mineru_open_api"
+          ],
+          "success_gate": "compatible_opl_base_readback_after_framework_receipt"
+        },
+        "opl_app": {
+          "display_label": "OPL App",
+          "lifecycle_owner": "one-person-lab-app",
+          "app_role": "gui_control_plane_and_self_update_owner",
+          "app_mutation_allowed": true,
+          "mutation_scope": "opl_app_binary_only",
+          "required_fields": [
+            "host_update_route",
+            "host_executor_required"
+          ],
+          "carrier_adapters": [
+            "homebrew_cask",
+            "signed_installer_or_dmg"
+          ],
+          "standard_updater_ref": "standard_updater"
+        },
+        "opl_packages": {
+          "display_label": "OPL Packages",
+          "lifecycle_owner": "one-person-lab",
+          "app_role": "catalog_action_request_status_progress_and_receipt_projection",
+          "app_mutation_allowed": false,
+          "mutation_route": "framework_package_lifecycle_only",
+          "optional_internal_fields": [
+            "projection_status",
+            "profile_migration_status"
+          ],
+          "internal_state_ids": [
+            "capability_packages",
+            "codex_surface",
+            "workflow_profile"
+          ],
+          "package_ids": [
+            "med-autoscience",
+            "med-autogrant",
+            "redcube-ai",
+            "opl-meta-agent",
+            "opl-bookforge",
+            "mas-scholar-skills",
+            "opl-flow"
+          ],
+          "homebrew_distribution_allowed": false
+        }
       },
-      "forbidden_targets": [
-        "runtime_substrate",
-        "capability_packages",
-        "codex_surface",
-        "companion_tools",
-        "workflow_profile",
-        "developer_checkout_selection",
-        "homebrew_or_global_tool_upgrade",
-        "domain_truth"
-      ]
+      "carrier_adapters": {
+        "homebrew_formula": {
+          "software_object": "opl_base",
+          "lifecycle_owner": "one-person-lab",
+          "opl_packages_allowed": false
+        },
+        "framework_installer": {
+          "software_object": "opl_base",
+          "lifecycle_owner": "one-person-lab",
+          "opl_packages_allowed": false
+        },
+        "homebrew_cask": {
+          "software_object": "opl_app",
+          "lifecycle_owner": "one-person-lab-app",
+          "base_or_packages_mutation_allowed": false
+        },
+        "signed_installer_or_dmg": {
+          "software_object": "opl_app",
+          "lifecycle_owner": "one-person-lab-app",
+          "base_or_packages_mutation_allowed": false
+        }
+      },
+      "carrier_alignment_rule": "Carrier choice does not change software-object identity or lifecycle authority. Full carriers may seed payloads, but Framework lifecycle owns Base and Packages activation, reconciliation, update, repair, rollback, and uninstall.",
+      "public_actions": {
+        "refresh": "opl update status --json",
+        "check": "opl update check --json",
+        "plan": "opl update plan --json",
+        "bootstrap_missing_opl_base": "opl-install.sh --headless --skip-modules",
+        "update_opl_app": "standard_updater_or_carrier_host_update_route",
+        "install_opl_package": "opl packages install ... --json",
+        "update_opl_package": "opl packages update ... --json",
+        "repair_opl_package": "opl packages repair --package-id <package_id> --json",
+        "uninstall_opl_package": "opl packages uninstall --package-id <package_id> --json"
+      },
+      "public_action_component_flag_allowed": false
     },
     "managed_kernel": {
       "id": "opl_managed_updater_kernel",
       "owner": "one-person-lab",
       "app_role": "status_action_projection_consumer",
-      "public_cli_surfaces": [
+      "public_status_commands": [
         "opl update status --json",
         "opl update check --json",
-        "opl update plan --json",
-        "opl update apply --component <component_id> --json",
-        "opl update repair --receipt <receipt_id> --json",
-        "opl update rollback --component <component_id> --json"
+        "opl update plan --json"
       ],
-      "lifecycle": [
-        "read_manifest",
-        "read_current_state",
-        "diff_plan",
-        "fetch_artifacts",
-        "verify",
-        "stage",
-        "activate",
-        "post_apply",
-        "write_receipt",
-        "report_status_or_repair"
+      "exclusive_operations": [
+        "apply",
+        "repair",
+        "rollback"
       ],
-      "state_vocabulary": [
-        "current",
-        "update_available",
-        "staged",
-        "needs_restart",
-        "needs_reload",
-        "failed_with_repair",
-        "skipped_manual_required"
-      ],
-      "channels_share": [
-        "status_schema",
-        "condition_model",
-        "download_verify_stage_apply_lifecycle",
-        "repair_action_refs",
-        "rollback_receipts"
-      ],
-      "idempotency_lock": {
-        "lock_id": "opl_managed_updater_kernel.global",
-        "lock_scope": "single_writer_for_fetch_verify_stage_activate_post_apply_write_receipt",
-        "read_operations": [
-          "status",
-          "check",
-          "plan"
-        ],
-        "exclusive_operations": [
-          "apply",
-          "repair",
-          "rollback"
-        ],
-        "stale_after_seconds": 1800,
-        "contention_policy": "report_in_progress_or_skip_without_parallel_stage_or_plugin_sync"
-      },
-      "operation_modes": {
-        "status": "read_only_projection",
-        "check": "read_only_projection",
-        "plan": "read_only_projection",
-        "apply": "controlled_apply",
-        "repair": "controlled_repair",
-        "rollback": "controlled_rollback"
-      },
+      "component_projection_ref": "software_lifecycle",
+      "single_writer_required": true,
       "receipt_write_policy": {
         "status": "read_only",
         "check": "read_only",
         "plan": "read_only",
-        "apply": "recorded_component_receipt",
-        "repair": "recorded_component_receipt",
-        "rollback": "recorded_component_receipt"
-      },
-      "status_projection_required_fields": [
-        "operation",
-        "operation_mode",
-        "update_channel",
-        "idempotency_lock.status",
-        "summary",
-        "components",
-        "repair_actions",
-        "receipts.write_policy",
-        "authority_boundary"
-      ],
-      "runner_result_required_fields": [
-        "operation",
-        "operation_mode",
-        "execution.status",
-        "idempotency_lock.status",
-        "component_id",
-        "components[].receipt.last_receipt_ref",
-        "components[].receipt.repair_action",
-        "components[].receipt.rollback_ref",
-        "components[].receipt.post_apply_hooks",
-        "execution.receipt_record.receipt_refs",
-        "reload_guidance",
-        "recent_actions",
-        "skipped_reasons"
-      ],
-      "component_receipt_shape": {
-        "schema_version": "opl_managed_update_component_receipt.v1",
-        "required_fields": [
-          "source_manifest_ref",
-          "from_version",
-          "from_digest",
-          "to_version",
-          "to_digest",
-          "verify_result",
-          "activated_at",
-          "post_apply_hooks",
-          "rollback_ref",
-          "repair_action"
-        ],
-        "identity_fields": [
-          "digest",
-          "sha256",
-          "source_fingerprint",
-          "git_head_sha",
-          "runtime_version",
-          "current_pointer",
-          "staged_root",
-          "plugin_manifest_hash",
-          "skill_pack_hash",
-          "generated_surface_hash"
-        ]
-      },
-      "condition_shape": {
-        "required_fields": [
-          "type",
-          "status",
-          "reason",
-          "message",
-          "observed_generation"
-        ],
-        "status_values": [
-          "True",
-          "False",
-          "Unknown"
-        ],
-        "style": "kubernetes_status_conditions"
+        "apply": "recorded_software_object_receipt",
+        "repair": "recorded_software_object_receipt",
+        "rollback": "recorded_software_object_receipt"
       },
       "app_must_not_implement_kernel": true,
       "app_must_not_bypass_action_route": true
     },
-    "planes": [
-      {
-        "id": "installation_carrier",
-        "display_group": "Installation carrier",
-        "display_label_en": "Installation carrier",
-        "display_label_zh": "安装载体",
-        "updater_kind": "carrier_specific_status",
-        "source": "macOS standard updater, Docker/WebUI image status, or Linux package carrier status",
-        "adapter": "installation_carrier_status_adapter",
-        "policy": "carrier_specific_status_with_host_update_route",
-        "post_apply": "carrier_specific_restart_host_executor_or_manual_readback",
-        "default_update_mode": "carrier_specific_user_visible_or_host_executor_required",
-        "managed_kernel_apply_allowed": false,
-        "opl_update_apply_must_not_claim_carrier_update_complete": true,
-        "status_fields": [
-          "carrier_type",
-          "installed_version",
-          "available_version",
-          "channel",
-          "carrier_status",
-          "host_update_route",
-          "host_executor_required",
-          "manual_required",
-          "downloaded_version",
-          "download_progress",
-          "restart_required",
-          "apply_started",
-          "applied_version",
-          "running_version_switched",
-          "install_not_applied_reason",
-          "cached_update_path",
-          "image_ref",
-          "image_digest",
-          "remote_image_digest",
-          "image_currentness_status",
-          "image_currentness_evidence_source",
-          "container_id",
-          "compose_file",
-          "package_manager",
-          "package_name",
-          "detected_package_managers",
-          "data_volume_preservation",
-          "repair_actions"
-        ],
-        "carrier_variants": [
-          {
-            "id": "macos_app",
-            "legacy_alias": "app_binary",
-            "carrier_status_source": "GitHub Release standard macOS arm64 updater assets",
-            "host_update_route": "electron_standard_updater_or_homebrew_cask",
-            "adapter": "electron_standard_updater",
-            "status_values": [
-              "current",
-              "update_available",
-              "downloaded",
-              "restart_required",
-              "install_not_applied",
-              "failed_with_repair"
-            ],
-            "data_volume_preservation_proof_required": false,
-            "repair_action_scope": "app_release_check_download_retry_or_install_downloaded_update_only"
-          },
-          {
-            "id": "docker_webui_image",
-            "carrier_status_source": "GHCR image digest, compose/container image readback, and Docker/WebUI installer or smoke-gate diagnostics",
-            "image_currentness_status_source": "optional GHCR remote digest readback compared with the local compose/container image digest",
-            "image_currentness_claim_policy": "remote digest comparison is status-only and must not be used as release-ready, live-current, or applied-update proof",
-            "host_update_route": "host_executor_runs_documented_installer_or_compose_pull_and_up",
-            "host_update_route_examples": [
-              "install-docker-webui.sh --yes --update",
-              "install-docker-webui.ps1 -Yes -Update",
-              "docker compose pull && docker compose up -d"
-            ],
-            "status_values": [
-              "current",
-              "update_available",
-              "host_executor_required",
-              "manual_required",
-              "failed_with_repair"
-            ],
-            "managed_kernel_apply_allowed": false,
-            "opl_update_apply_boundary": "Inside-container `opl update apply` may update the OPL body through runtime_substrate plus capability_packages and companion_tools only; Codex Surface remains a post-apply visibility/reload projection, and the command must not report Docker/WebUI image replacement as applied.",
-            "opl_body_update_policy": {
-              "user_intent_label": "Update OPL body",
-              "managed_update_plane": "runtime_substrate",
-              "runtime_fabric_label": "OPL Runtime Fabric",
-              "host_carrier_update_allowed": false,
-              "rule": "Updating the OPL body inside a running Docker/WebUI managed root is runtime_substrate managed maintenance, not Docker image replacement."
-            },
-            "data_volume_preservation_proof_required": true,
-            "preserved_mounts": [
-              "OnePersonLab/data -> /data",
-              "OnePersonLab/projects -> /projects"
-            ],
-            "required_preservation_evidence": [
-              "compose.yaml volume mapping readback",
-              "data-preservation.txt",
-              "pre_data_inventory",
-              "post_data_inventory",
-              "install_manifest_readback",
-              "projects_mount_readback"
-            ],
-            "repair_action_scope": "docker_webui_host_route_diagnostics_and_data_volume_preservation_only"
-          },
-          {
-            "id": "linux_package_carrier",
-            "carrier_status_source": "host package manager, package metadata, or documented Linux package carrier readback",
-            "host_update_route": "host_package_manager_or_documented_host_executor",
-            "host_update_route_examples": [
-              "sudo apt update && sudo apt install --only-upgrade one-person-lab",
-              "sudo dnf upgrade one-person-lab",
-              "sudo zypper update one-person-lab"
-            ],
-            "status_readback_fields": [
-              "package_manager",
-              "package_name",
-              "installed_version",
-              "detected_package_managers"
-            ],
-            "status_values": [
-              "current",
-              "update_available",
-              "host_executor_required",
-              "manual_required",
-              "failed_with_repair"
-            ],
-            "host_executor_required": true,
-            "manual_required_when": [
-              "package_manager_requires_sudo_or_root",
-              "host_policy_disallows_app_executor",
-              "repository_or_signature_configuration_required"
-            ],
-            "managed_kernel_apply_allowed": false,
-            "opl_body_update_policy": {
-              "user_intent_label": "Update OPL body",
-              "managed_update_plane": "runtime_substrate",
-              "runtime_fabric_label": "OPL Runtime Fabric",
-              "host_carrier_update_allowed": false,
-              "rule": "Updating the OPL body inside a managed Linux root is runtime_substrate managed maintenance. Updating the Linux package carrier still routes through the host package manager or documented host executor."
-            },
-            "repair_action_scope": "linux_package_carrier_host_route_only"
-          }
-        ],
-        "repair_action_scope": "carrier_specific_check_download_host_route_or_manual_recovery_only",
-        "legacy_alias": "app_binary"
-      },
-      {
-        "id": "runtime_substrate",
-        "display_group": "OPL Runtime Fabric",
-        "display_label_en": "OPL Runtime Fabric",
-        "display_label_zh": "OPL 运行基座",
-        "updater_kind": "managed_updater_kernel",
-        "source": "app-runtime-update-channel.json",
-        "adapter": "runtime_substrate_adapter",
-        "policy": "silent_background_verified_stage_apply_on_next_restart",
-        "channel_model": "stable_nightly_release_cohort",
-        "rolling_latest_allowed": false,
-        "brand_name": "OPL Runtime Fabric",
-        "brand_role": "shared runtime fabric for OPL capability modules, not a user-facing brand module",
-        "managed_subsystems": {
-          "agent_execution_core": [
-            "embedded_codex_executor",
-            "temporal_cli_archive",
-            "opl_framework_runtime"
-          ],
-          "environment_materializer": {
-            "role": "materialize module-declared sandbox-like runtime environments from managed App-owned materials",
-            "language_runtimes": [
-              "node_runtime",
-              "python_runtime"
-            ],
-            "package_and_env_resolvers": [
-              "uv_runtime"
-            ],
-            "optional_resolver_slots": [
-              "pixi_for_scientific_native_stack_when_declared"
-            ],
-            "env_cache_and_isolated_prefix": "module-specific managed env roots and package cache under the App-owned runtime/state root",
-            "receipt_fields": [
-              "language_runtime_versions",
-              "resolver_versions",
-              "lock_refs",
-              "materialized_env_root",
-              "cache_root",
-              "sha256",
-              "rollback_ref"
-            ]
-          },
-          "opl_system_bridge": [
-            "native_helper"
-          ]
-        },
-        "source_preference_policy": {
-          "default_source": "app_owned_runtime",
-          "system_sources_default_used": false,
-          "system_sources_visible_as_diagnostics": true,
-          "system_sources_require_expert_opt_in": true,
-          "developer_checkout_default_used": false,
-          "expert_opt_in_surface": "Developer Profile explicit maintenance action",
-          "standard_download_policy": "minimal_runtime_fabric_then_on_demand_payloads",
-          "full_download_policy": "preload_runtime_fabric_common_tools_and_capability_caches"
-        },
-        "linux_docker_opl_body_policy": {
-          "user_intent_label": "Update OPL body",
-          "managed_update_plane": "runtime_substrate",
-          "runtime_fabric_label": "OPL Runtime Fabric",
-          "applies_to": [
-            "docker_webui_managed_root",
-            "linux_package_managed_root"
-          ],
-          "not_installation_carrier_update": true,
-          "forbidden_host_targets": [
-            "docker_webui_image",
-            "linux_package_carrier"
-          ],
-          "rule": "Update OPL body maps to runtime_substrate/OPL Runtime Fabric managed maintenance for Linux/Docker managed roots. Docker image refresh and Linux package refresh stay installation_carrier host routes."
-        },
-        "post_apply": "startup_smoke_then_swap_runtime_current_pointer_with_rollback",
-        "default_update_mode": "silent_background",
-        "status_fields": [
-          "runtime_version",
-          "components",
-          "conditions",
-          "staged_version",
-          "restart_required",
-          "repair_actions",
-          "idempotency_lock.status",
-          "execution.status",
-          "components[].receipt.last_receipt_ref",
-          "components[].receipt.rollback_ref",
-          "components[].receipt.repair_action"
-        ],
-        "component_receipt_identity_fields": [
-          "runtime_version",
-          "current_pointer",
-          "staged_root",
-          "sha256"
-        ],
-        "rollback_status_source": "opl update rollback --component runtime_substrate --json#managed_update.execution.status",
-        "repair_status_source": "opl update repair --receipt <receipt_id> --json#managed_update.execution.status",
-        "repair_action_scope": "runtime_substrate_repair_only",
-        "legacy_alias": "runtime_toolchain"
-      },
-      {
-        "id": "capability_packages",
-        "display_group": "OPL Packages",
-        "display_label_en": "OPL Packages",
-        "display_label_zh": "OPL 能力包",
-        "updater_kind": "managed_updater_kernel",
-        "source": "GHCR OCI OPL Packages",
-        "adapter": "capability_packages_adapter",
-        "policy": "ordinary_user_non_development_rolling_latest_auto_apply",
-        "post_apply": "sync_plugin_registry_plugin_packaged_skills_generated_surfaces_and_codex_surface_readiness",
-        "default_update_mode": "automatic_apply_for_clean_managed_roots",
-        "package_agent_ids": [
-          "med-autoscience",
-          "med-autogrant",
-          "redcube-ai",
-          "opl-meta-agent",
-          "opl-bookforge",
-          "mas-scholar-skills"
-        ],
-        "package_ids": [
-          "med-autoscience",
-          "med-autogrant",
-          "redcube-ai",
-          "opl-meta-agent",
-          "opl-bookforge",
-          "mas-scholar-skills",
-          "opl-flow"
-        ],
-        "package_kinds": {
-          "med-autoscience": "domain_agent_package",
-          "med-autogrant": "domain_agent_package",
-          "redcube-ai": "domain_agent_package",
-          "opl-meta-agent": "domain_agent_package",
-          "opl-bookforge": "domain_agent_package",
-          "mas-scholar-skills": "framework_capability_package",
-          "opl-flow": "workflow_plugin_package"
-        },
-        "opl_flow_package": {
-          "package_id": "opl-flow",
-          "package_kind": "workflow_plugin_package",
-          "consumer": "standard_and_full_workflow_baseline",
-          "optional_feature_consumer": "optional_user_modes.intelligence_enhancement",
-          "install_or_refresh_command": "python3 scripts/install_local_plugin.py",
-          "required_before_actions": [
-            "status",
-            "enable",
-            "repair"
-          ],
-          "profile_mutation_allowed": false,
-          "profile_sync_policy": "install_missing_or_emit_semantic_merge_packet_preserving_unmanaged_content",
-          "workflow_profile_semantic_merge_ref": "managed_update_plane.planes[workflow_profile]",
-          "standard_updater_allowed": false
-        },
-        "status_fields": [
-          "agent_id",
-          "package_tag",
-          "version",
-          "source",
-          "conditions",
-          "repair_actions",
-          "components[].receipt.post_apply_hooks",
-          "post_apply_sync.codex_surface",
-          "readiness.codex_surface",
-          "idempotency_lock.status",
-          "execution.status",
-          "components[].receipt.last_receipt_ref",
-          "components[].receipt.repair_action",
-          "oci_ref",
-          "resolved_digest",
-          "installed_digest",
-          "latest_digest",
-          "auto_apply.skip_reasons"
-        ],
-        "post_apply_sync": {
-          "status_field": "components[].receipt.post_apply_hooks",
-          "required_hooks": [
-            "reconcile_modules",
-            "sync_skills",
-            "sync_plugin_registry",
-            "sync_plugin_packaged_skills",
-            "sync_oma_generated_plugin_surface",
-            "sync_bookforge_generated_plugin_surface",
-            "sync_mas_scholar_skills_package_surface",
-            "codex_surface_readiness"
-          ],
-          "reload_guidance": "reload_app_and_codex_plugin_cache_when_post_apply_sync_changes_visible_plugin_or_skill_surface",
-          "auto_apply_eligibility": "clean_managed_module_roots_only",
-          "auto_apply_denial_reasons": [
-            "dirty_checkout",
-            "developer_profile_checkout",
-            "manual_required_condition",
-            "idempotency_lock_in_progress",
-            "verification_failed"
-          ]
-        },
-        "repair_action_scope": "opl_package_reconcile_skill_sync_and_codex_surface_readiness_only",
-        "legacy_alias": "agent_package_channel",
-        "codex_surface_substatus_source": "managed_update_plane.codex_surface",
-        "default_manifest_tag": "latest",
-        "distribution_format": "ghcr_oci_artifact",
-        "ordinary_user_channel_model": "rolling_latest_only",
-        "user_visible_channels": [
-          "latest"
-        ],
-        "internal_candidate_channel": "candidate_ci_only_not_user_visible",
-        "publication_cadence": "daily_when_source_digest_changes",
-        "promotion_policy": "build_candidate_validate_manifest_skill_plugin_surface_install_smoke_sign_then_promote_latest",
-        "immutable_tag_required": true,
-        "digest_lock_required": true,
-        "stable_or_nightly_user_channels_allowed": false,
-        "source_role": "ordinary_user_non_development_rolling_latest_oci_agent_package_source"
-      },
-      {
-        "id": "companion_tools",
-        "display_group": "Companion tools",
-        "display_label_en": "Companion tools",
-        "display_label_zh": "辅助工具",
-        "updater_kind": "managed_updater_kernel",
-        "source": "app-runtime-update-channel.json#companion_tools",
-        "adapter": "companion_tools_adapter",
-        "policy": "silent_background_verified_stage_apply_on_next_restart",
-        "channel_model": "stable_nightly_release_cohort",
-        "rolling_latest_allowed": false,
-        "post_apply": "companion_tool_capability_smoke_and_pointer_swap",
-        "default_update_mode": "silent_background",
-        "managed_tools": [
-          "officecli",
-          "mineru_open_api"
-        ],
-        "status_fields": [
-          "tool_id",
-          "version",
-          "source",
-          "conditions",
-          "repair_actions",
-          "idempotency_lock.status",
-          "execution.status",
-          "components[].receipt.last_receipt_ref",
-          "components[].receipt.repair_action"
-        ],
-        "repair_action_scope": "companion_tool_repair_only"
-      },
-      {
-        "id": "codex_surface",
-        "display_group": "OPL Packages",
-        "user_visible_channel": false,
-        "parent_display_plane": "capability_packages",
-        "updater_kind": "managed_visibility_projection",
-        "source": "OPL App state Codex surface projection",
-        "adapter": "codex_surface_status_adapter",
-        "policy": "display_codex_surface_visibility_and_repair_actions_without_duplicate_semantics",
-        "post_apply": "opl_packages_post_apply_readiness_projection",
-        "default_update_mode": "substatus_projection",
-        "status_fields": [
-          "codex_plugin_registry",
-          "plugin_packaged_skills",
-          "opl_generated_plugin_surface",
-          "conditions",
-          "repair_actions",
-          "components[].receipt.post_apply_hooks",
-          "reload_required",
-          "reload_guidance"
-        ],
-        "reload_guidance": "manual_reload_only_after_framework_reports_needs_reload_or_post_apply_sync_changed_cached_capability_surface",
-        "repair_action_scope": "opl_packages_codex_surface_repair_substatus_only",
-        "legacy_alias": "capability_exposure"
-      },
-      {
-        "id": "workflow_profile",
-        "display_group": "Workflow profile",
-        "display_label_en": "Workflow profile",
-        "display_label_zh": "工作流配置",
-        "updater_kind": "semantic_merge_required_profile_sync",
-        "source": "OPL Flow AGENTS/TASTE/prompts profile",
-        "adapter": "workflow_profile_adapter",
-        "policy": "semantic_merge_required_no_silent_overwrite",
-        "post_apply": "merge_profile_then_report_conflicts_or_reload_guidance",
-        "default_update_mode": "manual_semantic_merge_when_changed",
-        "managed_profile_parts": [
-          "AGENTS.md",
-          "TASTE.md",
-          "prompts"
-        ],
-        "status_fields": [
-          "profile_id",
-          "version",
-          "conditions",
-          "conflicts",
-          "repair_actions",
-          "reload_guidance"
-        ],
-        "repair_action_scope": "workflow_profile_semantic_merge_only"
-      }
-    ],
-    "channel_differences": {
-      "runtime_substrate": {
-        "legacy_alias": "runtime_toolchain",
-        "adapter": "runtime_substrate_adapter",
-        "policy": "verify_stage_apply_on_next_app_restart",
-        "post_apply": "component_capability_smoke_and_runtime_pointer_swap"
-      },
-      "capability_packages": {
-        "legacy_alias": "agent_package_channel",
-        "adapter": "capability_packages_adapter",
-        "policy": "ordinary_user_non_development_rolling_latest_auto_apply",
-        "post_apply": "reconcile_modules_sync_skills_sync_plugin_registry_generated_surfaces_and_codex_surface_readiness",
-        "distribution_format": "ghcr_oci_artifact",
-        "default_update_mode": "automatic_apply_for_clean_managed_roots"
-      },
-      "companion_tools": {
-        "adapter": "companion_tools_adapter",
-        "policy": "verify_stage_apply_on_next_app_restart",
-        "post_apply": "companion_tool_capability_smoke_and_pointer_swap"
-      },
-      "workflow_profile": {
-        "adapter": "workflow_profile_adapter",
-        "policy": "semantic_merge_required_no_silent_overwrite",
-        "post_apply": "merge_profile_then_report_conflicts_or_reload_guidance"
-      }
-    },
-    "forbidden_silent_overwrite_scope": [
-      "Developer Profile checkout",
-      "dirty checkout",
-      "domain truth",
-      "owner receipt",
-      "quality verdict",
-      "export verdict",
-      "Homebrew/global tools"
-    ],
     "forbidden_app_authority": [
+      "opl_base_mutation",
+      "opl_packages_mutation",
       "framework_update_kernel_implementation",
       "runtime_truth",
       "domain_truth",
@@ -3121,443 +2556,17 @@
       "domain_quality_verdict",
       "domain_export_verdict",
       "artifact_body",
-      "homebrew_global_tool_mutation",
+      "homebrew_formula_or_global_tool_mutation",
       "developer_checkout_mutation"
     ],
     "release_boundary_required_cases": [
-      "standard_updater_desktop_assets_only",
-      "standard_updater_apply_verification_and_recovery",
-      "runtime_substrate_uses_managed_kernel_not_standard_updater",
-      "capability_packages_use_managed_kernel_and_post_update_sync",
-      "codex_surface_status_is_projection_only",
-      "companion_tools_are_separate_from_runtime_substrate",
-      "workflow_profile_requires_semantic_merge",
-      "framework_artifact_gate_requires_channel_readback_checksum_and_rollback",
-      "user_data_artifacts_no_silent_delete",
-      "forbidden_silent_overwrite_scope_fail_closed"
-    ],
-    "shell_integration": {
-      "required_ipc_surfaces": [
-        "opl-runtime.get-managed-update-status",
-        "opl-runtime.get-managed-update-check",
-        "opl-runtime.get-managed-update-plan",
-        "opl-runtime.run-managed-update-apply",
-        "opl-runtime.run-managed-update-repair",
-        "opl-runtime.run-managed-update-rollback"
-      ],
-      "allowed_cli_commands": [
-        "opl update status --json",
-        "opl update check --json",
-        "opl update plan --json",
-        "opl update apply --component <component_id> --json",
-        "opl update repair --receipt <receipt_id> --json",
-        "opl update rollback --component <component_id> --json"
-      ],
-      "background_scheduler": {
-        "triggers": [
-          "app_startup_after_core_ready",
-          "daily_background_maintenance",
-          "manual_check_updates"
-        ],
-        "lock_source": "managed_update.idempotency_lock.status",
-        "backoff_policy": "bounded_retry_with_last_failure_projection",
-        "user_blocking": false,
-        "must_project_last_run_and_next_run": true,
-        "auto_apply_policy": "auto_apply_capability_packages_only_when_clean_managed_and_latest_digest_changed",
-        "auto_apply_components": [
-          "capability_packages"
-        ],
-        "never_auto_apply_components": [
-          "installation_carrier",
-          "runtime_substrate",
-          "companion_tools",
-          "workflow_profile"
-        ],
-        "must_project_recent_actions_and_skip_reasons": true
-      },
-      "ui_actions": {
-        "refresh": "opl update status --json",
-        "check": "opl update check --json",
-        "plan": "opl update plan --json",
-        "apply_managed_component": "opl update apply --component <component_id> --json",
-        "apply_allowed_components": [
-          "runtime_substrate",
-          "capability_packages",
-          "companion_tools"
-        ],
-        "apply_forbidden_components": [
-          "installation_carrier",
-          "codex_surface",
-          "workflow_profile"
-        ],
-        "carrier_host_update_route": "carrier-specific host update route from installation_carrier.carrier_variants; Docker/WebUI image replacement requires host executor or manual route plus data volume preservation proof; updating the OPL body inside Linux/Docker managed roots stays on runtime_substrate",
-        "repair_receipt": "opl update repair --receipt <receipt_id> --json",
-        "rollback_component": "opl update rollback --component <component_id> --json"
-      },
-      "forbidden_shell_behaviors": [
-        "read_artifact_body",
-        "read_or_write_domain_truth",
-        "write_owner_receipt",
-        "mutate_dirty_or_developer_checkout",
-        "mutate_homebrew_or_system_tools",
-        "bypass_framework_update_kernel"
-      ]
-    },
-    "taxonomy": {
-      "model_version": "app_install_update_taxonomy.v2",
-      "user_semantic_classes": [
-        "installation_carrier",
-        "runtime_substrate",
-        "capability_packages",
-        "companion_tools",
-        "codex_surface",
-        "workflow_profile",
-        "user_data_artifacts"
-      ],
-      "legacy_aliases": {
-        "app_binary": "installation_carrier.macos_app",
-        "runtime_toolchain": "runtime_substrate",
-        "runtime_toolchain_updater": "runtime_substrate_updater",
-        "codex_cli_fallback": "embedded_codex_executor",
-        "agent_package_channel": "capability_packages",
-        "capability_exposure": "codex_surface",
-        "conversation_artifacts": "user_data_artifacts"
-      },
-      "installation_carrier_variants": [
-        "macos_app",
-        "docker_webui_image",
-        "linux_package_carrier"
-      ],
-      "migration_note": "legacy_alias values are transitional machine compatibility markers only; ordinary UI and App-owned contracts use the new taxonomy labels."
-    },
-    "capability_packages": {
-      "registry": "ghcr.io",
-      "source_role": "ordinary_user_non_development_rolling_latest_oci_agent_package_source",
-      "default_update_mode": "automatic_apply_for_clean_managed_roots",
-      "default_manifest_tag": "latest",
-      "package_agent_ids": [
-        "med-autoscience",
-        "med-autogrant",
-        "redcube-ai",
-        "opl-meta-agent",
-        "opl-bookforge",
-        "mas-scholar-skills"
-      ],
-      "package_ids": [
-        "med-autoscience",
-        "med-autogrant",
-        "redcube-ai",
-        "opl-meta-agent",
-        "opl-bookforge",
-        "mas-scholar-skills",
-        "opl-flow"
-      ],
-      "package_kinds": {
-        "med-autoscience": "domain_agent_package",
-        "med-autogrant": "domain_agent_package",
-        "redcube-ai": "domain_agent_package",
-        "opl-meta-agent": "domain_agent_package",
-        "opl-bookforge": "domain_agent_package",
-        "mas-scholar-skills": "framework_capability_package",
-        "opl-flow": "workflow_plugin_package"
-      },
-      "opl_flow_package": {
-        "package_id": "opl-flow",
-        "package_kind": "workflow_plugin_package",
-        "consumer": "standard_and_full_workflow_baseline",
-        "optional_feature_consumer": "optional_user_modes.intelligence_enhancement",
-        "install_or_refresh_command": "python3 scripts/install_local_plugin.py",
-        "required_before_actions": [
-          "status",
-          "enable",
-          "repair"
-        ],
-        "profile_mutation_allowed": false,
-        "profile_sync_policy": "install_missing_or_emit_semantic_merge_packet_preserving_unmanaged_content",
-        "workflow_profile_semantic_merge_ref": "managed_update_plane.planes[workflow_profile]",
-        "standard_updater_allowed": false
-      },
-      "post_update_sync_required": [
-        "codex_plugin_registry",
-        "plugin_packaged_skills",
-        "opl_generated_plugin_surface",
-        "codex_surface"
-      ],
-      "activation_commands": [
-        "opl connect reconcile-modules",
-        "opl connect sync-skills"
-      ],
-      "background_apply_policy": "apply_after_daily_or_startup_digest_check_when_all_opl_package_components_are_clean_managed_and_update_available",
-      "background_apply_must_record": [
-        "last_auto_apply_at",
-        "last_auto_apply_component_ids",
-        "last_auto_apply_receipt_refs",
-        "last_auto_apply_post_apply_hooks",
-        "last_auto_apply_skip_reasons",
-        "reload_guidance"
-      ],
-      "must_not_write_user_codex_state_directly": true,
-      "must_not_define_agent_semantics": true,
-      "developer_checkout_override_policy": "explicit_developer_profile_source_channel_only",
-      "legacy_alias": "agent_package_channel",
-      "distribution_format": "ghcr_oci_artifact",
-      "ordinary_user_channel_model": "rolling_latest_only",
-      "user_visible_channels": [
-        "latest"
-      ],
-      "internal_candidate_channel": "candidate_ci_only_not_user_visible",
-      "publication_cadence": "daily_when_source_digest_changes",
-      "promotion_policy": "build_candidate_validate_manifest_skill_plugin_surface_install_smoke_sign_then_promote_latest",
-      "immutable_tag_required": true,
-      "digest_lock_required": true,
-      "stable_or_nightly_user_channels_allowed": false,
-      "policy": "ordinary_user_non_development_rolling_latest_auto_apply",
-      "auto_apply_skip_reasons": [
-        "developer_checkout_override",
-        "dirty_checkout",
-        "permission_scope_changed",
-        "major_compatibility_break",
-        "verification_failed",
-        "idempotency_lock_in_progress"
-      ]
-    },
-    "companion_tools": {
-      "managed_tools": [
-        "officecli",
-        "mineru_open_api"
-      ],
-      "default_update_mode": "silent_background",
-      "shared_kernel_lifecycle_allowed": true,
-      "must_not_be_grouped_under_runtime_substrate": true
-    },
-    "workflow_profile": {
-      "managed_parts": [
-        "AGENTS.md",
-        "TASTE.md",
-        "prompts"
-      ],
-      "semantic_merge_required": true,
-      "silent_overwrite_allowed": false
-    }
-  },
-  "runtime_substrate_updater": {
-    "owner": "one-person-lab-app",
-    "role": "app_owned_runtime_substrate_layer_updates",
-    "brand_name": "OPL Runtime Fabric",
-    "brand_role": "shared runtime fabric for OPL capability modules, not a MAS/MAG/RCA/OMA/OBF/MAS Scholar Skills brand module",
-    "channel_manifest_asset": "app-runtime-update-channel.json",
-    "transport": "app_owned_github_release_assets",
-    "standard_updater_metadata_allowed": false,
-    "standard_updater_latest_yml_allowed": false,
-    "homebrew_tap_write_allowed": false,
-    "scope": "App-owned installed OPL Runtime Fabric only. User-facing docs group its internals as Agent Execution Core, Environment Materializer, and OPL System Bridge instead of listing every binary at the top level. Companion tools and OPL Packages are separate classes that may share the managed updater kernel lifecycle.",
-    "default_policy": {
-      "auto_check": true,
-      "check_schedule": "on_startup_and_daily_background",
-      "download": "silent_background",
-      "verify_before_stage": true,
-      "apply": "stage_verified_payload_and_apply_on_next_app_restart",
-      "restart_prompt": "none_until_user_restarts_app",
-      "user_blocking": false
-    },
-    "managed_components": [
-      "embedded_codex_executor",
-      "temporal_cli_archive",
-      "node_runtime",
-      "python_runtime",
-      "uv_runtime",
-      "native_helper",
-      "opl_framework_runtime"
-    ],
-    "managed_subsystems": {
-      "agent_execution_core": [
-        "embedded_codex_executor",
-        "temporal_cli_archive",
-        "opl_framework_runtime"
-      ],
-      "environment_materializer": {
-        "role": "materialize module-declared sandbox-like runtime environments from managed App-owned materials",
-        "language_runtimes": [
-          "node_runtime",
-          "python_runtime"
-        ],
-        "package_and_env_resolvers": [
-          "uv_runtime"
-        ],
-        "optional_resolver_slots": [
-          "pixi_for_scientific_native_stack_when_declared"
-        ],
-        "env_cache_and_isolated_prefix": "module-specific managed env roots and package cache under the App-owned runtime/state root",
-        "receipt_fields": [
-          "language_runtime_versions",
-          "resolver_versions",
-          "lock_refs",
-          "materialized_env_root",
-          "cache_root",
-          "sha256",
-          "rollback_ref"
-        ]
-      },
-      "opl_system_bridge": [
-        "native_helper"
-      ]
-    },
-    "layering": {
-      "runtime_root": "~/Library/Application Support/OPL/runtime",
-      "current_pointer": "~/Library/Application Support/OPL/runtime/current.json",
-      "staged_root_template": "~/Library/Application Support/OPL/runtime/staged/<runtime_version>",
-      "previous_runtime_retention": 1,
-      "activation": "swap_current_pointer_on_app_restart_after_startup_smoke",
-      "rollback": "restore_previous_pointer_when_startup_smoke_fails"
-    },
-    "system_tool_policy": {
-      "preferred_sources": [
-        "app_owned_runtime",
-        "explicit_expert_unmanaged_source"
-      ],
-      "prefer_valid_newer_system_tool": false,
-      "system_sources_default_used": false,
-      "system_sources_visible_as_diagnostics": true,
-      "system_sources_require_expert_opt_in": true,
-      "silent_global_mutation_allowed": false,
-      "homebrew_upgrade_allowed_by_default": false,
-      "user_opt_in_global_upgrade_allowed": true,
-      "rule": "Ordinary users run App-owned runtime by default. System PATH, Homebrew, global tools, and developer checkouts may be detected for diagnostics, but using them requires explicit expert opt-in and remains unmanaged."
-    },
-    "manifest_required_fields": [
-      "schema_version",
-      "channel",
-      "runtime_version",
-      "components",
-      "assets",
-      "sha256",
-      "minimum_versions",
-      "apply_policy",
-      "rollback_policy",
-      "framework_artifact_channel"
-    ],
-    "verification": {
-      "required_before_stage": [
-        "manifest_schema",
-        "asset_sha256",
-        "framework_artifact_sha256",
-        "minimum_version",
-        "component_capability_smoke"
-      ],
-      "required_before_release": [
-        "standard_dmg_clean_vm_smoke",
-        "full_dmg_clean_vm_smoke",
-        "homebrew_standard_cask_clean_vm_smoke",
-        "remote_release_verification",
-        "framework_artifact_channel_readback",
-        "framework_artifact_checksum_readback",
-        "framework_artifact_rollback_evidence"
-      ],
-      "clean_machine_installability_must_not_regress": true
-    },
-    "framework_artifact_gate": {
-      "owner": "one-person-lab",
-      "component_id": "opl_framework_runtime",
-      "release_gate": true,
-      "channel_manifest_ref": "app-runtime-update-channel.json#components.opl_framework_runtime",
-      "artifact_channel_id": "framework_artifact_channel",
-      "status_source": "opl update status --json#runtime_substrate.components[opl_framework_runtime]",
-      "required_release_evidence": [
-        "framework_artifact_channel_readback",
-        "framework_artifact_readback",
-        "framework_artifact_sha256",
-        "framework_artifact_rollback_ref"
-      ],
-      "required_receipt_fields": [
-        "source_manifest_ref",
-        "artifact_ref",
-        "artifact_channel",
-        "artifact_sha256",
-        "git_head_sha",
-        "rollback_ref"
-      ],
-      "app_consumption_policy": "refs_and_checksums_only_no_artifact_body",
-      "docker_image_update_allowed": false,
-      "rule": "App release gates must prove the OPL Framework runtime artifact channel, artifact readback, sha256 checksum, and rollback ref before release. The App consumes Framework refs and receipts only; this does not authorize updating a Docker/WebUI image from inside Docker."
-    },
-    "rollback_policy": {
-      "keep_previous_runtime": true,
-      "rollback_on_startup_smoke_failure": true,
-      "rollback_must_not_mutate_user_global_tools": true
-    },
-    "linux_docker_opl_body_policy": {
-      "user_intent_label": "Update OPL body",
-      "managed_update_plane": "runtime_substrate",
-      "runtime_fabric_label": "OPL Runtime Fabric",
-      "applies_to": [
-        "docker_webui_managed_root",
-        "linux_package_managed_root"
-      ],
-      "forbidden_host_targets": [
-        "docker_webui_image",
-        "linux_package_carrier"
-      ],
-      "rule": "For Linux/Docker managed roots, Update OPL body means updating the runtime_substrate/OPL Runtime Fabric inside the existing managed root. It does not refresh the Docker image or Linux package carrier."
-    },
-    "rule": "OPL Runtime Fabric updates are App/CLI-managed runtime updates, not Electron standard updater assets, Docker/WebUI image refreshes, Linux package carrier upgrades, or Homebrew formula upgrades. The default novice experience is silent download and verified staging, with application on the next App restart.",
-    "managed_update_plane": "runtime_substrate",
-    "kernel": "opl_managed_updater_kernel",
-    "adapter": "runtime_substrate_adapter",
-    "policy": "silent_background_verified_stage_apply_on_next_restart",
-    "channel_model": "stable_nightly_release_cohort",
-    "rolling_latest_allowed": false,
-    "post_apply": "startup_smoke_then_swap_runtime_current_pointer_with_rollback",
-    "status_sources": [
-      "opl app state --profile fast --json#managed_update_plane.runtime_substrate",
-      "opl update status --json#runtime_substrate"
-    ],
-    "app_role": "status_conditions_repair_actions_consumer_only",
-    "forbidden_silent_overwrite_scope": [
-      "Developer Profile checkout",
-      "dirty checkout",
-      "domain truth",
-      "owner receipt",
-      "quality verdict",
-      "export verdict",
-      "Homebrew/global tools"
-    ],
-    "legacy_alias": "runtime_toolchain_updater",
-    "companion_tools_managed_separately": true
-  },
-  "companion_tools_updater": {
-    "owner": "one-person-lab-app",
-    "producer_owner": "one-person-lab",
-    "role": "app_owned_companion_tool_payload_updates",
-    "class": "companion_tools",
-    "managed_update_plane": "companion_tools",
-    "kernel": "opl_managed_updater_kernel",
-    "adapter": "companion_tools_adapter",
-    "policy": "silent_background_verified_stage_apply_on_next_app_restart",
-    "channel_model": "stable_nightly_release_cohort",
-    "rolling_latest_allowed": false,
-    "default_update_mode": "silent_background",
-    "managed_tools": [
-      "officecli",
-      "mineru_open_api"
-    ],
-    "shared_kernel_lifecycle_allowed": true,
-    "standard_updater_metadata_allowed": false,
-    "standard_updater_latest_yml_allowed": false,
-    "homebrew_tap_write_allowed": false,
-    "app_role": "status_conditions_repair_actions_consumer_only",
-    "rule": "Companion tools are not OPL Runtime Fabric user semantics. They may share the managed updater kernel lifecycle, but they are displayed and repaired as companion tools, not as OPL Runtime Fabric components.",
-    "status_sources": [
-      "opl app state --profile fast --json#managed_update_plane.companion_tools",
-      "opl update status --json#companion_tools"
-    ],
-    "forbidden_silent_overwrite_scope": [
-      "Developer Profile checkout",
-      "dirty checkout",
-      "domain truth",
-      "owner receipt",
-      "quality verdict",
-      "export verdict",
-      "Homebrew/global tools"
+      "only_opl_base_opl_app_and_opl_packages_are_public_components",
+      "opl_base_bootstrap_is_framework_owned_and_app_requested",
+      "opl_packages_use_framework_package_lifecycle_only",
+      "carrier_adapters_preserve_software_object_and_lifecycle_owner",
+      "internal_transaction_states_are_not_peer_products_or_updaters",
+      "ordinary_component_picker_and_public_component_flag_are_forbidden",
+      "standard_updater_targets_opl_app_only"
     ]
   }
 }

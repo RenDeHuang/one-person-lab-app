@@ -573,8 +573,11 @@ export type AppProductProfile = {
     };
   };
   companion_payloads: {
+    class: string;
     install_exposure_policy_ref: string;
     exposure_classes_ref: string;
+    opl_packages_projection_ref: string;
+    opl_packages_lifecycle_ref: string;
     public_abi: {
       primary_semantic_entry: string;
       preferred_app_distribution: string;
@@ -621,5 +624,18 @@ export type AppProductProfile = {
     app_owns: string[];
     app_consumes: string[];
     app_does_not_own: string[];
+  };
+  install_update_taxonomy: {
+    source_refs: string[];
+    public_software_objects: string[];
+    managed_update_component_keys: string[];
+    ordinary_component_picker_allowed: boolean;
+    transaction_internal_state_ids: string[];
+    ordinary_ui_must_not_expose_as_peer_objects: string[];
+    internal_detail_fields: {
+      opl_base: string[];
+      opl_app: string[];
+      opl_packages: string[];
+    };
   };
 };
