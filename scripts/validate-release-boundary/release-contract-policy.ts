@@ -225,10 +225,33 @@ function validateGithubReleaseName(releaseContract: Record<string, any>): number
   if (
     releaseName?.format !== 'One Person Lab v<version>' ||
     releaseName?.stable_example !== 'One Person Lab v26.6.5' ||
-    releaseName?.nightly_example !== 'One Person Lab v26.6.5-nightly' ||
+    releaseName?.nightly_example !== 'One Person Lab v26.6.5-nightly.123456789.1' ||
+    releaseName?.stable_version_pattern !== '^[0-9]{2}\\.(?:[1-9]|1[0-2])\\.(?:[1-9]|[12][0-9]|3[01])$' ||
+    releaseName?.nightly_version_pattern !== '^[0-9]{2}\\.(?:[1-9]|1[0-2])\\.(?:[1-9]|[12][0-9]|3[01])-nightly\\.[1-9][0-9]*\\.[1-9][0-9]*$' ||
     releaseName?.tag_pattern !== 'v<version>'
   ) {
     console.error('FAIL github_release_name: release names must use One Person Lab v<version> for Stable and Nightly while tags stay v<version>');
+    return 1;
+  }
+  return 0;
+}
+
+function validateReleaseImmutability(releaseContract: Record<string, any>): number {
+  const standardDraft = releaseContract.standard_updater?.draft_refresh;
+  const fullDraft = releaseContract.full_first_install?.draft_refresh;
+  const nightly = releaseContract.nightly_standard;
+  if (
+    standardDraft?.allowed !== true ||
+    standardDraft?.published_release_mutation_allowed !== false ||
+    standardDraft?.mode !== 'unpublished_draft_prebuilt_assets_upload_clobber' ||
+    fullDraft?.allowed !== true ||
+    fullDraft?.published_release_mutation_allowed !== false ||
+    fullDraft?.mode !== 'unpublished_draft_release_upload_clobber' ||
+    nightly?.tag_pattern !== 'v<YY.M.D>-nightly.<github_run_id>.<github_run_attempt>' ||
+    nightly?.prerelease !== true ||
+    nightly?.latest_release_allowed !== false
+  ) {
+    console.error('FAIL release_immutability: only unpublished drafts may refresh and every Nightly attempt must have a unique immutable version');
     return 1;
   }
   return 0;
@@ -938,6 +961,7 @@ export function validateReleaseContractPolicies(appRoot: string): number {
   let failures = 0;
 
   failures += validateGithubReleaseName(releaseContract);
+  failures += validateReleaseImmutability(releaseContract);
   failures += validateStandardUpdaterCompressionPolicy(appRoot, releaseContract);
   failures += validateReleasePreflightContract(releaseContract);
   failures += validateHomebrewVmGateStaticPolicy(appRoot, releaseContract, firstRunMatrix);

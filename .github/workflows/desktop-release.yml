@@ -5,16 +5,16 @@ on:
   workflow_dispatch:
     inputs:
       release_mode:
-        description: Create, draft, or refresh a release in place
+        description: Create a new Stable draft, keep a diagnostic draft, or refresh an unpublished draft
         required: true
-        default: refresh_existing
+        default: new_release
         type: choice
         options:
           - refresh_existing
           - new_release
           - draft_candidate
       opl_version:
-        description: OPL version, for example 26.5.19
+        description: Stable CalVer (YY.M.D), for example 26.5.19; one published version per UTC date
         required: true
         type: string
       release_intent:
@@ -122,7 +122,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: opl-desktop-release-${{ inputs.release_mode }}-${{ inputs.opl_version }}
+  group: opl-app-release-mutation-${{ inputs.opl_version }}
   cancel-in-progress: false
 
 env:
@@ -488,8 +488,8 @@ jobs:
           OPL_RELEASE_VERSION: ${{ inputs.opl_version }}
         run: |
           set -euo pipefail
-          if ! [[ "$OPL_RELEASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$ ]]; then
-            echo "::error::Invalid OPL release version: $OPL_RELEASE_VERSION"
+          if ! [[ "$OPL_RELEASE_VERSION" =~ ^[0-9]{2}\.([1-9]|1[0-2])\.([1-9]|[12][0-9]|3[01])$ ]]; then
+            echo "::error::Invalid Stable CalVer: $OPL_RELEASE_VERSION (expected YY.M.D with no same-day suffix)"
             exit 1
           fi
 
@@ -499,11 +499,11 @@ jobs:
           case "$RELEASE_MODE" in
             new_release | draft_candidate)
               if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
-                echo "::error::Tag $tag already exists; use refresh_existing to replace assets in place."
+                echo "::error::Tag $tag already exists; use refresh_existing only when the matching release is still a draft."
                 exit 1
               fi
               if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-                echo "::error::Release $tag already exists; use refresh_existing to replace assets in place."
+                echo "::error::Release $tag already exists; published releases are immutable and drafts require explicit refresh_existing."
                 exit 1
               fi
               git config user.name "github-actions[bot]"
@@ -512,7 +512,22 @@ jobs:
               git push origin "$tag"
               ;;
             refresh_existing)
-              gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json tagName >/dev/null
+              is_draft="$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft')"
+              if [ "$is_draft" != "true" ]; then
+                echo "::error::Release $tag is already published and immutable; create a new CalVer instead."
+                exit 1
+              fi
+              remote_tag_sha="$(git ls-remote --tags origin "refs/tags/$tag" | awk '{print $1}')"
+              if [ -z "$remote_tag_sha" ]; then
+                echo "::error::Draft release $tag has no matching remote tag."
+                exit 1
+              fi
+              if [ "$remote_tag_sha" != "$GITHUB_SHA" ]; then
+                git config user.name "github-actions[bot]"
+                git config user.email "github-actions[bot]@users.noreply.github.com"
+                git tag -f "$tag" "$GITHUB_SHA"
+                git push --force-with-lease="refs/tags/$tag:$remote_tag_sha" origin "refs/tags/$tag"
+              fi
               ;;
             *)
               echo "::error::Unsupported release mode: $RELEASE_MODE"
@@ -561,6 +576,7 @@ jobs:
       framework_ref: ${{ needs.release-source-gate.outputs.framework_sha }}
       shell_ref: ${{ needs.release-source-gate.outputs.shell_sha }}
       publish_to_release: false
+      release_mutation_owned_by_caller: true
       force_rebuild_runtime_cache: ${{ inputs.force_rebuild_runtime_cache }}
     secrets: inherit
 

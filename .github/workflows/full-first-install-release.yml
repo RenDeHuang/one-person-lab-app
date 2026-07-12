@@ -18,7 +18,7 @@ on:
         default: main
         type: string
       publish_to_release:
-        description: Upload Full first-install assets to an existing App GitHub Release
+        description: Upload Full first-install assets to an existing unpublished App draft
         required: false
         default: false
         type: boolean
@@ -59,7 +59,12 @@ on:
         default: main
         type: string
       publish_to_release:
-        description: Upload Full first-install assets to an existing App GitHub Release
+        description: Upload Full first-install assets to an existing unpublished App draft
+        required: false
+        default: false
+        type: boolean
+      release_mutation_owned_by_caller:
+        description: The trusted caller already serializes all mutations for this App version
         required: false
         default: false
         type: boolean
@@ -106,7 +111,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: opl-full-first-install-${{ inputs.opl_version }}
+  group: ${{ inputs.release_mutation_owned_by_caller && format('opl-full-first-install-embedded-{0}', github.run_id) || format('opl-app-release-mutation-{0}', inputs.opl_version) }}
   cancel-in-progress: false
 
 env:
@@ -1020,11 +1025,25 @@ jobs:
           key: ${{ steps.runtime-cache-keys.outputs.skills_cache_key }}
 
       - name: Verify release upload plan
-        if: ${{ inputs.publish_to_release || inputs.upload_full_package_artifact }}
+        if: ${{ inputs.publish_to_release }}
         working-directory: one-person-lab-app
         env:
           GH_TOKEN: ${{ github.token }}
-          OPL_RELEASE_EXISTS: ${{ inputs.publish_to_release && '1' || '0' }}
+          OPL_RELEASE_NOTES_MODE: template
+        run: |
+          npm run release:publish -- \
+            --no-build \
+            --dry-run \
+            --version "$OPL_RELEASE_VERSION" \
+            --repo "$GITHUB_REPOSITORY" \
+            --full-package-only \
+            --include-full-package
+
+      - name: Verify Full artifact plan without a release mutation
+        if: ${{ !inputs.publish_to_release && inputs.upload_full_package_artifact }}
+        working-directory: one-person-lab-app
+        env:
+          OPL_RELEASE_EXISTS: '0'
           OPL_RELEASE_NOTES_MODE: template
         run: |
           npm run release:publish -- \
@@ -1043,7 +1062,11 @@ jobs:
         run: |
           set -euo pipefail
           tmpdir="$(mktemp -d)"
-          gh release view "v${OPL_RELEASE_VERSION}" --repo "$GITHUB_REPOSITORY" --json tagName >/dev/null
+          is_draft="$(gh release view "v${OPL_RELEASE_VERSION}" --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft')"
+          if [ "$is_draft" != "true" ]; then
+            echo "::error::Full assets may be uploaded only before Stable promotion; v${OPL_RELEASE_VERSION} is already published and immutable."
+            exit 1
+          fi
           gh release download "v${OPL_RELEASE_VERSION}" \
             --repo "$GITHUB_REPOSITORY" \
             --pattern 'latest*.yml' \

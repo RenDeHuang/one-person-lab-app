@@ -113,12 +113,11 @@ trust policy, stage-appropriate Homebrew tap token availability, and the
 App-owned release contract. A failing preflight stops the release before
 standard, Full, VM, Homebrew, WebUI, or publish jobs run.
 
-Homebrew token absence is release-blocking only for a path that updates the tap
-inside the current desktop release workflow, such as published-release
-`refresh_existing`. A normal `new_release` creates and verifies a draft release
-first; its Homebrew tap update belongs to the promote workflow after the draft
-is published, so preflight must not block App assets, Full assets, or
-Docker/WebUI candidate evidence on that token.
+The desktop release workflow never updates Homebrew from an unpublished draft.
+Both `new_release` and `refresh_existing` create or repair a draft first; the
+Homebrew tap update belongs to the promote workflow after remote publication
+readback, so preflight must not block App assets, Full assets, or Docker/WebUI
+candidate evidence on the tap token.
 
 Promote must read back the just-published Stable release before it starts
 Homebrew. The required readback is the remote `gh release view v<version>`
@@ -680,8 +679,8 @@ cask refs, `one-person-lab-full` and `one-person-lab-nightly`, because Homebrew
 may load those casks while resolving conflicts. It does not grant broad
 `brew trust` approval for the entire tap.
 
-Homebrew does not own App activation, user workspace state, module readiness,
-agent-pack distribution, skill/plugin semantics, or domain readiness. Framework
+Homebrew does not own App activation, user workspace state, package readiness,
+Agent Package distribution, skill/plugin semantics, or domain readiness. Framework
 owns Formula/base release truth and App owns Cask/App release truth. After
 Homebrew install or upgrade, activation and user-state setup still come from
 OPL/App surfaces such as:
@@ -690,11 +689,11 @@ OPL/App surfaces such as:
 opl system initialize --json
 opl install
 opl system startup-maintenance
-opl connect reconcile-modules
+opl packages reconcile
 opl connect sync-skills
 ```
 
-Stable desktop releases update the stable cask only after the promote workflow publishes the draft release. Existing published release refreshes may update the tap after remote asset verification and before the Homebrew VM gate. Same-owner App release tap writes use direct commits; do not restore tap pull-request mode as a compatibility path.
+Stable desktop releases update the stable cask only after the promote workflow publishes the complete draft and reads it back as immutable Stable. Published releases are never refreshed in place. Same-owner App release tap writes use direct commits; do not restore tap pull-request mode as a compatibility path.
 `release-readiness-admission` reads `release-preflight.outputs.homebrew_tap_update_required`. When preflight says the tap update is required, the stable tap update, the Homebrew standard VM gate, and the Full tap update for Full releases must pass before readiness aggregation. When preflight says the tap update is not required, those Homebrew jobs may be `skipped`; readiness must not fail at the summary stage only because the tap was already current.
 
 ## Stable macOS Local Authorization
@@ -1198,9 +1197,10 @@ This is the default fast path after owner receipt for a frozen cohort.
 
 `new_release` owns the normal path: draft candidate, same-cohort evidence,
 owner receipt, then promote. `draft_candidate` is diagnostic and does not imply
-stable/latest. `refresh_existing` is only for replacing assets on an already
-published release; if the existing release is still draft, publish through the
-promote workflow rather than refreshing it from the desktop release workflow.
+stable/latest. `refresh_existing` repairs only an unpublished draft; after the
+complete cohort passes its gates, publish it through the promote workflow.
+Published Stable and Nightly releases are immutable and always require a new
+version.
 
 AI exploratory release checks are non-blocking. They can provide exploratory triage, summaries, risk hints, or follow-up suggestions, but they are not a release gate and must not block standard, Full, Homebrew, WebUI, updater, or promotion lanes.
 

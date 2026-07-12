@@ -57,7 +57,7 @@ These details are included for operators who audit exactly what was packaged. Th
 `;
 }
 
-test('publish defaults to the App repo and cleans only a newly-created failed release', () => {
+test('publish creates immutable releases through drafts and cleans only a newly-created failed draft', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-'));
   const shellRoot = path.join(tempRoot, 'shells', 'aionui');
   const outDir = path.join(shellRoot, 'out');
@@ -105,6 +105,7 @@ process.exit(args[0] === 'release' && args[1] === 'upload' ? 1 : 0);
   const publishArgs = [
     'scripts/publish-release.ts',
     '--no-build',
+    '--draft',
     '--shell-root',
     shellRoot,
     '--version',
@@ -115,6 +116,12 @@ process.exit(args[0] === 'release' && args[1] === 'upload' ? 1 : 0);
     FAKE_GH_LOG: ghLogPath,
     OPL_RELEASE_NOTES_MODE: 'template',
     OPL_RELEASE_UPLOAD_ATTEMPTS: '1',
+    OPL_RELEASE_MUTATION_STATE_JSON: JSON.stringify({
+      tagName: `v${version}`,
+      isDraft: true,
+      isPrerelease: false,
+      publishedAt: null,
+    }),
   };
   const newReleaseFailure = runNode(publishArgs, {
     env: { ...publishEnv, OPL_RELEASE_EXISTS: '0' },
@@ -133,14 +140,17 @@ process.exit(args[0] === 'release' && args[1] === 'upload' ? 1 : 0);
     `v${version}`,
     '--repo',
     'gaofeng21cn/one-person-lab-app',
+    '--cleanup-tag',
     '--yes',
   ]);
+  assert.equal(newReleaseLifecycle[1].includes('--clobber'), false);
 
   fs.writeFileSync(ghLogPath, '', 'utf8');
   const existingReleaseFailure = runNode(publishArgs, {
     env: {
       ...publishEnv,
       OPL_RELEASE_EXISTS: '1',
+      OPL_RELEASE_IS_DRAFT: '1',
       OPL_RELEASE_EXISTING_ASSETS_JSON: '[]',
     },
   });
@@ -148,6 +158,74 @@ process.exit(args[0] === 'release' && args[1] === 'upload' ? 1 : 0);
   const existingReleaseCommands = fs.readFileSync(ghLogPath, 'utf8').trim().split('\n').map((line) => JSON.parse(line));
   const existingReleaseLifecycle = existingReleaseCommands.filter((args) => ['create', 'upload', 'delete'].includes(args[1]));
   assert.deepEqual(existingReleaseLifecycle.map((args) => args.slice(0, 2)), [['release', 'upload']]);
+  assert.equal(existingReleaseLifecycle[0].includes('--clobber'), true);
+});
+
+test('publish refuses to replace an already published Stable or prerelease release', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-immutable-release-'));
+  const releaseAssetsDir = path.join(tempRoot, 'release-assets');
+  const version = '26.5.16';
+  const dmgName = `One-Person-Lab-${version}-mac-arm64.dmg`;
+  const zipName = `One-Person-Lab-${version}-mac-arm64.zip`;
+  writeFile(path.join(releaseAssetsDir, dmgName));
+  writeFile(path.join(releaseAssetsDir, zipName));
+  writeFile(path.join(releaseAssetsDir, `${zipName}.blockmap`));
+  writeReleaseMetadata(releaseAssetsDir, version, dmgName);
+  writeStandardLocalAuthorizationPolicy(releaseAssetsDir);
+
+  for (const [label, state] of [
+    ['stable', { tagName: `v${version}`, isDraft: false, isPrerelease: false, publishedAt: '2026-05-16T00:00:00Z' }],
+    ['prerelease', { tagName: `v${version}`, isDraft: false, isPrerelease: true, publishedAt: '2026-05-16T00:00:00Z' }],
+  ]) {
+    const result = runNode([
+      'scripts/publish-release.ts',
+      '--no-build',
+      '--dry-run',
+      '--standard-artifacts-dir',
+      releaseAssetsDir,
+      '--version',
+      version,
+    ], {
+      env: {
+        OPL_RELEASE_STATE_JSON: JSON.stringify(state),
+        OPL_RELEASE_NOTES_MODE: 'template',
+      },
+    });
+    assert.notEqual(result.status, 0, `${label} release mutation should fail`);
+    assert.match(result.stderr, new RegExp(`already published ${label} release and is immutable`));
+  }
+
+  const promotedBetweenPlanAndUpload = runNode([
+    'scripts/publish-release.ts',
+    '--no-build',
+    '--draft',
+    '--standard-artifacts-dir',
+    releaseAssetsDir,
+    '--version',
+    version,
+  ], {
+    env: {
+      OPL_RELEASE_STATE_JSON: JSON.stringify({
+        tagName: `v${version}`,
+        isDraft: true,
+        isPrerelease: false,
+        publishedAt: null,
+      }),
+      OPL_RELEASE_MUTATION_STATE_JSON: JSON.stringify({
+        tagName: `v${version}`,
+        isDraft: false,
+        isPrerelease: false,
+        publishedAt: '2026-05-16T00:01:00Z',
+      }),
+      OPL_RELEASE_EXISTING_ASSETS_JSON: '[]',
+      OPL_RELEASE_NOTES_MODE: 'template',
+    },
+  });
+  assert.notEqual(promotedBetweenPlanAndUpload.status, 0);
+  assert.match(
+    promotedBetweenPlanAndUpload.stderr,
+    /already published stable release and is immutable/,
+  );
 });
 
 test('publish dry run accepts prebuilt standard release assets from GitHub Actions', () => {
@@ -194,8 +272,8 @@ test('publish dry run accepts prebuilt standard release assets from GitHub Actio
   assert.equal(payload.release_notes_mode, 'template');
   assert.ok(payload.standard_artifacts.some((artifact) => artifact.endsWith(dmgName)));
   assert.ok(payload.standard_artifacts.some((artifact) => artifact.endsWith('latest-arm64-mac.yml')));
-  assert.ok(payload.upload_command.includes('--clobber'));
-  assert.ok(payload.upload_commands.every((command) => command.includes('--clobber')));
+  assert.equal(payload.upload_command.includes('--clobber'), false);
+  assert.ok(payload.upload_commands.every((command) => !command.includes('--clobber')));
   assert.equal(payload.upload_commands.length, payload.upload_command.filter((part) => String(part).startsWith(releaseAssetsDir)).length);
 });
 

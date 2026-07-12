@@ -7,7 +7,9 @@
   "github_release_name": {
     "format": "One Person Lab v<version>",
     "stable_example": "One Person Lab v26.6.5",
-    "nightly_example": "One Person Lab v26.6.5-nightly",
+    "nightly_example": "One Person Lab v26.6.5-nightly.123456789.1",
+    "stable_version_pattern": "^[0-9]{2}\\.(?:[1-9]|1[0-2])\\.(?:[1-9]|[12][0-9]|3[01])$",
+    "nightly_version_pattern": "^[0-9]{2}\\.(?:[1-9]|1[0-2])\\.(?:[1-9]|[12][0-9]|3[01])-nightly\\.[1-9][0-9]*\\.[1-9][0-9]*$",
     "tag_pattern": "v<version>",
     "rule": "GitHub Release names use the product-prefixed v-version format for both Stable and Nightly; tags remain v<version> for updater and automation compatibility."
   },
@@ -143,10 +145,11 @@
       "rule": "standard updater replacement is App-managed local authorization: the updater ZIP must contain the expected One Person Lab.app bundle, and release evidence must include the standard local authorization policy rather than requiring paid Apple Developer ID signing"
     },
     "rule": "standard updater metadata is canonical arm64-only latest-arm64-mac.yml, must never point to Full first-install assets, and standard updater ZIP assets must contain the expected One Person Lab.app bundle plus local authorization evidence; latest-mac.yml is a legacy compatibility alias only when deliberately published.",
-    "same_tag_refresh": {
+    "draft_refresh": {
       "allowed": true,
-      "mode": "github_actions_prebuilt_assets_upload_clobber",
-      "scope": "standard App DMG, ZIP, ZIP blockmap, canonical arm64 updater metadata, and local authorization policy for an existing release"
+      "published_release_mutation_allowed": false,
+      "mode": "unpublished_draft_prebuilt_assets_upload_clobber",
+      "scope": "standard App DMG, ZIP, ZIP blockmap, canonical arm64 updater metadata, and local authorization policy before Stable promotion"
     },
     "software_object": "opl_app",
     "carrier_adapters": [
@@ -327,14 +330,14 @@
     "prerelease": true,
     "full_first_install_allowed": false,
     "latest_release_allowed": false,
-    "tag_pattern": "v<YY.M.D>-nightly",
+    "tag_pattern": "v<YY.M.D>-nightly.<github_run_id>.<github_run_attempt>",
     "asset_scope": [
       "One-Person-Lab-<version>-mac-arm64.dmg",
       "One-Person-Lab-<version>-mac-arm64.zip",
       "One-Person-Lab-<version>-mac-arm64.zip.blockmap",
       "latest-arm64-mac.yml"
     ],
-    "rule": "Nightly releases publish standard macOS arm64 updater assets only and remain visible only to prerelease opt-in update checks."
+    "rule": "Each Nightly workflow attempt creates a unique immutable prerelease tag and release, publishes standard macOS arm64 updater assets only, and remains visible only to prerelease opt-in update checks; the moving nightly image tag is a channel pointer, not version identity."
   },
   "webui_ghcr_image": {
     "owner": "one-person-lab-app",
@@ -524,7 +527,7 @@
   "homebrew_tap_distribution": {
     "owner": "one-person-lab-app",
     "tap_repo": "gaofeng21cn/homebrew-one-person-lab",
-    "role": "external_app_cask_index_for_distribution_cohorts",
+    "role": "downstream_opl_base_formula_and_app_cask_index",
     "carrier_adapter_semantics": {
       "formula": {
         "software_object": "opl_base",
@@ -546,6 +549,14 @@
     },
     "cohort_manifest_required": true,
     "formulae": [],
+    "allowed_formulae": [
+      "opl"
+    ],
+    "allowed_casks": [
+      "one-person-lab",
+      "one-person-lab-nightly",
+      "one-person-lab-full"
+    ],
     "casks": [
       "one-person-lab",
       "one-person-lab-full"
@@ -586,7 +597,7 @@
       "app_release_direct_token": "OPL_HOMEBREW_TAP_TOKEN",
       "app_release_pull_request_allowed": false,
       "app_release_workflow_write_mode": "direct_commit_only_with_same_version_channel_serialization_and_fetch_rebase_retry",
-      "stable_release_workflow_write_mode": "new_release_promote_direct_commit_after_publish_readback_before_homebrew_vm_gate; refresh_existing_published_release_direct_commit_after_remote_verification_before_homebrew_vm_gate; refresh_existing_draft_release_defer_to_promote_after_publish_readback",
+      "stable_release_workflow_write_mode": "new_release_or_refreshed_draft_promote_direct_commit_after_publish_readback_before_homebrew_vm_gate",
       "direct_commit_conflict_policy": "serialize same channel/version tap writes across package kinds; on non-fast-forward push, fetch origin main, rebase the local tap commit, and retry before failing",
       "planner_script": "scripts/update-homebrew-tap.ts",
       "nightly": {
@@ -594,7 +605,7 @@
         "may_update_stable": false
       },
       "stable": {
-        "mode": "new_release_desktop_promote_direct_commit_after_publish_readback_before_homebrew_vm_gate; refresh_existing_published_release_desktop_release_direct_commit_after_remote_verification_before_homebrew_vm_gate; refresh_existing_draft_release_desktop_promote_after_publish_readback_before_homebrew_vm_gate",
+        "mode": "new_release_or_refreshed_draft_desktop_promote_direct_commit_after_publish_readback_before_homebrew_vm_gate",
         "may_consume_nightly_directly": false
       },
       "full": {
@@ -619,9 +630,23 @@
       "prefer_valid_newer_system_tool": true,
       "bundled_fallback_allowed": true
     },
-    "forbidden_formulae": [
-      "one-person-lab-modules",
-      "one-person-lab-modules-nightly"
+    "forbidden_package_formulae": [
+      "mas",
+      "mag",
+      "rca",
+      "oma",
+      "obf",
+      "mas-scholar-skills",
+      "opl-flow"
+    ],
+    "forbidden_package_casks": [
+      "mas",
+      "mag",
+      "rca",
+      "oma",
+      "obf",
+      "mas-scholar-skills",
+      "opl-flow"
     ],
     "opl_packages_boundary": {
       "software_object": "opl_packages",
@@ -630,11 +655,20 @@
       "homebrew_role": "not_a_distribution_target",
       "homebrew_distribution_allowed": false,
       "homebrew_formula_allowed": false,
+      "homebrew_cask_allowed": false,
       "canonical_lifecycle": "opl packages",
-      "forbidden_formulae": [
-        "one-person-lab-modules",
-        "one-person-lab-modules-nightly"
-      ]
+      "canonical_registry": "ghcr.io/<owner>/one-person-lab-packages/<canonical-package-id>",
+      "canonical_package_ids": [
+        "mas",
+        "mag",
+        "rca",
+        "oma",
+        "obf",
+        "mas-scholar-skills",
+        "opl-flow"
+      ],
+      "allowed_homebrew_formulae": ["opl"],
+      "allowed_homebrew_casks": ["one-person-lab", "one-person-lab-nightly", "one-person-lab-full"]
     }
   },
   "full_first_install": {
@@ -918,10 +952,11 @@
       "full_dmg_bytes": "github_release_asset_size_bytes",
       "runtime_uncompressed_bytes": "manifest_size_breakdown_total_runtime_uncompressed_bytes"
     },
-    "same_tag_refresh": {
+    "draft_refresh": {
       "allowed": true,
-      "mode": "github_release_upload_clobber",
-      "scope": "Full first-install assets and Full release-note section only"
+      "published_release_mutation_allowed": false,
+      "mode": "unpublished_draft_release_upload_clobber",
+      "scope": "Full first-install assets and Full release-note section before Stable promotion only"
     },
     "payload_boundary": {
       "role": "declared_payload_assembly_and_validation",
@@ -1692,7 +1727,7 @@
       "release_mode_boundaries": {
         "new_release": "normal stable path: draft candidate, same-cohort evidence, owner receipt, then desktop-release-promote.yml publishes stable/latest",
         "draft_candidate": "diagnostic candidate path only; it does not publish stable/latest and cannot be promoted without a promote-ready candidate record plus owner resolution",
-        "refresh_existing": "asset replacement for an already published release; draft candidates must be published through the promote workflow rather than refreshed by desktop-release.yml"
+        "refresh_existing": "unpublished draft repair only; the draft tag may move with lease to the pinned App commit, then the complete cohort must be published through the promote workflow; published Stable and prerelease releases are immutable"
       },
       "promote_post_publish_readback": {
         "workflow_job": "promote",

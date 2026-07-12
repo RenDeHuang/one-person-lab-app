@@ -126,7 +126,7 @@ Options:
 function parseArgs(argv: string[]): Options {
   const options: Options = {
     version: process.env.OPL_RELEASE_VERSION || '',
-    releaseMode: process.env.OPL_RELEASE_MODE || 'refresh_existing',
+    releaseMode: process.env.OPL_RELEASE_MODE || 'new_release',
     releaseIntent: (process.env.OPL_RELEASE_INTENT || 'stable_complete') as Options['releaseIntent'],
     fullOmissionReason: process.env.OPL_FULL_OMISSION_REASON || '',
     releaseOperatorPlanRef: process.env.OPL_RELEASE_OPERATOR_PLAN_REF || '',
@@ -340,15 +340,15 @@ function resolveExpectedAppHead(options: Options): string | null {
 }
 
 function checkVersion(options: Options, checks: Check[]) {
-  if (!/^[0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$/.test(options.version)) {
-    addCheck(checks, 'version', 'failed', `Invalid release version: ${options.version}`);
+  if (!/^[0-9]{2}\.(?:[1-9]|1[0-2])\.(?:[1-9]|[12][0-9]|3[01])$/.test(options.version)) {
+    addCheck(checks, 'version', 'failed', `Invalid Stable CalVer: ${options.version}; expected YY.M.D without a same-day suffix.`);
     return;
   }
-  addCheck(checks, 'version', 'passed', `Release version ${options.version} is valid semver-like OPL syntax.`);
+  addCheck(checks, 'version', 'passed', `Stable CalVer ${options.version} uses the canonical YY.M.D form.`);
 }
 
 function checkReleaseDate(options: Options, checks: Check[]) {
-  const versionMatch = options.version.match(/^(\d+)\.(\d+)\.(\d+)/);
+  const versionMatch = options.version.match(/^(\d{2})\.([1-9]|1[0-2])\.([1-9]|[12][0-9]|3[01])$/);
   const currentMatch = options.currentDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!versionMatch || !currentMatch) {
     addCheck(checks, 'release_date', 'failed', `Unable to compare release version ${options.version} with current date ${options.currentDate}.`);
@@ -372,7 +372,7 @@ function checkReleaseDate(options: Options, checks: Check[]) {
       checks,
       'release_date',
       'failed',
-      `Stable version ${options.version} is future-dated for Asia/Shanghai ${options.currentDate}; use today's version or an older same-day refresh.`,
+      `Stable version ${options.version} is future-dated for Asia/Shanghai ${options.currentDate}; use today's version or wait for that calendar date.`,
     );
     return;
   }
@@ -510,21 +510,24 @@ function checkRemoteTarget(options: Options, checks: Check[], target: ReleaseTar
       addCheck(checks, 'remote_target', 'failed', `refresh_existing requires Git tag ${target.tag} to exist and resolve to a commit.`);
       return;
     }
+    if (target.kind !== 'draft_release') {
+      addCheck(
+        checks,
+        'remote_target',
+        'failed',
+        `refresh_existing may mutate only an unpublished draft; ${target.tag} is ${target.kind} and is immutable.`,
+      );
+      return;
+    }
     const expectedAppHead = resolveExpectedAppHead(options);
     if (!expectedAppHead) {
       addCheck(checks, 'remote_target', 'failed', 'refresh_existing requires --expected-app-head, OPL_EXPECTED_APP_HEAD, GITHUB_SHA, or a readable local git HEAD.');
       return;
     }
-    if (target.tag_sha !== expectedAppHead) {
-      addCheck(
-        checks,
-        'remote_target',
-        'failed',
-        `refresh_existing tag ${target.tag} points at ${target.tag_sha}; expected current App head ${expectedAppHead}. Delete/recreate the draft/tag or use a same-cohort refresh before running expensive release jobs.`,
-      );
-      return;
-    }
-    addCheck(checks, 'remote_target', 'passed', `GitHub Release ${target.tag} exists for refresh_existing as ${target.kind}, and tag points at ${expectedAppHead.slice(0, 12)}.`);
+    const tagAction = target.tag_sha === expectedAppHead
+      ? `tag already points at ${expectedAppHead.slice(0, 12)}`
+      : `draft tag will move with lease from ${target.tag_sha.slice(0, 12)} to ${expectedAppHead.slice(0, 12)} before upload`;
+    addCheck(checks, 'remote_target', 'passed', `GitHub Release ${target.tag} is an unpublished draft for refresh_existing; ${tagAction}.`);
     return;
   }
 
@@ -755,15 +758,6 @@ function buildHomebrewPreflight(
       tap_token_required: false,
       tap_update_owner: 'not_required_diagnostic_draft_candidate',
       reason: 'Diagnostic draft candidates do not update Stable Homebrew.',
-      vm_gate_static_policy: vmGateStaticPolicy,
-    };
-  }
-  if (options.releaseMode === 'refresh_existing' && (target.kind === 'published_release' || target.kind === 'offline_unknown')) {
-    return {
-      tap_update_required: true,
-      tap_token_required: true,
-      tap_update_owner: 'desktop_release_after_remote_verification',
-      reason: 'Published-release refreshes update Homebrew in desktop-release after remote verification.',
       vm_gate_static_policy: vmGateStaticPolicy,
     };
   }

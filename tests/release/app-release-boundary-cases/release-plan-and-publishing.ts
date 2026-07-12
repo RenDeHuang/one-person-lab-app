@@ -179,3 +179,113 @@ test('release preflight rejects a future-dated Stable version before build dispa
   const payload = JSON.parse(result.stdout);
   assertCheck(payload, 'release_date', 'failed', /future-dated.*2026-07-12/);
 });
+
+test('release preflight rejects same-day Stable suffixes', () => {
+  const result = runNode([
+    'scripts/validate-release-preflight.ts',
+    '--version',
+    '26.7.12-a',
+    '--current-date',
+    '2026-07-12',
+    '--release-mode',
+    'new_release',
+    '--release-intent',
+    'stable_complete',
+    '--release-operator-plan-ref',
+    offlineOperatorPlanRef,
+    '--include-full-package',
+    'true',
+    '--run-vm-smoke',
+    'true',
+    '--publish-docker-webui',
+    'false',
+    '--offline',
+  ]);
+
+  assert.notEqual(result.status, 0);
+  const payload = JSON.parse(result.stdout);
+  assertCheck(payload, 'version', 'failed', /expected YY\.M\.D without a same-day suffix/);
+});
+
+test('Nightly plan uses its executable source gate instead of Stable preflight', () => {
+  const version = '26.7.12-nightly.123456789.1';
+  const result = runNode([
+    'scripts/plan-release-candidate.ts',
+    '--profile',
+    'nightly',
+    '--version',
+    version,
+  ]);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const payload = JSON.parse(result.stdout);
+  const lanes = new Map(payload.lanes.map((lane) => [lane.id, lane]));
+  assert.equal(payload.profile, 'nightly_standard');
+  assert.equal(lanes.has('release_preflight'), false);
+  assert.equal(lanes.has('release_source_gate'), true);
+  assert.match(lanes.get('release_source_gate').command, /npm run release:source-gate/);
+  assert.doesNotMatch(lanes.get('release_source_gate').command, /release:preflight/);
+  assert.deepEqual(lanes.get('release_boundary').depends_on, ['release_source_gate']);
+  assert.deepEqual(lanes.get('standard_build').depends_on, ['release_source_gate']);
+});
+
+test('release workflows serialize every mutation for one App version', () => {
+  const readWorkflow = (name: string) => fs.readFileSync(
+    path.join(process.cwd(), '.github', 'workflows', name),
+    'utf8',
+  );
+  const desktop = readWorkflow('desktop-release.yml');
+  const promote = readWorkflow('desktop-release-promote.yml');
+  const full = readWorkflow('full-first-install-release.yml');
+  const sharedGroup = 'group: opl-app-release-mutation-${{ inputs.opl_version }}';
+
+  assert.match(desktop, new RegExp(sharedGroup.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  assert.match(promote, new RegExp(sharedGroup.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  assert.doesNotMatch(desktop, /group: opl-desktop-release-\$\{\{ inputs\.release_mode/);
+  assert.match(promote, /concurrency:[\s\S]*?cancel-in-progress: false/);
+  assert.match(full, /release_mutation_owned_by_caller:[\s\S]*?type: boolean/);
+  assert.match(full, /format\('opl-app-release-mutation-\{0\}', inputs\.opl_version\)/);
+  assert.match(desktop, /publish_to_release: false\n      release_mutation_owned_by_caller: true/);
+});
+
+test('Full publish planning probes a remote draft and only mocks absence for artifact-only mode', () => {
+  const workflow = fs.readFileSync(
+    path.join(process.cwd(), '.github', 'workflows', 'full-first-install-release.yml'),
+    'utf8',
+  );
+  const liveStart = workflow.indexOf('- name: Verify release upload plan');
+  const localStart = workflow.indexOf('- name: Verify Full artifact plan without a release mutation');
+  const nextStep = workflow.indexOf('- name: Verify existing standard updater metadata');
+  assert.ok(liveStart >= 0 && localStart > liveStart && nextStep > localStart);
+  assert.doesNotMatch(workflow.slice(liveStart, localStart), /OPL_RELEASE_EXISTS/);
+  assert.match(workflow.slice(localStart, nextStep), /OPL_RELEASE_EXISTS: '0'/);
+});
+
+test('Stable preflight rejects padded or non-calendar YY.M.D versions', () => {
+  for (const version of ['026.07.012', '26.13.1', '26.2.30']) {
+    const result = runNode([
+      'scripts/validate-release-preflight.ts',
+      '--version',
+      version,
+      '--current-date',
+      '2026-07-12',
+      '--release-mode',
+      'new_release',
+      '--release-intent',
+      'stable_complete',
+      '--release-operator-plan-ref',
+      offlineOperatorPlanRef,
+      '--include-full-package',
+      'true',
+      '--run-vm-smoke',
+      'true',
+      '--publish-docker-webui',
+      'false',
+      '--offline',
+    ]);
+    assert.notEqual(result.status, 0, `${version} must be rejected`);
+    const payload = JSON.parse(result.stdout);
+    const failed = payload.checks.filter((entry) => entry.status === 'failed').map((entry) => entry.id);
+    assert.ok(failed.includes('version') || failed.includes('release_date'));
+  }
+});

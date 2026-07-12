@@ -6,12 +6,18 @@ export function validateReleaseHomebrewDistribution(releaseChannel) {
   if (
     homebrew?.owner !== 'one-person-lab-app' ||
     homebrew?.tap_repo !== 'gaofeng21cn/homebrew-one-person-lab' ||
-    homebrew?.role !== 'external_app_cask_index_for_distribution_cohorts' ||
+    homebrew?.role !== 'downstream_opl_base_formula_and_app_cask_index' ||
     homebrew?.cohort_manifest_required !== true
   ) {
     throw new Error('Release channel Homebrew tap distribution must be an App-owned cask cohort install index');
   }
   assertDeepEqualJson(homebrew.formulae, [], 'Release channel Homebrew formulae');
+  assertDeepEqualJson(homebrew.allowed_formulae, ['opl'], 'Release channel allowed Homebrew formulae');
+  assertDeepEqualJson(
+    homebrew.allowed_casks,
+    ['one-person-lab', 'one-person-lab-nightly', 'one-person-lab-full'],
+    'Release channel allowed Homebrew casks',
+  );
   assertDeepEqualJson(homebrew.casks, ['one-person-lab', 'one-person-lab-full'], 'Release channel Homebrew casks');
   assertDeepEqualJson(homebrew.carrier_adapter_semantics, {
     formula: {
@@ -63,9 +69,14 @@ function validateReleaseHomebrewCaskInstallPolicy(homebrew) {
     'Release channel Homebrew initial live targets',
   );
   assertDeepEqualJson(
-    homebrew.forbidden_formulae,
-    ['one-person-lab-modules', 'one-person-lab-modules-nightly'],
-    'Release channel forbidden Homebrew formulae',
+    homebrew.forbidden_package_formulae,
+    ['mas', 'mag', 'rca', 'oma', 'obf', 'mas-scholar-skills', 'opl-flow'],
+    'Release channel forbidden Package-specific Homebrew formulae',
+  );
+  assertDeepEqualJson(
+    homebrew.forbidden_package_casks,
+    ['mas', 'mag', 'rca', 'oma', 'obf', 'mas-scholar-skills', 'opl-flow'],
+    'Release channel forbidden Package-specific Homebrew casks',
   );
   assertDeepEqualJson(homebrew.excluded_casks, [], 'Release channel excluded Homebrew casks');
   assertDeepEqualJson(homebrew.full_casks, ['one-person-lab-full'], 'Release channel Full Homebrew casks');
@@ -99,7 +110,7 @@ function validateReleaseHomebrewTapUpdatePolicy(homebrew) {
       {
         actual: tapUpdate?.stable_release_workflow_write_mode,
         expected:
-          'new_release_promote_direct_commit_after_publish_readback_before_homebrew_vm_gate; refresh_existing_published_release_direct_commit_after_remote_verification_before_homebrew_vm_gate; refresh_existing_draft_release_defer_to_promote_after_publish_readback',
+          'new_release_or_refreshed_draft_promote_direct_commit_after_publish_readback_before_homebrew_vm_gate',
       },
       {
         actual: tapUpdate?.direct_commit_conflict_policy,
@@ -112,7 +123,7 @@ function validateReleaseHomebrewTapUpdatePolicy(homebrew) {
       {
         actual: tapUpdate?.stable?.mode,
         expected:
-          'new_release_desktop_promote_direct_commit_after_publish_readback_before_homebrew_vm_gate; refresh_existing_published_release_desktop_release_direct_commit_after_remote_verification_before_homebrew_vm_gate; refresh_existing_draft_release_desktop_promote_after_publish_readback_before_homebrew_vm_gate',
+          'new_release_or_refreshed_draft_desktop_promote_direct_commit_after_publish_readback_before_homebrew_vm_gate',
       },
       { actual: tapUpdate?.stable?.may_consume_nightly_directly, expected: false },
       { actual: tapUpdate?.full?.mode, expected: 'stable_full_first_install_cask_after_full_release_gates' },
@@ -161,8 +172,12 @@ function validateReleaseHomebrewOplPackagesBoundary(homebrew) {
     homebrew_role: 'not_a_distribution_target',
     homebrew_distribution_allowed: false,
     homebrew_formula_allowed: false,
+    homebrew_cask_allowed: false,
     canonical_lifecycle: 'opl packages',
-    forbidden_formulae: ['one-person-lab-modules', 'one-person-lab-modules-nightly'],
+    canonical_registry: 'ghcr.io/<owner>/one-person-lab-packages/<canonical-package-id>',
+    canonical_package_ids: ['mas', 'mag', 'rca', 'oma', 'obf', 'mas-scholar-skills', 'opl-flow'],
+    allowed_homebrew_formulae: ['opl'],
+    allowed_homebrew_casks: ['one-person-lab', 'one-person-lab-nightly', 'one-person-lab-full'],
   }, 'Release channel Homebrew OPL Packages boundary');
 }
 

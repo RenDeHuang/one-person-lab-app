@@ -37,7 +37,6 @@ function parseArgs(argv) {
     shellRoot: resolveShellRootEnv(),
     releaseRepo: process.env.OPL_RELEASE_REPO || 'gaofeng21cn/one-person-lab-app',
     version: process.env.OPL_RELEASE_VERSION || '',
-    versionExplicit: Boolean(process.env.OPL_RELEASE_VERSION),
     macArch: process.env.OPL_RELEASE_MAC_ARCH || 'arm64',
     standardArtifactsDir: process.env.OPL_STANDARD_ARTIFACTS_DIR || '',
     fullPackageDir: process.env.OPL_FULL_PACKAGE_DIR || '',
@@ -89,7 +88,6 @@ function parseArgs(argv) {
   if (values.repo) parsed.releaseRepo = values.repo;
   if (values.version) {
     parsed.version = values.version;
-    parsed.versionExplicit = true;
   }
   if (values['mac-arch']) parsed.macArch = values['mac-arch'];
   if (values['standard-artifacts-dir']) {
@@ -371,18 +369,75 @@ function readFullPackageManifest(fullPackageDir) {
   return readJsonFile(releaseManifestPath).manifest ?? null;
 }
 
-function releaseExists(repo, tag) {
-  if (process.env.OPL_RELEASE_EXISTS === '1') {
-    return true;
-  }
-  if (process.env.OPL_RELEASE_EXISTS === '0') {
-    return false;
-  }
-  const result = spawnSync('gh', ['release', 'view', tag, '--repo', repo, '--json', 'tagName'], {
+function queryReleaseState(repo, tag) {
+  const result = spawnSync('gh', [
+    'release',
+    'view',
+    tag,
+    '--repo',
+    repo,
+    '--json',
+    'tagName,isDraft,isPrerelease,publishedAt',
+  ], {
     encoding: 'utf8',
     stdio: 'pipe',
   });
-  return result.status === 0;
+  if (result.status !== 0) {
+    return null;
+  }
+  try {
+    return JSON.parse(result.stdout);
+  } catch {
+    throw new Error(`GitHub returned invalid release state for ${tag}.`);
+  }
+}
+
+function readReleaseState(repo, tag) {
+  if (process.env.OPL_RELEASE_STATE_JSON?.trim()) {
+    return JSON.parse(process.env.OPL_RELEASE_STATE_JSON);
+  }
+  if (process.env.OPL_RELEASE_EXISTS === '0') {
+    return null;
+  }
+  if (process.env.OPL_RELEASE_EXISTS === '1') {
+    return {
+      tagName: tag,
+      isDraft: process.env.OPL_RELEASE_IS_DRAFT === '1',
+      isPrerelease: process.env.OPL_RELEASE_IS_PRERELEASE === '1',
+      publishedAt: process.env.OPL_RELEASE_IS_DRAFT === '1' ? null : 'fixture-published',
+    };
+  }
+  return queryReleaseState(repo, tag);
+}
+
+function readMutationReleaseState(repo, tag) {
+  if (process.env.OPL_RELEASE_MUTATION_STATE_JSON?.trim()) {
+    return JSON.parse(process.env.OPL_RELEASE_MUTATION_STATE_JSON);
+  }
+  return queryReleaseState(repo, tag);
+}
+
+function assertExistingReleaseIsMutableDraft(releaseState, tag) {
+  if (!releaseState) {
+    return;
+  }
+  if (releaseState.tagName !== tag) {
+    throw new Error(`GitHub release state mismatch: expected ${tag}, got ${releaseState.tagName || '(missing tag)'}.`);
+  }
+  if (releaseState.isDraft !== true) {
+    const channel = releaseState.isPrerelease ? 'prerelease' : 'stable';
+    throw new Error(
+      `Release ${tag} is an already published ${channel} release and is immutable; create a new version instead of replacing its notes or assets.`,
+    );
+  }
+}
+
+function assertRemoteReleaseIsMutableDraft(repo, tag) {
+  const releaseState = readMutationReleaseState(repo, tag);
+  if (!releaseState) {
+    throw new Error(`Release ${tag} disappeared before mutation; stop and rebuild the release plan.`);
+  }
+  assertExistingReleaseIsMutableDraft(releaseState, tag);
 }
 
 function readExistingReleaseAssets(repo, tag) {
@@ -456,20 +511,6 @@ function partitionArtifactsForUpload(artifacts, existingAssets, options) {
   return { uploadArtifacts: orderUploadArtifacts(uploadArtifacts), skippedArtifacts };
 }
 
-function suggestDefaultReleaseVersion(repo, dateVersion) {
-  if (!releaseExists(repo, `v${dateVersion}`)) {
-    return dateVersion;
-  }
-  for (let code = 97; code <= 122; code += 1) {
-    const suffix = String.fromCharCode(code);
-    const candidate = `${dateVersion}-${suffix}`;
-    if (!releaseExists(repo, `v${candidate}`)) {
-      return candidate;
-    }
-  }
-  throw new Error(`No available same-day suffix for GUI release date version ${dateVersion}.`);
-}
-
 function releaseNotesMode() {
   const mode = (process.env.OPL_RELEASE_NOTES_MODE || 'ai').trim().toLowerCase();
   if (mode !== 'ai' && mode !== 'template') {
@@ -522,11 +563,13 @@ function buildReleaseNotes(version, includeFullPackage, shellRoot, fullPackageMa
 }
 
 function replaceReleaseNotes(repo, tag, notes) {
+  assertRemoteReleaseIsMutableDraft(repo, tag);
   run('gh', ['release', 'edit', tag, '--repo', repo, '--notes', notes, '--title', buildReleaseTitle(tag)]);
 }
 
 function cleanupNewlyCreatedReleaseAfterUploadFailure(repo, tag) {
-  const result = spawnSync('gh', ['release', 'delete', tag, '--repo', repo, '--yes'], {
+  assertRemoteReleaseIsMutableDraft(repo, tag);
+  const result = spawnSync('gh', ['release', 'delete', tag, '--repo', repo, '--cleanup-tag', '--yes'], {
     encoding: 'utf8',
     stdio: 'pipe',
     env: process.env,
@@ -537,11 +580,19 @@ function cleanupNewlyCreatedReleaseAfterUploadFailure(repo, tag) {
       `Upload failed after creating ${tag}, and cleanup failed. Delete the incomplete release manually before retrying.${detail ? `\ncleanup=${detail}` : ''}`,
     );
   }
-  console.error(`Cleaned up newly created release ${tag} after upload failure; kept tag for explicit operator recovery.`);
+  console.error(`Cleaned up newly created draft release and tag ${tag} after upload failure.`);
 }
 
-function buildUploadArgs(repo, tag, artifactPath) {
-  return ['release', 'upload', tag, artifactPath, '--repo', repo, '--clobber'];
+function buildUploadArgs(repo, tag, artifactPath, clobber) {
+  return [
+    'release',
+    'upload',
+    tag,
+    artifactPath,
+    '--repo',
+    repo,
+    ...(clobber ? ['--clobber'] : []),
+  ];
 }
 
 function releaseUploadAttempts() {
@@ -572,7 +623,8 @@ function uploadReleaseArtifact(repo, tag, artifactPath, options) {
   let lastError = null;
   for (let attempt = 1; attempt <= options.attempts; attempt += 1) {
     try {
-      run('gh', buildUploadArgs(repo, tag, artifactPath), { timeoutMs: options.timeoutMs });
+      assertRemoteReleaseIsMutableDraft(repo, tag);
+      run('gh', buildUploadArgs(repo, tag, artifactPath, options.clobber), { timeoutMs: options.timeoutMs });
       return;
     } catch (error) {
       lastError = error;
@@ -586,11 +638,12 @@ function uploadReleaseArtifact(repo, tag, artifactPath, options) {
   throw lastError;
 }
 
-function uploadReleaseArtifacts(repo, tag, artifactPaths) {
+function uploadReleaseArtifacts(repo, tag, artifactPaths, options = {}) {
   const uploaded = [];
   const uploadOptions = {
     attempts: releaseUploadAttempts(),
     timeoutMs: releaseUploadTimeoutMs(),
+    clobber: options.clobber === true,
   };
   for (const artifactPath of artifactPaths) {
     const name = path.basename(artifactPath);
@@ -610,9 +663,6 @@ function uploadReleaseArtifacts(repo, tag, artifactPaths) {
 
 function main() {
   const options = parseArgs(process.argv.slice(2));
-  if (!options.versionExplicit) {
-    options.version = suggestDefaultReleaseVersion(options.releaseRepo, options.version);
-  }
   const tag = `v${options.version}`;
 
   if (!options.fullPackageOnly && !options.standardArtifactsDir && !fs.existsSync(options.shellRoot)) {
@@ -633,11 +683,25 @@ function main() {
     : [];
   const fullPackageManifest = options.includeFullPackage ? readFullPackageManifest(options.fullPackageDir) : null;
   const allArtifacts = [...artifacts, ...fullPackageArtifacts];
-  const existingRelease = releaseExists(options.releaseRepo, tag);
+  const existingReleaseState = readReleaseState(options.releaseRepo, tag);
+  assertExistingReleaseIsMutableDraft(existingReleaseState, tag);
+  const existingRelease = existingReleaseState !== null;
   const existingAssets = existingRelease ? readExistingReleaseAssets(options.releaseRepo, tag) : [];
   const uploadPlan = partitionArtifactsForUpload(allArtifacts, existingAssets, options);
-  const uploadArgs = ['release', 'upload', tag, ...uploadPlan.uploadArtifacts, '--repo', options.releaseRepo, '--clobber'];
-  const uploadCommands = uploadPlan.uploadArtifacts.map((artifactPath) => ['gh', ...buildUploadArgs(options.releaseRepo, tag, artifactPath)]);
+  const clobberDraftAssets = existingRelease;
+  const uploadArgs = [
+    'release',
+    'upload',
+    tag,
+    ...uploadPlan.uploadArtifacts,
+    '--repo',
+    options.releaseRepo,
+    ...(clobberDraftAssets ? ['--clobber'] : []),
+  ];
+  const uploadCommands = uploadPlan.uploadArtifacts.map((artifactPath) => [
+    'gh',
+    ...buildUploadArgs(options.releaseRepo, tag, artifactPath, clobberDraftAssets),
+  ]);
   const releaseNotesResult = buildReleaseNotes(
     options.version,
     options.includeFullPackage,
@@ -666,6 +730,7 @@ function main() {
       standard_artifacts: artifacts,
       full_package_artifacts: fullPackageArtifacts,
       release_exists: existingRelease,
+      existing_release_state: existingReleaseState,
       create_release: !options.fullPackageOnly && !existingRelease,
       draft: options.draft,
       force_upload: options.forceUpload,
@@ -684,6 +749,9 @@ function main() {
 
   if (options.fullPackageOnly && !existingRelease) {
     throw new Error(`Release ${tag} does not exist in ${options.releaseRepo}; publish the standard release before uploading Full first-install assets.`);
+  }
+  if (!existingRelease && !options.draft) {
+    throw new Error(`New release ${tag} must be created as a draft and promoted only after asset verification.`);
   }
 
   let createdRelease = false;
@@ -708,7 +776,9 @@ function main() {
   }
   if (uploadPlan.uploadArtifacts.length > 0) {
     try {
-      uploadReleaseArtifacts(options.releaseRepo, tag, uploadPlan.uploadArtifacts);
+      uploadReleaseArtifacts(options.releaseRepo, tag, uploadPlan.uploadArtifacts, {
+        clobber: clobberDraftAssets,
+      });
     } catch (error) {
       if (createdRelease) {
         cleanupNewlyCreatedReleaseAfterUploadFailure(options.releaseRepo, tag);

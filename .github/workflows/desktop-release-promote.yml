@@ -42,8 +42,8 @@ permissions:
   actions: read
 
 concurrency:
-  group: opl-desktop-release-promote-${{ inputs.opl_version }}
-  cancel-in-progress: true
+  group: opl-app-release-mutation-${{ inputs.opl_version }}
+  cancel-in-progress: false
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true

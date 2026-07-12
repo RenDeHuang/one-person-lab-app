@@ -115,10 +115,9 @@ promotion gates depend on the exact published cohort.
 The normal Stable path is `new_release -> draft candidate -> gates -> candidate
 record -> promote`. The candidate record is the only promotion source. Operators should
 not reconstruct promotion readiness from scattered job logs, local notes, or a
-long-running run page. `refresh_existing` is reserved for emergency repair or
-replacement of an already published release cohort, such as replacing a broken
-asset after owner approval; it is not the ordinary path for a new Stable
-version.
+long-running run page. `refresh_existing` is reserved for repair of an
+unpublished draft before promotion. Published Stable and Nightly releases are
+immutable; a changed artifact or cohort requires a new version.
 
 `standard_build` and `full_build` are build lanes. They create artifacts and
 diagnostics only. They do not decide release readiness. Full build may start in
@@ -246,8 +245,8 @@ Operator stop conditions:
   concurrency queues same-mode/same-version desktop releases instead of
   cancelling them. Classify the old run as `cancelled` or `superseded`; do not
   count that outcome as a source-gate failure.
-- Use `refresh_existing` only for an owner-approved emergency repair or replace
-  lane against an already published release.
+- Use `refresh_existing` only for an owner-approved repair of an unpublished
+  draft; never replace assets or notes on a published release.
 - Run user-guide screenshot/docs refresh only after Stable promotion; screenshot
   refresh failure creates a post-release docs task, not a pre-promotion release
   blocker.

@@ -297,17 +297,12 @@ function readPreflightSummary(options: Options) {
 function summarizeHomebrewReadiness(options: Options, preflightSummary: Record<string, unknown> | null) {
   const homebrew = objectField(preflightSummary, 'homebrew');
   const releaseTarget = objectField(preflightSummary, 'release_target');
-  const fallbackRequired = options.runVmSmoke && options.releaseMode === 'refresh_existing';
   if (!homebrew) {
     return {
-      tap_update_required: fallbackRequired,
-      tap_token_required: fallbackRequired,
-      tap_update_owner: fallbackRequired
-        ? 'desktop_release_after_remote_verification'
-        : 'not_required_for_this_run',
-      reason: fallbackRequired
-        ? 'Preflight summary was unavailable; falling back to published-release refresh Homebrew requirement.'
-        : 'Preflight summary was unavailable; Homebrew is not required for this run.',
+      tap_update_required: false,
+      tap_token_required: false,
+      tap_update_owner: 'not_required_for_this_run',
+      reason: 'Preflight summary was unavailable; a draft cannot update Homebrew before promotion.',
       source: 'fallback_release_mode',
       release_target_kind: null,
     };

@@ -169,11 +169,11 @@ function validateOptions(options: Options): ResolvedOptions {
 
   const packageKind = inferPackageKind(options);
 
-  if (options.channel === 'nightly' && !/nightly/i.test(options.version)) {
-    throw new Error('Nightly Homebrew tap updates must use a nightly version.');
+  if (options.channel === 'nightly' && !/^[0-9]{2}\.(?:[1-9]|1[0-2])\.(?:[1-9]|[12][0-9]|3[01])-nightly\.[1-9][0-9]*\.[1-9][0-9]*$/.test(options.version)) {
+    throw new Error('Nightly Homebrew tap updates must use YY.M.D-nightly.<run_id>.<run_attempt>.');
   }
-  if (options.channel === 'stable' && /nightly/i.test(options.version)) {
-    throw new Error('Stable Homebrew tap updates must not use a nightly version.');
+  if (options.channel === 'stable' && !/^[0-9]{2}\.(?:[1-9]|1[0-2])\.(?:[1-9]|[12][0-9]|3[01])$/.test(options.version)) {
+    throw new Error('Stable Homebrew tap updates must use YY.M.D without a same-day suffix.');
   }
   if (packageKind === 'app_full_first_install' && options.channel !== 'stable') {
     throw new Error('Full first-install Homebrew cask updates must stay on the stable channel.');
@@ -206,10 +206,10 @@ function validateOptions(options: Options): ResolvedOptions {
       throw new Error('Homebrew tap updates are App cask-only; OPL Packages are Framework-managed, not Homebrew formulae.');
     }
     if (options.channel === 'nightly' && !isNightlyTarget) {
-      throw new Error('Nightly Homebrew tap updates may only update nightly formula/cask targets.');
+      throw new Error('Nightly Homebrew tap updates may only update the Nightly App cask target.');
     }
     if (options.channel === 'stable' && isNightlyTarget) {
-      throw new Error('Stable Homebrew tap updates must not update nightly formula/cask targets.');
+      throw new Error('Stable Homebrew tap updates must not update the Nightly App cask target.');
     }
   }
 
@@ -232,11 +232,14 @@ function boundaryBlock(options: ResolvedOptions): string {
   lines.push(
     `# cohort: ${fullFirstInstall ? 'full_first_install_homebrew_distribution' : 'standard_desktop_homebrew_distribution'}`,
     `# standard_updater_visible: ${fullFirstInstall ? 'false' : 'true'}`,
-    '# opl_packages_payload_allowed: false',
     `# bundled_full_runtime_payload_allowed: ${fullFirstInstall ? 'true' : 'false'}`,
-    '# opl_packages_homebrew_allowed: false',
+    '# homebrew_allowed_software_objects: opl_base,opl_app',
+    '# opl_packages_lifecycle_owned_by_homebrew: false',
     '# opl_packages_lifecycle_owner: one-person-lab',
-    '# forbidden_module_formulae: one-person-lab-modules,one-person-lab-modules-nightly',
+    '# package_specific_formula_allowed: false',
+    '# package_specific_cask_allowed: false',
+    '# forbidden_package_formulae: mas,mag,rca,oma,obf,mas-scholar-skills,opl-flow',
+    '# forbidden_package_casks: mas,mag,rca,oma,obf,mas-scholar-skills,opl-flow',
     '# must_not_write_user_codex_state: true',
     '# must_not_define_agent_semantics: true',
   );
@@ -310,7 +313,7 @@ function skeletonContent(targetPath: string, options: ResolvedOptions): string {
           '',
           '  caveats <<~EOS',
           '    This cask installs the complete first-install package. After launch,',
-          '    One Person Lab manages runtime, modules, and agent exposure through',
+          '    One Person Lab manages runtime, Packages, and Agent exposure through',
           '    the App/CLI; Full assets stay outside standard updater metadata.',
           '  EOS',
         ]
@@ -385,12 +388,14 @@ function validateUpdatedContent(target: TapUpdateTarget, options: ResolvedOption
       throw new Error(`${target.path} must declare Homebrew cask conflict with ${conflictingCask}.`);
     }
   }
-  if (!target.content.includes('opl_packages_payload_allowed: false')) {
-    throw new Error(`${target.path} must declare that standard App Homebrew distribution does not carry module payloads.`);
-  }
   for (const required of [
-    'opl_packages_homebrew_allowed: false',
+    'homebrew_allowed_software_objects: opl_base,opl_app',
+    'opl_packages_lifecycle_owned_by_homebrew: false',
     'opl_packages_lifecycle_owner: one-person-lab',
+    'package_specific_formula_allowed: false',
+    'package_specific_cask_allowed: false',
+    'forbidden_package_formulae: mas,mag,rca,oma,obf,mas-scholar-skills,opl-flow',
+    'forbidden_package_casks: mas,mag,rca,oma,obf,mas-scholar-skills,opl-flow',
     'must_not_write_user_codex_state: true',
     'must_not_define_agent_semantics: true',
   ]) {
@@ -451,11 +456,12 @@ function buildPlan(inputOptions: Options): {
       full_first_install_allowed: options.packageKind === 'app_full_first_install',
       standard_updater_visible: options.packageKind !== 'app_full_first_install',
       full_cask_install_surface: options.packageKind === 'app_full_first_install',
-      opl_packages_payload_allowed: false,
       bundled_full_runtime_payload_allowed: options.packageKind === 'app_full_first_install',
-      modules_activation_owner: 'app_cli_maintenance',
-      opl_packages_homebrew_allowed: false,
+      homebrew_allowed_software_objects: 'opl_base,opl_app',
+      opl_packages_lifecycle_owned_by_homebrew: false,
       opl_packages_lifecycle_owner: 'one-person-lab',
+      package_specific_formula_allowed: false,
+      package_specific_cask_allowed: false,
       must_not_write_user_codex_state: true,
       must_not_define_agent_semantics: true,
       publishes_or_pushes_remote: options.remoteWriteMode === 'direct_commit',
@@ -501,24 +507,24 @@ function runSelfCheck(): void {
     throw new Error('Homebrew Full self-check did not keep Full cask outside standard updater visibility.');
   }
 
-  let rejectedModulePackageKind = false;
+  let rejectedPackageBundleKind = false;
   try {
-    parseArgs(['--package-kind', 'modules_bundle']);
+    parseArgs(['--package-kind', 'package_bundle']);
   } catch (error) {
-    rejectedModulePackageKind = String(error).includes('App cask-only');
+    rejectedPackageBundleKind = String(error).includes('App cask-only');
   }
-  if (!rejectedModulePackageKind) {
-    throw new Error('Homebrew self-check did not reject module-bundle package kind.');
+  if (!rejectedPackageBundleKind) {
+    throw new Error('Homebrew self-check did not reject Package-bundle kind.');
   }
 
   const nightlyPlan = buildPlan({
     channel: 'nightly',
     packageKind: 'app_standard',
-    version: '26.6.4-nightly',
+    version: '26.6.4-nightly.123456789.1',
     tapRoot: tempRoot,
-    manifestUrl: 'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4-nightly/latest-arm64-mac.yml',
+    manifestUrl: 'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4-nightly.123456789.1/latest-arm64-mac.yml',
     checksumSha256: digest,
-    downloadUrl: 'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4-nightly/One-Person-Lab-26.6.4-nightly-mac-arm64.dmg',
+    downloadUrl: 'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4-nightly.123456789.1/One-Person-Lab-26.6.4-nightly.123456789.1-mac-arm64.dmg',
     targets: ['Casks/one-person-lab-nightly.rb'],
     write: false,
     summaryPath: null,
@@ -532,22 +538,36 @@ function runSelfCheck(): void {
     {
       channel: 'nightly' as Channel,
       packageKind: 'app_standard' as PackageKind,
-      version: '26.6.4-nightly',
+      version: '26.6.4-nightly.123456789.1',
       targets: ['Casks/one-person-lab.rb'],
-      message: 'nightly formula/cask',
+      message: 'Nightly App cask target',
     },
     {
       channel: 'stable' as Channel,
       packageKind: 'app_standard' as PackageKind,
-      version: '26.6.4-nightly',
+      version: '26.6.4-nightly.123456789.1',
       targets: ['Casks/one-person-lab.rb'],
-      message: 'Stable Homebrew tap updates must not use a nightly version',
+      message: 'Stable Homebrew tap updates must use YY.M.D',
+    },
+    {
+      channel: 'stable' as Channel,
+      packageKind: 'app_standard' as PackageKind,
+      version: '026.06.04',
+      targets: ['Casks/one-person-lab.rb'],
+      message: 'Stable Homebrew tap updates must use YY.M.D',
+    },
+    {
+      channel: 'nightly' as Channel,
+      packageKind: 'app_standard' as PackageKind,
+      version: '026.06.04-nightly.123456789.1',
+      targets: ['Casks/one-person-lab-nightly.rb'],
+      message: 'Nightly Homebrew tap updates must use YY.M.D-nightly',
     },
     {
       channel: 'stable' as Channel,
       packageKind: 'app_standard' as PackageKind,
       version: '26.6.4',
-      targets: ['Formula/one-person-lab-modules.rb'],
+      targets: ['Formula/mag.rb'],
       message: 'App cask-only',
     },
     {
@@ -570,7 +590,7 @@ function runSelfCheck(): void {
     {
       channel: 'nightly' as Channel,
       packageKind: 'app_full_first_install' as PackageKind,
-      version: '26.6.4-nightly',
+      version: '26.6.4-nightly.123456789.1',
       targets: ['Casks/one-person-lab-full.rb'],
       message: 'Full first-install Homebrew cask updates must stay on the stable channel',
     },
@@ -614,7 +634,7 @@ function main(): void {
   const options = parseArgs(process.argv.slice(2));
   if (options.selfCheck) {
     runSelfCheck();
-    console.log('PASS: Homebrew tap boundary validates App cask-only manifest/checksum references, Full cask isolation, agent-pack App/CLI ownership, and cohort separation.');
+    console.log('PASS: Homebrew tap boundary validates App cask-only manifest/checksum references, Full cask isolation, Framework-owned OPL Packages, and cohort separation.');
     return;
   }
 

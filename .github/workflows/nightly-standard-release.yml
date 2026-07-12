@@ -18,7 +18,7 @@ permissions:
 
 concurrency:
   group: opl-nightly-standard-release
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -38,9 +38,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          version="$(date -u +'%y.%-m.%-d')-nightly"
+          version="$(date -u +'%y.%-m.%-d')-nightly.${GITHUB_RUN_ID}.${GITHUB_RUN_ATTEMPT}"
           tag="v${version}"
-          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+-nightly$ ]]; then
+          if ! [[ "$version" =~ ^[0-9]{2}\.([1-9]|1[0-2])\.([1-9]|[12][0-9]|3[01])-nightly\.[1-9][0-9]*\.[1-9][0-9]*$ ]]; then
             echo "::error::Invalid nightly version: $version"
             exit 1
           fi
@@ -222,7 +222,7 @@ jobs:
           name: prepared-nightly-release-notes-${{ needs.resolve-nightly.outputs.version }}
           path: prepared-nightly-release-notes
 
-      - name: Create or refresh Nightly prerelease
+      - name: Create immutable Nightly prerelease
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -236,35 +236,36 @@ jobs:
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          remote_tag_sha="$(git ls-remote --tags origin "refs/tags/${OPL_RELEASE_TAG}" | awk '{print $1}')"
-          git tag -f "${OPL_RELEASE_TAG}" "$GITHUB_SHA"
-          if [ -n "$remote_tag_sha" ]; then
-            git push --force-with-lease="refs/tags/${OPL_RELEASE_TAG}:${remote_tag_sha}" origin "refs/tags/${OPL_RELEASE_TAG}"
-          else
-            git push origin "refs/tags/${OPL_RELEASE_TAG}"
+          if git rev-parse -q --verify "refs/tags/${OPL_RELEASE_TAG}" >/dev/null; then
+            echo "::error::Nightly tag ${OPL_RELEASE_TAG} already exists; every run must use a unique immutable version."
+            exit 1
           fi
+          if gh release view "${OPL_RELEASE_TAG}" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::Nightly release ${OPL_RELEASE_TAG} already exists; every run must create a new version."
+            exit 1
+          fi
+          git tag "${OPL_RELEASE_TAG}" "$GITHUB_SHA"
+          git push origin "refs/tags/${OPL_RELEASE_TAG}"
 
           notes_file="prepared-nightly-release-notes/opl-nightly-notes.md"
 
-          if gh release view "${OPL_RELEASE_TAG}" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release edit "${OPL_RELEASE_TAG}" \
-              --repo "$GITHUB_REPOSITORY" \
-              --title "$release_title" \
-              --notes-file "$notes_file" \
-              --prerelease
-          else
-            gh release create "${OPL_RELEASE_TAG}" \
-              --repo "$GITHUB_REPOSITORY" \
-              --title "$release_title" \
-              --notes-file "$notes_file" \
-              --prerelease \
-              --latest=false \
-              --verify-tag
-          fi
+          gh release create "${OPL_RELEASE_TAG}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$release_title" \
+            --notes-file "$notes_file" \
+            --draft \
+            --prerelease \
+            --latest=false \
+            --verify-tag
 
           gh release upload "${OPL_RELEASE_TAG}" release-assets/* \
+            --repo "$GITHUB_REPOSITORY"
+
+          gh release edit "${OPL_RELEASE_TAG}" \
             --repo "$GITHUB_REPOSITORY" \
-            --clobber
+            --draft=false \
+            --prerelease \
+            --latest=false
 
       - name: Verify remote standard Nightly assets
         env:

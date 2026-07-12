@@ -89,9 +89,9 @@ node --experimental-strip-types scripts/prepare-release-assets.ts build-artifact
 node --experimental-strip-types scripts/validate-release.ts release-assets
 npm run release:publish -- --no-build --version <version> --standard-artifacts-dir release-assets
 npm run release:notes -- --version <version> --channel stable --include-full-package
-npm run release:notes -- --version <YY.M.D-nightly> --channel nightly
+npm run release:notes -- --version <YY.M.D-nightly.run_id.attempt> --channel nightly
 npm run verify-remote-release -- --version <version> --include-full-package
-npm run verify-remote-release -- --version <YY.M.D-nightly>
+npm run verify-remote-release -- --version <YY.M.D-nightly.run_id.attempt>
 npm run release:cleanup-drafts -- --version <version>
 npm run release:cleanup-drafts -- --version <version> --execute
 npm run release:cleanup-webui-ghcr -- --summary-path webui-ghcr-cleanup.json
@@ -408,9 +408,8 @@ For normal Stable trains, use `npm run release:plan -- --version <version>
 post-release lane. Run `npm run docs:macos-guide` for that docs refresh; it
 updates the public HTML guide plus the shareable PDF/PPTX and detailed PDF
 artifacts under `docs/site/latest/macos-app-install/`.
-`refresh_existing` is the
-emergency repair/replace lane for an already published release, not the default
-new Stable path. Once a candidate record, readiness summary, remote verification
+`refresh_existing` is the repair lane for an unpublished draft, not the default
+new Stable path and never a way to replace a published release. Once a candidate record, readiness summary, remote verification
 JSON, or named gate result establishes a blocked stop condition, do not continue
 polling scattered logs from long-running release runs.
 
@@ -520,13 +519,11 @@ results and small artifacts only: remote verification JSON, VM summaries,
 one-shot installer output, Docker/WebUI smoke output, Full diagnostics, and
 `full-workflow-telemetry.json`. Do not download standard or Full DMG artifacts
 for readiness diagnosis; missing small evidence is a fail-closed release
-readiness failure. For new stable releases, Homebrew tap updates and the
-Homebrew VM smoke run from the promote workflow after the draft release has
-been published. For existing published release refreshes with
-`run_vm_smoke=true`, the desktop release workflow may update the stable
-Homebrew tap by direct commit and then run the cask VM smoke. A tap update
-failure, cask lane cancellation, or missing artifact fails the matching stable
-closure gate with a named cause.
+readiness failure. Homebrew tap updates and the Homebrew VM smoke run only from
+the promote workflow after the draft release has been published and read back.
+Published releases cannot be refreshed. A tap update failure, cask lane
+cancellation, or missing artifact fails the matching stable closure gate with a
+named cause.
 
 `release:owner-candidate-record:verify` command is the post-owner receipt
 readback path: it takes the App release-owner receipt record and the ignored
