@@ -38,8 +38,8 @@ export function validateStandardUpdaterImplementation(shellPaths) {
   }
   const oplRuntimeBridge = readShellText(shellPaths, 'packages/desktop/src/process/bridge/oplRuntimeBridge.ts');
   for (const expected of [
-    'buildOplFlowOptimizeCommand',
-    "args: ['packages', 'optimize', 'opl-flow', '--json']",
+    'buildOplFlowPostAppUpdateReconcileCommand',
+    "args: ['packages', 'update', 'opl-flow', '--json']",
     'runOplFlowPostAppUpdateReconcile',
   ]) {
     if (!oplRuntimeBridge.includes(expected)) {

@@ -1027,7 +1027,7 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   const postAppUpdateReconcile = guiContract.framework_surfaces?.managed_update_plane?.post_app_update_reconcile;
   if (
     postAppUpdateReconcile?.trigger !== 'running_version_switched_only' ||
-    postAppUpdateReconcile?.command !== 'opl packages optimize opl-flow --json' ||
+    postAppUpdateReconcile?.command !== 'opl packages update opl-flow --json' ||
     postAppUpdateReconcile?.execution_owner !== 'one-person-lab' ||
     postAppUpdateReconcile?.policy_owner !== 'opl-flow' ||
     postAppUpdateReconcile?.app_role !== 'request_and_project_framework_receipt' ||

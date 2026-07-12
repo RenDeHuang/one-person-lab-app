@@ -598,6 +598,12 @@ The standard updater updates OPL App only. It does not mutate OPL Base, OPL
 Packages, developer checkouts, WebUI images, Homebrew Formula/global tools,
 user artifacts, or domain readiness.
 
+After `running_version_switched`, the App separately requests the Framework-owned
+`opl packages update opl-flow --json` transaction once for that downloaded target.
+That package transaction refreshes legacy bundled OPL Flow policy and owns conflict
+retirement, profile merge, backup, receipt, and rollback; it is not implemented by
+the App updater.
+
 ## Managed Update Plane
 
 The managed update plane is App consumption of the Framework runner, not an App implementation of the update kernel. The App reads:

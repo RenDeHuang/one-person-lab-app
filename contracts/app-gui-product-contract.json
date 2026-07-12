@@ -1150,7 +1150,7 @@
       },
       "post_app_update_reconcile": {
         "trigger": "running_version_switched_only",
-        "command": "opl packages optimize opl-flow --json",
+        "command": "opl packages update opl-flow --json",
         "execution_owner": "one-person-lab",
         "policy_owner": "opl-flow",
         "app_role": "request_and_project_framework_receipt",

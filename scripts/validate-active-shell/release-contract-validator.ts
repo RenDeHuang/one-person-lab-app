@@ -23,7 +23,7 @@ function validateStandardUpdater(updater) {
     reconcile?.trigger !== 'running_version_switched_only' ||
     reconcile?.owner !== 'one-person-lab' ||
     reconcile?.app_role !== 'request_framework_transaction_and_project_result' ||
-    reconcile?.command !== 'opl packages optimize opl-flow --json' ||
+    reconcile?.command !== 'opl packages update opl-flow --json' ||
     reconcile?.workflow_owner !== 'opl-flow' ||
     reconcile?.requires_previous_or_profile_declared_opl_flow !== true ||
     reconcile?.idempotency !== 'once_per_downloaded_target_version' ||
