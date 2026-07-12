@@ -168,6 +168,18 @@ test("Full build rejects App and Shell product profile drift before Electron pac
   assert.ok(profileGate < packageBuild, "profile gate must run before Full package build");
 });
 
+test("Full build verifies managed carrier bootstrap before expensive packaging", () => {
+  const carrierGate = fullWorkflow.indexOf("name: Verify managed Full carrier bootstrap before packaging");
+  const packageBuild = fullWorkflow.indexOf("id: full_package_build");
+
+  assert.ok(carrierGate >= 0, "missing managed Full carrier bootstrap gate");
+  assert.match(
+    fullWorkflow.slice(carrierGate, packageBuild),
+    /bun vitest run tests\/unit\/opl-runtime\/oplRuntimeBridge\.test\.ts/,
+  );
+  assert.ok(carrierGate < packageBuild, "managed carrier gate must run before Full package build");
+});
+
 test("Docker release evidence keeps failure diagnostics without uploading the seeded data volume", () => {
   assert.match(workflow, /OPL_FLOW_SHA: 06cb8e15490e6a98b1196bfc6d526bd50471ecbc/);
   assert.match(workflow, /--build-arg OPL_FLOW_REF="\$\{OPL_FLOW_SHA\}"/);
