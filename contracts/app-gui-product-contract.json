@@ -3264,7 +3264,7 @@
     "must_show": [
       "global managed automatic developer mode control",
       "selected developer workspace path",
-      "current GitHub identity and repository authority summary",
+      "current GitHub identity and repository authority summary when a full inspection has produced them",
       "per-package actual source, managed path, developer path, and fallback reason",
       "per-package auto managed developer source control"
     ],
@@ -3272,6 +3272,7 @@
       "five equal capability-axis cards",
       "single switch without actual source and path readback",
       "Developer Profile as a separate top-level Settings page",
+      "not reported or zero-count GitHub authority placeholders while the fast profile intentionally defers inspection",
       "raw OPL_MODULE_SOURCE_MODE as ordinary Settings UI"
     ]
   },

@@ -477,7 +477,9 @@ source-channel mutation, provider controls, or runtime/domain mutation.
 Developer source selection belongs to **Agents & Capabilities**, beside the
 packages it affects. The page exposes one Managed / Automatic / Developer
 segmented control, one safe-maintenance switch, and a compact readback of the
-selected developer workspace, GitHub identity, and repository authority. Each
+selected developer workspace and, after full inspection, the GitHub identity
+and repository authority. Fast state must hide deferred identity/authority
+placeholders instead of rendering `Not reported` or a misleading zero count. Each
 package detail exposes Auto / Managed / Developer source selection and shows
 the actual checkout, managed fallback, developer checkout, and any fallback
 reason. The five Developer Profile capability axes remain supporting status;
