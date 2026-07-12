@@ -1390,6 +1390,11 @@
       "source": "app_state.developer_profile + app_state.modules[].source_policy",
       "default_profile": "standard_user",
       "opt_in_policy": "explicit_opt_in_only",
+      "settings_page": "settings_capabilities",
+      "global_control": "managed_automatic_developer_segmented_control",
+      "safe_maintenance_control": "switch",
+      "package_source_control": "auto_managed_developer_segmented_control_in_package_details",
+      "fallback_policy": "developer_checkout_missing_falls_back_to_managed_with_visible_reason",
       "capability_axes": [
         "source_channel",
         "workspace_trust",
@@ -1628,7 +1633,7 @@
         "p1_entries": [
           "remote_access",
           "advanced_deployment",
-          "developer_profile_status",
+          "developer_source_control",
           "external_tools_voice"
         ],
         "hidden_as_ordinary_ui": [

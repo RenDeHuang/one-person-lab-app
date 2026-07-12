@@ -563,6 +563,11 @@ export type AppProductProfile = {
       source: string;
       default_profile: string;
       opt_in_policy: string;
+      settings_page: string;
+      global_control: string;
+      safe_maintenance_control: string;
+      package_source_control: string;
+      fallback_policy: string;
       capability_axes: string[];
       capabilities: Record<string, {
         standard_default: string;

@@ -1884,6 +1884,8 @@
         "label_en": "Agents & Capabilities",
         "primary_information": [
           "capability catalog with availability and user-facing source labels",
+          "global managed, automatic, or developer source mode with selected workspace and authority summary",
+          "per-package automatic, managed, or developer source selection in package details",
           "Home visibility, shortcut order, and lifecycle management on capability rows",
           "Skills and Tools as internal tabs or sections",
           "AionUI custom assistants excluded from the OPL product surface"
@@ -1901,6 +1903,8 @@
         ],
         "surface_inventory": {
           "configuration": [
+            { "id": "developer_source_mode", "owner": "capabilities" },
+            { "id": "package_source_preference", "owner": "capabilities" },
             { "id": "home_visibility_and_order", "owner": "capabilities" }
           ],
           "status": [
@@ -1934,7 +1938,8 @@
             "settings-page-capabilities",
             "settings-capabilities-primary",
             "settings-capabilities-technical-details",
-            "settings-capabilities-primary-action"
+            "settings-capabilities-primary-action",
+            "opl-developer-profile-control"
           ],
           "conditional": [
             {

@@ -290,7 +290,7 @@ function assertSettingsProfileShape(profile: AppProductProfile): void {
   );
   assertIncludesAll(
     taskEntryPolicy.p1_entries ?? [],
-    ['remote_access', 'advanced_deployment', 'developer_profile_status', 'external_tools_voice'],
+    ['remote_access', 'advanced_deployment', 'developer_source_control', 'external_tools_voice'],
     'settings_information_architecture.task_entry_policy.p1_entries',
   );
   assertIncludesAll(
@@ -307,6 +307,11 @@ function assertSettingsProfileShape(profile: AppProductProfile): void {
     developerProfile.source !== 'app_state.developer_profile + app_state.modules[].source_policy' ||
     developerProfile.default_profile !== 'standard_user' ||
     developerProfile.opt_in_policy !== 'explicit_opt_in_only' ||
+    developerProfile.settings_page !== 'settings_capabilities' ||
+    developerProfile.global_control !== 'managed_automatic_developer_segmented_control' ||
+    developerProfile.safe_maintenance_control !== 'switch' ||
+    developerProfile.package_source_control !== 'auto_managed_developer_segmented_control_in_package_details' ||
+    developerProfile.fallback_policy !== 'developer_checkout_missing_falls_back_to_managed_with_visible_reason' ||
     developerProfile.hide_machine_status !== true
   ) {
     throw new Error('App product profile Developer Profile must preserve standard defaults and explicit opt-in policy');

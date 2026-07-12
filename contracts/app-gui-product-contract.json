@@ -2442,15 +2442,15 @@
           "frequency": "expert_or_exception"
         },
         {
-          "id": "developer_profile_status",
-          "group_id": "maintenance",
-          "route_id": "environment",
+          "id": "developer_source_control",
+          "group_id": "capabilities",
+          "route_id": "capabilities",
           "priority": "p1",
           "scope": "developer",
-          "intent": "diagnose",
-          "risk": "read_only",
-          "frequency": "expert_or_exception",
-          "anchor_id": "packages"
+          "intent": "configure",
+          "risk": "reversible",
+          "frequency": "occasional",
+          "anchor_id": "source"
         },
         {
           "id": "external_tools_voice",
@@ -2880,7 +2880,7 @@
       "p1_entries": [
         "remote_access",
         "advanced_deployment",
-        "developer_profile_status",
+        "developer_source_control",
         "external_tools_voice"
       ],
       "hidden_as_ordinary_ui": [
@@ -3197,7 +3197,27 @@
   },
   "developer_profile": {
     "source": "app_state.developer_profile + app_state.modules[].source_policy",
-    "settings_pages": ["settings_environment", "settings_advanced"],
+    "settings_pages": ["settings_capabilities"],
+    "placement": "settings_capabilities.source_section_and_package_detail_drawer",
+    "control_model": {
+      "global_mode": {
+        "control": "three_state_segmented_control",
+        "values": ["off", "auto", "on"],
+        "labels": ["managed", "automatic", "developer"],
+        "default": "auto"
+      },
+      "safe_maintenance": {
+        "control": "switch",
+        "off_value": "external_observe",
+        "on_value": "developer_apply_safe"
+      },
+      "package_source": {
+        "control": "segmented_control_in_package_details",
+        "values": ["auto", "managed", "developer"],
+        "default": "auto",
+        "developer_checkout_missing_policy": "fall_back_to_managed_and_show_reason"
+      }
+    },
     "default_profile": "standard_user",
     "opt_in_policy": "explicit_opt_in_only",
     "ordinary_user_defaults": {
@@ -3241,9 +3261,17 @@
         "display_policy": "show_mutation_scope_without_claiming_runtime_authority"
       }
     },
+    "must_show": [
+      "global managed automatic developer mode control",
+      "selected developer workspace path",
+      "current GitHub identity and repository authority summary",
+      "per-package actual source, managed path, developer path, and fallback reason",
+      "per-package auto managed developer source control"
+    ],
     "must_not_show": [
-      "single Developer Mode switch as the only capability expression",
-      "Developer Profile as ordinary first-level user setup",
+      "five equal capability-axis cards",
+      "single switch without actual source and path readback",
+      "Developer Profile as a separate top-level Settings page",
       "raw OPL_MODULE_SOURCE_MODE as ordinary Settings UI"
     ]
   },

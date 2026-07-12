@@ -474,6 +474,15 @@ Required anchor: `working-directories`.
 Advanced must not contain Developer Mode, Developer Profile, OPL Flow editing,
 source-channel mutation, provider controls, or runtime/domain mutation.
 
+Developer source selection belongs to **Agents & Capabilities**, beside the
+packages it affects. The page exposes one Managed / Automatic / Developer
+segmented control, one safe-maintenance switch, and a compact readback of the
+selected developer workspace, GitHub identity, and repository authority. Each
+package detail exposes Auto / Managed / Developer source selection and shows
+the actual checkout, managed fallback, developer checkout, and any fallback
+reason. The five Developer Profile capability axes remain supporting status;
+they must not become five peer cards or hide the source controls.
+
 ### About
 
 Primary information:

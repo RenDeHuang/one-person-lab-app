@@ -410,7 +410,7 @@ export const appOwnedSettingsTaskEntryIds = [
   "capability_status",
   "remote_access",
   "advanced_deployment",
-  "developer_profile_status",
+  "developer_source_control",
   "external_tools_voice",
 ];
 export const appOwnedSettingsTaskEntryMetadataFields = [

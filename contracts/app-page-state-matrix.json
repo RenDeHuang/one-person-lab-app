@@ -2784,6 +2784,7 @@
         "technical_details"
       ],
       "state_sections": [
+        "developer_mode",
         "agent_packages.directory",
         "agent_packages.status_index",
         "modules.items",
@@ -2834,6 +2835,7 @@
           "manifest_url_install"
         ],
         "row_controls": [
+          "package_source_preference",
           "home_shortcut_visibility",
           "home_shortcut_order",
           "launch_shortcut",
@@ -2841,6 +2843,11 @@
           "open_details_panel"
         ],
         "detail_panel_fields": [
+          "actual_source",
+          "source_preference",
+          "managed_checkout_path",
+          "developer_checkout_path",
+          "source_fallback_reason",
           "receipt_refs",
           "package_lock_ref",
           "action_receipt_ref",
@@ -3082,6 +3089,9 @@
         "empty_field_policy": "hide empty, unknown, unavailable, not_applicable, null, or unreported fields; never render 未报告 or Not reported as default user detail text"
       },
       "must_show": [
+        "global managed, automatic, or developer source mode on the Capabilities page",
+        "selected developer workspace and repository authority summary",
+        "per-package source preference and actual managed or developer checkout path",
         "installed package directory as the primary Capabilities surface",
         "Codex App plugin-manager-like compact package directory as the target for 智能体与能力",
         "search, status filter, registry refresh, and manifest URL install as package-directory controls",
@@ -3249,7 +3259,8 @@
           "settings-page-capabilities",
           "settings-capabilities-primary",
           "settings-capabilities-technical-details",
-          "settings-capabilities-primary-action"
+          "settings-capabilities-primary-action",
+          "opl-developer-profile-control"
         ],
         "conditional": [
           {
