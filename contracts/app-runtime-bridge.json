@@ -124,9 +124,23 @@
           "install_from_manifest_url",
           "agent_package_update",
           "agent_package_repair",
+          "repair_dependency_closure",
           "agent_package_uninstall",
           "agent_package_preferences_set"
         ],
+        "required_projection_fields": {
+          "directory.installed_packages[]": [
+            "dependency_closure",
+            "dependent_guard"
+          ],
+          "status_index.packages[package_id]": [
+            "dependency_readiness",
+            "operational_ready",
+            "repair_action",
+            "dependent_guard"
+          ]
+        },
+        "projection_authority_policy": "App and shells consume these public Framework fields verbatim and must not infer dependency closure, operational readiness, repair eligibility, or dependent guards from package identity",
         "fallback_policy": {
           "allowed_fallback_source": "opl app state --profile fast --json#app_state.modules.items[] + home_agent_shortcuts + task_awareness refs",
           "allowed_when": "older runtime payloads or partial agent_packages projection only",

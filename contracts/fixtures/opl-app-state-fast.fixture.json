@@ -13,6 +13,82 @@
       "action_surface": "opl app action execute",
       "app_repo_truth_owner": "one-person-lab-app"
     },
+    "agent_packages": {
+      "directory": {
+        "installed_packages": [
+          {
+            "package_id": "example-agent",
+            "dependency_closure": {
+              "root_package_id": "example-agent",
+              "transaction_id": "tx-example-1",
+              "generation_id": "generation-example-1",
+              "closure_digest": "sha256:example-current",
+              "last_known_good_generation_id": "generation-example-0",
+              "last_known_good_closure_digest": "sha256:example-previous",
+              "required_package_ids": ["example-provider"]
+            },
+            "dependent_guard": {
+              "required_by_package_ids": [],
+              "disable": {"allowed": true, "reason_code": null},
+              "uninstall": {"allowed": true, "reason_code": null}
+            }
+          }
+        ]
+      },
+      "status_index": {
+        "packages": {
+          "example-agent": {
+            "package_id": "example-agent",
+            "status": "ready",
+            "dependency_readiness": {
+              "status": "ready",
+              "required_count": 1,
+              "ready_count": 1,
+              "checks": [
+                {
+                  "package_id": "example-provider",
+                  "required": true,
+                  "installed": true,
+                  "enabled": true,
+                  "version_requirement": ">=1.0.0 <2.0.0",
+                  "installed_version": "1.0.0",
+                  "version_satisfied": true,
+                  "capability_abi": "example-provider.v1",
+                  "installed_capability_abi": "example-provider.v1",
+                  "abi_satisfied": true,
+                  "required_export_ids": ["example.export"],
+                  "available_export_ids": ["example.export"],
+                  "exports_satisfied": true,
+                  "content_lock_digest": "sha256:example-provider",
+                  "physical_surface_status": "ready",
+                  "ready": true,
+                  "failure_reasons": []
+                }
+              ],
+              "closure": {
+                "transaction_id": "tx-example-1",
+                "generation_id": "generation-example-1",
+                "closure_digest": "sha256:example-current",
+                "last_known_good_generation_id": "generation-example-0",
+                "last_known_good_closure_digest": "sha256:example-previous"
+              }
+            },
+            "operational_ready": true,
+            "repair_action": {
+              "action_id": "repair_dependency_closure",
+              "command_ref": "opl packages repair example-agent --json",
+              "enabled": false,
+              "reason_code": "dependency_closure_ready"
+            },
+            "dependent_guard": {
+              "required_by_package_ids": [],
+              "disable": {"allowed": true, "reason_code": null},
+              "uninstall": {"allowed": true, "reason_code": null}
+            }
+          }
+        }
+      }
+    },
     "operator": {
       "status": "attention_needed",
       "summary": {

@@ -380,6 +380,9 @@ test('managed update payload and public actions use only the three software obje
   const pageState = JSON.parse(
     fs.readFileSync(path.join(process.cwd(), 'contracts', 'app-page-state-matrix.json'), 'utf8'),
   );
+  const fastFixture = JSON.parse(
+    fs.readFileSync(path.join(process.cwd(), 'contracts', 'fixtures', 'opl-app-state-fast.fixture.json'), 'utf8'),
+  );
   const lifecycle = release.managed_update_plane.software_lifecycle;
   const guiManagedUpdate = gui.framework_surfaces.managed_update_plane;
   const guiEnvironment = gui.pages.settings_environment;
@@ -423,6 +426,27 @@ test('managed update payload and public actions use only the three software obje
     true,
   );
   assert.equal(capabilitiesPage.agent_package_lifecycle_ux.directory_controls.filters.includes('codex_surface'), true);
+  assert.deepEqual(
+    capabilitiesPage.agent_package_lifecycle_ux.package_projection_contract.status_index_package_fields.dependency_readiness_status_values,
+    ['ready', 'repair_required', 'blocked'],
+  );
+  assert.equal(
+    capabilitiesPage.agent_package_lifecycle_ux.package_projection_contract.status_index_package_fields.operational_ready,
+    'boolean',
+  );
+  assert.equal(
+    capabilitiesPage.agent_package_lifecycle_ux.package_projection_contract.repair_action_id,
+    'repair_dependency_closure',
+  );
+  assert.equal(
+    JSON.stringify(capabilitiesPage.agent_package_lifecycle_ux.package_projection_contract).includes('med-autoscience'),
+    false,
+  );
+  const fixturePackage = fastFixture.app_state.agent_packages.status_index.packages['example-agent'];
+  assert.equal(fixturePackage.dependency_readiness.status, 'ready');
+  assert.equal(fixturePackage.operational_ready, true);
+  assert.equal(fixturePackage.repair_action.action_id, 'repair_dependency_closure');
+  assert.deepEqual(fixturePackage.dependent_guard.required_by_package_ids, []);
 
   const legacyComponent = structuredClone(release);
   legacyComponent.managed_update_plane.software_lifecycle.public_component_keys.push('runtime_substrate');

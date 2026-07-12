@@ -754,6 +754,29 @@ function validateRuntimeBridgeProjectionContracts(runtimeBridge) {
   );
 }
 
+function validatePackageReadinessProjection(runtimeBridge) {
+  const rows = runtimeBridge.canonical_state_display_action_map?.rows;
+  const packageRow = Array.isArray(rows) ? rows.find((row) => row?.semantic_area === 'package') : null;
+  assertDeepEqualJson(
+    packageRow?.required_projection_fields?.['directory.installed_packages[]'],
+    ['dependency_closure', 'dependent_guard'],
+    'Runtime bridge package directory readiness fields',
+  );
+  assertIncludesAll(
+    packageRow?.allowed_action_refs,
+    ['repair_dependency_closure'],
+    'Runtime bridge dependency closure repair action',
+  );
+  assertDeepEqualJson(
+    packageRow?.required_projection_fields?.['status_index.packages[package_id]'],
+    ['dependency_readiness', 'operational_ready', 'repair_action', 'dependent_guard'],
+    'Runtime bridge package status readiness fields',
+  );
+  if (!packageRow?.projection_authority_policy?.includes('must not infer dependency closure')) {
+    throw new Error('Runtime bridge package projection must forbid package-identity readiness inference');
+  }
+}
+
 function validateRuntimeSurfaceOwnerMatrix(runtimeBridge) {
   const matrix = runtimeBridge.runtime_surface_owner_matrix;
   for (const [field, expected] of Object.entries({
@@ -869,6 +892,7 @@ export function validateRuntimeBridgeContract(runtimeBridge, contract) {
   validateRuntimeProgressPageDisplayPolicy(runtimeBridge);
   validateRuntimeBridgeCommandResolutionPolicy(runtimeBridge);
   validateRuntimeBridgeProjectionContracts(runtimeBridge);
+  validatePackageReadinessProjection(runtimeBridge);
   validateRuntimeBridgeUserTaskStatus(runtimeBridge);
   validateRuntimeSurfaceOwnerMatrix(runtimeBridge);
   validateRuntimeBridgeAuthorityBoundary(runtimeBridge);

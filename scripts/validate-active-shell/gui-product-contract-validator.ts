@@ -212,6 +212,9 @@ function validateAgentPackageLifecycleUx(surface, label) {
       'filter_by_install_update_source_trust_codex_surface_and_home_visibility_state',
       'explain_install_source_in_user_language',
       'show_failure_reason_only_when_failed_blocked_or_needs_user_action',
+      'operational_ready_false_or_dependency_repair_required_must_never_render_ready',
+      'show_dependency_readiness_and_dependent_guard_in_normal_details',
+      'trigger_only_projected_repair_action_when_enabled',
       'show_receipt_and_physical_surface_in_details_or_advanced_only',
       'use_consistent_confirmation_and_receipt_pattern_for_hide_disable_update_repair_uninstall_install_and_launch',
       'display_rollback_ref_as_recovery_reference_only_no_app_rollback_verb',
@@ -240,7 +243,7 @@ function validateAgentPackageLifecycleUx(surface, label) {
   );
   assertIncludesAll(
     surface.failure_reason_fields,
-    ['failure_reason', 'blocker_summary', 'last_action_receipt_ref', 'recommended_action'],
+    ['failure_reason', 'blocker_summary', 'last_action_receipt_ref', 'recommended_action', 'dependency_readiness.status', 'dependency_readiness.checks[].failure_reasons', 'operational_ready', 'dependent_guard.disable.reason_code', 'dependent_guard.uninstall.reason_code'],
     `${label} failure reason fields`,
   );
   const detail = surface.receipt_physical_surface_detail_policy;
@@ -249,9 +252,28 @@ function validateAgentPackageLifecycleUx(surface, label) {
   }
   assertIncludesAll(
     detail.receipt_fields,
-    ['receipt_refs', 'package_lock_ref', 'action_receipt_ref', 'rollback_ref'],
+    ['receipt_refs', 'package_lock_ref', 'action_receipt_ref', 'rollback_ref', 'dependency_closure.transaction_id', 'dependency_closure.generation_id', 'dependency_closure.closure_digest', 'dependency_closure.last_known_good_generation_id', 'dependency_closure.last_known_good_closure_digest'],
     `${label} receipt fields`,
   );
+  const projection = surface.package_projection_contract;
+  assertDeepEqualJson(
+    projection?.status_index_package_fields?.dependency_readiness_status_values,
+    ['ready', 'repair_required', 'blocked'],
+    `${label} dependency readiness values`,
+  );
+  assertIncludesAll(
+    projection?.status_index_package_fields?.repair_action,
+    ['action_id', 'command_ref', 'enabled', 'reason_code'],
+    `${label} repair action fields`,
+  );
+  if (
+    projection?.status_index_package_fields?.operational_ready !== 'boolean' ||
+    projection?.repair_action_id !== 'repair_dependency_closure' ||
+    projection?.closure_diagnostics_surface !== 'advanced_diagnostics_only'
+  ) {
+    throw new Error(`${label} must define generic dependency closure readiness and repair projection`);
+  }
+  assertDeepEqualJson(projection?.forbidden_private_fields, ['staging_path', 'journal_path'], `${label} private fields`);
   assertIncludesAll(
     detail.physical_surface_fields,
     [

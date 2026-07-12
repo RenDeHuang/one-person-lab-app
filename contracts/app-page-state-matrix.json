@@ -2922,6 +2922,9 @@
           "filter_by_install_update_source_trust_codex_surface_and_home_visibility_state",
           "explain_install_source_in_user_language",
           "show_failure_reason_only_when_failed_blocked_or_needs_user_action",
+          "operational_ready_false_or_dependency_repair_required_must_never_render_ready",
+          "show_dependency_readiness_and_dependent_guard_in_normal_details",
+          "trigger_only_projected_repair_action_when_enabled",
           "show_receipt_and_physical_surface_in_details_or_advanced_only",
           "use_consistent_confirmation_and_receipt_pattern_for_hide_disable_update_repair_uninstall_install_and_launch",
           "display_rollback_ref_as_recovery_reference_only_no_app_rollback_verb"
@@ -2965,8 +2968,31 @@
           "failure_reason",
           "blocker_summary",
           "last_action_receipt_ref",
-          "recommended_action"
+          "recommended_action",
+          "dependency_readiness.status",
+          "dependency_readiness.checks[].failure_reasons",
+          "operational_ready",
+          "dependent_guard.disable.reason_code",
+          "dependent_guard.uninstall.reason_code"
         ],
+        "package_projection_contract": {
+          "directory_installed_package_fields": {
+            "dependency_closure": ["root_package_id", "transaction_id", "generation_id", "closure_digest", "last_known_good_generation_id", "last_known_good_closure_digest", "required_package_ids"],
+            "dependent_guard": ["required_by_package_ids", "disable.allowed", "disable.reason_code", "uninstall.allowed", "uninstall.reason_code"]
+          },
+          "status_index_package_fields": {
+            "dependency_readiness": ["status", "required_count", "ready_count", "checks", "closure"],
+            "dependency_readiness_status_values": ["ready", "repair_required", "blocked"],
+            "dependency_check_fields": ["package_id", "required", "installed", "enabled", "version_requirement", "installed_version", "version_satisfied", "capability_abi", "installed_capability_abi", "abi_satisfied", "required_export_ids", "available_export_ids", "exports_satisfied", "content_lock_digest", "physical_surface_status", "ready", "failure_reasons"],
+            "dependency_closure_receipt_fields": ["transaction_id", "generation_id", "closure_digest", "last_known_good_generation_id", "last_known_good_closure_digest"],
+            "operational_ready": "boolean",
+            "repair_action": ["action_id", "command_ref", "enabled", "reason_code"],
+            "dependent_guard": ["required_by_package_ids", "disable.allowed", "disable.reason_code", "uninstall.allowed", "uninstall.reason_code"]
+          },
+          "repair_action_id": "repair_dependency_closure",
+          "closure_diagnostics_surface": "advanced_diagnostics_only",
+          "forbidden_private_fields": ["staging_path", "journal_path"]
+        },
         "receipt_physical_surface_detail_policy": {
           "surface": "details_panel_or_advanced_diagnostics",
           "default_primary_row_visible": false,
@@ -2974,7 +3000,12 @@
             "receipt_refs",
             "package_lock_ref",
             "action_receipt_ref",
-            "rollback_ref"
+            "rollback_ref",
+            "dependency_closure.transaction_id",
+            "dependency_closure.generation_id",
+            "dependency_closure.closure_digest",
+            "dependency_closure.last_known_good_generation_id",
+            "dependency_closure.last_known_good_closure_digest"
           ],
           "physical_surface_fields": [
             "status",
@@ -3022,12 +3053,20 @@
           "update_state",
           "source_state",
           "trust_state",
-          "codex_surface_state"
+          "codex_surface_state",
+          "dependency_readiness",
+          "operational_ready"
         ],
         "source_inputs": [
           "app_state.agent_packages.directory.installed_packages[]",
           "app_state.agent_packages.status_index.packages[]",
           "app_state.agent_packages.status_index.home_shortcut_preferences[]",
+          "app_state.agent_packages.directory.installed_packages[].dependency_closure",
+          "app_state.agent_packages.directory.installed_packages[].dependent_guard",
+          "app_state.agent_packages.status_index.packages[].dependency_readiness",
+          "app_state.agent_packages.status_index.packages[].operational_ready",
+          "app_state.agent_packages.status_index.packages[].repair_action",
+          "app_state.agent_packages.status_index.packages[].dependent_guard",
           "modules.items[].health_status",
           "modules.items[].recommended_action",
           "modules.items[].source_policy.effective_install_update_source",
