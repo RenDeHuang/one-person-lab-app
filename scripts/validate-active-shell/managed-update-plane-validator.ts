@@ -24,7 +24,7 @@ const manualActionMapping = {
   refresh: 'opl update status --json',
   check: 'opl update check --json',
   plan: 'opl update plan --json',
-  bootstrap_missing_opl_base: 'opl-install.sh --headless --skip-modules',
+  bootstrap_missing_opl_base: 'opl-install.sh --headless --skip-packages',
   update_opl_app: 'standard_updater_or_carrier_host_update_route',
   install_opl_package: 'opl packages install ... --json',
   update_opl_package: 'opl packages update ... --json',

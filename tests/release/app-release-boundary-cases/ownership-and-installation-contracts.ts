@@ -261,6 +261,54 @@ test('agent installation contract validator accepts repository contracts', () =>
   assert.match(result.stdout, /App agent installation contract is consistent/);
 });
 
+test('App package consumers reject legacy identity, namespace, command, and plain latest aliases', () => {
+  const readContract = (name: string) => JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', name), 'utf8'),
+  );
+  const canonicalPackageIds = ['mas', 'mag', 'rca', 'oma', 'obf', 'mas-scholar-skills', 'opl-flow'];
+  const canonicalAgentIds = new Set(['mas', 'mag', 'rca', 'oma', 'obf']);
+  const registry = readContract('agent-package-registry.json');
+  assert.deepEqual(registry.entries.map((entry) => entry.package_id).sort(), [...canonicalPackageIds].sort());
+  assert.equal('latest_version' in registry.entries[0], false);
+
+  for (const entry of registry.entries) {
+    const manifestUrl = `https://raw.githubusercontent.com/gaofeng21cn/one-person-lab/main/contracts/opl-framework/packages/${entry.package_id}.json`;
+    assert.equal(entry.manifest_url, manifestUrl);
+    assert.equal(entry.version_source_ref, `${manifestUrl}#/version`);
+    assert.equal(
+      entry.ordinary_user_source.ordinary_user_ref,
+      `ghcr.io/gaofeng21cn/one-person-lab-packages/${entry.package_id}:latest-stable`,
+    );
+    assert.equal(
+      entry.ordinary_user_source.candidate_ref,
+      `ghcr.io/gaofeng21cn/one-person-lab-packages/${entry.package_id}:candidate`,
+    );
+    assert.equal(entry.ordinary_user_source.ordinary_user_ref.endsWith(':latest'), false);
+    assert.equal(JSON.stringify(entry.ordinary_user_source).includes(':candidate-'), false);
+    if (canonicalAgentIds.has(entry.package_id)) {
+      assert.equal(entry.agent_id, entry.package_id);
+    } else {
+      assert.equal('agent_id' in entry, false);
+      assert.deepEqual(entry.home_shortcut_ids, []);
+    }
+  }
+
+  const fixtureDir = path.join(appRoot, 'contracts', 'fixtures', 'agent-package-manifests');
+  for (const packageId of canonicalPackageIds) {
+    const fixture = JSON.parse(fs.readFileSync(path.join(fixtureDir, `${packageId}.json`), 'utf8'));
+    const distribution = JSON.stringify(fixture.distribution_payload);
+    assert.equal(fixture.distribution_payload.proof_status, 'contract_fixture_non_live');
+    assert.match(fixture.distribution_payload.payload_digest_ref, /@sha256:[0-9a-f]{64}$/);
+    assert.equal(fixture.distribution_payload.moving_tag, 'latest-stable');
+    assert.equal(/:latest(?:[\"/?#]|$)/.test(distribution), false);
+    assert.equal(/\/opl-(?:agent|package)-|\/one-person-lab-modules\//.test(distribution), false);
+  }
+
+  const activeInstallSurface = JSON.stringify(readContract('app-install-exposure-policy.json'));
+  assert.equal(activeInstallSurface.includes('--skip-modules'), false);
+  assert.equal(activeInstallSurface.includes('reconcile-modules'), false);
+});
+
 test('App contracts require one generic package use-boundary activation before launch', () => {
   const readContract = (name: string) => JSON.parse(
     fs.readFileSync(path.join(process.cwd(), 'contracts', name), 'utf8'),
@@ -285,7 +333,7 @@ test('App contracts require one generic package use-boundary activation before l
     },
     result_fields: ['launch_allowed', 'use_receipt_ref', 'use_binding'],
     launch_policy: 'launch_only_when_launch_allowed_true_and_use_receipt_ref_and_use_binding_are_present',
-    currentness_policy: 'framework_reconciles_latest_compatible_package_closure_once_at_use_boundary_and_pins_use_binding_for_the_session',
+    currentness_policy: 'framework_reconciles_latest_stable_compatible_package_closure_once_at_use_boundary_and_pins_use_binding_for_the_session',
     package_identity_policy: 'generic_package_id_no_hardcoded_agent_or_capability_package_ids',
     app_role: 'prepare_then_launch_using_framework_readback_without_owning_package_currentness_or_materialization',
   };
@@ -420,7 +468,7 @@ test('App install policy selects exactly one compatible OPL Framework carrier', 
       install_origin: 'dmg_or_direct_download',
       carrier: 'framework_managed_install',
       locator: '~/.opl/one-person-lab',
-      installer: 'opl-install.sh --headless --skip-modules',
+      installer: 'opl-install.sh --headless --skip-packages',
     },
   ]);
   assert.deepEqual(carrier.pre_formula_transition, {
@@ -428,7 +476,7 @@ test('App install policy selects exactly one compatible OPL Framework carrier', 
     condition: 'homebrew_cask_receipt_present_and_formula_absent',
     carrier: 'framework_managed_install',
     locator: '~/.opl/one-person-lab',
-    installer: 'opl-install.sh --headless --skip-modules',
+    installer: 'opl-install.sh --headless --skip-packages',
     selection_status: 'pre_formula_transition',
     must_end_when_formula_available: true,
     incompatible_formula_must_not_fallback: true,
@@ -483,7 +531,7 @@ test('App exposes three software objects while Framework owns Base and Packages 
     opl_packages: 'one-person-lab',
   });
   assert.deepEqual(lifecycle.app_mutation_scope, ['opl_app']);
-  assert.equal(lifecycle.base_bootstrap.bootstrap_route, 'opl-install.sh --headless --skip-modules');
+  assert.equal(lifecycle.base_bootstrap.bootstrap_route, 'opl-install.sh --headless --skip-packages');
   assert.equal(lifecycle.base_bootstrap.app_must_not_implement_installer, true);
   assert.equal(lifecycle.ordinary_component_picker_allowed, false);
   assert.equal(lifecycle.legacy_component_mapping_allowed, false);
@@ -525,7 +573,7 @@ test('managed update payload and public actions use only the three software obje
   assert.deepEqual(lifecycle.objects.opl_base.optional_internal_fields, ['dependency_status', 'integration_status']);
   assert.deepEqual(lifecycle.objects.opl_app.required_fields, ['host_update_route', 'host_executor_required']);
   assert.deepEqual(lifecycle.objects.opl_packages.optional_internal_fields, ['projection_status', 'profile_migration_status']);
-  assert.equal(lifecycle.public_actions.bootstrap_missing_opl_base, 'opl-install.sh --headless --skip-modules');
+  assert.equal(lifecycle.public_actions.bootstrap_missing_opl_base, 'opl-install.sh --headless --skip-packages');
   assert.match(lifecycle.public_actions.install_opl_package, /^opl packages install /);
   assert.equal(Object.values(lifecycle.public_actions).some((action) => String(action).includes('--component')), false);
   assert.equal('runtime_substrate_updater' in release, false);
@@ -641,7 +689,7 @@ test('agent installation validator accepts generated OMA local plugin roots', ()
     const result = runNode([
       'scripts/validate-agent-installation-contract.ts',
       '--agent-root',
-      `opl-meta-agent=${pluginRoot}`,
+      `oma=${pluginRoot}`,
     ]);
 
     assert.equal(result.status, 0, `${result.stderr}\n${result.stdout}`);

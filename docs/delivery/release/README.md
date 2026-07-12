@@ -38,7 +38,7 @@ dependency and projection details remain nested status, never peer updaters.
 
 | Object | User-facing meaning | Lifecycle boundary |
 | --- | --- | --- |
-| OPL Base | Headless Framework/CLI/runtime prerequisite. | Framework owns mutation. Formula `opl` and `opl-install.sh --headless --skip-modules` are carrier adapters for the same identity. The App may bootstrap a missing Base and show `dependency_status` / `integration_status`, but cannot mutate Base itself. |
+| OPL Base | Headless Framework/CLI/runtime prerequisite. | Framework owns mutation. Formula `opl` and `opl-install.sh --headless --skip-packages` are carrier adapters for the same identity. The App may bootstrap a missing Base and show `dependency_status` / `integration_status`, but cannot mutate Base itself. |
 | OPL App | GUI and control plane. | App owns its binary. Cask and signed installer/DMG are carrier adapters; standard updater or host route supplies `host_update_route` and `host_executor_required`. |
 | OPL Packages | MAS/MAG/RCA/OMA/BookForge/MAS Scholar Skills/OPL Flow capability packages. | Framework `opl packages` owns install/update/repair/uninstall. Codex visibility is `projection_status`; profile semantic merge is `profile_migration_status`. Homebrew and App do not mutate Packages. |
 
@@ -617,7 +617,7 @@ OPL Base bootstrap and OPL Packages execution use owner routes rather than a
 public component selector:
 
 ```bash
-opl-install.sh --headless --skip-modules
+opl-install.sh --headless --skip-packages
 opl packages install ... --json
 opl packages update ... --json
 opl packages repair --package-id <package_id> --json

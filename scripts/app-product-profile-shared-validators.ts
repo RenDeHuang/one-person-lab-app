@@ -54,29 +54,29 @@ type RouteReceiptOptions = {
   requireExactAssistants?: boolean;
 };
 
-export const starterPackageIds = ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge'];
+export const starterPackageIds = ['mas', 'mag', 'rca', 'obf'];
 export const starterShortcutIds = ['research', 'grant', 'ppt', 'book'];
 export const managedShortcutIds = [...starterShortcutIds, 'oma'];
-export const managedShortcutPackageIds = [...starterPackageIds, 'opl-meta-agent'];
+export const managedShortcutPackageIds = [...starterPackageIds, 'oma'];
 export const requiredSkillByPackageId = {
-  'med-autoscience': ['med-autoscience'],
-  'med-autogrant': ['med-autogrant'],
-  'redcube-ai': ['redcube-ai'],
-  'opl-bookforge': ['opl-bookforge'],
-  'opl-meta-agent': ['opl-meta-agent'],
+  mas: ['med-autoscience'],
+  mag: ['med-autogrant'],
+  rca: ['redcube-ai'],
+  obf: ['opl-bookforge'],
+  oma: ['opl-meta-agent'],
 };
 export const requiredSkillByAssistantId = {
-  'med-autoscience': 'med-autoscience',
-  'med-autogrant': 'med-autogrant',
-  'redcube-ai': 'redcube-ai',
-  'opl-bookforge': 'opl-bookforge',
+  mas: 'med-autoscience',
+  mag: 'med-autogrant',
+  rca: 'redcube-ai',
+  obf: 'opl-bookforge',
 };
 const codexEntryByPackageId = {
-  'med-autoscience': 'med-autoscience',
-  'med-autogrant': 'med-autogrant',
-  'redcube-ai': 'redcube-ai',
-  'opl-bookforge': 'opl-bookforge',
-  'opl-meta-agent': 'opl-meta-agent',
+  mas: 'med-autoscience',
+  mag: 'med-autogrant',
+  rca: 'redcube-ai',
+  obf: 'opl-bookforge',
+  oma: 'opl-meta-agent',
 };
 const agentPackageReceiptRequiredFields = [
   'route_kind',
@@ -110,6 +110,7 @@ type HomeLike = GuiLike['home'];
 type CodexModelDisplayOptionsLike = NonNullable<NonNullable<HomeLike>['codex_model_display_options']>;
 type ProfessionalAgentPackageLike = {
   package_id: string;
+  agent_id?: unknown;
   installed_manageable?: unknown;
   codex_visible_entry?: unknown;
   required_skill_ids?: unknown;
@@ -143,6 +144,7 @@ export function assertProfessionalAgentPackagePolicy(
       throw new Error(`${label} professional agent package ${entry.package_id} is not in the App package allowlist`);
     }
     if (
+      entry.agent_id !== entry.package_id ||
       entry.installed_manageable !== true ||
       entry.codex_visible_entry !== codexEntry ||
       JSON.stringify(entry.required_skill_ids) !== JSON.stringify(requiredSkills) ||
@@ -157,7 +159,7 @@ export function assertProfessionalAgentPackagePolicy(
         throw new Error(`${label} starter package ${entry.package_id} must be default home visible through one shortcut`);
       }
     }
-    if (entry.package_id === 'opl-meta-agent' && (
+    if (entry.package_id === 'oma' && (
       entry.package_kind !== 'managed_professional_agent_package' ||
       entry.default_home_visible !== false ||
       JSON.stringify(entry.home_shortcut_ids) !== JSON.stringify(['oma'])

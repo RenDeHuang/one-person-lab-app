@@ -112,7 +112,7 @@ macOS 用户也可以使用一键安装入口。它会准备 One Person Lab 运�
 curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh | bash
 ```
 
-该入口会显式调用 `--with-app --skip-modules`：先安装同一个可独立使用的 OPL 基座，再加入可选 GUI，不会静默安装任何 Agent。只需要基座时，请直接使用 OPL Framework 安装入口。
+该入口会显式调用 `--with-app --skip-packages`：先安装同一个可独立使用的 OPL 基座，再加入可选 GUI，不会静默安装任何 Package。只需要基座时，请直接使用 OPL Framework 安装入口。
 
 不使用 Homebrew 的稳定版 macOS 用户，可以使用稳定版安装助手：
 

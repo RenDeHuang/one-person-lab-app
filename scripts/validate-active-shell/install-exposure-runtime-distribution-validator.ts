@@ -7,7 +7,7 @@ export function validateInstallExposureRuntimeAndDistribution(policy) {
   validateTemporalAutoConfiguration(policy.temporal_auto_configuration);
   validateSyncAndInstallContract(policy.sync_and_install_contract);
   validateHomebrewDistribution(policy.distribution_channels?.homebrew);
-  validateManagedAgentPackDistribution(policy.agent_installation_contract?.managed_agent_pack_distribution);
+  validateManagedPackageDistribution(policy.agent_installation_contract?.managed_package_distribution);
   validateReleaseValidation(policy.release_validation);
 }
 
@@ -33,7 +33,7 @@ function validateSoftwareLifecycle(lifecycle) {
     throw new Error('Install exposure must use the three-object software lifecycle without legacy mappings or a component picker');
   }
   if (
-    lifecycle?.base_bootstrap?.bootstrap_route !== 'opl-install.sh --headless --skip-modules' ||
+    lifecycle?.base_bootstrap?.bootstrap_route !== 'opl-install.sh --headless --skip-packages' ||
     lifecycle?.base_bootstrap?.executor_owner !== 'one-person-lab' ||
     lifecycle?.base_bootstrap?.mutation_owner !== 'one-person-lab' ||
     lifecycle?.base_bootstrap?.receipt_owner !== 'one-person-lab' ||
@@ -110,7 +110,7 @@ function validateTemporalAutoConfiguration(temporalAutoConfig) {
 }
 
 function validateSyncAndInstallContract(sync) {
-  for (const command of ['opl install', 'opl system initialize --json', 'opl system startup-maintenance', 'opl connect reconcile-modules', 'opl connect sync-skills']) {
+  for (const command of ['opl install', 'opl system initialize --json', 'opl system startup-maintenance', 'opl packages update --json', 'opl connect sync-skills']) {
     if (!sync?.framework_commands?.includes(command)) {
       throw new Error(`Install exposure sync contract must include ${command}`);
     }
@@ -145,7 +145,7 @@ function validateSyncAndInstallContract(sync) {
     'missing_plugin_manifest',
     'missing_skill_entry',
     'duplicate_codex_visible_domain_skill',
-    'unavailable_managed_agent_pack_channel',
+    'unavailable_managed_package_channel',
   ]) {
     if (!sync.fail_closed_states?.includes(state)) {
       throw new Error(`Install exposure fail-closed states must include ${state}`);
@@ -193,7 +193,7 @@ function validateFrameworkCoreCarrier(homebrew) {
         install_origin: 'dmg_or_direct_download',
         carrier: 'framework_managed_install',
         locator: '~/.opl/one-person-lab',
-        installer: 'opl-install.sh --headless --skip-modules',
+        installer: 'opl-install.sh --headless --skip-packages',
       },
     ],
     'Install exposure OPL Framework locator precedence',
@@ -205,7 +205,7 @@ function validateFrameworkCoreCarrier(homebrew) {
       condition: 'homebrew_cask_receipt_present_and_formula_absent',
       carrier: 'framework_managed_install',
       locator: '~/.opl/one-person-lab',
-      installer: 'opl-install.sh --headless --skip-modules',
+      installer: 'opl-install.sh --headless --skip-packages',
       selection_status: 'pre_formula_transition',
       must_end_when_formula_available: true,
       incompatible_formula_must_not_fallback: true,
@@ -283,7 +283,7 @@ function validateHomebrewTransportBoundary(homebrew) {
   }, 'Install exposure Homebrew carrier adapter semantics');
   assertIncludesAll(
     homebrew.activation_commands,
-    ['opl connect reconcile-modules', 'opl connect sync-skills'],
+    ['opl packages update --json', 'opl connect sync-skills'],
     'Install exposure Homebrew activation commands',
   );
 }
@@ -329,56 +329,56 @@ function validateHomebrewAgentPackPolicy(homebrew) {
   }, 'Install exposure Homebrew OPL Packages boundary');
 }
 
-function validateManagedAgentPackDistribution(modulePackageDistribution) {
+function validateManagedPackageDistribution(packageDistribution) {
   if (
-    modulePackageDistribution?.software_object !== 'opl_packages' ||
-    modulePackageDistribution?.lifecycle_owner !== 'one-person-lab' ||
-    modulePackageDistribution?.app_role !== 'request_status_progress_and_receipt_projection_only' ||
-    modulePackageDistribution?.class !== 'capability_packages' ||
-    modulePackageDistribution?.channel_id !== 'opl_agent_packages_rolling_latest' ||
-    modulePackageDistribution?.default_transport !== 'framework_package_lifecycle' ||
-    modulePackageDistribution?.default_update_mode !== 'automatic_apply_for_clean_managed_roots' ||
-    modulePackageDistribution?.default_manifest_tag !== 'latest' ||
-    modulePackageDistribution?.distribution_format !== 'ghcr_oci_artifact' ||
-    modulePackageDistribution?.ordinary_user_channel_model !== 'rolling_latest_only' ||
-    modulePackageDistribution?.publication_cadence !== 'daily_when_source_digest_changes' ||
-    modulePackageDistribution?.digest_lock_required !== true ||
-    modulePackageDistribution?.stable_or_nightly_user_channels_allowed !== false ||
-    modulePackageDistribution?.homebrew_distribution_allowed !== false ||
-    modulePackageDistribution?.homebrew_formula_allowed !== false ||
-    modulePackageDistribution?.must_not_write_user_codex_state !== true ||
-    modulePackageDistribution?.must_not_define_agent_semantics !== true ||
-    modulePackageDistribution?.cohort_manifest_required !== true
+    packageDistribution?.software_object !== 'opl_packages' ||
+    packageDistribution?.lifecycle_owner !== 'one-person-lab' ||
+    packageDistribution?.app_role !== 'request_status_progress_and_receipt_projection_only' ||
+    packageDistribution?.class !== 'capability_packages' ||
+    packageDistribution?.channel_id !== 'opl_packages_latest_stable' ||
+    packageDistribution?.default_transport !== 'framework_package_lifecycle' ||
+    packageDistribution?.default_update_mode !== 'automatic_apply_for_clean_managed_roots' ||
+    packageDistribution?.default_manifest_tag !== 'latest-stable' ||
+    packageDistribution?.distribution_format !== 'ghcr_oci_artifact' ||
+    packageDistribution?.ordinary_user_channel_model !== 'latest_stable_only' ||
+    packageDistribution?.publication_cadence !== 'daily_when_source_digest_changes' ||
+    packageDistribution?.digest_lock_required !== true ||
+    packageDistribution?.stable_or_nightly_user_channels_allowed !== false ||
+    packageDistribution?.homebrew_distribution_allowed !== false ||
+    packageDistribution?.homebrew_formula_allowed !== false ||
+    packageDistribution?.must_not_write_user_codex_state !== true ||
+    packageDistribution?.must_not_define_agent_semantics !== true ||
+    packageDistribution?.cohort_manifest_required !== true
   ) {
     throw new Error('Install exposure capability package internals must use the Framework-owned OPL Packages lifecycle');
   }
   assertIncludesAll(
-    modulePackageDistribution.post_update_sync_required,
+    packageDistribution.post_update_sync_required,
     ['codex_plugin_registry', 'plugin_packaged_skills', 'opl_generated_plugin_surface', 'codex_surface'],
     'Install exposure capability package distribution post-update sync requirements',
   );
   assertIncludesAll(
-    modulePackageDistribution.package_agent_ids,
-    ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-meta-agent', 'opl-bookforge', 'mas-scholar-skills'],
-    'Install exposure capability package distribution agent ids',
+    packageDistribution.agent_ids,
+    ['mas', 'mag', 'rca', 'oma', 'obf'],
+    'Install exposure package distribution agent ids',
   );
   assertDeepEqualJson(
-    modulePackageDistribution.package_ids,
+    packageDistribution.package_ids,
     managedOplPackageIds,
     'Install exposure capability package distribution package ids',
   );
   assertDeepEqualJson(
-    modulePackageDistribution.package_kinds,
+    packageDistribution.package_kinds,
     managedOplPackageKinds,
     'Install exposure capability package distribution package kinds',
   );
   assertDeepEqualJson(
-    modulePackageDistribution.opl_flow_package,
+    packageDistribution.opl_flow_package,
     oplFlowPackagePolicy,
     'Install exposure OPL Flow package policy',
   );
   assertIncludesAll(
-    modulePackageDistribution.activation_commands,
+    packageDistribution.activation_commands,
     [
       'opl packages activate <package_id> --scope workspace --target-workspace <path>',
       'opl packages activate <package_id> --scope quest --target-quest <path>',
@@ -386,22 +386,22 @@ function validateManagedAgentPackDistribution(modulePackageDistribution) {
     'Install exposure capability package distribution activation commands',
   );
   assertDeepEqualJson(
-    modulePackageDistribution.fallback_source_order,
+    packageDistribution.fallback_source_order,
     [
       'bundled_full_runtime_modules',
-      'framework_managed_ghcr_oci_opl_packages_latest_channel',
+      'framework_managed_ghcr_oci_opl_packages_latest_stable_channel',
       'explicit_developer_checkout_override',
     ],
     'Install exposure capability package distribution fallback source order',
   );
   if (
-    modulePackageDistribution.must_not_depend_on_fixed_version_tag_by_default !== true ||
-    modulePackageDistribution.github_packages_unavailable_policy !== 'fail_closed_with_actionable_background_maintenance_error'
+    packageDistribution.must_not_depend_on_fixed_version_tag_by_default !== true ||
+    packageDistribution.github_packages_unavailable_policy !== 'fail_closed_with_actionable_background_maintenance_error'
   ) {
     throw new Error('Install exposure capability packages distribution must fail closed when GitHub Packages is unavailable');
   }
   assertDeepEqualJson(
-    modulePackageDistribution.forbidden_homebrew_formulae,
+    packageDistribution.forbidden_homebrew_formulae,
     ['one-person-lab-modules', 'one-person-lab-modules-nightly'],
     'Install exposure managed agent-pack forbidden Homebrew formulae',
   );

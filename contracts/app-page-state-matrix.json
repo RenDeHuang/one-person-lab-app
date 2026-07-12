@@ -74,7 +74,7 @@
           },
           "result_fields": ["launch_allowed", "use_receipt_ref", "use_binding"],
           "launch_policy": "launch_only_when_launch_allowed_true_and_use_receipt_ref_and_use_binding_are_present",
-          "currentness_policy": "framework_reconciles_latest_compatible_package_closure_once_at_use_boundary_and_pins_use_binding_for_the_session",
+          "currentness_policy": "framework_reconciles_latest_stable_compatible_package_closure_once_at_use_boundary_and_pins_use_binding_for_the_session",
           "package_identity_policy": "generic_package_id_no_hardcoded_agent_or_capability_package_ids",
           "app_role": "prepare_then_launch_using_framework_readback_without_owning_package_currentness_or_materialization"
         },
@@ -146,47 +146,47 @@
         "codex_only_default": true,
         "executor_tab_visible_when_single_executor": false,
         "default_assistants": [
-          "med-autoscience",
-          "med-autogrant",
-          "redcube-ai",
-          "opl-bookforge"
+          "mas",
+          "mag",
+          "rca",
+          "obf"
         ],
         "professional_agent_packages": [
-          "med-autoscience",
-          "med-autogrant",
-          "redcube-ai",
-          "opl-bookforge",
-          "opl-meta-agent"
+          "mas",
+          "mag",
+          "rca",
+          "obf",
+          "oma"
         ],
         "default_home_agent_packages": [
-          "med-autoscience",
-          "med-autogrant",
-          "redcube-ai",
-          "opl-bookforge"
+          "mas",
+          "mag",
+          "rca",
+          "obf"
         ],
         "default_assistant_purpose_labels": {
-          "med-autoscience": "科研",
-          "med-autogrant": "基金",
-          "redcube-ai": "演示",
-          "opl-bookforge": "写书"
+          "mas": "科研",
+          "mag": "基金",
+          "rca": "演示",
+          "obf": "写书"
         },
         "default_assistant_required_skills": {
-          "med-autoscience": ["med-autoscience"],
-          "med-autogrant": ["med-autogrant"],
-          "redcube-ai": ["redcube-ai"],
-          "opl-bookforge": ["opl-bookforge"]
+          "mas": ["med-autoscience"],
+          "mag": ["med-autogrant"],
+          "rca": ["redcube-ai"],
+          "obf": ["opl-bookforge"]
         },
         "default_agent_package_required_skills": {
-          "med-autoscience": ["med-autoscience"],
-          "med-autogrant": ["med-autogrant"],
-          "redcube-ai": ["redcube-ai"],
-          "opl-bookforge": ["opl-bookforge"]
+          "mas": ["med-autoscience"],
+          "mag": ["med-autogrant"],
+          "rca": ["redcube-ai"],
+          "obf": ["opl-bookforge"]
         },
         "ordinary_visible_mcp_server_ids": [],
         "home_agent_shortcuts": [
           {
             "shortcut_id": "research",
-            "package_id": "med-autoscience",
+            "package_id": "mas",
             "primary_label": "科研",
             "package_short_name": "MAS",
             "codex_visible_entry": "med-autoscience",
@@ -200,7 +200,7 @@
           },
           {
             "shortcut_id": "grant",
-            "package_id": "med-autogrant",
+            "package_id": "mag",
             "primary_label": "基金",
             "package_short_name": "MAG",
             "codex_visible_entry": "med-autogrant",
@@ -214,7 +214,7 @@
           },
           {
             "shortcut_id": "ppt",
-            "package_id": "redcube-ai",
+            "package_id": "rca",
             "primary_label": "演示",
             "package_short_name": "RCA",
             "codex_visible_entry": "redcube-ai",
@@ -228,7 +228,7 @@
           },
           {
             "shortcut_id": "book",
-            "package_id": "opl-bookforge",
+            "package_id": "obf",
             "primary_label": "写书",
             "package_short_name": "OBF",
             "codex_visible_entry": "opl-bookforge",
@@ -242,7 +242,7 @@
           },
           {
             "shortcut_id": "oma",
-            "package_id": "opl-meta-agent",
+            "package_id": "oma",
             "primary_label": "元智能体",
             "package_short_name": "OMA",
             "codex_visible_entry": "opl-meta-agent",
@@ -259,7 +259,7 @@
           {
             "id": "research",
             "primary_label": "科研",
-            "target_assistant_id": "med-autoscience",
+            "target_assistant_id": "mas",
             "target_assistant_short_name": "MAS",
             "display_policy": "purpose_first",
             "home_entry_policy": "visible_click_to_start"
@@ -267,7 +267,7 @@
           {
             "id": "grant",
             "primary_label": "基金",
-            "target_assistant_id": "med-autogrant",
+            "target_assistant_id": "mag",
             "target_assistant_short_name": "MAG",
             "display_policy": "purpose_first",
             "home_entry_policy": "visible_click_to_start"
@@ -275,7 +275,7 @@
           {
             "id": "ppt",
             "primary_label": "演示",
-            "target_assistant_id": "redcube-ai",
+            "target_assistant_id": "rca",
             "target_assistant_short_name": "RCA",
             "display_policy": "purpose_first",
             "home_entry_policy": "visible_click_to_start"
@@ -283,7 +283,7 @@
           {
             "id": "book",
             "primary_label": "写书",
-            "target_assistant_id": "opl-bookforge",
+            "target_assistant_id": "obf",
             "target_assistant_short_name": "OBF",
             "display_policy": "purpose_first",
             "home_entry_policy": "visible_click_to_start"
@@ -1844,7 +1844,7 @@
           "refresh": "opl update status --json",
           "check": "opl update check --json",
           "plan": "opl update plan --json",
-          "bootstrap_missing_opl_base": "opl-install.sh --headless --skip-modules",
+          "bootstrap_missing_opl_base": "opl-install.sh --headless --skip-packages",
           "update_opl_app": "standard_updater_or_carrier_host_update_route",
           "install_opl_package": "opl packages install ... --json",
           "update_opl_package": "opl packages update ... --json",

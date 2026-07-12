@@ -132,7 +132,7 @@ function validateHomeAssistantDefaults(profile) {
   if (JSON.stringify(homePurposeEntries.map((entry) => entry.id)) !== JSON.stringify(['research', 'grant', 'ppt', 'book'])) {
     throw new Error('Product profile GUI home must expose research, grant, ppt, and book purpose entries');
   }
-  if (JSON.stringify(homePurposeEntries.map((entry) => entry.target_assistant_id)) !== JSON.stringify(['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge'])) {
+  if (JSON.stringify(homePurposeEntries.map((entry) => entry.target_assistant_id)) !== JSON.stringify(['mas', 'mag', 'rca', 'obf'])) {
     throw new Error('Product profile GUI home purpose entries must target MAS, MAG, RCA, and BookForge');
   }
   const homeAgentShortcuts = profile.gui.home.home_agent_shortcuts ?? [];
@@ -153,7 +153,7 @@ function validateHomeAssistantDefaults(profile) {
     ) {
       throw new Error(`Product profile GUI home shortcut ${shortcut.shortcut_id} must be a configurable Codex package launch shortcut`);
     }
-    if (shortcut.package_id === 'opl-meta-agent') {
+    if (shortcut.package_id === 'oma') {
       if (shortcut.shortcut_id !== 'oma' || shortcut.default_visible !== false) {
         throw new Error('Product profile OMA shortcut must be user-configurable but hidden by default');
       }
@@ -161,7 +161,7 @@ function validateHomeAssistantDefaults(profile) {
       throw new Error(`Product profile shortcut ${shortcut.shortcut_id} must be visible by default`);
     }
   }
-  if (JSON.stringify((profile.gui.default_assistants ?? []).map((assistant) => assistant.id)) !== JSON.stringify(['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge'])) {
+  if (JSON.stringify((profile.gui.default_assistants ?? []).map((assistant) => assistant.id)) !== JSON.stringify(['mas', 'mag', 'rca', 'obf'])) {
     throw new Error('Product profile default assistants must be MAS, MAG, RCA, and BookForge');
   }
   for (const assistant of profile.gui.default_assistants ?? []) {
@@ -169,7 +169,7 @@ function validateHomeAssistantDefaults(profile) {
       throw new Error(`Product profile default assistant ${assistant.id} must be a purpose-first entry target`);
     }
   }
-  const oma = (profile.gui.non_default_assistants ?? []).find((assistant) => assistant.id === 'opl-meta-agent');
+  const oma = (profile.gui.non_default_assistants ?? []).find((assistant) => assistant.id === 'oma');
   if (!oma || oma.home_default_visible !== false || oma.home_entry_policy !== 'explicit_or_settings_only') {
     throw new Error('Product profile must keep OMA available but out of default home entries');
   }
@@ -236,7 +236,7 @@ function validateProductProfileSettings(profile) {
 
 function validateAssistantSkillProfiles(profile) {
   const productSkillProfiles = profile.gui.assistant_skill_profiles ?? [];
-  if (JSON.stringify(productSkillProfiles.map((entry) => entry.assistant_id)) !== JSON.stringify(['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge'])) {
+  if (JSON.stringify(productSkillProfiles.map((entry) => entry.assistant_id)) !== JSON.stringify(['mas', 'mag', 'rca', 'obf'])) {
     throw new Error('Product profile assistant skill profiles must target MAS, MAG, RCA, and BookForge');
   }
   const availableSkillIds = new Set([
@@ -245,10 +245,10 @@ function validateAssistantSkillProfiles(profile) {
     ...(profile.companion_payloads?.official_codex_runtime_capabilities?.preferred_capability_ids ?? []),
   ]);
   const requiredSkillByAssistantId = {
-    'med-autoscience': 'med-autoscience',
-    'med-autogrant': 'med-autogrant',
-    'redcube-ai': 'redcube-ai',
-    'opl-bookforge': 'opl-bookforge',
+    mas: 'med-autoscience',
+    mag: 'med-autogrant',
+    rca: 'redcube-ai',
+    obf: 'opl-bookforge',
   };
   for (const entry of productSkillProfiles) {
     const requiredSkill = requiredSkillByAssistantId[entry.assistant_id];
@@ -346,7 +346,7 @@ function validateInstallUpdateTaxonomy(profile) {
     profile.companion_payloads?.class !== 'opl_base_integrations' ||
     profile.companion_payloads?.opl_packages_projection_ref !== 'contracts/app-install-exposure-policy.json#exposure_classes.codex_surface' ||
     profile.companion_payloads?.opl_packages_lifecycle_ref !==
-      'contracts/app-install-exposure-policy.json#agent_installation_contract.managed_agent_pack_distribution'
+      'contracts/app-install-exposure-policy.json#agent_installation_contract.managed_package_distribution'
   ) {
     throw new Error('Product profile payloads must map Base integrations and Packages projection/lifecycle without peer updater classes');
   }

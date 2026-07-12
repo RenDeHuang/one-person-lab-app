@@ -1140,7 +1140,7 @@
         "refresh": "opl update status --json",
         "check": "opl update check --json",
         "plan": "opl update plan --json",
-        "bootstrap_missing_opl_base": "opl-install.sh --headless --skip-modules",
+        "bootstrap_missing_opl_base": "opl-install.sh --headless --skip-packages",
         "update_opl_app": "standard_updater_or_carrier_host_update_route",
         "install_opl_package": "opl packages install ... --json",
         "update_opl_package": "opl packages update ... --json",
@@ -1189,7 +1189,7 @@
           "refresh": "opl update status --json",
           "check": "opl update check --json",
           "plan": "opl update plan --json",
-          "bootstrap_missing_opl_base": "opl-install.sh --headless --skip-modules",
+          "bootstrap_missing_opl_base": "opl-install.sh --headless --skip-packages",
           "update_opl_app": "standard_updater_or_carrier_host_update_route",
           "install_opl_package": "opl packages install ... --json",
           "update_opl_package": "opl packages update ... --json",
@@ -1669,7 +1669,7 @@
     },
     "result_fields": ["launch_allowed", "use_receipt_ref", "use_binding"],
     "launch_policy": "launch_only_when_launch_allowed_true_and_use_receipt_ref_and_use_binding_are_present",
-    "currentness_policy": "framework_reconciles_latest_compatible_package_closure_once_at_use_boundary_and_pins_use_binding_for_the_session",
+    "currentness_policy": "framework_reconciles_latest_stable_compatible_package_closure_once_at_use_boundary_and_pins_use_binding_for_the_session",
     "package_identity_policy": "generic_package_id_no_hardcoded_agent_or_capability_package_ids",
     "app_role": "prepare_then_launch_using_framework_readback_without_owning_package_currentness_or_materialization"
   },
@@ -1677,10 +1677,10 @@
     "migration_alias_for": "agent_package_invocation_receipt_policy",
     "scope": "home_purpose_entry_to_conversation",
     "required_for_assistants": [
-      "med-autoscience",
-      "med-autogrant",
-      "redcube-ai",
-      "opl-bookforge"
+      "mas",
+      "mag",
+      "rca",
+      "obf"
     ],
     "route_kind": "builtin_capability",
     "executor": "codex_cli",
@@ -1832,7 +1832,7 @@
     {
       "id": "research",
       "primary_label": "科研",
-      "target_assistant_id": "med-autoscience",
+      "target_assistant_id": "mas",
       "target_assistant_short_name": "MAS",
       "display_policy": "purpose_first",
       "home_entry_policy": "visible_click_to_start"
@@ -1840,7 +1840,7 @@
     {
       "id": "grant",
       "primary_label": "基金",
-      "target_assistant_id": "med-autogrant",
+      "target_assistant_id": "mag",
       "target_assistant_short_name": "MAG",
       "display_policy": "purpose_first",
       "home_entry_policy": "visible_click_to_start"
@@ -1848,7 +1848,7 @@
     {
       "id": "ppt",
       "primary_label": "演示",
-      "target_assistant_id": "redcube-ai",
+      "target_assistant_id": "rca",
       "target_assistant_short_name": "RCA",
       "display_policy": "purpose_first",
       "home_entry_policy": "visible_click_to_start"
@@ -1856,7 +1856,7 @@
     {
       "id": "book",
       "primary_label": "写书",
-      "target_assistant_id": "opl-bookforge",
+      "target_assistant_id": "obf",
       "target_assistant_short_name": "OBF",
       "display_policy": "purpose_first",
       "home_entry_policy": "visible_click_to_start"
@@ -1865,7 +1865,8 @@
   "home_agent_shortcuts": [
     {
       "shortcut_id": "research",
-      "package_id": "med-autoscience",
+      "package_id": "mas",
+      "agent_id": "mas",
       "primary_label": "科研",
       "package_short_name": "MAS",
       "codex_visible_entry": "med-autoscience",
@@ -1879,7 +1880,8 @@
     },
     {
       "shortcut_id": "grant",
-      "package_id": "med-autogrant",
+      "package_id": "mag",
+      "agent_id": "mag",
       "primary_label": "基金",
       "package_short_name": "MAG",
       "codex_visible_entry": "med-autogrant",
@@ -1893,7 +1895,8 @@
     },
     {
       "shortcut_id": "ppt",
-      "package_id": "redcube-ai",
+      "package_id": "rca",
+      "agent_id": "rca",
       "primary_label": "演示",
       "package_short_name": "RCA",
       "codex_visible_entry": "redcube-ai",
@@ -1907,7 +1910,8 @@
     },
     {
       "shortcut_id": "book",
-      "package_id": "opl-bookforge",
+      "package_id": "obf",
+      "agent_id": "obf",
       "primary_label": "写书",
       "package_short_name": "OBF",
       "codex_visible_entry": "opl-bookforge",
@@ -1921,7 +1925,8 @@
     },
     {
       "shortcut_id": "oma",
-      "package_id": "opl-meta-agent",
+      "package_id": "oma",
+      "agent_id": "oma",
       "primary_label": "元智能体",
       "package_short_name": "OMA",
       "codex_visible_entry": "opl-meta-agent",
@@ -1936,7 +1941,8 @@
   ],
   "professional_agent_packages": [
     {
-      "package_id": "med-autoscience",
+      "package_id": "mas",
+      "agent_id": "mas",
       "display_name": "Med Auto Science",
       "short_name": "MAS",
       "role": "research_and_paper_agent",
@@ -1960,7 +1966,8 @@
       "skill_menu_policy": "assistant_scoped_required_checked_optional_visible"
     },
     {
-      "package_id": "med-autogrant",
+      "package_id": "mag",
+      "agent_id": "mag",
       "display_name": "Med Auto Grant",
       "short_name": "MAG",
       "role": "grant_authoring_agent",
@@ -1984,7 +1991,8 @@
       "skill_menu_policy": "assistant_scoped_required_checked_optional_visible"
     },
     {
-      "package_id": "redcube-ai",
+      "package_id": "rca",
+      "agent_id": "rca",
       "display_name": "RedCube AI",
       "short_name": "RCA",
       "role": "presentation_and_visual_deliverable_agent",
@@ -2004,7 +2012,8 @@
       "skill_menu_policy": "assistant_scoped_required_checked_optional_visible"
     },
     {
-      "package_id": "opl-bookforge",
+      "package_id": "obf",
+      "agent_id": "obf",
       "display_name": "OPL Book Forge",
       "short_name": "OBF",
       "role": "book_authoring_agent",
@@ -2028,7 +2037,8 @@
       "skill_menu_policy": "assistant_scoped_required_checked_optional_visible"
     },
     {
-      "package_id": "opl-meta-agent",
+      "package_id": "oma",
+      "agent_id": "oma",
       "display_name": "OPL Meta Agent",
       "short_name": "OMA",
       "role": "opl_agent_design_and_testing_agent",
@@ -2050,7 +2060,7 @@
   ],
   "default_assistants": [
     {
-      "id": "med-autoscience",
+      "id": "mas",
       "display_name": "Med Auto Science",
       "short_name": "MAS",
       "home_purpose_label": "科研",
@@ -2059,7 +2069,7 @@
       "home_entry_policy": "purpose_entry_target"
     },
     {
-      "id": "med-autogrant",
+      "id": "mag",
       "display_name": "Med Auto Grant",
       "short_name": "MAG",
       "home_purpose_label": "基金",
@@ -2068,7 +2078,7 @@
       "home_entry_policy": "purpose_entry_target"
     },
     {
-      "id": "redcube-ai",
+      "id": "rca",
       "display_name": "RedCube AI",
       "short_name": "RCA",
       "home_purpose_label": "演示",
@@ -2077,7 +2087,7 @@
       "home_entry_policy": "purpose_entry_target"
     },
     {
-      "id": "opl-bookforge",
+      "id": "obf",
       "display_name": "OPL Book Forge",
       "short_name": "OBF",
       "home_purpose_label": "写书",
@@ -2088,7 +2098,7 @@
   ],
   "assistant_skill_profiles": [
     {
-      "assistant_id": "med-autoscience",
+      "assistant_id": "mas",
       "required_skills": ["med-autoscience"],
       "optional_skills": [
         "mineru-document-extractor",
@@ -2100,7 +2110,7 @@
       "skill_menu_policy": "assistant_scoped_required_checked_optional_visible"
     },
     {
-      "assistant_id": "med-autogrant",
+      "assistant_id": "mag",
       "required_skills": ["med-autogrant"],
       "optional_skills": [
         "officecli-docx",
@@ -2112,7 +2122,7 @@
       "skill_menu_policy": "assistant_scoped_required_checked_optional_visible"
     },
     {
-      "assistant_id": "redcube-ai",
+      "assistant_id": "rca",
       "required_skills": ["redcube-ai"],
       "optional_skills": ["officecli-pptx", "ui-ux-pro-max"],
       "required_skill_policy": "checked_locked",
@@ -2120,7 +2130,7 @@
       "skill_menu_policy": "assistant_scoped_required_checked_optional_visible"
     },
     {
-      "assistant_id": "opl-bookforge",
+      "assistant_id": "obf",
       "required_skills": ["opl-bookforge"],
       "optional_skills": ["officecli-docx", "pdf", "mineru-document-extractor"],
       "required_skill_policy": "checked_locked",
@@ -2130,7 +2140,7 @@
   ],
   "non_default_assistants": [
     {
-      "id": "opl-meta-agent",
+      "id": "oma",
       "display_name": "OPL Meta Agent",
       "short_name": "OMA",
       "role": "opl_agent_design_and_testing_agent",
@@ -3178,7 +3188,7 @@
     "must_explain": [
       "whether a module comes from the bundled Full runtime payload",
       "whether a module comes from the App/CLI-managed GHCR OCI OPL Packages latest channel",
-      "whether a module comes from the App/CLI-managed GHCR OCI OPL Packages rolling latest channel",
+      "whether a package comes from the Framework-managed GHCR OCI OPL Packages latest-stable channel",
       "whether a module comes from a local domain repository checkout",
       "whether Developer Profile source_channel uses a GitHub repo or local checkout",
       "whether a module is managed by App/CLI maintenance",
@@ -4917,7 +4927,7 @@
           "refresh": "opl update status --json",
           "check": "opl update check --json",
           "plan": "opl update plan --json",
-          "bootstrap_missing_opl_base": "opl-install.sh --headless --skip-modules",
+          "bootstrap_missing_opl_base": "opl-install.sh --headless --skip-packages",
           "update_opl_app": "standard_updater_or_carrier_host_update_route",
           "install_opl_package": "opl packages install ... --json",
           "update_opl_package": "opl packages update ... --json",

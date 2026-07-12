@@ -2582,7 +2582,7 @@
           "lifecycle_owner": "one-person-lab",
           "app_role": "bootstrap_request_status_progress_and_receipt_projection",
           "app_mutation_allowed": false,
-          "missing_state_bootstrap_route": "opl-install.sh --headless --skip-modules",
+          "missing_state_bootstrap_route": "opl-install.sh --headless --skip-packages",
           "mutation_route": "framework_lifecycle_only",
           "optional_internal_fields": [
             "dependency_status",
@@ -2636,12 +2636,12 @@
             "codex_surface",
             "workflow_profile"
           ],
-          "package_ids": [
-            "med-autoscience",
-            "med-autogrant",
-            "redcube-ai",
-            "opl-meta-agent",
-            "opl-bookforge",
+      "package_ids": [
+        "mas",
+        "mag",
+        "rca",
+        "oma",
+        "obf",
             "mas-scholar-skills",
             "opl-flow"
           ],
@@ -2675,7 +2675,7 @@
         "refresh": "opl update status --json",
         "check": "opl update check --json",
         "plan": "opl update plan --json",
-        "bootstrap_missing_opl_base": "opl-install.sh --headless --skip-modules",
+        "bootstrap_missing_opl_base": "opl-install.sh --headless --skip-packages",
         "update_opl_app": "standard_updater_or_carrier_host_update_route",
         "install_opl_package": "opl packages install ... --json",
         "update_opl_package": "opl packages update ... --json",

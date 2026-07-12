@@ -140,7 +140,7 @@ capabilities instead of a single Developer Mode switch: `source_channel`,
 `workspace_trust`, `github_authority`, `agent_automation`, and
 `runtime_mutation_scope`. `opl-flow` is an OPL Package with
 `package_kind=workflow_plugin_package`, and not a WebUI image, standard updater
-carrier target, or `one-person-lab-modules/*` package.
+carrier target, or a legacy modules-namespace package.
 The independent agent installation path is pinned by
 `contracts/app-install-exposure-policy.json`: MAS/MAG/RCA must register through
 Codex plugin registry targets while keeping direct skill compatibility and the

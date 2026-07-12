@@ -77,7 +77,7 @@ Hermes candidate 的首启页允许继续显示多条真实准备任务，但必
 - **进入 chat 的核心条件**：One Person Lab CLI 可发现、Codex CLI 可发现、Codex adapter
   能启动。核心条件不可用时，可以停在首启页并给出明确错误。
 - **可延后准备**：完整 `opl system initialize --json`、`startup-maintenance`、
-  `reconcile-modules`、MAS/MAG/RCA 状态刷新、contracts diagnostics、网络下载、
+  `opl packages update --json`、MAS/MAG/RCA 状态刷新、contracts diagnostics、网络下载、
   agent pack/channel 检查、模块同步、推荐 skill/plugin 刷新。这些任务可以在首启页展示
   进度，但用户必须能跳过进入主界面。
 

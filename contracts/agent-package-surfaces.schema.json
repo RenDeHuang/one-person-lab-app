@@ -1,12 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://onepersonlab.dev/contracts/agent-package-surfaces.schema.json",
-  "title": "OPL Agent Package Surfaces",
+  "title": "OPL Package Surfaces",
   "type": "object",
   "additionalProperties": false,
   "properties": {
-    "agent_package_manifest": {
-      "$ref": "#/$defs/agent_package_manifest"
+    "opl_package_manifest": {
+      "$ref": "#/$defs/opl_package_manifest"
     },
     "home_shortcut_metadata": {
       "$ref": "#/$defs/home_shortcut_metadata"
@@ -168,12 +168,12 @@
         }
       ]
     },
-    "agent_package_manifest": {
+    "opl_package_manifest": {
       "type": "object",
       "additionalProperties": true,
       "required": [
         "package_id",
-        "agent_id",
+        "package_kind",
         "display_name",
         "publisher",
         "version",
@@ -190,6 +190,13 @@
         "package_id": {
           "type": "string",
           "minLength": 1
+        },
+        "package_kind": {
+          "enum": [
+            "domain_agent_package",
+            "framework_capability_package",
+            "workflow_plugin_package"
+          ]
         },
         "agent_id": {
           "type": "string",
@@ -225,7 +232,7 @@
             "oci_ref",
             "oci_media_type",
             "immutable_tag",
-            "rolling_tag",
+            "moving_tag",
             "promotion_policy",
             "install_truth"
           ],
@@ -240,7 +247,7 @@
             },
             "payload_digest_ref": {
               "type": "string",
-              "minLength": 1
+              "pattern": "^oci-digest-lock://.+@sha256:[0-9a-f]{64}$"
             },
             "required_skill_pack_lock_refs": {
               "$ref": "#/$defs/string_array"
@@ -267,11 +274,11 @@
               "type": "string",
               "minLength": 1
             },
-            "rolling_tag": {
-              "const": "latest"
+            "moving_tag": {
+              "const": "latest-stable"
             },
             "promotion_policy": {
-              "const": "daily_candidate_gates_then_promote_latest"
+              "const": "daily_candidate_gates_then_promote_latest_stable"
             },
             "install_truth": {
               "const": "resolved_digest_lock"
@@ -350,9 +357,9 @@
               },
               "lock_ref": {
                 "type": "string",
-                "minLength": 1,
+                "pattern": "^oci-digest-lock://.+@sha256:[0-9a-f]{64}(?:/.+)?$",
                 "not": {
-                  "const": "registry.latest_version"
+                  "const": "registry.version_source_ref"
                 }
               },
               "install_mode": {
@@ -421,6 +428,29 @@
           "minLength": 1
         }
       },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "package_kind": {
+                "const": "domain_agent_package"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "agent_id"
+            ]
+          },
+          "else": {
+            "not": {
+              "required": [
+                "agent_id"
+              ]
+            }
+          }
+        }
+      ],
       "not": {
         "anyOf": [
           {
@@ -658,8 +688,8 @@
           "type": "string",
           "minLength": 1
         },
-        "rolling_tag": {
-          "const": "latest"
+        "moving_tag": {
+          "const": "latest-stable"
         }
       }
     }

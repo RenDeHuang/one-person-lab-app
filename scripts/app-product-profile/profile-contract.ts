@@ -473,7 +473,7 @@ function assertHomePurposeEntries(profile: AppProductProfile): void {
   if (JSON.stringify(purposeEntries.map((entry) => entry.primary_label)) !== JSON.stringify(['科研', '基金', '演示', '写书'])) {
     throw new Error('App product profile GUI home purpose labels must be 科研, 基金, 演示, 写书');
   }
-  if (JSON.stringify(purposeEntries.map((entry) => entry.target_assistant_id)) !== JSON.stringify(['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge'])) {
+  if (JSON.stringify(purposeEntries.map((entry) => entry.target_assistant_id)) !== JSON.stringify(['mas', 'mag', 'rca', 'obf'])) {
     throw new Error('App product profile GUI home purpose entries must route to MAS, MAG, RCA, and BookForge');
   }
   for (const entry of purposeEntries) {
@@ -500,7 +500,7 @@ function assertHomePurposeEntries(profile: AppProductProfile): void {
     ) {
       throw new Error(`App product profile GUI home shortcut ${shortcut.shortcut_id} must be a configurable Codex package launch shortcut`);
     }
-    if (shortcut.package_id === 'opl-meta-agent') {
+    if (shortcut.package_id === 'oma') {
       if (shortcut.shortcut_id !== 'oma' || shortcut.default_visible !== false) {
         throw new Error('App product profile OMA shortcut must be user-configurable but hidden by default');
       }
@@ -546,19 +546,19 @@ function assertHomeActivityCenterPolicy(profile: AppProductProfile): void {
 
 function assertDefaultAssistantProfileShape(profile: AppProductProfile): void {
   const defaultAssistantIds = profile.gui.default_assistants?.map((assistant) => assistant.id) ?? [];
-  if (JSON.stringify(defaultAssistantIds) !== JSON.stringify(['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge'])) {
+  if (JSON.stringify(defaultAssistantIds) !== JSON.stringify(['mas', 'mag', 'rca', 'obf'])) {
     throw new Error('App product profile default home assistants must be MAS, MAG, RCA, and BookForge');
   }
   const purposeLabels = profile.gui.default_assistants?.map((assistant) => assistant.home_purpose_label) ?? [];
   if (JSON.stringify(purposeLabels) !== JSON.stringify(['科研', '基金', '演示', '写书'])) {
     throw new Error('App product profile default assistants must expose purpose-first home labels');
   }
-  for (const assistantId of ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge']) {
+  for (const assistantId of ['mas', 'mag', 'rca', 'obf']) {
     if (!defaultAssistantIds.includes(assistantId)) {
       throw new Error(`App product profile missing default assistant ${assistantId}`);
     }
   }
-  if (defaultAssistantIds.includes('mds') || defaultAssistantIds.includes('opl-meta-agent')) {
+  if (defaultAssistantIds.includes('mds') || defaultAssistantIds.includes('oma')) {
     throw new Error('App product profile must not include MDS or OMA as a default home assistant');
   }
   for (const assistant of profile.gui.default_assistants ?? []) {
@@ -657,18 +657,18 @@ function assertAssistantSkillProfiles(
   profile: AppProductProfile,
 ): AppProductProfile['gui']['assistant_skill_profiles'] {
   const skillProfiles = profile.gui.assistant_skill_profiles ?? [];
-  if (JSON.stringify(skillProfiles.map((entry) => entry.assistant_id)) !== JSON.stringify(['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge'])) {
+  if (JSON.stringify(skillProfiles.map((entry) => entry.assistant_id)) !== JSON.stringify(['mas', 'mag', 'rca', 'obf'])) {
     throw new Error('App product profile assistant skill profiles must target MAS, MAG, RCA, and BookForge');
   }
   const requiredByAssistant = new Map(skillProfiles.map((entry) => [entry.assistant_id, entry.required_skills]));
-  for (const assistantId of ['med-autoscience', 'med-autogrant', 'redcube-ai']) {
+  for (const assistantId of ['mas', 'mag', 'rca']) {
     const requiredSkills = requiredByAssistant.get(assistantId);
     if (JSON.stringify(requiredSkills) !== JSON.stringify(requiredSkillByPackageId[assistantId as keyof typeof requiredSkillByPackageId])) {
       throw new Error(`App product profile assistant ${assistantId} must require its matching Codex skill`);
     }
   }
-  if (JSON.stringify(requiredByAssistant.get('opl-bookforge')) !== JSON.stringify(['opl-bookforge'])) {
-    throw new Error('App product profile assistant opl-bookforge must require the opl-bookforge Codex skill');
+  if (JSON.stringify(requiredByAssistant.get('obf')) !== JSON.stringify(['opl-bookforge'])) {
+    throw new Error('App product profile assistant obf must require the opl-bookforge Codex skill');
   }
   for (const entry of skillProfiles) {
     assertStringArray(entry.required_skills, `gui.assistant_skill_profiles.${entry.assistant_id}.required_skills`);
@@ -691,7 +691,7 @@ function assertAssistantSkillProfiles(
 }
 
 function assertNonDefaultAssistantProfileShape(profile: AppProductProfile): void {
-  const oma = profile.gui.non_default_assistants?.find((assistant) => assistant.id === 'opl-meta-agent');
+  const oma = profile.gui.non_default_assistants?.find((assistant) => assistant.id === 'oma');
   if (!oma || oma.home_default_visible !== false || oma.home_entry_policy !== 'explicit_or_settings_only') {
     throw new Error('App product profile must keep OMA available but out of default home entries');
   }

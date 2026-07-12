@@ -136,7 +136,7 @@ npm run test:opl-first-run-vm:tart -- --dry-run --source-vm opl-first-run-no-clt
 npm run test:opl-first-run-vm:tart -- --dry-run --source-vm opl-first-run-no-clt-clean-base --dmg dist/opl-full-release/One-Person-Lab-Full-<version>-mac-arm64.dmg --smoke-profile no-clt-clean-vm --display 1920x1080px --settings-smoke --assistant-route-smoke --runtime-profile full --codex-package-tarball artifacts/opl-first-run-vm/codex-package-tarballs/openai-codex.tgz --codex-platform-package-tarball artifacts/opl-first-run-vm/codex-package-tarballs/openai-codex-darwin-arm64.tgz --codex-npm-cache-dir artifacts/opl-first-run-vm/codex-npm-cache
 npm run test:opl-first-run-vm:tart -- --dry-run --source-vm opl-first-run-homebrew-ready-base --install-mode homebrew-cask --homebrew-cask gaofeng21cn/one-person-lab/one-person-lab --smoke-profile homebrew-standard-cask --display 1920x1080px --settings-smoke --assistant-route-smoke --runtime-profile standard --codex-package-tarball artifacts/opl-first-run-vm/codex-package-tarballs/openai-codex.tgz --codex-platform-package-tarball artifacts/opl-first-run-vm/codex-package-tarballs/openai-codex-darwin-arm64.tgz --codex-npm-cache-dir artifacts/opl-first-run-vm/codex-npm-cache
 npm run test:opl-first-run-vm:tart -- --dry-run --source-vm opl-first-run-no-clt-clean-base --dmg dist/standard-release/One-Person-Lab-<version>-mac-arm64.dmg --smoke-profile no-clt-clean-vm --display 1920x1080px --runtime-profile standard
-OPL_INSTALL_SCRIPT_URL=file:///path/to/one-person-lab/install.sh ./install.sh --with-app --skip-modules
+OPL_INSTALL_SCRIPT_URL=file:///path/to/one-person-lab/install.sh ./install.sh --with-app --skip-packages
 docker build -t one-person-lab-webui:<version> shells/aionui
 ```
 
@@ -539,7 +539,7 @@ verify the post-owner candidate record, then dispatch
 The one-shot installer section records the fixed public entry command, the
 workflow job result as bootstrap status source, the
 `opl system initialize --json` setup-flow source, artifact file names, progress
-fields, blockers, next step, retry state, and `--skip-modules` state in JSON and
+fields, blockers, next step, retry state, and `--skip-packages` state in JSON and
 the Markdown summary.
 
 Draft candidate cleanup is an explicit metadata-only operator step. Use

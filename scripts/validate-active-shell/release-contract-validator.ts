@@ -1,7 +1,7 @@
 import { assertDeepEqualJson, assertIncludesAll } from './assertions.ts';
 import { validateReleaseFullFirstInstallPayloads } from './release-full-first-install-payload-validator.ts';
 import { validateReleaseHomebrewDistribution } from './release-homebrew-distribution-validator.ts';
-import { managedUpdateCarrierAdapters, managedUpdateSoftwareObjectIds } from './managed-update-plane-policy.ts';
+import { managedOplPackageIds, managedUpdateCarrierAdapters, managedUpdateSoftwareObjectIds } from './managed-update-plane-policy.ts';
 
 export function validateReleaseChannelContract(releaseChannel) {
   const managedUpdatePlane = releaseChannel.managed_update_plane;
@@ -378,9 +378,10 @@ function validateSoftwareLifecycle(lifecycle) {
   assertDeepEqualJson(objects.opl_base.optional_internal_fields, ['dependency_status', 'integration_status'], 'OPL Base internal fields');
   assertDeepEqualJson(objects.opl_app.required_fields, ['host_update_route', 'host_executor_required'], 'OPL App route fields');
   assertDeepEqualJson(objects.opl_packages.optional_internal_fields, ['projection_status', 'profile_migration_status'], 'OPL Packages internal fields');
+  assertDeepEqualJson(objects.opl_packages.package_ids, managedOplPackageIds, 'OPL Packages canonical package ids');
   assertDeepEqualJson(Object.keys(lifecycle.carrier_adapters ?? {}), managedUpdateCarrierAdapters, 'Managed update carrier adapters');
   if (
-    lifecycle.public_actions?.bootstrap_missing_opl_base !== 'opl-install.sh --headless --skip-modules' ||
+    lifecycle.public_actions?.bootstrap_missing_opl_base !== 'opl-install.sh --headless --skip-packages' ||
     lifecycle.public_actions?.update_opl_app !== 'standard_updater_or_carrier_host_update_route' ||
     !String(lifecycle.public_actions?.install_opl_package).startsWith('opl packages install ') ||
     !String(lifecycle.public_actions?.update_opl_package).startsWith('opl packages update ') ||

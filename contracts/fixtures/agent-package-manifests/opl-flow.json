@@ -1,0 +1,57 @@
+{
+  "package_id": "opl-flow",
+  "package_kind": "workflow_plugin_package",
+  "display_name": "OPL Flow",
+  "publisher": "one-person-lab",
+  "version": "0.1.16",
+  "source": "first_party",
+  "distribution_payload": {
+    "payload_kind": "ghcr_oci_opl_package",
+    "payload_ref": "ghcr.io/gaofeng21cn/one-person-lab-packages/opl-flow:0.1.16",
+    "payload_digest_ref": "oci-digest-lock://ghcr.io/gaofeng21cn/one-person-lab-packages/opl-flow@sha256:7777777777777777777777777777777777777777777777777777777777777777",
+    "required_skill_pack_lock_refs": [
+      "oci-digest-lock://ghcr.io/gaofeng21cn/one-person-lab-packages/opl-flow@sha256:7777777777777777777777777777777777777777777777777777777777777777/skills/opl-flow-workflow-pack"
+    ],
+    "proof_status": "contract_fixture_non_live",
+    "live_download_proof": false,
+    "installed_reload_proof": false,
+    "oci_ref": "ghcr.io/gaofeng21cn/one-person-lab-packages/opl-flow:latest-stable",
+    "oci_media_type": "application/vnd.onepersonlab.package.v1+tar",
+    "immutable_tag": "0.1.16",
+    "moving_tag": "latest-stable",
+    "promotion_policy": "daily_candidate_gates_then_promote_latest_stable",
+    "install_truth": "resolved_digest_lock"
+  },
+  "codex_surface": {
+    "plugin_ids": [
+      "opl-flow"
+    ],
+    "required_skill_ids": [
+      "opl-flow",
+      "codex-ops-kit"
+    ],
+    "optional_skill_ids": [],
+    "plugin_source_ref": "gaofeng21cn/opl-flow"
+  },
+  "skill_packs": [
+    {
+      "id": "opl-flow-workflow-pack",
+      "source_kind": "repo_plugin_skill",
+      "source": "github:gaofeng21cn/opl-flow/skills/opl-flow",
+      "version": "0.1.16",
+      "lock_ref": "oci-digest-lock://ghcr.io/gaofeng21cn/one-person-lab-packages/opl-flow@sha256:7777777777777777777777777777777777777777777777777777777777777777/skills/opl-flow-workflow-pack",
+      "install_mode": "bundled_required"
+    }
+  ],
+  "entrypoints": [],
+  "health_check": {
+    "kind": "opl_package_receipt",
+    "required_surfaces": [
+      "plugin_registry",
+      "required_skill_ids"
+    ]
+  },
+  "permissions": [],
+  "update_channel": "managed_opl_packages",
+  "rollback_ref": "package-receipt-ref"
+}

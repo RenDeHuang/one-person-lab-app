@@ -73,7 +73,7 @@ Installation and maintenance expose exactly three software objects:
 
 | Object | Architecture boundary |
 | --- | --- |
-| OPL Base | The Framework-owned headless CLI/runtime prerequisite. Homebrew Formula `opl` and `opl-install.sh --headless --skip-modules` are carrier adapters for the same Base identity. When Base is missing, the App may offer one-click bootstrap through that installer and show progress/readback, but it does not implement, update, repair, or roll back Base. Runtime dependencies and companion-tool integration appear only as `dependency_status` / `integration_status` details under Base. |
+| OPL Base | The Framework-owned headless CLI/runtime prerequisite. Homebrew Formula `opl` and `opl-install.sh --headless --skip-packages` are carrier adapters for the same Base identity. When Base is missing, the App may offer one-click bootstrap through that installer and show progress/readback, but it does not implement, update, repair, or roll back Base. Runtime dependencies and companion-tool integration appear only as `dependency_status` / `integration_status` details under Base. |
 | OPL App | The App-owned GUI/control plane and the only software object the App mutates. Homebrew Cask and signed installer/DMG are carrier adapters for the same App identity. Standard updater and host-route state remain App details through `host_update_route` and `host_executor_required`; carrier choice does not change ownership. |
 | OPL Packages | Framework-managed capability packages such as MAS/MAG/RCA/OMA/BookForge/MAS Scholar Skills/OPL Flow. Install, update, repair, and uninstall use the canonical `opl packages` lifecycle. Codex visibility/reload becomes `projection_status`; OPL Flow/profile semantic merge becomes `profile_migration_status`. Neither is a fourth product or updater, and Homebrew must not manage Packages. |
 
@@ -204,7 +204,7 @@ adapter startup；只有 marker 缺失、marker 过旧或核心组件缺失时�
 `opl system configure-codex --api-key-stdin --json` 写入 OPL Gateway 访问密钥。已有
 Codex/OpenAI 登录或其它可用 provider 时可跳过首启 Gateway 配置，Settings 保留
 OPL Gateway 配置入口用于后续切换；`opl system initialize --json`、
-`opl system startup-maintenance --json`、`opl system reconcile-modules --json`、
+`opl system startup-maintenance --json`、`opl packages update --json`、
 MAS/MAG/RCA 状态和 contract diagnostics 在 OPL Codex adapter ready、主界面可见后
 后台异步执行，不能阻塞热启动进入主界面。如果 `setup.status` 已显示 Codex 模型访问
 配置存在，则直接进入 OPL Codex adapter，不等待 `setup.runtime_check`，也不把

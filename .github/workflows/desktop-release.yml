@@ -958,7 +958,7 @@ jobs:
           bash -n ./install-stable.sh
           install_status=0
           initialize_status=0
-          ./install.sh --with-app --skip-modules || install_status=$?
+          ./install.sh --with-app --skip-packages || install_status=$?
           if [ "$install_status" -eq 0 ]; then
             "$OPL_INSTALL_DIR/bin/opl" system initialize --json >/tmp/opl-one-shot-system-initialize.json || initialize_status=$?
           fi

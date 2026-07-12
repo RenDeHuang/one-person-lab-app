@@ -50,7 +50,7 @@ export const managedUpdateScheduler = {
   backoff_policy: 'bounded_retry_with_last_failure_projection',
   user_blocking: false,
   must_project_last_run_and_next_run: true,
-  auto_apply_policy: 'framework_owned_opl_packages_transaction_only_when_clean_managed_and_latest_digest_changed',
+  auto_apply_policy: 'framework_owned_opl_packages_transaction_only_when_clean_managed_and_latest_stable_digest_changed',
   auto_apply_software_objects: ['opl_packages'],
   app_owned_auto_apply_software_objects: [],
   never_app_mutate_software_objects: ['opl_base', 'opl_packages'],
@@ -61,7 +61,7 @@ export const managedUpdateUiActions = {
   refresh: 'opl update status --json',
   check: 'opl update check --json',
   plan: 'opl update plan --json',
-  bootstrap_missing_opl_base: 'opl-install.sh --headless --skip-modules',
+  bootstrap_missing_opl_base: 'opl-install.sh --headless --skip-packages',
   update_opl_app: 'standard_updater_or_carrier_host_update_route',
   install_opl_package: 'opl packages install ... --json',
   update_opl_package: 'opl packages update ... --json',
@@ -103,7 +103,7 @@ export const managedKernelPublicCliSurfaces = [
   'opl update status --json',
   'opl update check --json',
   'opl update plan --json',
-  'opl-install.sh --headless --skip-modules',
+  'opl-install.sh --headless --skip-packages',
   'opl packages install ... --json',
   'opl packages update ... --json',
   'opl packages repair --package-id <package_id> --json',
@@ -198,21 +198,21 @@ export const managedUpdateStatusConsumptionPolicy =
   'show three-object status, conditions, progress refs, and owner routes without reading artifact bodies or mutating OPL Base, OPL Packages, runtime, or domain truth';
 
 export const managedOplPackageIds = [
-  'med-autoscience',
-  'med-autogrant',
-  'redcube-ai',
-  'opl-meta-agent',
-  'opl-bookforge',
+  'mas',
+  'mag',
+  'rca',
+  'oma',
+  'obf',
   'mas-scholar-skills',
   'opl-flow',
 ];
 
 export const managedOplPackageKinds = {
-  'med-autoscience': 'domain_agent_package',
-  'med-autogrant': 'domain_agent_package',
-  'redcube-ai': 'domain_agent_package',
-  'opl-meta-agent': 'domain_agent_package',
-  'opl-bookforge': 'domain_agent_package',
+  mas: 'domain_agent_package',
+  mag: 'domain_agent_package',
+  rca: 'domain_agent_package',
+  oma: 'domain_agent_package',
+  obf: 'domain_agent_package',
   'mas-scholar-skills': 'framework_capability_package',
   'opl-flow': 'workflow_plugin_package',
 };

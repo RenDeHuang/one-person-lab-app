@@ -81,22 +81,31 @@
     "route_authority": "App-owned Codex Skill declaration only; Codex remains the invocation authority and runtime/domain truth remain in OPL Framework and domain repos",
     "ordinary_entries": [
       {
-        "id": "med-autoscience",
+        "id": "mas",
+        "package_id": "mas",
+        "agent_id": "mas",
         "label": "科研",
+        "codex_visible_entry": "med-autoscience",
         "route": "codex-skill:med-autoscience",
-        "authority": "med-autoscience"
+        "domain_authority_repo": "med-autoscience"
       },
       {
-        "id": "med-autogrant",
+        "id": "mag",
+        "package_id": "mag",
+        "agent_id": "mag",
         "label": "基金",
+        "codex_visible_entry": "med-autogrant",
         "route": "codex-skill:med-autogrant",
-        "authority": "med-autogrant"
+        "domain_authority_repo": "med-autogrant"
       },
       {
-        "id": "redcube-ai",
+        "id": "rca",
+        "package_id": "rca",
+        "agent_id": "rca",
         "label": "演示",
+        "codex_visible_entry": "redcube-ai",
         "route": "codex-skill:redcube-ai",
-        "authority": "redcube-ai"
+        "domain_authority_repo": "redcube-ai"
       }
     ],
     "required_surface": "composer Codex Skill entries plus structured Codex skill input plus Settings Agents & Capabilities summaries",
@@ -273,17 +282,17 @@
     "background_refresh_sequence": [
       "opl system initialize --json",
       "opl system startup-maintenance --json",
-      "opl system reconcile-modules --json",
+      "opl packages update --json",
       "mas_mag_rca_status_refresh",
       "contracts_diagnostics_refresh"
     ],
-    "blocking_policy": "full_opl_initialize_and_module_refresh_must_not_block_hot_launch_or_chat_after_light_check_passes",
+    "blocking_policy": "full_opl_initialize_and_package_refresh_must_not_block_hot_launch_or_chat_after_light_check_passes",
     "skip_to_chat_policy": {
       "trigger": "user_may_skip_non_core_or_slow_first_run_preparation_when_codex_adapter_can_start",
       "marker_state": "user_deferred",
       "must_not_claim": [
         "gflabtoken_api_key_configured",
-        "module_reconcile_complete",
+        "package_reconcile_complete",
         "mas_mag_rca_domain_ready",
         "full_opl_readiness"
       ]

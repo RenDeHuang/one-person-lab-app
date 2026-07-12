@@ -17,7 +17,7 @@ export function expectedDomainExposureFromProductProfile(productProfile) {
     (productProfile.gui?.home?.home_agent_shortcuts ?? []).map((shortcut) => [shortcut.package_id, shortcut]),
   );
   return (productProfile.companion_payloads?.domain_exposure ?? []).map((entry) => {
-    const shortcut = shortcutsByPackageId.get(entry.domain_id);
+    const shortcut = shortcutsByPackageId.get(entry.package_id);
     return {
       ...entry,
       home_purpose_entry: shortcut?.default_visible === true ? shortcut.shortcut_id : null,

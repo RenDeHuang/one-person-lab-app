@@ -808,7 +808,7 @@
       "id": "one_shot_app_installer_fresh_install_smoke",
       "package_type": "source_installer",
       "release_gate": true,
-      "command": "OPL_INSTALL_SCRIPT_URL=file://<framework-checkout>/install.sh ./install.sh --with-app --skip-modules",
+      "command": "OPL_INSTALL_SCRIPT_URL=file://<framework-checkout>/install.sh ./install.sh --with-app --skip-packages",
       "expects": [
         "App root install.sh remains the public one-shot entrypoint",
         "Framework installer performs complete One Person Lab setup",

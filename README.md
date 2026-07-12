@@ -117,7 +117,7 @@ runtime environment and installs or opens the desktop App:
 curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh | bash
 ```
 
-The App installer explicitly requests `--with-app --skip-modules`: it installs
+The App installer explicitly requests `--with-app --skip-packages`: it installs
 the same independently usable OPL base, then adds the optional GUI without
 silently installing Agent packages. For a base-only machine, use the OPL
 Framework installer directly.

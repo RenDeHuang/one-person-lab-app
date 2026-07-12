@@ -74,7 +74,7 @@
     ],
     "base_bootstrap": {
       "availability": "one_click_when_opl_base_is_missing",
-      "bootstrap_route": "opl-install.sh --headless --skip-modules",
+      "bootstrap_route": "opl-install.sh --headless --skip-packages",
       "executor_owner": "one-person-lab",
       "mutation_owner": "one-person-lab",
       "receipt_owner": "one-person-lab",
@@ -235,6 +235,8 @@
   "domain_exposure": [
     {
       "domain_id": "med-autoscience",
+      "package_id": "mas",
+      "agent_id": "mas",
       "display_name": "Med Auto Science",
       "home_purpose_entry": "research",
       "default_home_visible": true,
@@ -245,6 +247,8 @@
     },
     {
       "domain_id": "med-autogrant",
+      "package_id": "mag",
+      "agent_id": "mag",
       "display_name": "Med Auto Grant",
       "home_purpose_entry": "grant",
       "default_home_visible": true,
@@ -255,6 +259,8 @@
     },
     {
       "domain_id": "redcube-ai",
+      "package_id": "rca",
+      "agent_id": "rca",
       "display_name": "RedCube AI",
       "home_purpose_entry": "ppt",
       "default_home_visible": true,
@@ -265,6 +271,8 @@
     },
     {
       "domain_id": "opl-bookforge",
+      "package_id": "obf",
+      "agent_id": "obf",
       "display_name": "OPL Book Forge",
       "home_purpose_entry": "book",
       "default_home_visible": true,
@@ -275,6 +283,8 @@
     },
     {
       "domain_id": "opl-meta-agent",
+      "package_id": "oma",
+      "agent_id": "oma",
       "display_name": "OPL Meta Agent",
       "home_purpose_entry": null,
       "default_home_visible": false,
@@ -897,7 +907,7 @@
       "must_not_write_user_codex_state": true,
       "user_state_activation_owner": "opl_framework",
       "activation_commands": [
-        "opl connect reconcile-modules",
+        "opl packages update --json",
         "opl connect sync-skills"
       ],
       "formulae": {
@@ -923,7 +933,7 @@
             "install_origin": "dmg_or_direct_download",
             "carrier": "framework_managed_install",
             "locator": "~/.opl/one-person-lab",
-            "installer": "opl-install.sh --headless --skip-modules"
+            "installer": "opl-install.sh --headless --skip-packages"
           }
         ],
         "pre_formula_transition": {
@@ -931,7 +941,7 @@
           "condition": "homebrew_cask_receipt_present_and_formula_absent",
           "carrier": "framework_managed_install",
           "locator": "~/.opl/one-person-lab",
-          "installer": "opl-install.sh --headless --skip-modules",
+          "installer": "opl-install.sh --headless --skip-packages",
           "selection_status": "pre_formula_transition",
           "must_end_when_formula_available": true,
           "incompatible_formula_must_not_fallback": true,
@@ -1007,7 +1017,7 @@
       "opl install",
       "opl system initialize --json",
       "opl system startup-maintenance",
-      "opl connect reconcile-modules",
+      "opl packages update --json",
       "opl connect sync-skills"
     ],
     "codex_plugin_registry_owner": "one-person-lab",
@@ -1028,7 +1038,7 @@
       "missing_plugin_manifest",
       "missing_skill_entry",
       "duplicate_codex_visible_domain_skill",
-      "unavailable_managed_agent_pack_channel",
+      "unavailable_managed_package_channel",
       "invalid_package_manifest",
       "missing_package_lock_receipt",
       "package_source_validation_failed",
@@ -1039,28 +1049,36 @@
     "owner": "one-person-lab-app",
     "producer_owner": "one-person-lab",
     "unified_sync_command": "opl connect sync-skills",
-    "managed_install_source": "opl_managed_modules",
+    "managed_install_source": "opl_managed_packages",
     "user_agent_installation_mode": "consume_shared_skill_action_stage_metadata",
     "codex_plugin_registry_target": "codex_plugin_registry",
     "direct_skill_target": "codex_user_skill_discovery_path",
     "product_entry_target": "family-product-entry-manifest-v2",
     "required_agent_ids": [
-      "med-autoscience",
-      "med-autogrant",
-      "redcube-ai",
-      "opl-meta-agent",
-      "opl-bookforge",
-      "mas-scholar-skills"
+      "mas",
+      "mag",
+      "rca",
+      "oma",
+      "obf"
+    ],
+    "required_package_ids": [
+      "mas",
+      "mag",
+      "rca",
+      "oma",
+      "obf",
+      "mas-scholar-skills",
+      "opl-flow"
     ],
     "default_plugin_agent_ids": [
-      "med-autoscience",
-      "med-autogrant",
-      "redcube-ai",
-      "opl-bookforge"
+      "mas",
+      "mag",
+      "rca",
+      "obf"
     ],
     "generated_plugin_agent_ids": [
-      "opl-meta-agent",
-      "opl-bookforge"
+      "oma",
+      "obf"
     ],
     "fail_closed_states": [
       "dirty_managed_checkout",
@@ -1068,7 +1086,7 @@
       "missing_plugin_manifest",
       "missing_skill_entry",
       "duplicate_codex_visible_domain_skill",
-      "unavailable_managed_agent_pack_channel",
+      "unavailable_managed_package_channel",
       "invalid_package_manifest",
       "missing_package_lock_receipt",
       "package_source_validation_failed",
@@ -1077,16 +1095,14 @@
     "may_use_developer_checkout_by_default": false,
     "developer_checkout_override_policy": "explicit_opt_in_only",
     "developer_checkout_override_surface": "Developer Profile source_channel capability",
-    "ordinary_user_module_source": "framework_managed_ghcr_oci_opl_packages_latest_channel",
-    "module_package_channel_agent_ids": [
-      "med-autoscience",
-      "med-autogrant",
-      "redcube-ai",
-      "opl-meta-agent",
-      "opl-bookforge",
-      "mas-scholar-skills"
-    ],
-    "non_module_workflow_plugin_ids": [
+    "ordinary_user_package_source": "framework_managed_ghcr_oci_opl_packages_latest_stable_channel",
+    "managed_package_ids": [
+      "mas",
+      "mag",
+      "rca",
+      "oma",
+      "obf",
+      "mas-scholar-skills",
       "opl-flow"
     ],
     "agent_registry_policy": {
@@ -1094,7 +1110,7 @@
       "default_registry_ref": "contracts/agent-package-registry.json",
       "default_registry_source_kind": "default_opl_registry",
       "default_registry_url": "https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/contracts/agent-package-registry.json",
-      "manifest_schema_ref": "contracts/agent-package-surfaces.schema.json#/$defs/agent_package_manifest",
+      "manifest_schema_ref": "contracts/agent-package-surfaces.schema.json#/$defs/opl_package_manifest",
       "home_shortcut_schema_ref": "contracts/agent-package-surfaces.schema.json#/$defs/home_shortcut_metadata",
       "invocation_receipt_schema_ref": "contracts/agent-package-surfaces.schema.json#/$defs/invocation_receipt",
       "package_lock_receipt_schema_ref": "contracts/agent-package-surfaces.schema.json#/$defs/package_lock_receipt",
@@ -1110,16 +1126,17 @@
       ],
       "entry_required_fields": [
         "package_id",
+        "package_kind",
         "display_name",
         "publisher",
         "source",
         "manifest_url",
-        "latest_version",
+        "version_source_ref",
         "trust_tier"
       ],
       "manifest_required_fields": [
         "package_id",
-        "agent_id",
+        "package_kind",
         "display_name",
         "publisher",
         "version",
@@ -1136,7 +1153,7 @@
       "registry_install_authority_allowed": false,
       "manifest_url_required_for_install": true,
       "manifest_validation_required_before_install": true,
-      "install_authority": "validated_agent_package_manifest_plus_framework_package_lock_receipt",
+      "install_authority": "validated_opl_package_manifest_plus_framework_package_lock_receipt",
       "mutating_actions_owner": "one-person-lab",
       "app_role": "fetch_or_import_registry_entries_display_candidates_and_route_selected_manifest_url_to_framework_without_owning_agent_semantics",
       "direct_manifest_url_install_allowed": true,
@@ -1168,7 +1185,7 @@
         },
         "result_fields": ["launch_allowed", "use_receipt_ref", "use_binding"],
         "launch_policy": "launch_only_when_launch_allowed_true_and_use_receipt_ref_and_use_binding_are_present",
-        "currentness_policy": "framework_reconciles_latest_compatible_package_closure_once_at_use_boundary_and_pins_use_binding_for_the_session",
+        "currentness_policy": "framework_reconciles_latest_stable_compatible_package_closure_once_at_use_boundary_and_pins_use_binding_for_the_session",
         "package_identity_policy": "generic_package_id_no_hardcoded_agent_or_capability_package_ids",
         "app_role": "prepare_then_launch_using_framework_readback_without_owning_package_currentness_or_materialization"
       },
@@ -1192,9 +1209,9 @@
       "home_shortcut_preferences_readback": "opl packages list/status#home_shortcut_preferences",
       "automatic_apply_policy": {
         "cadence": "daily_after_core_ready_and_app_startup_check",
-        "user_visible_channel": "latest",
+        "user_visible_channel": "latest-stable",
         "apply_when": [
-          "latest_digest_changed",
+          "latest_stable_digest_changed",
           "managed_root_clean",
           "manifest_permissions_unchanged",
           "compatibility_gate_passed"
@@ -1281,13 +1298,14 @@
       "digest_is_install_truth": true
     },
     "atomic_bundle_policy": {
-      "managed_package_unit_agent_ids": [
-        "med-autoscience",
-        "med-autogrant",
-        "redcube-ai",
-        "opl-meta-agent",
-        "opl-bookforge",
-        "mas-scholar-skills"
+      "managed_package_unit_ids": [
+        "mas",
+        "mag",
+        "rca",
+        "oma",
+        "obf",
+        "mas-scholar-skills",
+        "opl-flow"
       ],
       "package_unit_includes": [
         "plugin_manifest",
@@ -1295,7 +1313,7 @@
         "optional_companion_skill_refs"
       ],
       "framework_local_payload_validation": "repo_plugin_skill sources must resolve to .codex-plugin/plugin.json plus skills/<required_skill_id>/SKILL.md; opl_generated_plugin_surface sources must resolve to the domain pack compiler input and generated_surface_owner=one-person-lab",
-      "required_skill_pack_lock_policy": "skill_packs[].lock_ref must be a release or digest lock and must not equal registry.latest_version or a moving tag",
+      "required_skill_pack_lock_policy": "skill_packs[].lock_ref must be a release or digest lock and must not equal registry.version_source_ref or a moving tag",
       "release_payload_proof_required_fields": [
         "payload_kind",
         "payload_ref",
@@ -1307,7 +1325,7 @@
         "oci_ref",
         "oci_media_type",
         "immutable_tag",
-        "rolling_tag",
+        "moving_tag",
         "promotion_policy",
         "install_truth"
       ],
@@ -1321,8 +1339,8 @@
       "domain_repo_remains_semantic_owner": true,
       "app_package_manager_scope": "install_exposure_package_lock_action_receipts_and_codex_visible_entries_only",
       "med_autoscience_professional_skill_pack_unit": {
-        "package_id": "med-autoscience",
-        "agent_id": "med-autoscience",
+        "package_id": "mas",
+        "agent_id": "mas",
         "required_skill_pack_id": "med-autoscience-professional-skill-pack",
         "atomic_with_agent_package": true,
         "lifecycle_actions": [
@@ -1348,7 +1366,7 @@
     },
     "agents": [
       {
-        "agent_id": "med-autoscience",
+        "agent_id": "mas",
         "display_name": "Med Auto Science",
         "preferred_distribution": "plugin_packaged_skill",
         "codex_visible_entry": "med-autoscience",
@@ -1362,7 +1380,7 @@
         "canonical_metadata_source": "domain_action_catalog_and_stage_control_plane"
       },
       {
-        "agent_id": "med-autogrant",
+        "agent_id": "mag",
         "display_name": "Med Auto Grant",
         "preferred_distribution": "plugin_packaged_skill",
         "codex_visible_entry": "med-autogrant",
@@ -1376,7 +1394,7 @@
         "canonical_metadata_source": "domain_action_catalog_and_stage_control_plane"
       },
       {
-        "agent_id": "redcube-ai",
+        "agent_id": "rca",
         "display_name": "RedCube AI",
         "preferred_distribution": "plugin_packaged_skill",
         "codex_visible_entry": "redcube-ai",
@@ -1390,7 +1408,7 @@
         "canonical_metadata_source": "domain_action_catalog_and_stage_control_plane"
       },
       {
-        "agent_id": "opl-meta-agent",
+        "agent_id": "oma",
         "display_name": "OPL Meta Agent",
         "preferred_distribution": "opl_generated_codex_plugin_surface",
         "codex_visible_entry": "opl-meta-agent",
@@ -1404,7 +1422,7 @@
         "canonical_metadata_source": "opl_generated_interface_contract_pack"
       },
       {
-        "agent_id": "opl-bookforge",
+        "agent_id": "obf",
         "display_name": "OPL Book Forge",
         "default_home_visible": true,
         "preferred_distribution": "opl_generated_codex_plugin_surface",
@@ -1419,34 +1437,17 @@
         "product_entry_manifest": "family-product-entry-manifest-v2",
         "canonical_metadata_source": "opl_generated_interface_contract_pack",
         "authority_boundary": "bookforge_owns_book_truth_quality_export_publication_and_owner_receipts; app_and_opl_generated_surfaces_must_not_claim_production_ready"
-      },
-      {
-        "agent_id": "mas-scholar-skills",
-        "display_name": "MAS Scholar Skills",
-        "default_home_visible": false,
-        "preferred_distribution": "framework_capability_package",
-        "codex_visible_entry": "mas-scholar-skills",
-        "module_id": "mas-scholar-skills",
-        "repo_name": "mas-scholar-skills",
-        "plugin_registry_required": true,
-        "direct_skill_compatibility_required": true,
-        "plugin_must_package_skill": true,
-        "must_not_create_second_semantics": true,
-        "sync_command": "opl connect sync-skills --domain mas-scholar-skills --scope workspace|quest",
-        "product_entry_manifest": "framework_capability_package_catalog",
-        "canonical_metadata_source": "mas_scholar_skills_package_contract",
-        "authority_boundary": "mas_scholar_skills_provides_non_authoritative_candidate_capabilities; domain_agents_keep_truth_quality_artifact_and_owner_receipt_authority"
       }
     ],
-    "managed_agent_pack_distribution": {
+    "managed_package_distribution": {
       "software_object": "opl_packages",
       "lifecycle_owner": "one-person-lab",
       "app_role": "request_status_progress_and_receipt_projection_only",
       "transaction_visibility": "package_lifecycle_with_internal_projection_and_profile_migration_status",
-      "channel_id": "opl_agent_packages_rolling_latest",
+      "channel_id": "opl_packages_latest_stable",
       "default_transport": "framework_package_lifecycle",
       "default_update_mode": "automatic_apply_for_clean_managed_roots",
-      "default_manifest_tag": "latest",
+      "default_manifest_tag": "latest-stable",
       "first_party_distribution_payload_required_fields": [
         "cohort_manifest_ref",
         "distribution_payload_ref",
@@ -1456,7 +1457,7 @@
         "oci_ref",
         "oci_media_type",
         "immutable_tag",
-        "rolling_tag",
+        "moving_tag",
         "promotion_policy",
         "install_truth"
       ],
@@ -1467,29 +1468,28 @@
         "opl_generated_plugin_surface",
         "codex_surface"
       ],
-      "package_agent_ids": [
-        "med-autoscience",
-        "med-autogrant",
-        "redcube-ai",
-        "opl-meta-agent",
-        "opl-bookforge",
-        "mas-scholar-skills"
+      "agent_ids": [
+        "mas",
+        "mag",
+        "rca",
+        "oma",
+        "obf"
       ],
       "package_ids": [
-        "med-autoscience",
-        "med-autogrant",
-        "redcube-ai",
-        "opl-meta-agent",
-        "opl-bookforge",
+        "mas",
+        "mag",
+        "rca",
+        "oma",
+        "obf",
         "mas-scholar-skills",
         "opl-flow"
       ],
       "package_kinds": {
-        "med-autoscience": "domain_agent_package",
-        "med-autogrant": "domain_agent_package",
-        "redcube-ai": "domain_agent_package",
-        "opl-meta-agent": "domain_agent_package",
-        "opl-bookforge": "domain_agent_package",
+        "mas": "domain_agent_package",
+        "mag": "domain_agent_package",
+        "rca": "domain_agent_package",
+        "oma": "domain_agent_package",
+        "obf": "domain_agent_package",
         "mas-scholar-skills": "framework_capability_package",
         "opl-flow": "workflow_plugin_package"
       },
@@ -1513,7 +1513,7 @@
       ],
       "fallback_source_order": [
         "bundled_full_runtime_modules",
-        "framework_managed_ghcr_oci_opl_packages_latest_channel",
+        "framework_managed_ghcr_oci_opl_packages_latest_stable_channel",
         "explicit_developer_checkout_override"
       ],
       "must_not_depend_on_fixed_version_tag_by_default": true,
@@ -1530,20 +1530,20 @@
       "class": "capability_packages",
       "distribution_format": "ghcr_oci_artifact",
       "registry": "ghcr.io",
-      "ordinary_user_channel_model": "rolling_latest_only",
+      "ordinary_user_channel_model": "latest_stable_only",
       "user_visible_channels": [
-        "latest"
+        "latest-stable"
       ],
       "internal_candidate_channel": "candidate_ci_only_not_user_visible",
       "publication_cadence": "daily_when_source_digest_changes",
-      "promotion_policy": "build_candidate_validate_manifest_skill_plugin_surface_install_smoke_sign_then_promote_latest",
+      "promotion_policy": "build_candidate_validate_manifest_skill_plugin_surface_install_smoke_sign_then_promote_latest_stable",
       "immutable_tag_required": true,
       "digest_lock_required": true,
-      "latest_is_moving_channel": true,
+      "latest_stable_is_moving_channel": true,
       "stable_or_nightly_user_channels_allowed": false,
       "auto_apply": {
         "enabled_for": "clean_managed_roots_only",
-        "trigger": "daily_or_startup_latest_digest_check",
+        "trigger": "daily_or_startup_latest_stable_digest_check",
         "skip_when": [
           "developer_checkout_override",
           "dirty_checkout",

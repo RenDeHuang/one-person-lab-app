@@ -188,7 +188,7 @@ function validateDefaultAssistants(guiContract) {
       throw new Error(`Default assistant ${assistantId} must be a purpose-first entry target`);
     }
   }
-  if (assistants.has('opl-meta-agent')) {
+  if (assistants.has('oma')) {
     throw new Error('OMA must not be a default App GUI assistant');
   }
   if (assistants.has('mds')) {
@@ -264,7 +264,7 @@ function validatePurposeEntries(guiContract) {
     ) {
       throw new Error(`App GUI home agent shortcut ${entry.shortcut_id} must be a configurable Codex package launch shortcut`);
     }
-    if (entry.package_id === 'opl-meta-agent') {
+    if (entry.package_id === 'oma') {
       if (entry.shortcut_id !== 'oma' || entry.default_visible !== false) {
         throw new Error('App GUI OMA shortcut must be user-configurable but hidden by default');
       }
@@ -275,7 +275,7 @@ function validatePurposeEntries(guiContract) {
 }
 
 function validateNonDefaultAndRetiredAssistants(guiContract) {
-  const oma = (guiContract.non_default_assistants ?? []).find((assistant) => assistant.id === 'opl-meta-agent');
+  const oma = (guiContract.non_default_assistants ?? []).find((assistant) => assistant.id === 'oma');
   if (!oma || oma.home_default_visible !== false || oma.home_entry_policy !== 'explicit_or_settings_only') {
     throw new Error('App GUI contract must keep OMA available but out of default home entries');
   }
