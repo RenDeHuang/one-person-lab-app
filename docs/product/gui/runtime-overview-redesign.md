@@ -18,6 +18,8 @@ Machine boundary: 本文是产品与落地设计。机器真相归 `contracts/`�
   用户很难判断“这篇论文到底是在做、停了、还是需要我决定”。
 - 当前 aggregation 只盯 active Med Auto Science workspace，导致展示面容易退化成“当前这个 DM workspace
   的几篇论文”，而不是 OPL 项目总览。
+- 模块安装状态曾被拼成任务行，产生 `dirty / 0 / 0 / 暂无最近活动` 这类无意义组合；历史测试 attempt
+  也会进入普通任务列表，用户无法判断它是否是真实工作。
 
 这次重构的目标，是把 Runtime 页改成一个**可切换范围的项目运行总览**：先说人话，再保留
 技术细节。
@@ -54,7 +56,12 @@ Runtime 页默认是任务运行 cockpit，不是 runtime 诊断页。默认页�
 `domain_route/reconcile-apply` 这类 agent/module/owner/stage id 必须转成 Med Auto Science、OPL Meta Agent、
 投稿包后续处理、复核运行结果等人类可读标签；raw id 只允许进入高级信息或任务详情。
 
-默认页也不展示 scope provenance、推断工作区、模块 dirty checkout 说明、模块版本号、metric hint 小字等诊断性补充信息。它们对排障有价值，但对第一眼判断“哪些任务需要我管、哪些系统还在跑”没有必要，应放到高级信息或设置/维护页。
+默认任务表不展示 scope provenance、推断工作区、模块版本号、metric hint 小字等诊断性补充信息。
+模块状态属于独立侧栏，不是任务：正常模块保持安静；`dirty` 与 `missing` 必须用普通用户能理解的
+一句话解释影响和入口，不能再显示零工作量或“暂无最近活动”占位。
+
+终态任务或 stage attempt 支持人工归档。归档只写可恢复的 lifecycle metadata，从当前总览移除，
+不删除 evidence、receipt 或 runtime ledger；运行中、等待用户决定和仍可继续的记录不能直接归档。
 
 ## 顶层信息架构
 

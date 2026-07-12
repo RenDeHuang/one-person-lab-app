@@ -159,6 +159,19 @@ test('GUI design-system validator rejects a fixed Home shortcut limit', () => {
   );
 });
 
+test('GUI design-system validator rejects a duplicate Capabilities rail entry', () => {
+  const root = createFixture();
+  const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
+  const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+  contract.interaction_baseline.navigation_rail.top_entries.push('capabilities');
+  writeJson(root, 'contracts/app-gui-product-contract.json', contract);
+
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /interaction baseline navigation rail must preserve the governed desktop and narrow-window skeleton/,
+  );
+});
+
 test('GUI design-system validator rejects a stale convergence plan snapshot', () => {
   const root = createFixture();
   const planPath = path.join(root, 'docs/active/aionui-mainline-gui-convergence-plan.md');

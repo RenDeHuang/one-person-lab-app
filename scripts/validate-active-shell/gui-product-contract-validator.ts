@@ -1117,6 +1117,7 @@ function validateFrameworkModuleMaintenanceEntry(entry) {
     entry?.manual_action_mapping,
     {
       check: 'opl update check --json',
+      sync_capability_packages: 'opl app action execute --action settings_sync_capabilities --json',
       apply_managed_component: 'opl update apply --component <component_id> --json',
       apply_allowed_components: ['capability_packages'],
       apply_forbidden_components: [

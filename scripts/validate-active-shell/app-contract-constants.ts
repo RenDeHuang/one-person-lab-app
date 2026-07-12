@@ -118,7 +118,7 @@ export const appOwnedQueueStatusPolicy =
 export const appOwnedAgentModuleStatusPanel = {
   source: "task capability/module refs separated from task liveness",
   display_policy:
-    "render agent, capability, connector, and module status in a dedicated panel instead of mixing them into stage/run telemetry",
+    "render agent, capability, connector, and module status in a dedicated panel instead of mixing them into stage/run telemetry; explain dirty or missing states in plain language and suppress zero-workload/no-activity filler",
   required_ref_fields: [
     "connector_readiness_refs",
     "diagnostic_substrate_refs",

@@ -227,6 +227,10 @@ Neither page owns persistent configuration in this contract. Storage restore
 probe evidence belongs to diagnostics and does not require a duplicate ordinary
 Restore button.
 
+Capability package sync is a confirmed Maintenance action. The Shell must call
+`settings_sync_capabilities` through `opl app action execute`; the generic
+managed-update `check` read is not an implementation substitute for sync.
+
 ## Page Contracts
 
 ### Overview

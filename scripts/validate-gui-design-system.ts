@@ -687,8 +687,12 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     navigationRail.narrow_window_mode !== 'drawer' ||
     railWidth.min !== 280 ||
     railWidth.max !== 340 ||
-    !sameStrings(navigationRail.top_entries, ['new_task', 'runtime', 'archived', 'capabilities']) ||
+    !sameStrings(navigationRail.top_entries, ['new_task', 'runtime', 'archived']) ||
     navigationRail.runtime_entry_role !== 'cross_project_work_status_cockpit' ||
+    navigationRail.capabilities_mapping !==
+      'capability_selection_lives_in_new_task_home_and_capability_management_lives_in_settings_without_a_duplicate_primary_navigation_page' ||
+    navigationRail.legacy_capabilities_route !==
+      '/capabilities redirects to /guid without deleting capability data or Settings management' ||
     !sameStrings(navigationRail.forbidden_entries_without_opl_product_capability, ['sites', 'chat']) ||
     !sameStrings(navigationRail.bottom_entries, ['account', 'help', 'settings']) ||
     !sameStrings(navigationRail.desktop_affordances, ['back', 'forward', 'previous_task', 'next_task', 'new_window']) ||

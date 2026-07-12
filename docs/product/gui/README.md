@@ -118,8 +118,8 @@ package/user path。当前 contract/source 与 packaged route visual evidence �
   landing/dashboard；project task 与 projectless text conversation 都可用。
 - Conversation 顶部只保留当前 task identity 与直接动作。Model/reasoning、
   permission/access、attach 和 send/stop 均留在 composer；不在 header 重复配置。
-- Purpose 从 Home starter 或 Capabilities 选择；选中后只显示轻量 active capability，
-  不用大型入口卡片长期占据主画布。
+- Purpose 从 Home/New task 的 starter 选择；选中后只显示轻量 active capability，
+  不用独立 Capabilities 主导航页重复同一组说明。能力安装、首页显示与维护继续归 Settings。
 - 当前 task progress、tool events、approval 与 receipts 进入 timeline；跨项目总览才进入
   Runtime。Current task 只有 timeline 单一实例；普通任务 inline/unpinned，只有用户 pin
   或真实 `long_running` 信号才 sticky，并保留 status/elapsed/progress/next/stop。

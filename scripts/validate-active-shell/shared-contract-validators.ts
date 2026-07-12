@@ -2045,6 +2045,19 @@ export function validateUserTaskStatusProjectionContract(
     `${label} agent_module_status_panel`,
   );
   assertDeepEqualJson(
+    userTaskStatus.task_archive_lifecycle,
+    {
+      archive_action_id: "runtime_archive_attempt",
+      restore_action_id: "runtime_restore_attempt",
+      framework_surface: "opl family-runtime attempt archive|restore <stage_attempt_id>",
+      eligible_states: ["completed", "failed", "dead_lettered"],
+      default_projection: "exclude_archived_attempts_from_active_runtime_overview",
+      data_policy: "archive_is_reversible_metadata_and_must_not_delete_stage_attempt_evidence",
+      confirmation_required: true,
+    },
+    `${label} task_archive_lifecycle`,
+  );
+  assertDeepEqualJson(
     userTaskStatus.must_not_default_display_terms,
     [
       "Temporal",
