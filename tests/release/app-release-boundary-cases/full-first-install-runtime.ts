@@ -70,6 +70,41 @@ test('Full first-install manifest consumes the OPL runtime bundle boundary inste
   assert.equal(manifest.opl_runtime_bundle_consumer.consumption_boundary.can_delete_required_offline_payloads_for_size, false);
 });
 
+test('Full runtime currentness consumes the Framework managed update component array', async () => {
+  const { assertManagedUpdateProbe } = await import(
+    '../../../scripts/build-full-first-install-package/runtime-currentness.ts'
+  );
+  const components = [
+    'installation_carrier',
+    'runtime_substrate',
+    'capability_packages',
+    'codex_surface',
+    'companion_tools',
+    'workflow_profile',
+  ].map((component_id) => ({ component_id }));
+  Object.assign(components[0], {
+    current: { host_update_route: 'carrier_specific_host_update_route_required' },
+    owner_route: { route_kind: 'manual_owner_route' },
+  });
+
+  const current = assertManagedUpdateProbe({
+    managed_update: {
+      surface_id: 'opl_managed_updater_kernel',
+      components,
+    },
+  });
+  assert.equal(current.components, components);
+  assert.throws(
+    () => assertManagedUpdateProbe({
+      managed_update: {
+        surface_id: 'opl_managed_updater_kernel',
+        components: Object.fromEntries(components.map((component) => [component.component_id, component])),
+      },
+    }),
+    /expected array at managed_update.components/,
+  );
+});
+
 test('Full runtime pruning keeps macOS arm64 launch payloads without development environments', async () => {
   const mod = await import('../../../scripts/full-first-install-package.ts');
   const policy = JSON.parse(

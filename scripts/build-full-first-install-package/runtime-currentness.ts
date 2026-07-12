@@ -5,9 +5,12 @@ import { readGitHead } from './git.ts';
 import { run } from './process.ts';
 
 const REQUIRED_MANAGED_UPDATE_COMPONENTS = [
-  'opl_base',
-  'opl_app',
-  'opl_packages',
+  'installation_carrier',
+  'runtime_substrate',
+  'capability_packages',
+  'codex_surface',
+  'companion_tools',
+  'workflow_profile',
 ] as const;
 
 function parseJsonCommand(command: string, args: string[], env: NodeJS.ProcessEnv): unknown {
@@ -82,7 +85,7 @@ function assertManifestFrameworkRef(runtimeRoot: string, frameworkRoot: string):
   return manifest;
 }
 
-function assertManagedUpdateProbe(payload: unknown): Record<string, unknown> {
+export function assertManagedUpdateProbe(payload: unknown): Record<string, unknown> {
   const root = objectValue(payload, 'update status payload');
   const managedUpdate = objectValue(root.managed_update, 'managed_update');
   if (managedUpdate.surface_id !== 'opl_managed_updater_kernel') {
@@ -91,21 +94,37 @@ function assertManagedUpdateProbe(payload: unknown): Record<string, unknown> {
     );
   }
 
-  const components = objectValue(managedUpdate.components, 'managed_update.components');
-  const componentIds = new Set(Object.keys(components));
+  const components = arrayValue(managedUpdate.components, 'managed_update.components');
+  const componentMap = new Map<string, Record<string, unknown>>();
+  for (const value of components) {
+    const component = objectValue(value, 'managed_update.components[]');
+    const componentId = stringValue(component.component_id, 'managed_update.components[].component_id');
+    componentMap.set(componentId, component);
+  }
+  const componentIds = new Set(componentMap.keys());
   const missing = REQUIRED_MANAGED_UPDATE_COMPONENTS.filter((componentId) => !componentIds.has(componentId));
   if (missing.length > 0) {
     throw new Error(`Full runtime managed update probe is missing component(s): ${missing.join(', ')}.`);
   }
-  const unexpected = [...componentIds].filter(
-    (componentId) => !REQUIRED_MANAGED_UPDATE_COMPONENTS.includes(componentId as typeof REQUIRED_MANAGED_UPDATE_COMPONENTS[number]),
+  const installationCarrier = componentMap.get('installation_carrier')!;
+  const carrierCurrent = objectValue(
+    installationCarrier.current,
+    'managed_update.components[installation_carrier].current',
   );
-  if (unexpected.length > 0) {
-    throw new Error(`Full runtime managed update probe has unexpected public component(s): ${unexpected.join(', ')}.`);
-  }
-  const appComponent = objectValue(components.opl_app, 'managed_update.components.opl_app');
-  if (typeof appComponent.host_update_route !== 'string' || typeof appComponent.host_executor_required !== 'boolean') {
-    throw new Error('Full runtime OPL App update projection must include host_update_route and host_executor_required.');
+  stringValue(
+    carrierCurrent.host_update_route,
+    'managed_update.components[installation_carrier].current.host_update_route',
+  );
+  const carrierOwnerRoute = objectValue(
+    installationCarrier.owner_route,
+    'managed_update.components[installation_carrier].owner_route',
+  );
+  stringValue(
+    carrierOwnerRoute.route_kind,
+    'managed_update.components[installation_carrier].owner_route.route_kind',
+  );
+  if (componentMap.size !== components.length) {
+    throw new Error('Full runtime managed update probe contains duplicate component_id values.');
   }
   return managedUpdate;
 }
