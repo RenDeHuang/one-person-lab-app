@@ -1,0 +1,123 @@
+import type { ReleaseNotesEvidence } from '../release-notes.ts';
+
+export function compactArray<T>(values: T[] | undefined, limit: number) {
+  return Array.isArray(values) ? values.slice(0, limit) : [];
+}
+
+function compactReleaseNotesEvidence(evidence: ReleaseNotesEvidence) {
+  const source = evidence as any;
+  return {
+    schema: source.schema,
+    version: source.version,
+    channel: source.channel,
+    release_title: source.release_title,
+    release_repo: source.release_repo,
+    current_tag: source.current_tag,
+    previous_tag: source.previous_tag,
+    install_command: source.install_command,
+    full_changelog_url: source.full_changelog_url,
+    grouped_changes: source.grouped_changes,
+    payload: source.payload,
+    agent_runtime_changes: compactArray(source.agent_runtime_changes, 12).map((change: any) => ({
+      label: change.label,
+      component: change.component,
+      role: change.role,
+      previous_ref: change.previous_ref,
+      current_ref: change.current_ref,
+      audit_ref: change.audit_ref,
+      user_value_hint: change.user_value_hint,
+      change_summary_hint: change.change_summary_hint,
+      change_subjects: compactArray(change.change_subjects, 4),
+    })),
+    family_repo_changes: compactArray(source.family_repo_changes, 12).map((change: any) => ({
+      label: change.label,
+      repository: change.repository,
+      previous_ref: change.previous_ref,
+      current_ref: change.current_ref,
+      previous_version: change.previous_version,
+      current_version: change.current_version,
+      compare_url: change.compare_url,
+      compare_status: change.compare_status,
+      commit_count: change.commit_count,
+      change_summary_hint: change.change_summary_hint,
+      change_subjects: compactArray(change.change_subjects, 5),
+    })),
+    app_commit_subjects: compactArray(source.app_commit_subjects, 12),
+    shell_commit_subjects: compactArray(source.shell_commit_subjects, 12),
+  };
+}
+
+export function buildAiReleaseNotesPrompt(evidence: ReleaseNotesEvidence) {
+  const promptEvidence = compactReleaseNotesEvidence(evidence);
+  return [
+    'Write the public GitHub Release notes for One Person Lab App.',
+    '',
+    'Use the compact JSON evidence below as the only source of truth.',
+    'Subject lists are representative; commit counts, compare URLs, payload lines, refs, versions, and install commands are authoritative.',
+    'Audience: normal OPL App users who want to know what improved and why they should upgrade.',
+    '',
+    'Hard requirements:',
+    `- Start the visible public Markdown first line exactly with: ${evidence.release_title}`,
+    '- The visible public Markdown must be English only.',
+    '- Write natural, concrete, user-facing English. Do not sound like a commit classifier.',
+    '- The visible first paragraph must explain what a user can do more easily after installing or upgrading. Do not lead with CI, workflows, contracts, release-note generation, or audit mechanics.',
+    '- Put that visible first paragraph immediately after the title, before any "##" section heading.',
+    '- The first visible screen must be for users, not maintainers: avoid refs, SHA, cohort, gate, workflow, validation, release operator, owner receipt, owner verdict, and release candidate wording before the final technical section.',
+    '- Before "## Technical details", never use the words refs, SHA, cohort, gate, workflow, validation, release operator, owner receipt, owner verdict, or release candidate. Use user words such as sessions, work, entries, setup, install, or readiness instead.',
+    '- If refs, SHAs, gates, validation details, owner-route terms, or other process evidence are necessary for auditability, put them only after a "## Technical details" heading or inside the hidden localization blocks.',
+    '- Put the technical/audit tail after the user-facing narrative. The "## Technical details" heading is the boundary where maintainer evidence may begin.',
+    '- Explain bundled OPL agent/runtime changes in plain language: MAS, MAG, RCA, OPL Meta Agent, OPL Framework, Codex CLI, OfficeCLI, MinerU, and Codex skills when present.',
+    '- When release_evidence.family_repo_changes is non-empty, include a concise "## OPL family updates" section that summarizes actual changes per repository. Use commit subjects, commit counts, and compare links from that evidence. Do not collapse this into App-only wording.',
+    '- When release_evidence.agent_runtime_changes is non-empty, use those entries to write concise role-based bullets. Say what MAS, MAG, RCA, OPL Meta Agent, Framework, Codex CLI, OfficeCLI, or MinerU help users do; do not list refs as the main improvement.',
+    '- When an agent_runtime_changes entry has change_summary_hint or change_subjects, include the concrete change in user language. Do not stop at generic role descriptions such as "MAS helps research" or "RCA helps slides".',
+    '- Stable compares with the previous Stable; Nightly compares with the previous Nightly.',
+    '- Keep the required sections: "## What improved", "## OPL agents and runtime payload", and "## Release scope".',
+    '- For Stable releases, include a section titled exactly "## Install Stable" before "## Release scope". In that section include release_evidence.install_command exactly in inline code.',
+    '- For Nightly releases, do not include the Stable install command.',
+    '- In "## What improved", start with user-facing agent tasks and runtime use cases before mentioning release plumbing.',
+    '- In "## OPL agents and runtime payload", include role-based payload bullets first. Keep raw release_evidence.payload.lines entries that contain refs, SHAs, boundaries, gates, validation wording, or packaged component refs after "## Technical details".',
+    '- Do not format release_evidence.payload.lines as blockquotes. They must stay normal bullets.',
+    '- Keep packaged component refs and payload deltas after "## Technical details". They are supporting evidence, not the headline. Include every release_evidence.payload.lines bullet exactly when provided.',
+    '- Include the Full Changelog link when evidence.full_changelog_url is present.',
+    '- Do not include Chinese text in the visible public Markdown.',
+    '- Do not invent domain results, quality claims, benchmarks, or unsupported agent capabilities.',
+    '- Avoid self-referential claims about release notes, AI generation, CI, contracts, validation, telemetry, or workflows unless tied directly to a concrete user install or agent-use benefit.',
+    '- Avoid vague filler such as "strengthened validation", "refreshed docs", "improved status visibility", or plain version-change lists unless followed by concrete user impact.',
+    '- After the visible English public Markdown, append two hidden machine-readable localization blocks exactly in this form:',
+    '  <!-- OPL_RELEASE_NOTES:en-US',
+    '  <English Markdown for the App update popup, matching the visible public note>',
+    '  -->',
+    '  <!-- OPL_RELEASE_NOTES:zh-CN',
+    '  <Chinese Markdown for the App update popup, written for normal Chinese users and covering the same concrete improvements>',
+    '  -->',
+    '- Keep the zh-CN block inside the HTML comment block so the public GitHub Release page remains English-only.',
+    '- The en-US block must not contain Chinese text. The zh-CN block must contain Chinese text and mention MAS, MAG, and RCA when the visible note does.',
+    '- Output Markdown only. Do not wrap it in code fences.',
+    '',
+    'release_evidence:',
+    JSON.stringify({ release_evidence: promptEvidence }, null, 2),
+    '',
+  ].join('\n');
+}
+
+export function buildAiReleaseNotesRepairPrompt(evidence: ReleaseNotesEvidence, markdown: string, failure: unknown) {
+  return [
+    'Repair the One Person Lab App GitHub Release notes below.',
+    '',
+    'Use the compact JSON evidence as the only source of truth.',
+    `Quality gate failure to fix: ${failure instanceof Error ? failure.message : String(failure)}`,
+    '',
+    'Return the full corrected Markdown only, with no code fences.',
+    'Keep the same required hidden OPL_RELEASE_NOTES:en-US and OPL_RELEASE_NOTES:zh-CN blocks.',
+    'Before "## Technical details", remove maintainer/process words such as refs, SHA, cohort, gate, workflow, validation, release operator, owner receipt, owner verdict, and release candidate.',
+    'For Stable, keep "## Install Stable" and include the install command exactly.',
+    'After "## Technical details", include all payload lines, packaged component refs, component updates, OPL family commit counts, and compare links from the evidence.',
+    '',
+    'release_evidence:',
+    JSON.stringify({ release_evidence: compactReleaseNotesEvidence(evidence) }, null, 2),
+    '',
+    'draft_markdown:',
+    markdown,
+    '',
+  ].join('\n');
+}
