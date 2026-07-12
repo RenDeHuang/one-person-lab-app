@@ -164,11 +164,12 @@ export function parseReleaseCohortLockArgs(argv: string[]): ReleaseCohortLockOpt
 
 function refCandidates(ref: string): string[] {
   if (/^[0-9a-f]{7,40}$/i.test(ref)) return [ref];
+  if (ref.startsWith('refs/')) return [ref];
   return [
-    ref,
-    `refs/heads/${ref}`,
     `refs/remotes/origin/${ref}`,
+    `refs/heads/${ref}`,
     `refs/tags/${ref}`,
+    ref,
   ];
 }
 

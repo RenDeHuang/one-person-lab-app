@@ -9,6 +9,7 @@ import {
   createGitCheckout,
   runGit,
 } from './release-readiness/helpers.ts';
+import { resolveGitRef } from '../../scripts/release-cohort-lock.ts';
 
 function cleanEnv() {
   const {
@@ -75,6 +76,23 @@ test('release cohort lock resolves requested refs to immutable SHAs', () => {
   assert.equal(lock.framework.resolved_sha, framework.head);
   assert.equal(lock.authority_boundary.cohort_lock_can_dispatch_workflow, false);
   assert.match(fs.readFileSync(markdownPath, 'utf8'), new RegExp(`Shell resolved SHA: ${shell.head}`));
+});
+
+test('release cohort lock resolves dispatchable branches from origin before stale local branches', () => {
+  const remoteSha = '1'.repeat(40);
+  const localSha = '2'.repeat(40);
+  const calls: string[] = [];
+  const resolved = resolveGitRef('/tmp/unused-release-cohort-lock-root', 'main', (_command, args) => {
+    const candidate = args[3].replace(/\^\{commit\}$/, '');
+    calls.push(candidate);
+    if (candidate === 'refs/remotes/origin/main') {
+      return { status: 0, stdout: `${remoteSha}\n`, stderr: '' };
+    }
+    return { status: 0, stdout: `${localSha}\n`, stderr: '' };
+  });
+
+  assert.equal(resolved, remoteSha);
+  assert.deepEqual(calls, ['refs/remotes/origin/main']);
 });
 
 test('release cohort lock fails unresolved source refs before emitting dispatch inputs', () => {
