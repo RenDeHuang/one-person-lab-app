@@ -20,7 +20,7 @@ on:
       opl_flow_ref:
         description: Immutable OPL Flow ref required by the WebUI configure-codex route.
         required: false
-        default: 5ae0625f5240a13fa820b4c92362f1d06bdce857
+        default: 06cb8e15490e6a98b1196bfc6d526bd50471ecbc
         type: string
 
 permissions:

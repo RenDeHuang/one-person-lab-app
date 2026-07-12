@@ -106,7 +106,7 @@ test('reusable release-boundary job checks out its OPL Flow authority source', (
   const job = workflow.slice(jobStart, jobEnd);
 
   assert.ok(jobStart >= 0 && jobEnd > jobStart, 'missing reusable release-boundary job');
-  assert.match(workflow, /opl_flow_ref:[\s\S]*default: 5ae0625f5240a13fa820b4c92362f1d06bdce857/);
+  assert.match(workflow, /opl_flow_ref:[\s\S]*default: 06cb8e15490e6a98b1196bfc6d526bd50471ecbc/);
   assert.match(job, /name: Checkout OPL Flow policy source[\s\S]*repository: gaofeng21cn\/opl-flow/);
   assert.match(job, /ref: \$\{\{ inputs\.opl_flow_ref \}\}[\s\S]*path: opl-flow/);
   assert.match(job, /OPL_FLOW_WORKFLOW_POLICY:.*opl-flow\/contracts\/workflow-policy\.json/);

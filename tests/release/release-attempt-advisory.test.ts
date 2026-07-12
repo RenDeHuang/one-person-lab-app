@@ -134,7 +134,7 @@ test("Full DMG artifacts carry the cohort manifest required by the VM gate", () 
 });
 
 test("Docker release evidence keeps failure diagnostics without uploading the seeded data volume", () => {
-  assert.match(workflow, /OPL_FLOW_SHA: 5ae0625f5240a13fa820b4c92362f1d06bdce857/);
+  assert.match(workflow, /OPL_FLOW_SHA: 06cb8e15490e6a98b1196bfc6d526bd50471ecbc/);
   assert.match(workflow, /--build-arg OPL_FLOW_REF="\$\{OPL_FLOW_SHA\}"/);
   assert.match(workflow, /docker compose -p "\$compose_project" -f "\$compose_file" down/);
   assert.match(

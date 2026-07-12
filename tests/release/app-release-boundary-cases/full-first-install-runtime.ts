@@ -353,7 +353,8 @@ test('Full runtime node payload prunes package-only docs while preserving offlin
   }
   for (const relativePath of [
     'modules/opl-flow/.codex-plugin/plugin.json',
-    'modules/opl-flow/scripts/install_local_plugin.py',
+    'modules/opl-flow/contracts/workflow-policy.json',
+    'modules/opl-flow/templates/AGENTS.md',
     'modules/opl-flow/skills/opl-flow/SKILL.md',
     'modules/opl-flow/skills/codex-ops-kit/SKILL.md',
   ]) {

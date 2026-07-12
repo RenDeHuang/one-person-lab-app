@@ -19,7 +19,7 @@ test('Full workflow checks out and validates the OPL Flow source before cache re
   const workflow = fs.readFileSync(path.join(appRoot, '.github/workflows/full-first-install-release.yml'), 'utf8');
   assert.match(
     workflow,
-    /name: Checkout OPL Flow[\s\S]*repository: gaofeng21cn\/opl-flow[\s\S]*ref: 5ae0625f5240a13fa820b4c92362f1d06bdce857[\s\S]*path: opl-flow/,
+    /name: Checkout OPL Flow[\s\S]*repository: gaofeng21cn\/opl-flow[\s\S]*ref: 06cb8e15490e6a98b1196bfc6d526bd50471ecbc[\s\S]*path: opl-flow/,
   );
   assert.match(workflow, /name: Validate Full source roots[\s\S]*opl-flow\/\.codex-plugin\/plugin\.json/);
   assert.equal(
