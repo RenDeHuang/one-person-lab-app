@@ -139,8 +139,44 @@ test('release operator plan pins Full VM dispatch to resolved cohort SHAs', () =
     assert.equal(state.cohort_plan.cohort_lock.app.resolved_sha, refs.appHead);
     assert.match(state.cohort_plan.next_action.command, new RegExp(`--field shell_ref=${refs.shell.head}`));
     assert.match(state.cohort_plan.next_action.command, new RegExp(`--field framework_ref=${refs.framework.head}`));
+    assert.match(state.cohort_plan.next_action.command, /--field release_intent=stable_complete/);
+    assert.match(state.cohort_plan.next_action.command, /--field release_operator_plan_ref=sha256:[a-f0-9]{64}/);
+    assert.equal(state.cohort_plan.release_intent, 'stable_complete');
+    assert.match(state.cohort_plan.operator_plan_ref, /^sha256:[a-f0-9]{64}$/);
     assert.doesNotMatch(state.cohort_plan.next_action.command, /shell_ref=main|framework_ref=main/);
     assertNoOperatorAuthority(state.authority_boundary);
+  } finally {
+    runGit(appRoot, ['update-ref', '-d', `refs/tags/${appRef}`]);
+  }
+});
+
+test('release operator requires an omission reason for a Standard-only hotfix', () => {
+  const refs = createReleaseRefCheckouts();
+  const appRef = `opl-release-test-hotfix-${process.pid}-${Date.now()}`;
+  runGit(appRoot, ['update-ref', `refs/tags/${appRef}`, refs.appHead]);
+  try {
+    const result = runReleaseOperator([
+      'plan',
+      '--version',
+      '26.6.29',
+      '--release-mode',
+      'refresh_existing',
+      '--release-intent',
+      'standard_hotfix',
+      '--include-full-package',
+      'false',
+      '--run-vm-smoke',
+      'true',
+      '--app-ref',
+      appRef,
+      '--shell-root',
+      refs.shell.root,
+      '--framework-root',
+      refs.framework.root,
+    ]);
+
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /requires --full-omission-reason/);
   } finally {
     runGit(appRoot, ['update-ref', '-d', `refs/tags/${appRef}`]);
   }

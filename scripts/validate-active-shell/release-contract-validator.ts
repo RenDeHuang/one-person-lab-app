@@ -8,8 +8,68 @@ export function validateReleaseChannelContract(releaseChannel) {
   validateLocalDataLifecycle(releaseChannel.local_data_lifecycle);
   validateWebuiGhcrImage(releaseChannel.webui_ghcr_image);
   validateManagedUpdatePlane(managedUpdatePlane);
+  validateReleaseExecutionPolicy(releaseChannel.release_acceleration);
   validateReleaseHomebrewDistribution(releaseChannel);
   validateReleaseFullFirstInstallPayloads(releaseChannel);
+}
+
+function validateReleaseExecutionPolicy(acceleration) {
+  const prepare = acceleration?.cohort_prepare;
+  const intent = prepare?.release_intent_policy;
+  const operatorPlan = prepare?.operator_plan_policy;
+  const attemptSwitch = acceleration?.gate_reuse?.attempt_strategy_switch;
+  const monitor = acceleration?.release_operator?.active_monitor_policy;
+  const settingsReadiness = acceleration?.settings_page_readiness_policy;
+  assertDeepEqualJson(intent?.allowed_values, ['stable_complete', 'standard_hotfix'], 'Release intent allowed values');
+  if (
+    intent?.workflow_input !== 'release_intent' ||
+    intent?.stable_complete?.include_full_package !== true ||
+    intent?.stable_complete?.run_vm_smoke !== true ||
+    intent?.standard_hotfix?.include_full_package !== false ||
+    intent?.standard_hotfix?.full_omission_reason_required !== true ||
+    intent?.standard_hotfix?.must_not_claim_complete_stable !== true
+  ) {
+    throw new Error('Release intent must distinguish complete Stable from an explicitly documented Standard-only hotfix');
+  }
+  if (
+    operatorPlan?.workflow_input !== 'release_operator_plan_ref' ||
+    operatorPlan?.required !== true ||
+    operatorPlan?.format !== 'sha256:<64-lowercase-hex>'
+  ) {
+    throw new Error('Release dispatch must require a cohort-bound release operator plan ref');
+  }
+  assertIncludesAll(
+    operatorPlan.binds,
+    ['release_intent', 'full_omission_reason', 'gate_reuse_plan_ref', 'app_sha', 'shell_sha', 'framework_sha'],
+    'Release operator plan binding fields',
+  );
+  if (
+    attemptSwitch?.window_minutes !== 90 ||
+    attemptSwitch?.prior_attempt_threshold !== 3 ||
+    attemptSwitch?.workflow_input !== 'gate_reuse_plan_ref' ||
+    attemptSwitch?.required_before_next_full_train !== true ||
+    attemptSwitch?.timeout_is_abandonment_condition !== false
+  ) {
+    throw new Error('Repeated release attempts must switch to same-cohort reuse after the 90-minute threshold');
+  }
+  if (
+    monitor?.command !== 'gh run watch <run-id> --repo gaofeng21cn/one-person-lab-app --interval 60 --exit-status' ||
+    monitor?.poll_interval_seconds !== 60 ||
+    monitor?.single_monitor_process !== true ||
+    monitor?.terminal_handoff !== 'release_operator_status_once'
+  ) {
+    throw new Error('Release monitoring must use one low-frequency process followed by one terminal operator readback');
+  }
+  assertIncludesAll(
+    settingsReadiness?.required_signals,
+    ['expected_route_hash', 'stable_page_data_testid', 'nonempty_page_text', 'app_loader_not_visible'],
+    'Settings VM semantic readiness signals',
+  );
+  assertIncludesAll(
+    settingsReadiness?.forbidden_release_gate_signals,
+    ['localized_button_copy', 'localized_heading_copy', 'retired_runtime_status_label'],
+    'Settings VM forbidden copy gates',
+  );
 }
 
 function validateWebuiGhcrImage(webuiImage) {

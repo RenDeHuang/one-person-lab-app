@@ -7,6 +7,8 @@ import {
   runNode,
 } from './helpers.ts';
 
+const offlineOperatorPlanRef = `sha256:${'a'.repeat(64)}`;
+
 function assertCheck(payload: { checks: Array<{ id: string; status: string; message?: string }> }, id: string, status: string, message?: RegExp) {
   const check = payload.checks.find((entry) => entry.id === id);
   assert.ok(check, `missing check ${id}`);
@@ -43,10 +45,11 @@ test('release plan exposes the standard VM fail-fast gate before expensive Full 
     ['release_boundary', {}],
     ['standard_build', {}],
     ['full_build', {
-      depends_on: ['release_preflight', 'full_runtime_keys', 'standard_dmg_clean_vm_smoke'],
-      cannot_run_with: 'standard_build',
+      depends_on: ['release_preflight', 'full_runtime_keys'],
+      can_run_with: 'standard_build',
       command: /OPL_FULL_RUNTIME_CACHE_MODE=readwrite/,
     }],
+    ['publish_full_assets', { depends_on_includes: ['standard_dmg_clean_vm_smoke'] }],
     ['standard_dmg_clean_vm_smoke', { phase: 'installation_gate', command: /--runtime-profile standard/ }],
     ['remote_verify_standard_and_full', { depends_on_includes: ['standard_dmg_clean_vm_smoke', 'publish_full_assets'] }],
     ['one_shot_app_installer_smoke', { depends_on_includes: ['standard_dmg_clean_vm_smoke'] }],
@@ -75,8 +78,8 @@ test('release plan exposes the standard VM fail-fast gate before expensive Full 
     for (const dependency of expected.depends_on_includes ?? []) {
       assert.ok(current.depends_on.includes(dependency));
     }
-    if (expected.cannot_run_with) {
-      assert.equal(current.can_run_with.includes(expected.cannot_run_with), false);
+    if (expected.can_run_with) {
+      assert.equal(current.can_run_with.includes(expected.can_run_with), true);
     }
   }
 });
@@ -92,10 +95,14 @@ test('release preflight fails fast before expensive release jobs', () => {
     '26.5.19',
     '--release-mode',
     'draft_candidate',
+    '--release-intent',
+    'stable_complete',
+    '--release-operator-plan-ref',
+    offlineOperatorPlanRef,
     '--include-full-package',
     'true',
     '--run-vm-smoke',
-    'false',
+    'true',
     '--publish-docker-webui',
     'false',
     '--offline',
@@ -109,6 +116,8 @@ test('release preflight fails fast before expensive release jobs', () => {
   assert.equal(payload.schema, 'opl_release_preflight.v1');
   assert.equal(payload.status, 'passed');
   assert.equal(payload.inputs.include_full_package, true);
+  assert.equal(payload.inputs.release_intent, 'stable_complete');
+  assert.equal(payload.inputs.release_operator_plan_ref, offlineOperatorPlanRef);
   for (const id of ['remote_target', 'release_refs', 'codex_package_metadata', 'docker_webui_clean_windows_evidence_artifact']) {
     assertCheck(payload, id, 'skipped');
   }
@@ -124,6 +133,12 @@ test('release preflight fails fast before expensive release jobs', () => {
     '26.5.19',
     '--release-mode',
     'draft_candidate',
+    '--release-intent',
+    'standard_hotfix',
+    '--full-omission-reason',
+    'urgent Standard App correction while Full is rebuilt',
+    '--release-operator-plan-ref',
+    offlineOperatorPlanRef,
     '--include-full-package',
     'false',
     '--run-vm-smoke',
@@ -135,4 +150,32 @@ test('release preflight fails fast before expensive release jobs', () => {
   assert.equal(standardOnly.status, 0, standardOnly.stderr || standardOnly.stdout);
   const standardOnlyPayload = JSON.parse(standardOnly.stdout);
   assertCheck(standardOnlyPayload, 'full_workflow_call', 'skipped');
+  assertCheck(standardOnlyPayload, 'release_intent', 'passed', /explicitly omits Full/);
+});
+
+test('release preflight rejects a future-dated Stable version before build dispatch', () => {
+  const result = runNode([
+    'scripts/validate-release-preflight.ts',
+    '--version',
+    '26.7.13',
+    '--current-date',
+    '2026-07-12',
+    '--release-mode',
+    'draft_candidate',
+    '--release-intent',
+    'stable_complete',
+    '--release-operator-plan-ref',
+    offlineOperatorPlanRef,
+    '--include-full-package',
+    'true',
+    '--run-vm-smoke',
+    'true',
+    '--publish-docker-webui',
+    'false',
+    '--offline',
+  ]);
+
+  assert.notEqual(result.status, 0);
+  const payload = JSON.parse(result.stdout);
+  assertCheck(payload, 'release_date', 'failed', /future-dated.*2026-07-12/);
 });

@@ -122,8 +122,8 @@ npm run release:closeout -- --version <version> --run-id <github-actions-run-id>
 npm run release:actions-timing -- --run-id <github-actions-run-id> --run-id <promote-run-id> --agent-wall-time <duration> --output actions-timing.json --markdown actions-timing.md
 npm run release:gate-reuse-plan -- --version <version> --release-mode refresh_existing --include-full-package true --run-vm-smoke true --app-commit <sha> --shell-ref <ref> --framework-ref <ref> --current-preflight release-preflight-summary.json --current-remote-verification remote-release-verification.json --previous-candidate-record previous-release-candidate-record.json --previous-readiness previous-release-readiness-summary.json --previous-remote-verification previous-remote-release-verification.json --output release-gate-reuse-plan.json --markdown release-gate-reuse-plan.md
 npm run release:cohort-lock -- --app-ref <app-sha> --shell-ref <shell-ref> --framework-ref <framework-ref> --output release-cohort-lock.json --markdown release-cohort-lock.md
-npm run release:cohort-plan -- --version <version> --release-mode new_release --include-full-package true --run-vm-smoke true --app-commit <app-sha> --shell-ref <shell-ref> --framework-ref <framework-ref> --output release-cohort-plan.json --markdown release-cohort-plan.md
-npm run release:operator -- plan --version <version> --release-mode new_release --include-full-package true --run-vm-smoke true --app-commit <app-sha> --shell-ref <shell-ref> --framework-ref <framework-ref> --output release-operator-state.json --markdown release-operator-state.md
+npm run release:cohort-plan -- --version <version> --release-mode new_release --release-intent stable_complete --include-full-package true --run-vm-smoke true --app-ref <dispatchable-branch-or-tag> --shell-ref <shell-ref> --framework-ref <framework-ref> --output release-cohort-plan.json --markdown release-cohort-plan.md
+npm run release:operator -- plan --version <version> --release-mode new_release --release-intent stable_complete --include-full-package true --run-vm-smoke true --app-ref <dispatchable-branch-or-tag> --shell-ref <shell-ref> --framework-ref <framework-ref> --output release-operator-state.json --markdown release-operator-state.md
 npm run release:operator -- status --run-id <github-actions-run-id> --expected-head <app-sha> --output release-operator-state.json --markdown release-operator-state.md
 npm run release:operator -- diagnose-vm --version <version> --release-artifact-name <artifact> --release-artifact-run-id <run-id> --package-profile full --diagnostic-scope bootstrap_only --output release-operator-state.json --markdown release-operator-state.md
 npm run release:readiness-summary -- --version <version> --release-mode new_release --include-full-package true --run-vm-smoke true --artifacts-dir <downloaded-small-artifacts-dir> --job-results release-readiness-job-results.json --output release-readiness-summary.json --markdown release-readiness-summary.md
@@ -418,7 +418,11 @@ Stable cohort preparation is separate from Stable dispatch. Use moving App,
 shell, or framework `main` only to resolve immutable SHAs during sync
 preparation. `release:cohort-lock` records the immutable App/Shell/Framework
 SHA tuple, and `release:cohort-plan` embeds that lock with the release intent
-and next action. The release train consumes those fixed SHAs, not moving refs.
+and next action. `stable_complete` requires Full plus VM gates;
+`standard_hotfix` requires an explicit Full omission reason. The plan emits the
+`release_operator_plan_ref` required by the desktop workflow, so raw dispatches
+that bypass cohort preparation fail before a build starts. The release train
+consumes those fixed SHAs, not moving refs.
 `release:operator plan` repeats this boundary as machine-readable
 `operator_guidance`: dispatch inputs come from the cohort plan/lock, manual
 long-SHA entry is a diagnostic fallback, and a frozen cohort should run desktop
@@ -427,9 +431,15 @@ promote the frozen cohort after owner receipt, or freeze a new cohort and
 dispatch a new desktop release.
 If source preparation exposes a stale App head, unresolved shell/framework ref,
 wrong shell type/format, dirty source checkout, or release-boundary/source-gate
-failure, repair that root cause before dispatching the workflow. During a run,
-use `release:operator status` or the closeout `release-monitor.json` instead of
-broad `gh run watch`; after a primary gate fails, `failed_gate_draining` means
+failure, repair that root cause before dispatching the workflow. During an
+active run, use exactly one
+`gh run watch <run-id> --repo gaofeng21cn/one-person-lab-app --interval 60 --exit-status`
+process, then call `release:operator status` once for terminal routing. Do not
+combine short sleeps with a second polling loop. After three prior attempts for
+the same version inside 90 minutes, generate a same-cohort
+`release:gate-reuse-plan` and pass its ref before starting another full train;
+the time threshold changes strategy but does not abandon the release goal.
+After a primary gate fails, `failed_gate_draining` means
 queued jobs are settling, and `stale_candidate` means the old run is diagnostic
 evidence only. Neither state can be promoted or reinterpreted as release-ready
 for a newer cohort. If the release process must be repaired while a run is in

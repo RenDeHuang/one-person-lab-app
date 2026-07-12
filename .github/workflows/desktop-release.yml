@@ -17,6 +17,28 @@ on:
         description: OPL version, for example 26.5.19
         required: true
         type: string
+      release_intent:
+        description: Complete Stable with Full, or an explicitly documented Standard-only hotfix
+        required: true
+        default: stable_complete
+        type: choice
+        options:
+          - stable_complete
+          - standard_hotfix
+      full_omission_reason:
+        description: Required reason when release_intent is standard_hotfix
+        required: false
+        default: ''
+        type: string
+      release_operator_plan_ref:
+        description: sha256 ref emitted by release:cohort-plan for this exact App/Shell/Framework cohort
+        required: true
+        type: string
+      gate_reuse_plan_ref:
+        description: Same-cohort gate reuse plan ref required after repeated release attempts
+        required: false
+        default: ''
+        type: string
       include_full_package:
         description: Build and publish the Full first-install package after standard assets
         required: false
@@ -129,9 +151,10 @@ jobs:
           node-version: '24'
 
       - name: Summarize recent release attempts
-        continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_INTENT: ${{ inputs.release_intent }}
+          GATE_REUSE_PLAN_REF: ${{ inputs.gate_reuse_plan_ref }}
         shell: bash
         run: |
           set -euo pipefail
@@ -155,11 +178,18 @@ jobs:
             '',
             `- Version: ${process.env.VERSION}`,
             `- Prior attempts in 90 minutes: ${attempts.length}`,
-            '- Policy: elapsed time and attempt count trigger diagnosis and evidence reuse; they never stop an authorized release.',
+            `- Release intent: ${process.env.RELEASE_INTENT}`,
+            `- Gate reuse plan: ${process.env.GATE_REUSE_PLAN_REF || 'not provided'}`,
+            '- Policy: elapsed time never abandons an authorized release, but three repeated attempts force a same-cohort evidence-reuse strategy before another full train.',
+            '- Monitor: use one gh run watch --interval 60 process; do not combine short sleeps with a second polling loop.',
           ];
           fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${summary.join('\n')}\n`);
+          if (attempts.length >= 3 && !process.env.GATE_REUSE_PLAN_REF?.trim()) {
+            console.error(`::error::${attempts.length} prior release attempts detected in 90 minutes. Generate release:gate-reuse-plan for the same cohort and redispatch with gate_reuse_plan_ref; do not start another unplanned full build.`);
+            process.exit(1);
+          }
           if (attempts.length >= 3) {
-            console.log(`::warning::${attempts.length} prior release attempts detected in 90 minutes. Continue toward the release goal, but classify the repeated failure and reuse the same cohort before rebuilding.`);
+            console.log(`Same-cohort strategy switch accepted with gate reuse plan ${process.env.GATE_REUSE_PLAN_REF}.`);
           }
           NODE
 
@@ -172,6 +202,10 @@ jobs:
           npm run release:preflight -- \
             --version "${{ inputs.opl_version }}" \
             --release-mode "${{ inputs.release_mode }}" \
+            --release-intent "${{ inputs.release_intent }}" \
+            --full-omission-reason "${{ inputs.full_omission_reason }}" \
+            --release-operator-plan-ref "${{ inputs.release_operator_plan_ref }}" \
+            --gate-reuse-plan-ref "${{ inputs.gate_reuse_plan_ref }}" \
             --include-full-package "${{ inputs.include_full_package }}" \
             --run-vm-smoke "${{ inputs.run_vm_smoke }}" \
             --publish-docker-webui "${{ inputs.publish_docker_webui }}" \

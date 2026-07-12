@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import fs from 'node:fs';
+import crypto from 'node:crypto';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -22,8 +23,12 @@ const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 export type ReleaseCohortPlanOptions = {
   version: string;
   releaseMode: string;
+  releaseIntent: 'stable_complete' | 'standard_hotfix';
+  fullOmissionReason: string;
+  gateReusePlanRef: string;
   includeFullPackage: boolean;
   runVmSmoke: boolean;
+  publishDockerWebui: boolean;
   appCommit: string;
   shellRef: string;
   frameworkRef: string;
@@ -52,12 +57,17 @@ export type ReleaseCohortPlan = {
   version: string;
   tag: string;
   release_mode: string;
+  release_intent: 'stable_complete' | 'standard_hotfix';
+  full_omission_reason: string | null;
+  operator_plan_ref: string;
+  gate_reuse_plan_ref: string | null;
   app_commit: string;
   shell_ref: string;
   framework_ref: string;
   cohort_lock: ReleaseCohortLock;
   include_full_package: boolean;
   run_vm_smoke: boolean;
+  publish_docker_webui: boolean;
   cheap_gates: CheapGate[];
   next_action: NextAction;
   authority_boundary: {
@@ -74,6 +84,9 @@ function usage(): void {
 Options:
   --version <version>              OPL release version, for example 26.6.20.
   --release-mode <mode>            Release mode, for example new_release or refresh_existing.
+  --release-intent <intent>        stable_complete or standard_hotfix. Default: stable_complete.
+  --full-omission-reason <reason>  Required when release intent is standard_hotfix.
+  --gate-reuse-plan-ref <ref>      Same-cohort reuse plan digest/ref after repeated attempts.
   --include-full-package <bool>    Whether the cohort includes the Full first-install package.
   --run-vm-smoke <bool>            Whether the cohort requests VM smoke gates.
   --app-ref <ref>                  App ref to resolve. Default: current git HEAD.
@@ -99,6 +112,9 @@ function gitHead(): string {
 function defaultOptions(): ReleaseCohortPlanOptions {
   return {
     ...buildSharedReleaseReadinessOptions(parseStrictBoolean),
+    releaseIntent: (process.env.OPL_RELEASE_INTENT || 'stable_complete') as ReleaseCohortPlanOptions['releaseIntent'],
+    fullOmissionReason: process.env.OPL_FULL_OMISSION_REASON || '',
+    gateReusePlanRef: process.env.OPL_RELEASE_GATE_REUSE_PLAN_REF || '',
     appCommit: process.env.OPL_APP_REF || process.env.OPL_APP_COMMIT || process.env.GITHUB_SHA || gitHead(),
     shellRef: process.env.OPL_SHELL_REF || 'main',
     frameworkRef: process.env.OPL_FRAMEWORK_REF || 'main',
@@ -117,6 +133,9 @@ export function parseReleaseCohortPlanArgs(argv: string[]): ReleaseCohortPlanOpt
       help: { type: 'boolean', short: 'h' },
       version: { type: 'string' },
       'release-mode': { type: 'string' },
+      'release-intent': { type: 'string' },
+      'full-omission-reason': { type: 'string' },
+      'gate-reuse-plan-ref': { type: 'string' },
       'include-full-package': { type: 'string' },
       'run-vm-smoke': { type: 'string' },
       'publish-docker-webui': { type: 'string' },
@@ -136,6 +155,11 @@ export function parseReleaseCohortPlanArgs(argv: string[]): ReleaseCohortPlanOpt
   }
   if (typeof values.version === 'string') parsed.version = values.version;
   if (typeof values['release-mode'] === 'string') parsed.releaseMode = values['release-mode'];
+  if (typeof values['release-intent'] === 'string') {
+    parsed.releaseIntent = values['release-intent'] as ReleaseCohortPlanOptions['releaseIntent'];
+  }
+  if (typeof values['full-omission-reason'] === 'string') parsed.fullOmissionReason = values['full-omission-reason'];
+  if (typeof values['gate-reuse-plan-ref'] === 'string') parsed.gateReusePlanRef = values['gate-reuse-plan-ref'];
   if (typeof values['include-full-package'] === 'string') {
     parsed.includeFullPackage = parseStrictBoolean(values['include-full-package']);
   }
@@ -153,6 +177,18 @@ export function parseReleaseCohortPlanArgs(argv: string[]): ReleaseCohortPlanOpt
   if (typeof values.markdown === 'string') parsed.markdown = values.markdown;
 
   assertSharedReleaseReadinessOptions(parsed);
+  if (!['stable_complete', 'standard_hotfix'].includes(parsed.releaseIntent)) {
+    throw new Error('--release-intent must be stable_complete or standard_hotfix.');
+  }
+  if (parsed.releaseIntent === 'stable_complete' && !parsed.includeFullPackage) {
+    throw new Error('stable_complete requires --include-full-package true.');
+  }
+  if (parsed.releaseIntent === 'standard_hotfix') {
+    if (parsed.includeFullPackage) throw new Error('standard_hotfix requires --include-full-package false.');
+    if (!parsed.fullOmissionReason.trim()) {
+      throw new Error('standard_hotfix requires --full-omission-reason <reason>.');
+    }
+  }
   if (!parsed.appCommit.trim()) throw new Error('Pass --app-ref <ref>/--app-commit <sha> or run from a git checkout.');
   if (!parsed.shellRef.trim()) throw new Error('Pass --shell-ref <ref> or set OPL_SHELL_REF.');
   if (!parsed.frameworkRef.trim()) throw new Error('Pass --framework-ref <ref> or set OPL_FRAMEWORK_REF.');
@@ -174,6 +210,57 @@ function boolText(value: boolean): string {
   return value ? 'true' : 'false';
 }
 
+type ReleaseOperatorPlanIdentity = {
+  version: string;
+  releaseMode: string;
+  releaseIntent: string;
+  fullOmissionReason: string;
+  gateReusePlanRef: string;
+  includeFullPackage: boolean;
+  runVmSmoke: boolean;
+  publishDockerWebui: boolean;
+  appSha: string;
+  shellSha: string;
+  frameworkSha: string;
+};
+
+export function buildReleaseOperatorPlanRef(identity: ReleaseOperatorPlanIdentity): string {
+  const canonical = JSON.stringify({
+    version: identity.version,
+    release_mode: identity.releaseMode,
+    release_intent: identity.releaseIntent,
+    full_omission_reason: identity.fullOmissionReason.trim(),
+    gate_reuse_plan_ref: identity.gateReusePlanRef.trim(),
+    include_full_package: identity.includeFullPackage,
+    run_vm_smoke: identity.runVmSmoke,
+    publish_docker_webui: identity.publishDockerWebui,
+    app_sha: identity.appSha.toLowerCase(),
+    shell_sha: identity.shellSha.toLowerCase(),
+    framework_sha: identity.frameworkSha.toLowerCase(),
+  });
+  return `sha256:${crypto.createHash('sha256').update(canonical).digest('hex')}`;
+}
+
+function operatorPlanRef(options: ReleaseCohortPlanOptions, lock: ReleaseCohortLock): string {
+  return buildReleaseOperatorPlanRef({
+    version: options.version,
+    releaseMode: options.releaseMode,
+    releaseIntent: options.releaseIntent,
+    fullOmissionReason: options.fullOmissionReason,
+    gateReusePlanRef: options.gateReusePlanRef,
+    includeFullPackage: options.includeFullPackage,
+    runVmSmoke: options.runVmSmoke,
+    publishDockerWebui: options.publishDockerWebui,
+    appSha: lock.app.resolved_sha,
+    shellSha: lock.shell.resolved_sha,
+    frameworkSha: lock.framework.resolved_sha,
+  });
+}
+
+function shellQuote(value: string): string {
+  return `'${value.replaceAll("'", "'\\''")}'`;
+}
+
 function workflowDispatchRef(lock: ReleaseCohortLock): string {
   const ref = lock.app.requested_ref.trim();
   if (/^[0-9a-f]{7,40}$/i.test(ref)) {
@@ -190,8 +277,13 @@ function releaseCommand(options: ReleaseCohortPlanOptions, lock: ReleaseCohortLo
     `--ref ${workflowDispatchRef(lock)}`,
     `--field opl_version=${options.version}`,
     `--field release_mode=${options.releaseMode}`,
+    `--field release_intent=${options.releaseIntent}`,
+    `--field full_omission_reason=${shellQuote(options.fullOmissionReason.trim())}`,
+    `--field release_operator_plan_ref=${operatorPlanRef(options, lock)}`,
+    `--field gate_reuse_plan_ref=${shellQuote(options.gateReusePlanRef.trim())}`,
     `--field include_full_package=${boolText(options.includeFullPackage)}`,
     `--field run_vm_smoke=${boolText(options.runVmSmoke)}`,
+    `--field publish_docker_webui=${boolText(options.publishDockerWebui)}`,
     `--field shell_ref=${lock.shell.resolved_sha}`,
     `--field framework_ref=${lock.framework.resolved_sha}`,
   ].join(' ');
@@ -202,6 +294,10 @@ function buildCheapGates(options: ReleaseCohortPlanOptions, lock: ReleaseCohortL
     'npm run release:preflight --',
     `--version ${options.version}`,
     `--release-mode ${options.releaseMode}`,
+    `--release-intent ${options.releaseIntent}`,
+    `--full-omission-reason ${shellQuote(options.fullOmissionReason.trim())}`,
+    `--release-operator-plan-ref ${operatorPlanRef(options, lock)}`,
+    `--gate-reuse-plan-ref ${shellQuote(options.gateReusePlanRef.trim())}`,
     `--include-full-package ${boolText(options.includeFullPackage)}`,
     `--run-vm-smoke ${boolText(options.runVmSmoke)}`,
     `--shell-ref ${lock.shell.resolved_sha}`,
@@ -309,12 +405,17 @@ export function buildReleaseCohortPlan(
     version: options.version,
     tag: releaseTag(options.version),
     release_mode: options.releaseMode,
+    release_intent: options.releaseIntent,
+    full_omission_reason: options.fullOmissionReason.trim() || null,
+    operator_plan_ref: operatorPlanRef(options, lock),
+    gate_reuse_plan_ref: options.gateReusePlanRef.trim() || null,
     app_commit: lock.app.resolved_sha,
     shell_ref: options.shellRef,
     framework_ref: options.frameworkRef,
     cohort_lock: lock,
     include_full_package: options.includeFullPackage,
     run_vm_smoke: options.runVmSmoke,
+    publish_docker_webui: options.publishDockerWebui,
     cheap_gates: buildCheapGates(options, lock),
     next_action: buildNextAction(options, lock),
     authority_boundary: {
@@ -334,6 +435,10 @@ export function writeReleaseCohortPlanMarkdown(filePath: string, plan: ReleaseCo
     `- Version: ${plan.version}`,
     `- Tag: ${plan.tag}`,
     `- Release mode: ${plan.release_mode}`,
+    `- Release intent: ${plan.release_intent}`,
+    `- Full omission reason: ${plan.full_omission_reason ?? 'not applicable'}`,
+    `- Operator plan ref: ${plan.operator_plan_ref}`,
+    `- Gate reuse plan ref: ${plan.gate_reuse_plan_ref ?? 'not provided'}`,
     `- App commit: ${plan.app_commit}`,
     `- Shell ref: ${plan.shell_ref}`,
     `- Shell SHA: ${plan.cohort_lock.shell.resolved_sha}`,
@@ -341,6 +446,7 @@ export function writeReleaseCohortPlanMarkdown(filePath: string, plan: ReleaseCo
     `- Framework SHA: ${plan.cohort_lock.framework.resolved_sha}`,
     `- Include Full package: ${boolText(plan.include_full_package)}`,
     `- Run VM smoke: ${boolText(plan.run_vm_smoke)}`,
+    `- Publish Docker WebUI: ${boolText(plan.publish_docker_webui)}`,
     `- Next action: ${plan.next_action.action}`,
     '',
     '| Cheap gate | Required | Command |',

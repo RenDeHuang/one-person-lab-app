@@ -10,10 +10,12 @@ const workflow = fs.readFileSync(
   "utf8",
 );
 
-test("release attempt telemetry diagnoses repetition without blocking the release", () => {
+test("release attempt telemetry forces a same-cohort reuse strategy without abandoning the release", () => {
   assert.match(workflow, /name: Summarize recent release attempts/);
-  assert.match(workflow, /continue-on-error: true/);
-  assert.match(workflow, /they never stop an authorized release/);
-  assert.doesNotMatch(workflow, /attempt_budget_override/);
-  assert.doesNotMatch(workflow, /validate-release-attempt-budget/);
+  assert.doesNotMatch(workflow, /name: Summarize recent release attempts\n\s+continue-on-error: true/);
+  assert.match(workflow, /attempts\.length >= 3 && !process\.env\.GATE_REUSE_PLAN_REF/);
+  assert.match(workflow, /Generate release:gate-reuse-plan for the same cohort/);
+  assert.match(workflow, /elapsed time never abandons an authorized release/);
+  assert.match(workflow, /gh run watch --interval 60/);
+  assert.doesNotMatch(workflow, /sleep 25/);
 });

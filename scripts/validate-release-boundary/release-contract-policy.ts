@@ -288,7 +288,10 @@ function validateReleasePreflightContract(releaseContract: Record<string, any>):
   }
   for (const checkId of [
     'version',
+    'release_date',
     'release_mode',
+    'release_intent',
+    'release_operator_plan',
     'release_preflight_contract',
     'workflow_preflight_shape',
     'release_plan',
@@ -452,6 +455,7 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
   if (
     stableCandidateFreeze?.required !== true ||
     stableCandidateFreeze?.next_action !== 'owner_receipt_then_promote_or_dispatch_new_cohort' ||
+    stableCandidateFreeze?.dispatch_input_source !== 'cohort_plan_with_operator_plan_ref' ||
     !sameStringSet(stableCandidateFreeze?.pinned_sha_fields, ['app_sha', 'shell_sha', 'framework_sha']) ||
     !sameStringSet(stableCandidateFreeze?.obsolete_candidate_statuses, ['obsolete_candidate', 'stale_candidate']) ||
     typeof stableCandidateFreeze?.currentness_rule !== 'string' ||
@@ -466,11 +470,16 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
     'version',
     'tag',
     'release_mode',
+    'release_intent',
+    'full_omission_reason',
+    'operator_plan_ref',
+    'gate_reuse_plan_ref',
     'app_commit',
     'shell_ref',
     'framework_ref',
     'include_full_package',
     'run_vm_smoke',
+    'publish_docker_webui',
     'cheap_source_gates',
     'next_action',
   ]) {
@@ -478,6 +487,20 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
       console.error(`FAIL release_cohort_prepare_policy: missing cohort plan record field ${field}`);
       failures += 1;
     }
+  }
+  const intentPolicy = cohortPrepare?.release_intent_policy;
+  const operatorPlanPolicy = cohortPrepare?.operator_plan_policy;
+  if (
+    !sameStringSet(intentPolicy?.allowed_values, ['stable_complete', 'standard_hotfix']) ||
+    intentPolicy?.stable_complete?.include_full_package !== true ||
+    intentPolicy?.stable_complete?.run_vm_smoke !== true ||
+    intentPolicy?.standard_hotfix?.include_full_package !== false ||
+    intentPolicy?.standard_hotfix?.full_omission_reason_required !== true ||
+    operatorPlanPolicy?.required !== true ||
+    operatorPlanPolicy?.workflow_input !== 'release_operator_plan_ref'
+  ) {
+    console.error('FAIL release_intent_policy: release intent and operator plan ref must gate every Stable dispatch');
+    failures += 1;
   }
 
   if (
@@ -490,6 +513,16 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
     !releaseOperator.authority_boundary.includes('claim release-ready')
   ) {
     console.error('FAIL release_operator_policy: release operator must stay a thin non-authoritative controller');
+    failures += 1;
+  }
+  const activeMonitor = releaseOperator?.active_monitor_policy;
+  if (
+    activeMonitor?.command !== 'gh run watch <run-id> --repo gaofeng21cn/one-person-lab-app --interval 60 --exit-status' ||
+    activeMonitor?.poll_interval_seconds !== 60 ||
+    activeMonitor?.single_monitor_process !== true ||
+    activeMonitor?.terminal_handoff !== 'release_operator_status_once'
+  ) {
+    console.error('FAIL release_operator_policy: active monitoring must use one 60-second gh run watch process');
     failures += 1;
   }
   for (const artifact of ['release-operator-state.json', 'release-operator-state.md']) {
@@ -516,6 +549,17 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
     !blockerPolicy.rule.includes('instead of continuing to wait on gh run watch')
   ) {
     console.error('FAIL release_operator_primary_blocker_policy: operator status must be no-watch and stop on primary gate failures');
+    failures += 1;
+  }
+  const attemptSwitch = gateReuse?.attempt_strategy_switch;
+  if (
+    attemptSwitch?.window_minutes !== 90 ||
+    attemptSwitch?.prior_attempt_threshold !== 3 ||
+    attemptSwitch?.workflow_input !== 'gate_reuse_plan_ref' ||
+    attemptSwitch?.required_before_next_full_train !== true ||
+    attemptSwitch?.timeout_is_abandonment_condition !== false
+  ) {
+    console.error('FAIL release_gate_reuse_policy: repeated attempts must require a same-cohort reuse plan without abandoning the release goal');
     failures += 1;
   }
   if (!sameStringSet(blockerPolicy?.failed_gate_states, ['failed_gate_draining', 'failed'])) {

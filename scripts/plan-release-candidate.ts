@@ -237,9 +237,8 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
       depends_on: [
         'release_preflight',
         'full_runtime_keys',
-        ...(options.settingsVm ? ['standard_dmg_clean_vm_smoke'] : []),
       ],
-      can_run_with: [],
+      can_run_with: ['standard_build', 'active_shell_quick_validation'],
       command: [
         'OPL_FULL_RUNTIME_CACHE_MODE=readwrite',
         'npm run release:full --',
@@ -262,7 +261,11 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
     lanes.push({
       id: 'publish_full_assets',
       phase: 'publish',
-      depends_on: ['publish_standard', 'full_build'],
+      depends_on: [
+        'publish_standard',
+        'full_build',
+        ...(options.settingsVm ? ['standard_dmg_clean_vm_smoke'] : []),
+      ],
       can_run_with: [],
       command: [
         'npm run release:publish --',

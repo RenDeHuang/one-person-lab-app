@@ -4,6 +4,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { parseStrictBoolean } from './release-readiness-args.ts';
+import { buildReleaseOperatorPlanRef } from './plan-release-cohort.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const releaseRepo = 'gaofeng21cn/one-person-lab-app';
@@ -78,6 +79,10 @@ type HomebrewVmGateStaticPolicy = {
 type Options = {
   version: string;
   releaseMode: string;
+  releaseIntent: 'stable_complete' | 'standard_hotfix';
+  fullOmissionReason: string;
+  releaseOperatorPlanRef: string;
+  gateReusePlanRef: string;
   includeFullPackage: boolean;
   runVmSmoke: boolean;
   publishDockerWebui: boolean;
@@ -85,6 +90,7 @@ type Options = {
   shellRef: string;
   frameworkRef: string;
   expectedAppHead: string;
+  currentDate: string;
   offline: boolean;
   summaryPath: string | null;
   markdownPath: string | null;
@@ -97,6 +103,11 @@ function usage(): void {
 Options:
   --version <version>              OPL release version, for example 26.6.20.
   --release-mode <mode>            refresh_existing, new_release, or draft_candidate.
+  --release-intent <intent>        stable_complete or standard_hotfix.
+  --full-omission-reason <reason>  Required for a standard_hotfix release.
+  --release-operator-plan-ref <ref>
+                                   Required sha256 ref emitted by release:cohort-plan.
+  --gate-reuse-plan-ref <ref>      Same-cohort reuse plan ref after repeated attempts.
   --include-full-package <bool>    Whether the Full first-install package is in scope.
   --run-vm-smoke <bool>            Whether release VM smokes are in scope.
   --publish-docker-webui <bool>    Whether the Docker WebUI image is in scope.
@@ -116,6 +127,10 @@ function parseArgs(argv: string[]): Options {
   const options: Options = {
     version: process.env.OPL_RELEASE_VERSION || '',
     releaseMode: process.env.OPL_RELEASE_MODE || 'refresh_existing',
+    releaseIntent: (process.env.OPL_RELEASE_INTENT || 'stable_complete') as Options['releaseIntent'],
+    fullOmissionReason: process.env.OPL_FULL_OMISSION_REASON || '',
+    releaseOperatorPlanRef: process.env.OPL_RELEASE_OPERATOR_PLAN_REF || '',
+    gateReusePlanRef: process.env.OPL_RELEASE_GATE_REUSE_PLAN_REF || '',
     includeFullPackage: parseStrictBoolean(process.env.OPL_INCLUDE_FULL_PACKAGE, false),
     runVmSmoke: parseStrictBoolean(process.env.OPL_RUN_VM_SMOKE, true),
     publishDockerWebui: parseStrictBoolean(process.env.OPL_PUBLISH_DOCKER_WEBUI, true),
@@ -123,6 +138,7 @@ function parseArgs(argv: string[]): Options {
     shellRef: process.env.OPL_SHELL_REF || 'main',
     frameworkRef: process.env.OPL_FRAMEWORK_REF || 'main',
     expectedAppHead: process.env.OPL_EXPECTED_APP_HEAD || process.env.GITHUB_SHA || '',
+    currentDate: process.env.OPL_RELEASE_CURRENT_DATE || shanghaiDateIso(),
     offline: false,
     summaryPath: null,
     markdownPath: null,
@@ -151,6 +167,18 @@ function parseArgs(argv: string[]): Options {
       index += 1;
       continue;
     }
+    if (token === '--full-omission-reason' || token === '--gate-reuse-plan-ref') {
+      const optionalValue = argv[index + 1];
+      if (optionalValue === undefined || optionalValue.startsWith('--')) {
+        if (token === '--full-omission-reason') options.fullOmissionReason = '';
+        else options.gateReusePlanRef = '';
+        continue;
+      }
+      if (token === '--full-omission-reason') options.fullOmissionReason = optionalValue;
+      else options.gateReusePlanRef = optionalValue;
+      index += 1;
+      continue;
+    }
     const value = argv[index + 1];
     if (!value || value.startsWith('--')) {
       throw new Error(`Missing value for ${token}`);
@@ -162,6 +190,16 @@ function parseArgs(argv: string[]): Options {
     }
     if (token === '--release-mode') {
       options.releaseMode = value;
+      index += 1;
+      continue;
+    }
+    if (token === '--release-intent') {
+      options.releaseIntent = value as Options['releaseIntent'];
+      index += 1;
+      continue;
+    }
+    if (token === '--release-operator-plan-ref') {
+      options.releaseOperatorPlanRef = value;
       index += 1;
       continue;
     }
@@ -195,6 +233,11 @@ function parseArgs(argv: string[]): Options {
       index += 1;
       continue;
     }
+    if (token === '--current-date') {
+      options.currentDate = value;
+      index += 1;
+      continue;
+    }
     if (token === '--summary-path') {
       options.summaryPath = value;
       index += 1;
@@ -209,6 +252,17 @@ function parseArgs(argv: string[]): Options {
   }
 
   return options;
+}
+
+function shanghaiDateIso(now = new Date()): string {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(now);
+  const value = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${value.year}-${value.month}-${value.day}`;
 }
 
 function readText(relativePath: string) {
@@ -291,6 +345,99 @@ function checkVersion(options: Options, checks: Check[]) {
     return;
   }
   addCheck(checks, 'version', 'passed', `Release version ${options.version} is valid semver-like OPL syntax.`);
+}
+
+function checkReleaseDate(options: Options, checks: Check[]) {
+  const versionMatch = options.version.match(/^(\d+)\.(\d+)\.(\d+)/);
+  const currentMatch = options.currentDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!versionMatch || !currentMatch) {
+    addCheck(checks, 'release_date', 'failed', `Unable to compare release version ${options.version} with current date ${options.currentDate}.`);
+    return;
+  }
+  const releaseParts = [2000 + Number(versionMatch[1]), Number(versionMatch[2]), Number(versionMatch[3])] as const;
+  const currentParts = [Number(currentMatch[1]), Number(currentMatch[2]), Number(currentMatch[3])] as const;
+  const releaseDate = new Date(Date.UTC(releaseParts[0], releaseParts[1] - 1, releaseParts[2]));
+  if (
+    releaseDate.getUTCFullYear() !== releaseParts[0]
+    || releaseDate.getUTCMonth() + 1 !== releaseParts[1]
+    || releaseDate.getUTCDate() !== releaseParts[2]
+  ) {
+    addCheck(checks, 'release_date', 'failed', `Release version ${options.version} does not encode a valid calendar date.`);
+    return;
+  }
+  const releaseOrdinal = releaseParts[0] * 10_000 + releaseParts[1] * 100 + releaseParts[2];
+  const currentOrdinal = currentParts[0] * 10_000 + currentParts[1] * 100 + currentParts[2];
+  if (releaseOrdinal > currentOrdinal) {
+    addCheck(
+      checks,
+      'release_date',
+      'failed',
+      `Stable version ${options.version} is future-dated for Asia/Shanghai ${options.currentDate}; use today's version or an older same-day refresh.`,
+    );
+    return;
+  }
+  addCheck(checks, 'release_date', 'passed', `Release version date is not later than Asia/Shanghai ${options.currentDate}.`);
+}
+
+function checkReleaseIntent(options: Options, checks: Check[]) {
+  if (!['stable_complete', 'standard_hotfix'].includes(options.releaseIntent)) {
+    addCheck(checks, 'release_intent', 'failed', `Unsupported release intent: ${options.releaseIntent}`);
+    return;
+  }
+  if (options.releaseIntent === 'stable_complete') {
+    if (!options.includeFullPackage || !options.runVmSmoke) {
+      addCheck(checks, 'release_intent', 'failed', 'stable_complete requires include_full_package=true and run_vm_smoke=true.');
+      return;
+    }
+    addCheck(checks, 'release_intent', 'passed', 'stable_complete explicitly includes Full packaging and VM gates.');
+    return;
+  }
+  if (options.includeFullPackage || !options.fullOmissionReason.trim()) {
+    addCheck(
+      checks,
+      'release_intent',
+      'failed',
+      'standard_hotfix requires include_full_package=false and a non-empty Full omission reason.',
+    );
+    return;
+  }
+  addCheck(checks, 'release_intent', 'passed', `standard_hotfix explicitly omits Full: ${options.fullOmissionReason.trim()}`);
+}
+
+function checkReleaseOperatorPlan(options: Options, refs: RefPreflight[] | undefined, checks: Check[]) {
+  if (!/^sha256:[a-f0-9]{64}$/i.test(options.releaseOperatorPlanRef)) {
+    addCheck(checks, 'release_operator_plan', 'failed', 'Release dispatch requires release_operator_plan_ref from release:cohort-plan.');
+    return;
+  }
+  if (options.offline) {
+    addCheck(checks, 'release_operator_plan', 'passed', 'Offline preflight validated the release operator plan ref shape.');
+    return;
+  }
+  const appSha = resolveExpectedAppHead(options);
+  const shellSha = refs?.find((entry) => entry.repository === 'gaofeng21cn/opl-aion-shell')?.resolved_sha ?? null;
+  const frameworkSha = refs?.find((entry) => entry.repository === 'gaofeng21cn/one-person-lab')?.resolved_sha ?? null;
+  if (!appSha || !shellSha || !frameworkSha) {
+    addCheck(checks, 'release_operator_plan', 'failed', 'Release operator plan cannot be verified until App, Shell, and Framework refs resolve.');
+    return;
+  }
+  const expected = buildReleaseOperatorPlanRef({
+    version: options.version,
+    releaseMode: options.releaseMode,
+    releaseIntent: options.releaseIntent,
+    fullOmissionReason: options.fullOmissionReason,
+    gateReusePlanRef: options.gateReusePlanRef,
+    includeFullPackage: options.includeFullPackage,
+    runVmSmoke: options.runVmSmoke,
+    publishDockerWebui: options.publishDockerWebui,
+    appSha,
+    shellSha,
+    frameworkSha,
+  });
+  if (expected !== options.releaseOperatorPlanRef) {
+    addCheck(checks, 'release_operator_plan', 'failed', `Release operator plan ref mismatch; expected ${expected}.`);
+    return;
+  }
+  addCheck(checks, 'release_operator_plan', 'passed', 'Release inputs match the pinned cohort operator plan.');
 }
 
 function checkReleaseMode(options: Options, checks: Check[]) {
@@ -442,10 +589,8 @@ function resolveGitHubRef(repository: string, ref: string, offline: boolean): Re
 function checkReleaseRefs(options: Options, checks: Check[]) {
   const refs = [
     resolveGitHubRef('gaofeng21cn/opl-aion-shell', options.shellRef, options.offline),
+    resolveGitHubRef('gaofeng21cn/one-person-lab', options.frameworkRef, options.offline),
   ];
-  if (options.includeFullPackage) {
-    refs.push(resolveGitHubRef('gaofeng21cn/one-person-lab', options.frameworkRef, options.offline));
-  }
   const failed = refs.filter((entry) => entry.status === 'failed');
   if (failed.length > 0) {
     addCheck(checks, 'release_refs', 'failed', failed.map((entry) => entry.reason).join('; '));
@@ -469,6 +614,9 @@ function checkWorkflowShape(options: Options, checks: Check[]) {
   const required = [
     'release-preflight:',
     'name: Release preflight',
+    'release_intent:',
+    'release_operator_plan_ref:',
+    'gate_reuse_plan_ref:',
     'npm run release:preflight --',
     'release-preflight-summary.json',
     'release-preflight-summary.md',
@@ -818,7 +966,10 @@ function checkContract(options: Options, checks: Check[]) {
   const required = contract.release_preflight?.required_fast_checks;
   const expected = [
     'version',
+    'release_date',
     'release_mode',
+    'release_intent',
+    'release_operator_plan',
     'release_preflight_contract',
     'remote_target',
     'release_refs',
@@ -866,6 +1017,10 @@ function writeSummary(options: Options, checks: Check[], releaseTarget: ReleaseT
     inputs: {
       version: options.version,
       release_mode: options.releaseMode,
+      release_intent: options.releaseIntent,
+      full_omission_reason: options.fullOmissionReason.trim() || null,
+      release_operator_plan_ref: options.releaseOperatorPlanRef,
+      gate_reuse_plan_ref: options.gateReusePlanRef.trim() || null,
       include_full_package: options.includeFullPackage,
       run_vm_smoke: options.runVmSmoke,
       publish_docker_webui: options.publishDockerWebui,
@@ -892,6 +1047,10 @@ function writeSummary(options: Options, checks: Check[], releaseTarget: ReleaseT
       '',
       `- Version: ${options.version}`,
       `- Mode: ${options.releaseMode}`,
+      `- Intent: ${options.releaseIntent}`,
+      `- Full omission reason: ${options.fullOmissionReason.trim() || 'not applicable'}`,
+      `- Operator plan ref: ${options.releaseOperatorPlanRef}`,
+      `- Gate reuse plan ref: ${options.gateReusePlanRef.trim() || 'not provided'}`,
       `- Full package: ${options.includeFullPackage}`,
       `- VM smoke: ${options.runVmSmoke}`,
       '',
@@ -914,7 +1073,9 @@ function writeSummary(options: Options, checks: Check[], releaseTarget: ReleaseT
 const options = parseArgs(process.argv.slice(2));
 const checks: Check[] = [];
 checkVersion(options, checks);
+checkReleaseDate(options, checks);
 checkReleaseMode(options, checks);
+checkReleaseIntent(options, checks);
 checkContract(options, checks);
 checkWorkflowShape(options, checks);
 checkReleasePlan(options, checks);
@@ -923,6 +1084,7 @@ checkHomebrewVmGateStaticPolicy(homebrewVmGateStaticPolicy, checks);
 const releaseTarget = resolveReleaseTarget(options);
 checkRemoteTarget(options, checks, releaseTarget);
 const releaseRefs = checkReleaseRefs(options, checks);
+checkReleaseOperatorPlan(options, releaseRefs, checks);
 const codexPackageMetadata = checkCodexPackageMetadata(options, checks);
 checkDockerWebuiCleanWindowsEvidence(options, checks);
 const homebrew = buildHomebrewPreflight(options, releaseTarget, homebrewVmGateStaticPolicy);

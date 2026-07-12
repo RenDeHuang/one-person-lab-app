@@ -1039,7 +1039,10 @@
     ],
     "required_fast_checks": [
       "version",
+      "release_date",
       "release_mode",
+      "release_intent",
+      "release_operator_plan",
       "release_preflight_contract",
       "release_source_gate_contract",
       "workflow_preflight_shape",
@@ -1095,6 +1098,8 @@
       "forbidden_recovery_patterns": [
         "rerun_full_desktop_release_to_carry_owner_metadata",
         "hand_fill_long_sha_inputs_when_cohort_plan_or_lock_exists",
+        "raw_desktop_release_dispatch_without_release_operator_plan_ref",
+        "old_release_artifact_with_new_smoke_cohort",
         "use_vm_smoke_to_rebuild_or_mutate_release_material",
         "generate_release_notes_with_ai_during_publish_or_promote"
       ],
@@ -1140,15 +1145,57 @@
         "version",
         "tag",
         "release_mode",
+        "release_intent",
+        "full_omission_reason",
+        "operator_plan_ref",
+        "gate_reuse_plan_ref",
         "app_commit",
         "shell_ref",
         "framework_ref",
         "include_full_package",
         "run_vm_smoke",
+        "publish_docker_webui",
         "cheap_source_gates",
         "next_action"
       ],
       "purpose": "separate currentness preparation from stable release dispatch by recording the exact pinned cohort refs before expensive release gates",
+      "release_intent_policy": {
+        "workflow_input": "release_intent",
+        "allowed_values": [
+          "stable_complete",
+          "standard_hotfix"
+        ],
+        "stable_complete": {
+          "include_full_package": true,
+          "run_vm_smoke": true,
+          "full_omission_reason_allowed": false
+        },
+        "standard_hotfix": {
+          "include_full_package": false,
+          "full_omission_reason_required": true,
+          "must_not_claim_complete_stable": true
+        },
+        "rule": "Every Stable dispatch declares whether it is a complete Stable including Full or an intentionally Standard-only hotfix. A Standard-only run must expose its Full omission reason in preflight and release summaries and cannot be presented as the complete Stable train."
+      },
+      "operator_plan_policy": {
+        "workflow_input": "release_operator_plan_ref",
+        "required": true,
+        "format": "sha256:<64-lowercase-hex>",
+        "binds": [
+          "version",
+          "release_mode",
+          "release_intent",
+          "full_omission_reason",
+          "gate_reuse_plan_ref",
+          "include_full_package",
+          "run_vm_smoke",
+          "publish_docker_webui",
+          "app_sha",
+          "shell_sha",
+          "framework_sha"
+        ],
+        "rule": "desktop-release rejects a dispatch whose inputs do not match the pinned cohort plan digest; raw dispatch without release:cohort-plan is not a supported release entry."
+      },
       "manifest_role": "retry_and_promote_entrypoint_for_same_cohort_gates",
       "manifest_must_record": [
         "version",
@@ -1175,7 +1222,7 @@
         ],
         "pre_freeze_currentness_required": true,
         "post_freeze_drift_name": "post-freeze drift",
-        "dispatch_input_source": "cohort_plan_or_lock",
+        "dispatch_input_source": "cohort_plan_with_operator_plan_ref",
         "manual_long_sha_dispatch_recommended": false,
         "single_desktop_release_per_frozen_cohort": true,
         "currentness_rule": "A stable candidate is current only for the pinned App SHA, shell SHA, and framework SHA cohort. Remote movement after freeze is post-freeze drift: it may justify freezing a new cohort, but it must not make the completed candidate claim closeout-time latest or force a desktop release rerun when the same frozen cohort only needs owner receipt and promote.",
@@ -1195,6 +1242,17 @@
         "release-operator-state.json",
         "release-operator-state.md"
       ],
+      "active_monitor_policy": {
+        "command": "gh run watch <run-id> --repo gaofeng21cn/one-person-lab-app --interval 60 --exit-status",
+        "poll_interval_seconds": 60,
+        "single_monitor_process": true,
+        "forbidden_patterns": [
+          "sleep_25_plus_second_polling_loop",
+          "simultaneous_gh_run_watch_and_manual_polling",
+          "multiple_monitors_for_same_run"
+        ],
+        "terminal_handoff": "release_operator_status_once"
+      },
       "commands": [
         "plan",
         "status",
@@ -1362,6 +1420,15 @@
       ],
       "digest_field": "reuse_digest",
       "workflow_consumption_status": "artifact_available_not_consumed_for_gate_skip",
+      "attempt_strategy_switch": {
+        "window_minutes": 90,
+        "prior_attempt_threshold": 3,
+        "workflow_input": "gate_reuse_plan_ref",
+        "required_before_next_full_train": true,
+        "timeout_is_abandonment_condition": false,
+        "strategy": "same_cohort_evidence_reuse_or_targeted_gate_rerun_before_full_rebuild",
+        "rule": "After three prior attempts for the same version inside 90 minutes, the next dispatch must carry a same-cohort gate reuse plan ref. The time budget changes strategy but never abandons an authorized release goal."
+      },
       "authority_boundary": "reuse plan is a decision artifact only; it cannot claim release-ready, publish a release, write runtime truth, or skip a workflow gate unless a workflow explicitly consumes a reuse_allowed decision"
     },
     "tart_base_prebake": {
@@ -1803,6 +1870,23 @@
         "failed_allowed_unsigned"
       ],
       "rule": "Stable first-run VM smokes must clear quarantine after install, record codesign and spctl diagnostics before launch, and continue when codesign or spctl rejects the unsigned locally authorized App."
+    },
+    "settings_page_readiness_policy": {
+      "required_signals": [
+        "expected_route_hash",
+        "stable_page_data_testid",
+        "top_level_settings_navigation_when_applicable",
+        "nonempty_page_text",
+        "app_loader_not_visible",
+        "first_run_window_not_blocking"
+      ],
+      "forbidden_release_gate_signals": [
+        "localized_button_copy",
+        "localized_heading_copy",
+        "retired_runtime_status_label",
+        "arbitrary_wait_after_structural_readiness"
+      ],
+      "rule": "Settings VM readiness is semantic and structural. User-facing copy may change without failing a healthy packaged page; route, stable page anchor, navigation, nonempty content, and absence of blocking loading or first-run layers remain release-blocking."
     },
     "vm_gates": [
       {
