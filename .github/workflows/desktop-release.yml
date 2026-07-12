@@ -577,6 +577,7 @@ jobs:
       shell_ref: ${{ needs.release-source-gate.outputs.shell_sha }}
       publish_to_release: false
       release_mutation_owned_by_caller: true
+      upload_full_package_artifact: true
       force_rebuild_runtime_cache: ${{ inputs.force_rebuild_runtime_cache }}
     secrets: inherit
 
@@ -659,7 +660,8 @@ jobs:
       - publish-standard
       - full-first-install
       - standard-vm-smoke-gate-after-full
-    if: ${{ !cancelled() && inputs.include_full_package && needs.publish-standard.result == 'success' && needs.full-first-install.result == 'success' && needs.prepare-full-release-notes.result == 'success' && needs.standard-vm-smoke-gate-after-full.result == 'success' }}
+      - full-first-run-vm-smoke
+    if: ${{ !cancelled() && inputs.include_full_package && needs.publish-standard.result == 'success' && needs.full-first-install.result == 'success' && needs.prepare-full-release-notes.result == 'success' && needs.standard-vm-smoke-gate-after-full.result == 'success' && needs.full-first-run-vm-smoke.result == 'success' }}
 
     steps:
       - name: Checkout App repo
@@ -893,7 +895,7 @@ jobs:
   full-first-run-vm-smoke:
     name: Run clean Full first-run VM smoke
     needs:
-      - publish-full-assets
+      - full-first-install
       - standard-vm-smoke-gate-after-full
     if: ${{ !cancelled() && inputs.include_full_package && inputs.run_vm_smoke && needs.standard-vm-smoke-gate-after-full.result == 'success' }}
     uses: ./.github/workflows/opl-first-run-vm.yml

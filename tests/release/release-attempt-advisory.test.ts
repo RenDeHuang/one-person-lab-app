@@ -221,3 +221,12 @@ test("VM evidence upload excludes preseed caches and package inputs", () => {
     /name: Prune VM preseed inputs before evidence upload[\s\S]*codex-npm-cache[\s\S]*codex-package-tarballs[\s\S]*framework-source[\s\S]*name: Upload first-run VM artifacts/,
   );
 });
+
+test("VM job summary bounds large smoke diagnostics instead of exceeding GitHub limits", () => {
+  assert.doesNotMatch(
+    firstRunVmWorkflow,
+    /cat artifacts\/opl-first-run-vm\/tart-smoke-summary\.json/,
+  );
+  assert.match(firstRunVmWorkflow, /const maxBytes = 64 \* 1024/);
+  assert.match(firstRunVmWorkflow, /summary truncated at \$\{maxBytes\} bytes/);
+});

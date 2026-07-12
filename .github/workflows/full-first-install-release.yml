@@ -23,7 +23,7 @@ on:
         default: false
         type: boolean
       upload_full_package_artifact:
-        description: Upload the large Full package workflow artifact for downstream publish/VM jobs
+        description: Upload the complete Full output bundle for a downstream publisher; VM uses the DMG-only artifact
         required: false
         default: false
         type: boolean
@@ -69,7 +69,7 @@ on:
         default: false
         type: boolean
       upload_full_package_artifact:
-        description: Upload the large Full package workflow artifact for downstream publish/VM jobs
+        description: Upload the complete Full output bundle for a downstream publisher; VM uses the DMG-only artifact
         required: false
         default: false
         type: boolean
