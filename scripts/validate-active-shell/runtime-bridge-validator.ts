@@ -764,13 +764,33 @@ function validatePackageReadinessProjection(runtimeBridge) {
   );
   assertIncludesAll(
     packageRow?.allowed_action_refs,
-    ['repair_dependency_closure'],
-    'Runtime bridge dependency closure repair action',
+    ['repair_dependency_closure', 'agent_package_activate'],
+    'Runtime bridge package repair and activation actions',
   );
   assertDeepEqualJson(
     packageRow?.required_projection_fields?.['status_index.packages[package_id]'],
-    ['dependency_readiness', 'operational_ready', 'launch_allowed', 'launch_blocked_reason', 'allowed_when_blocked', 'repair_action', 'dependent_guard'],
+    ['dependency_readiness', 'operational_ready', 'launch_allowed', 'launch_blocked_reason', 'allowed_when_blocked', 'repair_action', 'activation_action', 'dependent_guard'],
     'Runtime bridge package status readiness fields',
+  );
+  assertDeepEqualJson(
+    packageRow?.use_boundary_activation_contract,
+    {
+      action_id: 'agent_package_activate',
+      action_route: 'opl app action execute --action agent_package_activate --payload <json> --json',
+      trigger: 'before_every_installed_package_workspace_or_quest_launch',
+      payload_fields: ['package_id', 'scope', 'target_workspace', 'target_quest', 'use_boundary_id'],
+      scope_values: ['workspace', 'quest'],
+      scope_target_policy: {
+        workspace: 'target_workspace_required_target_quest_forbidden',
+        quest: 'target_quest_required_target_workspace_forbidden',
+      },
+      result_fields: ['launch_allowed', 'use_receipt_ref', 'use_binding'],
+      launch_policy: 'launch_only_when_launch_allowed_true_and_use_receipt_ref_and_use_binding_are_present',
+      currentness_policy: 'framework_reconciles_latest_compatible_package_closure_once_at_use_boundary_and_pins_use_binding_for_the_session',
+      package_identity_policy: 'generic_package_id_no_hardcoded_agent_or_capability_package_ids',
+      app_role: 'prepare_then_launch_using_framework_readback_without_owning_package_currentness_or_materialization',
+    },
+    'Runtime bridge package use-boundary activation contract',
   );
   if (
     !packageRow?.projection_authority_policy?.includes('must not infer dependency closure') ||

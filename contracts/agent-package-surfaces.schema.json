@@ -16,6 +16,15 @@
     },
     "package_lock_receipt": {
       "$ref": "#/$defs/package_lock_receipt"
+    },
+    "agent_package_activation_request": {
+      "$ref": "#/$defs/agent_package_activation_request"
+    },
+    "agent_package_activation_result": {
+      "$ref": "#/$defs/agent_package_activation_result"
+    },
+    "agent_package_activation_action": {
+      "$ref": "#/$defs/agent_package_activation_action"
     }
   },
   "$defs": {
@@ -26,6 +35,138 @@
         "minLength": 1
       },
       "uniqueItems": true
+    },
+    "agent_package_activation_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "package_id",
+        "scope",
+        "use_boundary_id"
+      ],
+      "properties": {
+        "package_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "scope": {
+          "type": "string",
+          "enum": ["workspace", "quest"]
+        },
+        "target_workspace": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target_quest": {
+          "type": "string",
+          "minLength": 1
+        },
+        "use_boundary_id": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "scope": {"const": "workspace"}
+            },
+            "required": ["scope"]
+          },
+          "then": {
+            "required": ["target_workspace"],
+            "not": {"required": ["target_quest"]}
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "scope": {"const": "quest"}
+            },
+            "required": ["scope"]
+          },
+          "then": {
+            "required": ["target_quest"],
+            "not": {"required": ["target_workspace"]}
+          }
+        }
+      ]
+    },
+    "agent_package_activation_result": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "launch_allowed",
+        "use_receipt_ref",
+        "use_binding"
+      ],
+      "properties": {
+        "launch_allowed": {
+          "type": "boolean"
+        },
+        "use_receipt_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "use_binding": {
+          "type": "object",
+          "minProperties": 1
+        }
+      }
+    },
+    "agent_package_activation_action": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "action_id",
+        "command_ref",
+        "enabled",
+        "preparation_status",
+        "reason_code"
+      ],
+      "properties": {
+        "action_id": {
+          "const": "agent_package_activate"
+        },
+        "command_ref": {
+          "const": "opl app action execute --action agent_package_activate --payload <json> --json"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "preparation_status": {
+          "type": "string",
+          "enum": ["not_installed", "prepare_required", "ready"]
+        },
+        "reason_code": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "enabled": {"const": false},
+            "preparation_status": {"const": "not_installed"},
+            "reason_code": {"const": "package_not_installed"}
+          }
+        },
+        {
+          "properties": {
+            "enabled": {"const": true},
+            "preparation_status": {"const": "prepare_required"},
+            "reason_code": {"const": "scope_reconciliation_required"}
+          }
+        },
+        {
+          "properties": {
+            "enabled": {"const": true},
+            "preparation_status": {"const": "ready"},
+            "reason_code": {"const": "use_boundary_reconciliation_ready"}
+          }
+        }
+      ]
     },
     "agent_package_manifest": {
       "type": "object",

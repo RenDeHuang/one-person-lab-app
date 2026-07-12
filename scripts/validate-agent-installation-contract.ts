@@ -51,6 +51,7 @@ const expectedPackageLifecycleActions = [
   'install_from_manifest_url',
   'agent_package_update',
   'agent_package_repair',
+  'agent_package_activate',
   'agent_package_uninstall',
   'agent_package_preferences_set',
 ];
@@ -196,6 +197,32 @@ const expectedAtomicPackageUnitIncludes = [
   'bundled_required_skill_entries',
   'optional_companion_skill_refs',
 ];
+const expectedActivationPolicy = {
+  action_id: 'agent_package_activate',
+  action_route: 'opl app action execute --action agent_package_activate --payload <json> --json',
+  trigger: 'before_every_installed_package_workspace_or_quest_launch',
+  payload_fields: ['package_id', 'scope', 'target_workspace', 'target_quest', 'use_boundary_id'],
+  scope_values: ['workspace', 'quest'],
+  scope_target_policy: {
+    workspace: 'target_workspace_required_target_quest_forbidden',
+    quest: 'target_quest_required_target_workspace_forbidden',
+  },
+  result_fields: ['launch_allowed', 'use_receipt_ref', 'use_binding'],
+  launch_policy: 'launch_only_when_launch_allowed_true_and_use_receipt_ref_and_use_binding_are_present',
+  currentness_policy: 'framework_reconciles_latest_compatible_package_closure_once_at_use_boundary_and_pins_use_binding_for_the_session',
+  package_identity_policy: 'generic_package_id_no_hardcoded_agent_or_capability_package_ids',
+  app_role: 'prepare_then_launch_using_framework_readback_without_owning_package_currentness_or_materialization',
+};
+const expectedActivationRequestRequiredFields = ['package_id', 'scope', 'use_boundary_id'];
+const expectedActivationResultRequiredFields = ['launch_allowed', 'use_receipt_ref', 'use_binding'];
+const expectedActivationActionRequiredFields = [
+  'action_id',
+  'command_ref',
+  'enabled',
+  'preparation_status',
+  'reason_code',
+];
+const expectedActivationPreparationStatuses = ['not_installed', 'prepare_required', 'ready'];
 
 function readJson(filePath: string): any {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));
@@ -208,6 +235,12 @@ function fail(message: string): never {
 
 function assertEqual(actual: unknown, expected: unknown, label: string): void {
   if (actual !== expected) {
+    fail(`${label} expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+  }
+}
+
+function assertJsonEqual(actual: unknown, expected: unknown, label: string): void {
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
     fail(`${label} expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
   }
 }
@@ -422,6 +455,11 @@ function validateContract(
   validatePublicAbi(policy, packageJson);
   const contract = validateAgentInstallationContract(policy);
   validateAgentPackageSurfaceSchema(contract, registry, agentPackageSurfaceSchema);
+  assertJsonEqual(
+    profile.gui?.agent_package_activation_policy,
+    expectedActivationPolicy,
+    'profile package activation policy',
+  );
   validateAgentRegistryPolicy(contract, profile, registry);
   validateFirstPartyManifestFixtures(profile, registry, agentPackageSurfaceSchema);
   validateManagedAgentPackDistribution(contract);
@@ -563,6 +601,50 @@ function validateAgentPackageSurfaceSchema(contract: any, registry: any, schema:
     schemaDef(schema, 'package_lock_receipt').required,
     expectedPackageLockReceiptFields,
     'package lock receipt schema required fields',
+  );
+  const activationRequest = schemaDef(schema, 'agent_package_activation_request');
+  assertArrayEqual(
+    activationRequest.required,
+    expectedActivationRequestRequiredFields,
+    'agent package activation request required fields',
+  );
+  assertArrayEqual(
+    activationRequest.properties?.scope?.enum,
+    expectedActivationPolicy.scope_values,
+    'agent package activation request scope values',
+  );
+  assertEqual(activationRequest.allOf?.length, 2, 'agent package activation request conditional target count');
+  assertJsonEqual(
+    activationRequest.allOf?.map((condition: any) => ({
+      scope: condition?.if?.properties?.scope?.const,
+      required: condition?.then?.required,
+      forbidden: condition?.then?.not?.required,
+    })),
+    [
+      { scope: 'workspace', required: ['target_workspace'], forbidden: ['target_quest'] },
+      { scope: 'quest', required: ['target_quest'], forbidden: ['target_workspace'] },
+    ],
+    'agent package activation request scope targets',
+  );
+  const activationResult = schemaDef(schema, 'agent_package_activation_result');
+  assertArrayEqual(
+    activationResult.required,
+    expectedActivationResultRequiredFields,
+    'agent package activation result required fields',
+  );
+  assertEqual(activationResult.properties?.launch_allowed?.type, 'boolean', 'agent package activation result launch gate');
+  assertEqual(activationResult.properties?.use_binding?.type, 'object', 'agent package activation result use binding');
+  const activationAction = schemaDef(schema, 'agent_package_activation_action');
+  assertArrayEqual(
+    activationAction.required,
+    expectedActivationActionRequiredFields,
+    'agent package activation action required fields',
+  );
+  assertEqual(activationAction.properties?.action_id?.const, 'agent_package_activate', 'agent package activation action id');
+  assertArrayEqual(
+    activationAction.properties?.preparation_status?.enum,
+    expectedActivationPreparationStatuses,
+    'agent package activation preparation statuses',
   );
   assertEqual(
     contract.agent_registry_policy.manifest_schema_ref,
@@ -831,6 +913,13 @@ function validatePackageManagerLifecycle(contract: any): void {
     home_shortcut_preferences_readback: 'opl packages list/status#home_shortcut_preferences',
   }, 'package manager lifecycle');
   assertArrayEqual(lifecycle?.actions, expectedPackageLifecycleActions, 'package manager lifecycle actions');
+  assertJsonEqual(lifecycle?.activation_contract, expectedActivationPolicy, 'package manager lifecycle activation contract');
+  const activationContractJson = JSON.stringify(lifecycle?.activation_contract);
+  for (const agentId of expectedRequiredAgentIds) {
+    if (activationContractJson.includes(agentId)) {
+      fail(`package manager lifecycle activation contract must remain generic, found ${agentId}`);
+    }
+  }
   assertFieldsEqual(lifecycle?.automatic_apply_policy, {
     cadence: 'daily_after_core_ready_and_app_startup_check',
     user_visible_channel: 'latest',
@@ -990,7 +1079,10 @@ function validateManagedAgentPackDistribution(contract: any): void {
     user_visible_channels: ['latest'],
     package_agent_ids: expectedRequiredAgentIds,
     package_ids: [...expectedRequiredAgentIds, 'opl-flow'],
-    activation_commands: ['opl connect reconcile-modules', 'opl connect sync-skills'],
+    activation_commands: [
+      'opl packages activate <package_id> --scope workspace --target-workspace <path>',
+      'opl packages activate <package_id> --scope quest --target-quest <path>',
+    ],
     first_party_distribution_payload_required_fields: expectedFirstPartyDistributionPayloadFields,
     fallback_source_order: [
       'bundled_full_runtime_modules',
@@ -1156,6 +1248,7 @@ console.log(JSON.stringify({
   registry_packages: expectedRegistryPackageIds,
   registry_source_kinds: expectedRegistrySourceKinds,
   package_lifecycle_actions: expectedPackageLifecycleActions,
+  package_activation_action: expectedActivationPolicy.action_id,
   package_lock_receipt_fields: expectedPackageLockReceiptFields,
   agent_package_surface_schema: path.relative(appRoot, agentPackageSurfaceSchemaPath),
   agent_package_manifest_fixture_dir: path.relative(appRoot, agentPackageManifestFixtureDir),

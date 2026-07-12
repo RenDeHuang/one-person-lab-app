@@ -314,7 +314,7 @@ test('App contracts require one generic package use-boundary activation before l
   assert.deepEqual(guiProduct.agent_package_activation_policy, expectedActivationPolicy);
   assert.deepEqual(productProfile.gui.agent_package_activation_policy, expectedActivationPolicy);
   assert.deepEqual(
-    pageState.pages.find((page: { id: string }) => page.id === 'guid').home_view_model.agent_package_activation_policy,
+    pageState.pages.find((page: { id: string }) => page.id === 'guid_home').home_view_model.agent_package_activation_policy,
     expectedActivationPolicy,
   );
 
@@ -383,7 +383,7 @@ test('App contracts require one generic package use-boundary activation before l
     (action: { action_id: string }) => action.action_id === 'agent_package_activate',
   );
   assert.deepEqual(fixtureAction.payload_fields, expectedActivationPolicy.payload_fields);
-  assert.equal(JSON.stringify(fastFixture).includes('settings_reload_codex_surface'), false);
+  assert.equal(JSON.stringify(fixtureAction).includes('settings_reload_codex_surface'), false);
   assert.equal(JSON.stringify(expectedActivationPolicy).includes('med-autoscience'), false);
   assert.equal(JSON.stringify(expectedActivationPolicy).includes('mas-scholar-skills'), false);
 });

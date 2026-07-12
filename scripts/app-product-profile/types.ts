@@ -248,6 +248,22 @@ export type AppProductProfile = {
       must_not_govern: string[];
       must_not_depend_on_visible_backend_selection: boolean;
     };
+    agent_package_activation_policy: {
+      action_id: string;
+      action_route: string;
+      trigger: string;
+      payload_fields: string[];
+      scope_values: string[];
+      scope_target_policy: {
+        workspace: string;
+        quest: string;
+      };
+      result_fields: string[];
+      launch_policy: string;
+      currentness_policy: string;
+      package_identity_policy: string;
+      app_role: string;
+    };
     builtin_assistant_route_receipt_policy: {
       migration_alias_for: string;
       scope: string;

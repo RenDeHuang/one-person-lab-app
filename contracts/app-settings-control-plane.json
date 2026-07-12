@@ -870,6 +870,7 @@
           "canonical_projection": "opl app state --profile fast --json#app_state.agent_packages.directory + app_state.agent_packages.status_index",
           "legacy_fallback_projection": "opl app state --profile fast --json#app_state.modules.items[] + home_agent_shortcuts + app_state.operator.workbench.task_drilldowns",
           "normalization_policy": "shell must prefer canonical agent_packages projection and only fall back to modules.items when older runtime payloads or partial projections are still in circulation",
+          "activation_action_contract_ref": "contracts/app-gui-product-contract.json#pages.settings_capabilities.agent_package_lifecycle_ux.package_projection_contract.activation_preparation_policy",
           "status_model": {
             "policy": "multi_axis_package_status_no_single_repair_bucket",
             "axes": [
@@ -880,7 +881,8 @@
               "codex_surface_state",
               "dependency_readiness",
               "operational_ready",
-              "launch_allowed"
+              "launch_allowed",
+              "activation_action"
             ],
             "developer_source_policy": "developer checkout semantics must surface explicitly and must not collapse into a generic repair bucket",
             "must_not_collapse": [
@@ -903,6 +905,7 @@
               "launch_blocked_reason",
               "allowed_when_blocked",
               "repair_action",
+              "activation_action",
               "dependent_guard",
               "dependency_closure",
               "physical_surface",

@@ -379,7 +379,10 @@ function validateManagedAgentPackDistribution(modulePackageDistribution) {
   );
   assertIncludesAll(
     modulePackageDistribution.activation_commands,
-    ['opl connect reconcile-modules', 'opl connect sync-skills'],
+    [
+      'opl packages activate <package_id> --scope workspace --target-workspace <path>',
+      'opl packages activate <package_id> --scope quest --target-quest <path>',
+    ],
     'Install exposure capability package distribution activation commands',
   );
   assertDeepEqualJson(

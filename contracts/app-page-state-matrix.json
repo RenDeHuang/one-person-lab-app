@@ -62,6 +62,22 @@
         "refresh_source": "opl app state --profile fast --json",
         "executor_policy_ref": "contracts/app-gui-product-contract.json#executor_policy",
         "agent_package_source_ref": "contracts/app-gui-product-contract.json#professional_agent_packages",
+        "agent_package_activation_policy": {
+          "action_id": "agent_package_activate",
+          "action_route": "opl app action execute --action agent_package_activate --payload <json> --json",
+          "trigger": "before_every_installed_package_workspace_or_quest_launch",
+          "payload_fields": ["package_id", "scope", "target_workspace", "target_quest", "use_boundary_id"],
+          "scope_values": ["workspace", "quest"],
+          "scope_target_policy": {
+            "workspace": "target_workspace_required_target_quest_forbidden",
+            "quest": "target_quest_required_target_workspace_forbidden"
+          },
+          "result_fields": ["launch_allowed", "use_receipt_ref", "use_binding"],
+          "launch_policy": "launch_only_when_launch_allowed_true_and_use_receipt_ref_and_use_binding_are_present",
+          "currentness_policy": "framework_reconciles_latest_compatible_package_closure_once_at_use_boundary_and_pins_use_binding_for_the_session",
+          "package_identity_policy": "generic_package_id_no_hardcoded_agent_or_capability_package_ids",
+          "app_role": "prepare_then_launch_using_framework_readback_without_owning_package_currentness_or_materialization"
+        },
         "home_agent_shortcut_source_ref": "contracts/app-gui-product-contract.json#home_agent_shortcuts",
         "agent_package_skill_source_ref": "contracts/app-gui-product-contract.json#professional_agent_packages.required_skill_ids + optional_skill_ids",
         "assistant_source_ref": "contracts/app-gui-product-contract.json#default_assistants",
@@ -2990,6 +3006,7 @@
           "launch_allowed",
           "launch_blocked_reason",
           "allowed_when_blocked",
+          "activation_action.reason_code",
           "dependent_guard.disable.reason_code",
           "dependent_guard.uninstall.reason_code"
         ],
@@ -3008,7 +3025,26 @@
             "launch_blocked_reason": "null_or_string",
             "allowed_when_blocked": ["status", "doctor", "repair"],
             "repair_action": ["action_id", "command_ref", "enabled", "reason_code"],
+            "activation_action": ["action_id", "command_ref", "enabled", "preparation_status", "reason_code"],
             "dependent_guard": ["required_by_package_ids", "disable.allowed", "disable.reason_code", "uninstall.allowed", "uninstall.reason_code"]
+          },
+          "activation_preparation_status_values": ["not_installed", "prepare_required", "ready"],
+          "activation_preparation_policy": {
+            "package_not_installed": {
+              "preparation_status": "not_installed",
+              "enabled": false,
+              "reason_code": "package_not_installed"
+            },
+            "installed_scope_stale": {
+              "preparation_status": "prepare_required",
+              "enabled": true,
+              "reason_code": "scope_reconciliation_required"
+            },
+            "installed_scope_current": {
+              "preparation_status": "ready",
+              "enabled": true,
+              "reason_code": "use_boundary_reconciliation_ready"
+            }
           },
           "repair_action_id": "repair_dependency_closure",
           "launch_gate_policy": "operational_ready_false_requires_launch_allowed_false_and_only_status_doctor_repair_remain_allowed",

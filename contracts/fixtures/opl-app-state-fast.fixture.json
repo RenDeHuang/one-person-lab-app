@@ -83,6 +83,13 @@
               "enabled": false,
               "reason_code": "dependency_closure_ready"
             },
+            "activation_action": {
+              "action_id": "agent_package_activate",
+              "command_ref": "opl app action execute --action agent_package_activate --payload <json> --json",
+              "enabled": true,
+              "preparation_status": "ready",
+              "reason_code": "use_boundary_reconciliation_ready"
+            },
             "dependent_guard": {
               "required_by_package_ids": [],
               "disable": {"allowed": true, "reason_code": null},
@@ -1174,6 +1181,19 @@
       }
     },
     "actions": [
+      {
+        "action_id": "agent_package_activate",
+        "label": "Prepare package for launch",
+        "surface": "opl app action execute",
+        "delegated_surface": "opl app action execute --action agent_package_activate --payload <json> --json",
+        "payload_fields": ["package_id", "scope", "target_workspace", "target_quest", "use_boundary_id"],
+        "result_fields": ["launch_allowed", "use_receipt_ref", "use_binding"],
+        "mutates": "framework_owned_package_scope_reconciliation_with_receipt",
+        "owner": "opl_framework",
+        "submit_via": "opl app action execute",
+        "execution_policy": "framework_owned_package_use_boundary_activation",
+        "route": "opl app action execute --action agent_package_activate --payload <json> --json"
+      },
       {
         "action_id": "provider_scheduler_status",
         "label": "Read Temporal scheduler status",

@@ -2241,10 +2241,12 @@ function validateSettingsCapabilitiesDirectoryProjection(capabilitiesPage) {
   }
   if (
     directory.normalization_policy !==
-    "shell must prefer canonical agent_packages projection and only fall back to modules.items when older runtime payloads or partial projections are still in circulation"
+      "shell must prefer canonical agent_packages projection and only fall back to modules.items when older runtime payloads or partial projections are still in circulation" ||
+    directory.activation_action_contract_ref !==
+      "contracts/app-gui-product-contract.json#pages.settings_capabilities.agent_package_lifecycle_ux.package_projection_contract.activation_preparation_policy"
   ) {
     throw new Error(
-      "Settings Capabilities directory projection must explain canonical projection preference and legacy fallback",
+      "Settings Capabilities directory projection must explain canonical projection preference, legacy fallback, and package activation action",
     );
   }
   const statusModel = directory.status_model;
@@ -2266,6 +2268,7 @@ function validateSettingsCapabilitiesDirectoryProjection(capabilitiesPage) {
       "dependency_readiness",
       "operational_ready",
       "launch_allowed",
+      "activation_action",
     ],
     "Settings Capabilities status axes",
   );
@@ -2308,6 +2311,7 @@ function validateSettingsCapabilitiesDirectoryProjection(capabilitiesPage) {
       "launch_blocked_reason",
       "allowed_when_blocked",
       "repair_action",
+      "activation_action",
       "dependent_guard",
       "dependency_closure",
       "physical_surface",
