@@ -347,6 +347,10 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: node --experimental-strip-types scripts/prepare-standard-release-payload.ts
 
+      - name: Validate synced App product profile consumer
+        working-directory: shells/aionui
+        run: bunx vitest run tests/unit/common-config/oplProductProfile.test.ts
+
       - name: Setup Windows native dependencies (Windows only)
         if: startsWith(matrix.platform, 'windows')
         run: bun install --global node-gyp

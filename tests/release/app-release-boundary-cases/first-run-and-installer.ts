@@ -66,6 +66,19 @@ test('one-shot App installer boundary is enforced by release-boundary checks', (
   assert.equal(fs.existsSync(path.join(appRoot, 'install-free.sh')), false);
 });
 
+test('reusable build validates the Shell consumer after syncing the App product profile', () => {
+  const workflow = fs.readFileSync(path.join(appRoot, '.github/workflows/_build-reusable.yml'), 'utf8');
+  const syncStep = workflow.indexOf('- name: Prepare standard App payload');
+  const consumerGate = workflow.indexOf('- name: Validate synced App product profile consumer');
+
+  assert.ok(syncStep >= 0, 'missing App product profile sync step');
+  assert.ok(consumerGate > syncStep, 'Shell profile consumer gate must run after App product profile sync');
+  assert.match(
+    workflow.slice(consumerGate),
+    /bunx vitest run tests\/unit\/common-config\/oplProductProfile\.test\.ts/,
+  );
+});
+
 test('one-shot App installer defaults to the shared base plus optional GUI without Agents', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-installer-args-'));
   const fakeCurl = path.join(tempRoot, 'curl');
