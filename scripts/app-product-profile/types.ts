@@ -68,8 +68,6 @@ export type AppProductProfile = {
         default_reasoning_effort: string;
         auto_option_current_resolution_visible: boolean;
         model_menu_policy: string;
-        intelligence_enhancement_menu_policy: string;
-        intelligence_enhancement_default_enabled: boolean;
         auto_option: {
           id: string;
           label_zh: string;
@@ -263,6 +261,7 @@ export type AppProductProfile = {
     ordinary_capability_selector_policy: {
       scope: string;
       authority: string;
+      recommendation_authority: string;
       skill_source_ref: string;
       skill_menu_policy: string;
       conversation_loaded_skill_display_policy: string;
@@ -337,6 +336,8 @@ export type AppProductProfile = {
     default_reasoning_effort: string;
     auto_model_policy: {
       authority: string;
+      policy_source_ref: string;
+      app_role: string;
       configured_default: {
         model: string;
         reasoning_effort: string;
@@ -374,33 +375,13 @@ export type AppProductProfile = {
     opl_flow_context: {
       flow_id: string;
       source: string;
+      policy_source_ref: string;
       delivery: string;
       user_agents_policy: string;
       language_policy: string;
-      optional_user_modes?: {
-        intelligence_enhancement?: {
-          id: string;
-          settings_key: string;
-          label_key: string;
-          description_key: string;
-          provider: string;
-          local_proxy_base_url: string;
-          upstream_policy: string;
-          behavior_policy: string;
-          service_policy: string;
-          required_opl_package_id: string;
-          required_opl_package_kind: string;
-          required_opl_package_preflight_actions: string[];
-          required_opl_package_install_command: string;
-          profile_mutation_policy: string;
-          default_enabled: boolean;
-          status_action_id: string;
-          enable_action_id: string;
-          disable_action_id: string;
-          repair_action_id: string;
-          uninstall_action_id: string;
-        };
-      };
+      app_role: string;
+      dependency_policy: string;
+      migration_policy: string;
     };
     default_visible_skills: string[];
     skill_priority: string[];
@@ -615,8 +596,9 @@ export type AppProductProfile = {
       exposure: string;
     };
     default_packaged_codex_skill_ids: string[];
-    packaged_not_default_visible_codex_skill_ids: string[];
-    companion_skill_sync_default_ids: string[];
+    additional_package_skill_ids: string[];
+    opl_flow_dependency_policy_ref: string;
+    full_dependency_closure_policy: string;
     domain_plugin_skill_ids: string[];
     domain_plugin_skills_must_not_be_companion_mirrors: boolean;
     domain_exposure: Array<{

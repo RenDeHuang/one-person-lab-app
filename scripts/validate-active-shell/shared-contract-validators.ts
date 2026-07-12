@@ -16,8 +16,6 @@ import {
   workItemDetailTabs,
   workItemProjectionRequiredFields,
 } from "./app-contract-constants.ts";
-import { assertOplFlowIntelligenceEnhancementMode } from "../app-product-profile-shared-validators.ts";
-
 function assertNonEmptyString(value, label) {
   if (typeof value !== "string" || !value.trim()) {
     throw new Error(`${label} must be a non-empty string`);
@@ -2134,66 +2132,20 @@ export function validateOplFlowContext(context, label) {
   }
   for (const [field, expected] of Object.entries({
     flow_id: "opl-flow",
-    delivery: "session_scoped_preset_context",
+    source: "opl-flow-package-policy",
+    policy_source_ref: "gaofeng21cn/opl-flow:contracts/workflow-policy.json",
+    delivery: "package_installed_profile_and_session_context",
     user_agents_policy: "respect_user_agents_no_overwrite_detect_conflicts",
     language_policy: "follow_ui_locale_zh_only_when_ui_zh",
+    app_role: "show_package_state_progress_and_user_overrides",
+    dependency_policy: "full_bundles_opl_flow_requires_and_recommends_closure",
+    migration_policy: "framework_executes_conflict_retirement_with_backup_receipt_and_rollback",
   })) {
     if (context[field] !== expected) {
       throw new Error(`${label}.${field} must be ${expected}`);
     }
   }
-  const ponytailRouting = context.ponytail_mode_routing;
-  if (
-    ponytailRouting?.default_mode !== "lite" ||
-    ponytailRouting.development_task_mode !== "full" ||
-    ponytailRouting.deletion_slimming_mode !== "ultra" ||
-    ponytailRouting.ultra_execution_policy !==
-      "candidate_list_and_risk_order_first_execute_only_when_explicit"
-  ) {
-    throw new Error(`${label} must declare balanced Ponytail lite/full/ultra routing`);
+  for (const retiredField of ["ponytail_mode_routing", "optional_user_modes"]) {
+    if (retiredField in context) throw new Error(`${label} must not retain ${retiredField}`);
   }
-  assertIncludesAll(
-    ponytailRouting.development_task_triggers,
-    [
-      "feature_implementation",
-      "bug_fix",
-      "refactor",
-      "config_change",
-      "script_change",
-      "test_change",
-      "pr_or_diff_review",
-      "worktree_lane_absorption",
-    ],
-    `${label}.ponytail_mode_routing.development_task_triggers`,
-  );
-  assertIncludesAll(
-    ponytailRouting.deletion_slimming_triggers,
-    [
-      "delete",
-      "slimming",
-      "over_engineering_audit",
-      "remove_wrapper",
-      "historical_residue_cleanup",
-      "yagni_audit",
-      "ponytail-audit",
-    ],
-    `${label}.ponytail_mode_routing.deletion_slimming_triggers`,
-  );
-  assertIncludesAll(
-    ponytailRouting.non_override_guards,
-    [
-      "codex-ops-kit",
-      "debugger",
-      "verifier",
-      "fresh evidence",
-      "owner route",
-      "completion audit",
-      "runtime/readiness/currentness evidence",
-    ],
-    `${label}.ponytail_mode_routing.non_override_guards`,
-  );
-  assertOplFlowIntelligenceEnhancementMode(
-    context.optional_user_modes?.intelligence_enhancement,
-    label,
-  );
 }

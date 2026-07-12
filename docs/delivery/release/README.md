@@ -598,13 +598,6 @@ The standard updater updates OPL App only. It does not mutate OPL Base, OPL
 Packages, developer checkouts, WebUI images, Homebrew Formula/global tools,
 user artifacts, or domain readiness.
 
-Intelligence Enhancement is the exception to the old mental split of "App updated
-but OPL Flow may be stale": the action path treats OPL Flow as the standard OPL
-Package `opl-flow` before it reports status, enables CodexCont, or repairs the
-local proxy service. That preflight is payload-only and uses OPL Flow's
-non-overwrite installer path; it does not authorize semantic profile changes or
-standard updater ownership of OPL Flow.
-
 ## Managed Update Plane
 
 The managed update plane is App consumption of the Framework runner, not an App implementation of the update kernel. The App reads:

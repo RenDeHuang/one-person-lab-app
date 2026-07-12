@@ -87,7 +87,6 @@ const agentPackageReceiptRequiredFields = [
   'required_skill_ids',
   'source',
 ];
-const oplFlowPayloadPreflightActions = ['status', 'enable', 'repair'];
 const expectedCodexVisibleModels = [
   { id: 'gpt-5.6-sol', label_zh: '5.6 Sol', label_en: '5.6 Sol' },
   { id: 'gpt-5.6-terra', label_zh: '5.6 Terra', label_en: '5.6 Terra' },
@@ -121,8 +120,6 @@ type ProfessionalAgentPackageLike = {
   default_home_visible?: unknown;
   home_shortcut_ids?: unknown[];
 };
-type OplFlowIntelligenceEnhancementModeLike = Record<string, unknown> | undefined;
-
 function assertExactStringArray(actual: unknown, expected: string[], label: string): void {
   if (JSON.stringify(actual) !== JSON.stringify(expected)) {
     throw new Error(`${label} must be ${JSON.stringify(expected)}`);
@@ -167,36 +164,6 @@ export function assertProfessionalAgentPackagePolicy(
     )) {
       throw new Error(`${label} must keep OMA installed/manageable, hidden by default, and configurable from Home shortcuts`);
     }
-  }
-}
-
-export function assertOplFlowIntelligenceEnhancementMode(
-  mode: OplFlowIntelligenceEnhancementModeLike,
-  label: string,
-): void {
-  if (
-    mode?.id !== 'intelligence_enhancement' ||
-    mode.settings_key !== 'codex.oplFlowIntelligenceEnhancementMode' ||
-    mode.label_key !== 'settings.oplFlowIntelligenceEnhancementMode' ||
-    mode.description_key !== 'settings.oplFlowIntelligenceEnhancementModeDesc' ||
-    mode.provider !== 'codexcont' ||
-    mode.local_proxy_base_url !== 'http://127.0.0.1:8787/v1' ||
-    mode.upstream_policy !== 'preserve_current_codex_provider_via_local_responses_proxy' ||
-    mode.behavior_policy !== 'local_proxy_reasoning_continuation_no_prompt_injection_no_quick_action' ||
-    mode.service_policy !== 'opl_flow_managed_persistent_service_macos_launch_agent_linux_systemd_user_docker_startup_repair' ||
-    mode.required_opl_package_id !== 'opl-flow' ||
-    mode.required_opl_package_kind !== 'workflow_plugin_package' ||
-    JSON.stringify(mode.required_opl_package_preflight_actions) !== JSON.stringify(oplFlowPayloadPreflightActions) ||
-    mode.required_opl_package_install_command !== 'python3 scripts/install_local_plugin.py' ||
-    mode.profile_mutation_policy !== 'semantic_merge_packet_only_no_silent_overwrite' ||
-    mode.default_enabled !== false ||
-    mode.status_action_id !== 'intelligence_enhancement_status' ||
-    mode.enable_action_id !== 'intelligence_enhancement_enable' ||
-    mode.disable_action_id !== 'intelligence_enhancement_disable' ||
-    mode.repair_action_id !== 'intelligence_enhancement_repair' ||
-    mode.uninstall_action_id !== 'intelligence_enhancement_uninstall'
-  ) {
-    throw new Error(`${label} must declare the OPL Flow intelligence enhancement mode`);
   }
 }
 
@@ -254,7 +221,7 @@ function assertHomeCodexFixedExecutorFields(
       { actual: home?.codex_home_model_status_label, expected: '5.6 Sol' },
       {
         actual: home?.codex_precise_model_display_policy,
-        expected: 'friendly_model_primary_reasoning_primary_model_and_intelligence_secondary_menus',
+        expected: 'friendly_model_primary_reasoning_primary_model_secondary_menu',
       },
     ],
     `${label} GUI home must keep Codex CLI fixed while exposing App-owned model selectors`,
@@ -391,7 +358,7 @@ function assertHomeCodexAutoSelectionPolicy(
       { actual: autoSelection?.user_can_override_reasoning_effort, expected: true },
       { actual: autoSelection?.user_can_restore_auto, expected: true },
     ],
-    `${label} GUI home must expose App-owned Codex model selection on the home path`,
+    `${label} GUI home must expose the OPL Flow model projection and user override on the home path`,
   );
   if (options.requireSelectionPersistence && autoSelection?.selection_persists_into_conversation !== true) {
     throw new Error(`${label} GUI home Codex model selection must persist into conversation`);
@@ -416,6 +383,9 @@ function assertCodexAutoModelPolicy(
   assertExpectedFields(
     [
       { actual: policy?.authority, expected: 'one-person-lab-app' },
+      { actual: policy?.recommendation_authority, expected: 'opl-flow' },
+      { actual: policy?.policy_source_ref, expected: 'gaofeng21cn/opl-flow:contracts/workflow-policy.json#codex_model_policy' },
+      { actual: policy?.app_role, expected: 'display_live_catalog_and_submit_user_override' },
       { actual: policy?.mode_default, expected: 'auto' },
       { actual: policy?.model_catalog_source, expected: 'codex_cli_model_list' },
       { actual: policy?.catalog_response_models_field, expected: 'data' },
@@ -483,7 +453,7 @@ function assertCodexModelDisplayShape(
     [
       {
         actual: displayOptions?.display_policy,
-        expected: 'friendly_model_name_primary_reasoning_primary_model_and_intelligence_secondary_menus',
+        expected: 'friendly_model_name_primary_reasoning_primary_model_secondary_menu',
       },
       {
         actual: displayOptions?.button_label_policy,
@@ -499,11 +469,6 @@ function assertCodexModelDisplayShape(
       { actual: displayOptions?.default_reasoning_effort, expected: profile.codex?.default_reasoning_effort },
       { actual: displayOptions?.auto_option_current_resolution_visible, expected: true },
       { actual: displayOptions?.model_menu_policy, expected: 'current_model_secondary_submenu' },
-      {
-        actual: displayOptions?.intelligence_enhancement_menu_policy,
-        expected: 'default_off_secondary_submenu_with_enable_disable_actions',
-      },
-      { actual: displayOptions?.intelligence_enhancement_default_enabled, expected: false },
       { actual: auto?.label_zh, expected: '自动（推荐）' },
       { actual: auto?.label_en, expected: 'Auto (recommended)' },
       { actual: auto?.catalog_unavailable_fallback_model, expected: profile.codex?.default_model },

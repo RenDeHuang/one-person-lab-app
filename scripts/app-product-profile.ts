@@ -11,7 +11,23 @@ export function formatCodexProfilePhrase(profile = readAppProductProfile()): str
 }
 
 export function formatRecommendedCompanionSkills(profile = readAppProductProfile()): string {
-  return profile.companion_payloads.companion_skill_sync_default_ids.join(', ');
+  return profile.companion_payloads.opl_flow_dependency_policy_ref;
+}
+
+function buildShellCompatibilityProfile(profile = readAppProductProfile()): Record<string, any> {
+  const policyPath = process.env.OPL_FLOW_WORKFLOW_POLICY?.trim()
+    || path.resolve(appRoot, '..', 'opl-flow', 'contracts', 'workflow-policy.json');
+  const policy = JSON.parse(fs.readFileSync(policyPath, 'utf8'));
+  const flowSkillIds = [...(policy.requires ?? []), ...(policy.recommends ?? [])]
+    .filter((entry) => entry.kind === 'codex_skill' && entry.offline_bundle === 'full')
+    .map((entry) => entry.id);
+  const projected = structuredClone(profile) as Record<string, any>;
+  projected.companion_payloads.packaged_not_default_visible_codex_skill_ids = [
+    ...profile.companion_payloads.additional_package_skill_ids,
+    ...flowSkillIds,
+  ];
+  projected.companion_payloads.companion_skill_sync_default_ids = flowSkillIds;
+  return projected;
 }
 
 export function syncAppProductProfileToShell(
@@ -26,8 +42,9 @@ export function syncAppProductProfileToShell(
   }
 
   const profile = readAppProductProfile();
+  const shellProfile = buildShellCompatibilityProfile(profile);
   fs.mkdirSync(path.dirname(targetPath), { recursive: true });
-  fs.writeFileSync(targetPath, `${JSON.stringify(profile, null, 2)}\n`, 'utf8');
+  fs.writeFileSync(targetPath, `${JSON.stringify(shellProfile, null, 2)}\n`, 'utf8');
   const localOxfmt = path.join(shellRoot, 'node_modules', '.bin', 'oxfmt');
   if (fs.existsSync(localOxfmt)) {
     spawnSync(localOxfmt, [targetPath], { cwd: shellRoot, stdio: 'ignore' });

@@ -20,14 +20,13 @@ Being packaged does not make a capability default-visible.
 
 - A missing Codex config receives the current OPL provider, model, reasoning effort, and submitted Gateway credential.
 - An active provider that points to the direct OPL Gateway is OPL-managed regardless of its local provider alias. Auto-managed model and reasoning values follow the current App profile while unowned provider-table keys remain intact.
-- The CodexCont intelligence proxy URL is preserved only when an OPL Flow intelligence receipt or matching OPL config-management receipt proves ownership. A third-party provider named `gflab` is not OPL-managed by ID alone.
 - A user edit that differs from the last OPL-applied model or reasoning value becomes a local override and is preserved.
 - A non-OPL active provider remains active. OPL may register or refresh an inactive OPL Gateway provider entry without replacing the user's root provider, model, or reasoning values, and must choose a non-conflicting provider ID when `gflab` is already user-owned.
 - Every mutation creates a backup and an OPL-owned receipt with the managed keys, last applied values, route, and selection mode.
 
 ## OPL Flow
 
-`opl-flow` is a required Standard and Full workflow plugin. Intelligence enhancement is an optional, default-off feature of that installed plugin; users must explicitly enable it when needed.
+`opl-flow` is a required Standard and Full workflow plugin.
 
 The plugin keeps two separate skills:
 
@@ -36,12 +35,12 @@ The plugin keeps two separate skills:
 
 Existing user instructions are preserved outside managed marker blocks. Reusable algorithms stay in their owning skill instead of being repeated in `AGENTS.md`.
 
-## Companion Payloads
+## OPL Flow Dependency Projection
 
-- Superpowers is user-owned and is not packaged or auto-installed by OPL App.
-- OfficeCLI is packaged as one upstream-owned atomic release. Full resolves the latest stable release before publishing, then records the exact version, commit, and digest. All eight upstream skills stay owned by OfficeCLI and are task-routed rather than default-visible.
-- MinerU Document Extractor is packaged and task-routed for OCR, scans, complex PDF extraction, tables, and formulas.
-- UI UX Pro Max is packaged but exposed only for design, RCA, and frontend tasks.
+- OPL App does not own a companion skill list. Full reads OPL Flow `requires + recommends` and bundles only entries marked `offline_bundle=full`.
+- OfficeCLI remains one upstream-owned atomic release; MinerU and UI UX Pro Max remain independently owned, task-routed dependencies.
+- Superpowers, Ponytail, and CodexCont are manifest conflicts/retired surfaces. Framework owns backup, discovery removal, receipt, and rollback.
+- The App displays dependency state and accepts user overrides; Framework performs install/config mutation.
 - `cron` is not a skill payload. Scheduling belongs to the App automation surface.
 - OPL does not package or maintain a duplicate `pdf` skill. Official OpenAI Primary Runtime Documents, Presentations, Spreadsheets, and PDF capabilities are preferred and are never mirrored into OPL skill directories.
 
@@ -49,5 +48,5 @@ Existing user instructions are preserved outside managed marker blocks. Reusable
 
 - App contracts distinguish packaged, installed, task-routed, and default-visible state.
 - Full package assembly contains the complete OfficeCLI skill family but no `cron` or OPL-owned `pdf` skill.
-- Framework configuration tests cover new install, OPL direct route, intelligence proxy route, local override preservation, and non-OPL provider preservation.
+- Framework configuration tests cover new install, OPL direct route, local override preservation, and non-OPL provider preservation.
 - OPL Flow installation readback proves the plugin and all three skills are installed and enabled without overwriting unmanaged user instructions.

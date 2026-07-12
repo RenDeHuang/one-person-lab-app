@@ -76,18 +76,6 @@ const deferredMaintenanceItems = [
   'ecosystem_module_updates',
 ];
 const ecosystemModuleIds = ['officecli', 'mineru', 'opl-meta-agent'];
-const defaultCompanionSkillSyncIds = [
-  'officecli',
-  'officecli-docx',
-  'officecli-pptx',
-  'officecli-xlsx',
-  'officecli-academic-paper',
-  'officecli-data-dashboard',
-  'officecli-financial-model',
-  'officecli-pitch-deck',
-  'mineru-document-extractor',
-  'ui-ux-pro-max',
-];
 
 function validateProductProfileIdentity(profile) {
   assertAppProductProfileIdentity(profile, 'product profile');
@@ -253,7 +241,7 @@ function validateAssistantSkillProfiles(profile) {
   }
   const availableSkillIds = new Set([
     ...(profile.companion_payloads?.default_packaged_codex_skill_ids ?? []),
-    ...(profile.companion_payloads?.packaged_not_default_visible_codex_skill_ids ?? []),
+    ...(profile.companion_payloads?.additional_package_skill_ids ?? []),
     ...(profile.companion_payloads?.official_codex_runtime_capabilities?.preferred_capability_ids ?? []),
   ]);
   const requiredSkillByAssistantId = {
@@ -276,7 +264,7 @@ function validateAssistantSkillProfiles(profile) {
     if ('hidden_home_skill_names' in entry) {
       throw new Error(`Product profile assistant ${entry.assistant_id} must not carry UI hiding policy`);
     }
-    const unpackagedProfileSkills = [...(entry.required_skills ?? []), ...(entry.optional_skills ?? [])]
+    const unpackagedProfileSkills = [...(entry.required_skills ?? [])]
       .filter((skill) => !availableSkillIds.has(skill));
     if (unpackagedProfileSkills.length > 0) {
       throw new Error(
@@ -290,29 +278,16 @@ function validateProductProfileCodexSkills(profile) {
   if (!Array.isArray(profile.codex?.default_visible_skills)) {
     throw new Error('Product profile must declare default visible skills');
   }
-  for (const skillId of defaultCompanionSkillSyncIds) {
-    if (profile.codex.default_visible_skills.includes(skillId)) {
-      throw new Error(`Product profile companion skill ${skillId} must be task-routed rather than default visible`);
-    }
-  }
-  if (!Array.isArray(profile.companion_payloads?.packaged_not_default_visible_codex_skill_ids)) {
-    throw new Error('Product profile must declare packaged non-default-visible Codex skills');
-  }
-  for (const skillId of defaultCompanionSkillSyncIds) {
-    if (!profile.companion_payloads.packaged_not_default_visible_codex_skill_ids.includes(skillId)) {
-      throw new Error(`Product profile must package ${skillId} without default App visibility`);
-    }
-  }
   if (
-    !Array.isArray(profile.companion_payloads?.packaged_not_default_visible_codex_skill_ids) ||
-    !profile.companion_payloads.packaged_not_default_visible_codex_skill_ids.includes('opl-meta-agent')
+    !Array.isArray(profile.companion_payloads?.additional_package_skill_ids) ||
+    !profile.companion_payloads.additional_package_skill_ids.includes('opl-meta-agent')
   ) {
     throw new Error('Product profile must mark OPL Meta Agent as packaged but not default visible');
   }
   if (
     profile.codex.skill_priority.includes('morph-ppt') ||
     profile.companion_payloads.default_packaged_codex_skill_ids.includes('morph-ppt') ||
-    profile.companion_payloads.packaged_not_default_visible_codex_skill_ids.includes('morph-ppt')
+    profile.companion_payloads.additional_package_skill_ids.includes('morph-ppt')
   ) {
     throw new Error('Product profile must not include retired morph-ppt skill wiring');
   }
@@ -652,18 +627,16 @@ function validateCompanionPayloadAuthority(profile, installExposurePolicy) {
     ['med-autoscience', 'med-autogrant', 'redcube-ai'],
     'Product profile domain plugin skill ids',
   );
-  assertIncludesAll(
-    profile.companion_payloads?.companion_skill_sync_default_ids,
-    defaultCompanionSkillSyncIds,
-    'Product profile companion skill sync default ids',
-  );
+  if (
+    profile.companion_payloads?.opl_flow_dependency_policy_ref !==
+      'gaofeng21cn/opl-flow:contracts/workflow-policy.json#requires+recommends' ||
+    profile.companion_payloads?.full_dependency_closure_policy !==
+      'bundle_requires_and_recommends_with_offline_bundle_full'
+  ) {
+    throw new Error('Product profile must delegate companion dependencies to OPL Flow');
+  }
   if (profile.companion_payloads.domain_plugin_skills_must_not_be_companion_mirrors !== true) {
     throw new Error('Product profile domain plugin skills must not be companion skill mirrors');
-  }
-  for (const domainPluginId of profile.companion_payloads.domain_plugin_skill_ids ?? []) {
-    if (profile.companion_payloads.companion_skill_sync_default_ids?.includes(domainPluginId)) {
-      throw new Error(`Product profile companion skill sync defaults must not include domain plugin ${domainPluginId}`);
-    }
   }
   for (const { expected, entry } of expectedDomainExposureEntryMap(
     profile.companion_payloads?.domain_exposure,

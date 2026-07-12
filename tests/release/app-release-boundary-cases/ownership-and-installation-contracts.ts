@@ -1,5 +1,6 @@
 import {
   assert,
+  appRoot,
   fs,
   os,
   path,
@@ -9,6 +10,33 @@ import {
 } from './helpers.ts';
 import { validateInstallExposureRuntimeAndDistribution } from '../../../scripts/validate-active-shell/install-exposure-runtime-distribution-validator.ts';
 import { validateReleaseChannelContract } from '../../../scripts/validate-active-shell/release-contract-validator.ts';
+import {
+  packagedSkillCopyHandlers,
+  readOplFlowFullSkillDependencyClosure,
+} from '../../../scripts/build-full-first-install-package/skills.ts';
+
+test('App Full packages the OPL Flow offline skill closure without retired workflow plugins', () => {
+  const oplFlowRoot = path.resolve(appRoot, '..', 'opl-flow');
+  const closure = readOplFlowFullSkillDependencyClosure(oplFlowRoot);
+  const expected = [
+    'officecli',
+    'officecli-docx',
+    'officecli-pptx',
+    'officecli-xlsx',
+    'officecli-academic-paper',
+    'officecli-data-dashboard',
+    'officecli-financial-model',
+    'officecli-pitch-deck',
+    'mineru-document-extractor',
+    'ui-ux-pro-max',
+  ];
+
+  assert.deepEqual(closure, expected);
+  for (const skillId of expected) assert.equal(typeof packagedSkillCopyHandlers[skillId], 'function', skillId);
+  for (const retired of ['superpowers', 'superpowers-lite', 'ponytail', 'codexcont', 'codex-ops-kit']) {
+    assert.equal(closure.includes(retired), false, retired);
+  }
+});
 
 test('release boundary guard keeps App release ownership in App repo', () => {
   const result = runNode(['scripts/validate-release-boundary.ts']);

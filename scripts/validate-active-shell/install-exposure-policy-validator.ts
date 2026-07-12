@@ -22,7 +22,7 @@ const expectedFirstConversationMustWaitFor = assertNonEmptyStringArray(
   'Product profile first conversation must_wait_for',
 );
 const expectedFirstConversationFailurePolicy = expectedFirstConversation?.failure_policy;
-const expectedCompanionSkillSyncIds = productProfile.companion_payloads?.companion_skill_sync_default_ids ?? [];
+const expectedCompanionPolicyRef = productProfile.companion_payloads?.opl_flow_dependency_policy_ref;
 const expectedFullReadinessItems = (productProfile.first_run?.full_readiness_layers ?? [])
   .filter((item) => item !== 'core');
 assertFirstRunProgressModelShape(expectedFirstRunProgressModel, 'Product profile first-run progress model');
@@ -120,21 +120,18 @@ function validateExposureClasses(policy) {
   }
   const companionClass = exposureClassById.get('companion_tools_codex_skills');
   if (
-    companionClass?.sync_target !== 'codex_user_skill_discovery_path' ||
+    companionClass?.sync_target !== 'opl_framework_package_dependency_materialization' ||
     companionClass?.software_object !== 'opl_base' ||
     companionClass?.visibility_scope !== 'base_integration_projection_only_not_software_object'
   ) {
-    throw new Error('Install exposure companion skill class must sync to Codex user skill discovery path');
+    throw new Error('Install exposure companion skills must use Framework package dependency materialization');
   }
-  assertIncludesAll(
-    companionClass?.members,
-    expectedCompanionSkillSyncIds,
-    'Install exposure companion skill members',
-  );
-  for (const forbiddenDomain of ['med-autoscience', 'med-autogrant', 'redcube-ai']) {
-    if (companionClass.members?.includes(forbiddenDomain)) {
-      throw new Error(`Install exposure companion skill class must not include domain plugin ${forbiddenDomain}`);
-    }
+  if (
+    companionClass?.members_source_ref !== 'gaofeng21cn/opl-flow:contracts/workflow-policy.json#recommends' ||
+    companionClass?.closure_filter !== 'kind=codex_skill and offline_bundle=full' ||
+    expectedCompanionPolicyRef !== 'gaofeng21cn/opl-flow:contracts/workflow-policy.json#requires+recommends'
+  ) {
+    throw new Error('Install exposure companion skills must derive from the OPL Flow policy');
   }
   const packagedRuntimeClass = exposureClassById.get('opl_base_payloads');
   if (

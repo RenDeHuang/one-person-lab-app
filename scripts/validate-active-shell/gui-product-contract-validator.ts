@@ -671,7 +671,7 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   }
   if (
     pages.guid_home.conversation_feedback_policy?.model_status !==
-    'single model selector appears in Codex conversation composer with no separate status pill; reasoning is a primary menu, model and intelligence enhancement are secondary menus'
+    'single model selector appears in Codex conversation composer with no separate status pill; reasoning is a primary menu and model is a secondary menu'
   ) {
     throw new Error('App GUI conversation must use one model selector with no separate status pill');
   }
@@ -882,7 +882,7 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   );
   if (
     pages.settings_capabilities.builtin_skill_catalog_policy?.allowed_set_ref !==
-    'contracts/app-product-profile.json#companion_payloads.default_packaged_codex_skill_ids + packaged_not_default_visible_codex_skill_ids'
+    'contracts/app-product-profile.json#companion_payloads.default_packaged_codex_skill_ids + additional_package_skill_ids + opl_flow_dependency_policy_ref'
   ) {
     throw new Error('Settings Capabilities must filter builtin skill catalog through the App packaged skill set');
   }

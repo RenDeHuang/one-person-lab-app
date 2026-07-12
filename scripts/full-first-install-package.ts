@@ -372,8 +372,9 @@ export function buildFullPackageManifest(input: FullPackageManifestInput = {}) {
         companion_tools: productProfile.companion_payloads.tools,
         domain_modules: productProfile.companion_payloads.domain_modules,
         default_packaged_codex_skill_ids: productProfile.companion_payloads.default_packaged_codex_skill_ids,
-        packaged_not_default_visible_codex_skill_ids:
-          productProfile.companion_payloads.packaged_not_default_visible_codex_skill_ids,
+        additional_package_skill_ids: productProfile.companion_payloads.additional_package_skill_ids,
+        opl_flow_dependency_policy_ref: productProfile.companion_payloads.opl_flow_dependency_policy_ref,
+        full_dependency_closure_policy: productProfile.companion_payloads.full_dependency_closure_policy,
       },
       payload_boundary: {
         role: 'declared_payload_assembly_and_validation',

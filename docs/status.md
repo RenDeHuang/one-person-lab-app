@@ -128,9 +128,9 @@ domain-owned action/stage metadata. MAS/MAG/RCA are default App purpose entries
 and plugin-visible domain skills, not companion skill mirrors under
 `~/.codex/skills/{med-autoscience,med-autogrant,redcube-ai}`. OPL Meta Agent remains an OPL-generated Codex
 surface and an App/CLI-managed ecosystem module, but not a default home
-assistant. Companion skill sync stays limited to the App-level packaged
-whitelist such as cron, the OfficeCLI family, PDF, MinerU, and UI/UX helpers;
-Superpowers is user-owned and not packaged. AionUI builtin skills remain candidate shell capabilities unless
+assistant. Workflow dependency sync now consumes the OPL Flow manifest. OfficeCLI,
+MinerU, UI/UX helpers, model recommendations, and conflict retirement are no longer
+App-owned lists; Superpowers, Ponytail, and CodexCont are retired by Framework migration unless explicitly kept. AionUI builtin skills remain candidate shell capabilities unless
 the App profile explicitly whitelists them. `agent_installation_contract` now
 also separates ordinary module/agent-pack maintenance from Developer Profile
 checkout overrides: ordinary users consume App/CLI-managed maintenance after the
@@ -317,9 +317,8 @@ consistency from the GUI contract instead of mirrored constants. Agent package
 and shortcut ids used by the App product profile, active-shell product profile
 validator, and GUI home validator share the existing App product profile helper
 constants instead of maintaining three local copies; professional-agent package
-policy validation and the OPL Flow intelligence enhancement mode assertion are
-also shared instead of repeated across product-profile and active-shell
-validators. Release size scripts share byte-size formatting through
+policy validation is also shared instead of repeated across product-profile and
+active-shell validators. Release size scripts share byte-size formatting through
 `scripts/release-size-reporting.ts` instead of local `formatBytes` copies.
 Product-profile package entry lookup is private to its validator module, Full
 runtime trust/prune scripts use Node's native argument parser instead of local

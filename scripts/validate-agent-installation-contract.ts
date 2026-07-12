@@ -34,18 +34,6 @@ const expectedGeneratedSemanticPackRoots: Record<string, string> = {
   'opl-bookforge': 'github:gaofeng21cn/opl-bookforge/agent',
   'opl-meta-agent': 'github:gaofeng21cn/opl-meta-agent/agent',
 };
-const expectedCompanionSkillSyncIds = [
-  'officecli',
-  'officecli-docx',
-  'officecli-pptx',
-  'officecli-xlsx',
-  'officecli-academic-paper',
-  'officecli-data-dashboard',
-  'officecli-financial-model',
-  'officecli-pitch-deck',
-  'mineru-document-extractor',
-  'ui-ux-pro-max',
-];
 const expectedFailClosedStates = [
   'dirty_managed_checkout',
   'ahead_or_diverged_managed_checkout',
@@ -1016,14 +1004,12 @@ function validateManagedAgentPackDistribution(contract: any): void {
     package_id: 'opl-flow',
     package_kind: 'workflow_plugin_package',
     consumer: 'standard_and_full_workflow_baseline',
-    optional_feature_consumer: 'optional_user_modes.intelligence_enhancement',
     install_or_refresh_command: 'python3 scripts/install_local_plugin.py',
     profile_mutation_allowed: false,
     profile_sync_policy: 'install_missing_or_emit_semantic_merge_packet_preserving_unmanaged_content',
     workflow_profile_semantic_merge_ref: 'managed_update_plane.software_lifecycle.objects.opl_packages.optional_internal_fields#profile_migration_status',
     standard_updater_allowed: false,
   }, 'OPL Flow package policy');
-  assertArrayEqual(distribution?.opl_flow_package?.required_before_actions, ['status', 'enable', 'repair'], 'OPL Flow package preflight actions');
   assertFieldsEqual(distribution?.auto_apply, {
     enabled_for: 'clean_managed_roots_only',
     trigger: 'daily_or_startup_latest_digest_check',
@@ -1069,26 +1055,24 @@ function validateExposureClasses(policy: any, contract: any): void {
   assertEqual(generatedClass.sync_target, 'opl_generated_codex_plugin_surface', 'generated plugin sync target');
 
   const companionClass = findExposureClass(policy, 'companion_tools_codex_skills');
-  assertArrayEqual(companionClass.members, expectedCompanionSkillSyncIds, 'companion skill sync members');
+  assertEqual(
+    companionClass.members_source_ref,
+    'gaofeng21cn/opl-flow:contracts/workflow-policy.json#recommends',
+    'companion skill policy owner',
+  );
   assertEqual(companionClass.software_object, 'opl_base', 'companion integration software object');
   assertEqual(companionClass.visibility_scope, 'base_integration_projection_only_not_software_object', 'companion integration visibility scope');
-  for (const skillId of expectedDefaultVisibleDomainSkillIds) {
-    if (companionClass.members.includes(skillId)) {
-      fail(`companion skill sync must not include domain plugin ${skillId}`);
-    }
-  }
 }
 
 function validateProfileCompanionPayloads(profile: any): void {
   const companionPayloads = profile.companion_payloads;
   assertArrayFieldsEqual(companionPayloads, {
     domain_plugin_skill_ids: expectedDefaultVisibleDomainSkillIds,
-    companion_skill_sync_default_ids: expectedCompanionSkillSyncIds,
   }, 'profile companion payloads');
   assertEqual(companionPayloads?.domain_plugin_skills_must_not_be_companion_mirrors, true, 'profile domain plugin mirror guard');
   assertArrayFieldsInclude(companionPayloads, {
     default_packaged_codex_skill_ids: expectedDefaultVisibleDomainSkillIds,
-    packaged_not_default_visible_codex_skill_ids: ['opl-meta-agent', ...expectedCompanionSkillSyncIds],
+    additional_package_skill_ids: ['opl-meta-agent'],
   }, 'profile companion payloads');
 }
 

@@ -8,7 +8,6 @@ import {
   assertAppProductProfileHomeCodexPolicy,
   assertAppProductProfileRouteReceiptPolicy,
   assertAppProductProfileSettingsVisualSystem,
-  assertOplFlowIntelligenceEnhancementMode,
   assertProfessionalAgentPackagePolicy,
   managedShortcutIds,
   managedShortcutPackageIds,
@@ -22,18 +21,6 @@ const requiredDefaultPackagedSkillIds = [
   'med-autogrant',
   'redcube-ai',
   'opl-bookforge',
-];
-const requiredCompanionSkillSyncIds = [
-  'officecli',
-  'officecli-docx',
-  'officecli-pptx',
-  'officecli-xlsx',
-  'officecli-academic-paper',
-  'officecli-data-dashboard',
-  'officecli-financial-model',
-  'officecli-pitch-deck',
-  'mineru-document-extractor',
-  'ui-ux-pro-max',
 ];
 const developerProfileCapabilityAxes = [
   'source_channel',
@@ -351,29 +338,18 @@ function assertCompanionPayloadProfileShape(
     profile.companion_payloads.default_packaged_codex_skill_ids,
     'companion_payloads.default_packaged_codex_skill_ids',
   );
-  assertStringArray(
-    profile.companion_payloads.packaged_not_default_visible_codex_skill_ids,
-    'companion_payloads.packaged_not_default_visible_codex_skill_ids',
-  );
-  assertStringArray(profile.companion_payloads.companion_skill_sync_default_ids, 'companion_payloads.companion_skill_sync_default_ids');
+  assertStringArray(profile.companion_payloads.additional_package_skill_ids, 'companion_payloads.additional_package_skill_ids');
   assertStringArray(profile.companion_payloads.domain_plugin_skill_ids, 'companion_payloads.domain_plugin_skill_ids');
   const visibleSkills = new Set(profile.codex.default_visible_skills);
   const defaultPackagedSkills = new Set(profile.companion_payloads.default_packaged_codex_skill_ids);
-  const packagedExplicitSkills = new Set(profile.companion_payloads.packaged_not_default_visible_codex_skill_ids);
-  const officialRuntimeCapabilities = new Set(
-    profile.companion_payloads.official_codex_runtime_capabilities?.preferred_capability_ids ?? [],
-  );
-  const allAvailableSkills = new Set([
-    ...defaultPackagedSkills,
-    ...packagedExplicitSkills,
-    ...officialRuntimeCapabilities,
-  ]);
+  const additionalPackageSkills = new Set(profile.companion_payloads.additional_package_skill_ids);
   for (const entry of skillProfiles) {
-    const unpackagedProfileSkills = [...entry.required_skills, ...entry.optional_skills]
-      .filter((skill) => !allAvailableSkills.has(skill));
-    if (unpackagedProfileSkills.length > 0) {
+    const missingRequiredSkills = entry.required_skills.filter((skill) => (
+      !defaultPackagedSkills.has(skill) && !additionalPackageSkills.has(skill)
+    ));
+    if (missingRequiredSkills.length > 0) {
       throw new Error(
-        `App product profile assistant ${entry.assistant_id} references skills outside the App packaged set: ${unpackagedProfileSkills.join(', ')}`,
+        `App product profile assistant ${entry.assistant_id} has unpackaged required skills: ${missingRequiredSkills.join(', ')}`,
       );
     }
   }
@@ -394,27 +370,25 @@ function assertCompanionPayloadProfileShape(
   if (missingPrioritySkills.length > 0) {
     throw new Error(`App product profile skill_priority is missing default visible skills: ${missingPrioritySkills.join(', ')}`);
   }
-  const overlappingExplicitSkills = [...packagedExplicitSkills].filter((skill) => visibleSkills.has(skill));
+  const overlappingExplicitSkills = [...additionalPackageSkills].filter((skill) => visibleSkills.has(skill));
   if (overlappingExplicitSkills.length > 0) {
     throw new Error(
-      `App product profile packaged_not_default_visible skills must stay out of default_visible_skills: ${overlappingExplicitSkills.join(', ')}`,
+      `App product profile additional package skills must stay out of default_visible_skills: ${overlappingExplicitSkills.join(', ')}`,
     );
   }
-  assertIncludesAll(
-    profile.companion_payloads.packaged_not_default_visible_codex_skill_ids,
-    requiredCompanionSkillSyncIds,
-    'companion_payloads.packaged_not_default_visible_codex_skill_ids',
-  );
-  assertIncludesAll(
-    profile.companion_payloads.companion_skill_sync_default_ids,
-    requiredCompanionSkillSyncIds,
-    'companion_payloads.companion_skill_sync_default_ids',
-  );
-  if (!packagedExplicitSkills.has('opl-meta-agent')) {
+  if (!additionalPackageSkills.has('opl-meta-agent')) {
     throw new Error('App product profile must mark opl-meta-agent as packaged but not default visible');
   }
-  if (profile.codex.skill_priority.includes('morph-ppt') || defaultPackagedSkills.has('morph-ppt') || packagedExplicitSkills.has('morph-ppt')) {
+  if (profile.codex.skill_priority.includes('morph-ppt') || defaultPackagedSkills.has('morph-ppt') || additionalPackageSkills.has('morph-ppt')) {
     throw new Error('App product profile must not include retired morph-ppt skill wiring');
+  }
+  if (
+    profile.companion_payloads.opl_flow_dependency_policy_ref !==
+      'gaofeng21cn/opl-flow:contracts/workflow-policy.json#requires+recommends' ||
+    profile.companion_payloads.full_dependency_closure_policy !==
+      'bundle_requires_and_recommends_with_offline_bundle_full'
+  ) {
+    throw new Error('App product profile must delegate companion dependency policy to OPL Flow');
   }
   if (profile.companion_payloads.install_exposure_policy_ref !== 'contracts/app-install-exposure-policy.json') {
     throw new Error('App product profile companion payloads must reference app-install-exposure-policy.json');
@@ -428,21 +402,27 @@ function assertCompanionPayloadProfileShape(
   if (profile.companion_payloads.domain_plugin_skills_must_not_be_companion_mirrors !== true) {
     throw new Error('App product profile domain plugin skills must not be companion mirrors');
   }
-  for (const domainPluginId of profile.companion_payloads.domain_plugin_skill_ids) {
-    if (profile.companion_payloads.companion_skill_sync_default_ids.includes(domainPluginId)) {
-      throw new Error(`App product profile companion sync defaults must not include domain plugin ${domainPluginId}`);
-    }
-  }
 }
 
 function assertCodexOplFlowContext(profile: AppProductProfile): void {
   if (
+    profile.codex.auto_model_policy.authority !== 'one-person-lab-app' ||
+    profile.codex.auto_model_policy.recommendation_authority !== 'opl-flow' ||
+    profile.codex.auto_model_policy.policy_source_ref !==
+      'gaofeng21cn/opl-flow:contracts/workflow-policy.json#codex_model_policy' ||
+    profile.codex.auto_model_policy.app_role !== 'display_live_catalog_and_submit_user_override'
+  ) {
+    throw new Error('App product profile must consume the OPL Flow model policy projection');
+  }
+  if (
     profile.codex.opl_flow_context?.flow_id !== 'opl-flow' ||
-    profile.codex.opl_flow_context.delivery !== 'session_scoped_preset_context' ||
+    profile.codex.opl_flow_context.source !== 'opl-flow-package-policy' ||
+    profile.codex.opl_flow_context.policy_source_ref !== 'gaofeng21cn/opl-flow:contracts/workflow-policy.json' ||
+    profile.codex.opl_flow_context.delivery !== 'package_installed_profile_and_session_context' ||
     profile.codex.opl_flow_context.user_agents_policy !== 'respect_user_agents_no_overwrite_detect_conflicts' ||
     profile.codex.opl_flow_context.language_policy !== 'follow_ui_locale_zh_only_when_ui_zh'
   ) {
-    throw new Error('App product profile must declare App-managed OPL Flow Context policy');
+    throw new Error('App product profile must consume the OPL Flow package context policy');
   }
   if (
     !Array.isArray(profile.codex.session_context_i18n?.['zh-CN']) ||
@@ -452,10 +432,6 @@ function assertCodexOplFlowContext(profile: AppProductProfile): void {
   ) {
     throw new Error('App product profile must declare localized OPL Flow session context');
   }
-  assertOplFlowIntelligenceEnhancementMode(
-    profile.codex.opl_flow_context.optional_user_modes?.intelligence_enhancement,
-    'App product profile',
-  );
 }
 
 function assertHomeCodexProfileShape(profile: AppProductProfile): void {

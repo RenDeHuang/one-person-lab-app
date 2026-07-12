@@ -323,13 +323,29 @@ export const packagedSkillCopyHandlers = {
   ),
 };
 
+export function readOplFlowFullSkillDependencyClosure(oplFlowRoot) {
+  const policyPath = path.join(oplFlowRoot, 'contracts', 'workflow-policy.json');
+  if (!fs.existsSync(policyPath)) {
+    throw new Error(`OPL Flow workflow policy not found: ${policyPath}`);
+  }
+  const policy = JSON.parse(fs.readFileSync(policyPath, 'utf8'));
+  if (policy.schema !== 'opl_flow_workflow_policy.v1' || policy.package?.id !== 'opl-flow') {
+    throw new Error(`Invalid OPL Flow workflow policy: ${policyPath}`);
+  }
+  const dependencies = [...(policy.requires ?? []), ...(policy.recommends ?? [])];
+  return [...new Set(dependencies
+    .filter((entry) => entry.kind === 'codex_skill' && entry.offline_bundle === 'full')
+    .map((entry) => entry.id))];
+}
+
 export function copyPackagedSkills(targetRoot, options) {
   fs.rmSync(targetRoot, { recursive: true, force: true });
   fs.mkdirSync(targetRoot, { recursive: true });
   const productProfile = readAppProductProfile();
   const packagedSkillIds = [
     ...productProfile.companion_payloads.default_packaged_codex_skill_ids,
-    ...productProfile.companion_payloads.packaged_not_default_visible_codex_skill_ids,
+    ...productProfile.companion_payloads.additional_package_skill_ids,
+    ...readOplFlowFullSkillDependencyClosure(options.oplFlowRoot),
   ];
   if (packagedSkillIds.some((skillId) => OFFICECLI_ATOMIC_SKILL_IDS.includes(skillId))) {
     assertOfficeCliAtomicSkillSet(options);

@@ -40,8 +40,8 @@
         "codex_default_reasoning_effort": "max",
         "codex_default_display_label": "5.6 Sol",
         "codex_default_model_display_value": "5.6 Sol",
-        "codex_model_status_display_policy": "default_model_status_with_primary_reasoning_menu_and_secondary_model_intelligence_menus",
-        "codex_precise_model_display_policy": "friendly_model_primary_reasoning_primary_model_and_intelligence_secondary_menus",
+        "codex_model_status_display_policy": "default_model_status_with_primary_reasoning_menu_and_secondary_model_menu",
+        "codex_precise_model_display_policy": "friendly_model_primary_reasoning_primary_model_secondary_menu",
         "codex_default_permission_mode": "full-access",
         "permission_mode_selector_visible": true,
         "permission_mode_language_policy": "automation_and_file_access_in_user_language",
@@ -2864,7 +2864,7 @@
       },
       "builtin_skill_catalog_policy": {
         "source": "active shell builtin skill catalog filtered by App product profile packaged skills",
-        "allowed_set_ref": "contracts/app-product-profile.json#companion_payloads.default_packaged_codex_skill_ids + packaged_not_default_visible_codex_skill_ids",
+        "allowed_set_ref": "contracts/app-product-profile.json#companion_payloads.default_packaged_codex_skill_ids + additional_package_skill_ids + opl_flow_dependency_policy_ref",
         "forbidden_examples": [
           "aionui-skills",
           "aionui-webui-setup",

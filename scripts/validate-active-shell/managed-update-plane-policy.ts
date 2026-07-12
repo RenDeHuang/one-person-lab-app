@@ -220,9 +220,7 @@ export const oplFlowPackagePolicy = {
   package_id: 'opl-flow',
   package_kind: 'workflow_plugin_package',
   consumer: 'standard_and_full_workflow_baseline',
-  optional_feature_consumer: 'optional_user_modes.intelligence_enhancement',
   install_or_refresh_command: 'python3 scripts/install_local_plugin.py',
-  required_before_actions: ['status', 'enable', 'repair'],
   profile_mutation_allowed: false,
   profile_sync_policy: 'install_missing_or_emit_semantic_merge_packet_preserving_unmanaged_content',
   workflow_profile_semantic_merge_ref:

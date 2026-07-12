@@ -171,21 +171,11 @@
       "owner": "upstream_skill_owners_with_opl_distribution_policy",
       "software_object": "opl_base",
       "visibility_scope": "base_integration_projection_only_not_software_object",
-      "members": [
-        "officecli",
-        "officecli-docx",
-        "officecli-pptx",
-        "officecli-xlsx",
-        "officecli-academic-paper",
-        "officecli-data-dashboard",
-        "officecli-financial-model",
-        "officecli-pitch-deck",
-        "mineru-document-extractor",
-        "ui-ux-pro-max"
-      ],
+      "members_source_ref": "gaofeng21cn/opl-flow:contracts/workflow-policy.json#recommends",
+      "closure_filter": "kind=codex_skill and offline_bundle=full",
       "default_app_visible": false,
       "codex_discovery_policy": "installed_and_task_routed_without_ordinary_app_skill_menu_visibility",
-      "sync_target": "codex_user_skill_discovery_path",
+      "sync_target": "opl_framework_package_dependency_materialization",
       "must_not_sync_to": [
         "domain_plugin_semantic_mirror"
       ]
@@ -1490,13 +1480,7 @@
         "package_id": "opl-flow",
         "package_kind": "workflow_plugin_package",
         "consumer": "standard_and_full_workflow_baseline",
-        "optional_feature_consumer": "optional_user_modes.intelligence_enhancement",
         "install_or_refresh_command": "python3 scripts/install_local_plugin.py",
-        "required_before_actions": [
-          "status",
-          "enable",
-          "repair"
-        ],
         "profile_mutation_allowed": false,
         "profile_sync_policy": "install_missing_or_emit_semantic_merge_packet_preserving_unmanaged_content",
         "workflow_profile_semantic_merge_ref": "managed_update_plane.software_lifecycle.objects.opl_packages.optional_internal_fields#profile_migration_status",
