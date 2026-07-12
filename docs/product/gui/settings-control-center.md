@@ -255,15 +255,17 @@ installed count or appear as a missing package.
 
 Primary information:
 
-- model access, workspace, background services, capabilities, and updates;
-- an impact-ordered issue queue, one next useful action, and contextual common entries.
+- one overall usability summary derived from model access, workspace,
+  background services, capabilities, and updates;
+- an impact-ordered issue queue, one next useful action, and at most two
+  contextual entries selected from recent or currently relevant tasks.
 
 Primary action: open the highest-priority attention item, only when one exists.
 
 Exception state: emphasize one actionable issue, not every status.
 
-Technical details: raw state keys, timestamps, paths, and receipts stay
-collapsed.
+Technical details: raw state keys, timestamps, paths, and receipts open in one
+read-only diagnostic modal.
 
 Required anchors: `status`, `attention`, `next-action`, `common-actions`.
 
@@ -277,6 +279,7 @@ Primary information:
 - model access readiness;
 - the real source from `app_state.core.codex.model_access_source`;
 - selected and default model;
+- persisted Auto or fixed-model selection and reasoning effort;
 - OPL Gateway, Codex CLI, and account or API-key state.
 
 Primary action: configure model access when missing or when the user explicitly
@@ -289,7 +292,7 @@ Exception state: missing, expired, or unreachable access with one corrective
 action.
 
 Technical details: base URL, environment variables, token paths, Codex CLI
-details, and raw provider ids.
+candidates, and raw provider ids open in one read-only diagnostic modal.
 
 Required anchors: `provider-source`, `model`, `codex-cli`, `authentication`.
 
@@ -393,6 +396,8 @@ Primary information:
 - health;
 - OPL Base status and one-click setup when it is missing;
 - OPL App version and the available standard or host update route;
+- one Stable / Preview update-channel setting backed by the Framework
+  configuration catalog;
 - OPL Packages status and the relevant install, update, repair, or uninstall action;
 - local services;
 - one recommended action.
@@ -405,9 +410,14 @@ Packages that need action, and explain user impact before action. Runtime and
 companion dependency status stays nested under OPL Base. Codex Surface sync and
 Workflow Profile migration status stays nested under OPL Packages.
 
+Management details: component Apply, Repair, Rollback, package sync, and other
+one-time commands open in an explicit management modal with confirmation,
+progress, and result binding.
+
 Technical details: raw action ids, software-object ids, dependency and
 integration status, package projection and profile migration status, command
-mappings, paths, and receipts. Package projection status is read from
+mappings, paths, and receipts open in a separate read-only diagnostic modal.
+Package projection status is read from
 `managed_update.components[opl_packages].projection_status`.
 
 Required anchors: `health`, `updates`, `services`, `packages`.
@@ -444,14 +454,16 @@ Required anchors: `storage-categories`, `cleanup-preview`, `cleanup-history`.
 
 Ordinary copy uses "preview cleanup", "items that will be removed", "archive",
 "restore", and "cleanup record" rather than raw lifecycle terminology.
-The restore probe is diagnostic evidence. It may appear in Storage diagnostics
-without adding or duplicating an ordinary Restore button.
+The restore probe is diagnostic evidence only. A verified archive exposes one
+ordinary Restore action that recreates the archived conversation without
+overwriting an existing conversation unless the user resolves the collision.
 
 ### Preferences
 
 Primary information:
 
 - reply waiting time in human units;
+- performance and agent-idle waiting controls as persistent settings;
 - tray and close-window behavior;
 - hardware acceleration;
 - themes and appearance.
@@ -462,7 +474,8 @@ Exception state: restart-required or unsupported hardware states appear next to
 the affected setting only.
 
 Technical details: raw millisecond values, Electron flags, and theme
-implementation ids.
+implementation ids. Interactive timeout or hardware controls must not be
+placed inside a surface labelled Technical details.
 
 Required anchors: `behavior`, `tray`, `hardware`, `themes`.
 
@@ -531,10 +544,9 @@ Every product page always renders:
 - `settings-page-<product_page_id>`;
 - `settings-<product_page_id>-primary`;
 
-Pages render `settings-<product_page_id>-technical-details` only when the detail
-surface contains information not already visible on the page. Access and
-Advanced intentionally omit it because their former disclosures repeated the
-same model/CLI facts or paths.
+Pages render `settings-<product_page_id>-technical-details` only while an
+explicit read-only diagnostic modal or drawer is open. Advanced intentionally
+omits a second disclosure because paths are the page's direct expert content.
 
 Attention states render:
 
@@ -577,6 +589,33 @@ mutation, doctor, or recovery operation is pending, every competing action and
 pending confirmation on that surface is disabled. A second interaction must not
 issue another bridge call, and the visible result remains bound to the operation
 that produced it.
+
+## AionUI Fork Maintenance Contract
+
+OPL Settings is an App-owned overlay carried by AionUI, not a permanent rewrite
+of every upstream Settings page.
+
+- App contracts own routes, placement, surface classification, labels, and
+  acceptance. Framework catalogs own Framework values and actions.
+- The Shell should add OPL pages as overlay files and keep upstream integration
+  concentrated in `SettingsModal/index.tsx`, `SettingsHost.tsx`,
+  `SettingsShellAdapterSlot.tsx`, and `settingsRegistry.tsx`.
+- A new upstream Settings, Assistant, Skills, Tools, Update, WebUI, language, or
+  extension surface is hidden until App intake records classify it as
+  `accepted`, `adapt`, `redirect`, or `reject`.
+- Unclassified extension tabs never become ordinary OPL navigation merely
+  because an AionUI extension registered them. Hiding an entry never deletes
+  extension-owned data.
+- A change that directly modifies more than four new upstream fork-body choke
+  points requires an App-owner rationale, upstream delta classification,
+  focused merge-conflict tests, and a retirement or upstreaming plan.
+- Generated product profiles and locale files remain expected merge hotspots;
+  sync checks must prove that they project App truth without becoming a second
+  authority.
+
+The intake review runs against every newly fetched AionUI release before merge,
+not only when a conflict appears. This keeps upstream upgrades a bounded adapter
+exercise instead of a later full Settings reimplementation.
 
 ## Verification Boundary
 

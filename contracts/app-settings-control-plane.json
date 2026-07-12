@@ -107,8 +107,8 @@
         "configuration_id": "developer_supervisor",
         "owner_class": "framework",
         "truth_owner": "one-person-lab",
-        "page_id": "maintenance",
-        "anchor": "services",
+        "page_id": "capabilities",
+        "anchor": "source",
         "lifecycle": "persistent_configuration",
         "value_type": "object",
         "sensitivity": "ordinary",
@@ -649,10 +649,15 @@
     "route_or_entry_removal_proves_data_migration": false
   },
   "extension_tab_policy": {
-    "anchored_tabs": "insert_before_or_after_remapped_ordinary_route",
-    "unanchored_tabs": "insert_before_advanced",
-    "unknown_anchor": "treat_as_unanchored",
-    "legacy_anchor_remap_required": true
+    "default_visibility": "hidden_until_app_classified",
+    "mount_allowlist": [],
+    "allowed_classifications": ["accepted", "adapt", "redirect", "reject"],
+    "accepted_or_adapted_tabs": "insert_before_or_after_the_app_owned_route_declared_by_the_classification_record",
+    "redirected_tabs": "navigate_to_the_declared_owner_route_and_anchor_without_mounting_an_extension_page",
+    "rejected_tabs": "never_mount_or_index_in_opl_settings",
+    "unclassified_or_unknown_anchor": "hide_and_report_in_intake_diagnostics",
+    "legacy_anchor_remap_required": true,
+    "extension_data_deletion_policy": "never_delete_extension_data_when_hiding_or_redirecting_an_entry"
   },
   "slot_registry": {
     "settings_general": {
@@ -716,6 +721,11 @@
     "action_route": "opl app action execute --action <action_id> [--payload <json>] [--dry-run] --json",
     "request_exclusivity_policy": "single_inflight_read_or_action_per_settings_surface",
     "result_binding_policy": "visible_progress_and_result_remain_bound_to_the_triggering_operation",
+    "configuration_action_policy": "framework_owned_persistent_controls_consume_configuration_catalog_action_ids_and_verify_refs_without_shell_hardcoding",
+    "one_time_action_policy": "maintenance_resource_storage_and_capability_commands_consume_action_catalog_entries_without_becoming_configuration",
+    "diagnostic_policy": "diagnostic_surfaces_are_read_only_and_must_not_mount_apply_repair_rollback_install_uninstall_or_persistent_setting_controls",
+    "status_vocabulary": ["checking", "not_checked", "not_applicable", "ready", "needs_attention", "failed"],
+    "unknown_status_policy": "unknown_is_reserved_for_malformed_or_unsupported_projection_and_is_never_used_for_loading_or_not_checked",
     "recommended_action_ids": {
       "doctor": "doctor",
       "repair": "repair"
@@ -1023,8 +1033,28 @@
       "classify as accepted/adapt/redirect/reject before changing registry or slots",
       "bind accepted/adapt entries to SettingsHost or SettingsShellAdapterSlot evidence",
       "route redirect/reject entries through legacy redirects, extension anchor remap, or forbidden probes",
+      "hide unclassified extension tabs until the App owner records accepted/adapt/redirect/reject",
+      "measure changed upstream Settings choke points and keep the OPL integration inside the declared overlay budget",
       "keep runtime truth, domain truth, provider implementation, owner receipts, and release readiness outside the shell adapter"
     ],
+    "overlay_budget": {
+      "goal": "OPL Settings product pages live in additive overlay files and consume stable host slots",
+      "preferred_upstream_choke_points": [
+        "SettingsModal/index.tsx",
+        "SettingsHost.tsx",
+        "SettingsShellAdapterSlot.tsx",
+        "settingsRegistry.tsx"
+      ],
+      "direct_fork_body_page_modification_policy": "avoid_unless_an_accepted_upstream_capability_cannot_be_adapted_through_a_slot_or_wrapper",
+      "new_direct_fork_body_file_budget": 4,
+      "budget_exception_requires": [
+        "app_owner_rationale",
+        "upstream_diff_classification",
+        "focused_merge_conflict_test",
+        "documented_retirement_or_upstreaming_plan"
+      ],
+      "generated_profile_and_locales": "generated_or_app_owned_inputs_do_not_count_as_product_authority_but_remain_merge_hotspots_and_require_sync_checks"
+    },
     "records": [
       {
         "id": "team-ordinary-surface-disabled",
@@ -1724,16 +1754,15 @@
         "label_zh": "概览",
         "label_en": "Overview",
         "primary_information": [
-          "model access, workspace, background services, capabilities, and updates as distinct status domains",
-          "issue queue ordered by user impact",
-          "one next useful action without duplicating the Settings navigation",
-          "contextual common entries that open the owning page without copying the whole sidebar"
+          "one overall usability summary derived from model access, workspace, background services, capabilities, and updates",
+          "issue queue ordered by user impact and limited to actionable exceptions",
+          "one next useful action",
+          "at most two contextual entries selected from recent or currently relevant tasks, never a directory of Settings pages"
         ],
         "first_viewport_groups": [
           "system_status",
           "attention_queue",
-          "next_action",
-          "common_entries"
+          "next_action_and_context"
         ],
         "surface_inventory": {
           "configuration": [],
@@ -1756,12 +1785,12 @@
           "label_en": "Review attention item"
         },
         "exception_state": "emphasize only the highest-priority item that needs user action",
-        "technical_details_boundary": "raw state keys, timestamps, paths, and receipts stay collapsed",
+        "technical_details_boundary": "raw state keys, timestamps, paths, and receipts open in a read-only diagnostic modal; no inline details disclosure",
         "required_dom": {
           "always": [
             "settings-page-overview",
             "settings-overview-primary",
-            "settings-overview-technical-details"
+            "settings-overview-diagnostics-action"
           ],
           "conditional": [
             {
@@ -1771,6 +1800,10 @@
             {
               "testid": "settings-overview-primary-action",
               "when": "attention_only"
+            },
+            {
+              "testid": "settings-overview-technical-details",
+              "when": "diagnostics_open"
             }
           ]
         },
@@ -1808,7 +1841,9 @@
         ],
         "surface_inventory": {
           "configuration": [
-            { "id": "model_access_configuration", "owner": "access" }
+            { "id": "preferred_model", "owner": "access" },
+            { "id": "preferred_reasoning_effort", "owner": "access" },
+            { "id": "model_access_credential", "owner": "access" }
           ],
           "status": [
             { "id": "model_access_readiness", "owner": "access" },
@@ -1827,11 +1862,13 @@
           "label_en": "Configure model access"
         },
         "exception_state": "highlight missing, expired, or unreachable model access and the one corrective action",
-        "technical_details_boundary": "base URL, environment variables, token paths, and raw provider ids stay hidden unless a distinct diagnostic surface needs them; displayed model and CLI facts are not repeated",
+        "technical_details_boundary": "base URL, environment variables, token paths, candidate binaries, and raw provider ids appear only in a read-only diagnostic modal; displayed model and CLI facts are not repeated",
         "required_dom": {
           "always": [
             "settings-page-access",
-            "settings-access-primary"
+            "settings-access-primary",
+            "settings-access-model-preference",
+            "settings-access-diagnostics-action"
           ],
           "conditional": [
             {
@@ -1841,6 +1878,10 @@
             {
               "testid": "settings-access-primary-action",
               "when": "missing_or_user_requested_change"
+            },
+            {
+              "testid": "settings-access-technical-details",
+              "when": "diagnostics_open"
             }
           ]
         },
@@ -2143,7 +2184,9 @@
           "repair_rollback_receipts"
         ],
         "surface_inventory": {
-          "configuration": [],
+          "configuration": [
+            { "id": "update_channel", "owner": "maintenance" }
+          ],
           "status": [
             { "id": "health_updates_and_services", "owner": "maintenance" }
           ],
@@ -2153,6 +2196,13 @@
           "diagnostic": [
             { "id": "maintenance_receipts_and_raw_details", "owner": "maintenance" }
           ]
+        },
+        "surface_rules": {
+          "configuration_location": "update_channel_is_an_inline_persistent_control_in_the_updates_section",
+          "management_surface": "component_apply_repair_rollback_and_capability_sync_live_in_an_explicit_management_modal",
+          "diagnostic_surface": "read_only_status_paths_receipts_and_raw_projection_only",
+          "diagnostic_mutation_controls_allowed": false,
+          "unknown_state_copy": "distinguish_checking_not_checked_not_applicable_and_needs_attention"
         },
         "primary_action": {
           "id": "run_recommended_maintenance",
@@ -2167,7 +2217,8 @@
           "always": [
             "settings-page-maintenance",
             "settings-maintenance-primary",
-            "settings-maintenance-technical-details"
+            "settings-maintenance-management-action",
+            "settings-maintenance-diagnostics-action"
           ],
           "conditional": [
             {
@@ -2177,6 +2228,14 @@
             {
               "testid": "settings-maintenance-primary-action",
               "when": "attention_only"
+            },
+            {
+              "testid": "settings-maintenance-management-details",
+              "when": "management_open"
+            },
+            {
+              "testid": "settings-maintenance-technical-details",
+              "when": "diagnostics_open"
             }
           ]
         },
@@ -2217,7 +2276,7 @@
             { "id": "storage_usage_and_protection", "owner": "storage" }
           ],
           "action": [
-            { "id": "storage_cleanup_and_archive_operations", "owner": "storage" }
+            { "id": "storage_cleanup_archive_and_restore_operations", "owner": "storage" }
           ],
           "diagnostic": [
             { "id": "storage_plans_receipts_and_paths", "owner": "storage" },
@@ -2229,7 +2288,9 @@
           "pure_usage_summary_card_allowed": false,
           "diagnostics_entry": "explicit_modal_action",
           "zero_byte_policy": "show_nothing_to_clean_and_hide_actions",
-          "cleanup_action_policy": "single_progressive_action_preview_then_confirm"
+          "cleanup_action_policy": "single_progressive_action_preview_then_confirm",
+          "conversation_archive_policy": "archive_receipt_is_required_before_delete_and_the_same_archive_exposes_a_confirmed_restore_action",
+          "restore_collision_policy": "never_overwrite_an_existing_conversation_without_an_explicit_collision_decision"
         },
         "primary_action": {
           "id": "preview_cleanup",
@@ -2298,6 +2359,7 @@
             { "id": "application_behavior_and_notifications", "owner": "preferences" },
             { "id": "codex_user_instructions", "owner": "preferences" },
             { "id": "opl_app_session_context", "owner": "preferences" },
+            { "id": "performance_and_waiting", "owner": "preferences" },
             { "id": "display_and_themes", "owner": "preferences" }
           ],
           "status": [
@@ -2313,7 +2375,9 @@
           "two_plus_one_grid_allowed": false,
           "builtin_theme_ids": ["light", "dark", "codex"],
           "extension_themes_default_visible": false,
-          "custom_theme_management": "preserved"
+          "custom_theme_management": "preserved",
+          "interactive_controls_inside_diagnostic_surface_allowed": false,
+          "performance_and_waiting_policy": "advanced_but_persistent_controls_use_a_named_configuration_group_not_a_technical_details_disclosure"
         },
         "primary_action": {
           "id": "none",
