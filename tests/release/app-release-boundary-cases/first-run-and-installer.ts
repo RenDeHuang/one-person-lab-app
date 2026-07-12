@@ -106,10 +106,25 @@ test('reusable release-boundary job checks out its OPL Flow authority source', (
   const job = workflow.slice(jobStart, jobEnd);
 
   assert.ok(jobStart >= 0 && jobEnd > jobStart, 'missing reusable release-boundary job');
+  assert.match(workflow, /opl_flow_ref:[\s\S]*default: 5ae0625f5240a13fa820b4c92362f1d06bdce857/);
   assert.match(job, /name: Checkout OPL Flow policy source[\s\S]*repository: gaofeng21cn\/opl-flow/);
-  assert.match(job, /ref: 5ae0625f5240a13fa820b4c92362f1d06bdce857[\s\S]*path: opl-flow/);
+  assert.match(job, /ref: \$\{\{ inputs\.opl_flow_ref \}\}[\s\S]*path: opl-flow/);
   assert.match(job, /OPL_FLOW_WORKFLOW_POLICY:.*opl-flow\/contracts\/workflow-policy\.json/);
   assert.match(job, /OPL_FULL_OPL_FLOW_ROOT:.*opl-flow/);
+});
+
+test('reusable build job checks out OPL Flow before preparing the standard payload', () => {
+  const workflow = fs.readFileSync(path.join(appRoot, '.github/workflows/_build-reusable.yml'), 'utf8');
+  const jobStart = workflow.indexOf('  build:');
+  const job = workflow.slice(jobStart);
+  const checkout = job.indexOf('- name: Checkout OPL Flow policy source');
+  const payload = job.indexOf('- name: Prepare standard App payload');
+
+  assert.ok(jobStart >= 0, 'missing reusable build job');
+  assert.ok(checkout >= 0 && payload > checkout, 'OPL Flow must be available before standard payload preparation');
+  assert.match(job, /repository: gaofeng21cn\/opl-flow[\s\S]*ref: \$\{\{ inputs\.opl_flow_ref \}\}[\s\S]*path: opl-flow/);
+  assert.match(job.slice(payload), /OPL_FLOW_WORKFLOW_POLICY:.*opl-flow\/contracts\/workflow-policy\.json/);
+  assert.match(job.slice(payload), /OPL_FULL_OPL_FLOW_ROOT:.*opl-flow/);
 });
 
 test('one-shot App installer defaults to the shared base plus optional GUI without Agents', () => {

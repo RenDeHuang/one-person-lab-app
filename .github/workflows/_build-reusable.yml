@@ -15,6 +15,10 @@ on:
         description: 'opl-aion-shell ref to checkout for the active shell. Empty means main.'
         type: string
         default: main
+      opl_flow_ref:
+        description: 'Immutable opl-flow ref used by product-profile projection in every release job.'
+        type: string
+        default: 5ae0625f5240a13fa820b4c92362f1d06bdce857
       skip_code_quality:
         description: 'Skip code quality checks (faster builds for debugging)'
         type: boolean
@@ -147,7 +151,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           repository: gaofeng21cn/opl-flow
-          ref: 5ae0625f5240a13fa820b4c92362f1d06bdce857
+          ref: ${{ inputs.opl_flow_ref }}
           path: opl-flow
 
       - name: Setup active shell
@@ -269,6 +273,13 @@ jobs:
           ref: ${{ inputs.shell_ref || 'main' }}
           path: shells/aionui
 
+      - name: Checkout OPL Flow policy source
+        uses: actions/checkout@v6
+        with:
+          repository: gaofeng21cn/opl-flow
+          ref: ${{ inputs.opl_flow_ref }}
+          path: opl-flow
+
       - name: Get commit hash
         id: commit
         shell: bash
@@ -359,6 +370,9 @@ jobs:
 
       - name: Prepare standard App payload
         working-directory: ${{ github.workspace }}
+        env:
+          OPL_FLOW_WORKFLOW_POLICY: ${{ github.workspace }}/opl-flow/contracts/workflow-policy.json
+          OPL_FULL_OPL_FLOW_ROOT: ${{ github.workspace }}/opl-flow
         run: node --experimental-strip-types scripts/prepare-standard-release-payload.ts
 
       - name: Validate synced App product profile consumer
