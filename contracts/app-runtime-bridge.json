@@ -136,11 +136,14 @@
           "status_index.packages[package_id]": [
             "dependency_readiness",
             "operational_ready",
+            "launch_allowed",
+            "launch_blocked_reason",
+            "allowed_when_blocked",
             "repair_action",
             "dependent_guard"
           ]
         },
-        "projection_authority_policy": "App and shells consume these public Framework fields verbatim and must not infer dependency closure, operational readiness, repair eligibility, or dependent guards from package identity",
+        "projection_authority_policy": "App and shells consume these public Framework fields verbatim and must not infer dependency closure, operational readiness, launch eligibility, repair eligibility, or dependent guards from package identity",
         "fallback_policy": {
           "allowed_fallback_source": "opl app state --profile fast --json#app_state.modules.items[] + home_agent_shortcuts + task_awareness refs",
           "allowed_when": "older runtime payloads or partial agent_packages projection only",

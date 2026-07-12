@@ -438,6 +438,18 @@ test('managed update payload and public actions use only the three software obje
     capabilitiesPage.agent_package_lifecycle_ux.package_projection_contract.repair_action_id,
     'repair_dependency_closure',
   );
+  assert.deepEqual(
+    capabilitiesPage.agent_package_lifecycle_ux.package_projection_contract.status_index_package_fields.allowed_when_blocked,
+    ['status', 'doctor', 'repair'],
+  );
+  assert.equal(
+    capabilitiesPage.agent_package_lifecycle_ux.package_projection_contract.launch_gate_policy,
+    'operational_ready_false_requires_launch_allowed_false_and_only_status_doctor_repair_remain_allowed',
+  );
+  assert.deepEqual(
+    capabilitiesPage.agent_package_lifecycle_ux.package_projection_contract.launch_fail_closed_reason_codes,
+    ['package_not_installed'],
+  );
   assert.equal(
     JSON.stringify(capabilitiesPage.agent_package_lifecycle_ux.package_projection_contract).includes('med-autoscience'),
     false,
@@ -445,6 +457,8 @@ test('managed update payload and public actions use only the three software obje
   const fixturePackage = fastFixture.app_state.agent_packages.status_index.packages['example-agent'];
   assert.equal(fixturePackage.dependency_readiness.status, 'ready');
   assert.equal(fixturePackage.operational_ready, true);
+  assert.equal(fixturePackage.launch_allowed, true);
+  assert.deepEqual(fixturePackage.allowed_when_blocked, ['status', 'doctor', 'repair']);
   assert.equal(fixturePackage.repair_action.action_id, 'repair_dependency_closure');
   assert.deepEqual(fixturePackage.dependent_guard.required_by_package_ids, []);
 

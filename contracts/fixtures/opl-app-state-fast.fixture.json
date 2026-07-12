@@ -74,6 +74,9 @@
               }
             },
             "operational_ready": true,
+            "launch_allowed": true,
+            "launch_blocked_reason": null,
+            "allowed_when_blocked": ["status", "doctor", "repair"],
             "repair_action": {
               "action_id": "repair_dependency_closure",
               "command_ref": "opl packages repair example-agent --json",

@@ -4348,6 +4348,8 @@
           "explain_install_source_in_user_language",
           "show_failure_reason_only_when_failed_blocked_or_needs_user_action",
           "operational_ready_false_or_dependency_repair_required_must_never_render_ready",
+          "operational_ready_false_must_disable_ordinary_package_and_agent_launch",
+          "blocked_packages_allow_only_status_doctor_and_repair_actions",
           "show_dependency_readiness_and_dependent_guard_in_normal_details",
           "trigger_only_projected_repair_action_when_enabled",
           "show_receipt_and_physical_surface_in_details_or_advanced_only",
@@ -4397,6 +4399,9 @@
           "dependency_readiness.status",
           "dependency_readiness.checks[].failure_reasons",
           "operational_ready",
+          "launch_allowed",
+          "launch_blocked_reason",
+          "allowed_when_blocked",
           "dependent_guard.disable.reason_code",
           "dependent_guard.uninstall.reason_code"
         ],
@@ -4411,10 +4416,15 @@
             "dependency_check_fields": ["package_id", "required", "installed", "enabled", "version_requirement", "installed_version", "version_satisfied", "capability_abi", "installed_capability_abi", "abi_satisfied", "required_export_ids", "available_export_ids", "exports_satisfied", "content_lock_digest", "physical_surface_status", "ready", "failure_reasons"],
             "dependency_closure_receipt_fields": ["transaction_id", "generation_id", "closure_digest", "last_known_good_generation_id", "last_known_good_closure_digest"],
             "operational_ready": "boolean",
+            "launch_allowed": "boolean",
+            "launch_blocked_reason": "null_or_string",
+            "allowed_when_blocked": ["status", "doctor", "repair"],
             "repair_action": ["action_id", "command_ref", "enabled", "reason_code"],
             "dependent_guard": ["required_by_package_ids", "disable.allowed", "disable.reason_code", "uninstall.allowed", "uninstall.reason_code"]
           },
           "repair_action_id": "repair_dependency_closure",
+          "launch_gate_policy": "operational_ready_false_requires_launch_allowed_false_and_only_status_doctor_repair_remain_allowed",
+          "launch_fail_closed_reason_codes": ["package_not_installed"],
           "closure_diagnostics_surface": "advanced_diagnostics_only",
           "forbidden_private_fields": ["staging_path", "journal_path"]
         },
@@ -4480,7 +4490,8 @@
           "trust_state",
           "codex_surface_state",
           "dependency_readiness",
-          "operational_ready"
+          "operational_ready",
+          "launch_allowed"
         ],
         "source_inputs": [
           "app_state.agent_packages.directory.installed_packages[]",
@@ -4490,6 +4501,9 @@
           "app_state.agent_packages.directory.installed_packages[].dependent_guard",
           "app_state.agent_packages.status_index.packages[].dependency_readiness",
           "app_state.agent_packages.status_index.packages[].operational_ready",
+          "app_state.agent_packages.status_index.packages[].launch_allowed",
+          "app_state.agent_packages.status_index.packages[].launch_blocked_reason",
+          "app_state.agent_packages.status_index.packages[].allowed_when_blocked",
           "app_state.agent_packages.status_index.packages[].repair_action",
           "app_state.agent_packages.status_index.packages[].dependent_guard",
           "modules.items[].health_status",

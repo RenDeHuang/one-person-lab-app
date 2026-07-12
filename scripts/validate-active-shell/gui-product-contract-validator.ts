@@ -213,6 +213,8 @@ function validateAgentPackageLifecycleUx(surface, label) {
       'explain_install_source_in_user_language',
       'show_failure_reason_only_when_failed_blocked_or_needs_user_action',
       'operational_ready_false_or_dependency_repair_required_must_never_render_ready',
+      'operational_ready_false_must_disable_ordinary_package_and_agent_launch',
+      'blocked_packages_allow_only_status_doctor_and_repair_actions',
       'show_dependency_readiness_and_dependent_guard_in_normal_details',
       'trigger_only_projected_repair_action_when_enabled',
       'show_receipt_and_physical_surface_in_details_or_advanced_only',
@@ -243,7 +245,7 @@ function validateAgentPackageLifecycleUx(surface, label) {
   );
   assertIncludesAll(
     surface.failure_reason_fields,
-    ['failure_reason', 'blocker_summary', 'last_action_receipt_ref', 'recommended_action', 'dependency_readiness.status', 'dependency_readiness.checks[].failure_reasons', 'operational_ready', 'dependent_guard.disable.reason_code', 'dependent_guard.uninstall.reason_code'],
+    ['failure_reason', 'blocker_summary', 'last_action_receipt_ref', 'recommended_action', 'dependency_readiness.status', 'dependency_readiness.checks[].failure_reasons', 'operational_ready', 'launch_allowed', 'launch_blocked_reason', 'allowed_when_blocked', 'dependent_guard.disable.reason_code', 'dependent_guard.uninstall.reason_code'],
     `${label} failure reason fields`,
   );
   const detail = surface.receipt_physical_surface_detail_policy;
@@ -268,11 +270,25 @@ function validateAgentPackageLifecycleUx(surface, label) {
   );
   if (
     projection?.status_index_package_fields?.operational_ready !== 'boolean' ||
+    projection?.status_index_package_fields?.launch_allowed !== 'boolean' ||
+    projection?.status_index_package_fields?.launch_blocked_reason !== 'null_or_string' ||
     projection?.repair_action_id !== 'repair_dependency_closure' ||
+    projection?.launch_gate_policy !==
+      'operational_ready_false_requires_launch_allowed_false_and_only_status_doctor_repair_remain_allowed' ||
     projection?.closure_diagnostics_surface !== 'advanced_diagnostics_only'
   ) {
     throw new Error(`${label} must define generic dependency closure readiness and repair projection`);
   }
+  assertDeepEqualJson(
+    projection?.status_index_package_fields?.allowed_when_blocked,
+    ['status', 'doctor', 'repair'],
+    `${label} blocked package allowed actions`,
+  );
+  assertDeepEqualJson(
+    projection?.launch_fail_closed_reason_codes,
+    ['package_not_installed'],
+    `${label} launch fail-closed reasons`,
+  );
   assertDeepEqualJson(projection?.forbidden_private_fields, ['staging_path', 'journal_path'], `${label} private fields`);
   assertIncludesAll(
     detail.physical_surface_fields,

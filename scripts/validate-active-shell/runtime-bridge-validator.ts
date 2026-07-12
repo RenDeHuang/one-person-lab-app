@@ -769,10 +769,13 @@ function validatePackageReadinessProjection(runtimeBridge) {
   );
   assertDeepEqualJson(
     packageRow?.required_projection_fields?.['status_index.packages[package_id]'],
-    ['dependency_readiness', 'operational_ready', 'repair_action', 'dependent_guard'],
+    ['dependency_readiness', 'operational_ready', 'launch_allowed', 'launch_blocked_reason', 'allowed_when_blocked', 'repair_action', 'dependent_guard'],
     'Runtime bridge package status readiness fields',
   );
-  if (!packageRow?.projection_authority_policy?.includes('must not infer dependency closure')) {
+  if (
+    !packageRow?.projection_authority_policy?.includes('must not infer dependency closure') ||
+    !packageRow.projection_authority_policy.includes('launch eligibility')
+  ) {
     throw new Error('Runtime bridge package projection must forbid package-identity readiness inference');
   }
 }

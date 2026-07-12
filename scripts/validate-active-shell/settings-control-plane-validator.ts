@@ -2265,6 +2265,7 @@ function validateSettingsCapabilitiesDirectoryProjection(capabilitiesPage) {
       "codex_surface_state",
       "dependency_readiness",
       "operational_ready",
+      "launch_allowed",
     ],
     "Settings Capabilities status axes",
   );
@@ -2291,7 +2292,7 @@ function validateSettingsCapabilitiesDirectoryProjection(capabilitiesPage) {
   if (
     detailSurface?.kind !== "desktop_right_side_panel_mobile_drawer" ||
     detailSurface?.first_screen_policy !==
-      "dependency_readiness_operational_ready_and_dependent_guard_are_normal_detail_fields_while_receipts_dependency_closure_digests_physical_surface_and_workflow_connector_resource_refs_are_advanced_only_not_primary_row_density"
+      "dependency_readiness_operational_ready_launch_gate_and_dependent_guard_are_normal_detail_fields_while_receipts_dependency_closure_digests_physical_surface_and_workflow_connector_resource_refs_are_advanced_only_not_primary_row_density"
   ) {
     throw new Error(
       "Settings Capabilities detail surface must keep refs in side-panel/drawer density",
@@ -2303,6 +2304,9 @@ function validateSettingsCapabilitiesDirectoryProjection(capabilitiesPage) {
       "receipt_refs",
       "dependency_readiness",
       "operational_ready",
+      "launch_allowed",
+      "launch_blocked_reason",
+      "allowed_when_blocked",
       "repair_action",
       "dependent_guard",
       "dependency_closure",
