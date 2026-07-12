@@ -8,6 +8,7 @@
   "scripts": {
     "postinstall": "node --experimental-strip-types scripts/validate-active-shell.ts --quick",
     "verify": "scripts/verify.sh",
+    "typecheck": "npx --yes -p typescript@5.8.3 -p @types/node@22.15.3 -c \"tsc --noEmit -p tsconfig.json\"",
     "ensure:shell": "node --experimental-strip-types scripts/ensure-active-shell.ts",
     "install:shell": "node --experimental-strip-types scripts/run-active-shell-command.ts bun install --frozen-lockfile",
     "start": "node --experimental-strip-types scripts/run-active-shell-command.ts bun run start",

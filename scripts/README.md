@@ -47,7 +47,7 @@ AGUI selection should happen only when AGUI replay is explicitly requested.
 | `validate-release-evidence-bundle.ts` | Validates a release evidence bundle manifest and artifact files, including real screenshot dimensions; default validation fails closed when required evidence is missing. |
 | `smoke-hermes-candidate-tart.ts` | Runs the packaged `One Person Lab Hermes Candidate.app` first-run fixture smoke inside a Tart clean VM, copying guest artifacts back to the App repo. This is candidate technical verification only and does not promote Hermes to the release shell. |
 
-Stable App-root npm entries are `verify`, `validate:release-boundary`,
+Stable App-root npm entries are `verify`, `typecheck`, `validate:release-boundary`,
 `validate:gui-design-system`, `validate:gui-shell`, `test:smoke`, `test:full`, `release:evidence:manifest`,
 `release:evidence:validate`, and `hygiene:fallow`. `npm test` aliases the smoke
 entry so ordinary development does not run the full active-shell DOM portfolio;
@@ -139,6 +139,15 @@ npm run test:opl-first-run-vm:tart -- --dry-run --source-vm opl-first-run-no-clt
 OPL_INSTALL_SCRIPT_URL=file:///path/to/one-person-lab/install.sh ./install.sh --with-app --skip-modules
 docker build -t one-person-lab-webui:<version> shells/aionui
 ```
+
+## App root TypeScript gate
+
+`npm run typecheck` is the App-owned root TypeScript gate. It uses pinned
+TypeScript and Node type packages through `npx` so the App remains a thin
+product wrapper without a second runtime dependency tree. The root
+`tsconfig.json` deliberately lists the maintained App boundary and model-policy
+entrypoints; the active shell's full renderer typecheck remains owned by the
+shell repository and its own `tsconfig.json`.
 
 For shell alternatives, `npm run validate:shell-candidates` covers the
 registry-selected foreground alternative by default. The current foreground

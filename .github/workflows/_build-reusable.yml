@@ -103,7 +103,7 @@ jobs:
     if: ${{ !inputs.skip_code_quality }}
     defaults:
       run:
-        working-directory: shells/aionui
+        working-directory: .
 
     steps:
       - name: Checkout App repo
@@ -111,12 +111,21 @@ jobs:
         with:
           ref: ${{ inputs.ref }}
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: TypeScript type check (App root)
+        run: npm run typecheck
+
       - name: Setup active shell dependencies
         uses: ./.github/actions/setup-active-shell-deps
         with:
           shell-ref: ${{ inputs.shell_ref }}
 
-      - name: TypeScript type check
+      - name: TypeScript type check (AionUI shell)
+        working-directory: shells/aionui
         run: bunx tsc --noEmit
 
   release-boundary:
