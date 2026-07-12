@@ -1140,6 +1140,55 @@
   },
   "release_acceleration": {
     "plan_command": "npm run release:plan -- --version <version> --include-full-package",
+    "stable_release_state_machine": {
+      "package_script": "release:stable",
+      "script": "scripts/run-stable-release.ts",
+      "schema": "opl_app_stable_release_session.v1",
+      "default_mode": "dry_run",
+      "execute_flag": "--execute",
+      "canonical_commands": [
+        "start",
+        "resume",
+        "promote"
+      ],
+      "phases": [
+        "planned",
+        "source_gates_passed",
+        "release_running",
+        "owner_review_required",
+        "release_failed",
+        "promotion_running",
+        "published",
+        "promotion_failed"
+      ],
+      "cohort_binding": {
+        "identity_fields": [
+          "version",
+          "release_operator_plan_ref",
+          "app_sha",
+          "shell_sha",
+          "framework_sha"
+        ],
+        "remote_dispatch_ref_must_match_frozen_app_sha": true,
+        "desktop_release_dispatch_limit_per_cohort": 1,
+        "cross_cohort_artifact_reuse_allowed": false,
+        "manual_sha_entry_after_freeze_allowed": false
+      },
+      "execution_policy": {
+        "deduplicate_cheap_source_gates": true,
+        "stable_complete_requires_addon_gates": true,
+        "run_id_discovered_from_exact_app_sha": true,
+        "monitor_command": "gh run watch <run-id> --repo gaofeng21cn/one-person-lab-app --interval 60 --exit-status",
+        "promotion_reuses_source_release_run_id": true,
+        "promotion_requires_release_owner_receipt": true
+      },
+      "recovery_policy": {
+        "smoke_or_validator_only_change_rebuilds_existing_artifact": false,
+        "product_or_runtime_byte_change_requires_new_cohort": true,
+        "failed_gate_requires_classification_before_next_dispatch": true
+      },
+      "authority_boundary": "The stable release session coordinates an explicitly authorized release but is not release truth. Same-cohort evidence, candidate validation, owner receipt, promotion readback, Homebrew readback, and installed App verification remain authoritative for their own states."
+    },
     "target_architecture": {
       "strategy": "build_once_promote_many",
       "release_cohort_manifest_is_retry_entrypoint": true,

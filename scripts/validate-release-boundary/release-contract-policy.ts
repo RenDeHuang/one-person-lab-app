@@ -448,6 +448,7 @@ function validateWebuiPackagePolicy(releaseContract: Record<string, any>): numbe
 function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>): number {
   let failures = 0;
   const acceleration = releaseContract.release_acceleration;
+  const stableReleaseStateMachine = acceleration?.stable_release_state_machine;
   const cohortPrepare = acceleration?.cohort_prepare;
   const releaseOperator = acceleration?.release_operator;
   const releaseMonitor = acceleration?.release_monitor;
@@ -460,6 +461,28 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
   const scheduledVmGuard = firstRunVmConcurrency?.scheduled_desktop_release_activity_guard;
   const vmGates = Array.isArray(acceleration?.vm_gates) ? acceleration.vm_gates : [];
   const assistantRouteSmoke = acceleration?.assistant_route_smoke_policy;
+
+  if (
+    stableReleaseStateMachine?.package_script !== 'release:stable' ||
+    stableReleaseStateMachine?.script !== 'scripts/run-stable-release.ts' ||
+    stableReleaseStateMachine?.schema !== 'opl_app_stable_release_session.v1' ||
+    stableReleaseStateMachine?.default_mode !== 'dry_run' ||
+    stableReleaseStateMachine?.execute_flag !== '--execute' ||
+    !sameStringSet(stableReleaseStateMachine?.canonical_commands, ['start', 'resume', 'promote']) ||
+    stableReleaseStateMachine?.cohort_binding?.desktop_release_dispatch_limit_per_cohort !== 1 ||
+    stableReleaseStateMachine?.cohort_binding?.cross_cohort_artifact_reuse_allowed !== false ||
+    stableReleaseStateMachine?.cohort_binding?.remote_dispatch_ref_must_match_frozen_app_sha !== true ||
+    stableReleaseStateMachine?.execution_policy?.deduplicate_cheap_source_gates !== true ||
+    stableReleaseStateMachine?.execution_policy?.stable_complete_requires_addon_gates !== true ||
+    stableReleaseStateMachine?.execution_policy?.promotion_reuses_source_release_run_id !== true ||
+    stableReleaseStateMachine?.execution_policy?.promotion_requires_release_owner_receipt !== true ||
+    stableReleaseStateMachine?.recovery_policy?.smoke_or_validator_only_change_rebuilds_existing_artifact !== false ||
+    typeof stableReleaseStateMachine?.authority_boundary !== 'string' ||
+    !stableReleaseStateMachine.authority_boundary.includes('is not release truth')
+  ) {
+    console.error('FAIL stable_release_state_machine_policy: Stable must use one dry-run-first, exact-cohort state machine from source gates through promotion');
+    failures += 1;
+  }
 
   if (
     assistantRouteSmoke?.standard?.verification_mode !== 'launch_gate' ||

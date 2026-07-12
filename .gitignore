@@ -101,6 +101,7 @@ out/
 # External GUI shell checkouts. Shell repos keep implementation history outside
 # this clean App product repository.
 shells/aionui
+release-session-v*.json
 shells/aionui/
 shells/agui-codex
 shells/agui-codex/

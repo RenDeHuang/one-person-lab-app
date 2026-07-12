@@ -82,6 +82,7 @@
     "release:plan": "node --experimental-strip-types scripts/plan-release-candidate.ts",
     "release:cohort-lock": "node --experimental-strip-types scripts/release-cohort-lock.ts",
     "release:cohort-plan": "node --experimental-strip-types scripts/plan-release-cohort.ts",
+    "release:stable": "node --experimental-strip-types scripts/run-stable-release.ts",
     "release:operator": "node --experimental-strip-types scripts/release-operator.ts",
     "release:closeout": "node --experimental-strip-types scripts/closeout-release-run.ts",
     "release:attestation:verify": "node --experimental-strip-types scripts/verify-release-attestations.ts",

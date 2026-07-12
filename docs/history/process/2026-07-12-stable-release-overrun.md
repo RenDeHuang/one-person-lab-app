@@ -7,6 +7,8 @@
 - User budget: 90 minutes
 - Independent audit point: after 7 hours; the whole task event log then covered almost 9 hours.
 - The task was still active rather than blocked on one long-running command.
+- At the user's later review point the task had remained open for about 18
+  hours, so the earlier audit was a midpoint rather than final wall time.
 
 The local session log contained 1,416 `exec` calls, 471 `wait` calls, 71 patch
 applications, and six context compactions. It issued 40 commands containing
@@ -50,6 +52,19 @@ Process defects amplified both failures:
    smoke contract, so canonical package-id drift was found only after a Full DMG
    had been built.
 
+## Why Full Was Not Published
+
+Standard was published, but Full remained quarantined because its exact-cohort
+clean-VM qualification did not pass. Build run `29211495991` produced the Full
+DMG successfully. VM run `29212234534` verified the cohort, opened Settings,
+showed all four Home starters, selected MAS, displayed `能力：科研`, and exposed
+the `完全访问` permission control. The remaining assertion reported that the
+selected built-in assistant did not expose the complete selected-capability and
+composer-decision-control state for `mas`, most likely the model-selector
+condition. That is a real Full acceptance blocker or a stale smoke-contract
+boundary, not a packaging failure. Publishing the Full DMG before resolving
+that distinction would have mislabeled an unqualified artifact as Stable.
+
 ## Corrective Actions
 
 - Bind every VM run to an exact App, Shell, Framework, version, artifact, and
@@ -78,3 +93,20 @@ At 90 minutes, publish an efficiency checkpoint with the exact blocker, owner,
 same-cohort evidence, reusable gates, and shortest legal next path. Continue to
 terminal release success unless a real external or human-owned gate blocks the
 release; do not continue an unclassified build-and-VM loop.
+
+## Durable Redesign
+
+The original controls were individually correct but operationally incomplete:
+the cohort plan, raw workflow dispatch, run-id discovery, monitoring, owner
+handoff, and promotion were separate manual steps. That allowed an operator to
+bypass the frozen plan after every failure and recreate the same cross-cohort
+mistake.
+
+`npm run release:stable` is now the single persisted release state machine. It
+defaults to dry-run and requires `--execute` for external mutation. One session
+binds version plus App/Shell/Framework SHAs, runs the deduplicated cheap gates,
+allows one desktop-release dispatch, discovers the exact run id automatically,
+uses one 60-second monitor, and carries that run id into owner-receipt-gated
+promotion. Remote branch movement, cross-cohort artifacts, skipped phases, a
+second desktop release for the same cohort, and promotion without an owner
+receipt are rejected before expensive work.

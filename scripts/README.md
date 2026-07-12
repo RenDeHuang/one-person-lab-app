@@ -123,6 +123,10 @@ npm run release:actions-timing -- --run-id <github-actions-run-id> --run-id <pro
 npm run release:gate-reuse-plan -- --version <version> --release-mode refresh_existing --include-full-package true --run-vm-smoke true --app-commit <sha> --shell-ref <ref> --framework-ref <ref> --current-preflight release-preflight-summary.json --current-remote-verification remote-release-verification.json --previous-candidate-record previous-release-candidate-record.json --previous-readiness previous-release-readiness-summary.json --previous-remote-verification previous-remote-release-verification.json --output release-gate-reuse-plan.json --markdown release-gate-reuse-plan.md
 npm run release:cohort-lock -- --app-ref <app-sha> --shell-ref <shell-ref> --framework-ref <framework-ref> --output release-cohort-lock.json --markdown release-cohort-lock.md
 npm run release:cohort-plan -- --version <version> --release-mode new_release --release-intent stable_complete --include-full-package true --run-vm-smoke true --app-ref <dispatchable-branch-or-tag> --shell-ref <shell-ref> --framework-ref <framework-ref> --output release-cohort-plan.json --markdown release-cohort-plan.md
+npm run release:stable -- start --version <version> --release-mode new_release --release-intent stable_complete --include-full-package true --run-vm-smoke true --app-ref <dispatchable-branch-or-tag> --shell-ref <shell-ref> --framework-ref <framework-ref> --state release-session.json
+npm run release:stable -- start --version <version> --release-mode new_release --release-intent stable_complete --include-full-package true --run-vm-smoke true --app-ref <dispatchable-branch-or-tag> --shell-ref <shell-ref> --framework-ref <framework-ref> --state release-session.json --execute
+npm run release:stable -- resume --state release-session.json
+npm run release:stable -- promote --state release-session.json --release-owner-receipt-ref <same-cohort-owner-receipt-ref> --execute
 npm run release:operator -- plan --version <version> --release-mode new_release --release-intent stable_complete --include-full-package true --run-vm-smoke true --app-ref <dispatchable-branch-or-tag> --shell-ref <shell-ref> --framework-ref <framework-ref> --output release-operator-state.json --markdown release-operator-state.md
 npm run release:operator -- status --run-id <github-actions-run-id> --expected-head <app-sha> --output release-operator-state.json --markdown release-operator-state.md
 npm run release:operator -- diagnose-vm --version <version> --release-artifact-name <artifact> --release-artifact-run-id <run-id> --package-profile full --diagnostic-scope bootstrap_only --output release-operator-state.json --markdown release-operator-state.md
@@ -428,6 +432,20 @@ long-SHA entry is a diagnostic fallback, and a frozen cohort should run desktop
 release once. Remote movement after the freeze is post-freeze drift; either
 promote the frozen cohort after owner receipt, or freeze a new cohort and
 dispatch a new desktop release.
+
+`release:stable` is the canonical operator entry for a complete Stable train.
+It is dry-run by default and requires `--execute` before any GitHub workflow
+dispatch. `start` resolves the App, Shell, and Framework refs once, deduplicates
+and runs the cheap source gates, verifies that the remote App branch still
+points to the frozen SHA, dispatches exactly one desktop release for that
+cohort, discovers its run id from the exact App SHA, and uses one 60-second
+`gh run watch` process. The persisted `opl_app_stable_release_session.v1`
+file carries the run id into `promote`; promotion cannot be dispatched without
+a same-cohort release-owner receipt. A validator-only or smoke-only change must
+reuse the existing artifact for diagnosis and does not justify rebuilding it.
+Only a change to packaged product/runtime bytes freezes and dispatches a new
+cohort. `release:cohort-plan` and `release:operator` remain inspection and
+diagnostic components behind this entry, not competing manual release paths.
 If source preparation exposes a stale App head, unresolved shell/framework ref,
 wrong shell type/format, dirty source checkout, or release-boundary/source-gate
 failure, repair that root cause before dispatching the workflow. During an
