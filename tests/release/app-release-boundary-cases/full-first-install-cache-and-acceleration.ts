@@ -17,7 +17,10 @@ test('Full domain build links the pinned local Framework package into RedCube', 
 
 test('Full workflow checks out and validates the OPL Flow source before cache resolution', () => {
   const workflow = fs.readFileSync(path.join(appRoot, '.github/workflows/full-first-install-release.yml'), 'utf8');
-  assert.match(workflow, /name: Checkout OPL Flow[\s\S]*repository: gaofeng21cn\/opl-flow[\s\S]*path: opl-flow/);
+  assert.match(
+    workflow,
+    /name: Checkout OPL Flow[\s\S]*repository: gaofeng21cn\/opl-flow[\s\S]*ref: a91bfbfc848c1c66b99017abd0adce480c78816a[\s\S]*path: opl-flow/,
+  );
   assert.match(workflow, /name: Validate Full source roots[\s\S]*opl-flow\/\.codex-plugin\/plugin\.json/);
   assert.equal(
     workflow.match(/export OPL_FULL_OPL_FLOW_ROOT="\$GITHUB_WORKSPACE\/opl-flow"/g)?.length,
