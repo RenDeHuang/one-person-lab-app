@@ -376,6 +376,7 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     'environment',
     'storage',
     'appearance',
+    'personalization',
     'advanced',
     'about',
   ]) {

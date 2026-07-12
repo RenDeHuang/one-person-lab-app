@@ -25,7 +25,7 @@ function validate(values = contracts()) {
   );
 }
 
-test("Settings contract keeps eight product pages, two secondary pages, and anchored compatibility routes", () => {
+test("Settings contract keeps nine product pages, two secondary pages, and anchored compatibility routes", () => {
   const values = contracts();
 
   assert.doesNotThrow(() => validate(values));
@@ -40,6 +40,7 @@ test("Settings contract keeps eight product pages, two secondary pages, and anch
       "maintenance",
       "storage",
       "preferences",
+      "personalization",
     ],
   );
   assert.deepStrictEqual(
@@ -53,6 +54,7 @@ test("Settings contract keeps eight product pages, two secondary pages, and anch
       "维护",
       "数据与存储",
       "偏好",
+      "个性化",
     ],
   );
   assert.deepStrictEqual(
@@ -520,11 +522,20 @@ test("Settings strictly separates configuration, status, action, and diagnostic 
   );
   assert.equal(
     experience.page_contracts.preferences.surface_rules.full_width_group_count,
-    4,
+    3,
   );
   assert.equal(
     experience.page_contracts.preferences.surface_inventory.diagnostic.length,
     0,
+  );
+  assert.equal(
+    experience.page_contracts.personalization.surface_rules.full_width_group_count,
+    2,
+  );
+  assert.equal(
+    experience.page_contracts.personalization.surface_rules
+      .workspace_scope_must_not_merge_here,
+    true,
   );
   assert.equal(
     experience.page_contracts.storage.surface_rules

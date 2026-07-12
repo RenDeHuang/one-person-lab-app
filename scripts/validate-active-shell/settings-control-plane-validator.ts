@@ -64,6 +64,7 @@ const expectedSlotKeys = [
   "settings_environment",
   "settings_storage",
   "settings_theme",
+  "settings_personalization",
   "settings_advanced",
   "about",
   "update",
@@ -97,6 +98,7 @@ const expectedVisualQaRoutes = [
   "/settings/environment",
   "/settings/storage",
   "/settings/appearance",
+  "/settings/personalization",
 ];
 const expectedVisualQaSecondaryRoutes = [
   "/settings/advanced",
@@ -137,6 +139,8 @@ const matrixRouteScopes = {
   about: appOwnedSettingsRouteScopes.about,
   update: appOwnedSettingsRouteScopes.update,
   settings_theme: appOwnedSettingsRouteScopes.settings_theme,
+  settings_personalization:
+    appOwnedSettingsRouteScopes.settings_personalization,
   advanced: appOwnedSettingsRouteScopes.advanced,
   settings_workspace: appOwnedSettingsRouteScopes.workspace,
 };
@@ -152,6 +156,7 @@ const expectedIaGroupByMatrixPageId = {
   about: "advanced",
   update: "maintenance",
   settings_theme: "preferences",
+  settings_personalization: "personalization",
   advanced: "advanced",
   settings_workspace: "overview",
 };
@@ -354,6 +359,7 @@ export function validateSettingsControlPlane(
       "settings_environment",
       "settings_storage",
       "settings_theme",
+      "settings_personalization",
     ],
     "Settings control plane ordinary slot ids",
   );
@@ -939,7 +945,7 @@ function validateSettingsTopLevelEntries(entries, policy) {
       "carrier_route_ids_remain_stable_while_product_page_ids_are_canonical"
   ) {
     throw new Error(
-      "Settings IA must declare eight product pages, independent About, and compatibility anchor routes",
+      "Settings IA must declare nine product pages, independent About, and compatibility anchor routes",
     );
   }
   assertDeepEqualJson(
@@ -1404,6 +1410,7 @@ function validateHydratedSettingsRegistry(controlPlane) {
       "RuntimeSettings",
       "StorageSettings",
       "AppearanceModalContent",
+      "PersonalizationSettingsContent",
     ],
     "Hydrated Settings registry ordinary component keys",
   );
@@ -1932,9 +1939,12 @@ export function validateSettingsExperienceContract(experience) {
       );
     }
     const technicalDetailsTestId = `settings-${pageId}-technical-details`;
-    const technicalDetailsOptional = ["advanced", "preferences"].includes(
-      pageId,
-    );
+    const technicalDetailsOptional = [
+      "access",
+      "advanced",
+      "preferences",
+      "personalization",
+    ].includes(pageId);
     const hasTechnicalDetailsSurface =
       page.required_dom.always.includes(technicalDetailsTestId) ||
       page.required_dom.conditional.some(
@@ -2016,7 +2026,7 @@ export function validateSettingsExperienceContract(experience) {
   assertDeepEqualJson(
     pageContracts.preferences.surface_rules,
     {
-      full_width_group_count: 4,
+      full_width_group_count: 3,
       two_plus_one_grid_allowed: false,
       builtin_theme_ids: ["light", "dark", "codex"],
       extension_themes_default_visible: false,
@@ -2026,6 +2036,18 @@ export function validateSettingsExperienceContract(experience) {
         "advanced_but_persistent_controls_use_a_named_configuration_group_not_a_technical_details_disclosure",
     },
     "Settings Preferences surface rules",
+  );
+  assertDeepEqualJson(
+    pageContracts.personalization.surface_rules,
+    {
+      full_width_group_count: 2,
+      generated_base_context_editable: false,
+      additional_instructions_editable: true,
+      restore_default_confirmation_required: true,
+      changes_apply_to: "next_new_conversation",
+      workspace_scope_must_not_merge_here: true,
+    },
+    "Settings Personalization surface rules",
   );
   assertDeepEqualJson(
     pageContracts.maintenance.surface_rules,

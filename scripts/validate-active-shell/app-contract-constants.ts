@@ -317,6 +317,7 @@ export const appOwnedSettingsTabs = [
   "environment",
   "storage",
   "appearance",
+  "personalization",
 ];
 export const appOwnedTaskAwarenessRefFields = [
   "capability_health_refs",
@@ -383,6 +384,7 @@ export const appOwnedSettingsIaGroupIds = [
   "maintenance",
   "data_storage",
   "preferences",
+  "personalization",
   "advanced",
 ];
 export const appOwnedSettingsRouteScopes = {
@@ -393,6 +395,10 @@ export const appOwnedSettingsRouteScopes = {
   environment: { route_id: "environment", route_scope: "ordinary" },
   storage: { route_id: "storage", route_scope: "ordinary" },
   settings_theme: { route_id: "appearance", route_scope: "ordinary" },
+  settings_personalization: {
+    route_id: "personalization",
+    route_scope: "ordinary",
+  },
   advanced: { route_id: "advanced", route_scope: "secondary_or_deep_link" },
   about: { route_id: "about", route_scope: "secondary_or_deep_link" },
   update: { route_id: "update", route_scope: "compatibility_redirect" },
@@ -428,6 +434,7 @@ export const appOwnedSettingsTopLevelEntryIds = [
   "maintenance",
   "storage",
   "preferences",
+  "personalization",
 ];
 export const appOwnedSettingsTopLevelLabels = {
   overview: { label_zh: "概览", label_en: "Overview" },
@@ -438,6 +445,7 @@ export const appOwnedSettingsTopLevelLabels = {
   maintenance: { label_zh: "维护", label_en: "Maintenance" },
   storage: { label_zh: "数据与存储", label_en: "Data & Storage" },
   preferences: { label_zh: "偏好", label_en: "Preferences" },
+  personalization: { label_zh: "个性化", label_en: "Personalization" },
 };
 export const appOwnedSettingsProductPageIds = [
   ...appOwnedSettingsTopLevelEntryIds,
@@ -445,13 +453,14 @@ export const appOwnedSettingsProductPageIds = [
 ];
 export const appOwnedSettingsTechnicalDetailsDefault = {
   overview: "explicit_action_modal",
-  access: "explicit_action_modal",
+  access: "not_applicable",
   workspace: "explicit_action_modal",
   capabilities: "collapsed",
   resources: "explicit_action_modal",
   maintenance: "explicit_action_modal",
   storage: "explicit_action_modal",
   preferences: "not_applicable",
+  personalization: "not_applicable",
   advanced: "not_applicable",
   about: "explicit_action_modal",
 };
@@ -478,12 +487,10 @@ export const appOwnedSettingsPageAnchors = {
     "behavior",
     "notifications",
     "models-performance",
-    "instructions-context",
-    "system-agents",
-    "opl-app-context",
     "display-fonts",
     "themes",
   ],
+  personalization: ["system-agents", "opl-app-context"],
   advanced: ["working-directories"],
   about: ["version", "channel", "updates", "help-feedback"],
 };
@@ -535,9 +542,11 @@ export const appOwnedSettingsPageSearchEntryIds = {
     "preferences.notifications",
     "preferences.performance",
     "preferences.display_fonts",
-    "preferences.system_agents",
-    "preferences.opl_app_context",
     "preferences.themes",
+  ],
+  personalization: [
+    "personalization.system_agents",
+    "personalization.opl_app_context",
   ],
   advanced: ["advanced.directories"],
   about: [
@@ -743,6 +752,7 @@ export const appOwnedSettingsVisualQaTargets = [
   "desktop_settings_maintenance",
   "desktop_settings_storage",
   "desktop_settings_preferences",
+  "desktop_settings_personalization",
 ];
 export const appOwnedSettingsUpstreamIntakeClassifications = [
   "accepted",
@@ -752,7 +762,7 @@ export const appOwnedSettingsUpstreamIntakeClassifications = [
 ];
 export const appOwnedSettingsProductSystemItemIds = [
   "control_center_positioning",
-  "eight_entry_ia",
+  "nine_entry_ia",
   "secondary_route_strategy",
   "compatibility_anchor_routes",
   "single_control_plane",

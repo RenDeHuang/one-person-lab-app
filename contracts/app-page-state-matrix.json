@@ -2214,8 +2214,6 @@
         "application behavior and notifications in a full-width group",
         "reply waiting time, idle-assistant release, and hardware acceleration in a named performance and background activity group",
         "tray and close-window behavior",
-        "editable system-level AGENTS.md with current-path and stale-write protection",
-        "generated OPL App session context with editable additional instructions and restore-default action",
         "Light, Dark, and Codex theme choices under the themes anchor",
         "restart-required notice next to the affected setting when applicable"
       ],
@@ -2231,7 +2229,7 @@
       "machine_source": "opl app state --profile fast --json",
       "refresh_source": "opl app state --profile fast --json",
       "page_contract": "settings_theme",
-      "state_sections": ["settings", "desktop_startup", "personalization", "theme"],
+      "state_sections": ["settings", "desktop_startup", "theme"],
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
       "ia_group": "preferences",
       "route_id": "appearance",
@@ -2240,7 +2238,6 @@
       "sections": [
         "application_behavior_and_notifications",
         "performance_and_waiting",
-        "instructions_context",
         "display_and_themes"
       ],
       "product_page_id": "preferences",
@@ -2249,9 +2246,6 @@
         "always": [
           "settings-page-preferences",
           "settings-preferences-primary",
-          "settings-preferences-instructions",
-          "settings-system-agents-editor",
-          "settings-opl-app-context-editor",
           "preferences-performance-section"
         ],
         "conditional": [
@@ -2265,9 +2259,6 @@
         "behavior",
         "notifications",
         "models-performance",
-        "instructions-context",
-        "system-agents",
-        "opl-app-context",
         "display-fonts",
         "themes"
       ],
@@ -2276,9 +2267,57 @@
         "preferences.notifications",
         "preferences.performance",
         "preferences.display_fonts",
-        "preferences.system_agents",
-        "preferences.opl_app_context",
         "preferences.themes"
+      ],
+      "primary_action_id": "none",
+      "technical_details_default": "not_applicable",
+      "exception_emphasis": "attention_only"
+    },
+    {
+      "id": "settings_personalization",
+      "expected_source": "OPL Framework Codex personalization projection plus App local conversation context settings",
+      "must_show": [
+        "editable system-level AGENTS.md with current-path and stale-write protection",
+        "restore from the currently installed OPL Flow default only after confirmation",
+        "generated OPL App base context as read-only content",
+        "editable additional instructions that apply to the next new conversation"
+      ],
+      "must_not_show": [
+        "workspace paths or project permissions",
+        "raw Codex session context diagnostics",
+        "OPL Flow described as the owner of per-session App context"
+      ],
+      "machine_source": "opl app state --profile fast --json#codex_personalization",
+      "refresh_source": "opl app state --profile fast --json",
+      "page_contract": "settings_personalization",
+      "state_sections": ["codex_personalization", "app_session_context"],
+      "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
+      "ia_group": "personalization",
+      "route_id": "personalization",
+      "route_scope": "ordinary",
+      "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia",
+      "sections": ["system_agents", "opl_app_context"],
+      "product_page_id": "personalization",
+      "experience_contract_ref": "contracts/app-settings-control-plane.json#experience_contract.page_contracts.personalization",
+      "required_dom": {
+        "always": [
+          "settings-page-personalization",
+          "settings-personalization-primary",
+          "settings-personalization-instructions",
+          "settings-system-agents-editor",
+          "settings-opl-app-context-editor"
+        ],
+        "conditional": [
+          {
+            "testid": "settings-personalization-exception",
+            "when": "attention_required"
+          }
+        ]
+      },
+      "required_anchors": ["system-agents", "opl-app-context"],
+      "search_entry_ids": [
+        "personalization.system_agents",
+        "personalization.opl_app_context"
       ],
       "primary_action_id": "none",
       "technical_details_default": "not_applicable",
@@ -2630,8 +2669,7 @@
         "model",
         "codex_cli",
         "authentication",
-        "model_preferences",
-        "diagnostics"
+        "model_preferences"
       ],
       "state_sections": [
         "core.codex.model_access_ready",
@@ -2667,8 +2705,7 @@
         "always": [
           "settings-page-access",
           "settings-access-primary",
-          "settings-access-model-preference",
-          "settings-access-diagnostics-action"
+          "settings-access-model-preference"
         ],
         "conditional": [
           {
@@ -2678,10 +2715,6 @@
           {
             "testid": "settings-access-primary-action",
             "when": "missing_or_user_requested_change"
-          },
-          {
-            "testid": "settings-access-technical-details",
-            "when": "diagnostics_open"
           }
         ]
       },
@@ -2698,7 +2731,7 @@
         "access.authentication"
       ],
       "primary_action_id": "configure_model_access",
-      "technical_details_default": "explicit_action_modal",
+      "technical_details_default": "not_applicable",
       "exception_emphasis": "attention_only",
       "provider_source": "app_state.core.codex.model_access_source"
     },

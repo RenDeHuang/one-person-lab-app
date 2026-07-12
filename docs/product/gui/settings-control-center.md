@@ -14,7 +14,7 @@ search behavior, or readiness claims from upstream AionUI defaults.
 
 These contracts own:
 
-- the eight ordinary product pages;
+- the nine ordinary product pages;
 - the two secondary product pages;
 - compatibility redirect targets and anchors;
 - the single Settings search index;
@@ -77,6 +77,7 @@ implementation ids so the shell can migrate without changing user-facing IA.
 | `maintenance`  | 维护          | `environment`  | `/settings/environment`  | ordinary  |
 | `storage`      | 数据与存储    | `storage`      | `/settings/storage`      | ordinary  |
 | `preferences`  | 偏好          | `appearance`   | `/settings/appearance`   | ordinary  |
+| `personalization` | 个性化      | `personalization` | `/settings/personalization` | ordinary |
 | `advanced`     | 高级          | `advanced`     | `/settings/advanced`     | secondary |
 | `about`        | 关于          | `about`        | `/settings/about`        | secondary |
 
@@ -295,8 +296,11 @@ key button. The primary-action emphasis follows model-access readiness only.
 Exception state: missing, expired, or unreachable access with one corrective
 action.
 
-Technical details: base URL, environment variables, token paths, Codex CLI
-candidates, and raw provider ids open in one read-only diagnostic modal.
+Technical details: no separate disclosure in the ordinary page. The previous
+modal repeated the same Codex executable, provider source, and access result
+without enabling a decision or action. Raw paths and provider ids remain in
+the maintenance diagnostic surface when troubleshooting actually requires
+them.
 
 Required anchors: `provider-source`, `model`, `codex-cli`, `authentication`.
 
@@ -362,11 +366,19 @@ Primary information:
 Primary action: open an available resource action only when the action is
 projected as executable.
 
-An action that requires input but has no legal App input flow is not promoted as
-the primary action. It remains visible under more actions with a plain-language
-blocked reason, so the page never reports "no actions" when the App did project
-one. A model-access action may route to Access when that page owns the required
-input flow.
+An action that requires input must provide a legal App input flow or remain
+disabled with a plain-language blocked reason. The WebUI seed action collects
+both the image-manifest path and local seed directory before precheck. A
+model-access action routes to Access because that page owns the credential
+flow.
+
+OPL connections use the Framework-owned `connection_create`,
+`connection_update`, `connection_test`, `connection_set_default`, and
+`connection_delete` actions. The ordinary form accepts only HTTP(S) endpoints
+and credential references, never secret bodies. New connections start enabled;
+the compact enabled switch appears only when editing an existing connection,
+where disabling means preserving the configuration while excluding it from
+use and tests.
 
 Read-only actions must complete their declared behavior:
 
@@ -483,10 +495,33 @@ rendered; interactive timeout, idle-assistant, and hardware controls remain in
 the named configuration group.
 
 Required anchors: `behavior`, `notifications`, `models-performance`,
-`instructions-context`, `system-agents`, `opl-app-context`, `display-fonts`, and
-`themes`.
+`display-fonts`, and `themes`.
 
 Theme is an anchor on Preferences, not an independent page.
+
+### Personalization
+
+Primary information:
+
+- the user-owned system `AGENTS.md`, with backup and stale-write protection;
+- the currently installed OPL Flow default and an explicit restore action;
+- the read-only OPL App generated base context for new conversations;
+- editable additional instructions that apply only to new OPL App conversations.
+
+Primary action: none. Save and restore actions stay beside the content they own.
+
+Exception state: oversized or externally changed `AGENTS.md`, or an unavailable
+OPL Flow default, appears beside the affected editor only.
+
+Technical details: no separate diagnostic disclosure. The user file path and
+installed OPL Flow version are supporting context, not a second status panel.
+
+Required anchors: `system-agents` and `opl-app-context`.
+
+Workspace remains independent because it owns project paths, file permissions,
+and artifact roots. Personalization owns user-level instructions and defaults
+for future conversations; merging them would mix workspace scope with user
+scope and make both pages harder to reason about.
 
 ### Advanced
 
@@ -499,8 +534,9 @@ Primary action: none.
 Exception state: missing or inaccessible directories without shell-owned repair
 controls.
 
-Technical details: raw path refs may be copied from collapsed details but cannot
-be edited here.
+Technical details: the resolved workspace and log paths are shown directly in
+two rows with an open-folder action. There is no second summary and no collapsed
+duplicate.
 
 Required anchor: `working-directories`.
 

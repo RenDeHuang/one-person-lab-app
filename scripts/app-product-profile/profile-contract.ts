@@ -267,8 +267,8 @@ function assertSettingsProfileShape(profile: AppProductProfile): void {
   if (!taskEntryPolicy || typeof taskEntryPolicy !== 'object') {
     throw new Error('App product profile settings_information_architecture.task_entry_policy must be declared');
   }
-  if (taskEntryPolicy.ordinary_entry_model !== 'user_task_first_sections_inside_the_eight_OPL_Control_Center_entries') {
-    throw new Error('App product profile task_entry_policy must keep task entries inside the eight OPL Control Center entries');
+  if (taskEntryPolicy.ordinary_entry_model !== 'user_task_first_sections_inside_the_nine_OPL_Control_Center_entries') {
+    throw new Error('App product profile task_entry_policy must keep task entries inside the nine OPL Control Center entries');
   }
   assertIncludesAll(
     taskEntryPolicy.p0_entries ?? [],
