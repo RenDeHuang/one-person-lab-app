@@ -9,6 +9,7 @@ import {
   dockerWebuiImageDigest as imageDigest,
   writeDockerWebuiDiagnostics,
 } from './docker-webui-fixtures.ts';
+import { shouldRetryConfigureCodexProbe } from '../../scripts/docker-webui-smoke-gate.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const installerPath = path.join(appRoot, 'scripts', 'install-docker-webui.sh');
@@ -201,6 +202,24 @@ test('Docker/WebUI installer validates health timeout before running', () => {
   const result = runInstaller(['--dry-run', '--health-timeout', '0']);
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /Health timeout must be a positive integer/);
+});
+
+test('Docker/WebUI configure-codex probe retries runtime startup races but stops on secret leakage', () => {
+  assert.equal(shouldRetryConfigureCodexProbe({
+    errors: ['configure-codex proxy response did not report success=true'],
+    elapsedMs: 2_000,
+    timeoutMs: 120_000,
+  }), true);
+  assert.equal(shouldRetryConfigureCodexProbe({
+    errors: ['configure-codex proxy response leaked the submitted API key placeholder'],
+    elapsedMs: 2_000,
+    timeoutMs: 120_000,
+  }), false);
+  assert.equal(shouldRetryConfigureCodexProbe({
+    errors: ['configure-codex proxy response did not report success=true'],
+    elapsedMs: 120_000,
+    timeoutMs: 120_000,
+  }), false);
 });
 
 test('Docker/WebUI smoke gate writes typed blocker instead of passing unmatched VM gates', () => {

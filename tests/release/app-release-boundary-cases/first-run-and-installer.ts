@@ -38,11 +38,20 @@ test('first-run matrix delegates policy shape to the active-shell validator', ()
   const routeSmokeExpectations = matrix.scenarios
     .flatMap((scenario) => scenario.expects ?? [])
     .filter((expectation) => expectation.includes('Packaged GUI route smoke selects MAS'));
-  assert.equal(routeSmokeExpectations.length, 3);
+  assert.equal(routeSmokeExpectations.length, 2);
   for (const expectation of routeSmokeExpectations) {
     assert.match(expectation, /hides ordinary backend\/provider selectors/);
     assert.match(expectation, /shows the App-owned model\/reasoning and permission\/access controls/);
     assert.doesNotMatch(expectation, /hides ordinary backend\/model\/permission selectors/);
+  }
+  const launchGateExpectations = matrix.scenarios
+    .flatMap((scenario) => scenario.expects ?? [])
+    .filter((expectation) => expectation.includes('Packaged GUI launch-gate smoke keeps MAS'));
+  assert.equal(launchGateExpectations.length, 2);
+  for (const expectation of launchGateExpectations) {
+    assert.match(expectation, /visible but disabled/);
+    assert.match(expectation, /readiness and repair guidance/);
+    assert.match(expectation, /does not claim agent_package_shortcut invocation receipts/);
   }
 
   const invalid = structuredClone(matrix);
@@ -64,6 +73,17 @@ test('one-shot App installer boundary is enforced by release-boundary checks', (
   assert.ok(stable.required.some((entry) => entry.includes('install.sh')));
   assert.ok(stable.required.some((entry) => entry.includes('--stable-macos-install')));
   assert.equal(fs.existsSync(path.join(appRoot, 'install-free.sh')), false);
+});
+
+test('release boundary requires profile-aware Standard launch gates and Full route receipts', () => {
+  const assistantSmoke = requireReleaseBoundaryCheck('first_run_vm_profile_aware_assistant_smoke');
+
+  assert.ok(assistantSmoke.required.includes('homeAssistantBlockedReadinessExpression'));
+  assert.ok(assistantSmoke.required.includes("options.runtimeProfile !== 'full'"));
+  assert.ok(assistantSmoke.required.includes("verification_mode: 'launch_gate'"));
+  assert.ok(assistantSmoke.required.includes("verification_mode: 'route_receipt'"));
+  assert.ok(assistantSmoke.required.includes('assistant_launch_gates_checked'));
+  assert.ok(assistantSmoke.required.includes('not_applicable_standard'));
 });
 
 test('reusable build validates the Shell consumer after syncing the App product profile', () => {

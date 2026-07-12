@@ -151,3 +151,22 @@ test('VM critical diagnostics keep Settings contract failures out of App readine
   assert.equal(summary.failure.boundary, 'guest_settings_smoke');
   assert.notEqual(summary.failure.type, 'app_ready_failed');
 });
+
+test('VM critical diagnostics keep Home assistant route failures out of App readiness', () => {
+  const summary = runDiagnostics(
+    {
+      RELEASE_ARTIFACT_DOWNLOAD_OUTCOME: 'success',
+      DMG_CONCLUSION: 'success',
+      VM_SMOKE_CONCLUSION: 'failure',
+    },
+    (cwd) => writeJson(cwd, 'artifacts/opl-first-run-vm/tart-smoke-summary.json', {
+      status: 'failed',
+      failure_stage: 'run_guest_smoke',
+      error: 'Could not select OPL built-in assistant: med-autoscience',
+    }),
+  );
+
+  assert.equal(summary.failure.type, 'assistant_route_smoke_failed');
+  assert.equal(summary.failure.boundary, 'guest_assistant_route_smoke');
+  assert.notEqual(summary.failure.type, 'app_ready_failed');
+});

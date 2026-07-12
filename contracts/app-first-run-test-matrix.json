@@ -466,7 +466,7 @@
         "App launches without Full-only runtime equivalence checks",
         "GUID entry is usable through packaged App CDP with input, send control, and default assistant surface",
         "Settings pages are navigable after first-run initialization",
-        "Packaged GUI route smoke selects MAS, MAG, and RCA professional Agent Package shortcuts, hides ordinary backend/provider selectors, shows the App-owned model/reasoning and permission/access controls, and records launch-only Codex CLI agent_package_shortcut invocation receipts"
+        "Packaged GUI launch-gate smoke keeps MAS, MAG, and RCA professional Agent Package shortcuts visible but disabled while their packages are not installed, exposes readiness and repair guidance, and does not claim agent_package_shortcut invocation receipts"
       ],
       "release_evidence_artifacts": [
         "app-wrapper-diagnostics.json",
@@ -630,6 +630,7 @@
         "App launches without Full-only runtime equivalence checks",
         "GUID entry is usable through packaged App CDP with input, send control, and default assistant surface",
         "Settings pages are navigable after first-run initialization",
+        "Packaged GUI launch-gate smoke keeps MAS, MAG, and RCA professional Agent Package shortcuts visible but disabled while their packages are not installed, exposes readiness and repair guidance, and does not claim agent_package_shortcut invocation receipts",
         "Homebrew receipt is treated as install evidence only; activation and agent-pack exposure still come from App/CLI maintenance"
       ],
       "release_evidence_artifacts": [

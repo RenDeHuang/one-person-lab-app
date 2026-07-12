@@ -102,6 +102,9 @@ const resultSchema = 'opl_docker_webui_smoke_gate_result.v1';
 const windowsEvidenceManifestName = 'windows-smoke-evidence.json';
 const windowsEvidenceSchema = 'opl_docker_webui_windows_smoke_evidence.v1';
 const apiKeyFlowEvidenceSchema = 'opl_docker_webui_api_key_flow_evidence.v1';
+const apiKeyFlowRequestTimeoutMs = 10_000;
+const apiKeyFlowRetryIntervalMs = 2_000;
+const apiKeyFlowMaxWaitMs = 120_000;
 const secretPatterns = [
   /sk-[A-Za-z0-9_-]{20,}/g,
   /OPENAI_API_KEY\s*[:=]\s*[^ \n\r]+/gi,
@@ -642,6 +645,7 @@ const request = globalThis.fetch
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(${apiKeyFlowRequestTimeoutMs}),
     })
   : Promise.reject(new Error('fetch_unavailable'));
 request
@@ -669,11 +673,22 @@ function parseJsonObject(text: string): Record<string, unknown> | null {
   }
 }
 
-function collectApiKeyFlowEvidence(result: GateResult, options: ReturnType<typeof parseArgs>) {
-  const endpoint = `http://127.0.0.1:${options.port}/api/opl-runtime/configure-codex`;
-  const receiptPath = path.join(result.artifact_dir, 'api-key-flow-evidence.json');
+function sleepSync(durationMs: number) {
+  if (durationMs <= 0) return;
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, durationMs);
+}
+
+export function shouldRetryConfigureCodexProbe(observation: {
+  errors: string[];
+  elapsedMs: number;
+  timeoutMs: number;
+}) {
+  if (observation.errors.some((error) => error.includes('leaked the submitted API key placeholder'))) return false;
+  return observation.errors.length > 0 && observation.elapsedMs < observation.timeoutMs;
+}
+
+function inspectConfigureCodexResponse(response: ReturnType<typeof runNodeHttpPostJson>) {
   const errors: string[] = [];
-  const response = runNodeHttpPostJson(endpoint, { apiKey: 'opl-smoke-placeholder-key' });
   let responseStatus: number | null = null;
   let responseSuccess = false;
   let command = 'opl system configure-codex --api-key-stdin --json';
@@ -701,15 +716,44 @@ function collectApiKeyFlowEvidence(result: GateResult, options: ReturnType<typeo
     }
   }
 
+  return { errors, responseStatus, responseSuccess, command, stdinTransport };
+}
+
+function collectApiKeyFlowEvidence(result: GateResult, options: ReturnType<typeof parseArgs>) {
+  const endpoint = `http://127.0.0.1:${options.port}/api/opl-runtime/configure-codex`;
+  const receiptPath = path.join(result.artifact_dir, 'api-key-flow-evidence.json');
+  const startedAt = Date.now();
+  const timeoutMs = Math.min(options.healthTimeout * 1_000, apiKeyFlowMaxWaitMs);
+  let attemptCount = 1;
+  let observation = inspectConfigureCodexResponse(
+    runNodeHttpPostJson(endpoint, { apiKey: 'opl-smoke-placeholder-key' }),
+  );
+  while (shouldRetryConfigureCodexProbe({ errors: observation.errors, elapsedMs: Date.now() - startedAt, timeoutMs })) {
+    sleepSync(Math.min(apiKeyFlowRetryIntervalMs, Math.max(0, timeoutMs - (Date.now() - startedAt))));
+    observation = inspectConfigureCodexResponse(
+      runNodeHttpPostJson(endpoint, { apiKey: 'opl-smoke-placeholder-key' }),
+    );
+    attemptCount += 1;
+  }
+  const durationMs = Date.now() - startedAt;
+  const errors = [...observation.errors];
+  if (errors.length > 0 && durationMs >= timeoutMs) {
+    errors.push(`configure-codex proxy did not become ready within ${timeoutMs}ms`);
+  }
+
   const payload = {
     schema: apiKeyFlowEvidenceSchema,
     status: errors.length === 0 ? 'passed' : 'failed',
     mode: 'webui_proxy_configure_codex',
     endpoint,
-    response_http_status: responseStatus,
-    response_success: responseSuccess,
-    command,
-    stdin_transport: stdinTransport,
+    response_http_status: observation.responseStatus,
+    response_success: observation.responseSuccess,
+    command: observation.command,
+    stdin_transport: observation.stdinTransport,
+    attempt_count: attemptCount,
+    duration_ms: durationMs,
+    retry_interval_ms: apiKeyFlowRetryIntervalMs,
+    timeout_ms: timeoutMs,
     key_material_recorded: false,
     secret_scan_note: 'The smoke gate submits a non-real placeholder key and rejects any response that echoes it.',
     errors,
@@ -719,8 +763,8 @@ function collectApiKeyFlowEvidence(result: GateResult, options: ReturnType<typeo
     status: payload.status,
     mode: 'webui_proxy_configure_codex',
     endpoint,
-    command,
-    stdin_transport: stdinTransport,
+    command: observation.command,
+    stdin_transport: observation.stdinTransport,
     receipt_path: receiptPath,
     errors,
   };

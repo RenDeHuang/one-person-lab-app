@@ -955,6 +955,20 @@ export const releaseBoundaryChecks: ReleaseBoundaryCheck[] = [
     ],
   },
   {
+    id: 'first_run_vm_profile_aware_assistant_smoke',
+    file: path.relative(appRoot, path.join(shellPaths.shellRoot, 'scripts/opl-first-run-vm-smoke.mjs')),
+    required: [
+      'homeAssistantBlockedReadinessExpression',
+      "options.runtimeProfile !== 'full'",
+      "verification_mode: 'launch_gate'",
+      "verification_mode: 'route_receipt'",
+      'home-starter-${id}',
+      'assistant_launch_gates_checked',
+      'not_applicable_standard',
+    ],
+    forbidden: [],
+  },
+  {
     id: 'one_shot_unsigned_local_authorization',
     file: 'install.sh',
     required: [

@@ -44,7 +44,7 @@ function writeEvidenceScreenshots(tempRoot, ids = ['runtime', 'full', 'action'])
 
 function writePackagedEvidenceFiles(tempRoot, options = {}) {
   writeRuntimeEvidenceJsonFiles(tempRoot);
-  writeVmSmokeSummaryFiles(tempRoot);
+  writeVmSmokeSummaryFiles(tempRoot, options.runtimeProfile);
   writeAssistantRouteSmokeScreenshots(tempRoot);
   writeRemoteReleaseVerificationSummary(tempRoot, options.remoteVersion);
   writeDockerWebuiCleanVmEvidenceSummary(tempRoot, options.dockerWebuiCleanVmEvidence);
@@ -105,6 +105,29 @@ test('release evidence bundle validator accepts the declared Runtime page artifa
     missing_artifact_count: 0,
   });
   assert.deepEqual(payload.verified_artifacts.map((artifact) => artifact.id), requiredArtifacts.map((artifact) => artifact.id));
+});
+
+test('release evidence keeps Standard launch gates distinct from Full route receipts', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-standard-launch-gate-evidence-'));
+  writeEvidenceManifest(tempRoot, {
+    status: 'passed',
+    packaged_app_evidence: true,
+    release_cohort: releaseEvidenceCohort(),
+    current_cohort_evidence: true,
+    artifacts: presentArtifacts(),
+  });
+  writePackagedEvidenceFiles(tempRoot, { runtimeProfile: 'standard' });
+
+  const accepted = validateBundle(tempRoot);
+  assert.equal(accepted.status, 0, accepted.stderr || accepted.stdout);
+
+  const summaryPath = path.join(tempRoot, 'artifacts', 'assistant-route-smoke-summary.json');
+  const summary = JSON.parse(fs.readFileSync(summaryPath, 'utf8'));
+  summary.assistants[0].receipt = { status: 'passed' };
+  writeFile(summaryPath, JSON.stringify(summary));
+  const rejected = validateBundle(tempRoot);
+  assert.notEqual(rejected.status, 0);
+  assert.match(rejected.stderr, /must not claim a route receipt for Standard/);
 });
 
 test('release evidence bundle validator fails closed for incomplete packaged App evidence', () => {

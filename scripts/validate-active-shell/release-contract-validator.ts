@@ -20,6 +20,7 @@ function validateReleaseExecutionPolicy(acceleration) {
   const attemptSwitch = acceleration?.gate_reuse?.attempt_strategy_switch;
   const monitor = acceleration?.release_operator?.active_monitor_policy;
   const settingsReadiness = acceleration?.settings_page_readiness_policy;
+  const assistantRouteSmoke = acceleration?.assistant_route_smoke_policy;
   assertDeepEqualJson(intent?.allowed_values, ['stable_complete', 'standard_hotfix'], 'Release intent allowed values');
   if (
     intent?.workflow_input !== 'release_intent' ||
@@ -70,6 +71,24 @@ function validateReleaseExecutionPolicy(acceleration) {
     ['localized_button_copy', 'localized_heading_copy', 'retired_runtime_status_label'],
     'Settings VM forbidden copy gates',
   );
+  assertDeepEqualJson(
+    assistantRouteSmoke?.standard?.required,
+    [
+      'MAS_MAG_RCA_home_starters_visible',
+      'package_not_installed_starters_disabled',
+      'launch_allowed_false',
+      'readiness_and_repair_hint_visible',
+    ],
+    'Standard assistant launch-gate requirements',
+  );
+  if (
+    assistantRouteSmoke?.standard?.verification_mode !== 'launch_gate' ||
+    assistantRouteSmoke?.full?.verification_mode !== 'route_receipt' ||
+    !assistantRouteSmoke?.standard?.forbidden?.includes('claim_agent_package_shortcut_route_receipt') ||
+    !assistantRouteSmoke?.full?.required?.includes('agent_package_shortcut_route_receipt_per_starter')
+  ) {
+    throw new Error('Release assistant smoke must separate Standard launch gates from Full route receipts');
+  }
 }
 
 function validateWebuiGhcrImage(webuiImage) {

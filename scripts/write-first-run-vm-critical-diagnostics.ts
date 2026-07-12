@@ -12,6 +12,7 @@ type FailureType =
   | 'vm_launch_failed'
   | 'opl_configure_codex_failed'
   | 'settings_smoke_failed'
+  | 'assistant_route_smoke_failed'
   | 'app_ready_failed'
   | 'vm_smoke_failed'
   | 'vm_harness_preflight_failed';
@@ -137,6 +138,23 @@ function classifyFailure(): {
       type: 'opl_configure_codex_failed',
       boundary: 'guest_opl_configuration',
       reason: 'Guest OPL configure-codex failed before App readiness checks. Inspect the codex-configure diagnostics in the VM artifact.',
+      tartSummary,
+      guestSummary,
+    };
+  }
+  if (
+    failureStage === 'run_guest_smoke' &&
+    includesAny(errorText, [
+      'could not select opl built-in assistant',
+      'selected opl built-in assistant',
+      'could not create opl built-in assistant route receipt',
+      'created conversation did not expose the opl assistant route receipt',
+    ])
+  ) {
+    return {
+      type: 'assistant_route_smoke_failed',
+      boundary: 'guest_assistant_route_smoke',
+      reason: 'Guest App launched, but a Home assistant shortcut route contract did not pass.',
       tartSummary,
       guestSummary,
     };

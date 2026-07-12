@@ -43,6 +43,13 @@ function validateAssistantRouteSmokeSummary(artifact: EvidenceArtifact, payload:
   if (record.status !== 'passed') {
     throw new Error(`${artifact.id} must be passed.`);
   }
+  if (record.runtime_profile !== 'standard' && record.runtime_profile !== 'full') {
+    throw new Error(`${artifact.id} must report runtime_profile standard or full.`);
+  }
+  const expectedMode = record.runtime_profile === 'standard' ? 'launch_gate' : 'route_receipt';
+  if (record.verification_mode !== expectedMode) {
+    throw new Error(`${artifact.id} must use ${expectedMode} verification for ${record.runtime_profile}.`);
+  }
   if (!Array.isArray(record.assistants)) {
     throw new Error(`${artifact.id} must include assistant route smoke results.`);
   }
@@ -52,20 +59,42 @@ function validateAssistantRouteSmokeSummary(artifact: EvidenceArtifact, payload:
       return [assistant.id, assistant];
     }),
   );
-  for (const [assistantId, badge, shortName] of [
-    ['med-autoscience', '@MAS', 'MAS'],
-    ['med-autogrant', '@MAG', 'MAG'],
-    ['redcube-ai', '@RCA', 'RCA'],
+  for (const [assistantId, badges, shortName] of [
+    ['med-autoscience', ['@科研', '@MAS'], 'MAS'],
+    ['med-autogrant', ['@基金', '@MAG'], 'MAG'],
+    ['redcube-ai', ['@演示', '@RCA'], 'RCA'],
   ]) {
     const assistant = resultsById.get(assistantId);
     if (!assistant) {
       throw new Error(`${artifact.id} must include ${assistantId} route smoke result.`);
     }
-    if (assistant.badge !== badge) {
-      throw new Error(`${artifact.id}.${assistantId} must show ${badge}.`);
+    if (!badges.includes(String(assistant.badge))) {
+      throw new Error(`${artifact.id}.${assistantId} must show an App-owned purpose badge.`);
+    }
+    if (record.runtime_profile === 'standard') {
+      if (assistant.verification_mode !== 'launch_gate') {
+        throw new Error(`${artifact.id}.${assistantId} must report a Standard launch gate.`);
+      }
+      const launchGate = asRecord(assistant.launch_gate, `${artifact.id}.${assistantId}.launch_gate`);
+      if (
+        launchGate.visible !== true ||
+        launchGate.disabled !== true ||
+        launchGate.launch_allowed !== false ||
+        launchGate.repair_hint_visible !== true ||
+        !String(launchGate.readiness_hint ?? '').toLowerCase().includes('repair')
+      ) {
+        throw new Error(`${artifact.id}.${assistantId} must prove visible blocked launch with a repair hint.`);
+      }
+      if (assistant.receipt != null) {
+        throw new Error(`${artifact.id}.${assistantId} must not claim a route receipt for Standard.`);
+      }
+      continue;
+    }
+    if (assistant.verification_mode !== 'route_receipt') {
+      throw new Error(`${artifact.id}.${assistantId} must report Full route receipt verification.`);
     }
     const ready = asRecord(assistant.ready, `${artifact.id}.${assistantId}.ready`);
-    if (ready.selectors_hidden !== true || ready.badge !== badge) {
+    if (ready.selectors_hidden !== true || !badges.includes(String(ready.badge))) {
       throw new Error(`${artifact.id}.${assistantId} must prove ordinary selectors are hidden after selection.`);
     }
     const receipt = asRecord(assistant.receipt, `${artifact.id}.${assistantId}.receipt`);
@@ -103,22 +132,35 @@ function validateCodexFunctionalCheckSummary(record: Record<string, unknown>) {
     throw new Error('codex_functional_check_summary must not require LLM invocation.');
   }
 
+  const routeReceipts = asRecord(
+    record.assistant_route_receipts_checked,
+    'codex_functional_check_summary.assistant_route_receipts_checked',
+  );
+  const standardProfile = record.runtime_profile === 'standard';
+  const evidence = standardProfile
+    ? asRecord(
+        record.assistant_launch_gates_checked,
+        'codex_functional_check_summary.assistant_launch_gates_checked',
+      )
+    : routeReceipts;
   if (
-    !record.assistant_route_receipts_checked
-    || typeof record.assistant_route_receipts_checked !== 'object'
-    || Array.isArray(record.assistant_route_receipts_checked)
+    evidence.status !== 'passed' ||
+    evidence.deterministic !== true ||
+    (standardProfile && routeReceipts.status !== 'not_applicable_standard')
   ) {
-    throw new Error('codex_functional_check_summary must include assistant route receipts evidence.');
+    throw new Error(
+      standardProfile
+        ? 'Standard Codex functional evidence must pass launch gates without claiming route receipts.'
+        : 'codex_functional_check_summary assistant route receipts must be deterministic and passed.',
+    );
   }
-  const routeReceipts = record.assistant_route_receipts_checked as Record<string, unknown>;
-  if (routeReceipts.status !== 'passed' || routeReceipts.deterministic !== true) {
-    throw new Error('codex_functional_check_summary assistant route receipts must be deterministic and passed.');
-  }
-  const required = Array.isArray(routeReceipts.required) ? routeReceipts.required : [];
-  const checked = Array.isArray(routeReceipts.checked) ? routeReceipts.checked : [];
+  const required = Array.isArray(evidence.required) ? evidence.required : [];
+  const checked = Array.isArray(evidence.checked) ? evidence.checked : [];
   for (const assistantId of ['med-autoscience', 'med-autogrant', 'redcube-ai']) {
     if (!required.includes(assistantId) || !checked.includes(assistantId)) {
-      throw new Error('codex_functional_check_summary must cover MAS/MAG/RCA assistant route receipts.');
+      throw new Error(
+        `codex_functional_check_summary must cover MAS/MAG/RCA ${standardProfile ? 'launch gates' : 'route receipts'}.`,
+      );
     }
   }
 }

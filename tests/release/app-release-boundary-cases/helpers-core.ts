@@ -184,11 +184,27 @@ process.exit(2);
 export function writeVmSmokeSummaryFiles(tempRoot, runtimeProfile = "full") {
   const fullRuntime = runtimeProfile === "full";
   const settingsSmoke = { status: "passed", pages: ["general"] };
-  const assistantRouteSmoke = { status: "passed", assistants: canonicalAssistantRouteIds };
+  const assistantRouteSmoke = {
+    status: "passed",
+    verification_mode: fullRuntime ? "route_receipt" : "launch_gate",
+    assistants: canonicalAssistantRouteIds,
+  };
   const codexFunctionalCheck = {
     schema: "opl_codex_functional_check_receipt.v1",
     status: "diagnostic_skipped",
-    assistant_route_receipts_checked: { status: "passed", required: canonicalAssistantRouteIds, checked: canonicalAssistantRouteIds, deterministic: true },
+    runtime_profile: runtimeProfile,
+    assistant_route_receipts_checked: {
+      status: fullRuntime ? "passed" : "not_applicable_standard",
+      required: canonicalAssistantRouteIds,
+      checked: fullRuntime ? canonicalAssistantRouteIds : [],
+      deterministic: true,
+    },
+    assistant_launch_gates_checked: {
+      status: fullRuntime ? "not_applicable_full" : "passed",
+      required: canonicalAssistantRouteIds,
+      checked: fullRuntime ? [] : canonicalAssistantRouteIds,
+      deterministic: true,
+    },
     blocking_release_gate: { deterministic_fields_passed: true, llm_invocation_required: false },
   };
   const codexAiSelfCheck = {
@@ -209,20 +225,36 @@ export function writeVmSmokeSummaryFiles(tempRoot, runtimeProfile = "full") {
   const assistantRouteSmokeSummary = {
     surface_id: "opl_packaged_gui_assistant_route_smoke",
     status: "passed",
+    runtime_profile: runtimeProfile,
+    verification_mode: fullRuntime ? "route_receipt" : "launch_gate",
     assistants: canonicalAssistantRouteIds.map((id) => {
       const shortName = canonicalAssistantShortNames[id];
       const badge = `@${shortName}`;
-      return {
-        id,
-        badge,
-        ready: { badge, selectors_hidden: true },
-        receipt: {
-          status: "passed",
-          conversation_type: "acp",
-          backend: "codex",
-          route: { route_kind: "builtin_capability", executor: "codex_cli", assistant_id: id, assistant_short_name: shortName, source: "opl_app_home" },
-        },
-      };
+      return fullRuntime
+        ? {
+            id,
+            badge,
+            verification_mode: "route_receipt",
+            ready: { badge, selectors_hidden: true },
+            receipt: {
+              status: "passed",
+              conversation_type: "acp",
+              backend: "codex",
+              route: { route_kind: "builtin_capability", executor: "codex_cli", assistant_id: id, assistant_short_name: shortName, source: "opl_app_home" },
+            },
+          }
+        : {
+            id,
+            badge,
+            verification_mode: "launch_gate",
+            launch_gate: {
+              visible: true,
+              disabled: true,
+              launch_allowed: false,
+              readiness_hint: "package_not_installed: status, doctor, repair",
+              repair_hint_visible: true,
+            },
+          };
     }),
   };
   writeJsonFixtures(tempRoot, [

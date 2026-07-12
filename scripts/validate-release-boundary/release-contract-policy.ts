@@ -436,6 +436,17 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
   const firstRunVmConcurrency = githubActions?.first_run_vm_concurrency;
   const scheduledVmGuard = firstRunVmConcurrency?.scheduled_desktop_release_activity_guard;
   const vmGates = Array.isArray(acceleration?.vm_gates) ? acceleration.vm_gates : [];
+  const assistantRouteSmoke = acceleration?.assistant_route_smoke_policy;
+
+  if (
+    assistantRouteSmoke?.standard?.verification_mode !== 'launch_gate' ||
+    assistantRouteSmoke?.full?.verification_mode !== 'route_receipt' ||
+    !assistantRouteSmoke?.standard?.forbidden?.includes('claim_agent_package_shortcut_route_receipt') ||
+    !assistantRouteSmoke?.full?.required?.includes('agent_package_shortcut_route_receipt_per_starter')
+  ) {
+    console.error('FAIL assistant_route_smoke_policy: Standard launch gates must stay distinct from Full route receipts');
+    failures += 1;
+  }
 
   if (
     cohortPrepare?.package_script !== 'release:cohort-plan' ||

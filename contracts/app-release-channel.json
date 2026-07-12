@@ -1887,6 +1887,30 @@
       ],
       "rule": "Settings VM readiness is semantic and structural. User-facing copy may change without failing a healthy packaged page; route, stable page anchor, navigation, nonempty content, and absence of blocking loading or first-run layers remain release-blocking."
     },
+    "assistant_route_smoke_policy": {
+      "standard": {
+        "required": [
+          "MAS_MAG_RCA_home_starters_visible",
+          "package_not_installed_starters_disabled",
+          "launch_allowed_false",
+          "readiness_and_repair_hint_visible"
+        ],
+        "forbidden": [
+          "click_blocked_starter",
+          "claim_agent_package_shortcut_route_receipt"
+        ],
+        "verification_mode": "launch_gate"
+      },
+      "full": {
+        "required": [
+          "MAS_MAG_RCA_home_starters_visible",
+          "starters_launchable",
+          "agent_package_shortcut_route_receipt_per_starter"
+        ],
+        "verification_mode": "route_receipt"
+      },
+      "rule": "Standard proves that uninstalled professional Agent Packages remain discoverable but cannot launch and expose a repair path. Full proves the installed packages can launch and persist route receipts. A Standard launch gate must never be counted as a Full route receipt."
+    },
     "vm_gates": [
       {
         "id": "standard_dmg_clean_vm_smoke",
@@ -1901,7 +1925,8 @@
           "local_authorization_policy",
           "app_launch",
           "core_ready_or_app_managed_bootstrap_visible",
-          "settings_navigation"
+          "settings_navigation",
+          "home_agent_shortcuts_visible_and_launch_blocked_with_repair_hint"
         ],
         "gate_policy": "deterministic_release_blocking"
       },
@@ -1927,7 +1952,8 @@
           "local_authorization_policy",
           "app_launch",
           "core_ready_or_app_managed_bootstrap_visible",
-          "settings_navigation"
+          "settings_navigation",
+          "home_agent_shortcuts_visible_and_launch_blocked_with_repair_hint"
         ],
         "gate_policy": "deterministic_release_blocking",
         "precondition": "VM image already has Homebrew installed",
@@ -1947,7 +1973,8 @@
           "local_authorization_policy",
           "core_ready",
           "domain_modules_ready",
-          "family_runtime_provider_ready"
+          "family_runtime_provider_ready",
+          "assistant_route_receipts"
         ],
         "gate_policy": "deterministic_release_blocking",
         "post_core_ready_background_policy": "best_effort_non_blocking_until_maintenance_ready"
