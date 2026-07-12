@@ -227,9 +227,14 @@ Neither page owns persistent configuration in this contract. Storage restore
 probe evidence belongs to diagnostics and does not require a duplicate ordinary
 Restore button.
 
-Capability package sync is a confirmed Maintenance action. The Shell must call
-`settings_sync_capabilities` through `opl app action execute`; the generic
-managed-update `check` read is not an implementation substitute for sync.
+Capability package sync is a single-click Maintenance action. The Shell must
+call `settings_sync_capabilities` through `opl app action execute` immediately,
+keep progress and the result on the original maintenance item, and must not
+insert a second confirmation card. The generic managed-update `check` read is
+not an implementation substitute for sync. Capability status separates
+installed count from maintenance state: a dirty checkout remains installed and
+usable while automatic sync protects and skips it, so it must not reduce the
+installed count or appear as a missing package.
 
 ## Page Contracts
 
