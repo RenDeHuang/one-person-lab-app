@@ -346,7 +346,17 @@ test('managed update payload and public actions use only the three software obje
   const release = JSON.parse(
     fs.readFileSync(path.join(process.cwd(), 'contracts', 'app-release-channel.json'), 'utf8'),
   );
+  const gui = JSON.parse(
+    fs.readFileSync(path.join(process.cwd(), 'contracts', 'app-gui-product-contract.json'), 'utf8'),
+  );
+  const pageState = JSON.parse(
+    fs.readFileSync(path.join(process.cwd(), 'contracts', 'app-page-state-matrix.json'), 'utf8'),
+  );
   const lifecycle = release.managed_update_plane.software_lifecycle;
+  const guiManagedUpdate = gui.framework_surfaces.managed_update_plane;
+  const guiEnvironment = gui.pages.settings_environment;
+  const environmentPage = pageState.pages.find((page) => page.id === 'environment');
+  const capabilitiesPage = pageState.pages.find((page) => page.id === 'capabilities');
 
   assert.doesNotThrow(() => validateReleaseChannelContract(release));
   assert.deepEqual(lifecycle.public_component_keys, ['opl_base', 'opl_app', 'opl_packages']);
@@ -359,6 +369,32 @@ test('managed update payload and public actions use only the three software obje
   assert.equal('runtime_substrate_updater' in release, false);
   assert.equal('companion_tools_updater' in release, false);
   assert.equal('planes' in release.managed_update_plane, false);
+  assert.equal(guiManagedUpdate.contract, 'contracts/app-release-channel.json#managed_update_plane.software_lifecycle');
+  assert.deepEqual(guiManagedUpdate.software_objects, lifecycle.public_component_keys);
+  assert.deepEqual(guiManagedUpdate.ui_actions, lifecycle.public_actions);
+  assert.equal(guiManagedUpdate.ordinary_component_picker_allowed, false);
+  assert.deepEqual(
+    guiManagedUpdate.ordinary_module_maintenance_entry.manual_action_mapping,
+    guiEnvironment.module_maintenance_entry.manual_action_mapping,
+  );
+  assert.deepEqual(
+    guiEnvironment.module_maintenance_entry.manual_action_mapping,
+    environmentPage.module_maintenance_entry.manual_action_mapping,
+  );
+  assert.equal(
+    Object.values(guiEnvironment.module_maintenance_entry.manual_action_mapping)
+      .some((action) => String(action).includes('--component')),
+    false,
+  );
+  assert.deepEqual(
+    environmentPage.module_maintenance_entry.state_inputs,
+    ['app_state.modules', 'managed_update.components[opl_packages].projection_status'],
+  );
+  assert.equal(
+    capabilitiesPage.status_model.source_inputs.includes('managed_update.components[opl_packages].projection_status'),
+    true,
+  );
+  assert.equal(capabilitiesPage.agent_package_lifecycle_ux.directory_controls.filters.includes('codex_surface'), true);
 
   const legacyComponent = structuredClone(release);
   legacyComponent.managed_update_plane.software_lifecycle.public_component_keys.push('runtime_substrate');

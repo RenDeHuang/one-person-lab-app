@@ -1796,19 +1796,18 @@
         "update or local-services rendered as independent product pages"
       ],
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
-      "managed_update_plane_ref": "contracts/app-release-channel.json#managed_update_plane",
+      "software_lifecycle_ref": "contracts/app-release-channel.json#managed_update_plane.software_lifecycle",
       "module_maintenance_entry": {
         "label_en": "OPL Packages",
         "label_zh": "OPL 能力包",
         "placement": "Local Environment",
         "status_sources": [
-          "opl app state --profile fast --json#managed_update_plane",
-          "opl update status --json"
+          "opl app state --profile fast --json#managed_update",
+          "opl update status --json#managed_update"
         ],
         "state_inputs": [
           "app_state.modules",
-          "managed_update_plane.capability_packages",
-          "managed_update_plane.codex_surface"
+          "managed_update.components[opl_packages].projection_status"
         ],
         "required_modules": [
           "MAS",
@@ -1828,21 +1827,13 @@
         "manual_action_mapping": {
           "refresh": "opl update status --json",
           "check": "opl update check --json",
-          "sync_capability_packages": "opl app action execute --action settings_sync_capabilities --json",
-          "sync_capability_packages_interaction": "single_click_execute_with_inline_progress_and_result_no_secondary_confirmation",
-          "capability_package_status_projection": "installed_count_separate_from_manual_maintenance_count",
-          "apply_managed_component": "opl update apply --component <component_id> --json",
-          "apply_allowed_components": ["capability_packages"],
-          "apply_forbidden_components": [
-            "installation_carrier",
-            "runtime_substrate",
-            "companion_tools",
-            "codex_surface",
-            "workflow_profile"
-          ],
-          "repair": "opl update repair --receipt <receipt_id> --json",
-          "rollback": "opl update rollback --component <component_id> --json",
-          "app_action_route": "opl app action execute --action <action_id> [--payload <json>] [--dry-run] --json"
+          "plan": "opl update plan --json",
+          "bootstrap_missing_opl_base": "opl-install.sh --headless --skip-modules",
+          "update_opl_app": "standard_updater_or_carrier_host_update_route",
+          "install_opl_package": "opl packages install ... --json",
+          "update_opl_package": "opl packages update ... --json",
+          "repair_opl_package": "opl packages repair --package-id <package_id> --json",
+          "uninstall_opl_package": "opl packages uninstall --package-id <package_id> --json"
         },
         "advanced_detail_target": "updates_and_maintenance",
         "app_role": "managed_update_status_action_consumer_only",
@@ -3036,8 +3027,7 @@
           "modules.items[].source_policy.configured_by",
           "modules.items[].git.sync_status",
           "modules.items[].git.dirty",
-          "managed_update_plane.capability_packages",
-          "managed_update_plane.codex_surface"
+          "managed_update.components[opl_packages].projection_status"
         ],
         "developer_source_policy": "developer checkout semantics must surface explicitly and must not be collapsed into a generic repair bucket",
         "must_not_collapse": [

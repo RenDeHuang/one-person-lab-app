@@ -378,25 +378,32 @@ permission summary.
 Primary information:
 
 - health;
-- updates;
+- OPL Base status and one-click setup when it is missing;
+- OPL App version and the available standard or host update route;
+- OPL Packages status and the relevant install, update, repair, or uninstall action;
 - local services;
-- OPL Packages;
 - one recommended action.
 
 Primary action: run the recommended maintenance action when attention is
 required.
 
-Exception state: emphasize only components that need action and explain user
-impact before action.
+Exception state: emphasize only OPL Base, OPL App, or the individual OPL
+Packages that need action, and explain user impact before action. Runtime and
+companion dependency status stays nested under OPL Base. Codex Surface sync and
+Workflow Profile migration status stays nested under OPL Packages.
 
-Technical details: raw action ids, component ids, raw statuses, command
-mappings, paths, and receipts.
+Technical details: raw action ids, software-object ids, dependency and
+integration status, package projection and profile migration status, command
+mappings, paths, and receipts. Package projection status is read from
+`managed_update.components[opl_packages].projection_status`.
 
 Required anchors: `health`, `updates`, `services`, `packages`.
 
 Update and Local Services are anchors on this page. Maintenance must not show a
 second navigation directory, a runtime task board, or three equal action buttons
-sharing one loading state.
+sharing one loading state. It must not expose runtime substrate, companion
+tools, Codex Surface, or Workflow Profile as peer update products, and it must
+not expose a component picker or a public `--component` action.
 
 ### Data & Storage
 

@@ -409,7 +409,7 @@ function assertFullRuntimeCurrentnessProbe(downloadDir, manifest) {
     throw new Error(`Full runtime currentness probe used unexpected managed update surface: ${probe.managed_update_surface_id || '(empty)'}`);
   }
   const componentIds = new Set(Array.isArray(probe.managed_update_components) ? probe.managed_update_components : []);
-  for (const required of ['installation_carrier', 'runtime_substrate', 'capability_packages', 'codex_surface', 'companion_tools']) {
+  for (const required of ['opl_base', 'opl_app', 'opl_packages']) {
     if (!componentIds.has(required)) {
       throw new Error(`Full runtime currentness probe is missing managed update component: ${required}`);
     }

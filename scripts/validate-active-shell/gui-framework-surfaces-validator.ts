@@ -27,12 +27,16 @@ export function validateGuiFrameworkSurfaces(guiContract, releaseChannel, instal
   }
 
   const managedUpdateSurface = guiContract.framework_surfaces?.managed_update_plane;
+  const softwareLifecycle = releaseChannel.managed_update_plane?.software_lifecycle;
   if (
-    managedUpdateSurface?.contract !== 'contracts/app-release-channel.json#managed_update_plane' ||
+    managedUpdateSurface?.contract !== 'contracts/app-release-channel.json#managed_update_plane.software_lifecycle' ||
     managedUpdateSurface?.status_command !== 'opl update status --json' ||
-    managedUpdateSurface?.app_state_source !== 'opl app state --profile fast --json#managed_update_plane' ||
-    managedUpdateSurface?.app_role !== 'status_conditions_repair_actions_consumer_only' ||
-    managedUpdateSurface?.framework_role !== 'managed_update_kernel_owner' ||
+    managedUpdateSurface?.app_state_source !== 'opl app state --profile fast --json#managed_update' ||
+    managedUpdateSurface?.app_role !== 'opl_app_self_update_owner_and_base_packages_status_action_consumer' ||
+    managedUpdateSurface?.framework_role !== 'opl_base_and_opl_packages_lifecycle_owner' ||
+    managedUpdateSurface?.ordinary_component_picker_allowed !== false ||
+    softwareLifecycle?.ordinary_component_picker_allowed !== false ||
+    softwareLifecycle?.public_action_component_flag_allowed !== false ||
     managedUpdateSurface?.artifact_body_access !== false ||
     managedUpdateSurface?.domain_truth_write_access !== false ||
     managedUpdateSurface?.owner_receipt_write_access !== false ||
@@ -41,8 +45,18 @@ export function validateGuiFrameworkSurfaces(guiContract, releaseChannel, instal
     managedUpdateSurface?.global_tool_mutation_allowed !== false ||
     managedUpdateSurface?.developer_checkout_mutation_allowed !== false
   ) {
-    throw new Error('App GUI contract must expose the managed update plane without kernel, artifact, domain, verdict, global tool, or checkout authority');
+    throw new Error('App GUI contract must expose the three-object software lifecycle without Base, Packages, artifact, domain, verdict, global tool, or checkout authority');
   }
+  assertDeepEqualJson(
+    managedUpdateSurface.software_objects,
+    softwareLifecycle.public_component_keys,
+    'App GUI managed update software objects',
+  );
+  assertDeepEqualJson(
+    managedUpdateSurface.ui_actions,
+    softwareLifecycle.public_actions,
+    'App GUI managed update public actions',
+  );
   assertDeepEqualJson(
     managedUpdateSurface.ipc_bridge_required,
     managedUpdateIpcSurfaces,
@@ -52,13 +66,15 @@ export function validateGuiFrameworkSurfaces(guiContract, releaseChannel, instal
     throw new Error('App GUI managed update surface must require startup/daily/manual scheduling with lock/backoff');
   }
   assertDeepEqualJson(
-    managedUpdateSurface.allowed_cli_commands,
-    releaseChannel.managed_update_plane.shell_integration.allowed_cli_commands,
-    'App GUI managed update allowed CLI commands',
-  );
-  assertDeepEqualJson(
     managedUpdateSurface.forbidden_shell_behaviors,
-    releaseChannel.managed_update_plane.shell_integration.forbidden_shell_behaviors,
+    [
+      'read_artifact_body',
+      'read_or_write_domain_truth',
+      'write_owner_receipt',
+      'mutate_dirty_or_developer_checkout',
+      'mutate_homebrew_or_system_tools',
+      'bypass_framework_update_kernel',
+    ],
     'App GUI managed update forbidden shell behaviors',
   );
 

@@ -974,8 +974,11 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   if (!pages.settings_environment.must_not_show?.includes('Med Deep Scientist as a default module')) {
     throw new Error('Settings Environment must keep MDS out of default module display');
   }
-  if (pages.settings_environment.managed_update_plane_ref !== 'managed_update_plane') {
-    throw new Error('Settings Environment must reference the managed update plane');
+  if (
+    pages.settings_environment.software_lifecycle_ref !==
+    'contracts/app-release-channel.json#managed_update_plane.software_lifecycle'
+  ) {
+    throw new Error('Settings Environment must reference the canonical three-object software lifecycle');
   }
   validateFrameworkModuleMaintenanceEntry(guiContract.framework_surfaces?.managed_update_plane?.ordinary_module_maintenance_entry);
   if (pages.settings_storage.release_contract_ref !== 'contracts/app-release-channel.json#local_data_lifecycle') {
@@ -1114,25 +1117,22 @@ function validateFrameworkModuleMaintenanceEntry(entry) {
     'App GUI framework module maintenance modules',
   );
   assertDeepEqualJson(
+    entry?.status_sources,
+    ['opl app state --profile fast --json#managed_update', 'opl update status --json#managed_update'],
+    'App GUI framework module maintenance status sources',
+  );
+  assertDeepEqualJson(
     entry?.manual_action_mapping,
     {
+      refresh: 'opl update status --json',
       check: 'opl update check --json',
-      sync_capability_packages: 'opl app action execute --action settings_sync_capabilities --json',
-      sync_capability_packages_interaction:
-        'single_click_execute_with_inline_progress_and_result_no_secondary_confirmation',
-      capability_package_status_projection: 'installed_count_separate_from_manual_maintenance_count',
-      apply_managed_component: 'opl update apply --component <component_id> --json',
-      apply_allowed_components: ['capability_packages'],
-      apply_forbidden_components: [
-        'installation_carrier',
-        'runtime_substrate',
-        'companion_tools',
-        'codex_surface',
-        'workflow_profile',
-      ],
-      repair: 'opl update repair --receipt <receipt_id> --json',
-      rollback: 'opl update rollback --component <component_id> --json',
-      app_action_route: appActionRoute,
+      plan: 'opl update plan --json',
+      bootstrap_missing_opl_base: 'opl-install.sh --headless --skip-modules',
+      update_opl_app: 'standard_updater_or_carrier_host_update_route',
+      install_opl_package: 'opl packages install ... --json',
+      update_opl_package: 'opl packages update ... --json',
+      repair_opl_package: 'opl packages repair --package-id <package_id> --json',
+      uninstall_opl_package: 'opl packages uninstall --package-id <package_id> --json',
     },
     'App GUI framework module maintenance action mapping',
   );

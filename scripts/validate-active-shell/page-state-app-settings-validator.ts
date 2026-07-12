@@ -202,8 +202,7 @@ function validateCapabilitiesPage(matrix, guiContract) {
         'modules.items[].source_policy.configured_by',
         'modules.items[].git.sync_status',
         'modules.items[].git.dirty',
-        'managed_update_plane.capability_packages',
-        'managed_update_plane.codex_surface',
+        'managed_update.components[opl_packages].projection_status',
       ],
       developer_source_policy:
         'developer checkout semantics must surface explicitly and must not be collapsed into a generic repair bucket',
@@ -432,8 +431,11 @@ function validateEnvironmentPage(matrix) {
   if (!environmentPage.must_not_show?.includes('Med Deep Scientist as a default module')) {
     throw new Error('Environment page must keep MDS out of default module display');
   }
-  if (environmentPage.managed_update_plane_ref !== 'contracts/app-release-channel.json#managed_update_plane') {
-    throw new Error('Environment page must reference the App release managed update plane');
+  if (
+    environmentPage.software_lifecycle_ref !==
+    'contracts/app-release-channel.json#managed_update_plane.software_lifecycle'
+  ) {
+    throw new Error('Environment page must reference the App release three-object software lifecycle');
   }
 }
 
