@@ -29,6 +29,7 @@ import {
   assertAppProductProfileHomeCodexPolicy,
   assertAppProductProfileRouteReceiptPolicy,
   assertAppProductProfileSettingsVisualSystem,
+  assertHomeComposerStateContract,
   assertProfessionalAgentPackagePolicy,
   managedShortcutIds,
   managedShortcutPackageIds,
@@ -118,6 +119,7 @@ function validateProductProfileCodexDefaults(profile) {
   assertAppProductProfileHomeCodexPolicy(profile, 'Product profile');
   assertAppProductProfileCodexModelDisplayOptions(profile, 'Product profile');
   assertAppProductProfileRouteReceiptPolicy(profile, 'Product profile');
+  assertHomeComposerStateContract(profile.gui?.home?.home_composer_state_contract, 'Product profile Home composer state contract');
   validateHomeAssistantDefaults(profile);
   validateProfessionalAgentPackages(profile);
   validateProductProfileSettings(profile);

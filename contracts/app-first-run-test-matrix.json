@@ -275,7 +275,7 @@
             "phase_timings.app_wrapper_smoke"
           ]
         },
-        "codex_install": {
+      "codex_install": {
           "current_app_scope": "required_from_tart_smoke_summary_or_shell_companion_diagnostics",
           "shell_interface_status": "implemented_opl_aion_shell_phase_options",
           "install_asset_preseed": {
@@ -305,9 +305,17 @@
             "exit_code",
             "phase_timings",
             "timeouts.codex_install_phase_ms",
-            "timeouts.codex_readiness_phase_ms"
-          ]
-        }
+          "timeouts.codex_readiness_phase_ms"
+        ]
+      },
+      "home_composer_probe": {
+        "contract_ref": "contracts/app-gui-product-contract.json#interaction_baseline.home.home_composer_state_contract",
+        "shortcut_package_ids": [null, "mas", "mag", "rca", "obf", "oma"],
+        "viewports": ["desktop", "mobile"],
+        "availability_states": ["available", "unavailable"],
+        "required_summary_fields": ["missing_controls", "composer_state"],
+        "fail_fast_seconds": 60
+      }
       },
       "expects": [
         "Full DMG is installed into /Applications on first launch",
@@ -771,6 +779,14 @@
             "timeouts.codex_install_phase_ms",
             "timeouts.codex_readiness_phase_ms"
           ]
+        },
+        "home_composer_probe": {
+          "contract_ref": "contracts/app-gui-product-contract.json#interaction_baseline.home.home_composer_state_contract",
+          "shortcut_package_ids": [null, "mas", "mag", "rca", "obf", "oma"],
+          "viewports": ["desktop", "mobile"],
+          "availability_states": ["available", "unavailable"],
+          "required_summary_fields": ["missing_controls", "composer_state"],
+          "fail_fast_seconds": 60
         }
       },
       "expects": [

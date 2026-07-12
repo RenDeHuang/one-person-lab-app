@@ -44,6 +44,11 @@ test('first-run matrix delegates policy shape to the active-shell validator', ()
     assert.match(expectation, /shows the App-owned model\/reasoning and permission\/access controls/);
     assert.doesNotMatch(expectation, /hides ordinary backend\/model\/permission selectors/);
   }
+  const fullDmg = matrix.scenarios.find((scenario) => scenario.id === 'full_dmg_clean_vm_smoke');
+  assert.deepEqual(fullDmg.diagnostics_contract.home_composer_probe.required_summary_fields, [
+    'missing_controls',
+    'composer_state',
+  ]);
   const launchGateExpectations = matrix.scenarios
     .flatMap((scenario) => scenario.expects ?? [])
     .filter((expectation) => expectation.includes('Packaged GUI launch-gate smoke keeps MAS'));
@@ -59,6 +64,16 @@ test('first-run matrix delegates policy shape to the active-shell validator', ()
   assert.throws(
     () => validateFirstRunMatrix(invalid, adapter),
     /must not declare compatibility aliases/,
+  );
+
+  const missingComposerProbe = structuredClone(matrix);
+  const missingComposerProbeFullDmg = missingComposerProbe.scenarios.find(
+    (scenario) => scenario.id === 'full_dmg_clean_vm_smoke',
+  );
+  missingComposerProbeFullDmg.diagnostics_contract.home_composer_probe.required_summary_fields = [];
+  assert.throws(
+    () => validateFirstRunMatrix(missingComposerProbe, adapter),
+    /must consume the App-owned Home composer state contract and fail within 60 seconds/,
   );
 });
 

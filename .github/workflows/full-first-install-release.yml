@@ -423,9 +423,11 @@ jobs:
             tests/unit/opl-runtime/oplRuntimeBridge.test.ts \
             tests/unit/opl-runtime/firstRunVmSmoke.test.ts \
             tests/unit/opl-runtime/firstRunVmSmokeScripts.test.ts \
-            tests/unit/guid/oplHomeAssistants.test.ts
+            tests/unit/guid/oplHomeAssistants.test.ts \
+            tests/unit/guid/composerSurface.test.ts
           VITEST_INCLUDE_DOM=1 bun vitest run --project dom \
             tests/unit/guid/HomeStarters.dom.test.tsx \
+            tests/unit/guid/GuidPage.dom.test.tsx \
             tests/unit/guid/useGuidSend.oplWhitelist.dom.test.tsx
 
       - name: Resolve App shell Electron version

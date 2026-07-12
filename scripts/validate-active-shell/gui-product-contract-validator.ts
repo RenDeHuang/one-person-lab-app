@@ -13,6 +13,7 @@ import {
 import { validateGuiFrameworkSurfaces } from './gui-framework-surfaces-validator.ts';
 import { validateGuiProductHomeContract } from './gui-product-home-validator.ts';
 import { assertCommandSurface } from './value-helpers.ts';
+import { assertHomeComposerStateContract } from '../app-product-profile-shared-validators.ts';
 import {
   validateEnvironmentModuleMaintenanceEntry,
 } from './managed-update-plane-validator.ts';
@@ -684,6 +685,19 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   if (!pages.guid_home.must_show?.includes('active capability shown as a compact chip')) {
     throw new Error('App GUI home must show the active capability as a compact chip');
   }
+  assertHomeComposerStateContract(
+    guiContract.interaction_baseline?.home?.home_composer_state_contract,
+    'App GUI Home composer state contract',
+  );
+  assertHomeComposerStateContract(
+    productProfile.gui?.home?.home_composer_state_contract,
+    'App product profile Home composer state contract',
+  );
+  assertDeepEqualJson(
+    productProfile.gui?.home?.home_composer_state_contract,
+    guiContract.interaction_baseline?.home?.home_composer_state_contract,
+    'App product profile Home composer state projection',
+  );
   if (pages.guid_home.model_status?.display_value !== '5.6 Sol') {
     throw new Error('App GUI home model selector must keep the friendly default model without repeating reasoning');
   }

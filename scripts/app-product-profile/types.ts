@@ -42,6 +42,28 @@ export type AppProductProfile = {
       codex_default_reasoning_effort: string;
       codex_default_permission_mode: string;
       permission_mode_selector_visible: boolean;
+      home_composer_state_contract: {
+        contract_id: 'opl_home_composer_state.v1';
+        executor: 'codex';
+        shortcut_package_ids: Array<string | null>;
+        viewports: string[];
+        availability_states: string[];
+        invariants: {
+          model_reasoning_visible: boolean;
+          permission_access_visible: boolean;
+          executor_selector_visible: boolean;
+          active_shortcut_changes_executor: boolean;
+          default_visibility_governs_execution: boolean;
+        };
+        semantic_probe: {
+          root_test_id: string;
+          state_attributes: Record<string, string>;
+          desktop_required_controls: string[];
+          mobile_required_controls: string[];
+          forbidden_controls: string[];
+          failure_field: string;
+        };
+      };
       conversation_backend_selector_visible: boolean;
       conversation_model_selector_visible: boolean;
       conversation_permission_mode_selector_visible: boolean;
