@@ -1152,9 +1152,26 @@
         "install_from_manifest_url",
         "agent_package_update",
         "agent_package_repair",
+        "agent_package_activate",
         "agent_package_uninstall",
         "agent_package_preferences_set"
       ],
+      "activation_contract": {
+        "action_id": "agent_package_activate",
+        "action_route": "opl app action execute --action agent_package_activate --payload <json> --json",
+        "trigger": "before_every_installed_package_workspace_or_quest_launch",
+        "payload_fields": ["package_id", "scope", "target_workspace", "target_quest", "use_boundary_id"],
+        "scope_values": ["workspace", "quest"],
+        "scope_target_policy": {
+          "workspace": "target_workspace_required_target_quest_forbidden",
+          "quest": "target_quest_required_target_workspace_forbidden"
+        },
+        "result_fields": ["launch_allowed", "use_receipt_ref", "use_binding"],
+        "launch_policy": "launch_only_when_launch_allowed_true_and_use_receipt_ref_and_use_binding_are_present",
+        "currentness_policy": "framework_reconciles_latest_compatible_package_closure_once_at_use_boundary_and_pins_use_binding_for_the_session",
+        "package_identity_policy": "generic_package_id_no_hardcoded_agent_or_capability_package_ids",
+        "app_role": "prepare_then_launch_using_framework_readback_without_owning_package_currentness_or_materialization"
+      },
       "exposure_action_values": [
         "hide",
         "unhide",
@@ -1491,8 +1508,8 @@
         "standard_updater_allowed": false
       },
       "activation_commands": [
-        "opl connect reconcile-modules",
-        "opl connect sync-skills"
+        "opl packages activate <package_id> --scope workspace --target-workspace <path>",
+        "opl packages activate <package_id> --scope quest --target-quest <path>"
       ],
       "fallback_source_order": [
         "bundled_full_runtime_modules",

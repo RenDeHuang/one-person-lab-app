@@ -261,6 +261,133 @@ test('agent installation contract validator accepts repository contracts', () =>
   assert.match(result.stdout, /App agent installation contract is consistent/);
 });
 
+test('App contracts require one generic package use-boundary activation before launch', () => {
+  const readContract = (name: string) => JSON.parse(
+    fs.readFileSync(path.join(process.cwd(), 'contracts', name), 'utf8'),
+  );
+  const runtimeBridge = readContract('app-runtime-bridge.json');
+  const installExposure = readContract('app-install-exposure-policy.json');
+  const guiProduct = readContract('app-gui-product-contract.json');
+  const productProfile = readContract('app-product-profile.json');
+  const pageState = readContract('app-page-state-matrix.json');
+  const packageSurfaces = readContract('agent-package-surfaces.schema.json');
+  const fastFixture = readContract('fixtures/opl-app-state-fast.fixture.json');
+
+  const expectedActivationPolicy = {
+    action_id: 'agent_package_activate',
+    action_route: 'opl app action execute --action agent_package_activate --payload <json> --json',
+    trigger: 'before_every_installed_package_workspace_or_quest_launch',
+    payload_fields: ['package_id', 'scope', 'target_workspace', 'target_quest', 'use_boundary_id'],
+    scope_values: ['workspace', 'quest'],
+    scope_target_policy: {
+      workspace: 'target_workspace_required_target_quest_forbidden',
+      quest: 'target_quest_required_target_workspace_forbidden',
+    },
+    result_fields: ['launch_allowed', 'use_receipt_ref', 'use_binding'],
+    launch_policy: 'launch_only_when_launch_allowed_true_and_use_receipt_ref_and_use_binding_are_present',
+    currentness_policy: 'framework_reconciles_latest_compatible_package_closure_once_at_use_boundary_and_pins_use_binding_for_the_session',
+    package_identity_policy: 'generic_package_id_no_hardcoded_agent_or_capability_package_ids',
+    app_role: 'prepare_then_launch_using_framework_readback_without_owning_package_currentness_or_materialization',
+  };
+  const expectedActivationStates = {
+    package_not_installed: {
+      preparation_status: 'not_installed',
+      enabled: false,
+      reason_code: 'package_not_installed',
+    },
+    installed_scope_stale: {
+      preparation_status: 'prepare_required',
+      enabled: true,
+      reason_code: 'scope_reconciliation_required',
+    },
+    installed_scope_current: {
+      preparation_status: 'ready',
+      enabled: true,
+      reason_code: 'use_boundary_reconciliation_ready',
+    },
+  };
+
+  assert.deepEqual(
+    installExposure.agent_installation_contract.package_manager_lifecycle.activation_contract,
+    expectedActivationPolicy,
+  );
+  assert.deepEqual(guiProduct.agent_package_activation_policy, expectedActivationPolicy);
+  assert.deepEqual(productProfile.gui.agent_package_activation_policy, expectedActivationPolicy);
+  assert.deepEqual(
+    pageState.pages.find((page: { id: string }) => page.id === 'guid').home_view_model.agent_package_activation_policy,
+    expectedActivationPolicy,
+  );
+
+  const packageRow = runtimeBridge.canonical_state_display_action_map.rows.find(
+    (row: { semantic_area: string }) => row.semantic_area === 'package',
+  );
+  assert.equal(packageRow.allowed_action_refs.includes('agent_package_activate'), true);
+  assert.deepEqual(packageRow.use_boundary_activation_contract, expectedActivationPolicy);
+
+  const capabilitiesProjection = guiProduct.pages.settings_capabilities.agent_package_lifecycle_ux.package_projection_contract;
+  assert.deepEqual(
+    capabilitiesProjection.status_index_package_fields.activation_action,
+    ['action_id', 'command_ref', 'enabled', 'preparation_status', 'reason_code'],
+  );
+  assert.deepEqual(
+    capabilitiesProjection.activation_preparation_status_values,
+    ['not_installed', 'prepare_required', 'ready'],
+  );
+  assert.deepEqual(capabilitiesProjection.activation_preparation_policy, expectedActivationStates);
+  assert.deepEqual(
+    pageState.pages.find((page: { id: string }) => page.id === 'capabilities')
+      .agent_package_lifecycle_ux.package_projection_contract,
+    capabilitiesProjection,
+  );
+  const profilePackageSurface = productProfile.settings.control_plane.page_adapter_policy.required_pages
+    .capabilities.directory_projection_surface;
+  assert.equal(
+    profilePackageSurface.activation_action_contract_ref,
+    'contracts/app-gui-product-contract.json#pages.settings_capabilities.agent_package_lifecycle_ux.package_projection_contract.activation_preparation_policy',
+  );
+  assert.equal(profilePackageSurface.status_model.axes.includes('activation_action'), true);
+  assert.equal(profilePackageSurface.detail_surface.detail_fields.includes('activation_action'), true);
+
+  assert.deepEqual(packageSurfaces.$defs.agent_package_activation_request.required, [
+    'package_id',
+    'scope',
+    'use_boundary_id',
+  ]);
+  assert.deepEqual(packageSurfaces.$defs.agent_package_activation_result.required, [
+    'launch_allowed',
+    'use_receipt_ref',
+    'use_binding',
+  ]);
+  assert.deepEqual(packageSurfaces.$defs.agent_package_activation_action.required, [
+    'action_id',
+    'command_ref',
+    'enabled',
+    'preparation_status',
+    'reason_code',
+  ]);
+  assert.equal(
+    packageSurfaces.$defs.agent_package_activation_request.allOf.length,
+    2,
+    'workspace and quest payload targets must be mutually exclusive',
+  );
+
+  const fixtureStatus = fastFixture.app_state.agent_packages.status_index.packages['example-agent'];
+  assert.deepEqual(fixtureStatus.activation_action, {
+    action_id: 'agent_package_activate',
+    command_ref: 'opl app action execute --action agent_package_activate --payload <json> --json',
+    enabled: true,
+    preparation_status: 'ready',
+    reason_code: 'use_boundary_reconciliation_ready',
+  });
+  const fixtureAction = fastFixture.app_state.actions.find(
+    (action: { action_id: string }) => action.action_id === 'agent_package_activate',
+  );
+  assert.deepEqual(fixtureAction.payload_fields, expectedActivationPolicy.payload_fields);
+  assert.equal(JSON.stringify(fastFixture).includes('settings_reload_codex_surface'), false);
+  assert.equal(JSON.stringify(expectedActivationPolicy).includes('med-autoscience'), false);
+  assert.equal(JSON.stringify(expectedActivationPolicy).includes('mas-scholar-skills'), false);
+});
+
 test('App install policy selects exactly one compatible OPL Framework carrier', () => {
   const policy = JSON.parse(
     fs.readFileSync(path.join(process.cwd(), 'contracts', 'app-install-exposure-policy.json'), 'utf8'),
