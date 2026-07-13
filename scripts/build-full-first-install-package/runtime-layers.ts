@@ -237,6 +237,42 @@ function domainPluginPayloadStatuses(runtimeRoot) {
   ]);
 }
 
+function oplFlowPluginPayloadStatuses(runtimeRoot) {
+  const modulePath = 'modules/opl-flow';
+  const manifestPath = `${modulePath}/.codex-plugin/plugin.json`;
+  const manifestStatus = runtimePayloadStatus(runtimeRoot, manifestPath);
+  if (!manifestStatus.exists) return [manifestStatus];
+
+  const manifest = JSON.parse(fs.readFileSync(path.join(runtimeRoot, ...manifestPath.split('/')), 'utf8'));
+  const declaredSkillRoots = Array.isArray(manifest.skills) ? manifest.skills : [manifest.skills];
+  if (declaredSkillRoots.length === 0 || declaredSkillRoots.some((value) => typeof value !== 'string')) {
+    throw new Error('Full runtime OPL Flow plugin manifest must declare a relative skills path.');
+  }
+
+  const payloads = [manifestStatus];
+  for (const declaredRoot of declaredSkillRoots) {
+    const normalizedRoot = path.posix.normalize(declaredRoot).replace(/^\.\//, '').replace(/\/$/, '');
+    if (
+      normalizedRoot === ''
+      || normalizedRoot === '..'
+      || normalizedRoot.startsWith('../')
+      || path.posix.isAbsolute(normalizedRoot)
+    ) {
+      throw new Error(`Full runtime OPL Flow plugin manifest declares an unsafe skills path: ${declaredRoot}`);
+    }
+    const skillRoot = `${modulePath}/${normalizedRoot}`;
+    payloads.push(runtimePayloadStatus(runtimeRoot, skillRoot));
+    const skillEntryPoints = listRuntimeRelativePaths(runtimeRoot)
+      .filter((relativePath) => relativePath.startsWith(`${skillRoot}/`) && relativePath.endsWith('/SKILL.md'))
+      .sort();
+    if (skillEntryPoints.length === 0) {
+      throw new Error(`Full runtime OPL Flow declared skill root contains no SKILL.md: ${skillRoot}`);
+    }
+    payloads.push(...skillEntryPoints.map((relativePath) => runtimePayloadStatus(runtimeRoot, relativePath)));
+  }
+  return payloads;
+}
+
 function listRuntimeRelativePaths(runtimeRoot) {
   if (!fs.existsSync(runtimeRoot)) return [];
   const paths = [];
@@ -304,11 +340,9 @@ export function collectRuntimeAssertions(runtimeRoot) {
       runtimePayloadStatus(runtimeRoot, 'skills/med-autogrant/SKILL.md'),
       runtimePayloadStatus(runtimeRoot, 'skills/redcube-ai/SKILL.md'),
       runtimePayloadStatus(runtimeRoot, 'skills/opl-bookforge/SKILL.md'),
-      runtimePayloadStatus(runtimeRoot, 'modules/opl-flow/.codex-plugin/plugin.json'),
       runtimePayloadStatus(runtimeRoot, 'modules/opl-flow/contracts/workflow-policy.json'),
       runtimePayloadStatus(runtimeRoot, 'modules/opl-flow/templates/AGENTS.md'),
-      runtimePayloadStatus(runtimeRoot, 'modules/opl-flow/skills/opl-flow/SKILL.md'),
-      runtimePayloadStatus(runtimeRoot, 'modules/opl-flow/skills/codex-ops-kit/SKILL.md'),
+      ...oplFlowPluginPayloadStatuses(runtimeRoot),
       ...domainPluginPayloadStatuses(runtimeRoot),
     ],
     declared_pruned_paths: declaredPrunedPathAssertions(runtimeRoot),

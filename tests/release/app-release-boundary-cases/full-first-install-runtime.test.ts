@@ -546,17 +546,20 @@ test("Full runtime node payload prunes package-only docs while preserving offlin
     );
   }
   for (const relativePath of [
-    "modules/opl-flow/.codex-plugin/plugin.json",
     "modules/opl-flow/contracts/workflow-policy.json",
     "modules/opl-flow/templates/AGENTS.md",
     "modules/opl-flow/skills/opl-flow/SKILL.md",
-    "modules/opl-flow/skills/codex-ops-kit/SKILL.md",
+    "modules/opl-flow/skills/future-flow-skill/SKILL.md",
   ]) {
     writeFile(
       path.join(runtimeRoot, relativePath),
       relativePath.endsWith(".json") ? "{}\n" : "# fixture\n",
     );
   }
+  writeFile(
+    path.join(runtimeRoot, "modules/opl-flow/.codex-plugin/plugin.json"),
+    '{"skills":"./skills/"}\n',
+  );
 
   const assertions = collectRuntimeAssertions(runtimeRoot);
   assert.equal(assertions.prune_policy_id, "full_runtime_offline_first_install_slim_v1");
@@ -575,6 +578,16 @@ test("Full runtime node payload prunes package-only docs while preserving offlin
       entryPath,
     );
   }
+  assert.equal(
+    assertions.offline_required_payloads.some((entry) => entry.path.includes("codex-ops-kit")),
+    false,
+  );
+  assert.equal(
+    assertions.offline_required_payloads.find(
+      (entry) => entry.path === "modules/opl-flow/skills/future-flow-skill/SKILL.md",
+    )?.exists,
+    true,
+  );
   assert.doesNotThrow(() =>
     writeFullRuntimeManifest(
       runtimeRoot,
@@ -583,6 +596,18 @@ test("Full runtime node payload prunes package-only docs while preserving offlin
       {},
       {},
     ),
+  );
+  fs.rmSync(path.join(runtimeRoot, "modules", "opl-flow", "skills"), {
+    recursive: true,
+    force: true,
+  });
+  assert.throws(
+    () => collectRuntimeAssertions(runtimeRoot),
+    /declared skill root contains no SKILL\.md/,
+  );
+  writeFile(
+    path.join(runtimeRoot, "modules/opl-flow/skills/opl-flow/SKILL.md"),
+    "# skill\n",
   );
   fs.rmSync(path.join(runtimeRoot, "modules", "mag", "plugins", "med-autogrant", ".codex-plugin"), {
     recursive: true,
