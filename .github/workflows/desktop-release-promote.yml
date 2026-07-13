@@ -259,6 +259,29 @@ jobs:
             --include-full-package \
             --summary-path remote-release-verification.json
 
+      - name: Verify immutable OPL App component manifest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          version="${{ inputs.opl_version }}"
+          tag="v$version"
+          app_commit="$(jq -r '.provenance.app_commit' release-candidate-record-input/release-candidate-record.json)"
+          gh release download "$tag" --repo "$GITHUB_REPOSITORY" \
+            --pattern opl-app-component-manifest.json \
+            --dir "$RUNNER_TEMP/published-component"
+          gh release view "$tag" --repo "$GITHUB_REPOSITORY" \
+            --json tagName,isDraft,isPrerelease,publishedAt,targetCommitish,assets,url \
+            > "$RUNNER_TEMP/app-release.json"
+          npm run release:component-manifest -- \
+            --version "$version" \
+            --source-commit "$app_commit" \
+            --release-json "$RUNNER_TEMP/app-release.json" \
+            --repo "$GITHUB_REPOSITORY" \
+            --output "$RUNNER_TEMP/expected-opl-app-component-manifest.json"
+          cmp "$RUNNER_TEMP/published-component/opl-app-component-manifest.json" \
+            "$RUNNER_TEMP/expected-opl-app-component-manifest.json"
+
   publish-nonlatest:
     name: Publish release without changing latest
     needs: prepare

@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://one-person-lab.dev/contracts/opl-app-component-manifest.schema.json",
+  "title": "OPL App Component Manifest",
+  "type": "object",
+  "required": [
+    "surface_kind",
+    "component_id",
+    "version",
+    "source_commit",
+    "release_tag",
+    "release_url",
+    "primary_artifact",
+    "artifacts",
+    "component_manifest_ref",
+    "component_manifest_digest"
+  ],
+  "properties": {
+    "surface_kind": { "const": "opl_app_component_manifest.v1" },
+    "component_id": { "const": "opl-app" },
+    "version": { "type": "string", "pattern": "^[0-9]{2}\\.[0-9]{1,2}\\.[0-9]{1,2}$" },
+    "source_commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "release_tag": { "type": "string", "pattern": "^v[0-9]{2}\\.[0-9]{1,2}\\.[0-9]{1,2}$" },
+    "release_url": { "type": "string", "minLength": 1 },
+    "primary_artifact": { "$ref": "#/$defs/artifact" },
+    "artifacts": { "type": "array", "minItems": 5, "maxItems": 5, "items": { "$ref": "#/$defs/artifact" } },
+    "component_manifest_ref": { "type": "string", "minLength": 1 },
+    "component_manifest_digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+  },
+  "$defs": {
+    "artifact": {
+      "type": "object",
+      "required": ["name", "ref", "digest", "size", "content_type"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "ref": { "type": "string", "minLength": 1 },
+        "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "size": { "type": "integer", "minimum": 1 },
+        "content_type": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

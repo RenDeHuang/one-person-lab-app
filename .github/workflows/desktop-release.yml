@@ -564,10 +564,33 @@ jobs:
           fi
           "${publish_args[@]}"
 
+      - name: Publish immutable OPL App component manifest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPL_RELEASE_VERSION: ${{ inputs.opl_version }}
+        run: |
+          set -euo pipefail
+          tag="v${OPL_RELEASE_VERSION}"
+          gh release view "$tag" --repo "$GITHUB_REPOSITORY" \
+            --json tagName,isDraft,isPrerelease,publishedAt,targetCommitish,assets,url \
+            > app-release.json
+          npm run release:component-manifest -- \
+            --version "$OPL_RELEASE_VERSION" \
+            --source-commit "${{ steps.release-cohort.outputs.app_sha }}" \
+            --release-json app-release.json \
+            --repo "$GITHUB_REPOSITORY" \
+            --output opl-app-component-manifest.json
+          gh release upload "$tag" opl-app-component-manifest.json --repo "$GITHUB_REPOSITORY" --clobber
+
       - name: Attest standard release assets
         uses: actions/attest@v4
         with:
           subject-path: release-assets/*
+
+      - name: Attest OPL App component manifest
+        uses: actions/attest@v4
+        with:
+          subject-path: opl-app-component-manifest.json
 
   full-first-install:
     name: Build Full first-install assets
