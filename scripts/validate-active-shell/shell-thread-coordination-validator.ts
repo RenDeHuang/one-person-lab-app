@@ -20,6 +20,10 @@ const paths = {
 };
 
 export function validateShellThreadCoordination(shellPaths): void {
+  if (shellPaths.contract?.shell_contract?.implementation_validation === 'contract_paths_only') {
+    return;
+  }
+
   const types = assertShellTextIncludesAll(
     shellPaths,
     paths.types,

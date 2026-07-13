@@ -913,7 +913,58 @@
         "missing_checkout_blocker_allowed": true,
         "sibling_checkout_command": "OPL_APP_SHELL_ROOT=../opl-native-workbench OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/opl-native-workbench.json npm run package"
       },
-      "candidate_stage": "opl_native_workbench_local_p0_p1_authority_target_implementation_pending",
+      "candidate_stage": "opl_native_workbench_local_p0_p1_implemented_verified_candidate_only",
+      "local_p0_p1_implementation_evidence": {
+        "status": "verified_local_candidate_only",
+        "observed_at": "2026-07-13",
+        "app_product_authority_sha": "e96621b7d6bcfc502859c419e72d4a93fc51e4f8",
+        "native_source_sha": "52a99697a44823824b37c73c3f92d8dd517eec4b",
+        "native_source_ref": "origin/main",
+        "codex_cli_version": "0.144.1",
+        "fixed_cohort": true,
+        "source_and_package_gates": {
+          "native_test_suite": "passed",
+          "coordination_security_cases": 10,
+          "webui_host_tests": 9,
+          "fast_gui_projection_bytes": 132753
+        },
+        "dynamic_tools_live": {
+          "thread_id": "019f599c-ea66-7523-bc3f-85106d15540c",
+          "request_id_preserved": true,
+          "turn_completed": true
+        },
+        "coordination_live": {
+          "source_thread_id": "019f599d-399d-7ec1-9274-433e7481c630",
+          "target_thread_id": "019f599d-4557-7351-a74d-c8f41c697fbc",
+          "forked_thread_id": "019f599d-f0c4-7933-9487-9cab6d18d140",
+          "list_terminal_cursor": null,
+          "direct_turn_start": "completed",
+          "host_queue_then_turn_start": "completed",
+          "urgent_turn_steer": "completed"
+        },
+        "packaged_native_live": {
+          "bundle_id": "cn.gflab.opl.native-workbench.candidate",
+          "window_evidence": "core_graphics_fallback_after_ax_denied_-25211",
+          "window_id": 111241,
+          "renderer_sha256": "d7349bb5de3d6d1ec936a789b9c71e84ebd557971a5fbb37f9cfc848616a554a",
+          "package_manifest_sha256": "315cf2a344650cf044a7e110948e506738907ebc5aec80242094124a5e49be4d",
+          "screenshot_sha256": "510e269e5e29e4ea941b4d237008c686ac2a4c0937e553115ccd38d47ef116c9",
+          "screenshot_markers": [
+            "Codex",
+            "5.6 Sol"
+          ],
+          "process_cleanup": true
+        },
+        "claim_boundary": {
+          "local_p0_p1_implemented": true,
+          "candidate_only": true,
+          "active_shell_adopted": false,
+          "release_ready": false,
+          "production_ready": false,
+          "clean_vm_ready": false,
+          "remote_ready": false
+        }
+      },
       "visual_parity_contract": {
         "comparison_baseline": "ChatGPT Codex macOS 26.707.41301 (2026-07-11)",
         "current_reference_status": "current_app_reference_candidate_conformance_pending",

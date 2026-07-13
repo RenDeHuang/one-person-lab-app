@@ -60,6 +60,14 @@ test('active-shell thread coordination validator accepts a wired App Server adap
   assert.doesNotThrow(() => validateShellThreadCoordination(shellPaths));
 });
 
+test('candidate adapter skips AionUI implementation probes when validation is contract-paths-only', () => {
+  const shellPaths = {
+    shellRoot: '/candidate-without-aionui-fork-body',
+    contract: { shell_contract: { implementation_validation: 'contract_paths_only' } },
+  };
+  assert.doesNotThrow(() => validateShellThreadCoordination(shellPaths));
+});
+
 test('active-shell thread coordination validator rejects an unwired production port', () => {
   const { root, shellPaths } = fixture();
   const bridgePath = path.join(root, 'packages/desktop/src/process/bridge/threadCoordinationBridge.ts');

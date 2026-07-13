@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type {
   NativeCrossTopLevelThreadAuthority,
+  NativeLocalP0P1ImplementationEvidence,
   ShellCandidate,
   ShellCandidateRegistry,
   ValidationCommand,
@@ -134,6 +135,60 @@ const requiredFalseReadyFields = [
   'remote_ready',
 ];
 
+const nativeEvidenceSourceSha = '52a99697a44823824b37c73c3f92d8dd517eec4b';
+const nativeEvidenceAppProductAuthoritySha = 'e96621b7d6bcfc502859c419e72d4a93fc51e4f8';
+
+function validateNativeLocalP0P1ImplementationEvidence(
+  evidence: NativeLocalP0P1ImplementationEvidence | undefined,
+): void {
+  const source = evidence?.source_and_package_gates ?? {};
+  const dynamicTools = evidence?.dynamic_tools_live ?? {};
+  const coordination = evidence?.coordination_live ?? {};
+  const packaged = evidence?.packaged_native_live ?? {};
+  const boundary = evidence?.claim_boundary ?? {};
+  if (
+    !evidence ||
+    evidence.status !== 'verified_local_candidate_only' ||
+    evidence.observed_at !== '2026-07-13' ||
+    evidence.app_product_authority_sha !== nativeEvidenceAppProductAuthoritySha ||
+    evidence.native_source_sha !== nativeEvidenceSourceSha ||
+    evidence.native_source_ref !== 'origin/main' ||
+    evidence.codex_cli_version !== '0.144.1' ||
+    evidence.fixed_cohort !== true ||
+    source.native_test_suite !== 'passed' ||
+    source.coordination_security_cases !== 10 ||
+    source.webui_host_tests !== 9 ||
+    source.fast_gui_projection_bytes !== 132753 ||
+    dynamicTools.thread_id !== '019f599c-ea66-7523-bc3f-85106d15540c' ||
+    dynamicTools.request_id_preserved !== true ||
+    dynamicTools.turn_completed !== true ||
+    coordination.source_thread_id !== '019f599d-399d-7ec1-9274-433e7481c630' ||
+    coordination.target_thread_id !== '019f599d-4557-7351-a74d-c8f41c697fbc' ||
+    coordination.forked_thread_id !== '019f599d-f0c4-7933-9487-9cab6d18d140' ||
+    coordination.list_terminal_cursor !== null ||
+    coordination.direct_turn_start !== 'completed' ||
+    coordination.host_queue_then_turn_start !== 'completed' ||
+    coordination.urgent_turn_steer !== 'completed' ||
+    packaged.bundle_id !== 'cn.gflab.opl.native-workbench.candidate' ||
+    packaged.window_evidence !== 'core_graphics_fallback_after_ax_denied_-25211' ||
+    packaged.window_id !== 111241 ||
+    packaged.renderer_sha256 !== 'd7349bb5de3d6d1ec936a789b9c71e84ebd557971a5fbb37f9cfc848616a554a' ||
+    packaged.package_manifest_sha256 !== '315cf2a344650cf044a7e110948e506738907ebc5aec80242094124a5e49be4d' ||
+    packaged.screenshot_sha256 !== '510e269e5e29e4ea941b4d237008c686ac2a4c0937e553115ccd38d47ef116c9' ||
+    packaged.process_cleanup !== true ||
+    boundary.local_p0_p1_implemented !== true ||
+    boundary.candidate_only !== true ||
+    boundary.active_shell_adopted !== false ||
+    boundary.release_ready !== false ||
+    boundary.production_ready !== false ||
+    boundary.clean_vm_ready !== false ||
+    boundary.remote_ready !== false
+  ) {
+    throw new Error('native candidate local P0 plus P1 evidence must bind the exact verified local cohort without changing adoption, release, clean-VM, or remote readiness');
+  }
+  assertStringArrayIncludes(packaged.screenshot_markers, ['Codex', '5.6 Sol'], 'native candidate packaged screenshot markers');
+}
+
 const appProductProfile = readJson<{
   codex: { default_model: string; default_reasoning_effort: string };
 }>(path.join(root, 'contracts', 'app-product-profile.json'));
@@ -225,7 +280,7 @@ export function validateNativeCrossTopLevelThreadAuthority(
   if (
     !authority ||
     authority.authority_model !== 'three_layer_thread_coordination_authority' ||
-    authority.implementation_status !== 'candidate_target_implementation_pending' ||
+    authority.implementation_status !== 'local_p0_p1_implemented_verified_candidate_only' ||
     authority.product_role !== 'opl_host_cross_top_level_codex_thread_coordination' ||
     authority.entry_surface !== 'navigation_rail_thread_actions_and_on_demand_coordination_drawer' ||
     authority.default_state !== 'closed' ||
@@ -237,8 +292,9 @@ export function validateNativeCrossTopLevelThreadAuthority(
     authority.thread_store_owner !== 'codex_core_app_server' ||
     authority.thread_id_policy !== 'opaque_app_server_returned_key_never_model_or_shell_generated'
   ) {
-    throw new Error('opl-native-workbench cross-thread authority must preserve Codex protocol ownership, typed OPL host gates, opaque thread ids, and pending candidate status');
+    throw new Error('opl-native-workbench cross-thread authority must preserve Codex protocol ownership, typed OPL host gates, opaque thread ids, and verified candidate-only status');
   }
+  validateNativeLocalP0P1ImplementationEvidence(authority.local_p0_p1_implementation_evidence);
 
   const sameTree = authority.authority_layers.same_agent_tree ?? {};
   const local = authority.authority_layers.local_cross_top_level ?? {};
@@ -448,10 +504,10 @@ function validateCandidateAdapterContract(
     if (
       adapterContract.purpose !== 'active_shell_adapter' ||
       adapterContract.state !== 'active' ||
-      adapterContract.candidate_stage !== 'opl_native_workbench_local_p0_p1_authority_target_implementation_pending' ||
+      adapterContract.candidate_stage !== 'opl_native_workbench_local_p0_p1_implemented_verified_candidate_only' ||
       adapterContract.gui_authority?.implementation_role !== 'active_shell_implementation_carrier'
     ) {
-      throw new Error(`${candidate.id} adapter must preserve the shared adapter schema while candidate_stage remains a pending local authority target`);
+      throw new Error(`${candidate.id} adapter must preserve the shared adapter schema while candidate_stage records verified local candidate-only implementation`);
     }
   } else if (adapterContract.active_shell !== candidate.id) {
     throw new Error(`${candidate.id} adapter contract must identify ${candidate.id}`);
@@ -484,6 +540,12 @@ function validateCandidateAdapterContract(
       `${candidate.id} adapter shell capabilities`,
     );
     validateNativeCrossTopLevelThreadAuthority(adapterContract.cross_top_level_thread_authority);
+    if (
+      JSON.stringify(candidate.local_p0_p1_implementation_evidence)
+      !== JSON.stringify(adapterContract.cross_top_level_thread_authority?.local_p0_p1_implementation_evidence)
+    ) {
+      throw new Error(`${candidate.id} registry and adapter must bind the same local P0 plus P1 evidence cohort`);
+    }
   }
   if (!adapterContract.validation_commands.some((entry) => entry.id === 'candidate_app_bundle_build')) {
     throw new Error(`${candidate.id} adapter validation_commands must include candidate_app_bundle_build`);
@@ -891,9 +953,10 @@ function validateNativeWorkbenchCandidateContract(candidate: ShellCandidate): vo
   ) {
     throw new Error(`${candidate.id}.source_upstream must point to gaofeng21cn/opl-native-workbench under Apache-2.0`);
   }
-  if (candidate.candidate_stage !== 'opl_native_workbench_local_p0_p1_authority_target_implementation_pending') {
-    throw new Error(`${candidate.id}.candidate_stage must remain a pending local P0 plus P1 authority target`);
+  if (candidate.candidate_stage !== 'opl_native_workbench_local_p0_p1_implemented_verified_candidate_only') {
+    throw new Error(`${candidate.id}.candidate_stage must record verified local P0 plus P1 candidate-only implementation`);
   }
+  validateNativeLocalP0P1ImplementationEvidence(candidate.local_p0_p1_implementation_evidence);
   if (
     candidate.checkout_policy?.primary_path !== 'shells/opl-native-workbench' ||
     candidate.checkout_policy.accepted_alternate_path !== '../opl-native-workbench' ||

@@ -20,8 +20,23 @@ const readAuthority = (): NativeCrossTopLevelThreadAuthority => {
   return adapter.cross_top_level_thread_authority;
 };
 
-test('native candidate accepts the three-layer local P0 plus P1 authority while remote P2 stays deferred', () => {
-  assert.doesNotThrow(() => validateNativeCrossTopLevelThreadAuthority(readAuthority()));
+test('native candidate accepts the exact verified local P0 plus P1 cohort while remote P2 stays deferred', () => {
+  const authority = readAuthority();
+  assert.equal(authority.implementation_status, 'local_p0_p1_implemented_verified_candidate_only');
+  assert.equal(authority.local_p0_p1_implementation_evidence.native_source_sha, '52a99697a44823824b37c73c3f92d8dd517eec4b');
+  assert.equal(authority.local_p0_p1_implementation_evidence.claim_boundary.active_shell_adopted, false);
+  assert.equal(authority.local_p0_p1_implementation_evidence.claim_boundary.release_ready, false);
+  assert.doesNotThrow(() => validateNativeCrossTopLevelThreadAuthority(authority));
+});
+
+test('native candidate rejects an implementation claim detached from the exact evidence cohort', () => {
+  const authority = structuredClone(readAuthority());
+  authority.local_p0_p1_implementation_evidence.native_source_sha = '0'.repeat(40);
+
+  assert.throws(
+    () => validateNativeCrossTopLevelThreadAuthority(authority),
+    /exact verified local cohort/,
+  );
 });
 
 test('native candidate rejects generated-schema inference in place of a dynamicTools runtime probe', () => {

@@ -2,7 +2,7 @@
 
 Owner: `one-person-lab-app`
 Purpose: `opl_native_workbench_unified_candidate_plan`
-State: `local_p0_p1_authority_target_implementation_pending`
+State: `local_p0_p1_implemented_verified_candidate_only`
 Current interaction reference: `ChatGPT Codex macOS 26.707.41301 (2026-07-11)`
 Superseded observations: `26.707.31428 (2026-07-10)`,
 `26.707.31123 (2026-07-10)`
@@ -10,14 +10,16 @@ Superseded observations: `26.707.31428 (2026-07-10)`,
 Machine truth lives in `contracts/app-shell-candidates.json`,
 `contracts/shell-adapters/opl-native-workbench.json`, the App GUI/runtime/page
 contracts, validator output, exact shell artifacts, and release-owner records.
-This document is the implementation and acceptance route. It is not evidence
-that the candidate, active shell, package, or release has completed that route.
+This document records the implementation and acceptance route. The exact local
+candidate cohort is machine-bound in the two contracts above; this document
+alone is not evidence of active-shell adoption, release, clean-VM, or remote
+readiness.
 
 ## Decision
 
 `opl-native-workbench` remains the only foreground alternative candidate.
-AionUI remains the active release shell. The native candidate must implement
-one local-machine product target containing both:
+AionUI remains the active release shell. The native candidate has implemented
+and locally verified one candidate-only product cohort containing both:
 
 - **P0:** local cross-top-level thread discovery, read, dispatch, steering,
   queue, safety gates, and bilateral receipts;
@@ -36,15 +38,13 @@ local GUI client. That is a per-launch developer choice governed by
 [`gui-shell-candidates.md`](gui-shell-candidates.md), not a second active release
 shell. Side-by-side bundle identity and sequential switching prove neither shared
 physical Runtime parity nor safe simultaneous writes to one workspace/thread.
-Launcher-started Candidate runs now consume explicit App-resolved `opl`/`codex`
-identity and emit exact Runtime readback; direct bundle launch still has a host-PATH
-fallback. Before stronger parity claims, AionUI must expose the same cohort and
-both clients must participate in the same host coordination/conflict gates. The
-current renderer also persists complete `ChatSession.messages` with `threadId`
-in localStorage; this is a current full-transcript-cache deviation, not canonical
-conversation continuity. The target must rebuild history from App Server
-`thread/list/read/resume` and retain only UI preferences, drafts, and rebuildable
-cache locally.
+Launcher-started Candidate runs consume explicit App-resolved `opl`/`codex`
+identity and emit exact Runtime readback; direct bundle launch still has a
+host-PATH fallback. Codex App Server is now the sole thread and history
+authority: the renderer rebuilds history through `thread/list/read/resume`, and
+localStorage is limited to UI metadata and drafts. Before stronger cross-GUI
+parity claims, AionUI must expose the same cohort and both clients must
+participate in the same host coordination/conflict gates.
 
 ## Authority Inputs
 
@@ -61,6 +61,35 @@ The authority order is:
 4. the typed host bridge and its fixture/live evidence;
 5. Desktop/WebUI renderer implementations and tests;
 6. packaged and owner evidence for any stronger claim.
+
+## Verified Local Candidate Cohort
+
+The local P0 plus P1 implementation is bound to App product authority
+`e96621b7d6bcfc502859c419e72d4a93fc51e4f8`, Native source and pushed
+`origin/main` `52a99697a44823824b37c73c3f92d8dd517eec4b`, and Codex CLI
+`0.144.1`, observed on `2026-07-13`.
+
+- the complete Native test bundle passed, including 10 coordination security
+  cases and 9 WebUI host tests;
+- the bounded GUI projection was `132753` bytes;
+- dynamic-tools live thread
+  `019f599c-ea66-7523-bc3f-85106d15540c` preserved its request ID and
+  completed;
+- coordination source `019f599d-399d-7ec1-9274-433e7481c630`, target
+  `019f599d-4557-7351-a74d-c8f41c697fbc`, and fork
+  `019f599d-f0c4-7933-9487-9cab6d18d140` completed direct `turn/start`,
+  nonurgent host queue followed by `turn/start`, and urgent `turn/steer`;
+- the packaged candidate launched with bundle ID
+  `cn.gflab.opl.native-workbench.candidate`; Accessibility inspection was
+  denied with `-25211`, so the same PID was verified through CoreGraphics window
+  `111241`; its target-window screenshot contained `Codex` and `5.6 Sol`, and
+  the process was terminated after capture;
+- packaged renderer, package manifest, and screenshot SHA-256 fingerprints are
+  recorded in the machine contracts and enforced by the candidate validator.
+
+This closes local candidate P0 plus P1 implementation evidence. It does not set
+`active_shell_adopted`, `release_ready`, `production_ready`, `clean_vm_ready`,
+or `remote_ready`.
 
 Codex Core/App Server owns opaque thread IDs, thread history, persistence,
 status, lifecycle, and turns. The OPL App typed host bridge owns authorization,
@@ -213,8 +242,9 @@ hide lifecycle actions, conflict results, or receipt readback.
 The base chat, model/reasoning policy, App state/action bridge, refs-only
 previews, provenance, starter forms, confirmation cards, settings, and
 shared-renderer work remain part of the candidate. Prior source or smoke output
-is historical input only until the unified cohort revalidates it together with
-the new local P0/P1 authority.
+was revalidated with the unified local P0/P1 cohort. Work packages 1 through 11
+are closed for this local candidate cohort. Adoption/release package 12 and
+remote-host package 13 remain separate, unstarted readiness decisions.
 
 ## Acceptance Matrix
 
@@ -242,11 +272,11 @@ node --experimental-strip-types --test tests/release/native-candidate-cross-thre
 git diff --check
 ```
 
-Candidate implementation closeout additionally requires the shell-owned tests,
-runtime capability probe, package build, Desktop/WebUI behavior and visual
-evidence, and the two-root-thread packaged path from one fixed cohort. Those
-commands and artifacts belong to the candidate implementation lane and must not
-be claimed by this authority-only change.
+The shell-owned tests, runtime capability probe, package build, Desktop/WebUI
+behavior, local coordination, and packaged-window evidence were executed on the
+fixed cohort above. Their exact summary is now recorded as App authority; ignored
+local artifacts remain reproducibility inputs rather than committed product
+truth.
 
 After absorption into a checkout with the pinned OPL Flow authority source and
 active/candidate shell checkouts, the wider `npm run test:release-boundary`,
@@ -256,10 +286,10 @@ reason to synthesize evidence or weaken the candidate contract.
 
 ## False-Ready Boundary
 
-Until exact implementation and evidence gates close, all of the following stay
-false:
+Local P0 plus P1 now records `local_p0_p1_implemented=true`. The following
+broader claims stay false:
 
-- `implementation_complete`;
+- whole-product or active-shell `implementation_complete`;
 - `active_shell_adopted`;
 - `release_ready` and `production_ready`;
 - `clean_vm_ready` and packaged user-path acceptance;
@@ -268,7 +298,7 @@ false:
 
 Docs, contracts, focused tests, generated schemas, fixture adapters, ephemeral
 probes, source smoke, package manifests, or local candidate smoke are each
-insufficient alone. A local P0/P1 completion claim must bind exact App and shell
-SHAs, Codex/App Server version, runtime capability-probe receipt, package
-fingerprint, Desktop/WebUI evidence, and the two-independent-thread user path.
-Remote P2 and active release adoption remain separate later gates.
+insufficient alone. The closed local P0/P1 claim therefore binds exact App and
+Native SHAs, Codex/App Server version, runtime capability-probe receipt, package
+fingerprints, Desktop/WebUI gates, and the two-independent-thread path. Remote
+P2 and active release adoption remain separate later gates.

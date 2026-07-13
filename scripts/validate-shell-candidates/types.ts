@@ -15,9 +15,25 @@ export type ActiveProjectLineStateModel = {
   forbidden_claims: string[];
 };
 
+export type NativeLocalP0P1ImplementationEvidence = {
+  status: string;
+  observed_at: string;
+  app_product_authority_sha: string;
+  native_source_sha: string;
+  native_source_ref: string;
+  codex_cli_version: string;
+  fixed_cohort: boolean;
+  source_and_package_gates: Record<string, unknown>;
+  dynamic_tools_live: Record<string, unknown>;
+  coordination_live: Record<string, unknown>;
+  packaged_native_live: Record<string, unknown>;
+  claim_boundary: Record<string, unknown>;
+};
+
 export type NativeCrossTopLevelThreadAuthority = {
   authority_model: string;
   implementation_status: string;
+  local_p0_p1_implementation_evidence: NativeLocalP0P1ImplementationEvidence;
   product_role: string;
   entry_surface: string;
   default_state: string;
@@ -105,6 +121,7 @@ export type ShellCandidate = HermesTargetStateContract & {
     missing_checkout_blocker_allowed: boolean;
   };
   candidate_stage?: string;
+  local_p0_p1_implementation_evidence?: NativeLocalP0P1ImplementationEvidence;
   first_run_contract?: FirstRunContract;
   icon_contract?: IconContract;
   deferred_until_feature_comparison?: string[];
