@@ -1400,6 +1400,18 @@ export const appOwnedRightContextInspectorPolicy = {
   environment_popover_ref:
     "interaction_baseline.context_surfaces.environment_popover",
 };
+export const appOwnedReviewSurfaceSourceEvidence = {
+  source_status: "partial_last_turn_implemented_inline_comments_protocol_blocked",
+  source_capability_status: {
+    last_turn: "source_implemented_existing_message_store",
+    inline_comments: "source_blocked_missing_typed_codex_protocol",
+  },
+  last_turn_source_policy:
+    "latest_visible_user_message_then_completed_workspace_edit_tool_calls",
+  inline_comment_protocol_requirement:
+    "typed_codex_app_server_file_line_comment_request_location_and_failure_semantics",
+  inline_comment_forbidden_fallbacks: ["shell_local_annotation_store", "fake_success"],
+};
 export const appOwnedRightContextInspectorForbiddenOwners = [
   "runtime truth",
   "domain truth",

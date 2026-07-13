@@ -3,6 +3,7 @@ import {
   appOwnedCurrentTaskSlice,
   appOwnedGuiContractOrdinaryConversation,
   appOwnedHomeLayout,
+  appOwnedReviewSurfaceSourceEvidence,
   appOwnedRightContextInspectorForbiddenOwners,
   appOwnedRightContextInspectorPolicy,
 } from './app-contract-constants.ts';
@@ -166,12 +167,25 @@ function validateAiFirstInteractionModel(guiContract) {
 
 function validateRightContextInspector(guiContract) {
   const inspector = guiContract.right_context_inspector ?? {};
+  const reviewSurface = inspector.review_surface ?? {};
+  const sourceEvidenceFields = Object.keys(appOwnedReviewSurfaceSourceEvidence);
+  const productPolicy = {
+    ...inspector,
+    review_surface: Object.fromEntries(
+      Object.entries(reviewSurface).filter(([key]) => !sourceEvidenceFields.includes(key)),
+    ),
+  };
   assertDeepEqualJson(
     Object.fromEntries(
-      Object.entries(inspector).filter(([key]) => !['current_task_evidence', 'must_not_own'].includes(key)),
+      Object.entries(productPolicy).filter(([key]) => !['current_task_evidence', 'must_not_own'].includes(key)),
     ),
     appOwnedRightContextInspectorPolicy,
     'App GUI on-demand advanced workspace surface policy',
+  );
+  assertDeepEqualJson(
+    Object.fromEntries(sourceEvidenceFields.map((key) => [key, reviewSurface[key]])),
+    appOwnedReviewSurfaceSourceEvidence,
+    'App GUI Review source evidence',
   );
   for (const legacyField of ['tabs', 'primary_tools', 'secondary_sections']) {
     if (legacyField in inspector) {

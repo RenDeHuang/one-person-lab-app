@@ -152,7 +152,10 @@ Rail 负责 navigation，不承担 dashboard：
   `thread/*` 与 `turn/*`，AionUI 不拥有 thread ID、history 或路由策略。
 - 模型可调用 host tool 是必需目标，但必须由 thread-start dynamic-tool registration 与
   `item/tool/call` round-trip 证明；rail/detail 的 user coordination 不能作为替代证据。当前
-  AionUI 未闭合该模型调用链时应在 conformance 标为 `source_missing`，不能另造第二套 runtime。
+  ordinary conversation 经 ACP -> AionCore -> codex-acp 创建，而 ACP `session/new/load` 不承载
+  dynamic tools或 `item/tool/call` callback。应由 AionCore 的同 App Server client adapter优先闭合，
+  或由 codex-acp补齐 typed输入、response提交和 ACP callback；在此之前标为 `source_missing`，
+  不能另造第二套 runtime或事后 coordination-port handler。
 
 宽桌面 rail persistent 且在 `280-340px` 内可调；窄窗口 drawer 化。关闭 drawer 不清除
 selection 或当前草稿。Back/Forward、Previous/Next Task、New Window 是 desktop
@@ -255,8 +258,10 @@ OPL 增量按以下顺序进入：
 3. Terminal、Browser、Files 等 advanced surfaces 只从 Environment 或任务需要打开；
 4. Review 复用 Files/Changes diff surface；target 支持 uncommitted、base branch、commit、custom，
    交付支持 inline/detached，默认 Unstaged 并提供 Staged、Commit、Branch、Last turn。PR context
-   依赖 `gh`，缺失时明确 unavailable；支持 inline comments、stage、commit、push，但不恢复独立
-   equal-weight Review tab，也不复制 Git store；
+   依赖 `gh`，缺失时明确 unavailable；Last turn 只显示最近可见用户消息之后 completed edit
+   tool calls 的 workspace 内相对路径，并提供无编辑空态。Stage、commit、push 使用既有 Git
+   integration；line-level inline comments等待 typed Codex file/line comment protocol，不制作本地
+   annotation store或假成功；不恢复独立 equal-weight Review tab，也不复制 Git store；
 5. 跨项目 Runtime、Actions、Memory 管理保持独立 route，不并列成九个 tabs。
 
 打开任何 details/preview surface 时：
@@ -379,12 +384,13 @@ First-run 的目标是让用户尽快进入可工作的 App：
   user-input pending 不误报失败，且不虚报独立 approval receipt。同 key 重试返回第一次成功结果且
   不二次 dispatch；跨 host 当前明确 unavailable，跨顶层投递不使用 `send_input`。
 - Model host tool 只有在 dynamic-tool registration、`item/tool/call` 和结果 readback 同 cohort
-  可证时才算实现；用户可见 rail 不构成该证据。
+  可证时才算实现；用户可见 rail 不构成该证据，ordinary ACP owner链路缺失必须路由到
+  AionCore/codex-acp owner而不是 Shell workaround。
 - Home New task 的 Local/Worktree、starting branch 与 managed worktree create/reuse 已由薄 adapter承接；
   既有同主机空闲 task 的双向 handoff 位于 Conversation Environment，并通过
   `thread/settings/update` 更新真实 cwd。Snapshot/restore、cleanup UI 与 cross-host handoff 不进入
   当前完成声明；Review 复用 Files/Changes diff surface并覆盖四类 target、两种 delivery、五个
-  sections 与 `gh` unavailable 状态。
+  sections 与 `gh` unavailable 状态，其中 Last turn 已实现，line-level comments 保持 protocol-blocked。
 - Settings 使用 full-window shell，OPL IA、first-run、品牌和双语边界保持不变。
 - Pending、elapsed、tool/process、permission、failure 和 receipt 在 turn 中可理解。
 - Runtime/Settings 使用 App state/action/Control Plane，不拥有 owner truth。

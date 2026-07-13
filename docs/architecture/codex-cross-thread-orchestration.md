@@ -2,13 +2,14 @@
 
 Owner: `one-person-lab-app`
 Purpose: `opl_app_cross_thread_orchestration_boundary`
-State: `accepted_product_target_user_surface_candidate_model_tool_missing_remote_deferred`
-Date: `2026-07-13`
+State: `accepted_product_target_user_surface_implemented_model_tool_protocol_blocked_remote_deferred`
+Date: `2026-07-14`
 Machine boundary: 本文定义产品和架构目标。App contracts、page-state、active-shell validator与
-AionUI parity candidate `dd67a50c1eca3548b47cbb9144a1a08a403e72f3` 已实现本机 user-facing
-flexible cross-thread policy和可见入口；该 candidate 尚未吸收 main，且当前普通 AionUI conversation
-没有注册模型可调用的 coordination dynamic tools。Native candidate 的历史 cohort仍需重做。
-Current pixels、packaged two-root UI、installed user path、remote host与 release promotion仍需独立 evidence。
+AionUI source integration `d5c7581bd3a2c547e20373ca3df716aa129846dd` 已实现本机 user-facing
+flexible cross-thread policy和可见入口；该 integration 尚未吸收 main，且当前普通 AionUI conversation
+没有注册模型可调用的 coordination dynamic tools。历史 package/pixels仍绑定
+`b2c05a1c8dc4ef81094323b49a67b601e3c425f5`，不能改绑为新 source。Native candidate 的历史
+cohort仍需重做。Installed user path、remote host与 release promotion仍需独立 evidence。
 
 ## 结论
 
@@ -54,6 +55,15 @@ Codex App Server 当前公开的协议原语包括：
 由既有 ACP/AionCore 路径创建，不经过本 coordination port 的 `thread/start`，因此 rail/detail
 可见协调、user dispatch 和 delivery audit 均不能证明模型已经获得 host tool。不得为填平该
 证据缺口另造第二套 thread runtime、MCP/socket 总线或 duplicate store。
+
+当前 ordinary 发送的实际 owner链路是 `useGuidSend -> /api/conversations -> /messages -> AionCore
+warmup -> ACP session/new -> codex-acp ThreadManager.start_thread`。`dynamicTools` 只能在直接 App
+Server `thread/start` 注册，`item/tool/call` 只回到启动该 thread的同一 client；ACP
+`session/new/load` 当前没有 dynamic-tool输入或callback，而 coordination port又是另一个 App Server
+client。因此事后给 Shell coordination port增加 handler收不到 ordinary thread事件，预创建第二
+App Server thread则会产生两个 runtime owner。正确 owner route是：优先由 AionCore让 ordinary
+Codex adapter使用同一 App Server client执行 `thread/start(dynamicTools)`并代理tool call；若继续
+保留codex-acp owner，则由codex-acp补齐dynamic-tool输入、Core response提交和 ACP callback。
 
 官方来源：
 
@@ -202,7 +212,8 @@ OPL host 可以向模型暴露稳定的高层工具，具体名称不是 App Ser
 模型不得直接拼接 host 地址、猜测线程 ID、绕过 Codex permission/approval 或直接写协调 ledger。
 当前 AionUI 尚未闭合这条模型调用链；只有 exact thread-start dynamic-tool registration、
 `item/tool/call` request/response 和目标 turn 结果的同 cohort 证据完成后，才能把
-`model_tool_access` 从 required target 提升为 source implemented。
+`model_tool_access` 从 required target 提升为 source implemented。不得以第二 App Server thread、
+post-hoc coordination-port handler或Shell-owned tool/thread store绕过当前 owner blocker。
 
 ## 权限和自主性
 
@@ -309,7 +320,8 @@ JSONL。AionUI upstream intake 不能删除 OPL 已采纳的跨线程能力；�
 - approval resolution audit 只有建立独立真实 store 后才可声明。
 
 - fork、archive/unarchive、goal/metadata 投影；
-- 用户预授权策略和模型高层工具；当前 AionUI 为 `source_missing`，不能由 rail user flow 替代；
+- 用户预授权策略和模型高层工具；当前 AionUI 为 `source_missing_protocol_blocked`，不能由 rail
+  user flow替代，owner route在AionCore/codex-acp ordinary thread client；
 - wait/result aggregation 与 typed timeout/failure；
 - parent/ancestor capability-detected projection。
 
@@ -352,11 +364,12 @@ test 替代远程或 packaged evidence。
 - `contracts/app-page-state-matrix.json`：定义状态和负例 acceptance；
 - active-shell validators/tests：证明 shell 消费 App truth，且未退化为同一 agent tree only。
 
-Active AionUI parity candidate `dd67a50c1eca3548b47cbb9144a1a08a403e72f3` 已实现 production App
+Active AionUI source integration `d5c7581bd3a2c547e20373ca3df716aa129846dd` 已实现 production App
 Server `thread/*` / `turn/*` adapter、canonical thread directory、flexible routing、可见 delivery
 audit、interactive request pending handling、Runtime cockpit，以及同主机 Local/Worktree source链路。
-它尚未吸收 main，模型 high-level tool 仍为 `source_missing`；current pixels、package与
-installed-path gate仍由集成 owner独立闭合。Native candidate 的 `c1d9db...` 历史 cohort仍绑定旧 hard-gate policy，
+它尚未吸收 main，模型 high-level tool 仍为 `source_missing_protocol_blocked`；匹配该 source的
+pixels、package与installed-path gate仍由集成 owner独立闭合。Native candidate 的 `c1d9db...`
+历史 cohort仍绑定旧 hard-gate policy，
 只保留 protocol/package evidence，不能证明 corrected candidate conformance。
 
 该状态不等于 packaged 产品验收。Packaged UI 两根线程端到端、live `turn/steer` 竞态、current

@@ -54,10 +54,13 @@ managed lifecycle 分离，不再保留 OPL Flow 专用 post-update 分支。本
 `b2c05a1c8dc4ef81094323b49a67b601e3c425f5` 已实现 projectless local input、App Server rail、
 absolute-path Preview、首结果 idempotency replay、visible coordination/unarchive、
 Local/Worktree/handoff、Review 已采纳子集、Runtime cockpit、typed interactive requests，并完整保留
-Runtime V2 与 Gateway account/UI。Fresh full source gates、macOS arm64 directory-only package、
+Runtime V2 与 Gateway account/UI。该 exact cohort 的 full source gates、macOS arm64 directory-only package、
 codesign 与 9 场景 packaged E2E 已闭合；package 未安装，main/remote currentness 与 release
 promotion仍由操作层 fresh readback决定。模型可调用 host tool仍是必需产品目标，当前 AionUI
-user coordination surface 不能作为其实现证据。
+user coordination surface 不能作为其实现证据。最新 clean source integration
+`d5c7581bd3a2c547e20373ca3df716aa129846dd` 在该 package cohort 之后补入 profile-driven
+feedback、Review `Last turn` 与窄窗 Access 单列断点；其 full active-shell、Node/DOM、TypeScript、
+format、i18n与lint 0 errors已通过，但尚无匹配 package/pixel 证据。
 
 ## 三层与文件归属
 
@@ -122,6 +125,10 @@ package/user path。当前 contract/source 与 packaged route visual evidence �
 - `ideal_target.model_host_tool_access=true`
 - `active_aionui.model_host_tool_access=source_missing`
 - `model_host_tool.evidence=dynamic_tool_registration_and_item_tool_call_round_trip`
+- `model_host_tool.blocker=acp_session_new_or_load_has_no_dynamic_tools_input_or_item_tool_call_callback`
+- `model_host_tool.owner_route=aioncore_same_app_server_client_adapter_or_codex_acp_dynamic_tool_callback`
+- `active_aionui.review_last_turn=source_implemented_existing_message_store`
+- `active_aionui.review_inline_comments=source_blocked_missing_typed_codex_protocol`
 - `ideal_target.inspector_default_visible=false`
 - `active_aionui.state_source=contracts/app-product-profile.json#gui.home.home_layout`
 - `active_shell_switch_contract=contracts/app-shell-adapter.json`
@@ -217,7 +224,9 @@ package/user path。当前 contract/source 与 packaged route visual evidence �
 - Review 复用现有 Files/Changes diff surface，按需增加 PR context、inline comments、stage、commit、
   push；target 至少包含 uncommitted/base branch/commit/custom，交付支持 inline/detached，默认
   Unstaged 并提供 Staged/Commit/Branch/Last turn。PR context 依赖 `gh`，缺失时明确 unavailable；
-  不恢复旧 equal-weight Review tab，也不复制 Git store。
+  `Last turn` 只读既有 message store 中最近可见用户消息之后已完成的 workspace edit；当前
+  App Server `review/start` 没有 file/line comment request，因此 line-level inline comments 保持
+  protocol-blocked，不建立本地 annotation store或假成功。不恢复旧 equal-weight Review tab，也不复制 Git store。
 - Settings 已进入 maintenance；保持现有 OPL IA/object 和 model policy，不得决定 Home、
   rail、conversation 或 composer 结构，也不拥有 installer/runtime truth。
 - 模型策略与当前默认值只读取 `contracts/app-product-profile.json`；本文档族不复制

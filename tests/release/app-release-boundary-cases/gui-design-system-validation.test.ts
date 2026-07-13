@@ -530,6 +530,36 @@ test('GUI design-system validator rejects rail evidence as proof of model-facing
   );
 });
 
+test('GUI design-system validator rejects a shell-local workaround for model-facing host tools', () => {
+  const root = createFixture();
+  const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
+  const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+  const evidence = contract.interaction_baseline.thread_coordination.model_tool_access_evidence_boundary;
+  evidence.current_blocker = 'post_hoc_handler_is_sufficient';
+  evidence.required_owner_routes = ['shell_local_handler'];
+  evidence.forbidden_workarounds = [];
+  writeJson(root, 'contracts/app-gui-product-contract.json', contract);
+
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /cross-top-level coordination must preserve Codex App flexibility while keeping OPL metadata, advisories, idempotency, and audit/,
+  );
+});
+
+test('GUI design-system validator rejects a false line-comment source-complete claim', () => {
+  const root = createFixture();
+  const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
+  const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+  contract.interaction_baseline.context_surfaces.review_pane.source_capability_status.inline_comments =
+    'source_implemented_shell_annotation_store';
+  writeJson(root, 'contracts/app-gui-product-contract.json', contract);
+
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /interaction baseline must reject the legacy equal-weight inspector taxonomy and keep Settings in maintenance/,
+  );
+});
+
 test('GUI design-system validator rejects duplicate Git stores for Worktree and Review parity', () => {
   const root = createFixture();
   const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');

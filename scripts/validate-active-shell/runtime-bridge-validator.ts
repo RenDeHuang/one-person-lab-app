@@ -1031,13 +1031,21 @@ function validateCodexParityAdapterPolicies(runtimeBridge) {
   assertDeepEqualJson(
     runtimeBridge.codex_review_surface_policy,
     {
-      state: 'target_not_yet_source_verified',
+      state: 'source_partial_last_turn_implemented_inline_comments_protocol_blocked',
       host_surface: 'existing_files_changes_diff_surface',
       review_targets: ['uncommitted', 'base_branch', 'commit', 'custom'],
       delivery_modes: ['inline', 'detached'],
       default_section: 'unstaged',
       sections: ['unstaged', 'staged', 'commit', 'branch', 'last_turn'],
       capabilities: ['pull_request_context', 'inline_comments', 'stage', 'commit', 'push'],
+      source_capability_status: {
+        last_turn: 'source_implemented_existing_message_store',
+        inline_comments: 'source_blocked_missing_typed_codex_protocol',
+      },
+      last_turn_source_policy: 'latest_visible_user_message_then_completed_workspace_edit_tool_calls',
+      inline_comment_protocol_requirement:
+        'typed_codex_app_server_file_line_comment_request_location_and_failure_semantics',
+      inline_comment_forbidden_fallbacks: ['shell_local_annotation_store', 'fake_success'],
       pull_request_context_dependency: 'gh',
       pull_request_context_unavailable_policy: 'show_explicit_unavailable_state',
       git_authority: 'existing_codex_git_integration',

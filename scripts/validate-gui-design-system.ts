@@ -1049,6 +1049,18 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
       'dynamic_tool_registration_and_item_tool_call_round_trip' ||
     threadModelToolEvidence.user_coordination_surface_evidence_sufficient !== false ||
     threadModelToolEvidence.missing_implementation_state !== 'required_target_current_shell_missing' ||
+    threadModelToolEvidence.current_shell_transport !== 'ordinary_conversation_acp_aioncore_codex_acp' ||
+    threadModelToolEvidence.current_blocker !==
+      'acp_session_new_or_load_has_no_dynamic_tools_input_or_item_tool_call_callback' ||
+    !sameStrings(threadModelToolEvidence.required_owner_routes, [
+      'aioncore_same_app_server_client_adapter',
+      'codex_acp_dynamic_tool_input_response_and_acp_callback',
+    ]) ||
+    !sameStrings(threadModelToolEvidence.forbidden_workarounds, [
+      'second_app_server_thread_runtime',
+      'post_hoc_coordination_port_handler',
+      'shell_owned_tool_or_thread_store',
+    ]) ||
     threadCoordination.default_state !== 'rail_entry_visible_coordination_panel_closed' ||
     threadCoordination.model_role !== 'decide_when_and_why_to_coordinate' ||
     threadCoordination.protocol_owner !== 'codex_core_app_server' ||
@@ -1208,6 +1220,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   const environmentPopover = record(contextSurfaces.environment_popover);
   const sidePanel = record(contextSurfaces.side_panel);
   const reviewPane = record(contextSurfaces.review_pane);
+  const reviewCapabilityStatus = record(reviewPane.source_capability_status);
   const rightContextInspectorPage = pageStates.find((page) => page.id === 'right_context_inspector') ?? {};
   const pageReviewPane = record(record(record(rightContextInspectorPage).inspector_view_model).review_surface);
   const settingsShell = record(interactionBaseline.settings_shell);
@@ -1289,6 +1302,14 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     reviewPane.default_section !== 'unstaged' ||
     !sameStrings(reviewPane.sections, ['unstaged', 'staged', 'commit', 'branch', 'last_turn']) ||
     !sameStrings(reviewPane.capabilities, ['pull_request_context', 'inline_comments', 'stage', 'commit', 'push']) ||
+    reviewPane.source_status !== 'partial_last_turn_implemented_inline_comments_protocol_blocked' ||
+    reviewCapabilityStatus.last_turn !== 'source_implemented_existing_message_store' ||
+    reviewCapabilityStatus.inline_comments !== 'source_blocked_missing_typed_codex_protocol' ||
+    reviewPane.last_turn_source_policy !==
+      'latest_visible_user_message_then_completed_workspace_edit_tool_calls' ||
+    reviewPane.inline_comment_protocol_requirement !==
+      'typed_codex_app_server_file_line_comment_request_location_and_failure_semantics' ||
+    !sameStrings(reviewPane.inline_comment_forbidden_fallbacks, ['shell_local_annotation_store', 'fake_success']) ||
     reviewPane.pull_request_context_dependency !== 'gh' ||
     reviewPane.pull_request_context_unavailable_policy !== 'show_explicit_unavailable_state' ||
     reviewPane.git_authority !== 'existing_codex_git_integration' ||

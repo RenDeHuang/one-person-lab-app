@@ -3,6 +3,7 @@ import {
   appOwnedPageStateHomeLayout,
   appOwnedPageStateOrdinaryConversation,
   appOwnedNewTaskLocality,
+  appOwnedReviewSurfaceSourceEvidence,
   appOwnedRightContextInspectorForbiddenOwners,
   appOwnedRightContextInspectorPolicy,
   homeActivityCenterForbiddenDisplays,
@@ -341,6 +342,14 @@ function validateOrdinaryConversationPage(matrix) {
 function validateRightContextInspectorPage(matrix) {
   const rightContextInspectorPage = pageById(matrix, 'right_context_inspector', 'right_context_inspector');
   const inspectorViewModel = rightContextInspectorPage.inspector_view_model;
+  const reviewSurface = inspectorViewModel?.review_surface ?? {};
+  const sourceEvidenceFields = Object.keys(appOwnedReviewSurfaceSourceEvidence);
+  const productPolicy = {
+    ...inspectorViewModel,
+    review_surface: Object.fromEntries(
+      Object.entries(reviewSurface).filter(([key]) => !sourceEvidenceFields.includes(key)),
+    ),
+  };
   const expectedPolicy = {
     ...appOwnedRightContextInspectorPolicy,
     environment_popover_ref:
@@ -348,12 +357,17 @@ function validateRightContextInspectorPage(matrix) {
   };
   assertDeepEqualJson(
     Object.fromEntries(
-      Object.entries(inspectorViewModel ?? {}).filter(
+      Object.entries(productPolicy).filter(
         ([key]) => !['current_task_evidence', 'must_not_own'].includes(key),
       ),
     ),
     expectedPolicy,
     'On-demand advanced workspace surface policy',
+  );
+  assertDeepEqualJson(
+    Object.fromEntries(sourceEvidenceFields.map((key) => [key, reviewSurface[key]])),
+    appOwnedReviewSurfaceSourceEvidence,
+    'On-demand Review source evidence',
   );
   for (const legacyField of ['tabs', 'primary_tools', 'secondary_sections']) {
     if (legacyField in (inspectorViewModel ?? {})) {
