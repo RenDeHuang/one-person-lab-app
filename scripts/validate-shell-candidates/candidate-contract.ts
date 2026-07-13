@@ -102,22 +102,40 @@ const requiredNativeCrossThreadCapabilities = [
   'local_cross_thread_p0_p1',
   'thread_list_read_resume_fork_archive_unarchive',
   'turn_start_steer_with_host_queue',
-  'cross_thread_safety_gates',
+  'cross_thread_codex_permission_and_advisory_audit',
   'bilateral_coordination_receipts',
   'desktop_webui_coordination_parity',
   'remote_host_aggregation_p2_deferred',
 ];
 
-const requiredCrossThreadSafetyGates = [
-  'permission_check',
-  'idempotency_key_and_duplicate_message_check',
-  'delegation_cycle_check',
-  'project_and_workspace_scope_check',
-  'concurrent_write_set_conflict_check',
-  'delegation_hop_budget_check',
+const requiredCrossThreadHardFailures = [
+  'protocol_unavailable_or_invalid',
+  'target_not_found',
+  'target_archived',
+  'target_not_writable',
+  'cross_host_unsupported',
+  'codex_permission_denied_or_approval_required',
+];
+
+const requiredCrossThreadAdvisories = [
+  'project_workspace_difference',
+  'write_set_overlap',
+  'delegation_cycle_or_repeated_route',
+];
+
+const requiredCrossThreadNonBlockingSignals = [
+  'cross_project',
+  'cross_workspace',
+  'workspace_write',
+  'write_set_overlap',
+  'running_turn_steer',
+  'delegation_cycle_advisory',
+];
+
+const requiredCrossThreadProtocolBoundaries = [
   'host_scope_check',
-  'no_target_permission_escalation',
-  'source_target_identity_must_differ',
+  'target_identity_and_status_validation',
+  'codex_permission_and_approval_passthrough',
 ];
 
 const requiredFalseReadyFields = [
@@ -149,7 +167,7 @@ function validateNativeLocalP0P1ImplementationEvidence(
   const boundary = evidence?.claim_boundary ?? {};
   if (
     !evidence ||
-    evidence.status !== 'verified_local_candidate_only' ||
+    evidence.status !== 'verified_local_protocol_cohort_superseded_for_flexible_dispatch_policy' ||
     evidence.observed_at !== '2026-07-13' ||
     evidence.app_product_authority_sha !== nativeEvidenceAppProductAuthoritySha ||
     evidence.native_source_sha !== nativeEvidenceSourceSha ||
@@ -191,7 +209,9 @@ function validateNativeLocalP0P1ImplementationEvidence(
     installed.installed_window_id !== 112896 ||
     installed.installed_screenshot_sha256 !== '154f8a8ebb6d48e3c8745ec87925f1af04ae4862f3f8b8599e66d02efdf7f59d' ||
     installed.candidate_actions !== 'dry_run_only' ||
-    boundary.local_p0_p1_implemented !== true ||
+    boundary.local_protocol_cohort_implemented !== true ||
+    boundary.flexible_dispatch_policy_conformant !== false ||
+    boundary.local_p0_p1_implemented !== false ||
     boundary.candidate_only !== true ||
     boundary.active_shell_adopted !== false ||
     boundary.release_ready !== false ||
@@ -199,7 +219,7 @@ function validateNativeLocalP0P1ImplementationEvidence(
     boundary.clean_vm_ready !== false ||
     boundary.remote_ready !== false
   ) {
-    throw new Error('native candidate local P0 plus P1 evidence must bind the exact verified local cohort without changing adoption, release, clean-VM, or remote readiness');
+    throw new Error('native candidate historical protocol evidence must bind the exact verified cohort while remaining superseded for flexible dispatch and false for current P0 plus P1 conformance');
   }
   assertStringArrayIncludes(packaged.screenshot_markers, ['One Person Lab', '5.6 Sol'], 'native candidate packaged screenshot markers');
   assertStringArrayIncludes(packaged.screenshot_absent_markers, ['Codex'], 'native candidate packaged screenshot absent markers');
@@ -296,7 +316,8 @@ export function validateNativeCrossTopLevelThreadAuthority(
   if (
     !authority ||
     authority.authority_model !== 'three_layer_thread_coordination_authority' ||
-    authority.implementation_status !== 'local_p0_p1_implemented_verified_candidate_only' ||
+    authority.implementation_status !==
+      'local_protocol_cohort_verified_flexible_dispatch_policy_rework_required_candidate_only' ||
     authority.product_role !== 'opl_host_cross_top_level_codex_thread_coordination' ||
     authority.entry_surface !== 'thread_detail_context_action_and_model_host_tool_no_ordinary_navigation' ||
     authority.ordinary_navigation_visible !== false ||
@@ -312,7 +333,7 @@ export function validateNativeCrossTopLevelThreadAuthority(
     authority.thread_store_owner !== 'codex_core_app_server' ||
     authority.thread_id_policy !== 'opaque_app_server_returned_key_never_model_or_shell_generated'
   ) {
-    throw new Error('opl-native-workbench cross-thread authority must preserve Codex protocol ownership, typed OPL host gates, opaque thread ids, and verified candidate-only status');
+    throw new Error('opl-native-workbench cross-thread authority must preserve Codex protocol ownership, typed OPL host routing, opaque thread ids, and flexible-policy rework status');
   }
   validateNativeLocalP0P1ImplementationEvidence(authority.local_p0_p1_implementation_evidence);
 
@@ -375,7 +396,7 @@ export function validateNativeCrossTopLevelThreadAuthority(
     modelTools.current_transport !== 'client_executed_dynamic_tools' ||
     modelTools.bridge_must_reuse_typed_host_gate !== true ||
     modelTools.direct_app_server_or_ledger_bypass_forbidden !== true ||
-    modelTools.tool_calls_must_apply_same_safety_gates_and_receipts_as_gui !== true ||
+    modelTools.tool_calls_must_apply_same_dispatch_advisory_idempotency_and_receipt_policy_as_gui !== true ||
     generatedSchema.version !== '0.144.1' ||
     generatedSchema.generator !== 'generate-ts' ||
     generatedSchema.dynamic_tools_field_present !== false ||
@@ -388,7 +409,7 @@ export function validateNativeCrossTopLevelThreadAuthority(
     modelTools.fallback_policy !== 'typed_model_tool_unavailable_with_user_driven_host_coordination_preserved' ||
     modelTools.fallback_must_not_claim_p1_model_tool_ready !== true
   ) {
-    throw new Error('P1 model tools must use client-executed dynamicTools with runtime probing, schema-drift recording, shared host gates, and a non-ready fallback');
+    throw new Error('P1 model tools must use client-executed dynamicTools with runtime probing, schema-drift recording, shared flexible dispatch and audit policy, and a non-ready fallback');
   }
   assertStringArrayIncludes(modelTools.required_high_level_tools, [
     'list_threads',
@@ -403,15 +424,20 @@ export function validateNativeCrossTopLevelThreadAuthority(
   const localAcceptance = authority.local_p0_p1_acceptance;
   const directory = localAcceptance.thread_directory;
   const dispatch = localAcceptance.dispatch_policy;
+  const deliveryDefaults = localAcceptance.delivery_request_defaults;
+  const turnStartInheritance = localAcceptance.turn_start_inheritance_policy;
+  const idempotency = localAcceptance.idempotency_policy;
   const receipt = localAcceptance.bilateral_receipt;
   if (
     localAcceptance.scope !== 'local_machine_only' ||
     directory.list_protocol !== 'thread/list' ||
     directory.read_protocol !== 'thread/read' ||
     directory.default_scope !== 'current_project' ||
+    directory.project_workspace_role !== 'default_cwd_sidebar_grouping_and_visible_metadata_not_authorization_domain' ||
+    directory.cross_project_filter_changes_authorization !== false ||
     directory.archived_scope_requires_explicit_filter !== true
   ) {
-    throw new Error('local P0 plus P1 must provide a current-project thread directory with explicit archived scope');
+    throw new Error('local P0 plus P1 must provide a current-project grouped directory without treating project or workspace as authorization');
   }
   assertStringArrayIncludes(directory.required_fields, [
     'thread_id', 'status', 'summary', 'project', 'workspace', 'host', 'owner', 'goal',
@@ -423,15 +449,52 @@ export function validateNativeCrossTopLevelThreadAuthority(
     dispatch.loaded_idle_thread !== 'turn/start' ||
     dispatch.running_urgent_message !== 'turn/steer_with_explicit_realtime_label' ||
     dispatch.running_nonurgent_message !== 'host_queue_then_turn/start_when_idle' ||
-    dispatch.unknown_or_stale_status !== 'refresh_then_fail_closed' ||
-    dispatch.explicit_user_confirmation_when_scope_or_permission_changes !== true ||
-    dispatch.archived_thread !== 'explicit_unarchive_or_typed_failure_no_silent_replacement' ||
+    dispatch.unknown_or_stale_status !== 'refresh_then_route_or_protocol_failure' ||
+    dispatch.archived_thread !== 'typed_failure_until_explicit_unarchive_no_silent_replacement' ||
+    dispatch.opl_extra_confirmation_policy !==
+      'none_including_archive_cross_project_cross_workspace_workspace_write_write_set_overlap_running_steer_and_loop_advisory' ||
     dispatch.queue_owner !== 'opl_app_typed_host_bridge' ||
-    dispatch.queue_must_not_copy_or_own_thread_history !== true
+    dispatch.queue_must_not_copy_or_own_thread_history !== true ||
+    deliveryDefaults.permission !== 'inherit' ||
+    JSON.stringify(deliveryDefaults.write_set) !== '[]' ||
+    deliveryDefaults.write_set_role !== 'optional_advisory_metadata_not_permission_input' ||
+    turnStartInheritance.target_thread_sticky_settings_inherited !== true ||
+    JSON.stringify(turnStartInheritance.fields_must_not_be_sent) !==
+      JSON.stringify(['cwd', 'runtimeWorkspaceRoots', 'approvalPolicy', 'sandboxPolicy']) ||
+    idempotency.dedupe_scope !== 'same_opaque_request_or_idempotency_key_retry_only' ||
+    idempotency.same_key_retry_behavior !== 'return_idempotent_duplicate_result_without_second_dispatch' ||
+    idempotency.message_content_repeat_allowed !== true
   ) {
-    throw new Error('local dispatch must route resume/start/steer through the host queue and fail closed on stale or archived targets');
+    throw new Error('local dispatch must preserve Codex-style cross-project flexibility, opaque-key idempotency, direct running steer, and explicit archived-target handling');
   }
-  assertStringArrayIncludes(localAcceptance.safety_gates, requiredCrossThreadSafetyGates, 'cross-thread safety gates');
+  assertStringArrayIncludes(localAcceptance.hard_failure_conditions, requiredCrossThreadHardFailures, 'cross-thread hard failures');
+  assertStringArrayIncludes(localAcceptance.advisory_signals, requiredCrossThreadAdvisories, 'cross-thread advisory signals');
+  assertStringArrayIncludes(
+    localAcceptance.must_not_block_or_confirm_for,
+    requiredCrossThreadNonBlockingSignals,
+    'cross-thread non-blocking signals',
+  );
+  assertStringArrayIncludes(
+    localAcceptance.protocol_boundaries,
+    requiredCrossThreadProtocolBoundaries,
+    'cross-thread protocol boundaries',
+  );
+  const legacyHardGateFailures = [
+    'duplicate_rejected',
+    'loop_rejected',
+    'scope_mismatch',
+    'write_set_conflict',
+    'stale_status',
+  ];
+  if (
+    'safety_gates' in localAcceptance ||
+    'explicit_user_confirmation_when_scope_or_permission_changes' in dispatch ||
+    'archive_lifecycle_confirmation_required' in dispatch ||
+    localAcceptance.required_typed_failure_states.some((state) => legacyHardGateFailures.includes(state)) ||
+    localAcceptance.hard_failure_conditions.length !== requiredCrossThreadHardFailures.length
+  ) {
+    throw new Error('cross-thread candidate must remove legacy project, workspace, loop, duplicate-content, steer, and write-set hard gates');
+  }
   if (
     receipt.required !== true ||
     receipt.source_timeline_projection !== true ||
@@ -447,24 +510,29 @@ export function validateNativeCrossTopLevelThreadAuthority(
   assertStringArrayIncludes(receipt.required_fields, [
     'delivery_id', 'coordination_id', 'source_thread_id', 'target_thread_id', 'source_host_id', 'target_host_id',
     'project_key', 'sender', 'intent', 'reason', 'message_summary', 'protocol_method', 'queue_decision',
-    'permission_decision', 'write_set_decision', 'status', 'result_summary_or_ref', 'created_at', 'completed_at',
+    'codex_permission_result', 'project_workspace_context', 'write_set_advisory', 'loop_advisory',
+    'idempotency_result', 'status', 'result_summary_or_ref', 'created_at', 'completed_at',
   ], 'bilateral receipt fields');
   assertStringArrayIncludes(localAcceptance.required_typed_failure_states, [
-    'offline', 'permission_denied', 'duplicate_rejected', 'loop_rejected', 'scope_mismatch',
-    'write_set_conflict', 'stale_status', 'archived_target', 'protocol_incompatible', 'dispatch_failed', 'wait_timeout',
+    'protocol_unavailable', 'protocol_invalid', 'target_not_found', 'archived_target', 'target_not_writable',
+    'cross_host_unsupported', 'permission_denied', 'approval_required', 'dispatch_failed', 'wait_timeout',
   ], 'cross-thread typed failure states');
   if (
-    localAcceptance.user_visibility_policy !== 'sender_target_reason_message_result_and_safety_decisions_visible_and_auditable'
+    localAcceptance.user_visibility_policy !==
+      'sender_target_reason_message_result_permission_and_advisory_context_visible_and_auditable'
   ) {
-    throw new Error('cross-thread receipt and safety decisions must remain user-visible and auditable');
+    throw new Error('cross-thread permission results and advisory context must remain user-visible and auditable');
   }
   assertStringArrayIncludes(localAcceptance.forbidden_implementations, [
     'send_input_as_cross_top_level_message_bus',
     'shell_owned_duplicate_thread_store',
     'model_generated_thread_id',
-    'silent_cross_project_dispatch',
-    'dispatch_without_write_set_check',
-    'unbounded_delegation_loop',
+    'shell_owned_permission_model',
+    'project_or_workspace_as_authorization_domain',
+    'write_set_overlap_as_dispatch_blocker',
+    'delegation_loop_as_dispatch_blocker',
+    'message_content_as_dedupe_key',
+    'any_opl_confirmation_for_thread_read_dispatch_steer_or_archive',
   ], 'cross-thread forbidden implementations');
 
   const parity = authority.desktop_webui_parity;
@@ -472,14 +540,14 @@ export function validateNativeCrossTopLevelThreadAuthority(
     parity.required !== true ||
     parity.same_typed_host_bridge_contract !== true ||
     parity.same_thread_actions !== true ||
-    parity.same_queue_and_safety_semantics !== true ||
+    parity.same_queue_advisory_idempotency_and_codex_permission_semantics !== true ||
     parity.same_bilateral_receipt_and_failure_visibility !== true ||
     parity.delivery_transport_may_differ !== true ||
     parity.desktop_only_coordination_capability_allowed !== false ||
     parity.webui_browser_renderer_direct_app_server_access_allowed !== false ||
     parity.webui_node_host_typed_app_server_adapter_allowed !== true
   ) {
-    throw new Error('Desktop and WebUI must preserve equivalent coordination actions, gates, queue decisions, receipts, and failures');
+    throw new Error('Desktop and WebUI must preserve equivalent coordination actions, queue and advisory semantics, Codex permission results, receipts, and failures');
   }
   const remoteP2 = authority.remote_p2;
   if (
@@ -524,10 +592,11 @@ function validateCandidateAdapterContract(
     if (
       adapterContract.purpose !== 'active_shell_adapter' ||
       adapterContract.state !== 'active' ||
-      adapterContract.candidate_stage !== 'opl_native_workbench_local_p0_p1_implemented_verified_candidate_only' ||
+      adapterContract.candidate_stage !==
+        'opl_native_workbench_local_protocol_cohort_verified_flexible_dispatch_policy_rework_required_candidate_only' ||
       adapterContract.gui_authority?.implementation_role !== 'active_shell_implementation_carrier'
     ) {
-      throw new Error(`${candidate.id} adapter must preserve the shared adapter schema while candidate_stage records verified local candidate-only implementation`);
+      throw new Error(`${candidate.id} adapter must preserve the shared adapter schema while candidate_stage records verified protocol evidence and pending flexible-policy rework`);
     }
   } else if (adapterContract.active_shell !== candidate.id) {
     throw new Error(`${candidate.id} adapter contract must identify ${candidate.id}`);
@@ -973,8 +1042,11 @@ function validateNativeWorkbenchCandidateContract(candidate: ShellCandidate): vo
   ) {
     throw new Error(`${candidate.id}.source_upstream must point to gaofeng21cn/opl-native-workbench under Apache-2.0`);
   }
-  if (candidate.candidate_stage !== 'opl_native_workbench_local_p0_p1_implemented_verified_candidate_only') {
-    throw new Error(`${candidate.id}.candidate_stage must record verified local P0 plus P1 candidate-only implementation`);
+  if (
+    candidate.candidate_stage !==
+    'opl_native_workbench_local_protocol_cohort_verified_flexible_dispatch_policy_rework_required_candidate_only'
+  ) {
+    throw new Error(`${candidate.id}.candidate_stage must keep old protocol evidence separate from pending flexible dispatch conformance`);
   }
   validateNativeLocalP0P1ImplementationEvidence(candidate.local_p0_p1_implementation_evidence);
   if (

@@ -57,8 +57,8 @@ Sites/Chat 等入口可以隐藏或拒绝；它们不构成 OPL 功能回归。
 | New conversation | 在 project 中开始 task，或直接开始 projectless Codex conversation。 | GUI contract、conversation page state、Codex bridge。 |
 | Resume conversation | 找回 recent conversation，并保留关联 workspace。 | Conversation state/bridge；shell 只持有实现所需 session refs。 |
 | Conversation management | Search、pin、rename、archive、reset conversation，并在独立 Archived surface 管理归档。 | GUI contract、conversation state/bridge。 |
-| Cross-thread discovery | Codex 模型在需要归口或同步工作时，通过 host tool 读取独立顶层线程的 status、summary、workspace、host、owner、goal、parent/ancestor 与 claimed write set；普通用户导航不显示独立线程协调页面。 | Codex App Server thread read model；OPL host 只聚合轻量 metadata。 |
-| Cross-thread coordination | 模型按需读取摘要/历史，恢复、分叉、归档目标线程；向 idle target 使用 `turn/start`，向 running target 使用 `turn/steer` 或排队，并保留 sender、reason、message、safety decision 与 result receipt。 | Codex Core/App Server 拥有 thread/turn；OPL host 拥有 permission、dedupe、loop、scope、write-set conflict 与 audit policy；普通 rail 不挂载此能力。 |
+| Cross-thread discovery | Codex 模型在需要归口或同步工作时，通过 host tool 读取独立顶层线程的 status、summary、workspace、host、owner、goal、parent/ancestor 与 claimed write set；普通用户导航不显示独立线程协调页面。Project/workspace 只用于新任务默认 cwd、rail 分组和可见元数据，不是授权域。 | Codex App Server thread read model；OPL host 只聚合轻量 metadata。 |
+| Cross-thread coordination | 模型按需读取摘要/历史，恢复、分叉、归档目标线程；向 idle target 使用 `turn/start`，向 running target 直接使用 `turn/steer` 或排队，并保留 sender、reason、message、Codex permission result、advisory 与 result receipt。跨 project/workspace、workspace-write、write-set overlap、running steer 和 loop advisory 不触发 OPL 拒绝或额外确认。 | Codex Core/App Server 拥有 thread/turn 和 permission/approval；OPL host 只拥有 opaque-key 幂等、advisory、queue 与 audit policy；普通 rail 不挂载此能力。 |
 | Text instruction | 向固定 Codex executor 发送多行任务说明。 | Product profile、ordinary conversation contract。 |
 | Streaming assistant output | 持续看到 assistant response，不需要查看 raw protocol。 | Codex/App bridge 与 conversation page state。 |
 | Pending/running feedback | 看到当前 turn 正在处理、elapsed time、stop 和失败状态。 | Page-state matrix、bridge events。 |

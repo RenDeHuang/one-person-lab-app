@@ -66,7 +66,7 @@ export type NativeCrossTopLevelThreadAuthority = {
     bridge_must_reuse_typed_host_gate: boolean;
     direct_app_server_or_ledger_bypass_forbidden: boolean;
     required_high_level_tools: string[];
-    tool_calls_must_apply_same_safety_gates_and_receipts_as_gui: boolean;
+    tool_calls_must_apply_same_dispatch_advisory_idempotency_and_receipt_policy_as_gui: boolean;
     codex_cli_schema_observation: Record<string, unknown>;
     ephemeral_live_probe_observation: Record<string, unknown>;
     schema_drift_record_required: boolean;
@@ -80,7 +80,13 @@ export type NativeCrossTopLevelThreadAuthority = {
     thread_directory: Record<string, unknown>;
     lifecycle_actions: string[];
     dispatch_policy: Record<string, unknown>;
-    safety_gates: string[];
+    delivery_request_defaults: Record<string, unknown>;
+    turn_start_inheritance_policy: Record<string, unknown>;
+    hard_failure_conditions: string[];
+    advisory_signals: string[];
+    idempotency_policy: Record<string, unknown>;
+    must_not_block_or_confirm_for: string[];
+    protocol_boundaries: string[];
     bilateral_receipt: Record<string, unknown>;
     required_typed_failure_states: string[];
     user_visibility_policy: string;

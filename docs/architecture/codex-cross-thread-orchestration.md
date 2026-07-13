@@ -2,16 +2,18 @@
 
 Owner: `one-person-lab-app`
 Purpose: `opl_app_cross_thread_orchestration_boundary`
-State: `accepted_product_target_source_implemented`
+State: `accepted_product_target_active_shell_source_implemented_native_candidate_rework_required`
 Date: `2026-07-13`
 Machine boundary: 本文定义产品和架构目标。App contracts、page-state、active-shell validator、
-Shell host adapter/source/tests 和本机 Codex App Server protocol smoke 已实现；current pixels、
-packaged two-root UI、installed user path、remote host 与 release promotion 仍需独立 evidence。
+Codex App Server protocol smoke 与 active AionUI Shell `69bce9d565a9fd6460e61273e8905abe0158d2db`
+已实现 corrected flexible policy；Native candidate 的历史 cohort 仍需重做。Current pixels、packaged
+two-root UI、installed user path、remote host 与 release promotion 仍需独立 evidence。
 
 ## 结论
 
 OPL App 必须具备 Codex App 式的跨线程会话协调能力，使具备主动编排能力的模型能够在
-用户可见、权限受控、可审计的前提下发现其他任务线程、读取必要上下文并投递协作消息。
+用户可见、遵循 Codex 自身 permission/approval、可审计的前提下发现其他任务线程、读取必要
+上下文并投递协作消息。
 当前首要消费者是 GPT-5.6：它可以判断何时需要协调多个 agent，但只有 OPL host 暴露
 受控工具后，判断才能变成真实的跨线程发现和消息投递。
 
@@ -19,7 +21,7 @@ OPL App 必须具备 Codex App 式的跨线程会话协调能力，使具备主�
 
 1. 模型负责判断何时需要分派、协调或汇总，不负责创建或猜测线程身份；
 2. Codex Core / App Server 负责线程 ID、持久化历史、运行状态、恢复、分叉和 turn；
-3. OPL App host 负责跨顶层线程发现、统一状态投影、消息路由、权限、冲突控制和审计；
+3. OPL App host 负责跨顶层线程发现、统一状态投影、消息路由、幂等重试、advisory 和审计；
 4. AionUI 只承载 rail、timeline、popover、dialog 等组合，不拥有线程协议或产品策略；
 5. 同一 agent tree 内继续使用 `spawn_agent`、`send_input`、`wait_agent` 等运行时工具，
    跨根线程使用 App Server 的 `thread/*` 与 `turn/*` 协议。
@@ -64,8 +66,8 @@ Codex App Server 当前公开的协议原语包括：
 | Coordination receipt | 描述谁向谁发送了什么、为什么、结果如何的 App-owned 审计投影 | Codex 全量历史副本、domain artifact |
 
 OPL 不直接改写 Codex 的线程存储，不复制完整 thread history，也不创建第二套 conversation
-runtime。App Server 始终是线程身份、历史和运行状态的 source of truth；OPL 仅保存实现权限、
-冲突控制和用户解释所需的轻量协调元数据与 receipt。
+runtime 或权限模型。App Server 始终是线程身份、历史和运行状态的 source of truth；OPL 仅
+保存幂等重试、用户解释和审计所需的轻量协调元数据与 receipt。
 
 ## 目标架构
 
@@ -77,8 +79,8 @@ OPL coordination tools
   | list / read / dispatch / steer / fork / archive
   v
 OPL App coordination host
-  | authorization, project scope, dedupe, loop guard,
-  | write-set conflict guard, audit receipt
+  | opaque-key idempotency, grouping metadata,
+  | write-set / route advisory, audit receipt
   v
 Codex App Server adapter(s)
   | thread/list, thread/read, thread/resume,
@@ -103,8 +105,9 @@ OPL App 提供统一线程目录，至少展示：
 - 是否正在运行、等待用户、已完成、失败或不可连接；
 - 当前是否存在可能重叠的 claimed write set。
 
-默认视图只展示当前 project 的相关线程。跨 project、远程 host 和 archived 线程必须通过
-显式范围切换进入，避免把 Home 或 rail 变成全局运维 dashboard。
+默认视图按当前 project 展示相关线程；用户可显式切换到跨 project 或 archived 范围，避免把
+Home 或 rail 变成全局运维 dashboard。该筛选只影响发现和分组，不改变线程的授权范围。
+Project/workspace 仅是新任务的默认 cwd、侧栏分组和可见元数据，不是 sandbox 或授权域。
 
 ### 2. 线程读取
 
@@ -113,7 +116,8 @@ OPL App 提供统一线程目录，至少展示：
 - 先读 metadata、goal、status 和摘要；
 - 只有完成协调所需时才读取 turn history；
 - 不因“可读取”而把其他线程全文自动注入当前模型上下文；
-- 跨 project、远程 host 或可能含敏感上下文时要求更高权限或用户确认。
+- 本机跨 project/workspace 读取不增加 OPL 确认；读取能力和内容访问继续服从 Codex/App
+  Server 自身 permission/approval。跨 host 在实现前返回 unsupported。
 
 ### 3. 跨线程投递
 
@@ -123,7 +127,7 @@ OPL host 根据目标线程状态选择协议动作：
 | --- | --- | --- |
 | 已持久化但未加载 | `thread/resume` 后 `turn/start` | 恢复目标并开始新的可审计 turn |
 | 已加载且空闲 | `turn/start` | 作为新的用户输入进入目标线程 |
-| 正在运行，信息会改变当前工作 | `turn/steer` | 必须标记为实时 steering，并显示来源 |
+| 正在运行，信息会改变当前工作 | `turn/steer` | 标记为实时 steering 并显示来源，不增加 OPL 确认 |
 | 正在运行，信息不紧急 | host queue，空闲后 `turn/start` | 避免无意打断目标推理 |
 | 需要从共同历史独立探索 | `thread/fork` | 新线程保留明确的 fork 来源 |
 
@@ -132,8 +136,9 @@ OPL host 根据目标线程状态选择协议动作：
 
 ### 4. 生命周期管理
 
-OPL App 应允许用户恢复、分叉、归档和取消归档线程。永久删除属于破坏性动作，应沿用
-Codex/App Server 的 descendant 语义并要求明确确认；跨线程协调 MVP 不以删除能力为前提。
+OPL App 应允许用户恢复、分叉、直接归档和取消归档线程。Archive 是可恢复的任务管理动作，
+OPL 不增加确认。永久删除不属于跨线程协调 MVP；未来如接入，权限和 approval 继续服从
+Codex/App Server，不建立 OPL confirmation layer。
 
 ### 5. 可见协调记录
 
@@ -145,7 +150,7 @@ Codex/App Server 的 descendant 语义并要求明确确认；跨线程协调 MV
 - 使用 `turn/start`、`turn/steer`、queue 或 fork；
 - created、accepted、delivered、running、completed、failed、cancelled 状态；
 - target 的结果摘要或可导航引用；
-- 权限决策、冲突决策和失败原因。
+- Codex permission/approval 结果、project/workspace 上下文、write-set/route advisory 和失败原因。
 
 记录进入 source 与 target timeline 的轻量 coordination event，并可从 rail/thread detail
 查看；不新增默认常驻第三列，也不把协议 JSON 暴露给普通用户。
@@ -156,29 +161,32 @@ OPL host 可以向模型暴露稳定的高层工具，具体名称不是 App Ser
 
 - `list_threads(scope, filters)`；
 - `read_thread(thread_id, detail)`；
-- `send_message_to_thread(thread_id, message, intent, expected_write_set)`；
+- `send_message_to_thread(thread_id, message, intent, expected_write_set?)`；
 - `fork_thread(thread_id, through_turn_id?)`；
 - `archive_thread(thread_id)`；
 - `wait_thread(thread_id, condition)`。
 
 工具实现必须把 OPL thread key 解析到明确的 host + App Server `threadId`，再执行底层协议。
-模型不得直接拼接 host 地址、猜测线程 ID、绕过权限或直接写协调 ledger。
+模型不得直接拼接 host 地址、猜测线程 ID、绕过 Codex permission/approval 或直接写协调 ledger。
 
 ## 权限和自主性
 
-跨线程协调采用分级策略：
+OPL App 是 Codex App 的薄壳，不建立 project/workspace sandbox 或第二套 filesystem permission。
 
-1. **Read:** 当前 project 内 metadata/summary 可按产品策略自动读取；全文、跨 project 和
-   remote host 读取受更严格权限约束。
-2. **Propose:** 模型始终可以建议联系某个线程，并向用户展示原因、目标和预计影响。
-3. **Dispatch:** 同 project、无写集冲突的低风险投递可由用户预授权；跨 project、跨 host、
-   改变 active turn 或带来写权限扩张的投递默认确认。
-4. **Mutate lifecycle:** fork 可按策略预授权；archive、interrupt 和 destructive delete 需要
-   独立风险判断，不能借普通 send 权限隐式获得。
+1. **Project/workspace:** 只为新任务提供默认 cwd，并用于 rail 分组和可见元数据；任务启动后
+   可按 Codex 自身能力访问其他目录。
+2. **Read/dispatch:** 本机跨 project、跨 workspace、`workspace_write`、write-set overlap、
+   running `turn/steer` 均不触发 OPL 拒绝或额外确认。
+3. **Codex authority:** 文件、网络、命令及其他工具访问只服从 Codex 自身 permission/approval；
+   OPL host 投影结果，但不预先收窄或扩大。
+4. **Lifecycle:** archive 直接执行且可 unarchive；OPL 对 read/send/steer/archive 均不增加确认。
+   Interrupt 或未来 destructive delete 的权限/approval 同样由 Codex Core/App Server 决定。
+5. **Remote host:** 当前未支持的跨 host 路由明确返回 unsupported，不伪装成本机完成。
 
-“模型主动协调”表示模型可以调用已授权工具，不表示模型获得全局、无限制或不可见的消息权限。
+“模型主动协调”表示模型可以调用 host 工具，并和普通 Codex 任务一样灵活；审计可见不等于
+额外授权域。
 
-## 冲突、循环和重复防护
+## Advisory、循环信息和幂等重试
 
 跨线程消息 envelope 至少包含：
 
@@ -192,24 +200,26 @@ OPL host 可以向模型暴露稳定的高层工具，具体名称不是 App Ser
   "project_key": "project-key",
   "intent": "delegate|inform|review|block|handoff",
   "expected_write_set": ["repo-relative/path"],
-  "dedupe_key": "opaque-digest",
+  "idempotency_key": "opaque-request-key",
   "ancestor_coordination_ids": [],
   "created_at": "RFC3339"
 }
 ```
 
-Host 在投递前必须执行：
+Host 在投递时遵循：
 
-- 禁止 source 与 target 相同的无意义投递；
-- 以 `dedupe_key` 拒绝同一目标的重复消息；
-- 检测 ancestor chain 和 hop budget，阻止 A -> B -> A 循环转派；
-- 比较 claimed/expected write set，重叠时 fail closed、转为 read-only 或要求 owner 协调；
-- 校验目标 project/workspace/host，防止显示同名任务时误投；
-- 不允许投递消息自动扩大目标线程既有 filesystem/network 权限；
-- 目标不可连接、已归档或协议不兼容时返回 typed failure，不静默创建替代线程。
+- source/target、project/workspace、write set、ancestor route 和 hop 信息进入 receipt，帮助模型
+  和用户判断协调风险，但不作为本机 dispatch blocker；
+- 同一 opaque request/idempotency key 的重试返回幂等 duplicate 结果且不二次投递；不同 key
+  即使消息内容相同也属于合法投递，不做内容去重；
+- write-set overlap、A -> B -> A route、跨 project/workspace 和 running steer 只产生 advisory，
+  不 fail closed、不降级 read-only、不要求 owner confirmation；
+- 目标不存在、已归档、不可写、协议无效、跨 host 尚不支持，或 Codex permission/approval
+  阻止执行时返回 typed failure，不静默创建替代线程；
+- OPL 不允许消息绕过或扩大 Codex 自身 filesystem/network 权限。
 
-写集声明是协调提示和冲突 gate，不是操作系统锁。最终 source、git 和 owner readback 仍决定
-实际并发安全。
+写集声明是协调提示，不是锁、授权域或冲突 gate。最终 source、git 和 owner readback 仍帮助
+用户判断实际并发风险，但选择权保留给独立 Codex agent。
 
 ## GUI 信息架构
 
@@ -219,7 +229,8 @@ Host 在投递前必须执行：
 - **Thread detail/popover:** 展示 goal、host、workspace、owner、关系、write set 和最近协调记录；
 - **Composer/command action:** 用户可选择目标线程并发送协作消息；普通 send 保持当前线程；
 - **Timeline:** source/target 双边显示 coordination event、状态和结果入口；
-- **Notifications:** target waiting/failed/conflict 等需要用户处理的状态进入可操作通知；
+- **Notifications:** target waiting/failed 等需要用户处理的状态进入可操作通知；overlap/loop 仅
+  作为非阻断 advisory；
 - **Runtime:** 只承载跨 project 的聚合运行视图，不复制 conversation timeline。
 
 Desktop 可使用 rail context action + dialog/popover；mobile 使用 action sheet + full-height detail。
@@ -229,7 +240,7 @@ Desktop 可使用 rail context action + dialog/popover；mobile 使用 action sh
 
 该能力应作为 thin host adapter 落地，不要求 AionUI upstream 原生拥有 OPL 跨线程功能：
 
-1. App contract 定义可见能力、权限、状态和验收；
+1. App contract 定义可见能力、Codex permission passthrough、advisory、状态和验收；
 2. host bridge 封装 App Server 协议、连接、路由和 receipt；
 3. generated profile 只投影 feature availability 和允许的 composition；
 4. shell 复用现有 rail、timeline、dialog/popover、notification 和 mobile sheet；
@@ -249,7 +260,7 @@ JSONL。AionUI upstream intake 不能删除 OPL 已采纳的跨线程能力；�
 - `thread/read`、`thread/resume`、`turn/start`；
 - active turn 的显式 `turn/steer` 与非紧急 queue；
 - source/target timeline receipt；
-- dedupe、loop、project/workspace 和 write-set guards；
+- opaque-key idempotency、project/workspace、loop 和 write-set advisory；
 - desktop/mobile 可见入口和错误状态。
 
 ### P1: 完整生命周期和模型主动协调
@@ -273,12 +284,12 @@ test 替代远程或 packaged evidence。
 
 | 层 | 必须证明 |
 | --- | --- |
-| Contract | App GUI contract 定义 discover/read/dispatch/steer/receipt/conflict；page-state matrix 覆盖 idle/running/offline/conflict/denied |
+| Contract | App GUI contract 定义 discover/read/dispatch/steer/receipt/advisory；page-state matrix 覆盖 idle/running/protocol/target/Codex permission states |
 | Adapter | App Server fake/fixture 证明 list pagination、opaque ID、status routing、resume/start/steer/fork 与 typed failure |
-| Security | dedupe、loop、cross-project、cross-host、permission escalation 和 overlapping write set 均有负例 |
+| Policy | 负例证明 project/workspace、workspace-write、overlap、loop advisory 和 running steer 不被 OPL 拒绝或额外确认；opaque-key retry 幂等且同内容不同 key 可重复 |
 | Shell source | rail/detail/composer/timeline/mobile 只消费 host projection，不直接拥有协议策略 |
-| DOM | 用户可发现目标、确认高风险投递、看见双边 receipt、处理失败与冲突 |
-| Visual | desktop/mobile 的 thread directory、dispatch confirmation、coordination event 和 conflict state 无遮挡 |
+| DOM | 用户可发现目标、看见双边 receipt 与 advisory，并处理协议、目标、跨 host 和 Codex permission 失败；archive 直接且可恢复，无 OPL confirmation |
+| Visual | desktop/mobile 的 thread directory、coordination event、advisory 和真实 failure state 无遮挡 |
 | Packaged | 同一真实用户数据下，至少两个独立根线程完成 list -> read -> send -> target result -> source readback |
 | Remote | 只有在 connected host 的真实 list/read/send/断线恢复通过后才能声明 remote ready |
 
@@ -297,11 +308,11 @@ test 替代远程或 packaged evidence。
 - `contracts/app-page-state-matrix.json`：定义状态和负例 acceptance；
 - active-shell validators/tests：证明 shell 消费 App truth，且未退化为同一 agent tree only。
 
-当前 source cohort 已实现 production App Server `thread/*` / `turn/*` adapter、project-scoped
-thread directory、detail/actions、permission/dedupe/loop/project/workspace/write-set gates 和可见 audit
-receipt；focused/full tests、source package、desktop/mobile dev Electron E2E 及 Codex CLI `0.144.1`
-隔离两根线程 protocol smoke 已通过。状态因此提升为
-`accepted_product_target_source_implemented`。
+Active AionUI Shell `69bce9d565a9fd6460e61273e8905abe0158d2db` 已实现 production App
+Server `thread/*` / `turn/*` adapter、thread directory、flexible routing 和可见 audit receipt；target
+Node `19/19`、DOM `4/4`、full `293 files / 2173 tests`、TypeScript、i18n、format 与 diff-check
+通过。Native candidate 的 `c1d9db...` 历史 cohort 仍绑定旧 hard-gate policy，只保留 protocol/
+package evidence，不能证明 corrected candidate conformance。
 
 该状态不等于 packaged 产品验收。Packaged UI 两根线程端到端、live `turn/steer` 竞态、current
 pixels、remote host、安装路径与 release promotion 仍按验收矩阵独立关闭，未取得证据前不得宣称

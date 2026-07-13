@@ -152,7 +152,10 @@ package/user path。当前 contract/source 与 packaged route visual evidence �
 - 跨顶层线程协调复用 project/conversation rail、按需 detail、timeline event 和 mobile sheet。
   Thread identity/history 归 Codex Core/App Server；OPL host 通过 `thread/list`、`thread/read`、
   `thread/resume`、`thread/fork`、`thread/archive`、`turn/start`、`turn/steer` 完成受控路由，
-  并负责 permission、dedupe、loop、project/workspace 和 write-set conflict gate 及可见 receipt。
+  并负责 opaque-key 幂等、project/workspace/write-set/route advisory 和可见 receipt。Project/
+  workspace 只定义新任务默认 cwd、rail 分组和可见元数据；任务启动后仅服从 Codex 自身
+  permission/approval，不增加 OPL 目录边界。跨 project/workspace、workspace-write、overlap、
+  running steer 或 loop advisory 不得被拒绝或额外确认；archive 直接且可恢复，同样不确认。
   `spawn_agent`、`send_input`、`wait_agent` 只用于同一 agent tree，不能成为跨根线程消息总线。
 - Artifact/evidence ref 通过现有 Preview surface 的 ref-only adapter 打开；unsafe 或 unsupported
   ref 保持可见并 fail closed，App/shell 不复制 artifact body，也不猜测内容。

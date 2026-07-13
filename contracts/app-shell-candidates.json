@@ -835,8 +835,8 @@
           "workspace directory picker",
           "new conversation and lightweight thread history rail",
           "Codex app-server backed chat turns",
-          "local P0 plus P1 cross-top-level thread discovery, read, lifecycle, dispatch, queue, safety, and bilateral receipt target",
-          "client-executed dynamicTools model-tool bridge reusing the same typed host gates",
+        "local P0 plus P1 cross-top-level thread discovery, read, lifecycle, flexible dispatch, queue, advisory audit, and bilateral receipt target",
+        "client-executed dynamicTools model-tool bridge reusing the same typed host dispatch and audit policy",
           "shared native React renderer for Electron and WebUI",
           "Web transport bridge with HTTP actions and SSE Codex events",
           "K-Dense-informed project sandbox and delivery artifact organization as reference-only",
@@ -914,9 +914,9 @@
         "missing_checkout_blocker_allowed": true,
         "sibling_checkout_command": "OPL_APP_SHELL_ROOT=../opl-native-workbench OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/opl-native-workbench.json npm run package"
       },
-      "candidate_stage": "opl_native_workbench_local_p0_p1_implemented_verified_candidate_only",
+      "candidate_stage": "opl_native_workbench_local_protocol_cohort_verified_flexible_dispatch_policy_rework_required_candidate_only",
       "local_p0_p1_implementation_evidence": {
-        "status": "verified_local_candidate_only",
+        "status": "verified_local_protocol_cohort_superseded_for_flexible_dispatch_policy",
         "observed_at": "2026-07-13",
         "app_product_authority_sha": "e53dad1293aa6d7f13417818f118a3f0efce3571",
         "native_source_sha": "5a0bf268c97f289d79c08ee34274d730f674c91f",
@@ -978,7 +978,9 @@
           "installed_screenshot_sha256": "154f8a8ebb6d48e3c8745ec87925f1af04ae4862f3f8b8599e66d02efdf7f59d"
         },
         "claim_boundary": {
-          "local_p0_p1_implemented": true,
+          "local_protocol_cohort_implemented": true,
+          "flexible_dispatch_policy_conformant": false,
+          "local_p0_p1_implemented": false,
           "candidate_only": true,
           "active_shell_adopted": false,
           "release_ready": false,
@@ -1121,7 +1123,7 @@
         "local_cross_thread_p0_p1",
         "thread_list_read_resume_fork_archive_unarchive",
         "turn_start_steer_with_host_queue",
-        "cross_thread_safety_gates",
+        "cross_thread_codex_permission_and_advisory_audit",
         "bilateral_coordination_receipts",
         "desktop_webui_coordination_parity",
         "remote_host_aggregation_p2_deferred",
@@ -1182,9 +1184,11 @@
           "Electron and WebUI use the same native React renderer and App-owned bridge shape",
           "ordinary UI stays chat-first while prioritizing results, files, receipts, and delivery refs",
           "WebUI parity evidence proves the same renderer and product semantics as Electron",
-          "local P0 and P1 coordination require the typed host bridge, thread/list read resume fork archive unarchive, turn/start and turn/steer routing, nonurgent queue, safety gates, and bilateral receipts",
-          "P1 model tools use client-executed dynamicTools through the same host gates; codex-cli 0.144.1 generate-ts schema drift is recorded, runtime support is probed, and fallback cannot claim P1 model-tool readiness",
-          "Desktop and WebUI expose equivalent local coordination actions, queue decisions, safety failures, and bilateral receipt readback",
+          "local P0 and P1 coordination require the typed host bridge, thread/list read resume fork archive unarchive, turn/start and turn/steer routing, nonurgent queue, Codex permission passthrough, advisory audit, opaque-key idempotency, and bilateral receipts",
+          "P1 model tools use client-executed dynamicTools through the same host dispatch and audit policy; codex-cli 0.144.1 generate-ts schema drift is recorded, runtime support is probed, and fallback cannot claim P1 model-tool readiness",
+          "project and workspace remain default cwd, grouping, and visible metadata; cross-project, cross-workspace, workspace-write, write-set-overlap, running-steer, and loop advisories do not block or add confirmation",
+          "Desktop and WebUI expose equivalent local coordination actions, queue decisions, advisory context, Codex permission failures, and bilateral receipt readback",
+          "the previously verified c1d9dbda cohort remains protocol and package evidence only and does not prove the corrected flexible dispatch policy",
           "remote cross-machine P2 remains deferred and local focused evidence cannot prove remote readiness",
           "candidate evidence must not claim release-ready, active-shell-adopted, production-ready, or full-release-ready from contract-only validation"
         ]

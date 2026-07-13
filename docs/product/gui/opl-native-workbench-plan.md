@@ -2,7 +2,7 @@
 
 Owner: `one-person-lab-app`
 Purpose: `opl_native_workbench_unified_candidate_plan`
-State: `local_p0_p1_implemented_verified_candidate_only`
+State: `local_protocol_cohort_verified_flexible_dispatch_policy_rework_required_candidate_only`
 Current interaction reference: `ChatGPT Codex macOS 26.707.41301 (2026-07-11)`
 Superseded observations: `26.707.31428 (2026-07-10)`,
 `26.707.31123 (2026-07-10)`
@@ -18,13 +18,13 @@ readiness.
 ## Decision
 
 `opl-native-workbench` remains the only foreground alternative candidate.
-AionUI remains the active release shell. The native candidate has implemented
-and locally verified one candidate-only product cohort containing both:
+AionUI remains the active release shell. The native candidate has locally
+verified one historical protocol/package cohort containing:
 
-- **P0:** local cross-top-level thread discovery, read, dispatch, steering,
-  queue, safety gates, and bilateral receipts;
+- **P0 protocol:** local cross-top-level thread discovery, read, dispatch,
+  steering, queue, and bilateral receipts;
 - **P1:** lifecycle actions plus model-initiated coordination through
-  client-executed `dynamicTools`, reusing the same typed host gate;
+  client-executed `dynamicTools`, reusing the same typed host bridge;
 - **P2:** authenticated remote-host aggregation, explicitly deferred and not a
   dependency of local P0 or P1 acceptance.
 
@@ -37,14 +37,14 @@ The candidate may be installed and launched alongside AionUI as an independent
 local GUI client. That is a per-launch developer choice governed by
 [`gui-shell-candidates.md`](gui-shell-candidates.md), not a second active release
 shell. Side-by-side bundle identity and sequential switching prove neither shared
-physical Runtime parity nor safe simultaneous writes to one workspace/thread.
+physical Runtime parity nor current flexible-dispatch conformance.
 Launcher-started Candidate runs consume explicit App-resolved `opl`/`codex`
 identity and emit exact Runtime readback; direct bundle launch still has a
 host-PATH fallback. Codex App Server is now the sole thread and history
 authority: the renderer rebuilds history through `thread/list/read/resume`, and
 localStorage is limited to UI metadata and drafts. Before stronger cross-GUI
-parity claims, AionUI must expose the same cohort and both clients must
-participate in the same host coordination/conflict gates.
+parity claims, AionUI and Native must implement the corrected thin-shell policy:
+Codex owns permissions, while OPL adds only opaque-key idempotency, advisory and audit.
 
 For repeatable local comparison, the foreground alternative has one formal test
 identity: the visible name is `One Person Lab Native`, the installed bundle is
@@ -73,7 +73,7 @@ The authority order is:
 5. Desktop/WebUI renderer implementations and tests;
 6. packaged and owner evidence for any stronger claim.
 
-## Verified Local Candidate Cohort
+## Historical Verified Protocol Cohort
 
 The local P0 plus P1 implementation and formal side-by-side package are bound to
 App product authority `e53dad1293aa6d7f13417818f118a3f0efce3571`, Native source and pushed
@@ -103,16 +103,17 @@ App product authority `e53dad1293aa6d7f13417818f118a3f0efce3571`, Native source 
   and launcher-default `dry_run_only` policy were read back from the installed
   process without changing release adoption or updater state.
 
-This closes local candidate P0 plus P1 implementation evidence. It does not set
+This proves the historical protocol and package wire only. Its hard-gate policy
+is superseded: it does not close current local P0/P1 conformance and does not set
 `active_shell_adopted`, `release_ready`, `production_ready`, `clean_vm_ready`,
 or `remote_ready`.
 
 Codex Core/App Server owns opaque thread IDs, thread history, persistence,
-status, lifecycle, and turns. The OPL App typed host bridge owns authorization,
-scope checks, routing, conflict gates, and a minimal append-only coordination
-queue/receipt ledger. That ledger contains no thread history and never becomes
-thread truth. The renderer owns presentation and user intent only. Renderer or
-shell code must not create a second thread store, agent registry, or permission
+status, lifecycle, turns, filesystem permissions and approval. The OPL App typed
+host bridge owns routing, opaque-key idempotency, advisory projection and a minimal
+append-only coordination queue/receipt ledger. That ledger contains no thread
+history and never becomes thread truth. The renderer owns presentation and user
+intent only. Renderer or shell code must not create a second thread store, agent registry, or permission
 store.
 
 The App-root launcher is now implemented for local selection. It injects exact
@@ -149,10 +150,12 @@ The host resolves an App-visible thread key to an explicit host plus opaque App
 Server `threadId`. Renderer code must not issue raw App Server JSON-RPC, parse
 Codex JSONL, write host ledgers, or infer permission from UI state.
 
-The thread directory defaults to the current project and exposes summary,
+The thread directory groups by the current project by default and exposes summary,
 status, project, workspace, host, owner, goal, archived state, optional
-relationships, active turn, and claimed write set. Archived, cross-project, and
-future remote scopes require explicit selection and their own permission check.
+relationships, active turn, and claimed write set. Project/workspace is only the
+new-thread default cwd, rail grouping and visible metadata; cross-project filtering
+does not change authorization. Archived and future remote scopes require explicit
+selection, while actual permissions remain Codex/App Server-owned.
 
 ## P0: Local Coordination Closure
 
@@ -163,17 +166,19 @@ threads:
 2. read metadata first and history only when required;
 3. resume an unloaded target before `turn/start`;
 4. send to an idle loaded target with `turn/start`;
-5. use explicitly labeled `turn/steer` only for urgent input to a running turn;
+5. use explicitly labeled `turn/steer` for urgent input to a running turn without OPL confirmation;
 6. queue nonurgent input in the host and deliver it with `turn/start` when idle;
 7. project a coordination event and status to both source and target timelines;
 8. return target result summary/ref to the source thread;
 9. expose typed failures instead of silently creating or substituting threads.
 
-Every dispatch passes permission/scope confirmation, idempotency and duplicate
-checks, delegation-cycle and hop-budget checks, project/workspace/host identity,
-claimed/expected write-set conflict, source-target identity, and no-permission-
-escalation gates. A write-set conflict fails closed or routes to explicit owner
-coordination; it is not treated as an operating-system lock.
+Every dispatch preserves Codex permission/approval and validates protocol, target
+identity/status and local-host support. Project/workspace difference, claimed/
+expected write-set overlap, route loops and hop information are visible advisory,
+not blockers or confirmation gates. The same opaque request/idempotency key is
+retried idempotently; identical message content with a different key remains a
+valid dispatch. OPL adds no confirmation for read, send, running steer or reversible
+archive.
 
 The host queue may store delivery metadata and payload needed for the pending
 message. It must not copy or own target history. Queue decisions are visible in
@@ -185,13 +190,13 @@ P1 adds:
 
 - fork, archive, unarchive, wait, timeout, and result aggregation;
 - capability-detected parent/ancestor projection;
-- user preauthorization policy for low-risk same-project actions;
+- direct reversible archive/unarchive without an OPL confirmation layer;
 - client-executed model tools for list, read, send, fork, archive, unarchive,
   and wait.
 
 The final model-tool transport is client-executed `dynamicTools`. Tool handlers
-must call the same typed host bridge and pass the same permission, dedupe, loop,
-scope, write-set, queue, failure, and receipt path used by user-driven GUI
+must call the same typed host bridge and pass the same Codex permission result,
+opaque-key idempotency, advisory, queue, failure, and receipt path used by user-driven GUI
 actions. A dynamic tool must never call App Server or a receipt store directly.
 
 Fresh `codex-cli 0.144.1` `generate-ts` output does not contain a
@@ -227,7 +232,7 @@ the same typed host contract and equivalent:
 
 - thread directory, read, resume, fork, archive, and unarchive actions;
 - idle start, running steer, nonurgent queue, and stale-status behavior;
-- confirmation, permission, dedupe, loop, scope, and write-set decisions;
+- Codex permission results, opaque-key idempotency, and project/workspace/write-set/route advisories;
 - source/target receipt status, result navigation, and typed failures;
 - `dynamicTools` capability state and fallback explanation.
 
@@ -235,7 +240,7 @@ Desktop-only coordination is not acceptable. The WebUI browser renderer must
 not access App Server directly; the Node WebUI host is the typed App Server
 adapter and may access it through the same host contract. Narrow layouts may
 use sheets or full-height details instead of desktop popovers, but they may not
-hide lifecycle actions, conflict results, or receipt readback.
+hide lifecycle actions, advisories, real failures, or receipt readback.
 
 ## Unified Candidate Work Packages
 
@@ -244,35 +249,36 @@ hide lifecycle actions, conflict results, or receipt readback.
 | 1 | Authority sync | Candidate registry, adapter, plan, validator, and negative tests agree on 41301, L0/L1/L2, local P0/P1, remote P2 deferred, and false-ready fields. | Contract target only. |
 | 2 | Typed host core | Typed envelopes, opaque ID mapping, App Server adapter, pagination/status subscription, and no duplicate stores. | Source/fixture evidence only. |
 | 3 | P0 routing | Resume/start/steer/queue state machine with typed failures. | No GUI or package claim. |
-| 4 | Safety and receipts | Permission, dedupe, loop/hop, scope, write-set, identity, no-escalation gates and bilateral receipt projection. | No owner or release claim. |
+| 4 | Flexible dispatch and receipts | Codex permission passthrough, opaque-key idempotency, project/workspace/write-set/route advisory, zero OPL confirmation, and bilateral receipt projection. | No owner or release claim. |
 | 5 | P1 lifecycle | Fork/archive/unarchive/wait/result aggregation and capability-detected relationships. | Local lifecycle target only. |
-| 6 | P1 model tools | Client-executed `dynamicTools`, runtime probe, schema-drift record, fallback, and shared host gates. | P1 unavailable when probe falls back. |
+| 6 | P1 model tools | Client-executed `dynamicTools`, runtime probe, schema-drift record, fallback, and shared flexible dispatch/audit policy. | P1 unavailable when probe falls back. |
 | 7 | Shared product UI | 41301-aligned project/thread rail, single timeline, compact header, bottom composer, on-demand details, thread-detail coordination action/events, and Settings. Coordination is absent from the primary composer and ordinary navigation. | Visual/source target only. |
 | 8 | Desktop/WebUI adapters | Same coordination capabilities and semantics through platform delivery adapters. | Parity requires both evidence sets. |
 | 9 | OPL state/actions and refs | Existing App state/action, task awareness, preview, provenance, starter, confirmation, and receipt refs remain App/domain-authority compliant. | No artifact or domain authority transfer. |
 | 10 | Candidate package | Explicit candidate `.app` plus source, packaged, local-live, and WebUI artifacts from one fixed cohort. | Still not active or release-ready. |
-| 11 | Local packaged acceptance | Two independent root threads complete list -> read -> dispatch/queue or steer -> target result -> source readback, with negative safety cases. | Local P0/P1 candidate evidence only. |
+| 11 | Local packaged acceptance | Two independent root threads complete list -> read -> dispatch/queue or steer -> target result -> source readback, proving flexible policy and real failure cases. | Local P0/P1 candidate evidence only. |
 | 12 | Adoption and release | Explicit active-adapter change, clean VM, owner acceptance, release cohort, and release gates. | Separate later decision. |
 | 13 | Remote P2 | Authenticated multi-host implementation and real recovery evidence. | Deferred; separate readiness claim. |
 
 The base chat, model/reasoning policy, App state/action bridge, refs-only
 previews, provenance, starter forms, confirmation cards, settings, and
 shared-renderer work remain part of the candidate. Prior source or smoke output
-was revalidated with the unified local P0/P1 cohort. Work packages 1 through 11
-are closed for this local candidate cohort. Adoption/release package 12 and
-remote-host package 13 remain separate, unstarted readiness decisions.
+was revalidated with the historical protocol cohort. The corrected authority
+reopens work packages 3, 4, 6, 8 and 11 for flexible-dispatch implementation and
+evidence. Adoption/release package 12 and remote-host package 13 remain separate,
+unstarted readiness decisions.
 
 ## Acceptance Matrix
 
 | Gate | Must prove | Required negative evidence |
 | --- | --- | --- |
 | App contract | Registry/adapter/plan agree; active adapter remains AionUI; 41301 is current and 31123/31428 are superseded. | Old baseline, missing protocol method, P2-ready, or any false-ready mutation is rejected. |
-| Host fixture | Paginated list/read, opaque IDs, status routing, resume/start/steer/queue, lifecycle, and typed failures. | Duplicate, loop, same-target, stale, archived, cross-scope, permission escalation, and write-set overlap fail closed. |
-| Dynamic tools | Runtime probe registers client tools, receives `item/tool/call`, completes, routes through host gates, and records schema drift. | Generated-schema-only inference and probe-failure-as-ready are rejected. |
+| Host fixture | Paginated list/read, opaque IDs, status routing, resume/start/steer/queue, lifecycle, and typed failures. | Cross-project/workspace, workspace-write, overlap, loop advisory, running steer and archive are not rejected or confirmed; same-key retries are idempotent and same-content different-key sends remain legal. |
+| Dynamic tools | Runtime probe registers client tools, receives `item/tool/call`, completes, routes through the same flexible dispatch/audit policy, and records schema drift. | Generated-schema-only inference, probe-failure-as-ready, or a second model-only permission layer are rejected. |
 | Renderer source/DOM | Rail/detail/composer/timeline consume typed projections and expose bilateral receipts and actionable failures. | Raw JSON-RPC, shell-owned thread store, hidden WebUI actions, and protocol debug copy are rejected. |
-| Visual | 41301-based desktop and narrow/WebUI states are readable and unobstructed for directory, confirmation, queue, receipt, failure, and conflict. | Superseded reference and desktop-only evidence are rejected. |
-| Desktop/WebUI behavior | Equivalent actions, queue/safety decisions, receipts, and dynamic-tool state on the exact candidate cohort. | Transport differences may not change product semantics or authority. |
-| Packaged local P0/P1 | Real package, two independent top-level threads, result readback, and negative gates tied to exact App/Shell/Codex fingerprints. | Source tests, mocks, or one-thread resume do not prove packaged closure. |
+| Visual | 41301-based desktop and narrow/WebUI states are readable and unobstructed for directory, queue, receipt, advisory, and real failure. | Superseded reference, desktop-only evidence, or an OPL confirmation UI is rejected. |
+| Desktop/WebUI behavior | Equivalent actions, queue/advisory/idempotency semantics, receipts, and dynamic-tool state on the exact candidate cohort. | Transport differences may not change product semantics or authority. |
+| Packaged local P0/P1 | Real package, two independent top-level threads, result readback, flexible dispatch and true failure boundaries tied to exact App/Shell/Codex fingerprints. | Source tests, mocks, old hard-gate evidence, or one-thread resume do not prove packaged closure. |
 | Release isolation | Candidate build remains explicit; active adapter and stable/nightly assets remain unchanged. | Candidate package or local smoke cannot set adoption/release/production/clean-VM ready. |
 | Local GUI and Runtime isolation | Candidate uses a distinct bundle/user-data identity, local launch does not mutate adoption, and Runtime path/version/cohort readback exposes any resolver deviation. | Side-by-side install, host PATH, resume smoke, or shared workspace selection cannot prove Runtime parity or concurrent-write safety. |
 | Remote P2 | Real authenticated hosts complete list/read/send/disconnect recovery with host-scoped receipts. | Local evidence cannot be reused as remote evidence. |
@@ -302,8 +308,10 @@ reason to synthesize evidence or weaken the candidate contract.
 
 ## False-Ready Boundary
 
-Local P0 plus P1 now records `local_p0_p1_implemented=true`. The following
-broader claims stay false:
+The historical cohort records `local_protocol_cohort_implemented=true`, but the
+corrected authority requires `flexible_dispatch_policy_conformant=false` and
+`local_p0_p1_implemented=false` until rework evidence lands. The following broader
+claims stay false:
 
 - whole-product or active-shell `implementation_complete`;
 - `active_shell_adopted`;
@@ -314,7 +322,7 @@ broader claims stay false:
 
 Docs, contracts, focused tests, generated schemas, fixture adapters, ephemeral
 probes, source smoke, package manifests, or local candidate smoke are each
-insufficient alone. The closed local P0/P1 claim therefore binds exact App and
+insufficient alone. A future local P0/P1 claim must bind exact corrected App and
 Native SHAs, Codex/App Server version, runtime capability-probe receipt, package
-fingerprints, Desktop/WebUI gates, and the two-independent-thread path. Remote
-P2 and active release adoption remain separate later gates.
+fingerprints, Desktop/WebUI gates, and the two-independent-thread flexible path.
+Remote P2 and active release adoption remain separate later gates.

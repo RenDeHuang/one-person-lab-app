@@ -84,7 +84,7 @@ export const requiredNativeCapabilities = [
   'local_cross_thread_p0_p1',
   'thread_list_read_resume_fork_archive_unarchive',
   'turn_start_steer_with_host_queue',
-  'cross_thread_safety_gates',
+  'cross_thread_codex_permission_and_advisory_audit',
   'bilateral_coordination_receipts',
   'desktop_webui_coordination_parity',
   'remote_host_aggregation_p2_deferred',

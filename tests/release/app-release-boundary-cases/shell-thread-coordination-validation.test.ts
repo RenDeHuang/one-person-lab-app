@@ -4,8 +4,7 @@ import { assert, fs, os, path, test } from './helpers.ts';
 const files = {
   'packages/desktop/src/common/types/codex/threadCoordination.ts': `
     CODEX_THREAD_COORDINATION_METHODS 'thread/list' 'thread/read' 'thread/resume' 'thread/fork'
-    'thread/archive' 'turn/start' 'turn/steer' messageSummary permissionDecision writeSetDecision
-    'confirmation_required'
+    'thread/archive' 'turn/start' 'turn/steer' messageSummary advisories 'inherit'
   `,
   'packages/desktop/src/process/bridge/threadCoordinationBridge.ts': `
     createProductionCodexThreadCoordinationPort
@@ -23,26 +22,25 @@ const files = {
     this.rpc.request('turn/steer' response.nextCursor DEFAULT_MAX_PAGES sourceThreadIdHint
   `,
   'packages/desktop/src/process/services/threadCoordination/index.ts': `
-    code: 'duplicate_delivery' code: 'delivery_loop' code: 'write_set_conflict'
-    code: 'cross_project_write' outcome: 'confirmation_required' boundedMessageSummary
-    permissionDecision writeSetDecision
+    code: 'thread_not_found' code: 'cross_host_delivery' code: 'thread_not_writable' code: 'duplicate_delivery'
+    boundedMessageSummary advisories 'cross_project_context' 'workspace_context_changed'
+    'write_set_overlap' 'delegation_cycle'
   `,
   'packages/desktop/src/renderer/pages/conversation/GroupedHistory/ThreadCoordination/useThreadCoordination.ts': `
     acp_session_id sourceThreadIdHint ipcBridge.threadCoordination.getOverview.invoke
   `,
   'packages/desktop/src/renderer/pages/conversation/GroupedHistory/ThreadCoordination/index.tsx': `
-    ThreadCoordinationSection MESSAGE_TEXTAREA_AUTO_SIZE WRITE_SET_TEXTAREA_AUTO_SIZE
-    autoSize={MESSAGE_TEXTAREA_AUTO_SIZE} autoSize={WRITE_SET_TEXTAREA_AUTO_SIZE}
-    messageSummary permissionDecision writeSetDecision result.outcome === 'confirmation_required'
+    ThreadCoordinationSection MESSAGE_TEXTAREA_AUTO_SIZE autoSize={MESSAGE_TEXTAREA_AUTO_SIZE}
+    messageSummary advisories permission: 'inherit' writeSet: []
   `,
   'packages/desktop/src/renderer/components/layout/Sider/index.tsx': `
     ordinary navigation without the model-facing coordination surface
   `,
   'tests/unit/thread-coordination/codexAppServerPort.test.ts': 'paginates thread/list',
   'tests/unit/thread-coordination/threadCoordinationService.test.ts':
-    'rejects repeated routes and duplicate idempotency keys blocks cross-project writes and overlap with another running thread',
+    'steers the active turn without adding an OPL permission confirmation reports repeated routes as advisory and deduplicates only an identical request key allows the same message to be sent again with a new request key allows cross-project delivery and reports write-set overlap as advisory metadata inherits the running thread permission policy instead of imposing an OPL write scope does not add confirmation for cross-project delivery or a running turn steer archives directly through the Codex App Server lifecycle method',
   'tests/unit/conversation/ThreadCoordination.dom.test.tsx':
-    'keeps both TextArea autoSize objects stable across React rerenders',
+    'keeps the message TextArea autoSize object stable across React rerenders archives directly without adding an OPL confirmation step',
 };
 
 function fixture(): { root: string; shellPaths: { shellRoot: string } } {
@@ -93,4 +91,24 @@ test('active-shell thread coordination validator rejects an ordinary navigation 
     'utf8',
   );
   assert.throws(() => validateShellThreadCoordination(shellPaths), /must not mount/);
+});
+
+test('active-shell thread coordination validator rejects legacy project and write-set hard gates', () => {
+  const { root, shellPaths } = fixture();
+  fs.appendFileSync(
+    path.join(root, 'packages/desktop/src/process/services/threadCoordination/index.ts'),
+    "\ncode: 'cross_project_write'\ncode: 'write_set_conflict'\n",
+    'utf8',
+  );
+  assert.throws(() => validateShellThreadCoordination(shellPaths), /must not hard-gate advisory/);
+});
+
+test('active-shell thread coordination validator rejects an OPL confirmation layer', () => {
+  const { root, shellPaths } = fixture();
+  fs.appendFileSync(
+    path.join(root, 'packages/desktop/src/process/services/threadCoordination/index.ts'),
+    "\noutcome: 'confirmation_required'\n",
+    'utf8',
+  );
+  assert.throws(() => validateShellThreadCoordination(shellPaths), /must not add an OPL confirmation layer/);
 });

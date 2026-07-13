@@ -18,7 +18,7 @@
     "upstream_ref": "main"
   },
   "release_role": "experimental_candidate_shell",
-  "candidate_stage": "opl_native_workbench_local_p0_p1_implemented_verified_candidate_only",
+  "candidate_stage": "opl_native_workbench_local_protocol_cohort_verified_flexible_dispatch_policy_rework_required_candidate_only",
   "gui_authority": {
     "source_of_truth": "one-person-lab-app",
     "implementation_role": "active_shell_implementation_carrier",
@@ -121,7 +121,7 @@
       "local_cross_thread_p0_p1",
       "thread_list_read_resume_fork_archive_unarchive",
       "turn_start_steer_with_host_queue",
-      "cross_thread_safety_gates",
+      "cross_thread_codex_permission_and_advisory_audit",
       "bilateral_coordination_receipts",
       "desktop_webui_coordination_parity",
       "remote_host_aggregation_p2_deferred",
@@ -155,9 +155,9 @@
   },
   "cross_top_level_thread_authority": {
     "authority_model": "three_layer_thread_coordination_authority",
-    "implementation_status": "local_p0_p1_implemented_verified_candidate_only",
+    "implementation_status": "local_protocol_cohort_verified_flexible_dispatch_policy_rework_required_candidate_only",
     "local_p0_p1_implementation_evidence": {
-      "status": "verified_local_candidate_only",
+      "status": "verified_local_protocol_cohort_superseded_for_flexible_dispatch_policy",
       "observed_at": "2026-07-13",
       "app_product_authority_sha": "e53dad1293aa6d7f13417818f118a3f0efce3571",
       "native_source_sha": "5a0bf268c97f289d79c08ee34274d730f674c91f",
@@ -219,7 +219,9 @@
         "installed_screenshot_sha256": "154f8a8ebb6d48e3c8745ec87925f1af04ae4862f3f8b8599e66d02efdf7f59d"
       },
       "claim_boundary": {
-        "local_p0_p1_implemented": true,
+        "local_protocol_cohort_implemented": true,
+        "flexible_dispatch_policy_conformant": false,
+        "local_p0_p1_implemented": false,
         "candidate_only": true,
         "active_shell_adopted": false,
         "release_ready": false,
@@ -308,7 +310,7 @@
         "unarchive_thread",
         "wait_thread"
       ],
-      "tool_calls_must_apply_same_safety_gates_and_receipts_as_gui": true,
+      "tool_calls_must_apply_same_dispatch_advisory_idempotency_and_receipt_policy_as_gui": true,
       "codex_cli_schema_observation": {
         "version": "0.144.1",
         "generator": "generate-ts",
@@ -348,6 +350,8 @@
           "write_set"
         ],
         "default_scope": "current_project",
+        "project_workspace_role": "default_cwd_sidebar_grouping_and_visible_metadata_not_authorization_domain",
+        "cross_project_filter_changes_authorization": false,
         "archived_scope_requires_explicit_filter": true
       },
       "lifecycle_actions": [
@@ -362,22 +366,56 @@
         "loaded_idle_thread": "turn/start",
         "running_urgent_message": "turn/steer_with_explicit_realtime_label",
         "running_nonurgent_message": "host_queue_then_turn/start_when_idle",
-        "unknown_or_stale_status": "refresh_then_fail_closed",
-        "explicit_user_confirmation_when_scope_or_permission_changes": true,
-        "archived_thread": "explicit_unarchive_or_typed_failure_no_silent_replacement",
+        "unknown_or_stale_status": "refresh_then_route_or_protocol_failure",
+        "archived_thread": "typed_failure_until_explicit_unarchive_no_silent_replacement",
+        "opl_extra_confirmation_policy": "none_including_archive_cross_project_cross_workspace_workspace_write_write_set_overlap_running_steer_and_loop_advisory",
         "queue_owner": "opl_app_typed_host_bridge",
         "queue_must_not_copy_or_own_thread_history": true
       },
-      "safety_gates": [
-        "permission_check",
-        "idempotency_key_and_duplicate_message_check",
-        "delegation_cycle_check",
-        "project_and_workspace_scope_check",
-        "concurrent_write_set_conflict_check",
-        "delegation_hop_budget_check",
+      "delivery_request_defaults": {
+        "permission": "inherit",
+        "write_set": [],
+        "write_set_role": "optional_advisory_metadata_not_permission_input"
+      },
+      "turn_start_inheritance_policy": {
+        "target_thread_sticky_settings_inherited": true,
+        "fields_must_not_be_sent": [
+          "cwd",
+          "runtimeWorkspaceRoots",
+          "approvalPolicy",
+          "sandboxPolicy"
+        ]
+      },
+      "hard_failure_conditions": [
+        "protocol_unavailable_or_invalid",
+        "target_not_found",
+        "target_archived",
+        "target_not_writable",
+        "cross_host_unsupported",
+        "codex_permission_denied_or_approval_required"
+      ],
+      "advisory_signals": [
+        "project_workspace_difference",
+        "write_set_overlap",
+        "delegation_cycle_or_repeated_route"
+      ],
+      "idempotency_policy": {
+        "dedupe_scope": "same_opaque_request_or_idempotency_key_retry_only",
+        "same_key_retry_behavior": "return_idempotent_duplicate_result_without_second_dispatch",
+        "message_content_repeat_allowed": true
+      },
+      "must_not_block_or_confirm_for": [
+        "cross_project",
+        "cross_workspace",
+        "workspace_write",
+        "write_set_overlap",
+        "running_turn_steer",
+        "delegation_cycle_advisory"
+      ],
+      "protocol_boundaries": [
         "host_scope_check",
-        "no_target_permission_escalation",
-        "source_target_identity_must_differ"
+        "target_identity_and_status_validation",
+        "codex_permission_and_approval_passthrough"
       ],
       "bilateral_receipt": {
         "required": true,
@@ -409,8 +447,11 @@
           "message_summary",
           "protocol_method",
           "queue_decision",
-          "permission_decision",
-          "write_set_decision",
+          "codex_permission_result",
+          "project_workspace_context",
+          "write_set_advisory",
+          "loop_advisory",
+          "idempotency_result",
           "status",
           "result_summary_or_ref",
           "created_at",
@@ -419,33 +460,35 @@
         "full_thread_history_copy_forbidden": true
       },
       "required_typed_failure_states": [
-        "offline",
-        "permission_denied",
-        "duplicate_rejected",
-        "loop_rejected",
-        "scope_mismatch",
-        "write_set_conflict",
-        "stale_status",
+        "protocol_unavailable",
+        "protocol_invalid",
+        "target_not_found",
         "archived_target",
-        "protocol_incompatible",
+        "target_not_writable",
+        "cross_host_unsupported",
+        "permission_denied",
+        "approval_required",
         "dispatch_failed",
         "wait_timeout"
       ],
-      "user_visibility_policy": "sender_target_reason_message_result_and_safety_decisions_visible_and_auditable",
+      "user_visibility_policy": "sender_target_reason_message_result_permission_and_advisory_context_visible_and_auditable",
       "forbidden_implementations": [
         "send_input_as_cross_top_level_message_bus",
         "shell_owned_duplicate_thread_store",
         "model_generated_thread_id",
-        "silent_cross_project_dispatch",
-        "dispatch_without_write_set_check",
-        "unbounded_delegation_loop"
+        "shell_owned_permission_model",
+        "project_or_workspace_as_authorization_domain",
+        "write_set_overlap_as_dispatch_blocker",
+        "delegation_loop_as_dispatch_blocker",
+        "message_content_as_dedupe_key",
+        "any_opl_confirmation_for_thread_read_dispatch_steer_or_archive"
       ]
     },
     "desktop_webui_parity": {
       "required": true,
       "same_typed_host_bridge_contract": true,
       "same_thread_actions": true,
-      "same_queue_and_safety_semantics": true,
+      "same_queue_advisory_idempotency_and_codex_permission_semantics": true,
       "same_bilateral_receipt_and_failure_visibility": true,
       "delivery_transport_may_differ": true,
       "desktop_only_coordination_capability_allowed": false,

@@ -410,7 +410,7 @@ test('GUI design-system validator rejects send_input as a cross-top-level thread
 
   assert.throws(
     () => validateGuiDesignSystem(root),
-    /cross-top-level thread coordination must use Codex App Server thread\/turn protocols with OPL host safety and audit gates/,
+    /cross-top-level coordination must preserve Codex App flexibility while keeping OPL metadata, advisories, idempotency, and audit/,
   );
 });
 

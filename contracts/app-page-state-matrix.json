@@ -619,6 +619,22 @@
         "thread_actions": ["thread/resume", "thread/fork", "thread/archive"],
         "idle_dispatch_protocol": "turn/start",
         "running_dispatch_protocol": "turn/steer",
+        "delivery_request_defaults": {
+          "permission": "inherit",
+          "write_set": [],
+          "write_set_role": "optional_advisory_metadata_not_permission_input"
+        },
+        "turn_start_inheritance_policy": {
+          "target_thread_sticky_settings_inherited": true,
+          "fields_must_not_be_sent": [
+            "cwd",
+            "runtimeWorkspaceRoots",
+            "approvalPolicy",
+            "sandboxPolicy"
+          ]
+        },
+        "project_workspace_role": "new_thread_default_cwd_sidebar_grouping_and_visible_metadata_only_not_authorization_domain",
+        "post_start_filesystem_access_authority": "codex_native_permissions_and_approval",
         "required_thread_fields": [
           "thread_id",
           "status",
@@ -633,24 +649,40 @@
           "active_turn_id",
           "write_set"
         ],
-        "safety_gates": [
-          "permission_check",
-          "idempotency_key_and_duplicate_message_check",
-          "delegation_cycle_check",
-          "project_and_workspace_scope_check",
-          "concurrent_write_set_conflict_check"
+        "hard_failure_conditions": [
+          "protocol_unavailable_or_invalid",
+          "target_not_found",
+          "target_archived",
+          "target_not_writable",
+          "cross_host_unsupported",
+          "codex_permission_denied_or_approval_required"
+        ],
+        "advisory_signals": [
+          "project_workspace_difference",
+          "write_set_overlap",
+          "delegation_cycle_or_repeated_route"
+        ],
+        "must_not_block_or_confirm_for": [
+          "cross_project",
+          "cross_workspace",
+          "workspace_write",
+          "write_set_overlap",
+          "running_turn_steer",
+          "delegation_cycle_advisory"
         ],
         "required_states": [
           "loading",
           "ready",
           "empty",
-          "offline",
+          "protocol_unavailable",
+          "protocol_invalid",
+          "target_not_found",
+          "archived_target",
+          "target_not_writable",
+          "cross_host_unsupported",
           "permission_denied",
-          "duplicate_rejected",
-          "loop_rejected",
-          "scope_mismatch",
-          "write_set_conflict",
-          "stale_status",
+          "approval_required",
+          "stale_status_refreshing",
           "dispatch_running",
           "dispatch_completed",
           "dispatch_failed"
@@ -662,26 +694,36 @@
           "reason",
           "message_summary",
           "protocol_method",
-          "permission_decision",
-          "write_set_decision",
+          "codex_permission_result",
+          "project_workspace_context",
+          "write_set_advisory",
+          "loop_advisory",
+          "idempotency_result",
           "status",
           "result_summary"
         ],
-        "unknown_or_stale_status_policy": "refresh_then_fail_closed",
+        "unknown_or_stale_status_policy": "refresh_then_route_or_protocol_failure",
+        "idempotency_policy": "same_opaque_request_or_idempotency_key_retry_returns_idempotent_duplicate_without_second_dispatch_message_content_repeat_allowed",
+        "opl_extra_confirmation_policy": "none_including_archive_cross_project_cross_workspace_workspace_write_write_set_overlap_running_steer_and_loop_advisory",
         "same_agent_tree_api_boundary": "spawn_agent_send_input_wait_agent_same_tree_only"
       },
       "must_show": [
         "each thread detail surface exposes a keyboard-reachable coordination action without adding a primary composer control",
         "model-facing host tool retains top-level thread list, read, resume, fork, archive, start and steer operations",
-        "permission, duplicate, cycle, project scope and write-set checks remain active with audit receipts"
+        "project and workspace are default cwd, grouping and visible metadata rather than authorization domains",
+        "write-set overlap, repeated routes and project or workspace differences remain advisory and auditable without blocking dispatch",
+        "Codex-native permission and approval results remain visible in audit receipts"
       ],
       "must_not_show": [
         "thread coordination page or navigation rail entry for ordinary users",
         "coordination control in the primary conversation composer",
         "send_input as a cross-top-level-thread transport",
         "a shell-owned duplicate thread database",
-        "silent cross-project dispatch",
-        "dispatch that bypasses permission, cycle, duplicate or write-set conflict checks",
+        "project or workspace treated as an authorization domain",
+        "any OPL confirmation for thread read, dispatch, running steer or reversible archive",
+        "message-content duplicate rejection",
+        "permission radio, write-set input or confirmation modal in the coordination UI",
+        "cwd, runtimeWorkspaceRoots, approvalPolicy or sandboxPolicy overrides in turn/start",
         "a default-open coordination dashboard"
       ],
       "state_source": "Codex App Server thread/list and thread/read",

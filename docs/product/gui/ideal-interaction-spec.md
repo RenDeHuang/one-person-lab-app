@@ -108,17 +108,22 @@ Rail 负责 navigation，不承担 dashboard：
 
 - Project 下的 conversation rows 同时是 App Server top-level thread 的可见入口；status、host、
   owner、goal、parent/ancestor 与 write-set 进入 row marker 或按需 detail，不增加 agent dashboard。
-- 默认只枚举当前 project。跨 project、remote host 和 archived scope 通过显式 filter 进入；
-  不把全局目录铺在 Home，也不自动把其它线程全文注入当前上下文。
+- 默认按当前 project 分组。跨 project 和 archived scope 通过显式 filter 进入；筛选不改变
+  授权。Project/workspace 仅是新任务默认 cwd、侧栏分组和可见元数据，任务后续可按 Codex
+  自身权限访问其他目录；不把全局目录铺在 Home，也不自动把其它线程全文注入当前上下文。
 - 读取采用 metadata/summary first，必要时才 `thread/read` 历史；resume、fork、archive 位于
   thread action menu，保持键盘可达。
-- 发送协作消息时，用户或模型必须提供 target、reason、message summary 和 expected write set。
+- 发送协作消息时，用户或模型必须提供 target、reason 和 message；expected write set 可选，
+  只作为 advisory/audit。
   Idle target 使用 `turn/start`；running target 的紧急信息使用明确标记的 `turn/steer`，非紧急
-  信息排队后再 `turn/start`；stale/unknown status 先 refresh，仍不确定则 fail closed。
-- 跨 project/host、权限扩大、active turn steering 或 write-set overlap 默认确认。Dedupe、
-  delegation loop、scope mismatch 与 write-set conflict 返回 typed failure，不静默换目标或建线程。
+  信息排队后再 `turn/start`；stale/unknown status 先 refresh，再按真实状态路由或返回协议失败。
+- 本机跨 project/workspace、workspace-write、active turn steering、write-set overlap 或 loop
+  advisory 不拒绝、不额外确认；OPL 只记录并展示。幂等只覆盖同一 opaque request/
+  idempotency key 的重试，同内容不同 key 可合法重复。
+- 硬失败仅来自协议无效/不可用、目标不存在/已归档/不可写、跨 host 尚不支持，或 Codex 自身
+  permission/approval。Archive 直接且可 unarchive，OPL 不对 read/send/steer/archive 增加确认。
 - Source 与 target timeline 都显示 coordination event；用户可以看到谁向谁发送、为什么、使用
-  哪个协议动作、权限/冲突决策、当前状态和结果入口。Desktop 使用 rail context action +
+  哪个协议动作、Codex permission 结果、advisory、当前状态和结果入口。Desktop 使用 rail context action +
   dialog/popover，mobile 使用 action sheet + full-height detail，语义等价。
 - `spawn_agent`、`send_input`、`wait_agent` 继续服务同一 agent tree；跨根线程只经 App Server
   `thread/*` 与 `turn/*`，AionUI 不拥有 thread ID、history 或路由策略。

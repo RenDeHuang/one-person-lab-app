@@ -173,6 +173,9 @@
       "protocol_owner": "codex_core_app_server",
       "app_host_owner": "opl_app_host",
       "thread_store_owner": "codex_core_app_server",
+      "thin_shell_behavior_policy": "codex_app_behavior_with_opl_metadata_and_audit_not_an_additional_workspace_sandbox",
+      "project_workspace_role": "new_thread_default_cwd_sidebar_grouping_and_visible_metadata_only_not_authorization_domain",
+      "post_start_filesystem_access_authority": "codex_native_permissions_and_approval",
       "same_agent_tree_transport": {
         "scope": "same_agent_tree_only",
         "methods": ["spawn_agent", "send_input", "wait_agent"],
@@ -205,27 +208,62 @@
       "dispatch_policy": {
         "idle_thread": "turn/start",
         "running_thread": "turn/steer",
-        "unknown_or_stale_status": "refresh_then_fail_closed",
-        "explicit_user_confirmation_when_scope_or_permission_changes": true
+        "unknown_or_stale_status": "refresh_then_route_or_protocol_failure",
+        "opl_extra_confirmation_policy": "none_including_archive_cross_project_cross_workspace_workspace_write_write_set_overlap_running_steer_and_loop_advisory"
       },
-      "safety_gates": [
-        "permission_check",
-        "idempotency_key_and_duplicate_message_check",
-        "delegation_cycle_check",
-        "project_and_workspace_scope_check",
-        "concurrent_write_set_conflict_check"
+      "delivery_request_defaults": {
+        "permission": "inherit",
+        "write_set": [],
+        "write_set_role": "optional_advisory_metadata_not_permission_input"
+      },
+      "turn_start_inheritance_policy": {
+        "target_thread_sticky_settings_inherited": true,
+        "fields_must_not_be_sent": [
+          "cwd",
+          "runtimeWorkspaceRoots",
+          "approvalPolicy",
+          "sandboxPolicy"
+        ]
+      },
+      "hard_failure_conditions": [
+        "protocol_unavailable_or_invalid",
+        "target_not_found",
+        "target_archived",
+        "target_not_writable",
+        "cross_host_unsupported",
+        "codex_permission_denied_or_approval_required"
+      ],
+      "advisory_signals": [
+        "project_workspace_difference",
+        "write_set_overlap",
+        "delegation_cycle_or_repeated_route"
+      ],
+      "idempotency_policy": {
+        "dedupe_scope": "same_opaque_request_or_idempotency_key_retry_only",
+        "same_key_retry_behavior": "return_idempotent_duplicate_result_without_second_dispatch",
+        "message_content_repeat_allowed": true
+      },
+      "must_not_block_or_confirm_for": [
+        "cross_project",
+        "cross_workspace",
+        "workspace_write",
+        "write_set_overlap",
+        "running_turn_steer",
+        "delegation_cycle_advisory"
       ],
       "required_states": [
         "loading",
         "ready",
         "empty",
-        "offline",
+        "protocol_unavailable",
+        "protocol_invalid",
+        "target_not_found",
+        "archived_target",
+        "target_not_writable",
+        "cross_host_unsupported",
         "permission_denied",
-        "duplicate_rejected",
-        "loop_rejected",
-        "scope_mismatch",
-        "write_set_conflict",
-        "stale_status",
+        "approval_required",
+        "stale_status_refreshing",
         "dispatch_running",
         "dispatch_completed",
         "dispatch_failed"
@@ -238,21 +276,27 @@
         "reason",
         "message_summary",
         "protocol_method",
-        "permission_decision",
-        "write_set_decision",
+        "codex_permission_result",
+        "project_workspace_context",
+        "write_set_advisory",
+        "loop_advisory",
+        "idempotency_result",
         "status",
         "result_summary",
         "created_at",
         "completed_at"
       ],
-      "user_visibility_policy": "sender_target_reason_message_result_and_safety_decisions_visible_and_auditable",
+      "user_visibility_policy": "sender_target_reason_message_result_permission_and_advisory_context_visible_and_auditable",
       "forbidden_implementations": [
         "send_input_as_cross_top_level_message_bus",
         "shell_owned_duplicate_thread_store",
         "model_generated_thread_id",
-        "silent_cross_project_dispatch",
-        "dispatch_without_write_set_check",
-        "unbounded_delegation_loop"
+        "shell_owned_permission_model",
+        "project_or_workspace_as_authorization_domain",
+        "write_set_overlap_as_dispatch_blocker",
+        "delegation_loop_as_dispatch_blocker",
+        "message_content_as_dedupe_key",
+        "any_opl_confirmation_for_thread_read_dispatch_steer_or_archive"
       ]
     },
     "home": {

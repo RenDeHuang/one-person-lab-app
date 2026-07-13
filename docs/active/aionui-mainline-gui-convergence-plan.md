@@ -38,11 +38,11 @@ fresh gate、pixels、package/user path 和远端回读为准。
 | Surface | Fresh 状态 | 边界 |
 | --- | --- | --- |
 | App authority refresh | 本轮隔离 lane 基于 remote main `129258053d2063994cc57408bb03a3b2abb1471a` | GUI ancestor/current HEAD 分离、v2.1.33 review、artifact ref adapter、跨顶层线程合同与 source validator 已统一；最终 App main currentness 由 Git remote readback 证明，不在文档中递归嵌入自身 HEAD。 |
-| Shell final source cohort | `a0ce713b65801fd9ca7f46ad168c977c75a187de`；最低 GUI conformance ancestor 与当前验证 cohort 一致 | Artifact adapter、验收矩阵、navigation regression、模型可用的 thread coordination、write-set containment 与最终 App profile projection 已统一；source cohort 不能推导 installed/release-ready。 |
+| Shell corrected source cohort | `69bce9d565a9fd6460e61273e8905abe0158d2db`（parent `a0ce713b65801fd9ca7f46ad168c977c75a187de`） | Artifact、navigation、thread protocol 与 App profile projection 保持；cross-project/workspace/overlap/loop 改为 advisory，running 直接 steer，archive 直接执行，turn/start 不覆盖目标 sticky settings。 |
 | Latest reviewed upstream | `v2.1.33@a819d175683d5a0aada20064888da07bfcecdb6a` | 相比已评估 GUI cohort 无 GUI delta；不整体 merge，release/runtime intake 单独处理。 |
 | Product profile | 使用 App 官方生成器和当前 OPL Flow workflow policy 对 Shell generated profile 重建后，`jq -S` canonical diff 为空 | Generated profile 的 compatibility projection 包含由 OPL Flow policy 派生的字段；不要求与 raw App JSON 字节相等，不提交纯格式噪音。 |
 | Verified GUI ancestor gates | Shell `a0ce713b...`：full suite `293 files / 2172 tests` 通过、`1 file / 3 tests` skip；root TypeScript、1514-file format、i18n 通过。App active-shell full 通过；release-boundary `293 pass / 2 platform skip / 0 fail` | 证明最低 GUI ancestor 与 source contract 边界，不单独证明 installed path 或 release-ready。 |
-| Final source gates | Shell `605fd91c...`：full suite `292 files / 2166 tests` 通过、`1 file / 3 tests` skip；TypeScript、1513-file format、i18n、lint `0 errors / 861 warnings`、production source package与隔离 AionCore 的 desktop/mobile dev Electron E2E `2/2` 通过。App active-shell quick 与 release-boundary `287 pass / 2 platform skip / 0 fail` 在同一 Shell cohort 通过 | 证明当前 source、tests 与 source package build；不是 packaged E2E、current pixels、安装或 release promotion。 |
+| Corrected source gates | Shell `69bce9d...`：target Node `19/19`、DOM `4/4`；full `293 files` pass / `1` skip、`2173 tests` pass / `3` skip；TypeScript、i18n、format、diff-check 通过 | 证明 corrected flexible-dispatch source behavior；不证明 current pixels、packaged two-root UI、安装路径或 remote host。 |
 | Live App Server protocol | Codex CLI `0.144.1` + 临时 `CODEX_HOME`：两条 materialized top-level threads 完成 list/source-hint、target turn/start/result/read、resume、fork 与 archive readback | 证明 production adapter 的本机 protocol wire；未覆盖 `turn/steer` 竞态、Shell packaged two-root UI 或 remote host。 |
 | Historical source gates | exact `0ebc1fdd278e8a79602458e15e28cf814dfd917d`：`test:full` 282 files pass / 1 skip、2044 tests pass / 3 skip；TypeScript、1487-file format、i18n 与 lint 0 errors | 只属于历史 cohort。 |
 | Historical core visual evidence | `docs/product/gui/evidence/aionui-41301/manifest.json` 绑定 Shell `0ebc1fdd...`、`E2E_PACKAGED=1`、时间 `2026-07-11T21:16:06.183Z` 和 8 个 route/layout 场景 | Manifest 与截图保持原字节/原 SHA；current `605fd91c...` pixels 为 unverified。 |
@@ -80,7 +80,7 @@ first-run、中英文，以及本轮纳入 authority 的跨顶层线程协调不
 | --- | --- | --- | --- |
 | 功能层 | [`feature-inventory.md`](../product/gui/feature-inventory.md)、App contracts | `human_target_refreshed` | 非降级边界、Home/Settings capability 分工与 package activation 已更新；machine contract 同步必须单独通过 validator。 |
 | 理想交互与视觉层 | [`ideal-interaction-spec.md`](../product/gui/ideal-interaction-spec.md)、[`visual-system.md`](../product/gui/visual-system.md)、[`codex-to-opl-app-delta.md`](../product/gui/codex-to-opl-app-delta.md)、[`element-audit.md`](../product/gui/element-audit.md) | `aligned_current_target` | Project 归 rail，branch/locality 归 Environment；rail 只保留 New task/Runtime/Archived；Home starter 不截断并 fail-closed launch。 |
-| Shell 实现层 | [`shell-implementation-guide.md`](../product/gui/shell-implementation-guide.md)、[`shell-conformance-matrix.md`](../product/gui/shell-conformance-matrix.md) | `current_source_implemented` | Artifact、Acceptance、Navigation 与 Thread coordination 已统一集成并通过 full source/package gates；current pixels 与 packaged user-path evidence 独立保留为未验证。 |
+| Shell 实现层 | [`shell-implementation-guide.md`](../product/gui/shell-implementation-guide.md)、[`shell-conformance-matrix.md`](../product/gui/shell-conformance-matrix.md) | `current_source_implemented` | Shell `69bce9d...` 已删除额外 OPL hard gates/confirmation 并通过 full source gates；pixels、packaged two-root UI 与 remote host 仍分层验收。 |
 
 ## OPL 已采纳能力收敛结果
 
@@ -96,7 +96,7 @@ first-run、中英文，以及本轮纳入 authority 的跨顶层线程协调不
 | P1 | Current task | `opl_adopted_relocated` | timeline 单一 summary；普通任务不默认 sticky，长任务或用户操作才 pin。 | 真实长任务/approval evidence 单独维护。 |
 | P1 | Transcript export | `opl_adopted_active` | cursor-safe、递归脱敏、Markdown/JSON、失败可见；`/export` 使用同一安全路径。 | workspace bundle 继续要求逐项选择与确认。 |
 | P1 | Desktop navigation | `opl_adopted_active` | 保留 Back/Forward、Previous/Next、New Window 的 OPL 路径，不创建 WebUI 第二 IA。 | 完整快捷键专项验收不阻塞 core GUI。 |
-| P1 | Cross-thread coordination | `opl_adopted_target` | Codex 模型按需调用 host tool 完成 thread list/read、resume/fork/archive、idle start、running steer/queue，并保留双边 receipt 与 safety gates；普通 rail 不显示独立页面。 | 先闭本机 P0；remote host 聚合不冒充本机完成。 |
+| P1 | Cross-thread coordination | `opl_adopted_active` | Shell `69bce9d...` 通过 host tool 完成 thread list/read、resume/fork/archive、idle start、running steer/queue；project/workspace 只作默认 cwd、分组和元数据，OPL 仅增加 opaque-key 幂等、advisory 与双边 receipt；archive 直接且可恢复。 | Source 已闭合；packaged two-root UI、current pixels 与 remote host 不由 source tests外推。 |
 | P1 | Artifact preview adapter | `opl_adopted_target` | Canonical ref 薄接现有 Preview，external-owner body，unsafe/unsupported fail closed。 | 不新建 renderer/store；专项 renderer pixels 独立验收。 |
 | P2 | Settings | `opl_adopted_active` | 保留 OPL IA、bounded page-section cards 与 flat rows；不恢复旧 quiet/Codex-style Settings 实验。 | 维护模式，只修回归。 |
 
@@ -129,9 +129,9 @@ Shell package/version 和 AionCore intake 继续作为独立维护工作。选�
 
 1. App GUI machine contract 与本轮人读 target 已同步；design-system、active-shell quick 与完整
    release-boundary 已绑定最终 Shell source cohort通过；
-2. Artifact、Acceptance、Navigation 与 Thread coordination 已统一集成。Shell full suite、
-   TypeScript、format、i18n、lint、production source package 和 desktop/mobile dev Electron E2E
-   已通过；Codex `0.144.1` 两根线程 protocol smoke 已闭合 list/read/start/result/resume/fork/archive；
+2. Artifact、Acceptance 与 Navigation 保持既有集成；Shell `69bce9d...` 已闭合 corrected flexible
+   Thread coordination source gates，Codex `0.144.1` 两根线程 protocol smoke 已闭合
+   list/read/start/result/resume/fork/archive；
 3. 当前核心 pixels 仅在需要声明 current visual 时重建，且生成新 manifest，不修改旧 evidence SHA；
 4. Packaged two-root UI、`turn/steer` live 竞态、package activating 独立状态、真实 bridge approval
    injection 和 Desktop/WebUI 同场景 parity 仍是明确专项 gap；当前 install/user path 不属于本次
@@ -145,7 +145,7 @@ Shell package/version 和 AionCore intake 继续作为独立维护工作。选�
 | 41301 human target 与三层文档一致 | `done_current_refresh` | 五份产品定义文档已收敛 rail/Home/Settings 与 package readiness 语义。 |
 | App machine authority 与三层文档一致 | `done_current_refresh` | Artifact、GUI ancestor 和跨顶层 thread authority 已进入 contracts/page-state/validators，并通过 combined gates。 |
 | Shell GUI behavior 与 OPL 非降级边界一致 | `done_source_currentness` | Final integration 已通过 full source、package build、E2E 与 App combined gates；未采纳 AionUI 面未进入 ordinary IA。 |
-| Cross-thread coordination | `source_implemented_model_tool_navigation_hidden` | Contract、host adapter、安全负例与 Codex `0.144.1` 两根线程 live protocol 已闭合；普通导航入口已移除，live steer 与 remote host 仍未声明。 |
+| Cross-thread coordination | `source_implemented_flexible_policy` | App authority 与 Shell `69bce9d...` 已统一为 Codex App 薄壳：目录不是授权域，overlap/loop 只 advisory，同一 opaque key 重试幂等，running steer/archive 无 OPL confirmation。普通导航入口继续隐藏；pixels、packaged two-root UI 与 remote host 仍待独立关闭。 |
 | Generated profile current | `done_semantic` | 官方生成器重建后 canonical JSON diff 为空；未提交纯格式差异。 |
 | Core visual matrix | `historical_only_current_unverified` | 8-entry manifest 继续精确绑定 `0ebc1fdd...`；当前 pixels 不沿用。 |
 | Package/install/user path | `source_package_only_current_unverified` | Production source package 通过；`26.7.12` 安装证据早于当前 Shell，不能提升为 current。 |

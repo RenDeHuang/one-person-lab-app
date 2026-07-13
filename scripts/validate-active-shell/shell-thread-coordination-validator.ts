@@ -37,9 +37,8 @@ export function validateShellThreadCoordination(shellPaths): void {
       "'turn/start'",
       "'turn/steer'",
       'messageSummary',
-      'permissionDecision',
-      'writeSetDecision',
-      "'confirmation_required'",
+      'advisories',
+      "'inherit'",
     ],
     'Codex cross-thread coordination contract',
   );
@@ -87,16 +86,18 @@ export function validateShellThreadCoordination(shellPaths): void {
     shellPaths,
     paths.service,
     [
+      "code: 'thread_not_found'",
+      "code: 'cross_host_delivery'",
+      "code: 'thread_not_writable'",
       "code: 'duplicate_delivery'",
-      "code: 'delivery_loop'",
-      "code: 'write_set_conflict'",
-      "code: 'cross_project_write'",
-      "outcome: 'confirmation_required'",
       'boundedMessageSummary',
-      'permissionDecision',
-      'writeSetDecision',
+      'advisories',
+      "'cross_project_context'",
+      "'workspace_context_changed'",
+      "'write_set_overlap'",
+      "'delegation_cycle'",
     ],
-    'OPL cross-thread safety and audit service',
+    'OPL flexible cross-thread routing and audit service',
   );
   const hook = assertShellTextIncludesAll(
     shellPaths,
@@ -110,13 +111,11 @@ export function validateShellThreadCoordination(shellPaths): void {
     [
       'ThreadCoordinationSection',
       'MESSAGE_TEXTAREA_AUTO_SIZE',
-      'WRITE_SET_TEXTAREA_AUTO_SIZE',
       'autoSize={MESSAGE_TEXTAREA_AUTO_SIZE}',
-      'autoSize={WRITE_SET_TEXTAREA_AUTO_SIZE}',
       'messageSummary',
-      'permissionDecision',
-      'writeSetDecision',
-      "result.outcome === 'confirmation_required'",
+      'advisories',
+      "permission: 'inherit'",
+      'writeSet: []',
     ],
     'Cross-thread coordination UI',
   );
@@ -135,9 +134,15 @@ export function validateShellThreadCoordination(shellPaths): void {
     tests,
     [
       'paginates thread/list',
-      'rejects repeated routes and duplicate idempotency keys',
-      'blocks cross-project writes and overlap with another running thread',
-      'keeps both TextArea autoSize objects stable across React rerenders',
+      'steers the active turn without adding an OPL permission confirmation',
+      'reports repeated routes as advisory and deduplicates only an identical request key',
+      'allows the same message to be sent again with a new request key',
+      'allows cross-project delivery and reports write-set overlap as advisory metadata',
+      'inherits the running thread permission policy instead of imposing an OPL write scope',
+      'does not add confirmation for cross-project delivery or a running turn steer',
+      'archives directly through the Codex App Server lifecycle method',
+      'keeps the message TextArea autoSize object stable across React rerenders',
+      'archives directly without adding an OPL confirmation step',
     ],
     'Cross-thread focused regression tests',
   );
@@ -146,5 +151,30 @@ export function validateShellThreadCoordination(shellPaths): void {
     [types, bridge, rpc, port, service, hook, view].join('\n'),
     ['send_input', '.codex/sessions', 'rollout-'],
     'Cross-thread implementation forbidden alternate transports and stores',
+  );
+  assertTextExcludesAll(
+    service,
+    [
+      "code: 'delivery_loop'",
+      "code: 'write_set_conflict'",
+      "code: 'cross_project_write'",
+      "code: 'permission_expansion_denied'",
+    ],
+    'Cross-thread implementation must not hard-gate advisory project, workspace, route, dedupe-content, or write-set signals',
+  );
+  assertTextExcludesAll(
+    [types, service, view].join('\n'),
+    ['confirmation_required'],
+    'Cross-thread implementation must not add an OPL confirmation layer, including for reversible archive',
+  );
+  assertTextExcludesAll(
+    port,
+    ['permissionParams(', 'runtimeWorkspaceRoots:', 'approvalPolicy:', 'sandboxPolicy:'],
+    'Cross-thread turn/start must inherit the target thread sticky settings without OPL overrides',
+  );
+  assertTextExcludesAll(
+    view,
+    ['WRITE_SET_TEXTAREA', 'permission radio', 'confirmation modal'],
+    'Cross-thread UI must not expose OPL permission, write-set, or confirmation controls',
   );
 }

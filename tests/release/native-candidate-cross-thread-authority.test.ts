@@ -20,12 +20,17 @@ const readAuthority = (): NativeCrossTopLevelThreadAuthority => {
   return adapter.cross_top_level_thread_authority;
 };
 
-test('native candidate accepts the exact verified local P0 plus P1 cohort while remote P2 stays deferred', () => {
+test('native candidate accepts flexible dispatch authority while old protocol evidence remains superseded', () => {
   const authority = readAuthority();
-  assert.equal(authority.implementation_status, 'local_p0_p1_implemented_verified_candidate_only');
+  assert.equal(
+    authority.implementation_status,
+    'local_protocol_cohort_verified_flexible_dispatch_policy_rework_required_candidate_only',
+  );
+  assert.equal(authority.local_p0_p1_implementation_evidence.claim_boundary.local_p0_p1_implemented, false);
+  assert.equal(authority.local_p0_p1_implementation_evidence.claim_boundary.flexible_dispatch_policy_conformant, false);
+  assert.equal(authority.local_p0_p1_implementation_evidence.native_source_sha, '5a0bf268c97f289d79c08ee34274d730f674c91f');
   assert.equal(authority.primary_composer_control_visible, false);
   assert.equal(authority.thread_detail_context_action_visible, true);
-  assert.equal(authority.local_p0_p1_implementation_evidence.native_source_sha, '5a0bf268c97f289d79c08ee34274d730f674c91f');
   assert.deepEqual(authority.local_p0_p1_implementation_evidence.packaged_native_live.screenshot_markers, [
     'One Person Lab',
     '5.6 Sol',
@@ -60,13 +65,27 @@ test('native candidate keeps coordination out of the primary composer without re
   );
 });
 
+test('native candidate rejects legacy project, steer, archive, loop, duplicate-content, or write-set hard gates', () => {
+  const authority = structuredClone(readAuthority());
+  Object.assign(authority.local_p0_p1_acceptance, {
+    safety_gates: ['project_and_workspace_scope_check', 'concurrent_write_set_conflict_check'],
+  });
+  authority.local_p0_p1_acceptance.dispatch_policy.archive_lifecycle_confirmation_required = true;
+  authority.local_p0_p1_acceptance.required_typed_failure_states.push('write_set_conflict');
+
+  assert.throws(
+    () => validateNativeCrossTopLevelThreadAuthority(authority),
+    /must remove legacy project, workspace, loop, duplicate-content, steer, and write-set hard gates/,
+  );
+});
+
 test('native candidate rejects an implementation claim detached from the exact evidence cohort', () => {
   const authority = structuredClone(readAuthority());
   authority.local_p0_p1_implementation_evidence.native_source_sha = '0'.repeat(40);
 
   assert.throws(
     () => validateNativeCrossTopLevelThreadAuthority(authority),
-    /exact verified local cohort/,
+    /exact verified cohort/,
   );
 });
 
@@ -103,7 +122,7 @@ test('native candidate rejects missing lifecycle protocol, queue routing, or bil
   bypassedQueue.local_p0_p1_acceptance.dispatch_policy.running_nonurgent_message = 'turn/steer';
   assert.throws(
     () => validateNativeCrossTopLevelThreadAuthority(bypassedQueue),
-    /route resume\/start\/steer through the host queue/,
+    /preserve Codex-style cross-project flexibility, opaque-key idempotency, direct running steer/,
   );
 
   const unilateralReceipt = structuredClone(readAuthority());

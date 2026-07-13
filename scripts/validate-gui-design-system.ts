@@ -750,6 +750,9 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   const threadCoordination = record(interactionBaseline.thread_coordination);
   const sameAgentTreeTransport = record(threadCoordination.same_agent_tree_transport);
   const threadDispatchPolicy = record(threadCoordination.dispatch_policy);
+  const threadDeliveryDefaults = record(threadCoordination.delivery_request_defaults);
+  const threadTurnStartInheritance = record(threadCoordination.turn_start_inheritance_policy);
+  const threadIdempotencyPolicy = record(threadCoordination.idempotency_policy);
   const homeTarget = record(interactionBaseline.home);
   const capabilitySelection = record(interactionBaseline.capability_selection);
   const composerTarget = record(interactionBaseline.composer);
@@ -850,12 +853,26 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     'active_turn_id',
     'write_set',
   ];
-  const coordinationSafetyGates = [
-    'permission_check',
-    'idempotency_key_and_duplicate_message_check',
-    'delegation_cycle_check',
-    'project_and_workspace_scope_check',
-    'concurrent_write_set_conflict_check',
+  const coordinationHardFailures = [
+    'protocol_unavailable_or_invalid',
+    'target_not_found',
+    'target_archived',
+    'target_not_writable',
+    'cross_host_unsupported',
+    'codex_permission_denied_or_approval_required',
+  ];
+  const coordinationAdvisories = [
+    'project_workspace_difference',
+    'write_set_overlap',
+    'delegation_cycle_or_repeated_route',
+  ];
+  const coordinationNonBlockingSignals = [
+    'cross_project',
+    'cross_workspace',
+    'workspace_write',
+    'write_set_overlap',
+    'running_turn_steer',
+    'delegation_cycle_advisory',
   ];
   const coordinationAuditFields = [
     'delivery_id',
@@ -865,8 +882,11 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     'reason',
     'message_summary',
     'protocol_method',
-    'permission_decision',
-    'write_set_decision',
+    'codex_permission_result',
+    'project_workspace_context',
+    'write_set_advisory',
+    'loop_advisory',
+    'idempotency_result',
     'status',
     'result_summary',
     'created_at',
@@ -876,13 +896,15 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     'loading',
     'ready',
     'empty',
-    'offline',
+    'protocol_unavailable',
+    'protocol_invalid',
+    'target_not_found',
+    'archived_target',
+    'target_not_writable',
+    'cross_host_unsupported',
     'permission_denied',
-    'duplicate_rejected',
-    'loop_rejected',
-    'scope_mismatch',
-    'write_set_conflict',
-    'stale_status',
+    'approval_required',
+    'stale_status_refreshing',
     'dispatch_running',
     'dispatch_completed',
     'dispatch_failed',
@@ -900,6 +922,11 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     threadCoordination.protocol_owner !== 'codex_core_app_server' ||
     threadCoordination.app_host_owner !== 'opl_app_host' ||
     threadCoordination.thread_store_owner !== 'codex_core_app_server' ||
+    threadCoordination.thin_shell_behavior_policy !==
+      'codex_app_behavior_with_opl_metadata_and_audit_not_an_additional_workspace_sandbox' ||
+    threadCoordination.project_workspace_role !==
+      'new_thread_default_cwd_sidebar_grouping_and_visible_metadata_only_not_authorization_domain' ||
+    threadCoordination.post_start_filesystem_access_authority !== 'codex_native_permissions_and_approval' ||
     sameAgentTreeTransport.scope !== 'same_agent_tree_only' ||
     !sameStrings(sameAgentTreeTransport.methods, ['spawn_agent', 'send_input', 'wait_agent']) ||
     sameAgentTreeTransport.cross_top_level_use_forbidden !== true ||
@@ -916,20 +943,40 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     !sameStrings(threadCoordination.thread_actions, ['read', 'resume', 'fork', 'archive']) ||
     threadDispatchPolicy.idle_thread !== 'turn/start' ||
     threadDispatchPolicy.running_thread !== 'turn/steer' ||
-    threadDispatchPolicy.unknown_or_stale_status !== 'refresh_then_fail_closed' ||
-    threadDispatchPolicy.explicit_user_confirmation_when_scope_or_permission_changes !== true ||
-    !sameStrings(threadCoordination.safety_gates, coordinationSafetyGates) ||
+    threadDispatchPolicy.unknown_or_stale_status !== 'refresh_then_route_or_protocol_failure' ||
+    threadDispatchPolicy.opl_extra_confirmation_policy !==
+      'none_including_archive_cross_project_cross_workspace_workspace_write_write_set_overlap_running_steer_and_loop_advisory' ||
+    threadDeliveryDefaults.permission !== 'inherit' ||
+    !sameStrings(threadDeliveryDefaults.write_set, []) ||
+    threadDeliveryDefaults.write_set_role !== 'optional_advisory_metadata_not_permission_input' ||
+    threadTurnStartInheritance.target_thread_sticky_settings_inherited !== true ||
+    !sameStrings(threadTurnStartInheritance.fields_must_not_be_sent, [
+      'cwd',
+      'runtimeWorkspaceRoots',
+      'approvalPolicy',
+      'sandboxPolicy',
+    ]) ||
+    !sameStrings(threadCoordination.hard_failure_conditions, coordinationHardFailures) ||
+    !sameStrings(threadCoordination.advisory_signals, coordinationAdvisories) ||
+    !sameStrings(threadCoordination.must_not_block_or_confirm_for, coordinationNonBlockingSignals) ||
+    threadIdempotencyPolicy.dedupe_scope !== 'same_opaque_request_or_idempotency_key_retry_only' ||
+    threadIdempotencyPolicy.same_key_retry_behavior !==
+      'return_idempotent_duplicate_result_without_second_dispatch' ||
+    threadIdempotencyPolicy.message_content_repeat_allowed !== true ||
     !sameStrings(threadCoordination.required_states, coordinationStates) ||
     !sameStrings(threadCoordination.audit_fields, coordinationAuditFields) ||
     threadCoordination.user_visibility_policy !==
-      'sender_target_reason_message_result_and_safety_decisions_visible_and_auditable' ||
+      'sender_target_reason_message_result_permission_and_advisory_context_visible_and_auditable' ||
     !sameStrings(threadCoordination.forbidden_implementations, [
       'send_input_as_cross_top_level_message_bus',
       'shell_owned_duplicate_thread_store',
       'model_generated_thread_id',
-      'silent_cross_project_dispatch',
-      'dispatch_without_write_set_check',
-      'unbounded_delegation_loop',
+      'shell_owned_permission_model',
+      'project_or_workspace_as_authorization_domain',
+      'write_set_overlap_as_dispatch_blocker',
+      'delegation_loop_as_dispatch_blocker',
+      'message_content_as_dedupe_key',
+      'any_opl_confirmation_for_thread_read_dispatch_steer_or_archive',
     ]) ||
     coordinationViewModel.product_role !== threadCoordination.product_role ||
     coordinationViewModel.entry_surface !== threadCoordination.entry_surface ||
@@ -943,8 +990,14 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     !sameStrings(coordinationViewModel.thread_actions, ['thread/resume', 'thread/fork', 'thread/archive']) ||
     coordinationViewModel.idle_dispatch_protocol !== 'turn/start' ||
     coordinationViewModel.running_dispatch_protocol !== 'turn/steer' ||
+    JSON.stringify(coordinationViewModel.delivery_request_defaults) !== JSON.stringify(threadDeliveryDefaults) ||
+    JSON.stringify(coordinationViewModel.turn_start_inheritance_policy) !== JSON.stringify(threadTurnStartInheritance) ||
+    coordinationViewModel.project_workspace_role !== threadCoordination.project_workspace_role ||
+    coordinationViewModel.post_start_filesystem_access_authority !== threadCoordination.post_start_filesystem_access_authority ||
     !sameStrings(coordinationViewModel.required_thread_fields, requiredThreadFields) ||
-    !sameStrings(coordinationViewModel.safety_gates, coordinationSafetyGates) ||
+    !sameStrings(coordinationViewModel.hard_failure_conditions, coordinationHardFailures) ||
+    !sameStrings(coordinationViewModel.advisory_signals, coordinationAdvisories) ||
+    !sameStrings(coordinationViewModel.must_not_block_or_confirm_for, coordinationNonBlockingSignals) ||
     !sameStrings(coordinationViewModel.required_states, coordinationStates) ||
     !sameStrings(coordinationViewModel.user_visible_audit_fields, [
       'sender',
@@ -953,15 +1006,22 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
       'reason',
       'message_summary',
       'protocol_method',
-      'permission_decision',
-      'write_set_decision',
+      'codex_permission_result',
+      'project_workspace_context',
+      'write_set_advisory',
+      'loop_advisory',
+      'idempotency_result',
       'status',
       'result_summary',
     ]) ||
-    coordinationViewModel.unknown_or_stale_status_policy !== 'refresh_then_fail_closed' ||
+    coordinationViewModel.unknown_or_stale_status_policy !== 'refresh_then_route_or_protocol_failure' ||
+    coordinationViewModel.idempotency_policy !==
+      'same_opaque_request_or_idempotency_key_retry_returns_idempotent_duplicate_without_second_dispatch_message_content_repeat_allowed' ||
+    coordinationViewModel.opl_extra_confirmation_policy !==
+      'none_including_archive_cross_project_cross_workspace_workspace_write_write_set_overlap_running_steer_and_loop_advisory' ||
     coordinationViewModel.same_agent_tree_api_boundary !== 'spawn_agent_send_input_wait_agent_same_tree_only'
   ) {
-    issues.add('cross-top-level thread coordination must use Codex App Server thread/turn protocols with OPL host safety and audit gates');
+    issues.add('cross-top-level coordination must preserve Codex App flexibility while keeping OPL metadata, advisories, idempotency, and audit');
   }
 
   const contextSurfaces = record(interactionBaseline.context_surfaces);

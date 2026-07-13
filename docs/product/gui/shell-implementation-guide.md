@@ -60,7 +60,7 @@ contract/实现收敛 lane 处理。
 | State bridge | 把 App state readback 规范化为 renderer 可消费 envelope。 | 从本地组件状态推断 runtime/domain readiness。 |
 | Action bridge | 执行 App-owned action，并返回 dry-run/result/receipt。 | 直接调用 domain CLI、绕过 confirmation 或自建 mutation kernel。 |
 | Package launch adapter | 在 Home starter launch 前请求 Framework-owned use-boundary activation，并消费 `launch_allowed`、receipt 与 binding。 | 从 installed flag 推断可用、绕过 activation、在失败后仍创建/发送 conversation。 |
-| Thread coordination host adapter | 封装 App Server `thread/*` 与 `turn/*`，投影 project-scoped directory、dispatch、safety decision 和 receipt。 | 用 `send_input` 作为跨根线程总线、自建 thread store/permission model、React 组件直接拼协议。 |
+| Thread coordination host adapter | 封装 App Server `thread/*` 与 `turn/*`，投影 project-grouped directory、flexible dispatch、Codex permission result、advisory 和 receipt。 | 用 project/workspace 建 sandbox、阻断 overlap/loop/steer、增加 confirmation、用 `send_input` 作为跨根线程总线、自建 thread store/permission model、React 组件直接拼协议。 |
 | Artifact ref adapter | 把 canonical workspace file ref 解析为现有 Preview target，保持只读和 fail-closed。 | 复制 artifact body、新建 renderer/store、路径穿越、外部 URL 或猜测未知格式。 |
 | Route adapter | 把 legacy/upstream route 映射到 App-owned page。 | 让 compatibility route 重新成为 ordinary navigation。 |
 | Settings slot | 从 Control Plane registry 渲染 ordinary/secondary pages。 | 复制一套 shell-owned Settings IA。 |
@@ -87,8 +87,9 @@ contract/实现收敛 lane 处理。
 - Codex Core/App Server 拥有 thread history 和 opaque thread id。两个 shell 最终都从
   `thread/list/read/resume` 投影 conversation directory；本地存储仅用于 UI preferences、
   draft 和可重建 cache，不得直接读取另一个 GUI 的 private store。
-- 在同一 workspace/thread 的并发写、steer、queue 与 conflict gate 获得 exact-cohort
-  negative evidence 前，只声明 side-by-side install 与 sequential switching，不声明双开安全。
+- 双 shell parity 必须用 exact cohort 证明跨 workspace、并发写、steer 与 queue 保持 Codex
+  flexibility，并把 overlap/loop 作为 advisory；side-by-side install 或 sequential switching
+  不能替代该行为证据。
 
 统一 launcher 已实现本机 launch selection；Runtime resolver 只完成 launcher-started Native
 范围，conversation continuity 仍是 target contract。局部实现不得提升为双 shell parity。
@@ -155,8 +156,10 @@ opl app action execute --action <id> [--payload <json>] [--dry-run] --json
   currentness 或 materialization，只在 Framework 返回完整 use receipt/binding 后继续。
 
 跨顶层线程协调是另一条 host boundary：Codex Core/App Server 拥有 opaque thread ID、history、
-status 与 turn；OPL host 执行 list/read/resume/fork/archive/start/steer、permission、dedupe、loop、
-project/workspace/host 与 write-set gate，并产生双边可见 receipt。`spawn_agent/send_input/wait_agent`
+status、turn 和 permission/approval；OPL host 执行 list/read/resume/fork/archive/start/steer、
+opaque-key 幂等、queue、project/workspace/write-set/route advisory，并产生双边可见 receipt。
+Project/workspace 只作默认 cwd、分组和元数据；不得在 Shell/host 中变成授权域。
+`spawn_agent/send_input/wait_agent`
 只用于同一 agent tree。协议适配集中在 host/preload boundary，并作为模型/host tool 按需调用；
 普通用户 rail 不挂载独立“线程协调”入口。任何调试视图也只能消费 typed projection，不直接解析
 App Server JSON 或拥有路由策略。
@@ -271,8 +274,11 @@ command 和可见状态 anchor。
   canonical thread store；
 - Home/chat-first、timeline、composer、rail 和 Environment/details 行为符合对应 target 或被明确
   标成 current deviation；
-- 跨顶层 thread list/read/dispatch 使用 App Server adapter，idle/running/stale 状态选择正确，
-  denied/duplicate/loop/cross-project/write-set conflict 均 fail closed 且 receipt 对用户可见；
+- 跨顶层 thread list/read/dispatch 使用 App Server adapter，idle/running/stale 状态选择正确；
+- protocol/target/cross-host/Codex permission failures fail closed；cross-project/workspace、
+  workspace-write、overlap、running steer 与 loop 信息只 advisory，不拒绝或额外确认；
+- 同一 opaque request/idempotency key 重试幂等，同内容不同 key 允许重复投递；
+- archive 直接且可 unarchive；Shell/host 不得为 read/send/steer/archive 增加 OPL confirmation；
 - Artifact/evidence refs 只在安全解析后进入现有 Preview，失败时保留原 ref 且不打开空 preview；
 - Settings 从 Control Plane registry/slots 渲染，legacy routes 只 redirect；
 - Home package starter 在 unavailable/activating/blocked 状态有真实 readback，launch 前
