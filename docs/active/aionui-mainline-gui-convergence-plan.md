@@ -2,7 +2,7 @@
 
 Owner: `one-person-lab-app`
 Purpose: `aionui_mainline_gui_convergence_plan`
-State: `release_closeout_in_progress`
+State: `complete`
 Updated: `2026-07-13`
 Machine boundary: 本文是 AionUI 主线 GUI 的执行计划、结果 read model 和终局验收表。
 产品功能、交互、视觉和机器验收仍分别归 GUI 三层文档、`contracts/`、validators、Shell
@@ -14,8 +14,9 @@ source/tests 与对应 evidence。本文不创建第二套产品 authority，也
 `26.707.41301` 核心 GUI composition 与 OPL 专有能力位置继续有效，不需要大规模 GUI
 重写，也不得重放 `dbff7370f` 或整体 merge AionUI upstream。AionUI 主线已经在 Home package
 readiness、Settings/Personalization、managed update 和 runtime bridge 上继续前进，因此本计划
-重新进入 currentness refresh：先更新三层文档与 machine contract，再对当前 source、pixels、
-package/user path 分层取证。旧 cohort 证据保留但不冒充当前完成。
+已完成本轮 contract/source currentness refresh：三层文档、machine contract、active Shell source
+与 source gates 已闭合；pixels、packaged user path 和 release promotion 继续作为独立证据轨道。
+旧 cohort 证据保留但不冒充当前完成。
 
 最终维护路线固定为：
 
@@ -147,12 +148,12 @@ Shell package/version 和 AionCore intake 继续作为独立维护工作。选�
 | Generated profile current | `done_semantic` | 官方生成器重建后 canonical JSON diff 为空；未提交纯格式差异。 |
 | Core visual matrix | `historical_only_current_unverified` | 8-entry manifest 继续精确绑定 `0ebc1fdd...`；当前 pixels 不沿用。 |
 | Package/install/user path | `source_package_only_current_unverified` | Production source package 通过；`26.7.12` 安装证据早于当前 Shell，不能提升为 current。 |
-| Main absorption/push/readback | `closeout_gate` | 不作为产品设计层完成度；以最终 `git ls-remote` 精确回读为准。 |
-| Lane cleanup | `pending_this_refresh` | 只在 absorption audit 后清理本轮 worktrees。 |
+| Main absorption/push/readback | `done_git_closeout` | App/Shell 已完成 fast-forward absorption、push 与 `git ls-remote` 精确回读；该结果不提升 release readiness。 |
+| Lane cleanup | `done_this_refresh` | 本轮 App/Shell 辅助 lanes 已在 exact/patch-equivalent absorption audit 后清理；最终 authority lane 在本提交推送后删除。 |
 
-本文状态为 `release_closeout_in_progress`；machine target 与 final source currentness 已闭合，main
-absorption/push/readback 与 lane cleanup 尚待 Git closeout。Current pixels、packaged user path 与 release
-promotion 不属于本轮已完成证据；`release_ready=false` 与 `parity_1_to_1=false` 保持不变。
+本文状态为 `complete`：machine target、final source currentness、main absorption/push/readback 与
+本轮 lane cleanup 已闭合。Current pixels、packaged user path 与 release promotion 不属于本轮已完成
+证据；`release_ready=false` 与 `parity_1_to_1=false` 保持不变。
 
 ## 维护边界
 
