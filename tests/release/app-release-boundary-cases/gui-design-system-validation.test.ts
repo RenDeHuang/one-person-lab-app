@@ -75,7 +75,8 @@ function createFixture(): string {
   }
 
   const guiContract = JSON.parse(fs.readFileSync(path.join(root, 'contracts/app-gui-product-contract.json'), 'utf8'));
-  const finalShellSha = guiContract.interaction_baseline.acceptance_boundary.final_shell_sha;
+  const historicalPixelShellSha =
+    guiContract.interaction_baseline.acceptance_boundary.historical_pixel_shell_sha;
   const shellAdapter = JSON.parse(fs.readFileSync(path.join(root, 'contracts/app-shell-adapter.json'), 'utf8'));
   const guiConformanceRef = shellAdapter.shell_source.upstream_ref;
   const evidenceManifest = JSON.parse(fs.readFileSync(path.join(root, 'docs/product/gui/evidence/aionui-41301/manifest.json'), 'utf8'));
@@ -94,7 +95,7 @@ function createFixture(): string {
     'active_aionui.role=current_implementation_conformance_only',
     `active_aionui.gui_conformance_ref=${guiConformanceRef}`,
     'active_aionui.current_shell_head_source=active_shell_checkout_git_head',
-    `active_aionui.historical_41301_evidence_sha=${finalShellSha}`,
+    `active_aionui.historical_41301_evidence_sha=${historicalPixelShellSha}`,
     'docs_or_contract_imply_source_complete=false',
     'docs_or_contract_imply_pixel_complete=false',
     'ideal_target.workspace_session_rail_default_visible=true',
@@ -120,7 +121,8 @@ test('GUI design-system validator accepts a complete fixture without promoting r
   const summary = validateGuiDesignSystem(root);
   const profile = JSON.parse(fs.readFileSync(path.join(root, 'contracts/app-product-profile.json'), 'utf8'));
   const contract = JSON.parse(fs.readFileSync(path.join(root, 'contracts/app-gui-product-contract.json'), 'utf8'));
-  const finalShellSha = contract.interaction_baseline.acceptance_boundary.final_shell_sha;
+  const historicalPixelShellSha =
+    contract.interaction_baseline.acceptance_boundary.historical_pixel_shell_sha;
   assert.equal(summary.status, 'consistent');
   assert.equal(summary.release_ready, false);
   assert.equal(summary.codex_reference, codexReference);
@@ -144,7 +146,7 @@ test('GUI design-system validator accepts a complete fixture without promoting r
   assert.equal(summary.conformance_matrix.pixel_verified_implies_visual_parity, false);
   assert.deepEqual(summary.visual_evidence, {
     manifest: 'docs/product/gui/evidence/aionui-41301/manifest.json',
-    shell_head: finalShellSha,
+    shell_head: historicalPixelShellSha,
     entries_verified: 8,
     packaged_command: true,
   });
@@ -348,13 +350,26 @@ test('GUI design-system validator rejects a historical evidence binding that dri
   const root = createFixture();
   const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
   const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
-  contract.interaction_baseline.acceptance_boundary.final_shell_sha = '0000000000000000000000000000000000000000';
-  contract.interaction_baseline.acceptance_boundary.source_evidence_ref = 'opl-aion-shell@0000000000000000000000000000000000000000';
+  contract.interaction_baseline.acceptance_boundary.historical_pixel_shell_sha =
+    '0000000000000000000000000000000000000000';
   writeJson(root, 'contracts/app-gui-product-contract.json', contract);
 
   assert.throws(
     () => validateGuiDesignSystem(root),
     /AionUI 41301 visual evidence manifest must bind eight packaged route\/layout entries/,
+  );
+});
+
+test('GUI design-system validator rejects treating historical pixels as the current source head', () => {
+  const root = createFixture();
+  const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
+  const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+  contract.interaction_baseline.acceptance_boundary.current_source_head_source = 'contract_static_sha';
+  writeJson(root, 'contracts/app-gui-product-contract.json', contract);
+
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /interaction baseline must keep the human target separate from source, pixel, and release completion/,
   );
 });
 

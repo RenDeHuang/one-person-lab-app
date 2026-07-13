@@ -181,7 +181,7 @@ function hasExactRecord(actual: JsonRecord, expected: JsonRecord): boolean {
   return JSON.stringify(actualKeys) === JSON.stringify(expectedKeys) && expectedKeys.every((key) => actual[key] === expected[key]);
 }
 
-function validateVisualEvidence(root: string, finalShellSha: string, issues: Set<string>): number {
+function validateVisualEvidence(root: string, historicalPixelShellSha: string, issues: Set<string>): number {
   const manifestPath = 'docs/product/gui/evidence/aionui-41301/manifest.json';
   const manifest = readJson(root, manifestPath, issues);
   const sourceManifestPath = 'docs/product/gui/evidence/aionui-41301/source-manifest.json';
@@ -200,7 +200,7 @@ function validateVisualEvidence(root: string, finalShellSha: string, issues: Set
   if (
     manifest.schema !== 'opl_app_gui_visual_evidence.v1' ||
     manifest.owner !== 'one-person-lab-app' ||
-    manifest.shell_head !== finalShellSha ||
+    manifest.shell_head !== historicalPixelShellSha ||
     manifest.source_manifest !== sourceManifestPath ||
     manifest.entry_count !== 8 ||
     entries.length !== 8 ||
@@ -216,7 +216,7 @@ function validateVisualEvidence(root: string, finalShellSha: string, issues: Set
     !fs.existsSync(sourcePath) ||
     manifest.source_manifest_sha256 !== sha256(sourcePath) ||
     sourceManifest.schema !== 'opl_aionui_gui_route_visual_evidence.v1' ||
-    sourceManifest.shell_head !== finalShellSha ||
+    sourceManifest.shell_head !== historicalPixelShellSha ||
     sourceManifest.command !== manifest.command ||
     sourceEntries.length !== 8
   ) {
@@ -271,7 +271,7 @@ function validateVisualEvidence(root: string, finalShellSha: string, issues: Set
     const layoutChecks = Array.isArray(entry.layout_checks) ? entry.layout_checks.map(record) : [];
     const coverageGaps = Array.isArray(entry.coverage_gaps) ? entry.coverage_gaps : [];
     if (
-      entry.shell_head !== finalShellSha ||
+      entry.shell_head !== historicalPixelShellSha ||
       anchors.length === 0 ||
       anchors.some((anchor) => anchor.matched !== true) ||
       layoutChecks.length === 0 ||
@@ -575,7 +575,10 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   }
 
   const acceptanceBoundary = record(interactionBaseline.acceptance_boundary);
-  const finalShellSha = typeof acceptanceBoundary.final_shell_sha === 'string' ? acceptanceBoundary.final_shell_sha : '';
+  const historicalPixelShellSha =
+    typeof acceptanceBoundary.historical_pixel_shell_sha === 'string'
+      ? acceptanceBoundary.historical_pixel_shell_sha
+      : '';
   const shellSource = record(shellAdapter.shell_source);
   const guiConformanceRef = String(shellSource.upstream_ref ?? '');
   if (
@@ -586,16 +589,21 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     acceptanceBoundary.docs_or_contract_imply_pixel_complete !== false ||
     acceptanceBoundary.docs_or_contract_imply_release_ready !== false ||
     acceptanceBoundary.authority_status !== 'active_mainline_authority' ||
-    acceptanceBoundary.shell_implementation_status !== 'final_shell_sha_bound_and_verified' ||
-    acceptanceBoundary.source_evidence_status !== 'full_shell_and_app_gates_passed' ||
-    acceptanceBoundary.pixel_evidence_status !== 'packaged_route_visual_matrix_verified' ||
-    acceptanceBoundary.release_evidence_status !== 'local_packaged_visual_evidence_complete_release_not_claimed' ||
-    !/^[0-9a-f]{40}$/.test(finalShellSha) ||
-    acceptanceBoundary.final_shell_sha_binding_status !== 'bound_to_clean_verified_shell' ||
-    acceptanceBoundary.source_evidence_ref !== `opl-aion-shell@${finalShellSha}` ||
+    acceptanceBoundary.shell_implementation_status !== 'current_source_and_historical_pixels_separately_bound' ||
+    acceptanceBoundary.source_evidence_status !== 'current_source_gates_passed_ref_in_convergence_plan' ||
+    acceptanceBoundary.pixel_evidence_status !==
+      'historical_packaged_route_visual_matrix_verified_current_pixels_unverified' ||
+    acceptanceBoundary.release_evidence_status !==
+      'historical_local_packaged_visual_evidence_complete_release_not_claimed' ||
+    acceptanceBoundary.current_source_head_source !== 'active_shell_checkout_git_head' ||
+    acceptanceBoundary.current_source_head_must_contain_verified_gui_ancestor !== true ||
+    acceptanceBoundary.current_source_evidence_ref !==
+      'docs/active/aionui-mainline-gui-convergence-plan.md#当前事实快照' ||
+    !/^[0-9a-f]{40}$/.test(historicalPixelShellSha) ||
+    acceptanceBoundary.historical_pixel_shell_sha_binding_status !== 'bound_to_exact_historical_evidence' ||
     acceptanceBoundary.pixel_evidence_ref !== 'docs/product/gui/evidence/aionui-41301/manifest.json' ||
     acceptanceBoundary.pixel_evidence_entry_count !== 8 ||
-    acceptanceBoundary.final_shell_sha_must_not_be_inferred_from_worktree_head !== true
+    acceptanceBoundary.historical_pixel_shell_sha_must_not_be_inferred_as_current_source_head !== true
   ) {
     issues.add('interaction baseline must keep the human target separate from source, pixel, and release completion');
   }
@@ -611,7 +619,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   if (!/^State: `(active_currentness_refresh|release_closeout_in_progress|complete)`$/m.test(convergencePlan)) {
     issues.add('AionUI mainline convergence plan must be in active_currentness_refresh, release_closeout_in_progress, or complete state');
   }
-  if (!convergencePlan.includes(guiConformanceRef) || !convergencePlan.includes(finalShellSha)) {
+  if (!convergencePlan.includes(guiConformanceRef) || !convergencePlan.includes(historicalPixelShellSha)) {
     issues.add('AionUI mainline convergence plan must bind both the verified GUI ancestor and historical evidence SHA');
   }
   for (const staleMarker of [
@@ -638,7 +646,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   );
   requireExactMarkerLine(
     foundationReadme,
-    `active_aionui.historical_41301_evidence_sha=${finalShellSha}`,
+    `active_aionui.historical_41301_evidence_sha=${historicalPixelShellSha}`,
     foundationDocs.readme,
     issues,
   );
@@ -646,7 +654,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   if (matrixSnapshot?.[1] !== guiConformanceRef) {
     issues.add('shell conformance matrix GUI conformance ancestor must match the active shell adapter');
   }
-  const visualEvidenceEntries = validateVisualEvidence(root, finalShellSha, issues);
+  const visualEvidenceEntries = validateVisualEvidence(root, historicalPixelShellSha, issues);
 
   const literalObservation = record(interactionBaseline.literal_observation);
   const featurePreservation = record(interactionBaseline.feature_preservation_policy);
@@ -1039,9 +1047,13 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     pageStateBoundary.contract_target_implies_pixel_complete !== false ||
     pageStateBoundary.contract_target_implies_release_complete !== false ||
     pageStateBoundary.authority_status !== 'active_mainline_authority' ||
-    pageStateBoundary.shell_implementation_status !== 'final_shell_sha_bound_and_verified' ||
-    pageStateBoundary.final_shell_sha !== finalShellSha ||
-    pageStateBoundary.final_shell_sha_binding_status !== 'bound_to_clean_verified_shell' ||
+    pageStateBoundary.shell_implementation_status !== 'current_source_and_historical_pixels_separately_bound' ||
+    pageStateBoundary.current_source_head_source !== 'active_shell_checkout_git_head' ||
+    pageStateBoundary.current_source_head_must_contain_verified_gui_ancestor !== true ||
+    pageStateBoundary.current_source_evidence_ref !==
+      'docs/active/aionui-mainline-gui-convergence-plan.md#当前事实快照' ||
+    pageStateBoundary.historical_pixel_shell_sha !== historicalPixelShellSha ||
+    pageStateBoundary.historical_pixel_shell_sha_binding_status !== 'bound_to_exact_historical_evidence' ||
     pageStateBoundary.pixel_evidence_ref !== 'docs/product/gui/evidence/aionui-41301/manifest.json'
   ) {
     issues.add('page-state acceptance boundary must keep human target separate from source and pixel completion');
@@ -1235,7 +1247,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     },
     visual_evidence: {
       manifest: 'docs/product/gui/evidence/aionui-41301/manifest.json',
-      shell_head: finalShellSha,
+      shell_head: historicalPixelShellSha,
       entries_verified: visualEvidenceEntries as 8,
       packaged_command: true,
     },
