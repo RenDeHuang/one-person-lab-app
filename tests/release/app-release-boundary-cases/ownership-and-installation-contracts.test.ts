@@ -592,6 +592,7 @@ test('managed update payload and public actions use only the three software obje
     'opl update check --json',
     'opl update plan --json',
     'opl update apply --json',
+    'opl update status --json',
   ]);
   assert.deepEqual(carrierReconcile.framework_execution.auto_apply_gate, {
     eligibility_field: 'auto_apply.eligible',

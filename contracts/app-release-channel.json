@@ -2780,7 +2780,8 @@
         "command_sequence": [
           "opl update check --json",
           "opl update plan --json",
-          "opl update apply --json"
+          "opl update apply --json",
+          "opl update status --json"
         ],
         "software_object_scope": [
           "opl_base",

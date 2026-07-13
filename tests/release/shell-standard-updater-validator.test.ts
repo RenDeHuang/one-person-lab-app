@@ -27,7 +27,10 @@ function validSources() {
       planResult = await invokeRead('plan')
       autoApply?.eligible && autoApply.appBackgroundSafe && autoApply.commandRef
       if (componentId === 'opl_app')
-      result = await ipcBridge.oplRuntime.applyUpdatePlan.invoke()
+      applyResult = await ipcBridge.oplRuntime.applyUpdatePlan.invoke()
+      lastFailure = resultErrorMessage(applyResult)
+      if (!lastFailure && applyResult)
+      result = await invokeRead('status')
       lastFailure = resultErrorMessage(result)
       ...(lastFailure ? {} : { lastReconciledCarrierCheckpoint: currentCarrierCheckpoint() })
       snapshot.lastReconciledCarrierCheckpoint === currentCarrierCheckpoint()
@@ -61,6 +64,18 @@ test('standard updater gate rejects checkpoint persistence before terminal succe
   sources.managedUpdateMaintenance = sources.managedUpdateMaintenance.replace(
     '...(lastFailure ? {} : { lastReconciledCarrierCheckpoint: currentCarrierCheckpoint() })',
     'lastReconciledCarrierCheckpoint: currentCarrierCheckpoint()',
+  );
+  assert.throws(
+    () => validateCarrierNeutralManagedUpdateSources(sources),
+    /carrier-neutral managed update scheduler must include/,
+  );
+});
+
+test('standard updater gate rejects apply without terminal status readback', () => {
+  const sources = validSources();
+  sources.managedUpdateMaintenance = sources.managedUpdateMaintenance.replace(
+    "result = await invokeRead('status')",
+    '',
   );
   assert.throws(
     () => validateCarrierNeutralManagedUpdateSources(sources),

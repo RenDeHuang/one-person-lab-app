@@ -447,7 +447,12 @@ function validateCarrierReconciliation(reconcile) {
   );
   assertDeepEqualJson(
     reconcile.framework_execution.command_sequence,
-    ['opl update check --json', 'opl update plan --json', 'opl update apply --json'],
+    [
+      'opl update check --json',
+      'opl update plan --json',
+      'opl update apply --json',
+      'opl update status --json',
+    ],
     'App carrier reconciliation command sequence',
   );
   assertDeepEqualJson(

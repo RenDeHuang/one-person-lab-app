@@ -1082,7 +1082,12 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   }
   assertDeepEqualJson(
     carrierReconcile?.command_sequence,
-    ['opl update check --json', 'opl update plan --json', 'opl update apply --json'],
+    [
+      'opl update check --json',
+      'opl update plan --json',
+      'opl update apply --json',
+      'opl update status --json',
+    ],
     'App GUI carrier reconciliation command sequence',
   );
   assertDeepEqualJson(carrierReconcile?.software_object_scope, ['opl_base', 'opl_packages'], 'App GUI carrier reconciliation scope');
