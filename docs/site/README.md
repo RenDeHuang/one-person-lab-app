@@ -6,12 +6,13 @@ State: `active_support`
 Machine boundary: `docs/site/latest/` is local generated output for GitHub
 Pages. It is not tracked on `main`.
 Source truth stays in `docs/guides/`, `docs/whitepapers/`, `docs/publishing/`,
-and `docs/delivery/` manifests and verification records.
+`contracts/whitepaper_profile.json`, and `docs/delivery/` evidence routing.
 
-The App publishes one current user-facing documentation set, not one copy per
-release. Build locally, then publish the final user-facing files to the
-`gh-pages` branch with `npm run docs:publish`. GitHub Actions does not rebuild
-these docs.
+The App exposes one current user-facing documentation set, not one copy per
+release. Install guides can still be built locally and published with
+`npm run docs:publish`. The whitepaper is independently built by
+`.github/workflows/whitepaper.yml`; only a manual dispatch with `publish=true`
+updates `latest/whitepapers/` and records an exact-byte publication receipt.
 Generated HTML files use artifact-aligned names such as
 `macos-app-install.html`, not `index.html`.
 
@@ -20,7 +21,7 @@ Tracked source:
 - User guide prose: `docs/guides/**`.
 - Whitepaper prose: `docs/whitepapers/**`.
 - Publishing templates: `docs/publishing/**`.
-- Generation manifests and verification records: `docs/delivery/**`.
+- Generation manifests and evidence routing: `docs/delivery/**`.
 
 Generated output:
 
@@ -33,8 +34,10 @@ Generated output:
 - `docs/site/latest/whitepapers/opl-app-whitepaper.html`
 - `docs/site/latest/whitepapers/opl-app-whitepaper.pdf`
 
-Do not commit `docs/site/latest/` on `main`. Rebuild it with
-`npm run docs:latest`; publish it with `npm run docs:publish`. The publish
-script filters out process files such as generated Markdown and JSON. Remove the
-local generated copy with `npm run cleanup:local-artifacts -- --scope docs --execute`
-when it is no longer needed for preview or publish.
+Do not commit `docs/site/latest/` on `main`. `npm run docs:latest` rebuilds local
+previews, while `npm run docs:publish` publishes only the general guide surface
+and preserves `latest/whitepapers/`. Publish a whitepaper only through the
+manual workflow so the approved build bytes, visual evidence, public readback,
+and receipt stay bound together. Remove local generated copies with
+`npm run cleanup:local-artifacts -- --scope docs --execute` when they are no
+longer needed for preview.

@@ -49,12 +49,18 @@ cleanup() {
 }
 trap cleanup EXIT
 
-git worktree add --detach "$tmp_worktree" HEAD >/dev/null
-git -C "$tmp_worktree" checkout --orphan "$tmp_branch" >/dev/null
-git -C "$tmp_worktree" rm -rf . >/dev/null 2>&1 || true
+if git fetch "$remote" "$publish_branch"; then
+  git worktree add --detach "$tmp_worktree" FETCH_HEAD >/dev/null
+else
+  git worktree add --detach "$tmp_worktree" HEAD >/dev/null
+  git -C "$tmp_worktree" checkout --orphan "$tmp_branch" >/dev/null
+  git -C "$tmp_worktree" rm -rf . >/dev/null 2>&1 || true
+fi
 mkdir -p "$tmp_worktree/latest"
 
 rsync -a \
+  --delete \
+  --exclude 'whitepapers/' \
   --exclude '*.md' \
   --exclude '*.qmd' \
   --exclude '*.tex' \
@@ -64,13 +70,19 @@ rsync -a \
 
 touch "$tmp_worktree/.nojekyll"
 
-if find "$tmp_worktree/latest" -type f \( -name '*.md' -o -name '*.qmd' -o -name '*.tex' -o -name '*.json' \) -print -quit | grep -q .; then
+if find "$tmp_worktree/latest" \
+  -path "$tmp_worktree/latest/whitepapers" -prune -o \
+  -type f \( -name '*.md' -o -name '*.qmd' -o -name '*.tex' -o -name '*.json' \) -print -quit | grep -q .; then
   echo "Refusing to publish process files." >&2
   exit 1
 fi
 
 git -C "$tmp_worktree" add -A
-git -C "$tmp_worktree" commit -m "docs: publish latest docs" >/dev/null
-git -C "$tmp_worktree" push "$remote" "HEAD:$publish_branch" --force
+if git -C "$tmp_worktree" diff --cached --quiet; then
+  echo "General docs are already current."
+else
+  git -C "$tmp_worktree" commit -m "docs: publish latest docs" >/dev/null
+  git -C "$tmp_worktree" push "$remote" "HEAD:$publish_branch"
+fi
 
 echo "Published $site_dir to $remote/$publish_branch:/latest"

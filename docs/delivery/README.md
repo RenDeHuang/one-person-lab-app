@@ -22,6 +22,7 @@ surfaces live under `docs/site/latest/`.
 | [`install/docker-webui-guide.md`](install/docker-webui-guide.md) | Compatibility entry for the Docker/WebUI guide maintenance source and public bundle. |
 | [`user-guides/macos-app-install/README.md`](user-guides/macos-app-install/README.md) | macOS install guide source, generated Markdown/deck source, screenshot provenance, fixtures, and verification records. |
 | [`user-guides/docker-webui-install/README.md`](user-guides/docker-webui-install/README.md) | Docker/WebUI install guide source, generated Markdown, and verification records. |
+| [`whitepapers/README.md`](whitepapers/README.md) | Whitepaper bundle, visual evidence, and exact-byte publication receipt routing. |
 
 Do not link ordinary users to this directory. Use
 `docs/site/latest/macos-app-install/` and `docs/site/latest/docker-webui-install/` for
