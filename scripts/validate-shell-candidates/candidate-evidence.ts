@@ -262,7 +262,7 @@ function validateNativeWorkbenchPackageManifest(candidate: ShellCandidate, optio
   }>(manifestPath);
   validateCandidateAppBundleEvidence(candidate, manifest, {
     manifestStatus: 'candidate_app_bundle_built',
-    executable: 'One Person Lab Native Workbench Candidate',
+    executable: 'One Person Lab Native',
     executableError: `${candidate.id} .app bundle must use the OPL native workbench executable name`,
     requireAppOwnedProductProfile: true,
   });

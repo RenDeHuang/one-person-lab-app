@@ -6,7 +6,9 @@ import test from "node:test";
 import {
   buildNativeCandidateOpenArgs,
   createGuiLaunchPlan,
+  installAppBundleAtomically,
   parseGuiLauncherArgs,
+  readAppBundleIdentifier,
   resolveGuiRuntimeIdentity,
 } from "../../scripts/gui-launcher.ts";
 
@@ -42,6 +44,21 @@ function fakeAppRoot(): { appRoot: string; cleanup: () => void } {
     appRoot,
     cleanup: () => fs.rmSync(appRoot, { recursive: true, force: true }),
   };
+}
+
+function fakeAppBundle(parent: string, name: string, bundleId: string, marker: string): string {
+  const appPath = path.join(parent, `${name}.app`);
+  const contents = path.join(appPath, "Contents");
+  fs.mkdirSync(contents, { recursive: true });
+  fs.writeFileSync(
+    path.join(contents, "Info.plist"),
+    `<?xml version="1.0" encoding="UTF-8"?>
+<plist version="1.0"><dict>
+<key>CFBundleIdentifier</key><string>${bundleId}</string>
+</dict></plist>\n`,
+  );
+  fs.writeFileSync(path.join(contents, "cohort.txt"), `${marker}\n`);
+  return appPath;
 }
 
 test("GUI launcher parses the explicit candidate safety controls", () => {
@@ -112,7 +129,7 @@ test("Candidate plan remains launch-scoped and cannot mutate release adoption", 
   const appFixture = fakeAppRoot();
   try {
     const plan = createGuiLaunchPlan({
-      args: parseGuiLauncherArgs(["--shell", "opl-native-workbench", "--plan"]),
+      args: parseGuiLauncherArgs(["--shell", "opl-native-workbench", "--rebuild", "--plan"]),
       appRoot: appFixture.appRoot,
       env: fixture.env,
     });
@@ -121,10 +138,59 @@ test("Candidate plan remains launch-scoped and cannot mutate release adoption", 
     assert.equal(plan.candidate_actions, "dry_run_only");
     assert.equal(plan.release_adoption_changed, false);
     assert.equal(plan.updater_channel_changed, false);
+    assert.equal(plan.app_path, "/Applications/One Person Lab Native.app");
+    assert.equal(
+      plan.package_app_path,
+      path.join(appFixture.appRoot, "shells", "opl-native-workbench", "out", "One Person Lab Native.app"),
+    );
+    assert.deepEqual(plan.package_command, {
+      executable: "npm",
+      args: ["run", "package"],
+      cwd: path.join(appFixture.appRoot, "shells", "opl-native-workbench"),
+    });
     assert.equal(plan.command.executable, "/usr/bin/open");
+    assert.equal(plan.command.args[0], "/Applications/One Person Lab Native.app");
     assert.equal(plan.command.args.includes("-n"), false);
   } finally {
     appFixture.cleanup();
     fixture.cleanup();
+  }
+});
+
+test("Native install atomically replaces only the isolated bundle identity", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "opl-native-install-"));
+  const source = fakeAppBundle(root, "source", "cn.gflab.opl.native-workbench.candidate", "new");
+  const installed = fakeAppBundle(root, "installed", "cn.gflab.opl.native-workbench.candidate", "old");
+  try {
+    installAppBundleAtomically({
+      sourceAppPath: source,
+      installedAppPath: installed,
+      expectedBundleId: "cn.gflab.opl.native-workbench.candidate",
+    });
+    assert.equal(readAppBundleIdentifier(installed), "cn.gflab.opl.native-workbench.candidate");
+    assert.equal(fs.readFileSync(path.join(installed, "Contents", "cohort.txt"), "utf8"), "new\n");
+    assert.equal(fs.existsSync(source), true);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("Native install refuses to overwrite an unrelated application", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "opl-native-install-"));
+  const source = fakeAppBundle(root, "source", "cn.gflab.opl.native-workbench.candidate", "new");
+  const installed = fakeAppBundle(root, "installed", "example.unrelated.app", "unrelated");
+  try {
+    assert.throws(
+      () => installAppBundleAtomically({
+        sourceAppPath: source,
+        installedAppPath: installed,
+        expectedBundleId: "cn.gflab.opl.native-workbench.candidate",
+      }),
+      /Refusing app bundle/,
+    );
+    assert.equal(readAppBundleIdentifier(installed), "example.unrelated.app");
+    assert.equal(fs.readFileSync(path.join(installed, "Contents", "cohort.txt"), "utf8"), "unrelated\n");
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
   }
 });

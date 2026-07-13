@@ -72,7 +72,8 @@
           "packaged"
         ],
         "bundle_id": "cn.gflab.opl.native-workbench.candidate",
-        "bundle_relative_path": "out/One Person Lab Native Workbench Candidate.app",
+        "packaged_app_path": "/Applications/One Person Lab Native.app",
+        "bundle_relative_path": "out/One Person Lab Native.app",
         "package_command": [
           "npm",
           "run",

@@ -170,11 +170,12 @@ function validateInteractiveLauncherPolicy(registry: ShellCandidateRegistry): vo
     native?.adapter_contract !== 'contracts/shell-adapters/opl-native-workbench.json' ||
     native.default_mode !== 'packaged' ||
     native.bundle_id !== 'cn.gflab.opl.native-workbench.candidate' ||
-    native.bundle_relative_path !== 'out/One Person Lab Native Workbench Candidate.app' ||
+    native.packaged_app_path !== '/Applications/One Person Lab Native.app' ||
+    native.bundle_relative_path !== 'out/One Person Lab Native.app' ||
     native.supported_modes?.join(',') !== 'packaged' ||
     native.package_command?.join(' ') !== 'npm run package'
   ) {
-    throw new Error('interactive launcher Native profile must preserve the isolated candidate bundle and package command');
+    throw new Error('interactive launcher Native profile must preserve the formal local install, isolated bundle, and package command');
   }
   if (aionui.bundle_id === native.bundle_id) {
     throw new Error('interactive launcher mainline and candidate bundle identities must differ');

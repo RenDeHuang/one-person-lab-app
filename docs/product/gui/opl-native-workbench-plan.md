@@ -46,6 +46,17 @@ localStorage is limited to UI metadata and drafts. Before stronger cross-GUI
 parity claims, AionUI must expose the same cohort and both clients must
 participate in the same host coordination/conflict gates.
 
+For repeatable local comparison, the foreground alternative has one formal test
+identity: the visible name is `One Person Lab Native`, the installed bundle is
+`/Applications/One Person Lab Native.app`, and the isolated bundle ID remains
+`cn.gflab.opl.native-workbench.candidate`. It uses the OPL icon with a restrained
+Native badge so Dock and application-switcher state are distinguishable from
+`/Applications/One Person Lab.app`. `npm run gui -- --shell
+opl-native-workbench` opens the installed bundle; `--rebuild` rebuilds the
+candidate checkout, verifies the bundle ID, and replaces only that installed
+Native bundle. This local test identity does not rename, restyle, replace, or
+adopt the AionUI release App.
+
 ## Authority Inputs
 
 This plan absorbs the latest product semantics from rebased GUI authority

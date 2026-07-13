@@ -62,6 +62,7 @@ export type GuiLaunchPlan = {
   mode: GuiLaunchMode;
   shell_root: string | null;
   app_path: string | null;
+  package_app_path: string | null;
   bundle_id: string;
   bundle_identity_isolated: boolean;
   build_required: boolean;
@@ -69,6 +70,7 @@ export type GuiLaunchPlan = {
   workspace: string | null;
   candidate_actions: 'not_applicable' | 'dry_run_only' | 'explicitly_allowed';
   runtime_identity: RuntimeExecutableIdentity;
+  package_command: { executable: string; args: string[]; cwd: string } | null;
   command: { executable: string; args: string[]; cwd: string };
   release_adoption_changed: false;
   updater_channel_changed: false;
@@ -282,9 +284,11 @@ export function createGuiLaunchPlan(options: {
   const runtimeIdentity = resolveGuiRuntimeIdentity({ env });
   const shellRoot = resolveShellRoot(appRoot, shell);
   let appPath: string | null = null;
+  let packageAppPath: string | null = null;
   let executable: string;
   let commandArgs: string[];
   let commandCwd = appRoot;
+  let packageCommand: GuiLaunchPlan['package_command'] = null;
   let workspace: string | null = null;
   let buildRequired = false;
 
@@ -302,11 +306,19 @@ export function createGuiLaunchPlan(options: {
     executable = '/usr/bin/open';
     commandArgs = [appPath];
   } else {
-    if (!shellRoot || !profile.bundle_relative_path) {
-      throw new Error('Missing opl-native-workbench checkout; expected shells/opl-native-workbench or ../opl-native-workbench');
+    if (!profile.packaged_app_path || !profile.bundle_relative_path || !profile.package_command) {
+      throw new Error('Native launch profile must declare installed path, package output, and package command');
     }
-    appPath = path.join(shellRoot, profile.bundle_relative_path);
+    appPath = profile.packaged_app_path;
     buildRequired = options.args.rebuild || !fs.existsSync(appPath);
+    if (buildRequired && !shellRoot) {
+      throw new Error('Missing opl-native-workbench checkout required to build the installed Native app');
+    }
+    if (shellRoot) {
+      packageAppPath = path.join(shellRoot, profile.bundle_relative_path);
+      const [packageExecutable, ...packageArgs] = profile.package_command;
+      packageCommand = { executable: packageExecutable, args: packageArgs, cwd: shellRoot };
+    }
     workspace = resolveWorkspace(options.args.workspace);
     executable = '/usr/bin/open';
     commandArgs = buildNativeCandidateOpenArgs({
@@ -316,7 +328,7 @@ export function createGuiLaunchPlan(options: {
       allowActions: options.args.allowActions,
       env,
     });
-    commandCwd = shellRoot;
+    commandCwd = shellRoot ?? appRoot;
   }
 
   return {
@@ -325,6 +337,7 @@ export function createGuiLaunchPlan(options: {
     mode,
     shell_root: shellRoot,
     app_path: appPath,
+    package_app_path: packageAppPath,
     bundle_id: profile.bundle_id,
     bundle_identity_isolated: profiles.aionui.bundle_id !== profiles['opl-native-workbench'].bundle_id,
     build_required: buildRequired,
@@ -334,6 +347,7 @@ export function createGuiLaunchPlan(options: {
       ? (options.args.allowActions ? 'explicitly_allowed' : 'dry_run_only')
       : 'not_applicable',
     runtime_identity: runtimeIdentity,
+    package_command: packageCommand,
     command: { executable, args: commandArgs, cwd: commandCwd },
     release_adoption_changed: false,
     updater_channel_changed: false,
@@ -345,17 +359,84 @@ function runChecked(command: string, args: string[], cwd: string, env: NodeJS.Pr
   if (result.status !== 0) throw new Error(`${label} failed with exit code ${result.status ?? 'unknown'}`);
 }
 
+export function readAppBundleIdentifier(appPath: string): string {
+  const plistPath = path.join(appPath, 'Contents', 'Info.plist');
+  if (!fs.existsSync(plistPath)) throw new Error(`App bundle is missing Info.plist: ${appPath}`);
+  const result = spawnSync('/usr/libexec/PlistBuddy', ['-c', 'Print :CFBundleIdentifier', plistPath], {
+    encoding: 'utf8',
+  });
+  const bundleId = result.stdout.trim();
+  if (result.status !== 0 || !bundleId) {
+    throw new Error(`Unable to read CFBundleIdentifier from ${appPath}: ${(result.stderr || result.stdout).trim()}`);
+  }
+  return bundleId;
+}
+
+function assertAppBundleIdentity(appPath: string, expectedBundleId: string): void {
+  const actualBundleId = readAppBundleIdentifier(appPath);
+  if (actualBundleId !== expectedBundleId) {
+    throw new Error(`Refusing app bundle ${appPath}: expected ${expectedBundleId}, found ${actualBundleId}`);
+  }
+}
+
+export function installAppBundleAtomically(options: {
+  sourceAppPath: string;
+  installedAppPath: string;
+  expectedBundleId: string;
+  env?: NodeJS.ProcessEnv;
+}): void {
+  const sourceAppPath = path.resolve(options.sourceAppPath);
+  const installedAppPath = path.resolve(options.installedAppPath);
+  if (sourceAppPath === installedAppPath) throw new Error('Package source and installed app paths must differ');
+  if (!fs.existsSync(sourceAppPath)) throw new Error(`Packaged Native app is missing at ${sourceAppPath}`);
+  assertAppBundleIdentity(sourceAppPath, options.expectedBundleId);
+  if (fs.existsSync(installedAppPath)) assertAppBundleIdentity(installedAppPath, options.expectedBundleId);
+
+  const installDir = path.dirname(installedAppPath);
+  fs.mkdirSync(installDir, { recursive: true });
+  const nonce = `${process.pid}-${Date.now()}`;
+  const stagedPath = path.join(installDir, `.${path.basename(installedAppPath)}.install-${nonce}`);
+  const backupPath = path.join(installDir, `.${path.basename(installedAppPath)}.backup-${nonce}`);
+  fs.rmSync(stagedPath, { recursive: true, force: true });
+  fs.rmSync(backupPath, { recursive: true, force: true });
+
+  runChecked('/usr/bin/ditto', [sourceAppPath, stagedPath], installDir, options.env ?? process.env, 'Native app staging');
+  assertAppBundleIdentity(stagedPath, options.expectedBundleId);
+  const hadExistingApp = fs.existsSync(installedAppPath);
+  try {
+    if (hadExistingApp) fs.renameSync(installedAppPath, backupPath);
+    fs.renameSync(stagedPath, installedAppPath);
+  } catch (error) {
+    fs.rmSync(stagedPath, { recursive: true, force: true });
+    if (hadExistingApp && fs.existsSync(backupPath) && !fs.existsSync(installedAppPath)) {
+      fs.renameSync(backupPath, installedAppPath);
+    }
+    throw error;
+  }
+  fs.rmSync(backupPath, { recursive: true, force: true });
+  assertAppBundleIdentity(installedAppPath, options.expectedBundleId);
+}
+
 export function executeGuiLaunchPlan(plan: GuiLaunchPlan, env: NodeJS.ProcessEnv = process.env): void {
   if (plan.build_required) {
-    const registry = readJson<ShellCandidateRegistry>(path.join(defaultAppRoot, 'contracts/app-shell-candidates.json'));
-    const packageCommand = registry.interactive_launcher_policy.launch_profiles[plan.shell]?.package_command;
-    if (!plan.shell_root || !packageCommand) throw new Error(`No package command is declared for ${plan.shell}`);
-    const [command, ...args] = packageCommand;
-    runChecked(command, args, plan.shell_root, env, `${plan.shell} package`);
-    if (!plan.app_path || !fs.existsSync(plan.app_path)) {
-      throw new Error(`${plan.shell} package completed without creating ${plan.app_path ?? 'the app bundle'}`);
+    if (!plan.package_command || !plan.package_app_path || !plan.app_path) {
+      throw new Error(`No package/install plan is declared for ${plan.shell}`);
     }
+    runChecked(
+      plan.package_command.executable,
+      plan.package_command.args,
+      plan.package_command.cwd,
+      env,
+      `${plan.shell} package`,
+    );
+    installAppBundleAtomically({
+      sourceAppPath: plan.package_app_path,
+      installedAppPath: plan.app_path,
+      expectedBundleId: plan.bundle_id,
+      env,
+    });
   }
+  if (plan.app_path) assertAppBundleIdentity(plan.app_path, plan.bundle_id);
   runChecked(plan.command.executable, plan.command.args, plan.command.cwd, env, `${plan.shell} launch`);
 }
 
