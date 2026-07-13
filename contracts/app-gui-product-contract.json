@@ -2928,8 +2928,9 @@
           },
           "footer_structure": {
             "layout": "compact",
-            "controls": ["theme_switcher"],
-            "account_help_navigation": "forbidden"
+            "controls": ["gateway_account_or_settings_entry", "theme_switcher"],
+            "account_entry": "gateway_display_name_when_connected_else_settings_visible_on_all_routes",
+            "help_navigation": "forbidden"
           },
           "theme_gallery": {
             "presentation": "recognizable_preview_tiles",
@@ -2991,7 +2992,7 @@
             "Settings remains quiet, dense, and scannable without a sparse page-wide bare-divider layout",
             "bounded page-section cards do not become a decorative card wall",
             "summary and repeated-entity bounded groups use one layer only",
-            "the compact Settings footer has only the theme-switcher control, not return-to-chat or a second account/help navigation group",
+            "the compact Settings footer keeps the Gateway account name or Settings entry visible on every route, places the theme switcher after it on Settings, and never renders return-to-chat or help navigation",
             "the theme gallery uses recognizable preview tiles rather than a flat swatch list",
             "visual assertions verify grouping, footer, and theme-gallery structure; radius and spacing alone are insufficient",
             "the Settings sidebar has exactly one selected item",
@@ -4810,7 +4811,7 @@
         "manual_api_key_card_policy": "model_access_status_only_no_account_balance_or_account_usage",
         "cache_ttl_seconds": 900,
         "stale_policy": "show_cached_values_with_stale_marker_and_manual_refresh",
-        "setup_required_policy": "auto_complete_unique_codex_group_without_user_control",
+        "managed_key_setup_policy": "auto_complete_exposed_setup_action_for_unique_codex_group_without_user_control",
         "error_states": [
           "auth_expired",
           "managed_key_missing",

@@ -338,7 +338,9 @@ test("Settings visual QA enforces bounded-card grouping, compact footer, recogni
     object_accent_policy:
       "use restrained multi-hue navigation icons and card-edge accents to distinguish access, workspace, capabilities, maintenance, and storage without tinting whole pages",
     footer_layout: "compact",
-    footer_controls: ["theme_switcher"],
+    footer_controls: ["gateway_account_or_settings_entry", "theme_switcher"],
+    footer_account_entry_policy:
+      "show_gateway_display_name_when_connected_else_settings_on_all_routes_and_open_models_access_or_overview",
     footer_secondary_navigation_allowed: false,
     theme_gallery_presentation: "recognizable_preview_tiles",
     theme_swatch_list_allowed: false,
@@ -372,8 +374,10 @@ test("Settings visual QA enforces bounded-card grouping, compact footer, recogni
   });
   assert.deepStrictEqual(visualQa.footer_structure, {
     layout: "compact",
-    controls: ["theme_switcher"],
-    account_help_navigation: "forbidden",
+    controls: ["gateway_account_or_settings_entry", "theme_switcher"],
+    account_entry:
+      "gateway_display_name_when_connected_else_settings_visible_on_all_routes",
+    help_navigation: "forbidden",
   });
   assert.deepStrictEqual(visualQa.theme_gallery, {
     presentation: "recognizable_preview_tiles",
@@ -415,7 +419,7 @@ test("Settings visual QA enforces bounded-card grouping, compact footer, recogni
   assert.throws(() => validate(listWall), /surface grouping/);
 
   const secondaryFooterNavigation = contracts();
-  secondaryFooterNavigation.guiContract.settings_navigation.settings_ia.protocols.visual_qa_expectations.footer_structure.account_help_navigation =
+  secondaryFooterNavigation.guiContract.settings_navigation.settings_ia.protocols.visual_qa_expectations.footer_structure.help_navigation =
     "allowed";
   assert.throws(() => validate(secondaryFooterNavigation), /footer structure/);
 
