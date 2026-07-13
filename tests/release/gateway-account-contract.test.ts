@@ -25,6 +25,17 @@ test('Gateway account contracts keep the canonical projection, actions, and type
     runtimeBridge.opl_gateway_account_projection.group_resolution_policy.ordinary_user_selector,
     'not_rendered'
   );
+  assert.equal(
+    runtimeBridge.opl_gateway_account_projection.group_resolution_policy.legacy_setup_required_action,
+    'auto_execute_complete_setup_once_when_default_group_resolves_without_rendering_control'
+  );
+  assert.deepEqual(runtimeBridge.opl_gateway_account_projection.display_policy.exception_actions, ['sign_in_again']);
+  assert.deepEqual(runtimeBridge.opl_gateway_account_projection.display_policy.forbidden_normal_controls, [
+    'group_selector',
+    'complete_setup',
+    'repair',
+    'use_for_model_access',
+  ]);
   assert.deepEqual(runtimeBridge.opl_gateway_account_projection.renderer_bootstrap_cache, {
     role: 'derived_last_known_good_projection_not_truth',
     field_policy: 'persist_projection_top_level_and_nested_allowlists_only',
