@@ -588,6 +588,12 @@ test('managed update payload and public actions use only the three software obje
   );
   assert.equal(carrierReconcile.framework_execution.terminal_readback_required, true);
   assert.equal(carrierReconcile.framework_execution.lifecycle_receipt_required_when_apply_executed, true);
+  assert.deepEqual(carrierReconcile.framework_execution.projection_prefetch, {
+    command: 'opl update status --json',
+    publish_when: 'valid_typed_status_readback_available',
+    purpose: 'make_framework_typed_state_available_before_network_check_and_plan_complete',
+    failure_policy: 'continue_reconciliation_without_clearing_last_valid_projection',
+  });
   assert.deepEqual(carrierReconcile.framework_execution.command_sequence, [
     'opl update check --json',
     'opl update plan --json',

@@ -200,13 +200,14 @@ const runtimePageExpected = [
   "t('common.runtime.primaryStates.inProgress')",
   'const [selectedSavedViewId',
   'const scopedTasks = tasks.filter((task) => scopeMatchesTask(task, scope) && !isModuleRuntimeTask(task))',
-  'dedupeTaskItems(scopedTasks.map((task) => runtimeTaskItem(task, controlStates, t, language))).filter(',
+  'dedupeTaskItems(',
+  'scopedTasks.map((task) => runtimeTaskItem(task, controlStates, cockpitProjections.get(task.taskId), t, language))',
   '(item) => savedViewMatchesItem(item, savedView)',
-  'parseModuleStatusItems(',
+  'parseAgentAvailabilityItems(',
   'overview.sections.flatMap((section) => section.tasks)',
-  "t('common.runtime.moduleWorkloadText'",
-  "data-testid={`runtime-module-status-${item.id}`}",
-  'moduleStatusItems.map((item) =>',
+  "t('common.runtime.agentAvailability.workload'",
+  "data-testid={`runtime-agent-availability-${item.id}`}",
+  'agentAvailabilityItems.map((item) =>',
 ];
 
 const runtimePageForbidden = [

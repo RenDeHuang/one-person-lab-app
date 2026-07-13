@@ -1378,6 +1378,12 @@
         ],
         "software_object_scope": ["opl_base", "opl_packages"],
         "execution_owner": "one-person-lab",
+        "projection_prefetch": {
+          "command": "opl update status --json",
+          "publish_when": "valid_typed_status_readback_available",
+          "purpose": "make_framework_typed_state_available_before_network_check_and_plan_complete",
+          "failure_policy": "continue_reconciliation_without_clearing_last_valid_projection"
+        },
         "catalog_source": "framework_managed_update_plan",
         "app_catalog_allowed": false,
         "app_role": "request_and_project_framework_terminal_readback_and_apply_receipts_only",

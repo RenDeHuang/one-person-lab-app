@@ -1088,6 +1088,16 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     throw new Error('App GUI must request carrier-neutral Framework reconciliation and project terminal readback plus apply receipts without a second catalog');
   }
   assertDeepEqualJson(
+    carrierReconcile?.projection_prefetch,
+    {
+      command: 'opl update status --json',
+      publish_when: 'valid_typed_status_readback_available',
+      purpose: 'make_framework_typed_state_available_before_network_check_and_plan_complete',
+      failure_policy: 'continue_reconciliation_without_clearing_last_valid_projection',
+    },
+    'App GUI carrier reconciliation projection prefetch',
+  );
+  assertDeepEqualJson(
     carrierReconcile?.command_sequence,
     [
       'opl update check --json',
