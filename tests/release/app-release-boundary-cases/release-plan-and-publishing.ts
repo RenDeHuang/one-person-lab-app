@@ -6,8 +6,36 @@ import {
   test,
   runNode,
 } from './helpers.ts';
+import {
+  assertCanonicalReleaseVersion,
+  nightlyReleaseVersionPatternSource,
+  stableReleaseVersionPatternSource,
+} from '../../../scripts/release-version.ts';
 
 const offlineOperatorPlanRef = `sha256:${'a'.repeat(64)}`;
+
+test('Stable and Nightly versions use exact contract-backed canonical regexes', () => {
+  assert.equal(
+    stableReleaseVersionPatternSource,
+    String.raw`^[0-9]{2}\.(?:[1-9]|1[0-2])\.(?:[1-9]|[12][0-9]|3[01])$`,
+  );
+  assert.equal(
+    nightlyReleaseVersionPatternSource,
+    String.raw`^[0-9]{2}\.(?:[1-9]|1[0-2])\.(?:[1-9]|[12][0-9]|3[01])-nightly\.[1-9][0-9]*\.[1-9][0-9]*$`,
+  );
+  assert.doesNotThrow(() => assertCanonicalReleaseVersion('stable', '26.7.13'));
+  assert.doesNotThrow(() => assertCanonicalReleaseVersion('nightly', '26.7.13-nightly.123456789.1'));
+  for (const [channel, version] of [
+    ['stable', '026.07.013'],
+    ['stable', '26.7.13-nightly.123456789.1'],
+    ['stable', '26.2.30'],
+    ['nightly', '26.7.13'],
+    ['nightly', '26.07.13-nightly.123456789.1'],
+    ['nightly', '26.7.13-nightly.0.1'],
+  ] as const) {
+    assert.throws(() => assertCanonicalReleaseVersion(channel, version));
+  }
+});
 
 function assertCheck(payload: { checks: Array<{ id: string; status: string; message?: string }> }, id: string, status: string, message?: RegExp) {
   const check = payload.checks.find((entry) => entry.id === id);
@@ -222,11 +250,29 @@ test('Nightly plan uses its executable source gate instead of Stable preflight',
   const lanes = new Map(payload.lanes.map((lane) => [lane.id, lane]));
   assert.equal(payload.profile, 'nightly_standard');
   assert.equal(lanes.has('release_preflight'), false);
+  assert.equal(lanes.has('release_version_gate'), true);
   assert.equal(lanes.has('release_source_gate'), true);
+  assert.match(lanes.get('release_version_gate').command, /release:version:validate -- --channel nightly/);
   assert.match(lanes.get('release_source_gate').command, /npm run release:source-gate/);
   assert.doesNotMatch(lanes.get('release_source_gate').command, /release:preflight/);
+  assert.deepEqual(lanes.get('release_source_gate').depends_on, ['release_version_gate']);
   assert.deepEqual(lanes.get('release_boundary').depends_on, ['release_source_gate']);
   assert.deepEqual(lanes.get('standard_build').depends_on, ['release_source_gate']);
+
+  for (const [profile, invalidVersion] of [
+    ['nightly', '26.7.12'],
+    ['nightly', '26.7.12-nightly.0.1'],
+    ['stable', version],
+  ]) {
+    const invalid = runNode([
+      'scripts/plan-release-candidate.ts',
+      '--profile',
+      profile,
+      '--version',
+      invalidVersion,
+    ]);
+    assert.notEqual(invalid.status, 0, `${profile} plan must reject ${invalidVersion}`);
+  }
 });
 
 test('release workflows serialize every mutation for one App version', () => {
@@ -243,9 +289,10 @@ test('release workflows serialize every mutation for one App version', () => {
   assert.match(promote, new RegExp(sharedGroup.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   assert.doesNotMatch(desktop, /group: opl-desktop-release-\$\{\{ inputs\.release_mode/);
   assert.match(promote, /concurrency:[\s\S]*?cancel-in-progress: false/);
-  assert.match(full, /release_mutation_owned_by_caller:[\s\S]*?type: boolean/);
-  assert.match(full, /format\('opl-app-release-mutation-\{0\}', inputs\.opl_version\)/);
-  assert.match(desktop, /publish_to_release: false\n      release_mutation_owned_by_caller: true/);
+  assert.ok(full.includes("inputs.publish_to_release && format('opl-app-release-mutation-{0}', inputs.opl_version)"));
+  assert.ok(full.includes("format('opl-full-first-install-build-{0}-{1}', inputs.opl_version, github.run_id)"));
+  assert.doesNotMatch(full, /release_mutation_owned_by_caller/);
+  assert.match(desktop, /publish_to_release: false/);
 });
 
 test('Full publish planning probes a remote draft and only mocks absence for artifact-only mode', () => {
@@ -259,6 +306,7 @@ test('Full publish planning probes a remote draft and only mocks absence for art
   assert.ok(liveStart >= 0 && localStart > liveStart && nextStep > localStart);
   assert.doesNotMatch(workflow.slice(liveStart, localStart), /OPL_RELEASE_EXISTS/);
   assert.match(workflow.slice(localStart, nextStep), /OPL_RELEASE_EXISTS: '0'/);
+  assert.doesNotMatch(workflow, /OPL_RELEASE_EXISTS:\s*\$\{\{[^}]*publish_to_release/);
 });
 
 test('Stable preflight rejects padded or non-calendar YY.M.D versions', () => {

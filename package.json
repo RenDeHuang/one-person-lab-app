@@ -77,6 +77,7 @@
     "smoke:docker-webui:old-data": "node --experimental-strip-types scripts/docker-webui-smoke-gate.ts --gate existing_old_onepersonlab_data_dir",
     "validate:docker-webui-diagnostics": "node --experimental-strip-types scripts/validate-docker-webui-diagnostics.ts",
     "release:prepare-standard": "node --experimental-strip-types scripts/prepare-standard-release-payload.ts",
+    "release:version:validate": "node --experimental-strip-types scripts/release-version.ts",
     "release:preflight": "node --experimental-strip-types scripts/validate-release-preflight.ts",
     "release:source-gate": "node --experimental-strip-types scripts/validate-release-source-gate.ts",
     "release:plan": "node --experimental-strip-types scripts/plan-release-candidate.ts",

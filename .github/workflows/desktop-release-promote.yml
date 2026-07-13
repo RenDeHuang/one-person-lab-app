@@ -65,6 +65,9 @@ jobs:
         with:
           node-version: '24'
 
+      - name: Validate canonical Stable version
+        run: npm run release:version:validate -- --channel stable --version "${{ inputs.opl_version }}"
+
       - name: Download release candidate record
         uses: actions/download-artifact@v8
         with:

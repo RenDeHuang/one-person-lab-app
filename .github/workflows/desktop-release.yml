@@ -488,10 +488,7 @@ jobs:
           OPL_RELEASE_VERSION: ${{ inputs.opl_version }}
         run: |
           set -euo pipefail
-          if ! [[ "$OPL_RELEASE_VERSION" =~ ^[0-9]{2}\.([1-9]|1[0-2])\.([1-9]|[12][0-9]|3[01])$ ]]; then
-            echo "::error::Invalid Stable CalVer: $OPL_RELEASE_VERSION (expected YY.M.D with no same-day suffix)"
-            exit 1
-          fi
+          npm run release:version:validate -- --channel stable --version "$OPL_RELEASE_VERSION"
 
           tag="v${OPL_RELEASE_VERSION}"
           git fetch --tags origin
@@ -576,7 +573,6 @@ jobs:
       framework_ref: ${{ needs.release-source-gate.outputs.framework_sha }}
       shell_ref: ${{ needs.release-source-gate.outputs.shell_sha }}
       publish_to_release: false
-      release_mutation_owned_by_caller: true
       upload_full_package_artifact: true
       force_rebuild_runtime_cache: ${{ inputs.force_rebuild_runtime_cache }}
     secrets: inherit

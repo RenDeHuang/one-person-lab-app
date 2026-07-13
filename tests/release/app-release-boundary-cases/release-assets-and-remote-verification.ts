@@ -116,6 +116,7 @@ process.exit(args[0] === 'release' && args[1] === 'upload' ? 1 : 0);
     FAKE_GH_LOG: ghLogPath,
     OPL_RELEASE_NOTES_MODE: 'template',
     OPL_RELEASE_UPLOAD_ATTEMPTS: '1',
+    OPL_RELEASE_TEST_MODE: '1',
     OPL_RELEASE_MUTATION_STATE_JSON: JSON.stringify({
       tagName: `v${version}`,
       isDraft: true,
@@ -219,6 +220,7 @@ test('publish refuses to replace an already published Stable or prerelease relea
       }),
       OPL_RELEASE_EXISTING_ASSETS_JSON: '[]',
       OPL_RELEASE_NOTES_MODE: 'template',
+      OPL_RELEASE_TEST_MODE: '1',
     },
   });
   assert.notEqual(promotedBetweenPlanAndUpload.status, 0);
@@ -226,6 +228,84 @@ test('publish refuses to replace an already published Stable or prerelease relea
     promotedBetweenPlanAndUpload.stderr,
     /already published stable release and is immutable/,
   );
+});
+
+test('publish rechecks the draft after notes and before any clobber upload', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-race-'));
+  const fullDir = path.join(tempRoot, 'full');
+  const binDir = path.join(tempRoot, 'bin');
+  const ghLogPath = path.join(tempRoot, 'gh.log');
+  const stateReadsPath = path.join(tempRoot, 'state-reads.txt');
+  const version = '26.7.13';
+  writeFullRemoteAssets(fullDir, version);
+  const publicManifestPath = path.join(fullDir, 'opl-release-manifest.json');
+  const publicManifest = JSON.parse(fs.readFileSync(publicManifestPath, 'utf8'));
+  publicManifest.manifest.components = {
+    ...publicManifest.manifest.components,
+    mas: { ...publicManifest.manifest.components?.mas, git_commit: '1234567' },
+    mag: { ...publicManifest.manifest.components?.mag, git_commit: '1234567' },
+    rca: { ...publicManifest.manifest.components?.rca, git_commit: '1234567' },
+    meta_agent: { ...publicManifest.manifest.components?.meta_agent, git_commit: '1234567' },
+    officecli: { ...publicManifest.manifest.components?.officecli, version: '1.0.125' },
+    mineru_open_api: { ...publicManifest.manifest.components?.mineru_open_api, version: 'v0.1.0' },
+  };
+  fs.writeFileSync(publicManifestPath, `${JSON.stringify(publicManifest, null, 2)}\n`);
+  writeExecutable(path.join(binDir, 'gh'), `#!/usr/bin/env node
+const fs = require('node:fs');
+const args = process.argv.slice(2);
+fs.appendFileSync(process.env.FAKE_GH_LOG, JSON.stringify(args) + '\\n');
+if (args[0] === 'release' && args[1] === 'view' && args.includes('tagName,isDraft,isPrerelease,publishedAt')) {
+  const count = fs.existsSync(process.env.FAKE_GH_STATE_READS)
+    ? Number(fs.readFileSync(process.env.FAKE_GH_STATE_READS, 'utf8'))
+    : 0;
+  fs.writeFileSync(process.env.FAKE_GH_STATE_READS, String(count + 1));
+  process.stdout.write(JSON.stringify({
+    tagName: 'v${version}',
+    isDraft: count === 0,
+    isPrerelease: false,
+    publishedAt: count === 0 ? null : '2026-07-13T00:01:00Z',
+  }));
+}
+process.exit(0);
+`);
+
+  const result = runNode([
+    'scripts/publish-release.ts',
+    '--no-build',
+    '--version',
+    version,
+    '--full-package-only',
+    '--include-full-package',
+    '--full-package-dir',
+    fullDir,
+  ], {
+    env: {
+      PATH: `${binDir}${path.delimiter}${process.env.PATH}`,
+      FAKE_GH_LOG: ghLogPath,
+      FAKE_GH_STATE_READS: stateReadsPath,
+      OPL_RELEASE_STATE_JSON: JSON.stringify({
+        tagName: `v${version}`,
+        isDraft: true,
+        isPrerelease: false,
+        publishedAt: null,
+      }),
+      OPL_RELEASE_EXISTING_ASSETS_JSON: '[]',
+      OPL_RELEASE_NOTES_MODE: 'template',
+      OPL_RELEASE_UPLOAD_ATTEMPTS: '1',
+    },
+  });
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /already published stable release and is immutable/);
+  const commands = fs.readFileSync(ghLogPath, 'utf8').trim().split('\n').map((line) => JSON.parse(line));
+  const mutations = commands.filter((args) => (
+    (args[1] === 'view' && args.includes('tagName,isDraft,isPrerelease,publishedAt'))
+    || args[1] === 'edit'
+    || args[1] === 'upload'
+  ));
+  assert.deepEqual(mutations.map((args) => args[1]), ['view', 'edit', 'view']);
+  assert.equal(mutations.some((args) => args[1] === 'upload'), false);
+  assert.equal(mutations.some((args) => args.includes('--clobber')), false);
 });
 
 test('publish dry run accepts prebuilt standard release assets from GitHub Actions', () => {

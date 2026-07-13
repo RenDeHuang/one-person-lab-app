@@ -63,11 +63,6 @@ on:
         required: false
         default: false
         type: boolean
-      release_mutation_owned_by_caller:
-        description: The trusted caller already serializes all mutations for this App version
-        required: false
-        default: false
-        type: boolean
       upload_full_package_artifact:
         description: Upload the complete Full output bundle for a downstream publisher; VM uses the DMG-only artifact
         required: false
@@ -111,7 +106,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ inputs.release_mutation_owned_by_caller && format('opl-full-first-install-embedded-{0}', github.run_id) || format('opl-app-release-mutation-{0}', inputs.opl_version) }}
+  # Release-mutating Full runs share the Stable version lock. Artifact-only embedded builds do not hold a mutation lock.
+  group: ${{ inputs.publish_to_release && format('opl-app-release-mutation-{0}', inputs.opl_version) || format('opl-full-first-install-build-{0}-{1}', inputs.opl_version, github.run_id) }}
   cancel-in-progress: false
 
 env:
@@ -278,6 +274,10 @@ jobs:
           cache-dependency-path: |
             one-person-lab/package-lock.json
             redcube-ai/package-lock.json
+
+      - name: Validate canonical Stable version
+        working-directory: one-person-lab-app
+        run: npm run release:version:validate -- --channel stable --version "$OPL_RELEASE_VERSION"
 
       - name: Resolve latest stable OfficeCLI release
         shell: bash

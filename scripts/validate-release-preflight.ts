@@ -3,6 +3,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import {
+  matchesCanonicalReleaseVersion,
+  releaseCalendarParts,
+} from './release-version.ts';
 import { parseStrictBoolean } from './release-readiness-args.ts';
 import { buildReleaseOperatorPlanRef } from './plan-release-cohort.ts';
 
@@ -340,7 +344,7 @@ function resolveExpectedAppHead(options: Options): string | null {
 }
 
 function checkVersion(options: Options, checks: Check[]) {
-  if (!/^[0-9]{2}\.(?:[1-9]|1[0-2])\.(?:[1-9]|[12][0-9]|3[01])$/.test(options.version)) {
+  if (!matchesCanonicalReleaseVersion('stable', options.version)) {
     addCheck(checks, 'version', 'failed', `Invalid Stable CalVer: ${options.version}; expected YY.M.D without a same-day suffix.`);
     return;
   }
@@ -348,24 +352,18 @@ function checkVersion(options: Options, checks: Check[]) {
 }
 
 function checkReleaseDate(options: Options, checks: Check[]) {
-  const versionMatch = options.version.match(/^(\d{2})\.([1-9]|1[0-2])\.([1-9]|[12][0-9]|3[01])$/);
+  const releaseParts = releaseCalendarParts('stable', options.version);
   const currentMatch = options.currentDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!versionMatch || !currentMatch) {
+  if (!matchesCanonicalReleaseVersion('stable', options.version) || !currentMatch) {
     addCheck(checks, 'release_date', 'failed', `Unable to compare release version ${options.version} with current date ${options.currentDate}.`);
     return;
   }
-  const releaseParts = [2000 + Number(versionMatch[1]), Number(versionMatch[2]), Number(versionMatch[3])] as const;
-  const currentParts = [Number(currentMatch[1]), Number(currentMatch[2]), Number(currentMatch[3])] as const;
-  const releaseDate = new Date(Date.UTC(releaseParts[0], releaseParts[1] - 1, releaseParts[2]));
-  if (
-    releaseDate.getUTCFullYear() !== releaseParts[0]
-    || releaseDate.getUTCMonth() + 1 !== releaseParts[1]
-    || releaseDate.getUTCDate() !== releaseParts[2]
-  ) {
+  if (!releaseParts) {
     addCheck(checks, 'release_date', 'failed', `Release version ${options.version} does not encode a valid calendar date.`);
     return;
   }
-  const releaseOrdinal = releaseParts[0] * 10_000 + releaseParts[1] * 100 + releaseParts[2];
+  const currentParts = [Number(currentMatch[1]), Number(currentMatch[2]), Number(currentMatch[3])] as const;
+  const releaseOrdinal = releaseParts.year * 10_000 + releaseParts.month * 100 + releaseParts.day;
   const currentOrdinal = currentParts[0] * 10_000 + currentParts[1] * 100 + currentParts[2];
   if (releaseOrdinal > currentOrdinal) {
     addCheck(

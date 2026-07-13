@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs as parseNodeArgs } from 'node:util';
+import { assertCanonicalReleaseVersion } from './release-version.ts';
 
 type Channel = 'stable' | 'nightly';
 type PackageKind = 'app_standard' | 'app_full_first_install';
@@ -169,10 +170,12 @@ function validateOptions(options: Options): ResolvedOptions {
 
   const packageKind = inferPackageKind(options);
 
-  if (options.channel === 'nightly' && !/^[0-9]{2}\.(?:[1-9]|1[0-2])\.(?:[1-9]|[12][0-9]|3[01])-nightly\.[1-9][0-9]*\.[1-9][0-9]*$/.test(options.version)) {
-    throw new Error('Nightly Homebrew tap updates must use YY.M.D-nightly.<run_id>.<run_attempt>.');
-  }
-  if (options.channel === 'stable' && !/^[0-9]{2}\.(?:[1-9]|1[0-2])\.(?:[1-9]|[12][0-9]|3[01])$/.test(options.version)) {
+  try {
+    assertCanonicalReleaseVersion(options.channel, options.version);
+  } catch {
+    if (options.channel === 'nightly') {
+      throw new Error('Nightly Homebrew tap updates must use YY.M.D-nightly.<run_id>.<run_attempt>.');
+    }
     throw new Error('Stable Homebrew tap updates must use YY.M.D without a same-day suffix.');
   }
   if (packageKind === 'app_full_first_install' && options.channel !== 'stable') {

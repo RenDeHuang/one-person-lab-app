@@ -412,6 +412,9 @@ function readReleaseState(repo, tag) {
 
 function readMutationReleaseState(repo, tag) {
   if (process.env.OPL_RELEASE_MUTATION_STATE_JSON?.trim()) {
+    if (process.env.OPL_RELEASE_TEST_MODE !== '1') {
+      throw new Error('OPL_RELEASE_MUTATION_STATE_JSON is a test-only fixture and cannot replace remote draft readback.');
+    }
     return JSON.parse(process.env.OPL_RELEASE_MUTATION_STATE_JSON);
   }
   return queryReleaseState(repo, tag);

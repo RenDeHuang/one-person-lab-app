@@ -88,6 +88,8 @@ node --experimental-strip-types scripts/validate-active-shell.ts --only i18n_typ
 node --experimental-strip-types scripts/prepare-release-assets.ts build-artifacts release-assets
 node --experimental-strip-types scripts/validate-release.ts release-assets
 npm run release:publish -- --no-build --version <version> --standard-artifacts-dir release-assets
+npm run release:version:validate -- --channel stable --version <YY.M.D>
+npm run release:version:validate -- --channel nightly --version <YY.M.D-nightly.run_id.attempt>
 npm run release:notes -- --version <version> --channel stable --include-full-package
 npm run release:notes -- --version <YY.M.D-nightly.run_id.attempt> --channel nightly
 npm run verify-remote-release -- --version <version> --include-full-package
@@ -374,10 +376,12 @@ workflow checkout and the release-boundary check in the same change.
 
 `.github/workflows/nightly-standard-release.yml` is the standard-only Nightly
 publisher. It reuses the standard build workflow, prepares and validates
-standard updater assets, publishes or refreshes the daily prerelease semver tag,
-updates that tag to the current workflow commit on same-day reruns, keeps
-`latest` unchanged, writes release notes that compare against the previous
-Nightly, and runs the remote standard asset verifier without Full assets.
+standard updater assets, validates the contract-owned canonical Nightly version,
+creates one unique immutable prerelease per workflow run attempt, keeps `latest`
+unchanged, writes release notes that compare against the previous Nightly, and
+runs the remote standard asset verifier without Full assets. Its operator plan
+starts with the Nightly version gate and source gate; it never calls Stable
+preflight.
 
 AI release-note drafting is a pre-release preparation path, not publish/promote
 critical-path work. Stable desktop release jobs prepare release-blocking notes

@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs as parseNodeArgs } from 'node:util';
+import { assertCanonicalReleaseVersion } from './release-version.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -112,6 +113,7 @@ function parseArgs(argv: string[]) {
 }
 
 function buildPlan(options: ReturnType<typeof parseArgs>) {
+  assertCanonicalReleaseVersion(options.profile, options.version);
   if (options.profile === 'nightly') {
     return {
       schema_version: 1,
@@ -127,9 +129,17 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
       },
       lanes: [
         {
-          id: 'release_source_gate',
+          id: 'release_version_gate',
           phase: 'fast_candidate',
           depends_on: [],
+          can_run_with: [],
+          command: `npm run release:version:validate -- --channel nightly --version ${options.version}`,
+          required_for: ['nightly_standard_release'],
+        },
+        {
+          id: 'release_source_gate',
+          phase: 'fast_candidate',
+          depends_on: ['release_version_gate'],
           can_run_with: [],
           command: `npm run release:source-gate -- --version ${options.version} --app-ref "$APP_SHA" --shell-ref "$SHELL_REF" --framework-ref "$FRAMEWORK_REF" --framework-root "$FRAMEWORK_ROOT" --require-shell-format true --run-shell-tests true --output release-source-gate.json --json`,
           required_for: ['nightly_standard_release'],

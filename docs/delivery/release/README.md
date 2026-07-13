@@ -58,6 +58,20 @@ long-term update channel. Standard updater metadata targets OPL App only.
 | WebUI/GHCR | App-owned preheated Docker/WebUI runtime image for browser-first Linux/container deployment. It is not the desktop App GUI shell install path and is not an OPL Packages member. | OCI source label, package access, publish output, image manifest/volume boundary, image smoke/evidence artifacts. |
 | Managed maintenance | Framework lifecycle for OPL Base and OPL Packages; App self-update remains App/carrier-owned. | Three-object status, Framework receipts, Base dependency/integration detail, Packages projection/profile-migration detail, and App host-route readback. |
 
+## Canonical Versions
+
+App release versions have two exact forms, owned by
+`contracts/app-release-channel.json#github_release_name` and executed through
+`npm run release:version:validate`:
+
+- Stable: `^[0-9]{2}\.(?:[1-9]|1[0-2])\.(?:[1-9]|[12][0-9]|3[01])$`
+- Nightly: `^[0-9]{2}\.(?:[1-9]|1[0-2])\.(?:[1-9]|[12][0-9]|3[01])-nightly\.[1-9][0-9]*\.[1-9][0-9]*$`
+
+Both forms also require a real calendar date. Stable is `YY.M.D` without
+leading zeroes or a same-day suffix. Every Nightly workflow attempt gets a
+unique immutable `YY.M.D-nightly.<github_run_id>.<github_run_attempt>` identity;
+Nightly is never a Stable refresh or promotion source.
+
 Standard macOS DMGs use electron-builder-supported `ULFO` / LZFSE compression
 by default. Current electron-builder 26.8.1 does not accept `ULMO` in
 `dmg.format`; treating `ULMO` as a standard default would require a separate
@@ -126,6 +140,15 @@ published, and with readable assets. If GitHub publication visibility lags or
 the tag/release binding drifts, the promote job retries briefly and fails at
 that boundary instead of letting Homebrew fail later with an ambiguous
 `release not found`.
+
+All GitHub Release mutations for one Stable App version use
+`opl-app-release-mutation-<version>`. Desktop and promote hold that lock, and a
+standalone Full run joins it when `publish_to_release=true`. Embedded
+artifact-only Full builds use a separate build key because they do not mutate a
+release and must not self-block their desktop caller. Immediately before notes
+replacement and before every asset upload attempt, `release:publish` reads the
+remote release again and requires `isDraft=true`; a published release can never
+reach the `--clobber` upload command.
 
 Homebrew tap writes remain direct commits, not pull requests, but same
 channel/version writes are serialized across Standard and Full casks. If the
@@ -202,7 +225,9 @@ Stable release flow:
 12. Run post-release user-guide/screenshots only after promotion; they are never
    pre-promotion gates.
 
-Nightly and candidate flows follow the same SSOT contract but do not imply stable/latest promotion.
+Nightly follows an executable `release version gate -> release source gate ->
+standard build -> immutable prerelease publish -> remote verify` plan. It does
+not call Stable preflight and does not imply Stable/latest promotion.
 
 The stable candidate is valid only for one frozen App/Shell/Framework SHA
 cohort. Remote movement after the freeze is `post-freeze drift`: it may make the
