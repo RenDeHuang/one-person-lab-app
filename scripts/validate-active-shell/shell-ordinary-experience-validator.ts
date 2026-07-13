@@ -76,7 +76,7 @@ export function assertCurrentGuidHomeSelectionSources({
       'data-opl-active={String(active)}',
       "? '!border-primary-5 !bg-primary-1 !text-primary-6'",
       '<FontAwesomeIcon icon={faCheck}',
-      '<Right',
+      'faChevronRight',
       'active && onClear ? onClear() : onSelect(assistant.id)',
     ],
     'Active shell Guid Home starter component',

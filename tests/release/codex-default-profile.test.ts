@@ -86,7 +86,7 @@ test('active-shell source gate requires Home starters and Capabilities routing i
       'data-opl-active={String(active)}',
       "? '!border-primary-5 !bg-primary-1 !text-primary-6'",
       '<FontAwesomeIcon icon={faCheck}',
-      '<Right',
+      'faChevronRight',
       'active && onClear ? onClear() : onSelect(assistant.id)',
     ].join('\n'),
     capabilitiesPage: [
@@ -100,6 +100,12 @@ test('active-shell source gate requires Home starters and Capabilities routing i
     assertCurrentGuidHomeSelectionSources({
       ...currentSources,
       guidPage: `${currentSources.guidPage}\nAssistantSelectionArea\nMentionSelectorBadge`,
+    }),
+  );
+  assert.throws(() =>
+    assertCurrentGuidHomeSelectionSources({
+      ...currentSources,
+      homeStarters: currentSources.homeStarters.replace('faChevronRight', ''),
     }),
   );
 });
