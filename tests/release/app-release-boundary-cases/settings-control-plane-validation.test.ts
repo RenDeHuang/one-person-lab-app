@@ -25,7 +25,7 @@ function validate(values = contracts()) {
   );
 }
 
-test("Settings contract keeps nine product pages, two secondary pages, and anchored compatibility routes", () => {
+test("Settings contract keeps ten product pages, two secondary pages, and anchored compatibility routes", () => {
   const values = contracts();
 
   assert.doesNotThrow(() => validate(values));
@@ -35,6 +35,7 @@ test("Settings contract keeps nine product pages, two secondary pages, and ancho
       "overview",
       "access",
       "workspace",
+      "agents",
       "capabilities",
       "resources",
       "maintenance",
@@ -49,9 +50,10 @@ test("Settings contract keeps nine product pages, two secondary pages, and ancho
       "概览",
       "模型与访问",
       "工作区",
-      "智能体与能力",
+      "智能体",
+      "能力",
       "资源与连接",
-      "维护",
+      "本机环境",
       "数据与存储",
       "偏好",
       "个性化",
@@ -559,7 +561,7 @@ test("Settings strictly separates configuration, status, action, and diagnostic 
     "never_overwrite_an_existing_conversation_without_an_explicit_collision_decision",
   );
   assert.equal(
-    experience.page_contracts.capabilities.management_discoverability
+    experience.page_contracts.agents.management_discoverability
       .raw_source_fallback_allowed,
     false,
   );
@@ -650,9 +652,9 @@ test("Settings validator rejects page-state DOM and search-entry drift", () => {
   const assistantValues = contracts();
   assistantValues.pageStateMatrix.pages
     .find((page) => page.id === "capabilities")
-    .codex_plugin_directory_target.tab_contract.tab_order.push("assistants");
+    .tab_contract.tab_order.push("assistants");
   assert.throws(
     () => validate(assistantValues),
-    /Capabilities tab contract/,
+    /Capabilities source-group tab contract/,
   );
 });

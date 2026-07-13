@@ -116,7 +116,8 @@ GUI contract 与 Settings Control Plane 拥有。
 | Overview | 判断 App 当前是否可用，以及最重要的下一步。 | Settings Control Plane、fast App state。 |
 | Access | 配置或检查模型访问、Codex CLI 和远程访问。 | App state/action、access contracts。 |
 | Workspace | 查看、切换、验证工作目录和权限。 | Workspace state/action。 |
-| Agents & Capabilities | 管理 packages、Home shortcuts 和 capability exposure；这是管理面，不是 ordinary rail 中的工作目的选择页。 | Agent package state/action 与 product profile。 |
+| Agents | 管理可运行 Agent packages、依赖就绪、Home shortcuts 与 launch/lifecycle。 | Agent package state/action 与 product profile。 |
+| Capabilities | 分组管理 OPL Flow dependency closure 内的推荐 Skill/Plugin，以及手工或第三方 Skill/Plugin；Flow 不拥有第二套 updater。 | Settings control plane、OPL Packages closure 与 Codex/shell registries。 |
 | Resources & Connections | 查看本机、远程、托管资源与连接 refs。 | Framework/Gateway/Fabric/Console refs；App 只展示。 |
 | Maintenance & Updates | 查看 App、runtime、packages、Codex Surface 和本机服务维护动作。 | Managed update/status/action contracts。 |
 | Data & Storage | 查看空间、数据分类、preview 和安全 cleanup action。 | App-owned storage lifecycle state/action。 |

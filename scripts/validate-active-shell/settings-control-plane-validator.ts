@@ -41,8 +41,10 @@ const settingsIaRef =
   "contracts/app-gui-product-contract.json#settings_navigation.settings_ia";
 const settingsControlPlaneContractRef =
   "contracts/app-settings-control-plane.json";
-const expectedCapabilitiesStateSource =
+const expectedAgentsStateSource =
   "opl app state --profile fast --json#app_state.agent_packages.directory + app_state.agent_packages.status_index + home_agent_shortcuts + app_state.operator.workbench.task_drilldowns";
+const expectedCapabilitiesStateSource =
+  "opl app state --profile fast --json#app_state.agent_packages.directory.installed_packages[package_id=opl-flow].bundled_required_skill_ids + physical_surface.workflow_policy_migration.dependency_sync + Codex and shell skill/plugin registries";
 
 const expectedLegacyRedirects = {
   ...legacySettingsRouteRedirects,
@@ -60,6 +62,7 @@ const expectedAnchorRemap = Object.fromEntries(
 const expectedSlotKeys = [
   "settings_general",
   "settings_access",
+  "settings_agents",
   "settings_capabilities",
   "settings_environment",
   "settings_storage",
@@ -85,6 +88,7 @@ const expectedPageAdapterEntries = {
   environment:
     "packages/desktop/src/renderer/pages/settings/RuntimeSettings/runtimeSettingsViewModel.ts",
   storage: "packages/desktop/src/renderer/pages/settings/storageProjection.ts",
+  agents: "packages/desktop/src/renderer/pages/settings/agentPackagesProjection.ts",
   capabilities:
     "packages/desktop/src/renderer/pages/settings/capabilitiesProjection.ts",
 };
@@ -93,6 +97,7 @@ const expectedVisualQaRoutes = [
   "/settings/general",
   "/settings/access",
   "/settings/workspace",
+  "/settings/agents",
   "/settings/capabilities",
   "/settings/resources",
   "/settings/environment",
@@ -131,6 +136,7 @@ const expectedVisualQaManifestFields = [
 const matrixRouteScopes = {
   settings_general: appOwnedSettingsRouteScopes.settings_general,
   access: appOwnedSettingsRouteScopes.access,
+  agents: appOwnedSettingsRouteScopes.agents,
   capabilities: appOwnedSettingsRouteScopes.capabilities,
   settings_resources: appOwnedSettingsRouteScopes.resources,
   environment: appOwnedSettingsRouteScopes.environment,
@@ -148,6 +154,7 @@ const matrixRouteScopes = {
 const expectedIaGroupByMatrixPageId = {
   settings_general: "overview",
   access: "setup_access",
+  agents: "agents",
   capabilities: "capabilities",
   settings_resources: "resources",
   environment: "maintenance",
@@ -354,6 +361,7 @@ export function validateSettingsControlPlane(
       "settings_general",
       "settings_access",
       "workspace",
+      "settings_agents",
       "settings_capabilities",
       "settings_resources",
       "settings_environment",
@@ -411,13 +419,37 @@ export function validateSettingsControlPlane(
       "Settings control plane default route must be /settings/general",
     );
   }
-  const capabilitiesRoute = (controlPlane.ordinary_routes ?? []).find(
-    (route) => route.id === "capabilities",
+  const agentsRoute = (controlPlane.ordinary_routes ?? []).find(
+    (route) => route.id === "agents",
   );
-  if (capabilitiesRoute?.state_source !== expectedCapabilitiesStateSource) {
+  if (agentsRoute?.state_source !== expectedAgentsStateSource.replace(" + app_state.operator.workbench.task_drilldowns", "")) {
     throw new Error(
-      "Settings capabilities route must read from canonical agent_packages plus Home shortcut and task-awareness projections",
+      "Settings Agents route must read from canonical agent_packages plus Home shortcut projections",
     );
+  }
+  const capabilityOwnership = controlPlane.agents_capabilities_ownership?.capabilities;
+  const externalUpdates = controlPlane.external_tool_update_policy;
+  assertDeepEqualJson(capabilityOwnership?.entity_kinds, ["skill", "plugin"], "Settings capability entity kinds");
+  if (
+    capabilityOwnership?.groups?.opl_flow_managed?.membership_policy !==
+      "derive_from_installed_opl_flow_package_policy_never_from_app_hardcoded_skill_list" ||
+    capabilityOwnership?.groups?.opl_flow_managed?.lifecycle_owner !== "opl_packages" ||
+    capabilityOwnership?.groups?.opl_flow_managed?.cli_currentness_owner !== "opl_base" ||
+    capabilityOwnership?.groups?.manual_and_third_party?.mutation_policy !== "explicit_user_action_only"
+  ) {
+    throw new Error("Settings Capabilities must separate OPL Flow dependency closure from manual and third-party Skills/Plugins");
+  }
+  assertDeepEqualJson(
+    externalUpdates?.modes,
+    ["silent_managed", "explicit_owner_delegated", "detect_only_guidance"],
+    "Settings external tool update modes",
+  );
+  if (
+    externalUpdates?.silent_managed?.allowed_for !== "opl_managed_install_roots_only" ||
+    externalUpdates?.explicit_owner_delegated?.user_confirmation_required !== true ||
+    externalUpdates?.detect_only_guidance?.mutation_allowed !== false
+  ) {
+    throw new Error("Settings external updates must keep silent managed, explicit owner-delegated, and guidance-only boundaries");
   }
   if (
     controlPlane.extension_tab_policy?.legacy_anchor_remap_required !== true ||
@@ -698,11 +730,11 @@ function validateCrossContractConsistency(
     "Settings Resources browser entry vs GUI contract",
   );
   assertDeepEqualJson(
-    guiContract?.pages?.settings_capabilities?.codex_plugin_directory_target
+    guiContract?.pages?.settings_agents?.codex_plugin_directory_target
       ?.tab_contract,
-    controlPlane.experience_contract?.page_contracts?.capabilities
+    controlPlane.experience_contract?.page_contracts?.agents
       ?.tab_contract,
-    "Settings Agents & Capabilities tab contract vs GUI contract",
+    "Settings Agents compatibility tab contract vs GUI contract",
   );
   assertDeepEqualJson(
     guiContract?.pages?.settings_resources?.action_behavior,
@@ -945,7 +977,7 @@ function validateSettingsTopLevelEntries(entries, policy) {
       "carrier_route_ids_remain_stable_while_product_page_ids_are_canonical"
   ) {
     throw new Error(
-      "Settings IA must declare nine product pages, independent About, and compatibility anchor routes",
+      "Settings IA must declare ten product pages, independent About, and compatibility anchor routes",
     );
   }
   assertDeepEqualJson(
@@ -1360,9 +1392,9 @@ function validateSettingsPageStateMatrix(
     }
     if (productPageId === "capabilities") {
       assertDeepEqualJson(
-        page.codex_plugin_directory_target?.tab_contract,
+        page.tab_contract,
         contract.tab_contract,
-        "Page-state Agents & Capabilities tab contract",
+        "Page-state Capabilities source-group tab contract",
       );
     }
     if (productPageId === "resources") {
@@ -1405,6 +1437,7 @@ function validateHydratedSettingsRegistry(controlPlane) {
       "OverviewSettings",
       "AccessSettingsContent",
       "WorkspaceSettings",
+      "AgentPackagesSettingsContent",
       "CapabilitiesSettingsContent",
       "ResourcesSettingsContent",
       "RuntimeSettings",
@@ -1865,8 +1898,8 @@ export function validateSettingsExperienceContract(experience) {
 
   const pageContracts = experience.page_contracts ?? {};
   assertDeepEqualJson(
-    Object.keys(pageContracts),
-    appOwnedSettingsProductPageIds,
+    Object.keys(pageContracts).sort(),
+    [...appOwnedSettingsProductPageIds].sort(),
     "Settings experience product page ids",
   );
   const routeByProductPage = new Map([
@@ -2012,7 +2045,7 @@ export function validateSettingsExperienceContract(experience) {
     "Settings Workspace surface rules",
   );
   assertDeepEqualJson(
-    pageContracts.capabilities.management_discoverability,
+    pageContracts.agents.management_discoverability,
     {
       primary_row_controls: ["home_visibility", "manage"],
       lifecycle_actions: ["update", "repair", "enable", "disable", "uninstall"],
@@ -2021,7 +2054,7 @@ export function validateSettingsExperienceContract(experience) {
       home_preference_policy:
         "single_reactive_owner_with_success_commit_and_failure_rollback",
     },
-    "Settings capability management discoverability",
+    "Settings Agent package management discoverability",
   );
   assertDeepEqualJson(
     pageContracts.preferences.surface_rules,
@@ -2254,8 +2287,8 @@ function validateSettingsPageAdapterPolicy(controlPlane) {
   }
   const requiredPages = policy.required_pages ?? {};
   assertDeepEqualJson(
-    Object.keys(requiredPages),
-    Object.keys(expectedPageAdapterEntries),
+    Object.keys(requiredPages).sort(),
+    Object.keys(expectedPageAdapterEntries).sort(),
     "Settings page adapter required pages",
   );
   for (const [routeId, adapterEntry] of Object.entries(
@@ -2295,14 +2328,14 @@ function validateSettingsPageAdapterPolicy(controlPlane) {
   }
   validateSettingsAccessCloudBoundary(requiredPages.access);
   validateSettingsCapabilitiesResourceGrouping(
-    requiredPages.capabilities?.resource_grouping_surface,
-    "Settings Capabilities page adapter resource grouping surface",
+    requiredPages.agents?.resource_grouping_surface,
+    "Settings Agents page adapter resource grouping surface",
   );
-  validateSettingsCapabilitiesDirectoryProjection(requiredPages.capabilities);
+  validateSettingsCapabilitiesDirectoryProjection(requiredPages.agents);
 }
 
 function validateSettingsCapabilitiesDirectoryProjection(capabilitiesPage) {
-  if (capabilitiesPage?.state_source !== expectedCapabilitiesStateSource) {
+  if (capabilitiesPage?.state_source !== expectedAgentsStateSource) {
     throw new Error(
       "Settings Capabilities page adapter must read from canonical agent_packages plus Home shortcut and task-awareness projections",
     );
@@ -2338,7 +2371,7 @@ function validateSettingsCapabilitiesDirectoryProjection(capabilitiesPage) {
     directory.normalization_policy !==
       "shell must prefer canonical agent_packages projection and only fall back to modules.items when older runtime payloads or partial projections are still in circulation" ||
     directory.activation_action_contract_ref !==
-      "contracts/app-gui-product-contract.json#pages.settings_capabilities.agent_package_lifecycle_ux.package_projection_contract.activation_preparation_policy"
+      "contracts/app-gui-product-contract.json#pages.settings_agents.agent_package_lifecycle_ux.package_projection_contract.activation_preparation_policy"
   ) {
     throw new Error(
       "Settings Capabilities directory projection must explain canonical projection preference, legacy fallback, and package activation action",

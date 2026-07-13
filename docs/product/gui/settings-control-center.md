@@ -14,7 +14,7 @@ search behavior, or readiness claims from upstream AionUI defaults.
 
 These contracts own:
 
-- the nine ordinary product pages;
+- the ten ordinary product pages;
 - the two secondary product pages;
 - compatibility redirect targets and anchors;
 - the single Settings search index;
@@ -72,9 +72,10 @@ implementation ids so the shell can migrate without changing user-facing IA.
 | `overview`     | 概览          | `general`      | `/settings/general`      | ordinary  |
 | `access`       | 模型与访问    | `access`       | `/settings/access`       | ordinary  |
 | `workspace`    | 工作区        | `workspace`    | `/settings/workspace`    | ordinary  |
-| `capabilities` | 智能体与能力  | `capabilities` | `/settings/capabilities` | ordinary  |
+| `agents`       | 智能体        | `agents`       | `/settings/agents`       | ordinary  |
+| `capabilities` | 能力          | `capabilities` | `/settings/capabilities` | ordinary  |
 | `resources`    | 资源与连接    | `resources`    | `/settings/resources`    | ordinary  |
-| `maintenance`  | 维护          | `environment`  | `/settings/environment`  | ordinary  |
+| `maintenance`  | 本机环境      | `environment`  | `/settings/environment`  | ordinary  |
 | `storage`      | 数据与存储    | `storage`      | `/settings/storage`      | ordinary  |
 | `preferences`  | 偏好          | `appearance`   | `/settings/appearance`   | ordinary  |
 | `personalization` | 个性化      | `personalization` | `/settings/personalization` | ordinary |
@@ -245,7 +246,7 @@ layers. The system-level editor separately offers Restore OPL Flow Default,
 which reads the canonical `templates/AGENTS.md` from the selected current OPL
 Flow package and applies it through the same SHA-guarded Framework write path.
 
-Capability package sync is a single-click Maintenance action. The Shell must
+Capability package sync is a single-click Local Environment action. The Shell must
 call `settings_sync_capabilities` through `opl app action execute` immediately,
 keep progress and the result on the original maintenance item, and must not
 insert a second confirmation card. The generic managed-update `check` read is
@@ -276,6 +277,27 @@ Required anchors: `status`, `attention`, `next-action`, `common-actions`.
 
 Overview must not copy the Settings sidebar into page cards or render a
 directory wall for the other pages.
+
+### Agents, Capabilities, and Local Environment
+
+`Agents` is the runnable Agent package directory. It owns Agent install, update,
+repair, enable, disable, uninstall, Home visibility/order, dependency readiness,
+and launch. Skills and Plugins do not appear there.
+
+`Capabilities` groups Skills and Plugins by ownership. `OPL Flow managed` is
+derived from the installed Flow package policy projection and reconciles through
+OPL Packages on startup, daily maintenance, and explicit package updates. `Manual
+and third-party` preserves the detected source and requires explicit user action.
+The App does not hardcode Flow membership, Flow does not implement a second
+updater, and CLI currentness remains an OPL Base responsibility.
+
+`Local Environment` manages OPL Base, OPL App, and OPL Packages. Codex and
+Temporal currentness uses three visible modes: OPL-managed installs may update
+silently; external installs with a reliably identified original owner may offer
+an explicitly confirmed delegated update; unknown or unsupported owners receive
+detection and guidance only. OPL never silently overwrites Homebrew, npm, PATH,
+or system installs. Temporal JavaScript dependencies move with the OPL Base
+generation and do not have an independent OPL updater.
 
 ### Models & Access / 模型与访问
 

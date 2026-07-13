@@ -1,7 +1,6 @@
 import { assertDeepEqualJson, assertIncludesAll, readJson } from './assertions.ts';
 import {
   appOwnedSettingsResourcesBrowserEntry,
-  appOwnedSettingsCapabilitiesTabContract,
   appOwnedSettingsCompatibilityRedirects,
   appOwnedSettingsResourceActionBehavior,
   appOwnedSettingsTechnicalDetailsDefault,
@@ -17,6 +16,7 @@ const guiSettingsPageToMatrixPage = {
   settings_general: 'settings_general',
   settings_access: 'access',
   settings_workspace: 'settings_workspace',
+  settings_agents: 'agents',
   settings_capabilities: 'capabilities',
   settings_resources: 'settings_resources',
   settings_environment: 'environment',
@@ -98,19 +98,33 @@ function pageById(matrix, id) {
 }
 
 function validateCapabilitiesPage(matrix, guiContract) {
-  const capabilitiesPage = pageById(matrix, 'capabilities');
+  const capabilityPage = pageById(matrix, 'capabilities');
+  if (
+    capabilityPage.ownership_ref !== 'contracts/app-settings-control-plane.json#agents_capabilities_ownership.capabilities' ||
+    !capabilityPage.must_show?.includes('OPL Flow managed and recommended Skills and Plugins from package dependency closure') ||
+    !capabilityPage.must_not_show?.includes('silent mutation of manual or third-party Skills and Plugins')
+  ) {
+    throw new Error('Capabilities page must separate OPL Flow dependency-closure capabilities from manual and third-party Skills/Plugins');
+  }
+  const capabilitiesPage = pageById(matrix, 'agents');
   if (capabilitiesPage.refresh_source !== 'opl app state --profile fast --json') {
     throw new Error('Capabilities page must refresh through opl app state --profile fast --json');
   }
   assertDeepEqualJson(
     capabilitiesPage.codex_plugin_directory_target?.tab_contract,
-    appOwnedSettingsCapabilitiesTabContract,
-    'Capabilities page OPL supporting tab contract',
+    {
+      surface_label_zh: '智能体',
+      surface_label_en: 'Agents',
+      tab_order: ['agents'],
+      default_tab: 'agents',
+      on_demand_tab_ids: [],
+    },
+    'Agents page package directory tab contract',
   );
   assertDeepEqualJson(
-    guiContract.pages?.settings_capabilities?.codex_plugin_directory_target?.tab_contract,
-    appOwnedSettingsCapabilitiesTabContract,
-    'App GUI Capabilities OPL supporting tab contract',
+    guiContract.pages?.settings_agents?.codex_plugin_directory_target?.tab_contract,
+    capabilitiesPage.codex_plugin_directory_target?.tab_contract,
+    'App GUI Agents package directory tab contract',
   );
   if (
     capabilitiesPage.machine_source !==
@@ -185,7 +199,7 @@ function validateCapabilitiesPage(matrix, guiContract) {
   );
   assertDeepEqualJson(
     capabilitiesPage.agent_package_lifecycle_ux,
-    guiContract.pages.settings_capabilities.agent_package_lifecycle_ux,
+    guiContract.pages.settings_agents.agent_package_lifecycle_ux,
     'Capabilities page Agent Package lifecycle UX mirror of App GUI contract',
   );
   assertDeepEqualJson(

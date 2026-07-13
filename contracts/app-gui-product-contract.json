@@ -2245,6 +2245,7 @@
       "general",
       "access",
       "workspace",
+      "agents",
       "capabilities",
       "resources",
       "environment",
@@ -2257,7 +2258,7 @@
       "runtime": "environment",
       "system": "advanced",
       "model": "environment",
-      "agent": "capabilities",
+      "agent": "agents",
       "assistants": "capabilities?tab=skills",
       "skills-hub": "capabilities",
       "tools": "capabilities",
@@ -2282,6 +2283,7 @@
       "general",
       "access",
       "workspace",
+      "agents",
       "capabilities",
       "resources",
       "environment",
@@ -2315,7 +2317,8 @@
     },
     "source": "opl app state --profile fast --json",
     "refresh_source": "opl app state --profile fast --json",
-    "policy": "Settings is the App-owned OPL card-based control center. It preserves the established bounded-card visual baseline while organizing content around user questions, current state, and owned actions. The nine product pages are Overview, Access, Workspace, Agents & Capabilities, Resources & Connections, Maintenance, Data & Storage, Preferences, and Personalization. Shell carrier route ids remain general, access, workspace, capabilities, resources, environment, storage, appearance, and personalization. Advanced and About are the only independent secondary pages. Update, Theme, and Local Services are compatibility redirects to environment#updates, appearance#themes, and environment#services through route id plus anchor fields. About remains /settings/about and must never redirect to Advanced.",
+    "policy": "Settings is the App-owned OPL card-based control center. Agents, Capabilities, and Local Environment are separate owner surfaces: Agents manages runnable Agent packages; Capabilities manages OPL Flow dependency-closure Skills/Plugins plus manual and third-party Skills/Plugins; Local Environment manages OPL Base, OPL App, OPL Packages, and external-tool update guidance. Advanced and About are the only independent secondary pages.",
+    "agents_capabilities_ownership_ref": "contracts/app-settings-control-plane.json#agents_capabilities_ownership",
     "settings_ia": {
       "schema": "settings_ia.v1",
       "authority": "one-person-lab-app",
@@ -2336,6 +2339,7 @@
         "general",
         "access",
         "workspace",
+        "agents",
         "capabilities",
         "resources",
         "environment",
@@ -2347,6 +2351,7 @@
       "group_ids": [
         "overview",
         "setup_access",
+        "agents",
         "capabilities",
         "resources",
         "maintenance",
@@ -2393,12 +2398,24 @@
           "frequency": "first_run_or_project_switch"
         },
         {
+          "id": "agents",
+          "route_id": "agents",
+          "route_scope": "ordinary",
+          "visibility": "top_level_navigation",
+          "label_en": "Agents",
+          "label_zh": "智能体",
+          "scope": "user",
+          "intent": "manage",
+          "risk": "reversible",
+          "frequency": "occasional"
+        },
+        {
           "id": "capabilities",
           "route_id": "capabilities",
           "route_scope": "ordinary",
           "visibility": "top_level_navigation",
-          "label_en": "Agents & Capabilities",
-          "label_zh": "智能体与能力",
+          "label_en": "Capabilities",
+          "label_zh": "能力",
           "scope": "user",
           "intent": "view_status",
           "risk": "reversible",
@@ -2421,8 +2438,8 @@
           "route_id": "environment",
           "route_scope": "ordinary",
           "visibility": "top_level_navigation",
-          "label_en": "Maintenance",
-          "label_zh": "维护",
+          "label_en": "Local Environment",
+          "label_zh": "本机环境",
           "scope": "machine",
           "intent": "maintenance",
           "risk": "confirmation_required",
@@ -2666,6 +2683,7 @@
             "desktop_settings_overview",
             "desktop_settings_access",
             "desktop_settings_workspace",
+            "desktop_settings_agents",
             "desktop_settings_capabilities",
             "desktop_settings_resources",
             "desktop_settings_maintenance",
@@ -4428,7 +4446,46 @@
     },
     "settings_capabilities": {
       "state_source": "opl app state --profile fast --json",
+      "projection_source": "app_state.agent_packages.directory.installed_packages[package_id=opl-flow].bundled_required_skill_ids + physical_surface.workflow_policy_migration.dependency_sync + Codex and shell skill/plugin registries",
       "refresh_source": "opl app state --profile fast --json",
+      "ownership_ref": "contracts/app-settings-control-plane.json#agents_capabilities_ownership.capabilities",
+      "sections": ["opl_flow_managed", "manual_and_third_party", "details"],
+      "entity_kinds": ["skill", "plugin"],
+      "tab_contract": {
+        "surface_label_zh": "能力",
+        "surface_label_en": "Capabilities",
+        "tab_order": ["opl_flow_managed", "manual_and_third_party"],
+        "default_tab": "opl_flow_managed",
+        "on_demand_tab_ids": []
+      },
+      "group_policy": {
+        "opl_flow_managed": "derive membership from the installed OPL Flow package policy projection; OPL Packages owns reconciliation",
+        "manual_and_third_party": "show Codex and shell registry entries with detected owner; mutate only after explicit user action"
+      },
+      "lifecycle_policy": {
+        "flow_role": "dependency_and_profile_intent_only_not_a_second_updater",
+        "skill_currentness_owner": "opl_packages_dependency_closure_reconciliation",
+        "cli_currentness_owner": "opl_base",
+        "hardcoded_app_skill_list_allowed": false
+      },
+      "must_show": [
+        "OPL Flow managed and recommended Skills and Plugins from package dependency closure",
+        "manual and third-party Skills and Plugins from Codex and shell registries",
+        "source, owner, version, currentness, and available explicit actions"
+      ],
+      "must_not_show": [
+        "runnable Agent package lifecycle",
+        "a second OPL Flow updater or scheduler",
+        "silent mutation of manual or third-party Skills and Plugins"
+      ],
+      "product_page_id": "capabilities",
+      "ia_group": "capabilities",
+      "experience_contract_ref": "contracts/app-settings-control-plane.json#experience_contract.page_contracts.capabilities"
+    },
+    "settings_agents": {
+      "state_source": "opl app state --profile fast --json",
+      "refresh_source": "opl app state --profile fast --json",
+      "ownership_ref": "contracts/app-settings-control-plane.json#agents_capabilities_ownership.agents",
       "task_awareness_refs_source": "contracts/app-runtime-bridge.json#task_awareness_projection.settings_capabilities_surface",
       "task_awareness_ref_fields": [
         "capability_health_refs",
@@ -4452,13 +4509,13 @@
       "task_awareness_ref_policy": "thin_renderer_refs_only_no_skill_body_no_artifact_body_no_domain_verdict",
       "export_bundle_action_policy": "show_export_bundle_action_ref_and_dry_run_receipt_without_claiming_domain_export_readiness",
       "codex_plugin_directory_target": {
-        "target_label_zh": "智能体与能力",
-        "target_label_en": "Agents & Capabilities",
+        "target_label_zh": "智能体",
+        "target_label_en": "Agents",
         "tab_contract": {
-          "surface_label_zh": "智能体与能力",
-          "surface_label_en": "Agents & Capabilities",
-          "tab_order": ["skills", "tools"],
-          "default_tab": "skills",
+          "surface_label_zh": "智能体",
+          "surface_label_en": "Agents",
+          "tab_order": ["agents"],
+          "default_tab": "agents",
           "on_demand_tab_ids": []
         },
         "mental_model": "codex_app_plugin_manager_compact_package_directory",
@@ -4993,12 +5050,20 @@
           ]
         }
       },
-      "product_page_id": "capabilities",
-      "experience_contract_ref": "contracts/app-settings-control-plane.json#experience_contract.page_contracts.capabilities"
+      "product_page_id": "agents",
+      "experience_contract_ref": "contracts/app-settings-control-plane.json#experience_contract.page_contracts.agents"
     },
     "settings_environment": {
       "state_source": "opl app state --profile fast --json",
       "refresh_source": "opl app state --profile fast --json",
+      "ownership_ref": "contracts/app-settings-control-plane.json#agents_capabilities_ownership.local_environment",
+      "external_tool_update_policy_ref": "contracts/app-settings-control-plane.json#external_tool_update_policy",
+      "external_update_modes": [
+        "silent_managed",
+        "explicit_owner_delegated",
+        "detect_only_guidance"
+      ],
+      "external_update_display_policy": "show Codex and Temporal currentness and detected install owner; only OPL-managed roots update silently, reliably identified external owners require explicit confirmation, and unknown owners receive guidance only",
       "sections": [
         "health",
         "updates",

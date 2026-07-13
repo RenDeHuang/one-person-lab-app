@@ -9,6 +9,89 @@
   "product_profile_projection_target": "settings.control_plane",
   "active_shell": "aionui",
   "shell_adapter_role": "render_host_and_route_adapter_only",
+  "agents_capabilities_ownership": {
+    "agents": {
+      "route_id": "agents",
+      "path": "/settings/agents",
+      "slot_id": "settings_agents",
+      "component_key": "AgentPackagesSettingsContent",
+      "owns": [
+        "runnable_agent_package_directory",
+        "agent_package_lifecycle",
+        "agent_home_visibility_and_order",
+        "agent_launch_and_dependency_readiness"
+      ],
+      "must_not_own": ["skill_or_plugin_catalog", "opl_flow_recommendation_policy", "cli_currentness"]
+    },
+    "capabilities": {
+      "route_id": "capabilities",
+      "path": "/settings/capabilities",
+      "slot_id": "settings_capabilities",
+      "component_key": "CapabilitiesSettingsContent",
+      "entity_kinds": ["skill", "plugin"],
+      "groups": {
+        "opl_flow_managed": {
+          "source": "installed_opl_flow_package_policy_projection",
+          "source_ref": "opl app state --profile fast --json#app_state.agent_packages.directory.installed_packages[package_id=opl-flow].bundled_required_skill_ids + physical_surface.workflow_policy_migration.dependency_sync",
+          "membership_policy": "derive_from_installed_opl_flow_package_policy_never_from_app_hardcoded_skill_list",
+          "lifecycle_owner": "opl_packages",
+          "reconciliation_policy": "package_dependency_closure_reconciliation_on_startup_daily_maintenance_and_explicit_package_update",
+          "flow_role": "dependency_and_profile_intent_only_not_a_second_updater",
+          "cli_currentness_owner": "opl_base"
+        },
+        "manual_and_third_party": {
+          "source": "codex_and_shell_skill_plugin_registries",
+          "membership_policy": "show_user_managed_and_third_party_skills_and_plugins_without_reclassifying_them_as_opl_flow_managed",
+          "lifecycle_owner": "detected_install_source_or_user",
+          "mutation_policy": "explicit_user_action_only"
+        }
+      },
+      "must_not_own": ["runnable_agent_package_lifecycle", "independent_flow_update_scheduler", "cli_latest_version_resolution", "silent_third_party_mutation"]
+    },
+    "local_environment": {
+      "route_id": "environment",
+      "label_en": "Local Environment",
+      "label_zh": "本机环境",
+      "managed_objects": ["opl_base", "opl_app", "opl_packages"],
+      "base_dependency_examples": ["codex_cli", "temporal_js_runtime", "officecli_cli", "mineru_cli"],
+      "must_not_create_fourth_updater": true
+    }
+  },
+  "external_tool_update_policy": {
+    "modes": ["silent_managed", "explicit_owner_delegated", "detect_only_guidance"],
+    "selection": {
+      "opl_managed_install": "silent_managed",
+      "external_install_with_reliably_identified_owner_and_supported_update_action": "explicit_owner_delegated",
+      "external_install_with_unknown_or_unsupported_owner": "detect_only_guidance"
+    },
+    "silent_managed": {
+      "allowed_for": "opl_managed_install_roots_only",
+      "background_update_allowed": true,
+      "activation_policy": "owner_generation_switch_policy",
+      "user_confirmation_required": false
+    },
+    "explicit_owner_delegated": {
+      "background_update_allowed": false,
+      "user_confirmation_required": true,
+      "execution_policy": "delegate_to_original_install_owner_and_show_result"
+    },
+    "detect_only_guidance": {
+      "background_update_allowed": false,
+      "mutation_allowed": false,
+      "display_policy": "show_installed_version_available_version_detected_source_and_owner_specific_guidance_when_known"
+    },
+    "tool_policies": {
+      "codex_cli": {
+        "opl_managed": "silent_managed",
+        "external": "explicit_owner_delegated_or_detect_only_guidance"
+      },
+      "temporal": {
+        "opl_managed_js_runtime": "silent_managed_with_opl_base_generation",
+        "external_server_cli_or_sdk": "explicit_owner_delegated_or_detect_only_guidance"
+      }
+    },
+    "forbidden": ["silent_external_overwrite", "delegated_update_without_confirmation", "guessing_external_owner", "independent_temporal_updater_claim"]
+  },
   "shell_adapter_slot": {
     "host_component": "SettingsHost",
     "adapter_slot": "SettingsShellAdapterSlot",
@@ -107,7 +190,7 @@
         "configuration_id": "developer_supervisor",
         "owner_class": "framework",
         "truth_owner": "one-person-lab",
-        "page_id": "capabilities",
+        "page_id": "agents",
         "anchor": "source",
         "lifecycle": "persistent_configuration",
         "value_type": "object",
@@ -161,7 +244,7 @@
         "configuration_id": "capability_home_visibility",
         "owner_class": "framework",
         "truth_owner": "one-person-lab",
-        "page_id": "capabilities",
+        "page_id": "agents",
         "anchor": "home-visibility",
         "lifecycle": "persistent_per_capability_configuration",
         "value_type": "boolean",
@@ -423,6 +506,7 @@
     "general",
     "access",
     "workspace",
+    "agents",
     "capabilities",
     "resources",
     "environment",
@@ -491,15 +575,34 @@
       "experience_contract_ref": "contracts/app-settings-control-plane.json#experience_contract.page_contracts.workspace"
     },
     {
+      "id": "agents",
+      "path": "/settings/agents",
+      "label_key": "settings.agents",
+      "default_label_en": "Agents",
+      "default_label_zh": "智能体",
+      "icon_token": "agents",
+      "ia_group": "agents",
+      "slot_id": "settings_agents",
+      "state_source": "opl app state --profile fast --json#app_state.agent_packages.directory + app_state.agent_packages.status_index + home_agent_shortcuts",
+      "refresh_source": "opl app state --profile fast --json",
+      "scope": "user",
+      "intent": "manage",
+      "risk": "reversible",
+      "frequency": "occasional",
+      "product_page_id": "agents",
+      "page_state_id": "agents",
+      "experience_contract_ref": "contracts/app-settings-control-plane.json#agents_capabilities_ownership.agents"
+    },
+    {
       "id": "capabilities",
       "path": "/settings/capabilities",
       "label_key": "settings.capabilities",
-      "default_label_en": "Agents & Capabilities",
-      "default_label_zh": "智能体与能力",
+      "default_label_en": "Capabilities",
+      "default_label_zh": "能力",
       "icon_token": "capabilities",
       "ia_group": "capabilities",
       "slot_id": "settings_capabilities",
-      "state_source": "opl app state --profile fast --json#app_state.agent_packages.directory + app_state.agent_packages.status_index + home_agent_shortcuts + app_state.operator.workbench.task_drilldowns",
+      "state_source": "opl app state --profile fast --json#app_state.agent_packages.directory.installed_packages[package_id=opl-flow].bundled_required_skill_ids + physical_surface.workflow_policy_migration.dependency_sync + Codex and shell skill/plugin registries",
       "refresh_source": "opl app state --profile fast --json",
       "scope": "user",
       "intent": "view_status",
@@ -507,7 +610,7 @@
       "frequency": "occasional",
       "product_page_id": "capabilities",
       "page_state_id": "capabilities",
-      "experience_contract_ref": "contracts/app-settings-control-plane.json#experience_contract.page_contracts.capabilities"
+      "experience_contract_ref": "contracts/app-settings-control-plane.json#agents_capabilities_ownership.capabilities"
     },
     {
       "id": "resources",
@@ -532,8 +635,8 @@
       "id": "environment",
       "path": "/settings/environment",
       "label_key": "settings.maintenance",
-      "default_label_en": "Maintenance",
-      "default_label_zh": "维护",
+      "default_label_en": "Local Environment",
+      "default_label_zh": "本机环境",
       "icon_token": "maintenance",
       "ia_group": "maintenance",
       "slot_id": "settings_environment",
@@ -640,7 +743,7 @@
     "runtime": "environment",
     "system": "advanced",
     "model": "environment",
-    "agent": "capabilities",
+    "agent": "agents",
     "assistants": "capabilities?tab=skills",
     "skills-hub": "capabilities?tab=skills",
     "tools": "capabilities?tab=tools",
@@ -653,7 +756,7 @@
     "runtime": "environment",
     "system": "advanced",
     "model": "environment",
-    "agent": "capabilities",
+    "agent": "agents",
     "assistants": "capabilities",
     "skills-hub": "capabilities",
     "tools": "capabilities",
@@ -688,6 +791,10 @@
     },
     "settings_access": {
       "component_key": "AccessSettingsContent",
+      "wrapper_policy": "host_provides_wrapper"
+    },
+    "settings_agents": {
+      "component_key": "AgentPackagesSettingsContent",
       "wrapper_policy": "host_provides_wrapper"
     },
     "settings_capabilities": {
@@ -740,6 +847,7 @@
       "wrapper_policy": "host_provides_wrapper"
     }
   },
+  "agents_capabilities_ownership_ref": "contracts/app-settings-control-plane.json#agents_capabilities_ownership",
   "state_action_policy": {
     "default_state_source": "opl app state --profile fast --json",
     "default_refresh_source": "opl app state --profile fast --json",
@@ -861,7 +969,18 @@
         "route_id": "capabilities",
         "adapter_entry": "packages/desktop/src/renderer/pages/settings/capabilitiesProjection.ts",
         "renderer_entry": "packages/desktop/src/renderer/pages/settings/CapabilitiesSettings.tsx",
+        "state_source": "opl app state --profile fast --json#app_state.agent_packages.status_index.packages[opl-flow].dependency_readiness.closure + Codex and shell skill/plugin registries",
+        "ownership_ref": "contracts/app-settings-control-plane.json#agents_capabilities_ownership.capabilities",
+        "groups": ["opl_flow_managed", "manual_and_third_party"],
+        "entity_kinds": ["skill", "plugin"],
+        "forbidden_sources": ["hardcoded App skill allowlist", "runnable Agent package directory"]
+      },
+      "agents": {
+        "route_id": "agents",
+        "adapter_entry": "packages/desktop/src/renderer/pages/settings/agentPackagesProjection.ts",
+        "renderer_entry": "packages/desktop/src/renderer/pages/settings/AgentPackagesSettings.tsx",
         "state_source": "opl app state --profile fast --json#app_state.agent_packages.directory + app_state.agent_packages.status_index + home_agent_shortcuts + app_state.operator.workbench.task_drilldowns",
+        "ownership_ref": "contracts/app-settings-control-plane.json#agents_capabilities_ownership.agents",
         "resource_grouping_surface": {
           "surface": "settings_capabilities",
           "source": "same_task_awareness_projection_refs_aggregated_for_capabilities",
@@ -906,7 +1025,7 @@
           "canonical_projection": "opl app state --profile fast --json#app_state.agent_packages.directory + app_state.agent_packages.status_index",
           "legacy_fallback_projection": "opl app state --profile fast --json#app_state.modules.items[] + home_agent_shortcuts + app_state.operator.workbench.task_drilldowns",
           "normalization_policy": "shell must prefer canonical agent_packages projection and only fall back to modules.items when older runtime payloads or partial projections are still in circulation",
-          "activation_action_contract_ref": "contracts/app-gui-product-contract.json#pages.settings_capabilities.agent_package_lifecycle_ux.package_projection_contract.activation_preparation_policy",
+          "activation_action_contract_ref": "contracts/app-gui-product-contract.json#pages.settings_agents.agent_package_lifecycle_ux.package_projection_contract.activation_preparation_policy",
           "status_model": {
             "policy": "multi_axis_package_status_no_single_repair_bucket",
             "axes": [
@@ -969,6 +1088,7 @@
       "/settings/general",
       "/settings/access",
       "/settings/workspace",
+      "/settings/agents",
       "/settings/capabilities",
       "/settings/resources",
       "/settings/environment",
@@ -1192,11 +1312,11 @@
         ]
       },
       {
-        "id": "nine_entry_ia",
+        "id": "ten_entry_ia",
         "track": "ia_routes",
-        "goal": "The ordinary Settings IA has exactly nine product pages.",
+        "goal": "The ordinary Settings IA has exactly ten product pages, with Agents and Capabilities separated.",
         "evidence_required": [
-          "top_level_entries contains overview/access/workspace/capabilities/resources/maintenance/storage/preferences/personalization",
+          "top_level_entries contains overview/access/workspace/agents/capabilities/resources/maintenance/storage/preferences/personalization",
           "ordinary carrier routes map one-to-one to those product pages",
           "Advanced is not an ordinary route"
         ]
@@ -1442,7 +1562,7 @@
   },
   "validation_policy": {
     "contract_checks": [
-      "ordinary carrier routes map to exactly nine product pages",
+      "ordinary carrier routes map to exactly ten product pages",
       "secondary_pages contains only advanced and about",
       "compatibility redirects resolve update, theme, and local-services to owner routes and anchors",
       "legacy redirects never redirect about to advanced",
@@ -1991,14 +2111,49 @@
         "product_page_id": "capabilities",
         "route_id": "capabilities",
         "matrix_page_id": "capabilities",
-        "label_zh": "智能体与能力",
-        "label_en": "Agents & Capabilities",
+        "label_zh": "能力",
+        "label_en": "Capabilities",
         "primary_information": [
-          "capability catalog with availability and user-facing source labels",
+          "OPL Flow managed and recommended Skills and Plugins derived from installed package dependency closure",
+          "manual and third-party Skills and Plugins from Codex and shell registries",
+          "source, owner, currentness, and explicit lifecycle actions"
+        ],
+        "first_viewport_groups": ["opl_flow_managed", "manual_and_third_party"],
+        "surface_inventory": {
+          "configuration": [],
+          "status": [{"id": "capability_currentness", "owner": "capabilities"}],
+          "action": [{"id": "capability_explicit_lifecycle", "owner": "capabilities"}],
+          "diagnostic": [{"id": "capability_source_refs", "owner": "capabilities"}]
+        },
+        "primary_action": {"id": "add_capability", "availability": "always", "max_visible": 1, "label_zh": "添加能力", "label_en": "Add capability"},
+        "tab_contract": {
+          "surface_label_zh": "能力",
+          "surface_label_en": "Capabilities",
+          "tab_order": ["opl_flow_managed", "manual_and_third_party"],
+          "default_tab": "opl_flow_managed",
+          "on_demand_tab_ids": []
+        },
+        "exception_state": "highlight failed sync or owner attention without mutating third-party items",
+        "technical_details_boundary": "raw registry paths, package closure refs, and receipts stay collapsed",
+        "required_dom": {
+          "always": ["settings-page-capabilities", "settings-capabilities-primary", "settings-capabilities-opl-flow-managed", "settings-capabilities-third-party", "settings-capabilities-technical-details", "settings-capabilities-primary-action"],
+          "conditional": [{"testid": "settings-capabilities-exception", "when": "attention_required"}]
+        },
+        "required_anchors": ["opl-flow-managed", "third-party"],
+        "search_entry_ids": ["capabilities.opl_flow_managed", "capabilities.third_party"]
+      },
+      "agents": {
+        "product_page_id": "agents",
+        "route_id": "agents",
+        "matrix_page_id": "agents",
+        "label_zh": "智能体",
+        "label_en": "Agents",
+        "primary_information": [
+          "runnable Agent package catalog with availability and user-facing source labels",
           "global managed, automatic, or developer source mode with selected workspace and authority summary",
           "per-package automatic, managed, or developer source selection in package details",
-          "Home visibility, shortcut order, and lifecycle management on capability rows",
-          "Skills and Tools as internal tabs or sections",
+          "Home visibility, shortcut order, launch readiness, and lifecycle management on Agent rows",
+          "Skills and Plugins excluded and routed to Capabilities",
           "AionUI custom assistants excluded from the OPL product surface"
         ],
         "management_discoverability": {
@@ -2014,47 +2169,47 @@
         ],
         "surface_inventory": {
           "configuration": [
-            { "id": "developer_source_mode", "owner": "capabilities" },
-            { "id": "package_source_preference", "owner": "capabilities" },
-            { "id": "home_visibility_and_order", "owner": "capabilities" }
+            { "id": "developer_source_mode", "owner": "agents" },
+            { "id": "package_source_preference", "owner": "agents" },
+            { "id": "home_visibility_and_order", "owner": "agents" }
           ],
           "status": [
-            { "id": "capability_availability_and_source", "owner": "capabilities" }
+            { "id": "agent_availability_and_source", "owner": "agents" }
           ],
           "action": [
-            { "id": "capability_lifecycle_operations", "owner": "capabilities" }
+            { "id": "agent_lifecycle_operations", "owner": "agents" }
           ],
           "diagnostic": [
-            { "id": "capability_package_refs", "owner": "capabilities" }
+            { "id": "agent_package_refs", "owner": "agents" }
           ]
         },
         "primary_action": {
-          "id": "add_capability",
+          "id": "add_agent",
           "availability": "always",
           "max_visible": 1,
-          "label_zh": "添加能力",
-          "label_en": "Add capability"
+          "label_zh": "添加智能体",
+          "label_en": "Add agent"
         },
         "tab_contract": {
-          "surface_label_zh": "智能体与能力",
-          "surface_label_en": "Agents & Capabilities",
-          "tab_order": ["skills", "tools"],
-          "default_tab": "skills",
+          "surface_label_zh": "智能体",
+          "surface_label_en": "Agents",
+          "tab_order": ["agents"],
+          "default_tab": "agents",
           "on_demand_tab_ids": []
         },
         "exception_state": "highlight failed or blocked capabilities and keep normal packages visually quiet",
         "technical_details_boundary": "package ids, receipts, paths, manifests, and raw status axes stay collapsed",
         "required_dom": {
           "always": [
-            "settings-page-capabilities",
-            "settings-capabilities-primary",
-            "settings-capabilities-technical-details",
-            "settings-capabilities-primary-action",
+            "settings-page-agents",
+            "settings-agents-primary",
+            "settings-agents-technical-details",
+            "settings-agents-primary-action",
             "opl-developer-profile-control"
           ],
           "conditional": [
             {
-              "testid": "settings-capabilities-exception",
+              "testid": "settings-agents-exception",
               "when": "attention_required"
             }
           ]
@@ -2065,9 +2220,9 @@
           "home-visibility"
         ],
         "search_entry_ids": [
-          "capabilities.availability",
-          "capabilities.source",
-          "capabilities.home_visibility"
+          "agents.availability",
+          "agents.source",
+          "agents.home_visibility"
         ]
       },
       "resources": {
@@ -2189,8 +2344,8 @@
         "product_page_id": "maintenance",
         "route_id": "environment",
         "matrix_page_id": "environment",
-        "label_zh": "维护",
-        "label_en": "Maintenance",
+        "label_zh": "本机环境",
+        "label_en": "Local Environment",
         "primary_information": [
           "health summary",
           "updates and local services grouped by user impact",
@@ -2699,8 +2854,8 @@
           "keywords_en": ["artifact", "files", "location"]
         },
         {
-          "id": "capabilities.availability",
-          "page_id": "capabilities",
+          "id": "agents.availability",
+          "page_id": "agents",
           "anchor": "availability",
           "label_zh": "可用状态",
           "label_en": "Availability",
@@ -2708,8 +2863,8 @@
           "keywords_en": ["available", "installed", "enabled"]
         },
         {
-          "id": "capabilities.source",
-          "page_id": "capabilities",
+          "id": "agents.source",
+          "page_id": "agents",
           "anchor": "source",
           "label_zh": "能力来源",
           "label_en": "Source",
@@ -2717,13 +2872,31 @@
           "keywords_en": ["source", "local", "package"]
         },
         {
-          "id": "capabilities.home_visibility",
-          "page_id": "capabilities",
+          "id": "agents.home_visibility",
+          "page_id": "agents",
           "anchor": "home-visibility",
           "label_zh": "首页显示",
           "label_en": "Home visibility",
           "keywords_zh": ["首页", "显示", "快捷入口"],
           "keywords_en": ["home", "visibility", "shortcut"]
+        },
+        {
+          "id": "capabilities.opl_flow_managed",
+          "page_id": "capabilities",
+          "anchor": "opl-flow-managed",
+          "label_zh": "OPL Flow 管理的能力",
+          "label_en": "OPL Flow managed capabilities",
+          "keywords_zh": ["OPL Flow", "推荐", "Skill", "插件"],
+          "keywords_en": ["opl flow", "recommended", "skill", "plugin"]
+        },
+        {
+          "id": "capabilities.third_party",
+          "page_id": "capabilities",
+          "anchor": "third-party",
+          "label_zh": "手工与第三方能力",
+          "label_en": "Manual and third-party capabilities",
+          "keywords_zh": ["手工", "第三方", "Skill", "插件"],
+          "keywords_en": ["manual", "third party", "skill", "plugin"]
         },
         {
           "id": "resources.local_browser_access",

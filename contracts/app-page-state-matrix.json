@@ -2896,10 +2896,53 @@
     },
     {
       "id": "capabilities",
+      "expected_source": "OPL Flow installed package dependency closure plus Codex and shell skill/plugin registries",
+      "machine_source": "opl app state --profile fast --json#app_state.agent_packages.directory.installed_packages[package_id=opl-flow].bundled_required_skill_ids + physical_surface.workflow_policy_migration.dependency_sync + Codex and shell skill/plugin registries",
+      "refresh_source": "opl app state --profile fast --json",
+      "page_contract": "settings_capabilities",
+      "sections": ["opl_flow_managed", "manual_and_third_party", "details"],
+      "tab_contract": {
+        "surface_label_zh": "能力",
+        "surface_label_en": "Capabilities",
+        "tab_order": ["opl_flow_managed", "manual_and_third_party"],
+        "default_tab": "opl_flow_managed",
+        "on_demand_tab_ids": []
+      },
+      "state_sections": ["agent_packages.status_index", "codex_skills", "codex_plugins", "shell_skill_plugin_registry"],
+      "ownership_ref": "contracts/app-settings-control-plane.json#agents_capabilities_ownership.capabilities",
+      "ia_group": "capabilities",
+      "route_id": "capabilities",
+      "route_scope": "ordinary",
+      "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia",
+      "must_show": [
+        "OPL Flow managed and recommended Skills and Plugins from package dependency closure",
+        "manual and third-party Skills and Plugins from Codex and shell registries",
+        "source, owner, version, currentness, and available explicit actions"
+      ],
+      "must_not_show": [
+        "runnable Agent package lifecycle",
+        "hardcoded App list as OPL Flow dependency truth",
+        "a second OPL Flow updater or scheduler",
+        "silent mutation of manual or third-party Skills and Plugins"
+      ],
+      "product_page_id": "capabilities",
+      "experience_contract_ref": "contracts/app-settings-control-plane.json#experience_contract.page_contracts.capabilities",
+      "required_dom": {
+        "always": ["settings-page-capabilities", "settings-capabilities-primary", "settings-capabilities-opl-flow-managed", "settings-capabilities-third-party", "settings-capabilities-technical-details", "settings-capabilities-primary-action"],
+        "conditional": [{"testid": "settings-capabilities-exception", "when": "attention_required"}]
+      },
+      "required_anchors": ["opl-flow-managed", "third-party"],
+      "search_entry_ids": ["capabilities.opl_flow_managed", "capabilities.third_party"],
+      "primary_action_id": "add_capability",
+      "technical_details_default": "collapsed",
+      "exception_emphasis": "attention_only"
+    },
+    {
+      "id": "agents",
       "expected_source": "installed package directory from canonical agent_packages projection with Home shortcut preferences, readiness refs, and legacy modules fallback during rollout",
       "machine_source": "opl app state --profile fast --json#app_state.agent_packages.directory + app_state.agent_packages.status_index + home_agent_shortcuts + operator.workbench.task_drilldowns",
       "refresh_source": "opl app state --profile fast --json",
-      "page_contract": "settings_capabilities",
+      "page_contract": "settings_agents",
       "sections": [
         "availability",
         "source",
@@ -2941,13 +2984,13 @@
       "task_awareness_ref_policy": "thin_renderer_refs_only_no_skill_body_no_artifact_body_no_domain_verdict",
       "export_bundle_action_policy": "show_export_bundle_action_ref_and_dry_run_receipt_without_claiming_domain_export_readiness",
       "codex_plugin_directory_target": {
-        "target_label_zh": "智能体与能力",
-        "target_label_en": "Agents & Capabilities",
+        "target_label_zh": "智能体",
+        "target_label_en": "Agents",
         "tab_contract": {
-          "surface_label_zh": "智能体与能力",
-          "surface_label_en": "Agents & Capabilities",
-          "tab_order": ["skills", "tools"],
-          "default_tab": "skills",
+          "surface_label_zh": "智能体",
+          "surface_label_en": "Agents",
+          "tab_order": ["agents"],
+          "default_tab": "agents",
           "on_demand_tab_ids": []
         },
         "mental_model": "codex_app_plugin_manager_compact_package_directory",
@@ -3344,8 +3387,8 @@
         "assistants promoted to a top-level or secondary Settings page"
       ],
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
-      "ia_group": "capabilities",
-      "route_id": "capabilities",
+      "ia_group": "agents",
+      "route_id": "agents",
       "route_scope": "ordinary",
       "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia",
       "workflow_skill_candidate_policy": {
@@ -3449,19 +3492,19 @@
           ]
         }
       },
-      "product_page_id": "capabilities",
-      "experience_contract_ref": "contracts/app-settings-control-plane.json#experience_contract.page_contracts.capabilities",
+      "product_page_id": "agents",
+      "experience_contract_ref": "contracts/app-settings-control-plane.json#experience_contract.page_contracts.agents",
       "required_dom": {
         "always": [
-          "settings-page-capabilities",
-          "settings-capabilities-primary",
-          "settings-capabilities-technical-details",
-          "settings-capabilities-primary-action",
+          "settings-page-agents",
+          "settings-agents-primary",
+          "settings-agents-technical-details",
+          "settings-agents-primary-action",
           "opl-developer-profile-control"
         ],
         "conditional": [
           {
-            "testid": "settings-capabilities-exception",
+            "testid": "settings-agents-exception",
             "when": "attention_required"
           }
         ]
@@ -3472,11 +3515,11 @@
         "home-visibility"
       ],
       "search_entry_ids": [
-        "capabilities.availability",
-        "capabilities.source",
-        "capabilities.home_visibility"
+        "agents.availability",
+        "agents.source",
+        "agents.home_visibility"
       ],
-      "primary_action_id": "add_capability",
+      "primary_action_id": "add_agent",
       "technical_details_default": "collapsed",
       "exception_emphasis": "attention_only"
     },

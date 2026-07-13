@@ -312,6 +312,7 @@ export const appOwnedSettingsTabs = [
   "general",
   "access",
   "workspace",
+  "agents",
   "capabilities",
   "resources",
   "environment",
@@ -379,6 +380,7 @@ export const appActionRoute =
 export const appOwnedSettingsIaGroupIds = [
   "overview",
   "setup_access",
+  "agents",
   "capabilities",
   "resources",
   "maintenance",
@@ -390,6 +392,7 @@ export const appOwnedSettingsIaGroupIds = [
 export const appOwnedSettingsRouteScopes = {
   settings_general: { route_id: "general", route_scope: "ordinary" },
   access: { route_id: "access", route_scope: "ordinary" },
+  agents: { route_id: "agents", route_scope: "ordinary" },
   capabilities: { route_id: "capabilities", route_scope: "ordinary" },
   resources: { route_id: "resources", route_scope: "ordinary" },
   environment: { route_id: "environment", route_scope: "ordinary" },
@@ -429,6 +432,7 @@ export const appOwnedSettingsTopLevelEntryIds = [
   "overview",
   "access",
   "workspace",
+  "agents",
   "capabilities",
   "resources",
   "maintenance",
@@ -440,9 +444,10 @@ export const appOwnedSettingsTopLevelLabels = {
   overview: { label_zh: "概览", label_en: "Overview" },
   access: { label_zh: "模型与访问", label_en: "Models & Access" },
   workspace: { label_zh: "工作区", label_en: "Workspace" },
-  capabilities: { label_zh: "智能体与能力", label_en: "Agents & Capabilities" },
+  agents: { label_zh: "智能体", label_en: "Agents" },
+  capabilities: { label_zh: "能力", label_en: "Capabilities" },
   resources: { label_zh: "资源与连接", label_en: "Resources & Connections" },
-  maintenance: { label_zh: "维护", label_en: "Maintenance" },
+  maintenance: { label_zh: "本机环境", label_en: "Local Environment" },
   storage: { label_zh: "数据与存储", label_en: "Data & Storage" },
   preferences: { label_zh: "偏好", label_en: "Preferences" },
   personalization: { label_zh: "个性化", label_en: "Personalization" },
@@ -455,6 +460,7 @@ export const appOwnedSettingsTechnicalDetailsDefault = {
   overview: "explicit_action_modal",
   access: "not_applicable",
   workspace: "explicit_action_modal",
+  agents: "collapsed",
   capabilities: "collapsed",
   resources: "explicit_action_modal",
   maintenance: "explicit_action_modal",
@@ -468,7 +474,8 @@ export const appOwnedSettingsPageAnchors = {
   overview: ["status", "attention", "next-action", "common-actions"],
   access: ["provider-source", "model", "codex-cli", "authentication"],
   workspace: ["current-workspace", "permissions", "artifacts"],
-  capabilities: ["availability", "source", "home-visibility"],
+  agents: ["availability", "source", "home-visibility"],
+  capabilities: ["opl-flow-managed", "third-party"],
   resources: [
     "local-browser-access",
     "web-access",
@@ -512,10 +519,10 @@ export const appOwnedSettingsPageSearchEntryIds = {
     "workspace.permissions",
     "workspace.artifacts",
   ],
+  agents: ["agents.availability", "agents.source", "agents.home_visibility"],
   capabilities: [
-    "capabilities.availability",
-    "capabilities.source",
-    "capabilities.home_visibility",
+    "capabilities.opl_flow_managed",
+    "capabilities.third_party",
   ],
   resources: [
     "resources.local_browser_access",
@@ -557,10 +564,10 @@ export const appOwnedSettingsPageSearchEntryIds = {
   ],
 };
 export const appOwnedSettingsCapabilitiesTabContract = {
-  surface_label_zh: "智能体与能力",
-  surface_label_en: "Agents & Capabilities",
-  tab_order: ["skills", "tools"],
-  default_tab: "skills",
+  surface_label_zh: "能力",
+  surface_label_en: "Capabilities",
+  tab_order: ["opl_flow_managed", "manual_and_third_party"],
+  default_tab: "opl_flow_managed",
   on_demand_tab_ids: [],
 };
 export const appOwnedSettingsResourcesBrowserEntry = {
@@ -747,6 +754,7 @@ export const appOwnedSettingsVisualQaTargets = [
   "desktop_settings_overview",
   "desktop_settings_access",
   "desktop_settings_workspace",
+  "desktop_settings_agents",
   "desktop_settings_capabilities",
   "desktop_settings_resources",
   "desktop_settings_maintenance",
@@ -762,7 +770,7 @@ export const appOwnedSettingsUpstreamIntakeClassifications = [
 ];
 export const appOwnedSettingsProductSystemItemIds = [
   "control_center_positioning",
-  "nine_entry_ia",
+  "ten_entry_ia",
   "secondary_route_strategy",
   "compatibility_anchor_routes",
   "single_control_plane",
@@ -803,7 +811,7 @@ export const legacySettingsRouteRedirects = {
   runtime: "environment",
   system: "advanced",
   model: "environment",
-  agent: "capabilities",
+  agent: "agents",
   assistants: "capabilities?tab=skills",
   "skills-hub": "capabilities",
   tools: "capabilities",

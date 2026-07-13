@@ -383,6 +383,7 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     'general',
     'access',
     'workspace',
+    'agents',
     'capabilities',
     'resources',
     'environment',
@@ -658,6 +659,7 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     'settings_general',
     'settings_access',
     'settings_workspace',
+    'settings_agents',
     'settings_capabilities',
     'settings_resources',
     'settings_environment',
@@ -676,6 +678,7 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     'guid_home',
     'settings_general',
     'settings_access',
+    'settings_agents',
     'settings_capabilities',
     'settings_environment',
     'settings_advanced',
@@ -880,6 +883,7 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     settings_general: 'overview',
     settings_access: 'access',
     settings_workspace: 'workspace',
+    settings_agents: 'agents',
     settings_capabilities: 'capabilities',
     settings_resources: 'resources',
     settings_environment: 'maintenance',
@@ -935,80 +939,21 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     'Settings Resources action behavior',
   );
   assertDeepEqualJson(
-    pages.settings_capabilities.codex_plugin_directory_target?.tab_contract,
+    pages.settings_capabilities.tab_contract,
     appOwnedSettingsCapabilitiesTabContract,
-    'Settings Agents & Capabilities tab contract',
+    'Settings Capabilities source-group tab contract',
   );
-  assertIncludesAll(
-    pages.settings_capabilities.must_not_show,
-    ['AionUI AssistantSettings or custom assistant catalogs exposed from OPL Settings'],
-    'Settings Agents & Capabilities OPL-only surface',
-  );
+  assertDeepEqualJson(pages.settings_capabilities.entity_kinds, ['skill', 'plugin'], 'Settings Capabilities entity kinds');
   if (
-    pages.settings_capabilities.builtin_skill_catalog_policy?.allowed_set_ref !==
-    'contracts/app-product-profile.json#companion_payloads.default_packaged_codex_skill_ids + additional_package_skill_ids + opl_flow_dependency_policy_ref'
+    pages.settings_capabilities.lifecycle_policy?.hardcoded_app_skill_list_allowed !== false ||
+    pages.settings_capabilities.lifecycle_policy?.cli_currentness_owner !== 'opl_base' ||
+    pages.settings_capabilities.lifecycle_policy?.flow_role !== 'dependency_and_profile_intent_only_not_a_second_updater'
   ) {
-    throw new Error('Settings Capabilities must filter builtin skill catalog through the App packaged skill set');
+    throw new Error('Settings Capabilities must derive Flow membership from package closure and leave CLI currentness to OPL Base');
   }
-  assertIncludesAll(
-    pages.settings_capabilities.builtin_skill_catalog_policy?.forbidden_examples,
-    ['aionui-skills', 'aionui-webui-setup', 'skill-creator'],
-    'Settings Capabilities forbidden upstream builtin skills',
-  );
-  if (
-    pages.settings_capabilities.auto_injected_skills_policy?.allowed_set_ref !==
-    'contracts/app-product-profile.json#companion_payloads.default_packaged_codex_skill_ids'
-  ) {
-    throw new Error('Settings Capabilities must filter auto-injected skills through the App packaged skill set');
-  }
-  assertIncludesAll(
-    pages.settings_capabilities.auto_injected_skills_policy?.forbidden_examples,
-    ['aionui-skills', 'aionui-webui-setup', 'skill-creator'],
-    'Settings Capabilities forbidden upstream auto skills',
-  );
-  if (
-    pages.settings_capabilities.task_awareness_refs_source !==
-      'contracts/app-runtime-bridge.json#task_awareness_projection.settings_capabilities_surface' ||
-    pages.settings_capabilities.task_awareness_ref_policy !==
-      'thin_renderer_refs_only_no_skill_body_no_artifact_body_no_domain_verdict' ||
-    pages.settings_capabilities.export_bundle_action_policy !==
-      'show_export_bundle_action_ref_and_dry_run_receipt_without_claiming_domain_export_readiness'
-  ) {
-    throw new Error('Settings Capabilities must consume task awareness refs as display-only App state refs');
-  }
-  assertDeepEqualJson(
-    pages.settings_capabilities.task_awareness_ref_fields,
-    appOwnedTaskAwarenessRefFields,
-    'Settings Capabilities task awareness ref fields',
-  );
-  assertIncludesAll(
-    pages.settings_capabilities.must_show,
-    [
-      'capability health and connector readiness refs from OPL App state',
-      'OPL Connect connector readiness grouped by literature, database, storage, tools/API, internal system, and compute scheduler refs',
-      'OPL Fabric environment and resource-source refs when capability tasks need managed or user-provided resources',
-      'Environment Catalog refs grouped with OPL Fabric resource readiness when capability tasks declare runtime requirements',
-      'reusable workflow refs without skill bodies',
-      'reproducibility export bundle action ref with dry-run receipt boundary',
-      'workflow and skill candidate report-first refs with review, needs changes, and continue in conversation actions',
-    ],
-    'Settings Capabilities task awareness must_show',
-  );
-  assertIncludesAll(
-    pages.settings_capabilities.must_not_show,
-    [
-      'artifact body, workflow body, connector body, credential body, owner receipt write, or domain export readiness verdict from Settings Capabilities',
-      'auto-enabled skills, skill body writes, or workflow body writes from Settings Capabilities candidate refs',
-    ],
-    'Settings Capabilities task awareness must_not_show',
-  );
-  validateWorkflowSkillCandidateProjectionContract(
-    pages.settings_capabilities.workflow_skill_candidate_policy,
-    'Settings Capabilities workflow/skill candidate policy',
-  );
   validateAgentPackageLifecycleUx(
-    pages.settings_capabilities.agent_package_lifecycle_ux,
-    'Settings Capabilities Agent Package lifecycle UX',
+    pages.settings_agents.agent_package_lifecycle_ux,
+    'Settings Agents Agent Package lifecycle UX',
   );
   validateOplFlowContext(guiContract.opl_flow_context, 'App GUI OPL Flow Context');
   if (

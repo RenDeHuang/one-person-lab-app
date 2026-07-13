@@ -268,8 +268,8 @@ function assertSettingsProfileShape(profile: AppProductProfile): void {
   if (!taskEntryPolicy || typeof taskEntryPolicy !== 'object') {
     throw new Error('App product profile settings_information_architecture.task_entry_policy must be declared');
   }
-  if (taskEntryPolicy.ordinary_entry_model !== 'user_task_first_sections_inside_the_nine_OPL_Control_Center_entries') {
-    throw new Error('App product profile task_entry_policy must keep task entries inside the nine OPL Control Center entries');
+  if (taskEntryPolicy.ordinary_entry_model !== 'user_task_first_sections_inside_the_ten_OPL_Control_Center_entries') {
+    throw new Error('App product profile task_entry_policy must keep task entries inside the ten OPL Control Center entries');
   }
   assertIncludesAll(
     taskEntryPolicy.p0_entries ?? [],
@@ -295,7 +295,7 @@ function assertSettingsProfileShape(profile: AppProductProfile): void {
     developerProfile.source !== 'app_state.developer_profile + app_state.modules[].source_policy' ||
     developerProfile.default_profile !== 'standard_user' ||
     developerProfile.opt_in_policy !== 'explicit_opt_in_only' ||
-    developerProfile.settings_page !== 'settings_capabilities' ||
+    developerProfile.settings_page !== 'settings_agents' ||
     developerProfile.global_control !== 'managed_automatic_developer_segmented_control' ||
     developerProfile.safe_maintenance_control !== 'switch' ||
     developerProfile.safe_maintenance_independent_from_source_selection !== true ||
