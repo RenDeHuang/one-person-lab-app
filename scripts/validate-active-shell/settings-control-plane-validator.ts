@@ -44,7 +44,7 @@ const settingsControlPlaneContractRef =
 const expectedAgentsStateSource =
   "opl app state --profile fast --json#app_state.agent_packages.directory + app_state.agent_packages.status_index + home_agent_shortcuts + app_state.operator.workbench.task_drilldowns";
 const expectedCapabilitiesStateSource =
-  "opl update status --json#managed_update.components[component_id=opl_base].current.dependency_catalog.flow_dependencies + Codex and shell skill/plugin registries";
+  "opl update status --json#managed_update.components[component_id=opl_base].current.dependency_catalog.flow_dependencies + compatibility fallback: opl app state --profile fast --json#app_state.agent_packages.directory.installed_packages[package_id=opl-flow].bundled_required_skill_ids + physical_surface.workflow_policy_migration.dependency_sync + Codex and shell skill/plugin registries";
 
 const expectedLegacyRedirects = {
   ...legacySettingsRouteRedirects,
@@ -435,7 +435,9 @@ export function validateSettingsControlPlane(
     capabilityOwnership?.groups?.opl_flow_managed?.source_ref !==
       "opl update status --json#managed_update.components[component_id=opl_base].current.dependency_catalog.flow_dependencies" ||
     capabilityOwnership?.groups?.opl_flow_managed?.membership_policy !==
-      "derive_from_typed_opl_base_flow_dependencies_never_from_app_hardcoded_skill_list" ||
+      "prefer_typed_opl_base_flow_dependencies_then_fallback_to_installed_opl_flow_package_policy_never_from_app_hardcoded_skill_list" ||
+    capabilityOwnership?.groups?.opl_flow_managed?.compatibility_source_ref !==
+      "opl app state --profile fast --json#app_state.agent_packages.directory.installed_packages[package_id=opl-flow].bundled_required_skill_ids + physical_surface.workflow_policy_migration.dependency_sync" ||
     capabilityOwnership?.groups?.opl_flow_managed?.lifecycle_owner !== "opl_packages" ||
     capabilityOwnership?.groups?.opl_flow_managed?.cli_currentness_owner !== "opl_base" ||
     capabilityOwnership?.groups?.manual_and_third_party?.mutation_policy !== "explicit_user_action_only"
