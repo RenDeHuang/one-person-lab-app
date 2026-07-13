@@ -889,10 +889,13 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   ];
   if (
     threadCoordination.product_role !== 'opl_host_cross_top_level_codex_thread_coordination' ||
-    threadCoordination.entry_surface !== 'model_and_host_tool_only_no_ordinary_navigation' ||
+    threadCoordination.entry_surface !==
+      'thread_detail_context_action_and_model_host_tool_no_ordinary_navigation' ||
     threadCoordination.ordinary_navigation_visible !== false ||
+    threadCoordination.primary_composer_control_visible !== false ||
+    threadCoordination.thread_detail_context_action_visible !== true ||
     threadCoordination.model_tool_access !== true ||
-    threadCoordination.default_state !== 'not_mounted_for_ordinary_users' ||
+    threadCoordination.default_state !== 'thread_detail_action_available_coordination_dialog_closed' ||
     threadCoordination.model_role !== 'decide_when_and_why_to_coordinate' ||
     threadCoordination.protocol_owner !== 'codex_core_app_server' ||
     threadCoordination.app_host_owner !== 'opl_app_host' ||
@@ -931,8 +934,10 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     coordinationViewModel.product_role !== threadCoordination.product_role ||
     coordinationViewModel.entry_surface !== threadCoordination.entry_surface ||
     coordinationViewModel.ordinary_navigation_visible !== false ||
+    coordinationViewModel.primary_composer_control_visible !== false ||
+    coordinationViewModel.thread_detail_context_action_visible !== true ||
     coordinationViewModel.model_tool_access !== true ||
-    coordinationViewModel.default_state !== 'not_mounted_for_ordinary_users' ||
+    coordinationViewModel.default_state !== 'thread_detail_action_available_coordination_dialog_closed' ||
     coordinationViewModel.thread_list_protocol !== 'thread/list' ||
     coordinationViewModel.thread_read_protocol !== 'thread/read' ||
     !sameStrings(coordinationViewModel.thread_actions, ['thread/resume', 'thread/fork', 'thread/archive']) ||

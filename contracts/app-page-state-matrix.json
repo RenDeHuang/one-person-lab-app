@@ -608,9 +608,11 @@
       "page_contract": "opl_cross_top_level_thread_coordination_background_capability",
       "coordination_view_model": {
         "product_role": "opl_host_cross_top_level_codex_thread_coordination",
-        "entry_surface": "model_and_host_tool_only_no_ordinary_navigation",
-        "default_state": "not_mounted_for_ordinary_users",
+        "entry_surface": "thread_detail_context_action_and_model_host_tool_no_ordinary_navigation",
+        "default_state": "thread_detail_action_available_coordination_dialog_closed",
         "ordinary_navigation_visible": false,
+        "primary_composer_control_visible": false,
+        "thread_detail_context_action_visible": true,
         "model_tool_access": true,
         "thread_list_protocol": "thread/list",
         "thread_read_protocol": "thread/read",
@@ -669,11 +671,13 @@
         "same_agent_tree_api_boundary": "spawn_agent_send_input_wait_agent_same_tree_only"
       },
       "must_show": [
+        "each thread detail surface exposes a keyboard-reachable coordination action without adding a primary composer control",
         "model-facing host tool retains top-level thread list, read, resume, fork, archive, start and steer operations",
         "permission, duplicate, cycle, project scope and write-set checks remain active with audit receipts"
       ],
       "must_not_show": [
         "thread coordination page or navigation rail entry for ordinary users",
+        "coordination control in the primary conversation composer",
         "send_input as a cross-top-level-thread transport",
         "a shell-owned duplicate thread database",
         "silent cross-project dispatch",

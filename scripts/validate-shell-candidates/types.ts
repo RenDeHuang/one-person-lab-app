@@ -38,6 +38,8 @@ export type NativeCrossTopLevelThreadAuthority = {
   product_role: string;
   entry_surface: string;
   ordinary_navigation_visible: boolean;
+  primary_composer_control_visible: boolean;
+  thread_detail_context_action_visible: boolean;
   model_tool_access: boolean;
   default_state: string;
   model_role: string;

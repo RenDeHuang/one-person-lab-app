@@ -247,7 +247,7 @@ hide lifecycle actions, conflict results, or receipt readback.
 | 4 | Safety and receipts | Permission, dedupe, loop/hop, scope, write-set, identity, no-escalation gates and bilateral receipt projection. | No owner or release claim. |
 | 5 | P1 lifecycle | Fork/archive/unarchive/wait/result aggregation and capability-detected relationships. | Local lifecycle target only. |
 | 6 | P1 model tools | Client-executed `dynamicTools`, runtime probe, schema-drift record, fallback, and shared host gates. | P1 unavailable when probe falls back. |
-| 7 | Shared product UI | 41301-aligned project/thread rail, single timeline, compact header, bottom composer, on-demand details, coordination actions/events, and Settings. | Visual/source target only. |
+| 7 | Shared product UI | 41301-aligned project/thread rail, single timeline, compact header, bottom composer, on-demand details, thread-detail coordination action/events, and Settings. Coordination is absent from the primary composer and ordinary navigation. | Visual/source target only. |
 | 8 | Desktop/WebUI adapters | Same coordination capabilities and semantics through platform delivery adapters. | Parity requires both evidence sets. |
 | 9 | OPL state/actions and refs | Existing App state/action, task awareness, preview, provenance, starter, confirmation, and receipt refs remain App/domain-authority compliant. | No artifact or domain authority transfer. |
 | 10 | Candidate package | Explicit candidate `.app` plus source, packaged, local-live, and WebUI artifacts from one fixed cohort. | Still not active or release-ready. |

@@ -104,8 +104,10 @@ package entry 和双语等 OPL-owned capability：
 
 ## OPL 品牌增量
 
-- Visible product name、App icon、window title、About、manifest 和 release assets 使用
-  One Person Lab App。
+- Bundle identity、App icon、About、manifest 和 release assets 使用完整 One Person Lab App
+  产品身份；ordinary chrome 只显示 `One Person Lab`，不重复显示 carrier 或 executor 名称。
+- macOS 使用 Codex-like full-size content titlebar：保留交通灯、窗口拖动和系统可访问性，隐藏
+  独立标题栏背景与标题文字，内容为交通灯预留安全区。
 - ChatGPT/Codex 只作为 executor/interaction reference，不作为 OPL App visible brand。
 - OPL accent 与 purpose language 可以偏离 Codex 品牌，但主 composition 仍保持
   Codex-based chat-first。
@@ -165,6 +167,16 @@ Legacy `codexcont-intelligence-enhancement` 代理属于 OPL Flow 明确退休�
 App-owned toggle 或后台服务。若 Codex executor 原生提供且 App profile 明确允许相关能力，
 可以继续由 composer 的 App-owned model/intelligence menu 投影；这是 authority migration，
 不是删除用户可用的 Codex 原生功能，也不能重新引入第二 provider/service truth。
+
+## 跨线程会话增量
+
+- 跨顶层线程 list/read/resume/fork/archive/start/steer、host queue、安全门和双边回执是
+  OPL-owned capability，不能因对齐 Codex composition 而删除。
+- 普通用户入口位于每条对话的详情/更多菜单，属于当前 thread context action；不增加 rail
+  页面、常驻 dashboard 或主 composer 的“协调”控件。
+- 协调 dialog 默认关闭。模型仍可通过 App host tool 发起相同能力，并与用户入口复用同一
+  typed host gate、permission/scope/write-set checks 和 receipt projection。
+- 入口位置可以极简，能力、失败可见性和审计语义不得降级。
 
 ## Runtime 与 Evidence 增量
 

@@ -23,6 +23,8 @@ const readAuthority = (): NativeCrossTopLevelThreadAuthority => {
 test('native candidate accepts the exact verified local P0 plus P1 cohort while remote P2 stays deferred', () => {
   const authority = readAuthority();
   assert.equal(authority.implementation_status, 'local_p0_p1_implemented_verified_candidate_only');
+  assert.equal(authority.primary_composer_control_visible, false);
+  assert.equal(authority.thread_detail_context_action_visible, true);
   assert.equal(authority.local_p0_p1_implementation_evidence.native_source_sha, 'c1d9dbda821d95137722e5ff0e40e984486226c5');
   assert.equal(authority.local_p0_p1_implementation_evidence.packaged_native_live.display_name, 'One Person Lab Native');
   assert.equal(
@@ -33,6 +35,22 @@ test('native candidate accepts the exact verified local P0 plus P1 cohort while 
   assert.equal(authority.local_p0_p1_implementation_evidence.claim_boundary.active_shell_adopted, false);
   assert.equal(authority.local_p0_p1_implementation_evidence.claim_boundary.release_ready, false);
   assert.doesNotThrow(() => validateNativeCrossTopLevelThreadAuthority(authority));
+});
+
+test('native candidate keeps coordination out of the primary composer without removing the contextual entry', () => {
+  const primaryComposerEntry = structuredClone(readAuthority());
+  primaryComposerEntry.primary_composer_control_visible = true;
+  assert.throws(
+    () => validateNativeCrossTopLevelThreadAuthority(primaryComposerEntry),
+    /cross-thread authority must preserve/,
+  );
+
+  const missingContextEntry = structuredClone(readAuthority());
+  missingContextEntry.thread_detail_context_action_visible = false;
+  assert.throws(
+    () => validateNativeCrossTopLevelThreadAuthority(missingContextEntry),
+    /cross-thread authority must preserve/,
+  );
 });
 
 test('native candidate rejects an implementation claim detached from the exact evidence cohort', () => {

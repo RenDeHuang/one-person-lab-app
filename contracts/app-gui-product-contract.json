@@ -163,9 +163,11 @@
     "thread_coordination": {
       "definition_role": "opl_target_translation_not_literal_codex_observation",
       "product_role": "opl_host_cross_top_level_codex_thread_coordination",
-      "entry_surface": "model_and_host_tool_only_no_ordinary_navigation",
-      "default_state": "not_mounted_for_ordinary_users",
+      "entry_surface": "thread_detail_context_action_and_model_host_tool_no_ordinary_navigation",
+      "default_state": "thread_detail_action_available_coordination_dialog_closed",
       "ordinary_navigation_visible": false,
+      "primary_composer_control_visible": false,
+      "thread_detail_context_action_visible": true,
       "model_tool_access": true,
       "model_role": "decide_when_and_why_to_coordinate",
       "protocol_owner": "codex_core_app_server",
