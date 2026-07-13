@@ -352,6 +352,7 @@ jobs:
       skip_code_quality: ${{ inputs.skip_code_quality }}
       opl_release_version: ${{ inputs.opl_version }}
       shell_ref: ${{ needs.release-source-gate.outputs.shell_sha }}
+      framework_ref: ${{ needs.release-source-gate.outputs.framework_sha }}
       stable_session_id: ${{ inputs.stable_session_id }}
       release_cohort_ref: ${{ inputs.release_operator_plan_ref }}
       require_macos_gatekeeper: false
@@ -1037,6 +1038,8 @@ jobs:
           fs.writeFileSync('/tmp/opl-webui-ghcr-publish.json', JSON.stringify(payload) + '\\n');
           NODE
           }
+          write_publish_summary "started"
+          trap 'write_publish_summary "failed" "webui_smoke_or_publish_failed" "Docker WebUI build, smoke, or publish failed before completion."' ERR
           node <<'NODE'
           const fs = require('node:fs');
           const policy = JSON.parse(fs.readFileSync('contracts/app-install-exposure-policy.json', 'utf8'));

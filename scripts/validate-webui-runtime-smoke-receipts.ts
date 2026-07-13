@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import { parseArgs as parseNodeArgs } from 'node:util';
 import { asRecord, readJsonFile } from './release-json-helpers.ts';
 import { assertExpectedFields, assertStringArrayIncludes } from './value-assertions.ts';
+import { readManagedUpdateLifecycleProviderMap } from './managed-update-lifecycle-contract.ts';
 
 type Args = {
   startupMaintenancePath: string;
@@ -14,13 +15,7 @@ type Args = {
 
 const requiredSeedComponents = ['opl_framework', 'codex_cli', 'companion_skills', 'domain_modules'];
 const requiredMigrationComponents = ['data_dir', 'projects_dir'];
-const requiredManagedUpdateComponents = [
-  'installation_carrier',
-  'runtime_substrate',
-  'capability_packages',
-  'codex_surface',
-  'companion_tools',
-];
+const requiredManagedUpdateComponents = readManagedUpdateLifecycleProviderMap();
 
 function parseArgs(): Args {
   const { values } = parseNodeArgs({
@@ -262,7 +257,7 @@ function validateStartupMaintenance(payload: Record<string, unknown>) {
 }
 
 function validateRuntimeSubstrateFrameworkUpdate(component: Record<string, unknown>) {
-  if (component.component_id !== 'runtime_substrate') return;
+  if (component.component_id !== 'opl_base') return;
   if (typeof component.current === 'undefined' || component.current === null) return;
   const current = asRecord(component.current, 'runtime_substrate current');
   if (typeof current.opl_framework_runtime === 'undefined' || current.opl_framework_runtime === null) return;
@@ -308,9 +303,16 @@ function validateUpdateStatus(payload: Record<string, unknown>) {
     asRecord(item, 'managed update component')
   );
   const componentIds = new Set(components.map((component) => requireString(component.component_id, 'managed update component id')));
-  assertStringArrayIncludes([...componentIds], requiredManagedUpdateComponents, 'managed update components');
+  assertStringArrayIncludes([...componentIds], Object.keys(requiredManagedUpdateComponents), 'managed update components');
   for (const component of components) {
     const id = requireString(component.component_id, 'managed update component id');
+    const expectedProvider = requiredManagedUpdateComponents[id];
+    if (expectedProvider) {
+      assertExpectedFields(
+        [{ actual: component.provider_id, expected: expectedProvider }],
+        `managed update component ${id} provider must match the lifecycle contract`,
+      );
+    }
     requireString(component.state, `managed update component ${id} state`);
     const receipt = asRecord(component.receipt, `managed update component ${id} receipt`);
     assertExpectedFields(
@@ -356,7 +358,8 @@ const summary = {
   install_manifest_schema: installManifest.schema_version,
   seed_components: requiredSeedComponents,
   migration_components: requiredMigrationComponents,
-  managed_update_components: requiredManagedUpdateComponents,
+  managed_update_components: Object.keys(requiredManagedUpdateComponents),
+  managed_update_component_providers: requiredManagedUpdateComponents,
   startup_maintenance_surface: asRecord(
     asRecord(startupMaintenance.system_action, 'startup maintenance system_action').details,
     'startup maintenance details',

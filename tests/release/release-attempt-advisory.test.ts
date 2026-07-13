@@ -27,6 +27,10 @@ const firstRunVmWorkflow = fs.readFileSync(
   path.join(appRoot, ".github", "workflows", "opl-first-run-vm.yml"),
   "utf8",
 );
+const reusableBuildWorkflow = fs.readFileSync(
+  path.join(appRoot, ".github", "workflows", "_build-reusable.yml"),
+  "utf8",
+);
 
 test("release attempt telemetry forces a same-cohort reuse strategy without abandoning the release", () => {
   assert.match(workflow, /name: Summarize recent release attempts/);
@@ -160,6 +164,15 @@ test("Full DMG artifacts carry the cohort manifest required by the VM gate", () 
   );
 });
 
+test("Standard DMG cohort binds the Framework used by first-run qualification", () => {
+  assert.match(reusableBuildWorkflow, /framework_ref:[\s\S]*Immutable OPL Framework ref bound into release artifact cohort evidence/);
+  assert.match(reusableBuildWorkflow, /--framework-sha "\$\{\{ inputs\.framework_ref \}\}"/);
+  assert.match(
+    workflow,
+    /standard-build:[\s\S]*framework_ref: \$\{\{ needs\.release-source-gate\.outputs\.framework_sha \}\}/,
+  );
+});
+
 test("Full VM validation rejects Framework injection into an already-built DMG", () => {
   assert.match(
     firstRunVmWorkflow,
@@ -209,6 +222,8 @@ test("Full build verifies managed carrier and Home readiness before expensive pa
 test("Docker release evidence keeps failure diagnostics without uploading the seeded data volume", () => {
   assert.match(workflow, /OPL_FLOW_SHA: 06cb8e15490e6a98b1196bfc6d526bd50471ecbc/);
   assert.match(workflow, /--build-arg OPL_FLOW_REF="\$\{OPL_FLOW_SHA\}"/);
+  assert.match(workflow, /write_publish_summary "started"/);
+  assert.match(workflow, /webui_smoke_or_publish_failed/);
   assert.match(workflow, /docker compose -p "\$compose_project" -f "\$compose_file" down/);
   assert.match(
     workflow,

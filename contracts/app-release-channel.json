@@ -2659,6 +2659,7 @@
       "objects": {
         "opl_base": {
           "display_label": "OPL Base",
+          "provider_id": "runtime_substrate",
           "lifecycle_owner": "one-person-lab",
           "app_role": "bootstrap_request_status_progress_and_receipt_projection",
           "app_mutation_allowed": false,
@@ -2678,6 +2679,7 @@
         },
         "opl_app": {
           "display_label": "OPL App",
+          "provider_id": "installation_carrier",
           "lifecycle_owner": "one-person-lab-app",
           "app_role": "gui_control_plane_and_self_update_owner",
           "app_mutation_allowed": true,
@@ -2694,6 +2696,7 @@
         },
         "opl_packages": {
           "display_label": "OPL Packages",
+          "provider_id": "capability_packages",
           "lifecycle_owner": "one-person-lab",
           "app_role": "catalog_action_request_status_progress_and_receipt_projection",
           "app_mutation_allowed": false,

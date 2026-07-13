@@ -15,6 +15,10 @@ on:
         description: 'opl-aion-shell ref to checkout for the active shell. Empty means main.'
         type: string
         default: main
+      framework_ref:
+        description: 'Immutable OPL Framework ref bound into release artifact cohort evidence.'
+        type: string
+        default: ''
       opl_flow_ref:
         description: 'Immutable opl-flow ref used by product-profile projection in every release job.'
         type: string
@@ -850,6 +854,7 @@ jobs:
             --smoke-harness scripts/opl-first-run-vm-smoke.mjs \
             --app-sha "$(git -C ../.. rev-parse HEAD)" \
             --shell-sha "$(git rev-parse HEAD)" \
+            --framework-sha "${{ inputs.framework_ref }}" \
             --version "$OPL_BUILD_VERSION" \
             --kind standard \
             --actions-run-id "$GITHUB_RUN_ID" \

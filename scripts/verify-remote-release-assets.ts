@@ -8,6 +8,7 @@ import { assertLocalAuthorizationPolicy } from './local-authorization-policy.ts'
 import { fileSha256 } from './release-file-helpers.ts';
 import { runCommand } from './release-cleanup-helpers.ts';
 import { assertFullRuntimeNativeTrustObject } from './full-runtime-native-trust.ts';
+import { readManagedUpdateLifecycleProviderMap } from './managed-update-lifecycle-contract.ts';
 
 function parseArgs(argv) {
   const parsed = {
@@ -409,16 +410,15 @@ function assertFullRuntimeCurrentnessProbe(downloadDir, manifest) {
     throw new Error(`Full runtime currentness probe used unexpected managed update surface: ${probe.managed_update_surface_id || '(empty)'}`);
   }
   const componentIds = new Set(Array.isArray(probe.managed_update_components) ? probe.managed_update_components : []);
-  for (const required of [
-    'installation_carrier',
-    'runtime_substrate',
-    'capability_packages',
-    'codex_surface',
-    'companion_tools',
-    'workflow_profile',
-  ]) {
+  const requiredProviders = readManagedUpdateLifecycleProviderMap();
+  for (const required of Object.keys(requiredProviders)) {
     if (!componentIds.has(required)) {
       throw new Error(`Full runtime currentness probe is missing managed update component: ${required}`);
+    }
+  }
+  for (const [componentId, providerId] of Object.entries(requiredProviders)) {
+    if (probe.managed_update_component_providers?.[componentId] !== providerId) {
+      throw new Error(`Full runtime currentness probe provider mismatch for ${componentId}.`);
     }
   }
   const expectedCommit = manifest?.components?.opl?.git_commit || manifest?.resolved_refs?.opl_framework?.resolved_commit;

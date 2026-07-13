@@ -348,11 +348,14 @@ function validateSoftwareLifecycle(lifecycle) {
   const objects = lifecycle?.objects ?? {};
   if (
     objects.opl_base?.lifecycle_owner !== 'one-person-lab' ||
+    objects.opl_base?.provider_id !== 'runtime_substrate' ||
     objects.opl_base?.app_mutation_allowed !== false ||
     objects.opl_base?.mutation_route !== 'framework_lifecycle_only' ||
     objects.opl_app?.lifecycle_owner !== 'one-person-lab-app' ||
+    objects.opl_app?.provider_id !== 'installation_carrier' ||
     objects.opl_app?.app_mutation_allowed !== true ||
     objects.opl_packages?.lifecycle_owner !== 'one-person-lab' ||
+    objects.opl_packages?.provider_id !== 'capability_packages' ||
     objects.opl_packages?.app_mutation_allowed !== false ||
     objects.opl_packages?.mutation_route !== 'framework_package_lifecycle_only' ||
     objects.opl_packages?.homebrew_distribution_allowed !== false

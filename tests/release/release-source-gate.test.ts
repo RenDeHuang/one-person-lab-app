@@ -14,6 +14,34 @@ const repoLocalFrameworkRoot = path.join(repoRoot, 'one-person-lab');
 const appHead = '0123456789abcdef0123456789abcdef01234567';
 const shellHead = 'abcdef0123456789abcdef0123456789abcdef01';
 const frameworkHead = '789abcdef0123456789abcdef0123456789abcde';
+const managedUpdateProviders = {
+  opl_base: 'runtime_substrate',
+  opl_app: 'installation_carrier',
+  opl_packages: 'capability_packages',
+};
+
+function readSourceJson(candidatePath: string, shellName = 'one-person-lab-aion-shell'): any {
+  if (candidatePath.endsWith('package.json')) return { name: shellName };
+  if (candidatePath.endsWith('app-release-channel.json')) {
+    return {
+      managed_update_plane: {
+        software_lifecycle: {
+          public_component_keys: Object.keys(managedUpdateProviders),
+          objects: Object.fromEntries(Object.entries(managedUpdateProviders).map(([id, provider_id]) => [id, { provider_id }])),
+        },
+      },
+    };
+  }
+  if (candidatePath.endsWith('managed-update-kernel-contract.json')) {
+    return {
+      providers: Object.entries(managedUpdateProviders).map(([lifecycle_owner, provider_id]) => ({
+        lifecycle_owner,
+        provider_id,
+      })),
+    };
+  }
+  throw new Error(`unexpected JSON path: ${candidatePath}`);
+}
 
 function options(overrides: Partial<ReleaseSourceGateOptions> = {}): ReleaseSourceGateOptions {
   return {
@@ -96,10 +124,7 @@ function reportFor(overrides: Partial<ReleaseSourceGateOptions> = {}) {
     '2026-06-30T00:00:00.000Z',
     {
       pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === frameworkRoot,
-      readJson: (candidatePath) => {
-        assert.equal(candidatePath, path.join(shellRoot, 'package.json'));
-        return { name: 'one-person-lab-aion-shell' };
-      },
+      readJson: (candidatePath) => readSourceJson(candidatePath),
     },
   );
 }
@@ -128,6 +153,28 @@ test('release source gate passes for clean current App checkout and resolvable s
   assert.equal(checkStatus(report, 'active_shell_ref_resolved'), 'passed');
   assert.equal(checkStatus(report, 'active_shell_type'), 'passed');
   assert.equal(checkStatus(report, 'framework_ref_resolved'), 'passed');
+  assert.equal(checkStatus(report, 'managed_update_provider_contract_aligned'), 'passed');
+});
+
+test('release source gate rejects managed update provider contract drift before packaging', () => {
+  const report = buildReleaseSourceGateReport(
+    options(),
+    runner(),
+    '2026-06-30T00:00:00.000Z',
+    {
+      pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === frameworkRoot,
+      readJson: (candidatePath) => {
+        const value = readSourceJson(candidatePath);
+        if (candidatePath.endsWith('managed-update-kernel-contract.json')) {
+          value.providers[0].provider_id = 'drifted-provider';
+        }
+        return value;
+      },
+    },
+  );
+
+  assert.equal(report.status, 'failed');
+  assert.equal(checkStatus(report, 'managed_update_provider_contract_aligned'), 'failed');
 });
 
 test('release source gate emits shell format policy and executes it only when required', () => {
@@ -176,7 +223,7 @@ test('release source gate fails active shell node/dom regressions before expensi
     '2026-06-30T00:00:00.000Z',
     {
       pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === frameworkRoot,
-      readJson: () => ({ name: 'one-person-lab-aion-shell' }),
+      readJson: (candidatePath) => readSourceJson(candidatePath),
     },
   );
 
@@ -200,7 +247,7 @@ test('release source gate fails dirty App worktree before expensive release work
     '2026-06-30T00:00:00.000Z',
     {
       pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === frameworkRoot,
-      readJson: () => ({ name: 'one-person-lab-aion-shell' }),
+      readJson: (candidatePath) => readSourceJson(candidatePath),
     },
   );
 
@@ -224,7 +271,7 @@ test('release source gate ignores declared framework checkout inside App workspa
     '2026-06-30T00:00:00.000Z',
     {
       pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === repoLocalFrameworkRoot,
-      readJson: () => ({ name: 'one-person-lab-aion-shell' }),
+      readJson: (candidatePath) => readSourceJson(candidatePath),
     },
   );
 
@@ -246,7 +293,7 @@ test('release source gate ignores declared framework checkout inside App workspa
     '2026-06-30T00:00:00.000Z',
     {
       pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === repoLocalFrameworkRoot,
-      readJson: () => ({ name: 'one-person-lab-aion-shell' }),
+      readJson: (candidatePath) => readSourceJson(candidatePath),
     },
   );
 
@@ -269,7 +316,7 @@ test('release source gate ignores declared framework checkout inside App workspa
     '2026-06-30T00:00:00.000Z',
     {
       pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === repoLocalFrameworkRoot,
-      readJson: () => ({ name: 'one-person-lab-aion-shell' }),
+      readJson: (candidatePath) => readSourceJson(candidatePath),
     },
   );
 
@@ -293,7 +340,7 @@ test('release source gate fails unresolved framework ref and wrong shell type', 
     '2026-06-30T00:00:00.000Z',
     {
       pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === frameworkRoot,
-      readJson: () => ({ name: 'unexpected-shell' }),
+      readJson: (candidatePath) => readSourceJson(candidatePath, 'unexpected-shell'),
     },
   );
 

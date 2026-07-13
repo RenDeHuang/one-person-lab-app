@@ -9,7 +9,12 @@ import test from 'node:test';
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const validatorPath = path.join(appRoot, 'scripts', 'validate-webui-runtime-smoke-receipts.ts');
 const seedComponentIds = ['opl_framework', 'codex_cli', 'companion_skills', 'domain_modules'];
-const managedUpdateIds = ['installation_carrier', 'runtime_substrate', 'capability_packages', 'codex_surface', 'companion_tools'];
+const managedUpdateProviders = {
+  opl_app: 'installation_carrier',
+  opl_base: 'runtime_substrate',
+  opl_packages: 'capability_packages',
+};
+const managedUpdateIds = Object.keys(managedUpdateProviders);
 
 function component(id: string, kind = 'image_seed') {
   return {
@@ -85,7 +90,8 @@ function startupMaintenance(manualRequired = false) {
 function managedUpdateComponent(id: string) {
   return {
     component_id: id,
-    state: id === 'capability_packages' ? 'skipped_manual_required' : 'current',
+    provider_id: managedUpdateProviders[id as keyof typeof managedUpdateProviders],
+    state: id === 'opl_packages' ? 'skipped_manual_required' : 'current',
     receipt: {
       schema_version: 'opl_managed_update_component_receipt.v1',
       required: true,
@@ -101,7 +107,7 @@ function managedUpdateComponent(id: string) {
 
 function runtimeSubstrateWithFrameworkUpdate() {
   return {
-    ...managedUpdateComponent('runtime_substrate'),
+    ...managedUpdateComponent('opl_base'),
     state: 'update_available',
     current: { opl_framework_runtime: {
       update_available: true,
@@ -115,8 +121,8 @@ function runtimeSubstrateWithFrameworkUpdate() {
   };
 }
 
-function managedUpdateComponents(runtimeSubstrate = managedUpdateComponent('runtime_substrate')) {
-  return managedUpdateIds.map((id) => id === 'runtime_substrate' ? runtimeSubstrate : managedUpdateComponent(id));
+function managedUpdateComponents(runtimeSubstrate = managedUpdateComponent('opl_base')) {
+  return managedUpdateIds.map((id) => id === 'opl_base' ? runtimeSubstrate : managedUpdateComponent(id));
 }
 
 function updateStatus(overrides: Record<string, unknown> = {}) {
@@ -188,10 +194,18 @@ test('WebUI runtime smoke receipt validator rejects missing /projects migration 
 });
 
 test('WebUI runtime smoke receipt validator rejects managed update components without receipt schema', () => {
-  const runtimeSubstrate = { ...managedUpdateComponent('runtime_substrate'), receipt: { required: true } };
+  const runtimeSubstrate = { ...managedUpdateComponent('opl_base'), receipt: { required: true } };
   const { result } = validateFixture({
     update: updateStatus({ components: managedUpdateComponents(runtimeSubstrate) }),
   });
   assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /managed update component runtime_substrate receipt schema/);
+  assert.match(result.stderr, /managed update component opl_base receipt schema/);
+});
+
+test('WebUI runtime smoke receipt validator rejects lifecycle component provider drift', () => {
+  const components = managedUpdateComponents();
+  components[0] = { ...components[0], provider_id: 'runtime_substrate' };
+  const { result } = validateFixture({ update: updateStatus({ components }) });
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /component opl_app provider must match/);
 });

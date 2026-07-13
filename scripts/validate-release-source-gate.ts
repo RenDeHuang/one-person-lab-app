@@ -252,6 +252,18 @@ function statusTextWithoutDeclaredFrameworkCheckout(statusText: string, repoRoot
     .join('\n');
 }
 
+function managedUpdateProviderMap(releaseChannel: any): Record<string, string> {
+  const lifecycle = releaseChannel?.managed_update_plane?.software_lifecycle;
+  const keys = lifecycle?.public_component_keys;
+  if (!Array.isArray(keys)) throw new Error('App release channel is missing managed update public component keys.');
+  return Object.fromEntries(keys.map((componentId) => [componentId, lifecycle.objects?.[componentId]?.provider_id]));
+}
+
+function frameworkManagedUpdateProviderMap(contract: any): Record<string, string> {
+  if (!Array.isArray(contract?.providers)) throw new Error('Framework managed update contract is missing providers.');
+  return Object.fromEntries(contract.providers.map((provider) => [provider.lifecycle_owner, provider.provider_id]));
+}
+
 export function buildReleaseSourceGateReport(
   options: ReleaseSourceGateOptions,
   runner: CommandRunner = run,
@@ -411,6 +423,31 @@ export function buildReleaseSourceGateReport(
       actual: frameworkSha ?? undefined,
       command: commandText('git', ['rev-parse', '--verify', '--quiet', `${options.frameworkRef}^{commit}`]),
     });
+    try {
+      const appProviders = managedUpdateProviderMap(
+        readJson(path.join(options.repoRoot, 'contracts', 'app-release-channel.json')),
+      );
+      const frameworkProviders = frameworkManagedUpdateProviderMap(
+        readJson(path.join(frameworkRoot, 'contracts', 'opl-framework', 'managed-update-kernel-contract.json')),
+      );
+      const aligned = Object.keys(appProviders).length === Object.keys(frameworkProviders).length
+        && Object.entries(appProviders).every(([componentId, providerId]) => frameworkProviders[componentId] === providerId);
+      addCheck(checks, {
+        id: 'managed_update_provider_contract_aligned',
+        status: aligned ? 'passed' : 'failed',
+        message: aligned
+          ? 'App managed update lifecycle objects match Framework provider identities.'
+          : 'App managed update lifecycle provider identities drift from the Framework contract.',
+        expected: JSON.stringify(appProviders),
+        actual: JSON.stringify(frameworkProviders),
+      });
+    } catch (error) {
+      addCheck(checks, {
+        id: 'managed_update_provider_contract_aligned',
+        status: 'failed',
+        message: `Unable to compare App and Framework managed update provider contracts.${error instanceof Error ? ` ${error.message}` : ''}`,
+      });
+    }
   }
 
   if (options.requireShellFormat) {

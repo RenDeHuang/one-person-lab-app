@@ -3,15 +3,9 @@ import path from 'node:path';
 
 import { readGitHead } from './git.ts';
 import { run } from './process.ts';
+import { readManagedUpdateLifecycleProviderMap } from '../managed-update-lifecycle-contract.ts';
 
-const REQUIRED_MANAGED_UPDATE_COMPONENTS = [
-  'installation_carrier',
-  'runtime_substrate',
-  'capability_packages',
-  'codex_surface',
-  'companion_tools',
-  'workflow_profile',
-] as const;
+const REQUIRED_MANAGED_UPDATE_COMPONENTS = readManagedUpdateLifecycleProviderMap();
 
 function parseJsonCommand(command: string, args: string[], env: NodeJS.ProcessEnv): unknown {
   const result = run(command, args, {
@@ -102,27 +96,44 @@ export function assertManagedUpdateProbe(payload: unknown): Record<string, unkno
     componentMap.set(componentId, component);
   }
   const componentIds = new Set(componentMap.keys());
-  const missing = REQUIRED_MANAGED_UPDATE_COMPONENTS.filter((componentId) => !componentIds.has(componentId));
+  const missing = Object.keys(REQUIRED_MANAGED_UPDATE_COMPONENTS).filter((componentId) => !componentIds.has(componentId));
   if (missing.length > 0) {
     throw new Error(`Full runtime managed update probe is missing component(s): ${missing.join(', ')}.`);
   }
-  const installationCarrier = componentMap.get('installation_carrier')!;
+  for (const [componentId, providerId] of Object.entries(REQUIRED_MANAGED_UPDATE_COMPONENTS)) {
+    const component = componentMap.get(componentId)!;
+    if (component.provider_id !== providerId) {
+      throw new Error(
+        `Full runtime managed update probe component ${componentId} uses provider ${String(component.provider_id)}, expected ${providerId}.`,
+      );
+    }
+  }
+  const installationCarrier = componentMap.get('opl_app')!;
   const carrierCurrent = objectValue(
     installationCarrier.current,
-    'managed_update.components[installation_carrier].current',
+    'managed_update.components[opl_app].current',
   );
   stringValue(
     carrierCurrent.host_update_route,
-    'managed_update.components[installation_carrier].current.host_update_route',
+    'managed_update.components[opl_app].current.host_update_route',
   );
   const carrierOwnerRoute = objectValue(
     installationCarrier.owner_route,
-    'managed_update.components[installation_carrier].owner_route',
+    'managed_update.components[opl_app].owner_route',
   );
   stringValue(
     carrierOwnerRoute.route_kind,
-    'managed_update.components[installation_carrier].owner_route.route_kind',
+    'managed_update.components[opl_app].owner_route.route_kind',
   );
+  const packages = componentMap.get('opl_packages')!;
+  objectValue(packages.projection_status, 'managed_update.components[opl_packages].projection_status');
+  const profileMigration = objectValue(
+    packages.profile_migration_status,
+    'managed_update.components[opl_packages].profile_migration_status',
+  );
+  if (profileMigration.semantic_merge_required !== true || profileMigration.silent_overwrite_allowed !== false) {
+    throw new Error('Full runtime managed update probe returned unsafe OPL Packages profile migration policy.');
+  }
   if (componentMap.size !== components.length) {
     throw new Error('Full runtime managed update probe contains duplicate component_id values.');
   }
@@ -174,7 +185,8 @@ export function assertFullRuntimeCurrentness(runtimeRoot: string, options: { fra
       'manifest.components.opl.git_commit',
     ),
     managed_update_surface_id: managedUpdate.surface_id,
-    managed_update_components: REQUIRED_MANAGED_UPDATE_COMPONENTS,
+    managed_update_components: Object.keys(REQUIRED_MANAGED_UPDATE_COMPONENTS),
+    managed_update_component_providers: REQUIRED_MANAGED_UPDATE_COMPONENTS,
     app_state_schema_version: appState.schema_version,
     app_state_module_count: arrayValue(objectValue(appState.modules, 'app_state.modules').items, 'app_state.modules.items').length,
   };

@@ -74,17 +74,18 @@ test('Full runtime currentness consumes the Framework managed update component a
   const { assertManagedUpdateProbe } = await import(
     '../../../scripts/build-full-first-install-package/runtime-currentness.ts'
   );
-  const components = [
-    'installation_carrier',
-    'runtime_substrate',
-    'capability_packages',
-    'codex_surface',
-    'companion_tools',
-    'workflow_profile',
-  ].map((component_id) => ({ component_id }));
+  const components = Object.entries({
+    opl_app: 'installation_carrier',
+    opl_base: 'runtime_substrate',
+    opl_packages: 'capability_packages',
+  }).map(([component_id, provider_id]) => ({ component_id, provider_id }));
   Object.assign(components[0], {
     current: { host_update_route: 'carrier_specific_host_update_route_required' },
     owner_route: { route_kind: 'manual_owner_route' },
+  });
+  Object.assign(components[2], {
+    projection_status: { status: 'current' },
+    profile_migration_status: { semantic_merge_required: true, silent_overwrite_allowed: false },
   });
 
   const current = assertManagedUpdateProbe({
@@ -94,6 +95,17 @@ test('Full runtime currentness consumes the Framework managed update component a
     },
   });
   assert.equal(current.components, components);
+  assert.throws(
+    () => assertManagedUpdateProbe({
+      managed_update: {
+        surface_id: 'opl_managed_updater_kernel',
+        components: components.map((component) => component.component_id === 'opl_base'
+          ? { ...component, provider_id: 'wrong-provider' }
+          : component),
+      },
+    }),
+    /component opl_base uses provider wrong-provider/,
+  );
   assert.throws(
     () => assertManagedUpdateProbe({
       managed_update: {
