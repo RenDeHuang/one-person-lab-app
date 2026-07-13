@@ -17,12 +17,34 @@ const guidHomeExpected = [
   'GuidModelSelector',
   'selectedAgentLabelOverride',
   'onClear={() =>',
-  'fileContextEnabled={!fileAccessBlocked && Boolean(guidInput.dir)}',
+  'fileAccessEnabled={!fileAccessBlocked}',
   'useCoreLaunchPrerequisites',
   'GuidSetupNotice',
 ];
 
 const guidHomeSelectionForbidden = ['AssistantSelectionArea', 'MentionSelectorBadge'];
+
+export function assertProjectlessGuidFileAccessSources(guidPage: string): void {
+  assertTextIncludesAll(
+    guidPage,
+    [
+      'fileAccessEnabled: !fileAccessBlocked',
+      'fileAccessDisabled={fileAccessBlocked}',
+      'fileAccessEnabled={!fileAccessBlocked}',
+      "name: 'open'",
+    ],
+    'Active shell projectless Guid file access',
+  );
+  assertTextExcludesAll(
+    guidPage,
+    [
+      'fileContextEnabled',
+      'fileAccessBlocked || !guidInput.dir',
+      'fileAccessEnabled={!fileAccessBlocked && Boolean(guidInput.dir)}',
+    ],
+    'Active shell projectless Guid workspace gate',
+  );
+}
 
 export function assertCurrentGuidHomeSelectionSources({
   guidPage,
@@ -41,7 +63,8 @@ export function assertCurrentGuidHomeSelectionSources({
       'handleSelectShortcut(assistantId)',
       'onSelect={(assistantId) =>',
       'onClear={() =>',
-      'if (!preselectAgentKey || !agentSelection.is_presetAgent',
+      'setActiveShortcut(resolveOplActiveShortcut(navState.selectedCapabilityId))',
+      'agentSelection.setSelectedAgentKey(agentSelection.defaultAgentKey)',
     ],
     'Active shell Guid Home starter selection',
   );
@@ -50,9 +73,9 @@ export function assertCurrentGuidHomeSelectionSources({
     [
       "data-testid='opl-home-starters'",
       'aria-pressed={active}',
-      'data-opl-active={String(active)}',
-      '!border-primary-5 !bg-primary-1 !text-primary-6',
-      '<FontAwesomeIcon icon={faCheck}',
+      "active ? '!bg-fill-2 !text-t-primary'",
+      '<CloseSmall',
+      '<Right',
       'active && onClear ? onClear() : onSelect(assistant.id)',
     ],
     'Active shell Guid Home starter component',
@@ -232,6 +255,7 @@ function validateGuidHomeImplementation(shellPaths) {
   const homeStarters = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/guid/components/HomeStarters.tsx');
   const capabilitiesPage = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/guid/CapabilitiesPage.tsx');
   assertCurrentGuidHomeSelectionSources({ guidPage, homeStarters, capabilitiesPage });
+  assertProjectlessGuidFileAccessSources(guidPage);
   for (const [locale, expectedStrings] of Object.entries(guidLocaleExpected)) {
     const localeText = readShellText(shellPaths, `packages/desktop/src/renderer/services/i18n/locales/${locale}/guid.json`);
     assertTextIncludesAll(localeText, expectedStrings, `Active shell ${locale} Guid locale post-install self-check copy`);
@@ -254,7 +278,9 @@ function validateGuidAgentSelection(shellPaths) {
       "agent_type: assistant.agent?.type || 'acp'",
       'backend: runtimeKey',
       'useState<string>(CODEX_MODE_NATIVE_FULL_ACCESS)',
-      'if (savedAgent && !savedAgent.is_preset)',
+      "if (savedKey.startsWith('custom:'))",
+      'availableAgents.some((agent) => getAgentKey(agent) === savedKey)',
+      '_setSelectedAgentKey(getDefaultAgentKey(availableAgents))',
     ],
     'Active shell Guid agent selection App-owned default',
   );

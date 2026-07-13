@@ -4,7 +4,10 @@ import test from 'node:test';
 import { validateAppGuiProductContract } from '../../scripts/validate-active-shell/gui-product-contract-validator.ts';
 import { validatePrimaryInteractionPages } from '../../scripts/validate-active-shell/page-state-primary-interaction-validator.ts';
 import { validateProductProfile } from '../../scripts/validate-active-shell/product-profile-validator.ts';
-import { assertCurrentGuidHomeSelectionSources } from '../../scripts/validate-active-shell/shell-ordinary-experience-validator.ts';
+import {
+  assertCurrentGuidHomeSelectionSources,
+  assertProjectlessGuidFileAccessSources,
+} from '../../scripts/validate-active-shell/shell-ordinary-experience-validator.ts';
 import {
   assertCodexModelPolicyProjection,
   projectCodexModelPolicyContracts,
@@ -73,14 +76,15 @@ test('active-shell source gate requires Home starters and Capabilities routing i
       'handleSelectShortcut(assistantId)',
       'onSelect={(assistantId) =>',
       'onClear={() =>',
-      'if (!preselectAgentKey || !agentSelection.is_presetAgent',
+      'setActiveShortcut(resolveOplActiveShortcut(navState.selectedCapabilityId))',
+      'agentSelection.setSelectedAgentKey(agentSelection.defaultAgentKey)',
     ].join('\n'),
     homeStarters: [
       "data-testid='opl-home-starters'",
       'aria-pressed={active}',
-      'data-opl-active={String(active)}',
-      '!border-primary-5 !bg-primary-1 !text-primary-6',
-      '<FontAwesomeIcon icon={faCheck}',
+      "active ? '!bg-fill-2 !text-t-primary'",
+      '<CloseSmall',
+      '<Right',
       'active && onClear ? onClear() : onSelect(assistant.id)',
     ].join('\n'),
     capabilitiesPage: [
@@ -96,6 +100,24 @@ test('active-shell source gate requires Home starters and Capabilities routing i
       guidPage: `${currentSources.guidPage}\nAssistantSelectionArea\nMentionSelectorBadge`,
     }),
   );
+});
+
+test('active-shell source gate preserves projectless local file inputs', () => {
+  const currentSource = [
+    'fileAccessEnabled: !fileAccessBlocked',
+    'fileAccessDisabled={fileAccessBlocked}',
+    'fileAccessEnabled={!fileAccessBlocked}',
+    "name: 'open'",
+  ].join('\n');
+
+  assert.doesNotThrow(() => assertProjectlessGuidFileAccessSources(currentSource));
+  for (const legacyWorkspaceGate of [
+    'fileContextEnabled={!fileAccessBlocked && Boolean(guidInput.dir)}',
+    'fileAccessDisabled={fileAccessBlocked || !guidInput.dir}',
+    'fileAccessEnabled={!fileAccessBlocked && Boolean(guidInput.dir)}',
+  ]) {
+    assert.throws(() => assertProjectlessGuidFileAccessSources(`${currentSource}\n${legacyWorkspaceGate}`));
+  }
 });
 
 test('GUI contract rejects Auto model policy source drift from the App product profile', () => {

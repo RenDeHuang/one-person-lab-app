@@ -262,6 +262,7 @@ export type AppProductProfile = {
       scope: string;
       workspace_surface: Record<string, unknown>;
       preview_surface: Record<string, unknown>;
+      review_surface: Record<string, unknown>;
       on_demand_task_tools: Record<string, unknown>;
       equal_weight_tool_taxonomy_allowed: boolean;
       legacy_taxonomy_ids_forbidden: string[];
