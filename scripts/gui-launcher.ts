@@ -365,8 +365,8 @@ export function readAppBundleIdentifier(appPath: string): string {
   const result = spawnSync('/usr/libexec/PlistBuddy', ['-c', 'Print :CFBundleIdentifier', plistPath], {
     encoding: 'utf8',
   });
-  const stdout = typeof result.stdout === 'string' ? result.stdout : result.stdout?.toString('utf8') ?? '';
-  const stderr = typeof result.stderr === 'string' ? result.stderr : result.stderr?.toString('utf8') ?? '';
+  const stdout = result.stdout ?? '';
+  const stderr = result.stderr ?? '';
   const bundleId = stdout.trim();
   if (result.status !== 0 || !bundleId) {
     const detail = stderr.trim() || stdout.trim() || result.error?.message || `exit ${result.status ?? 'unknown'}`;
