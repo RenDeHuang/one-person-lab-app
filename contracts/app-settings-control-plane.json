@@ -31,9 +31,10 @@
       "entity_kinds": ["skill", "plugin"],
       "groups": {
         "opl_flow_managed": {
-          "source": "installed_opl_flow_package_policy_projection",
-          "source_ref": "opl app state --profile fast --json#app_state.agent_packages.directory.installed_packages[package_id=opl-flow].bundled_required_skill_ids + physical_surface.workflow_policy_migration.dependency_sync",
-          "membership_policy": "derive_from_installed_opl_flow_package_policy_never_from_app_hardcoded_skill_list",
+          "source": "opl_base_typed_flow_dependency_catalog",
+          "source_ref": "opl update status --json#managed_update.components[component_id=opl_base].current.dependency_catalog.flow_dependencies",
+          "compatibility_source_ref": "opl app state --profile fast --json#app_state.agent_packages.directory.installed_packages[package_id=opl-flow].bundled_required_skill_ids + physical_surface.workflow_policy_migration.dependency_sync",
+          "membership_policy": "prefer_typed_opl_base_flow_dependencies_then_fallback_to_installed_opl_flow_package_policy_never_from_app_hardcoded_skill_list",
           "lifecycle_owner": "opl_packages",
           "reconciliation_policy": "package_dependency_closure_reconciliation_on_startup_daily_maintenance_and_explicit_package_update",
           "flow_role": "dependency_and_profile_intent_only_not_a_second_updater",
@@ -602,7 +603,7 @@
       "icon_token": "capabilities",
       "ia_group": "capabilities",
       "slot_id": "settings_capabilities",
-      "state_source": "opl app state --profile fast --json#app_state.agent_packages.directory.installed_packages[package_id=opl-flow].bundled_required_skill_ids + physical_surface.workflow_policy_migration.dependency_sync + Codex and shell skill/plugin registries",
+      "state_source": "opl update status --json#managed_update.components[component_id=opl_base].current.dependency_catalog.flow_dependencies + compatibility fallback: opl app state --profile fast --json#app_state.agent_packages.directory.installed_packages[package_id=opl-flow].bundled_required_skill_ids + physical_surface.workflow_policy_migration.dependency_sync + Codex and shell skill/plugin registries",
       "refresh_source": "opl app state --profile fast --json",
       "scope": "user",
       "intent": "view_status",

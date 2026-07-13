@@ -4446,7 +4446,7 @@
     },
     "settings_capabilities": {
       "state_source": "opl app state --profile fast --json",
-      "projection_source": "app_state.agent_packages.directory.installed_packages[package_id=opl-flow].bundled_required_skill_ids + physical_surface.workflow_policy_migration.dependency_sync + Codex and shell skill/plugin registries",
+      "projection_source": "managed_update.components[component_id=opl_base].current.dependency_catalog.flow_dependencies + compatibility fallback to app_state.agent_packages.directory.installed_packages[package_id=opl-flow].physical_surface.workflow_policy_migration.dependency_sync + Codex and shell skill/plugin registries",
       "refresh_source": "opl app state --profile fast --json",
       "ownership_ref": "contracts/app-settings-control-plane.json#agents_capabilities_ownership.capabilities",
       "sections": ["opl_flow_managed", "manual_and_third_party", "details"],
@@ -4459,7 +4459,7 @@
         "on_demand_tab_ids": []
       },
       "group_policy": {
-        "opl_flow_managed": "derive membership from the installed OPL Flow package policy projection; OPL Packages owns reconciliation",
+        "opl_flow_managed": "prefer the OPL Base typed Flow dependency catalog, fall back to the installed OPL Flow package policy for older locks, and keep reconciliation owned by OPL Packages",
         "manual_and_third_party": "show Codex and shell registry entries with detected owner; mutate only after explicit user action"
       },
       "lifecycle_policy": {
