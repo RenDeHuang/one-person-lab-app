@@ -4,6 +4,7 @@ import type { ReleaseCohortPlan } from '../../scripts/plan-release-cohort.ts';
 import {
   buildStableReleaseSession,
   desktopReleaseDispatchArgs,
+  formatCommandFailure,
   promoteDispatchArgs,
   promotionRerunArgs,
   selectNewCohortRun,
@@ -67,6 +68,20 @@ test('stable release session freezes one cohort and deduplicates cheap gates', (
   assert.equal(session.schema, 'opl_app_stable_release_session.v2');
   assert.equal(session.metrics.artifact_build_count, 0);
   assert.equal(session.metrics.promotion_retry_count, 0);
+});
+
+test('source gate failures prefer structured stdout over runtime warnings', () => {
+  assert.equal(
+    formatCommandFailure(
+      {
+        status: 1,
+        stdout: '{"status":"failed","blocker":"registry metadata unavailable"}\n',
+        stderr: 'ExperimentalWarning: Type Stripping is an experimental feature\n',
+      },
+      'source gate release_preflight',
+    ),
+    'source gate release_preflight: {"status":"failed","blocker":"registry metadata unavailable"}',
+  );
 });
 
 test('desktop release dispatch is derived entirely from the frozen cohort', () => {

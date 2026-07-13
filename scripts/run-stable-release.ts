@@ -172,9 +172,13 @@ function now(): string {
   return new Date().toISOString();
 }
 
+export function formatCommandFailure(result: CommandResult, label: string): string {
+  const detail = result.stdout.trim() || result.stderr.trim() || `${label} failed`;
+  return `${label}: ${detail}`;
+}
+
 function failResult(result: CommandResult, label: string): never {
-  const detail = result.stderr.trim() || result.stdout.trim() || `${label} failed`;
-  throw new Error(`${label}: ${detail}`);
+  throw new Error(formatCommandFailure(result, label));
 }
 
 function writeSession(statePath: string, session: StableReleaseSession): void {
