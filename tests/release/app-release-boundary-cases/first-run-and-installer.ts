@@ -11,6 +11,7 @@ import {
 } from './helpers.ts';
 import { spawnSync } from 'node:child_process';
 import { validateFirstRunMatrix } from '../../../scripts/validate-active-shell/first-run-matrix-validator.ts';
+import { syncAppProductProfileToShell } from '../../../scripts/app-product-profile.ts';
 import { releaseBoundaryChecks } from '../../../scripts/validate-release-boundary/release-checks.ts';
 
 const readJson = (relativePath: string) => JSON.parse(
@@ -112,6 +113,31 @@ test('reusable build validates the Shell consumer after syncing the App product 
     workflow.slice(consumerGate),
     /bunx vitest run tests\/unit\/common-config\/oplProductProfile\.test\.ts/,
   );
+});
+
+test('App product profile check verifies the deterministic compatibility projection without rewriting it', () => {
+  const shellRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-profile-sync-'));
+  const policyPath = path.join(shellRoot, 'workflow-policy.json');
+  const previousPolicy = process.env.OPL_FLOW_WORKFLOW_POLICY;
+  try {
+    writeFile(path.join(shellRoot, 'package.json'), '{}\n');
+    writeFile(policyPath, JSON.stringify({ requires: [], recommends: [] }));
+    process.env.OPL_FLOW_WORKFLOW_POLICY = policyPath;
+
+    const written = syncAppProductProfileToShell(shellRoot);
+    assert.equal(written.synced, true);
+    assert.equal(syncAppProductProfileToShell(shellRoot, { check: true }).verified, true);
+
+    fs.appendFileSync(written.targetPath, '{"stale":true}\n');
+    assert.throws(
+      () => syncAppProductProfileToShell(shellRoot, { check: true }),
+      /does not match the deterministic App \+ OPL Flow projection/,
+    );
+  } finally {
+    if (previousPolicy === undefined) delete process.env.OPL_FLOW_WORKFLOW_POLICY;
+    else process.env.OPL_FLOW_WORKFLOW_POLICY = previousPolicy;
+    fs.rmSync(shellRoot, { recursive: true, force: true });
+  }
 });
 
 test('reusable release-boundary job checks out its OPL Flow authority source', () => {
