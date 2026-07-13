@@ -974,10 +974,28 @@ export const appOwnedTranscriptExport = {
   errors_visible: true,
   workspace_bundle_authorized: false,
 };
+export const appOwnedArtifactPreview = {
+  surface: "existing_aionui_preview_context_and_panel",
+  entry_sources: [
+    "current_task_latest_artifact_ref",
+    "current_task_evidence_ref",
+    "environment_artifact_ref",
+    "conversation_file_or_result_ref",
+  ],
+  supported_content_types: ["markdown", "pdf", "code", "image", "html", "diff"],
+  markdown_embedded_renderers: ["mermaid", "katex", "code"],
+  ref_resolution_policy:
+    "canonical_workspace_file_ref_to_existing_preview_target_without_copying_artifact_body",
+  artifact_body_authority: "external_owner_ref_only",
+  keyboard_reachable_open_action: true,
+  failure_policy: "keep_ref_visible_and_fail_closed_with_reason",
+  unsafe_or_unsupported_ref_policy: "do_not_open_or_guess_content",
+};
 export const appOwnedGuiContractOrdinaryConversation = {
   ...appOwnedOrdinaryConversation,
   model_status_surface: "executor_policy.default_model_display_value",
   transcript_export: appOwnedTranscriptExport,
+  artifact_preview: appOwnedArtifactPreview,
 };
 export const appOwnedCurrentTaskSlice = {
   source: "contracts/app-runtime-bridge.json#current_task_slice_projection",
@@ -1043,6 +1061,7 @@ export const appOwnedPageStateOrdinaryConversation = {
   ),
   transcript_export: appOwnedTranscriptExport,
   current_task_slice: appOwnedCurrentTaskSlice,
+  artifact_preview: appOwnedArtifactPreview,
 };
 export const appOwnedRightContextInspectorPolicy = {
   compatibility_name: "right_context_inspector",

@@ -480,7 +480,7 @@
           "errors_visible": true,
           "workspace_bundle_authorized": false
         },
-        "current_task_slice": {
+      "current_task_slice": {
           "source": "contracts/app-runtime-bridge.json#current_task_slice_projection",
           "state_source": "opl app state --profile fast --json",
           "scope": "current_conversation_or_selected_task",
@@ -534,7 +534,34 @@
           ],
           "independent_task_store_allowed": false,
           "model_ref": "contracts/app-runtime-bridge.json#task_awareness_projection",
-          "slice_policy": "same_task_run_projection_v2_filtered_by_current_conversation_or_selected_task"
+        "slice_policy": "same_task_run_projection_v2_filtered_by_current_conversation_or_selected_task"
+      },
+        "artifact_preview": {
+        "surface": "existing_aionui_preview_context_and_panel",
+        "entry_sources": [
+          "current_task_latest_artifact_ref",
+          "current_task_evidence_ref",
+          "environment_artifact_ref",
+          "conversation_file_or_result_ref"
+        ],
+        "supported_content_types": [
+          "markdown",
+          "pdf",
+          "code",
+          "image",
+          "html",
+          "diff"
+        ],
+        "markdown_embedded_renderers": [
+          "mermaid",
+          "katex",
+          "code"
+        ],
+        "ref_resolution_policy": "canonical_workspace_file_ref_to_existing_preview_target_without_copying_artifact_body",
+        "artifact_body_authority": "external_owner_ref_only",
+        "keyboard_reachable_open_action": true,
+        "failure_policy": "keep_ref_visible_and_fail_closed_with_reason",
+        "unsafe_or_unsupported_ref_policy": "do_not_open_or_guess_content"
         }
       },
       "must_show": [
@@ -553,7 +580,8 @@
         "structured result panel inside the current task slice when a task returns structured refs",
         "single current task instance in the message timeline, inline and unpinned for ordinary tasks",
         "current task becomes sticky only after user pin or a true long_running signal",
-        "complete paginated redacted transcript export with Markdown default, strict JSON, explicit directory and filename"
+        "complete paginated redacted transcript export with Markdown default, strict JSON, explicit directory and filename",
+        "keyboard-reachable artifact and evidence refs that open through the existing Preview surface"
       ],
       "must_not_show": [
         "backend selector as normal conversation control",
@@ -568,6 +596,89 @@
       ],
       "state_source": "opl app state --profile fast --json",
       "refresh_source": "opl app state --profile fast --json"
+    },
+    {
+      "id": "thread_coordination",
+      "expected_source": "App-owned thread coordination contract and Codex App Server thread read model",
+      "machine_source": "contracts/app-gui-product-contract.json#interaction_baseline.thread_coordination + Codex App Server thread and turn protocol",
+      "page_contract": "opl_cross_top_level_thread_coordination",
+      "coordination_view_model": {
+        "product_role": "opl_host_cross_top_level_codex_thread_coordination",
+        "entry_surface": "navigation_rail_thread_actions_and_on_demand_coordination_drawer",
+        "default_state": "closed",
+        "thread_list_protocol": "thread/list",
+        "thread_read_protocol": "thread/read",
+        "thread_actions": ["thread/resume", "thread/fork", "thread/archive"],
+        "idle_dispatch_protocol": "turn/start",
+        "running_dispatch_protocol": "turn/steer",
+        "required_thread_fields": [
+          "thread_id",
+          "status",
+          "summary",
+          "project",
+          "workspace",
+          "host",
+          "owner",
+          "goal",
+          "parent_thread_id",
+          "ancestor_thread_ids",
+          "active_turn_id",
+          "write_set"
+        ],
+        "safety_gates": [
+          "permission_check",
+          "idempotency_key_and_duplicate_message_check",
+          "delegation_cycle_check",
+          "project_and_workspace_scope_check",
+          "concurrent_write_set_conflict_check"
+        ],
+        "required_states": [
+          "loading",
+          "ready",
+          "empty",
+          "offline",
+          "permission_denied",
+          "duplicate_rejected",
+          "loop_rejected",
+          "scope_mismatch",
+          "write_set_conflict",
+          "stale_status",
+          "dispatch_running",
+          "dispatch_completed",
+          "dispatch_failed"
+        ],
+        "user_visible_audit_fields": [
+          "sender",
+          "source_thread_id",
+          "target_thread_id",
+          "reason",
+          "message_summary",
+          "protocol_method",
+          "permission_decision",
+          "write_set_decision",
+          "status",
+          "result_summary"
+        ],
+        "unknown_or_stale_status_policy": "refresh_then_fail_closed",
+        "same_agent_tree_api_boundary": "spawn_agent_send_input_wait_agent_same_tree_only"
+      },
+      "must_show": [
+        "top-level thread list and current status",
+        "thread summary and paginated history readback",
+        "project, workspace, host, owner, goal, parent and ancestor relationships",
+        "resume, fork and archive actions",
+        "turn/start for an idle target and turn/steer for a running target",
+        "sender, target, reason, message, safety decision, status and result audit trail"
+      ],
+      "must_not_show": [
+        "send_input as a cross-top-level-thread transport",
+        "a shell-owned duplicate thread database",
+        "silent cross-project dispatch",
+        "dispatch that bypasses permission, cycle, duplicate or write-set conflict checks",
+        "a default-open coordination dashboard"
+      ],
+      "state_source": "Codex App Server thread/list and thread/read",
+      "refresh_source": "Codex App Server thread/list"
     },
     {
       "id": "right_context_inspector",

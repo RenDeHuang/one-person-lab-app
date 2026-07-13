@@ -13,7 +13,11 @@
     "default_ref": "main",
     "checkout_path": "shells/aionui",
     "history_policy": "external_checkout_not_merged_into_app_default_branch",
-    "upstream_ref": "9b3b3dd09546bc1360b8c27ad655b60b61768b89"
+    "upstream_ref": "9b3b3dd09546bc1360b8c27ad655b60b61768b89",
+    "upstream_ref_role": "minimum_verified_gui_conformance_ancestor",
+    "current_head_source": "active_shell_checkout_git_head",
+    "current_head_must_contain_upstream_ref": true,
+    "current_head_must_not_be_copied_into_human_docs": true
   },
   "app_remote": {
     "name": "origin",
@@ -206,6 +210,13 @@
       "selective_absorption_head": {
         "ref": "e38b00ba37cafe56d704b498a4882264836463e4",
         "role": "scoped_absorption_and_intake_record_head"
+      },
+      "latest_reviewed_upstream": {
+        "release": "v2.1.33",
+        "ref": "a819d175683d5a0aada20064888da07bfcecdb6a",
+        "role": "reviewed_stable_release_not_merged",
+        "gui_delta": "none",
+        "disposition": "release_runtime_only_selective_intake"
       }
     },
     "allowed_classifications": [

@@ -34,6 +34,8 @@ Machine boundary: 本文是 shell-neutral 的人读交互目标。机器可读�
    与 raw detail 可按需展开。
 7. **Authority aware。** UI 展示 state/action/domain/release refs，但不推断或接管
    owner truth。
+8. **Coordination is visible and bounded。** 跨顶层线程发现、投递、冲突和结果必须可见、
+   可审计；模型决定何时协调，App Server 拥有 thread/turn，OPL host 执行权限和安全策略。
 
 没有明确 OPL delta 的主流程默认采用 OPL contracts 对
 [`codex-to-opl-app-delta.md`](codex-to-opl-app-delta.md) 记录的
@@ -101,6 +103,25 @@ Rail 负责 navigation，不承担 dashboard：
 - Backend、provider、permission、router 和 raw runtime state 不作为 rail 层级。
 - 外部交互参考可以改变入口位置，但不得删除 OPL-owned capability；任何迁移必须在同一
   变更提供可见、键盘可达的替代入口，并同步更新 contract、source 和 navigation tests。
+
+### 跨顶层线程协调
+
+- Project 下的 conversation rows 同时是 App Server top-level thread 的可见入口；status、host、
+  owner、goal、parent/ancestor 与 write-set 进入 row marker 或按需 detail，不增加 agent dashboard。
+- 默认只枚举当前 project。跨 project、remote host 和 archived scope 通过显式 filter 进入；
+  不把全局目录铺在 Home，也不自动把其它线程全文注入当前上下文。
+- 读取采用 metadata/summary first，必要时才 `thread/read` 历史；resume、fork、archive 位于
+  thread action menu，保持键盘可达。
+- 发送协作消息时，用户或模型必须提供 target、reason、message summary 和 expected write set。
+  Idle target 使用 `turn/start`；running target 的紧急信息使用明确标记的 `turn/steer`，非紧急
+  信息排队后再 `turn/start`；stale/unknown status 先 refresh，仍不确定则 fail closed。
+- 跨 project/host、权限扩大、active turn steering 或 write-set overlap 默认确认。Dedupe、
+  delegation loop、scope mismatch 与 write-set conflict 返回 typed failure，不静默换目标或建线程。
+- Source 与 target timeline 都显示 coordination event；用户可以看到谁向谁发送、为什么、使用
+  哪个协议动作、权限/冲突决策、当前状态和结果入口。Desktop 使用 rail context action +
+  dialog/popover，mobile 使用 action sheet + full-height detail，语义等价。
+- `spawn_agent`、`send_input`、`wait_agent` 继续服务同一 agent tree；跨根线程只经 App Server
+  `thread/*` 与 `turn/*`，AionUI 不拥有 thread ID、history 或路由策略。
 
 宽桌面 rail persistent 且在 `280-340px` 内可调；窄窗口 drawer 化。关闭 drawer 不清除
 selection 或当前草稿。Back/Forward、Previous/Next Task、New Window 是 desktop
@@ -309,6 +330,8 @@ First-run 的目标是让用户尽快进入可工作的 App：
 - Rail 顶部只有 New task、Runtime、Archived；capability 选择在 Home，管理在 Settings。
 - Environment 首层保持 workspace/locality/branch/changes/subtasks/sources；OPL artifact/evidence 为
   次级 section/preview，advanced tools 默认关闭。
+- 当前 project thread directory、thread detail、dispatch confirmation、双边 coordination receipt
+  与 denied/conflict/offline 状态均可发现；跨顶层投递不使用 `send_input`，不绕过权限或写集 gate。
 - Settings 使用 full-window shell，OPL IA、first-run、品牌和双语边界保持不变。
 - Pending、elapsed、tool/process、permission、failure 和 receipt 在 turn 中可理解。
 - Runtime/Settings 使用 App state/action/Control Plane，不拥有 owner truth。

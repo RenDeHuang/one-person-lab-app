@@ -78,6 +78,7 @@ const REQUIRED_SOURCE_REF_ROLES = {
   fork_base: 'shared_fork_base',
   evaluated_upstream: 'evaluated_upstream_release',
   selective_absorption_head: 'scoped_absorption_and_intake_record_head',
+  latest_reviewed_upstream: 'reviewed_stable_release_not_merged',
 };
 const REQUIRED_AIONCORE_VERSION = 'v0.1.44';
 const REQUIRED_AIONCORE_EVIDENCE = 'packaged_aioncore_boundary_and_recovery_smoke';
@@ -410,6 +411,13 @@ function validateSourceRefs(upstreamIntake) {
   }
   if (sourceRefs.evaluated_upstream.release !== 'v2.1.31') {
     throw new Error('Active shell upstream intake evaluated release must be v2.1.31');
+  }
+  if (
+    sourceRefs.latest_reviewed_upstream.release !== 'v2.1.33' ||
+    sourceRefs.latest_reviewed_upstream.gui_delta !== 'none' ||
+    sourceRefs.latest_reviewed_upstream.disposition !== 'release_runtime_only_selective_intake'
+  ) {
+    throw new Error('Active shell latest reviewed upstream must record v2.1.33 as a non-GUI selective intake');
   }
   const refs = Object.values(sourceRefs).map((sourceRef) => sourceRef.ref);
   if (new Set(refs).size !== refs.length) {
@@ -794,6 +802,10 @@ export function validateUpstreamIntakePolicy(contract, shellPaths, options = {})
   validateManagedAgentApiCompatibility(contract, shellPaths, options);
 
   const isGitAncestor = options.isGitAncestor ?? defaultIsGitAncestor;
+  const guiConformanceRef = contract.shell_source?.upstream_ref;
+  if (!guiConformanceRef || !isGitAncestor(guiConformanceRef, shellPaths.shellRoot)) {
+    throw new Error(`active shell HEAD must contain verified GUI conformance ref ${String(guiConformanceRef)}`);
+  }
   validateActiveShellAncestry(
     upstreamIntake,
     [...capabilityById.values(), ...dependencyById.values()],

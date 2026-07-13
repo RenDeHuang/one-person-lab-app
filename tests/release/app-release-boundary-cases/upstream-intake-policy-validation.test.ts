@@ -81,7 +81,7 @@ function validateContract(contract, options = {}) {
   });
 }
 
-test('AionUI v2.1.31 intake contract validates the fixed source refs and classification matrix', () => {
+test('AionUI intake contract separates the absorbed v2.1.31 cohort from the reviewed v2.1.33 release', () => {
   const contract = readContract();
   const checkedRefs: string[] = [];
   let packagePath = '';
@@ -99,14 +99,25 @@ test('AionUI v2.1.31 intake contract validates the fixed source refs and classif
   const intake = contract.upstream_intake;
   assert.equal(packagePath, shellPaths.packageManifestPath);
   assert.deepEqual(checkedRefs, [
+    contract.shell_source.upstream_ref,
     intake.source_refs.selective_absorption_head.ref,
     MANAGED_AGENT_REMEDIATION_REF,
     capability(contract, 'feedback_diagnostics_privacy').remediation_ref,
     dependency(contract, 'aioncore_database_recovery').remediation_ref,
   ]);
   assert.deepEqual(
-    [intake.source_refs.fork_base.ref, intake.source_refs.evaluated_upstream.ref, intake.source_refs.selective_absorption_head.ref],
-    ['70974c59a275e565e8fc2bd7ecaf2dcac74227f0', 'e49cd94935f4e461f002a1260a47c1b7b2ce81ca', 'e38b00ba37cafe56d704b498a4882264836463e4'],
+    [
+      intake.source_refs.fork_base.ref,
+      intake.source_refs.evaluated_upstream.ref,
+      intake.source_refs.selective_absorption_head.ref,
+      intake.source_refs.latest_reviewed_upstream.ref,
+    ],
+    [
+      '70974c59a275e565e8fc2bd7ecaf2dcac74227f0',
+      'e49cd94935f4e461f002a1260a47c1b7b2ce81ca',
+      'e38b00ba37cafe56d704b498a4882264836463e4',
+      'a819d175683d5a0aada20064888da07bfcecdb6a',
+    ],
   );
   assert.deepEqual([
     capability(contract, 'database_recovery').classification,
@@ -158,7 +169,9 @@ const invalidCases = [
   }, /AionCore database recovery boundary contract/),
   invalid('a lowered AionCore minimum version', (c) => { dependency(c, 'aioncore_database_recovery').version_gate.minimum_version = 'v0.1.28'; }, /version_gate\.minimum_version must be v0\.1\.44/),
   invalid('an active shell package version mismatch', () => {}, /active shell package aioncoreVersion v0\.1\.28 must match selective_absorption_version v0\.1\.44/, () => ({ readJsonFile: () => ({ aioncoreVersion: 'v0.1.28' }) })),
-  invalid('a selective absorption ref outside active shell history', () => {}, (c) => new RegExp('active shell HEAD must contain selective absorption ref ' + c.upstream_intake.source_refs.selective_absorption_head.ref), () => ({ isGitAncestor: () => false })),
+  invalid('a selective absorption ref outside active shell history', () => {}, (c) => new RegExp('active shell HEAD must contain selective absorption ref ' + c.upstream_intake.source_refs.selective_absorption_head.ref), (c) => ({
+    isGitAncestor: (ref) => ref !== c.upstream_intake.source_refs.selective_absorption_head.ref,
+  })),
   invalid('a remediation ref outside active shell history', (c) => {
     const aionCore = dependency(c, 'aioncore_database_recovery');
     aionCore.evidence = aionCore.evidence.map((entry) => entry.startsWith('shell_commit:') ? 'shell_commit:' + missingRemediationRef : entry);

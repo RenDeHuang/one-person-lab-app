@@ -10,7 +10,7 @@ const designRoot = 'docs/product/gui';
 
 const conformanceMatrix = `# Shell conformance matrix
 
-- AionUI current source snapshot：\`opl-aion-shell@0000000000000000000000000000000000000000\`；fixture only。
+- AionUI GUI conformance ancestor：\`opl-aion-shell@0000000000000000000000000000000000000000\`；fixture only。
 
 | 功能或交互要求 | AionUI contract | AionUI source | AionUI pixel | Native contract | Native source | Native pixel | 验证入口与边界 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -77,7 +77,7 @@ function createFixture(): string {
   const guiContract = JSON.parse(fs.readFileSync(path.join(root, 'contracts/app-gui-product-contract.json'), 'utf8'));
   const finalShellSha = guiContract.interaction_baseline.acceptance_boundary.final_shell_sha;
   const shellAdapter = JSON.parse(fs.readFileSync(path.join(root, 'contracts/app-shell-adapter.json'), 'utf8'));
-  const currentShellSha = shellAdapter.shell_source.upstream_ref;
+  const guiConformanceRef = shellAdapter.shell_source.upstream_ref;
   const evidenceManifest = JSON.parse(fs.readFileSync(path.join(root, 'docs/product/gui/evidence/aionui-41301/manifest.json'), 'utf8'));
   for (const entry of evidenceManifest.entries) copyFixtureAsset(root, entry.screenshot_path);
 
@@ -92,7 +92,8 @@ function createFixture(): string {
     `superseded_interaction_observations=${supersededCodexReference},${earlierSupersededCodexReference}`,
     'human_target.owner=one-person-lab-app',
     'active_aionui.role=current_implementation_conformance_only',
-    `active_aionui.current_shell_sha=${currentShellSha}`,
+    `active_aionui.gui_conformance_ref=${guiConformanceRef}`,
+    'active_aionui.current_shell_head_source=active_shell_checkout_git_head',
     `active_aionui.historical_41301_evidence_sha=${finalShellSha}`,
     'docs_or_contract_imply_source_complete=false',
     'docs_or_contract_imply_pixel_complete=false',
@@ -109,7 +110,7 @@ function createFixture(): string {
   writeFile(
     root,
     `${designRoot}/shell-conformance-matrix.md`,
-    conformanceMatrix.replace('0000000000000000000000000000000000000000', currentShellSha),
+    conformanceMatrix.replace('0000000000000000000000000000000000000000', guiConformanceRef),
   );
   return root;
 }
@@ -357,7 +358,7 @@ test('GUI design-system validator rejects a historical evidence binding that dri
   );
 });
 
-test('GUI design-system validator rejects a current Shell adapter that drifts from the conformance snapshot', () => {
+test('GUI design-system validator rejects a GUI ancestor that drifts from the conformance snapshot', () => {
   const root = createFixture();
   const adapterPath = path.join(root, 'contracts/app-shell-adapter.json');
   const adapter = JSON.parse(fs.readFileSync(adapterPath, 'utf8'));
@@ -366,7 +367,35 @@ test('GUI design-system validator rejects a current Shell adapter that drifts fr
 
   assert.throws(
     () => validateGuiDesignSystem(root),
-    /shell conformance matrix current AionUI snapshot must match the active shell adapter/,
+    /shell conformance matrix GUI conformance ancestor must match the active shell adapter/,
+  );
+});
+
+test('GUI design-system validator rejects artifact preview body copying or unsafe ref guessing', () => {
+  const root = createFixture();
+  const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
+  const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+  contract.interaction_baseline.artifact_preview.artifact_body_authority = 'shell_copy';
+  contract.interaction_baseline.artifact_preview.unsafe_or_unsupported_ref_policy = 'guess_content';
+  writeJson(root, 'contracts/app-gui-product-contract.json', contract);
+
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /artifact preview must reuse the existing Preview surface through a ref-only fail-closed adapter/,
+  );
+});
+
+test('GUI design-system validator rejects send_input as a cross-top-level thread bus', () => {
+  const root = createFixture();
+  const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
+  const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+  contract.interaction_baseline.thread_coordination.same_agent_tree_transport.cross_top_level_use_forbidden = false;
+  contract.interaction_baseline.thread_coordination.cross_top_level_protocol = ['send_input'];
+  writeJson(root, 'contracts/app-gui-product-contract.json', contract);
+
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /cross-top-level thread coordination must use Codex App Server thread\/turn protocols with OPL host safety and audit gates/,
   );
 });
 
@@ -467,11 +496,11 @@ test('GUI design-system validator rejects a stale dynamic AionUI contract row', 
   assert.throws(() => validateGuiDesignSystem(root), /Permission\/access mode.*must report AionUI contract_status aligned_contract/);
 });
 
-test('GUI design-system validator requires an exact AionUI source snapshot', () => {
+test('GUI design-system validator requires an exact AionUI GUI conformance ancestor', () => {
   const root = createFixture();
   const matrixPath = path.join(root, designRoot, 'shell-conformance-matrix.md');
   fs.writeFileSync(matrixPath, fs.readFileSync(matrixPath, 'utf8').replace(/opl-aion-shell@[0-9a-f]{40}/, 'opl-aion-shell@stale'), 'utf8');
-  assert.throws(() => validateGuiDesignSystem(root), /must bind an exact 40-character AionUI source snapshot/);
+  assert.throws(() => validateGuiDesignSystem(root), /must bind an exact 40-character AionUI GUI conformance ancestor/);
 });
 
 test('GUI design-system validator rejects legacy aligned-contract-only status', () => {

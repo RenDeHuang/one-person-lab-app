@@ -29,7 +29,7 @@ tests 与 evidence。
 | Priority | Product layer | 包含 | 完成定义 |
 | --- | --- | --- | --- |
 | `P0 Codex Core` | 日常主工作流 | App frame、project/conversation rail、New task、conversation timeline、composer、streaming、history、model/reasoning、access/permission。 | 用户不离开 chat canvas 即可开始、继续和完成普通任务。 |
-| `P1 OPL Professional` | OPL 专业增量 | Project context refs、capability selection、task progress、approval、evidence/artifact preview、safe action 与 receipt。 | 增量嵌入 P0 稳定位置，不引入 dashboard 或第二套导航。 |
+| `P1 OPL Professional` | OPL 专业增量 | Project context refs、capability selection、跨顶层线程协调、task progress、approval、evidence/artifact preview、safe action 与 receipt。 | 增量嵌入 P0 稳定位置，不引入 dashboard、第二套导航或第二套 thread store。 |
 | `P2 Administration` | 配置和运维 | Settings、Runtime 跨项目总览、first-run、安装、更新、诊断。 | 可发现、可恢复，但不反向决定 P0/P1 的布局和视觉。 |
 
 任何工作若只改善 `P2`，不能据此声称 GUI 主体验已对齐 Codex。设计评审和视觉证据
@@ -57,6 +57,8 @@ Sites/Chat 等入口可以隐藏或拒绝；它们不构成 OPL 功能回归。
 | New conversation | 在 project 中开始 task，或直接开始 projectless Codex conversation。 | GUI contract、conversation page state、Codex bridge。 |
 | Resume conversation | 找回 recent conversation，并保留关联 workspace。 | Conversation state/bridge；shell 只持有实现所需 session refs。 |
 | Conversation management | Search、pin、rename、archive、reset conversation，并在独立 Archived surface 管理归档。 | GUI contract、conversation state/bridge。 |
+| Cross-thread discovery | 在当前 project 的 rail/detail 中看到独立顶层线程的 status、summary、workspace、host、owner、goal、parent/ancestor 与 claimed write set；跨 project/host 需显式切换范围。 | Codex App Server thread read model；OPL host 只聚合轻量 metadata。 |
+| Cross-thread coordination | 读取必要摘要/历史，恢复、分叉、归档目标线程；向 idle target 使用 `turn/start`，向 running target 使用 `turn/steer` 或排队，并在 source/target 两侧看到 sender、reason、message、safety decision 与 result receipt。 | Codex Core/App Server 拥有 thread/turn；OPL host 拥有 permission、dedupe、loop、scope、write-set conflict 与 audit policy。 |
 | Text instruction | 向固定 Codex executor 发送多行任务说明。 | Product profile、ordinary conversation contract。 |
 | Streaming assistant output | 持续看到 assistant response，不需要查看 raw protocol。 | Codex/App bridge 与 conversation page state。 |
 | Pending/running feedback | 看到当前 turn 正在处理、elapsed time、stop 和失败状态。 | Page-state matrix、bridge events。 |
@@ -101,6 +103,7 @@ short name 和 technical refs 进入 details/receipt。
 | Task/project drilldown | 按需查看 evidence、blocker、owner、resource 和 next-action refs。 | Runtime bridge / domain-owned refs。 |
 | Safe action | 对允许的运行或维护动作先 preview，再 confirm/execute。 | `opl app action execute ... --json`。 |
 | Files and artifact refs | 从 conversation、Environment details 或 preview 打开输入、输出和交付引用。 | Workspace/domain artifact refs；App 不拥有 artifact body。 |
+| Artifact preview adapter | Workspace 内 canonical file ref 进入现有 PreviewContext/PreviewPanel；Markdown 可承载 Mermaid、KaTeX 与 code，PDF/image/html/diff 使用既有 renderer，外部 URL、unsafe/unsupported ref fail closed。 | App GUI contract定义 ref policy；外部 owner 继续拥有 artifact body。 |
 | Provenance and receipts | 查看来源、owner handoff、action result 和 lineage refs。 | Domain/runtime/release owner refs。 |
 
 Home 不承担跨项目 Runtime、continue-work、needs-attention、activity grid 或 evidence
@@ -165,5 +168,6 @@ Legacy/upstream routes 只作为 compatibility redirects，不构成功能目录
 - 不记录 candidate/release 完成度、截图 proof、commit 或 run id。
 - 不复制模型 allowlist、Settings route registry、action catalog 或 page-state payload。
 - 不把 runtime、domain、artifact、memory、owner receipt 或 release truth 移入 App GUI。
+- 不把同一 agent tree 的 `spawn_agent/send_input/wait_agent` 扩展成跨顶层线程消息总线，也不在 Shell 建第二套 thread store、权限模型或 Codex JSONL parser。
 - 不把普通 Home 变成 dashboard、multi-agent launcher、provider marketplace 或
   protocol monitor。

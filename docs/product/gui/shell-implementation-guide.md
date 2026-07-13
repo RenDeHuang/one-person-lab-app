@@ -60,6 +60,8 @@ contract/实现收敛 lane 处理。
 | State bridge | 把 App state readback 规范化为 renderer 可消费 envelope。 | 从本地组件状态推断 runtime/domain readiness。 |
 | Action bridge | 执行 App-owned action，并返回 dry-run/result/receipt。 | 直接调用 domain CLI、绕过 confirmation 或自建 mutation kernel。 |
 | Package launch adapter | 在 Home starter launch 前请求 Framework-owned use-boundary activation，并消费 `launch_allowed`、receipt 与 binding。 | 从 installed flag 推断可用、绕过 activation、在失败后仍创建/发送 conversation。 |
+| Thread coordination host adapter | 封装 App Server `thread/*` 与 `turn/*`，投影 project-scoped directory、dispatch、safety decision 和 receipt。 | 用 `send_input` 作为跨根线程总线、自建 thread store/permission model、React 组件直接拼协议。 |
+| Artifact ref adapter | 把 canonical workspace file ref 解析为现有 Preview target，保持只读和 fail-closed。 | 复制 artifact body、新建 renderer/store、路径穿越、外部 URL 或猜测未知格式。 |
 | Route adapter | 把 legacy/upstream route 映射到 App-owned page。 | 让 compatibility route 重新成为 ordinary navigation。 |
 | Settings slot | 从 Control Plane registry 渲染 ordinary/secondary pages。 | 复制一套 shell-owned Settings IA。 |
 | Presentation adapter | 复用 shell primitives 实现 App layout、tokens、i18n 和 accessibility。 | 复制外部源码或把视觉 token变成产品 truth。 |
@@ -151,6 +153,12 @@ opl app action execute --action <id> [--payload <json>] [--dry-run] --json
 - Package launch 是独立的 fail-closed prepare/activate/launch 流程。Shell 不拥有 package
   currentness 或 materialization，只在 Framework 返回完整 use receipt/binding 后继续。
 
+跨顶层线程协调是另一条 host boundary：Codex Core/App Server 拥有 opaque thread ID、history、
+status 与 turn；OPL host 执行 list/read/resume/fork/archive/start/steer、permission、dedupe、loop、
+project/workspace/host 与 write-set gate，并产生双边可见 receipt。`spawn_agent/send_input/wait_agent`
+只用于同一 agent tree。协议适配集中在 host/preload boundary，rail、dialog、timeline 和 mobile
+sheet 只消费 typed projection，不直接解析 App Server JSON 或拥有路由策略。
+
 ## Settings Control Plane
 
 Settings 是 App-owned OPL Control Center。Shell 应通过 Control Plane registry 和
@@ -241,6 +249,8 @@ command 和可见状态 anchor。
   resolution 冒充多 GUI 一致性。
 - 把本机启动 candidate、side-by-side bundle 或 session resume smoke 当成 active-shell
   adoption、同 Runtime cohort 或并发写安全。
+- 在 Shell 中建立第二套 thread store、global agent registry、跨线程 permission policy，或把
+  `send_input` 扩大为任意历史 thread 的消息总线。
 - 把 Home 做成 dashboard、launcher、activity grid 或三列 scientific workbench。
 - 宽桌面隐藏 project rail，却把该实现现状写成理想目标。
 - 默认打开右侧 inspector，或在窄屏只切换按钮状态而不显示 panel。
@@ -259,6 +269,9 @@ command 和可见状态 anchor。
   canonical thread store；
 - Home/chat-first、timeline、composer、rail 和 Environment/details 行为符合对应 target 或被明确
   标成 current deviation；
+- 跨顶层 thread list/read/dispatch 使用 App Server adapter，idle/running/stale 状态选择正确，
+  denied/duplicate/loop/cross-project/write-set conflict 均 fail closed 且 receipt 对用户可见；
+- Artifact/evidence refs 只在安全解析后进入现有 Preview，失败时保留原 ref 且不打开空 preview；
 - Settings 从 Control Plane registry/slots 渲染，legacy routes 只 redirect；
 - Home package starter 在 unavailable/activating/blocked 状态有真实 readback，launch 前
   activation fail closed；

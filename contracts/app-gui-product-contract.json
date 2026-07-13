@@ -54,7 +54,8 @@
         "first_run",
         "opl_settings",
         "domain_package_entries",
-        "bilingual_ui"
+        "bilingual_ui",
+        "cross_top_level_thread_coordination"
       ],
       "relocation_gate": {
         "replacement_reachable_in_same_change": true,
@@ -89,11 +90,13 @@
     "opl_target_translation": [
       "navigation_rail",
       "conversation_scope",
+      "thread_coordination",
       "home",
       "capability_selection",
       "composer",
       "permission_access_mode",
       "current_task_summary_bar",
+      "artifact_preview",
       "context_surfaces",
       "settings_shell",
       "visual_target"
@@ -154,6 +157,97 @@
         "fabricated_defaults_allowed": false,
         "artifact_body_copy_allowed": false
       }
+    },
+    "thread_coordination": {
+      "definition_role": "opl_target_translation_not_literal_codex_observation",
+      "product_role": "opl_host_cross_top_level_codex_thread_coordination",
+      "entry_surface": "navigation_rail_thread_actions_and_on_demand_coordination_drawer",
+      "default_state": "closed",
+      "model_role": "decide_when_and_why_to_coordinate",
+      "protocol_owner": "codex_core_app_server",
+      "app_host_owner": "opl_app_host",
+      "thread_store_owner": "codex_core_app_server",
+      "same_agent_tree_transport": {
+        "scope": "same_agent_tree_only",
+        "methods": ["spawn_agent", "send_input", "wait_agent"],
+        "cross_top_level_use_forbidden": true
+      },
+      "cross_top_level_protocol": [
+        "thread/list",
+        "thread/read",
+        "thread/resume",
+        "thread/fork",
+        "thread/archive",
+        "turn/start",
+        "turn/steer"
+      ],
+      "required_thread_fields": [
+        "thread_id",
+        "status",
+        "summary",
+        "project",
+        "workspace",
+        "host",
+        "owner",
+        "goal",
+        "parent_thread_id",
+        "ancestor_thread_ids",
+        "active_turn_id",
+        "write_set"
+      ],
+      "thread_actions": ["read", "resume", "fork", "archive"],
+      "dispatch_policy": {
+        "idle_thread": "turn/start",
+        "running_thread": "turn/steer",
+        "unknown_or_stale_status": "refresh_then_fail_closed",
+        "explicit_user_confirmation_when_scope_or_permission_changes": true
+      },
+      "safety_gates": [
+        "permission_check",
+        "idempotency_key_and_duplicate_message_check",
+        "delegation_cycle_check",
+        "project_and_workspace_scope_check",
+        "concurrent_write_set_conflict_check"
+      ],
+      "required_states": [
+        "loading",
+        "ready",
+        "empty",
+        "offline",
+        "permission_denied",
+        "duplicate_rejected",
+        "loop_rejected",
+        "scope_mismatch",
+        "write_set_conflict",
+        "stale_status",
+        "dispatch_running",
+        "dispatch_completed",
+        "dispatch_failed"
+      ],
+      "audit_fields": [
+        "delivery_id",
+        "source_thread_id",
+        "target_thread_id",
+        "sender",
+        "reason",
+        "message_summary",
+        "protocol_method",
+        "permission_decision",
+        "write_set_decision",
+        "status",
+        "result_summary",
+        "created_at",
+        "completed_at"
+      ],
+      "user_visibility_policy": "sender_target_reason_message_result_and_safety_decisions_visible_and_auditable",
+      "forbidden_implementations": [
+        "send_input_as_cross_top_level_message_bus",
+        "shell_owned_duplicate_thread_store",
+        "model_generated_thread_id",
+        "silent_cross_project_dispatch",
+        "dispatch_without_write_set_check",
+        "unbounded_delegation_loop"
+      ]
     },
     "home": {
       "definition_role": "opl_target_translation_not_literal_codex_observation",
@@ -280,6 +374,30 @@
       "fields": ["status", "elapsed", "progress", "next_action", "stop"],
       "shared_projection": "long_running_turn_and_opl_current_task_projection"
     },
+    "artifact_preview": {
+      "definition_role": "opl_target_translation_not_literal_codex_observation",
+      "surface": "existing_aionui_preview_context_and_panel",
+      "entry_sources": [
+        "current_task_latest_artifact_ref",
+        "current_task_evidence_ref",
+        "environment_artifact_ref",
+        "conversation_file_or_result_ref"
+      ],
+      "supported_content_types": [
+        "markdown",
+        "pdf",
+        "code",
+        "image",
+        "html",
+        "diff"
+      ],
+      "markdown_embedded_renderers": ["mermaid", "katex", "code"],
+      "ref_resolution_policy": "canonical_workspace_file_ref_to_existing_preview_target_without_copying_artifact_body",
+      "artifact_body_authority": "external_owner_ref_only",
+      "keyboard_reachable_open_action": true,
+      "failure_policy": "keep_ref_visible_and_fail_closed_with_reason",
+      "unsafe_or_unsupported_ref_policy": "do_not_open_or_guess_content"
+    },
     "context_surfaces": {
       "definition_role": "opl_target_translation_not_literal_codex_observation",
       "environment_popover": {
@@ -338,6 +456,7 @@
       "brand",
       "purpose_and_package_semantics",
       "runtime_action_and_receipt_authority",
+      "cross_top_level_thread_coordination",
       "settings_information_architecture",
       "first_run",
       "bilingual_ui"
@@ -1549,6 +1668,22 @@
       "independent_task_store_allowed": false,
       "model_ref": "contracts/app-runtime-bridge.json#task_awareness_projection",
       "slice_policy": "same_task_run_projection_v2_filtered_by_current_conversation_or_selected_task"
+    },
+    "artifact_preview": {
+      "surface": "existing_aionui_preview_context_and_panel",
+      "entry_sources": [
+        "current_task_latest_artifact_ref",
+        "current_task_evidence_ref",
+        "environment_artifact_ref",
+        "conversation_file_or_result_ref"
+      ],
+      "supported_content_types": ["markdown", "pdf", "code", "image", "html", "diff"],
+      "markdown_embedded_renderers": ["mermaid", "katex", "code"],
+      "ref_resolution_policy": "canonical_workspace_file_ref_to_existing_preview_target_without_copying_artifact_body",
+      "artifact_body_authority": "external_owner_ref_only",
+      "keyboard_reachable_open_action": true,
+      "failure_policy": "keep_ref_visible_and_fail_closed_with_reason",
+      "unsafe_or_unsupported_ref_policy": "do_not_open_or_guess_content"
     }
   },
   "right_context_inspector": {

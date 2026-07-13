@@ -262,6 +262,10 @@ export type ShellAdapterContract = {
     checkout_path: string;
     history_policy: string;
     upstream_ref?: string;
+    upstream_ref_role?: string;
+    current_head_source?: string;
+    current_head_must_contain_upstream_ref?: boolean;
+    current_head_must_not_be_copied_into_human_docs?: boolean;
   };
   gui_authority: {
     source_of_truth: string;
@@ -278,6 +282,13 @@ export type ShellAdapterContract = {
       fork_base: { ref: string; role: string };
       evaluated_upstream: { release: string; ref: string; role: string };
       selective_absorption_head: { ref: string; role: string };
+      latest_reviewed_upstream?: {
+        release: string;
+        ref: string;
+        role: string;
+        gui_delta: string;
+        disposition: string;
+      };
     };
     allowed_classifications: string[];
     required_capability_ids: string[];

@@ -379,9 +379,9 @@ function requireAionuiContractStatus(text: string, requirement: string, expected
 }
 
 function validateAionuiSnapshot(root: string, text: string, issues: Set<string>): void {
-  const match = text.match(/AionUI (?:current )?source snapshot：`opl-aion-shell@([0-9a-f]{40})`/);
+  const match = text.match(/AionUI GUI conformance ancestor：`opl-aion-shell@([0-9a-f]{40})`/);
   if (!match) {
-    issues.add('shell conformance matrix must bind an exact 40-character AionUI source snapshot');
+    issues.add('shell conformance matrix must bind an exact 40-character AionUI GUI conformance ancestor');
     return;
   }
   if (text.includes('pages/guid/components/AssistantSelectionArea.tsx')) {
@@ -397,7 +397,7 @@ function validateAionuiSnapshot(root: string, text: string, issues: Set<string>)
       issues.add(`shell conformance matrix AionUI snapshot must match current shell HEAD ${currentHead}`);
     }
   } catch (error) {
-    issues.add(`unable to read active AionUI source snapshot: ${error instanceof Error ? error.message : String(error)}`);
+    issues.add(`unable to read active AionUI GUI conformance ancestor: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
@@ -576,7 +576,8 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
 
   const acceptanceBoundary = record(interactionBaseline.acceptance_boundary);
   const finalShellSha = typeof acceptanceBoundary.final_shell_sha === 'string' ? acceptanceBoundary.final_shell_sha : '';
-  const currentShellSha = String(record(shellAdapter.shell_source).upstream_ref ?? '');
+  const shellSource = record(shellAdapter.shell_source);
+  const guiConformanceRef = String(shellSource.upstream_ref ?? '');
   if (
     acceptanceBoundary.human_target_owner !== 'one-person-lab-app' ||
     acceptanceBoundary.active_shell !== 'aionui' ||
@@ -598,14 +599,20 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   ) {
     issues.add('interaction baseline must keep the human target separate from source, pixel, and release completion');
   }
-  if (!/^[0-9a-f]{40}$/.test(currentShellSha)) {
-    issues.add('active shell adapter must bind an exact current AionUI source SHA');
+  if (
+    !/^[0-9a-f]{40}$/.test(guiConformanceRef) ||
+    shellSource.upstream_ref_role !== 'minimum_verified_gui_conformance_ancestor' ||
+    shellSource.current_head_source !== 'active_shell_checkout_git_head' ||
+    shellSource.current_head_must_contain_upstream_ref !== true ||
+    shellSource.current_head_must_not_be_copied_into_human_docs !== true
+  ) {
+    issues.add('active shell adapter must bind a verified GUI ancestor separately from the current shell Git head');
   }
   if (!/^State: `(active_currentness_refresh|release_closeout_in_progress|complete)`$/m.test(convergencePlan)) {
     issues.add('AionUI mainline convergence plan must be in active_currentness_refresh, release_closeout_in_progress, or complete state');
   }
-  if (!convergencePlan.includes(currentShellSha) || !convergencePlan.includes(finalShellSha)) {
-    issues.add('AionUI mainline convergence plan must bind both current Shell source and historical evidence SHA');
+  if (!convergencePlan.includes(guiConformanceRef) || !convergencePlan.includes(finalShellSha)) {
+    issues.add('AionUI mainline convergence plan must bind both the verified GUI ancestor and historical evidence SHA');
   }
   for (const staleMarker of [
     '5204a68d41d799287a4567e61897df3c25345dc4',
@@ -617,16 +624,27 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
       issues.add(`AionUI mainline convergence plan must not retain stale marker: ${staleMarker}`);
     }
   }
-  requireExactMarkerLine(foundationReadme, `active_aionui.current_shell_sha=${currentShellSha}`, foundationDocs.readme, issues);
+  requireExactMarkerLine(
+    foundationReadme,
+    `active_aionui.gui_conformance_ref=${guiConformanceRef}`,
+    foundationDocs.readme,
+    issues,
+  );
+  requireExactMarkerLine(
+    foundationReadme,
+    'active_aionui.current_shell_head_source=active_shell_checkout_git_head',
+    foundationDocs.readme,
+    issues,
+  );
   requireExactMarkerLine(
     foundationReadme,
     `active_aionui.historical_41301_evidence_sha=${finalShellSha}`,
     foundationDocs.readme,
     issues,
   );
-  const matrixSnapshot = conformanceMatrix.match(/AionUI (?:current )?source snapshot：`opl-aion-shell@([0-9a-f]{40})`/);
-  if (matrixSnapshot?.[1] !== currentShellSha) {
-    issues.add('shell conformance matrix current AionUI snapshot must match the active shell adapter');
+  const matrixSnapshot = conformanceMatrix.match(/AionUI GUI conformance ancestor：`opl-aion-shell@([0-9a-f]{40})`/);
+  if (matrixSnapshot?.[1] !== guiConformanceRef) {
+    issues.add('shell conformance matrix GUI conformance ancestor must match the active shell adapter');
   }
   const visualEvidenceEntries = validateVisualEvidence(root, finalShellSha, issues);
 
@@ -637,11 +655,13 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   const oplTargetTranslation = [
     'navigation_rail',
     'conversation_scope',
+    'thread_coordination',
     'home',
     'capability_selection',
     'composer',
     'permission_access_mode',
     'current_task_summary_bar',
+    'artifact_preview',
     'context_surfaces',
     'settings_shell',
     'visual_target',
@@ -679,6 +699,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
       'opl_settings',
       'domain_package_entries',
       'bilingual_ui',
+      'cross_top_level_thread_coordination',
     ]) ||
     relocationGate.replacement_reachable_in_same_change !== true ||
     relocationGate.contract_source_tests_updated_together !== true ||
@@ -718,6 +739,9 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   }
 
   const conversationScope = record(interactionBaseline.conversation_scope);
+  const threadCoordination = record(interactionBaseline.thread_coordination);
+  const sameAgentTreeTransport = record(threadCoordination.same_agent_tree_transport);
+  const threadDispatchPolicy = record(threadCoordination.dispatch_policy);
   const homeTarget = record(interactionBaseline.home);
   const capabilitySelection = record(interactionBaseline.capability_selection);
   const composerTarget = record(interactionBaseline.composer);
@@ -801,7 +825,134 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     issues.add('interaction baseline Home, conversation, composer, access, and task summary markers must match the App target');
   }
 
+  const pageStates = Array.isArray(pageStateMatrix.pages) ? pageStateMatrix.pages.map(record) : [];
+  const threadCoordinationPage = pageStates.find((page) => page.id === 'thread_coordination') ?? {};
+  const coordinationViewModel = record(record(threadCoordinationPage).coordination_view_model);
+  const requiredThreadFields = [
+    'thread_id',
+    'status',
+    'summary',
+    'project',
+    'workspace',
+    'host',
+    'owner',
+    'goal',
+    'parent_thread_id',
+    'ancestor_thread_ids',
+    'active_turn_id',
+    'write_set',
+  ];
+  const coordinationSafetyGates = [
+    'permission_check',
+    'idempotency_key_and_duplicate_message_check',
+    'delegation_cycle_check',
+    'project_and_workspace_scope_check',
+    'concurrent_write_set_conflict_check',
+  ];
+  const coordinationAuditFields = [
+    'delivery_id',
+    'source_thread_id',
+    'target_thread_id',
+    'sender',
+    'reason',
+    'message_summary',
+    'protocol_method',
+    'permission_decision',
+    'write_set_decision',
+    'status',
+    'result_summary',
+    'created_at',
+    'completed_at',
+  ];
+  const coordinationStates = [
+    'loading',
+    'ready',
+    'empty',
+    'offline',
+    'permission_denied',
+    'duplicate_rejected',
+    'loop_rejected',
+    'scope_mismatch',
+    'write_set_conflict',
+    'stale_status',
+    'dispatch_running',
+    'dispatch_completed',
+    'dispatch_failed',
+  ];
+  if (
+    threadCoordination.product_role !== 'opl_host_cross_top_level_codex_thread_coordination' ||
+    threadCoordination.entry_surface !== 'navigation_rail_thread_actions_and_on_demand_coordination_drawer' ||
+    threadCoordination.default_state !== 'closed' ||
+    threadCoordination.model_role !== 'decide_when_and_why_to_coordinate' ||
+    threadCoordination.protocol_owner !== 'codex_core_app_server' ||
+    threadCoordination.app_host_owner !== 'opl_app_host' ||
+    threadCoordination.thread_store_owner !== 'codex_core_app_server' ||
+    sameAgentTreeTransport.scope !== 'same_agent_tree_only' ||
+    !sameStrings(sameAgentTreeTransport.methods, ['spawn_agent', 'send_input', 'wait_agent']) ||
+    sameAgentTreeTransport.cross_top_level_use_forbidden !== true ||
+    !sameStrings(threadCoordination.cross_top_level_protocol, [
+      'thread/list',
+      'thread/read',
+      'thread/resume',
+      'thread/fork',
+      'thread/archive',
+      'turn/start',
+      'turn/steer',
+    ]) ||
+    !sameStrings(threadCoordination.required_thread_fields, requiredThreadFields) ||
+    !sameStrings(threadCoordination.thread_actions, ['read', 'resume', 'fork', 'archive']) ||
+    threadDispatchPolicy.idle_thread !== 'turn/start' ||
+    threadDispatchPolicy.running_thread !== 'turn/steer' ||
+    threadDispatchPolicy.unknown_or_stale_status !== 'refresh_then_fail_closed' ||
+    threadDispatchPolicy.explicit_user_confirmation_when_scope_or_permission_changes !== true ||
+    !sameStrings(threadCoordination.safety_gates, coordinationSafetyGates) ||
+    !sameStrings(threadCoordination.required_states, coordinationStates) ||
+    !sameStrings(threadCoordination.audit_fields, coordinationAuditFields) ||
+    threadCoordination.user_visibility_policy !==
+      'sender_target_reason_message_result_and_safety_decisions_visible_and_auditable' ||
+    !sameStrings(threadCoordination.forbidden_implementations, [
+      'send_input_as_cross_top_level_message_bus',
+      'shell_owned_duplicate_thread_store',
+      'model_generated_thread_id',
+      'silent_cross_project_dispatch',
+      'dispatch_without_write_set_check',
+      'unbounded_delegation_loop',
+    ]) ||
+    coordinationViewModel.product_role !== threadCoordination.product_role ||
+    coordinationViewModel.entry_surface !== threadCoordination.entry_surface ||
+    coordinationViewModel.default_state !== 'closed' ||
+    coordinationViewModel.thread_list_protocol !== 'thread/list' ||
+    coordinationViewModel.thread_read_protocol !== 'thread/read' ||
+    !sameStrings(coordinationViewModel.thread_actions, ['thread/resume', 'thread/fork', 'thread/archive']) ||
+    coordinationViewModel.idle_dispatch_protocol !== 'turn/start' ||
+    coordinationViewModel.running_dispatch_protocol !== 'turn/steer' ||
+    !sameStrings(coordinationViewModel.required_thread_fields, requiredThreadFields) ||
+    !sameStrings(coordinationViewModel.safety_gates, coordinationSafetyGates) ||
+    !sameStrings(coordinationViewModel.required_states, coordinationStates) ||
+    !sameStrings(coordinationViewModel.user_visible_audit_fields, [
+      'sender',
+      'source_thread_id',
+      'target_thread_id',
+      'reason',
+      'message_summary',
+      'protocol_method',
+      'permission_decision',
+      'write_set_decision',
+      'status',
+      'result_summary',
+    ]) ||
+    coordinationViewModel.unknown_or_stale_status_policy !== 'refresh_then_fail_closed' ||
+    coordinationViewModel.same_agent_tree_api_boundary !== 'spawn_agent_send_input_wait_agent_same_tree_only'
+  ) {
+    issues.add('cross-top-level thread coordination must use Codex App Server thread/turn protocols with OPL host safety and audit gates');
+  }
+
   const contextSurfaces = record(interactionBaseline.context_surfaces);
+  const artifactPreview = record(interactionBaseline.artifact_preview);
+  const ordinaryConversationPage = pageStates.find((page) => page.id === 'ordinary_conversation') ?? {};
+  const ordinaryConversationViewModel = record(record(ordinaryConversationPage).conversation_view_model);
+  const pageArtifactPreview = record(ordinaryConversationViewModel.artifact_preview);
+  const conversationArtifactPreview = record(record(guiContract.ordinary_conversation).artifact_preview);
   const environmentPopover = record(contextSurfaces.environment_popover);
   const sidePanel = record(contextSurfaces.side_panel);
   const settingsShell = record(interactionBaseline.settings_shell);
@@ -809,6 +960,37 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   const targetDefinitionRole = 'opl_target_translation_not_literal_codex_observation';
   if (oplTargetTranslation.some((key) => record(interactionBaseline[key]).definition_role !== targetDefinitionRole)) {
     issues.add('each OPL target translation section must declare that it is not a literal Codex observation');
+  }
+  if (
+    artifactPreview.surface !== 'existing_aionui_preview_context_and_panel' ||
+    !sameStrings(artifactPreview.entry_sources, [
+      'current_task_latest_artifact_ref',
+      'current_task_evidence_ref',
+      'environment_artifact_ref',
+      'conversation_file_or_result_ref',
+    ]) ||
+    !sameStrings(artifactPreview.supported_content_types, ['markdown', 'pdf', 'code', 'image', 'html', 'diff']) ||
+    !sameStrings(artifactPreview.markdown_embedded_renderers, ['mermaid', 'katex', 'code']) ||
+    artifactPreview.ref_resolution_policy !==
+      'canonical_workspace_file_ref_to_existing_preview_target_without_copying_artifact_body' ||
+    artifactPreview.artifact_body_authority !== 'external_owner_ref_only' ||
+    artifactPreview.keyboard_reachable_open_action !== true ||
+    artifactPreview.failure_policy !== 'keep_ref_visible_and_fail_closed_with_reason' ||
+    artifactPreview.unsafe_or_unsupported_ref_policy !== 'do_not_open_or_guess_content' ||
+    JSON.stringify(pageArtifactPreview) !== JSON.stringify({
+      surface: artifactPreview.surface,
+      entry_sources: artifactPreview.entry_sources,
+      supported_content_types: artifactPreview.supported_content_types,
+      markdown_embedded_renderers: artifactPreview.markdown_embedded_renderers,
+      ref_resolution_policy: artifactPreview.ref_resolution_policy,
+      artifact_body_authority: artifactPreview.artifact_body_authority,
+      keyboard_reachable_open_action: artifactPreview.keyboard_reachable_open_action,
+      failure_policy: artifactPreview.failure_policy,
+      unsafe_or_unsupported_ref_policy: artifactPreview.unsafe_or_unsupported_ref_policy,
+    }) ||
+    JSON.stringify(conversationArtifactPreview) !== JSON.stringify(pageArtifactPreview)
+  ) {
+    issues.add('artifact preview must reuse the existing Preview surface through a ref-only fail-closed adapter');
   }
   if (
     !sameStrings(environmentPopover.primary_fields, ['workspace', 'locality', 'branch', 'changes', 'subtasks', 'sources']) ||

@@ -33,22 +33,24 @@ GUI 运行采用双轴模型：AionUI 继续是 `active release shell`，而本�
 
 产品方向固定为：**先继承 ChatGPT Codex 的主工作流和空间关系，再增加 OPL
 专业能力**。Rail、单列 conversation、底部 composer 和按需环境详情构成基础壳；
-OPL project context、capabilities、progress、evidence、artifacts 与 safe actions 必须
+OPL project context、capabilities、跨顶层线程协调、progress、evidence、artifacts 与 safe actions 必须
 嵌入这些稳定位置，不得把 Home 改造成 dashboard、launcher 或 card wall。
 
 当前人读观察基准是本机 ChatGPT macOS `26.707.41301`（观察于 `2026-07-11`）。
-App machine authority 已升为 baseline schema v2；当前 AionUI implementation carrier 是
-`9b3b3dd09546bc1360b8c27ad655b60b61768b89`。`0ebc1fdd278e8a79602458e15e28cf814dfd917d`
+App machine authority 已升为 baseline schema v2；最低已验证 AionUI GUI conformance ancestor 是
+`9b3b3dd09546bc1360b8c27ad655b60b61768b89`，当前 Shell HEAD 必须从 active checkout Git
+readback 获取，不复制进本目录的人读文档。`0ebc1fdd278e8a79602458e15e28cf814dfd917d`
 的完整 source gates 与 packaged 8 场景 visual matrix 继续作为历史 exact-cohort evidence，
 不能通过替换 SHA 升级为当前 pixels。当前 carrier 的 source/pixel 状态只在 conformance
 matrix 中按 fresh evidence 更新。`26.707.31428` 与 `26.707.31123` 只作为 superseded
 observations 保留。
 
-本轮 App machine authority 同步落在
+此前 App machine authority 同步落在
 `2dae4961b63089bc1ec6739a4c1ab2fac8b648f3`：capability 只从 Home starter 选择，管理进入
 Settings -> Agents & Capabilities，`/capabilities` 仅兼容重定向；App updater 与 Framework-owned
-managed lifecycle 分离，不再保留 OPL Flow 专用 post-update 分支。该 source currentness 不提升
-current pixels、package、安装或 release readiness。
+managed lifecycle 分离，不再保留 OPL Flow 专用 post-update 分支。本轮继续在隔离 authority
+lane 增加 GUI ancestor、artifact preview 与跨线程协调合同；这些 source target 均不提升 current
+pixels、package、安装或 release readiness。
 
 ## 三层与文件归属
 
@@ -107,7 +109,8 @@ package/user path。当前 contract/source 与 packaged route visual evidence �
 - `superseded_interaction_observations=ChatGPT Codex macOS 26.707.31428 (2026-07-10),ChatGPT Codex macOS 26.707.31123 (2026-07-10)`
 - `human_target.owner=one-person-lab-app`
 - `active_aionui.role=current_implementation_conformance_only`
-- `active_aionui.current_shell_sha=9b3b3dd09546bc1360b8c27ad655b60b61768b89`
+- `active_aionui.gui_conformance_ref=9b3b3dd09546bc1360b8c27ad655b60b61768b89`
+- `active_aionui.current_shell_head_source=active_shell_checkout_git_head`
 - `active_aionui.historical_41301_evidence_sha=0ebc1fdd278e8a79602458e15e28cf814dfd917d`
 - `docs_or_contract_imply_source_complete=false`
 - `docs_or_contract_imply_pixel_complete=false`
@@ -146,6 +149,13 @@ package/user path。当前 contract/source 与 packaged route visual evidence �
   或任务需要打开。旧八类 inspector taxonomy 与会话级 Runtime duplicate 不再是产品面。
 - Transcript export 只导出完整分页后的、脱敏的 user/assistant text；Markdown 默认、
   strict JSON 可选，目录与文件名显式选择，不授权 workspace bundle。
+- 跨顶层线程协调复用 project/conversation rail、按需 detail、timeline event 和 mobile sheet。
+  Thread identity/history 归 Codex Core/App Server；OPL host 通过 `thread/list`、`thread/read`、
+  `thread/resume`、`thread/fork`、`thread/archive`、`turn/start`、`turn/steer` 完成受控路由，
+  并负责 permission、dedupe、loop、project/workspace 和 write-set conflict gate 及可见 receipt。
+  `spawn_agent`、`send_input`、`wait_agent` 只用于同一 agent tree，不能成为跨根线程消息总线。
+- Artifact/evidence ref 通过现有 Preview surface 的 ref-only adapter 打开；unsafe 或 unsupported
+  ref 保持可见并 fail closed，App/shell 不复制 artifact body，也不猜测内容。
 - Settings 已进入 maintenance；保持现有 OPL IA/object 和 model policy，不得决定 Home、
   rail、conversation 或 composer 结构，也不拥有 installer/runtime truth。
 - 模型策略与当前默认值只读取 `contracts/app-product-profile.json`；本文档族不复制
@@ -168,7 +178,7 @@ Active AionUI 通过上面的动态 state-source marker 读取默认状态；
 3. **更新人读目标。** 功能、交互、视觉和元素位置只在各自 owner 文件定义一次，
    其它文件使用链接，不复制长列表。
 4. **实现 thin adapter。** Shell 通过 generated profile、state/action bridge、
-   Settings Control Plane、route redirect、局部 renderer composition、i18n/CSS 和
+   Settings Control Plane、App Server coordination host adapter、route redirect、局部 renderer composition、i18n/CSS 和
    focused tests 承接，不创建 shell-local 产品规则。
 5. **更新 conformance read model。** 记录来源、当前状态、允许偏差、验证入口和
    evidence boundary；不把 docs-only 或 contract-only 状态写成已实现。

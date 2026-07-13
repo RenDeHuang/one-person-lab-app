@@ -54,13 +54,14 @@ Active AionUI 默认状态通过 README 治理段声明的动态 state source �
 - Current human reference：本机 ChatGPT macOS `26.707.41301`（bundle build `5103`），
   `2026-07-11` 观察。App GUI contract、product profile 与 page-state matrix 已统一为 schema v2；
   `26.707.31428/31123` 只保留为 superseded observations。
-- AionUI current source snapshot：`opl-aion-shell@9b3b3dd09546bc1360b8c27ad655b60b61768b89`
-  （final integration candidate；吸收后以 remote readback 为准）。它在 41301 composition 上增加 Home package readiness、legacy
-  intelligence proxy retirement、Settings/Personalization 与 managed-update/runtime bridge 更新。
+- AionUI GUI conformance ancestor：`opl-aion-shell@9b3b3dd09546bc1360b8c27ad655b60b61768b89`。
+  当前 Shell HEAD 从 active checkout Git readback 获取，本矩阵不复制瞬时 HEAD。
+- Latest reviewed upstream：`AionUI v2.1.33@a819d175683d5a0aada20064888da07bfcecdb6a`；无 GUI delta，
+  只进入 release/runtime selective intake，不触发 GUI history merge。
 - Generated profile currentness：使用 App 官方生成器和当前 OPL Flow workflow policy 重建后，
   current Shell generated profile 与生成结果 canonical JSON diff 为空；compatibility projection
   字段是有意派生，不要求与 raw App profile 字节相等。
-- Current source gates：final Shell `9b3b3dd...` full suite `283 files / 2086 tests` 通过、
+- Verified GUI ancestor source gates：Shell `9b3b3dd...` full suite `283 files / 2086 tests` 通过、
   `1 file / 3 tests` skip；root TypeScript、1490-file format 与 i18n 通过（23 个既有
   warning-only unknown keys）。App active-shell quick 通过；release-boundary 为
   `257 pass / 2 platform skip / 0 fail`。临时 dependency/checkout links 已清理。
@@ -69,7 +70,7 @@ Active AionUI 默认状态通过 README 治理段声明的动态 state source �
   这些结果只属于历史 source cohort，不能直接升级为 current source gates。
 - Historical packaged visual evidence：[`evidence/aionui-41301/manifest.json`](evidence/aionui-41301/manifest.json)
   精确绑定 Shell `0ebc1fdd...`、真实 `E2E_PACKAGED=1` 命令和 8 个 desktop/mobile、light/dark、
-  zh-CN/en-US Home/conversation 状态；旧 manifest 不修改 SHA。Final `9b3b3dd...` pixels
+  zh-CN/en-US Home/conversation 状态；旧 manifest 不修改 SHA。GUI ancestor `9b3b3dd...` pixels
   统一保持 `pixel_unverified`，直到新 source/package cohort 生成独立 evidence。
 - Settings 专项历史 evidence：14-entry desktop Light manifest 精确绑定
   `fadd91f9f0808eb090087f48c34d7c26d69df6ab`；更早 Settings screenshots 继续保留历史用途，
@@ -107,7 +108,7 @@ Active AionUI 默认状态通过 README 治理段声明的动态 state source �
 
 本表是主线决策入口。先看 P0/P1，再看 P2；Settings 完成不能抵消核心工作流偏差。
 
-| Priority | Product surface | OPL-owned target translated from 26.707.41301 | AionUI `9b3b3dd09` | Status | Next decision |
+| Priority | Product surface | OPL-owned target translated from 26.707.41301 | AionUI current implementation | Status | Next decision |
 | --- | --- | --- | --- | --- | --- |
 | P0 | App frame | 左 project/conversation rail + 中央单列 timeline + 底部 composer + 右上按需 Environment details。 | Rail/timeline/composer/Environment composition 保留；默认无综合第三列。 | `source_implemented`, `pixel_unverified` | Source full gate 已闭合；保持维护模式，current pixels 仅在需要视觉 currentness claim 时独立重建。 |
 | P0 | Project hierarchy | Project 是 N conversations 的父级；selected project 下可增加可选 context refs。 | Project/conversation history、active workspace selector、registered-directory management 与 context refs 共用单一 source。 | `source_implemented`, `pixel_unverified` | 后续只补真实数据覆盖，不再复制状态。 |
@@ -119,6 +120,8 @@ Active AionUI 默认状态通过 README 治理段声明的动态 state source �
 | P1 | OPL capabilities | Purpose 从 Home starter 选择，composer 只显示 active capability；管理进入 Settings。 | Home package shortcuts、Settings directory/visibility/lifecycle 与 fail-closed readiness gate 已实现；generic backend/provider/Team 未回 ordinary UI。 | `source_implemented`, `pixel_unverified` | 补 current unavailable/activating/blocked starter pixels。 |
 | P1 | Progress / approval / receipt | 进入当前 timeline 与 task summary。 | Current-task summary 保持 timeline 单一实例；普通任务不默认 sticky。 | `source_implemented`, `pixel_unverified` | 后续补真实长任务/approval route evidence。 |
 | P1 | Artifacts / evidence | Environment 次级 refs、Preview、Files 或 turn disclosure。 | Files 与 Preview 按需且窄屏互斥；mobile Preview 使用完整可读 overlay；transcript export 已按 cursor 与脱敏合同加固。 | `source_implemented`, `pixel_unverified` | 历史像素保留；PDF/Mermaid/KaTeX 等 renderer 另做专项 evidence。 |
+| P1 | Artifact preview adapter | Canonical refs 薄接现有 Preview surface，body external-owner，unsafe/unsupported fail closed。 | 独立 source lane 复用现有 renderer，不新增 store；待 final integration。 | `source_in_progress`, `pixel_unverified` | Review adapter/failure tests 后吸收；专项 renderer pixels 独立取证。 |
+| P1 | Cross-thread coordination | Project-scoped thread directory + on-demand detail；App Server list/read/resume/fork/archive/start/steer；OPL host permission/dedupe/loop/scope/write-set/audit。 | App authority 已定义，Shell host/renderer 独立 lane 实施中。 | `source_in_progress`, `pixel_unverified` | 禁止用同 tree `send_input` 代替；需 adapter、DOM、packaged two-root-thread evidence。 |
 | P2 | Settings | Secondary configuration/control surface，保持 OPL IA。 | 四类 surface 与 bounded cards 已进入 source；本次 core matrix 不复用旧 Settings pixels。 | `source_implemented`, `pixel_unverified` | 冻结 IA，只修回归；按需要重建当前 Settings evidence。 |
 
 ## Cross-shell Detail Appendix
@@ -169,9 +172,14 @@ Native candidate 不得与 active-shell P0 差距竞争实施资源。
 41301 core composition 目标已闭合，但 current Shell source 已前进。当前证据边界：
 
 - **Core pixels：** 8 场景只覆盖历史 `0ebc1fdd...` 的 Home、conversation、composer/model、
-  Environment、Files、mobile action sheet 与 mobile Preview；final `9b3b3dd...` 尚未重拍。
+  Environment、Files、mobile action sheet 与 mobile Preview；GUI ancestor `9b3b3dd...` 尚未重拍，
+  本轮 final integration 更不得沿用旧 pixels。
 - **Package readiness pixels：** unavailable、activating、blocked、repair/doctor 等新状态尚无
   current route/viewport evidence。
+- **Cross-thread coordination：** machine target 已定义；host adapter、rail/detail/timeline/mobile
+  DOM 与 packaged 两个独立根线程 list -> read -> dispatch -> result -> source readback 尚待闭合。
+- **Artifact ref adapter：** canonical ref 到既有 Preview 的 source/failure tests 已在隔离 lane 完成，
+  待 final integration；PDF/Mermaid/KaTeX 等 renderer current pixels 仍需专项证据。
 - **Settings pixels：** 14-entry desktop Light manifest 绑定 `fadd91f9...`；不把该历史图提升为
   current Settings pixel evidence。
 - **Native contract/source：** candidate contract 与 visual parity 仍绑定 superseded
