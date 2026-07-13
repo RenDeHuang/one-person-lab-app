@@ -69,6 +69,49 @@ export function validateAppSettingsPages(matrix, guiContract) {
   ) {
     throw new Error('Models & Access must not own browser access to this computer');
   }
+  const gatewayAccount = accessPage.opl_gateway_account;
+  if (
+    gatewayAccount?.projection_ref !== 'contracts/app-runtime-bridge.json#opl_gateway_account_projection' ||
+    gatewayAccount.projection_path !== 'app_state.settings_control_center.app_settings_read_model.opl_gateway_account' ||
+    gatewayAccount.secret_bridge_ref !== 'contracts/app-runtime-bridge.json#opl_gateway_account_secret_bridge' ||
+    gatewayAccount.account_card_visibility !== 'account_connection_only' ||
+    gatewayAccount.manual_api_key_card_policy !== 'model_access_status_only_no_account_balance_or_account_usage' ||
+    gatewayAccount.cache_ttl_seconds !== 900 ||
+    gatewayAccount.stale_policy !== 'show_cached_values_with_stale_marker_and_manual_refresh' ||
+    gatewayAccount.first_run_scope !== 'unchanged' ||
+    gatewayAccount.personal_profile_navigation !== 'not_added'
+  ) {
+    throw new Error('Models & Access must consume the canonical Gateway account projection and preserve its product boundaries');
+  }
+  assertDeepEqualJson(gatewayAccount.access_paths, ['account_login', 'manual_api_key'], 'Gateway access paths');
+  assertDeepEqualJson(
+    gatewayAccount.error_states,
+    ['auth_expired', 'managed_key_missing', 'managed_key_conflict', 'managed_key_identity_drift', 'disconnect_pending'],
+    'Gateway account visible repair states',
+  );
+  assertDeepEqualJson(
+    gatewayAccount,
+    guiContract.pages?.settings_access?.opl_gateway_account,
+    'Gateway account page product contract',
+  );
+  assertIncludesAll(
+    accessPage.required_dom?.always,
+    ['settings-access-gateway', 'settings-access-gateway-manual-key'],
+    'Gateway access always-present DOM',
+  );
+  const gatewayConditionalDom = new Map(
+    (accessPage.required_dom?.conditional ?? []).map((entry) => [entry.testid, entry.when]),
+  );
+  for (const [testid, when] of Object.entries({
+    'settings-access-gateway-setup': 'desktop_account_login_selected_or_group_selection_required',
+    'settings-access-gateway-account': 'gateway_account_connected',
+    'settings-access-gateway-stale': 'gateway_account_projection_stale',
+    'settings-access-gateway-disconnect-confirm': 'gateway_account_disconnect_requested',
+  })) {
+    if (gatewayConditionalDom.get(testid) !== when) {
+      throw new Error(`Models & Access Gateway DOM ${testid} must be conditional on ${when}`);
+    }
+  }
 
   const resourcesPage = pageById(matrix, 'settings_resources');
   assertDeepEqualJson(

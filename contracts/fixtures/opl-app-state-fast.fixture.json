@@ -1304,6 +1304,56 @@
     ],
     "settings_control_center": {
       "app_settings_read_model": {
+        "opl_gateway_account": {
+          "surface_kind": "opl_gateway_account_read_model.v1",
+          "connection_mode": "account",
+          "status": "connected",
+          "account_card_visible": true,
+          "account": {
+            "display_name": "OPL User",
+            "masked_email": "g***@example.com",
+            "status": "active",
+            "balance": {
+              "amount": "128.40",
+              "currency": "CNY"
+            }
+          },
+          "usage": {
+            "today_tokens": 32800,
+            "total_tokens": 983200,
+            "today_actual_cost": "1.42",
+            "total_actual_cost": "42.18",
+            "currency": "CNY",
+            "day_timezone": "Asia/Shanghai"
+          },
+          "managed_key": {
+            "name": "OPL App · Feng-MacBook-Pro · 7F31A9C2",
+            "status": "active",
+            "ownership": "opl_app_managed"
+          },
+          "installation": {
+            "device_label": "Feng-MacBook-Pro",
+            "short_id": "7F31A9C2"
+          },
+          "available_groups": [],
+          "freshness": {
+            "observed_at": "2026-07-13T09:00:00+08:00",
+            "stale_after": "2026-07-13T09:15:00+08:00",
+            "stale": false,
+            "last_error_code": null
+          },
+          "capabilities": {
+            "account_login_supported": true,
+            "manual_key_supported": true
+          },
+          "actions": {
+            "complete_setup": null,
+            "refresh": "gateway_account_refresh",
+            "repair": "gateway_account_repair",
+            "use_for_model_access": "gateway_account_use_for_model_access",
+            "disconnect": "gateway_account_disconnect"
+          }
+        },
         "resource_sources": {
           "cloud_remote_access": {
             "status": "available",

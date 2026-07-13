@@ -928,6 +928,35 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   if (pages.settings_access.model_access_source !== 'app_state.core.codex.model_access_source') {
     throw new Error('Settings Access must use app_state.core.codex.model_access_source');
   }
+  const gatewayAccount = pages.settings_access.opl_gateway_account;
+  if (
+    gatewayAccount?.projection_ref !== 'contracts/app-runtime-bridge.json#opl_gateway_account_projection' ||
+    gatewayAccount.projection_path !== 'app_state.settings_control_center.app_settings_read_model.opl_gateway_account' ||
+    gatewayAccount.secret_bridge_ref !== 'contracts/app-runtime-bridge.json#opl_gateway_account_secret_bridge' ||
+    gatewayAccount.account_card_visibility !== 'account_connection_only' ||
+    gatewayAccount.manual_api_key_card_policy !== 'model_access_status_only_no_account_balance_or_account_usage' ||
+    gatewayAccount.cache_ttl_seconds !== 900 ||
+    gatewayAccount.stale_policy !== 'show_cached_values_with_stale_marker_and_manual_refresh' ||
+    gatewayAccount.first_run_scope !== 'unchanged' ||
+    gatewayAccount.personal_profile_navigation !== 'not_added'
+  ) {
+    throw new Error('Settings Access must declare the canonical OPL Gateway account product contract');
+  }
+  assertDeepEqualJson(gatewayAccount.access_paths, ['account_login', 'manual_api_key'], 'Settings Access Gateway paths');
+  assertDeepEqualJson(
+    gatewayAccount.error_states,
+    ['auth_expired', 'managed_key_missing', 'managed_key_conflict', 'managed_key_identity_drift', 'disconnect_pending'],
+    'Settings Access Gateway visible repair states',
+  );
+  assertIncludesAll(
+    pages.settings_access.must_not_show,
+    [
+      'Gateway password login in browser WebUI',
+      'password, access token, refresh token, API Key material, remote Key id, credential path, raw response, or raw error',
+      'Gateway account card in manual API-key mode or when no Gateway account is connected',
+    ],
+    'Settings Access Gateway privacy and visibility boundaries',
+  );
   assertIncludesAll(
     pages.settings_access.must_show,
     ['page label Models & Access or 模型与访问', 'selected and default model'],
