@@ -563,9 +563,17 @@ function assertHomeSelectionAndIconPolicy(profile: AppProductProfile): void {
     iconPolicy.library !== 'font_awesome_free_for_opl_owned_utility_icons' ||
     iconPolicy.refresh_actions !== 'icon_only_with_tooltip_and_accessible_name' ||
     iconPolicy.model_reasoning_control !== 'text_and_disclosure_without_brain_icon' ||
+    iconPolicy.global_feedback_action?.placement !== 'titlebar_trailing_utility' ||
+    iconPolicy.global_feedback_action?.icon !== 'comment' ||
+    iconPolicy.global_feedback_action?.target_url !==
+      'https://github.com/gaofeng21cn/one-person-lab-app/issues/new' ||
+    iconPolicy.global_feedback_action?.open_mode !== 'external_browser_user_review_and_submit' ||
+    JSON.stringify(iconPolicy.global_feedback_action?.prefill_fields) !==
+      JSON.stringify(['localized_title', 'localized_body', 'current_route', 'app_release_version']) ||
+    iconPolicy.global_feedback_action?.shell_local_delivery_forbidden !== true ||
     iconPolicy.scope !== 'opl_owned_overlay_surfaces_not_upstream_fork_body'
   ) {
-    throw new Error('App product profile utility icon policy must preserve the OPL-owned Font Awesome boundary');
+    throw new Error('App product profile utility icon policy must preserve OPL-owned icons and GitHub issue routing');
   }
 }
 

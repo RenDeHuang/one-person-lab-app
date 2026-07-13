@@ -142,9 +142,17 @@ function validateHomeAssistantDefaults(profile) {
   if (
     iconPolicy?.library !== 'font_awesome_free_for_opl_owned_utility_icons' ||
     iconPolicy?.refresh_actions !== 'icon_only_with_tooltip_and_accessible_name' ||
-    iconPolicy?.model_reasoning_control !== 'text_and_disclosure_without_brain_icon'
+    iconPolicy?.model_reasoning_control !== 'text_and_disclosure_without_brain_icon' ||
+    iconPolicy?.global_feedback_action?.placement !== 'titlebar_trailing_utility' ||
+    iconPolicy?.global_feedback_action?.icon !== 'comment' ||
+    iconPolicy?.global_feedback_action?.target_url !==
+      'https://github.com/gaofeng21cn/one-person-lab-app/issues/new' ||
+    iconPolicy?.global_feedback_action?.open_mode !== 'external_browser_user_review_and_submit' ||
+    JSON.stringify(iconPolicy?.global_feedback_action?.prefill_fields) !==
+      JSON.stringify(['localized_title', 'localized_body', 'current_route', 'app_release_version']) ||
+    iconPolicy?.global_feedback_action?.shell_local_delivery_forbidden !== true
   ) {
-    throw new Error('Product profile OPL utility icons must use the App-owned Font Awesome policy');
+    throw new Error('Product profile OPL utility icons must include the App-owned GitHub feedback action');
   }
   const homePurposeEntries = profile.gui.home.home_purpose_entries ?? [];
   if (JSON.stringify(homePurposeEntries.map((entry) => entry.id)) !== JSON.stringify(['research', 'grant', 'ppt', 'book'])) {

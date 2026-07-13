@@ -62,9 +62,18 @@ function validateHomeLayout(guiContract) {
   if (
     guiContract.utility_icon_policy?.library !== 'font_awesome_free_for_opl_owned_utility_icons' ||
     guiContract.utility_icon_policy?.refresh_actions !== 'icon_only_with_tooltip_and_accessible_name' ||
-    guiContract.utility_icon_policy?.model_reasoning_control !== 'text_and_disclosure_without_brain_icon'
+    guiContract.utility_icon_policy?.model_reasoning_control !== 'text_and_disclosure_without_brain_icon' ||
+    guiContract.utility_icon_policy?.global_feedback_action?.placement !== 'titlebar_trailing_utility' ||
+    guiContract.utility_icon_policy?.global_feedback_action?.icon !== 'comment' ||
+    guiContract.utility_icon_policy?.global_feedback_action?.target_url !==
+      'https://github.com/gaofeng21cn/one-person-lab-app/issues/new' ||
+    guiContract.utility_icon_policy?.global_feedback_action?.open_mode !==
+      'external_browser_user_review_and_submit' ||
+    JSON.stringify(guiContract.utility_icon_policy?.global_feedback_action?.prefill_fields) !==
+      JSON.stringify(['localized_title', 'localized_body', 'current_route', 'app_release_version']) ||
+    guiContract.utility_icon_policy?.global_feedback_action?.shell_local_delivery_forbidden !== true
   ) {
-    throw new Error('App GUI utility icon policy must use Font Awesome Free on OPL-owned surfaces');
+    throw new Error('App GUI utility icon policy must bind the global feedback action to OPL App GitHub issues');
   }
   assertDeepEqualJson(
     Object.fromEntries(

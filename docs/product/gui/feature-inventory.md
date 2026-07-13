@@ -49,6 +49,7 @@ Sites/Chat 等入口可以隐藏或拒绝；它们不构成 OPL 功能回归。
 | Projectless conversation | 不建立 project 也能使用 attachment、任意本地文件/目录选择、paste/drop 与 `/open`；真实访问只受 Codex permission/approval/sandbox 约束。 | GUI contract、conversation state/bridge。 |
 | Secondary context surfaces | 右上 Environment floating details 汇总当前 workspace/git/subagents/sources；artifact/evidence preview 与 advanced tools 按需展开。 | GUI contract、runtime bridge、domain/runtime refs。 |
 | Product identity | 所有可见产品面使用 One Person Lab App 品牌，而不是 carrier/upstream 品牌。 | GUI contract、release assets、shell branding validation。 |
+| Global issue feedback | 标题栏右侧可随时打开预填页面与版本信息的 OPL App GitHub Issue；用户在外部浏览器确认并提交。 | GUI contract、product profile、active shell adapter。 |
 
 ## Home 与 Conversation
 

@@ -50,6 +50,14 @@ export function validateShellVisibleBranding(shellPaths, requiresLocale) {
   if (!titlebar.includes('getOplOrdinaryChromeName') || titlebar.includes("'One Person Lab App'")) {
     throw new Error('Active shell ordinary titlebar fallback must use the profile-owned chrome name');
   }
+  for (const expected of ['getOplGlobalFeedbackIssueUrl', 'buildOplAppIssueUrl', 'openExternalUrl']) {
+    if (!titlebar.includes(expected)) {
+      throw new Error(`Active shell titlebar feedback must include ${expected}`);
+    }
+  }
+  if (titlebar.includes('https://github.com/gaofeng21cn/one-person-lab-app/issues/new')) {
+    throw new Error('Active shell titlebar feedback target must come from the App product profile');
+  }
 }
 
 export function validateShellBrandingAssets(shellPaths) {
