@@ -365,15 +365,34 @@ export function readAppBundleIdentifier(appPath: string): string {
   const result = spawnSync('/usr/libexec/PlistBuddy', ['-c', 'Print :CFBundleIdentifier', plistPath], {
     encoding: 'utf8',
   });
-  const bundleId = result.stdout.trim();
+  const stdout = typeof result.stdout === 'string' ? result.stdout : result.stdout?.toString('utf8') ?? '';
+  const stderr = typeof result.stderr === 'string' ? result.stderr : result.stderr?.toString('utf8') ?? '';
+  const bundleId = stdout.trim();
   if (result.status !== 0 || !bundleId) {
-    throw new Error(`Unable to read CFBundleIdentifier from ${appPath}: ${(result.stderr || result.stdout).trim()}`);
+    const detail = stderr.trim() || stdout.trim() || result.error?.message || `exit ${result.status ?? 'unknown'}`;
+    throw new Error(`Unable to read CFBundleIdentifier from ${appPath}: ${detail}`);
   }
   return bundleId;
 }
 
-function assertAppBundleIdentity(appPath: string, expectedBundleId: string): void {
-  const actualBundleId = readAppBundleIdentifier(appPath);
+export type AppBundleOperations = {
+  readIdentifier: (appPath: string) => string;
+  copy: (sourceAppPath: string, stagedAppPath: string, installDir: string, env: NodeJS.ProcessEnv) => void;
+};
+
+const macOsAppBundleOperations: AppBundleOperations = {
+  readIdentifier: readAppBundleIdentifier,
+  copy: (sourceAppPath, stagedAppPath, installDir, env) => {
+    runChecked('/usr/bin/ditto', [sourceAppPath, stagedAppPath], installDir, env, 'Native app staging');
+  },
+};
+
+function assertAppBundleIdentity(
+  appPath: string,
+  expectedBundleId: string,
+  appBundleOperations: AppBundleOperations = macOsAppBundleOperations,
+): void {
+  const actualBundleId = appBundleOperations.readIdentifier(appPath);
   if (actualBundleId !== expectedBundleId) {
     throw new Error(`Refusing app bundle ${appPath}: expected ${expectedBundleId}, found ${actualBundleId}`);
   }
@@ -384,13 +403,17 @@ export function installAppBundleAtomically(options: {
   installedAppPath: string;
   expectedBundleId: string;
   env?: NodeJS.ProcessEnv;
+  appBundleOperations?: AppBundleOperations;
 }): void {
   const sourceAppPath = path.resolve(options.sourceAppPath);
   const installedAppPath = path.resolve(options.installedAppPath);
+  const appBundleOperations = options.appBundleOperations ?? macOsAppBundleOperations;
   if (sourceAppPath === installedAppPath) throw new Error('Package source and installed app paths must differ');
   if (!fs.existsSync(sourceAppPath)) throw new Error(`Packaged Native app is missing at ${sourceAppPath}`);
-  assertAppBundleIdentity(sourceAppPath, options.expectedBundleId);
-  if (fs.existsSync(installedAppPath)) assertAppBundleIdentity(installedAppPath, options.expectedBundleId);
+  assertAppBundleIdentity(sourceAppPath, options.expectedBundleId, appBundleOperations);
+  if (fs.existsSync(installedAppPath)) {
+    assertAppBundleIdentity(installedAppPath, options.expectedBundleId, appBundleOperations);
+  }
 
   const installDir = path.dirname(installedAppPath);
   fs.mkdirSync(installDir, { recursive: true });
@@ -400,8 +423,8 @@ export function installAppBundleAtomically(options: {
   fs.rmSync(stagedPath, { recursive: true, force: true });
   fs.rmSync(backupPath, { recursive: true, force: true });
 
-  runChecked('/usr/bin/ditto', [sourceAppPath, stagedPath], installDir, options.env ?? process.env, 'Native app staging');
-  assertAppBundleIdentity(stagedPath, options.expectedBundleId);
+  appBundleOperations.copy(sourceAppPath, stagedPath, installDir, options.env ?? process.env);
+  assertAppBundleIdentity(stagedPath, options.expectedBundleId, appBundleOperations);
   const hadExistingApp = fs.existsSync(installedAppPath);
   try {
     if (hadExistingApp) fs.renameSync(installedAppPath, backupPath);
@@ -414,7 +437,7 @@ export function installAppBundleAtomically(options: {
     throw error;
   }
   fs.rmSync(backupPath, { recursive: true, force: true });
-  assertAppBundleIdentity(installedAppPath, options.expectedBundleId);
+  assertAppBundleIdentity(installedAppPath, options.expectedBundleId, appBundleOperations);
 }
 
 export function executeGuiLaunchPlan(plan: GuiLaunchPlan, env: NodeJS.ProcessEnv = process.env): void {

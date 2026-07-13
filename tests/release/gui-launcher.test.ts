@@ -4,11 +4,11 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import {
+  type AppBundleOperations,
   buildNativeCandidateOpenArgs,
   createGuiLaunchPlan,
   installAppBundleAtomically,
   parseGuiLauncherArgs,
-  readAppBundleIdentifier,
   resolveGuiRuntimeIdentity,
 } from "../../scripts/gui-launcher.ts";
 
@@ -58,8 +58,14 @@ function fakeAppBundle(parent: string, name: string, bundleId: string, marker: s
 </dict></plist>\n`,
   );
   fs.writeFileSync(path.join(contents, "cohort.txt"), `${marker}\n`);
+  fs.writeFileSync(path.join(contents, "bundle-id.txt"), `${bundleId}\n`);
   return appPath;
 }
+
+const fakeAppBundleOperations: AppBundleOperations = {
+  readIdentifier: (appPath) => fs.readFileSync(path.join(appPath, "Contents", "bundle-id.txt"), "utf8").trim(),
+  copy: (sourceAppPath, stagedAppPath) => fs.cpSync(sourceAppPath, stagedAppPath, { recursive: true }),
+};
 
 test("GUI launcher parses the explicit candidate safety controls", () => {
   assert.deepEqual(
@@ -166,8 +172,9 @@ test("Native install atomically replaces only the isolated bundle identity", () 
       sourceAppPath: source,
       installedAppPath: installed,
       expectedBundleId: "cn.gflab.opl.native-workbench.candidate",
+      appBundleOperations: fakeAppBundleOperations,
     });
-    assert.equal(readAppBundleIdentifier(installed), "cn.gflab.opl.native-workbench.candidate");
+    assert.equal(fakeAppBundleOperations.readIdentifier(installed), "cn.gflab.opl.native-workbench.candidate");
     assert.equal(fs.readFileSync(path.join(installed, "Contents", "cohort.txt"), "utf8"), "new\n");
     assert.equal(fs.existsSync(source), true);
   } finally {
@@ -185,10 +192,11 @@ test("Native install refuses to overwrite an unrelated application", () => {
         sourceAppPath: source,
         installedAppPath: installed,
         expectedBundleId: "cn.gflab.opl.native-workbench.candidate",
+        appBundleOperations: fakeAppBundleOperations,
       }),
       /Refusing app bundle/,
     );
-    assert.equal(readAppBundleIdentifier(installed), "example.unrelated.app");
+    assert.equal(fakeAppBundleOperations.readIdentifier(installed), "example.unrelated.app");
     assert.equal(fs.readFileSync(path.join(installed, "Contents", "cohort.txt"), "utf8"), "unrelated\n");
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
