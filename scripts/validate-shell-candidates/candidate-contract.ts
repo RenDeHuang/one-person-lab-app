@@ -174,11 +174,11 @@ function validateNativeLocalP0P1ImplementationEvidence(
     packaged.bundle_id !== 'cn.gflab.opl.native-workbench.candidate' ||
     packaged.installed_app_path !== '/Applications/One Person Lab Native.app' ||
     packaged.window_evidence !== 'core_graphics_fallback_after_ax_denied_-25211' ||
-    packaged.window_id !== 112881 ||
+    packaged.window_id !== 113023 ||
     packaged.renderer_sha256 !== 'dae7dcbe9ec0b82649d361579b06d10e0ee492c505047fa803b497f0b1f64379' ||
     packaged.package_manifest_sha256 !== '50e1b3a7f9e62525078c3ae1a9752ae1ca2cddd3165f32ed733a7145d31689be' ||
     packaged.icon_sha256 !== 'ce551a9c7b3bd1e0137dbe79a013c3154af658f6195d5cce25433f706d48044e' ||
-    packaged.screenshot_sha256 !== '154f8a8ebb6d48e3c8745ec87925f1af04ae4862f3f8b8599e66d02efdf7f59d' ||
+    packaged.screenshot_sha256 !== 'c667763e0024e02db59d23c9963cddcc87a6be8717ef30f798409545df202d95' ||
     packaged.process_cleanup !== true ||
     installed.status !== 'verified_local_install' ||
     installed.app_path !== '/Applications/One Person Lab Native.app' ||
