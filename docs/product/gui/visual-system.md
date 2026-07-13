@@ -162,7 +162,9 @@ Dark target：
 
 ## Icons
 
-- 使用 shell 已安装的标准 icon library；存在 Lucide 或平台 symbol 时不手画 SVG。
+- OPL-owned utility icon 统一使用 Font Awesome Free；不手画 SVG，也不借此批量改写 upstream
+  fork-body 图标。纯刷新动作只显示 refresh icon，并用 tooltip 与 accessible name 提供文字。
+- Model/reasoning 紧凑控件直接显示模型与推理档位文字和 disclosure，不显示大脑图标。
 - 常规尺寸 `16-20px`，stroke 保持 `1.5-1.75px` 的统一视觉重量。
 - Undo、redo、attach、send、stop、search、settings、close、expand 等熟悉动作只用图标
   或 icon + 必要文字，不使用冗长 rounded text buttons。
@@ -273,7 +275,8 @@ Loading 不用无限旋转器代替进度。可获得阶段或 elapsed time 时�
 
 Home package starter 的状态不得只靠颜色：`unavailable` 使用 disabled control + 原因 +
 允许动作，`activating` 保持稳定尺寸并显示明确进行中状态，`blocked` 保留修复入口但不得
-继续 launch。Activation 成功后才进入 selected/active capability 视觉状态。
+继续 launch。Activation 成功后才进入 selected/active capability 视觉状态；选中态同时使用
+accent border、轻量 fill 与 check indicator，不能只靠低对比背景色。
 
 ## 响应式
 

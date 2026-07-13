@@ -41,6 +41,7 @@ export function assertCurrentGuidHomeSelectionSources({
       'handleSelectShortcut(assistantId)',
       'onSelect={(assistantId) =>',
       'onClear={() =>',
+      'if (!preselectAgentKey || !agentSelection.is_presetAgent',
     ],
     'Active shell Guid Home starter selection',
   );
@@ -49,6 +50,9 @@ export function assertCurrentGuidHomeSelectionSources({
     [
       "data-testid='opl-home-starters'",
       'aria-pressed={active}',
+      'data-opl-active={String(active)}',
+      '!border-primary-5 !bg-primary-1 !text-primary-6',
+      '<FontAwesomeIcon icon={faCheck}',
       'active && onClear ? onClear() : onSelect(assistant.id)',
     ],
     'Active shell Guid Home starter component',
@@ -97,6 +101,10 @@ const productProfileDefaultsExpected = [
   '"codex_home_model_status_label": "5.6 Sol"',
   '"codex_precise_model_display_policy": "friendly_model_primary_reasoning_primary_model_secondary_menu"',
   '"button_label_policy": "resolved_model_compact_label_with_selected_reasoning_effort_no_auto_prefix"',
+  '"default_active_shortcut": null',
+  '"shortcut_selection_policy": "explicit_user_or_navigation_selection_only_no_saved_preset_restore"',
+  '"selected_starter_visual_policy": "accent_border_fill_and_check_indicator_not_color_alone"',
+  '"zh": "推理最高"',
   '"policy_source_ref": "contracts/app-product-profile.json#codex.auto_model_policy"',
   '"model_catalog_source": "codex_cli_model_list"',
   '"catalog_response_models_field": "data"',
@@ -250,6 +258,7 @@ function validateGuidAgentSelection(shellPaths) {
       "agent_type: assistant.agent?.type || 'acp'",
       'backend: runtimeKey',
       'useState<string>(CODEX_MODE_NATIVE_FULL_ACCESS)',
+      'if (savedAgent && !savedAgent.is_preset)',
     ],
     'Active shell Guid agent selection App-owned default',
   );
@@ -317,6 +326,26 @@ function validateCodexModelControls(shellPaths) {
   assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/hooks/agent/useAcpModelInfo.ts', ['isOplCodexCliFixedExecutor', 'shouldShowOplCodexModelList', "backend === 'codex'", 'shouldShowOplCodexModelList()', "backend === 'codex' ? normalizeCodexModelInfo(nextModelInfo) : nextModelInfo", 'reportedCodexCurrentModelIdRef', 'reportedCodexCurrentModelIdRef.current ?? model_info.current_model_id', 'updateModelInfo(info)', 'updateModelInfo(incoming)', 'updateModelInfo(confirmedModelInfo)', 'selectAutoModel', 'selectReasoningEffort', 'savePreferredCodexSelection(backend, null, null)', 'savePreferredCodexSelection(backend, currentModelId, value)', 'canSwitch'], 'Active shell ACP model hook App-owned Codex model controls');
   assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/utils/model/oplCodexModelDisplay.ts', ['resolveOplCodexAutoSelection'], 'Active shell Codex Auto option resolved target display');
   assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/pages/conversation/platforms/acp/AcpSendBox.tsx', ['useAcpModelInfo', 'selectAutoModel', 'handleSheetAutoSelect', 'onClick: handleSheetAutoSelect'], 'Active shell mobile ACP model selector shared Auto resolver');
+  const modelControls = [
+    readShellText(shellPaths, 'packages/desktop/src/renderer/pages/guid/components/GuidModelSelector.tsx'),
+    readShellText(shellPaths, 'packages/desktop/src/renderer/components/agent/AcpModelSelector.tsx'),
+  ].join('\n');
+  assertTextDoesNotMatch(modelControls, /\bBrain\b/, 'Active shell ordinary model/reasoning controls must not render brain icons');
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/components/settings/OplRefreshIconButton.tsx',
+    ['@fortawesome/free-solid-svg-icons', 'FontAwesomeIcon', 'faRotateRight', 'aria-label={label}', '<Tooltip content={label}>'],
+    'Active shell OPL refresh icon button',
+  );
+  for (const settingsSurface of [
+    'packages/desktop/src/renderer/pages/settings/sections/LocalServicesSettings.tsx',
+    'packages/desktop/src/renderer/pages/settings/StorageSettings/index.tsx',
+    'packages/desktop/src/renderer/pages/settings/CapabilitiesSettings.tsx',
+    'packages/desktop/src/renderer/pages/settings/sections/AccessSettings.tsx',
+    'packages/desktop/src/renderer/pages/settings/sections/RuntimeSettings.tsx',
+  ]) {
+    assertShellTextIncludesAll(shellPaths, settingsSurface, ['OplRefreshIconButton'], 'Active shell OPL icon-only refresh surface');
+  }
 }
 
 function validateCodexConversationSurfaces(shellPaths) {

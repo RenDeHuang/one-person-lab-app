@@ -433,7 +433,6 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     'environment',
     'storage',
     'appearance',
-    'personalization',
     'advanced',
     'about',
   ]) {
@@ -458,7 +457,7 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   );
   assertDeepEqualJson(
     guiContract.settings_navigation?.ordinary_hidden_compatibility_routes,
-    ['update', 'theme', 'local-services'],
+    ['update', 'theme', 'local-services', 'personalization'],
     'App GUI hidden compatibility routes',
   );
   assertDeepEqualJson(
@@ -1039,10 +1038,12 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   }
   if (
     pages.settings_workspace?.ia_group !== 'overview' ||
-    !pages.settings_workspace.must_show?.includes('workspace page reachable as a top-level Settings entry') ||
+    !pages.settings_workspace.must_show?.includes('Workspace & Personalization page reachable as a top-level Settings entry') ||
+    !pages.settings_workspace.must_show?.includes('desktop App log directory from application.systemInfo with an explicit change action') ||
+    !pages.settings_workspace.must_show?.includes('editable system-level AGENTS.md with current-path and stale-write protection') ||
     !pages.settings_workspace.must_not_show?.includes('workspace buried inside Maintenance or Advanced')
   ) {
-    throw new Error('Settings Workspace must be an independent top-level page under Overview');
+    throw new Error('Settings Workspace & Personalization must be an independent top-level page under Overview');
   }
   if (
     pages.settings_local_services?.page_kind !== 'compatibility_redirect' ||
@@ -1147,7 +1148,14 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     ) ||
     !pages.settings_theme.must_show?.includes('Light, Dark, and Codex theme choices under the themes anchor')
   ) {
-    throw new Error('Settings Preferences must expose behavior, performance, personalization, and themes as user configuration');
+    throw new Error('Settings Preferences must expose behavior, performance, and themes as user configuration');
+  }
+  if (
+    pages.settings_personalization?.page_kind !== 'compatibility_redirect' ||
+    pages.settings_personalization.compatibility_redirect?.target_route_id !== 'workspace' ||
+    pages.settings_personalization.compatibility_redirect?.anchor !== 'personalization'
+  ) {
+    throw new Error('Personalization must redirect to Workspace#personalization');
   }
   validateProgressDeltaDisplayContract(
     pages.runtime_status.progress_delta_policy,

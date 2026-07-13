@@ -140,7 +140,7 @@ const expectedReasoningLabels = {
   medium: { zh: '推理中', en: 'Medium reasoning' },
   high: { zh: '推理高', en: 'High reasoning' },
   xhigh: { zh: '推理超高', en: 'Extra high reasoning' },
-  max: { zh: '推理最大', en: 'Maximum reasoning' },
+  max: { zh: '推理最高', en: 'Maximum reasoning' },
   ultra: { zh: '推理极高', en: 'Ultra reasoning' },
 };
 
@@ -370,8 +370,8 @@ export function assertAppProductProfileSettingsVisualSystem(
     ],
     `${label} Settings visual system must preserve the OPL bounded-card baseline`,
   );
-  if (JSON.stringify(visualSystem?.footer_controls) !== JSON.stringify(['return_to_chat', 'theme_switcher'])) {
-    throw new Error(`${label} Settings footer must only expose return-to-chat and theme-switcher controls`);
+  if (JSON.stringify(visualSystem?.footer_controls) !== JSON.stringify(['theme_switcher'])) {
+    throw new Error(`${label} Settings footer must only expose the theme-switcher control`);
   }
 }
 

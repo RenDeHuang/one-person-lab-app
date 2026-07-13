@@ -53,7 +53,7 @@ const gatewayAccountTopLevelFields = [
   'actions',
 ];
 const gatewayAccountNestedFields = {
-  account: ['display_name', 'masked_email', 'status', 'balance'],
+  account: ['display_name', 'email', 'status', 'balance'],
   'account.balance': ['amount', 'currency'],
   usage: ['today_tokens', 'total_tokens', 'today_actual_cost', 'total_actual_cost', 'currency', 'day_timezone'],
   managed_key: ['name', 'status', 'ownership'],
@@ -97,6 +97,23 @@ const gatewayAccountActionIds = [
   'gateway_account_use_for_model_access',
   'gateway_account_disconnect',
 ];
+const gatewayAccountDisplayPolicy = {
+  identity: 'show_full_account_email_because_it_is_not_secret_material',
+  account_status: 'localized_user_facing_label_with_active_rendered_as_激活_in_zh_CN',
+  token_counts: 'compact_decimal_units_K_M_B_T_with_up_to_two_fraction_digits',
+  day_timezone: 'not_user_visible',
+  observed_at: 'format_with_local_device_locale_and_timezone',
+  refresh_action: 'icon_only_immediately_after_observed_at_with_tooltip_and_accessible_name',
+  normal_actions: ['refresh', 'disconnect'],
+  exception_actions: ['complete_setup', 'repair', 'sign_in_again'],
+  forbidden_normal_controls: ['group_selector', 'repair', 'use_for_model_access'],
+};
+const gatewayAccountGroupResolutionPolicy = {
+  default_group_match: 'single_case_insensitive_label_containing_Codex_then_single_available_group_fallback',
+  ordinary_user_selector: 'not_rendered',
+  legacy_setup_required_action: 'show_complete_connection_only_when_default_group_resolves',
+  unresolved_state: 'show_localized_error_without_arbitrary_group_selection',
+};
 
 function collectObjectKeys(value, keys = new Set()) {
   if (Array.isArray(value)) {
@@ -172,6 +189,12 @@ export function validateOplGatewayAccountContract(runtimeBridge) {
   assertDeepEqualJson(projection.forbidden_fields, gatewayAccountForbiddenFields, 'Gateway account forbidden fields');
   assertDeepEqualJson(projection.error_codes, gatewayAccountErrorCodes, 'Gateway account error codes');
   assertDeepEqualJson(projection.app_action_ids, gatewayAccountActionIds, 'Gateway account App action ids');
+  assertDeepEqualJson(projection.display_policy, gatewayAccountDisplayPolicy, 'Gateway account display policy');
+  assertDeepEqualJson(
+    projection.group_resolution_policy,
+    gatewayAccountGroupResolutionPolicy,
+    'Gateway account group resolution policy',
+  );
   if (
     projection.account_card_visibility !== 'account_card_visible_true_only'
     || projection.refresh_policy?.ttl_seconds !== 900

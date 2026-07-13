@@ -146,6 +146,8 @@ export type AppProductProfile = {
       };
       home_layout: {
         default_mode: string;
+        default_active_shortcut: null;
+        shortcut_selection_policy: string;
         first_screen_policy: string;
         composer_position: string;
         composer_primary: boolean;
@@ -158,6 +160,7 @@ export type AppProductProfile = {
         starter_order_policy: string;
         starter_layout_policy: string;
         starter_truncation_allowed: boolean;
+        selected_starter_visual_policy: string;
         workspace_selector_policy: {
           primary_scope: string;
           inactive_recent_directories_visible: boolean;
@@ -178,6 +181,12 @@ export type AppProductProfile = {
         workspace_session_rail_default_state: string;
         right_context_inspector_default_state: string;
         must_not_show: string[];
+      };
+      utility_icon_policy: {
+        library: string;
+        refresh_actions: string;
+        model_reasoning_control: string;
+        scope: string;
       };
     };
     ordinary_conversation: {

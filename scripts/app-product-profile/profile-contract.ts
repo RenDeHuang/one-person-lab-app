@@ -549,6 +549,26 @@ function assertHomeActivityCenterPolicy(profile: AppProductProfile): void {
   );
 }
 
+function assertHomeSelectionAndIconPolicy(profile: AppProductProfile): void {
+  const homeLayout = profile.gui.home.home_layout;
+  const iconPolicy = profile.gui.home.utility_icon_policy;
+  if (
+    homeLayout.default_active_shortcut !== null ||
+    homeLayout.shortcut_selection_policy !== 'explicit_user_or_navigation_selection_only_no_saved_preset_restore' ||
+    homeLayout.selected_starter_visual_policy !== 'accent_border_fill_and_check_indicator_not_color_alone'
+  ) {
+    throw new Error('App product profile Home must require explicit professional-agent selection with a visible selected state');
+  }
+  if (
+    iconPolicy.library !== 'font_awesome_free_for_opl_owned_utility_icons' ||
+    iconPolicy.refresh_actions !== 'icon_only_with_tooltip_and_accessible_name' ||
+    iconPolicy.model_reasoning_control !== 'text_and_disclosure_without_brain_icon' ||
+    iconPolicy.scope !== 'opl_owned_overlay_surfaces_not_upstream_fork_body'
+  ) {
+    throw new Error('App product profile utility icon policy must preserve the OPL-owned Font Awesome boundary');
+  }
+}
+
 function assertDefaultAssistantProfileShape(profile: AppProductProfile): void {
   const defaultAssistantIds = profile.gui.default_assistants?.map((assistant) => assistant.id) ?? [];
   if (JSON.stringify(defaultAssistantIds) !== JSON.stringify(['mas', 'mag', 'rca', 'obf'])) {
@@ -712,6 +732,7 @@ function assertProfileShape(profile: AppProductProfile): void {
   assertHomeCodexProfileShape(profile);
   assertHomePurposeEntries(profile);
   assertHomeActivityCenterPolicy(profile);
+  assertHomeSelectionAndIconPolicy(profile);
   assertAppProductProfileRouteReceiptPolicy(profile, 'App product profile', {
     requireExactAssistants: true,
   });

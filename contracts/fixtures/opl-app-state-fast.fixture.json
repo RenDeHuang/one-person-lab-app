@@ -1311,7 +1311,7 @@
           "account_card_visible": true,
           "account": {
             "display_name": "OPL User",
-            "masked_email": "g***@example.com",
+            "email": "gaofeng@example.com",
             "status": "active",
             "balance": {
               "amount": "128.40",

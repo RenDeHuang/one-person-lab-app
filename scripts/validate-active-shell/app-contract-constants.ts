@@ -318,7 +318,6 @@ export const appOwnedSettingsTabs = [
   "environment",
   "storage",
   "appearance",
-  "personalization",
 ];
 export const appOwnedTaskAwarenessRefFields = [
   "capability_health_refs",
@@ -374,6 +373,17 @@ export const appOwnedSettingsCompatibilityRedirects = {
     navigation_encoding: "route_id_plus_anchor_field",
     shell_transport_hint: "hash_router_uses_query_param_section",
   },
+  personalization: {
+    source_route_id: "personalization",
+    source_path: "/settings/personalization",
+    target_route_id: "workspace",
+    target_path: "/settings/workspace",
+    product_page_id: "workspace",
+    anchor: "personalization",
+    anchor_query_param: "section",
+    navigation_encoding: "route_id_plus_anchor_field",
+    shell_transport_hint: "hash_router_uses_query_param_section",
+  },
 };
 export const appActionRoute =
   "opl app action execute --action <action_id> [--payload <json>] [--dry-run] --json";
@@ -386,7 +396,6 @@ export const appOwnedSettingsIaGroupIds = [
   "maintenance",
   "data_storage",
   "preferences",
-  "personalization",
   "advanced",
 ];
 export const appOwnedSettingsRouteScopes = {
@@ -400,7 +409,7 @@ export const appOwnedSettingsRouteScopes = {
   settings_theme: { route_id: "appearance", route_scope: "ordinary" },
   settings_personalization: {
     route_id: "personalization",
-    route_scope: "ordinary",
+    route_scope: "compatibility_redirect",
   },
   advanced: { route_id: "advanced", route_scope: "secondary_or_deep_link" },
   about: { route_id: "about", route_scope: "secondary_or_deep_link" },
@@ -438,19 +447,20 @@ export const appOwnedSettingsTopLevelEntryIds = [
   "maintenance",
   "storage",
   "preferences",
-  "personalization",
 ];
 export const appOwnedSettingsTopLevelLabels = {
   overview: { label_zh: "概览", label_en: "Overview" },
   access: { label_zh: "模型与访问", label_en: "Models & Access" },
-  workspace: { label_zh: "工作区", label_en: "Workspace" },
+  workspace: {
+    label_zh: "工作区与个性化",
+    label_en: "Workspace & Personalization",
+  },
   agents: { label_zh: "智能体", label_en: "Agents" },
   capabilities: { label_zh: "能力", label_en: "Capabilities" },
   resources: { label_zh: "资源与连接", label_en: "Resources & Connections" },
   maintenance: { label_zh: "本机环境", label_en: "Local Environment" },
   storage: { label_zh: "数据与存储", label_en: "Data & Storage" },
   preferences: { label_zh: "偏好", label_en: "Preferences" },
-  personalization: { label_zh: "个性化", label_en: "Personalization" },
 };
 export const appOwnedSettingsProductPageIds = [
   ...appOwnedSettingsTopLevelEntryIds,
@@ -466,14 +476,21 @@ export const appOwnedSettingsTechnicalDetailsDefault = {
   maintenance: "explicit_action_modal",
   storage: "explicit_action_modal",
   preferences: "not_applicable",
-  personalization: "not_applicable",
   advanced: "not_applicable",
   about: "explicit_action_modal",
 };
 export const appOwnedSettingsPageAnchors = {
   overview: ["status", "attention", "next-action", "common-actions"],
   access: ["provider-source", "opl-gateway", "model", "codex-cli", "authentication"],
-  workspace: ["current-workspace", "permissions", "artifacts"],
+  workspace: [
+    "current-workspace",
+    "permissions",
+    "artifacts",
+    "logs",
+    "personalization",
+    "system-agents",
+    "opl-app-context",
+  ],
   agents: ["availability", "source", "home-visibility"],
   capabilities: ["opl-flow-managed", "third-party"],
   resources: [
@@ -497,7 +514,6 @@ export const appOwnedSettingsPageAnchors = {
     "display-fonts",
     "themes",
   ],
-  personalization: ["system-agents", "opl-app-context"],
   advanced: ["working-directories"],
   about: ["version", "channel", "updates", "help-feedback"],
 };
@@ -519,6 +535,9 @@ export const appOwnedSettingsPageSearchEntryIds = {
     "workspace.current",
     "workspace.permissions",
     "workspace.artifacts",
+    "workspace.logs",
+    "personalization.system_agents",
+    "personalization.opl_app_context",
   ],
   agents: ["agents.availability", "agents.source", "agents.home_visibility"],
   capabilities: [
@@ -551,10 +570,6 @@ export const appOwnedSettingsPageSearchEntryIds = {
     "preferences.performance",
     "preferences.display_fonts",
     "preferences.themes",
-  ],
-  personalization: [
-    "personalization.system_agents",
-    "personalization.opl_app_context",
   ],
   advanced: ["advanced.directories"],
   about: [
@@ -644,7 +659,7 @@ export const appOwnedSettingsSearchProtocol = {
   result_policy: "select_result_navigates_to_owner_route_and_anchor",
   anchor_transport: "route_id_plus_anchor_field_with_section_query_fallback",
   compatibility_index_policy:
-    "index_update_theme_and_local_services_under_owner_page_anchors",
+    "index_update_theme_local_services_and_personalization_under_owner_page_anchors",
   empty_state: "show_no_matching_settings_without_exposing_internal_route_ids",
 };
 export const appOwnedSettingsVisualSystem = {
@@ -676,7 +691,7 @@ export const appOwnedSettingsVisualSystem = {
   object_accent_policy:
     "use restrained multi-hue navigation icons and card-edge accents to distinguish access, workspace, capabilities, maintenance, and storage without tinting whole pages",
   footer_layout: "compact",
-  footer_controls: ["return_to_chat", "theme_switcher"],
+  footer_controls: ["theme_switcher"],
   footer_secondary_navigation_allowed: false,
   theme_gallery_presentation: "recognizable_preview_tiles",
   theme_swatch_list_allowed: false,
@@ -761,7 +776,6 @@ export const appOwnedSettingsVisualQaTargets = [
   "desktop_settings_maintenance",
   "desktop_settings_storage",
   "desktop_settings_preferences",
-  "desktop_settings_personalization",
 ];
 export const appOwnedSettingsUpstreamIntakeClassifications = [
   "accepted",
@@ -771,7 +785,7 @@ export const appOwnedSettingsUpstreamIntakeClassifications = [
 ];
 export const appOwnedSettingsProductSystemItemIds = [
   "control_center_positioning",
-  "ten_entry_ia",
+  "nine_entry_ia",
   "secondary_route_strategy",
   "compatibility_anchor_routes",
   "single_control_plane",
@@ -828,6 +842,8 @@ export const homeActivityCenterForbiddenDisplays = [
 ];
 export const appOwnedHomeLayout = {
   default_mode: "composer_first_chat_canvas",
+  default_active_shortcut: null,
+  shortcut_selection_policy: "explicit_user_or_navigation_selection_only_no_saved_preset_restore",
   first_screen_policy: "chat_first_no_dashboard_or_landing_copy",
   composer_position: "floating_bottom_with_safe_inset",
   composer_primary: true,
@@ -841,6 +857,7 @@ export const appOwnedHomeLayout = {
   starter_order_policy: "stable_configured_order",
   starter_layout_policy: "responsive_wrap",
   starter_truncation_allowed: false,
+  selected_starter_visual_policy: "accent_border_fill_and_check_indicator_not_color_alone",
   workspace_selector_policy: {
     primary_scope: "active_workspace_only",
     inactive_recent_directories_visible: false,

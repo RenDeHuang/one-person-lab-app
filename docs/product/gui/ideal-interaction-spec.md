@@ -140,6 +140,8 @@ Previous/Next 只在当前可见 ordinary conversations 中移动，不扩张 We
 - 使用动态问题标题，保留 rail、context 和 composer。
 - 展示所有由安装状态与用户偏好标记为可见的轻量 OPL starter，按稳定配置顺序响应式换行，
   不静默截断，也不解释产品功能或堆叠大卡片。
+- 默认不激活任何专业智能体。历史保存的 preset 不得反向成为 Home 默认值；只有用户点击
+  starter 或从明确 capability 路由进入时才设置 active capability。
 - Starter click-to-start 只准备 route context 与 active capability，不自动执行隐藏 workflow。
 - Package 不可用时 starter 保持可识别但 disabled，邻近显示用户可理解的原因和允许动作；
   不用 spinner、空白或静默隐藏掩盖 readiness 问题。

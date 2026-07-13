@@ -126,6 +126,8 @@
         },
         "home_layout": {
           "default_mode": "composer_first_chat_canvas",
+          "default_active_shortcut": null,
+          "shortcut_selection_policy": "explicit_user_or_navigation_selection_only_no_saved_preset_restore",
           "first_screen_policy": "chat_first_no_dashboard_or_landing_copy",
           "composer_position": "floating_bottom_with_safe_inset",
           "composer_primary": true,
@@ -138,6 +140,7 @@
           "starter_order_policy": "stable_configured_order",
           "starter_layout_policy": "responsive_wrap",
           "starter_truncation_allowed": false,
+          "selected_starter_visual_policy": "accent_border_fill_and_check_indicator_not_color_alone",
           "workspace_selector_policy": {
             "primary_scope": "active_workspace_only",
             "inactive_recent_directories_visible": false,
@@ -356,6 +359,8 @@
         "conversation pending elapsed seconds while Codex is working",
         "purpose-first entries 科研/MAS, 基金/MAG, 演示/RCA, 写书/OBF",
         "active capability shown as a compact chip",
+        "no active professional agent until the user explicitly selects a starter or follows an explicit capability route",
+        "selected starter uses an accent border, fill, and check indicator rather than color alone",
         "all user-visible configured OPL starters in stable order without silent truncation",
         "assistant-scoped skill menu with required skill checked",
         "ordinary skill selector filtered to App-owned assistant profile skill allowlist",
@@ -374,6 +379,8 @@
         "retired Codex model choices on the home input",
         "provider or backend terms in the permission and access mode",
         "persistent variable purpose selector in the composer",
+        "saved professional-agent preset silently restored as the Home default",
+        "brain icon in the ordinary model and reasoning control",
         "full assistant names as default home entry labels",
         "skills outside the App packaged skill set in home skill menu",
         "AionUI implementation skills such as aionui-skills",
@@ -2492,53 +2499,35 @@
     },
     {
       "id": "settings_personalization",
-      "expected_source": "OPL Framework Codex personalization projection plus App local conversation context settings",
+      "expected_source": "App-owned Settings compatibility redirect",
       "must_show": [
-        "editable system-level AGENTS.md with current-path and stale-write protection",
-        "restore from the currently installed OPL Flow default only after confirmation",
-        "generated OPL App base context as read-only content",
-        "editable additional instructions that apply to the next new conversation"
+        "compatibility redirect to Workspace route workspace and anchor personalization"
       ],
       "must_not_show": [
-        "workspace paths or project permissions",
-        "raw Codex session context diagnostics",
-        "OPL Flow described as the owner of per-session App context"
+        "independent Personalization product page",
+        "Personalization ordinary or secondary navigation entry",
+        "personalization controls before the redirect resolves"
       ],
-      "machine_source": "opl app state --profile fast --json#codex_personalization",
+      "machine_source": "opl app state --profile fast --json",
       "refresh_source": "opl app state --profile fast --json",
       "page_contract": "settings_personalization",
-      "state_sections": ["codex_personalization", "app_session_context"],
-      "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
-      "ia_group": "personalization",
+      "ia_group": "overview",
       "route_id": "personalization",
-      "route_scope": "ordinary",
+      "route_scope": "compatibility_redirect",
       "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia",
-      "sections": ["system_agents", "opl_app_context"],
-      "product_page_id": "personalization",
-      "experience_contract_ref": "contracts/app-settings-control-plane.json#experience_contract.page_contracts.personalization",
-      "required_dom": {
-        "always": [
-          "settings-page-personalization",
-          "settings-personalization-primary",
-          "settings-personalization-instructions",
-          "settings-system-agents-editor",
-          "settings-opl-app-context-editor"
-        ],
-        "conditional": [
-          {
-            "testid": "settings-personalization-exception",
-            "when": "attention_required"
-          }
-        ]
-      },
-      "required_anchors": ["system-agents", "opl-app-context"],
-      "search_entry_ids": [
-        "personalization.system_agents",
-        "personalization.opl_app_context"
-      ],
-      "primary_action_id": "none",
-      "technical_details_default": "not_applicable",
-      "exception_emphasis": "attention_only"
+      "sections": ["compatibility_redirect"],
+      "page_kind": "compatibility_redirect",
+      "compatibility_redirect": {
+        "source_route_id": "personalization",
+        "source_path": "/settings/personalization",
+        "target_route_id": "workspace",
+        "target_path": "/settings/workspace",
+        "product_page_id": "workspace",
+        "anchor": "personalization",
+        "anchor_query_param": "section",
+        "navigation_encoding": "route_id_plus_anchor_field",
+        "shell_transport_hint": "hash_router_uses_query_param_section"
+      }
     },
     {
       "id": "first_launch_readiness",
@@ -2817,27 +2806,46 @@
     },
     {
       "id": "settings_workspace",
-      "expected_source": "OPL App state paths projection and App-owned settings information architecture",
-      "machine_source": "opl app state --profile fast --json#app_state.paths",
+      "expected_source": "OPL App state paths and Codex personalization projections plus App local system-info and conversation-context settings",
+      "machine_source": "opl app state --profile fast --json#app_state.paths + app_state.codex_personalization + application.systemInfo.logDir + desktop client settings",
       "refresh_source": "opl app state --profile fast --json",
       "page_contract": "settings_workspace",
       "sections": [
         "workspace_summary",
         "workspace_action",
+        "log_directory",
+        "system_agents",
+        "opl_app_context",
         "technical_details"
       ],
-      "state_sections": ["paths", "developer_profile.workspace_trust"],
+      "state_sections": [
+        "paths",
+        "developer_profile.workspace_trust",
+        "codex_personalization",
+        "app_session_context",
+        "application.systemInfo"
+      ],
       "must_show": [
         "current workspace identity, path, and writability merged into one normal-state summary",
         "permission or trust explanation only when attention is required",
+        "where project and task artifacts are stored",
+        "desktop App log directory from application.systemInfo with an explicit change action",
+        "editable system-level AGENTS.md with current-path and stale-write protection",
+        "restore from the currently installed OPL Flow default only after confirmation and backup",
+        "generated OPL App base context as read-only content",
+        "editable additional instructions that apply to the next new conversation",
         "one change workspace action",
-        "workspace page reachable as a top-level Settings entry"
+        "Workspace & Personalization page reachable as a top-level Settings entry"
       ],
       "must_not_show": [
         "separate normal-state cards for path, writability, trust, and permission",
         "workspace buried inside Maintenance or Advanced",
         "raw path JSON as primary page language",
-        "workspace changes without confirmation"
+        "workspace changes without confirmation",
+        "Framework app_state.paths.logs_dir presented as the desktop App log directory",
+        "Settings rewiring Docker /projects or /data volume mounts",
+        "generated OPL App base context as editable content",
+        "repository AGENTS.md as an App-owned editable file"
       ],
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
       "ia_group": "overview",
@@ -2850,8 +2858,12 @@
         "always": [
           "settings-page-workspace",
           "settings-workspace-primary",
+          "settings-workspace-log-directory",
           "settings-workspace-diagnostics-action",
-          "settings-workspace-primary-action"
+          "settings-workspace-primary-action",
+          "settings-personalization-instructions",
+          "settings-system-agents-editor",
+          "settings-opl-app-context-editor"
         ],
         "conditional": [
           {
@@ -2864,11 +2876,22 @@
           }
         ]
       },
-      "required_anchors": ["current-workspace", "permissions", "artifacts"],
+      "required_anchors": [
+        "current-workspace",
+        "permissions",
+        "artifacts",
+        "logs",
+        "personalization",
+        "system-agents",
+        "opl-app-context"
+      ],
       "search_entry_ids": [
         "workspace.current",
         "workspace.permissions",
-        "workspace.artifacts"
+        "workspace.artifacts",
+        "workspace.logs",
+        "personalization.system_agents",
+        "personalization.opl_app_context"
       ],
       "primary_action_id": "change_workspace",
       "technical_details_default": "explicit_action_modal",
@@ -2904,7 +2927,7 @@
         "persistent default model and reasoning effort for new conversations",
         "OPL Gateway account login and manual API-key paths without removing either path",
         "Gateway account card only when an account connection exists",
-        "account card limited to masked identity, balance, today and total tokens, today and total actual cost, managed Key name and status, and freshness",
+        "account card limited to full account identity, localized status, balance, compact K/M/B/T token usage, today and total actual cost, managed Key name and status, and freshness in local time",
         "OPL Gateway, Codex CLI, and account or API-key state",
         "one configure model access action when missing or explicitly requested"
       ],
@@ -2917,7 +2940,10 @@
         "local browser access, WebUI, Workspace, or remote resource entries",
         "Gateway password login in browser WebUI",
         "password, access token, refresh token, API Key material, remote Key id, credential path, raw response, or raw error",
-        "Gateway account card in manual API-key mode or when no Gateway account is connected"
+        "Gateway account card in manual API-key mode or when no Gateway account is connected",
+        "Gateway group selector when Codex or the only available group can be resolved",
+        "server day timezone or raw server timestamp on the account card",
+        "normal-state Repair or Use as model source actions"
       ],
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
       "ia_group": "setup_access",
@@ -2945,7 +2971,7 @@
           },
           {
             "testid": "settings-access-gateway-setup",
-            "when": "desktop_account_login_selected_or_group_selection_required"
+            "when": "desktop_account_login_selected_or_legacy_setup_requires_default_group_completion"
           },
           {
             "testid": "settings-access-gateway-account",
@@ -3855,6 +3881,17 @@
       "target_path": "/settings/environment",
       "product_page_id": "maintenance",
       "anchor": "services",
+      "anchor_query_param": "section",
+      "navigation_encoding": "route_id_plus_anchor_field",
+      "shell_transport_hint": "hash_router_uses_query_param_section"
+    },
+    "personalization": {
+      "source_route_id": "personalization",
+      "source_path": "/settings/personalization",
+      "target_route_id": "workspace",
+      "target_path": "/settings/workspace",
+      "product_page_id": "workspace",
+      "anchor": "personalization",
       "anchor_query_param": "section",
       "navigation_encoding": "route_id_plus_anchor_field",
       "shell_transport_hint": "hash_router_uses_query_param_section"

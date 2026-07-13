@@ -59,6 +59,13 @@ function validateExecutorPolicy(guiContract) {
 
 function validateHomeLayout(guiContract) {
   assertDeepEqualJson(guiContract.home_layout, appOwnedHomeLayout, 'App GUI home layout');
+  if (
+    guiContract.utility_icon_policy?.library !== 'font_awesome_free_for_opl_owned_utility_icons' ||
+    guiContract.utility_icon_policy?.refresh_actions !== 'icon_only_with_tooltip_and_accessible_name' ||
+    guiContract.utility_icon_policy?.model_reasoning_control !== 'text_and_disclosure_without_brain_icon'
+  ) {
+    throw new Error('App GUI utility icon policy must use Font Awesome Free on OPL-owned surfaces');
+  }
   assertDeepEqualJson(
     Object.fromEntries(
       Object.entries(guiContract.ordinary_conversation ?? {}).filter(

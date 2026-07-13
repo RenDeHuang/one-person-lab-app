@@ -103,7 +103,6 @@ const expectedVisualQaRoutes = [
   "/settings/environment",
   "/settings/storage",
   "/settings/appearance",
-  "/settings/personalization",
 ];
 const expectedVisualQaSecondaryRoutes = [
   "/settings/advanced",
@@ -113,6 +112,7 @@ const expectedVisualQaCompatibilityRedirects = [
   "update->environment#updates",
   "theme->appearance#themes",
   "local-services->environment#services",
+  "personalization->workspace#personalization",
 ];
 const expectedVisualQaStatusAnchors = [
   "single_global_search",
@@ -163,7 +163,7 @@ const expectedIaGroupByMatrixPageId = {
   about: "advanced",
   update: "maintenance",
   settings_theme: "preferences",
-  settings_personalization: "personalization",
+  settings_personalization: "overview",
   advanced: "advanced",
   settings_workspace: "overview",
 };
@@ -367,7 +367,6 @@ export function validateSettingsControlPlane(
       "settings_environment",
       "settings_storage",
       "settings_theme",
-      "settings_personalization",
     ],
     "Settings control plane ordinary slot ids",
   );
@@ -975,12 +974,12 @@ function validateSettingsTopLevelEntries(entries, policy) {
       "advanced_is_secondary_or_deep_link_not_ordinary_navigation" ||
     policy?.about_visibility !== "about_is_independent_secondary_page" ||
     policy?.compatibility_route_policy !==
-      "update_theme_and_local_services_redirect_to_owner_route_and_anchor" ||
+      "update_theme_local_services_and_personalization_redirect_to_owner_route_and_anchor" ||
     policy?.shell_route_compatibility !==
       "carrier_route_ids_remain_stable_while_product_page_ids_are_canonical"
   ) {
     throw new Error(
-      "Settings IA must declare ten product pages, independent About, and compatibility anchor routes",
+      "Settings IA must declare nine ordinary product pages, independent About, and compatibility anchor routes",
     );
   }
   assertDeepEqualJson(
@@ -1212,7 +1211,7 @@ function validateSettingsVisualQaExpectations(expectations) {
     expectations?.footer_structure,
     {
       layout: "compact",
-      controls: ["return_to_chat", "theme_switcher"],
+      controls: ["theme_switcher"],
       account_help_navigation: "forbidden",
     },
     "Settings visual QA footer structure",
@@ -1302,7 +1301,7 @@ function validateSettingsVisualQaExpectations(expectations) {
       "same-route screenshots preserve or improve spatial and typographic hierarchy against shell baseline 409dd0c3",
       "Settings remains quiet, dense, and scannable without a sparse page-wide bare-divider layout",
       "bounded page-section cards do not become a decorative card wall",
-      "the compact Settings footer has return-to-chat and theme-switcher controls, not a second account/help navigation group",
+      "the compact Settings footer has only the theme-switcher control, not return-to-chat or a second account/help navigation group",
       "the theme gallery uses recognizable preview tiles rather than a flat swatch list",
       "visual assertions verify grouping, footer, and theme-gallery structure; radius and spacing alone are insufficient",
       "the Settings sidebar has exactly one selected item",
@@ -1351,6 +1350,11 @@ function validateSettingsPageStateMatrix(
     pageById(pageStateMatrix, "settings_local_services").compatibility_redirect,
     compatibilityRedirects["local-services"],
     "Local Services compatibility redirect page state",
+  );
+  assertDeepEqualJson(
+    pageById(pageStateMatrix, "settings_personalization").compatibility_redirect,
+    compatibilityRedirects.personalization,
+    "Personalization compatibility redirect page state",
   );
   if (!experienceContract) return;
   for (const [productPageId, contract] of Object.entries(
@@ -1446,7 +1450,6 @@ function validateHydratedSettingsRegistry(controlPlane) {
       "RuntimeSettings",
       "StorageSettings",
       "AppearanceModalContent",
-      "PersonalizationSettingsContent",
     ],
     "Hydrated Settings registry ordinary component keys",
   );
@@ -1882,7 +1885,7 @@ export function validateSettingsExperienceContract(experience) {
     search.hash_router_policy !==
       "use_route_query_section_when_a_second_hash_fragment_is_not_supported" ||
     search.compatibility_index_policy !==
-      "index_update_theme_and_local_services_under_their_owner_page_anchors"
+      "index_update_theme_local_services_and_personalization_under_their_owner_page_anchors"
   ) {
     throw new Error(
       "Settings search must be one bilingual item-level route-and-anchor search",
@@ -1980,7 +1983,6 @@ export function validateSettingsExperienceContract(experience) {
       "advanced",
       "capabilities",
       "preferences",
-      "personalization",
     ].includes(pageId);
     const hasTechnicalDetailsSurface =
       page.required_dom.always.includes(technicalDetailsTestId) ||
@@ -2045,6 +2047,18 @@ export function validateSettingsExperienceContract(experience) {
         "one merged writability status inside the workspace card",
       maintenance_action_visibility: "attention_only",
       diagnostics_entry: "explicit_modal_action",
+      log_directory_source:
+        "application.systemInfo.logDir_not_Framework_app_state.paths.logs_dir",
+      log_directory_mutation:
+        "application.updateSystemInfo_preserves_cacheDir_and_workDir_and_switches_main_process_log_root_immediately",
+      desktop_directory_mapping:
+        "project_workspace_is_Framework_workspace_root_while_App_data_and_logs_are_shell_system_directories",
+      docker_mapping:
+        "host_managed_/projects_for_project_workspace_and_/data_for_App_data_logs_no_volume_rewire_from_Settings",
+      generated_base_context_editable: false,
+      additional_instructions_editable: true,
+      restore_default_confirmation_required: true,
+      personalization_changes_apply_to: "next_new_conversation",
     },
     "Settings Workspace surface rules",
   );
@@ -2073,18 +2087,6 @@ export function validateSettingsExperienceContract(experience) {
         "advanced_but_persistent_controls_use_a_named_configuration_group_not_a_technical_details_disclosure",
     },
     "Settings Preferences surface rules",
-  );
-  assertDeepEqualJson(
-    pageContracts.personalization.surface_rules,
-    {
-      full_width_group_count: 2,
-      generated_base_context_editable: false,
-      additional_instructions_editable: true,
-      restore_default_confirmation_required: true,
-      changes_apply_to: "next_new_conversation",
-      workspace_scope_must_not_merge_here: true,
-    },
-    "Settings Personalization surface rules",
   );
   assertDeepEqualJson(
     pageContracts.maintenance.surface_rules,
@@ -2372,7 +2374,7 @@ function validateSettingsGatewayAccountBoundary(controlPlane, accessAdapter) {
     surface.account_card_fields,
     [
       'account.display_name',
-      'account.masked_email',
+      'account.email',
       'account.balance',
       'usage.today_tokens',
       'usage.today_actual_cost',
@@ -2670,7 +2672,7 @@ function validateSettingsVisualQaPolicy(controlPlane) {
     policy.evidence_manifest?.secondary_route_policy !==
       "advanced and about are captured as independent secondary pages" ||
     policy.evidence_manifest?.compatibility_route_policy !==
-      "update, theme, and local-services are captured as redirect landing evidence on their owner route and anchor"
+      "update, theme, local-services, and personalization are captured as redirect landing evidence on their owner route and anchor"
   ) {
     throw new Error(
       "Settings visual QA manifest must declare ordinary, secondary, and compatibility evidence policy",

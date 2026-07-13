@@ -1538,6 +1538,8 @@
   },
   "home_layout": {
     "default_mode": "composer_first_chat_canvas",
+    "default_active_shortcut": null,
+    "shortcut_selection_policy": "explicit_user_or_navigation_selection_only_no_saved_preset_restore",
     "first_screen_policy": "chat_first_no_dashboard_or_landing_copy",
     "composer_position": "floating_bottom_with_safe_inset",
     "composer_primary": true,
@@ -1550,6 +1552,7 @@
     "starter_order_policy": "stable_configured_order",
     "starter_layout_policy": "responsive_wrap",
     "starter_truncation_allowed": false,
+    "selected_starter_visual_policy": "accent_border_fill_and_check_indicator_not_color_alone",
     "workspace_selector_policy": {
       "primary_scope": "active_workspace_only",
       "inactive_recent_directories_visible": false,
@@ -1578,6 +1581,12 @@
       "AionUI Team nav entry",
       "AionUI Team page as ordinary App surface"
     ]
+  },
+  "utility_icon_policy": {
+    "library": "font_awesome_free_for_opl_owned_utility_icons",
+    "refresh_actions": "icon_only_with_tooltip_and_accessible_name",
+    "model_reasoning_control": "text_and_disclosure_without_brain_icon",
+    "scope": "opl_owned_overlay_surfaces_not_upstream_fork_body"
   },
   "ai_first_interaction_model": {
     "default_visual_basis": "codex_app_composer_first",
@@ -2456,8 +2465,7 @@
       "resources",
       "environment",
       "storage",
-      "appearance",
-      "personalization"
+      "appearance"
     ],
     "legacy_route_redirects": {
       "overview": "general",
@@ -2495,7 +2503,6 @@
       "environment",
       "storage",
       "appearance",
-      "personalization",
       "advanced",
       "about"
     ],
@@ -2523,7 +2530,7 @@
     },
     "source": "opl app state --profile fast --json",
     "refresh_source": "opl app state --profile fast --json",
-    "policy": "Settings is the App-owned OPL card-based control center. Agents, Capabilities, and Local Environment are separate owner surfaces: Agents manages runnable Agent packages; Capabilities manages OPL Flow dependency-closure Skills/Plugins plus manual and third-party Skills/Plugins; Local Environment manages OPL Base, OPL App, OPL Packages, and external-tool update guidance. Advanced and About are the only independent secondary pages.",
+    "policy": "Settings is the App-owned OPL card-based control center. Workspace also owns desktop log-directory and personalization configuration. Agents, Capabilities, and Local Environment remain separate owner surfaces: Agents manages runnable Agent packages; Capabilities manages OPL Flow dependency-closure Skills/Plugins plus manual and third-party Skills/Plugins; Local Environment manages OPL Base, OPL App, OPL Packages, and external-tool update guidance. Advanced and About are the only independent secondary pages.",
     "agents_capabilities_ownership_ref": "contracts/app-settings-control-plane.json#agents_capabilities_ownership",
     "settings_ia": {
       "schema": "settings_ia.v1",
@@ -2539,7 +2546,7 @@
         "resources_visibility": "resources_is_user_visible_top_level_navigation_entry",
         "advanced_visibility": "advanced_is_secondary_or_deep_link_not_ordinary_navigation",
         "about_visibility": "about_is_independent_secondary_page",
-        "compatibility_route_policy": "update_theme_and_local_services_redirect_to_owner_route_and_anchor"
+        "compatibility_route_policy": "update_theme_local_services_and_personalization_redirect_to_owner_route_and_anchor"
       },
       "ordinary_route_ids": [
         "general",
@@ -2550,8 +2557,7 @@
         "resources",
         "environment",
         "storage",
-        "appearance",
-        "personalization"
+        "appearance"
       ],
       "secondary_or_deep_link_route_ids": ["advanced", "about"],
       "group_ids": [
@@ -2563,7 +2569,6 @@
         "maintenance",
         "data_storage",
         "preferences",
-        "personalization",
         "advanced"
       ],
       "top_level_entries": [
@@ -2596,12 +2601,12 @@
           "route_id": "workspace",
           "route_scope": "ordinary",
           "visibility": "top_level_navigation",
-          "label_en": "Workspace",
-          "label_zh": "工作区",
+          "label_en": "Workspace & Personalization",
+          "label_zh": "工作区与个性化",
           "scope": "workspace",
           "intent": "configure",
           "risk": "confirmation_required",
-          "frequency": "first_run_or_project_switch"
+          "frequency": "first_run_project_switch_or_personalization_change"
         },
         {
           "id": "agents",
@@ -2673,18 +2678,6 @@
           "scope": "user",
           "intent": "configure",
           "risk": "reversible",
-          "frequency": "occasional"
-        },
-        {
-          "id": "personalization",
-          "route_id": "personalization",
-          "route_scope": "ordinary",
-          "visibility": "top_level_navigation",
-          "label_en": "Personalization",
-          "label_zh": "个性化",
-          "scope": "user",
-          "intent": "configure",
-          "risk": "reversible_with_stale_write_guard",
           "frequency": "occasional"
         }
       ],
@@ -2830,7 +2823,7 @@
           "result_label_format": "{page_label} > {entry_label}",
           "result_policy": "select_result_navigates_to_owner_route_and_anchor",
           "anchor_transport": "route_id_plus_anchor_field_with_section_query_fallback",
-          "compatibility_index_policy": "index_update_theme_and_local_services_under_owner_page_anchors",
+          "compatibility_index_policy": "index_update_theme_local_services_and_personalization_under_owner_page_anchors",
           "empty_state": "show_no_matching_settings_without_exposing_internal_route_ids"
         },
         "card_protocol": {
@@ -2894,8 +2887,7 @@
             "desktop_settings_resources",
             "desktop_settings_maintenance",
             "desktop_settings_storage",
-            "desktop_settings_preferences",
-            "desktop_settings_personalization"
+            "desktop_settings_preferences"
           ],
           "visual_character": ["quiet", "dense", "scannable"],
           "surface_grouping": {
@@ -2936,7 +2928,7 @@
           },
           "footer_structure": {
             "layout": "compact",
-            "controls": ["return_to_chat", "theme_switcher"],
+            "controls": ["theme_switcher"],
             "account_help_navigation": "forbidden"
           },
           "theme_gallery": {
@@ -2987,7 +2979,7 @@
           "must_check": [
             "ordinary navigation shows exactly nine product pages through the stable carrier route ids",
             "Advanced and About are the only independent secondary pages",
-            "update, theme, and local-services land on their owner route and anchor",
+            "update, theme, local-services, and personalization land on their owner route and anchor",
             "exactly one global search entry is rendered",
             "search results use page > item labels and focus the declared anchor",
             "page sections use bounded cards with flat internal rows, nested cards are absent, radius is at most 8px, and spacing uses 12/16/24",
@@ -2999,7 +2991,7 @@
             "Settings remains quiet, dense, and scannable without a sparse page-wide bare-divider layout",
             "bounded page-section cards do not become a decorative card wall",
             "summary and repeated-entity bounded groups use one layer only",
-            "the compact Settings footer has return-to-chat and theme-switcher controls, not a second account/help navigation group",
+            "the compact Settings footer has only the theme-switcher control, not return-to-chat or a second account/help navigation group",
             "the theme gallery uses recognizable preview tiles rather than a flat swatch list",
             "visual assertions verify grouping, footer, and theme-gallery structure; radius and spacing alone are insufficient",
             "the Settings sidebar has exactly one selected item",
@@ -3013,7 +3005,12 @@
           ]
         }
       },
-      "compatibility_route_ids": ["update", "theme", "local-services"],
+      "compatibility_route_ids": [
+        "update",
+        "theme",
+        "local-services",
+        "personalization"
+      ],
       "experience_contract_ref": "contracts/app-settings-control-plane.json#experience_contract"
     },
     "primary_tabs": {
@@ -3034,10 +3031,10 @@
         "ordinary_entry_policy": "top_level_control_center_route"
       },
       "workspace": {
-        "label_zh": "工作区",
-        "label_en": "Workspace",
-        "role": "selected_workspace_paths_permissions_and_artifact_roots",
-        "primary_question": "Where is my current work, and can the App access it?",
+        "label_zh": "工作区与个性化",
+        "label_en": "Workspace & Personalization",
+        "role": "selected_workspace_paths_permissions_log_directory_user_instructions_and_conversation_context",
+        "primary_question": "Where is my current work and App data, can the App access it, and what instructions should new tasks receive?",
         "ia_group": "overview",
         "ordinary_entry_policy": "top_level_control_center_route"
       },
@@ -3081,14 +3078,6 @@
         "ia_group": "preferences",
         "ordinary_entry_policy": "top_level_control_center_route"
       },
-      "personalization": {
-        "label_zh": "个性化",
-        "label_en": "Personalization",
-        "role": "persistent_user_instructions_and_new_conversation_context",
-        "primary_question": "What should Codex remember for every task, and what context should new OPL App conversations receive?",
-        "ia_group": "personalization",
-        "ordinary_entry_policy": "top_level_control_center_route"
-      },
       "advanced": {
         "label_zh": "高级",
         "label_en": "Advanced",
@@ -3111,14 +3100,14 @@
       "id": "control_center",
       "label_zh": "控制中心",
       "label_en": "Control Center",
-      "positioning": "single App-owned OPL Control Center for overview, access, workspace, capabilities, resources and connections, maintenance and updates, data and storage, preferences, and personalization; advanced diagnostics stay secondary"
+      "positioning": "single App-owned OPL Control Center for overview, access, workspace and personalization, capabilities, resources and connections, maintenance and updates, data and storage, and preferences; advanced diagnostics stay secondary"
     },
     "ordinary_groups": [
       {
         "id": "overview",
         "label_zh": "概览",
         "label_en": "Overview",
-        "role": "control_center_summary",
+        "role": "control_center_summary_and_workspace_personalization",
         "ordinary_entries": ["settings_general", "workspace"],
         "required_prominence": "workspace_is_independent_ordinary_entry"
       },
@@ -3187,19 +3176,6 @@
         "role": "user_preferences_not_runtime_health",
         "ordinary_entries": ["settings_theme"],
         "anchors": ["behavior", "tray", "hardware", "themes"]
-      },
-      {
-        "id": "personalization",
-        "label_zh": "个性化",
-        "label_en": "Personalization",
-        "role": "persistent_user_instructions_and_new_conversation_context",
-        "ordinary_entries": ["system-agents", "opl-app-context"],
-        "owns": [
-          "user_codex_agents_file",
-          "opl_flow_default_restore",
-          "opl_app_generated_context",
-          "additional_conversation_instructions"
-        ]
       },
       {
         "id": "advanced",
@@ -3282,12 +3258,24 @@
         "anchor_query_param": "section",
         "navigation_encoding": "route_id_plus_anchor_field",
         "shell_transport_hint": "hash_router_uses_query_param_section"
+      },
+      "personalization": {
+        "source_route_id": "personalization",
+        "source_path": "/settings/personalization",
+        "target_route_id": "workspace",
+        "target_path": "/settings/workspace",
+        "product_page_id": "workspace",
+        "anchor": "personalization",
+        "anchor_query_param": "section",
+        "navigation_encoding": "route_id_plus_anchor_field",
+        "shell_transport_hint": "hash_router_uses_query_param_section"
       }
     },
     "ordinary_hidden_compatibility_routes": [
       "update",
       "theme",
-      "local-services"
+      "local-services",
+      "personalization"
     ]
   },
   "desktop_tray_policy": {
@@ -3715,6 +3703,8 @@
         "conversation pending elapsed seconds while Codex is working",
         "all user-visible configured OPL starters in stable order without silent truncation",
         "active capability shown as a compact chip",
+        "no active professional agent until the user explicitly selects a starter or follows an explicit capability route",
+        "selected starter uses an accent border, fill, and check indicator rather than color alone",
         "assistant-scoped skill menu with required skill checked",
         "ordinary skill selector filtered to App-owned assistant profile skill allowlist",
         "workspace selector",
@@ -3732,6 +3722,8 @@
         "retired Codex model choices on the home input",
         "provider or backend terms in the permission and access mode",
         "persistent variable purpose selector in the composer",
+        "saved professional-agent preset silently restored as the Home default",
+        "brain icon in the ordinary model and reasoning control",
         "selected assistant full name as the hero title",
         "skills outside the App packaged skill set in home skill menu",
         "AionUI implementation skills such as aionui-skills",
@@ -3913,25 +3905,30 @@
       "experience_contract_ref": "contracts/app-settings-control-plane.json#experience_contract.page_contracts.preferences"
     },
     "settings_personalization": {
-      "state_source": "opl app state --profile fast --json#codex_personalization + App local conversation context settings",
+      "state_source": "opl app state --profile fast --json",
       "refresh_source": "opl app state --profile fast --json",
-      "sections": ["system_agents", "opl_app_context"],
+      "sections": ["compatibility_redirect"],
       "must_show": [
-        "editable system-level AGENTS.md with current-path and stale-write protection",
-        "explicit restore from the currently installed OPL Flow default with confirmation and backup",
-        "read-only generated OPL App base context",
-        "editable additional instructions for new OPL App conversations",
-        "clear next-conversation effect copy"
+        "compatibility redirect to Workspace route workspace and anchor personalization"
       ],
       "must_not_show": [
-        "workspace paths or project permissions",
-        "raw Codex session context diagnostics",
-        "OPL Flow described as the owner of per-session App context",
-        "repository AGENTS.md as an App-owned editable file"
+        "independent Personalization product page",
+        "Personalization ordinary or secondary navigation entry",
+        "personalization controls before the redirect resolves"
       ],
-      "ia_group": "personalization",
-      "product_page_id": "personalization",
-      "experience_contract_ref": "contracts/app-settings-control-plane.json#experience_contract.page_contracts.personalization"
+      "ia_group": "overview",
+      "page_kind": "compatibility_redirect",
+      "compatibility_redirect": {
+        "source_route_id": "personalization",
+        "source_path": "/settings/personalization",
+        "target_route_id": "workspace",
+        "target_path": "/settings/workspace",
+        "product_page_id": "workspace",
+        "anchor": "personalization",
+        "anchor_query_param": "section",
+        "navigation_encoding": "route_id_plus_anchor_field",
+        "shell_transport_hint": "hash_router_uses_query_param_section"
+      }
     },
     "runtime_status": {
       "state_source": "opl app state --profile fast --json",
@@ -4629,7 +4626,7 @@
         "persistent default model and reasoning effort for new conversations",
         "OPL Gateway account login and manual API-key paths without removing either path",
         "Gateway account card only when an account connection exists",
-        "account card limited to masked identity, balance, today and total tokens, today and total actual cost, managed Key name and status, and freshness",
+        "account card limited to full account identity, localized status, balance, compact K/M/B/T token usage, today and total actual cost, managed Key name and status, and freshness in local time",
         "OPL Gateway, Codex CLI, and account or API-key state",
         "one configure model access action when missing or explicitly requested"
       ],
@@ -4642,7 +4639,10 @@
         "local browser access, WebUI, Workspace, or remote resource entries",
         "Gateway password login in browser WebUI",
         "password, access token, refresh token, API Key material, remote Key id, credential path, raw response, or raw error",
-        "Gateway account card in manual API-key mode or when no Gateway account is connected"
+        "Gateway account card in manual API-key mode or when no Gateway account is connected",
+        "Gateway group selector when Codex or the only available group can be resolved",
+        "server day timezone or raw server timestamp on the account card",
+        "normal-state Repair or Use as model source actions"
       ],
       "opl_gateway_account": {
         "projection_ref": "contracts/app-runtime-bridge.json#opl_gateway_account_projection",
@@ -5643,19 +5643,32 @@
       "sections": [
         "workspace_summary",
         "workspace_action",
+        "log_directory",
+        "system_agents",
+        "opl_app_context",
         "technical_details"
       ],
       "must_show": [
         "current workspace identity, path, and writability merged into one normal-state summary",
         "permission or trust explanation only when attention is required",
+        "where project and task artifacts are stored",
+        "desktop App log directory from application.systemInfo with an explicit change action",
+        "editable system-level AGENTS.md with current-path and stale-write protection",
+        "restore from the currently installed OPL Flow default only after confirmation and backup",
+        "generated OPL App base context as read-only content",
+        "editable additional instructions that apply to the next new conversation",
         "one change workspace action",
-        "workspace page reachable as a top-level Settings entry"
+        "Workspace & Personalization page reachable as a top-level Settings entry"
       ],
       "must_not_show": [
         "separate normal-state cards for path, writability, trust, and permission",
         "workspace buried inside Maintenance or Advanced",
         "raw path JSON as primary page language",
-        "workspace changes without confirmation"
+        "workspace changes without confirmation",
+        "Framework app_state.paths.logs_dir presented as the desktop App log directory",
+        "Settings rewiring Docker /projects or /data volume mounts",
+        "generated OPL App base context as editable content",
+        "repository AGENTS.md as an App-owned editable file"
       ],
       "ia_group": "overview",
       "route_scope": "ordinary",

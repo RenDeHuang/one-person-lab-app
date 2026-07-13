@@ -302,7 +302,7 @@
         "configuration_id": "codex_user_instructions",
         "owner_class": "framework",
         "truth_owner": "user_codex_home",
-        "page_id": "personalization",
+        "page_id": "workspace",
         "anchor": "system-agents",
         "lifecycle": "persistent_user_instruction_file",
         "value_type": "markdown_text",
@@ -322,7 +322,7 @@
         "configuration_id": "opl_app_session_context",
         "owner_class": "app_local",
         "truth_owner": "one-person-lab-app",
-        "page_id": "personalization",
+        "page_id": "workspace",
         "anchor": "opl-app-context",
         "lifecycle": "persistent_new_conversation_configuration",
         "value_type": "generated_markdown_plus_optional_additional_text",
@@ -515,8 +515,7 @@
     "resources",
     "environment",
     "storage",
-    "appearance",
-    "personalization"
+    "appearance"
   ],
   "default_route": "/settings/general",
   "route_identity_policy": "keep_current_shell_route_ids_distinct_from_user_facing_ia_groups",
@@ -562,9 +561,9 @@
     {
       "id": "workspace",
       "path": "/settings/workspace",
-      "label_key": "settings.workspace",
-      "default_label_en": "Workspace",
-      "default_label_zh": "工作区",
+      "label_key": "settings.workspacePersonalization",
+      "default_label_en": "Workspace & Personalization",
+      "default_label_zh": "工作区与个性化",
       "icon_token": "workspace",
       "ia_group": "overview",
       "slot_id": "workspace",
@@ -691,25 +690,6 @@
       "product_page_id": "preferences",
       "page_state_id": "settings_theme",
       "experience_contract_ref": "contracts/app-settings-control-plane.json#experience_contract.page_contracts.preferences"
-    },
-    {
-      "id": "personalization",
-      "path": "/settings/personalization",
-      "label_key": "settings.personalizationNav",
-      "default_label_en": "Personalization",
-      "default_label_zh": "个性化",
-      "icon_token": "personalization",
-      "ia_group": "personalization",
-      "slot_id": "settings_personalization",
-      "state_source": "opl app state --profile fast --json#codex_personalization + App local conversation context settings",
-      "refresh_source": "opl app state --profile fast --json",
-      "scope": "user",
-      "intent": "configure",
-      "risk": "reversible_with_stale_write_guard",
-      "frequency": "occasional",
-      "product_page_id": "personalization",
-      "page_state_id": "settings_personalization",
-      "experience_contract_ref": "contracts/app-settings-control-plane.json#experience_contract.page_contracts.personalization"
     }
   ],
   "secondary_pages": [
@@ -823,7 +803,7 @@
       "wrapper_policy": "host_provides_wrapper"
     },
     "settings_personalization": {
-      "component_key": "PersonalizationSettingsContent",
+      "component_key": "WorkspaceSettings",
       "wrapper_policy": "host_provides_wrapper"
     },
     "settings_advanced": {
@@ -1104,8 +1084,7 @@
       "/settings/resources",
       "/settings/environment",
       "/settings/storage",
-      "/settings/appearance",
-      "/settings/personalization"
+      "/settings/appearance"
     ],
     "required_secondary_routes": ["/settings/advanced", "/settings/about"],
     "required_status_anchors": [
@@ -1130,7 +1109,7 @@
       ],
       "viewport_policy": "each required route is checked once at the default desktop viewport",
       "secondary_route_policy": "advanced and about are captured as independent secondary pages",
-      "compatibility_route_policy": "update, theme, and local-services are captured as redirect landing evidence on their owner route and anchor"
+      "compatibility_route_policy": "update, theme, local-services, and personalization are captured as redirect landing evidence on their owner route and anchor"
     },
     "evidence_command": "E2E_SCREENSHOTS=1 bun run test:e2e -- tests/e2e/specs/navigation.e2e.ts --grep \"Settings Pages|Sidebar Navigation\"",
     "baseline_ref": "opl-aion-shell@409dd0c3b693f1c7c93551654dfac8fb9420843d",
@@ -1154,7 +1133,8 @@
     "required_compatibility_redirects": [
       "update->environment#updates",
       "theme->appearance#themes",
-      "local-services->environment#services"
+      "local-services->environment#services",
+      "personalization->workspace#personalization"
     ]
   },
   "upstream_intake_classification": {
@@ -1323,12 +1303,13 @@
         ]
       },
       {
-        "id": "ten_entry_ia",
+        "id": "nine_entry_ia",
         "track": "ia_routes",
-        "goal": "The ordinary Settings IA has exactly ten product pages, with Agents and Capabilities separated.",
+        "goal": "The ordinary Settings IA has exactly nine product pages, with Workspace and Personalization merged while Agents and Capabilities remain separate.",
         "evidence_required": [
-          "top_level_entries contains overview/access/workspace/agents/capabilities/resources/maintenance/storage/preferences/personalization",
+          "top_level_entries contains overview/access/workspace/agents/capabilities/resources/maintenance/storage/preferences",
           "ordinary carrier routes map one-to-one to those product pages",
+          "personalization redirects to workspace plus the personalization anchor",
           "Advanced is not an ordinary route"
         ]
       },
@@ -1345,11 +1326,12 @@
       {
         "id": "compatibility_anchor_routes",
         "track": "ia_routes",
-        "goal": "Update, Theme, and Local Services are compatibility redirects to owner-page anchors, never independent product pages.",
+        "goal": "Update, Theme, Local Services, and Personalization are compatibility redirects to owner-page anchors, never independent product pages.",
         "evidence_required": [
           "update targets environment plus updates",
           "theme targets appearance plus themes",
-          "local-services targets environment plus services"
+          "local-services targets environment plus services",
+          "personalization targets workspace plus personalization"
         ]
       },
       {
@@ -1377,7 +1359,7 @@
         "track": "control_plane",
         "goal": "Every product page declares primary information, primary action, exception state, technical-detail boundary, DOM, anchors, and search entries.",
         "evidence_required": [
-          "experience_contract lists ten product pages",
+          "experience_contract lists eleven product pages: nine ordinary pages plus Advanced and About",
           "matrix mirrors each page experience",
           "validators reject missing page fields or anchors"
         ]
@@ -1472,7 +1454,7 @@
         "track": "user_task_ux",
         "goal": "Preferences explains timeout, tray, hardware acceleration, and themes in user language.",
         "evidence_required": [
-          "preferences anchors include behavior/notifications/models-performance/display-fonts/themes; personalization anchors include system-agents/opl-app-context",
+          "preferences anchors include behavior/notifications/models-performance/display-fonts/themes; workspace anchors include logs/personalization/system-agents/opl-app-context",
           "raw milliseconds and Electron flags stay collapsed",
           "Preferences has inline controls and no page-level primary action"
         ]
@@ -1573,9 +1555,9 @@
   },
   "validation_policy": {
     "contract_checks": [
-      "ordinary carrier routes map to exactly ten product pages",
+      "ordinary carrier routes map to exactly nine product pages",
       "secondary_pages contains only advanced and about",
-      "compatibility redirects resolve update, theme, and local-services to owner routes and anchors",
+      "compatibility redirects resolve update, theme, local-services, and personalization to owner routes and anchors",
       "legacy redirects never redirect about to advanced",
       "bilingual item search entries target declared page anchors",
       "page-state matrix mirrors product page DOM and anchor contracts"
@@ -1775,6 +1757,17 @@
       "anchor_query_param": "section",
       "navigation_encoding": "route_id_plus_anchor_field",
       "shell_transport_hint": "hash_router_uses_query_param_section"
+    },
+    "personalization": {
+      "source_route_id": "personalization",
+      "source_path": "/settings/personalization",
+      "target_route_id": "workspace",
+      "target_path": "/settings/workspace",
+      "product_page_id": "workspace",
+      "anchor": "personalization",
+      "anchor_query_param": "section",
+      "navigation_encoding": "route_id_plus_anchor_field",
+      "shell_transport_hint": "hash_router_uses_query_param_section"
     }
   },
   "experience_contract": {
@@ -1813,7 +1806,7 @@
       },
       "object_accent_policy": "use restrained multi-hue navigation icons and card-edge accents to distinguish access, workspace, capabilities, maintenance, and storage without tinting whole pages",
       "footer_layout": "compact",
-      "footer_controls": ["return_to_chat", "theme_switcher"],
+      "footer_controls": ["theme_switcher"],
       "footer_secondary_navigation_allowed": false,
       "theme_gallery_presentation": "recognizable_preview_tiles",
       "theme_swatch_list_allowed": false,
@@ -1898,7 +1891,7 @@
       "destination_focus_policy": "scroll_and_focus_declared_anchor",
       "anchor_query_param": "section",
       "hash_router_policy": "use_route_query_section_when_a_second_hash_fragment_is_not_supported",
-      "compatibility_index_policy": "index_update_theme_and_local_services_under_their_owner_page_anchors",
+      "compatibility_index_policy": "index_update_theme_local_services_and_personalization_under_their_owner_page_anchors",
       "forbidden_duplicate_entry_testids": [
         "settings-sider-search-input",
         "settings-route-search"
@@ -1987,7 +1980,7 @@
         "primary_information": [
           "model access readiness",
           "real access source from app_state.core.codex.model_access_source",
-          "selected and default model",
+          "selected and default model, with Auto showing its current resolved friendly model",
           "OPL Gateway account login and manual API-key paths",
           "connected Gateway account balance, usage, managed Key status, and freshness",
           "Codex CLI installation and version",
@@ -2014,8 +2007,7 @@
           ],
           "action": [
             { "id": "gateway_account_refresh", "owner": "access" },
-            { "id": "gateway_account_repair", "owner": "access" },
-            { "id": "gateway_account_use_for_model_access", "owner": "access" },
+            { "id": "gateway_account_complete_or_repair_exception", "owner": "access" },
             { "id": "gateway_account_disconnect", "owner": "access" }
           ],
           "diagnostic": []
@@ -2028,7 +2020,7 @@
           "account_card_visibility": "account_connection_only",
           "account_card_fields": [
             "account.display_name",
-            "account.masked_email",
+            "account.email",
             "account.balance",
             "usage.today_tokens",
             "usage.today_actual_cost",
@@ -2040,6 +2032,10 @@
             "freshness.stale"
           ],
           "ttl_seconds": 900,
+          "display_policy_ref": "contracts/app-runtime-bridge.json#opl_gateway_account_projection.display_policy",
+          "group_resolution_policy_ref": "contracts/app-runtime-bridge.json#opl_gateway_account_projection.group_resolution_policy",
+          "normal_state_action_policy": "refresh_icon_adjacent_to_local_time_and_disconnect_only",
+          "exception_action_policy": "complete_connection_retry_connection_or_sign_in_again_only_when_required",
           "webui_password_login_allowed": false,
           "generic_action_secret_payload_allowed": false
         },
@@ -2071,7 +2067,7 @@
             },
             {
               "testid": "settings-access-gateway-setup",
-              "when": "desktop_account_login_selected_or_group_selection_required"
+              "when": "desktop_account_login_selected_or_legacy_setup_requires_default_group_completion"
             },
             {
               "testid": "settings-access-gateway-account",
@@ -2106,25 +2102,34 @@
         "product_page_id": "workspace",
         "route_id": "workspace",
         "matrix_page_id": "settings_workspace",
-        "label_zh": "工作区",
-        "label_en": "Workspace",
+        "label_zh": "工作区与个性化",
+        "label_en": "Workspace & Personalization",
         "primary_information": [
           "current workspace identity, path, and writability merged into one normal-state summary",
           "permission or trust explanation only when attention is required",
           "where project and task artifacts are stored",
-          "open workspace as an inline action and change workspace as the sole primary action"
+          "desktop App log directory from application.systemInfo with an explicit change action",
+          "system-level Codex user instructions with stale-write protection and backup",
+          "read-only generated OPL App context plus editable additional instructions",
+          "open workspace as an inline action and change workspace as the sole page-level primary action"
         ],
-        "first_viewport_groups": ["workspace_configuration"],
+        "first_viewport_groups": ["workspace_configuration", "log_directory", "personalization"],
         "surface_inventory": {
           "configuration": [
-            { "id": "workspace_selection", "owner": "workspace" }
+            { "id": "workspace_selection", "owner": "workspace" },
+            { "id": "log_directory", "owner": "workspace" },
+            { "id": "codex_user_instructions", "owner": "workspace" },
+            { "id": "opl_app_session_context", "owner": "workspace" }
           ],
           "status": [
-            { "id": "workspace_usability", "owner": "workspace" }
+            { "id": "workspace_usability", "owner": "workspace" },
+            { "id": "opl_flow_default_availability", "owner": "workspace" }
           ],
           "action": [
             { "id": "open_workspace", "owner": "workspace" },
-            { "id": "workspace_recovery", "owner": "workspace" }
+            { "id": "workspace_recovery", "owner": "workspace" },
+            { "id": "change_log_directory", "owner": "workspace" },
+            { "id": "restore_opl_flow_default", "owner": "workspace" }
           ],
           "diagnostic": [
             { "id": "workspace_technical_details", "owner": "workspace" }
@@ -2134,7 +2139,15 @@
           "workspace_card_count": 1,
           "permission_presentation": "one merged writability status inside the workspace card",
           "maintenance_action_visibility": "attention_only",
-          "diagnostics_entry": "explicit_modal_action"
+          "diagnostics_entry": "explicit_modal_action",
+          "log_directory_source": "application.systemInfo.logDir_not_Framework_app_state.paths.logs_dir",
+          "log_directory_mutation": "application.updateSystemInfo_preserves_cacheDir_and_workDir_and_switches_main_process_log_root_immediately",
+          "desktop_directory_mapping": "project_workspace_is_Framework_workspace_root_while_App_data_and_logs_are_shell_system_directories",
+          "docker_mapping": "host_managed_/projects_for_project_workspace_and_/data_for_App_data_logs_no_volume_rewire_from_Settings",
+          "generated_base_context_editable": false,
+          "additional_instructions_editable": true,
+          "restore_default_confirmation_required": true,
+          "personalization_changes_apply_to": "next_new_conversation"
         },
         "readiness_precedence": "filesystem_writability_and_health_override_executor_permission_mode",
         "primary_action": {
@@ -2150,8 +2163,12 @@
           "always": [
             "settings-page-workspace",
             "settings-workspace-primary",
+            "settings-workspace-log-directory",
             "settings-workspace-diagnostics-action",
-            "settings-workspace-primary-action"
+            "settings-workspace-primary-action",
+            "settings-personalization-instructions",
+            "settings-system-agents-editor",
+            "settings-opl-app-context-editor"
           ],
           "conditional": [
             {
@@ -2164,11 +2181,22 @@
             }
           ]
         },
-        "required_anchors": ["current-workspace", "permissions", "artifacts"],
+        "required_anchors": [
+          "current-workspace",
+          "permissions",
+          "artifacts",
+          "logs",
+          "personalization",
+          "system-agents",
+          "opl-app-context"
+        ],
         "search_entry_ids": [
           "workspace.current",
           "workspace.permissions",
-          "workspace.artifacts"
+          "workspace.artifacts",
+          "workspace.logs",
+          "personalization.system_agents",
+          "personalization.opl_app_context"
         ]
       },
       "capabilities": {
@@ -2647,68 +2675,6 @@
           "preferences.themes"
         ]
       },
-      "personalization": {
-        "product_page_id": "personalization",
-        "route_id": "personalization",
-        "matrix_page_id": "settings_personalization",
-        "label_zh": "个性化",
-        "label_en": "Personalization",
-        "primary_information": [
-          "system-level Codex user instructions from the user-owned AGENTS.md with stale-write protection and backup",
-          "restore the installed OPL Flow default instructions only after explicit confirmation",
-          "read-only OPL App generated base context for new conversations",
-          "editable additional instructions that apply to new OPL App conversations"
-        ],
-        "first_viewport_groups": ["system_agents", "opl_app_context"],
-        "surface_inventory": {
-          "configuration": [
-            { "id": "codex_user_instructions", "owner": "personalization" },
-            { "id": "opl_app_session_context", "owner": "personalization" }
-          ],
-          "status": [
-            { "id": "opl_flow_default_availability", "owner": "personalization" }
-          ],
-          "action": [
-            { "id": "restore_opl_flow_default", "owner": "personalization" }
-          ],
-          "diagnostic": []
-        },
-        "surface_rules": {
-          "full_width_group_count": 2,
-          "generated_base_context_editable": false,
-          "additional_instructions_editable": true,
-          "restore_default_confirmation_required": true,
-          "changes_apply_to": "next_new_conversation",
-          "workspace_scope_must_not_merge_here": true
-        },
-        "primary_action": {
-          "id": "none",
-          "availability": "inline_controls_only",
-          "max_visible": 1
-        },
-        "exception_state": "show stale-write, oversized file, or unavailable OPL Flow default beside the affected editor only",
-        "technical_details_boundary": "no diagnostic disclosure; the editable user file path and installed OPL Flow default version may appear as supporting context",
-        "required_dom": {
-          "always": [
-            "settings-page-personalization",
-            "settings-personalization-primary",
-            "settings-personalization-instructions",
-            "settings-system-agents-editor",
-            "settings-opl-app-context-editor"
-          ],
-          "conditional": [
-            {
-              "testid": "settings-personalization-exception",
-              "when": "attention_required"
-            }
-          ]
-        },
-        "required_anchors": ["system-agents", "opl-app-context"],
-        "search_entry_ids": [
-          "personalization.system_agents",
-          "personalization.opl_app_context"
-        ]
-      },
       "advanced": {
         "product_page_id": "advanced",
         "route_id": "advanced",
@@ -2927,6 +2893,15 @@
           "keywords_en": ["artifact", "files", "location"]
         },
         {
+          "id": "workspace.logs",
+          "page_id": "workspace",
+          "anchor": "logs",
+          "label_zh": "日志目录",
+          "label_en": "Log directory",
+          "keywords_zh": ["日志", "目录", "保存位置"],
+          "keywords_en": ["logs", "directory", "location"]
+        },
+        {
           "id": "agents.availability",
           "page_id": "agents",
           "anchor": "availability",
@@ -3141,7 +3116,7 @@
         },
         {
           "id": "personalization.system_agents",
-          "page_id": "personalization",
+          "page_id": "workspace",
           "anchor": "system-agents",
           "label_zh": "系统级 AGENTS.md",
           "label_en": "System AGENTS.md",
@@ -3150,7 +3125,7 @@
         },
         {
           "id": "personalization.opl_app_context",
-          "page_id": "personalization",
+          "page_id": "workspace",
           "anchor": "opl-app-context",
           "label_zh": "OPL App 会话上下文",
           "label_en": "OPL App session context",

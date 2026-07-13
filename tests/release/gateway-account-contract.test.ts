@@ -11,6 +11,17 @@ const readJson = (relativePath: string) => JSON.parse(fs.readFileSync(relativePa
 
 test('Gateway account contracts keep the canonical projection, actions, and typed secret bridge', () => {
   const runtimeBridge = readJson('contracts/app-runtime-bridge.json');
+  assert.deepEqual(runtimeBridge.opl_gateway_account_projection.nested_field_allowlist.account, [
+    'display_name',
+    'email',
+    'status',
+    'balance',
+  ]);
+  assert.equal(
+    runtimeBridge.opl_gateway_account_projection.display_policy.token_counts,
+    'compact_decimal_units_K_M_B_T_with_up_to_two_fraction_digits',
+  );
+  assert.equal(runtimeBridge.opl_gateway_account_projection.group_resolution_policy.ordinary_user_selector, 'not_rendered');
   assert.doesNotThrow(() => validateOplGatewayAccountContract(runtimeBridge));
   assert.doesNotThrow(() => validateRuntimeBridgeContract(
     runtimeBridge,

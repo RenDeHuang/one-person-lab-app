@@ -130,6 +130,22 @@ function validateProductProfileCodexDefaults(profile) {
 }
 
 function validateHomeAssistantDefaults(profile) {
+  const homeLayout = profile.gui.home.home_layout;
+  if (
+    homeLayout?.default_active_shortcut !== null ||
+    homeLayout?.shortcut_selection_policy !== 'explicit_user_or_navigation_selection_only_no_saved_preset_restore' ||
+    homeLayout?.selected_starter_visual_policy !== 'accent_border_fill_and_check_indicator_not_color_alone'
+  ) {
+    throw new Error('Product profile Home must default to the base executor and require explicit professional-agent selection');
+  }
+  const iconPolicy = profile.gui.home.utility_icon_policy;
+  if (
+    iconPolicy?.library !== 'font_awesome_free_for_opl_owned_utility_icons' ||
+    iconPolicy?.refresh_actions !== 'icon_only_with_tooltip_and_accessible_name' ||
+    iconPolicy?.model_reasoning_control !== 'text_and_disclosure_without_brain_icon'
+  ) {
+    throw new Error('Product profile OPL utility icons must use the App-owned Font Awesome policy');
+  }
   const homePurposeEntries = profile.gui.home.home_purpose_entries ?? [];
   if (JSON.stringify(homePurposeEntries.map((entry) => entry.id)) !== JSON.stringify(['research', 'grant', 'ppt', 'book'])) {
     throw new Error('Product profile GUI home must expose research, grant, ppt, and book purpose entries');

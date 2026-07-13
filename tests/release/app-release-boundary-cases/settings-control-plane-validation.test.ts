@@ -25,7 +25,7 @@ function validate(values = contracts()) {
   );
 }
 
-test("Settings contract keeps ten product pages, two secondary pages, and anchored compatibility routes", () => {
+test("Settings contract keeps nine product pages, two secondary pages, and anchored compatibility routes", () => {
   const values = contracts();
 
   assert.doesNotThrow(() => validate(values));
@@ -41,7 +41,6 @@ test("Settings contract keeps ten product pages, two secondary pages, and anchor
       "maintenance",
       "storage",
       "preferences",
-      "personalization",
     ],
   );
   assert.deepStrictEqual(
@@ -49,14 +48,13 @@ test("Settings contract keeps ten product pages, two secondary pages, and anchor
     [
       "概览",
       "模型与访问",
-      "工作区",
+      "工作区与个性化",
       "智能体",
       "能力",
       "资源与连接",
       "本机环境",
       "数据与存储",
       "偏好",
-      "个性化",
     ],
   );
   assert.deepStrictEqual(
@@ -76,6 +74,7 @@ test("Settings contract keeps ten product pages, two secondary pages, and anchor
       update: "environment#updates",
       theme: "appearance#themes",
       "local-services": "environment#services",
+      personalization: "workspace#personalization",
     },
   );
   assert.equal(values.controlPlane.legacy_route_redirects.about, undefined);
@@ -339,7 +338,7 @@ test("Settings visual QA enforces bounded-card grouping, compact footer, recogni
     object_accent_policy:
       "use restrained multi-hue navigation icons and card-edge accents to distinguish access, workspace, capabilities, maintenance, and storage without tinting whole pages",
     footer_layout: "compact",
-    footer_controls: ["return_to_chat", "theme_switcher"],
+    footer_controls: ["theme_switcher"],
     footer_secondary_navigation_allowed: false,
     theme_gallery_presentation: "recognizable_preview_tiles",
     theme_swatch_list_allowed: false,
@@ -373,7 +372,7 @@ test("Settings visual QA enforces bounded-card grouping, compact footer, recogni
   });
   assert.deepStrictEqual(visualQa.footer_structure, {
     layout: "compact",
-    controls: ["return_to_chat", "theme_switcher"],
+    controls: ["theme_switcher"],
     account_help_navigation: "forbidden",
   });
   assert.deepStrictEqual(visualQa.theme_gallery, {
@@ -553,14 +552,15 @@ test("Settings strictly separates configuration, status, action, and diagnostic 
     experience.page_contracts.preferences.surface_inventory.diagnostic.length,
     0,
   );
-  assert.equal(
-    experience.page_contracts.personalization.surface_rules.full_width_group_count,
-    2,
+  assert.ok(
+    experience.page_contracts.workspace.first_viewport_groups.includes(
+      "personalization",
+    ),
   );
   assert.equal(
-    experience.page_contracts.personalization.surface_rules
-      .workspace_scope_must_not_merge_here,
-    true,
+    experience.page_contracts.workspace.surface_rules
+      .personalization_changes_apply_to,
+    "next_new_conversation",
   );
   assert.equal(
     experience.page_contracts.storage.surface_rules

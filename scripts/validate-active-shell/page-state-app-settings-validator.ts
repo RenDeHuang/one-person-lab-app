@@ -103,7 +103,7 @@ export function validateAppSettingsPages(matrix, guiContract) {
     (accessPage.required_dom?.conditional ?? []).map((entry) => [entry.testid, entry.when]),
   );
   for (const [testid, when] of Object.entries({
-    'settings-access-gateway-setup': 'desktop_account_login_selected_or_group_selection_required',
+    'settings-access-gateway-setup': 'desktop_account_login_selected_or_legacy_setup_requires_default_group_completion',
     'settings-access-gateway-account': 'gateway_account_connected',
     'settings-access-gateway-stale': 'gateway_account_projection_stale',
     'settings-access-gateway-disconnect-confirm': 'gateway_account_disconnect_requested',
@@ -619,6 +619,7 @@ function validateAboutPage(matrix) {
 function validateCompatibilityRedirectPages(matrix, guiContract) {
   const updatePage = pageById(matrix, 'update');
   const localServicesPage = pageById(matrix, 'settings_local_services');
+  const personalizationPage = pageById(matrix, 'settings_personalization');
   assertDeepEqualJson(
     updatePage.compatibility_redirect,
     appOwnedSettingsCompatibilityRedirects.update,
@@ -628,6 +629,11 @@ function validateCompatibilityRedirectPages(matrix, guiContract) {
     localServicesPage.compatibility_redirect,
     appOwnedSettingsCompatibilityRedirects['local-services'],
     'Local Services compatibility redirect',
+  );
+  assertDeepEqualJson(
+    personalizationPage.compatibility_redirect,
+    appOwnedSettingsCompatibilityRedirects.personalization,
+    'Personalization compatibility redirect',
   );
   assertDeepEqualJson(
     matrix.settings_compatibility_redirects,

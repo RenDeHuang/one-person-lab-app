@@ -73,10 +73,14 @@ test('active-shell source gate requires Home starters and Capabilities routing i
       'handleSelectShortcut(assistantId)',
       'onSelect={(assistantId) =>',
       'onClear={() =>',
+      'if (!preselectAgentKey || !agentSelection.is_presetAgent',
     ].join('\n'),
     homeStarters: [
       "data-testid='opl-home-starters'",
       'aria-pressed={active}',
+      'data-opl-active={String(active)}',
+      '!border-primary-5 !bg-primary-1 !text-primary-6',
+      '<FontAwesomeIcon icon={faCheck}',
       'active && onClear ? onClear() : onSelect(assistant.id)',
     ].join('\n'),
     capabilitiesPage: [
