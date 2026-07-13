@@ -27,6 +27,7 @@ export type ReleaseSourceGateOptions = {
   requireShellFormat: boolean;
   runShellTests: boolean;
   repoRoot: string;
+  shellRoot: string;
   frameworkRoot: string;
   output: string;
   json: boolean;
@@ -88,6 +89,7 @@ Options:
   --require-shell-format <bool>    Run bun run format:check in the active shell. Default: false.
   --run-shell-tests <bool>         Run active shell node/dom tests before expensive release jobs. Default: false.
   --repo-root <path>               App repository root. Default: current script repository.
+  --shell-root <path>              Active shell checkout root. Default: <repo-root>/shells/aionui.
   --framework-root <path>          OPL Framework checkout root. Default: ../one-person-lab.
   --output <path>                  Write source gate JSON report.
   --json                          Print the JSON report to stdout.
@@ -104,6 +106,7 @@ function defaultOptions(): ReleaseSourceGateOptions {
     requireShellFormat: parseStrictBoolean(process.env.OPL_REQUIRE_SHELL_FORMAT, false),
     runShellTests: parseStrictBoolean(process.env.OPL_RELEASE_SOURCE_GATE_RUN_SHELL_TESTS, false),
     repoRoot: defaultRepoRoot,
+    shellRoot: process.env.OPL_SHELL_ROOT || path.join(defaultRepoRoot, 'shells', 'aionui'),
     frameworkRoot: process.env.OPL_FRAMEWORK_ROOT || path.resolve(defaultRepoRoot, '..', 'one-person-lab'),
     output: process.env.OPL_RELEASE_SOURCE_GATE_OUTPUT || '',
     json: false,
@@ -124,6 +127,7 @@ export function parseReleaseSourceGateArgs(argv: string[]): ReleaseSourceGateOpt
       'require-shell-format': { type: 'string' },
       'run-shell-tests': { type: 'string' },
       'repo-root': { type: 'string' },
+      'shell-root': { type: 'string' },
       'framework-root': { type: 'string' },
       output: { type: 'string' },
       json: { type: 'boolean' },
@@ -148,6 +152,7 @@ export function parseReleaseSourceGateArgs(argv: string[]): ReleaseSourceGateOpt
     parsed.runShellTests = parseStrictBoolean(values['run-shell-tests']);
   }
   parsed.repoRoot = values['repo-root'] ?? parsed.repoRoot;
+  parsed.shellRoot = values['shell-root'] ?? parsed.shellRoot;
   parsed.frameworkRoot = values['framework-root'] ?? parsed.frameworkRoot;
   parsed.output = values.output ?? parsed.output;
   parsed.json = values.json ?? parsed.json;
@@ -161,6 +166,7 @@ export function parseReleaseSourceGateArgs(argv: string[]): ReleaseSourceGateOpt
   return {
     ...parsed,
     repoRoot: path.resolve(parsed.repoRoot),
+    shellRoot: path.resolve(parsed.shellRoot),
     frameworkRoot: path.resolve(parsed.frameworkRoot),
     output: parsed.output ? path.resolve(parsed.output) : '',
   };
@@ -272,7 +278,7 @@ export function buildReleaseSourceGateReport(
 ): ReleaseSourceGateReport {
   const pathExists = environment.pathExists ?? fs.existsSync;
   const readJson = environment.readJson ?? ((candidatePath: string) => JSON.parse(fs.readFileSync(candidatePath, 'utf8')));
-  const shellRoot = path.join(options.repoRoot, 'shells', 'aionui');
+  const shellRoot = options.shellRoot;
   const frameworkRoot = options.frameworkRoot;
   let shellSha: string | null = null;
   let frameworkSha: string | null = null;

@@ -3,6 +3,7 @@ import path from 'node:path';
 import test from 'node:test';
 import {
   buildReleaseSourceGateReport,
+  parseReleaseSourceGateArgs,
   type CommandRunner,
   type ReleaseSourceGateOptions,
 } from '../../scripts/validate-release-source-gate.ts';
@@ -52,12 +53,29 @@ function options(overrides: Partial<ReleaseSourceGateOptions> = {}): ReleaseSour
     requireShellFormat: false,
     runShellTests: false,
     repoRoot,
+    shellRoot,
     frameworkRoot,
     output: '',
     json: true,
     ...overrides,
   };
 }
+
+test('release source gate accepts explicit isolated source checkout roots', () => {
+  const parsed = parseReleaseSourceGateArgs([
+    '--version',
+    '26.6.99',
+    '--app-ref',
+    appHead,
+    '--shell-root',
+    '/private/tmp/release-shell',
+    '--framework-root',
+    '/private/tmp/release-framework',
+  ]);
+
+  assert.equal(parsed.shellRoot, '/private/tmp/release-shell');
+  assert.equal(parsed.frameworkRoot, '/private/tmp/release-framework');
+});
 
 function runner(overrides: Record<string, { status: number; stdout?: string; stderr?: string }> = {}): CommandRunner {
   return (command, args, commandOptions) => {

@@ -144,6 +144,9 @@ test('release operator plan pins Full VM dispatch to resolved cohort SHAs', () =
     assert.equal(state.cohort_plan.release_intent, 'stable_complete');
     assert.match(state.cohort_plan.operator_plan_ref, /^sha256:[a-f0-9]{64}$/);
     assert.doesNotMatch(state.cohort_plan.next_action.command, /shell_ref=main|framework_ref=main/);
+    const sourceGate = state.cohort_plan.cheap_gates.find((gate: { id: string }) => gate.id === 'release_source_gate');
+    assert.match(sourceGate.command, new RegExp(`--shell-root '${refs.shell.root}'`));
+    assert.match(sourceGate.command, new RegExp(`--framework-root '${refs.framework.root}'`));
     assertNoOperatorAuthority(state.authority_boundary);
   } finally {
     runGit(appRoot, ['update-ref', '-d', `refs/tags/${appRef}`]);
