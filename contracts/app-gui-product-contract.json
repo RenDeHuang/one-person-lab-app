@@ -3539,8 +3539,8 @@
     "control_model": {
       "global_mode": {
         "control": "three_state_segmented_control",
-        "values": ["off", "auto", "on"],
-        "labels": ["managed", "automatic", "developer"],
+        "values": ["auto", "off", "on"],
+        "labels": ["automatic", "managed", "developer"],
         "default": "auto"
       },
       "safe_maintenance": {
@@ -3600,7 +3600,7 @@
       }
     },
     "must_show": [
-      "global managed automatic developer mode control",
+      "global automatic managed developer mode control",
       "selected developer workspace path",
       "current GitHub identity and repository authority summary when a full inspection has produced them",
       "per-package actual source, managed path, developer path, and fallback reason",

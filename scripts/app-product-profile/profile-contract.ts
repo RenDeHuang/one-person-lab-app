@@ -296,7 +296,7 @@ function assertSettingsProfileShape(profile: AppProductProfile): void {
     developerProfile.default_profile !== 'standard_user' ||
     developerProfile.opt_in_policy !== 'explicit_opt_in_only' ||
     developerProfile.settings_page !== 'settings_agents' ||
-    developerProfile.global_control !== 'managed_automatic_developer_segmented_control' ||
+    developerProfile.global_control !== 'automatic_managed_developer_segmented_control' ||
     developerProfile.safe_maintenance_control !== 'switch' ||
     developerProfile.safe_maintenance_independent_from_source_selection !== true ||
     developerProfile.package_source_control !== 'auto_managed_developer_segmented_control_in_package_details' ||

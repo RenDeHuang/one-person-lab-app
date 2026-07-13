@@ -669,6 +669,9 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     developerProfile.settings_pages?.length !== 1 ||
     developerProfile.settings_pages[0] !== 'settings_capabilities' ||
     developerProfile.control_model?.global_mode?.control !== 'three_state_segmented_control' ||
+    JSON.stringify(developerProfile.control_model?.global_mode?.values) !== JSON.stringify(['auto', 'off', 'on']) ||
+    JSON.stringify(developerProfile.control_model?.global_mode?.labels) !==
+      JSON.stringify(['automatic', 'managed', 'developer']) ||
     developerProfile.control_model?.safe_maintenance?.independent_from_source_selection !== true ||
     developerProfile.control_model?.package_source?.control !== 'segmented_control_in_package_details' ||
     !developerProfile.must_show?.includes('per-package auto managed developer source control') ||

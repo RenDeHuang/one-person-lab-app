@@ -3547,7 +3547,7 @@
         "empty_field_policy": "hide empty, unknown, unavailable, not_applicable, null, or unreported fields; never render 未报告 or Not reported as default user detail text"
       },
       "must_show": [
-        "global managed, automatic, or developer source mode on the Capabilities page",
+        "global automatic, managed, or developer source mode on the Capabilities page",
         "selected developer workspace and repository authority summary",
         "per-package source preference and actual managed or developer checkout path",
         "installed package directory as the primary Capabilities surface",
