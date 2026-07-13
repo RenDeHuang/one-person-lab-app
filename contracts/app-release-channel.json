@@ -1184,6 +1184,8 @@
         "stable_complete_requires_addon_gates": true,
         "run_id_discovered_from_exact_app_sha": true,
         "monitor_command": "gh run watch <run-id> --repo gaofeng21cn/one-person-lab-app --interval 60 --exit-status",
+        "monitor_transport_retry_limit": 3,
+        "monitor_nonterminal_exit_preserves_running_state": true,
         "promotion_reuses_source_release_run_id": true,
         "promotion_requires_release_owner_receipt": true,
         "promotion_dispatch_limit_per_cohort": 1,
@@ -1194,6 +1196,7 @@
         "smoke_or_validator_only_change_rebuilds_existing_artifact": false,
         "product_or_runtime_byte_change_requires_new_cohort": true,
         "failed_gate_requires_classification_before_next_dispatch": true,
+        "artifact_build_failed_can_reconcile_original_run_without_redispatch": true,
         "qualification_retry_reuses_exact_artifact_bytes": true,
         "qualification_override_must_match_session_cohort_manifest_and_artifact_sha256": true
       },
@@ -1846,12 +1849,17 @@
         ],
         "rule": "The promote workflow publishes the App release as non-latest for downstream asset reads, verifies Framework and Homebrew owner receipts, moves WebUI stable by exact digest, and only then marks the App release latest."
       },
-      "desktop_release_concurrency": {
+    "desktop_release_concurrency": {
         "group": "opl-desktop-release-<release_mode>-<version>",
         "cancel_in_progress": false,
-        "rule": "A newer run for the same version and same release mode queues behind the active run instead of cancelling expensive release work. Superseding an active or queued run must be an explicit operator action that records the old run as stale or superseded; new_release and refresh_existing must not block each other because their concurrency groups remain separate."
-      },
-      "release_readiness_admission": {
+      "rule": "A newer run for the same version and same release mode queues behind the active run instead of cancelling expensive release work. Superseding an active or queued run must be an explicit operator action that records the old run as stale or superseded; new_release and refresh_existing must not block each other because their concurrency groups remain separate."
+    },
+    "expensive_full_build_admission": {
+      "workflow_job": "full-first-install",
+      "required_predecessor": "standard-build",
+      "rule": "The expensive Full first-install build starts only after the Standard build workflow, including type, DOM, contract, lint, and package build gates, has succeeded. A cheap or Standard failure must stop Full work before runtime assembly begins."
+    },
+    "release_readiness_admission": {
         "workflow_job": "release-readiness-admission",
         "preflight_dependency": "release-preflight",
         "addon_requirement_input": "require_addon_gates_for_stable_readiness",

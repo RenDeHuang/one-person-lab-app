@@ -188,6 +188,13 @@ test("Standard DMG cohort binds the Framework used by first-run qualification", 
   );
 });
 
+test("Full assembly waits for the Standard build gates instead of wasting a failed cohort", () => {
+  assert.match(
+    workflow,
+    /full-first-install:[\s\S]*needs:[\s\S]*- standard-build[\s\S]*needs\.standard-build\.result == 'success'/,
+  );
+});
+
 test("Full VM validation rejects Framework injection into an already-built DMG", () => {
   assert.match(
     firstRunVmWorkflow,

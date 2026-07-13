@@ -312,6 +312,15 @@ design, and roughly 30% as implementation bugs. The first repair target is
 therefore shortening the critical path and making retry state explicit before
 adding more scripts.
 
+The expensive Full first-install assembly starts only after the Standard build
+workflow has passed its type, DOM, contract, lint, and package-build gates. A
+failure in that cheaper predecessor must stop Full runtime assembly instead of
+letting it drain for tens of minutes. If the single `gh run watch` process exits
+because of a transport error while GitHub still reports `queued` or
+`in_progress`, the stable session remains in its running phase and reconnects at
+most three times. Only a remote `status=completed` readback can finalize the
+run; `resume` may reconcile the original run id without dispatching a new build.
+
 Full runtime bundle assembly is outside the App release critical path. OPL
 Framework owns preheating/materializing the runtime bundle, lock, env contract,
 and readback; the App Full release consumes the bundle manifest and packages

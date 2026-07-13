@@ -455,6 +455,7 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
   const gateReuse = acceleration?.gate_reuse;
   const tartBasePrebake = acceleration?.tart_base_prebake;
   const githubActions = acceleration?.github_actions;
+  const expensiveFullBuildAdmission = githubActions?.expensive_full_build_admission;
   const readinessAdmission = githubActions?.release_readiness_admission;
   const diagnosticsWorkflowPolicy = githubActions?.diagnostics_workflow_policy;
   const firstRunVmConcurrency = githubActions?.first_run_vm_concurrency;
@@ -482,11 +483,14 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
     stableReleaseStateMachine?.cohort_binding?.remote_dispatch_ref_must_match_frozen_app_sha !== true ||
     stableReleaseStateMachine?.execution_policy?.deduplicate_cheap_source_gates !== true ||
     stableReleaseStateMachine?.execution_policy?.stable_complete_requires_addon_gates !== true ||
+    stableReleaseStateMachine?.execution_policy?.monitor_transport_retry_limit !== 3 ||
+    stableReleaseStateMachine?.execution_policy?.monitor_nonterminal_exit_preserves_running_state !== true ||
     stableReleaseStateMachine?.execution_policy?.promotion_reuses_source_release_run_id !== true ||
     stableReleaseStateMachine?.execution_policy?.promotion_requires_release_owner_receipt !== true ||
     stableReleaseStateMachine?.execution_policy?.promotion_dispatch_limit_per_cohort !== 1 ||
     stableReleaseStateMachine?.execution_policy?.promotion_retry_reuses_original_run_id_and_owner_receipt !== true ||
     stableReleaseStateMachine?.recovery_policy?.smoke_or_validator_only_change_rebuilds_existing_artifact !== false ||
+    stableReleaseStateMachine?.recovery_policy?.artifact_build_failed_can_reconcile_original_run_without_redispatch !== true ||
     stableReleaseStateMachine?.recovery_policy?.qualification_retry_reuses_exact_artifact_bytes !== true ||
     stableReleaseStateMachine?.artifact_cohort?.schema !== 'opl_app_build_artifact_cohort.v2' ||
     stableReleaseStateMachine?.artifact_cohort?.artifact_build_limit_per_cohort !== 1 ||
@@ -510,6 +514,16 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
     !stableReleaseStateMachine.authority_boundary.includes('is not release truth')
   ) {
     console.error('FAIL stable_release_state_machine_policy: Stable must use one dry-run-first, exact-cohort state machine from source gates through promotion');
+    failures += 1;
+  }
+
+  if (
+    expensiveFullBuildAdmission?.workflow_job !== 'full-first-install' ||
+    expensiveFullBuildAdmission?.required_predecessor !== 'standard-build' ||
+    typeof expensiveFullBuildAdmission?.rule !== 'string' ||
+    !expensiveFullBuildAdmission.rule.includes('cheap or Standard failure must stop Full work')
+  ) {
+    console.error('FAIL expensive_full_build_admission: Full assembly must wait for Standard build gates');
     failures += 1;
   }
 

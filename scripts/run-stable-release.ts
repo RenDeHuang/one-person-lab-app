@@ -49,7 +49,12 @@ type ReleaseMetrics = {
   artifact_build_count: number;
   qualification_retry_count: number;
   promotion_retry_count: number;
-  wait_poll_policy: { monitor: 'gh_run_watch'; interval_seconds: 60; nested_polling_allowed: false };
+  wait_poll_policy: {
+    monitor: 'gh_run_watch';
+    interval_seconds: 60;
+    nested_polling_allowed: false;
+    transport_retry_limit: 3;
+  };
   reused_artifact_sha256: string | null;
   efficiency_advisories: Array<{ at: string; elapsed_ms: number; threshold_ms: 5400000; action: string }>;
 };
@@ -106,6 +111,7 @@ export type StableReleaseSession = {
     desktop_release_dispatch_limit_per_cohort: 1;
     monitor_interval_seconds: 60;
     run_id_discovery_timeout_seconds: 60;
+    monitor_transport_retry_limit: 3;
     cross_cohort_artifact_reuse_allowed: false;
     rebuild_after_smoke_only_change_allowed: false;
   };
@@ -236,7 +242,12 @@ export function buildStableReleaseSession(
       artifact_build_count: 0,
       qualification_retry_count: 0,
       promotion_retry_count: 0,
-      wait_poll_policy: { monitor: 'gh_run_watch', interval_seconds: 60, nested_polling_allowed: false },
+      wait_poll_policy: {
+        monitor: 'gh_run_watch',
+        interval_seconds: 60,
+        nested_polling_allowed: false,
+        transport_retry_limit: 3,
+      },
       reused_artifact_sha256: null,
       efficiency_advisories: [],
     },
@@ -246,6 +257,7 @@ export function buildStableReleaseSession(
       desktop_release_dispatch_limit_per_cohort: 1,
       monitor_interval_seconds: 60,
       run_id_discovery_timeout_seconds: 60,
+      monitor_transport_retry_limit: 3,
       cross_cohort_artifact_reuse_allowed: false,
       rebuild_after_smoke_only_change_allowed: false,
     },
@@ -262,7 +274,7 @@ const allowedTransitions: Record<StableReleasePhase, StableReleasePhase[]> = {
   source_gates_passed: ['artifact_build_running'],
   source_gate_failed: [],
   artifact_build_running: ['artifacts_qualified', 'qualification_failed', 'artifact_build_failed', 'release_train_failed'],
-  artifact_build_failed: [],
+  artifact_build_failed: ['artifact_build_running'],
   release_train_failed: [],
   qualification_failed: ['retry_failed_gate_same_artifact'],
   retry_failed_gate_same_artifact: ['artifacts_qualified', 'qualification_failed'],
@@ -661,6 +673,43 @@ function runView(runner: StableReleaseCommandRunner, session: StableReleaseSessi
   return JSON.parse(result.stdout) as WorkflowRun;
 }
 
+export function classifyWorkflowRunObservation(
+  watched: CommandResult,
+  readback: WorkflowRun,
+): { terminal: boolean; succeeded: boolean; conclusion: string | null } {
+  const terminal = readback.status === 'completed';
+  if (!terminal) return { terminal: false, succeeded: false, conclusion: null };
+  const conclusion = readback.conclusion || (watched.status === 0 ? 'success' : 'failure');
+  return { terminal: true, succeeded: conclusion === 'success', conclusion };
+}
+
+async function watchRunToTerminal(
+  runner: StableReleaseCommandRunner,
+  session: StableReleaseSession,
+  runId: string,
+): Promise<{ readback: WorkflowRun; succeeded: boolean; conclusion: string }> {
+  const retryLimit = session.efficiency_policy.monitor_transport_retry_limit ?? 3;
+  let lastReadback: WorkflowRun | null = null;
+  for (let attempt = 1; attempt <= retryLimit; attempt += 1) {
+    const watched = watchRun(runner, session, runId);
+    const readback = runView(runner, session, runId);
+    const observation = classifyWorkflowRunObservation(watched, readback);
+    if (observation.terminal && observation.conclusion) {
+      return {
+        readback,
+        succeeded: observation.succeeded,
+        conclusion: observation.conclusion,
+      };
+    }
+    lastReadback = readback;
+    if (attempt < retryLimit) await delay(attempt * 3_000);
+  }
+  throw new Error(
+    `Workflow run ${runId} monitor exited before a terminal remote state after ${retryLimit} attempts; ` +
+      `remote status is ${lastReadback?.status ?? 'unknown'}. The release session remains recoverable with resume.`,
+  );
+}
+
 function runJobs(runner: StableReleaseCommandRunner, session: StableReleaseSession, runId: string): WorkflowJob[] {
   const result = runner('gh', ['run', 'view', runId, '--repo', session.repo, '--json', 'jobs', '--jq', '.jobs']);
   if (result.status !== 0) return [];
@@ -801,14 +850,14 @@ async function dispatchAndWatchRelease(
   writeSession(statePath, session);
   if (!watch) return session;
 
-  const watched = watchRun(runner, session, String(releaseRun.databaseId));
-  const readback = runView(runner, session, String(releaseRun.databaseId));
+  const observation = await watchRunToTerminal(runner, session, String(releaseRun.databaseId));
+  const { readback } = observation;
   session.release_run = {
     id: String(readback.databaseId),
     url: readback.url,
-    conclusion: readback.conclusion ?? (watched.status === 0 ? 'success' : 'failure'),
+    conclusion: observation.conclusion,
   };
-  session = finalizeReleaseRun(session, String(readback.databaseId), watched.status === 0, runner);
+  session = finalizeReleaseRun(session, String(readback.databaseId), observation.succeeded, runner);
   writeSession(statePath, session);
   return session;
 }
@@ -852,16 +901,16 @@ async function dispatchAndWatchPromotion(
   writeSession(statePath, session);
   if (!watch) return session;
 
-  const watched = watchRun(runner, session, String(promotionRun.databaseId));
-  const readback = runView(runner, session, String(promotionRun.databaseId));
+  const observation = await watchRunToTerminal(runner, session, String(promotionRun.databaseId));
+  const { readback } = observation;
   session.promotion_run = {
     id: String(readback.databaseId),
     url: readback.url,
-    conclusion: readback.conclusion ?? (watched.status === 0 ? 'success' : 'failure'),
+    conclusion: observation.conclusion,
     attempt: readback.attempt ?? session.promotion_run.attempt ?? 1,
     rerun_requested_from_attempt: session.promotion_run.rerun_requested_from_attempt,
   };
-  session = finalizePromotionRun(session, String(readback.databaseId), watched.status === 0, runner);
+  session = finalizePromotionRun(session, String(readback.databaseId), observation.succeeded, runner);
   writeSession(statePath, session);
   return session;
 }
@@ -906,12 +955,12 @@ async function dispatchAndWatchQualificationRetry(
   };
   writeSession(options.statePath, session);
   if (!options.watch) return session;
-  const watched = watchRun(runner, session, String(run.databaseId));
-  const readback = runView(runner, session, String(run.databaseId));
+  const observation = await watchRunToTerminal(runner, session, String(run.databaseId));
+  const { readback } = observation;
   const retryRunId = String(readback.databaseId);
   const sourceRunId = session.release_run.id!;
   const manifest = readBuildArtifactManifest(runner, session, sourceRunId);
-  const expectedResult = watched.status === 0 ? 'passed' : 'failed';
+  const expectedResult = observation.succeeded ? 'passed' : 'failed';
   const qualification = readQualificationReceipt(runner, session, retryRunId, sourceRunId, expectedResult);
   if (!manifest || !qualification) {
     session = transitionStableReleaseSession(session, 'qualification_failed', 'qualification retry did not produce a valid same-artifact receipt');
@@ -920,14 +969,14 @@ async function dispatchAndWatchQualificationRetry(
       session,
       manifest,
       retryRunId,
-      watched.status === 0 ? 'success' : 'failure',
+      observation.succeeded ? 'success' : 'failure',
       qualification.sha256,
     );
     session.metrics = { ...session.metrics, reused_artifact_sha256: manifest.artifact.sha256 };
     session = transitionStableReleaseSession(
       session,
-      watched.status === 0 ? 'artifacts_qualified' : 'qualification_failed',
-      watched.status === 0 ? 'same exact artifact passed clean-VM qualification' : 'same exact artifact qualification retry failed',
+      observation.succeeded ? 'artifacts_qualified' : 'qualification_failed',
+      observation.succeeded ? 'same exact artifact passed clean-VM qualification' : 'same exact artifact qualification retry failed',
     );
   }
   writeSession(options.statePath, session);
@@ -939,6 +988,16 @@ async function resumeSession(
   runner: StableReleaseCommandRunner,
 ): Promise<StableReleaseSession> {
   let session = readSession(options.statePath);
+  if (session.phase === 'artifact_build_failed') {
+    if (!session.release_run.id) throw new Error('Artifact build failure has no original workflow run id.');
+    session = transitionStableReleaseSession(
+      session,
+      'artifact_build_running',
+      `reconciling original release run ${session.release_run.id} after a nonterminal monitor exit`,
+    );
+    session.release_run = { ...session.release_run, conclusion: null };
+    writeSession(options.statePath, session);
+  }
   if (session.phase === 'promotion_failed') {
     const runId = session.promotion_run.id;
     if (!runId) throw new Error('Promotion failure has no original workflow run id.');
@@ -985,15 +1044,15 @@ async function resumeSession(
   }
   const runId = isRelease ? session.release_run.id : isQualification ? session.qualification_run.id : session.promotion_run.id;
   if (!runId) throw new Error(`Session phase ${session.phase} has no workflow run id.`);
-  const watched = watchRun(runner, session, runId);
-  const readback = runView(runner, session, runId);
+  const observation = await watchRunToTerminal(runner, session, runId);
+  const { readback } = observation;
   if (isRelease) {
     session.release_run = {
       id: String(readback.databaseId),
       url: readback.url,
-      conclusion: readback.conclusion ?? (watched.status === 0 ? 'success' : 'failure'),
+      conclusion: observation.conclusion,
     };
-    session = finalizeReleaseRun(session, String(readback.databaseId), watched.status === 0, runner);
+    session = finalizeReleaseRun(session, String(readback.databaseId), observation.succeeded, runner);
   } else if (isQualification) {
     const sourceRunId = session.release_run.id!;
     const retryRunId = String(readback.databaseId);
@@ -1003,28 +1062,28 @@ async function resumeSession(
       session,
       retryRunId,
       sourceRunId,
-      watched.status === 0 ? 'passed' : 'failed',
+      observation.succeeded ? 'passed' : 'failed',
     );
     if (!manifest || !qualification) {
       session = transitionStableReleaseSession(session, 'qualification_failed', 'resumed qualification did not produce a valid same-artifact receipt');
     } else {
-      session = bindQualificationEvidence(session, manifest, retryRunId, watched.status === 0 ? 'success' : 'failure', qualification.sha256);
+      session = bindQualificationEvidence(session, manifest, retryRunId, observation.succeeded ? 'success' : 'failure', qualification.sha256);
       session.metrics = { ...session.metrics, reused_artifact_sha256: manifest.artifact.sha256 };
       session = transitionStableReleaseSession(
         session,
-        watched.status === 0 ? 'artifacts_qualified' : 'qualification_failed',
-        watched.status === 0 ? 'resumed same-artifact qualification passed' : 'resumed same-artifact qualification failed',
+        observation.succeeded ? 'artifacts_qualified' : 'qualification_failed',
+        observation.succeeded ? 'resumed same-artifact qualification passed' : 'resumed same-artifact qualification failed',
       );
     }
   } else {
     session.promotion_run = {
       id: String(readback.databaseId),
       url: readback.url,
-      conclusion: readback.conclusion ?? (watched.status === 0 ? 'success' : 'failure'),
+      conclusion: observation.conclusion,
       attempt: readback.attempt ?? session.promotion_run.attempt ?? 1,
       rerun_requested_from_attempt: session.promotion_run.rerun_requested_from_attempt,
     };
-    session = finalizePromotionRun(session, String(readback.databaseId), watched.status === 0, runner);
+    session = finalizePromotionRun(session, String(readback.databaseId), observation.succeeded, runner);
   }
   writeSession(options.statePath, session);
   return session;

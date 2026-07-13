@@ -3,6 +3,7 @@ import test from 'node:test';
 import type { ReleaseCohortPlan } from '../../scripts/plan-release-cohort.ts';
 import {
   buildStableReleaseSession,
+  classifyWorkflowRunObservation,
   desktopReleaseDispatchArgs,
   formatCommandFailure,
   promoteDispatchArgs,
@@ -68,6 +69,43 @@ test('stable release session freezes one cohort and deduplicates cheap gates', (
   assert.equal(session.schema, 'opl_app_stable_release_session.v2');
   assert.equal(session.metrics.artifact_build_count, 0);
   assert.equal(session.metrics.promotion_retry_count, 0);
+  assert.equal(session.efficiency_policy.monitor_transport_retry_limit, 3);
+});
+
+test('nonterminal monitor exits stay recoverable and remote terminal readback wins', () => {
+  const interrupted = classifyWorkflowRunObservation(
+    { status: 1, stdout: '', stderr: 'TLS handshake timeout' },
+    {
+      databaseId: 1,
+      createdAt: '2026-07-12T00:00:00.000Z',
+      headBranch: 'codex/release-26.7.12',
+      headSha: appSha,
+      status: 'in_progress',
+      conclusion: '',
+      url: 'https://example.test/running',
+    },
+  );
+  assert.deepEqual(interrupted, { terminal: false, succeeded: false, conclusion: null });
+
+  const completed = classifyWorkflowRunObservation(
+    { status: 1, stdout: '', stderr: 'transport ended after completion' },
+    {
+      databaseId: 1,
+      createdAt: '2026-07-12T00:00:00.000Z',
+      headBranch: 'codex/release-26.7.12',
+      headSha: appSha,
+      status: 'completed',
+      conclusion: 'success',
+      url: 'https://example.test/completed',
+    },
+  );
+  assert.deepEqual(completed, { terminal: true, succeeded: true, conclusion: 'success' });
+});
+
+test('monitor retry policy remains compatible with sessions written before the retry field', () => {
+  const session = buildStableReleaseSession(plan());
+  delete (session.efficiency_policy as Partial<typeof session.efficiency_policy>).monitor_transport_retry_limit;
+  assert.equal(session.efficiency_policy.monitor_transport_retry_limit ?? 3, 3);
 });
 
 test('source gate failures prefer structured stdout over runtime warnings', () => {
@@ -125,6 +163,22 @@ test('state machine rejects skipped stages and repeated release dispatch paths',
   const running = transitionStableReleaseSession(gatesPassed, 'artifact_build_running', 'dispatched');
   assert.throws(
     () => transitionStableReleaseSession(running, 'source_gates_passed', 'repeat'),
+    /Invalid stable release transition/,
+  );
+});
+
+test('an artifact build false negative can reconcile only the original run', () => {
+  let session = buildStableReleaseSession(plan());
+  session = transitionStableReleaseSession(session, 'source_gates_passed', 'passed');
+  session = transitionStableReleaseSession(session, 'artifact_build_running', 'dispatched');
+  session.metrics.artifact_build_count = 1;
+  session.release_run.id = '29234584566';
+  session = transitionStableReleaseSession(session, 'artifact_build_failed', 'monitor exited early');
+  const reconciled = transitionStableReleaseSession(session, 'artifact_build_running', 'reconcile original run');
+  assert.equal(reconciled.release_run.id, '29234584566');
+  assert.equal(reconciled.metrics.artifact_build_count, 1);
+  assert.throws(
+    () => transitionStableReleaseSession(session, 'source_gates_passed', 'redispatch'),
     /Invalid stable release transition/,
   );
 });

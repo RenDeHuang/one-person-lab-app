@@ -293,6 +293,8 @@ export const releaseBoundaryChecks: ReleaseBoundaryCheck[] = [
       "npm run verify-remote-release",
       "draft_candidate",
       "uses: ./.github/workflows/full-first-install-release.yml",
+      "full-first-install:",
+      "needs.standard-build.result == 'success'",
       "uses: ./.github/workflows/opl-first-run-vm.yml",
       "standard-first-run-vm-smoke-after-standard-only:",
       "standard-first-run-vm-smoke-after-full:",

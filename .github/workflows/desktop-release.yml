@@ -597,7 +597,8 @@ jobs:
     needs:
       - release-workflow-contract
       - release-source-gate
-    if: ${{ !cancelled() && inputs.include_full_package && needs.release-workflow-contract.result == 'success' && needs.release-source-gate.result == 'success' }}
+      - standard-build
+    if: ${{ !cancelled() && inputs.include_full_package && needs.release-workflow-contract.result == 'success' && needs.release-source-gate.result == 'success' && needs.standard-build.result == 'success' }}
     uses: ./.github/workflows/full-first-install-release.yml
     with:
       opl_version: ${{ inputs.opl_version }}
