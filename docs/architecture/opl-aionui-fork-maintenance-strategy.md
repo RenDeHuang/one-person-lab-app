@@ -4,7 +4,7 @@ Owner: `one-person-lab-app`
 Purpose: `aionui_fork_maintenance_and_intake_strategy`
 State: `accepted`
 Date: `2026-06-30`
-Updated: `2026-07-11`
+Updated: `2026-07-13`
 Machine boundary: Human-readable architecture strategy. Machine-readable truth
 lives in `contracts/app-settings-control-plane.json`,
 `contracts/app-gui-product-contract.json`, `contracts/app-shell-adapter.json`,
@@ -45,12 +45,13 @@ Maintain the AionUI fork through the existing App-owned control path:
 
 1. **App-owned product definition** stays the source for Codex baseline translation,
    OPL deltas, ordinary navigation, page-state, model/access policy, Settings IA,
-   state/action source policy and visual acceptance.
+   cross-thread orchestration, state/action source policy and visual acceptance.
 2. **Thin shell adapter** remains the implementation boundary. AionUI may own
    upstream renderer primitives, route sync, slot mounting, shell-local i18n,
    styling, process/preload details, package metadata and focused shell tests.
    It must not own product IA, model/provider policy, runtime/domain truth,
-   release readiness, or owner receipt authority.
+   thread identity/history, cross-thread routing policy, release readiness, or
+   owner receipt authority.
 3. **Upstream intake gate** classifies every required shell capability and
    dependency before App release admission. Settings-specific changes must also
    pass their own classification before entering the registry, `SettingsHost`,
@@ -94,6 +95,9 @@ The product mapping is also fixed:
 
 The exact observed baseline and OPL delta live in
 `docs/product/gui/codex-to-opl-app-delta.md`; this ADR owns maintenance strategy only.
+The host/App Server boundary for discovery and coordination across independent
+top-level threads lives in
+`docs/architecture/codex-cross-thread-orchestration.md`.
 
 ## Historical Settings Proposal Disposition
 
@@ -307,6 +311,8 @@ Allowed AionUI shell delta:
 - App-owned bridge and platform adapters;
 - composition slots for rail context, composer context, timeline events and
   Environment secondary refs;
+- an App-owned coordination host adapter that projects App Server threads and
+  receipts into existing rail, composer, timeline and mobile composition slots;
 - route and tab compatibility redirects;
 - `SettingsHost` and `SettingsShellAdapterSlot` rendering and route sync;
 - thin renderer components for App-owned Settings slots;
@@ -322,6 +328,8 @@ Forbidden shell delta:
 
 - shell-owned product IA, ordinary navigation or Settings tabs;
 - shell-owned model/provider/reasoning policy;
+- shell-owned thread store, global agent registry, cross-thread permission policy,
+  or direct Codex JSONL parsing;
 - duplicate project/conversation/runtime state models;
 - broad rewrites whose only justification is visual similarity;
 - Home dashboard/card wall or a permanent third-column inspector;
