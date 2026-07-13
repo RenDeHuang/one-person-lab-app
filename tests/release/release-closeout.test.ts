@@ -173,7 +173,7 @@ function writeCloseoutArtifacts(root: string, version = '26.5.99', options: {
     release_owner_verdict: options.releaseOwnerVerdict ?? releaseOwnerVerdict(version),
     decision: {
       can_promote: true,
-      promote_command: `gh release edit v${version} --repo gaofeng21cn/one-person-lab-app --draft=false --latest`,
+      promote_command: 'npm run release:stable -- promote --state <release-session.json> --release-set-generation <YY.M.D[-rN]> --release-owner-receipt-ref <ref> --execute',
     },
   }));
   writeReleaseArtifact(root, version, 'release-addon-readiness-summary', 'release-addon-readiness-summary.json', {

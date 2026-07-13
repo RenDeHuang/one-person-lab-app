@@ -7,10 +7,20 @@ const digestRefPattern = /^sha256:[0-9a-f]{64}$/;
 
 type JsonRecord = Record<string, unknown>;
 
-export type StableDistributionReceiptV1 = {
-  schema: 'opl_stable_distribution_receipt.v1';
+export type StableDistributionReceiptV2 = {
+  schema: 'opl_stable_distribution_receipt.v2';
   status: 'verified';
   stable_session_id: string;
+  release_set: {
+    generation: string;
+    manifest_ref: string;
+    manifest_digest: string;
+    stable_channel_ref: string;
+    stable_channel_digest: string;
+    base: JsonRecord;
+    app: JsonRecord;
+    formula: StableDistributionFormula;
+  };
   release: {
     repo: string;
     tag: string;
@@ -24,6 +34,8 @@ export type StableDistributionReceiptV1 = {
     app_sha: string;
     shell_sha: string;
     framework_sha: string;
+    release_set_generation: string;
+    release_set_manifest_digest: string;
   };
   full_vm: {
     run_id: string;
@@ -35,9 +47,22 @@ export type StableDistributionReceiptV1 = {
     repo: string;
     commit_sha: string;
     annotated_tag: string;
+    formula: StableDistributionFormula;
     standard_cask: StableDistributionCask;
     full_cask: StableDistributionCask;
+    nightly_cask: StableDistributionCask;
   };
+};
+
+export type StableDistributionFormula = {
+  path: 'Formula/opl.rb';
+  formula_name: 'opl';
+  version: string;
+  source_head: string;
+  artifact_ref: string;
+  artifact_digest: string;
+  transport_sha256: string;
+  sha256: string;
 };
 
 export type StableDistributionCask = {
@@ -136,6 +161,8 @@ export type ReceiptExpectation = {
   appSha?: string;
   shellSha?: string;
   frameworkSha?: string;
+  releaseSetGeneration?: string;
+  releaseSetManifestDigest?: string;
   sourceReleaseRunId?: string;
   fullVmRunId?: string;
 };
@@ -162,6 +189,22 @@ function validateCask(value: unknown, version: string, expectedPath: string, err
   }
 }
 
+function validateFormula(value: unknown, releaseSet: JsonRecord | null, errors: string[]): void {
+  const formula = record(value);
+  if (!formula) {
+    errors.push('Formula/opl.rb receipt is missing');
+    return;
+  }
+  if (formula.path !== 'Formula/opl.rb') errors.push(`Formula path is ${string(formula.path) || '<missing>'}`);
+  if (formula.formula_name !== 'opl') errors.push(`Formula name is ${string(formula.formula_name) || '<missing>'}`);
+  if (!string(formula.version) || formula.version !== record(releaseSet?.base)?.version) errors.push('Formula version does not match the Release Set Base version');
+  if (!shaPattern.test(string(formula.source_head)) || formula.source_head !== record(releaseSet?.base)?.source_commit) errors.push('Formula source_head does not match the Release Set Base source commit');
+  if (!string(formula.artifact_ref) || formula.artifact_ref !== record(releaseSet?.base)?.artifact_ref) errors.push('Formula artifact_ref does not match the Release Set Base artifact');
+  if (!digestRefPattern.test(string(formula.artifact_digest)) || formula.artifact_digest !== record(releaseSet?.base)?.artifact_digest) errors.push('Formula artifact_digest does not match the Release Set Base artifact');
+  if (!digestPattern.test(string(formula.transport_sha256))) errors.push('Formula transport_sha256 is invalid');
+  if (!digestPattern.test(string(formula.sha256))) errors.push('Formula file sha256 is invalid');
+}
+
 export function validateStableDistributionReceipt(
   value: unknown,
   expected: ReceiptExpectation,
@@ -169,10 +212,20 @@ export function validateStableDistributionReceipt(
   const receipt = record(value);
   if (!receipt) return ['distribution receipt is not an object'];
   const errors: string[] = [];
-  if (receipt.schema !== 'opl_stable_distribution_receipt.v1') errors.push(`distribution receipt schema is ${string(receipt.schema) || '<missing>'}`);
+  if (receipt.schema !== 'opl_stable_distribution_receipt.v2') errors.push(`distribution receipt schema is ${string(receipt.schema) || '<missing>'}`);
   if (receipt.status !== 'verified') errors.push(`distribution receipt status is ${string(receipt.status) || '<missing>'}`);
   if (receipt.stable_session_id !== expected.stableSessionId || !digestRefPattern.test(string(receipt.stable_session_id))) {
     errors.push(`stable_session_id is ${string(receipt.stable_session_id) || '<missing>'}`);
+  }
+  const releaseSet = record(receipt.release_set);
+  if (!releaseSet) errors.push('release_set section is missing');
+  else {
+    if (expected.releaseSetGeneration && releaseSet.generation !== expected.releaseSetGeneration) errors.push(`release_set generation is ${string(releaseSet.generation) || '<missing>'}`);
+    if (expected.releaseSetManifestDigest && releaseSet.manifest_digest !== expected.releaseSetManifestDigest) errors.push(`release_set manifest digest is ${string(releaseSet.manifest_digest) || '<missing>'}`);
+    if (releaseSet.manifest_ref !== `ghcr.io/gaofeng21cn/one-person-lab-manifest:${releaseSet.generation}`) errors.push('release_set manifest_ref is not the immutable generation ref');
+    if (releaseSet.stable_channel_ref !== 'ghcr.io/gaofeng21cn/one-person-lab-manifest:latest-stable') errors.push('release_set stable channel ref is invalid');
+    if (!digestRefPattern.test(string(releaseSet.manifest_digest)) || releaseSet.stable_channel_digest !== releaseSet.manifest_digest) errors.push('release_set Stable digest does not match its immutable manifest digest');
+    validateFormula(releaseSet.formula, releaseSet, errors);
   }
   const release = record(receipt.release);
   if (!release) errors.push('release section is missing');
@@ -192,6 +245,8 @@ export function validateStableDistributionReceipt(
       ['app_sha', expected.appSha],
       ['shell_sha', expected.shellSha],
       ['framework_sha', expected.frameworkSha],
+      ['release_set_generation', expected.releaseSetGeneration],
+      ['release_set_manifest_digest', expected.releaseSetManifestDigest],
     ] as const) {
       if (expectedValue && cohort[key] !== expectedValue) errors.push(`${key} is ${string(cohort[key]) || '<missing>'}`);
     }
@@ -215,8 +270,13 @@ export function validateStableDistributionReceipt(
     if (tap.repo !== 'gaofeng21cn/homebrew-one-person-lab') errors.push(`tap repo is ${string(tap.repo) || '<missing>'}`);
     if (!shaPattern.test(string(tap.commit_sha))) errors.push('tap commit_sha is invalid');
     if (tap.annotated_tag !== `stable-distribution/v${expected.version}`) errors.push(`tap annotated_tag is ${string(tap.annotated_tag) || '<missing>'}`);
+    validateFormula(tap.formula, releaseSet, errors);
     validateCask(tap.standard_cask, expected.version, 'Casks/one-person-lab.rb', errors);
     validateCask(tap.full_cask, expected.version, 'Casks/one-person-lab-full.rb', errors);
+    const nightly = record(tap.nightly_cask);
+    if (!nightly || nightly.path !== 'Casks/one-person-lab-nightly.rb' || !digestPattern.test(string(nightly.sha256))) {
+      errors.push('Casks/one-person-lab-nightly.rb receipt is missing or invalid');
+    }
   }
   return errors;
 }

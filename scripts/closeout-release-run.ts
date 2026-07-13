@@ -729,7 +729,7 @@ function buildDecision(inputs: {
       next_action: 'promote_from_candidate_record',
       reason: 'Candidate record is ready_to_promote and passed owner-resolution validation.',
       command: stringField(candidateDecision, 'promote_command')
-        ?? `gh workflow run desktop-release-promote.yml --repo ${inputs.options.repo} --field opl_version=${inputs.options.version} --field release_run_id=${inputs.options.runId}`,
+        ?? 'npm run release:stable -- promote --state <release-session.json> --release-set-generation <YY.M.D[-rN]> --release-owner-receipt-ref <ref> --execute',
       owner_resolution: {
         promote_ready: true,
         validator_exit_status: validation.exit_status,

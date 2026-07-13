@@ -384,9 +384,9 @@ function buildRecord(options: Options) {
     decision: {
       can_promote: status === 'ready_to_promote',
       promote_command: status === 'ready_to_promote'
-        ? `gh release edit v${options.version} --repo ${releaseRepo} --draft=false --latest`
+        ? 'npm run release:stable -- promote --state <release-session.json> --release-set-generation <YY.M.D[-rN]> --release-owner-receipt-ref <ref> --execute'
         : null,
-      rule: 'Only ready_to_promote candidate records may publish a Stable draft release.',
+      rule: 'Only ready_to_promote candidate records may authorize the receipt-gated desktop-release-promote saga.',
     },
   };
 

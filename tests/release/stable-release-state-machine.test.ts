@@ -103,9 +103,14 @@ test('promotion reuses the source run id and requires an owner receipt', () => {
   session.qualification_run.id = '29211496001';
   session.qualification_run.conclusion = 'success';
   session.qualification_run.artifact_sha256 = 'e'.repeat(64);
-  assert.throws(() => promoteDispatchArgs(session, ''), /owner receipt/);
-  const args = promoteDispatchArgs(session, 'release_owner_receipt_ref://test').join(' ');
+  assert.throws(() => promoteDispatchArgs(session, '', '26.7.12-r2'), /owner receipt/);
+  assert.throws(
+    () => promoteDispatchArgs(session, 'release_owner_receipt_ref://test', ''),
+    /Release Set generation/,
+  );
+  const args = promoteDispatchArgs(session, 'release_owner_receipt_ref://test', '26.7.12-r2').join(' ');
   assert.match(args, /release_run_id=29211495991/);
+  assert.match(args, /release_set_generation=26\.7\.12-r2/);
   assert.match(args, /release_owner_receipt_ref=release_owner_receipt_ref:\/\/test/);
   assert.match(args, new RegExp(`shell_ref=${shellSha}`));
 });

@@ -493,8 +493,15 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
     stableReleaseStateMachine?.qualification_receipt?.schema !== 'opl_app_artifact_qualification_receipt.v1' ||
     stableReleaseStateMachine?.qualification_receipt?.cross_artifact_or_cross_cohort_override_allowed !== false ||
     stableReleaseStateMachine?.promotion_saga?.owner_workflow !== '.github/workflows/desktop-release-promote.yml' ||
+    stableReleaseStateMachine?.promotion_saga?.framework_owner_workflow !== 'gaofeng21cn/one-person-lab/.github/workflows/release-package-channel.yml' ||
+    stableReleaseStateMachine?.promotion_saga?.framework_receipt_schema !== 'opl_release_set_promotion_receipt.v1' ||
+    stableReleaseStateMachine?.promotion_saga?.webui_stable_writer !== '.github/workflows/desktop-release-promote.yml' ||
+    stableReleaseStateMachine?.promotion_saga?.webui_stable_writer_count !== 1 ||
     stableReleaseStateMachine?.promotion_saga?.source_desktop_release_mutates_stable_or_full_tap !== false ||
     stableReleaseStateMachine?.promotion_saga?.redispatch_after_partial_failure_allowed !== false ||
+    stableReleaseStateMachine?.receipts?.framework_promotion !== 'opl_release_set_promotion_receipt.v1' ||
+    stableReleaseStateMachine?.receipts?.distribution !== 'opl_stable_distribution_receipt.v2' ||
+    stableReleaseStateMachine?.receipts?.webui_stable_activation !== 'opl_webui_stable_activation_receipt.v1' ||
     stableReleaseStateMachine?.receipts?.homebrew_activation !== 'opl_app_homebrew_activation_receipt.v1' ||
     stableReleaseStateMachine?.receipts?.local_activation !== 'opl_app_local_activation_receipt.v1' ||
     stableReleaseStateMachine?.profiling?.efficiency_advisory_after_minutes !== 90 ||

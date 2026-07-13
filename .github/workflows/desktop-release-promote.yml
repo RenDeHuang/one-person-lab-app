@@ -7,6 +7,10 @@ on:
         description: OPL draft release version to promote, for example 26.7.13
         required: true
         type: string
+      release_set_generation:
+        description: Exact immutable Framework Release Set generation to create and promote, for example 26.7.13-r4
+        required: true
+        type: string
       include_full_package:
         description: Stable saga requires the qualified Full first-install asset
         required: false
@@ -51,6 +55,7 @@ on:
 permissions:
   contents: write
   actions: read
+  packages: write
 
 concurrency:
   group: opl-app-release-mutation-${{ inputs.opl_version }}
@@ -70,6 +75,11 @@ jobs:
       session_hex: ${{ steps.cohort.outputs.session_hex }}
       full_vm_evidence_ref: ${{ steps.full-vm.outputs.evidence_ref }}
       full_vm_evidence_sha256: ${{ steps.full-vm.outputs.evidence_sha256 }}
+      promotion_request_id: ${{ steps.cohort.outputs.promotion_request_id }}
+      app_artifact_digest: ${{ steps.component.outputs.app_artifact_digest }}
+      app_component_manifest_digest: ${{ steps.component.outputs.component_manifest_digest }}
+      webui_image: ${{ steps.webui.outputs.image }}
+      webui_version_digest: ${{ steps.webui.outputs.full_digest }}
 
     steps:
       - name: Checkout App repo
@@ -88,11 +98,24 @@ jobs:
         run: |
           set -euo pipefail
           [ "${{ inputs.include_full_package }}" = "true" ] || { echo "::error::Stable promotion saga requires Standard and Full assets."; exit 1; }
+          [ "${{ inputs.require_docker_webui }}" = "true" ] || { echo "::error::Stable promotion saga requires the App-owned WebUI carrier."; exit 1; }
           [[ "${{ inputs.stable_session_id }}" =~ ^sha256:[0-9a-f]{64}$ ]]
           [[ "${{ inputs.release_cohort_ref }}" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "${{ inputs.release_set_generation }}" =~ ^[0-9]{2}\.[0-9]{1,2}\.[0-9]{1,2}(-r[1-9][0-9]*)?$ ]]
           [[ "${{ inputs.release_run_id }}" =~ ^[0-9]+$ ]]
           [[ "${{ inputs.full_vm_run_id }}" =~ ^[0-9]+$ ]]
           test -n "${{ inputs.release_owner_receipt_ref }}"
+
+      - name: Enforce cross-repository promotion authority
+        env:
+          CROSS_REPO_RELEASE_TOKEN: ${{ secrets.OPL_HOMEBREW_TAP_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CROSS_REPO_RELEASE_TOKEN" || {
+            echo "::error::OPL_HOMEBREW_TAP_TOKEN is required to dispatch and read back Framework and Homebrew owner workflows."
+            exit 1
+          }
 
       - name: Download release candidate record
         uses: actions/download-artifact@v8
@@ -152,7 +175,9 @@ jobs:
             if (!/^[0-9a-f]{40}$/i.test(value)) throw new Error(`Candidate record has invalid ${key}: ${value || '<missing>'}`);
             fs.appendFileSync(process.env.GITHUB_OUTPUT, `${key}=${value.toLowerCase()}\n`);
           }
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, `session_hex=${process.env.STABLE_SESSION_ID.slice('sha256:'.length)}\n`);
+          const sessionHex = process.env.STABLE_SESSION_ID.slice('sha256:'.length);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `session_hex=${sessionHex}\n`);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `promotion_request_id=${sessionHex}\n`);
           NODE
       - name: Download exact Full qualification evidence
         uses: actions/download-artifact@v8
@@ -259,7 +284,38 @@ jobs:
             --include-full-package \
             --summary-path remote-release-verification.json
 
+      - name: Download immutable WebUI publish receipt
+        uses: actions/download-artifact@v8
+        with:
+          name: webui-ghcr-publish-${{ inputs.opl_version }}
+          run-id: ${{ inputs.release_run_id }}
+          path: webui-publish-input
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify immutable WebUI version digest
+        id: webui
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${{ inputs.opl_version }}" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const summary = JSON.parse(fs.readFileSync('webui-publish-input/opl-webui-ghcr-publish.json', 'utf8'));
+          const expectedTags = [process.env.VERSION, `${process.env.VERSION}-slim`];
+          if (summary.status !== 'published'
+            || summary.image !== 'ghcr.io/gaofeng21cn/one-person-lab-webui'
+            || JSON.stringify(summary.tags) !== JSON.stringify(expectedTags)
+            || !/^sha256:[0-9a-f]{64}$/.test(summary.image_digests?.webui_full || '')
+            || !/^sha256:[0-9a-f]{64}$/.test(summary.image_digests?.webui_slim || '')
+            || summary.draft_candidate_push !== false) {
+            throw new Error('Source release did not publish exact immutable WebUI version tags.');
+          }
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `image=${summary.image}\n`);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `full_digest=${summary.image_digests.webui_full}\n`);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `slim_digest=${summary.image_digests.webui_slim}\n`);
+          NODE
+
       - name: Verify immutable OPL App component manifest
+        id: component
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -281,6 +337,16 @@ jobs:
             --output "$RUNNER_TEMP/expected-opl-app-component-manifest.json"
           cmp "$RUNNER_TEMP/published-component/opl-app-component-manifest.json" \
             "$RUNNER_TEMP/expected-opl-app-component-manifest.json"
+          COMPONENT="$RUNNER_TEMP/published-component/opl-app-component-manifest.json" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const component = JSON.parse(fs.readFileSync(process.env.COMPONENT, 'utf8'));
+          if (!/^sha256:[0-9a-f]{64}$/.test(component.primary_artifact?.digest || '')
+            || !/^sha256:[0-9a-f]{64}$/.test(component.component_manifest_digest || '')) {
+            throw new Error('OPL App owner component manifest has no immutable artifact locks.');
+          }
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `app_artifact_digest=${component.primary_artifact.digest}\n`);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `component_manifest_digest=${component.component_manifest_digest}\n`);
+          NODE
 
   publish-nonlatest:
     name: Publish release without changing latest
@@ -316,11 +382,76 @@ jobs:
           done
           [ "$verified" = "true" ] || { echo "::error::Release did not converge to public non-latest state."; exit 1; }
 
+  framework-release-set:
+    name: Publish and promote exact Framework Release Set
+    needs:
+      - prepare
+      - publish-nonlatest
+    runs-on: ubuntu-latest
+    timeout-minutes: 130
+    outputs:
+      candidate_run_id: ${{ steps.candidate.outputs.run_id }}
+      stable_run_id: ${{ steps.stable.outputs.run_id }}
+      carrier_digest: ${{ steps.stable.outputs.carrier_digest }}
+      candidate_receipt_sha256: ${{ steps.candidate.outputs.receipt_sha256 }}
+      stable_receipt_sha256: ${{ steps.stable.outputs.receipt_sha256 }}
+
+    steps:
+      - name: Checkout App repo
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Dispatch and verify Framework candidate
+        id: candidate
+        env:
+          GH_TOKEN: ${{ secrets.OPL_HOMEBREW_TAP_TOKEN }}
+          OPL_FRAMEWORK_REPO: gaofeng21cn/one-person-lab
+          OPL_FRAMEWORK_WORKFLOW: release-package-channel.yml
+          OPL_RELEASE_SET_GENERATION: ${{ inputs.release_set_generation }}
+          OPL_RELEASE_GATE: app_stable_promotion
+          OPL_APP_VERSION: ${{ inputs.opl_version }}
+          OPL_PROMOTION_REQUEST_ID: ${{ needs.prepare.outputs.promotion_request_id }}
+          OPL_SOURCE_APP_RUN_ID: ${{ inputs.release_run_id }}
+          OPL_APP_SOURCE_COMMIT: ${{ needs.prepare.outputs.app_sha }}
+          OPL_APP_ARTIFACT_DIGEST: ${{ needs.prepare.outputs.app_artifact_digest }}
+          OPL_RECEIPT_OUTPUT_DIR: framework-receipts/candidate
+        run: bash scripts/framework-release-promotion-step.sh candidate
+
+      - name: Dispatch and verify exact Framework latest-stable
+        id: stable
+        env:
+          GH_TOKEN: ${{ secrets.OPL_HOMEBREW_TAP_TOKEN }}
+          OPL_FRAMEWORK_REPO: gaofeng21cn/one-person-lab
+          OPL_FRAMEWORK_WORKFLOW: release-package-channel.yml
+          OPL_RELEASE_SET_GENERATION: ${{ inputs.release_set_generation }}
+          OPL_RELEASE_GATE: app_stable_promotion
+          OPL_APP_VERSION: ${{ inputs.opl_version }}
+          OPL_PROMOTION_REQUEST_ID: ${{ needs.prepare.outputs.promotion_request_id }}
+          OPL_SOURCE_APP_RUN_ID: ${{ inputs.release_run_id }}
+          OPL_APP_SOURCE_COMMIT: ${{ needs.prepare.outputs.app_sha }}
+          OPL_APP_ARTIFACT_DIGEST: ${{ needs.prepare.outputs.app_artifact_digest }}
+          OPL_EXPECTED_CARRIER_DIGEST: ${{ steps.candidate.outputs.carrier_digest }}
+          OPL_CANDIDATE_RECEIPT: ${{ steps.candidate.outputs.receipt_path }}
+          OPL_RECEIPT_OUTPUT_DIR: framework-receipts/latest-stable
+        run: bash scripts/framework-release-promotion-step.sh latest-stable
+
+      - name: Upload validated Framework Release Set receipts
+        uses: actions/upload-artifact@v7
+        with:
+          name: opl-framework-release-set-receipts-${{ inputs.opl_version }}-${{ needs.prepare.outputs.session_hex }}
+          path: framework-receipts
+          if-no-files-found: error
+
   stable-distribution:
     name: Dispatch atomic Stable distribution
     needs:
       - prepare
       - publish-nonlatest
+      - framework-release-set
     runs-on: ubuntu-latest
     outputs:
       distribution_receipt_sha256: ${{ steps.receipt.outputs.sha256 }}
@@ -367,6 +498,8 @@ jobs:
             --field app_sha="${{ needs.prepare.outputs.app_sha }}" \
             --field shell_sha="${{ needs.prepare.outputs.shell_sha }}" \
             --field framework_sha="${{ needs.prepare.outputs.framework_sha }}" \
+            --field release_set_generation="${{ inputs.release_set_generation }}" \
+            --field release_set_manifest_digest="${{ needs.framework-release-set.outputs.carrier_digest }}" \
             --field source_release_run_id="${{ inputs.release_run_id }}" \
             --field full_vm_run_id="${{ inputs.full_vm_run_id }}" \
             --field full_vm_evidence_ref="${{ needs.prepare.outputs.full_vm_evidence_ref }}" \
@@ -418,6 +551,8 @@ jobs:
             --app-sha "${{ needs.prepare.outputs.app_sha }}" \
             --shell-sha "${{ needs.prepare.outputs.shell_sha }}" \
             --framework-sha "${{ needs.prepare.outputs.framework_sha }}" \
+            --release-set-generation "${{ inputs.release_set_generation }}" \
+            --release-set-manifest-digest "${{ needs.framework-release-set.outputs.carrier_digest }}" \
             --source-release-run-id "${{ inputs.release_run_id }}" \
             --full-vm-run-id "${{ inputs.full_vm_run_id }}"
           digest="$(shasum -a 256 "$receipt" | awk '{print $1}')"
@@ -526,15 +661,19 @@ jobs:
           if-no-files-found: error
 
   activate-latest:
-    name: Activate Stable latest after all distribution gates
+    name: Activate WebUI Stable and App latest after all distribution gates
     needs:
       - stable-distribution
       - homebrew-activation
+      - framework-release-set
       - prepare
     runs-on: ubuntu-latest
     steps:
       - name: Checkout App repo
         uses: actions/checkout@v6
+
+      - name: Setup ORAS
+        uses: oras-project/setup-oras@v1
 
       - name: Download distribution receipt
         uses: actions/download-artifact@v8
@@ -547,6 +686,53 @@ jobs:
         with:
           name: opl-app-homebrew-activation-receipt-${{ inputs.opl_version }}-${{ needs.prepare.outputs.session_hex }}
           path: saga-inputs/activation
+
+      - name: Promote exact immutable WebUI image to Stable
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WEBUI_IMAGE: ${{ needs.prepare.outputs.webui_image }}
+          WEBUI_VERSION: ${{ inputs.opl_version }}
+          WEBUI_VERSION_DIGEST: ${{ needs.prepare.outputs.webui_version_digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$WEBUI_VERSION_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          test "$WEBUI_IMAGE" = "ghcr.io/gaofeng21cn/one-person-lab-webui"
+          test "$(oras manifest fetch --descriptor "${WEBUI_IMAGE}@${WEBUI_VERSION_DIGEST}" | jq -r .digest)" = "$WEBUI_VERSION_DIGEST"
+          printf '%s' "$GH_TOKEN" | oras login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          oras tag "${WEBUI_IMAGE}@${WEBUI_VERSION_DIGEST}" stable
+          oras logout ghcr.io
+
+          stable_digest=""
+          for attempt in $(seq 1 12); do
+            stable_digest="$(oras manifest fetch --descriptor "${WEBUI_IMAGE}:stable" 2>/dev/null | jq -r '.digest // empty' || true)"
+            [ "$stable_digest" = "$WEBUI_VERSION_DIGEST" ] && break
+            [ "$attempt" -lt 12 ] || { echo "::error::WebUI Stable tag did not converge to the immutable version digest."; exit 1; }
+            sleep 5
+          done
+
+          WEBUI_STABLE_DIGEST="$stable_digest" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const receipt = {
+            surface_kind: 'opl_webui_stable_activation_receipt.v1',
+            status: 'verified',
+            image: process.env.WEBUI_IMAGE,
+            version: process.env.WEBUI_VERSION,
+            version_ref: `${process.env.WEBUI_IMAGE}:${process.env.WEBUI_VERSION}`,
+            stable_ref: `${process.env.WEBUI_IMAGE}:stable`,
+            version_digest: process.env.WEBUI_VERSION_DIGEST,
+            stable_digest: process.env.WEBUI_STABLE_DIGEST,
+            source_app_run_id: '${{ inputs.release_run_id }}',
+          };
+          fs.writeFileSync('opl-webui-stable-activation-receipt.json', `${JSON.stringify(receipt, null, 2)}\n`);
+          NODE
+
+      - name: Upload WebUI Stable activation receipt
+        uses: actions/upload-artifact@v7
+        with:
+          name: opl-webui-stable-activation-receipt-${{ inputs.opl_version }}-${{ needs.prepare.outputs.session_hex }}
+          path: opl-webui-stable-activation-receipt.json
+          if-no-files-found: error
 
       - name: Mark release latest and verify readback
         env:

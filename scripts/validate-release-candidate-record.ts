@@ -77,6 +77,7 @@ function evaluateRecord(record: Record<string, unknown>, options: Options) {
   const releaseOwnerVerdict = objectOrNull(record.release_owner_verdict);
   const blockedReasons = stringArray(record.blocked_reasons);
   const errors: string[] = [];
+  const promoteCommand = typeof decision?.promote_command === 'string' ? decision.promote_command : '';
 
   if (record.schema !== expectedSchema) {
     errors.push(`Unexpected candidate record schema: ${String(record.schema)}`);
@@ -90,6 +91,11 @@ function evaluateRecord(record: Record<string, unknown>, options: Options) {
   }
   if (decision?.can_promote !== true) {
     errors.push(`Release candidate decision.can_promote is ${String(decision?.can_promote)}`);
+  }
+  if (!promoteCommand.includes('release:stable -- promote')
+    || !promoteCommand.includes('--release-set-generation')
+    || promoteCommand.includes('gh release edit')) {
+    errors.push('Release candidate decision.promote_command must route through the receipt-gated stable promotion state machine');
   }
   if (!releaseOwnerVerdict) {
     errors.push('Release candidate record is missing release_owner_verdict');
@@ -126,7 +132,7 @@ function evaluateRecord(record: Record<string, unknown>, options: Options) {
     tag: record.tag ?? null,
     status: record.status ?? null,
     can_promote: decision?.can_promote === true,
-    promote_command: typeof decision?.promote_command === 'string' ? decision.promote_command : null,
+    promote_command: promoteCommand || null,
     promote_ready: errors.length === 0,
     release_owner_verdict_status: typeof releaseOwnerVerdict?.status === 'string'
       ? releaseOwnerVerdict.status

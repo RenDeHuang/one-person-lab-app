@@ -142,6 +142,7 @@ type PromoteOptions = {
   repo: string;
   statePath: string;
   ownerReceiptRef: string;
+  releaseSetGeneration: string;
 };
 
 type ResumeOptions = { statePath: string; execute: boolean };
@@ -390,9 +391,16 @@ function verifyRemoteDispatchHead(
   }
 }
 
-export function promoteDispatchArgs(session: StableReleaseSession, ownerReceiptRef: string): string[] {
+export function promoteDispatchArgs(
+  session: StableReleaseSession,
+  ownerReceiptRef: string,
+  releaseSetGeneration: string,
+): string[] {
   if (!session.release_run.id) throw new Error('Stable release session has no source release run id.');
   if (!ownerReceiptRef.trim()) throw new Error('Promotion requires a same-cohort release owner receipt ref.');
+  if (!/^\d{2}\.\d{1,2}\.\d{1,2}(?:-r[1-9][0-9]*)?$/.test(releaseSetGeneration)) {
+    throw new Error('Promotion requires an exact Release Set generation in YY.M.D[-rN] form.');
+  }
   const fullVmRunId = session.qualification_run.id;
   if (session.cohort_plan.include_full_package && (!fullVmRunId || session.qualification_run.conclusion !== 'success')) {
     throw new Error('Promotion requires a passed Full exact-artifact qualification run.');
@@ -402,6 +410,7 @@ export function promoteDispatchArgs(session: StableReleaseSession, ownerReceiptR
     '--repo', session.repo,
     '--ref', workflowRef(session.cohort_plan),
     '--field', `opl_version=${session.version}`,
+    '--field', `release_set_generation=${releaseSetGeneration}`,
     '--field', `include_full_package=${String(session.cohort_plan.include_full_package)}`,
     '--field', `require_docker_webui=${String(session.cohort_plan.publish_docker_webui)}`,
     '--field', `release_run_id=${session.release_run.id}`,
@@ -808,12 +817,13 @@ async function dispatchAndWatchPromotion(
   session: StableReleaseSession,
   statePath: string,
   ownerReceiptRef: string,
+  releaseSetGeneration: string,
   watch: boolean,
   runner: StableReleaseCommandRunner,
 ): Promise<StableReleaseSession> {
   const previousIds = new Set(listRuns(runner, 'desktop-release-promote.yml', session.repo).map((candidate) => candidate.databaseId));
   const dispatchedAt = now();
-  const dispatch = runner('gh', promoteDispatchArgs(session, ownerReceiptRef));
+  const dispatch = runner('gh', promoteDispatchArgs(session, ownerReceiptRef, releaseSetGeneration));
   if (dispatch.status !== 0) failResult(dispatch, 'dispatch stable promotion');
   const promotionRun = await discoverRun(
     runner,
@@ -1065,15 +1075,18 @@ function parsePromoteArgs(argv: string[]): PromoteOptions {
       repo: { type: 'string' },
       state: { type: 'string' },
       'release-owner-receipt-ref': { type: 'string' },
+      'release-set-generation': { type: 'string' },
     },
   });
   if (!values.state) throw new Error('Pass --state <release-session.json>.');
+  if (!values['release-set-generation']) throw new Error('Pass --release-set-generation <YY.M.D[-rN]>.');
   return {
     execute: values.execute === true,
     watch: values['no-watch'] !== true,
     repo: values.repo || defaultRepo,
     statePath: path.resolve(values.state),
     ownerReceiptRef: values['release-owner-receipt-ref'] || '',
+    releaseSetGeneration: values['release-set-generation'],
   };
 }
 
@@ -1153,7 +1166,14 @@ async function promote(options: PromoteOptions, runner: StableReleaseCommandRunn
   if (!options.execute) return session;
   session = transitionStableReleaseSession(session, 'owner_approved', 'same-cohort release owner receipt accepted');
   writeSession(options.statePath, session);
-  return dispatchAndWatchPromotion(session, options.statePath, options.ownerReceiptRef, options.watch, runner);
+  return dispatchAndWatchPromotion(
+    session,
+    options.statePath,
+    options.ownerReceiptRef,
+    options.releaseSetGeneration,
+    options.watch,
+    runner,
+  );
 }
 
 async function retryQualification(
@@ -1193,7 +1213,7 @@ function completeLocalActivation(options: CompleteLocalOptions): StableReleaseSe
 async function main(): Promise<void> {
   const [command, ...argv] = process.argv.slice(2);
   if (!command || command === '--help' || command === '-h') {
-    process.stdout.write(`Usage:\n  npm run release:stable -- start <cohort options> [--state <path>] [--execute] [--no-watch]\n  npm run release:stable -- retry-qualification --state <path> [--execute] [--no-watch]\n  npm run release:stable -- resume --state <path> [--execute]\n  npm run release:stable -- promote --state <path> --release-owner-receipt-ref <ref> [--execute] [--no-watch]\n  npm run release:stable -- complete-local --state <path> --receipt <local-activation-receipt.json> --local-authorization-policy <policy.json>\n\nDry-run is the default. External workflow dispatch or rerun requires --execute.\n`);
+    process.stdout.write(`Usage:\n  npm run release:stable -- start <cohort options> [--state <path>] [--execute] [--no-watch]\n  npm run release:stable -- retry-qualification --state <path> [--execute] [--no-watch]\n  npm run release:stable -- resume --state <path> [--execute]\n  npm run release:stable -- promote --state <path> --release-set-generation <YY.M.D[-rN]> --release-owner-receipt-ref <ref> [--execute] [--no-watch]\n  npm run release:stable -- complete-local --state <path> --receipt <local-activation-receipt.json> --local-authorization-policy <policy.json>\n\nDry-run is the default. External workflow dispatch or rerun requires --execute.\n`);
     return;
   }
   if (command === 'start' || command === 'plan') {

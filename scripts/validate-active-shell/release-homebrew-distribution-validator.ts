@@ -107,17 +107,17 @@ function validateReleaseHomebrewTapUpdatePolicy(homebrew) {
       { actual: tapUpdate?.app_release_pull_request_allowed, expected: false },
       {
         actual: tapUpdate?.app_release_workflow_write_mode,
-        expected: 'dispatch_tap_owned_atomic_standard_and_full_distribution_only',
+        expected: 'dispatch_tap_owned_atomic_formula_and_app_cask_distribution_only',
       },
       {
         actual: tapUpdate?.stable_release_workflow_write_mode,
         expected:
-          'promotion_saga_dispatches_tap_owned_atomic_distribution_after_nonlatest_publish',
+          'promotion_saga_dispatches_tap_owned_atomic_formula_and_app_cask_distribution_after_framework_stable_receipt',
       },
       {
         actual: tapUpdate?.direct_commit_conflict_policy,
         expected:
-          'App never commits to the tap; the tap-owned workflow serializes and atomically pushes Standard, Full, and its immutable receipt tag',
+          'App never commits to the tap; the tap-owned workflow serializes and atomically pushes the OPL Formula, App casks, and its immutable receipt tag',
       },
       { actual: tapUpdate?.planner_script, expected: 'scripts/update-homebrew-tap.ts' },
       { actual: tapUpdate?.nightly?.mode, expected: 'tap_repo_scheduled_self_sync_to_nightly_cask' },
@@ -125,7 +125,7 @@ function validateReleaseHomebrewTapUpdatePolicy(homebrew) {
       {
         actual: tapUpdate?.stable?.mode,
         expected:
-          'desktop_promote_dispatches_tap_owned_atomic_standard_and_full_distribution',
+          'desktop_promote_dispatches_tap_owned_atomic_formula_and_app_cask_distribution',
       },
       { actual: tapUpdate?.stable?.may_consume_nightly_directly, expected: false },
       { actual: tapUpdate?.full?.mode, expected: 'stable_full_first_install_cask_after_full_release_gates' },
@@ -138,7 +138,15 @@ function validateReleaseHomebrewTapUpdatePolicy(homebrew) {
   );
   assertIncludesAll(
     tapUpdate?.required_manifest_fields,
-    ['channel', 'artifact', 'sha256', 'manifest_url', 'local_authorization_policy_ref'],
+    [
+      'channel',
+      'artifact',
+      'sha256',
+      'manifest_url',
+      'local_authorization_policy_ref',
+      'release_set_generation',
+      'release_set_manifest_digest',
+    ],
     'Release channel Homebrew cohort manifest fields',
   );
 }

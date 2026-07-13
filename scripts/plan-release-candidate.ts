@@ -382,9 +382,8 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
       : ['standard_dmg_clean_vm_smoke', 'one_shot_app_installer_smoke'],
     command: [
       `docker tag one-person-lab-webui:${options.version} ghcr.io/<owner>/one-person-lab-webui:${options.version}`,
-      `docker tag one-person-lab-webui:${options.version} ghcr.io/<owner>/one-person-lab-webui:stable`,
       'docker push ghcr.io/<owner>/one-person-lab-webui:<app_or_opl_version>',
-      'docker push ghcr.io/<owner>/one-person-lab-webui:stable',
+      'desktop-release-promote.yml later moves the verified immutable digest to stable',
     ].join(' && '),
     required_for: ['stable_release'],
   });
@@ -458,8 +457,8 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
     command: [
       '.github/workflows/desktop-release-promote.yml',
       'dispatches tap-owned stable-distribution.yml',
-      'atomically writes Standard and Full casks',
-      'after public nonlatest readback',
+      'passes the exact Release Set generation and Framework carrier digest',
+      'atomically writes Formula/opl.rb and all App casks after Framework latest-stable readback',
     ].join(' '),
     required_for: ['stable_release'],
   });

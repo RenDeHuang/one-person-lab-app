@@ -134,7 +134,10 @@ function validateWebuiGhcrImage(webuiImage) {
     contract?.profiles?.webui_full?.metadata_only_allowed !== false ||
     contract?.profiles?.webui_slim?.version_tag !== '<app_or_opl_version>-slim' ||
     contract?.profiles?.webui_slim?.stable_channel_allowed !== false ||
-    contract?.profiles?.webui_slim?.moving_tags_allowed !== false
+    contract?.profiles?.webui_slim?.moving_tags_allowed !== false ||
+    webuiImage?.immutable_version_writer !== '.github/workflows/desktop-release.yml' ||
+    webuiImage?.stable_promotion_workflow !== '.github/workflows/desktop-release-promote.yml' ||
+    webuiImage?.stable_writer_count !== 1
   ) {
     throw new Error('Release channel must declare Docker/WebUI full and slim image profile boundaries');
   }

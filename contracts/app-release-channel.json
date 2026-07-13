@@ -490,6 +490,14 @@
       ".github/workflows/desktop-release.yml",
       ".github/workflows/nightly-standard-release.yml"
     ],
+    "immutable_version_writer": ".github/workflows/desktop-release.yml",
+    "stable_promotion_workflow": ".github/workflows/desktop-release-promote.yml",
+    "stable_writer_count": 1,
+    "stable_promotion_requires": [
+      "immutable_version_digest",
+      "verified_framework_latest_stable_receipt",
+      "verified_homebrew_activation_receipt"
+    ],
     "stable_tags": [
       "<app_or_opl_version>",
       "stable"
@@ -579,16 +587,16 @@
       "app_release_direct_workflow": null,
       "app_release_direct_token": "OPL_HOMEBREW_TAP_TOKEN",
       "app_release_pull_request_allowed": false,
-      "app_release_workflow_write_mode": "dispatch_tap_owned_atomic_standard_and_full_distribution_only",
-      "stable_release_workflow_write_mode": "promotion_saga_dispatches_tap_owned_atomic_distribution_after_nonlatest_publish",
-      "direct_commit_conflict_policy": "App never commits to the tap; the tap-owned workflow serializes and atomically pushes Standard, Full, and its immutable receipt tag",
+      "app_release_workflow_write_mode": "dispatch_tap_owned_atomic_formula_and_app_cask_distribution_only",
+      "stable_release_workflow_write_mode": "promotion_saga_dispatches_tap_owned_atomic_formula_and_app_cask_distribution_after_framework_stable_receipt",
+      "direct_commit_conflict_policy": "App never commits to the tap; the tap-owned workflow serializes and atomically pushes the OPL Formula, App casks, and its immutable receipt tag",
       "planner_script": "scripts/update-homebrew-tap.ts",
       "nightly": {
         "mode": "tap_repo_scheduled_self_sync_to_nightly_cask",
         "may_update_stable": false
       },
       "stable": {
-        "mode": "desktop_promote_dispatches_tap_owned_atomic_standard_and_full_distribution",
+        "mode": "desktop_promote_dispatches_tap_owned_atomic_formula_and_app_cask_distribution",
         "may_consume_nightly_directly": false
       },
       "full": {
@@ -604,7 +612,9 @@
         "artifact",
         "sha256",
         "manifest_url",
-        "local_authorization_policy_ref"
+        "local_authorization_policy_ref",
+        "release_set_generation",
+        "release_set_manifest_digest"
       ]
     },
     "full_first_install_policy": "stable_full_cask_or_github_release_first_install_asset; never standard updater metadata",
@@ -1199,20 +1209,29 @@
       },
       "promotion_saga": {
         "owner_workflow": ".github/workflows/desktop-release-promote.yml",
+        "framework_owner_workflow": "gaofeng21cn/one-person-lab/.github/workflows/release-package-channel.yml",
+        "framework_receipt_schema": "opl_release_set_promotion_receipt.v1",
+        "webui_stable_writer": ".github/workflows/desktop-release-promote.yml",
+        "webui_stable_writer_count": 1,
         "source_desktop_release_mutates_stable_or_full_tap": false,
         "order": [
           "publish_release_nonlatest",
-          "atomic_standard_and_full_tap_distribution",
+          "framework_candidate_receipt_verified",
+          "framework_latest_stable_receipt_verified",
+          "atomic_formula_and_app_cask_distribution",
           "standard_homebrew_clean_vm",
           "full_homebrew_clean_vm",
-          "activate_latest"
+          "webui_stable_activated",
+          "app_latest_activated"
         ],
         "redispatch_after_partial_failure_allowed": false,
         "immutable_distribution_receipt_reuse_required": true
       },
       "receipts": {
-        "distribution": "opl_stable_distribution_receipt.v1",
+        "framework_promotion": "opl_release_set_promotion_receipt.v1",
+        "distribution": "opl_stable_distribution_receipt.v2",
         "homebrew_activation": "opl_app_homebrew_activation_receipt.v1",
+        "webui_stable_activation": "opl_webui_stable_activation_receipt.v1",
         "promotion": "opl_app_promotion_saga_receipt.v1",
         "local_activation": "opl_app_local_activation_receipt.v1",
         "complete_requires_local_install_and_nonblank_cdp_readback": true
@@ -1814,15 +1833,18 @@
         "refresh_existing": "unpublished draft repair only; the draft tag may move with lease to the pinned App commit, then the complete cohort must be published through the promote workflow; published Stable and prerelease releases are immutable"
       },
       "promote_post_publish_readback": {
-        "workflow_job": "promote",
-        "step": "Verify published release readback",
+        "workflow_job": "activate-latest",
+        "step": "Mark release latest and verify readback",
         "checks": [
+          "Framework candidate and latest-stable receipts bind the same immutable Release Set digest",
+          "Homebrew distribution receipt v2 binds Formula/opl.rb and App casks to that Release Set digest",
+          "WebUI stable resolves to the exact immutable version digest",
           "gh release view v<version> returns tagName, isDraft, isPrerelease, publishedAt, and assets",
           "gh release list marks v<version> as latest",
           "release tag exists at refs/tags/v<version>",
           "stable release is non-draft, non-prerelease, latest, published, and has readable assets"
         ],
-        "rule": "The promote workflow must not start Homebrew tap updates until the just-published Stable GitHub Release and matching tag are readable from remote APIs."
+        "rule": "The promote workflow publishes the App release as non-latest for downstream asset reads, verifies Framework and Homebrew owner receipts, moves WebUI stable by exact digest, and only then marks the App release latest."
       },
       "desktop_release_concurrency": {
         "group": "opl-desktop-release-<release_mode>-<version>",
