@@ -19,19 +19,29 @@ test('Gateway account contracts keep the canonical projection, actions, and type
   ]);
   assert.equal(
     runtimeBridge.opl_gateway_account_projection.display_policy.token_counts,
-    'compact_decimal_units_K_M_B_T_with_up_to_two_fraction_digits',
+    'compact_decimal_units_K_M_B_T_with_up_to_two_fraction_digits'
   );
-  assert.equal(runtimeBridge.opl_gateway_account_projection.group_resolution_policy.ordinary_user_selector, 'not_rendered');
+  assert.equal(
+    runtimeBridge.opl_gateway_account_projection.group_resolution_policy.ordinary_user_selector,
+    'not_rendered'
+  );
+  assert.deepEqual(runtimeBridge.opl_gateway_account_projection.renderer_bootstrap_cache, {
+    role: 'derived_last_known_good_projection_not_truth',
+    field_policy: 'persist_projection_top_level_and_nested_allowlists_only',
+    initial_render: 'show_cached_account_before_background_refresh',
+    legacy_cache_without_projection: 'keep_account_state_resolving_until_authoritative_readback',
+    refresh_failure: 'retain_cached_account_and_surface_stale_or_error',
+    invalidation: 'replace_only_after_authoritative_readback_confirms_new_projection',
+  });
   assert.doesNotThrow(() => validateOplGatewayAccountContract(runtimeBridge));
-  assert.doesNotThrow(() => validateRuntimeBridgeContract(
-    runtimeBridge,
-    readJson('contracts/app-shell-adapter.json'),
-  ));
-  assert.doesNotThrow(() => validatePageStateMatrix(
-    readJson('contracts/app-page-state-matrix.json'),
-    readJson('contracts/app-shell-adapter.json'),
-    readJson('contracts/app-gui-product-contract.json'),
-  ));
+  assert.doesNotThrow(() => validateRuntimeBridgeContract(runtimeBridge, readJson('contracts/app-shell-adapter.json')));
+  assert.doesNotThrow(() =>
+    validatePageStateMatrix(
+      readJson('contracts/app-page-state-matrix.json'),
+      readJson('contracts/app-shell-adapter.json'),
+      readJson('contracts/app-gui-product-contract.json')
+    )
+  );
 });
 
 test('Gateway account runtime bridge rejects secret leakage and generic-action login', () => {
@@ -48,6 +58,9 @@ test('Gateway account runtime bridge rejects secret leakage and generic-action l
     },
     (bridge: any) => {
       bridge.opl_gateway_account_secret_bridge.webui_password_login_allowed = true;
+    },
+    (bridge: any) => {
+      bridge.opl_gateway_account_projection.renderer_bootstrap_cache.field_policy = 'persist_entire_raw_payload';
     },
   ]) {
     const bridge = structuredClone(readJson('contracts/app-runtime-bridge.json'));

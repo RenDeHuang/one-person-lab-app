@@ -103,10 +103,7 @@ const trayIconExpected = [
   'if (icon.isEmpty())',
 ];
 
-const trayPackagingExpected = [
-  'from: resources/opl-branding',
-  'to: opl-branding',
-];
+const trayPackagingExpected = ['from: resources/opl-branding', 'to: opl-branding'];
 
 const desktopMainExpected = [
   'initializeTrayForDesktopMode',
@@ -126,9 +123,36 @@ function validateAppStateHook(shellPaths) {
     shellPaths,
     'packages/desktop/src/renderer/hooks/system/useOplAppState.ts',
     'ipcBridge.oplRuntime.getAppState.invoke({ profile })',
-    'OPL App state hook',
+    'OPL App state hook'
   );
-  assertTextExcludesAll(appStateHook, ['shell.runOplCommand', 'application.systemInfo'], 'Active shell OPL App state hook');
+  assertTextIncludesAll(
+    appStateHook,
+    [
+      'GATEWAY_ACCOUNT_CACHE_TOP_LEVEL_FIELDS',
+      'GATEWAY_ACCOUNT_CACHE_NESTED_FIELDS',
+      'sanitizeGatewayAccountForCache',
+      'hasGatewayAccountProjection',
+      '!cached || !hasGatewayAccountProjection(cached.payload)',
+      'opl_gateway_account: gatewayAccount',
+    ],
+    'Active shell Gateway account last-known-good cache'
+  );
+  assertTextExcludesAll(
+    appStateHook,
+    ['shell.runOplCommand', 'application.systemInfo'],
+    'Active shell OPL App state hook'
+  );
+  assertTextExcludesAll(
+    appStateHook,
+    ['stripGatewayAccountFromAppState', 'opl_gateway_account: _gatewayAccount'],
+    'Active shell Gateway account cache must not remove the public projection'
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/settings/sections/AccessSettings.tsx',
+    ["!appStateQuery.loading && !gatewayFormVisible && gatewayAccount?.connection_mode !== 'account'"],
+    'Active shell Gateway account signed-out action waits for authoritative state'
+  );
 }
 
 function validateRuntimeBridgeSurface(shellPaths) {
@@ -136,7 +160,7 @@ function validateRuntimeBridgeSurface(shellPaths) {
     shellPaths,
     'packages/desktop/src/process/bridge/oplRuntimeBridge.ts',
     runtimeBridgeExpected,
-    'Active shell runtime bridge canonical surface',
+    'Active shell runtime bridge canonical surface'
   );
 }
 
@@ -145,10 +169,18 @@ function validateSystemSettings(shellPaths) {
     shellPaths,
     'packages/desktop/src/renderer/components/settings/SettingsModal/contents/SystemModalContent/index.tsx',
     systemSettingsExpected,
-    'Active shell System settings',
+    'Active shell System settings'
   );
-  assertTextExcludesAll(systemSettings, systemSettingsForbidden, 'Active shell System settings legacy OPL truth/action source');
-  assertTextIncludesAll(systemSettings, systemSettingsPathExpected, 'Active shell System settings visible OPL paths from app_state.paths');
+  assertTextExcludesAll(
+    systemSettings,
+    systemSettingsForbidden,
+    'Active shell System settings legacy OPL truth/action source'
+  );
+  assertTextIncludesAll(
+    systemSettings,
+    systemSettingsPathExpected,
+    'Active shell System settings visible OPL paths from app_state.paths'
+  );
 }
 
 function enabledLocales(requiresLocale) {
@@ -160,7 +192,11 @@ function validateFirstRunLocale(shellPaths, locale) {
   assertTextIncludesAll(text, firstRunLocaleExpected, `Active shell ${locale} first-run locale`);
   const settingsLocale = JSON.parse(text);
   const firstRunSetupText = `${JSON.stringify(settingsLocale.firstRun ?? {})}\n${JSON.stringify(settingsLocale.oplFirstLaunch ?? {})}`;
-  assertTextExcludesAll(firstRunSetupText, firstRunLocaleForbidden, `Active shell ${locale} first-run locale English fallback`);
+  assertTextExcludesAll(
+    firstRunSetupText,
+    firstRunLocaleForbidden,
+    `Active shell ${locale} first-run locale English fallback`
+  );
 }
 
 function validateUpdateLocale(shellPaths, locale) {
@@ -181,18 +217,18 @@ function validateRuntimeSettings(shellPaths) {
     shellPaths,
     'packages/desktop/src/renderer/pages/settings/sections/RuntimeSettings.tsx',
     runtimeSettingsExpected,
-    'Active shell Runtime settings',
+    'Active shell Runtime settings'
   );
   assertTextDoesNotMatch(
     runtimeSettings,
     /med[-_ ]?deep[-_ ]?scientist|module_id['"]?\s*:\s*['"]mds['"]/i,
-    'Active shell Runtime settings must not default-display Med Deep Scientist/MDS.',
+    'Active shell Runtime settings must not default-display Med Deep Scientist/MDS.'
   );
   assertShellTextIncludesAll(
     shellPaths,
     'packages/desktop/src/renderer/pages/settings/RuntimeSettings/runtimeSettingsViewModel.tsx',
     runtimeSettingsViewModelExpected,
-    'Active shell Runtime settings maintenance hub view model',
+    'Active shell Runtime settings maintenance hub view model'
   );
 }
 
@@ -201,31 +237,41 @@ function validateTrayStartup(shellPaths) {
     shellPaths,
     'packages/desktop/src/process/startup/trayStartup.ts',
     trayStartupExpected,
-    'Active shell desktop tray startup App-owned tray policy',
+    'Active shell desktop tray startup App-owned tray policy'
   );
   assertTextExcludesAll(
     trayStartup,
     ['if (deps.getCloseToTrayEnabled())', 'if (getCloseToTrayEnabled())'],
-    'Active shell desktop tray visibility close-to-tray gate',
+    'Active shell desktop tray visibility close-to-tray gate'
   );
-  assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/index.ts', desktopMainExpected, 'Active shell desktop startup App-owned tray policy');
-  assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/process/utils/closeToTraySetting.ts', closeToTraySettingExpected, 'Active shell close-to-tray settings bridge App-owned tray preference key');
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/index.ts',
+    desktopMainExpected,
+    'Active shell desktop startup App-owned tray policy'
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/process/utils/closeToTraySetting.ts',
+    closeToTraySettingExpected,
+    'Active shell close-to-tray settings bridge App-owned tray preference key'
+  );
   assertShellTextIncludesAll(
     shellPaths,
     'packages/desktop/src/process/utils/tray.ts',
     trayIconExpected,
-    'Active shell macOS tray template image policy',
+    'Active shell macOS tray template image policy'
   );
   assertShellTextIncludesAll(
     shellPaths,
     'packages/desktop/electron-builder.yml',
     trayPackagingExpected,
-    'Active shell tray image packaging',
+    'Active shell tray image packaging'
   );
   for (const filename of ['trayTemplate.png', 'trayTemplate@2x.png']) {
     assertFile(
       path.join(shellPaths.shellRoot, 'resources', 'opl-branding', filename),
-      `active shell macOS tray asset ${filename}`,
+      `active shell macOS tray asset ${filename}`
     );
   }
 }

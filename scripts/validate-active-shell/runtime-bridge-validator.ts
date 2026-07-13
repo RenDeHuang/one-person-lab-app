@@ -28,8 +28,7 @@ import {
   validateUserTaskStatusProjectionContract,
 } from './shared-contract-validators.ts';
 
-const gatewayAccountProjectionPath =
-  'app_state.settings_control_center.app_settings_read_model.opl_gateway_account';
+const gatewayAccountProjectionPath = 'app_state.settings_control_center.app_settings_read_model.opl_gateway_account';
 const gatewayAccountConnectionModes = ['none', 'manual_key', 'account'];
 const gatewayAccountStatusValues = [
   'not_connected',
@@ -134,11 +133,15 @@ function validateGatewayAccountFixture(fixture) {
   if (!projection || typeof projection !== 'object' || Array.isArray(projection)) {
     throw new Error(`OPL App state golden fixture must include ${gatewayAccountProjectionPath}`);
   }
-  assertDeepEqualJson(Object.keys(projection), gatewayAccountTopLevelFields, 'Gateway account fixture top-level fields');
+  assertDeepEqualJson(
+    Object.keys(projection),
+    gatewayAccountTopLevelFields,
+    'Gateway account fixture top-level fields'
+  );
   if (
-    projection.surface_kind !== 'opl_gateway_account_read_model.v1'
-    || !gatewayAccountConnectionModes.includes(projection.connection_mode)
-    || !gatewayAccountStatusValues.includes(projection.status)
+    projection.surface_kind !== 'opl_gateway_account_read_model.v1' ||
+    !gatewayAccountConnectionModes.includes(projection.connection_mode) ||
+    !gatewayAccountStatusValues.includes(projection.status)
   ) {
     throw new Error('Gateway account fixture must use the canonical v1 surface, connection mode, and status');
   }
@@ -146,11 +149,12 @@ function validateGatewayAccountFixture(fixture) {
     throw new Error('Gateway account fixture account card visibility must follow account connection mode');
   }
   for (const [field, expectedFields] of Object.entries(gatewayAccountNestedFields)) {
-    const value = field === 'available_groups[]'
-      ? projection.available_groups
-      : field === 'account.balance'
-        ? projection.account?.balance
-        : projection[field];
+    const value =
+      field === 'available_groups[]'
+        ? projection.available_groups
+        : field === 'account.balance'
+          ? projection.account?.balance
+          : projection[field];
     if (field === 'available_groups[]') {
       if (!Array.isArray(value)) throw new Error('Gateway account fixture available_groups must be an array');
       for (const group of value) {
@@ -175,17 +179,21 @@ function validateGatewayAccountFixture(fixture) {
 export function validateOplGatewayAccountContract(runtimeBridge) {
   const projection = runtimeBridge.opl_gateway_account_projection;
   if (
-    projection?.surface_kind !== 'opl_gateway_account_read_model.v1'
-    || projection.source_path !== 'app_state.settings_control_center.app_settings_read_model.opl_gateway_account'
-    || projection.producer_owner !== 'one-person-lab'
-    || projection.consumer_owner !== 'one-person-lab-app'
-    || projection.shell_role !== 'display_and_declared_action_consumer_only'
+    projection?.surface_kind !== 'opl_gateway_account_read_model.v1' ||
+    projection.source_path !== 'app_state.settings_control_center.app_settings_read_model.opl_gateway_account' ||
+    projection.producer_owner !== 'one-person-lab' ||
+    projection.consumer_owner !== 'one-person-lab-app' ||
+    projection.shell_role !== 'display_and_declared_action_consumer_only'
   ) {
     throw new Error('Runtime bridge must declare the canonical OPL Gateway account projection ownership and path');
   }
   assertDeepEqualJson(projection.connection_modes, gatewayAccountConnectionModes, 'Gateway account connection modes');
   assertDeepEqualJson(projection.status_values, gatewayAccountStatusValues, 'Gateway account status values');
-  assertDeepEqualJson(projection.top_level_field_allowlist, gatewayAccountTopLevelFields, 'Gateway account top-level fields');
+  assertDeepEqualJson(
+    projection.top_level_field_allowlist,
+    gatewayAccountTopLevelFields,
+    'Gateway account top-level fields'
+  );
   assertDeepEqualJson(projection.nested_field_allowlist, gatewayAccountNestedFields, 'Gateway account nested fields');
   assertDeepEqualJson(projection.forbidden_fields, gatewayAccountForbiddenFields, 'Gateway account forbidden fields');
   assertDeepEqualJson(projection.error_codes, gatewayAccountErrorCodes, 'Gateway account error codes');
@@ -194,36 +202,54 @@ export function validateOplGatewayAccountContract(runtimeBridge) {
   assertDeepEqualJson(
     projection.group_resolution_policy,
     gatewayAccountGroupResolutionPolicy,
-    'Gateway account group resolution policy',
+    'Gateway account group resolution policy'
   );
   if (
-    projection.account_card_visibility !== 'account_card_visible_true_only'
-    || projection.refresh_policy?.ttl_seconds !== 900
-    || projection.refresh_policy?.page_entry !== 'show_cached_then_refresh_once_when_stale'
-    || projection.refresh_policy?.manual_refresh !== 'bypass_ttl'
-    || projection.refresh_policy?.network_failure !== 'preserve_cached_values_and_mark_stale'
-    || projection.generic_action_secret_policy !==
+    projection.account_card_visibility !== 'account_card_visible_true_only' ||
+    projection.refresh_policy?.ttl_seconds !== 900 ||
+    projection.refresh_policy?.page_entry !== 'show_cached_then_refresh_once_when_stale' ||
+    projection.refresh_policy?.manual_refresh !== 'bypass_ttl' ||
+    projection.refresh_policy?.network_failure !== 'preserve_cached_values_and_mark_stale' ||
+    projection.renderer_bootstrap_cache?.role !== 'derived_last_known_good_projection_not_truth' ||
+    projection.renderer_bootstrap_cache?.field_policy !== 'persist_projection_top_level_and_nested_allowlists_only' ||
+    projection.renderer_bootstrap_cache?.initial_render !== 'show_cached_account_before_background_refresh' ||
+    projection.renderer_bootstrap_cache?.legacy_cache_without_projection !==
+      'keep_account_state_resolving_until_authoritative_readback' ||
+    projection.renderer_bootstrap_cache?.refresh_failure !== 'retain_cached_account_and_surface_stale_or_error' ||
+    projection.renderer_bootstrap_cache?.invalidation !==
+      'replace_only_after_authoritative_readback_confirms_new_projection' ||
+    projection.generic_action_secret_policy !==
       'password_tokens_and_api_key_material_forbidden_in_action_payload_log_state_error_and_receipt'
   ) {
-    throw new Error('Gateway account projection must preserve visibility, 15-minute freshness, stale, and secret boundaries');
+    throw new Error(
+      'Gateway account projection must preserve visibility, 15-minute freshness, stale, and secret boundaries'
+    );
   }
 
   const secretBridge = runtimeBridge.opl_gateway_account_secret_bridge;
   if (
-    secretBridge?.bridge_id !== 'loginGatewayAccount'
-    || secretBridge.desktop_only !== true
-    || secretBridge.webui_password_login_allowed !== false
-    || secretBridge.command !== 'opl connect gateway login --credentials-stdin --json'
-    || secretBridge.transport !== 'typed_ipc_to_dedicated_stdin_no_generic_app_action_payload'
-    || secretBridge.secret_persistence !== false
-    || secretBridge.secret_diagnostics !== false
-    || secretBridge.secret_receipt_fields !== false
+    secretBridge?.bridge_id !== 'loginGatewayAccount' ||
+    secretBridge.desktop_only !== true ||
+    secretBridge.webui_password_login_allowed !== false ||
+    secretBridge.command !== 'opl connect gateway login --credentials-stdin --json' ||
+    secretBridge.transport !== 'typed_ipc_to_dedicated_stdin_no_generic_app_action_payload' ||
+    secretBridge.secret_persistence !== false ||
+    secretBridge.secret_diagnostics !== false ||
+    secretBridge.secret_receipt_fields !== false
   ) {
     throw new Error('Gateway account login must use the dedicated desktop typed IPC and stdin-only secret bridge');
   }
-  assertDeepEqualJson(secretBridge.request_fields, ['email', 'password', 'deviceLabel'], 'Gateway login request fields');
+  assertDeepEqualJson(
+    secretBridge.request_fields,
+    ['email', 'password', 'deviceLabel'],
+    'Gateway login request fields'
+  );
   assertDeepEqualJson(secretBridge.optional_request_fields, ['deviceLabel'], 'Gateway login optional request fields');
-  assertDeepEqualJson(secretBridge.response_fields, ['ok', 'errorCode', 'stateRefreshRequired'], 'Gateway login response fields');
+  assertDeepEqualJson(
+    secretBridge.response_fields,
+    ['ok', 'errorCode', 'stateRefreshRequired'],
+    'Gateway login response fields'
+  );
   assertDeepEqualJson(secretBridge.secret_fields, ['password'], 'Gateway login secret fields');
 }
 
@@ -243,11 +269,11 @@ function runLiveJsonCommand(oplRoot, args, label, maxStdoutBytes = commandMaxBuf
     throw new Error(`Live OPL ${label} failed to launch: ${result.error.message}`);
   }
   if (result.status !== 0) {
-    throw new Error([
-      `Live OPL ${label} failed: ./bin/opl ${args.join(' ')}`,
-      result.stderr.trim(),
-      result.stdout.trim(),
-    ].filter(Boolean).join('\n'));
+    throw new Error(
+      [`Live OPL ${label} failed: ./bin/opl ${args.join(' ')}`, result.stderr.trim(), result.stdout.trim()]
+        .filter(Boolean)
+        .join('\n')
+    );
   }
   const stdoutBytes = Buffer.byteLength(result.stdout, 'utf8');
   if (stdoutBytes > maxStdoutBytes) {
@@ -299,7 +325,14 @@ function validateLiveConformanceContract(gate) {
   if (gate.fast_state_max_bytes !== 500000) {
     throw new Error('Runtime bridge live_conformance_gate.fast_state_max_bytes must be 500000');
   }
-  for (const schemaPath of ['app_state.schema_version', 'app_state.surface_kind', 'app_state.schema', 'app_state.surface', 'schema', 'surface']) {
+  for (const schemaPath of [
+    'app_state.schema_version',
+    'app_state.surface_kind',
+    'app_state.schema',
+    'app_state.surface',
+    'schema',
+    'surface',
+  ]) {
     if (!gate.state_schema_paths?.includes(schemaPath)) {
       throw new Error(`Runtime bridge live conformance schema paths must include ${schemaPath}`);
     }
@@ -352,27 +385,37 @@ function validateGoldenAppStateFixtureBasics(fixtureText, fixture, gate) {
   if (lookupPath(fixture, 'app_state.operator.workbench.view_model_schema') !== 'opl_app_operator_workbench.v1') {
     throw new Error('OPL App state golden fixture must include typed operator workbench.');
   }
-  if (lookupPath(fixture, 'app_state.operator.workbench.performance_policy.fast_json_max_bytes') !== gate.fast_state_max_bytes) {
+  if (
+    lookupPath(fixture, 'app_state.operator.workbench.performance_policy.fast_json_max_bytes') !==
+    gate.fast_state_max_bytes
+  ) {
     throw new Error('OPL App state golden fixture must carry the App fast JSON max budget.');
   }
-  if (lookupPath(fixture, 'app_state.operator.workbench.performance_policy.shell_must_not_derive_layout_from_raw_runtime_projection') !== true) {
-    throw new Error('OPL App state golden fixture must forbid shell-side layout derivation from raw runtime projection.');
+  if (
+    lookupPath(
+      fixture,
+      'app_state.operator.workbench.performance_policy.shell_must_not_derive_layout_from_raw_runtime_projection'
+    ) !== true
+  ) {
+    throw new Error(
+      'OPL App state golden fixture must forbid shell-side layout derivation from raw runtime projection.'
+    );
   }
 }
 
 function validateGoldenAppStateTaskDrilldowns(fixture) {
   const taskDrilldowns = lookupPath(fixture, 'app_state.operator.workbench.task_drilldowns') ?? [];
   const platformRepairExample = taskDrilldowns.find(
-    (task) => task?.progress_delta_classification === 'platform_repair',
+    (task) => task?.progress_delta_classification === 'platform_repair'
   );
   if (!platformRepairExample) {
     throw new Error('OPL App state golden fixture must include a platform_repair task example.');
   }
   if (
-    platformRepairExample.deliverable_progress_delta?.count !== 0
-    || !(platformRepairExample.platform_repair_delta?.count > 0)
-    || platformRepairExample.user_facing_progress_claim_allowed !== false
-    || platformRepairExample.progress_display_bucket !== 'platform_repair'
+    platformRepairExample.deliverable_progress_delta?.count !== 0 ||
+    !(platformRepairExample.platform_repair_delta?.count > 0) ||
+    platformRepairExample.user_facing_progress_claim_allowed !== false ||
+    platformRepairExample.progress_display_bucket !== 'platform_repair'
   ) {
     throw new Error('OPL App state platform repair example must not claim deliverable progress.');
   }
@@ -381,25 +424,25 @@ function validateGoldenAppStateTaskDrilldowns(fixture) {
   }
   const taskRunProjection = lookupPath(fixture, 'app_state.operator.workbench.task_run_projection_v2');
   if (
-    taskRunProjection?.surface_kind !== 'task_run_projection_v2'
-    || taskRunProjection?.schema_version !== 'task-run-projection.v2'
-    || taskRunProjection?.refs_only !== true
-    || !Array.isArray(taskRunProjection?.tasks)
-    || taskRunProjection.tasks.length === 0
+    taskRunProjection?.surface_kind !== 'task_run_projection_v2' ||
+    taskRunProjection?.schema_version !== 'task-run-projection.v2' ||
+    taskRunProjection?.refs_only !== true ||
+    !Array.isArray(taskRunProjection?.tasks) ||
+    taskRunProjection.tasks.length === 0
   ) {
     throw new Error('OPL App state golden fixture must include workbench.task_run_projection_v2.');
   }
   validateTaskRunProjectionV2Fixture(
     taskRunProjection.tasks[0],
-    'OPL App state golden fixture TaskRunProjection v2 task',
+    'OPL App state golden fixture TaskRunProjection v2 task'
   );
   validateOpenScienceAcceptedItemsFixture(
     taskRunProjection.tasks[0],
-    'OPL App state golden fixture OpenScience accepted item task',
+    'OPL App state golden fixture OpenScience accepted item task'
   );
   validateOpenScienceAcceptedItemsFixture(
     taskDrilldowns[0],
-    'OPL App state golden fixture OpenScience accepted item drilldown',
+    'OPL App state golden fixture OpenScience accepted item drilldown'
   );
   const stateIndexSidecarExample = taskDrilldowns.find((task) => task?.state_index_sidecar_projection);
   if (!stateIndexSidecarExample) {
@@ -407,7 +450,7 @@ function validateGoldenAppStateTaskDrilldowns(fixture) {
   }
   validateStateIndexSidecarFixture(
     stateIndexSidecarExample.state_index_sidecar_projection,
-    'OPL App state golden fixture State Index sidecar projection',
+    'OPL App state golden fixture State Index sidecar projection'
   );
   const artifactNativeDrilldownExample = taskDrilldowns.find((task) => task?.artifact_native_drilldown);
   if (!artifactNativeDrilldownExample) {
@@ -415,23 +458,20 @@ function validateGoldenAppStateTaskDrilldowns(fixture) {
   }
   validateArtifactNativeDrilldownFixture(
     artifactNativeDrilldownExample.artifact_native_drilldown,
-    'OPL App state golden fixture Stage Artifact drilldown',
+    'OPL App state golden fixture Stage Artifact drilldown'
   );
   const stageRunCockpitExample = taskDrilldowns.find(
-    (task) => task?.stage_run_cockpit || task?.stage_run_current_owner_delta,
+    (task) => task?.stage_run_cockpit || task?.stage_run_current_owner_delta
   );
   if (!stageRunCockpitExample) {
     throw new Error('OPL App state golden fixture must include a refs-only StageRun cockpit projection example.');
   }
-  validateStageRunCockpitFixture(
-    stageRunCockpitExample,
-    'OPL App state golden fixture StageRun cockpit projection',
-  );
+  validateStageRunCockpitFixture(stageRunCockpitExample, 'OPL App state golden fixture StageRun cockpit projection');
 }
 
 function validateGoldenAppStateActiveProjects(fixture) {
   const activeProjectSummaryCard = (lookupPath(fixture, 'app_state.operator.workbench.summary_cards') ?? []).find(
-    (card) => card?.card_id === 'active_projects',
+    (card) => card?.card_id === 'active_projects'
   );
   if (!activeProjectSummaryCard) {
     throw new Error('OPL App state golden fixture must include an active_projects summary card.');
@@ -453,7 +493,10 @@ function validateGoldenAppStateActiveProjects(fixture) {
       throw new Error(`OPL App state active project line must preserve ${field}.`);
     }
   }
-  if (queuedOrEscalatedProject.active_worker_run === true || queuedOrEscalatedProject.provider_execution_running === true) {
+  if (
+    queuedOrEscalatedProject.active_worker_run === true ||
+    queuedOrEscalatedProject.provider_execution_running === true
+  ) {
     throw new Error('OPL App state active project line must not claim an active worker run.');
   }
 }
@@ -506,7 +549,8 @@ function validateCurrentOwnerDeltaCockpitFixture(fixture) {
     'app_state.operator.default_read_surface_policy.authority_boundary.can_claim_app_release_ready': false,
     'app_state.operator.default_read_surface_policy.authority_boundary.can_claim_production_ready': false,
     'app_state.operator.current_owner_delta.default_planning_root': 'current_owner_delta',
-    'app_state.operator.current_owner_delta.ordinary_progress_spine.default_next_action_derives_from': 'current_owner_delta',
+    'app_state.operator.current_owner_delta.ordinary_progress_spine.default_next_action_derives_from':
+      'current_owner_delta',
     'app_state.operator.current_owner_delta.ordinary_progress_spine.raw_worklist_can_generate_default_next_action': false,
     'app_state.operator.current_owner_delta.authority_boundary.raw_worklist_can_drive_default_planning': false,
     'app_state.operator.current_owner_delta.authority_boundary.can_claim_production_ready': false,
@@ -517,13 +561,18 @@ function validateCurrentOwnerDeltaCockpitFixture(fixture) {
     'app_state.operator.current_owner_delta_next_action.can_claim_production_ready': false,
     'app_state.operator.current_owner_delta_next_action.worklist_item_is_completion_claim': false,
     'app_state.operator.ordinary_cockpit.surface_kind': 'opl_app_ordinary_cockpit',
-    'app_state.operator.ordinary_cockpit.display_payload_policy': 'purpose_task_current_owner_next_action_artifact_or_blocker_only',
-    'app_state.operator.ordinary_cockpit.ordinary_progress_spine.default_next_action_derives_from': 'current_owner_delta',
+    'app_state.operator.ordinary_cockpit.display_payload_policy':
+      'purpose_task_current_owner_next_action_artifact_or_blocker_only',
+    'app_state.operator.ordinary_cockpit.ordinary_progress_spine.default_next_action_derives_from':
+      'current_owner_delta',
     'app_state.operator.ordinary_cockpit.ordinary_progress_spine.raw_worklist_can_generate_default_next_action': false,
-    'app_state.operator.ordinary_cockpit.display_payload.next_action.source_ref': 'app_state.operator.current_owner_delta',
-    'app_state.operator.ordinary_cockpit.display_payload.artifact_or_blocker.content_policy': 'refs_only_no_artifact_or_receipt_body',
+    'app_state.operator.ordinary_cockpit.display_payload.next_action.source_ref':
+      'app_state.operator.current_owner_delta',
+    'app_state.operator.ordinary_cockpit.display_payload.artifact_or_blocker.content_policy':
+      'refs_only_no_artifact_or_receipt_body',
     'app_state.operator.ordinary_cockpit.authority_boundary.default_planning_root': 'current_owner_delta',
-    'app_state.operator.ordinary_cockpit.authority_boundary.default_next_action_derives_from': 'derive_default_next_action_only_from_current_owner_delta',
+    'app_state.operator.ordinary_cockpit.authority_boundary.default_next_action_derives_from':
+      'derive_default_next_action_only_from_current_owner_delta',
     'app_state.operator.ordinary_cockpit.authority_boundary.can_claim_app_release_ready': false,
     'app_state.operator.ordinary_cockpit.authority_boundary.can_claim_production_ready': false,
   })) {
@@ -535,18 +584,26 @@ function validateCurrentOwnerDeltaCockpitFixture(fixture) {
 
   assertIncludesAll(
     currentOwnerDelta.ordinary_progress_spine?.default_next_action_must_not_derive_from,
-    ['raw_worklist', 'raw_evidence', 'provider_trace', 'replay_packet', 'typed_blocker_group', 'private_residue_inventory', 'audit_sidecar'],
-    `${label} current owner delta forbidden next-action sources`,
+    [
+      'raw_worklist',
+      'raw_evidence',
+      'provider_trace',
+      'replay_packet',
+      'typed_blocker_group',
+      'private_residue_inventory',
+      'audit_sidecar',
+    ],
+    `${label} current owner delta forbidden next-action sources`
   );
   assertIncludesAll(
     ordinaryCockpit.display_payload_fields,
     ['purpose', 'task', 'current_owner', 'next_action', 'artifact_or_blocker'],
-    `${label} ordinary cockpit display payload fields`,
+    `${label} ordinary cockpit display payload fields`
   );
   assertIncludesAll(
     ordinaryCockpit.developer_full_drilldown_only,
     ['provider', 'ledger', 'worklist', 'mcp_tool_catalog', 'raw_receipts', 'release_evidence'],
-    `${label} ordinary cockpit drilldown-only fields`,
+    `${label} ordinary cockpit drilldown-only fields`
   );
   for (const forbidden of [
     'raw_worklist',
@@ -586,13 +643,13 @@ export function validateLiveOplConformance(runtimeBridge) {
     resolvedOplRoot,
     ['app', 'state', '--profile', 'fast', '--json'],
     'fast App state',
-    gate.fast_state_max_bytes,
+    gate.fast_state_max_bytes
   );
   const full = runLiveJsonCommand(resolvedOplRoot, ['app', 'state', '--profile', 'full', '--json'], 'full App state');
   const action = runLiveJsonCommand(
     resolvedOplRoot,
     ['app', 'action', 'execute', '--action', actionFixture, '--dry-run', '--json'],
-    'App action dry-run',
+    'App action dry-run'
   );
 
   if (fast.stdoutBytes >= gate.fast_state_max_bytes) {
@@ -643,7 +700,9 @@ function validateRuntimeBridgeIdentity(runtimeBridge, contract) {
     throw new Error(`Unexpected runtime bridge UI contract owner: ${runtimeBridge.ui_contract_owner}`);
   }
   if (isDefaultReleaseAdapter(contract) && runtimeBridge.default_adapter_repo !== contract.shell_source?.owner_repo) {
-    throw new Error(`Runtime bridge adapter repo must match active shell source: ${runtimeBridge.default_adapter_repo}`);
+    throw new Error(
+      `Runtime bridge adapter repo must match active shell source: ${runtimeBridge.default_adapter_repo}`
+    );
   }
   if (isDefaultReleaseAdapter(contract) && runtimeBridge.default_adapter_path !== contract.shell_root) {
     throw new Error(`Runtime bridge adapter path must match active shell root: ${runtimeBridge.default_adapter_path}`);
@@ -660,7 +719,8 @@ function validateRuntimeBridgeDeclaredSurfaces(runtimeBridge) {
     full_detail_command: 'opl runtime app-operator-drilldown --detail full --json',
     action_command: 'opl app action execute --action <action_id> [--payload json] [--dry-run] --json',
     'projection_sources.primary': 'app_state.operator.workbench.work_item_projection_v2',
-    'projection_sources.provider': 'runtime_tray_snapshot.app_operator_drilldown.current_control_state.states.provider_run',
+    'projection_sources.provider':
+      'runtime_tray_snapshot.app_operator_drilldown.current_control_state.states.provider_run',
     'projection_sources.actions': 'app_state.actions',
     'projection_sources.full_detail': 'runtime_tray_snapshot.app_operator_drilldown',
     'projection_sources.policy': 'work_item_projection_v2_primary_provider_projection_diagnostic_only',
@@ -680,7 +740,8 @@ function validateRuntimeBridgeDefaultReadSurfacePolicy(runtimeBridge) {
   for (const [field, expected] of Object.entries({
     default_projection: 'opl_current_owner_delta',
     source_path: 'app_state.operator.default_read_surface_policy',
-    foundry_agent_os_cockpit_policy: 'first_screen_current_owner_delta_only_raw_worklist_evidence_provider_trace_drilldown_only',
+    foundry_agent_os_cockpit_policy:
+      'first_screen_current_owner_delta_only_raw_worklist_evidence_provider_trace_drilldown_only',
     default_next_action_source: 'current_owner_delta',
     raw_worklist_generates_default_next_action: false,
     release_evidence_counts_as_release_ready: false,
@@ -718,7 +779,9 @@ function validateRuntimeBridgeDefaultReadSurfacePolicy(runtimeBridge) {
     'provider_internal_ledger_body',
   ]) {
     if (!defaultReadSurfacePolicy?.forbidden_default_state_fields?.includes(field)) {
-      throw new Error(`Runtime bridge default_read_surface_policy.forbidden_default_state_fields must include ${field}`);
+      throw new Error(
+        `Runtime bridge default_read_surface_policy.forbidden_default_state_fields must include ${field}`
+      );
     }
   }
 }
@@ -727,7 +790,7 @@ function validateRuntimeBridgeUserTaskStatus(runtimeBridge) {
   validateUserTaskStatusProjectionContract(
     runtimeBridge.user_task_status_projection,
     'Runtime bridge user task status projection',
-    runtimeBridge.stage_run_cockpit_projection,
+    runtimeBridge.stage_run_cockpit_projection
   );
   if (runtimeBridge.user_task_status_projection?.app_role !== 'display_only_user_task_status_consumer') {
     throw new Error('Runtime bridge user task status projection must be a display-only consumer');
@@ -754,12 +817,11 @@ function validateRuntimeProgressPageDisplayPolicy(runtimeBridge) {
   if (policy?.detail_layer_ref !== 'contracts/app-runtime-bridge.json#work_item_projection.detail_layer_contract') {
     throw new Error('Runtime progress page must point at the WorkItemProjection detail layer contract');
   }
-  assertDeepEqualJson(policy?.default_task_row_spine, [
-    'project_and_work_item',
-    'status',
-    'progress_and_next_step',
-    'elapsed_and_tokens',
-  ], 'Runtime progress page default task row spine');
+  assertDeepEqualJson(
+    policy?.default_task_row_spine,
+    ['project_and_work_item', 'status', 'progress_and_next_step', 'elapsed_and_tokens'],
+    'Runtime progress page default task row spine'
+  );
   for (const section of [
     'top_scope_and_refresh',
     'freshness_summary',
@@ -772,37 +834,49 @@ function validateRuntimeProgressPageDisplayPolicy(runtimeBridge) {
       throw new Error(`Runtime progress page default sections must include ${section}`);
     }
   }
-  assertDeepEqualJson(policy?.layout_regions, {
-    top: ['top_scope_and_refresh', 'freshness_summary', 'status_saved_views'],
-    main: ['work_item_list'],
-    supporting: ['agent_availability_panel', 'advanced_diagnostics_disclosure'],
-  }, 'Runtime progress page layout regions');
-  assertIncludesAll(policy?.default_field_allowlist ?? [], [
-    'identity.project_display_name',
-    'identity.work_item_display_name',
-    'identity.agent_display_name',
-    'lifecycle.primary_state_label',
-    'execution.current_stage_display_name',
-    'execution.next_stage_display_name',
-    'telemetry.elapsed',
-    'telemetry.current_stage_tokens',
-    'telemetry.task_total_tokens',
-    'action.title',
-    'action.owner',
-  ], 'Runtime progress page default field allowlist');
-  assertIncludesAll(policy?.default_visible_field_groups?.work_item_list ?? [], [
-    'identity.project_display_name',
-    'identity.work_item_display_name',
-    'identity.agent_display_name',
-    'lifecycle.primary_state_label',
-    'execution.current_stage_display_name',
-    'execution.next_stage_display_name',
-    'telemetry.elapsed',
-    'telemetry.current_stage_tokens',
-    'telemetry.task_total_tokens',
-    'action.title',
-    'action.owner',
-  ], 'Runtime progress page work item list fields');
+  assertDeepEqualJson(
+    policy?.layout_regions,
+    {
+      top: ['top_scope_and_refresh', 'freshness_summary', 'status_saved_views'],
+      main: ['work_item_list'],
+      supporting: ['agent_availability_panel', 'advanced_diagnostics_disclosure'],
+    },
+    'Runtime progress page layout regions'
+  );
+  assertIncludesAll(
+    policy?.default_field_allowlist ?? [],
+    [
+      'identity.project_display_name',
+      'identity.work_item_display_name',
+      'identity.agent_display_name',
+      'lifecycle.primary_state_label',
+      'execution.current_stage_display_name',
+      'execution.next_stage_display_name',
+      'telemetry.elapsed',
+      'telemetry.current_stage_tokens',
+      'telemetry.task_total_tokens',
+      'action.title',
+      'action.owner',
+    ],
+    'Runtime progress page default field allowlist'
+  );
+  assertIncludesAll(
+    policy?.default_visible_field_groups?.work_item_list ?? [],
+    [
+      'identity.project_display_name',
+      'identity.work_item_display_name',
+      'identity.agent_display_name',
+      'lifecycle.primary_state_label',
+      'execution.current_stage_display_name',
+      'execution.next_stage_display_name',
+      'telemetry.elapsed',
+      'telemetry.current_stage_tokens',
+      'telemetry.task_total_tokens',
+      'action.title',
+      'action.owner',
+    ],
+    'Runtime progress page work item list fields'
+  );
   const defaultFieldAllowlist = new Set(policy?.default_field_allowlist ?? []);
   for (const [groupName, fields] of Object.entries(policy?.default_visible_field_groups ?? {})) {
     if (!Array.isArray(fields)) {
@@ -810,7 +884,9 @@ function validateRuntimeProgressPageDisplayPolicy(runtimeBridge) {
     }
     for (const field of fields) {
       if (!defaultFieldAllowlist.has(field)) {
-        throw new Error(`Runtime progress page default field ${groupName}.${field} must be included in default_field_allowlist`);
+        throw new Error(
+          `Runtime progress page default field ${groupName}.${field} must be included in default_field_allowlist`
+        );
       }
     }
   }
@@ -820,14 +896,19 @@ function validateRuntimeProgressPageDisplayPolicy(runtimeBridge) {
     policy?.task_deduplication_policy?.one_row_per_work_item !== true ||
     policy?.task_deduplication_policy?.shell_heuristic_deduplication_allowed !== false ||
     policy?.task_deduplication_policy?.module_runtime_rows_policy !==
-    'module_runtime_never_enters_work_item_list_agent_availability_is_separate'
+      'module_runtime_never_enters_work_item_list_agent_availability_is_separate'
   ) {
-    throw new Error('Runtime progress page must project one canonical row per work item and keep module runtime separate');
+    throw new Error(
+      'Runtime progress page must project one canonical row per work item and keep module runtime separate'
+    );
   }
   if (policy?.task_deduplication_policy?.raw_duplicate_refs_default_visible !== false) {
     throw new Error('Runtime progress page raw duplicate refs must stay hidden by default');
   }
-  if (policy?.next_step_copy_policy?.long_text_policy !== 'framework_projects_short_human_action_copy_shell_does_not_translate_routes') {
+  if (
+    policy?.next_step_copy_policy?.long_text_policy !==
+    'framework_projects_short_human_action_copy_shell_does_not_translate_routes'
+  ) {
     throw new Error('Runtime progress page must consume Framework-projected human action copy');
   }
   if (policy?.next_step_copy_policy?.raw_route_or_command_default_visible !== false) {
@@ -836,7 +917,7 @@ function validateRuntimeProgressPageDisplayPolicy(runtimeBridge) {
   assertDeepEqualJson(
     policy?.responsive_acceptance?.viewport_widths_px,
     [375, 768, 1024, 1440],
-    'Runtime progress page responsive viewport matrix',
+    'Runtime progress page responsive viewport matrix'
   );
   if (
     policy?.responsive_acceptance?.desktop_layout !== 'four_columns' ||
@@ -846,31 +927,35 @@ function validateRuntimeProgressPageDisplayPolicy(runtimeBridge) {
   ) {
     throw new Error('Runtime progress page must reflow without horizontal page overflow or text overlap');
   }
-  assertDeepEqualJson(policy?.advanced_only_fields, [
-    'raw_proof_ref',
-    'receipt_refs',
-    'stage_attempt_id',
-    'stage_attempt_ids',
-    'run_id',
-    'active_run_id',
-    'workflow_id',
-    'workflow_refs',
-    'raw_blocker_route',
-    'typed_blocker_resolution_ref',
-    'raw_readback',
-    'readback_ref',
-    'readback_text',
-    'runtime_readback_ref',
-    'runtime_closeout_ref',
-    'mas_owner_consumption_ref',
-    'mas_owner_consumed_stage_attempt_id',
-    'mas_currentness_drift_text',
-    'provider',
-    'projection',
-    'ledger',
-    'current_control_state',
-    'full_drilldown',
-  ], 'Runtime progress page advanced-only fields');
+  assertDeepEqualJson(
+    policy?.advanced_only_fields,
+    [
+      'raw_proof_ref',
+      'receipt_refs',
+      'stage_attempt_id',
+      'stage_attempt_ids',
+      'run_id',
+      'active_run_id',
+      'workflow_id',
+      'workflow_refs',
+      'raw_blocker_route',
+      'typed_blocker_resolution_ref',
+      'raw_readback',
+      'readback_ref',
+      'readback_text',
+      'runtime_readback_ref',
+      'runtime_closeout_ref',
+      'mas_owner_consumption_ref',
+      'mas_owner_consumed_stage_attempt_id',
+      'mas_currentness_drift_text',
+      'provider',
+      'projection',
+      'ledger',
+      'current_control_state',
+      'full_drilldown',
+    ],
+    'Runtime progress page advanced-only fields'
+  );
   for (const claim of [
     'second_runtime_truth_source',
     'live_runtime_readiness',
@@ -927,7 +1012,7 @@ function validateRuntimeBridgeCommandResolutionPolicy(runtimeBridge) {
   assertIncludesAll(
     sharedGuiTarget?.required_readback_fields,
     ['opl_path', 'opl_version', 'codex_path', 'codex_version', 'runtime_cohort_ref'],
-    'Shared GUI runtime identity readback',
+    'Shared GUI runtime identity readback'
   );
 }
 
@@ -942,7 +1027,8 @@ function validateSharedGuiRuntimeResolutionPolicy(runtimeBridge) {
     same_cohort_runtime_identity_required_for_parity: true,
     host_path_only_resolution_can_prove_parity: false,
     active_aionui_status: 'managed_or_packaged_runtime_resolution',
-    opl_native_workbench_status: 'launcher_explicit_runtime_resolution_implemented_direct_launch_host_path_fallback_remains',
+    opl_native_workbench_status:
+      'launcher_explicit_runtime_resolution_implemented_direct_launch_host_path_fallback_remains',
     same_physical_runtime_currently_claimed: false,
     implementation_status: 'candidate_launcher_only_active_shell_parity_not_proven',
   })) {
@@ -975,60 +1061,60 @@ function validateCanonicalConversationContinuityPolicy(runtimeBridge) {
   assertIncludesAll(
     policy?.required_operations,
     ['thread/list', 'thread/read', 'thread/resume'],
-    'Canonical conversation continuity operations',
+    'Canonical conversation continuity operations'
   );
 }
 
 function validateRuntimeBridgeProjectionContracts(runtimeBridge) {
-  validateWorkItemProjectionContract(
-    runtimeBridge.work_item_projection,
-    'Runtime bridge WorkItemProjection',
-  );
+  validateWorkItemProjectionContract(runtimeBridge.work_item_projection, 'Runtime bridge WorkItemProjection');
   validateAgentAvailabilityProjectionContract(
     runtimeBridge.agent_availability_projection,
-    'Runtime bridge agent availability projection',
+    'Runtime bridge agent availability projection'
   );
-  validateProjectProgressDisplayContract(runtimeBridge.project_progress_projection, 'Runtime bridge project progress projection');
+  validateProjectProgressDisplayContract(
+    runtimeBridge.project_progress_projection,
+    'Runtime bridge project progress projection'
+  );
   validateProviderReadinessRepairProjectionContract(
     runtimeBridge.provider_readiness_repair_projection,
-    'Runtime bridge provider readiness repair projection',
+    'Runtime bridge provider readiness repair projection'
   );
   validateStateIndexSidecarProjectionContract(
     runtimeBridge.state_index_sidecar_projection,
-    'Runtime bridge State Index sidecar projection',
+    'Runtime bridge State Index sidecar projection'
   );
   validateArtifactNativeDrilldownProjectionContract(
     runtimeBridge.artifact_native_drilldown_projection,
     'Runtime bridge Stage Artifact drilldown projection',
-    { requireProvenanceBundle: true },
+    { requireProvenanceBundle: true }
   );
   validateArtifactProvenanceBundleProjectionContract(
     runtimeBridge.artifact_provenance_bundle_projection,
-    'Runtime bridge Artifact Provenance Bundle projection',
+    'Runtime bridge Artifact Provenance Bundle projection'
   );
   validateStructuredResultPanelProjectionContract(
     runtimeBridge.structured_result_panel_projection,
-    'Runtime bridge structured result panel projection',
+    'Runtime bridge structured result panel projection'
   );
   validateRefLevelFollowUpProjectionContract(
     runtimeBridge.ref_level_follow_up_projection,
-    'Runtime bridge ref-level follow-up projection',
+    'Runtime bridge ref-level follow-up projection'
   );
   validateWorkflowSkillCandidateProjectionContract(
     runtimeBridge.workflow_skill_candidate_projection,
-    'Runtime bridge workflow/skill candidate projection',
+    'Runtime bridge workflow/skill candidate projection'
   );
   validateRuntimeScopeProjectionContract(
     runtimeBridge.runtime_scope_projection,
-    'Runtime bridge runtime scope projection',
+    'Runtime bridge runtime scope projection'
   );
   validateOpenScienceConsoleProjectionContract(
     runtimeBridge.openscience_console_projection,
-    'Runtime bridge OpenScience Console projection',
+    'Runtime bridge OpenScience Console projection'
   );
   validateStageRunCockpitProjectionContract(
     runtimeBridge.stage_run_cockpit_projection,
-    'Runtime bridge StageRun cockpit projection',
+    'Runtime bridge StageRun cockpit projection'
   );
 }
 
@@ -1039,27 +1125,38 @@ function validatePackageReadinessProjection(runtimeBridge) {
     packageRow?.canonical_source !==
     'opl app state --profile fast --json#app_state.agent_packages.directory + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[]'
   ) {
-    throw new Error('Runtime bridge package rows must combine package installation truth with active runtime source carriers');
+    throw new Error(
+      'Runtime bridge package rows must combine package installation truth with active runtime source carriers'
+    );
   }
   assertDeepEqualJson(
     packageRow?.required_projection_fields?.['runtime_source_carriers.items[package_id]'],
     ['source_origin', 'source_path', 'source_policy', 'git'],
-    'Runtime bridge package active source fields',
+    'Runtime bridge package active source fields'
   );
   assertDeepEqualJson(
     packageRow?.required_projection_fields?.['directory.installed_packages[]'],
     ['dependency_closure', 'dependent_guard'],
-    'Runtime bridge package directory readiness fields',
+    'Runtime bridge package directory readiness fields'
   );
   assertIncludesAll(
     packageRow?.allowed_action_refs,
     ['repair_dependency_closure', 'agent_package_activate'],
-    'Runtime bridge package repair and activation actions',
+    'Runtime bridge package repair and activation actions'
   );
   assertDeepEqualJson(
     packageRow?.required_projection_fields?.['status_index.packages[package_id]'],
-    ['dependency_readiness', 'operational_ready', 'launch_allowed', 'launch_blocked_reason', 'allowed_when_blocked', 'repair_action', 'activation_action', 'dependent_guard'],
-    'Runtime bridge package status readiness fields',
+    [
+      'dependency_readiness',
+      'operational_ready',
+      'launch_allowed',
+      'launch_blocked_reason',
+      'allowed_when_blocked',
+      'repair_action',
+      'activation_action',
+      'dependent_guard',
+    ],
+    'Runtime bridge package status readiness fields'
   );
   assertDeepEqualJson(
     packageRow?.use_boundary_activation_contract,
@@ -1075,11 +1172,12 @@ function validatePackageReadinessProjection(runtimeBridge) {
       },
       result_fields: ['launch_allowed', 'use_receipt_ref', 'use_binding'],
       launch_policy: 'launch_only_when_launch_allowed_true_and_use_receipt_ref_and_use_binding_are_present',
-      currentness_policy: 'framework_reconciles_latest_stable_compatible_package_closure_once_at_use_boundary_and_pins_use_binding_for_the_session',
+      currentness_policy:
+        'framework_reconciles_latest_stable_compatible_package_closure_once_at_use_boundary_and_pins_use_binding_for_the_session',
       package_identity_policy: 'generic_package_id_no_hardcoded_agent_or_capability_package_ids',
       app_role: 'prepare_then_launch_using_framework_readback_without_owning_package_currentness_or_materialization',
     },
-    'Runtime bridge package use-boundary activation contract',
+    'Runtime bridge package use-boundary activation contract'
   );
   if (
     !packageRow?.projection_authority_policy?.includes('must not infer dependency closure') ||
