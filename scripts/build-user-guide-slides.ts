@@ -288,7 +288,7 @@ function coverSlide(slides: SlideBlock[], manifest: GuideManifest, screenshotTag
   <img src="${imagePath(image)}" alt="${escapeHtml(description)}" />
 </figure>
 
-<div class="footer"><span>中文截图 · ${escapeHtml(screenshotTag)}</span><span>1 / ${slides.length}</span></div>
+<div class="footer"><span>中文界面示例 · 以当前 App 版本为准</span><span>1 / ${slides.length}</span></div>
 
 <!--
 ${markdownComment(`本教程用于 macOS App 首次安装和首启说明。截图来自 ${screenshotTag} 的中文截图资产。`)}
@@ -324,7 +324,7 @@ function stepSlide(slide: SlideBlock, slideIndex: number, totalSlides: number, s
 </main>
 
 <p class="body-line">${inlineHtml(body)}</p>
-<div class="footer"><span class="source-line">截图来自 ${escapeHtml(screenshotTag)}；PNG 保留原始尺寸。</span><span>${slideNumber} / ${totalSlides}</span></div>
+<div class="footer"><span class="source-line">界面以当前 App 版本为准</span><span>${slideNumber} / ${totalSlides}</span></div>
 
 <!--
 ${markdownComment([body, ...callouts, slide.quote ?? ''].filter(Boolean).join(' '))}
@@ -334,10 +334,10 @@ ${markdownComment([body, ...callouts, slide.quote ?? ''].filter(Boolean).join(' 
 function finalSlide(slide: SlideBlock, slideIndex: number, totalSlides: number, manifest: GuideManifest) {
   const releaseUrl = manifest.download?.latest_release_url;
   const faqs = [...slide.bullets];
-  const verification = [
-    'Release、DMG、首启日志和模块状态以 App repo contracts / workflow / VM smoke artifacts 为机器真相。',
-    '截图 manifest 记录来源、语言、尺寸、SHA 和预期中文界面文案。',
-    'PPTX/PDF 幻灯片由静态 Marp 编译链路生成，并逐页渲染检查。',
+  const usageNotes = [
+    '更换模型访问方式：打开“设置 -> 模型与访问”。',
+    '检查 App 更新：打开“设置 -> 关于与更新”。',
+    '涉及患者或敏感研究数据时，先完成脱敏并遵守机构要求。',
   ];
 
   return `<!-- _class: final -->
@@ -354,8 +354,8 @@ function finalSlide(slide: SlideBlock, slideIndex: number, totalSlides: number, 
     ${listHtml(faqs, 5)}
   </div>
   <div class="notes">
-    <h2>验证来源</h2>
-    ${listHtml(verification)}
+    <h2>使用提示</h2>
+    ${listHtml(usageNotes)}
   </div>
 </main>
 
@@ -363,7 +363,7 @@ function finalSlide(slide: SlideBlock, slideIndex: number, totalSlides: number, 
 <div class="footer"><span>GitHub Release 下载入口: ${inlineHtml(releaseUrl ?? '')}</span><span>${slideIndex + 1} / ${totalSlides}</span></div>
 
 <!--
-${markdownComment([...faqs, ...verification].join(' '))}
+${markdownComment([...faqs, ...usageNotes].join(' '))}
 -->`;
 }
 

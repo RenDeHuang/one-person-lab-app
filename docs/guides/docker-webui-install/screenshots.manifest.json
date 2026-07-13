@@ -25,7 +25,7 @@
       ],
       "width": 1440,
       "height": 951,
-      "sha256": "62fd4667a9a74e8b2ce347bb00e2cae001366cb9464905634289f404dc2713a6"
+      "sha256": "3f59bc319cab0f7181b984f3780d0bf6ef13abdd7dbf1d31bec67e274102ff2c"
     },
     {
       "file": "02-first-run-overview.png",
@@ -42,7 +42,7 @@
       ],
       "width": 1440,
       "height": 951,
-      "sha256": "9a73c2fa3136ccc1c228152a264e218e6d445dd64a10b7433d25b50bc96ccbb5"
+      "sha256": "205996b8b3a7208cb54bb244b1e4c524cacc5a43c61efd9c0ce6107453a59fc9"
     },
     {
       "file": "03-access-key-config.png",
@@ -60,7 +60,7 @@
       ],
       "width": 1440,
       "height": 951,
-      "sha256": "4234b9c25f18b7c8d48189996f6c100bde721d6a78d4a7a9676502559ec3a5fc"
+      "sha256": "fa1e23423b0cada0dfa0dac8f0923b8aadeb56b8e19c59d2b2ce7b8186be99a8"
     }
   ]
 }

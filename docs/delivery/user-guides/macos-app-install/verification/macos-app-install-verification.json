@@ -21,7 +21,7 @@
   },
   "rendered_pages": 8,
   "rendered_dir": "tmp/quarto-guides/macos-app-install/rendered",
-  "html_bytes": 2659423,
+  "html_bytes": 2655215,
   "screenshot_assets": [
     {
       "role": "download_release",
@@ -46,9 +46,9 @@
       "description": "Focused DMG installation view without unrelated browser and desktop content.",
       "file": "docs/guides/macos-app-install/screenshots/02-install-dmg.png",
       "public_file": "screenshots/02-install-dmg.png",
-      "width": 596,
-      "height": 406,
-      "sha256": "6398103f93428925be9dcec1a6786e20e42b0d219dcac89877088872f479a9ac",
+      "width": 576,
+      "height": 386,
+      "sha256": "6442f95a83645f00d8d8386b9a657ff0b280b39f98c18e3730ac87821070f32b",
       "referenced": true,
       "source_kind": "cropped_macos_tart_vm_dmg_finder_capture",
       "source": "Original Chinese macOS VM DMG Finder capture, cropped to the installation action.",
