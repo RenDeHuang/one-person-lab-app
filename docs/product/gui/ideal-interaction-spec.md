@@ -124,9 +124,9 @@ Rail 负责 navigation，不承担 dashboard：
 
 ### 跨顶层线程协调
 
-- Rail 提供可见且键盘可达的 coordination 入口；Project 下的 conversation rows 同时是 App
-  Server top-level thread 的可见入口。Status、host、
-  owner、goal、parent/ancestor 与 write-set 进入 row marker 或按需 detail，不增加 agent dashboard。
+- 主界面不提供独立“线程协调”页面或 rail 区块。Project 下的 conversation rows 仍是 App
+  Server top-level thread 的可见入口；协调由模型 host tool 或线程上下文动作按需调用。
+  Status、host、owner、goal、parent/ancestor 与 write-set 只进入按需 detail，不增加 agent dashboard。
 - 默认按当前 project 分组。跨 project 和 archived scope 通过显式 filter 进入；筛选不改变
   授权。Project/workspace 仅是新任务默认 cwd、侧栏分组和可见元数据，任务后续可按 Codex
   自身权限访问其他目录；不把全局目录铺在 Home，也不自动把其它线程全文注入当前上下文。
@@ -146,7 +146,7 @@ Rail 负责 navigation，不承担 dashboard：
   read/send/steer/archive 增加确认；cross-host 当前显示 unavailable，不转换成伪 handoff success。
 - Target turn 保留 sender、reason 与 message；source 的 coordination audit 显示 target、协议动作、
   Codex policy inheritance、advisory、当前状态和结果入口。当前没有独立持久化 approval receipt，
-  不能把 delivery audit 冒充 approval 决策历史。Desktop 使用 rail context action + dialog/popover，
+  不能把 delivery audit 冒充 approval 决策历史。Desktop 使用 thread-detail context action + dialog/popover，
   mobile 使用 action sheet + full-height detail，语义等价。
 - `spawn_agent`、`send_input`、`wait_agent` 继续服务同一 agent tree；跨根线程只经 App Server
   `thread/*` 与 `turn/*`，AionUI 不拥有 thread ID、history 或路由策略。
@@ -351,6 +351,7 @@ First-run 的目标是让用户尽快进入可工作的 App：
 ## 双语与可访问性
 
 - 普通 UI 支持简体中文和英文，同屏不随机混用语言。
+- 用户未设置语言时，首帧渲染前按系统语言选择简体中文或英文；已有显式偏好跨启动保留，启动逻辑不得覆盖。
 - 中文 labels 描述工作目的；technical name、命令和用户原文在 details 保留原样。
 - Language switch 只改变 copy/formatting，不改变 workspace、thread、route 或 runtime state。
 - 所有主流程可 keyboard-only 完成；focus order 与视觉顺序一致。
@@ -379,8 +380,9 @@ First-run 的目标是让用户尽快进入可工作的 App：
 - Rail 顶部只有 New task、Runtime、Archived；capability 选择在 Home，管理在 Settings。
 - Environment 首层保持 workspace/locality/branch/changes/subtasks/sources；OPL artifact/evidence 为
   次级 section/preview，advanced tools 默认关闭。
-- Rail coordination 入口、App Server thread directory/detail、rename/archive/unarchive/delete、target
-  sender/reason/message、source delivery audit 与 denied/advisory/offline 状态均可发现；approval/
+- 普通 navigation 不展示独立 coordination 页面；App Server thread directory/detail、keyboard-reachable
+  thread-detail context action、rename/archive/unarchive/delete、target sender/reason/message、source delivery
+  audit 与 denied/advisory/offline 状态均可按需发现；approval/
   user-input pending 不误报失败，且不虚报独立 approval receipt。同 key 重试返回第一次成功结果且
   不二次 dispatch；跨 host 当前明确 unavailable，跨顶层投递不使用 `send_input`。
 - Model host tool 只有在 dynamic-tool registration、`item/tool/call` 和结果 readback 同 cohort

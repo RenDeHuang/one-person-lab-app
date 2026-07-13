@@ -62,6 +62,8 @@ function validateHomeLayout(guiContract) {
   assertDeepEqualJson(guiContract.home_layout, appOwnedHomeLayout, 'App GUI home layout');
   if (
     guiContract.utility_icon_policy?.library !== 'font_awesome_free_for_opl_owned_utility_icons' ||
+    guiContract.utility_icon_policy?.opl_owned_settings_navigation_and_overview !== 'font_awesome_free' ||
+    guiContract.utility_icon_policy?.upstream_fork_body_bulk_icon_rewrite !== 'forbidden' ||
     guiContract.utility_icon_policy?.refresh_actions !== 'icon_only_with_tooltip_and_accessible_name' ||
     guiContract.utility_icon_policy?.model_reasoning_control !== 'text_and_disclosure_without_brain_icon' ||
     guiContract.utility_icon_policy?.global_feedback_action?.placement !== 'titlebar_trailing_utility' ||
@@ -128,6 +130,18 @@ function validateHomeLayout(guiContract) {
     'duplicate current task or Runtime summary outside the message timeline',
     'workspace bundle export authorization',
   ], 'App GUI ordinary conversation forbidden 41301 signals');
+}
+
+function validateUiLocalePolicy(guiContract) {
+  const policy = guiContract.ui_locale_policy;
+  if (
+    policy?.explicit_user_preference !== 'preserve_across_launches' ||
+    policy?.first_launch_without_preference !== 'detect_system_locale_before_first_render' ||
+    policy?.supported_normalization !== 'zh_to_zh-CN_else_en-US' ||
+    policy?.startup_must_not_overwrite_explicit_preference !== true
+  ) {
+    throw new Error('App GUI locale policy must detect the system language before first render while preserving explicit preferences');
+  }
 }
 
 function validateAiFirstInteractionModel(guiContract) {
@@ -323,6 +337,7 @@ function validateNonDefaultAndRetiredAssistants(guiContract) {
 export function validateGuiProductHomeContract(guiContract) {
   validateGuiProductIdentity(guiContract);
   validateExecutorPolicy(guiContract);
+  validateUiLocalePolicy(guiContract);
   validateHomeLayout(guiContract);
   validateAiFirstInteractionModel(guiContract);
   validateRightContextInspector(guiContract);

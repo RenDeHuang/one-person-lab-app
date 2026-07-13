@@ -111,7 +111,7 @@ first-run、中英文，以及本轮纳入 authority 的跨顶层线程协调不
 | P1 | Current task | `opl_adopted_relocated` | timeline 单一 summary；普通任务不默认 sticky，长任务或用户操作才 pin。App Server approval/user-input 是 target context 的 pending state。 | 真实长任务/approval packaged evidence 单独维护。 |
 | P1 | Transcript export | `opl_adopted_active` | cursor-safe、递归脱敏、Markdown/JSON、失败可见；`/export` 使用同一安全路径。 | workspace bundle 继续要求逐项选择与确认。 |
 | P1 | Desktop navigation | `opl_adopted_active` | 保留 Back/Forward、Previous/Next、New Window 的 OPL 路径，不创建 WebUI 第二 IA。 | 完整快捷键专项验收不阻塞 core GUI。 |
-| P1 | Cross-thread user coordination | `opl_adopted_active` | `b2c05a1c...` 已实现rail可见键盘入口、canonical directory、App Server lifecycle、同key首结果replay、advisory、delivery audit与typed interactive request pending flow；current pixel证明rail入口可见。 | Detail/dispatch/audit不由入口pixel证明；独立非紧急queue未实现，cross-host保持future scope。 |
+| P1 | Cross-thread coordination | `opl_adopted_internal` | Canonical directory、App Server lifecycle、同key首结果replay、advisory、delivery audit 与 typed interactive request pending flow 保留；普通 rail 的独立“线程协调”入口退出产品目标。 | 能力由 keyboard-reachable thread-detail context action 与 model host tool 按需调用；普通 navigation 不展示独立页面，cross-host 保持 future scope。 |
 | P1 | Model-triggered coordination | `opl_adopted_required` | 产品合同要求 model host tool；ordinary ACP -> AionCore -> codex-acp链路没有dynamic-tool输入或`item/tool/call` callback，user rail不能替代实现证据。 | 优先由AionCore同一App Server client承接`thread/start(dynamicTools)`；或由codex-acp补齐input/response/callback。禁止第二runtime、post-hoc port handler或Shell tool store。 |
 | P1 | Artifact preview adapter | `opl_adopted_active` | `b2c05a1c...` 将用户显式绝对本地路径或workspace-scoped project ref薄接现有Preview并拒绝非法输入；current package覆盖Preview surface。 | 各renderer与ref分流仍需专项pixels，不复制renderer/store。 |
 | P1 | Projectless local input | `opl_adopted_active` | 无 workspace 保留 attachment、file/directory picker、paste/drop、`/open`，只服从 Codex permission/approval/sandbox。 | 补 current pixels/package，禁止恢复 project-required gate。 |
@@ -170,8 +170,8 @@ Shell package/version 和 AionCore intake 继续作为独立维护工作。选�
 | Shell GUI behavior 与 OPL 非降级边界一致 | `current_source_gates_verified_partial_product_gaps` | `d5c7581b...` 保留OPL已用功能、Gateway/UI与Runtime V2，并新增Last turn/feedback/窄窗修复；full source gates已闭合，新package/pixels仍待闭合。 |
 | Projectless local input | `source_implemented_pixel_unverified` | 无workspace输入已进入Codex原生permission路径；current conversation fixture含workspace，因此不外推projectless pixels。 |
 | App Server rail authority | `source_implemented` | Rail directory/actions使用 App Server；pin仅 UI metadata，local reset不重写 history。 |
-| Cross-thread user coordination | `source_implemented_entry_pixel_verified` | Visible entry、canonical directory、unarchive、首结果replay、advisory与typed interactive pending requests已实现；current pixel只覆盖rail入口，delivery audit不冒充approval receipt。 |
-| Model-facing coordination tool | `source_missing_protocol_blocked_required_target` | User rail/detail不构成dynamic-tool证据；ACP ordinary owner缺input/callback，owner route为AionCore/codex-acp。 |
+| Cross-thread coordination | `source_implemented_no_ordinary_navigation` | Canonical directory、unarchive、首结果 replay、advisory 与 typed interactive pending requests 保留；普通 rail 不挂载独立页面，delivery audit 不冒充 approval receipt。 |
+| Model-facing coordination tool | `source_missing_protocol_blocked_required_target` | Thread-detail context action 不构成 dynamic-tool 证据；ACP ordinary owner 缺 input/callback，owner route 为 AionCore/codex-acp。 |
 | Artifact preview path parity | `source_implemented_surface_pixel_verified_adapter_pixel_unverified` | Current package覆盖mobile Preview surface；absolute local path与workspace ref分流、非法输入和各renderer仍靠source/tests。 |
 | Local / Worktree lifecycle | `source_partial` | Same-host create/reuse与idle handoff已实现；snapshot/restore、cleanup UI deferred，cross-host unsupported。 |
 | Review pane | `source_partial` | 四 targets、inline/detached、PR context、stage/commit/push、`gh` unavailable与Last turn已实现；line-level comments因typed protocol缺失而blocked。 |

@@ -561,6 +561,8 @@ function assertHomeSelectionAndIconPolicy(profile: AppProductProfile): void {
   }
   if (
     iconPolicy.library !== 'font_awesome_free_for_opl_owned_utility_icons' ||
+    iconPolicy.opl_owned_settings_navigation_and_overview !== 'font_awesome_free' ||
+    iconPolicy.upstream_fork_body_bulk_icon_rewrite !== 'forbidden' ||
     iconPolicy.refresh_actions !== 'icon_only_with_tooltip_and_accessible_name' ||
     iconPolicy.model_reasoning_control !== 'text_and_disclosure_without_brain_icon' ||
     iconPolicy.global_feedback_action?.placement !== 'titlebar_trailing_utility' ||
@@ -574,6 +576,18 @@ function assertHomeSelectionAndIconPolicy(profile: AppProductProfile): void {
     iconPolicy.scope !== 'opl_owned_overlay_surfaces_not_upstream_fork_body'
   ) {
     throw new Error('App product profile utility icon policy must preserve OPL-owned icons and GitHub issue routing');
+  }
+}
+
+function assertUiLocalePolicy(profile: AppProductProfile): void {
+  const policy = profile.gui.ui_locale_policy;
+  if (
+    policy.explicit_user_preference !== 'preserve_across_launches' ||
+    policy.first_launch_without_preference !== 'detect_system_locale_before_first_render' ||
+    policy.supported_normalization !== 'zh_to_zh-CN_else_en-US' ||
+    policy.startup_must_not_overwrite_explicit_preference !== true
+  ) {
+    throw new Error('App product profile locale policy must detect the system language before first render while preserving explicit preferences');
   }
 }
 
@@ -741,6 +755,7 @@ function assertProfileShape(profile: AppProductProfile): void {
   assertHomePurposeEntries(profile);
   assertHomeActivityCenterPolicy(profile);
   assertHomeSelectionAndIconPolicy(profile);
+  assertUiLocalePolicy(profile);
   assertAppProductProfileRouteReceiptPolicy(profile, 'App product profile', {
     requireExactAssistants: true,
   });

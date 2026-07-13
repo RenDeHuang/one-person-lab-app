@@ -30,6 +30,12 @@ export type AppProductProfile = {
       default_css_theme_name: string;
       codex_theme_default_enabled: boolean;
     };
+    ui_locale_policy: {
+      explicit_user_preference: string;
+      first_launch_without_preference: string;
+      supported_normalization: string;
+      startup_must_not_overwrite_explicit_preference: boolean;
+    };
     home: {
       primary_input_surface: string;
       nested_input_card_frames_allowed: boolean;
@@ -184,6 +190,8 @@ export type AppProductProfile = {
       };
       utility_icon_policy: {
         library: string;
+        opl_owned_settings_navigation_and_overview: string;
+        upstream_fork_body_bulk_icon_rewrite: string;
         refresh_actions: string;
         model_reasoning_control: string;
         global_feedback_action: {

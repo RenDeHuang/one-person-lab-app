@@ -264,17 +264,19 @@ installed count or appear as a missing package.
 
 Primary information:
 
-- one overall usability summary derived from model access, workspace,
-  background services, capabilities, and updates;
-- an impact-ordered issue queue, one next useful action, and at most two
-  contextual entries selected from recent or currently relevant tasks.
+- one overall usability summary led by Codex CLI and model-access readiness;
+- OPL Gateway connection, signed-in identity, current usage, and freshness when
+  available;
+- an impact-ordered issue queue and one next useful action. Workspace paths stay
+  on Workspace rather than taking a primary Overview card.
 
 Primary action: open the highest-priority attention item, only when one exists.
 
 Exception state: emphasize one actionable issue, not every status.
 
-Technical details: raw state keys, timestamps, paths, and receipts open in one
-read-only diagnostic modal.
+Technical details: the small Codex, Gateway freshness, background-service, and
+capability summary stays visible inline. Raw paths, receipts, and payloads remain
+outside Overview.
 
 Required anchors: `status`, `attention`, `next-action`, `common-actions`.
 

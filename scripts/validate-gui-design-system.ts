@@ -803,9 +803,10 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     threadDirectoryPolicy.shell_local_storage_role !== 'drafts_preferences_and_rebuildable_cache_only' ||
     threadDirectoryPolicy.shell_thread_history_authority !== false ||
     threadDirectoryPolicy.project_workspace_role !== 'default_cwd_grouping_and_visible_metadata_only' ||
-    threadDirectoryPolicy.coordination_entry_visible !== true ||
-    threadDirectoryPolicy.coordination_entry_keyboard_reachable !== true ||
-    threadDirectoryPolicy.coordination_entry_placement !== 'ordinary_rail_thread_directory'
+    threadDirectoryPolicy.ordinary_coordination_entry_visible !== false ||
+    threadDirectoryPolicy.coordination_context_action_keyboard_reachable !== true ||
+    threadDirectoryPolicy.coordination_entry_placement !==
+      'thread_detail_context_action_and_model_host_tool_no_ordinary_navigation'
   ) {
     issues.add('interaction baseline navigation rail must preserve the governed desktop and narrow-window skeleton');
   }
@@ -1038,8 +1039,8 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   if (
     threadCoordination.product_role !== 'opl_host_cross_top_level_codex_thread_coordination' ||
     threadCoordination.entry_surface !==
-      'ordinary_rail_thread_directory_thread_detail_action_and_model_host_tool' ||
-    threadCoordination.ordinary_navigation_visible !== true ||
+      'thread_detail_context_action_and_model_host_tool_no_ordinary_navigation' ||
+    threadCoordination.ordinary_navigation_visible !== false ||
     threadCoordination.keyboard_reachable_entry !== true ||
     threadCoordination.primary_composer_control_visible !== false ||
     threadCoordination.thread_detail_context_action_visible !== true ||
@@ -1061,7 +1062,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
       'post_hoc_coordination_port_handler',
       'shell_owned_tool_or_thread_store',
     ]) ||
-    threadCoordination.default_state !== 'rail_entry_visible_coordination_panel_closed' ||
+    threadCoordination.default_state !== 'capability_available_no_ordinary_navigation_coordination_panel_closed' ||
     threadCoordination.model_role !== 'decide_when_and_why_to_coordinate' ||
     threadCoordination.protocol_owner !== 'codex_core_app_server' ||
     threadCoordination.app_host_owner !== 'opl_app_host' ||
@@ -1147,14 +1148,14 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     ]) ||
     coordinationViewModel.product_role !== threadCoordination.product_role ||
     coordinationViewModel.entry_surface !== threadCoordination.entry_surface ||
-    coordinationViewModel.ordinary_navigation_visible !== true ||
+    coordinationViewModel.ordinary_navigation_visible !== false ||
     coordinationViewModel.keyboard_reachable_entry !== true ||
     coordinationViewModel.primary_composer_control_visible !== false ||
     coordinationViewModel.thread_detail_context_action_visible !== true ||
     coordinationViewModel.model_tool_access !== true ||
     JSON.stringify(record(coordinationViewModel.model_tool_access_evidence_boundary)) !==
       JSON.stringify(threadModelToolEvidence) ||
-    coordinationViewModel.default_state !== 'rail_entry_visible_coordination_panel_closed' ||
+    coordinationViewModel.default_state !== 'capability_available_no_ordinary_navigation_coordination_panel_closed' ||
     coordinationViewModel.thread_list_protocol !== 'thread/list' ||
     coordinationViewModel.thread_read_protocol !== 'thread/read' ||
     !sameStrings(coordinationViewModel.thread_actions, ['thread/resume', 'thread/fork', 'thread/archive', 'thread/unarchive']) ||
@@ -1389,6 +1390,18 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   }
 
   const profileGui = record(profile.gui);
+  const expectedUiLocalePolicy = {
+    explicit_user_preference: 'preserve_across_launches',
+    first_launch_without_preference: 'detect_system_locale_before_first_render',
+    supported_normalization: 'zh_to_zh-CN_else_en-US',
+    startup_must_not_overwrite_explicit_preference: true,
+  };
+  if (
+    JSON.stringify(record(guiContract.ui_locale_policy)) !== JSON.stringify(expectedUiLocalePolicy) ||
+    JSON.stringify(record(profileGui.ui_locale_policy)) !== JSON.stringify(expectedUiLocalePolicy)
+  ) {
+    issues.add('GUI contract and product profile must detect system locale before first render and preserve explicit language preferences');
+  }
   const profileHome = record(profileGui.home);
   const homeLayout = record(profileHome.home_layout);
   const activeConversation = record(profileGui.ordinary_conversation);

@@ -120,6 +120,7 @@ function validateProductProfileCodexDefaults(profile) {
   assertAppProductProfileCodexModelDisplayOptions(profile, 'Product profile');
   assertAppProductProfileRouteReceiptPolicy(profile, 'Product profile');
   assertHomeComposerStateContract(profile.gui?.home?.home_composer_state_contract, 'Product profile Home composer state contract');
+  validateUiLocalePolicy(profile);
   validateHomeAssistantDefaults(profile);
   validateProfessionalAgentPackages(profile);
   validateProductProfileSettings(profile);
@@ -127,6 +128,18 @@ function validateProductProfileCodexDefaults(profile) {
   validateProductProfileCodexSkills(profile);
   validateInstallUpdateTaxonomy(profile);
   validateOrdinaryCapabilitySelectorPolicy(profile);
+}
+
+function validateUiLocalePolicy(profile) {
+  const policy = profile.gui?.ui_locale_policy;
+  if (
+    policy?.explicit_user_preference !== 'preserve_across_launches' ||
+    policy?.first_launch_without_preference !== 'detect_system_locale_before_first_render' ||
+    policy?.supported_normalization !== 'zh_to_zh-CN_else_en-US' ||
+    policy?.startup_must_not_overwrite_explicit_preference !== true
+  ) {
+    throw new Error('Product profile locale policy must detect the system language before first render while preserving explicit preferences');
+  }
 }
 
 function validateHomeAssistantDefaults(profile) {
@@ -141,6 +154,8 @@ function validateHomeAssistantDefaults(profile) {
   const iconPolicy = profile.gui.home.utility_icon_policy;
   if (
     iconPolicy?.library !== 'font_awesome_free_for_opl_owned_utility_icons' ||
+    iconPolicy?.opl_owned_settings_navigation_and_overview !== 'font_awesome_free' ||
+    iconPolicy?.upstream_fork_body_bulk_icon_rewrite !== 'forbidden' ||
     iconPolicy?.refresh_actions !== 'icon_only_with_tooltip_and_accessible_name' ||
     iconPolicy?.model_reasoning_control !== 'text_and_disclosure_without_brain_icon' ||
     iconPolicy?.global_feedback_action?.placement !== 'titlebar_trailing_utility' ||

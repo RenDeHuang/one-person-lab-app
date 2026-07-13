@@ -162,8 +162,9 @@ Dark target：
 
 ## Icons
 
-- OPL-owned utility icon 统一使用 Font Awesome Free；不手画 SVG，也不借此批量改写 upstream
-  fork-body 图标。纯刷新动作只显示 refresh icon，并用 tooltip 与 accessible name 提供文字。
+- OPL-owned Settings 导航、Overview 状态图标和 utility icon 统一使用 Font Awesome Free；不手画
+  SVG，也不借此批量改写 upstream fork-body 图标。纯刷新动作只显示 refresh icon，并用
+  tooltip 与 accessible name 提供文字。
 - Model/reasoning 紧凑控件直接显示模型与推理档位文字和 disclosure，不显示大脑图标。
 - 常规尺寸 `16-20px`，stroke 保持 `1.5-1.75px` 的统一视觉重量。
 - Undo、redo、attach、send、stop、search、settings、close、expand 等熟悉动作只用图标
@@ -306,6 +307,7 @@ accent border、轻量 fill 与 check indicator，不能只靠低对比背景色
 ## 双语
 
 - 普通 UI 支持简体中文和英文，同一屏保持单一语言。
+- 无显式语言偏好的首次启动在首帧前检测系统语言；显式选择优先且跨启动保留。
 - OPL、Codex 可作为品牌保留；命令、路径、receipt id 和用户原文在技术区域保留原样。
 - 中文 labels 优先描述工作目的，不用 MAS/MAG/RCA、route id 或 backend 名称替代。
 - 为英文长词和中文扩展预留至少约 30% 文案空间；不能靠缩小字体或负字距塞入控件。

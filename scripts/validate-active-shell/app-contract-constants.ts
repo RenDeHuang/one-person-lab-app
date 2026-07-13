@@ -543,7 +543,7 @@ export const appOwnedSettingsProductPageIds = [
   ...appOwnedSecondarySettingsPages,
 ];
 export const appOwnedSettingsTechnicalDetailsDefault = {
-  overview: "explicit_action_modal",
+  overview: "inline_compact_always_visible",
   access: "not_applicable",
   workspace: "explicit_action_modal",
   agents: "collapsed",

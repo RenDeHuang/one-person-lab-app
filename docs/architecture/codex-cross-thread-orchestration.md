@@ -282,7 +282,10 @@ Host 在投递时遵循：
   作为非阻断 advisory；
 - **Runtime:** 只承载跨 project 的聚合运行视图，不复制 conversation timeline。
 
-Desktop 可使用 rail context action + dialog/popover；mobile 使用 action sheet + full-height detail。
+普通 navigation 不增加独立“线程协调”页面或 rail 区块；thread-detail context action 与模型 host tool
+复用同一 adapter，能力存在不等于需要常驻用户入口。
+
+Desktop 可使用 thread-detail context action + dialog/popover；mobile 使用 action sheet + full-height detail。
 两端能力和语义必须等价，不能在 mobile 隐藏跨线程投递或冲突结果。
 
 ## AionUI 实现与上游维护

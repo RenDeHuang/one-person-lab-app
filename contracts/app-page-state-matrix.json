@@ -676,12 +676,12 @@
       "id": "thread_coordination",
       "expected_source": "App-owned thread coordination contract and Codex App Server thread read model",
       "machine_source": "contracts/app-gui-product-contract.json#interaction_baseline.thread_coordination + Codex App Server thread and turn protocol",
-      "page_contract": "opl_cross_top_level_thread_coordination_integrated_rail_capability",
+      "page_contract": "opl_cross_top_level_thread_coordination_internal_capability_no_ordinary_navigation",
       "coordination_view_model": {
         "product_role": "opl_host_cross_top_level_codex_thread_coordination",
-        "entry_surface": "ordinary_rail_thread_directory_thread_detail_action_and_model_host_tool",
-        "default_state": "rail_entry_visible_coordination_panel_closed",
-        "ordinary_navigation_visible": true,
+        "entry_surface": "thread_detail_context_action_and_model_host_tool_no_ordinary_navigation",
+        "default_state": "capability_available_no_ordinary_navigation_coordination_panel_closed",
+        "ordinary_navigation_visible": false,
         "keyboard_reachable_entry": true,
         "primary_composer_control_visible": false,
         "thread_detail_context_action_visible": true,
@@ -843,7 +843,7 @@
         "same_agent_tree_api_boundary": "spawn_agent_send_input_wait_agent_same_tree_only"
       },
       "must_show": [
-        "ordinary rail exposes a visible keyboard-reachable coordination entry without adding a primary composer control",
+        "cross-thread coordination remains available through a keyboard-reachable thread-detail context action and the model host tool without an ordinary navigation page",
         "model-facing host tool remains a required product target and requires dynamic-tool registration plus item tool-call round-trip evidence",
         "task rename, archive, restore, and delete map to App Server while pin remains Shell UI metadata",
         "project and workspace are default cwd, grouping and visible metadata rather than authorization domains",
@@ -868,6 +868,7 @@
         "approval or user-input request rendered as an immediate dispatch failure",
         "independent approval receipt claimed when only the delivery audit is persisted",
         "rail or thread-detail user coordination claimed as proof that the model-facing host tool is implemented",
+        "standalone thread coordination page or ordinary rail coordination section",
         "a default-open coordination dashboard"
       ],
       "state_source": "Codex App Server thread/list and thread/read",
@@ -2983,7 +2984,9 @@
         "always": [
           "settings-page-overview",
           "settings-overview-primary",
-          "settings-overview-diagnostics-action"
+          "settings-overview-card-codex",
+          "settings-overview-card-gateway",
+          "settings-overview-technical-details"
         ],
         "conditional": [
           {
@@ -2993,10 +2996,6 @@
           {
             "testid": "settings-overview-primary-action",
             "when": "attention_only"
-          },
-          {
-            "testid": "settings-overview-technical-details",
-            "when": "diagnostics_open"
           }
         ]
       },
@@ -3013,7 +3012,7 @@
         "overview.common_actions"
       ],
       "primary_action_id": "open_first_attention_item",
-      "technical_details_default": "explicit_action_modal",
+      "technical_details_default": "inline_compact_always_visible",
       "exception_emphasis": "attention_only"
     },
     {

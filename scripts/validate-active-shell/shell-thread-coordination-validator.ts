@@ -177,11 +177,11 @@ export function validateShellThreadCoordination(shellPaths): void {
     ],
     'Codex interactive server-request UI',
   );
-  assertShellTextIncludesAll(
-    shellPaths,
-    paths.sider,
+  const sider = readShellText(shellPaths, paths.sider);
+  assertTextExcludesAll(
+    sider,
     ['ThreadCoordinationSection', '<ThreadCoordinationSection'],
-    'Ordinary rail keyboard-reachable cross-thread coordination entry',
+    'Cross-thread coordination stays available to the host/model without an ordinary rail page',
   );
 
   const tests = [

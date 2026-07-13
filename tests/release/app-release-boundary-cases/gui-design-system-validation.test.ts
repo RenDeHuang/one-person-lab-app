@@ -466,11 +466,11 @@ test('GUI design-system validator rejects a workspace-only explicit local artifa
   );
 });
 
-test('GUI design-system validator rejects hidden coordination and duplicate-error idempotency', () => {
+test('GUI design-system validator rejects ordinary-navigation coordination and duplicate-error idempotency', () => {
   const root = createFixture();
   const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
   const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
-  contract.interaction_baseline.thread_coordination.ordinary_navigation_visible = false;
+  contract.interaction_baseline.thread_coordination.ordinary_navigation_visible = true;
   contract.interaction_baseline.thread_coordination.idempotency_policy.same_key_retry_behavior =
     'return_duplicate_error';
   writeJson(root, 'contracts/app-gui-product-contract.json', contract);
@@ -478,6 +478,19 @@ test('GUI design-system validator rejects hidden coordination and duplicate-erro
   assert.throws(
     () => validateGuiDesignSystem(root),
     /cross-top-level coordination must preserve Codex App flexibility while keeping OPL metadata, advisories, idempotency, and audit/,
+  );
+});
+
+test('GUI design-system validator rejects an English-first locale default without an explicit preference', () => {
+  const root = createFixture();
+  const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
+  const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+  contract.ui_locale_policy.first_launch_without_preference = 'default_en-US_before_first_render';
+  writeJson(root, 'contracts/app-gui-product-contract.json', contract);
+
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /GUI contract and product profile must detect system locale before first render/,
   );
 });
 

@@ -1906,27 +1906,30 @@
         "label_zh": "概览",
         "label_en": "Overview",
         "primary_information": [
-          "one overall usability summary derived from model access, workspace, background services, capabilities, and updates",
+          "one overall usability summary led by Codex CLI and model-access readiness",
+          "OPL Gateway connection, signed-in account identity, current usage, and freshness when available",
           "issue queue ordered by user impact and limited to actionable exceptions",
           "one next useful action",
-          "at most two contextual entries selected from recent or currently relevant tasks, never a directory of Settings pages"
+          "workspace path stays on Workspace and is not a primary Overview card"
         ],
         "first_viewport_groups": [
           "system_status",
           "attention_queue",
-          "next_action_and_context"
+          "codex_and_gateway"
         ],
         "surface_inventory": {
           "configuration": [],
           "status": [
             { "id": "system_status", "owner": "overview" },
-            { "id": "attention_queue", "owner": "overview" }
+            { "id": "attention_queue", "owner": "overview" },
+            { "id": "codex_status", "owner": "overview" },
+            { "id": "gateway_account_and_usage", "owner": "overview" }
           ],
           "action": [
             { "id": "open_first_attention_item", "owner": "overview" }
           ],
           "diagnostic": [
-            { "id": "raw_overview_evidence", "owner": "overview" }
+            { "id": "compact_overview_technical_details", "owner": "overview" }
           ]
         },
         "primary_action": {
@@ -1937,12 +1940,14 @@
           "label_en": "Review attention item"
         },
         "exception_state": "emphasize only the highest-priority item that needs user action",
-        "technical_details_boundary": "raw state keys, timestamps, paths, and receipts open in a read-only diagnostic modal; no inline details disclosure",
+        "technical_details_boundary": "the small read-only Codex, Gateway freshness, background-service, and capability summary is always visible inline; raw paths, receipts, and payloads remain outside Overview",
         "required_dom": {
           "always": [
             "settings-page-overview",
             "settings-overview-primary",
-            "settings-overview-diagnostics-action"
+            "settings-overview-card-codex",
+            "settings-overview-card-gateway",
+            "settings-overview-technical-details"
           ],
           "conditional": [
             {
@@ -1952,10 +1957,6 @@
             {
               "testid": "settings-overview-primary-action",
               "when": "attention_only"
-            },
-            {
-              "testid": "settings-overview-technical-details",
-              "when": "diagnostics_open"
             }
           ]
         },

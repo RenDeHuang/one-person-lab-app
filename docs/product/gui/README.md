@@ -197,9 +197,10 @@ package/user path。当前 contract/source 与 packaged route visual evidence �
   或任务需要打开。旧八类 inspector taxonomy 与会话级 Runtime duplicate 不再是产品面。
 - Transcript export 只导出完整分页后的、脱敏的 user/assistant text；Markdown 默认、
   strict JSON 可选，目录与文件名显式选择，不授权 workspace bundle。
-- 跨顶层线程协调复用 project/conversation rail、按需 detail、target ordinary turn、source delivery
-  audit 和 mobile sheet；独立双边 timeline event 属于后续增强，不能从单份 audit 推导；
-  rail 必须提供可见且键盘可达的入口，不能只留下 model host tool。
+- 跨顶层线程协调复用 project/conversation directory、按需 thread detail、target ordinary turn、source
+  delivery audit 和 mobile sheet；独立双边 timeline event 属于后续增强，不能从单份 audit 推导。
+  普通 navigation 不展示独立“线程协调”页面或 rail 区块；keyboard-reachable thread-detail context
+  action 与 model host tool 复用同一 adapter。
   Thread identity/history 归 Codex Core/App Server；OPL host 通过 `thread/list`、`thread/read`、
   `thread/resume`、`thread/fork`、`thread/archive`、`turn/start`、`turn/steer` 完成受控路由，
   并负责 opaque-key 幂等、project/workspace/write-set/route advisory 和可见 delivery audit。Project/

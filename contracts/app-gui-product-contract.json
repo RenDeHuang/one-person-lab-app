@@ -166,9 +166,9 @@
         "shell_local_storage_role": "drafts_preferences_and_rebuildable_cache_only",
         "shell_thread_history_authority": false,
         "project_workspace_role": "default_cwd_grouping_and_visible_metadata_only",
-        "coordination_entry_visible": true,
-        "coordination_entry_keyboard_reachable": true,
-        "coordination_entry_placement": "ordinary_rail_thread_directory"
+        "ordinary_coordination_entry_visible": false,
+        "coordination_context_action_keyboard_reachable": true,
+        "coordination_entry_placement": "thread_detail_context_action_and_model_host_tool_no_ordinary_navigation"
       }
     },
     "conversation_scope": {
@@ -284,9 +284,9 @@
     "thread_coordination": {
       "definition_role": "opl_target_translation_not_literal_codex_observation",
       "product_role": "opl_host_cross_top_level_codex_thread_coordination",
-      "entry_surface": "ordinary_rail_thread_directory_thread_detail_action_and_model_host_tool",
-      "default_state": "rail_entry_visible_coordination_panel_closed",
-      "ordinary_navigation_visible": true,
+      "entry_surface": "thread_detail_context_action_and_model_host_tool_no_ordinary_navigation",
+      "default_state": "capability_available_no_ordinary_navigation_coordination_panel_closed",
+      "ordinary_navigation_visible": false,
       "keyboard_reachable_entry": true,
       "primary_composer_control_visible": false,
       "thread_detail_context_action_visible": true,
@@ -1796,6 +1796,8 @@
   },
   "utility_icon_policy": {
     "library": "font_awesome_free_for_opl_owned_utility_icons",
+    "opl_owned_settings_navigation_and_overview": "font_awesome_free",
+    "upstream_fork_body_bulk_icon_rewrite": "forbidden",
     "refresh_actions": "icon_only_with_tooltip_and_accessible_name",
     "model_reasoning_control": "text_and_disclosure_without_brain_icon",
     "global_feedback_action": {
@@ -6155,6 +6157,12 @@
         "shell_transport_hint": "hash_router_uses_query_param_section"
       }
     }
+  },
+  "ui_locale_policy": {
+    "explicit_user_preference": "preserve_across_launches",
+    "first_launch_without_preference": "detect_system_locale_before_first_render",
+    "supported_normalization": "zh_to_zh-CN_else_en-US",
+    "startup_must_not_overwrite_explicit_preference": true
   },
   "ordinary_cockpit_surface_budget": {
     "surface_id": "ordinary_app_cockpit_surface_budget",

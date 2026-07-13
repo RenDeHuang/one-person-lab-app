@@ -54,7 +54,7 @@ const files = {
     'server_request_handler_unavailable' 'dispatch_failed'
   `,
   'packages/desktop/src/renderer/components/layout/Sider/index.tsx': `
-    <ThreadCoordinationSection />
+    ordinary navigation without a thread coordination page
   `,
   'tests/unit/thread-coordination/codexAppServerPort.test.ts':
     'paginates thread/list projects interactive app-server requests and returns protocol-specific decisions',
@@ -165,11 +165,11 @@ test('active-shell thread coordination validator rejects send_input as a cross-t
   assert.throws(() => validateShellThreadCoordination(shellPaths), /must not include send_input/);
 });
 
-test('active-shell thread coordination validator rejects a hidden ordinary rail entry', () => {
+test('active-shell thread coordination validator rejects an ordinary rail coordination section', () => {
   const { root, shellPaths } = fixture();
   const siderPath = path.join(root, 'packages/desktop/src/renderer/components/layout/Sider/index.tsx');
-  fs.writeFileSync(siderPath, 'ordinary navigation without coordination', 'utf8');
-  assert.throws(() => validateShellThreadCoordination(shellPaths), /keyboard-reachable cross-thread coordination entry/);
+  fs.writeFileSync(siderPath, '<ThreadCoordinationSection />', 'utf8');
+  assert.throws(() => validateShellThreadCoordination(shellPaths), /without an ordinary rail page/);
 });
 
 test('active-shell thread coordination validator rejects legacy project and write-set hard gates', () => {

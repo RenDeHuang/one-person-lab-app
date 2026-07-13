@@ -32,7 +32,7 @@ underlying data is not deleted.
 
 | Page | Configure | View | Act | Diagnose | Terminal state |
 | --- | --- | --- | --- | --- | --- |
-| Overview | None; it is a control-center summary | Overall readiness, attention count, capability and workspace summaries | Open the owning page for the next action | One diagnostic entry | No empty overview and no duplicated technical state |
+| Overview | None; it is a control-center summary | Codex readiness, OPL Gateway account and usage, and actionable attention | Open the owning page for the next action | Compact technical facts remain inline; raw paths and receipts stay elsewhere | No empty overview, no workspace-path primary card, and no duplicated technical state |
 | Model & Access | Model, reasoning, access source and supported credential choices | Codex CLI and Gateway readiness | Open the owning access flow | Non-duplicative access diagnostics only | Model/access ownership is explicit |
 | Workspace | Workspace location and supported workspace behavior | Current path and meaningful writability/attention state | Choose or open workspace | Raw path detail only when needed | One owner surface; no repeated `available` badges |
 | Agents & Capabilities | Home visibility for adopted OPL capabilities | Canonical package identity, purpose and readiness | Open capability management/maintenance owner | Package/source detail on demand | No AionUI custom-assistant product entry |
