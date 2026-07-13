@@ -782,42 +782,6 @@ jobs:
           path: remote-release-verification.json
           if-no-files-found: error
 
-  stable-homebrew-tap-update:
-    name: Update Stable Homebrew tap
-    needs:
-      - release-preflight
-      - remote-verify-standard
-      - remote-verify-full
-      - standard-first-run-vm-smoke-after-standard-only
-      - standard-vm-smoke-gate-after-full
-    if: ${{ !cancelled() && inputs.run_vm_smoke && needs.release-preflight.outputs.homebrew_tap_update_required == 'true' && needs.remote-verify-standard.result == 'success' && ((!inputs.include_full_package && needs.standard-first-run-vm-smoke-after-standard-only.result == 'success') || (inputs.include_full_package && needs.standard-vm-smoke-gate-after-full.result == 'success')) }}
-    uses: ./.github/workflows/homebrew-tap-update.yml
-    with:
-      channel: stable
-      package_kind: app_standard
-      opl_version: ${{ inputs.opl_version }}
-      release_repo: gaofeng21cn/one-person-lab-app
-      tap_repo: gaofeng21cn/homebrew-one-person-lab
-    secrets:
-      OPL_HOMEBREW_TAP_TOKEN: ${{ secrets.OPL_HOMEBREW_TAP_TOKEN }}
-
-  full-homebrew-tap-update:
-    name: Update Full Homebrew tap
-    needs:
-      - stable-homebrew-tap-update
-      - remote-verify-full
-      - full-first-run-vm-smoke
-    if: ${{ !cancelled() && inputs.include_full_package && inputs.run_vm_smoke && inputs.release_mode == 'refresh_existing' && needs.stable-homebrew-tap-update.result == 'success' && needs.remote-verify-full.result == 'success' && needs.full-first-run-vm-smoke.result == 'success' }}
-    uses: ./.github/workflows/homebrew-tap-update.yml
-    with:
-      channel: stable
-      package_kind: app_full_first_install
-      opl_version: ${{ inputs.opl_version }}
-      release_repo: gaofeng21cn/one-person-lab-app
-      tap_repo: gaofeng21cn/homebrew-one-person-lab
-    secrets:
-      OPL_HOMEBREW_TAP_TOKEN: ${{ secrets.OPL_HOMEBREW_TAP_TOKEN }}
-
   standard-first-run-vm-smoke-after-standard-only:
     name: Run clean standard first-run VM smoke
     needs: publish-standard
@@ -886,20 +850,6 @@ jobs:
             echo "::error::Standard VM smoke must pass before Full publish, remote verification, Homebrew, operator evidence, or readiness aggregation can run. Result: ${{ needs.standard-first-run-vm-smoke-after-full.result }}"
             exit 1
           fi
-
-  homebrew-standard-first-run-vm-smoke:
-    name: Run Homebrew standard first-run VM smoke
-    needs:
-      - publish-standard
-      - stable-homebrew-tap-update
-    if: ${{ !cancelled() && inputs.run_vm_smoke && inputs.release_mode == 'refresh_existing' && needs.stable-homebrew-tap-update.result == 'success' }}
-    uses: ./.github/workflows/opl-first-run-vm.yml
-    with:
-      release_tag: v${{ inputs.opl_version }}
-      package_profile: homebrew-standard
-      shell_ref: ${{ needs.publish-standard.outputs.shell_sha }}
-      framework_ref: ${{ needs.publish-standard.outputs.framework_sha }}
-    secrets: inherit
 
   full-first-run-vm-smoke:
     name: Run clean Full first-run VM smoke
@@ -1994,9 +1944,6 @@ jobs:
       - release-readiness-summary
       - full-first-install
       - remote-verify-full
-      - stable-homebrew-tap-update
-      - full-homebrew-tap-update
-      - homebrew-standard-first-run-vm-smoke
       - full-first-run-vm-smoke
       - docker-webui-smoke
       - webui-ghcr-publish
@@ -2017,12 +1964,15 @@ jobs:
             require_addon_gates_for_stable_readiness: '${{ inputs.require_addon_gates_for_stable_readiness }}' === 'true',
             homebrew_tap_update_required: '${{ needs.release-preflight.outputs.homebrew_tap_update_required }}' === 'true',
             status_policy: 'add_on_status_record_only_not_standard_readiness_gate',
+            promotion_saga_deferred: {
+              stable_distribution: 'pending',
+              standard_homebrew_clean_vm: 'pending',
+              full_homebrew_clean_vm: 'pending',
+              source_run_mutates_tap: false,
+            },
             job_results: {
               'full-first-install': '${{ needs.full-first-install.result }}',
               'remote-verify-full': '${{ needs.remote-verify-full.result }}',
-              'stable-homebrew-tap-update': '${{ needs.stable-homebrew-tap-update.result }}',
-              'full-homebrew-tap-update': '${{ needs.full-homebrew-tap-update.result }}',
-              'homebrew-standard-first-run-vm-smoke': '${{ needs.homebrew-standard-first-run-vm-smoke.result }}',
               'full-first-run-vm-smoke': '${{ needs.full-first-run-vm-smoke.result }}',
               'docker-webui-smoke': '${{ needs.docker-webui-smoke.result }}',
               'webui-ghcr-publish': '${{ needs.webui-ghcr-publish.result }}',

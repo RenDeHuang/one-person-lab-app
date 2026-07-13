@@ -445,7 +445,7 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
       `--version ${options.version}`,
       'reads only release-candidate-record.json',
       'requires status=ready_to_promote',
-      'runs gh release edit --draft=false --latest',
+      'publishes nonlatest then completes the receipt-backed promotion saga',
     ].join(' '),
     required_for: ['standard_release', ...(options.includeFullPackage ? ['full_first_install'] : [])],
   });
@@ -457,10 +457,9 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
     can_run_with: [],
     command: [
       '.github/workflows/desktop-release-promote.yml',
-      'calls homebrew-tap-update.yml',
-      '--channel stable',
-      '--package-kind app_standard',
-      'after gh release edit --draft=false',
+      'dispatches tap-owned stable-distribution.yml',
+      'atomically writes Standard and Full casks',
+      'after public nonlatest readback',
     ].join(' '),
     required_for: ['stable_release'],
   });
@@ -473,10 +472,9 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
       can_run_with: [],
       command: [
         '.github/workflows/desktop-release-promote.yml',
-        'calls homebrew-tap-update.yml',
-        '--channel stable',
-        '--package-kind app_full_first_install',
-        'after gh release edit --draft=false',
+        'reuses the same atomic stable-distribution receipt',
+        'does not dispatch a second tap writer',
+        'before both Homebrew clean-VM gates',
       ].join(' '),
       required_for: ['full_first_install', 'stable_release'],
     });

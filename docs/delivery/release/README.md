@@ -352,6 +352,11 @@ or console errors. Phase timings and dispatch counts are recorded. Ninety minute
 is an efficiency advisory that triggers blocker classification and evidence
 reuse, not permission to abandon an authorized release.
 
+`desktop-release.yml` is the source/candidate train and never writes the Stable
+or Full tap. Its add-on summary records Stable distribution plus both Homebrew
+clean-VM gates as deferred. `desktop-release-promote.yml` is their sole App-side
+owner after the candidate, exact Full qualification, and owner receipt pass.
+
 ## Artifact Attestation And Provenance
 
 Artifact attestation is build-integrity evidence for public release bytes, not

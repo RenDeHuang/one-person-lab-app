@@ -100,22 +100,24 @@ function validateReleaseHomebrewTapUpdatePolicy(homebrew) {
       { actual: tapUpdate?.default_workflow_repo, expected: 'gaofeng21cn/homebrew-one-person-lab' },
       { actual: tapUpdate?.default_workflow, expected: '.github/workflows/sync-from-app-releases.yml' },
       { actual: tapUpdate?.tap_sync_script, expected: 'scripts/sync-cask-from-release.mjs' },
-      { actual: tapUpdate?.app_release_direct_workflow, expected: '.github/workflows/homebrew-tap-update.yml' },
+      { actual: tapUpdate?.app_release_promotion_workflow, expected: '.github/workflows/desktop-release-promote.yml' },
+      { actual: tapUpdate?.tap_owned_stable_distribution_workflow, expected: '.github/workflows/stable-distribution.yml' },
+      { actual: tapUpdate?.app_release_direct_workflow, expected: null },
       { actual: tapUpdate?.app_release_direct_token, expected: 'OPL_HOMEBREW_TAP_TOKEN' },
       { actual: tapUpdate?.app_release_pull_request_allowed, expected: false },
       {
         actual: tapUpdate?.app_release_workflow_write_mode,
-        expected: 'direct_commit_only_with_same_version_channel_serialization_and_fetch_rebase_retry',
+        expected: 'dispatch_tap_owned_atomic_standard_and_full_distribution_only',
       },
       {
         actual: tapUpdate?.stable_release_workflow_write_mode,
         expected:
-          'new_release_or_refreshed_draft_promote_direct_commit_after_publish_readback_before_homebrew_vm_gate',
+          'promotion_saga_dispatches_tap_owned_atomic_distribution_after_nonlatest_publish',
       },
       {
         actual: tapUpdate?.direct_commit_conflict_policy,
         expected:
-          'serialize same channel/version tap writes across package kinds; on non-fast-forward push, fetch origin main, rebase the local tap commit, and retry before failing',
+          'App never commits to the tap; the tap-owned workflow serializes and atomically pushes Standard, Full, and its immutable receipt tag',
       },
       { actual: tapUpdate?.planner_script, expected: 'scripts/update-homebrew-tap.ts' },
       { actual: tapUpdate?.nightly?.mode, expected: 'tap_repo_scheduled_self_sync_to_nightly_cask' },
@@ -123,7 +125,7 @@ function validateReleaseHomebrewTapUpdatePolicy(homebrew) {
       {
         actual: tapUpdate?.stable?.mode,
         expected:
-          'new_release_or_refreshed_draft_desktop_promote_direct_commit_after_publish_readback_before_homebrew_vm_gate',
+          'desktop_promote_dispatches_tap_owned_atomic_standard_and_full_distribution',
       },
       { actual: tapUpdate?.stable?.may_consume_nightly_directly, expected: false },
       { actual: tapUpdate?.full?.mode, expected: 'stable_full_first_install_cask_after_full_release_gates' },

@@ -721,7 +721,8 @@ function buildSummary(options: Options) {
   const selectedStandardVmJob = options.includeFullPackage
     ? 'standard-first-run-vm-smoke-after-full'
     : 'standard-first-run-vm-smoke-after-standard-only';
-  const stableHomebrewRequired = options.includeFullPackage && homebrewReadiness.tap_update_required === true;
+  // Stable tap mutation and both cask VM gates belong to the post-owner promotion saga.
+  const stableHomebrewRequired = false;
   const gates = {
     remote_release_verification: applyJobResult(remoteGate, jobResults, selectedRemoteJob, true),
     standard_dmg_clean_vm: applyJobResult(

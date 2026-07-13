@@ -574,19 +574,21 @@
       "default_workflow_repo": "gaofeng21cn/homebrew-one-person-lab",
       "default_workflow": ".github/workflows/sync-from-app-releases.yml",
       "tap_sync_script": "scripts/sync-cask-from-release.mjs",
-      "app_release_direct_workflow": ".github/workflows/homebrew-tap-update.yml",
+      "app_release_promotion_workflow": ".github/workflows/desktop-release-promote.yml",
+      "tap_owned_stable_distribution_workflow": ".github/workflows/stable-distribution.yml",
+      "app_release_direct_workflow": null,
       "app_release_direct_token": "OPL_HOMEBREW_TAP_TOKEN",
       "app_release_pull_request_allowed": false,
-      "app_release_workflow_write_mode": "direct_commit_only_with_same_version_channel_serialization_and_fetch_rebase_retry",
-      "stable_release_workflow_write_mode": "new_release_or_refreshed_draft_promote_direct_commit_after_publish_readback_before_homebrew_vm_gate",
-      "direct_commit_conflict_policy": "serialize same channel/version tap writes across package kinds; on non-fast-forward push, fetch origin main, rebase the local tap commit, and retry before failing",
+      "app_release_workflow_write_mode": "dispatch_tap_owned_atomic_standard_and_full_distribution_only",
+      "stable_release_workflow_write_mode": "promotion_saga_dispatches_tap_owned_atomic_distribution_after_nonlatest_publish",
+      "direct_commit_conflict_policy": "App never commits to the tap; the tap-owned workflow serializes and atomically pushes Standard, Full, and its immutable receipt tag",
       "planner_script": "scripts/update-homebrew-tap.ts",
       "nightly": {
         "mode": "tap_repo_scheduled_self_sync_to_nightly_cask",
         "may_update_stable": false
       },
       "stable": {
-        "mode": "new_release_or_refreshed_draft_desktop_promote_direct_commit_after_publish_readback_before_homebrew_vm_gate",
+        "mode": "desktop_promote_dispatches_tap_owned_atomic_standard_and_full_distribution",
         "may_consume_nightly_directly": false
       },
       "full": {
@@ -1196,6 +1198,8 @@
         "cross_artifact_or_cross_cohort_override_allowed": false
       },
       "promotion_saga": {
+        "owner_workflow": ".github/workflows/desktop-release-promote.yml",
+        "source_desktop_release_mutates_stable_or_full_tap": false,
         "order": [
           "publish_release_nonlatest",
           "atomic_standard_and_full_tap_distribution",
@@ -1452,7 +1456,6 @@
           "jobs": [
             "standard-first-run-vm-smoke-after-standard-only",
             "standard-first-run-vm-smoke-after-full",
-            "homebrew-standard-first-run-vm-smoke",
             "full-first-run-vm-smoke"
           ],
           "warning_after_seconds": 2700,
@@ -1482,9 +1485,10 @@
         "homebrew": {
           "phase": "homebrew",
           "jobs": [
-            "stable-homebrew-tap-update",
-            "full-homebrew-tap-update",
-            "homebrew-standard-first-run-vm-smoke"
+            "stable-distribution",
+            "homebrew-standard-vm",
+            "homebrew-full-vm",
+            "homebrew-activation"
           ],
           "warning_after_seconds": 1800,
           "timeout_after_seconds": 3600,
@@ -1836,13 +1840,9 @@
           "standard-first-run-vm-smoke-after-standard-only_or_standard-vm-smoke-gate-after-full",
           "one-shot-app-installer-smoke"
         ],
-        "homebrew_tap_update_required_source": "release-preflight.outputs.homebrew_tap_update_required",
-        "homebrew_required_when_true": [
-          "stable-homebrew-tap-update",
-          "homebrew-standard-first-run-vm-smoke",
-          "full-homebrew-tap-update_for_full_release"
-        ],
-        "homebrew_allowed_when_false": "success_or_skipped",
+        "homebrew_source_run_gate_ids": [],
+        "homebrew_deferred_to_promotion_saga": true,
+        "homebrew_allowed_in_source_readiness": "deferred_to_promotion_saga",
         "diagnostic_gates": [
           "operator-evidence-bundle-validation"
         ],
