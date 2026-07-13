@@ -284,11 +284,10 @@ directory wall for the other pages.
 repair, enable, disable, uninstall, Home visibility/order, dependency readiness,
 and launch. Skills and Plugins do not appear there.
 
-`Capabilities` groups Skills and Plugins by ownership. `OPL Flow managed` prefers
-the typed Flow dependency catalog projected by OPL Base. Older installed Flow
-locks temporarily fall back to their package policy and dependency-sync receipt;
-membership is never hardcoded by the App. OPL Packages reconciles the result on
-startup, daily maintenance, and explicit package updates. `Manual
+`Capabilities` groups Skills and Plugins by ownership. `OPL Flow managed` is
+derived from the typed Flow dependency catalog projected by OPL Base; membership
+is never hardcoded or inferred from legacy package fields by the App. OPL Packages
+reconciles the result on startup, daily maintenance, and explicit package updates. `Manual
 and third-party` preserves the detected source and requires explicit user action.
 The App does not hardcode Flow membership, Flow does not implement a second
 updater, and CLI currentness remains an OPL Base responsibility.
