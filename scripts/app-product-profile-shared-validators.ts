@@ -363,6 +363,11 @@ export function assertAppProductProfileSettingsVisualSystem(
       { actual: visualSystem?.page_wide_list_wall_allowed, expected: false },
       { actual: visualSystem?.page_sections_as_floating_cards_allowed, expected: false },
       { actual: visualSystem?.footer_layout, expected: 'compact' },
+      {
+        actual: visualSystem?.footer_account_entry_policy,
+        expected:
+          'show_gateway_display_name_when_connected_else_settings_on_all_routes_and_open_models_access_or_overview',
+      },
       { actual: visualSystem?.footer_secondary_navigation_allowed, expected: false },
       { actual: visualSystem?.theme_gallery_presentation, expected: 'recognizable_preview_tiles' },
       { actual: visualSystem?.theme_swatch_list_allowed, expected: false },
@@ -370,8 +375,11 @@ export function assertAppProductProfileSettingsVisualSystem(
     ],
     `${label} Settings visual system must preserve the OPL bounded-card baseline`,
   );
-  if (JSON.stringify(visualSystem?.footer_controls) !== JSON.stringify(['theme_switcher'])) {
-    throw new Error(`${label} Settings footer must only expose the theme-switcher control`);
+  if (
+    JSON.stringify(visualSystem?.footer_controls) !==
+    JSON.stringify(['gateway_account_or_settings_entry', 'theme_switcher'])
+  ) {
+    throw new Error(`${label} footer must expose the account-or-Settings entry before the Settings theme switcher`);
   }
 }
 

@@ -152,9 +152,11 @@ they do not permit a page-wide list wall.
 - cards remain in the normal document flow and do not become floating dashboard tiles;
 - page-wide list walls, a sparse stack of bare horizontal dividers, and a
   decorative card wall that fragments one user question are forbidden;
-- the compact Settings footer contains only the theme-switcher control; returning
-  to the previous App surface uses the existing title-bar navigation and the
-  footer is not a second return/account/help navigation group;
+- the compact footer keeps the Gateway display name visible on every route when
+  an account is connected, otherwise it shows Settings; the entry opens Models
+  & Access or Overview, and Settings places the theme-switcher icon after it;
+  returning to the previous App surface uses title-bar navigation, so the footer
+  never renders return-to-chat or help navigation;
 - the theme gallery uses recognizable preview tiles, never a flat swatch list;
 - maximum border radius is 8 px;
 - spacing uses 12 / 16 / 24 px;
@@ -339,12 +341,15 @@ authoritative readback confirming a new projection replaces the bootstrap copy.
 An older renderer cache that predates the account projection keeps account state
 unresolved until that readback instead of rendering the signed-out action.
 `auth_expired` asks the user to log in again while preserving the non-secret
-snapshot. When the Framework reports `setup_required`, the App resolves the
-unique Codex group and invokes the declared `complete_setup` action once in the
-background; it does not render a group selector or a separate Complete
-connection button. If no unique group can be resolved, the card keeps the
-cached account visible and shows localized guidance. A manual refresh or a new
-authoritative projection may retry the automatic completion.
+snapshot. When an account projection exposes `complete_setup`, has no managed
+Key, and has no projected error, the App resolves the unique Codex group and
+invokes that action once in the background. This rule is action-driven rather
+than coupled to one status spelling, because the Framework may describe the
+same incomplete managed-Key state as `setup_required` or `attention_needed`.
+The App does not render a group selector or a separate Complete connection
+button. If no unique group can be resolved, the card keeps the cached account
+visible and shows localized guidance. A manual refresh or a new authoritative
+projection may retry the automatic completion.
 
 `managed_key_missing`, `managed_key_conflict`,
 `managed_key_identity_drift`, and `disconnect_pending` keep their Framework

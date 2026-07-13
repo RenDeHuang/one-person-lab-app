@@ -1211,8 +1211,9 @@ function validateSettingsVisualQaExpectations(expectations) {
     expectations?.footer_structure,
     {
       layout: "compact",
-      controls: ["theme_switcher"],
-      account_help_navigation: "forbidden",
+      controls: ["gateway_account_or_settings_entry", "theme_switcher"],
+      account_entry: "gateway_display_name_when_connected_else_settings_visible_on_all_routes",
+      help_navigation: "forbidden",
     },
     "Settings visual QA footer structure",
   );
@@ -1301,7 +1302,7 @@ function validateSettingsVisualQaExpectations(expectations) {
       "same-route screenshots preserve or improve spatial and typographic hierarchy against shell baseline 409dd0c3",
       "Settings remains quiet, dense, and scannable without a sparse page-wide bare-divider layout",
       "bounded page-section cards do not become a decorative card wall",
-      "the compact Settings footer has only the theme-switcher control, not return-to-chat or a second account/help navigation group",
+      "the compact Settings footer keeps the Gateway account name or Settings entry visible on every route, places the theme switcher after it on Settings, and never renders return-to-chat or help navigation",
       "the theme gallery uses recognizable preview tiles rather than a flat swatch list",
       "visual assertions verify grouping, footer, and theme-gallery structure; radius and spacing alone are insufficient",
       "the Settings sidebar has exactly one selected item",

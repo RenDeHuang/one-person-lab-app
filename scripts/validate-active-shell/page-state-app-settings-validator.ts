@@ -78,7 +78,8 @@ export function validateAppSettingsPages(matrix, guiContract) {
     gatewayAccount.manual_api_key_card_policy !== 'model_access_status_only_no_account_balance_or_account_usage' ||
     gatewayAccount.cache_ttl_seconds !== 900 ||
     gatewayAccount.stale_policy !== 'show_cached_values_with_stale_marker_and_manual_refresh' ||
-    gatewayAccount.setup_required_policy !== 'auto_complete_unique_codex_group_without_user_control' ||
+    gatewayAccount.managed_key_setup_policy !==
+      'auto_complete_exposed_setup_action_for_unique_codex_group_without_user_control' ||
     gatewayAccount.first_run_scope !== 'unchanged' ||
     gatewayAccount.personal_profile_navigation !== 'not_added'
   ) {

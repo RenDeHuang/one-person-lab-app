@@ -3059,7 +3059,7 @@
         "manual_api_key_card_policy": "model_access_status_only_no_account_balance_or_account_usage",
         "cache_ttl_seconds": 900,
         "stale_policy": "show_cached_values_with_stale_marker_and_manual_refresh",
-        "setup_required_policy": "auto_complete_unique_codex_group_without_user_control",
+        "managed_key_setup_policy": "auto_complete_exposed_setup_action_for_unique_codex_group_without_user_control",
         "error_states": [
           "auth_expired",
           "managed_key_missing",

@@ -111,8 +111,8 @@ const gatewayAccountDisplayPolicy = {
 const gatewayAccountGroupResolutionPolicy = {
   default_group_match: 'single_case_insensitive_label_containing_Codex_then_single_available_group_fallback',
   ordinary_user_selector: 'not_rendered',
-  legacy_setup_required_action:
-    'auto_execute_complete_setup_once_when_default_group_resolves_without_rendering_control',
+  managed_key_setup_action:
+    'auto_execute_complete_setup_once_when_action_exposed_managed_key_missing_and_default_group_resolves_without_rendering_control',
   unresolved_state: 'show_localized_error_without_arbitrary_group_selection',
   retry_policy: 'retry_after_manual_refresh_or_new_authoritative_projection',
 };
@@ -213,6 +213,8 @@ export function validateOplGatewayAccountContract(runtimeBridge) {
     projection.refresh_policy?.manual_refresh !== 'bypass_ttl' ||
     projection.refresh_policy?.network_failure !== 'preserve_cached_values_and_mark_stale' ||
     projection.renderer_bootstrap_cache?.role !== 'derived_last_known_good_projection_not_truth' ||
+    projection.renderer_bootstrap_cache?.storage_scope !==
+      'dedicated_gateway_projection_cache_independent_of_full_app_state_cache' ||
     projection.renderer_bootstrap_cache?.field_policy !== 'persist_projection_top_level_and_nested_allowlists_only' ||
     projection.renderer_bootstrap_cache?.initial_render !== 'show_cached_account_before_background_refresh' ||
     projection.renderer_bootstrap_cache?.legacy_cache_without_projection !==

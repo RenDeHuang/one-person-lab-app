@@ -61,6 +61,15 @@ const settingsModalForbidden = [
   "label: t('settings.webui')",
 ];
 
+const settingsFooterExpected = [
+  "data-testid={account ? 'sider-footer-account' : 'sider-footer-settings'}",
+  "onSettingsClick(account ? 'access' : 'general')",
+  'const showThemeToggle = isSettings',
+  "data-testid='sider-footer-theme'",
+];
+
+const settingsFooterForbidden = ["t('common.back'", 'sider-footer-back', 'sider-footer-help'];
+
 const ordinaryCapabilityFilterExpected = [
   'REQUIRED_ORDINARY_FORBIDDEN_CAPABILITY_POLICY',
   'getOplOrdinaryForbiddenCapabilityPolicy',
@@ -124,6 +133,17 @@ function validateSettingsPartitionImplementation(shellPaths) {
     'packages/desktop/src/renderer/components/settings/SettingsModal/SettingsShellAdapterSlot.tsx',
     settingsShellAdapterSlotExpected,
     'Active shell SettingsShellAdapterSlot App-owned slot renderer',
+  );
+  const settingsFooter = assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/components/layout/Sider/SiderFooter.tsx',
+    settingsFooterExpected,
+    'Active shell Settings footer account and theme controls',
+  );
+  assertTextExcludesAll(
+    settingsFooter,
+    settingsFooterForbidden,
+    'Active shell Settings footer secondary navigation',
   );
 }
 
