@@ -392,8 +392,22 @@
         "target_archived",
         "target_not_writable",
         "cross_host_unsupported",
-        "codex_permission_denied_or_approval_required"
+        "codex_permission_or_user_request_declined_or_cancelled",
+        "interactive_server_request_handler_unavailable_or_invalid"
       ],
+      "interactive_server_request_policy": {
+        "pending_state_role": "codex_native_interactive_request_not_dispatch_failure",
+        "supported_kinds": [
+          "command_approval",
+          "file_change_approval",
+          "permissions_approval",
+          "user_input",
+          "mcp_elicitation"
+        ],
+        "resolution_owner": "user_via_typed_opl_host_bridge",
+        "unknown_server_request_policy": "fail_closed_json_rpc_method_not_found",
+        "separate_persisted_approval_receipt_required": false
+      },
       "advisory_signals": [
         "project_workspace_difference",
         "write_set_overlap",
@@ -447,7 +461,7 @@
           "message_summary",
           "protocol_method",
           "queue_decision",
-          "codex_permission_result",
+          "codex_permission_policy_inheritance",
           "project_workspace_context",
           "write_set_advisory",
           "loop_advisory",
@@ -467,11 +481,16 @@
         "target_not_writable",
         "cross_host_unsupported",
         "permission_denied",
-        "approval_required",
         "dispatch_failed",
         "wait_timeout"
       ],
-      "user_visibility_policy": "sender_target_reason_message_result_permission_and_advisory_context_visible_and_auditable",
+      "required_pending_states": [
+        "approval_pending",
+        "user_input_pending",
+        "mcp_elicitation_pending",
+        "server_request_resolving"
+      ],
+      "user_visibility_policy": "sender_target_reason_message_result_permission_policy_and_advisory_context_visible_and_auditable_interactive_server_requests_visible_in_target_context",
       "forbidden_implementations": [
         "send_input_as_cross_top_level_message_bus",
         "shell_owned_duplicate_thread_store",
@@ -481,7 +500,9 @@
         "write_set_overlap_as_dispatch_blocker",
         "delegation_loop_as_dispatch_blocker",
         "message_content_as_dedupe_key",
-        "any_opl_confirmation_for_thread_read_dispatch_steer_or_archive"
+        "any_opl_confirmation_for_thread_read_dispatch_steer_or_archive",
+        "interactive_server_request_as_immediate_dispatch_failure",
+        "delivery_audit_as_independent_approval_receipt"
       ]
     },
     "desktop_webui_parity": {

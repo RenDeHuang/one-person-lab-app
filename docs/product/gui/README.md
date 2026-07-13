@@ -48,10 +48,12 @@ observations 保留。
 此前 App machine authority 同步落在
 `2dae4961b63089bc1ec6739a4c1ab2fac8b648f3`：capability 只从 Home starter 选择，管理进入
 Settings -> Agents & Capabilities，`/capabilities` 仅兼容重定向；App updater 与 Framework-owned
-managed lifecycle 分离，不再保留 OPL Flow 专用 post-update 分支。本轮在隔离 authority lane
-重新打开 Codex parity：projectless local input、App Server rail、absolute-path Preview、首结果
-idempotency replay、visible coordination/unarchive、Local/Worktree/handoff/snapshot 与 Review
-thin adapter 都是产品目标；它们尚未提升为 current source、pixels、package、安装或 release readiness。
+managed lifecycle 分离，不再保留 OPL Flow 专用 post-update 分支。本轮 parity integration
+candidate `dd67a50c1eca3548b47cbb9144a1a08a403e72f3` 已实现 projectless local input、App Server
+rail、absolute-path Preview、首结果 idempotency replay、visible coordination/unarchive、
+Local/Worktree/handoff、Review 已采纳子集、Runtime cockpit 与 typed interactive requests。该 candidate
+尚未提升为 current main、pixels、package、安装或 release readiness；模型可调用 host tool
+仍是必需产品目标，当前 AionUI user coordination surface 不能作为其实现证据。
 
 ## 三层与文件归属
 
@@ -113,6 +115,9 @@ package/user path。当前 contract/source 与 packaged route visual evidence �
 - `ideal_target.projectless_local_inputs=attachments,file_picker,directory_picker,paste,drop,/open`
 - `ideal_target.local_worktree_lifecycle=local,worktree,starting_branch,handoff,snapshot,restore`
 - `ideal_target.review_surface=existing_files_changes_diff_surface`
+- `ideal_target.model_host_tool_access=true`
+- `active_aionui.model_host_tool_access=source_missing`
+- `model_host_tool.evidence=dynamic_tool_registration_and_item_tool_call_round_trip`
 - `ideal_target.inspector_default_visible=false`
 - `active_aionui.state_source=contracts/app-product-profile.json#gui.home.home_layout`
 - `active_shell_switch_contract=contracts/app-shell-adapter.json`
@@ -161,7 +166,8 @@ package/user path。当前 contract/source 与 packaged route visual evidence �
   不用独立 Capabilities 主导航页重复同一组说明。能力安装、首页显示与维护继续归 Settings。
 - Package starter 必须投影真实 availability；不可用时说明原因和允许动作，launch 前由
   Framework-owned use-boundary activation fail closed，App/shell 不拥有 package currentness。
-- 当前 task progress、tool events、approval 与 receipts 进入 timeline；跨项目总览才进入
+- 当前 task progress、tool events、approval 与 receipts 进入 timeline；后台 target 的 interactive
+  requests 在 selected thread detail 保留 thread/turn/item context；跨项目总览才进入
   Runtime。Current task 只有 timeline 单一实例；普通任务 inline/unpinned，只有用户 pin
   或真实 `long_running` 信号才 sticky，并保留 status/elapsed/progress/next/stop。
 - Runtime 默认层消费 `WorkItemProjection v2`，只回答 Agent -> Project 范围、用户主状态、当前/
@@ -179,25 +185,30 @@ package/user path。当前 contract/source 与 packaged route visual evidence �
   或任务需要打开。旧八类 inspector taxonomy 与会话级 Runtime duplicate 不再是产品面。
 - Transcript export 只导出完整分页后的、脱敏的 user/assistant text；Markdown 默认、
   strict JSON 可选，目录与文件名显式选择，不授权 workspace bundle。
-- 跨顶层线程协调复用 project/conversation rail、按需 detail、timeline event 和 mobile sheet；
+- 跨顶层线程协调复用 project/conversation rail、按需 detail、target ordinary turn、source delivery
+  audit 和 mobile sheet；独立双边 timeline event 属于后续增强，不能从单份 audit 推导；
   rail 必须提供可见且键盘可达的入口，不能只留下 model host tool。
   Thread identity/history 归 Codex Core/App Server；OPL host 通过 `thread/list`、`thread/read`、
   `thread/resume`、`thread/fork`、`thread/archive`、`turn/start`、`turn/steer` 完成受控路由，
-  并负责 opaque-key 幂等、project/workspace/write-set/route advisory 和可见 receipt。Project/
+  并负责 opaque-key 幂等、project/workspace/write-set/route advisory 和可见 delivery audit。Project/
   workspace 只定义新任务默认 cwd、rail 分组和可见元数据；任务启动后仅服从 Codex 自身
-  permission/approval，不增加 OPL 目录边界。跨 project/workspace、workspace-write、overlap、
+  permission/approval/sandbox，不增加 OPL 目录边界。跨 project/workspace、workspace-write、overlap、
   running steer 或 loop advisory 不得被拒绝或额外确认；archive 直接且可通过 `thread/unarchive`
   恢复。同一 idempotency key 重试返回第一次 receipt/result、`ok=true` 且不再次 dispatch；同内容
-  不同 key 仍可合法重复。跨 host 使用 handoff，不把直接跨 host message 伪装成已支持。
+  不同 key 仍可合法重复。Codex approval、permission、user-input 和 MCP elicitation 是 selected
+  target thread 中的 pending state；只有拒绝/取消、请求失效或 handler/protocol 错误才失败。
+  Delivery audit 只记录 Codex policy inheritance，不冒充独立 approval receipt。跨 host 当前
+  unavailable，不把直接消息或本机 handoff 伪装成已支持。
   `spawn_agent`、`send_input`、`wait_agent` 只用于同一 agent tree，不能成为跨根线程消息总线。
 - Artifact/evidence ref 通过现有 Preview surface 的 ref-only adapter 打开。用户显式选择时可打开
   合法任意绝对本地路径，不要求属于当前 workspace；project-context refs 仍保持 workspace-scoped。
   traversal、非法 scheme、自动静默读取及 unsupported ref 保持可见并 fail closed，App/shell 不复制
   artifact body，也不猜测内容。
-- New task 支持 Local/Worktree、starting branch、Local↔Worktree handoff 与 snapshot/restore；
+- New task 支持 Local/Worktree、starting branch 与同主机 idle task 的 Local↔Worktree handoff；
   Worktree 位于 `$CODEX_HOME/worktrees`，selected branch HEAD detached，可应用所选 Local 未提交
-  变更并读取 `.worktreeinclude`，同一 task 复用同一 worktree，cleanup 前必须留下可恢复 snapshot。
-  状态归 Codex Core/App Server 与既有 Git 集成，Shell 只做薄 adapter。
+  变更并读取 `.worktreeinclude`，同一 task 复用同一 worktree。Snapshot/restore 与 cleanup UI
+  当前 deferred，cross-host unsupported；状态归 Codex Core/App Server 与既有 Git 集成，Shell
+  只做薄 adapter。
 - Review 复用现有 Files/Changes diff surface，按需增加 PR context、inline comments、stage、commit、
   push；target 至少包含 uncommitted/base branch/commit/custom，交付支持 inline/detached，默认
   Unstaged 并提供 Staged/Commit/Branch/Last turn。PR context 依赖 `gh`，缺失时明确 unavailable；

@@ -170,12 +170,15 @@ App-owned toggle 或后台服务。若 Codex executor 原生提供且 App profil
 
 ## 跨线程会话增量
 
-- 跨顶层线程 list/read/resume/fork/archive/start/steer、host queue、安全门和双边回执是
+- 跨顶层线程 list/read/resume/fork/archive/start/steer、advisory、幂等和可见 delivery audit 是
   OPL-owned capability，不能因对齐 Codex composition 而删除。
 - 普通用户入口位于每条对话的详情/更多菜单，属于当前 thread context action；不增加 rail
   页面、常驻 dashboard 或主 composer 的“协调”控件。
 - 协调 dialog 默认关闭。模型仍可通过 App host tool 发起相同能力，并与用户入口复用同一
-  typed host gate、permission/scope/write-set checks 和 receipt projection。
+  typed host adapter、Codex policy inheritance、write-set/route advisory 和 audit projection。
+- Approval、permission、user-input 与 MCP elicitation 是 selected target thread 的 pending state，
+  不是 dispatch failure；delivery audit 不冒充独立 approval receipt。独立非紧急 queue 与双边
+  timeline event 只有真实实现后才可声明。
 - 入口位置可以极简，能力、失败可见性和审计语义不得降级。
 
 ## Runtime 与 Evidence 增量

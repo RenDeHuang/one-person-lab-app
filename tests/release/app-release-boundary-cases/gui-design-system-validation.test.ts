@@ -481,6 +481,55 @@ test('GUI design-system validator rejects hidden coordination and duplicate-erro
   );
 });
 
+test('GUI design-system validator rejects approval-required as an immediate dispatch failure', () => {
+  const root = createFixture();
+  const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
+  const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+  contract.interaction_baseline.thread_coordination.hard_failure_conditions = [
+    'codex_permission_denied_or_approval_required',
+  ];
+  contract.interaction_baseline.thread_coordination.interactive_server_request_policy.pending_state_role =
+    'dispatch_failure';
+  writeJson(root, 'contracts/app-gui-product-contract.json', contract);
+
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /cross-top-level coordination must preserve Codex App flexibility while keeping OPL metadata, advisories, idempotency, and audit/,
+  );
+});
+
+test('GUI design-system validator rejects a post-start access authority that omits the Codex sandbox', () => {
+  const root = createFixture();
+  const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
+  const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+  contract.interaction_baseline.thread_coordination.post_start_filesystem_access_authority =
+    'codex_native_permissions_and_approval';
+  writeJson(root, 'contracts/app-gui-product-contract.json', contract);
+
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /cross-top-level coordination must preserve Codex App flexibility while keeping OPL metadata, advisories, idempotency, and audit/,
+  );
+});
+
+test('GUI design-system validator rejects rail evidence as proof of model-facing host-tool access', () => {
+  const root = createFixture();
+  const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
+  const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+  contract.interaction_baseline.thread_coordination.model_tool_access_evidence_boundary = {
+    protocol_surface: 'ordinary_rail_thread_directory',
+    implementation_evidence_required: 'rail_entry_visible',
+    user_coordination_surface_evidence_sufficient: true,
+    missing_implementation_state: 'source_implemented',
+  };
+  writeJson(root, 'contracts/app-gui-product-contract.json', contract);
+
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /cross-top-level coordination must preserve Codex App flexibility while keeping OPL metadata, advisories, idempotency, and audit/,
+  );
+});
+
 test('GUI design-system validator rejects duplicate Git stores for Worktree and Review parity', () => {
   const root = createFixture();
   const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');

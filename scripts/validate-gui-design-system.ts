@@ -812,12 +812,14 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
 
   const conversationScope = record(interactionBaseline.conversation_scope);
   const threadCoordination = record(interactionBaseline.thread_coordination);
+  const threadModelToolEvidence = record(threadCoordination.model_tool_access_evidence_boundary);
   const sameAgentTreeTransport = record(threadCoordination.same_agent_tree_transport);
   const threadDispatchPolicy = record(threadCoordination.dispatch_policy);
   const threadDeliveryDefaults = record(threadCoordination.delivery_request_defaults);
   const threadTurnStartInheritance = record(threadCoordination.turn_start_inheritance_policy);
   const threadIdempotencyPolicy = record(threadCoordination.idempotency_policy);
   const threadCrossHostPolicy = record(threadCoordination.cross_host_policy);
+  const threadServerRequestPolicy = record(threadCoordination.interactive_server_request_policy);
   const homeTarget = record(interactionBaseline.home);
   const capabilitySelection = record(interactionBaseline.capability_selection);
   const composerTarget = record(interactionBaseline.composer);
@@ -955,7 +957,30 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     'target_archived',
     'target_not_writable',
     'cross_host_delivery_unsupported',
-    'codex_permission_denied_or_approval_required',
+    'codex_permission_or_user_request_declined_or_cancelled',
+    'interactive_server_request_handler_unavailable_or_invalid',
+  ];
+  const coordinationServerRequestMethods = [
+    'item/commandExecution/requestApproval',
+    'item/fileChange/requestApproval',
+    'item/permissions/requestApproval',
+    'item/tool/requestUserInput',
+    'mcpServer/elicitation/request',
+    'execCommandApproval',
+    'applyPatchApproval',
+  ];
+  const coordinationServerRequestKinds = [
+    'command_approval',
+    'file_change_approval',
+    'permissions_approval',
+    'user_input',
+    'mcp_elicitation',
+  ];
+  const coordinationServerRequestFailures = [
+    'user_declined_or_cancelled',
+    'request_no_longer_pending',
+    'handler_unavailable_or_invalid',
+    'protocol_error',
   ];
   const coordinationAdvisories = [
     'project_workspace_difference',
@@ -978,7 +1003,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     'reason',
     'message_summary',
     'protocol_method',
-    'codex_permission_result',
+    'codex_permission_policy_inheritance',
     'project_workspace_context',
     'write_set_advisory',
     'loop_advisory',
@@ -999,7 +1024,12 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     'target_not_writable',
     'cross_host_unsupported',
     'permission_denied',
-    'approval_required',
+    'approval_pending',
+    'user_input_pending',
+    'mcp_elicitation_pending',
+    'server_request_resolving',
+    'server_request_declined',
+    'server_request_handler_unavailable',
     'stale_status_refreshing',
     'dispatch_running',
     'dispatch_completed',
@@ -1014,6 +1044,11 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     threadCoordination.primary_composer_control_visible !== false ||
     threadCoordination.thread_detail_context_action_visible !== true ||
     threadCoordination.model_tool_access !== true ||
+    threadModelToolEvidence.protocol_surface !== 'experimental_dynamic_tools_registered_on_thread_start' ||
+    threadModelToolEvidence.implementation_evidence_required !==
+      'dynamic_tool_registration_and_item_tool_call_round_trip' ||
+    threadModelToolEvidence.user_coordination_surface_evidence_sufficient !== false ||
+    threadModelToolEvidence.missing_implementation_state !== 'required_target_current_shell_missing' ||
     threadCoordination.default_state !== 'rail_entry_visible_coordination_panel_closed' ||
     threadCoordination.model_role !== 'decide_when_and_why_to_coordinate' ||
     threadCoordination.protocol_owner !== 'codex_core_app_server' ||
@@ -1023,7 +1058,8 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
       'codex_app_behavior_with_opl_metadata_and_audit_not_an_additional_workspace_sandbox' ||
     threadCoordination.project_workspace_role !==
       'new_thread_default_cwd_sidebar_grouping_and_visible_metadata_only_not_authorization_domain' ||
-    threadCoordination.post_start_filesystem_access_authority !== 'codex_native_permissions_and_approval' ||
+    threadCoordination.post_start_filesystem_access_authority !==
+      'codex_native_permissions_approval_and_sandbox' ||
     sameAgentTreeTransport.scope !== 'same_agent_tree_only' ||
     !sameStrings(sameAgentTreeTransport.methods, ['spawn_agent', 'send_input', 'wait_agent']) ||
     sameAgentTreeTransport.cross_top_level_use_forbidden !== true ||
@@ -1055,6 +1091,18 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
       'sandboxPolicy',
     ]) ||
     !sameStrings(threadCoordination.hard_failure_conditions, coordinationHardFailures) ||
+    threadServerRequestPolicy.pending_state_role !== 'codex_native_interactive_request_not_dispatch_failure' ||
+    !sameStrings(threadServerRequestPolicy.supported_methods, coordinationServerRequestMethods) ||
+    !sameStrings(threadServerRequestPolicy.pending_kinds, coordinationServerRequestKinds) ||
+    threadServerRequestPolicy.context_surface !==
+      'selected_target_thread_detail_with_thread_turn_and_item_context_when_available' ||
+    threadServerRequestPolicy.resolution_owner !== 'user_via_typed_opl_host_bridge' ||
+    threadServerRequestPolicy.current_time_read_policy !== 'automatic_protocol_response' ||
+    threadServerRequestPolicy.unknown_server_request_policy !== 'fail_closed_json_rpc_method_not_found' ||
+    !sameStrings(threadServerRequestPolicy.failure_conditions, coordinationServerRequestFailures) ||
+    threadServerRequestPolicy.delivery_audit_boundary !==
+      'coordination_delivery_audit_records_codex_policy_inheritance_not_independent_approval_decisions' ||
+    threadServerRequestPolicy.separate_persisted_approval_receipt_implemented !== false ||
     !sameStrings(threadCoordination.advisory_signals, coordinationAdvisories) ||
     !sameStrings(threadCoordination.must_not_block_or_confirm_for, coordinationNonBlockingSignals) ||
     threadIdempotencyPolicy.dedupe_scope !== 'same_opaque_request_or_idempotency_key_retry_only' ||
@@ -1069,7 +1117,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     !sameStrings(threadCoordination.required_states, coordinationStates) ||
     !sameStrings(threadCoordination.audit_fields, coordinationAuditFields) ||
     threadCoordination.user_visibility_policy !==
-      'sender_target_reason_message_result_permission_and_advisory_context_visible_and_auditable' ||
+      'sender_target_reason_message_result_permission_policy_and_advisory_context_visible_and_auditable_interactive_server_requests_visible_in_target_context' ||
     !sameStrings(threadCoordination.forbidden_implementations, [
       'send_input_as_cross_top_level_message_bus',
       'shell_owned_duplicate_thread_store',
@@ -1082,6 +1130,8 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
       'duplicate_delivery_error_for_same_idempotency_key',
       'direct_cross_host_message_delivery',
       'any_opl_confirmation_for_thread_read_dispatch_steer_or_archive',
+      'interactive_server_request_as_immediate_dispatch_failure',
+      'delivery_audit_as_independent_approval_receipt',
     ]) ||
     coordinationViewModel.product_role !== threadCoordination.product_role ||
     coordinationViewModel.entry_surface !== threadCoordination.entry_surface ||
@@ -1090,6 +1140,8 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     coordinationViewModel.primary_composer_control_visible !== false ||
     coordinationViewModel.thread_detail_context_action_visible !== true ||
     coordinationViewModel.model_tool_access !== true ||
+    JSON.stringify(record(coordinationViewModel.model_tool_access_evidence_boundary)) !==
+      JSON.stringify(threadModelToolEvidence) ||
     coordinationViewModel.default_state !== 'rail_entry_visible_coordination_panel_closed' ||
     coordinationViewModel.thread_list_protocol !== 'thread/list' ||
     coordinationViewModel.thread_read_protocol !== 'thread/read' ||
@@ -1112,6 +1164,8 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     coordinationViewModel.post_start_filesystem_access_authority !== threadCoordination.post_start_filesystem_access_authority ||
     !sameStrings(coordinationViewModel.required_thread_fields, requiredThreadFields) ||
     !sameStrings(coordinationViewModel.hard_failure_conditions, coordinationHardFailures) ||
+    JSON.stringify(record(coordinationViewModel.interactive_server_request_policy)) !==
+      JSON.stringify(threadServerRequestPolicy) ||
     !sameStrings(coordinationViewModel.advisory_signals, coordinationAdvisories) ||
     !sameStrings(coordinationViewModel.must_not_block_or_confirm_for, coordinationNonBlockingSignals) ||
     !sameStrings(coordinationViewModel.required_states, coordinationStates) ||
@@ -1122,7 +1176,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
       'reason',
       'message_summary',
       'protocol_method',
-      'codex_permission_result',
+      'codex_permission_policy_inheritance',
       'project_workspace_context',
       'write_set_advisory',
       'loop_advisory',

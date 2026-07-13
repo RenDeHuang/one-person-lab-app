@@ -82,8 +82,9 @@ test('active-shell source gate requires Home starters and Capabilities routing i
     homeStarters: [
       "data-testid='opl-home-starters'",
       'aria-pressed={active}',
-      "active ? '!bg-fill-2 !text-t-primary'",
-      '<CloseSmall',
+      'data-opl-active={String(active)}',
+      "? '!border-primary-5 !bg-primary-1 !text-primary-6'",
+      '<FontAwesomeIcon icon={faCheck}',
       '<Right',
       'active && onClear ? onClear() : onSelect(assistant.id)',
     ].join('\n'),

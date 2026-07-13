@@ -2,12 +2,13 @@
 
 Owner: `one-person-lab-app`
 Purpose: `opl_app_cross_thread_orchestration_boundary`
-State: `accepted_product_target_active_shell_same_host_source_implemented_remote_deferred`
+State: `accepted_product_target_user_surface_candidate_model_tool_missing_remote_deferred`
 Date: `2026-07-13`
 Machine boundary: 本文定义产品和架构目标。App contracts、page-state、active-shell validator与
-active AionUI Shell `fae4f694b1ab3eb615b7f527b792adfa6b3165e1` 已实现本机 flexible
-cross-thread policy和可见入口；Native candidate 的历史 cohort仍需重做。Current pixels、packaged
-two-root UI、installed user path、remote host与 release promotion仍需独立 evidence。
+AionUI parity candidate `dd67a50c1eca3548b47cbb9144a1a08a403e72f3` 已实现本机 user-facing
+flexible cross-thread policy和可见入口；该 candidate 尚未吸收 main，且当前普通 AionUI conversation
+没有注册模型可调用的 coordination dynamic tools。Native candidate 的历史 cohort仍需重做。
+Current pixels、packaged two-root UI、installed user path、remote host与 release promotion仍需独立 evidence。
 
 ## 结论
 
@@ -46,6 +47,13 @@ Codex App Server 当前公开的协议原语包括：
 `thread/list` 返回运行状态，并支持 `cwd`、搜索、归档状态及实验性的
 `parentThreadId` / `ancestorThreadId` 过滤。OPL 可以消费这些原语，但不得把实验字段变成
 不可降级的唯一依赖。
+
+模型调用 host tool 还依赖 App Server 的 experimental `dynamicTools`。官方文档将其定义在
+`thread/start`，Codex CLI `0.144.3` 的 experimental JSON schema也只在 `ThreadStartParams`
+暴露该字段；已注册工具可随 thread metadata 在 resume 时恢复。当前 AionUI 普通 conversation
+由既有 ACP/AionCore 路径创建，不经过本 coordination port 的 `thread/start`，因此 rail/detail
+可见协调、user dispatch 和 delivery audit 均不能证明模型已经获得 host tool。不得为填平该
+证据缺口另造第二套 thread runtime、MCP/socket 总线或 duplicate store。
 
 官方来源：
 
@@ -150,7 +158,7 @@ OPL host 根据目标线程状态选择协议动作：
 | 已持久化但未加载 | `thread/resume` 后 `turn/start` | 恢复目标并开始新的可审计 turn |
 | 已加载且空闲 | `turn/start` | 作为新的用户输入进入目标线程 |
 | 正在运行，信息会改变当前工作 | `turn/steer` | 标记为实时 steering 并显示来源，不增加 OPL 确认 |
-| 正在运行，信息不紧急 | host queue，空闲后 `turn/start` | 避免无意打断目标推理 |
+| 正在运行，信息不紧急 | 当前显式 `turn/steer`；未来可选 host queue | 当前 source 不伪造尚未实现的独立 queue；未来 queue 落地后才可在空闲时 `turn/start` |
 | 需要从共同历史独立探索 | `thread/fork` | 新线程保留明确的 fork 来源 |
 
 不得把 `thread/inject_items` 用作普通跨线程消息通道，因为它绕过正常用户 turn 和可见交互
@@ -169,13 +177,15 @@ Codex/App Server，不建立 OPL confirmation layer。
 - source thread、target thread、project/workspace 和 host；
 - 发起者是用户、模型还是系统规则；
 - 协调意图和发送内容摘要；
-- 使用 `turn/start`、`turn/steer`、queue 或 fork；
-- created、accepted、delivered、running、completed、failed、cancelled 状态；
-- target 的结果摘要或可导航引用；
-- Codex permission/approval 结果、project/workspace 上下文、write-set/route advisory 和失败原因。
+- 使用 `turn/start`、`turn/steer` 或 fork；queue 只有真实落地后才记录；
+- 当前记录 accepted/failed 与 observed/completed；更细的 delivered/running/cancelled 状态属于后续增强；
+- 当前 target turn 保留 sender/reason/message，source audit 保留协议结果；结果摘要/可导航引用按真实 readback 增强；
+- Codex policy inheritance、interactive request pending/resolution 状态、project/workspace 上下文、
+  write-set/route advisory 和失败原因。Delivery audit 不冒充独立持久化 approval receipt。
 
-记录进入 source 与 target timeline 的轻量 coordination event，并可从 rail/thread detail
-查看；不新增默认常驻第三列，也不把协议 JSON 暴露给普通用户。
+当前 source 在 rail/thread detail 的 audit 中可回读，target turn 接收含 sender/reason 的普通
+用户输入；独立 source/target 双边 timeline event 尚未实现，不得用单份 delivery audit 冒充。
+后续增强仍不新增默认常驻第三列，也不把协议 JSON 暴露给普通用户。
 
 ## 模型可调用工具
 
@@ -190,6 +200,9 @@ OPL host 可以向模型暴露稳定的高层工具，具体名称不是 App Ser
 
 工具实现必须把 OPL thread key 解析到明确的 host + App Server `threadId`，再执行底层协议。
 模型不得直接拼接 host 地址、猜测线程 ID、绕过 Codex permission/approval 或直接写协调 ledger。
+当前 AionUI 尚未闭合这条模型调用链；只有 exact thread-start dynamic-tool registration、
+`item/tool/call` request/response 和目标 turn 结果的同 cohort 证据完成后，才能把
+`model_tool_access` 从 required target 提升为 source implemented。
 
 ## 权限和自主性
 
@@ -199,7 +212,7 @@ OPL App 是 Codex App 的薄壳，不建立 project/workspace sandbox 或第二�
    可按 Codex 自身能力访问其他目录。
 2. **Read/dispatch:** 本机跨 project、跨 workspace、`workspace_write`、write-set overlap、
    running `turn/steer` 均不触发 OPL 拒绝或额外确认。
-3. **Codex authority:** 文件、网络、命令及其他工具访问只服从 Codex 自身 permission/approval；
+3. **Codex authority:** 文件、网络、命令及其他工具访问只服从 Codex 自身 permission/approval/sandbox；
    OPL host 投影结果，但不预先收窄或扩大。
 4. **Lifecycle:** archive 直接执行且可 unarchive；OPL 对 read/send/steer/archive 均不增加确认。
    Interrupt 或未来 destructive delete 的权限/approval 同样由 Codex Core/App Server 决定。
@@ -236,8 +249,10 @@ Host 在投递时遵循：
   即使消息内容相同也属于合法投递，不做内容去重；
 - write-set overlap、A -> B -> A route、跨 project/workspace 和 running steer 只产生 advisory，
   不 fail closed、不降级 read-only、不要求 owner confirmation；
-- 目标不存在、已归档、不可写、协议无效、跨 host 尚不支持，或 Codex permission/approval
-  阻止执行时返回 typed failure，不静默创建替代线程；
+- Approval、permission、user-input 与 MCP elicitation 请求先显示为 target thread 的 typed pending
+  state，不把“需要用户处理”当作 dispatch failure；用户拒绝/取消、请求已失效、handler 无效/
+  不可用或协议错误时才返回 typed failure。目标不存在、已归档、不可写、协议无效或跨 host
+  尚不支持时同样失败，不静默创建替代线程；
 - OPL 不允许消息绕过或扩大 Codex 自身 filesystem/network 权限。
 
 写集声明是协调提示，不是锁、授权域或冲突 gate。最终 source、git 和 owner readback 仍帮助
@@ -250,7 +265,8 @@ Host 在投递时遵循：
 - **Rail:** project 下展示 conversation/thread 状态与轻量协作标记；不新增 agent dashboard；
 - **Thread detail/popover:** 展示 goal、host、workspace、owner、关系、write set 和最近协调记录；
 - **Composer/command action:** 用户可选择目标线程并发送协作消息；普通 send 保持当前线程；
-- **Timeline:** source/target 双边显示 coordination event、状态和结果入口；
+- **Timeline:** target 显示含来源/原因的 turn；source 通过 coordination audit 查看投递状态。
+  独立双边 event/结果入口属于后续增强；
 - **Notifications:** target waiting/failed 等需要用户处理的状态进入可操作通知；overlap/loop 仅
   作为非阻断 advisory；
 - **Runtime:** 只承载跨 project 的聚合运行视图，不复制 conversation timeline。
@@ -280,15 +296,20 @@ JSONL。AionUI upstream intake 不能删除 OPL 已采纳的跨线程能力；�
 
 - 当前 project 的 `thread/list`、status 和 summary；
 - `thread/read`、`thread/resume`、`turn/start`；
-- active turn 的显式 `turn/steer` 与非紧急 queue；
-- source/target timeline receipt；
+- active turn 的显式 `turn/steer`；
+- selected target context 中的 approval/user-input pending handling；
+- source delivery audit 与 target sender/reason/message；
 - opaque-key idempotency、project/workspace、loop 和 write-set advisory；
 - desktop/mobile 可见入口和错误状态。
 
 ### P1: 完整生命周期和模型主动协调
 
+- 非紧急 host queue 与 idle 后 `turn/start`；
+- 独立 source/target timeline event、结果导航和持久化状态推进；
+- approval resolution audit 只有建立独立真实 store 后才可声明。
+
 - fork、archive/unarchive、goal/metadata 投影；
-- 用户预授权策略和模型高层工具；
+- 用户预授权策略和模型高层工具；当前 AionUI 为 `source_missing`，不能由 rail user flow 替代；
 - wait/result aggregation 与 typed timeout/failure；
 - parent/ancestor capability-detected projection。
 
@@ -306,11 +327,12 @@ test 替代远程或 packaged evidence。
 
 | 层 | 必须证明 |
 | --- | --- |
-| Contract | App GUI contract 定义 discover/read/dispatch/steer/receipt/advisory；page-state matrix 覆盖 idle/running/protocol/target/Codex permission states |
+| Contract | App GUI contract 定义 discover/read/dispatch/steer/audit/advisory 与 interactive pending request；page-state matrix 覆盖 idle/running/protocol/target/Codex permission、user-input 和 handler states |
 | Adapter | App Server fake/fixture 证明 list pagination、opaque ID、status routing、resume/start/steer/fork 与 typed failure |
 | Policy | 负例证明 project/workspace、workspace-write、overlap、loop advisory 和 running steer 不被 OPL 拒绝或额外确认；opaque-key retry 幂等且同内容不同 key 可重复 |
 | Shell source | rail/detail/composer/timeline/mobile 只消费 host projection，不直接拥有协议策略 |
-| DOM | 用户可发现目标、看见双边 receipt 与 advisory，并处理协议、目标、cross-host unsupported 和 Codex permission 失败；archive 直接且可恢复，无 OPL confirmation |
+| Model tool | exact thread-start dynamic-tool registration、`item/tool/call` request/response 与目标 turn result；rail 或 user dispatch 不能替代 |
+| DOM | 用户可发现目标、看见 target message/source delivery audit 与 advisory，并处理 approval/user-input pending、协议、目标、cross-host unsupported 和真实 Codex refusal/handler failure；archive 直接且可恢复，无 OPL confirmation |
 | Visual | desktop/mobile 的 thread directory、coordination event、advisory 和真实 failure state 无遮挡 |
 | Packaged | 同一真实用户数据下，至少两个独立根线程完成 list -> read -> send -> target result -> source readback |
 | Remote | 只有在 connected host 的真实 list/read/send/断线恢复通过后才能声明 remote ready |
@@ -330,10 +352,11 @@ test 替代远程或 packaged evidence。
 - `contracts/app-page-state-matrix.json`：定义状态和负例 acceptance；
 - active-shell validators/tests：证明 shell 消费 App truth，且未退化为同一 agent tree only。
 
-Active AionUI Shell `fae4f694b1ab3eb615b7f527b792adfa6b3165e1` 已实现 production App
-Server `thread/*` / `turn/*` adapter、thread directory、flexible routing、可见 audit receipt，以及
-同主机 Local/Worktree source链路。该 exact SHA 的 current pixels、package与 installed-path gate
-仍由集成 owner独立闭合。Native candidate 的 `c1d9db...` 历史 cohort仍绑定旧 hard-gate policy，
+Active AionUI parity candidate `dd67a50c1eca3548b47cbb9144a1a08a403e72f3` 已实现 production App
+Server `thread/*` / `turn/*` adapter、canonical thread directory、flexible routing、可见 delivery
+audit、interactive request pending handling、Runtime cockpit，以及同主机 Local/Worktree source链路。
+它尚未吸收 main，模型 high-level tool 仍为 `source_missing`；current pixels、package与
+installed-path gate仍由集成 owner独立闭合。Native candidate 的 `c1d9db...` 历史 cohort仍绑定旧 hard-gate policy，
 只保留 protocol/package evidence，不能证明 corrected candidate conformance。
 
 该状态不等于 packaged 产品验收。Packaged UI 两根线程端到端、live `turn/steer` 竞态、current

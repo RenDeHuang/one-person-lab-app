@@ -41,7 +41,7 @@ carrier 状态和 release evidence 仍归 contracts、source/tests、validators 
 | Pending/elapsed state | 当前 assistant turn 或 composer status | 用户需要持续知道请求仍在推进。 | 只在 console/raw event 中可见，或 tool event 后状态消失。 |
 | Current-task summary bar | Timeline 顶部/当前 turn 邻近，可 pin | 长任务与 OPL projection 共用 status/elapsed/progress/next action/stop。 | 与 current turn 分叉成第二状态源，或缺 stop/next action。 |
 | Tool/process/diff/file event | 对应 turn 内 compact disclosure | 事件属于当前 conversation，但细节不应压过正文。 | 全部 raw log 常驻，或移到独立主 dashboard 导致上下文断裂。 |
-| Permission/user-input prompt | 对应 turn 内 | 决策必须和触发它的工作上下文相邻。 | 跳到不相关全局 modal，关闭后无法找回触发原因。 |
+| Permission/user-input prompt | 对应 turn；后台 target 可在 selected thread detail 中显示 | 决策必须保留 thread/turn/item context；pending 本身不是 dispatch error。 | 跳到不相关全局 modal、把 approval-required 直接标失败，或把 delivery audit 冒充 approval receipt。 |
 | Turn receipt / result refs | Turn summary/details | 证明本轮发生了什么，同时保持 timeline 可读。 | Raw JSON 默认展开，或 receipt 被当成 domain/release verdict。 |
 | Environment trigger | Conversation 右上次级 icon action | 当前环境随时可达，但不占普通路径主权重。 | Toggle active 但 surface hidden，或默认常驻打开。 |
 | Environment floating details | 右上 anchored floating surface；窄屏 drawer | Workspace/locality/branch/changes/subtasks/sources 是当前 task 的快速摘要。 | 变成默认全高第三列、完整 diagnostics 或跨项目 dashboard。 |

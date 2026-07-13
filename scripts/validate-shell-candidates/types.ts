@@ -83,12 +83,14 @@ export type NativeCrossTopLevelThreadAuthority = {
     delivery_request_defaults: Record<string, unknown>;
     turn_start_inheritance_policy: Record<string, unknown>;
     hard_failure_conditions: string[];
+    interactive_server_request_policy: Record<string, unknown>;
     advisory_signals: string[];
     idempotency_policy: Record<string, unknown>;
     must_not_block_or_confirm_for: string[];
     protocol_boundaries: string[];
     bilateral_receipt: Record<string, unknown>;
     required_typed_failure_states: string[];
+    required_pending_states: string[];
     user_visibility_policy: string;
     forbidden_implementations: string[];
   };

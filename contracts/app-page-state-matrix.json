@@ -686,6 +686,12 @@
         "primary_composer_control_visible": false,
         "thread_detail_context_action_visible": true,
         "model_tool_access": true,
+        "model_tool_access_evidence_boundary": {
+          "protocol_surface": "experimental_dynamic_tools_registered_on_thread_start",
+          "implementation_evidence_required": "dynamic_tool_registration_and_item_tool_call_round_trip",
+          "user_coordination_surface_evidence_sufficient": false,
+          "missing_implementation_state": "required_target_current_shell_missing"
+        },
         "thread_list_protocol": "thread/list",
         "thread_read_protocol": "thread/read",
         "thread_actions": ["thread/resume", "thread/fork", "thread/archive", "thread/unarchive"],
@@ -714,7 +720,7 @@
           ]
         },
         "project_workspace_role": "new_thread_default_cwd_sidebar_grouping_and_visible_metadata_only_not_authorization_domain",
-        "post_start_filesystem_access_authority": "codex_native_permissions_and_approval",
+        "post_start_filesystem_access_authority": "codex_native_permissions_approval_and_sandbox",
         "required_thread_fields": [
           "thread_id",
           "status",
@@ -735,8 +741,40 @@
           "target_archived",
           "target_not_writable",
           "cross_host_delivery_unsupported",
-          "codex_permission_denied_or_approval_required"
+          "codex_permission_or_user_request_declined_or_cancelled",
+          "interactive_server_request_handler_unavailable_or_invalid"
         ],
+        "interactive_server_request_policy": {
+          "pending_state_role": "codex_native_interactive_request_not_dispatch_failure",
+          "supported_methods": [
+            "item/commandExecution/requestApproval",
+            "item/fileChange/requestApproval",
+            "item/permissions/requestApproval",
+            "item/tool/requestUserInput",
+            "mcpServer/elicitation/request",
+            "execCommandApproval",
+            "applyPatchApproval"
+          ],
+          "pending_kinds": [
+            "command_approval",
+            "file_change_approval",
+            "permissions_approval",
+            "user_input",
+            "mcp_elicitation"
+          ],
+          "context_surface": "selected_target_thread_detail_with_thread_turn_and_item_context_when_available",
+          "resolution_owner": "user_via_typed_opl_host_bridge",
+          "current_time_read_policy": "automatic_protocol_response",
+          "unknown_server_request_policy": "fail_closed_json_rpc_method_not_found",
+          "failure_conditions": [
+            "user_declined_or_cancelled",
+            "request_no_longer_pending",
+            "handler_unavailable_or_invalid",
+            "protocol_error"
+          ],
+          "delivery_audit_boundary": "coordination_delivery_audit_records_codex_policy_inheritance_not_independent_approval_decisions",
+          "separate_persisted_approval_receipt_implemented": false
+        },
         "advisory_signals": [
           "project_workspace_difference",
           "write_set_overlap",
@@ -761,7 +799,12 @@
           "target_not_writable",
           "cross_host_unsupported",
           "permission_denied",
-          "approval_required",
+          "approval_pending",
+          "user_input_pending",
+          "mcp_elicitation_pending",
+          "server_request_resolving",
+          "server_request_declined",
+          "server_request_handler_unavailable",
           "stale_status_refreshing",
           "dispatch_running",
           "dispatch_completed",
@@ -774,7 +817,7 @@
           "reason",
           "message_summary",
           "protocol_method",
-          "codex_permission_result",
+          "codex_permission_policy_inheritance",
           "project_workspace_context",
           "write_set_advisory",
           "loop_advisory",
@@ -790,13 +833,14 @@
       },
       "must_show": [
         "ordinary rail exposes a visible keyboard-reachable coordination entry without adding a primary composer control",
-        "model-facing host tool retains top-level thread list, read, resume, fork, archive, unarchive, start and steer operations",
+        "model-facing host tool remains a required product target and requires dynamic-tool registration plus item tool-call round-trip evidence",
         "task rename, archive, restore, and delete map to App Server while pin remains Shell UI metadata",
         "project and workspace are default cwd, grouping and visible metadata rather than authorization domains",
         "write-set overlap, repeated routes and project or workspace differences remain advisory and auditable without blocking dispatch",
         "same idempotency key retry returns the first receipt and result with ok true without a second dispatch",
         "cross-host coordination is explicitly unavailable and never projected as successful",
-        "Codex-native permission and approval results remain visible in audit receipts"
+        "Codex-native approval, permission, user-input and MCP elicitation requests remain visible as pending state in the selected target thread context",
+        "coordination delivery audit shows inherited Codex policy without claiming an independent persisted approval receipt"
       ],
       "must_not_show": [
         "duplicate standalone coordination dashboard or second thread store",
@@ -810,6 +854,9 @@
         "direct cross-host message delivery",
         "permission radio, write-set input or confirmation modal in the coordination UI",
         "cwd, runtimeWorkspaceRoots, approvalPolicy or sandboxPolicy overrides in turn/start",
+        "approval or user-input request rendered as an immediate dispatch failure",
+        "independent approval receipt claimed when only the delivery audit is persisted",
+        "rail or thread-detail user coordination claimed as proof that the model-facing host tool is implemented",
         "a default-open coordination dashboard"
       ],
       "state_source": "Codex App Server thread/list and thread/read",

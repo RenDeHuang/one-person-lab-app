@@ -134,19 +134,25 @@ Rail 负责 navigation，不承担 dashboard：
   unarchive 位于 thread action menu，保持键盘可达。
 - 发送协作消息时，用户或模型必须提供 target、reason 和 message；expected write set 可选，
   只作为 advisory/audit。
-  Idle target 使用 `turn/start`；running target 的紧急信息使用明确标记的 `turn/steer`，非紧急
-  信息排队后再 `turn/start`；stale/unknown status 先 refresh，再按真实状态路由或返回协议失败。
+  Idle target 使用 `turn/start`；running target 使用 `turn/steer`；stale/unknown status 先
+  refresh，再按真实状态路由或返回协议失败。独立非紧急 queue 只有落地真实 host queue 后才可声明。
 - 本机跨 project/workspace、workspace-write、active turn steering、write-set overlap 或 loop
   advisory 不拒绝、不额外确认；OPL 只记录并展示。同一 opaque request/idempotency key 重试
   返回第一次 receipt/result、`ok=true` 且不二次 dispatch；同内容不同 key 可合法重复。
-- 硬失败仅来自协议无效/不可用、目标不存在/已归档/不可写、cross-host coordination 未支持，
-  或 Codex 自身 permission/approval。Archive 直接且可 unarchive，OPL 不对
+- 硬失败仅来自协议无效/不可用、目标不存在/已归档/不可写、cross-host coordination 未支持、
+  用户拒绝/取消 Codex 交互请求，或交互请求 handler 无效/不可用。Approval、permission、
+  user-input 与 MCP elicitation 请求本身是对应 target thread 的可见 pending state，不是 dispatch
+  failure。Archive 直接且可 unarchive，OPL 不对
   read/send/steer/archive 增加确认；cross-host 当前显示 unavailable，不转换成伪 handoff success。
-- Source 与 target timeline 都显示 coordination event；用户可以看到谁向谁发送、为什么、使用
-  哪个协议动作、Codex permission 结果、advisory、当前状态和结果入口。Desktop 使用 rail context action +
-  dialog/popover，mobile 使用 action sheet + full-height detail，语义等价。
+- Target turn 保留 sender、reason 与 message；source 的 coordination audit 显示 target、协议动作、
+  Codex policy inheritance、advisory、当前状态和结果入口。当前没有独立持久化 approval receipt，
+  不能把 delivery audit 冒充 approval 决策历史。Desktop 使用 rail context action + dialog/popover，
+  mobile 使用 action sheet + full-height detail，语义等价。
 - `spawn_agent`、`send_input`、`wait_agent` 继续服务同一 agent tree；跨根线程只经 App Server
   `thread/*` 与 `turn/*`，AionUI 不拥有 thread ID、history 或路由策略。
+- 模型可调用 host tool 是必需目标，但必须由 thread-start dynamic-tool registration 与
+  `item/tool/call` round-trip 证明；rail/detail 的 user coordination 不能作为替代证据。当前
+  AionUI 未闭合该模型调用链时应在 conformance 标为 `source_missing`，不能另造第二套 runtime。
 
 宽桌面 rail persistent 且在 `280-340px` 内可调；窄窗口 drawer 化。关闭 drawer 不清除
 selection 或当前草稿。Back/Forward、Previous/Next Task、New Window 是 desktop
@@ -183,7 +189,8 @@ Timeline 按时间顺序组织用户可理解的工作事实：
 - 当前 turn 运行时显示 elapsed time、最近事件、stop 和必要 recovery action。
 - 长任务和 OPL current-task projection 共用可 pin summary bar，固定包含 status、elapsed、
   progress、next action、stop。
-- Permission request 与 user-input request 留在相应 turn 中，不跳到独立 control panel。
+- Permission、approval、user-input 与 MCP elicitation 留在相应 turn；后台 target 的请求可在
+  selected thread detail 中按 thread/turn/item context 处理，不跳到无上下文的全局 control panel。
 - Error 显示 direct reason、影响范围和 App-owned next action；raw stack/protocol 在 details。
 - Turn 完成后保留 result summary、artifact/receipt refs 和继续工作入口。
 - 跨项目 status、长 evidence list 和 full ledger 进入 Runtime/details，不挤占 timeline。
@@ -367,9 +374,12 @@ First-run 的目标是让用户尽快进入可工作的 App：
 - Rail 顶部只有 New task、Runtime、Archived；capability 选择在 Home，管理在 Settings。
 - Environment 首层保持 workspace/locality/branch/changes/subtasks/sources；OPL artifact/evidence 为
   次级 section/preview，advanced tools 默认关闭。
-- Rail coordination 入口、App Server thread directory/detail、rename/archive/unarchive/delete、双边 receipt 与
-  denied/advisory/offline 状态均可发现；同 key 重试返回第一次成功结果且不二次 dispatch；跨 host
-  当前明确 unavailable，跨顶层投递不使用 `send_input`。
+- Rail coordination 入口、App Server thread directory/detail、rename/archive/unarchive/delete、target
+  sender/reason/message、source delivery audit 与 denied/advisory/offline 状态均可发现；approval/
+  user-input pending 不误报失败，且不虚报独立 approval receipt。同 key 重试返回第一次成功结果且
+  不二次 dispatch；跨 host 当前明确 unavailable，跨顶层投递不使用 `send_input`。
+- Model host tool 只有在 dynamic-tool registration、`item/tool/call` 和结果 readback 同 cohort
+  可证时才算实现；用户可见 rail 不构成该证据。
 - Home New task 的 Local/Worktree、starting branch 与 managed worktree create/reuse 已由薄 adapter承接；
   既有同主机空闲 task 的双向 handoff 位于 Conversation Environment，并通过
   `thread/settings/update` 更新真实 cwd。Snapshot/restore、cleanup UI 与 cross-host handoff 不进入

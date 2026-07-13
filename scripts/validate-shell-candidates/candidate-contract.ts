@@ -118,7 +118,8 @@ const requiredCrossThreadHardFailures = [
   'target_archived',
   'target_not_writable',
   'cross_host_unsupported',
-  'codex_permission_denied_or_approval_required',
+  'codex_permission_or_user_request_declined_or_cancelled',
+  'interactive_server_request_handler_unavailable_or_invalid',
 ];
 
 const requiredCrossThreadAdvisories = [
@@ -432,6 +433,7 @@ export function validateNativeCrossTopLevelThreadAuthority(
   const turnStartInheritance = localAcceptance.turn_start_inheritance_policy;
   const idempotency = localAcceptance.idempotency_policy;
   const receipt = localAcceptance.bilateral_receipt;
+  const serverRequests = localAcceptance.interactive_server_request_policy;
   if (
     localAcceptance.scope !== 'local_machine_only' ||
     directory.list_protocol !== 'thread/list' ||
@@ -472,6 +474,17 @@ export function validateNativeCrossTopLevelThreadAuthority(
     throw new Error('local dispatch must preserve Codex-style cross-project flexibility, opaque-key idempotency, direct running steer, and explicit archived-target handling');
   }
   assertStringArrayIncludes(localAcceptance.hard_failure_conditions, requiredCrossThreadHardFailures, 'cross-thread hard failures');
+  if (
+    serverRequests.pending_state_role !== 'codex_native_interactive_request_not_dispatch_failure' ||
+    serverRequests.resolution_owner !== 'user_via_typed_opl_host_bridge' ||
+    serverRequests.unknown_server_request_policy !== 'fail_closed_json_rpc_method_not_found' ||
+    serverRequests.separate_persisted_approval_receipt_required !== false
+  ) {
+    throw new Error('cross-thread interactive requests must remain visible pending Codex requests rather than dispatch failures');
+  }
+  assertStringArrayIncludes(serverRequests.supported_kinds, [
+    'command_approval', 'file_change_approval', 'permissions_approval', 'user_input', 'mcp_elicitation',
+  ], 'cross-thread interactive server request kinds');
   assertStringArrayIncludes(localAcceptance.advisory_signals, requiredCrossThreadAdvisories, 'cross-thread advisory signals');
   assertStringArrayIncludes(
     localAcceptance.must_not_block_or_confirm_for,
@@ -514,16 +527,19 @@ export function validateNativeCrossTopLevelThreadAuthority(
   assertStringArrayIncludes(receipt.required_fields, [
     'delivery_id', 'coordination_id', 'source_thread_id', 'target_thread_id', 'source_host_id', 'target_host_id',
     'project_key', 'sender', 'intent', 'reason', 'message_summary', 'protocol_method', 'queue_decision',
-    'codex_permission_result', 'project_workspace_context', 'write_set_advisory', 'loop_advisory',
+    'codex_permission_policy_inheritance', 'project_workspace_context', 'write_set_advisory', 'loop_advisory',
     'idempotency_result', 'status', 'result_summary_or_ref', 'created_at', 'completed_at',
   ], 'bilateral receipt fields');
   assertStringArrayIncludes(localAcceptance.required_typed_failure_states, [
     'protocol_unavailable', 'protocol_invalid', 'target_not_found', 'archived_target', 'target_not_writable',
-    'cross_host_unsupported', 'permission_denied', 'approval_required', 'dispatch_failed', 'wait_timeout',
+    'cross_host_unsupported', 'permission_denied', 'dispatch_failed', 'wait_timeout',
   ], 'cross-thread typed failure states');
+  assertStringArrayIncludes(localAcceptance.required_pending_states, [
+    'approval_pending', 'user_input_pending', 'mcp_elicitation_pending', 'server_request_resolving',
+  ], 'cross-thread interactive pending states');
   if (
     localAcceptance.user_visibility_policy !==
-      'sender_target_reason_message_result_permission_and_advisory_context_visible_and_auditable'
+      'sender_target_reason_message_result_permission_policy_and_advisory_context_visible_and_auditable_interactive_server_requests_visible_in_target_context'
   ) {
     throw new Error('cross-thread permission results and advisory context must remain user-visible and auditable');
   }
@@ -537,6 +553,8 @@ export function validateNativeCrossTopLevelThreadAuthority(
     'delegation_loop_as_dispatch_blocker',
     'message_content_as_dedupe_key',
     'any_opl_confirmation_for_thread_read_dispatch_steer_or_archive',
+    'interactive_server_request_as_immediate_dispatch_failure',
+    'delivery_audit_as_independent_approval_receipt',
   ], 'cross-thread forbidden implementations');
 
   const parity = authority.desktop_webui_parity;
@@ -551,7 +569,7 @@ export function validateNativeCrossTopLevelThreadAuthority(
     parity.webui_browser_renderer_direct_app_server_access_allowed !== false ||
     parity.webui_node_host_typed_app_server_adapter_allowed !== true
   ) {
-    throw new Error('Desktop and WebUI must preserve equivalent coordination actions, queue and advisory semantics, Codex permission results, receipts, and failures');
+    throw new Error('Desktop and WebUI must preserve equivalent coordination actions, queue and advisory semantics, Codex permission policy, interactive pending requests, receipts, and failures');
   }
   const remoteP2 = authority.remote_p2;
   if (

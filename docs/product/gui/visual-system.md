@@ -218,6 +218,9 @@ Composer 是底部唯一主 command surface：
 - 主区只有一条时间线。Assistant 正文默认 unframed；用户消息可以使用轻量 bounded
   surface，但不做同权重大气泡墙。
 - Tool、process、diff、file、receipt 和 permission event 使用 compact disclosure row。
+- Approval、permission、user-input 与 MCP elicitation pending 使用同一层级的 compact bounded
+  disclosure。后台 target 可放在 selected thread detail，但必须显示 thread/turn/item context；
+  不使用无上下文全局 modal，也不把 pending 绘制成 error。
 - 当前 turn 的 running artifact 显示 elapsed time、最近事件和可执行下一步；完成后
   收敛成摘要。
 - 可 pin current-task summary bar 使用稳定单行/双行布局，固定容纳 status、elapsed、

@@ -57,8 +57,9 @@ Sites/Chat 等入口可以隐藏或拒绝；它们不构成 OPL 功能回归。
 | New conversation | 在 project 中开始 task，或直接开始 projectless Codex conversation。 | GUI contract、conversation page state、Codex bridge。 |
 | Resume conversation | 找回 recent conversation，并保留关联 workspace。 | Conversation state/bridge；shell 只持有实现所需 session refs。 |
 | Conversation management | Search、pin、rename、archive、reset conversation，并在独立 Archived surface 管理归档。 | GUI contract、conversation state/bridge。 |
-| Cross-thread discovery | Rail 的可见、键盘可达入口与 model host tool 都读取独立顶层线程的 status、summary、workspace、host、owner、goal、parent/ancestor 与 advisory write set；不建立第二套协调 dashboard。 | Codex App Server thread read model；OPL host 只聚合轻量 metadata。 |
-| Cross-thread coordination | 模型按需读取摘要/历史，恢复、分叉、归档或 unarchive 目标线程；idle 使用 `turn/start`，running 使用 `turn/steer`。同 key 重试返回第一次 receipt/result、`ok=true` 且不二次 dispatch；跨 host 当前明确 unavailable，不伪造成功。 | Codex Core/App Server 拥有 thread/turn 和 permission/approval；OPL host 只拥有 opaque-key 幂等、advisory、queue 与 audit policy。 |
+| Cross-thread discovery | Rail 的可见、键盘可达入口读取独立顶层线程的 status、summary、workspace、host、owner、goal、parent/ancestor 与 advisory write set；不建立第二套协调 dashboard。 | Codex App Server thread read model；OPL host 只聚合轻量 metadata。 |
+| Model-triggered coordination | 模型可以通过 host tool list/read/resume/fork/archive/unarchive/start/steer 顶层线程；必须以 dynamic-tool registration 和 `item/tool/call` round-trip 证明，rail 或 user dispatch 不能代替。 | 产品目标为 required；当前 AionUI source missing，具体实现状态只在 conformance matrix声明。 |
+| Cross-thread coordination | 用户或已获得 host tool 的模型按需读取摘要/历史，恢复、分叉、归档或 unarchive 目标线程；idle 使用 `turn/start`，running 使用 `turn/steer`。同 key 重试返回第一次 receipt/result、`ok=true` 且不二次 dispatch；跨 host 当前明确 unavailable，不伪造成功。 | Codex Core/App Server 拥有 thread/turn 和 permission/approval/sandbox；OPL host 只拥有 opaque-key 幂等、advisory 与 delivery audit。独立非紧急 queue 尚未实现。 |
 | Local / Worktree lifecycle | Home 新任务可选 Local/Worktree 与 starting branch，并通过既有 `gitWorkspace` adapter 创建或复用 managed worktree。既有同主机 `not_loaded`/`idle` task 可在 Conversation Environment 通过 `thread/settings/update` 双向切换；`running`/`archived`/`system_error` 显示 unavailable，不 silent fallback。先更新真实 Codex cwd，再更新 AionUI projection；失败时 best-effort 恢复旧 cwd。Worktree 默认保留复用；snapshot/restore、cleanup UI 和 cross-host handoff 当前未提供。 | Codex Core/App Server 与既有 Git integration；`opl_workspace_handoff.v1` 只保存 projection metadata，Shell 仅薄 adapter，不建立第二 Git/thread store。 |
 | Text instruction | 向固定 Codex executor 发送多行任务说明。 | Product profile、ordinary conversation contract。 |
 | Streaming assistant output | 持续看到 assistant response，不需要查看 raw protocol。 | Codex/App bridge 与 conversation page state。 |
@@ -72,7 +73,7 @@ Sites/Chat 等入口可以隐藏或拒绝；它们不构成 OPL 功能回归。
 | Purpose selection | 从 Home starter 选择科研、基金、演示、写书等工作目的；composer 只保留 active capability chip。安装、Home 显示和 lifecycle 管理进入 Settings → Agents & Capabilities。 | Product profile、GUI contract、route receipt policy。 |
 | Assistant-scoped capabilities | 只显示当前 package/purpose 允许的 required/optional skills。 | App packaged skill profiles 与 ordinary capability policy。 |
 | Package launch readiness | 不可用 starter 保持可识别但 disabled，显示用户可理解的原因和允许动作；发送或启动前必须通过 Framework-owned use-boundary activation，失败时 fail closed。 | Agent package activation policy、Framework state/action receipt。 |
-| User-input and permission prompt | Codex 需要选择、补充信息或授权时，在 conversation 中完成。 | Bridge event/action contract。 |
+| User-input and permission prompt | Codex 需要 command/file/permission approval、补充信息或 MCP elicitation 时，显示为相应 target thread 的 pending state并通过 typed bridge 回答；pending 本身不记为 dispatch failure。当前 delivery audit 不冒充独立持久化 approval receipt。 | Codex App Server request/response；OPL typed host bridge。 |
 | Turn receipt | 用户可查看本轮 route、action、result 和恢复 refs，不默认暴露 raw JSON。 | App/domain/runtime receipt refs；GUI 不拥有 receipt authority。 |
 
 ## OPL Purpose 与 Agent Packages

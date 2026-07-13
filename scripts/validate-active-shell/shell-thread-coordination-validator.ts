@@ -13,7 +13,10 @@ const paths = {
   service: 'packages/desktop/src/process/services/threadCoordination/index.ts',
   hook: 'packages/desktop/src/renderer/pages/conversation/GroupedHistory/ThreadCoordination/useThreadCoordination.ts',
   view: 'packages/desktop/src/renderer/pages/conversation/GroupedHistory/ThreadCoordination/index.tsx',
+  pendingView:
+    'packages/desktop/src/renderer/pages/conversation/GroupedHistory/ThreadCoordination/PendingServerRequests.tsx',
   sider: 'packages/desktop/src/renderer/components/layout/Sider/index.tsx',
+  rpcTest: 'tests/unit/thread-coordination/jsonRpcClient.test.ts',
   portTest: 'tests/unit/thread-coordination/codexAppServerPort.test.ts',
   serviceTest: 'tests/unit/thread-coordination/threadCoordinationService.test.ts',
   domTest: 'tests/unit/conversation/ThreadCoordination.dom.test.tsx',
@@ -42,6 +45,10 @@ export function validateShellThreadCoordination(shellPaths): void {
       'messageSummary',
       'advisories',
       "'inherit'",
+      'CodexThreadServerRequest',
+      'ThreadCoordinationResolveServerRequest',
+      "'server_request_not_pending'",
+      "'server_request_handler_unavailable'",
     ],
     'Codex cross-thread coordination contract',
   );
@@ -53,6 +60,8 @@ export function validateShellThreadCoordination(shellPaths): void {
       'port: CodexThreadCoordinationPort = createProductionCodexThreadCoordinationPort()',
       'disposeThreadCoordinationBridge',
       "app.on('before-quit', disposeThreadCoordinationBridge)",
+      'listPendingRequests.provider',
+      'resolveServerRequest.provider',
     ],
     'Codex cross-thread production bridge',
   );
@@ -65,6 +74,10 @@ export function validateShellThreadCoordination(shellPaths): void {
       'Codex app-server request timed out',
       'Unsupported server request',
       'rejectPending',
+      "'currentTime/read'",
+      'INTERACTIVE_SERVER_REQUEST_METHODS',
+      'pendingServerRequests',
+      'resolveServerRequest',
     ],
     'Codex app-server JSON-RPC client',
   );
@@ -85,6 +98,8 @@ export function validateShellThreadCoordination(shellPaths): void {
       'response.nextCursor',
       'DEFAULT_MAX_PAGES',
       'sourceThreadIdHint',
+      'listPendingServerRequests',
+      'resolveServerRequest',
     ],
     'Codex app-server thread coordination port',
   );
@@ -102,13 +117,23 @@ export function validateShellThreadCoordination(shellPaths): void {
       "'workspace_context_changed'",
       "'write_set_overlap'",
       "'delegation_cycle'",
+      'listPendingServerRequests',
+      'resolveServerRequest',
+      "errorCode: 'server_request_not_pending'",
+      "errorCode: 'server_request_handler_unavailable'",
     ],
     'OPL flexible cross-thread routing and audit service',
   );
   const hook = assertShellTextIncludesAll(
     shellPaths,
     paths.hook,
-    ['acp_session_id', 'sourceThreadIdHint', 'ipcBridge.threadCoordination.getOverview.invoke'],
+    [
+      'canonicalCodexThreadId',
+      'sourceThreadIdHint',
+      'ipcBridge.threadCoordination.getOverview.invoke',
+      'listPendingRequests',
+      'resolveServerRequest',
+    ],
     'Cross-thread source-thread mapping',
   );
   const view = assertShellTextIncludesAll(
@@ -122,8 +147,35 @@ export function validateShellThreadCoordination(shellPaths): void {
       'advisories',
       "permission: 'inherit'",
       'writeSet: []',
+      'PendingServerRequests',
+      'selectedPendingRequests',
     ],
     'Cross-thread coordination UI',
+  );
+  const pendingView = assertShellTextIncludesAll(
+    shellPaths,
+    paths.pendingView,
+    [
+      "request.kind === 'command_approval'",
+      "request.kind === 'file_change_approval'",
+      "request.kind === 'permissions_approval'",
+      "request.kind === 'user_input'",
+      "request.kind === 'mcp_elicitation'",
+      "decision: 'decline'",
+      'onResolve',
+      'request.threadId',
+      'request.turnId',
+      'request.itemId',
+      'data-state=',
+      "'approval_pending'",
+      "'user_input_pending'",
+      "'mcp_elicitation_pending'",
+      "'server_request_resolving'",
+      "'server_request_declined'",
+      "'server_request_handler_unavailable'",
+      "'dispatch_failed'",
+    ],
+    'Codex interactive server-request UI',
   );
   assertShellTextIncludesAll(
     shellPaths,
@@ -136,6 +188,7 @@ export function validateShellThreadCoordination(shellPaths): void {
     readShellText(shellPaths, paths.portTest),
     readShellText(shellPaths, paths.serviceTest),
     readShellText(shellPaths, paths.domTest),
+    readShellText(shellPaths, paths.rpcTest),
   ].join('\n');
   assertTextIncludesAll(
     tests,
@@ -151,14 +204,21 @@ export function validateShellThreadCoordination(shellPaths): void {
       'archives directly through the Codex App Server lifecycle method',
       'restores an archived top-level thread through thread/unarchive',
       'renames and deletes canonical tasks through Codex App Server lifecycle methods',
+      'reports unavailable and expired interactive request handlers with typed errors',
+      'prefers the canonical Codex thread id over the legacy session id and supports explicit sender selection',
       'keeps the message TextArea autoSize object stable across React rerenders',
       'archives directly without adding an OPL confirmation step',
+      'queues interactive server requests until the renderer returns a typed result',
+      'answers currentTime/read locally and rejects unknown server requests',
+      'projects interactive app-server requests and returns protocol-specific decisions',
+      'shows thread, turn, and item context and forwards a native decline without changing Codex policy',
+      'keeps a typed handler-unavailable failure visible on the pending request',
     ],
     'Cross-thread focused regression tests',
   );
 
   assertTextExcludesAll(
-    [types, bridge, rpc, port, service, hook, view].join('\n'),
+    [types, bridge, rpc, port, service, hook, view, pendingView].join('\n'),
     ['send_input', '.codex/sessions', 'rollout-'],
     'Cross-thread implementation forbidden alternate transports and stores',
   );

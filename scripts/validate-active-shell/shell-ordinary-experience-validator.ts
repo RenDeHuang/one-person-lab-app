@@ -73,8 +73,9 @@ export function assertCurrentGuidHomeSelectionSources({
     [
       "data-testid='opl-home-starters'",
       'aria-pressed={active}',
-      "active ? '!bg-fill-2 !text-t-primary'",
-      '<CloseSmall',
+      'data-opl-active={String(active)}',
+      "? '!border-primary-5 !bg-primary-1 !text-primary-6'",
+      '<FontAwesomeIcon icon={faCheck}',
       '<Right',
       'active && onClear ? onClear() : onSelect(assistant.id)',
     ],
@@ -222,18 +223,61 @@ const acpSendBoxExpected = [
 ];
 
 const runtimePageExpected = [
+  "const appStateQuery = useOplAppState('fast')",
   'readRuntimeWorkItemProjectionV2(appStateQuery.appState)',
   'const [selectedAgentId, setSelectedAgentId]',
   'const [selectedProjectId, setSelectedProjectId]',
   'const [selectedStatusView, setSelectedStatusView]',
   'projection.projects.filter((project) => project.agentId === selectedAgentId)',
   'scopedItems.filter((item) => matchesStatusView(item, selectedStatusView))',
+  'i18n.resolvedLanguage ?? i18n.language',
+  "ipcBridge.oplRuntime.getDrilldown.invoke({ detail: 'summary' })",
+  "ipcBridge.oplRuntime.getDrilldown.invoke({ detail: 'full' })",
+  'readRuntimeTaskDetails(fullDrilldown, summaryDrilldown, appStateQuery.appState)',
+  'readRuntimeSafeActions(fullDrilldown, summaryDrilldown, appStateQuery.appState)',
+  "actionId: 'runtime_archive_attempt'",
+  "actionId: 'runtime_restore_attempt'",
   '<RuntimeScopeBar',
   '<RuntimeStatusBar',
   '<RuntimeWorkItemList',
   '<AgentAvailability',
   '<RuntimeDetailDrawer',
   "data-testid='runtime-v2-page'",
+  '<RuntimeCockpitPanel',
+];
+
+const runtimeProjectionExpected = [
+  'workbench?.work_item_projection_v2',
+  'const workItemId = requiredString(identity.work_item_id)',
+  'currentStageId: executionStageId ?? lifecycleStageId',
+  'attemptIds: Array.from(',
+  'nextVisibleStep',
+  'nextOwner',
+];
+
+const runtimeCockpitExpected = [
+  'normalizeRuntimeProjection(root).taskRunProjectionV2.tasks',
+  'const explicitlySafe =',
+  'const payloadFree =',
+  'if (!appBoundary || !explicitlySafe || !payloadFree || entry.dry_run_supported === false) return null',
+  'export function readRuntimeSafeActions',
+  'export function canArchiveRuntimeItem',
+];
+
+const runtimeCockpitPanelExpected = [
+  "data-testid='runtime-cockpit'",
+  "data-testid='runtime-load-summary'",
+  "data-testid='runtime-load-full'",
+  'disabled={action.dryRunRequired !== false && approvedActionId !== action.id}',
+  'onRestore(attempt)',
+];
+
+const runtimeFocusedTestsExpected = [
+  'keeps the V2 list while exposing keyboard-reachable summary and full drilldown requests',
+  'requires a successful dry run before confirming and executing a safe action',
+  'archives and restores attempts only through the existing App action bridge',
+  'preserves canonical work item, stage, attempt, and current-next detail refs',
+  'exposes only explicit payload-free App safe actions',
 ];
 
 const runtimePageForbidden = [
@@ -278,8 +322,9 @@ function validateGuidAgentSelection(shellPaths) {
       "agent_type: assistant.agent?.type || 'acp'",
       'backend: runtimeKey',
       'useState<string>(CODEX_MODE_NATIVE_FULL_ACCESS)',
-      "if (savedKey.startsWith('custom:'))",
-      'availableAgents.some((agent) => getAgentKey(agent) === savedKey)',
+      'preselectAgentKey && availableAgents.some((a) => getAgentKey(a) === preselectAgentKey)',
+      'const savedAgent = availableAgents.find((agent) => getAgentKey(agent) === savedKey)',
+      'if (savedAgent && !savedAgent.is_preset)',
       '_setSelectedAgentKey(getDefaultAgentKey(availableAgents))',
     ],
     'Active shell Guid agent selection App-owned default',
@@ -426,6 +471,29 @@ export function validateRuntimePageImplementation(shellPaths) {
     runtimePageExpected,
     'Active shell Runtime page user-task-first grouped display',
   );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/runtime/projection.ts',
+    runtimeProjectionExpected,
+    'Active shell Runtime v2 canonical work-item projection',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/runtime/cockpit.ts',
+    runtimeCockpitExpected,
+    'Active shell Runtime cockpit thin App bridge adapter',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/runtime/components/RuntimeCockpitPanel.tsx',
+    runtimeCockpitPanelExpected,
+    'Active shell Runtime cockpit controls',
+  );
+  const runtimeFocusedTests = [
+    readShellText(shellPaths, 'tests/unit/opl-runtime/runtime-v2/RuntimePageV2.dom.test.tsx'),
+    readShellText(shellPaths, 'tests/unit/opl-runtime/runtime-v2/projection.test.ts'),
+  ].join('\n');
+  assertTextIncludesAll(runtimeFocusedTests, runtimeFocusedTestsExpected, 'Active shell Runtime v2 focused regressions');
   assertTextExcludesAll(runtimePage, runtimePageForbidden, 'Active shell Runtime page provider/run fallbacks');
 
   const projection = assertShellTextIncludesAll(

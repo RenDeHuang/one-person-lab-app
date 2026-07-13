@@ -60,7 +60,7 @@ contract/实现收敛 lane 处理。
 | State bridge | 把 App state readback 规范化为 renderer 可消费 envelope。 | 从本地组件状态推断 runtime/domain readiness。 |
 | Action bridge | 执行 App-owned action，并返回 dry-run/result/receipt。 | 直接调用 domain CLI、绕过 confirmation 或自建 mutation kernel。 |
 | Package launch adapter | 在 Home starter launch 前请求 Framework-owned use-boundary activation，并消费 `launch_allowed`、receipt 与 binding。 | 从 installed flag 推断可用、绕过 activation、在失败后仍创建/发送 conversation。 |
-| Thread directory / coordination adapter | Rail 投影 App Server `thread/list/read/resume`；rename/archive/restore/delete 映射 `thread/name/set`、`thread/archive`、`thread/unarchive`、`thread/delete`，pin 仅 Shell metadata；封装 `turn/*`、visible entry、advisory 与 receipt。 | 用 Shell DB 拥有 history、把 local reset 冒充 history reset、隐藏协调入口、用 project/workspace 建 sandbox、增加 confirmation、用 `send_input` 作为跨根线程总线。 |
+| Thread directory / coordination adapter | Rail 投影 App Server `thread/list/read/resume`；rename/archive/restore/delete 映射 `thread/name/set`、`thread/archive`、`thread/unarchive`、`thread/delete`，pin 仅 Shell metadata；封装 `turn/*`、visible entry、advisory、delivery audit 与 interactive request pending flow。 | 用 Shell DB 拥有 history、把 local reset 冒充 history reset、隐藏协调入口、把 pending approval 当 dispatch failure、用 project/workspace 建 sandbox、增加 OPL confirmation、用 `send_input` 作为跨根线程总线。 |
 | Projectless local-input adapter | 让 attachment、file/directory picker、paste/drop、`/open` 在无 workspace 时继续进入 Codex 原生权限路径。 | 因缺 project 禁用输入、把 workspace membership 当授权、复制第二套 path permission model。 |
 | Artifact ref adapter | 用户显式打开的合法绝对本地路径或 workspace-scoped project ref 解析为现有 Preview target，保持只读和 fail-closed。 | 复制 artifact body、新建 renderer/store、路径穿越、非法 scheme、自动静默读取或猜测未知格式。 |
 | Local / Worktree handoff adapter | Home 通过既有 `gitWorkspace` adapter投影 Local/Worktree、starting branch 和 managed worktree create/reuse；Conversation Environment 为同主机 `not_loaded`/`idle` task 调用 `thread/settings/update` 双向切换。先更新真实 Codex cwd，再更新 AionUI projection；后者失败时 best-effort 恢复旧 cwd。投影 `opl_workspace_handoff.v1`，worktree 默认保留复用。 | 复制 Git/thread store、把 project/workspace 当权限域、running/archived/error 静默 fallback、宣称 snapshot/cleanup/cross-host 已实现、自建 worktree lifecycle truth。 |
@@ -90,8 +90,9 @@ contract/实现收敛 lane 处理。
 - Codex Core/App Server 拥有 thread history 和 opaque thread id。两个 shell 最终都从
   `thread/list/read/resume` 投影 conversation directory；本地存储仅用于 UI preferences、
   draft 和可重建 cache，不得直接读取另一个 GUI 的 private store。
-- 双 shell parity 必须用 exact cohort 证明跨 workspace、并发写、steer 与 queue 保持 Codex
-  flexibility，并把 overlap/loop 作为 advisory；side-by-side install 或 sequential switching
+- 双 shell parity 必须用 exact cohort 证明跨 workspace、并发写与 steer 保持 Codex
+  flexibility，并把 overlap/loop 作为 advisory；queue 只有双方真实实现后才进入 parity gate。
+  Side-by-side install 或 sequential switching
   不能替代该行为证据。
 
 统一 launcher 已实现本机 launch selection；Runtime resolver 只完成 launcher-started Native
@@ -160,7 +161,7 @@ opl app action execute --action <id> [--payload <json>] [--dry-run] --json
 
 跨顶层线程协调是另一条 host boundary：Codex Core/App Server 拥有 opaque thread ID、history、
 status、turn 和 permission/approval；OPL host 执行 list/read/resume/fork/archive/unarchive/start/steer、
-opaque-key 幂等、queue、project/workspace/write-set/route advisory，并产生双边可见 receipt。
+opaque-key 幂等、project/workspace/write-set/route advisory，并产生可见 delivery audit。
 Project/workspace 只作默认 cwd、分组和元数据；不得在 Shell/host 中变成授权域。
 `spawn_agent/send_input/wait_agent`
 只用于同一 agent tree。协议适配集中在 host/preload boundary，并作为模型/host tool 按需调用；
@@ -169,9 +170,23 @@ Canonical rows 来自 App Server；rename/archive/restore/delete 映射对应 `t
 metadata，local reset 不能改写 history。Shell DB 只能保存 draft、preference 与可重建 cache。
 任何调试视图也只能消费 typed projection，不直接解析 App Server JSON 或拥有路由策略。
 
+模型 tool access 必须复用同一 host adapter，但实现证据与用户 rail 分开：App Server experimental
+`dynamicTools` 必须在创建普通 thread 的 `thread/start` 路径注册，并闭合 `item/tool/call`
+request/response 和 turn result。当前 AionUI 的 ACP/AionCore ordinary conversation 未经过本
+coordination port 的 `thread/start`，因此只能声明 user-facing coordination source implemented；
+不得把 rail/detail 结构检查提升为 model tool implemented，也不得为此新增第二套 thread runtime、
+MCP/socket 总线或 duplicate store。
+
 同一 opaque idempotency key 重试必须返回第一次 receipt/result、`ok=true` 且不再次 dispatch；
 不得返回 duplicate-delivery error。同内容不同 key 继续允许。跨 host transition 必须走 handoff，
 不能把 direct message 当作跨 host 支持。
+
+App Server 发起 command/file/permission approval、user-input 或 MCP elicitation 时，host 必须把
+请求保留为 typed pending state，并在 selected target thread detail 中保留 thread/turn/item context。
+`currentTime/read` 可自动回答；未知 server request 必须 JSON-RPC fail closed。Pending 不得转换成
+dispatch failure；只有 decline/cancel、请求已失效或 handler/protocol 无效才失败。Delivery audit
+只证明目标沿用既有 Codex policy，不得伪造独立持久化 approval receipt。独立非紧急 queue 在真实
+host queue 落地前保持 deferred。
 
 ## Settings Control Plane
 
