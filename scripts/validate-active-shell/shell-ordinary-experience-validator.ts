@@ -333,7 +333,7 @@ function validateCodexModelControls(shellPaths) {
   assertTextDoesNotMatch(modelControls, /\bBrain\b/, 'Active shell ordinary model/reasoning controls must not render brain icons');
   assertShellTextIncludesAll(
     shellPaths,
-    'packages/desktop/src/renderer/components/settings/OplRefreshIconButton.tsx',
+    'packages/desktop/src/renderer/components/opl/OplRefreshIconButton.tsx',
     ['@fortawesome/free-solid-svg-icons', 'FontAwesomeIcon', 'faRotateRight', 'aria-label={label}', '<Tooltip content={label}>'],
     'Active shell OPL refresh icon button',
   );
