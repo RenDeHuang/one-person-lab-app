@@ -78,6 +78,8 @@ export function validateAppSettingsPages(matrix, guiContract) {
     gatewayAccount.manual_api_key_card_policy !== 'model_access_status_only_no_account_balance_or_account_usage' ||
     gatewayAccount.cache_ttl_seconds !== 900 ||
     gatewayAccount.stale_policy !== 'show_cached_values_with_stale_marker_and_manual_refresh' ||
+    gatewayAccount.managed_key_setup_policy !==
+      'auto_complete_exposed_setup_action_for_unique_codex_group_without_user_control' ||
     gatewayAccount.first_run_scope !== 'unchanged' ||
     gatewayAccount.personal_profile_navigation !== 'not_added'
   ) {
@@ -103,7 +105,7 @@ export function validateAppSettingsPages(matrix, guiContract) {
     (accessPage.required_dom?.conditional ?? []).map((entry) => [entry.testid, entry.when]),
   );
   for (const [testid, when] of Object.entries({
-    'settings-access-gateway-setup': 'desktop_account_login_selected_or_legacy_setup_requires_default_group_completion',
+    'settings-access-gateway-setup': 'desktop_account_login_selected',
     'settings-access-gateway-account': 'gateway_account_connected',
     'settings-access-gateway-stale': 'gateway_account_projection_stale',
     'settings-access-gateway-disconnect-confirm': 'gateway_account_disconnect_requested',

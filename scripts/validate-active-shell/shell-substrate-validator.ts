@@ -128,7 +128,51 @@ function validateAppStateHook(shellPaths) {
     'ipcBridge.oplRuntime.getAppState.invoke({ profile })',
     'OPL App state hook',
   );
+  assertTextIncludesAll(
+    appStateHook,
+    [
+      "const GATEWAY_ACCOUNT_CACHE_KEY = 'opl.gatewayAccount.projection.v1'",
+      "const APP_STATE_CACHE_UPDATED_EVENT = 'opl:app-state-cache-updated'",
+      'GATEWAY_ACCOUNT_CACHE_TOP_LEVEL_FIELDS',
+      'GATEWAY_ACCOUNT_CACHE_NESTED_FIELDS',
+      'sanitizeGatewayAccountForCache',
+      'readCachedGatewayAccount',
+      'cacheGatewayAccountProjection',
+      'mergeCachedGatewayAccount',
+      'withoutGatewayAccountProjection',
+      'notifyOplAppStateCacheUpdated',
+      'window.addEventListener(APP_STATE_CACHE_UPDATED_EVENT, handleCacheUpdate)',
+      'hasGatewayAccountProjection',
+      '!cached || !hasGatewayAccountProjection(cached.payload)',
+      'opl_gateway_account: gatewayAccount',
+      'JSON.stringify({ payload: withoutGatewayAccountProjection(sanitizedPayload), loadedAt })',
+    ],
+    'Active shell dedicated Gateway account last-known-good cache',
+  );
   assertTextExcludesAll(appStateHook, ['shell.runOplCommand', 'application.systemInfo'], 'Active shell OPL App state hook');
+  assertTextExcludesAll(
+    appStateHook,
+    ['stripGatewayAccountFromAppState'],
+    'Active shell Gateway account cache must preserve the public projection in renderer state',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'tests/unit/opl-runtime/useOplAppStateCache.dom.test.tsx',
+    [
+      'renders the cached connected account before the background refresh resolves',
+      'reuses the account cached by a prior page visit while the next refresh is pending',
+      'updates an already-mounted consumer when another page persists the connected account',
+      'keeps the dedicated account projection when a live payload omits the Gateway field',
+      'replaces the cached account only after a live read confirms disconnection',
+    ],
+    'Active shell Gateway account cache behavior tests',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/settings/sections/AccessSettings.tsx',
+    ["!appStateQuery.loading && !gatewayFormVisible && gatewayAccount?.connection_mode !== 'account'"],
+    'Active shell Gateway account signed-out action waits for authoritative state',
+  );
 }
 
 function validateRuntimeBridgeSurface(shellPaths) {

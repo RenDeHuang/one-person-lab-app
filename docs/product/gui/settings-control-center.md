@@ -152,8 +152,11 @@ they do not permit a page-wide list wall.
 - cards remain in the normal document flow and do not become floating dashboard tiles;
 - page-wide list walls, a sparse stack of bare horizontal dividers, and a
   decorative card wall that fragments one user question are forbidden;
-- the compact footer contains only return-to-chat and theme-switcher controls;
-  it is not a second account/help navigation group;
+- the compact footer keeps the Gateway display name visible on every route when
+  an account is connected, otherwise it shows Settings; the entry opens Models
+  & Access or Overview, and Settings places the theme-switcher icon after it;
+  returning to the previous App surface uses title-bar navigation, so the footer
+  never renders return-to-chat or help navigation;
 - the theme gallery uses recognizable preview tiles, never a flat swatch list;
 - maximum border radius is 8 px;
 - spacing uses 12 / 16 / 24 px;
@@ -312,8 +315,8 @@ Primary information:
 - persisted Auto or fixed-model selection and reasoning effort;
 - OPL Gateway account login and manual API-key paths, with neither path removing
   the other;
-- when an account is connected, a compact account card showing only masked
-  identity, balance, today/total Token usage, today/total actual cost, managed
+- when an account is connected, a compact account card showing the full public
+  account identity, balance, today/total Token usage, today/total actual cost, managed
   Key name/status, and freshness;
 - OPL Gateway, Codex CLI, and account or API-key state.
 
@@ -328,12 +331,31 @@ action.
 
 Gateway account state is read only from
 `app_state.settings_control_center.app_settings_read_model.opl_gateway_account`.
-The Framework owns its 15-minute cache. Page entry shows cached data first and
-refreshes once when stale; manual refresh bypasses the TTL, while network errors
-keep the prior values and mark them stale. `auth_expired` asks the user to log in
-again. `managed_key_missing`, `managed_key_conflict`,
-`managed_key_identity_drift`, and `disconnect_pending` expose only their
-declared Framework repair actions.
+The Framework owns its 15-minute canonical cache. The renderer may persist only
+the projection's declared top-level and nested allowlists as a derived
+last-known-good bootstrap copy. Page entry shows that account immediately and
+refreshes in the background; a pending or failed refresh must not temporarily
+replace it with the logged-out card. Manual refresh bypasses the TTL, network
+errors keep the prior values and mark or report them stale, and only an
+authoritative readback confirming a new projection replaces the bootstrap copy.
+An older renderer cache that predates the account projection keeps account state
+unresolved until that readback instead of rendering the signed-out action.
+`auth_expired` asks the user to log in again while preserving the non-secret
+snapshot. When an account projection exposes `complete_setup`, has no managed
+Key, and has no projected error, the App resolves the unique Codex group and
+invokes that action once in the background. This rule is action-driven rather
+than coupled to one status spelling, because the Framework may describe the
+same incomplete managed-Key state as `setup_required` or `attention_needed`.
+The App does not render a group selector or a separate Complete connection
+button. If no unique group can be resolved, the card keeps the cached account
+visible and shows localized guidance. A manual refresh or a new authoritative
+projection may retry the automatic completion.
+
+`managed_key_missing`, `managed_key_conflict`,
+`managed_key_identity_drift`, and `disconnect_pending` keep their Framework
+status and action data, but the ordinary account card does not render a generic
+Repair control. Refresh, re-login where applicable, and disconnect remain the
+only visible account recovery choices.
 
 Desktop account login uses the typed `loginGatewayAccount` IPC bridge and
 `opl connect gateway login --credentials-stdin --json`. Passwords must never
@@ -342,7 +364,9 @@ receipts, diagnostics, or persisted renderer state. Browser WebUI may display
 existing account status and keep the manual Key path, but it does not accept the
 Gateway account password in v1. Non-secret setup, refresh, repair, model-source,
 and disconnect mutations use the canonical App action ids projected by the
-Framework.
+Framework. Setup is consumed automatically with the resolved Codex group;
+repair and model-source actions are not exposed as ordinary account-card
+controls.
 
 The account card is absent for manual-Key-only and disconnected states. This
 capability does not add a personal-profile navigation item and does not change

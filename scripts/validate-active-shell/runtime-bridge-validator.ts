@@ -109,14 +109,16 @@ const gatewayAccountDisplayPolicy = {
   observed_at: 'format_with_local_device_locale_and_timezone',
   refresh_action: 'icon_only_immediately_after_observed_at_with_tooltip_and_accessible_name',
   normal_actions: ['refresh', 'disconnect'],
-  exception_actions: ['complete_setup', 'repair', 'sign_in_again'],
-  forbidden_normal_controls: ['group_selector', 'repair', 'use_for_model_access'],
+  exception_actions: ['sign_in_again'],
+  forbidden_normal_controls: ['group_selector', 'complete_setup', 'repair', 'use_for_model_access'],
 };
 const gatewayAccountGroupResolutionPolicy = {
   default_group_match: 'single_case_insensitive_label_containing_Codex_then_single_available_group_fallback',
   ordinary_user_selector: 'not_rendered',
-  legacy_setup_required_action: 'show_complete_connection_only_when_default_group_resolves',
+  managed_key_setup_action:
+    'auto_execute_complete_setup_once_when_action_exposed_managed_key_missing_and_default_group_resolves_without_rendering_control',
   unresolved_state: 'show_localized_error_without_arbitrary_group_selection',
+  retry_policy: 'retry_after_manual_refresh_or_new_authoritative_projection',
 };
 
 function collectObjectKeys(value, keys = new Set()) {
@@ -205,6 +207,16 @@ export function validateOplGatewayAccountContract(runtimeBridge) {
     || projection.refresh_policy?.page_entry !== 'show_cached_then_refresh_once_when_stale'
     || projection.refresh_policy?.manual_refresh !== 'bypass_ttl'
     || projection.refresh_policy?.network_failure !== 'preserve_cached_values_and_mark_stale'
+    || projection.renderer_bootstrap_cache?.role !== 'derived_last_known_good_projection_not_truth'
+    || projection.renderer_bootstrap_cache?.storage_scope !==
+      'dedicated_gateway_projection_cache_independent_of_full_app_state_cache'
+    || projection.renderer_bootstrap_cache?.field_policy !== 'persist_projection_top_level_and_nested_allowlists_only'
+    || projection.renderer_bootstrap_cache?.initial_render !== 'show_cached_account_before_background_refresh'
+    || projection.renderer_bootstrap_cache?.legacy_cache_without_projection !==
+      'keep_account_state_resolving_until_authoritative_readback'
+    || projection.renderer_bootstrap_cache?.refresh_failure !== 'retain_cached_account_and_surface_stale_or_error'
+    || projection.renderer_bootstrap_cache?.invalidation !==
+      'replace_only_after_authoritative_readback_confirms_new_projection'
     || projection.generic_action_secret_policy !==
       'password_tokens_and_api_key_material_forbidden_in_action_payload_log_state_error_and_receipt'
   ) {

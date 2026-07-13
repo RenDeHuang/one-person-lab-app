@@ -3135,8 +3135,9 @@
         "password, access token, refresh token, API Key material, remote Key id, credential path, raw response, or raw error",
         "Gateway account card in manual API-key mode or when no Gateway account is connected",
         "Gateway group selector when Codex or the only available group can be resolved",
+        "Complete connection control when the unique Codex group can be resolved automatically",
         "server day timezone or raw server timestamp on the account card",
-        "normal-state Repair or Use as model source actions"
+        "Repair or Use as model source actions on the account card"
       ],
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
       "ia_group": "setup_access",
@@ -3164,7 +3165,7 @@
           },
           {
             "testid": "settings-access-gateway-setup",
-            "when": "desktop_account_login_selected_or_legacy_setup_requires_default_group_completion"
+            "when": "desktop_account_login_selected"
           },
           {
             "testid": "settings-access-gateway-account",
@@ -3208,6 +3209,7 @@
         "manual_api_key_card_policy": "model_access_status_only_no_account_balance_or_account_usage",
         "cache_ttl_seconds": 900,
         "stale_policy": "show_cached_values_with_stale_marker_and_manual_refresh",
+        "managed_key_setup_policy": "auto_complete_exposed_setup_action_for_unique_codex_group_without_user_control",
         "error_states": [
           "auth_expired",
           "managed_key_missing",
