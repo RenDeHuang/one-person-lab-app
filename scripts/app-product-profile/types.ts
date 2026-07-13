@@ -186,6 +186,14 @@ export type AppProductProfile = {
         library: string;
         refresh_actions: string;
         model_reasoning_control: string;
+        global_feedback_action: {
+          placement: string;
+          icon: string;
+          target_url: string;
+          open_mode: string;
+          prefill_fields: string[];
+          shell_local_delivery_forbidden: boolean;
+        };
         scope: string;
       };
     };

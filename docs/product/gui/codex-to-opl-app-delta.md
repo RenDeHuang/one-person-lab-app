@@ -108,6 +108,8 @@ package entry 和双语等 OPL-owned capability：
   产品身份；ordinary chrome 只显示 `One Person Lab`，不重复显示 carrier 或 executor 名称。
 - macOS 使用 Codex-like full-size content titlebar：保留交通灯、窗口拖动和系统可访问性，隐藏
   独立标题栏背景与标题文字，内容为交通灯预留安全区。
+- 标题栏右侧保留一个全局问题反馈图标，打开 OPL App GitHub Issue 新建页，并预填当前页面与
+  App 版本；用户在外部浏览器审阅后提交，不再调用 AionUI 自有的反馈投递。
 - ChatGPT/Codex 只作为 executor/interaction reference，不作为 OPL App visible brand。
 - OPL accent 与 purpose language 可以偏离 Codex 品牌，但主 composition 仍保持
   Codex-based chat-first。
