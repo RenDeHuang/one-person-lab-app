@@ -29,7 +29,7 @@
     "active_shell_switch_policy": "only_contracts/app-shell-adapter.json_can_switch_default_release_shell"
   },
   "interactive_launcher_policy": {
-    "state": "target_contract_implementation_pending",
+    "state": "active_local_launcher_policy",
     "topology": "single_control_plane_multiple_independent_gui_clients",
     "selectable_shells": [
       "aionui",
@@ -45,8 +45,41 @@
     "selection_changes_updater_channel": false,
     "side_by_side_bundle_identity_required": true,
     "simultaneous_same_workspace_write_safety_claimed": false,
+    "concurrent_mainline_policy": "side_by_side_bundle_launch_allowed_candidate_actions_dry_run_by_default",
+    "candidate_default_mutation_policy": "dry_run_only_unless_explicit_allow_actions",
     "missing_target_policy": "fail_closed_with_actionable_blocker",
-    "implementation_status": "pending"
+    "implementation_status": "implemented",
+    "launch_profiles": {
+      "aionui": {
+        "adapter_contract": "contracts/app-shell-adapter.json",
+        "default_mode": "packaged",
+        "supported_modes": [
+          "packaged",
+          "dev"
+        ],
+        "bundle_id": "cn.onepersonlab.opl",
+        "packaged_app_path": "/Applications/One Person Lab.app",
+        "dev_command": [
+          "bun",
+          "run",
+          "start"
+        ]
+      },
+      "opl-native-workbench": {
+        "adapter_contract": "contracts/shell-adapters/opl-native-workbench.json",
+        "default_mode": "packaged",
+        "supported_modes": [
+          "packaged"
+        ],
+        "bundle_id": "cn.gflab.opl.native-workbench.candidate",
+        "bundle_relative_path": "out/One Person Lab Native Workbench Candidate.app",
+        "package_command": [
+          "npm",
+          "run",
+          "package"
+        ]
+      }
+    }
   },
   "release_shell_contract": "contracts/app-shell-adapter.json",
   "gui_product_contract": "contracts/app-gui-product-contract.json",

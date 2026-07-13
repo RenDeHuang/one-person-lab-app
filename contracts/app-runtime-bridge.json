@@ -239,7 +239,7 @@
     ],
     "regression": "packaged first-run must expose the /guid ready entry when opl system initialize --json reports ready_to_launch=true even if a stale managed opl shim exists",
     "shared_gui_target": {
-      "implementation_status": "target_not_proven_across_both_shells",
+      "implementation_status": "candidate_launcher_runtime_identity_implemented_active_shell_parity_not_proven",
       "required_executables": [
         "opl",
         "codex"
@@ -253,7 +253,7 @@
         "runtime_cohort_ref"
       ],
       "producer": "app_host_runtime_resolver",
-      "producer_status": "not_implemented"
+      "producer_status": "implemented_for_local_gui_launcher"
     }
   },
   "shared_gui_runtime_resolution_policy": {
@@ -265,9 +265,9 @@
     "same_cohort_runtime_identity_required_for_parity": true,
     "host_path_only_resolution_can_prove_parity": false,
     "active_aionui_status": "managed_or_packaged_runtime_resolution",
-    "opl_native_workbench_status": "host_path_resolution_current_deviation",
+    "opl_native_workbench_status": "launcher_explicit_runtime_resolution_implemented_direct_launch_host_path_fallback_remains",
     "same_physical_runtime_currently_claimed": false,
-    "implementation_status": "target_not_proven_across_both_shells"
+    "implementation_status": "candidate_launcher_only_active_shell_parity_not_proven"
   },
   "canonical_conversation_continuity_policy": {
     "state": "target_with_current_shell_deviations",

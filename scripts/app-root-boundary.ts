@@ -30,6 +30,7 @@ const forbiddenRootPackageFields = [
 const requiredRootScripts = {
   'validate:app-root-boundary': 'node --experimental-strip-types scripts/app-root-boundary.ts',
   'typecheck': 'tsc --noEmit -p tsconfig.json',
+  'gui': 'node --experimental-strip-types scripts/gui-launcher.ts',
   'validate:active-shell': 'node --experimental-strip-types scripts/validate-active-shell.ts',
   'validate:release-boundary': 'node --experimental-strip-types scripts/validate-release-boundary.ts',
   'release:prepare-standard': 'node --experimental-strip-types scripts/prepare-standard-release-payload.ts',

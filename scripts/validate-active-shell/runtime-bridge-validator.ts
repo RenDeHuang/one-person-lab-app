@@ -705,10 +705,10 @@ function validateRuntimeBridgeCommandResolutionPolicy(runtimeBridge) {
   }
   const sharedGuiTarget = commandResolutionPolicy?.shared_gui_target;
   for (const [field, expected] of Object.entries({
-    implementation_status: 'target_not_proven_across_both_shells',
+    implementation_status: 'candidate_launcher_runtime_identity_implemented_active_shell_parity_not_proven',
     identity_readback_schema: 'app_runtime_executable_identity.v1',
     producer: 'app_host_runtime_resolver',
-    producer_status: 'not_implemented',
+    producer_status: 'implemented_for_local_gui_launcher',
   })) {
     if (sharedGuiTarget?.[field] !== expected) {
       throw new Error(`Runtime bridge shared GUI command resolver target ${field} must be ${expected}`);
@@ -733,9 +733,9 @@ function validateSharedGuiRuntimeResolutionPolicy(runtimeBridge) {
     same_cohort_runtime_identity_required_for_parity: true,
     host_path_only_resolution_can_prove_parity: false,
     active_aionui_status: 'managed_or_packaged_runtime_resolution',
-    opl_native_workbench_status: 'host_path_resolution_current_deviation',
+    opl_native_workbench_status: 'launcher_explicit_runtime_resolution_implemented_direct_launch_host_path_fallback_remains',
     same_physical_runtime_currently_claimed: false,
-    implementation_status: 'target_not_proven_across_both_shells',
+    implementation_status: 'candidate_launcher_only_active_shell_parity_not_proven',
   })) {
     if (policy?.[field] !== expected) {
       throw new Error(`Runtime bridge shared GUI runtime resolution policy ${field} must be ${expected}`);

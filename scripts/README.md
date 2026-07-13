@@ -15,6 +15,7 @@ AGUI selection should happen only when AGUI replay is explicitly requested.
 | Script | Purpose |
 | --- | --- |
 | `ensure-active-shell.ts` | Clones or validates the selected external shell checkout, defaulting to `shells/aionui`. |
+| `gui-launcher.ts` | Opens the installed AionUI mainline by default or the isolated Native Candidate for one local run. Candidate launches receive exact OPL/Codex Runtime identity and default to dry-run-only actions; the launcher never changes release adoption or updater state. |
 | `verify.sh` | App-root verification wrapper for smoke, active-shell, release-boundary, candidate-shell, structure, and full lanes without running release packaging by default. |
 | `validate-active-shell.ts` | Validates the selected shell adapter contract and runs selected validation commands. |
 | `validate-shell-candidates.ts` | Validates the foreground GUI alternative from `contracts/app-shell-candidates.json` by default. `opl-native-workbench` is the foreground alternative, Hermes is a retained reference candidate, and archived AGUI proof is checked only with `--candidate agui-codex`. Selectable candidates are packageable only through an explicit adapter contract env override and must emit a real `.app` bundle manifest. |
@@ -77,6 +78,9 @@ guide sources and write the public bundle under
 Examples:
 
 ```bash
+npm run gui
+npm run gui -- --shell opl-native-workbench
+npm run gui -- --shell opl-native-workbench --plan
 node --experimental-strip-types scripts/ensure-active-shell.ts
 scripts/verify.sh
 scripts/verify.sh structure

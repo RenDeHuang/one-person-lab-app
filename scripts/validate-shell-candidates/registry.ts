@@ -107,15 +107,17 @@ export function validateRegistryShape(registry: ShellCandidateRegistry): void {
 function validateInteractiveLauncherPolicy(registry: ShellCandidateRegistry): void {
   const launcher = registry.interactive_launcher_policy;
   for (const [field, expected] of Object.entries({
-    state: 'target_contract_implementation_pending',
+    state: 'active_local_launcher_policy',
     topology: 'single_control_plane_multiple_independent_gui_clients',
     selection_scope: 'per_local_launch_only',
     default_target_source: 'contracts/app-shell-adapter.json#active_shell',
     target_interface: 'app_root_gui_launcher_with_shell_and_mode',
     target_command: 'npm run gui -- --shell <shell_id> [--mode dev|packaged]',
     release_adoption_contract: 'contracts/app-shell-adapter.json',
+    concurrent_mainline_policy: 'side_by_side_bundle_launch_allowed_candidate_actions_dry_run_by_default',
+    candidate_default_mutation_policy: 'dry_run_only_unless_explicit_allow_actions',
     missing_target_policy: 'fail_closed_with_actionable_blocker',
-    implementation_status: 'pending',
+    implementation_status: 'implemented',
   })) {
     if (launcher?.[field as keyof typeof launcher] !== expected) {
       throw new Error(`interactive launcher policy ${field} must be ${expected}`);
@@ -146,6 +148,36 @@ function validateInteractiveLauncherPolicy(registry: ShellCandidateRegistry): vo
   }
   if (launcher?.side_by_side_bundle_identity_required !== true) {
     throw new Error('interactive launcher policy must require separate side-by-side bundle identities');
+  }
+  const profiles = launcher?.launch_profiles ?? {};
+  const profileIds = Object.keys(profiles).sort();
+  if (profileIds.join(',') !== ['aionui', 'opl-native-workbench'].sort().join(',')) {
+    throw new Error('interactive launcher launch_profiles must be exactly aionui and opl-native-workbench');
+  }
+  const aionui = profiles.aionui;
+  if (
+    aionui?.adapter_contract !== 'contracts/app-shell-adapter.json' ||
+    aionui.default_mode !== 'packaged' ||
+    aionui.bundle_id !== 'cn.onepersonlab.opl' ||
+    aionui.packaged_app_path !== '/Applications/One Person Lab.app' ||
+    aionui.supported_modes?.join(',') !== 'packaged,dev' ||
+    aionui.dev_command?.join(' ') !== 'bun run start'
+  ) {
+    throw new Error('interactive launcher AionUI profile must preserve the installed mainline and existing dev command');
+  }
+  const native = profiles['opl-native-workbench'];
+  if (
+    native?.adapter_contract !== 'contracts/shell-adapters/opl-native-workbench.json' ||
+    native.default_mode !== 'packaged' ||
+    native.bundle_id !== 'cn.gflab.opl.native-workbench.candidate' ||
+    native.bundle_relative_path !== 'out/One Person Lab Native Workbench Candidate.app' ||
+    native.supported_modes?.join(',') !== 'packaged' ||
+    native.package_command?.join(' ') !== 'npm run package'
+  ) {
+    throw new Error('interactive launcher Native profile must preserve the isolated candidate bundle and package command');
+  }
+  if (aionui.bundle_id === native.bundle_id) {
+    throw new Error('interactive launcher mainline and candidate bundle identities must differ');
   }
 }
 

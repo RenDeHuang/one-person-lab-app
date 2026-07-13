@@ -212,8 +212,20 @@ export type ShellCandidateRegistry = {
     selection_changes_updater_channel: boolean;
     side_by_side_bundle_identity_required: boolean;
     simultaneous_same_workspace_write_safety_claimed: boolean;
+    concurrent_mainline_policy: string;
+    candidate_default_mutation_policy: string;
     missing_target_policy: string;
     implementation_status: string;
+    launch_profiles: Record<string, {
+      adapter_contract: string;
+      default_mode: string;
+      supported_modes: string[];
+      bundle_id: string;
+      packaged_app_path?: string;
+      bundle_relative_path?: string;
+      dev_command?: string[];
+      package_command?: string[];
+    }>;
   };
   release_shell_contract: string;
   gui_product_contract: string;

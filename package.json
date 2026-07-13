@@ -14,6 +14,7 @@
     "verify": "scripts/verify.sh",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "ensure:shell": "node --experimental-strip-types scripts/ensure-active-shell.ts",
+    "gui": "node --experimental-strip-types scripts/gui-launcher.ts",
     "install:shell": "node --experimental-strip-types scripts/run-active-shell-command.ts bun install --frozen-lockfile",
     "start": "node --experimental-strip-types scripts/run-active-shell-command.ts bun run start",
     "start:multi": "node --experimental-strip-types scripts/run-active-shell-command.ts bun run start:multi",

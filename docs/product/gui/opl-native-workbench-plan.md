@@ -36,9 +36,10 @@ local GUI client. That is a per-launch developer choice governed by
 [`gui-shell-candidates.md`](gui-shell-candidates.md), not a second active release
 shell. Side-by-side bundle identity and sequential switching prove neither shared
 physical Runtime parity nor safe simultaneous writes to one workspace/thread.
-Before those stronger claims, the candidate must stop relying on host-PATH-only
-`opl`/`codex` resolution, consume the App resolver, emit exact Runtime identity
-readback, and participate in the same host coordination/conflict gates. The
+Launcher-started Candidate runs now consume explicit App-resolved `opl`/`codex`
+identity and emit exact Runtime readback; direct bundle launch still has a host-PATH
+fallback. Before stronger parity claims, AionUI must expose the same cohort and
+both clients must participate in the same host coordination/conflict gates. The
 current renderer also persists complete `ChatSession.messages` with `threadId`
 in localStorage; this is a current full-transcript-cache deviation, not canonical
 conversation continuity. The target must rebuild history from App Server
@@ -68,6 +69,13 @@ queue/receipt ledger. That ledger contains no thread history and never becomes
 thread truth. The renderer owns presentation and user intent only. Renderer or
 shell code must not create a second thread store, agent registry, or permission
 store.
+
+The App-root launcher is now implemented for local selection. It injects exact
+OPL/Codex executable identity into the packaged Candidate, keeps the Candidate
+bundle distinct from AionUI, and defaults App actions to dry-run-only. This is
+launcher-scoped implementation evidence only: active AionUI Runtime parity,
+direct-bundle Runtime resolution, canonical cross-GUI conversation continuity,
+adoption, and release readiness remain unproven.
 
 ## Three Authority Layers
 

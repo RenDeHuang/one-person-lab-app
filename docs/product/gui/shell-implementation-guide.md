@@ -80,7 +80,8 @@ contract/实现收敛 lane 处理。
 - 每个 shell 保持独立 bundle id、checkout、lockfile、依赖树和 GUI user-data root；不要
   为复用而共享 `node_modules`、SQLite、localStorage 或 renderer store。
 - 两个 shell 最终都必须通过 App command-resolution policy 取得 OPL/Codex executable。
-  当前若只从 inherited PATH 解析，必须报告 current deviation，不能声明 same-runtime parity。
+  App launcher 已为 Native Candidate 注入显式 executable identity；Native 直接打开 bundle
+  与 active AionUI parity 仍是 current deviation，不能声明 same-runtime parity。
 - Runtime readback 至少绑定 OPL/Codex path、version 和 cohort ref。Shell-local cache 不得
   覆盖 resolver readback，也不得把缺失 readback 改写成 ready。
 - Codex Core/App Server 拥有 thread history 和 opaque thread id。两个 shell 最终都从
@@ -89,8 +90,8 @@ contract/实现收敛 lane 处理。
 - 在同一 workspace/thread 的并发写、steer、queue 与 conflict gate 获得 exact-cohort
   negative evidence 前，只声明 side-by-side install 与 sequential switching，不声明双开安全。
 
-统一 launcher、Runtime resolver 与 conversation continuity 都是 target contract；合同或
-文档存在不代表两个 shell 的实现已经完成。
+统一 launcher 已实现本机 launch selection；Runtime resolver 只完成 launcher-started Native
+范围，conversation continuity 仍是 target contract。局部实现不得提升为双 shell parity。
 
 ## AionUI 最小定制阶梯
 
