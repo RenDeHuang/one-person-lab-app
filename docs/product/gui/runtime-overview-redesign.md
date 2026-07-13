@@ -65,13 +65,18 @@ raw ID、attempt、workflow、receipt、provider、日志和 refs 不参与默�
 
 ### AgentAvailabilityProjection
 
-智能体 availability 与工作项状态独立。当前一方智能体使用全称：
+智能体 availability 与工作项状态独立。Framework canonical ID 与用户全称固定为：
 
-- Med Auto Science
-- Med Auto Grant
-- RedCube AI
-- OPL Meta Agent
-- OPL Book Forge
+| canonical ID | 用户全称 |
+| --- | --- |
+| `mas` | Med Auto Science |
+| `mag` | Med Auto Grant |
+| `rca` | RedCube AI |
+| `oma` | OPL Meta Agent |
+| `obf` | OPL Book Forge |
+
+ID 只用于合同和数据关联，不进入默认页面。App 合同不得用 package slug
+`med-autoscience`、`med-autogrant` 等替代 Framework canonical ID。
 
 MAS Scholar Skills 是 Med Auto Science 的专业能力依赖，不是第六个智能体。availability 只表达
 `available / attention_required / unavailable`；任务数量、运行数量或 `0/2` 不是 availability。
@@ -142,6 +147,11 @@ canonical projection 完成，Shell 不按标题、stage、binding 或最近时�
 在 375、768、1024 和 1440 px 验收视口中，页面不得横向溢出或文字重叠。窄屏按语义重排
 为堆叠行，不把四列硬塞入固定最小宽度表格。
 
+响应式证据使用确定性的九论文静态 fixture：1440 px 为四列，1024/768 px 为两列，375 px
+为单列。每个视口必须同时断言 scope 级联、一论文一行、语义列重排和无页面横向溢出，
+并输出截图；详情 drawer 另存截图，证明 Stage Map 首屏可见且 artifacts、timeline、evidence、
+diagnostics 默认折叠。静态 fixture 证据属于 Shell consumer 验收，不等于 live runtime 证据。
+
 ### Token
 
 默认显示当前 stage 与任务累计两项。每项 Token 是判别联合：
@@ -163,8 +173,8 @@ canonical projection 完成，Shell 不按标题、stage、binding 或最近时�
 4. 当前 stage 与任务累计 Token。
 5. 当前行动、owner 和可执行入口。
 
-Artifacts 与 Timeline 是次级折叠区。raw refs、raw IDs、logs、provider diagnostics 只进入
-诊断区。详情不得恢复为六个等权 tab 的工具墙。
+Artifacts、Timeline 与 Evidence 是次级折叠区；Evidence 承载 Framework 投影的来源引用。
+raw IDs、logs、provider diagnostics 只进入诊断区。详情不得恢复为六个等权 tab 的工具墙。
 
 ## 模块边界
 
@@ -183,7 +193,7 @@ Artifacts 与 Timeline 是次级折叠区。raw refs、raw IDs、logs、provider
 | --- | --- | --- |
 | Product contract | V2 用户语义、字段、页面结构和 validator 已成为 App machine truth。 | 本分支实现并由 focused tests 验证。 |
 | Framework producer | `opl app state` 是否真实生产完整 V2 projection、inventory、usage 和 availability。 | 不由 App 合同声明完成，需 Framework lane 及 producer tests。 |
-| Shell consumer | active Shell 是否仅渲染 V2、完成交互和响应式实现。 | 不由本分支声明完成，需 Shell lane 的 source/DOM evidence。 |
+| Shell consumer | active Shell 是否仅渲染 V2、完成交互和响应式实现。 | Runtime V2 Shell lane 以 focused unit/DOM、确定性 Playwright fixture 和 375/768/1024/1440 截图独立验收。 |
 | Live evidence | 本机真实项目、运行、heartbeat、Token、截图和 installed App user path 是否贯通。 | 不由 contract/focused tests 声明完成，需独立 E2E 验收。 |
 
 合同、文档或 focused tests 通过，不等于 Framework producer、Shell、像素、安装包或 live runtime

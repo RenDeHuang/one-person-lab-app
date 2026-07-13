@@ -40,6 +40,23 @@ const savedViewIds = [
   'sync_pending',
 ];
 
+const responsiveViewportWidths = [375, 768, 1024, 1440];
+
+const responsiveLayoutByWidth = {
+  '375': 'one_column',
+  '768': 'two_columns',
+  '1024': 'two_columns',
+  '1440': 'four_columns',
+};
+
+const responsiveRequiredAssertions = [
+  'scope_cascade_visible',
+  'one_row_per_work_item',
+  'semantic_column_reflow',
+  'no_horizontal_page_overflow',
+  'detail_progressive_disclosure',
+];
+
 const runtimeCockpitRequiredInvariants = [
   'collaboration_console_not_observability_dashboard',
   'work_item_projection_v2_required_axes',
@@ -150,8 +167,18 @@ export function validateRuntimeCockpitProductContract(contract, label) {
   );
   assertDeepEqualJson(
     contract.default_list?.responsive_acceptance?.viewport_widths_px,
-    [375, 768, 1024, 1440],
+    responsiveViewportWidths,
     `${label}.default_list.responsive_acceptance.viewport_widths_px`,
+  );
+  assertDeepEqualJson(
+    contract.default_list?.responsive_acceptance?.layout_by_viewport,
+    responsiveLayoutByWidth,
+    `${label}.default_list.responsive_acceptance.layout_by_viewport`,
+  );
+  assertDeepEqualJson(
+    contract.default_list?.responsive_acceptance?.required_assertions,
+    responsiveRequiredAssertions,
+    `${label}.default_list.responsive_acceptance.required_assertions`,
   );
   assertExpectedFields(
     contract.default_list?.responsive_acceptance,
@@ -160,6 +187,9 @@ export function validateRuntimeCockpitProductContract(contract, label) {
       narrow_layout: 'semantic_row_reflow',
       horizontal_page_overflow_allowed: false,
       text_overlap_allowed: false,
+      evidence_mode: 'deterministic_static_fixture_playwright',
+      screenshot_per_viewport_required: true,
+      detail_drawer_screenshot_required: true,
     },
     `${label}.default_list.responsive_acceptance`,
   );
@@ -351,6 +381,9 @@ export function validateRuntimeCockpitPageStateAcceptance(acceptance, productCon
       one_row_per_work_item: true,
       raw_ids_default_visible: false,
       horizontal_page_overflow_allowed: false,
+      viewport_evidence_mode: 'deterministic_static_fixture_playwright',
+      viewport_screenshots_required: true,
+      detail_progressive_disclosure_evidence_required: true,
       source_or_upstream_parity_may_override: false,
       feature_removal_or_weakening_allowed: false,
       contract_page_state_validator_tests_update_required: true,
@@ -358,6 +391,16 @@ export function validateRuntimeCockpitPageStateAcceptance(acceptance, productCon
     label,
   );
   assertDeepEqualJson(acceptance.default_list_columns, defaultListColumns, `${label}.default_list_columns`);
+  assertDeepEqualJson(
+    acceptance.responsive_viewport_widths_px,
+    responsiveViewportWidths,
+    `${label}.responsive_viewport_widths_px`,
+  );
+  assertDeepEqualJson(
+    acceptance.responsive_layout_by_width,
+    responsiveLayoutByWidth,
+    `${label}.responsive_layout_by_width`,
+  );
   assertDeepEqualJson(
     acceptance.required_invariants,
     runtimeCockpitRequiredInvariants,

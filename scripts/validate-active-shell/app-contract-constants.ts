@@ -60,11 +60,11 @@ export const runtimeScopeRequiredFields = [
 ];
 
 export const runtimeFirstPartyAgents = [
-  { agent_id: "med-autoscience", display_name: "Med Auto Science" },
-  { agent_id: "med-autogrant", display_name: "Med Auto Grant" },
-  { agent_id: "redcube-ai", display_name: "RedCube AI" },
-  { agent_id: "opl-meta-agent", display_name: "OPL Meta Agent" },
-  { agent_id: "opl-bookforge", display_name: "OPL Book Forge" },
+  { agent_id: "mas", display_name: "Med Auto Science" },
+  { agent_id: "mag", display_name: "Med Auto Grant" },
+  { agent_id: "rca", display_name: "RedCube AI" },
+  { agent_id: "oma", display_name: "OPL Meta Agent" },
+  { agent_id: "obf", display_name: "OPL Book Forge" },
 ];
 
 export const workItemPrimaryStateLabels = {
@@ -179,7 +179,7 @@ export const workItemDetailPrimarySections = [
   "action",
 ];
 
-export const workItemDetailSecondarySections = ["artifacts", "timeline"];
+export const workItemDetailSecondarySections = ["artifacts", "timeline", "evidence"];
 
 export const workItemDetailDiagnosticSections = [
   "raw_refs",

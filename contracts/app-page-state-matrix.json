@@ -917,6 +917,16 @@
           "one_row_per_work_item": true,
           "raw_ids_default_visible": false,
           "horizontal_page_overflow_allowed": false,
+          "responsive_viewport_widths_px": [375, 768, 1024, 1440],
+          "responsive_layout_by_width": {
+            "375": "one_column",
+            "768": "two_columns",
+            "1024": "two_columns",
+            "1440": "four_columns"
+          },
+          "viewport_evidence_mode": "deterministic_static_fixture_playwright",
+          "viewport_screenshots_required": true,
+          "detail_progressive_disclosure_evidence_required": true,
           "required_invariants": [
             "collaboration_console_not_observability_dashboard",
             "work_item_projection_v2_required_axes",
@@ -1146,11 +1156,11 @@
             "all_option": "all_agents",
             "full_display_names_required": true,
             "first_party_options": [
-              { "agent_id": "med-autoscience", "display_name": "Med Auto Science" },
-              { "agent_id": "med-autogrant", "display_name": "Med Auto Grant" },
-              { "agent_id": "redcube-ai", "display_name": "RedCube AI" },
-              { "agent_id": "opl-meta-agent", "display_name": "OPL Meta Agent" },
-              { "agent_id": "opl-bookforge", "display_name": "OPL Book Forge" }
+              { "agent_id": "mas", "display_name": "Med Auto Science" },
+              { "agent_id": "mag", "display_name": "Med Auto Grant" },
+              { "agent_id": "rca", "display_name": "RedCube AI" },
+              { "agent_id": "oma", "display_name": "OPL Meta Agent" },
+              { "agent_id": "obf", "display_name": "OPL Book Forge" }
             ]
           },
           "project_scope": {

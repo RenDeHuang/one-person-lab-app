@@ -49,6 +49,7 @@ test('WorkItemProjection V2 requires all eight axes and observed-only Token sema
 
 test('Runtime scope is Agent then Project and saved views cannot duplicate MAS', () => {
   for (const mutate of [
+    (scope: any) => { scope.agent_scope.first_party_options[0].agent_id = 'med-autoscience'; },
     (scope: any) => { scope.default_scope_levels.push('work_item'); },
     (scope: any) => { scope.project_scope.work_item_options_allowed = true; },
     (scope: any) => { scope.work_item_scope_allowed = true; },
@@ -67,11 +68,14 @@ test('Runtime product rejects list, status, detail, availability, and renderer r
     (contract: any) => { contract.default_list.one_row_per_work_item = false; },
     (contract: any) => { contract.default_list.shell_heuristic_deduplication_allowed = true; },
     (contract: any) => { contract.default_list.responsive_acceptance.horizontal_page_overflow_allowed = true; },
+    (contract: any) => { contract.default_list.responsive_acceptance.layout_by_viewport['1024'] = 'four_columns'; },
+    (contract: any) => { contract.default_list.responsive_acceptance.screenshot_per_viewport_required = false; },
     (contract: any) => { contract.primary_state_language.labels_zh_cn.system_attention = '需要系统处理'; },
     (contract: any) => { contract.system_attention.required_fields = ['issue']; },
     (contract: any) => { contract.token_usage.missing_value_may_render_as_zero = true; },
     (contract: any) => { contract.token_usage.progress_bar_allowed = true; },
     (contract: any) => { contract.work_item_detail.primary_sections = ['timeline']; },
+    (contract: any) => { contract.work_item_detail.secondary_sections = ['artifacts', 'timeline']; },
     (contract: any) => { contract.agent_availability_panel.task_counts_allowed = true; },
     (contract: any) => { contract.renderer_policy.status_derivation_allowed = true; },
     (contract: any) => { contract.progressive_disclosure.raw_technical_fields_default_visible = true; },
@@ -84,6 +88,7 @@ test('Runtime product rejects list, status, detail, availability, and renderer r
 
 test('Agent availability stays independent, full-name, healthy-collapsed, and excludes Scholar Skills as an agent', () => {
   for (const mutate of [
+    (projection: any) => { projection.first_party_agents[0].agent_id = 'med-autoscience'; },
     (projection: any) => { projection.first_party_agents[0].display_name = 'MAS'; },
     (projection: any) => { projection.first_party_agents.push({ agent_id: 'mas-scholar-skills', display_name: 'MAS Scholar Skills' }); },
     (projection: any) => { projection.all_healthy_panel_state = 'expanded'; },
@@ -123,6 +128,12 @@ test('Runtime page-state rejects removal or weakening of V2 acceptance', () => {
     },
     (matrix: any) => {
       matrix.pages.find((page: any) => page.id === 'runtime').runtime_view_model.runtime_cockpit_acceptance.horizontal_page_overflow_allowed = true;
+    },
+    (matrix: any) => {
+      matrix.pages.find((page: any) => page.id === 'runtime').runtime_view_model.runtime_cockpit_acceptance.responsive_layout_by_width['375'] = 'two_columns';
+    },
+    (matrix: any) => {
+      matrix.pages.find((page: any) => page.id === 'runtime').runtime_view_model.runtime_cockpit_acceptance.viewport_screenshots_required = false;
     },
   ]) {
     const matrix = structuredClone(readJson('contracts/app-page-state-matrix.json'));

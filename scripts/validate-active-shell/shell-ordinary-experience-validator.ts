@@ -199,30 +199,26 @@ const acpSendBoxExpected = [
 ];
 
 const runtimePageExpected = [
-  'const userTaskDrilldown = appStateProjection',
-  'const runtimeModel = useMemo(() => normalizeRuntimeProjection(appStateQuery.appState), [appStateQuery.appState])',
-  'const runtimeScope = runtimeModel.scope',
-  'buildOverviewSections(',
-  'i18n.resolvedLanguage ?? i18n.language',
-  "t('common.runtime.scopeSelector')",
-  "t('common.runtime.primaryStates.inProgress')",
-  'const [selectedSavedViewId',
-  'const scopedTasks = tasks.filter((task) => scopeMatchesTask(task, scope) && !isModuleRuntimeTask(task))',
-  'dedupeTaskItems(',
-  'scopedTasks.map((task) => runtimeTaskItem(task, controlStates, cockpitProjections.get(task.taskId), t, language))',
-  '(item) => savedViewMatchesItem(item, savedView)',
-  'parseAgentAvailabilityItems(',
-  'overview.sections.flatMap((section) => section.tasks)',
-  "t('common.runtime.agentAvailability.workload'",
-  "data-testid={`runtime-agent-availability-${item.id}`}",
-  'agentAvailabilityItems.map((item) =>',
+  'readRuntimeWorkItemProjectionV2(appStateQuery.appState)',
+  'const [selectedAgentId, setSelectedAgentId]',
+  'const [selectedProjectId, setSelectedProjectId]',
+  'const [selectedStatusView, setSelectedStatusView]',
+  'projection.projects.filter((project) => project.agentId === selectedAgentId)',
+  'scopedItems.filter((item) => matchesStatusView(item, selectedStatusView))',
+  '<RuntimeScopeBar',
+  '<RuntimeStatusBar',
+  '<RuntimeWorkItemList',
+  '<AgentAvailability',
+  '<RuntimeDetailDrawer',
+  "data-testid='runtime-v2-page'",
 ];
 
 const runtimePageForbidden = [
-  '|| activity.activeExecutionCount',
-  'fallbackRunningTasks',
-  'runtimeActivityProjection',
-  '|| project.activeRunId',
+  'normalizeRuntimeProjection',
+  'dedupeTaskItems',
+  'runtimeTaskItem(',
+  'stage_attempt',
+  'workflow_id',
 ];
 
 function validateGuidHomeImplementation(shellPaths) {
@@ -374,7 +370,7 @@ function validateCodexConversationImplementation(shellPaths) {
   validateCodexConversationSurfaces(shellPaths);
 }
 
-function validateRuntimePageImplementation(shellPaths) {
+export function validateRuntimePageImplementation(shellPaths) {
   assertShellTextIncludesAll(
     shellPaths,
     'packages/desktop/src/renderer/components/layout/Sider/SiderNav/SiderPrimaryNav.tsx',
@@ -405,6 +401,112 @@ function validateRuntimePageImplementation(shellPaths) {
     'Active shell Runtime page user-task-first grouped display',
   );
   assertTextExcludesAll(runtimePage, runtimePageForbidden, 'Active shell Runtime page provider/run fallbacks');
+
+  const projection = assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/runtime/projection.ts',
+    [
+      'const PRIMARY_STATUSES = new Set<RuntimePrimaryStatus>',
+      'enumValue(lifecycle.primary_state, PRIMARY_STATUSES)',
+      "projectedPrimaryStatus ?? 'sync_pending'",
+      'const projectedAction = parseAction(value.action)',
+      'const stageMap = parseStageMap(value.stage_map)',
+    ],
+    'Active shell Runtime V2 thin projection reader',
+  );
+  assertTextExcludesAll(
+    projection,
+    ['function primaryStatus(', 'statusByBusinessState'],
+    'Active shell Runtime V2 status inference',
+  );
+
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/runtime/components/RuntimeScopeBar.tsx',
+    [
+      "data-testid='runtime-agent-selector'",
+      "data-testid='runtime-project-selector'",
+      'disabled={selectedAgentId === ALL_RUNTIME_SCOPES}',
+      "t('common.runtime.scope.viewing')",
+    ],
+    'Active shell Runtime Agent then Project scope',
+  );
+  const statusBar = assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/runtime/components/RuntimeStatusBar.tsx',
+    [
+      "id: 'all'",
+      "id: 'automatically_advancing'",
+      "id: 'awaiting_user_decision'",
+      "id: 'system_attention'",
+      "id: 'delivered_or_paused'",
+      "id: 'stopped'",
+      "id: 'sync_pending'",
+      "data-testid='runtime-status-views'",
+      "data-testid='runtime-status-view-select'",
+    ],
+    'Active shell Runtime seven status-only saved views',
+  );
+  assertTextExcludesAll(statusBar, ["id: 'mas'", "id: 'med-autoscience'"], 'Active shell Runtime agent saved views');
+
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/runtime/components/RuntimeWorkItemList.tsx',
+    [
+      "data-testid='runtime-task-row'",
+      "data-responsive-columns='4'",
+      'currentStageLabel(item, t)',
+      'nextStageLabel(item, t)',
+      "t('common.runtime.stageUsageShort')",
+      "t('common.runtime.totalUsageShort')",
+    ],
+    'Active shell Runtime one-row work item list',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/runtime/components/RuntimeDetailDrawer.tsx',
+    [
+      "data-testid='runtime-stage-map'",
+      "data-testid='runtime-detail-disclosure'",
+      '<Collapse.Item',
+      "name='artifacts'",
+      "name='timeline'",
+      "name='evidence'",
+      "name='diagnostics'",
+    ],
+    'Active shell Runtime progressive detail disclosure',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/runtime/RuntimePage.module.css',
+    [
+      'overflow-x: hidden',
+      'box-sizing: border-box',
+      '@container (max-width: 720px)',
+      '@container (max-width: 360px)',
+      '@media (max-width: 1180px)',
+      'grid-template-columns: repeat(2, minmax(0, 1fr))',
+      'grid-template-columns: minmax(0, 1fr)',
+    ],
+    'Active shell Runtime responsive semantic reflow',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'tests/e2e/runtime-v2/runtime-v2.e2e.ts',
+    [
+      '{ width: 1440, height: 960, columns: 4 }',
+      '{ width: 1024, height: 900, columns: 2 }',
+      '{ width: 768, height: 900, columns: 2 }',
+      '{ width: 375, height: 812, columns: 1 }',
+      'assertNoHorizontalOverflow(page)',
+      'assertElementsWithinViewport(page',
+      'toHaveCount(9',
+      'runtime-v2-${viewport.width}.png',
+      'runtime-v2-1440-detail.png',
+      'runtime-v2-1440-detail-disclosure.png',
+    ],
+    'Active shell Runtime deterministic viewport evidence',
+  );
 }
 
 function validateSkillsHubImplementation(shellPaths) {
