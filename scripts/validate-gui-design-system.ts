@@ -650,6 +650,24 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     foundationDocs.readme,
     issues,
   );
+  requireExactMarkerLine(
+    foundationReadme,
+    'runtime_cockpit.role=user_agent_collaboration_control_console',
+    foundationDocs.readme,
+    issues,
+  );
+  requireExactMarkerLine(
+    foundationReadme,
+    'runtime_cockpit.upstream_alignment_may_remove_or_weaken=false',
+    foundationDocs.readme,
+    issues,
+  );
+  requireExactMarkerLine(
+    foundationReadme,
+    'runtime_cockpit.acceptance_ref=contracts/app-page-state-matrix.json#pages[id=runtime].runtime_view_model.runtime_cockpit_acceptance',
+    foundationDocs.readme,
+    issues,
+  );
   const matrixSnapshot = conformanceMatrix.match(/AionUI GUI conformance ancestor：`opl-aion-shell@([0-9a-f]{40})`/);
   if (matrixSnapshot?.[1] !== guiConformanceRef) {
     issues.add('shell conformance matrix GUI conformance ancestor must match the active shell adapter');
@@ -660,6 +678,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   const featurePreservation = record(interactionBaseline.feature_preservation_policy);
   const relocationGate = record(featurePreservation.relocation_gate);
   const runtimeSurfaceRoles = record(featurePreservation.runtime_surface_roles);
+  const runtimePreservationGate = record(featurePreservation.runtime_preservation_gate);
   const oplTargetTranslation = [
     'navigation_rail',
     'conversation_scope',
@@ -714,7 +733,19 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     relocationGate.removal_before_replacement_forbidden !== true ||
     runtimeSurfaceRoles.navigation_runtime !== 'cross_project_work_status_cockpit' ||
     runtimeSurfaceRoles.context_runtime !== 'selected_conversation_or_task_details' ||
-    runtimeSurfaceRoles.context_runtime_can_replace_navigation_runtime !== false
+    runtimeSurfaceRoles.context_runtime_can_replace_navigation_runtime !== false ||
+    runtimePreservationGate.product_contract_ref !==
+      'contracts/app-gui-product-contract.json#pages.runtime_status.runtime_cockpit_product_contract' ||
+    runtimePreservationGate.page_state_ref !==
+      'contracts/app-page-state-matrix.json#pages[id=runtime].runtime_view_model.runtime_cockpit_acceptance' ||
+    runtimePreservationGate.upstream_alignment_may_remove_or_weaken !== false ||
+    runtimePreservationGate.replacement_must_preserve_required_answers !== true ||
+    !sameStrings(runtimePreservationGate.same_change_requirements, [
+      'product_contract',
+      'page_state_acceptance',
+      'validators',
+      'tests',
+    ])
   ) {
     issues.add('Codex reference alignment must preserve OPL-owned capabilities and same-change reachability');
   }
@@ -1123,7 +1154,11 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
       'docs/active/aionui-mainline-gui-convergence-plan.md#当前事实快照' ||
     pageStateBoundary.historical_pixel_shell_sha !== historicalPixelShellSha ||
     pageStateBoundary.historical_pixel_shell_sha_binding_status !== 'bound_to_exact_historical_evidence' ||
-    pageStateBoundary.pixel_evidence_ref !== 'docs/product/gui/evidence/aionui-41301/manifest.json'
+    pageStateBoundary.pixel_evidence_ref !== 'docs/product/gui/evidence/aionui-41301/manifest.json' ||
+    pageStateBoundary.runtime_product_contract_ref !==
+      'contracts/app-gui-product-contract.json#pages.runtime_status.runtime_cockpit_product_contract' ||
+    pageStateBoundary.runtime_upstream_alignment_may_remove_or_weaken !== false ||
+    pageStateBoundary.runtime_acceptance_requires_contract_page_state_validators_tests !== true
   ) {
     issues.add('page-state acceptance boundary must keep human target separate from source and pixel completion');
   }

@@ -27,6 +27,10 @@ import {
 } from './page-state-app-settings-validator.ts';
 import { validatePrimaryInteractionPages } from './page-state-primary-interaction-validator.ts';
 import { productProfilePath, runtimeBridgePath } from './validation-config.ts';
+import {
+  validateRuntimeCockpitAcceptanceBoundary,
+  validateRuntimeCockpitPageStateAcceptance,
+} from './runtime-cockpit-product-validator.ts';
 
 const productProfile = readJson(productProfilePath);
 const runtimeBridge = readJson(runtimeBridgePath);
@@ -279,6 +283,15 @@ export function validatePageStateMatrix(matrix, contract, guiProductContract) {
   if (runtimeViewModel.full_detail_policy !== 'on_demand_only') {
     throw new Error('Runtime page full detail must be on-demand only');
   }
+  validateRuntimeCockpitAcceptanceBoundary(
+    matrix.acceptance_boundary,
+    'Runtime page-state acceptance boundary',
+  );
+  validateRuntimeCockpitPageStateAcceptance(
+    runtimeViewModel.runtime_cockpit_acceptance,
+    guiProductContract.pages?.runtime_status?.runtime_cockpit_product_contract,
+    'Runtime page cockpit acceptance',
+  );
   if (
     runtimeViewModel.polling_fallback?.interval_seconds_min !== 5
     || runtimeViewModel.polling_fallback?.interval_seconds_max !== 10

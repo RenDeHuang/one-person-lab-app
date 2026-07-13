@@ -21,8 +21,9 @@ Machine boundary: 本文是产品与落地设计。机器真相归 `contracts/`�
 - 模块安装状态曾被拼成任务行，产生 `dirty / 0 / 0 / 暂无最近活动` 这类无意义组合；历史测试 attempt
   也会进入普通任务列表，用户无法判断它是否是真实工作。
 
-这次重构的目标，是把 Runtime 页改成一个**可切换范围的项目运行总览**：先说人话，再保留
-技术细节。
+这次重构的目标，是把 Runtime 页改成一个**可切换范围的用户与智能体协作控制台**：先帮助
+用户判断项目、任务和责任，再保留技术细节。它不是 observability dashboard；日志、provider、
+attempt 和 telemetry 只是可信度与诊断证据，不能成为默认信息架构。
 
 ## 目标定义
 
@@ -47,7 +48,8 @@ Runtime 页默认是任务运行 cockpit，不是 runtime 诊断页。默认页�
 - 下一 stage 或 action。
 - 下一步归属：用户、系统、智能体或具体 owner。
 - 加载时间、最近进展和 telemetry missing。
-- 当前阶段 token 消耗与任务累计 token 消耗；没有预算上限时只显示已消耗，不画进度条，不暗示剩余额度。
+- 当前阶段 token 消耗与任务累计 token 消耗；只显示真实 observed 值。缺值必须给出缺失原因，
+  不得将 missing 渲染成 `0`；没有 observed 预算上限时不画进度条，不暗示剩余额度。
 
 默认页不展示 raw proof ref、receipt refs、`stage_attempt_id`、`run_id`、`workflow_id`、raw blocker route、Med Auto Science currentness drift 原文、`provider`、`projection`、`ledger`、`current_control_state` 或 full drilldown。这些字段只能出现在任务详情或高级信息折叠层。
 
@@ -57,11 +59,38 @@ Runtime 页默认是任务运行 cockpit，不是 runtime 诊断页。默认页�
 投稿包后续处理、复核运行结果等人类可读标签；raw id 只允许进入高级信息或任务详情。
 
 默认任务表不展示 scope provenance、推断工作区、模块版本号、metric hint 小字等诊断性补充信息。
-模块状态属于独立侧栏，不是任务：正常模块保持安静；`dirty` 与 `missing` 必须用普通用户能理解的
-一句话解释影响和入口，不能再显示零工作量或“暂无最近活动”占位。
+模块状态属于独立侧栏，不是任务：使用智能体/包全称，明确显示“可用 / 需维护 / 未安装”和
+“当前范围 N 个任务”。禁止用裸 `0/2`、`2/2` 或“暂无最近活动”代替状态与任务负载；维护状态
+还必须说明影响和入口。
 
 终态任务或 stage attempt 支持人工归档。归档只写可恢复的 lifecycle metadata，从当前总览移除，
 不删除 evidence、receipt 或 runtime ledger；运行中、等待用户决定和仍可继续的记录不能直接归档。
+
+## 不可弱化的产品合同
+
+以下规则由 `contracts/app-gui-product-contract.json#pages.runtime_status.runtime_cockpit_product_contract`
+拥有，并由 page-state acceptance 与 validator/tests 锁定：
+
+1. **状态轴分离。** project/task 状态回答“工作进展到哪里”；agent/package availability 回答
+   “能力是否可用”。两者不能互相推断，也不能合并成一个含糊 badge。
+2. **System attention 必须可行动。** 每条 `需要系统处理` 必须同时具备
+   `responsible_component`、`issue`、`repair_action`、`impact`、`expected_outcome`。缺任一项时
+   不得输出空洞的 system attention 状态。
+3. **项目身份来自 canonical workspace。** 项目显示名按 registered workspace display name、
+   canonical workspace name、canonical path basename 取值；Temporal/provider attempt、stage run、
+   workflow id 不能决定项目身份。
+4. **任务库存独立于执行历史。** canonical work item 即使没有 Temporal/provider history 也必须保留；
+   `opl app state --profile fast --json` 可以省略详情，但不能因此丢失任务行。
+5. **Token 只显示观测值。** 默认只显示 observed 当前阶段与任务累计 Token；估算或推断值不得冒充
+   observed，missing 必须带原因，只有明确观测为零时才能显示 `0`。
+6. **侧栏语义完整。** 智能体/包使用全称，显示 availability 与当前所选范围任务负载；裸计数或
+   分数不是用户状态。
+7. **渐进披露。** 默认层只保留判断与行动字段；raw ids、logs、refs、receipts、provider diagnostics、
+   workflow/run/attempt ids 仅在高级信息或任务详情出现。
+
+为对齐 Codex、AionUI upstream 或其他 shell 而迁移入口时，上述能力必须完整保留。Runtime 入口、
+产品合同、page-state acceptance、validator 和 tests 必须同变更更新；不能先删除或弱化，再把差异
+留给后续补回。若 shell 暂时不满足，应记录 implementation deviation，而不是降低 App product truth。
 
 ## 顶层信息架构
 
@@ -184,8 +213,10 @@ KPI 改成用户状态计数，而不是 runtime bucket：
 - KPI 行：只放用户状态计数，包括 `进行中`、`自动运行中`、`已交付，自动暂停`、`需要你决定` 和 `需要系统处理`。最近活动放在 Freshness bar，不再占用 KPI 位置。
 - 主任务列表：一行对应一个用户认知任务，默认按主状态分组；同一论文或项目被多个 runtime binding 投影时只能显示一行。
 - 范围切换：固定在顶部右侧；Freshness bar 只显示当前查看范围、可见任务数、自动运行数和最近活动，范围来源和推断工作区进入高级信息。
-- 右侧模块 / 智能体状态：模块健康、自动 / 总任务负载和最后活动独立展示；没有 project / study 的 `module_runtime` 行不能进入主任务列表。
-- 模块表默认只显示模块名、健康、任务负载和最后活动；dirty checkout、版本号、install origin 等维护细节只进高级信息或设置页。
+- 右侧模块 / 智能体状态：全称、availability 与当前范围任务负载独立展示；没有 project / study 的
+  `module_runtime` 行不能进入主任务列表，裸 `0/2` 不构成状态。
+- 模块表默认只显示全称、“可用 / 需维护 / 未安装”、带文案的当前范围任务负载和最后活动；
+  dirty checkout、版本号、install origin 等维护细节只进高级信息或设置页。
 - 高级信息：只放维护诊断、refs、receipts、stage/run/workflow IDs、safe actions 和 full drilldown。
 
 默认任务行的认知脊柱固定为：
@@ -263,13 +294,21 @@ runtime truth，也不能生成新的 owner receipt、typed blocker 或 stage tr
 
 ## 当前落地状态
 
-- App contract 已定义 `runtime_progress_page_display_policy`，固定默认 cockpit 与高级诊断边界。
+- App GUI contract 已定义 `runtime_cockpit_product_contract`，固定协作控制台的用户语义与不可弱化规则；
+  runtime bridge 的 `runtime_progress_page_display_policy` 继续固定默认字段与高级诊断边界。
 - Shell Runtime 页应按本文展示默认视图：顶部范围与刷新、右上角 freshness、KPI 行、主任务分组列表、右侧模块状态和高级信息；右栏不重复范围选择。
 - 顶部范围选择只承担“全部 / 智能体 / 项目工作区”切换；论文或 task 级 raw scope 不进入默认下拉框，避免同一篇论文既作为范围又作为任务重复出现。
 - 项目工作区范围必须按真实 workspace path 去重和命名；自动任务、autopush、stage attempt 或 milestone binding 不能作为默认项目范围出现。
+- 项目名称必须来自 canonical registered workspace/path identity；Temporal/provider attempt、stage run
+  或 workflow 不能覆盖项目身份。任务库存不以 Temporal history 为前提，fast profile 缺详情时仍保留任务行。
 - saved views 是任务列表内的状态筛选入口，只保留“全部、自动运行中、需要你决定、需要系统处理”；智能体与项目维度统一由顶部范围选择承担。
-- `需要系统处理` 只用于真实平台、provider、App 或 Framework repair；MAS 论文 owner typed blocker 如果没有自动流程在跑，默认显示为“已暂停，等待后续决定”，raw blocker 保留在详情或高级信息。
-- Token 默认只诚实显示当前阶段已消耗与任务累计消耗；没有预算上限时不画进度条，不暗示剩余额度。
+- `需要系统处理` 只用于真实平台、provider、App 或 Framework repair，并且必须显示负责组件、问题、
+  修复动作、影响和预期结果；MAS 论文 owner typed blocker 如果没有自动流程在跑，默认显示为
+  “已暂停，等待后续决定”，raw blocker 保留在详情或高级信息。
+- Token 默认只诚实显示 observed 当前阶段已消耗与任务累计消耗；missing 显示原因而不是 `0`，
+  没有 observed 预算上限时不画进度条，不暗示剩余额度。
+- 智能体/包 availability 与 project/task 状态严格分开；侧栏显示全称、可用性和当前范围任务负载，
+  不展示裸计数或分数。
 - 默认页不显示 scope provenance、推断工作区、metric hint 小字、模块 dirty checkout 说明和模块版本号；这些信息保留在高级信息或设置/维护页。
 - Framework 仍是 runtime truth owner。App 和 shell 只消费 `opl app state --profile fast --json` 与 drilldown refs，不写 runtime truth、domain truth、owner receipts 或 typed blockers。
 - 本文、contract 和 focused validation 不能作为 live/runtime readiness、release currentness 或 owner acceptance 证据。
@@ -278,7 +317,7 @@ runtime truth，也不能生成新的 owner receipt、typed blocker 或 stage tr
 
 | 条目 | 完成度 | 建议顺序 | 权威位置 / 证据边界 |
 | --- | ---: | --- | --- |
-| 产品信息架构：项目 cockpit 默认页，高级诊断后置 | 100% | 1 | 本文 + `contracts/app-runtime-bridge.json#runtime_progress_page_display_policy` |
+| 产品信息架构：协作控制台默认页，高级诊断后置 | 100% | 1 | 本文 + `contracts/app-gui-product-contract.json#pages.runtime_status.runtime_cockpit_product_contract` + `contracts/app-runtime-bridge.json#runtime_progress_page_display_policy` |
 | 默认字段 allowlist 与 advanced-only 字段 | 100% | 2 | `contracts/app-runtime-bridge.json` + runtime bridge validator；default visible fields 必须属于 allowlist，advanced-only 字段精确校验 |
 | 任务去重：同一论文 / work item 只显示一行 | 100% | 3 | App contract 锁定 policy；Shell companion lane 用 DOM test 验证同一 DM003 binding 只显示一行 |
 | `module_runtime` 分流到右侧模块状态 | 100% | 4 | App contract 锁定 policy；active-shell validator 同时要求主列表过滤 `module_runtime`，右侧 `moduleStatusItems` 渲染存在，并展示去重任务负载 |
@@ -287,8 +326,9 @@ runtime truth，也不能生成新的 owner receipt、typed blocker 或 stage tr
 | 设计图布局：顶部范围、右上 freshness、KPI、主列、右侧模块/高级 | 100% | 7 | `layout_regions` + Shell companion source/DOM evidence；不等同于 installed App 截图证据 |
 | scope / saved views 常用入口：顶部范围为全部、智能体、项目工作区；任务列表 saved views 为全部、自动运行中、需要你决定、需要系统处理 | 100% | 8 | Shell Runtime 页保留 scope selector，并把 saved views 收到任务列表标题区；论文 / task 级 scope 默认隐藏；MAS 论文不再作为 saved view；项目工作区按 workspace path 去重，不显示 autopush / milestone binding |
 | 用户状态归一：MAS 论文 typed blocker 不冒充平台故障 | 100% | 8.1 | Shell DOM test 覆盖 `mas_owner_answer_typed_blocker_observed` + idle automation 显示为“已暂停，等待后续决定”；真实 system/provider failure 仍保留“需要系统处理” |
-| Token 默认显示：当前阶段消耗 + 累计消耗，不画无上限进度条 | 100% | 8.5 | Shell DOM test 覆盖 `usageStageAndTotal`；预算上限不存在时不得用 progress bar 暗示剩余额度 |
+| Token 默认显示：observed 当前阶段消耗 + 累计消耗，missing 有原因且不当作 `0` | 100% | 8.5 | App contract/validator 锁定 observed-only 与 missing 语义；既有 Shell DOM test 覆盖 `usageStageAndTotal`，预算上限不存在时不得用 progress bar 暗示剩余额度 |
 | 默认页低认知负担：scope provenance、推断工作区、metric hint、模块 dirty/version 后置 | 100% | 8.6 | Shell DOM test 验证默认页不出现这些诊断字段，高级信息保留 scope diagnostics / module detail |
+| Runtime 产品合同：状态轴、system attention、canonical identity、fast inventory、observed Token、侧栏与渐进披露 | 100%（App contract） | 8.7 | `app-gui-product-contract.json#pages.runtime_status.runtime_cockpit_product_contract` + page-state acceptance + focused validator tests；不等同于 shell/live 已实现 |
 | canonical `WorkItemProjection`：Scope → Work Item → Agent → Stage → Attempt → Action → Evidence | 100%（App contract） | 9 | `contracts/app-runtime-bridge.json#work_item_projection` + validator；`attempt` 是 required field；Framework 仍是 projection producer |
 | Kubernetes-style `conditions[]`、`ActionEnvelope`、agent `stage_catalog` 合同 | 100%（App contract） | 10 | App contract 锁定 required fields / action kinds / catalog owner；不等同于 live payload 已包含所有字段 |
 | 任务详情层：Stage Map、timeline、evidence/actions/resources/diagnostics | 100%（App contract） | 11 | `work_item_projection.detail_layer_contract` 固化默认 tabs 和字段；Shell implementation / DOM 证据另由 shell lane 提供 |
@@ -296,7 +336,7 @@ runtime truth，也不能生成新的 owner receipt、typed blocker 或 stage tr
 
 ## 完成标准
 
-以下四条同时满足，才能算这次 Runtime 总览重构完成：
+以下条件同时满足，才能算这次 Runtime 总览重构完成：
 
 1. 文档、contracts、shell UI 对同一套范围模型和状态模型一致。
 2. Runtime 页默认不再把内部技术术语当作用户主状态。

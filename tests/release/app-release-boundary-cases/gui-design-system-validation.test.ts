@@ -96,6 +96,9 @@ function createFixture(): string {
     `active_aionui.gui_conformance_ref=${guiConformanceRef}`,
     'active_aionui.current_shell_head_source=active_shell_checkout_git_head',
     `active_aionui.historical_41301_evidence_sha=${historicalPixelShellSha}`,
+    'runtime_cockpit.role=user_agent_collaboration_control_console',
+    'runtime_cockpit.upstream_alignment_may_remove_or_weaken=false',
+    'runtime_cockpit.acceptance_ref=contracts/app-page-state-matrix.json#pages[id=runtime].runtime_view_model.runtime_cockpit_acceptance',
     'docs_or_contract_imply_source_complete=false',
     'docs_or_contract_imply_pixel_complete=false',
     'ideal_target.workspace_session_rail_default_visible=true',
@@ -309,6 +312,18 @@ test('GUI design-system validator rejects removing the OPL Runtime entry for Cod
   );
 });
 
+test('GUI design-system validator rejects weakening the Runtime cockpit for upstream parity', () => {
+  const root = createFixture();
+  const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
+  const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+  contract.interaction_baseline.feature_preservation_policy.runtime_preservation_gate.upstream_alignment_may_remove_or_weaken = true;
+  writeJson(root, 'contracts/app-gui-product-contract.json', contract);
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /Codex reference alignment must preserve OPL-owned capabilities and same-change reachability/,
+  );
+});
+
 test('GUI design-system validator rejects an undeclared candidate-registry Codex baseline', () => {
   const root = createFixture();
   const registryPath = path.join(root, 'contracts/app-shell-candidates.json');
@@ -339,6 +354,18 @@ test('GUI design-system validator rejects a page-state boundary that promotes co
   const matrixPath = path.join(root, 'contracts/app-page-state-matrix.json');
   const matrix = JSON.parse(fs.readFileSync(matrixPath, 'utf8'));
   matrix.acceptance_boundary.contract_target_implies_source_complete = true;
+  writeJson(root, 'contracts/app-page-state-matrix.json', matrix);
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /page-state acceptance boundary must keep human target separate from source and pixel completion/,
+  );
+});
+
+test('GUI design-system validator rejects Runtime page-state acceptance weakened for upstream parity', () => {
+  const root = createFixture();
+  const matrixPath = path.join(root, 'contracts/app-page-state-matrix.json');
+  const matrix = JSON.parse(fs.readFileSync(matrixPath, 'utf8'));
+  matrix.acceptance_boundary.runtime_upstream_alignment_may_remove_or_weaken = true;
   writeJson(root, 'contracts/app-page-state-matrix.json', matrix);
   assert.throws(
     () => validateGuiDesignSystem(root),

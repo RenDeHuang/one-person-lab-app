@@ -20,6 +20,10 @@ import {
 import { productProfilePath, runtimeBridgePath, settingsControlPlanePath } from './validation-config.ts';
 import { validateSettingsControlPlaneBehavior } from './settings-control-plane-validator.ts';
 import {
+  validateRuntimeCockpitPreservationPolicy,
+  validateRuntimeCockpitProductContract,
+} from './runtime-cockpit-product-validator.ts';
+import {
   assertNonEmptyStringArray,
   validateArtifactNativeDrilldownProjectionContract,
   validateBeginnerFirstRunPresentation,
@@ -1146,6 +1150,14 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   validateArtifactNativeDrilldownProjectionContract(
     pages.runtime_status.artifact_native_drilldown_policy,
     'App GUI runtime status Stage Artifact drilldown policy',
+  );
+  validateRuntimeCockpitProductContract(
+    pages.runtime_status.runtime_cockpit_product_contract,
+    'App GUI Runtime cockpit product contract',
+  );
+  validateRuntimeCockpitPreservationPolicy(
+    guiContract.interaction_baseline?.feature_preservation_policy?.runtime_preservation_gate,
+    'App GUI Runtime cockpit preservation gate',
   );
   if (pages.runtime_status.primary_projection !== 'app_state.operator user task status projection') {
     throw new Error('App GUI runtime status must default to the user task status projection');

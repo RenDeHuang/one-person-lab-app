@@ -85,6 +85,11 @@ adoption 边界见 [`gui-shell-candidates.md`](gui-shell-candidates.md)，候选
 [`shell-conformance-matrix.md`](shell-conformance-matrix.md) 标成明确偏差，再由拥有
 contract 的 lane 决定是否修改 machine truth、实现或目标。
 
+Runtime 是 OPL 自有的跨项目“用户与智能体协作控制台”，不是 observability dashboard。
+外部产品或 AionUI upstream 只能影响布局与交互材料，不能删除、降级或用会话详情替代该能力。
+任何 Runtime 入口迁移或实现重写，都必须在同一变更中保持产品合同的默认问题、page-state
+acceptance、validator 与 tests；无法保持时记录 shell deviation，不修改 App 产品真相迁就上游。
+
 Conformance 必须按 `contract_status`、`source_status`、`pixel_status` 三条独立轴读取；
 `pixel_verified` 只证明存在当前像素证据，不等于视觉对齐或 release-ready。
 
@@ -112,6 +117,9 @@ package/user path。当前 contract/source 与 packaged route visual evidence �
 - `active_aionui.gui_conformance_ref=a0ce713b65801fd9ca7f46ad168c977c75a187de`
 - `active_aionui.current_shell_head_source=active_shell_checkout_git_head`
 - `active_aionui.historical_41301_evidence_sha=0ebc1fdd278e8a79602458e15e28cf814dfd917d`
+- `runtime_cockpit.role=user_agent_collaboration_control_console`
+- `runtime_cockpit.upstream_alignment_may_remove_or_weaken=false`
+- `runtime_cockpit.acceptance_ref=contracts/app-page-state-matrix.json#pages[id=runtime].runtime_view_model.runtime_cockpit_acceptance`
 - `docs_or_contract_imply_source_complete=false`
 - `docs_or_contract_imply_pixel_complete=false`
 - `ideal_target.permission_access_mode_visible=true`
@@ -142,6 +150,13 @@ package/user path。当前 contract/source 与 packaged route visual evidence �
 - 当前 task progress、tool events、approval 与 receipts 进入 timeline；跨项目总览才进入
   Runtime。Current task 只有 timeline 单一实例；普通任务 inline/unpinned，只有用户 pin
   或真实 `long_running` 信号才 sticky，并保留 status/elapsed/progress/next/stop。
+- Runtime 默认层必须回答范围、用户认知任务状态、负责智能体与阶段、下一步及 owner、刷新与
+  telemetry 可信度；project/task 状态不能与 agent/package 可用性混成一个状态。项目名只来自
+  canonical registered workspace/path identity，任务库存不能依赖 Temporal 历史，fast profile
+  不能因缺 attempt/detail 丢任务行。
+- Runtime Token 只显示 observed 当前阶段与累计值；缺失必须说明原因，不能渲染成 `0`。
+  侧栏使用智能体/包全称，显示“可用/需维护/未安装”和带文案的当前范围任务负载；raw ids、logs、
+  refs、receipts 与 provider 诊断只进入高级信息或详情。
 - Environment 使用右上按需浮层，只渲染真实
   workspace/locality/branch/changes/subtasks/sources；artifact、
   evidence、receipt refs 属于次级信息，不默认形成全高第三列。
@@ -178,6 +193,8 @@ Active AionUI 通过上面的动态 state-source marker 读取默认状态；
 2. **判定是否改变 machine behavior。** 若改变普通用户可见状态、page-state
    acceptance、模型策略、Settings IA、first-run gate 或 release gate，必须由对应
    contract/validator lane 先更新 machine truth，不能只改人读文档。
+   Runtime 的删除、入口替代、字段降级或状态合并都属于 machine behavior 变更；“对齐上游”
+   不能豁免产品合同、page-state、validator 与 test 的同变更审查。
 3. **更新人读目标。** 功能、交互、视觉和元素位置只在各自 owner 文件定义一次，
    其它文件使用链接，不复制长列表。
 4. **实现 thin adapter。** Shell 通过 generated profile、state/action bridge、
