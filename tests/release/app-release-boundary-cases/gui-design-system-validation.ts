@@ -175,6 +175,19 @@ test('GUI design-system validator rejects a duplicate Capabilities rail entry', 
   );
 });
 
+test('GUI design-system validator rejects a duplicate Capabilities selection surface', () => {
+  const root = createFixture();
+  const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
+  const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+  contract.interaction_baseline.capability_selection.selection_surfaces.push('capabilities');
+  writeJson(root, 'contracts/app-gui-product-contract.json', contract);
+
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /interaction baseline Home, conversation, composer, access, and task summary markers must match the App target/,
+  );
+});
+
 test('GUI design-system validator rejects an unknown convergence plan state', () => {
   const root = createFixture();
   const planPath = path.join(root, 'docs/active/aionui-mainline-gui-convergence-plan.md');

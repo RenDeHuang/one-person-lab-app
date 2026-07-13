@@ -247,7 +247,7 @@ export function assertAppProductProfileGuiInteractionBaseline(
       { actual: homeLayout?.right_context_inspector_default_state, expected: 'collapsed' },
       {
         actual: conversation?.entry_source,
-        expected: 'home_starter_capabilities_project_task_or_projectless_new_conversation',
+        expected: 'home_starter_project_task_or_projectless_new_conversation',
       },
       { actual: conversation?.composer_position, expected: 'floating_bottom_with_safe_inset' },
       { actual: conversation?.permission_mode_selector_visible, expected: true },

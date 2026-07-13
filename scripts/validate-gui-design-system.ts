@@ -759,6 +759,9 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     record(homeTarget.home_shortcut_mutation_policy).pending_key !== 'shortcut_id' ||
     record(homeTarget.home_shortcut_mutation_policy).other_shortcuts_remain_interactive !== true ||
     record(homeTarget.home_shortcut_mutation_policy).readback_mode !== 'background_no_page_loading' ||
+    !sameStrings(capabilitySelection.selection_surfaces, ['home_starter']) ||
+    capabilitySelection.management_surface !== 'settings_capabilities' ||
+    capabilitySelection.legacy_route_policy !== '/capabilities_redirects_to_home_without_mounting_a_selection_page' ||
     capabilitySelection.composer_persistent_variable_selector !== false ||
     capabilitySelection.composer_context_surface !== 'active_capability_chip' ||
     composerTarget.placement !== 'floating_bottom_with_safe_inset' ||

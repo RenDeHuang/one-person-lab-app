@@ -825,7 +825,7 @@ export const appOwnedHomeLayout = {
   workspace_selector_visible: true,
   purpose_entries_visible: ["research", "grant", "ppt", "book"],
   purpose_entry_placement:
-    "home_starters_and_capabilities_not_persistent_composer_selector",
+    "home_starters_with_management_in_settings_capabilities_not_persistent_composer_selector",
   dynamic_question_title: true,
   starter_limit: null,
   starter_visibility_policy: "all_user_visible_configured_shortcuts",
@@ -874,7 +874,7 @@ export const appOwnedPageStateHomeLayout = {
 const appOwnedOrdinaryConversation = {
   path_id: "ordinary_codex_conversation",
   entry_source:
-    "home_starter_capabilities_project_task_or_projectless_new_conversation",
+    "home_starter_project_task_or_projectless_new_conversation",
   executor: "codex_cli",
   composer_position: "floating_bottom_with_safe_inset",
   active_capability_chip_visible: true,
