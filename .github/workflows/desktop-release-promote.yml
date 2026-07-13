@@ -4,35 +4,46 @@ on:
   workflow_dispatch:
     inputs:
       opl_version:
-        description: OPL draft release version to verify and publish, for example 26.5.20
+        description: OPL draft release version to promote, for example 26.7.13
         required: true
         type: string
       include_full_package:
-        description: Verify Full first-install assets before publishing
+        description: Stable saga requires the qualified Full first-install asset
         required: false
         default: true
         type: boolean
       require_docker_webui:
-        description: Verify same-cohort Docker/WebUI add-on evidence before publishing
+        description: Verify same-cohort Docker/WebUI evidence before publishing
         required: false
         default: true
         type: boolean
       release_run_id:
-        description: Desktop release workflow run id that produced the candidate record
+        description: Desktop release run that owns the candidate and build artifacts
+        required: true
+        type: string
+      stable_session_id:
+        description: Stable release state-machine sha256 identity
+        required: true
+        type: string
+      release_cohort_ref:
+        description: Stable release cohort sha256 identity
+        required: true
+        type: string
+      full_vm_run_id:
+        description: Exact-artifact Full qualification run id
         required: true
         type: string
       release_owner_verdict_ref:
-        description: Optional same-cohort App release owner verdict ref to resolve a blocked owner gate without rerunning release evidence
+        description: Optional same-cohort release owner verdict ref
         required: false
         default: ''
         type: string
       release_owner_receipt_ref:
-        description: Optional same-cohort App release owner receipt ref to resolve a blocked owner gate without rerunning release evidence
-        required: false
-        default: ''
+        description: Same-cohort release owner receipt ref
+        required: true
         type: string
       shell_ref:
-        description: opl-aion-shell ref containing the first-run smoke scripts. Empty means main.
+        description: Fallback immutable Shell ref; candidate record remains authoritative
         required: false
         default: main
         type: string
@@ -49,12 +60,16 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  promote:
-    name: Verify and publish draft release
-    runs-on: macos-latest
+  prepare:
+    name: Verify candidate and exact Full qualification
+    runs-on: ubuntu-latest
     outputs:
-      shell_ref: ${{ steps.release-cohort.outputs.shell_ref }}
-      framework_ref: ${{ steps.release-cohort.outputs.framework_ref }}
+      app_sha: ${{ steps.cohort.outputs.app_sha }}
+      shell_sha: ${{ steps.cohort.outputs.shell_sha }}
+      framework_sha: ${{ steps.cohort.outputs.framework_sha }}
+      session_hex: ${{ steps.cohort.outputs.session_hex }}
+      full_vm_evidence_ref: ${{ steps.full-vm.outputs.evidence_ref }}
+      full_vm_evidence_sha256: ${{ steps.full-vm.outputs.evidence_sha256 }}
 
     steps:
       - name: Checkout App repo
@@ -68,6 +83,17 @@ jobs:
       - name: Validate canonical Stable version
         run: npm run release:version:validate -- --channel stable --version "${{ inputs.opl_version }}"
 
+      - name: Enforce complete Stable saga inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          [ "${{ inputs.include_full_package }}" = "true" ] || { echo "::error::Stable promotion saga requires Standard and Full assets."; exit 1; }
+          [[ "${{ inputs.stable_session_id }}" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "${{ inputs.release_cohort_ref }}" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "${{ inputs.release_run_id }}" =~ ^[0-9]+$ ]]
+          [[ "${{ inputs.full_vm_run_id }}" =~ ^[0-9]+$ ]]
+          test -n "${{ inputs.release_owner_receipt_ref }}"
+
       - name: Download release candidate record
         uses: actions/download-artifact@v8
         with:
@@ -76,8 +102,7 @@ jobs:
           path: release-candidate-record-input
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Download owner-resolution preflight input
-        if: ${{ inputs.release_owner_verdict_ref != '' || inputs.release_owner_receipt_ref != '' }}
+      - name: Download owner-resolution preflight
         uses: actions/download-artifact@v8
         with:
           name: release-preflight-summary-${{ inputs.opl_version }}
@@ -85,8 +110,7 @@ jobs:
           path: owner-resolution-inputs
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Download owner-resolution readiness input
-        if: ${{ inputs.release_owner_verdict_ref != '' || inputs.release_owner_receipt_ref != '' }}
+      - name: Download owner-resolution readiness
         uses: actions/download-artifact@v8
         with:
           name: release-readiness-summary-${{ inputs.opl_version }}
@@ -94,8 +118,7 @@ jobs:
           path: owner-resolution-inputs
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Download owner-resolution remote verification input
-        if: ${{ inputs.release_owner_verdict_ref != '' || inputs.release_owner_receipt_ref != '' }}
+      - name: Download owner-resolution remote verification
         uses: actions/download-artifact@v8
         with:
           name: remote-release-verification-${{ inputs.opl_version }}
@@ -104,7 +127,6 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Download add-on readiness input
-        if: ${{ inputs.include_full_package || inputs.require_docker_webui }}
         uses: actions/download-artifact@v8
         with:
           name: release-addon-readiness-summary-${{ inputs.opl_version }}
@@ -112,13 +134,97 @@ jobs:
           path: owner-resolution-addon-inputs
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Resolve release owner gate
-        if: ${{ inputs.release_owner_verdict_ref != '' || inputs.release_owner_receipt_ref != '' }}
+      - name: Resolve immutable cohort
+        id: cohort
+        env:
+          FALLBACK_SHELL_REF: ${{ inputs.shell_ref }}
+          STABLE_SESSION_ID: ${{ inputs.stable_session_id }}
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const record = JSON.parse(fs.readFileSync('release-candidate-record-input/release-candidate-record.json', 'utf8'));
+          const refs = {
+            app_sha: record?.provenance?.app_commit || '',
+            shell_sha: record?.inputs?.shell_ref || process.env.FALLBACK_SHELL_REF || '',
+            framework_sha: record?.inputs?.framework_ref || '',
+          };
+          for (const [key, value] of Object.entries(refs)) {
+            if (!/^[0-9a-f]{40}$/i.test(value)) throw new Error(`Candidate record has invalid ${key}: ${value || '<missing>'}`);
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `${key}=${value.toLowerCase()}\n`);
+          }
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `session_hex=${process.env.STABLE_SESSION_ID.slice('sha256:'.length)}\n`);
+          NODE
+      - name: Download exact Full qualification evidence
+        uses: actions/download-artifact@v8
+        with:
+          name: opl-first-run-vm-full-${{ inputs.full_vm_run_id }}
+          run-id: ${{ inputs.full_vm_run_id }}
+          path: full-vm-evidence
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download source Full artifact manifest
+        uses: actions/download-artifact@v8
+        with:
+          name: opl-full-first-install-dmg-${{ inputs.opl_version }}-mac-arm64-cohort
+          run-id: ${{ inputs.release_run_id }}
+          path: full-artifact-manifest
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Validate exact Full qualification receipt
+        id: full-vm
+        shell: bash
+        run: |
+          set -euo pipefail
+          receipt="$(find full-vm-evidence -name artifact-qualification-receipt.json -type f | head -n 1)"
+          test -f "$receipt"
+          node --experimental-strip-types scripts/validate-artifact-qualification-receipt.ts \
+            --receipt "$receipt" \
+            --stable-session-id "${{ inputs.stable_session_id }}" \
+            --release-cohort-ref "${{ inputs.release_cohort_ref }}" \
+            --version "${{ inputs.opl_version }}" \
+            --package-profile full \
+            --result passed \
+            --qualification-run-id "${{ inputs.full_vm_run_id }}" \
+            --source-artifact-run-id "${{ inputs.release_run_id }}" \
+            --source-artifact-name "opl-full-first-install-dmg-${{ inputs.opl_version }}-mac-arm64" \
+            --app-sha "${{ steps.cohort.outputs.app_sha }}" \
+            --shell-sha "${{ steps.cohort.outputs.shell_sha }}" \
+            --framework-sha "${{ steps.cohort.outputs.framework_sha }}"
+          digest="$(shasum -a 256 "$receipt" | awk '{print $1}')"
+          evidence_ref="opl-first-run-vm-full-${{ inputs.full_vm_run_id }}"
+          echo "evidence_ref=$evidence_ref" >> "$GITHUB_OUTPUT"
+          echo "evidence_sha256=$digest" >> "$GITHUB_OUTPUT"
+
+      - name: Verify same-cohort add-on readiness
+        shell: bash
+        run: |
+          set -euo pipefail
+          receipt="$(find full-vm-evidence -name artifact-qualification-receipt.json -type f | head -n 1)"
+          manifest="$(find full-artifact-manifest -name opl-build-cohort.json -type f | head -n 1)"
+          test -f "$receipt"
+          test -f "$manifest"
+          node --experimental-strip-types scripts/validate-release-addon-readiness.ts \
+            --version "${{ inputs.opl_version }}" \
+            --record owner-resolution-addon-inputs/release-addon-readiness-summary.json \
+            --include-full-package true \
+            --run-vm-smoke true \
+            --require-docker-webui "${{ inputs.require_docker_webui }}" \
+            --full-qualification-receipt "$receipt" \
+            --build-artifact-manifest "$manifest" \
+            --stable-session-id "${{ inputs.stable_session_id }}" \
+            --release-cohort-ref "${{ inputs.release_cohort_ref }}" \
+            --source-artifact-run-id "${{ inputs.release_run_id }}" \
+            --source-artifact-name "opl-full-first-install-dmg-${{ inputs.opl_version }}-mac-arm64"
+
+      - name: Resolve release owner gate with exact qualification override
         env:
           RELEASE_OWNER_VERDICT_REF: ${{ inputs.release_owner_verdict_ref }}
           RELEASE_OWNER_RECEIPT_REF: ${{ inputs.release_owner_receipt_ref }}
+        shell: bash
         run: |
           set -euo pipefail
+          receipt="$(find full-vm-evidence -name artifact-qualification-receipt.json -type f | head -n 1)"
+          manifest="$(find full-artifact-manifest -name opl-build-cohort.json -type f | head -n 1)"
           args=(
             npm run release:candidate-record:resolve-owner --
             --candidate-record release-candidate-record-input/release-candidate-record.json
@@ -127,181 +233,338 @@ jobs:
             --remote-verification owner-resolution-inputs/remote-release-verification.json
             --output release-candidate-record-input/release-candidate-record.json
             --markdown release-candidate-record-input/release-candidate-record.md
+            --release-owner-receipt-ref "$RELEASE_OWNER_RECEIPT_REF"
+            --full-qualification-receipt "$receipt"
+            --build-artifact-manifest "$manifest"
+            --stable-session-id "${{ inputs.stable_session_id }}"
+            --release-cohort-ref "${{ inputs.release_cohort_ref }}"
+            --source-artifact-run-id "${{ inputs.release_run_id }}"
+            --source-artifact-name "opl-full-first-install-dmg-${{ inputs.opl_version }}-mac-arm64"
           )
-          if [ -n "${RELEASE_OWNER_VERDICT_REF}" ]; then
-            args+=(--release-owner-verdict-ref "${RELEASE_OWNER_VERDICT_REF}")
-          fi
-          if [ -n "${RELEASE_OWNER_RECEIPT_REF}" ]; then
-            args+=(--release-owner-receipt-ref "${RELEASE_OWNER_RECEIPT_REF}")
-          fi
+          if [ -n "$RELEASE_OWNER_VERDICT_REF" ]; then args+=(--release-owner-verdict-ref "$RELEASE_OWNER_VERDICT_REF"); fi
           "${args[@]}"
-
-      - name: Verify same-cohort add-on readiness
-        if: ${{ inputs.include_full_package || inputs.require_docker_webui }}
-        run: |
-          node --experimental-strip-types scripts/validate-release-addon-readiness.ts \
-            --version "${{ inputs.opl_version }}" \
-            --record owner-resolution-addon-inputs/release-addon-readiness-summary.json \
-            --include-full-package "${{ inputs.include_full_package }}" \
-            --run-vm-smoke true \
-            --require-docker-webui "${{ inputs.require_docker_webui }}"
 
       - name: Verify release candidate record
         env:
           OPL_RELEASE_VERSION: ${{ inputs.opl_version }}
         run: npm run release:candidate-record:validate -- --record release-candidate-record-input/release-candidate-record.json
 
-      - name: Resolve release cohort refs
-        id: release-cohort
+      - name: Verify draft release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          npm run verify-remote-release -- \
+            --version "${{ inputs.opl_version }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --include-full-package \
+            --summary-path remote-release-verification.json
+
+  publish-nonlatest:
+    name: Publish release without changing latest
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish public non-latest release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          tag="v${{ inputs.opl_version }}"
+          release_id="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" --jq .id)"
+          gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$release_id" -F draft=false -f make_latest=false >/dev/null
+          release_json="$RUNNER_TEMP/release.json"
+          list_json="$RUNNER_TEMP/releases.json"
+          verified=false
+          for attempt in $(seq 1 12); do
+            gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json tagName,isDraft,isPrerelease,publishedAt,assets > "$release_json" || true
+            gh release list --repo "$GITHUB_REPOSITORY" --limit 30 --json tagName,isLatest,isDraft > "$list_json" || true
+            if RELEASE_JSON="$release_json" LIST_JSON="$list_json" TAG="$tag" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const release = JSON.parse(fs.readFileSync(process.env.RELEASE_JSON, 'utf8'));
+          const listed = JSON.parse(fs.readFileSync(process.env.LIST_JSON, 'utf8')).find((item) => item.tagName === process.env.TAG);
+          if (release.isDraft || release.isPrerelease || !release.publishedAt || !release.assets?.length) throw new Error('Release is not public with assets.');
+          if (listed?.isLatest !== false) throw new Error('Release became latest before distribution and Homebrew qualification.');
+          NODE
+            then
+              verified=true
+              break
+            fi
+            [ "$attempt" -lt 12 ] && sleep 10
+          done
+          [ "$verified" = "true" ] || { echo "::error::Release did not converge to public non-latest state."; exit 1; }
+
+  stable-distribution:
+    name: Dispatch atomic Stable distribution
+    needs:
+      - prepare
+      - publish-nonlatest
+    runs-on: ubuntu-latest
+    outputs:
+      distribution_receipt_sha256: ${{ steps.receipt.outputs.sha256 }}
+      distribution_receipt_ref: ${{ steps.receipt.outputs.ref }}
+      tap_run_id: ${{ steps.dispatch.outputs.run_id }}
+    steps:
+      - name: Checkout App repo
+        uses: actions/checkout@v6
+
+      - name: Dispatch exact tap distribution workflow
+        id: dispatch
+        env:
+          GH_TOKEN: ${{ secrets.OPL_HOMEBREW_TAP_TOKEN }}
+          TAP_REPO: gaofeng21cn/homebrew-one-person-lab
+          TAP_WORKFLOW: stable-distribution.yml
         shell: bash
         run: |
           set -euo pipefail
-          node --input-type=module <<'NODE'
-          import fs from 'node:fs';
-          const record = JSON.parse(fs.readFileSync('release-candidate-record-input/release-candidate-record.json', 'utf8'));
-          const shellRef = record?.inputs?.shell_ref || process.env.FALLBACK_SHELL_REF || 'main';
-          const frameworkRef = record?.inputs?.framework_ref || '';
-          if (!/^(main|[0-9a-f]{40})$/i.test(shellRef)) {
-            throw new Error(`Release candidate record has invalid shell_ref: ${shellRef}`);
-          }
-          if (!/^[0-9a-f]{40}$/i.test(frameworkRef)) {
-            throw new Error(`Release candidate record must expose a fixed framework_ref SHA for Homebrew VM smoke: ${frameworkRef || '<missing>'}`);
-          }
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, `shell_ref=${shellRef}\nframework_ref=${frameworkRef}\n`);
-          NODE
-        env:
-          FALLBACK_SHELL_REF: ${{ inputs.shell_ref || 'main' }}
-
-      - name: Verify remote release assets
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          OPL_RELEASE_VERSION: ${{ inputs.opl_version }}
-        run: |
-          verify_args=(
-            npm run verify-remote-release --
-            --version "$OPL_RELEASE_VERSION"
-            --repo "$GITHUB_REPOSITORY"
-            --summary-path remote-release-verification.json
-          )
-          if [ "${{ inputs.include_full_package }}" = "true" ]; then
-            verify_args+=(--include-full-package)
+          session_hex="${{ inputs.stable_session_id }}"
+          session_hex="${session_hex#sha256:}"
+          receipt_artifact="opl-stable-distribution-receipt-${{ inputs.opl_version }}-${session_hex}"
+          existing_run_id="$(gh api --method GET "repos/$TAP_REPO/actions/artifacts" \
+            -f name="$receipt_artifact" -f per_page=100 \
+            --jq '[.artifacts[] | select(.expired == false)] | sort_by(.created_at) | reverse | .[0].workflow_run.id // empty')"
+          if [ -n "$existing_run_id" ]; then
+            echo "Reusing immutable Stable distribution receipt from tap run $existing_run_id."
+            echo "run_id=$existing_run_id" >> "$GITHUB_OUTPUT"
+            echo "reused=true" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
-          "${verify_args[@]}"
-
-      - name: Publish draft release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          OPL_RELEASE_VERSION: ${{ inputs.opl_version }}
-        run: |
-          set -euo pipefail
-          gh release edit "v${OPL_RELEASE_VERSION}" \
-            --repo "$GITHUB_REPOSITORY" \
-            --draft=false \
-            --latest
-
-      - name: Verify published release readback
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          OPL_RELEASE_VERSION: ${{ inputs.opl_version }}
-        run: |
-          set -euo pipefail
-          tag="v${OPL_RELEASE_VERSION}"
-          release_json="$RUNNER_TEMP/promoted-release-readback.json"
-          latest_json="$RUNNER_TEMP/promoted-release-latest-readback.json"
-
-          for attempt in {1..12}; do
-            if gh release view "$tag" \
-              --repo "$GITHUB_REPOSITORY" \
-              --json tagName,isDraft,isPrerelease,publishedAt,assets \
-              > "$release_json" \
-              && gh release list \
-                --repo "$GITHUB_REPOSITORY" \
-                --limit 20 \
-                --json tagName,isLatest,isDraft,isPrerelease,publishedAt \
-                > "$latest_json" \
-              && git ls-remote --exit-code --tags origin "refs/tags/${tag}" >/dev/null; then
-              if RELEASE_JSON="$release_json" LATEST_JSON="$latest_json" EXPECTED_TAG="$tag" node --input-type=module <<'NODE'
-              import fs from 'node:fs';
-
-              const release = JSON.parse(fs.readFileSync(process.env.RELEASE_JSON, 'utf8'));
-              const releaseList = JSON.parse(fs.readFileSync(process.env.LATEST_JSON, 'utf8'));
-              const expectedTag = process.env.EXPECTED_TAG;
-              const assets = Array.isArray(release.assets) ? release.assets : [];
-              const listedRelease = Array.isArray(releaseList)
-                ? releaseList.find((candidate) => candidate?.tagName === expectedTag)
-                : null;
-              function fail(message) {
-                console.error(message);
-                process.exit(1);
-              }
-              if (release.tagName !== expectedTag) fail(`Promoted release tag mismatch: ${release.tagName}`);
-              if (release.isDraft) fail('Promoted release is still a draft.');
-              if (release.isPrerelease) fail('Promoted Stable release is marked as a prerelease.');
-              if (!release.publishedAt) fail('Promoted release does not expose publishedAt.');
-              if (assets.length === 0) fail('Promoted release has no readable assets.');
-              if (listedRelease?.isLatest !== true) fail('Promoted Stable release is not marked latest.');
+          receipt_tag="stable-distribution/v${{ inputs.opl_version }}"
+          encoded_tag="${receipt_tag//\//%2F}"
+          if gh api "repos/$TAP_REPO/git/ref/tags/$encoded_tag" >/dev/null 2>&1; then
+            echo "::error::Immutable distribution tag $receipt_tag exists but its exact receipt artifact is unavailable. Do not redispatch the tap mutation."
+            exit 1
+          fi
+          before="$RUNNER_TEMP/before.json"
+          gh run list --repo "$TAP_REPO" --workflow "$TAP_WORKFLOW" --event workflow_dispatch --limit 50 --json databaseId > "$before"
+          dispatched_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          gh workflow run "$TAP_WORKFLOW" --repo "$TAP_REPO" --ref main \
+            --field release_tag="v${{ inputs.opl_version }}" \
+            --field stable_session_id="${{ inputs.stable_session_id }}" \
+            --field release_cohort_ref="${{ inputs.release_cohort_ref }}" \
+            --field app_sha="${{ needs.prepare.outputs.app_sha }}" \
+            --field shell_sha="${{ needs.prepare.outputs.shell_sha }}" \
+            --field framework_sha="${{ needs.prepare.outputs.framework_sha }}" \
+            --field source_release_run_id="${{ inputs.release_run_id }}" \
+            --field full_vm_run_id="${{ inputs.full_vm_run_id }}" \
+            --field full_vm_evidence_ref="${{ needs.prepare.outputs.full_vm_evidence_ref }}" \
+            --field full_vm_evidence_sha256="${{ needs.prepare.outputs.full_vm_evidence_sha256 }}" \
+            --field full_vm_result=passed
+          run_id=""
+          for _attempt in $(seq 1 20); do
+            current="$RUNNER_TEMP/current.json"
+            gh run list --repo "$TAP_REPO" --workflow "$TAP_WORKFLOW" --event workflow_dispatch --limit 50 \
+              --json databaseId,createdAt,headBranch > "$current"
+            run_id="$(BEFORE="$before" CURRENT="$current" DISPATCHED_AT="$dispatched_at" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const before = new Set(JSON.parse(fs.readFileSync(process.env.BEFORE, 'utf8')).map((run) => run.databaseId));
+          const earliest = Date.parse(process.env.DISPATCHED_AT) - 5000;
+          const run = JSON.parse(fs.readFileSync(process.env.CURRENT, 'utf8'))
+            .filter((item) => !before.has(item.databaseId) && item.headBranch === 'main' && Date.parse(item.createdAt) >= earliest)
+            .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))[0];
+          process.stdout.write(run ? String(run.databaseId) : '');
           NODE
-              then
-                echo "Published release ${tag} is readable with tag and assets after attempt ${attempt}."
-                exit 0
-              fi
-            fi
-            echo "Published release ${tag} is not fully readable yet; retrying attempt ${attempt}."
-            sleep 10
+            )"
+            [ -n "$run_id" ] && break
+            sleep 3
           done
+          [ -n "$run_id" ] || { echo "::error::Unable to discover exact tap distribution run."; exit 1; }
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+          echo "reused=false" >> "$GITHUB_OUTPUT"
+          gh run watch "$run_id" --repo "$TAP_REPO" --interval 60 --exit-status
 
-          echo "::error::Published release ${tag} did not become readable with a matching tag before Homebrew tap update."
-          exit 1
+      - name: Download and validate tap distribution receipt
+        id: receipt
+        env:
+          GH_TOKEN: ${{ secrets.OPL_HOMEBREW_TAP_TOKEN }}
+          TAP_REPO: gaofeng21cn/homebrew-one-person-lab
+        shell: bash
+        run: |
+          set -euo pipefail
+          session_hex="${{ inputs.stable_session_id }}"
+          session_hex="${session_hex#sha256:}"
+          artifact="opl-stable-distribution-receipt-${{ inputs.opl_version }}-${session_hex}"
+          mkdir -p distribution-receipt
+          gh run download "${{ steps.dispatch.outputs.run_id }}" --repo "$TAP_REPO" --name "$artifact" --dir distribution-receipt
+          receipt="$(find distribution-receipt -name opl-stable-distribution-receipt.json -type f | head -n 1)"
+          node --experimental-strip-types scripts/validate-release-saga-receipt.ts \
+            --kind distribution \
+            --receipt "$receipt" \
+            --stable-session-id "${{ inputs.stable_session_id }}" \
+            --version "${{ inputs.opl_version }}" \
+            --release-cohort-ref "${{ inputs.release_cohort_ref }}" \
+            --app-sha "${{ needs.prepare.outputs.app_sha }}" \
+            --shell-sha "${{ needs.prepare.outputs.shell_sha }}" \
+            --framework-sha "${{ needs.prepare.outputs.framework_sha }}" \
+            --source-release-run-id "${{ inputs.release_run_id }}" \
+            --full-vm-run-id "${{ inputs.full_vm_run_id }}"
+          digest="$(shasum -a 256 "$receipt" | awk '{print $1}')"
+          echo "sha256=$digest" >> "$GITHUB_OUTPUT"
+          echo "ref=$artifact" >> "$GITHUB_OUTPUT"
 
-      - name: Upload remote verification summary
+      - name: Upload validated distribution receipt
         uses: actions/upload-artifact@v7
         with:
-          name: remote-release-verification-${{ inputs.opl_version }}
-          path: |
-            remote-release-verification.json
-            release-candidate-record-input/release-candidate-record.json
-            release-candidate-record-input/release-candidate-record.md
+          name: opl-stable-distribution-receipt-${{ inputs.opl_version }}-${{ needs.prepare.outputs.session_hex }}
+          path: distribution-receipt/opl-stable-distribution-receipt.json
           if-no-files-found: error
 
-  stable-homebrew-tap-update:
-    name: Update Stable Homebrew tap
-    needs: promote
-    uses: ./.github/workflows/homebrew-tap-update.yml
-    with:
-      channel: stable
-      package_kind: app_standard
-      opl_version: ${{ inputs.opl_version }}
-      release_repo: gaofeng21cn/one-person-lab-app
-      tap_repo: gaofeng21cn/homebrew-one-person-lab
-    secrets:
-      OPL_HOMEBREW_TAP_TOKEN: ${{ secrets.OPL_HOMEBREW_TAP_TOKEN }}
-
-  full-homebrew-tap-update:
-    name: Update Full Homebrew tap
+  homebrew-standard-vm:
+    name: Qualify Standard Homebrew installation
     needs:
-      - promote
-      - stable-homebrew-tap-update
-    if: ${{ inputs.include_full_package && needs.stable-homebrew-tap-update.result == 'success' }}
-    uses: ./.github/workflows/homebrew-tap-update.yml
-    with:
-      channel: stable
-      package_kind: app_full_first_install
-      opl_version: ${{ inputs.opl_version }}
-      release_repo: gaofeng21cn/one-person-lab-app
-      tap_repo: gaofeng21cn/homebrew-one-person-lab
-    secrets:
-      OPL_HOMEBREW_TAP_TOKEN: ${{ secrets.OPL_HOMEBREW_TAP_TOKEN }}
-
-  homebrew-standard-first-run-vm-smoke:
-    name: Run Homebrew standard first-run VM smoke
-    needs:
-      - promote
-      - stable-homebrew-tap-update
-    if: ${{ always() && needs.stable-homebrew-tap-update.result == 'success' }}
+      - prepare
+      - stable-distribution
     uses: ./.github/workflows/opl-first-run-vm.yml
     with:
       release_tag: v${{ inputs.opl_version }}
       package_profile: homebrew-standard
-      shell_ref: ${{ needs.promote.outputs.shell_ref }}
-      framework_ref: ${{ needs.promote.outputs.framework_ref }}
+      shell_ref: ${{ needs.prepare.outputs.shell_sha }}
+      framework_ref: ${{ needs.prepare.outputs.framework_sha }}
+      stable_session_id: ${{ inputs.stable_session_id }}
+      release_cohort_ref: ${{ inputs.release_cohort_ref }}
     secrets: inherit
+
+  homebrew-full-vm:
+    name: Qualify Full Homebrew installation
+    needs:
+      - prepare
+      - stable-distribution
+    uses: ./.github/workflows/opl-first-run-vm.yml
+    with:
+      release_tag: v${{ inputs.opl_version }}
+      package_profile: homebrew-full
+      shell_ref: ${{ needs.prepare.outputs.shell_sha }}
+      stable_session_id: ${{ inputs.stable_session_id }}
+      release_cohort_ref: ${{ inputs.release_cohort_ref }}
+    secrets: inherit
+
+  homebrew-activation:
+    name: Aggregate both Homebrew VM receipts
+    needs:
+      - prepare
+      - stable-distribution
+      - homebrew-standard-vm
+      - homebrew-full-vm
+    if: ${{ needs.homebrew-standard-vm.result == 'success' && needs.homebrew-full-vm.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout App repo
+        uses: actions/checkout@v6
+
+      - name: Download distribution receipt
+        uses: actions/download-artifact@v8
+        with:
+          name: opl-stable-distribution-receipt-${{ inputs.opl_version }}-${{ needs.prepare.outputs.session_hex }}
+          path: activation-inputs/distribution
+
+      - name: Download Standard Homebrew VM evidence
+        uses: actions/download-artifact@v8
+        with:
+          name: opl-first-run-vm-homebrew-standard-${{ github.run_id }}
+          path: activation-inputs/standard
+
+      - name: Download Full Homebrew VM evidence
+        uses: actions/download-artifact@v8
+        with:
+          name: opl-first-run-vm-homebrew-full-${{ github.run_id }}
+          path: activation-inputs/full
+
+      - name: Write and validate Homebrew activation receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          distribution="$(find activation-inputs/distribution -name opl-stable-distribution-receipt.json -type f | head -n 1)"
+          standard="$(find activation-inputs/standard -name tart-smoke-summary.json -type f | head -n 1)"
+          full="$(find activation-inputs/full -name tart-smoke-summary.json -type f | head -n 1)"
+          node --experimental-strip-types scripts/write-release-saga-receipt.ts \
+            --kind homebrew-activation \
+            --output opl-app-homebrew-activation-receipt.json \
+            --stable-session-id "${{ inputs.stable_session_id }}" \
+            --version "${{ inputs.opl_version }}" \
+            --distribution-receipt "$distribution" \
+            --standard-evidence "$standard" \
+            --standard-evidence-ref "opl-first-run-vm-homebrew-standard-${{ github.run_id }}" \
+            --standard-run-id "${{ github.run_id }}" \
+            --full-evidence "$full" \
+            --full-evidence-ref "opl-first-run-vm-homebrew-full-${{ github.run_id }}" \
+            --full-run-id "${{ github.run_id }}"
+          distribution_sha="$(shasum -a 256 "$distribution" | awk '{print $1}')"
+          node --experimental-strip-types scripts/validate-release-saga-receipt.ts \
+            --kind homebrew-activation \
+            --receipt opl-app-homebrew-activation-receipt.json \
+            --stable-session-id "${{ inputs.stable_session_id }}" \
+            --version "${{ inputs.opl_version }}" \
+            --distribution-receipt-sha256 "$distribution_sha"
+
+      - name: Upload Homebrew activation receipt
+        uses: actions/upload-artifact@v7
+        with:
+          name: opl-app-homebrew-activation-receipt-${{ inputs.opl_version }}-${{ needs.prepare.outputs.session_hex }}
+          path: opl-app-homebrew-activation-receipt.json
+          if-no-files-found: error
+
+  activate-latest:
+    name: Activate Stable latest after all distribution gates
+    needs:
+      - stable-distribution
+      - homebrew-activation
+      - prepare
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout App repo
+        uses: actions/checkout@v6
+
+      - name: Download distribution receipt
+        uses: actions/download-artifact@v8
+        with:
+          name: opl-stable-distribution-receipt-${{ inputs.opl_version }}-${{ needs.prepare.outputs.session_hex }}
+          path: saga-inputs/distribution
+
+      - name: Download Homebrew activation receipt
+        uses: actions/download-artifact@v8
+        with:
+          name: opl-app-homebrew-activation-receipt-${{ inputs.opl_version }}-${{ needs.prepare.outputs.session_hex }}
+          path: saga-inputs/activation
+
+      - name: Mark release latest and verify readback
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="v${{ inputs.opl_version }}"
+          release_id="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" --jq .id)"
+          gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$release_id" -f make_latest=true >/dev/null
+          for attempt in $(seq 1 12); do
+            latest="$(gh release list --repo "$GITHUB_REPOSITORY" --limit 30 --json tagName,isLatest --jq '.[] | select(.tagName == "'"$tag"'") | .isLatest')"
+            [ "$latest" = "true" ] && break
+            [ "$attempt" -lt 12 ] || { echo "::error::Release did not become latest."; exit 1; }
+            sleep 10
+          done
+
+      - name: Write and validate promotion saga receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          distribution="$(find saga-inputs/distribution -name opl-stable-distribution-receipt.json -type f | head -n 1)"
+          activation="$(find saga-inputs/activation -name opl-app-homebrew-activation-receipt.json -type f | head -n 1)"
+          node --experimental-strip-types scripts/write-release-saga-receipt.ts \
+            --kind promotion-saga \
+            --output opl-app-promotion-saga-receipt.json \
+            --stable-session-id "${{ inputs.stable_session_id }}" \
+            --version "${{ inputs.opl_version }}" \
+            --distribution-receipt "$distribution" \
+            --homebrew-activation-receipt "$activation" \
+            --standard-run-id "${{ github.run_id }}" \
+            --full-run-id "${{ github.run_id }}"
+          node --experimental-strip-types scripts/validate-release-saga-receipt.ts \
+            --kind promotion-saga \
+            --receipt opl-app-promotion-saga-receipt.json \
+            --stable-session-id "${{ inputs.stable_session_id }}" \
+            --version "${{ inputs.opl_version }}"
+
+      - name: Upload promotion saga receipt
+        uses: actions/upload-artifact@v7
+        with:
+          name: opl-promotion-saga-receipt-${{ inputs.opl_version }}-${{ needs.prepare.outputs.session_hex }}
+          path: opl-app-promotion-saga-receipt.json
+          if-no-files-found: error

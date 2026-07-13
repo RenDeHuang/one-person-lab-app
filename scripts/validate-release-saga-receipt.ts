@@ -1,0 +1,45 @@
+#!/usr/bin/env node
+
+import { parseArgs } from 'node:util';
+import {
+  readReceipt,
+  validateHomebrewActivationReceipt,
+  validateLocalActivationReceipt,
+  validatePromotionSagaReceipt,
+  validateStableDistributionReceipt,
+} from './release-saga-receipts.ts';
+
+const { values } = parseArgs({
+  options: {
+    kind: { type: 'string' }, receipt: { type: 'string' }, 'stable-session-id': { type: 'string' },
+    version: { type: 'string' }, 'release-cohort-ref': { type: 'string', default: '' },
+    'app-sha': { type: 'string', default: '' }, 'shell-sha': { type: 'string', default: '' },
+    'framework-sha': { type: 'string', default: '' }, 'source-release-run-id': { type: 'string', default: '' },
+    'full-vm-run-id': { type: 'string', default: '' }, 'distribution-receipt-sha256': { type: 'string', default: '' },
+    'artifact-sha256': { type: 'string', default: '' },
+    'local-authorization-policy': { type: 'string', default: '' },
+  },
+  strict: true,
+});
+for (const key of ['kind', 'receipt', 'stable-session-id', 'version'] as const) {
+  if (!values[key]) throw new Error(`Missing --${key}`);
+}
+const expected = {
+  stableSessionId: values['stable-session-id']!, version: values.version!,
+  releaseCohortRef: values['release-cohort-ref'] || undefined, appSha: values['app-sha'] || undefined,
+  shellSha: values['shell-sha'] || undefined, frameworkSha: values['framework-sha'] || undefined,
+  sourceReleaseRunId: values['source-release-run-id'] || undefined, fullVmRunId: values['full-vm-run-id'] || undefined,
+};
+const receipt = readReceipt(values.receipt!);
+let errors: string[];
+if (values.kind === 'distribution') errors = validateStableDistributionReceipt(receipt, expected);
+else if (values.kind === 'homebrew-activation') errors = validateHomebrewActivationReceipt(receipt, { ...expected, distributionReceiptSha256: values['distribution-receipt-sha256']! });
+else if (values.kind === 'local-activation') errors = validateLocalActivationReceipt(receipt, {
+  ...expected,
+  artifactSha256: values['artifact-sha256'] || undefined,
+  localAuthorizationPolicyPath: values['local-authorization-policy'] || undefined,
+});
+else if (values.kind === 'promotion-saga') errors = validatePromotionSagaReceipt(receipt, expected);
+else throw new Error('--kind must be distribution, homebrew-activation, promotion-saga, or local-activation');
+if (errors.length > 0) throw new Error(`${values.kind} receipt invalid: ${errors.join('; ')}`);
+process.stdout.write(`${JSON.stringify({ status: 'verified', kind: values.kind, receipt: values.receipt })}\n`);

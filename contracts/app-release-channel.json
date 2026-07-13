@@ -1124,23 +1124,35 @@
     "stable_release_state_machine": {
       "package_script": "release:stable",
       "script": "scripts/run-stable-release.ts",
-      "schema": "opl_app_stable_release_session.v1",
+      "schema": "opl_app_stable_release_session.v2",
       "default_mode": "dry_run",
       "execute_flag": "--execute",
       "canonical_commands": [
         "start",
+        "retry-qualification",
         "resume",
-        "promote"
+        "promote",
+        "complete-local"
       ],
       "phases": [
-        "planned",
+        "candidate_frozen",
         "source_gates_passed",
-        "release_running",
-        "owner_review_required",
-        "release_failed",
+        "source_gate_failed",
+        "artifact_build_running",
+        "artifact_build_failed",
+        "release_train_failed",
+        "qualification_failed",
+        "retry_failed_gate_same_artifact",
+        "artifacts_qualified",
+        "owner_approved",
         "promotion_running",
-        "published",
-        "promotion_failed"
+        "promotion_failed",
+        "release_published_not_latest",
+        "distribution_synced",
+        "homebrew_verified",
+        "latest_activated",
+        "awaiting_local_activation",
+        "complete"
       ],
       "cohort_binding": {
         "identity_fields": [
@@ -1161,12 +1173,50 @@
         "run_id_discovered_from_exact_app_sha": true,
         "monitor_command": "gh run watch <run-id> --repo gaofeng21cn/one-person-lab-app --interval 60 --exit-status",
         "promotion_reuses_source_release_run_id": true,
-        "promotion_requires_release_owner_receipt": true
+        "promotion_requires_release_owner_receipt": true,
+        "promotion_dispatch_limit_per_cohort": 1,
+        "promotion_retry": "gh run rerun <original-promotion-run-id> --failed",
+        "promotion_retry_reuses_original_run_id_and_owner_receipt": true
       },
       "recovery_policy": {
         "smoke_or_validator_only_change_rebuilds_existing_artifact": false,
         "product_or_runtime_byte_change_requires_new_cohort": true,
-        "failed_gate_requires_classification_before_next_dispatch": true
+        "failed_gate_requires_classification_before_next_dispatch": true,
+        "qualification_retry_reuses_exact_artifact_bytes": true,
+        "qualification_override_must_match_session_cohort_manifest_and_artifact_sha256": true
+      },
+      "artifact_cohort": {
+        "schema": "opl_app_build_artifact_cohort.v2",
+        "identity": "exact App, Shell, Framework, packaged tree, product profile, GUI contract, smoke harness, DMG SHA-256 and Actions run",
+        "artifact_build_limit_per_cohort": 1
+      },
+      "qualification_receipt": {
+        "schema": "opl_app_artifact_qualification_receipt.v1",
+        "same_artifact_retry_can_override_only": "full_dmg_clean_vm",
+        "cross_artifact_or_cross_cohort_override_allowed": false
+      },
+      "promotion_saga": {
+        "order": [
+          "publish_release_nonlatest",
+          "atomic_standard_and_full_tap_distribution",
+          "standard_homebrew_clean_vm",
+          "full_homebrew_clean_vm",
+          "activate_latest"
+        ],
+        "redispatch_after_partial_failure_allowed": false,
+        "immutable_distribution_receipt_reuse_required": true
+      },
+      "receipts": {
+        "distribution": "opl_stable_distribution_receipt.v1",
+        "homebrew_activation": "opl_app_homebrew_activation_receipt.v1",
+        "promotion": "opl_app_promotion_saga_receipt.v1",
+        "local_activation": "opl_app_local_activation_receipt.v1",
+        "complete_requires_local_install_and_nonblank_cdp_readback": true
+      },
+      "profiling": {
+        "phase_durations_and_dispatch_counts_required": true,
+        "efficiency_advisory_after_minutes": 90,
+        "efficiency_advisory_is_stop_condition": false
       },
       "authority_boundary": "The stable release session coordinates an explicitly authorized release but is not release truth. Same-cohort evidence, candidate validation, owner receipt, promotion readback, Homebrew readback, and installed App verification remain authoritative for their own states."
     },

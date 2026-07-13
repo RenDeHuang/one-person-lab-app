@@ -465,10 +465,18 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
   if (
     stableReleaseStateMachine?.package_script !== 'release:stable' ||
     stableReleaseStateMachine?.script !== 'scripts/run-stable-release.ts' ||
-    stableReleaseStateMachine?.schema !== 'opl_app_stable_release_session.v1' ||
+    stableReleaseStateMachine?.schema !== 'opl_app_stable_release_session.v2' ||
     stableReleaseStateMachine?.default_mode !== 'dry_run' ||
     stableReleaseStateMachine?.execute_flag !== '--execute' ||
-    !sameStringSet(stableReleaseStateMachine?.canonical_commands, ['start', 'resume', 'promote']) ||
+    !sameStringSet(stableReleaseStateMachine?.canonical_commands, ['start', 'retry-qualification', 'resume', 'promote', 'complete-local']) ||
+    !sameStringSet(stableReleaseStateMachine?.phases, [
+      'candidate_frozen', 'source_gates_passed', 'source_gate_failed', 'artifact_build_running',
+      'artifact_build_failed', 'release_train_failed', 'qualification_failed',
+      'retry_failed_gate_same_artifact', 'artifacts_qualified', 'owner_approved',
+      'promotion_running', 'promotion_failed', 'release_published_not_latest',
+      'distribution_synced', 'homebrew_verified', 'latest_activated',
+      'awaiting_local_activation', 'complete',
+    ]) ||
     stableReleaseStateMachine?.cohort_binding?.desktop_release_dispatch_limit_per_cohort !== 1 ||
     stableReleaseStateMachine?.cohort_binding?.cross_cohort_artifact_reuse_allowed !== false ||
     stableReleaseStateMachine?.cohort_binding?.remote_dispatch_ref_must_match_frozen_app_sha !== true ||
@@ -476,7 +484,19 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
     stableReleaseStateMachine?.execution_policy?.stable_complete_requires_addon_gates !== true ||
     stableReleaseStateMachine?.execution_policy?.promotion_reuses_source_release_run_id !== true ||
     stableReleaseStateMachine?.execution_policy?.promotion_requires_release_owner_receipt !== true ||
+    stableReleaseStateMachine?.execution_policy?.promotion_dispatch_limit_per_cohort !== 1 ||
+    stableReleaseStateMachine?.execution_policy?.promotion_retry_reuses_original_run_id_and_owner_receipt !== true ||
     stableReleaseStateMachine?.recovery_policy?.smoke_or_validator_only_change_rebuilds_existing_artifact !== false ||
+    stableReleaseStateMachine?.recovery_policy?.qualification_retry_reuses_exact_artifact_bytes !== true ||
+    stableReleaseStateMachine?.artifact_cohort?.schema !== 'opl_app_build_artifact_cohort.v2' ||
+    stableReleaseStateMachine?.artifact_cohort?.artifact_build_limit_per_cohort !== 1 ||
+    stableReleaseStateMachine?.qualification_receipt?.schema !== 'opl_app_artifact_qualification_receipt.v1' ||
+    stableReleaseStateMachine?.qualification_receipt?.cross_artifact_or_cross_cohort_override_allowed !== false ||
+    stableReleaseStateMachine?.promotion_saga?.redispatch_after_partial_failure_allowed !== false ||
+    stableReleaseStateMachine?.receipts?.homebrew_activation !== 'opl_app_homebrew_activation_receipt.v1' ||
+    stableReleaseStateMachine?.receipts?.local_activation !== 'opl_app_local_activation_receipt.v1' ||
+    stableReleaseStateMachine?.profiling?.efficiency_advisory_after_minutes !== 90 ||
+    stableReleaseStateMachine?.profiling?.efficiency_advisory_is_stop_condition !== false ||
     typeof stableReleaseStateMachine?.authority_boundary !== 'string' ||
     !stableReleaseStateMachine.authority_boundary.includes('is not release truth')
   ) {
