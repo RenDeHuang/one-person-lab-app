@@ -171,13 +171,13 @@ function validateCapabilitiesPage(matrix, guiContract) {
   );
   if (
     capabilitiesPage.machine_source !==
-    'opl app state --profile fast --json#app_state.agent_packages.directory + app_state.agent_packages.status_index + home_agent_shortcuts + operator.workbench.task_drilldowns'
+    'opl app state --profile fast --json#app_state.agent_packages.directory + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[] + home_agent_shortcuts + operator.workbench.task_drilldowns'
   ) {
-    throw new Error('Capabilities page must read package-directory rows from canonical agent_packages, Home shortcuts, and task-awareness refs');
+    throw new Error('Agents page must read package installation truth, active runtime sources, Home shortcuts, and task-awareness refs');
   }
   assertIncludesAll(
     capabilitiesPage.state_sections,
-    ['agent_packages.directory', 'agent_packages.status_index', 'modules.items', 'home_agent_shortcuts', 'operator.workbench.task_drilldowns'],
+    ['agent_packages.directory', 'agent_packages.status_index', 'runtime_source_carriers.items', 'modules.items', 'home_agent_shortcuts', 'operator.workbench.task_drilldowns'],
     'Capabilities page task awareness state sections',
   );
   if (capabilitiesPage.task_awareness_refs_source !== 'contracts/app-runtime-bridge.json#task_awareness_projection.settings_capabilities_surface') {
@@ -217,21 +217,24 @@ function validateCapabilitiesPage(matrix, guiContract) {
     capabilitiesPage.current_runtime_projection_boundary,
     {
       canonical_projection:
-        'opl app state --profile fast --json#app_state.agent_packages.directory + app_state.agent_packages.status_index',
+        'opl app state --profile fast --json#app_state.agent_packages.directory + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[]',
+      runtime_source_projection:
+        'opl app state --profile fast --json#app_state.runtime_source_carriers.items[]',
+      source_semantics_policy:
+        'agent package state owns installation truth; runtime source carriers own active run source; runtime source presence alone is not package installation truth',
       legacy_fallback_projection:
         'opl app state --profile fast --json#app_state.modules.items[] + home_agent_shortcuts + app_state.operator.workbench.task_drilldowns',
       normalization_policy:
-        'shell must prefer canonical agent_packages projection and only fall back to modules.items when older runtime payloads or partial projections are still in circulation',
+        'shell must use agent_packages for installation truth, overlay runtime_source_carriers for active run source, and only fall back to modules.items when older runtime payloads or partial projections are still in circulation',
       developer_source_examples: [
-        'health_status=dirty',
-        'source_policy.effective_install_update_source=git_checkout',
-        'source_policy.configured_by=developer_mode',
-        'git.sync_status=behind',
-        'git.dirty=true',
-        'health_status=ready + recommended_action=update',
+        'runtime_source_carriers.items[].source_origin=sibling_workspace',
+        'runtime_source_carriers.items[].source_policy.effective_install_update_source=git_checkout',
+        'runtime_source_carriers.items[].source_policy.configured_by=developer_mode',
+        'runtime_source_carriers.items[].git.sync_status=behind',
+        'runtime_source_carriers.items[].git.dirty=true',
       ],
       completion_boundary:
-        'this page-state target requires canonical agent_packages projection and allows modules.items fallback only as rollout compatibility',
+        'this page-state target requires canonical agent_packages installation truth plus runtime_source_carriers active run source and allows modules.items fallback only as rollout compatibility',
     },
     'Capabilities page current runtime projection boundary',
   );
@@ -264,16 +267,17 @@ function validateCapabilitiesPage(matrix, guiContract) {
         'app_state.agent_packages.status_index.packages[].repair_action',
         'app_state.agent_packages.status_index.packages[].activation_action',
         'app_state.agent_packages.status_index.packages[].dependent_guard',
-        'modules.items[].health_status',
-        'modules.items[].recommended_action',
-        'modules.items[].source_policy.effective_install_update_source',
-        'modules.items[].source_policy.configured_by',
-        'modules.items[].git.sync_status',
-        'modules.items[].git.dirty',
+        'app_state.runtime_source_carriers.items[].source_origin',
+        'app_state.runtime_source_carriers.items[].source_path',
+        'app_state.runtime_source_carriers.items[].source_policy.effective_install_update_source',
+        'app_state.runtime_source_carriers.items[].source_policy.configured_by',
+        'app_state.runtime_source_carriers.items[].git.sync_status',
+        'app_state.runtime_source_carriers.items[].git.dirty',
+        'app_state.modules.items[] compatibility fallback',
         'managed_update.components[opl_packages].projection_status',
       ],
       developer_source_policy:
-        'developer checkout semantics must surface explicitly and must not be collapsed into a generic repair bucket',
+        'active runtime developer checkout semantics must surface explicitly, remain distinct from package installation source, and must not be collapsed into a generic repair bucket',
       must_not_collapse: ['developer_checkout', 'dirty_checkout', 'git_behind', 'unknown', 'needs_sync'],
     },
     'Capabilities page status model',
@@ -353,6 +357,9 @@ function expectedAgentPackageLifecycleUx() {
   return {
     requirement_scope: 'product_requirement_not_runtime_authority',
     primary_state_surface: 'app_state.agent_packages.directory + app_state.agent_packages.status_index',
+    runtime_source_surface: 'app_state.runtime_source_carriers.items[]',
+    source_semantics_policy:
+      'package state is installation truth; runtime source carrier is active run source; never infer installation from checkout presence',
     fallback_state_surface: 'app_state.modules.items[]',
     fallback_policy:
       'modules.items fallback is compatibility-only for older or partial payloads and cannot claim package currentness, execution readiness, or mutation authority',
@@ -362,7 +369,7 @@ function expectedAgentPackageLifecycleUx() {
     field_behavior_checklist: [
       'search_by_package_name_short_name_tag_source_or_description',
       'filter_by_install_update_source_trust_codex_surface_and_home_visibility_state',
-      'explain_install_source_in_user_language',
+      'distinguish_package_install_source_from_active_runtime_source_in_user_language',
       'show_failure_reason_only_when_failed_blocked_or_needs_user_action',
       'operational_ready_false_or_dependency_repair_required_must_never_render_ready',
       'operational_ready_false_must_disable_ordinary_package_and_agent_launch',
@@ -385,6 +392,9 @@ function expectedAgentPackageLifecycleUx() {
       'manifest_url',
       'distribution_ref',
       'developer_source_warning',
+      'runtime_source_origin',
+      'runtime_source_path',
+      'runtime_source_policy',
     ],
     failure_reason_fields: [
       'failure_reason',

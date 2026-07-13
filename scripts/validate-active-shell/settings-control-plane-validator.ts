@@ -42,7 +42,7 @@ const settingsIaRef =
 const settingsControlPlaneContractRef =
   "contracts/app-settings-control-plane.json";
 const expectedAgentsStateSource =
-  "opl app state --profile fast --json#app_state.agent_packages.directory + app_state.agent_packages.status_index + home_agent_shortcuts + app_state.operator.workbench.task_drilldowns";
+  "opl app state --profile fast --json#app_state.agent_packages.directory + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[] + home_agent_shortcuts + app_state.operator.workbench.task_drilldowns";
 const expectedCapabilitiesStateSource =
   "opl update status --json#managed_update.components[component_id=opl_base].current.dependency_catalog.flow_dependencies + Codex and shell skill/plugin registries";
 
@@ -2412,7 +2412,11 @@ function validateSettingsAgentsDirectoryProjection(agentsPage) {
   }
   if (
     directory.canonical_projection !==
-      "opl app state --profile fast --json#app_state.agent_packages.directory + app_state.agent_packages.status_index" ||
+      "opl app state --profile fast --json#app_state.agent_packages.directory + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[]" ||
+    directory.runtime_source_projection !==
+      "opl app state --profile fast --json#app_state.runtime_source_carriers.items[]" ||
+    directory.source_semantics_policy !==
+      "agent package state owns installation truth; runtime source carriers own active run source; runtime source presence alone is not package installation truth" ||
     directory.legacy_fallback_projection !==
       "opl app state --profile fast --json#app_state.modules.items[] + home_agent_shortcuts + app_state.operator.workbench.task_drilldowns"
   ) {
@@ -2422,7 +2426,7 @@ function validateSettingsAgentsDirectoryProjection(agentsPage) {
   }
   if (
     directory.normalization_policy !==
-      "shell must prefer canonical agent_packages projection and only fall back to modules.items when older runtime payloads or partial projections are still in circulation" ||
+      "shell must use agent_packages for installation truth, overlay runtime_source_carriers for active run source, and only fall back to modules.items when older runtime payloads or partial projections are still in circulation" ||
     directory.activation_action_contract_ref !==
       "contracts/app-gui-product-contract.json#pages.settings_agents.agent_package_lifecycle_ux.package_projection_contract.activation_preparation_policy"
   ) {
@@ -2455,7 +2459,7 @@ function validateSettingsAgentsDirectoryProjection(agentsPage) {
   );
   if (
     statusModel?.developer_source_policy !==
-    "developer checkout semantics must surface explicitly and must not collapse into a generic repair bucket"
+    "active runtime developer checkout semantics must surface explicitly, remain distinct from package installation source, and must not collapse into a generic repair bucket"
   ) {
     throw new Error(
       "Settings Agents must preserve developer checkout semantics as their own axis",

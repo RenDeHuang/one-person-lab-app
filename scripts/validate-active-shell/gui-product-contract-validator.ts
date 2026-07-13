@@ -199,6 +199,9 @@ function validateAgentPackageLifecycleUx(surface, label) {
   if (
     surface?.requirement_scope !== 'product_requirement_not_runtime_authority' ||
     surface.primary_state_surface !== 'app_state.agent_packages.directory + app_state.agent_packages.status_index' ||
+    surface.runtime_source_surface !== 'app_state.runtime_source_carriers.items[]' ||
+    surface.source_semantics_policy !==
+      'package state is installation truth; runtime source carrier is active run source; never infer installation from checkout presence' ||
     surface.fallback_state_surface !== 'app_state.modules.items[]' ||
     surface.action_ref_source !== 'app_state.actions' ||
     surface.action_route !== appActionRoute
@@ -211,7 +214,7 @@ function validateAgentPackageLifecycleUx(surface, label) {
     [
       'search_by_package_name_short_name_tag_source_or_description',
       'filter_by_install_update_source_trust_codex_surface_and_home_visibility_state',
-      'explain_install_source_in_user_language',
+      'distinguish_package_install_source_from_active_runtime_source_in_user_language',
       'show_failure_reason_only_when_failed_blocked_or_needs_user_action',
       'operational_ready_false_or_dependency_repair_required_must_never_render_ready',
       'operational_ready_false_must_disable_ordinary_package_and_agent_launch',
@@ -241,7 +244,17 @@ function validateAgentPackageLifecycleUx(surface, label) {
   );
   assertIncludesAll(
     surface.source_explanation_fields,
-    ['source_label', 'source_kind', 'trust_tier', 'manifest_url', 'distribution_ref', 'developer_source_warning'],
+    [
+      'source_label',
+      'source_kind',
+      'trust_tier',
+      'manifest_url',
+      'distribution_ref',
+      'developer_source_warning',
+      'runtime_source_origin',
+      'runtime_source_path',
+      'runtime_source_policy',
+    ],
     `${label} source explanation fields`,
   );
   assertIncludesAll(

@@ -999,6 +999,17 @@ function validateRuntimeBridgeProjectionContracts(runtimeBridge) {
 function validatePackageReadinessProjection(runtimeBridge) {
   const rows = runtimeBridge.canonical_state_display_action_map?.rows;
   const packageRow = Array.isArray(rows) ? rows.find((row) => row?.semantic_area === 'package') : null;
+  if (
+    packageRow?.canonical_source !==
+    'opl app state --profile fast --json#app_state.agent_packages.directory + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[]'
+  ) {
+    throw new Error('Runtime bridge package rows must combine package installation truth with active runtime source carriers');
+  }
+  assertDeepEqualJson(
+    packageRow?.required_projection_fields?.['runtime_source_carriers.items[package_id]'],
+    ['source_origin', 'source_path', 'source_policy', 'git'],
+    'Runtime bridge package active source fields',
+  );
   assertDeepEqualJson(
     packageRow?.required_projection_fields?.['directory.installed_packages[]'],
     ['dependency_closure', 'dependent_guard'],

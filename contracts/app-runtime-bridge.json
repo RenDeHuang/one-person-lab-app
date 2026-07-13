@@ -221,7 +221,7 @@
       },
       {
         "semantic_area": "package",
-        "canonical_source": "opl app state --profile fast --json#app_state.agent_packages.directory + app_state.agent_packages.status_index",
+        "canonical_source": "opl app state --profile fast --json#app_state.agent_packages.directory + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[]",
         "aion_display_role": "Settings Capabilities package directory rows",
         "workbench_display_role": "Packages panel rows",
         "action_owner_boundary": "App and shells display/trigger Framework action refs only; rollback appears as rollback_ref/recovery reference, not an App or Framework package lifecycle action",
@@ -236,6 +236,12 @@
           "agent_package_preferences_set"
         ],
         "required_projection_fields": {
+          "runtime_source_carriers.items[package_id]": [
+            "source_origin",
+            "source_path",
+            "source_policy",
+            "git"
+          ],
           "directory.installed_packages[]": [
             "dependency_closure",
             "dependent_guard"
