@@ -179,6 +179,18 @@ function validateDomainExposure(policy) {
 
 function validateInstallerSurfaces(policy) {
   const installerSurfaces = new Map((policy.installer_surfaces ?? []).map((entry) => [entry.surface, entry]));
+  const reconcileRef = 'contracts/app-release-channel.json#managed_update_plane.carrier_reconciliation';
+  for (const entry of installerSurfaces.values()) {
+    if (typeof entry.app_runtime_carrier !== 'boolean') {
+      throw new Error(`Install exposure surface ${entry.surface} must classify whether it launches an App runtime carrier`);
+    }
+    if (entry.app_runtime_carrier && entry.post_launch_reconcile_ref !== reconcileRef) {
+      throw new Error(`Install exposure App runtime surface ${entry.surface} must use carrier-neutral Framework reconciliation`);
+    }
+    if (!entry.app_runtime_carrier && entry.post_launch_reconcile_ref) {
+      throw new Error(`Install exposure non-App surface ${entry.surface} must not declare App carrier reconciliation`);
+    }
+  }
   for (const surface of ['app_first_run', 'full_first_install_dmg', 'standard_dmg', 'one_shot_cli_installer', 'docker_webui']) {
     const entry = installerSurfaces.get(surface);
     if (!entry) {

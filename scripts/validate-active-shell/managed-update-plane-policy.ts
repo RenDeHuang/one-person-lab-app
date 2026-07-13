@@ -7,6 +7,8 @@ export const managedUpdateMustShow = [
   'conditions and repair actions from App state or opl update status',
   'user-facing OPL Packages maintenance entry under Local Environment',
   'manual check/apply/repair/rollback action mapping for OPL Packages',
+  'carrier-neutral reconciliation status after App install or version change',
+  'Framework receipt-derived current, background update, restart, reload, or attention guidance',
 ];
 
 export const managedUpdateMustNotShow = [
@@ -45,13 +47,20 @@ export const managedUpdateBackgroundFields = [
 ];
 
 export const managedUpdateScheduler = {
-  triggers: ['app_startup_after_core_ready', 'daily_background_maintenance', 'manual_check_updates'],
+  triggers: [
+    'app_startup_after_core_ready',
+    'running_app_version_checkpoint_missing_or_changed',
+    'daily_background_maintenance',
+    'manual_check_updates',
+  ],
   lock_source: 'managed_update.idempotency_lock.status',
   backoff_policy: 'bounded_retry_with_last_failure_projection',
   user_blocking: false,
   must_project_last_run_and_next_run: true,
-  auto_apply_policy: 'framework_owned_opl_packages_transaction_only_when_clean_managed_and_latest_stable_digest_changed',
-  auto_apply_software_objects: ['opl_packages'],
+  auto_apply_policy: 'execute_only_framework_plan_items_with_auto_apply.eligible_and_app_background_safe_using_command_ref',
+  auto_apply_software_objects: ['opl_base', 'opl_packages'],
+  auto_apply_eligibility_owner: 'one-person-lab',
+  attention_only_source_classes: ['developer_checkout', 'dirty', 'user_managed', 'global_homebrew_or_npm_or_path'],
   app_owned_auto_apply_software_objects: [],
   never_app_mutate_software_objects: ['opl_base', 'opl_packages'],
   must_project_recent_actions_and_skip_reasons: true,
@@ -61,11 +70,11 @@ export const managedUpdateUiActions = {
   refresh: 'opl update status --json',
   check: 'opl update check --json',
   plan: 'opl update plan --json',
+  apply_eligible_updates: 'opl update apply --json',
   bootstrap_missing_opl_base: 'opl-install.sh --headless --skip-packages',
   update_opl_app: 'standard_updater_or_carrier_host_update_route',
   install_opl_package: 'opl packages install ... --json',
   update_opl_package: 'opl packages update ... --json',
-  optimize_opl_flow: 'opl packages optimize opl-flow --json',
   repair_opl_package: 'opl packages repair --package-id <package_id> --json',
   uninstall_opl_package: 'opl packages uninstall --package-id <package_id> --json',
   ordinary_component_picker_allowed: false,
@@ -103,6 +112,7 @@ export const managedKernelPublicCliSurfaces = [
   'opl update status --json',
   'opl update check --json',
   'opl update plan --json',
+  'opl update apply --json',
   'opl-install.sh --headless --skip-packages',
   'opl packages install ... --json',
   'opl packages update ... --json',
@@ -223,11 +233,11 @@ export const oplFlowPackagePolicy = {
   consumer: 'standard_and_full_workflow_baseline',
   install_command: 'opl packages install opl-flow',
   update_command: 'opl packages update opl-flow',
-  optimize_command: 'opl packages optimize opl-flow',
   app_direct_profile_mutation_allowed: false,
   framework_profile_transaction_allowed: true,
+  framework_profile_migration_hook: 'opl_packages_post_apply',
   profile_sync_policy: 'codex_semantic_merge_with_marker_cleanup_hash_backup_receipt_rollback_and_packet_fallback',
-  post_app_update_reconcile_trigger: 'running_version_switched_only',
+  carrier_reconcile_special_case_allowed: false,
   workflow_profile_semantic_merge_ref:
     'managed_update_plane.software_lifecycle.objects.opl_packages.optional_internal_fields#profile_migration_status',
   standard_updater_allowed: false,

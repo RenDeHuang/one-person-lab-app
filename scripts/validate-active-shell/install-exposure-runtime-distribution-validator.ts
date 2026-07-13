@@ -32,6 +32,26 @@ function validateSoftwareLifecycle(lifecycle) {
   ) {
     throw new Error('Install exposure must use the three-object software lifecycle without legacy mappings or a component picker');
   }
+  const threeLayer = lifecycle?.three_layer_contract;
+  if (
+    threeLayer?.installation_source?.role !== 'candidate_bytes_and_offline_seeds_only' ||
+    threeLayer?.installation_source?.scope !== 'all_supported_app_carriers' ||
+    threeLayer?.installation_source?.app_carrier_registry_ref !== 'installer_surfaces+distribution_channels' ||
+    threeLayer?.installation_source?.may_define_base_or_package_currentness !== false ||
+    threeLayer?.management_path?.owner !== 'one-person-lab' ||
+    threeLayer?.management_path?.reconciliation_ref !==
+      'contracts/app-release-channel.json#managed_update_plane.carrier_reconciliation' ||
+    threeLayer?.management_path?.app_role !==
+      'request_and_project_framework_terminal_readback_and_apply_receipts_only' ||
+    threeLayer?.management_path?.app_side_dependency_or_package_update_catalog_allowed !== false ||
+    threeLayer?.user_behavior?.carrier_choice_changes_post_launch_behavior !== false ||
+    threeLayer?.user_behavior?.clean_opl_managed_targets_may_update_silently !== true ||
+    threeLayer?.user_behavior?.dirty_developer_or_user_managed_targets_are_attention_only !== true ||
+    threeLayer?.user_behavior?.packages_usually_activate_immediately_and_may_request_codex_refresh !== true ||
+    threeLayer?.user_behavior?.base_runtime_and_app_activate_on_restart_with_rollback !== true
+  ) {
+    throw new Error('Install exposure must freeze source, Framework management, and user behavior as three separate layers');
+  }
   if (
     lifecycle?.base_bootstrap?.bootstrap_route !== 'opl-install.sh --headless --skip-packages' ||
     lifecycle?.base_bootstrap?.executor_owner !== 'one-person-lab' ||
@@ -275,6 +295,7 @@ function validateHomebrewTransportBoundary(homebrew) {
       object: 'opl_app',
       lifecycle_owner: 'one-person-lab-app',
       base_or_packages_mutation_allowed: false,
+      post_launch_reconcile_ref: 'contracts/app-release-channel.json#managed_update_plane.carrier_reconciliation',
     },
     equivalent_direct_carriers: {
       opl_base: 'framework_installer',

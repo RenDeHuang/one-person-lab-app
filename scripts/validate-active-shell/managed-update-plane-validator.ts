@@ -24,11 +24,11 @@ const manualActionMapping = {
   refresh: 'opl update status --json',
   check: 'opl update check --json',
   plan: 'opl update plan --json',
+  apply_eligible_updates: 'opl update apply --json',
   bootstrap_missing_opl_base: 'opl-install.sh --headless --skip-packages',
   update_opl_app: 'standard_updater_or_carrier_host_update_route',
   install_opl_package: 'opl packages install ... --json',
   update_opl_package: 'opl packages update ... --json',
-  optimize_opl_flow: 'opl packages optimize opl-flow --json',
   repair_opl_package: 'opl packages repair --package-id <package_id> --json',
   uninstall_opl_package: 'opl packages uninstall --package-id <package_id> --json',
 };
@@ -82,6 +82,7 @@ export function validateEnvironmentModuleMaintenanceEntry(entry, label) {
       'OPL Packages state and Codex Surface substatus',
       'recommended action',
       'post-update sync status',
+      'refresh Codex guidance when package projection changed',
       'repair and rollback refs',
     ],
     `${label} module maintenance status`,
@@ -93,8 +94,8 @@ export function validateManagedUpdatePlaneBinding(plane, label, options = {}) {
   if (
     (options.requirePageId && plane?.page_id !== 'updates_and_maintenance') ||
     plane?.source_ref !== softwareLifecycleRef ||
-    plane?.app_role !== 'opl_app_self_update_owner_and_base_packages_status_action_consumer' ||
-    plane?.framework_role !== 'opl_base_and_opl_packages_lifecycle_owner' ||
+    plane?.app_role !== 'opl_app_carrier_owner_and_framework_base_packages_request_receipt_consumer' ||
+    plane?.framework_role !== 'opl_base_and_opl_packages_catalog_plan_execution_receipt_owner' ||
     (options.requireStatusConsumptionPolicy && plane?.status_consumption_policy !== managedUpdateStatusConsumptionPolicy)
   ) {
     throw new Error(options.bindingError ?? `${label} must bind to the three-object App software lifecycle`);

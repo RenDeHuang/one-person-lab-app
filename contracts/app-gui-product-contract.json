@@ -1132,33 +1132,58 @@
       "status_command": "opl update status --json",
       "app_state_source": "opl app state --profile fast --json#managed_update",
       "action_command": "opl app action execute --action <action_id> [--payload <json>] [--dry-run] --json",
-      "app_role": "opl_app_self_update_owner_and_base_packages_status_action_consumer",
-      "framework_role": "opl_base_and_opl_packages_lifecycle_owner",
+      "app_role": "opl_app_carrier_owner_and_framework_base_packages_request_receipt_consumer",
+      "framework_role": "opl_base_and_opl_packages_catalog_plan_execution_receipt_owner",
       "display_policy": "Maintenance shows exactly OPL Base, OPL App, and OPL Packages; Base dependency and integration status, App host update route, and Packages projection and profile migration status remain nested details.",
       "software_objects": ["opl_base", "opl_app", "opl_packages"],
       "ui_actions": {
         "refresh": "opl update status --json",
         "check": "opl update check --json",
         "plan": "opl update plan --json",
+        "apply_eligible_updates": "opl update apply --json",
         "bootstrap_missing_opl_base": "opl-install.sh --headless --skip-packages",
         "update_opl_app": "standard_updater_or_carrier_host_update_route",
         "install_opl_package": "opl packages install ... --json",
         "update_opl_package": "opl packages update ... --json",
-        "optimize_opl_flow": "opl packages optimize opl-flow --json",
         "repair_opl_package": "opl packages repair --package-id <package_id> --json",
         "uninstall_opl_package": "opl packages uninstall --package-id <package_id> --json"
       },
-      "post_app_update_reconcile": {
-        "trigger": "running_version_switched_only",
-        "command": "opl packages update opl-flow --json",
+      "carrier_reconciliation": {
+        "contract_ref": "contracts/app-release-channel.json#managed_update_plane.carrier_reconciliation",
+        "trigger": "app_startup_after_core_ready_when_running_app_version_checkpoint_is_missing_or_changed",
+        "installation_source_scope": "all_supported_app_carriers",
+        "installation_source_registry_ref": "contracts/app-install-exposure-policy.json#installer_surfaces+distribution_channels",
+        "command_sequence": [
+          "opl update check --json",
+          "opl update plan --json",
+          "opl update apply --json"
+        ],
+        "software_object_scope": ["opl_base", "opl_packages"],
         "execution_owner": "one-person-lab",
-        "policy_owner": "opl-flow",
-        "app_role": "request_and_project_framework_receipt",
-        "idempotency": "once_per_downloaded_target_version",
-        "readback": "auto-update-diagnostics.json#opl_flow_optimize_*",
+        "catalog_source": "framework_managed_update_plan",
+        "app_catalog_allowed": false,
+        "app_role": "request_and_project_framework_terminal_readback_and_apply_receipts_only",
+        "idempotency": "once_per_running_app_version_or_image_digest_and_carrier_identity",
+        "readback": "opl app state --profile fast --json#managed_update",
         "direct_skill_delete_allowed": false,
         "direct_agents_write_allowed": false,
-        "failure_display": "show_framework_error_or_profile_merge_packet_without_claiming_optimization_complete"
+        "summary_states": [
+          "current",
+          "updating_in_background",
+          "restart_to_finish",
+          "refresh_codex_recommended",
+          "attention_required"
+        ],
+        "silent_apply_source": "framework_plan_auto_apply.eligible_and_app_background_safe_with_command_ref",
+        "attention_only_source_classes": [
+          "developer_checkout",
+          "dirty",
+          "user_managed",
+          "global_homebrew_or_npm_or_path"
+        ],
+        "package_activation_guidance": "available_after_framework_receipt_and_refresh_codex_when_projection_changed",
+        "base_activation_guidance": "restart_to_switch_staged_runtime_with_rollback_ref",
+        "failure_display": "show_framework_reason_and_repair_or_review_action_without_claiming_update_complete"
       },
       "ordinary_component_picker_allowed": false,
       "ordinary_module_maintenance_entry": {
@@ -1182,6 +1207,7 @@
           "OPL Packages Codex Surface sync substatus",
           "recommended action",
           "post-update sync status",
+          "refresh Codex guidance when package projection changed",
           "repair and rollback refs"
         ],
         "agent_package_rollback_boundary": "OPL Package rows may display rollback_ref and Framework action receipts; App does not add a separate App-owned rollback verb, and install, update, repair, uninstall, and recovery remain owned by the Framework package lifecycle.",
@@ -1189,11 +1215,11 @@
           "refresh": "opl update status --json",
           "check": "opl update check --json",
           "plan": "opl update plan --json",
+          "apply_eligible_updates": "opl update apply --json",
           "bootstrap_missing_opl_base": "opl-install.sh --headless --skip-packages",
           "update_opl_app": "standard_updater_or_carrier_host_update_route",
           "install_opl_package": "opl packages install ... --json",
           "update_opl_package": "opl packages update ... --json",
-          "optimize_opl_flow": "opl packages optimize opl-flow --json",
           "repair_opl_package": "opl packages repair --package-id <package_id> --json",
           "uninstall_opl_package": "opl packages uninstall --package-id <package_id> --json"
         },
@@ -4985,17 +5011,18 @@
           "recommended action",
           "last run and next run",
           "post-update sync status",
+          "refresh Codex guidance when package projection changed",
           "repair and rollback refs"
         ],
         "manual_action_mapping": {
           "refresh": "opl update status --json",
           "check": "opl update check --json",
           "plan": "opl update plan --json",
+          "apply_eligible_updates": "opl update apply --json",
           "bootstrap_missing_opl_base": "opl-install.sh --headless --skip-packages",
           "update_opl_app": "standard_updater_or_carrier_host_update_route",
           "install_opl_package": "opl packages install ... --json",
           "update_opl_package": "opl packages update ... --json",
-          "optimize_opl_flow": "opl packages optimize opl-flow --json",
           "repair_opl_package": "opl packages repair --package-id <package_id> --json",
           "uninstall_opl_package": "opl packages uninstall --package-id <package_id> --json"
         },

@@ -1,7 +1,7 @@
 import { assertDeepEqualJson, assertIncludesAll } from './assertions.ts';
 import { validateReleaseFullFirstInstallPayloads } from './release-full-first-install-payload-validator.ts';
 import { validateReleaseHomebrewDistribution } from './release-homebrew-distribution-validator.ts';
-import { managedOplPackageIds, managedUpdateCarrierAdapters, managedUpdateSoftwareObjectIds } from './managed-update-plane-policy.ts';
+import { managedUpdateCarrierAdapters, managedUpdateSoftwareObjectIds } from './managed-update-plane-policy.ts';
 
 export function validateReleaseChannelContract(releaseChannel) {
   const managedUpdatePlane = releaseChannel.managed_update_plane;
@@ -15,34 +15,14 @@ export function validateReleaseChannelContract(releaseChannel) {
 }
 
 function validateStandardUpdater(updater) {
-  const reconcile = updater?.post_update_dependency_reconcile;
   if (
     updater?.scope !== 'desktop_app_assets_only' ||
     updater?.module_package_update_allowed !== false ||
     updater?.opl_flow_install_allowed !== false ||
-    reconcile?.trigger !== 'running_version_switched_only' ||
-    reconcile?.owner !== 'one-person-lab' ||
-    reconcile?.app_role !== 'request_framework_transaction_and_project_result' ||
-    reconcile?.command !== 'opl packages update opl-flow --json' ||
-    reconcile?.workflow_owner !== 'opl-flow' ||
-    reconcile?.requires_previous_or_profile_declared_opl_flow !== true ||
-    reconcile?.idempotency !== 'once_per_downloaded_target_version' ||
-    reconcile?.readback !== 'auto-update-diagnostics.json#opl_flow_optimize_*' ||
-    reconcile?.direct_skill_delete_allowed !== false ||
-    reconcile?.direct_agents_write_allowed !== false
+    updater?.post_update_reconcile_ref !== 'managed_update_plane.carrier_reconciliation'
   ) {
-    throw new Error('Standard updater must remain App-binary-only and request Framework-owned OPL Flow reconciliation after version switch');
+    throw new Error('Standard updater must remain App-binary-only and join the carrier-neutral Framework reconciliation path');
   }
-  assertDeepEqualJson(
-    reconcile.framework_transaction_effects,
-    [
-      'archive_policy_declared_conflicts',
-      'remove_conflicting_config_and_stop_declared_services',
-      'codex_semantic_merge_agents_profile',
-      'write_backup_and_rollback_receipt',
-    ],
-    'Standard updater post-update OPL Flow reconcile effects',
-  );
 }
 
 function validateReleaseExecutionPolicy(acceleration) {
@@ -320,6 +300,7 @@ function validateManagedUpdatePlane(managedUpdatePlane) {
     'Managed update status source priority',
   );
   validateSoftwareLifecycle(lifecycle);
+  validateCarrierReconciliation(managedUpdatePlane?.carrier_reconciliation);
   assertIncludesAll(
     managedUpdatePlane.forbidden_app_authority,
     [
@@ -343,7 +324,10 @@ function validateManagedUpdatePlane(managedUpdatePlane) {
       'internal_transaction_states_are_not_peer_products_or_updaters',
       'ordinary_component_picker_and_public_component_flag_are_forbidden',
       'standard_updater_targets_opl_app_only',
-      'successful_app_update_requests_framework_owned_opl_flow_optimization',
+      'all_app_carriers_request_the_same_framework_base_and_packages_reconciliation',
+      'app_projects_framework_terminal_readback_and_apply_receipts_without_a_second_update_catalog',
+      'clean_managed_targets_may_update_silently_and_dirty_or_user_managed_targets_require_attention',
+      'packages_activate_after_receipt_while_base_runtime_and_app_switch_on_restart',
     ],
     'Managed update release-boundary cases',
   );
@@ -378,14 +362,21 @@ function validateSoftwareLifecycle(lifecycle) {
   assertDeepEqualJson(objects.opl_base.optional_internal_fields, ['dependency_status', 'integration_status'], 'OPL Base internal fields');
   assertDeepEqualJson(objects.opl_app.required_fields, ['host_update_route', 'host_executor_required'], 'OPL App route fields');
   assertDeepEqualJson(objects.opl_packages.optional_internal_fields, ['projection_status', 'profile_migration_status'], 'OPL Packages internal fields');
-  assertDeepEqualJson(objects.opl_packages.package_ids, managedOplPackageIds, 'OPL Packages canonical package ids');
+  if (
+    objects.opl_base.dependency_catalog_source !== 'opl update plan --json#managed_update.components.opl_base' ||
+    objects.opl_base.app_dependency_catalog_allowed !== false ||
+    objects.opl_packages.package_catalog_source !== 'opl update plan --json#managed_update.components.opl_packages' ||
+    objects.opl_packages.app_package_update_catalog_allowed !== false
+  ) {
+    throw new Error('Managed update catalogs must come from the Framework plan rather than App-maintained lists');
+  }
   assertDeepEqualJson(Object.keys(lifecycle.carrier_adapters ?? {}), managedUpdateCarrierAdapters, 'Managed update carrier adapters');
   if (
     lifecycle.public_actions?.bootstrap_missing_opl_base !== 'opl-install.sh --headless --skip-packages' ||
     lifecycle.public_actions?.update_opl_app !== 'standard_updater_or_carrier_host_update_route' ||
+    lifecycle.public_actions?.apply_eligible_updates !== 'opl update apply --json' ||
     !String(lifecycle.public_actions?.install_opl_package).startsWith('opl packages install ') ||
     !String(lifecycle.public_actions?.update_opl_package).startsWith('opl packages update ') ||
-    lifecycle.public_actions?.optimize_opl_flow !== 'opl packages optimize opl-flow --json' ||
     !String(lifecycle.public_actions?.repair_opl_package).startsWith('opl packages repair ') ||
     !String(lifecycle.public_actions?.uninstall_opl_package).startsWith('opl packages uninstall ')
   ) {
@@ -395,5 +386,67 @@ function validateSoftwareLifecycle(lifecycle) {
     if (String(action).includes('--component')) {
       throw new Error('Managed update public actions must not pass --component');
     }
+  }
+}
+
+function validateCarrierReconciliation(reconcile) {
+  if (
+    reconcile?.contract !== 'opl_app_carrier_reconciliation.v1' ||
+    reconcile?.trigger !== 'app_startup_after_core_ready_when_running_app_version_checkpoint_is_missing_or_changed' ||
+    reconcile?.carrier_neutral !== true ||
+    reconcile?.installation_source_scope !== 'all_supported_app_carriers' ||
+    reconcile?.installation_source_registry_ref !==
+      'contracts/app-install-exposure-policy.json#installer_surfaces+distribution_channels' ||
+    reconcile?.installation_source_role !== 'provide_candidate_app_or_seed_bytes_only' ||
+    reconcile?.framework_execution?.owner !== 'one-person-lab' ||
+    reconcile?.framework_execution?.catalog_source !== 'framework_managed_update_plan' ||
+    reconcile?.framework_execution?.app_catalog_allowed !== false ||
+    reconcile?.framework_execution?.single_writer_required !== true ||
+    reconcile?.framework_execution?.terminal_readback_required !== true ||
+    reconcile?.framework_execution?.lifecycle_receipt_required_when_apply_executed !== true ||
+    reconcile?.app_role !==
+      'request_framework_reconciliation_and_project_terminal_readback_and_apply_receipts_only' ||
+    reconcile?.app_direct_base_or_package_mutation_allowed !== false ||
+    reconcile?.idempotency !== 'once_per_running_app_version_or_image_digest_and_carrier_identity'
+  ) {
+    throw new Error('App carrier reconciliation must be carrier-neutral and Framework-executed without an App catalog');
+  }
+  assertDeepEqualJson(
+    reconcile.framework_execution.auto_apply_gate,
+    {
+      eligibility_field: 'auto_apply.eligible',
+      background_safety_field: 'app_background_safe',
+      command_field: 'command_ref',
+      required_boolean_value: true,
+    },
+    'App carrier reconciliation Framework auto-apply gate',
+  );
+  assertDeepEqualJson(
+    reconcile.framework_execution.command_sequence,
+    ['opl update check --json', 'opl update plan --json', 'opl update apply --json'],
+    'App carrier reconciliation command sequence',
+  );
+  assertDeepEqualJson(
+    reconcile.framework_execution.software_object_scope,
+    ['opl_base', 'opl_packages'],
+    'App carrier reconciliation Framework scope',
+  );
+  assertDeepEqualJson(
+    reconcile.user_experience.summary_states,
+    ['current', 'updating_in_background', 'restart_to_finish', 'refresh_codex_recommended', 'attention_required'],
+    'App carrier reconciliation user states',
+  );
+  assertDeepEqualJson(
+    reconcile.attention_only_source_classes,
+    ['developer_checkout', 'dirty', 'user_managed', 'global_homebrew_or_npm_or_path'],
+    'App carrier reconciliation attention-only source classes',
+  );
+  if (
+    reconcile.version_checkpoint?.key !== 'running_app_version_or_image_digest_and_carrier_identity' ||
+    reconcile.version_checkpoint?.write_gate !== 'framework_reconciliation_terminal_readback_projected' ||
+    reconcile.version_checkpoint?.missing_checkpoint_means_first_launch !== true ||
+    reconcile.version_checkpoint?.downloaded_or_copied_version_is_not_running_version !== true
+  ) {
+    throw new Error('App carrier reconciliation checkpoint must commit only after terminal Framework readback');
   }
 }

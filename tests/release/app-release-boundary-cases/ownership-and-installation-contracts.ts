@@ -563,6 +563,7 @@ test('managed update payload and public actions use only the three software obje
     fs.readFileSync(path.join(process.cwd(), 'contracts', 'fixtures', 'opl-app-state-fast.fixture.json'), 'utf8'),
   );
   const lifecycle = release.managed_update_plane.software_lifecycle;
+  const carrierReconcile = release.managed_update_plane.carrier_reconciliation;
   const guiManagedUpdate = gui.framework_surfaces.managed_update_plane;
   const guiEnvironment = gui.pages.settings_environment;
   const environmentPage = pageState.pages.find((page) => page.id === 'environment');
@@ -574,11 +575,37 @@ test('managed update payload and public actions use only the three software obje
   assert.deepEqual(lifecycle.objects.opl_app.required_fields, ['host_update_route', 'host_executor_required']);
   assert.deepEqual(lifecycle.objects.opl_packages.optional_internal_fields, ['projection_status', 'profile_migration_status']);
   assert.equal(lifecycle.public_actions.bootstrap_missing_opl_base, 'opl-install.sh --headless --skip-packages');
+  assert.equal(lifecycle.public_actions.apply_eligible_updates, 'opl update apply --json');
   assert.match(lifecycle.public_actions.install_opl_package, /^opl packages install /);
   assert.equal(Object.values(lifecycle.public_actions).some((action) => String(action).includes('--component')), false);
   assert.equal('runtime_substrate_updater' in release, false);
   assert.equal('companion_tools_updater' in release, false);
   assert.equal('planes' in release.managed_update_plane, false);
+  assert.equal(carrierReconcile.installation_source_scope, 'all_supported_app_carriers');
+  assert.equal(
+    carrierReconcile.installation_source_registry_ref,
+    'contracts/app-install-exposure-policy.json#installer_surfaces+distribution_channels',
+  );
+  assert.equal(carrierReconcile.framework_execution.app_catalog_allowed, false);
+  assert.equal(
+    carrierReconcile.version_checkpoint.write_gate,
+    'framework_reconciliation_terminal_readback_projected',
+  );
+  assert.equal(carrierReconcile.framework_execution.terminal_readback_required, true);
+  assert.equal(carrierReconcile.framework_execution.lifecycle_receipt_required_when_apply_executed, true);
+  assert.deepEqual(carrierReconcile.framework_execution.command_sequence, [
+    'opl update check --json',
+    'opl update plan --json',
+    'opl update apply --json',
+  ]);
+  assert.deepEqual(carrierReconcile.framework_execution.auto_apply_gate, {
+    eligibility_field: 'auto_apply.eligible',
+    background_safety_field: 'app_background_safe',
+    command_field: 'command_ref',
+    required_boolean_value: true,
+  });
+  assert.equal('post_update_dependency_reconcile' in release.standard_updater, false);
+  assert.equal('optimize_opl_flow' in lifecycle.public_actions, false);
   assert.equal(guiManagedUpdate.contract, 'contracts/app-release-channel.json#managed_update_plane.software_lifecycle');
   assert.deepEqual(guiManagedUpdate.software_objects, lifecycle.public_component_keys);
   assert.deepEqual(guiManagedUpdate.ui_actions, lifecycle.public_actions);
@@ -595,6 +622,14 @@ test('managed update payload and public actions use only the three software obje
     Object.values(guiEnvironment.module_maintenance_entry.manual_action_mapping)
       .some((action) => String(action).includes('--component')),
     false,
+  );
+
+  const invalidCarrierReconcile = structuredClone(release);
+  invalidCarrierReconcile.managed_update_plane.carrier_reconciliation.framework_execution.auto_apply_gate.background_safety_field =
+    'recommended_action';
+  assert.throws(
+    () => validateReleaseChannelContract(invalidCarrierReconcile),
+    /auto-apply gate/,
   );
   assert.deepEqual(
     environmentPage.module_maintenance_entry.state_inputs,

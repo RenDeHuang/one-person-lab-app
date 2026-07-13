@@ -32,8 +32,8 @@ export function validateGuiFrameworkSurfaces(guiContract, releaseChannel, instal
     managedUpdateSurface?.contract !== 'contracts/app-release-channel.json#managed_update_plane.software_lifecycle' ||
     managedUpdateSurface?.status_command !== 'opl update status --json' ||
     managedUpdateSurface?.app_state_source !== 'opl app state --profile fast --json#managed_update' ||
-    managedUpdateSurface?.app_role !== 'opl_app_self_update_owner_and_base_packages_status_action_consumer' ||
-    managedUpdateSurface?.framework_role !== 'opl_base_and_opl_packages_lifecycle_owner' ||
+    managedUpdateSurface?.app_role !== 'opl_app_carrier_owner_and_framework_base_packages_request_receipt_consumer' ||
+    managedUpdateSurface?.framework_role !== 'opl_base_and_opl_packages_catalog_plan_execution_receipt_owner' ||
     managedUpdateSurface?.ordinary_component_picker_allowed !== false ||
     softwareLifecycle?.ordinary_component_picker_allowed !== false ||
     softwareLifecycle?.public_action_component_flag_allowed !== false ||
@@ -57,6 +57,15 @@ export function validateGuiFrameworkSurfaces(guiContract, releaseChannel, instal
     softwareLifecycle.public_actions,
     'App GUI managed update public actions',
   );
+  if (
+    managedUpdateSurface.carrier_reconciliation?.contract_ref !==
+      'contracts/app-release-channel.json#managed_update_plane.carrier_reconciliation' ||
+    managedUpdateSurface.carrier_reconciliation?.app_catalog_allowed !== false ||
+    managedUpdateSurface.carrier_reconciliation?.app_role !==
+      'request_and_project_framework_terminal_readback_and_apply_receipts_only'
+  ) {
+    throw new Error('App GUI carrier reconciliation must request and project the Framework-owned plan without an App update catalog');
+  }
   assertDeepEqualJson(
     managedUpdateSurface.ipc_bridge_required,
     managedUpdateIpcSurfaces,

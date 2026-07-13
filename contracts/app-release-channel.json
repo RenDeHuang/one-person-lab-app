@@ -176,26 +176,7 @@
         "diagnostic_ref": "auto-update-diagnostics.json#install-not-applied"
       }
     },
-    "post_update_dependency_reconcile": {
-      "trigger": "running_version_switched_only",
-      "owner": "one-person-lab",
-      "app_role": "request_framework_transaction_and_project_result",
-      "command": "opl packages update opl-flow --json",
-      "workflow_owner": "opl-flow",
-      "requires_previous_or_profile_declared_opl_flow": true,
-      "idempotency": "once_per_downloaded_target_version",
-      "readback": "auto-update-diagnostics.json#opl_flow_optimize_*",
-      "direct_skill_delete_allowed": false,
-      "direct_agents_write_allowed": false,
-      "framework_transaction_effects": [
-        "archive_policy_declared_conflicts",
-        "remove_conflicting_config_and_stop_declared_services",
-        "codex_semantic_merge_agents_profile",
-        "write_backup_and_rollback_receipt"
-      ],
-      "fallback": "preserve_original_agents_and_project_reviewable_merge_packet",
-      "rule": "After the new App version is actually running, the App requests the Framework-owned OPL Flow optimize transaction. The standard updater still targets only the App binary and never implements skill cleanup or profile mutation itself."
-    },
+    "post_update_reconcile_ref": "managed_update_plane.carrier_reconciliation",
     "forbidden_software_object_targets": [
       "opl_base",
       "opl_packages"
@@ -2641,17 +2622,8 @@
             "runtime_substrate",
             "companion_tools"
           ],
-          "dependency_ids": [
-            "embedded_codex_executor",
-            "temporal_cli_archive",
-            "node_runtime",
-            "python_runtime",
-            "uv_runtime",
-            "native_helper",
-            "opl_framework_runtime",
-            "officecli",
-            "mineru_open_api"
-          ],
+          "dependency_catalog_source": "opl update plan --json#managed_update.components.opl_base",
+          "app_dependency_catalog_allowed": false,
           "success_gate": "compatible_opl_base_readback_after_framework_receipt"
         },
         "opl_app": {
@@ -2685,15 +2657,8 @@
             "codex_surface",
             "workflow_profile"
           ],
-      "package_ids": [
-        "mas",
-        "mag",
-        "rca",
-        "oma",
-        "obf",
-            "mas-scholar-skills",
-            "opl-flow"
-          ],
+          "package_catalog_source": "opl update plan --json#managed_update.components.opl_packages",
+          "app_package_update_catalog_allowed": false,
           "homebrew_distribution_allowed": false
         }
       },
@@ -2724,15 +2689,78 @@
         "refresh": "opl update status --json",
         "check": "opl update check --json",
         "plan": "opl update plan --json",
+        "apply_eligible_updates": "opl update apply --json",
         "bootstrap_missing_opl_base": "opl-install.sh --headless --skip-packages",
         "update_opl_app": "standard_updater_or_carrier_host_update_route",
         "install_opl_package": "opl packages install ... --json",
         "update_opl_package": "opl packages update ... --json",
-        "optimize_opl_flow": "opl packages optimize opl-flow --json",
         "repair_opl_package": "opl packages repair --package-id <package_id> --json",
         "uninstall_opl_package": "opl packages uninstall --package-id <package_id> --json"
       },
       "public_action_component_flag_allowed": false
+    },
+    "carrier_reconciliation": {
+      "contract": "opl_app_carrier_reconciliation.v1",
+      "trigger": "app_startup_after_core_ready_when_running_app_version_checkpoint_is_missing_or_changed",
+      "carrier_neutral": true,
+      "installation_source_scope": "all_supported_app_carriers",
+      "installation_source_registry_ref": "contracts/app-install-exposure-policy.json#installer_surfaces+distribution_channels",
+      "installation_source_role": "provide_candidate_app_or_seed_bytes_only",
+      "version_checkpoint": {
+        "key": "running_app_version_or_image_digest_and_carrier_identity",
+        "write_gate": "framework_reconciliation_terminal_readback_projected",
+        "missing_checkpoint_means_first_launch": true,
+        "downloaded_or_copied_version_is_not_running_version": true
+      },
+      "framework_execution": {
+        "owner": "one-person-lab",
+        "command_sequence": [
+          "opl update check --json",
+          "opl update plan --json",
+          "opl update apply --json"
+        ],
+        "software_object_scope": [
+          "opl_base",
+          "opl_packages"
+        ],
+        "catalog_source": "framework_managed_update_plan",
+        "app_catalog_allowed": false,
+        "auto_apply_gate": {
+          "eligibility_field": "auto_apply.eligible",
+          "background_safety_field": "app_background_safe",
+          "command_field": "command_ref",
+          "required_boolean_value": true
+        },
+        "single_writer_required": true,
+        "terminal_readback_required": true,
+        "lifecycle_receipt_required_when_apply_executed": true
+      },
+      "app_role": "request_framework_reconciliation_and_project_terminal_readback_and_apply_receipts_only",
+      "app_direct_base_or_package_mutation_allowed": false,
+      "app_direct_skill_delete_allowed": false,
+      "app_direct_agents_write_allowed": false,
+      "idempotency": "once_per_running_app_version_or_image_digest_and_carrier_identity",
+      "attention_only_source_classes": [
+        "developer_checkout",
+        "dirty",
+        "user_managed",
+        "global_homebrew_or_npm_or_path"
+      ],
+      "user_experience": {
+        "summary_states": [
+          "current",
+          "updating_in_background",
+          "restart_to_finish",
+          "refresh_codex_recommended",
+          "attention_required"
+        ],
+        "silent_apply_when": "Framework plan auto_apply.eligible and app_background_safe are true and command_ref is present",
+        "attention_when": "Framework skips a dirty, developer, user-managed, global, incompatible, or verification-failed target",
+        "opl_packages_activation": "immediate_after_framework_receipt_with_codex_refresh_recommended_when_projection_changed",
+        "opl_base_runtime_activation": "stage_and_switch_on_next_app_restart_with_rollback_ref",
+        "opl_app_activation": "carrier_install_then_running_version_switch_on_restart_or_next_launch",
+        "failure_display": "show_framework_reason_and_repair_or_review_action_without_claiming_update_complete"
+      }
     },
     "managed_kernel": {
       "id": "opl_managed_updater_kernel",
@@ -2782,7 +2810,10 @@
       "internal_transaction_states_are_not_peer_products_or_updaters",
       "ordinary_component_picker_and_public_component_flag_are_forbidden",
       "standard_updater_targets_opl_app_only",
-      "successful_app_update_requests_framework_owned_opl_flow_optimization"
+      "all_app_carriers_request_the_same_framework_base_and_packages_reconciliation",
+      "app_projects_framework_terminal_readback_and_apply_receipts_without_a_second_update_catalog",
+      "clean_managed_targets_may_update_silently_and_dirty_or_user_managed_targets_require_attention",
+      "packages_activate_after_receipt_while_base_runtime_and_app_switch_on_restart"
     ]
   }
 }

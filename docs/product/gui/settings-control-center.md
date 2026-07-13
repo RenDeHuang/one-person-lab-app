@@ -415,6 +415,7 @@ Primary information:
 - one Stable / Preview update-channel setting backed by the Framework
   configuration catalog;
 - OPL Packages status and the relevant install, update, repair, or uninstall action;
+- carrier-neutral reconciliation status after first launch or any supported App carrier change;
 - local services;
 - one recommended action.
 
@@ -425,6 +426,14 @@ Exception state: emphasize only OPL Base, OPL App, or the individual OPL
 Packages that need action, and explain user impact before action. Runtime and
 companion dependency status stays nested under OPL Base. Codex Surface sync and
 Workflow Profile migration status stays nested under OPL Packages.
+
+The maintenance surface consumes Framework plan and receipt fields rather than
+maintaining a second dependency or package catalog. It may show background
+apply only when `auto_apply.eligible` and `app_background_safe` are true and it
+uses `command_ref` as the executable route. Dirty, developer, user-managed, and
+global tool sources remain unchanged and appear as attention. Package receipts
+normally lead to a refresh-Codex hint; staged Base runtime and App carrier
+changes lead to restart-to-finish guidance with rollback evidence.
 
 Management details: component Apply, Repair, Rollback, package sync, and other
 one-time commands open in an explicit management modal with confirmation,

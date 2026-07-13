@@ -149,9 +149,12 @@ The same guide is also available as generated latest
 [PPTX](https://gaofeng21cn.github.io/one-person-lab-app/latest/macos-app-install/macos-app-install-slides.pptx), plus a
 [detailed PDF](https://gaofeng21cn.github.io/one-person-lab-app/latest/macos-app-install/macos-app-install-detailed-guide.pdf).
 
-Daily updates are handled by Homebrew or the in-app update channel, depending on
-how the App was installed. Release asset, updater metadata, and Full
-first-install boundaries are governed by the App release guide and contracts.
+The App binary is updated by its installation carrier, such as the in-app
+updater or Homebrew. After every supported carrier's first launch or version
+change, the running App requests the same Framework-owned OPL Base and OPL
+Packages reconciliation. Clean OPL-managed targets may update silently; dirty,
+developer, user-managed, and global tool sources are reported without being
+overwritten. See [the three-layer managed update model](docs/product/managed-update-three-layer.md).
 
 ### Install And Update Objects
 
@@ -166,6 +169,13 @@ updaters:
 | OPL Base | The Framework-owned headless prerequisite. Runtime substrate, the isolated embedded Codex CLI, Temporal, native helpers, and companion-tool integration are dependency or integration details under Base. Homebrew Formula `opl` and the Framework installer are carrier adapters for this same object. |
 | OPL App | The GUI and control plane. The standard updater, Homebrew Cask, and signed installer update only the App carrier; they do not mutate Base or Packages. |
 | OPL Packages | Framework-managed Agent, capability, and workflow packages, including MAS/MAG/RCA/OMA/OBF, MAS Scholar Skills, and OPL Flow. Codex Surface readiness and workflow-profile migration are package transaction substatus, not separate software objects or update channels. |
+
+Install sources provide bytes only. Framework `check -> plan -> apply` owns Base
+and Packages reconciliation, terminal readback, and apply receipts, while the App projects five user
+states: current, updating in background, restart to finish, refresh Codex
+recommended, or attention required. Packages normally activate after their
+receipt; staged Base runtime and App carrier changes switch on App restart and
+retain rollback evidence.
 
 User Data / Artifacts is a separate storage, retention, and cleanup boundary. It
 is not installable software and never becomes a fourth updater object.

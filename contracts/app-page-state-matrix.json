@@ -1783,6 +1783,8 @@
         "apply, repair, rollback, and package maintenance inside an explicit management modal",
         "module path source explanation in technical details",
         "update status and service status in user language",
+        "carrier-neutral Base and Packages reconciliation status after any App install or version change",
+        "current, updating in background, restart to finish, refresh Codex, or attention guidance from Framework receipts",
         "update and local-service anchors owned by Maintenance"
       ],
       "machine_source": "opl app state --profile fast --json",
@@ -1816,6 +1818,7 @@
       ],
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
       "software_lifecycle_ref": "contracts/app-release-channel.json#managed_update_plane.software_lifecycle",
+      "carrier_reconciliation_ref": "contracts/app-release-channel.json#managed_update_plane.carrier_reconciliation",
       "module_maintenance_entry": {
         "label_en": "OPL Packages",
         "label_zh": "OPL 能力包",
@@ -1841,17 +1844,18 @@
           "recommended action",
           "last run and next run",
           "post-update sync status",
+          "refresh Codex guidance when package projection changed",
           "repair and rollback refs"
         ],
         "manual_action_mapping": {
           "refresh": "opl update status --json",
           "check": "opl update check --json",
           "plan": "opl update plan --json",
+          "apply_eligible_updates": "opl update apply --json",
           "bootstrap_missing_opl_base": "opl-install.sh --headless --skip-packages",
           "update_opl_app": "standard_updater_or_carrier_host_update_route",
           "install_opl_package": "opl packages install ... --json",
           "update_opl_package": "opl packages update ... --json",
-          "optimize_opl_flow": "opl packages optimize opl-flow --json",
           "repair_opl_package": "opl packages repair --package-id <package_id> --json",
           "uninstall_opl_package": "opl packages uninstall --package-id <package_id> --json"
         },

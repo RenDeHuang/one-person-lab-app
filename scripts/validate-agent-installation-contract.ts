@@ -1258,11 +1258,11 @@ function validateManagedPackageDistribution(contract: any): void {
     consumer: 'standard_and_full_workflow_baseline',
     install_command: 'opl packages install opl-flow',
     update_command: 'opl packages update opl-flow',
-    optimize_command: 'opl packages optimize opl-flow',
     app_direct_profile_mutation_allowed: false,
     framework_profile_transaction_allowed: true,
+    framework_profile_migration_hook: 'opl_packages_post_apply',
     profile_sync_policy: 'codex_semantic_merge_with_marker_cleanup_hash_backup_receipt_rollback_and_packet_fallback',
-    post_app_update_reconcile_trigger: 'running_version_switched_only',
+    carrier_reconcile_special_case_allowed: false,
     workflow_profile_semantic_merge_ref: 'managed_update_plane.software_lifecycle.objects.opl_packages.optional_internal_fields#profile_migration_status',
     standard_updater_allowed: false,
   }, 'OPL Flow package policy');
