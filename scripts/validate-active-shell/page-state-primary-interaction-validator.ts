@@ -6,6 +6,7 @@ import {
   appOwnedRightContextInspectorPolicy,
   homeActivityCenterForbiddenDisplays,
 } from './app-contract-constants.ts';
+import { assertHomeComposerStateContract } from '../app-product-profile-shared-validators.ts';
 
 export function validatePrimaryInteractionPages(matrix) {
   if (matrix.schema_version !== 2) {
@@ -32,6 +33,10 @@ function validateGuidHomePage(matrix) {
   validateGuidHomeLayout(homeViewModel);
   validateGuidHomeDefaultAssistants(homeViewModel);
   validateGuidHomeRouteAndPurpose(homeViewModel);
+  assertHomeComposerStateContract(
+    homeViewModel.home_composer_state_contract,
+    'Guid Home page-state composer state contract',
+  );
   validateGuidHomeVisibleSignals(guidHomePage);
   validateGuidHomeHiddenSignals(guidHomePage);
   validateGuidHomeActivityCenter(homeViewModel);

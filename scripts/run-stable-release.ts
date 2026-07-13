@@ -3,6 +3,7 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { parseArgs as parseNodeArgs } from 'node:util';
 import {
@@ -11,21 +12,50 @@ import {
   type ReleaseCohortPlan,
   type ReleaseCohortPlanOptions,
 } from './plan-release-cohort.ts';
+import { sha256File, validateArtifactCohortV2, type BuildArtifactCohortV2 } from './build-artifact-cohort.ts';
+import { validateArtifactQualificationReceipt, type ArtifactQualificationReceiptV1 } from './artifact-qualification-receipt.ts';
+import { readReceipt, validateLocalActivationReceipt, validatePromotionSagaReceipt } from './release-saga-receipts.ts';
 
 const defaultRepo = 'gaofeng21cn/one-person-lab-app';
 
 export type StableReleasePhase =
-  | 'planned'
+  | 'candidate_frozen'
   | 'source_gates_passed'
-  | 'release_running'
-  | 'owner_review_required'
-  | 'release_failed'
+  | 'artifact_build_running'
+  | 'source_gate_failed'
+  | 'artifact_build_failed'
+  | 'release_train_failed'
+  | 'qualification_failed'
+  | 'retry_failed_gate_same_artifact'
+  | 'artifacts_qualified'
+  | 'owner_approved'
   | 'promotion_running'
-  | 'published'
-  | 'promotion_failed';
+  | 'promotion_failed'
+  | 'release_published_not_latest'
+  | 'distribution_synced'
+  | 'homebrew_verified'
+  | 'latest_activated'
+  | 'awaiting_local_activation'
+  | 'complete';
+
+type PhaseTiming = { started_at: string; ended_at: string | null; duration_ms: number | null };
+
+type ReleaseMetrics = {
+  session_started_at: string;
+  session_completed_at: string | null;
+  total_wall_time_ms: number;
+  phases: Partial<Record<StableReleasePhase, PhaseTiming>>;
+  workflow_dispatch_counts: { desktop_release: number; qualification_retry: number; promotion: number };
+  artifact_build_count: number;
+  qualification_retry_count: number;
+  promotion_retry_count: number;
+  wait_poll_policy: { monitor: 'gh_run_watch'; interval_seconds: 60; nested_polling_allowed: false };
+  reused_artifact_sha256: string | null;
+  efficiency_advisories: Array<{ at: string; elapsed_ms: number; threshold_ms: 5400000; action: string }>;
+};
 
 export type StableReleaseSession = {
-  schema: 'opl_app_stable_release_session.v1';
+  schema: 'opl_app_stable_release_session.v2';
   id: string;
   created_at: string;
   updated_at: string;
@@ -47,7 +77,24 @@ export type StableReleaseSession = {
     id: string | null;
     url: string | null;
     conclusion: string | null;
+    attempt: number | null;
+    rerun_requested_from_attempt: number | null;
   };
+  qualification_run: {
+    id: string | null;
+    url: string | null;
+    conclusion: string | null;
+    artifact_run_id: string | null;
+    artifact_name: string | null;
+    artifact_sha256: string | null;
+    evidence_ref: string | null;
+    evidence_sha256: string | null;
+  };
+  receipts: {
+    promotion_saga: { ref: string; sha256: string } | null;
+    local_activation: { ref: string; sha256: string } | null;
+  };
+  metrics: ReleaseMetrics;
   release_owner_receipt_ref: string | null;
   transitions: Array<{
     at: string;
@@ -97,9 +144,15 @@ type PromoteOptions = {
   ownerReceiptRef: string;
 };
 
-type ResumeOptions = {
+type ResumeOptions = { statePath: string; execute: boolean };
+
+type RetryQualificationOptions = {
+  execute: boolean;
+  watch: boolean;
   statePath: string;
 };
+
+type CompleteLocalOptions = { statePath: string; receiptPath: string; localAuthorizationPolicyPath: string };
 
 function run(command: string, args: string[], options: { cwd?: string } = {}): CommandResult {
   const result = spawnSync(command, args, {
@@ -131,7 +184,7 @@ function writeSession(statePath: string, session: StableReleaseSession): void {
 
 function readSession(statePath: string): StableReleaseSession {
   const session = JSON.parse(fs.readFileSync(statePath, 'utf8')) as StableReleaseSession;
-  if (session.schema !== 'opl_app_stable_release_session.v1') {
+  if (session.schema !== 'opl_app_stable_release_session.v2') {
     throw new Error(`Unsupported stable release session schema in ${statePath}.`);
   }
   return session;
@@ -150,11 +203,11 @@ export function buildStableReleaseSession(
     framework_sha: plan.cohort_lock.framework.resolved_sha,
   });
   return {
-    schema: 'opl_app_stable_release_session.v1',
+    schema: 'opl_app_stable_release_session.v2',
     id: `sha256:${crypto.createHash('sha256').update(identity).digest('hex')}`,
     created_at: generatedAt,
     updated_at: generatedAt,
-    phase: 'planned',
+    phase: 'candidate_frozen',
     version: plan.version,
     repo,
     cohort_plan: plan,
@@ -163,9 +216,27 @@ export function buildStableReleaseSession(
       .filter((gate, index, gates) => gates.findIndex((candidate) => candidate.command === gate.command) === index)
       .map((gate) => ({ id: gate.id, command: gate.command, status: 'pending' })),
     release_run: { id: null, url: null, conclusion: null },
-    promotion_run: { id: null, url: null, conclusion: null },
+    promotion_run: { id: null, url: null, conclusion: null, attempt: null, rerun_requested_from_attempt: null },
+    qualification_run: {
+      id: null, url: null, conclusion: null, artifact_run_id: null, artifact_name: null,
+      artifact_sha256: null, evidence_ref: null, evidence_sha256: null,
+    },
+    receipts: { promotion_saga: null, local_activation: null },
+    metrics: {
+      session_started_at: generatedAt,
+      session_completed_at: null,
+      total_wall_time_ms: 0,
+      phases: { candidate_frozen: { started_at: generatedAt, ended_at: null, duration_ms: null } },
+      workflow_dispatch_counts: { desktop_release: 0, qualification_retry: 0, promotion: 0 },
+      artifact_build_count: 0,
+      qualification_retry_count: 0,
+      promotion_retry_count: 0,
+      wait_poll_policy: { monitor: 'gh_run_watch', interval_seconds: 60, nested_polling_allowed: false },
+      reused_artifact_sha256: null,
+      efficiency_advisories: [],
+    },
     release_owner_receipt_ref: null,
-    transitions: [{ at: generatedAt, from: null, to: 'planned', reason: 'immutable cohort planned' }],
+    transitions: [{ at: generatedAt, from: null, to: 'candidate_frozen', reason: 'immutable cohort and candidate identity frozen' }],
     efficiency_policy: {
       desktop_release_dispatch_limit_per_cohort: 1,
       monitor_interval_seconds: 60,
@@ -182,14 +253,24 @@ export function buildStableReleaseSession(
 }
 
 const allowedTransitions: Record<StableReleasePhase, StableReleasePhase[]> = {
-  planned: ['source_gates_passed', 'release_failed'],
-  source_gates_passed: ['release_running', 'release_failed'],
-  release_running: ['owner_review_required', 'release_failed'],
-  owner_review_required: ['promotion_running'],
-  release_failed: [],
-  promotion_running: ['published', 'promotion_failed'],
-  published: [],
+  candidate_frozen: ['source_gates_passed', 'source_gate_failed'],
+  source_gates_passed: ['artifact_build_running'],
+  source_gate_failed: [],
+  artifact_build_running: ['artifacts_qualified', 'qualification_failed', 'artifact_build_failed', 'release_train_failed'],
+  artifact_build_failed: [],
+  release_train_failed: [],
+  qualification_failed: ['retry_failed_gate_same_artifact'],
+  retry_failed_gate_same_artifact: ['artifacts_qualified', 'qualification_failed'],
+  artifacts_qualified: ['owner_approved'],
+  owner_approved: ['promotion_running'],
+  promotion_running: ['release_published_not_latest', 'promotion_failed'],
   promotion_failed: ['promotion_running'],
+  release_published_not_latest: ['distribution_synced', 'promotion_failed'],
+  distribution_synced: ['homebrew_verified', 'promotion_failed'],
+  homebrew_verified: ['latest_activated', 'promotion_failed'],
+  latest_activated: ['awaiting_local_activation', 'promotion_failed'],
+  awaiting_local_activation: ['complete'],
+  complete: [],
 };
 
 export function transitionStableReleaseSession(
@@ -201,11 +282,35 @@ export function transitionStableReleaseSession(
   if (!allowedTransitions[session.phase].includes(to)) {
     throw new Error(`Invalid stable release transition: ${session.phase} -> ${to}.`);
   }
+  const started = Date.parse(session.metrics.session_started_at);
+  const ended = Date.parse(at);
+  const elapsed = Number.isFinite(started) && Number.isFinite(ended) ? Math.max(0, ended - started) : 0;
+  const currentTiming = session.metrics.phases[session.phase];
+  const currentStarted = Date.parse(currentTiming?.started_at ?? session.updated_at);
+  const phases = {
+    ...session.metrics.phases,
+    [session.phase]: {
+      started_at: currentTiming?.started_at ?? session.updated_at,
+      ended_at: at,
+      duration_ms: Number.isFinite(currentStarted) && Number.isFinite(ended) ? Math.max(0, ended - currentStarted) : 0,
+    },
+    [to]: { started_at: at, ended_at: null, duration_ms: null },
+  };
+  const efficiencyAdvisories = elapsed >= 5_400_000 && session.metrics.efficiency_advisories.length === 0
+    ? [{ at, elapsed_ms: elapsed, threshold_ms: 5_400_000 as const, action: 'classify blocker and reuse same-cohort evidence; do not stop the authorized release solely because of elapsed time' }]
+    : session.metrics.efficiency_advisories;
   return {
     ...session,
     phase: to,
     updated_at: at,
     transitions: [...session.transitions, { at, from: session.phase, to, reason }],
+    metrics: {
+      ...session.metrics,
+      total_wall_time_ms: elapsed,
+      session_completed_at: to === 'complete' ? at : session.metrics.session_completed_at,
+      phases,
+      efficiency_advisories: efficiencyAdvisories,
+    },
   };
 }
 
@@ -228,6 +333,7 @@ export function desktopReleaseDispatchArgs(session: StableReleaseSession): strin
     '--field', `release_intent=${plan.release_intent}`,
     '--field', `full_omission_reason=${plan.full_omission_reason ?? ''}`,
     '--field', `release_operator_plan_ref=${plan.operator_plan_ref}`,
+    '--field', `stable_session_id=${session.id}`,
     '--field', `gate_reuse_plan_ref=${plan.gate_reuse_plan_ref ?? ''}`,
     '--field', `include_full_package=${String(plan.include_full_package)}`,
     '--field', `run_vm_smoke=${String(plan.run_vm_smoke)}`,
@@ -235,6 +341,30 @@ export function desktopReleaseDispatchArgs(session: StableReleaseSession): strin
     '--field', `require_addon_gates_for_stable_readiness=${String(plan.release_intent === 'stable_complete')}`,
     '--field', `shell_ref=${plan.cohort_lock.shell.resolved_sha}`,
     '--field', `framework_ref=${plan.cohort_lock.framework.resolved_sha}`,
+  ];
+}
+
+export function qualificationRetryDispatchArgs(
+  session: StableReleaseSession,
+): string[] {
+  if (!session.release_run.id) throw new Error('Same-artifact qualification retry requires the original release run id.');
+  const artifactName = session.qualification_run.artifact_name;
+  if (!artifactName || !session.qualification_run.artifact_sha256) {
+    throw new Error('Same-artifact qualification retry requires a validated artifact manifest in the release session.');
+  }
+  return [
+    'workflow', 'run', 'opl-first-run-vm.yml',
+    '--repo', session.repo,
+    '--ref', workflowRef(session.cohort_plan),
+    '--field', `release_tag=v${session.version}`,
+    '--field', 'package_profile=full',
+    '--field', 'diagnostic_scope=release_gate',
+    '--field', `release_artifact_name=${artifactName}`,
+    '--field', `release_artifact_run_id=${session.release_run.id}`,
+    '--field', `stable_session_id=${session.id}`,
+    '--field', `release_cohort_ref=${session.cohort_plan.operator_plan_ref}`,
+    '--field', `shell_ref=${session.cohort_plan.cohort_lock.shell.resolved_sha}`,
+    '--field', `framework_ref=${session.cohort_plan.cohort_lock.framework.resolved_sha}`,
   ];
 }
 
@@ -259,6 +389,10 @@ function verifyRemoteDispatchHead(
 export function promoteDispatchArgs(session: StableReleaseSession, ownerReceiptRef: string): string[] {
   if (!session.release_run.id) throw new Error('Stable release session has no source release run id.');
   if (!ownerReceiptRef.trim()) throw new Error('Promotion requires a same-cohort release owner receipt ref.');
+  const fullVmRunId = session.qualification_run.id;
+  if (session.cohort_plan.include_full_package && (!fullVmRunId || session.qualification_run.conclusion !== 'success')) {
+    throw new Error('Promotion requires a passed Full exact-artifact qualification run.');
+  }
   return [
     'workflow', 'run', 'desktop-release-promote.yml',
     '--repo', session.repo,
@@ -267,13 +401,37 @@ export function promoteDispatchArgs(session: StableReleaseSession, ownerReceiptR
     '--field', `include_full_package=${String(session.cohort_plan.include_full_package)}`,
     '--field', `require_docker_webui=${String(session.cohort_plan.publish_docker_webui)}`,
     '--field', `release_run_id=${session.release_run.id}`,
+    '--field', `stable_session_id=${session.id}`,
+    '--field', `release_cohort_ref=${session.cohort_plan.operator_plan_ref}`,
+    '--field', `full_vm_run_id=${fullVmRunId ?? ''}`,
     '--field', `release_owner_receipt_ref=${ownerReceiptRef}`,
     '--field', `shell_ref=${session.cohort_plan.cohort_lock.shell.resolved_sha}`,
   ];
 }
 
+export function promotionRerunArgs(session: StableReleaseSession, failedOnly = true): string[] {
+  if (session.phase !== 'promotion_failed') {
+    throw new Error(`Promotion rerun requires promotion_failed state, got ${session.phase}.`);
+  }
+  if (!session.promotion_run.id || !session.promotion_run.attempt) {
+    throw new Error('Promotion rerun requires the original promotion run id and attempt.');
+  }
+  if (!session.release_owner_receipt_ref) {
+    throw new Error('Promotion rerun requires the owner receipt accepted by the original promotion run.');
+  }
+  if (session.metrics.workflow_dispatch_counts.promotion !== 1) {
+    throw new Error('Promotion rerun requires exactly one original promotion workflow dispatch.');
+  }
+  return [
+    'run', 'rerun', session.promotion_run.id,
+    '--repo', session.repo,
+    ...(failedOnly ? ['--failed'] : []),
+  ];
+}
+
 type WorkflowRun = {
   databaseId: number;
+  attempt?: number;
   createdAt: string;
   headBranch: string;
   headSha: string;
@@ -282,10 +440,152 @@ type WorkflowRun = {
   url: string;
 };
 
+type WorkflowJob = {
+  name: string;
+  status: string;
+  conclusion?: string;
+  startedAt?: string;
+  completedAt?: string;
+};
+
+function expectedQualificationProfile(session: StableReleaseSession): 'full' | 'standard' {
+  return session.cohort_plan.include_full_package ? 'full' : 'standard';
+}
+
+function expectedBuildArtifactName(session: StableReleaseSession): string {
+  return session.cohort_plan.include_full_package
+    ? `opl-full-first-install-dmg-${session.version}-mac-arm64`
+    : 'macos-build-arm64-dmg';
+}
+
+function findFile(root: string, name: string): string | null {
+  for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
+    const candidate = path.join(root, entry.name);
+    if (entry.isDirectory()) {
+      const nested = findFile(candidate, name);
+      if (nested) return nested;
+    } else if (entry.name === name) {
+      return candidate;
+    }
+  }
+  return null;
+}
+
+function downloadArtifactFile(
+  runner: StableReleaseCommandRunner,
+  session: StableReleaseSession,
+  runId: string,
+  artifactName: string,
+  fileName: string,
+): { path: string; cleanup: () => void } | null {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-stable-release-artifact-'));
+  const result = runner('gh', ['run', 'download', runId, '--repo', session.repo, '--name', artifactName, '--dir', root]);
+  if (result.status !== 0) {
+    fs.rmSync(root, { recursive: true, force: true });
+    return null;
+  }
+  const filePath = findFile(root, fileName);
+  if (!filePath) {
+    fs.rmSync(root, { recursive: true, force: true });
+    return null;
+  }
+  return { path: filePath, cleanup: () => fs.rmSync(root, { recursive: true, force: true }) };
+}
+
+function readBuildArtifactManifest(
+  runner: StableReleaseCommandRunner,
+  session: StableReleaseSession,
+  runId: string,
+): BuildArtifactCohortV2 | null {
+  const artifactName = expectedBuildArtifactName(session);
+  const downloaded = downloadArtifactFile(runner, session, runId, `${artifactName}-cohort`, 'opl-build-cohort.json');
+  if (!downloaded) return null;
+  try {
+    const manifest = JSON.parse(fs.readFileSync(downloaded.path, 'utf8')) as BuildArtifactCohortV2;
+    const errors = validateArtifactCohortV2(manifest, {
+      appSha: session.cohort_plan.cohort_lock.app.resolved_sha,
+      shellSha: session.cohort_plan.cohort_lock.shell.resolved_sha,
+      frameworkSha: session.cohort_plan.include_full_package
+        ? session.cohort_plan.cohort_lock.framework.resolved_sha
+        : undefined,
+      version: session.version,
+      actionsRunId: runId,
+      stableSessionId: session.id,
+      releaseCohortRef: session.cohort_plan.operator_plan_ref,
+    });
+    return errors.length === 0 ? manifest : null;
+  } finally {
+    downloaded.cleanup();
+  }
+}
+
+function readQualificationReceipt(
+  runner: StableReleaseCommandRunner,
+  session: StableReleaseSession,
+  qualificationRunId: string,
+  sourceArtifactRunId: string,
+  expectedResult: 'passed' | 'failed',
+): { receipt: ArtifactQualificationReceiptV1; sha256: string } | null {
+  const profile = expectedQualificationProfile(session);
+  const evidenceRef = `opl-first-run-vm-${profile}-${qualificationRunId}`;
+  const downloaded = downloadArtifactFile(
+    runner,
+    session,
+    qualificationRunId,
+    evidenceRef,
+    'artifact-qualification-receipt.json',
+  );
+  if (!downloaded) return null;
+  try {
+    const receipt = JSON.parse(fs.readFileSync(downloaded.path, 'utf8')) as ArtifactQualificationReceiptV1;
+    const errors = validateArtifactQualificationReceipt(receipt, {
+      stableSessionId: session.id,
+      releaseCohortRef: session.cohort_plan.operator_plan_ref,
+      version: session.version,
+      packageProfile: profile,
+      result: expectedResult,
+      qualificationRunId,
+      sourceArtifactRunId,
+      sourceArtifactName: expectedBuildArtifactName(session),
+      appSha: session.cohort_plan.cohort_lock.app.resolved_sha,
+      shellSha: session.cohort_plan.cohort_lock.shell.resolved_sha,
+      frameworkSha: session.cohort_plan.include_full_package
+        ? session.cohort_plan.cohort_lock.framework.resolved_sha
+        : undefined,
+    });
+    return errors.length === 0 ? { receipt, sha256: sha256File(downloaded.path) } : null;
+  } finally {
+    downloaded.cleanup();
+  }
+}
+
+function bindQualificationEvidence(
+  session: StableReleaseSession,
+  manifest: BuildArtifactCohortV2,
+  qualificationRunId: string,
+  conclusion: 'success' | 'failure',
+  evidenceSha256: string | null,
+): StableReleaseSession {
+  const profile = expectedQualificationProfile(session);
+  return {
+    ...session,
+    qualification_run: {
+      id: qualificationRunId,
+      url: `https://github.com/${session.repo}/actions/runs/${qualificationRunId}`,
+      conclusion,
+      artifact_run_id: manifest.actions.run_id,
+      artifact_name: manifest.actions.artifact_name,
+      artifact_sha256: manifest.artifact.sha256,
+      evidence_ref: `opl-first-run-vm-${profile}-${qualificationRunId}`,
+      evidence_sha256: evidenceSha256,
+    },
+  };
+}
+
 function listRuns(runner: StableReleaseCommandRunner, workflow: string, repo: string): WorkflowRun[] {
   const result = runner('gh', [
     'run', 'list', '--repo', repo, '--workflow', workflow, '--event', 'workflow_dispatch', '--limit', '30',
-    '--json', 'databaseId,createdAt,headBranch,headSha,status,conclusion,url',
+    '--json', 'databaseId,attempt,createdAt,headBranch,headSha,status,conclusion,url',
   ]);
   if (result.status !== 0) failResult(result, `list ${workflow} runs`);
   return JSON.parse(result.stdout) as WorkflowRun[];
@@ -342,10 +642,116 @@ function watchRun(runner: StableReleaseCommandRunner, session: StableReleaseSess
 function runView(runner: StableReleaseCommandRunner, session: StableReleaseSession, runId: string): WorkflowRun {
   const result = runner('gh', [
     'run', 'view', runId, '--repo', session.repo,
-    '--json', 'databaseId,createdAt,headBranch,headSha,status,conclusion,url',
+    '--json', 'databaseId,attempt,createdAt,headBranch,headSha,status,conclusion,url',
   ]);
   if (result.status !== 0) failResult(result, `read workflow run ${runId}`);
   return JSON.parse(result.stdout) as WorkflowRun;
+}
+
+function runJobs(runner: StableReleaseCommandRunner, session: StableReleaseSession, runId: string): WorkflowJob[] {
+  const result = runner('gh', ['run', 'view', runId, '--repo', session.repo, '--json', 'jobs', '--jq', '.jobs']);
+  if (result.status !== 0) return [];
+  try {
+    return JSON.parse(result.stdout) as WorkflowJob[];
+  } catch {
+    return [];
+  }
+}
+
+function finalizeReleaseRun(
+  session: StableReleaseSession,
+  runId: string,
+  succeeded: boolean,
+  runner: StableReleaseCommandRunner,
+): StableReleaseSession {
+  const manifest = readBuildArtifactManifest(runner, session, runId);
+  if (succeeded && manifest) {
+    const qualification = readQualificationReceipt(runner, session, runId, runId, 'passed');
+    if (qualification) {
+      session = bindQualificationEvidence(session, manifest, runId, 'success', qualification.sha256);
+      return transitionStableReleaseSession(
+        session,
+        'artifacts_qualified',
+        'build and exact-artifact qualification completed; owner approval is required before promotion',
+      );
+    }
+    return transitionStableReleaseSession(session, 'release_train_failed', 'release run succeeded without a valid exact-artifact qualification receipt');
+  }
+  if (manifest) {
+    const qualification = readQualificationReceipt(runner, session, runId, runId, 'failed');
+    if (qualification) {
+      session = bindQualificationEvidence(session, manifest, runId, 'failure', qualification.sha256);
+      return transitionStableReleaseSession(
+        session,
+        'qualification_failed',
+        'the built artifact failed qualification; only a same-artifact qualification retry is allowed',
+      );
+    }
+    return transitionStableReleaseSession(session, 'release_train_failed', 'release train failed outside the exact-artifact qualification gate');
+  }
+  return transitionStableReleaseSession(session, 'artifact_build_failed', 'release run did not produce a valid exact-byte artifact manifest');
+}
+
+function promotionSagaArtifactName(session: StableReleaseSession): string {
+  return `opl-promotion-saga-receipt-${session.version}-${session.id.slice('sha256:'.length)}`;
+}
+
+function readPromotionSagaReceipt(
+  runner: StableReleaseCommandRunner,
+  session: StableReleaseSession,
+  runId: string,
+): { sha256: string } | null {
+  const downloaded = downloadArtifactFile(
+    runner,
+    session,
+    runId,
+    promotionSagaArtifactName(session),
+    'opl-app-promotion-saga-receipt.json',
+  );
+  if (!downloaded) return null;
+  try {
+    const receipt = readReceipt(downloaded.path);
+    const errors = validatePromotionSagaReceipt(receipt, {
+      stableSessionId: session.id,
+      version: session.version,
+    });
+    return errors.length === 0 ? { sha256: sha256File(downloaded.path) } : null;
+  } finally {
+    downloaded.cleanup();
+  }
+}
+
+function finalizePromotionRun(
+  session: StableReleaseSession,
+  runId: string,
+  succeeded: boolean,
+  runner: StableReleaseCommandRunner,
+): StableReleaseSession {
+  const receipt = succeeded ? readPromotionSagaReceipt(runner, session, runId) : null;
+  const jobs = runJobs(runner, session, runId);
+  const checkpoints = [
+    { phase: 'release_published_not_latest' as const, job: 'Publish release without changing latest', reason: 'release is public and explicitly not latest' },
+    { phase: 'distribution_synced' as const, job: 'Dispatch atomic Stable distribution', reason: 'tap atomic Standard and Full distribution receipt verified' },
+    { phase: 'homebrew_verified' as const, job: 'Aggregate both Homebrew VM receipts', reason: 'Standard and Full Homebrew clean-VM receipts verified' },
+    { phase: 'latest_activated' as const, job: 'Activate Stable latest after all distribution gates', reason: 'GitHub Stable latest activated after downstream verification' },
+  ];
+  for (const checkpoint of checkpoints) {
+    const job = jobs.find((candidate) => candidate.name.includes(checkpoint.job));
+    if (job?.conclusion !== 'success') break;
+    session = transitionStableReleaseSession(session, checkpoint.phase, checkpoint.reason, job.completedAt || now());
+  }
+  if (!succeeded || !receipt || session.phase !== 'latest_activated') {
+    if (session.phase !== 'promotion_failed') {
+      session = transitionStableReleaseSession(
+        session,
+        'promotion_failed',
+        succeeded ? 'promotion run did not expose a valid complete saga receipt' : 'promotion saga stopped after its last verified checkpoint',
+      );
+    }
+    return session;
+  }
+  session.receipts = { ...session.receipts, promotion_saga: { ref: promotionSagaArtifactName(session), sha256: receipt.sha256 } };
+  return transitionStableReleaseSession(session, 'awaiting_local_activation', 'same-version local installation and CDP readback receipt remain required');
 }
 
 async function dispatchAndWatchRelease(
@@ -355,6 +761,7 @@ async function dispatchAndWatchRelease(
   runner: StableReleaseCommandRunner,
 ): Promise<StableReleaseSession> {
   if (session.release_run.id) throw new Error('This frozen cohort already has a desktop release run; refusing a second dispatch.');
+  if (session.metrics.artifact_build_count >= 1) throw new Error('This frozen cohort already consumed its one artifact build.');
   verifyRemoteDispatchHead(runner, session);
   const previousIds = new Set(listRuns(runner, 'desktop-release.yml', session.repo).map((candidate) => candidate.databaseId));
   const dispatchedAt = now();
@@ -368,7 +775,15 @@ async function dispatchAndWatchRelease(
     dispatchedAt,
     session.cohort_plan.cohort_lock.app.resolved_sha,
   );
-  session = transitionStableReleaseSession(session, 'release_running', `desktop release run ${releaseRun.databaseId} dispatched`);
+  session.metrics = {
+    ...session.metrics,
+    artifact_build_count: session.metrics.artifact_build_count + 1,
+    workflow_dispatch_counts: {
+      ...session.metrics.workflow_dispatch_counts,
+      desktop_release: session.metrics.workflow_dispatch_counts.desktop_release + 1,
+    },
+  };
+  session = transitionStableReleaseSession(session, 'artifact_build_running', `desktop release run ${releaseRun.databaseId} dispatched`);
   session.release_run = { id: String(releaseRun.databaseId), url: releaseRun.url, conclusion: null };
   writeSession(statePath, session);
   if (!watch) return session;
@@ -380,11 +795,7 @@ async function dispatchAndWatchRelease(
     url: readback.url,
     conclusion: readback.conclusion ?? (watched.status === 0 ? 'success' : 'failure'),
   };
-  session = transitionStableReleaseSession(
-    session,
-    watched.status === 0 ? 'owner_review_required' : 'release_failed',
-    watched.status === 0 ? 'release workflow completed; owner review is required before promotion' : 'release workflow failed',
-  );
+  session = finalizeReleaseRun(session, String(readback.databaseId), watched.status === 0, runner);
   writeSession(statePath, session);
   return session;
 }
@@ -408,8 +819,21 @@ async function dispatchAndWatchPromotion(
     dispatchedAt,
     null,
   );
+  session.metrics = {
+    ...session.metrics,
+    workflow_dispatch_counts: {
+      ...session.metrics.workflow_dispatch_counts,
+      promotion: session.metrics.workflow_dispatch_counts.promotion + 1,
+    },
+  };
   session = transitionStableReleaseSession(session, 'promotion_running', `promotion run ${promotionRun.databaseId} dispatched`);
-  session.promotion_run = { id: String(promotionRun.databaseId), url: promotionRun.url, conclusion: null };
+  session.promotion_run = {
+    id: String(promotionRun.databaseId),
+    url: promotionRun.url,
+    conclusion: null,
+    attempt: promotionRun.attempt ?? 1,
+    rerun_requested_from_attempt: null,
+  };
   session.release_owner_receipt_ref = ownerReceiptRef;
   writeSession(statePath, session);
   if (!watch) return session;
@@ -420,13 +844,79 @@ async function dispatchAndWatchPromotion(
     id: String(readback.databaseId),
     url: readback.url,
     conclusion: readback.conclusion ?? (watched.status === 0 ? 'success' : 'failure'),
+    attempt: readback.attempt ?? session.promotion_run.attempt ?? 1,
+    rerun_requested_from_attempt: session.promotion_run.rerun_requested_from_attempt,
   };
+  session = finalizePromotionRun(session, String(readback.databaseId), watched.status === 0, runner);
+  writeSession(statePath, session);
+  return session;
+}
+
+async function dispatchAndWatchQualificationRetry(
+  session: StableReleaseSession,
+  options: RetryQualificationOptions,
+  runner: StableReleaseCommandRunner,
+): Promise<StableReleaseSession> {
+  const previousIds = new Set(listRuns(runner, 'opl-first-run-vm.yml', session.repo).map((candidate) => candidate.databaseId));
+  const dispatchedAt = now();
+  const dispatch = runner('gh', qualificationRetryDispatchArgs(session));
+  if (dispatch.status !== 0) failResult(dispatch, 'dispatch same-artifact qualification retry');
+  const run = await discoverRun(
+    runner,
+    'opl-first-run-vm.yml',
+    session,
+    previousIds,
+    dispatchedAt,
+    session.cohort_plan.cohort_lock.app.resolved_sha,
+  );
   session = transitionStableReleaseSession(
     session,
-    watched.status === 0 ? 'published' : 'promotion_failed',
-    watched.status === 0 ? 'promotion workflow and public release readback passed' : 'promotion workflow failed',
+    'retry_failed_gate_same_artifact',
+    `qualification run ${run.databaseId} reuses artifact ${session.qualification_run.artifact_name} from release run ${session.release_run.id}`,
   );
-  writeSession(statePath, session);
+  session.metrics = {
+    ...session.metrics,
+    qualification_retry_count: session.metrics.qualification_retry_count + 1,
+    reused_artifact_sha256: session.qualification_run.artifact_sha256,
+    workflow_dispatch_counts: {
+      ...session.metrics.workflow_dispatch_counts,
+      qualification_retry: session.metrics.workflow_dispatch_counts.qualification_retry + 1,
+    },
+  };
+  session.qualification_run = {
+    ...session.qualification_run,
+    id: String(run.databaseId),
+    url: run.url,
+    conclusion: null,
+    artifact_run_id: session.release_run.id,
+  };
+  writeSession(options.statePath, session);
+  if (!options.watch) return session;
+  const watched = watchRun(runner, session, String(run.databaseId));
+  const readback = runView(runner, session, String(run.databaseId));
+  const retryRunId = String(readback.databaseId);
+  const sourceRunId = session.release_run.id!;
+  const manifest = readBuildArtifactManifest(runner, session, sourceRunId);
+  const expectedResult = watched.status === 0 ? 'passed' : 'failed';
+  const qualification = readQualificationReceipt(runner, session, retryRunId, sourceRunId, expectedResult);
+  if (!manifest || !qualification) {
+    session = transitionStableReleaseSession(session, 'qualification_failed', 'qualification retry did not produce a valid same-artifact receipt');
+  } else {
+    session = bindQualificationEvidence(
+      session,
+      manifest,
+      retryRunId,
+      watched.status === 0 ? 'success' : 'failure',
+      qualification.sha256,
+    );
+    session.metrics = { ...session.metrics, reused_artifact_sha256: manifest.artifact.sha256 };
+    session = transitionStableReleaseSession(
+      session,
+      watched.status === 0 ? 'artifacts_qualified' : 'qualification_failed',
+      watched.status === 0 ? 'same exact artifact passed clean-VM qualification' : 'same exact artifact qualification retry failed',
+    );
+  }
+  writeSession(options.statePath, session);
   return session;
 }
 
@@ -435,12 +925,51 @@ async function resumeSession(
   runner: StableReleaseCommandRunner,
 ): Promise<StableReleaseSession> {
   let session = readSession(options.statePath);
-  const isRelease = session.phase === 'release_running';
-  const isPromotion = session.phase === 'promotion_running';
-  if (!isRelease && !isPromotion) {
-    throw new Error(`Resume requires release_running or promotion_running state, got ${session.phase}.`);
+  if (session.phase === 'promotion_failed') {
+    const runId = session.promotion_run.id;
+    if (!runId) throw new Error('Promotion failure has no original workflow run id.');
+    const remote = runView(runner, session, runId);
+    const localAttempt = session.promotion_run.attempt ?? 0;
+    const remoteAttempt = remote.attempt ?? localAttempt;
+    const rerunAlreadyStarted = remoteAttempt > localAttempt || remote.status === 'queued' || remote.status === 'in_progress';
+    if (!rerunAlreadyStarted) {
+      if (!options.execute) {
+        throw new Error('Promotion retry mutates the existing workflow run; pass --execute to rerun its failed jobs.');
+      }
+      const rerun = runner('gh', promotionRerunArgs(session, remote.conclusion !== 'success'));
+      if (rerun.status !== 0) failResult(rerun, `rerun promotion workflow ${runId}`);
+      session.metrics = {
+        ...session.metrics,
+        promotion_retry_count: session.metrics.promotion_retry_count + 1,
+      };
+      session.promotion_run = {
+        ...session.promotion_run,
+        conclusion: null,
+        rerun_requested_from_attempt: localAttempt,
+      };
+    } else {
+      session.promotion_run = {
+        ...session.promotion_run,
+        conclusion: null,
+        attempt: remoteAttempt || session.promotion_run.attempt,
+      };
+    }
+    session = transitionStableReleaseSession(
+      session,
+      'promotion_running',
+      rerunAlreadyStarted
+        ? `resuming already-started attempt ${remoteAttempt} of promotion run ${runId}`
+        : `rerunning failed jobs in promotion run ${runId}; no new workflow dispatch`,
+    );
+    writeSession(options.statePath, session);
   }
-  const runId = isRelease ? session.release_run.id : session.promotion_run.id;
+  const isRelease = session.phase === 'artifact_build_running';
+  const isQualification = session.phase === 'retry_failed_gate_same_artifact';
+  const isPromotion = session.phase === 'promotion_running';
+  if (!isRelease && !isQualification && !isPromotion) {
+    throw new Error(`Resume requires artifact_build_running, retry_failed_gate_same_artifact, or promotion_running state, got ${session.phase}.`);
+  }
+  const runId = isRelease ? session.release_run.id : isQualification ? session.qualification_run.id : session.promotion_run.id;
   if (!runId) throw new Error(`Session phase ${session.phase} has no workflow run id.`);
   const watched = watchRun(runner, session, runId);
   const readback = runView(runner, session, runId);
@@ -450,22 +979,38 @@ async function resumeSession(
       url: readback.url,
       conclusion: readback.conclusion ?? (watched.status === 0 ? 'success' : 'failure'),
     };
-    session = transitionStableReleaseSession(
+    session = finalizeReleaseRun(session, String(readback.databaseId), watched.status === 0, runner);
+  } else if (isQualification) {
+    const sourceRunId = session.release_run.id!;
+    const retryRunId = String(readback.databaseId);
+    const manifest = readBuildArtifactManifest(runner, session, sourceRunId);
+    const qualification = readQualificationReceipt(
+      runner,
       session,
-      watched.status === 0 ? 'owner_review_required' : 'release_failed',
-      watched.status === 0 ? 'release workflow completed; owner review is required before promotion' : 'release workflow failed',
+      retryRunId,
+      sourceRunId,
+      watched.status === 0 ? 'passed' : 'failed',
     );
+    if (!manifest || !qualification) {
+      session = transitionStableReleaseSession(session, 'qualification_failed', 'resumed qualification did not produce a valid same-artifact receipt');
+    } else {
+      session = bindQualificationEvidence(session, manifest, retryRunId, watched.status === 0 ? 'success' : 'failure', qualification.sha256);
+      session.metrics = { ...session.metrics, reused_artifact_sha256: manifest.artifact.sha256 };
+      session = transitionStableReleaseSession(
+        session,
+        watched.status === 0 ? 'artifacts_qualified' : 'qualification_failed',
+        watched.status === 0 ? 'resumed same-artifact qualification passed' : 'resumed same-artifact qualification failed',
+      );
+    }
   } else {
     session.promotion_run = {
       id: String(readback.databaseId),
       url: readback.url,
       conclusion: readback.conclusion ?? (watched.status === 0 ? 'success' : 'failure'),
+      attempt: readback.attempt ?? session.promotion_run.attempt ?? 1,
+      rerun_requested_from_attempt: session.promotion_run.rerun_requested_from_attempt,
     };
-    session = transitionStableReleaseSession(
-      session,
-      watched.status === 0 ? 'published' : 'promotion_failed',
-      watched.status === 0 ? 'promotion workflow and public release readback passed' : 'promotion workflow failed',
-    );
+    session = finalizePromotionRun(session, String(readback.databaseId), watched.status === 0, runner);
   }
   writeSession(options.statePath, session);
   return session;
@@ -531,10 +1076,44 @@ function parsePromoteArgs(argv: string[]): PromoteOptions {
 function parseResumeArgs(argv: string[]): ResumeOptions {
   const { values } = parseNodeArgs({
     args: argv,
-    options: { state: { type: 'string' } },
+    options: { state: { type: 'string' }, execute: { type: 'boolean' } },
   });
   if (!values.state) throw new Error('Pass --state <release-session.json>.');
-  return { statePath: path.resolve(values.state) };
+  return { statePath: path.resolve(values.state), execute: values.execute === true };
+}
+
+function parseRetryQualificationArgs(argv: string[]): RetryQualificationOptions {
+  const { values } = parseNodeArgs({
+    args: argv,
+    options: {
+      execute: { type: 'boolean' },
+      'no-watch': { type: 'boolean' },
+      state: { type: 'string' },
+    },
+  });
+  if (!values.state) throw new Error('Pass --state from the original release run.');
+  return {
+    execute: values.execute === true,
+    watch: values['no-watch'] !== true,
+    statePath: path.resolve(values.state),
+  };
+}
+
+function parseCompleteLocalArgs(argv: string[]): CompleteLocalOptions {
+  const { values } = parseNodeArgs({
+    args: argv,
+    options: {
+      state: { type: 'string' }, receipt: { type: 'string' }, 'local-authorization-policy': { type: 'string' },
+    },
+  });
+  if (!values.state || !values.receipt || !values['local-authorization-policy']) {
+    throw new Error('Pass --state, --receipt, and --local-authorization-policy exact files.');
+  }
+  return {
+    statePath: path.resolve(values.state),
+    receiptPath: path.resolve(values.receipt),
+    localAuthorizationPolicyPath: path.resolve(values['local-authorization-policy']),
+  };
 }
 
 function printSession(session: StableReleaseSession): void {
@@ -552,7 +1131,7 @@ async function start(options: StartOptions, runner: StableReleaseCommandRunner):
     session.source_gates[index] = { ...gate, status: result.status === 0 ? 'passed' : 'failed' };
     writeSession(options.statePath, session);
     if (result.status !== 0) {
-      session = transitionStableReleaseSession(session, 'release_failed', `source gate ${gate.id} failed`);
+      session = transitionStableReleaseSession(session, 'source_gate_failed', `source gate ${gate.id} failed`);
       writeSession(options.statePath, session);
       failResult(result, `source gate ${gate.id}`);
     }
@@ -564,17 +1143,53 @@ async function start(options: StartOptions, runner: StableReleaseCommandRunner):
 
 async function promote(options: PromoteOptions, runner: StableReleaseCommandRunner): Promise<StableReleaseSession> {
   let session = readSession(options.statePath);
-  if (session.phase !== 'owner_review_required' && session.phase !== 'promotion_failed') {
-    throw new Error(`Promotion requires owner_review_required or promotion_failed state, got ${session.phase}.`);
+  if (session.phase !== 'artifacts_qualified') {
+    throw new Error(`Initial promotion requires artifacts_qualified state, got ${session.phase}. Use resume --execute for a failed promotion run.`);
   }
   if (!options.execute) return session;
+  session = transitionStableReleaseSession(session, 'owner_approved', 'same-cohort release owner receipt accepted');
+  writeSession(options.statePath, session);
   return dispatchAndWatchPromotion(session, options.statePath, options.ownerReceiptRef, options.watch, runner);
+}
+
+async function retryQualification(
+  options: RetryQualificationOptions,
+  runner: StableReleaseCommandRunner,
+): Promise<StableReleaseSession> {
+  const session = readSession(options.statePath);
+  if (session.phase !== 'qualification_failed') {
+    throw new Error(`Qualification retry requires qualification_failed state, got ${session.phase}.`);
+  }
+  if (!options.execute) return session;
+  return dispatchAndWatchQualificationRetry(session, options, runner);
+}
+
+function completeLocalActivation(options: CompleteLocalOptions): StableReleaseSession {
+  let session = readSession(options.statePath);
+  if (session.phase !== 'awaiting_local_activation') {
+    throw new Error(`Local activation completion requires awaiting_local_activation state, got ${session.phase}.`);
+  }
+  const receipt = readReceipt(options.receiptPath);
+  const errors = validateLocalActivationReceipt(receipt, {
+    stableSessionId: session.id,
+    version: session.version,
+    artifactSha256: session.qualification_run.artifact_sha256 ?? undefined,
+    localAuthorizationPolicyPath: options.localAuthorizationPolicyPath,
+  });
+  if (errors.length > 0) throw new Error(`Local activation receipt invalid: ${errors.join('; ')}`);
+  session.receipts = {
+    ...session.receipts,
+    local_activation: { ref: options.receiptPath, sha256: sha256File(options.receiptPath) },
+  };
+  session = transitionStableReleaseSession(session, 'complete', 'same-version local installation and CDP Home/Settings/Capabilities readback passed');
+  writeSession(options.statePath, session);
+  return session;
 }
 
 async function main(): Promise<void> {
   const [command, ...argv] = process.argv.slice(2);
   if (!command || command === '--help' || command === '-h') {
-    process.stdout.write(`Usage:\n  npm run release:stable -- start <cohort options> [--state <path>] [--execute] [--no-watch]\n  npm run release:stable -- resume --state <path>\n  npm run release:stable -- promote --state <path> --release-owner-receipt-ref <ref> [--execute] [--no-watch]\n\nDry-run is the default. External workflow dispatch requires --execute.\n`);
+    process.stdout.write(`Usage:\n  npm run release:stable -- start <cohort options> [--state <path>] [--execute] [--no-watch]\n  npm run release:stable -- retry-qualification --state <path> [--execute] [--no-watch]\n  npm run release:stable -- resume --state <path> [--execute]\n  npm run release:stable -- promote --state <path> --release-owner-receipt-ref <ref> [--execute] [--no-watch]\n  npm run release:stable -- complete-local --state <path> --receipt <local-activation-receipt.json> --local-authorization-policy <policy.json>\n\nDry-run is the default. External workflow dispatch or rerun requires --execute.\n`);
     return;
   }
   if (command === 'start' || command === 'plan') {
@@ -586,8 +1201,16 @@ async function main(): Promise<void> {
     printSession(await promote(parsePromoteArgs(argv), run));
     return;
   }
+  if (command === 'retry-qualification') {
+    printSession(await retryQualification(parseRetryQualificationArgs(argv), run));
+    return;
+  }
   if (command === 'resume') {
     printSession(await resumeSession(parseResumeArgs(argv), run));
+    return;
+  }
+  if (command === 'complete-local') {
+    printSession(completeLocalActivation(parseCompleteLocalArgs(argv)));
     return;
   }
   throw new Error(`Unknown release:stable command: ${command}.`);

@@ -42,6 +42,16 @@ on:
         required: false
         default: ULMO
         type: string
+      stable_session_id:
+        description: Stable release session sha256 identity; empty for diagnostic builds.
+        required: false
+        default: ''
+        type: string
+      release_cohort_ref:
+        description: Stable release cohort sha256 identity; empty for diagnostic builds.
+        required: false
+        default: ''
+        type: string
   workflow_call:
     inputs:
       opl_version:
@@ -82,6 +92,16 @@ on:
         description: Full DMG compression format. ULMO favors release size; UDZO keeps legacy zlib compatibility.
         required: false
         default: ULMO
+        type: string
+      stable_session_id:
+        description: Stable release session sha256 identity.
+        required: false
+        default: ''
+        type: string
+      release_cohort_ref:
+        description: Stable release cohort sha256 identity.
+        required: false
+        default: ''
         type: string
     secrets:
       BUILD_CERTIFICATE_BASE64:
@@ -423,9 +443,11 @@ jobs:
             tests/unit/opl-runtime/oplRuntimeBridge.test.ts \
             tests/unit/opl-runtime/firstRunVmSmoke.test.ts \
             tests/unit/opl-runtime/firstRunVmSmokeScripts.test.ts \
-            tests/unit/guid/oplHomeAssistants.test.ts
+            tests/unit/guid/oplHomeAssistants.test.ts \
+            tests/unit/guid/composerSurface.test.ts
           VITEST_INCLUDE_DOM=1 bun vitest run --project dom \
             tests/unit/guid/HomeStarters.dom.test.tsx \
+            tests/unit/guid/GuidPage.dom.test.tsx \
             tests/unit/guid/useGuidSend.oplWhitelist.dom.test.tsx
 
       - name: Resolve App shell Electron version
@@ -1138,6 +1160,34 @@ jobs:
               --output "$RUNNER_TEMP/full-release-notes.md"
           fi
 
+      - name: Write Full build artifact cohort manifest
+        if: ${{ always() && steps.full_package_build.outcome == 'success' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          dmg_path="one-person-lab-app/dist/opl-full-release/One-Person-Lab-Full-${OPL_RELEASE_VERSION}-mac-arm64.dmg"
+          packaged_tree="$(find one-person-lab-app/shells/aionui/out one-person-lab-app/dist/opl-full-release -type d -name '*.app' 2>/dev/null | sort | head -n 1)"
+          test -f "$dmg_path" && test -n "$packaged_tree"
+          node --experimental-strip-types one-person-lab-app/scripts/write-build-artifact-cohort.ts \
+            --output "$RUNNER_TEMP/opl-build-cohort.json" \
+            --artifact "$dmg_path" \
+            --artifact-name "$(basename "$dmg_path")" \
+            --packaged-tree "$packaged_tree" \
+            --app-profile one-person-lab-app/contracts/app-product-profile.json \
+            --gui-contract one-person-lab-app/contracts/app-gui-product-contract.json \
+            --smoke-harness one-person-lab-app/shells/aionui/scripts/opl-first-run-vm-smoke.mjs \
+            --app-sha "$(git -C one-person-lab-app rev-parse HEAD)" \
+            --shell-sha "$(git -C one-person-lab-app/shells/aionui rev-parse HEAD)" \
+            --framework-sha "$(git -C one-person-lab rev-parse HEAD)" \
+            --version "$OPL_RELEASE_VERSION" \
+            --kind full \
+            --actions-run-id "$GITHUB_RUN_ID" \
+            --actions-run-attempt "$GITHUB_RUN_ATTEMPT" \
+            --actions-artifact-name "opl-full-first-install-dmg-${OPL_RELEASE_VERSION}-mac-arm64" \
+            --stable-session-id "${{ inputs.stable_session_id }}" \
+            --release-cohort-ref "${{ inputs.release_cohort_ref }}"
+          cp "$RUNNER_TEMP/opl-build-cohort.json" one-person-lab-app/dist/opl-full-release/opl-build-cohort.json
+
       - name: Upload Full package workflow artifact
         if: ${{ always() && steps.full_package_build.outcome == 'success' && (inputs.publish_to_release || inputs.upload_full_package_artifact) }}
         uses: actions/upload-artifact@v7
@@ -1146,28 +1196,6 @@ jobs:
           path: one-person-lab-app/dist/opl-full-release
           if-no-files-found: error
           retention-days: 14
-
-      - name: Write Full build artifact cohort manifest
-        if: ${{ always() && steps.full_package_build.outcome == 'success' }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          APP_SHA="$(git -C one-person-lab-app rev-parse HEAD)" \
-          SHELL_SHA="$(git -C one-person-lab-app/shells/aionui rev-parse HEAD)" \
-          FRAMEWORK_SHA="$(git -C one-person-lab rev-parse HEAD)" \
-          OPL_BUILD_VERSION="$OPL_RELEASE_VERSION" \
-          node <<'NODE'
-          const fs = require('node:fs');
-          const path = require('node:path');
-          const output = path.join(process.env.RUNNER_TEMP, 'opl-build-cohort.json');
-          fs.writeFileSync(output, `${JSON.stringify({
-            schema: 'opl_app_build_artifact_cohort.v1',
-            app_sha: process.env.APP_SHA,
-            shell_sha: process.env.SHELL_SHA,
-            framework_sha: process.env.FRAMEWORK_SHA,
-            version: process.env.OPL_BUILD_VERSION,
-          }, null, 2)}\n`);
-          NODE
 
       - name: Upload Full build artifact cohort manifest
         if: ${{ always() && steps.full_package_build.outcome == 'success' }}

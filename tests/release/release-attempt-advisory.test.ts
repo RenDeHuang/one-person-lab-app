@@ -112,15 +112,19 @@ test("gate reuse planning rejects a stale current preflight from another cohort"
   assert.equal(plan.must_run_count, 11);
 });
 
-test("standard readiness does not require Homebrew add-on gates before they run", () => {
+test("source readiness defers all Stable Homebrew mutation and VM gates to promotion", () => {
   assert.match(
     workflow,
     /name: Build final release readiness summary[\s\S]*--include-full-package false[\s\S]*--publish-docker-webui false/,
   );
   assert.match(
     readinessSummarizer,
-    /const stableHomebrewRequired = options\.includeFullPackage && homebrewReadiness\.tap_update_required === true/,
+    /const stableHomebrewRequired = false/,
   );
+  assert.match(workflow, /promotion_saga_deferred:[\s\S]*source_run_mutates_tap: false/);
+  assert.doesNotMatch(workflow, /\n  stable-homebrew-tap-update:/);
+  assert.doesNotMatch(workflow, /\n  full-homebrew-tap-update:/);
+  assert.doesNotMatch(workflow, /\n  homebrew-standard-first-run-vm-smoke:/);
 });
 
 test("Full DMG artifacts carry the cohort manifest required by the VM gate", () => {
@@ -138,8 +142,9 @@ test("Full DMG artifacts carry the cohort manifest required by the VM gate", () 
     fullWorkflow,
     /name: Write Full build artifact cohort manifest\n\s+if: \$\{\{ always\(\) && steps\.full_package_build\.outcome == 'success' \}\}/,
   );
-  assert.match(fullWorkflow, /schema: 'opl_app_build_artifact_cohort\.v1'/);
-  assert.match(fullWorkflow, /framework_sha: process\.env\.FRAMEWORK_SHA/);
+  assert.match(fullWorkflow, /write-build-artifact-cohort\.ts/);
+  assert.match(fullWorkflow, /--kind full/);
+  assert.match(fullWorkflow, /--framework-sha "\$\(git -C one-person-lab rev-parse HEAD\)"/);
   assert.match(
     fullWorkflow,
     /name: opl-full-first-install-dmg-\$\{\{ env\.OPL_RELEASE_VERSION \}\}-mac-arm64-cohort/,

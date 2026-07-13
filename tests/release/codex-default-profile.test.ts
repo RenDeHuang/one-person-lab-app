@@ -69,7 +69,8 @@ test('active-shell source gate requires Home starters and Capabilities routing i
   const currentSources = {
     guidPage: [
       'HomeStarters',
-      'activeCapabilityId={selectedAssistantRecord?.id}',
+      'activeCapabilityId={activeShortcut?.package_id}',
+      'handleSelectShortcut(assistantId)',
       'onSelect={(assistantId) =>',
       'onClear={() =>',
     ].join('\n'),

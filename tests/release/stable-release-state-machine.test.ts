@@ -5,6 +5,7 @@ import {
   buildStableReleaseSession,
   desktopReleaseDispatchArgs,
   promoteDispatchArgs,
+  promotionRerunArgs,
   selectNewCohortRun,
   transitionStableReleaseSession,
 } from '../../scripts/run-stable-release.ts';
@@ -63,6 +64,9 @@ test('stable release session freezes one cohort and deduplicates cheap gates', (
   assert.equal(session.efficiency_policy.desktop_release_dispatch_limit_per_cohort, 1);
   assert.equal(session.efficiency_policy.cross_cohort_artifact_reuse_allowed, false);
   assert.equal(session.authority_boundary.execute_flag_required_for_external_mutation, true);
+  assert.equal(session.schema, 'opl_app_stable_release_session.v2');
+  assert.equal(session.metrics.artifact_build_count, 0);
+  assert.equal(session.metrics.promotion_retry_count, 0);
 });
 
 test('desktop release dispatch is derived entirely from the frozen cohort', () => {
@@ -81,6 +85,9 @@ test('desktop release dispatch is derived entirely from the frozen cohort', () =
 test('promotion reuses the source run id and requires an owner receipt', () => {
   const session = buildStableReleaseSession(plan());
   session.release_run.id = '29211495991';
+  session.qualification_run.id = '29211496001';
+  session.qualification_run.conclusion = 'success';
+  session.qualification_run.artifact_sha256 = 'e'.repeat(64);
   assert.throws(() => promoteDispatchArgs(session, ''), /owner receipt/);
   const args = promoteDispatchArgs(session, 'release_owner_receipt_ref://test').join(' ');
   assert.match(args, /release_run_id=29211495991/);
@@ -95,11 +102,60 @@ test('state machine rejects skipped stages and repeated release dispatch paths',
     /Invalid stable release transition/,
   );
   const gatesPassed = transitionStableReleaseSession(session, 'source_gates_passed', 'passed');
-  const running = transitionStableReleaseSession(gatesPassed, 'release_running', 'dispatched');
+  const running = transitionStableReleaseSession(gatesPassed, 'artifact_build_running', 'dispatched');
   assert.throws(
     () => transitionStableReleaseSession(running, 'source_gates_passed', 'repeat'),
     /Invalid stable release transition/,
   );
+});
+
+test('failed promotion can only rerun failed jobs in the original run', () => {
+  let session = buildStableReleaseSession(plan());
+  session = transitionStableReleaseSession(session, 'source_gates_passed', 'passed');
+  session = transitionStableReleaseSession(session, 'artifact_build_running', 'dispatched');
+  session = transitionStableReleaseSession(session, 'artifacts_qualified', 'qualified');
+  session = transitionStableReleaseSession(session, 'owner_approved', 'owner receipt accepted');
+  session = transitionStableReleaseSession(session, 'promotion_running', 'promotion dispatched');
+  session = transitionStableReleaseSession(session, 'release_published_not_latest', 'published');
+  session = transitionStableReleaseSession(session, 'distribution_synced', 'distributed');
+  session = transitionStableReleaseSession(session, 'promotion_failed', 'Homebrew VM failed');
+  session.promotion_run = {
+    id: '29211497001',
+    url: 'https://example.test/promotion',
+    conclusion: 'failure',
+    attempt: 1,
+    rerun_requested_from_attempt: null,
+  };
+  session.release_owner_receipt_ref = 'release_owner_receipt_ref://one-person-lab-app/release-owner/v26.7.12/test';
+  session.metrics.workflow_dispatch_counts.promotion = 1;
+  assert.deepEqual(promotionRerunArgs(session), [
+    'run', 'rerun', '29211497001',
+    '--repo', 'gaofeng21cn/one-person-lab-app',
+    '--failed',
+  ]);
+  assert.equal(session.metrics.workflow_dispatch_counts.promotion, 1);
+  assert.throws(
+    () => transitionStableReleaseSession(session, 'owner_approved', 'redispatch'),
+    /Invalid stable release transition/,
+  );
+  assert.equal(
+    transitionStableReleaseSession(session, 'promotion_running', 'same-run retry').promotion_run.id,
+    '29211497001',
+  );
+});
+
+test('latest checkpoint can persist a missing saga receipt as promotion_failed', () => {
+  let session = buildStableReleaseSession(plan());
+  session = transitionStableReleaseSession(session, 'source_gates_passed', 'passed');
+  session = transitionStableReleaseSession(session, 'artifact_build_running', 'dispatched');
+  session = transitionStableReleaseSession(session, 'artifacts_qualified', 'qualified');
+  session = transitionStableReleaseSession(session, 'owner_approved', 'approved');
+  session = transitionStableReleaseSession(session, 'promotion_running', 'promotion');
+  session = transitionStableReleaseSession(session, 'release_published_not_latest', 'published');
+  session = transitionStableReleaseSession(session, 'distribution_synced', 'distributed');
+  session = transitionStableReleaseSession(session, 'homebrew_verified', 'homebrew');
+  session = transitionStableReleaseSession(session, 'latest_activated', 'latest');
+  assert.equal(transitionStableReleaseSession(session, 'promotion_failed', 'receipt missing').phase, 'promotion_failed');
 });
 
 test('run discovery selects only a new run from the exact frozen App SHA', () => {

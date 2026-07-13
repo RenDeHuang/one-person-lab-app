@@ -326,11 +326,36 @@ next action must be a same-artifact diagnostic unless the failure proves the
 artifact, source gate, or pinned refs are invalid. Dispatch a new cohort only
 after that boundary is proven.
 
+Stable release coordination uses `opl_app_stable_release_session.v2`. Every
+Standard or Full DMG carries an `opl_app_build_artifact_cohort.v2` manifest
+binding the exact App, Shell, Framework, packaged tree, product profile, GUI
+contract, smoke harness, Actions run, and DMG bytes. A failed Full clean-VM gate
+may be retried with those same bytes and may override only the stale
+`full_dmg_clean_vm` readiness result after the qualification receipt matches the
+session, cohort, source run, manifest digest, and DMG SHA-256. It never authorizes
+a rebuild or changes Docker, remote-asset, or Homebrew evidence.
+
 Late Homebrew, VM, evidence upload, closeout, or owner-receipt failures use the
 same rule: retry or diagnose the failed gate against the same published asset,
 tap commit, candidate record, or small evidence artifact first. Rerun the full
 desktop train only when the diagnostic proves the artifact, source gate, pinned
 cohort, or release-owner decision is invalid.
+
+Promotion is a receipt-backed saga: publish the GitHub Release as public but not
+latest, atomically publish both Standard and Full casks through the tap owner,
+qualify both casks in clean VMs, and only then activate latest. A partial failure
+must rerun failed jobs in the original promotion run and reuse an existing
+immutable distribution receipt; it must not dispatch a second promotion or tap
+mutation. Completion additionally requires the same-version local installation
+receipt and nonblank CDP Home, Settings, and Capabilities readback with zero page
+or console errors. Phase timings and dispatch counts are recorded. Ninety minutes
+is an efficiency advisory that triggers blocker classification and evidence
+reuse, not permission to abandon an authorized release.
+
+`desktop-release.yml` is the source/candidate train and never writes the Stable
+or Full tap. Its add-on summary records Stable distribution plus both Homebrew
+clean-VM gates as deferred. `desktop-release-promote.yml` is their sole App-side
+owner after the candidate, exact Full qualification, and owner receipt pass.
 
 ## Artifact Attestation And Provenance
 
@@ -947,9 +972,10 @@ cohort as the candidate record. The promote workflow reads
 output, and passes it to `opl-first-run-vm.yml`. The VM workflow checks out that
 Framework SHA, archives it, and passes both `--framework-source-archive` and
 `--framework-install-script` to the Tart harness so the guest receives
-`OPL_INSTALL_SCRIPT_URL=file://...`. Do not rerun an old failed promote job when
-the workflow source changed; dispatch the promote or VM workflow from the
-updated App `main` with the same candidate/release inputs. A Homebrew VM failure
+`OPL_INSTALL_SCRIPT_URL=file://...`. Promotion retries rerun failed jobs in the
+same promotion run and reuse the immutable distribution receipt. If workflow
+source bytes must change, freeze a new cohort instead of silently combining the
+old artifact with updated workflow assumptions. A Homebrew VM failure
 that shows packaged `opl-install.sh` falling back to raw GitHub is a workflow
 source-boundary defect, not proof that the cask or release assets are invalid.
 

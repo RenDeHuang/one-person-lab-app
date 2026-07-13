@@ -14,7 +14,7 @@ export function formatRecommendedCompanionSkills(profile = readAppProductProfile
   return profile.companion_payloads.opl_flow_dependency_policy_ref;
 }
 
-function buildShellCompatibilityProfile(profile = readAppProductProfile()): Record<string, any> {
+export function buildShellCompatibilityProfile(profile = readAppProductProfile()): Record<string, any> {
   const policyPath = process.env.OPL_FLOW_WORKFLOW_POLICY?.trim()
     || path.resolve(appRoot, '..', 'opl-flow', 'contracts', 'workflow-policy.json');
   const policy = JSON.parse(fs.readFileSync(policyPath, 'utf8'));
@@ -32,32 +32,46 @@ function buildShellCompatibilityProfile(profile = readAppProductProfile()): Reco
 
 export function syncAppProductProfileToShell(
   shellRoot: string,
-  options: { optional?: boolean } = {},
-): { synced: boolean; targetPath: string } {
+  options: { optional?: boolean; check?: boolean } = {},
+): { synced: boolean; verified: boolean; targetPath: string } {
   const shellPaths = resolveActiveShellPaths({ contract: readAppShellAdapterContract(), shellRoot });
   const targetPath = shellPaths.productProfileTargetPath;
   if (!fs.existsSync(shellPaths.packageManifestPath)) {
-    if (options.optional) return { synced: false, targetPath };
+    if (options.optional) return { synced: false, verified: false, targetPath };
     throw new Error(`Missing active shell checkout: ${shellRoot}`);
   }
 
   const profile = readAppProductProfile();
   const shellProfile = buildShellCompatibilityProfile(profile);
+  const expected = `${JSON.stringify(shellProfile, null, 2)}\n`;
+  if (options.check) {
+    let actual: unknown = null;
+    try {
+      actual = JSON.parse(fs.readFileSync(targetPath, 'utf8'));
+    } catch {
+      actual = null;
+    }
+    if (JSON.stringify(actual) !== JSON.stringify(shellProfile)) {
+      throw new Error(`Active shell generated product profile does not match the deterministic App + OPL Flow projection: ${targetPath}`);
+    }
+    return { synced: false, verified: true, targetPath };
+  }
   fs.mkdirSync(path.dirname(targetPath), { recursive: true });
-  fs.writeFileSync(targetPath, `${JSON.stringify(shellProfile, null, 2)}\n`, 'utf8');
+  fs.writeFileSync(targetPath, expected, 'utf8');
   const localOxfmt = path.join(shellRoot, 'node_modules', '.bin', 'oxfmt');
   if (fs.existsSync(localOxfmt)) {
     spawnSync(localOxfmt, [targetPath], { cwd: shellRoot, stdio: 'ignore' });
   }
-  return { synced: true, targetPath };
+  return { synced: true, verified: true, targetPath };
 }
 
 function main(): void {
   const profile = readAppProductProfile();
   const shellPaths = resolveActiveShellPaths();
-  const result = syncAppProductProfileToShell(shellPaths.shellRoot);
+  const check = process.argv.slice(2).includes('--check');
+  const result = syncAppProductProfileToShell(shellPaths.shellRoot, { check });
   console.log(JSON.stringify({
-    status: result.synced ? 'synced' : 'skipped',
+    status: result.synced ? 'synced' : result.verified ? 'verified' : 'skipped',
     owner: profile.owner,
     source: path.relative(appRoot, appProductProfilePath),
     target: result.targetPath,

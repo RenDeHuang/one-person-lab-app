@@ -8,6 +8,7 @@ import {
   assertAppProductProfileHomeCodexPolicy,
   assertAppProductProfileRouteReceiptPolicy,
   assertAppProductProfileSettingsVisualSystem,
+  assertHomeComposerStateContract,
   assertProfessionalAgentPackagePolicy,
   managedShortcutIds,
   managedShortcutPackageIds,
@@ -460,6 +461,7 @@ function assertHomeCodexProfileShape(profile: AppProductProfile): void {
     requireEnglishStatusLabel: true,
     requireSelectionPersistence: true,
   });
+  assertHomeComposerStateContract(profile.gui.home.home_composer_state_contract, 'App product profile Home composer state contract');
   assertStringArray(
     profile.codex.auto_model_policy.frontier_model_preference_order,
     'codex.auto_model_policy.frontier_model_preference_order',

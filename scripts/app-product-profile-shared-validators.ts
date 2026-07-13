@@ -71,6 +71,45 @@ export const requiredSkillByAssistantId = {
   rca: 'redcube-ai',
   obf: 'opl-bookforge',
 };
+
+export const expectedHomeComposerStateContract = {
+  contract_id: 'opl_home_composer_state.v1',
+  executor: 'codex',
+  shortcut_package_ids: [null, 'mas', 'mag', 'rca', 'obf', 'oma'],
+  viewports: ['desktop', 'mobile'],
+  availability_states: ['available', 'unavailable'],
+  invariants: {
+    model_reasoning_visible: true,
+    permission_access_visible: true,
+    executor_selector_visible: false,
+    active_shortcut_changes_executor: false,
+    default_visibility_governs_execution: false,
+  },
+  semantic_probe: {
+    root_test_id: 'opl-guid-entry',
+    state_attributes: {
+      executor: 'data-opl-composer-executor',
+      active_shortcut_id: 'data-opl-active-shortcut',
+      model_reasoning_visible: 'data-opl-model-reasoning-visible',
+      permission_access_visible: 'data-opl-permission-access-visible',
+      executor_selector_visible: 'data-opl-executor-selector-visible',
+    },
+    desktop_required_controls: ['guid-model-selector', 'agent-mode-selector-*'],
+    mobile_required_controls: [
+      'mobile-action-sheet-model',
+      'mobile-action-sheet-reasoning',
+      'mobile-action-sheet-permission',
+    ],
+    forbidden_controls: ['agent-pill-*'],
+    failure_field: 'missing_controls',
+  },
+};
+
+export function assertHomeComposerStateContract(value: unknown, label: string): void {
+  if (JSON.stringify(value) !== JSON.stringify(expectedHomeComposerStateContract)) {
+    throw new Error(`${label} must preserve the fixed Codex executor controls for every Home shortcut state`);
+  }
+}
 const codexEntryByPackageId = {
   mas: 'med-autoscience',
   mag: 'med-autogrant',

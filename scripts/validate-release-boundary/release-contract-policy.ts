@@ -84,7 +84,6 @@ const requiredReleaseMonitorPhaseBudgets = {
     jobs: [
       'standard-first-run-vm-smoke-after-standard-only',
       'standard-first-run-vm-smoke-after-full',
-      'homebrew-standard-first-run-vm-smoke',
       'full-first-run-vm-smoke',
     ],
     warning_after_seconds: 2700,
@@ -112,9 +111,10 @@ const requiredReleaseMonitorPhaseBudgets = {
   },
   homebrew: {
     jobs: [
-      'stable-homebrew-tap-update',
-      'full-homebrew-tap-update',
-      'homebrew-standard-first-run-vm-smoke',
+      'stable-distribution',
+      'homebrew-standard-vm',
+      'homebrew-full-vm',
+      'homebrew-activation',
     ],
     warning_after_seconds: 1800,
     timeout_after_seconds: 3600,
@@ -465,10 +465,18 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
   if (
     stableReleaseStateMachine?.package_script !== 'release:stable' ||
     stableReleaseStateMachine?.script !== 'scripts/run-stable-release.ts' ||
-    stableReleaseStateMachine?.schema !== 'opl_app_stable_release_session.v1' ||
+    stableReleaseStateMachine?.schema !== 'opl_app_stable_release_session.v2' ||
     stableReleaseStateMachine?.default_mode !== 'dry_run' ||
     stableReleaseStateMachine?.execute_flag !== '--execute' ||
-    !sameStringSet(stableReleaseStateMachine?.canonical_commands, ['start', 'resume', 'promote']) ||
+    !sameStringSet(stableReleaseStateMachine?.canonical_commands, ['start', 'retry-qualification', 'resume', 'promote', 'complete-local']) ||
+    !sameStringSet(stableReleaseStateMachine?.phases, [
+      'candidate_frozen', 'source_gates_passed', 'source_gate_failed', 'artifact_build_running',
+      'artifact_build_failed', 'release_train_failed', 'qualification_failed',
+      'retry_failed_gate_same_artifact', 'artifacts_qualified', 'owner_approved',
+      'promotion_running', 'promotion_failed', 'release_published_not_latest',
+      'distribution_synced', 'homebrew_verified', 'latest_activated',
+      'awaiting_local_activation', 'complete',
+    ]) ||
     stableReleaseStateMachine?.cohort_binding?.desktop_release_dispatch_limit_per_cohort !== 1 ||
     stableReleaseStateMachine?.cohort_binding?.cross_cohort_artifact_reuse_allowed !== false ||
     stableReleaseStateMachine?.cohort_binding?.remote_dispatch_ref_must_match_frozen_app_sha !== true ||
@@ -476,7 +484,21 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
     stableReleaseStateMachine?.execution_policy?.stable_complete_requires_addon_gates !== true ||
     stableReleaseStateMachine?.execution_policy?.promotion_reuses_source_release_run_id !== true ||
     stableReleaseStateMachine?.execution_policy?.promotion_requires_release_owner_receipt !== true ||
+    stableReleaseStateMachine?.execution_policy?.promotion_dispatch_limit_per_cohort !== 1 ||
+    stableReleaseStateMachine?.execution_policy?.promotion_retry_reuses_original_run_id_and_owner_receipt !== true ||
     stableReleaseStateMachine?.recovery_policy?.smoke_or_validator_only_change_rebuilds_existing_artifact !== false ||
+    stableReleaseStateMachine?.recovery_policy?.qualification_retry_reuses_exact_artifact_bytes !== true ||
+    stableReleaseStateMachine?.artifact_cohort?.schema !== 'opl_app_build_artifact_cohort.v2' ||
+    stableReleaseStateMachine?.artifact_cohort?.artifact_build_limit_per_cohort !== 1 ||
+    stableReleaseStateMachine?.qualification_receipt?.schema !== 'opl_app_artifact_qualification_receipt.v1' ||
+    stableReleaseStateMachine?.qualification_receipt?.cross_artifact_or_cross_cohort_override_allowed !== false ||
+    stableReleaseStateMachine?.promotion_saga?.owner_workflow !== '.github/workflows/desktop-release-promote.yml' ||
+    stableReleaseStateMachine?.promotion_saga?.source_desktop_release_mutates_stable_or_full_tap !== false ||
+    stableReleaseStateMachine?.promotion_saga?.redispatch_after_partial_failure_allowed !== false ||
+    stableReleaseStateMachine?.receipts?.homebrew_activation !== 'opl_app_homebrew_activation_receipt.v1' ||
+    stableReleaseStateMachine?.receipts?.local_activation !== 'opl_app_local_activation_receipt.v1' ||
+    stableReleaseStateMachine?.profiling?.efficiency_advisory_after_minutes !== 90 ||
+    stableReleaseStateMachine?.profiling?.efficiency_advisory_is_stop_condition !== false ||
     typeof stableReleaseStateMachine?.authority_boundary !== 'string' ||
     !stableReleaseStateMachine.authority_boundary.includes('is not release truth')
   ) {
@@ -724,8 +746,10 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
     readinessAdmission?.addon_requirement_input !== 'require_addon_gates_for_stable_readiness' ||
     readinessAdmission?.addon_gate_blocking_default !== false ||
     readinessAdmission?.addon_status_artifact !== 'release-addon-readiness-summary-<version>' ||
-    readinessAdmission?.homebrew_tap_update_required_source !== 'release-preflight.outputs.homebrew_tap_update_required' ||
-    readinessAdmission?.homebrew_allowed_when_false !== 'success_or_skipped' ||
+    !Array.isArray(readinessAdmission?.homebrew_source_run_gate_ids) ||
+    readinessAdmission.homebrew_source_run_gate_ids.length !== 0 ||
+    readinessAdmission?.homebrew_deferred_to_promotion_saga !== true ||
+    readinessAdmission?.homebrew_allowed_in_source_readiness !== 'deferred_to_promotion_saga' ||
     !readinessAdmission?.rule?.includes('must not force Full, Docker/WebUI, or Homebrew add-on gates before writing the Standard readiness record') ||
     !readinessAdmission?.rule?.includes('Diagnostic gates such as operator evidence bundle validation must feed the add-on summary when present, but they must not prevent Standard readiness aggregation from running')
   ) {
@@ -736,17 +760,6 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
     console.error('FAIL release_readiness_admission_policy: operator evidence bundle validation must be a diagnostic gate');
     failures += 1;
   }
-  for (const gateId of [
-    'stable-homebrew-tap-update',
-    'homebrew-standard-first-run-vm-smoke',
-    'full-homebrew-tap-update_for_full_release',
-  ]) {
-    if (!readinessAdmission?.homebrew_required_when_true?.includes(gateId)) {
-      console.error(`FAIL release_readiness_admission_policy: missing required Homebrew gate ${gateId}`);
-      failures += 1;
-    }
-  }
-
   if (
     diagnosticsWorkflowPolicy?.default_diagnostic_scope !== 'bootstrap_only' ||
     diagnosticsWorkflowPolicy?.diagnostic_scopes?.bootstrap_only?.authority_boundary !==

@@ -7,6 +7,7 @@ import {
 } from './app-contract-constants.ts';
 import { assertNonEmptyStringArray, assertSharedFirstRunProgressModelMatches } from './shared-contract-validators.ts';
 import { productProfilePath } from './validation-config.ts';
+import { expectedHomeComposerStateContract } from '../app-product-profile-shared-validators.ts';
 
 const productProfile = readJson(productProfilePath);
 const fullFirstInstallPolicy = productProfile.first_run?.core_ready_policy?.full_first_install_clean_machine;
@@ -81,6 +82,23 @@ function validateFullFirstInstallScenario(fullClean) {
   }
   if (!fullClean?.expects?.some((entry) => /family runtime provider/.test(entry) && /background maintenance/.test(entry))) {
     throw new Error('Full first-install scenario must keep Temporal family runtime provider in background maintenance after Core ready');
+  }
+}
+
+function validateHomeComposerProbe(scenario, label) {
+  const probe = scenario?.diagnostics_contract?.home_composer_probe;
+  if (
+    probe?.contract_ref !==
+      'contracts/app-gui-product-contract.json#interaction_baseline.home.home_composer_state_contract' ||
+    JSON.stringify(probe.shortcut_package_ids) !==
+      JSON.stringify(expectedHomeComposerStateContract.shortcut_package_ids) ||
+    JSON.stringify(probe.viewports) !== JSON.stringify(expectedHomeComposerStateContract.viewports) ||
+    JSON.stringify(probe.availability_states) !==
+      JSON.stringify(expectedHomeComposerStateContract.availability_states) ||
+    JSON.stringify(probe.required_summary_fields) !== JSON.stringify(['missing_controls', 'composer_state']) ||
+    probe.fail_fast_seconds !== 60
+  ) {
+    throw new Error(`${label} must consume the App-owned Home composer state contract and fail within 60 seconds`);
   }
 }
 
@@ -167,6 +185,8 @@ export function validateFirstRunMatrix(matrix, contract) {
   validateSharedProgressModel(matrix.shared_progress_model, matrix.scenarios);
   const scenarioById = buildScenarioMap(matrix);
   validateFullFirstInstallScenario(scenarioById.get('full_first_install_clean_machine'));
+  validateHomeComposerProbe(scenarioById.get('full_first_install_clean_machine'), 'Full first-install clean-machine scenario');
+  validateHomeComposerProbe(scenarioById.get('full_dmg_clean_vm_smoke'), 'Full DMG clean-VM scenario');
   const beginnerScenario = scenarioById.get('beginner_simplified_first_run_clean_machine');
   if (!beginnerScenario) {
     throw new Error('First-run matrix is missing beginner_simplified_first_run_clean_machine');
