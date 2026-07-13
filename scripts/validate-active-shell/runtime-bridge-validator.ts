@@ -703,6 +703,71 @@ function validateRuntimeBridgeCommandResolutionPolicy(runtimeBridge) {
       throw new Error(`Runtime bridge command resolution policy must forbid: ${forbidden}`);
     }
   }
+  const sharedGuiTarget = commandResolutionPolicy?.shared_gui_target;
+  for (const [field, expected] of Object.entries({
+    implementation_status: 'target_not_proven_across_both_shells',
+    identity_readback_schema: 'app_runtime_executable_identity.v1',
+    producer: 'app_host_runtime_resolver',
+    producer_status: 'not_implemented',
+  })) {
+    if (sharedGuiTarget?.[field] !== expected) {
+      throw new Error(`Runtime bridge shared GUI command resolver target ${field} must be ${expected}`);
+    }
+  }
+  assertIncludesAll(sharedGuiTarget?.required_executables, ['opl', 'codex'], 'Shared GUI runtime executables');
+  assertIncludesAll(
+    sharedGuiTarget?.required_readback_fields,
+    ['opl_path', 'opl_version', 'codex_path', 'codex_version', 'runtime_cohort_ref'],
+    'Shared GUI runtime identity readback',
+  );
+}
+
+function validateSharedGuiRuntimeResolutionPolicy(runtimeBridge) {
+  const policy = runtimeBridge.shared_gui_runtime_resolution_policy;
+  for (const [field, expected] of Object.entries({
+    state: 'target_with_native_candidate_deviation',
+    policy_owner: 'one-person-lab-app',
+    runtime_identity_owner: 'one-person-lab',
+    resolver_source: 'contracts/app-runtime-bridge.json#command_resolution_policy.shared_gui_target',
+    logical_control_plane_shared: true,
+    same_cohort_runtime_identity_required_for_parity: true,
+    host_path_only_resolution_can_prove_parity: false,
+    active_aionui_status: 'managed_or_packaged_runtime_resolution',
+    opl_native_workbench_status: 'host_path_resolution_current_deviation',
+    same_physical_runtime_currently_claimed: false,
+    implementation_status: 'target_not_proven_across_both_shells',
+  })) {
+    if (policy?.[field] !== expected) {
+      throw new Error(`Runtime bridge shared GUI runtime resolution policy ${field} must be ${expected}`);
+    }
+  }
+}
+
+function validateCanonicalConversationContinuityPolicy(runtimeBridge) {
+  const policy = runtimeBridge.canonical_conversation_continuity_policy;
+  for (const [field, expected] of Object.entries({
+    state: 'target_with_current_shell_deviations',
+    thread_truth_owner: 'codex_core_app_server',
+    canonical_identity: 'host_identity_plus_opaque_app_server_thread_id',
+    shell_local_storage_role: 'ui_preferences_drafts_and_rebuildable_cache_only',
+    shell_can_own_thread_history: false,
+    direct_cross_shell_private_store_access_allowed: false,
+    duplicate_thread_store_allowed: false,
+    simultaneous_same_thread_write_safety_claimed: false,
+    active_aionui_status: 'shell_local_conversation_repository_requires_canonical_projection',
+    opl_native_workbench_status: 'resume_capable_full_local_transcript_cache_requires_canonical_thread_directory',
+    acceptance: 'both_shells_project_the_same_app_server_thread_directory_and_resume_by_canonical_identity',
+    implementation_status: 'target_not_proven_across_both_shells',
+  })) {
+    if (policy?.[field] !== expected) {
+      throw new Error(`Runtime bridge canonical conversation continuity policy ${field} must be ${expected}`);
+    }
+  }
+  assertIncludesAll(
+    policy?.required_operations,
+    ['thread/list', 'thread/read', 'thread/resume'],
+    'Canonical conversation continuity operations',
+  );
 }
 
 function validateRuntimeBridgeProjectionContracts(runtimeBridge) {
@@ -914,6 +979,8 @@ export function validateRuntimeBridgeContract(runtimeBridge, contract) {
   validateRuntimeBridgeDefaultReadSurfacePolicy(runtimeBridge);
   validateRuntimeProgressPageDisplayPolicy(runtimeBridge);
   validateRuntimeBridgeCommandResolutionPolicy(runtimeBridge);
+  validateSharedGuiRuntimeResolutionPolicy(runtimeBridge);
+  validateCanonicalConversationContinuityPolicy(runtimeBridge);
   validateRuntimeBridgeProjectionContracts(runtimeBridge);
   validatePackageReadinessProjection(runtimeBridge);
   validateRuntimeBridgeUserTaskStatus(runtimeBridge);

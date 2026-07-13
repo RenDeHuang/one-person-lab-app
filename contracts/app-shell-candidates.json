@@ -28,6 +28,26 @@
     "archived_proof_policy": "do_not_update_or_improve_unless_user_explicitly_requests_agui",
     "active_shell_switch_policy": "only_contracts/app-shell-adapter.json_can_switch_default_release_shell"
   },
+  "interactive_launcher_policy": {
+    "state": "target_contract_implementation_pending",
+    "topology": "single_control_plane_multiple_independent_gui_clients",
+    "selectable_shells": [
+      "aionui",
+      "opl-native-workbench"
+    ],
+    "selection_scope": "per_local_launch_only",
+    "default_target_source": "contracts/app-shell-adapter.json#active_shell",
+    "target_interface": "app_root_gui_launcher_with_shell_and_mode",
+    "target_command": "npm run gui -- --shell <shell_id> [--mode dev|packaged]",
+    "release_adoption_contract": "contracts/app-shell-adapter.json",
+    "selection_mutates_release_adoption": false,
+    "candidate_launch_implies_adoption": false,
+    "selection_changes_updater_channel": false,
+    "side_by_side_bundle_identity_required": true,
+    "simultaneous_same_workspace_write_safety_claimed": false,
+    "missing_target_policy": "fail_closed_with_actionable_blocker",
+    "implementation_status": "pending"
+  },
   "release_shell_contract": "contracts/app-shell-adapter.json",
   "gui_product_contract": "contracts/app-gui-product-contract.json",
   "runtime_bridge_contract": "contracts/app-runtime-bridge.json",

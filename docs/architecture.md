@@ -193,6 +193,33 @@ does not import Framework runtime state or domain truth into the App repo.
 
 The active shell is an external checkout and an implementation carrier. `contracts/app-shell-adapter.json` requires the shell to implement the App GUI contract and declares that upstream AionUI behavior is implementation material only, never App product authority. Root release and validation scripts prepare App-owned payloads and call shell build/test commands, but shell implementation changes belong in `gaofeng21cn/opl-aion-shell` unless the App contract or wrapper itself changes.
 
+GUI operation has two independent axes. The **active release shell** chooses the
+stable/nightly implementation carrier and remains owned by
+`contracts/app-shell-adapter.json`. A **local GUI launch target** chooses which
+installed or developer GUI client to open for one local run; it does not mutate
+the active adapter, release role, updater channel, or adoption state. The canonical
+operating policy and landing route live in
+`docs/product/gui/gui-shell-candidates.md` and
+`contracts/app-shell-candidates.json#interactive_launcher_policy`.
+
+```text
+App contracts / product profile
+  -> local GUI launcher -> AionUI client
+                        -> OPL Native Workbench client
+  -> App runtime bridge -> OPL Framework state/action
+  -> typed host bridge  -> Codex App Server thread/turn authority
+```
+
+The clients share this logical control plane, not a renderer dependency tree or
+private data store. GUI frameworks, lockfiles, bundles, window state, local cache,
+and updater identity remain isolated. Codex thread history remains App Server
+authority; GUI-local SQLite/localStorage may hold preferences, drafts, or
+rebuildable cache only and must not become cross-shell thread truth. Physical
+Runtime parity also requires both clients to resolve the same OPL/Codex cohort and
+emit path/version/cohort readback. That is a target with current shell deviations,
+not a completed fact. Side-by-side installation and sequential launch selection
+therefore do not imply safe simultaneous writes to one workspace or thread.
+
 Shell alternatives are intentionally separated from the default release adapter while still remaining selectable for explicit technical verification builds. `contracts/app-shell-candidates.json` declares `opl-native-workbench` as the foreground alternative, with its adapter under `contracts/shell-adapters/opl-native-workbench.json`. The default `contracts/app-shell-adapter.json` continues to define the stable AionUI release shell. Hermes Desktop / `hermes-codex` is retained as the prior foreground alternative reference with its explicit adapter under `contracts/shell-adapters/hermes-codex.json`; its source/package/smoke evidence remains technical verification evidence until a later App-owned adoption decision changes the active-shell contract. `agui-codex` is now an archived AG-UI/CopilotKit technical proof: it remains replayable through its explicit adapter only when AGUI is requested, but it is not a routine candidate lane and should not receive default polish or feature work. The OPL Native Workbench route is the new shell-agnostic route for direct App state/action consumption, shared desktop/WebUI renderer shape, and K-Dense-style delivery experience without importing external runtime authority. The Hermes route remains upstream-first OPL customization reference material: later Hermes replay should record the upstream ref, compare official Hermes Desktop features, reapply the smallest OPL delta, and only then decide what to hide, rename, replace, or elevate through App-owned gates. Hermes must not inherit AionUI/AGUI stable payload, page-state, Full runtime, or WebUI assumptions until a Hermes-native feature comparison records what should be preserved, replaced, or hidden.
 
 Hermes 的 first-run 是一个例外的最低可用性要求：可以复用 Hermes Desktop 的

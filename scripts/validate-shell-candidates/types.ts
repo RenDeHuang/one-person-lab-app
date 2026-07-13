@@ -198,6 +198,23 @@ export type ShellCandidateRegistry = {
     archived_proof_policy: string;
     active_shell_switch_policy: string;
   };
+  interactive_launcher_policy: {
+    state: string;
+    topology: string;
+    selectable_shells: string[];
+    selection_scope: string;
+    default_target_source: string;
+    target_interface: string;
+    target_command: string;
+    release_adoption_contract: string;
+    selection_mutates_release_adoption: boolean;
+    candidate_launch_implies_adoption: boolean;
+    selection_changes_updater_channel: boolean;
+    side_by_side_bundle_identity_required: boolean;
+    simultaneous_same_workspace_write_safety_claimed: boolean;
+    missing_target_policy: string;
+    implementation_status: string;
+  };
   release_shell_contract: string;
   gui_product_contract: string;
   runtime_bridge_contract: string;

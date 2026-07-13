@@ -334,7 +334,7 @@ updater metadata, and evidence gates, read the
 remaining gaps, read [`docs/status.md`](docs/status.md) and
 [`docs/active/app-ideal-state-gap-plan.md`](docs/active/app-ideal-state-gap-plan.md).
 
-The GUI definition stack starts with the shell-independent ideal interaction spec in [`docs/product/gui/ideal-interaction-spec.md`](docs/product/gui/ideal-interaction-spec.md), then the Codex-to-OPL product delta in [`docs/product/gui/codex-to-opl-app-delta.md`](docs/product/gui/codex-to-opl-app-delta.md), then the cross-shell capability inventory in [`docs/product/gui/feature-inventory.md`](docs/product/gui/feature-inventory.md). Use them in that order when designing or reviewing a GUI shell.
+The GUI definition stack starts with the shell-independent ideal interaction spec in [`docs/product/gui/ideal-interaction-spec.md`](docs/product/gui/ideal-interaction-spec.md), then the Codex-to-OPL product delta in [`docs/product/gui/codex-to-opl-app-delta.md`](docs/product/gui/codex-to-opl-app-delta.md), then the cross-shell capability inventory in [`docs/product/gui/feature-inventory.md`](docs/product/gui/feature-inventory.md). Local GUI launch selection, candidate roles, shared control-plane boundaries, and release adoption are defined separately in [`docs/product/gui/gui-shell-candidates.md`](docs/product/gui/gui-shell-candidates.md). Use them in that order when designing or reviewing a GUI shell.
 
 ### Agent / Framework Boundary
 

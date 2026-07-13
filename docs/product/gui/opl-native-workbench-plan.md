@@ -31,6 +31,20 @@ stable/nightly packaging, or establish release readiness. A later adoption
 decision must separately change the active adapter and pass the full App
 release-owner gates.
 
+The candidate may be installed and launched alongside AionUI as an independent
+local GUI client. That is a per-launch developer choice governed by
+[`gui-shell-candidates.md`](gui-shell-candidates.md), not a second active release
+shell. Side-by-side bundle identity and sequential switching prove neither shared
+physical Runtime parity nor safe simultaneous writes to one workspace/thread.
+Before those stronger claims, the candidate must stop relying on host-PATH-only
+`opl`/`codex` resolution, consume the App resolver, emit exact Runtime identity
+readback, and participate in the same host coordination/conflict gates. The
+current renderer also persists complete `ChatSession.messages` with `threadId`
+in localStorage; this is a current full-transcript-cache deviation, not canonical
+conversation continuity. The target must rebuild history from App Server
+`thread/list/read/resume` and retain only UI preferences, drafts, and rebuildable
+cache locally.
+
 ## Authority Inputs
 
 This plan absorbs the latest product semantics from rebased GUI authority
@@ -42,9 +56,10 @@ The authority order is:
 
 1. App GUI, runtime, page-state, first-run, release, and candidate contracts;
 2. the native candidate adapter contract;
-3. the typed host bridge and its fixture/live evidence;
-4. Desktop/WebUI renderer implementations and tests;
-5. packaged and owner evidence for any stronger claim.
+3. the App-root local GUI launcher and shared Runtime resolver contracts;
+4. the typed host bridge and its fixture/live evidence;
+5. Desktop/WebUI renderer implementations and tests;
+6. packaged and owner evidence for any stronger claim.
 
 Codex Core/App Server owns opaque thread IDs, thread history, persistence,
 status, lifecycle, and turns. The OPL App typed host bridge owns authorization,
@@ -205,6 +220,7 @@ the new local P0/P1 authority.
 | Desktop/WebUI behavior | Equivalent actions, queue/safety decisions, receipts, and dynamic-tool state on the exact candidate cohort. | Transport differences may not change product semantics or authority. |
 | Packaged local P0/P1 | Real package, two independent top-level threads, result readback, and negative gates tied to exact App/Shell/Codex fingerprints. | Source tests, mocks, or one-thread resume do not prove packaged closure. |
 | Release isolation | Candidate build remains explicit; active adapter and stable/nightly assets remain unchanged. | Candidate package or local smoke cannot set adoption/release/production/clean-VM ready. |
+| Local GUI and Runtime isolation | Candidate uses a distinct bundle/user-data identity, local launch does not mutate adoption, and Runtime path/version/cohort readback exposes any resolver deviation. | Side-by-side install, host PATH, resume smoke, or shared workspace selection cannot prove Runtime parity or concurrent-write safety. |
 | Remote P2 | Real authenticated hosts complete list/read/send/disconnect recovery with host-scoped receipts. | Local evidence cannot be reused as remote evidence. |
 
 ## Required Verification Route

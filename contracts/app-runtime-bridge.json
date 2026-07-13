@@ -237,7 +237,56 @@
       "rewrite App runtime truth from shell-private state",
       "treat missing managed bootstrap artifacts as first-run UI truth"
     ],
-    "regression": "packaged first-run must expose the /guid ready entry when opl system initialize --json reports ready_to_launch=true even if a stale managed opl shim exists"
+    "regression": "packaged first-run must expose the /guid ready entry when opl system initialize --json reports ready_to_launch=true even if a stale managed opl shim exists",
+    "shared_gui_target": {
+      "implementation_status": "target_not_proven_across_both_shells",
+      "required_executables": [
+        "opl",
+        "codex"
+      ],
+      "identity_readback_schema": "app_runtime_executable_identity.v1",
+      "required_readback_fields": [
+        "opl_path",
+        "opl_version",
+        "codex_path",
+        "codex_version",
+        "runtime_cohort_ref"
+      ],
+      "producer": "app_host_runtime_resolver",
+      "producer_status": "not_implemented"
+    }
+  },
+  "shared_gui_runtime_resolution_policy": {
+    "state": "target_with_native_candidate_deviation",
+    "policy_owner": "one-person-lab-app",
+    "runtime_identity_owner": "one-person-lab",
+    "resolver_source": "contracts/app-runtime-bridge.json#command_resolution_policy.shared_gui_target",
+    "logical_control_plane_shared": true,
+    "same_cohort_runtime_identity_required_for_parity": true,
+    "host_path_only_resolution_can_prove_parity": false,
+    "active_aionui_status": "managed_or_packaged_runtime_resolution",
+    "opl_native_workbench_status": "host_path_resolution_current_deviation",
+    "same_physical_runtime_currently_claimed": false,
+    "implementation_status": "target_not_proven_across_both_shells"
+  },
+  "canonical_conversation_continuity_policy": {
+    "state": "target_with_current_shell_deviations",
+    "thread_truth_owner": "codex_core_app_server",
+    "canonical_identity": "host_identity_plus_opaque_app_server_thread_id",
+    "required_operations": [
+      "thread/list",
+      "thread/read",
+      "thread/resume"
+    ],
+    "shell_local_storage_role": "ui_preferences_drafts_and_rebuildable_cache_only",
+    "shell_can_own_thread_history": false,
+    "direct_cross_shell_private_store_access_allowed": false,
+    "duplicate_thread_store_allowed": false,
+    "simultaneous_same_thread_write_safety_claimed": false,
+    "active_aionui_status": "shell_local_conversation_repository_requires_canonical_projection",
+    "opl_native_workbench_status": "resume_capable_full_local_transcript_cache_requires_canonical_thread_directory",
+    "acceptance": "both_shells_project_the_same_app_server_thread_directory_and_resume_by_canonical_identity",
+    "implementation_status": "target_not_proven_across_both_shells"
   },
   "live_conformance_gate": {
     "owner": "one-person-lab-app",

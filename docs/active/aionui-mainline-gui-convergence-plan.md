@@ -152,3 +152,6 @@ package/user path 尚未验证；`release_ready=false` 与 `parity_1_to_1=false`
 - 不用 Settings 完成度替代 P0/P1 主体验；
 - 不把 Native candidate、Team、French locale、AionCore intake 或 release promotion 混入
   core GUI 收敛。
+- 本机启动 Native candidate 不改变 AionUI 的 active release-shell 身份或本计划范围；
+  GUI 选择命令、共享/隔离矩阵和 candidate adoption 统一由
+  `docs/product/gui/gui-shell-candidates.md` 管理。

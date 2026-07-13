@@ -20,7 +20,9 @@ fork-local 产品逻辑。
 - App repo 定义产品、profile、page-state 和验收边界；
 - shell 负责 renderer、platform integration、bridge、i18n/CSS 和 focused tests；
 - Framework/domain/release owners 继续拥有各自 truth；
-- carrier 可以替换，产品语义和 action/state contract 不随 carrier 分叉。
+- carrier 可以替换，产品语义和 action/state contract 不随 carrier 分叉；
+- 多个 GUI 是同一逻辑控制面的独立 client，不共享 renderer dependency tree 或 GUI 私有
+  database；本机 launch selection 与正式 release-shell adoption 是两条独立路径。
 
 “不降级”只保护已进入 OPL App contracts、ordinary routes 或正式用户路径的能力。
 AionUI fork 中存在但未被 OPL 采纳的 Team、provider/backend、任意 skills/MCP、Sites/Chat
@@ -35,7 +37,8 @@ AionUI fork 中存在但未被 OPL 采纳的 Team、provider/backend、任意 sk
 2. 默认值和 generated config：`contracts/app-product-profile.json`。
 3. 页面状态与显示边界：`contracts/app-page-state-matrix.json`。
 4. Settings registry/route/action：`contracts/app-settings-control-plane.json`。
-5. Shell selection 和 adapter：active/candidate adapter contract。
+5. Release-shell adoption 与 local launch selection：active/candidate adapter contract、
+   `contracts/app-shell-candidates.json#interactive_launcher_policy`。
 6. 理想交互与视觉：[`ideal-interaction-spec.md`](ideal-interaction-spec.md)、
    [`visual-system.md`](visual-system.md)。
 7. 当前差距与验证入口：
@@ -64,6 +67,28 @@ contract/实现收敛 lane 处理。
 
 只有在现有 primitive 无法表达 App contract 时才新增 shell-local component。新增组件
 应围绕一个明确 slot 或 page-state，而不是创建未来可能使用的 framework。
+
+## 多 GUI 运行边界
+
+[`gui-shell-candidates.md`](gui-shell-candidates.md) 是本机 GUI 选择的操作 owner。Shell
+实现只需满足下面的 client contract：
+
+- App-root launcher 按 `shell id + mode` 选择本次启动目标，默认目标来自 active adapter；
+  launcher 不得改写 active adapter、release role 或 updater channel。
+- 每个 shell 保持独立 bundle id、checkout、lockfile、依赖树和 GUI user-data root；不要
+  为复用而共享 `node_modules`、SQLite、localStorage 或 renderer store。
+- 两个 shell 最终都必须通过 App command-resolution policy 取得 OPL/Codex executable。
+  当前若只从 inherited PATH 解析，必须报告 current deviation，不能声明 same-runtime parity。
+- Runtime readback 至少绑定 OPL/Codex path、version 和 cohort ref。Shell-local cache 不得
+  覆盖 resolver readback，也不得把缺失 readback 改写成 ready。
+- Codex Core/App Server 拥有 thread history 和 opaque thread id。两个 shell 最终都从
+  `thread/list/read/resume` 投影 conversation directory；本地存储仅用于 UI preferences、
+  draft 和可重建 cache，不得直接读取另一个 GUI 的 private store。
+- 在同一 workspace/thread 的并发写、steer、queue 与 conflict gate 获得 exact-cohort
+  negative evidence 前，只声明 side-by-side install 与 sequential switching，不声明双开安全。
+
+统一 launcher、Runtime resolver 与 conversation continuity 都是 target contract；合同或
+文档存在不代表两个 shell 的实现已经完成。
 
 ## AionUI 最小定制阶梯
 
@@ -212,6 +237,10 @@ command 和可见状态 anchor。
 - 从 module health、Git dirt、active id、缓存或 DOM 推断 runtime/domain readiness。
 - 直接执行 domain CLI、写 artifact body、memory body、owner receipt 或 release truth。
 - 为兼容一个 carrier 新建 App-wide wrapper/factory 或第二 bridge protocol。
+- 用共享 `node_modules`、直接访问另一个 GUI 的 private store 或 PATH-only executable
+  resolution 冒充多 GUI 一致性。
+- 把本机启动 candidate、side-by-side bundle 或 session resume smoke 当成 active-shell
+  adoption、同 Runtime cohort 或并发写安全。
 - 把 Home 做成 dashboard、launcher、activity grid 或三列 scientific workbench。
 - 宽桌面隐藏 project rail，却把该实现现状写成理想目标。
 - 默认打开右侧 inspector，或在窄屏只切换按钮状态而不显示 panel。
@@ -224,6 +253,10 @@ command 和可见状态 anchor。
 
 - App product profile 被读取，模型策略没有 shell-local 分叉；
 - ordinary state/action 只通过 App bridge；
+- local launch selection 不修改 release adoption，shell bundle/user-data identity 保持隔离；
+- OPL/Codex resolver path、version、cohort 有 readback；PATH-only deviation 不被包装成 parity；
+- conversation directory/history 以 App Server thread authority 为准，不创建 shell-owned
+  canonical thread store；
 - Home/chat-first、timeline、composer、rail 和 Environment/details 行为符合对应 target 或被明确
   标成 current deviation；
 - Settings 从 Control Plane registry/slots 渲染，legacy routes 只 redirect；

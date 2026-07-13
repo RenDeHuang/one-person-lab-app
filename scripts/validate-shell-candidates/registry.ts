@@ -48,6 +48,7 @@ export function validateRegistryShape(registry: ShellCandidateRegistry): void {
     throw new Error('Hermes reference candidate policy must keep Hermes out of default foreground scope');
   }
   assertStringArrayIncludes(alternative.archived_technical_proofs, ['agui-codex'], 'alternative_gui_policy.archived_technical_proofs');
+  validateInteractiveLauncherPolicy(registry);
   for (const [label, expected] of Object.entries({
     release_shell_contract: 'contracts/app-shell-adapter.json',
     gui_product_contract: 'contracts/app-gui-product-contract.json',
@@ -101,6 +102,51 @@ export function validateRegistryShape(registry: ShellCandidateRegistry): void {
   }
   validateCandidateNoResurrectionPolicy(registry);
   validateDesignReferences(registry);
+}
+
+function validateInteractiveLauncherPolicy(registry: ShellCandidateRegistry): void {
+  const launcher = registry.interactive_launcher_policy;
+  for (const [field, expected] of Object.entries({
+    state: 'target_contract_implementation_pending',
+    topology: 'single_control_plane_multiple_independent_gui_clients',
+    selection_scope: 'per_local_launch_only',
+    default_target_source: 'contracts/app-shell-adapter.json#active_shell',
+    target_interface: 'app_root_gui_launcher_with_shell_and_mode',
+    target_command: 'npm run gui -- --shell <shell_id> [--mode dev|packaged]',
+    release_adoption_contract: 'contracts/app-shell-adapter.json',
+    missing_target_policy: 'fail_closed_with_actionable_blocker',
+    implementation_status: 'pending',
+  })) {
+    if (launcher?.[field as keyof typeof launcher] !== expected) {
+      throw new Error(`interactive launcher policy ${field} must be ${expected}`);
+    }
+  }
+  const activeShell = registry.active_gui_mainline?.shell;
+  const foregroundShell = registry.alternative_gui_policy?.only_foreground_alternative;
+  const expectedShells = [activeShell, foregroundShell];
+  const selectableShells = launcher?.selectable_shells ?? [];
+  if (
+    !activeShell ||
+    !foregroundShell ||
+    selectableShells.length !== expectedShells.length ||
+    !selectableShells.includes(activeShell) ||
+    !selectableShells.includes(foregroundShell)
+  ) {
+    throw new Error('interactive launcher selectable_shells must be exactly the active mainline and foreground alternative');
+  }
+  for (const field of [
+    'selection_mutates_release_adoption',
+    'candidate_launch_implies_adoption',
+    'selection_changes_updater_channel',
+    'simultaneous_same_workspace_write_safety_claimed',
+  ] as const) {
+    if (launcher?.[field] !== false) {
+      throw new Error(`interactive launcher policy ${field} must remain false`);
+    }
+  }
+  if (launcher?.side_by_side_bundle_identity_required !== true) {
+    throw new Error('interactive launcher policy must require separate side-by-side bundle identities');
+  }
 }
 
 function validateCandidateNoResurrectionPolicy(registry: ShellCandidateRegistry): void {

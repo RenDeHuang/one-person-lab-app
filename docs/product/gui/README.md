@@ -25,6 +25,12 @@ OPL App GUI 使用三层设计体系：
 维护。该 active plan 只组织实施，不拥有三层产品定义，也不能把计划状态提升为 source、
 pixel 或 release 完成。
 
+GUI 运行采用双轴模型：AionUI 继续是 `active release shell`，而本机可以把 AionUI 或
+`opl-native-workbench` 作为一次性的 `local GUI launch target`。启动候选不等于 adoption，
+也不修改 release/updater authority。共享逻辑基座、独立 GUI 状态、统一 launcher 目标和
+当前 Runtime/session 偏差统一见
+[`gui-shell-candidates.md`](gui-shell-candidates.md)，不在本入口复制命令或状态矩阵。
+
 产品方向固定为：**先继承 ChatGPT Codex 的主工作流和空间关系，再增加 OPL
 专业能力**。Rail、单列 conversation、底部 composer 和按需环境详情构成基础壳；
 OPL project context、capabilities、progress、evidence、artifacts 与 safe actions 必须
@@ -54,7 +60,8 @@ current pixels、package、安装或 release readiness。
 
 专题设计继续由现有 owner 文档承接：Settings 见
 [`settings-control-center.md`](settings-control-center.md)，Runtime 见
-[`runtime-overview-redesign.md`](runtime-overview-redesign.md)，候选 shell 的 staged
+[`runtime-overview-redesign.md`](runtime-overview-redesign.md)，GUI client 角色、启动选择与
+adoption 边界见 [`gui-shell-candidates.md`](gui-shell-candidates.md)，候选 shell 的 staged
 计划见对应 candidate plan；Codex Auto 模型策略见
 [`codex-auto-model-policy.md`](codex-auto-model-policy.md)。专题文档不得反向覆盖三层
 体系或 machine contracts。
@@ -193,7 +200,8 @@ artifact、owner acceptance 或 release authority 提供 fresh evidence。
 3. [`ideal-interaction-spec.md`](ideal-interaction-spec.md)
 4. [`visual-system.md`](visual-system.md)
 5. [`element-audit.md`](element-audit.md)
-6. [`shell-implementation-guide.md`](shell-implementation-guide.md)
-7. [`shell-conformance-matrix.md`](shell-conformance-matrix.md)
-8. [`../../active/aionui-mainline-gui-convergence-plan.md`](../../active/aionui-mainline-gui-convergence-plan.md)
-9. [`aionui-41301-delta-audit.md`](aionui-41301-delta-audit.md)（历史 `dbff7370f` 审计）
+6. [`gui-shell-candidates.md`](gui-shell-candidates.md)
+7. [`shell-implementation-guide.md`](shell-implementation-guide.md)
+8. [`shell-conformance-matrix.md`](shell-conformance-matrix.md)
+9. [`../../active/aionui-mainline-gui-convergence-plan.md`](../../active/aionui-mainline-gui-convergence-plan.md)
+10. [`aionui-41301-delta-audit.md`](aionui-41301-delta-audit.md)（历史 `dbff7370f` 审计）
