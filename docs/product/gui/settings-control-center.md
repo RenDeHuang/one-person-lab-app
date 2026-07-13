@@ -30,11 +30,11 @@ readiness, installed App currentness, or owner acceptance.
 Settings presents one product catalog assembled from three owner classes. This
 is a projection protocol, not a second runtime database:
 
-| Owner class | Truth and persistence owner | Examples | App responsibility |
-| --- | --- | --- | --- |
-| `framework` | OPL Framework | workspace root, update channel, developer supervisor, capability Home visibility | Place the Framework item on the correct page and invoke the action exposed by the Framework catalog. Do not copy its current value or redefine its action metadata. |
-| `app_local` | Desktop App or active-shell adapter | model and reasoning preference, startup/window behavior, keep-awake, notifications, upload/Office behavior, fonts, scale and theme | Use the existing App store or bridge and provide local readback. Do not create a second Settings store. |
-| `credential_connection` | Credential, Gateway, remote-access or OPL Connect owner | Codex/Gateway access, remote access and external connections | Display redacted readiness or a credential handle and delegate writes to the owner. Secret bodies never enter the App contract, App state, logs or generic action JSON. |
+| Owner class             | Truth and persistence owner                             | Examples                                                                                                                           | App responsibility                                                                                                                                                      |
+| ----------------------- | ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `framework`             | OPL Framework                                           | workspace root, update channel, developer supervisor, capability Home visibility                                                   | Place the Framework item on the correct page and invoke the action exposed by the Framework catalog. Do not copy its current value or redefine its action metadata.     |
+| `app_local`             | Desktop App or active-shell adapter                     | model and reasoning preference, startup/window behavior, keep-awake, notifications, upload/Office behavior, fonts, scale and theme | Use the existing App store or bridge and provide local readback. Do not create a second Settings store.                                                                 |
+| `credential_connection` | Credential, Gateway, remote-access or OPL Connect owner | Codex/Gateway access, remote access and external connections                                                                       | Display redacted readiness or a credential handle and delegate writes to the owner. Secret bodies never enter the App contract, App state, logs or generic action JSON. |
 
 Every item has one stable id, one page and anchor, one truth owner, one write
 route, one persistence target and one verification route. Framework items are
@@ -67,20 +67,20 @@ deleting the underlying AionUI data.
 Product page ids are stable product semantics. Carrier route ids remain stable
 implementation ids so the shell can migrate without changing user-facing IA.
 
-| Product page   | Chinese label | Carrier route  | Path                     | Scope     |
-| -------------- | ------------- | -------------- | ------------------------ | --------- |
-| `overview`     | 概览          | `general`      | `/settings/general`      | ordinary  |
-| `access`       | 模型与访问    | `access`       | `/settings/access`       | ordinary  |
-| `workspace`    | 工作区        | `workspace`    | `/settings/workspace`    | ordinary  |
-| `agents`       | 智能体        | `agents`       | `/settings/agents`       | ordinary  |
-| `capabilities` | 能力          | `capabilities` | `/settings/capabilities` | ordinary  |
-| `resources`    | 资源与连接    | `resources`    | `/settings/resources`    | ordinary  |
-| `maintenance`  | 本机环境      | `environment`  | `/settings/environment`  | ordinary  |
-| `storage`      | 数据与存储    | `storage`      | `/settings/storage`      | ordinary  |
-| `preferences`  | 偏好          | `appearance`   | `/settings/appearance`   | ordinary  |
-| `personalization` | 个性化      | `personalization` | `/settings/personalization` | ordinary |
-| `advanced`     | 高级          | `advanced`     | `/settings/advanced`     | secondary |
-| `about`        | 关于          | `about`        | `/settings/about`        | secondary |
+| Product page      | Chinese label | Carrier route     | Path                        | Scope     |
+| ----------------- | ------------- | ----------------- | --------------------------- | --------- |
+| `overview`        | 概览          | `general`         | `/settings/general`         | ordinary  |
+| `access`          | 模型与访问    | `access`          | `/settings/access`          | ordinary  |
+| `workspace`       | 工作区        | `workspace`       | `/settings/workspace`       | ordinary  |
+| `agents`          | 智能体        | `agents`          | `/settings/agents`          | ordinary  |
+| `capabilities`    | 能力          | `capabilities`    | `/settings/capabilities`    | ordinary  |
+| `resources`       | 资源与连接    | `resources`       | `/settings/resources`       | ordinary  |
+| `maintenance`     | 本机环境      | `environment`     | `/settings/environment`     | ordinary  |
+| `storage`         | 数据与存储    | `storage`         | `/settings/storage`         | ordinary  |
+| `preferences`     | 偏好          | `appearance`      | `/settings/appearance`      | ordinary  |
+| `personalization` | 个性化        | `personalization` | `/settings/personalization` | ordinary  |
+| `advanced`        | 高级          | `advanced`        | `/settings/advanced`        | secondary |
+| `about`           | 关于          | `about`           | `/settings/about`           | secondary |
 
 `secondary_pages` contains only `advanced` and `about`. About is an independent
 page and must never be redirected to Advanced.
@@ -152,8 +152,9 @@ they do not permit a page-wide list wall.
 - cards remain in the normal document flow and do not become floating dashboard tiles;
 - page-wide list walls, a sparse stack of bare horizontal dividers, and a
   decorative card wall that fragments one user question are forbidden;
-- the compact footer contains only return-to-chat and theme-switcher controls;
-  it is not a second account/help navigation group;
+- the compact Settings footer contains only the theme-switcher control; returning
+  to the previous App surface uses the existing title-bar navigation and the
+  footer is not a second return/account/help navigation group;
 - the theme gallery uses recognizable preview tiles, never a flat swatch list;
 - maximum border radius is 8 px;
 - spacing uses 12 / 16 / 24 px;
@@ -312,8 +313,8 @@ Primary information:
 - persisted Auto or fixed-model selection and reasoning effort;
 - OPL Gateway account login and manual API-key paths, with neither path removing
   the other;
-- when an account is connected, a compact account card showing only masked
-  identity, balance, today/total Token usage, today/total actual cost, managed
+- when an account is connected, a compact account card showing the full public
+  account identity, balance, today/total Token usage, today/total actual cost, managed
   Key name/status, and freshness;
 - OPL Gateway, Codex CLI, and account or API-key state.
 
@@ -328,10 +329,17 @@ action.
 
 Gateway account state is read only from
 `app_state.settings_control_center.app_settings_read_model.opl_gateway_account`.
-The Framework owns its 15-minute cache. Page entry shows cached data first and
-refreshes once when stale; manual refresh bypasses the TTL, while network errors
-keep the prior values and mark them stale. `auth_expired` asks the user to log in
-again. `managed_key_missing`, `managed_key_conflict`,
+The Framework owns its 15-minute canonical cache. The renderer may persist only
+the projection's declared top-level and nested allowlists as a derived
+last-known-good bootstrap copy. Page entry shows that account immediately and
+refreshes in the background; a pending or failed refresh must not temporarily
+replace it with the logged-out card. Manual refresh bypasses the TTL, network
+errors keep the prior values and mark or report them stale, and only an
+authoritative readback confirming a new projection replaces the bootstrap copy.
+An older renderer cache that predates the account projection keeps account state
+unresolved until that readback instead of rendering the signed-out action.
+`auth_expired` asks the user to log in again while preserving the non-secret
+snapshot. `managed_key_missing`, `managed_key_conflict`,
 `managed_key_identity_drift`, and `disconnect_pending` expose only their
 declared Framework repair actions.
 

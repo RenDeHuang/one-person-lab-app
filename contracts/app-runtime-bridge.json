@@ -129,6 +129,14 @@
       "network_failure": "preserve_cached_values_and_mark_stale",
       "auth_expired": "preserve_non_secret_snapshot_and_offer_relogin"
     },
+    "renderer_bootstrap_cache": {
+      "role": "derived_last_known_good_projection_not_truth",
+      "field_policy": "persist_projection_top_level_and_nested_allowlists_only",
+      "initial_render": "show_cached_account_before_background_refresh",
+      "legacy_cache_without_projection": "keep_account_state_resolving_until_authoritative_readback",
+      "refresh_failure": "retain_cached_account_and_surface_stale_or_error",
+      "invalidation": "replace_only_after_authoritative_readback_confirms_new_projection"
+    },
     "error_codes": [
       "invalid_credentials",
       "account_disabled",
@@ -253,16 +261,8 @@
           "agent_package_preferences_set"
         ],
         "required_projection_fields": {
-          "runtime_source_carriers.items[package_id]": [
-            "source_origin",
-            "source_path",
-            "source_policy",
-            "git"
-          ],
-          "directory.installed_packages[]": [
-            "dependency_closure",
-            "dependent_guard"
-          ],
+          "runtime_source_carriers.items[package_id]": ["source_origin", "source_path", "source_policy", "git"],
+          "directory.installed_packages[]": ["dependency_closure", "dependent_guard"],
           "status_index.packages[package_id]": [
             "dependency_readiness",
             "operational_ready",
@@ -315,10 +315,7 @@
         "aion_display_role": "Preferences instructions and session context editor",
         "workbench_display_role": "Preferences instructions and session context editor",
         "action_owner_boundary": "Framework safely reads and writes the user-owned Codex AGENTS.md; App profile and App-local settings own new-conversation context generation and customization",
-        "allowed_action_refs": [
-          "codex_user_instructions_set",
-          "codex_user_instructions_restore_opl_flow_default"
-        ],
+        "allowed_action_refs": ["codex_user_instructions_set", "codex_user_instructions_restore_opl_flow_default"],
         "sensitive_payload_transport": "stdin_only_not_command_line_or_logs",
         "required_projection_fields": {
           "app_state.codex_personalization.user_agents": [
@@ -353,14 +350,7 @@
     "adapter_responsibility": "resolve_healthy_opl_cli_before_running_declared_surfaces",
     "managed_opl_priority": "prefer_only_when_shim_targets_existing_cli_payload",
     "broken_managed_shim_policy": "skip_and_fall_through_to_system_opl",
-    "system_opl_fallback_paths": [
-      "/opt/homebrew/bin",
-      "/usr/local/bin",
-      "/usr/bin",
-      "/bin",
-      "/usr/sbin",
-      "/sbin"
-    ],
+    "system_opl_fallback_paths": ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin", "/usr/sbin", "/sbin"],
     "must_not": [
       "let stale managed Node opl shims shadow a healthy system opl",
       "rewrite App runtime truth from shell-private state",
@@ -369,18 +359,9 @@
     "regression": "packaged first-run must expose the /guid ready entry when opl system initialize --json reports ready_to_launch=true even if a stale managed opl shim exists",
     "shared_gui_target": {
       "implementation_status": "candidate_launcher_runtime_identity_implemented_active_shell_parity_not_proven",
-      "required_executables": [
-        "opl",
-        "codex"
-      ],
+      "required_executables": ["opl", "codex"],
       "identity_readback_schema": "app_runtime_executable_identity.v1",
-      "required_readback_fields": [
-        "opl_path",
-        "opl_version",
-        "codex_path",
-        "codex_version",
-        "runtime_cohort_ref"
-      ],
+      "required_readback_fields": ["opl_path", "opl_version", "codex_path", "codex_version", "runtime_cohort_ref"],
       "producer": "app_host_runtime_resolver",
       "producer_status": "implemented_for_local_gui_launcher"
     }
@@ -402,11 +383,7 @@
     "state": "target_with_current_shell_deviations",
     "thread_truth_owner": "codex_core_app_server",
     "canonical_identity": "host_identity_plus_opaque_app_server_thread_id",
-    "required_operations": [
-      "thread/list",
-      "thread/read",
-      "thread/resume"
-    ],
+    "required_operations": ["thread/list", "thread/read", "thread/resume"],
     "shell_local_storage_role": "ui_preferences_drafts_and_rebuildable_cache_only",
     "shell_can_own_thread_history": false,
     "direct_cross_shell_private_store_access_allowed": false,
@@ -508,11 +485,7 @@
         "source_owner": "one-person-lab",
         "producer_owner": "one-person-lab",
         "consumer_role": "App displays plan, approval, execution, monitor, collect, usage, and receipt refs without owning compute, storage, environment, connector, billing, or Console policy truth.",
-        "forbidden_second_truth": [
-          "app_compute_scheduler",
-          "shell_storage_authority",
-          "homebrew_resource_currentness"
-        ]
+        "forbidden_second_truth": ["app_compute_scheduler", "shell_storage_authority", "homebrew_resource_currentness"]
       },
       {
         "surface": "Local data lifecycle",
@@ -554,12 +527,7 @@
       "scope_source",
       "inferred_scope_hint"
     ],
-    "summary_fields": [
-      "running_task_count",
-      "active_project_count",
-      "queued_project_count",
-      "attention_count"
-    ],
+    "summary_fields": ["running_task_count", "active_project_count", "queued_project_count", "attention_count"],
     "primary_state_summary_fields": [
       "in_progress_count",
       "delivered_auto_paused_count",
@@ -569,11 +537,7 @@
       "automation_running_count"
     ],
     "primary_state_fields": ["primary_state", "primary_state_label", "primary_state_reason"],
-    "automation_state_fields": [
-      "automation_state",
-      "automation_state_label",
-      "automation_state_reason"
-    ],
+    "automation_state_fields": ["automation_state", "automation_state_label", "automation_state_reason"],
     "primary_state_values": [
       "in_progress",
       "delivered_auto_paused",
@@ -672,11 +636,7 @@
     "agent_module_status_panel": {
       "source": "task capability/module refs separated from task liveness",
       "display_policy": "render agent, capability, connector, and module status in a dedicated panel instead of mixing them into stage/run telemetry; explain dirty or missing states in plain language and suppress zero-workload/no-activity filler",
-      "required_ref_fields": [
-        "connector_readiness_refs",
-        "diagnostic_substrate_refs",
-        "gateway_status_ref"
-      ],
+      "required_ref_fields": ["connector_readiness_refs", "diagnostic_substrate_refs", "gateway_status_ref"],
       "optional_ref_fields": ["capability_health_refs"],
       "telemetry_missing_copy": "module status unavailable"
     },
@@ -720,12 +680,7 @@
       "needs_user_or_system",
       "data_freshness"
     ],
-    "default_task_row_spine": [
-      "project_and_work_item",
-      "status",
-      "progress_and_next_step",
-      "elapsed_and_tokens"
-    ],
+    "default_task_row_spine": ["project_and_work_item", "status", "progress_and_next_step", "elapsed_and_tokens"],
     "default_page_sections": [
       "top_scope_and_refresh",
       "freshness_summary",
@@ -772,11 +727,7 @@
         "refresh_action",
         "last_state_read_at"
       ],
-      "freshness_summary": [
-        "freshness.state",
-        "freshness.observed_at",
-        "freshness.last_progress_at"
-      ],
+      "freshness_summary": ["freshness.state", "freshness.observed_at", "freshness.last_progress_at"],
       "work_item_list": [
         "identity.agent_display_name",
         "identity.project_display_name",
@@ -790,10 +741,7 @@
         "action.title",
         "action.owner"
       ],
-      "agent_availability_panel": [
-        "agent_availability.display_name",
-        "agent_availability.availability"
-      ]
+      "agent_availability_panel": ["agent_availability.display_name", "agent_availability.availability"]
     },
     "default_label_policy": {
       "purpose": "default_cockpit_uses_human_labels_not_runtime_identifiers",
@@ -816,20 +764,9 @@
         "raw_stage_id",
         "raw_owner_route"
       ],
-      "humanization_targets": [
-        "agent_or_module_ids",
-        "owner_ids",
-        "stage_ids",
-        "technical_next_step_routes"
-      ],
+      "humanization_targets": ["agent_or_module_ids", "owner_ids", "stage_ids", "technical_next_step_routes"],
       "default_copy_examples": {
-        "agent_or_module": [
-          "Med Auto Science",
-          "Med Auto Grant",
-          "RedCube AI",
-          "OPL Meta Agent",
-          "OPL Book Forge"
-        ],
+        "agent_or_module": ["Med Auto Science", "Med Auto Grant", "RedCube AI", "OPL Meta Agent", "OPL Book Forge"],
         "stage": ["投稿包后续处理", "同步项目状态", "复核运行结果"],
         "telemetry_missing": ["用量未记录", "Usage not recorded"]
       }
@@ -944,11 +881,7 @@
       "forbidden_ids": ["mas", "med-autoscience", "med_auto_science"]
     },
     "scope_source_values": ["default_global", "user_selected", "inferred"],
-    "forbidden_claims": [
-      "current_workspace_only_truth",
-      "shell_private_scope_state",
-      "domain_truth_override"
-    ],
+    "forbidden_claims": ["current_workspace_only_truth", "shell_private_scope_state", "domain_truth_override"],
     "app_role": "display_only_scope_projection_consumer"
   },
   "work_item_projection": {
@@ -988,13 +921,7 @@
         "execution_fallback_allowed": false
       },
       "lifecycle": {
-        "required_fields": [
-          "business_state",
-          "primary_state",
-          "primary_state_label",
-          "reason",
-          "last_transition_at"
-        ],
+        "required_fields": ["business_state", "primary_state", "primary_state_label", "reason", "last_transition_at"],
         "business_states": ["active", "delivered_paused", "paused", "stopped", "archived"],
         "primary_state_labels_zh_cn": {
           "automatically_advancing": "自动推进中",
@@ -1040,13 +967,7 @@
         "states": ["observed", "partial", "missing", "stale"],
         "token_observation": {
           "states": ["observed", "missing", "stale"],
-          "observed_required_fields": [
-            "input_tokens",
-            "output_tokens",
-            "total_tokens",
-            "source",
-            "observed_at"
-          ],
+          "observed_required_fields": ["input_tokens", "output_tokens", "total_tokens", "source", "observed_at"],
           "missing_required_fields": ["reason"]
         },
         "missing_may_render_as_zero": false,
@@ -1095,26 +1016,13 @@
         "last_transition_time",
         "observed_generation"
       ],
-      "standard_types": [
-        "Running",
-        "Succeeded",
-        "NeedsUserDecision",
-        "NeedsSystemRepair",
-        "Paused",
-        "TelemetryFresh"
-      ],
+      "standard_types": ["Running", "Succeeded", "NeedsUserDecision", "NeedsSystemRepair", "Paused", "TelemetryFresh"],
       "display_policy": "one_line_reason_on_default_row_message_in_detail",
       "raw_reason_advanced_only": true
     },
     "stage_catalog_contract": {
       "source": "agent_package.stage_catalog",
-      "required_fields": [
-        "stage_id",
-        "display_name",
-        "description",
-        "owner_kind",
-        "next_action_template"
-      ],
+      "required_fields": ["stage_id", "display_name", "description", "owner_kind", "next_action_template"],
       "catalog_owner": "agent_package",
       "fallback_policy": "if_catalog_missing_show_humanized_stage_id_and_mark_stage_catalog_missing",
       "app_hardcoded_stage_names_allowed": false
@@ -1122,13 +1030,7 @@
     "action_envelope_contract": {
       "surface_kind": "opl_action_envelope",
       "default_action_source": "current_owner_delta_or_task_action_cards",
-      "action_kinds": [
-        "user_action",
-        "system_action",
-        "agent_action",
-        "safe_action",
-        "blocked_no_action"
-      ],
+      "action_kinds": ["user_action", "system_action", "agent_action", "safe_action", "blocked_no_action"],
       "required_fields": ["kind", "title", "owner", "summary", "action_ref", "dry_run_required"],
       "default_row_fields": ["kind", "title", "owner"],
       "mutating_actions_require_app_action_route": true,
@@ -1147,24 +1049,8 @@
       "secondary_sections": ["artifacts", "timeline", "evidence"],
       "diagnostic_sections": ["raw_refs", "raw_ids", "logs", "provider_diagnostics"],
       "equal_weight_tab_wall_allowed": false,
-      "stage_map_fields": [
-        "stage_id",
-        "display_name",
-        "state",
-        "owner",
-        "elapsed",
-        "usage",
-        "next_action"
-      ],
-      "timeline_event_fields": [
-        "event_id",
-        "event_type",
-        "at",
-        "stage_id",
-        "owner",
-        "summary",
-        "ref"
-      ],
+      "stage_map_fields": ["stage_id", "display_name", "state", "owner", "elapsed", "usage", "next_action"],
+      "timeline_event_fields": ["event_id", "event_type", "at", "stage_id", "owner", "summary", "ref"],
       "timeline_event_types": [
         "stage_entered",
         "attempt_started",
@@ -1310,12 +1196,7 @@
       ],
       "console_management_policy": "Console-managed refs may indicate organization policy, quota, billing, or permission ownership; user-provided local/SSH/HPC refs remain self-managed unless the projection states otherwise",
       "app_role": "display_only_resource_context_consumer",
-      "console_management_ref_fields": [
-        "console_policy_ref",
-        "quota_ref",
-        "billing_ref",
-        "permission_ref"
-      ],
+      "console_management_ref_fields": ["console_policy_ref", "quota_ref", "billing_ref", "permission_ref"],
       "environment_catalog_policy": {
         "source": "same_task_awareness_projection_optional_environment_refs",
         "display_policy": "read_only_environment_catalog_refs_for_template_version_source_and_task_fit",
@@ -1413,23 +1294,8 @@
         "active_stage_label",
         "active_run_ref"
       ],
-      "progress": [
-        "progress_label",
-        "current_step",
-        "last_progress_at",
-        "progress_ref",
-        "stage_ref"
-      ],
-      "conditions": [
-        "type",
-        "status",
-        "reason",
-        "message",
-        "severity",
-        "owner",
-        "last_transition_time",
-        "ref"
-      ],
+      "progress": ["progress_label", "current_step", "last_progress_at", "progress_ref", "stage_ref"],
+      "conditions": ["type", "status", "reason", "message", "severity", "owner", "last_transition_time", "ref"],
       "evidence_cards": [
         "card_id",
         "kind",
@@ -1609,11 +1475,7 @@
           "system_attention_required"
         ],
         "collapsed_groups": ["delivered_auto_paused", "paused_waiting_for_direction"],
-        "secondary_badge_fields": [
-          "automation_state_label",
-          "active_stage_label",
-          "last_progress_at"
-        ]
+        "secondary_badge_fields": ["automation_state_label", "active_stage_label", "last_progress_at"]
       },
       "project_group_expansion_policy": {
         "running_group_default": "expanded",
@@ -1650,12 +1512,7 @@
         "stage_attempt_ids",
         "next_visible_step"
       ],
-      "must_not_claim": [
-        "active_worker_run",
-        "provider_execution_running",
-        "domain_ready",
-        "paper_quality_ready"
-      ]
+      "must_not_claim": ["active_worker_run", "provider_execution_running", "domain_ready", "paper_quality_ready"]
     },
     "app_role": "display_only_project_progress_consumer",
     "forbidden_running_task_sources": [
@@ -1669,11 +1526,7 @@
     "source": "app_state.operator.workbench.task_drilldowns.progress_delta_classification",
     "authority": "opl_framework_shared_progress_projection",
     "display_policy": "classification_only_no_domain_artifact_body",
-    "required_fields": [
-      "deliverable_progress_delta",
-      "platform_repair_delta",
-      "progress_delta_classification"
-    ],
+    "required_fields": ["deliverable_progress_delta", "platform_repair_delta", "progress_delta_classification"],
     "deliverable_progress_source": "deliverable_progress_delta",
     "platform_repair_source": "platform_repair_delta",
     "classification_source": "progress_delta_classification",
@@ -1734,13 +1587,7 @@
       "opl app state --profile full --json",
       "opl runtime app-operator-drilldown --task <task_id> --json"
     ],
-    "required_ref_fields": [
-      "state_index_ref",
-      "stage_folder_ref",
-      "task_ref",
-      "owner_ref",
-      "updated_at"
-    ],
+    "required_ref_fields": ["state_index_ref", "stage_folder_ref", "task_ref", "owner_ref", "updated_at"],
     "optional_ref_fields": [
       "artifact_index_refs",
       "receipt_index_refs",
@@ -1898,13 +1745,7 @@
     "user_path": "user_drops_pdf_or_file_and_states_goal",
     "display_policy": "source_material_refs_and_provenance_only_no_pdf_body_no_parse_quality_no_domain_verdict",
     "handoff_policy": "framework_ingest_receipts_route_source_refs_to_professional_agent_package_for_domain_work",
-    "domain_consumers": [
-      "med-autoscience",
-      "med-autogrant",
-      "redcube-ai",
-      "opl-bookforge",
-      "opl-meta-agent"
-    ],
+    "domain_consumers": ["med-autoscience", "med-autogrant", "redcube-ai", "opl-bookforge", "opl-meta-agent"],
     "reference_design_consumer": "opl-meta-agent",
     "required_ref_fields": [
       "source_material_refs",
@@ -1922,13 +1763,7 @@
       "domain_handoff_ref",
       "reference_design_distillation_ref"
     ],
-    "allowed_input_labels": [
-      "PDF",
-      "file",
-      "folder",
-      "URL",
-      "notes"
-    ],
+    "allowed_input_labels": ["PDF", "file", "folder", "URL", "notes"],
     "conversation_surfaces": [
       "guid_home.file_attachment_control",
       "ordinary_conversation.current_task_slice",
@@ -2083,12 +1918,7 @@
     "inspiration": "OpenScience product pattern",
     "mode_label_policy": {
       "adapted_source_modes": ["Science", "Medical Evidence", "Goal", "Knowledge Distillation"],
-      "app_display_terms": [
-        "Science workspace",
-        "Medical evidence",
-        "Goal tracking",
-        "Knowledge distillation"
-      ],
+      "app_display_terms": ["Science workspace", "Medical evidence", "Goal tracking", "Knowledge distillation"],
       "mode_labels_are_navigation_only": true,
       "medical_evidence_authority_owner": "domain_agent",
       "can_authorize_medical_advice": false,
@@ -2157,11 +1987,7 @@
     "derived_from": "current_owner_delta",
     "authority": "opl_framework_current_owner_delta_refs_projection",
     "display_policy": "refs_only_stage_run_cockpit_display_guard_no_runtime_truth_claims",
-    "accepted_fast_state_fields": [
-      "stage_run_cockpit",
-      "stage_run_cockpit_summary",
-      "stage_run_current_owner_delta"
-    ],
+    "accepted_fast_state_fields": ["stage_run_cockpit", "stage_run_cockpit_summary", "stage_run_current_owner_delta"],
     "required_ref_fields": [
       "task_id",
       "stage_id",
@@ -2180,12 +2006,7 @@
       "typed_blocker_owner",
       "typed_blocker_resolution_ref"
     ],
-    "summary_fields": [
-      "current_owner",
-      "required_delta",
-      "next_safe_action_ref",
-      "artifact_or_blocker_refs"
-    ],
+    "summary_fields": ["current_owner", "required_delta", "next_safe_action_ref", "artifact_or_blocker_refs"],
     "preferred_panel_fields": [
       "current stage",
       "elapsed",
@@ -2264,11 +2085,7 @@
       "latest_running_provider_heartbeat_at",
       "running_provider_attempt_summary_policy"
     ],
-    "allowed_derivation_sources": [
-      "family_runtime_queue_task",
-      "stage_attempt_ledger",
-      "provider_run_projection"
-    ],
+    "allowed_derivation_sources": ["family_runtime_queue_task", "stage_attempt_ledger", "provider_run_projection"],
     "forbidden_sources": [
       "app_state.operator.workbench.domain_lane_map",
       "app_state.operator.workbench.task_drilldowns when active_stage_id is module_runtime",
