@@ -40,6 +40,10 @@ test('WorkItemProjection V2 requires all eight axes and observed-only Token sema
     (projection: any) => { projection.field_contracts.attention.system_attention_requires_current_generation = false; },
     (projection: any) => { projection.field_contracts.telemetry.missing_may_render_as_zero = true; },
     (projection: any) => { projection.field_contracts.telemetry.token_progress_bar_allowed = true; },
+    (projection: any) => { projection.diagnostic_envelope_contract.diagnostics_items_field_required = false; },
+    (projection: any) => { projection.diagnostic_envelope_contract.fast_profile_nonzero_count_with_empty_items_is_valid = false; },
+    (projection: any) => { projection.diagnostic_envelope_contract.fast_profile_embedded_item_count_must_not_exceed_count = false; },
+    (projection: any) => { projection.diagnostic_envelope_contract.valid_summary_only_preserves_projects_and_work_items = false; },
   ]) {
     const projection = structuredClone(runtimeBridge().work_item_projection);
     mutate(projection);
@@ -80,6 +84,10 @@ test('Runtime product rejects list, status, detail, availability, and renderer r
     (contract: any) => { contract.renderer_policy.status_derivation_allowed = true; },
     (contract: any) => { contract.renderer_policy.technical_execution_stage_may_replace_business_stage = true; },
     (contract: any) => { contract.progressive_disclosure.raw_technical_fields_default_visible = true; },
+    (contract: any) => { contract.diagnostic_projection.diagnostics_items_field_required = false; },
+    (contract: any) => { contract.diagnostic_projection.fast_profile_nonzero_count_with_empty_items_is_valid = false; },
+    (contract: any) => { contract.diagnostic_projection.fast_profile_embedded_item_count_must_not_exceed_count = false; },
+    (contract: any) => { contract.diagnostic_projection.valid_summary_only_preserves_projects_and_work_items = false; },
   ]) {
     const gui = runtimeContract();
     mutate(gui.pages.runtime_status.runtime_cockpit_product_contract);

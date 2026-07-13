@@ -4395,6 +4395,15 @@
           ],
           "raw_technical_fields_default_visible": false
         },
+        "diagnostic_projection": {
+          "diagnostics_items_field_required": true,
+          "fast_profile_detail_policy": "summary_only",
+          "fast_profile_nonzero_count_with_empty_items_is_valid": true,
+          "fast_profile_embedded_item_count_must_not_exceed_count": true,
+          "full_profile_detail_policy": "included",
+          "included_count_must_equal_embedded_item_count": true,
+          "valid_summary_only_preserves_projects_and_work_items": true
+        },
         "renderer_policy": {
           "shell_role": "thin_renderer",
           "projection_inference_allowed": false,

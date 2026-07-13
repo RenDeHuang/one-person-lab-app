@@ -157,6 +157,12 @@ Token，但不能改写业务阶段或 lifecycle 状态。
 并输出截图；详情 drawer 另存截图，证明 Stage Map 首屏可见且 artifacts、timeline、evidence、
 diagnostics 默认折叠。静态 fixture 证据属于 Shell consumer 验收，不等于 live runtime 证据。
 
+Fast profile 的诊断采用渐进披露：`diagnostics.items` 字段仍须存在，但可以是空数组或只含
+部分详情；`diagnostics.count` 报告完整诊断总数，并声明 `detail_policy=summary_only`。内嵌详情
+数量不得超过总数，但不要求与总数相等。这是一份有效的默认页投影，Shell 必须保留
+`project_catalog` 和 `items`，不得因为诊断详情未内嵌而隐藏项目或工作项。只有显式 full
+profile 声明 `detail_policy=included` 时，诊断总数才必须与内嵌详情数量一致。
+
 ### Token
 
 默认显示当前 stage 与任务累计两项。每项 Token 是判别联合：

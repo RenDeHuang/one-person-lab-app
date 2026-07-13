@@ -382,6 +382,19 @@ export function validateWorkItemProjectionContract(projection, label) {
   ) {
     throw new Error(`${label} token telemetry must be observed-only with no fabricated zero or limit bar`);
   }
+  for (const [field, expected] of Object.entries({
+    diagnostics_items_field_required: true,
+    fast_profile_detail_policy: "summary_only",
+    fast_profile_nonzero_count_with_empty_items_is_valid: true,
+    fast_profile_embedded_item_count_must_not_exceed_count: true,
+    full_profile_detail_policy: "included",
+    included_count_must_equal_embedded_item_count: true,
+    valid_summary_only_preserves_projects_and_work_items: true,
+  })) {
+    if (projection.diagnostic_envelope_contract?.[field] !== expected) {
+      throw new Error(`${label} diagnostic_envelope_contract.${field} must be ${expected}`);
+    }
+  }
   assertDeepEqualJson(
     projection.default_display_fields,
     [

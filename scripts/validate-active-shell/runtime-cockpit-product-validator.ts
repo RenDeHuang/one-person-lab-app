@@ -68,6 +68,7 @@ const runtimeCockpitRequiredInvariants = [
   'system_attention_requires_complete_current_responsibility',
   'observed_token_usage_missing_never_zero_no_limit_progress',
   'detail_primary_secondary_diagnostic_hierarchy',
+  'fast_diagnostics_summary_only_preserves_projects_and_work_items',
   'agent_availability_separate_full_names_collapsed_when_healthy',
   'thin_renderer_no_raw_ids_or_projection_inference',
   'responsive_layout_has_no_horizontal_page_overflow',
@@ -222,6 +223,20 @@ export function validateRuntimeCockpitProductContract(contract, label) {
       work_item_state_may_infer_availability: false,
     },
     `${label}.state_separation`,
+  );
+
+  assertExpectedFields(
+    contract.diagnostic_projection,
+    {
+      diagnostics_items_field_required: true,
+      fast_profile_detail_policy: 'summary_only',
+      fast_profile_nonzero_count_with_empty_items_is_valid: true,
+      fast_profile_embedded_item_count_must_not_exceed_count: true,
+      full_profile_detail_policy: 'included',
+      included_count_must_equal_embedded_item_count: true,
+      valid_summary_only_preserves_projects_and_work_items: true,
+    },
+    `${label}.diagnostic_projection`,
   );
 
   assertDeepEqualJson(
