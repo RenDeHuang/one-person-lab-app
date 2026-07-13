@@ -39,21 +39,25 @@ OPL project context、capabilities、跨顶层线程协调、progress、evidence
 当前人读观察基准是本机 ChatGPT macOS `26.707.41301`（观察于 `2026-07-11`）。
 App machine authority 已升为 baseline schema v2；最低已验证 AionUI GUI conformance ancestor 是
 `a0ce713b65801fd9ca7f46ad168c977c75a187de`，当前 Shell HEAD 必须从 active checkout Git
-readback 获取，不复制进本目录的人读文档。`0ebc1fdd278e8a79602458e15e28cf814dfd917d`
+readback 获取，不复制成动态默认值。`0ebc1fdd278e8a79602458e15e28cf814dfd917d`
 的完整 source gates 与 packaged 8 场景 visual matrix 继续作为历史 exact-cohort evidence，
-不能通过替换 SHA 升级为当前 pixels。当前 carrier 的 source/pixel 状态只在 conformance
-matrix 中按 fresh evidence 更新。`26.707.31428` 与 `26.707.31123` 只作为 superseded
-observations 保留。
+不能通过替换 SHA 升级为当前 pixels。当前 parity cohort 另以
+[`evidence/aionui-41301-parity-20260714/manifest.json`](evidence/aionui-41301-parity-20260714/manifest.json)
+精确绑定 Shell `b2c05a1c8dc4ef81094323b49a67b601e3c425f5`、macOS arm64 package 和 9 个
+route/state 场景；它证明当前指定画面非空且布局检查通过，但不证明 1:1 parity、安装或
+release-ready。`26.707.31428` 与 `26.707.31123` 只作为 superseded observations 保留。
 
 此前 App machine authority 同步落在
 `2dae4961b63089bc1ec6739a4c1ab2fac8b648f3`：capability 只从 Home starter 选择，管理进入
 Settings -> Agents & Capabilities，`/capabilities` 仅兼容重定向；App updater 与 Framework-owned
-managed lifecycle 分离，不再保留 OPL Flow 专用 post-update 分支。本轮 parity integration
-candidate `dd67a50c1eca3548b47cbb9144a1a08a403e72f3` 已实现 projectless local input、App Server
-rail、absolute-path Preview、首结果 idempotency replay、visible coordination/unarchive、
-Local/Worktree/handoff、Review 已采纳子集、Runtime cockpit 与 typed interactive requests。该 candidate
-尚未提升为 current main、pixels、package、安装或 release readiness；模型可调用 host tool
-仍是必需产品目标，当前 AionUI user coordination surface 不能作为其实现证据。
+managed lifecycle 分离，不再保留 OPL Flow 专用 post-update 分支。本轮 parity exact cohort
+`b2c05a1c8dc4ef81094323b49a67b601e3c425f5` 已实现 projectless local input、App Server rail、
+absolute-path Preview、首结果 idempotency replay、visible coordination/unarchive、
+Local/Worktree/handoff、Review 已采纳子集、Runtime cockpit、typed interactive requests，并完整保留
+Runtime V2 与 Gateway account/UI。Fresh full source gates、macOS arm64 directory-only package、
+codesign 与 9 场景 packaged E2E 已闭合；package 未安装，main/remote currentness 与 release
+promotion仍由操作层 fresh readback决定。模型可调用 host tool仍是必需产品目标，当前 AionUI
+user coordination surface 不能作为其实现证据。
 
 ## 三层与文件归属
 
@@ -128,6 +132,7 @@ package/user path。当前 contract/source 与 packaged route visual evidence �
 - `active_aionui.gui_conformance_ref=a0ce713b65801fd9ca7f46ad168c977c75a187de`
 - `active_aionui.current_shell_head_source=active_shell_checkout_git_head`
 - `active_aionui.historical_41301_evidence_sha=0ebc1fdd278e8a79602458e15e28cf814dfd917d`
+- `active_aionui.current_parity_evidence_ref=docs/product/gui/evidence/aionui-41301-parity-20260714/manifest.json`
 - `runtime_cockpit.role=user_agent_collaboration_control_console`
 - `runtime_cockpit.upstream_alignment_may_remove_or_weaken=false`
 - `runtime_cockpit.acceptance_ref=contracts/app-page-state-matrix.json#pages[id=runtime].runtime_view_model.runtime_cockpit_acceptance`
@@ -263,6 +268,10 @@ Active AionUI 通过上面的动态 state-source marker 读取默认状态；
 
 这些结论必须由对应 source/tests、runtime readback、candidate evidence、packaged
 artifact、owner acceptance 或 release authority 提供 fresh evidence。
+
+当前 9 场景 exact-cohort evidence 见
+[`evidence/aionui-41301-parity-20260714/README.md`](evidence/aionui-41301-parity-20260714/README.md)；
+历史 8 场景证据继续保留在 [`evidence/aionui-41301/README.md`](evidence/aionui-41301/README.md)。
 
 ## 推荐阅读顺序
 
