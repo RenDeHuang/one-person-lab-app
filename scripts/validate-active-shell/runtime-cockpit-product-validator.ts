@@ -57,6 +57,11 @@ const responsiveRequiredAssertions = [
   'detail_progressive_disclosure',
 ];
 
+const deliveredStageMapTerminalSignals = [
+  'lifecycle.primary_state=delivered_auto_paused',
+  'lifecycle.package_status=milestone_delivered',
+];
+
 const runtimeCockpitRequiredInvariants = [
   'collaboration_console_not_observability_dashboard',
   'work_item_projection_v2_required_axes',
@@ -68,9 +73,11 @@ const runtimeCockpitRequiredInvariants = [
   'system_attention_requires_complete_current_responsibility',
   'observed_token_usage_missing_never_zero_no_limit_progress',
   'detail_primary_secondary_diagnostic_hierarchy',
+  'delivered_stage_map_completed_history_only_action_envelope_next_step',
   'fast_diagnostics_summary_only_preserves_projects_and_work_items',
   'agent_availability_separate_full_names_collapsed_when_healthy',
   'thin_renderer_no_raw_ids_or_projection_inference',
+  'ordinary_text_normal_word_boundary_technical_tokens_emergency_break_only',
   'responsive_layout_has_no_horizontal_page_overflow',
   'contract_framework_shell_and_live_evidence_accounted_separately',
 ];
@@ -193,6 +200,15 @@ export function validateRuntimeCockpitProductContract(contract, label) {
       detail_drawer_screenshot_required: true,
     },
     `${label}.default_list.responsive_acceptance`,
+  );
+
+  assertExpectedFields(
+    contract.text_wrapping,
+    {
+      ordinary_user_text_policy: 'normal_word_boundaries',
+      unbroken_technical_string_policy: 'break_only_when_required_to_prevent_horizontal_overflow',
+    },
+    `${label}.text_wrapping`,
   );
 
   assertDeepEqualJson(
@@ -323,6 +339,24 @@ export function validateRuntimeCockpitProductContract(contract, label) {
       equal_weight_tab_wall_allowed: false,
     },
     `${label}.work_item_detail`,
+  );
+  assertDeepEqualJson(
+    contract.work_item_detail?.delivered_stage_map_terminal_boundary?.terminal_signals,
+    deliveredStageMapTerminalSignals,
+    `${label}.work_item_detail.delivered_stage_map_terminal_boundary.terminal_signals`,
+  );
+  assertDeepEqualJson(
+    contract.work_item_detail?.delivered_stage_map_terminal_boundary?.visible_stage_states,
+    ['completed'],
+    `${label}.work_item_detail.delivered_stage_map_terminal_boundary.visible_stage_states`,
+  );
+  assertExpectedFields(
+    contract.work_item_detail?.delivered_stage_map_terminal_boundary,
+    {
+      empty_stage_map_allowed: true,
+      post_delivery_next_step_source: 'work_item_projection.action',
+    },
+    `${label}.work_item_detail.delivered_stage_map_terminal_boundary`,
   );
 
   assertExpectedFields(
