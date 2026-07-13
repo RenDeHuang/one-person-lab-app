@@ -67,6 +67,10 @@ export type HermesSettingsInformationArchitecture = {
 
 export type HermesVisualParityContract = {
   comparison_baseline: string;
+  visual_style_baseline?: string;
+  visual_style_scope?: string;
+  visual_token_source?: string;
+  font_asset_policy?: string;
   minimum_bar: string;
   required_evidence: string[];
   docs_or_contract_only_completion_allowed: boolean;

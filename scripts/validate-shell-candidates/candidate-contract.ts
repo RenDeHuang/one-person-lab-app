@@ -70,6 +70,10 @@ type NativeVisualParityContract = NonNullable<ShellCandidate['visual_parity_cont
   regression_floor?: string;
   source_usage?: string;
   current_reference_status?: string;
+  visual_style_baseline?: string;
+  visual_style_scope?: string;
+  visual_token_source?: string;
+  font_asset_policy?: string;
   superseded_observations?: string[];
   model_policy_source?: string;
   default_model?: string;
@@ -1066,6 +1070,10 @@ function validateNativeWorkbenchCandidateContract(candidate: ShellCandidate): vo
   const visual = candidate.visual_parity_contract as NativeVisualParityContract | undefined;
   if (
     visual?.comparison_baseline !== 'ChatGPT Codex macOS 26.707.41301 (2026-07-11)' ||
+    visual.visual_style_baseline !== 'ChatGPT Codex macOS 26.707.61608 (2026-07-13)' ||
+    visual.visual_style_scope !== 'light_workbench_palette_system_font_stack_type_scale_weight_line_height_sidebar_density_and_composer_surface' ||
+    visual.visual_token_source !== 'installed_app_css_and_fresh_window_screenshot' ||
+    visual.font_asset_policy !== 'match_the_current_codex_workbench_system_font_stack_without_copying_or_redistributing_openai_sans_font_binaries' ||
     visual.current_reference_status !== 'current_app_reference_candidate_conformance_pending' ||
     visual.regression_floor !== 'AionUI active release shell' ||
     visual.source_usage !== 'visual_and_interaction_reference_only_no_code_or_brand_copy' ||
@@ -1092,6 +1100,7 @@ function validateNativeWorkbenchCandidateContract(candidate: ShellCandidate): vo
   );
   assertStringArrayIncludes(visual.required_evidence, [
     'desktop screenshot comparison against ChatGPT Codex macOS 26.707.41301',
+    'desktop palette and typography comparison against ChatGPT Codex macOS 26.707.61608',
     'persistent project rail and single conversation timeline screenshot comparison',
     'composer model and reasoning controls screenshot comparison',
     'floating on-demand environment screenshot comparison',

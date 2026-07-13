@@ -181,6 +181,18 @@ export type ShellCandidate = HermesTargetStateContract & {
     purpose_entries: string[];
     runtime_page_policy: string;
     settings_policy: string;
+    account_footer_policy?: {
+      source_ref: string;
+      projection_path: string;
+      connected_identity_source: string;
+      connected_visibility: string;
+      connected_statuses: string[];
+      connected_secondary_label: string;
+      fallback_display_name: string;
+      fallback_secondary_label: string;
+      interaction: string;
+      forbidden_identity_sources: string[];
+    };
   };
   technical_verification?: {
     app_root_commands?: ValidationCommand[];

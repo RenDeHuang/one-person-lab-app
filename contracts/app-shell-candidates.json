@@ -991,6 +991,10 @@
       },
       "visual_parity_contract": {
         "comparison_baseline": "ChatGPT Codex macOS 26.707.41301 (2026-07-11)",
+        "visual_style_baseline": "ChatGPT Codex macOS 26.707.61608 (2026-07-13)",
+        "visual_style_scope": "light_workbench_palette_system_font_stack_type_scale_weight_line_height_sidebar_density_and_composer_surface",
+        "visual_token_source": "installed_app_css_and_fresh_window_screenshot",
+        "font_asset_policy": "match_the_current_codex_workbench_system_font_stack_without_copying_or_redistributing_openai_sans_font_binaries",
         "current_reference_status": "current_app_reference_candidate_conformance_pending",
         "superseded_observations": [
           "ChatGPT Codex macOS 26.707.31428 (2026-07-10)",
@@ -1011,6 +1015,7 @@
         ],
         "required_evidence": [
           "desktop screenshot comparison against ChatGPT Codex macOS 26.707.41301",
+          "desktop palette and typography comparison against ChatGPT Codex macOS 26.707.61608",
           "persistent project rail and single conversation timeline screenshot comparison",
           "composer model and reasoning controls screenshot comparison",
           "floating on-demand environment screenshot comparison",
@@ -1040,7 +1045,32 @@
           "ppt"
         ],
         "runtime_page_policy": "summary_first_full_detail_on_demand",
-        "settings_policy": "app_state_refs_only"
+        "settings_policy": "app_state_refs_only",
+        "account_footer_policy": {
+          "source_ref": "contracts/app-runtime-bridge.json#opl_gateway_account_projection",
+          "projection_path": "app_state.settings_control_center.app_settings_read_model.opl_gateway_account",
+          "connected_identity_source": "account.display_name",
+          "connected_visibility": "connection_mode_account_and_account_card_visible_and_connection_status_retains_account_identity",
+          "connected_statuses": [
+            "connected",
+            "setup_required",
+            "reauth_required",
+            "attention_needed",
+            "disconnect_pending"
+          ],
+          "connected_secondary_label": "OPL Gateway",
+          "fallback_display_name": "One Person Lab",
+          "fallback_secondary_label": "Settings localized label",
+          "interaction": "open_settings",
+          "forbidden_identity_sources": [
+            "masked_email",
+            "password",
+            "access_token",
+            "refresh_token",
+            "api_key",
+            "credential_path"
+          ]
+        }
       },
       "framework_surfaces": {
         "state": "opl app state --profile fast --json",
@@ -1092,6 +1122,7 @@
         "codex_app_server_thread_turn_backend",
         "native_react_workbench_renderer",
         "opl_app_event_contract_map",
+        "opl_gateway_account_footer_projection",
         "purpose_first_home_entries",
         "workspace_directory_picker",
         "new_conversation_thread_reset",

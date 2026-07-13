@@ -150,12 +150,20 @@ test('native candidate rejects release, adoption, packaged, or remote readiness 
   }
 });
 
-test('native candidate registry pins 41301 and rejects a superseded Codex visual baseline', () => {
+test('native candidate keeps 41301 interaction authority and pins 61608 visual style', () => {
   const registry = readJson<ShellCandidateRegistry>('contracts/app-shell-candidates.json');
   const policy = candidateValidationPolicyFromRegistry(registry);
   const candidate = registry.candidates.find((entry) => entry.id === 'opl-native-workbench');
   assert.ok(candidate);
   assert.doesNotThrow(() => validateCandidate(candidate, policy));
+  assert.equal(
+    candidate.visual_parity_contract?.visual_style_baseline,
+    'ChatGPT Codex macOS 26.707.61608 (2026-07-13)',
+  );
+  assert.equal(
+    candidate.visual_parity_contract?.font_asset_policy,
+    'match_the_current_codex_workbench_system_font_stack_without_copying_or_redistributing_openai_sans_font_binaries',
+  );
 
   const staleCandidate = structuredClone(candidate);
   assert.ok(staleCandidate.visual_parity_contract);
@@ -164,4 +172,30 @@ test('native candidate registry pins 41301 and rejects a superseded Codex visual
     () => validateCandidate(staleCandidate, policy),
     /visual_parity_contract must consume the App-owned configured model policy/,
   );
+});
+
+test('native candidate account footer consumes only the canonical Gateway display name', () => {
+  const registry = readJson<ShellCandidateRegistry>('contracts/app-shell-candidates.json');
+  const candidate = registry.candidates.find((entry) => entry.id === 'opl-native-workbench');
+  assert.ok(candidate);
+  const footer = candidate.target_product_shape.account_footer_policy;
+  assert.equal(footer?.source_ref, 'contracts/app-runtime-bridge.json#opl_gateway_account_projection');
+  assert.equal(
+    footer?.projection_path,
+    'app_state.settings_control_center.app_settings_read_model.opl_gateway_account',
+  );
+  assert.equal(footer?.connected_identity_source, 'account.display_name');
+  assert.equal(footer?.connected_secondary_label, 'OPL Gateway');
+  assert.equal(footer?.fallback_display_name, 'One Person Lab');
+  assert.equal(footer?.interaction, 'open_settings');
+  assert.deepEqual(footer?.connected_statuses, [
+    'connected',
+    'setup_required',
+    'reauth_required',
+    'attention_needed',
+    'disconnect_pending',
+  ]);
+  assert.ok(footer?.forbidden_identity_sources.includes('masked_email'));
+  assert.ok(footer?.forbidden_identity_sources.includes('api_key'));
+  assert.ok(candidate.required_capabilities.includes('opl_gateway_account_footer_projection'));
 });

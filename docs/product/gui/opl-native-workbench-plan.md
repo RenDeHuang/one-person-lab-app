@@ -4,6 +4,7 @@ Owner: `one-person-lab-app`
 Purpose: `opl_native_workbench_unified_candidate_plan`
 State: `local_protocol_cohort_verified_flexible_dispatch_policy_rework_required_candidate_only`
 Current interaction reference: `ChatGPT Codex macOS 26.707.41301 (2026-07-11)`
+Current visual style reference: `ChatGPT Codex macOS 26.707.61608 (2026-07-13)`
 Superseded observations: `26.707.31428 (2026-07-10)`,
 `26.707.31123 (2026-07-10)`
 
@@ -56,6 +57,26 @@ opl-native-workbench` opens the installed bundle; `--rebuild` rebuilds the
 candidate checkout, verifies the bundle ID, and replaces only that installed
 Native bundle. This local test identity does not rename, restyle, replace, or
 adopt the AionUI release App.
+
+The native candidate keeps a draggable native strip in the otherwise borderless
+top chrome and visually suppresses only the primary conversation/settings
+scrollbar while preserving wheel and trackpad scrolling. Its lower-left account
+entry is still the Settings entry: when the canonical OPL Gateway account read
+model reports an account connection, it shows only `account.display_name` with
+`OPL Gateway` as the secondary label; otherwise it falls back to `One Person
+Lab` and the localized Settings label. Email and all credential material remain
+outside this identity projection.
+
+The interaction composition remains governed by the reviewed 41301 baseline.
+The candidate's light-theme palette and typography are refreshed against the
+installed 61608 build: white main canvas, `#f9f9f9` rail, `#1a1c1f` primary
+text, 70%/50% secondary and tertiary text mixes, 8% border mix, a 14px base
+size with 1.5 line height and 430 ordinary weight, a 336px desktop rail, and
+the current multiline composer radius/elevation. The ordinary Codex workbench
+uses the macOS system font stack; OpenAI Sans is limited to Codex branding in
+the reference App. Because OPL removes that branding, no OpenAI font binary is
+copied, bundled, or redistributed. OPL capabilities and account identity stay
+intact while legacy teal candidate chrome is removed.
 
 ## Authority Inputs
 
