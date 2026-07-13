@@ -76,8 +76,8 @@ The authority order is:
 ## Verified Local Candidate Cohort
 
 The local P0 plus P1 implementation and formal side-by-side package are bound to
-App product authority `3615b0e4d338a46f21882a8d9b13e2f0adb5a12e`, Native source and pushed
-`origin/main` `c1d9dbda821d95137722e5ff0e40e984486226c5`, and Codex CLI
+App product authority `e53dad1293aa6d7f13417818f118a3f0efce3571`, Native source and pushed
+`origin/main` `5a0bf268c97f289d79c08ee34274d730f674c91f`, and Codex CLI
 `0.144.1`, observed on `2026-07-13`.
 
 - the complete Native test bundle passed, including 10 coordination security

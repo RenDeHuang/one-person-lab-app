@@ -25,7 +25,14 @@ test('native candidate accepts the exact verified local P0 plus P1 cohort while 
   assert.equal(authority.implementation_status, 'local_p0_p1_implemented_verified_candidate_only');
   assert.equal(authority.primary_composer_control_visible, false);
   assert.equal(authority.thread_detail_context_action_visible, true);
-  assert.equal(authority.local_p0_p1_implementation_evidence.native_source_sha, 'c1d9dbda821d95137722e5ff0e40e984486226c5');
+  assert.equal(authority.local_p0_p1_implementation_evidence.native_source_sha, '5a0bf268c97f289d79c08ee34274d730f674c91f');
+  assert.deepEqual(authority.local_p0_p1_implementation_evidence.packaged_native_live.screenshot_markers, [
+    'One Person Lab',
+    '5.6 Sol',
+  ]);
+  assert.deepEqual(authority.local_p0_p1_implementation_evidence.packaged_native_live.screenshot_absent_markers, [
+    'Codex',
+  ]);
   assert.equal(authority.local_p0_p1_implementation_evidence.packaged_native_live.display_name, 'One Person Lab Native');
   assert.equal(
     authority.local_p0_p1_implementation_evidence.installed_native_app.app_path,

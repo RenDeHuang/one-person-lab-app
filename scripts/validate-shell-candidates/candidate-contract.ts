@@ -135,8 +135,8 @@ const requiredFalseReadyFields = [
   'remote_ready',
 ];
 
-const nativeEvidenceSourceSha = 'c1d9dbda821d95137722e5ff0e40e984486226c5';
-const nativeEvidenceAppProductAuthoritySha = '3615b0e4d338a46f21882a8d9b13e2f0adb5a12e';
+const nativeEvidenceSourceSha = '5a0bf268c97f289d79c08ee34274d730f674c91f';
+const nativeEvidenceAppProductAuthoritySha = 'e53dad1293aa6d7f13417818f118a3f0efce3571';
 
 function validateNativeLocalP0P1ImplementationEvidence(
   evidence: NativeLocalP0P1ImplementationEvidence | undefined,
@@ -174,17 +174,22 @@ function validateNativeLocalP0P1ImplementationEvidence(
     packaged.bundle_id !== 'cn.gflab.opl.native-workbench.candidate' ||
     packaged.installed_app_path !== '/Applications/One Person Lab Native.app' ||
     packaged.window_evidence !== 'core_graphics_fallback_after_ax_denied_-25211' ||
-    packaged.window_id !== 112445 ||
-    packaged.renderer_sha256 !== 'd39f696434d757a0c62a9c169701554642413d10f8c90285e93bac6150082e4c' ||
+    packaged.window_id !== 112881 ||
+    packaged.renderer_sha256 !== 'dae7dcbe9ec0b82649d361579b06d10e0ee492c505047fa803b497f0b1f64379' ||
     packaged.package_manifest_sha256 !== '50e1b3a7f9e62525078c3ae1a9752ae1ca2cddd3165f32ed733a7145d31689be' ||
     packaged.icon_sha256 !== 'ce551a9c7b3bd1e0137dbe79a013c3154af658f6195d5cce25433f706d48044e' ||
-    packaged.screenshot_sha256 !== '71c9d1ed783546665fa030b4848b48612a4c2eb17a05abe616661067be9d08da' ||
+    packaged.screenshot_sha256 !== '154f8a8ebb6d48e3c8745ec87925f1af04ae4862f3f8b8599e66d02efdf7f59d' ||
     packaged.process_cleanup !== true ||
     installed.status !== 'verified_local_install' ||
     installed.app_path !== '/Applications/One Person Lab Native.app' ||
+    installed.display_name !== 'One Person Lab Native' ||
     installed.bundle_id !== 'cn.gflab.opl.native-workbench.candidate' ||
     installed.active_mainline_app_path !== '/Applications/One Person Lab.app' ||
     installed.active_mainline_bundle_id !== 'cn.onepersonlab.opl' ||
+    installed.renderer_sha256 !== 'dae7dcbe9ec0b82649d361579b06d10e0ee492c505047fa803b497f0b1f64379' ||
+    installed.icon_sha256 !== 'ce551a9c7b3bd1e0137dbe79a013c3154af658f6195d5cce25433f706d48044e' ||
+    installed.installed_window_id !== 112896 ||
+    installed.installed_screenshot_sha256 !== '154f8a8ebb6d48e3c8745ec87925f1af04ae4862f3f8b8599e66d02efdf7f59d' ||
     installed.candidate_actions !== 'dry_run_only' ||
     boundary.local_p0_p1_implemented !== true ||
     boundary.candidate_only !== true ||
@@ -196,7 +201,8 @@ function validateNativeLocalP0P1ImplementationEvidence(
   ) {
     throw new Error('native candidate local P0 plus P1 evidence must bind the exact verified local cohort without changing adoption, release, clean-VM, or remote readiness');
   }
-  assertStringArrayIncludes(packaged.screenshot_markers, ['Codex', '5.6 Sol'], 'native candidate packaged screenshot markers');
+  assertStringArrayIncludes(packaged.screenshot_markers, ['One Person Lab', '5.6 Sol'], 'native candidate packaged screenshot markers');
+  assertStringArrayIncludes(packaged.screenshot_absent_markers, ['Codex'], 'native candidate packaged screenshot absent markers');
 }
 
 const appProductProfile = readJson<{
