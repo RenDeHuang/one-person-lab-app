@@ -6,6 +6,7 @@ import { readJson } from './validate-active-shell/assertions.ts';
 import { validateContractShape } from './validate-active-shell/active-shell-contract.ts';
 import { runCommand } from './validate-active-shell/command-runner.ts';
 import { validateActiveShellImplementation } from './validate-active-shell/shell-implementation-validator.ts';
+import { validateShellThreadCoordination } from './validate-active-shell/shell-thread-coordination-validator.ts';
 import { validateAppGuiProductContract } from './validate-active-shell/gui-product-contract-validator.ts';
 import { validateFirstRunMatrix } from './validate-active-shell/first-run-matrix-validator.ts';
 import { validateInstallExposurePolicy } from './validate-active-shell/install-exposure-policy-validator.ts';
@@ -54,6 +55,7 @@ validateProductProfile(productProfile, installExposurePolicy);
 validateReleaseChannelContract(releaseChannel);
 validateReleaseEvidenceBundle(releaseChannel, pageStateMatrix, firstRunMatrix);
 validateActiveShellImplementation(shellPaths);
+validateShellThreadCoordination(shellPaths);
 validateLiveOplConformance(runtimeBridge);
 
 if (args.quick) {
