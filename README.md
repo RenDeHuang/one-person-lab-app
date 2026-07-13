@@ -61,6 +61,10 @@ The App makes entries, progress, files, and delivery usable. Medical research, g
 **Built for daily use and long-running work**<br/>
 The app is not just for one chat. It supports work that needs multiple rounds, background maintenance, recovery after failure, remote access, and continuing delivery.
 
+## Design Rationale
+
+Read the [OPL App whitepaper (HTML)](https://gaofeng21cn.github.io/one-person-lab-app/latest/whitepapers/opl-app-whitepaper.html) or [PDF edition](https://gaofeng21cn.github.io/one-person-lab-app/latest/whitepapers/opl-app-whitepaper.pdf) to understand why the App starts from the user's purpose, keeps results traceable, and reveals internal diagnostics only when they help a decision.
+
 ## Download And Install
 
 ### Homebrew

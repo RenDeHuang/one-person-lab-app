@@ -47,7 +47,9 @@ unless they replace a canonical latest bundle.
 
 ## Public User Entry
 
-Use the GitHub Pages latest URLs for publishable install guides:
+Use the GitHub Pages latest URLs for publishable user documents:
+
+- OPL App whitepaper: [HTML](https://gaofeng21cn.github.io/one-person-lab-app/latest/whitepapers/opl-app-whitepaper.html) / [PDF](https://gaofeng21cn.github.io/one-person-lab-app/latest/whitepapers/opl-app-whitepaper.pdf)
 
 - `https://gaofeng21cn.github.io/one-person-lab-app/latest/macos-app-install/macos-app-install.html`
 - `https://gaofeng21cn.github.io/one-person-lab-app/latest/macos-app-install/macos-app-install-slides.pdf`
@@ -55,8 +57,6 @@ Use the GitHub Pages latest URLs for publishable install guides:
 - `https://gaofeng21cn.github.io/one-person-lab-app/latest/macos-app-install/macos-app-install-detailed-guide.pdf`
 - `https://gaofeng21cn.github.io/one-person-lab-app/latest/docker-webui-install/docker-webui-install.html`
 - `https://gaofeng21cn.github.io/one-person-lab-app/latest/docker-webui-install/docker-webui-install-detailed-guide.pdf`
-- `https://gaofeng21cn.github.io/one-person-lab-app/latest/whitepapers/opl-app-whitepaper.html`
-
 Do not link ordinary users to `docs/delivery/user-guides/*`; those are
 maintenance/source surfaces.
 
