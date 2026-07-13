@@ -664,13 +664,32 @@ function watchRun(runner: StableReleaseCommandRunner, session: StableReleaseSess
   return runner('gh', ['run', 'watch', runId, '--repo', session.repo, '--interval', '60', '--exit-status']);
 }
 
-function runView(runner: StableReleaseCommandRunner, session: StableReleaseSession, runId: string): WorkflowRun {
+export function decodeWorkflowRunReadback(
+  result: CommandResult,
+): { readback: WorkflowRun | null; error: string | null } {
+  if (result.status !== 0) {
+    return { readback: null, error: formatCommandFailure(result, 'workflow run readback failed') };
+  }
+  try {
+    return { readback: JSON.parse(result.stdout) as WorkflowRun, error: null };
+  } catch (error) {
+    return {
+      readback: null,
+      error: `workflow run readback returned invalid JSON: ${error instanceof Error ? error.message : String(error)}`,
+    };
+  }
+}
+
+function runView(
+  runner: StableReleaseCommandRunner,
+  session: StableReleaseSession,
+  runId: string,
+): { readback: WorkflowRun | null; error: string | null } {
   const result = runner('gh', [
     'run', 'view', runId, '--repo', session.repo,
     '--json', 'databaseId,attempt,createdAt,headBranch,headSha,status,conclusion,url',
   ]);
-  if (result.status !== 0) failResult(result, `read workflow run ${runId}`);
-  return JSON.parse(result.stdout) as WorkflowRun;
+  return decodeWorkflowRunReadback(result);
 }
 
 export function classifyWorkflowRunObservation(
@@ -690,23 +709,28 @@ async function watchRunToTerminal(
 ): Promise<{ readback: WorkflowRun; succeeded: boolean; conclusion: string }> {
   const retryLimit = session.efficiency_policy.monitor_transport_retry_limit ?? 3;
   let lastReadback: WorkflowRun | null = null;
+  let lastReadbackError: string | null = null;
   for (let attempt = 1; attempt <= retryLimit; attempt += 1) {
     const watched = watchRun(runner, session, runId);
-    const readback = runView(runner, session, runId);
-    const observation = classifyWorkflowRunObservation(watched, readback);
-    if (observation.terminal && observation.conclusion) {
-      return {
-        readback,
-        succeeded: observation.succeeded,
-        conclusion: observation.conclusion,
-      };
+    const view = runView(runner, session, runId);
+    if (view.readback) {
+      const observation = classifyWorkflowRunObservation(watched, view.readback);
+      if (observation.terminal && observation.conclusion) {
+        return {
+          readback: view.readback,
+          succeeded: observation.succeeded,
+          conclusion: observation.conclusion,
+        };
+      }
+      lastReadback = view.readback;
     }
-    lastReadback = readback;
-    if (attempt < retryLimit) await delay(attempt * 3_000);
+    lastReadbackError = view.error;
+    if (attempt < retryLimit) await delay(session.efficiency_policy.monitor_interval_seconds * 1_000);
   }
   throw new Error(
     `Workflow run ${runId} monitor exited before a terminal remote state after ${retryLimit} attempts; ` +
-      `remote status is ${lastReadback?.status ?? 'unknown'}. The release session remains recoverable with resume.`,
+      `remote status is ${lastReadback?.status ?? 'unknown'}${lastReadbackError ? `; ${lastReadbackError}` : ''}. ` +
+      'The release session remains recoverable with resume.',
   );
 }
 
@@ -1001,7 +1025,14 @@ async function resumeSession(
   if (session.phase === 'promotion_failed') {
     const runId = session.promotion_run.id;
     if (!runId) throw new Error('Promotion failure has no original workflow run id.');
-    const remote = runView(runner, session, runId);
+    const remoteView = runView(runner, session, runId);
+    if (!remoteView.readback) {
+      throw new Error(
+        `Unable to reconcile promotion workflow ${runId}: ${remoteView.error ?? 'remote readback unavailable'}. ` +
+          'The existing promotion session remains recoverable with resume.',
+      );
+    }
+    const remote = remoteView.readback;
     const localAttempt = session.promotion_run.attempt ?? 0;
     const remoteAttempt = remote.attempt ?? localAttempt;
     const rerunAlreadyStarted = remoteAttempt > localAttempt || remote.status === 'queued' || remote.status === 'in_progress';

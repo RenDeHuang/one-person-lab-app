@@ -1186,6 +1186,7 @@
         "monitor_command": "gh run watch <run-id> --repo gaofeng21cn/one-person-lab-app --interval 60 --exit-status",
         "monitor_transport_retry_limit": 3,
         "monitor_nonterminal_exit_preserves_running_state": true,
+        "monitor_readback_failure_preserves_running_state": true,
         "promotion_reuses_source_release_run_id": true,
         "promotion_requires_release_owner_receipt": true,
         "promotion_dispatch_limit_per_cohort": 1,

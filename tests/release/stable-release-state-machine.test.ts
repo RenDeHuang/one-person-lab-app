@@ -4,6 +4,7 @@ import type { ReleaseCohortPlan } from '../../scripts/plan-release-cohort.ts';
 import {
   buildStableReleaseSession,
   classifyWorkflowRunObservation,
+  decodeWorkflowRunReadback,
   desktopReleaseDispatchArgs,
   formatCommandFailure,
   promoteDispatchArgs,
@@ -106,6 +107,19 @@ test('monitor retry policy remains compatible with sessions written before the r
   const session = buildStableReleaseSession(plan());
   delete (session.efficiency_policy as Partial<typeof session.efficiency_policy>).monitor_transport_retry_limit;
   assert.equal(session.efficiency_policy.monitor_transport_retry_limit ?? 3, 3);
+});
+
+test('workflow readback transport and JSON failures stay retryable', () => {
+  assert.deepEqual(
+    decodeWorkflowRunReadback({ status: 1, stdout: '', stderr: 'HTTP 403: API rate limit exceeded' }),
+    {
+      readback: null,
+      error: 'workflow run readback failed: HTTP 403: API rate limit exceeded',
+    },
+  );
+  const malformed = decodeWorkflowRunReadback({ status: 0, stdout: '{', stderr: '' });
+  assert.equal(malformed.readback, null);
+  assert.match(malformed.error ?? '', /invalid JSON/);
 });
 
 test('source gate failures prefer structured stdout over runtime warnings', () => {

@@ -317,9 +317,11 @@ workflow has passed its type, DOM, contract, lint, and package-build gates. A
 failure in that cheaper predecessor must stop Full runtime assembly instead of
 letting it drain for tens of minutes. If the single `gh run watch` process exits
 because of a transport error while GitHub still reports `queued` or
-`in_progress`, the stable session remains in its running phase and reconnects at
-most three times. Only a remote `status=completed` readback can finalize the
-run; `resume` may reconcile the original run id without dispatching a new build.
+`in_progress`, or the terminal readback itself is temporarily unavailable, the
+stable session remains in its running phase and reconnects at most three times
+at the same 60-second cadence. Only a remote `status=completed` readback can
+finalize the run; `resume` may reconcile the original run id without dispatching
+a new build.
 
 Full runtime bundle assembly is outside the App release critical path. OPL
 Framework owns preheating/materializing the runtime bundle, lock, env contract,

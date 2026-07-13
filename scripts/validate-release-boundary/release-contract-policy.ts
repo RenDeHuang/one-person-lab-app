@@ -485,6 +485,7 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
     stableReleaseStateMachine?.execution_policy?.stable_complete_requires_addon_gates !== true ||
     stableReleaseStateMachine?.execution_policy?.monitor_transport_retry_limit !== 3 ||
     stableReleaseStateMachine?.execution_policy?.monitor_nonterminal_exit_preserves_running_state !== true ||
+    stableReleaseStateMachine?.execution_policy?.monitor_readback_failure_preserves_running_state !== true ||
     stableReleaseStateMachine?.execution_policy?.promotion_reuses_source_release_run_id !== true ||
     stableReleaseStateMachine?.execution_policy?.promotion_requires_release_owner_receipt !== true ||
     stableReleaseStateMachine?.execution_policy?.promotion_dispatch_limit_per_cohort !== 1 ||
