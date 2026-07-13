@@ -143,6 +143,32 @@
         "previous_next_scope": "visible_ordinary_conversations",
         "new_window_scope": "desktop_only",
         "webui_information_architecture_expansion_allowed": false
+      },
+      "thread_directory_policy": {
+        "canonical_authority": "codex_app_server_thread_list_read_resume",
+        "protocols": [
+          "thread/list",
+          "thread/read",
+          "thread/resume",
+          "thread/name/set",
+          "thread/archive",
+          "thread/unarchive",
+          "thread/delete"
+        ],
+        "task_action_protocols": {
+          "rename": "thread/name/set",
+          "archive": "thread/archive",
+          "restore": "thread/unarchive",
+          "delete": "thread/delete"
+        },
+        "pin_role": "shell_ui_metadata_only",
+        "local_reset_role": "retain_existing_aionui_conversation_semantics_not_app_server_history_reset",
+        "shell_local_storage_role": "drafts_preferences_and_rebuildable_cache_only",
+        "shell_thread_history_authority": false,
+        "project_workspace_role": "default_cwd_grouping_and_visible_metadata_only",
+        "coordination_entry_visible": true,
+        "coordination_entry_keyboard_reachable": true,
+        "coordination_entry_placement": "ordinary_rail_thread_directory"
       }
     },
     "conversation_scope": {
@@ -150,12 +176,22 @@
       "project_task_supported": true,
       "projectless_conversation_supported": true,
       "text_chat_without_workspace": "available",
-      "file_and_project_features_without_workspace": "restricted_with_explanation",
+      "file_and_project_features_without_workspace": "available_through_explicit_local_input_subject_to_codex_permissions",
+      "project_workspace_role": "new_task_default_cwd_sidebar_grouping_and_context_hint_only_not_authorization_domain",
+      "projectless_input_policy": {
+        "surfaces": ["attachments", "local_file_picker", "local_directory_picker", "paste", "drop", "/open"],
+        "selection_scope": "any_user_selected_local_file_or_directory",
+        "workspace_required": false,
+        "access_authority": "codex_permission_approval_and_sandbox_only",
+        "shell_extra_path_authorization_allowed": false
+      },
       "conversation_management": [
         "search",
         "pin",
         "rename",
         "archive",
+        "restore",
+        "delete",
         "reset"
       ],
       "archived_surface": "independent",
@@ -170,14 +206,32 @@
         "composer_persistence_after_send": "none",
         "fabricated_defaults_allowed": false,
         "artifact_body_copy_allowed": false
+      },
+      "local_worktree_lifecycle": {
+        "locality_options": ["local", "worktree"],
+        "selection_surface": "new_task",
+        "starting_branch_selectable": true,
+        "handoff_actions": ["local_to_worktree", "worktree_to_local"],
+        "snapshot_actions": ["snapshot", "restore"],
+        "worktree_root": "$CODEX_HOME/worktrees",
+        "selected_branch_head_state": "detached",
+        "selected_local_uncommitted_changes": "apply_to_new_worktree",
+        "include_file": ".worktreeinclude",
+        "task_reuse_policy": "same_task_reuses_same_worktree",
+        "cleanup_policy": "snapshot_before_cleanup_and_restore_available",
+        "state_authority": "codex_core_app_server_and_existing_git_integration",
+        "shell_role": "thin_adapter_only",
+        "duplicate_git_or_thread_store_allowed": false,
+        "cross_host_policy": "handoff_only_no_direct_cross_host_message"
       }
     },
     "thread_coordination": {
       "definition_role": "opl_target_translation_not_literal_codex_observation",
       "product_role": "opl_host_cross_top_level_codex_thread_coordination",
-      "entry_surface": "thread_detail_context_action_and_model_host_tool_no_ordinary_navigation",
-      "default_state": "thread_detail_action_available_coordination_dialog_closed",
-      "ordinary_navigation_visible": false,
+      "entry_surface": "ordinary_rail_thread_directory_thread_detail_action_and_model_host_tool",
+      "default_state": "rail_entry_visible_coordination_panel_closed",
+      "ordinary_navigation_visible": true,
+      "keyboard_reachable_entry": true,
       "primary_composer_control_visible": false,
       "thread_detail_context_action_visible": true,
       "model_tool_access": true,
@@ -199,6 +253,7 @@
         "thread/resume",
         "thread/fork",
         "thread/archive",
+        "thread/unarchive",
         "turn/start",
         "turn/steer"
       ],
@@ -216,7 +271,7 @@
         "active_turn_id",
         "write_set"
       ],
-      "thread_actions": ["read", "resume", "fork", "archive"],
+      "thread_actions": ["read", "resume", "fork", "archive", "unarchive"],
       "dispatch_policy": {
         "idle_thread": "turn/start",
         "running_thread": "turn/steer",
@@ -242,7 +297,7 @@
         "target_not_found",
         "target_archived",
         "target_not_writable",
-        "cross_host_unsupported",
+        "cross_host_direct_delivery_unsupported_use_handoff",
         "codex_permission_denied_or_approval_required"
       ],
       "advisory_signals": [
@@ -252,8 +307,13 @@
       ],
       "idempotency_policy": {
         "dedupe_scope": "same_opaque_request_or_idempotency_key_retry_only",
-        "same_key_retry_behavior": "return_idempotent_duplicate_result_without_second_dispatch",
+        "same_key_retry_behavior": "return_first_receipt_and_result_with_ok_true_without_second_dispatch",
         "message_content_repeat_allowed": true
+      },
+      "cross_host_policy": {
+        "direct_message_allowed": false,
+        "transition": "handoff",
+        "handoff_preserves": ["source_thread_ref", "goal", "context_summary", "locality_request", "audit_receipt"]
       },
       "must_not_block_or_confirm_for": [
         "cross_project",
@@ -308,6 +368,8 @@
         "write_set_overlap_as_dispatch_blocker",
         "delegation_loop_as_dispatch_blocker",
         "message_content_as_dedupe_key",
+        "duplicate_delivery_error_for_same_idempotency_key",
+        "direct_cross_host_message_delivery",
         "any_opl_confirmation_for_thread_read_dispatch_steer_or_archive"
       ]
     },
@@ -454,7 +516,19 @@
         "diff"
       ],
       "markdown_embedded_renderers": ["mermaid", "katex", "code"],
-      "ref_resolution_policy": "canonical_workspace_file_ref_to_existing_preview_target_without_copying_artifact_body",
+      "ref_resolution_policy": "explicit_absolute_local_path_or_workspace_scoped_project_ref_to_existing_preview_target_without_copying_artifact_body",
+      "explicit_local_path_policy": {
+        "user_initiated_only": true,
+        "path_form": "legal_absolute_local_file_path",
+        "workspace_membership_required": false,
+        "access_authority": "codex_permission_approval_and_sandbox",
+        "automatic_silent_read_allowed": false
+      },
+      "project_context_ref_policy": {
+        "workspace_scoped": true,
+        "parent_traversal_allowed": false
+      },
+      "forbidden_inputs": ["relative_parent_traversal", "illegal_or_unsupported_scheme", "automatic_silent_read"],
       "artifact_body_authority": "external_owner_ref_only",
       "keyboard_reachable_open_action": true,
       "failure_policy": "keep_ref_visible_and_fail_closed_with_reason",
@@ -488,6 +562,22 @@
           "actions",
           "memory"
         ]
+      },
+      "review_pane": {
+        "host_surface": "existing_files_changes_diff_surface",
+        "default_state": "closed",
+        "opens_on_user_request": true,
+        "review_targets": ["uncommitted", "base_branch", "commit", "custom"],
+        "delivery_modes": ["inline", "detached"],
+        "default_section": "unstaged",
+        "sections": ["unstaged", "staged", "commit", "branch", "last_turn"],
+        "capabilities": ["pull_request_context", "inline_comments", "stage", "commit", "push"],
+        "pull_request_context_dependency": "gh",
+        "pull_request_context_unavailable_policy": "show_explicit_unavailable_state",
+        "git_authority": "existing_codex_git_integration",
+        "shell_role": "thin_adapter_only",
+        "duplicate_git_store_allowed": false,
+        "legacy_equal_weight_review_tab_allowed": false
       },
       "advanced_work_surfaces": [
         "files_changes",
@@ -1655,6 +1745,13 @@
       "forbidden_actions": ["backend", "provider", "team", "raw_mcp", "arbitrary_skills"]
     },
     "projectless_conversation_supported": true,
+    "projectless_input_policy": {
+      "surfaces": ["attachments", "local_file_picker", "local_directory_picker", "paste", "drop", "/open"],
+      "selection_scope": "any_user_selected_local_file_or_directory",
+      "workspace_required": false,
+      "access_authority": "codex_permission_approval_and_sandbox_only",
+      "shell_extra_path_authorization_allowed": false
+    },
     "project_context_inputs": {
       "scope": "canonical_workspace_path",
       "optional": true,
@@ -1759,7 +1856,19 @@
       ],
       "supported_content_types": ["markdown", "pdf", "code", "image", "html", "diff"],
       "markdown_embedded_renderers": ["mermaid", "katex", "code"],
-      "ref_resolution_policy": "canonical_workspace_file_ref_to_existing_preview_target_without_copying_artifact_body",
+      "ref_resolution_policy": "explicit_absolute_local_path_or_workspace_scoped_project_ref_to_existing_preview_target_without_copying_artifact_body",
+      "explicit_local_path_policy": {
+        "user_initiated_only": true,
+        "path_form": "legal_absolute_local_file_path",
+        "workspace_membership_required": false,
+        "access_authority": "codex_permission_approval_and_sandbox",
+        "automatic_silent_read_allowed": false
+      },
+      "project_context_ref_policy": {
+        "workspace_scoped": true,
+        "parent_traversal_allowed": false
+      },
+      "forbidden_inputs": ["relative_parent_traversal", "illegal_or_unsupported_scheme", "automatic_silent_read"],
       "artifact_body_authority": "external_owner_ref_only",
       "keyboard_reachable_open_action": true,
       "failure_policy": "keep_ref_visible_and_fail_closed_with_reason",
@@ -1787,6 +1896,22 @@
       "independent": true,
       "default_state": "closed",
       "opens_for": ["artifact", "file", "url", "result"]
+    },
+    "review_surface": {
+      "host_surface": "existing_files_changes_diff_surface",
+      "default_state": "closed",
+      "opens_on_user_request": true,
+      "review_targets": ["uncommitted", "base_branch", "commit", "custom"],
+      "delivery_modes": ["inline", "detached"],
+      "default_section": "unstaged",
+      "sections": ["unstaged", "staged", "commit", "branch", "last_turn"],
+      "capabilities": ["pull_request_context", "inline_comments", "stage", "commit", "push"],
+      "pull_request_context_dependency": "gh",
+      "pull_request_context_unavailable_policy": "show_explicit_unavailable_state",
+      "git_authority": "existing_codex_git_integration",
+      "shell_role": "thin_adapter_only",
+      "duplicate_git_store_allowed": false,
+      "legacy_equal_weight_review_tab_allowed": false
     },
     "on_demand_task_tools": {
       "terminal": {
@@ -3698,6 +3823,7 @@
       "assistant_source_ref": "default_assistants",
       "purpose_entry_source_ref": "home_purpose_entries",
       "assistant_skill_profile_source_ref": "assistant_skill_profiles",
+      "local_worktree_lifecycle_ref": "interaction_baseline.conversation_scope.local_worktree_lifecycle",
       "hero_prompt_policy": "dynamic_question_title",
       "model_status": {
         "value_source": "default_session_profile.model on Home; normalized active ACP model_info in conversation",
@@ -3724,6 +3850,8 @@
         "ordinary skill selector filtered to App-owned assistant profile skill allowlist",
         "workspace selector",
         "file attachment control",
+        "projectless attachments, arbitrary local file or directory selection, paste, drop, and /open subject only to Codex permissions",
+        "Local or Worktree selection, starting branch, handoff, and snapshot or restore at new-task boundaries",
         "send action",
         "single composer-first home input with context strip and bottom action row",
         "permission and access mode in user language",
@@ -3803,6 +3931,7 @@
         "attachments and project refs consumed by the current send only",
         "permission and access mode in user language",
         "projectless text conversation when no workspace is selected",
+        "projectless attachments, arbitrary local file or directory selection, paste, drop, and /open subject only to Codex permissions",
         "assistant route receipt",
         "Codex default model and reasoning status",
         "single current task instance in the message timeline, inline and unpinned for ordinary tasks",
@@ -3828,6 +3957,7 @@
         "no third column mounted by default",
         "Files and Changes workspace surface opened only by user or task need",
         "Preview opened as an independent surface for artifact, file, URL, or result",
+        "Review defaults to Unstaged, exposes Staged, Commit, Branch, and Last turn, supports uncommitted, base branch, commit, and custom targets with inline or detached delivery, and shows PR context unavailable when gh is missing",
         "Terminal and Browser opened from Environment or task need",
         "environment popover kept distinct from advanced work surfaces"
       ],

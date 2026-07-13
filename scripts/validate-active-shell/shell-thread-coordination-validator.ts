@@ -34,6 +34,9 @@ export function validateShellThreadCoordination(shellPaths): void {
       "'thread/resume'",
       "'thread/fork'",
       "'thread/archive'",
+      "'thread/unarchive'",
+      "'thread/name/set'",
+      "'thread/delete'",
       "'turn/start'",
       "'turn/steer'",
       'messageSummary',
@@ -74,6 +77,9 @@ export function validateShellThreadCoordination(shellPaths): void {
       "this.rpc.request('thread/resume'",
       "this.rpc.request('thread/fork'",
       "this.rpc.request('thread/archive'",
+      "this.rpc.request('thread/unarchive'",
+      "this.rpc.request('thread/name/set'",
+      "this.rpc.request('thread/delete'",
       "this.rpc.request('turn/start'",
       "this.rpc.request('turn/steer'",
       'response.nextCursor',
@@ -89,9 +95,9 @@ export function validateShellThreadCoordination(shellPaths): void {
       "code: 'thread_not_found'",
       "code: 'cross_host_delivery'",
       "code: 'thread_not_writable'",
-      "code: 'duplicate_delivery'",
       'boundedMessageSummary',
       'advisories',
+      'idempotencyKey',
       "'cross_project_context'",
       "'workspace_context_changed'",
       "'write_set_overlap'",
@@ -119,10 +125,11 @@ export function validateShellThreadCoordination(shellPaths): void {
     ],
     'Cross-thread coordination UI',
   );
-  assertTextExcludesAll(
-    readShellText(shellPaths, paths.sider),
+  assertShellTextIncludesAll(
+    shellPaths,
+    paths.sider,
     ['ThreadCoordinationSection', '<ThreadCoordinationSection'],
-    'Ordinary navigation must not mount the model-facing cross-thread capability',
+    'Ordinary rail keyboard-reachable cross-thread coordination entry',
   );
 
   const tests = [
@@ -136,11 +143,14 @@ export function validateShellThreadCoordination(shellPaths): void {
       'paginates thread/list',
       'steers the active turn without adding an OPL permission confirmation',
       'reports repeated routes as advisory and deduplicates only an identical request key',
+      'returns the first successful receipt and result for an identical request key without dispatching again',
       'allows the same message to be sent again with a new request key',
       'allows cross-project delivery and reports write-set overlap as advisory metadata',
       'inherits the running thread permission policy instead of imposing an OPL write scope',
       'does not add confirmation for cross-project delivery or a running turn steer',
       'archives directly through the Codex App Server lifecycle method',
+      'restores an archived thread through the Codex App Server lifecycle method',
+      'maps rename and delete to App Server thread lifecycle methods while pin remains UI metadata',
       'keeps the message TextArea autoSize object stable across React rerenders',
       'archives directly without adding an OPL confirmation step',
     ],
@@ -159,6 +169,7 @@ export function validateShellThreadCoordination(shellPaths): void {
       "code: 'write_set_conflict'",
       "code: 'cross_project_write'",
       "code: 'permission_expansion_denied'",
+      "code: 'duplicate_delivery'",
     ],
     'Cross-thread implementation must not hard-gate advisory project, workspace, route, dedupe-content, or write-set signals',
   );

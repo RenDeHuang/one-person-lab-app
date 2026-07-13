@@ -198,16 +198,16 @@ test('GUI design-system validator rejects an unknown convergence plan state', ()
   const root = createFixture();
   const planPath = path.join(root, 'docs/active/aionui-mainline-gui-convergence-plan.md');
   const currentPlan = fs.readFileSync(planPath, 'utf8');
-  assert.match(currentPlan, /^State: `(active_currentness_refresh|release_closeout_in_progress|complete)`$/m);
+  assert.match(currentPlan, /^State: `(active_parity_convergence|active_currentness_refresh|release_closeout_in_progress|complete)`$/m);
   const plan = currentPlan.replace(
-    /^State: `(active_currentness_refresh|release_closeout_in_progress|complete)`$/m,
+    /^State: `(active_parity_convergence|active_currentness_refresh|release_closeout_in_progress|complete)`$/m,
     'State: `active_plan`',
   );
   fs.writeFileSync(planPath, plan, 'utf8');
 
   assert.throws(
     () => validateGuiDesignSystem(root),
-    /must be in active_currentness_refresh, release_closeout_in_progress, or complete state/,
+    /must be in active_parity_convergence, active_currentness_refresh, release_closeout_in_progress, or complete state/,
   );
 });
 
@@ -424,6 +424,74 @@ test('GUI design-system validator rejects artifact preview body copying or unsaf
   assert.throws(
     () => validateGuiDesignSystem(root),
     /artifact preview must reuse the existing Preview surface through a ref-only fail-closed adapter/,
+  );
+});
+
+test('GUI design-system validator rejects workspace-gating projectless local inputs', () => {
+  const root = createFixture();
+  const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
+  const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+  contract.interaction_baseline.conversation_scope.projectless_input_policy.workspace_required = true;
+  writeJson(root, 'contracts/app-gui-product-contract.json', contract);
+
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /interaction baseline Home, conversation, composer, access, and task summary markers must match the App target/,
+  );
+});
+
+test('GUI design-system validator rejects a shell-owned ordinary rail thread history', () => {
+  const root = createFixture();
+  const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
+  const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+  contract.interaction_baseline.navigation_rail.thread_directory_policy.shell_thread_history_authority = true;
+  writeJson(root, 'contracts/app-gui-product-contract.json', contract);
+
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /interaction baseline navigation rail must preserve the governed desktop and narrow-window skeleton/,
+  );
+});
+
+test('GUI design-system validator rejects a workspace-only explicit local artifact preview', () => {
+  const root = createFixture();
+  const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
+  const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+  contract.interaction_baseline.artifact_preview.explicit_local_path_policy.workspace_membership_required = true;
+  writeJson(root, 'contracts/app-gui-product-contract.json', contract);
+
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /artifact preview must reuse the existing Preview surface through a ref-only fail-closed adapter/,
+  );
+});
+
+test('GUI design-system validator rejects hidden coordination and duplicate-error idempotency', () => {
+  const root = createFixture();
+  const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
+  const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+  contract.interaction_baseline.thread_coordination.ordinary_navigation_visible = false;
+  contract.interaction_baseline.thread_coordination.idempotency_policy.same_key_retry_behavior =
+    'return_duplicate_error';
+  writeJson(root, 'contracts/app-gui-product-contract.json', contract);
+
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /cross-top-level coordination must preserve Codex App flexibility while keeping OPL metadata, advisories, idempotency, and audit/,
+  );
+});
+
+test('GUI design-system validator rejects duplicate Git stores for Worktree and Review parity', () => {
+  const root = createFixture();
+  const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
+  const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+  contract.interaction_baseline.conversation_scope.local_worktree_lifecycle.duplicate_git_or_thread_store_allowed = true;
+  contract.interaction_baseline.context_surfaces.review_pane.duplicate_git_store_allowed = true;
+  writeJson(root, 'contracts/app-gui-product-contract.json', contract);
+
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /interaction baseline Home, conversation, composer, access, and task summary markers must match the App target|interaction baseline must reject the legacy equal-weight inspector taxonomy/,
   );
 });
 

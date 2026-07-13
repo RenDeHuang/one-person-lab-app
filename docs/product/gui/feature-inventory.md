@@ -43,10 +43,10 @@ Sites/Chat 等入口可以隐藏或拒绝；它们不构成 OPL 功能回归。
 
 | 功能 | 用户结果 | Authority / machine owner |
 | --- | --- | --- |
-| Workspace-aware App frame | 用户始终知道当前 project/local/branch context；无 workspace 时仍可普通文字聊天，文件与项目能力明确受限。 | GUI contract、product profile、workspace state/action refs。 |
-| Project/conversation navigation | 宽桌面 rail 默认展开，窄窗口变 drawer；用户可按 project 新建、搜索、pin、rename、archive、reset conversation，并从独立 Archived surface 恢复。 | GUI contract、page-state matrix；具体呈现由理想交互层定义。 |
+| Workspace-aware App frame | 用户始终知道当前 project/local/branch context；project/workspace 只提供新任务默认 cwd、分组和上下文提示，不构成授权域。 | GUI contract、product profile、Codex permission/approval/sandbox。 |
+| Project/conversation navigation | 宽桌面 rail 默认展开，窄窗口变 drawer；canonical rows 来自 App Server。Rename/archive/restore/delete 分别映射 `thread/name/set`、`thread/archive`、`thread/unarchive`、`thread/delete`；pin 是 Shell metadata，local reset 不重写 App Server history。 | GUI contract、page-state matrix、runtime bridge。 |
 | Chat-first main canvas | 打开 App 后可以直接开始或继续工作，不先经过 dashboard/landing。 | GUI contract、page-state matrix。 |
-| Projectless conversation | 不建立 project 也能持续普通对话；只有依赖 workspace、文件或 Git 的能力被限制。 | GUI contract、conversation state/bridge。 |
+| Projectless conversation | 不建立 project 也能使用 attachment、任意本地文件/目录选择、paste/drop 与 `/open`；真实访问只受 Codex permission/approval/sandbox 约束。 | GUI contract、conversation state/bridge。 |
 | Secondary context surfaces | 右上 Environment floating details 汇总当前 workspace/git/subagents/sources；artifact/evidence preview 与 advanced tools 按需展开。 | GUI contract、runtime bridge、domain/runtime refs。 |
 | Product identity | 所有可见产品面使用 One Person Lab App 品牌，而不是 carrier/upstream 品牌。 | GUI contract、release assets、shell branding validation。 |
 
@@ -57,15 +57,16 @@ Sites/Chat 等入口可以隐藏或拒绝；它们不构成 OPL 功能回归。
 | New conversation | 在 project 中开始 task，或直接开始 projectless Codex conversation。 | GUI contract、conversation page state、Codex bridge。 |
 | Resume conversation | 找回 recent conversation，并保留关联 workspace。 | Conversation state/bridge；shell 只持有实现所需 session refs。 |
 | Conversation management | Search、pin、rename、archive、reset conversation，并在独立 Archived surface 管理归档。 | GUI contract、conversation state/bridge。 |
-| Cross-thread discovery | Codex 模型在需要归口或同步工作时，通过 host tool 读取独立顶层线程的 status、summary、workspace、host、owner、goal、parent/ancestor 与 claimed write set；普通用户导航不显示独立线程协调页面。Project/workspace 只用于新任务默认 cwd、rail 分组和可见元数据，不是授权域。 | Codex App Server thread read model；OPL host 只聚合轻量 metadata。 |
-| Cross-thread coordination | 模型按需读取摘要/历史，恢复、分叉、归档目标线程；向 idle target 使用 `turn/start`，向 running target 直接使用 `turn/steer` 或排队，并保留 sender、reason、message、Codex permission result、advisory 与 result receipt。跨 project/workspace、workspace-write、write-set overlap、running steer 和 loop advisory 不触发 OPL 拒绝或额外确认。 | Codex Core/App Server 拥有 thread/turn 和 permission/approval；OPL host 只拥有 opaque-key 幂等、advisory、queue 与 audit policy；普通 rail 不挂载此能力。 |
+| Cross-thread discovery | Rail 的可见、键盘可达入口与 model host tool 都读取独立顶层线程的 status、summary、workspace、host、owner、goal、parent/ancestor 与 advisory write set；不建立第二套协调 dashboard。 | Codex App Server thread read model；OPL host 只聚合轻量 metadata。 |
+| Cross-thread coordination | 模型按需读取摘要/历史，恢复、分叉、归档或 unarchive 目标线程；idle 使用 `turn/start`，running 使用 `turn/steer`。同 key 重试返回第一次 receipt/result、`ok=true` 且不二次 dispatch；跨 host 通过 handoff。 | Codex Core/App Server 拥有 thread/turn 和 permission/approval；OPL host 只拥有 opaque-key 幂等、advisory、queue 与 audit policy。 |
+| Local / Worktree lifecycle | New task 可选择 Local 或 Worktree、starting branch，并在两者之间 handoff；`$CODEX_HOME/worktrees` 下 selected branch HEAD detached，可应用所选 Local 未提交变更与 `.worktreeinclude`，同 task 复用同 worktree，cleanup 前 snapshot 可恢复。 | Codex Core/App Server 与既有 Git integration；Shell 仅薄 adapter。 |
 | Text instruction | 向固定 Codex executor 发送多行任务说明。 | Product profile、ordinary conversation contract。 |
 | Streaming assistant output | 持续看到 assistant response，不需要查看 raw protocol。 | Codex/App bridge 与 conversation page state。 |
 | Pending/running feedback | 看到当前 turn 正在处理、elapsed time、stop 和失败状态。 | Page-state matrix、bridge events。 |
 | Tool/process event summary | 在当前 turn 中理解 command、tool、diff、file、permission 和 receipt 发生了什么。 | Codex/App bridge；raw details 保持 diagnostics。 |
-| File/folder attachment | 发送前加入本地材料，并可预览或移除。 | Workspace/file platform adapter 与 App workspace policy。 |
+| File/folder attachment | 无论是否选择 project，发送前都可加入任意用户显式选择的本地文件/目录，并可预览或移除。 | File platform adapter 与 Codex permission/approval/sandbox。 |
 | Project Context inputs | 在 rail 的 project 下添加或移除 workspace 文件/目录 refs；新建该 project conversation 时以可见、可移除 context 预载，不生成默认样例或复制正文。 | App GUI contract；Shell client configuration keyed by canonical workspace path。 |
-| Current execution context | Project 在 rail、branch/locality 在 Environment、active capability、project context refs 与 attachment 在 composer 附近；缺 workspace 时看到能力限制。 | GUI contract、workspace/App state refs。 |
+| Current execution context | Project 在 rail、branch/locality 在 Environment、active capability、project context refs 与 attachment 在 composer 附近；缺 workspace 不禁用显式本地输入。 | GUI contract、workspace/App state refs。 |
 | Model/reasoning control | Home 与普通 conversation 共用一个紧凑 App-owned model/reasoning menu。 | `contracts/app-product-profile.json`；文档不复制 allowlist。 |
 | Permission/access mode | 在 Home 与 conversation composer 以自动化和文件权限的用户语言显示，保留安全透明度但不暴露 provider/backend。 | GUI contract、workspace/access policy。 |
 | Purpose selection | 从 Home starter 选择科研、基金、演示、写书等工作目的；composer 只保留 active capability chip。安装、Home 显示和 lifecycle 管理进入 Settings → Agents & Capabilities。 | Product profile、GUI contract、route receipt policy。 |
@@ -103,7 +104,8 @@ short name 和 technical refs 进入 details/receipt。
 | Task/project drilldown | 按需查看 evidence、blocker、owner、resource 和 next-action refs。 | Runtime bridge / domain-owned refs。 |
 | Safe action | 对允许的运行或维护动作先 preview，再 confirm/execute。 | `opl app action execute ... --json`。 |
 | Files and artifact refs | 从 conversation、Environment details 或 preview 打开输入、输出和交付引用。 | Workspace/domain artifact refs；App 不拥有 artifact body。 |
-| Artifact preview adapter | Workspace 内 canonical file ref 进入现有 PreviewContext/PreviewPanel；Markdown 可承载 Mermaid、KaTeX 与 code，PDF/image/html/diff 使用既有 renderer，外部 URL、unsafe/unsupported ref fail closed。 | App GUI contract定义 ref policy；外部 owner 继续拥有 artifact body。 |
+| Artifact preview adapter | 用户显式打开时，合法任意绝对本地路径进入现有 Preview；project-context refs 仍 workspace-scoped。Traversal、非法 scheme、自动静默读取及 unsafe/unsupported ref fail closed。 | App GUI contract定义 ref policy；外部 owner 继续拥有 artifact body。 |
+| Review pane | 复用 Files/Changes diff surface；target 支持 uncommitted/base branch/commit/custom，交付支持 inline/detached，默认 Unstaged 并有 Staged/Commit/Branch/Last turn；PR context 依赖 `gh`，缺失时明确 unavailable。 | 既有 Codex Git integration；Shell 不复制 Git store。 |
 | Provenance and receipts | 查看来源、owner handoff、action result 和 lineage refs。 | Domain/runtime/release owner refs。 |
 
 Home 不承担跨项目 Runtime、continue-work、needs-attention、activity grid 或 evidence

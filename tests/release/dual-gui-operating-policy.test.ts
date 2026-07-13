@@ -50,3 +50,16 @@ test('dual GUI conversation continuity rejects shell-owned thread history', () =
     /shell_can_own_thread_history must be false/,
   );
 });
+
+test('Codex parity adapters reject duplicate Git stores and direct cross-host messaging', () => {
+  const runtimeBridge = readJson<any>('contracts/app-runtime-bridge.json');
+  const activeAdapter = readJson<any>('contracts/app-shell-adapter.json');
+  const invalid = structuredClone(runtimeBridge);
+  invalid.codex_local_worktree_handoff_policy.duplicate_git_store_allowed = true;
+  invalid.codex_local_worktree_handoff_policy.cross_host_transition = 'direct_message';
+
+  assert.throws(
+    () => validateRuntimeBridgeContract(invalid, activeAdapter),
+    /Codex Local and Worktree handoff policy/,
+  );
+});

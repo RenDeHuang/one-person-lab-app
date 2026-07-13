@@ -2,7 +2,7 @@
 
 Owner: `one-person-lab-app`
 Purpose: `aionui_mainline_gui_convergence_plan`
-State: `complete`
+State: `active_parity_convergence`
 Updated: `2026-07-13`
 Machine boundary: 本文是 AionUI 主线 GUI 的执行计划、结果 read model 和终局验收表。
 产品功能、交互、视觉和机器验收仍分别归 GUI 三层文档、`contracts/`、validators、Shell
@@ -14,9 +14,10 @@ source/tests 与对应 evidence。本文不创建第二套产品 authority，也
 `26.707.41301` 核心 GUI composition 与 OPL 专有能力位置继续有效，不需要大规模 GUI
 重写，也不得重放 `dbff7370f` 或整体 merge AionUI upstream。AionUI 主线已经在 Home package
 readiness、Settings/Personalization、managed update 和 runtime bridge 上继续前进，因此本计划
-已完成本轮 contract/source currentness refresh：三层文档、machine contract、active Shell source
-与 source gates 已闭合；pixels、packaged user path 和 release promotion 继续作为独立证据轨道。
-旧 cohort 证据保留但不冒充当前完成。
+已重新打开 Codex parity 收敛：此前 `complete` 只覆盖 41301 composition 与一部分 flexible
+coordination source，不能覆盖 projectless 文件能力、App Server rail authority、任意绝对本地路径
+Preview、首结果幂等 replay、可见协调入口、unarchive、Local/Worktree lifecycle、cross-host handoff
+和完整 Review pane。旧 cohort 证据保留，但不冒充这些新增目标已实现。
 
 最终维护路线固定为：
 
@@ -29,6 +30,8 @@ readiness、Settings/Personalization、managed update 和 runtime bridge 上继�
 6. 跨顶层线程协调由 Codex App Server thread/turn + OPL host 安全/审计薄适配实现，不复用
    同一 agent tree 的 `send_input`，也不建立第二套 thread store；
 7. package、安装、用户路径、push/readback 和 cleanup 必须使用 fresh evidence 独立闭合。
+8. Codex parity 采用薄 adapter：Project/workspace 不是权限域；thread/Git truth 继续归 Codex
+   Core/App Server 与既有 Git integration，Shell 不复制 store。
 
 ## 当前事实快照
 
@@ -37,12 +40,12 @@ fresh gate、pixels、package/user path 和远端回读为准。
 
 | Surface | Fresh 状态 | 边界 |
 | --- | --- | --- |
-| App authority refresh | 本轮隔离 lane 基于 remote main `129258053d2063994cc57408bb03a3b2abb1471a` | GUI ancestor/current HEAD 分离、v2.1.33 review、artifact ref adapter、跨顶层线程合同与 source validator 已统一；最终 App main currentness 由 Git remote readback 证明，不在文档中递归嵌入自身 HEAD。 |
+| App authority refresh | 本轮隔离 lane 基于 `f9d9c2420fe64d78b44afb6b1186a8fd499a1ebc` | 重新定义 projectless、App Server rail、absolute-path Preview、idempotency replay、visible coordination、unarchive、Local/Worktree/handoff/snapshot 与 Review thin adapter；最终 App main currentness 由集成 owner 回读。 |
 | Shell corrected source cohort | `69bce9d565a9fd6460e61273e8905abe0158d2db`（parent `a0ce713b65801fd9ca7f46ad168c977c75a187de`） | Artifact、navigation、thread protocol 与 App profile projection 保持；cross-project/workspace/overlap/loop 改为 advisory，running 直接 steer，archive 直接执行，turn/start 不覆盖目标 sticky settings。 |
 | Latest reviewed upstream | `v2.1.33@a819d175683d5a0aada20064888da07bfcecdb6a` | 相比已评估 GUI cohort 无 GUI delta；不整体 merge，release/runtime intake 单独处理。 |
 | Product profile | 使用 App 官方生成器和当前 OPL Flow workflow policy 对 Shell generated profile 重建后，`jq -S` canonical diff 为空 | Generated profile 的 compatibility projection 包含由 OPL Flow policy 派生的字段；不要求与 raw App JSON 字节相等，不提交纯格式噪音。 |
 | Verified GUI ancestor gates | Shell `a0ce713b...`：full suite `293 files / 2172 tests` 通过、`1 file / 3 tests` skip；root TypeScript、1514-file format、i18n 通过。App active-shell full 通过；release-boundary `293 pass / 2 platform skip / 0 fail` | 证明最低 GUI ancestor 与 source contract 边界，不单独证明 installed path 或 release-ready。 |
-| Corrected source gates | Shell `69bce9d...`：target Node `19/19`、DOM `4/4`；full `293 files` pass / `1` skip、`2173 tests` pass / `3` skip；TypeScript、i18n、format、diff-check 通过 | 证明 corrected flexible-dispatch source behavior；不证明 current pixels、packaged two-root UI、安装路径或 remote host。 |
+| Corrected source gates | Shell `69bce9d...`：target Node `19/19`、DOM `4/4`；full `293 files` pass / `1` skip、`2173 tests` pass / `3` skip；TypeScript、i18n、format、diff-check 通过 | 只证明 flexible advisory、running steer、archive 与无额外 confirmation 基线；不证明本轮 reopened parity 项。 |
 | Live App Server protocol | Codex CLI `0.144.1` + 临时 `CODEX_HOME`：两条 materialized top-level threads 完成 list/source-hint、target turn/start/result/read、resume、fork 与 archive readback | 证明 production adapter 的本机 protocol wire；未覆盖 `turn/steer` 竞态、Shell packaged two-root UI 或 remote host。 |
 | Historical source gates | exact `0ebc1fdd278e8a79602458e15e28cf814dfd917d`：`test:full` 282 files pass / 1 skip、2044 tests pass / 3 skip；TypeScript、1487-file format、i18n 与 lint 0 errors | 只属于历史 cohort。 |
 | Historical core visual evidence | `docs/product/gui/evidence/aionui-41301/manifest.json` 绑定 Shell `0ebc1fdd...`、`E2E_PACKAGED=1`、时间 `2026-07-11T21:16:06.183Z` 和 8 个 route/layout 场景 | Manifest 与截图保持原字节/原 SHA；current `605fd91c...` pixels 为 unverified。 |
@@ -78,9 +81,9 @@ first-run、中英文，以及本轮纳入 authority 的跨顶层线程协调不
 
 | 层级 | Authority | 当前状态 | 后续规则 |
 | --- | --- | --- | --- |
-| 功能层 | [`feature-inventory.md`](../product/gui/feature-inventory.md)、App contracts | `human_target_refreshed` | 非降级边界、Home/Settings capability 分工与 package activation 已更新；machine contract 同步必须单独通过 validator。 |
-| 理想交互与视觉层 | [`ideal-interaction-spec.md`](../product/gui/ideal-interaction-spec.md)、[`visual-system.md`](../product/gui/visual-system.md)、[`codex-to-opl-app-delta.md`](../product/gui/codex-to-opl-app-delta.md)、[`element-audit.md`](../product/gui/element-audit.md) | `aligned_current_target` | Project 归 rail，branch/locality 归 Environment；rail 只保留 New task/Runtime/Archived；Home starter 不截断并 fail-closed launch。 |
-| Shell 实现层 | [`shell-implementation-guide.md`](../product/gui/shell-implementation-guide.md)、[`shell-conformance-matrix.md`](../product/gui/shell-conformance-matrix.md) | `current_source_implemented` | Shell `69bce9d...` 已删除额外 OPL hard gates/confirmation 并通过 full source gates；pixels、packaged two-root UI 与 remote host 仍分层验收。 |
+| 功能层 | [`feature-inventory.md`](../product/gui/feature-inventory.md)、App contracts | `parity_target_refreshed` | 七类 parity 能力已进入 machine truth；不代表 Shell source 已实现。 |
+| 理想交互与视觉层 | [`ideal-interaction-spec.md`](../product/gui/ideal-interaction-spec.md)、[`visual-system.md`](../product/gui/visual-system.md)、[`codex-to-opl-app-delta.md`](../product/gui/codex-to-opl-app-delta.md)、[`element-audit.md`](../product/gui/element-audit.md) | `parity_target_refreshed` | Project 归 rail metadata，权限归 Codex；协调、Preview、Local/Worktree 与 Review 位置已定义。 |
+| Shell 实现层 | [`shell-implementation-guide.md`](../product/gui/shell-implementation-guide.md)、[`shell-conformance-matrix.md`](../product/gui/shell-conformance-matrix.md) | `reopened_source_gaps` | `69bce9d...` 只保留为 flexible coordination 基线；本轮 source/pixel/package 验收尚未闭合。 |
 
 ## OPL 已采纳能力收敛结果
 
@@ -96,8 +99,11 @@ first-run、中英文，以及本轮纳入 authority 的跨顶层线程协调不
 | P1 | Current task | `opl_adopted_relocated` | timeline 单一 summary；普通任务不默认 sticky，长任务或用户操作才 pin。 | 真实长任务/approval evidence 单独维护。 |
 | P1 | Transcript export | `opl_adopted_active` | cursor-safe、递归脱敏、Markdown/JSON、失败可见；`/export` 使用同一安全路径。 | workspace bundle 继续要求逐项选择与确认。 |
 | P1 | Desktop navigation | `opl_adopted_active` | 保留 Back/Forward、Previous/Next、New Window 的 OPL 路径，不创建 WebUI 第二 IA。 | 完整快捷键专项验收不阻塞 core GUI。 |
-| P1 | Cross-thread coordination | `opl_adopted_active` | Shell `69bce9d...` 通过 host tool 完成 thread list/read、resume/fork/archive、idle start、running steer/queue；project/workspace 只作默认 cwd、分组和元数据，OPL 仅增加 opaque-key 幂等、advisory 与双边 receipt；archive 直接且可恢复。 | Source 已闭合；packaged two-root UI、current pixels 与 remote host 不由 source tests外推。 |
-| P1 | Artifact preview adapter | `opl_adopted_target` | Canonical ref 薄接现有 Preview，external-owner body，unsafe/unsupported fail closed。 | 不新建 renderer/store；专项 renderer pixels 独立验收。 |
+| P1 | Cross-thread coordination | `opl_adopted_target_reopened` | Product target要求 rail 可见键盘入口、unarchive、同 key 首结果 replay、cross-host handoff；`69bce9d...` 只覆盖部分基线。 | Source/pixels/package 均未闭合。 |
+| P1 | Artifact preview adapter | `opl_adopted_target_reopened` | 用户显式任意绝对本地路径或 workspace-scoped project ref 薄接现有 Preview。 | 需补双 scope、traversal/scheme/silent-read source tests。 |
+| P1 | Projectless local input | `opl_adopted_target_reopened` | 无 workspace 保留 attachment、file/directory picker、paste/drop、`/open`，只服从 Codex permission。 | Current Shell 仍有 project-required 限制。 |
+| P1 | Local / Worktree lifecycle | `opl_adopted_target` | `$CODEX_HOME/worktrees`、detached selected branch HEAD、selected Local changes、`.worktreeinclude`、same-task reuse、handoff、snapshot/restore 使用 Codex/Git authority。 | Source/pixels/package 未实现；cleanup前恢复证据必须闭合。 |
+| P1 | Review pane | `opl_adopted_target` | 复用 Files/Changes，覆盖 uncommitted/base branch/commit/custom、inline/detached、Unstaged/Staged/Commit/Branch/Last turn；PR context依赖 `gh`。 | Existing diff只是基础，完整 source与 unavailable state 未闭合。 |
 | P2 | Settings | `opl_adopted_active` | 保留 OPL IA、bounded page-section cards 与 flat rows；不恢复旧 quiet/Codex-style Settings 实验。 | 维护模式，只修回归。 |
 
 ## Upstream Selective Intake 结果
@@ -125,36 +131,41 @@ Shell package/version 和 AionCore intake 继续作为独立维护工作。选�
 - packaged 8-scene core visual manifest 已绑定 exact Shell SHA，并明确限制 claim；
 - `26.7.12` macOS arm64 App 已原子安装，签名、AionCore、Home/Settings live path 与 stable CDP error readback 已验证。
 
-### 当前 refresh 边界
+### 当前 reopened 边界
 
-1. App GUI machine contract 与本轮人读 target 已同步；design-system、active-shell quick 与完整
-   release-boundary 已绑定最终 Shell source cohort通过；
-2. Artifact、Acceptance 与 Navigation 保持既有集成；Shell `69bce9d...` 已闭合 corrected flexible
-   Thread coordination source gates，Codex `0.144.1` 两根线程 protocol smoke 已闭合
-   list/read/start/result/resume/fork/archive；
-3. 当前核心 pixels 仅在需要声明 current visual 时重建，且生成新 manifest，不修改旧 evidence SHA；
-4. Packaged two-root UI、`turn/steer` live 竞态、package activating 独立状态、真实 bridge approval
-   injection 和 Desktop/WebUI 同场景 parity 仍是明确专项 gap；当前 install/user path 不属于本次
-   source currentness 完成声明。Git push/readback 与 lane cleanup 作为 operational closeout 单独回读，
-   不改变产品、像素或 release readiness 状态。
+1. App GUI machine contract 与三层文档定义本轮 parity target；focused authority validators 只证明
+   产品真相一致，不证明 active Shell source。
+2. Shell `69bce9d...` 继续证明 flexible advisory/steer/archive 基线；可见协调入口、unarchive、
+   same-key 首结果 replay、projectless local input、absolute-path Preview、Local/Worktree/handoff/
+   snapshot 与完整 Review 仍需新的 exact source cohort。
+3. Source 实现后必须按每项 focused negative/positive tests验收，再运行 full source gate；不能用旧
+   full suite 结果覆盖新行为。
+4. 当前核心 pixels 仅在真正 final source 后重建，且生成新 manifest，不修改旧 evidence SHA。
+5. Package、installed user path、Desktop/WebUI parity、remote host handoff 和 release promotion继续
+   独立关闭；任何一项缺失都不得写成 release-ready。
 
 ## 完成度审计表
 
 | Requirement | 当前状态 | 完成证据 |
 | --- | --- | --- |
-| 41301 human target 与三层文档一致 | `done_current_refresh` | 五份产品定义文档已收敛 rail/Home/Settings 与 package readiness 语义。 |
-| App machine authority 与三层文档一致 | `done_current_refresh` | Artifact、GUI ancestor 和跨顶层 thread authority 已进入 contracts/page-state/validators，并通过 combined gates。 |
-| Shell GUI behavior 与 OPL 非降级边界一致 | `done_source_currentness` | Final integration 已通过 full source、package build、E2E 与 App combined gates；未采纳 AionUI 面未进入 ordinary IA。 |
-| Cross-thread coordination | `source_implemented_flexible_policy` | App authority 与 Shell `69bce9d...` 已统一为 Codex App 薄壳：目录不是授权域，overlap/loop 只 advisory，同一 opaque key 重试幂等，running steer/archive 无 OPL confirmation。普通导航入口继续隐藏；pixels、packaged two-root UI 与 remote host 仍待独立关闭。 |
+| 41301 human target 与三层文档一致 | `reopened_parity_target` | Composition 保留；新 parity 项已补入功能、交互、实现三层。 |
+| App machine authority 与三层文档一致 | `authority_lane_in_progress` | GUI/page-state/runtime bridge 与 validators同步后以本 lane focused gates验收。 |
+| Shell GUI behavior 与 OPL 非降级边界一致 | `source_rework_required` | 现有 OPL 已用功能必须保留；未采用 AionUI 面无需恢复。七类 parity gap需新 source cohort。 |
+| Projectless local input | `source_partial` | 当前 project-required 限制与 App target冲突。 |
+| App Server rail authority | `source_partial` | Rail history/actions需收敛到 list/read/resume/name-set/archive/unarchive/delete；pin仅 UI metadata，local reset不重写 history。 |
+| Cross-thread coordination | `source_partial` | `69bce9d...` 只覆盖 flexible policy；visible entry、unarchive、首结果 replay、cross-host handoff待实现。 |
+| Artifact preview path parity | `source_partial` | Workspace refs已有；任意绝对本地路径与双 scope安全策略待实现。 |
+| Local / Worktree lifecycle | `source_missing` | Local/Worktree、starting branch、handoff、snapshot/restore待实现。 |
+| Review pane | `source_partial` | Existing diff可复用；PR context、inline comments、stage/commit/push闭环待实现。 |
 | Generated profile current | `done_semantic` | 官方生成器重建后 canonical JSON diff 为空；未提交纯格式差异。 |
 | Core visual matrix | `historical_only_current_unverified` | 8-entry manifest 继续精确绑定 `0ebc1fdd...`；当前 pixels 不沿用。 |
 | Package/install/user path | `source_package_only_current_unverified` | Production source package 通过；`26.7.12` 安装证据早于当前 Shell，不能提升为 current。 |
 | Main absorption/push/readback | `operational_closeout` | 交付时以 `git ls-remote` 精确回读；本文不递归绑定包含自身的 App HEAD，该结果也不提升 release readiness。 |
 | Lane cleanup | `operational_closeout` | exact/patch-equivalent/superseded 审计后删除本轮辅助与最终 lanes；不把清理状态解释为产品证据。 |
 
-本文状态为 `complete`：machine target 与 final source currentness 已闭合；Git operational closeout
-在交付 readback 中闭合，不形成递归文档 authority。Current pixels、packaged user path 与 release
-promotion 不属于本轮已完成证据；`release_ready=false` 与 `parity_1_to_1=false` 保持不变。
+本文状态为 `active_parity_convergence`。只有上述 reopened requirements 的 App authority、Shell
+source、focused/full gates、final pixels、package/user path 和必要 remote-host handoff 逐层闭合后，
+才允许重新评估完成状态。当前 `release_ready=false` 与 `parity_1_to_1=false` 保持不变。
 
 ## 维护边界
 

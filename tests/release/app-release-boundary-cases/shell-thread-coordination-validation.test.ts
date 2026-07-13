@@ -4,7 +4,8 @@ import { assert, fs, os, path, test } from './helpers.ts';
 const files = {
   'packages/desktop/src/common/types/codex/threadCoordination.ts': `
     CODEX_THREAD_COORDINATION_METHODS 'thread/list' 'thread/read' 'thread/resume' 'thread/fork'
-    'thread/archive' 'turn/start' 'turn/steer' messageSummary advisories 'inherit'
+    'thread/archive' 'thread/unarchive' 'thread/name/set' 'thread/delete'
+    'turn/start' 'turn/steer' messageSummary advisories 'inherit'
   `,
   'packages/desktop/src/process/bridge/threadCoordinationBridge.ts': `
     createProductionCodexThreadCoordinationPort
@@ -18,12 +19,14 @@ const files = {
   `,
   'packages/desktop/src/process/services/threadCoordination/codexAppServerPort.ts': `
     this.rpc.request('thread/list' this.rpc.request('thread/read' this.rpc.request('thread/resume'
-    this.rpc.request('thread/fork' this.rpc.request('thread/archive' this.rpc.request('turn/start'
+    this.rpc.request('thread/fork' this.rpc.request('thread/archive' this.rpc.request('thread/unarchive'
+    this.rpc.request('thread/name/set' this.rpc.request('thread/delete'
+    this.rpc.request('turn/start'
     this.rpc.request('turn/steer' response.nextCursor DEFAULT_MAX_PAGES sourceThreadIdHint
   `,
   'packages/desktop/src/process/services/threadCoordination/index.ts': `
-    code: 'thread_not_found' code: 'cross_host_delivery' code: 'thread_not_writable' code: 'duplicate_delivery'
-    boundedMessageSummary advisories 'cross_project_context' 'workspace_context_changed'
+    code: 'thread_not_found' code: 'cross_host_delivery' code: 'thread_not_writable'
+    boundedMessageSummary advisories idempotencyKey 'cross_project_context' 'workspace_context_changed'
     'write_set_overlap' 'delegation_cycle'
   `,
   'packages/desktop/src/renderer/pages/conversation/GroupedHistory/ThreadCoordination/useThreadCoordination.ts': `
@@ -34,11 +37,11 @@ const files = {
     messageSummary advisories permission: 'inherit' writeSet: []
   `,
   'packages/desktop/src/renderer/components/layout/Sider/index.tsx': `
-    ordinary navigation without the model-facing coordination surface
+    <ThreadCoordinationSection />
   `,
   'tests/unit/thread-coordination/codexAppServerPort.test.ts': 'paginates thread/list',
   'tests/unit/thread-coordination/threadCoordinationService.test.ts':
-    'steers the active turn without adding an OPL permission confirmation reports repeated routes as advisory and deduplicates only an identical request key allows the same message to be sent again with a new request key allows cross-project delivery and reports write-set overlap as advisory metadata inherits the running thread permission policy instead of imposing an OPL write scope does not add confirmation for cross-project delivery or a running turn steer archives directly through the Codex App Server lifecycle method',
+    'steers the active turn without adding an OPL permission confirmation reports repeated routes as advisory and deduplicates only an identical request key returns the first successful receipt and result for an identical request key without dispatching again allows the same message to be sent again with a new request key allows cross-project delivery and reports write-set overlap as advisory metadata inherits the running thread permission policy instead of imposing an OPL write scope does not add confirmation for cross-project delivery or a running turn steer archives directly through the Codex App Server lifecycle method restores an archived thread through the Codex App Server lifecycle method maps rename and delete to App Server thread lifecycle methods while pin remains UI metadata',
   'tests/unit/conversation/ThreadCoordination.dom.test.tsx':
     'keeps the message TextArea autoSize object stable across React rerenders archives directly without adding an OPL confirmation step',
 };
@@ -83,21 +86,18 @@ test('active-shell thread coordination validator rejects send_input as a cross-t
   assert.throws(() => validateShellThreadCoordination(shellPaths), /must not include send_input/);
 });
 
-test('active-shell thread coordination validator rejects an ordinary navigation entry', () => {
+test('active-shell thread coordination validator rejects a hidden ordinary rail entry', () => {
   const { root, shellPaths } = fixture();
-  fs.appendFileSync(
-    path.join(root, 'packages/desktop/src/renderer/components/layout/Sider/index.tsx'),
-    '\n<ThreadCoordinationSection />\n',
-    'utf8',
-  );
-  assert.throws(() => validateShellThreadCoordination(shellPaths), /must not mount/);
+  const siderPath = path.join(root, 'packages/desktop/src/renderer/components/layout/Sider/index.tsx');
+  fs.writeFileSync(siderPath, 'ordinary navigation without coordination', 'utf8');
+  assert.throws(() => validateShellThreadCoordination(shellPaths), /keyboard-reachable cross-thread coordination entry/);
 });
 
 test('active-shell thread coordination validator rejects legacy project and write-set hard gates', () => {
   const { root, shellPaths } = fixture();
   fs.appendFileSync(
     path.join(root, 'packages/desktop/src/process/services/threadCoordination/index.ts'),
-    "\ncode: 'cross_project_write'\ncode: 'write_set_conflict'\n",
+    "\ncode: 'cross_project_write'\ncode: 'write_set_conflict'\ncode: 'duplicate_delivery'\n",
     'utf8',
   );
   assert.throws(() => validateShellThreadCoordination(shellPaths), /must not hard-gate advisory/);

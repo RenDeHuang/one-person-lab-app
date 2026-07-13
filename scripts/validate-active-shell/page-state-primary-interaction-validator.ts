@@ -60,6 +60,8 @@ function validateGuidHomeViewModelFields(homeViewModel) {
     agent_package_skill_source_ref: 'contracts/app-gui-product-contract.json#professional_agent_packages.required_skill_ids + optional_skill_ids',
     assistant_source_ref: 'contracts/app-gui-product-contract.json#default_assistants',
     assistant_skill_profile_source_ref: 'contracts/app-gui-product-contract.json#assistant_skill_profiles',
+    local_worktree_lifecycle_ref:
+      'contracts/app-gui-product-contract.json#interaction_baseline.conversation_scope.local_worktree_lifecycle',
     ordinary_capability_selector_policy_ref: 'contracts/app-product-profile.json#gui.ordinary_capability_selector_policy',
     codex_only_default: true,
     codex_cli_fixed_executor: true,
@@ -185,6 +187,8 @@ function validateGuidHomeVisibleSignals(guidHomePage) {
     'ordinary skill selector filtered to App-owned assistant profile skill allowlist',
     'workspace selector',
     'file attachment control',
+    'projectless attachments, arbitrary local file or directory selection, paste, drop, and /open subject only to Codex permissions',
+    'Local or Worktree selection, starting branch, handoff, and snapshot or restore at new-task boundaries',
     'send action',
     'single composer-first home input with context strip and bottom action row',
     'permission and access mode in user language',
@@ -301,6 +305,7 @@ function validateOrdinaryConversationPage(matrix) {
     'attachments and project refs consumed by the current send only',
     'permission and access mode in user language',
     'projectless text conversation when no workspace is selected',
+    'projectless attachments, arbitrary local file or directory selection, paste, drop, and /open subject only to Codex permissions',
     'assistant route receipt',
     'Codex default model and reasoning status',
     'single current task instance in the message timeline, inline and unpinned for ordinary tasks',
@@ -345,6 +350,7 @@ function validateRightContextInspectorPage(matrix) {
     'no third column mounted by default',
     'Files and Changes workspace surface opened only by user or task need',
     'Preview opened as an independent surface for artifact, file, URL, or result',
+    'Review defaults to Unstaged, exposes Staged, Commit, Branch, and Last turn, supports uncommitted, base branch, commit, and custom targets with inline or detached delivery, and shows PR context unavailable when gh is missing',
     'Terminal and Browser opened from Environment or task need',
     'environment popover kept distinct from advanced work surfaces',
   ], 'Advanced workspace surface page visible signals');

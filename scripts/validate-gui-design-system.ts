@@ -616,8 +616,8 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   ) {
     issues.add('active shell adapter must bind a verified GUI ancestor separately from the current shell Git head');
   }
-  if (!/^State: `(active_currentness_refresh|release_closeout_in_progress|complete)`$/m.test(convergencePlan)) {
-    issues.add('AionUI mainline convergence plan must be in active_currentness_refresh, release_closeout_in_progress, or complete state');
+  if (!/^State: `(active_parity_convergence|active_currentness_refresh|release_closeout_in_progress|complete)`$/m.test(convergencePlan)) {
+    issues.add('AionUI mainline convergence plan must be in active_parity_convergence, active_currentness_refresh, release_closeout_in_progress, or complete state');
   }
   if (!convergencePlan.includes(guiConformanceRef) || !convergencePlan.includes(historicalPixelShellSha)) {
     issues.add('AionUI mainline convergence plan must bind both the verified GUI ancestor and historical evidence SHA');
@@ -753,6 +753,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   const navigationRail = record(interactionBaseline.navigation_rail);
   const railWidth = record(navigationRail.resizable_width_px);
   const desktopAffordancePolicy = record(navigationRail.desktop_affordance_policy);
+  const threadDirectoryPolicy = record(navigationRail.thread_directory_policy);
   if (
     navigationRail.wide_desktop_default !== 'expanded' ||
     navigationRail.narrow_window_mode !== 'drawer' ||
@@ -772,7 +773,33 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     desktopAffordancePolicy.unavailable_command_state !== 'disabled' ||
     desktopAffordancePolicy.previous_next_scope !== 'visible_ordinary_conversations' ||
     desktopAffordancePolicy.new_window_scope !== 'desktop_only' ||
-    desktopAffordancePolicy.webui_information_architecture_expansion_allowed !== false
+    desktopAffordancePolicy.webui_information_architecture_expansion_allowed !== false ||
+    threadDirectoryPolicy.canonical_authority !== 'codex_app_server_thread_list_read_resume' ||
+    !sameStrings(threadDirectoryPolicy.protocols, [
+      'thread/list',
+      'thread/read',
+      'thread/resume',
+      'thread/name/set',
+      'thread/archive',
+      'thread/unarchive',
+      'thread/delete',
+    ]) ||
+    JSON.stringify(threadDirectoryPolicy.task_action_protocols) !==
+      JSON.stringify({
+        rename: 'thread/name/set',
+        archive: 'thread/archive',
+        restore: 'thread/unarchive',
+        delete: 'thread/delete',
+      }) ||
+    threadDirectoryPolicy.pin_role !== 'shell_ui_metadata_only' ||
+    threadDirectoryPolicy.local_reset_role !==
+      'retain_existing_aionui_conversation_semantics_not_app_server_history_reset' ||
+    threadDirectoryPolicy.shell_local_storage_role !== 'drafts_preferences_and_rebuildable_cache_only' ||
+    threadDirectoryPolicy.shell_thread_history_authority !== false ||
+    threadDirectoryPolicy.project_workspace_role !== 'default_cwd_grouping_and_visible_metadata_only' ||
+    threadDirectoryPolicy.coordination_entry_visible !== true ||
+    threadDirectoryPolicy.coordination_entry_keyboard_reachable !== true ||
+    threadDirectoryPolicy.coordination_entry_placement !== 'ordinary_rail_thread_directory'
   ) {
     issues.add('interaction baseline navigation rail must preserve the governed desktop and narrow-window skeleton');
   }
@@ -784,10 +811,13 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   const threadDeliveryDefaults = record(threadCoordination.delivery_request_defaults);
   const threadTurnStartInheritance = record(threadCoordination.turn_start_inheritance_policy);
   const threadIdempotencyPolicy = record(threadCoordination.idempotency_policy);
+  const threadCrossHostPolicy = record(threadCoordination.cross_host_policy);
   const homeTarget = record(interactionBaseline.home);
   const capabilitySelection = record(interactionBaseline.capability_selection);
   const composerTarget = record(interactionBaseline.composer);
   const projectContextInputs = record(conversationScope.project_context_inputs);
+  const projectlessInputPolicy = record(conversationScope.projectless_input_policy);
+  const localWorktreeLifecycle = record(conversationScope.local_worktree_lifecycle);
   const permissionTarget = record(interactionBaseline.permission_access_mode);
   const taskSummaryTarget = record(interactionBaseline.current_task_summary_bar);
   const mobileActionSheet = record(composerTarget.mobile_action_sheet);
@@ -795,8 +825,31 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     conversationScope.project_task_supported !== true ||
     conversationScope.projectless_conversation_supported !== true ||
     conversationScope.text_chat_without_workspace !== 'available' ||
-    conversationScope.file_and_project_features_without_workspace !== 'restricted_with_explanation' ||
-    !sameStrings(conversationScope.conversation_management, ['search', 'pin', 'rename', 'archive', 'reset']) ||
+    conversationScope.file_and_project_features_without_workspace !==
+      'available_through_explicit_local_input_subject_to_codex_permissions' ||
+    conversationScope.project_workspace_role !==
+      'new_task_default_cwd_sidebar_grouping_and_context_hint_only_not_authorization_domain' ||
+    !sameStrings(projectlessInputPolicy.surfaces, [
+      'attachments',
+      'local_file_picker',
+      'local_directory_picker',
+      'paste',
+      'drop',
+      '/open',
+    ]) ||
+    projectlessInputPolicy.selection_scope !== 'any_user_selected_local_file_or_directory' ||
+    projectlessInputPolicy.workspace_required !== false ||
+    projectlessInputPolicy.access_authority !== 'codex_permission_approval_and_sandbox_only' ||
+    projectlessInputPolicy.shell_extra_path_authorization_allowed !== false ||
+    !sameStrings(conversationScope.conversation_management, [
+      'search',
+      'pin',
+      'rename',
+      'archive',
+      'restore',
+      'delete',
+      'reset',
+    ]) ||
     conversationScope.archived_surface !== 'independent' ||
     projectContextInputs.scope !== 'canonical_workspace_path' ||
     projectContextInputs.optional !== true ||
@@ -808,6 +861,21 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     projectContextInputs.composer_persistence_after_send !== 'none' ||
     projectContextInputs.fabricated_defaults_allowed !== false ||
     projectContextInputs.artifact_body_copy_allowed !== false ||
+    !sameStrings(localWorktreeLifecycle.locality_options, ['local', 'worktree']) ||
+    localWorktreeLifecycle.selection_surface !== 'new_task' ||
+    localWorktreeLifecycle.starting_branch_selectable !== true ||
+    !sameStrings(localWorktreeLifecycle.handoff_actions, ['local_to_worktree', 'worktree_to_local']) ||
+    !sameStrings(localWorktreeLifecycle.snapshot_actions, ['snapshot', 'restore']) ||
+    localWorktreeLifecycle.worktree_root !== '$CODEX_HOME/worktrees' ||
+    localWorktreeLifecycle.selected_branch_head_state !== 'detached' ||
+    localWorktreeLifecycle.selected_local_uncommitted_changes !== 'apply_to_new_worktree' ||
+    localWorktreeLifecycle.include_file !== '.worktreeinclude' ||
+    localWorktreeLifecycle.task_reuse_policy !== 'same_task_reuses_same_worktree' ||
+    localWorktreeLifecycle.cleanup_policy !== 'snapshot_before_cleanup_and_restore_available' ||
+    localWorktreeLifecycle.state_authority !== 'codex_core_app_server_and_existing_git_integration' ||
+    localWorktreeLifecycle.shell_role !== 'thin_adapter_only' ||
+    localWorktreeLifecycle.duplicate_git_or_thread_store_allowed !== false ||
+    localWorktreeLifecycle.cross_host_policy !== 'handoff_only_no_direct_cross_host_message' ||
     homeTarget.title_policy !== 'dynamic_question_title' ||
     homeTarget.starter_limit !== null ||
     homeTarget.starter_visibility_policy !== 'all_user_visible_configured_shortcuts' ||
@@ -889,7 +957,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     'target_not_found',
     'target_archived',
     'target_not_writable',
-    'cross_host_unsupported',
+    'cross_host_direct_delivery_unsupported_use_handoff',
     'codex_permission_denied_or_approval_required',
   ];
   const coordinationAdvisories = [
@@ -943,12 +1011,13 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   if (
     threadCoordination.product_role !== 'opl_host_cross_top_level_codex_thread_coordination' ||
     threadCoordination.entry_surface !==
-      'thread_detail_context_action_and_model_host_tool_no_ordinary_navigation' ||
-    threadCoordination.ordinary_navigation_visible !== false ||
+      'ordinary_rail_thread_directory_thread_detail_action_and_model_host_tool' ||
+    threadCoordination.ordinary_navigation_visible !== true ||
+    threadCoordination.keyboard_reachable_entry !== true ||
     threadCoordination.primary_composer_control_visible !== false ||
     threadCoordination.thread_detail_context_action_visible !== true ||
     threadCoordination.model_tool_access !== true ||
-    threadCoordination.default_state !== 'thread_detail_action_available_coordination_dialog_closed' ||
+    threadCoordination.default_state !== 'rail_entry_visible_coordination_panel_closed' ||
     threadCoordination.model_role !== 'decide_when_and_why_to_coordinate' ||
     threadCoordination.protocol_owner !== 'codex_core_app_server' ||
     threadCoordination.app_host_owner !== 'opl_app_host' ||
@@ -967,11 +1036,12 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
       'thread/resume',
       'thread/fork',
       'thread/archive',
+      'thread/unarchive',
       'turn/start',
       'turn/steer',
     ]) ||
     !sameStrings(threadCoordination.required_thread_fields, requiredThreadFields) ||
-    !sameStrings(threadCoordination.thread_actions, ['read', 'resume', 'fork', 'archive']) ||
+    !sameStrings(threadCoordination.thread_actions, ['read', 'resume', 'fork', 'archive', 'unarchive']) ||
     threadDispatchPolicy.idle_thread !== 'turn/start' ||
     threadDispatchPolicy.running_thread !== 'turn/steer' ||
     threadDispatchPolicy.unknown_or_stale_status !== 'refresh_then_route_or_protocol_failure' ||
@@ -992,8 +1062,17 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     !sameStrings(threadCoordination.must_not_block_or_confirm_for, coordinationNonBlockingSignals) ||
     threadIdempotencyPolicy.dedupe_scope !== 'same_opaque_request_or_idempotency_key_retry_only' ||
     threadIdempotencyPolicy.same_key_retry_behavior !==
-      'return_idempotent_duplicate_result_without_second_dispatch' ||
+      'return_first_receipt_and_result_with_ok_true_without_second_dispatch' ||
     threadIdempotencyPolicy.message_content_repeat_allowed !== true ||
+    threadCrossHostPolicy.direct_message_allowed !== false ||
+    threadCrossHostPolicy.transition !== 'handoff' ||
+    !sameStrings(threadCrossHostPolicy.handoff_preserves, [
+      'source_thread_ref',
+      'goal',
+      'context_summary',
+      'locality_request',
+      'audit_receipt',
+    ]) ||
     !sameStrings(threadCoordination.required_states, coordinationStates) ||
     !sameStrings(threadCoordination.audit_fields, coordinationAuditFields) ||
     threadCoordination.user_visibility_policy !==
@@ -1007,18 +1086,31 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
       'write_set_overlap_as_dispatch_blocker',
       'delegation_loop_as_dispatch_blocker',
       'message_content_as_dedupe_key',
+      'duplicate_delivery_error_for_same_idempotency_key',
+      'direct_cross_host_message_delivery',
       'any_opl_confirmation_for_thread_read_dispatch_steer_or_archive',
     ]) ||
     coordinationViewModel.product_role !== threadCoordination.product_role ||
     coordinationViewModel.entry_surface !== threadCoordination.entry_surface ||
-    coordinationViewModel.ordinary_navigation_visible !== false ||
+    coordinationViewModel.ordinary_navigation_visible !== true ||
+    coordinationViewModel.keyboard_reachable_entry !== true ||
     coordinationViewModel.primary_composer_control_visible !== false ||
     coordinationViewModel.thread_detail_context_action_visible !== true ||
     coordinationViewModel.model_tool_access !== true ||
-    coordinationViewModel.default_state !== 'thread_detail_action_available_coordination_dialog_closed' ||
+    coordinationViewModel.default_state !== 'rail_entry_visible_coordination_panel_closed' ||
     coordinationViewModel.thread_list_protocol !== 'thread/list' ||
     coordinationViewModel.thread_read_protocol !== 'thread/read' ||
-    !sameStrings(coordinationViewModel.thread_actions, ['thread/resume', 'thread/fork', 'thread/archive']) ||
+    !sameStrings(coordinationViewModel.thread_actions, ['thread/resume', 'thread/fork', 'thread/archive', 'thread/unarchive']) ||
+    JSON.stringify(coordinationViewModel.task_rail_action_protocols) !==
+      JSON.stringify({
+        rename: 'thread/name/set',
+        archive: 'thread/archive',
+        restore: 'thread/unarchive',
+        delete: 'thread/delete',
+      }) ||
+    coordinationViewModel.pin_role !== 'shell_ui_metadata_only' ||
+    coordinationViewModel.local_reset_role !==
+      'retain_existing_aionui_conversation_semantics_not_app_server_history_reset' ||
     coordinationViewModel.idle_dispatch_protocol !== 'turn/start' ||
     coordinationViewModel.running_dispatch_protocol !== 'turn/steer' ||
     JSON.stringify(coordinationViewModel.delivery_request_defaults) !== JSON.stringify(threadDeliveryDefaults) ||
@@ -1047,7 +1139,8 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     ]) ||
     coordinationViewModel.unknown_or_stale_status_policy !== 'refresh_then_route_or_protocol_failure' ||
     coordinationViewModel.idempotency_policy !==
-      'same_opaque_request_or_idempotency_key_retry_returns_idempotent_duplicate_without_second_dispatch_message_content_repeat_allowed' ||
+      'same_opaque_request_or_idempotency_key_retry_returns_first_receipt_and_result_ok_true_without_second_dispatch_message_content_repeat_allowed' ||
+    coordinationViewModel.cross_host_policy !== 'handoff_only_no_direct_cross_host_message' ||
     coordinationViewModel.opl_extra_confirmation_policy !==
       'none_including_archive_cross_project_cross_workspace_workspace_write_write_set_overlap_running_steer_and_loop_advisory' ||
     coordinationViewModel.same_agent_tree_api_boundary !== 'spawn_agent_send_input_wait_agent_same_tree_only'
@@ -1063,6 +1156,9 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   const conversationArtifactPreview = record(record(guiContract.ordinary_conversation).artifact_preview);
   const environmentPopover = record(contextSurfaces.environment_popover);
   const sidePanel = record(contextSurfaces.side_panel);
+  const reviewPane = record(contextSurfaces.review_pane);
+  const rightContextInspectorPage = pageStates.find((page) => page.id === 'right_context_inspector') ?? {};
+  const pageReviewPane = record(record(record(rightContextInspectorPage).inspector_view_model).review_surface);
   const settingsShell = record(interactionBaseline.settings_shell);
   const visualTarget = record(interactionBaseline.visual_target);
   const targetDefinitionRole = 'opl_target_translation_not_literal_codex_observation';
@@ -1080,7 +1176,19 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     !sameStrings(artifactPreview.supported_content_types, ['markdown', 'pdf', 'code', 'image', 'html', 'diff']) ||
     !sameStrings(artifactPreview.markdown_embedded_renderers, ['mermaid', 'katex', 'code']) ||
     artifactPreview.ref_resolution_policy !==
-      'canonical_workspace_file_ref_to_existing_preview_target_without_copying_artifact_body' ||
+      'explicit_absolute_local_path_or_workspace_scoped_project_ref_to_existing_preview_target_without_copying_artifact_body' ||
+    record(artifactPreview.explicit_local_path_policy).user_initiated_only !== true ||
+    record(artifactPreview.explicit_local_path_policy).path_form !== 'legal_absolute_local_file_path' ||
+    record(artifactPreview.explicit_local_path_policy).workspace_membership_required !== false ||
+    record(artifactPreview.explicit_local_path_policy).access_authority !== 'codex_permission_approval_and_sandbox' ||
+    record(artifactPreview.explicit_local_path_policy).automatic_silent_read_allowed !== false ||
+    record(artifactPreview.project_context_ref_policy).workspace_scoped !== true ||
+    record(artifactPreview.project_context_ref_policy).parent_traversal_allowed !== false ||
+    !sameStrings(artifactPreview.forbidden_inputs, [
+      'relative_parent_traversal',
+      'illegal_or_unsupported_scheme',
+      'automatic_silent_read',
+    ]) ||
     artifactPreview.artifact_body_authority !== 'external_owner_ref_only' ||
     artifactPreview.keyboard_reachable_open_action !== true ||
     artifactPreview.failure_policy !== 'keep_ref_visible_and_fail_closed_with_reason' ||
@@ -1091,6 +1199,9 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
       supported_content_types: artifactPreview.supported_content_types,
       markdown_embedded_renderers: artifactPreview.markdown_embedded_renderers,
       ref_resolution_policy: artifactPreview.ref_resolution_policy,
+      explicit_local_path_policy: artifactPreview.explicit_local_path_policy,
+      project_context_ref_policy: artifactPreview.project_context_ref_policy,
+      forbidden_inputs: artifactPreview.forbidden_inputs,
       artifact_body_authority: artifactPreview.artifact_body_authority,
       keyboard_reachable_open_action: artifactPreview.keyboard_reachable_open_action,
       failure_policy: artifactPreview.failure_policy,
@@ -1111,6 +1222,21 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     sidePanel.terminal_browser_entry_policy !== 'environment_or_task_need_only' ||
     sidePanel.equal_weight_tool_taxonomy_allowed !== false ||
     sidePanel.runtime_duplicate_allowed !== false ||
+    reviewPane.host_surface !== 'existing_files_changes_diff_surface' ||
+    reviewPane.default_state !== 'closed' ||
+    reviewPane.opens_on_user_request !== true ||
+    !sameStrings(reviewPane.review_targets, ['uncommitted', 'base_branch', 'commit', 'custom']) ||
+    !sameStrings(reviewPane.delivery_modes, ['inline', 'detached']) ||
+    reviewPane.default_section !== 'unstaged' ||
+    !sameStrings(reviewPane.sections, ['unstaged', 'staged', 'commit', 'branch', 'last_turn']) ||
+    !sameStrings(reviewPane.capabilities, ['pull_request_context', 'inline_comments', 'stage', 'commit', 'push']) ||
+    reviewPane.pull_request_context_dependency !== 'gh' ||
+    reviewPane.pull_request_context_unavailable_policy !== 'show_explicit_unavailable_state' ||
+    reviewPane.git_authority !== 'existing_codex_git_integration' ||
+    reviewPane.shell_role !== 'thin_adapter_only' ||
+    reviewPane.duplicate_git_store_allowed !== false ||
+    reviewPane.legacy_equal_weight_review_tab_allowed !== false ||
+    JSON.stringify(pageReviewPane) !== JSON.stringify(reviewPane) ||
     'primary_tools' in sidePanel ||
     'secondary_sections' in sidePanel ||
     !sameStrings(sidePanel.legacy_taxonomy_ids_forbidden, [

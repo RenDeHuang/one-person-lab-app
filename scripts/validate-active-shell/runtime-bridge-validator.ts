@@ -958,6 +958,7 @@ function validateCanonicalConversationContinuityPolicy(runtimeBridge) {
     state: 'target_with_current_shell_deviations',
     thread_truth_owner: 'codex_core_app_server',
     canonical_identity: 'host_identity_plus_opaque_app_server_thread_id',
+    ordinary_rail_authority: 'codex_app_server_thread_list_read_resume',
     shell_local_storage_role: 'ui_preferences_drafts_and_rebuildable_cache_only',
     shell_can_own_thread_history: false,
     direct_cross_shell_private_store_access_allowed: false,
@@ -965,6 +966,10 @@ function validateCanonicalConversationContinuityPolicy(runtimeBridge) {
     simultaneous_same_thread_write_safety_claimed: false,
     active_aionui_status: 'shell_local_conversation_repository_requires_canonical_projection',
     opl_native_workbench_status: 'resume_capable_full_local_transcript_cache_requires_canonical_thread_directory',
+    pin_role: 'shell_ui_metadata_only',
+    local_reset_role: 'retain_existing_aionui_conversation_semantics_not_app_server_history_reset',
+    same_idempotency_key_retry_policy: 'return_first_receipt_and_result_with_ok_true_without_second_dispatch',
+    project_workspace_role: 'default_cwd_grouping_and_context_hint_only_not_authorization_domain',
     acceptance: 'both_shells_project_the_same_app_server_thread_directory_and_resume_by_canonical_identity',
     implementation_status: 'target_not_proven_across_both_shells',
   })) {
@@ -974,8 +979,74 @@ function validateCanonicalConversationContinuityPolicy(runtimeBridge) {
   }
   assertIncludesAll(
     policy?.required_operations,
-    ['thread/list', 'thread/read', 'thread/resume'],
+    [
+      'thread/list',
+      'thread/read',
+      'thread/resume',
+      'thread/name/set',
+      'thread/archive',
+      'thread/unarchive',
+      'thread/delete',
+    ],
     'Canonical conversation continuity operations',
+  );
+  assertIncludesAll(
+    policy?.archive_restore_operations,
+    ['thread/archive', 'thread/unarchive'],
+    'Canonical conversation archive and restore operations',
+  );
+  assertDeepEqualJson(
+    policy?.task_action_protocols,
+    {
+      rename: 'thread/name/set',
+      archive: 'thread/archive',
+      restore: 'thread/unarchive',
+      delete: 'thread/delete',
+    },
+    'Canonical conversation task action protocols',
+  );
+}
+
+function validateCodexParityAdapterPolicies(runtimeBridge) {
+  assertDeepEqualJson(
+    runtimeBridge.codex_local_worktree_handoff_policy,
+    {
+      state: 'target_not_yet_source_verified',
+      authority: 'codex_core_app_server_and_existing_git_integration',
+      locality_options: ['local', 'worktree'],
+      starting_branch_selectable: true,
+      handoff_actions: ['local_to_worktree', 'worktree_to_local'],
+      snapshot_actions: ['snapshot', 'restore'],
+      worktree_root: '$CODEX_HOME/worktrees',
+      selected_branch_head_state: 'detached',
+      selected_local_uncommitted_changes: 'apply_to_new_worktree',
+      include_file: '.worktreeinclude',
+      task_reuse_policy: 'same_task_reuses_same_worktree',
+      cleanup_policy: 'snapshot_before_cleanup_and_restore_available',
+      cross_host_transition: 'handoff_only_no_direct_cross_host_message',
+      shell_role: 'thin_adapter_only',
+      duplicate_git_store_allowed: false,
+      duplicate_thread_store_allowed: false,
+    },
+    'Codex Local and Worktree handoff policy',
+  );
+  assertDeepEqualJson(
+    runtimeBridge.codex_review_surface_policy,
+    {
+      state: 'target_not_yet_source_verified',
+      host_surface: 'existing_files_changes_diff_surface',
+      review_targets: ['uncommitted', 'base_branch', 'commit', 'custom'],
+      delivery_modes: ['inline', 'detached'],
+      default_section: 'unstaged',
+      sections: ['unstaged', 'staged', 'commit', 'branch', 'last_turn'],
+      capabilities: ['pull_request_context', 'inline_comments', 'stage', 'commit', 'push'],
+      pull_request_context_dependency: 'gh',
+      pull_request_context_unavailable_policy: 'show_explicit_unavailable_state',
+      git_authority: 'existing_codex_git_integration',
+      shell_role: 'thin_adapter_only',
+      duplicate_git_store_allowed: false,
+    },
+    'Codex Review surface policy',
   );
 }
 
@@ -1206,6 +1277,7 @@ export function validateRuntimeBridgeContract(runtimeBridge, contract) {
   validateRuntimeBridgeCommandResolutionPolicy(runtimeBridge);
   validateSharedGuiRuntimeResolutionPolicy(runtimeBridge);
   validateCanonicalConversationContinuityPolicy(runtimeBridge);
+  validateCodexParityAdapterPolicies(runtimeBridge);
   validateRuntimeBridgeProjectionContracts(runtimeBridge);
   validatePackageReadinessProjection(runtimeBridge);
   validateRuntimeBridgeUserTaskStatus(runtimeBridge);

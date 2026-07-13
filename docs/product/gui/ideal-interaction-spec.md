@@ -23,7 +23,8 @@ Machine boundary: 本文是 shell-neutral 的人读交互目标。机器可读�
 
 1. **Chat first。** 用户打开 App 后直接开始或继续 conversation，不先阅读 dashboard。
 2. **Context visible。** 当前 project/local/branch 与 conversation context 始终可理解；
-   没有 workspace 时仍允许普通文字聊天，并明确文件与项目能力受限。
+   project/workspace 只作默认 cwd、分组和提示，不是权限域；没有 workspace 时仍允许显式
+   选择任意本地文件/目录。
 3. **One primary timeline。** 当前任务、assistant output 和 turn-local events 在同一
    conversation flow 中发生。
 4. **Secondary context on demand。** Environment floating details、preview 和 advanced
@@ -34,8 +35,9 @@ Machine boundary: 本文是 shell-neutral 的人读交互目标。机器可读�
    与 raw detail 可按需展开。
 7. **Authority aware。** UI 展示 state/action/domain/release refs，但不推断或接管
    owner truth。
-8. **Coordination is visible and bounded。** 跨顶层线程发现、投递、冲突和结果必须可见、
-   可审计；模型决定何时协调，App Server 拥有 thread/turn，OPL host 执行权限和安全策略。
+8. **Coordination is visible and thin。** 跨顶层线程发现、投递、advisory 和结果必须可见、
+   键盘可达、可审计；模型决定何时协调，App Server 拥有 thread/turn 与权限，OPL host 只做
+   路由、幂等、handoff 和 receipt 薄适配。
 
 没有明确 OPL delta 的主流程默认采用 OPL contracts 对
 [`codex-to-opl-app-delta.md`](codex-to-opl-app-delta.md) 记录的
@@ -46,8 +48,8 @@ header、隐藏 project rail、默认打开 inspector，或用 Settings/card lay
 
 宽桌面首次进入 ordinary Home 或 conversation 时：
 
-- 左侧项目/对话 rail 默认可见，展示 selected workspace/project 和 recent
-  conversations。
+- 左侧项目/对话 rail 默认可见，展示由 App Server `thread/list/read/resume` 投影的 threads；
+  project/workspace 只用于分组和默认 cwd。
 - 主区域是一条 conversation timeline；空 conversation 仍使用同一工作画布。
 - Composer 浮于主区底部并保留安全距，可直接输入多行任务。
 - Project identity 与 project context management 位于 rail；locality/branch 位于 Environment。
@@ -64,8 +66,8 @@ header、隐藏 project rail、默认打开 inspector，或用 Settings/card lay
 
 ## 核心用户流程
 
-1. **进入工作上下文。** App 恢复最近 project/conversation；用户也可不选 workspace，
-   直接开始 projectless conversation。
+1. **进入工作上下文。** App 恢复最近 App Server thread；用户可选择 Local/Worktree 与 starting
+   branch，也可不选 workspace，直接开始 projectless conversation。
 2. **开始或继续对话。** 用户从 rail 新建、搜索、pin、rename、archive、reset 或切换
    conversation，并从独立 Archived surface 管理归档。
 3. **选择工作目的。** 用户从 Home starter 选择科研、基金、演示、写书等能力；
@@ -88,39 +90,49 @@ Rail 负责 navigation，不承担 dashboard：
   会话级 Runtime details 只能补充当前任务，不能替代全局 Runtime 入口。Package/capability
   选择由 Home starter 承接，管理由 Settings → Agents & Capabilities 承接，不在 rail 重复。
   其它全局入口仅在 OPL 有真实对应能力时保留。
-- 中段按 project 分组 conversation。Selected project 下依次组织可选 context refs、
+- 中段按 project metadata 分组 App Server threads。Shell DB 只保存 draft、preference 和可重建
+  cache，不拥有 history。Selected project 下依次组织可选 context refs、
   attachments 入口和最近 conversations；context 与 attachments 都不是建项前置条件。
-- Projectless conversation 继续可用，但不伪造 project/context 层级。
+- Projectless conversation 继续可用，但不伪造 project/context 层级，也不禁用 attachment、
+  任意本地 file/directory picker、paste/drop 或 `/open`。这些访问只服从 Codex
+  permission/approval/sandbox。
 - Context refs 是该 workspace 内的文件或目录引用，支持添加和移除，不生成示例项，也不复制
   artifact body；按 canonical workspace path 持久化，并在该 project 新建 conversation 时
   作为可见、可移除的 context 预载。Attachments 仍属于当前 conversation draft，不自动继承为
   project defaults。
-- 支持 search、pin、rename、archive、reset；Archived 是独立 surface。
+- 支持 search、pin、rename、archive、restore、delete、reset；rename/archive/restore/delete
+  直接映射 `thread/name/set`、`thread/archive`、`thread/unarchive`、`thread/delete`。Pin 只是
+  Shell UI metadata；AionUI local reset 保留既有会话语义，但不得冒充 App Server history reset。
 - 底部固定 account、help、Settings。
 - Active conversation、running/blocked/completed 等状态只用轻量标记，不改变 row 布局。
 - 切换 conversation 保留各自 scroll、draft 和 refs context。
 - Workspace switch 明确说明新 turn 会在哪个目录执行。
+- New task 可选择 Local 或 Worktree、starting branch；Worktree 位于 `$CODEX_HOME/worktrees`，
+  selected branch HEAD detached，可应用用户所选 Local 未提交变更并读取 `.worktreeinclude`。
+  同一 task 复用同一 worktree；cleanup 前创建可恢复 snapshot。Local↔Worktree 与跨 host 都通过
+  handoff，不发送粗粒度 direct message。
 - Backend、provider、permission、router 和 raw runtime state 不作为 rail 层级。
 - 外部交互参考可以改变入口位置，但不得删除 OPL-owned capability；任何迁移必须在同一
   变更提供可见、键盘可达的替代入口，并同步更新 contract、source 和 navigation tests。
 
 ### 跨顶层线程协调
 
-- Project 下的 conversation rows 同时是 App Server top-level thread 的可见入口；status、host、
+- Rail 提供可见且键盘可达的 coordination 入口；Project 下的 conversation rows 同时是 App
+  Server top-level thread 的可见入口。Status、host、
   owner、goal、parent/ancestor 与 write-set 进入 row marker 或按需 detail，不增加 agent dashboard。
 - 默认按当前 project 分组。跨 project 和 archived scope 通过显式 filter 进入；筛选不改变
   授权。Project/workspace 仅是新任务默认 cwd、侧栏分组和可见元数据，任务后续可按 Codex
   自身权限访问其他目录；不把全局目录铺在 Home，也不自动把其它线程全文注入当前上下文。
-- 读取采用 metadata/summary first，必要时才 `thread/read` 历史；resume、fork、archive 位于
-  thread action menu，保持键盘可达。
+- 读取采用 metadata/summary first，必要时才 `thread/read` 历史；resume、fork、archive、
+  unarchive 位于 thread action menu，保持键盘可达。
 - 发送协作消息时，用户或模型必须提供 target、reason 和 message；expected write set 可选，
   只作为 advisory/audit。
   Idle target 使用 `turn/start`；running target 的紧急信息使用明确标记的 `turn/steer`，非紧急
   信息排队后再 `turn/start`；stale/unknown status 先 refresh，再按真实状态路由或返回协议失败。
 - 本机跨 project/workspace、workspace-write、active turn steering、write-set overlap 或 loop
-  advisory 不拒绝、不额外确认；OPL 只记录并展示。幂等只覆盖同一 opaque request/
-  idempotency key 的重试，同内容不同 key 可合法重复。
-- 硬失败仅来自协议无效/不可用、目标不存在/已归档/不可写、跨 host 尚不支持，或 Codex 自身
+  advisory 不拒绝、不额外确认；OPL 只记录并展示。同一 opaque request/idempotency key 重试
+  返回第一次 receipt/result、`ok=true` 且不二次 dispatch；同内容不同 key 可合法重复。
+- 硬失败仅来自协议无效/不可用、目标不存在/已归档/不可写、direct cross-host delivery 未支持，或 Codex 自身
   permission/approval。Archive 直接且可 unarchive，OPL 不对 read/send/steer/archive 增加确认。
 - Source 与 target timeline 都显示 coordination event；用户可以看到谁向谁发送、为什么、使用
   哪个协议动作、Codex permission 结果、advisory、当前状态和结果入口。Desktop 使用 rail context action +
@@ -148,7 +160,8 @@ Previous/Next 只在当前可见 ordinary conversations 中移动，不扩张 We
 - 点击可用 package starter 只进入 prepare 状态；真正 launch 前调用 Framework-owned
   use-boundary activation。只有 `launch_allowed`、`use_receipt_ref` 和 `use_binding` 完整时
   才创建/发送 conversation，失败时 fail closed 并保留修复入口。
-- 无 workspace 时普通文字聊天可发送；附件、文件、Git 与 project actions 显示受限原因。
+- 无 workspace 时仍可发送文字、attachment、任意本地 file/directory picker、paste/drop 与
+  `/open`；只有 Codex permission/approval/sandbox 可以阻止真实访问。
 - Home 不查询或渲染跨项目 activity、needs-attention、recent refs 或 per-assistant
   running badges。
 - 当前 turn 尚未开始时，不伪造 runtime status、progress 或 receipt。
@@ -188,6 +201,8 @@ Composer 是普通路径唯一主 command surface：
 - Executor 固定为 Codex CLI；backend/provider 不作为普通控件。Permission/access mode
   在 Home 与 conversation 可见，以自动化和文件权限表达并保留安全透明度。
 - Attachments 在发送前可预览、移除并显示访问失败。
+- Projectless attachment 与 `/open` 不受 workspace membership 限制；project context refs 继续
+  workspace-scoped，二者不可混成同一授权规则。
 - Running 时 send 转为 stop 或明确 queue 行为；stopping、blocked、failed 有可理解状态。
 - Model/reasoning 与 permission/access 不在 conversation header 或 Settings 快捷条中重复。
 - Composer draft 不因打开 Environment/preview、切换 details、window resize 或临时 error
@@ -220,15 +235,21 @@ Environment details 采用 Codex reference 的右上 anchored floating surface�
 OPL 增量按以下顺序进入：
 
 1. 与当前 task 直接相关的 artifact/evidence refs 进入 Environment 次级 section；
-2. 需要阅读的 Markdown/PDF/code/result 在独立 preview 或 conversation disclosure 打开；
+2. 需要阅读的 Markdown/PDF/code/result 在独立 preview 或 conversation disclosure 打开；用户
+   显式打开合法绝对本地路径时不要求属于 workspace，project-context ref 仍受 workspace scope；
 3. Terminal、Browser、Files 等 advanced surfaces 只从 Environment 或任务需要打开；
-4. 跨项目 Runtime、Actions、Memory 管理保持独立 route，不并列成九个 tabs。
+4. Review 复用 Files/Changes diff surface；target 支持 uncommitted、base branch、commit、custom，
+   交付支持 inline/detached，默认 Unstaged 并提供 Staged、Commit、Branch、Last turn。PR context
+   依赖 `gh`，缺失时明确 unavailable；支持 inline comments、stage、commit、push，但不恢复独立
+   equal-weight Review tab，也不复制 Git store；
+5. 跨项目 Runtime、Actions、Memory 管理保持独立 route，不并列成九个 tabs。
 
 打开任何 details/preview surface 时：
 
 - 保留 conversation、scroll、selection 和 composer draft；
 - 默认展示 summary，不自动展开 raw refs；
-- 只消费当前 workspace/conversation 的 refs；
+- 只自动消费当前 workspace/conversation 的 refs；任意绝对本地路径必须由用户显式打开；
+- 拒绝 parent traversal、非法 scheme 和自动静默读取；
 - 不拥有 artifact body、memory body、runtime/domain truth 或 owner receipt；
 - 空间不足时变为 overlay/drawer，并提供明确 close 和 keyboard focus boundary。
 
@@ -327,7 +348,8 @@ First-run 的目标是让用户尽快进入可工作的 App：
   dashboard/landing。
 - Package starter unavailable 时有原因和允许动作；launch 前 activation fail closed，成功时
   绑定 use receipt/binding。
-- Project task 与 projectless conversation 均可用；无 workspace 时文字聊天可用且文件能力受限。
+- Project task 与 projectless conversation 均可用；无 workspace 时 attachment、任意本地文件/目录
+  选择、paste/drop 与 `/open` 保持可用，访问只由 Codex permission/approval/sandbox 决定。
 - Composer 只有 textarea、send-local controls 和 bottom action row；purpose 不再常驻可变
   selector，project/local/branch 不与 rail/Environment 重复。
 - Permission/access mode 可见并用用户语言表达，不暴露 backend/provider。
@@ -337,8 +359,12 @@ First-run 的目标是让用户尽快进入可工作的 App：
 - Rail 顶部只有 New task、Runtime、Archived；capability 选择在 Home，管理在 Settings。
 - Environment 首层保持 workspace/locality/branch/changes/subtasks/sources；OPL artifact/evidence 为
   次级 section/preview，advanced tools 默认关闭。
-- 当前 project thread directory、thread detail、dispatch confirmation、双边 coordination receipt
-  与 denied/conflict/offline 状态均可发现；跨顶层投递不使用 `send_input`，不绕过权限或写集 gate。
+- Rail coordination 入口、App Server thread directory/detail、rename/archive/unarchive/delete、双边 receipt 与
+  denied/advisory/offline 状态均可发现；同 key 重试返回第一次成功结果且不二次 dispatch；跨 host
+  使用 handoff，跨顶层投递不使用 `send_input`。
+- Local/Worktree、starting branch、双向 handoff、snapshot/restore 均通过薄 adapter并遵守官方
+  worktree root/detached HEAD/include/reuse/cleanup snapshot语义；Review 复用 Files/Changes diff
+  surface并覆盖四类 target、两种 delivery、五个 sections 与 `gh` unavailable 状态。
 - Settings 使用 full-window shell，OPL IA、first-run、品牌和双语边界保持不变。
 - Pending、elapsed、tool/process、permission、failure 和 receipt 在 turn 中可理解。
 - Runtime/Settings 使用 App state/action/Control Plane，不拥有 owner truth。

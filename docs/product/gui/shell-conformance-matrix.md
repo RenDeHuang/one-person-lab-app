@@ -65,13 +65,14 @@ Active AionUI 默认状态通过 README 治理段声明的动态 state source �
   `1 file / 3 tests` skip；root TypeScript、1514-file format 与 i18n 通过（23 个既有
   warning-only unknown keys）。App active-shell full 通过；release-boundary 为
   `293 pass / 2 platform skip / 0 fail`。临时 dependency/checkout links 已清理。
-- Final source cohort：Shell `a0ce713b65801fd9ca7f46ad168c977c75a187de` full suite
+- Pre-parity source cohort：Shell `a0ce713b65801fd9ca7f46ad168c977c75a187de` full suite
   `293 files / 2172 tests` 通过、`1 file / 3 tests` skip；TypeScript、1514-file format、i18n、
   lint `0 errors / 861 warnings`、production source package 与隔离 AionCore 的 desktop/mobile dev Electron E2E
   `2/2` 通过。App active-shell full 与 release-boundary `293 pass / 2 platform skip / 0 fail`
   通过。Codex CLI `0.144.1` 隔离 live smoke 另证明两个 materialized top-level threads 的
-  list/source-hint、turn/start/result/read、resume、fork 与 archive protocol wire；这些证据仍不等于
-  packaged E2E、current pixels、installed path 或 release-ready。
+  list/source-hint、turn/start/result/read、resume、fork 与 archive protocol wire；这些证据早于
+  本轮 parity authority，不能证明 projectless local input、App Server rail、absolute-path Preview、
+  visible coordination/unarchive、首结果 replay、Local/Worktree/handoff/snapshot 或 Review。
 - Historical source gates：Shell `0ebc1fdd...` 的 `test:full` 为 `282 files pass / 1 skip`、
   `2044 tests pass / 3 skip`；TypeScript、1487-file format、i18n 与 lint `0 errors / 854 warnings`。
   这些结果只属于历史 source cohort，不能直接升级为 current source gates。
@@ -118,7 +119,7 @@ Active AionUI 默认状态通过 README 治理段声明的动态 state source �
 | Priority | Product surface | OPL-owned target translated from 26.707.41301 | AionUI current implementation | Status | Next decision |
 | --- | --- | --- | --- | --- | --- |
 | P0 | App frame | 左 project/conversation rail + 中央单列 timeline + 底部 composer + 右上按需 Environment details。 | Rail/timeline/composer/Environment composition 保留；默认无综合第三列。 | `source_implemented`, `pixel_unverified` | Source full gate 已闭合；保持维护模式，current pixels 仅在需要视觉 currentness claim 时独立重建。 |
-| P0 | Project hierarchy | Project 是 N conversations 的父级；selected project 下可增加可选 context refs。 | Project/conversation history、active workspace selector、registered-directory management 与 context refs 共用单一 source。 | `source_implemented`, `pixel_unverified` | 后续只补真实数据覆盖，不再复制状态。 |
+| P0 | Project hierarchy | Project 是 thread 的默认 cwd、分组与 context hint；rail canonical history/actions 来自 App Server。 | Active workspace/context 已有；history 与 rename/archive/restore/delete 仍需映射 App Server，pin 保持 UI metadata，local reset 不冒充 history reset。 | `source_partial`, `pixel_unverified` | Shell DB 只留 draft/preferences/cache；补 canonical identity、action 与 rebuild tests。 |
 | P0 | Home / New task | 与 conversation 共用 chat canvas/composer，不是 dashboard。 | Composer-first Home、全部用户可见 starters、stable order、responsive wrap 与 package readiness gate 已实现。 | `source_implemented`, `pixel_unverified` | 防止恢复 launcher/card wall、静默四项截断或 unavailable package 继续 launch。 |
 | P0 | Conversation chrome | 只显示 task identity/直接动作；model/access 留在 composer。 | Header 保留 identity/navigation/Environment/Files；model/access 不再重复挂 header/side panel。 | `source_implemented`, `pixel_unverified` | 维持 compact chrome。 |
 | P0 | Composer | Add/access、model/reasoning 与 send-stop 位于发送决策点；不重复 rail/Environment context。 | Desktop/mobile 共用 App resolver/profile；mobile `+` sheet 收纳次级动作；legacy intelligence proxy controls 已移除。 | `source_implemented`, `pixel_unverified` | 原生 Codex 能力只经 App profile/menu 投影，不恢复第二 provider/service truth。 |
@@ -127,8 +128,10 @@ Active AionUI 默认状态通过 README 治理段声明的动态 state source �
 | P1 | OPL capabilities | Purpose 从 Home starter 选择，composer 只显示 active capability；管理进入 Settings。 | Home package shortcuts、Settings directory/visibility/lifecycle 与 fail-closed readiness gate 已实现；generic backend/provider/Team 未回 ordinary UI。 | `source_implemented`, `pixel_unverified` | 补 current unavailable/activating/blocked starter pixels。 |
 | P1 | Progress / approval / receipt | 进入当前 timeline 与 task summary。 | Current-task summary 保持 timeline 单一实例；普通任务不默认 sticky。 | `source_implemented`, `pixel_unverified` | 后续补真实长任务/approval route evidence。 |
 | P1 | Artifacts / evidence | Environment 次级 refs、Preview、Files 或 turn disclosure。 | Files 与 Preview 按需且窄屏互斥；mobile Preview 使用完整可读 overlay；transcript export 已按 cursor 与脱敏合同加固。 | `source_implemented`, `pixel_unverified` | 历史像素保留；PDF/Mermaid/KaTeX 等 renderer 另做专项 evidence。 |
-| P1 | Artifact preview adapter | Canonical refs 薄接现有 Preview surface，body external-owner，unsafe/unsupported fail closed。 | Final source cohort 复用现有 Preview renderer/store；workspace 内 canonical refs 可打开，unsafe/unsupported/missing refs fail closed。 | `source_implemented`, `pixel_unverified` | PDF/Mermaid/KaTeX 等 renderer current pixels 独立取证。 |
-| P1 | Cross-thread coordination | Codex 模型按需调用 host tool；App Server list/read/resume/fork/archive/start/steer；OPL host 只增加 opaque-key 幂等、queue、advisory 和 audit。Project/workspace 是默认 cwd/分组/元数据，不是授权域；本机 cross-project/workspace、workspace-write、overlap、running steer 和 loop advisory 不阻断或额外确认，archive 直接且可恢复。 | Shell `69bce9d565a9fd6460e61273e8905abe0158d2db` 已删除 permission/write-set/confirmation UI 与 turn overrides；cross-project/workspace/overlap/loop 只 advisory，running 直接 steer，archive 直接执行。 | `source_implemented`, `ordinary_navigation_hidden`, `pixel_unverified` | Full source gates 已闭合；packaged two-root UI、current pixels、live remote host 仍需独立 evidence。 |
+| P1 | Artifact preview adapter | 用户显式合法绝对本地路径或 workspace-scoped project ref 薄接现有 Preview；traversal、非法 scheme、自动静默读取 fail closed。 | Current source只证明 workspace canonical refs 与既有 renderer/store；任意绝对本地路径的显式打开和双规则分流尚未验证。 | `source_partial`, `pixel_unverified` | 不复制 renderer/store；补 absolute-path、traversal、scheme 与 silent-read focused tests。 |
+| P1 | Cross-thread coordination | Rail 有可见键盘入口；App Server list/read/resume/fork/archive/unarchive/start/steer；同 key 返回首个 receipt/result、`ok=true`；跨 host 走 handoff。 | Shell `69bce9d...` 已闭合 flexible advisory、running steer、archive 与无额外 confirmation，但入口仍隐藏、无 unarchive、same-key 首结果 replay 与 cross-host handoff未实现。 | `source_partial`, `pixel_unverified` | Rail task actions同时补 name/set、archive、unarchive、delete。 |
+| P1 | Local / Worktree lifecycle | `$CODEX_HOME/worktrees` 下选择 Local/Worktree 与 starting branch；selected branch HEAD detached，支持 selected local changes、`.worktreeinclude`、same-task reuse、handoff、snapshot/restore。 | Current Shell 未完成同一 authority 下的 end-to-end source readback。 | `source_missing`, `pixel_unverified` | Cleanup前必须有可恢复 snapshot；不建第二 store。 |
+| P1 | Review pane | 复用 Files/Changes；四类 target、inline/detached、默认 Unstaged 与五 sections；PR context依赖 `gh`。 | Current Files/Changes/diff 能力存在，但完整 Review parity 与 `gh` unavailable focused evidence未闭合。 | `source_partial`, `pixel_unverified` | 不恢复 legacy equal-weight Review tab。 |
 | P2 | Settings | Secondary configuration/control surface，保持 OPL IA。 | 四类 surface 与 bounded cards 已进入 source；本次 core matrix 不复用旧 Settings pixels。 | `source_implemented`, `pixel_unverified` | 冻结 IA，只修回归；按需要重建当前 Settings evidence。 |
 
 ## Cross-shell Detail Appendix
@@ -144,12 +147,12 @@ Native candidate 不得与 active-shell P0 差距竞争实施资源。
 | 宽桌面 rail 默认展开且 `280-340px` 可调 | `aligned_contract` | `source_implemented` | `pixel_unverified` | `candidate_target` | `source_partial` | `pixel_verified` | AionUI `Layout` 保留 min/default/max 与 resize；current Home desktop pixels 待重建。 |
 | 窄窗口 rail 可收起并以 drawer/overlay 打开 | `aligned_contract` | `source_implemented` | `pixel_unverified` | `candidate_target` | `source_partial` | `pixel_unverified` | AionUI mobile rail 使用实际 overlay/drawer，并保留 selection；窄 viewport 像素待绑定。 |
 | Rail 顶部 New task/Runtime/Archived，底部 account/help/Settings | `aligned_contract` | `source_implemented` | `pixel_unverified` | `current_contract_deviation` | `source_missing` | `pixel_unverified` | AionUI `SiderToolbar/SiderPrimaryNav/SiderFooter` 承接全局骨架；Capabilities 不再是 ordinary rail entry。 |
-| Project task 与 projectless conversation | `aligned_contract` | `source_implemented` | `pixel_unverified` | `current_contract_deviation` | `source_partial` | `pixel_unverified` | AionUI 支持无 workspace 文字聊天，并对 attach/paste/drop/`/open` 给出 project-required 限制。 |
+| Project task 与 projectless conversation | `aligned_contract` | `source_partial` | `pixel_unverified` | `current_contract_deviation` | `source_partial` | `pixel_unverified` | 产品要求无 workspace 时 attachment、任意 file/directory picker、paste/drop、`/open` 仍可用；AionUI 当前 project-required 限制必须移除。 |
 | 项目选择器切换真实 active project | `aligned_contract` | `source_implemented` | `pixel_unverified` | `candidate_target` | `source_missing` | `pixel_unverified` | AionUI 有 workspace/project 路径；Native 当前没有真实项目切换闭环。 |
 | 项目 Context inputs 可选、可增删 | `aligned_contract` | `source_implemented` | `pixel_unverified` | `candidate_target` | `source_partial` | `pixel_verified` | AionUI 使用 workspace-keyed 单一 context source；Native `App.tsx` 仍固定生成四个虚构 inputs。 |
 | 项目附件可添加、查看、移除 | `aligned_contract` | `source_implemented` | `pixel_unverified` | `candidate_target` | `source_missing` | `pixel_unverified` | Native 缺真实 attachment actions；AionUI 附件能力已存在，但缺绑定当前 source 的像素证据。 |
-| 一个项目对应 N 个最近对话 | `aligned_contract` | `source_implemented` | `pixel_unverified` | `candidate_target` | `source_partial` | `pixel_verified` | Native 有 history/timeline 形态，但 project-scoped persistence 与切换还不完整。 |
-| 对话 search/pin/rename/archive/reset 与独立 Archived | `aligned_contract` | `source_implemented` | `pixel_unverified` | `current_contract_deviation` | `source_missing` | `pixel_unverified` | AionUI 已实现独立 Archived、pin/rename/archive/reset、分页 search 和 workspace expansion 隔离。 |
+| 一个项目对应 N 个 App Server threads | `aligned_contract` | `source_partial` | `pixel_unverified` | `candidate_target` | `source_partial` | `pixel_verified` | 两个 shell 都必须以 `thread/list/read/resume` 为 canonical directory；本地 history 只能是可重建 cache。 |
+| 对话 search/pin/rename/archive/restore/delete/reset 与独立 Archived | `aligned_contract` | `source_partial` | `pixel_unverified` | `current_contract_deviation` | `source_missing` | `pixel_unverified` | Rename/archive/restore/delete 必须走 App Server；pin仅 UI metadata，local reset不得冒充 history reset。 |
 | 主区保持单一 conversation timeline | `aligned_contract` | `source_implemented` | `pixel_unverified` | `candidate_target` | `source_implemented` | `pixel_verified` | Current AionUI source 保留单 timeline、底部 composer 和按需 secondary surface；pixels 待重建。 |
 | Composer 是 send-local refs/attachments + textarea + bottom action row | `aligned_contract` | `source_implemented` | `pixel_unverified` | `current_contract_deviation` | `source_partial` | `pixel_verified` | Project 归 rail，locality/branch 归 Environment；composer 不再重复持久 context。 |
 | 模型与推理策略由 App profile 驱动 | `aligned_contract` | `source_implemented` | `pixel_unverified` | `candidate_target` | `source_partial` | `pixel_verified` | AionUI desktop/mobile controls 共用 App Auto/fixed resolver；legacy intelligence proxy UI 已移除。 |
@@ -164,7 +167,9 @@ Native candidate 不得与 active-shell P0 差距竞争实施资源。
 | 普通 state 读取走 fast App state | `aligned_contract` | `source_implemented` | `not_applicable` | `candidate_target` | `source_implemented` | `not_applicable` | `A1/A2`, `N2/N3`；Full/detail 只允许进入明确 diagnostics。 |
 | Mutation 走 App action preview/confirm/execute/receipt | `aligned_contract` | `source_implemented` | `not_applicable` | `candidate_target` | `source_partial` | `not_applicable` | Native 已有 preview/action bridge，但完整高风险确认、receipt、rollback UX 尚未覆盖全部动作。 |
 | Runtime/Files/Memory/Artifacts 只展示 refs | `aligned_contract` | `source_implemented` | `not_applicable` | `candidate_target` | `source_partial` | `not_applicable` | Native `workbenchModel.ts` 仍保留 `GlycoFold` 等 demo fallback，必须去除后才能算完整真实投影。 |
-| Artifact Markdown/PDF/Mermaid/Code/KaTeX preview | `aligned_contract` | `source_partial` | `pixel_unverified` | `candidate_target` | `source_partial` | `pixel_unverified` | 历史 Markdown mobile Preview 已绑定；current pixels 与 PDF/Mermaid/Code/KaTeX 错误态仍待专项 evidence。 |
+| Artifact Markdown/PDF/Mermaid/Code/KaTeX preview | `aligned_contract` | `source_partial` | `pixel_unverified` | `candidate_target` | `source_partial` | `pixel_unverified` | 除 renderer pixels 外，还需证明用户显式任意绝对本地路径可打开、project refs 仍 scoped、traversal/非法 scheme/静默读取被拒绝。 |
+| Local/Worktree、starting branch、handoff、snapshot/restore | `aligned_contract` | `source_missing` | `pixel_unverified` | `candidate_target` | `source_not_assessed` | `pixel_unverified` | 验收 worktree root、detached HEAD、selected local changes、`.worktreeinclude`、reuse 与 cleanup snapshot。 |
+| Review 复用 Files/Changes diff surface | `aligned_contract` | `source_partial` | `pixel_unverified` | `candidate_target` | `source_not_assessed` | `pixel_unverified` | 验收四 targets、inline/detached、Unstaged/Staged/Commit/Branch/Last turn 与 `gh` unavailable。 |
 | Settings 使用 full-window return/search/grouped rows且 OPL IA 不变 | `aligned_contract` | `source_implemented` | `pixel_unverified` | `current_contract_deviation` | `source_partial` | `pixel_unverified` | AionUI 保留 8+2 IA、search/redirect/state/action semantics，并使用 bounded page-section cards + flat rows；Shell `74848adf77360903c5ac7d64c32455a78fb3901a` 的 42 张图只作为历史专项 evidence，不代表当前 cohort pixels。 |
 | 白色 main、灰色 rail/subtle surface、OPL teal | `aligned_contract` | `source_implemented` | `pixel_unverified` | `current_contract_deviation` | `source_partial` | `pixel_verified` | 历史 8 场景覆盖 light/dark、desktop/mobile 与双语；current AionUI pixels 不沿用。 |
 | Desktop Back/Forward、Previous/Next Task、New Window | `aligned_contract` | `source_implemented` | `pixel_unverified` | `current_contract_deviation` | `source_not_assessed` | `pixel_unverified` | titlebar/menu、focused/unfocused command gate、focus resync 与 history boundary 已有 focused coverage；packaged multi-window 仍是独立证据缺口。 |
@@ -183,11 +188,12 @@ Native candidate 不得与 active-shell P0 差距竞争实施资源。
   本轮 final integration 不得沿用旧 pixels。
 - **Package readiness pixels：** unavailable、activating、blocked、repair/doctor 等新状态尚无
   current route/viewport evidence。
-- **Cross-thread coordination：** Shell `69bce9d...` 的 host adapter、rail/detail/actions、receipt/audit、
-  flexible source/DOM 与 Codex `0.144.1` 两根线程 protocol wire 已闭合；packaged list -> read ->
-  dispatch -> result -> source readback、current pixels 与 remote host 仍需专项证据。
-- **Artifact ref adapter：** canonical ref 到既有 Preview 的 source/failure tests 已进入 final source
-  cohort；PDF/Mermaid/KaTeX 等 renderer current pixels 仍需专项证据。
+- **Cross-thread coordination：** Shell `69bce9d...` 只证明 flexible advisory/steer/archive 基线；
+  可见键盘入口、unarchive、首结果 idempotency replay 与 cross-host handoff 是 reopened source gaps。
+- **Artifact ref adapter：** workspace canonical ref 到既有 Preview 的 source/failure tests 已有；
+  用户显式任意绝对本地路径、双 scope policy、traversal/非法 scheme/静默读取仍需 source 证据。
+- **Codex locality / Review：** Local/Worktree、starting branch、handoff、snapshot/restore 与完整 Review
+  pane 仍未形成 exact source cohort；现有 Files/Changes/diff 只能算复用基础。
 - **Settings pixels：** 14-entry desktop Light manifest 绑定 `fadd91f9...`；不把该历史图提升为
   current Settings pixel evidence。
 - **Native contract/source：** candidate contract 与 visual parity 仍绑定 superseded
