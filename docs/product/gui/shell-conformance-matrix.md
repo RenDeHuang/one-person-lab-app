@@ -65,10 +65,10 @@ Active AionUI 默认状态通过 README 治理段声明的动态 state source �
   `1 file / 3 tests` skip；root TypeScript、1490-file format 与 i18n 通过（23 个既有
   warning-only unknown keys）。App active-shell quick 通过；release-boundary 为
   `257 pass / 2 platform skip / 0 fail`。临时 dependency/checkout links 已清理。
-- Final source cohort：Shell `23ecc94a7a4985461135ecc840186fb71a72745a` full suite
-  `292 files / 2164 tests` 通过、`1 file / 3 tests` skip；TypeScript、1513-file format、i18n、
+- Final source cohort：Shell `2103a16aeeb8f3ed8ae45b5dc90d12865539bbe2` full suite
+  `292 files / 2165 tests` 通过、`1 file / 3 tests` skip；TypeScript、1513-file format、i18n、
   lint `0 errors / 859 warnings`、production source package 与 desktop/mobile dev Electron E2E
-  `2/2` 通过。App active-shell quick 与 release-boundary `269 pass / 2 platform skip / 0 fail`
+  `2/2` 通过。App active-shell quick 与 release-boundary `282 pass / 2 platform skip / 0 fail`
   通过。Codex CLI `0.144.1` 隔离 live smoke 另证明两个 materialized top-level threads 的
   list/source-hint、turn/start/result/read、resume、fork 与 archive protocol wire；这些证据仍不等于
   packaged E2E、current pixels、installed path 或 release-ready。
