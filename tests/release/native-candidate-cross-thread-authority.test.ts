@@ -23,7 +23,13 @@ const readAuthority = (): NativeCrossTopLevelThreadAuthority => {
 test('native candidate accepts the exact verified local P0 plus P1 cohort while remote P2 stays deferred', () => {
   const authority = readAuthority();
   assert.equal(authority.implementation_status, 'local_p0_p1_implemented_verified_candidate_only');
-  assert.equal(authority.local_p0_p1_implementation_evidence.native_source_sha, '52a99697a44823824b37c73c3f92d8dd517eec4b');
+  assert.equal(authority.local_p0_p1_implementation_evidence.native_source_sha, 'c1d9dbda821d95137722e5ff0e40e984486226c5');
+  assert.equal(authority.local_p0_p1_implementation_evidence.packaged_native_live.display_name, 'One Person Lab Native');
+  assert.equal(
+    authority.local_p0_p1_implementation_evidence.installed_native_app.app_path,
+    '/Applications/One Person Lab Native.app',
+  );
+  assert.equal(authority.local_p0_p1_implementation_evidence.installed_native_app.candidate_actions, 'dry_run_only');
   assert.equal(authority.local_p0_p1_implementation_evidence.claim_boundary.active_shell_adopted, false);
   assert.equal(authority.local_p0_p1_implementation_evidence.claim_boundary.release_ready, false);
   assert.doesNotThrow(() => validateNativeCrossTopLevelThreadAuthority(authority));

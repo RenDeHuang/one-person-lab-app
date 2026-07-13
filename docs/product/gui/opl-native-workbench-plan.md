@@ -75,9 +75,9 @@ The authority order is:
 
 ## Verified Local Candidate Cohort
 
-The local P0 plus P1 implementation is bound to App product authority
-`e96621b7d6bcfc502859c419e72d4a93fc51e4f8`, Native source and pushed
-`origin/main` `52a99697a44823824b37c73c3f92d8dd517eec4b`, and Codex CLI
+The local P0 plus P1 implementation and formal side-by-side package are bound to
+App product authority `3615b0e4d338a46f21882a8d9b13e2f0adb5a12e`, Native source and pushed
+`origin/main` `c1d9dbda821d95137722e5ff0e40e984486226c5`, and Codex CLI
 `0.144.1`, observed on `2026-07-13`.
 
 - the complete Native test bundle passed, including 10 coordination security
@@ -97,6 +97,11 @@ The local P0 plus P1 implementation is bound to App product authority
   the process was terminated after capture;
 - packaged renderer, package manifest, and screenshot SHA-256 fingerprints are
   recorded in the machine contracts and enforced by the candidate validator.
+- `/Applications/One Person Lab Native.app` was installed alongside
+  `/Applications/One Person Lab.app`; its visible name, isolated bundle ID,
+  badged icon, exact renderer bytes, explicit Runtime cohort, selected workspace,
+  and launcher-default `dry_run_only` policy were read back from the installed
+  process without changing release adoption or updater state.
 
 This closes local candidate P0 plus P1 implementation evidence. It does not set
 `active_shell_adopted`, `release_ready`, `production_ready`, `clean_vm_ready`,

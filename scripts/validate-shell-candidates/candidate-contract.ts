@@ -135,8 +135,8 @@ const requiredFalseReadyFields = [
   'remote_ready',
 ];
 
-const nativeEvidenceSourceSha = '52a99697a44823824b37c73c3f92d8dd517eec4b';
-const nativeEvidenceAppProductAuthoritySha = 'e96621b7d6bcfc502859c419e72d4a93fc51e4f8';
+const nativeEvidenceSourceSha = 'c1d9dbda821d95137722e5ff0e40e984486226c5';
+const nativeEvidenceAppProductAuthoritySha = '3615b0e4d338a46f21882a8d9b13e2f0adb5a12e';
 
 function validateNativeLocalP0P1ImplementationEvidence(
   evidence: NativeLocalP0P1ImplementationEvidence | undefined,
@@ -145,6 +145,7 @@ function validateNativeLocalP0P1ImplementationEvidence(
   const dynamicTools = evidence?.dynamic_tools_live ?? {};
   const coordination = evidence?.coordination_live ?? {};
   const packaged = evidence?.packaged_native_live ?? {};
+  const installed = evidence?.installed_native_app ?? {};
   const boundary = evidence?.claim_boundary ?? {};
   if (
     !evidence ||
@@ -169,13 +170,22 @@ function validateNativeLocalP0P1ImplementationEvidence(
     coordination.direct_turn_start !== 'completed' ||
     coordination.host_queue_then_turn_start !== 'completed' ||
     coordination.urgent_turn_steer !== 'completed' ||
+    packaged.display_name !== 'One Person Lab Native' ||
     packaged.bundle_id !== 'cn.gflab.opl.native-workbench.candidate' ||
+    packaged.installed_app_path !== '/Applications/One Person Lab Native.app' ||
     packaged.window_evidence !== 'core_graphics_fallback_after_ax_denied_-25211' ||
-    packaged.window_id !== 111241 ||
-    packaged.renderer_sha256 !== 'd7349bb5de3d6d1ec936a789b9c71e84ebd557971a5fbb37f9cfc848616a554a' ||
-    packaged.package_manifest_sha256 !== '315cf2a344650cf044a7e110948e506738907ebc5aec80242094124a5e49be4d' ||
-    packaged.screenshot_sha256 !== '510e269e5e29e4ea941b4d237008c686ac2a4c0937e553115ccd38d47ef116c9' ||
+    packaged.window_id !== 112445 ||
+    packaged.renderer_sha256 !== 'd39f696434d757a0c62a9c169701554642413d10f8c90285e93bac6150082e4c' ||
+    packaged.package_manifest_sha256 !== '50e1b3a7f9e62525078c3ae1a9752ae1ca2cddd3165f32ed733a7145d31689be' ||
+    packaged.icon_sha256 !== 'ce551a9c7b3bd1e0137dbe79a013c3154af658f6195d5cce25433f706d48044e' ||
+    packaged.screenshot_sha256 !== '71c9d1ed783546665fa030b4848b48612a4c2eb17a05abe616661067be9d08da' ||
     packaged.process_cleanup !== true ||
+    installed.status !== 'verified_local_install' ||
+    installed.app_path !== '/Applications/One Person Lab Native.app' ||
+    installed.bundle_id !== 'cn.gflab.opl.native-workbench.candidate' ||
+    installed.active_mainline_app_path !== '/Applications/One Person Lab.app' ||
+    installed.active_mainline_bundle_id !== 'cn.onepersonlab.opl' ||
+    installed.candidate_actions !== 'dry_run_only' ||
     boundary.local_p0_p1_implemented !== true ||
     boundary.candidate_only !== true ||
     boundary.active_shell_adopted !== false ||

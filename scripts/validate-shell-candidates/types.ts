@@ -27,6 +27,7 @@ export type NativeLocalP0P1ImplementationEvidence = {
   dynamic_tools_live: Record<string, unknown>;
   coordination_live: Record<string, unknown>;
   packaged_native_live: Record<string, unknown>;
+  installed_native_app: Record<string, unknown>;
   claim_boundary: Record<string, unknown>;
 };
 
