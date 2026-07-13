@@ -138,8 +138,9 @@ test("Full DMG artifacts carry the cohort manifest required by the VM gate", () 
     fullWorkflow,
     /name: Write Full build artifact cohort manifest\n\s+if: \$\{\{ always\(\) && steps\.full_package_build\.outcome == 'success' \}\}/,
   );
-  assert.match(fullWorkflow, /schema: 'opl_app_build_artifact_cohort\.v1'/);
-  assert.match(fullWorkflow, /framework_sha: process\.env\.FRAMEWORK_SHA/);
+  assert.match(fullWorkflow, /write-build-artifact-cohort\.ts/);
+  assert.match(fullWorkflow, /--kind full/);
+  assert.match(fullWorkflow, /--framework-sha "\$\(git -C one-person-lab rev-parse HEAD\)"/);
   assert.match(
     fullWorkflow,
     /name: opl-full-first-install-dmg-\$\{\{ env\.OPL_RELEASE_VERSION \}\}-mac-arm64-cohort/,

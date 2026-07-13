@@ -19,6 +19,14 @@ on:
         description: 'GitHub Actions run id that owns release_artifact_name. Empty means the current workflow run.'
         required: false
         type: string
+      stable_session_id:
+        description: 'Stable release session sha256 identity for release-bound qualification.'
+        required: false
+        type: string
+      release_cohort_ref:
+        description: 'Stable release cohort sha256 identity for release-bound qualification.'
+        required: false
+        type: string
       shell_ref:
         description: 'opl-aion-shell ref containing the first-run smoke scripts. Empty means main.'
         required: false
@@ -37,6 +45,7 @@ on:
           - full
           - standard
           - homebrew-standard
+          - homebrew-full
       tart_source_vm:
         description: 'Tart clean snapshot/base VM. Empty means repository variable OPL_FIRST_RUN_TART_SOURCE.'
         required: false
@@ -108,6 +117,14 @@ on:
         description: 'GitHub Actions run id that owns release_artifact_name. Empty means the caller workflow run.'
         required: false
         type: string
+      stable_session_id:
+        description: 'Stable release session sha256 identity for release-bound qualification.'
+        required: false
+        type: string
+      release_cohort_ref:
+        description: 'Stable release cohort sha256 identity for release-bound qualification.'
+        required: false
+        type: string
       shell_ref:
         description: 'opl-aion-shell ref containing the first-run smoke scripts. Empty means main.'
         required: false
@@ -118,7 +135,7 @@ on:
         required: false
         type: string
       package_profile:
-        description: 'Install profile to test: full, standard, or homebrew-standard.'
+        description: 'Install profile to test: full, standard, homebrew-standard, or homebrew-full.'
         required: false
         default: full
         type: string
@@ -275,7 +292,7 @@ jobs:
             fi
           fi
           case "$profile" in
-            full | standard | homebrew-standard)
+            full | standard | homebrew-standard | homebrew-full)
               ;;
             *)
               echo "::error::Unsupported package_profile: $profile"
@@ -407,6 +424,9 @@ jobs:
             --manifest artifacts/release-cohort/opl-build-cohort.json \
             --app-sha "$GITHUB_SHA" \
             --shell-sha "${{ steps.shell_ref.outputs.shell_sha }}" \
+            --actions-run-id "${{ inputs.release_artifact_run_id || github.run_id }}" \
+            --stable-session-id "${{ inputs.stable_session_id }}" \
+            --release-cohort-ref "${{ inputs.release_cohort_ref }}" \
             "${framework_args[@]}" \
             "${version_args[@]}"
 
@@ -436,7 +456,7 @@ jobs:
           PROFILE="${{ needs.validate-vm-inputs.outputs.package_profile }}"
           SOURCE_VM="${{ inputs.tart_source_vm }}"
           if [ -z "$SOURCE_VM" ]; then
-            if [ "$PROFILE" = "homebrew-standard" ]; then
+            if [[ "$PROFILE" == homebrew-* ]]; then
               SOURCE_VM="${OPL_FIRST_RUN_HOMEBREW_TART_SOURCE:-}"
             else
               SOURCE_VM="${OPL_FIRST_RUN_TART_SOURCE:-}"
@@ -553,6 +573,13 @@ jobs:
               echo "install_mode=homebrew-cask" >> "$GITHUB_OUTPUT"
               echo "homebrew_cask=gaofeng21cn/one-person-lab/one-person-lab" >> "$GITHUB_OUTPUT"
               ;;
+            homebrew-full)
+              echo "download_pattern=" >> "$GITHUB_OUTPUT"
+              echo "find_args=" >> "$GITHUB_OUTPUT"
+              echo "runtime_profile=full" >> "$GITHUB_OUTPUT"
+              echo "install_mode=homebrew-cask" >> "$GITHUB_OUTPUT"
+              echo "homebrew_cask=gaofeng21cn/one-person-lab/one-person-lab-full" >> "$GITHUB_OUTPUT"
+              ;;
             *)
               echo "::error::Unsupported package_profile: $profile"
               exit 1
@@ -634,6 +661,15 @@ jobs:
           run-id: ${{ inputs.release_artifact_run_id || github.run_id }}
           github-token: ${{ github.token }}
           path: artifacts/release
+
+      - name: Download release cohort identity
+        if: ${{ inputs.release_artifact_name != '' }}
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ inputs.release_artifact_name }}-cohort
+          run-id: ${{ inputs.release_artifact_run_id || github.run_id }}
+          github-token: ${{ github.token }}
+          path: artifacts/release-cohort
 
       - name: Resolve release DMG
         id: dmg
@@ -817,6 +853,28 @@ jobs:
           fi
           echo "dmg_path=$DMG_PATH" >> "$GITHUB_OUTPUT"
           echo "Using DMG: $DMG_PATH"
+
+      - name: Verify downloaded DMG exact bytes against build cohort
+        if: ${{ inputs.release_artifact_name != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          framework_args=()
+          if [ -n "${{ needs.validate-vm-inputs.outputs.framework_sha }}" ]; then
+            framework_args=(--framework-sha "${{ needs.validate-vm-inputs.outputs.framework_sha }}")
+          fi
+          version="${{ inputs.release_tag }}"
+          version="${version#v}"
+          node --experimental-strip-types scripts/validate-build-artifact-cohort.ts \
+            --manifest artifacts/release-cohort/opl-build-cohort.json \
+            --artifact "${{ steps.dmg.outputs.dmg_path }}" \
+            --app-sha "$GITHUB_SHA" \
+            --shell-sha "${{ needs.validate-vm-inputs.outputs.shell_sha }}" \
+            --actions-run-id "${{ inputs.release_artifact_run_id || github.run_id }}" \
+            --stable-session-id "${{ inputs.stable_session_id }}" \
+            --release-cohort-ref "${{ inputs.release_cohort_ref }}" \
+            --version "$version" \
+            "${framework_args[@]}"
 
       - name: Prefetch Codex package install assets
         if: ${{ needs.validate-vm-inputs.outputs.diagnostic_scope != 'bootstrap_only' }}
@@ -1662,6 +1720,28 @@ jobs:
           fi
 
           exit "$SMOKE_STATUS"
+
+      - name: Write exact-artifact qualification receipt
+        if: ${{ always() && inputs.release_artifact_name != '' && inputs.stable_session_id != '' && inputs.release_cohort_ref != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          result=failed
+          if [ "${{ steps.vm_smoke.outcome }}" = "success" ]; then result=passed; fi
+          profile="${{ steps.package_profile.outputs.profile || needs.validate-vm-inputs.outputs.package_profile }}"
+          evidence_ref="opl-first-run-vm-${profile}-${GITHUB_RUN_ID}"
+          node --experimental-strip-types scripts/write-artifact-qualification-receipt.ts \
+            --manifest artifacts/release-cohort/opl-build-cohort.json \
+            --output artifacts/opl-first-run-vm/artifact-qualification-receipt.json \
+            --result "$result" \
+            --package-profile "$profile" \
+            --qualification-run-id "$GITHUB_RUN_ID" \
+            --source-artifact-run-id "${{ inputs.release_artifact_run_id || github.run_id }}" \
+            --source-artifact-name "${{ inputs.release_artifact_name }}" \
+            --evidence-ref "$evidence_ref" \
+            --smoke-summary artifacts/opl-first-run-vm/tart-smoke-summary.json
+          shasum -a 256 artifacts/opl-first-run-vm/artifact-qualification-receipt.json \
+            > artifacts/opl-first-run-vm/artifact-qualification-receipt.sha256
 
       - name: Write first-run VM critical diagnostics
         if: ${{ always() }}

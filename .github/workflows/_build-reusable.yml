@@ -39,6 +39,14 @@ on:
         description: 'Fail macOS release builds unless the packaged app passes codesign and Gatekeeper assessment'
         type: boolean
         default: false
+      stable_session_id:
+        description: Stable release session sha256 identity; empty for non-release builds.
+        type: string
+        default: ''
+      release_cohort_ref:
+        description: Stable release cohort sha256 identity; empty for non-release builds.
+        type: string
+        default: ''
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -828,18 +836,27 @@ jobs:
           OPL_BUILD_VERSION: ${{ steps.opl-release-version.outputs.version }}
         run: |
           set -euo pipefail
-          APP_SHA="$(git -C ../.. rev-parse HEAD)"
-          SHELL_SHA="$(git rev-parse HEAD)"
-          APP_SHA="$APP_SHA" SHELL_SHA="$SHELL_SHA" node <<'NODE'
-          const fs = require('node:fs');
-          fs.mkdirSync('out', { recursive: true });
-          fs.writeFileSync('out/opl-build-cohort.json', `${JSON.stringify({
-            schema: 'opl_app_build_artifact_cohort.v1',
-            app_sha: process.env.APP_SHA,
-            shell_sha: process.env.SHELL_SHA,
-            version: process.env.OPL_BUILD_VERSION,
-          }, null, 2)}\n`);
-          NODE
+          dmg_path="$(find out -maxdepth 1 -type f -name '*.dmg' | sort | head -n 1)"
+          packaged_tree="$(find out -type d -name '*.app' | sort | head -n 1)"
+          test -n "$dmg_path" && test -n "$packaged_tree"
+          artifact_name="${{ inputs.append_commit_hash && format('{0}-{1}-dmg', matrix.artifact-name, steps.commit.outputs.short) || format('{0}-dmg', matrix.artifact-name) }}"
+          node --experimental-strip-types ../../scripts/write-build-artifact-cohort.ts \
+            --output out/opl-build-cohort.json \
+            --artifact "$dmg_path" \
+            --artifact-name "$(basename "$dmg_path")" \
+            --packaged-tree "$packaged_tree" \
+            --app-profile ../../contracts/app-product-profile.json \
+            --gui-contract ../../contracts/app-gui-product-contract.json \
+            --smoke-harness scripts/opl-first-run-vm-smoke.mjs \
+            --app-sha "$(git -C ../.. rev-parse HEAD)" \
+            --shell-sha "$(git rev-parse HEAD)" \
+            --version "$OPL_BUILD_VERSION" \
+            --kind standard \
+            --actions-run-id "$GITHUB_RUN_ID" \
+            --actions-run-attempt "$GITHUB_RUN_ATTEMPT" \
+            --actions-artifact-name "$artifact_name" \
+            --stable-session-id "${{ inputs.stable_session_id }}" \
+            --release-cohort-ref "${{ inputs.release_cohort_ref }}"
 
       - name: Upload build artifact cohort manifest
         uses: actions/upload-artifact@v7

@@ -34,6 +34,11 @@ on:
         description: sha256 ref emitted by release:cohort-plan for this exact App/Shell/Framework cohort
         required: true
         type: string
+      stable_session_id:
+        description: sha256 identity emitted by the stable release state machine
+        required: false
+        default: ''
+        type: string
       gate_reuse_plan_ref:
         description: Same-cohort gate reuse plan ref required after repeated release attempts
         required: false
@@ -347,6 +352,8 @@ jobs:
       skip_code_quality: ${{ inputs.skip_code_quality }}
       opl_release_version: ${{ inputs.opl_version }}
       shell_ref: ${{ needs.release-source-gate.outputs.shell_sha }}
+      stable_session_id: ${{ inputs.stable_session_id }}
+      release_cohort_ref: ${{ inputs.release_operator_plan_ref }}
       require_macos_gatekeeper: false
     secrets: inherit
 
@@ -574,6 +581,8 @@ jobs:
       shell_ref: ${{ needs.release-source-gate.outputs.shell_sha }}
       publish_to_release: false
       upload_full_package_artifact: true
+      stable_session_id: ${{ inputs.stable_session_id }}
+      release_cohort_ref: ${{ inputs.release_operator_plan_ref }}
       force_rebuild_runtime_cache: ${{ inputs.force_rebuild_runtime_cache }}
     secrets: inherit
 
@@ -820,6 +829,8 @@ jobs:
       package_profile: standard
       shell_ref: ${{ needs.publish-standard.outputs.shell_sha }}
       framework_ref: ${{ needs.publish-standard.outputs.framework_sha }}
+      stable_session_id: ${{ inputs.stable_session_id }}
+      release_cohort_ref: ${{ inputs.release_operator_plan_ref }}
     secrets: inherit
 
   standard-first-run-vm-smoke-after-full:
@@ -833,6 +844,8 @@ jobs:
       package_profile: standard
       shell_ref: ${{ needs.publish-standard.outputs.shell_sha }}
       framework_ref: ${{ needs.publish-standard.outputs.framework_sha }}
+      stable_session_id: ${{ inputs.stable_session_id }}
+      release_cohort_ref: ${{ inputs.release_operator_plan_ref }}
     secrets: inherit
 
   standard-vm-smoke-gate-after-full:
@@ -901,6 +914,8 @@ jobs:
       package_profile: full
       shell_ref: ${{ needs.standard-vm-smoke-gate-after-full.outputs.shell_sha }}
       framework_ref: ${{ needs.standard-vm-smoke-gate-after-full.outputs.framework_sha }}
+      stable_session_id: ${{ inputs.stable_session_id }}
+      release_cohort_ref: ${{ inputs.release_operator_plan_ref }}
       guide_screenshots: ${{ inputs.guide_screenshots }}
     secrets: inherit
 
