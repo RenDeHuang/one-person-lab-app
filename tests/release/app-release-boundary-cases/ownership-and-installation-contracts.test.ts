@@ -38,12 +38,6 @@ test('App Full packages the OPL Flow offline skill closure without retired workf
   }
 });
 
-test('release boundary guard keeps App release ownership in App repo', () => {
-  const result = runNode(['scripts/validate-release-boundary.ts']);
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-  assert.match(result.stdout, /App release boundary is App-owned/);
-});
-
 test('Homebrew tap updater is a local cohort-bound manifest and checksum planner', () => {
   const tapRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-homebrew-tap-test-'));
   const digest = 'b'.repeat(64);

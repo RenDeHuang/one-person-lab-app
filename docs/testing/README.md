@@ -56,7 +56,6 @@ through the shell `bun run package` entry.
 node --experimental-strip-types scripts/validate-active-shell.ts --quick
 npm run validate:app-root-boundary
 npm run test:release-boundary
-npm run validate:release-boundary
 node --experimental-strip-types scripts/collect-release-evidence.ts --bundle-dir release-evidence/<version> --action-id <opl-runtime-safe-action-id> --execute-action --overwrite --evidence-source-dir artifacts/opl-first-run-vm --artifact runtime_screenshot=/path/to/runtime.png
 npm run release:evidence:manifest -- --bundle-dir release-evidence/<version> --overwrite
 npm run release:evidence:validate -- --bundle-dir release-evidence/<version>
@@ -82,6 +81,13 @@ The App product profile is declared in
 `contracts/app-product-profile.json`; `validate-active-shell.ts --quick` and
 `npm run test:release-boundary` verify that the profile still owns only
 desktop product defaults and still excludes runtime/provider/domain authority.
+
+`npm run test:release-boundary` is the complete local release-boundary entry:
+it runs the App-owned boundary validator once, then executes the independent
+case files with a fixed concurrency of four. Case files remain isolated and
+named by behavior; do not restore a single import aggregator, because that
+serializes the suite and hides file-level ownership. The `release-boundary`
+verify lane delegates to this entry instead of running the validator twice.
 The App install/exposure policy is declared in
 `contracts/app-install-exposure-policy.json`; `validate-active-shell.ts --quick`
 verifies that `skill` remains the public semantic ABI, MAS/MAG/RCA stay
@@ -169,8 +175,8 @@ release-boundary tests.
 
 | Surface | Testing entry point | What it proves |
 | --- | --- | --- |
-| Contract and release-boundary unit gates | `npm run test:release-boundary` | App contracts, workflow shape, release evidence policy, updater/Full separation, and release-note rules remain aligned. |
-| App-owned release boundary | `npm run validate:release-boundary` | Workflows, scripts, release assets, and checked-in release contracts match the App-owned release surface. |
+| Contract and release-boundary gates | `npm run test:release-boundary` | Runs the App-owned boundary validator once, then checks contracts, workflow shape, release evidence policy, updater/Full separation, and release-note rules in parallel case files. |
+| App-owned release boundary only | `npm run validate:release-boundary` | Runs only the workflow/script/asset/contract validator when a focused boundary readback is needed. |
 | Standard release assets | `node --experimental-strip-types scripts/validate-release.ts release-assets` | Local release assets and updater metadata have the expected App shape before publish. |
 | Active GUI shell validation | `npm run validate:gui-shell` | App-owned product profile and release payload sync into the active shell, and the shell validates/compiles through the App wrapper. |
 | Full first-install package | `npm run release:full -- --version <version>` | The Full package builder can assemble declared runtime payloads and manifests for the selected cohort. |

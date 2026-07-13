@@ -1998,7 +1998,7 @@
           "contracts/app-page-state-matrix.json#pages",
           "scripts/validate-active-shell/settings-control-plane-validator.ts",
           "scripts/validate-active-shell/page-state-app-settings-validator.ts",
-          "tests/release/app-release-boundary-cases/settings-control-plane-validation.ts"
+          "tests/release/app-release-boundary-cases/settings-control-plane-validation.test.ts"
         ],
         "entries": [
           {

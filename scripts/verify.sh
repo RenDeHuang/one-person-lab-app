@@ -12,10 +12,10 @@ Usage:
 Lanes:
   smoke             Active shell structural quick check. This is the default.
   active-shell      Full active shell validation commands from the shell adapter.
-  release-boundary  App release-boundary validator and release boundary tests.
+  release-boundary  App release-boundary validator and parallel release tests.
   candidate-shell   Shell candidate registry and package-command contract check.
   structure         Active shell and App release-boundary static checks without release packaging.
-  full              active-shell + release-boundary + candidate-shell + full root shell tests.
+  full              active-shell + release-boundary + candidate-shell; each full shell suite runs once.
 
 This wrapper intentionally does not build DMGs, publish releases, or run VM smoke
 tests. Use the explicit release:* and test:opl-first-run-vm:* commands for those
@@ -36,7 +36,6 @@ run_lane() {
       ;;
     release-boundary)
       npm run ensure:shell
-      npm run validate:release-boundary
       npm run test:release-boundary
       ;;
     candidate-shell)
@@ -52,7 +51,6 @@ run_lane() {
       run_lane active-shell
       run_lane release-boundary
       run_lane candidate-shell
-      npm run test:full
       ;;
     -h|--help|help)
       usage

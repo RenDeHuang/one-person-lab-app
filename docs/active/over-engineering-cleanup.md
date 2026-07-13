@@ -112,7 +112,7 @@ Decision: `reject (no-safe-semantic-split)`, closed by scope rather than pending
 
 - `scripts/build-full-first-install-package/env.ts` and `scripts/validate-active-shell/validation-config.ts` now use Node `node:util.parseArgs` token parsing instead of hand-rolled argv loops.
 - The Full parser keeps the existing `--opl-root` alias, path resolution, boolean flags, runtime cache mode validation, and legacy rejection of `--key=value` inline syntax.
-- Focused parser coverage lives in `tests/release/app-release-boundary-cases/full-first-install-args.ts`.
+- Focused parser coverage lives in `tests/release/app-release-boundary-cases/full-first-install-args.test.ts`.
 - Verification required for this slice: the focused parser test, an active-shell quick parser command with a real shell root, and `git diff --check`.
 
 ### 2026-07-08 release workflow path duplicate cleanup
@@ -138,15 +138,15 @@ Decision: `reject (no-safe-semantic-split)`, closed by scope rather than pending
 
 ### 2026-07-08 focused test shadow cleanup
 
-- Removed the Node 24 workflow policy shadow test from `tests/release/app-release-boundary-cases/ownership-and-installation-contracts.ts`; the executable owner remains `scripts/validate-release-boundary/text-check-runner.ts#validateWorkflowNode24Policy`.
-- Removed duplicated Full runtime packaging source-regex assertions from `tests/release/app-release-boundary-cases/full-first-install-cache-and-acceleration.ts`; the cache test keeps cache key, support files, gate reuse, compression, and release-acceleration assertions, while Full runtime packaging assertions stay in `tests/release/app-release-boundary-cases/full-first-install-runtime.ts`.
+- Removed the Node 24 workflow policy shadow test from `tests/release/app-release-boundary-cases/ownership-and-installation-contracts.test.ts`; the executable owner remains `scripts/validate-release-boundary/text-check-runner.ts#validateWorkflowNode24Policy`.
+- Removed duplicated Full runtime packaging source-regex assertions from `tests/release/app-release-boundary-cases/full-first-install-cache-and-acceleration.test.ts`; the cache test keeps cache key, support files, gate reuse, compression, and release-acceleration assertions, while Full runtime packaging assertions stay in `tests/release/app-release-boundary-cases/full-first-install-runtime.test.ts`.
 - Verification required for this slice: focused Node test for the two touched case files, `npm run validate:release-boundary`, and `git diff --check`.
 
 ### 2026-07-08 release notes source-regex shadow cleanup
 
 - Removed the release-boundary test that only regex-locked `scripts/publish-release.ts` and `.github/workflows/full-first-install-release.yml` source text for Full release notes.
 - Why safe: the same case file keeps behavior coverage for template, AI, prepared-file, same-tag, Full-only, and evidence-output release notes paths; workflow/source text remains owned by the release scripts and release-boundary validator.
-- Verification required for this slice: focused Node test for `tests/release/app-release-boundary-cases/release-plan-and-publishing.ts`, `npm run validate:release-boundary`, and `git diff --check`.
+- Verification required for this slice: focused Node test for `tests/release/app-release-boundary-cases/release-plan-and-publishing.test.ts`, `npm run validate:release-boundary`, and `git diff --check`.
 
 ## No-Safe-Semantic-Split Boundaries
 
