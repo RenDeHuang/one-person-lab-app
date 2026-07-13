@@ -18,6 +18,7 @@ fi
 : "${OPL_SOURCE_APP_RUN_ID:?OPL_SOURCE_APP_RUN_ID is required.}"
 : "${OPL_APP_SOURCE_COMMIT:?OPL_APP_SOURCE_COMMIT is required.}"
 : "${OPL_APP_ARTIFACT_DIGEST:?OPL_APP_ARTIFACT_DIGEST is required.}"
+: "${OPL_FRAMEWORK_SOURCE_COMMIT:?OPL_FRAMEWORK_SOURCE_COMMIT is required.}"
 : "${OPL_RECEIPT_OUTPUT_DIR:?OPL_RECEIPT_OUTPUT_DIR is required.}"
 
 if [ "$target" = latest-stable ]; then
@@ -46,6 +47,7 @@ if [ -z "$run_id" ]; then
     --field "source_app_run_id=$OPL_SOURCE_APP_RUN_ID"
     --field "expected_app_source_commit=$OPL_APP_SOURCE_COMMIT"
     --field "expected_app_artifact_digest=$OPL_APP_ARTIFACT_DIGEST"
+    --field "expected_framework_source_commit=$OPL_FRAMEWORK_SOURCE_COMMIT"
   )
   if [ "$target" = latest-stable ]; then
     fields+=(--field "expected_carrier_digest=$OPL_EXPECTED_CARRIER_DIGEST")
@@ -92,6 +94,7 @@ args=(
   --app-version "$OPL_APP_VERSION"
   --app-source-commit "$OPL_APP_SOURCE_COMMIT"
   --app-artifact-digest "$OPL_APP_ARTIFACT_DIGEST"
+  --framework-source-commit "$OPL_FRAMEWORK_SOURCE_COMMIT"
   --framework-run-id "$run_id"
 )
 if [ "$target" = latest-stable ]; then

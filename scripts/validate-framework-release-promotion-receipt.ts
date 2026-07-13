@@ -104,6 +104,7 @@ function main(): void {
       'app-version': { type: 'string' },
       'app-source-commit': { type: 'string' },
       'app-artifact-digest': { type: 'string' },
+      'framework-source-commit': { type: 'string' },
       'framework-run-id': { type: 'string' },
       'expected-carrier-digest': { type: 'string', default: '' },
       'candidate-receipt': { type: 'string', default: '' },
@@ -112,7 +113,8 @@ function main(): void {
   });
   for (const key of [
     'receipt', 'target', 'promotion-request-id', 'release-set-generation', 'release-gate',
-    'source-app-run-id', 'app-version', 'app-source-commit', 'app-artifact-digest', 'framework-run-id',
+    'source-app-run-id', 'app-version', 'app-source-commit', 'app-artifact-digest',
+    'framework-source-commit', 'framework-run-id',
   ] as const) {
     if (!values[key]) throw new Error(`Missing --${key}.`);
   }
@@ -125,6 +127,9 @@ function main(): void {
     throw new Error('Run ids must be decimal GitHub Actions ids.');
   }
   if (!shaPattern.test(values['app-source-commit']!)) throw new Error('--app-source-commit must be a full Git SHA.');
+  if (!shaPattern.test(values['framework-source-commit']!)) {
+    throw new Error('--framework-source-commit must be a full Git SHA.');
+  }
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(values['promotion-request-id']!)) {
     throw new Error('--promotion-request-id is invalid.');
   }
@@ -176,7 +181,10 @@ function main(): void {
     throw new Error('Framework receipt App version, source commit, or artifact digest does not match the owner manifest.');
   }
 
-  const { expectedReadbackRefs } = validateComponentLocks(receipt);
+  const { base, expectedReadbackRefs } = validateComponentLocks(receipt);
+  if (base.source_commit !== values['framework-source-commit']) {
+    throw new Error('components.base.source_commit does not match the frozen Framework cohort SHA.');
+  }
   const readback = record(receipt.anonymous_readback, 'anonymous_readback');
   if (readback.status !== 'verified' || !Array.isArray(readback.verified_refs)) {
     throw new Error('anonymous_readback must be verified and list exact channel refs.');

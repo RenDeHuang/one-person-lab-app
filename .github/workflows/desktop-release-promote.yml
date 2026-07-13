@@ -418,6 +418,7 @@ jobs:
           OPL_SOURCE_APP_RUN_ID: ${{ inputs.release_run_id }}
           OPL_APP_SOURCE_COMMIT: ${{ needs.prepare.outputs.app_sha }}
           OPL_APP_ARTIFACT_DIGEST: ${{ needs.prepare.outputs.app_artifact_digest }}
+          OPL_FRAMEWORK_SOURCE_COMMIT: ${{ needs.prepare.outputs.framework_sha }}
           OPL_RECEIPT_OUTPUT_DIR: framework-receipts/candidate
         run: bash scripts/framework-release-promotion-step.sh candidate
 
@@ -434,6 +435,7 @@ jobs:
           OPL_SOURCE_APP_RUN_ID: ${{ inputs.release_run_id }}
           OPL_APP_SOURCE_COMMIT: ${{ needs.prepare.outputs.app_sha }}
           OPL_APP_ARTIFACT_DIGEST: ${{ needs.prepare.outputs.app_artifact_digest }}
+          OPL_FRAMEWORK_SOURCE_COMMIT: ${{ needs.prepare.outputs.framework_sha }}
           OPL_EXPECTED_CARRIER_DIGEST: ${{ steps.candidate.outputs.carrier_digest }}
           OPL_CANDIDATE_RECEIPT: ${{ steps.candidate.outputs.receipt_path }}
           OPL_RECEIPT_OUTPUT_DIR: framework-receipts/latest-stable

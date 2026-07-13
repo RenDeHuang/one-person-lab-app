@@ -11,6 +11,7 @@ const appRoot = process.cwd();
 const digest = `sha256:${'a'.repeat(64)}`;
 const appDigest = `sha256:${'b'.repeat(64)}`;
 const sourceCommit = 'c'.repeat(40);
+const frameworkSourceCommit = 'e'.repeat(40);
 const generation = '26.7.13-r4';
 const requestId = 'd'.repeat(64);
 const sourceAppRunId = '123456';
@@ -64,7 +65,7 @@ function promotionReceipt(target: 'candidate' | 'latest-stable') {
       base: {
         component_id: 'opl-base',
         version: '0.2.1',
-        source_commit: sourceCommit,
+        source_commit: frameworkSourceCommit,
         artifact_ref: 'ghcr.io/gaofeng21cn/one-person-lab-framework:0.2.1',
         artifact_digest: digest,
       },
@@ -87,6 +88,7 @@ function validatePromotion(receiptPath: string, target: 'candidate' | 'latest-st
     '--app-version', '26.7.13',
     '--app-source-commit', sourceCommit,
     '--app-artifact-digest', appDigest,
+    '--framework-source-commit', frameworkSourceCommit,
     '--framework-run-id', frameworkRunId,
     ...extra,
   ], { cwd: appRoot, encoding: 'utf8' });
@@ -118,6 +120,29 @@ test('Framework promotion receipt rejects a noncanonical Package artifact', () =
   const result = validatePromotion(receiptPath, 'candidate');
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /canonical Package repository|must use ghcr\.io\/gaofeng21cn\/one-person-lab-packages\/rca/);
+});
+
+test('Framework promotion receipt rejects Base built from a different Framework commit', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-framework-promotion-stale-base-'));
+  const receipt = promotionReceipt('candidate');
+  receipt.components.base.source_commit = 'f'.repeat(40);
+  const receiptPath = path.join(root, 'candidate.json');
+  fs.writeFileSync(receiptPath, `${JSON.stringify(receipt)}\n`);
+  const result = validatePromotion(receiptPath, 'candidate');
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /components\.base\.source_commit does not match the frozen Framework cohort SHA/);
+});
+
+test('Framework promotion dispatch carries the frozen Framework SHA through both targets and receipt validation', () => {
+  const workflow = fs.readFileSync(path.join(appRoot, '.github/workflows/desktop-release-promote.yml'), 'utf8');
+  const helper = fs.readFileSync(path.join(appRoot, 'scripts/framework-release-promotion-step.sh'), 'utf8');
+  assert.equal(
+    workflow.match(/OPL_FRAMEWORK_SOURCE_COMMIT: \$\{\{ needs\.prepare\.outputs\.framework_sha \}\}/g)?.length,
+    2,
+  );
+  assert.match(helper, /OPL_FRAMEWORK_SOURCE_COMMIT:\?OPL_FRAMEWORK_SOURCE_COMMIT is required/);
+  assert.match(helper, /expected_framework_source_commit=\$OPL_FRAMEWORK_SOURCE_COMMIT/);
+  assert.match(helper, /--framework-source-commit "\$OPL_FRAMEWORK_SOURCE_COMMIT"/);
 });
 
 test('Homebrew Stable distribution v2 binds Formula and App casks to the Framework Release Set digest', () => {
