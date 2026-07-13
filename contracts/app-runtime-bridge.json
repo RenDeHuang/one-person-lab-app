@@ -1062,6 +1062,15 @@
         "required_fields": ["kind", "title", "owner", "summary", "action_ref", "dry_run_required"]
       }
     },
+    "diagnostic_envelope_contract": {
+      "diagnostics_items_field_required": true,
+      "fast_profile_detail_policy": "summary_only",
+      "fast_profile_nonzero_count_with_empty_items_is_valid": true,
+      "fast_profile_embedded_item_count_must_not_exceed_count": true,
+      "full_profile_detail_policy": "included",
+      "included_count_must_equal_embedded_item_count": true,
+      "valid_summary_only_preserves_projects_and_work_items": true
+    },
     "default_display_fields": [
       "identity.project_display_name",
       "identity.work_item_display_name",

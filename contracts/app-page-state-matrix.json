@@ -938,6 +938,7 @@
             "system_attention_requires_complete_current_responsibility",
             "observed_token_usage_missing_never_zero_no_limit_progress",
             "detail_primary_secondary_diagnostic_hierarchy",
+            "fast_diagnostics_summary_only_preserves_projects_and_work_items",
             "agent_availability_separate_full_names_collapsed_when_healthy",
             "thin_renderer_no_raw_ids_or_projection_inference",
             "responsive_layout_has_no_horizontal_page_overflow",
