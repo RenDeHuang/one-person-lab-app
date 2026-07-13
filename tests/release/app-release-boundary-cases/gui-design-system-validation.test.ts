@@ -126,7 +126,7 @@ test('GUI design-system validator accepts a complete fixture without promoting r
   assert.equal(summary.superseded_codex_reference, supersededCodexReference);
   assert.equal(summary.reference_boundary.app_contract_status, 'aligned_contract');
   assert.equal(summary.reference_boundary.page_state_status, 'aligned_contract');
-  assert.equal(summary.reference_boundary.native_candidate_status, 'current_contract_deviation');
+  assert.equal(summary.reference_boundary.native_candidate_status, 'aligned_contract');
   assert.equal(summary.state_boundary.ideal_native_rail_visible, true);
   assert.equal(summary.state_boundary.active_aionui_rail_state, 'visible_wide_drawer_narrow');
   assert.equal(summary.state_boundary.active_aionui_conformance.rail_matches_ideal, true);
@@ -318,11 +318,12 @@ test('GUI design-system validator rejects an undeclared candidate-registry Codex
   );
 });
 
-test('GUI design-system validator requires an explicit Native superseded-reference deviation', () => {
+test('GUI design-system validator rejects a Native fallback to a superseded reference without deviation status', () => {
   const root = createFixture();
   const registryPath = path.join(root, 'contracts/app-shell-candidates.json');
   const registry = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
-  delete registry.candidates.find((candidate) => candidate.id === 'opl-native-workbench').visual_parity_contract.current_reference_status;
+  registry.candidates.find((candidate) => candidate.id === 'opl-native-workbench').visual_parity_contract.comparison_baseline =
+    'ChatGPT Codex macOS 26.707.31123 (2026-07-10)';
   writeJson(root, 'contracts/app-shell-candidates.json', registry);
   assert.throws(
     () => validateGuiDesignSystem(root),

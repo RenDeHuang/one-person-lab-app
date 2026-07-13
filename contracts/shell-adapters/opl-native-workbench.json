@@ -18,7 +18,7 @@
     "upstream_ref": "main"
   },
   "release_role": "experimental_candidate_shell",
-  "candidate_stage": "opl_native_workbench_candidate_skeleton",
+  "candidate_stage": "opl_native_workbench_local_p0_p1_authority_target_implementation_pending",
   "gui_authority": {
     "source_of_truth": "one-person-lab-app",
     "implementation_role": "active_shell_implementation_carrier",
@@ -116,6 +116,15 @@
       "app_owned_runtime_bridge_contract",
       "opl_app_state_bridge",
       "opl_app_action_bridge",
+      "typed_cross_top_level_thread_host_bridge",
+      "client_executed_dynamic_tools_coordination_bridge",
+      "local_cross_thread_p0_p1",
+      "thread_list_read_resume_fork_archive_unarchive",
+      "turn_start_steer_with_host_queue",
+      "cross_thread_safety_gates",
+      "bilateral_coordination_receipts",
+      "desktop_webui_coordination_parity",
+      "remote_host_aggregation_p2_deferred",
       "app_gui_release_channel_gating"
     ]
   },
@@ -143,6 +152,256 @@
       "direct reads of OPL internal state files",
       "GUI-local project database as runtime truth"
     ]
+  },
+  "cross_top_level_thread_authority": {
+    "authority_model": "three_layer_thread_coordination_authority",
+    "implementation_status": "candidate_target_implementation_pending",
+    "product_role": "opl_host_cross_top_level_codex_thread_coordination",
+    "entry_surface": "navigation_rail_thread_actions_and_on_demand_coordination_drawer",
+    "default_state": "closed",
+    "model_role": "decide_when_and_why_to_coordinate",
+    "protocol_owner": "codex_core_app_server",
+    "app_host_owner": "opl_app_host",
+    "coordination_owner": "opl_app_typed_host_bridge",
+    "renderer_role": "typed_projection_and_intent_consumer_only",
+    "thread_store_owner": "codex_core_app_server",
+    "thread_id_policy": "opaque_app_server_returned_key_never_model_or_shell_generated",
+    "authority_layers": {
+      "same_agent_tree": {
+        "level": "L0",
+        "scope": "same_agent_tree_only",
+        "owner": "codex_runtime_agent_registry",
+        "methods": [
+          "spawn_agent",
+          "send_input",
+          "wait_agent"
+        ],
+        "cross_top_level_use_forbidden": true
+      },
+      "local_cross_top_level": {
+        "level": "L1",
+        "scope": "independent_top_level_threads_on_one_local_machine",
+        "phase": "P0_plus_P1",
+        "acceptance_status": "required_for_candidate_acceptance",
+        "owner": "opl_app_typed_host_bridge_over_local_codex_app_server"
+      },
+      "remote_cross_machine": {
+        "level": "L2",
+        "scope": "host_scoped_threads_across_authenticated_machines",
+        "phase": "P2",
+        "acceptance_status": "deferred_not_required_for_local_candidate_acceptance",
+        "owner": "future_opl_host_connection_adapter",
+        "ready": false
+      }
+    },
+    "typed_host_bridge": {
+      "required": true,
+      "transport_contract": "typed_request_response_event_and_receipt_envelopes",
+      "renderer_direct_app_server_json_rpc_forbidden": true,
+      "shell_owned_thread_store_forbidden": true,
+      "shell_owned_permission_model_forbidden": true,
+      "required_protocol_methods": [
+        "thread/list",
+        "thread/read",
+        "thread/resume",
+        "thread/fork",
+        "thread/archive",
+        "thread/unarchive",
+        "turn/start",
+        "turn/steer"
+      ],
+      "required_status_event": "thread/status/changed",
+      "optional_relationship_fields_policy": "capability_detect_parent_and_ancestor_fields_and_degrade_without_blocking_list_read_or_dispatch",
+      "host_owned_minimal_coordination_ledger": {
+        "allowed": true,
+        "storage_policy": "append_only_queue_and_bilateral_receipt_metadata",
+        "thread_history_allowed": false,
+        "thread_truth_authority": false
+      }
+    },
+    "p1_model_tool_bridge": {
+      "current_transport": "client_executed_dynamic_tools",
+      "bridge_must_reuse_typed_host_gate": true,
+      "direct_app_server_or_ledger_bypass_forbidden": true,
+      "required_high_level_tools": [
+        "list_threads",
+        "read_thread",
+        "send_message_to_thread",
+        "fork_thread",
+        "archive_thread",
+        "unarchive_thread",
+        "wait_thread"
+      ],
+      "tool_calls_must_apply_same_safety_gates_and_receipts_as_gui": true,
+      "codex_cli_schema_observation": {
+        "version": "0.144.1",
+        "generator": "generate-ts",
+        "dynamic_tools_field_present": false,
+        "observed_at": "2026-07-13"
+      },
+      "ephemeral_live_probe_observation": {
+        "dynamic_tools_registration_accepted": true,
+        "received_event": "item/tool/call",
+        "turn_completed": true,
+        "observed_at": "2026-07-13"
+      },
+      "schema_drift_record_required": true,
+      "runtime_capability_probe_required": true,
+      "probe_policy": "probe_runtime_behavior_instead_of_inferring_support_from_generate_ts",
+      "fallback_policy": "typed_model_tool_unavailable_with_user_driven_host_coordination_preserved",
+      "fallback_must_not_claim_p1_model_tool_ready": true
+    },
+    "local_p0_p1_acceptance": {
+      "scope": "local_machine_only",
+      "thread_directory": {
+        "list_protocol": "thread/list",
+        "read_protocol": "thread/read",
+        "required_fields": [
+          "thread_id",
+          "status",
+          "summary",
+          "project",
+          "workspace",
+          "host",
+          "owner",
+          "goal",
+          "archived",
+          "parent_thread_id",
+          "ancestor_thread_ids",
+          "active_turn_id",
+          "write_set"
+        ],
+        "default_scope": "current_project",
+        "archived_scope_requires_explicit_filter": true
+      },
+      "lifecycle_actions": [
+        "read",
+        "resume",
+        "fork",
+        "archive",
+        "unarchive"
+      ],
+      "dispatch_policy": {
+        "persisted_unloaded_thread": "thread/resume_then_turn/start",
+        "loaded_idle_thread": "turn/start",
+        "running_urgent_message": "turn/steer_with_explicit_realtime_label",
+        "running_nonurgent_message": "host_queue_then_turn/start_when_idle",
+        "unknown_or_stale_status": "refresh_then_fail_closed",
+        "explicit_user_confirmation_when_scope_or_permission_changes": true,
+        "archived_thread": "explicit_unarchive_or_typed_failure_no_silent_replacement",
+        "queue_owner": "opl_app_typed_host_bridge",
+        "queue_must_not_copy_or_own_thread_history": true
+      },
+      "safety_gates": [
+        "permission_check",
+        "idempotency_key_and_duplicate_message_check",
+        "delegation_cycle_check",
+        "project_and_workspace_scope_check",
+        "concurrent_write_set_conflict_check",
+        "delegation_hop_budget_check",
+        "host_scope_check",
+        "no_target_permission_escalation",
+        "source_target_identity_must_differ"
+      ],
+      "bilateral_receipt": {
+        "required": true,
+        "source_timeline_projection": true,
+        "target_timeline_projection": true,
+        "rail_or_thread_detail_readback": true,
+        "statuses": [
+          "created",
+          "accepted",
+          "queued",
+          "delivered",
+          "running",
+          "completed",
+          "failed",
+          "cancelled",
+          "rejected"
+        ],
+        "required_fields": [
+          "delivery_id",
+          "coordination_id",
+          "source_thread_id",
+          "target_thread_id",
+          "source_host_id",
+          "target_host_id",
+          "project_key",
+          "sender",
+          "intent",
+          "reason",
+          "message_summary",
+          "protocol_method",
+          "queue_decision",
+          "permission_decision",
+          "write_set_decision",
+          "status",
+          "result_summary_or_ref",
+          "created_at",
+          "completed_at"
+        ],
+        "full_thread_history_copy_forbidden": true
+      },
+      "required_typed_failure_states": [
+        "offline",
+        "permission_denied",
+        "duplicate_rejected",
+        "loop_rejected",
+        "scope_mismatch",
+        "write_set_conflict",
+        "stale_status",
+        "archived_target",
+        "protocol_incompatible",
+        "dispatch_failed",
+        "wait_timeout"
+      ],
+      "user_visibility_policy": "sender_target_reason_message_result_and_safety_decisions_visible_and_auditable",
+      "forbidden_implementations": [
+        "send_input_as_cross_top_level_message_bus",
+        "shell_owned_duplicate_thread_store",
+        "model_generated_thread_id",
+        "silent_cross_project_dispatch",
+        "dispatch_without_write_set_check",
+        "unbounded_delegation_loop"
+      ]
+    },
+    "desktop_webui_parity": {
+      "required": true,
+      "same_typed_host_bridge_contract": true,
+      "same_thread_actions": true,
+      "same_queue_and_safety_semantics": true,
+      "same_bilateral_receipt_and_failure_visibility": true,
+      "delivery_transport_may_differ": true,
+      "desktop_only_coordination_capability_allowed": false,
+      "webui_browser_renderer_direct_app_server_access_allowed": false,
+      "webui_node_host_typed_app_server_adapter_allowed": true
+    },
+    "remote_p2": {
+      "status": "deferred",
+      "local_p0_p1_must_not_depend_on_remote_host_aggregation": true,
+      "future_scope": [
+        "authenticated_saved_app_server_connections",
+        "host_scoped_thread_directory_and_health",
+        "cross_host_permission_and_route_policy",
+        "disconnect_recovery_and_bilateral_receipt"
+      ],
+      "remote_ready_claim_allowed": false,
+      "local_focused_tests_prove_remote_ready": false
+    },
+    "false_ready_boundary": {
+      "contract_or_docs_prove_implementation_complete": false,
+      "focused_tests_prove_packaged_capability": false,
+      "candidate_validation_proves_active_shell_adopted": false,
+      "candidate_validation_proves_release_ready": false,
+      "candidate_validation_proves_production_ready": false,
+      "candidate_validation_proves_clean_vm_ready": false,
+      "candidate_validation_proves_remote_ready": false,
+      "active_shell_adopted": false,
+      "release_ready": false,
+      "production_ready": false,
+      "clean_vm_ready": false,
+      "remote_ready": false
+    }
   },
   "validation_commands": [
     {

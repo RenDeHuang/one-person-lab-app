@@ -15,6 +15,61 @@ export type ActiveProjectLineStateModel = {
   forbidden_claims: string[];
 };
 
+export type NativeCrossTopLevelThreadAuthority = {
+  authority_model: string;
+  implementation_status: string;
+  product_role: string;
+  entry_surface: string;
+  default_state: string;
+  model_role: string;
+  protocol_owner: string;
+  app_host_owner: string;
+  coordination_owner: string;
+  renderer_role: string;
+  thread_store_owner: string;
+  thread_id_policy: string;
+  authority_layers: Record<string, Record<string, unknown>>;
+  typed_host_bridge: {
+    required: boolean;
+    transport_contract: string;
+    renderer_direct_app_server_json_rpc_forbidden: boolean;
+    shell_owned_thread_store_forbidden: boolean;
+    shell_owned_permission_model_forbidden: boolean;
+    required_protocol_methods: string[];
+    required_status_event: string;
+    optional_relationship_fields_policy: string;
+    host_owned_minimal_coordination_ledger: Record<string, unknown>;
+  };
+  p1_model_tool_bridge: {
+    current_transport: string;
+    bridge_must_reuse_typed_host_gate: boolean;
+    direct_app_server_or_ledger_bypass_forbidden: boolean;
+    required_high_level_tools: string[];
+    tool_calls_must_apply_same_safety_gates_and_receipts_as_gui: boolean;
+    codex_cli_schema_observation: Record<string, unknown>;
+    ephemeral_live_probe_observation: Record<string, unknown>;
+    schema_drift_record_required: boolean;
+    runtime_capability_probe_required: boolean;
+    probe_policy: string;
+    fallback_policy: string;
+    fallback_must_not_claim_p1_model_tool_ready: boolean;
+  };
+  local_p0_p1_acceptance: {
+    scope: string;
+    thread_directory: Record<string, unknown>;
+    lifecycle_actions: string[];
+    dispatch_policy: Record<string, unknown>;
+    safety_gates: string[];
+    bilateral_receipt: Record<string, unknown>;
+    required_typed_failure_states: string[];
+    user_visibility_policy: string;
+    forbidden_implementations: string[];
+  };
+  desktop_webui_parity: Record<string, unknown>;
+  remote_p2: Record<string, unknown>;
+  false_ready_boundary: Record<string, unknown>;
+};
+
 export type ShellCandidate = HermesTargetStateContract & {
   id: string;
   state: string;

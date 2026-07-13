@@ -1,6 +1,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import type { ShellCandidate, ShellCandidateRegistry, ValidationCommand } from './types.ts';
+import type {
+  NativeCrossTopLevelThreadAuthority,
+  ShellCandidate,
+  ShellCandidateRegistry,
+  ValidationCommand,
+} from './types.ts';
 import {
   assertFile,
   assertStringArrayIncludes,
@@ -44,9 +49,11 @@ type CandidateAdapterContract = {
   candidate_shell?: string;
   adapter_role?: string;
   active_shell?: string;
+  candidate_stage?: string;
   shell_root: string;
   shell_source: { owner_repo: string; history_policy: string; checkout_path: string };
   release_role: string;
+  gui_authority?: { implementation_role?: string };
   shell_contract: { source_topology: string; capabilities: string[] };
   validation_commands: ValidationCommand[];
   manual_verification_commands?: ValidationCommand[];
@@ -55,11 +62,14 @@ type CandidateAdapterContract = {
   agent_route_contract?: ShellCandidate['agent_route_contract'];
   settings_information_architecture?: ShellCandidate['settings_information_architecture'];
   visual_parity_contract?: ShellCandidate['visual_parity_contract'];
+  cross_top_level_thread_authority?: NativeCrossTopLevelThreadAuthority;
 };
 
 type NativeVisualParityContract = NonNullable<ShellCandidate['visual_parity_contract']> & {
   regression_floor?: string;
   source_usage?: string;
+  current_reference_status?: string;
+  superseded_observations?: string[];
   model_policy_source?: string;
   default_model?: string;
   default_reasoning_effort?: string;
@@ -72,6 +82,56 @@ export const requiredNativeVisualParitySurfaces = [
   'composer_model_and_reasoning_controls',
   'floating_on_demand_environment',
   'settings_locale_surface',
+];
+
+const requiredCrossThreadProtocolMethods = [
+  'thread/list',
+  'thread/read',
+  'thread/resume',
+  'thread/fork',
+  'thread/archive',
+  'thread/unarchive',
+  'turn/start',
+  'turn/steer',
+];
+
+const requiredNativeCrossThreadCapabilities = [
+  'typed_cross_top_level_thread_host_bridge',
+  'client_executed_dynamic_tools_coordination_bridge',
+  'local_cross_thread_p0_p1',
+  'thread_list_read_resume_fork_archive_unarchive',
+  'turn_start_steer_with_host_queue',
+  'cross_thread_safety_gates',
+  'bilateral_coordination_receipts',
+  'desktop_webui_coordination_parity',
+  'remote_host_aggregation_p2_deferred',
+];
+
+const requiredCrossThreadSafetyGates = [
+  'permission_check',
+  'idempotency_key_and_duplicate_message_check',
+  'delegation_cycle_check',
+  'project_and_workspace_scope_check',
+  'concurrent_write_set_conflict_check',
+  'delegation_hop_budget_check',
+  'host_scope_check',
+  'no_target_permission_escalation',
+  'source_target_identity_must_differ',
+];
+
+const requiredFalseReadyFields = [
+  'contract_or_docs_prove_implementation_complete',
+  'focused_tests_prove_packaged_capability',
+  'candidate_validation_proves_active_shell_adopted',
+  'candidate_validation_proves_release_ready',
+  'candidate_validation_proves_production_ready',
+  'candidate_validation_proves_clean_vm_ready',
+  'candidate_validation_proves_remote_ready',
+  'active_shell_adopted',
+  'release_ready',
+  'production_ready',
+  'clean_vm_ready',
+  'remote_ready',
 ];
 
 const appProductProfile = readJson<{
@@ -159,6 +219,215 @@ function readCandidateAdapterContract(candidate: ShellCandidate): CandidateAdapt
   return readJson<CandidateAdapterContract>(path.join(root, candidate.adapter_contract));
 }
 
+export function validateNativeCrossTopLevelThreadAuthority(
+  authority: NativeCrossTopLevelThreadAuthority | undefined,
+): void {
+  if (
+    !authority ||
+    authority.authority_model !== 'three_layer_thread_coordination_authority' ||
+    authority.implementation_status !== 'candidate_target_implementation_pending' ||
+    authority.product_role !== 'opl_host_cross_top_level_codex_thread_coordination' ||
+    authority.entry_surface !== 'navigation_rail_thread_actions_and_on_demand_coordination_drawer' ||
+    authority.default_state !== 'closed' ||
+    authority.model_role !== 'decide_when_and_why_to_coordinate' ||
+    authority.protocol_owner !== 'codex_core_app_server' ||
+    authority.app_host_owner !== 'opl_app_host' ||
+    authority.coordination_owner !== 'opl_app_typed_host_bridge' ||
+    authority.renderer_role !== 'typed_projection_and_intent_consumer_only' ||
+    authority.thread_store_owner !== 'codex_core_app_server' ||
+    authority.thread_id_policy !== 'opaque_app_server_returned_key_never_model_or_shell_generated'
+  ) {
+    throw new Error('opl-native-workbench cross-thread authority must preserve Codex protocol ownership, typed OPL host gates, opaque thread ids, and pending candidate status');
+  }
+
+  const sameTree = authority.authority_layers.same_agent_tree ?? {};
+  const local = authority.authority_layers.local_cross_top_level ?? {};
+  const remote = authority.authority_layers.remote_cross_machine ?? {};
+  if (
+    sameTree.level !== 'L0' ||
+    sameTree.scope !== 'same_agent_tree_only' ||
+    sameTree.owner !== 'codex_runtime_agent_registry' ||
+    sameTree.cross_top_level_use_forbidden !== true
+  ) {
+    throw new Error('same-agent-tree tools must remain L0 runtime tools and must not become a cross-top-level message bus');
+  }
+  assertStringArrayIncludes(sameTree.methods, ['spawn_agent', 'send_input', 'wait_agent'], 'cross-thread authority L0 methods');
+  if (
+    local.level !== 'L1' ||
+    local.phase !== 'P0_plus_P1' ||
+    local.acceptance_status !== 'required_for_candidate_acceptance' ||
+    local.owner !== 'opl_app_typed_host_bridge_over_local_codex_app_server'
+  ) {
+    throw new Error('local independent top-level threads must be the required L1 P0 plus P1 candidate target');
+  }
+  if (
+    remote.level !== 'L2' ||
+    remote.phase !== 'P2' ||
+    remote.acceptance_status !== 'deferred_not_required_for_local_candidate_acceptance' ||
+    remote.ready !== false
+  ) {
+    throw new Error('remote cross-machine coordination must remain deferred L2 P2 and false-ready');
+  }
+
+  const host = authority.typed_host_bridge;
+  if (
+    host.required !== true ||
+    host.transport_contract !== 'typed_request_response_event_and_receipt_envelopes' ||
+    host.renderer_direct_app_server_json_rpc_forbidden !== true ||
+    host.shell_owned_thread_store_forbidden !== true ||
+    host.shell_owned_permission_model_forbidden !== true ||
+    host.required_status_event !== 'thread/status/changed' ||
+    host.optional_relationship_fields_policy !== 'capability_detect_parent_and_ancestor_fields_and_degrade_without_blocking_list_read_or_dispatch'
+  ) {
+    throw new Error('native candidate must use a typed host bridge without renderer protocol access or shell-owned thread and permission stores');
+  }
+  assertStringArrayIncludes(host.required_protocol_methods, requiredCrossThreadProtocolMethods, 'cross-thread typed host protocol methods');
+  const hostLedger = host.host_owned_minimal_coordination_ledger;
+  if (
+    hostLedger.allowed !== true ||
+    hostLedger.storage_policy !== 'append_only_queue_and_bilateral_receipt_metadata' ||
+    hostLedger.thread_history_allowed !== false ||
+    hostLedger.thread_truth_authority !== false
+  ) {
+    throw new Error('typed host may own only a minimal append-only queue and receipt ledger without thread history or thread truth authority');
+  }
+
+  const modelTools = authority.p1_model_tool_bridge;
+  const generatedSchema = modelTools.codex_cli_schema_observation;
+  const liveProbe = modelTools.ephemeral_live_probe_observation;
+  if (
+    modelTools.current_transport !== 'client_executed_dynamic_tools' ||
+    modelTools.bridge_must_reuse_typed_host_gate !== true ||
+    modelTools.direct_app_server_or_ledger_bypass_forbidden !== true ||
+    modelTools.tool_calls_must_apply_same_safety_gates_and_receipts_as_gui !== true ||
+    generatedSchema.version !== '0.144.1' ||
+    generatedSchema.generator !== 'generate-ts' ||
+    generatedSchema.dynamic_tools_field_present !== false ||
+    liveProbe.dynamic_tools_registration_accepted !== true ||
+    liveProbe.received_event !== 'item/tool/call' ||
+    liveProbe.turn_completed !== true ||
+    modelTools.schema_drift_record_required !== true ||
+    modelTools.runtime_capability_probe_required !== true ||
+    modelTools.probe_policy !== 'probe_runtime_behavior_instead_of_inferring_support_from_generate_ts' ||
+    modelTools.fallback_policy !== 'typed_model_tool_unavailable_with_user_driven_host_coordination_preserved' ||
+    modelTools.fallback_must_not_claim_p1_model_tool_ready !== true
+  ) {
+    throw new Error('P1 model tools must use client-executed dynamicTools with runtime probing, schema-drift recording, shared host gates, and a non-ready fallback');
+  }
+  assertStringArrayIncludes(modelTools.required_high_level_tools, [
+    'list_threads',
+    'read_thread',
+    'send_message_to_thread',
+    'fork_thread',
+    'archive_thread',
+    'unarchive_thread',
+    'wait_thread',
+  ], 'P1 client-executed dynamicTools');
+
+  const localAcceptance = authority.local_p0_p1_acceptance;
+  const directory = localAcceptance.thread_directory;
+  const dispatch = localAcceptance.dispatch_policy;
+  const receipt = localAcceptance.bilateral_receipt;
+  if (
+    localAcceptance.scope !== 'local_machine_only' ||
+    directory.list_protocol !== 'thread/list' ||
+    directory.read_protocol !== 'thread/read' ||
+    directory.default_scope !== 'current_project' ||
+    directory.archived_scope_requires_explicit_filter !== true
+  ) {
+    throw new Error('local P0 plus P1 must provide a current-project thread directory with explicit archived scope');
+  }
+  assertStringArrayIncludes(directory.required_fields, [
+    'thread_id', 'status', 'summary', 'project', 'workspace', 'host', 'owner', 'goal',
+    'archived', 'parent_thread_id', 'ancestor_thread_ids', 'active_turn_id', 'write_set',
+  ], 'local thread directory fields');
+  assertStringArrayIncludes(localAcceptance.lifecycle_actions, ['read', 'resume', 'fork', 'archive', 'unarchive'], 'local thread lifecycle actions');
+  if (
+    dispatch.persisted_unloaded_thread !== 'thread/resume_then_turn/start' ||
+    dispatch.loaded_idle_thread !== 'turn/start' ||
+    dispatch.running_urgent_message !== 'turn/steer_with_explicit_realtime_label' ||
+    dispatch.running_nonurgent_message !== 'host_queue_then_turn/start_when_idle' ||
+    dispatch.unknown_or_stale_status !== 'refresh_then_fail_closed' ||
+    dispatch.explicit_user_confirmation_when_scope_or_permission_changes !== true ||
+    dispatch.archived_thread !== 'explicit_unarchive_or_typed_failure_no_silent_replacement' ||
+    dispatch.queue_owner !== 'opl_app_typed_host_bridge' ||
+    dispatch.queue_must_not_copy_or_own_thread_history !== true
+  ) {
+    throw new Error('local dispatch must route resume/start/steer through the host queue and fail closed on stale or archived targets');
+  }
+  assertStringArrayIncludes(localAcceptance.safety_gates, requiredCrossThreadSafetyGates, 'cross-thread safety gates');
+  if (
+    receipt.required !== true ||
+    receipt.source_timeline_projection !== true ||
+    receipt.target_timeline_projection !== true ||
+    receipt.rail_or_thread_detail_readback !== true ||
+    receipt.full_thread_history_copy_forbidden !== true
+  ) {
+    throw new Error('cross-thread dispatch must produce bilateral source and target receipt projections without copying thread history');
+  }
+  assertStringArrayIncludes(receipt.statuses, [
+    'created', 'accepted', 'queued', 'delivered', 'running', 'completed', 'failed', 'cancelled', 'rejected',
+  ], 'bilateral receipt statuses');
+  assertStringArrayIncludes(receipt.required_fields, [
+    'delivery_id', 'coordination_id', 'source_thread_id', 'target_thread_id', 'source_host_id', 'target_host_id',
+    'project_key', 'sender', 'intent', 'reason', 'message_summary', 'protocol_method', 'queue_decision',
+    'permission_decision', 'write_set_decision', 'status', 'result_summary_or_ref', 'created_at', 'completed_at',
+  ], 'bilateral receipt fields');
+  assertStringArrayIncludes(localAcceptance.required_typed_failure_states, [
+    'offline', 'permission_denied', 'duplicate_rejected', 'loop_rejected', 'scope_mismatch',
+    'write_set_conflict', 'stale_status', 'archived_target', 'protocol_incompatible', 'dispatch_failed', 'wait_timeout',
+  ], 'cross-thread typed failure states');
+  if (
+    localAcceptance.user_visibility_policy !== 'sender_target_reason_message_result_and_safety_decisions_visible_and_auditable'
+  ) {
+    throw new Error('cross-thread receipt and safety decisions must remain user-visible and auditable');
+  }
+  assertStringArrayIncludes(localAcceptance.forbidden_implementations, [
+    'send_input_as_cross_top_level_message_bus',
+    'shell_owned_duplicate_thread_store',
+    'model_generated_thread_id',
+    'silent_cross_project_dispatch',
+    'dispatch_without_write_set_check',
+    'unbounded_delegation_loop',
+  ], 'cross-thread forbidden implementations');
+
+  const parity = authority.desktop_webui_parity;
+  if (
+    parity.required !== true ||
+    parity.same_typed_host_bridge_contract !== true ||
+    parity.same_thread_actions !== true ||
+    parity.same_queue_and_safety_semantics !== true ||
+    parity.same_bilateral_receipt_and_failure_visibility !== true ||
+    parity.delivery_transport_may_differ !== true ||
+    parity.desktop_only_coordination_capability_allowed !== false ||
+    parity.webui_browser_renderer_direct_app_server_access_allowed !== false ||
+    parity.webui_node_host_typed_app_server_adapter_allowed !== true
+  ) {
+    throw new Error('Desktop and WebUI must preserve equivalent coordination actions, gates, queue decisions, receipts, and failures');
+  }
+  const remoteP2 = authority.remote_p2;
+  if (
+    remoteP2.status !== 'deferred' ||
+    remoteP2.local_p0_p1_must_not_depend_on_remote_host_aggregation !== true ||
+    remoteP2.remote_ready_claim_allowed !== false ||
+    remoteP2.local_focused_tests_prove_remote_ready !== false
+  ) {
+    throw new Error('remote host P2 must remain deferred and must not be inferred from local focused evidence');
+  }
+  assertStringArrayIncludes(remoteP2.future_scope, [
+    'authenticated_saved_app_server_connections',
+    'host_scoped_thread_directory_and_health',
+    'cross_host_permission_and_route_policy',
+    'disconnect_recovery_and_bilateral_receipt',
+  ], 'remote P2 future scope');
+
+  for (const field of requiredFalseReadyFields) {
+    if (authority.false_ready_boundary[field] !== false) {
+      throw new Error(`native candidate false-ready boundary ${field} must remain false`);
+    }
+  }
+}
+
 function validateCandidateAdapterContract(
   candidate: ShellCandidate,
   adapterContract: CandidateAdapterContract,
@@ -175,6 +444,14 @@ function validateCandidateAdapterContract(
       adapterContract.adapter_role !== 'foreground_alternative_candidate_adapter'
     ) {
       throw new Error(`${candidate.id} foreground candidate adapter must declare candidate_shell adapter identity`);
+    }
+    if (
+      adapterContract.purpose !== 'active_shell_adapter' ||
+      adapterContract.state !== 'active' ||
+      adapterContract.candidate_stage !== 'opl_native_workbench_local_p0_p1_authority_target_implementation_pending' ||
+      adapterContract.gui_authority?.implementation_role !== 'active_shell_implementation_carrier'
+    ) {
+      throw new Error(`${candidate.id} adapter must preserve the shared adapter schema while candidate_stage remains a pending local authority target`);
     }
   } else if (adapterContract.active_shell !== candidate.id) {
     throw new Error(`${candidate.id} adapter contract must identify ${candidate.id}`);
@@ -199,6 +476,14 @@ function validateCandidateAdapterContract(
   }
   if (!adapterContract.shell_contract.capabilities.includes('candidate_app_bundle_package')) {
     throw new Error(`${candidate.id} adapter must declare candidate_app_bundle_package capability`);
+  }
+  if (candidate.id === 'opl-native-workbench') {
+    assertStringArrayIncludes(
+      adapterContract.shell_contract.capabilities,
+      requiredNativeCrossThreadCapabilities,
+      `${candidate.id} adapter shell capabilities`,
+    );
+    validateNativeCrossTopLevelThreadAuthority(adapterContract.cross_top_level_thread_authority);
   }
   if (!adapterContract.validation_commands.some((entry) => entry.id === 'candidate_app_bundle_build')) {
     throw new Error(`${candidate.id} adapter validation_commands must include candidate_app_bundle_build`);
@@ -606,8 +891,8 @@ function validateNativeWorkbenchCandidateContract(candidate: ShellCandidate): vo
   ) {
     throw new Error(`${candidate.id}.source_upstream must point to gaofeng21cn/opl-native-workbench under Apache-2.0`);
   }
-  if (candidate.candidate_stage !== 'opl_native_workbench_candidate_skeleton') {
-    throw new Error(`${candidate.id}.candidate_stage must be opl_native_workbench_candidate_skeleton`);
+  if (candidate.candidate_stage !== 'opl_native_workbench_local_p0_p1_authority_target_implementation_pending') {
+    throw new Error(`${candidate.id}.candidate_stage must remain a pending local P0 plus P1 authority target`);
   }
   if (
     candidate.checkout_policy?.primary_path !== 'shells/opl-native-workbench' ||
@@ -625,7 +910,8 @@ function validateNativeWorkbenchCandidateContract(candidate: ShellCandidate): vo
   }
   const visual = candidate.visual_parity_contract as NativeVisualParityContract | undefined;
   if (
-    visual?.comparison_baseline !== 'ChatGPT Codex macOS 26.707.31123 (2026-07-10)' ||
+    visual?.comparison_baseline !== 'ChatGPT Codex macOS 26.707.41301 (2026-07-11)' ||
+    visual.current_reference_status !== 'current_app_reference_candidate_conformance_pending' ||
     visual.regression_floor !== 'AionUI active release shell' ||
     visual.source_usage !== 'visual_and_interaction_reference_only_no_code_or_brand_copy' ||
     visual.minimum_bar !== 'one_to_one_codex_layout_density_typography_composer_timeline_project_rail_settings_and_floating_environment_details' ||
@@ -637,12 +923,20 @@ function validateNativeWorkbenchCandidateContract(candidate: ShellCandidate): vo
     throw new Error(`${candidate.id}.visual_parity_contract must consume the App-owned configured model policy, preserve the AionUI regression floor, and forbid docs-only completion`);
   }
   assertStringArrayIncludes(
+    visual.superseded_observations ?? [],
+    [
+      'ChatGPT Codex macOS 26.707.31428 (2026-07-10)',
+      'ChatGPT Codex macOS 26.707.31123 (2026-07-10)',
+    ],
+    `${candidate.id}.visual_parity_contract.superseded_observations`,
+  );
+  assertStringArrayIncludes(
     visual.required_surfaces ?? [],
     requiredNativeVisualParitySurfaces,
     `${candidate.id}.visual_parity_contract.required_surfaces`,
   );
   assertStringArrayIncludes(visual.required_evidence, [
-    'desktop screenshot comparison against ChatGPT Codex macOS 26.707.31123',
+    'desktop screenshot comparison against ChatGPT Codex macOS 26.707.41301',
     'persistent project rail and single conversation timeline screenshot comparison',
     'composer model and reasoning controls screenshot comparison',
     'floating on-demand environment screenshot comparison',

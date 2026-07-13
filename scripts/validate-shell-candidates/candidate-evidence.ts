@@ -530,10 +530,12 @@ function validateNativeWorkbenchImplementationEvidence(candidate: ShellCandidate
   ) {
     throw new Error(`${candidate.id} evidence must prove the Codex project rail is visible and the environment inspector is closed by default`);
   }
-  const codexAlignment = evidence.default_home_layout?.codex_2026_07_10_alignment;
+  const codexAlignment = evidence.default_home_layout?.codex_2026_07_11_alignment;
   if (
     codexAlignment?.reference_product !== 'ChatGPT Codex macOS' ||
-    codexAlignment?.reference_version !== '26.707.31123' ||
+    codexAlignment?.reference_version !== '26.707.41301' ||
+    codexAlignment?.reference_observed_at !== '2026-07-11' ||
+    codexAlignment?.current_reference_status !== 'current_app_reference_candidate_conformance_pending' ||
     codexAlignment?.project_rail !== 'persistent' ||
     codexAlignment?.timeline !== 'single_conversation_timeline' ||
     codexAlignment?.model_controls !== 'composer_bottom_row' ||
@@ -543,12 +545,17 @@ function validateNativeWorkbenchImplementationEvidence(candidate: ShellCandidate
     codexAlignment?.model_policy_source !== 'one-person-lab-app/contracts/app-product-profile.json#gui.home.codex_model_display_options' ||
     codexAlignment?.model_policy_consumption !== 'dynamic_build_injection_with_minimal_offline_fallback'
   ) {
-    throw new Error(`${candidate.id} evidence must prove the Codex 26.707.31123 project rail, single timeline, dynamically injected App-owned model controls, floating environment, and Settings locale surface`);
+    throw new Error(`${candidate.id} evidence must prove the Codex 26.707.41301 project rail, single timeline, dynamically injected App-owned model controls, floating environment, and Settings locale surface`);
   }
+  assertStringArrayIncludes(
+    codexAlignment.superseded_observations ?? [],
+    ['26.707.31428', '26.707.31123'],
+    `${candidate.id} evidence default_home_layout.codex_2026_07_11_alignment.superseded_observations`,
+  );
   assertStringArrayIncludes(
     codexAlignment.required_surfaces ?? [],
     requiredNativeVisualParitySurfaces,
-    `${candidate.id} evidence default_home_layout.codex_2026_07_10_alignment.required_surfaces`,
+    `${candidate.id} evidence default_home_layout.codex_2026_07_11_alignment.required_surfaces`,
   );
   if (
     evidence.webui_transport?.renderer !== 'src/workbench/App.tsx' ||

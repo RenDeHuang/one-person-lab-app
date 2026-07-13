@@ -770,6 +770,8 @@
         "OpenClaudeScience scientific task-awareness patterns adapted without domain authority transfer",
         "Open Science artifact/provenance/review affordances adapted as secondary context without default split-screen workbench assumptions",
         "results and artifact delivery-first presentation",
+        "typed OPL host bridge for local cross-top-level thread coordination",
+        "client-executed dynamicTools for P1 model tools with runtime capability probe and schema-drift fallback",
         "independent shell repo mounted under shells/opl-native-workbench"
       ],
       "codex_app_like_chat_target": {
@@ -779,6 +781,8 @@
           "workspace directory picker",
           "new conversation and lightweight thread history rail",
           "Codex app-server backed chat turns",
+          "local P0 plus P1 cross-top-level thread discovery, read, lifecycle, dispatch, queue, safety, and bilateral receipt target",
+          "client-executed dynamicTools model-tool bridge reusing the same typed host gates",
           "shared native React renderer for Electron and WebUI",
           "Web transport bridge with HTTP actions and SSE Codex events",
           "K-Dense-informed project sandbox and delivery artifact organization as reference-only",
@@ -856,10 +860,14 @@
         "missing_checkout_blocker_allowed": true,
         "sibling_checkout_command": "OPL_APP_SHELL_ROOT=../opl-native-workbench OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/opl-native-workbench.json npm run package"
       },
-      "candidate_stage": "opl_native_workbench_candidate_skeleton",
+      "candidate_stage": "opl_native_workbench_local_p0_p1_authority_target_implementation_pending",
       "visual_parity_contract": {
-        "comparison_baseline": "ChatGPT Codex macOS 26.707.31123 (2026-07-10)",
-        "current_reference_status": "superseded_reference_candidate_deviation",
+        "comparison_baseline": "ChatGPT Codex macOS 26.707.41301 (2026-07-11)",
+        "current_reference_status": "current_app_reference_candidate_conformance_pending",
+        "superseded_observations": [
+          "ChatGPT Codex macOS 26.707.31428 (2026-07-10)",
+          "ChatGPT Codex macOS 26.707.31123 (2026-07-10)"
+        ],
         "regression_floor": "AionUI active release shell",
         "source_usage": "visual_and_interaction_reference_only_no_code_or_brand_copy",
         "minimum_bar": "one_to_one_codex_layout_density_typography_composer_timeline_project_rail_settings_and_floating_environment_details",
@@ -874,7 +882,7 @@
           "settings_locale_surface"
         ],
         "required_evidence": [
-          "desktop screenshot comparison against ChatGPT Codex macOS 26.707.31123",
+          "desktop screenshot comparison against ChatGPT Codex macOS 26.707.41301",
           "persistent project rail and single conversation timeline screenshot comparison",
           "composer model and reasoning controls screenshot comparison",
           "floating on-demand environment screenshot comparison",
@@ -982,6 +990,15 @@
         "secondary_runtime_context_refs",
         "conversation_event_ref_rendering",
         "webui_renderer_parity",
+        "typed_cross_top_level_thread_host_bridge",
+        "client_executed_dynamic_tools_coordination_bridge",
+        "local_cross_thread_p0_p1",
+        "thread_list_read_resume_fork_archive_unarchive",
+        "turn_start_steer_with_host_queue",
+        "cross_thread_safety_gates",
+        "bilateral_coordination_receipts",
+        "desktop_webui_coordination_parity",
+        "remote_host_aggregation_p2_deferred",
         "release_isolation",
         "candidate_app_bundle_package"
       ],
@@ -1039,6 +1056,10 @@
           "Electron and WebUI use the same native React renderer and App-owned bridge shape",
           "ordinary UI stays chat-first while prioritizing results, files, receipts, and delivery refs",
           "WebUI parity evidence proves the same renderer and product semantics as Electron",
+          "local P0 and P1 coordination require the typed host bridge, thread/list read resume fork archive unarchive, turn/start and turn/steer routing, nonurgent queue, safety gates, and bilateral receipts",
+          "P1 model tools use client-executed dynamicTools through the same host gates; codex-cli 0.144.1 generate-ts schema drift is recorded, runtime support is probed, and fallback cannot claim P1 model-tool readiness",
+          "Desktop and WebUI expose equivalent local coordination actions, queue decisions, safety failures, and bilateral receipt readback",
+          "remote cross-machine P2 remains deferred and local focused evidence cannot prove remote readiness",
           "candidate evidence must not claim release-ready, active-shell-adopted, production-ready, or full-release-ready from contract-only validation"
         ]
       },
@@ -1094,6 +1115,9 @@
         "do not enter default stable or nightly release packaging",
         "do not introduce runtime or domain truth into the App repo",
         "do not continue AGUI/CopilotKit implementation as the native workbench route",
+        "do not use same-agent-tree send_input as a cross-top-level message bus",
+        "do not infer dynamicTools runtime support or absence from the generated TypeScript schema alone",
+        "do not claim remote cross-machine P2 from local P0 or P1 evidence",
         "do not claim release-ready from contract-only evidence"
       ],
       "product_truth_policy": {
