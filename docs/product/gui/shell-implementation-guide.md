@@ -157,8 +157,9 @@ opl app action execute --action <id> [--payload <json>] [--dry-run] --json
 跨顶层线程协调是另一条 host boundary：Codex Core/App Server 拥有 opaque thread ID、history、
 status 与 turn；OPL host 执行 list/read/resume/fork/archive/start/steer、permission、dedupe、loop、
 project/workspace/host 与 write-set gate，并产生双边可见 receipt。`spawn_agent/send_input/wait_agent`
-只用于同一 agent tree。协议适配集中在 host/preload boundary，rail、dialog、timeline 和 mobile
-sheet 只消费 typed projection，不直接解析 App Server JSON 或拥有路由策略。
+只用于同一 agent tree。协议适配集中在 host/preload boundary，并作为模型/host tool 按需调用；
+普通用户 rail 不挂载独立“线程协调”入口。任何调试视图也只能消费 typed projection，不直接解析
+App Server JSON 或拥有路由策略。
 
 ## Settings Control Plane
 

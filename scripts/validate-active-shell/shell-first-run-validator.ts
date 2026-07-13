@@ -71,6 +71,15 @@ export function validateFirstRunImplementation(shellPaths) {
     throw new Error('Active shell StartupGate skip must enter /guid without mutating unknown readiness');
   }
   for (const expected of [
+    'STARTUP_STATE_SOFT_TIMEOUT_MS = 1500',
+    "resolve({ kind: 'timeout' })",
+    'setNeedsFirstRun(false)',
+  ]) {
+    if (!startupGate.includes(expected)) {
+      throw new Error(`Active shell StartupGate must keep the Framework state read non-blocking: ${expected}`);
+    }
+  }
+  for (const expected of [
     'ipcBridge.oplRuntime.getInitialize.invoke()',
     'readInitializePayload',
     'initialize?.setup_flow?.ready_to_launch === true',

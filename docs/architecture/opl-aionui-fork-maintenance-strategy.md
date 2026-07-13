@@ -276,7 +276,7 @@ The latest reviewed stable upstream is `v2.1.33` at
 `a819d175683d5a0aada20064888da07bfcecdb6a`. Its delta is release/runtime-only
 and contains no GUI behavior that changes the App target. It therefore does not
 justify a broad history merge or a new renderer intake. The active adapter binds
-`9b3b3dd09546bc1360b8c27ad655b60b61768b89` as the minimum verified GUI
+`a0ce713b65801fd9ca7f46ad168c977c75a187de` as the minimum verified GUI
 conformance ancestor; the current shell HEAD is read from the active checkout and
 must contain that ancestor. Human docs do not copy the transient current HEAD.
 

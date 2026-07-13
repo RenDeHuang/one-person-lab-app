@@ -284,11 +284,13 @@ directory wall for the other pages.
 repair, enable, disable, uninstall, Home visibility/order, dependency readiness,
 and launch. Skills and Plugins do not appear there.
 
-`Capabilities` groups Skills and Plugins by ownership. `OPL Flow managed` is
+`Capabilities` groups Skills and Plugins by ownership. `OPL Flow 推荐` is
 derived from the typed Flow dependency catalog projected by OPL Base; membership
 is never hardcoded or inferred from legacy package fields by the App. OPL Packages
-reconciles the result on startup, daily maintenance, and explicit package updates. `Manual
-and third-party` preserves the detected source and requires explicit user action.
+reconciles the result on startup, daily maintenance, and explicit package updates. `本机能力`
+contains built-in, user-installed, and third-party Skills/Plugins plus the existing MCP and
+image-tool controls; mutations require explicit user action. Voice transcription remains in
+Preferences because it is an input preference, not an OPL Flow capability dependency.
 The App does not hardcode Flow membership, Flow does not implement a second
 updater, and CLI currentness remains an OPL Base responsibility.
 

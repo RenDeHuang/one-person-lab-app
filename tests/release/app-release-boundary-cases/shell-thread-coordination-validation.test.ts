@@ -36,7 +36,7 @@ const files = {
     messageSummary permissionDecision writeSetDecision result.outcome === 'confirmation_required'
   `,
   'packages/desktop/src/renderer/components/layout/Sider/index.tsx': `
-    ThreadCoordinationSection <ThreadCoordinationSection
+    ordinary navigation without the model-facing coordination surface
   `,
   'tests/unit/thread-coordination/codexAppServerPort.test.ts': 'paginates thread/list',
   'tests/unit/thread-coordination/threadCoordinationService.test.ts':
@@ -83,4 +83,14 @@ test('active-shell thread coordination validator rejects send_input as a cross-t
     'utf8',
   );
   assert.throws(() => validateShellThreadCoordination(shellPaths), /must not include send_input/);
+});
+
+test('active-shell thread coordination validator rejects an ordinary navigation entry', () => {
+  const { root, shellPaths } = fixture();
+  fs.appendFileSync(
+    path.join(root, 'packages/desktop/src/renderer/components/layout/Sider/index.tsx'),
+    '\n<ThreadCoordinationSection />\n',
+    'utf8',
+  );
+  assert.throws(() => validateShellThreadCoordination(shellPaths), /must not mount/);
 });

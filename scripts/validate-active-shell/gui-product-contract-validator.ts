@@ -380,6 +380,12 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   ) {
     throw new Error('App GUI startup read model must keep Guid navigation non-blocking');
   }
+  if (
+    startupReadModelPolicy?.soft_deadline_ms !== 1500 ||
+    startupReadModelPolicy?.soft_deadline_behavior !== 'enter_guid_and_continue_state_refresh_in_background'
+  ) {
+    throw new Error('App GUI startup read model must enter Guid after the 1500 ms soft deadline');
+  }
 
   if (guiContract.theme_and_branding?.default_theme_id !== 'default-theme') {
     throw new Error('App GUI default theme must be default-theme');
@@ -762,9 +768,6 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     'single model selector appears in Codex conversation composer with no separate status pill; reasoning is a primary menu and model is a secondary menu'
   ) {
     throw new Error('App GUI conversation must use one model selector with no separate status pill');
-  }
-  if (!pages.guid_home.must_not_show?.includes('OPL Meta Agent as a default home assistant')) {
-    throw new Error('App GUI home must keep OMA out of default home entries');
   }
   const invocationReceiptPolicy = guiContract.agent_package_invocation_receipt_policy;
   if (

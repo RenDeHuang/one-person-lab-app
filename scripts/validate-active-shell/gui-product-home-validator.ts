@@ -264,11 +264,10 @@ function validatePurposeEntries(guiContract) {
     ) {
       throw new Error(`App GUI home agent shortcut ${entry.shortcut_id} must be a configurable Codex package launch shortcut`);
     }
-    if (entry.package_id === 'oma') {
-      if (entry.shortcut_id !== 'oma' || entry.default_visible !== false) {
-        throw new Error('App GUI OMA shortcut must be user-configurable but hidden by default');
-      }
-    } else if (entry.default_visible !== true) {
+    if (entry.package_id === 'oma' && entry.shortcut_id !== 'oma') {
+      throw new Error('App GUI OMA shortcut id must remain oma');
+    }
+    if (entry.default_visible !== true) {
       throw new Error(`App GUI home agent shortcut ${entry.shortcut_id} must be visible by default`);
     }
   }
@@ -276,8 +275,8 @@ function validatePurposeEntries(guiContract) {
 
 function validateNonDefaultAndRetiredAssistants(guiContract) {
   const oma = (guiContract.non_default_assistants ?? []).find((assistant) => assistant.id === 'oma');
-  if (!oma || oma.home_default_visible !== false || oma.home_entry_policy !== 'explicit_or_settings_only') {
-    throw new Error('App GUI contract must keep OMA available but out of default home entries');
+  if (!oma || oma.home_default_visible !== true || oma.home_entry_policy !== 'settings_managed_home_shortcut') {
+    throw new Error('App GUI contract must expose OMA through its default settings-managed Home shortcut');
   }
   const retiredMds = (guiContract.retired_domain_agents ?? []).find((agent) => agent.id === 'mds');
   if (retiredMds?.default_display_allowed !== false) {

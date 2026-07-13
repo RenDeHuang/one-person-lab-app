@@ -172,8 +172,8 @@ function validateDomainExposure(policy) {
       throw new Error(`Install exposure domain ${domainId} must be visible on the default home path`);
     }
   }
-  if (expectedDomainExposures.find(({ expected }) => expected.domain_id === 'opl-meta-agent')?.entry.default_home_visible !== false) {
-    throw new Error('Install exposure policy must keep OMA out of the default home path');
+  if (expectedDomainExposures.find(({ expected }) => expected.domain_id === 'opl-meta-agent')?.entry.default_home_visible !== true) {
+    throw new Error('Install exposure policy must expose OMA through its default Home shortcut');
   }
 }
 

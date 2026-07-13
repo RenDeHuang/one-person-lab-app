@@ -38,16 +38,16 @@ fresh gate、pixels、package/user path 和远端回读为准。
 | Surface | Fresh 状态 | 边界 |
 | --- | --- | --- |
 | App authority refresh | 本轮隔离 lane 基于 remote main `129258053d2063994cc57408bb03a3b2abb1471a` | GUI ancestor/current HEAD 分离、v2.1.33 review、artifact ref adapter、跨顶层线程合同与 source validator 已统一；最终 App main currentness 由 Git remote readback 证明，不在文档中递归嵌入自身 HEAD。 |
-| Shell final source cohort | `605fd91cf128fb3400527e0540598f42ffb9ce8f`；最低 GUI conformance ancestor 为 `9b3b3dd09546bc1360b8c27ad655b60b61768b89` | Artifact adapter、验收矩阵、navigation regression、thread coordination、write-set containment 与最终 App profile projection 已统一；source cohort 不能推导 installed/release-ready。 |
+| Shell final source cohort | `a0ce713b65801fd9ca7f46ad168c977c75a187de`；最低 GUI conformance ancestor 与当前验证 cohort 一致 | Artifact adapter、验收矩阵、navigation regression、模型可用的 thread coordination、write-set containment 与最终 App profile projection 已统一；source cohort 不能推导 installed/release-ready。 |
 | Latest reviewed upstream | `v2.1.33@a819d175683d5a0aada20064888da07bfcecdb6a` | 相比已评估 GUI cohort 无 GUI delta；不整体 merge，release/runtime intake 单独处理。 |
 | Product profile | 使用 App 官方生成器和当前 OPL Flow workflow policy 对 Shell generated profile 重建后，`jq -S` canonical diff 为空 | Generated profile 的 compatibility projection 包含由 OPL Flow policy 派生的字段；不要求与 raw App JSON 字节相等，不提交纯格式噪音。 |
-| Verified GUI ancestor gates | Shell `9b3b3dd...`：full suite `283 files / 2086 tests` 通过、`1 file / 3 tests` skip；root TypeScript、1490-file format、i18n 通过。App active-shell quick 通过；release-boundary `257 pass / 2 platform skip / 0 fail` | 证明最低 GUI ancestor，不证明当前 main 或本轮 final integration。 |
+| Verified GUI ancestor gates | Shell `a0ce713b...`：full suite `293 files / 2172 tests` 通过、`1 file / 3 tests` skip；root TypeScript、1514-file format、i18n 通过。App active-shell full 通过；release-boundary `293 pass / 2 platform skip / 0 fail` | 证明最低 GUI ancestor 与 source contract 边界，不单独证明 installed path 或 release-ready。 |
 | Final source gates | Shell `605fd91c...`：full suite `292 files / 2166 tests` 通过、`1 file / 3 tests` skip；TypeScript、1513-file format、i18n、lint `0 errors / 861 warnings`、production source package与隔离 AionCore 的 desktop/mobile dev Electron E2E `2/2` 通过。App active-shell quick 与 release-boundary `287 pass / 2 platform skip / 0 fail` 在同一 Shell cohort 通过 | 证明当前 source、tests 与 source package build；不是 packaged E2E、current pixels、安装或 release promotion。 |
 | Live App Server protocol | Codex CLI `0.144.1` + 临时 `CODEX_HOME`：两条 materialized top-level threads 完成 list/source-hint、target turn/start/result/read、resume、fork 与 archive readback | 证明 production adapter 的本机 protocol wire；未覆盖 `turn/steer` 竞态、Shell packaged two-root UI 或 remote host。 |
 | Historical source gates | exact `0ebc1fdd278e8a79602458e15e28cf814dfd917d`：`test:full` 282 files pass / 1 skip、2044 tests pass / 3 skip；TypeScript、1487-file format、i18n 与 lint 0 errors | 只属于历史 cohort。 |
 | Historical core visual evidence | `docs/product/gui/evidence/aionui-41301/manifest.json` 绑定 Shell `0ebc1fdd...`、`E2E_PACKAGED=1`、时间 `2026-07-11T21:16:06.183Z` 和 8 个 route/layout 场景 | Manifest 与截图保持原字节/原 SHA；current `605fd91c...` pixels 为 unverified。 |
 | Historical Settings evidence | `docs/product/gui/assets/settings-desktop-light-manifest-20260712.json` 绑定 Shell `fadd91f9...` 的 14-entry desktop Light matrix | 精确历史证据，不外推为当前 Settings pixels。 |
-| Latest installed cohort | `/Applications/One Person Lab.app` 的 `26.7.12` closeout 曾完成 asar/AionCore/codesign 与 Home -> Settings -> Home readback | 该证据早于 final Shell，不能证明 `9b3b3dd...` 已安装或用户路径 current。 |
+| Latest installed cohort | `/Applications/One Person Lab.app` 的 `26.7.12` closeout 曾完成 asar/AionCore/codesign 与 Home -> Settings -> Home readback | 该证据早于 final Shell，不能证明 `a0ce713b...` 已安装或用户路径 current。 |
 
 ## Authority 与非降级边界
 
@@ -96,7 +96,7 @@ first-run、中英文，以及本轮纳入 authority 的跨顶层线程协调不
 | P1 | Current task | `opl_adopted_relocated` | timeline 单一 summary；普通任务不默认 sticky，长任务或用户操作才 pin。 | 真实长任务/approval evidence 单独维护。 |
 | P1 | Transcript export | `opl_adopted_active` | cursor-safe、递归脱敏、Markdown/JSON、失败可见；`/export` 使用同一安全路径。 | workspace bundle 继续要求逐项选择与确认。 |
 | P1 | Desktop navigation | `opl_adopted_active` | 保留 Back/Forward、Previous/Next、New Window 的 OPL 路径，不创建 WebUI 第二 IA。 | 完整快捷键专项验收不阻塞 core GUI。 |
-| P1 | Cross-thread coordination | `opl_adopted_target` | 当前 project thread list/read/detail，resume/fork/archive，idle start、running steer/queue，双边 receipt 与 safety gates。 | 先闭本机 P0；remote host 聚合不冒充本机完成。 |
+| P1 | Cross-thread coordination | `opl_adopted_target` | Codex 模型按需调用 host tool 完成 thread list/read、resume/fork/archive、idle start、running steer/queue，并保留双边 receipt 与 safety gates；普通 rail 不显示独立页面。 | 先闭本机 P0；remote host 聚合不冒充本机完成。 |
 | P1 | Artifact preview adapter | `opl_adopted_target` | Canonical ref 薄接现有 Preview，external-owner body，unsafe/unsupported fail closed。 | 不新建 renderer/store；专项 renderer pixels 独立验收。 |
 | P2 | Settings | `opl_adopted_active` | 保留 OPL IA、bounded page-section cards 与 flat rows；不恢复旧 quiet/Codex-style Settings 实验。 | 维护模式，只修回归。 |
 
@@ -145,7 +145,7 @@ Shell package/version 和 AionCore intake 继续作为独立维护工作。选�
 | 41301 human target 与三层文档一致 | `done_current_refresh` | 五份产品定义文档已收敛 rail/Home/Settings 与 package readiness 语义。 |
 | App machine authority 与三层文档一致 | `done_current_refresh` | Artifact、GUI ancestor 和跨顶层 thread authority 已进入 contracts/page-state/validators，并通过 combined gates。 |
 | Shell GUI behavior 与 OPL 非降级边界一致 | `done_source_currentness` | Final integration 已通过 full source、package build、E2E 与 App combined gates；未采纳 AionUI 面未进入 ordinary IA。 |
-| Cross-thread coordination | `source_implemented_packaged_acceptance_pending` | Contract、host adapter、DOM、安全负例与 Codex `0.144.1` 两根线程 live protocol 已闭合；packaged UI two-root、live steer 与 remote host 仍未声明。 |
+| Cross-thread coordination | `source_implemented_model_tool_navigation_hidden` | Contract、host adapter、安全负例与 Codex `0.144.1` 两根线程 live protocol 已闭合；普通导航入口已移除，live steer 与 remote host 仍未声明。 |
 | Generated profile current | `done_semantic` | 官方生成器重建后 canonical JSON diff 为空；未提交纯格式差异。 |
 | Core visual matrix | `historical_only_current_unverified` | 8-entry manifest 继续精确绑定 `0ebc1fdd...`；当前 pixels 不沿用。 |
 | Package/install/user path | `source_package_only_current_unverified` | Production source package 通过；`26.7.12` 安装证据早于当前 Shell，不能提升为 current。 |

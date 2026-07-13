@@ -38,7 +38,7 @@ OPL project context、capabilities、跨顶层线程协调、progress、evidence
 
 当前人读观察基准是本机 ChatGPT macOS `26.707.41301`（观察于 `2026-07-11`）。
 App machine authority 已升为 baseline schema v2；最低已验证 AionUI GUI conformance ancestor 是
-`9b3b3dd09546bc1360b8c27ad655b60b61768b89`，当前 Shell HEAD 必须从 active checkout Git
+`a0ce713b65801fd9ca7f46ad168c977c75a187de`，当前 Shell HEAD 必须从 active checkout Git
 readback 获取，不复制进本目录的人读文档。`0ebc1fdd278e8a79602458e15e28cf814dfd917d`
 的完整 source gates 与 packaged 8 场景 visual matrix 继续作为历史 exact-cohort evidence，
 不能通过替换 SHA 升级为当前 pixels。当前 carrier 的 source/pixel 状态只在 conformance
@@ -109,7 +109,7 @@ package/user path。当前 contract/source 与 packaged route visual evidence �
 - `superseded_interaction_observations=ChatGPT Codex macOS 26.707.31428 (2026-07-10),ChatGPT Codex macOS 26.707.31123 (2026-07-10)`
 - `human_target.owner=one-person-lab-app`
 - `active_aionui.role=current_implementation_conformance_only`
-- `active_aionui.gui_conformance_ref=9b3b3dd09546bc1360b8c27ad655b60b61768b89`
+- `active_aionui.gui_conformance_ref=a0ce713b65801fd9ca7f46ad168c977c75a187de`
 - `active_aionui.current_shell_head_source=active_shell_checkout_git_head`
 - `active_aionui.historical_41301_evidence_sha=0ebc1fdd278e8a79602458e15e28cf814dfd917d`
 - `docs_or_contract_imply_source_complete=false`

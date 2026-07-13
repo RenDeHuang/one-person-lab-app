@@ -54,21 +54,21 @@ Active AionUI 默认状态通过 README 治理段声明的动态 state source �
 - Current human reference：本机 ChatGPT macOS `26.707.41301`（bundle build `5103`），
   `2026-07-11` 观察。App GUI contract、product profile 与 page-state matrix 已统一为 schema v2；
   `26.707.31428/31123` 只保留为 superseded observations。
-- AionUI GUI conformance ancestor：`opl-aion-shell@9b3b3dd09546bc1360b8c27ad655b60b61768b89`。
+- AionUI GUI conformance ancestor：`opl-aion-shell@a0ce713b65801fd9ca7f46ad168c977c75a187de`。
   当前 Shell HEAD 从 active checkout Git readback 获取，本矩阵不复制瞬时 HEAD。
 - Latest reviewed upstream：`AionUI v2.1.33@a819d175683d5a0aada20064888da07bfcecdb6a`；无 GUI delta，
   只进入 release/runtime selective intake，不触发 GUI history merge。
 - Generated profile currentness：使用 App 官方生成器和当前 OPL Flow workflow policy 重建后，
   current Shell generated profile 与生成结果 canonical JSON diff 为空；compatibility projection
   字段是有意派生，不要求与 raw App profile 字节相等。
-- Verified GUI ancestor source gates：Shell `9b3b3dd...` full suite `283 files / 2086 tests` 通过、
-  `1 file / 3 tests` skip；root TypeScript、1490-file format 与 i18n 通过（23 个既有
-  warning-only unknown keys）。App active-shell quick 通过；release-boundary 为
-  `257 pass / 2 platform skip / 0 fail`。临时 dependency/checkout links 已清理。
-- Final source cohort：Shell `605fd91cf128fb3400527e0540598f42ffb9ce8f` full suite
-  `292 files / 2166 tests` 通过、`1 file / 3 tests` skip；TypeScript、1513-file format、i18n、
+- Verified GUI ancestor source gates：Shell `a0ce713b...` full suite `293 files / 2172 tests` 通过、
+  `1 file / 3 tests` skip；root TypeScript、1514-file format 与 i18n 通过（23 个既有
+  warning-only unknown keys）。App active-shell full 通过；release-boundary 为
+  `293 pass / 2 platform skip / 0 fail`。临时 dependency/checkout links 已清理。
+- Final source cohort：Shell `a0ce713b65801fd9ca7f46ad168c977c75a187de` full suite
+  `293 files / 2172 tests` 通过、`1 file / 3 tests` skip；TypeScript、1514-file format、i18n、
   lint `0 errors / 861 warnings`、production source package 与隔离 AionCore 的 desktop/mobile dev Electron E2E
-  `2/2` 通过。App active-shell quick 与 release-boundary `287 pass / 2 platform skip / 0 fail`
+  `2/2` 通过。App active-shell full 与 release-boundary `293 pass / 2 platform skip / 0 fail`
   通过。Codex CLI `0.144.1` 隔离 live smoke 另证明两个 materialized top-level threads 的
   list/source-hint、turn/start/result/read、resume、fork 与 archive protocol wire；这些证据仍不等于
   packaged E2E、current pixels、installed path 或 release-ready。
@@ -128,7 +128,7 @@ Active AionUI 默认状态通过 README 治理段声明的动态 state source �
 | P1 | Progress / approval / receipt | 进入当前 timeline 与 task summary。 | Current-task summary 保持 timeline 单一实例；普通任务不默认 sticky。 | `source_implemented`, `pixel_unverified` | 后续补真实长任务/approval route evidence。 |
 | P1 | Artifacts / evidence | Environment 次级 refs、Preview、Files 或 turn disclosure。 | Files 与 Preview 按需且窄屏互斥；mobile Preview 使用完整可读 overlay；transcript export 已按 cursor 与脱敏合同加固。 | `source_implemented`, `pixel_unverified` | 历史像素保留；PDF/Mermaid/KaTeX 等 renderer 另做专项 evidence。 |
 | P1 | Artifact preview adapter | Canonical refs 薄接现有 Preview surface，body external-owner，unsafe/unsupported fail closed。 | Final source cohort 复用现有 Preview renderer/store；workspace 内 canonical refs 可打开，unsafe/unsupported/missing refs fail closed。 | `source_implemented`, `pixel_unverified` | PDF/Mermaid/KaTeX 等 renderer current pixels 独立取证。 |
-| P1 | Cross-thread coordination | Project-scoped thread directory + on-demand detail；App Server list/read/resume/fork/archive/start/steer；OPL host permission/dedupe/loop/scope/write-set/audit。 | Production App Server adapter、rail/detail/actions、receipt/audit 与安全 gates 已接线；Codex `0.144.1` 两根线程 protocol smoke 通过。 | `source_implemented`, `pixel_unverified` | 禁止用同 tree `send_input` 代替；packaged two-root UI、live steer 竞态和 remote host 仍需专项 evidence。 |
+| P1 | Cross-thread coordination | Codex 模型按需调用 host tool；App Server list/read/resume/fork/archive/start/steer；OPL host permission/dedupe/loop/scope/write-set/audit；普通 rail 无独立入口。 | Production App Server adapter、typed host actions、receipt/audit 与安全 gates 已接线；普通导航入口已移除，底层协议和测试保留。 | `source_implemented`, `ordinary_navigation_hidden` | 禁止用同 tree `send_input` 代替；live steer 竞态和 remote host 仍需专项 evidence。 |
 | P2 | Settings | Secondary configuration/control surface，保持 OPL IA。 | 四类 surface 与 bounded cards 已进入 source；本次 core matrix 不复用旧 Settings pixels。 | `source_implemented`, `pixel_unverified` | 冻结 IA，只修回归；按需要重建当前 Settings evidence。 |
 
 ## Cross-shell Detail Appendix

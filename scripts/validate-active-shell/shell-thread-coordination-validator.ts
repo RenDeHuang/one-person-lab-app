@@ -120,11 +120,10 @@ export function validateShellThreadCoordination(shellPaths): void {
     ],
     'Cross-thread coordination UI',
   );
-  assertShellTextIncludesAll(
-    shellPaths,
-    paths.sider,
+  assertTextExcludesAll(
+    readShellText(shellPaths, paths.sider),
     ['ThreadCoordinationSection', '<ThreadCoordinationSection'],
-    'Cross-thread rail entry',
+    'Ordinary navigation must not mount the model-facing cross-thread capability',
   );
 
   const tests = [

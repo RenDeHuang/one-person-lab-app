@@ -208,8 +208,10 @@
       }
     },
     "product_role": "opl_host_cross_top_level_codex_thread_coordination",
-    "entry_surface": "navigation_rail_thread_actions_and_on_demand_coordination_drawer",
-    "default_state": "closed",
+    "entry_surface": "model_and_host_tool_only_no_ordinary_navigation",
+    "default_state": "not_mounted_for_ordinary_users",
+    "ordinary_navigation_visible": false,
+    "model_tool_access": true,
     "model_role": "decide_when_and_why_to_coordinate",
     "protocol_owner": "codex_core_app_server",
     "app_host_owner": "opl_app_host",

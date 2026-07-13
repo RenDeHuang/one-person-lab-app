@@ -197,7 +197,8 @@
           "mas",
           "mag",
           "rca",
-          "obf"
+          "obf",
+          "oma"
         ],
         "default_assistant_purpose_labels": {
           "mas": "科研",
@@ -215,7 +216,8 @@
           "mas": ["med-autoscience"],
           "mag": ["med-autogrant"],
           "rca": ["redcube-ai"],
-          "obf": ["opl-bookforge"]
+          "obf": ["opl-bookforge"],
+          "oma": ["opl-meta-agent"]
         },
         "ordinary_visible_mcp_server_ids": [],
         "home_agent_shortcuts": [
@@ -286,7 +288,7 @@
             "executor": "codex_cli",
             "display_policy": "purpose_first",
             "home_entry_policy": "visible_click_to_start",
-            "default_visible": false,
+            "default_visible": true,
             "user_configurable": true
           }
         ],
@@ -374,7 +376,6 @@
         "AionUI implementation skills such as aionui-skills",
         "unknown MCP servers without an App profile allowlist entry",
         "AionUI Team MCP tools such as team_members, team_list_models, and team_spawn_agent",
-        "OPL Meta Agent as a default home assistant",
         "retired Codex model choices",
         "nested input card frames",
         "dashboard-first home",
@@ -604,11 +605,13 @@
       "id": "thread_coordination",
       "expected_source": "App-owned thread coordination contract and Codex App Server thread read model",
       "machine_source": "contracts/app-gui-product-contract.json#interaction_baseline.thread_coordination + Codex App Server thread and turn protocol",
-      "page_contract": "opl_cross_top_level_thread_coordination",
+      "page_contract": "opl_cross_top_level_thread_coordination_background_capability",
       "coordination_view_model": {
         "product_role": "opl_host_cross_top_level_codex_thread_coordination",
-        "entry_surface": "navigation_rail_thread_actions_and_on_demand_coordination_drawer",
-        "default_state": "closed",
+        "entry_surface": "model_and_host_tool_only_no_ordinary_navigation",
+        "default_state": "not_mounted_for_ordinary_users",
+        "ordinary_navigation_visible": false,
+        "model_tool_access": true,
         "thread_list_protocol": "thread/list",
         "thread_read_protocol": "thread/read",
         "thread_actions": ["thread/resume", "thread/fork", "thread/archive"],
@@ -666,14 +669,11 @@
         "same_agent_tree_api_boundary": "spawn_agent_send_input_wait_agent_same_tree_only"
       },
       "must_show": [
-        "top-level thread list and current status",
-        "thread summary and paginated history readback",
-        "project, workspace, host, owner, goal, parent and ancestor relationships",
-        "resume, fork and archive actions",
-        "turn/start for an idle target and turn/steer for a running target",
-        "sender, target, reason, message, safety decision, status and result audit trail"
+        "model-facing host tool retains top-level thread list, read, resume, fork, archive, start and steer operations",
+        "permission, duplicate, cycle, project scope and write-set checks remain active with audit receipts"
       ],
       "must_not_show": [
+        "thread coordination page or navigation rail entry for ordinary users",
         "send_input as a cross-top-level-thread transport",
         "a shell-owned duplicate thread database",
         "silent cross-project dispatch",
@@ -3490,7 +3490,6 @@
         "long Skills or Tools catalogs expanded by default above package management",
         "AG-UI as a user-visible capability concept",
         "AionUI implementation skills such as aionui-skills",
-        "OPL Meta Agent as a default Home assistant",
         "AionUI Team as the ordinary multi-agent collaboration entry",
         "MCP as the primary user-facing name for external tools",
         "artifact body, workflow body, connector body, credential body, owner receipt write, or domain export readiness verdict from Settings Capabilities",

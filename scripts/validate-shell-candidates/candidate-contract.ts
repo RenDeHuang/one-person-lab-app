@@ -282,8 +282,10 @@ export function validateNativeCrossTopLevelThreadAuthority(
     authority.authority_model !== 'three_layer_thread_coordination_authority' ||
     authority.implementation_status !== 'local_p0_p1_implemented_verified_candidate_only' ||
     authority.product_role !== 'opl_host_cross_top_level_codex_thread_coordination' ||
-    authority.entry_surface !== 'navigation_rail_thread_actions_and_on_demand_coordination_drawer' ||
-    authority.default_state !== 'closed' ||
+    authority.entry_surface !== 'model_and_host_tool_only_no_ordinary_navigation' ||
+    authority.ordinary_navigation_visible !== false ||
+    authority.model_tool_access !== true ||
+    authority.default_state !== 'not_mounted_for_ordinary_users' ||
     authority.model_role !== 'decide_when_and_why_to_coordinate' ||
     authority.protocol_owner !== 'codex_core_app_server' ||
     authority.app_host_owner !== 'opl_app_host' ||

@@ -506,11 +506,10 @@ function assertHomePurposeEntries(profile: AppProductProfile): void {
     ) {
       throw new Error(`App product profile GUI home shortcut ${shortcut.shortcut_id} must be a configurable Codex package launch shortcut`);
     }
-    if (shortcut.package_id === 'oma') {
-      if (shortcut.shortcut_id !== 'oma' || shortcut.default_visible !== false) {
-        throw new Error('App product profile OMA shortcut must be user-configurable but hidden by default');
-      }
-    } else if (shortcut.default_visible !== true) {
+    if (shortcut.package_id === 'oma' && shortcut.shortcut_id !== 'oma') {
+      throw new Error('App product profile OMA shortcut id must remain oma');
+    }
+    if (shortcut.default_visible !== true) {
       throw new Error(`App product profile shortcut ${shortcut.shortcut_id} must be visible by default`);
     }
   }
@@ -698,8 +697,8 @@ function assertAssistantSkillProfiles(
 
 function assertNonDefaultAssistantProfileShape(profile: AppProductProfile): void {
   const oma = profile.gui.non_default_assistants?.find((assistant) => assistant.id === 'oma');
-  if (!oma || oma.home_default_visible !== false || oma.home_entry_policy !== 'explicit_or_settings_only') {
-    throw new Error('App product profile must keep OMA available but out of default home entries');
+  if (!oma || oma.home_default_visible !== true || oma.home_entry_policy !== 'settings_managed_home_shortcut') {
+    throw new Error('App product profile must expose OMA through its default settings-managed Home shortcut');
   }
 }
 

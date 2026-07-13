@@ -31,6 +31,8 @@
       "entity_kinds": ["skill", "plugin"],
       "groups": {
         "opl_flow_managed": {
+          "label_zh": "OPL Flow 推荐",
+          "label_en": "Recommended by OPL Flow",
           "source": "opl_base_typed_flow_dependency_catalog",
           "source_ref": "opl update status --json#managed_update.components[component_id=opl_base].current.dependency_catalog.flow_dependencies",
           "membership_policy": "derive_from_typed_opl_base_flow_dependencies_never_from_app_hardcoded_skill_list",
@@ -40,6 +42,8 @@
           "cli_currentness_owner": "opl_base"
         },
         "manual_and_third_party": {
+          "label_zh": "本机能力",
+          "label_en": "Local capabilities",
           "source": "codex_and_shell_skill_plugin_registries",
           "membership_policy": "show_user_managed_and_third_party_skills_and_plugins_without_reclassifying_them_as_opl_flow_managed",
           "lifecycle_owner": "detected_install_source_or_user",
@@ -2884,8 +2888,8 @@
           "id": "capabilities.opl_flow_managed",
           "page_id": "capabilities",
           "anchor": "opl-flow-managed",
-          "label_zh": "OPL Flow 管理的能力",
-          "label_en": "OPL Flow managed capabilities",
+          "label_zh": "OPL Flow 推荐",
+          "label_en": "Recommended by OPL Flow",
           "keywords_zh": ["OPL Flow", "推荐", "Skill", "插件"],
           "keywords_en": ["opl flow", "recommended", "skill", "plugin"]
         },
@@ -2893,10 +2897,10 @@
           "id": "capabilities.third_party",
           "page_id": "capabilities",
           "anchor": "third-party",
-          "label_zh": "手工与第三方能力",
-          "label_en": "Manual and third-party capabilities",
-          "keywords_zh": ["手工", "第三方", "Skill", "插件"],
-          "keywords_en": ["manual", "third party", "skill", "plugin"]
+          "label_zh": "本机能力",
+          "label_en": "Local capabilities",
+          "keywords_zh": ["本机", "内置", "用户安装", "第三方", "Skill", "插件", "MCP"],
+          "keywords_en": ["local", "built in", "user installed", "third party", "skill", "plugin", "mcp"]
         },
         {
           "id": "resources.local_browser_access",

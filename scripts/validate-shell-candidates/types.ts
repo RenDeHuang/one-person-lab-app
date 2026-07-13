@@ -36,6 +36,8 @@ export type NativeCrossTopLevelThreadAuthority = {
   local_p0_p1_implementation_evidence: NativeLocalP0P1ImplementationEvidence;
   product_role: string;
   entry_surface: string;
+  ordinary_navigation_visible: boolean;
+  model_tool_access: boolean;
   default_state: string;
   model_role: string;
   protocol_owner: string;

@@ -115,7 +115,7 @@ function validateGuidHomeDefaultAssistants(homeViewModel) {
   );
   assertDeepEqualJson(
     homeViewModel.default_home_agent_packages,
-    ['mas', 'mag', 'rca', 'obf'],
+    ['mas', 'mag', 'rca', 'obf', 'oma'],
     'Guid home page default home agent packages',
   );
   const requiredSkills = homeViewModel.default_assistant_required_skills ?? {};
@@ -126,8 +126,8 @@ function validateGuidHomeDefaultAssistants(homeViewModel) {
   );
   const packageRequiredSkills = homeViewModel.default_agent_package_required_skills ?? {};
   assertDeepEqualJson(
-    ['mas', 'mag', 'rca', 'obf'].map((packageId) => packageRequiredSkills[packageId]),
-    [['med-autoscience'], ['med-autogrant'], ['redcube-ai'], ['opl-bookforge']],
+    ['mas', 'mag', 'rca', 'obf', 'oma'].map((packageId) => packageRequiredSkills[packageId]),
+    [['med-autoscience'], ['med-autogrant'], ['redcube-ai'], ['opl-bookforge'], ['opl-meta-agent']],
     'Guid home page required package skills',
   );
 }
@@ -206,7 +206,6 @@ function validateGuidHomeHiddenSignals(guidHomePage) {
     'AionUI implementation skills such as aionui-skills',
     'unknown MCP servers without an App profile allowlist entry',
     'AionUI Team MCP tools such as team_members, team_list_models, and team_spawn_agent',
-    'OPL Meta Agent as a default home assistant',
     'retired Codex model choices',
     'nested input card frames',
     'dashboard-first home',

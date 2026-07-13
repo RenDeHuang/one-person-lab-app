@@ -200,10 +200,10 @@ export function assertProfessionalAgentPackagePolicy(
     }
     if (entry.package_id === 'oma' && (
       entry.package_kind !== 'managed_professional_agent_package' ||
-      entry.default_home_visible !== false ||
+      entry.default_home_visible !== true ||
       JSON.stringify(entry.home_shortcut_ids) !== JSON.stringify(['oma'])
     )) {
-      throw new Error(`${label} must keep OMA installed/manageable, hidden by default, and configurable from Home shortcuts`);
+      throw new Error(`${label} must keep OMA installed/manageable and visible through its configurable Home shortcut`);
     }
   }
 }

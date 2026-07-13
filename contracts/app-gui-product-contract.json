@@ -163,8 +163,10 @@
     "thread_coordination": {
       "definition_role": "opl_target_translation_not_literal_codex_observation",
       "product_role": "opl_host_cross_top_level_codex_thread_coordination",
-      "entry_surface": "navigation_rail_thread_actions_and_on_demand_coordination_drawer",
-      "default_state": "closed",
+      "entry_surface": "model_and_host_tool_only_no_ordinary_navigation",
+      "default_state": "not_mounted_for_ordinary_users",
+      "ordinary_navigation_visible": false,
+      "model_tool_access": true,
       "model_role": "decide_when_and_why_to_coordinate",
       "protocol_owner": "codex_core_app_server",
       "app_host_owner": "opl_app_host",
@@ -590,6 +592,8 @@
       "startup_read_model_policy": {
         "ordinary_launch_command": "opl app state --profile fast --json",
         "ordinary_refresh_command": "opl app state --profile fast --json",
+        "soft_deadline_ms": 1500,
+        "soft_deadline_behavior": "enter_guid_and_continue_state_refresh_in_background",
         "deep_initialize_trigger": "explicit_user_configuration_or_diagnostics_only",
         "deep_initialize_stream": "opl system initialize --events --json",
         "blocking_policy": "ordinary_startup_and_guid_navigation_are_non_blocking_core_failures_only_restrict_dependent_capabilities",
@@ -2136,7 +2140,7 @@
       "executor": "codex_cli",
       "display_policy": "purpose_first",
       "home_entry_policy": "visible_click_to_start",
-      "default_visible": false,
+      "default_visible": true,
       "user_configurable": true
     }
   ],
@@ -2245,7 +2249,7 @@
       "role": "opl_agent_design_and_testing_agent",
       "package_kind": "managed_professional_agent_package",
       "installed_manageable": true,
-      "default_home_visible": false,
+      "default_home_visible": true,
       "codex_visible_entry": "opl-meta-agent",
       "home_shortcut_ids": ["oma"],
       "required_skill_ids": ["opl-meta-agent"],
@@ -2345,8 +2349,8 @@
       "display_name": "OPL Meta Agent",
       "short_name": "OMA",
       "role": "opl_agent_design_and_testing_agent",
-      "home_entry_policy": "explicit_or_settings_only",
-      "home_default_visible": false
+      "home_entry_policy": "settings_managed_home_shortcut",
+      "home_default_visible": true
     }
   ],
   "theme_and_branding": {
@@ -3663,7 +3667,6 @@
         "retired Codex model choices on the home input",
         "provider or backend terms in the permission and access mode",
         "persistent variable purpose selector in the composer",
-        "OPL Meta Agent as a default home assistant",
         "selected assistant full name as the hero title",
         "skills outside the App packaged skill set in home skill menu",
         "AionUI implementation skills such as aionui-skills",
@@ -4608,7 +4611,17 @@
       },
       "group_policy": {
         "opl_flow_managed": "derive membership from the OPL Base typed Flow dependency catalog and keep reconciliation owned by OPL Packages",
-        "manual_and_third_party": "show Codex and shell registry entries with detected owner; mutate only after explicit user action"
+        "manual_and_third_party": "show local built-in, user-managed, and third-party capabilities with detected owner; mutate only after explicit user action"
+      },
+      "group_labels": {
+        "opl_flow_managed": {
+          "label_zh": "OPL Flow 推荐",
+          "label_en": "Recommended by OPL Flow"
+        },
+        "manual_and_third_party": {
+          "label_zh": "本机能力",
+          "label_en": "Local capabilities"
+        }
       },
       "lifecycle_policy": {
         "flow_role": "dependency_and_profile_intent_only_not_a_second_updater",
@@ -5039,7 +5052,6 @@
         "long Skills or Tools catalogs expanded by default above package management",
         "AG-UI as a user-visible capability concept",
         "AionUI implementation skills such as aionui-skills",
-        "OPL Meta Agent as a default Home assistant",
         "AionUI Team as the ordinary multi-agent collaboration entry",
         "MCP as the primary user-facing name for external tools",
         "artifact body, workflow body, connector body, credential body, owner receipt write, or domain export readiness verdict from Settings Capabilities",
