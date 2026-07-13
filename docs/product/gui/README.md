@@ -32,11 +32,17 @@ OPL project context、capabilities、progress、evidence、artifacts 与 safe ac
 
 当前人读观察基准是本机 ChatGPT macOS `26.707.41301`（观察于 `2026-07-11`）。
 App machine authority 已升为 baseline schema v2；当前 AionUI implementation carrier 是
-`0d722e47e76b990e197e1e4b341072fdd85e2234`。`0ebc1fdd278e8a79602458e15e28cf814dfd917d`
+`9b3b3dd09546bc1360b8c27ad655b60b61768b89`。`0ebc1fdd278e8a79602458e15e28cf814dfd917d`
 的完整 source gates 与 packaged 8 场景 visual matrix 继续作为历史 exact-cohort evidence，
 不能通过替换 SHA 升级为当前 pixels。当前 carrier 的 source/pixel 状态只在 conformance
 matrix 中按 fresh evidence 更新。`26.707.31428` 与 `26.707.31123` 只作为 superseded
 observations 保留。
+
+本轮 App machine authority 同步落在
+`2dae4961b63089bc1ec6739a4c1ab2fac8b648f3`：capability 只从 Home starter 选择，管理进入
+Settings -> Agents & Capabilities，`/capabilities` 仅兼容重定向；App updater 与 Framework-owned
+managed lifecycle 分离，不再保留 OPL Flow 专用 post-update 分支。该 source currentness 不提升
+current pixels、package、安装或 release readiness。
 
 ## 三层与文件归属
 
@@ -94,7 +100,7 @@ package/user path。当前 contract/source 与 packaged route visual evidence �
 - `superseded_interaction_observations=ChatGPT Codex macOS 26.707.31428 (2026-07-10),ChatGPT Codex macOS 26.707.31123 (2026-07-10)`
 - `human_target.owner=one-person-lab-app`
 - `active_aionui.role=current_implementation_conformance_only`
-- `active_aionui.current_shell_sha=0d722e47e76b990e197e1e4b341072fdd85e2234`
+- `active_aionui.current_shell_sha=9b3b3dd09546bc1360b8c27ad655b60b61768b89`
 - `active_aionui.historical_41301_evidence_sha=0ebc1fdd278e8a79602458e15e28cf814dfd917d`
 - `docs_or_contract_imply_source_complete=false`
 - `docs_or_contract_imply_pixel_complete=false`

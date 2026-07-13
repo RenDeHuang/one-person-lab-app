@@ -54,25 +54,22 @@ Active AionUI 默认状态通过 README 治理段声明的动态 state source �
 - Current human reference：本机 ChatGPT macOS `26.707.41301`（bundle build `5103`），
   `2026-07-11` 观察。App GUI contract、product profile 与 page-state matrix 已统一为 schema v2；
   `26.707.31428/31123` 只保留为 superseded observations。
-- AionUI current source snapshot：`opl-aion-shell@0d722e47e76b990e197e1e4b341072fdd85e2234`
-  （current local/remote main）。它在 41301 composition 上增加 Home package readiness、legacy
+- AionUI current source snapshot：`opl-aion-shell@9b3b3dd09546bc1360b8c27ad655b60b61768b89`
+  （final integration candidate；吸收后以 remote readback 为准）。它在 41301 composition 上增加 Home package readiness、legacy
   intelligence proxy retirement、Settings/Personalization 与 managed-update/runtime bridge 更新。
 - Generated profile currentness：使用 App 官方生成器和当前 OPL Flow workflow policy 重建后，
   current Shell generated profile 与生成结果 canonical JSON diff 为空；compatibility projection
   字段是有意派生，不要求与 raw App profile 字节相等。
-- Current source gates：rail/Home/package-launch focused DOM `3 files / 10 tests` 通过；format
-  `1490 files` 与 i18n 通过（23 个既有 warning-only unknown keys）。Full suite 为
-  `278 files / 2080 tests` 通过、`1 file / 3 tests` skip，但仍有 `5 files / 6 tests` 失败：
-  四条旧 Home/canonical assistant identity 断言、一条未包含 Personalization 的旧 profile
-  expectation，以及隔离 worktree 无法解析 `@office-ai/platform` package closure。为 workspace
-  package 补临时 dependency links 后 root TypeScript 通过且链接已清理。当前 source 因此是
-  主要行为已实现、full gate 未闭合，不得记为 source-gate complete。
+- Current source gates：final Shell `9b3b3dd...` full suite `283 files / 2086 tests` 通过、
+  `1 file / 3 tests` skip；root TypeScript、1490-file format 与 i18n 通过（23 个既有
+  warning-only unknown keys）。App active-shell quick 通过；release-boundary 为
+  `257 pass / 2 platform skip / 0 fail`。临时 dependency/checkout links 已清理。
 - Historical source gates：Shell `0ebc1fdd...` 的 `test:full` 为 `282 files pass / 1 skip`、
   `2044 tests pass / 3 skip`；TypeScript、1487-file format、i18n 与 lint `0 errors / 854 warnings`。
   这些结果只属于历史 source cohort，不能直接升级为 current source gates。
 - Historical packaged visual evidence：[`evidence/aionui-41301/manifest.json`](evidence/aionui-41301/manifest.json)
   精确绑定 Shell `0ebc1fdd...`、真实 `E2E_PACKAGED=1` 命令和 8 个 desktop/mobile、light/dark、
-  zh-CN/en-US Home/conversation 状态；旧 manifest 不修改 SHA。Current `0d722e47...` pixels
+  zh-CN/en-US Home/conversation 状态；旧 manifest 不修改 SHA。Final `9b3b3dd...` pixels
   统一保持 `pixel_unverified`，直到新 source/package cohort 生成独立 evidence。
 - Settings 专项历史 evidence：14-entry desktop Light manifest 精确绑定
   `fadd91f9f0808eb090087f48c34d7c26d69df6ab`；更早 Settings screenshots 继续保留历史用途，
@@ -110,9 +107,9 @@ Active AionUI 默认状态通过 README 治理段声明的动态 state source �
 
 本表是主线决策入口。先看 P0/P1，再看 P2；Settings 完成不能抵消核心工作流偏差。
 
-| Priority | Product surface | OPL-owned target translated from 26.707.41301 | AionUI `0d722e47` | Status | Next decision |
+| Priority | Product surface | OPL-owned target translated from 26.707.41301 | AionUI `9b3b3dd09` | Status | Next decision |
 | --- | --- | --- | --- | --- | --- |
-| P0 | App frame | 左 project/conversation rail + 中央单列 timeline + 底部 composer + 右上按需 Environment details。 | Rail/timeline/composer/Environment composition 保留；默认无综合第三列。 | `source_implemented`, `pixel_unverified` | 修正 current full-gate stale expectations 后保持维护模式；current pixels 独立重建。 |
+| P0 | App frame | 左 project/conversation rail + 中央单列 timeline + 底部 composer + 右上按需 Environment details。 | Rail/timeline/composer/Environment composition 保留；默认无综合第三列。 | `source_implemented`, `pixel_unverified` | Source full gate 已闭合；保持维护模式，current pixels 仅在需要视觉 currentness claim 时独立重建。 |
 | P0 | Project hierarchy | Project 是 N conversations 的父级；selected project 下可增加可选 context refs。 | Project/conversation history、active workspace selector、registered-directory management 与 context refs 共用单一 source。 | `source_implemented`, `pixel_unverified` | 后续只补真实数据覆盖，不再复制状态。 |
 | P0 | Home / New task | 与 conversation 共用 chat canvas/composer，不是 dashboard。 | Composer-first Home、全部用户可见 starters、stable order、responsive wrap 与 package readiness gate 已实现。 | `source_implemented`, `pixel_unverified` | 防止恢复 launcher/card wall、静默四项截断或 unavailable package 继续 launch。 |
 | P0 | Conversation chrome | 只显示 task identity/直接动作；model/access 留在 composer。 | Header 保留 identity/navigation/Environment/Files；model/access 不再重复挂 header/side panel。 | `source_implemented`, `pixel_unverified` | 维持 compact chrome。 |
@@ -172,7 +169,7 @@ Native candidate 不得与 active-shell P0 差距竞争实施资源。
 41301 core composition 目标已闭合，但 current Shell source 已前进。当前证据边界：
 
 - **Core pixels：** 8 场景只覆盖历史 `0ebc1fdd...` 的 Home、conversation、composer/model、
-  Environment、Files、mobile action sheet 与 mobile Preview；current `0d722e47...` 尚未重拍。
+  Environment、Files、mobile action sheet 与 mobile Preview；final `9b3b3dd...` 尚未重拍。
 - **Package readiness pixels：** unavailable、activating、blocked、repair/doctor 等新状态尚无
   current route/viewport evidence。
 - **Settings pixels：** 14-entry desktop Light manifest 绑定 `fadd91f9...`；不把该历史图提升为
