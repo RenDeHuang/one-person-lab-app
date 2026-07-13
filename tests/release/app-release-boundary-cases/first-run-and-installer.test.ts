@@ -11,6 +11,7 @@ import {
 } from "./helpers.ts";
 import { spawnSync } from "node:child_process";
 import { validateFirstRunMatrix } from "../../../scripts/validate-active-shell/first-run-matrix-validator.ts";
+import { validateReleaseChannelContract } from "../../../scripts/validate-active-shell/release-contract-validator.ts";
 import { syncAppProductProfileToShell } from "../../../scripts/app-product-profile.ts";
 import { releaseBoundaryChecks } from "../../../scripts/validate-release-boundary/release-checks.ts";
 
@@ -95,13 +96,33 @@ test("one-shot App installer boundary is enforced by release-boundary checks", (
 
 test("release boundary requires profile-aware Standard launch gates and Full route receipts", () => {
   const assistantSmoke = requireReleaseBoundaryCheck("first_run_vm_profile_aware_assistant_smoke");
+  const release = readJson("contracts/app-release-channel.json");
+  const fullPolicy = release.release_acceleration.assistant_route_smoke_policy.full;
 
   assert.ok(assistantSmoke.required.includes("homeAssistantBlockedReadinessExpression"));
+  assert.ok(assistantSmoke.required.includes("homeAssistantWorkspacePreparationExpression"));
+  assert.ok(assistantSmoke.required.includes("homeAssistantRouteSendExpression"));
+  assert.ok(assistantSmoke.required.includes("activeConversationRouteReceiptExpression"));
+  assert.ok(assistantSmoke.required.includes("opl_agent_package_activation"));
+  assert.ok(assistantSmoke.required.includes("data-opl-workspace-path"));
   assert.ok(assistantSmoke.required.includes("options.runtimeProfile !== 'full'"));
   assert.ok(assistantSmoke.required.includes("verification_mode: 'launch_gate'"));
   assert.ok(assistantSmoke.required.includes("verification_mode: 'route_receipt'"));
   assert.ok(assistantSmoke.required.includes("assistant_launch_gates_checked"));
   assert.ok(assistantSmoke.required.includes("not_applicable_standard"));
+  assert.ok(assistantSmoke.forbidden.includes("createAssistantRouteReceiptConversationExpression"));
+  assert.ok(assistantSmoke.forbidden.includes("POST /api/conversations"));
+  assert.ok(fullPolicy.required.includes("agent_package_activate_action_per_starter"));
+  assert.ok(fullPolicy.required.includes("real_guid_composer_send_per_starter"));
+  assert.ok(fullPolicy.required.includes("conversation_get_readback_per_starter"));
+  assert.ok(fullPolicy.forbidden.includes("direct_conversation_post"));
+
+  const syntheticReceiptAllowed = structuredClone(release);
+  syntheticReceiptAllowed.release_acceleration.assistant_route_smoke_policy.full.forbidden = [];
+  assert.throws(
+    () => validateReleaseChannelContract(syntheticReceiptAllowed),
+    /Full assistant synthetic launch-path prohibitions/,
+  );
 });
 
 test("reusable build validates the Shell consumer after syncing the App product profile", () => {

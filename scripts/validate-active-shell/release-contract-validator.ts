@@ -93,6 +93,27 @@ function validateReleaseExecutionPolicy(acceleration) {
     ],
     'Standard assistant launch-gate requirements',
   );
+  assertIncludesAll(
+    assistantRouteSmoke?.full?.required,
+    [
+      'workspace_scope_selected_before_send',
+      'agent_package_activate_action_per_starter',
+      'real_guid_composer_send_per_starter',
+      'conversation_get_readback_per_starter',
+      'agent_package_activation_receipt_per_starter',
+      'agent_package_shortcut_route_receipt_per_starter',
+    ],
+    'Full assistant production launch-path requirements',
+  );
+  assertIncludesAll(
+    assistantRouteSmoke?.full?.forbidden,
+    [
+      'direct_conversation_post',
+      'synthetic_agent_package_activation_receipt',
+      'synthetic_agent_package_route_receipt',
+    ],
+    'Full assistant synthetic launch-path prohibitions',
+  );
   if (
     assistantRouteSmoke?.standard?.verification_mode !== 'launch_gate' ||
     assistantRouteSmoke?.full?.verification_mode !== 'route_receipt' ||

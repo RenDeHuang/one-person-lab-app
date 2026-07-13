@@ -2040,11 +2040,21 @@
         "required": [
           "MAS_MAG_RCA_home_starters_visible",
           "starters_launchable",
+          "workspace_scope_selected_before_send",
+          "agent_package_activate_action_per_starter",
+          "real_guid_composer_send_per_starter",
+          "conversation_get_readback_per_starter",
+          "agent_package_activation_receipt_per_starter",
           "agent_package_shortcut_route_receipt_per_starter"
+        ],
+        "forbidden": [
+          "direct_conversation_post",
+          "synthetic_agent_package_activation_receipt",
+          "synthetic_agent_package_route_receipt"
         ],
         "verification_mode": "route_receipt"
       },
-      "rule": "Standard proves that uninstalled professional Agent Packages remain discoverable but cannot launch and expose a repair path. Full proves the installed packages can launch and persist route receipts. A Standard launch gate must never be counted as a Full route receipt."
+      "rule": "Standard proves that uninstalled professional Agent Packages remain discoverable but cannot launch and expose a repair path. Full selects a real workspace, invokes Framework-owned package activation through the production Guid send path, creates the conversation through the visible composer, then reads that same conversation back with matching activation and route receipts. Direct conversation POSTs and synthetic receipts cannot satisfy the Full gate. A Standard launch gate must never be counted as a Full route receipt."
     },
     "vm_gates": [
       {

@@ -510,9 +510,17 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
     assistantRouteSmoke?.standard?.verification_mode !== 'launch_gate' ||
     assistantRouteSmoke?.full?.verification_mode !== 'route_receipt' ||
     !assistantRouteSmoke?.standard?.forbidden?.includes('claim_agent_package_shortcut_route_receipt') ||
-    !assistantRouteSmoke?.full?.required?.includes('agent_package_shortcut_route_receipt_per_starter')
+    !assistantRouteSmoke?.full?.required?.includes('workspace_scope_selected_before_send') ||
+    !assistantRouteSmoke?.full?.required?.includes('agent_package_activate_action_per_starter') ||
+    !assistantRouteSmoke?.full?.required?.includes('real_guid_composer_send_per_starter') ||
+    !assistantRouteSmoke?.full?.required?.includes('conversation_get_readback_per_starter') ||
+    !assistantRouteSmoke?.full?.required?.includes('agent_package_activation_receipt_per_starter') ||
+    !assistantRouteSmoke?.full?.required?.includes('agent_package_shortcut_route_receipt_per_starter') ||
+    !assistantRouteSmoke?.full?.forbidden?.includes('direct_conversation_post') ||
+    !assistantRouteSmoke?.full?.forbidden?.includes('synthetic_agent_package_activation_receipt') ||
+    !assistantRouteSmoke?.full?.forbidden?.includes('synthetic_agent_package_route_receipt')
   ) {
-    console.error('FAIL assistant_route_smoke_policy: Standard launch gates must stay distinct from Full route receipts');
+    console.error('FAIL assistant_route_smoke_policy: Full receipts must come from a real workspace-scoped Guid activation and send path');
     failures += 1;
   }
 
