@@ -37,15 +37,15 @@ fresh gate、pixels、package/user path 和远端回读为准。
 
 | Surface | Fresh 状态 | 边界 |
 | --- | --- | --- |
-| App authority refresh | 本轮隔离 lane 基于 `c400bea72992867dda3b79df29c26d6b3c569fac` | GUI ancestor/current HEAD 分离、v2.1.33 review、artifact ref adapter、跨顶层线程合同与 source validator 已统一；最终 App main currentness 由 Git remote readback 证明，不在文档中递归嵌入自身 HEAD。 |
-| Shell final source cohort | `2103a16aeeb8f3ed8ae45b5dc90d12865539bbe2`；最低 GUI conformance ancestor 为 `9b3b3dd09546bc1360b8c27ad655b60b61768b89` | Artifact adapter、验收矩阵、navigation regression、thread coordination 与最终 App profile projection 已统一集成；仍需 main absorption/push readback，不能从 source cohort 推导 installed/release-ready。 |
+| App authority refresh | 本轮隔离 lane 基于 remote main `129258053d2063994cc57408bb03a3b2abb1471a` | GUI ancestor/current HEAD 分离、v2.1.33 review、artifact ref adapter、跨顶层线程合同与 source validator 已统一；最终 App main currentness 由 Git remote readback 证明，不在文档中递归嵌入自身 HEAD。 |
+| Shell final source cohort | `605fd91cf128fb3400527e0540598f42ffb9ce8f`；最低 GUI conformance ancestor 为 `9b3b3dd09546bc1360b8c27ad655b60b61768b89` | Artifact adapter、验收矩阵、navigation regression、thread coordination、write-set containment 与最终 App profile projection 已统一；source cohort 不能推导 installed/release-ready。 |
 | Latest reviewed upstream | `v2.1.33@a819d175683d5a0aada20064888da07bfcecdb6a` | 相比已评估 GUI cohort 无 GUI delta；不整体 merge，release/runtime intake 单独处理。 |
 | Product profile | 使用 App 官方生成器和当前 OPL Flow workflow policy 对 Shell generated profile 重建后，`jq -S` canonical diff 为空 | Generated profile 的 compatibility projection 包含由 OPL Flow policy 派生的字段；不要求与 raw App JSON 字节相等，不提交纯格式噪音。 |
 | Verified GUI ancestor gates | Shell `9b3b3dd...`：full suite `283 files / 2086 tests` 通过、`1 file / 3 tests` skip；root TypeScript、1490-file format、i18n 通过。App active-shell quick 通过；release-boundary `257 pass / 2 platform skip / 0 fail` | 证明最低 GUI ancestor，不证明当前 main 或本轮 final integration。 |
-| Final source gates | Shell `2103a16a...`：full suite `292 files / 2165 tests` 通过、`1 file / 3 tests` skip；TypeScript、1513-file format、i18n、lint `0 errors / 859 warnings`、production source package 与 desktop/mobile dev Electron E2E `2/2` 通过。App active-shell quick 通过；release-boundary `282 pass / 2 platform skip / 0 fail` | 证明当前 source、tests 与 source package build；不是 packaged E2E、current pixels、安装或 release promotion。 |
+| Final source gates | Shell `605fd91c...`：full suite `292 files / 2166 tests` 通过、`1 file / 3 tests` skip；TypeScript、1513-file format、i18n、lint `0 errors / 861 warnings`、production source package与隔离 AionCore 的 desktop/mobile dev Electron E2E `2/2` 通过。App active-shell quick 与 release-boundary `287 pass / 2 platform skip / 0 fail` 在同一 Shell cohort 通过 | 证明当前 source、tests 与 source package build；不是 packaged E2E、current pixels、安装或 release promotion。 |
 | Live App Server protocol | Codex CLI `0.144.1` + 临时 `CODEX_HOME`：两条 materialized top-level threads 完成 list/source-hint、target turn/start/result/read、resume、fork 与 archive readback | 证明 production adapter 的本机 protocol wire；未覆盖 `turn/steer` 竞态、Shell packaged two-root UI 或 remote host。 |
 | Historical source gates | exact `0ebc1fdd278e8a79602458e15e28cf814dfd917d`：`test:full` 282 files pass / 1 skip、2044 tests pass / 3 skip；TypeScript、1487-file format、i18n 与 lint 0 errors | 只属于历史 cohort。 |
-| Historical core visual evidence | `docs/product/gui/evidence/aionui-41301/manifest.json` 绑定 Shell `0ebc1fdd...`、`E2E_PACKAGED=1`、时间 `2026-07-11T21:16:06.183Z` 和 8 个 route/layout 场景 | Manifest 与截图保持原字节/原 SHA；final `9b3b3dd...` pixels 为 unverified。 |
+| Historical core visual evidence | `docs/product/gui/evidence/aionui-41301/manifest.json` 绑定 Shell `0ebc1fdd...`、`E2E_PACKAGED=1`、时间 `2026-07-11T21:16:06.183Z` 和 8 个 route/layout 场景 | Manifest 与截图保持原字节/原 SHA；current `605fd91c...` pixels 为 unverified。 |
 | Historical Settings evidence | `docs/product/gui/assets/settings-desktop-light-manifest-20260712.json` 绑定 Shell `fadd91f9...` 的 14-entry desktop Light matrix | 精确历史证据，不外推为当前 Settings pixels。 |
 | Latest installed cohort | `/Applications/One Person Lab.app` 的 `26.7.12` closeout 曾完成 asar/AionCore/codesign 与 Home -> Settings -> Home readback | 该证据早于 final Shell，不能证明 `9b3b3dd...` 已安装或用户路径 current。 |
 
@@ -135,7 +135,8 @@ Shell package/version 和 AionCore intake 继续作为独立维护工作。选�
 3. 当前核心 pixels 仅在需要声明 current visual 时重建，且生成新 manifest，不修改旧 evidence SHA；
 4. Packaged two-root UI、`turn/steer` live 竞态、package activating 独立状态、真实 bridge approval
    injection 和 Desktop/WebUI 同场景 parity 仍是明确专项 gap；当前 install/user path 不属于本次
-   source currentness 完成声明；push/readback 与 lane cleanup 仍是 Git closeout hard gate。
+   source currentness 完成声明。Git push/readback 与 lane cleanup 作为 operational closeout 单独回读，
+   不改变产品、像素或 release readiness 状态。
 
 ## 完成度审计表
 
@@ -148,12 +149,12 @@ Shell package/version 和 AionCore intake 继续作为独立维护工作。选�
 | Generated profile current | `done_semantic` | 官方生成器重建后 canonical JSON diff 为空；未提交纯格式差异。 |
 | Core visual matrix | `historical_only_current_unverified` | 8-entry manifest 继续精确绑定 `0ebc1fdd...`；当前 pixels 不沿用。 |
 | Package/install/user path | `source_package_only_current_unverified` | Production source package 通过；`26.7.12` 安装证据早于当前 Shell，不能提升为 current。 |
-| Main absorption/push/readback | `done_git_closeout` | App/Shell 已完成 fast-forward absorption、push 与 `git ls-remote` 精确回读；该结果不提升 release readiness。 |
-| Lane cleanup | `done_this_refresh` | 本轮 App/Shell 辅助 lanes 已在 exact/patch-equivalent absorption audit 后清理；最终 authority lane 在本提交推送后删除。 |
+| Main absorption/push/readback | `operational_closeout` | 交付时以 `git ls-remote` 精确回读；本文不递归绑定包含自身的 App HEAD，该结果也不提升 release readiness。 |
+| Lane cleanup | `operational_closeout` | exact/patch-equivalent/superseded 审计后删除本轮辅助与最终 lanes；不把清理状态解释为产品证据。 |
 
-本文状态为 `complete`：machine target、final source currentness、main absorption/push/readback 与
-本轮 lane cleanup 已闭合。Current pixels、packaged user path 与 release promotion 不属于本轮已完成
-证据；`release_ready=false` 与 `parity_1_to_1=false` 保持不变。
+本文状态为 `complete`：machine target 与 final source currentness 已闭合；Git operational closeout
+在交付 readback 中闭合，不形成递归文档 authority。Current pixels、packaged user path 与 release
+promotion 不属于本轮已完成证据；`release_ready=false` 与 `parity_1_to_1=false` 保持不变。
 
 ## 维护边界
 

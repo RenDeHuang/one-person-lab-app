@@ -65,10 +65,10 @@ Active AionUI 默认状态通过 README 治理段声明的动态 state source �
   `1 file / 3 tests` skip；root TypeScript、1490-file format 与 i18n 通过（23 个既有
   warning-only unknown keys）。App active-shell quick 通过；release-boundary 为
   `257 pass / 2 platform skip / 0 fail`。临时 dependency/checkout links 已清理。
-- Final source cohort：Shell `2103a16aeeb8f3ed8ae45b5dc90d12865539bbe2` full suite
-  `292 files / 2165 tests` 通过、`1 file / 3 tests` skip；TypeScript、1513-file format、i18n、
-  lint `0 errors / 859 warnings`、production source package 与 desktop/mobile dev Electron E2E
-  `2/2` 通过。App active-shell quick 与 release-boundary `282 pass / 2 platform skip / 0 fail`
+- Final source cohort：Shell `605fd91cf128fb3400527e0540598f42ffb9ce8f` full suite
+  `292 files / 2166 tests` 通过、`1 file / 3 tests` skip；TypeScript、1513-file format、i18n、
+  lint `0 errors / 861 warnings`、production source package 与隔离 AionCore 的 desktop/mobile dev Electron E2E
+  `2/2` 通过。App active-shell quick 与 release-boundary `287 pass / 2 platform skip / 0 fail`
   通过。Codex CLI `0.144.1` 隔离 live smoke 另证明两个 materialized top-level threads 的
   list/source-hint、turn/start/result/read、resume、fork 与 archive protocol wire；这些证据仍不等于
   packaged E2E、current pixels、installed path 或 release-ready。
@@ -77,7 +77,7 @@ Active AionUI 默认状态通过 README 治理段声明的动态 state source �
   这些结果只属于历史 source cohort，不能直接升级为 current source gates。
 - Historical packaged visual evidence：[`evidence/aionui-41301/manifest.json`](evidence/aionui-41301/manifest.json)
   精确绑定 Shell `0ebc1fdd...`、真实 `E2E_PACKAGED=1` 命令和 8 个 desktop/mobile、light/dark、
-  zh-CN/en-US Home/conversation 状态；旧 manifest 不修改 SHA。GUI ancestor `9b3b3dd...` pixels
+  zh-CN/en-US Home/conversation 状态；旧 manifest 不修改 SHA。current source `605fd91c...` pixels
   统一保持 `pixel_unverified`，直到新 source/package cohort 生成独立 evidence。
 - Settings 专项历史 evidence：14-entry desktop Light manifest 精确绑定
   `fadd91f9f0808eb090087f48c34d7c26d69df6ab`；更早 Settings screenshots 继续保留历史用途，
@@ -167,7 +167,7 @@ Native candidate 不得与 active-shell P0 差距竞争实施资源。
 | Artifact Markdown/PDF/Mermaid/Code/KaTeX preview | `aligned_contract` | `source_partial` | `pixel_unverified` | `candidate_target` | `source_partial` | `pixel_unverified` | 历史 Markdown mobile Preview 已绑定；current pixels 与 PDF/Mermaid/Code/KaTeX 错误态仍待专项 evidence。 |
 | Settings 使用 full-window return/search/grouped rows且 OPL IA 不变 | `aligned_contract` | `source_implemented` | `pixel_unverified` | `current_contract_deviation` | `source_partial` | `pixel_unverified` | AionUI 保留 8+2 IA、search/redirect/state/action semantics，并使用 bounded page-section cards + flat rows；Shell `74848adf77360903c5ac7d64c32455a78fb3901a` 的 42 张图只作为历史专项 evidence，不代表当前 cohort pixels。 |
 | 白色 main、灰色 rail/subtle surface、OPL teal | `aligned_contract` | `source_implemented` | `pixel_unverified` | `current_contract_deviation` | `source_partial` | `pixel_verified` | 历史 8 场景覆盖 light/dark、desktop/mobile 与双语；current AionUI pixels 不沿用。 |
-| Desktop Back/Forward、Previous/Next Task、New Window | `aligned_contract` | `source_partial` | `pixel_unverified` | `current_contract_deviation` | `source_not_assessed` | `pixel_unverified` | titlebar/menu 有现有桌面入口，但完整快捷键和 task navigation 验收未闭合。 |
+| Desktop Back/Forward、Previous/Next Task、New Window | `aligned_contract` | `source_implemented` | `pixel_unverified` | `current_contract_deviation` | `source_not_assessed` | `pixel_unverified` | titlebar/menu、focused/unfocused command gate、focus resync 与 history boundary 已有 focused coverage；packaged multi-window 仍是独立证据缺口。 |
 | OPL 品牌、双语与普通语言一致 | `aligned_contract` | `source_implemented` | `pixel_unverified` | `candidate_target` | `source_partial` | `pixel_verified` | Historical core evidence 覆盖 OPL brand、zh-CN/en-US；current AionUI pixels 待重建。 |
 | Keyboard、focus、contrast、reduced motion | `aligned_contract` | `source_partial` | `pixel_unverified` | `candidate_target` | `source_partial` | `pixel_unverified` | rail/context focus、Escape、inert 和 reduced-motion 已有 focused coverage；contrast 与全键盘矩阵仍待验收。 |
 | First-run 使用 App-owned readiness/page-state | `aligned_contract` | `source_implemented` | `pixel_unverified` | `candidate_target` | `source_missing` | `pixel_unverified` | Native 尚无完整 FirstRun；contract 和 test matrix 不能替代 clean-machine path。 |
@@ -179,8 +179,8 @@ Native candidate 不得与 active-shell P0 差距竞争实施资源。
 41301 core composition 目标已闭合，但 current Shell source 已前进。当前证据边界：
 
 - **Core pixels：** 8 场景只覆盖历史 `0ebc1fdd...` 的 Home、conversation、composer/model、
-  Environment、Files、mobile action sheet 与 mobile Preview；GUI ancestor `9b3b3dd...` 尚未重拍，
-  本轮 final integration 更不得沿用旧 pixels。
+  Environment、Files、mobile action sheet 与 mobile Preview；current source `605fd91c...` 尚未重拍，
+  本轮 final integration 不得沿用旧 pixels。
 - **Package readiness pixels：** unavailable、activating、blocked、repair/doctor 等新状态尚无
   current route/viewport evidence。
 - **Cross-thread coordination：** host adapter、rail/detail/actions、receipt/audit、DOM/security tests 与
