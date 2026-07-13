@@ -7,6 +7,7 @@ import { validateProductProfile } from '../../scripts/validate-active-shell/prod
 import {
   assertCurrentGuidHomeSelectionSources,
   assertProjectlessGuidFileAccessSources,
+  assertRuntimePageSourceBoundary,
 } from '../../scripts/validate-active-shell/shell-ordinary-experience-validator.ts';
 import {
   assertCodexModelPolicyProjection,
@@ -118,6 +119,27 @@ test('active-shell source gate preserves projectless local file inputs', () => {
     'fileAccessEnabled={!fileAccessBlocked && Boolean(guidInput.dir)}',
   ]) {
     assert.throws(() => assertProjectlessGuidFileAccessSources(`${currentSource}\n${legacyWorkspaceGate}`));
+  }
+});
+
+test('active-shell Runtime source gate allows canonical action refs but rejects legacy fallback reconstruction', () => {
+  const canonicalActionRefs = [
+    "actionId: 'runtime_archive_attempt'",
+    'payloadRefsOnlyJson: { stage_attempt_id: stageAttemptId }',
+    'const workflow_id = canonicalWorkItem.workflowId',
+  ].join('\n');
+
+  assert.doesNotThrow(() => assertRuntimePageSourceBoundary(canonicalActionRefs));
+  for (const legacyFallback of [
+    'normalizeRuntimeProjection(appState)',
+    'dedupeTaskItems(items)',
+    'runtimeTaskItem(task, controlStates)',
+    'appStateToRuntimeProjection(appState)',
+    'compactCurrentControlState(state)',
+    'controlStateFallbackForTask(task, controlStates)',
+    'record(controlState?.provider_run)',
+  ]) {
+    assert.throws(() => assertRuntimePageSourceBoundary(`${canonicalActionRefs}\n${legacyFallback}`));
   }
 });
 

@@ -249,10 +249,12 @@ const runtimePageExpected = [
 const runtimeProjectionExpected = [
   'workbench?.work_item_projection_v2',
   'const workItemId = requiredString(identity.work_item_id)',
-  'currentStageId: executionStageId ?? lifecycleStageId',
-  'attemptIds: Array.from(',
-  'nextVisibleStep',
-  'nextOwner',
+  'const projectedPrimaryStatus = enumValue(lifecycle.primary_state, PRIMARY_STATUSES)',
+  'const stageMap = parseStageMap(value.stage_map)',
+  'const projectedAction = parseAction(value.action)',
+  'const currentStageId = optionalString(execution.current_stage_id) ?? optionalString(lifecycle.current_stage_id)',
+  'const nextStageId = optionalString(execution.next_stage_id)',
+  'id: workItemId',
 ];
 
 const runtimeCockpitExpected = [
@@ -276,7 +278,9 @@ const runtimeFocusedTestsExpected = [
   'keeps the V2 list while exposing keyboard-reachable summary and full drilldown requests',
   'requires a successful dry run before confirming and executing a safe action',
   'archives and restores attempts only through the existing App action bridge',
-  'preserves canonical work item, stage, attempt, and current-next detail refs',
+  'rejects duplicate work item identities instead of guessing which row wins',
+  'preserves projected stages and actions for the detail view',
+  'never promotes a telemetry verification attempt to the business stage of a delivered item',
   'exposes only explicit payload-free App safe actions',
 ];
 
@@ -284,9 +288,15 @@ const runtimePageForbidden = [
   'normalizeRuntimeProjection',
   'dedupeTaskItems',
   'runtimeTaskItem(',
-  'stage_attempt',
-  'workflow_id',
+  'appStateToRuntimeProjection(',
+  'compactCurrentControlState(',
+  'controlStateFallbackForTask(',
+  'record(controlState?.provider_run)',
 ];
+
+export function assertRuntimePageSourceBoundary(runtimePage: string): void {
+  assertTextExcludesAll(runtimePage, runtimePageForbidden, 'Active shell Runtime page provider/run fallbacks');
+}
 
 function validateGuidHomeImplementation(shellPaths) {
   const guidPage = assertShellTextIncludesAll(
@@ -494,7 +504,7 @@ export function validateRuntimePageImplementation(shellPaths) {
     readShellText(shellPaths, 'tests/unit/opl-runtime/runtime-v2/projection.test.ts'),
   ].join('\n');
   assertTextIncludesAll(runtimeFocusedTests, runtimeFocusedTestsExpected, 'Active shell Runtime v2 focused regressions');
-  assertTextExcludesAll(runtimePage, runtimePageForbidden, 'Active shell Runtime page provider/run fallbacks');
+  assertRuntimePageSourceBoundary(runtimePage);
 
   const projection = assertShellTextIncludesAll(
     shellPaths,
