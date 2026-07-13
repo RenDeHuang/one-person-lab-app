@@ -80,6 +80,10 @@ test('Runtime product rejects list, status, detail, availability, and renderer r
     (contract: any) => { contract.token_usage.progress_bar_allowed = true; },
     (contract: any) => { contract.work_item_detail.primary_sections = ['timeline']; },
     (contract: any) => { contract.work_item_detail.secondary_sections = ['artifacts', 'timeline']; },
+    (contract: any) => { contract.work_item_detail.delivered_stage_map_terminal_boundary.visible_stage_states.push('pending'); },
+    (contract: any) => { contract.work_item_detail.delivered_stage_map_terminal_boundary.post_delivery_next_step_source = 'stage_map.next_action'; },
+    (contract: any) => { contract.text_wrapping.ordinary_user_text_policy = 'arbitrary_character_boundaries'; },
+    (contract: any) => { contract.text_wrapping.unbroken_technical_string_policy = 'always_break_anywhere'; },
     (contract: any) => { contract.agent_availability_panel.task_counts_allowed = true; },
     (contract: any) => { contract.renderer_policy.status_derivation_allowed = true; },
     (contract: any) => { contract.renderer_policy.technical_execution_stage_may_replace_business_stage = true; },
@@ -143,6 +147,14 @@ test('Runtime page-state rejects removal or weakening of V2 acceptance', () => {
     },
     (matrix: any) => {
       matrix.pages.find((page: any) => page.id === 'runtime').runtime_view_model.runtime_cockpit_acceptance.viewport_screenshots_required = false;
+    },
+    (matrix: any) => {
+      const acceptance = matrix.pages.find((page: any) => page.id === 'runtime').runtime_view_model.runtime_cockpit_acceptance;
+      acceptance.required_invariants = acceptance.required_invariants.filter((value: string) => value !== 'delivered_stage_map_completed_history_only_action_envelope_next_step');
+    },
+    (matrix: any) => {
+      const acceptance = matrix.pages.find((page: any) => page.id === 'runtime').runtime_view_model.runtime_cockpit_acceptance;
+      acceptance.required_invariants = acceptance.required_invariants.filter((value: string) => value !== 'ordinary_text_normal_word_boundary_technical_tokens_emergency_break_only');
     },
   ]) {
     const matrix = structuredClone(readJson('contracts/app-page-state-matrix.json'));

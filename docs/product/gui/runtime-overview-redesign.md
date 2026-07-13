@@ -149,8 +149,16 @@ canonical projection 完成，Shell 不按标题、stage、binding 或最近时�
 `runtime_token_telemetry_verification` 显示成当前论文阶段。历史运行仍可贡献经过观测的任务累计
 Token，但不能改写业务阶段或 lifecycle 状态。
 
+当 `lifecycle.primary_state=delivered_auto_paused` 或
+`lifecycle.package_status=milestone_delivered` 时，Stage Map 已进入 terminal boundary：详情只显示
+真实发生过的 `completed` 历程，也可以为空。`pending / next / current / failed / stopped` 等状态
+不得再作为未交付里程碑包展示；后续动作统一由 ActionEnvelope 表达。
+
 在 375、768、1024 和 1440 px 验收视口中，页面不得横向溢出或文字重叠。窄屏按语义重排
 为堆叠行，不把四列硬塞入固定最小宽度表格。
+
+用户可见普通文本按 normal word boundary 换行，不得在存在空格断点时随意拆词。只有路径、
+ID、hash 等无断点技术长串可在必要时断开，且四个验收视口仍不得横向溢出。
 
 响应式证据使用确定性的九论文静态 fixture：1440 px 为四列，1024/768 px 为两列，375 px
 为单列。每个视口必须同时断言 scope 级联、一论文一行、语义列重排和无页面横向溢出，
@@ -220,5 +228,7 @@ raw IDs、logs、provider diagnostics 只进入诊断区。详情不得恢复为
 - Token missing 不显示零，无上限时不出现进度条。
 - 默认页不显示 raw refs、IDs、logs、receipt 或 provider 术语。
 - 详情首屏先呈现 Stage Map、stage、heartbeat、Token 和行动；artifacts/timeline 次级，诊断后置。
+- delivered Stage Map 只显示 completed 历程或为空，后续动作只来自 ActionEnvelope。
+- 普通文案按词边界换行，仅无断点技术长串可为防溢出而断开。
 - 375/768/1024/1440 px 均无横向页面溢出与文字重叠。
 - Product contract、Framework producer、Shell consumer、Live evidence 四条完成度独立报告。

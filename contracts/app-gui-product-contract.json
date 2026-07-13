@@ -4294,6 +4294,10 @@
             "detail_drawer_screenshot_required": true
           }
         },
+        "text_wrapping": {
+          "ordinary_user_text_policy": "normal_word_boundaries",
+          "unbroken_technical_string_policy": "break_only_when_required_to_prevent_horizontal_overflow"
+        },
         "primary_state_language": {
           "labels_zh_cn": {
             "automatically_advancing": "自动推进中",
@@ -4373,7 +4377,18 @@
           "primary_sections_visible_on_open": true,
           "secondary_sections_default_collapsed": true,
           "diagnostic_sections_default_collapsed": true,
-          "equal_weight_tab_wall_allowed": false
+          "equal_weight_tab_wall_allowed": false,
+          "delivered_stage_map_terminal_boundary": {
+            "terminal_signals": [
+              "lifecycle.primary_state=delivered_auto_paused",
+              "lifecycle.package_status=milestone_delivered"
+            ],
+            "visible_stage_states": [
+              "completed"
+            ],
+            "empty_stage_map_allowed": true,
+            "post_delivery_next_step_source": "work_item_projection.action"
+          }
         },
         "agent_availability_panel": {
           "purpose": "agent_availability_only",
