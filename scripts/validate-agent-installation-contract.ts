@@ -1,260 +1,291 @@
 #!/usr/bin/env node
 
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 type AgentRootMap = Map<string, string>;
 
-const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const policyPath = path.join(appRoot, 'contracts', 'app-install-exposure-policy.json');
-const profilePath = path.join(appRoot, 'contracts', 'app-product-profile.json');
-const registryPath = path.join(appRoot, 'contracts', 'agent-package-registry.json');
-const agentPackageSurfaceSchemaPath = path.join(appRoot, 'contracts', 'agent-package-surfaces.schema.json');
-const agentPackageManifestFixtureDir = path.join(appRoot, 'contracts', 'fixtures', 'agent-package-manifests');
-const packageJsonPath = path.join(appRoot, 'package.json');
-const expectedDefaultPluginAgentIds = ['mas', 'mag', 'rca', 'obf'];
-const expectedRepoPackagedPluginAgentIds = ['mas', 'mag', 'rca'];
-const expectedGeneratedAgentIds = ['oma', 'obf'];
-const expectedRequiredAgentIds = ['mas', 'mag', 'rca', 'oma', 'obf'];
-const expectedProfessionalPackageIds = ['mas', 'mag', 'rca', 'obf', 'oma'];
-const expectedRegistryPackageIds = ['mas', 'mag', 'rca', 'oma', 'obf', 'mas-scholar-skills', 'opl-flow'];
+const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const policyPath = path.join(appRoot, "contracts", "app-install-exposure-policy.json");
+const profilePath = path.join(appRoot, "contracts", "app-product-profile.json");
+const registryPath = path.join(appRoot, "contracts", "agent-package-registry.json");
+const agentPackageSurfaceSchemaPath = path.join(
+  appRoot,
+  "contracts",
+  "agent-package-surfaces.schema.json",
+);
+const agentPackageManifestFixtureDir = path.join(
+  appRoot,
+  "contracts",
+  "fixtures",
+  "agent-package-manifests",
+);
+const packageJsonPath = path.join(appRoot, "package.json");
+const activeShellRoot = path.resolve(
+  process.env.OPL_AION_SHELL_ROOT || path.join(appRoot, "shells", "aionui"),
+);
+const activeShellInstallConsumers = [
+  "packages/desktop/src/process/bridge/oplRuntimeBridge.ts",
+  "packages/web-host/src/opl-runtime-proxy.ts",
+  "scripts/opl-first-run-vm-smoke.mjs",
+  "resources/opl-install.sh",
+];
+const expectedDefaultPluginAgentIds = ["mas", "mag", "rca", "obf"];
+const expectedRepoPackagedPluginAgentIds = ["mas", "mag", "rca"];
+const expectedGeneratedAgentIds = ["oma", "obf"];
+const expectedRequiredAgentIds = ["mas", "mag", "rca", "oma", "obf"];
+const expectedProfessionalPackageIds = ["mas", "mag", "rca", "obf", "oma"];
+const expectedRegistryPackageIds = [
+  "mas",
+  "mag",
+  "rca",
+  "oma",
+  "obf",
+  "mas-scholar-skills",
+  "opl-flow",
+];
 const expectedPackageKinds: Record<string, string> = {
-  mas: 'domain_agent_package',
-  mag: 'domain_agent_package',
-  rca: 'domain_agent_package',
-  oma: 'domain_agent_package',
-  obf: 'domain_agent_package',
-  'mas-scholar-skills': 'framework_capability_package',
-  'opl-flow': 'workflow_plugin_package',
+  mas: "domain_agent_package",
+  mag: "domain_agent_package",
+  rca: "domain_agent_package",
+  oma: "domain_agent_package",
+  obf: "domain_agent_package",
+  "mas-scholar-skills": "framework_capability_package",
+  "opl-flow": "workflow_plugin_package",
 };
 const carrierIdByAgentId: Record<string, string> = {
-  mas: 'med-autoscience',
-  mag: 'med-autogrant',
-  rca: 'redcube-ai',
-  oma: 'opl-meta-agent',
-  obf: 'opl-bookforge',
+  mas: "med-autoscience",
+  mag: "med-autogrant",
+  rca: "redcube-ai",
+  oma: "opl-meta-agent",
+  obf: "opl-bookforge",
 };
-const expectedDefaultVisibleDomainSkillIds = ['med-autoscience', 'med-autogrant', 'redcube-ai', 'opl-bookforge'];
-const expectedGeneratedPluginSkillIds = ['opl-meta-agent', 'opl-bookforge'];
+const expectedDefaultVisibleDomainSkillIds = [
+  "med-autoscience",
+  "med-autogrant",
+  "redcube-ai",
+  "opl-bookforge",
+];
+const expectedGeneratedPluginSkillIds = ["opl-meta-agent", "opl-bookforge"];
 const expectedSkillPackSources: Record<string, string> = {
-  mas: 'github:gaofeng21cn/med-autoscience/plugins/med-autoscience/skills/med-autoscience',
-  mag: 'github:gaofeng21cn/med-autogrant/plugins/med-autogrant/skills/med-autogrant',
-  rca: 'github:gaofeng21cn/redcube-ai/plugins/redcube-ai/skills/redcube-ai',
-  obf: 'github:gaofeng21cn/opl-bookforge/contracts/pack_compiler_input.json',
-  oma: 'github:gaofeng21cn/opl-meta-agent/contracts/pack_compiler_input.json',
-  'mas-scholar-skills': 'github:gaofeng21cn/opl-scholarskills/skills/mas-scholar-skills',
-  'opl-flow': 'github:gaofeng21cn/opl-flow/skills/opl-flow',
+  mas: "github:gaofeng21cn/med-autoscience/plugins/med-autoscience/skills/med-autoscience",
+  mag: "github:gaofeng21cn/med-autogrant/plugins/med-autogrant/skills/med-autogrant",
+  rca: "github:gaofeng21cn/redcube-ai/plugins/redcube-ai/skills/redcube-ai",
+  obf: "github:gaofeng21cn/opl-bookforge/contracts/pack_compiler_input.json",
+  oma: "github:gaofeng21cn/opl-meta-agent/contracts/pack_compiler_input.json",
+  "mas-scholar-skills": "github:gaofeng21cn/opl-scholarskills/skills/mas-scholar-skills",
+  "opl-flow": "github:gaofeng21cn/opl-flow/skills/opl-flow",
 };
 const expectedSkillPackIds: Record<string, string> = {
-  mas: 'med-autoscience-professional-skill-pack',
-  mag: 'med-autogrant-professional-skill-pack',
-  rca: 'redcube-ai-professional-skill-pack',
-  oma: 'opl-meta-agent-professional-skill-pack',
-  obf: 'opl-bookforge-professional-skill-pack',
-  'mas-scholar-skills': 'mas-scholar-skills-capability-pack',
-  'opl-flow': 'opl-flow-workflow-pack',
+  mas: "med-autoscience-professional-skill-pack",
+  mag: "med-autogrant-professional-skill-pack",
+  rca: "redcube-ai-professional-skill-pack",
+  oma: "opl-meta-agent-professional-skill-pack",
+  obf: "opl-bookforge-professional-skill-pack",
+  "mas-scholar-skills": "mas-scholar-skills-capability-pack",
+  "opl-flow": "opl-flow-workflow-pack",
 };
 const expectedGeneratedPluginSourceRefs: Record<string, string> = {
-  obf: 'opl_generated:gaofeng21cn/opl-bookforge/contracts/pack_compiler_input.json',
-  oma: 'opl_generated:gaofeng21cn/opl-meta-agent/contracts/pack_compiler_input.json',
+  obf: "opl_generated:gaofeng21cn/opl-bookforge/contracts/pack_compiler_input.json",
+  oma: "opl_generated:gaofeng21cn/opl-meta-agent/contracts/pack_compiler_input.json",
 };
 const expectedGeneratedSemanticPackRoots: Record<string, string> = {
-  obf: 'github:gaofeng21cn/opl-bookforge/agent',
-  oma: 'github:gaofeng21cn/opl-meta-agent/agent',
+  obf: "github:gaofeng21cn/opl-bookforge/agent",
+  oma: "github:gaofeng21cn/opl-meta-agent/agent",
 };
 const expectedFailClosedStates = [
-  'dirty_managed_checkout',
-  'ahead_or_diverged_managed_checkout',
-  'missing_plugin_manifest',
-  'missing_skill_entry',
-  'duplicate_codex_visible_domain_skill',
-  'unavailable_managed_package_channel',
-  'invalid_package_manifest',
-  'missing_package_lock_receipt',
-  'package_source_validation_failed',
-  'atomic_package_unit_incomplete',
+  "dirty_managed_checkout",
+  "ahead_or_diverged_managed_checkout",
+  "missing_plugin_manifest",
+  "missing_skill_entry",
+  "duplicate_codex_visible_domain_skill",
+  "unavailable_managed_package_channel",
+  "invalid_package_manifest",
+  "missing_package_lock_receipt",
+  "package_source_validation_failed",
+  "atomic_package_unit_incomplete",
 ];
 const expectedPackageLifecycleActions = [
-  'refresh_registry',
-  'install_from_manifest_url',
-  'agent_package_update',
-  'agent_package_repair',
-  'agent_package_activate',
-  'agent_package_uninstall',
-  'agent_package_preferences_set',
+  "refresh_registry",
+  "install_from_manifest_url",
+  "agent_package_update",
+  "agent_package_repair",
+  "agent_package_activate",
+  "agent_package_uninstall",
+  "agent_package_preferences_set",
 ];
 const expectedRegistrySourceKinds = [
-  'default_opl_registry',
-  'organization_registry_url',
-  'user_registry_url',
+  "default_opl_registry",
+  "organization_registry_url",
+  "user_registry_url",
 ];
-const expectedRegistryManagementActions = [
-  'refresh_registry',
-  'install_from_manifest_url',
-];
+const expectedRegistryManagementActions = ["refresh_registry", "install_from_manifest_url"];
 const expectedRegistryEntryFields = [
-  'package_id',
-  'package_kind',
-  'display_name',
-  'publisher',
-  'source',
-  'manifest_url',
-  'version_source_ref',
-  'trust_tier',
+  "package_id",
+  "package_kind",
+  "display_name",
+  "publisher",
+  "source",
+  "manifest_url",
+  "version_source_ref",
+  "trust_tier",
 ];
 const expectedManifestRequiredFields = [
-  'package_id',
-  'package_kind',
-  'display_name',
-  'publisher',
-  'version',
-  'source',
-  'codex_surface',
-  'skill_packs',
-  'entrypoints',
-  'health_check',
-  'permissions',
-  'update_channel',
-  'rollback_ref',
+  "package_id",
+  "package_kind",
+  "display_name",
+  "publisher",
+  "version",
+  "source",
+  "codex_surface",
+  "skill_packs",
+  "entrypoints",
+  "health_check",
+  "permissions",
+  "update_channel",
+  "rollback_ref",
 ];
 const expectedDistributionPayloadFields = [
-  'payload_kind',
-  'payload_ref',
-  'payload_digest_ref',
-  'required_skill_pack_lock_refs',
-  'proof_status',
-  'live_download_proof',
-  'installed_reload_proof',
-  'oci_ref',
-  'oci_media_type',
-  'immutable_tag',
-  'moving_tag',
-  'promotion_policy',
-  'install_truth',
+  "payload_kind",
+  "payload_ref",
+  "payload_digest_ref",
+  "required_skill_pack_lock_refs",
+  "proof_status",
+  "live_download_proof",
+  "installed_reload_proof",
+  "oci_ref",
+  "oci_media_type",
+  "immutable_tag",
+  "moving_tag",
+  "promotion_policy",
+  "install_truth",
 ];
 const expectedHomeShortcutRequiredFields = [
-  'shortcut_id',
-  'package_id',
-  'primary_label',
-  'codex_visible_entry',
-  'required_skill_ids',
-  'source',
-  'executor',
-  'display_policy',
-  'default_visible',
-  'user_configurable',
+  "shortcut_id",
+  "package_id",
+  "primary_label",
+  "codex_visible_entry",
+  "required_skill_ids",
+  "source",
+  "executor",
+  "display_policy",
+  "default_visible",
+  "user_configurable",
 ];
 const expectedInvocationReceiptRequiredFields = [
-  'receipt_type',
-  'executor',
-  'package_id',
-  'agent_id',
-  'skill_ids',
-  'source',
-  'launched_from',
-  'display_policy',
+  "receipt_type",
+  "executor",
+  "package_id",
+  "agent_id",
+  "skill_ids",
+  "source",
+  "launched_from",
+  "display_policy",
 ];
 const expectedRegistryExcludedFields = [
-  'session_contract_ref',
-  'domain_workflow_schema',
-  'prompt_body',
-  'artifact_schema',
-  'readiness_verdict_rule',
-  'quality_verdict_rule',
-  'owner_receipt_authority',
+  "session_contract_ref",
+  "domain_workflow_schema",
+  "prompt_body",
+  "artifact_schema",
+  "readiness_verdict_rule",
+  "quality_verdict_rule",
+  "owner_receipt_authority",
 ];
 const expectedManualThirdPartySourceKinds = [
-  'local_manifest_file',
-  'manifest_url',
-  'manifest_import',
+  "local_manifest_file",
+  "manifest_url",
+  "manifest_import",
 ];
 const expectedManualThirdPartyRequires = [
-  'explicit_user_action',
-  'manifest_validation',
-  'trust_tier_assignment',
-  'package_lock_receipt',
-  'rollback_ref',
+  "explicit_user_action",
+  "manifest_validation",
+  "trust_tier_assignment",
+  "package_lock_receipt",
+  "rollback_ref",
 ];
 const expectedRemoteDistributionPayloadFields = [
-  'remote_manifest_url',
-  'distribution_payload_ref',
-  'source_digest_ref',
-  'trust_tier',
-  'package_lock_receipt',
-  'rollback_ref',
-  'oci_ref',
-  'oci_digest',
+  "remote_manifest_url",
+  "distribution_payload_ref",
+  "source_digest_ref",
+  "trust_tier",
+  "package_lock_receipt",
+  "rollback_ref",
+  "oci_ref",
+  "oci_digest",
 ];
 const expectedFirstPartyDistributionPayloadFields = [
-  'cohort_manifest_ref',
-  'distribution_payload_ref',
-  'payload_digest_ref',
-  'required_skill_pack_lock_refs',
-  'rollback_ref',
-  'oci_ref',
-  'oci_media_type',
-  'immutable_tag',
-  'moving_tag',
-  'promotion_policy',
-  'install_truth',
+  "cohort_manifest_ref",
+  "distribution_payload_ref",
+  "payload_digest_ref",
+  "required_skill_pack_lock_refs",
+  "rollback_ref",
+  "oci_ref",
+  "oci_media_type",
+  "immutable_tag",
+  "moving_tag",
+  "promotion_policy",
+  "install_truth",
 ];
 const expectedPackageSourceKinds = [
-  'first_party_ghcr_oci_artifact',
-  'bundled_full_runtime_modules',
-  'local_manifest_file',
-  'manifest_url',
-  'manifest_import',
-  'developer_checkout_override',
+  "first_party_ghcr_oci_artifact",
+  "bundled_full_runtime_modules",
+  "local_manifest_file",
+  "manifest_url",
+  "manifest_import",
+  "developer_checkout_override",
 ];
 const expectedPackageLockReceiptFields = [
-  'package_id',
-  'version_or_source_digest',
-  'installed_at',
-  'updated_at',
-  'codex_visible_entry',
-  'bundled_required_skill_ids',
-  'optional_skill_refs',
-  'source_kind',
-  'trust_tier',
-  'action_receipt_id',
-  'rollback_ref',
-  'physical_surface',
+  "package_id",
+  "version_or_source_digest",
+  "installed_at",
+  "updated_at",
+  "codex_visible_entry",
+  "bundled_required_skill_ids",
+  "optional_skill_refs",
+  "source_kind",
+  "trust_tier",
+  "action_receipt_id",
+  "rollback_ref",
+  "physical_surface",
 ];
 const expectedAtomicPackageUnitIncludes = [
-  'plugin_manifest',
-  'bundled_required_skill_entries',
-  'optional_companion_skill_refs',
+  "plugin_manifest",
+  "bundled_required_skill_entries",
+  "optional_companion_skill_refs",
 ];
 const expectedActivationPolicy = {
-  action_id: 'agent_package_activate',
-  action_route: 'opl app action execute --action agent_package_activate --payload <json> --json',
-  trigger: 'before_every_installed_package_workspace_or_quest_launch',
-  payload_fields: ['package_id', 'scope', 'target_workspace', 'target_quest', 'use_boundary_id'],
-  scope_values: ['workspace', 'quest'],
+  action_id: "agent_package_activate",
+  action_route: "opl app action execute --action agent_package_activate --payload <json> --json",
+  trigger: "before_every_installed_package_workspace_or_quest_launch",
+  payload_fields: ["package_id", "scope", "target_workspace", "target_quest", "use_boundary_id"],
+  scope_values: ["workspace", "quest"],
   scope_target_policy: {
-    workspace: 'target_workspace_required_target_quest_forbidden',
-    quest: 'target_quest_required_target_workspace_forbidden',
+    workspace: "target_workspace_required_target_quest_forbidden",
+    quest: "target_quest_required_target_workspace_forbidden",
   },
-  result_fields: ['launch_allowed', 'use_receipt_ref', 'use_binding'],
-  launch_policy: 'launch_only_when_launch_allowed_true_and_use_receipt_ref_and_use_binding_are_present',
-  currentness_policy: 'framework_reconciles_latest_stable_compatible_package_closure_once_at_use_boundary_and_pins_use_binding_for_the_session',
-  package_identity_policy: 'generic_package_id_no_hardcoded_agent_or_capability_package_ids',
-  app_role: 'prepare_then_launch_using_framework_readback_without_owning_package_currentness_or_materialization',
+  result_fields: ["launch_allowed", "use_receipt_ref", "use_binding"],
+  launch_policy:
+    "launch_only_when_launch_allowed_true_and_use_receipt_ref_and_use_binding_are_present",
+  currentness_policy:
+    "framework_reconciles_latest_stable_compatible_package_closure_once_at_use_boundary_and_pins_use_binding_for_the_session",
+  package_identity_policy: "generic_package_id_no_hardcoded_agent_or_capability_package_ids",
+  app_role:
+    "prepare_then_launch_using_framework_readback_without_owning_package_currentness_or_materialization",
 };
-const expectedActivationRequestRequiredFields = ['package_id', 'scope', 'use_boundary_id'];
-const expectedActivationResultRequiredFields = ['launch_allowed', 'use_receipt_ref', 'use_binding'];
+const expectedActivationRequestRequiredFields = ["package_id", "scope", "use_boundary_id"];
+const expectedActivationResultRequiredFields = ["launch_allowed", "use_receipt_ref", "use_binding"];
 const expectedActivationActionRequiredFields = [
-  'action_id',
-  'command_ref',
-  'enabled',
-  'preparation_status',
-  'reason_code',
+  "action_id",
+  "command_ref",
+  "enabled",
+  "preparation_status",
+  "reason_code",
 ];
-const expectedActivationPreparationStatuses = ['not_installed', 'prepare_required', 'ready'];
+const expectedActivationPreparationStatuses = ["not_installed", "prepare_required", "ready"];
 
 function readJson(filePath: string): any {
-  return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  return JSON.parse(fs.readFileSync(filePath, "utf8"));
 }
 
 function fail(message: string): never {
@@ -286,64 +317,78 @@ function assertIncludesAll(actual: unknown, expected: string[], label: string): 
   }
   const missing = expected.filter((item) => !actual.includes(item));
   if (missing.length > 0) {
-    fail(`${label} missing ${missing.join(', ')}`);
+    fail(`${label} missing ${missing.join(", ")}`);
   }
 }
 
-function assertFieldsEqual(actual: any, expectedFields: Record<string, unknown>, label: string): void {
+function assertFieldsEqual(
+  actual: any,
+  expectedFields: Record<string, unknown>,
+  label: string,
+): void {
   for (const [field, expected] of Object.entries(expectedFields)) {
     assertEqual(actual?.[field], expected, `${label}.${field}`);
   }
 }
 
-function assertArrayFieldsEqual(actual: any, expectedFields: Record<string, string[]>, label: string): void {
+function assertArrayFieldsEqual(
+  actual: any,
+  expectedFields: Record<string, string[]>,
+  label: string,
+): void {
   for (const [field, expected] of Object.entries(expectedFields)) {
     assertArrayEqual(actual?.[field], expected, `${label}.${field}`);
   }
 }
 
-function assertArrayFieldsInclude(actual: any, expectedFields: Record<string, string[]>, label: string): void {
+function assertArrayFieldsInclude(
+  actual: any,
+  expectedFields: Record<string, string[]>,
+  label: string,
+): void {
   for (const [field, expected] of Object.entries(expectedFields)) {
     assertIncludesAll(actual?.[field], expected, `${label}.${field}`);
   }
 }
 
 function assertFixtureDigestRef(value: unknown, label: string, suffixAllowed = false): void {
-  const suffix = suffixAllowed ? '(?:/.+)?' : '';
+  const suffix = suffixAllowed ? "(?:/.+)?" : "";
   const pattern = new RegExp(`^oci-digest-lock://.+@sha256:[0-9a-f]{64}${suffix}$`);
-  if (typeof value !== 'string' || !pattern.test(value)) {
+  if (typeof value !== "string" || !pattern.test(value)) {
     fail(`${label} must contain a syntactically valid 64-hex non-live fixture digest`);
   }
 }
 
 function validateCanonicalPackageConsumers(policy: any, profile: any, registry: any): void {
   const legacyIdentityIds = new Set([
-    'med-autoscience',
-    'med-autogrant',
-    'redcube-ai',
-    'opl-meta-agent',
-    'opl-bookforge',
+    "med-autoscience",
+    "med-autogrant",
+    "redcube-ai",
+    "opl-meta-agent",
+    "opl-bookforge",
   ]);
-  const identityFields = new Set(['package_id', 'agent_id', 'assistant_id', 'target_assistant_id']);
+  const identityFields = new Set(["package_id", "agent_id", "assistant_id", "target_assistant_id"]);
   const visitIdentityFields = (value: unknown, pathParts: string[] = []): void => {
     if (Array.isArray(value)) {
       value.forEach((item, index) => visitIdentityFields(item, [...pathParts, String(index)]));
       return;
     }
-    if (!value || typeof value !== 'object') {
+    if (!value || typeof value !== "object") {
       return;
     }
     for (const [key, child] of Object.entries(value)) {
       const childPath = [...pathParts, key];
-      if (identityFields.has(key) && typeof child === 'string' && legacyIdentityIds.has(child)) {
-        fail(`legacy carrier id ${child} must not be used as package/agent identity at ${childPath.join('.')}`);
+      if (identityFields.has(key) && typeof child === "string" && legacyIdentityIds.has(child)) {
+        fail(
+          `legacy carrier id ${child} must not be used as package/agent identity at ${childPath.join(".")}`,
+        );
       }
       visitIdentityFields(child, childPath);
     }
   };
-  visitIdentityFields(policy, ['policy']);
-  visitIdentityFields(profile, ['profile']);
-  visitIdentityFields(registry, ['registry']);
+  visitIdentityFields(policy, ["policy"]);
+  visitIdentityFields(profile, ["profile"]);
+  visitIdentityFields(registry, ["registry"]);
 
   const installSurface = JSON.stringify({
     software_lifecycle: policy.software_lifecycle,
@@ -351,7 +396,7 @@ function validateCanonicalPackageConsumers(policy: any, profile: any, registry: 
     distribution_channels: policy.distribution_channels,
     package_distribution: policy.agent_installation_contract?.managed_package_distribution,
   });
-  for (const forbidden of ['--skip-modules', 'reconcile-modules']) {
+  for (const forbidden of ["--skip-modules", "reconcile-modules"]) {
     if (installSurface.includes(forbidden)) {
       fail(`active install/package maintenance surfaces must not expose ${forbidden}`);
     }
@@ -362,16 +407,41 @@ function validateCanonicalPackageConsumers(policy: any, profile: any, registry: 
       manifest_url: entry.manifest_url,
       ordinary_user_source: entry.ordinary_user_source,
     });
-    for (const forbidden of ['/agent-packages/', '/opl-agent-', '/opl-package-', '/one-person-lab-modules/']) {
+    for (const forbidden of [
+      "/agent-packages/",
+      "/opl-agent-",
+      "/opl-package-",
+      "/one-person-lab-modules/",
+    ]) {
       if (ordinarySurface.includes(forbidden)) {
-        fail(`registry entry ${entry.package_id} ordinary install surface contains legacy namespace ${forbidden}`);
+        fail(
+          `registry entry ${entry.package_id} ordinary install surface contains legacy namespace ${forbidden}`,
+        );
       }
     }
     if (/:latest(?:[\"/?#]|$)/.test(ordinarySurface)) {
       fail(`registry entry ${entry.package_id} must use latest-stable, never the plain latest tag`);
     }
     if (/:candidate-|:(?:stable|nightly)(?:[\"/?#]|$)/.test(ordinarySurface)) {
-      fail(`registry entry ${entry.package_id} must expose only candidate and latest-stable moving channels`);
+      fail(
+        `registry entry ${entry.package_id} must expose only candidate and latest-stable moving channels`,
+      );
+    }
+  }
+}
+
+function validateActiveShellInstallConsumers(): void {
+  for (const relativePath of activeShellInstallConsumers) {
+    const sourcePath = path.join(activeShellRoot, relativePath);
+    if (!fs.existsSync(sourcePath)) {
+      fail(`active shell install consumer is missing: ${sourcePath}`);
+    }
+    const source = fs.readFileSync(sourcePath, "utf8");
+    if (source.includes("--skip-modules")) {
+      fail(`active shell install consumer still uses retired --skip-modules: ${relativePath}`);
+    }
+    if (!source.includes("--skip-packages")) {
+      fail(`active shell install consumer must use --skip-packages: ${relativePath}`);
     }
   }
 }
@@ -382,7 +452,7 @@ function isGeneratedAgent(agentId: string): boolean {
 
 function localWorkspaceRoots(): string[] {
   const configured = process.env.OPL_AGENT_SOURCE_ROOTS?.trim();
-  const roots = configured ? configured.split(path.delimiter) : ['/Users/gaofeng/workspace'];
+  const roots = configured ? configured.split(path.delimiter) : ["/Users/gaofeng/workspace"];
   return roots.map((root) => root.trim()).filter(Boolean);
 }
 
@@ -414,19 +484,23 @@ function validateGithubSourcePathIfAvailable(source: string, label: string): str
 }
 
 function frontmatterName(skillPath: string): string | null {
-  const content = fs.readFileSync(skillPath, 'utf8');
-  if (!content.startsWith('---\n')) {
+  const content = fs.readFileSync(skillPath, "utf8");
+  if (!content.startsWith("---\n")) {
     return null;
   }
-  const end = content.indexOf('\n---', 4);
+  const end = content.indexOf("\n---", 4);
   if (end < 0) {
     return null;
   }
   const match = content.slice(4, end).match(/^name:\s*(.+?)\s*$/m);
-  return match?.[1]?.replace(/^['"]|['"]$/g, '') ?? null;
+  return match?.[1]?.replace(/^['"]|['"]$/g, "") ?? null;
 }
 
-function validateSkillFrontmatterName(skillPath: string, expectedName: string, label: string): void {
+function validateSkillFrontmatterName(
+  skillPath: string,
+  expectedName: string,
+  label: string,
+): void {
   if (!fs.existsSync(skillPath)) {
     fail(`${label} is missing SKILL.md: ${skillPath}`);
   }
@@ -435,14 +509,14 @@ function validateSkillFrontmatterName(skillPath: string, expectedName: string, l
 
 function validateRepoPluginSkillSource(skillDir: string, pluginName: string, label: string): void {
   const pluginRoot = path.dirname(path.dirname(skillDir));
-  const pluginManifestPath = path.join(pluginRoot, '.codex-plugin', 'plugin.json');
+  const pluginManifestPath = path.join(pluginRoot, ".codex-plugin", "plugin.json");
   if (!fs.existsSync(pluginManifestPath)) {
     fail(`${label} is missing .codex-plugin/plugin.json: ${pluginRoot}`);
   }
   const pluginManifest = readJson(pluginManifestPath);
   assertEqual(pluginManifest.name, pluginName, `${label} plugin manifest name`);
-  assertEqual(pluginManifest.skills, './skills/', `${label} plugin manifest skills path`);
-  validateSkillFrontmatterName(path.join(skillDir, 'SKILL.md'), pluginName, label);
+  assertEqual(pluginManifest.skills, "./skills/", `${label} plugin manifest skills path`);
+  validateSkillFrontmatterName(path.join(skillDir, "SKILL.md"), pluginName, label);
 }
 
 type ParsedArgs = {
@@ -455,25 +529,25 @@ function parseArgs(argv: string[]): ParsedArgs {
   let codexSkillsRoot: string | null = null;
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
-    if (token === '--codex-skills-root') {
+    if (token === "--codex-skills-root") {
       const root = argv[index + 1]?.trim();
       if (!root) {
-        fail('--codex-skills-root requires <path>');
+        fail("--codex-skills-root requires <path>");
       }
       index += 1;
       codexSkillsRoot = path.resolve(root);
       continue;
     }
-    if (token !== '--agent-root') {
+    if (token !== "--agent-root") {
       fail(`Unknown argument: ${token}`);
     }
     const spec = argv[index + 1];
-    if (!spec || !spec.includes('=')) {
-      fail('--agent-root requires <agent_id>=<path>');
+    if (!spec || !spec.includes("=")) {
+      fail("--agent-root requires <agent_id>=<path>");
     }
     index += 1;
-    const [agentId, ...pathParts] = spec.split('=');
-    const root = pathParts.join('=').trim();
+    const [agentId, ...pathParts] = spec.split("=");
+    const root = pathParts.join("=").trim();
     if (!expectedRequiredAgentIds.includes(agentId) || !root) {
       fail(`Invalid --agent-root value: ${spec}`);
     }
@@ -508,11 +582,11 @@ function findInstallAgent(contract: any, agentId: string): any {
 
 function validatePluginRoot(agentId: string, root: string, installAgent: any): void {
   const pluginName = installAgent.codex_visible_entry;
-  if (typeof pluginName !== 'string' || !pluginName.trim()) {
+  if (typeof pluginName !== "string" || !pluginName.trim()) {
     fail(`${agentId} installation entry is missing codex_visible_entry`);
   }
-  const pluginManifestPath = path.join(root, '.codex-plugin', 'plugin.json');
-  const skillPath = path.join(root, 'skills', pluginName, 'SKILL.md');
+  const pluginManifestPath = path.join(root, ".codex-plugin", "plugin.json");
+  const skillPath = path.join(root, "skills", pluginName, "SKILL.md");
   if (!fs.existsSync(pluginManifestPath)) {
     fail(`${agentId} plugin root is missing .codex-plugin/plugin.json: ${root}`);
   }
@@ -521,7 +595,7 @@ function validatePluginRoot(agentId: string, root: string, installAgent: any): v
   }
   const pluginManifest = readJson(pluginManifestPath);
   assertEqual(pluginManifest.name, pluginName, `${agentId} plugin manifest name`);
-  assertEqual(pluginManifest.skills, './skills/', `${agentId} plugin manifest skills path`);
+  assertEqual(pluginManifest.skills, "./skills/", `${agentId} plugin manifest skills path`);
   validateSkillFrontmatterName(skillPath, pluginName, `${agentId} plugin skill`);
 }
 
@@ -533,7 +607,7 @@ function validateNoDuplicateBareDomainSkills(root: string | null): string | null
     fail(`Codex skills root does not exist: ${root}`);
   }
   for (const skillId of expectedDefaultVisibleDomainSkillIds) {
-    const skillPath = path.join(root, skillId, 'SKILL.md');
+    const skillPath = path.join(root, skillId, "SKILL.md");
     if (fs.existsSync(skillPath)) {
       fail(`${skillId} must not be mirrored as a bare Codex skill at ${skillPath}`);
     }
@@ -547,7 +621,7 @@ function validateContract(
   registry: any,
   agentPackageSurfaceSchema: any,
   packageJson: any,
-  agentRoots: AgentRootMap
+  agentRoots: AgentRootMap,
 ): void {
   validatePublicAbi(policy, packageJson);
   const contract = validateAgentInstallationContract(policy);
@@ -555,7 +629,7 @@ function validateContract(
   assertJsonEqual(
     profile.gui?.agent_package_activation_policy,
     expectedActivationPolicy,
-    'profile package activation policy',
+    "profile package activation policy",
   );
   validateAgentRegistryPolicy(contract, profile, registry);
   validateCanonicalPackageConsumers(policy, profile, registry);
@@ -568,52 +642,88 @@ function validateContract(
 }
 
 function validatePublicAbi(policy: any, packageJson: any): void {
-  assertFieldsEqual(policy, {
-    owner: 'one-person-lab-app',
-    producer_owner: 'one-person-lab',
-  }, 'policy');
-  assertFieldsEqual(policy.public_abi, {
-    primary_semantic_entry: 'skill',
-    plugin_role: 'codex_app_distribution_and_capability_bundle',
-    direct_skill_compatibility_required: true,
-    plugin_must_not_create_second_semantics: true,
-    app_must_not_mirror_plugin_skill_as_duplicate_bare_skill: true,
-  }, 'public ABI');
+  assertFieldsEqual(
+    policy,
+    {
+      owner: "one-person-lab-app",
+      producer_owner: "one-person-lab",
+    },
+    "policy",
+  );
+  assertFieldsEqual(
+    policy.public_abi,
+    {
+      primary_semantic_entry: "skill",
+      plugin_role: "codex_app_distribution_and_capability_bundle",
+      direct_skill_compatibility_required: true,
+      plugin_must_not_create_second_semantics: true,
+      app_must_not_mirror_plugin_skill_as_duplicate_bare_skill: true,
+    },
+    "public ABI",
+  );
   assertEqual(
-    packageJson.scripts?.['validate:agent-installation'],
-    'node --experimental-strip-types scripts/validate-agent-installation-contract.ts',
-    'package validate:agent-installation script',
+    packageJson.scripts?.["validate:agent-installation"],
+    "node --experimental-strip-types scripts/validate-agent-installation-contract.ts",
+    "package validate:agent-installation script",
   );
 }
 
 function validateAgentInstallationContract(policy: any): any {
   const contract = policy.agent_installation_contract;
   if (!contract) {
-    fail('missing agent_installation_contract');
+    fail("missing agent_installation_contract");
   }
-  assertFieldsEqual(contract, {
-    owner: 'one-person-lab-app',
-    producer_owner: 'one-person-lab',
-    unified_sync_command: 'opl connect sync-skills',
-    managed_install_source: 'opl_managed_packages',
-    user_agent_installation_mode: 'consume_shared_skill_action_stage_metadata',
-    codex_plugin_registry_target: 'codex_plugin_registry',
-    direct_skill_target: 'codex_user_skill_discovery_path',
-    product_entry_target: 'family-product-entry-manifest-v2',
-    may_use_developer_checkout_by_default: false,
-    developer_checkout_override_policy: 'explicit_opt_in_only',
-    developer_checkout_override_surface: 'Developer Profile source_channel capability',
-    ordinary_user_package_source: 'framework_managed_ghcr_oci_opl_packages_latest_stable_channel',
-    duplicate_bare_skill_policy: 'forbid_domain_plugin_skill_mirrors',
-  }, 'agent contract');
-  assertArrayEqual(contract.required_agent_ids, expectedRequiredAgentIds, 'required agent ids');
-  assertArrayEqual(contract.required_package_ids, expectedRegistryPackageIds, 'required package ids');
-  assertArrayEqual(contract.default_plugin_agent_ids, expectedDefaultPluginAgentIds, 'default plugin agent ids');
-  assertArrayEqual(contract.generated_plugin_agent_ids, expectedGeneratedAgentIds, 'generated plugin agent ids');
-  assertArrayEqual(contract.fail_closed_states, expectedFailClosedStates, 'agent contract fail closed states');
-  assertArrayEqual(policy.sync_and_install_contract?.fail_closed_states, expectedFailClosedStates, 'sync fail closed states');
-  assertArrayEqual(contract.fail_closed_states, policy.sync_and_install_contract.fail_closed_states, 'shared fail closed states');
-  assertArrayEqual(contract.managed_package_ids, expectedRegistryPackageIds, 'managed package ids');
+  assertFieldsEqual(
+    contract,
+    {
+      owner: "one-person-lab-app",
+      producer_owner: "one-person-lab",
+      unified_sync_command: "opl connect sync-skills",
+      managed_install_source: "opl_managed_packages",
+      user_agent_installation_mode: "consume_shared_skill_action_stage_metadata",
+      codex_plugin_registry_target: "codex_plugin_registry",
+      direct_skill_target: "codex_user_skill_discovery_path",
+      product_entry_target: "family-product-entry-manifest-v2",
+      may_use_developer_checkout_by_default: false,
+      developer_checkout_override_policy: "explicit_opt_in_only",
+      developer_checkout_override_surface: "Developer Profile source_channel capability",
+      ordinary_user_package_source: "framework_managed_ghcr_oci_opl_packages_latest_stable_channel",
+      duplicate_bare_skill_policy: "forbid_domain_plugin_skill_mirrors",
+    },
+    "agent contract",
+  );
+  assertArrayEqual(contract.required_agent_ids, expectedRequiredAgentIds, "required agent ids");
+  assertArrayEqual(
+    contract.required_package_ids,
+    expectedRegistryPackageIds,
+    "required package ids",
+  );
+  assertArrayEqual(
+    contract.default_plugin_agent_ids,
+    expectedDefaultPluginAgentIds,
+    "default plugin agent ids",
+  );
+  assertArrayEqual(
+    contract.generated_plugin_agent_ids,
+    expectedGeneratedAgentIds,
+    "generated plugin agent ids",
+  );
+  assertArrayEqual(
+    contract.fail_closed_states,
+    expectedFailClosedStates,
+    "agent contract fail closed states",
+  );
+  assertArrayEqual(
+    policy.sync_and_install_contract?.fail_closed_states,
+    expectedFailClosedStates,
+    "sync fail closed states",
+  );
+  assertArrayEqual(
+    contract.fail_closed_states,
+    policy.sync_and_install_contract.fail_closed_states,
+    "shared fail closed states",
+  );
+  assertArrayEqual(contract.managed_package_ids, expectedRegistryPackageIds, "managed package ids");
   validatePackageManagerLifecycle(contract);
   validateRegistryPolicyShape(contract);
   validateThirdPartyManualSourcePolicy(contract);
@@ -624,95 +734,139 @@ function validateAgentInstallationContract(policy: any): any {
 
 function validateRegistryPolicyShape(contract: any): void {
   const registryPolicy = contract.agent_registry_policy;
-  assertFieldsEqual(registryPolicy, {
-    policy_surface: 'Settings Capabilities registry discovery, manifest URL install entry, and package receipt display',
-    default_registry_ref: 'contracts/agent-package-registry.json',
-    default_registry_source_kind: 'default_opl_registry',
-    default_registry_url: 'https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/contracts/agent-package-registry.json',
-    manifest_schema_ref: 'contracts/agent-package-surfaces.schema.json#/$defs/opl_package_manifest',
-    home_shortcut_schema_ref: 'contracts/agent-package-surfaces.schema.json#/$defs/home_shortcut_metadata',
-    invocation_receipt_schema_ref: 'contracts/agent-package-surfaces.schema.json#/$defs/invocation_receipt',
-    package_lock_receipt_schema_ref: 'contracts/agent-package-surfaces.schema.json#/$defs/package_lock_receipt',
-    first_party_manifest_fixture_dir: 'contracts/fixtures/agent-package-manifests',
-    registry_is_discovery_only: true,
-    registry_install_authority_allowed: false,
-    manifest_url_required_for_install: true,
-    manifest_validation_required_before_install: true,
-    install_authority: 'validated_opl_package_manifest_plus_framework_package_lock_receipt',
-    mutating_actions_owner: 'one-person-lab',
-    app_role: 'fetch_or_import_registry_entries_display_candidates_and_route_selected_manifest_url_to_framework_without_owning_agent_semantics',
-    direct_manifest_url_install_allowed: true,
-    third_party_registry_required_for_manual_install: false,
-    third_party_entry_policy: 'registry_entries_may_be_listed_for_discovery_but_install_requires_explicit_user_action_trust_tier_assignment_manifest_validation_package_lock_receipt_and_rollback_ref',
-    session_contract_allowed: false,
-    app_hardcoded_agent_ids_required: false,
-  }, 'agent registry policy');
-  assertArrayEqual(registryPolicy?.allowed_registry_source_kinds, expectedRegistrySourceKinds, 'registry source kinds');
-  assertArrayEqual(registryPolicy?.registry_management_actions, expectedRegistryManagementActions, 'registry management actions');
-  assertArrayEqual(registryPolicy?.entry_required_fields, expectedRegistryEntryFields, 'registry entry fields');
-  assertArrayEqual(registryPolicy?.manifest_required_fields, expectedManifestRequiredFields, 'manifest required fields');
+  assertFieldsEqual(
+    registryPolicy,
+    {
+      policy_surface:
+        "Settings Capabilities registry discovery, manifest URL install entry, and package receipt display",
+      default_registry_ref: "contracts/agent-package-registry.json",
+      default_registry_source_kind: "default_opl_registry",
+      default_registry_url:
+        "https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/contracts/agent-package-registry.json",
+      manifest_schema_ref:
+        "contracts/agent-package-surfaces.schema.json#/$defs/opl_package_manifest",
+      home_shortcut_schema_ref:
+        "contracts/agent-package-surfaces.schema.json#/$defs/home_shortcut_metadata",
+      invocation_receipt_schema_ref:
+        "contracts/agent-package-surfaces.schema.json#/$defs/invocation_receipt",
+      package_lock_receipt_schema_ref:
+        "contracts/agent-package-surfaces.schema.json#/$defs/package_lock_receipt",
+      first_party_manifest_fixture_dir: "contracts/fixtures/agent-package-manifests",
+      registry_is_discovery_only: true,
+      registry_install_authority_allowed: false,
+      manifest_url_required_for_install: true,
+      manifest_validation_required_before_install: true,
+      install_authority: "validated_opl_package_manifest_plus_framework_package_lock_receipt",
+      mutating_actions_owner: "one-person-lab",
+      app_role:
+        "fetch_or_import_registry_entries_display_candidates_and_route_selected_manifest_url_to_framework_without_owning_agent_semantics",
+      direct_manifest_url_install_allowed: true,
+      third_party_registry_required_for_manual_install: false,
+      third_party_entry_policy:
+        "registry_entries_may_be_listed_for_discovery_but_install_requires_explicit_user_action_trust_tier_assignment_manifest_validation_package_lock_receipt_and_rollback_ref",
+      session_contract_allowed: false,
+      app_hardcoded_agent_ids_required: false,
+    },
+    "agent registry policy",
+  );
+  assertArrayEqual(
+    registryPolicy?.allowed_registry_source_kinds,
+    expectedRegistrySourceKinds,
+    "registry source kinds",
+  );
+  assertArrayEqual(
+    registryPolicy?.registry_management_actions,
+    expectedRegistryManagementActions,
+    "registry management actions",
+  );
+  assertArrayEqual(
+    registryPolicy?.entry_required_fields,
+    expectedRegistryEntryFields,
+    "registry entry fields",
+  );
+  assertArrayEqual(
+    registryPolicy?.manifest_required_fields,
+    expectedManifestRequiredFields,
+    "manifest required fields",
+  );
 }
 
 function schemaDef(schema: any, name: string): any {
   const def = schema?.$defs?.[name];
-  if (!def || typeof def !== 'object') {
+  if (!def || typeof def !== "object") {
     fail(`agent package surface schema missing $defs.${name}`);
   }
   return def;
 }
 
 function validateAgentPackageSurfaceSchema(contract: any, registry: any, schema: any): void {
-  assertFieldsEqual(schema, {
-    $schema: 'https://json-schema.org/draft/2020-12/schema',
-    $id: 'https://onepersonlab.dev/contracts/agent-package-surfaces.schema.json',
-    title: 'OPL Package Surfaces',
-  }, 'agent package surface schema');
+  assertFieldsEqual(
+    schema,
+    {
+      $schema: "https://json-schema.org/draft/2020-12/schema",
+      $id: "https://onepersonlab.dev/contracts/agent-package-surfaces.schema.json",
+      title: "OPL Package Surfaces",
+    },
+    "agent package surface schema",
+  );
   assertArrayEqual(
-    schemaDef(schema, 'opl_package_manifest').required,
+    schemaDef(schema, "opl_package_manifest").required,
     expectedManifestRequiredFields,
-    'agent package manifest schema required fields',
+    "agent package manifest schema required fields",
   );
   assertArrayEqual(
-    schemaDef(schema, 'opl_package_manifest').properties?.distribution_payload?.required,
+    schemaDef(schema, "opl_package_manifest").properties?.distribution_payload?.required,
     expectedDistributionPayloadFields,
-    'agent package manifest distribution payload fields',
+    "agent package manifest distribution payload fields",
   );
-  if (schemaDef(schema, 'opl_package_manifest').properties?.codex_surface?.properties?.plugin_payload_manifest_url?.type !== 'string') {
-    fail('agent package manifest codex_surface must allow plugin_payload_manifest_url');
+  if (
+    schemaDef(schema, "opl_package_manifest").properties?.codex_surface?.properties
+      ?.plugin_payload_manifest_url?.type !== "string"
+  ) {
+    fail("agent package manifest codex_surface must allow plugin_payload_manifest_url");
   }
-  const physicalSurfaceProperties = schemaDef(schema, 'package_lock_receipt').properties?.physical_surface?.properties;
-  for (const field of ['plugin_payload_manifest_url', 'plugin_payload_manifest_sha256', 'plugin_payload_cache_path']) {
-    if (physicalSurfaceProperties?.[field]?.type !== 'string') {
+  const physicalSurfaceProperties = schemaDef(schema, "package_lock_receipt").properties
+    ?.physical_surface?.properties;
+  for (const field of [
+    "plugin_payload_manifest_url",
+    "plugin_payload_manifest_sha256",
+    "plugin_payload_cache_path",
+  ]) {
+    if (physicalSurfaceProperties?.[field]?.type !== "string") {
       fail(`package lock physical_surface must allow ${field}`);
     }
   }
   assertArrayEqual(
-    schemaDef(schema, 'home_shortcut_metadata').required,
+    schemaDef(schema, "home_shortcut_metadata").required,
     expectedHomeShortcutRequiredFields,
-    'home shortcut metadata schema required fields',
+    "home shortcut metadata schema required fields",
   );
   assertArrayEqual(
-    schemaDef(schema, 'invocation_receipt').required,
+    schemaDef(schema, "invocation_receipt").required,
     expectedInvocationReceiptRequiredFields,
-    'invocation receipt schema required fields',
+    "invocation receipt schema required fields",
   );
   assertArrayEqual(
-    schemaDef(schema, 'package_lock_receipt').required,
+    schemaDef(schema, "package_lock_receipt").required,
     expectedPackageLockReceiptFields,
-    'package lock receipt schema required fields',
+    "package lock receipt schema required fields",
   );
-  const activationRequest = schemaDef(schema, 'agent_package_activation_request');
+  const activationRequest = schemaDef(schema, "agent_package_activation_request");
   assertArrayEqual(
     activationRequest.required,
     expectedActivationRequestRequiredFields,
-    'agent package activation request required fields',
+    "agent package activation request required fields",
   );
   assertArrayEqual(
     activationRequest.properties?.scope?.enum,
     expectedActivationPolicy.scope_values,
-    'agent package activation request scope values',
+    "agent package activation request scope values",
   );
-  assertEqual(activationRequest.allOf?.length, 2, 'agent package activation request conditional target count');
+  assertEqual(
+    activationRequest.allOf?.length,
+    2,
+    "agent package activation request conditional target count",
+  );
   assertJsonEqual(
     activationRequest.allOf?.map((condition: any) => ({
       scope: condition?.if?.properties?.scope?.const,
@@ -720,101 +874,152 @@ function validateAgentPackageSurfaceSchema(contract: any, registry: any, schema:
       forbidden: condition?.then?.not?.required,
     })),
     [
-      { scope: 'workspace', required: ['target_workspace'], forbidden: ['target_quest'] },
-      { scope: 'quest', required: ['target_quest'], forbidden: ['target_workspace'] },
+      { scope: "workspace", required: ["target_workspace"], forbidden: ["target_quest"] },
+      { scope: "quest", required: ["target_quest"], forbidden: ["target_workspace"] },
     ],
-    'agent package activation request scope targets',
+    "agent package activation request scope targets",
   );
-  const activationResult = schemaDef(schema, 'agent_package_activation_result');
+  const activationResult = schemaDef(schema, "agent_package_activation_result");
   assertArrayEqual(
     activationResult.required,
     expectedActivationResultRequiredFields,
-    'agent package activation result required fields',
+    "agent package activation result required fields",
   );
-  assertEqual(activationResult.properties?.launch_allowed?.type, 'boolean', 'agent package activation result launch gate');
-  assertEqual(activationResult.properties?.use_binding?.type, 'object', 'agent package activation result use binding');
-  const activationAction = schemaDef(schema, 'agent_package_activation_action');
+  assertEqual(
+    activationResult.properties?.launch_allowed?.type,
+    "boolean",
+    "agent package activation result launch gate",
+  );
+  assertEqual(
+    activationResult.properties?.use_binding?.type,
+    "object",
+    "agent package activation result use binding",
+  );
+  const activationAction = schemaDef(schema, "agent_package_activation_action");
   assertArrayEqual(
     activationAction.required,
     expectedActivationActionRequiredFields,
-    'agent package activation action required fields',
+    "agent package activation action required fields",
   );
-  assertEqual(activationAction.properties?.action_id?.const, 'agent_package_activate', 'agent package activation action id');
+  assertEqual(
+    activationAction.properties?.action_id?.const,
+    "agent_package_activate",
+    "agent package activation action id",
+  );
   assertArrayEqual(
     activationAction.properties?.preparation_status?.enum,
     expectedActivationPreparationStatuses,
-    'agent package activation preparation statuses',
+    "agent package activation preparation statuses",
   );
   assertEqual(
     contract.agent_registry_policy.manifest_schema_ref,
     registry.manifest_schema_ref,
-    'registry manifest schema ref',
+    "registry manifest schema ref",
   );
   assertEqual(
     contract.agent_registry_policy.first_party_manifest_fixture_dir,
     registry.first_party_manifest_fixture_dir,
-    'registry first-party manifest fixture dir',
+    "registry first-party manifest fixture dir",
   );
 }
 
 function validateAgentRegistryPolicy(contract: any, profile: any, registry: any): void {
   const registryPolicy = contract.agent_registry_policy;
-  assertFieldsEqual(registry, {
-    owner: 'one-person-lab-app',
-    purpose: 'opl_package_registry_catalog_contract',
-    state: 'active_app_discovery_contract',
-    version: 1,
-    policy_ref: 'contracts/app-install-exposure-policy.json#agent_installation_contract.agent_registry_policy',
-    manifest_schema_ref: 'contracts/agent-package-surfaces.schema.json#/$defs/opl_package_manifest',
-    first_party_manifest_fixture_dir: 'contracts/fixtures/agent-package-manifests',
-    registry_id: 'opl-default-agent-registry',
-    registry_name: 'OPL Agent Registry',
-    registry_source_kind: 'default_opl_registry',
-    registry_url: registryPolicy.default_registry_url,
-    discovery_only: true,
-    install_authority_allowed: false,
-  }, 'agent registry catalog');
-  if (!registry.machine_boundary?.includes('discovery projection') || !registry.machine_boundary?.includes('version authority')) {
-    fail('package registry catalog must state that Framework owns version authority and App entries are discovery projection only');
+  assertFieldsEqual(
+    registry,
+    {
+      owner: "one-person-lab-app",
+      purpose: "opl_package_registry_catalog_contract",
+      state: "active_app_discovery_contract",
+      version: 1,
+      policy_ref:
+        "contracts/app-install-exposure-policy.json#agent_installation_contract.agent_registry_policy",
+      manifest_schema_ref:
+        "contracts/agent-package-surfaces.schema.json#/$defs/opl_package_manifest",
+      first_party_manifest_fixture_dir: "contracts/fixtures/agent-package-manifests",
+      registry_id: "opl-default-agent-registry",
+      registry_name: "OPL Agent Registry",
+      registry_source_kind: "default_opl_registry",
+      registry_url: registryPolicy.default_registry_url,
+      discovery_only: true,
+      install_authority_allowed: false,
+    },
+    "agent registry catalog",
+  );
+  if (
+    !registry.machine_boundary?.includes("discovery projection") ||
+    !registry.machine_boundary?.includes("version authority")
+  ) {
+    fail(
+      "package registry catalog must state that Framework owns version authority and App entries are discovery projection only",
+    );
   }
-  assertArrayEqual(registry.entry_required_fields, expectedRegistryEntryFields, 'registry catalog entry fields');
-  assertArrayEqual(registry.manifest_required_fields, expectedManifestRequiredFields, 'registry catalog manifest fields');
-  assertArrayEqual(registry.excluded_registry_fields, expectedRegistryExcludedFields, 'registry catalog excluded fields');
+  assertArrayEqual(
+    registry.entry_required_fields,
+    expectedRegistryEntryFields,
+    "registry catalog entry fields",
+  );
+  assertArrayEqual(
+    registry.manifest_required_fields,
+    expectedManifestRequiredFields,
+    "registry catalog manifest fields",
+  );
+  assertArrayEqual(
+    registry.excluded_registry_fields,
+    expectedRegistryExcludedFields,
+    "registry catalog excluded fields",
+  );
 
   const profilePackages = profile.gui?.professional_agent_packages ?? [];
   assertArrayEqual(
     profilePackages.map((entry: any) => entry.package_id),
     expectedProfessionalPackageIds,
-    'profile professional package ids',
+    "profile professional package ids",
   );
   const entries = registry.entries ?? [];
   assertArrayEqual(
     entries.map((entry: any) => entry.package_id).sort(),
     [...expectedRegistryPackageIds].sort(),
-    'registry package ids',
+    "registry package ids",
   );
   const profileById = new Map(profilePackages.map((entry: any) => [entry.package_id, entry]));
   for (const entry of entries) {
     for (const field of expectedRegistryEntryFields) {
-      if (entry[field] === undefined || entry[field] === null || entry[field] === '') {
+      if (entry[field] === undefined || entry[field] === null || entry[field] === "") {
         fail(`registry entry ${entry.package_id} missing ${field}`);
       }
     }
-    if (!String(entry.manifest_url).startsWith('https://raw.githubusercontent.com/')) {
+    if (!String(entry.manifest_url).startsWith("https://raw.githubusercontent.com/")) {
       fail(`registry entry ${entry.package_id} manifest_url must be a raw GitHub HTTPS URL`);
     }
-    assertEqual(entry.source, 'first_party', `registry entry ${entry.package_id} source`);
-    assertEqual(entry.trust_tier, 'first_party', `registry entry ${entry.package_id} trust tier`);
-    assertEqual(entry.display_policy, 'refs_only_no_domain_verdict', `registry entry ${entry.package_id} display policy`);
+    assertEqual(entry.source, "first_party", `registry entry ${entry.package_id} source`);
+    assertEqual(entry.trust_tier, "first_party", `registry entry ${entry.package_id} trust tier`);
+    assertEqual(
+      entry.display_policy,
+      "refs_only_no_domain_verdict",
+      `registry entry ${entry.package_id} display policy`,
+    );
     for (const excludedField of expectedRegistryExcludedFields) {
       if (entry[excludedField] !== undefined) {
         fail(`registry entry ${entry.package_id} must not define ${excludedField}`);
       }
     }
-    assertEqual(entry.package_kind, expectedPackageKinds[entry.package_id], `registry entry ${entry.package_id} package kind`);
+    assertEqual(
+      entry.package_kind,
+      expectedPackageKinds[entry.package_id],
+      `registry entry ${entry.package_id} package kind`,
+    );
     const expectedManifestUrl = `https://raw.githubusercontent.com/gaofeng21cn/one-person-lab/main/contracts/opl-framework/packages/${entry.package_id}.json`;
-    assertEqual(entry.manifest_url, expectedManifestUrl, `registry entry ${entry.package_id} manifest URL`);
-    assertEqual(entry.version_source_ref, `${expectedManifestUrl}#/version`, `registry entry ${entry.package_id} version source`);
+    assertEqual(
+      entry.manifest_url,
+      expectedManifestUrl,
+      `registry entry ${entry.package_id} manifest URL`,
+    );
+    assertEqual(
+      entry.version_source_ref,
+      `${expectedManifestUrl}#/version`,
+      `registry entry ${entry.package_id} version source`,
+    );
     assertEqual(
       entry.ordinary_user_source?.artifact_ref,
       `ghcr.io/gaofeng21cn/one-person-lab-packages/${entry.package_id}`,
@@ -831,54 +1036,93 @@ function validateAgentRegistryPolicy(contract: any, profile: any, registry: any)
       `registry entry ${entry.package_id} candidate OCI ref`,
     );
     const profileEntry = profileById.get(entry.package_id);
-    if (entry.package_kind !== 'domain_agent_package') {
+    if (entry.package_kind !== "domain_agent_package") {
       if (profileEntry || entry.agent_id !== undefined || entry.home_shortcut_ids?.length !== 0) {
-        fail(`non-agent registry entry ${entry.package_id} must not define agent identity or Home shortcuts`);
+        fail(
+          `non-agent registry entry ${entry.package_id} must not define agent identity or Home shortcuts`,
+        );
       }
       continue;
     }
     if (!profileEntry) {
-      fail(`domain-agent registry entry ${entry.package_id} has no matching professional profile package`);
+      fail(
+        `domain-agent registry entry ${entry.package_id} has no matching professional profile package`,
+      );
     }
     assertEqual(entry.agent_id, entry.package_id, `${entry.package_id} canonical agent id`);
     assertEqual(profileEntry.agent_id, entry.agent_id, `${entry.package_id} profile agent id`);
-    assertEqual(entry.codex_visible_entry, profileEntry.codex_visible_entry, `${entry.package_id} registry codex entry`);
-    assertArrayEqual(entry.required_skill_ids, profileEntry.required_skill_ids, `${entry.package_id} registry required skills`);
-    assertArrayEqual(entry.optional_skill_ids, profileEntry.optional_skill_ids, `${entry.package_id} registry optional skills`);
-    assertArrayEqual(entry.home_shortcut_ids, profileEntry.home_shortcut_ids, `${entry.package_id} registry home shortcuts`);
-    assertEqual(entry.starter_default, profileEntry.package_kind === 'starter_professional_agent_package', `${entry.package_id} registry starter default`);
+    assertEqual(
+      entry.codex_visible_entry,
+      profileEntry.codex_visible_entry,
+      `${entry.package_id} registry codex entry`,
+    );
+    assertArrayEqual(
+      entry.required_skill_ids,
+      profileEntry.required_skill_ids,
+      `${entry.package_id} registry required skills`,
+    );
+    assertArrayEqual(
+      entry.optional_skill_ids,
+      profileEntry.optional_skill_ids,
+      `${entry.package_id} registry optional skills`,
+    );
+    assertArrayEqual(
+      entry.home_shortcut_ids,
+      profileEntry.home_shortcut_ids,
+      `${entry.package_id} registry home shortcuts`,
+    );
+    assertEqual(
+      entry.starter_default,
+      profileEntry.package_kind === "starter_professional_agent_package",
+      `${entry.package_id} registry starter default`,
+    );
   }
 }
 
 function validateFirstPartyManifestFixtures(profile: any, registry: any, schema: any): void {
   if (!fs.existsSync(agentPackageManifestFixtureDir)) {
-    fail(`missing first-party agent package manifest fixture dir: ${agentPackageManifestFixtureDir}`);
+    fail(
+      `missing first-party agent package manifest fixture dir: ${agentPackageManifestFixtureDir}`,
+    );
   }
-  const manifestSchema = schemaDef(schema, 'opl_package_manifest');
+  const manifestSchema = schemaDef(schema, "opl_package_manifest");
   const profilePackages = new Map(
     (profile.gui?.professional_agent_packages ?? []).map((entry: any) => [entry.package_id, entry]),
   );
   const registryEntries = registry.entries ?? [];
   assertArrayEqual(
-    fs.readdirSync(agentPackageManifestFixtureDir).filter((entry) => entry.endsWith('.json')).sort(),
+    fs
+      .readdirSync(agentPackageManifestFixtureDir)
+      .filter((entry) => entry.endsWith(".json"))
+      .sort(),
     expectedRegistryPackageIds.map((packageId) => `${packageId}.json`).sort(),
-    'agent package manifest fixture files',
+    "agent package manifest fixture files",
   );
   for (const registryEntry of registryEntries) {
-    const fixturePath = path.join(agentPackageManifestFixtureDir, `${registryEntry.package_id}.json`);
+    const fixturePath = path.join(
+      agentPackageManifestFixtureDir,
+      `${registryEntry.package_id}.json`,
+    );
     const manifest = readJson(fixturePath);
     const fixtureDistributionSurface = JSON.stringify(manifest.distribution_payload ?? {});
-    for (const forbidden of ['/opl-agent-', '/opl-package-', '/one-person-lab-modules/']) {
+    for (const forbidden of ["/opl-agent-", "/opl-package-", "/one-person-lab-modules/"]) {
       if (fixtureDistributionSurface.includes(forbidden)) {
-        fail(`manifest fixture ${registryEntry.package_id} distribution contains legacy namespace ${forbidden}`);
+        fail(
+          `manifest fixture ${registryEntry.package_id} distribution contains legacy namespace ${forbidden}`,
+        );
       }
     }
     if (/:latest(?:[\"/?#]|$)/.test(fixtureDistributionSurface)) {
-      fail(`manifest fixture ${registryEntry.package_id} must use latest-stable, never the plain latest tag`);
+      fail(
+        `manifest fixture ${registryEntry.package_id} must use latest-stable, never the plain latest tag`,
+      );
     }
-    const missing = expectedManifestRequiredFields.filter((field) => manifest[field] === undefined || manifest[field] === null || manifest[field] === '');
+    const missing = expectedManifestRequiredFields.filter(
+      (field) =>
+        manifest[field] === undefined || manifest[field] === null || manifest[field] === "",
+    );
     if (missing.length > 0) {
-      fail(`manifest fixture ${registryEntry.package_id} missing ${missing.join(', ')}`);
+      fail(`manifest fixture ${registryEntry.package_id} missing ${missing.join(", ")}`);
     }
     for (const forbiddenField of expectedRegistryExcludedFields) {
       if (manifest[forbiddenField] !== undefined) {
@@ -886,42 +1130,82 @@ function validateFirstPartyManifestFixtures(profile: any, registry: any, schema:
       }
     }
     if (!manifestSchema?.not?.anyOf || !Array.isArray(manifestSchema.not.anyOf)) {
-      fail('OPL package manifest schema must forbid session/domain authority fields');
+      fail("OPL package manifest schema must forbid session/domain authority fields");
     }
     const profileEntry = profilePackages.get(registryEntry.package_id);
-    assertEqual(manifest.package_id, registryEntry.package_id, `${registryEntry.package_id} manifest package id`);
-    assertEqual(manifest.package_kind, registryEntry.package_kind, `${registryEntry.package_id} manifest package kind`);
-    if (manifest.package_kind === 'domain_agent_package') {
-      assertEqual(manifest.agent_id, manifest.package_id, `${registryEntry.package_id} manifest canonical agent id`);
+    assertEqual(
+      manifest.package_id,
+      registryEntry.package_id,
+      `${registryEntry.package_id} manifest package id`,
+    );
+    assertEqual(
+      manifest.package_kind,
+      registryEntry.package_kind,
+      `${registryEntry.package_id} manifest package kind`,
+    );
+    if (manifest.package_kind === "domain_agent_package") {
+      assertEqual(
+        manifest.agent_id,
+        manifest.package_id,
+        `${registryEntry.package_id} manifest canonical agent id`,
+      );
       if (!profileEntry) {
-        fail(`domain-agent manifest fixture ${registryEntry.package_id} has no matching profile package`);
+        fail(
+          `domain-agent manifest fixture ${registryEntry.package_id} has no matching profile package`,
+        );
       }
     } else if (manifest.agent_id !== undefined || profileEntry) {
-      fail(`non-agent manifest fixture ${registryEntry.package_id} must not define agent identity or a professional profile`);
+      fail(
+        `non-agent manifest fixture ${registryEntry.package_id} must not define agent identity or a professional profile`,
+      );
     }
-    assertEqual(manifest.display_name, registryEntry.display_name, `${registryEntry.package_id} manifest display name`);
-    assertEqual(manifest.publisher, registryEntry.publisher, `${registryEntry.package_id} manifest publisher`);
-    assertEqual(manifest.source, registryEntry.source, `${registryEntry.package_id} manifest source`);
+    assertEqual(
+      manifest.display_name,
+      registryEntry.display_name,
+      `${registryEntry.package_id} manifest display name`,
+    );
+    assertEqual(
+      manifest.publisher,
+      registryEntry.publisher,
+      `${registryEntry.package_id} manifest publisher`,
+    );
+    assertEqual(
+      manifest.source,
+      registryEntry.source,
+      `${registryEntry.package_id} manifest source`,
+    );
     if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(String(manifest.version))) {
       fail(`manifest fixture ${registryEntry.package_id} version must be SemVer test data`);
     }
-    assertEqual(manifest.update_channel, 'managed_opl_packages', `${registryEntry.package_id} manifest update channel`);
-    assertEqual(manifest.health_check?.kind, 'opl_package_receipt', `${registryEntry.package_id} manifest health check kind`);
+    assertEqual(
+      manifest.update_channel,
+      "managed_opl_packages",
+      `${registryEntry.package_id} manifest update channel`,
+    );
+    assertEqual(
+      manifest.health_check?.kind,
+      "opl_package_receipt",
+      `${registryEntry.package_id} manifest health check kind`,
+    );
     assertArrayEqual(
       Object.keys(manifest.distribution_payload ?? {}),
       expectedDistributionPayloadFields,
       `${registryEntry.package_id} manifest distribution payload fields`,
     );
-    assertFieldsEqual(manifest.distribution_payload, {
-      payload_kind: 'ghcr_oci_opl_package',
-      proof_status: 'contract_fixture_non_live',
-      live_download_proof: false,
-      installed_reload_proof: false,
-      oci_media_type: 'application/vnd.onepersonlab.package.v1+tar',
-      moving_tag: 'latest-stable',
-      promotion_policy: 'daily_candidate_gates_then_promote_latest_stable',
-      install_truth: 'resolved_digest_lock',
-    }, `${registryEntry.package_id} manifest distribution payload`);
+    assertFieldsEqual(
+      manifest.distribution_payload,
+      {
+        payload_kind: "ghcr_oci_opl_package",
+        proof_status: "contract_fixture_non_live",
+        live_download_proof: false,
+        installed_reload_proof: false,
+        oci_media_type: "application/vnd.onepersonlab.package.v1+tar",
+        moving_tag: "latest-stable",
+        promotion_policy: "daily_candidate_gates_then_promote_latest_stable",
+        install_truth: "resolved_digest_lock",
+      },
+      `${registryEntry.package_id} manifest distribution payload`,
+    );
     assertEqual(
       manifest.distribution_payload.oci_ref,
       `ghcr.io/gaofeng21cn/one-person-lab-packages/${registryEntry.package_id}:latest-stable`,
@@ -942,7 +1226,11 @@ function validateFirstPartyManifestFixtures(profile: any, registry: any, schema:
       `${registryEntry.package_id} manifest payload digest ref`,
     );
     for (const lockRef of manifest.distribution_payload.required_skill_pack_lock_refs) {
-      assertFixtureDigestRef(lockRef, `${registryEntry.package_id} manifest required skill pack lock ref`, true);
+      assertFixtureDigestRef(
+        lockRef,
+        `${registryEntry.package_id} manifest required skill pack lock ref`,
+        true,
+      );
     }
     assertArrayEqual(
       manifest.codex_surface?.plugin_ids,
@@ -967,10 +1255,16 @@ function validateFirstPartyManifestFixtures(profile: any, registry: any, schema:
       );
     }
     if (!Array.isArray(manifest.skill_packs) || manifest.skill_packs.length !== 1) {
-      fail(`manifest fixture ${registryEntry.package_id} must declare one bundled required skill pack`);
+      fail(
+        `manifest fixture ${registryEntry.package_id} must declare one bundled required skill pack`,
+      );
     }
     const skillPack = manifest.skill_packs[0];
-    assertFixtureDigestRef(skillPack.lock_ref, `${registryEntry.package_id} manifest skill pack lock ref`, true);
+    assertFixtureDigestRef(
+      skillPack.lock_ref,
+      `${registryEntry.package_id} manifest skill pack lock ref`,
+      true,
+    );
     assertEqual(
       skillPack.id,
       expectedSkillPackIds[registryEntry.package_id],
@@ -978,11 +1272,13 @@ function validateFirstPartyManifestFixtures(profile: any, registry: any, schema:
     );
     assertEqual(
       skillPack.install_mode,
-      'bundled_required',
+      "bundled_required",
       `${registryEntry.package_id} manifest required skill pack install mode`,
     );
-    if (skillPack.lock_ref === 'registry.version_source_ref') {
-      fail(`manifest fixture ${registryEntry.package_id} required skill pack lock_ref must not use registry.version_source_ref`);
+    if (skillPack.lock_ref === "registry.version_source_ref") {
+      fail(
+        `manifest fixture ${registryEntry.package_id} required skill pack lock_ref must not use registry.version_source_ref`,
+      );
     }
     assertArrayEqual(
       manifest.distribution_payload.required_skill_pack_lock_refs,
@@ -993,9 +1289,15 @@ function validateFirstPartyManifestFixtures(profile: any, registry: any, schema:
     if (!expectedSource) {
       fail(`manifest fixture ${registryEntry.package_id} has no expected skill pack source`);
     }
-    assertEqual(skillPack.source, expectedSource, `${registryEntry.package_id} manifest required skill pack source`);
-    if (!String(skillPack.source ?? '').startsWith('github:')) {
-      fail(`manifest fixture ${registryEntry.package_id} required skill pack source must be a github ref`);
+    assertEqual(
+      skillPack.source,
+      expectedSource,
+      `${registryEntry.package_id} manifest required skill pack source`,
+    );
+    if (!String(skillPack.source ?? "").startsWith("github:")) {
+      fail(
+        `manifest fixture ${registryEntry.package_id} required skill pack source must be a github ref`,
+      );
     }
     const localSourcePath = validateGithubSourcePathIfAvailable(
       skillPack.source,
@@ -1004,12 +1306,12 @@ function validateFirstPartyManifestFixtures(profile: any, registry: any, schema:
     if (isGeneratedAgent(registryEntry.package_id)) {
       assertEqual(
         skillPack.source_kind,
-        'opl_generated_plugin_surface',
+        "opl_generated_plugin_surface",
         `${registryEntry.package_id} manifest skill pack source kind`,
       );
       assertEqual(
         skillPack.generated_surface_owner,
-        'one-person-lab',
+        "one-person-lab",
         `${registryEntry.package_id} manifest skill pack generated owner`,
       );
       assertEqual(
@@ -1024,7 +1326,7 @@ function validateFirstPartyManifestFixtures(profile: any, registry: any, schema:
       );
       assertEqual(
         manifest.codex_surface?.generated_surface_owner,
-        'one-person-lab',
+        "one-person-lab",
         `${registryEntry.package_id} manifest generated plugin owner`,
       );
       validateGithubSourcePathIfAvailable(
@@ -1032,7 +1334,11 @@ function validateFirstPartyManifestFixtures(profile: any, registry: any, schema:
         `${registryEntry.package_id} manifest semantic pack root`,
       );
     } else {
-      assertEqual(skillPack.source_kind, 'repo_plugin_skill', `${registryEntry.package_id} manifest skill pack source kind`);
+      assertEqual(
+        skillPack.source_kind,
+        "repo_plugin_skill",
+        `${registryEntry.package_id} manifest skill pack source kind`,
+      );
       if (localSourcePath) {
         validateRepoPluginSkillSource(
           localSourcePath,
@@ -1053,47 +1359,79 @@ function validateFirstPartyManifestFixtures(profile: any, registry: any, schema:
         registryEntry.required_skill_ids,
         `${registryEntry.package_id} manifest entrypoint required skills`,
       );
-      assertEqual(entrypoint.shortcut_eligible, true, `${registryEntry.package_id} manifest entrypoint eligibility`);
+      assertEqual(
+        entrypoint.shortcut_eligible,
+        true,
+        `${registryEntry.package_id} manifest entrypoint eligibility`,
+      );
     }
   }
 }
 
 function validatePackageManagerLifecycle(contract: any): void {
   const lifecycle = contract.package_manager_lifecycle;
-  assertFieldsEqual(lifecycle, {
-    policy_surface: 'Settings Capabilities package manager and app/cli action receipts',
-    manual_check_policy: 'automatic_daily_check_plus_explicit_user_refresh',
-    apply_selected_policy: 'automatic_apply_for_clean_managed_roots_explicit_apply_for_selected_packages',
-    mutating_actions_require_action_receipt: true,
-    rollback_ref_required_for_mutating_actions: true,
-    package_lock_required: true,
-    domain_truth_authority_allowed: false,
-    home_shortcut_preferences_owner: 'one-person-lab',
-    home_shortcut_preferences_action: 'agent_package_preferences_set',
-    home_shortcut_preferences_readback: 'opl packages list/status#home_shortcut_preferences',
-  }, 'package manager lifecycle');
-  assertArrayEqual(lifecycle?.actions, expectedPackageLifecycleActions, 'package manager lifecycle actions');
-  assertJsonEqual(lifecycle?.activation_contract, expectedActivationPolicy, 'package manager lifecycle activation contract');
+  assertFieldsEqual(
+    lifecycle,
+    {
+      policy_surface: "Settings Capabilities package manager and app/cli action receipts",
+      manual_check_policy: "automatic_daily_check_plus_explicit_user_refresh",
+      apply_selected_policy:
+        "automatic_apply_for_clean_managed_roots_explicit_apply_for_selected_packages",
+      mutating_actions_require_action_receipt: true,
+      rollback_ref_required_for_mutating_actions: true,
+      package_lock_required: true,
+      domain_truth_authority_allowed: false,
+      home_shortcut_preferences_owner: "one-person-lab",
+      home_shortcut_preferences_action: "agent_package_preferences_set",
+      home_shortcut_preferences_readback: "opl packages list/status#home_shortcut_preferences",
+    },
+    "package manager lifecycle",
+  );
+  assertArrayEqual(
+    lifecycle?.actions,
+    expectedPackageLifecycleActions,
+    "package manager lifecycle actions",
+  );
+  assertJsonEqual(
+    lifecycle?.activation_contract,
+    expectedActivationPolicy,
+    "package manager lifecycle activation contract",
+  );
   const activationContractJson = JSON.stringify(lifecycle?.activation_contract);
   for (const agentId of expectedRequiredAgentIds) {
     if (activationContractJson.includes(agentId)) {
       fail(`package manager lifecycle activation contract must remain generic, found ${agentId}`);
     }
   }
-  assertFieldsEqual(lifecycle?.automatic_apply_policy, {
-    cadence: 'daily_after_core_ready_and_app_startup_check',
-    user_visible_channel: 'latest-stable',
-    receipt_required: true,
-  }, 'package manager lifecycle automatic apply policy');
+  assertFieldsEqual(
+    lifecycle?.automatic_apply_policy,
+    {
+      cadence: "daily_after_core_ready_and_app_startup_check",
+      user_visible_channel: "latest-stable",
+      receipt_required: true,
+    },
+    "package manager lifecycle automatic apply policy",
+  );
   assertArrayEqual(
     lifecycle?.automatic_apply_policy?.apply_when,
-    ['latest_stable_digest_changed', 'managed_root_clean', 'manifest_permissions_unchanged', 'compatibility_gate_passed'],
-    'package manager lifecycle automatic apply conditions',
+    [
+      "latest_stable_digest_changed",
+      "managed_root_clean",
+      "manifest_permissions_unchanged",
+      "compatibility_gate_passed",
+    ],
+    "package manager lifecycle automatic apply conditions",
   );
   assertArrayEqual(
     lifecycle?.automatic_apply_policy?.require_user_action_when,
-    ['developer_checkout', 'dirty_checkout', 'permission_scope_changed', 'major_compatibility_break', 'verification_failed'],
-    'package manager lifecycle manual action conditions',
+    [
+      "developer_checkout",
+      "dirty_checkout",
+      "permission_scope_changed",
+      "major_compatibility_break",
+      "verification_failed",
+    ],
+    "package manager lifecycle manual action conditions",
   );
 }
 
@@ -1101,61 +1439,78 @@ function validateThirdPartyManualSourcePolicy(contract: any): void {
   const sourcePolicy = contract.third_party_manual_source_policy;
   assertArrayEqual(
     sourcePolicy?.ordinary_user_default_source_kinds,
-    ['first_party_ghcr_oci_artifact', 'bundled_full_runtime_modules'],
-    'manual source ordinary defaults',
+    ["first_party_ghcr_oci_artifact", "bundled_full_runtime_modules"],
+    "manual source ordinary defaults",
   );
   assertArrayEqual(
     sourcePolicy?.manual_third_party_allowed_source_kinds,
     expectedManualThirdPartySourceKinds,
-    'manual third-party source kinds',
+    "manual third-party source kinds",
   );
   assertArrayEqual(
     sourcePolicy?.manual_third_party_requires,
     expectedManualThirdPartyRequires,
-    'manual third-party source requirements',
+    "manual third-party source requirements",
   );
-  assertFieldsEqual(sourcePolicy, {
-    developer_override_source_kind: 'developer_checkout_override',
-    app_hardcoded_repo_path_allowed: false,
-    duplicate_bare_skill_mirrors_allowed: false,
-    homebrew_package_formula_allowed: false,
-    third_party_catalog_required: false,
-  }, 'manual source policy');
+  assertFieldsEqual(
+    sourcePolicy,
+    {
+      developer_override_source_kind: "developer_checkout_override",
+      app_hardcoded_repo_path_allowed: false,
+      duplicate_bare_skill_mirrors_allowed: false,
+      homebrew_package_formula_allowed: false,
+      third_party_catalog_required: false,
+    },
+    "manual source policy",
+  );
   assertArrayEqual(
     sourcePolicy?.remote_distribution_payload_contract?.required_fields,
     expectedRemoteDistributionPayloadFields,
-    'manual source remote distribution payload fields',
+    "manual source remote distribution payload fields",
   );
-  assertFieldsEqual(sourcePolicy?.remote_distribution_payload_contract, {
-    download_execution_owner: 'one-person-lab',
-    app_contract_claim: 'validate_and_route_refs_only_without_claiming_live_download_or_installed_reload',
-    live_download_proof_claim_allowed: false,
-    installed_reload_proof_claim_allowed: false,
-  }, 'manual source remote distribution payload contract');
-  if (!sourcePolicy?.validation_scope?.includes('without hardcoding exact third-party package ids')) {
-    fail('manual source policy must validate shape without hardcoding exact third-party package ids');
+  assertFieldsEqual(
+    sourcePolicy?.remote_distribution_payload_contract,
+    {
+      download_execution_owner: "one-person-lab",
+      app_contract_claim:
+        "validate_and_route_refs_only_without_claiming_live_download_or_installed_reload",
+      live_download_proof_claim_allowed: false,
+      installed_reload_proof_claim_allowed: false,
+    },
+    "manual source remote distribution payload contract",
+  );
+  if (
+    !sourcePolicy?.validation_scope?.includes("without hardcoding exact third-party package ids")
+  ) {
+    fail(
+      "manual source policy must validate shape without hardcoding exact third-party package ids",
+    );
   }
 }
 
 function validatePackageLockReceiptContract(contract: any): void {
   const receiptContract = contract.package_lock_receipt_contract;
-  assertFieldsEqual(receiptContract, {
-    lock_owner: 'one-person-lab',
-    app_role: 'require_and_display_package_lock_refs_without_owning_domain_semantics',
-    trust_tier_required: true,
-    rollback_ref_required: true,
-    codex_visible_entry_required: true,
-    optional_skill_refs_are_refs_only: true,
-  }, 'package lock receipt contract');
+  assertFieldsEqual(
+    receiptContract,
+    {
+      lock_owner: "one-person-lab",
+      app_role: "require_and_display_package_lock_refs_without_owning_domain_semantics",
+      trust_tier_required: true,
+      rollback_ref_required: true,
+      codex_visible_entry_required: true,
+      optional_skill_refs_are_refs_only: true,
+    },
+    "package lock receipt contract",
+  );
   assertArrayEqual(
     receiptContract?.required_fields,
     expectedPackageLockReceiptFields,
-    'package lock receipt fields',
+    "package lock receipt fields",
   );
   assertArrayEqual(
     receiptContract?.source_kind_allowed_values,
     expectedPackageSourceKinds,
-    'package lock source kinds',
+    "package lock source kinds",
   );
 }
 
@@ -1164,221 +1519,383 @@ function validateAtomicBundlePolicy(contract: any): void {
   assertArrayEqual(
     atomicPolicy?.managed_package_unit_ids,
     expectedRegistryPackageIds,
-    'atomic package unit ids',
+    "atomic package unit ids",
   );
   assertArrayEqual(
     atomicPolicy?.package_unit_includes,
     expectedAtomicPackageUnitIncludes,
-    'atomic package unit includes',
+    "atomic package unit includes",
   );
-  assertFieldsEqual(atomicPolicy, {
-    framework_local_payload_validation: 'repo_plugin_skill sources must resolve to .codex-plugin/plugin.json plus skills/<required_skill_id>/SKILL.md; opl_generated_plugin_surface sources must resolve to the domain pack compiler input and generated_surface_owner=one-person-lab',
-    required_skill_pack_lock_policy: 'skill_packs[].lock_ref must be a release or digest lock and must not equal registry.version_source_ref or a moving tag',
-    reconcile_update_uninstall_as_unit: true,
-    domain_repo_remains_semantic_owner: true,
-    app_package_manager_scope: 'install_exposure_package_lock_action_receipts_and_codex_visible_entries_only',
-    release_payload_proof_live_claim_allowed: false,
-    installed_codex_reload_proof_deferred: true,
-  }, 'atomic bundle policy');
+  assertFieldsEqual(
+    atomicPolicy,
+    {
+      framework_local_payload_validation:
+        "repo_plugin_skill sources must resolve to .codex-plugin/plugin.json plus skills/<required_skill_id>/SKILL.md; opl_generated_plugin_surface sources must resolve to the domain pack compiler input and generated_surface_owner=one-person-lab",
+      required_skill_pack_lock_policy:
+        "skill_packs[].lock_ref must be a release or digest lock and must not equal registry.version_source_ref or a moving tag",
+      reconcile_update_uninstall_as_unit: true,
+      domain_repo_remains_semantic_owner: true,
+      app_package_manager_scope:
+        "install_exposure_package_lock_action_receipts_and_codex_visible_entries_only",
+      release_payload_proof_live_claim_allowed: false,
+      installed_codex_reload_proof_deferred: true,
+    },
+    "atomic bundle policy",
+  );
   assertArrayEqual(
     atomicPolicy?.release_payload_proof_required_fields,
     expectedDistributionPayloadFields,
-    'atomic bundle release payload proof fields',
+    "atomic bundle release payload proof fields",
   );
   assertArrayEqual(
     atomicPolicy?.physical_surface_required_skill_readback_fields,
-    ['materialized_required_skill_ids', 'materialized_required_skill_paths'],
-    'atomic bundle physical surface required skill readback fields',
+    ["materialized_required_skill_ids", "materialized_required_skill_paths"],
+    "atomic bundle physical surface required skill readback fields",
   );
-  assertFieldsEqual(atomicPolicy?.med_autoscience_professional_skill_pack_unit, {
-    package_id: 'mas',
-    agent_id: 'mas',
-    required_skill_pack_id: 'med-autoscience-professional-skill-pack',
-    atomic_with_agent_package: true,
-    domain_repo_remains_semantic_owner: true,
-  }, 'MAS professional skill pack unit');
+  assertFieldsEqual(
+    atomicPolicy?.med_autoscience_professional_skill_pack_unit,
+    {
+      package_id: "mas",
+      agent_id: "mas",
+      required_skill_pack_id: "med-autoscience-professional-skill-pack",
+      atomic_with_agent_package: true,
+      domain_repo_remains_semantic_owner: true,
+    },
+    "MAS professional skill pack unit",
+  );
   assertArrayEqual(
     atomicPolicy?.med_autoscience_professional_skill_pack_unit?.lifecycle_actions,
-    ['install', 'update', 'repair', 'uninstall'],
-    'MAS professional skill pack lifecycle actions',
+    ["install", "update", "repair", "uninstall"],
+    "MAS professional skill pack lifecycle actions",
   );
 }
 
 function validateManagedPackageDistribution(contract: any): void {
   const distribution = contract.managed_package_distribution;
-  assertFieldsEqual(distribution, {
-    software_object: 'opl_packages',
-    lifecycle_owner: 'one-person-lab',
-    app_role: 'request_status_progress_and_receipt_projection_only',
-    transaction_visibility: 'package_lifecycle_with_internal_projection_and_profile_migration_status',
-    channel_id: 'opl_packages_latest_stable',
-    default_transport: 'framework_package_lifecycle',
-    default_update_mode: 'automatic_apply_for_clean_managed_roots',
-    default_manifest_tag: 'latest-stable',
-    distribution_format: 'ghcr_oci_artifact',
-    registry: 'ghcr.io',
-    ordinary_user_channel_model: 'latest_stable_only',
-    internal_candidate_channel: 'candidate_ci_only_not_user_visible',
-    publication_cadence: 'daily_when_source_digest_changes',
-    promotion_policy: 'build_candidate_validate_manifest_skill_plugin_surface_install_smoke_sign_then_promote_latest_stable',
-    immutable_tag_required: true,
-    digest_lock_required: true,
-    latest_stable_is_moving_channel: true,
-    stable_or_nightly_user_channels_allowed: false,
-    first_party_distribution_payload_status: 'contract_required_non_live_until_release_owner_publishes_payload',
-    must_not_depend_on_fixed_version_tag_by_default: true,
-    github_packages_unavailable_policy: 'fail_closed_with_actionable_background_maintenance_error',
-    homebrew_distribution_allowed: false,
-    homebrew_formula_allowed: false,
-    must_not_write_user_codex_state: true,
-    must_not_define_agent_semantics: true,
-    cohort_manifest_required: true,
-  }, 'agent-pack distribution');
-  assertArrayFieldsEqual(distribution, {
-    post_update_sync_required: ['codex_plugin_registry', 'plugin_packaged_skills', 'opl_generated_plugin_surface', 'codex_surface'],
-    user_visible_channels: ['latest-stable'],
-    agent_ids: expectedRequiredAgentIds,
-    package_ids: expectedRegistryPackageIds,
-    activation_commands: [
-      'opl packages activate <package_id> --scope workspace --target-workspace <path>',
-      'opl packages activate <package_id> --scope quest --target-quest <path>',
-    ],
-    first_party_distribution_payload_required_fields: expectedFirstPartyDistributionPayloadFields,
-    fallback_source_order: [
-      'bundled_full_runtime_modules',
-      'framework_managed_ghcr_oci_opl_packages_latest_stable_channel',
-      'explicit_developer_checkout_override',
-    ],
-    forbidden_homebrew_formulae: ['one-person-lab-modules', 'one-person-lab-modules-nightly'],
-  }, 'agent-pack distribution');
-  assertEqual(distribution?.package_kinds?.['opl-flow'], 'workflow_plugin_package', 'OPL Flow package kind');
-  assertFieldsEqual(distribution?.opl_flow_package, {
-    package_id: 'opl-flow',
-    package_kind: 'workflow_plugin_package',
-    consumer: 'standard_and_full_workflow_baseline',
-    install_command: 'opl packages install opl-flow',
-    update_command: 'opl packages update opl-flow',
-    app_direct_profile_mutation_allowed: false,
-    framework_profile_transaction_allowed: true,
-    framework_profile_migration_hook: 'opl_packages_post_apply',
-    profile_sync_policy: 'codex_semantic_merge_with_marker_cleanup_hash_backup_receipt_rollback_and_packet_fallback',
-    carrier_reconcile_special_case_allowed: false,
-    workflow_profile_semantic_merge_ref: 'managed_update_plane.software_lifecycle.objects.opl_packages.optional_internal_fields#profile_migration_status',
-    standard_updater_allowed: false,
-  }, 'OPL Flow package policy');
-  assertFieldsEqual(distribution?.auto_apply, {
-    enabled_for: 'clean_managed_roots_only',
-    trigger: 'daily_or_startup_latest_stable_digest_check',
-    receipt_required: true,
-  }, 'agent-pack distribution auto apply');
+  assertFieldsEqual(
+    distribution,
+    {
+      software_object: "opl_packages",
+      lifecycle_owner: "one-person-lab",
+      app_role: "request_status_progress_and_receipt_projection_only",
+      transaction_visibility:
+        "package_lifecycle_with_internal_projection_and_profile_migration_status",
+      channel_id: "opl_packages_latest_stable",
+      default_transport: "framework_package_lifecycle",
+      default_update_mode: "automatic_apply_for_clean_managed_roots",
+      default_manifest_tag: "latest-stable",
+      distribution_format: "ghcr_oci_artifact",
+      registry: "ghcr.io",
+      ordinary_user_channel_model: "latest_stable_only",
+      internal_candidate_channel: "candidate_ci_only_not_user_visible",
+      publication_cadence: "daily_when_source_digest_changes",
+      promotion_policy:
+        "build_candidate_validate_manifest_skill_plugin_surface_install_smoke_sign_then_promote_latest_stable",
+      immutable_tag_required: true,
+      digest_lock_required: true,
+      latest_stable_is_moving_channel: true,
+      stable_or_nightly_user_channels_allowed: false,
+      first_party_distribution_payload_status:
+        "contract_required_non_live_until_release_owner_publishes_payload",
+      must_not_depend_on_fixed_version_tag_by_default: true,
+      github_packages_unavailable_policy:
+        "fail_closed_with_actionable_background_maintenance_error",
+      homebrew_distribution_allowed: false,
+      homebrew_formula_allowed: false,
+      must_not_write_user_codex_state: true,
+      must_not_define_agent_semantics: true,
+      cohort_manifest_required: true,
+    },
+    "agent-pack distribution",
+  );
+  assertArrayFieldsEqual(
+    distribution,
+    {
+      post_update_sync_required: [
+        "codex_plugin_registry",
+        "plugin_packaged_skills",
+        "opl_generated_plugin_surface",
+        "codex_surface",
+      ],
+      user_visible_channels: ["latest-stable"],
+      agent_ids: expectedRequiredAgentIds,
+      package_ids: expectedRegistryPackageIds,
+      activation_commands: [
+        "opl packages activate <package_id> --scope workspace --target-workspace <path>",
+        "opl packages activate <package_id> --scope quest --target-quest <path>",
+      ],
+      first_party_distribution_payload_required_fields: expectedFirstPartyDistributionPayloadFields,
+      fallback_source_order: [
+        "bundled_full_runtime_modules",
+        "framework_managed_ghcr_oci_opl_packages_latest_stable_channel",
+        "explicit_developer_checkout_override",
+      ],
+      forbidden_homebrew_formulae: ["one-person-lab-modules", "one-person-lab-modules-nightly"],
+    },
+    "agent-pack distribution",
+  );
+  assertEqual(
+    distribution?.package_kinds?.["opl-flow"],
+    "workflow_plugin_package",
+    "OPL Flow package kind",
+  );
+  assertFieldsEqual(
+    distribution?.opl_flow_package,
+    {
+      package_id: "opl-flow",
+      package_kind: "workflow_plugin_package",
+      consumer: "standard_and_full_workflow_baseline",
+      install_command: "opl packages install opl-flow",
+      update_command: "opl packages update opl-flow",
+      app_direct_profile_mutation_allowed: false,
+      framework_profile_transaction_allowed: true,
+      framework_profile_migration_hook: "opl_packages_post_apply",
+      profile_sync_policy:
+        "codex_semantic_merge_with_marker_cleanup_hash_backup_receipt_rollback_and_packet_fallback",
+      carrier_reconcile_special_case_allowed: false,
+      workflow_profile_semantic_merge_ref:
+        "managed_update_plane.software_lifecycle.objects.opl_packages.optional_internal_fields#profile_migration_status",
+      standard_updater_allowed: false,
+    },
+    "OPL Flow package policy",
+  );
+  assertFieldsEqual(
+    distribution?.auto_apply,
+    {
+      enabled_for: "clean_managed_roots_only",
+      trigger: "daily_or_startup_latest_stable_digest_check",
+      receipt_required: true,
+    },
+    "agent-pack distribution auto apply",
+  );
   assertArrayEqual(
     distribution?.auto_apply?.skip_when,
-    ['developer_checkout_override', 'dirty_checkout', 'permission_scope_changed', 'major_compatibility_break', 'verification_failed', 'idempotency_lock_in_progress'],
-    'agent-pack distribution auto apply skips',
+    [
+      "developer_checkout_override",
+      "dirty_checkout",
+      "permission_scope_changed",
+      "major_compatibility_break",
+      "verification_failed",
+      "idempotency_lock_in_progress",
+    ],
+    "agent-pack distribution auto apply skips",
   );
 }
 
 function validatePluginRegistrationInputs(contract: any): void {
-  assertEqual(contract.plugin_registration_validation_command, 'npm run validate:agent-installation', 'agent validation command');
-  assertFieldsEqual(contract.plugin_registration_validation_inputs, {
-    plugin_root_flag: '--agent-root <agent_id>=<path>',
-    codex_skills_root_flag: '--codex-skills-root <path>',
-    default_live_codex_skills_root: '~/.codex/skills',
-    codex_skills_root_validation_scope: 'fail if med-autoscience, med-autogrant, redcube-ai, or opl-bookforge exists as a bare Codex skill mirror at <codex_skills_root>/<codex_visible_entry>/SKILL.md',
-  }, 'agent validation inputs');
+  assertEqual(
+    contract.plugin_registration_validation_command,
+    "npm run validate:agent-installation",
+    "agent validation command",
+  );
+  assertFieldsEqual(
+    contract.plugin_registration_validation_inputs,
+    {
+      plugin_root_flag: "--agent-root <agent_id>=<path>",
+      codex_skills_root_flag: "--codex-skills-root <path>",
+      default_live_codex_skills_root: "~/.codex/skills",
+      codex_skills_root_validation_scope:
+        "fail if med-autoscience, med-autogrant, redcube-ai, or opl-bookforge exists as a bare Codex skill mirror at <codex_skills_root>/<codex_visible_entry>/SKILL.md",
+    },
+    "agent validation inputs",
+  );
   assertArrayEqual(
     contract.plugin_registration_validation_inputs?.validated_output_fields,
-    ['validated_plugin_roots', 'validated_codex_skills_root'],
-    'agent validation output fields',
+    ["validated_plugin_roots", "validated_codex_skills_root"],
+    "agent validation output fields",
   );
 }
 
 function validateExposureClasses(policy: any, contract: any): void {
-  const domainPluginClass = findExposureClass(policy, 'codex_surface');
-  assertArrayEqual(domainPluginClass.members, expectedDefaultVisibleDomainSkillIds, 'domain plugin exposure members');
-  assertEqual(domainPluginClass.sync_target, contract.codex_plugin_registry_target, 'domain plugin sync target');
-  assertEqual(domainPluginClass.software_object, 'opl_packages', 'domain plugin exposure software object');
-  assertEqual(domainPluginClass.visibility_scope, 'package_capability_visibility_only_not_software_object', 'domain plugin visibility scope');
-  assertArrayEqual(domainPluginClass.must_not_sync_to, [
-    '~/.codex/skills/med-autoscience',
-    '~/.codex/skills/med-autogrant',
-    '~/.codex/skills/redcube-ai',
-    '~/.codex/skills/opl-bookforge',
-  ], 'domain plugin forbidden sync targets');
+  const domainPluginClass = findExposureClass(policy, "codex_surface");
+  assertArrayEqual(
+    domainPluginClass.members,
+    expectedDefaultVisibleDomainSkillIds,
+    "domain plugin exposure members",
+  );
+  assertEqual(
+    domainPluginClass.sync_target,
+    contract.codex_plugin_registry_target,
+    "domain plugin sync target",
+  );
+  assertEqual(
+    domainPluginClass.software_object,
+    "opl_packages",
+    "domain plugin exposure software object",
+  );
+  assertEqual(
+    domainPluginClass.visibility_scope,
+    "package_capability_visibility_only_not_software_object",
+    "domain plugin visibility scope",
+  );
+  assertArrayEqual(
+    domainPluginClass.must_not_sync_to,
+    [
+      "~/.codex/skills/med-autoscience",
+      "~/.codex/skills/med-autogrant",
+      "~/.codex/skills/redcube-ai",
+      "~/.codex/skills/opl-bookforge",
+    ],
+    "domain plugin forbidden sync targets",
+  );
 
-  const generatedClass = findExposureClass(policy, 'opl_generated_plugin_surfaces');
-  assertArrayEqual(generatedClass.members, expectedGeneratedPluginSkillIds, 'generated plugin exposure members');
-  assertEqual(generatedClass.sync_target, 'opl_generated_codex_plugin_surface', 'generated plugin sync target');
+  const generatedClass = findExposureClass(policy, "opl_generated_plugin_surfaces");
+  assertArrayEqual(
+    generatedClass.members,
+    expectedGeneratedPluginSkillIds,
+    "generated plugin exposure members",
+  );
+  assertEqual(
+    generatedClass.sync_target,
+    "opl_generated_codex_plugin_surface",
+    "generated plugin sync target",
+  );
 
-  const companionClass = findExposureClass(policy, 'companion_tools_codex_skills');
+  const companionClass = findExposureClass(policy, "companion_tools_codex_skills");
   assertEqual(
     companionClass.members_source_ref,
-    'gaofeng21cn/opl-flow:contracts/workflow-policy.json#recommends',
-    'companion skill policy owner',
+    "gaofeng21cn/opl-flow:contracts/workflow-policy.json#recommends",
+    "companion skill policy owner",
   );
-  assertEqual(companionClass.software_object, 'opl_base', 'companion integration software object');
-  assertEqual(companionClass.visibility_scope, 'base_integration_projection_only_not_software_object', 'companion integration visibility scope');
+  assertEqual(companionClass.software_object, "opl_base", "companion integration software object");
+  assertEqual(
+    companionClass.visibility_scope,
+    "base_integration_projection_only_not_software_object",
+    "companion integration visibility scope",
+  );
 }
 
 function validateProfileCompanionPayloads(profile: any): void {
   const companionPayloads = profile.companion_payloads;
-  assertArrayFieldsEqual(companionPayloads, {
-    domain_plugin_skill_ids: expectedDefaultVisibleDomainSkillIds,
-  }, 'profile companion payloads');
-  assertEqual(companionPayloads?.domain_plugin_skills_must_not_be_companion_mirrors, true, 'profile domain plugin mirror guard');
-  assertArrayFieldsInclude(companionPayloads, {
-    default_packaged_codex_skill_ids: expectedDefaultVisibleDomainSkillIds,
-    additional_package_skill_ids: ['opl-meta-agent'],
-  }, 'profile companion payloads');
+  assertArrayFieldsEqual(
+    companionPayloads,
+    {
+      domain_plugin_skill_ids: expectedDefaultVisibleDomainSkillIds,
+    },
+    "profile companion payloads",
+  );
+  assertEqual(
+    companionPayloads?.domain_plugin_skills_must_not_be_companion_mirrors,
+    true,
+    "profile domain plugin mirror guard",
+  );
+  assertArrayFieldsInclude(
+    companionPayloads,
+    {
+      default_packaged_codex_skill_ids: expectedDefaultVisibleDomainSkillIds,
+      additional_package_skill_ids: ["opl-meta-agent"],
+    },
+    "profile companion payloads",
+  );
 }
 
 function validateAgentInstallEntries(policy: any, contract: any, agentRoots: AgentRootMap): void {
   for (const agentId of expectedRepoPackagedPluginAgentIds) {
     const exposure = findDomainExposure(policy, carrierIdByAgentId[agentId]);
     const installAgent = findInstallAgent(contract, agentId);
-    assertEqual(exposure.preferred_app_distribution, 'plugin_packaged_skill', `${agentId} exposure distribution`);
-    assertEqual(exposure.direct_skill_semantics_required, true, `${agentId} direct skill semantics`);
-    assertEqual(installAgent.preferred_distribution, exposure.preferred_app_distribution, `${agentId} install distribution`);
-    assertEqual(installAgent.codex_visible_entry, exposure.codex_visible_entry, `${agentId} codex visible entry`);
+    assertEqual(
+      exposure.preferred_app_distribution,
+      "plugin_packaged_skill",
+      `${agentId} exposure distribution`,
+    );
+    assertEqual(
+      exposure.direct_skill_semantics_required,
+      true,
+      `${agentId} direct skill semantics`,
+    );
+    assertEqual(
+      installAgent.preferred_distribution,
+      exposure.preferred_app_distribution,
+      `${agentId} install distribution`,
+    );
+    assertEqual(
+      installAgent.codex_visible_entry,
+      exposure.codex_visible_entry,
+      `${agentId} codex visible entry`,
+    );
     assertEqual(installAgent.plugin_registry_required, true, `${agentId} plugin registry required`);
-    assertEqual(installAgent.direct_skill_compatibility_required, true, `${agentId} direct skill required`);
+    assertEqual(
+      installAgent.direct_skill_compatibility_required,
+      true,
+      `${agentId} direct skill required`,
+    );
     assertEqual(installAgent.plugin_must_package_skill, true, `${agentId} plugin packages skill`);
-    assertEqual(installAgent.must_not_create_second_semantics, true, `${agentId} second semantics guard`);
-    assertEqual(installAgent.sync_command, contract.unified_sync_command, `${agentId} sync command`);
-    assertEqual(installAgent.product_entry_manifest, contract.product_entry_target, `${agentId} product entry manifest`);
+    assertEqual(
+      installAgent.must_not_create_second_semantics,
+      true,
+      `${agentId} second semantics guard`,
+    );
+    assertEqual(
+      installAgent.sync_command,
+      contract.unified_sync_command,
+      `${agentId} sync command`,
+    );
+    assertEqual(
+      installAgent.product_entry_manifest,
+      contract.product_entry_target,
+      `${agentId} product entry manifest`,
+    );
     assertEqual(
       installAgent.canonical_metadata_source,
-      'domain_action_catalog_and_stage_control_plane',
+      "domain_action_catalog_and_stage_control_plane",
       `${agentId} canonical metadata source`,
     );
   }
 
-  const bookforgeExposure = findDomainExposure(policy, 'opl-bookforge');
-  const bookforgeInstallAgent = findInstallAgent(contract, 'obf');
-  assertEqual(bookforgeExposure.default_home_visible, true, 'BookForge default visibility');
-  assertEqual(bookforgeExposure.preferred_app_distribution, 'opl_generated_codex_plugin_surface', 'BookForge exposure distribution');
-  assertEqual(bookforgeExposure.codex_visible_entry, 'opl-bookforge', 'BookForge Codex visible entry');
-  assertEqual(bookforgeInstallAgent.preferred_distribution, 'opl_generated_codex_plugin_surface', 'BookForge install distribution');
-  assertEqual(bookforgeInstallAgent.module_id, 'oplbookforge', 'BookForge module id');
-  assertEqual(bookforgeInstallAgent.plugin_registry_required, true, 'BookForge plugin registry policy');
-  assertEqual(bookforgeInstallAgent.plugin_must_package_skill, false, 'BookForge plugin packaging policy');
-  assertEqual(bookforgeInstallAgent.codex_visible_entry, 'opl-bookforge', 'BookForge Codex visible entry');
+  const bookforgeExposure = findDomainExposure(policy, "opl-bookforge");
+  const bookforgeInstallAgent = findInstallAgent(contract, "obf");
+  assertEqual(bookforgeExposure.default_home_visible, true, "BookForge default visibility");
+  assertEqual(
+    bookforgeExposure.preferred_app_distribution,
+    "opl_generated_codex_plugin_surface",
+    "BookForge exposure distribution",
+  );
+  assertEqual(
+    bookforgeExposure.codex_visible_entry,
+    "opl-bookforge",
+    "BookForge Codex visible entry",
+  );
+  assertEqual(
+    bookforgeInstallAgent.preferred_distribution,
+    "opl_generated_codex_plugin_surface",
+    "BookForge install distribution",
+  );
+  assertEqual(bookforgeInstallAgent.module_id, "oplbookforge", "BookForge module id");
+  assertEqual(
+    bookforgeInstallAgent.plugin_registry_required,
+    true,
+    "BookForge plugin registry policy",
+  );
+  assertEqual(
+    bookforgeInstallAgent.plugin_must_package_skill,
+    false,
+    "BookForge plugin packaging policy",
+  );
+  assertEqual(
+    bookforgeInstallAgent.codex_visible_entry,
+    "opl-bookforge",
+    "BookForge Codex visible entry",
+  );
   assertEqual(
     bookforgeInstallAgent.canonical_metadata_source,
-    'opl_generated_interface_contract_pack',
-    'BookForge canonical metadata source',
+    "opl_generated_interface_contract_pack",
+    "BookForge canonical metadata source",
   );
 
-  const omaExposure = findDomainExposure(policy, 'opl-meta-agent');
-  const omaInstallAgent = findInstallAgent(contract, 'oma');
-  assertEqual(omaExposure.preferred_app_distribution, 'opl_generated_codex_plugin_surface', 'OMA exposure distribution');
-  assertEqual(omaInstallAgent.plugin_registry_required, true, 'OMA plugin registry policy');
-  assertEqual(omaInstallAgent.plugin_must_package_skill, false, 'OMA plugin packaging policy');
-  assertEqual(omaInstallAgent.codex_visible_entry, 'opl-meta-agent', 'OMA Codex visible entry');
+  const omaExposure = findDomainExposure(policy, "opl-meta-agent");
+  const omaInstallAgent = findInstallAgent(contract, "oma");
+  assertEqual(
+    omaExposure.preferred_app_distribution,
+    "opl_generated_codex_plugin_surface",
+    "OMA exposure distribution",
+  );
+  assertEqual(omaInstallAgent.plugin_registry_required, true, "OMA plugin registry policy");
+  assertEqual(omaInstallAgent.plugin_must_package_skill, false, "OMA plugin packaging policy");
+  assertEqual(omaInstallAgent.codex_visible_entry, "opl-meta-agent", "OMA Codex visible entry");
   assertEqual(
     omaInstallAgent.canonical_metadata_source,
-    'opl_generated_interface_contract_pack',
-    'OMA canonical metadata source',
+    "opl_generated_interface_contract_pack",
+    "OMA canonical metadata source",
   );
 
   for (const [agentId, root] of agentRoots.entries()) {
@@ -1387,6 +1904,7 @@ function validateAgentInstallEntries(policy: any, contract: any, agentRoots: Age
 }
 
 const { agentRoots, codexSkillsRoot } = parseArgs(process.argv.slice(2));
+validateActiveShellInstallConsumers();
 validateContract(
   readJson(policyPath),
   readJson(profilePath),
@@ -1397,22 +1915,29 @@ validateContract(
 );
 const validatedCodexSkillsRoot = validateNoDuplicateBareDomainSkills(codexSkillsRoot);
 
-console.log(JSON.stringify({
-  status: 'passed',
-  surface_id: 'opl_app_agent_installation_contract_validation',
-  checked_agents: expectedRequiredAgentIds,
-  plugin_agents: expectedDefaultPluginAgentIds,
-  default_visible_domain_skills: expectedDefaultVisibleDomainSkillIds,
-  generated_plugin_agents: expectedGeneratedAgentIds,
-  generated_plugin_skills: expectedGeneratedPluginSkillIds,
-  registry_packages: expectedRegistryPackageIds,
-  registry_source_kinds: expectedRegistrySourceKinds,
-  package_lifecycle_actions: expectedPackageLifecycleActions,
-  package_activation_action: expectedActivationPolicy.action_id,
-  package_lock_receipt_fields: expectedPackageLockReceiptFields,
-  agent_package_surface_schema: path.relative(appRoot, agentPackageSurfaceSchemaPath),
-  agent_package_manifest_fixture_dir: path.relative(appRoot, agentPackageManifestFixtureDir),
-  validated_plugin_roots: Object.fromEntries(agentRoots),
-  validated_codex_skills_root: validatedCodexSkillsRoot,
-}, null, 2));
-console.log('PASS: App agent installation contract is consistent.');
+console.log(
+  JSON.stringify(
+    {
+      status: "passed",
+      surface_id: "opl_app_agent_installation_contract_validation",
+      checked_agents: expectedRequiredAgentIds,
+      plugin_agents: expectedDefaultPluginAgentIds,
+      default_visible_domain_skills: expectedDefaultVisibleDomainSkillIds,
+      generated_plugin_agents: expectedGeneratedAgentIds,
+      generated_plugin_skills: expectedGeneratedPluginSkillIds,
+      registry_packages: expectedRegistryPackageIds,
+      registry_source_kinds: expectedRegistrySourceKinds,
+      package_lifecycle_actions: expectedPackageLifecycleActions,
+      package_activation_action: expectedActivationPolicy.action_id,
+      package_lock_receipt_fields: expectedPackageLockReceiptFields,
+      agent_package_surface_schema: path.relative(appRoot, agentPackageSurfaceSchemaPath),
+      agent_package_manifest_fixture_dir: path.relative(appRoot, agentPackageManifestFixtureDir),
+      validated_plugin_roots: Object.fromEntries(agentRoots),
+      validated_codex_skills_root: validatedCodexSkillsRoot,
+      validated_active_shell_install_consumers: activeShellInstallConsumers,
+    },
+    null,
+    2,
+  ),
+);
+console.log("PASS: App agent installation contract is consistent.");

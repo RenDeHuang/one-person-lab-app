@@ -229,7 +229,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           repository: gaofeng21cn/opl-flow
-          ref: 06cb8e15490e6a98b1196bfc6d526bd50471ecbc
+          ref: 2c7fad262938fb4295d2bb866f6b955c0aa2361a
           path: opl-flow
 
       - name: Checkout OfficeCLI

@@ -22,7 +22,7 @@ on:
       opl_flow_ref:
         description: 'Immutable opl-flow ref used by product-profile projection in every release job.'
         type: string
-        default: 06cb8e15490e6a98b1196bfc6d526bd50471ecbc
+        default: 2c7fad262938fb4295d2bb866f6b955c0aa2361a
       skip_code_quality:
         description: 'Skip code quality checks (faster builds for debugging)'
         type: boolean

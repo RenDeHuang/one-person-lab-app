@@ -1,9 +1,9 @@
-import fs from 'node:fs';
-import path from 'node:path';
+import fs from "node:fs";
+import path from "node:path";
 
-import { readGitHead } from './git.ts';
-import { run } from './process.ts';
-import { readManagedUpdateLifecycleProviderMap } from '../managed-update-lifecycle-contract.ts';
+import { readGitHead } from "./git.ts";
+import { run } from "./process.ts";
+import { readManagedUpdateLifecycleProviderMap } from "../managed-update-lifecycle-contract.ts";
 
 const REQUIRED_MANAGED_UPDATE_COMPONENTS = readManagedUpdateLifecycleProviderMap();
 
@@ -16,7 +16,7 @@ function parseJsonCommand(command: string, args: string[], env: NodeJS.ProcessEn
 }
 
 function objectValue(value: unknown, label: string): Record<string, unknown> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new Error(`Full runtime currentness probe expected object at ${label}.`);
   }
   return value as Record<string, unknown>;
@@ -30,7 +30,7 @@ function arrayValue(value: unknown, label: string): unknown[] {
 }
 
 function stringValue(value: unknown, label: string): string {
-  if (typeof value !== 'string' || value.trim() === '') {
+  if (typeof value !== "string" || value.trim() === "") {
     throw new Error(`Full runtime currentness probe expected non-empty string at ${label}.`);
   }
   return value;
@@ -40,24 +40,29 @@ function runtimeProbeEnv(runtimeRoot: string): NodeJS.ProcessEnv {
   return {
     ...process.env,
     OPL_FULL_RUNTIME_HOME: runtimeRoot,
-    OPL_PACKAGED_SKILLS_ROOT: path.join(runtimeRoot, 'skills'),
-    OPL_CODEX_BIN: path.join(runtimeRoot, 'bin', 'codex'),
-    OPL_SKIP_SKILL_SYNC: '1',
+    OPL_PACKAGED_SKILLS_ROOT: path.join(runtimeRoot, "skills"),
+    OPL_CODEX_BIN: path.join(runtimeRoot, "bin", "codex"),
+    OPL_SKIP_SKILL_SYNC: "1",
     PATH: [
-      path.join(runtimeRoot, 'bin'),
-      path.join(runtimeRoot, 'node', 'bin'),
-      path.join(runtimeRoot, 'uv', 'bin'),
-      process.env.PATH ?? '',
-    ].filter(Boolean).join(path.delimiter),
+      path.join(runtimeRoot, "bin"),
+      path.join(runtimeRoot, "node", "bin"),
+      path.join(runtimeRoot, "uv", "bin"),
+      process.env.PATH ?? "",
+    ]
+      .filter(Boolean)
+      .join(path.delimiter),
   };
 }
 
-function assertManifestFrameworkRef(runtimeRoot: string, frameworkRoot: string): Record<string, unknown> {
-  const manifestPath = path.join(runtimeRoot, 'manifest', 'full-package-manifest.json');
-  const manifest = objectValue(JSON.parse(fs.readFileSync(manifestPath, 'utf8')), 'manifest');
-  const components = objectValue(manifest.components, 'manifest.components');
-  const oplComponent = objectValue(components.opl, 'manifest.components.opl');
-  const packagedCommit = stringValue(oplComponent.git_commit, 'manifest.components.opl.git_commit');
+function assertManifestFrameworkRef(
+  runtimeRoot: string,
+  frameworkRoot: string,
+): Record<string, unknown> {
+  const manifestPath = path.join(runtimeRoot, "manifest", "full-package-manifest.json");
+  const manifest = objectValue(JSON.parse(fs.readFileSync(manifestPath, "utf8")), "manifest");
+  const components = objectValue(manifest.components, "manifest.components");
+  const oplComponent = objectValue(components.opl, "manifest.components.opl");
+  const packagedCommit = stringValue(oplComponent.git_commit, "manifest.components.opl.git_commit");
   const expectedCommit = readGitHead(frameworkRoot);
   if (packagedCommit !== expectedCommit) {
     throw new Error(
@@ -65,11 +70,14 @@ function assertManifestFrameworkRef(runtimeRoot: string, frameworkRoot: string):
     );
   }
 
-  const resolvedRefs = objectValue(manifest.resolved_refs, 'manifest.resolved_refs');
-  const frameworkRef = objectValue(resolvedRefs.opl_framework, 'manifest.resolved_refs.opl_framework');
+  const resolvedRefs = objectValue(manifest.resolved_refs, "manifest.resolved_refs");
+  const frameworkRef = objectValue(
+    resolvedRefs.opl_framework,
+    "manifest.resolved_refs.opl_framework",
+  );
   const resolvedCommit = stringValue(
     frameworkRef.resolved_commit,
-    'manifest.resolved_refs.opl_framework.resolved_commit',
+    "manifest.resolved_refs.opl_framework.resolved_commit",
   );
   if (resolvedCommit !== expectedCommit) {
     throw new Error(
@@ -80,25 +88,32 @@ function assertManifestFrameworkRef(runtimeRoot: string, frameworkRoot: string):
 }
 
 export function assertManagedUpdateProbe(payload: unknown): Record<string, unknown> {
-  const root = objectValue(payload, 'update status payload');
-  const managedUpdate = objectValue(root.managed_update, 'managed_update');
-  if (managedUpdate.surface_id !== 'opl_managed_updater_kernel') {
+  const root = objectValue(payload, "update status payload");
+  const managedUpdate = objectValue(root.managed_update, "managed_update");
+  if (managedUpdate.surface_id !== "opl_managed_updater_kernel") {
     throw new Error(
       `Full runtime managed update probe returned unexpected surface: ${String(managedUpdate.surface_id)}`,
     );
   }
 
-  const components = arrayValue(managedUpdate.components, 'managed_update.components');
+  const components = arrayValue(managedUpdate.components, "managed_update.components");
   const componentMap = new Map<string, Record<string, unknown>>();
   for (const value of components) {
-    const component = objectValue(value, 'managed_update.components[]');
-    const componentId = stringValue(component.component_id, 'managed_update.components[].component_id');
+    const component = objectValue(value, "managed_update.components[]");
+    const componentId = stringValue(
+      component.component_id,
+      "managed_update.components[].component_id",
+    );
     componentMap.set(componentId, component);
   }
   const componentIds = new Set(componentMap.keys());
-  const missing = Object.keys(REQUIRED_MANAGED_UPDATE_COMPONENTS).filter((componentId) => !componentIds.has(componentId));
+  const missing = Object.keys(REQUIRED_MANAGED_UPDATE_COMPONENTS).filter(
+    (componentId) => !componentIds.has(componentId),
+  );
   if (missing.length > 0) {
-    throw new Error(`Full runtime managed update probe is missing component(s): ${missing.join(', ')}.`);
+    throw new Error(
+      `Full runtime managed update probe is missing component(s): ${missing.join(", ")}.`,
+    );
   }
   for (const [componentId, providerId] of Object.entries(REQUIRED_MANAGED_UPDATE_COMPONENTS)) {
     const component = componentMap.get(componentId)!;
@@ -108,61 +123,87 @@ export function assertManagedUpdateProbe(payload: unknown): Record<string, unkno
       );
     }
   }
-  const installationCarrier = componentMap.get('opl_app')!;
+  const installationCarrier = componentMap.get("opl_app")!;
   const carrierCurrent = objectValue(
     installationCarrier.current,
-    'managed_update.components[opl_app].current',
+    "managed_update.components[opl_app].current",
   );
   stringValue(
     carrierCurrent.host_update_route,
-    'managed_update.components[opl_app].current.host_update_route',
+    "managed_update.components[opl_app].current.host_update_route",
   );
   const carrierOwnerRoute = objectValue(
     installationCarrier.owner_route,
-    'managed_update.components[opl_app].owner_route',
+    "managed_update.components[opl_app].owner_route",
   );
   stringValue(
     carrierOwnerRoute.route_kind,
-    'managed_update.components[opl_app].owner_route.route_kind',
+    "managed_update.components[opl_app].owner_route.route_kind",
   );
-  const packages = componentMap.get('opl_packages')!;
-  objectValue(packages.projection_status, 'managed_update.components[opl_packages].projection_status');
+  const packages = componentMap.get("opl_packages")!;
+  objectValue(
+    packages.projection_status,
+    "managed_update.components[opl_packages].projection_status",
+  );
   const profileMigration = objectValue(
     packages.profile_migration_status,
-    'managed_update.components[opl_packages].profile_migration_status',
+    "managed_update.components[opl_packages].profile_migration_status",
   );
-  if (profileMigration.semantic_merge_required !== true || profileMigration.silent_overwrite_allowed !== false) {
-    throw new Error('Full runtime managed update probe returned unsafe OPL Packages profile migration policy.');
+  if (
+    profileMigration.semantic_merge_required !== true ||
+    profileMigration.silent_overwrite_allowed !== false
+  ) {
+    throw new Error(
+      "Full runtime managed update probe returned unsafe OPL Packages profile migration policy.",
+    );
   }
   if (componentMap.size !== components.length) {
-    throw new Error('Full runtime managed update probe contains duplicate component_id values.');
+    throw new Error("Full runtime managed update probe contains duplicate component_id values.");
   }
   return managedUpdate;
 }
 
-function assertAppStateProbe(payload: unknown): Record<string, unknown> {
-  const root = objectValue(payload, 'app state payload');
-  const appState = objectValue(root.app_state, 'app_state');
-  if (appState.schema_version !== 'opl_app_state.v1') {
-    throw new Error(`Full runtime App state probe returned unexpected schema: ${String(appState.schema_version)}`);
+function runtimeSourceCarrierItems(appState: Record<string, unknown>): unknown[] {
+  const carriers = objectValue(
+    appState.runtime_source_carriers,
+    "app_state.runtime_source_carriers",
+  );
+  return arrayValue(carriers.items, "app_state.runtime_source_carriers.items");
+}
+
+export function assertAppStateProbe(payload: unknown): Record<string, unknown> {
+  const root = objectValue(payload, "app state payload");
+  const appState = objectValue(root.app_state, "app_state");
+  if (appState.schema_version !== "opl_app_state.v1") {
+    throw new Error(
+      `Full runtime App state probe returned unexpected schema: ${String(appState.schema_version)}`,
+    );
   }
 
-  const modules = objectValue(appState.modules, 'app_state.modules');
-  const moduleItems = arrayValue(modules.items, 'app_state.modules.items');
-  if (moduleItems.length === 0) {
-    throw new Error('Full runtime App state probe returned no module items.');
+  const carrierItems = runtimeSourceCarrierItems(appState);
+  if (carrierItems.length === 0) {
+    throw new Error("Full runtime App state probe returned no runtime source carriers.");
   }
 
-  for (const item of moduleItems) {
-    const record = objectValue(item, 'app_state.modules.items[]');
-    stringValue(record.module_id, 'app_state.modules.items[].module_id');
-    stringValue(record.health_status, `app_state.modules.items[${String(record.module_id)}].health_status`);
+  for (const item of carrierItems) {
+    const record = objectValue(item, "app_state.runtime_source_carriers.items[]");
+    const carrierId = stringValue(
+      record.carrier_id,
+      "app_state.runtime_source_carriers.items[].carrier_id",
+    );
+    stringValue(
+      record.source_health_status,
+      `app_state.runtime_source_carriers.items[${carrierId}].source_health_status`,
+    );
   }
   return appState;
 }
 
-export function assertFullRuntimeCurrentness(runtimeRoot: string, options: { frameworkRoot: string }) {
-  const command = path.join(runtimeRoot, 'bin', 'opl');
+export function assertFullRuntimeCurrentness(
+  runtimeRoot: string,
+  options: { frameworkRoot: string },
+) {
+  const command = path.join(runtimeRoot, "bin", "opl");
   if (!fs.existsSync(command)) {
     throw new Error(`Full runtime currentness probe cannot find packaged opl wrapper: ${command}`);
   }
@@ -170,24 +211,30 @@ export function assertFullRuntimeCurrentness(runtimeRoot: string, options: { fra
   const manifest = assertManifestFrameworkRef(runtimeRoot, options.frameworkRoot);
   const env = runtimeProbeEnv(runtimeRoot);
   const managedUpdate = assertManagedUpdateProbe(
-    parseJsonCommand(command, ['update', 'status', '--json'], env),
+    parseJsonCommand(command, ["update", "status", "--json"], env),
   );
   const appState = assertAppStateProbe(
-    parseJsonCommand(command, ['app', 'state', '--profile', 'fast', '--json'], env),
+    parseJsonCommand(command, ["app", "state", "--profile", "fast", "--json"], env),
   );
+  const runtimeSourceCarrierCount = runtimeSourceCarrierItems(appState).length;
 
   return {
-    schema: 'opl_full_runtime_currentness_probe.v1',
-    status: 'passed',
+    schema: "opl_full_runtime_currentness_probe.v1",
+    status: "passed",
     runtime_root: runtimeRoot,
     framework_commit: stringValue(
-      objectValue(objectValue(manifest.components, 'manifest.components').opl, 'manifest.components.opl').git_commit,
-      'manifest.components.opl.git_commit',
+      objectValue(
+        objectValue(manifest.components, "manifest.components").opl,
+        "manifest.components.opl",
+      ).git_commit,
+      "manifest.components.opl.git_commit",
     ),
     managed_update_surface_id: managedUpdate.surface_id,
     managed_update_components: Object.keys(REQUIRED_MANAGED_UPDATE_COMPONENTS),
     managed_update_component_providers: REQUIRED_MANAGED_UPDATE_COMPONENTS,
     app_state_schema_version: appState.schema_version,
-    app_state_module_count: arrayValue(objectValue(appState.modules, 'app_state.modules').items, 'app_state.modules.items').length,
+    app_state_surface_ref: "app_state.runtime_source_carriers",
+    app_state_runtime_source_carrier_count: runtimeSourceCarrierCount,
+    app_state_module_count: runtimeSourceCarrierCount,
   };
 }

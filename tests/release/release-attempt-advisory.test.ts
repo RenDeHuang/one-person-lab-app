@@ -34,7 +34,10 @@ const reusableBuildWorkflow = fs.readFileSync(
 
 test("release attempt telemetry forces a same-cohort reuse strategy without abandoning the release", () => {
   assert.match(workflow, /name: Summarize recent release attempts/);
-  assert.doesNotMatch(workflow, /name: Summarize recent release attempts\n\s+continue-on-error: true/);
+  assert.doesNotMatch(
+    workflow,
+    /name: Summarize recent release attempts\n\s+continue-on-error: true/,
+  );
   assert.match(workflow, /attempts\.length >= 3 && !process\.env\.GATE_REUSE_PLAN_REF/);
   assert.match(workflow, /Generate release:gate-reuse-plan for the same cohort/);
   assert.match(workflow, /elapsed time never abandons an authorized release/);
@@ -109,9 +112,21 @@ test("gate reuse planning rejects a stale current preflight from another cohort"
   assert.equal(plan.cohort.current_app_commit, staleApp);
   assert.equal(plan.cohort.current_shell_sha, staleShell);
   assert.equal(plan.cohort.current_framework_sha, staleFramework);
-  assert.ok(plan.global_blockers.some((reason: string) => reason.includes("does not match requested app commit")));
-  assert.ok(plan.global_blockers.some((reason: string) => reason.includes("does not match requested shell ref")));
-  assert.ok(plan.global_blockers.some((reason: string) => reason.includes("does not match requested framework ref")));
+  assert.ok(
+    plan.global_blockers.some((reason: string) =>
+      reason.includes("does not match requested app commit"),
+    ),
+  );
+  assert.ok(
+    plan.global_blockers.some((reason: string) =>
+      reason.includes("does not match requested shell ref"),
+    ),
+  );
+  assert.ok(
+    plan.global_blockers.some((reason: string) =>
+      reason.includes("does not match requested framework ref"),
+    ),
+  );
   assert.equal(plan.reuse_allowed_count, 0);
   assert.equal(plan.must_run_count, 11);
 });
@@ -121,10 +136,7 @@ test("source readiness defers all Stable Homebrew mutation and VM gates to promo
     workflow,
     /name: Build final release readiness summary[\s\S]*--include-full-package false[\s\S]*--publish-docker-webui false/,
   );
-  assert.match(
-    readinessSummarizer,
-    /const stableHomebrewRequired = false/,
-  );
+  assert.match(readinessSummarizer, /const stableHomebrewRequired = false/);
   assert.match(workflow, /promotion_saga_deferred:[\s\S]*source_run_mutates_tap: false/);
   assert.doesNotMatch(workflow, /\n  stable-homebrew-tap-update:/);
   assert.doesNotMatch(workflow, /\n  full-homebrew-tap-update:/);
@@ -165,7 +177,10 @@ test("Full DMG artifacts carry the cohort manifest required by the VM gate", () 
 });
 
 test("Standard DMG cohort binds the Framework used by first-run qualification", () => {
-  assert.match(reusableBuildWorkflow, /framework_ref:[\s\S]*Immutable OPL Framework ref bound into release artifact cohort evidence/);
+  assert.match(
+    reusableBuildWorkflow,
+    /framework_ref:[\s\S]*Immutable OPL Framework ref bound into release artifact cohort evidence/,
+  );
   assert.match(reusableBuildWorkflow, /--framework-sha "\$\{\{ inputs\.framework_ref \}\}"/);
   assert.match(
     workflow,
@@ -184,7 +199,10 @@ test("Full VM validation rejects Framework injection into an already-built DMG",
 test("Full build artifacts survive release-note provider failure and notes use a bounded fallback", () => {
   assert.match(fullWorkflow, /id: full_package_build/);
   assert.match(fullWorkflow, /OPL_RELEASE_NOTES_AI_TIMEOUT_SECONDS: '30'/);
-  assert.match(fullWorkflow, /AI release notes were unavailable; using the deterministic release-note template/);
+  assert.match(
+    fullWorkflow,
+    /AI release notes were unavailable; using the deterministic release-note template/,
+  );
   assert.match(fullWorkflow, /OPL_RELEASE_NOTES_MODE=template npm run release:notes:prepare/);
   assert.match(fullWorkflow, /--input "\$RUNNER_TEMP\/full-release-notes-template\.md"/);
   assert.match(
@@ -194,8 +212,12 @@ test("Full build artifacts survive release-note provider failure and notes use a
 });
 
 test("Full build rejects App and Shell product profile drift before Electron packaging", () => {
-  const profileGate = fullWorkflow.indexOf("name: Verify App product profile against Shell consumer");
-  const electronRebuild = fullWorkflow.indexOf("name: Rebuild App shell native modules for Electron");
+  const profileGate = fullWorkflow.indexOf(
+    "name: Verify App product profile against Shell consumer",
+  );
+  const electronRebuild = fullWorkflow.indexOf(
+    "name: Rebuild App shell native modules for Electron",
+  );
   const packageBuild = fullWorkflow.indexOf("id: full_package_build");
 
   assert.ok(profileGate >= 0, "missing Full product-profile compatibility gate");
@@ -208,7 +230,9 @@ test("Full build rejects App and Shell product profile drift before Electron pac
 });
 
 test("Full build verifies managed carrier and Home readiness before expensive packaging", () => {
-  const carrierGate = fullWorkflow.indexOf("name: Verify Full bootstrap and Home readiness before packaging");
+  const carrierGate = fullWorkflow.indexOf(
+    "name: Verify Full bootstrap and Home readiness before packaging",
+  );
   const packageBuild = fullWorkflow.indexOf("id: full_package_build");
 
   assert.ok(carrierGate >= 0, "missing managed Full carrier bootstrap gate");
@@ -220,14 +244,14 @@ test("Full build verifies managed carrier and Home readiness before expensive pa
 });
 
 test("Docker release evidence keeps failure diagnostics without uploading the seeded data volume", () => {
-  assert.match(workflow, /OPL_FLOW_SHA: 06cb8e15490e6a98b1196bfc6d526bd50471ecbc/);
+  assert.match(workflow, /OPL_FLOW_SHA: 2c7fad262938fb4295d2bb866f6b955c0aa2361a/);
   assert.match(workflow, /--build-arg OPL_FLOW_REF="\$\{OPL_FLOW_SHA\}"/);
   assert.match(workflow, /write_publish_summary "started"/);
   assert.match(workflow, /webui_smoke_or_publish_failed/);
   assert.match(workflow, /docker compose -p "\$compose_project" -f "\$compose_file" down/);
   assert.match(
     workflow,
-    /rm -rf "\$linux_generated_dir\/home\/OnePersonLab\/data" "\$linux_generated_dir\/home\/OnePersonLab\/projects"/,
+    /sudo rm -rf "\$linux_generated_dir\/home\/OnePersonLab\/data" "\$linux_generated_dir\/home\/OnePersonLab\/projects"/,
   );
   assert.match(
     dockerCleanLinuxWorkflow,

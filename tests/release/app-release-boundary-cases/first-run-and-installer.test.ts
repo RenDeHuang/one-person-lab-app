@@ -8,29 +8,28 @@ import {
   runNode,
   writeExecutable,
   writeFile,
-} from './helpers.ts';
-import { spawnSync } from 'node:child_process';
-import { validateFirstRunMatrix } from '../../../scripts/validate-active-shell/first-run-matrix-validator.ts';
-import { syncAppProductProfileToShell } from '../../../scripts/app-product-profile.ts';
-import { releaseBoundaryChecks } from '../../../scripts/validate-release-boundary/release-checks.ts';
+} from "./helpers.ts";
+import { spawnSync } from "node:child_process";
+import { validateFirstRunMatrix } from "../../../scripts/validate-active-shell/first-run-matrix-validator.ts";
+import { syncAppProductProfileToShell } from "../../../scripts/app-product-profile.ts";
+import { releaseBoundaryChecks } from "../../../scripts/validate-release-boundary/release-checks.ts";
 
-const readJson = (relativePath: string) => JSON.parse(
-  fs.readFileSync(path.join(appRoot, relativePath), 'utf8'),
-);
+const readJson = (relativePath: string) =>
+  JSON.parse(fs.readFileSync(path.join(appRoot, relativePath), "utf8"));
 const requireReleaseBoundaryCheck = (id: string) => {
   const check = releaseBoundaryChecks.find((entry) => entry.id === id);
   assert.ok(check, id);
   return check;
 };
 
-test('first-run matrix delegates policy shape to the active-shell validator', () => {
-  const matrix = readJson('contracts/app-first-run-test-matrix.json');
-  const adapter = readJson('contracts/app-shell-adapter.json');
+test("first-run matrix delegates policy shape to the active-shell validator", () => {
+  const matrix = readJson("contracts/app-first-run-test-matrix.json");
+  const adapter = readJson("contracts/app-shell-adapter.json");
   assert.doesNotThrow(() => validateFirstRunMatrix(matrix, adapter));
   for (const id of [
-    'standard_dmg_clean_vm_smoke',
-    'full_dmg_clean_vm_smoke',
-    'homebrew_standard_cask_clean_vm_smoke',
+    "standard_dmg_clean_vm_smoke",
+    "full_dmg_clean_vm_smoke",
+    "homebrew_standard_cask_clean_vm_smoke",
   ]) {
     const scenario = matrix.scenarios.find((entry) => entry.id === id);
     assert.ok(scenario, id);
@@ -38,21 +37,24 @@ test('first-run matrix delegates policy shape to the active-shell validator', ()
   }
   const routeSmokeExpectations = matrix.scenarios
     .flatMap((scenario) => scenario.expects ?? [])
-    .filter((expectation) => expectation.includes('Packaged GUI route smoke selects MAS'));
+    .filter((expectation) => expectation.includes("Packaged GUI route smoke selects MAS"));
   assert.equal(routeSmokeExpectations.length, 2);
   for (const expectation of routeSmokeExpectations) {
     assert.match(expectation, /hides ordinary backend\/provider selectors/);
-    assert.match(expectation, /shows the App-owned model\/reasoning and permission\/access controls/);
+    assert.match(
+      expectation,
+      /shows the App-owned model\/reasoning and permission\/access controls/,
+    );
     assert.doesNotMatch(expectation, /hides ordinary backend\/model\/permission selectors/);
   }
-  const fullDmg = matrix.scenarios.find((scenario) => scenario.id === 'full_dmg_clean_vm_smoke');
+  const fullDmg = matrix.scenarios.find((scenario) => scenario.id === "full_dmg_clean_vm_smoke");
   assert.deepEqual(fullDmg.diagnostics_contract.home_composer_probe.required_summary_fields, [
-    'missing_controls',
-    'composer_state',
+    "missing_controls",
+    "composer_state",
   ]);
   const launchGateExpectations = matrix.scenarios
     .flatMap((scenario) => scenario.expects ?? [])
-    .filter((expectation) => expectation.includes('Packaged GUI launch-gate smoke keeps MAS'));
+    .filter((expectation) => expectation.includes("Packaged GUI launch-gate smoke keeps MAS"));
   assert.equal(launchGateExpectations.length, 2);
   for (const expectation of launchGateExpectations) {
     assert.match(expectation, /visible but disabled/);
@@ -61,7 +63,7 @@ test('first-run matrix delegates policy shape to the active-shell validator', ()
   }
 
   const invalid = structuredClone(matrix);
-  invalid.scenarios[0].aliases = ['legacy'];
+  invalid.scenarios[0].aliases = ["legacy"];
   assert.throws(
     () => validateFirstRunMatrix(invalid, adapter),
     /must not declare compatibility aliases/,
@@ -69,7 +71,7 @@ test('first-run matrix delegates policy shape to the active-shell validator', ()
 
   const missingComposerProbe = structuredClone(matrix);
   const missingComposerProbeFullDmg = missingComposerProbe.scenarios.find(
-    (scenario) => scenario.id === 'full_dmg_clean_vm_smoke',
+    (scenario) => scenario.id === "full_dmg_clean_vm_smoke",
   );
   missingComposerProbeFullDmg.diagnostics_contract.home_composer_probe.required_summary_fields = [];
   assert.throws(
@@ -78,49 +80,55 @@ test('first-run matrix delegates policy shape to the active-shell validator', ()
   );
 });
 
-test('one-shot App installer boundary is enforced by release-boundary checks', () => {
-  const oneShot = requireReleaseBoundaryCheck('one_shot_unsigned_local_authorization');
-  const stable = requireReleaseBoundaryCheck('short_stable_macos_installer');
+test("one-shot App installer boundary is enforced by release-boundary checks", () => {
+  const oneShot = requireReleaseBoundaryCheck("one_shot_unsigned_local_authorization");
+  const stable = requireReleaseBoundaryCheck("short_stable_macos_installer");
 
-  assert.equal(oneShot.file, 'install.sh');
-  assert.ok(oneShot.required.includes('--stable-macos-install'));
-  assert.ok(oneShot.required.includes('--authorize-local-app-only'));
-  assert.equal(stable.file, 'install-stable.sh');
-  assert.ok(stable.required.some((entry) => entry.includes('install.sh')));
-  assert.ok(stable.required.some((entry) => entry.includes('--stable-macos-install')));
-  assert.equal(fs.existsSync(path.join(appRoot, 'install-free.sh')), false);
+  assert.equal(oneShot.file, "install.sh");
+  assert.ok(oneShot.required.includes("--stable-macos-install"));
+  assert.ok(oneShot.required.includes("--authorize-local-app-only"));
+  assert.equal(stable.file, "install-stable.sh");
+  assert.ok(stable.required.some((entry) => entry.includes("install.sh")));
+  assert.ok(stable.required.some((entry) => entry.includes("--stable-macos-install")));
+  assert.equal(fs.existsSync(path.join(appRoot, "install-free.sh")), false);
 });
 
-test('release boundary requires profile-aware Standard launch gates and Full route receipts', () => {
-  const assistantSmoke = requireReleaseBoundaryCheck('first_run_vm_profile_aware_assistant_smoke');
+test("release boundary requires profile-aware Standard launch gates and Full route receipts", () => {
+  const assistantSmoke = requireReleaseBoundaryCheck("first_run_vm_profile_aware_assistant_smoke");
 
-  assert.ok(assistantSmoke.required.includes('homeAssistantBlockedReadinessExpression'));
+  assert.ok(assistantSmoke.required.includes("homeAssistantBlockedReadinessExpression"));
   assert.ok(assistantSmoke.required.includes("options.runtimeProfile !== 'full'"));
   assert.ok(assistantSmoke.required.includes("verification_mode: 'launch_gate'"));
   assert.ok(assistantSmoke.required.includes("verification_mode: 'route_receipt'"));
-  assert.ok(assistantSmoke.required.includes('assistant_launch_gates_checked'));
-  assert.ok(assistantSmoke.required.includes('not_applicable_standard'));
+  assert.ok(assistantSmoke.required.includes("assistant_launch_gates_checked"));
+  assert.ok(assistantSmoke.required.includes("not_applicable_standard"));
 });
 
-test('reusable build validates the Shell consumer after syncing the App product profile', () => {
-  const workflow = fs.readFileSync(path.join(appRoot, '.github/workflows/_build-reusable.yml'), 'utf8');
-  const syncStep = workflow.indexOf('- name: Prepare standard App payload');
-  const consumerGate = workflow.indexOf('- name: Validate synced App product profile consumer');
+test("reusable build validates the Shell consumer after syncing the App product profile", () => {
+  const workflow = fs.readFileSync(
+    path.join(appRoot, ".github/workflows/_build-reusable.yml"),
+    "utf8",
+  );
+  const syncStep = workflow.indexOf("- name: Prepare standard App payload");
+  const consumerGate = workflow.indexOf("- name: Validate synced App product profile consumer");
 
-  assert.ok(syncStep >= 0, 'missing App product profile sync step');
-  assert.ok(consumerGate > syncStep, 'Shell profile consumer gate must run after App product profile sync');
+  assert.ok(syncStep >= 0, "missing App product profile sync step");
+  assert.ok(
+    consumerGate > syncStep,
+    "Shell profile consumer gate must run after App product profile sync",
+  );
   assert.match(
     workflow.slice(consumerGate),
     /bunx vitest run tests\/unit\/common-config\/oplProductProfile\.test\.ts/,
   );
 });
 
-test('App product profile check verifies the deterministic compatibility projection without rewriting it', () => {
-  const shellRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-profile-sync-'));
-  const policyPath = path.join(shellRoot, 'workflow-policy.json');
+test("App product profile check verifies the deterministic compatibility projection without rewriting it", () => {
+  const shellRoot = fs.mkdtempSync(path.join(os.tmpdir(), "opl-profile-sync-"));
+  const policyPath = path.join(shellRoot, "workflow-policy.json");
   const previousPolicy = process.env.OPL_FLOW_WORKFLOW_POLICY;
   try {
-    writeFile(path.join(shellRoot, 'package.json'), '{}\n');
+    writeFile(path.join(shellRoot, "package.json"), "{}\n");
     writeFile(policyPath, JSON.stringify({ requires: [], recommends: [] }));
     process.env.OPL_FLOW_WORKFLOW_POLICY = policyPath;
 
@@ -140,49 +148,70 @@ test('App product profile check verifies the deterministic compatibility project
   }
 });
 
-test('reusable release-boundary job checks out its OPL Flow authority source', () => {
-  const workflow = fs.readFileSync(path.join(appRoot, '.github/workflows/_build-reusable.yml'), 'utf8');
-  const jobStart = workflow.indexOf('  release-boundary:');
-  const jobEnd = workflow.indexOf('\n  active-shell-tests:', jobStart);
+test("reusable release-boundary job checks out its OPL Flow authority source", () => {
+  const workflow = fs.readFileSync(
+    path.join(appRoot, ".github/workflows/_build-reusable.yml"),
+    "utf8",
+  );
+  const jobStart = workflow.indexOf("  release-boundary:");
+  const jobEnd = workflow.indexOf("\n  active-shell-tests:", jobStart);
   const job = workflow.slice(jobStart, jobEnd);
 
-  assert.ok(jobStart >= 0 && jobEnd > jobStart, 'missing reusable release-boundary job');
-  assert.match(workflow, /opl_flow_ref:[\s\S]*default: 06cb8e15490e6a98b1196bfc6d526bd50471ecbc/);
-  assert.match(job, /name: Checkout OPL Flow policy source[\s\S]*repository: gaofeng21cn\/opl-flow/);
+  assert.ok(jobStart >= 0 && jobEnd > jobStart, "missing reusable release-boundary job");
+  assert.match(workflow, /opl_flow_ref:[\s\S]*default: 2c7fad262938fb4295d2bb866f6b955c0aa2361a/);
+  assert.match(
+    job,
+    /name: Checkout OPL Flow policy source[\s\S]*repository: gaofeng21cn\/opl-flow/,
+  );
   assert.match(job, /ref: \$\{\{ inputs\.opl_flow_ref \}\}[\s\S]*path: opl-flow/);
   assert.match(job, /OPL_FLOW_WORKFLOW_POLICY:.*opl-flow\/contracts\/workflow-policy\.json/);
   assert.match(job, /OPL_FULL_OPL_FLOW_ROOT:.*opl-flow/);
 });
 
-test('reusable build job checks out OPL Flow before preparing the standard payload', () => {
-  const workflow = fs.readFileSync(path.join(appRoot, '.github/workflows/_build-reusable.yml'), 'utf8');
-  const jobStart = workflow.indexOf('  build:');
+test("reusable build job checks out OPL Flow before preparing the standard payload", () => {
+  const workflow = fs.readFileSync(
+    path.join(appRoot, ".github/workflows/_build-reusable.yml"),
+    "utf8",
+  );
+  const jobStart = workflow.indexOf("  build:");
   const job = workflow.slice(jobStart);
-  const checkout = job.indexOf('- name: Checkout OPL Flow policy source');
-  const payload = job.indexOf('- name: Prepare standard App payload');
+  const checkout = job.indexOf("- name: Checkout OPL Flow policy source");
+  const payload = job.indexOf("- name: Prepare standard App payload");
 
-  assert.ok(jobStart >= 0, 'missing reusable build job');
-  assert.ok(checkout >= 0 && payload > checkout, 'OPL Flow must be available before standard payload preparation');
-  assert.match(job, /repository: gaofeng21cn\/opl-flow[\s\S]*ref: \$\{\{ inputs\.opl_flow_ref \}\}[\s\S]*path: opl-flow/);
-  assert.match(job.slice(payload), /OPL_FLOW_WORKFLOW_POLICY:.*opl-flow\/contracts\/workflow-policy\.json/);
+  assert.ok(jobStart >= 0, "missing reusable build job");
+  assert.ok(
+    checkout >= 0 && payload > checkout,
+    "OPL Flow must be available before standard payload preparation",
+  );
+  assert.match(
+    job,
+    /repository: gaofeng21cn\/opl-flow[\s\S]*ref: \$\{\{ inputs\.opl_flow_ref \}\}[\s\S]*path: opl-flow/,
+  );
+  assert.match(
+    job.slice(payload),
+    /OPL_FLOW_WORKFLOW_POLICY:.*opl-flow\/contracts\/workflow-policy\.json/,
+  );
   assert.match(job.slice(payload), /OPL_FULL_OPL_FLOW_ROOT:.*opl-flow/);
 });
 
-test('one-shot App installer defaults to the shared base plus optional GUI without Agents', () => {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-installer-args-'));
-  const fakeCurl = path.join(tempRoot, 'curl');
-  const capturePath = path.join(tempRoot, 'args.txt');
-  writeExecutable(fakeCurl, `#!/bin/sh
+test("one-shot App installer defaults to the shared base plus optional GUI without Agents", () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "opl-app-installer-args-"));
+  const fakeCurl = path.join(tempRoot, "curl");
+  const capturePath = path.join(tempRoot, "args.txt");
+  writeExecutable(
+    fakeCurl,
+    `#!/bin/sh
 cat <<'INNER'
 #!/bin/bash
 printf '%s\\n' "$*" > "$OPL_INSTALL_ARGS_CAPTURE"
 INNER
-`);
+`,
+  );
 
   try {
-    const result = spawnSync('/bin/bash', [path.join(appRoot, 'install.sh')], {
+    const result = spawnSync("/bin/bash", [path.join(appRoot, "install.sh")], {
       cwd: appRoot,
-      encoding: 'utf8',
+      encoding: "utf8",
       env: {
         ...process.env,
         OPL_INSTALL_ARGS_CAPTURE: capturePath,
@@ -190,48 +219,58 @@ INNER
       },
     });
     assert.equal(result.status, 0, result.stderr || result.stdout);
-    assert.equal(fs.readFileSync(capturePath, 'utf8').trim(), '--with-app --skip-packages');
+    assert.equal(fs.readFileSync(capturePath, "utf8").trim(), "--with-app --skip-packages");
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }
 });
 
-test('local authorization checks each nested directory symlink path once', () => {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-local-authorization-symlink-'));
-  const appPath = path.join(tempRoot, 'One Person Lab.app');
-  writeFile(path.join(appPath, 'real', 'sub', 'f'), 'abc');
-  fs.mkdirSync(path.join(appPath, 'plain'), { recursive: true });
-  fs.symlinkSync('../real', path.join(appPath, 'plain', 'link'));
+test("local authorization checks each nested directory symlink path once", () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "opl-local-authorization-symlink-"));
+  const appPath = path.join(tempRoot, "One Person Lab.app");
+  writeFile(path.join(appPath, "real", "sub", "f"), "abc");
+  fs.mkdirSync(path.join(appPath, "plain"), { recursive: true });
+  fs.symlinkSync("../real", path.join(appPath, "plain", "link"));
 
-  const fakeBin = path.join(tempRoot, 'bin');
-  const xattrLog = path.join(tempRoot, 'xattr.log');
-  const output = path.join(tempRoot, 'local-authorization-policy.json');
-  writeExecutable(path.join(fakeBin, 'xattr'), `#!/bin/sh
+  const fakeBin = path.join(tempRoot, "bin");
+  const xattrLog = path.join(tempRoot, "xattr.log");
+  const output = path.join(tempRoot, "local-authorization-policy.json");
+  writeExecutable(
+    path.join(fakeBin, "xattr"),
+    `#!/bin/sh
 printf '%s\\n' "$3" >> "$OPL_XATTR_LOG"
 exit 0
-`);
+`,
+  );
 
-  const result = runNode([
-    'scripts/local-authorization-policy.ts',
-    '--package-kind',
-    'app_standard',
-    '--app-path',
-    appPath,
-    '--output',
-    output,
-  ], {
-    env: {
-      PATH: `${fakeBin}${path.delimiter}${process.env.PATH ?? ''}`,
-      OPL_XATTR_LOG: xattrLog,
+  const result = runNode(
+    [
+      "scripts/local-authorization-policy.ts",
+      "--package-kind",
+      "app_standard",
+      "--app-path",
+      appPath,
+      "--output",
+      output,
+    ],
+    {
+      env: {
+        PATH: `${fakeBin}${path.delimiter}${process.env.PATH ?? ""}`,
+        OPL_XATTR_LOG: xattrLog,
+      },
     },
-  });
+  );
 
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /must prove quarantine is absent or removed/);
-  const checkedPaths = fs.readFileSync(xattrLog, 'utf8').trim().split('\n');
-  assert.deepEqual(
-    checkedPaths.map((entry) => path.relative(appPath, entry) || '.').sort(),
-    ['.', 'plain', 'plain/link', 'real', 'real/sub', 'real/sub/f'],
-  );
-  assert.equal(JSON.parse(fs.readFileSync(output, 'utf8')).quarantine_attribute_count, 6);
+  const checkedPaths = fs.readFileSync(xattrLog, "utf8").trim().split("\n");
+  assert.deepEqual(checkedPaths.map((entry) => path.relative(appPath, entry) || ".").sort(), [
+    ".",
+    "plain",
+    "plain/link",
+    "real",
+    "real/sub",
+    "real/sub/f",
+  ]);
+  assert.equal(JSON.parse(fs.readFileSync(output, "utf8")).quarantine_attribute_count, 6);
 });
