@@ -45,6 +45,112 @@
     ]
   },
   "action_command": "opl app action execute --action <action_id> [--payload json] [--dry-run] --json",
+  "opl_gateway_account_projection": {
+    "surface_kind": "opl_gateway_account_read_model.v1",
+    "source_path": "app_state.settings_control_center.app_settings_read_model.opl_gateway_account",
+    "producer_owner": "one-person-lab",
+    "consumer_owner": "one-person-lab-app",
+    "shell_role": "display_and_declared_action_consumer_only",
+    "connection_modes": ["none", "manual_key", "account"],
+    "account_card_visibility": "account_card_visible_true_only",
+    "status_values": [
+      "not_connected",
+      "setup_required",
+      "connected",
+      "reauth_required",
+      "attention_needed",
+      "disconnect_pending"
+    ],
+    "top_level_field_allowlist": [
+      "surface_kind",
+      "connection_mode",
+      "status",
+      "account_card_visible",
+      "account",
+      "usage",
+      "managed_key",
+      "installation",
+      "available_groups",
+      "freshness",
+      "capabilities",
+      "actions"
+    ],
+    "nested_field_allowlist": {
+      "account": ["display_name", "masked_email", "status", "balance"],
+      "account.balance": ["amount", "currency"],
+      "usage": ["today_tokens", "total_tokens", "today_actual_cost", "total_actual_cost", "currency", "day_timezone"],
+      "managed_key": ["name", "status", "ownership"],
+      "installation": ["device_label", "short_id"],
+      "available_groups[]": ["group_id", "label"],
+      "freshness": ["observed_at", "stale_after", "stale", "last_error_code"],
+      "capabilities": ["account_login_supported", "manual_key_supported"],
+      "actions": ["complete_setup", "refresh", "repair", "use_for_model_access", "disconnect"]
+    },
+    "forbidden_fields": [
+      "password",
+      "access_token",
+      "refresh_token",
+      "api_key",
+      "key_material",
+      "key_id",
+      "remote_key_id",
+      "credential_path",
+      "raw_response",
+      "raw_error"
+    ],
+    "usage_field_policy": {
+      "today_cost_source": "usage.today_actual_cost",
+      "total_cost_source": "usage.total_actual_cost",
+      "day_boundary_source": "usage.day_timezone",
+      "missing_values": "unknown_not_zero"
+    },
+    "refresh_policy": {
+      "cache_owner": "one-person-lab",
+      "ttl_seconds": 900,
+      "page_entry": "show_cached_then_refresh_once_when_stale",
+      "manual_refresh": "bypass_ttl",
+      "network_failure": "preserve_cached_values_and_mark_stale",
+      "auth_expired": "preserve_non_secret_snapshot_and_offer_relogin"
+    },
+    "error_codes": [
+      "invalid_credentials",
+      "account_disabled",
+      "mfa_or_challenge_required",
+      "session_not_persistable",
+      "group_selection_required",
+      "auth_expired",
+      "network_unreachable",
+      "rate_limited",
+      "managed_key_missing",
+      "managed_key_conflict",
+      "managed_key_identity_drift",
+      "disconnect_pending",
+      "manual_override_preserved"
+    ],
+    "app_action_ids": [
+      "gateway_account_complete_setup",
+      "gateway_account_refresh",
+      "gateway_account_repair",
+      "gateway_account_use_for_model_access",
+      "gateway_account_disconnect"
+    ],
+    "generic_action_secret_policy": "password_tokens_and_api_key_material_forbidden_in_action_payload_log_state_error_and_receipt"
+  },
+  "opl_gateway_account_secret_bridge": {
+    "bridge_id": "loginGatewayAccount",
+    "desktop_only": true,
+    "webui_password_login_allowed": false,
+    "command": "opl connect gateway login --credentials-stdin --json",
+    "transport": "typed_ipc_to_dedicated_stdin_no_generic_app_action_payload",
+    "request_fields": ["email", "password", "deviceLabel"],
+    "optional_request_fields": ["deviceLabel"],
+    "response_fields": ["ok", "errorCode", "stateRefreshRequired"],
+    "secret_fields": ["password"],
+    "secret_persistence": false,
+    "secret_diagnostics": false,
+    "secret_receipt_fields": false,
+    "shell_fail_closed_policy": "reject_unexpected_cli_fields_and_never_return_raw_stdout_stderr_or_secret_material"
+  },
   "canonical_state_display_action_map": {
     "schema": "app_canonical_state_display_action_map.v1",
     "authority": "one-person-lab-app",

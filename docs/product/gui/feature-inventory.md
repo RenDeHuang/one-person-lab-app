@@ -117,7 +117,7 @@ GUI contract 与 Settings Control Plane 拥有。
 | 功能组 | 用户结果 | Authority / machine owner |
 | --- | --- | --- |
 | Overview | 判断 App 当前是否可用，以及最重要的下一步。 | Settings Control Plane、fast App state。 |
-| Access | 配置或检查模型访问、Codex CLI 和远程访问。 | App state/action、access contracts。 |
+| Access | 通过 OPL Gateway 账户登录或手工 API Key 配置模型访问；账户连接时查看脱敏身份、余额、Token/实际成本、专用 Key 状态和数据新鲜度。 | Framework Gateway account projection/secret bridge、App access contracts；密码不进入 App state 或 generic action。 |
 | Workspace | 查看、切换、验证工作目录和权限。 | Workspace state/action。 |
 | Agents | 管理可运行 Agent packages、依赖就绪、Home shortcuts 与 launch/lifecycle。 | Agent package state/action 与 product profile。 |
 | Capabilities | 分组管理 OPL Flow dependency closure 内的推荐 Skill/Plugin，以及手工或第三方 Skill/Plugin；Flow 不拥有第二套 updater。 | Settings control plane、OPL Packages closure 与 Codex/shell registries。 |

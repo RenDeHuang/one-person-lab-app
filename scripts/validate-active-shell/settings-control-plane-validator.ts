@@ -2331,11 +2331,60 @@ function validateSettingsPageAdapterPolicy(controlPlane) {
     }
   }
   validateSettingsAccessCloudBoundary(requiredPages.access);
+  validateSettingsGatewayAccountBoundary(controlPlane, requiredPages.access);
   validateSettingsCapabilitiesResourceGrouping(
     requiredPages.agents?.resource_grouping_surface,
     "Settings Agents page adapter resource grouping surface",
   );
   validateSettingsAgentsDirectoryProjection(requiredPages.agents);
+}
+
+function validateSettingsGatewayAccountBoundary(controlPlane, accessAdapter) {
+  const gatewaySource = 'app_state.settings_control_center.app_settings_read_model.opl_gateway_account';
+  const accessRoute = (controlPlane.ordinary_routes ?? []).find((route) => route.id === 'access');
+  if (!String(accessRoute?.state_source ?? '').includes(gatewaySource)) {
+    throw new Error('Settings Access route must consume the canonical Gateway account read model path');
+  }
+  if (
+    accessAdapter?.opl_gateway_account_source !== gatewaySource ||
+    accessAdapter.opl_gateway_account_projection_ref !== 'contracts/app-runtime-bridge.json#opl_gateway_account_projection' ||
+    accessAdapter.opl_gateway_account_secret_bridge_ref !== 'contracts/app-runtime-bridge.json#opl_gateway_account_secret_bridge' ||
+    accessAdapter.secret_boundary !==
+      'account_password_only_through_typed_desktop_ipc_and_dedicated_stdin_never_generic_action_payload' ||
+    accessAdapter.webui_boundary !== 'status_and_manual_api_key_only_no_gateway_account_password_login'
+  ) {
+    throw new Error('Settings Access adapter must preserve the Gateway account projection and secret bridge boundaries');
+  }
+  const surface = controlPlane.experience_contract?.page_contracts?.access?.gateway_account_surface;
+  if (
+    surface?.projection_path !== gatewaySource ||
+    surface.projection_ref !== 'contracts/app-runtime-bridge.json#opl_gateway_account_projection' ||
+    surface.secret_bridge_ref !== 'contracts/app-runtime-bridge.json#opl_gateway_account_secret_bridge' ||
+    surface.account_card_visibility !== 'account_connection_only' ||
+    surface.ttl_seconds !== 900 ||
+    surface.webui_password_login_allowed !== false ||
+    surface.generic_action_secret_payload_allowed !== false
+  ) {
+    throw new Error('Settings Access experience must keep Gateway account visibility, TTL, WebUI, and secret rules');
+  }
+  assertDeepEqualJson(surface.access_paths, ['account_login', 'manual_api_key'], 'Settings Gateway access paths');
+  assertDeepEqualJson(
+    surface.account_card_fields,
+    [
+      'account.display_name',
+      'account.masked_email',
+      'account.balance',
+      'usage.today_tokens',
+      'usage.today_actual_cost',
+      'usage.total_tokens',
+      'usage.total_actual_cost',
+      'managed_key.name',
+      'managed_key.status',
+      'freshness.observed_at',
+      'freshness.stale',
+    ],
+    'Settings Gateway account card fields',
+  );
 }
 
 function validateSettingsAgentsDirectoryProjection(agentsPage) {
@@ -2481,12 +2530,12 @@ function validateSettingsAccessCloudBoundary(accessPage) {
   }
   assertDeepEqualJson(
     presentation.user_facing_groups,
-    ["model_access"],
+    ["model_access", "opl_gateway_access"],
     "Settings Access normal-state groups",
   );
   assertDeepEqualJson(
     presentation.supporting_details,
-    ["codex_cli", "authentication"],
+    ["codex_cli", "authentication", "gateway_account_freshness"],
     "Settings Access supporting details",
   );
   if (

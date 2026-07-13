@@ -4457,6 +4457,7 @@
       "model_access_source": "app_state.core.codex.model_access_source",
       "sections": [
         "model_access_summary",
+        "opl_gateway_access",
         "provider_source",
         "model",
         "codex_cli",
@@ -4469,6 +4470,9 @@
         "real access source from app_state.core.codex.model_access_source",
         "selected and default model",
         "persistent default model and reasoning effort for new conversations",
+        "OPL Gateway account login and manual API-key paths without removing either path",
+        "Gateway account card only when an account connection exists",
+        "account card limited to masked identity, balance, today and total tokens, today and total actual cost, managed Key name and status, and freshness",
         "OPL Gateway, Codex CLI, and account or API-key state",
         "one configure model access action when missing or explicitly requested"
       ],
@@ -4478,8 +4482,31 @@
         "raw base URL, environment variable, token path, or provider id on the ordinary Access surface",
         "backend/provider raw selector as the primary control",
         "repeated access summary lines in normal state",
-        "local browser access, WebUI, Workspace, or remote resource entries"
+        "local browser access, WebUI, Workspace, or remote resource entries",
+        "Gateway password login in browser WebUI",
+        "password, access token, refresh token, API Key material, remote Key id, credential path, raw response, or raw error",
+        "Gateway account card in manual API-key mode or when no Gateway account is connected"
       ],
+      "opl_gateway_account": {
+        "projection_ref": "contracts/app-runtime-bridge.json#opl_gateway_account_projection",
+        "projection_path": "app_state.settings_control_center.app_settings_read_model.opl_gateway_account",
+        "secret_bridge_ref": "contracts/app-runtime-bridge.json#opl_gateway_account_secret_bridge",
+        "access_paths": ["account_login", "manual_api_key"],
+        "default_path_policy": "preserve_current_access_path_and_offer_explicit_switch",
+        "account_card_visibility": "account_connection_only",
+        "manual_api_key_card_policy": "model_access_status_only_no_account_balance_or_account_usage",
+        "cache_ttl_seconds": 900,
+        "stale_policy": "show_cached_values_with_stale_marker_and_manual_refresh",
+        "error_states": [
+          "auth_expired",
+          "managed_key_missing",
+          "managed_key_conflict",
+          "managed_key_identity_drift",
+          "disconnect_pending"
+        ],
+        "first_run_scope": "unchanged",
+        "personal_profile_navigation": "not_added"
+      },
       "ia_group": "setup_access",
       "product_page_id": "access",
       "experience_contract_ref": "contracts/app-settings-control-plane.json#experience_contract.page_contracts.access"

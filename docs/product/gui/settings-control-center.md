@@ -310,6 +310,11 @@ Primary information:
 - the real source from `app_state.core.codex.model_access_source`;
 - selected and default model;
 - persisted Auto or fixed-model selection and reasoning effort;
+- OPL Gateway account login and manual API-key paths, with neither path removing
+  the other;
+- when an account is connected, a compact account card showing only masked
+  identity, balance, today/total Token usage, today/total actual cost, managed
+  Key name/status, and freshness;
 - OPL Gateway, Codex CLI, and account or API-key state.
 
 Primary action: configure model access when missing or when the user explicitly
@@ -321,13 +326,36 @@ key button. The primary-action emphasis follows model-access readiness only.
 Exception state: missing, expired, or unreachable access with one corrective
 action.
 
+Gateway account state is read only from
+`app_state.settings_control_center.app_settings_read_model.opl_gateway_account`.
+The Framework owns its 15-minute cache. Page entry shows cached data first and
+refreshes once when stale; manual refresh bypasses the TTL, while network errors
+keep the prior values and mark them stale. `auth_expired` asks the user to log in
+again. `managed_key_missing`, `managed_key_conflict`,
+`managed_key_identity_drift`, and `disconnect_pending` expose only their
+declared Framework repair actions.
+
+Desktop account login uses the typed `loginGatewayAccount` IPC bridge and
+`opl connect gateway login --credentials-stdin --json`. Passwords must never
+enter generic `opl app action execute --payload`, App state, logs, errors,
+receipts, diagnostics, or persisted renderer state. Browser WebUI may display
+existing account status and keep the manual Key path, but it does not accept the
+Gateway account password in v1. Non-secret setup, refresh, repair, model-source,
+and disconnect mutations use the canonical App action ids projected by the
+Framework.
+
+The account card is absent for manual-Key-only and disconnected states. This
+capability does not add a personal-profile navigation item and does not change
+First Run.
+
 Technical details: no separate disclosure in the ordinary page. The previous
 modal repeated the same Codex executable, provider source, and access result
 without enabling a decision or action. Raw paths and provider ids remain in
 the maintenance diagnostic surface when troubleshooting actually requires
 them.
 
-Required anchors: `provider-source`, `model`, `codex-cli`, `authentication`.
+Required anchors: `provider-source`, `opl-gateway`, `model`, `codex-cli`,
+`authentication`.
 
 Local browser access, Docker WebUI, OPL Workspace, SSH/HPC, cloud, Fabric, and
 Console-managed resources belong to Resources & Connections.

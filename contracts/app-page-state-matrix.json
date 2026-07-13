@@ -2819,6 +2819,7 @@
       "page_contract": "settings_access",
       "sections": [
         "model_access_summary",
+        "opl_gateway_access",
         "provider_source",
         "model",
         "codex_cli",
@@ -2829,7 +2830,8 @@
         "core.codex.model_access_ready",
         "core.codex.model_access_source",
         "core.codex.model",
-        "access.api_key_present"
+        "access.api_key_present",
+        "settings_control_center.app_settings_read_model.opl_gateway_account"
       ],
       "must_show": [
         "page label Models & Access or 模型与访问",
@@ -2837,6 +2839,9 @@
         "real access source from app_state.core.codex.model_access_source",
         "selected and default model",
         "persistent default model and reasoning effort for new conversations",
+        "OPL Gateway account login and manual API-key paths without removing either path",
+        "Gateway account card only when an account connection exists",
+        "account card limited to masked identity, balance, today and total tokens, today and total actual cost, managed Key name and status, and freshness",
         "OPL Gateway, Codex CLI, and account or API-key state",
         "one configure model access action when missing or explicitly requested"
       ],
@@ -2846,7 +2851,10 @@
         "raw base URL, environment variable, token path, or provider id on the ordinary Access surface",
         "backend/provider raw selector as the primary control",
         "repeated access summary lines in normal state",
-        "local browser access, WebUI, Workspace, or remote resource entries"
+        "local browser access, WebUI, Workspace, or remote resource entries",
+        "Gateway password login in browser WebUI",
+        "password, access token, refresh token, API Key material, remote Key id, credential path, raw response, or raw error",
+        "Gateway account card in manual API-key mode or when no Gateway account is connected"
       ],
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
       "ia_group": "setup_access",
@@ -2859,7 +2867,9 @@
         "always": [
           "settings-page-access",
           "settings-access-primary",
-          "settings-access-model-preference"
+          "settings-access-model-preference",
+          "settings-access-gateway",
+          "settings-access-gateway-manual-key"
         ],
         "conditional": [
           {
@@ -2869,17 +2879,35 @@
           {
             "testid": "settings-access-primary-action",
             "when": "missing_or_user_requested_change"
+          },
+          {
+            "testid": "settings-access-gateway-setup",
+            "when": "desktop_account_login_selected_or_group_selection_required"
+          },
+          {
+            "testid": "settings-access-gateway-account",
+            "when": "gateway_account_connected"
+          },
+          {
+            "testid": "settings-access-gateway-stale",
+            "when": "gateway_account_projection_stale"
+          },
+          {
+            "testid": "settings-access-gateway-disconnect-confirm",
+            "when": "gateway_account_disconnect_requested"
           }
         ]
       },
       "required_anchors": [
         "provider-source",
+        "opl-gateway",
         "model",
         "codex-cli",
         "authentication"
       ],
       "search_entry_ids": [
         "access.provider_source",
+        "access.opl_gateway",
         "access.model",
         "access.codex_cli",
         "access.authentication"
@@ -2887,7 +2915,27 @@
       "primary_action_id": "configure_model_access",
       "technical_details_default": "not_applicable",
       "exception_emphasis": "attention_only",
-      "provider_source": "app_state.core.codex.model_access_source"
+      "provider_source": "app_state.core.codex.model_access_source",
+      "opl_gateway_account": {
+        "projection_ref": "contracts/app-runtime-bridge.json#opl_gateway_account_projection",
+        "projection_path": "app_state.settings_control_center.app_settings_read_model.opl_gateway_account",
+        "secret_bridge_ref": "contracts/app-runtime-bridge.json#opl_gateway_account_secret_bridge",
+        "access_paths": ["account_login", "manual_api_key"],
+        "default_path_policy": "preserve_current_access_path_and_offer_explicit_switch",
+        "account_card_visibility": "account_connection_only",
+        "manual_api_key_card_policy": "model_access_status_only_no_account_balance_or_account_usage",
+        "cache_ttl_seconds": 900,
+        "stale_policy": "show_cached_values_with_stale_marker_and_manual_refresh",
+        "error_states": [
+          "auth_expired",
+          "managed_key_missing",
+          "managed_key_conflict",
+          "managed_key_identity_drift",
+          "disconnect_pending"
+        ],
+        "first_run_scope": "unchanged",
+        "personal_profile_navigation": "not_added"
+      }
     },
     {
       "id": "settings_resources",

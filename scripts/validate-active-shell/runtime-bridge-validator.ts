@@ -27,6 +27,182 @@ import {
   validateUserTaskStatusProjectionContract,
 } from './shared-contract-validators.ts';
 
+const gatewayAccountProjectionPath =
+  'app_state.settings_control_center.app_settings_read_model.opl_gateway_account';
+const gatewayAccountConnectionModes = ['none', 'manual_key', 'account'];
+const gatewayAccountStatusValues = [
+  'not_connected',
+  'setup_required',
+  'connected',
+  'reauth_required',
+  'attention_needed',
+  'disconnect_pending',
+];
+const gatewayAccountTopLevelFields = [
+  'surface_kind',
+  'connection_mode',
+  'status',
+  'account_card_visible',
+  'account',
+  'usage',
+  'managed_key',
+  'installation',
+  'available_groups',
+  'freshness',
+  'capabilities',
+  'actions',
+];
+const gatewayAccountNestedFields = {
+  account: ['display_name', 'masked_email', 'status', 'balance'],
+  'account.balance': ['amount', 'currency'],
+  usage: ['today_tokens', 'total_tokens', 'today_actual_cost', 'total_actual_cost', 'currency', 'day_timezone'],
+  managed_key: ['name', 'status', 'ownership'],
+  installation: ['device_label', 'short_id'],
+  'available_groups[]': ['group_id', 'label'],
+  freshness: ['observed_at', 'stale_after', 'stale', 'last_error_code'],
+  capabilities: ['account_login_supported', 'manual_key_supported'],
+  actions: ['complete_setup', 'refresh', 'repair', 'use_for_model_access', 'disconnect'],
+};
+const gatewayAccountForbiddenFields = [
+  'password',
+  'access_token',
+  'refresh_token',
+  'api_key',
+  'key_material',
+  'key_id',
+  'remote_key_id',
+  'credential_path',
+  'raw_response',
+  'raw_error',
+];
+const gatewayAccountErrorCodes = [
+  'invalid_credentials',
+  'account_disabled',
+  'mfa_or_challenge_required',
+  'session_not_persistable',
+  'group_selection_required',
+  'auth_expired',
+  'network_unreachable',
+  'rate_limited',
+  'managed_key_missing',
+  'managed_key_conflict',
+  'managed_key_identity_drift',
+  'disconnect_pending',
+  'manual_override_preserved',
+];
+const gatewayAccountActionIds = [
+  'gateway_account_complete_setup',
+  'gateway_account_refresh',
+  'gateway_account_repair',
+  'gateway_account_use_for_model_access',
+  'gateway_account_disconnect',
+];
+
+function collectObjectKeys(value, keys = new Set()) {
+  if (Array.isArray(value)) {
+    for (const item of value) collectObjectKeys(item, keys);
+    return keys;
+  }
+  if (!value || typeof value !== 'object') return keys;
+  for (const [key, nested] of Object.entries(value)) {
+    keys.add(key);
+    collectObjectKeys(nested, keys);
+  }
+  return keys;
+}
+
+function validateGatewayAccountFixture(fixture) {
+  const projection = lookupPath(fixture, gatewayAccountProjectionPath);
+  if (!projection || typeof projection !== 'object' || Array.isArray(projection)) {
+    throw new Error(`OPL App state golden fixture must include ${gatewayAccountProjectionPath}`);
+  }
+  assertDeepEqualJson(Object.keys(projection), gatewayAccountTopLevelFields, 'Gateway account fixture top-level fields');
+  if (
+    projection.surface_kind !== 'opl_gateway_account_read_model.v1'
+    || !gatewayAccountConnectionModes.includes(projection.connection_mode)
+    || !gatewayAccountStatusValues.includes(projection.status)
+  ) {
+    throw new Error('Gateway account fixture must use the canonical v1 surface, connection mode, and status');
+  }
+  if (projection.account_card_visible !== (projection.connection_mode === 'account')) {
+    throw new Error('Gateway account fixture account card visibility must follow account connection mode');
+  }
+  for (const [field, expectedFields] of Object.entries(gatewayAccountNestedFields)) {
+    const value = field === 'available_groups[]'
+      ? projection.available_groups
+      : field === 'account.balance'
+        ? projection.account?.balance
+        : projection[field];
+    if (field === 'available_groups[]') {
+      if (!Array.isArray(value)) throw new Error('Gateway account fixture available_groups must be an array');
+      for (const group of value) {
+        assertDeepEqualJson(Object.keys(group), expectedFields, 'Gateway account fixture available group fields');
+      }
+      continue;
+    }
+    assertDeepEqualJson(Object.keys(value ?? {}), expectedFields, `Gateway account fixture ${field} fields`);
+  }
+  const observedKeys = collectObjectKeys(projection);
+  for (const forbidden of gatewayAccountForbiddenFields) {
+    if (observedKeys.has(forbidden)) {
+      throw new Error(`Gateway account fixture must not expose secret or remote identity field ${forbidden}`);
+    }
+  }
+  const actionValues = Object.values(projection.actions).filter(Boolean);
+  if (!actionValues.every((action) => gatewayAccountActionIds.includes(action))) {
+    throw new Error('Gateway account fixture actions must use canonical non-secret App action ids');
+  }
+}
+
+export function validateOplGatewayAccountContract(runtimeBridge) {
+  const projection = runtimeBridge.opl_gateway_account_projection;
+  if (
+    projection?.surface_kind !== 'opl_gateway_account_read_model.v1'
+    || projection.source_path !== 'app_state.settings_control_center.app_settings_read_model.opl_gateway_account'
+    || projection.producer_owner !== 'one-person-lab'
+    || projection.consumer_owner !== 'one-person-lab-app'
+    || projection.shell_role !== 'display_and_declared_action_consumer_only'
+  ) {
+    throw new Error('Runtime bridge must declare the canonical OPL Gateway account projection ownership and path');
+  }
+  assertDeepEqualJson(projection.connection_modes, gatewayAccountConnectionModes, 'Gateway account connection modes');
+  assertDeepEqualJson(projection.status_values, gatewayAccountStatusValues, 'Gateway account status values');
+  assertDeepEqualJson(projection.top_level_field_allowlist, gatewayAccountTopLevelFields, 'Gateway account top-level fields');
+  assertDeepEqualJson(projection.nested_field_allowlist, gatewayAccountNestedFields, 'Gateway account nested fields');
+  assertDeepEqualJson(projection.forbidden_fields, gatewayAccountForbiddenFields, 'Gateway account forbidden fields');
+  assertDeepEqualJson(projection.error_codes, gatewayAccountErrorCodes, 'Gateway account error codes');
+  assertDeepEqualJson(projection.app_action_ids, gatewayAccountActionIds, 'Gateway account App action ids');
+  if (
+    projection.account_card_visibility !== 'account_card_visible_true_only'
+    || projection.refresh_policy?.ttl_seconds !== 900
+    || projection.refresh_policy?.page_entry !== 'show_cached_then_refresh_once_when_stale'
+    || projection.refresh_policy?.manual_refresh !== 'bypass_ttl'
+    || projection.refresh_policy?.network_failure !== 'preserve_cached_values_and_mark_stale'
+    || projection.generic_action_secret_policy !==
+      'password_tokens_and_api_key_material_forbidden_in_action_payload_log_state_error_and_receipt'
+  ) {
+    throw new Error('Gateway account projection must preserve visibility, 15-minute freshness, stale, and secret boundaries');
+  }
+
+  const secretBridge = runtimeBridge.opl_gateway_account_secret_bridge;
+  if (
+    secretBridge?.bridge_id !== 'loginGatewayAccount'
+    || secretBridge.desktop_only !== true
+    || secretBridge.webui_password_login_allowed !== false
+    || secretBridge.command !== 'opl connect gateway login --credentials-stdin --json'
+    || secretBridge.transport !== 'typed_ipc_to_dedicated_stdin_no_generic_app_action_payload'
+    || secretBridge.secret_persistence !== false
+    || secretBridge.secret_diagnostics !== false
+    || secretBridge.secret_receipt_fields !== false
+  ) {
+    throw new Error('Gateway account login must use the dedicated desktop typed IPC and stdin-only secret bridge');
+  }
+  assertDeepEqualJson(secretBridge.request_fields, ['email', 'password', 'deviceLabel'], 'Gateway login request fields');
+  assertDeepEqualJson(secretBridge.optional_request_fields, ['deviceLabel'], 'Gateway login optional request fields');
+  assertDeepEqualJson(secretBridge.response_fields, ['ok', 'errorCode', 'stateRefreshRequired'], 'Gateway login response fields');
+  assertDeepEqualJson(secretBridge.secret_fields, ['password'], 'Gateway login secret fields');
+}
+
 function resolveLiveGateEnabled(gate) {
   const envName = gate?.enable_env;
   return typeof envName === 'string' && process.env[envName]?.trim() === '1';
@@ -133,6 +309,7 @@ function validateGoldenAppStateFixture(gate) {
   validateGoldenAppStateTaskDrilldowns(fixture);
   validateGoldenAppStateActiveProjects(fixture);
   validateGoldenAppStateRequiredCollections(fixture);
+  validateGatewayAccountFixture(fixture);
 }
 
 function validateGoldenAppStateFixtureBasics(fixtureText, fixture, gate) {
@@ -976,6 +1153,7 @@ function validateRuntimeBridgeForbiddenTruthSources(runtimeBridge) {
 export function validateRuntimeBridgeContract(runtimeBridge, contract) {
   validateRuntimeBridgeIdentity(runtimeBridge, contract);
   validateRuntimeBridgeDeclaredSurfaces(runtimeBridge);
+  validateOplGatewayAccountContract(runtimeBridge);
   validateRuntimeBridgeDefaultReadSurfacePolicy(runtimeBridge);
   validateRuntimeProgressPageDisplayPolicy(runtimeBridge);
   validateRuntimeBridgeCommandResolutionPolicy(runtimeBridge);

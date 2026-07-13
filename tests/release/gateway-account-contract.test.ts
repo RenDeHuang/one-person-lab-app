@@ -1,0 +1,67 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import test from 'node:test';
+import { validatePageStateMatrix } from '../../scripts/validate-active-shell/page-state-matrix-validator.ts';
+import {
+  validateOplGatewayAccountContract,
+  validateRuntimeBridgeContract,
+} from '../../scripts/validate-active-shell/runtime-bridge-validator.ts';
+
+const readJson = (relativePath: string) => JSON.parse(fs.readFileSync(relativePath, 'utf8'));
+
+test('Gateway account contracts keep the canonical projection, actions, and typed secret bridge', () => {
+  const runtimeBridge = readJson('contracts/app-runtime-bridge.json');
+  assert.doesNotThrow(() => validateOplGatewayAccountContract(runtimeBridge));
+  assert.doesNotThrow(() => validateRuntimeBridgeContract(
+    runtimeBridge,
+    readJson('contracts/app-shell-adapter.json'),
+  ));
+  assert.doesNotThrow(() => validatePageStateMatrix(
+    readJson('contracts/app-page-state-matrix.json'),
+    readJson('contracts/app-shell-adapter.json'),
+    readJson('contracts/app-gui-product-contract.json'),
+  ));
+});
+
+test('Gateway account runtime bridge rejects secret leakage and generic-action login', () => {
+  for (const mutate of [
+    (bridge: any) => {
+      bridge.opl_gateway_account_projection.top_level_field_allowlist.push('api_key');
+    },
+    (bridge: any) => {
+      bridge.opl_gateway_account_projection.generic_action_secret_policy = 'password_allowed_in_action_payload';
+    },
+    (bridge: any) => {
+      bridge.opl_gateway_account_secret_bridge.command =
+        'opl app action execute --action gateway_account_login --payload <json> --json';
+    },
+    (bridge: any) => {
+      bridge.opl_gateway_account_secret_bridge.webui_password_login_allowed = true;
+    },
+  ]) {
+    const bridge = structuredClone(readJson('contracts/app-runtime-bridge.json'));
+    mutate(bridge);
+    assert.throws(() => validateOplGatewayAccountContract(bridge));
+  }
+});
+
+test('Models & Access rejects Gateway account visibility and state-path drift', () => {
+  const adapter = readJson('contracts/app-shell-adapter.json');
+  const guiContract = readJson('contracts/app-gui-product-contract.json');
+  for (const mutate of [
+    (gateway: any) => {
+      gateway.account_card_visibility = 'always';
+    },
+    (gateway: any) => {
+      gateway.projection_path = 'shell_state.gateway_account';
+    },
+    (gateway: any) => {
+      gateway.cache_ttl_seconds = 0;
+    },
+  ]) {
+    const matrix = structuredClone(readJson('contracts/app-page-state-matrix.json'));
+    const access = matrix.pages.find((page: any) => page.id === 'access');
+    mutate(access.opl_gateway_account);
+    assert.throws(() => validatePageStateMatrix(matrix, adapter, guiContract));
+  }
+});

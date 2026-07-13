@@ -472,7 +472,7 @@ export const appOwnedSettingsTechnicalDetailsDefault = {
 };
 export const appOwnedSettingsPageAnchors = {
   overview: ["status", "attention", "next-action", "common-actions"],
-  access: ["provider-source", "model", "codex-cli", "authentication"],
+  access: ["provider-source", "opl-gateway", "model", "codex-cli", "authentication"],
   workspace: ["current-workspace", "permissions", "artifacts"],
   agents: ["availability", "source", "home-visibility"],
   capabilities: ["opl-flow-managed", "third-party"],
@@ -510,6 +510,7 @@ export const appOwnedSettingsPageSearchEntryIds = {
   ],
   access: [
     "access.provider_source",
+    "access.opl_gateway",
     "access.model",
     "access.codex_cli",
     "access.authentication",
