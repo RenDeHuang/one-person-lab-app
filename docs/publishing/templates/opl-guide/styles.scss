@@ -7,6 +7,8 @@ $font-family-sans-serif: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMa
 /*-- scss:rules --*/
 body {
   letter-spacing: 0;
+  font-size: 1.0625rem;
+  line-height: 1.72;
 }
 
 h1,
@@ -18,8 +20,67 @@ h3 {
 img {
   border: 1px solid #d8e0ea;
   border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(16, 24, 40, 0.08);
 }
 
 pre {
   border-radius: 8px;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+main.content,
+.page-columns,
+.column-body {
+  min-width: 0;
+}
+
+a,
+code {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+pre code {
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+.quarto-figure {
+  margin: 1.5rem 0 1.75rem;
+}
+
+.quarto-figure figure {
+  padding: 16px;
+  border: 1px solid #e1e7ef;
+  border-radius: 8px;
+  background: #f5f7fa;
+}
+
+.quarto-figure figcaption {
+  margin-top: 10px;
+  color: #596579;
+  font-size: 0.94rem;
+  text-align: center;
+}
+
+blockquote {
+  padding: 0.9rem 1.1rem;
+  border-left: 4px solid #0f766e;
+  background: #eef8f6;
+  color: #263247;
+}
+
+@media (max-width: 575.98px) {
+  body {
+    font-size: 1rem;
+  }
+
+  .quarto-figure figure {
+    padding: 8px;
+  }
+
+  pre {
+    font-size: 0.82rem;
+  }
 }

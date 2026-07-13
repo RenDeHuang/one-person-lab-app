@@ -6,6 +6,8 @@ import {
   assertTextIncludesAll,
   readShellText,
 } from './shell-implementation-helpers.ts';
+import path from 'node:path';
+import { assertFile } from './validation-config.ts';
 
 const runtimeBridgeExpected = [
   "args: ['app', 'state', '--profile', profile, '--json']",
@@ -91,6 +93,19 @@ const trayStartupExpected = [
   'deps.createOrUpdateTray()',
   'deps.destroyTray()',
   'deps.setCloseToTrayEnabled(false)',
+];
+
+const trayIconExpected = [
+  "platform === 'darwin' ? 'trayTemplate.png' : 'app.png'",
+  "path.join(resourcesPath, 'opl-branding', iconFilename)",
+  'path.join(resourcesPath, iconFilename)',
+  'icon.setTemplateImage(true)',
+  'if (icon.isEmpty())',
+];
+
+const trayPackagingExpected = [
+  'from: resources/opl-branding',
+  'to: opl-branding',
 ];
 
 const desktopMainExpected = [
@@ -195,6 +210,24 @@ function validateTrayStartup(shellPaths) {
   );
   assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/index.ts', desktopMainExpected, 'Active shell desktop startup App-owned tray policy');
   assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/process/utils/closeToTraySetting.ts', closeToTraySettingExpected, 'Active shell close-to-tray settings bridge App-owned tray preference key');
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/process/utils/tray.ts',
+    trayIconExpected,
+    'Active shell macOS tray template image policy',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/electron-builder.yml',
+    trayPackagingExpected,
+    'Active shell tray image packaging',
+  );
+  for (const filename of ['trayTemplate.png', 'trayTemplate@2x.png']) {
+    assertFile(
+      path.join(shellPaths.shellRoot, 'resources', 'opl-branding', filename),
+      `active shell macOS tray asset ${filename}`,
+    );
+  }
 }
 
 export function validateShellSubstrateImplementation(shellPaths, requiresLocale) {

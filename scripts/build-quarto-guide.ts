@@ -396,14 +396,23 @@ format:
     title-block-banner: true
   pdf:
     documentclass: scrreprt
+    classoption:
+      - a4paper
+      - 11pt
     pdf-engine: ${activePdfEngine(manifest)}
     mainfont: "${font}"
     CJKmainfont: "${font}"
+    fontsize: 11pt
+    linestretch: 1.14
     geometry:
-      - margin=18mm
+      - top=18mm
+      - bottom=18mm
+      - left=19mm
+      - right=19mm
     colorlinks: true
     include-in-header: header.tex
     fig-pos: H
+    fig-cap-location: bottom
 `;
 }
 

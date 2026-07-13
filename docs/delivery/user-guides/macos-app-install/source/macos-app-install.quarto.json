@@ -8,7 +8,7 @@
   "state": "active",
   "machine_boundary": "Machine-readable Quarto guide manifest. Human-readable long-form guide body is maintained in docs/guides/macos-app-install/guide.qmd. Release contracts, workflows, VM smoke artifacts, screenshot manifest, and App release metadata remain the machine truth.",
   "audience": "医生、PI、课题负责人；不要求计算机基础。",
-  "intro": "本文以 macOS App 首次启动为主线，说明如何下载、安装、配置 One Person Lab，并从科研、基金、演示或写书入口开始工作；下文以 Research Foundry / Med Auto Science 的首次科研任务为例。",
+  "intro": "本文按下载 App、安装、选择模型访问方式、完成首次检查和开始工作的顺序，说明 One Person Lab App 的首次使用。",
   "source_qmd": "docs/guides/macos-app-install/guide.qmd",
   "output": {
     "public_dir": "docs/site/latest/macos-app-install",
@@ -19,27 +19,28 @@
   },
   "download": {
     "latest_release_url": "https://github.com/gaofeng21cn/one-person-lab-app/releases/latest",
-    "stable_install_command": "curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh | bash -s -- --stable-macos-install --yes",
-    "recommended_first_install_asset": "One-Person-Lab-Full-<version>-mac-arm64.dmg"
+    "stable_install_command": "curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh | bash -s -- --stable-macos-install --standard --yes",
+    "recommended_first_install_asset": "One-Person-Lab-<version>-mac-arm64.dmg"
   },
   "required_terms": [
     "One Person Lab App 首次安装图文教程",
     "macOS App",
     "下载 One Person Lab",
     "安装 App",
-    "配置访问权限",
-    "等待首次环境检查",
-    "进入科研入口",
-    "确认工作目录和运行设置",
-    "发起首次科研任务",
-    "查看进度与结果",
-    "截图与验证来源"
+    "选择模型访问方式",
+    "完成首次检查",
+    "开始第一项工作",
+    "后续调整与更新",
+    "已有 Codex 配置",
+    "模型与访问"
   ],
   "forbidden_phrases": [
     "联系 gflabtoken 管理员",
     "gflabtoken 管理员",
     "必须配置 OPL Gateway",
-    "强制配置 OPL Gateway"
+    "强制配置 OPL Gateway",
+    "请输入管理员提供的访问密钥",
+    "请输入管理员提供的 OPL Gateway 访问密钥"
   ],
   "screenshots_manifest": "docs/guides/macos-app-install/screenshots.manifest.json",
   "publishing": {

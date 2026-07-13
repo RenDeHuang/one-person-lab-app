@@ -14,43 +14,44 @@
   "pdf_engine": "xelatex",
   "pdf_engine_reason": "Quarto 1.9.38 Typst Book route currently fails in the default orange-book template on local smoke; xelatex remains the stable Chinese PDF engine until the OPL Typst template is hardened.",
   "pdf_layout": "quarto_portrait_ebook",
-  "pdf_pages": 12,
+  "pdf_pages": 8,
   "pdf_page_size_pts": {
-    "width": 612,
-    "height": 792
+    "width": 595.28,
+    "height": 841.89
   },
-  "rendered_pages": 12,
+  "rendered_pages": 8,
   "rendered_dir": "tmp/quarto-guides/macos-app-install/rendered",
-  "html_bytes": 4583589,
+  "html_bytes": 2659423,
   "screenshot_assets": [
     {
       "role": "download_release",
-      "description": "GitHub Release download page.",
+      "description": "Latest Release Assets list with the macOS arm64 DMG highlighted.",
       "file": "docs/guides/macos-app-install/screenshots/01-download-release.png",
       "public_file": "screenshots/01-download-release.png",
-      "width": 1920,
-      "height": 1080,
-      "sha256": "e0521671f3635e404f3f515bccde6542a97cea2a23b6edb7d9a5b84b9862ec4d",
+      "width": 1206,
+      "height": 362,
+      "sha256": "9fd6f590b3547a59fa0c2b37c157af117de5d9a1d0c983203e938e0d40d7baa9",
       "referenced": true,
-      "source_kind": "macos_tart_vm_release_page_screencapture",
-      "source": "https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/v26.6.27",
+      "source_kind": "live_github_release_playwright_capture",
+      "source": "https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/v26.7.12",
       "locale": "zh-CN",
       "expected_ui_text": [
-        "One Person Lab",
-        "Release"
-      ]
+        "Assets",
+        "One-Person-Lab-26.7.12-mac-arm64.dmg"
+      ],
+      "note": "The recommended DMG row is highlighted for tutorial readability; version numbers will change in future releases."
     },
     {
       "role": "install_dmg",
-      "description": "DMG drag-to-Applications installation screen.",
+      "description": "Focused DMG installation view without unrelated browser and desktop content.",
       "file": "docs/guides/macos-app-install/screenshots/02-install-dmg.png",
       "public_file": "screenshots/02-install-dmg.png",
-      "width": 1920,
-      "height": 1080,
-      "sha256": "7c115224fce0cde0b477d4830adbd950cf795a6fbaecfb0fa5c2aeca55933c6f",
+      "width": 596,
+      "height": 406,
+      "sha256": "6398103f93428925be9dcec1a6786e20e42b0d219dcac89877088872f479a9ac",
       "referenced": true,
-      "source_kind": "macos_tart_vm_dmg_finder_screencapture",
-      "source": "/Volumes/One Person Lab 26.6.27-arm64 from /tmp/opl-guide-v26.6.27/One-Person-Lab-26.6.27-mac-arm64.dmg",
+      "source_kind": "cropped_macos_tart_vm_dmg_finder_capture",
+      "source": "Original Chinese macOS VM DMG Finder capture, cropped to the installation action.",
       "locale": "zh-CN",
       "expected_ui_text": [
         "One Person Lab",
@@ -67,16 +68,15 @@
       "sha256": "e3a4bf072ba68f36445360d631521b9a724e1d80f9b43e00325f3f37487123e7",
       "referenced": true,
       "source_kind": "current_shell_electron_playwright_capture",
-      "source": "opl-aion-shell@9a9e1fecf45823d0a1b5790df7b46d00a867cb5b FirstRun renderer, Electron Playwright guide capture 2026-07-10T08-20-15Z.",
+      "source": "opl-aion-shell@9a9e1fecf45823d0a1b5790df7b46d00a867cb5b FirstRun renderer.",
       "locale": "zh-CN",
       "expected_ui_text": [
-        "首次设置",
         "连接模型服务",
         "OPL Gateway",
         "已有 Codex 配置",
         "进入 OPL"
       ],
-      "note": "Captured from the committed Shell FirstRun route with both access paths and the nonblocking OPL entry visible before any access key is entered."
+      "note": "Both access paths and the nonblocking OPL entry are visible before any access key is entered."
     },
     {
       "role": "first_run_check",
@@ -88,55 +88,17 @@
       "sha256": "8e5f494fca5f503fe92af7ab917f1aa72082b8bb543295bc726d7da70024b82f",
       "referenced": true,
       "source_kind": "current_shell_electron_playwright_capture",
-      "source": "opl-aion-shell@9a9e1fecf45823d0a1b5790df7b46d00a867cb5b FirstRun renderer, Electron Playwright guide capture 2026-07-10T08-20-15Z.",
+      "source": "opl-aion-shell@9a9e1fecf45823d0a1b5790df7b46d00a867cb5b FirstRun renderer.",
       "locale": "zh-CN",
       "expected_ui_text": [
-        "首次设置",
         "正在检查这台设备",
         "当前检查",
-        "正在检查",
         "进入 OPL"
-      ],
-      "note": "Captured from the committed Shell FirstRun route while initialization was pending, with the nonblocking OPL entry remaining available before the terminal payload returned."
-    },
-    {
-      "role": "research_entry",
-      "description": "OPL ready state with research entry.",
-      "file": "docs/guides/macos-app-install/screenshots/05-opl-ready-research-entry.png",
-      "public_file": "screenshots/05-opl-ready-research-entry.png",
-      "width": 1536,
-      "height": 912,
-      "sha256": "23dbb11274b0a18cc64cef4ee3fad1deb0f32ca2dd9b5430d05e6e1f2cf39cb9",
-      "referenced": true,
-      "source_kind": "macos_tart_vm_app_cdp_capture",
-      "source": "artifacts/assistant-route-smoke/mas.png from standard VM smoke",
-      "locale": "zh-CN",
-      "expected_ui_text": [
-        "科研",
-        "One Person Lab"
       ]
     },
     {
-      "role": "runtime_settings",
-      "description": "Local runtime and work directory settings.",
-      "file": "docs/guides/macos-app-install/screenshots/06-research-data-folder.png",
-      "public_file": "screenshots/06-research-data-folder.png",
-      "width": 1536,
-      "height": 912,
-      "sha256": "423062f8b4f3687bb6ef28ff78b59dad09eab1cf9fc3385fbee68b4d01c4c465",
-      "referenced": true,
-      "source_kind": "rendered_opl_app_state_fixture",
-      "source": "docs/delivery/user-guides/macos-app-install/fixtures/runtime-environment-currentness.fixture.json",
-      "locale": "zh-CN",
-      "expected_ui_text": [
-        "本机运行环境",
-        "工作目录"
-      ],
-      "note": "Re-rendered after the Full runtime currentness repair because the original v26.6.27 VM guide artifact captured stale packaged-runtime state and displayed unknown module statuses."
-    },
-    {
-      "role": "first_research_task",
-      "description": "First research task entry.",
+      "role": "workbench_entry",
+      "description": "One Person Lab workbench with professional task entries.",
       "file": "docs/guides/macos-app-install/screenshots/05-opl-ready-research-entry.png",
       "public_file": "screenshots/05-opl-ready-research-entry.png",
       "width": 1536,
@@ -144,29 +106,11 @@
       "sha256": "23dbb11274b0a18cc64cef4ee3fad1deb0f32ca2dd9b5430d05e6e1f2cf39cb9",
       "referenced": true,
       "source_kind": "macos_tart_vm_app_cdp_capture",
-      "source": "artifacts/assistant-route-smoke/mas.png from standard VM smoke",
+      "source": "Standard VM App workbench capture.",
       "locale": "zh-CN",
       "expected_ui_text": [
-        "科研",
-        "任务"
-      ],
-      "note": "The first-task role reuses the byte-identical canonical research-entry screenshot instead of tracking a second PNG."
-    },
-    {
-      "role": "runtime_status",
-      "description": "Runtime status and progress screen.",
-      "file": "docs/guides/macos-app-install/screenshots/08-opl-runtime-status.png",
-      "public_file": "screenshots/08-opl-runtime-status.png",
-      "width": 1536,
-      "height": 912,
-      "sha256": "a52a08f7eeeaec21f22fa07c15d9d3f2751bcd8ff06f16a79ea9160d67974f35",
-      "referenced": true,
-      "source_kind": "macos_tart_vm_app_cdp_capture",
-      "source": "artifacts/settings-pages/runtime-status.png from standard VM smoke",
-      "locale": "zh-CN",
-      "expected_ui_text": [
-        "运行",
-        "状态"
+        "One Person Lab",
+        "科研"
       ]
     }
   ],
@@ -175,13 +119,12 @@
     "macOS App",
     "下载 One Person Lab",
     "安装 App",
-    "配置访问权限",
-    "等待首次环境检查",
-    "进入科研入口",
-    "确认工作目录和运行设置",
-    "发起首次科研任务",
-    "查看进度与结果",
-    "截图与验证来源"
+    "选择模型访问方式",
+    "完成首次检查",
+    "开始第一项工作",
+    "后续调整与更新",
+    "已有 Codex 配置",
+    "模型与访问"
   ],
   "required_terms_status": "present",
   "unresolved_templates_status": "absent",

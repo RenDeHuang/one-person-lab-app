@@ -58,6 +58,7 @@ const {
   withGeneratedLifecycleFrontMatter,
 } = createGuideScriptHelpers(appRoot);
 const guideId = 'macos-app-install';
+const minimumGuideSlides = 7;
 const guideDir = path.join(appRoot, 'docs', 'guides', guideId);
 const deliveryDir = path.join(appRoot, 'docs', 'delivery', 'user-guides', guideId);
 const publicGuideDir = path.join(appRoot, 'docs', 'site', 'latest', guideId);
@@ -367,8 +368,8 @@ ${markdownComment([...faqs, ...verification].join(' '))}
 }
 
 function buildMarpMarkdown(slides: SlideBlock[], manifest: GuideManifest, screenshotTag: string) {
-  if (slides.length < 9) {
-    throw new Error(`Expected at least 9 slide blocks, got ${slides.length}`);
+  if (slides.length < minimumGuideSlides) {
+    throw new Error(`Expected at least ${minimumGuideSlides} slide blocks, got ${slides.length}`);
   }
   const final = slides.at(-1);
   if (!final) throw new Error('Expected a final slide.');
@@ -520,8 +521,8 @@ function main() {
   const screenshotAssets = validateScreenshots(qmd, screenshots);
   const slides = parseQmdSlides(qmd);
   const expectedSlides = slides.length;
-  if (expectedSlides < 9) {
-    throw new Error(`Expected at least 9 Marp slides, got ${expectedSlides}`);
+  if (expectedSlides < minimumGuideSlides) {
+    throw new Error(`Expected at least ${minimumGuideSlides} Marp slides, got ${expectedSlides}`);
   }
 
   const screenshotTag = screenshots.release_run?.id ?? 'screenshots.manifest.json';

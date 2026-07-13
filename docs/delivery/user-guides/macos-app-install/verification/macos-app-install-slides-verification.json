@@ -4,9 +4,9 @@
   "generator_version": "@marp-team/marp-cli v4.4.0 (w/ @marp-team/marp-core v4.3.0)",
   "source_model": "qmd_body_manifest_metadata_to_marp_markdown_and_css_theme",
   "download_url": "https://github.com/gaofeng21cn/one-person-lab-app/releases/latest",
-  "stable_install_command": "curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh | bash -s -- --stable-macos-install --yes",
+  "stable_install_command": "curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh | bash -s -- --stable-macos-install --standard --yes",
   "screenshot_release_run": {
-    "id": "mixed-vm-and-current-shell-playwright-assets-2026-07-10T08-20-15Z",
+    "id": "guide-refresh-2026-07-13",
     "url": "/Users/gaofeng/workspace/one-person-lab-app/docs/guides/macos-app-install/screenshots",
     "conclusion": "success"
   },
@@ -19,8 +19,8 @@
   "output_pptx": "docs/site/latest/macos-app-install/macos-app-install-slides.pptx",
   "output_pdf": "docs/site/latest/macos-app-install/macos-app-install-slides.pdf",
   "slide_layout": "16:9",
-  "slides": 10,
-  "pdf_pages": 10,
+  "slides": 7,
+  "pdf_pages": 7,
   "pdf_page_size_pts": {
     "width": 960,
     "height": 540
@@ -28,24 +28,24 @@
   "screenshot_assets": [
     {
       "role": "download_release",
-      "description": "GitHub Release download page.",
+      "description": "Latest Release Assets list with the macOS arm64 DMG highlighted.",
       "file": "docs/guides/macos-app-install/screenshots/01-download-release.png",
-      "width": 1920,
-      "height": 1080,
-      "sha256": "e0521671f3635e404f3f515bccde6542a97cea2a23b6edb7d9a5b84b9862ec4d",
+      "width": 1206,
+      "height": 362,
+      "sha256": "9fd6f590b3547a59fa0c2b37c157af117de5d9a1d0c983203e938e0d40d7baa9",
       "referenced": true,
       "expected_ui_text": [
-        "One Person Lab",
-        "Release"
+        "Assets",
+        "One-Person-Lab-26.7.12-mac-arm64.dmg"
       ]
     },
     {
       "role": "install_dmg",
-      "description": "DMG drag-to-Applications installation screen.",
+      "description": "Focused DMG installation view without unrelated browser and desktop content.",
       "file": "docs/guides/macos-app-install/screenshots/02-install-dmg.png",
-      "width": 1920,
-      "height": 1080,
-      "sha256": "7c115224fce0cde0b477d4830adbd950cf795a6fbaecfb0fa5c2aeca55933c6f",
+      "width": 596,
+      "height": 406,
+      "sha256": "6398103f93428925be9dcec1a6786e20e42b0d219dcac89877088872f479a9ac",
       "referenced": true,
       "expected_ui_text": [
         "One Person Lab",
@@ -61,7 +61,6 @@
       "sha256": "e3a4bf072ba68f36445360d631521b9a724e1d80f9b43e00325f3f37487123e7",
       "referenced": true,
       "expected_ui_text": [
-        "首次设置",
         "连接模型服务",
         "OPL Gateway",
         "已有 Codex 配置",
@@ -77,63 +76,22 @@
       "sha256": "8e5f494fca5f503fe92af7ab917f1aa72082b8bb543295bc726d7da70024b82f",
       "referenced": true,
       "expected_ui_text": [
-        "首次设置",
         "正在检查这台设备",
         "当前检查",
-        "正在检查",
         "进入 OPL"
       ]
     },
     {
-      "role": "research_entry",
-      "description": "OPL ready state with research entry.",
+      "role": "workbench_entry",
+      "description": "One Person Lab workbench with professional task entries.",
       "file": "docs/guides/macos-app-install/screenshots/05-opl-ready-research-entry.png",
       "width": 1536,
       "height": 912,
       "sha256": "23dbb11274b0a18cc64cef4ee3fad1deb0f32ca2dd9b5430d05e6e1f2cf39cb9",
       "referenced": true,
       "expected_ui_text": [
-        "科研",
-        "One Person Lab"
-      ]
-    },
-    {
-      "role": "runtime_settings",
-      "description": "Local runtime and work directory settings.",
-      "file": "docs/guides/macos-app-install/screenshots/06-research-data-folder.png",
-      "width": 1536,
-      "height": 912,
-      "sha256": "423062f8b4f3687bb6ef28ff78b59dad09eab1cf9fc3385fbee68b4d01c4c465",
-      "referenced": true,
-      "expected_ui_text": [
-        "本机运行环境",
-        "工作目录"
-      ]
-    },
-    {
-      "role": "first_research_task",
-      "description": "First research task entry.",
-      "file": "docs/guides/macos-app-install/screenshots/05-opl-ready-research-entry.png",
-      "width": 1536,
-      "height": 912,
-      "sha256": "23dbb11274b0a18cc64cef4ee3fad1deb0f32ca2dd9b5430d05e6e1f2cf39cb9",
-      "referenced": true,
-      "expected_ui_text": [
-        "科研",
-        "任务"
-      ]
-    },
-    {
-      "role": "runtime_status",
-      "description": "Runtime status and progress screen.",
-      "file": "docs/guides/macos-app-install/screenshots/08-opl-runtime-status.png",
-      "width": 1536,
-      "height": 912,
-      "sha256": "a52a08f7eeeaec21f22fa07c15d9d3f2751bcd8ff06f16a79ea9160d67974f35",
-      "referenced": true,
-      "expected_ui_text": [
-        "运行",
-        "状态"
+        "One Person Lab",
+        "科研"
       ]
     }
   ],
@@ -142,8 +100,8 @@
   "pptx_layout_issues": "Found 0 issue(s):",
   "text_status": "checked_generated_marp_source_and_pdf_text_no_placeholder_tokens",
   "pptx_roundtrip_pdf": "tmp/pdfs/macos-app-install-slides/pptx-roundtrip/macos-app-install-slides.pdf",
-  "pptx_roundtrip_pages": 10,
-  "rendered_pages": 10,
+  "pptx_roundtrip_pages": 7,
+  "rendered_pages": 7,
   "rendered_dir": "tmp/pdfs/macos-app-install-slides/rendered",
   "unresolved_templates_status": "absent",
   "forbidden_secret_markers_status": "absent"

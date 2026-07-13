@@ -3,30 +3,16 @@
   "guide_id": "macos-app-install",
   "status": "active",
   "source_summary": {
-    "kind": "mixed_macos_tart_vm_and_current_shell_playwright_guide_assets",
-    "source": "macos_tart_vm_1920x1080_zh_and_current_shell_playwright_1536x912_zh",
-    "release_url": "https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/v26.6.27",
-    "release_asset": "One-Person-Lab-26.6.27-mac-arm64.dmg",
-    "release_asset_sha256": "9f07deaa3d92be20b87c069452b23414144111c861c8fc670ca041a9be9f7a5c",
-    "package_profile": "standard",
-    "host_artifacts": "/Users/gaofeng/workspace/opl-aion-shell/artifacts/opl-guide-screenshots-v26.6.27-standard-final",
-    "guide_summary": "/Users/gaofeng/workspace/opl-aion-shell/artifacts/opl-guide-screenshots-v26.6.27-standard-final/artifacts/guide-screenshots-summary.json",
-    "tart_summary": "/Users/gaofeng/workspace/opl-aion-shell/artifacts/opl-guide-screenshots-v26.6.27-standard-final/tart-smoke-summary.json",
-    "source_vm": "opl-first-run-no-clt-clean-base-26-5-18",
-    "vm_name": "opl-first-run-2026-06-28T03-49-46-243Z",
-    "display": "1920x1080px",
+    "kind": "current_release_web_capture_and_current_shell_guide_assets",
     "locale": "zh-CN",
-    "guest_user": "admin",
-    "status": "passed",
-    "guide_status": "passed",
-    "captured_at": "2026-06-28T03:52:40Z",
+    "release_url": "https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/v26.7.12",
+    "release_asset": "One-Person-Lab-26.7.12-mac-arm64.dmg",
     "current_shell_commit": "9a9e1fecf45823d0a1b5790df7b46d00a867cb5b",
-    "current_shell_capture_run": "2026-07-10T08-20-15Z",
-    "current_shell_capture_locale": "zh-CN",
-    "current_shell_capture_viewport": "1536x912px"
+    "captured_at": "2026-07-13T11:32:00+08:00",
+    "note": "The download capture shows the live Release Assets list; App screens come from the current Chinese first-run and workbench capture set."
   },
   "release_run": {
-    "id": "mixed-vm-and-current-shell-playwright-assets-2026-07-10T08-20-15Z",
+    "id": "guide-refresh-2026-07-13",
     "url": "/Users/gaofeng/workspace/one-person-lab-app/docs/guides/macos-app-install/screenshots",
     "conclusion": "success"
   },
@@ -34,180 +20,87 @@
     {
       "file": "01-download-release.png",
       "role": "download_release",
-      "title": "GitHub Release v26.6.27 page",
-      "description": "GitHub Release download page.",
-      "source_kind": "macos_tart_vm_release_page_screencapture",
-      "source": "https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/v26.6.27",
+      "title": "Latest GitHub Release Assets",
+      "description": "Latest Release Assets list with the macOS arm64 DMG highlighted.",
+      "source_kind": "live_github_release_playwright_capture",
+      "source": "https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/v26.7.12",
       "locale": "zh-CN",
-      "width": 1920,
-      "height": 1080,
-      "sha256": "e0521671f3635e404f3f515bccde6542a97cea2a23b6edb7d9a5b84b9862ec4d",
-      "source_width": 1920,
-      "source_height": 1080,
-      "source_sha256": "e0521671f3635e404f3f515bccde6542a97cea2a23b6edb7d9a5b84b9862ec4d",
+      "width": 1206,
+      "height": 362,
+      "sha256": "9fd6f590b3547a59fa0c2b37c157af117de5d9a1d0c983203e938e0d40d7baa9",
       "expected_ui_text": [
-        "One Person Lab",
-        "Release"
+        "Assets",
+        "One-Person-Lab-26.7.12-mac-arm64.dmg"
       ],
-      "vm_artifact_status": "captured",
-      "vm_artifact_source": "https://github.com/gaofeng21cn/one-person-lab-app/releases/latest"
+      "note": "The recommended DMG row is highlighted for tutorial readability; version numbers will change in future releases."
     },
     {
       "file": "02-install-dmg.png",
       "role": "install_dmg",
-      "title": "Standard DMG Finder install window",
-      "description": "DMG drag-to-Applications installation screen.",
-      "source_kind": "macos_tart_vm_dmg_finder_screencapture",
-      "source": "/Volumes/One Person Lab 26.6.27-arm64 from /tmp/opl-guide-v26.6.27/One-Person-Lab-26.6.27-mac-arm64.dmg",
+      "title": "DMG drag-to-Applications window",
+      "description": "Focused DMG installation view without unrelated browser and desktop content.",
+      "source_kind": "cropped_macos_tart_vm_dmg_finder_capture",
+      "source": "Original Chinese macOS VM DMG Finder capture, cropped to the installation action.",
       "locale": "zh-CN",
-      "width": 1920,
-      "height": 1080,
-      "sha256": "7c115224fce0cde0b477d4830adbd950cf795a6fbaecfb0fa5c2aeca55933c6f",
-      "source_width": 1920,
-      "source_height": 1080,
-      "source_sha256": "7c115224fce0cde0b477d4830adbd950cf795a6fbaecfb0fa5c2aeca55933c6f",
+      "width": 596,
+      "height": 406,
+      "sha256": "6398103f93428925be9dcec1a6786e20e42b0d219dcac89877088872f479a9ac",
       "expected_ui_text": [
         "One Person Lab",
         "Applications"
-      ],
-      "vm_artifact_status": "captured",
-      "vm_artifact_source": "/Volumes/One Person Lab 26.6.27-arm64"
+      ]
     },
     {
       "file": "03-codex-config-needed.png",
       "role": "configure_access",
-      "title": "First-run model access setup screen",
+      "title": "First-run model access choices",
       "description": "First-run model access screen showing OPL Gateway and existing Codex configuration paths.",
       "source_kind": "current_shell_electron_playwright_capture",
-      "source": "opl-aion-shell@9a9e1fecf45823d0a1b5790df7b46d00a867cb5b FirstRun renderer, Electron Playwright guide capture 2026-07-10T08-20-15Z.",
+      "source": "opl-aion-shell@9a9e1fecf45823d0a1b5790df7b46d00a867cb5b FirstRun renderer.",
       "locale": "zh-CN",
       "width": 1536,
       "height": 912,
       "sha256": "e3a4bf072ba68f36445360d631521b9a724e1d80f9b43e00325f3f37487123e7",
-      "source_width": 1536,
-      "source_height": 912,
-      "source_sha256": "e3a4bf072ba68f36445360d631521b9a724e1d80f9b43e00325f3f37487123e7",
       "expected_ui_text": [
-        "首次设置",
         "连接模型服务",
         "OPL Gateway",
         "已有 Codex 配置",
         "进入 OPL"
       ],
-      "note": "Captured from the committed Shell FirstRun route with both access paths and the nonblocking OPL entry visible before any access key is entered.",
-      "vm_artifact_status": "replaced_by_current_shell_playwright_capture",
-      "vm_artifact_source": "opl-aion-shell@9a9e1fecf45823d0a1b5790df7b46d00a867cb5b Electron Playwright guide capture 2026-07-10T08-20-15Z"
+      "note": "Both access paths and the nonblocking OPL entry are visible before any access key is entered."
     },
     {
       "file": "04-first-run-checking.png",
       "role": "first_run_check",
-      "title": "First-run beginner readiness screen",
+      "title": "First-run readiness check",
       "description": "First-run environment check pending screen.",
       "source_kind": "current_shell_electron_playwright_capture",
-      "source": "opl-aion-shell@9a9e1fecf45823d0a1b5790df7b46d00a867cb5b FirstRun renderer, Electron Playwright guide capture 2026-07-10T08-20-15Z.",
+      "source": "opl-aion-shell@9a9e1fecf45823d0a1b5790df7b46d00a867cb5b FirstRun renderer.",
       "locale": "zh-CN",
       "width": 1536,
       "height": 912,
       "sha256": "8e5f494fca5f503fe92af7ab917f1aa72082b8bb543295bc726d7da70024b82f",
-      "source_width": 1536,
-      "source_height": 912,
-      "source_sha256": "8e5f494fca5f503fe92af7ab917f1aa72082b8bb543295bc726d7da70024b82f",
       "expected_ui_text": [
-        "首次设置",
         "正在检查这台设备",
         "当前检查",
-        "正在检查",
         "进入 OPL"
-      ],
-      "note": "Captured from the committed Shell FirstRun route while initialization was pending, with the nonblocking OPL entry remaining available before the terminal payload returned.",
-      "vm_artifact_status": "replaced_by_current_shell_playwright_capture",
-      "vm_artifact_source": "opl-aion-shell@9a9e1fecf45823d0a1b5790df7b46d00a867cb5b Electron Playwright guide capture 2026-07-10T08-20-15Z"
+      ]
     },
     {
       "file": "05-opl-ready-research-entry.png",
-      "role": "research_entry",
-      "title": "Research/MAS entry screen",
-      "description": "OPL ready state with research entry.",
+      "role": "workbench_entry",
+      "title": "One Person Lab workbench entry",
+      "description": "One Person Lab workbench with professional task entries.",
       "source_kind": "macos_tart_vm_app_cdp_capture",
-      "source": "artifacts/assistant-route-smoke/mas.png from standard VM smoke",
+      "source": "Standard VM App workbench capture.",
       "locale": "zh-CN",
       "width": 1536,
       "height": 912,
       "sha256": "23dbb11274b0a18cc64cef4ee3fad1deb0f32ca2dd9b5430d05e6e1f2cf39cb9",
-      "source_width": 1536,
-      "source_height": 912,
-      "source_sha256": "23dbb11274b0a18cc64cef4ee3fad1deb0f32ca2dd9b5430d05e6e1f2cf39cb9",
       "expected_ui_text": [
-        "科研",
-        "One Person Lab"
-      ],
-      "vm_artifact_status": "copied",
-      "vm_artifact_source": "/tmp/opl-first-run-smoke/artifacts/assistant-route-smoke/mas.png"
-    },
-    {
-      "file": "06-research-data-folder.png",
-      "role": "runtime_settings",
-      "title": "Local runtime environment settings screen",
-      "description": "Local runtime and work directory settings.",
-      "source_kind": "rendered_opl_app_state_fixture",
-      "source": "docs/delivery/user-guides/macos-app-install/fixtures/runtime-environment-currentness.fixture.json",
-      "locale": "zh-CN",
-      "width": 1536,
-      "height": 912,
-      "sha256": "423062f8b4f3687bb6ef28ff78b59dad09eab1cf9fc3385fbee68b4d01c4c465",
-      "source_width": 1536,
-      "source_height": 912,
-      "source_sha256": "9a23c72203ed52fb264dee15104ea759d16839af9b96a0762d0fb3e898ffe50e",
-      "expected_ui_text": [
-        "本机运行环境",
-        "工作目录"
-      ],
-      "note": "Re-rendered after the Full runtime currentness repair because the original v26.6.27 VM guide artifact captured stale packaged-runtime state and displayed unknown module statuses.",
-      "vm_artifact_status": "replaced_by_rendered_fixture",
-      "vm_artifact_source": "docs/delivery/user-guides/macos-app-install/fixtures/runtime-environment-currentness.fixture.json"
-    },
-    {
-      "file": "05-opl-ready-research-entry.png",
-      "role": "first_research_task",
-      "title": "First MAS research prompt entry screen",
-      "description": "First research task entry.",
-      "source_kind": "macos_tart_vm_app_cdp_capture",
-      "source": "artifacts/assistant-route-smoke/mas.png from standard VM smoke",
-      "locale": "zh-CN",
-      "width": 1536,
-      "height": 912,
-      "sha256": "23dbb11274b0a18cc64cef4ee3fad1deb0f32ca2dd9b5430d05e6e1f2cf39cb9",
-      "source_width": 1536,
-      "source_height": 912,
-      "source_sha256": "23dbb11274b0a18cc64cef4ee3fad1deb0f32ca2dd9b5430d05e6e1f2cf39cb9",
-      "expected_ui_text": [
-        "科研",
-        "任务"
-      ],
-      "note": "The first-task role reuses the byte-identical canonical research-entry screenshot instead of tracking a second PNG.",
-      "vm_artifact_status": "reused_canonical_research_entry",
-      "vm_artifact_source": "/tmp/opl-first-run-smoke/artifacts/assistant-route-smoke/mas.png"
-    },
-    {
-      "file": "08-opl-runtime-status.png",
-      "role": "runtime_status",
-      "title": "Runtime status screen",
-      "description": "Runtime status and progress screen.",
-      "source_kind": "macos_tart_vm_app_cdp_capture",
-      "source": "artifacts/settings-pages/runtime-status.png from standard VM smoke",
-      "locale": "zh-CN",
-      "width": 1536,
-      "height": 912,
-      "sha256": "a52a08f7eeeaec21f22fa07c15d9d3f2751bcd8ff06f16a79ea9160d67974f35",
-      "source_width": 1536,
-      "source_height": 912,
-      "source_sha256": "a52a08f7eeeaec21f22fa07c15d9d3f2751bcd8ff06f16a79ea9160d67974f35",
-      "expected_ui_text": [
-        "运行",
-        "状态"
-      ],
-      "vm_artifact_status": "copied",
-      "vm_artifact_source": "/tmp/opl-first-run-smoke/artifacts/settings-pages/runtime-status.png"
+        "One Person Lab",
+        "科研"
+      ]
     }
   ]
 }

@@ -1,14 +1,14 @@
 {
   "schema": "opl_quarto_user_guide_manifest.v1",
   "id": "docker-webui-install",
-  "title": "One Person Lab Docker/WebUI 一键安装教程",
+  "title": "One Person Lab WebUI 图文安装教程",
   "short_title": "Linux / Windows 一键安装",
   "owner": "one-person-lab-app",
   "purpose": "docker_webui_install_quarto_manifest",
   "state": "active",
   "machine_boundary": "Machine-readable guide manifest. Human-readable guide body is maintained in docs/guides/docker-webui-install/guide.qmd. App install contracts, release artifacts, GHCR publish receipts, shell Dockerfile, WebUI backend behavior, and live container smoke remain the machine truth.",
-  "audience": "Linux、Windows 或服务器用户；默认没有 Docker 经验。",
-  "intro": "新手主路径是先让 Docker 正常运行，再运行 One Person Lab 提供的一键安装器，最后在浏览器里完成首次配置。",
+  "audience": "Windows、Linux 或浏览器环境用户；默认没有 Docker 经验。",
+  "intro": "新手主路径是准备 Docker、运行一键安装器、打开浏览器、选择模型访问方式，然后开始使用 One Person Lab WebUI。",
   "source_qmd": "docs/guides/docker-webui-install/guide.qmd",
   "output": {
     "public_dir": "docs/site/latest/docker-webui-install",
@@ -37,10 +37,9 @@
       "install_or_start_Docker",
       "run_one_click_installer",
       "open_browser_webui",
-      "enter_model_api_key_in_WebUI_Access",
-      "runtime_proxy_configure_codex_smoke",
-      "startup_diagnostics_if_needed",
-      "ordinary_user_progress_after_WebUI_opens"
+      "choose_existing_model_access_or_OPL_Gateway",
+      "open_One_Person_Lab_workbench",
+      "preserve_data_and_projects_directories"
     ],
     "must_not_claim": [
       "release readiness",
@@ -50,26 +49,19 @@
     ]
   },
   "required_terms": [
-    "One Person Lab Docker/WebUI 一键安装教程",
+    "One Person Lab WebUI 图文安装教程",
     "Windows",
     "Docker Desktop",
     "Linux",
     "PowerShell",
     "http://localhost:3000/",
-    "自动进入 WebUI",
-    "访问密钥",
+    "自动建立本机 WebUI 会话",
+    "已有 Codex 配置",
+    "OPL Gateway",
     "OnePersonLab/data",
     "OnePersonLab/projects",
-    "OPL Framework",
-    "Codex CLI",
-    "runtime proxy smoke",
-    "startup diagnostics",
-    "ordinary user progress",
-    "Settings -> Access",
-    "ordinary_docker_webui_user_path",
-    "ghcr.io/gaofeng21cn/one-person-lab-webui",
-    "clean Linux VM",
-    "typed blocker"
+    "模型与访问",
+    "服务器部署"
   ],
   "forbidden_phrases": [
     "不声明公开 GHCR latest",
@@ -77,7 +69,12 @@
     "这个文档是否证明 latest 已发布：不能",
     "公开 GHCR stable 当前可作为新手默认镜像入口",
     "公开 `ghcr.io/gaofeng21cn/one-person-lab-webui:stable` 已发布",
-    "public live smoke 证明"
+    "public live smoke 证明",
+    "准备管理员提供的模型/API 访问密钥",
+    "联系管理员获取模型/API 访问密钥",
+    "runtime proxy smoke",
+    "typed blocker",
+    "ordinary_docker_webui_user_path"
   ],
   "screenshots_manifest": "docs/guides/docker-webui-install/screenshots.manifest.json",
   "publishing": {

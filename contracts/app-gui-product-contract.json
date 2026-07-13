@@ -3227,7 +3227,18 @@
     "e2e_startup_behavior": "destroy_tray_and_disable_close_to_tray",
     "close_to_tray_role": "window_close_behavior_only",
     "settings_key": "system.closeToTray",
-    "must_not_gate_tray_visibility_on_close_to_tray": true
+    "must_not_gate_tray_visibility_on_close_to_tray": true,
+    "icon_policy": {
+      "macos_asset_role": "dedicated_monochrome_geometric_template_image",
+      "macos_brand_motif": "opl_segmented_workflow_orbit_with_single_person_core",
+      "macos_base_point_size": 16,
+      "macos_scale_factors": [1, 2],
+      "macos_template_image_required": true,
+      "macos_transparency_required": true,
+      "macos_color_policy": "black_alpha_mask_only",
+      "macos_forbidden_source": "scaled_full_color_application_icon",
+      "other_platforms": "retain_application_icon_unless_platform_specific_asset_is_defined"
+    }
   },
   "first_launch_readiness_policy": {
     "launch_gate": "ready_to_launch",

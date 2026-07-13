@@ -346,11 +346,32 @@ function validateAgentPackageLifecycleUx(surface, label) {
   );
 }
 
+function validateDesktopTrayPolicy(guiContract) {
+  const trayPolicy = guiContract.desktop_tray_policy;
+  const iconPolicy = trayPolicy?.icon_policy;
+  assertDeepEqualJson(
+    iconPolicy,
+    {
+      macos_asset_role: 'dedicated_monochrome_geometric_template_image',
+      macos_brand_motif: 'opl_segmented_workflow_orbit_with_single_person_core',
+      macos_base_point_size: 16,
+      macos_scale_factors: [1, 2],
+      macos_template_image_required: true,
+      macos_transparency_required: true,
+      macos_color_policy: 'black_alpha_mask_only',
+      macos_forbidden_source: 'scaled_full_color_application_icon',
+      other_platforms: 'retain_application_icon_unless_platform_specific_asset_is_defined',
+    },
+    'App GUI desktop tray icon policy',
+  );
+}
+
 export function validateAppGuiProductContract(guiContract, releaseChannel, installExposurePolicy) {
   validateGuiProductHomeContract(guiContract);
   validateCodexModelPolicy(guiContract);
   validateGuiFrameworkSurfaces(guiContract, releaseChannel, installExposurePolicy);
   validateSettingsControlPlaneBehavior({ guiContract });
+  validateDesktopTrayPolicy(guiContract);
 
   const startupReadModelPolicy = guiContract.framework_surfaces?.canonical_state?.startup_read_model_policy;
   if (
