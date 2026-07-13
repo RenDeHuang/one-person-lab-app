@@ -363,6 +363,17 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   if (guiContract.theme_and_branding?.default_theme_id !== 'default-theme') {
     throw new Error('App GUI default theme must be default-theme');
   }
+  if (
+    guiContract.theme_and_branding?.ordinary_chrome_product_name !== productProfile.product?.ordinary_chrome_name ||
+    guiContract.theme_and_branding?.ordinary_navigation_brand_presentation?.identity !== 'text_only' ||
+    guiContract.theme_and_branding?.ordinary_navigation_brand_presentation?.logo_visible !== false ||
+    guiContract.theme_and_branding?.ordinary_navigation_brand_presentation?.theme_variant_asset_required !== false
+  ) {
+    throw new Error('App GUI ordinary navigation branding must use the profile-owned text-only product name');
+  }
+  if (!guiContract.theme_and_branding?.visible_branding_surfaces?.includes('navigation_rail_brand')) {
+    throw new Error('App GUI visible branding surfaces must include navigation_rail_brand');
+  }
   for (const themeId of ['codex', 'default-theme']) {
     if (!guiContract.theme_and_branding.allowed_theme_ids?.includes(themeId)) {
       throw new Error(`App GUI theme list must include ${themeId}`);

@@ -32,6 +32,24 @@ export function validateShellVisibleBranding(shellPaths, requiresLocale) {
       throw new Error(`Active shell visible OPL branding must include ${expected} in ${relativePath}`);
     }
   }
+
+  const layout = readShellText(shellPaths, 'packages/desktop/src/renderer/components/layout/Layout.tsx');
+  for (const expected of [
+    'getOplOrdinaryChromeName',
+    "data-testid='app-navigation-brand'",
+  ]) {
+    if (!layout.includes(expected)) {
+      throw new Error(`Active shell ordinary navigation branding must include ${expected}`);
+    }
+  }
+  if (layout.includes("assets/logos/brand/app.png") || layout.includes('<img src={appLogo}')) {
+    throw new Error('Active shell ordinary navigation branding must be text-only without the App logo');
+  }
+
+  const titlebar = readShellText(shellPaths, 'packages/desktop/src/renderer/components/layout/Titlebar/index.tsx');
+  if (!titlebar.includes('getOplOrdinaryChromeName') || titlebar.includes("'One Person Lab App'")) {
+    throw new Error('Active shell ordinary titlebar fallback must use the profile-owned chrome name');
+  }
 }
 
 export function validateShellBrandingAssets(shellPaths) {

@@ -705,6 +705,9 @@ function assertNonDefaultAssistantProfileShape(profile: AppProductProfile): void
 
 function assertProfileShape(profile: AppProductProfile): void {
   assertAppProductProfileIdentity(profile);
+  if (profile.product?.ordinary_chrome_name !== 'One Person Lab') {
+    throw new Error('App product profile product.ordinary_chrome_name must be One Person Lab');
+  }
   assertDefaultCodexSessionProfile(profile);
   assertCodexOplFlowContext(profile);
   assertHomeCodexProfileShape(profile);

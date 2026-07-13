@@ -2216,9 +2216,16 @@
     "default_theme_id": "default-theme",
     "allowed_theme_ids": ["default-theme", "codex"],
     "default_visible_product_name": "One Person Lab App",
+    "ordinary_chrome_product_name": "One Person Lab",
+    "ordinary_navigation_brand_presentation": {
+      "identity": "text_only",
+      "logo_visible": false,
+      "theme_variant_asset_required": false
+    },
     "legacy_upstream_branding_forbidden": true,
     "visible_branding_surfaces": [
       "desktop_app_icon",
+      "navigation_rail_brand",
       "window_title",
       "html_meta_title",
       "web_manifest",

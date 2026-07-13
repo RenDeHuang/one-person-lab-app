@@ -21,7 +21,7 @@ carrier 状态和 release evidence 仍归 contracts、source/tests、validators 
 
 | 元素 | 稳定位置 | 位置理由 | 漂移信号 |
 | --- | --- | --- | --- |
-| Product identity | Window/titlebar、About、release assets | 用户必须知道正在使用 One Person Lab App，而不是 carrier/upstream。 | Carrier name/logo 进入 ordinary chrome。 |
+| Product identity | 普通导航 chrome 使用 text-only `One Person Lab`；完整 App identity 保留在 window metadata、About 与 release assets | 用户必须知道正在使用 One Person Lab，同时避免 logo 在深浅主题间产生不协调。 | 普通导航 chrome 出现 App logo、`App` 后缀或 carrier identity。 |
 | Current context | Project 在 rail，branch/locality 在 Environment，active capability/attachment 在 composer 附近 | Context 必须可理解，但不应在多个 surface 重复。 | 只在 Settings/raw path 中可见、无 workspace 时静默禁用，或 composer 重复 rail/Environment 全量状态。 |
 | Project/conversation rail | 宽桌面左侧 `280-340px` 可调；窄窗口 drawer | Navigation 是连续工作所需，不应占用 conversation 主区。 | 宽桌面缺失、被移到 Home grid，或关闭 drawer 后丢 selection。 |
 | Rail global skeleton | 顶部 New task/Runtime/Archived，主体 project hierarchy，底部 account/help/Settings | 稳定全局入口与 project history 分层；capability 选择归 Home starter，管理归 Settings。 | 无真实能力的入口照搬、Capabilities 重回 rail，或 Settings 混入 conversation rows。 |

@@ -8,6 +8,7 @@ export type AppProductProfile = {
   product: {
     id: string;
     display_name: string;
+    ordinary_chrome_name: string;
     primary_surface: string;
     supported_release_platforms: string[];
   };
