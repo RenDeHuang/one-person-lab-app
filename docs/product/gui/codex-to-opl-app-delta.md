@@ -68,8 +68,11 @@ OPL App 采用下列翻译规则；没有明确 delta 的区域默认复用 refe
 
 ### OPL Feature Preservation Gate
 
-Codex baseline 只能帮助确定信息放在哪里、怎样交互，不能决定 OPL 有哪些功能。对 Runtime、
-Capabilities、first-run、OPL Settings、domain package entry 和双语等 OPL-owned capability：
+Codex baseline 只能帮助确定信息放在哪里、怎样交互，不能决定 OPL 有哪些功能。“不降级”
+只保护已经进入 OPL App contracts、ordinary routes 或正式用户路径的能力；AionUI 自带但未被
+OPL 采纳的 Team、provider/backend、任意 skills/MCP、Sites/Chat 等入口可以隐藏或拒绝。
+对 Runtime、Home capability starters、Settings → Agents & Capabilities、first-run、domain
+package entry 和双语等 OPL-owned capability：
 
 - 可以在用户认知更清晰时调整位置，但不得因 Codex 没有同名入口而删除；
 - 旧入口只能在同一变更已经提供可见、键盘可达的替代入口后移除；
@@ -124,8 +127,9 @@ Codex App 的模型控制在 OPL App 中进一步收敛：
 ## Purpose 与 Agent Package 增量
 
 OPL App 在普通 Codex conversation 上增加工作目的和 package shortcuts。Purpose 从
-composer 常驻 selector 移出，只能从 Home starter 或 Capabilities 选择；composer/context
-strip 只显示 active capability chip：
+composer 常驻 selector 移出，只从 Home starter 选择；package 安装、Home visibility 与
+lifecycle 进入 Settings → Agents & Capabilities，composer/context strip 只显示 active
+capability chip：
 
 | 用户目的 | 用户结果 | Domain owner |
 | --- | --- | --- |
@@ -142,6 +146,9 @@ strip 只显示 active capability chip：
 - 不把 domain workflow、stage、artifact schema 或 verdict 写进 GUI；
 - 产生 launch/route refs，供用户按需审计；
 - 是否显示由 App product profile、安装状态和用户 shortcut preference 决定。
+- 不可用 starter 显示可理解原因和 contract 允许动作；launch 前由 Framework 在
+  use boundary reconcile current compatible package closure，App 只在 `launch_allowed` 和
+  use receipt/binding 完整时继续。
 
 ## Capability 增量
 
@@ -153,6 +160,11 @@ strip 只显示 active capability chip：
 - Install/update/repair/hide/disable/uninstall 通过 App state/action、preview、confirmation
   和 receipt 完成。
 - GUI 展示 package status 与 refs，不拥有 package execution、runtime 或 domain truth。
+
+Legacy `codexcont-intelligence-enhancement` 代理属于 OPL Flow 明确退休的冲突项，不恢复为
+App-owned toggle 或后台服务。若 Codex executor 原生提供且 App profile 明确允许相关能力，
+可以继续由 composer 的 App-owned model/intelligence menu 投影；这是 authority migration，
+不是删除用户可用的 Codex 原生功能，也不能重新引入第二 provider/service truth。
 
 ## Runtime 与 Evidence 增量
 
@@ -254,7 +266,8 @@ OPL App 应让用户在 Codex-like 低摩擦工作流中：
 - 从 persistent project/conversation rail 进入 workspace conversation；
 - 不依赖 workspace 进入 projectless text conversation，并理解文件/project 能力限制；
 - 使用 single timeline 和 bottom composer 发送任务；
-- 从 Home/Capabilities 选择 OPL purpose/package，composer 只显示 active capability chip；
+- 从 Home starter 选择 OPL purpose/package，在 Settings 管理 package/Home visibility，
+  composer 只显示 active capability chip；
 - 使用 App-profile model/reasoning control，并动态呈现当前默认值；
 - 以用户语言查看 permission/access mode，而不是 provider/backend；
 - 在 turn 中理解进度、prompt、error、result 和 receipt；

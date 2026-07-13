@@ -2,6 +2,11 @@
 
 Owner: `one-person-lab-app`
 Purpose: `aionui_41301_keep_adapt_drop_read_model`
+
+Currentness note: 本文是 `dbff7370f` 与最初 41301 convergence 的历史 disposition 记录，
+不描述 current Shell `0d722e47e76b990e197e1e4b341072fdd85e2234`。当前 rail 已收敛为
+New task / Runtime / Archived，capability 选择由 Home starter 承接、管理进入 Settings；
+current source/pixel 状态只读取 [`shell-conformance-matrix.md`](shell-conformance-matrix.md)。
 State: `historical_branch_audit`
 Date: `2026-07-11`
 Machine boundary: 本文是 App-owned implementation read model。产品目标来自

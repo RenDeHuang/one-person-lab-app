@@ -10,7 +10,7 @@ const designRoot = 'docs/product/gui';
 
 const conformanceMatrix = `# Shell conformance matrix
 
-- AionUI source snapshot：\`opl-aion-shell@0000000000000000000000000000000000000000\`；fixture only。
+- AionUI current source snapshot：\`opl-aion-shell@0000000000000000000000000000000000000000\`；fixture only。
 
 | 功能或交互要求 | AionUI contract | AionUI source | AionUI pixel | Native contract | Native source | Native pixel | 验证入口与边界 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -76,6 +76,8 @@ function createFixture(): string {
 
   const guiContract = JSON.parse(fs.readFileSync(path.join(root, 'contracts/app-gui-product-contract.json'), 'utf8'));
   const finalShellSha = guiContract.interaction_baseline.acceptance_boundary.final_shell_sha;
+  const shellAdapter = JSON.parse(fs.readFileSync(path.join(root, 'contracts/app-shell-adapter.json'), 'utf8'));
+  const currentShellSha = shellAdapter.shell_source.upstream_ref;
   const evidenceManifest = JSON.parse(fs.readFileSync(path.join(root, 'docs/product/gui/evidence/aionui-41301/manifest.json'), 'utf8'));
   for (const entry of evidenceManifest.entries) copyFixtureAsset(root, entry.screenshot_path);
 
@@ -90,7 +92,8 @@ function createFixture(): string {
     `superseded_interaction_observations=${supersededCodexReference},${earlierSupersededCodexReference}`,
     'human_target.owner=one-person-lab-app',
     'active_aionui.role=current_implementation_conformance_only',
-    `active_aionui.final_shell_sha=${finalShellSha}`,
+    `active_aionui.current_shell_sha=${currentShellSha}`,
+    `active_aionui.historical_41301_evidence_sha=${finalShellSha}`,
     'docs_or_contract_imply_source_complete=false',
     'docs_or_contract_imply_pixel_complete=false',
     'ideal_target.workspace_session_rail_default_visible=true',
@@ -106,7 +109,7 @@ function createFixture(): string {
   writeFile(
     root,
     `${designRoot}/shell-conformance-matrix.md`,
-    conformanceMatrix.replace('0000000000000000000000000000000000000000', finalShellSha),
+    conformanceMatrix.replace('0000000000000000000000000000000000000000', currentShellSha),
   );
   return root;
 }
@@ -172,15 +175,21 @@ test('GUI design-system validator rejects a duplicate Capabilities rail entry', 
   );
 });
 
-test('GUI design-system validator rejects a stale convergence plan snapshot', () => {
+test('GUI design-system validator rejects an unknown convergence plan state', () => {
   const root = createFixture();
   const planPath = path.join(root, 'docs/active/aionui-mainline-gui-convergence-plan.md');
   const currentPlan = fs.readFileSync(planPath, 'utf8');
-  assert.match(currentPlan, /^State: `(release_closeout_in_progress|complete)`$/m);
-  const plan = currentPlan.replace(/^State: `(release_closeout_in_progress|complete)`$/m, 'State: `active_plan`');
+  assert.match(currentPlan, /^State: `(active_currentness_refresh|release_closeout_in_progress|complete)`$/m);
+  const plan = currentPlan.replace(
+    /^State: `(active_currentness_refresh|release_closeout_in_progress|complete)`$/m,
+    'State: `active_plan`',
+  );
   fs.writeFileSync(planPath, plan, 'utf8');
 
-  assert.throws(() => validateGuiDesignSystem(root), /must be in release_closeout_in_progress or complete state/);
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /must be in active_currentness_refresh, release_closeout_in_progress, or complete state/,
+  );
 });
 
 test('GUI design-system validator follows a changed App-profile reasoning default', () => {
@@ -320,7 +329,7 @@ test('GUI design-system validator rejects a page-state boundary that promotes co
   );
 });
 
-test('GUI design-system validator rejects a final Shell binding that drifts from the conformance snapshot', () => {
+test('GUI design-system validator rejects a historical evidence binding that drifts from its manifest', () => {
   const root = createFixture();
   const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
   const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
@@ -328,7 +337,23 @@ test('GUI design-system validator rejects a final Shell binding that drifts from
   contract.interaction_baseline.acceptance_boundary.source_evidence_ref = 'opl-aion-shell@0000000000000000000000000000000000000000';
   writeJson(root, 'contracts/app-gui-product-contract.json', contract);
 
-  assert.throws(() => validateGuiDesignSystem(root), /shell conformance matrix AionUI snapshot must match the App-bound final_shell_sha/);
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /AionUI 41301 visual evidence manifest must bind eight packaged route\/layout entries/,
+  );
+});
+
+test('GUI design-system validator rejects a current Shell adapter that drifts from the conformance snapshot', () => {
+  const root = createFixture();
+  const adapterPath = path.join(root, 'contracts/app-shell-adapter.json');
+  const adapter = JSON.parse(fs.readFileSync(adapterPath, 'utf8'));
+  adapter.shell_source.upstream_ref = '0000000000000000000000000000000000000000';
+  writeJson(root, 'contracts/app-shell-adapter.json', adapter);
+
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /shell conformance matrix current AionUI snapshot must match the active shell adapter/,
+  );
 });
 
 test('GUI design-system validator rejects a stale foreground role marker', () => {

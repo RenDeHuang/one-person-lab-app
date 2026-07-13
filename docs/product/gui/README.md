@@ -31,11 +31,11 @@ OPL project context、capabilities、progress、evidence、artifacts 与 safe ac
 嵌入这些稳定位置，不得把 Home 改造成 dashboard、launcher 或 card wall。
 
 当前人读观察基准是本机 ChatGPT macOS `26.707.41301`（观察于 `2026-07-11`）。
-App machine authority 已升为 baseline schema v2；AionUI implementation、generated profile、
-完整 Node/DOM/TypeScript/format/i18n、App active-shell/release-boundary 与 packaged 8 场景
-visual matrix 已绑定当前 Shell local/remote main `0ebc1fdd278e8a79602458e15e28cf814dfd917d`。
-这些证据证明当前 source cohort 与指定 route/layout 状态，不证明 1:1 pixel parity、公开
-release-ready 或远端 currentness。`26.707.31428` 与 `26.707.31123` 只作为 superseded
+App machine authority 已升为 baseline schema v2；当前 AionUI implementation carrier 是
+`0d722e47e76b990e197e1e4b341072fdd85e2234`。`0ebc1fdd278e8a79602458e15e28cf814dfd917d`
+的完整 source gates 与 packaged 8 场景 visual matrix 继续作为历史 exact-cohort evidence，
+不能通过替换 SHA 升级为当前 pixels。当前 carrier 的 source/pixel 状态只在 conformance
+matrix 中按 fresh evidence 更新。`26.707.31428` 与 `26.707.31123` 只作为 superseded
 observations 保留。
 
 ## 三层与文件归属
@@ -94,7 +94,8 @@ package/user path。当前 contract/source 与 packaged route visual evidence �
 - `superseded_interaction_observations=ChatGPT Codex macOS 26.707.31428 (2026-07-10),ChatGPT Codex macOS 26.707.31123 (2026-07-10)`
 - `human_target.owner=one-person-lab-app`
 - `active_aionui.role=current_implementation_conformance_only`
-- `active_aionui.final_shell_sha=0ebc1fdd278e8a79602458e15e28cf814dfd917d`
+- `active_aionui.current_shell_sha=0d722e47e76b990e197e1e4b341072fdd85e2234`
+- `active_aionui.historical_41301_evidence_sha=0ebc1fdd278e8a79602458e15e28cf814dfd917d`
 - `docs_or_contract_imply_source_complete=false`
 - `docs_or_contract_imply_pixel_complete=false`
 - `ideal_target.permission_access_mode_visible=true`
@@ -112,14 +113,16 @@ package/user path。当前 contract/source 与 packaged route visual evidence �
 
 - 宽桌面默认显示项目/对话 rail，保持 project hierarchy 和 conversation history 可见；
   窄窗口改为 drawer，不能为增加工具而压缩主阅读列。
-- Rail 顶部保持少量全局入口，主体按 project 分组 conversation，底部承载 account/help；
-  OPL 在 project 下增加可选 context refs，不创建第二套导航体系。
+- Rail 顶部只保留 New task、Runtime、Archived，主体按 project 分组 conversation，底部承载
+  account/help/Settings；OPL 在 project 下增加可选 context refs，不创建第二套导航体系。
 - Home/New task 与普通 conversation 共用同一 chat canvas 和 composer，不是
   landing/dashboard；project task 与 projectless text conversation 都可用。
 - Conversation 顶部只保留当前 task identity 与直接动作。Model/reasoning、
   permission/access、attach 和 send/stop 均留在 composer；不在 header 重复配置。
 - Purpose 从 Home/New task 的 starter 选择；选中后只显示轻量 active capability，
   不用独立 Capabilities 主导航页重复同一组说明。能力安装、首页显示与维护继续归 Settings。
+- Package starter 必须投影真实 availability；不可用时说明原因和允许动作，launch 前由
+  Framework-owned use-boundary activation fail closed，App/shell 不拥有 package currentness。
 - 当前 task progress、tool events、approval 与 receipts 进入 timeline；跨项目总览才进入
   Runtime。Current task 只有 timeline 单一实例；普通任务 inline/unpinned，只有用户 pin
   或真实 `long_running` 信号才 sticky，并保留 status/elapsed/progress/next/stop。

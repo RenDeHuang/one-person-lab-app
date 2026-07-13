@@ -379,7 +379,7 @@ function requireAionuiContractStatus(text: string, requirement: string, expected
 }
 
 function validateAionuiSnapshot(root: string, text: string, issues: Set<string>): void {
-  const match = text.match(/AionUI source snapshot：`opl-aion-shell@([0-9a-f]{40})`/);
+  const match = text.match(/AionUI (?:current )?source snapshot：`opl-aion-shell@([0-9a-f]{40})`/);
   if (!match) {
     issues.add('shell conformance matrix must bind an exact 40-character AionUI source snapshot');
     return;
@@ -407,6 +407,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   const profile = readJson(root, 'contracts/app-product-profile.json', issues);
   const guiContract = readJson(root, 'contracts/app-gui-product-contract.json', issues);
   const pageStateMatrix = readJson(root, 'contracts/app-page-state-matrix.json', issues);
+  const shellAdapter = readJson(root, 'contracts/app-shell-adapter.json', issues);
   const packageJson = readJson(root, 'package.json', issues);
   const governance = record(registry.design_system_governance);
 
@@ -575,6 +576,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
 
   const acceptanceBoundary = record(interactionBaseline.acceptance_boundary);
   const finalShellSha = typeof acceptanceBoundary.final_shell_sha === 'string' ? acceptanceBoundary.final_shell_sha : '';
+  const currentShellSha = String(record(shellAdapter.shell_source).upstream_ref ?? '');
   if (
     acceptanceBoundary.human_target_owner !== 'one-person-lab-app' ||
     acceptanceBoundary.active_shell !== 'aionui' ||
@@ -596,11 +598,14 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   ) {
     issues.add('interaction baseline must keep the human target separate from source, pixel, and release completion');
   }
-  if (!/^State: `(release_closeout_in_progress|complete)`$/m.test(convergencePlan)) {
-    issues.add('AionUI mainline convergence plan must be in release_closeout_in_progress or complete state');
+  if (!/^[0-9a-f]{40}$/.test(currentShellSha)) {
+    issues.add('active shell adapter must bind an exact current AionUI source SHA');
   }
-  if (!convergencePlan.includes(finalShellSha)) {
-    issues.add('AionUI mainline convergence plan must bind the App-owned final Shell SHA');
+  if (!/^State: `(active_currentness_refresh|release_closeout_in_progress|complete)`$/m.test(convergencePlan)) {
+    issues.add('AionUI mainline convergence plan must be in active_currentness_refresh, release_closeout_in_progress, or complete state');
+  }
+  if (!convergencePlan.includes(currentShellSha) || !convergencePlan.includes(finalShellSha)) {
+    issues.add('AionUI mainline convergence plan must bind both current Shell source and historical evidence SHA');
   }
   for (const staleMarker of [
     '5204a68d41d799287a4567e61897df3c25345dc4',
@@ -612,10 +617,16 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
       issues.add(`AionUI mainline convergence plan must not retain stale marker: ${staleMarker}`);
     }
   }
-  requireExactMarkerLine(foundationReadme, `active_aionui.final_shell_sha=${finalShellSha}`, foundationDocs.readme, issues);
-  const matrixSnapshot = conformanceMatrix.match(/AionUI source snapshot：`opl-aion-shell@([0-9a-f]{40})`/);
-  if (matrixSnapshot?.[1] !== finalShellSha) {
-    issues.add('shell conformance matrix AionUI snapshot must match the App-bound final_shell_sha');
+  requireExactMarkerLine(foundationReadme, `active_aionui.current_shell_sha=${currentShellSha}`, foundationDocs.readme, issues);
+  requireExactMarkerLine(
+    foundationReadme,
+    `active_aionui.historical_41301_evidence_sha=${finalShellSha}`,
+    foundationDocs.readme,
+    issues,
+  );
+  const matrixSnapshot = conformanceMatrix.match(/AionUI (?:current )?source snapshot：`opl-aion-shell@([0-9a-f]{40})`/);
+  if (matrixSnapshot?.[1] !== currentShellSha) {
+    issues.add('shell conformance matrix current AionUI snapshot must match the active shell adapter');
   }
   const visualEvidenceEntries = validateVisualEvidence(root, finalShellSha, issues);
 

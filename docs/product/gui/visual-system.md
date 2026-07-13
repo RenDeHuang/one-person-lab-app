@@ -23,7 +23,7 @@ OPL App 在基准上保留以下产品例外：
 - 普通工作入口使用 OPL purpose language，例如科研、基金、演示和写书。
 - Executor、模型策略和当前默认值由 `contracts/app-product-profile.json` 决定；本文
   不复制 model/reasoning 值或模型 allowlist。
-- Runtime、Capabilities、Settings、first-run、receipts 和 action refs 使用
+- Runtime、Home capability starters、Settings → Agents & Capabilities、first-run、receipts 和 action refs 使用
   App-owned contracts 与 OPL authority boundary。
 - OPL accent、状态语义和双语 copy 可以偏离 Codex 品牌，但不能改变 Codex-based
   chat-first composition。
@@ -195,7 +195,8 @@ Composer 是底部唯一主 command surface：
 ## Project / Conversation Rail
 
 - 宽桌面默认可见，宽度在 `280-340px` 内可调，窄窗口改 drawer。
-- 顶部固定 New task、Archived、Capabilities；Sites/Chat 没有 OPL 对应能力时不显示。
+- 顶部固定 New task、Runtime、Archived；capability starter 属于 Home，package/capability
+  管理属于 Settings。Sites/Chat 没有 OPL 对应能力时不显示。
 - 中段按 project 组织 conversations，同时容纳 projectless conversations。
 - Project 展开后按 `Context -> Conversations` 排列；Context 使用紧凑 refs rows 和单一添加动作，
   空状态不生成占位卡片，Attachments 仍由当前 conversation composer 管理。
@@ -267,6 +268,10 @@ Settings 采用 OPL 既有的卡片式 Control Center 基线：
 Loading 不用无限旋转器代替进度。可获得阶段或 elapsed time 时必须展示；没有可执行
 动作时不渲染空按钮。Disabled control 不仅变灰，还要通过 tooltip 或 nearby copy
 说明为什么不可用。
+
+Home package starter 的状态不得只靠颜色：`unavailable` 使用 disabled control + 原因 +
+允许动作，`activating` 保持稳定尺寸并显示明确进行中状态，`blocked` 保留修复入口但不得
+继续 launch。Activation 成功后才进入 selected/active capability 视觉状态。
 
 ## 响应式
 

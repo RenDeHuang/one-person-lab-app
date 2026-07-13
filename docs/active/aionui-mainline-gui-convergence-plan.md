@@ -2,8 +2,8 @@
 
 Owner: `one-person-lab-app`
 Purpose: `aionui_mainline_gui_convergence_plan`
-State: `complete`
-Updated: `2026-07-12`
+State: `active_currentness_refresh`
+Updated: `2026-07-13`
 Machine boundary: 本文是 AionUI 主线 GUI 的执行计划、结果 read model 和终局验收表。
 产品功能、交互、视觉和机器验收仍分别归 GUI 三层文档、`contracts/`、validators、Shell
 source/tests 与对应 evidence。本文不创建第二套产品 authority，也不把 source、tests 或
@@ -11,10 +11,11 @@ source/tests 与对应 evidence。本文不创建第二套产品 authority，也
 
 ## 结论
 
-`26.707.41301` 核心 GUI composition 与 OPL 专有能力位置已完成，不再需要大规模 GUI
-重写，也不得重放 `dbff7370f` 或整体 merge AionUI upstream。当前 closeout 只验证同一 final
-source cohort 的 App authority、Shell full gates、package/install/user path、远端精确回读和
-lane cleanup；公开 release promotion 继续不在本计划声明范围内。
+`26.707.41301` 核心 GUI composition 与 OPL 专有能力位置继续有效，不需要大规模 GUI
+重写，也不得重放 `dbff7370f` 或整体 merge AionUI upstream。AionUI 主线已经在 Home package
+readiness、Settings/Personalization、managed update 和 runtime bridge 上继续前进，因此本计划
+重新进入 currentness refresh：先更新三层文档与 machine contract，再对当前 source、pixels、
+package/user path 分层取证。旧 cohort 证据保留但不冒充当前完成。
 
 最终维护路线固定为：
 
@@ -28,19 +29,19 @@ lane cleanup；公开 release promotion 继续不在本计划声明范围内。
 
 ## 当前事实快照
 
-本节记录 `2026-07-12` closeout 输入。最终完成结论必须以 absorption、安装和远端回读后的
-fresh SHA 为准。
+本节记录 `2026-07-13` currentness 输入。任何当前完成结论必须以同一 source cohort 的
+fresh gate、pixels、package/user path 和远端回读为准。
 
 | Surface | Fresh 状态 | 边界 |
 | --- | --- | --- |
-| App current main | 本文所在 authority/docs/evidence closeout commit；父级为 `9334b30a3126b8f8ff2d31bf86a59c6daaf2dada`，并包含 `fbab0fafc9214fe90f3e836268426c29f6d73c7f` 的 41301 authority | closeout 后本地 `main` 与 `origin/main` 已通过 post-push `git ls-remote` 精确回读；本文不复制会因自身提交而循环变化的 current-HEAD SHA。 |
-| Shell current main | `0ebc1fdd278e8a79602458e15e28cf814dfd917d`，clean；包含 41301 GUI cohort 与 AionCore 0.1.44 builtin-auto catalog compatibility fix | local `main` 与 `gh-https/main` 已精确一致。 |
-| Product profile | App `fbab0faf...:contracts/app-product-profile.json` 与 Shell generated profile 的 `jq -S` SHA-256 均为 `0c9c75eb0c22e90ee42f5405f36d829e2a68f908553e6149c8b15d0e77624d4e` | 当前无需空提交或纯格式同步。 |
-| Shell full source gates | exact `0ebc1fdd...`：`test:full` 282 files pass / 1 skip、2044 tests pass / 3 skip；TypeScript、1487-file format、i18n 通过；lint `0 errors / 854 warnings` | warnings 是既有债务，不把 0 errors 扩大为视觉或 runtime 证明。 |
-| App authority gates | final contracts/docs/evidence 上 GUI design-system `consistent`、active-shell quick 通过、release-boundary `205 pass / 2 platform skip` | 只证明 App authority 与 final Shell source cohort 一致，不证明公开发布。 |
-| Core visual evidence | `docs/product/gui/evidence/aionui-41301/manifest.json` 绑定 Shell `0ebc1fdd...`、`E2E_PACKAGED=1`、时间 `2026-07-11T21:16:06.183Z` 和 8 个 route/layout 场景 | required anchors/layout checks 全通过、coverage gaps 为 0；不证明 1:1 parity 或公开 release-ready。 |
-| Final package/install | `/Applications/One Person Lab.app` 已同卷原子替换；版本 `26.7.12`，`app.asar` 228,693,648 bytes / SHA-256 `6e72982f1b5eb661facc32dbcc4a71294925ea14c24c3ed7ea022db3056d1b21`，AionCore `0.1.44 arm64`，deep/strict codesign 通过 | Home -> Settings -> Home live path 非空，稳定重走 console/page errors 为 0；不提升为公证或 Stable promotion 证明。 |
-| Git closeout | 双仓 main 已 push 并由 `git ls-remote` 精确回读；本轮 exact-merged compatibility lane 已清理 | `gui-convergence-integration` 的独有 release-smoke 提交、dirty `home-profile-sync`、active release lane 与 stable cohort 原样保留。 |
+| App current main | `24999057341ef07721812c2a07b4cabd92b05d8b`，与 `origin/main` 精确一致 | 本文变更完成后必须重新绑定最终 App SHA。 |
+| Shell current main | `0d722e47e76b990e197e1e4b341072fdd85e2234`，clean，local `main` 与 `gh-https/main` 精确一致 | Package metadata 仍为 AionUI `2.1.17` / AionCore `0.1.44`；不把 source 前进解释为 upstream 整体升级。 |
+| Product profile | 使用 App 官方生成器和当前 OPL Flow workflow policy 对 Shell generated profile 重建后，`jq -S` canonical diff 为空 | Generated profile 的 compatibility projection 包含由 OPL Flow policy 派生的字段；不要求与 raw App JSON 字节相等，不提交纯格式噪音。 |
+| Current source gates | Rail/Home/package-launch focused DOM `3 files / 10 tests`、1490-file format、i18n、root TypeScript 通过；full suite `278 files / 2080 tests` 通过、`1 file / 3 tests` skip、`5 files / 6 tests` fail | 失败为四条旧 Home/canonical identity 断言、一条旧 Personalization profile expectation 与一条 worktree package-closure resolution。TypeScript 使用临时 workspace dependency links 验证后已清理；不能记为 full gate complete。 |
+| Historical source gates | exact `0ebc1fdd278e8a79602458e15e28cf814dfd917d`：`test:full` 282 files pass / 1 skip、2044 tests pass / 3 skip；TypeScript、1487-file format、i18n 与 lint 0 errors | 只属于历史 cohort。 |
+| Historical core visual evidence | `docs/product/gui/evidence/aionui-41301/manifest.json` 绑定 Shell `0ebc1fdd...`、`E2E_PACKAGED=1`、时间 `2026-07-11T21:16:06.183Z` 和 8 个 route/layout 场景 | Manifest 与截图保持原字节/原 SHA；当前 `0d722e47...` pixels 为 unverified。 |
+| Historical Settings evidence | `docs/product/gui/assets/settings-desktop-light-manifest-20260712.json` 绑定 Shell `fadd91f9...` 的 14-entry desktop Light matrix | 精确历史证据，不外推为当前 Settings pixels。 |
+| Latest installed cohort | `/Applications/One Person Lab.app` 的 `26.7.12` closeout 曾完成 asar/AionCore/codesign 与 Home -> Settings -> Home readback | 该证据早于当前 Shell，不能证明 `0d722e47...` 已安装或用户路径 current。 |
 
 ## Authority 与非降级边界
 
@@ -60,9 +61,9 @@ fresh SHA 为准。
 | `diagnostic_only` | raw path、ref、receipt、enum、payload 或 log | 只进入 Advanced/Diagnostics，不算普通功能。 |
 
 AionUI generic custom assistants、Team、普通 backend/provider switching、French locale 和其它
-未进入 OPL 产品面的功能可以隐藏。已被 OPL 采用的 conversation、Runtime、Capabilities、
-project context、Preview、Files、Terminal、Browser、Settings、first-run 与中英文不能因来源是
-AionUI 而丢失。
+未进入 OPL 产品面的功能可以隐藏。已被 OPL 采用的 conversation、Runtime、Home capability
+starters、project context、Preview、Files、Terminal、Browser、Settings → Agents & Capabilities、
+first-run 与中英文不能因来源是 AionUI 而丢失。
 
 ## 三层文档状态
 
@@ -71,9 +72,9 @@ AionUI 而丢失。
 
 | 层级 | Authority | 当前状态 | 后续规则 |
 | --- | --- | --- | --- |
-| 功能层 | [`feature-inventory.md`](../product/gui/feature-inventory.md)、App contracts | `aligned` | OPL adopted capability baseline、transcript export、desktop navigation 和 Settings 边界已存在；send drafts/queue 未获产品授权，继续 defer。 |
-| 理想交互与视觉层 | [`ideal-interaction-spec.md`](../product/gui/ideal-interaction-spec.md)、[`visual-system.md`](../product/gui/visual-system.md)、[`codex-to-opl-app-delta.md`](../product/gui/codex-to-opl-app-delta.md)、[`element-audit.md`](../product/gui/element-audit.md) | `aligned` | Project 归 rail，branch/locality 归 Environment；composer 只保留 send-local 决策；Home 不截断用户可见 starter。 |
-| Shell 实现层 | [`shell-implementation-guide.md`](../product/gui/shell-implementation-guide.md)、[`shell-conformance-matrix.md`](../product/gui/shell-conformance-matrix.md) | `implementation_complete_local_package_verified` | 已绑定 current Shell main/source/profile/full tests/core pixels 与本机安装；公开 release promotion 仍由 release owner 独立闭合。 |
+| 功能层 | [`feature-inventory.md`](../product/gui/feature-inventory.md)、App contracts | `human_target_refreshed` | 非降级边界、Home/Settings capability 分工与 package activation 已更新；machine contract 同步必须单独通过 validator。 |
+| 理想交互与视觉层 | [`ideal-interaction-spec.md`](../product/gui/ideal-interaction-spec.md)、[`visual-system.md`](../product/gui/visual-system.md)、[`codex-to-opl-app-delta.md`](../product/gui/codex-to-opl-app-delta.md)、[`element-audit.md`](../product/gui/element-audit.md) | `aligned_current_target` | Project 归 rail，branch/locality 归 Environment；rail 只保留 New task/Runtime/Archived；Home starter 不截断并 fail-closed launch。 |
+| Shell 实现层 | [`shell-implementation-guide.md`](../product/gui/shell-implementation-guide.md)、[`shell-conformance-matrix.md`](../product/gui/shell-conformance-matrix.md) | `current_source_refresh_in_progress` | 当前 source ref 已绑定；旧 pixels 保留为历史，current source gates/pixels/package 分层重建。 |
 
 ## OPL 已采纳能力收敛结果
 
@@ -85,6 +86,7 @@ AionUI 而丢失。
 | P0 | Environment | `opl_adopted_active` | 右上 anchored、默认关闭；承载 workspace/locality/changes 与真实 refs/actions。 | 无真实数据的字段不显示。 |
 | P0 | Advanced surfaces | `opl_adopted_relocated` | 默认无综合第三列；Files、Preview、Terminal、Browser 按需打开，窄屏 Preview 使用完整 overlay。 | 专项 renderer pixels 不属于 core composition blocker。 |
 | P1 | Project context | `opl_adopted_active` | workspace-keyed 单一 source，rail 编辑，send 直接消费；不复制到 route/local/attachments。 | 保持 missing/remove/dedupe 行为。 |
+| P1 | Package launch readiness | `opl_adopted_active` | Unavailable starter 显示原因/允许动作；每次 workspace/quest launch 前执行 Framework-owned activation，失败 fail closed。 | 不从 installed flag 推断 ready，不在 shell 复制 package currentness。 |
 | P1 | Current task | `opl_adopted_relocated` | timeline 单一 summary；普通任务不默认 sticky，长任务或用户操作才 pin。 | 真实长任务/approval evidence 单独维护。 |
 | P1 | Transcript export | `opl_adopted_active` | cursor-safe、递归脱敏、Markdown/JSON、失败可见；`/export` 使用同一安全路径。 | workspace bundle 继续要求逐项选择与确认。 |
 | P1 | Desktop navigation | `opl_adopted_active` | 保留 Back/Forward、Previous/Next、New Window 的 OPL 路径，不创建 WebUI 第二 IA。 | 完整快捷键专项验收不阻塞 core GUI。 |
@@ -105,35 +107,36 @@ Shell package/version 和 AionCore intake 继续作为独立维护工作。选�
 
 ## Evidence 与收口状态
 
-### 已完成
+### 历史 exact-cohort 已完成
 
 - App baseline schema v2、page-state、product profile 和三层文档已指向 `26.707.41301`；
-- Shell Home/rail/composer/mobile/Environment/advanced surfaces/task/export 已进入 current main；
-- App `fbab0faf...` 与 Shell generated profile 语义一致；
+- Shell Home/rail/composer/mobile/Environment/advanced surfaces/task/export 已进入历史 closeout main；
+- 历史 App profile 与 Shell generated profile 语义一致；
 - exact Shell `0ebc1fdd...` 的 full tests、TypeScript、format、lint、i18n 与 packaged visual gate 已 fresh 通过；
 - packaged 8-scene core visual manifest 已绑定 exact Shell SHA，并明确限制 claim；
 - `26.7.12` macOS arm64 App 已原子安装，签名、AionCore、Home/Settings live path 与 stable CDP error readback 已验证。
 
-### Closeout completed
+### 当前 refresh 待闭合
 
-1. App GUI design-system、active-shell quick/full 与 release-boundary 已在 final source cohort 通过；
-2. App authority/docs/evidence closeout 已提交；
-3. 双仓 main 已推送，并通过 `git ls-remote` 精确回读；
-4. 本轮 exact-merged compatibility lane 已清理；有独有提交、dirty 写集或 active release owner 的 lanes 已按 ownership 原样保留。
+1. App GUI machine contract 与本轮人读 target 同步，并通过 design-system/active-shell/release-boundary；
+2. 当前 Shell focused/full source gates 通过；
+3. 当前核心 pixels 仅在需要声明 current visual 时重建，且生成新 manifest，不修改旧 evidence SHA；
+4. 当前 package/install/user path、push/readback 与 lane cleanup 由各自 owner 独立闭合。
 
 ## 完成度审计表
 
 | Requirement | 当前状态 | 完成证据 |
 | --- | --- | --- |
-| 41301 App machine authority 与三层文档一致 | `done` | Contracts/docs/evidence 绑定 `0ebc1fdd...`；GUI design-system、active-shell quick 与 release-boundary fresh 通过。 |
-| Shell GUI behavior 与 OPL 非降级边界一致 | `done` | Shell `0ebc1fdd...` source、full tests、TypeScript/format/lint/i18n 与 packaged visual evidence；builtin-auto 兼容不再触发 Home 405。 |
-| Final generated profile 一致 | `done` | 规范化 SHA-256 `0c9c75eb...24d4e`，profile tests `19/19`。 |
-| Core visual matrix | `done` | 8-entry packaged manifest，0 coverage gaps；不宣称 1:1 parity。 |
-| Final package/install/user path | `done` | `26.7.12` installed App、asar fingerprint、AionCore/codesign 和 live Home/Settings readback。 |
-| Main absorption/push/readback | `done` | Shell `0ebc1fdd...` 与远端精确一致；App current main 与 `origin/main` 由 post-push `ls-remote` 证明精确一致。 |
-| Lane cleanup | `done_with_owner_lanes_preserved` | exact-merged compatibility lane 已删除；独有、dirty、release owner 与 stable cohort lanes 保留。 |
+| 41301 human target 与三层文档一致 | `done_current_refresh` | 五份产品定义文档已收敛 rail/Home/Settings 与 package readiness 语义。 |
+| App machine authority 与三层文档一致 | `in_progress` | 等待重叠 contract owner 释放后同步并运行 App gates。 |
+| Shell GUI behavior 与 OPL 非降级边界一致 | `source_implemented_full_gate_blocked` | Current ref `0d722e47...` 已绑定；核心 focused 10/10 通过，但 full suite 仍有 6 条旧断言/环境失败。 |
+| Generated profile current | `done_semantic` | 官方生成器重建后 canonical JSON diff 为空；未提交纯格式差异。 |
+| Core visual matrix | `historical_only_current_unverified` | 8-entry manifest 继续精确绑定 `0ebc1fdd...`；当前 pixels 不沿用。 |
+| Package/install/user path | `historical_only_current_unverified` | `26.7.12` evidence 早于当前 Shell。 |
+| Main absorption/push/readback | `pending_this_refresh` | 当前基线已精确读回；本轮最终提交尚未吸收/推送。 |
+| Lane cleanup | `pending_this_refresh` | 只在 absorption audit 后清理本轮 worktrees。 |
 
-本文状态为 `complete`；`release_ready=false` 与 `parity_1_to_1=false` 保持不变。
+本文状态为 `active_currentness_refresh`；`release_ready=false` 与 `parity_1_to_1=false` 保持不变。
 
 ## 维护边界
 

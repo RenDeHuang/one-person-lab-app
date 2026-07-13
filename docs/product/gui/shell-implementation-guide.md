@@ -22,6 +22,10 @@ fork-local 产品逻辑。
 - Framework/domain/release owners 继续拥有各自 truth；
 - carrier 可以替换，产品语义和 action/state contract 不随 carrier 分叉。
 
+“不降级”只保护已进入 OPL App contracts、ordinary routes 或正式用户路径的能力。
+AionUI fork 中存在但未被 OPL 采纳的 Team、provider/backend、任意 skills/MCP、Sites/Chat
+等产品面可以在 profile/route adapter 层隐藏或拒绝；不要为保持上游功能数量扩大 OPL IA。
+
 ## Contract-first 顺序
 
 实现任何用户可见变化前，按以下顺序定位 owner：
@@ -52,6 +56,7 @@ contract/实现收敛 lane 处理。
 | Product profile consumer | 读取 generated App profile，提供品牌、默认模型、purpose、locale 和 feature flags。 | 硬编码模型 allowlist、provider policy 或 shell-local default。 |
 | State bridge | 把 App state readback 规范化为 renderer 可消费 envelope。 | 从本地组件状态推断 runtime/domain readiness。 |
 | Action bridge | 执行 App-owned action，并返回 dry-run/result/receipt。 | 直接调用 domain CLI、绕过 confirmation 或自建 mutation kernel。 |
+| Package launch adapter | 在 Home starter launch 前请求 Framework-owned use-boundary activation，并消费 `launch_allowed`、receipt 与 binding。 | 从 installed flag 推断可用、绕过 activation、在失败后仍创建/发送 conversation。 |
 | Route adapter | 把 legacy/upstream route 映射到 App-owned page。 | 让 compatibility route 重新成为 ordinary navigation。 |
 | Settings slot | 从 Control Plane registry 渲染 ordinary/secondary pages。 | 复制一套 shell-owned Settings IA。 |
 | Presentation adapter | 复用 shell primitives 实现 App layout、tokens、i18n 和 accessibility。 | 复制外部源码或把视觉 token变成产品 truth。 |
@@ -118,6 +123,8 @@ opl app action execute --action <id> [--payload <json>] [--dry-run] --json
 - UI 明确显示 what changes、what does not change、receipt/recovery ref 和 refresh 行为。
 - Result receipt 是动作事实，不代表 runtime、domain、artifact 或 release readiness。
 - 网络、CLI、schema 和 permission failure 保留 typed reason，不转换成模糊 `unknown`。
+- Package launch 是独立的 fail-closed prepare/activate/launch 流程。Shell 不拥有 package
+  currentness 或 materialization，只在 Framework 返回完整 use receipt/binding 后继续。
 
 ## Settings Control Plane
 
@@ -136,6 +143,8 @@ adapter slot 承接，而不是遍历 upstream settings pages 后临时隐藏。
   使用统一 interaction protocol，不为每页另造 action semantics。
 - Upstream 新增 Settings 页面必须先经过下面的 intake classification，不能自动进入
   ordinary navigation。
+- Capability 选择从 Home starter 进入；package 安装、Home visibility 和 lifecycle 进入
+  Settings → Agents & Capabilities。`/capabilities` 等历史入口只允许 compatibility redirect。
 
 ## Settings Upstream Intake 分类
 
@@ -199,6 +208,7 @@ command 和可见状态 anchor。
 
 - 在 shell 中复制模型 allowlist、Settings IA、purpose list 或 page-state rules。
 - 让 upstream route、Team、多 backend/provider controls 或 raw permission-mode terminology 回到 ordinary UI；App-owned user-language permission/access control 必须保留在 composer。
+- 为保留 AionUI 未采纳功能而扩大 ordinary IA，或把 Settings capability management 重新挂回 rail。
 - 从 module health、Git dirt、active id、缓存或 DOM 推断 runtime/domain readiness。
 - 直接执行 domain CLI、写 artifact body、memory body、owner receipt 或 release truth。
 - 为兼容一个 carrier 新建 App-wide wrapper/factory 或第二 bridge protocol。
@@ -217,5 +227,7 @@ command 和可见状态 anchor。
 - Home/chat-first、timeline、composer、rail 和 Environment/details 行为符合对应 target 或被明确
   标成 current deviation；
 - Settings 从 Control Plane registry/slots 渲染，legacy routes 只 redirect；
+- Home package starter 在 unavailable/activating/blocked 状态有真实 readback，launch 前
+  activation fail closed；
 - 普通 UI 不拥有 runtime/domain/artifact/release truth；
 - focused behavior、visual pixels 和 package/release claim 使用匹配层级的证据。

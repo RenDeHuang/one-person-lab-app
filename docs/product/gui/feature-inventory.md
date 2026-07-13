@@ -35,6 +35,10 @@ tests 与 evidence。
 任何工作若只改善 `P2`，不能据此声称 GUI 主体验已对齐 Codex。设计评审和视觉证据
 默认先覆盖 `P0`，再覆盖 `P1`，最后覆盖 `P2`。
 
+本文的“现有功能不降级”只保护已经进入 OPL App contracts、ordinary routes 或正式用户路径的
+能力。AionUI 上游自带但未被 OPL App 采纳的 Team、provider/backend、任意 skills/MCP、
+Sites/Chat 等入口可以隐藏或拒绝；它们不构成 OPL 功能回归。
+
 ## 产品框架
 
 | 功能 | 用户结果 | Authority / machine owner |
@@ -62,8 +66,9 @@ tests 与 evidence。
 | Current execution context | Project 在 rail、branch/locality 在 Environment、active capability、project context refs 与 attachment 在 composer 附近；缺 workspace 时看到能力限制。 | GUI contract、workspace/App state refs。 |
 | Model/reasoning control | Home 与普通 conversation 共用一个紧凑 App-owned model/reasoning menu。 | `contracts/app-product-profile.json`；文档不复制 allowlist。 |
 | Permission/access mode | 在 Home 与 conversation composer 以自动化和文件权限的用户语言显示，保留安全透明度但不暴露 provider/backend。 | GUI contract、workspace/access policy。 |
-| Purpose selection | 从 Home starter 或 Capabilities 选择科研、基金、演示、写书等工作目的；composer 只保留 active capability chip。 | Product profile、GUI contract、route receipt policy。 |
+| Purpose selection | 从 Home starter 选择科研、基金、演示、写书等工作目的；composer 只保留 active capability chip。安装、Home 显示和 lifecycle 管理进入 Settings → Agents & Capabilities。 | Product profile、GUI contract、route receipt policy。 |
 | Assistant-scoped capabilities | 只显示当前 package/purpose 允许的 required/optional skills。 | App packaged skill profiles 与 ordinary capability policy。 |
+| Package launch readiness | 不可用 starter 保持可识别但 disabled，显示用户可理解的原因和允许动作；发送或启动前必须通过 Framework-owned use-boundary activation，失败时 fail closed。 | Agent package activation policy、Framework state/action receipt。 |
 | User-input and permission prompt | Codex 需要选择、补充信息或授权时，在 conversation 中完成。 | Bridge event/action contract。 |
 | Turn receipt | 用户可查看本轮 route、action、result 和恢复 refs，不默认暴露 raw JSON。 | App/domain/runtime receipt refs；GUI 不拥有 receipt authority。 |
 
@@ -78,6 +83,7 @@ tests 与 evidence。
 | Optional package shortcuts | 用户可按安装状态和个人选择显示其它 compliant packages。 | Agent package registry、App shortcut preference。 |
 | Package directory | 查看已安装 package、exposure、状态轴、来源和推荐动作。 | `app_state.agent_packages`、App action catalog。 |
 | Package lifecycle actions | 通过统一 preview/confirm/receipt flow 安装、更新、修复、隐藏、禁用或卸载。 | App state/action；shell 不直接修改 package/runtime truth。 |
+| Package use-boundary activation | 每次已安装 package 的 workspace/quest launch 前请求 Framework reconcile compatible closure，并只在 `launch_allowed` 与 use receipt/binding 完整时进入 Codex conversation。 | Framework package lifecycle owner；App 只 prepare、投影 readback 并 launch。 |
 
 Purpose shortcut 只改变 route context 和 capability profile，不定义 domain workflow、
 artifact schema、quality verdict 或 readiness。普通用户标签描述工作目的；package id、
@@ -110,7 +116,7 @@ GUI contract 与 Settings Control Plane 拥有。
 | Overview | 判断 App 当前是否可用，以及最重要的下一步。 | Settings Control Plane、fast App state。 |
 | Access | 配置或检查模型访问、Codex CLI 和远程访问。 | App state/action、access contracts。 |
 | Workspace | 查看、切换、验证工作目录和权限。 | Workspace state/action。 |
-| Capabilities | 管理 packages、Home shortcuts 和 capability exposure。 | Agent package state/action 与 product profile。 |
+| Agents & Capabilities | 管理 packages、Home shortcuts 和 capability exposure；这是管理面，不是 ordinary rail 中的工作目的选择页。 | Agent package state/action 与 product profile。 |
 | Resources & Connections | 查看本机、远程、托管资源与连接 refs。 | Framework/Gateway/Fabric/Console refs；App 只展示。 |
 | Maintenance & Updates | 查看 App、runtime、packages、Codex Surface 和本机服务维护动作。 | Managed update/status/action contracts。 |
 | Data & Storage | 查看空间、数据分类、preview 和安全 cleanup action。 | App-owned storage lifecycle state/action。 |

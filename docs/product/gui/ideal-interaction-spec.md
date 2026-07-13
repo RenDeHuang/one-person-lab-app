@@ -66,8 +66,9 @@ header、隐藏 project rail、默认打开 inspector，或用 Settings/card lay
    直接开始 projectless conversation。
 2. **开始或继续对话。** 用户从 rail 新建、搜索、pin、rename、archive、reset 或切换
    conversation，并从独立 Archived surface 管理归档。
-3. **选择工作目的。** 用户从 Home starter 或 Capabilities 选择科研、基金、演示、
-   写书等能力；composer 只保留 active capability chip。
+3. **选择工作目的。** 用户从 Home starter 选择科研、基金、演示、写书等能力；
+   composer 只保留 active capability chip。Package 安装、Home 显示与 lifecycle 管理在
+   Settings → Agents & Capabilities 完成。
 4. **提交任务。** 用户输入说明、附加材料、确认模型/推理状态并发送。
 5. **观察执行。** Timeline 显示 pending、elapsed time、assistant output、tool/process
    summary、permission/input prompt 和当前 turn result。
@@ -81,10 +82,10 @@ header、隐藏 project rail、默认打开 inspector，或用 Settings/card lay
 
 Rail 负责 navigation，不承担 dashboard：
 
-- 顶部依次保留 New task、Runtime、Archived 和 Capabilities；Runtime 是跨项目工作状态
-  cockpit，Capabilities 占用 Codex Plugins 的认知位置但只展示 OPL 能力。会话级 Runtime
-  details 只能补充当前任务，不能替代全局 Runtime 入口。其它全局入口仅在 OPL 有真实对应
-  能力时保留。
+- 顶部只保留 New task、Runtime 和 Archived；Runtime 是跨项目工作状态 cockpit。
+  会话级 Runtime details 只能补充当前任务，不能替代全局 Runtime 入口。Package/capability
+  选择由 Home starter 承接，管理由 Settings → Agents & Capabilities 承接，不在 rail 重复。
+  其它全局入口仅在 OPL 有真实对应能力时保留。
 - 中段按 project 分组 conversation。Selected project 下依次组织可选 context refs、
   attachments 入口和最近 conversations；context 与 attachments 都不是建项前置条件。
 - Projectless conversation 继续可用，但不伪造 project/context 层级。
@@ -114,6 +115,11 @@ Previous/Next 只在当前可见 ordinary conversations 中移动，不扩张 We
 - 展示所有由安装状态与用户偏好标记为可见的轻量 OPL starter，按稳定配置顺序响应式换行，
   不静默截断，也不解释产品功能或堆叠大卡片。
 - Starter click-to-start 只准备 route context 与 active capability，不自动执行隐藏 workflow。
+- Package 不可用时 starter 保持可识别但 disabled，邻近显示用户可理解的原因和允许动作；
+  不用 spinner、空白或静默隐藏掩盖 readiness 问题。
+- 点击可用 package starter 只进入 prepare 状态；真正 launch 前调用 Framework-owned
+  use-boundary activation。只有 `launch_allowed`、`use_receipt_ref` 和 `use_binding` 完整时
+  才创建/发送 conversation，失败时 fail closed 并保留修复入口。
 - 无 workspace 时普通文字聊天可发送；附件、文件、Git 与 project actions 显示受限原因。
 - Home 不查询或渲染跨项目 activity、needs-attention、recent refs 或 per-assistant
   running badges。
@@ -165,7 +171,8 @@ Composer 是普通路径唯一主 command surface：
 ## Purpose 与 Capability 交互
 
 - 普通标签描述用户工作：科研、基金、演示、写书等。
-- Purpose 只从 Home starter 或 Capabilities 选择；不再是 composer 的常驻可变 selector。
+- Purpose 只从 Home starter 选择；不再是 composer 的常驻可变 selector，也不在 rail
+  建立 Capabilities 主导航。
 - Composer 只以低权重显示 active capability；更换 capability 改变 route context
   与 assistant-scoped profile，不改变 executor。
 - Required skills 可见且 locked；optional skills 由 App packaged profile 控制。
@@ -173,6 +180,8 @@ Composer 是普通路径唯一主 command surface：
 - OMA 或其它 package 是否显示由 product profile/package exposure 决定，不由 shell
   discovery 自动加入。
 - Ordinary capability selector 不展示未被 App allowlist 接受的 helper skill 或 MCP。
+- Settings → Agents & Capabilities 负责 package 安装、Home visibility 和 lifecycle；历史
+  `/capabilities` 只能作为 compatibility redirect，不能重新挂载第二套 capability directory。
 
 ## Environment Floating Details 与 Advanced Surfaces
 
@@ -257,6 +266,8 @@ First-run 的目标是让用户尽快进入可工作的 App：
 - Disabled action 显示 disabled reason。
 - Partial/unavailable state 保留可用功能，并说明缺失边界；不使用 silent fallback 假装
   完整。
+- Package starter 的 unavailable/activating/blocked 状态必须来自 App/Framework readback；
+  blocked 时只保留 status、doctor、repair 等 contract 允许动作，不允许绕过 activation 发送。
 - Failure 保留 typed reason、receipt/ref 和可恢复入口；不能把所有错误压成“重试”。
 
 ## 响应式与 WebUI
@@ -286,6 +297,8 @@ First-run 的目标是让用户尽快进入可工作的 App：
 - Environment details 默认关闭且 anchored，打开后不破坏 conversation/draft。
 - Home 使用动态问题标题与全部用户可见 configured starters，不静默截断，也不是
   dashboard/landing。
+- Package starter unavailable 时有原因和允许动作；launch 前 activation fail closed，成功时
+  绑定 use receipt/binding。
 - Project task 与 projectless conversation 均可用；无 workspace 时文字聊天可用且文件能力受限。
 - Composer 只有 textarea、send-local controls 和 bottom action row；purpose 不再常驻可变
   selector，project/local/branch 不与 rail/Environment 重复。
@@ -293,6 +306,7 @@ First-run 的目标是让用户尽快进入可工作的 App：
 - Model/reasoning 及当前默认值来自 App product profile。
 - Current-task summary bar 可 pin，并包含 status/elapsed/progress/next action/stop。
 - Rail/Archived/conversation management 与 desktop affordances 完整可达。
+- Rail 顶部只有 New task、Runtime、Archived；capability 选择在 Home，管理在 Settings。
 - Environment 首层保持 workspace/locality/branch/changes/subtasks/sources；OPL artifact/evidence 为
   次级 section/preview，advanced tools 默认关闭。
 - Settings 使用 full-window shell，OPL IA、first-run、品牌和双语边界保持不变。
