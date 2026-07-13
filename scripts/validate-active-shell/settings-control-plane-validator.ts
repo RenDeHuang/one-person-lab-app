@@ -2335,30 +2335,30 @@ function validateSettingsPageAdapterPolicy(controlPlane) {
     requiredPages.agents?.resource_grouping_surface,
     "Settings Agents page adapter resource grouping surface",
   );
-  validateSettingsCapabilitiesDirectoryProjection(requiredPages.agents);
+  validateSettingsAgentsDirectoryProjection(requiredPages.agents);
 }
 
-function validateSettingsCapabilitiesDirectoryProjection(capabilitiesPage) {
-  if (capabilitiesPage?.state_source !== expectedAgentsStateSource) {
+function validateSettingsAgentsDirectoryProjection(agentsPage) {
+  if (agentsPage?.state_source !== expectedAgentsStateSource) {
     throw new Error(
-      "Settings Capabilities page adapter must read from canonical agent_packages plus Home shortcut and task-awareness projections",
+      "Settings Agents page adapter must read from canonical agent_packages plus Home shortcut and task-awareness projections",
     );
   }
-  const directory = capabilitiesPage?.directory_projection_surface;
+  const directory = agentsPage?.directory_projection_surface;
   if (!directory || typeof directory !== "object") {
     throw new Error(
-      "Settings Capabilities page adapter must declare a directory projection surface",
+      "Settings Agents page adapter must declare a directory projection surface",
     );
   }
   if (
-    directory.surface !== "settings_capabilities" ||
+    directory.surface !== "settings_agents" ||
     directory.primary_identity !== "installed_package_directory" ||
     directory.purpose_role !== "secondary_tag_filter_only" ||
     directory.home_shortcut_integration !==
       "inline_visibility_and_order_controls_on_package_rows"
   ) {
     throw new Error(
-      "Settings Capabilities directory projection must be package-directory first with inline Home shortcut management",
+      "Settings Agents directory projection must be package-directory first with inline Home shortcut management",
     );
   }
   if (
@@ -2368,7 +2368,7 @@ function validateSettingsCapabilitiesDirectoryProjection(capabilitiesPage) {
       "opl app state --profile fast --json#app_state.modules.items[] + home_agent_shortcuts + app_state.operator.workbench.task_drilldowns"
   ) {
     throw new Error(
-      "Settings Capabilities directory projection must record canonical and legacy fallback runtime projections",
+      "Settings Agents directory projection must record canonical and legacy fallback runtime projections",
     );
   }
   if (
@@ -2378,7 +2378,7 @@ function validateSettingsCapabilitiesDirectoryProjection(capabilitiesPage) {
       "contracts/app-gui-product-contract.json#pages.settings_agents.agent_package_lifecycle_ux.package_projection_contract.activation_preparation_policy"
   ) {
     throw new Error(
-      "Settings Capabilities directory projection must explain canonical projection preference, legacy fallback, and package activation action",
+      "Settings Agents directory projection must explain canonical projection preference, legacy fallback, and package activation action",
     );
   }
   const statusModel = directory.status_model;
@@ -2386,7 +2386,7 @@ function validateSettingsCapabilitiesDirectoryProjection(capabilitiesPage) {
     statusModel?.policy !== "multi_axis_package_status_no_single_repair_bucket"
   ) {
     throw new Error(
-      "Settings Capabilities must keep a multi-axis package status model",
+      "Settings Agents must keep a multi-axis package status model",
     );
   }
   assertDeepEqualJson(
@@ -2402,14 +2402,14 @@ function validateSettingsCapabilitiesDirectoryProjection(capabilitiesPage) {
       "launch_allowed",
       "activation_action",
     ],
-    "Settings Capabilities status axes",
+    "Settings Agents status axes",
   );
   if (
     statusModel?.developer_source_policy !==
     "developer checkout semantics must surface explicitly and must not collapse into a generic repair bucket"
   ) {
     throw new Error(
-      "Settings Capabilities must preserve developer checkout semantics as their own axis",
+      "Settings Agents must preserve developer checkout semantics as their own axis",
     );
   }
   assertDeepEqualJson(

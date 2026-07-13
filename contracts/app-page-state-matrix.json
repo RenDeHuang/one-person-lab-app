@@ -3364,7 +3364,8 @@
           "codex_surface_state",
           "dependency_readiness",
           "operational_ready",
-          "launch_allowed"
+          "launch_allowed",
+          "activation_action"
         ],
         "source_inputs": [
           "app_state.agent_packages.directory.installed_packages[]",
@@ -3378,6 +3379,7 @@
           "app_state.agent_packages.status_index.packages[].launch_blocked_reason",
           "app_state.agent_packages.status_index.packages[].allowed_when_blocked",
           "app_state.agent_packages.status_index.packages[].repair_action",
+          "app_state.agent_packages.status_index.packages[].activation_action",
           "app_state.agent_packages.status_index.packages[].dependent_guard",
           "modules.items[].health_status",
           "modules.items[].recommended_action",

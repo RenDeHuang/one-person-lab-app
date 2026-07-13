@@ -1018,7 +1018,7 @@
           "candidate_policy": "report_first_candidate_refs_review_needs_changes_continue_in_conversation_no_auto_enable_no_skill_body_write"
         },
         "directory_projection_surface": {
-          "surface": "settings_capabilities",
+          "surface": "settings_agents",
           "primary_identity": "installed_package_directory",
           "purpose_role": "secondary_tag_filter_only",
           "home_shortcut_integration": "inline_visibility_and_order_controls_on_package_rows",

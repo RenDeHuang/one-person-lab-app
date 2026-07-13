@@ -206,7 +206,7 @@ function validateCapabilitiesPage(matrix, guiContract) {
     capabilitiesPage.status_model,
     {
       policy: 'multi_axis_package_status_no_single_repair_bucket',
-      axes: ['install_state', 'update_state', 'source_state', 'trust_state', 'codex_surface_state', 'dependency_readiness', 'operational_ready', 'launch_allowed'],
+      axes: ['install_state', 'update_state', 'source_state', 'trust_state', 'codex_surface_state', 'dependency_readiness', 'operational_ready', 'launch_allowed', 'activation_action'],
       source_inputs: [
         'app_state.agent_packages.directory.installed_packages[]',
         'app_state.agent_packages.status_index.packages[]',
@@ -219,6 +219,7 @@ function validateCapabilitiesPage(matrix, guiContract) {
         'app_state.agent_packages.status_index.packages[].launch_blocked_reason',
         'app_state.agent_packages.status_index.packages[].allowed_when_blocked',
         'app_state.agent_packages.status_index.packages[].repair_action',
+        'app_state.agent_packages.status_index.packages[].activation_action',
         'app_state.agent_packages.status_index.packages[].dependent_guard',
         'modules.items[].health_status',
         'modules.items[].recommended_action',

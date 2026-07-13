@@ -366,26 +366,27 @@ test('App contracts require one generic package use-boundary activation before l
   assert.equal(packageRow.allowed_action_refs.includes('agent_package_activate'), true);
   assert.deepEqual(packageRow.use_boundary_activation_contract, expectedActivationPolicy);
 
-  const capabilitiesProjection = guiProduct.pages.settings_capabilities.agent_package_lifecycle_ux.package_projection_contract;
+  const agentsProjection = guiProduct.pages.settings_agents.agent_package_lifecycle_ux.package_projection_contract;
   assert.deepEqual(
-    capabilitiesProjection.status_index_package_fields.activation_action,
+    agentsProjection.status_index_package_fields.activation_action,
     ['action_id', 'command_ref', 'enabled', 'preparation_status', 'reason_code'],
   );
   assert.deepEqual(
-    capabilitiesProjection.activation_preparation_status_values,
+    agentsProjection.activation_preparation_status_values,
     ['not_installed', 'prepare_required', 'ready'],
   );
-  assert.deepEqual(capabilitiesProjection.activation_preparation_policy, expectedActivationStates);
+  assert.deepEqual(agentsProjection.activation_preparation_policy, expectedActivationStates);
   assert.deepEqual(
-    pageState.pages.find((page: { id: string }) => page.id === 'capabilities')
+    pageState.pages.find((page: { id: string }) => page.id === 'agents')
       .agent_package_lifecycle_ux.package_projection_contract,
-    capabilitiesProjection,
+    agentsProjection,
   );
   const profilePackageSurface = productProfile.settings.control_plane.page_adapter_policy.required_pages
-    .capabilities.directory_projection_surface;
+    .agents.directory_projection_surface;
+  assert.equal(profilePackageSurface.surface, 'settings_agents');
   assert.equal(
     profilePackageSurface.activation_action_contract_ref,
-    'contracts/app-gui-product-contract.json#pages.settings_capabilities.agent_package_lifecycle_ux.package_projection_contract.activation_preparation_policy',
+    'contracts/app-gui-product-contract.json#pages.settings_agents.agent_package_lifecycle_ux.package_projection_contract.activation_preparation_policy',
   );
   assert.equal(profilePackageSurface.status_model.axes.includes('activation_action'), true);
   assert.equal(profilePackageSurface.detail_surface.detail_fields.includes('activation_action'), true);
@@ -561,7 +562,7 @@ test('managed update payload and public actions use only the three software obje
   const guiManagedUpdate = gui.framework_surfaces.managed_update_plane;
   const guiEnvironment = gui.pages.settings_environment;
   const environmentPage = pageState.pages.find((page) => page.id === 'environment');
-  const capabilitiesPage = pageState.pages.find((page) => page.id === 'capabilities');
+  const agentsPage = pageState.pages.find((page) => page.id === 'agents');
 
   assert.doesNotThrow(() => validateReleaseChannelContract(release));
   assert.deepEqual(lifecycle.public_component_keys, ['opl_base', 'opl_app', 'opl_packages']);
@@ -630,36 +631,36 @@ test('managed update payload and public actions use only the three software obje
     ['app_state.modules', 'managed_update.components[opl_packages].projection_status'],
   );
   assert.equal(
-    capabilitiesPage.status_model.source_inputs.includes('managed_update.components[opl_packages].projection_status'),
+    agentsPage.status_model.source_inputs.includes('managed_update.components[opl_packages].projection_status'),
     true,
   );
-  assert.equal(capabilitiesPage.agent_package_lifecycle_ux.directory_controls.filters.includes('codex_surface'), true);
+  assert.equal(agentsPage.agent_package_lifecycle_ux.directory_controls.filters.includes('codex_surface'), true);
   assert.deepEqual(
-    capabilitiesPage.agent_package_lifecycle_ux.package_projection_contract.status_index_package_fields.dependency_readiness_status_values,
+    agentsPage.agent_package_lifecycle_ux.package_projection_contract.status_index_package_fields.dependency_readiness_status_values,
     ['ready', 'repair_required', 'blocked'],
   );
   assert.equal(
-    capabilitiesPage.agent_package_lifecycle_ux.package_projection_contract.status_index_package_fields.operational_ready,
+    agentsPage.agent_package_lifecycle_ux.package_projection_contract.status_index_package_fields.operational_ready,
     'boolean',
   );
   assert.equal(
-    capabilitiesPage.agent_package_lifecycle_ux.package_projection_contract.repair_action_id,
+    agentsPage.agent_package_lifecycle_ux.package_projection_contract.repair_action_id,
     'repair_dependency_closure',
   );
   assert.deepEqual(
-    capabilitiesPage.agent_package_lifecycle_ux.package_projection_contract.status_index_package_fields.allowed_when_blocked,
+    agentsPage.agent_package_lifecycle_ux.package_projection_contract.status_index_package_fields.allowed_when_blocked,
     ['status', 'doctor', 'repair'],
   );
   assert.equal(
-    capabilitiesPage.agent_package_lifecycle_ux.package_projection_contract.launch_gate_policy,
+    agentsPage.agent_package_lifecycle_ux.package_projection_contract.launch_gate_policy,
     'operational_ready_false_requires_launch_allowed_false_and_only_status_doctor_repair_remain_allowed',
   );
   assert.deepEqual(
-    capabilitiesPage.agent_package_lifecycle_ux.package_projection_contract.launch_fail_closed_reason_codes,
+    agentsPage.agent_package_lifecycle_ux.package_projection_contract.launch_fail_closed_reason_codes,
     ['package_not_installed'],
   );
   assert.equal(
-    JSON.stringify(capabilitiesPage.agent_package_lifecycle_ux.package_projection_contract).includes('med-autoscience'),
+    JSON.stringify(agentsPage.agent_package_lifecycle_ux.package_projection_contract).includes('med-autoscience'),
     false,
   );
   const fixturePackage = fastFixture.app_state.agent_packages.status_index.packages['example-agent'];

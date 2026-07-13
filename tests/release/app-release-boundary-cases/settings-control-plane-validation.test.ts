@@ -98,6 +98,29 @@ test("Settings contract keeps ten product pages, two secondary pages, and anchor
   );
 });
 
+test("Settings validator keeps runnable package lifecycle on Agents", () => {
+  const staleProfileRef = contracts();
+  staleProfileRef.controlPlane.page_adapter_policy.required_pages.agents
+    .directory_projection_surface.activation_action_contract_ref =
+    "contracts/app-gui-product-contract.json#pages.settings_capabilities.agent_package_lifecycle_ux.package_projection_contract.activation_preparation_policy";
+  assert.throws(
+    () => validate(staleProfileRef),
+    /Settings Agents directory projection.*package activation action/,
+  );
+
+  const missingActivationAxis = contracts();
+  const agentsStatusModel =
+    missingActivationAxis.controlPlane.page_adapter_policy.required_pages.agents
+      .directory_projection_surface.status_model;
+  agentsStatusModel.axes = agentsStatusModel.axes.filter(
+    (axis) => axis !== "activation_action",
+  );
+  assert.throws(
+    () => validate(missingActivationAxis),
+    /Settings Agents status axes/,
+  );
+});
+
 test("Settings validator rejects secondary-page and compatibility-route regressions", () => {
   const secondaryRegression = contracts();
   secondaryRegression.controlPlane.secondary_pages.push({
