@@ -1177,8 +1177,8 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     guiContract.interaction_baseline?.feature_preservation_policy?.runtime_preservation_gate,
     'App GUI Runtime cockpit preservation gate',
   );
-  if (pages.runtime_status.primary_projection !== 'app_state.operator user task status projection') {
-    throw new Error('App GUI runtime status must default to the user task status projection');
+  if (pages.runtime_status.primary_projection !== 'app_state.operator.workbench.work_item_projection_v2') {
+    throw new Error('App GUI runtime status must default to WorkItemProjection v2');
   }
   if (pages.runtime_status.default_state_source !== 'opl app state --profile fast --json') {
     throw new Error('App GUI runtime status default source must be fast App state');
@@ -1208,22 +1208,21 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     'App GUI framework workflow/skill candidate',
   );
   for (const signal of [
-    'user task status first OPL runtime status',
-    'running task count',
-    'active project count',
-    'queued project count',
-    'attention count',
-    'task title/status/stage/progress label/next step/next owner/owner/accepted answer shape/artifact or blocker/last progress',
-    'four-layer mental model: agent/capability, project, task/work item, execution run',
-    'current stage and stage elapsed or telemetry missing',
-    'last heartbeat or running proof or telemetry missing',
-    'current stage usage and task total usage or telemetry missing',
-    'typed blocker summary, owner, and resolution route',
-    'agent/module status as a separate panel',
-    'non-running waiting or stopped projects collapsed by default',
-    'blocked stays blocked; queued or waiting require explicit projected status and are not inferred from non-running',
-    'deliverable progress delta classification',
-    'platform repair delta as separate infrastructure repair',
+    'WorkItemProjection v2 as the default Runtime read model',
+    'two-level Agent then Project scope with work items excluded',
+    'status-only saved views without MAS or other agent duplicates',
+    'four-column work-item list with agent as a secondary label',
+    'one row per canonical work item',
+    'framework-projected primary status and human stage/action copy',
+    'complete current responsibility before system attention is shown',
+    'observed current-stage and total Token usage or an explicit missing reason',
+    'no Token limit progress bar when no limit is configured',
+    'Stage Map, current and next stage, heartbeat, Token, and action on detail open',
+    'artifacts and timeline as secondary detail',
+    'agent availability as a separate full-name panel collapsed when healthy',
+    'runtime diagnostics as secondary disclosure',
+    'responsive semantic row reflow without horizontal page overflow',
+    'contract, Framework producer, Shell consumer, and live evidence tracked separately',
   ]) {
     if (!pages.runtime_status.must_show?.includes(signal)) {
       throw new Error(`App GUI runtime status must show ${signal}`);
@@ -1231,7 +1230,20 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   }
   assertDeepEqualJson(
     pages.runtime_status.must_not_default_show,
-    ['Temporal', 'provider', 'projection', 'ref', 'stage attempt', 'ledger', 'current_control_state'],
+    [
+      'raw IDs',
+      'raw logs',
+      'raw refs',
+      'receipt refs',
+      'workflow and attempt IDs',
+      'Temporal',
+      'provider',
+      'projection',
+      'ref',
+      'stage attempt',
+      'ledger',
+      'current_control_state',
+    ],
     'App GUI runtime status forbidden default terms',
   );
   for (const owner of ['deliverable progress truth', 'platform repair truth']) {

@@ -457,11 +457,11 @@
     ]
   },
   "projection_sources": {
-    "primary": "app_state.operator user task status projection",
+    "primary": "app_state.operator.workbench.work_item_projection_v2",
     "provider": "runtime_tray_snapshot.app_operator_drilldown.current_control_state.states.provider_run",
     "actions": "app_state.actions",
     "full_detail": "runtime_tray_snapshot.app_operator_drilldown",
-    "policy": "user_task_status_from_app_state_project_refs_provider_projection_diagnostic_only"
+    "policy": "work_item_projection_v2_primary_provider_projection_diagnostic_only"
   },
   "runtime_surface_owner_matrix": {
     "purpose": "keep_runtime_resource_task_data_lifecycle_refs_single_sourced",
@@ -546,7 +546,14 @@
       "task/work item: the user-visible unit that is advancing, waiting, or blocked",
       "execution run: the current stage run, heartbeat, usage, and blocker route for this task"
     ],
-    "scope_fields": ["scope_options", "current_scope", "scope_source", "inferred_scope_hint"],
+    "scope_fields": [
+      "agent_scope_options",
+      "selected_agent_scope",
+      "project_scope_options",
+      "selected_project_scope",
+      "scope_source",
+      "inferred_scope_hint"
+    ],
     "summary_fields": [
       "running_task_count",
       "active_project_count",
@@ -700,7 +707,7 @@
     "owner": "one-person-lab-app",
     "state": "active_product_contract",
     "page_role": "project_runtime_cockpit_not_runtime_diagnostics",
-    "default_surface": "task_run_cockpit",
+    "default_surface": "work_item_projection_v2_list",
     "advanced_surface": "task_detail_or_diagnostics",
     "work_item_projection_ref": "contracts/app-runtime-bridge.json#work_item_projection",
     "detail_layer_ref": "contracts/app-runtime-bridge.json#work_item_projection.detail_layer_contract",
@@ -714,121 +721,91 @@
       "data_freshness"
     ],
     "default_task_row_spine": [
-      "project_or_paper",
-      "agent_or_module",
-      "task_or_stage",
-      "next_step",
-      "status"
+      "project_and_work_item",
+      "status",
+      "progress_and_next_step",
+      "elapsed_and_tokens"
     ],
     "default_page_sections": [
       "top_scope_and_refresh",
-      "freshness_bar",
-      "kpi_row",
-      "main_task_grouped_list",
-      "right_module_status",
-      "right_advanced_information_disclosure"
+      "freshness_summary",
+      "status_saved_views",
+      "work_item_list",
+      "agent_availability_panel",
+      "advanced_diagnostics_disclosure"
     ],
     "layout_regions": {
-      "top": ["top_scope_and_refresh", "freshness_bar"],
-      "overview": ["kpi_row"],
-      "main": ["main_task_grouped_list"],
-      "right": ["right_module_status", "right_advanced_information_disclosure"]
+      "top": ["top_scope_and_refresh", "freshness_summary", "status_saved_views"],
+      "main": ["work_item_list"],
+      "supporting": ["agent_availability_panel", "advanced_diagnostics_disclosure"]
     },
     "default_field_allowlist": [
-      "scope_options",
-      "current_scope",
-      "scope_source",
-      "inferred_scope_hint",
+      "agent_scope_options",
+      "selected_agent_scope",
+      "project_scope_options",
+      "selected_project_scope",
       "refresh_action",
       "last_state_read_at",
-      "projection_freshness_label",
-      "last_progress_at",
-      "last_heartbeat_at_or_telemetry_missing",
-      "state_source",
-      "telemetry_missing",
-      "running_task_count",
-      "active_project_count",
-      "queued_project_count",
-      "attention_count",
-      "in_progress_count",
-      "automation_running_count",
-      "delivered_auto_paused_count",
-      "system_attention_count",
-      "owner_decision_count",
-      "recent_activity_at",
-      "agent_display_name",
-      "project_display_name",
-      "work_item_display_name",
-      "primary_state_label",
-      "automation_state_label",
-      "active_stage_label",
-      "active_stage_elapsed",
-      "progress_label",
-      "stage_usage",
-      "task_total_usage",
-      "next_visible_step",
-      "next_owner",
-      "connector_readiness_refs_as_status",
-      "gateway_status_ref_as_status",
-      "diagnostic_substrate_refs_as_status",
-      "capability_health_refs_as_status"
+      "freshness.state",
+      "freshness.observed_at",
+      "freshness.last_progress_at",
+      "identity.agent_display_name",
+      "identity.project_display_name",
+      "identity.work_item_display_name",
+      "lifecycle.primary_state_label",
+      "execution.current_stage_display_name",
+      "execution.next_stage_display_name",
+      "telemetry.elapsed",
+      "telemetry.current_stage_tokens",
+      "telemetry.task_total_tokens",
+      "action.title",
+      "action.owner",
+      "agent_availability.display_name",
+      "agent_availability.availability"
     ],
     "default_visible_field_groups": {
       "scope_and_refresh": [
-        "scope_options",
-        "current_scope",
-        "scope_source",
-        "inferred_scope_hint",
+        "agent_scope_options",
+        "selected_agent_scope",
+        "project_scope_options",
+        "selected_project_scope",
         "refresh_action",
-        "last_state_read_at",
-        "projection_freshness_label"
+        "last_state_read_at"
       ],
-      "freshness_bar": [
-        "last_progress_at",
-        "last_heartbeat_at_or_telemetry_missing",
-        "state_source",
-        "telemetry_missing"
+      "freshness_summary": [
+        "freshness.state",
+        "freshness.observed_at",
+        "freshness.last_progress_at"
       ],
-      "kpi_row": [
-        "in_progress_count",
-        "automation_running_count",
-        "delivered_auto_paused_count",
-        "owner_decision_count",
-        "system_attention_count"
+      "work_item_list": [
+        "identity.agent_display_name",
+        "identity.project_display_name",
+        "identity.work_item_display_name",
+        "lifecycle.primary_state_label",
+        "execution.current_stage_display_name",
+        "execution.next_stage_display_name",
+        "telemetry.elapsed",
+        "telemetry.current_stage_tokens",
+        "telemetry.task_total_tokens",
+        "action.title",
+        "action.owner"
       ],
-      "main_task_grouped_list": [
-        "agent_display_name",
-        "project_display_name",
-        "work_item_display_name",
-        "primary_state_label",
-        "automation_state_label",
-        "active_stage_label",
-        "active_stage_elapsed",
-        "progress_label",
-        "stage_usage",
-        "task_total_usage",
-        "next_visible_step",
-        "next_owner",
-        "last_progress_at"
-      ],
-      "right_module_status": [
-        "connector_readiness_refs_as_status",
-        "gateway_status_ref_as_status",
-        "diagnostic_substrate_refs_as_status",
-        "capability_health_refs_as_status"
+      "agent_availability_panel": [
+        "agent_availability.display_name",
+        "agent_availability.availability"
       ]
     },
     "default_label_policy": {
       "purpose": "default_cockpit_uses_human_labels_not_runtime_identifiers",
       "human_label_fields": [
-        "agent_display_name",
-        "project_display_name",
-        "work_item_display_name",
-        "primary_state_label",
-        "automation_state_label",
-        "active_stage_label",
-        "next_visible_step",
-        "next_owner"
+        "identity.agent_display_name",
+        "identity.project_display_name",
+        "identity.work_item_display_name",
+        "lifecycle.primary_state_label",
+        "execution.current_stage_display_name",
+        "execution.next_stage_display_name",
+        "action.title",
+        "action.owner"
       ],
       "raw_identifier_default_visible": false,
       "raw_identifier_advanced_only_fields": [
@@ -858,29 +835,26 @@
       }
     },
     "task_deduplication_policy": {
-      "dedupe_key_priority": [
-        "agent_display_name + project_display_name_or_study_id + work_item_display_name",
-        "agent_display_name + project_display_name_or_study_id + active_stage_label",
-        "task_identity.task_ref",
-        "binding_agnostic_task_id",
-        "task_identity.task_id"
-      ],
-      "module_runtime_rows_policy": "module_runtime_without_project_or_study_belongs_to_right_module_status_not_main_task_grouped_list",
-      "duplicate_selection_policy": "prefer_in_progress_then_automation_running_then_result_pending_terminalization_then_most_complete_latest_activity",
-      "merge_sources": [
-        "app_state.operator.workbench.task_run_projection_v2.tasks",
-        "app_state.operator.workbench.task_drilldowns",
-        "app_state.operator.workbench.activity_center.active_projects",
-        "app_state.operator.visual_ref_groups.active_project_refs"
-      ],
-      "display_policy": "one_user_visible_row_per_task_keep_secondary_refs_in_advanced_detail",
+      "canonical_row_key": "identity.work_item_id",
+      "dedupe_owner": "opl_framework",
+      "one_row_per_work_item": true,
+      "shell_heuristic_deduplication_allowed": false,
+      "module_runtime_rows_policy": "module_runtime_never_enters_work_item_list_agent_availability_is_separate",
+      "display_policy": "one_user_visible_row_per_canonical_work_item",
       "raw_duplicate_refs_default_visible": false
     },
     "next_step_copy_policy": {
-      "source_priority": ["next_visible_step", "next_step", "current_owner_delta_next_action"],
-      "long_text_policy": "normalize_long_routes_commands_or_stage_ids_to_short_human_action_copy",
+      "source_priority": ["action.title", "execution.next_stage_display_name"],
+      "long_text_policy": "framework_projects_short_human_action_copy_shell_does_not_translate_routes",
       "default_copy_examples": ["继续分析数据", "继续筛选文献", "等待你决定", "系统自动处理"],
       "raw_route_or_command_default_visible": false
+    },
+    "responsive_acceptance": {
+      "viewport_widths_px": [375, 768, 1024, 1440],
+      "desktop_layout": "four_columns",
+      "narrow_layout": "semantic_row_reflow",
+      "horizontal_page_overflow_allowed": false,
+      "text_overlap_allowed": false
     },
     "advanced_only_fields": [
       "raw_proof_ref",
@@ -926,13 +900,49 @@
   "runtime_scope_projection": {
     "source": "app_state.operator.workbench.runtime_scope",
     "authority": "opl_framework_runtime_scope_projection",
-    "display_policy": "global_overview_first_explicit_scope_switcher_agent_and_project_workspace_only_task_scope_advanced",
-    "default_scope_identity_policy": "workspace_or_project_scope_uses_real_workspace_path_deduped_auto_task_and_milestone_bindings_advanced_only",
-    "user_facing_state_policy": "system_attention_only_for_app_framework_provider_repair_mas_owner_typed_blocker_without_running_automation_displays_as_paused_waiting_for_direction",
-    "default_scope_levels": ["all_projects", "agent", "workspace_or_project"],
-    "advanced_only_scope_levels": ["task", "paper_or_work_item"],
-    "required_fields": ["scope_options", "current_scope", "scope_source", "inferred_scope_hint"],
-    "scope_option_kinds": ["all_projects", "agent", "workspace", "project", "task"],
+    "display_policy": "two_level_agent_then_project_cascade_work_items_stay_in_list",
+    "default_scope_identity_policy": "project_scope_uses_canonical_project_registry_for_selected_agent",
+    "user_facing_state_policy": "primary_state_is_framework_projected_from_work_item_v2_axes_shell_never_derives_it",
+    "default_scope_levels": ["agent", "project"],
+    "required_fields": [
+      "agent_scope_options",
+      "selected_agent_scope",
+      "project_scope_options",
+      "selected_project_scope",
+      "scope_source",
+      "inferred_scope_hint"
+    ],
+    "agent_scope": {
+      "all_option": "all_agents",
+      "full_display_names_required": true,
+      "first_party_options": [
+        { "agent_id": "med-autoscience", "display_name": "Med Auto Science" },
+        { "agent_id": "med-autogrant", "display_name": "Med Auto Grant" },
+        { "agent_id": "redcube-ai", "display_name": "RedCube AI" },
+        { "agent_id": "opl-meta-agent", "display_name": "OPL Meta Agent" },
+        { "agent_id": "opl-bookforge", "display_name": "OPL Book Forge" }
+      ]
+    },
+    "project_scope": {
+      "all_option": "all_projects",
+      "source": "canonical_project_registry_for_selected_agent",
+      "work_item_options_allowed": false
+    },
+    "work_item_scope_allowed": false,
+    "saved_views": {
+      "dimension": "primary_state_only",
+      "required_ids": [
+        "all",
+        "automatically_advancing",
+        "awaiting_user_decision",
+        "system_attention",
+        "delivered_or_paused",
+        "stopped",
+        "sync_pending"
+      ],
+      "agent_or_project_views_allowed": false,
+      "forbidden_ids": ["mas", "med-autoscience", "med_auto_science"]
+    },
     "scope_source_values": ["default_global", "user_selected", "inferred"],
     "forbidden_claims": [
       "current_workspace_only_truth",
@@ -943,50 +953,127 @@
   },
   "work_item_projection": {
     "surface_kind": "opl_work_item_projection",
-    "schema_version": "work-item-projection.v1",
-    "source": "app_state.operator.workbench.task_run_projection_v2 + app_state.operator.workbench.activity_center + app_state.operator.visual_ref_groups",
+    "schema_version": "work-item-projection.v2",
+    "source": "app_state.operator.workbench.work_item_projection_v2",
     "authority": "one_person_lab_canonical_work_item_projection",
-    "display_policy": "scope_work_item_agent_stage_action_evidence_default_diagnostics_on_demand",
-    "model_chain": ["Scope", "Work Item", "Agent", "Stage", "Attempt", "Action", "Evidence"],
+    "display_policy": "canonical_work_item_axes_default_decision_fields_diagnostics_on_demand",
+    "model_chain": ["Agent", "Project", "Work Item", "Stage", "Action", "Evidence"],
     "projection_owner_boundary": {
-      "framework": "projects runtime refs into canonical work items, conditions, stage catalogs, action envelopes, timeline refs, and evidence refs",
+      "framework": "joins canonical agent, project, work-item inventory, lifecycle, execution, usage, conditions, freshness, action, timeline, and evidence refs",
       "app": "defines field placement, display allowlist, validation, and advanced-only policy",
       "shell": "renders the projection and opens details without deriving runtime truth"
     },
     "required_fields": [
-      "work_item_id",
-      "work_item_ref",
-      "project_ref",
-      "agent",
-      "stage",
-      "attempt",
-      "status",
+      "identity",
+      "lifecycle",
+      "execution",
+      "attention",
+      "telemetry",
       "conditions",
-      "next_action",
-      "evidence"
+      "freshness",
+      "action"
     ],
-    "identity_fields": [
-      "work_item_id",
-      "work_item_ref",
-      "project_ref",
-      "workspace_ref",
-      "study_id",
-      "paper_id",
-      "agent_id",
-      "task_ref"
-    ],
+    "field_contracts": {
+      "identity": {
+        "required_fields": [
+          "agent_id",
+          "agent_display_name",
+          "project_id",
+          "project_display_name",
+          "work_item_id",
+          "work_item_display_name",
+          "generation"
+        ],
+        "canonical_source": "agent_catalog_plus_project_registry_plus_agent_work_item_inventory",
+        "execution_fallback_allowed": false
+      },
+      "lifecycle": {
+        "required_fields": [
+          "business_state",
+          "primary_state",
+          "primary_state_label",
+          "reason",
+          "last_transition_at"
+        ],
+        "business_states": ["active", "delivered_paused", "paused", "stopped", "archived"],
+        "primary_state_labels_zh_cn": {
+          "automatically_advancing": "自动推进中",
+          "awaiting_user_decision": "等待你决定",
+          "system_attention": "系统处理中",
+          "delivered_auto_paused": "已交付自动暂停",
+          "paused": "已暂停",
+          "stopped": "已停止",
+          "sync_pending": "状态待同步"
+        },
+        "primary_state_projection_owner": "opl_framework",
+        "shell_derivation_allowed": false
+      },
+      "execution": {
+        "required_fields": [
+          "state",
+          "current_stage_id",
+          "current_stage_display_name",
+          "next_stage_id",
+          "next_stage_display_name",
+          "started_at",
+          "last_heartbeat_at"
+        ],
+        "states": ["running", "queued", "idle", "failed", "unknown"],
+        "attempt_ids_default_visible": false
+      },
+      "attention": {
+        "required_fields": ["kind", "summary", "owner_display_name", "responsibility"],
+        "kinds": ["none", "user", "system"],
+        "system_responsibility_required_fields": [
+          "responsible_component",
+          "issue",
+          "repair_action",
+          "impact",
+          "expected_outcome"
+        ],
+        "system_attention_requires_current_generation": true,
+        "system_attention_requires_current_blocker": true,
+        "incomplete_system_responsibility_policy": "do_not_emit_system_attention_keep_lifecycle_state_and_defer_diagnostics"
+      },
+      "telemetry": {
+        "required_fields": ["state", "elapsed", "current_stage_tokens", "task_total_tokens"],
+        "states": ["observed", "partial", "missing", "stale"],
+        "token_observation": {
+          "states": ["observed", "missing", "stale"],
+          "observed_required_fields": [
+            "input_tokens",
+            "output_tokens",
+            "total_tokens",
+            "source",
+            "observed_at"
+          ],
+          "missing_required_fields": ["reason"]
+        },
+        "missing_may_render_as_zero": false,
+        "zero_requires_observed_zero": true,
+        "token_limit_configured": false,
+        "token_progress_bar_allowed": false
+      },
+      "freshness": {
+        "required_fields": ["state", "observed_at", "last_progress_at", "reason"],
+        "states": ["fresh", "stale", "unknown"]
+      },
+      "action": {
+        "required_fields": ["kind", "title", "owner", "summary", "action_ref", "dry_run_required"]
+      }
+    },
     "default_display_fields": [
-      "project_display_name",
-      "work_item_display_name",
-      "agent_display_name",
-      "primary_state_label",
-      "automation_state_label",
-      "active_stage_label",
-      "active_stage_elapsed",
-      "stage_usage",
-      "task_total_usage",
-      "next_visible_step",
-      "next_owner"
+      "identity.project_display_name",
+      "identity.work_item_display_name",
+      "identity.agent_display_name",
+      "lifecycle.primary_state_label",
+      "execution.current_stage_display_name",
+      "execution.next_stage_display_name",
+      "telemetry.elapsed",
+      "telemetry.current_stage_tokens",
+      "telemetry.task_total_tokens",
+      "action.title",
+      "action.owner"
     ],
     "condition_contract": {
       "style": "kubernetes_conditions",
@@ -1008,7 +1095,7 @@
         "TelemetryFresh"
       ],
       "display_policy": "one_line_reason_on_default_row_message_in_detail",
-      "raw_reason_advanced_only": false
+      "raw_reason_advanced_only": true
     },
     "stage_catalog_contract": {
       "source": "agent_package.stage_catalog",
@@ -1041,7 +1128,16 @@
     "detail_layer_contract": {
       "surface": "runtime_work_item_detail",
       "default_visibility": "on_selected_work_item_only",
-      "default_tabs": ["stage_map", "timeline", "evidence", "actions", "resources", "diagnostics"],
+      "primary_sections": [
+        "stage_map",
+        "current_and_next_stage",
+        "running_and_heartbeat",
+        "stage_and_total_tokens",
+        "action"
+      ],
+      "secondary_sections": ["artifacts", "timeline"],
+      "diagnostic_sections": ["raw_refs", "raw_ids", "logs", "provider_diagnostics"],
+      "equal_weight_tab_wall_allowed": false,
       "stage_map_fields": [
         "stage_id",
         "display_name",
@@ -1085,6 +1181,27 @@
       "release_currentness",
       "live_runtime_readiness"
     ]
+  },
+  "agent_availability_projection": {
+    "surface_kind": "opl_agent_availability_projection",
+    "schema_version": "agent-availability-projection.v1",
+    "source": "app_state.agent_packages.directory + app_state.agent_packages.status_index",
+    "authority": "one_person_lab_agent_catalog_and_package_readiness_projection",
+    "required_fields": ["agent_id", "display_name", "availability", "reason", "last_checked_at"],
+    "first_party_agents": [
+      { "agent_id": "med-autoscience", "display_name": "Med Auto Science" },
+      { "agent_id": "med-autogrant", "display_name": "Med Auto Grant" },
+      { "agent_id": "redcube-ai", "display_name": "RedCube AI" },
+      { "agent_id": "opl-meta-agent", "display_name": "OPL Meta Agent" },
+      { "agent_id": "opl-bookforge", "display_name": "OPL Book Forge" }
+    ],
+    "availability_states": ["available", "attention_required", "unavailable"],
+    "all_healthy_panel_state": "collapsed_summary",
+    "bare_count_or_fraction_allowed": false,
+    "task_count_is_availability": false,
+    "mas_scholar_skills_role": "med_autoscience_dependency_not_agent",
+    "independent_from_work_item_state": true,
+    "app_role": "display_only_agent_availability_consumer"
   },
   "task_awareness_projection": {
     "source": "app_state.operator.workbench.task_drilldowns",

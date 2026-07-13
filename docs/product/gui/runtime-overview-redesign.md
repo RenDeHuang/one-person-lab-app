@@ -1,346 +1,203 @@
-# Runtime 总览重构设计
+# Runtime V2 产品设计
 
 Owner: `one-person-lab-app`
-Purpose: `runtime_progress_page_information_architecture`
-State: `active_policy`
-Machine boundary: 本文是产品与落地设计。机器真相归 `contracts/`、`opl app state`、`opl app action`、shell renderer、focused tests 与 release-boundary validation。
+Machine truth:
+`contracts/app-gui-product-contract.json#pages.runtime_status.runtime_cockpit_product_contract`、
+`contracts/app-runtime-bridge.json#work_item_projection`、
+`contracts/app-runtime-bridge.json#agent_availability_projection`、
+`contracts/app-page-state-matrix.json#pages[id=runtime]`
 
-## 背景
+## 结论
 
-当前 Runtime 页能读到 OPL runtime queue 和 Med Auto Science paper line 的 refs，但产品表达仍然沿用
-`running / attention / inactive` 这类运行时 bucket。对用户而言，这会把不同层级的信息
-混在一起：
+Runtime 是 OPL 的跨项目“用户与智能体协作控制台”，不是 observability dashboard。
+默认页只帮助用户判断：正在看哪个智能体和项目、每项工作处于什么状态、当前和下一
+stage 是什么、下一步归谁、运行与 Token 数据是否可信。
 
-- 显示的是 provider/runtime 过程态，不是用户真正关心的项目状态。
-- 顶层默认是“当前工作区的项目运行台”，但 OPL App 实际可以多会话、多项目并行；“当前工作区”
-  只能推断，不能当唯一范围。
-- 任务列表直接暴露 `stage attempt`、`current_control_state`、`provider` 这类内部术语，
-  用户很难判断“这篇论文到底是在做、停了、还是需要我决定”。
-- 当前 aggregation 只盯 active Med Auto Science workspace，导致展示面容易退化成“当前这个 DM workspace
-  的几篇论文”，而不是 OPL 项目总览。
-- 模块安装状态曾被拼成任务行，产生 `dirty / 0 / 0 / 暂无最近活动` 这类无意义组合；历史测试 attempt
-  也会进入普通任务列表，用户无法判断它是否是真实工作。
+Runtime V2 不再直接拼接项目目录、Temporal attempt、业务生命周期、Token telemetry 和
+package 状态。OPL Framework 先生产稳定的 `WorkItemProjection v2` 与独立的
+`AgentAvailabilityProjection`；App 定义用户语言、字段位置和验收；Shell 只渲染。
 
-这次重构的目标，是把 Runtime 页改成一个**可切换范围的用户与智能体协作控制台**：先帮助
-用户判断项目、任务和责任，再保留技术细节。它不是 observability dashboard；日志、provider、
-attempt 和 telemetry 只是可信度与诊断证据，不能成为默认信息架构。
+## 问题背景
 
-## 目标定义
+旧页面把五类事实放进同一条 runtime task：
 
-Runtime 页默认回答五个问题：
+1. 智能体及 package 是否可用。
+2. 项目是否存在、目录和显示名是什么。
+3. 项目内有哪些论文或工作项。
+4. 当前是否有执行、stage、attempt 和 heartbeat。
+5. Token 是否被真实观测。
 
-1. 现在看的范围是什么。
-2. 这个范围里哪些项目在推进，哪些已经暂停，哪些需要我决定，哪些需要系统处理。
-3. 当前智能体跑到哪个 stage。
-4. 下一个 stage 或 action 是什么，归用户还是系统处理。
-5. 数据是否新鲜；缺 telemetry 时明确显示缺失，而不是推断健康。
+这些事实的生命周期不同。用 active binding 或最近 attempt 代替项目与工作项库存，会造成
+项目串名、历史论文消失、旧失败覆盖已交付状态、智能体被伪装成论文任务和 Token missing
+显示为零。V2 的目标是消除这种结构性耦合，而不是为每个症状增加展示兜底。
 
-这不是新的 runtime truth。它仍然只是 App 对 OPL Framework refs-only projection 的产品化表达。
+## 用户默认判断
 
-## 默认页口径
+默认页必须在一次扫视中回答五个问题：
 
-Runtime 页默认是任务运行 cockpit，不是 runtime 诊断页。默认页只展示用户判断项目进展需要的信息：
+1. 当前范围是全部智能体，还是某个智能体下的某个项目？
+2. 每个项目真实有哪些论文或工作项？
+3. 每项工作是在自动推进、等待我、系统处理中、已交付暂停、暂停、停止，还是状态待同步？
+4. 当前 stage、下一 stage 或行动是什么，归谁处理？
+5. 最近是否真的运行过，已用多久，当前 stage 与任务累计 Token 是否有可靠记录？
 
-- 项目 / 论文 / 任务名称。
-- 智能体或模块，例如 Med Auto Science。
-- 用户主状态和自动运行副状态。
-- 当前 stage。
-- 下一 stage 或 action。
-- 下一步归属：用户、系统、智能体或具体 owner。
-- 加载时间、最近进展和 telemetry missing。
-- 当前阶段 token 消耗与任务累计 token 消耗；只显示真实 observed 值。缺值必须给出缺失原因，
-  不得将 missing 渲染成 `0`；没有 observed 预算上限时不画进度条，不暗示剩余额度。
+raw ID、attempt、workflow、receipt、provider、日志和 refs 不参与默认判断，只进入诊断层。
 
-默认页不展示 raw proof ref、receipt refs、`stage_attempt_id`、`run_id`、`workflow_id`、raw blocker route、Med Auto Science currentness drift 原文、`provider`、`projection`、`ledger`、`current_control_state` 或 full drilldown。这些字段只能出现在任务详情或高级信息折叠层。
+## 产品数据模型
 
-默认页也不把 runtime identifier 当作用户文案。`medautoscience`、`med-autoscience`、
-`oplmetaagent`、`submission_milestone_candidate::followthrough::followthrough-01`、
-`domain_route/reconcile-apply` 这类 agent/module/owner/stage id 必须转成 Med Auto Science、OPL Meta Agent、
-投稿包后续处理、复核运行结果等人类可读标签；raw id 只允许进入高级信息或任务详情。
+### WorkItemProjection v2
 
-默认任务表不展示 scope provenance、推断工作区、模块版本号、metric hint 小字等诊断性补充信息。
-模块状态属于独立侧栏，不是任务：使用智能体/包全称，明确显示“可用 / 需维护 / 未安装”和
-“当前范围 N 个任务”。禁止用裸 `0/2`、`2/2` 或“暂无最近活动”代替状态与任务负载；维护状态
-还必须说明影响和入口。
+每个 canonical work item 必须投出以下八个一级对象：
 
-终态任务或 stage attempt 支持人工归档。归档只写可恢复的 lifecycle metadata，从当前总览移除，
-不删除 evidence、receipt 或 runtime ledger；运行中、等待用户决定和仍可继续的记录不能直接归档。
+| 对象 | 职责 |
+| --- | --- |
+| `identity` | 智能体、项目和工作项的稳定 ID、全称、显示名与 generation。项目身份只来自 canonical registry/inventory。 |
+| `lifecycle` | 业务生命周期，以及 Framework 投出的用户主状态和原因。 |
+| `execution` | 是否运行、当前/下一 stage、开始时间和 heartbeat；没有执行历史也必须保留对象和任务行。 |
+| `attention` | `none/user/system`、摘要、owner；`system` 还必须有完整 responsibility envelope。 |
+| `telemetry` | elapsed、当前 stage Token、任务累计 Token，以及 observed/partial/missing/stale。 |
+| `conditions` | 带 reason、message、owner、transition time 和 observed generation 的当前条件。 |
+| `freshness` | 投影读取时间、最近进展和 fresh/stale/unknown。 |
+| `action` | 下一行动、owner、说明和可执行 action ref；mutating action 仍走 `opl app action`。 |
 
-## 不可弱化的产品合同
+`attempt`、runtime ID、workflow ID 和 evidence refs 不再是默认行必需字段。它们可以作为详情
+或诊断 refs 存在，但不能决定 work item 是否存在、属于哪个项目或用户主状态。
 
-以下规则由 `contracts/app-gui-product-contract.json#pages.runtime_status.runtime_cockpit_product_contract`
-拥有，并由 page-state acceptance 与 validator/tests 锁定：
+### AgentAvailabilityProjection
 
-1. **状态轴分离。** project/task 状态回答“工作进展到哪里”；agent/package availability 回答
-   “能力是否可用”。两者不能互相推断，也不能合并成一个含糊 badge。
-2. **System attention 必须可行动。** 每条 `需要系统处理` 必须同时具备
-   `responsible_component`、`issue`、`repair_action`、`impact`、`expected_outcome`。缺任一项时
-   不得输出空洞的 system attention 状态。
-3. **项目身份来自 canonical workspace。** 项目显示名按 registered workspace display name、
-   canonical workspace name、canonical path basename 取值；Temporal/provider attempt、stage run、
-   workflow id 不能决定项目身份。
-4. **任务库存独立于执行历史。** canonical work item 即使没有 Temporal/provider history 也必须保留；
-   `opl app state --profile fast --json` 可以省略详情，但不能因此丢失任务行。
-5. **Token 只显示观测值。** 默认只显示 observed 当前阶段与任务累计 Token；估算或推断值不得冒充
-   observed，missing 必须带原因，只有明确观测为零时才能显示 `0`。
-6. **侧栏语义完整。** 智能体/包使用全称，显示 availability 与当前所选范围任务负载；裸计数或
-   分数不是用户状态。
-7. **渐进披露。** 默认层只保留判断与行动字段；raw ids、logs、refs、receipts、provider diagnostics、
-   workflow/run/attempt ids 仅在高级信息或任务详情出现。
+智能体 availability 与工作项状态独立。当前一方智能体使用全称：
 
-为对齐 Codex、AionUI upstream 或其他 shell 而迁移入口时，上述能力必须完整保留。Runtime 入口、
-产品合同、page-state acceptance、validator 和 tests 必须同变更更新；不能先删除或弱化，再把差异
-留给后续补回。若 shell 暂时不满足，应记录 implementation deviation，而不是降低 App product truth。
+- Med Auto Science
+- Med Auto Grant
+- RedCube AI
+- OPL Meta Agent
+- OPL Book Forge
 
-## 顶层信息架构
+MAS Scholar Skills 是 Med Auto Science 的专业能力依赖，不是第六个智能体。availability 只表达
+`available / attention_required / unavailable`；任务数量、运行数量或 `0/2` 不是 availability。
+全部可用时 panel 折叠为一行摘要，出现问题时才展开具体智能体和原因。
 
-### 1. 顶层定位
+## Scope 与 Saved Views
 
-- 页面名称仍可沿用 `运行状态` / `Runtime`。
-- 顶层对象改成：**项目运行总览**。
-- 不是“当前工作区的项目运行台”。
+Scope 固定为两个级联层：
 
-### 2. 范围模型
+1. **Agent**：全部智能体或某个完整智能体名称。
+2. **Project**：该智能体 canonical Project Registry 中的真实项目；首项为全部项目。
 
-Runtime 页必须显式支持范围切换。最小范围层级：
+论文或 work item 不进入 scope。它们只作为主列表行出现。workspace path 可以支持 project
+identity，但不再作为与 project 并列的用户范围层。
 
-- `全部项目`
-- `按智能体 / 模块`
-- `按 workspace`
-- `按 project`
-- `按 task / paper`
+Saved views 只做主状态筛选：全部、自动推进中、等待你决定、系统处理中、已交付或暂停、
+已停止、状态待同步。Saved views 禁止出现 MAS、其他智能体、项目或论文入口，避免与 scope
+形成第二套导航。
 
-同时保留一个推断态：
+## 用户主状态
 
-- `当前工作区（推断）`
+Framework 根据 lifecycle、execution、attention、conditions 和 freshness 投出唯一主状态；
+Shell 不得从原始字段重新推断。
 
-但这个推断态只能作为快捷筛选提示，不能替代总览。
+| machine value | 用户文案 | 含义 |
+| --- | --- | --- |
+| `automatically_advancing` | 自动推进中 | 当前有可信运行证据，系统正在推进。 |
+| `awaiting_user_decision` | 等待你决定 | 下一步需要用户提供决定或信息。 |
+| `system_attention` | 系统处理中 | 当前系统问题阻塞继续推进，并有完整责任与修复说明。 |
+| `delivered_auto_paused` | 已交付自动暂停 | 已交付约定里程碑，自动流程正常停住。 |
+| `paused` | 已暂停 | 已停止自动推进，等待后续条件或方向。 |
+| `stopped` | 已停止 | 已明确结束、放弃或归档前停止。 |
+| `sync_pending` | 状态待同步 | 当前状态不能被可靠确认，不能用旧执行历史猜测。 |
 
-### 3. 双层状态模型
+### 系统处理中
 
-用户先看主状态，再看自动运行副状态。
+`system_attention` 只有在以下条件全部满足时才允许：
 
-#### 主状态
+- 问题绑定当前 work item generation。
+- 问题当前仍阻塞继续执行。
+- `responsible_component`、`issue`、`repair_action`、`impact`、`expected_outcome` 完整。
+- 默认文案能够说明谁在处理、处理什么以及对交付的影响。
 
-- `进行中`
-- `已交付，自动暂停`
-- `已暂停，等待后续决定`
-- `需要你决定`
-- `需要系统处理`
+责任信息不完整时，保留 lifecycle 推出的主状态，并把技术诊断后置；不得显示笼统的
+“需要系统处理”。历史失败 condition 只进入时间线，不能覆盖更新的已交付、暂停或停止状态。
 
-#### 自动运行副状态
-
-- `自动运行中`
-- `当前无自动任务`
-- `最近一次自动结果待收口`
-- `自动流程异常`
-
-原则：
-
-- `provider`、`stage attempt`、`current_control_state` 不是主状态文案。
-- 同一个技术差异如果对用户没有认知价值，就不要拆成两个主状态。
-- 技术态只进高级信息。
-
-## 页面结构
+## 默认页面
 
 ### 顶部
 
-- 范围切换器，默认保留 `全部项目`
-- 刷新动作
-- 右上角 freshness：最后加载时间 / 正在刷新
+- 标题与一句职责说明。
+- Agent、Project 两级 scope。
+- 刷新动作和 freshness 摘要。
+- 状态 saved views；不重复 scope 中的智能体或项目。
 
-### Freshness bar
+### 工作项列表
 
-- 加载时间
-- 最近进展或最近 heartbeat
-- telemetry missing
-- 当前查看范围、可见任务数、自动运行数
+宽屏固定四列：
 
-当前范围来源、推断工作区和 projection source 只进高级信息，不占用默认页。
+1. **项目 / 论文**：项目与工作项标题；智能体全称作为次级标签。
+2. **状态**：唯一用户主状态和短原因。
+3. **当前进展 / 下一步**：当前 stage、下一 stage 或 action、owner。
+4. **时间 / Token**：elapsed、当前 stage Token、任务累计 Token。
 
-### KPI 行
+一篇论文或一个 work item 只显示一行，row key 为 `identity.work_item_id`。去重由 Framework
+canonical projection 完成，Shell 不按标题、stage、binding 或最近时间启发式合并。
 
-KPI 改成用户状态计数，而不是 runtime bucket：
+在 375、768、1024 和 1440 px 验收视口中，页面不得横向溢出或文字重叠。窄屏按语义重排
+为堆叠行，不把四列硬塞入固定最小宽度表格。
 
-- `进行中`
-- `自动运行中`
-- `已交付，自动暂停`
-- `需要系统处理`
-- `需要你决定`
+### Token
 
-### 主列表
+默认显示当前 stage 与任务累计两项。每项 Token 是判别联合：
 
-主列表按主状态分组，不再按 `running / attention / inactive` 分组。
+- `observed`：包含 input、output、total、source 和 observed time；只有此状态可显示数字。
+- `missing`：显示“尚无用量记录”，并在详情保留原因。
+- `stale`：显示记录已过期，不把旧数字冒充当前。
 
-每个项目行默认包含：
+整体 telemetry 可以是 `observed / partial / missing / stale`。Missing 不能显示为 `0`；只有明确
+观测到零才显示零。当前没有 Token 上限，因此不显示预算、百分比或进度条。
 
-- 项目
-- 任务 / 论文
-- 智能体 / 模块
-- 主状态
-- 自动运行副状态
-- 当前阶段
-- 本阶段已持续多久
-- token 用量，允许合并阶段用量和累计用量
-- 下一步 stage 或 action
-- 责任方
+## 工作项详情
 
-### 高级信息
+点击工作项后，首屏按工作流判断顺序展示：
 
-折叠展示：
+1. Stage Map。
+2. 当前和下一 stage。
+3. 运行时长与最近 heartbeat。
+4. 当前 stage 与任务累计 Token。
+5. 当前行动、owner 和可执行入口。
 
-- runtime/control-plane 术语
-- liveness proof
-- refs
-- receipts
-- stage/run/workflow IDs
-- Med Auto Science owner consumption/currentness diagnostics
-- raw blocker route
-- safe actions
-- provider diagnostics
-- full drilldown
+Artifacts 与 Timeline 是次级折叠区。raw refs、raw IDs、logs、provider diagnostics 只进入
+诊断区。详情不得恢复为六个等权 tab 的工具墙。
 
-## 设计图对齐口径
+## 模块边界
 
-参考视觉稿：[runtime-cockpit-imagegen-20260708.png](assets/runtime-cockpit-imagegen-20260708.png)。
+| 模块 | 负责 | 不负责 |
+| --- | --- | --- |
+| Domain Agent | Project/WorkItem inventory、业务 lifecycle、stage catalog 和领域 action refs。 | App copy、页面布局、Shell 本地状态机。 |
+| OPL Framework | Join catalog/inventory/lifecycle/execution/usage，生产 WorkItemProjection v2、availability 和 currentness。 | App 信息层级和视觉布局。 |
+| One Person Lab App | 产品语言、scope、字段 allowlist、详情层级、validators、page-state 和证据分账。 | runtime/domain truth、Token 估算、owner receipt。 |
+| Shell | 渲染 projection、级联筛选、语义重排、打开详情和 App actions。 | 猜项目、状态、stage、owner、Token，或实现第二套去重。 |
 
-本页按“先判断项目，再进入诊断”的顺序组织，而不是按 runtime 技术层级组织。
-设计图中的每个区域对应一个稳定职责：
+## 证据分账
 
-- 顶部标题和说明：告诉用户这是项目运行总览，不是日志页或 provider 诊断页。
-- 右上范围与刷新：用户先确定“我在看全部项目，还是某个智能体 / workspace / project / task”。
-- Freshness bar：只回答“数据什么时候读的、是否已加载、是否缺 telemetry”。
-- KPI 行：只放用户状态计数，包括 `进行中`、`自动运行中`、`已交付，自动暂停`、`需要你决定` 和 `需要系统处理`。最近活动放在 Freshness bar，不再占用 KPI 位置。
-- 主任务列表：一行对应一个用户认知任务，默认按主状态分组；同一论文或项目被多个 runtime binding 投影时只能显示一行。
-- 范围切换：固定在顶部右侧；Freshness bar 只显示当前查看范围、可见任务数、自动运行数和最近活动，范围来源和推断工作区进入高级信息。
-- 右侧模块 / 智能体状态：全称、availability 与当前范围任务负载独立展示；没有 project / study 的
-  `module_runtime` 行不能进入主任务列表，裸 `0/2` 不构成状态。
-- 模块表默认只显示全称、“可用 / 需维护 / 未安装”、带文案的当前范围任务负载和最后活动；
-  dirty checkout、版本号、install origin 等维护细节只进高级信息或设置页。
-- 高级信息：只放维护诊断、refs、receipts、stage/run/workflow IDs、safe actions 和 full drilldown。
+以下四项必须独立记录，禁止用百分比合并：
 
-默认任务行的认知脊柱固定为：
+| 账目 | 本文档与 App 合同能证明什么 | 当前变更后的状态 |
+| --- | --- | --- |
+| Product contract | V2 用户语义、字段、页面结构和 validator 已成为 App machine truth。 | 本分支实现并由 focused tests 验证。 |
+| Framework producer | `opl app state` 是否真实生产完整 V2 projection、inventory、usage 和 availability。 | 不由 App 合同声明完成，需 Framework lane 及 producer tests。 |
+| Shell consumer | active Shell 是否仅渲染 V2、完成交互和响应式实现。 | 不由本分支声明完成，需 Shell lane 的 source/DOM evidence。 |
+| Live evidence | 本机真实项目、运行、heartbeat、Token、截图和 installed App user path 是否贯通。 | 不由 contract/focused tests 声明完成，需独立 E2E 验收。 |
 
-1. 项目 / 论文。
-2. 智能体 / 模块。
-3. 任务 / stage。
-4. 下一步 stage 或 action。
-5. 状态。
+合同、文档或 focused tests 通过，不等于 Framework producer、Shell、像素、安装包或 live runtime
+完成。只有四项分别提供证据，Runtime V2 才能整体关闭。
 
-这条脊柱比直接展示 `task_id`、`stage_attempt_id`、`workflow_id` 更符合 OPL 智能体设计：用户先知道哪篇论文、哪个智能体、当前 stage、下一步动作和归属；需要追查证据时再展开高级信息。
+## 验收标准
 
-## 去重与文案策略
-
-Runtime projection 可能因为不同 binding、不同 provider attempt 或不同 read-model 来源，给同一篇论文投出多条 refs。默认页必须按用户认知去重：
-
-- 优先按 `agent + project/study + work item` 合并。
-- 其次按 `agent + project/study + active stage` 合并。
-- 再使用 task ref、去掉 binding id 的 task id、原始 task id 兜底。
-- 合并时优先保留 `进行中`、`自动运行中`、`最近一次自动结果待收口`，再比较字段完整度和最近活动时间。
-- 被合并掉的 raw refs 只能进入高级信息。
-
-`next_visible_step` 允许来自 runtime 或 domain projection，但默认页不直接展示长命令、route、readback、receipt、stage attempt 或 currentness drift 原文。默认页应把这类内容压成短动作文案，例如“最近一次自动结果待收口”“需要系统处理”“需要你决定”；原文保留到高级信息或任务详情。
-
-同理，默认页展示 `agent_display_name`、`active_stage_label`、`next_owner` 时必须优先使用人类可读标签。
-如果上游只提供机器 id，shell renderer 可以做最小确定映射；但这个映射只是展示层，不改变 OPL
-runtime truth，也不能生成新的 owner receipt、typed blocker 或 stage truth。
-
-## 模块职责
-
-### one-person-lab
-
-负责：
-
-- 跨 workspace / project 的 runtime aggregation
-- scope projection
-- 用户主状态 / 自动副状态投影
-- token / stage / liveness / owner routing refs
-
-不负责：
-
-- App copy
-- page layout
-- shell-local 状态机
-
-### one-person-lab-app
-
-负责：
-
-- 顶层产品定义
-- scope contract
-- 双层状态 contract
-- Runtime 页展示 policy
-- validator / release-boundary evidence
-
-不负责：
-
-- runtime truth 生产
-- shell renderer 细节
-
-### opl-aion-shell
-
-负责：
-
-- 范围切换 UI
-- 分组呈现
-- badge / card / drawer 呈现
-- i18n
-- focused DOM tests
-
-不负责：
-
-- 第二套 runtime truth
-- 状态词语的独立发明
-
-## 当前落地状态
-
-- App GUI contract 已定义 `runtime_cockpit_product_contract`，固定协作控制台的用户语义与不可弱化规则；
-  runtime bridge 的 `runtime_progress_page_display_policy` 继续固定默认字段与高级诊断边界。
-- Shell Runtime 页应按本文展示默认视图：顶部范围与刷新、右上角 freshness、KPI 行、主任务分组列表、右侧模块状态和高级信息；右栏不重复范围选择。
-- 顶部范围选择只承担“全部 / 智能体 / 项目工作区”切换；论文或 task 级 raw scope 不进入默认下拉框，避免同一篇论文既作为范围又作为任务重复出现。
-- 项目工作区范围必须按真实 workspace path 去重和命名；自动任务、autopush、stage attempt 或 milestone binding 不能作为默认项目范围出现。
-- 项目名称必须来自 canonical registered workspace/path identity；Temporal/provider attempt、stage run
-  或 workflow 不能覆盖项目身份。任务库存不以 Temporal history 为前提，fast profile 缺详情时仍保留任务行。
-- saved views 是任务列表内的状态筛选入口，只保留“全部、自动运行中、需要你决定、需要系统处理”；智能体与项目维度统一由顶部范围选择承担。
-- `需要系统处理` 只用于真实平台、provider、App 或 Framework repair，并且必须显示负责组件、问题、
-  修复动作、影响和预期结果；MAS 论文 owner typed blocker 如果没有自动流程在跑，默认显示为
-  “已暂停，等待后续决定”，raw blocker 保留在详情或高级信息。
-- Token 默认只诚实显示 observed 当前阶段已消耗与任务累计消耗；missing 显示原因而不是 `0`，
-  没有 observed 预算上限时不画进度条，不暗示剩余额度。
-- 智能体/包 availability 与 project/task 状态严格分开；侧栏显示全称、可用性和当前范围任务负载，
-  不展示裸计数或分数。
-- 默认页不显示 scope provenance、推断工作区、metric hint 小字、模块 dirty checkout 说明和模块版本号；这些信息保留在高级信息或设置/维护页。
-- Framework 仍是 runtime truth owner。App 和 shell 只消费 `opl app state --profile fast --json` 与 drilldown refs，不写 runtime truth、domain truth、owner receipts 或 typed blockers。
-- 本文、contract 和 focused validation 不能作为 live/runtime readiness、release currentness 或 owner acceptance 证据。
-
-## 落地顺序与完成度
-
-| 条目 | 完成度 | 建议顺序 | 权威位置 / 证据边界 |
-| --- | ---: | --- | --- |
-| 产品信息架构：协作控制台默认页，高级诊断后置 | 100% | 1 | 本文 + `contracts/app-gui-product-contract.json#pages.runtime_status.runtime_cockpit_product_contract` + `contracts/app-runtime-bridge.json#runtime_progress_page_display_policy` |
-| 默认字段 allowlist 与 advanced-only 字段 | 100% | 2 | `contracts/app-runtime-bridge.json` + runtime bridge validator；default visible fields 必须属于 allowlist，advanced-only 字段精确校验 |
-| 任务去重：同一论文 / work item 只显示一行 | 100% | 3 | App contract 锁定 policy；Shell companion lane 用 DOM test 验证同一 DM003 binding 只显示一行 |
-| `module_runtime` 分流到右侧模块状态 | 100% | 4 | App contract 锁定 policy；active-shell validator 同时要求主列表过滤 `module_runtime`，右侧 `moduleStatusItems` 渲染存在，并展示去重任务负载 |
-| long next-step 人话归一 | 100% | 5 | App contract 锁定 policy；Shell companion lane 用 DOM test 验证 raw terminalization/readback 文案默认隐藏 |
-| 默认人类标签策略：agent/module/owner/stage id 不直出 | 100% | 6 | `default_label_policy` + release-boundary test；Shell companion lane 用 DOM test 验证 raw id 默认隐藏 |
-| 设计图布局：顶部范围、右上 freshness、KPI、主列、右侧模块/高级 | 100% | 7 | `layout_regions` + Shell companion source/DOM evidence；不等同于 installed App 截图证据 |
-| scope / saved views 常用入口：顶部范围为全部、智能体、项目工作区；任务列表 saved views 为全部、自动运行中、需要你决定、需要系统处理 | 100% | 8 | Shell Runtime 页保留 scope selector，并把 saved views 收到任务列表标题区；论文 / task 级 scope 默认隐藏；MAS 论文不再作为 saved view；项目工作区按 workspace path 去重，不显示 autopush / milestone binding |
-| 用户状态归一：MAS 论文 typed blocker 不冒充平台故障 | 100% | 8.1 | Shell DOM test 覆盖 `mas_owner_answer_typed_blocker_observed` + idle automation 显示为“已暂停，等待后续决定”；真实 system/provider failure 仍保留“需要系统处理” |
-| Token 默认显示：observed 当前阶段消耗 + 累计消耗，missing 有原因且不当作 `0` | 100% | 8.5 | App contract/validator 锁定 observed-only 与 missing 语义；既有 Shell DOM test 覆盖 `usageStageAndTotal`，预算上限不存在时不得用 progress bar 暗示剩余额度 |
-| 默认页低认知负担：scope provenance、推断工作区、metric hint、模块 dirty/version 后置 | 100% | 8.6 | Shell DOM test 验证默认页不出现这些诊断字段，高级信息保留 scope diagnostics / module detail |
-| Runtime 产品合同：状态轴、system attention、canonical identity、fast inventory、observed Token、侧栏与渐进披露 | 100%（App contract） | 8.7 | `app-gui-product-contract.json#pages.runtime_status.runtime_cockpit_product_contract` + page-state acceptance + focused validator tests；不等同于 shell/live 已实现 |
-| canonical `WorkItemProjection`：Scope → Work Item → Agent → Stage → Attempt → Action → Evidence | 100%（App contract） | 9 | `contracts/app-runtime-bridge.json#work_item_projection` + validator；`attempt` 是 required field；Framework 仍是 projection producer |
-| Kubernetes-style `conditions[]`、`ActionEnvelope`、agent `stage_catalog` 合同 | 100%（App contract） | 10 | App contract 锁定 required fields / action kinds / catalog owner；不等同于 live payload 已包含所有字段 |
-| 任务详情层：Stage Map、timeline、evidence/actions/resources/diagnostics | 100%（App contract） | 11 | `work_item_projection.detail_layer_contract` 固化默认 tabs 和字段；Shell implementation / DOM 证据另由 shell lane 提供 |
-| installed App 本机视觉截图验收 | 0%（本轮未声明） | 12 | 本轮落地只声明 source / DOM / contract 证据；installed App 截图、安装包 hash 和 release currentness 必须由独立 live/install 验证产生，不能由本文档或 focused tests 代替 |
-
-## 完成标准
-
-以下条件同时满足，才能算这次 Runtime 总览重构完成：
-
-1. 文档、contracts、shell UI 对同一套范围模型和状态模型一致。
-2. Runtime 页默认不再把内部技术术语当作用户主状态。
-3. 用户可以看总览，也可以显式切换查看某个 workspace / project / paper。
-4. raw evidence、refs、receipts、stage/run IDs、Med Auto Science currentness diagnostics 和 full drilldown 默认收起。
-5. 默认页展示人类可读 agent/module/owner/stage 标签；raw id 只能在高级信息或任务详情出现。
-6. 验证证明 App contract 与 shell renderer 对齐；runtime/live readiness 另走 Framework 或 release owner 证据。
+- Scope 只有 Agent -> Project 两层，work item 不进入菜单，saved views 不含 MAS。
+- 五个一方智能体使用全称；MAS Scholar Skills 不作为智能体；全健康时 availability 折叠。
+- 每个 canonical work item 一行，默认四列，智能体为次级标签。
+- 七个主状态只能来自 Framework V2 projection，Shell 不做状态或身份推断。
+- `system_attention` 缺任一责任字段、不是当前 generation 或不再阻塞时不能出现。
+- Token missing 不显示零，无上限时不出现进度条。
+- 默认页不显示 raw refs、IDs、logs、receipt 或 provider 术语。
+- 详情首屏先呈现 Stage Map、stage、heartbeat、Token 和行动；artifacts/timeline 次级，诊断后置。
+- 375/768/1024/1440 px 均无横向页面溢出与文字重叠。
+- Product contract、Framework producer、Shell consumer、Live evidence 四条完成度独立报告。

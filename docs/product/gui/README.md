@@ -122,6 +122,9 @@ package/user path。当前 contract/source 与 packaged route visual evidence �
 - `runtime_cockpit.acceptance_ref=contracts/app-page-state-matrix.json#pages[id=runtime].runtime_view_model.runtime_cockpit_acceptance`
 - `docs_or_contract_imply_source_complete=false`
 - `docs_or_contract_imply_pixel_complete=false`
+- `runtime_contract_implies_framework_producer_complete=false`
+- `runtime_contract_implies_shell_consumer_complete=false`
+- `runtime_contract_implies_live_evidence_complete=false`
 - `ideal_target.permission_access_mode_visible=true`
 - `ideal_target.environment_details_primary=workspace,locality,branch,changes,subtasks,sources`
 - `ideal_target.advanced_tools_default_visible=false`
@@ -150,13 +153,14 @@ package/user path。当前 contract/source 与 packaged route visual evidence �
 - 当前 task progress、tool events、approval 与 receipts 进入 timeline；跨项目总览才进入
   Runtime。Current task 只有 timeline 单一实例；普通任务 inline/unpinned，只有用户 pin
   或真实 `long_running` 信号才 sticky，并保留 status/elapsed/progress/next/stop。
-- Runtime 默认层必须回答范围、用户认知任务状态、负责智能体与阶段、下一步及 owner、刷新与
-  telemetry 可信度；project/task 状态不能与 agent/package 可用性混成一个状态。项目名只来自
-  canonical registered workspace/path identity，任务库存不能依赖 Temporal 历史，fast profile
-  不能因缺 attempt/detail 丢任务行。
-- Runtime Token 只显示 observed 当前阶段与累计值；缺失必须说明原因，不能渲染成 `0`。
-  侧栏使用智能体/包全称，显示“可用/需维护/未安装”和带文案的当前范围任务负载；raw ids、logs、
-  refs、receipts 与 provider 诊断只进入高级信息或详情。
+- Runtime 默认层消费 `WorkItemProjection v2`，只回答 Agent -> Project 范围、用户主状态、当前/
+  下一 stage、下一行动与 owner、运行和 telemetry 可信度。Scope 不包含论文/work item；状态
+  saved views 不重复 MAS 或其他智能体。默认列表固定为项目/论文、状态、当前进展/下一步、
+  时间/Token 四列，智能体全称作为次级标签；一个 canonical work item 只显示一行。
+- Runtime Token 只显示 observed 当前阶段与累计值；missing 必须说明原因，不能渲染成 `0`，
+  未配置上限时不得画进度条。Agent availability 使用独立 projection，五个一方智能体使用全称，
+  全健康时折叠；任务数和裸 `0/2` 不构成 availability，MAS Scholar Skills 只是 MAS 依赖。
+  raw ids、logs、refs、receipts 与 provider 诊断只进入诊断区。
 - Environment 使用右上按需浮层，只渲染真实
   workspace/locality/branch/changes/subtasks/sources；artifact、
   evidence、receipt refs 属于次级信息，不默认形成全高第三列。
@@ -183,7 +187,9 @@ Active AionUI 通过上面的动态 state-source marker 读取默认状态；
 `opl-native-workbench` candidate contract 则把 rail 记为 default visible。当前是否
 收敛由 validator readback 动态计算，不在本文复制 profile 值。右上 Environment/details
 的理想目标为默认关闭。Product target、active source 和 pixel evidence 必须
-分轴记录；合同或文档落地不表示 AionUI source 或像素已经完成。具体状态、允许偏差和验证入口只在
+分轴记录；Runtime 还必须把 Product contract、Framework producer、Shell consumer、Live evidence
+四条完成度独立记账。合同或文档落地不表示 Framework、AionUI source、像素或 live user path
+已经完成。具体状态、允许偏差和验证入口只在
 [`shell-conformance-matrix.md`](shell-conformance-matrix.md) 维护。
 
 ## 变更流程

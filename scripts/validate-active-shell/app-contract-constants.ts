@@ -51,11 +51,31 @@ export const appOwnedRuntimeMentalModel = [
 ];
 
 export const runtimeScopeRequiredFields = [
-  "scope_options",
-  "current_scope",
+  "agent_scope_options",
+  "selected_agent_scope",
+  "project_scope_options",
+  "selected_project_scope",
   "scope_source",
   "inferred_scope_hint",
 ];
+
+export const runtimeFirstPartyAgents = [
+  { agent_id: "med-autoscience", display_name: "Med Auto Science" },
+  { agent_id: "med-autogrant", display_name: "Med Auto Grant" },
+  { agent_id: "redcube-ai", display_name: "RedCube AI" },
+  { agent_id: "opl-meta-agent", display_name: "OPL Meta Agent" },
+  { agent_id: "opl-bookforge", display_name: "OPL Book Forge" },
+];
+
+export const workItemPrimaryStateLabels = {
+  automatically_advancing: "自动推进中",
+  awaiting_user_decision: "等待你决定",
+  system_attention: "系统处理中",
+  delivered_auto_paused: "已交付自动暂停",
+  paused: "已暂停",
+  stopped: "已停止",
+  sync_pending: "状态待同步",
+};
 
 export const runtimePrimaryStateValues = [
   "in_progress",
@@ -73,17 +93,47 @@ export const runtimeAutomationStateValues = [
 ];
 
 export const workItemProjectionRequiredFields = [
-  "work_item_id",
-  "work_item_ref",
-  "project_ref",
-  "agent",
-  "stage",
-  "attempt",
-  "status",
+  "identity",
+  "lifecycle",
+  "execution",
+  "attention",
+  "telemetry",
   "conditions",
-  "next_action",
-  "evidence",
+  "freshness",
+  "action",
 ];
+
+export const workItemProjectionFieldContracts = {
+  identity: [
+    "agent_id",
+    "agent_display_name",
+    "project_id",
+    "project_display_name",
+    "work_item_id",
+    "work_item_display_name",
+    "generation",
+  ],
+  lifecycle: [
+    "business_state",
+    "primary_state",
+    "primary_state_label",
+    "reason",
+    "last_transition_at",
+  ],
+  execution: [
+    "state",
+    "current_stage_id",
+    "current_stage_display_name",
+    "next_stage_id",
+    "next_stage_display_name",
+    "started_at",
+    "last_heartbeat_at",
+  ],
+  attention: ["kind", "summary", "owner_display_name", "responsibility"],
+  telemetry: ["state", "elapsed", "current_stage_tokens", "task_total_tokens"],
+  freshness: ["state", "observed_at", "last_progress_at", "reason"],
+  action: ["kind", "title", "owner", "summary", "action_ref", "dry_run_required"],
+};
 
 export const workItemConditionFields = [
   "type",
@@ -95,6 +145,24 @@ export const workItemConditionFields = [
   "observed_generation",
 ];
 
+export const systemAttentionResponsibilityFields = [
+  "responsible_component",
+  "issue",
+  "repair_action",
+  "impact",
+  "expected_outcome",
+];
+
+export const tokenObservationStates = ["observed", "missing", "stale"];
+
+export const tokenObservationObservedFields = [
+  "input_tokens",
+  "output_tokens",
+  "total_tokens",
+  "source",
+  "observed_at",
+];
+
 export const actionEnvelopeKinds = [
   "user_action",
   "system_action",
@@ -103,13 +171,21 @@ export const actionEnvelopeKinds = [
   "blocked_no_action",
 ];
 
-export const workItemDetailTabs = [
+export const workItemDetailPrimarySections = [
   "stage_map",
-  "timeline",
-  "evidence",
-  "actions",
-  "resources",
-  "diagnostics",
+  "current_and_next_stage",
+  "running_and_heartbeat",
+  "stage_and_total_tokens",
+  "action",
+];
+
+export const workItemDetailSecondarySections = ["artifacts", "timeline"];
+
+export const workItemDetailDiagnosticSections = [
+  "raw_refs",
+  "raw_ids",
+  "logs",
+  "provider_diagnostics",
 ];
 
 export const appOwnedQueueStatusPolicy =

@@ -7,13 +7,21 @@ import {
   appOwnedRuntimeMentalModel,
   appOwnedRunningStatePolicy,
   runtimeAutomationStateValues,
+  runtimeFirstPartyAgents,
   runtimePrimaryStateValues,
   runtimeScopeRequiredFields,
   actionEnvelopeKinds,
+  systemAttentionResponsibilityFields,
   taskRunProjectionV2FieldGroups,
   taskRunProjectionV2RequiredFields,
+  tokenObservationObservedFields,
+  tokenObservationStates,
   workItemConditionFields,
-  workItemDetailTabs,
+  workItemDetailDiagnosticSections,
+  workItemDetailPrimarySections,
+  workItemDetailSecondarySections,
+  workItemPrimaryStateLabels,
+  workItemProjectionFieldContracts,
   workItemProjectionRequiredFields,
 } from "./app-contract-constants.ts";
 function assertNonEmptyString(value, label) {
@@ -248,11 +256,11 @@ export function validateRuntimeScopeProjectionContract(projection, label) {
     source: "app_state.operator.workbench.runtime_scope",
     authority: "opl_framework_runtime_scope_projection",
     display_policy:
-      "global_overview_first_explicit_scope_switcher_agent_and_project_workspace_only_task_scope_advanced",
+      "two_level_agent_then_project_cascade_work_items_stay_in_list",
     default_scope_identity_policy:
-      "workspace_or_project_scope_uses_real_workspace_path_deduped_auto_task_and_milestone_bindings_advanced_only",
+      "project_scope_uses_canonical_project_registry_for_selected_agent",
     user_facing_state_policy:
-      "system_attention_only_for_app_framework_provider_repair_mas_owner_typed_blocker_without_running_automation_displays_as_paused_waiting_for_direction",
+      "primary_state_is_framework_projected_from_work_item_v2_axes_shell_never_derives_it",
   })) {
     if (projection[field] !== expected) {
       throw new Error(`${label} ${field} must be ${expected}`);
@@ -265,19 +273,33 @@ export function validateRuntimeScopeProjectionContract(projection, label) {
   );
   assertDeepEqualJson(
     projection.default_scope_levels,
-    ["all_projects", "agent", "workspace_or_project"],
+    ["agent", "project"],
     `${label} default_scope_levels`,
   );
   assertDeepEqualJson(
-    projection.advanced_only_scope_levels,
-    ["task", "paper_or_work_item"],
-    `${label} advanced_only_scope_levels`,
+    projection.agent_scope?.first_party_options,
+    runtimeFirstPartyAgents,
+    `${label} agent_scope.first_party_options`,
   );
-  assertDeepEqualJson(
-    projection.scope_option_kinds,
-    ["all_projects", "agent", "workspace", "project", "task"],
-    `${label} scope_option_kinds`,
-  );
+  if (
+    projection.agent_scope?.all_option !== "all_agents" ||
+    projection.agent_scope?.full_display_names_required !== true ||
+    projection.project_scope?.all_option !== "all_projects" ||
+    projection.project_scope?.source !== "canonical_project_registry_for_selected_agent" ||
+    projection.project_scope?.work_item_options_allowed !== false ||
+    projection.work_item_scope_allowed !== false
+  ) {
+    throw new Error(`${label} must use Agent -> Project cascade and keep work items out of scope`);
+  }
+  if (
+    projection.saved_views?.dimension !== "primary_state_only" ||
+    projection.saved_views?.agent_or_project_views_allowed !== false ||
+    projection.saved_views?.forbidden_ids?.some((value) =>
+      ["mas", "med-autoscience", "med_auto_science"].includes(value)
+    ) !== true
+  ) {
+    throw new Error(`${label} saved views must be status-only and explicitly forbid MAS views`);
+  }
   assertDeepEqualJson(
     projection.scope_source_values,
     ["default_global", "user_selected", "inferred"],
@@ -291,9 +313,9 @@ export function validateWorkItemProjectionContract(projection, label) {
   }
   for (const [field, expected] of Object.entries({
     surface_kind: "opl_work_item_projection",
-    schema_version: "work-item-projection.v1",
+    schema_version: "work-item-projection.v2",
     authority: "one_person_lab_canonical_work_item_projection",
-    display_policy: "scope_work_item_agent_stage_action_evidence_default_diagnostics_on_demand",
+    display_policy: "canonical_work_item_axes_default_decision_fields_diagnostics_on_demand",
     app_role: "display_only_work_item_projection_consumer",
     shell_role: "thin_renderer_no_projection_inference",
   })) {
@@ -303,25 +325,77 @@ export function validateWorkItemProjectionContract(projection, label) {
   }
   assertDeepEqualJson(
     projection.model_chain,
-    ["Scope", "Work Item", "Agent", "Stage", "Attempt", "Action", "Evidence"],
+    ["Agent", "Project", "Work Item", "Stage", "Action", "Evidence"],
     `${label} model_chain`,
   );
-  assertIncludesAll(
+  assertDeepEqualJson(
     projection.required_fields,
     workItemProjectionRequiredFields,
     `${label} required_fields`,
   );
-  assertIncludesAll(
+  for (const [field, requiredFields] of Object.entries(workItemProjectionFieldContracts)) {
+    assertDeepEqualJson(
+      projection.field_contracts?.[field]?.required_fields,
+      requiredFields,
+      `${label} field_contracts.${field}.required_fields`,
+    );
+  }
+  assertDeepEqualJson(
+    projection.field_contracts?.lifecycle?.primary_state_labels_zh_cn,
+    workItemPrimaryStateLabels,
+    `${label} lifecycle primary state labels`,
+  );
+  assertDeepEqualJson(
+    projection.field_contracts?.attention?.system_responsibility_required_fields,
+    systemAttentionResponsibilityFields,
+    `${label} system attention responsibility fields`,
+  );
+  if (
+    projection.field_contracts?.attention?.system_attention_requires_current_generation !== true ||
+    projection.field_contracts?.attention?.system_attention_requires_current_blocker !== true ||
+    projection.field_contracts?.attention?.incomplete_system_responsibility_policy !==
+      "do_not_emit_system_attention_keep_lifecycle_state_and_defer_diagnostics"
+  ) {
+    throw new Error(`${label} system attention must require a complete current responsibility envelope`);
+  }
+  assertDeepEqualJson(
+    projection.field_contracts?.telemetry?.states,
+    ["observed", "partial", "missing", "stale"],
+    `${label} telemetry states`,
+  );
+  assertDeepEqualJson(
+    projection.field_contracts?.telemetry?.token_observation?.states,
+    tokenObservationStates,
+    `${label} token observation states`,
+  );
+  assertDeepEqualJson(
+    projection.field_contracts?.telemetry?.token_observation?.observed_required_fields,
+    tokenObservationObservedFields,
+    `${label} observed token fields`,
+  );
+  if (
+    projection.field_contracts?.telemetry?.token_observation?.missing_required_fields?.[0] !== "reason" ||
+    projection.field_contracts?.telemetry?.missing_may_render_as_zero !== false ||
+    projection.field_contracts?.telemetry?.zero_requires_observed_zero !== true ||
+    projection.field_contracts?.telemetry?.token_limit_configured !== false ||
+    projection.field_contracts?.telemetry?.token_progress_bar_allowed !== false
+  ) {
+    throw new Error(`${label} token telemetry must be observed-only with no fabricated zero or limit bar`);
+  }
+  assertDeepEqualJson(
     projection.default_display_fields,
     [
-      "project_display_name",
-      "work_item_display_name",
-      "agent_display_name",
-      "primary_state_label",
-      "automation_state_label",
-      "active_stage_label",
-      "next_visible_step",
-      "next_owner",
+      "identity.project_display_name",
+      "identity.work_item_display_name",
+      "identity.agent_display_name",
+      "lifecycle.primary_state_label",
+      "execution.current_stage_display_name",
+      "execution.next_stage_display_name",
+      "telemetry.elapsed",
+      "telemetry.current_stage_tokens",
+      "telemetry.task_total_tokens",
+      "action.title",
+      "action.owner",
     ],
     `${label} default_display_fields`,
   );
@@ -347,9 +421,19 @@ export function validateWorkItemProjectionContract(projection, label) {
     `${label} stage catalog required_fields`,
   );
   assertDeepEqualJson(
-    projection.detail_layer_contract?.default_tabs,
-    workItemDetailTabs,
-    `${label} detail tabs`,
+    projection.detail_layer_contract?.primary_sections,
+    workItemDetailPrimarySections,
+    `${label} detail primary sections`,
+  );
+  assertDeepEqualJson(
+    projection.detail_layer_contract?.secondary_sections,
+    workItemDetailSecondarySections,
+    `${label} detail secondary sections`,
+  );
+  assertDeepEqualJson(
+    projection.detail_layer_contract?.diagnostic_sections,
+    workItemDetailDiagnosticSections,
+    `${label} detail diagnostic sections`,
   );
   assertIncludesAll(
     projection.detail_layer_contract?.stage_map_fields,
@@ -383,6 +467,46 @@ export function validateWorkItemProjectionContract(projection, label) {
     ],
     `${label} forbidden_claims`,
   );
+}
+
+export function validateAgentAvailabilityProjectionContract(projection, label) {
+  if (!projection || typeof projection !== "object") {
+    throw new Error(`${label} must be declared`);
+  }
+  for (const [field, expected] of Object.entries({
+    surface_kind: "opl_agent_availability_projection",
+    schema_version: "agent-availability-projection.v1",
+    authority: "one_person_lab_agent_catalog_and_package_readiness_projection",
+    app_role: "display_only_agent_availability_consumer",
+    independent_from_work_item_state: true,
+  })) {
+    if (projection[field] !== expected) {
+      throw new Error(`${label} ${field} must be ${expected}`);
+    }
+  }
+  assertDeepEqualJson(
+    projection.required_fields,
+    ["agent_id", "display_name", "availability", "reason", "last_checked_at"],
+    `${label} required_fields`,
+  );
+  assertDeepEqualJson(
+    projection.first_party_agents,
+    runtimeFirstPartyAgents,
+    `${label} first_party_agents`,
+  );
+  assertDeepEqualJson(
+    projection.availability_states,
+    ["available", "attention_required", "unavailable"],
+    `${label} availability_states`,
+  );
+  if (
+    projection.all_healthy_panel_state !== "collapsed_summary" ||
+    projection.bare_count_or_fraction_allowed !== false ||
+    projection.task_count_is_availability !== false ||
+    projection.mas_scholar_skills_role !== "med_autoscience_dependency_not_agent"
+  ) {
+    throw new Error(`${label} must express availability only, collapse healthy agents, and reject bare counts`);
+  }
 }
 
 function validateTaskRunProjectionV2Contract(projection, label) {

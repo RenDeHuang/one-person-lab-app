@@ -10,6 +10,7 @@ import {
   validateArtifactNativeDrilldownFixture,
   validateArtifactNativeDrilldownProjectionContract,
   validateArtifactProvenanceBundleProjectionContract,
+  validateAgentAvailabilityProjectionContract,
   validateOpenScienceAcceptedItemsFixture,
   validateOpenScienceConsoleProjectionContract,
   validateProviderReadinessRepairProjectionContract,
@@ -658,11 +659,11 @@ function validateRuntimeBridgeDeclaredSurfaces(runtimeBridge) {
     full_state_policy: 'diagnostic_or_release_evidence_only',
     full_detail_command: 'opl runtime app-operator-drilldown --detail full --json',
     action_command: 'opl app action execute --action <action_id> [--payload json] [--dry-run] --json',
-    'projection_sources.primary': 'app_state.operator user task status projection',
+    'projection_sources.primary': 'app_state.operator.workbench.work_item_projection_v2',
     'projection_sources.provider': 'runtime_tray_snapshot.app_operator_drilldown.current_control_state.states.provider_run',
     'projection_sources.actions': 'app_state.actions',
     'projection_sources.full_detail': 'runtime_tray_snapshot.app_operator_drilldown',
-    'projection_sources.policy': 'user_task_status_from_app_state_project_refs_provider_projection_diagnostic_only',
+    'projection_sources.policy': 'work_item_projection_v2_primary_provider_projection_diagnostic_only',
   })) {
     const actual = field.split('.').reduce((value, key) => value?.[key], runtimeBridge);
     if (actual !== expected) {
@@ -738,8 +739,8 @@ function validateRuntimeProgressPageDisplayPolicy(runtimeBridge) {
   if (policy?.owner !== 'one-person-lab-app') {
     throw new Error('Runtime progress page display policy must be App-owned');
   }
-  if (policy?.default_surface !== 'task_run_cockpit') {
-    throw new Error('Runtime progress page default surface must be task_run_cockpit');
+  if (policy?.default_surface !== 'work_item_projection_v2_list') {
+    throw new Error('Runtime progress page default surface must be WorkItemProjection v2 list');
   }
   if (policy?.advanced_surface !== 'task_detail_or_diagnostics') {
     throw new Error('Runtime progress page advanced surface must be task_detail_or_diagnostics');
@@ -753,57 +754,55 @@ function validateRuntimeProgressPageDisplayPolicy(runtimeBridge) {
   if (policy?.detail_layer_ref !== 'contracts/app-runtime-bridge.json#work_item_projection.detail_layer_contract') {
     throw new Error('Runtime progress page must point at the WorkItemProjection detail layer contract');
   }
-  assertIncludesAll(policy?.default_task_row_spine ?? [], [
-    'project_or_paper',
-    'agent_or_module',
-    'task_or_stage',
-    'next_step',
+  assertDeepEqualJson(policy?.default_task_row_spine, [
+    'project_and_work_item',
     'status',
+    'progress_and_next_step',
+    'elapsed_and_tokens',
   ], 'Runtime progress page default task row spine');
   for (const section of [
     'top_scope_and_refresh',
-    'freshness_bar',
-    'kpi_row',
-    'main_task_grouped_list',
-    'right_module_status',
-    'right_advanced_information_disclosure',
+    'freshness_summary',
+    'status_saved_views',
+    'work_item_list',
+    'agent_availability_panel',
+    'advanced_diagnostics_disclosure',
   ]) {
     if (!policy?.default_page_sections?.includes(section)) {
       throw new Error(`Runtime progress page default sections must include ${section}`);
     }
   }
   assertDeepEqualJson(policy?.layout_regions, {
-    top: ['top_scope_and_refresh', 'freshness_bar'],
-    overview: ['kpi_row'],
-    main: ['main_task_grouped_list'],
-    right: ['right_module_status', 'right_advanced_information_disclosure'],
+    top: ['top_scope_and_refresh', 'freshness_summary', 'status_saved_views'],
+    main: ['work_item_list'],
+    supporting: ['agent_availability_panel', 'advanced_diagnostics_disclosure'],
   }, 'Runtime progress page layout regions');
   assertIncludesAll(policy?.default_field_allowlist ?? [], [
-    'project_display_name',
-    'work_item_display_name',
-    'agent_display_name',
-    'primary_state_label',
-    'automation_state_label',
-    'active_stage_label',
-    'active_stage_elapsed',
-    'stage_usage',
-    'task_total_usage',
-    'next_visible_step',
-    'next_owner',
+    'identity.project_display_name',
+    'identity.work_item_display_name',
+    'identity.agent_display_name',
+    'lifecycle.primary_state_label',
+    'execution.current_stage_display_name',
+    'execution.next_stage_display_name',
+    'telemetry.elapsed',
+    'telemetry.current_stage_tokens',
+    'telemetry.task_total_tokens',
+    'action.title',
+    'action.owner',
   ], 'Runtime progress page default field allowlist');
-  assertIncludesAll(policy?.default_visible_field_groups?.main_task_grouped_list ?? [], [
-    'project_display_name',
-    'work_item_display_name',
-    'agent_display_name',
-    'primary_state_label',
-    'automation_state_label',
-    'active_stage_label',
-    'active_stage_elapsed',
-    'stage_usage',
-    'task_total_usage',
-    'next_visible_step',
-    'next_owner',
-  ], 'Runtime progress page main task grouped list fields');
+  assertIncludesAll(policy?.default_visible_field_groups?.work_item_list ?? [], [
+    'identity.project_display_name',
+    'identity.work_item_display_name',
+    'identity.agent_display_name',
+    'lifecycle.primary_state_label',
+    'execution.current_stage_display_name',
+    'execution.next_stage_display_name',
+    'telemetry.elapsed',
+    'telemetry.current_stage_tokens',
+    'telemetry.task_total_tokens',
+    'action.title',
+    'action.owner',
+  ], 'Runtime progress page work item list fields');
   const defaultFieldAllowlist = new Set(policy?.default_field_allowlist ?? []);
   for (const [groupName, fields] of Object.entries(policy?.default_visible_field_groups ?? {})) {
     if (!Array.isArray(fields)) {
@@ -815,27 +814,37 @@ function validateRuntimeProgressPageDisplayPolicy(runtimeBridge) {
       }
     }
   }
-  assertDeepEqualJson(policy?.task_deduplication_policy?.dedupe_key_priority, [
-    'agent_display_name + project_display_name_or_study_id + work_item_display_name',
-    'agent_display_name + project_display_name_or_study_id + active_stage_label',
-    'task_identity.task_ref',
-    'binding_agnostic_task_id',
-    'task_identity.task_id',
-  ], 'Runtime progress page task dedupe key priority');
   if (
+    policy?.task_deduplication_policy?.canonical_row_key !== 'identity.work_item_id' ||
+    policy?.task_deduplication_policy?.dedupe_owner !== 'opl_framework' ||
+    policy?.task_deduplication_policy?.one_row_per_work_item !== true ||
+    policy?.task_deduplication_policy?.shell_heuristic_deduplication_allowed !== false ||
     policy?.task_deduplication_policy?.module_runtime_rows_policy !==
-    'module_runtime_without_project_or_study_belongs_to_right_module_status_not_main_task_grouped_list'
+    'module_runtime_never_enters_work_item_list_agent_availability_is_separate'
   ) {
-    throw new Error('Runtime progress page must keep module_runtime rows out of the default task list');
+    throw new Error('Runtime progress page must project one canonical row per work item and keep module runtime separate');
   }
   if (policy?.task_deduplication_policy?.raw_duplicate_refs_default_visible !== false) {
     throw new Error('Runtime progress page raw duplicate refs must stay hidden by default');
   }
-  if (policy?.next_step_copy_policy?.long_text_policy !== 'normalize_long_routes_commands_or_stage_ids_to_short_human_action_copy') {
-    throw new Error('Runtime progress page must normalize long runtime next-step copy');
+  if (policy?.next_step_copy_policy?.long_text_policy !== 'framework_projects_short_human_action_copy_shell_does_not_translate_routes') {
+    throw new Error('Runtime progress page must consume Framework-projected human action copy');
   }
   if (policy?.next_step_copy_policy?.raw_route_or_command_default_visible !== false) {
     throw new Error('Runtime progress page raw route/command next steps must stay hidden by default');
+  }
+  assertDeepEqualJson(
+    policy?.responsive_acceptance?.viewport_widths_px,
+    [375, 768, 1024, 1440],
+    'Runtime progress page responsive viewport matrix',
+  );
+  if (
+    policy?.responsive_acceptance?.desktop_layout !== 'four_columns' ||
+    policy?.responsive_acceptance?.narrow_layout !== 'semantic_row_reflow' ||
+    policy?.responsive_acceptance?.horizontal_page_overflow_allowed !== false ||
+    policy?.responsive_acceptance?.text_overlap_allowed !== false
+  ) {
+    throw new Error('Runtime progress page must reflow without horizontal page overflow or text overlap');
   }
   assertDeepEqualJson(policy?.advanced_only_fields, [
     'raw_proof_ref',
@@ -974,6 +983,10 @@ function validateRuntimeBridgeProjectionContracts(runtimeBridge) {
   validateWorkItemProjectionContract(
     runtimeBridge.work_item_projection,
     'Runtime bridge WorkItemProjection',
+  );
+  validateAgentAvailabilityProjectionContract(
+    runtimeBridge.agent_availability_projection,
+    'Runtime bridge agent availability projection',
   );
   validateProjectProgressDisplayContract(runtimeBridge.project_progress_projection, 'Runtime bridge project progress projection');
   validateProviderReadinessRepairProjectionContract(

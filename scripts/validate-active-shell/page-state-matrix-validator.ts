@@ -238,8 +238,8 @@ export function validatePageStateMatrix(matrix, contract, guiProductContract) {
   if (runtimePage.diagnostic_source !== 'opl runtime app-operator-drilldown --json') {
     throw new Error(`Runtime page diagnostic_source must be operator summary drilldown, got: ${runtimePage.diagnostic_source}`);
   }
-  if (runtimePage.primary_projection !== 'app_state.operator user task status projection') {
-    throw new Error(`Runtime page primary_projection must be user task status, got: ${runtimePage.primary_projection}`);
+  if (runtimePage.primary_projection !== 'app_state.operator.workbench.work_item_projection_v2') {
+    throw new Error(`Runtime page primary_projection must be WorkItemProjection v2, got: ${runtimePage.primary_projection}`);
   }
   if (runtimePage.framework_command !== 'opl app state --profile fast --json') {
     throw new Error(`Runtime page must use the OPL App state command, got: ${runtimePage.framework_command}`);

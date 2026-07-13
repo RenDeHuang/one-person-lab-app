@@ -128,7 +128,8 @@ environment bodies, billing, or Console policy truth.
 
 The App runtime/resource/task/data-lifecycle split is kept in one owner matrix
 instead of a new control layer. `contracts/app-runtime-bridge.json#runtime_surface_owner_matrix`
-binds OPL Runtime Payload / Fabric, Environment Materializer, TaskRunProjection v2, OPL
+binds OPL Runtime Payload / Fabric, Environment Materializer, WorkItemProjection v2,
+legacy/current-task TaskRunProjection v2, OPL
 Fabric resource refs, local data lifecycle, the active shell, and Homebrew into
 their owner roles. The matrix is deliberately narrow: App owns product policy
 and release gates, OPL Framework owns family projections and runtime receipts,
@@ -137,17 +138,23 @@ surfaces should extend that matrix and the existing projection contracts before
 adding any shell-local task store, resource state machine, cleanup authority, or
 distribution currentness gate.
 
-The default Runtime page attention model is user-task-status first. The
-ordinary view answers which tasks are explicitly running or advancing, which
-projects/tasks are active or queued, what needs attention, and what the next
-visible step is. Running or attention rows stay visible; queued, waiting,
-stopped, parked, checkpointed, blocked, or otherwise non-running project lines
-are collapsed by default with count/status/next-step summary. Project title,
-stage, next owner, blockers, progress deltas, operator summary, safe actions,
-refs-only evidence, provider activity, and full ledger detail are secondary
-disclosures. A release/user-path evidence bundle can support the same App
-release cohort and release-owner review, but it cannot by itself promote
-stable/latest, prove domain readiness, or prove OPL family production readiness.
+The default Runtime page is WorkItemProjection v2 first. OPL Framework joins
+canonical agent/project/work-item inventory with lifecycle, execution, attention,
+telemetry, conditions, freshness, and action facts before the App or Shell sees
+them. Agent availability is a separate projection and cannot define project or
+work-item status. Scope is a strict Agent -> Project cascade; work items remain
+rows, not scope options. The ordinary list has four semantic columns and one row
+per canonical work item. Shells may filter and render those records, but cannot
+guess identity, derive user status, heuristically deduplicate bindings, estimate
+Token usage, or convert missing telemetry into zero.
+
+Work-item detail opens with Stage Map, current/next stage, running/heartbeat,
+current-stage and total Token, and action. Artifact/timeline refs are secondary;
+raw refs, IDs, logs and provider diagnostics are diagnostic-only. System
+attention requires a complete, current responsibility envelope that still
+blocks execution. Product contract, Framework producer, Shell consumer, and
+live user-path evidence are independent completion dimensions: none may promote
+another to complete.
 
 Claude Science-style task awareness lands inside this Runtime model rather than
 as a new dashboard. The Runtime page remains the global task-awareness center;
