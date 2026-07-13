@@ -339,9 +339,18 @@ authoritative readback confirming a new projection replaces the bootstrap copy.
 An older renderer cache that predates the account projection keeps account state
 unresolved until that readback instead of rendering the signed-out action.
 `auth_expired` asks the user to log in again while preserving the non-secret
-snapshot. `managed_key_missing`, `managed_key_conflict`,
-`managed_key_identity_drift`, and `disconnect_pending` expose only their
-declared Framework repair actions.
+snapshot. When the Framework reports `setup_required`, the App resolves the
+unique Codex group and invokes the declared `complete_setup` action once in the
+background; it does not render a group selector or a separate Complete
+connection button. If no unique group can be resolved, the card keeps the
+cached account visible and shows localized guidance. A manual refresh or a new
+authoritative projection may retry the automatic completion.
+
+`managed_key_missing`, `managed_key_conflict`,
+`managed_key_identity_drift`, and `disconnect_pending` keep their Framework
+status and action data, but the ordinary account card does not render a generic
+Repair control. Refresh, re-login where applicable, and disconnect remain the
+only visible account recovery choices.
 
 Desktop account login uses the typed `loginGatewayAccount` IPC bridge and
 `opl connect gateway login --credentials-stdin --json`. Passwords must never
@@ -350,7 +359,9 @@ receipts, diagnostics, or persisted renderer state. Browser WebUI may display
 existing account status and keep the manual Key path, but it does not accept the
 Gateway account password in v1. Non-secret setup, refresh, repair, model-source,
 and disconnect mutations use the canonical App action ids projected by the
-Framework.
+Framework. Setup is consumed automatically with the resolved Codex group;
+repair and model-source actions are not exposed as ordinary account-card
+controls.
 
 The account card is absent for manual-Key-only and disconnected states. This
 capability does not add a personal-profile navigation item and does not change

@@ -105,14 +105,16 @@ const gatewayAccountDisplayPolicy = {
   observed_at: 'format_with_local_device_locale_and_timezone',
   refresh_action: 'icon_only_immediately_after_observed_at_with_tooltip_and_accessible_name',
   normal_actions: ['refresh', 'disconnect'],
-  exception_actions: ['complete_setup', 'repair', 'sign_in_again'],
-  forbidden_normal_controls: ['group_selector', 'repair', 'use_for_model_access'],
+  exception_actions: ['sign_in_again'],
+  forbidden_normal_controls: ['group_selector', 'complete_setup', 'repair', 'use_for_model_access'],
 };
 const gatewayAccountGroupResolutionPolicy = {
   default_group_match: 'single_case_insensitive_label_containing_Codex_then_single_available_group_fallback',
   ordinary_user_selector: 'not_rendered',
-  legacy_setup_required_action: 'show_complete_connection_only_when_default_group_resolves',
+  legacy_setup_required_action:
+    'auto_execute_complete_setup_once_when_default_group_resolves_without_rendering_control',
   unresolved_state: 'show_localized_error_without_arbitrary_group_selection',
+  retry_policy: 'retry_after_manual_refresh_or_new_authoritative_projection',
 };
 
 function collectObjectKeys(value, keys = new Set()) {

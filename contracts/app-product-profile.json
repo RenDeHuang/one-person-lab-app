@@ -4077,7 +4077,7 @@
                 },
                 {
                   "testid": "settings-access-gateway-setup",
-                  "when": "desktop_account_login_selected_or_legacy_setup_requires_default_group_completion"
+                  "when": "desktop_account_login_selected"
                 },
                 {
                   "testid": "settings-access-gateway-account",
