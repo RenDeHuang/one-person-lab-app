@@ -5,8 +5,8 @@ Purpose: `opl_app_cross_thread_orchestration_boundary`
 State: `accepted_product_target_user_surface_implemented_model_tool_protocol_blocked_remote_deferred`
 Date: `2026-07-14`
 Machine boundary: 本文定义产品和架构目标。App contracts、page-state、active-shell validator与
-AionUI source integration `d5c7581bd3a2c547e20373ca3df716aa129846dd` 已实现本机 user-facing
-flexible cross-thread policy和可见入口；该 integration 尚未吸收 main，且当前普通 AionUI conversation
+AionUI main source cohort `d5c7581bd3a2c547e20373ca3df716aa129846dd` 已实现本机 user-facing
+flexible cross-thread policy和可见入口；当前普通 AionUI conversation
 没有注册模型可调用的 coordination dynamic tools。历史 package/pixels仍绑定
 `b2c05a1c8dc4ef81094323b49a67b601e3c425f5`，不能改绑为新 source。Native candidate 的历史
 cohort仍需重做。Installed user path、remote host与 release promotion仍需独立 evidence。
@@ -364,10 +364,10 @@ test 替代远程或 packaged evidence。
 - `contracts/app-page-state-matrix.json`：定义状态和负例 acceptance；
 - active-shell validators/tests：证明 shell 消费 App truth，且未退化为同一 agent tree only。
 
-Active AionUI source integration `d5c7581bd3a2c547e20373ca3df716aa129846dd` 已实现 production App
+Active AionUI main source cohort `d5c7581bd3a2c547e20373ca3df716aa129846dd` 已实现 production App
 Server `thread/*` / `turn/*` adapter、canonical thread directory、flexible routing、可见 delivery
 audit、interactive request pending handling、Runtime cockpit，以及同主机 Local/Worktree source链路。
-它尚未吸收 main，模型 high-level tool 仍为 `source_missing_protocol_blocked`；匹配该 source的
+模型 high-level tool 仍为 `source_missing_protocol_blocked`；匹配该 source的
 pixels、package与installed-path gate仍由集成 owner独立闭合。Native candidate 的 `c1d9db...`
 历史 cohort仍绑定旧 hard-gate policy，
 只保留 protocol/package evidence，不能证明 corrected candidate conformance。

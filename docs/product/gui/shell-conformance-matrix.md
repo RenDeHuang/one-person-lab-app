@@ -56,12 +56,12 @@ Active AionUI 默认状态通过 README 治理段声明的动态 state source �
   `26.707.31428/31123` 只保留为 superseded observations。
 - AionUI GUI conformance ancestor：`opl-aion-shell@a0ce713b65801fd9ca7f46ad168c977c75a187de`。
   当前 Shell HEAD 从 active checkout Git readback 获取，本矩阵不复制瞬时 HEAD。
-- Current source integration：
+- Current Shell main source cohort：
   `opl-aion-shell@d5c7581bd3a2c547e20373ca3df716aa129846dd`。它合并当前 Runtime V2 main、Gateway
   account/UI `e282f4d5d...` ancestry 与 parity source，覆盖同主机 Local/Worktree handoff、Home managed
   worktree、Review四targets与Last turn、可见 thread coordination、projectless file access、Runtime cockpit、
-  Environment Git inspection、profile-driven feedback与窄窗Access布局。Remote main `83cd2306d...` 是其
-  ancestor；main/remote最终currentness仍从Git readback获取，不由本矩阵推断。
+  Environment Git inspection、profile-driven feedback与窄窗Access布局。Main/remote最终currentness仍从
+  Git readback获取，不由本矩阵推断。
 - Latest reviewed upstream：`AionUI v2.1.33@a819d175683d5a0aada20064888da07bfcecdb6a`；无 GUI delta，
   只进入 release/runtime selective intake，不触发 GUI history merge。
 - Generated profile currentness：使用 App 官方生成器和当前 OPL Flow workflow policy 重建后，

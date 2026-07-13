@@ -57,7 +57,7 @@ Local/Worktree/handoff、Review 已采纳子集、Runtime cockpit、typed intera
 Runtime V2 与 Gateway account/UI。该 exact cohort 的 full source gates、macOS arm64 directory-only package、
 codesign 与 9 场景 packaged E2E 已闭合；package 未安装，main/remote currentness 与 release
 promotion仍由操作层 fresh readback决定。模型可调用 host tool仍是必需产品目标，当前 AionUI
-user coordination surface 不能作为其实现证据。最新 clean source integration
+user coordination surface 不能作为其实现证据。当前 Shell main source cohort
 `d5c7581bd3a2c547e20373ca3df716aa129846dd` 在该 package cohort 之后补入 profile-driven
 feedback、Review `Last turn` 与窄窗 Access 单列断点；其 full active-shell、Node/DOM、TypeScript、
 format、i18n与lint 0 errors已通过，但尚无匹配 package/pixel 证据。

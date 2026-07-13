@@ -15,7 +15,7 @@ source/tests 与对应 evidence。本文不创建第二套产品 authority，也
 重写，也不得重放 `dbff7370f` 或整体 merge AionUI upstream。AionUI 主线已经在 Home package
 readiness、Settings/Personalization、managed update 和 runtime bridge 上继续前进，因此本计划
 已重新打开 Codex parity 收敛：此前 `complete` 只覆盖 41301 composition 与一部分 flexible
-coordination source。最新 clean source integration
+coordination source。当前 Shell main source cohort
 `d5c7581bd3a2c547e20373ca3df716aa129846dd` 已补齐
 projectless 文件能力、App Server rail authority、任意绝对本地路径 Preview、首结果幂等 replay、
 可见协调入口、unarchive、Home managed worktree、同主机 idle task handoff、Runtime v2 与
@@ -49,8 +49,8 @@ fresh gate、pixels、package/user path 和远端回读为准。
 
 | Surface | Fresh 状态 | 边界 |
 | --- | --- | --- |
-| App authority refresh | Final authority lane在吸收前必须语义合入latest App main；最终 App SHA只由main/remote readback记录 | 真实source边界拆分Home new-task、Conversation Environment same-host handoff、metadata/projection transaction、deferred snapshot/cleanup和unsupported cross-host；本文不递归绑定包含自身的App commit。 |
-| Shell current source integration | `d5c7581bd3a2c547e20373ca3df716aa129846dd` | 当前 remote main `83cd2306d...` 已是ancestor；叠加feedback profile、Review Last turn与960px Access单列断点。Model-facing host tool仍缺，line-level comments为protocol blocker；尚无匹配package/pixels。 |
+| App authority refresh | GUI contract、page-state、runtime bridge、三层文档与validators已形成App main source authority；最终App SHA只由外部main/remote readback记录 | 真实source边界拆分Home new-task、Conversation Environment same-host handoff、metadata/projection transaction、deferred snapshot/cleanup和unsupported cross-host；本文不递归绑定包含自身的App commit。 |
+| Shell current main source cohort | `d5c7581bd3a2c547e20373ca3df716aa129846dd` | 叠加feedback profile、Review Last turn与960px Access单列断点。Model-facing host tool仍缺，line-level comments为protocol blocker；尚无匹配package/pixels。 |
 | Latest reviewed upstream | `v2.1.33@a819d175683d5a0aada20064888da07bfcecdb6a` | 相比已评估 GUI cohort 无 GUI delta；不整体 merge，release/runtime intake 单独处理。 |
 | Product profile | 使用 App 官方生成器和当前 OPL Flow workflow policy 对 Shell generated profile 重建后，`jq -S` canonical diff 为空 | Generated profile 的 compatibility projection 包含由 OPL Flow policy 派生的字段；不要求与 raw App JSON 字节相等，不提交纯格式噪音。 |
 | Verified GUI ancestor gates | Shell `a0ce713b65801fd9ca7f46ad168c977c75a187de`：full suite `293 files / 2172 tests` 通过、`1 file / 3 tests` skip；root TypeScript、1514-file format、i18n 通过。App active-shell full 通过；release-boundary `293 pass / 2 platform skip / 0 fail` | 证明最低 GUI ancestor 与 source contract 边界，不单独证明 installed path 或 release-ready。 |
@@ -178,12 +178,12 @@ Shell package/version 和 AionCore intake 继续作为独立维护工作。选�
 | Generated profile current | `done_semantic` | 官方生成器重建后 canonical JSON diff 为空；未提交纯格式差异。 |
 | Core visual matrix | `current_exact_cohort_verified_limited_claims` | Current 9-entry manifest精确绑定`b2c05a1c...`并通过全部anchors/layout checks；historical 8-entry manifest保持原字节。 |
 | Package/install/user path | `historical_package_verified_current_install_unverified` | `b2c05a1c...` 的本地`26.7.13` directory-only package、runtime staging、codesign与packaged E2E只作历史GUI证据；remote `v26.7.13@faeb0d6f...`保持不可变，最终`26.7.14`必须重建，`26.7.12`安装证据不能提升为current。 |
-| Main absorption/push/readback | `operational_closeout` | 交付时以 `git ls-remote` 精确回读；本文不递归绑定包含自身的 App HEAD，该结果也不提升 release readiness。 |
+| Main absorption/push/readback | `operational_receipt_external_to_document` | 交付时以 `git ls-remote` 精确回读；本文不递归绑定包含自身的 App HEAD，该结果也不提升 release readiness。 |
 | Lane cleanup | `operational_closeout` | exact/patch-equivalent/superseded 审计后删除本轮辅助与最终 lanes；不把清理状态解释为产品证据。 |
 
 本文状态为 `active_parity_convergence`。本轮current source gates已闭合，历史package/core pixels按原
-exact cohort保留；App/Shell main吸收、远端readback、`26.7.14`重建、安装/user path以及明确deferred
-产品缺口仍按独立owner推进。
+exact cohort保留；App/Shell main/remote currentness由外部operational receipt证明，`26.7.14`重建、
+安装/user path以及明确deferred产品缺口仍按独立owner推进。
 Cross-host保持 future/unsupported，只有单独 remote能力开发和证据完成后才能声明
 `remote_ready`。当前 `release_ready=false` 与 `parity_1_to_1=false` 保持不变。
 
