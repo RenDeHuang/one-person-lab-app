@@ -63,7 +63,7 @@ contract/实现收敛 lane 处理。
 | Thread directory / coordination adapter | Rail 投影 App Server `thread/list/read/resume`；rename/archive/restore/delete 映射 `thread/name/set`、`thread/archive`、`thread/unarchive`、`thread/delete`，pin 仅 Shell metadata；封装 `turn/*`、visible entry、advisory 与 receipt。 | 用 Shell DB 拥有 history、把 local reset 冒充 history reset、隐藏协调入口、用 project/workspace 建 sandbox、增加 confirmation、用 `send_input` 作为跨根线程总线。 |
 | Projectless local-input adapter | 让 attachment、file/directory picker、paste/drop、`/open` 在无 workspace 时继续进入 Codex 原生权限路径。 | 因缺 project 禁用输入、把 workspace membership 当授权、复制第二套 path permission model。 |
 | Artifact ref adapter | 用户显式打开的合法绝对本地路径或 workspace-scoped project ref 解析为现有 Preview target，保持只读和 fail-closed。 | 复制 artifact body、新建 renderer/store、路径穿越、非法 scheme、自动静默读取或猜测未知格式。 |
-| Local / Worktree handoff adapter | 投影 Local/Worktree、starting branch、双向 handoff 与 snapshot/restore；遵守 `$CODEX_HOME/worktrees`、detached selected branch HEAD、selected local changes、`.worktreeinclude`、same-task reuse 与 cleanup snapshot。 | 复制 Git/thread store、把 handoff 做成 direct cross-host message、自建 worktree lifecycle truth。 |
+| Local / Worktree handoff adapter | Home 通过既有 `gitWorkspace` adapter投影 Local/Worktree、starting branch 和 managed worktree create/reuse；Conversation Environment 为同主机 `not_loaded`/`idle` task 调用 `thread/settings/update` 双向切换。先更新真实 Codex cwd，再更新 AionUI projection；后者失败时 best-effort 恢复旧 cwd。投影 `opl_workspace_handoff.v1`，worktree 默认保留复用。 | 复制 Git/thread store、把 project/workspace 当权限域、running/archived/error 静默 fallback、宣称 snapshot/cleanup/cross-host 已实现、自建 worktree lifecycle truth。 |
 | Review adapter | 在现有 Files/Changes diff surface补 uncommitted/base branch/commit/custom、inline/detached、Unstaged/Staged/Commit/Branch/Last turn、PR context、inline comments、stage/commit/push；`gh` 缺失明确 unavailable。 | 恢复 equal-weight Review tab、复制 diff/Git store、在 React 层直接实现 Git protocol。 |
 | Route adapter | 把 legacy/upstream route 映射到 App-owned page。 | 让 compatibility route 重新成为 ordinary navigation。 |
 | Settings slot | 从 Control Plane registry 渲染 ordinary/secondary pages。 | 复制一套 shell-owned Settings IA。 |
@@ -287,15 +287,19 @@ command 和可见状态 anchor。
 - Home/chat-first、timeline、composer、rail 和 Environment/details 行为符合对应 target 或被明确
   标成 current deviation；
 - 跨顶层 thread list/read/dispatch 使用 App Server adapter，idle/running/stale 状态选择正确；
-- protocol/target/cross-host/Codex permission failures fail closed；cross-project/workspace、
+- protocol/target/Codex permission failures返回真实错误；cross-host 当前明确 unavailable；cross-project/workspace、
   workspace-write、overlap、running steer 与 loop 信息只 advisory，不拒绝或额外确认；
 - 同一 opaque request/idempotency key 重试幂等，同内容不同 key 允许重复投递；
 - 同一 key 重试返回第一次 receipt/result、`ok=true`，不二次 dispatch 或返回 duplicate error；
 - archive 直接且可 unarchive；Shell/host 不得为 read/send/steer/archive 增加 OPL confirmation；
 - 用户显式合法绝对本地路径与 workspace-scoped project refs 只在安全解析后进入现有 Preview，
   traversal、非法 scheme、自动静默读取失败时保留原 ref 且不打开空 preview；
-- Local/Worktree、starting branch、handoff、snapshot/restore 复用 Codex/Git authority并满足官方
-  worktree root、detached HEAD、selected local changes、`.worktreeinclude`、reuse 与 cleanup snapshot；
+- Home Local/Worktree、starting branch 与 managed worktree create/reuse 复用既有 `gitWorkspace` adapter；
+  既有同主机 `not_loaded`/`idle` task 只从 Conversation Environment 通过
+  `thread/settings/update` 切换真实 cwd，`running`/`archived`/`system_error` 显示 unavailable且
+  不 silent fallback；AionUI projection 失败时 best-effort 恢复旧 cwd；
+- `opl_workspace_handoff.v1` 只承载 projection metadata；worktree 默认保留复用。Snapshot/restore、
+  cleanup UI 与 cross-host handoff 保持 deferred/unsupported，不能进入 source-complete claim；
 - Review 复用 Files/Changes diff surface，覆盖四类 target、inline/detached、五个 sections、PR
   context/inline comments/stage/commit/push，并在 `gh` 缺失时明确 unavailable；
 - Settings 从 Control Plane registry/slots 渲染，legacy routes 只 redirect；

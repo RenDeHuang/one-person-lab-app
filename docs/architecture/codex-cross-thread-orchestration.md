@@ -2,12 +2,12 @@
 
 Owner: `one-person-lab-app`
 Purpose: `opl_app_cross_thread_orchestration_boundary`
-State: `accepted_product_target_active_shell_source_implemented_native_candidate_rework_required`
+State: `accepted_product_target_active_shell_same_host_source_implemented_remote_deferred`
 Date: `2026-07-13`
-Machine boundary: 本文定义产品和架构目标。App contracts、page-state、active-shell validator、
-Codex App Server protocol smoke 与 active AionUI Shell `69bce9d565a9fd6460e61273e8905abe0158d2db`
-已实现 corrected flexible policy；Native candidate 的历史 cohort 仍需重做。Current pixels、packaged
-two-root UI、installed user path、remote host 与 release promotion 仍需独立 evidence。
+Machine boundary: 本文定义产品和架构目标。App contracts、page-state、active-shell validator与
+active AionUI Shell `fae4f694b1ab3eb615b7f527b792adfa6b3165e1` 已实现本机 flexible
+cross-thread policy和可见入口；Native candidate 的历史 cohort仍需重做。Current pixels、packaged
+two-root UI、installed user path、remote host与 release promotion仍需独立 evidence。
 
 ## 结论
 
@@ -68,6 +68,28 @@ Codex App Server 当前公开的协议原语包括：
 OPL 不直接改写 Codex 的线程存储，不复制完整 thread history，也不创建第二套 conversation
 runtime 或权限模型。App Server 始终是线程身份、历史和运行状态的 source of truth；OPL 仅
 保存幂等重试、用户解释和审计所需的轻量协调元数据与 receipt。
+
+## Local/Worktree 与跨线程协调的边界
+
+Workspace locality handoff 与跨顶层线程消息是两条不同链路，不能共用一个含糊的
+“handoff”完成声明：
+
+1. Home 的 New task 可选 Local/Worktree 与 starting branch。Worktree 通过既有
+   `gitWorkspace.inspect` / `ensureManagedWorktree` 创建或复用，不建立第二 Git store。
+2. 既有同主机 task 只在 `not_loaded`/`idle` 时从 Conversation Environment 提供
+   Local↔Worktree；真实协议是 `thread/settings/update { threadId, cwd }`。
+3. `running`/`archived`/`system_error` 时 locality action 显示 unavailable，不 silent fallback。
+   这是 Codex thread protocol 的状态限制，不是 workspace permission gate。
+4. 更新顺序固定为真实 Codex cwd在先、AionUI conversation projection在后；projection失败时
+   best-effort恢复旧 cwd并显示错误，不伪造切换成功。
+5. `opl_workspace_handoff.v1` 只保存 locality、`localWorkspace`、`worktreePath`、task/start ref和
+   `worktreeRetention` 等 projection metadata。`preserve_for_reuse_until_snapshotted_cleanup` 是
+   future cleanup前置标记，不证明 snapshot或 cleanup 已存在。
+6. Worktree当前默认保留复用；snapshot/restore与 cleanup UI deferred。Cross-host handoff当前
+   unsupported/unavailable，不能由本机 Local/Worktree source或跨线程 receipt推导为成功。
+
+Project/workspace仍只是默认 cwd、侧栏分组和上下文提示。跨目录文件、网络和命令能力只服从
+Codex permission/approval/sandbox，OPL不增加目录授权域或额外确认。
 
 ## 目标架构
 
@@ -288,7 +310,7 @@ test 替代远程或 packaged evidence。
 | Adapter | App Server fake/fixture 证明 list pagination、opaque ID、status routing、resume/start/steer/fork 与 typed failure |
 | Policy | 负例证明 project/workspace、workspace-write、overlap、loop advisory 和 running steer 不被 OPL 拒绝或额外确认；opaque-key retry 幂等且同内容不同 key 可重复 |
 | Shell source | rail/detail/composer/timeline/mobile 只消费 host projection，不直接拥有协议策略 |
-| DOM | 用户可发现目标、看见双边 receipt 与 advisory，并处理协议、目标、跨 host 和 Codex permission 失败；archive 直接且可恢复，无 OPL confirmation |
+| DOM | 用户可发现目标、看见双边 receipt 与 advisory，并处理协议、目标、cross-host unsupported 和 Codex permission 失败；archive 直接且可恢复，无 OPL confirmation |
 | Visual | desktop/mobile 的 thread directory、coordination event、advisory 和真实 failure state 无遮挡 |
 | Packaged | 同一真实用户数据下，至少两个独立根线程完成 list -> read -> send -> target result -> source readback |
 | Remote | 只有在 connected host 的真实 list/read/send/断线恢复通过后才能声明 remote ready |
@@ -308,12 +330,13 @@ test 替代远程或 packaged evidence。
 - `contracts/app-page-state-matrix.json`：定义状态和负例 acceptance；
 - active-shell validators/tests：证明 shell 消费 App truth，且未退化为同一 agent tree only。
 
-Active AionUI Shell `69bce9d565a9fd6460e61273e8905abe0158d2db` 已实现 production App
-Server `thread/*` / `turn/*` adapter、thread directory、flexible routing 和可见 audit receipt；target
-Node `19/19`、DOM `4/4`、full `293 files / 2173 tests`、TypeScript、i18n、format 与 diff-check
-通过。Native candidate 的 `c1d9db...` 历史 cohort 仍绑定旧 hard-gate policy，只保留 protocol/
-package evidence，不能证明 corrected candidate conformance。
+Active AionUI Shell `fae4f694b1ab3eb615b7f527b792adfa6b3165e1` 已实现 production App
+Server `thread/*` / `turn/*` adapter、thread directory、flexible routing、可见 audit receipt，以及
+同主机 Local/Worktree source链路。该 exact SHA 的 current pixels、package与 installed-path gate
+仍由集成 owner独立闭合。Native candidate 的 `c1d9db...` 历史 cohort仍绑定旧 hard-gate policy，
+只保留 protocol/package evidence，不能证明 corrected candidate conformance。
 
 该状态不等于 packaged 产品验收。Packaged UI 两根线程端到端、live `turn/steer` 竞态、current
-pixels、remote host、安装路径与 release promotion 仍按验收矩阵独立关闭，未取得证据前不得宣称
-`packaged_ready`、`remote_ready` 或 `release_ready`。
+pixels、安装路径与 release promotion仍按验收矩阵独立关闭，未取得证据前不得宣称
+`packaged_ready` 或 `release_ready`。Remote host是独立 future capability，当前明确 unavailable；
+只有真实连接、路由与断线恢复 evidence完成后才能声明 `remote_ready`。

@@ -2,7 +2,10 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { assertDeepEqualJson, assertIncludesAll } from './assertions.ts';
-import { forbiddenAuthorityOwners } from './app-contract-constants.ts';
+import {
+  appOwnedRuntimeBridgeLocalWorktreeHandoffPolicy,
+  forbiddenAuthorityOwners,
+} from './app-contract-constants.ts';
 import { isDefaultReleaseAdapter } from './active-shell-contract.ts';
 import { assertFile, commandMaxBuffer, root } from './validation-config.ts';
 import { lookupPath } from './value-helpers.ts';
@@ -1010,24 +1013,7 @@ function validateCanonicalConversationContinuityPolicy(runtimeBridge) {
 function validateCodexParityAdapterPolicies(runtimeBridge) {
   assertDeepEqualJson(
     runtimeBridge.codex_local_worktree_handoff_policy,
-    {
-      state: 'target_not_yet_source_verified',
-      authority: 'codex_core_app_server_and_existing_git_integration',
-      locality_options: ['local', 'worktree'],
-      starting_branch_selectable: true,
-      handoff_actions: ['local_to_worktree', 'worktree_to_local'],
-      snapshot_actions: ['snapshot', 'restore'],
-      worktree_root: '$CODEX_HOME/worktrees',
-      selected_branch_head_state: 'detached',
-      selected_local_uncommitted_changes: 'apply_to_new_worktree',
-      include_file: '.worktreeinclude',
-      task_reuse_policy: 'same_task_reuses_same_worktree',
-      cleanup_policy: 'snapshot_before_cleanup_and_restore_available',
-      cross_host_transition: 'handoff_only_no_direct_cross_host_message',
-      shell_role: 'thin_adapter_only',
-      duplicate_git_store_allowed: false,
-      duplicate_thread_store_allowed: false,
-    },
+    appOwnedRuntimeBridgeLocalWorktreeHandoffPolicy,
     'Codex Local and Worktree handoff policy',
   );
   assertDeepEqualJson(

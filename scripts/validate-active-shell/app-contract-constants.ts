@@ -973,6 +973,141 @@ export const appOwnedPageStateHomeLayout = {
     "AionUI Team page as ordinary App surface",
   ],
 };
+export const appOwnedLocalWorktreeLifecycle = {
+  state:
+    "same_host_source_implemented_snapshot_cleanup_deferred_cross_host_unsupported",
+  permission_boundary: {
+    project_workspace_role:
+      "default_cwd_sidebar_grouping_and_context_hint_only_not_authorization_domain",
+    filesystem_command_network_authority:
+      "codex_permission_approval_and_sandbox_only",
+    opl_cross_directory_block_or_confirmation_allowed: false,
+  },
+  new_task: {
+    surface: "home_new_task",
+    locality_options: ["local", "worktree"],
+    starting_branch_selectable: true,
+    worktree_action: "create_or_reuse_managed_worktree",
+    adapter: "gitWorkspace.inspect_and_ensureManagedWorktree",
+    failure_policy:
+      "show_unavailable_or_error_without_silent_local_fallback",
+  },
+  existing_task: {
+    surface: "conversation_environment",
+    scope: "same_host_local_to_worktree_and_worktree_to_local",
+    eligible_thread_states: ["not_loaded", "idle"],
+    unavailable_thread_states: ["running", "archived", "system_error"],
+    protocol: "thread/settings/update",
+    payload_fields: ["threadId", "cwd"],
+    status_limit_role:
+      "codex_protocol_state_limit_not_workspace_permission",
+    failure_policy:
+      "show_unavailable_or_error_without_silent_fallback",
+  },
+  metadata: {
+    schema: "opl_workspace_handoff.v1",
+    fields: [
+      "locality",
+      "localWorkspace",
+      "worktreePath",
+      "taskId",
+      "startRef",
+      "startCommit",
+      "worktreeRetention",
+    ],
+    worktree_retention_value:
+      "preserve_for_reuse_until_snapshotted_cleanup",
+    retention_value_role:
+      "future_cleanup_precondition_marker_not_snapshot_or_cleanup_proof",
+    storage_role:
+      "aionui_projection_metadata_only_not_git_or_thread_authority",
+  },
+  projection_transaction: {
+    order: ["codex_thread_cwd", "aionui_conversation_projection"],
+    codex_update: "thread/settings/update",
+    projection_failure_policy:
+      "best_effort_restore_previous_codex_cwd_and_show_error",
+    silent_success_allowed: false,
+  },
+  worktree: {
+    root: "$CODEX_HOME/worktrees",
+    selected_branch_head_state: "detached",
+    selected_local_uncommitted_changes: "apply_to_new_worktree",
+    include_file: ".worktreeinclude",
+    task_reuse_policy: "same_task_reuses_same_worktree",
+    default_retention: "preserve_for_reuse",
+  },
+  snapshot_restore: {
+    state: "deferred_not_implemented",
+    user_visible_actions: [],
+    completion_claim_allowed: false,
+  },
+  cleanup: {
+    state: "deferred_not_exposed",
+    current_action_visible: false,
+    future_requirement: "recoverable_snapshot_before_destructive_cleanup",
+  },
+  cross_host: {
+    state: "unsupported_unavailable",
+    direct_message_allowed: false,
+    success_projection_allowed: false,
+  },
+  state_authority: "codex_core_app_server_and_existing_git_integration",
+  shell_role: "thin_adapter_only",
+  duplicate_git_or_thread_store_allowed: false,
+};
+export const appOwnedRuntimeBridgeLocalWorktreeHandoffPolicy = {
+  state:
+    "same_host_source_implemented_snapshot_cleanup_deferred_cross_host_unsupported",
+  authority: "codex_core_app_server_and_existing_git_integration",
+  permission_boundary: appOwnedLocalWorktreeLifecycle.permission_boundary,
+  new_task: appOwnedLocalWorktreeLifecycle.new_task,
+  existing_task: appOwnedLocalWorktreeLifecycle.existing_task,
+  metadata: appOwnedLocalWorktreeLifecycle.metadata,
+  projection_transaction: appOwnedLocalWorktreeLifecycle.projection_transaction,
+  worktree: appOwnedLocalWorktreeLifecycle.worktree,
+  snapshot_restore: appOwnedLocalWorktreeLifecycle.snapshot_restore,
+  cleanup: appOwnedLocalWorktreeLifecycle.cleanup,
+  cross_host: appOwnedLocalWorktreeLifecycle.cross_host,
+  shell_role: "thin_adapter_only",
+  duplicate_git_store_allowed: false,
+  duplicate_thread_store_allowed: false,
+};
+export const appOwnedNewTaskLocality = {
+  surface: "home_new_task",
+  options: ["local", "worktree"],
+  starting_branch_selectable: true,
+  worktree_behavior: "create_or_reuse_managed_worktree",
+  adapter: "gitWorkspace.inspect_and_ensureManagedWorktree",
+  metadata_schema: "opl_workspace_handoff.v1",
+  failure_policy: "show_unavailable_or_error_without_silent_local_fallback",
+  snapshot_restore_state: "deferred_not_implemented",
+  cleanup_state: "deferred_not_exposed",
+  cross_host_state: "unsupported_unavailable",
+};
+export const appOwnedGuiContractEnvironmentWorkspaceHandoff = {
+  contract_ref:
+    "interaction_baseline.conversation_scope.local_worktree_lifecycle",
+  surface: "conversation_environment",
+  scope: "same_host_existing_task",
+  actions: ["local_to_worktree", "worktree_to_local"],
+  eligible_thread_states: ["not_loaded", "idle"],
+  unavailable_thread_states: ["running", "archived", "system_error"],
+  protocol: "thread/settings/update",
+  failure_policy: "show_unavailable_or_error_without_silent_fallback",
+  projection_transaction:
+    "codex_thread_cwd_first_then_aionui_projection_with_best_effort_cwd_rollback",
+  permission_boundary:
+    "codex_permission_approval_and_sandbox_only_no_opl_cross_directory_gate",
+  snapshot_restore_state: "deferred_not_implemented",
+  cleanup_state: "deferred_not_exposed",
+  cross_host_state: "unsupported_unavailable",
+};
+export const appOwnedPageStateEnvironmentWorkspaceHandoff = {
+  ...appOwnedGuiContractEnvironmentWorkspaceHandoff,
+  contract_ref:
+    "contracts/app-gui-product-contract.json#interaction_baseline.conversation_scope.local_worktree_lifecycle",
+};
 const appOwnedOrdinaryConversation = {
   path_id: "ordinary_codex_conversation",
   entry_source:
@@ -1055,6 +1190,8 @@ const appOwnedOrdinaryConversation = {
     fabricated_defaults_allowed: false,
     artifact_body_copy_allowed: false,
   },
+  environment_workspace_handoff:
+    appOwnedGuiContractEnvironmentWorkspaceHandoff,
 };
 export const appOwnedTranscriptExport = {
   scope: "current_conversation_transcript_only",
@@ -1183,6 +1320,8 @@ export const appOwnedPageStateOrdinaryConversation = {
         : [key, value],
     ),
   ),
+  environment_workspace_handoff:
+    appOwnedPageStateEnvironmentWorkspaceHandoff,
   transcript_export: appOwnedTranscriptExport,
   current_task_slice: appOwnedCurrentTaskSlice,
   artifact_preview: appOwnedArtifactPreview,

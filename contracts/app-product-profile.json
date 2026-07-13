@@ -1675,11 +1675,11 @@
           ],
           "required_prominence": "workspace_is_independent_ordinary_entry"
         },
-      {
-        "id": "setup_access",
-        "label_zh": "模型与访问",
-        "label_en": "Models & Access",
-        "role": "model_source_default_gateway_codex_cli_and_authentication",
+        {
+          "id": "setup_access",
+          "label_zh": "模型与访问",
+          "label_en": "Models & Access",
+          "role": "model_source_default_gateway_codex_cli_and_authentication",
           "ordinary_entries": [
             "settings_access"
           ],

@@ -107,10 +107,17 @@ Rail 负责 navigation，不承担 dashboard：
 - Active conversation、running/blocked/completed 等状态只用轻量标记，不改变 row 布局。
 - 切换 conversation 保留各自 scroll、draft 和 refs context。
 - Workspace switch 明确说明新 turn 会在哪个目录执行。
-- New task 可选择 Local 或 Worktree、starting branch；Worktree 位于 `$CODEX_HOME/worktrees`，
+- Home 的 New task 可选择 Local/Worktree 与 starting branch；Worktree 通过既有
+  `gitWorkspace.inspect` / `ensureManagedWorktree` 创建或复用，位于 `$CODEX_HOME/worktrees`，
   selected branch HEAD detached，可应用用户所选 Local 未提交变更并读取 `.worktreeinclude`。
-  同一 task 复用同一 worktree；cleanup 前创建可恢复 snapshot。Local↔Worktree 与跨 host 都通过
-  handoff，不发送粗粒度 direct message。
+  创建失败保持可见，不 silent fallback 到 Local。
+- 既有同主机 task 只在 `not_loaded`/`idle` 时从 Conversation Environment 提供
+  Local↔Worktree。真实切换先调用 `thread/settings/update { threadId, cwd }`，再更新 AionUI
+  conversation projection；projection 失败时 best-effort 恢复旧 cwd 并显示错误。
+  `running`/`archived`/`system_error` 显示 unavailable，这是 Codex 协议状态限制，不是目录权限。
+- `opl_workspace_handoff.v1` 只保存 locality、Local/worktree path、task/start ref 和 retention
+  projection。Worktree 默认保留复用；snapshot/restore 与 cleanup UI 当前 deferred，cross-host
+  handoff 当前 unsupported，不得显示为可用或成功。
 - Backend、provider、permission、router 和 raw runtime state 不作为 rail 层级。
 - 外部交互参考可以改变入口位置，但不得删除 OPL-owned capability；任何迁移必须在同一
   变更提供可见、键盘可达的替代入口，并同步更新 contract、source 和 navigation tests。
@@ -132,8 +139,9 @@ Rail 负责 navigation，不承担 dashboard：
 - 本机跨 project/workspace、workspace-write、active turn steering、write-set overlap 或 loop
   advisory 不拒绝、不额外确认；OPL 只记录并展示。同一 opaque request/idempotency key 重试
   返回第一次 receipt/result、`ok=true` 且不二次 dispatch；同内容不同 key 可合法重复。
-- 硬失败仅来自协议无效/不可用、目标不存在/已归档/不可写、direct cross-host delivery 未支持，或 Codex 自身
-  permission/approval。Archive 直接且可 unarchive，OPL 不对 read/send/steer/archive 增加确认。
+- 硬失败仅来自协议无效/不可用、目标不存在/已归档/不可写、cross-host coordination 未支持，
+  或 Codex 自身 permission/approval。Archive 直接且可 unarchive，OPL 不对
+  read/send/steer/archive 增加确认；cross-host 当前显示 unavailable，不转换成伪 handoff success。
 - Source 与 target timeline 都显示 coordination event；用户可以看到谁向谁发送、为什么、使用
   哪个协议动作、Codex permission 结果、advisory、当前状态和结果入口。Desktop 使用 rail context action +
   dialog/popover，mobile 使用 action sheet + full-height detail，语义等价。
@@ -361,10 +369,12 @@ First-run 的目标是让用户尽快进入可工作的 App：
   次级 section/preview，advanced tools 默认关闭。
 - Rail coordination 入口、App Server thread directory/detail、rename/archive/unarchive/delete、双边 receipt 与
   denied/advisory/offline 状态均可发现；同 key 重试返回第一次成功结果且不二次 dispatch；跨 host
-  使用 handoff，跨顶层投递不使用 `send_input`。
-- Local/Worktree、starting branch、双向 handoff、snapshot/restore 均通过薄 adapter并遵守官方
-  worktree root/detached HEAD/include/reuse/cleanup snapshot语义；Review 复用 Files/Changes diff
-  surface并覆盖四类 target、两种 delivery、五个 sections 与 `gh` unavailable 状态。
+  当前明确 unavailable，跨顶层投递不使用 `send_input`。
+- Home New task 的 Local/Worktree、starting branch 与 managed worktree create/reuse 已由薄 adapter承接；
+  既有同主机空闲 task 的双向 handoff 位于 Conversation Environment，并通过
+  `thread/settings/update` 更新真实 cwd。Snapshot/restore、cleanup UI 与 cross-host handoff 不进入
+  当前完成声明；Review 复用 Files/Changes diff surface并覆盖四类 target、两种 delivery、五个
+  sections 与 `gh` unavailable 状态。
 - Settings 使用 full-window shell，OPL IA、first-run、品牌和双语边界保持不变。
 - Pending、elapsed、tool/process、permission、failure 和 receipt 在 turn 中可理解。
 - Runtime/Settings 使用 App state/action/Control Plane，不拥有 owner truth。

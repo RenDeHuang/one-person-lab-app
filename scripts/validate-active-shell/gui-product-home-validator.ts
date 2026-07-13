@@ -102,6 +102,9 @@ function validateHomeLayout(guiContract) {
     'desktop attach, permission and access, model and reasoning, and send or stop controls in the composer',
     'mobile plus sheet limited to OPL attach, project refs, access, model and reasoning, and active capability actions',
     'attachments and project refs consumed by the current send only',
+    'same-host Local or Worktree handoff for an existing not-loaded or idle task from Conversation Environment',
+    'running, archived, or system-error task handoff shown unavailable without silent fallback',
+    'Codex thread cwd updated before AionUI projection with best-effort cwd rollback on projection failure',
     'single current task instance in the message timeline, inline and unpinned for ordinary tasks',
     'current task becomes sticky only after user pin or a true long_running signal',
     'complete paginated redacted transcript export with Markdown default, strict JSON, explicit directory and filename',
@@ -109,6 +112,9 @@ function validateHomeLayout(guiContract) {
   assertIncludesAll(guiContract.pages?.ordinary_conversation?.must_not_show, [
     'persistent project, workspace, locality, branch, attachment, or project-ref context strip',
     'backend, provider, Team, raw MCP, or arbitrary skills in the mobile plus sheet',
+    'Local or Worktree handoff control inside the primary composer',
+    'snapshot, restore, or worktree cleanup controls claimed as available',
+    'cross-host handoff shown as successful or available',
     'duplicate current task or Runtime summary outside the message timeline',
     'workspace bundle export authorization',
   ], 'App GUI ordinary conversation forbidden 41301 signals');

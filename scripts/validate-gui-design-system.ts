@@ -5,6 +5,12 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import {
+  appOwnedGuiContractEnvironmentWorkspaceHandoff,
+  appOwnedLocalWorktreeLifecycle,
+  appOwnedNewTaskLocality,
+  appOwnedPageStateEnvironmentWorkspaceHandoff,
+} from './validate-active-shell/app-contract-constants.ts';
 
 type JsonRecord = Record<string, unknown>;
 type ActiveSurfaceState = 'collapsed' | 'visible' | 'visible_wide_drawer_narrow';
@@ -861,21 +867,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     projectContextInputs.composer_persistence_after_send !== 'none' ||
     projectContextInputs.fabricated_defaults_allowed !== false ||
     projectContextInputs.artifact_body_copy_allowed !== false ||
-    !sameStrings(localWorktreeLifecycle.locality_options, ['local', 'worktree']) ||
-    localWorktreeLifecycle.selection_surface !== 'new_task' ||
-    localWorktreeLifecycle.starting_branch_selectable !== true ||
-    !sameStrings(localWorktreeLifecycle.handoff_actions, ['local_to_worktree', 'worktree_to_local']) ||
-    !sameStrings(localWorktreeLifecycle.snapshot_actions, ['snapshot', 'restore']) ||
-    localWorktreeLifecycle.worktree_root !== '$CODEX_HOME/worktrees' ||
-    localWorktreeLifecycle.selected_branch_head_state !== 'detached' ||
-    localWorktreeLifecycle.selected_local_uncommitted_changes !== 'apply_to_new_worktree' ||
-    localWorktreeLifecycle.include_file !== '.worktreeinclude' ||
-    localWorktreeLifecycle.task_reuse_policy !== 'same_task_reuses_same_worktree' ||
-    localWorktreeLifecycle.cleanup_policy !== 'snapshot_before_cleanup_and_restore_available' ||
-    localWorktreeLifecycle.state_authority !== 'codex_core_app_server_and_existing_git_integration' ||
-    localWorktreeLifecycle.shell_role !== 'thin_adapter_only' ||
-    localWorktreeLifecycle.duplicate_git_or_thread_store_allowed !== false ||
-    localWorktreeLifecycle.cross_host_policy !== 'handoff_only_no_direct_cross_host_message' ||
+    JSON.stringify(localWorktreeLifecycle) !== JSON.stringify(appOwnedLocalWorktreeLifecycle) ||
     homeTarget.title_policy !== 'dynamic_question_title' ||
     homeTarget.starter_limit !== null ||
     homeTarget.starter_visibility_policy !== 'all_user_visible_configured_shortcuts' ||
@@ -936,6 +928,11 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   }
 
   const pageStates = Array.isArray(pageStateMatrix.pages) ? pageStateMatrix.pages.map(record) : [];
+  const guidHomePage = pageStates.find((page) => page.id === 'guid_home') ?? {};
+  const guidHomeViewModel = record(record(guidHomePage).home_view_model);
+  if (JSON.stringify(record(guidHomeViewModel.new_task_locality)) !== JSON.stringify(appOwnedNewTaskLocality)) {
+    issues.add('Guid Home must expose only the implemented new-task Local or Worktree selection boundary');
+  }
   const threadCoordinationPage = pageStates.find((page) => page.id === 'thread_coordination') ?? {};
   const coordinationViewModel = record(record(threadCoordinationPage).coordination_view_model);
   const requiredThreadFields = [
@@ -957,7 +954,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     'target_not_found',
     'target_archived',
     'target_not_writable',
-    'cross_host_direct_delivery_unsupported_use_handoff',
+    'cross_host_delivery_unsupported',
     'codex_permission_denied_or_approval_required',
   ];
   const coordinationAdvisories = [
@@ -1064,15 +1061,11 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     threadIdempotencyPolicy.same_key_retry_behavior !==
       'return_first_receipt_and_result_with_ok_true_without_second_dispatch' ||
     threadIdempotencyPolicy.message_content_repeat_allowed !== true ||
+    threadCrossHostPolicy.state !== 'unsupported_unavailable' ||
     threadCrossHostPolicy.direct_message_allowed !== false ||
-    threadCrossHostPolicy.transition !== 'handoff' ||
-    !sameStrings(threadCrossHostPolicy.handoff_preserves, [
-      'source_thread_ref',
-      'goal',
-      'context_summary',
-      'locality_request',
-      'audit_receipt',
-    ]) ||
+    threadCrossHostPolicy.handoff_available !== false ||
+    threadCrossHostPolicy.success_projection_allowed !== false ||
+    threadCrossHostPolicy.future_scope !== 'deferred_remote_host_coordination' ||
     !sameStrings(threadCoordination.required_states, coordinationStates) ||
     !sameStrings(threadCoordination.audit_fields, coordinationAuditFields) ||
     threadCoordination.user_visibility_policy !==
@@ -1140,7 +1133,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     coordinationViewModel.unknown_or_stale_status_policy !== 'refresh_then_route_or_protocol_failure' ||
     coordinationViewModel.idempotency_policy !==
       'same_opaque_request_or_idempotency_key_retry_returns_first_receipt_and_result_ok_true_without_second_dispatch_message_content_repeat_allowed' ||
-    coordinationViewModel.cross_host_policy !== 'handoff_only_no_direct_cross_host_message' ||
+    coordinationViewModel.cross_host_policy !== 'unsupported_unavailable_no_success_projection' ||
     coordinationViewModel.opl_extra_confirmation_policy !==
       'none_including_archive_cross_project_cross_workspace_workspace_write_write_set_overlap_running_steer_and_loop_advisory' ||
     coordinationViewModel.same_agent_tree_api_boundary !== 'spawn_agent_send_input_wait_agent_same_tree_only'
@@ -1152,6 +1145,10 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   const artifactPreview = record(interactionBaseline.artifact_preview);
   const ordinaryConversationPage = pageStates.find((page) => page.id === 'ordinary_conversation') ?? {};
   const ordinaryConversationViewModel = record(record(ordinaryConversationPage).conversation_view_model);
+  const pageEnvironmentWorkspaceHandoff = record(ordinaryConversationViewModel.environment_workspace_handoff);
+  const conversationEnvironmentWorkspaceHandoff = record(
+    record(guiContract.ordinary_conversation).environment_workspace_handoff,
+  );
   const pageArtifactPreview = record(ordinaryConversationViewModel.artifact_preview);
   const conversationArtifactPreview = record(record(guiContract.ordinary_conversation).artifact_preview);
   const environmentPopover = record(contextSurfaces.environment_popover);
@@ -1164,6 +1161,14 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   const targetDefinitionRole = 'opl_target_translation_not_literal_codex_observation';
   if (oplTargetTranslation.some((key) => record(interactionBaseline[key]).definition_role !== targetDefinitionRole)) {
     issues.add('each OPL target translation section must declare that it is not a literal Codex observation');
+  }
+  if (
+    JSON.stringify(pageEnvironmentWorkspaceHandoff) !==
+      JSON.stringify(appOwnedPageStateEnvironmentWorkspaceHandoff) ||
+    JSON.stringify(conversationEnvironmentWorkspaceHandoff) !==
+      JSON.stringify(appOwnedGuiContractEnvironmentWorkspaceHandoff)
+  ) {
+    issues.add('ordinary conversation must keep same-host idle workspace handoff in Environment without claiming deferred capabilities');
   }
   if (
     artifactPreview.surface !== 'existing_aionui_preview_context_and_panel' ||

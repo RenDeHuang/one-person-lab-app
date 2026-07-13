@@ -2,6 +2,7 @@ import { assertDeepEqualJson, assertIncludesAll } from './assertions.ts';
 import {
   appOwnedPageStateHomeLayout,
   appOwnedPageStateOrdinaryConversation,
+  appOwnedNewTaskLocality,
   appOwnedRightContextInspectorForbiddenOwners,
   appOwnedRightContextInspectorPolicy,
   homeActivityCenterForbiddenDisplays,
@@ -84,6 +85,11 @@ function validateGuidHomeViewModelFields(homeViewModel) {
     conversation_permission_mode_selector_visible: true,
   };
   assertDeepEqualJson(fieldsFrom(homeViewModel, expectedFields), expectedFields, 'Guid home page view model fields');
+  assertDeepEqualJson(
+    homeViewModel.new_task_locality,
+    appOwnedNewTaskLocality,
+    'Guid Home new-task Local or Worktree boundary',
+  );
   for (const field of [
     'codex_default_model',
     'codex_default_reasoning_effort',
@@ -188,7 +194,7 @@ function validateGuidHomeVisibleSignals(guidHomePage) {
     'workspace selector',
     'file attachment control',
     'projectless attachments, arbitrary local file or directory selection, paste, drop, and /open subject only to Codex permissions',
-    'Local or Worktree selection, starting branch, handoff, and snapshot or restore at new-task boundaries',
+    'New task Local or Worktree selection with optional starting branch and create or reuse managed worktree behavior',
     'send action',
     'single composer-first home input with context strip and bottom action row',
     'permission and access mode in user language',
@@ -223,6 +229,8 @@ function validateGuidHomeHiddenSignals(guidHomePage) {
     'Home footer favorite/star icon',
     'Home footer web/access globe icon',
     'per-assistant running badges derived from module or domain lane diagnostics',
+    'existing-task Local or Worktree handoff controls on Home',
+    'snapshot, restore, or worktree cleanup controls claimed as available on Home',
   ], 'Guid home page hidden signals');
 }
 
@@ -306,6 +314,9 @@ function validateOrdinaryConversationPage(matrix) {
     'permission and access mode in user language',
     'projectless text conversation when no workspace is selected',
     'projectless attachments, arbitrary local file or directory selection, paste, drop, and /open subject only to Codex permissions',
+    'same-host Local or Worktree handoff for an existing not-loaded or idle task from Conversation Environment',
+    'running, archived, or system-error task handoff shown unavailable without silent fallback',
+    'Codex thread cwd updated before AionUI projection with best-effort cwd rollback on projection failure',
     'assistant route receipt',
     'Codex default model and reasoning status',
     'single current task instance in the message timeline, inline and unpinned for ordinary tasks',
@@ -319,6 +330,9 @@ function validateOrdinaryConversationPage(matrix) {
     'persistent variable purpose selector in the composer',
     'persistent project, workspace, locality, branch, attachment, or project-ref context strip',
     'backend, provider, Team, raw MCP, or arbitrary skills in the mobile plus sheet',
+    'Local or Worktree handoff control inside the primary composer',
+    'snapshot, restore, or worktree cleanup controls claimed as available',
+    'cross-host handoff shown as successful or available',
     'duplicate current task or Runtime summary outside the message timeline',
     'workspace bundle export authorization',
   ], 'Ordinary conversation page hidden signals');

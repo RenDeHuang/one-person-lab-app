@@ -495,6 +495,22 @@ test('GUI design-system validator rejects duplicate Git stores for Worktree and 
   );
 });
 
+test('GUI design-system validator rejects false Worktree snapshot, cleanup, and cross-host claims', () => {
+  const root = createFixture();
+  const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
+  const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+  const lifecycle = contract.interaction_baseline.conversation_scope.local_worktree_lifecycle;
+  lifecycle.snapshot_restore.state = 'source_implemented';
+  lifecycle.cleanup.current_action_visible = true;
+  lifecycle.cross_host.success_projection_allowed = true;
+  writeJson(root, 'contracts/app-gui-product-contract.json', contract);
+
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /interaction baseline Home, conversation, composer, access, and task summary markers must match the App target/,
+  );
+});
+
 test('GUI design-system validator rejects send_input as a cross-top-level thread bus', () => {
   const root = createFixture();
   const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');

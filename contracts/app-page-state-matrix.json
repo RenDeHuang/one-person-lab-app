@@ -96,6 +96,18 @@
         "conversation_model_status_display_policy": "single_model_selector_in_codex_conversation_composer_no_separate_status_pill",
         "ordinary_capability_selector_policy_ref": "contracts/app-product-profile.json#gui.ordinary_capability_selector_policy",
         "local_worktree_lifecycle_ref": "contracts/app-gui-product-contract.json#interaction_baseline.conversation_scope.local_worktree_lifecycle",
+        "new_task_locality": {
+          "surface": "home_new_task",
+          "options": ["local", "worktree"],
+          "starting_branch_selectable": true,
+          "worktree_behavior": "create_or_reuse_managed_worktree",
+          "adapter": "gitWorkspace.inspect_and_ensureManagedWorktree",
+          "metadata_schema": "opl_workspace_handoff.v1",
+          "failure_policy": "show_unavailable_or_error_without_silent_local_fallback",
+          "snapshot_restore_state": "deferred_not_implemented",
+          "cleanup_state": "deferred_not_exposed",
+          "cross_host_state": "unsupported_unavailable"
+        },
         "home_composer_state_contract": {
           "contract_id": "opl_home_composer_state.v1",
           "executor": "codex",
@@ -371,7 +383,7 @@
         "workspace selector",
         "file attachment control",
         "projectless attachments, arbitrary local file or directory selection, paste, drop, and /open subject only to Codex permissions",
-        "Local or Worktree selection, starting branch, handoff, and snapshot or restore at new-task boundaries",
+        "New task Local or Worktree selection with optional starting branch and create or reuse managed worktree behavior",
         "send action",
         "single composer-first home input with context strip and bottom action row",
         "permission and access mode in user language",
@@ -404,7 +416,9 @@
         "Home footer feedback icon",
         "Home footer favorite/star icon",
         "Home footer web/access globe icon",
-        "per-assistant running badges derived from module or domain lane diagnostics"
+        "per-assistant running badges derived from module or domain lane diagnostics",
+        "existing-task Local or Worktree handoff controls on Home",
+        "snapshot, restore, or worktree cleanup controls claimed as available on Home"
       ],
       "state_source": "opl app state --profile fast --json",
       "refresh_source": "opl app state --profile fast --json",
@@ -480,6 +494,21 @@
           "composer_persistence_after_send": "none",
           "fabricated_defaults_allowed": false,
           "artifact_body_copy_allowed": false
+        },
+        "environment_workspace_handoff": {
+          "contract_ref": "contracts/app-gui-product-contract.json#interaction_baseline.conversation_scope.local_worktree_lifecycle",
+          "surface": "conversation_environment",
+          "scope": "same_host_existing_task",
+          "actions": ["local_to_worktree", "worktree_to_local"],
+          "eligible_thread_states": ["not_loaded", "idle"],
+          "unavailable_thread_states": ["running", "archived", "system_error"],
+          "protocol": "thread/settings/update",
+          "failure_policy": "show_unavailable_or_error_without_silent_fallback",
+          "projection_transaction": "codex_thread_cwd_first_then_aionui_projection_with_best_effort_cwd_rollback",
+          "permission_boundary": "codex_permission_approval_and_sandbox_only_no_opl_cross_directory_gate",
+          "snapshot_restore_state": "deferred_not_implemented",
+          "cleanup_state": "deferred_not_exposed",
+          "cross_host_state": "unsupported_unavailable"
         },
         "transcript_export": {
           "scope": "current_conversation_transcript_only",
@@ -613,6 +642,9 @@
         "permission and access mode in user language",
         "projectless text conversation when no workspace is selected",
         "projectless attachments, arbitrary local file or directory selection, paste, drop, and /open subject only to Codex permissions",
+        "same-host Local or Worktree handoff for an existing not-loaded or idle task from Conversation Environment",
+        "running, archived, or system-error task handoff shown unavailable without silent fallback",
+        "Codex thread cwd updated before AionUI projection with best-effort cwd rollback on projection failure",
         "assistant route receipt",
         "Codex default model and reasoning status",
         "current task status slice when a task is active",
@@ -631,6 +663,9 @@
         "new task dashboard inside conversation",
         "persistent project, workspace, locality, branch, attachment, or project-ref context strip",
         "backend, provider, Team, raw MCP, or arbitrary skills in the mobile plus sheet",
+        "Local or Worktree handoff control inside the primary composer",
+        "snapshot, restore, or worktree cleanup controls claimed as available",
+        "cross-host handoff shown as successful or available",
         "duplicate current task or Runtime summary outside the message timeline",
         "workspace bundle export authorization"
       ],
@@ -699,7 +734,7 @@
           "target_not_found",
           "target_archived",
           "target_not_writable",
-          "cross_host_direct_delivery_unsupported_use_handoff",
+          "cross_host_delivery_unsupported",
           "codex_permission_denied_or_approval_required"
         ],
         "advisory_signals": [
@@ -749,7 +784,7 @@
         ],
         "unknown_or_stale_status_policy": "refresh_then_route_or_protocol_failure",
         "idempotency_policy": "same_opaque_request_or_idempotency_key_retry_returns_first_receipt_and_result_ok_true_without_second_dispatch_message_content_repeat_allowed",
-        "cross_host_policy": "handoff_only_no_direct_cross_host_message",
+        "cross_host_policy": "unsupported_unavailable_no_success_projection",
         "opl_extra_confirmation_policy": "none_including_archive_cross_project_cross_workspace_workspace_write_write_set_overlap_running_steer_and_loop_advisory",
         "same_agent_tree_api_boundary": "spawn_agent_send_input_wait_agent_same_tree_only"
       },
@@ -760,7 +795,7 @@
         "project and workspace are default cwd, grouping and visible metadata rather than authorization domains",
         "write-set overlap, repeated routes and project or workspace differences remain advisory and auditable without blocking dispatch",
         "same idempotency key retry returns the first receipt and result with ok true without a second dispatch",
-        "cross-host transitions use handoff instead of direct message delivery",
+        "cross-host coordination is explicitly unavailable and never projected as successful",
         "Codex-native permission and approval results remain visible in audit receipts"
       ],
       "must_not_show": [
