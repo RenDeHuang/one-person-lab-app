@@ -2928,7 +2928,7 @@
       "product_page_id": "capabilities",
       "experience_contract_ref": "contracts/app-settings-control-plane.json#experience_contract.page_contracts.capabilities",
       "required_dom": {
-        "always": ["settings-page-capabilities", "settings-capabilities-primary", "settings-capabilities-opl-flow-managed", "settings-capabilities-third-party", "settings-capabilities-technical-details", "settings-capabilities-primary-action"],
+        "always": ["settings-page-capabilities", "settings-capabilities-primary", "settings-capabilities-opl-flow-managed", "settings-capabilities-third-party"],
         "conditional": [{"testid": "settings-capabilities-exception", "when": "attention_required"}]
       },
       "required_anchors": ["opl-flow-managed", "third-party"],

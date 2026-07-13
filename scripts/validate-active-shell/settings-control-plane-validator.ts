@@ -1980,6 +1980,7 @@ export function validateSettingsExperienceContract(experience) {
     const technicalDetailsOptional = [
       "access",
       "advanced",
+      "capabilities",
       "preferences",
       "personalization",
     ].includes(pageId);

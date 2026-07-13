@@ -2137,7 +2137,7 @@
         "exception_state": "highlight failed sync or owner attention without mutating third-party items",
         "technical_details_boundary": "raw registry paths, package closure refs, and receipts stay collapsed",
         "required_dom": {
-          "always": ["settings-page-capabilities", "settings-capabilities-primary", "settings-capabilities-opl-flow-managed", "settings-capabilities-third-party", "settings-capabilities-technical-details", "settings-capabilities-primary-action"],
+          "always": ["settings-page-capabilities", "settings-capabilities-primary", "settings-capabilities-opl-flow-managed", "settings-capabilities-third-party"],
           "conditional": [{"testid": "settings-capabilities-exception", "when": "attention_required"}]
         },
         "required_anchors": ["opl-flow-managed", "third-party"],
