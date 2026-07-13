@@ -2,7 +2,7 @@
 
 Owner: `one-person-lab-app`
 Purpose: `aionui_mainline_gui_convergence_plan`
-State: `active_currentness_refresh`
+State: `release_closeout_in_progress`
 Updated: `2026-07-13`
 Machine boundary: 本文是 AionUI 主线 GUI 的执行计划、结果 read model 和终局验收表。
 产品功能、交互、视觉和机器验收仍分别归 GUI 三层文档、`contracts/`、validators、Shell
@@ -36,11 +36,13 @@ fresh gate、pixels、package/user path 和远端回读为准。
 
 | Surface | Fresh 状态 | 边界 |
 | --- | --- | --- |
-| App authority refresh | 本轮隔离 lane 基于 `f24f748c8d026dceef571833877c996ec5458cee` | 同步 GUI ancestor/current HEAD 分离、v2.1.33 review、artifact ref adapter 与跨顶层线程合同；最终 main currentness 由 Git remote readback 证明，不在文档中递归嵌入自身 HEAD。 |
-| Shell current main | `3be63c4bed581de251016e80a3b47cd8f3a6cd29`；最低 GUI conformance ancestor 为 `9b3b3dd09546bc1360b8c27ad655b60b61768b89` | 本轮用独立 lanes 实现 artifact adapter、验收矩阵、navigation regression 与 thread coordination；最终 integration 尚未形成。 |
+| App authority refresh | 本轮隔离 lane 基于 `c400bea72992867dda3b79df29c26d6b3c569fac` | GUI ancestor/current HEAD 分离、v2.1.33 review、artifact ref adapter、跨顶层线程合同与 source validator 已统一；最终 App main currentness 由 Git remote readback 证明，不在文档中递归嵌入自身 HEAD。 |
+| Shell final source cohort | `23ecc94a7a4985461135ecc840186fb71a72745a`；最低 GUI conformance ancestor 为 `9b3b3dd09546bc1360b8c27ad655b60b61768b89` | Artifact adapter、验收矩阵、navigation regression 与 thread coordination 已统一集成；仍需 main absorption/push readback，不能从 source cohort 推导 installed/release-ready。 |
 | Latest reviewed upstream | `v2.1.33@a819d175683d5a0aada20064888da07bfcecdb6a` | 相比已评估 GUI cohort 无 GUI delta；不整体 merge，release/runtime intake 单独处理。 |
 | Product profile | 使用 App 官方生成器和当前 OPL Flow workflow policy 对 Shell generated profile 重建后，`jq -S` canonical diff 为空 | Generated profile 的 compatibility projection 包含由 OPL Flow policy 派生的字段；不要求与 raw App JSON 字节相等，不提交纯格式噪音。 |
 | Verified GUI ancestor gates | Shell `9b3b3dd...`：full suite `283 files / 2086 tests` 通过、`1 file / 3 tests` skip；root TypeScript、1490-file format、i18n 通过。App active-shell quick 通过；release-boundary `257 pass / 2 platform skip / 0 fail` | 证明最低 GUI ancestor，不证明当前 main 或本轮 final integration。 |
+| Final source gates | Shell `23ecc94a...`：full suite `292 files / 2164 tests` 通过、`1 file / 3 tests` skip；TypeScript、1513-file format、i18n、lint `0 errors / 859 warnings`、production source package 与 desktop/mobile dev Electron E2E `2/2` 通过。App active-shell quick 通过；release-boundary `269 pass / 2 platform skip / 0 fail` | 证明当前 source、tests 与 source package build；不是 packaged E2E、current pixels、安装或 release promotion。 |
+| Live App Server protocol | Codex CLI `0.144.1` + 临时 `CODEX_HOME`：两条 materialized top-level threads 完成 list/source-hint、target turn/start/result/read、resume、fork 与 archive readback | 证明 production adapter 的本机 protocol wire；未覆盖 `turn/steer` 竞态、Shell packaged two-root UI 或 remote host。 |
 | Historical source gates | exact `0ebc1fdd278e8a79602458e15e28cf814dfd917d`：`test:full` 282 files pass / 1 skip、2044 tests pass / 3 skip；TypeScript、1487-file format、i18n 与 lint 0 errors | 只属于历史 cohort。 |
 | Historical core visual evidence | `docs/product/gui/evidence/aionui-41301/manifest.json` 绑定 Shell `0ebc1fdd...`、`E2E_PACKAGED=1`、时间 `2026-07-11T21:16:06.183Z` 和 8 个 route/layout 场景 | Manifest 与截图保持原字节/原 SHA；final `9b3b3dd...` pixels 为 unverified。 |
 | Historical Settings evidence | `docs/product/gui/assets/settings-desktop-light-manifest-20260712.json` 绑定 Shell `fadd91f9...` 的 14-entry desktop Light matrix | 精确历史证据，不外推为当前 Settings pixels。 |
@@ -77,7 +79,7 @@ first-run、中英文，以及本轮纳入 authority 的跨顶层线程协调不
 | --- | --- | --- | --- |
 | 功能层 | [`feature-inventory.md`](../product/gui/feature-inventory.md)、App contracts | `human_target_refreshed` | 非降级边界、Home/Settings capability 分工与 package activation 已更新；machine contract 同步必须单独通过 validator。 |
 | 理想交互与视觉层 | [`ideal-interaction-spec.md`](../product/gui/ideal-interaction-spec.md)、[`visual-system.md`](../product/gui/visual-system.md)、[`codex-to-opl-app-delta.md`](../product/gui/codex-to-opl-app-delta.md)、[`element-audit.md`](../product/gui/element-audit.md) | `aligned_current_target` | Project 归 rail，branch/locality 归 Environment；rail 只保留 New task/Runtime/Archived；Home starter 不截断并 fail-closed launch。 |
-| Shell 实现层 | [`shell-implementation-guide.md`](../product/gui/shell-implementation-guide.md)、[`shell-conformance-matrix.md`](../product/gui/shell-conformance-matrix.md) | `current_integration_in_progress` | GUI ancestor 已验证；本轮 Artifact、Acceptance、Navigation 与 Thread coordination lanes 需统一集成后重跑 full gates。 |
+| Shell 实现层 | [`shell-implementation-guide.md`](../product/gui/shell-implementation-guide.md)、[`shell-conformance-matrix.md`](../product/gui/shell-conformance-matrix.md) | `current_source_implemented` | Artifact、Acceptance、Navigation 与 Thread coordination 已统一集成并通过 full source/package gates；current pixels 与 packaged user-path evidence 独立保留为未验证。 |
 
 ## OPL 已采纳能力收敛结果
 
@@ -124,30 +126,33 @@ Shell package/version 和 AionCore intake 继续作为独立维护工作。选�
 
 ### 当前 refresh 边界
 
-1. App GUI machine contract 与本轮人读 target 已在隔离 lane 同步，focused design-system gate 先行通过；
-   final active-shell 与 release-boundary 必须绑定本轮最终 Shell cohort 重跑；
-2. Artifact、Acceptance 与 Navigation lanes 已返回 clean commits；Thread coordination lane 尚在实施，
-   当前 Shell focused/full source gates 尚未对最终 integration 运行；
+1. App GUI machine contract 与本轮人读 target 已同步；design-system、active-shell quick 与完整
+   release-boundary 已绑定最终 Shell source cohort通过；
+2. Artifact、Acceptance、Navigation 与 Thread coordination 已统一集成。Shell full suite、
+   TypeScript、format、i18n、lint、production source package 和 desktop/mobile dev Electron E2E
+   已通过；Codex `0.144.1` 两根线程 protocol smoke 已闭合 list/read/start/result/resume/fork/archive；
 3. 当前核心 pixels 仅在需要声明 current visual 时重建，且生成新 manifest，不修改旧 evidence SHA；
-4. 当前 package/install/user path 不属于本次文档/source currentness 完成声明；push/readback 与 lane
-   cleanup 仍是 Git closeout hard gate。
+4. Packaged two-root UI、`turn/steer` live 竞态、package activating 独立状态、真实 bridge approval
+   injection 和 Desktop/WebUI 同场景 parity 仍是明确专项 gap；当前 install/user path 不属于本次
+   source currentness 完成声明；push/readback 与 lane cleanup 仍是 Git closeout hard gate。
 
 ## 完成度审计表
 
 | Requirement | 当前状态 | 完成证据 |
 | --- | --- | --- |
 | 41301 human target 与三层文档一致 | `done_current_refresh` | 五份产品定义文档已收敛 rail/Home/Settings 与 package readiness 语义。 |
-| App machine authority 与三层文档一致 | `in_progress_this_refresh` | Artifact、GUI ancestor 和跨顶层 thread authority 已进入隔离 lane，待 final Shell integration 后运行 combined gates。 |
-| Shell GUI behavior 与 OPL 非降级边界一致 | `in_progress_this_refresh` | 当前 main 包含 GUI ancestor；Artifact、Acceptance、Navigation 与 Thread coordination 独立 lanes 待统一 review/integration。 |
-| Cross-thread coordination | `contract_target_source_in_progress` | ADR、machine contract、page state 已定义；adapter/DOM/package two-root-thread evidence 尚未完成。 |
+| App machine authority 与三层文档一致 | `done_current_refresh` | Artifact、GUI ancestor 和跨顶层 thread authority 已进入 contracts/page-state/validators，并通过 combined gates。 |
+| Shell GUI behavior 与 OPL 非降级边界一致 | `done_source_currentness` | Final integration 已通过 full source、package build、E2E 与 App combined gates；未采纳 AionUI 面未进入 ordinary IA。 |
+| Cross-thread coordination | `source_implemented_packaged_acceptance_pending` | Contract、host adapter、DOM、安全负例与 Codex `0.144.1` 两根线程 live protocol 已闭合；packaged UI two-root、live steer 与 remote host 仍未声明。 |
 | Generated profile current | `done_semantic` | 官方生成器重建后 canonical JSON diff 为空；未提交纯格式差异。 |
 | Core visual matrix | `historical_only_current_unverified` | 8-entry manifest 继续精确绑定 `0ebc1fdd...`；当前 pixels 不沿用。 |
-| Package/install/user path | `historical_only_current_unverified` | `26.7.12` evidence 早于当前 Shell。 |
+| Package/install/user path | `source_package_only_current_unverified` | Production source package 通过；`26.7.12` 安装证据早于当前 Shell，不能提升为 current。 |
 | Main absorption/push/readback | `closeout_gate` | 不作为产品设计层完成度；以最终 `git ls-remote` 精确回读为准。 |
 | Lane cleanup | `pending_this_refresh` | 只在 absorption audit 后清理本轮 worktrees。 |
 
-本文状态为 `active_currentness_refresh`；machine target 已定义，final source currentness、current
-pixels 与 package/user path 尚未闭合；`release_ready=false` 与 `parity_1_to_1=false` 保持不变。
+本文状态为 `release_closeout_in_progress`；machine target 与 final source currentness 已闭合，main
+absorption/push/readback 与 lane cleanup 尚待 Git closeout。Current pixels、packaged user path 与 release
+promotion 不属于本轮已完成证据；`release_ready=false` 与 `parity_1_to_1=false` 保持不变。
 
 ## 维护边界
 

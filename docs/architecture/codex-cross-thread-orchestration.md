@@ -2,11 +2,11 @@
 
 Owner: `one-person-lab-app`
 Purpose: `opl_app_cross_thread_orchestration_boundary`
-State: `accepted_product_target_implementation_pending`
+State: `accepted_product_target_source_implemented`
 Date: `2026-07-13`
-Machine boundary: 本文定义产品和架构目标，不证明 active shell 已实现。用户可见行为、
-page-state acceptance 和 release gate 必须后续进入 App contracts、validators、shell
-source/tests 与 packaged evidence，才能提升实现状态。
+Machine boundary: 本文定义产品和架构目标。App contracts、page-state、active-shell validator、
+Shell host adapter/source/tests 和本机 Codex App Server protocol smoke 已实现；current pixels、
+packaged two-root UI、installed user path、remote host 与 release promotion 仍需独立 evidence。
 
 ## 结论
 
@@ -285,9 +285,9 @@ test 替代远程或 packaged evidence。
 实现完成声明必须绑定 exact App/Shell SHA、App Server/Codex 版本、package fingerprint 和用户路径
 证据。文档、contract、mock adapter 或 focused test 均不能单独证明 packaged capability。
 
-## 后续 authority 吸收
+## Authority 与实现状态
 
-本文接受后，产品 owner 必须把目标语义吸收到以下现有 authority，不创建平行 machine model：
+产品 owner 已把目标语义吸收到以下现有 authority，未创建平行 machine model：
 
 - `docs/product/gui/feature-inventory.md`：新增 OPL adopted cross-thread capability；
 - `docs/product/gui/ideal-interaction-spec.md`：定义 rail、composer、timeline 和 mobile 交互；
@@ -297,5 +297,12 @@ test 替代远程或 packaged evidence。
 - `contracts/app-page-state-matrix.json`：定义状态和负例 acceptance；
 - active-shell validators/tests：证明 shell 消费 App truth，且未退化为同一 agent tree only。
 
-在这些 authority 与实现证据落地前，本文状态保持
-`accepted_product_target_implementation_pending`。
+当前 source cohort 已实现 production App Server `thread/*` / `turn/*` adapter、project-scoped
+thread directory、detail/actions、permission/dedupe/loop/project/workspace/write-set gates 和可见 audit
+receipt；focused/full tests、source package、desktop/mobile dev Electron E2E 及 Codex CLI `0.144.1`
+隔离两根线程 protocol smoke 已通过。状态因此提升为
+`accepted_product_target_source_implemented`。
+
+该状态不等于 packaged 产品验收。Packaged UI 两根线程端到端、live `turn/steer` 竞态、current
+pixels、remote host、安装路径与 release promotion 仍按验收矩阵独立关闭，未取得证据前不得宣称
+`packaged_ready`、`remote_ready` 或 `release_ready`。

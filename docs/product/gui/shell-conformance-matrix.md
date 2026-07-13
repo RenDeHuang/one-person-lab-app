@@ -65,6 +65,13 @@ Active AionUI 默认状态通过 README 治理段声明的动态 state source �
   `1 file / 3 tests` skip；root TypeScript、1490-file format 与 i18n 通过（23 个既有
   warning-only unknown keys）。App active-shell quick 通过；release-boundary 为
   `257 pass / 2 platform skip / 0 fail`。临时 dependency/checkout links 已清理。
+- Final source cohort：Shell `23ecc94a7a4985461135ecc840186fb71a72745a` full suite
+  `292 files / 2164 tests` 通过、`1 file / 3 tests` skip；TypeScript、1513-file format、i18n、
+  lint `0 errors / 859 warnings`、production source package 与 desktop/mobile dev Electron E2E
+  `2/2` 通过。App active-shell quick 与 release-boundary `269 pass / 2 platform skip / 0 fail`
+  通过。Codex CLI `0.144.1` 隔离 live smoke 另证明两个 materialized top-level threads 的
+  list/source-hint、turn/start/result/read、resume、fork 与 archive protocol wire；这些证据仍不等于
+  packaged E2E、current pixels、installed path 或 release-ready。
 - Historical source gates：Shell `0ebc1fdd...` 的 `test:full` 为 `282 files pass / 1 skip`、
   `2044 tests pass / 3 skip`；TypeScript、1487-file format、i18n 与 lint `0 errors / 854 warnings`。
   这些结果只属于历史 source cohort，不能直接升级为 current source gates。
@@ -120,8 +127,8 @@ Active AionUI 默认状态通过 README 治理段声明的动态 state source �
 | P1 | OPL capabilities | Purpose 从 Home starter 选择，composer 只显示 active capability；管理进入 Settings。 | Home package shortcuts、Settings directory/visibility/lifecycle 与 fail-closed readiness gate 已实现；generic backend/provider/Team 未回 ordinary UI。 | `source_implemented`, `pixel_unverified` | 补 current unavailable/activating/blocked starter pixels。 |
 | P1 | Progress / approval / receipt | 进入当前 timeline 与 task summary。 | Current-task summary 保持 timeline 单一实例；普通任务不默认 sticky。 | `source_implemented`, `pixel_unverified` | 后续补真实长任务/approval route evidence。 |
 | P1 | Artifacts / evidence | Environment 次级 refs、Preview、Files 或 turn disclosure。 | Files 与 Preview 按需且窄屏互斥；mobile Preview 使用完整可读 overlay；transcript export 已按 cursor 与脱敏合同加固。 | `source_implemented`, `pixel_unverified` | 历史像素保留；PDF/Mermaid/KaTeX 等 renderer 另做专项 evidence。 |
-| P1 | Artifact preview adapter | Canonical refs 薄接现有 Preview surface，body external-owner，unsafe/unsupported fail closed。 | 独立 source lane 复用现有 renderer，不新增 store；待 final integration。 | `source_in_progress`, `pixel_unverified` | Review adapter/failure tests 后吸收；专项 renderer pixels 独立取证。 |
-| P1 | Cross-thread coordination | Project-scoped thread directory + on-demand detail；App Server list/read/resume/fork/archive/start/steer；OPL host permission/dedupe/loop/scope/write-set/audit。 | App authority 已定义，Shell host/renderer 独立 lane 实施中。 | `source_in_progress`, `pixel_unverified` | 禁止用同 tree `send_input` 代替；需 adapter、DOM、packaged two-root-thread evidence。 |
+| P1 | Artifact preview adapter | Canonical refs 薄接现有 Preview surface，body external-owner，unsafe/unsupported fail closed。 | Final source cohort 复用现有 Preview renderer/store；workspace 内 canonical refs 可打开，unsafe/unsupported/missing refs fail closed。 | `source_implemented`, `pixel_unverified` | PDF/Mermaid/KaTeX 等 renderer current pixels 独立取证。 |
+| P1 | Cross-thread coordination | Project-scoped thread directory + on-demand detail；App Server list/read/resume/fork/archive/start/steer；OPL host permission/dedupe/loop/scope/write-set/audit。 | Production App Server adapter、rail/detail/actions、receipt/audit 与安全 gates 已接线；Codex `0.144.1` 两根线程 protocol smoke 通过。 | `source_implemented`, `pixel_unverified` | 禁止用同 tree `send_input` 代替；packaged two-root UI、live steer 竞态和 remote host 仍需专项 evidence。 |
 | P2 | Settings | Secondary configuration/control surface，保持 OPL IA。 | 四类 surface 与 bounded cards 已进入 source；本次 core matrix 不复用旧 Settings pixels。 | `source_implemented`, `pixel_unverified` | 冻结 IA，只修回归；按需要重建当前 Settings evidence。 |
 
 ## Cross-shell Detail Appendix
@@ -176,10 +183,11 @@ Native candidate 不得与 active-shell P0 差距竞争实施资源。
   本轮 final integration 更不得沿用旧 pixels。
 - **Package readiness pixels：** unavailable、activating、blocked、repair/doctor 等新状态尚无
   current route/viewport evidence。
-- **Cross-thread coordination：** machine target 已定义；host adapter、rail/detail/timeline/mobile
-  DOM 与 packaged 两个独立根线程 list -> read -> dispatch -> result -> source readback 尚待闭合。
-- **Artifact ref adapter：** canonical ref 到既有 Preview 的 source/failure tests 已在隔离 lane 完成，
-  待 final integration；PDF/Mermaid/KaTeX 等 renderer current pixels 仍需专项证据。
+- **Cross-thread coordination：** host adapter、rail/detail/actions、receipt/audit、DOM/security tests 与
+  Codex `0.144.1` 两根线程 live protocol 已闭合；packaged UI 的 list -> read -> dispatch -> result ->
+  source readback、live `turn/steer` 竞态与 remote host 仍需专项证据。
+- **Artifact ref adapter：** canonical ref 到既有 Preview 的 source/failure tests 已进入 final source
+  cohort；PDF/Mermaid/KaTeX 等 renderer current pixels 仍需专项证据。
 - **Settings pixels：** 14-entry desktop Light manifest 绑定 `fadd91f9...`；不把该历史图提升为
   current Settings pixel evidence。
 - **Native contract/source：** candidate contract 与 visual parity 仍绑定 superseded
