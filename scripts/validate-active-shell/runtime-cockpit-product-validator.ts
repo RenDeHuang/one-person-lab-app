@@ -344,6 +344,7 @@ export function validateRuntimeCockpitProductContract(contract, label) {
       projection_inference_allowed: false,
       identity_inference_allowed: false,
       status_derivation_allowed: false,
+      technical_execution_stage_may_replace_business_stage: false,
       raw_id_default_visibility: false,
     },
     `${label}.renderer_policy`,

@@ -78,6 +78,7 @@ test('Runtime product rejects list, status, detail, availability, and renderer r
     (contract: any) => { contract.work_item_detail.secondary_sections = ['artifacts', 'timeline']; },
     (contract: any) => { contract.agent_availability_panel.task_counts_allowed = true; },
     (contract: any) => { contract.renderer_policy.status_derivation_allowed = true; },
+    (contract: any) => { contract.renderer_policy.technical_execution_stage_may_replace_business_stage = true; },
     (contract: any) => { contract.progressive_disclosure.raw_technical_fields_default_visible = true; },
   ]) {
     const gui = runtimeContract();

@@ -144,6 +144,11 @@ Shell 不得从原始字段重新推断。
 一篇论文或一个 work item 只显示一行，row key 为 `identity.work_item_id`。去重由 Framework
 canonical projection 完成，Shell 不按标题、stage、binding 或最近时间启发式合并。
 
+当前业务 stage 只读取 canonical `current_stage` 投影。`execution.stage_id` 属于运行尝试诊断，
+不得在业务 stage 为空时回退展示；例如已交付暂停的论文不能把
+`runtime_token_telemetry_verification` 显示成当前论文阶段。历史运行仍可贡献经过观测的任务累计
+Token，但不能改写业务阶段或 lifecycle 状态。
+
 在 375、768、1024 和 1440 px 验收视口中，页面不得横向溢出或文字重叠。窄屏按语义重排
 为堆叠行，不把四列硬塞入固定最小宽度表格。
 
