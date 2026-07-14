@@ -4399,7 +4399,7 @@
             "app_update_status_and_trigger"
           ],
           "footer_account_entry_policy": "show_gateway_display_name_when_connected_else_settings_on_all_routes_and_open_account_gateway_or_overview",
-          "footer_update_entry_policy": "reuse_existing_carrier_updater_or_settings_maintenance_route_without_owning_update_truth",
+          "footer_update_entry_policy": "show_confirmed_newer_app_update_as_account_row_trailing_action_and_reuse_existing_carrier_updater_without_owning_update_truth",
           "footer_theme_quick_toggle_allowed": false,
           "footer_secondary_navigation_allowed": false,
           "appearance_mode_values": ["system", "light", "dark"],

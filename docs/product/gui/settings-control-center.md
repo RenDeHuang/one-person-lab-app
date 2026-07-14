@@ -142,6 +142,29 @@ and a path shown in diagnostics is not a second path configuration.
 | How much local and Docker data is used, and what can be cleaned safely? | Data & Storage | Maintenance may link to cleanup attention; the Workspace-owned log path may be referenced read-only. | Log-directory configuration or generic Docker prune. |
 | How should the App behave and look? | Preferences | Theme legacy routes redirect here. | Workspace paths, user instructions, or OPL App context. |
 
+## Visual Contract
+
+Settings keeps the OPL bounded-card control-center structure while using the
+shared Codex-aligned typography, color, radius, spacing, icon, and interaction
+baseline. Quiet and scannable describe the tone; they do not turn complex OPL
+controls into a page-wide list wall or nested cards.
+
+- the compact footer always shows the connected Gateway display name, otherwise
+  Settings; it opens Account & Gateway or Overview;
+- only a confirmed newer App version adds a subtle trailing update action on
+  that same account row; the footer has no theme, return, or help shortcut;
+- Preferences exposes System, Light, and Dark only; the CSS theme gallery and
+  custom editor are hidden, while legacy theme data is preserved but inactive;
+- the governed OPL visual baseline remains active in all three appearance modes;
+- maximum radius is 8 px, spacing follows 12 / 16 / 24 px, and letter spacing is
+  0;
+- raw diagnostics stay out of ordinary pages and open only through an explicit
+  Diagnostics action.
+
+The App product profile and active Shell generated profile must project the
+complete visual-system object. A stale generated profile must not restore the
+retired theme gallery, footer toggle, or old account destination.
+
 ## Page Contracts
 
 ### Overview

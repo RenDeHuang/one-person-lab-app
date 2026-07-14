@@ -3250,8 +3250,7 @@
   "theme_and_branding": {
     "default_theme_id": "default-theme",
     "allowed_theme_ids": [
-      "default-theme",
-      "codex"
+      "default-theme"
     ],
     "default_visible_product_name": "One Person Lab App",
     "ordinary_chrome_product_name": "One Person Lab",
