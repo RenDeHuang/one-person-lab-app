@@ -130,8 +130,9 @@ test('active-shell source gate preserves projectless local file inputs', () => {
 
 test('active-shell Runtime source gate allows canonical action refs but rejects legacy fallback reconstruction', () => {
   const canonicalActionRefs = [
-    "actionId: 'runtime_archive_attempt'",
-    'payloadRefsOnlyJson: { stage_attempt_id: stageAttemptId }',
+    "actionId: 'work_item_visibility_set'",
+    'payload.expected_generation = selectedItem.visibility.generation',
+    'const refreshedItem = findReadbackWorkItem(refreshedPayload, selectedItem)',
     'const workflow_id = canonicalWorkItem.workflowId',
   ].join('\n');
 
