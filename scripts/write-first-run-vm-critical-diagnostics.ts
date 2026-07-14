@@ -13,6 +13,7 @@ type FailureType =
   | 'opl_configure_codex_failed'
   | 'settings_smoke_failed'
   | 'assistant_route_smoke_failed'
+  | 'opl_command_output_buffer_exhausted'
   | 'app_ready_failed'
   | 'vm_smoke_failed'
   | 'vm_harness_preflight_failed';
@@ -144,6 +145,18 @@ function classifyFailure(): {
   }
   if (
     failureStage === 'run_guest_smoke' &&
+    includesAny(errorText, ['enobufs', 'output buffer', 'buffer_exhausted'])
+  ) {
+    return {
+      type: 'opl_command_output_buffer_exhausted',
+      boundary: 'guest_opl_command_output_buffer',
+      reason: 'Guest App and OPL command execution reached the runtime evidence stage, but the smoke harness exhausted its bounded command-output buffer. Update the pinned smoke harness and rerun the same artifact.',
+      tartSummary,
+      guestSummary,
+    };
+  }
+  if (
+    failureStage === 'run_guest_smoke' &&
     includesAny(errorText, [
       'could not select opl built-in assistant',
       'selected opl built-in assistant',
@@ -211,6 +224,8 @@ function retryEntry(failureType: FailureType) {
     `-f package_profile=${profile}`,
     `-f diagnostic_scope=${diagnosticScope}`,
   ];
+  const workflowRef = env('GITHUB_REF_NAME');
+  if (workflowRef) args.push(`--ref ${workflowRef}`);
   if (releaseArtifactName) {
     args.push(`-f release_artifact_name=${releaseArtifactName}`);
     args.push(`-f release_artifact_run_id=${releaseArtifactRunId}`);
@@ -219,11 +234,16 @@ function retryEntry(failureType: FailureType) {
   } else if (releaseTag) {
     args.push(`-f release_tag=${releaseTag}`);
   }
+  if (env('ARTIFACT_APP_SHA')) args.push(`-f artifact_app_ref=${env('ARTIFACT_APP_SHA')}`);
+  if (env('PRODUCT_SHELL_SHA')) args.push(`-f shell_ref=${env('PRODUCT_SHELL_SHA')}`);
+  if (env('SMOKE_HARNESS_SHELL_SHA')) args.push(`-f smoke_harness_ref=${env('SMOKE_HARNESS_SHELL_SHA')}`);
   const action = failureType === 'none'
     ? 'none'
     : failureType === 'release_asset_missing'
       ? 'provide_existing_dmg_or_release_artifact_then_rerun_vm'
-      : 'rerun_diagnostic_same_artifact';
+      : failureType === 'opl_command_output_buffer_exhausted'
+        ? 'update_smoke_harness_then_rerun_same_artifact'
+        : 'rerun_diagnostic_same_artifact';
   return {
     action,
     scope: 'vm_qualification_only_same_cohort',
@@ -268,6 +288,10 @@ function main(): void {
       release_artifact_name: env('RELEASE_ARTIFACT_NAME'),
       release_artifact_run_id: releaseArtifactRunId,
       release_artifact_run_id_input: env('RELEASE_ARTIFACT_RUN_ID'),
+      artifact_app_sha: env('ARTIFACT_APP_SHA'),
+      product_shell_sha: env('PRODUCT_SHELL_SHA'),
+      smoke_harness_app_sha: env('SMOKE_HARNESS_APP_SHA'),
+      smoke_harness_shell_sha: env('SMOKE_HARNESS_SHELL_SHA'),
     },
     step_conclusions: {
       tart_source: env('TART_SOURCE_CONCLUSION') || 'unknown',

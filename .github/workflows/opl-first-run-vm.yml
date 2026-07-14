@@ -27,10 +27,18 @@ on:
         description: 'Stable release cohort sha256 identity for release-bound qualification.'
         required: false
         type: string
+      artifact_app_ref:
+        description: 'App SHA recorded in the existing build artifact cohort. Empty uses this workflow commit.'
+        required: false
+        type: string
       shell_ref:
-        description: 'opl-aion-shell ref containing the first-run smoke scripts. Empty means main.'
+        description: 'Product opl-aion-shell ref recorded in the build artifact cohort. Empty means main.'
         required: false
         default: main
+        type: string
+      smoke_harness_ref:
+        description: 'Separately pinned opl-aion-shell ref containing the verification scripts. Empty uses shell_ref.'
+        required: false
         type: string
       framework_ref:
         description: 'one-person-lab Framework ref to inject into the VM as the standard bootstrap source. Empty keeps the packaged installer default.'
@@ -125,10 +133,18 @@ on:
         description: 'Stable release cohort sha256 identity for release-bound qualification.'
         required: false
         type: string
+      artifact_app_ref:
+        description: 'App SHA recorded in the existing build artifact cohort. Empty uses this workflow commit.'
+        required: false
+        type: string
       shell_ref:
-        description: 'opl-aion-shell ref containing the first-run smoke scripts. Empty means main.'
+        description: 'Product opl-aion-shell ref recorded in the build artifact cohort. Empty means main.'
         required: false
         default: main
+        type: string
+      smoke_harness_ref:
+        description: 'Separately pinned opl-aion-shell ref containing the verification scripts. Empty uses shell_ref.'
+        required: false
         type: string
       framework_ref:
         description: 'one-person-lab Framework ref to inject into the VM as the standard bootstrap source. Empty keeps the packaged installer default.'
@@ -212,8 +228,12 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       package_profile: ${{ steps.diagnostic_inputs.outputs.profile }}
+      artifact_app_sha: ${{ steps.diagnostic_inputs.outputs.artifact_app_sha }}
       shell_ref: ${{ steps.diagnostic_inputs.outputs.shell_ref }}
       shell_sha: ${{ steps.shell_ref.outputs.shell_sha }}
+      smoke_harness_ref: ${{ steps.diagnostic_inputs.outputs.smoke_harness_ref }}
+      smoke_harness_sha: ${{ steps.smoke_harness_ref.outputs.shell_sha }}
+      qualification_scope_base64: ${{ steps.qualification_scope.outputs.proof_base64 }}
       framework_sha: ${{ steps.framework_ref.outputs.framework_sha }}
       diagnostic_scope: ${{ steps.diagnostic_inputs.outputs.diagnostic_scope }}
       skip_vm: ${{ steps.scheduled_release_guard.outputs.skip_vm || 'false' }}
@@ -303,6 +323,18 @@ jobs:
           if [ -z "$shell_ref" ]; then
             shell_ref="main"
           fi
+          smoke_harness_ref="${{ inputs.smoke_harness_ref }}"
+          if [ -z "$smoke_harness_ref" ]; then
+            smoke_harness_ref="$shell_ref"
+          fi
+          artifact_app_sha="${{ inputs.artifact_app_ref }}"
+          if [ -z "$artifact_app_sha" ]; then
+            artifact_app_sha="$GITHUB_SHA"
+          fi
+          if [[ ! "$artifact_app_sha" =~ ^[0-9a-fA-F]{40}$ ]]; then
+            echo "::error::artifact_app_ref must resolve to the exact 40-character App SHA recorded in the build cohort."
+            exit 1
+          fi
           diagnostic_scope="${{ inputs.diagnostic_scope }}"
           if [ -z "$diagnostic_scope" ]; then
             if [ "${{ github.event_name }}" = "schedule" ]; then
@@ -328,7 +360,9 @@ jobs:
             exit 1
           fi
           echo "profile=$profile" >> "$GITHUB_OUTPUT"
+          echo "artifact_app_sha=$artifact_app_sha" >> "$GITHUB_OUTPUT"
           echo "shell_ref=$shell_ref" >> "$GITHUB_OUTPUT"
+          echo "smoke_harness_ref=$smoke_harness_ref" >> "$GITHUB_OUTPUT"
           echo "diagnostic_scope=$diagnostic_scope" >> "$GITHUB_OUTPUT"
 
       - name: Validate active shell ref before VM runner work
@@ -362,6 +396,52 @@ jobs:
           fi
           echo "::error::opl-aion-shell ref '$shell_ref' does not exist; fix shell_ref before occupying the first-run VM harness."
           exit 1
+
+      - name: Validate smoke harness ref before VM runner work
+        id: smoke_harness_ref
+        shell: bash
+        run: |
+          set -euo pipefail
+          shell_ref="${{ steps.diagnostic_inputs.outputs.smoke_harness_ref }}"
+          repo_url="https://github.com/gaofeng21cn/opl-aion-shell.git"
+          shell_sha="$(git ls-remote "$repo_url" "refs/heads/$shell_ref" "refs/tags/$shell_ref" "$shell_ref" | awk 'NR==1 {print $1}')"
+          if [[ "$shell_sha" =~ ^[0-9a-fA-F]{40}$ ]]; then
+            echo "shell_sha=$shell_sha" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [[ "$shell_ref" =~ ^[0-9a-fA-F]{7,39}$ ]] &&
+             shell_sha="$(git ls-remote "$repo_url" | awk -v ref="$shell_ref" '$1 ~ "^" ref {print $1; exit}')" &&
+             [[ "$shell_sha" =~ ^[0-9a-fA-F]{40}$ ]]; then
+            echo "shell_sha=$shell_sha" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [[ "$shell_ref" =~ ^[0-9a-fA-F]{40}$ ]]; then
+            tmp_dir="$(mktemp -d)"
+            trap 'rm -rf "$tmp_dir"' EXIT
+            git -C "$tmp_dir" init -q
+            git -C "$tmp_dir" remote add origin "$repo_url"
+            if git -C "$tmp_dir" fetch --depth=1 origin "$shell_ref" >/dev/null 2>&1; then
+              shell_sha="$(git -C "$tmp_dir" rev-parse FETCH_HEAD)"
+              echo "shell_sha=$shell_sha" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+          echo "::error::opl-aion-shell smoke harness ref '$shell_ref' does not exist; fix smoke_harness_ref before occupying the first-run VM harness."
+          exit 1
+
+      - name: Prove same-artifact verification harness scope
+        id: qualification_scope
+        if: ${{ inputs.release_artifact_name != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          proof="$(node --experimental-strip-types scripts/qualification-harness-scope.ts \
+            --artifact-app-sha "${{ steps.diagnostic_inputs.outputs.artifact_app_sha }}" \
+            --verification-app-sha "$GITHUB_SHA" \
+            --artifact-shell-sha "${{ steps.shell_ref.outputs.shell_sha }}" \
+            --verification-shell-sha "${{ steps.smoke_harness_ref.outputs.shell_sha }}")"
+          proof_base64="$(printf '%s' "$proof" | base64 | tr -d '\n')"
+          echo "proof_base64=$proof_base64" >> "$GITHUB_OUTPUT"
 
       - name: Validate Framework ref before VM runner work
         id: framework_ref
@@ -422,7 +502,7 @@ jobs:
           fi
           node --experimental-strip-types scripts/validate-build-artifact-cohort.ts \
             --manifest artifacts/release-cohort/opl-build-cohort.json \
-            --app-sha "$GITHUB_SHA" \
+            --app-sha "${{ steps.diagnostic_inputs.outputs.artifact_app_sha }}" \
             --shell-sha "${{ steps.shell_ref.outputs.shell_sha }}" \
             --actions-run-id "${{ inputs.release_artifact_run_id || github.run_id }}" \
             --stable-session-id "${{ inputs.stable_session_id }}" \
@@ -490,7 +570,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           repository: gaofeng21cn/opl-aion-shell
-          ref: ${{ needs.validate-vm-inputs.outputs.shell_sha }}
+          ref: ${{ needs.validate-vm-inputs.outputs.smoke_harness_sha }}
           path: shells/aionui
           fetch-depth: 1
           sparse-checkout: scripts
@@ -868,7 +948,7 @@ jobs:
           node --experimental-strip-types scripts/validate-build-artifact-cohort.ts \
             --manifest artifacts/release-cohort/opl-build-cohort.json \
             --artifact "${{ steps.dmg.outputs.dmg_path }}" \
-            --app-sha "$GITHUB_SHA" \
+            --app-sha "${{ needs.validate-vm-inputs.outputs.artifact_app_sha }}" \
             --shell-sha "${{ needs.validate-vm-inputs.outputs.shell_sha }}" \
             --actions-run-id "${{ inputs.release_artifact_run_id || github.run_id }}" \
             --stable-session-id "${{ inputs.stable_session_id }}" \
@@ -1327,6 +1407,10 @@ jobs:
             echo "- Guest user: \`$GUEST_USER\`"
             echo "- SSH key: $SSH_KEY_STATUS"
             echo "- Release source: $RELEASE_SOURCE"
+            echo "- Artifact App SHA: \`${{ needs.validate-vm-inputs.outputs.artifact_app_sha }}\`"
+            echo "- Product Shell SHA: \`${{ needs.validate-vm-inputs.outputs.shell_sha }}\`"
+            echo "- Smoke harness App SHA: \`$GITHUB_SHA\`"
+            echo "- Smoke harness Shell SHA: \`${{ needs.validate-vm-inputs.outputs.smoke_harness_sha }}\`"
             echo "- Package profile: \`${{ steps.package_profile.outputs.profile }}\`"
             echo "- Diagnostic scope: \`${{ needs.validate-vm-inputs.outputs.diagnostic_scope }}\`"
             echo "- Install mode: \`${{ steps.package_profile.outputs.install_mode }}\`"
@@ -1489,7 +1573,11 @@ jobs:
               release_dmg_url_configured: process.env.RELEASE_DMG_URL_CONFIGURED === 'true',
               release_artifact_name: process.env.RELEASE_ARTIFACT_NAME || '',
               release_artifact_run_id: process.env.RELEASE_ARTIFACT_RUN_ID || '',
-              shell_ref: process.env.SHELL_REF || 'main',
+              artifact_app_sha: process.env.ARTIFACT_APP_SHA || '',
+              product_shell_ref: process.env.PRODUCT_SHELL_REF || 'main',
+              product_shell_sha: process.env.PRODUCT_SHELL_SHA || '',
+              smoke_harness_ref: process.env.SMOKE_HARNESS_REF || process.env.PRODUCT_SHELL_REF || 'main',
+              smoke_harness_sha: process.env.SMOKE_HARNESS_SHA || '',
             },
             vm: {
               source_vm: process.env.SOURCE_VM,
@@ -1597,7 +1685,11 @@ jobs:
           RELEASE_DMG_URL_CONFIGURED: ${{ inputs.release_dmg_url != '' && 'true' || 'false' }}
           RELEASE_ARTIFACT_NAME: ${{ inputs.release_artifact_name }}
           RELEASE_ARTIFACT_RUN_ID: ${{ inputs.release_artifact_run_id }}
-          SHELL_REF: ${{ inputs.shell_ref || 'main' }}
+          ARTIFACT_APP_SHA: ${{ needs.validate-vm-inputs.outputs.artifact_app_sha }}
+          PRODUCT_SHELL_REF: ${{ needs.validate-vm-inputs.outputs.shell_ref }}
+          PRODUCT_SHELL_SHA: ${{ needs.validate-vm-inputs.outputs.shell_sha }}
+          SMOKE_HARNESS_REF: ${{ needs.validate-vm-inputs.outputs.smoke_harness_ref }}
+          SMOKE_HARNESS_SHA: ${{ needs.validate-vm-inputs.outputs.smoke_harness_sha }}
           DIAGNOSTIC_SCOPE: ${{ needs.validate-vm-inputs.outputs.diagnostic_scope }}
           CODEX_PACKAGE_PREFLIGHT_JSON: ${{ steps.codex_package_preflight.outputs.preflight_json }}
           CODEX_PACKAGE_TARBALL: ${{ steps.codex_package_preflight.outputs.tarball_path }}
@@ -1739,7 +1831,11 @@ jobs:
             --source-artifact-run-id "${{ inputs.release_artifact_run_id || github.run_id }}" \
             --source-artifact-name "${{ inputs.release_artifact_name }}" \
             --evidence-ref "$evidence_ref" \
-            --smoke-summary artifacts/opl-first-run-vm/tart-smoke-summary.json
+            --smoke-summary artifacts/opl-first-run-vm/tart-smoke-summary.json \
+            --verification-app-sha "$GITHUB_SHA" \
+            --verification-shell-sha "${{ needs.validate-vm-inputs.outputs.smoke_harness_sha }}" \
+            --verification-smoke-harness shells/aionui/scripts/opl-first-run-vm-smoke.mjs \
+            --verification-scope-proof-base64 "${{ needs.validate-vm-inputs.outputs.qualification_scope_base64 }}"
           shasum -a 256 artifacts/opl-first-run-vm/artifact-qualification-receipt.json \
             > artifacts/opl-first-run-vm/artifact-qualification-receipt.sha256
 
@@ -1760,6 +1856,10 @@ jobs:
           RELEASE_ARTIFACT_NAME: ${{ inputs.release_artifact_name }}
           RELEASE_ARTIFACT_RUN_ID: ${{ inputs.release_artifact_run_id }}
           RELEASE_ARTIFACT_EFFECTIVE_RUN_ID: ${{ inputs.release_artifact_run_id || github.run_id }}
+          ARTIFACT_APP_SHA: ${{ needs.validate-vm-inputs.outputs.artifact_app_sha }}
+          PRODUCT_SHELL_SHA: ${{ needs.validate-vm-inputs.outputs.shell_sha }}
+          SMOKE_HARNESS_APP_SHA: ${{ github.sha }}
+          SMOKE_HARNESS_SHELL_SHA: ${{ needs.validate-vm-inputs.outputs.smoke_harness_sha }}
           RELEASE_ARTIFACT_DOWNLOAD_OUTCOME: ${{ steps.release_artifact_download.outcome || 'skipped' }}
           DMG_CONCLUSION: ${{ steps.dmg.conclusion || 'skipped' }}
           CODEX_PACKAGE_PREFLIGHT_CONCLUSION: ${{ steps.codex_package_preflight.conclusion || 'skipped' }}

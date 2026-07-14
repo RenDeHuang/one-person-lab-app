@@ -491,11 +491,20 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
     stableReleaseStateMachine?.execution_policy?.promotion_dispatch_limit_per_cohort !== 1 ||
     stableReleaseStateMachine?.execution_policy?.promotion_retry_reuses_original_run_id_and_owner_receipt !== true ||
     stableReleaseStateMachine?.recovery_policy?.smoke_or_validator_only_change_rebuilds_existing_artifact !== false ||
+    stableReleaseStateMachine?.recovery_policy?.smoke_or_validator_only_retry_may_use_separately_pinned_verification_harness !== true ||
+    stableReleaseStateMachine?.recovery_policy?.separate_verification_harness_requires_changed_path_scope_proof !== true ||
+    stableReleaseStateMachine?.recovery_policy?.verification_harness_must_not_replace_artifact_cohort_identity !== true ||
+    stableReleaseStateMachine?.recovery_policy?.verification_harness_identity_must_be_recorded_in_qualification_receipt !== true ||
     stableReleaseStateMachine?.recovery_policy?.artifact_build_failed_can_reconcile_original_run_without_redispatch !== true ||
     stableReleaseStateMachine?.recovery_policy?.qualification_retry_reuses_exact_artifact_bytes !== true ||
     stableReleaseStateMachine?.artifact_cohort?.schema !== 'opl_app_build_artifact_cohort.v2' ||
     stableReleaseStateMachine?.artifact_cohort?.artifact_build_limit_per_cohort !== 1 ||
     stableReleaseStateMachine?.qualification_receipt?.schema !== 'opl_app_artifact_qualification_receipt.v1' ||
+    stableReleaseStateMachine?.qualification_receipt?.separate_verification_harness_allowed_only_for !== 'smoke_or_validator_only_change' ||
+    !sameStringSet(stableReleaseStateMachine?.qualification_receipt?.verification_harness_required_fields, [
+      'app_sha', 'shell_sha', 'smoke_harness_sha256', 'differs_from_artifact_cohort', 'change_scope', 'scope_proof',
+    ]) ||
+    stableReleaseStateMachine?.qualification_receipt?.artifact_cohort_fields_remain_product_identity !== true ||
     stableReleaseStateMachine?.qualification_receipt?.cross_artifact_or_cross_cohort_override_allowed !== false ||
     stableReleaseStateMachine?.promotion_saga?.owner_workflow !== '.github/workflows/desktop-release-promote.yml' ||
     stableReleaseStateMachine?.promotion_saga?.framework_owner_workflow !== 'gaofeng21cn/one-person-lab/.github/workflows/release-package-channel.yml' ||

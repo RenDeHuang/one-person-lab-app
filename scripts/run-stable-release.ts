@@ -14,6 +14,11 @@ import {
 } from './plan-release-cohort.ts';
 import { sha256File, validateArtifactCohortV2, type BuildArtifactCohortV2 } from './build-artifact-cohort.ts';
 import { validateArtifactQualificationReceipt, type ArtifactQualificationReceiptV1 } from './artifact-qualification-receipt.ts';
+import {
+  buildQualificationHarnessScopeProof,
+  inspectQualificationHarnessScope,
+  type QualificationHarnessScopeProof,
+} from './qualification-harness-scope.ts';
 import { readReceipt, validateLocalActivationReceipt, validatePromotionSagaReceipt } from './release-saga-receipts.ts';
 
 const defaultRepo = 'gaofeng21cn/one-person-lab-app';
@@ -94,6 +99,13 @@ export type StableReleaseSession = {
     artifact_sha256: string | null;
     evidence_ref: string | null;
     evidence_sha256: string | null;
+    verification_harness?: {
+      app_ref: string;
+      app_sha: string;
+      shell_ref: string;
+      shell_sha: string;
+      scope_proof: QualificationHarnessScopeProof;
+    } | null;
   };
   receipts: {
     promotion_saga: { ref: string; sha256: string } | null;
@@ -157,7 +169,11 @@ type RetryQualificationOptions = {
   execute: boolean;
   watch: boolean;
   statePath: string;
+  smokeHarnessAppRef?: string;
+  smokeHarnessShellRef?: string;
 };
+
+type QualificationVerificationHarness = NonNullable<StableReleaseSession['qualification_run']['verification_harness']>;
 
 type CompleteLocalOptions = { statePath: string; receiptPath: string; localAuthorizationPolicyPath: string };
 
@@ -230,7 +246,7 @@ export function buildStableReleaseSession(
     promotion_run: { id: null, url: null, conclusion: null, attempt: null, rerun_requested_from_attempt: null },
     qualification_run: {
       id: null, url: null, conclusion: null, artifact_run_id: null, artifact_name: null,
-      artifact_sha256: null, evidence_ref: null, evidence_sha256: null,
+      artifact_sha256: null, evidence_ref: null, evidence_sha256: null, verification_harness: null,
     },
     receipts: { promotion_saga: null, local_activation: null },
     metrics: {
@@ -339,6 +355,37 @@ function workflowRef(plan: ReleaseCohortPlan): string {
   return ref;
 }
 
+function resolveRemoteGitRefSha(
+  runner: StableReleaseCommandRunner,
+  repo: string,
+  ref: string,
+): string {
+  if (/^[0-9a-f]{40}$/i.test(ref)) return ref.toLowerCase();
+  const result = runner('git', [
+    'ls-remote',
+    `https://github.com/${repo}.git`,
+    `refs/heads/${ref}`,
+    `refs/tags/${ref}^{}`,
+    `refs/tags/${ref}`,
+    ref,
+  ]);
+  if (result.status !== 0) failResult(result, `resolve remote Git ref ${repo}@${ref}`);
+  const refs = result.stdout.trim().split(/\r?\n/).filter(Boolean).map((line) => {
+    const [sha = '', name = ''] = line.trim().split(/\s+/, 2);
+    return { sha: sha.toLowerCase(), name };
+  });
+  const sha = (
+    refs.find((candidate) => candidate.name === `refs/tags/${ref}^{}`) ??
+    refs.find((candidate) => candidate.name === `refs/heads/${ref}`) ??
+    refs.find((candidate) => candidate.name === `refs/tags/${ref}`) ??
+    refs[0]
+  )?.sha ?? '';
+  if (!/^[0-9a-f]{40}$/.test(sha)) {
+    throw new Error(`Remote Git ref ${repo}@${ref} did not resolve to a 40-character commit SHA.`);
+  }
+  return sha;
+}
+
 export function desktopReleaseDispatchArgs(session: StableReleaseSession): string[] {
   const plan = session.cohort_plan;
   return [
@@ -363,6 +410,20 @@ export function desktopReleaseDispatchArgs(session: StableReleaseSession): strin
 
 export function qualificationRetryDispatchArgs(
   session: StableReleaseSession,
+  verificationHarness: QualificationVerificationHarness = {
+    app_ref: workflowRef(session.cohort_plan),
+    app_sha: session.cohort_plan.cohort_lock.app.resolved_sha,
+    shell_ref: session.cohort_plan.cohort_lock.shell.resolved_sha,
+    shell_sha: session.cohort_plan.cohort_lock.shell.resolved_sha,
+    scope_proof: buildQualificationHarnessScopeProof({
+      artifactAppSha: session.cohort_plan.cohort_lock.app.resolved_sha,
+      verificationAppSha: session.cohort_plan.cohort_lock.app.resolved_sha,
+      appChangedPaths: [],
+      artifactShellSha: session.cohort_plan.cohort_lock.shell.resolved_sha,
+      verificationShellSha: session.cohort_plan.cohort_lock.shell.resolved_sha,
+      shellChangedPaths: [],
+    }),
+  },
 ): string[] {
   if (!session.release_run.id) throw new Error('Same-artifact qualification retry requires the original release run id.');
   const artifactName = session.qualification_run.artifact_name;
@@ -372,7 +433,7 @@ export function qualificationRetryDispatchArgs(
   return [
     'workflow', 'run', 'opl-first-run-vm.yml',
     '--repo', session.repo,
-    '--ref', workflowRef(session.cohort_plan),
+    '--ref', verificationHarness.app_ref,
     '--field', `release_tag=v${session.version}`,
     '--field', 'package_profile=full',
     '--field', 'diagnostic_scope=release_gate',
@@ -380,7 +441,9 @@ export function qualificationRetryDispatchArgs(
     '--field', `release_artifact_run_id=${session.release_run.id}`,
     '--field', `stable_session_id=${session.id}`,
     '--field', `release_cohort_ref=${session.cohort_plan.operator_plan_ref}`,
+    '--field', `artifact_app_ref=${session.cohort_plan.cohort_lock.app.resolved_sha}`,
     '--field', `shell_ref=${session.cohort_plan.cohort_lock.shell.resolved_sha}`,
+    '--field', `smoke_harness_ref=${verificationHarness.shell_sha}`,
     '--field', `framework_ref=${session.cohort_plan.cohort_lock.framework.resolved_sha}`,
   ];
 }
@@ -577,6 +640,9 @@ function readQualificationReceipt(
       frameworkSha: session.cohort_plan.include_full_package
         ? session.cohort_plan.cohort_lock.framework.resolved_sha
         : undefined,
+      verificationAppSha: session.qualification_run.verification_harness?.app_sha,
+      verificationShellSha: session.qualification_run.verification_harness?.shell_sha,
+      verificationScopeProof: session.qualification_run.verification_harness?.scope_proof,
     });
     return errors.length === 0 ? { receipt, sha256: sha256File(downloaded.path) } : null;
   } finally {
@@ -595,6 +661,7 @@ function bindQualificationEvidence(
   return {
     ...session,
     qualification_run: {
+      ...session.qualification_run,
       id: qualificationRunId,
       url: `https://github.com/${session.repo}/actions/runs/${qualificationRunId}`,
       conclusion,
@@ -645,13 +712,14 @@ async function discoverRun(
   previousIds: Set<number>,
   dispatchedAt: string,
   expectedHead: string | null,
+  expectedBranch = workflowRef(session.cohort_plan),
 ): Promise<WorkflowRun> {
   for (let attempt = 0; attempt < 20; attempt += 1) {
     const candidate = selectNewCohortRun(
       listRuns(runner, workflow, session.repo),
       previousIds,
       expectedHead,
-      workflowRef(session.cohort_plan),
+      expectedBranch,
       dispatchedAt,
     );
     if (candidate) return candidate;
@@ -944,9 +1012,28 @@ async function dispatchAndWatchQualificationRetry(
   options: RetryQualificationOptions,
   runner: StableReleaseCommandRunner,
 ): Promise<StableReleaseSession> {
+  const verificationAppRef = options.smokeHarnessAppRef || workflowRef(session.cohort_plan);
+  if (/^[0-9a-f]{7,40}$/i.test(verificationAppRef)) {
+    throw new Error('Qualification retry App harness ref must be a remote branch or tag accepted by workflow_dispatch.');
+  }
+  const verificationShellRef = options.smokeHarnessShellRef || session.cohort_plan.cohort_lock.shell.resolved_sha;
+  const verificationAppSha = resolveRemoteGitRefSha(runner, session.repo, verificationAppRef);
+  const verificationShellSha = resolveRemoteGitRefSha(runner, 'gaofeng21cn/opl-aion-shell', verificationShellRef);
+  const verificationHarness: QualificationVerificationHarness = {
+    app_ref: verificationAppRef,
+    app_sha: verificationAppSha,
+    shell_ref: verificationShellRef,
+    shell_sha: verificationShellSha,
+    scope_proof: inspectQualificationHarnessScope(runner, {
+      artifactAppSha: session.cohort_plan.cohort_lock.app.resolved_sha,
+      verificationAppSha,
+      artifactShellSha: session.cohort_plan.cohort_lock.shell.resolved_sha,
+      verificationShellSha,
+    }),
+  };
   const previousIds = new Set(listRuns(runner, 'opl-first-run-vm.yml', session.repo).map((candidate) => candidate.databaseId));
   const dispatchedAt = now();
-  const dispatch = runner('gh', qualificationRetryDispatchArgs(session));
+  const dispatch = runner('gh', qualificationRetryDispatchArgs(session, verificationHarness));
   if (dispatch.status !== 0) failResult(dispatch, 'dispatch same-artifact qualification retry');
   const run = await discoverRun(
     runner,
@@ -954,7 +1041,8 @@ async function dispatchAndWatchQualificationRetry(
     session,
     previousIds,
     dispatchedAt,
-    session.cohort_plan.cohort_lock.app.resolved_sha,
+    verificationHarness.app_sha,
+    verificationHarness.app_ref,
   );
   session = transitionStableReleaseSession(
     session,
@@ -976,6 +1064,7 @@ async function dispatchAndWatchQualificationRetry(
     url: run.url,
     conclusion: null,
     artifact_run_id: session.release_run.id,
+    verification_harness: verificationHarness,
   };
   writeSession(options.statePath, session);
   if (!options.watch) return session;
@@ -1196,6 +1285,8 @@ function parseRetryQualificationArgs(argv: string[]): RetryQualificationOptions 
       execute: { type: 'boolean' },
       'no-watch': { type: 'boolean' },
       state: { type: 'string' },
+      'smoke-harness-app-ref': { type: 'string' },
+      'smoke-harness-shell-ref': { type: 'string' },
     },
   });
   if (!values.state) throw new Error('Pass --state from the original release run.');
@@ -1203,6 +1294,8 @@ function parseRetryQualificationArgs(argv: string[]): RetryQualificationOptions 
     execute: values.execute === true,
     watch: values['no-watch'] !== true,
     statePath: path.resolve(values.state),
+    smokeHarnessAppRef: values['smoke-harness-app-ref'],
+    smokeHarnessShellRef: values['smoke-harness-shell-ref'],
   };
 }
 
@@ -1303,7 +1396,7 @@ function completeLocalActivation(options: CompleteLocalOptions): StableReleaseSe
 async function main(): Promise<void> {
   const [command, ...argv] = process.argv.slice(2);
   if (!command || command === '--help' || command === '-h') {
-    process.stdout.write(`Usage:\n  npm run release:stable -- start <cohort options> [--state <path>] [--execute] [--no-watch]\n  npm run release:stable -- retry-qualification --state <path> [--execute] [--no-watch]\n  npm run release:stable -- resume --state <path> [--execute]\n  npm run release:stable -- promote --state <path> --release-set-generation <YY.M.D[-rN]> --release-owner-receipt-ref <ref> [--execute] [--no-watch]\n  npm run release:stable -- complete-local --state <path> --receipt <local-activation-receipt.json> --local-authorization-policy <policy.json>\n\nDry-run is the default. External workflow dispatch or rerun requires --execute.\n`);
+    process.stdout.write(`Usage:\n  npm run release:stable -- start <cohort options> [--state <path>] [--execute] [--no-watch]\n  npm run release:stable -- retry-qualification --state <path> [--smoke-harness-app-ref <branch-or-tag>] [--smoke-harness-shell-ref <ref>] [--execute] [--no-watch]\n  npm run release:stable -- resume --state <path> [--execute]\n  npm run release:stable -- promote --state <path> --release-set-generation <YY.M.D[-rN]> --release-owner-receipt-ref <ref> [--execute] [--no-watch]\n  npm run release:stable -- complete-local --state <path> --receipt <local-activation-receipt.json> --local-authorization-policy <policy.json>\n\nDry-run is the default. External workflow dispatch or rerun requires --execute.\n`);
     return;
   }
   if (command === 'start' || command === 'plan') {

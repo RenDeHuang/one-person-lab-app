@@ -4,8 +4,12 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import test from 'node:test';
-import { buildArtifactQualificationReceipt } from '../../scripts/artifact-qualification-receipt.ts';
+import {
+  buildArtifactQualificationReceipt,
+  validateArtifactQualificationReceipt,
+} from '../../scripts/artifact-qualification-receipt.ts';
 import type { BuildArtifactCohortV2 } from '../../scripts/build-artifact-cohort.ts';
+import { buildQualificationHarnessScopeProof } from '../../scripts/qualification-harness-scope.ts';
 import { validateReleaseAddonReadiness } from '../../scripts/validate-release-addon-readiness.ts';
 
 const stableSessionId = `sha256:${'1'.repeat(64)}`;
@@ -74,6 +78,55 @@ function options(fixture: ReturnType<typeof writeFixture>) {
     sourceArtifactName,
   };
 }
+
+test('qualification receipt records a separately pinned smoke-only verification harness', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-qualification-harness-'));
+  try {
+    const fixture = writeFixture(root);
+    const smokeHarnessPath = path.join(root, 'opl-first-run-vm-smoke.mjs');
+    fs.writeFileSync(smokeHarnessPath, 'fixed smoke harness');
+    const verificationAppSha = 'd'.repeat(40);
+    const verificationShellSha = 'e'.repeat(40);
+    const scopeProof = buildQualificationHarnessScopeProof({
+      artifactAppSha: 'a'.repeat(40),
+      verificationAppSha,
+      appChangedPaths: ['.github/workflows/opl-first-run-vm.yml'],
+      artifactShellSha: 'b'.repeat(40),
+      verificationShellSha,
+      shellChangedPaths: ['scripts/opl-first-run-vm-smoke.mjs'],
+    });
+    const receipt = buildArtifactQualificationReceipt({
+      manifest: JSON.parse(fs.readFileSync(fixture.manifestPath, 'utf8')) as BuildArtifactCohortV2,
+      manifestPath: fixture.manifestPath,
+      result: 'passed',
+      packageProfile: 'full',
+      qualificationRunId: '203',
+      sourceArtifactRunId: '101',
+      sourceArtifactName,
+      evidenceRef: 'opl-first-run-vm-full-203',
+      verificationHarness: {
+        appSha: verificationAppSha,
+        shellSha: verificationShellSha,
+        smokeHarnessPath,
+        scopeProof,
+      },
+    });
+
+    assert.equal(receipt.verification_harness?.differs_from_artifact_cohort, true);
+    assert.equal(receipt.verification_harness?.change_scope, 'smoke_or_validator_only');
+    assert.deepEqual(validateArtifactQualificationReceipt(receipt, {
+      stableSessionId,
+      releaseCohortRef,
+      version: '26.7.13',
+      packageProfile: 'full',
+      verificationAppSha,
+      verificationShellSha,
+      verificationScopeProof: scopeProof,
+    }), []);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
 
 test('same-artifact Full qualification receipt overrides only the stale Full VM result', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-addon-readiness-'));

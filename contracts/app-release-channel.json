@@ -1244,6 +1244,10 @@
       },
       "recovery_policy": {
         "smoke_or_validator_only_change_rebuilds_existing_artifact": false,
+        "smoke_or_validator_only_retry_may_use_separately_pinned_verification_harness": true,
+        "separate_verification_harness_requires_changed_path_scope_proof": true,
+        "verification_harness_must_not_replace_artifact_cohort_identity": true,
+        "verification_harness_identity_must_be_recorded_in_qualification_receipt": true,
         "product_or_runtime_byte_change_requires_new_cohort": true,
         "failed_gate_requires_classification_before_next_dispatch": true,
         "artifact_build_failed_can_reconcile_original_run_without_redispatch": true,
@@ -1252,12 +1256,22 @@
       },
       "artifact_cohort": {
         "schema": "opl_app_build_artifact_cohort.v2",
-        "identity": "exact App, Shell, Framework, packaged tree, product profile, GUI contract, smoke harness, DMG SHA-256 and Actions run",
+        "identity": "exact product App, product Shell, Framework, packaged tree, product profile, GUI contract, build-time smoke harness, DMG SHA-256 and Actions run",
         "artifact_build_limit_per_cohort": 1
       },
       "qualification_receipt": {
         "schema": "opl_app_artifact_qualification_receipt.v1",
         "same_artifact_retry_can_override_only": "full_dmg_clean_vm",
+        "separate_verification_harness_allowed_only_for": "smoke_or_validator_only_change",
+        "verification_harness_required_fields": [
+          "app_sha",
+          "shell_sha",
+          "smoke_harness_sha256",
+          "differs_from_artifact_cohort",
+          "change_scope",
+          "scope_proof"
+        ],
+        "artifact_cohort_fields_remain_product_identity": true,
         "cross_artifact_or_cross_cohort_override_allowed": false
       },
       "promotion_saga": {

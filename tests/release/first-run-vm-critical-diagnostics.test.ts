@@ -129,6 +129,32 @@ test('VM critical diagnostics classify OPL configure-codex failures before App r
   assert.match(summary.failure.reason, /before App readiness checks/);
 });
 
+test('VM critical diagnostics classify OPL output buffer exhaustion as a harness failure', () => {
+  const summary = runDiagnostics(
+    {
+      RELEASE_ARTIFACT_NAME: 'opl-full-first-install-dmg-26.7.13-mac-arm64',
+      RELEASE_ARTIFACT_RUN_ID: '29246288414',
+      RELEASE_ARTIFACT_DOWNLOAD_OUTCOME: 'success',
+      DMG_CONCLUSION: 'success',
+      VM_SMOKE_CONCLUSION: 'failure',
+      GITHUB_REF_NAME: 'codex/release-26.7.13-qualification-harness-20260713',
+      ARTIFACT_APP_SHA: 'a'.repeat(40),
+      PRODUCT_SHELL_SHA: 'b'.repeat(40),
+      SMOKE_HARNESS_SHELL_SHA: 'c'.repeat(40),
+    },
+    (cwd) => writeJson(cwd, 'artifacts/opl-first-run-vm/tart-smoke-summary.json', {
+      status: 'failed',
+      failure_stage: 'run_guest_smoke',
+      error: 'opl app state --profile fast --json exceeded the 67108864-byte output buffer (ENOBUFS)',
+    }),
+  );
+
+  assert.equal(summary.failure.type, 'opl_command_output_buffer_exhausted');
+  assert.equal(summary.retry_entry.action, 'update_smoke_harness_then_rerun_same_artifact');
+  assert.match(summary.retry_entry.command_hint, /artifact_app_ref=a{40}.*shell_ref=b{40}.*smoke_harness_ref=c{40}/);
+  assert.equal(summary.retry_entry.rebuilds_standard_or_full_artifact, false);
+});
+
 test('VM critical diagnostics keep Settings contract failures out of App readiness', () => {
   const summary = runDiagnostics(
     {

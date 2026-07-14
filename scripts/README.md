@@ -448,10 +448,18 @@ dispatch. `start` resolves the App, Shell, and Framework refs once, deduplicates
 and runs the cheap source gates, verifies that the remote App branch still
 points to the frozen SHA, dispatches exactly one desktop release for that
 cohort, discovers its run id from the exact App SHA, and uses one 60-second
-`gh run watch` process. The persisted `opl_app_stable_release_session.v1`
+`gh run watch` process. The persisted `opl_app_stable_release_session.v2`
 file carries the run id into `promote`; promotion cannot be dispatched without
 a same-cohort release-owner receipt. A validator-only or smoke-only change must
 reuse the existing artifact for diagnosis and does not justify rebuilding it.
+Use `retry-qualification --smoke-harness-app-ref <branch-or-tag>
+--smoke-harness-shell-ref <ref>` to pin the verification App/Shell separately
+from the product App/Shell recorded in the artifact cohort. The qualification
+receipt records both identities; the verification harness never replaces the
+product cohort or DMG SHA-256. Before dispatch and again before VM allocation,
+the runner compares artifact and verification commits and fails closed unless
+every changed path belongs to the explicit qualification/diagnostic allowlist;
+the receipt records the exact base, head, changed paths, and classification.
 Only a change to packaged product/runtime bytes freezes and dispatches a new
 cohort. `release:cohort-plan` and `release:operator` remain inspection and
 diagnostic components behind this entry, not competing manual release paths.

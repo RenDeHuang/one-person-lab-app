@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { ReleaseCohortPlan } from '../../scripts/plan-release-cohort.ts';
+import { buildQualificationHarnessScopeProof } from '../../scripts/qualification-harness-scope.ts';
 import {
   buildStableReleaseSession,
   classifyWorkflowRunObservation,
@@ -9,6 +10,7 @@ import {
   formatCommandFailure,
   promoteDispatchArgs,
   promotionRerunArgs,
+  qualificationRetryDispatchArgs,
   selectNewCohortRun,
   transitionStableReleaseSession,
 } from '../../scripts/run-stable-release.ts';
@@ -165,6 +167,35 @@ test('promotion reuses the source run id and requires an owner receipt', () => {
   assert.match(args, /release_set_generation=26\.7\.12-r2/);
   assert.match(args, /release_owner_receipt_ref=release_owner_receipt_ref:\/\/test/);
   assert.match(args, new RegExp(`shell_ref=${shellSha}`));
+});
+
+test('same-artifact qualification separates product cohort refs from verification harness refs', () => {
+  const session = buildStableReleaseSession(plan());
+  session.release_run.id = '29246288414';
+  session.qualification_run.artifact_name = 'opl-full-first-install-dmg-26.7.13-mac-arm64';
+  session.qualification_run.artifact_sha256 = 'e'.repeat(64);
+  const verificationAppSha = 'f'.repeat(40);
+  const verificationShellSha = '1'.repeat(40);
+  const args = qualificationRetryDispatchArgs(session, {
+    app_ref: 'codex/release-26.7.13-qualification-harness',
+    app_sha: verificationAppSha,
+    shell_ref: verificationShellSha,
+    shell_sha: verificationShellSha,
+    scope_proof: buildQualificationHarnessScopeProof({
+      artifactAppSha: appSha,
+      verificationAppSha,
+      appChangedPaths: ['.github/workflows/opl-first-run-vm.yml'],
+      artifactShellSha: shellSha,
+      verificationShellSha,
+      shellChangedPaths: ['scripts/opl-first-run-vm-smoke.mjs'],
+    }),
+  }).join(' ');
+
+  assert.match(args, /--ref codex\/release-26\.7\.13-qualification-harness/);
+  assert.match(args, new RegExp(`artifact_app_ref=${appSha}`));
+  assert.match(args, new RegExp(`shell_ref=${shellSha}`));
+  assert.match(args, new RegExp(`smoke_harness_ref=${verificationShellSha}`));
+  assert.doesNotMatch(args, new RegExp(`shell_ref=${verificationShellSha}(?:\\s|$)`));
 });
 
 test('state machine rejects skipped stages and repeated release dispatch paths', () => {
