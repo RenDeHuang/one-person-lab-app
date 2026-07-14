@@ -261,14 +261,72 @@ test('App package consumers reject legacy identity, namespace, command, and plai
   );
   const canonicalPackageIds = ['mas', 'mag', 'rca', 'oma', 'obf', 'mas-scholar-skills', 'opl-flow'];
   const canonicalAgentIds = new Set(['mas', 'mag', 'rca', 'oma', 'obf']);
+  const expectedRegistryMetadata: Record<string, {
+    description: string;
+    tags: string[];
+    package_role: string;
+  }> = {
+    mas: {
+      description: 'Medical research workflows for evidence, analysis, writing, figures, and submission.',
+      tags: ['medical-research', 'evidence', 'manuscript'],
+      package_role: 'standard_agent',
+    },
+    mag: {
+      description: 'Grant planning, drafting, critique, revision, and submission workflows.',
+      tags: ['grant-writing', 'proposal', 'review'],
+      package_role: 'standard_agent',
+    },
+    rca: {
+      description: 'Visual deliverable, presentation, and figure production workflows.',
+      tags: ['visual-deliverables', 'presentations', 'figures'],
+      package_role: 'standard_agent',
+    },
+    oma: {
+      description: 'Agent architecture, baseline, takeover, and OPL conformance workflows.',
+      tags: ['agent-design', 'architecture', 'conformance'],
+      package_role: 'standard_agent',
+    },
+    obf: {
+      description: 'Long-form book architecture, drafting, review, and publication workflows.',
+      tags: ['book-authoring', 'long-form', 'publishing'],
+      package_role: 'standard_agent',
+    },
+    'mas-scholar-skills': {
+      description: 'Reusable medical research capabilities consumed by Med Auto Science.',
+      tags: ['medical-research', 'capabilities', 'skills'],
+      package_role: 'framework_capability_package',
+    },
+    'opl-flow': {
+      description: 'Recommended OPL workflow profile and managed Codex policy.',
+      tags: ['workflow-profile', 'codex', 'policy'],
+      package_role: 'workflow_profile',
+    },
+  };
   const registry = readContract('agent-package-registry.json');
+  const registryEntrySchema = readContract('agent-package-surfaces.schema.json').$defs.agent_package_registry_entry;
   assert.deepEqual(registry.entries.map((entry) => entry.package_id).sort(), [...canonicalPackageIds].sort());
   assert.equal('latest_version' in registry.entries[0], false);
+  assert.deepEqual(
+    registryEntrySchema.properties.package_role.enum,
+    ['standard_agent', 'framework_capability_package', 'workflow_profile'],
+  );
+  assert.equal(registryEntrySchema.properties.description.pattern, '\\S');
+  assert.equal(registryEntrySchema.properties.tags.minItems, 1);
+  assert.equal(registryEntrySchema.properties.tags.uniqueItems, true);
+  assert.equal(registryEntrySchema.oneOf.length, 2);
 
   for (const entry of registry.entries) {
+    const expectedMetadata = expectedRegistryMetadata[entry.package_id];
     const manifestUrl = `https://raw.githubusercontent.com/gaofeng21cn/one-person-lab/main/contracts/opl-framework/packages/${entry.package_id}.json`;
+    assert.ok(expectedMetadata, entry.package_id);
+    assert.equal(entry.description, expectedMetadata.description);
+    assert.deepEqual(entry.tags, expectedMetadata.tags);
+    assert.equal(entry.package_role, expectedMetadata.package_role);
     assert.equal(entry.manifest_url, manifestUrl);
     assert.equal(entry.version_source_ref, `${manifestUrl}#/version`);
+    assert.equal(entry.selected_version, null);
+    assert.equal(entry.stable_version, null);
+    assert.equal(entry.manifest_validation, 'deferred');
     assert.equal(
       entry.ordinary_user_source.ordinary_user_ref,
       `ghcr.io/gaofeng21cn/one-person-lab-packages/${entry.package_id}:latest-stable`,
@@ -286,6 +344,10 @@ test('App package consumers reject legacy identity, namespace, command, and plai
       assert.deepEqual(entry.home_shortcut_ids, []);
     }
   }
+  assert.deepEqual(
+    new Set(registry.entries.map((entry) => entry.package_role)),
+    new Set(['standard_agent', 'framework_capability_package', 'workflow_profile']),
+  );
 
   const fixtureDir = path.join(appRoot, 'contracts', 'fixtures', 'agent-package-manifests');
   for (const packageId of canonicalPackageIds) {
@@ -301,6 +363,71 @@ test('App package consumers reject legacy identity, namespace, command, and plai
   const activeInstallSurface = JSON.stringify(readContract('app-install-exposure-policy.json'));
   assert.equal(activeInstallSurface.includes('--skip-modules'), false);
   assert.equal(activeInstallSurface.includes('reconcile-modules'), false);
+});
+
+test('agent installation validator rejects invalid public registry metadata and currentness', () => {
+  const registry = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'agent-package-registry.json'), 'utf8'),
+  );
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-agent-registry-invalid-'));
+  const invalidRegistryPath = path.join(tempRoot, 'agent-package-registry.json');
+  const invalidCases: Array<{
+    name: string;
+    mutate: (entry: any) => void;
+    expected: RegExp;
+  }> = [
+    {
+      name: 'invalid role',
+      mutate: (entry) => { entry.package_role = 'domain_agent'; },
+      expected: /package_role must be one of/,
+    },
+    {
+      name: 'empty description',
+      mutate: (entry) => { entry.description = '   '; },
+      expected: /description must be non-empty/,
+    },
+    {
+      name: 'empty tags',
+      mutate: (entry) => { entry.tags = []; },
+      expected: /tags must contain at least one non-empty tag/,
+    },
+    {
+      name: 'duplicate tag',
+      mutate: (entry) => { entry.tags = ['medical-research', 'medical-research']; },
+      expected: /tags must not contain duplicates/,
+    },
+    {
+      name: 'selected and stable version mismatch',
+      mutate: (entry) => {
+        entry.selected_version = '0.2.1';
+        entry.stable_version = '0.2.0';
+        entry.manifest_validation = 'fetched_manifest';
+      },
+      expected: /selected_version must equal stable_version/,
+    },
+    {
+      name: 'version source mismatch',
+      mutate: (entry) => { entry.version_source_ref = `${entry.manifest_url}#/latest`; },
+      expected: /version source expected/,
+    },
+  ];
+
+  try {
+    for (const invalidCase of invalidCases) {
+      const invalidRegistry = structuredClone(registry);
+      invalidCase.mutate(invalidRegistry.entries[0]);
+      writeFile(invalidRegistryPath, `${JSON.stringify(invalidRegistry, null, 2)}\n`);
+      const result = runNode([
+        'scripts/validate-agent-installation-contract.ts',
+        '--registry-path',
+        invalidRegistryPath,
+      ]);
+      assert.notEqual(result.status, 0, invalidCase.name);
+      assert.match(result.stderr, invalidCase.expected, invalidCase.name);
+    }
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
 });
 
 test('App contracts require one generic package use-boundary activation before launch', () => {

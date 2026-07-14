@@ -121,7 +121,7 @@ const expectedRegistrySourceKinds = [
   "user_registry_url",
 ];
 const expectedRegistryManagementActions = ["refresh_registry", "install_from_manifest_url"];
-const expectedRegistryEntryFields = [
+const expectedRegistryPolicyEntryFields = [
   "package_id",
   "package_kind",
   "display_name",
@@ -130,6 +130,41 @@ const expectedRegistryEntryFields = [
   "manifest_url",
   "version_source_ref",
   "trust_tier",
+];
+const expectedRegistryEntryFields = [
+  "package_id",
+  "package_kind",
+  "display_name",
+  "publisher",
+  "description",
+  "tags",
+  "package_role",
+  "source",
+  "manifest_url",
+  "version_source_ref",
+  "selected_version",
+  "stable_version",
+  "manifest_validation",
+  "trust_tier",
+];
+const expectedRegistryRoles = [
+  "standard_agent",
+  "framework_capability_package",
+  "workflow_profile",
+];
+const expectedRegistryRoleByPackageId: Record<string, string> = {
+  mas: "standard_agent",
+  mag: "standard_agent",
+  rca: "standard_agent",
+  oma: "standard_agent",
+  obf: "standard_agent",
+  "mas-scholar-skills": "framework_capability_package",
+  "opl-flow": "workflow_profile",
+};
+const expectedRegistryManifestValidationStates = [
+  "deferred",
+  "fetched_manifest",
+  "catalog_inline_manifest",
 ];
 const expectedManifestRequiredFields = [
   "package_id",
@@ -522,13 +557,24 @@ function validateRepoPluginSkillSource(skillDir: string, pluginName: string, lab
 type ParsedArgs = {
   agentRoots: AgentRootMap;
   codexSkillsRoot: string | null;
+  registryPath: string;
 };
 
 function parseArgs(argv: string[]): ParsedArgs {
   const roots = new Map<string, string>();
   let codexSkillsRoot: string | null = null;
+  let selectedRegistryPath = registryPath;
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
+    if (token === "--registry-path") {
+      const registryOverride = argv[index + 1]?.trim();
+      if (!registryOverride) {
+        fail("--registry-path requires <path>");
+      }
+      index += 1;
+      selectedRegistryPath = path.resolve(registryOverride);
+      continue;
+    }
     if (token === "--codex-skills-root") {
       const root = argv[index + 1]?.trim();
       if (!root) {
@@ -553,7 +599,7 @@ function parseArgs(argv: string[]): ParsedArgs {
     }
     roots.set(agentId, path.resolve(root));
   }
-  return { agentRoots: roots, codexSkillsRoot };
+  return { agentRoots: roots, codexSkillsRoot, registryPath: selectedRegistryPath };
 }
 
 function findExposureClass(policy: any, id: string): any {
@@ -781,7 +827,7 @@ function validateRegistryPolicyShape(contract: any): void {
   );
   assertArrayEqual(
     registryPolicy?.entry_required_fields,
-    expectedRegistryEntryFields,
+    expectedRegistryPolicyEntryFields,
     "registry entry fields",
   );
   assertArrayEqual(
@@ -808,6 +854,52 @@ function validateAgentPackageSurfaceSchema(contract: any, registry: any, schema:
       title: "OPL Package Surfaces",
     },
     "agent package surface schema",
+  );
+  assertEqual(
+    schema.properties?.agent_package_registry_entry?.$ref,
+    "#/$defs/agent_package_registry_entry",
+    "agent package registry entry schema ref",
+  );
+  const registryEntrySchema = schemaDef(schema, "agent_package_registry_entry");
+  assertArrayEqual(
+    registryEntrySchema.required,
+    expectedRegistryEntryFields,
+    "agent package registry entry schema required fields",
+  );
+  assertArrayEqual(
+    registryEntrySchema.properties?.package_role?.enum,
+    expectedRegistryRoles,
+    "agent package registry entry roles",
+  );
+  assertEqual(
+    registryEntrySchema.properties?.description?.pattern,
+    "\\S",
+    "agent package registry entry non-empty description pattern",
+  );
+  assertEqual(
+    registryEntrySchema.properties?.tags?.minItems,
+    1,
+    "agent package registry entry minimum tag count",
+  );
+  assertEqual(
+    registryEntrySchema.properties?.tags?.uniqueItems,
+    true,
+    "agent package registry entry unique tags",
+  );
+  assertEqual(
+    registryEntrySchema.properties?.tags?.items?.pattern,
+    "\\S",
+    "agent package registry entry non-empty tag pattern",
+  );
+  assertArrayEqual(
+    registryEntrySchema.properties?.manifest_validation?.enum,
+    expectedRegistryManifestValidationStates,
+    "agent package registry entry manifest validation states",
+  );
+  assertEqual(
+    registryEntrySchema.oneOf?.length,
+    2,
+    "agent package registry entry currentness modes",
   );
   assertArrayEqual(
     schemaDef(schema, "opl_package_manifest").required,
@@ -923,6 +1015,73 @@ function validateAgentPackageSurfaceSchema(contract: any, registry: any, schema:
   );
 }
 
+function validateRegistryEntryMetadata(entry: any): void {
+  const packageId = String(entry.package_id ?? "<unknown>");
+  if (typeof entry.description !== "string" || entry.description.trim().length === 0) {
+    fail(`registry entry ${packageId} description must be non-empty`);
+  }
+  if (!Array.isArray(entry.tags) || entry.tags.length === 0) {
+    fail(`registry entry ${packageId} tags must contain at least one non-empty tag`);
+  }
+  const normalizedTags = entry.tags.map((tag: unknown, index: number) => {
+    if (typeof tag !== "string" || tag.trim().length === 0) {
+      fail(`registry entry ${packageId} tag ${index} must be non-empty`);
+    }
+    if (tag !== tag.trim()) {
+      fail(`registry entry ${packageId} tag ${index} must not contain surrounding whitespace`);
+    }
+    return tag;
+  });
+  if (new Set(normalizedTags).size !== normalizedTags.length) {
+    fail(`registry entry ${packageId} tags must not contain duplicates`);
+  }
+
+  if (!expectedRegistryRoles.includes(entry.package_role)) {
+    fail(
+      `registry entry ${packageId} package_role must be one of ${expectedRegistryRoles.join(", ")}`,
+    );
+  }
+  assertEqual(
+    entry.package_role,
+    expectedRegistryRoleByPackageId[packageId],
+    `registry entry ${packageId} canonical package role`,
+  );
+
+  const expectedVersionSourceRef = `${entry.manifest_url}#/version`;
+  assertEqual(
+    entry.version_source_ref,
+    expectedVersionSourceRef,
+    `registry entry ${packageId} version source`,
+  );
+  const selectedVersion = entry.selected_version;
+  const stableVersion = entry.stable_version;
+  const validVersionValue = (value: unknown) =>
+    value === null ||
+    (typeof value === "string" && value.trim().length > 0 && value === value.trim());
+  if (!validVersionValue(selectedVersion) || !validVersionValue(stableVersion)) {
+    fail(`registry entry ${packageId} selected/stable versions must be null or non-empty strings`);
+  }
+  const selectedResolved = typeof selectedVersion === "string";
+  const stableResolved = typeof stableVersion === "string";
+  if (selectedResolved !== stableResolved) {
+    fail(`registry entry ${packageId} selected_version and stable_version must resolve together`);
+  }
+  if (selectedResolved && selectedVersion !== stableVersion) {
+    fail(`registry entry ${packageId} selected_version must equal stable_version`);
+  }
+  if (!expectedRegistryManifestValidationStates.includes(entry.manifest_validation)) {
+    fail(
+      `registry entry ${packageId} manifest_validation must be one of ${expectedRegistryManifestValidationStates.join(", ")}`,
+    );
+  }
+  if (entry.manifest_validation === "deferred" && (selectedResolved || stableResolved)) {
+    fail(`registry entry ${packageId} deferred manifest validation requires null versions`);
+  }
+  if (entry.manifest_validation !== "deferred" && (!selectedResolved || !stableResolved)) {
+    fail(`registry entry ${packageId} resolved manifest validation requires selected/stable versions`);
+  }
+}
+
 function validateAgentRegistryPolicy(contract: any, profile: any, registry: any): void {
   const registryPolicy = contract.agent_registry_policy;
   assertFieldsEqual(
@@ -985,10 +1144,15 @@ function validateAgentRegistryPolicy(contract: any, profile: any, registry: any)
   const profileById = new Map(profilePackages.map((entry: any) => [entry.package_id, entry]));
   for (const entry of entries) {
     for (const field of expectedRegistryEntryFields) {
-      if (entry[field] === undefined || entry[field] === null || entry[field] === "") {
+      const nullableVersionField = field === "selected_version" || field === "stable_version";
+      if (
+        entry[field] === undefined ||
+        (!nullableVersionField && (entry[field] === null || entry[field] === ""))
+      ) {
         fail(`registry entry ${entry.package_id} missing ${field}`);
       }
     }
+    validateRegistryEntryMetadata(entry);
     if (!String(entry.manifest_url).startsWith("https://raw.githubusercontent.com/")) {
       fail(`registry entry ${entry.package_id} manifest_url must be a raw GitHub HTTPS URL`);
     }
@@ -1903,12 +2067,14 @@ function validateAgentInstallEntries(policy: any, contract: any, agentRoots: Age
   }
 }
 
-const { agentRoots, codexSkillsRoot } = parseArgs(process.argv.slice(2));
+const { agentRoots, codexSkillsRoot, registryPath: selectedRegistryPath } = parseArgs(
+  process.argv.slice(2),
+);
 validateActiveShellInstallConsumers();
 validateContract(
   readJson(policyPath),
   readJson(profilePath),
-  readJson(registryPath),
+  readJson(selectedRegistryPath),
   readJson(agentPackageSurfaceSchemaPath),
   readJson(packageJsonPath),
   agentRoots,
