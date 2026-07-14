@@ -132,7 +132,7 @@ and a path shown in diagnostics is not a second path configuration.
 
 | Question | Owner | Allowed summaries elsewhere | Forbidden duplication |
 | --- | --- | --- | --- |
-| Who is connected to OPL Gateway and what account, usage, Key, or credential state applies? | Account & Gateway | Overview: identity and connection only. Models: access-source summary and owner link. | Account card, balance, usage, login, Key lifecycle, refresh, or disconnect outside Gateway. |
+| Who is connected to OPL Gateway and what account, usage, Key, or credential state applies? | Account & Gateway | Overview: signed-in identity, connection and availability, plus compact today token, cost, and balance summary. Models: access-source summary and owner link. | Full account card, total historical usage or cost, login, Key lifecycle, refresh, or disconnect outside Gateway. |
 | Which model source, default model, and reasoning preference apply? | Models | Overview: overall model-access readiness. | Gateway account and credential controls on Models. |
 | Which workspace is active and writable, where are App logs stored, and what user instructions apply? | Workspace & Personalization | Overview may count an actionable exception. Storage may link to the resolved log path read-only. | Framework/raw paths, Storage-owned log configuration, Preferences-owned personalization, or four separate normal-state cards. |
 | Which Agents are installed and which source is active? | Agents | Home may show an active Agent shortcut. | Skills/Plugins or a separate Developer Profile page. |
@@ -173,13 +173,16 @@ Overview answers whether the App is usable, what needs attention, and what the
 next useful action is. Its normal first viewport contains:
 
 - one overall usability summary led by Codex CLI and model-access readiness;
-- signed-in Gateway identity and connection state only;
+- signed-in Gateway identity, connection and availability, plus compact today
+  token, cost, and balance summary;
 - an impact-ordered exception queue;
 - one next useful action.
 
-It does not show Gateway balance, usage, managed Key detail, workspace path, a
-copy of every Settings page, or a second technical summary. Raw versions,
-paths, receipts, and payloads stay on their owner pages.
+It does not show the full Gateway account card, total historical usage or cost,
+managed Key detail, login or connection-management controls, workspace path, a
+copy of every Settings page, or a second technical summary. Necessary direct
+Codex and Gateway technical rows appear once; raw paths, receipts, payloads, and
+owner-page diagnostics stay on their owner pages.
 
 ### Account & Gateway
 
