@@ -63,7 +63,7 @@ export function validateActiveShellImplementation(shellPaths) {
     'guiVersion',
     'frameworkRevision',
     'resolveUpdaterChannel',
-    "loadAppState('fast', { background: true })",
+    "useOplAppState('fast', { autoLoad: false })",
   ]) {
     if (!about.includes(expected)) {
       throw new Error(`Active shell About page must implement ${expected}`);
