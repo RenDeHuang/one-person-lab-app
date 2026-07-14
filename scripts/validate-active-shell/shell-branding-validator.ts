@@ -50,13 +50,40 @@ export function validateShellVisibleBranding(shellPaths, requiresLocale) {
   if (!titlebar.includes('getOplOrdinaryChromeName') || titlebar.includes("'One Person Lab App'")) {
     throw new Error('Active shell ordinary titlebar fallback must use the profile-owned chrome name');
   }
-  for (const expected of ['getOplGlobalFeedbackIssueUrl', 'buildOplAppIssueUrl', 'openExternalUrl']) {
+  for (const expected of [
+    'getOplGlobalFeedbackIssueUrl',
+    'buildOplAppIssueUrl',
+    'openExternalUrl',
+    "faCircleQuestion } from '@fortawesome/free-regular-svg-icons'",
+    "FontAwesomeIcon } from '@fortawesome/react-fontawesome'",
+    "data-testid='app-titlebar-help-icon'",
+  ]) {
     if (!titlebar.includes(expected)) {
       throw new Error(`Active shell titlebar feedback must include ${expected}`);
     }
   }
+  if (titlebar.includes('<Comment')) {
+    throw new Error('Active shell titlebar feedback must not retain the AionUI comment icon');
+  }
   if (titlebar.includes('https://github.com/gaofeng21cn/one-person-lab-app/issues/new')) {
     throw new Error('Active shell titlebar feedback target must come from the App product profile');
+  }
+  const productProfileConsumer = readShellText(
+    shellPaths,
+    'packages/desktop/src/common/config/oplProductProfile/index.ts',
+  );
+  for (const expected of [
+    "icon: 'circle_question'",
+    "icon_style: 'regular_outline'",
+    "background: 'semantic_success_green'",
+    "han_name_initials: 'first_han_character_only'",
+  ]) {
+    if (!productProfileConsumer.includes(expected)) {
+      throw new Error(`Active shell product profile consumer must include ${expected}`);
+    }
+  }
+  if (productProfileConsumer.includes("icon: 'comment'")) {
+    throw new Error('Active shell product profile consumer must not accept the retired comment icon');
   }
 }
 

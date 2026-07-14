@@ -565,8 +565,19 @@ function assertHomeSelectionAndIconPolicy(profile: AppProductProfile): void {
     iconPolicy.upstream_fork_body_bulk_icon_rewrite !== 'forbidden' ||
     iconPolicy.refresh_actions !== 'icon_only_with_tooltip_and_accessible_name' ||
     iconPolicy.model_reasoning_control !== 'text_and_disclosure_without_brain_icon' ||
+    JSON.stringify(iconPolicy.account_identity_avatar) !==
+      JSON.stringify({
+        shape: 'circle',
+        background: 'semantic_success_green',
+        foreground: 'inverse',
+        han_name_initials: 'first_han_character_only',
+        non_han_name_initials: 'first_letters_of_first_two_words_uppercase_else_first_two_codepoints',
+        email_fallback_initials: 'first_two_local_part_codepoints_uppercase',
+        empty_fallback: 'OP',
+      }) ||
     iconPolicy.global_feedback_action?.placement !== 'titlebar_trailing_utility' ||
-    iconPolicy.global_feedback_action?.icon !== 'comment' ||
+    iconPolicy.global_feedback_action?.icon !== 'circle_question' ||
+    iconPolicy.global_feedback_action?.icon_style !== 'regular_outline' ||
     iconPolicy.global_feedback_action?.target_url !==
       'https://github.com/gaofeng21cn/one-person-lab-app/issues/new' ||
     iconPolicy.global_feedback_action?.open_mode !== 'external_browser_user_review_and_submit' ||

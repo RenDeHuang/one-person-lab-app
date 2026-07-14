@@ -194,9 +194,19 @@ export type AppProductProfile = {
         upstream_fork_body_bulk_icon_rewrite: string;
         refresh_actions: string;
         model_reasoning_control: string;
+        account_identity_avatar: {
+          shape: string;
+          background: string;
+          foreground: string;
+          han_name_initials: string;
+          non_han_name_initials: string;
+          email_fallback_initials: string;
+          empty_fallback: string;
+        };
         global_feedback_action: {
           placement: string;
           icon: string;
+          icon_style: string;
           target_url: string;
           open_mode: string;
           prefill_fields: string[];

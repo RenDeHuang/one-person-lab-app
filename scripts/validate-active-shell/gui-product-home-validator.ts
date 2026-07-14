@@ -66,8 +66,19 @@ function validateHomeLayout(guiContract) {
     guiContract.utility_icon_policy?.upstream_fork_body_bulk_icon_rewrite !== 'forbidden' ||
     guiContract.utility_icon_policy?.refresh_actions !== 'icon_only_with_tooltip_and_accessible_name' ||
     guiContract.utility_icon_policy?.model_reasoning_control !== 'text_and_disclosure_without_brain_icon' ||
+    JSON.stringify(guiContract.utility_icon_policy?.account_identity_avatar) !==
+      JSON.stringify({
+        shape: 'circle',
+        background: 'semantic_success_green',
+        foreground: 'inverse',
+        han_name_initials: 'first_han_character_only',
+        non_han_name_initials: 'first_letters_of_first_two_words_uppercase_else_first_two_codepoints',
+        email_fallback_initials: 'first_two_local_part_codepoints_uppercase',
+        empty_fallback: 'OP',
+      }) ||
     guiContract.utility_icon_policy?.global_feedback_action?.placement !== 'titlebar_trailing_utility' ||
-    guiContract.utility_icon_policy?.global_feedback_action?.icon !== 'comment' ||
+    guiContract.utility_icon_policy?.global_feedback_action?.icon !== 'circle_question' ||
+    guiContract.utility_icon_policy?.global_feedback_action?.icon_style !== 'regular_outline' ||
     guiContract.utility_icon_policy?.global_feedback_action?.target_url !==
       'https://github.com/gaofeng21cn/one-person-lab-app/issues/new' ||
     guiContract.utility_icon_policy?.global_feedback_action?.open_mode !==

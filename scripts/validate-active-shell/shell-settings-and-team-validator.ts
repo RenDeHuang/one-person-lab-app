@@ -64,6 +64,9 @@ const settingsModalForbidden = [
 const settingsFooterExpected = [
   "data-testid={account ? 'sider-footer-account' : 'sider-footer-settings'}",
   "onSettingsClick(account ? 'access' : 'general')",
+  "data-testid='sider-footer-account-avatar'",
+  'bg-success',
+  'text-inverse',
   'const showThemeToggle = isSettings',
   "data-testid='sider-footer-theme'",
 ];
@@ -144,6 +147,12 @@ function validateSettingsPartitionImplementation(shellPaths) {
     settingsFooter,
     settingsFooterForbidden,
     'Active shell Settings footer secondary navigation',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/settings/accessProjection.ts',
+    ['const hanCharacter = name.match(/\\p{Script=Han}/u)?.[0]', 'if (hanCharacter) return hanCharacter'],
+    'Active shell account identity initials policy',
   );
 }
 

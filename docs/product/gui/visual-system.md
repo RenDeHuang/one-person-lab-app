@@ -165,6 +165,10 @@ Dark target：
 - OPL-owned Settings 导航、Overview 状态图标和 utility icon 统一使用 Font Awesome Free；不手画
   SVG，也不借此批量改写 upstream fork-body 图标。纯刷新动作只显示 refresh icon，并用
   tooltip 与 accessible name 提供文字。
+- 全局标题栏帮助/反馈入口使用 Font Awesome Free Regular 的线框圆形问号，保留 tooltip、
+  accessible name 和既有 GitHub issue 路由；不再使用 AionUI 的对话气泡图标。
+- 已连接账户在 rail footer 使用绿色圆形 identity avatar。非中文姓名显示前两个词的首字母，
+  连续中文姓名只显示第一个汉字；无姓名时回退到邮箱 local part 的前两个字符，再回退到 `OP`。
 - Model/reasoning 紧凑控件直接显示模型与推理档位文字和 disclosure，不显示大脑图标。
 - 常规尺寸 `16-20px`，stroke 保持 `1.5-1.75px` 的统一视觉重量。
 - Undo、redo、attach、send、stop、search、settings、close、expand 等熟悉动作只用图标
