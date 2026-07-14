@@ -183,7 +183,7 @@ test('GUI design-system validator rejects a fixed Home shortcut limit', () => {
 
   assert.throws(
     () => validateGuiDesignSystem(root),
-    /interaction baseline Home, conversation, composer, access, and task summary markers must match the App target/,
+    /interaction baseline Home, conversation, composer, Agents management, and task summary markers must match the App target/,
   );
 });
 
@@ -209,7 +209,7 @@ test('GUI design-system validator rejects a duplicate Capabilities selection sur
 
   assert.throws(
     () => validateGuiDesignSystem(root),
-    /interaction baseline Home, conversation, composer, access, and task summary markers must match the App target/,
+    /interaction baseline Home, conversation, composer, Agents management, and task summary markers must match the App target/,
   );
 });
 
@@ -478,7 +478,7 @@ test('GUI design-system validator rejects workspace-gating projectless local inp
 
   assert.throws(
     () => validateGuiDesignSystem(root),
-    /interaction baseline Home, conversation, composer, access, and task summary markers must match the App target/,
+    /interaction baseline Home, conversation, composer, Agents management, and task summary markers must match the App target/,
   );
 });
 
@@ -625,7 +625,7 @@ test('GUI design-system validator rejects duplicate Git stores for Worktree and 
 
   assert.throws(
     () => validateGuiDesignSystem(root),
-    /interaction baseline Home, conversation, composer, access, and task summary markers must match the App target|interaction baseline must reject the legacy equal-weight inspector taxonomy/,
+    /interaction baseline Home, conversation, composer, Agents management, and task summary markers must match the App target|interaction baseline must reject the legacy equal-weight inspector taxonomy/,
   );
 });
 
@@ -641,7 +641,7 @@ test('GUI design-system validator rejects lossy Worktree snapshot, cleanup, and 
 
   assert.throws(
     () => validateGuiDesignSystem(root),
-    /interaction baseline Home, conversation, composer, access, and task summary markers must match the App target/,
+    /interaction baseline Home, conversation, composer, Agents management, and task summary markers must match the App target/,
   );
 });
 

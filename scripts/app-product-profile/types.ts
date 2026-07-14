@@ -357,6 +357,11 @@ export type AppProductProfile = {
       scrub_extra_keys: string[];
       required_scrub_targets: string[];
     };
+    agent_package_registry: {
+      default_registry_url: string;
+      source_ref: string;
+      shell_consumption_policy: string;
+    };
     professional_agent_packages: Array<{
       package_id: string;
       display_name: string;
@@ -638,6 +643,13 @@ export type AppProductProfile = {
       settings_page: string;
       global_control: string;
       safe_maintenance_control: string;
+      safe_maintenance_label_zh: string;
+      safe_maintenance_label_en: string;
+      safe_maintenance_default: string;
+      safe_maintenance_auto_policy: string;
+      safe_maintenance_fast_policy: string;
+      safe_maintenance_required_readback: string[];
+      shared_runtime_mutation_boundary: string;
       safe_maintenance_independent_from_source_selection: boolean;
       package_source_control: string;
       fallback_policy: string;

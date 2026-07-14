@@ -894,7 +894,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     record(homeTarget.home_shortcut_mutation_policy).other_shortcuts_remain_interactive !== true ||
     record(homeTarget.home_shortcut_mutation_policy).readback_mode !== 'background_no_page_loading' ||
     !sameStrings(capabilitySelection.selection_surfaces, ['home_starter']) ||
-    capabilitySelection.management_surface !== 'settings_capabilities' ||
+    capabilitySelection.management_surface !== 'settings_agents' ||
     capabilitySelection.legacy_route_policy !== '/capabilities_redirects_to_home_without_mounting_a_selection_page' ||
     capabilitySelection.composer_persistent_variable_selector !== false ||
     capabilitySelection.composer_context_surface !== 'active_capability_chip' ||
@@ -932,7 +932,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     taskSummaryTarget.duplicate_surface_allowed !== false ||
     !sameStrings(taskSummaryTarget.fields, ['status', 'elapsed', 'progress', 'next_action', 'stop'])
   ) {
-    issues.add('interaction baseline Home, conversation, composer, access, and task summary markers must match the App target');
+    issues.add('interaction baseline Home, conversation, composer, Agents management, and task summary markers must match the App target');
   }
 
   const pageStates = Array.isArray(pageStateMatrix.pages) ? pageStateMatrix.pages.map(record) : [];

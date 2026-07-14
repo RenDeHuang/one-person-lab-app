@@ -11,6 +11,7 @@ import {
   appOwnedSettingsIssueStatuses,
   appOwnedSettingsMakeUsableAllowedSteps,
   appOwnedSettingsMakeUsableForbiddenSteps,
+  appOwnedSettingsManagedDependencySummary,
   appOwnedSettingsProductSystemItemIds,
   appOwnedSettingsProductSystemTracks,
   appOwnedSettingsProjectionItemFields,
@@ -42,25 +43,68 @@ const settingsIaRef =
 const settingsControlPlaneContractRef =
   "contracts/app-settings-control-plane.json";
 const expectedAgentsStateSource =
-  "opl app state --profile fast --json#app_state.agent_packages.directory + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[] + home_agent_shortcuts + app_state.operator.workbench.task_drilldowns";
+  "opl app state --profile fast --json#app_state.agent_packages.directory.entries + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[] + app_state.paths.workspace_root_path + home_agent_shortcuts";
 const expectedCapabilitiesStateSource =
   "opl update status --json#managed_update.components[component_id=opl_base].current.dependency_catalog.flow_dependencies + Codex and shell skill/plugin registries";
+const expectedStartupPerformancePolicy = {
+  schema: "settings_startup_performance.v1",
+  first_window_state_source:
+    "persisted_narrow_settings_snapshot_or_loading_shell",
+  background_state_source: "opl app state --profile fast --json",
+  first_window_blocking_policy:
+    "never_wait_for_complete_fast_state_or_page_drilldowns",
+  first_window_failure_policy:
+    "render_recoverable_nonblank_shell_never_fatal_or_blank_candidate_window",
+  cold_budget_ms: 1500,
+  warm_budget_ms: 1500,
+  budget_scope:
+    "stable_shell_first_paint_and_interactive_settings_shell_only_background_hydration_reported_separately",
+  timing_milestones: [
+    "stable_shell_first_paint",
+    "background_hydration_complete",
+  ],
+  startup_projection_payload_budget_bytes: 262144,
+  lazy_drilldown_routes: ["agents", "capabilities", "storage", "about"],
+  single_flight_background_refresh: true,
+  global_refresh_on_route_mount: false,
+  persisted_snapshot: {
+    schema: "opl_settings_startup_snapshot.v1",
+    source: "desktop_main_process_persisted_narrow_cache",
+    version: 1,
+    freshness_policy: "stale_while_revalidate_with_observed_at_and_stale_fields",
+    invalidation: [
+      "schema_or_version_mismatch",
+      "App_release_identity_change",
+      "explicit_sign_out_or_cache_clear",
+    ],
+    secret_boundary: "allowlisted_read_models_only_no_tokens_passwords_raw_receipts_or_unredacted_errors",
+  },
+  background_hydration_retry: {
+    max_attempts: 2,
+    retry_delay_ms: 250,
+    clear_single_flight_marker_after_failure: true,
+    remount_or_manual_retry_after_exhaustion: true,
+  },
+  framework_projection_claim:
+    "not_proven_by_ui_contract_or_shell_gate",
+  live_measurement_gate:
+    "installed_App_launch_to_first_window_and_settings_readiness_after_owner_absorption",
+};
 
 const expectedLegacyRedirects = {
   ...legacySettingsRouteRedirects,
-  "skills-hub": "capabilities?tab=skills",
-  tools: "capabilities?tab=tools",
 };
 
 const expectedAnchorRemap = Object.fromEntries(
   Object.entries(expectedLegacyRedirects).map(([id, target]) => [
     id,
-    String(target).split("?")[0],
+    String(target).split(/[?#]/)[0],
   ]),
 );
 
 const expectedSlotKeys = [
   "settings_general",
+  "settings_gateway",
   "settings_access",
   "settings_agents",
   "settings_capabilities",
@@ -68,7 +112,6 @@ const expectedSlotKeys = [
   "settings_storage",
   "settings_theme",
   "settings_personalization",
-  "settings_advanced",
   "about",
   "update",
   "workspace",
@@ -84,17 +127,24 @@ const expectedSettingsAdapterEvidence = [
 ];
 
 const expectedPageAdapterEntries = {
+  general: "packages/desktop/src/renderer/pages/settings/sections/OverviewSettings.tsx",
+  gateway: "packages/desktop/src/renderer/pages/settings/accessProjection.ts",
   access: "packages/desktop/src/renderer/pages/settings/accessProjection.ts",
-  environment:
-    "packages/desktop/src/renderer/pages/settings/RuntimeSettings/runtimeSettingsViewModel.ts",
-  storage: "packages/desktop/src/renderer/pages/settings/storageProjection.ts",
+  workspace: "packages/desktop/src/renderer/pages/settings/sections/WorkspaceSettings.tsx",
   agents: "packages/desktop/src/renderer/pages/settings/agentPackagesProjection.ts",
   capabilities:
     "packages/desktop/src/renderer/pages/settings/capabilitiesProjection.ts",
+  resources: "packages/desktop/src/renderer/pages/settings/sections/ResourcesSettings.tsx",
+  environment:
+    "packages/desktop/src/renderer/pages/settings/RuntimeSettings/runtimeSettingsViewModel.ts",
+  storage: "packages/desktop/src/renderer/pages/settings/storageProjection.ts",
+  appearance: "packages/desktop/src/renderer/pages/settings/sections/AppearanceSettings.tsx",
+  about: "packages/desktop/src/renderer/components/settings/SettingsModal/contents/AboutModalContent.tsx",
 };
 
 const expectedVisualQaRoutes = [
   "/settings/general",
+  "/settings/gateway",
   "/settings/access",
   "/settings/workspace",
   "/settings/agents",
@@ -104,10 +154,7 @@ const expectedVisualQaRoutes = [
   "/settings/storage",
   "/settings/appearance",
 ];
-const expectedVisualQaSecondaryRoutes = [
-  "/settings/advanced",
-  "/settings/about",
-];
+const expectedVisualQaSecondaryRoutes = ["/settings/about"];
 const expectedVisualQaCompatibilityRedirects = [
   "update->environment#updates",
   "theme->appearance#themes",
@@ -135,6 +182,7 @@ const expectedVisualQaManifestFields = [
 
 const matrixRouteScopes = {
   settings_general: appOwnedSettingsRouteScopes.settings_general,
+  gateway: appOwnedSettingsRouteScopes.gateway,
   access: appOwnedSettingsRouteScopes.access,
   agents: appOwnedSettingsRouteScopes.agents,
   capabilities: appOwnedSettingsRouteScopes.capabilities,
@@ -147,25 +195,24 @@ const matrixRouteScopes = {
   settings_theme: appOwnedSettingsRouteScopes.settings_theme,
   settings_personalization:
     appOwnedSettingsRouteScopes.settings_personalization,
-  advanced: appOwnedSettingsRouteScopes.advanced,
   settings_workspace: appOwnedSettingsRouteScopes.workspace,
 };
 
 const expectedIaGroupByMatrixPageId = {
   settings_general: "overview",
-  access: "setup_access",
+  gateway: "gateway",
+  access: "models",
   agents: "agents",
   capabilities: "capabilities",
   settings_resources: "resources",
   environment: "maintenance",
   settings_local_services: "maintenance",
-  storage: "data_storage",
-  about: "advanced",
+  storage: "storage",
+  about: "about",
   update: "maintenance",
   settings_theme: "preferences",
-  settings_personalization: "overview",
-  advanced: "advanced",
-  settings_workspace: "overview",
+  settings_personalization: "workspace",
+  settings_workspace: "workspace",
 };
 
 export function validateSettingsControlPlane(
@@ -215,7 +262,7 @@ export function validateSettingsControlPlane(
     configurationProjection?.schema !==
       "opl_app_settings_configuration_catalog_projection.v1" ||
     configurationProjection.framework_source_ref !==
-      "app_state.settings_control_center.configuration_catalog.items" ||
+      "app_state.settings_control_center.configuration_catalog.items + app_state.settings_control_center.configuration_catalog.host_owned_configuration_surfaces" ||
     configurationProjection.connection_source_ref !==
       "app_state.settings_control_center.connection_registry"
   ) {
@@ -359,6 +406,7 @@ export function validateSettingsControlPlane(
     controlPlane.ordinary_routes?.map((route) => route.slot_id),
     [
       "settings_general",
+      "settings_gateway",
       "settings_access",
       "workspace",
       "settings_agents",
@@ -421,14 +469,26 @@ export function validateSettingsControlPlane(
   const agentsRoute = (controlPlane.ordinary_routes ?? []).find(
     (route) => route.id === "agents",
   );
-  if (agentsRoute?.state_source !== expectedAgentsStateSource.replace(" + app_state.operator.workbench.task_drilldowns", "")) {
+  if (agentsRoute?.state_source !== expectedAgentsStateSource) {
     throw new Error(
       "Settings Agents route must read from canonical agent_packages plus Home shortcut projections",
     );
   }
   const capabilityOwnership = controlPlane.agents_capabilities_ownership?.capabilities;
   const externalUpdates = controlPlane.external_tool_update_policy;
-  assertDeepEqualJson(capabilityOwnership?.entity_kinds, ["skill", "plugin"], "Settings capability entity kinds");
+  if (
+    guiContract?.interaction_baseline?.capability_selection
+      ?.management_surface !== "settings_agents"
+  ) {
+    throw new Error(
+      "Settings Agents must own Agent package and Home shortcut management",
+    );
+  }
+  assertDeepEqualJson(
+    capabilityOwnership?.entity_kinds,
+    ["skill", "plugin", "mcp_server", "image_generation", "voice_input"],
+    "Settings capability entity kinds",
+  );
   if (
     capabilityOwnership?.groups?.opl_flow_managed?.source !== "opl_base_typed_flow_dependency_catalog" ||
     capabilityOwnership?.groups?.opl_flow_managed?.source_ref !==
@@ -437,6 +497,12 @@ export function validateSettingsControlPlane(
       "derive_from_typed_opl_base_flow_dependencies_never_from_app_hardcoded_skill_list" ||
     capabilityOwnership?.groups?.opl_flow_managed?.lifecycle_owner !== "opl_packages" ||
     capabilityOwnership?.groups?.opl_flow_managed?.cli_currentness_owner !== "opl_base" ||
+    capabilityOwnership?.groups?.manual_and_third_party?.source !==
+      "codex_and_shell_skill_plugin_registries_plus_aionui_mcp_image_voice_configuration" ||
+    capabilityOwnership?.groups?.manual_and_third_party?.membership_policy !==
+      "show_user_managed_and_third_party_skills_plugins_MCP_image_and_voice_controls_without_reclassifying_them_as_opl_flow_managed" ||
+    capabilityOwnership?.groups?.manual_and_third_party?.aionui_native_policy !==
+      "keep_AionUI_native_skills_tools_assistants_MCP_helpers_image_controls_and_voice_input_controls_in_local_or_third_party_ownership_never_OPL_Flow_managed" ||
     capabilityOwnership?.groups?.manual_and_third_party?.mutation_policy !== "explicit_user_action_only"
   ) {
     throw new Error("Settings Capabilities must separate OPL Flow dependency closure from manual and third-party Skills/Plugins");
@@ -494,6 +560,28 @@ export function validateSettingsControlPlane(
       "Settings control plane must keep reads and actions single-flight with operation-bound results",
     );
   }
+  assertDeepEqualJson(
+    controlPlane.state_action_policy?.startup_performance_policy,
+    expectedStartupPerformancePolicy,
+    "Settings startup performance policy",
+  );
+  assertDeepEqualJson(
+    guiContract?.settings_navigation?.settings_ia?.protocols
+      ?.startup_performance,
+    expectedStartupPerformancePolicy,
+    "Settings GUI startup performance protocol",
+  );
+  assertDeepEqualJson(
+    pageStateMatrix?.settings_startup_performance_policy,
+    expectedStartupPerformancePolicy,
+    "Settings page-state startup performance policy",
+  );
+  assertDeepEqualJson(
+    productProfile?.settings?.control_plane?.state_action_policy
+      ?.startup_performance_policy,
+    expectedStartupPerformancePolicy,
+    "Settings product-profile startup performance projection",
+  );
   if (
     controlPlane.state_action_policy?.configuration_action_policy !==
       "framework_owned_persistent_controls_consume_configuration_catalog_action_ids_and_verify_refs_without_shell_hardcoding" ||
@@ -676,8 +764,8 @@ function resolveSettingsControlPlaneRoute(controlPlane, routeId) {
   }
   return settingsRouteResolution(
     routeId,
-    "advanced",
-    registry.secondary_pages.find((route) => route.id === "advanced"),
+    "general",
+    registry.ordinary_routes.find((route) => route.id === "general"),
     "unknown_redirect",
   );
 }
@@ -843,7 +931,7 @@ function validateCustomAssistantDataBoundary(controlPlane) {
       opl_app_product_surface: false,
       ordinary_navigation_entry_allowed: false,
       entry_may_be_hidden: true,
-      legacy_assistants_target: "capabilities?tab=skills",
+      legacy_assistants_target: "capabilities#third-party",
       underlying_user_data_owner: "aionui",
       underlying_user_data_deletion_policy:
         "forbidden_without_explicit_app_contract_and_migration_or_deletion_evidence",
@@ -971,7 +1059,7 @@ function validateSettingsTopLevelEntries(entries, policy) {
     policy?.resources_visibility !==
       "resources_is_user_visible_top_level_navigation_entry" ||
     policy?.advanced_visibility !==
-      "advanced_is_secondary_or_deep_link_not_ordinary_navigation" ||
+      "advanced_is_retired_and_redirects_to_maintenance_diagnostics" ||
     policy?.about_visibility !== "about_is_independent_secondary_page" ||
     policy?.compatibility_route_policy !==
       "update_theme_local_services_and_personalization_redirect_to_owner_route_and_anchor" ||
@@ -979,7 +1067,7 @@ function validateSettingsTopLevelEntries(entries, policy) {
       "carrier_route_ids_remain_stable_while_product_page_ids_are_canonical"
   ) {
     throw new Error(
-      "Settings IA must declare nine ordinary product pages, independent About, and compatibility anchor routes",
+      "Settings IA must declare ten ordinary product pages, independent About, and compatibility anchor routes",
     );
   }
   assertDeepEqualJson(
@@ -1137,11 +1225,11 @@ function validateSettingsProtocols(protocols) {
   }
   if (
     protocols.deep_link_policy?.unknown_route_policy !==
-      "redirect_to_nearest_app_owned_settings_group" ||
+      "redirect_to_overview_default_route" ||
     protocols.deep_link_policy?.legacy_route_policy !==
       "redirect_using_settings_navigation.legacy_route_redirects" ||
     protocols.deep_link_policy?.secondary_route_policy !==
-      "open_advanced_or_about_without_ordinary_tab_promotion" ||
+      "open_about_without_ordinary_tab_promotion_and_redirect_advanced_to_maintenance_diagnostics" ||
     protocols.deep_link_policy?.compatibility_route_policy !==
       "resolve_settings_navigation.compatibility_redirects_then_navigate_route_id_and_anchor"
   ) {
@@ -1285,9 +1373,9 @@ function validateSettingsVisualQaExpectations(expectations) {
   assertDeepEqualJson(
     expectations?.evidence_dimensions,
     {
-      required_viewports: ["desktop"],
+      required_viewports: ["desktop", "mobile"],
       required_color_schemes: ["light"],
-      coverage_policy: "default_desktop_light_requires_fresh_visual_evidence",
+      coverage_policy: "desktop_and_mobile_light_require_fresh_visual_evidence",
     },
     "Settings visual QA evidence dimensions",
   );
@@ -1391,13 +1479,6 @@ function validateSettingsPageStateMatrix(
       contract.search_entry_ids,
       `Page-state ${productPageId} search entries`,
     );
-    if (productPageId === "access") {
-      assertDeepEqualJson(
-        page.browser_access_entry,
-        contract.browser_access_entry,
-        "Page-state Access browser entry",
-      );
-    }
     if (productPageId === "capabilities") {
       assertDeepEqualJson(
         page.tab_contract,
@@ -1413,6 +1494,16 @@ function validateSettingsPageStateMatrix(
       );
     }
   }
+  assertDeepEqualJson(
+    pageById(pageStateMatrix, "about").updater_state_policy,
+    {
+      startup_check: "once_after_App_startup",
+      mount_check: false,
+      shared_state: "single_main_process_updater_state_store",
+      manual_check: "refresh_the_same_shared_state",
+    },
+    "Page-state About updater state policy",
+  );
 }
 
 function validateProductProfileSettings(productProfile, controlPlane) {
@@ -1443,6 +1534,7 @@ function validateHydratedSettingsRegistry(controlPlane) {
     registry.ordinary_routes.map((route) => route.component_key),
     [
       "OverviewSettings",
+      "GatewaySettingsContent",
       "AccessSettingsContent",
       "WorkspaceSettings",
       "AgentPackagesSettingsContent",
@@ -1490,7 +1582,7 @@ function validateHydratedSettingsRegistry(controlPlane) {
   for (const legacyRoute of Object.keys(expectedLegacyRedirects)) {
     const redirectTarget = String(
       controlPlane.legacy_route_redirects[legacyRoute],
-    ).split("?")[0];
+    ).split(/[?#]/)[0];
     const knownTargets = new Set([
       ...appOwnedSettingsTabs,
       ...appOwnedSecondarySettingsPages,
@@ -1523,11 +1615,24 @@ function validateHydratedSettingsRegistry(controlPlane) {
   );
   if (
     assistantsResolution.target_id !== "capabilities" ||
-    assistantsResolution.path !== "/settings/capabilities?tab=skills" ||
-    assistantsResolution.anchor !== null
+    assistantsResolution.path !== "/settings/capabilities?section=third-party" ||
+    assistantsResolution.anchor !== "third-party"
   ) {
     throw new Error(
       "Settings legacy assistants route must open the OPL capability directory",
+    );
+  }
+  const unknownResolution = resolveSettingsControlPlaneRoute(
+    controlPlane,
+    "unknown-settings-route",
+  );
+  if (
+    unknownResolution.route_scope !== "unknown_redirect" ||
+    unknownResolution.target_id !== "general" ||
+    unknownResolution.path !== "/settings/general"
+  ) {
+    throw new Error(
+      "Unknown Settings routes must fall back to the Overview default route",
     );
   }
 }
@@ -1679,10 +1784,11 @@ function validateSettingsSurfaceModel(surfaceModel) {
   if (
     surfaceModel?.classification_policy !==
       "every_page_surface_has_exactly_one_type_and_one_page_owner" ||
-    surfaceModel?.advanced_page_type !== "diagnostic"
+    surfaceModel?.advanced_page_type !==
+      "retired_redirect_to_maintenance_diagnostics"
   ) {
     throw new Error(
-      "Settings surfaces must have exactly one of four types and Advanced must be diagnostic",
+      "Settings surfaces must have exactly one of four types and retired Advanced must redirect to Maintenance diagnostics",
     );
   }
   assertDeepEqualJson(
@@ -1811,16 +1917,6 @@ function validatePageSurfaceInventory(pageId, inventory) {
     }
   }
 
-  if (pageId === "advanced") {
-    if (
-      inventory.configuration.length !== 0 ||
-      inventory.status.length !== 0 ||
-      inventory.action.length !== 0 ||
-      inventory.diagnostic.length === 0
-    ) {
-      throw new Error("Settings Advanced must be a diagnostic-only page");
-    }
-  }
   if (pageId === "maintenance") {
     if (
       inventory.configuration.length !== 1 ||
@@ -1833,9 +1929,38 @@ function validatePageSurfaceInventory(pageId, inventory) {
     }
   }
   if (pageId === "storage") {
-    if (inventory.configuration.length !== 0 || inventory.action.length === 0) {
+    if (
+      inventory.configuration.length !== 0 ||
+      inventory.action.length === 0
+    ) {
       throw new Error(
-        "Settings Storage operations are actions, not persistent settings",
+        "Settings Storage must not own configuration; usage, cleanup, archive, and restore remain status or actions",
+      );
+    }
+  }
+  if (pageId === "workspace") {
+    assertIncludesAll(
+      inventory.configuration.map((entry) => entry.id),
+      [
+        "workspace_selection",
+        "log_directory",
+        "codex_user_instructions",
+        "opl_app_session_context",
+      ],
+      "Settings Workspace and Personalization configuration ownership",
+    );
+  }
+  if (pageId === "preferences") {
+    const preferenceConfigurationIds = inventory.configuration.map(
+      (entry) => entry.id,
+    );
+    if (
+      preferenceConfigurationIds.includes("log_directory") ||
+      preferenceConfigurationIds.includes("codex_user_instructions") ||
+      preferenceConfigurationIds.includes("opl_app_session_context")
+    ) {
+      throw new Error(
+        "Settings Preferences must not duplicate Workspace paths or personalization",
       );
     }
   }
@@ -1980,8 +2105,10 @@ export function validateSettingsExperienceContract(experience) {
     }
     const technicalDetailsTestId = `settings-${pageId}-technical-details`;
     const technicalDetailsOptional = [
-      "access",
-      "advanced",
+      "overview",
+      "gateway",
+      "models",
+      "workspace",
       "capabilities",
       "preferences",
     ].includes(pageId);
@@ -2020,8 +2147,16 @@ export function validateSettingsExperienceContract(experience) {
     "Settings Resources browser entry",
   );
   if (
-    pageContracts.access.browser_access_entry !== undefined ||
-    pageContracts.access.required_dom.always.includes(
+    pageContracts.resources.connection_filter_policy !==
+    "exclude the built-in OPL Gateway connection and count; show only user-managed external connections"
+  ) {
+    throw new Error(
+      "Settings Resources must exclude the built-in OPL Gateway connection and count",
+    );
+  }
+  if (
+    pageContracts.models.browser_access_entry !== undefined ||
+    pageContracts.models.required_dom.always.includes(
       "settings-access-browser-access",
     ) ||
     !pageContracts.resources.required_dom.always.includes(
@@ -2029,7 +2164,7 @@ export function validateSettingsExperienceContract(experience) {
     )
   ) {
     throw new Error(
-      "Settings browser access must be owned by Resources & Connections, not Models & Access",
+      "Settings browser access must be owned by Resources & Connections, not Models",
     );
   }
   if (
@@ -2051,23 +2186,44 @@ export function validateSettingsExperienceContract(experience) {
       log_directory_source:
         "application.systemInfo.logDir_not_Framework_app_state.paths.logs_dir",
       log_directory_mutation:
-        "application.updateSystemInfo_preserves_cacheDir_and_workDir_and_switches_main_process_log_root_immediately",
+        "application.updateSystemInfo_preserves_current_cacheDir_and_workDir_and_persists_desktop_client_system_info",
+      log_directory_webui_policy:
+        "read_only_/data/logs_projection_from_existing_OnePersonLab/data_to_/data_volume",
       desktop_directory_mapping:
         "project_workspace_is_Framework_workspace_root_while_App_data_and_logs_are_shell_system_directories",
       docker_mapping:
-        "host_managed_/projects_for_project_workspace_and_/data_for_App_data_logs_no_volume_rewire_from_Settings",
+        "OnePersonLab/data_maps_to_/data_and_Settings_does_not_rewire_the_volume",
+      docker_volume_rewire_allowed: false,
       generated_base_context_editable: false,
       additional_instructions_editable: true,
       restore_default_confirmation_required: true,
       personalization_changes_apply_to: "next_new_conversation",
+      storage_reference_policy:
+        "Storage_may_show_the_resolved_log_path_read_only_but_has_no_log_configuration_control",
+      path_instance_count: 1,
     },
     "Settings Workspace surface rules",
   );
   assertDeepEqualJson(
     pageContracts.agents.management_discoverability,
     {
-      primary_row_controls: ["home_visibility", "manage"],
-      lifecycle_actions: ["update", "repair", "enable", "disable", "uninstall"],
+      primary_row_controls: ["home_visibility", "recommended_action", "manage"],
+      lifecycle_actions: [
+        "install",
+        "activate",
+        "update",
+        "repair",
+        "enable",
+        "disable",
+        "hide",
+        "unhide",
+        "uninstall",
+      ],
+      catalog_search_is_settings_global_search: false,
+      registry_refresh_visibility: "ordinary_visible_action",
+      manifest_url_install_visibility: "advanced_only",
+      projected_action_policy:
+        "execute only Framework action_id and payload; never infer status, readiness, action ids, or payload fields in the Shell",
       raw_source_fallback_allowed: false,
       diagnostic_refs_location: "diagnostics_modal",
       home_preference_policy:
@@ -2075,6 +2231,23 @@ export function validateSettingsExperienceContract(experience) {
     },
     "Settings Agent package management discoverability",
   );
+  assertDeepEqualJson(
+    pageContracts.agents.first_viewport_groups,
+    [
+      "agent_package_catalog_controls",
+      "agent_package_directory_entries",
+      "agent_package_details",
+    ],
+    "Settings Agents first-viewport groups",
+  );
+  if (
+    pageContracts.agents.exception_state !==
+    "highlight failed or blocked Agent packages and keep normal packages visually quiet"
+  ) {
+    throw new Error(
+      "Settings Agents exception state must use Agent package semantics",
+    );
+  }
   assertDeepEqualJson(
     pageContracts.preferences.surface_rules,
     {
@@ -2086,6 +2259,8 @@ export function validateSettingsExperienceContract(experience) {
       interactive_controls_inside_diagnostic_surface_allowed: false,
       performance_and_waiting_policy:
         "advanced_but_persistent_controls_use_a_named_configuration_group_not_a_technical_details_disclosure",
+      voice_input_configuration_allowed: false,
+      voice_input_configuration_owner: "capabilities",
     },
     "Settings Preferences surface rules",
   );
@@ -2101,6 +2276,10 @@ export function validateSettingsExperienceContract(experience) {
       diagnostic_mutation_controls_allowed: false,
       unknown_state_copy:
         "distinguish_checking_not_checked_not_applicable_and_needs_attention",
+      managed_dependency_primary_visibility:
+        "managed_dependency_summary_is_visible_without_opening_diagnostics",
+      working_path_owner:
+        "Framework and raw paths live only in Maintenance diagnostics",
     },
     "Settings Maintenance surface rules",
   );
@@ -2116,6 +2295,27 @@ export function validateSettingsExperienceContract(experience) {
         "archive_receipt_is_required_before_delete_and_the_same_archive_exposes_a_confirmed_restore_action",
       restore_collision_policy:
         "never_overwrite_an_existing_conversation_without_an_explicit_collision_decision",
+      inventory_initial_state:
+        "last_persisted_snapshot_or_loading_placeholder_never_synthetic_zero_bytes",
+      inventory_refresh_policy:
+        "startup_delayed_background_scan_with_300_second_ttl_manual_force_refresh_and_push_update_after_scan",
+      inventory_cache_ttl_seconds: 300,
+      inventory_freshness_fields: ["observed_at", "scan_duration_ms", "stale"],
+      inventory_event: "local-data-lifecycle.inventory-updated",
+      log_directory_reference: "read_only_link_to_workspace#logs",
+      docker_storage_owner: "desktop_App_carrier_and_Docker_Engine",
+      docker_required_fields: [
+        "engine_status",
+        "image_bytes",
+        "container_bytes",
+        "volume_bytes",
+        "build_cache_bytes",
+        "reclaimable_bytes",
+        "data_volume_source",
+        "data_volume_destination",
+      ],
+      docker_data_volume_mapping: "OnePersonLab/data -> /data",
+      docker_cleanup_policy: "preview_before_prune_no_generic_prune",
     },
     "Settings Storage surface rules",
   );
@@ -2123,15 +2323,25 @@ export function validateSettingsExperienceContract(experience) {
     pageContracts.about.surface_rules,
     {
       version_update_card_count: 1,
-      update_action_placement: "same_row_as_update_status",
+      version_channel_layout: "one compact row",
+      update_action_placement: "dedicated row below version and channel",
       help_link_layout: "full_width_row_with_trailing_icon_at_container_edge",
+      automatic_check_policy:
+        "check once after App startup and publish the result to a shared updater state store",
+      mount_policy:
+        "About reads cached updater state and never starts a check on mount",
+      manual_check_policy:
+        "the Check for updates action refreshes the same shared updater state",
+      state_source:
+        "desktop_main_process_app_metadata + single_main_process_updater_state_store",
+      framework_state_role: "diagnostic_supplement_only",
     },
     "Settings About surface rules",
   );
   assertDeepEqualJson(
     pageContracts.capabilities.tab_contract,
     appOwnedSettingsCapabilitiesTabContract,
-    "Settings Agents & Capabilities tab contract",
+    "Settings Capabilities tab contract",
   );
   assertDeepEqualJson(
     pageContracts.resources.action_behavior,
@@ -2218,9 +2428,12 @@ function validateSettingsProjection(projection) {
   if (projection?.owner !== "one-person-lab-app") {
     throw new Error("Settings projection must stay App-owned");
   }
-  if (projection?.source !== "opl app state --profile fast --json#settings") {
+  if (
+    projection?.source !==
+    "opl app state --profile full --json#app_state.settings_control_center.settings_projection"
+  ) {
     throw new Error(
-      "Settings projection must consume the fast App settings projection",
+      "Settings projection must consume the explicit full App settings drilldown projection",
     );
   }
   if (
@@ -2256,9 +2469,9 @@ function validateSettingsProjection(projection) {
     "Settings projection sections",
   );
   for (const [sectionId, section] of Object.entries(sections)) {
-    if (section?.id !== sectionId) {
+    if (section?.section_id !== sectionId) {
       throw new Error(
-        `Settings projection section ${sectionId} must keep matching id`,
+        `Settings projection section ${sectionId} must keep matching section_id`,
       );
     }
     if (!Array.isArray(section.items) || section.items.length === 0) {
@@ -2270,12 +2483,12 @@ function validateSettingsProjection(projection) {
       assertIncludesAll(
         Object.keys(item),
         appOwnedSettingsProjectionItemFields,
-        `Settings projection item ${sectionId}.${item?.id ?? "<missing id>"} fields`,
+        `Settings projection item ${sectionId}.${item?.item_id ?? "<missing id>"} fields`,
       );
       for (const field of appOwnedSettingsProjectionItemFields) {
         if (typeof item[field] !== "string" || item[field].trim() === "") {
           throw new Error(
-            `Settings projection item ${sectionId}.${item?.id ?? "<missing id>"} must declare ${field}`,
+            `Settings projection item ${sectionId}.${item?.item_id ?? "<missing id>"} must declare ${field}`,
           );
         }
       }
@@ -2317,7 +2530,7 @@ function validateSettingsPageAdapterPolicy(controlPlane) {
     }
     if (
       !String(page.renderer_entry ?? "").startsWith(
-        "packages/desktop/src/renderer/pages/settings/",
+        "packages/desktop/src/renderer/",
       )
     ) {
       throw new Error(
@@ -2334,31 +2547,107 @@ function validateSettingsPageAdapterPolicy(controlPlane) {
     }
   }
   validateSettingsAccessCloudBoundary(requiredPages.access);
-  validateSettingsGatewayAccountBoundary(controlPlane, requiredPages.access);
-  validateSettingsCapabilitiesResourceGrouping(
-    requiredPages.agents?.resource_grouping_surface,
-    "Settings Agents page adapter resource grouping surface",
+  validateSettingsGatewayAccountBoundary(controlPlane, requiredPages.gateway);
+  assertDeepEqualJson(
+    requiredPages.environment?.managed_dependency_summary,
+    appOwnedSettingsManagedDependencySummary,
+    "Settings Maintenance managed dependency summary",
   );
+  validateSettingsCapabilitiesResourceGrouping(
+    requiredPages.capabilities?.resource_grouping_surface,
+    "Settings Capabilities page adapter resource grouping surface",
+  );
+  assertDeepEqualJson(
+    requiredPages.capabilities?.entity_kinds,
+    ["skill", "plugin", "mcp_server", "image_generation", "voice_input"],
+    "Settings Capabilities page adapter entity kinds",
+  );
+  if (
+    requiredPages.capabilities?.local_configuration_source !==
+      "AionUI local configuration#MCP servers + image generation + voice input" ||
+    requiredPages.capabilities?.third_party_projection_policy?.aionui_native_policy !==
+      "keep_AionUI_native_skills_tools_assistants_MCP_helpers_image_controls_and_voice_input_controls_in_local_or_third_party_ownership_never_OPL_Flow_managed" ||
+    !requiredPages.capabilities?.forbidden_sources?.includes("Preferences-owned voice input configuration")
+  ) {
+    throw new Error("Settings Capabilities adapter must own local MCP, image, and voice configuration");
+  }
   validateSettingsAgentsDirectoryProjection(requiredPages.agents);
+  validateWorkspaceAndStorageOwnership(requiredPages.workspace, requiredPages.storage);
 }
 
-function validateSettingsGatewayAccountBoundary(controlPlane, accessAdapter) {
+function validateWorkspaceAndStorageOwnership(workspacePage, storagePage) {
+  const logDirectory = workspacePage?.log_directory;
+  assertDeepEqualJson(
+    logDirectory,
+    {
+      owner_page: "workspace",
+      typed_action: "application.updateSystemInfo",
+      typed_action_payload_fields: ["cacheDir", "workDir", "logDir"],
+      preserved_fields: ["cacheDir", "workDir"],
+      host_projection: "application.systemInfo.logDir",
+      persistence_target: "desktop_client_system_info",
+      readback_ref: "application.systemInfo.logDir",
+      desktop_change_supported: true,
+      webui_log_projection: "/data/logs",
+      docker_volume_mapping: "OnePersonLab/data -> /data",
+      docker_volume_rewire_allowed: false,
+    },
+    "Settings Workspace typed host log-directory projection",
+  );
+  if (
+    storagePage?.inventory_cache_policy?.ttl_seconds !== 300 ||
+    storagePage?.log_directory_ref?.mode !== "read_only" ||
+    storagePage?.log_directory_ref?.owner_route !== "workspace#logs" ||
+    storagePage?.configuration_owner !== false
+  ) {
+    throw new Error(
+      "Settings Storage must use the 300-second cache and keep the log directory as a read-only Workspace reference",
+    );
+  }
+  const docker = storagePage?.docker_storage_projection;
+  if (
+    docker?.owner !== "desktop_App_carrier_and_Docker_Engine" ||
+    docker?.data_volume_mapping !== "OnePersonLab/data -> /data" ||
+    docker?.preview_before_prune !== true ||
+    docker?.generic_prune_allowed !== false
+  ) {
+    throw new Error(
+      "Settings Storage must expose typed Docker usage with preview-before-prune and no generic prune",
+    );
+  }
+  assertIncludesAll(
+    docker?.required_fields,
+    [
+      "engine_status",
+      "image_bytes",
+      "container_bytes",
+      "volume_bytes",
+      "build_cache_bytes",
+      "reclaimable_bytes",
+      "data_volume_source",
+      "data_volume_destination",
+    ],
+    "Settings Storage Docker projection fields",
+  );
+}
+
+function validateSettingsGatewayAccountBoundary(controlPlane, gatewayAdapter) {
   const gatewaySource = 'app_state.settings_control_center.app_settings_read_model.opl_gateway_account';
-  const accessRoute = (controlPlane.ordinary_routes ?? []).find((route) => route.id === 'access');
-  if (!String(accessRoute?.state_source ?? '').includes(gatewaySource)) {
-    throw new Error('Settings Access route must consume the canonical Gateway account read model path');
+  const gatewayRoute = (controlPlane.ordinary_routes ?? []).find((route) => route.id === 'gateway');
+  if (!String(gatewayRoute?.state_source ?? '').includes(gatewaySource)) {
+    throw new Error('Settings Gateway route must consume the canonical Gateway account read model path');
   }
   if (
-    accessAdapter?.opl_gateway_account_source !== gatewaySource ||
-    accessAdapter.opl_gateway_account_projection_ref !== 'contracts/app-runtime-bridge.json#opl_gateway_account_projection' ||
-    accessAdapter.opl_gateway_account_secret_bridge_ref !== 'contracts/app-runtime-bridge.json#opl_gateway_account_secret_bridge' ||
-    accessAdapter.secret_boundary !==
+    gatewayAdapter?.opl_gateway_account_source !== gatewaySource ||
+    gatewayAdapter.opl_gateway_account_projection_ref !== 'contracts/app-runtime-bridge.json#opl_gateway_account_projection' ||
+    gatewayAdapter.opl_gateway_account_secret_bridge_ref !== 'contracts/app-runtime-bridge.json#opl_gateway_account_secret_bridge' ||
+    gatewayAdapter.secret_boundary !==
       'account_password_only_through_typed_desktop_ipc_and_dedicated_stdin_never_generic_action_payload' ||
-    accessAdapter.webui_boundary !== 'status_and_manual_api_key_only_no_gateway_account_password_login'
+    gatewayAdapter.webui_boundary !== 'status_and_manual_api_key_only_no_gateway_account_password_login'
   ) {
-    throw new Error('Settings Access adapter must preserve the Gateway account projection and secret bridge boundaries');
+    throw new Error('Settings Gateway adapter must preserve the Gateway account projection and secret bridge boundaries');
   }
-  const surface = controlPlane.experience_contract?.page_contracts?.access?.gateway_account_surface;
+  const surface = controlPlane.experience_contract?.page_contracts?.gateway?.gateway_account_surface;
   if (
     surface?.projection_path !== gatewaySource ||
     surface.projection_ref !== 'contracts/app-runtime-bridge.json#opl_gateway_account_projection' ||
@@ -2368,7 +2657,7 @@ function validateSettingsGatewayAccountBoundary(controlPlane, accessAdapter) {
     surface.webui_password_login_allowed !== false ||
     surface.generic_action_secret_payload_allowed !== false
   ) {
-    throw new Error('Settings Access experience must keep Gateway account visibility, TTL, WebUI, and secret rules');
+    throw new Error('Settings Gateway experience must keep account visibility, TTL, WebUI, and secret rules');
   }
   assertDeepEqualJson(surface.access_paths, ['account_login', 'manual_api_key'], 'Settings Gateway access paths');
   assertDeepEqualJson(
@@ -2393,7 +2682,7 @@ function validateSettingsGatewayAccountBoundary(controlPlane, accessAdapter) {
 function validateSettingsAgentsDirectoryProjection(agentsPage) {
   if (agentsPage?.state_source !== expectedAgentsStateSource) {
     throw new Error(
-      "Settings Agents page adapter must read from canonical agent_packages plus Home shortcut and task-awareness projections",
+      "Settings Agents page adapter must read from canonical agent_packages, runtime source, and Home shortcut projections",
     );
   }
   const directory = agentsPage?.directory_projection_surface;
@@ -2404,7 +2693,7 @@ function validateSettingsAgentsDirectoryProjection(agentsPage) {
   }
   if (
     directory.surface !== "settings_agents" ||
-    directory.primary_identity !== "installed_package_directory" ||
+    directory.primary_identity !== "public_agent_package_directory_entries" ||
     directory.purpose_role !== "secondary_tag_filter_only" ||
     directory.home_shortcut_integration !==
       "inline_visibility_and_order_controls_on_package_rows"
@@ -2415,13 +2704,21 @@ function validateSettingsAgentsDirectoryProjection(agentsPage) {
   }
   if (
     directory.canonical_projection !==
-      "opl app state --profile fast --json#app_state.agent_packages.directory + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[]" ||
+      "opl app state --profile fast --json#app_state.agent_packages.directory.entries + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[] + app_state.paths.workspace_root_path" ||
+    directory.directory_collection_source !==
+      "app_state.agent_packages.directory.entries" ||
+    directory.directory_collection_policy !==
+      "render every canonical entry including uninstalled, OMA, all first-party, framework capability, and workflow profile packages" ||
+    directory.static_metadata_overlay_source !==
+      "contracts/app-product-profile.json#gui.professional_agent_packages" ||
+    directory.static_metadata_overlay_policy !==
+      "package_id keyed optional UI enrichment only; never collection membership, seed, status, readiness, or action authority" ||
     directory.runtime_source_projection !==
       "opl app state --profile fast --json#app_state.runtime_source_carriers.items[]" ||
     directory.source_semantics_policy !==
-      "agent package state owns installation truth; runtime source carriers own active run source; runtime source presence alone is not package installation truth" ||
+      "directory entries own discovery and projected actions; status_index owns installation and activation truth; runtime source carriers own active run source; the shell infers none of them" ||
     directory.legacy_fallback_projection !==
-      "opl app state --profile fast --json#app_state.modules.items[] + home_agent_shortcuts + app_state.operator.workbench.task_drilldowns"
+      "opl app state --profile fast --json#app_state.modules.items[] + home_agent_shortcuts"
   ) {
     throw new Error(
       "Settings Agents directory projection must record canonical and legacy fallback runtime projections",
@@ -2429,9 +2726,16 @@ function validateSettingsAgentsDirectoryProjection(agentsPage) {
   }
   if (
     directory.normalization_policy !==
-      "shell must use agent_packages for installation truth, overlay runtime_source_carriers for active run source, and only fall back to modules.items when older runtime payloads or partial projections are still in circulation" ||
+      "shell uses directory.entries as the complete collection, joins status_index and runtime_source_carriers by canonical package_id, and may enrich UI metadata only from the static profile overlay" ||
+    directory.catalog_interaction_contract_ref !==
+      "contracts/app-gui-product-contract.json#pages.settings_agents.agent_package_lifecycle_ux.directory_controls" ||
+    directory.package_action_contract_ref !==
+      "contracts/app-gui-product-contract.json#pages.settings_agents.agent_package_lifecycle_ux.canonical_action_contract" ||
     directory.activation_action_contract_ref !==
-      "contracts/app-gui-product-contract.json#pages.settings_agents.agent_package_lifecycle_ux.package_projection_contract.activation_preparation_policy"
+      "contracts/app-gui-product-contract.json#pages.settings_agents.agent_package_lifecycle_ux.workspace_activation_contract" ||
+    directory.workspace_path_source !== "app_state.paths.workspace_root_path" ||
+    directory.workspace_missing_policy !==
+      "disable activation with workspace_root_not_configured and route to /settings/workspace#workspace"
   ) {
     throw new Error(
       "Settings Agents directory projection must explain canonical projection preference, legacy fallback, and package activation action",
@@ -2483,10 +2787,10 @@ function validateSettingsAgentsDirectoryProjection(agentsPage) {
   if (
     detailSurface?.kind !== "desktop_right_side_panel_mobile_drawer" ||
     detailSurface?.first_screen_policy !==
-      "dependency_readiness_operational_ready_launch_gate_and_dependent_guard_are_normal_detail_fields_while_receipts_dependency_closure_digests_physical_surface_and_workflow_connector_resource_refs_are_advanced_only_not_primary_row_density"
+      "dependency_readiness_operational_ready_launch_gate_and_dependent_guard_are_normal_detail_fields_while_receipts_dependency_closure_digests_and_physical_surface_are_advanced_only_not_primary_row_density"
   ) {
     throw new Error(
-      "Settings Capabilities detail surface must keep refs in side-panel/drawer density",
+      "Settings Agents detail surface must keep package diagnostics in side-panel/drawer density",
     );
   }
   assertIncludesAll(
@@ -2503,19 +2807,28 @@ function validateSettingsAgentsDirectoryProjection(agentsPage) {
       "dependent_guard",
       "dependency_closure",
       "physical_surface",
-      "workflow_refs",
-      "connector_readiness_refs",
-      "resource_source_refs",
     ],
-    "Settings Capabilities detail fields",
+    "Settings Agents detail fields",
   );
+  for (const forbiddenField of [
+    "workflow_refs",
+    "connector_readiness_refs",
+    "resource_source_refs",
+    "environment_refs",
+  ]) {
+    if (detailSurface?.detail_fields?.includes(forbiddenField)) {
+      throw new Error(
+        `Settings Agents detail surface must not own Capabilities field ${forbiddenField}`,
+      );
+    }
+  }
   if (
     !String(directory.completion_boundary ?? "").includes(
-      "allows modules.items fallback",
+      "canonical public directory entries",
     )
   ) {
     throw new Error(
-      "Settings Capabilities directory projection must state the current implementation boundary",
+      "Settings Agents directory projection must state the current implementation boundary",
     );
   }
 }
@@ -2537,20 +2850,20 @@ function validateSettingsAccessCloudBoundary(accessPage) {
   }
   assertDeepEqualJson(
     presentation.user_facing_groups,
-    ["model_access", "opl_gateway_access"],
+    ["model_access", "model_preference"],
     "Settings Access normal-state groups",
   );
   assertDeepEqualJson(
     presentation.supporting_details,
-    ["codex_cli", "authentication", "gateway_account_freshness"],
+    ["codex_cli", "gateway_navigation"],
     "Settings Access supporting details",
   );
   if (
     presentation.default_policy !==
-    "real_provider_source_model_cli_authentication_and_necessary_action_first"
+    "real_provider_source_selected_and_default_model_and_codex_cli_first"
   ) {
     throw new Error(
-      "Settings Access must show the real model source, CLI, authentication, and necessary action first",
+      "Settings Models must show the real source, selected/default model, and Codex CLI first",
     );
   }
   if (
@@ -2595,10 +2908,10 @@ function validateSettingsAccessCloudBoundary(accessPage) {
   );
   if (
     boundary.display_policy !==
-    "model access stays on Models & Access; browser, resource, and deployment refs route to Settings Resources"
+    "model selection stays on Models; Gateway credentials route to Account & Gateway; browser, resource, and deployment refs route to Settings Resources"
   ) {
     throw new Error(
-      "Settings Access must keep model access while routing browser and resource refs to Settings Resources",
+      "Settings Models must route Gateway credentials and resource refs to their owning pages",
     );
   }
   if (boundary.refs_only !== true) {
@@ -2631,7 +2944,7 @@ function validateSettingsVisualQaPolicy(controlPlane) {
   }
   assertDeepEqualJson(
     policy.required_viewports,
-    ["desktop"],
+    ["desktop", "mobile"],
     "Settings visual QA required viewports",
   );
   assertDeepEqualJson(
@@ -2669,9 +2982,9 @@ function validateSettingsVisualQaPolicy(controlPlane) {
   );
   if (
     policy.evidence_manifest?.viewport_policy !==
-      "each required route is checked once at the default desktop viewport" ||
+      "each required route is checked at both the default desktop and narrow mobile viewports" ||
     policy.evidence_manifest?.secondary_route_policy !==
-      "advanced and about are captured as independent secondary pages" ||
+      "about is captured as the only independent secondary page" ||
     policy.evidence_manifest?.compatibility_route_policy !==
       "update, theme, local-services, and personalization are captured as redirect landing evidence on their owner route and anchor"
   ) {
@@ -3028,9 +3341,9 @@ function settingsRouteResolution(
     input,
     id: input,
     target_id: targetId,
-    path: route?.path ?? "/settings/advanced",
+    path: route?.path ?? "/settings/about",
     route_scope: routeScope,
-    slot_id: route?.slot_id ?? "settings_advanced",
+    slot_id: route?.slot_id ?? "about",
     component_key: route?.component_key ?? null,
     anchor,
     anchor_query_param: anchorQueryParam,

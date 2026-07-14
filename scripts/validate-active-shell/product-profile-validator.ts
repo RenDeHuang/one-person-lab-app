@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { assertDeepEqualJson, assertForbiddenCapabilityPolicy, assertIncludesAll } from './assertions.ts';
+import { assertDeepEqualJson, assertForbiddenCapabilityPolicy, assertIncludesAll, readJson } from './assertions.ts';
 import {
   forbiddenAuthorityOwners,
   focusedFirstRunPresentationPolicy,
@@ -77,6 +77,7 @@ const deferredMaintenanceItems = [
   'ecosystem_module_updates',
 ];
 const ecosystemModuleIds = ['officecli', 'mineru', 'opl-meta-agent'];
+const agentPackageRegistryPath = path.join(root, 'contracts', 'agent-package-registry.json');
 
 function validateProductProfileIdentity(profile) {
   assertAppProductProfileIdentity(profile, 'product profile');
@@ -239,6 +240,19 @@ function validateHomeAssistantDefaults(profile) {
 
 function validateProfessionalAgentPackages(profile) {
   assertProfessionalAgentPackagePolicy(profile.gui.professional_agent_packages, 'Product profile');
+}
+
+function validateAgentPackageRegistryProjection(profile, agentPackageRegistry) {
+  const projection = profile.gui?.agent_package_registry;
+  if (
+    typeof agentPackageRegistry?.registry_url !== 'string' ||
+    !agentPackageRegistry.registry_url.trim() ||
+    projection?.default_registry_url !== agentPackageRegistry.registry_url ||
+    projection?.source_ref !== 'contracts/agent-package-registry.json#registry_url' ||
+    projection?.shell_consumption_policy !== 'generated_product_profile_only_no_renderer_literal'
+  ) {
+    throw new Error('Product profile must project the canonical Agent Package registry URL without a renderer literal');
+  }
 }
 
 function validateProductProfileSettings(profile) {
@@ -714,10 +728,15 @@ function validateProductProfileBoundary(profile) {
   }
 }
 
-export function validateProductProfile(profile, installExposurePolicy) {
+export function validateProductProfile(
+  profile,
+  installExposurePolicy,
+  agentPackageRegistry = readJson(agentPackageRegistryPath),
+) {
   validateProductProfileIdentity(profile);
   validateProductProfileContractRefs(profile);
   validateProductProfileCodexDefaults(profile);
+  validateAgentPackageRegistryProjection(profile, agentPackageRegistry);
   validateFullFirstInstallCoreReadyPolicy(profile);
   validateStandardPackagePolicy(profile);
   validateCommandLineToolsPolicy(profile);

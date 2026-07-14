@@ -366,7 +366,7 @@ export function assertAppProductProfileSettingsVisualSystem(
       {
         actual: visualSystem?.footer_account_entry_policy,
         expected:
-          'show_gateway_display_name_when_connected_else_settings_on_all_routes_and_open_models_access_or_overview',
+          'show_gateway_display_name_when_connected_else_settings_on_all_routes_and_open_account_gateway_or_overview',
       },
       { actual: visualSystem?.footer_secondary_navigation_allowed, expected: false },
       { actual: visualSystem?.theme_gallery_presentation, expected: 'recognizable_preview_tiles' },

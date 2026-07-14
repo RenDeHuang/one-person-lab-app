@@ -3,6 +3,7 @@ import {
   appActionRoute,
   appOwnedSettingsResourcesBrowserEntry,
   appOwnedSettingsCapabilitiesTabContract,
+  appOwnedSettingsManagedDependencySummary,
   appOwnedSettingsResourceActionBehavior,
   appOwnedTaskAwarenessRefFields,
   focusedFirstRunPresentationPolicy,
@@ -197,20 +198,67 @@ function validateReadOnlyStorageLifecycleSurface(surface, label) {
 function validateAgentPackageLifecycleUx(surface, label) {
   if (
     surface?.requirement_scope !== 'product_requirement_not_runtime_authority' ||
-    surface.primary_state_surface !== 'app_state.agent_packages.directory + app_state.agent_packages.status_index' ||
+    surface.primary_state_surface !== 'app_state.agent_packages.directory.entries + app_state.agent_packages.status_index' ||
     surface.runtime_source_surface !== 'app_state.runtime_source_carriers.items[]' ||
     surface.source_semantics_policy !==
       'package state is installation truth; runtime source carrier is active run source; never infer installation from checkout presence' ||
-    surface.fallback_state_surface !== 'app_state.modules.items[]' ||
     surface.action_ref_source !== 'app_state.actions' ||
     surface.action_route !== appActionRoute
   ) {
     throw new Error(`${label} must define package-directory lifecycle UX as App product truth over App state/action refs`);
   }
+  if ('fallback_state_surface' in surface || 'fallback_policy' in surface) {
+    throw new Error(`${label} must not substitute modules or static metadata when the canonical directory is unavailable`);
+  }
+  const directory = surface.directory_collection_contract;
+  if (
+    directory?.source !== 'app_state.agent_packages.directory.entries' ||
+    directory.collection_owner !== 'one-person-lab' ||
+    directory.consumer_policy !==
+      'render every projected entry without a shell allowlist, first-party seed, or installed-only filter' ||
+    directory.static_metadata_overlay_source !==
+      'contracts/app-product-profile.json#gui.professional_agent_packages' ||
+    directory.static_metadata_overlay_policy !==
+      'package_id keyed optional UI metadata only; it cannot define collection membership, availability, status, actions, or OMA and first-party seeds' ||
+    directory.first_party_policy !==
+      'OMA and every first-party package use the same directory entries and action contract as every other package'
+  ) {
+    throw new Error(`${label} must keep directory.entries canonical and professional_agent_packages metadata-only`);
+  }
   assertDeepEqualJson(surface.shell_consumers, ['aionui', 'opl_native_workbench'], `${label} shell consumers`);
+  assertDeepEqualJson(
+    directory.required_entry_fields,
+    [
+      'package_id',
+      'display_name',
+      'publisher',
+      'description',
+      'tags',
+      'package_role',
+      'role_state',
+      'trust_tier',
+      'source_explanation',
+      'manifest_url',
+      'selected_version',
+      'stable_version',
+      'installed_version',
+      'installed',
+      'activated',
+      'installability',
+      'readiness',
+      'recommended_action',
+      'recommended_action_ref',
+      'available_actions',
+      'authority_boundary',
+    ],
+    `${label} exact directory entry fields`,
+  );
   assertIncludesAll(
     surface.field_behavior_checklist,
     [
+      'render_every_directory_entry_including_uninstalled_packages_OMA_and_all_first_party_packages',
+      'keep_catalog_search_distinct_from_Settings_global_search',
+      'filter_by_package_role_install_or_activation_status_and_source',
       'search_by_package_name_short_name_tag_source_or_description',
       'filter_by_install_update_source_trust_codex_surface_and_home_visibility_state',
       'distinguish_package_install_source_from_active_runtime_source_in_user_language',
@@ -221,44 +269,126 @@ function validateAgentPackageLifecycleUx(surface, label) {
       'show_dependency_readiness_and_dependent_guard_in_normal_details',
       'trigger_only_projected_repair_action_when_enabled',
       'show_receipt_and_physical_surface_in_details_or_advanced_only',
+      'execute_only_projected_action_id_and_payload_without_shell_status_or_payload_inference',
+      'refresh_fast_state_after_successful_install_then_show_projected_activate_when_recommended',
+      'disable_workspace_activation_with_a_workspace_route_and_reason_when_workspace_root_is_missing',
+      'keep_registry_refresh_ordinary_and_visible_while_manifest_URL_install_stays_advanced',
       'use_consistent_confirmation_and_receipt_pattern_for_hide_disable_update_repair_uninstall_install_and_launch',
       'display_rollback_ref_as_recovery_reference_only_no_app_rollback_verb',
     ],
     `${label} checklist`,
   );
-  assertIncludesAll(
+  assertDeepEqualJson(
     surface.directory_controls?.top_controls,
-    ['refresh_registry', 'search_by_package_name_tag_or_description', 'status_filter', 'manifest_url_install'],
+    ['refresh_registry', 'catalog_search', 'package_role_filter', 'package_status_filter', 'package_source_filter', 'manifest_url_install_advanced'],
     `${label} top controls`,
   );
-  assertIncludesAll(
+  assertDeepEqualJson(
     surface.directory_controls?.filters,
-    ['status', 'source', 'trust', 'codex_surface', 'home_visibility', 'purpose_tag'],
+    ['package_role', 'install_or_activation_status', 'source'],
     `${label} filters`,
   );
   assertIncludesAll(
     surface.directory_controls?.row_actions,
-    ['hide', 'unhide', 'disable', 'enable', 'update', 'repair', 'uninstall', 'launch', 'open_details'],
+    ['install', 'activate', 'hide', 'unhide', 'disable', 'enable', 'update', 'repair', 'uninstall', 'launch', 'open_details'],
     `${label} row actions`,
   );
-  assertIncludesAll(
+  assertDeepEqualJson(
+    surface.directory_controls?.catalog_search_scope,
+    ['display_name', 'package_id', 'description', 'tags', 'publisher'],
+    `${label} catalog search scope`,
+  );
+  assertDeepEqualJson(
+    surface.directory_controls?.catalog_states,
+    ['loading', 'ready', 'refreshing', 'empty', 'stale', 'failed'],
+    `${label} catalog states`,
+  );
+  if (surface.directory_controls?.catalog_search_is_settings_global_search !== false) {
+    throw new Error(`${label} catalog search must be distinct from Settings global search`);
+  }
+  assertDeepEqualJson(
+    surface.canonical_action_contract,
+    {
+      source_fields: ['directory.entries[].available_actions[]', 'directory.entries[].recommended_action_ref'],
+      required_action_fields: ['action_id', 'action_ref', 'payload', 'required_payload_fields', 'confirmation_required'],
+      recommended_action_id_field: 'directory.entries[].recommended_action',
+      recommended_action_ref_match_policy: 'recommended_action_ref is null when recommended_action is null; otherwise it exactly equals the available_actions item with the same action_id',
+      action_availability_policy: 'an action is available only when Framework projects its complete action object; action objects do not carry shell-inferred enabled, reason_code, or failure_reason fields',
+      shell_action_inference_allowed: false,
+      post_success_policy: 'refresh opl app state --profile fast --json and render the next projected recommended_action_ref',
+      failure_policy: 'preserve the directory row and show the Framework error or readiness.reason/status_read_error without synthesizing ready, synced, or available',
+    },
+    `${label} canonical actions`,
+  );
+  assertDeepEqualJson(
+    surface.workspace_activation_contract,
+    {
+      action_id: 'agent_package_activate',
+      workspace_path_source: 'app_state.paths.workspace_root_path',
+      payload_template: {
+        package_id: 'directory.entries[].package_id',
+        scope: 'workspace',
+        target_workspace: 'app_state.paths.workspace_root_path',
+      },
+      compatibility_path_policy: 'legacy workspace paths may be normalized only inside the shell adapter and never become product truth',
+      missing_workspace_policy: {
+        enabled: false,
+        reason_code: 'workspace_root_not_configured',
+        route: '/settings/workspace',
+        anchor: 'workspace',
+      },
+      package_id_only_payload_allowed: false,
+    },
+    `${label} workspace activation`,
+  );
+  assertDeepEqualJson(
     surface.source_explanation_fields,
     [
-      'source_label',
-      'source_kind',
-      'trust_tier',
-      'manifest_url',
-      'distribution_ref',
-      'developer_source_warning',
-      'runtime_source_origin',
-      'runtime_source_path',
-      'runtime_source_policy',
+      'kind',
+      'source',
+      'summary',
+      'catalog_ref',
+      'registry_url',
+      'registry_source_ref',
+      'version_source_ref',
     ],
     `${label} source explanation fields`,
   );
+  assertDeepEqualJson(
+    surface.role_state_fields,
+    ['status', 'source', 'discovered_role', 'installed_role', 'diagnostic'],
+    `${label} role state fields`,
+  );
+  assertDeepEqualJson(surface.installability_fields, ['status', 'installable'], `${label} installability fields`);
+  assertDeepEqualJson(
+    surface.readiness_fields,
+    ['status', 'operational_ready', 'launch_allowed', 'verification_deferred', 'reason', 'detail_surface', 'status_read_error'],
+    `${label} readiness fields`,
+  );
+  assertDeepEqualJson(
+    surface.readiness_profile_policy,
+    {
+      fast_activated: {
+        status: 'verification_deferred',
+        operational_ready: false,
+        launch_allowed: false,
+        verification_deferred: true,
+        reason: 'live_verification_deferred',
+      },
+      full_verified: {
+        status: 'ready',
+        operational_ready: true,
+        launch_allowed: true,
+        verification_deferred: false,
+        reason: null,
+      },
+      presentation_policy: 'fast verification_deferred is fail-closed until full verification and must not be relabeled ready or repair',
+    },
+    `${label} fast and full readiness policy`,
+  );
   assertIncludesAll(
     surface.failure_reason_fields,
-    ['failure_reason', 'blocker_summary', 'last_action_receipt_ref', 'recommended_action', 'dependency_readiness.status', 'dependency_readiness.checks[].failure_reasons', 'operational_ready', 'launch_allowed', 'launch_blocked_reason', 'allowed_when_blocked', 'dependent_guard.disable.reason_code', 'dependent_guard.uninstall.reason_code'],
+    ['readiness.status', 'readiness.reason', 'readiness.status_read_error', 'blocker_summary', 'last_action_receipt_ref', 'recommended_action', 'dependency_readiness.status', 'dependency_readiness.checks[].failure_reasons', 'operational_ready', 'launch_allowed', 'launch_blocked_reason', 'allowed_when_blocked', 'dependent_guard.disable.reason_code', 'dependent_guard.uninstall.reason_code'],
     `${label} failure reason fields`,
   );
   const detail = surface.receipt_physical_surface_detail_policy;
@@ -325,7 +455,7 @@ function validateAgentPackageLifecycleUx(surface, label) {
   );
   assertDeepEqualJson(
     surface.consistent_action_interaction?.lifecycle_actions,
-    ['install', 'update', 'repair', 'uninstall'],
+    ['install', 'activate', 'update', 'repair', 'uninstall'],
     `${label} lifecycle actions`,
   );
   assertIncludesAll(
@@ -420,6 +550,7 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   }
   for (const section of [
     'general',
+    'gateway',
     'access',
     'workspace',
     'agents',
@@ -428,7 +559,6 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     'environment',
     'storage',
     'appearance',
-    'advanced',
     'about',
   ]) {
     if (!guiContract.settings_navigation?.required_sections?.includes(section)) {
@@ -460,7 +590,7 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     Object.fromEntries(
       Object.entries(settingsControlPlane.legacy_route_redirects ?? {})
         .filter(([id]) => id !== 'about')
-        .map(([id, target]) => [id, id === 'assistants' ? target : String(target).split('?')[0]]),
+        .map(([id, target]) => [id, target]),
     ),
     'App GUI settings navigation legacy route redirects',
   );
@@ -477,7 +607,7 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   }
   if (
     guiContract.settings_navigation?.legacy_route_redirects?.assistants !==
-    'capabilities?tab=skills'
+    'capabilities#third-party'
   ) {
     throw new Error('App GUI legacy assistants route must target the OPL capability directory');
   }
@@ -501,8 +631,11 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     aionuiTeamProbeIds,
     'App GUI Team surface required probes',
   );
-  if (guiContract.settings_navigation.source !== 'opl app state --profile fast --json') {
-    throw new Error('App GUI settings navigation must default to fast App state');
+  if (
+    guiContract.settings_navigation.source !==
+      'persisted_narrow_settings_snapshot_then_opl_app_state_fast_background_refresh_and_full_explicit_detail'
+  ) {
+    throw new Error('App GUI settings navigation must render persisted narrow state before background fast App state hydration');
   }
   if (guiContract.settings_navigation.refresh_source !== 'opl app state --profile fast --json') {
     throw new Error('App GUI settings navigation refresh must use fast App state');
@@ -648,7 +781,7 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   );
   if (
     developerProfile.default_profile !== 'standard_user' ||
-    developerProfile.opt_in_policy !== 'explicit_opt_in_only' ||
+    developerProfile.opt_in_policy !== 'automatic_for_matching_identity_and_authorized_repositories_with_explicit_off' ||
     developerProfile.ordinary_user_defaults?.source_channel !== 'agent_rolling_latest_package_channel' ||
     developerProfile.ordinary_user_defaults?.agent_automation !== 'automatic_clean_managed_agent_package_updates'
   ) {
@@ -665,17 +798,29 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     developerProfile.capabilities.agent_automation.standard_default !== 'automatic_clean_managed_agent_package_updates' ||
     developerProfile.capabilities.runtime_mutation_scope.standard_default !== 'app_action_route_only' ||
     developerProfile.settings_pages?.length !== 1 ||
-    developerProfile.settings_pages[0] !== 'settings_capabilities' ||
-    developerProfile.control_model?.global_mode?.control !== 'three_state_segmented_control' ||
-    JSON.stringify(developerProfile.control_model?.global_mode?.values) !== JSON.stringify(['auto', 'off', 'on']) ||
-    JSON.stringify(developerProfile.control_model?.global_mode?.labels) !==
+    developerProfile.settings_pages[0] !== 'settings_agents' ||
+    developerProfile.control_model?.source_mode?.control !== 'three_state_segmented_control' ||
+    JSON.stringify(developerProfile.control_model?.source_mode?.values) !== JSON.stringify(['auto', 'managed', 'developer']) ||
+    JSON.stringify(developerProfile.control_model?.source_mode?.labels) !==
       JSON.stringify(['automatic', 'managed', 'developer']) ||
+    developerProfile.control_model?.safe_maintenance?.control !== 'auto_or_off_control_with_effective_state_readback' ||
+    developerProfile.control_model.safe_maintenance.default !== 'auto' ||
+    JSON.stringify(developerProfile.control_model.safe_maintenance.values) !== JSON.stringify(['auto', 'off']) ||
+    developerProfile.control_model.safe_maintenance.off_value !== 'external_observe' ||
+    developerProfile.control_model.safe_maintenance.effective_value !== 'developer_apply_safe' ||
+    developerProfile.control_model.safe_maintenance.fast_profile_policy !==
+      'show inspection pending without claiming identity mismatch' ||
+    developerProfile.control_model.safe_maintenance.shared_runtime_mutation_boundary !==
+      'enabled=on + mode=developer_apply_safe + source=user_config' ||
     developerProfile.control_model?.safe_maintenance?.independent_from_source_selection !== true ||
     developerProfile.control_model?.package_source?.control !== 'segmented_control_in_package_details' ||
+    !developerProfile.must_show?.includes(
+      'Maintain authorized development repositories auto/off control with effective state',
+    ) ||
     !developerProfile.must_show?.includes('per-package auto managed developer source control') ||
     !developerProfile.must_not_show?.includes('five equal capability-axis cards')
   ) {
-    throw new Error('App GUI Developer Profile must provide direct global and per-package source controls on Capabilities');
+    throw new Error('App GUI Developer Profile must keep source controls and automatic safe-maintenance readback on Agents');
   }
 
   for (const lane of releaseChannel.release_validation_profiles.stable.required_lanes) {
@@ -698,17 +843,19 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   for (const pageId of [
     'guid_home',
     'settings_general',
+    'settings_gateway',
     'settings_access',
     'settings_workspace',
     'settings_agents',
     'settings_capabilities',
     'settings_resources',
     'settings_environment',
-    'settings_advanced',
+    'settings_storage',
     'about',
     'update',
     'settings_theme',
     'settings_local_services',
+    'settings_personalization',
     'runtime_status',
   ]) {
     if (!pages[pageId]) {
@@ -718,17 +865,49 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   for (const pageId of [
     'guid_home',
     'settings_general',
+    'settings_gateway',
     'settings_access',
     'settings_agents',
-    'settings_capabilities',
     'settings_environment',
-    'settings_advanced',
     'about',
     'update',
     'settings_theme',
   ]) {
     assertCommandSurface(pages[pageId].state_source, 'opl app state --profile fast --json', `App GUI ${pageId} state source`);
-    assertCommandSurface(pages[pageId].refresh_source, 'opl app state --profile fast --json', `App GUI ${pageId} refresh source`);
+    const expectedRefreshSource = pageId === 'settings_general'
+      ? 'background opl app state --profile fast --json with bounded retry'
+      : pageId === 'about'
+        ? 'startup check once or explicit manual check updates the same shared store'
+        : 'opl app state --profile fast --json';
+    assertCommandSurface(pages[pageId].refresh_source, expectedRefreshSource, `App GUI ${pageId} refresh source`);
+  }
+  const capabilitiesStateSource =
+    'opl update status --json#managed_update.components[component_id=opl_base].current.dependency_catalog.flow_dependencies + Codex and shell skill/plugin registries';
+  assertCommandSurface(
+    pages.settings_capabilities.state_source,
+    capabilitiesStateSource,
+    'App GUI settings_capabilities state source',
+  );
+  assertCommandSurface(
+    pages.settings_capabilities.refresh_source,
+    capabilitiesStateSource,
+    'App GUI settings_capabilities refresh source',
+  );
+  assertDeepEqualJson(
+    pages.settings_capabilities.entity_kinds,
+    ['skill', 'plugin', 'mcp_server', 'image_generation', 'voice_input'],
+    'App GUI Settings Capabilities entity kinds',
+  );
+  if (
+    pages.settings_capabilities.local_capability_configuration_source !==
+      'AionUI local configuration#MCP servers + image generation + voice input' ||
+    !pages.settings_capabilities.must_show?.includes(
+      'AionUI-native Skills, Plugins, MCP helpers, image generation, and voice input inside local or third-party ownership instead of OPL Flow',
+    ) ||
+    !pages.settings_capabilities.must_not_show?.includes('voice input configuration on Preferences or Advanced') ||
+    !pages.settings_theme.must_not_show?.includes('voice input provider configuration')
+  ) {
+    throw new Error('App GUI Settings Capabilities must own local MCP, image, and voice configuration without Preferences duplication');
   }
   if (
     !pages.guid_home.must_show?.includes(
@@ -919,7 +1098,8 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   }
   const settingsExperiencePages = {
     settings_general: 'overview',
-    settings_access: 'access',
+    settings_gateway: 'gateway',
+    settings_access: 'models',
     settings_workspace: 'workspace',
     settings_agents: 'agents',
     settings_capabilities: 'capabilities',
@@ -927,7 +1107,6 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     settings_environment: 'maintenance',
     settings_storage: 'storage',
     settings_theme: 'preferences',
-    settings_advanced: 'advanced',
     about: 'about',
   };
   for (const [pageId, productPageId] of Object.entries(settingsExperiencePages)) {
@@ -939,10 +1118,15 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
       throw new Error(`App GUI ${pageId} must reference the ${productPageId} experience contract`);
     }
   }
+  assertDeepEqualJson(
+    pages.settings_environment.managed_dependency_summary,
+    appOwnedSettingsManagedDependencySummary,
+    'App GUI Maintenance managed dependency summary',
+  );
   if (pages.settings_access.model_access_source !== 'app_state.core.codex.model_access_source') {
     throw new Error('Settings Access must use app_state.core.codex.model_access_source');
   }
-  const gatewayAccount = pages.settings_access.opl_gateway_account;
+  const gatewayAccount = pages.settings_gateway.opl_gateway_account;
   if (
     gatewayAccount?.projection_ref !== 'contracts/app-runtime-bridge.json#opl_gateway_account_projection' ||
     gatewayAccount.projection_path !== 'app_state.settings_control_center.app_settings_read_model.opl_gateway_account' ||
@@ -954,30 +1138,35 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     gatewayAccount.first_run_scope !== 'unchanged' ||
     gatewayAccount.personal_profile_navigation !== 'not_added'
   ) {
-    throw new Error('Settings Access must declare the canonical OPL Gateway account product contract');
+    throw new Error('Settings Account & Gateway must declare the canonical OPL Gateway account product contract');
   }
-  assertDeepEqualJson(gatewayAccount.access_paths, ['account_login', 'manual_api_key'], 'Settings Access Gateway paths');
+  assertDeepEqualJson(gatewayAccount.access_paths, ['account_login', 'manual_api_key'], 'Settings Gateway access paths');
   assertDeepEqualJson(
     gatewayAccount.error_states,
     ['auth_expired', 'managed_key_missing', 'managed_key_conflict', 'managed_key_identity_drift', 'disconnect_pending'],
-    'Settings Access Gateway visible repair states',
+    'Settings Gateway visible repair states',
   );
   assertIncludesAll(
-    pages.settings_access.must_not_show,
+    pages.settings_gateway.must_not_show,
     [
       'Gateway password login in browser WebUI',
       'password, access token, refresh token, API Key material, remote Key id, credential path, raw response, or raw error',
       'Gateway account card in manual API-key mode or when no Gateway account is connected',
     ],
-    'Settings Access Gateway privacy and visibility boundaries',
+    'Settings Gateway privacy and visibility boundaries',
   );
   assertIncludesAll(
     pages.settings_access.must_show,
-    ['page label Models & Access or 模型与访问', 'selected and default model'],
-    'Settings Access user entry contract',
+    ['page label Models or 模型', 'selected and default model', 'one route to Account & Gateway when credentials need attention'],
+    'Settings Models user entry contract',
+  );
+  assertIncludesAll(
+    pages.settings_access.must_not_show,
+    ['Gateway account card, balance, usage, login form, managed Key lifecycle, or manual API-key form'],
+    'Settings Models Gateway deduplication boundary',
   );
   if (pages.settings_access.browser_access_entry !== undefined) {
-    throw new Error('Settings Models & Access must not own browser access');
+    throw new Error('Settings Models must not own browser access');
   }
   assertDeepEqualJson(
     pages.settings_resources.browser_access_entry,
@@ -996,6 +1185,7 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     pages.settings_resources.must_not_show,
     [
       'selected local workspace path, change-workspace controls, or permission summary duplicated from Workspace',
+      'built-in OPL Gateway connection or Gateway count owned by Account & Gateway',
       'dry-run success presented as resource opened, diagnosis completed, deployment completed, or mutation completed',
     ],
     'Settings Resources Workspace deduplication',
@@ -1010,7 +1200,11 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     appOwnedSettingsCapabilitiesTabContract,
     'Settings Capabilities source-group tab contract',
   );
-  assertDeepEqualJson(pages.settings_capabilities.entity_kinds, ['skill', 'plugin'], 'Settings Capabilities entity kinds');
+  assertDeepEqualJson(
+    pages.settings_capabilities.entity_kinds,
+    ['skill', 'plugin', 'mcp_server', 'image_generation', 'voice_input'],
+    'Settings Capabilities entity kinds',
+  );
   if (
     pages.settings_capabilities.lifecycle_policy?.hardcoded_app_skill_list_allowed !== false ||
     pages.settings_capabilities.lifecycle_policy?.cli_currentness_owner !== 'opl_base' ||
@@ -1024,21 +1218,25 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   );
   validateOplFlowContext(guiContract.opl_flow_context, 'App GUI OPL Flow Context');
   if (
-    !pages.settings_advanced.sections?.includes('working_directories') ||
-    pages.settings_advanced.sections?.includes('opl_flow_context') ||
-    !pages.settings_advanced.must_show?.includes('read-only working directories from app_state.paths') ||
-    !pages.settings_advanced.must_not_show?.includes('Developer Mode or Developer Profile controls')
+    pages.settings_workspace?.ia_group !== 'workspace' ||
+    !pages.settings_workspace.sections?.includes('log_directory') ||
+    !pages.settings_workspace.sections?.includes('system_agents') ||
+    !pages.settings_workspace.sections?.includes('opl_app_context') ||
+    !pages.settings_workspace.must_show?.includes('Workspace & Personalization as a top-level Settings entry') ||
+    !pages.settings_workspace.must_not_show?.includes('Storage-owned log configuration') ||
+    !pages.settings_workspace.must_not_show?.includes('Framework and raw paths duplicated from Maintenance diagnostics')
   ) {
-    throw new Error('Settings Advanced must be a read-only working-directories page');
+    throw new Error('Settings Workspace & Personalization must own workspace, App logs, and personalization without raw Framework path duplication');
   }
   if (
-    pages.settings_workspace?.ia_group !== 'overview' ||
-    !pages.settings_workspace.must_show?.includes('Workspace & Personalization page reachable as a top-level Settings entry') ||
-    !pages.settings_workspace.must_show?.includes('desktop App log directory from application.systemInfo with an explicit change action') ||
-    !pages.settings_workspace.must_show?.includes('editable system-level AGENTS.md with current-path and stale-write protection') ||
-    !pages.settings_workspace.must_not_show?.includes('workspace buried inside Maintenance or Advanced')
+    pages.settings_storage.sections?.includes('log_directory') ||
+    !pages.settings_storage.must_show?.includes(
+      'read-only Workspace-owned log path reference',
+    ) ||
+    !pages.settings_storage.must_not_show?.includes('log directory edit control') ||
+    pages.settings_theme.sections?.includes('personalization')
   ) {
-    throw new Error('Settings Workspace & Personalization must be an independent top-level page under Overview');
+    throw new Error('Settings Storage may reference App logs read-only and Preferences must not duplicate Workspace personalization');
   }
   if (
     pages.settings_local_services?.page_kind !== 'compatibility_redirect' ||
@@ -1121,13 +1319,23 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     throw new Error('About page must show Stable or Nightly channel');
   }
   if (
-    !pages.about.must_show?.includes('update status') ||
+    !pages.about.must_show?.includes('cached update status from the one startup check or last manual check') ||
     !pages.about.must_show?.includes('one Check for updates action') ||
     !pages.about.must_not_show?.includes('about redirected to Advanced') ||
     pages.about.product_page_id !== 'about'
   ) {
     throw new Error('About must remain independent with version, channel, and update status');
   }
+  assertDeepEqualJson(
+    pages.about.updater_state_policy,
+    {
+      startup_check: 'once_after_App_startup',
+      mount_check: false,
+      shared_state: 'single_main_process_updater_state_store',
+      manual_check: 'refresh_the_same_shared_state',
+    },
+    'About updater state policy',
+  );
   if (
     pages.update?.page_kind !== 'compatibility_redirect' ||
     pages.update.compatibility_redirect?.target_route_id !== 'environment' ||
