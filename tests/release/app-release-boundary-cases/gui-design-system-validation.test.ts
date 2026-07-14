@@ -1,4 +1,5 @@
 import { validateGuiDesignSystem } from '../../../scripts/validate-gui-design-system.ts';
+import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { assert, fs, os, path, test, appRoot } from './helpers.ts';
 
@@ -11,6 +12,8 @@ const designRoot = 'docs/product/gui';
 const conformanceMatrix = `# Shell conformance matrix
 
 - AionUI GUI conformance ancestor：\`opl-aion-shell@0000000000000000000000000000000000000000\`；fixture only。
+- Current Shell source cohort：
+  \`opl-aion-shell@1111111111111111111111111111111111111111\`；fixture only。
 
 | 功能或交互要求 | AionUI contract | AionUI source | AionUI pixel | Native contract | Native source | Native pixel | 验证入口与边界 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -114,9 +117,25 @@ function createFixture(): string {
   writeFile(
     root,
     `${designRoot}/shell-conformance-matrix.md`,
-    conformanceMatrix.replace('0000000000000000000000000000000000000000', guiConformanceRef),
+    conformanceMatrix
+      .replace('0000000000000000000000000000000000000000', guiConformanceRef)
+      .replace('1111111111111111111111111111111111111111', guiConformanceRef),
   );
   return root;
+}
+
+function createShellCheckout(root: string): string {
+  const shellRoot = path.join(root, 'shells/aionui');
+  fs.mkdirSync(shellRoot, { recursive: true });
+  execFileSync('git', ['init', '--quiet'], { cwd: shellRoot });
+  writeFile(shellRoot, 'README.md', '# fixture shell\n');
+  execFileSync('git', ['add', 'README.md'], { cwd: shellRoot });
+  execFileSync(
+    'git',
+    ['-c', 'user.name=OPL Test', '-c', 'user.email=opl-test@example.invalid', 'commit', '--quiet', '-m', 'fixture'],
+    { cwd: shellRoot },
+  );
+  return execFileSync('git', ['rev-parse', 'HEAD'], { cwd: shellRoot, encoding: 'utf8' }).trim();
 }
 
 test('GUI design-system validator accepts a complete fixture without promoting release readiness', () => {
@@ -410,6 +429,29 @@ test('GUI design-system validator rejects a GUI ancestor that drifts from the co
   assert.throws(
     () => validateGuiDesignSystem(root),
     /shell conformance matrix GUI conformance ancestor must match the active shell adapter/,
+  );
+});
+
+test('GUI design-system validator compares the current source cohort, not the minimum ancestor, to the shell checkout', () => {
+  const root = createFixture();
+  const currentHead = createShellCheckout(root);
+  const matrixPath = path.join(root, 'docs/product/gui/shell-conformance-matrix.md');
+  const matrix = fs.readFileSync(matrixPath, 'utf8');
+  writeFile(
+    root,
+    'docs/product/gui/shell-conformance-matrix.md',
+    matrix.replace(/(Current Shell source cohort：\s*`opl-aion-shell@)[0-9a-f]{40}/, `$1${currentHead}`),
+  );
+  assert.equal(validateGuiDesignSystem(root).status, 'consistent');
+
+  writeFile(
+    root,
+    'docs/product/gui/shell-conformance-matrix.md',
+    fs.readFileSync(matrixPath, 'utf8').replace(currentHead, '2222222222222222222222222222222222222222'),
+  );
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    new RegExp(`shell conformance matrix current source cohort must match current shell HEAD ${currentHead}`),
   );
 });
 

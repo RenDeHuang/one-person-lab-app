@@ -54,8 +54,8 @@ Active AionUI 默认状态通过 README 治理段声明的动态 state source �
 - Current human reference：本机 ChatGPT macOS `26.707.41301`（bundle build `5103`），
   `2026-07-11` 观察。App GUI contract、product profile 与 page-state matrix 已统一为 schema v2；
   `26.707.31428/31123` 只保留为 superseded observations。
-- AionUI GUI conformance ancestor：`opl-aion-shell@586b8847840712e536e5b6a85036263a995fb14e`。
-  该 gate 字段绑定 active checkout exact HEAD；历史最低祖先证据在本节后文单独保留。
+- AionUI GUI conformance ancestor：`opl-aion-shell@a0ce713b65801fd9ca7f46ad168c977c75a187de`。
+  该字段绑定最低 verified ancestor；active checkout exact HEAD 由下一项 current source cohort 记录。
 - Current Shell source cohort：
   `opl-aion-shell@586b8847840712e536e5b6a85036263a995fb14e`（以 Runtime archive main `6639744c...`
   为祖先，包含 `ba28c49a...`）。它合并当前 Runtime V2 main、Gateway

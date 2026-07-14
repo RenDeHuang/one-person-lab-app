@@ -385,9 +385,14 @@ function requireAionuiContractStatus(text: string, requirement: string, expected
 }
 
 function validateAionuiSnapshot(root: string, text: string, issues: Set<string>): void {
-  const match = text.match(/AionUI GUI conformance ancestor：`opl-aion-shell@([0-9a-f]{40})`/);
-  if (!match) {
+  const ancestorMatch = text.match(/AionUI GUI conformance ancestor：`opl-aion-shell@([0-9a-f]{40})`/);
+  if (!ancestorMatch) {
     issues.add('shell conformance matrix must bind an exact 40-character AionUI GUI conformance ancestor');
+    return;
+  }
+  const currentSourceMatch = text.match(/Current Shell source cohort：\s*`opl-aion-shell@([0-9a-f]{40})`/);
+  if (!currentSourceMatch) {
+    issues.add('shell conformance matrix must bind an exact 40-character current Shell source cohort');
     return;
   }
   if (text.includes('pages/guid/components/AssistantSelectionArea.tsx')) {
@@ -399,11 +404,11 @@ function validateAionuiSnapshot(root: string, text: string, issues: Set<string>)
     const currentHead = execFileSync('git', ['-C', shellRoot, 'rev-parse', 'HEAD'], {
       encoding: 'utf8',
     }).trim();
-    if (match[1] !== currentHead) {
-      issues.add(`shell conformance matrix AionUI snapshot must match current shell HEAD ${currentHead}`);
+    if (currentSourceMatch[1] !== currentHead) {
+      issues.add(`shell conformance matrix current source cohort must match current shell HEAD ${currentHead}`);
     }
   } catch (error) {
-    issues.add(`unable to read active AionUI GUI conformance ancestor: ${error instanceof Error ? error.message : String(error)}`);
+    issues.add(`unable to read active AionUI current source checkout: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
