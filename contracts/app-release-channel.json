@@ -282,19 +282,68 @@
         "confirmed_at",
         "created_at"
       ],
+      "delete_execution_boundary": {
+        "canonical_verifier": "verifyConversationArchiveReceipt",
+        "required_inputs": [
+          "archiveReceiptPath",
+          "archiveRoot",
+          "receiptRoot",
+          "allowedSourcePaths"
+        ],
+        "receipt_path_must_be_inside_receipt_root": true,
+        "archive_path_must_be_inside_archive_root": true,
+        "manifest_source_paths_must_equal_current_conversation_roots": true,
+        "symlink_or_root_escape_allowed": false
+      },
       "rule": "Conversations, workspaces, generated artifacts, results, papers, baselines, reports, and narrative/intermediate deliverables are user data artifacts. The App must not silently delete them; cleanup requires inventory, archive/export, restore-proof, and explicit user confirmation."
     },
     "runtime_substrate": {
       "default_policy": "retain_current_and_declared_rollback_runtime",
       "owner_ref": "contracts/app-release-channel.json#managed_update_plane.software_lifecycle.objects.opl_base",
       "cleanup_execution": "pointer_based_dry_run_first_explicit_execute_required",
+      "inventory_roots": [
+        {
+          "id": "shell_toolchain_runtime",
+          "owner": "active_shell",
+          "derivation": "getSystemDir().workDir/runtime",
+          "cleanup_authority": "inventory_only_no_pointer_prune"
+        },
+        {
+          "id": "managed_opl_runtime",
+          "owner": "one-person-lab",
+          "derivation": "OPL_RUNTIME_TOOLCHAIN_ROOT_or_darwin_app.getPath('home')/Library/Application Support/OPL/runtime",
+          "configured_override": "OPL_RUNTIME_TOOLCHAIN_ROOT",
+          "default_platform": "darwin",
+          "non_darwin_without_override": "blocked",
+          "cleanup_authority": "pointer_prune_owner"
+        }
+      ],
+      "prune_authority_root": "managed_opl_runtime",
       "protected_refs": {
         "current_pointer": "~/Library/Application Support/OPL/runtime/current.json",
         "current_root": "~/Library/Application Support/OPL/runtime/current",
+        "previous_root": "~/Library/Application Support/OPL/runtime/previous",
         "rollback_pointer": "~/Library/Application Support/OPL/runtime/rollback.json",
         "staged_root_template": "~/Library/Application Support/OPL/runtime/staged/<runtime_version>"
       },
-      "prune_candidate_policy": "unreferenced_runtime_roots_only",
+      "authority_gate": {
+        "required_pointer": "current.json",
+        "pointer_target_must_be_inside_runtime_root": true,
+        "current_target_marker": ".opl-full-runtime-installed.json",
+        "missing_or_invalid_authority": "blocked_no_candidates_no_execute",
+        "execute_must_revalidate_pointer_and_protected_paths": true
+      },
+      "candidate_marker": ".opl-full-runtime-installed.json",
+      "prune_candidate_policy": "unreferenced_marker_backed_runtime_generations_only",
+      "protected_root_names": [
+        "current",
+        "previous",
+        "toolcache",
+        "generations",
+        "staged"
+      ],
+      "staged_candidate_policy": "marker_backed_runtime_generation_only_non_runtime_staged_lanes_protected",
+      "symlink_or_root_escape_allowed": false,
       "dry_run_receipt_required": true,
       "execute_receipt_required_fields": [
         "runtime_root",
@@ -304,7 +353,7 @@
         "deleted_bytes",
         "created_at"
       ],
-      "rule": "OPL Runtime Fabric cleanup follows the managed runtime pointer and rollback policy, not the Electron standard updater cache policy. Prune must start as a dry-run plan and may only target runtime roots not referenced by current or rollback pointers."
+      "rule": "Storage inventory shows both the active-shell toolchain runtime and the OPL managed runtime, but prune authority belongs only to the OPL managed runtime. Prune starts as a dry-run, fails closed without a valid current pointer and install marker, and may only target unreferenced marker-backed runtime generations."
     }
   },
   "nightly_standard": {

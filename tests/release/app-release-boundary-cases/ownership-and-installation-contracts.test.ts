@@ -544,6 +544,53 @@ test('App exposes three software objects while Framework owns Base and Packages 
   );
 });
 
+test('local data lifecycle separates runtime inventory from managed prune and canonical delete authority', () => {
+  const release = JSON.parse(
+    fs.readFileSync(path.join(process.cwd(), 'contracts', 'app-release-channel.json'), 'utf8'),
+  );
+  const localDataLifecycle = release.local_data_lifecycle;
+  const runtime = localDataLifecycle.runtime_substrate;
+  const deleteBoundary = localDataLifecycle.user_data_artifacts.delete_execution_boundary;
+
+  assert.doesNotThrow(() => validateReleaseChannelContract(release));
+  assert.deepEqual(
+    runtime.inventory_roots.map((root) => root.id),
+    ['shell_toolchain_runtime', 'managed_opl_runtime'],
+  );
+  assert.equal(runtime.prune_authority_root, 'managed_opl_runtime');
+  const managedRuntimeRoot = runtime.inventory_roots.find((root) => root.id === 'managed_opl_runtime');
+  assert.equal(managedRuntimeRoot.default_platform, 'darwin');
+  assert.equal(managedRuntimeRoot.non_darwin_without_override, 'blocked');
+  assert.equal(
+    runtime.authority_gate.missing_or_invalid_authority,
+    'blocked_no_candidates_no_execute',
+  );
+  assert.equal(deleteBoundary.canonical_verifier, 'verifyConversationArchiveReceipt');
+
+  const conflatedRuntimeRoots = structuredClone(release);
+  conflatedRuntimeRoots.local_data_lifecycle.runtime_substrate.inventory_roots[0].derivation =
+    "app.getPath('userData')/runtime";
+  assert.throws(
+    () => validateReleaseChannelContract(conflatedRuntimeRoots),
+    /runtime inventory roots/,
+  );
+
+  const markerOptional = structuredClone(release);
+  markerOptional.local_data_lifecycle.runtime_substrate.authority_gate.current_target_marker = null;
+  assert.throws(
+    () => validateReleaseChannelContract(markerOptional),
+    /fail closed on managed OPL authority and marker checks/,
+  );
+
+  const verifierBypassed = structuredClone(release);
+  verifierBypassed.local_data_lifecycle.user_data_artifacts.delete_execution_boundary.canonical_verifier =
+    'readJsonRecord';
+  assert.throws(
+    () => validateReleaseChannelContract(verifierBypassed),
+    /canonical archive verifier/,
+  );
+});
+
 test('managed update payload and public actions use only the three software objects', () => {
   const release = JSON.parse(
     fs.readFileSync(path.join(process.cwd(), 'contracts', 'app-release-channel.json'), 'utf8'),

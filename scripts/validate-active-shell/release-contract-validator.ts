@@ -1,7 +1,12 @@
+import path from 'node:path';
 import { assertDeepEqualJson, assertIncludesAll } from './assertions.ts';
 import { validateReleaseFullFirstInstallPayloads } from './release-full-first-install-payload-validator.ts';
 import { validateReleaseHomebrewDistribution } from './release-homebrew-distribution-validator.ts';
 import { managedUpdateCarrierAdapters, managedUpdateSoftwareObjectIds } from './managed-update-plane-policy.ts';
+import { assertShellTextIncludesAll } from './shell-implementation-helpers.ts';
+import { root } from './validation-config.ts';
+
+const localDataLifecycleShellPaths = { shellRoot: path.join(root, 'shells', 'aionui') };
 
 export function validateReleaseChannelContract(releaseChannel) {
   const managedUpdatePlane = releaseChannel.managed_update_plane;
@@ -268,7 +273,7 @@ function validateLocalDataLifecycle(lifecycle) {
       '~/Library/Application Support/OPL/runtime/current.json' ||
     lifecycle.runtime_substrate?.protected_refs?.current_root !==
       '~/Library/Application Support/OPL/runtime/current' ||
-    lifecycle.runtime_substrate?.prune_candidate_policy !== 'unreferenced_runtime_roots_only' ||
+    lifecycle.runtime_substrate?.prune_candidate_policy !== 'unreferenced_marker_backed_runtime_generations_only' ||
     lifecycle.runtime_substrate?.dry_run_receipt_required !== true ||
     lifecycle.logs?.default_policy !== 'bounded_rotation_or_user_cleanup' ||
     lifecycle.logs?.silent_delete_allowed !== false ||
@@ -290,6 +295,66 @@ function validateLocalDataLifecycle(lifecycle) {
     ['conversation_id', 'deleted_paths', 'archive_receipt_path', 'confirmed_at', 'created_at'],
     'Local data lifecycle conversation delete receipt fields',
   );
+  const deleteBoundary = lifecycle.user_data_artifacts?.delete_execution_boundary;
+  assertDeepEqualJson(
+    deleteBoundary?.required_inputs,
+    ['archiveReceiptPath', 'archiveRoot', 'receiptRoot', 'allowedSourcePaths'],
+    'Local data lifecycle conversation delete verifier inputs',
+  );
+  if (
+    deleteBoundary?.canonical_verifier !== 'verifyConversationArchiveReceipt' ||
+    deleteBoundary?.receipt_path_must_be_inside_receipt_root !== true ||
+    deleteBoundary?.archive_path_must_be_inside_archive_root !== true ||
+    deleteBoundary?.manifest_source_paths_must_equal_current_conversation_roots !== true ||
+    deleteBoundary?.symlink_or_root_escape_allowed !== false
+  ) {
+    throw new Error('Local data lifecycle conversation delete must reuse the canonical archive verifier');
+  }
+  assertDeepEqualJson(
+    lifecycle.runtime_substrate?.inventory_roots,
+    [
+      {
+        id: 'shell_toolchain_runtime',
+        owner: 'active_shell',
+        derivation: 'getSystemDir().workDir/runtime',
+        cleanup_authority: 'inventory_only_no_pointer_prune',
+      },
+      {
+        id: 'managed_opl_runtime',
+        owner: 'one-person-lab',
+        derivation: "OPL_RUNTIME_TOOLCHAIN_ROOT_or_darwin_app.getPath('home')/Library/Application Support/OPL/runtime",
+        configured_override: 'OPL_RUNTIME_TOOLCHAIN_ROOT',
+        default_platform: 'darwin',
+        non_darwin_without_override: 'blocked',
+        cleanup_authority: 'pointer_prune_owner',
+      },
+    ],
+    'Local data lifecycle runtime inventory roots',
+  );
+  assertDeepEqualJson(
+    lifecycle.runtime_substrate?.protected_root_names,
+    ['current', 'previous', 'toolcache', 'generations', 'staged'],
+    'Local data lifecycle protected runtime roots',
+  );
+  const runtimeAuthority = lifecycle.runtime_substrate?.authority_gate;
+  if (
+    lifecycle.runtime_substrate?.prune_authority_root !== 'managed_opl_runtime' ||
+    lifecycle.runtime_substrate?.protected_refs?.previous_root !==
+      '~/Library/Application Support/OPL/runtime/previous' ||
+    lifecycle.runtime_substrate?.candidate_marker !== '.opl-full-runtime-installed.json' ||
+    lifecycle.runtime_substrate?.prune_candidate_policy !==
+      'unreferenced_marker_backed_runtime_generations_only' ||
+    lifecycle.runtime_substrate?.staged_candidate_policy !==
+      'marker_backed_runtime_generation_only_non_runtime_staged_lanes_protected' ||
+    lifecycle.runtime_substrate?.symlink_or_root_escape_allowed !== false ||
+    runtimeAuthority?.required_pointer !== 'current.json' ||
+    runtimeAuthority?.pointer_target_must_be_inside_runtime_root !== true ||
+    runtimeAuthority?.current_target_marker !== '.opl-full-runtime-installed.json' ||
+    runtimeAuthority?.missing_or_invalid_authority !== 'blocked_no_candidates_no_execute' ||
+    runtimeAuthority?.execute_must_revalidate_pointer_and_protected_paths !== true
+  ) {
+    throw new Error('Local data lifecycle runtime prune must fail closed on managed OPL authority and marker checks');
+  }
   assertDeepEqualJson(
     lifecycle.runtime_substrate?.execute_receipt_required_fields,
     ['runtime_root', 'dry_run_plan_id', 'protected_paths', 'deleted_paths', 'deleted_bytes', 'created_at'],
@@ -299,6 +364,46 @@ function validateLocalDataLifecycle(lifecycle) {
     lifecycle.logs?.execute_receipt_required_fields,
     ['logs_root', 'dry_run_plan_id', 'deleted_paths', 'deleted_bytes', 'created_at'],
     'Local data lifecycle log rotation execute receipt fields',
+  );
+  validateLocalDataLifecycleImplementation(localDataLifecycleShellPaths);
+}
+
+function validateLocalDataLifecycleImplementation(shellPaths) {
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/process/bridge/localDataLifecycleBridge.ts',
+    [
+      'function shellToolchainRuntimeRoot(): string',
+      "path.join(getSystemDir().workDir, 'runtime')",
+      'function managedOplRuntimeRoot(): string',
+      'const configuredRoot = process.env.OPL_RUNTIME_TOOLCHAIN_ROOT?.trim();',
+      "if (process.platform !== 'darwin')",
+      'OPL_RUNTIME_TOOLCHAIN_ROOT is required outside the macOS desktop release.',
+      "path.join(app.getPath('home'), 'Library', 'Application Support', 'OPL', 'runtime')",
+      'runtimeRoots: [shellToolchainRuntimeRoot(), managedOplRuntimeRoot()]',
+      'runtimeRoot: managedOplRuntimeRoot()',
+      'archiveRoot: archiveRoot()',
+      'receiptRoot: receiptRoot()',
+      'allowedSourcePaths: [conversationRoot()]',
+    ],
+    'local data lifecycle bridge split-root and delete boundary',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/process/services/localDataLifecycle/index.ts',
+    [
+      'const archiveReceipt = verifyConversationArchiveReceipt(input);',
+      "requirePathInsidePlainRoot(normalizedReceiptRoot, archiveReceiptPath, 'Archive receipt')",
+      "requirePathInsidePlainRoot(normalizedArchiveRoot, archivePath, 'Archive path')",
+      'Conversation source path is invalid or symlinked',
+      "const RUNTIME_INSTALL_MARKER = '.opl-full-runtime-installed.json'",
+      'resolveRuntimePruneAuthority',
+      "authority_state?: 'ready' | 'blocked'",
+      'authority_state: authority.state',
+      'isRuntimeGenerationRoot(resolvedCandidate)',
+      'Runtime prune authority changed after the dry-run plan',
+    ],
+    'local data lifecycle canonical verifier and runtime authority gate',
   );
 }
 
