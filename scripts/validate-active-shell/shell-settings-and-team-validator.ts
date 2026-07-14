@@ -63,7 +63,7 @@ const settingsModalForbidden = [
 
 const settingsFooterExpected = [
   "data-testid={account ? 'sider-footer-account' : 'sider-footer-settings'}",
-  "onSettingsClick(account ? 'access' : 'general')",
+  "onSettingsClick(account ? 'gateway' : 'general')",
   "data-testid='sider-footer-account-avatar'",
   'bg-success',
   'text-inverse',
