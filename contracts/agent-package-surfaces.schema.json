@@ -5,6 +5,9 @@
   "type": "object",
   "additionalProperties": false,
   "properties": {
+    "external_agent_package_registry": {
+      "$ref": "#/$defs/external_agent_package_registry"
+    },
     "agent_package_registry_entry": {
       "$ref": "#/$defs/agent_package_registry_entry"
     },
@@ -39,6 +42,53 @@
       },
       "uniqueItems": true
     },
+    "external_agent_package_registry": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "owner",
+        "purpose",
+        "state",
+        "version",
+        "registry_id",
+        "registry_name",
+        "registry_source_kind",
+        "registry_url",
+        "discovery_only",
+        "install_authority_allowed",
+        "empty_registry_allowed",
+        "canonical_first_party_entries_allowed",
+        "first_party_trust_claims_allowed",
+        "reserved_identity_source_ref",
+        "reserved_identity_collision_failure_code",
+        "entries"
+      ],
+      "properties": {
+        "owner": {"const": "one-person-lab-app"},
+        "purpose": {"const": "external_agent_package_registry_catalog_contract"},
+        "state": {"const": "active_external_discovery_contract"},
+        "version": {"const": 2},
+        "registry_id": {"const": "opl-default-external-agent-registry"},
+        "registry_name": {"type": "string", "minLength": 1},
+        "registry_source_kind": {"const": "default_external_registry"},
+        "registry_url": {"type": "string", "minLength": 1},
+        "discovery_only": {"const": true},
+        "install_authority_allowed": {"const": false},
+        "empty_registry_allowed": {"const": true},
+        "canonical_first_party_entries_allowed": {"const": false},
+        "first_party_trust_claims_allowed": {"const": false},
+        "reserved_identity_source_ref": {
+          "const": "contracts/app-product-profile.json#gui.agent_package_registry.canonical_first_party_package_ids"
+        },
+        "reserved_identity_collision_failure_code": {
+          "const": "agent_package_registry_first_party_identity_collision"
+        },
+        "entries": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/agent_package_registry_entry"}
+        }
+      }
+    },
     "agent_package_registry_entry": {
       "type": "object",
       "additionalProperties": true,
@@ -61,7 +111,18 @@
       "properties": {
         "package_id": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "not": {
+            "enum": [
+              "mas",
+              "mag",
+              "rca",
+              "oma",
+              "obf",
+              "mas-scholar-skills",
+              "opl-flow"
+            ]
+          }
         },
         "package_kind": {
           "type": "string",
@@ -100,7 +161,14 @@
         },
         "source": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "not": {
+            "enum": [
+              "first_party",
+              "first_party_release_catalog",
+              "first_party_managed_cohort"
+            ]
+          }
         },
         "manifest_url": {
           "type": "string",
@@ -127,7 +195,8 @@
         },
         "trust_tier": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "not": {"pattern": "^first_party(?:$|_)"}
         }
       },
       "oneOf": [

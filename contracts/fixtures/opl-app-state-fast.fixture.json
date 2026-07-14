@@ -324,8 +324,101 @@
         "diagnostics": [],
         "packages": {
           "mas": {
+            "surface_kind": "opl_agent_package_status_fast_projection",
             "package_id": "mas",
-            "status": "ready",
+            "status": "verification_deferred",
+            "package_version": "0.2.4",
+            "installed_version": "0.2.4",
+            "version": "0.2.4",
+            "source_kind": "first_party_managed_cohort",
+            "package_lock_ref": "opl://agent-package-lock/mas/0.2.4/fixture",
+            "lock_ref": "opl://agent-package-lock/mas/0.2.4/fixture",
+            "action_receipt_ref": "opl://agent-package/install/mas/fixture",
+            "rollback_ref": "rollback-ref:mas/previous",
+            "physical_surface": {
+              "surface_kind": "opl_agent_package_physical_codex_surface",
+              "status": "materialized",
+              "package_id": "mas",
+              "plugin_id": "med-autoscience",
+              "marketplace_id": "opl",
+              "codex_home": "/Users/example/.codex",
+              "codex_config_path": "/Users/example/.codex/config.toml",
+              "codex_config_preexisting": true,
+              "plugin_source_path": "/Users/example/.one-person-lab/package-payloads/mas/med-autoscience",
+              "plugin_manifest_path": "/Users/example/.codex/plugins/cache/med-autoscience-local/.codex-plugin/plugin.json",
+              "codex_plugin_cache_path": "/Users/example/.codex/plugins/cache/med-autoscience-local",
+              "marketplace_root": "/Users/example/.codex/plugins/marketplaces",
+              "marketplace_path": "/Users/example/.codex/plugins/marketplaces/opl",
+              "marketplace_plugin_path": "/Users/example/.codex/plugins/marketplaces/opl/med-autoscience",
+              "plugin_payload_manifest_url": null,
+              "plugin_payload_manifest_sha256": null,
+              "plugin_payload_cache_path": null,
+              "materialized_required_skill_ids": ["medical-research"],
+              "materialized_required_skill_paths": [
+                "/Users/example/.codex/plugins/cache/med-autoscience-local/skills/medical-research/SKILL.md"
+              ],
+              "removed_paths": [],
+              "writes_performed": true,
+              "reload_required": false,
+              "failure_reason": null,
+              "note": null,
+              "profile_config": null,
+              "profile_migration": {
+                "surface_kind": "opl_package_profile_migration",
+                "status": "not_requested",
+                "source_path": null,
+                "target_path": null,
+                "source_sha256": null,
+                "target_sha256": null,
+                "receipt_path": null,
+                "merge_packet_path": null,
+                "apply_command": null,
+                "authoring_source_paths": [],
+                "mutation_actions": [],
+                "rollback_backups_retained": false,
+                "writes_performed": false,
+                "note": "Package did not request profile migration."
+              },
+              "managed_policy_config": null,
+              "workflow_policy_migration": {
+                "surface_kind": "opl_package_managed_policy_migration",
+                "status": "not_requested",
+                "policy_kind": null,
+                "policy_path": null,
+                "schema_path": null,
+                "policy_sha256": null,
+                "inventory_digest": null,
+                "dependency_ids": [],
+                "dependencies": [],
+                "optional_dependency_ids": [],
+                "migration_ids": [],
+                "detected_conflicts": [],
+                "actions": [],
+                "service_actions": [],
+                "dependency_sync": null,
+                "model_projection": null,
+                "backup_root": null,
+                "backup_active": false,
+                "writes_performed": false,
+                "note": "Package did not request managed policy migration."
+              },
+              "authority_boundary": {
+                "refs_only": true,
+                "can_write_domain_truth": false,
+                "can_write_domain_memory_body": false,
+                "can_mutate_domain_artifact_body": false,
+                "can_authorize_quality_or_export": false,
+                "can_create_owner_receipt": false,
+                "can_create_typed_blocker": false,
+                "can_claim_domain_ready": false,
+                "can_claim_production_ready": false
+              }
+            },
+            "codex_visible": true,
+            "capability_exposure": {
+              "status": "visible",
+              "codex_visible": true
+            },
             "dependency_readiness": {
               "status": "ready",
               "required_count": 1,
@@ -346,29 +439,86 @@
                   "available_export_ids": ["medical-research"],
                   "exports_satisfied": true,
                   "content_lock_digest": "sha256:mas-scholar-skills",
-                  "physical_surface_status": "ready",
+                  "physical_surface_status": "materialized",
                   "ready": true,
                   "failure_reasons": []
                 }
               ],
               "closure": {
                 "transaction_id": "tx-mas-1",
-                "generation_id": "generation-mas-1",
                 "closure_digest": "sha256:mas-current",
-                "last_known_good_generation_id": "generation-mas-0",
+                "last_known_good_transaction_id": "tx-mas-0",
                 "last_known_good_closure_digest": "sha256:mas-previous"
               }
             },
+            "package_dependency_readiness": {
+              "status": "current",
+              "operational_ready": true,
+              "repair_command": "opl packages repair --package-id mas",
+              "dependencies": [
+                {
+                  "package_id": "mas-scholar-skills",
+                  "required": true,
+                  "version_requirement": ">=0.1.0",
+                  "capability_abi": "mas-scholar-skills.v1",
+                  "required_export_ids": ["medical-research"],
+                  "required_module_ids": [],
+                  "installed_version": "0.1.1",
+                  "manifest_sha256": "sha256:mas-scholar-skills-manifest",
+                  "content_digest": "sha256:mas-scholar-skills",
+                  "status": "current",
+                  "reasons": [],
+                  "missing_required_export_ids": [],
+                  "missing_required_module_ids": []
+                }
+              ]
+            },
+            "materialization_readiness": {
+              "status": "current",
+              "scope": "workspace",
+              "target_root": "/Users/example/OnePersonLab",
+              "required_skill_ids": ["medical-research"],
+              "materialized_skill_ids": ["medical-research"],
+              "expected_digest": "sha256:mas-scope",
+              "actual_digest": "sha256:mas-scope",
+              "repair_command": null,
+              "lifecycle_receipt_ref": "opl://agent-package-receipt/mas/activate/fixture",
+              "core_readiness": {
+                "status": "current",
+                "required_skill_ids": ["medical-research"],
+                "materialized_skill_ids": ["medical-research"]
+              },
+              "specialty_exposure": {
+                "status": "current",
+                "declared_skill_ids": ["medical-research"],
+                "materialized_skill_ids": ["medical-research"],
+                "missing_skill_ids": []
+              }
+            },
+            "runtime_source_readiness": {
+              "status": "verification_deferred",
+              "operational_ready": false,
+              "module_id": "med-autoscience",
+              "checkout_path": "/Users/example/.one-person-lab/runtime-sources/med-autoscience",
+              "expected_tree_sha256": "sha256:mas-runtime",
+              "actual_tree_sha256": "sha256:mas-runtime",
+              "reason": null,
+              "verification_mode": "persisted_lock_and_path_fast_projection",
+              "live_verification_deferred": true,
+              "live_verification_surface": "opl packages status --package-id <package_id> --json"
+            },
             "operational_ready": false,
+            "operational_ready_scope": "package_dependency_scope_runtime_source_and_managed_policy",
             "launch_allowed": false,
-            "launch_blocked_reason": null,
+            "launch_blocked_reason": "live_verification_deferred",
             "allowed_when_blocked": ["status", "doctor", "repair"],
             "repair_action": {
-              "action_id": "repair_dependency_closure",
-              "command_ref": "opl packages repair mas --json",
-              "enabled": false,
-              "reason_code": "dependency_closure_ready"
+              "action_id": "agent_package_repair",
+              "command_ref": "opl app action execute --action agent_package_repair --payload <json> --json",
+              "enabled": true,
+              "reason_code": "package_repair_required"
             },
+            "repair_command": "opl packages repair --package-id mas",
             "activation_action": {
               "action_id": "agent_package_activate",
               "command_ref": "opl app action execute --action agent_package_activate --payload <json> --json",
@@ -378,9 +528,17 @@
             },
             "dependent_guard": {
               "required_by_package_ids": [],
-              "disable": {"allowed": true, "reason_code": null},
-              "uninstall": {"allowed": true, "reason_code": null}
-            }
+              "disable": {
+                "allowed": true,
+                "reason_code": null
+              },
+              "uninstall": {
+                "allowed": true,
+                "reason_code": null
+              }
+            },
+            "currentness_detail_deferred": true,
+            "detail_surface": "opl packages status --package-id <package_id> --json"
           }
         },
         "home_shortcut_preferences": [],

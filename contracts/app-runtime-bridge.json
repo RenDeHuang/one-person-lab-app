@@ -250,7 +250,7 @@
       },
       {
         "semantic_area": "package",
-        "canonical_source": "opl app state --profile fast --json#app_state.agent_packages.directory + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[]",
+        "canonical_source": "opl app state --profile fast --json#app_state.agent_packages.directory.entries + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[]",
         "aion_display_role": "Settings Capabilities package directory rows",
         "workbench_display_role": "Packages panel rows",
         "action_owner_boundary": "App and shells display/trigger Framework action refs only; rollback appears as rollback_ref/recovery reference, not an App or Framework package lifecycle action",
@@ -260,30 +260,72 @@
           "agent_package_update",
           "agent_package_repair",
           "agent_package_activate",
-          "repair_dependency_closure",
           "agent_package_uninstall",
           "agent_package_preferences_set"
         ],
         "required_projection_fields": {
+          "directory.entries[]": [
+            "package_id",
+            "display_name",
+            "publisher",
+            "description",
+            "tags",
+            "package_role",
+            "role_state",
+            "trust_tier",
+            "source_explanation",
+            "manifest_url",
+            "selected_version",
+            "stable_version",
+            "installed_version",
+            "installed",
+            "activated",
+            "installability",
+            "readiness",
+            "recommended_action",
+            "recommended_action_ref",
+            "available_actions",
+            "authority_boundary"
+          ],
+          "status_index.packages[package_id]": [
+            "surface_kind",
+            "package_id",
+            "status",
+            "package_version",
+            "installed_version",
+            "version",
+            "source_kind",
+            "package_lock_ref",
+            "lock_ref",
+            "action_receipt_ref",
+            "rollback_ref",
+            "physical_surface",
+            "codex_visible",
+            "capability_exposure",
+            "dependency_readiness",
+            "package_dependency_readiness",
+            "materialization_readiness",
+            "runtime_source_readiness",
+            "operational_ready",
+            "operational_ready_scope",
+            "launch_allowed",
+            "launch_blocked_reason",
+            "allowed_when_blocked",
+            "repair_action",
+            "repair_command",
+            "activation_action",
+            "dependent_guard",
+            "currentness_detail_deferred",
+            "detail_surface",
+            "status_read_error"
+          ]
+        },
+        "optional_enrichment_fields": {
           "runtime_source_carriers.items[package_id]": [
             "source_origin",
             "source_path",
             "source_policy",
             "git"
-          ],
-          "directory.installed_packages[]": [
-            "dependency_closure",
-            "dependent_guard"
-          ],
-          "status_index.packages[package_id]": [
-            "dependency_readiness",
-            "operational_ready",
-            "launch_allowed",
-            "launch_blocked_reason",
-            "allowed_when_blocked",
-            "repair_action",
-            "activation_action",
-            "dependent_guard"
           ]
         },
         "use_boundary_activation_contract": {
@@ -302,10 +344,19 @@
           "package_identity_policy": "generic_package_id_no_hardcoded_agent_or_capability_package_ids",
           "app_role": "prepare_then_launch_using_framework_readback_without_owning_package_currentness_or_materialization"
         },
-        "projection_authority_policy": "App and shells consume these public Framework fields verbatim and must not infer dependency closure, operational readiness, launch eligibility, repair eligibility, or dependent guards from package identity",
+        "projection_authority_policy": "directory.entries owns catalog membership plus installed, activated, installability, coarse readiness, recommended_action_ref, and exact available_actions; status_index adds package-id-keyed canonical dependency_readiness, repair_action, activation_action, dependent_guard, capability_exposure, materialization, runtime-source, currentness, receipt, and status-read diagnostics but cannot override directory lifecycle, readiness, or exact actions; package_dependency_readiness remains lower-level diagnostic enrichment; runtime source carriers and modules may enrich source diagnostics only",
         "fallback_policy": {
-          "allowed_fallback_source": "opl app state --profile fast --json#app_state.modules.items[] + home_agent_shortcuts + task_awareness refs",
-          "allowed_when": "older runtime payloads or partial agent_packages projection only",
+          "manageable_collection_fallback": null,
+          "diagnostic_enrichment_sources": [
+            "app_state.agent_packages.status_index",
+            "app_state.runtime_source_carriers.items[]",
+            "app_state.modules.items[]",
+            "home_agent_shortcuts",
+            "task_awareness refs"
+          ],
+          "canonical_directory_absent_policy": "show loading, empty, last-good stale, or failed without synthesizing rows or actions",
+          "can_define_collection_membership": false,
+          "can_define_actions": false,
           "can_claim_currentness": false,
           "can_mutate_without_app_action": false,
           "can_collapse_developer_checkout": false

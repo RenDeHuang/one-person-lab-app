@@ -202,6 +202,14 @@ test("Settings Agents treats the canonical directory as discovery truth and expo
     "confirmation_required",
   ]);
   assert.equal(
+    lifecycle.canonical_action_contract.action_ref_policy,
+    "action_ref must equal app_state.actions#${action_id}",
+  );
+  assert.equal(
+    lifecycle.canonical_action_contract.required_payload_alternative_policy,
+    "a required_payload_fields item containing ' or ' is satisfied when at least one named payload field is present",
+  );
+  assert.equal(
     lifecycle.canonical_action_contract.recommended_action_id_field,
     "directory.entries[].recommended_action",
   );
@@ -228,6 +236,15 @@ test("Settings Agents treats the canonical directory as discovery truth and expo
   assert.ok(lifecycle.directory_controls.top_controls.includes("refresh_registry"));
   assert.ok(lifecycle.directory_controls.row_actions.includes("install"));
   assert.ok(lifecycle.directory_controls.row_actions.includes("activate"));
+  assert.deepStrictEqual(lifecycle.advanced_manifest_install_contract, {
+    action_id: "install_from_manifest_url",
+    visibility: "advanced_only",
+    payload_fields: ["manifest_url", "trust_tier"],
+    trust_tier_required: true,
+    default_trust_tier: null,
+    missing_trust_tier_policy: "disable_submit_and_show_validation",
+    registry_selected_install_affected: false,
+  });
   assert.deepStrictEqual(lifecycle.workspace_activation_contract.payload_template, {
     package_id: "directory.entries[].package_id",
     scope: "workspace",
@@ -239,6 +256,24 @@ test("Settings Agents treats the canonical directory as discovery truth and expo
     route: "/settings/workspace",
     anchor: "workspace",
   });
+  assert.deepStrictEqual(
+    lifecycle.package_projection_contract.dependent_guard_missing_policy,
+    {
+      disable_enabled_only_when: "dependent_guard.disable.allowed === true",
+      uninstall_enabled_only_when: "dependent_guard.uninstall.allowed === true",
+      missing_or_invalid_reason_code: "dependent_guard_unavailable",
+      unaffected_actions: ["hide", "unhide", "enable"],
+    },
+  );
+  assert.deepStrictEqual(
+    lifecycle.package_projection_contract.activation_action_missing_policy,
+    {
+      activation_enabled_only_when: "activation_action.enabled === true",
+      directory_action_alone_can_enable: false,
+      disabled_reason_source: "activation_action.reason_code",
+      missing_or_invalid_reason_code: "activation_status_unavailable",
+    },
+  );
 
   const directory =
     values.controlPlane.page_adapter_policy.required_pages.agents
@@ -277,6 +312,32 @@ test("Settings Agents treats the canonical directory as discovery truth and expo
   workspaceRegression.guiContract.pages.settings_agents.agent_package_lifecycle_ux
     .workspace_activation_contract.missing_workspace_policy.enabled = true;
   assert.throws(() => validateGui(workspaceRegression.guiContract), /workspace activation|lifecycle UX/);
+
+  const implicitTrustRegression = contracts();
+  implicitTrustRegression.guiContract.pages.settings_agents.agent_package_lifecycle_ux
+    .advanced_manifest_install_contract.default_trust_tier = "third_party_verified";
+  assert.throws(
+    () => validateGui(implicitTrustRegression.guiContract),
+    /advanced manifest install trust assignment|lifecycle UX/,
+  );
+
+  const permissiveGuardRegression = contracts();
+  permissiveGuardRegression.guiContract.pages.settings_agents.agent_package_lifecycle_ux
+    .package_projection_contract.dependent_guard_missing_policy.disable_enabled_only_when =
+    "dependent_guard.disable.allowed !== false";
+  assert.throws(
+    () => validateGui(permissiveGuardRegression.guiContract),
+    /dependency closure readiness|lifecycle UX/,
+  );
+
+  const permissiveActivationRegression = contracts();
+  permissiveActivationRegression.guiContract.pages.settings_agents.agent_package_lifecycle_ux
+    .package_projection_contract.activation_action_missing_policy.activation_enabled_only_when =
+    "directory action exists";
+  assert.throws(
+    () => validateGui(permissiveActivationRegression.guiContract),
+    /dependency closure readiness|lifecycle UX/,
+  );
 });
 
 test("Settings Capabilities owns local MCP, image, and voice controls without Preferences duplication", () => {

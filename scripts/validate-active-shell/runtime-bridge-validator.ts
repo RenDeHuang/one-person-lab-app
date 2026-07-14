@@ -377,6 +377,215 @@ export function validateOplAppStateFastAgentPackageDirectoryFixture(fixture) {
   ) {
     throw new Error('Agent Package fast directory fixture must keep activated readiness verification deferred until full verification');
   }
+
+  const statusIndex = lookupPath(fixture, 'app_state.agent_packages.status_index');
+  const representativeStatus = statusIndex?.packages?.[activatedEntry.package_id];
+  assertExactObjectFields(
+    representativeStatus,
+    [
+      'surface_kind',
+      'package_id',
+      'status',
+      'package_version',
+      'installed_version',
+      'version',
+      'source_kind',
+      'package_lock_ref',
+      'lock_ref',
+      'action_receipt_ref',
+      'rollback_ref',
+      'physical_surface',
+      'codex_visible',
+      'capability_exposure',
+      'dependency_readiness',
+      'package_dependency_readiness',
+      'materialization_readiness',
+      'runtime_source_readiness',
+      'operational_ready',
+      'operational_ready_scope',
+      'launch_allowed',
+      'launch_blocked_reason',
+      'allowed_when_blocked',
+      'repair_action',
+      'repair_command',
+      'activation_action',
+      'dependent_guard',
+      'currentness_detail_deferred',
+      'detail_surface',
+    ],
+    'Agent Package representative fast status',
+  );
+  assertExactObjectFields(
+    representativeStatus.package_dependency_readiness,
+    ['status', 'operational_ready', 'repair_command', 'dependencies'],
+    'Agent Package dependency readiness',
+  );
+  assertExactObjectFields(
+    representativeStatus.dependency_readiness,
+    ['status', 'required_count', 'ready_count', 'checks', 'closure'],
+    'Agent Package canonical dependency readiness',
+  );
+  for (const check of representativeStatus.dependency_readiness.checks) {
+    assertExactObjectFields(
+      check,
+      [
+        'package_id',
+        'required',
+        'installed',
+        'enabled',
+        'version_requirement',
+        'installed_version',
+        'version_satisfied',
+        'capability_abi',
+        'installed_capability_abi',
+        'abi_satisfied',
+        'required_export_ids',
+        'available_export_ids',
+        'exports_satisfied',
+        'content_lock_digest',
+        'physical_surface_status',
+        'ready',
+        'failure_reasons',
+      ],
+      `Agent Package canonical dependency check ${check?.package_id ?? '<unknown>'}`,
+    );
+  }
+  assertExactObjectFields(
+    representativeStatus.dependency_readiness.closure,
+    [
+      'transaction_id',
+      'closure_digest',
+      'last_known_good_transaction_id',
+      'last_known_good_closure_digest',
+    ],
+    'Agent Package canonical dependency closure',
+  );
+  assertExactObjectFields(
+    representativeStatus.repair_action,
+    ['action_id', 'command_ref', 'enabled', 'reason_code'],
+    'Agent Package canonical repair action',
+  );
+  assertExactObjectFields(
+    representativeStatus.activation_action,
+    ['action_id', 'command_ref', 'enabled', 'preparation_status', 'reason_code'],
+    'Agent Package canonical activation action',
+  );
+  assertExactObjectFields(
+    representativeStatus.dependent_guard,
+    ['required_by_package_ids', 'disable', 'uninstall'],
+    'Agent Package canonical dependent guard',
+  );
+  assertExactObjectFields(
+    representativeStatus.dependent_guard.disable,
+    ['allowed', 'reason_code'],
+    'Agent Package canonical disable guard',
+  );
+  assertExactObjectFields(
+    representativeStatus.dependent_guard.uninstall,
+    ['allowed', 'reason_code'],
+    'Agent Package canonical uninstall guard',
+  );
+  for (const dependency of representativeStatus.package_dependency_readiness.dependencies) {
+    assertExactObjectFields(
+      dependency,
+      [
+        'package_id',
+        'required',
+        'version_requirement',
+        'capability_abi',
+        'required_export_ids',
+        'required_module_ids',
+        'installed_version',
+        'manifest_sha256',
+        'content_digest',
+        'status',
+        'reasons',
+        'missing_required_export_ids',
+        'missing_required_module_ids',
+      ],
+      `Agent Package dependency ${dependency?.package_id ?? '<unknown>'}`,
+    );
+  }
+  assertExactObjectFields(
+    representativeStatus.materialization_readiness,
+    [
+      'status',
+      'scope',
+      'target_root',
+      'required_skill_ids',
+      'materialized_skill_ids',
+      'expected_digest',
+      'actual_digest',
+      'repair_command',
+      'lifecycle_receipt_ref',
+      'core_readiness',
+      'specialty_exposure',
+    ],
+    'Agent Package materialization readiness',
+  );
+  assertExactObjectFields(
+    representativeStatus.runtime_source_readiness,
+    [
+      'status',
+      'operational_ready',
+      'module_id',
+      'checkout_path',
+      'expected_tree_sha256',
+      'actual_tree_sha256',
+      'reason',
+      'verification_mode',
+      'live_verification_deferred',
+      'live_verification_surface',
+    ],
+    'Agent Package runtime source readiness',
+  );
+  assertExactObjectFields(
+    representativeStatus.physical_surface,
+    [
+      'surface_kind',
+      'status',
+      'package_id',
+      'plugin_id',
+      'marketplace_id',
+      'codex_home',
+      'codex_config_path',
+      'codex_config_preexisting',
+      'plugin_source_path',
+      'plugin_manifest_path',
+      'codex_plugin_cache_path',
+      'marketplace_root',
+      'marketplace_path',
+      'marketplace_plugin_path',
+      'plugin_payload_manifest_url',
+      'plugin_payload_manifest_sha256',
+      'plugin_payload_cache_path',
+      'materialized_required_skill_ids',
+      'materialized_required_skill_paths',
+      'removed_paths',
+      'writes_performed',
+      'reload_required',
+      'failure_reason',
+      'note',
+      'profile_config',
+      'profile_migration',
+      'managed_policy_config',
+      'workflow_policy_migration',
+      'authority_boundary',
+    ],
+    'Agent Package canonical physical surface',
+  );
+  if (
+    representativeStatus.status !== 'verification_deferred'
+    || representativeStatus.operational_ready !== false
+    || representativeStatus.launch_allowed !== false
+    || representativeStatus.launch_blocked_reason !== 'live_verification_deferred'
+    || representativeStatus.package_dependency_readiness.status !== 'current'
+    || representativeStatus.dependency_readiness.status !== 'ready'
+    || representativeStatus.activation_action.action_id !== 'agent_package_activate'
+    || representativeStatus.dependent_guard.disable.allowed !== true
+  ) {
+    throw new Error('Agent Package fast status fixture must match the fail-closed producer ABI with canonical status-index fields');
+  }
 }
 
 export function validateOplGatewayAccountContract(runtimeBridge) {
@@ -1488,29 +1697,32 @@ function validatePackageReadinessProjection(runtimeBridge) {
   );
   if (
     packageRow?.canonical_source !==
-    'opl app state --profile fast --json#app_state.agent_packages.directory + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[]'
+    'opl app state --profile fast --json#app_state.agent_packages.directory.entries + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[]'
   ) {
-    throw new Error('Runtime bridge package rows must combine package installation truth with active runtime source carriers');
+    throw new Error('Runtime bridge package rows must use directory.entries as collection truth plus diagnostic enrichments');
   }
   assertDeepEqualJson(
-    packageRow?.required_projection_fields?.['runtime_source_carriers.items[package_id]'],
-    ['source_origin', 'source_path', 'source_policy', 'git'],
-    'Runtime bridge package active source fields',
-  );
-  assertDeepEqualJson(
-    packageRow?.required_projection_fields?.['directory.installed_packages[]'],
-    ['dependency_closure', 'dependent_guard'],
-    'Runtime bridge package directory readiness fields',
+    packageRow?.required_projection_fields?.['directory.entries[]'],
+    agentPackageDirectoryEntryFields,
+    'Runtime bridge package directory entry fields',
   );
   assertIncludesAll(
     packageRow?.allowed_action_refs,
-    ['repair_dependency_closure', 'agent_package_activate'],
+    ['agent_package_repair', 'agent_package_activate'],
     'Runtime bridge package repair and activation actions',
   );
+  if (packageRow?.allowed_action_refs?.includes('repair_dependency_closure')) {
+    throw new Error('Runtime bridge package actions must not expose legacy repair_dependency_closure');
+  }
   assertDeepEqualJson(
     packageRow?.required_projection_fields?.['status_index.packages[package_id]'],
-    ['dependency_readiness', 'operational_ready', 'launch_allowed', 'launch_blocked_reason', 'allowed_when_blocked', 'repair_action', 'activation_action', 'dependent_guard'],
-    'Runtime bridge package status readiness fields',
+    ['surface_kind', 'package_id', 'status', 'package_version', 'installed_version', 'version', 'source_kind', 'package_lock_ref', 'lock_ref', 'action_receipt_ref', 'rollback_ref', 'physical_surface', 'codex_visible', 'capability_exposure', 'dependency_readiness', 'package_dependency_readiness', 'materialization_readiness', 'runtime_source_readiness', 'operational_ready', 'operational_ready_scope', 'launch_allowed', 'launch_blocked_reason', 'allowed_when_blocked', 'repair_action', 'repair_command', 'activation_action', 'dependent_guard', 'currentness_detail_deferred', 'detail_surface', 'status_read_error'],
+    'Runtime bridge canonical package status diagnostic fields',
+  );
+  assertDeepEqualJson(
+    packageRow?.optional_enrichment_fields?.['runtime_source_carriers.items[package_id]'],
+    ['source_origin', 'source_path', 'source_policy', 'git'],
+    'Runtime bridge optional active source diagnostic fields',
   );
   assertDeepEqualJson(
     packageRow?.use_boundary_activation_contract,
@@ -1533,10 +1745,22 @@ function validatePackageReadinessProjection(runtimeBridge) {
     'Runtime bridge package use-boundary activation contract',
   );
   if (
-    !packageRow?.projection_authority_policy?.includes('must not infer dependency closure') ||
-    !packageRow.projection_authority_policy.includes('launch eligibility')
+    !packageRow?.projection_authority_policy?.includes('directory.entries owns catalog membership')
+    || !packageRow.projection_authority_policy.includes('cannot override directory lifecycle, readiness, or exact actions')
+    || !packageRow.projection_authority_policy.includes('canonical dependency_readiness')
+    || packageRow?.fallback_policy?.manageable_collection_fallback !== null
+    || packageRow?.fallback_policy?.can_define_collection_membership !== false
+    || packageRow?.fallback_policy?.can_define_actions !== false
+    || packageRow?.fallback_policy?.canonical_directory_absent_policy !==
+      'show loading, empty, last-good stale, or failed without synthesizing rows or actions'
   ) {
-    throw new Error('Runtime bridge package projection must forbid package-identity readiness inference');
+    throw new Error('Runtime bridge package projection must keep directory entries and actions authoritative without a fallback collection');
+  }
+  if (
+    Object.hasOwn(packageRow?.required_projection_fields ?? {}, 'directory.installed_packages[]')
+    || Object.hasOwn(packageRow?.optional_enrichment_fields ?? {}, 'status_index.packages[package_id]')
+  ) {
+    throw new Error('Runtime bridge package projection must not retain installed_packages or demote canonical status-index diagnostics to optional legacy enrichment');
   }
 }
 
