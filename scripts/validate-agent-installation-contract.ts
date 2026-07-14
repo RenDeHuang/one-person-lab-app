@@ -3,6 +3,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  forbiddenExternalFirstPartyClaimPattern,
+  isExternalFirstPartyClaim,
+} from "./app-product-profile-shared-validators.ts";
 
 type AgentRootMap = Map<string, string>;
 
@@ -152,7 +156,6 @@ const expectedRegistryRoles = [
   "framework_capability_package",
   "workflow_profile",
 ];
-const forbiddenExternalRegistryTrustTierPattern = "^first_party(?:$|_)";
 const expectedRegistryRoleByPackageId: Record<string, string> = {
   mas: "standard_agent",
   mag: "standard_agent",
@@ -903,14 +906,14 @@ function validateAgentPackageSurfaceSchema(contract: any, registry: any, schema:
     expectedRegistryPackageIds,
     "external registry reserved first-party package ids",
   );
-  assertArrayEqual(
-    registryEntrySchema.properties?.source?.not?.enum,
-    ["first_party", "first_party_release_catalog", "first_party_managed_cohort"],
+  assertEqual(
+    registryEntrySchema.properties?.source?.not?.pattern,
+    forbiddenExternalFirstPartyClaimPattern,
     "external registry forbidden first-party sources",
   );
   assertEqual(
     registryEntrySchema.properties?.trust_tier?.not?.pattern,
-    forbiddenExternalRegistryTrustTierPattern,
+    forbiddenExternalFirstPartyClaimPattern,
     "external registry forbidden first-party trust tier",
   );
   assertArrayEqual(
@@ -1274,10 +1277,10 @@ function validateAgentRegistryPolicy(contract: any, profile: any, registry: any)
         `external registry entry ${entry.package_id} collides with Framework first-party identity (${registry.reserved_identity_collision_failure_code})`,
       );
     }
-    if (["first_party", "first_party_release_catalog", "first_party_managed_cohort"].includes(entry.source)) {
+    if (isExternalFirstPartyClaim(entry.source)) {
       fail(`external registry entry ${entry.package_id} must not claim first-party source`);
     }
-    if (new RegExp(forbiddenExternalRegistryTrustTierPattern, "i").test(entry.trust_tier)) {
+    if (isExternalFirstPartyClaim(entry.trust_tier)) {
       fail(`external registry entry ${entry.package_id} must not claim first-party trust`);
     }
     for (const excludedField of expectedRegistryExcludedFields) {
