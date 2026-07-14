@@ -13,32 +13,318 @@
       "action_surface": "opl app action execute",
       "app_repo_truth_owner": "one-person-lab-app"
     },
+    "paths": {
+      "workspace_root_path": "/Users/example/OPL Workspace"
+    },
     "agent_packages": {
+      "surface_kind": "opl_app_agent_packages_projection",
+      "source": {
+        "list_surface": "opl packages list --json",
+        "status_surface": "opl packages status --package-id <package_id> --json"
+      },
       "directory": {
-        "installed_packages": [
+        "surface_kind": "opl_agent_package_directory.v1",
+        "status": "available",
+        "source_catalog_kind": "opl_package_catalog.v1+opl_agent_package_registry_cache",
+        "detail": "fast",
+        "entry_count": 3,
+        "installed_package_count": 2,
+        "installable_package_count": 1,
+        "migration_required_count": 0,
+        "entries": [
           {
-            "package_id": "example-agent",
-            "dependency_closure": {
-              "root_package_id": "example-agent",
-              "transaction_id": "tx-example-1",
-              "generation_id": "generation-example-1",
-              "closure_digest": "sha256:example-current",
-              "last_known_good_generation_id": "generation-example-0",
-              "last_known_good_closure_digest": "sha256:example-previous",
-              "required_package_ids": ["example-provider"]
+            "package_id": "obf",
+            "display_name": "OPL Book Forge",
+            "publisher": "one-person-lab",
+            "description": "Long-form book architecture, drafting, review, and publication workflows.",
+            "tags": ["book-authoring", "long-form", "publishing"],
+            "package_role": "standard_agent",
+            "role_state": {
+              "status": "declared",
+              "source": "first_party_release_catalog",
+              "discovered_role": "standard_agent",
+              "installed_role": null,
+              "diagnostic": null
             },
-            "dependent_guard": {
-              "required_by_package_ids": [],
-              "disable": {"allowed": true, "reason_code": null},
-              "uninstall": {"allowed": true, "reason_code": null}
+            "trust_tier": "first_party",
+            "source_explanation": {
+              "kind": "first_party_release_catalog",
+              "source": "first_party",
+              "summary": "Bundled Framework projection of the canonical first-party OPL Package catalog.",
+              "catalog_ref": "contracts/opl-framework/package-release-catalog.json#packages.package_catalog.obf",
+              "registry_url": null,
+              "registry_source_ref": "contracts/opl-framework/package-release-catalog.json#packages.package_catalog.obf",
+              "version_source_ref": "contracts/opl-framework/packages/obf.json#/version"
+            },
+            "manifest_url": "opl+oci://ghcr.io/gaofeng21cn/one-person-lab/one-person-lab-packages/obf:0.3.2#/package-manifest.json",
+            "selected_version": "0.3.2",
+            "stable_version": "0.3.2",
+            "installed_version": null,
+            "installed": false,
+            "activated": false,
+            "installability": {
+              "status": "installable",
+              "installable": true
+            },
+            "readiness": {
+              "status": "not_installed",
+              "operational_ready": false,
+              "launch_allowed": false,
+              "verification_deferred": false,
+              "reason": "package_not_installed",
+              "detail_surface": "opl packages status --package-id obf --json",
+              "status_read_error": null
+            },
+            "recommended_action": "install_from_manifest_url",
+            "recommended_action_ref": {
+              "action_id": "install_from_manifest_url",
+              "action_ref": "app_state.actions#install_from_manifest_url",
+              "payload": {
+                "package_id": "obf"
+              },
+              "required_payload_fields": ["package_id"],
+              "confirmation_required": true
+            },
+            "available_actions": [
+              {
+                "action_id": "install_from_manifest_url",
+                "action_ref": "app_state.actions#install_from_manifest_url",
+                "payload": {
+                  "package_id": "obf"
+                },
+                "required_payload_fields": ["package_id"],
+                "confirmation_required": true
+              }
+            ],
+            "authority_boundary": {
+              "refs_only": true,
+              "can_write_domain_truth": false,
+              "can_write_domain_memory_body": false,
+              "can_mutate_domain_artifact_body": false,
+              "can_authorize_quality_or_export": false,
+              "can_create_owner_receipt": false,
+              "can_create_typed_blocker": false,
+              "can_claim_domain_ready": false,
+              "can_claim_production_ready": false
+            }
+          },
+          {
+            "package_id": "oma",
+            "display_name": "OPL Meta Agent",
+            "publisher": "one-person-lab",
+            "description": "Agent architecture, baseline, takeover, and OPL conformance workflows.",
+            "tags": ["agent-design", "architecture", "conformance"],
+            "package_role": "standard_agent",
+            "role_state": {
+              "status": "current",
+              "source": "installed_lock",
+              "discovered_role": "standard_agent",
+              "installed_role": "standard_agent",
+              "diagnostic": null
+            },
+            "trust_tier": "first_party",
+            "source_explanation": {
+              "kind": "first_party_release_catalog",
+              "source": "first_party",
+              "summary": "Bundled Framework projection of the canonical first-party OPL Package catalog.",
+              "catalog_ref": "contracts/opl-framework/package-release-catalog.json#packages.package_catalog.oma",
+              "registry_url": null,
+              "registry_source_ref": "contracts/opl-framework/package-release-catalog.json#packages.package_catalog.oma",
+              "version_source_ref": "contracts/opl-framework/packages/oma.json#/version"
+            },
+            "manifest_url": "opl+oci://ghcr.io/gaofeng21cn/one-person-lab/one-person-lab-packages/oma:0.3.0#/package-manifest.json",
+            "selected_version": "0.3.0",
+            "stable_version": "0.3.0",
+            "installed_version": "0.3.0",
+            "installed": true,
+            "activated": false,
+            "installability": {
+              "status": "installed",
+              "installable": false
+            },
+            "readiness": {
+              "status": "activation_required",
+              "operational_ready": false,
+              "launch_allowed": false,
+              "verification_deferred": false,
+              "reason": "scope_materialization_missing",
+              "detail_surface": "opl packages status --package-id oma --json",
+              "status_read_error": null
+            },
+            "recommended_action": "agent_package_activate",
+            "recommended_action_ref": {
+              "action_id": "agent_package_activate",
+              "action_ref": "app_state.actions#agent_package_activate",
+              "payload": {
+                "package_id": "oma",
+                "scope": "workspace",
+                "target_workspace": "/Users/example/OPL Workspace"
+              },
+              "required_payload_fields": ["package_id", "scope", "target_workspace or target_quest"],
+              "confirmation_required": false
+            },
+            "available_actions": [
+              {
+                "action_id": "agent_package_activate",
+                "action_ref": "app_state.actions#agent_package_activate",
+                "payload": {
+                  "package_id": "oma",
+                  "scope": "workspace",
+                  "target_workspace": "/Users/example/OPL Workspace"
+                },
+                "required_payload_fields": ["package_id", "scope", "target_workspace or target_quest"],
+                "confirmation_required": false
+              },
+              {
+                "action_id": "agent_package_update",
+                "action_ref": "app_state.actions#agent_package_update",
+                "payload": {"package_id": "oma"},
+                "required_payload_fields": ["package_id"],
+                "confirmation_required": true
+              },
+              {
+                "action_id": "agent_package_repair",
+                "action_ref": "app_state.actions#agent_package_repair",
+                "payload": {"package_id": "oma"},
+                "required_payload_fields": ["package_id"],
+                "confirmation_required": true
+              },
+              {
+                "action_id": "agent_package_preferences_set",
+                "action_ref": "app_state.actions#agent_package_preferences_set",
+                "payload": {"package_id": "oma"},
+                "required_payload_fields": ["package_id", "exposure_action or shortcut_id"],
+                "confirmation_required": false
+              },
+              {
+                "action_id": "agent_package_uninstall",
+                "action_ref": "app_state.actions#agent_package_uninstall",
+                "payload": {"package_id": "oma"},
+                "required_payload_fields": ["package_id"],
+                "confirmation_required": true
+              }
+            ],
+            "authority_boundary": {
+              "refs_only": true,
+              "can_write_domain_truth": false,
+              "can_write_domain_memory_body": false,
+              "can_mutate_domain_artifact_body": false,
+              "can_authorize_quality_or_export": false,
+              "can_create_owner_receipt": false,
+              "can_create_typed_blocker": false,
+              "can_claim_domain_ready": false,
+              "can_claim_production_ready": false
+            }
+          },
+          {
+            "package_id": "mas",
+            "display_name": "Med Auto Science",
+            "publisher": "one-person-lab",
+            "description": "Medical research workflows for evidence, analysis, writing, figures, and submission.",
+            "tags": ["medical-research", "evidence", "manuscript"],
+            "package_role": "standard_agent",
+            "role_state": {
+              "status": "current",
+              "source": "installed_lock",
+              "discovered_role": "standard_agent",
+              "installed_role": "standard_agent",
+              "diagnostic": null
+            },
+            "trust_tier": "first_party",
+            "source_explanation": {
+              "kind": "first_party_release_catalog",
+              "source": "first_party",
+              "summary": "Bundled Framework projection of the canonical first-party OPL Package catalog.",
+              "catalog_ref": "contracts/opl-framework/package-release-catalog.json#packages.package_catalog.mas",
+              "registry_url": null,
+              "registry_source_ref": "contracts/opl-framework/package-release-catalog.json#packages.package_catalog.mas",
+              "version_source_ref": "contracts/opl-framework/packages/mas.json#/version"
+            },
+            "manifest_url": "opl+oci://ghcr.io/gaofeng21cn/one-person-lab/one-person-lab-packages/mas:0.2.4#/package-manifest.json",
+            "selected_version": "0.2.4",
+            "stable_version": "0.2.4",
+            "installed_version": "0.2.4",
+            "installed": true,
+            "activated": true,
+            "installability": {
+              "status": "installed",
+              "installable": false
+            },
+            "readiness": {
+              "status": "verification_deferred",
+              "operational_ready": false,
+              "launch_allowed": false,
+              "verification_deferred": true,
+              "reason": "live_verification_deferred",
+              "detail_surface": "opl packages status --package-id mas --json",
+              "status_read_error": null
+            },
+            "recommended_action": null,
+            "recommended_action_ref": null,
+            "available_actions": [
+              {
+                "action_id": "agent_package_update",
+                "action_ref": "app_state.actions#agent_package_update",
+                "payload": {"package_id": "mas"},
+                "required_payload_fields": ["package_id"],
+                "confirmation_required": true
+              },
+              {
+                "action_id": "agent_package_repair",
+                "action_ref": "app_state.actions#agent_package_repair",
+                "payload": {"package_id": "mas"},
+                "required_payload_fields": ["package_id"],
+                "confirmation_required": true
+              },
+              {
+                "action_id": "agent_package_preferences_set",
+                "action_ref": "app_state.actions#agent_package_preferences_set",
+                "payload": {"package_id": "mas"},
+                "required_payload_fields": ["package_id", "exposure_action or shortcut_id"],
+                "confirmation_required": false
+              },
+              {
+                "action_id": "agent_package_uninstall",
+                "action_ref": "app_state.actions#agent_package_uninstall",
+                "payload": {"package_id": "mas"},
+                "required_payload_fields": ["package_id"],
+                "confirmation_required": true
+              }
+            ],
+            "authority_boundary": {
+              "refs_only": true,
+              "can_write_domain_truth": false,
+              "can_write_domain_memory_body": false,
+              "can_mutate_domain_artifact_body": false,
+              "can_authorize_quality_or_export": false,
+              "can_create_owner_receipt": false,
+              "can_create_typed_blocker": false,
+              "can_claim_domain_ready": false,
+              "can_claim_production_ready": false
             }
           }
-        ]
+        ],
+        "authority_boundary": {
+          "refs_only": true,
+          "can_write_domain_truth": false,
+          "can_write_domain_memory_body": false,
+          "can_mutate_domain_artifact_body": false,
+          "can_authorize_quality_or_export": false,
+          "can_create_owner_receipt": false,
+          "can_create_typed_blocker": false,
+          "can_claim_domain_ready": false,
+          "can_claim_production_ready": false
+        }
       },
       "status_index": {
+        "surface_kind": "opl_agent_package_status_index",
+        "status": "available",
+        "installed_package_count": 2,
+        "status_read_failure_count": 0,
+        "diagnostics": [],
         "packages": {
-          "example-agent": {
-            "package_id": "example-agent",
+          "mas": {
+            "package_id": "mas",
             "status": "ready",
             "dependency_readiness": {
               "status": "ready",
@@ -46,40 +332,40 @@
               "ready_count": 1,
               "checks": [
                 {
-                  "package_id": "example-provider",
+                  "package_id": "mas-scholar-skills",
                   "required": true,
                   "installed": true,
                   "enabled": true,
-                  "version_requirement": ">=1.0.0 <2.0.0",
-                  "installed_version": "1.0.0",
+                  "version_requirement": ">=0.1.0",
+                  "installed_version": "0.1.1",
                   "version_satisfied": true,
-                  "capability_abi": "example-provider.v1",
-                  "installed_capability_abi": "example-provider.v1",
+                  "capability_abi": "mas-scholar-skills.v1",
+                  "installed_capability_abi": "mas-scholar-skills.v1",
                   "abi_satisfied": true,
-                  "required_export_ids": ["example.export"],
-                  "available_export_ids": ["example.export"],
+                  "required_export_ids": ["medical-research"],
+                  "available_export_ids": ["medical-research"],
                   "exports_satisfied": true,
-                  "content_lock_digest": "sha256:example-provider",
+                  "content_lock_digest": "sha256:mas-scholar-skills",
                   "physical_surface_status": "ready",
                   "ready": true,
                   "failure_reasons": []
                 }
               ],
               "closure": {
-                "transaction_id": "tx-example-1",
-                "generation_id": "generation-example-1",
-                "closure_digest": "sha256:example-current",
-                "last_known_good_generation_id": "generation-example-0",
-                "last_known_good_closure_digest": "sha256:example-previous"
+                "transaction_id": "tx-mas-1",
+                "generation_id": "generation-mas-1",
+                "closure_digest": "sha256:mas-current",
+                "last_known_good_generation_id": "generation-mas-0",
+                "last_known_good_closure_digest": "sha256:mas-previous"
               }
             },
-            "operational_ready": true,
-            "launch_allowed": true,
+            "operational_ready": false,
+            "launch_allowed": false,
             "launch_blocked_reason": null,
             "allowed_when_blocked": ["status", "doctor", "repair"],
             "repair_action": {
               "action_id": "repair_dependency_closure",
-              "command_ref": "opl packages repair example-agent --json",
+              "command_ref": "opl packages repair mas --json",
               "enabled": false,
               "reason_code": "dependency_closure_ready"
             },
@@ -96,6 +382,21 @@
               "uninstall": {"allowed": true, "reason_code": null}
             }
           }
+        },
+        "home_shortcut_preferences": [],
+        "files": {
+          "home_shortcut_preferences_file": "/Users/example/.one-person-lab/agent-package-home-shortcut-preferences.json"
+        },
+        "authority_boundary": {
+          "refs_only": true,
+          "can_write_domain_truth": false,
+          "can_write_domain_memory_body": false,
+          "can_mutate_domain_artifact_body": false,
+          "can_authorize_quality_or_export": false,
+          "can_create_owner_receipt": false,
+          "can_create_typed_blocker": false,
+          "can_claim_domain_ready": false,
+          "can_claim_production_ready": false
         }
       }
     },

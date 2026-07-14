@@ -75,13 +75,26 @@
           "action_id": "agent_package_activate",
           "action_route": "opl app action execute --action agent_package_activate --payload <json> --json",
           "trigger": "before_every_installed_package_workspace_or_quest_launch",
-          "payload_fields": ["package_id", "scope", "target_workspace", "target_quest", "use_boundary_id"],
-          "scope_values": ["workspace", "quest"],
+          "payload_fields": [
+            "package_id",
+            "scope",
+            "target_workspace",
+            "target_quest",
+            "use_boundary_id"
+          ],
+          "scope_values": [
+            "workspace",
+            "quest"
+          ],
           "scope_target_policy": {
             "workspace": "target_workspace_required_target_quest_forbidden",
             "quest": "target_quest_required_target_workspace_forbidden"
           },
-          "result_fields": ["launch_allowed", "use_receipt_ref", "use_binding"],
+          "result_fields": [
+            "launch_allowed",
+            "use_receipt_ref",
+            "use_binding"
+          ],
           "launch_policy": "launch_only_when_launch_allowed_true_and_use_receipt_ref_and_use_binding_are_present",
           "currentness_policy": "framework_reconciles_latest_stable_compatible_package_closure_once_at_use_boundary_and_pins_use_binding_for_the_session",
           "package_identity_policy": "generic_package_id_no_hardcoded_agent_or_capability_package_ids",
@@ -98,7 +111,10 @@
         "local_worktree_lifecycle_ref": "contracts/app-gui-product-contract.json#interaction_baseline.conversation_scope.local_worktree_lifecycle",
         "new_task_locality": {
           "surface": "home_new_task",
-          "options": ["local", "worktree"],
+          "options": [
+            "local",
+            "worktree"
+          ],
           "starting_branch_selectable": true,
           "worktree_behavior": "create_or_reuse_managed_worktree",
           "adapter": "gitWorkspace.inspect_and_ensureManagedWorktree",
@@ -112,9 +128,22 @@
         "home_composer_state_contract": {
           "contract_id": "opl_home_composer_state.v1",
           "executor": "codex",
-          "shortcut_package_ids": [null, "mas", "mag", "rca", "obf", "oma"],
-          "viewports": ["desktop", "mobile"],
-          "availability_states": ["available", "unavailable"],
+          "shortcut_package_ids": [
+            null,
+            "mas",
+            "mag",
+            "rca",
+            "obf",
+            "oma"
+          ],
+          "viewports": [
+            "desktop",
+            "mobile"
+          ],
+          "availability_states": [
+            "available",
+            "unavailable"
+          ],
           "invariants": {
             "model_reasoning_visible": true,
             "permission_access_visible": true,
@@ -131,13 +160,18 @@
               "permission_access_visible": "data-opl-permission-access-visible",
               "executor_selector_visible": "data-opl-executor-selector-visible"
             },
-            "desktop_required_controls": ["guid-model-selector", "agent-mode-selector-*"],
+            "desktop_required_controls": [
+              "guid-model-selector",
+              "agent-mode-selector-*"
+            ],
             "mobile_required_controls": [
               "mobile-action-sheet-model",
               "mobile-action-sheet-reasoning",
               "mobile-action-sheet-permission"
             ],
-            "forbidden_controls": ["agent-pill-*"],
+            "forbidden_controls": [
+              "agent-pill-*"
+            ],
             "failure_field": "missing_controls"
           }
         },
@@ -149,8 +183,13 @@
           "composer_position": "floating_bottom_with_safe_inset",
           "composer_primary": true,
           "workspace_selector_visible": true,
-          "purpose_entries_visible": ["research", "grant", "ppt", "book"],
-          "purpose_entry_placement": "home_starters_with_management_in_settings_capabilities_not_persistent_composer_selector",
+          "purpose_entries_visible": [
+            "research",
+            "grant",
+            "ppt",
+            "book"
+          ],
+          "purpose_entry_placement": "home_starters_with_management_in_settings_agents_not_persistent_composer_selector",
           "dynamic_question_title": true,
           "starter_limit": null,
           "starter_visibility_policy": "all_user_visible_configured_shortcuts",
@@ -230,17 +269,35 @@
           "obf": "写书"
         },
         "default_assistant_required_skills": {
-          "mas": ["med-autoscience"],
-          "mag": ["med-autogrant"],
-          "rca": ["redcube-ai"],
-          "obf": ["opl-bookforge"]
+          "mas": [
+            "med-autoscience"
+          ],
+          "mag": [
+            "med-autogrant"
+          ],
+          "rca": [
+            "redcube-ai"
+          ],
+          "obf": [
+            "opl-bookforge"
+          ]
         },
         "default_agent_package_required_skills": {
-          "mas": ["med-autoscience"],
-          "mag": ["med-autogrant"],
-          "rca": ["redcube-ai"],
-          "obf": ["opl-bookforge"],
-          "oma": ["opl-meta-agent"]
+          "mas": [
+            "med-autoscience"
+          ],
+          "mag": [
+            "med-autogrant"
+          ],
+          "rca": [
+            "redcube-ai"
+          ],
+          "obf": [
+            "opl-bookforge"
+          ],
+          "oma": [
+            "opl-meta-agent"
+          ]
         },
         "ordinary_visible_mcp_server_ids": [],
         "home_agent_shortcuts": [
@@ -250,7 +307,9 @@
             "primary_label": "科研",
             "package_short_name": "MAS",
             "codex_visible_entry": "med-autoscience",
-            "required_skill_ids": ["med-autoscience"],
+            "required_skill_ids": [
+              "med-autoscience"
+            ],
             "source": "opl_app_home",
             "executor": "codex_cli",
             "display_policy": "purpose_first",
@@ -264,7 +323,9 @@
             "primary_label": "基金",
             "package_short_name": "MAG",
             "codex_visible_entry": "med-autogrant",
-            "required_skill_ids": ["med-autogrant"],
+            "required_skill_ids": [
+              "med-autogrant"
+            ],
             "source": "opl_app_home",
             "executor": "codex_cli",
             "display_policy": "purpose_first",
@@ -278,7 +339,9 @@
             "primary_label": "演示",
             "package_short_name": "RCA",
             "codex_visible_entry": "redcube-ai",
-            "required_skill_ids": ["redcube-ai"],
+            "required_skill_ids": [
+              "redcube-ai"
+            ],
             "source": "opl_app_home",
             "executor": "codex_cli",
             "display_policy": "purpose_first",
@@ -292,7 +355,9 @@
             "primary_label": "写书",
             "package_short_name": "OBF",
             "codex_visible_entry": "opl-bookforge",
-            "required_skill_ids": ["opl-bookforge"],
+            "required_skill_ids": [
+              "opl-bookforge"
+            ],
             "source": "opl_app_home",
             "executor": "codex_cli",
             "display_policy": "purpose_first",
@@ -306,7 +371,9 @@
             "primary_label": "元智能体",
             "package_short_name": "OMA",
             "codex_visible_entry": "opl-meta-agent",
-            "required_skill_ids": ["opl-meta-agent"],
+            "required_skill_ids": [
+              "opl-meta-agent"
+            ],
             "source": "opl_app_home",
             "executor": "codex_cli",
             "display_policy": "purpose_first",
@@ -446,8 +513,13 @@
         "provider_selector_visible": false,
         "model_status_surface_ref": "contracts/app-gui-product-contract.json#executor_policy.default_model_display_value",
         "technical_details_policy": "single_compact_model_reasoning_menu_without_backend_or_provider",
-        "composer_context_strip": ["active_capability"],
-        "composer_send_scoped_inputs": ["attachments", "project_refs"],
+        "composer_context_strip": [
+          "active_capability"
+        ],
+        "composer_send_scoped_inputs": [
+          "attachments",
+          "project_refs"
+        ],
         "composer_send_scoped_consumption_policy": "consumed_by_current_send_not_persisted_in_context_strip",
         "composer_forbidden_persistent_context": [
           "project",
@@ -463,7 +535,9 @@
           "model_reasoning",
           "send_stop"
         ],
-        "composer_optional_actions": ["voice"],
+        "composer_optional_actions": [
+          "voice"
+        ],
         "mobile_action_sheet": {
           "trigger": "+",
           "allowed_actions": [
@@ -474,11 +548,24 @@
             "active_capability"
           ],
           "send_stop_location": "composer_primary_action_outside_sheet",
-          "forbidden_actions": ["backend", "provider", "team", "raw_mcp", "arbitrary_skills"]
+          "forbidden_actions": [
+            "backend",
+            "provider",
+            "team",
+            "raw_mcp",
+            "arbitrary_skills"
+          ]
         },
         "projectless_conversation_supported": true,
         "projectless_input_policy": {
-          "surfaces": ["attachments", "local_file_picker", "local_directory_picker", "paste", "drop", "/open"],
+          "surfaces": [
+            "attachments",
+            "local_file_picker",
+            "local_directory_picker",
+            "paste",
+            "drop",
+            "/open"
+          ],
           "selection_scope": "any_user_selected_local_file_or_directory",
           "workspace_required": false,
           "access_authority": "codex_permission_approval_and_sandbox_only",
@@ -488,7 +575,10 @@
           "scope": "canonical_workspace_path",
           "optional": true,
           "item_kind": "workspace_file_or_directory_ref",
-          "mutations": ["add", "remove"],
+          "mutations": [
+            "add",
+            "remove"
+          ],
           "persistence": "shell_client_configuration_keyed_by_workspace",
           "management_surface": "navigation_rail_project",
           "composer_consumption": "send_scoped_removable_refs",
@@ -500,9 +590,21 @@
           "contract_ref": "contracts/app-gui-product-contract.json#interaction_baseline.conversation_scope.local_worktree_lifecycle",
           "surface": "conversation_environment",
           "scope": "same_host_existing_task",
-          "actions": ["local_to_worktree", "worktree_to_local", "create_restore_point_and_remove", "restore_worktree"],
-          "eligible_thread_states": ["not_loaded", "idle"],
-          "unavailable_thread_states": ["running", "archived", "system_error"],
+          "actions": [
+            "local_to_worktree",
+            "worktree_to_local",
+            "create_restore_point_and_remove",
+            "restore_worktree"
+          ],
+          "eligible_thread_states": [
+            "not_loaded",
+            "idle"
+          ],
+          "unavailable_thread_states": [
+            "running",
+            "archived",
+            "system_error"
+          ],
           "protocol": "thread/settings/update",
           "failure_policy": "show_unavailable_or_error_without_silent_fallback",
           "projection_transaction": "codex_thread_cwd_first_then_aionui_projection_with_best_effort_cwd_rollback",
@@ -517,8 +619,13 @@
           "history_loading_policy": "load_all_pages_before_export",
           "incomplete_history_policy": "explicit_error_no_partial_export",
           "silent_truncation_allowed": false,
-          "shareable_roles": ["user", "assistant"],
-          "shareable_message_types": ["text"],
+          "shareable_roles": [
+            "user",
+            "assistant"
+          ],
+          "shareable_message_types": [
+            "text"
+          ],
           "excluded_content": [
             "system_messages",
             "hidden_messages",
@@ -528,9 +635,20 @@
             "receipts"
           ],
           "default_format": "markdown",
-          "allowed_formats": ["markdown", "json"],
-          "strict_json_document_fields": ["title", "exported_at", "messages", "redacted"],
-          "strict_json_message_fields": ["role", "content"],
+          "allowed_formats": [
+            "markdown",
+            "json"
+          ],
+          "strict_json_document_fields": [
+            "title",
+            "exported_at",
+            "messages",
+            "redacted"
+          ],
+          "strict_json_message_fields": [
+            "role",
+            "content"
+          ],
           "redaction_required": true,
           "explicit_directory_required": true,
           "explicit_filename_required": true,
@@ -538,7 +656,7 @@
           "errors_visible": true,
           "workspace_bundle_authorized": false
         },
-      "current_task_slice": {
+        "current_task_slice": {
           "source": "contracts/app-runtime-bridge.json#current_task_slice_projection",
           "state_source": "opl app state --profile fast --json",
           "scope": "current_conversation_or_selected_task",
@@ -546,7 +664,10 @@
           "single_instance": true,
           "default_visibility": "inline_unpinned_when_task_active",
           "ordinary_task_sticky": false,
-          "sticky_when": ["user_pinned", "long_running_true"],
+          "sticky_when": [
+            "user_pinned",
+            "long_running_true"
+          ],
           "long_running_signal_field": "long_running",
           "duplicate_surface_allowed": false,
           "summary_fields": [
@@ -592,46 +713,50 @@
           ],
           "independent_task_store_allowed": false,
           "model_ref": "contracts/app-runtime-bridge.json#task_awareness_projection",
-        "slice_policy": "same_task_run_projection_v2_filtered_by_current_conversation_or_selected_task"
-      },
+          "slice_policy": "same_task_run_projection_v2_filtered_by_current_conversation_or_selected_task"
+        },
         "artifact_preview": {
-        "surface": "existing_aionui_preview_context_and_panel",
-        "entry_sources": [
-          "current_task_latest_artifact_ref",
-          "current_task_evidence_ref",
-          "environment_artifact_ref",
-          "conversation_file_or_result_ref"
-        ],
-        "supported_content_types": [
-          "markdown",
-          "pdf",
-          "code",
-          "image",
-          "html",
-          "diff"
-        ],
-        "markdown_embedded_renderers": [
-          "mermaid",
-          "katex",
-          "code"
-        ],
-        "ref_resolution_policy": "explicit_absolute_local_path_or_workspace_scoped_project_ref_to_existing_preview_target_without_copying_artifact_body",
-        "explicit_local_path_policy": {
-          "user_initiated_only": true,
-          "path_form": "legal_absolute_local_file_path",
-          "workspace_membership_required": false,
-          "access_authority": "codex_permission_approval_and_sandbox",
-          "automatic_silent_read_allowed": false
-        },
-        "project_context_ref_policy": {
-          "workspace_scoped": true,
-          "parent_traversal_allowed": false
-        },
-        "forbidden_inputs": ["relative_parent_traversal", "illegal_or_unsupported_scheme", "automatic_silent_read"],
-        "artifact_body_authority": "external_owner_ref_only",
-        "keyboard_reachable_open_action": true,
-        "failure_policy": "keep_ref_visible_and_fail_closed_with_reason",
-        "unsafe_or_unsupported_ref_policy": "do_not_open_or_guess_content"
+          "surface": "existing_aionui_preview_context_and_panel",
+          "entry_sources": [
+            "current_task_latest_artifact_ref",
+            "current_task_evidence_ref",
+            "environment_artifact_ref",
+            "conversation_file_or_result_ref"
+          ],
+          "supported_content_types": [
+            "markdown",
+            "pdf",
+            "code",
+            "image",
+            "html",
+            "diff"
+          ],
+          "markdown_embedded_renderers": [
+            "mermaid",
+            "katex",
+            "code"
+          ],
+          "ref_resolution_policy": "explicit_absolute_local_path_or_workspace_scoped_project_ref_to_existing_preview_target_without_copying_artifact_body",
+          "explicit_local_path_policy": {
+            "user_initiated_only": true,
+            "path_form": "legal_absolute_local_file_path",
+            "workspace_membership_required": false,
+            "access_authority": "codex_permission_approval_and_sandbox",
+            "automatic_silent_read_allowed": false
+          },
+          "project_context_ref_policy": {
+            "workspace_scoped": true,
+            "parent_traversal_allowed": false
+          },
+          "forbidden_inputs": [
+            "relative_parent_traversal",
+            "illegal_or_unsupported_scheme",
+            "automatic_silent_read"
+          ],
+          "artifact_body_authority": "external_owner_ref_only",
+          "keyboard_reachable_open_action": true,
+          "failure_policy": "keep_ref_visible_and_fail_closed_with_reason",
+          "unsafe_or_unsupported_ref_policy": "do_not_open_or_guess_content"
         }
       },
       "must_show": [
@@ -699,7 +824,10 @@
           "protocol_capability": "codex_app_server_dynamic_tools_available",
           "current_shell_transport": "ordinary_conversation_acp_aioncore_codex_acp",
           "current_blocker": "acp_session_new_or_load_has_no_dynamic_tools_input_or_item_tool_call_callback",
-          "primary_owners": ["aioncore", "codex_acp"],
+          "primary_owners": [
+            "aioncore",
+            "codex_acp"
+          ],
           "shell_role": "blocked_thin_adapter",
           "required_owner_routes": [
             "aioncore_same_app_server_client_adapter",
@@ -713,7 +841,12 @@
         },
         "thread_list_protocol": "thread/list",
         "thread_read_protocol": "thread/read",
-        "thread_actions": ["thread/resume", "thread/fork", "thread/archive", "thread/unarchive"],
+        "thread_actions": [
+          "thread/resume",
+          "thread/fork",
+          "thread/archive",
+          "thread/unarchive"
+        ],
         "task_rail_action_protocols": {
           "rename": "thread/name/set",
           "archive": "thread/archive",
@@ -904,22 +1037,44 @@
           "id": "files_changes",
           "label": "Files / Changes",
           "default_state": "closed",
-          "opens_when": ["user_requests_files_or_changes", "task_requires_workspace_inspection"]
+          "opens_when": [
+            "user_requests_files_or_changes",
+            "task_requires_workspace_inspection"
+          ]
         },
         "preview_surface": {
           "id": "preview",
           "independent": true,
           "default_state": "closed",
-          "opens_for": ["artifact", "file", "url", "result"]
+          "opens_for": [
+            "artifact",
+            "file",
+            "url",
+            "result"
+          ]
         },
         "review_surface": {
           "host_surface": "existing_files_changes_diff_surface",
           "default_state": "closed",
           "opens_on_user_request": true,
-          "review_targets": ["uncommitted", "base_branch", "commit", "custom"],
-          "delivery_modes": ["inline", "detached"],
+          "review_targets": [
+            "uncommitted",
+            "base_branch",
+            "commit",
+            "custom"
+          ],
+          "delivery_modes": [
+            "inline",
+            "detached"
+          ],
           "default_section": "unstaged",
-          "sections": ["unstaged", "staged", "commit", "branch", "last_turn"],
+          "sections": [
+            "unstaged",
+            "staged",
+            "commit",
+            "branch",
+            "last_turn"
+          ],
           "capabilities": [
             "pull_request_context",
             "inline_comments",
@@ -937,7 +1092,10 @@
           "review_focus_delivery_policy": "non_custom_target_plain_text_turn_steer_same_review_thread_expected_turn_id_custom_instructions_not_duplicated",
           "review_focus_failure_policy": "typed_failure_without_success_on_steer_failure_stale_or_ended_turn",
           "inline_comment_protocol_requirement": "typed_codex_app_server_file_line_comment_request_location_and_failure_semantics",
-          "inline_comment_forbidden_fallbacks": ["shell_local_annotation_store", "fake_success"],
+          "inline_comment_forbidden_fallbacks": [
+            "shell_local_annotation_store",
+            "fake_success"
+          ],
           "pull_request_context_dependency": "gh",
           "pull_request_context_unavailable_policy": "show_explicit_unavailable_state",
           "git_authority": "existing_codex_git_integration",
@@ -947,11 +1105,17 @@
         },
         "on_demand_task_tools": {
           "terminal": {
-            "entry_points": ["environment", "task_need"],
+            "entry_points": [
+              "environment",
+              "task_need"
+            ],
             "default_state": "closed"
           },
           "browser": {
-            "entry_points": ["environment", "task_need"],
+            "entry_points": [
+              "environment",
+              "task_need"
+            ],
             "default_state": "closed"
           }
         },
@@ -971,7 +1135,12 @@
         "current_task_evidence": {
           "source": "contracts/app-runtime-bridge.json#current_task_slice_projection",
           "state_source": "opl app state --profile fast --json",
-          "surfaces": ["message_timeline", "environment", "preview", "files_changes"],
+          "surfaces": [
+            "message_timeline",
+            "environment",
+            "preview",
+            "files_changes"
+          ],
           "fields": [
             "artifact_or_blocker",
             "review_receipt",
@@ -1100,7 +1269,12 @@
           "module_health_panel_allowed": false,
           "raw_ids_default_visible": false,
           "horizontal_page_overflow_allowed": false,
-          "responsive_viewport_widths_px": [375, 768, 1024, 1440],
+          "responsive_viewport_widths_px": [
+            375,
+            768,
+            1024,
+            1440
+          ],
           "responsive_layout_by_width": {
             "375": "one_column",
             "768": "two_columns",
@@ -1160,8 +1334,17 @@
         "work_item_visibility_state_matrix": {
           "authority": "opl_framework_work_item_visibility",
           "projection_path": "app_state.operator.workbench.work_item_projection_v2.items[].visibility",
-          "visibility_values": ["visible", "archived"],
-          "visibility_required_fields": ["state", "source", "updated_at", "control_ref", "generation"],
+          "visibility_values": [
+            "visible",
+            "archived"
+          ],
+          "visibility_required_fields": [
+            "state",
+            "source",
+            "updated_at",
+            "control_ref",
+            "generation"
+          ],
           "generation_is_concurrency_token": true,
           "default_surface": "runtime_main_visible_only",
           "archived_surface": "archived_tasks_library",
@@ -1172,8 +1355,16 @@
           "mutation": {
             "action_id": "work_item_visibility_set",
             "command": "opl app action execute --action work_item_visibility_set --payload <json> --json",
-            "payload_required_fields": ["agent_id", "project_id", "work_item_id", "visibility_state"],
-            "payload_optional_fields": ["reason", "expected_generation"],
+            "payload_required_fields": [
+              "agent_id",
+              "project_id",
+              "work_item_id",
+              "visibility_state"
+            ],
+            "payload_optional_fields": [
+              "reason",
+              "expected_generation"
+            ],
             "expected_generation_source": "item.visibility.generation",
             "expected_generation_required_when_available": true,
             "concurrency_token_source": "item.visibility.generation",
@@ -1277,7 +1468,10 @@
           "display_policy": "two_level_agent_then_project_cascade_work_items_stay_in_list",
           "default_scope_identity_policy": "project_scope_uses_canonical_project_registry_for_selected_agent",
           "user_facing_state_policy": "primary_state_is_framework_projected_from_work_item_v2_axes_shell_never_derives_it",
-          "default_scope_levels": ["agent", "project"],
+          "default_scope_levels": [
+            "agent",
+            "project"
+          ],
           "required_fields": [
             "agent_scope_options",
             "selected_agent_scope",
@@ -1290,11 +1484,26 @@
             "all_option": "all_agents",
             "full_display_names_required": true,
             "first_party_options": [
-              { "agent_id": "mas", "display_name": "Med Auto Science" },
-              { "agent_id": "mag", "display_name": "Med Auto Grant" },
-              { "agent_id": "rca", "display_name": "RedCube AI" },
-              { "agent_id": "oma", "display_name": "OPL Meta Agent" },
-              { "agent_id": "obf", "display_name": "OPL Book Forge" }
+              {
+                "agent_id": "mas",
+                "display_name": "Med Auto Science"
+              },
+              {
+                "agent_id": "mag",
+                "display_name": "Med Auto Grant"
+              },
+              {
+                "agent_id": "rca",
+                "display_name": "RedCube AI"
+              },
+              {
+                "agent_id": "oma",
+                "display_name": "OPL Meta Agent"
+              },
+              {
+                "agent_id": "obf",
+                "display_name": "OPL Book Forge"
+              }
             ]
           },
           "project_scope": {
@@ -1320,9 +1529,17 @@
             ],
             "agent_or_project_views_allowed": false,
             "visibility_views_allowed": false,
-            "forbidden_ids": ["mas", "med-autoscience", "med_auto_science"]
+            "forbidden_ids": [
+              "mas",
+              "med-autoscience",
+              "med_auto_science"
+            ]
           },
-          "scope_source_values": ["default_global", "user_selected", "inferred"]
+          "scope_source_values": [
+            "default_global",
+            "user_selected",
+            "inferred"
+          ]
         },
         "authority_boundary": {
           "refs_only": true,
@@ -1445,6 +1662,7 @@
       "expected_source": "OPL App state projection",
       "must_show": [
         "health, updates, local services, and OPL Packages grouped by user impact",
+        "active Codex CLI, OPL-managed Temporal Runtime, and optional system Temporal CLI with version, source, currentness, and update guidance on the main Maintenance surface",
         "update channel as an inline persistent configuration",
         "single recommended repair or maintenance action",
         "apply, repair, rollback, and package maintenance inside an explicit management modal",
@@ -1452,13 +1670,15 @@
         "update status and service status in user language",
         "carrier-neutral Base and Packages reconciliation status after any App install or version change",
         "current, updating in background, restart to finish, refresh Codex, or attention guidance from Framework receipts",
-        "update and local-service anchors owned by Maintenance"
+        "update and local-service anchors owned by Maintenance",
+        "Framework and raw working paths inside read-only Maintenance diagnostics"
       ],
       "machine_source": "opl app state --profile fast --json",
       "refresh_source": "opl app state --profile fast --json",
       "page_contract": "settings_environment",
       "sections": [
         "health",
+        "managed_dependencies",
         "updates",
         "services",
         "packages",
@@ -1489,7 +1709,7 @@
       "module_maintenance_entry": {
         "label_en": "OPL Packages",
         "label_zh": "OPL 能力包",
-        "placement": "Local Environment",
+        "placement": "Maintenance",
         "status_sources": [
           "opl app state --profile fast --json#managed_update",
           "opl update status --json#managed_update"
@@ -1534,6 +1754,94 @@
         "developer_checkout_silent_update_allowed": false,
         "dirty_checkout_silent_update_allowed": false
       },
+      "managed_dependency_summary": {
+        "source_ref": "opl update status --json#managed_update.components[component_id=opl_base].current.dependency_catalog.dependencies[]",
+        "required_ids": [
+          "codex-cli",
+          "temporal-runtime",
+          "temporal-system-cli"
+        ],
+        "required_fields": [
+          "dependency_id",
+          "dependency_kind",
+          "installed",
+          "version",
+          "latest_version",
+          "currentness",
+          "ownership",
+          "update_policy",
+          "update_mode",
+          "update_action",
+          "activation_policy",
+          "binary_path",
+          "status"
+        ],
+        "optional_fields_by_dependency_id": {
+          "codex-cli": [
+            "external_installations"
+          ],
+          "temporal-runtime": [],
+          "temporal-system-cli": [
+            "note"
+          ]
+        },
+        "localized_display_names": {
+          "codex-cli": {
+            "label_zh": "Codex CLI",
+            "label_en": "Codex CLI"
+          },
+          "temporal-runtime": {
+            "label_zh": "OPL 托管 Temporal 运行时",
+            "label_en": "OPL-managed Temporal Runtime"
+          },
+          "temporal-system-cli": {
+            "label_zh": "系统 Temporal CLI",
+            "label_en": "System Temporal CLI"
+          }
+        },
+        "currentness_values": [
+          "current",
+          "update_available",
+          "unknown",
+          "missing"
+        ],
+        "update_mode_values": [
+          "silent_managed",
+          "explicit_owner_delegated",
+          "detect_only_guidance"
+        ],
+        "display_policy": "show active Codex CLI, OPL-managed Temporal Runtime, and optional system Temporal CLI directly on Maintenance with version, source, currentness, and owner-specific update guidance",
+        "path_deduplication_policy": "deduplicate Codex PATH candidates by realpath and retain shadowed candidates in diagnostics",
+        "external_update_policy": "OPL-managed roots use the existing OPL Base update route; identified external owners require confirmation; unknown owners receive guidance only",
+        "manual_operation_policy": {
+          "silent_managed": "route to the existing OPL Base update or repair action and never synthesize a per-dependency action",
+          "explicit_owner_delegated": "render the Framework update_action only after explicit confirmation",
+          "detect_only_guidance": "show owner guidance without a fake update action"
+        },
+        "unknown_value_policy": "show not checked or unknown and never synthesize current, missing, or zero values",
+        "diagnostics_boundary": "binary paths, shadowed installations, raw actions, and raw catalog records stay in technical details",
+        "external_installations_policy": {
+          "row_key": "dependency_id_plus_normalized_realpath_with_stable_index_suffix_only_for_duplicate_paths",
+          "required_fields": [
+            "dependency_id",
+            "binary_path",
+            "ownership",
+            "installed",
+            "version",
+            "latest_version",
+            "currentness",
+            "update_mode",
+            "update_action",
+            "guidance"
+          ],
+          "path_policy": "normalize_realpath_before_deduplication_and_keep_shadowed_rows_in_diagnostics"
+        },
+        "temporal_component_version_policy": {
+          "runtime_component_id": "temporal-runtime",
+          "cli_component_id": "temporal-system-cli",
+          "normalization": "normalize_semver_without_v_prefix_and_never_compare_runtime_bundle_version_to_system_cli_version"
+        }
+      },
       "ia_group": "maintenance",
       "health_center_ref": "contracts/app-gui-product-contract.json#pages.settings_environment.health_center",
       "maintenance_action_policy_ref": "contracts/app-gui-product-contract.json#pages.settings_environment.maintenance_action_policy",
@@ -1546,6 +1854,7 @@
         "always": [
           "settings-page-maintenance",
           "settings-maintenance-primary",
+          "settings-maintenance-managed-dependencies",
           "settings-maintenance-management-action",
           "settings-maintenance-diagnostics-action"
         ],
@@ -1570,17 +1879,17 @@
       },
       "required_anchors": [
         "health",
+        "managed-dependencies",
         "updates",
         "services",
-        "repair-rollback",
-        "receipts"
+        "diagnostics"
       ],
       "search_entry_ids": [
         "maintenance.health",
+        "maintenance.managed_dependencies",
         "maintenance.updates",
         "maintenance.services",
-        "maintenance.repair_rollback",
-        "maintenance.receipts"
+        "maintenance.diagnostics"
       ],
       "primary_action_id": "run_recommended_maintenance",
       "technical_details_default": "explicit_action_modal",
@@ -1592,7 +1901,9 @@
       "machine_source": "contracts/app-settings-control-plane.json#compatibility_redirects.local-services",
       "refresh_source": "not_applicable",
       "page_contract": "settings_local_services",
-      "sections": ["compatibility_redirect"],
+      "sections": [
+        "compatibility_redirect"
+      ],
       "state_sections": [],
       "must_show": [
         "compatibility redirect to Maintenance route environment and anchor services"
@@ -1620,17 +1931,18 @@
     },
     {
       "id": "storage",
-      "expected_source": "active shell local data lifecycle service and App release lifecycle contract",
+      "expected_source": "active shell cached local and Docker inventory plus App release lifecycle contract",
       "must_show": [
         "one merged storage category list with size, safety, and next action",
+        "last cached inventory immediately without rendering unknown values as zero bytes",
+        "inventory freshness timestamp and non-blocking background refresh",
+        "read-only Workspace-owned log path reference",
+        "Docker image, container, volume, build-cache, and reclaimable usage",
         "user-facing cleanup preview before destructive action",
-        "zero-byte categories show nothing to clean and no action buttons",
-        "one progressive action per category from preview or archive to confirmation",
-        "plain-language archive, restore, and cleanup history",
-        "Storage placed under OPL Control Center Data & Storage"
+        "plain-language archive, restore, and cleanup history"
       ],
-      "machine_source": "active shell local data lifecycle service",
-      "refresh_source": "Settings / Storage refresh inventory",
+      "machine_source": "active shell local data lifecycle and Docker Engine inventory services",
+      "refresh_source": "last persisted inventory snapshot followed by startup-delayed 300-second-TTL and manual background refresh plus inventory-updated events",
       "page_contract": "settings_storage",
       "sections": [
         "storage_categories",
@@ -1638,17 +1950,19 @@
         "cleanup_history",
         "technical_details"
       ],
-      "state_sections": ["local_data_lifecycle"],
+      "state_sections": [
+        "local_data_lifecycle"
+      ],
       "local_data_lifecycle_ref": "contracts/app-release-channel.json#local_data_lifecycle",
       "must_not_show": [
-        "separate card wall for every lifecycle category",
-        "dry-run, plan, receipt_ref, lifecycle id, SQLite, or raw path as ordinary copy",
+        "log directory edit control",
+        "generic Docker prune",
+        "unknown inventory rendered as zero bytes",
         "silent user data deletion",
-        "generic cleanup without owner refs and preview or closeout evidence",
         "App-owned runtime or domain data authority"
       ],
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
-      "ia_group": "data_storage",
+      "ia_group": "storage",
       "route_id": "storage",
       "route_scope": "ordinary",
       "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia",
@@ -1738,22 +2052,61 @@
       ],
       "primary_action_id": "preview_cleanup",
       "technical_details_default": "explicit_action_modal",
-      "exception_emphasis": "attention_only"
+      "exception_emphasis": "attention_only",
+      "inventory_cache_policy": {
+        "snapshot_fields": [
+          "observed_at",
+          "scan_duration_ms",
+          "stale"
+        ],
+        "ttl_seconds": 300,
+        "initial_render": "persisted_snapshot_or_loading_placeholder_never_synthetic_zero",
+        "startup_scan": "delayed_background",
+        "manual_refresh": "force_background_scan",
+        "push_event": "local-data-lifecycle.inventory-updated",
+        "watch_policy": "no_recursive_long_lived_fs_watch_for_large_roots"
+      },
+      "docker_storage_projection": {
+        "owner": "desktop_App_carrier_and_Docker_Engine",
+        "required_fields": [
+          "engine_status",
+          "image_bytes",
+          "container_bytes",
+          "volume_bytes",
+          "build_cache_bytes",
+          "reclaimable_bytes",
+          "data_volume_source",
+          "data_volume_destination"
+        ],
+        "data_volume_mapping": "OnePersonLab/data -> /data",
+        "preview_before_prune": true,
+        "generic_prune_allowed": false
+      },
+      "log_directory_ref": {
+        "mode": "read_only",
+        "owner_route": "workspace#logs"
+      }
     },
     {
       "id": "about",
-      "expected_source": "OPL App state projection",
+      "expected_source": "desktop main-process App metadata and shared updater state store",
       "must_show": [
         "One Person Lab App version",
         "Stable or Nightly channel",
-        "update status",
+        "cached update status from the one startup check or last manual check",
         "one Check for updates action",
+        "version and channel in one compact row with update status and action on the next row",
+        "help and feedback entry points",
         "technical details collapsed by default"
       ],
-      "machine_source": "opl app state --profile fast --json",
-      "refresh_source": "opl app state --profile fast --json",
+      "machine_source": "desktop main-process app metadata + single main-process updater state store",
+      "refresh_source": "startup check once or explicit manual check updates the same shared store",
       "page_contract": "about",
-      "state_sections": ["release", "managed_update_plane"],
+      "state_sections": [
+        "desktop_app_metadata",
+        "main_process_updater_state_store",
+        "release_diagnostics"
+      ],
       "must_not_show": [
         "about redirected to Advanced",
         "GUI shell version or OPL Framework revision on the main surface",
@@ -1761,8 +2114,20 @@
         "repair, rollback, package maintenance, or storage cleanup controls"
       ],
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
-      "sections": ["version", "channel", "updates", "technical_details"],
-      "ia_group": "advanced",
+      "sections": [
+        "version",
+        "channel",
+        "updates",
+        "help_and_feedback",
+        "technical_details"
+      ],
+      "updater_state_policy": {
+        "startup_check": "once_after_App_startup",
+        "mount_check": false,
+        "shared_state": "single_main_process_updater_state_store",
+        "manual_check": "refresh_the_same_shared_state"
+      },
+      "ia_group": "about",
       "route_id": "about",
       "route_scope": "secondary_or_deep_link",
       "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia",
@@ -1786,7 +2151,12 @@
           }
         ]
       },
-      "required_anchors": ["version", "channel", "updates", "help-feedback"],
+      "required_anchors": [
+        "version",
+        "channel",
+        "updates",
+        "help-feedback"
+      ],
       "search_entry_ids": [
         "about.version",
         "about.channel",
@@ -1803,7 +2173,9 @@
       "machine_source": "contracts/app-settings-control-plane.json#compatibility_redirects.update",
       "refresh_source": "not_applicable",
       "page_contract": "update",
-      "sections": ["compatibility_redirect"],
+      "sections": [
+        "compatibility_redirect"
+      ],
       "state_sections": [],
       "must_show": [
         "compatibility redirect to Maintenance route environment and anchor updates"
@@ -1836,11 +2208,16 @@
         "One Person Lab brand",
         "localized sign-in copy when login is reachable"
       ],
-      "must_not_show": ["AionUi brand", "raw i18n keys"],
+      "must_not_show": [
+        "AionUi brand",
+        "raw i18n keys"
+      ],
       "machine_source": "App-owned locale files",
       "refresh_source": "none",
       "page_contract": "login",
-      "state_sections": ["branding"]
+      "state_sections": [
+        "branding"
+      ]
     },
     {
       "id": "first_run_localization",
@@ -1862,7 +2239,10 @@
       "machine_source": "opl system initialize --json plus App-owned locale files",
       "refresh_source": "opl system initialize --json",
       "page_contract": "first_launch_readiness",
-      "state_sections": ["first_run", "localization"]
+      "state_sections": [
+        "first_run",
+        "localization"
+      ]
     },
     {
       "id": "web_pwa_branding",
@@ -1872,11 +2252,16 @@
         "OPL PWA icons",
         "One Person Lab App HTML metadata"
       ],
-      "must_not_show": ["AionUi manifest", "AionUi PWA icon"],
+      "must_not_show": [
+        "AionUi manifest",
+        "AionUi PWA icon"
+      ],
       "machine_source": "App-owned active-shell validation",
       "refresh_source": "none",
       "page_contract": "theme_and_branding",
-      "state_sections": ["branding"]
+      "state_sections": [
+        "branding"
+      ]
     },
     {
       "id": "settings_theme",
@@ -1895,12 +2280,17 @@
         "AionUI theme as product authority",
         "maintenance, account, or About controls",
         "theme as an independent product page",
-        "interactive settings inside a Technical details disclosure"
+        "interactive settings inside a Technical details disclosure",
+        "voice input provider configuration"
       ],
       "machine_source": "opl app state --profile fast --json",
       "refresh_source": "opl app state --profile fast --json",
       "page_contract": "settings_theme",
-      "state_sections": ["settings", "desktop_startup", "theme"],
+      "state_sections": [
+        "settings",
+        "desktop_startup",
+        "theme"
+      ],
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
       "ia_group": "preferences",
       "route_id": "appearance",
@@ -1958,11 +2348,13 @@
       "machine_source": "opl app state --profile fast --json",
       "refresh_source": "opl app state --profile fast --json",
       "page_contract": "settings_personalization",
-      "ia_group": "overview",
+      "ia_group": "workspace",
       "route_id": "personalization",
       "route_scope": "compatibility_redirect",
       "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia",
-      "sections": ["compatibility_redirect"],
+      "sections": [
+        "compatibility_redirect"
+      ],
       "page_kind": "compatibility_redirect",
       "compatibility_redirect": {
         "source_route_id": "personalization",
@@ -1983,7 +2375,11 @@
         "id": "ready_to_launch",
         "ui_order": "before_first_conversation_not_before_guid",
         "guid_navigation_blocking": false,
-        "required_core_items": ["workspace_root", "codex_cli", "codex_config"],
+        "required_core_items": [
+          "workspace_root",
+          "codex_cli",
+          "codex_config"
+        ],
         "full_readiness_items": [
           "domain_modules",
           "family_runtime_provider",
@@ -2074,7 +2470,11 @@
         "audience": "beginner_non_technical_users",
         "presentation_mode": "simplified_first_run",
         "primary_user_goal": "enter_guid_now_or_complete_guided_setup_first",
-        "primary_steps": ["workspace_root", "codex_cli", "codex_config"],
+        "primary_steps": [
+          "workspace_root",
+          "codex_cli",
+          "codex_config"
+        ],
         "primary_progress_signal": "Core completed and total count",
         "advanced_progress_disclosure": "collapsed_or_secondary",
         "background_maintenance_presentation": "collapsed_technical_non_blocking",
@@ -2141,7 +2541,11 @@
           "opl-first-run-step-codex_config"
         ],
         "localization_policy": {
-          "chinese_primary_labels": ["工作目录", "本机助手", "模型访问"],
+          "chinese_primary_labels": [
+            "工作目录",
+            "本机助手",
+            "模型访问"
+          ],
           "technical_label_policy": "map_initialize_item_ids_to_app_owned_beginner_labels_before_rendering_primary_area",
           "forbidden_primary_area_text": [
             "Codex API Configuration",
@@ -2154,8 +2558,13 @@
       },
       "ordinary_shell_recovery": {
         "persistent_setup_entry_route": "/first-run",
-        "plain_conversation_required_items": ["codex_cli", "codex_config"],
-        "file_and_project_required_items": ["workspace_root"],
+        "plain_conversation_required_items": [
+          "codex_cli",
+          "codex_config"
+        ],
+        "file_and_project_required_items": [
+          "workspace_root"
+        ],
         "unknown_readiness_policy": "do_not_synthesize_failure_or_mutate_readiness",
         "required_shell_testids": [
           "opl-first-run-resume-entry",
@@ -2190,22 +2599,34 @@
     {
       "id": "settings_general",
       "expected_source": "OPL App state projection and App-owned settings information architecture",
-      "machine_source": "opl app state --profile fast --json",
-      "refresh_source": "opl app state --profile fast --json",
+      "machine_source": "persisted narrow settings snapshot + background opl app state --profile fast --json",
+      "refresh_source": "background opl app state --profile fast --json with bounded retry",
       "page_contract": "settings_general",
-      "sections": ["status_summary", "attention_queue", "next_action_and_context", "diagnostics"],
-      "state_sections": ["paths", "settings", "desktop_startup"],
+      "sections": [
+        "status_summary",
+        "attention_queue",
+        "next_action_and_context",
+        "codex_and_gateway_summary"
+      ],
+      "state_sections": [
+        "settings_control_center.status_summary",
+        "settings_control_center.issue_queue",
+        "core.codex",
+        "settings_control_center.app_settings_read_model.opl_gateway_account"
+      ],
       "must_show": [
         "overall usability and attention count",
+        "signed-in Gateway identity, compact today token/cost/balance and availability summary",
+        "necessary direct Codex and Gateway technical rows without a second disclosure",
         "one next useful action",
-        "Overview without duplicated sidebar navigation or page-directory cards",
-        "normal state visually muted and attention state emphasized"
+        "Overview without duplicated sidebar navigation or page-directory cards"
       ],
       "must_not_show": [
         "sidebar route list copied into the page body",
         "one card per Settings page",
-        "workspace, access, capability, and maintenance navigation duplicated as a dashboard wall",
-        "raw OPL internal state files"
+        "workspace path as a primary card",
+        "Gateway login, key management, refresh, or disconnect controls",
+        "raw paths, receipts, payloads, or full owner-page details"
       ],
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
       "ia_group": "overview",
@@ -2219,8 +2640,7 @@
           "settings-page-overview",
           "settings-overview-primary",
           "settings-overview-card-codex",
-          "settings-overview-card-gateway",
-          "settings-overview-technical-details"
+          "settings-overview-card-gateway"
         ],
         "conditional": [
           {
@@ -2237,23 +2657,25 @@
         "status",
         "attention",
         "next-action",
-        "common-actions"
+        "codex",
+        "gateway"
       ],
       "search_entry_ids": [
         "overview.status",
         "overview.attention",
         "overview.next_action",
-        "overview.common_actions"
+        "overview.codex",
+        "overview.gateway"
       ],
       "primary_action_id": "open_first_attention_item",
-      "technical_details_default": "inline_compact_always_visible",
+      "technical_details_default": "not_applicable",
       "exception_emphasis": "attention_only"
     },
     {
       "id": "settings_workspace",
-      "expected_source": "OPL App state paths and Codex personalization projections plus App local system-info and conversation-context settings",
-      "machine_source": "opl app state --profile fast --json#app_state.paths + app_state.codex_personalization + application.systemInfo.logDir + desktop client settings",
-      "refresh_source": "opl app state --profile fast --json",
+      "expected_source": "OPL App workspace/personalization projections plus Framework host-owned log metadata and desktop system information",
+      "machine_source": "opl app state --profile fast --json#app_state.paths + app_state.codex_personalization + app_state.settings_control_center.app_settings_read_model.workspace_services.app_log_directory + application.systemInfo.logDir",
+      "refresh_source": "cached workspace and personalization snapshot followed by background fast App state hydration",
       "page_contract": "settings_workspace",
       "sections": [
         "workspace_summary",
@@ -2268,32 +2690,31 @@
         "developer_profile.workspace_trust",
         "codex_personalization",
         "app_session_context",
+        "settings_control_center.app_settings_read_model.workspace_services.app_log_directory",
         "application.systemInfo"
       ],
       "must_show": [
         "current workspace identity, path, and writability merged into one normal-state summary",
         "permission or trust explanation only when attention is required",
         "where project and task artifacts are stored",
-        "desktop App log directory from application.systemInfo with an explicit change action",
-        "editable system-level AGENTS.md with current-path and stale-write protection",
-        "restore from the currently installed OPL Flow default only after confirmation and backup",
-        "generated OPL App base context as read-only content",
-        "editable additional instructions that apply to the next new conversation",
+        "desktop App log directory changed through application.updateSystemInfo while preserving cacheDir/workDir; WebUI /data/logs remains read-only under OnePersonLab/data -> /data",
+        "editable user-level AGENTS.md with stale-write protection and backup",
+        "generated OPL App base context read-only plus editable additional instructions",
         "one change workspace action",
-        "Workspace & Personalization page reachable as a top-level Settings entry"
+        "Workspace & Personalization as a top-level Settings entry"
       ],
       "must_not_show": [
         "separate normal-state cards for path, writability, trust, and permission",
         "workspace buried inside Maintenance or Advanced",
         "raw path JSON as primary page language",
         "workspace changes without confirmation",
-        "Framework app_state.paths.logs_dir presented as the desktop App log directory",
-        "Settings rewiring Docker /projects or /data volume mounts",
+        "Storage-owned log configuration",
         "generated OPL App base context as editable content",
-        "repository AGENTS.md as an App-owned editable file"
+        "repository AGENTS.md as an App-owned editable file",
+        "Framework and raw paths duplicated from Maintenance diagnostics"
       ],
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
-      "ia_group": "overview",
+      "ia_group": "workspace",
       "route_id": "workspace",
       "route_scope": "ordinary",
       "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia",
@@ -2343,45 +2764,30 @@
       "exception_emphasis": "attention_only"
     },
     {
-      "id": "access",
-      "expected_source": "OPL App state provider and Codex readiness projection",
+      "id": "gateway",
+      "expected_source": "OPL Gateway account projection and typed desktop secret bridge",
       "machine_source": "opl app state --profile fast --json",
       "refresh_source": "opl app state --profile fast --json",
-      "page_contract": "settings_access",
+      "page_contract": "settings_gateway",
       "sections": [
-        "model_access_summary",
-        "opl_gateway_access",
-        "provider_source",
-        "model",
-        "codex_cli",
-        "authentication",
-        "model_preferences"
+        "gateway_connection",
+        "gateway_account",
+        "gateway_usage",
+        "gateway_access"
       ],
       "state_sections": [
-        "core.codex.model_access_ready",
-        "core.codex.model_access_source",
-        "core.codex.model",
-        "access.api_key_present",
         "settings_control_center.app_settings_read_model.opl_gateway_account"
       ],
       "must_show": [
-        "page label Models & Access or 模型与访问",
-        "model access readiness",
-        "real access source from app_state.core.codex.model_access_source",
-        "selected and default model",
-        "persistent default model and reasoning effort for new conversations",
+        "page label Account & Gateway or 账户与 Gateway",
         "OPL Gateway account login and manual API-key paths without removing either path",
         "Gateway account card only when an account connection exists",
         "account card limited to full account identity, localized status, balance, compact K/M/B/T token usage, today and total actual cost, managed Key name and status, and freshness in local time",
-        "OPL Gateway, Codex CLI, and account or API-key state",
-        "one configure model access action when missing or explicitly requested"
+        "one connect or repair Gateway action when missing or explicitly requested"
       ],
       "must_not_show": [
-        "OPL Gateway as a hard-coded provider source",
-        "Docker WebUI, OPL Workspace, SSH/HPC, cloud, Fabric, or Console-managed resource cards as Access content",
-        "raw base URL, environment variable, token path, or provider id on the ordinary Access surface",
-        "backend/provider raw selector as the primary control",
-        "repeated access summary lines in normal state",
+        "model preference controls or Codex CLI update actions",
+        "Docker WebUI, OPL Workspace, SSH/HPC, cloud, Fabric, or Console-managed resource cards",
         "local browser access, WebUI, Workspace, or remote resource entries",
         "Gateway password login in browser WebUI",
         "password, access token, refresh token, API Key material, remote Key id, credential path, raw response, or raw error",
@@ -2392,70 +2798,69 @@
         "Repair or Use as model source actions on the account card"
       ],
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
-      "ia_group": "setup_access",
-      "route_id": "access",
+      "ia_group": "gateway",
+      "route_id": "gateway",
       "route_scope": "ordinary",
       "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia",
-      "product_page_id": "access",
-      "experience_contract_ref": "contracts/app-settings-control-plane.json#experience_contract.page_contracts.access",
+      "product_page_id": "gateway",
+      "experience_contract_ref": "contracts/app-settings-control-plane.json#experience_contract.page_contracts.gateway",
       "required_dom": {
         "always": [
-          "settings-page-access",
-          "settings-access-primary",
-          "settings-access-model-preference",
-          "settings-access-gateway",
-          "settings-access-gateway-manual-key"
+          "settings-page-gateway",
+          "settings-gateway-primary",
+          "settings-gateway-access",
+          "settings-gateway-manual-key"
         ],
         "conditional": [
           {
-            "testid": "settings-access-exception",
+            "testid": "settings-gateway-exception",
             "when": "attention_required"
           },
           {
-            "testid": "settings-access-primary-action",
-            "when": "missing_or_user_requested_change"
+            "testid": "settings-gateway-primary-action",
+            "when": "disconnected_or_user_requested_change"
           },
           {
-            "testid": "settings-access-gateway-setup",
+            "testid": "settings-gateway-setup",
             "when": "desktop_account_login_selected"
           },
           {
-            "testid": "settings-access-gateway-account",
+            "testid": "settings-gateway-account",
             "when": "gateway_account_connected"
           },
           {
-            "testid": "settings-access-gateway-stale",
+            "testid": "settings-gateway-stale",
             "when": "gateway_account_projection_stale"
           },
           {
-            "testid": "settings-access-gateway-disconnect-confirm",
+            "testid": "settings-gateway-disconnect-confirm",
             "when": "gateway_account_disconnect_requested"
           }
         ]
       },
       "required_anchors": [
-        "provider-source",
-        "opl-gateway",
-        "model",
-        "codex-cli",
-        "authentication"
+        "connection",
+        "account",
+        "usage",
+        "access"
       ],
       "search_entry_ids": [
-        "access.provider_source",
-        "access.opl_gateway",
-        "access.model",
-        "access.codex_cli",
-        "access.authentication"
+        "gateway.connection",
+        "gateway.account",
+        "gateway.usage",
+        "gateway.access"
       ],
-      "primary_action_id": "configure_model_access",
+      "primary_action_id": "configure_gateway_access",
       "technical_details_default": "not_applicable",
       "exception_emphasis": "attention_only",
-      "provider_source": "app_state.core.codex.model_access_source",
       "opl_gateway_account": {
         "projection_ref": "contracts/app-runtime-bridge.json#opl_gateway_account_projection",
         "projection_path": "app_state.settings_control_center.app_settings_read_model.opl_gateway_account",
         "secret_bridge_ref": "contracts/app-runtime-bridge.json#opl_gateway_account_secret_bridge",
-        "access_paths": ["account_login", "manual_api_key"],
+        "access_paths": [
+          "account_login",
+          "manual_api_key"
+        ],
         "default_path_policy": "preserve_current_access_path_and_offer_explicit_switch",
         "account_card_visibility": "account_connection_only",
         "manual_api_key_card_policy": "model_access_status_only_no_account_balance_or_account_usage",
@@ -2472,6 +2877,81 @@
         "first_run_scope": "unchanged",
         "personal_profile_navigation": "not_added"
       }
+    },
+    {
+      "id": "access",
+      "expected_source": "OPL App state model source and Codex readiness projection",
+      "machine_source": "opl app state --profile fast --json",
+      "refresh_source": "opl app state --profile fast --json",
+      "page_contract": "settings_access",
+      "sections": [
+        "model_access_summary",
+        "provider_source",
+        "model",
+        "codex_cli",
+        "model_preferences"
+      ],
+      "state_sections": [
+        "core.codex.model_access_ready",
+        "core.codex.model_access_source",
+        "core.codex.model",
+        "access.api_key_present"
+      ],
+      "must_show": [
+        "page label Models or 模型",
+        "model access readiness",
+        "real access source from app_state.core.codex.model_access_source",
+        "selected and default model",
+        "persistent default model and reasoning effort for new conversations",
+        "active Codex CLI version as the execution prerequisite",
+        "one route to Account & Gateway when credentials need attention"
+      ],
+      "must_not_show": [
+        "Gateway account card, balance, usage, login form, managed Key lifecycle, or manual API-key form",
+        "Docker WebUI, OPL Workspace, SSH/HPC, cloud, Fabric, or Console-managed resource cards",
+        "raw base URL, environment variable, token path, or provider id on the ordinary Models surface",
+        "Codex CLI update controls owned by Maintenance"
+      ],
+      "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
+      "ia_group": "models",
+      "route_id": "access",
+      "route_scope": "ordinary",
+      "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia",
+      "product_page_id": "models",
+      "experience_contract_ref": "contracts/app-settings-control-plane.json#experience_contract.page_contracts.models",
+      "required_dom": {
+        "always": [
+          "settings-page-models",
+          "settings-models-primary",
+          "settings-models-model-preference",
+          "settings-models-codex-cli",
+          "settings-models-gateway-link"
+        ],
+        "conditional": [
+          {
+            "testid": "settings-models-exception",
+            "when": "attention_required"
+          },
+          {
+            "testid": "settings-models-primary-action",
+            "when": "model_access_attention_only"
+          }
+        ]
+      },
+      "required_anchors": [
+        "provider-source",
+        "model",
+        "codex-cli"
+      ],
+      "search_entry_ids": [
+        "models.provider_source",
+        "models.model",
+        "models.codex_cli"
+      ],
+      "primary_action_id": "open_gateway_settings",
+      "technical_details_default": "not_applicable",
+      "exception_emphasis": "attention_only",
+      "provider_source": "app_state.core.codex.model_access_source"
     },
     {
       "id": "settings_resources",
@@ -2506,6 +2986,7 @@
         "mutating resource actions use precheck, explicit confirmation, execution, and result or receipt"
       ],
       "must_not_show": [
+        "built-in OPL Gateway connection or Gateway count owned by Account & Gateway",
         "selected local workspace path, change-workspace controls, or permission summary duplicated from Workspace",
         "resource readiness used as proof that an operation is executable",
         "resource availability as release-ready or runtime-ready proof",
@@ -2600,17 +3081,33 @@
       "id": "capabilities",
       "expected_source": "OPL Flow installed package dependency closure plus Codex and shell skill/plugin registries",
       "machine_source": "opl update status --json#managed_update.components[component_id=opl_base].current.dependency_catalog.flow_dependencies + Codex and shell skill/plugin registries",
-      "refresh_source": "opl app state --profile fast --json",
+      "refresh_source": "opl update status --json#managed_update.components[component_id=opl_base].current.dependency_catalog.flow_dependencies + Codex and shell skill/plugin registries",
       "page_contract": "settings_capabilities",
-      "sections": ["opl_flow_managed", "manual_and_third_party", "details"],
+      "sections": [
+        "opl_flow_managed",
+        "manual_and_third_party",
+        "local_tools_and_voice",
+        "details"
+      ],
       "tab_contract": {
         "surface_label_zh": "能力",
         "surface_label_en": "Capabilities",
-        "tab_order": ["opl_flow_managed", "manual_and_third_party"],
+        "tab_order": [
+          "opl_flow_managed",
+          "manual_and_third_party"
+        ],
         "default_tab": "opl_flow_managed",
         "on_demand_tab_ids": []
       },
-      "state_sections": ["agent_packages.status_index", "codex_skills", "codex_plugins", "shell_skill_plugin_registry"],
+      "state_sections": [
+        "agent_packages.status_index",
+        "codex_skills",
+        "codex_plugins",
+        "shell_skill_plugin_registry",
+        "shell_local_mcp_image_voice_configuration",
+        "operator.workbench.task_drilldowns"
+      ],
+      "local_capability_configuration_source": "AionUI local configuration#MCP servers + image generation + voice input",
       "ownership_ref": "contracts/app-settings-control-plane.json#agents_capabilities_ownership.capabilities",
       "ia_group": "capabilities",
       "route_id": "capabilities",
@@ -2619,51 +3116,49 @@
       "must_show": [
         "OPL Flow managed and recommended Skills and Plugins from package dependency closure",
         "manual and third-party Skills and Plugins from Codex and shell registries",
+        "AionUI-native Skills, Plugins, MCP helpers, image generation, and voice input inside local or third-party ownership instead of OPL Flow",
+        "product-profile display names instead of raw provider ids as primary labels",
+        "a non-empty OPL Flow managed group whenever the canonical Flow dependency catalog contains entries",
         "source, owner, version, currentness, and available explicit actions"
       ],
       "must_not_show": [
         "runnable Agent package lifecycle",
-        "hardcoded App list as OPL Flow dependency truth",
+        "Agent Home visibility, shortcut order, source selection, or Developer Mode controls",
+        "an empty OPL Flow managed group while the canonical Flow dependency catalog contains entries",
+        "raw provider ids as primary capability labels",
+        "AionUI-native capabilities reclassified as OPL Flow managed",
         "a second OPL Flow updater or scheduler",
-        "silent mutation of manual or third-party Skills and Plugins"
+        "silent mutation of manual or third-party Skills and Plugins",
+        "voice input configuration on Preferences or Advanced"
       ],
       "product_page_id": "capabilities",
       "experience_contract_ref": "contracts/app-settings-control-plane.json#experience_contract.page_contracts.capabilities",
       "required_dom": {
-        "always": ["settings-page-capabilities", "settings-capabilities-primary", "settings-capabilities-opl-flow-managed", "settings-capabilities-third-party"],
-        "conditional": [{"testid": "settings-capabilities-exception", "when": "attention_required"}]
+        "always": [
+          "settings-page-capabilities",
+          "settings-capabilities-primary",
+          "settings-capabilities-opl-flow-managed",
+          "settings-capabilities-third-party",
+          "settings-capabilities-voice-input"
+        ],
+        "conditional": [
+          {
+            "testid": "settings-capabilities-exception",
+            "when": "attention_required"
+          }
+        ]
       },
-      "required_anchors": ["opl-flow-managed", "third-party"],
-      "search_entry_ids": ["capabilities.opl_flow_managed", "capabilities.third_party"],
+      "required_anchors": [
+        "opl-flow-managed",
+        "third-party"
+      ],
+      "search_entry_ids": [
+        "capabilities.opl_flow_managed",
+        "capabilities.third_party"
+      ],
       "primary_action_id": "add_capability",
       "technical_details_default": "collapsed",
-      "exception_emphasis": "attention_only"
-    },
-    {
-      "id": "agents",
-      "expected_source": "installed package directory from canonical agent_packages projection, active run source from runtime_source_carriers, Home shortcut preferences, readiness refs, and legacy modules fallback during rollout",
-      "machine_source": "opl app state --profile fast --json#app_state.agent_packages.directory + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[] + home_agent_shortcuts + operator.workbench.task_drilldowns",
-      "refresh_source": "opl app state --profile fast --json",
-      "page_contract": "settings_agents",
-      "sections": [
-        "availability",
-        "source",
-        "home_visibility",
-        "package_details",
-        "technical_details"
-      ],
-      "state_sections": [
-        "developer_mode",
-        "agent_packages.directory",
-        "agent_packages.status_index",
-        "runtime_source_carriers.items",
-        "modules.items",
-        "professional_agent_packages",
-        "home_agent_shortcuts",
-        "modules",
-        "tools",
-        "operator.workbench.task_drilldowns"
-      ],
+      "exception_emphasis": "attention_only",
       "task_awareness_refs_source": "contracts/app-runtime-bridge.json#task_awareness_projection.settings_capabilities_surface",
       "task_awareness_ref_fields": [
         "capability_health_refs",
@@ -2686,13 +3181,81 @@
       ],
       "task_awareness_ref_policy": "thin_renderer_refs_only_no_skill_body_no_artifact_body_no_domain_verdict",
       "export_bundle_action_policy": "show_export_bundle_action_ref_and_dry_run_receipt_without_claiming_domain_export_readiness",
+      "workflow_skill_candidate_policy": {
+        "source": "app_state.operator.workbench.task_run_projection_v2.tasks[].workflow_skill_candidate_refs",
+        "display_policy": "settings_capabilities_report_first_candidate_refs_review_needs_changes_continue_in_conversation_no_auto_enable",
+        "surface": "settings_capabilities",
+        "report_first": true,
+        "auto_enable_allowed": false,
+        "skill_body_write_access": false,
+        "workflow_body_access": false
+      },
+      "builtin_skill_catalog_policy": {
+        "source": "AionUI shell builtin skill catalog classified through the App product profile and capability owner projection",
+        "display_role": "local_or_third_party_capability_inventory_never_implicit_OPL_Flow_membership",
+        "raw_provider_id_as_primary_label_allowed": false
+      },
+      "auto_injected_skills_policy": {
+        "source": "active shell builtin-auto list classified through the App product profile",
+        "display_role": "local_or_third_party_support_detail_only",
+        "raw_provider_id_as_primary_label_allowed": false
+      },
+      "capability_detail_presentation_policy": {
+        "default_surface": "desktop_right_side_panel_mobile_drawer",
+        "default_visible_fields": [
+          "display_name",
+          "entity_kind",
+          "ownership_group",
+          "source_label",
+          "owner",
+          "version",
+          "currentness",
+          "available_actions"
+        ],
+        "source_label_policy": "render product-profile display names and user-language owners; raw provider ids stay in diagnostics",
+        "empty_field_policy": "hide empty unknown or unavailable values and explain a genuinely unavailable canonical source",
+        "advanced_diagnostics": {
+          "default_visibility": "collapsed",
+          "fields": [
+            "provider_id",
+            "registry_path",
+            "dependency_ref",
+            "receipt_refs",
+            "raw_refs_json"
+          ]
+        }
+      }
+    },
+    {
+      "id": "agents",
+      "expected_source": "public discoverable package directory entries from canonical agent_packages projection, active run source from runtime_source_carriers, workspace activation target, Home shortcut preferences, and readiness refs",
+      "machine_source": "opl app state --profile fast --json#app_state.agent_packages.directory.entries + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[] + app_state.paths.workspace_root_path + home_agent_shortcuts",
+      "refresh_source": "opl app state --profile fast --json",
+      "page_contract": "settings_agents",
+      "sections": [
+        "availability",
+        "source",
+        "home_visibility",
+        "package_details",
+        "technical_details"
+      ],
+      "state_sections": [
+        "developer_mode",
+        "agent_packages.directory",
+        "agent_packages.status_index",
+        "runtime_source_carriers.items",
+        "modules.items",
+        "home_agent_shortcuts"
+      ],
       "codex_plugin_directory_target": {
         "target_label_zh": "智能体",
         "target_label_en": "Agents",
         "tab_contract": {
           "surface_label_zh": "智能体",
           "surface_label_en": "Agents",
-          "tab_order": ["agents"],
+          "tab_order": [
+            "agents"
+          ],
           "default_tab": "agents",
           "on_demand_tab_ids": []
         },
@@ -2700,77 +3263,58 @@
         "primary_layout": "compact_package_table_or_list_with_right_details_panel",
         "top_controls": [
           "refresh_registry",
-          "search_by_package_name_tag_or_description",
-          "status_filter",
-          "manifest_url_install"
+          "catalog_search",
+          "package_role_filter",
+          "package_status_filter",
+          "package_source_filter",
+          "manifest_url_install_advanced"
         ],
         "row_controls": [
-          "package_source_preference",
           "home_shortcut_visibility",
           "home_shortcut_order",
           "launch_shortcut",
-          "update_repair_or_install_action",
+          "projected_install_activate_or_maintenance_action",
           "open_details_panel"
         ],
         "detail_panel_fields": [
-          "actual_source",
-          "source_preference",
-          "managed_checkout_path",
-          "developer_checkout_path",
-          "source_fallback_reason",
+          "description",
+          "tags",
+          "package_role",
+          "publisher",
+          "status",
+          "codex_availability",
+          "home_shortcut",
+          "version",
+          "source_label",
+          "trust_tier",
+          "last_synced_at",
+          "failure_reason_when_failed"
+        ],
+        "default_disclosure": "user_detail_visible_advanced_diagnostics_collapsed_empty_unreported_hidden",
+        "visual_gap_acceptance": "target_design_1_to_1_gap_is_shell_acceptance_item",
+        "advanced_diagnostic_fields": [
+          "package_id",
+          "codex_visible_entry",
           "receipt_refs",
-          "package_lock_ref",
+          "rollback_ref",
           "action_receipt_ref",
           "physical_surface",
+          "paths",
           "manifest_ref",
-          "required_skill_refs",
-          "optional_tool_refs",
-          "workflow_refs",
-          "connector_readiness_refs",
-          "resource_source_refs"
-        ],
-        "default_disclosure": "skills_and_tools_collapsed_by_default",
-        "visual_gap_acceptance": "target_design_1_to_1_gap_is_shell_acceptance_item"
-      },
-      "builtin_skill_catalog_policy": {
-        "source": "active shell builtin skill catalog filtered by App product profile packaged skills",
-        "allowed_set_ref": "contracts/app-product-profile.json#companion_payloads.default_packaged_codex_skill_ids + additional_package_skill_ids + opl_flow_dependency_policy_ref",
-        "forbidden_examples": [
-          "aionui-skills",
-          "aionui-webui-setup",
-          "skill-creator"
-        ]
-      },
-      "auto_injected_skills_policy": {
-        "source": "active shell builtin-auto list filtered by App product profile packaged skills",
-        "allowed_set_ref": "contracts/app-product-profile.json#companion_payloads.default_packaged_codex_skill_ids",
-        "forbidden_examples": [
-          "aionui-skills",
-          "aionui-webui-setup",
-          "skill-creator"
-        ]
-      },
-      "package_directory_policy": {
-        "surface": "installed_package_directory",
-        "package_identity_fields": [
-          "package_id",
-          "display_name",
-          "package_short_name"
-        ],
-        "purpose_role": "secondary_tag_filter_only",
-        "home_shortcut_integration": "inline_visibility_and_order_controls_on_package_rows",
-        "supporting_surfaces": [
-          "skills",
-          "tools",
-          "external_tools_voice"
+          "cache_config",
+          "marketplace_config",
+          "raw_refs_json"
         ]
       },
       "current_runtime_projection_boundary": {
-        "canonical_projection": "opl app state --profile fast --json#app_state.agent_packages.directory + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[]",
+        "canonical_projection": "opl app state --profile fast --json#app_state.agent_packages.directory.entries + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[] + app_state.paths.workspace_root_path",
+        "directory_collection_source": "app_state.agent_packages.directory.entries",
+        "static_metadata_overlay_source": "contracts/app-product-profile.json#gui.professional_agent_packages",
+        "static_metadata_overlay_policy": "package_id keyed optional UI metadata only; never collection membership, seed, status, readiness, or action authority",
         "runtime_source_projection": "opl app state --profile fast --json#app_state.runtime_source_carriers.items[]",
-        "source_semantics_policy": "agent package state owns installation truth; runtime source carriers own active run source; runtime source presence alone is not package installation truth",
-        "legacy_fallback_projection": "opl app state --profile fast --json#app_state.modules.items[] + home_agent_shortcuts + app_state.operator.workbench.task_drilldowns",
-        "normalization_policy": "shell must use agent_packages for installation truth, overlay runtime_source_carriers for active run source, and only fall back to modules.items when older runtime payloads or partial projections are still in circulation",
+        "source_semantics_policy": "directory entries own discovery and projected actions; status_index owns installation and activation truth; runtime source carriers own active run source; the shell infers none of them",
+        "legacy_fallback_projection": "opl app state --profile fast --json#app_state.modules.items[] + home_agent_shortcuts",
+        "normalization_policy": "shell uses directory.entries as the complete collection, joins status_index and runtime_source_carriers by canonical package_id, and may enrich UI metadata only from the static profile overlay",
         "developer_source_examples": [
           "runtime_source_carriers.items[].source_origin=sibling_workspace",
           "runtime_source_carriers.items[].source_policy.effective_install_update_source=git_checkout",
@@ -2778,19 +3322,55 @@
           "runtime_source_carriers.items[].git.sync_status=behind",
           "runtime_source_carriers.items[].git.dirty=true"
         ],
-        "completion_boundary": "this page-state target requires canonical agent_packages installation truth plus runtime_source_carriers active run source and allows modules.items fallback only as rollout compatibility"
+        "completion_boundary": "canonical directory entries, projected actions, status_index, workspace path, and runtime_source_carriers are required; legacy modules may enrich source diagnostics only and never define collection membership or actions"
       },
       "agent_package_lifecycle_ux": {
         "requirement_scope": "product_requirement_not_runtime_authority",
-        "primary_state_surface": "app_state.agent_packages.directory + app_state.agent_packages.status_index",
+        "primary_state_surface": "app_state.agent_packages.directory.entries + app_state.agent_packages.status_index",
+        "directory_collection_contract": {
+          "source": "app_state.agent_packages.directory.entries",
+          "collection_owner": "one-person-lab",
+          "consumer_policy": "render every projected entry without a shell allowlist, first-party seed, or installed-only filter",
+          "required_entry_fields": [
+            "package_id",
+            "display_name",
+            "publisher",
+            "description",
+            "tags",
+            "package_role",
+            "role_state",
+            "trust_tier",
+            "source_explanation",
+            "manifest_url",
+            "selected_version",
+            "stable_version",
+            "installed_version",
+            "installed",
+            "activated",
+            "installability",
+            "readiness",
+            "recommended_action",
+            "recommended_action_ref",
+            "available_actions",
+            "authority_boundary"
+          ],
+          "static_metadata_overlay_source": "contracts/app-product-profile.json#gui.professional_agent_packages",
+          "static_metadata_overlay_policy": "package_id keyed optional UI metadata only; it cannot define collection membership, availability, status, actions, or OMA and first-party seeds",
+          "unavailable_policy": "show loading, empty, stale, or failed canonical directory state; never substitute static professional_agent_packages as directory truth",
+          "first_party_policy": "OMA and every first-party package use the same directory entries and action contract as every other package"
+        },
         "runtime_source_surface": "app_state.runtime_source_carriers.items[]",
         "source_semantics_policy": "package state is installation truth; runtime source carrier is active run source; never infer installation from checkout presence",
-        "fallback_state_surface": "app_state.modules.items[]",
-        "fallback_policy": "modules.items fallback is compatibility-only for older or partial payloads and cannot claim package currentness, execution readiness, or mutation authority",
-        "shell_consumers": ["aionui", "opl_native_workbench"],
+        "shell_consumers": [
+          "aionui",
+          "opl_native_workbench"
+        ],
         "action_ref_source": "app_state.actions",
         "action_route": "opl app action execute --action <action_id> [--payload <json>] [--dry-run] --json",
         "field_behavior_checklist": [
+          "render_every_directory_entry_including_uninstalled_packages_OMA_and_all_first_party_packages",
+          "keep_catalog_search_distinct_from_Settings_global_search",
+          "filter_by_package_role_install_or_activation_status_and_source",
           "search_by_package_name_short_name_tag_source_or_description",
           "filter_by_install_update_source_trust_codex_surface_and_home_visibility_state",
           "distinguish_package_install_source_from_active_runtime_source_in_user_language",
@@ -2801,25 +3381,30 @@
           "show_dependency_readiness_and_dependent_guard_in_normal_details",
           "trigger_only_projected_repair_action_when_enabled",
           "show_receipt_and_physical_surface_in_details_or_advanced_only",
+          "execute_only_projected_action_id_and_payload_without_shell_status_or_payload_inference",
+          "refresh_fast_state_after_successful_install_then_show_projected_activate_when_recommended",
+          "disable_workspace_activation_with_a_workspace_route_and_reason_when_workspace_root_is_missing",
+          "keep_registry_refresh_ordinary_and_visible_while_manifest_URL_install_stays_advanced",
           "use_consistent_confirmation_and_receipt_pattern_for_hide_disable_update_repair_uninstall_install_and_launch",
           "display_rollback_ref_as_recovery_reference_only_no_app_rollback_verb"
         ],
         "directory_controls": {
           "top_controls": [
             "refresh_registry",
-            "search_by_package_name_tag_or_description",
-            "status_filter",
-            "manifest_url_install"
+            "catalog_search",
+            "package_role_filter",
+            "package_status_filter",
+            "package_source_filter",
+            "manifest_url_install_advanced"
           ],
           "filters": [
-            "status",
-            "source",
-            "trust",
-            "codex_surface",
-            "home_visibility",
-            "purpose_tag"
+            "package_role",
+            "install_or_activation_status",
+            "source"
           ],
           "row_actions": [
+            "install",
+            "activate",
             "hide",
             "unhide",
             "disable",
@@ -2829,21 +3414,110 @@
             "uninstall",
             "launch",
             "open_details"
+          ],
+          "catalog_search_scope": [
+            "display_name",
+            "package_id",
+            "description",
+            "tags",
+            "publisher"
+          ],
+          "catalog_search_is_settings_global_search": false,
+          "catalog_states": [
+            "loading",
+            "ready",
+            "refreshing",
+            "empty",
+            "stale",
+            "failed"
           ]
         },
+        "canonical_action_contract": {
+          "source_fields": [
+            "directory.entries[].available_actions[]",
+            "directory.entries[].recommended_action_ref"
+          ],
+          "required_action_fields": [
+            "action_id",
+            "action_ref",
+            "payload",
+            "required_payload_fields",
+            "confirmation_required"
+          ],
+          "recommended_action_id_field": "directory.entries[].recommended_action",
+          "recommended_action_ref_match_policy": "recommended_action_ref is null when recommended_action is null; otherwise it exactly equals the available_actions item with the same action_id",
+          "action_availability_policy": "an action is available only when Framework projects its complete action object; action objects do not carry shell-inferred enabled, reason_code, or failure_reason fields",
+          "shell_action_inference_allowed": false,
+          "post_success_policy": "refresh opl app state --profile fast --json and render the next projected recommended_action_ref",
+          "failure_policy": "preserve the directory row and show the Framework error or readiness.reason/status_read_error without synthesizing ready, synced, or available"
+        },
+        "workspace_activation_contract": {
+          "action_id": "agent_package_activate",
+          "workspace_path_source": "app_state.paths.workspace_root_path",
+          "payload_template": {
+            "package_id": "directory.entries[].package_id",
+            "scope": "workspace",
+            "target_workspace": "app_state.paths.workspace_root_path"
+          },
+          "compatibility_path_policy": "legacy workspace paths may be normalized only inside the shell adapter and never become product truth",
+          "missing_workspace_policy": {
+            "enabled": false,
+            "reason_code": "workspace_root_not_configured",
+            "route": "/settings/workspace",
+            "anchor": "workspace"
+          },
+          "package_id_only_payload_allowed": false
+        },
         "source_explanation_fields": [
-          "source_label",
-          "source_kind",
-          "trust_tier",
-          "manifest_url",
-          "distribution_ref",
-          "developer_source_warning",
-          "runtime_source_origin",
-          "runtime_source_path",
-          "runtime_source_policy"
+          "kind",
+          "source",
+          "summary",
+          "catalog_ref",
+          "registry_url",
+          "registry_source_ref",
+          "version_source_ref"
         ],
+        "role_state_fields": [
+          "status",
+          "source",
+          "discovered_role",
+          "installed_role",
+          "diagnostic"
+        ],
+        "installability_fields": [
+          "status",
+          "installable"
+        ],
+        "readiness_fields": [
+          "status",
+          "operational_ready",
+          "launch_allowed",
+          "verification_deferred",
+          "reason",
+          "detail_surface",
+          "status_read_error"
+        ],
+      "readiness_profile_policy": {
+        "fast_activated": {
+          "status": "verification_deferred",
+          "operational_ready": false,
+          "launch_allowed": false,
+          "verification_deferred": true,
+          "reason": "live_verification_deferred"
+          },
+          "full_verified": {
+            "status": "ready",
+            "operational_ready": true,
+            "launch_allowed": true,
+            "verification_deferred": false,
+            "reason": null
+          },
+        "presentation_policy": "fast verification_deferred is fail-closed until full verification and must not be relabeled ready or repair"
+        },
         "failure_reason_fields": [
-          "failure_reason",
+          "readiness.status",
+          "readiness.reason",
+          "readiness.status_read_error",
           "blocker_summary",
           "last_action_receipt_ref",
           "recommended_action",
@@ -2858,24 +3532,122 @@
           "dependent_guard.uninstall.reason_code"
         ],
         "package_projection_contract": {
-          "directory_installed_package_fields": {
-            "dependency_closure": ["root_package_id", "transaction_id", "generation_id", "closure_digest", "last_known_good_generation_id", "last_known_good_closure_digest", "required_package_ids"],
-            "dependent_guard": ["required_by_package_ids", "disable.allowed", "disable.reason_code", "uninstall.allowed", "uninstall.reason_code"]
+          "directory_fast_nested_fields": {
+            "role_state": [
+              "status",
+              "source",
+              "discovered_role",
+              "installed_role",
+              "diagnostic"
+            ],
+            "source_explanation": [
+              "kind",
+              "source",
+              "summary",
+              "catalog_ref",
+              "registry_url",
+              "registry_source_ref",
+              "version_source_ref"
+            ],
+            "installability": [
+              "status",
+              "installable"
+            ],
+            "readiness": [
+              "status",
+              "operational_ready",
+              "launch_allowed",
+              "verification_deferred",
+              "reason",
+              "detail_surface",
+              "status_read_error"
+            ],
+            "available_actions[]": [
+              "action_id",
+              "action_ref",
+              "payload",
+              "required_payload_fields",
+              "confirmation_required"
+            ]
           },
+          "directory_full_only_fields": [
+            "lifecycle_ux",
+            "lock_ref",
+            "scope_materialization_count"
+          ],
           "status_index_package_fields": {
-            "dependency_readiness": ["status", "required_count", "ready_count", "checks", "closure"],
-            "dependency_readiness_status_values": ["ready", "repair_required", "blocked"],
-            "dependency_check_fields": ["package_id", "required", "installed", "enabled", "version_requirement", "installed_version", "version_satisfied", "capability_abi", "installed_capability_abi", "abi_satisfied", "required_export_ids", "available_export_ids", "exports_satisfied", "content_lock_digest", "physical_surface_status", "ready", "failure_reasons"],
-            "dependency_closure_receipt_fields": ["transaction_id", "generation_id", "closure_digest", "last_known_good_generation_id", "last_known_good_closure_digest"],
+            "dependency_readiness": [
+              "status",
+              "required_count",
+              "ready_count",
+              "checks",
+              "closure"
+            ],
+            "dependency_readiness_status_values": [
+              "ready",
+              "repair_required",
+              "blocked"
+            ],
+            "dependency_check_fields": [
+              "package_id",
+              "required",
+              "installed",
+              "enabled",
+              "version_requirement",
+              "installed_version",
+              "version_satisfied",
+              "capability_abi",
+              "installed_capability_abi",
+              "abi_satisfied",
+              "required_export_ids",
+              "available_export_ids",
+              "exports_satisfied",
+              "content_lock_digest",
+              "physical_surface_status",
+              "ready",
+              "failure_reasons"
+            ],
+            "dependency_closure_receipt_fields": [
+              "transaction_id",
+              "generation_id",
+              "closure_digest",
+              "last_known_good_generation_id",
+              "last_known_good_closure_digest"
+            ],
             "operational_ready": "boolean",
             "launch_allowed": "boolean",
             "launch_blocked_reason": "null_or_string",
-            "allowed_when_blocked": ["status", "doctor", "repair"],
-            "repair_action": ["action_id", "command_ref", "enabled", "reason_code"],
-            "activation_action": ["action_id", "command_ref", "enabled", "preparation_status", "reason_code"],
-            "dependent_guard": ["required_by_package_ids", "disable.allowed", "disable.reason_code", "uninstall.allowed", "uninstall.reason_code"]
+            "allowed_when_blocked": [
+              "status",
+              "doctor",
+              "repair"
+            ],
+            "repair_action": [
+              "action_id",
+              "command_ref",
+              "enabled",
+              "reason_code"
+            ],
+            "activation_action": [
+              "action_id",
+              "command_ref",
+              "enabled",
+              "preparation_status",
+              "reason_code"
+            ],
+            "dependent_guard": [
+              "required_by_package_ids",
+              "disable.allowed",
+              "disable.reason_code",
+              "uninstall.allowed",
+              "uninstall.reason_code"
+            ]
           },
-          "activation_preparation_status_values": ["not_installed", "prepare_required", "ready"],
+          "activation_preparation_status_values": [
+            "not_installed",
+            "prepare_required",
+            "ready"
+          ],
           "activation_preparation_policy": {
             "package_not_installed": {
               "preparation_status": "not_installed",
@@ -2895,9 +3667,14 @@
           },
           "repair_action_id": "repair_dependency_closure",
           "launch_gate_policy": "operational_ready_false_requires_launch_allowed_false_and_only_status_doctor_repair_remain_allowed",
-          "launch_fail_closed_reason_codes": ["package_not_installed"],
+          "launch_fail_closed_reason_codes": [
+            "package_not_installed"
+          ],
           "closure_diagnostics_surface": "advanced_diagnostics_only",
-          "forbidden_private_fields": ["staging_path", "journal_path"]
+          "forbidden_private_fields": [
+            "staging_path",
+            "journal_path"
+          ]
         },
         "receipt_physical_surface_detail_policy": {
           "surface": "details_panel_or_advanced_diagnostics",
@@ -2926,8 +3703,19 @@
           ]
         },
         "consistent_action_interaction": {
-          "exposure_actions": ["hide", "unhide", "disable", "enable"],
-          "lifecycle_actions": ["install", "update", "repair", "uninstall"],
+          "exposure_actions": [
+            "hide",
+            "unhide",
+            "disable",
+            "enable"
+          ],
+          "lifecycle_actions": [
+            "install",
+            "activate",
+            "update",
+            "repair",
+            "uninstall"
+          ],
           "launch_action": "launch",
           "required_confirmation_fields": [
             "what_changes",
@@ -2966,11 +3754,15 @@
           "activation_action"
         ],
         "source_inputs": [
-          "app_state.agent_packages.directory.installed_packages[]",
+          "app_state.agent_packages.directory.entries[]",
+          "app_state.agent_packages.directory.entries[].role_state",
+          "app_state.agent_packages.directory.entries[].source_explanation",
+          "app_state.agent_packages.directory.entries[].installability",
+          "app_state.agent_packages.directory.entries[].readiness",
+          "app_state.agent_packages.directory.entries[].available_actions[]",
+          "app_state.agent_packages.directory.entries[].recommended_action_ref",
           "app_state.agent_packages.status_index.packages[]",
           "app_state.agent_packages.status_index.home_shortcut_preferences[]",
-          "app_state.agent_packages.directory.installed_packages[].dependency_closure",
-          "app_state.agent_packages.directory.installed_packages[].dependent_guard",
           "app_state.agent_packages.status_index.packages[].dependency_readiness",
           "app_state.agent_packages.status_index.packages[].operational_ready",
           "app_state.agent_packages.status_index.packages[].launch_allowed",
@@ -3001,29 +3793,38 @@
         "row_identity_key": "package_id",
         "primary_row_fields": [
           "display_name",
-          "package_short_name",
-          "purpose_tags",
+          "package_role",
+          "publisher",
+          "source_label",
+          "version",
+          "trust_state",
           "home_shortcut_visible",
           "home_shortcut_order",
           "install_state",
-          "update_state",
-          "source_state",
-          "trust_state",
-          "codex_surface_state",
+          "activation_state",
           "recommended_action"
         ],
         "detail_surface": "desktop_right_side_panel_mobile_drawer",
         "default_detail_fields": [
-          "purpose",
+          "description",
+          "tags",
+          "package_role",
+          "publisher",
           "status",
           "codex_availability",
           "home_shortcut",
           "version",
           "source_label",
+          "trust_tier",
+          "manifest_url",
+          "manifest_validation",
+          "conditions",
+          "receipt_refs",
+          "physical_surface",
           "last_synced_at",
           "failure_reason_when_failed"
         ],
-        "content_block_policy": "show_connectors_workflows_environment_resources_and_reproducibility_export_only_when_real_projection_data_or_action_refs_exist",
+        "content_block_policy": "directory may include standard_agent, framework_capability_package, and workflow_profile package roles, but Skill, Plugin, workflow internals, connector, resource, and export catalogs remain on Capabilities or their owner pages",
         "advanced_diagnostic_fields": [
           "package_id",
           "codex_visible_entry",
@@ -3040,175 +3841,71 @@
         "first_screen_policy": "default detail shows user-decision fields only; raw package_id, codex_visible_entry, receipt refs, paths, manifest, cache, and marketplace config stay collapsed in Advanced diagnostics",
         "empty_field_policy": "hide empty, unknown, unavailable, not_applicable, null, or unreported fields; never render 未报告 or Not reported as default user detail text"
       },
+      "developer_mode_control": {
+        "label_zh": "允许维护已授权的开发仓库",
+        "label_en": "Maintain authorized development repositories",
+        "default_enabled": "auto",
+        "auto_policy": "matching developer identity plus successful full repository-authority inspection activates developer_apply_safe for authorized repositories",
+        "fast_profile_state": "inspection_pending_never_identity_mismatch_without_evidence",
+        "display_fields": [
+          "effective_state",
+          "configuration_source",
+          "github_login",
+          "authorized_repository_scope",
+          "dirty_worktree_protection",
+          "inactive_reason"
+        ],
+        "explicit_user_choices": [
+          "auto",
+          "off"
+        ],
+        "shared_runtime_mutation_boundary": "enabled=on + mode=developer_apply_safe + source=user_config"
+      },
       "must_show": [
-        "global automatic, managed, or developer source mode on the Capabilities page",
-        "selected developer workspace and repository authority summary",
-        "per-package source preference and actual managed or developer checkout path",
-        "installed package directory as the primary Capabilities surface",
-        "Codex App plugin-manager-like compact package directory as the target for 智能体与能力",
-        "search, status filter, registry refresh, and manifest URL install as package-directory controls",
-        "package rows keyed by package identity instead of purpose cards",
-        "purpose labels and filters as secondary metadata rather than primary identity",
-        "Home shortcut visibility and order inline on the package directory rows",
-        "right-side details panel on desktop and drawer on narrow screens for user-decision capability details",
-        "multi-axis package status for install, update, source, trust, and Codex Surface",
-        "developer checkout semantics surfaced explicitly for dirty, git checkout, behind, and configured_by=developer_mode",
-        "OBF and OMA rows can show ready plus recommended update without being rewritten as repair",
-        "OPL Meta Agent as explicit non-default package row",
-        "required skills locked and optional skills selectable by package or launch surface",
-        "builtin skill catalog and auto-injected skills filtered to App packaged skill ids",
-        "Skills and Tools supporting surfaces collapsed by default behind explicit user action",
-        "MCP and tool details as secondary support details",
-        "capability status filters for Research, Grant, Presentation, Book or manuscript work, and OPL automation",
-        "capability health and connector readiness refs from OPL App state",
-        "OPL Connect connector readiness grouped by literature, database, storage, tools/API, internal system, and compute scheduler refs",
-        "OPL Fabric environment and resource-source refs when capability tasks need managed or user-provided resources",
-        "Environment Catalog refs grouped with OPL Fabric resource readiness when capability tasks declare runtime requirements",
-        "reusable workflow refs without skill bodies",
-        "reproducibility export bundle action ref with dry-run receipt boundary",
-        "External Tools & Voice entry with MCP described as secondary technical detail",
-        "Custom Assistant entry as a secondary or advanced capability when enabled by product policy",
-        "workflow and skill candidate report-first refs with review, needs changes, and continue in conversation actions",
-        "Capabilities detail default layer shows only purpose, status, Codex availability, Home shortcut, version, user-language source, last sync, and failure reason only when failed",
-        "connector, reusable workflow, environment resource, and reproducibility export blocks only when real projection data or action refs exist",
-        "package id, Codex-visible entry, receipts, paths, manifest, cache, and marketplace configuration collapsed under Advanced diagnostics",
-        "separate availability, source, and Home visibility fields",
-        "AionUI custom assistants excluded from the OPL product surface",
-        "normal capability rows stay visually quiet"
+        "Developer Mode as Maintain authorized development repositories with automatic effective state, repository authority scope, and dirty-worktree protection",
+        "all discoverable packages from app_state.agent_packages.directory.entries as the only primary Agents catalog",
+        "a dedicated package catalog search plus package role, install or activation status, and source filters",
+        "registry refresh as an ordinary visible action and manifest URL installation only in Advanced",
+        "row install, activate, update, repair, enable, disable, hide, unhide, and uninstall actions exactly as projected by Framework",
+        "workspace activation payload with scope and target_workspace from app_state.paths.workspace_root_path, or a disabled reason and Workspace route when it is missing",
+        "Chinese product display names and explicit managed or developer runtime source labels",
+        "global automatic, managed, or developer source selection kept independent from maintenance permission",
+        "OPL Meta Agent as an explicit default-visible managed package row without becoming a legacy default assistant",
+        "Home shortcut visibility and order inline on Agent package rows",
+        "launch readiness and lifecycle actions bound to projected Agent package state",
+        "normal Agent rows visually quiet with package diagnostics collapsed"
       ],
       "must_not_show": [
-        "assistant or purpose cards as the primary Capabilities surface",
-        "large assistant cards instead of a compact package directory",
+        "Skills, Plugins, tools, MCP helpers, workflows, connectors, or AionUI-native capability catalogs",
+        "OPL Flow recommendation groups or capability dependency catalogs",
+        "assistant or purpose cards as the primary Agents surface",
         "single repair status swallowing developer checkout, dirty, behind, unknown, or needs sync",
-        "separate Home shortcut management table detached from the package rows",
-        "receipt refs, physical_surface, workflow refs, connector refs, or resource refs as first-screen primary density",
-        "Skills and Tools as the only top-level mental model",
-        "long Skills or Tools catalogs expanded by default above package management",
-        "AG-UI as a user-visible capability concept",
-        "AionUI implementation skills such as aionui-skills",
-        "AionUI Team as the ordinary multi-agent collaboration entry",
-        "MCP as the primary user-facing name for external tools",
-        "artifact body, workflow body, connector body, credential body, owner receipt write, or domain export readiness verdict from Settings Capabilities",
-        "auto-enabled skills, skill body writes, or workflow body writes from Settings Capabilities candidate refs",
-        "package_id, codex_visible_entry, receipt refs, paths, manifest, cache, or marketplace config as default capability detail fields",
-        "未报告 or Not reported placeholders for empty capability detail fields",
-        "empty connector, workflow, environment resource, or export-action blocks in default capability details",
-        "availability, source, and Home visibility collapsed into one opaque status",
+        "separate Home shortcut management table detached from Agent package rows",
+        "receipt refs, physical surfaces, paths, manifests, or raw package ids as first-screen density",
         "AionUI AssistantSettings or custom assistant catalogs exposed from OPL Settings",
-        "assistants promoted to a top-level or secondary Settings page"
+        "availability, source, and Home visibility collapsed into one opaque status",
+        "professional_agent_packages used as the directory collection, OMA seed, availability source, status source, or action source",
+        "Settings global search presented as the package catalog search",
+        "registry refresh hidden inside technical details",
+        "package status, ready state, action id, or action payload inferred by the Shell",
+        "manifest URL installation presented as the ordinary primary install path"
       ],
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
       "ia_group": "agents",
       "route_id": "agents",
       "route_scope": "ordinary",
       "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia",
-      "workflow_skill_candidate_policy": {
-        "source": "app_state.operator.workbench.task_run_projection_v2.tasks[].workflow_skill_candidate_refs",
-        "authority": "opl_framework_refs_only_workflow_skill_candidate_projection",
-        "projection_kind": "workflow_skill_candidate_projection",
-        "surface_kind": "workflow_skill_candidate_report_first_refs",
-        "display_policy": "settings_capabilities_report_first_candidate_refs_review_needs_changes_continue_in_conversation_no_auto_enable",
-        "surface": "settings_capabilities",
-        "professional_agent_boundary": "professional_agents_are_codex_plugins_or_packaged_codex_skill_surfaces",
-        "required_ref_fields": [
-          "candidate_ref",
-          "source_report_ref",
-          "candidate_kind",
-          "status",
-          "available_actions",
-          "content_policy"
-        ],
-        "allowed_actions": [
-          "review",
-          "needs_changes",
-          "continue_in_conversation"
-        ],
-        "report_first": true,
-        "auto_enable_allowed": false,
-        "app_role": "display_only_workflow_skill_candidate_refs_consumer",
-        "refs_only": true,
-        "skill_body_access": false,
-        "skill_body_write_access": false,
-        "workflow_body_access": false,
-        "runtime_truth_write_access": false,
-        "domain_verdict_authority": false,
-        "forbidden_claims": [
-          "auto_enable_skill",
-          "skill_body_write",
-          "workflow_body_write",
-          "second_skill_truth",
-          "runtime_truth",
-          "domain_quality_verdict",
-          "domain_readiness",
-          "app_release_readiness"
-        ]
-      },
-      "capability_detail_presentation_policy": {
-        "default_layer": "user_decision_detail",
-        "default_surface": "desktop_right_side_panel_mobile_drawer",
-        "default_visible_fields": [
-          "purpose",
-          "status",
-          "codex_availability",
-          "home_shortcut",
-          "version",
-          "source_label",
-          "last_synced_at",
-          "failure_reason_when_failed"
-        ],
-        "source_label_policy": "render source in user language such as OPL Packages, local developer checkout, organization registry, or user registry; do not show raw source ids by default",
-        "failure_reason_policy": "show failure reason only when the capability is failed, blocked, or needs user action",
-        "empty_field_policy": "hide empty, unknown, unavailable, not_applicable, null, or unreported fields; never render 未报告 or Not reported as default user detail text",
-        "content_blocks": [
-          {
-            "id": "connectors",
-            "label": "connectors",
-            "source_ref": "connector_readiness_refs",
-            "default_visibility": "visible_only_when_non_empty"
-          },
-          {
-            "id": "reusable_workflows",
-            "label": "reusable workflows",
-            "source_ref": "workflow_refs",
-            "default_visibility": "visible_only_when_non_empty"
-          },
-          {
-            "id": "environment_resources",
-            "label": "environment resources",
-            "source_ref": "environment_ref + resource_source_refs",
-            "default_visibility": "visible_only_when_non_empty"
-          },
-          {
-            "id": "reproducibility_export_action",
-            "label": "reproducibility export action",
-            "source_ref": "export_bundle_action_ref",
-            "default_visibility": "visible_only_when_action_available"
-          }
-        ],
-        "advanced_diagnostics": {
-          "default_visibility": "collapsed",
-          "surface": "advanced_diagnostics_disclosure_or_advanced_route",
-          "fields": [
-            "package_id",
-            "codex_visible_entry",
-            "receipt_refs",
-            "rollback_ref",
-            "action_receipt_ref",
-            "physical_surface",
-            "paths",
-            "manifest_ref",
-            "cache_config",
-            "marketplace_config",
-            "raw_refs_json"
-          ]
-        }
-      },
       "product_page_id": "agents",
       "experience_contract_ref": "contracts/app-settings-control-plane.json#experience_contract.page_contracts.agents",
       "required_dom": {
         "always": [
           "settings-page-agents",
           "settings-agents-primary",
+          "settings-agents-catalog-search",
+          "settings-agents-role-filter",
+          "settings-agents-status-filter",
+          "settings-agents-source-filter",
+          "settings-agents-registry-refresh",
           "settings-agents-technical-details",
           "settings-agents-primary-action",
           "opl-developer-profile-control"
@@ -3217,60 +3914,40 @@
           {
             "testid": "settings-agents-exception",
             "when": "attention_required"
+          },
+          {
+            "testid": "settings-agents-loading",
+            "when": "catalog_loading_or_refreshing"
+          },
+          {
+            "testid": "settings-agents-empty",
+            "when": "directory_entries_empty"
+          },
+          {
+            "testid": "settings-agents-error",
+            "when": "catalog_failed"
+          },
+          {
+            "testid": "settings-agents-workspace-required",
+            "when": "activation_recommended_and_workspace_root_missing"
           }
         ]
       },
       "required_anchors": [
+        "catalog",
+        "package-role",
         "availability",
         "source",
         "home-visibility"
       ],
       "search_entry_ids": [
+        "agents.catalog",
         "agents.availability",
         "agents.source",
         "agents.home_visibility"
       ],
-      "primary_action_id": "add_agent",
+      "primary_action_id": "refresh_agent_registry",
       "technical_details_default": "collapsed",
-      "exception_emphasis": "attention_only"
-    },
-    {
-      "id": "advanced",
-      "expected_source": "OPL App state read-only working-directory projection",
-      "machine_source": "opl app state --profile fast --json",
-      "refresh_source": "opl app state --profile fast --json",
-      "page_contract": "settings_advanced",
-      "sections": ["working_directories"],
-      "state_sections": ["paths"],
-      "must_show": [
-        "read-only working directories from app_state.paths",
-        "user-facing labels and direct open actions for workspace and logs when present",
-        "paths shown once without a duplicate summary or disclosure"
-      ],
-      "must_not_show": [
-        "Developer Mode or Developer Profile controls",
-        "OPL Flow Context as an editable Settings surface",
-        "mutable source-channel, update, runtime, provider, or domain controls",
-        "shell-local paths presented as App truth"
-      ],
-      "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
-      "ia_group": "advanced",
-      "route_id": "advanced",
-      "route_scope": "secondary_or_deep_link",
-      "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia",
-      "product_page_id": "advanced",
-      "experience_contract_ref": "contracts/app-settings-control-plane.json#experience_contract.page_contracts.advanced",
-      "required_dom": {
-        "always": [
-          "settings-page-advanced",
-          "settings-advanced-primary"
-        ],
-        "conditional": []
-      },
-      "required_anchors": ["working-directories"],
-      "search_entry_ids": ["advanced.directories"],
-      "primary_action_id": "none",
-      "technical_details_default": "not_applicable",
       "exception_emphasis": "attention_only"
     }
   ],
@@ -3283,6 +3960,49 @@
     "manual_refresh_profile": "fast",
     "page_load_policy": "fast_state_first_no_page_wide_spinner",
     "failure_policy": "section_level_status_with_last_good_display_cache_allowed"
+  },
+  "settings_startup_performance_policy": {
+    "schema": "settings_startup_performance.v1",
+    "first_window_state_source": "persisted_narrow_settings_snapshot_or_loading_shell",
+    "background_state_source": "opl app state --profile fast --json",
+    "first_window_blocking_policy": "never_wait_for_complete_fast_state_or_page_drilldowns",
+    "first_window_failure_policy": "render_recoverable_nonblank_shell_never_fatal_or_blank_candidate_window",
+    "cold_budget_ms": 1500,
+    "warm_budget_ms": 1500,
+    "budget_scope": "stable_shell_first_paint_and_interactive_settings_shell_only_background_hydration_reported_separately",
+    "timing_milestones": [
+      "stable_shell_first_paint",
+      "background_hydration_complete"
+    ],
+    "startup_projection_payload_budget_bytes": 262144,
+    "lazy_drilldown_routes": [
+      "agents",
+      "capabilities",
+      "storage",
+      "about"
+    ],
+    "single_flight_background_refresh": true,
+    "global_refresh_on_route_mount": false,
+    "persisted_snapshot": {
+      "schema": "opl_settings_startup_snapshot.v1",
+      "source": "desktop_main_process_persisted_narrow_cache",
+      "version": 1,
+      "freshness_policy": "stale_while_revalidate_with_observed_at_and_stale_fields",
+      "invalidation": [
+        "schema_or_version_mismatch",
+        "App_release_identity_change",
+        "explicit_sign_out_or_cache_clear"
+      ],
+      "secret_boundary": "allowlisted_read_models_only_no_tokens_passwords_raw_receipts_or_unredacted_errors"
+    },
+    "background_hydration_retry": {
+      "max_attempts": 2,
+      "retry_delay_ms": 250,
+      "clear_single_flight_marker_after_failure": true,
+      "remount_or_manual_retry_after_exhaustion": true
+    },
+    "framework_projection_claim": "not_proven_by_ui_contract_or_shell_gate",
+    "live_measurement_gate": "installed_App_launch_to_first_window_and_settings_readiness_after_owner_absorption"
   },
   "canonical_action_surface": {
     "command": "opl app action execute --action <action_id> [--payload json] [--dry-run] --json",

@@ -178,6 +178,207 @@ function validateGatewayAccountFixture(fixture) {
   }
 }
 
+const agentPackageDirectoryFields = [
+  'surface_kind',
+  'status',
+  'source_catalog_kind',
+  'detail',
+  'entry_count',
+  'installed_package_count',
+  'installable_package_count',
+  'migration_required_count',
+  'entries',
+  'authority_boundary',
+];
+const agentPackageDirectoryEntryFields = [
+  'package_id',
+  'display_name',
+  'publisher',
+  'description',
+  'tags',
+  'package_role',
+  'role_state',
+  'trust_tier',
+  'source_explanation',
+  'manifest_url',
+  'selected_version',
+  'stable_version',
+  'installed_version',
+  'installed',
+  'activated',
+  'installability',
+  'readiness',
+  'recommended_action',
+  'recommended_action_ref',
+  'available_actions',
+  'authority_boundary',
+];
+const agentPackageActionFields = [
+  'action_id',
+  'action_ref',
+  'payload',
+  'required_payload_fields',
+  'confirmation_required',
+];
+
+function assertExactObjectFields(value, expectedFields, label) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error(`${label} must be an object`);
+  }
+  assertDeepEqualJson(
+    Object.keys(value).sort(),
+    [...expectedFields].sort(),
+    `${label} fields`,
+  );
+}
+
+function validateAgentPackageDirectoryAction(action, label) {
+  assertExactObjectFields(action, agentPackageActionFields, label);
+  if (
+    typeof action.action_id !== 'string'
+    || action.action_ref !== `app_state.actions#${action.action_id}`
+    || !action.payload
+    || typeof action.payload !== 'object'
+    || Array.isArray(action.payload)
+    || !Array.isArray(action.required_payload_fields)
+    || action.required_payload_fields.some((field) => typeof field !== 'string' || !field)
+    || typeof action.confirmation_required !== 'boolean'
+  ) {
+    throw new Error(`${label} must use the canonical five-field Framework action object`);
+  }
+}
+
+export function validateOplAppStateFastAgentPackageDirectoryFixture(fixture) {
+  const directory = lookupPath(fixture, 'app_state.agent_packages.directory');
+  assertExactObjectFields(directory, agentPackageDirectoryFields, 'Agent Package directory fixture');
+  if (
+    directory.surface_kind !== 'opl_agent_package_directory.v1'
+    || directory.source_catalog_kind !== 'opl_package_catalog.v1+opl_agent_package_registry_cache'
+    || directory.detail !== 'fast'
+    || !['available', 'attention_required'].includes(directory.status)
+    || !Array.isArray(directory.entries)
+    || directory.entries.length < 3
+  ) {
+    throw new Error('Agent Package directory fixture must be a representative fast opl_agent_package_directory.v1 projection');
+  }
+  if (
+    directory.entry_count !== directory.entries.length
+    || directory.installed_package_count !== directory.entries.filter((entry) => entry.installed).length
+    || directory.installable_package_count !== directory.entries.filter((entry) => entry.installability?.installable).length
+    || directory.migration_required_count !== directory.entries.filter((entry) => entry.installability?.status === 'migration_required').length
+  ) {
+    throw new Error('Agent Package directory fixture counts must match its entries');
+  }
+
+  for (const entry of directory.entries) {
+    assertExactObjectFields(entry, agentPackageDirectoryEntryFields, `Agent Package directory entry ${entry?.package_id ?? '<unknown>'}`);
+    if (
+      typeof entry.package_id !== 'string'
+      || typeof entry.display_name !== 'string'
+      || typeof entry.publisher !== 'string'
+      || typeof entry.description !== 'string'
+      || !Array.isArray(entry.tags)
+      || typeof entry.package_role !== 'string'
+      || typeof entry.trust_tier !== 'string'
+      || typeof entry.manifest_url !== 'string'
+      || typeof entry.installed !== 'boolean'
+      || typeof entry.activated !== 'boolean'
+    ) {
+      throw new Error(`Agent Package directory entry ${entry?.package_id ?? '<unknown>'} has invalid identity or lifecycle metadata`);
+    }
+    assertExactObjectFields(
+      entry.role_state,
+      ['status', 'source', 'discovered_role', 'installed_role', 'diagnostic'],
+      `Agent Package directory entry ${entry.package_id} role_state`,
+    );
+    assertExactObjectFields(
+      entry.source_explanation,
+      ['kind', 'source', 'summary', 'catalog_ref', 'registry_url', 'registry_source_ref', 'version_source_ref'],
+      `Agent Package directory entry ${entry.package_id} source_explanation`,
+    );
+    assertExactObjectFields(
+      entry.installability,
+      ['status', 'installable'],
+      `Agent Package directory entry ${entry.package_id} installability`,
+    );
+    assertExactObjectFields(
+      entry.readiness,
+      ['status', 'operational_ready', 'launch_allowed', 'verification_deferred', 'reason', 'detail_surface', 'status_read_error'],
+      `Agent Package directory entry ${entry.package_id} readiness`,
+    );
+    if (
+      typeof entry.source_explanation.kind !== 'string'
+      || typeof entry.source_explanation.source !== 'string'
+      || typeof entry.source_explanation.summary !== 'string'
+      || typeof entry.source_explanation.version_source_ref !== 'string'
+      || typeof entry.installability.installable !== 'boolean'
+      || typeof entry.readiness.status !== 'string'
+      || typeof entry.readiness.operational_ready !== 'boolean'
+      || typeof entry.readiness.launch_allowed !== 'boolean'
+      || typeof entry.readiness.verification_deferred !== 'boolean'
+      || typeof entry.readiness.detail_surface !== 'string'
+    ) {
+      throw new Error(`Agent Package directory entry ${entry.package_id} has invalid source, installability, or readiness metadata`);
+    }
+    if (!Array.isArray(entry.available_actions) || entry.available_actions.length === 0) {
+      throw new Error(`Agent Package directory entry ${entry.package_id} must expose available_actions`);
+    }
+    for (const action of entry.available_actions) {
+      validateAgentPackageDirectoryAction(action, `Agent Package directory entry ${entry.package_id} action`);
+    }
+    const recommended = entry.available_actions.find((action) => action.action_id === entry.recommended_action) ?? null;
+    if (entry.recommended_action === null) {
+      if (entry.recommended_action_ref !== null) {
+        throw new Error(`Agent Package directory entry ${entry.package_id} recommended_action_ref must be null`);
+      }
+    } else if (!recommended || JSON.stringify(entry.recommended_action_ref) !== JSON.stringify(recommended)) {
+      throw new Error(`Agent Package directory entry ${entry.package_id} recommended_action_ref must exactly match available_actions`);
+    }
+  }
+
+  const workspaceRoot = lookupPath(fixture, 'app_state.paths.workspace_root_path');
+  const installEntry = directory.entries.find((entry) =>
+    entry.installed === false
+    && entry.installability?.installable === true
+    && entry.recommended_action === 'install_from_manifest_url'
+  );
+  if (
+    !installEntry
+    || installEntry.readiness.status !== 'not_installed'
+    || installEntry.recommended_action_ref?.payload?.package_id !== installEntry.package_id
+  ) {
+    throw new Error('Agent Package directory fixture must include an uninstalled package with its canonical install action');
+  }
+  const activationEntry = directory.entries.find((entry) =>
+    entry.installed === true
+    && entry.activated === false
+    && entry.recommended_action === 'agent_package_activate'
+  );
+  if (
+    !activationEntry
+    || activationEntry.recommended_action_ref?.payload?.package_id !== activationEntry.package_id
+    || activationEntry.recommended_action_ref?.payload?.scope !== 'workspace'
+    || activationEntry.recommended_action_ref?.payload?.target_workspace !== workspaceRoot
+    || !activationEntry.recommended_action_ref?.required_payload_fields?.includes('scope')
+    || !activationEntry.recommended_action_ref?.required_payload_fields?.includes('target_workspace or target_quest')
+  ) {
+    throw new Error('Agent Package directory fixture must include a workspace-scoped canonical activation action');
+  }
+  const activatedEntry = directory.entries.find((entry) => entry.installed === true && entry.activated === true);
+  if (
+    !activatedEntry
+    || activatedEntry.readiness.status !== 'verification_deferred'
+    || activatedEntry.readiness.verification_deferred !== true
+    || activatedEntry.readiness.reason !== 'live_verification_deferred'
+    || activatedEntry.readiness.operational_ready !== false
+    || activatedEntry.readiness.launch_allowed !== false
+    || activatedEntry.recommended_action !== null
+    || activatedEntry.recommended_action_ref !== null
+  ) {
+    throw new Error('Agent Package fast directory fixture must keep activated readiness verification deferred until full verification');
+  }
+}
+
 export function validateOplGatewayAccountContract(runtimeBridge) {
   const projection = runtimeBridge.opl_gateway_account_projection;
   if (
@@ -350,6 +551,7 @@ function validateGoldenAppStateFixture(gate) {
   validateGoldenAppStateActiveProjects(fixture);
   validateGoldenAppStateRequiredCollections(fixture);
   validateGatewayAccountFixture(fixture);
+  validateOplAppStateFastAgentPackageDirectoryFixture(fixture);
 }
 
 function validateGoldenAppStateFixtureBasics(fixtureText, fixture, gate) {

@@ -40,6 +40,19 @@ test('Codex interaction surfaces stay aligned across the App profile and contrac
   ));
 });
 
+test('product profile projects the canonical Agent Package registry URL', () => {
+  const installExposure = readJson('contracts/app-install-exposure-policy.json');
+  const registry = readJson('contracts/agent-package-registry.json');
+  const profile = structuredClone(readJson('contracts/app-product-profile.json'));
+  assert.doesNotThrow(() => validateProductProfile(profile, installExposure, registry));
+
+  profile.gui.agent_package_registry.default_registry_url = 'https://example.invalid/registry.json';
+  assert.throws(
+    () => validateProductProfile(profile, installExposure, registry),
+    /canonical Agent Package registry URL/,
+  );
+});
+
 test('product profile rejects pre-Codex-baseline interaction states', () => {
   const installExposure = readJson('contracts/app-install-exposure-policy.json');
   for (const mutate of [

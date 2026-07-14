@@ -3,11 +3,66 @@ import fs from 'node:fs';
 import test from 'node:test';
 import { validatePageStateMatrix } from '../../scripts/validate-active-shell/page-state-matrix-validator.ts';
 import {
+  validateOplAppStateFastAgentPackageDirectoryFixture,
   validateOplGatewayAccountContract,
   validateRuntimeBridgeContract,
 } from '../../scripts/validate-active-shell/runtime-bridge-validator.ts';
 
 const readJson = (relativePath: string) => JSON.parse(fs.readFileSync(relativePath, 'utf8'));
+
+test('Fast App state fixture uses the exact public Agent Package directory and action ABI', () => {
+  const fixture = readJson('contracts/fixtures/opl-app-state-fast.fixture.json');
+  assert.doesNotThrow(() => validateOplAppStateFastAgentPackageDirectoryFixture(fixture));
+
+  const directory = fixture.app_state.agent_packages.directory;
+  assert.equal(directory.surface_kind, 'opl_agent_package_directory.v1');
+  assert.equal(directory.detail, 'fast');
+  assert.equal(directory.entries.length, 3);
+  assert.ok(directory.entries.some((entry: any) => !entry.installed && entry.recommended_action === 'install_from_manifest_url'));
+  assert.ok(directory.entries.some((entry: any) => entry.installed && !entry.activated && entry.recommended_action === 'agent_package_activate'));
+  assert.ok(directory.entries.some((entry: any) =>
+    entry.installed
+    && entry.activated
+    && entry.readiness.status === 'verification_deferred'
+    && entry.readiness.verification_deferred === true
+    && entry.readiness.operational_ready === false
+    && entry.readiness.launch_allowed === false
+  ));
+});
+
+test('Fast Agent Package directory rejects action, source, workspace, and readiness ABI drift', () => {
+  const cases = [
+    (fixture: any) => {
+      delete fixture.app_state.agent_packages.directory.entries[0].available_actions[0].action_ref;
+    },
+    (fixture: any) => {
+      fixture.app_state.agent_packages.directory.entries[0].recommended_action_ref.payload.package_id = 'wrong-package';
+    },
+    (fixture: any) => {
+      const entry = fixture.app_state.agent_packages.directory.entries.find(
+        (candidate: any) => candidate.recommended_action === 'agent_package_activate',
+      );
+      const action = entry.available_actions.find((candidate: any) => candidate.action_id === 'agent_package_activate');
+      delete action.payload.target_workspace;
+      delete entry.recommended_action_ref.payload.target_workspace;
+    },
+    (fixture: any) => {
+      const entry = fixture.app_state.agent_packages.directory.entries.find((candidate: any) => candidate.activated);
+      entry.readiness.status = 'ready';
+      entry.readiness.verification_deferred = false;
+      entry.readiness.reason = null;
+    },
+    (fixture: any) => {
+      delete fixture.app_state.agent_packages.directory.entries[0].source_explanation.version_source_ref;
+    },
+  ];
+
+  for (const mutate of cases) {
+    const fixture = structuredClone(readJson('contracts/fixtures/opl-app-state-fast.fixture.json'));
+    mutate(fixture);
+    assert.throws(() => validateOplAppStateFastAgentPackageDirectoryFixture(fixture));
+  }
+});
 
 test('Gateway account contracts keep the canonical projection, actions, and typed secret bridge', () => {
   const runtimeBridge = readJson('contracts/app-runtime-bridge.json');
@@ -79,7 +134,7 @@ test('Gateway account runtime bridge rejects secret leakage and generic-action l
   }
 });
 
-test('Models & Access rejects Gateway account visibility and state-path drift', () => {
+test('Account & Gateway rejects account visibility and state-path drift', () => {
   const adapter = readJson('contracts/app-shell-adapter.json');
   const guiContract = readJson('contracts/app-gui-product-contract.json');
   for (const mutate of [
@@ -94,8 +149,8 @@ test('Models & Access rejects Gateway account visibility and state-path drift', 
     },
   ]) {
     const matrix = structuredClone(readJson('contracts/app-page-state-matrix.json'));
-    const access = matrix.pages.find((page: any) => page.id === 'access');
-    mutate(access.opl_gateway_account);
+    const gateway = matrix.pages.find((page: any) => page.id === 'gateway');
+    mutate(gateway.opl_gateway_account);
     assert.throws(() => validatePageStateMatrix(matrix, adapter, guiContract));
   }
 });

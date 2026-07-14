@@ -436,6 +436,7 @@ export const progressiveFirstRunRecoveryPolicy = {
 };
 export const appOwnedSettingsTabs = [
   "general",
+  "gateway",
   "access",
   "workspace",
   "agents",
@@ -445,6 +446,87 @@ export const appOwnedSettingsTabs = [
   "storage",
   "appearance",
 ];
+export const appOwnedSettingsManagedDependencySummary = {
+  source_ref:
+    "opl update status --json#managed_update.components[component_id=opl_base].current.dependency_catalog.dependencies[]",
+  required_ids: ["codex-cli", "temporal-runtime", "temporal-system-cli"],
+  required_fields: [
+    "dependency_id",
+    "dependency_kind",
+    "installed",
+    "version",
+    "latest_version",
+    "currentness",
+    "ownership",
+    "update_policy",
+    "update_mode",
+    "update_action",
+    "activation_policy",
+    "binary_path",
+    "status",
+  ],
+  optional_fields_by_dependency_id: {
+    "codex-cli": ["external_installations"],
+    "temporal-runtime": [],
+    "temporal-system-cli": ["note"],
+  },
+  localized_display_names: {
+    "codex-cli": { label_zh: "Codex CLI", label_en: "Codex CLI" },
+    "temporal-runtime": {
+      label_zh: "OPL 托管 Temporal 运行时",
+      label_en: "OPL-managed Temporal Runtime",
+    },
+    "temporal-system-cli": {
+      label_zh: "系统 Temporal CLI",
+      label_en: "System Temporal CLI",
+    },
+  },
+  currentness_values: ["current", "update_available", "unknown", "missing"],
+  update_mode_values: [
+    "silent_managed",
+    "explicit_owner_delegated",
+    "detect_only_guidance",
+  ],
+  display_policy:
+    "show active Codex CLI, OPL-managed Temporal Runtime, and optional system Temporal CLI directly on Maintenance with version, source, currentness, and owner-specific update guidance",
+  path_deduplication_policy:
+    "deduplicate Codex PATH candidates by realpath and retain shadowed candidates in diagnostics",
+  external_update_policy:
+    "OPL-managed roots use the existing OPL Base update route; identified external owners require confirmation; unknown owners receive guidance only",
+  manual_operation_policy: {
+    silent_managed:
+      "route to the existing OPL Base update or repair action and never synthesize a per-dependency action",
+    explicit_owner_delegated:
+      "render the Framework update_action only after explicit confirmation",
+    detect_only_guidance:
+      "show owner guidance without a fake update action",
+  },
+  unknown_value_policy:
+    "show not checked or unknown and never synthesize current, missing, or zero values",
+  diagnostics_boundary:
+    "binary paths, shadowed installations, raw actions, and raw catalog records stay in technical details",
+  external_installations_policy: {
+    row_key: "dependency_id_plus_normalized_realpath_with_stable_index_suffix_only_for_duplicate_paths",
+    required_fields: [
+      "dependency_id",
+      "binary_path",
+      "ownership",
+      "installed",
+      "version",
+      "latest_version",
+      "currentness",
+      "update_mode",
+      "update_action",
+      "guidance",
+    ],
+    path_policy: "normalize_realpath_before_deduplication_and_keep_shadowed_rows_in_diagnostics",
+  },
+  temporal_component_version_policy: {
+    runtime_component_id: "temporal-runtime",
+    cli_component_id: "temporal-system-cli",
+    normalization: "normalize_semver_without_v_prefix_and_never_compare_runtime_bundle_version_to_system_cli_version",
+  },
+};
 export const appOwnedTaskAwarenessRefFields = [
   "capability_health_refs",
   "connector_readiness_refs",
@@ -464,7 +546,7 @@ export const appOwnedTaskAwarenessRefFields = [
   "candidate_report_refs",
   "workflow_skill_candidate_refs",
 ];
-export const appOwnedSecondarySettingsPages = ["advanced", "about"];
+export const appOwnedSecondarySettingsPages = ["about"];
 export const appOwnedSettingsCompatibilityRedirects = {
   update: {
     source_route_id: "update",
@@ -515,17 +597,19 @@ export const appActionRoute =
   "opl app action execute --action <action_id> [--payload <json>] [--dry-run] --json";
 export const appOwnedSettingsIaGroupIds = [
   "overview",
-  "setup_access",
+  "gateway",
+  "models",
+  "workspace",
   "agents",
   "capabilities",
   "resources",
   "maintenance",
-  "data_storage",
+  "storage",
   "preferences",
-  "advanced",
 ];
 export const appOwnedSettingsRouteScopes = {
   settings_general: { route_id: "general", route_scope: "ordinary" },
+  gateway: { route_id: "gateway", route_scope: "ordinary" },
   access: { route_id: "access", route_scope: "ordinary" },
   agents: { route_id: "agents", route_scope: "ordinary" },
   capabilities: { route_id: "capabilities", route_scope: "ordinary" },
@@ -537,7 +621,6 @@ export const appOwnedSettingsRouteScopes = {
     route_id: "personalization",
     route_scope: "compatibility_redirect",
   },
-  advanced: { route_id: "advanced", route_scope: "secondary_or_deep_link" },
   about: { route_id: "about", route_scope: "secondary_or_deep_link" },
   update: { route_id: "update", route_scope: "compatibility_redirect" },
   workspace: { route_id: "workspace", route_scope: "ordinary" },
@@ -547,6 +630,7 @@ export const appOwnedSettingsRouteScopes = {
   },
 };
 export const appOwnedSettingsTaskEntryIds = [
+  "gateway_account",
   "model_access",
   "local_runtime_ability",
   "workspace",
@@ -565,7 +649,8 @@ export const appOwnedSettingsTaskEntryMetadataFields = [
 ];
 export const appOwnedSettingsTopLevelEntryIds = [
   "overview",
-  "access",
+  "gateway",
+  "models",
   "workspace",
   "agents",
   "capabilities",
@@ -576,7 +661,8 @@ export const appOwnedSettingsTopLevelEntryIds = [
 ];
 export const appOwnedSettingsTopLevelLabels = {
   overview: { label_zh: "概览", label_en: "Overview" },
-  access: { label_zh: "模型与访问", label_en: "Models & Access" },
+  gateway: { label_zh: "账户与 Gateway", label_en: "Account & Gateway" },
+  models: { label_zh: "模型", label_en: "Models" },
   workspace: {
     label_zh: "工作区与个性化",
     label_en: "Workspace & Personalization",
@@ -584,7 +670,7 @@ export const appOwnedSettingsTopLevelLabels = {
   agents: { label_zh: "智能体", label_en: "Agents" },
   capabilities: { label_zh: "能力", label_en: "Capabilities" },
   resources: { label_zh: "资源与连接", label_en: "Resources & Connections" },
-  maintenance: { label_zh: "本机环境", label_en: "Local Environment" },
+  maintenance: { label_zh: "维护", label_en: "Maintenance" },
   storage: { label_zh: "数据与存储", label_en: "Data & Storage" },
   preferences: { label_zh: "偏好", label_en: "Preferences" },
 };
@@ -593,8 +679,9 @@ export const appOwnedSettingsProductPageIds = [
   ...appOwnedSecondarySettingsPages,
 ];
 export const appOwnedSettingsTechnicalDetailsDefault = {
-  overview: "inline_compact_always_visible",
-  access: "not_applicable",
+  overview: "not_applicable",
+  gateway: "not_applicable",
+  models: "not_applicable",
   workspace: "explicit_action_modal",
   agents: "collapsed",
   capabilities: "collapsed",
@@ -602,12 +689,12 @@ export const appOwnedSettingsTechnicalDetailsDefault = {
   maintenance: "explicit_action_modal",
   storage: "explicit_action_modal",
   preferences: "not_applicable",
-  advanced: "not_applicable",
   about: "explicit_action_modal",
 };
 export const appOwnedSettingsPageAnchors = {
-  overview: ["status", "attention", "next-action", "common-actions"],
-  access: ["provider-source", "opl-gateway", "model", "codex-cli", "authentication"],
+  overview: ["status", "attention", "next-action", "codex", "gateway"],
+  gateway: ["connection", "account", "usage", "access"],
+  models: ["provider-source", "model", "codex-cli"],
   workspace: [
     "current-workspace",
     "permissions",
@@ -617,7 +704,7 @@ export const appOwnedSettingsPageAnchors = {
     "system-agents",
     "opl-app-context",
   ],
-  agents: ["availability", "source", "home-visibility"],
+  agents: ["catalog", "package-role", "availability", "source", "home-visibility"],
   capabilities: ["opl-flow-managed", "third-party"],
   resources: [
     "local-browser-access",
@@ -626,7 +713,7 @@ export const appOwnedSettingsPageAnchors = {
     "action-readiness",
     "external-resources",
   ],
-  maintenance: ["health", "updates", "services", "repair-rollback", "receipts"],
+  maintenance: ["health", "managed-dependencies", "updates", "services", "diagnostics"],
   storage: [
     "storage-categories",
     "archives",
@@ -640,7 +727,6 @@ export const appOwnedSettingsPageAnchors = {
     "display-fonts",
     "themes",
   ],
-  advanced: ["working-directories"],
   about: ["version", "channel", "updates", "help-feedback"],
 };
 export const appOwnedSettingsPageSearchEntryIds = {
@@ -648,15 +734,11 @@ export const appOwnedSettingsPageSearchEntryIds = {
     "overview.status",
     "overview.attention",
     "overview.next_action",
-    "overview.common_actions",
+    "overview.codex",
+    "overview.gateway",
   ],
-  access: [
-    "access.provider_source",
-    "access.opl_gateway",
-    "access.model",
-    "access.codex_cli",
-    "access.authentication",
-  ],
+  gateway: ["gateway.connection", "gateway.account", "gateway.usage", "gateway.access"],
+  models: ["models.provider_source", "models.model", "models.codex_cli"],
   workspace: [
     "workspace.current",
     "workspace.permissions",
@@ -665,7 +747,12 @@ export const appOwnedSettingsPageSearchEntryIds = {
     "personalization.system_agents",
     "personalization.opl_app_context",
   ],
-  agents: ["agents.availability", "agents.source", "agents.home_visibility"],
+  agents: [
+    "agents.catalog",
+    "agents.availability",
+    "agents.source",
+    "agents.home_visibility",
+  ],
   capabilities: [
     "capabilities.opl_flow_managed",
     "capabilities.third_party",
@@ -679,10 +766,10 @@ export const appOwnedSettingsPageSearchEntryIds = {
   ],
   maintenance: [
     "maintenance.health",
+    "maintenance.managed_dependencies",
     "maintenance.updates",
     "maintenance.services",
-    "maintenance.repair_rollback",
-    "maintenance.receipts",
+    "maintenance.diagnostics",
   ],
   storage: [
     "storage.categories",
@@ -697,7 +784,6 @@ export const appOwnedSettingsPageSearchEntryIds = {
     "preferences.display_fonts",
     "preferences.themes",
   ],
-  advanced: ["advanced.directories"],
   about: [
     "about.version",
     "about.channel",
@@ -751,16 +837,20 @@ export const appOwnedSettingsResourceActionBehavior = {
   },
 };
 export const appOwnedSettingsProjectionSectionIds = [
-  "summary",
-  "access",
+  "overview",
+  "gateway",
+  "models",
   "workspace",
+  "agents",
   "capabilities",
   "resources",
   "maintenance",
   "storage",
-  "diagnostics",
+  "preferences",
 ];
 export const appOwnedSettingsProjectionItemFields = [
+  "item_id",
+  "surface_class",
   "scope",
   "owner",
   "risk",
@@ -819,7 +909,7 @@ export const appOwnedSettingsVisualSystem = {
   footer_layout: "compact",
   footer_controls: ["gateway_account_or_settings_entry", "theme_switcher"],
   footer_account_entry_policy:
-    "show_gateway_display_name_when_connected_else_settings_on_all_routes_and_open_models_access_or_overview",
+    "show_gateway_display_name_when_connected_else_settings_on_all_routes_and_open_account_gateway_or_overview",
   footer_secondary_navigation_allowed: false,
   theme_gallery_presentation: "recognizable_preview_tiles",
   theme_swatch_list_allowed: false,
@@ -896,7 +986,8 @@ export const appOwnedSettingsMakeUsableForbiddenSteps = [
 ];
 export const appOwnedSettingsVisualQaTargets = [
   "desktop_settings_overview",
-  "desktop_settings_access",
+  "desktop_settings_gateway",
+  "desktop_settings_models",
   "desktop_settings_workspace",
   "desktop_settings_agents",
   "desktop_settings_capabilities",
@@ -913,7 +1004,7 @@ export const appOwnedSettingsUpstreamIntakeClassifications = [
 ];
 export const appOwnedSettingsProductSystemItemIds = [
   "control_center_positioning",
-  "nine_entry_ia",
+  "ten_entry_ia",
   "secondary_route_strategy",
   "compatibility_anchor_routes",
   "single_control_plane",
@@ -923,13 +1014,19 @@ export const appOwnedSettingsProductSystemItemIds = [
   "issue_action_protocol",
   "maintenance_noise_reduction",
   "workspace_normal_state",
+  "workspace_personalization_owner",
+  "gateway_single_owner",
   "model_access_source",
   "capabilities_experience",
   "resources_readiness_boundary",
   "data_storage_safety",
+  "docker_storage_projection",
   "preferences_user_language",
-  "advanced_read_only_paths",
+  "maintenance_diagnostics",
   "about_update_summary",
+  "startup_cache_hydration",
+  "managed_dependency_currentness",
+  "ownership_no_duplicates",
   "user_copy_system",
   "settings_search",
   "visual_system",
@@ -952,12 +1049,13 @@ export const appOwnedSettingsProductSystemTracks = [
 export const legacySettingsRouteRedirects = {
   overview: "general",
   runtime: "environment",
-  system: "advanced",
-  model: "environment",
+  system: "environment#diagnostics",
+  advanced: "environment#diagnostics",
+  model: "access",
   agent: "agents",
-  assistants: "capabilities?tab=skills",
-  "skills-hub": "capabilities",
-  tools: "capabilities",
+  assistants: "capabilities#third-party",
+  "skills-hub": "capabilities#third-party",
+  tools: "capabilities#third-party",
   display: "appearance",
   webui: "resources",
   pet: "appearance",
@@ -978,7 +1076,7 @@ export const appOwnedHomeLayout = {
   workspace_selector_visible: true,
   purpose_entries_visible: ["research", "grant", "ppt", "book"],
   purpose_entry_placement:
-    "home_starters_with_management_in_settings_capabilities_not_persistent_composer_selector",
+    "home_starters_with_management_in_settings_agents_not_persistent_composer_selector",
   dynamic_question_title: true,
   starter_limit: null,
   starter_visibility_policy: "all_user_visible_configured_shortcuts",

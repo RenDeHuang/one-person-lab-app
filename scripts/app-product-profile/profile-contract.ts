@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import path from 'node:path';
 import { assertDefaultCodexSessionProfile } from '../app-product-profile-default-session.ts';
 import { assertAppProductProfileIdentity } from '../app-product-profile-identity.ts';
 import {
@@ -248,7 +249,7 @@ function assertSettingsProfileShape(profile: AppProductProfile): void {
   const groupIds = Array.isArray(settingsIa.ordinary_groups)
     ? settingsIa.ordinary_groups.map((group) => group.id)
     : [];
-  const routeGroupIds = [...ordinaryRoutes, ...secondaryPages]
+  const routeGroupIds = ordinaryRoutes
     .map((route) => route.ia_group)
     .filter((groupId, index, groups) => typeof groupId === 'string' && groups.indexOf(groupId) === index);
   if (JSON.stringify(groupIds) !== JSON.stringify(routeGroupIds)) {
@@ -273,7 +274,7 @@ function assertSettingsProfileShape(profile: AppProductProfile): void {
   }
   assertIncludesAll(
     taskEntryPolicy.p0_entries ?? [],
-    ['model_access', 'local_runtime_ability', 'workspace_entry', 'maintenance_hub', 'capability_status'],
+    ['gateway_account', 'model_access', 'local_runtime_ability', 'workspace', 'maintenance_hub', 'capability_status'],
     'settings_information_architecture.task_entry_policy.p0_entries',
   );
   assertIncludesAll(
@@ -294,17 +295,28 @@ function assertSettingsProfileShape(profile: AppProductProfile): void {
   if (
     developerProfile.source !== 'app_state.developer_profile + app_state.modules[].source_policy' ||
     developerProfile.default_profile !== 'standard_user' ||
-    developerProfile.opt_in_policy !== 'explicit_opt_in_only' ||
+    developerProfile.opt_in_policy !== 'automatic_for_matching_identity_and_authorized_repositories_with_explicit_off' ||
     developerProfile.settings_page !== 'settings_agents' ||
-    developerProfile.global_control !== 'automatic_managed_developer_segmented_control' ||
-    developerProfile.safe_maintenance_control !== 'switch' ||
+    developerProfile.global_control !== 'automatic_managed_developer_source_segmented_control' ||
+    developerProfile.safe_maintenance_control !== 'auto_or_off_control_with_effective_state_readback' ||
+    developerProfile.safe_maintenance_label_zh !== '允许维护已授权的开发仓库' ||
+    developerProfile.safe_maintenance_label_en !== 'Maintain authorized development repositories' ||
+    developerProfile.safe_maintenance_default !== 'auto' ||
+    developerProfile.safe_maintenance_auto_policy !== 'matching developer identity plus successful full repository authority inspection activates developer_apply_safe for authorized repositories' ||
+    developerProfile.safe_maintenance_fast_policy !== 'show inspection pending without claiming identity mismatch' ||
+    developerProfile.shared_runtime_mutation_boundary !== 'enabled=on + mode=developer_apply_safe + source=user_config' ||
     developerProfile.safe_maintenance_independent_from_source_selection !== true ||
     developerProfile.package_source_control !== 'auto_managed_developer_segmented_control_in_package_details' ||
     developerProfile.fallback_policy !== 'developer_checkout_missing_falls_back_to_managed_with_visible_reason' ||
     developerProfile.hide_machine_status !== true
   ) {
-    throw new Error('App product profile Developer Profile must preserve standard defaults and explicit opt-in policy');
+    throw new Error('App product profile Developer Profile must preserve automatic authorized-repository maintenance with an explicit off choice');
   }
+  assertIncludesAll(
+    developerProfile.safe_maintenance_required_readback ?? [],
+    ['effective_state', 'configuration_source', 'github_login', 'authorized_repository_scope', 'dirty_worktree_and_branch_protection', 'inactive_reason'],
+    'settings.developer_profile.safe_maintenance_required_readback',
+  );
   if (JSON.stringify(developerProfile.capability_axes) !== JSON.stringify(developerProfileCapabilityAxes)) {
     throw new Error('App product profile Developer Profile must declare the required capability axes');
   }
@@ -755,6 +767,21 @@ function assertNonDefaultAssistantProfileShape(profile: AppProductProfile): void
   }
 }
 
+function assertAgentPackageRegistryProjection(profile: AppProductProfile, profilePath: string): void {
+  const registryPath = path.join(path.dirname(profilePath), 'agent-package-registry.json');
+  const registry = JSON.parse(fs.readFileSync(registryPath, 'utf8')) as { registry_url?: unknown };
+  const projection = profile.gui.agent_package_registry;
+  if (
+    typeof registry.registry_url !== 'string' ||
+    !registry.registry_url.trim() ||
+    projection?.default_registry_url !== registry.registry_url ||
+    projection?.source_ref !== 'contracts/agent-package-registry.json#registry_url' ||
+    projection?.shell_consumption_policy !== 'generated_product_profile_only_no_renderer_literal'
+  ) {
+    throw new Error('App product profile must project the canonical Agent Package registry URL without a renderer literal');
+  }
+}
+
 function assertProfileShape(profile: AppProductProfile): void {
   assertAppProductProfileIdentity(profile);
   if (profile.product?.ordinary_chrome_name !== 'One Person Lab') {
@@ -787,5 +814,6 @@ function assertProfileShape(profile: AppProductProfile): void {
 export function readAppProductProfile(profilePath = appProductProfilePath): AppProductProfile {
   const profile = JSON.parse(fs.readFileSync(profilePath, 'utf8')) as AppProductProfile;
   assertProfileShape(profile);
+  assertAgentPackageRegistryProjection(profile, profilePath);
   return profile;
 }

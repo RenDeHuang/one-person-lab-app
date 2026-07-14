@@ -513,7 +513,7 @@ test('App contracts require one generic package use-boundary activation before l
   assert.equal(profilePackageSurface.surface, 'settings_agents');
   assert.equal(
     profilePackageSurface.activation_action_contract_ref,
-    'contracts/app-gui-product-contract.json#pages.settings_agents.agent_package_lifecycle_ux.package_projection_contract.activation_preparation_policy',
+    'contracts/app-gui-product-contract.json#pages.settings_agents.agent_package_lifecycle_ux.workspace_activation_contract',
   );
   assert.equal(profilePackageSurface.status_model.axes.includes('activation_action'), true);
   assert.equal(profilePackageSurface.detail_surface.detail_fields.includes('activation_action'), true);
@@ -541,7 +541,7 @@ test('App contracts require one generic package use-boundary activation before l
     'workspace and quest payload targets must be mutually exclusive',
   );
 
-  const fixtureStatus = fastFixture.app_state.agent_packages.status_index.packages['example-agent'];
+  const fixtureStatus = fastFixture.app_state.agent_packages.status_index.packages.mas;
   assert.deepEqual(fixtureStatus.activation_action, {
     action_id: 'agent_package_activate',
     command_ref: 'opl app action execute --action agent_package_activate --payload <json> --json',
@@ -824,7 +824,10 @@ test('managed update payload and public actions use only the three software obje
     agentsPage.status_model.source_inputs.includes('managed_update.components[opl_packages].projection_status'),
     true,
   );
-  assert.equal(agentsPage.agent_package_lifecycle_ux.directory_controls.filters.includes('codex_surface'), true);
+  assert.deepEqual(
+    agentsPage.agent_package_lifecycle_ux.directory_controls.filters,
+    ['package_role', 'install_or_activation_status', 'source'],
+  );
   assert.deepEqual(
     agentsPage.agent_package_lifecycle_ux.package_projection_contract.status_index_package_fields.dependency_readiness_status_values,
     ['ready', 'repair_required', 'blocked'],
@@ -853,10 +856,10 @@ test('managed update payload and public actions use only the three software obje
     JSON.stringify(agentsPage.agent_package_lifecycle_ux.package_projection_contract).includes('med-autoscience'),
     false,
   );
-  const fixturePackage = fastFixture.app_state.agent_packages.status_index.packages['example-agent'];
+  const fixturePackage = fastFixture.app_state.agent_packages.status_index.packages.mas;
   assert.equal(fixturePackage.dependency_readiness.status, 'ready');
-  assert.equal(fixturePackage.operational_ready, true);
-  assert.equal(fixturePackage.launch_allowed, true);
+  assert.equal(fixturePackage.operational_ready, false);
+  assert.equal(fixturePackage.launch_allowed, false);
   assert.deepEqual(fixturePackage.allowed_when_blocked, ['status', 'doctor', 'repair']);
   assert.equal(fixturePackage.repair_action.action_id, 'repair_dependency_closure');
   assert.deepEqual(fixturePackage.dependent_guard.required_by_package_ids, []);

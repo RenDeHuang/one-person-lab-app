@@ -55,7 +55,7 @@ export function validateManagedUpdatePageBasics(page, label, options = {}) {
 
 export function validateEnvironmentModuleMaintenanceEntry(entry, label) {
   if (
-    entry?.placement !== 'Local Environment' ||
+    entry?.placement !== 'Maintenance' ||
     entry?.app_role !== 'managed_update_status_action_consumer_only' ||
     entry?.kernel_implementation_allowed !== false ||
     entry?.domain_truth_write_allowed !== false ||
@@ -63,7 +63,7 @@ export function validateEnvironmentModuleMaintenanceEntry(entry, label) {
     entry?.developer_checkout_silent_update_allowed !== false ||
     entry?.dirty_checkout_silent_update_allowed !== false
   ) {
-    throw new Error(`${label} module maintenance entry must stay under Local Environment as a consumer-only lifecycle surface`);
+    throw new Error(`${label} module maintenance entry must stay under Maintenance as a consumer-only lifecycle surface`);
   }
   assertDeepEqualJson(entry?.status_sources, managedUpdateStatusSources, `${label} lifecycle status sources`);
   assertIncludesAll(

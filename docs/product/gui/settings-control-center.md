@@ -9,771 +9,428 @@ Page-state contract: `contracts/app-page-state-matrix.json#pages`
 ## Product Boundary
 
 Settings is the App-owned OPL Control Center. The active shell is an
-implementation carrier and must not derive product navigation, page meaning,
-search behavior, or readiness claims from upstream AionUI defaults.
+implementation carrier. It must not infer navigation, page ownership, search,
+readiness, or update behavior from upstream AionUI defaults.
 
-These contracts own:
+The root design rule is **one user question, one owner page**:
 
-- the ten ordinary product pages;
-- the two secondary product pages;
-- compatibility redirect targets and anchors;
-- the single Settings search index;
-- each page's primary information, primary action, exception state, technical
-  detail boundary, required DOM, anchors, and search entries;
-- the established OPL bounded-card visual grammar for Settings.
+- Overview summarizes overall usability and links to the owner page. It does
+  not become a second account, model, workspace, or diagnostics page.
+- A non-owner page may show a compact status needed for its own decision and a
+  link to the owner. It may not repeat the owner's details or controls.
+- Configuration, status, one-time actions, and diagnostics remain distinct.
+  Moving a control into a technical-details disclosure does not change its
+  surface type.
+- Fast state is for immediate rendering. Expensive checks run at startup, in
+  the background, or after an explicit user action; navigating to a page does
+  not silently start them.
 
-They do not own runtime truth, provider implementation, domain truth, release
-readiness, installed App currentness, or owner acceptance.
+These contracts own the ten ordinary product pages, About as the only
+secondary page, compatibility redirects, Settings search, page experience and
+DOM requirements, and the bounded-card visual grammar. They do not own runtime
+truth, provider implementation, domain truth, release readiness, installed App
+currentness, or owner acceptance.
+
+## Startup Performance Boundary
+
+The first interactive Settings window renders from a persisted narrow snapshot
+or a stable loading shell. It never waits for the complete
+`opl app state --profile fast --json` payload or for page drilldowns. The full
+fast projection refreshes once in the background and is shared across routes;
+opening another Settings page does not restart the global read.
+
+The contract budgets both cold and warm first-window readiness at 1,500 ms and
+the startup projection at 262,144 bytes. Agents, Capabilities, Storage, and
+About drilldowns load only when their owner page needs them. These are source
+and test budgets, not installed-App evidence: after owner absorption and
+packaging, release acceptance still requires real launch-to-first-window and
+Settings-readiness timing against the exact installed cohort.
 
 ## Configuration Catalog
 
-Settings presents one product catalog assembled from three owner classes. This
-is a projection protocol, not a second runtime database:
+Settings projects one catalog from three owner classes; it does not create a
+second state database.
 
 | Owner class | Truth and persistence owner | Examples | App responsibility |
 | --- | --- | --- | --- |
-| `framework` | OPL Framework | workspace root, update channel, developer supervisor, capability Home visibility | Place the Framework item on the correct page and invoke the action exposed by the Framework catalog. Do not copy its current value or redefine its action metadata. |
-| `app_local` | Desktop App or active-shell adapter | model and reasoning preference, startup/window behavior, keep-awake, notifications, upload/Office behavior, fonts, scale and theme | Use the existing App store or bridge and provide local readback. Do not create a second Settings store. |
-| `credential_connection` | Credential, Gateway, remote-access or OPL Connect owner | Codex/Gateway access, remote access and external connections | Display redacted readiness or a credential handle and delegate writes to the owner. Secret bodies never enter the App contract, App state, logs or generic action JSON. |
+| `framework` | OPL Framework | workspace root, update channel, developer supervisor, Home visibility | Place the item and call the Framework action. Never copy its current value or redefine action metadata. |
+| `app_local` | Desktop App or shell adapter | model and reasoning preference, App log directory, window behavior, notifications, fonts, scale, theme | Reuse the existing App store or bridge and provide local readback. |
+| `credential_connection` | Gateway, credential, remote-access, or OPL Connect owner | Gateway account, manual API Key, external connections | Display redacted readiness or handles and delegate writes. Secret bodies never enter contracts, App state, logs, or generic action JSON. |
 
-Every item has one stable id, one page and anchor, one truth owner, one write
-route, one persistence target and one verification route. Framework items are
-read from
-`app_state.settings_control_center.configuration_catalog.items`; managed
-connections are read from
-`app_state.settings_control_center.connection_registry`. The App contract owns
-placement and user meaning only.
+Every item has one stable id, page, anchor, truth owner, write route,
+persistence target, and verification route. Framework values come from
+`app_state.settings_control_center.configuration_catalog.items` and typed
+host-owned metadata comes from
+`app_state.settings_control_center.configuration_catalog.host_owned_configuration_surfaces`;
+user-managed
+connections come from
+`app_state.settings_control_center.connection_registry`.
 
-The catalog closes the current product gaps without broad AionUI fork-body
-rewrites:
-
-- model and reasoning selections use the existing Codex client setting;
-- update checks consume the Framework `stable|preview` preference through one
-  updater-channel mapping;
-- the existing keep-awake bridge becomes reachable from Preferences;
-- a valid conversation archive receipt can be restored after reopening the
-  Storage page without weakening archive-before-delete;
-- OPL Connect gains a handle-only connection registry with create, edit, test,
-  default and delete actions;
-- Resources & Connections renders that registry through the existing OPL App
-  state/action bridge.
-
-AionUI custom assistants remain outside this catalog because they are not an
-adopted OPL App product capability. Hiding their entry does not authorize
-deleting the underlying AionUI data.
+AionUI custom assistants remain outside the OPL product catalog. Hiding their
+entry does not authorize deletion of AionUI-owned data.
 
 ## Canonical Information Architecture
 
-Product page ids are stable product semantics. Carrier route ids remain stable
-implementation ids so the shell can migrate without changing user-facing IA.
+Product page ids express product semantics. Carrier route ids remain stable
+adapter ids.
 
-| Product page   | Chinese label | Carrier route  | Path                     | Scope     |
-| -------------- | ------------- | -------------- | ------------------------ | --------- |
-| `overview`     | 概览          | `general`      | `/settings/general`      | ordinary  |
-| `access`       | 模型与访问    | `access`       | `/settings/access`       | ordinary  |
-| `workspace`    | 工作区        | `workspace`    | `/settings/workspace`    | ordinary  |
-| `agents`       | 智能体        | `agents`       | `/settings/agents`       | ordinary  |
-| `capabilities` | 能力          | `capabilities` | `/settings/capabilities` | ordinary  |
-| `resources`    | 资源与连接    | `resources`    | `/settings/resources`    | ordinary  |
-| `maintenance`  | 本机环境      | `environment`  | `/settings/environment`  | ordinary  |
-| `storage`      | 数据与存储    | `storage`      | `/settings/storage`      | ordinary  |
-| `preferences`  | 偏好          | `appearance`   | `/settings/appearance`   | ordinary  |
-| `personalization` | 个性化      | `personalization` | `/settings/personalization` | ordinary |
-| `advanced`     | 高级          | `advanced`     | `/settings/advanced`     | secondary |
-| `about`        | 关于          | `about`        | `/settings/about`        | secondary |
+| Product page | Chinese label | Carrier route | Path | Scope |
+| --- | --- | --- | --- | --- |
+| `overview` | 概览 | `general` | `/settings/general` | ordinary |
+| `gateway` | 账户与 Gateway | `gateway` | `/settings/gateway` | ordinary |
+| `models` | 模型 | `access` | `/settings/access` | ordinary |
+| `workspace` | 工作区与个性化 | `workspace` | `/settings/workspace` | ordinary |
+| `agents` | 智能体 | `agents` | `/settings/agents` | ordinary |
+| `capabilities` | 能力 | `capabilities` | `/settings/capabilities` | ordinary |
+| `resources` | 资源与连接 | `resources` | `/settings/resources` | ordinary |
+| `maintenance` | 维护 | `environment` | `/settings/environment` | ordinary |
+| `storage` | 数据与存储 | `storage` | `/settings/storage` | ordinary |
+| `preferences` | 偏好 | `appearance` | `/settings/appearance` | ordinary |
+| `about` | 关于 | `about` | `/settings/about` | secondary |
 
-`secondary_pages` contains only `advanced` and `about`. About is an independent
-page and must never be redirected to Advanced.
+About is the only independent secondary page. Advanced is retired as a product
+page and remains only as a compatibility route to Maintenance diagnostics.
 
-AionUI custom assistants are not an OPL App product surface or ordinary tab.
-Their entry may be hidden, and legacy `assistants` may redirect to
-`capabilities?tab=skills`. Hiding or redirecting an entry does not authorize
-deletion of underlying AionUI user data. Such deletion requires an explicit App
-contract plus migration or deletion evidence.
+## Redirects
 
-## Compatibility Redirects
+Compatibility routes resolve before rendering and focus the owner anchor:
 
-`update`, `theme`, and `local-services` are not product pages. They are
-machine-readable compatibility redirects:
+| Source | Owner target | Anchor |
+| --- | --- | --- |
+| `/settings/update` | `/settings/environment` | `updates` |
+| `/settings/theme` | `/settings/appearance` | `themes` |
+| `/settings/local-services` | `/settings/environment` | `services` |
+| `/settings/personalization` | `/settings/workspace` | `personalization` |
 
-| Source route               | Target route  | Anchor     | Hash-router transport                    |
-| -------------------------- | ------------- | ---------- | ---------------------------------------- |
-| `/settings/update`         | `environment` | `updates`  | `/settings/environment?section=updates`  |
-| `/settings/theme`          | `appearance`  | `themes`   | `/settings/appearance?section=themes`    |
-| `/settings/local-services` | `environment` | `services` | `/settings/environment?section=services` |
+The hash-router adapter transports the anchor as `section=<anchor>` and then
+focuses the programmatically focusable section. It must not append a second URL
+fragment.
 
-The contract stores `target_route_id` and `anchor` separately. The current shell
-uses a hash router, so it must not append a second URL fragment. It should parse
-the compatibility record, navigate to the target route, preserve
-`section=<anchor>` in the route query, then focus or scroll to the element whose
-`id` equals the anchor. Anchor targets must be programmatically focusable so
-route and search navigation leave both the viewport and keyboard focus at the
-same owning section.
+Legacy `/settings/advanced` and `system` resolve to
+`/settings/environment?section=diagnostics`. They never mount or select an
+Advanced sidebar item. About is never redirected through Advanced.
 
-Compatibility routes must resolve before page rendering. They must not mount
-their historical slot as an independent ordinary or secondary page.
+## Surface Model
 
-## Global Search
+Every page declares all four inventories, including empty arrays:
 
-Settings exposes exactly one global search input:
+1. **Configuration** is a persisted preference. A one-time command is never a
+   configuration item.
+2. **Status** is read-only evidence inside its owner group. Pure readiness,
+   path, count, or permission state is not a standalone card.
+3. **Action** is an explicit command such as open, check, update, repair,
+   cleanup, archive, or restore. It remains adjacent to its object and keeps
+   confirmation, progress, and receipt boundaries.
+4. **Diagnostic** contains raw paths, refs, ids, receipts, payloads, or logs.
+   It is read-only and opens through an explicit modal or drawer.
 
-- test id: `settings-search-input`;
-- index granularity: item, not page;
-- languages: Chinese and English;
-- result label: `{page_label} > {entry_label}`;
-- result selection: navigate to the owner carrier route and focus its anchor;
-- compatibility terms: Update, Theme, and Local Services resolve to
-  `maintenance.updates`, `preferences.themes`, and `maintenance.services`;
-- duplicate global inputs such as `settings-sider-search-input` and
-  `settings-route-search` are forbidden.
+The four surfaces may not be mixed to make the layout look simpler. In
+particular, repair is not a setting, an update check is not status persistence,
+and a path shown in diagnostics is not a second path configuration.
 
-Every search entry declares:
+## Ownership Map
 
-- `id`;
-- `page_id`;
-- `anchor`;
-- Chinese and English labels;
-- Chinese and English keyword arrays.
-
-Search does not create a second state source. It only indexes the product
-contract and routes the user to the owning item.
-
-## Visual Contract
-
-Settings uses the established OPL bounded-card control-center baseline, not a
-Codex quiet-list layout. `quiet`, `dense`, and `scannable` describe visual tone;
-they do not permit a page-wide list wall.
-
-- a bounded card is used only for a configuration group with at least two related persistent controls, one consequential persistent setting, an exception/recovery workflow, or an independent decision boundary;
-- pure readiness, path, count, or permission state stays as a muted row inside its owning configuration group and never becomes a standalone card;
-- each first viewport contains one to four independent spatial groups; columns are used only when sibling groups have comparable density and independent decisions;
-- rows, controls, and disclosures stay flat inside the owning card;
-- no nested cards;
-- cards remain in the normal document flow and do not become floating dashboard tiles;
-- page-wide list walls, a sparse stack of bare horizontal dividers, and a
-  decorative card wall that fragments one user question are forbidden;
-- the compact footer keeps the Gateway display name visible on every route when
-  an account is connected, otherwise it shows Settings; the entry opens Models
-  & Access or Overview, and Settings places the theme-switcher icon after it;
-  returning to the previous App surface uses title-bar navigation, so the footer
-  never renders return-to-chat or help navigation;
-- the theme gallery uses recognizable preview tiles, never a flat swatch list;
-- maximum border radius is 8 px;
-- spacing uses 12 / 16 / 24 px;
-- desktop groups use a responsive two-column grid where space allows and mobile groups stack;
-- visual anchors use 28 px; page titles use `20/28/600`, card titles
-  `14-16/20-24/600`, descriptions `13/20`, and supporting copy `12/18`;
-- normal, warning, error, and action states use muted, orange, red, and brand semantics;
-- access, workspace, capabilities, maintenance, and storage use restrained multi-hue navigation icons and card-edge accents so long pages remain distinguishable without tinting whole surfaces;
-- the Settings sidebar has exactly one selected item after route resolution;
-- repeated entities use one shared column-header row instead of repeating field
-  labels in every row;
-- the primary action stays adjacent to the object or section it acts on;
-- each page shows at most one primary action;
-- normal states are visually muted;
-- only attention or failure states receive accent emphasis;
-- raw diagnostics are absent from the ordinary page and open only through an explicit Diagnostics action into a summary-first modal or drawer;
-- full-page routes let the page wrapper own scrolling, while modal content keeps
-  its own reachable scroll area;
-- when an inline confirmation is rendered away from the triggering control, it
-  is scrolled into view and receives keyboard focus;
-- letter spacing is 0.
-
-`contracts/app-product-profile.json` and the active Shell generated product
-profile must project the complete `visual_system` object from
-`contracts/app-settings-control-plane.json`; a stale profile may not silently
-restore the superseded quiet-list style. The Shell generated profile is updated
-by the Shell/main integration lane, not by this App authority lane.
-
-Visual verification asserts the real card grouping, footer structure, and theme
-preview structure. Radius and spacing checks are supplementary and cannot by
-themselves establish visual conformance. Fresh same-route screenshots must
-preserve or improve hierarchy against Shell baseline
-`409dd0c3b693f1c7c93551654dfac8fb9420843d`.
-
-The ordinary first screen must describe user impact and the next decision. Raw
-ids, raw statuses, command mappings, paths, payloads, and receipts belong in the
-page's diagnostic modal or drawer.
-
-### Surface Ownership
-
-Settings has exactly four surface types. Every surface belongs to one type and
-one page owner; every page contract declares all four inventory arrays, including
-empty arrays. An item cannot appear in more than one array.
-
-1. **Configuration**: persisted user, workspace, or App preferences. Related
-   controls may use one bounded card when they satisfy the existing card
-   eligibility rule. A one-time command can never be modeled as configuration.
-2. **Status**: read-only evidence and readiness. It is a muted row inside its
-   owning page section or configuration group; it never becomes a standalone
-   status card. Attention remains inline and may route to an owning action.
-3. **Action**: an explicit one-time command such as check, open, diagnose,
-   repair, update, cleanup, archive, restore, or deploy. It stays adjacent to
-   the object or section it operates on and exposes confirmation, progress, and
-   receipt when required. It is visually a command, never a persistent setting.
-4. **Diagnostic**: paths, refs, action ids, receipts, runtime enums, payloads,
-   and logs. Ordinary pages open these through an explicit Diagnostics action
-   into a summary-first modal or drawer. Advanced is itself a diagnostic page;
-   it is not a Settings/configuration page.
-
-Workspace therefore uses one owner card containing location, writability, and
-actions. Preferences uses four full-width groups rather than a 2+1 grid:
-application behavior, performance and background activity, instructions and
-session context, and display/themes. The
-instructions group edits the user-owned `$CODEX_HOME/AGENTS.md` through the
-Framework action boundary and manages the App-owned new-conversation context.
-OPL Flow installs and semantically merges the user profile; it does not own the
-per-session App prompt. Agents
-and Capabilities keeps catalog, conversation, and Home counts as one compact
-status row inside the catalog card, exposes Home visibility and Manage on each
-item row, and keeps package refs diagnostic. Resources and Storage keep
-configuration and user-safe status on the page, show total storage use as a
-header status rather than a standalone card, and move control-plane details into
-one diagnostic surface.
-About combines version, channel, update state, and update action in one card;
-help links are full-width rows with their trailing icon on the container edge.
-Maintenance and Data & Storage may contain status, actions, and diagnostics,
-but their repair/update/cleanup/archive operations are actions, not settings.
-Neither page owns persistent configuration in this contract. Storage restore
-probe evidence belongs to diagnostics and does not require a duplicate ordinary
-Restore button.
-
-The OPL App session context is generated from
-`gui.professional_agent_packages[].session_routing_summary_i18n`, so MAS, MAG,
-RCA, OBF, OMA, and future adopted packages update through the product profile
-instead of a second handwritten prompt. The generated base is read-only; users
-may append local instructions, and Restore Default clears only that appendix.
-The effective result takes effect only for newly created Codex conversations.
-User and repository `AGENTS.md` remain independent Codex-owned instruction
-layers. The system-level editor separately offers Restore OPL Flow Default,
-which reads the canonical `templates/AGENTS.md` from the selected current OPL
-Flow package and applies it through the same SHA-guarded Framework write path.
-
-Capability package sync is a single-click Local Environment action. The Shell must
-call `settings_sync_capabilities` through `opl app action execute` immediately,
-keep progress and the result on the original maintenance item, and must not
-insert a second confirmation card. The generic managed-update `check` read is
-not an implementation substitute for sync. Capability status separates
-installed count from maintenance state: a dirty checkout remains installed and
-usable while automatic sync protects and skips it, so it must not reduce the
-installed count or appear as a missing package.
+| Question | Owner | Allowed summaries elsewhere | Forbidden duplication |
+| --- | --- | --- | --- |
+| Who is connected to OPL Gateway and what account, usage, Key, or credential state applies? | Account & Gateway | Overview: identity and connection only. Models: access-source summary and owner link. | Account card, balance, usage, login, Key lifecycle, refresh, or disconnect outside Gateway. |
+| Which model source, default model, and reasoning preference apply? | Models | Overview: overall model-access readiness. | Gateway account and credential controls on Models. |
+| Which workspace is active and writable, where are App logs stored, and what user instructions apply? | Workspace & Personalization | Overview may count an actionable exception. Storage may link to the resolved log path read-only. | Framework/raw paths, Storage-owned log configuration, Preferences-owned personalization, or four separate normal-state cards. |
+| Which Agents are installed and which source is active? | Agents | Home may show an active Agent shortcut. | Skills/Plugins or a separate Developer Profile page. |
+| Which Skills and Plugins are available? | Capabilities | Agent dependency readiness may link here. | A hardcoded Flow list or AionUI-native assistants presented as OPL capabilities. |
+| Which external resources and connections are available? | Resources & Connections | Other pages may link to a resource. | Built-in OPL Gateway connection or Gateway count; selected local workspace controls. |
+| Which managed dependencies, updates, and raw Framework paths need attention? | Maintenance | Models may show the active Codex CLI version. | Update controls on Models, raw paths on Workspace, or a separate Advanced page. |
+| How much local and Docker data is used, and what can be cleaned safely? | Data & Storage | Maintenance may link to cleanup attention; the Workspace-owned log path may be referenced read-only. | Log-directory configuration or generic Docker prune. |
+| How should the App behave and look? | Preferences | Theme legacy routes redirect here. | Workspace paths, user instructions, or OPL App context. |
 
 ## Page Contracts
 
 ### Overview
 
-Primary information:
+Overview answers whether the App is usable, what needs attention, and what the
+next useful action is. Its normal first viewport contains:
 
 - one overall usability summary led by Codex CLI and model-access readiness;
-- OPL Gateway connection, signed-in identity, current usage, and freshness when
-  available;
-- an impact-ordered issue queue and one next useful action. Workspace paths stay
-  on Workspace rather than taking a primary Overview card.
+- signed-in Gateway identity and connection state only;
+- an impact-ordered exception queue;
+- one next useful action.
 
-Primary action: open the highest-priority attention item, only when one exists.
+It does not show Gateway balance, usage, managed Key detail, workspace path, a
+copy of every Settings page, or a second technical summary. Raw versions,
+paths, receipts, and payloads stay on their owner pages.
 
-Exception state: emphasize one actionable issue, not every status.
+### Account & Gateway
 
-Technical details: the small Codex, Gateway freshness, background-service, and
-capability summary stays visible inline. Raw paths, receipts, and payloads remain
-outside Overview.
+Account & Gateway is the single owner for:
 
-Required anchors: `status`, `attention`, `next-action`, `common-actions`.
+- account login and the manual API-key path;
+- full public account identity and localized connection state;
+- balance, compact token usage, actual cost, managed Key name/status, and local
+  freshness time;
+- refresh, connection completion or repair when required, and disconnect.
 
-Overview must not copy the Settings sidebar into page cards or render a
-directory wall for the other pages.
+The account card appears only for an account connection. Manual-Key-only and
+disconnected states do not render account balance or usage. Passwords use the
+typed `loginGatewayAccount` IPC bridge and
+`opl connect gateway login --credentials-stdin --json`; they never enter a
+generic action payload, App state, logs, errors, receipts, diagnostics, or
+renderer persistence.
 
-### Agents, Capabilities, and Local Environment
+The renderer may keep only the declared public projection as a derived
+last-known-good cache. It shows that cache immediately, refreshes in the
+background, preserves it on refresh failure with a stale marker, and replaces
+it only after authoritative readback.
 
-`Agents` is the runnable Agent package directory. It owns Agent install, update,
-repair, enable, disable, uninstall, Home visibility/order, dependency readiness,
-and launch. Skills and Plugins do not appear there.
+### Models
 
-`Capabilities` groups Skills and Plugins by ownership. `OPL Flow 推荐` is
-derived from the typed Flow dependency catalog projected by OPL Base; membership
-is never hardcoded or inferred from legacy package fields by the App. OPL Packages
-reconciles the result on startup, daily maintenance, and explicit package updates. `本机能力`
-contains built-in, user-installed, and third-party Skills/Plugins plus the existing MCP and
-image-tool controls; mutations require explicit user action. Voice transcription remains in
-Preferences because it is an input preference, not an OPL Flow capability dependency.
-The App does not hardcode Flow membership, Flow does not implement a second
-updater, and CLI currentness remains an OPL Base responsibility.
+Models owns model-access readiness, the real
+`app_state.core.codex.model_access_source`, selected and default model,
+reasoning preference for new conversations, and the active Codex CLI version
+as an execution prerequisite.
 
-`Local Environment` manages OPL Base, OPL App, and OPL Packages. Codex and
-Temporal currentness uses three visible modes: OPL-managed installs may update
-silently; external installs with a reliably identified original owner may offer
-an explicitly confirmed delegated update; unknown or unsupported owners receive
-detection and guidance only. OPL never silently overwrites Homebrew, npm, PATH,
-or system installs. Temporal JavaScript dependencies move with the OPL Base
-generation and do not have an independent OPL updater.
+When credentials need attention it exposes one route to Account & Gateway. It
+does not show the Gateway account card, balance, usage, login form, manual Key
+form, managed Key lifecycle, raw provider paths, or Codex CLI update controls.
 
-### Models & Access / 模型与访问
+### Workspace & Personalization
 
-Primary information:
+Workspace & Personalization shows the active workspace identity, resolved path,
+and writability once in one normal-state summary. Permission or trust detail
+appears only when attention is required. Filesystem health and writability
+override executor permission mode when deciding usability.
 
-- model access readiness;
-- the real source from `app_state.core.codex.model_access_source`;
-- selected and default model;
-- persisted Auto or fixed-model selection and reasoning effort;
-- OPL Gateway account login and manual API-key paths, with neither path removing
-  the other;
-- when an account is connected, a compact account card showing the full public
-  account identity, balance, today/total Token usage, today/total actual cost, managed
-  Key name/status, and freshness;
-- OPL Gateway, Codex CLI, and account or API-key state.
+The same page owns the desktop App log directory, the user-level
+`$CODEX_HOME/AGENTS.md` editor, and the OPL App new-conversation context. Log
+changes use the existing typed `application.updateSystemInfo` action with the
+current `cacheDir` and `workDir` preserved, then read back
+`application.systemInfo.logDir`. In WebUI, `/data/logs` is a read-only
+projection of the existing host `OnePersonLab/data -> /data` mount; Settings
+never rewires that Docker volume. Framework and raw working paths remain in
+Maintenance diagnostics.
 
-Primary action: configure model access when missing or when the user explicitly
-requests a change.
+### Agents
 
-Codex CLI installation or model-readback attention must not promote the Gateway
-key button. The primary-action emphasis follows model-access readiness only.
+Agents is the runnable public Agent Package directory. Its collection is
+exactly `app_state.agent_packages.directory.entries`: every projected entry is
+shown, including uninstalled packages, OPL Meta Agent, all first-party
+packages, Framework capability packages, and workflow profiles. The static
+`professional_agent_packages` profile is an optional `package_id`-keyed UI
+metadata overlay only. It cannot seed or filter the collection and cannot own
+installation, activation, readiness, status, source, or actions.
 
-Exception state: missing, expired, or unreachable access with one corrective
-action.
+The page has its own package-catalog search, separate from Settings global
+search, across display name, package id, description, tags, and publisher. The
+ordinary filters are package role, install or activation status, and source.
+Registry refresh is a visible ordinary action; direct manifest URL installation
+stays in Advanced. Loading, refreshing, empty, stale, and failed catalog states
+remain explicit instead of falling back to the static profile.
 
-Gateway account state is read only from
-`app_state.settings_control_center.app_settings_read_model.opl_gateway_account`.
-The Framework owns its 15-minute canonical cache. The renderer may persist only
-the projection's declared top-level and nested allowlists as a derived
-last-known-good bootstrap copy. Page entry shows that account immediately and
-refreshes in the background; a pending or failed refresh must not temporarily
-replace it with the logged-out card. Manual refresh bypasses the TTL, network
-errors keep the prior values and mark or report them stale, and only an
-authoritative readback confirming a new projection replaces the bootstrap copy.
-An older renderer cache that predates the account projection keeps account state
-unresolved until that readback instead of rendering the signed-out action.
-`auth_expired` asks the user to log in again while preserving the non-secret
-snapshot. When an account projection exposes `complete_setup`, has no managed
-Key, and has no projected error, the App resolves the unique Codex group and
-invokes that action once in the background. This rule is action-driven rather
-than coupled to one status spelling, because the Framework may describe the
-same incomplete managed-Key state as `setup_required` or `attention_needed`.
-The App does not render a group selector or a separate Complete connection
-button. If no unique group can be resolved, the card keeps the cached account
-visible and shows localized guidance. A manual refresh or a new authoritative
-projection may retry the automatic completion.
+Each row renders identity, role, publisher, source explanation, versions,
+trust, installability, readiness, and the Framework-projected recommended
+action. Install, activate, update, repair, enable, disable, hide, unhide, and
+uninstall execute only the projected `available_actions[]` or object
+`recommended_action_ref`. Every action object has exactly `action_id`,
+`action_ref`, `payload`, `required_payload_fields`, and
+`confirmation_required`; the scalar `recommended_action` is descriptive and is
+never an action-payload source. The shell does not synthesize enabled state,
+reason codes, action ids, payload fields, or ready/synced/available labels.
 
-`managed_key_missing`, `managed_key_conflict`,
-`managed_key_identity_drift`, and `disconnect_pending` keep their Framework
-status and action data, but the ordinary account card does not render a generic
-Repair control. Refresh, re-login where applicable, and disconnect remain the
-only visible account recovery choices.
+Workspace activation uses `{ package_id, scope: "workspace",
+target_workspace }`, with `target_workspace` read from
+`app_state.paths.workspace_root_path`. When no Workspace is configured, the
+action is disabled with `workspace_root_not_configured` and routes to
+`/settings/workspace#workspace`. After a successful install or activation, the
+page refreshes fast App state and renders the next projected action.
 
-Desktop account login uses the typed `loginGatewayAccount` IPC bridge and
-`opl connect gateway login --credentials-stdin --json`. Passwords must never
-enter generic `opl app action execute --payload`, App state, logs, errors,
-receipts, diagnostics, or persisted renderer state. Browser WebUI may display
-existing account status and keep the manual Key path, but it does not accept the
-Gateway account password in v1. Non-secret setup, refresh, repair, model-source,
-and disconnect mutations use the canonical App action ids projected by the
-Framework. Setup is consumed automatically with the resolved Codex group;
-repair and model-source actions are not exposed as ordinary account-card
-controls.
+Fast state deliberately reports an activated package as
+`readiness.status=verification_deferred`,
+`verification_deferred=true`, `operational_ready=false`,
+`launch_allowed=false`, and `reason=live_verification_deferred`; only a full
+verified read may present verified `ready`. Manifest, receipt, physical
+surface, conditions, and failure diagnostics stay in the detail panel rather
+than becoming invented top-level fast-directory fields. Skills and Plugins do
+not appear here.
 
-The account card is absent for manual-Key-only and disconnected states. This
-capability does not add a personal-profile navigation item and does not change
-First Run.
+Developer Mode appears here as **允许维护已授权的开发仓库**. The control is
+`auto|off`, defaults to `auto`, and is independent from source selection. A
+matching developer identity plus successful full repository-authority
+inspection automatically activates `developer_apply_safe` for authorized
+repositories. Fast state says inspection is pending; it must not invent an
+identity mismatch or render empty authority placeholders.
 
-Technical details: no separate disclosure in the ordinary page. The previous
-modal repeated the same Codex executable, provider source, and access result
-without enabling a decision or action. Raw paths and provider ids remain in
-the maintenance diagnostic surface when troubleshooting actually requires
-them.
+The visible readback includes effective state, configuration source, GitHub
+login, authorized repository scope, dirty-worktree and branch protection, and
+the inactive reason. Shared runtime mutation still requires
+`enabled=on + mode=developer_apply_safe + source=user_config`.
 
-Required anchors: `provider-source`, `opl-gateway`, `model`, `codex-cli`,
-`authentication`.
+Agent display verification also covers Chinese names, developer-source state,
+and the product-profile default visibility of OPL Meta Agent. Those values come
+from the generated product profile and Framework projection, not shell-local
+hardcoding.
 
-Local browser access, Docker WebUI, OPL Workspace, SSH/HPC, cloud, Fabric, and
-Console-managed resources belong to Resources & Connections.
+### Capabilities
 
-### Workspace
+Capabilities groups Skills and Plugins by ownership:
 
-Primary information:
+- the Flow-managed group is derived from the typed OPL Flow dependency closure
+  and must not be empty when that projection contains managed entries;
+- third-party groups use product-profile names and never present raw provider
+  ids as the main label;
+- AionUI-native Skills, tools, assistants, MCP helpers, and image controls stay
+  in their declared local/third-party ownership group and do not become
+  Flow-managed OPL truth;
+- MCP, image generation, and voice input configuration live in the local
+  capabilities group; Preferences does not duplicate voice configuration;
+- mutations require explicit user action and never write capability truth from
+  the renderer.
 
-- current workspace identity, path, and writability in one normal-state summary;
-- permission or trust detail only when attention is required.
-
-Primary action: change workspace.
-
-Exception state: inaccessible, read-only, or untrusted workspace.
-
-Technical details: raw path JSON, trust refs, and repair commands.
-
-Required anchors: `current-workspace`, `permissions`.
-
-Normal path, writability, trust, and permission must not become four separate
-cards.
-
-Filesystem evidence owns workspace usability. `workspace_root.writable=false`
-or an unhealthy workspace state must render as attention even when the App
-executor permission mode is `full_auto`; executor scope cannot make an
-inaccessible or read-only directory usable.
-
-### Agents & Capabilities / 智能体与能力
-
-Primary information is split into:
-
-- availability;
-- source;
-- Home visibility;
-- OPL skills and external tools as supporting configuration.
-
-Primary action: add a capability.
-
-Exception state: failed or blocked capabilities are emphasized; normal packages
-remain quiet.
-
-Technical details: package ids, receipts, paths, manifests, physical surfaces,
-and raw status axes.
-
-Required anchors: `availability`, `source`, `home-visibility`.
-
-The page has `skills` and `tools` supporting tabs. AionUI `AssistantSettings`,
-custom assistant catalogs, and shell-specific assistants are not OPL product
-surfaces. Legacy `assistants` resolves to `capabilities?tab=skills`. Removing or
-hiding that upstream entry must not delete its underlying user data without an
-explicit App contract and migration or deletion evidence.
+OPL Meta Agent remains an explicit managed package row with its Home shortcut
+visible by default. It does not become a legacy default assistant. AionUI
+custom assistants remain outside the OPL surface; legacy `assistants` routes
+to the capability directory without deleting AionUI data.
 
 ### Resources & Connections
 
-Primary information:
+Resources shows local browser access, WebUI, OPL Workspace, SSH/HPC, cloud,
+Fabric, Console-managed refs, and user-managed external connections when
+projected. The built-in OPL Gateway connection and its count are always
+filtered out because Gateway owns them.
 
-- resource readiness;
-- whether the related operation is executable;
-- owner or management mode.
-
-Primary action: open an available resource action only when the action is
-projected as executable.
-
-An action that requires input must provide a legal App input flow or remain
-disabled with a plain-language blocked reason. The WebUI seed action collects
-both the image-manifest path and local seed directory before precheck. A
-model-access action routes to Access because that page owns the credential
-flow.
-
-OPL connections use the Framework-owned `connection_create`,
-`connection_update`, `connection_test`, `connection_set_default`, and
-`connection_delete` actions. The ordinary form accepts only HTTP(S) endpoints
-and credential references, never secret bodies. New connections start enabled;
-the compact enabled switch appears only when editing an existing connection,
-where disabling means preserving the configuration while excluding it from
-use and tests.
-
-Read-only actions must complete their declared behavior:
-
-- `Open` navigates the shell to the exact projected `browser_url`;
-- `Diagnose` executes the projected diagnose action and renders its result or
-  action receipt.
-
-Mutating resource actions require a successful precheck, explicit user
-confirmation, execution, and a visible result or receipt. A successful
-`--dry-run` proves only that the precheck passed; it must never be presented as
-the resource having opened, diagnosis having run, deployment having completed,
-or mutation having completed.
-
-Exception state: distinguish resource unavailable from action blocked and name
-the responsible next step.
-
-Technical details: connector refs, quota, billing, credentials, and deployment
-payloads.
-
-Required anchors: `resource-readiness`, `action-readiness`,
-`external-resources`.
-
-The page may list OPL Workspace as a managed or remote resource, but it must not
-duplicate the selected local workspace path, change-workspace control, or local
-permission summary.
+Read-only Open navigates to the exact `browser_url`; Diagnose executes the
+projected diagnose action and displays its result. Mutations require a
+successful precheck, explicit confirmation, execution, and visible result or
+receipt. Dry-run success proves only precheck success.
 
 ### Maintenance
 
-Primary information:
+Maintenance leads with health, managed dependencies, updates, services,
+packages, and one recommended action. The primary surface always includes:
 
-- health;
-- OPL Base status and one-click setup when it is missing;
-- OPL App version and the available standard or host update route;
-- one Stable / Preview update-channel setting backed by the Framework
-  configuration catalog;
-- OPL Packages status and the relevant install, update, repair, or uninstall action;
-- carrier-neutral reconciliation status after first launch or any supported App carrier change;
-- local services;
-- one recommended action.
+- active Codex CLI;
+- OPL-managed Temporal JavaScript Runtime;
+- optional system Temporal CLI;
+- version, source/owner, currentness, and applicable update guidance for each.
 
-Primary action: run the recommended maintenance action when attention is
-required.
+OPL-managed roots may update silently through their owner. Reliably identified
+external installs may offer an explicitly confirmed delegated update. Unknown
+or unsupported owners receive detection and guidance only. OPL never silently
+overwrites Homebrew, npm, PATH, or system installs. The Temporal JavaScript
+runtime moves with the OPL Base generation; the optional Temporal CLI remains
+external unless explicitly managed by its owner.
 
-Exception state: emphasize only OPL Base, OPL App, or the individual OPL
-Packages that need action, and explain user impact before action. Runtime and
-companion dependency status stays nested under OPL Base. Codex Surface sync and
-Workflow Profile migration status stays nested under OPL Packages.
-
-The maintenance surface consumes Framework plan and receipt fields rather than
-maintaining a second dependency or package catalog. It may show background
-apply only when `auto_apply.eligible` and `app_background_safe` are true and it
-uses `command_ref` as the executable route. Dirty, developer, user-managed, and
-global tool sources remain unchanged and appear as attention. Package receipts
-normally lead to a refresh-Codex hint; staged Base runtime and App carrier
-changes lead to restart-to-finish guidance with rollback evidence.
-
-Management details: component Apply, Repair, Rollback, package sync, and other
-one-time commands open in an explicit management modal with confirmation,
-progress, and result binding.
-
-Technical details: raw action ids, software-object ids, dependency and
-integration status, package projection and profile migration status, command
-mappings, paths, and receipts open in a separate read-only diagnostic modal.
-Package projection status is read from
-`managed_update.components[opl_packages].projection_status`.
-
-Required anchors: `health`, `updates`, `services`, `packages`.
-
-Update and Local Services are anchors on this page. Maintenance must not show a
-second navigation directory, a runtime task board, or three equal action buttons
-sharing one loading state. It must not expose runtime substrate, companion
-tools, Codex Surface, or Workflow Profile as peer update products, and it must
-not expose a component picker or a public `--component` action.
+Update channel is the one inline persistent control. Apply, repair, rollback,
+package sync, and other commands live in an explicit management modal.
+Framework paths, raw working directories, ids, command mappings, receipts, and
+payloads live only in read-only Maintenance diagnostics. Retired Advanced
+routes here.
 
 ### Data & Storage
 
-Primary information:
+Storage renders the last persisted inventory snapshot immediately. If no
+snapshot exists it shows a loading placeholder, never synthetic `0 B`. Each
+snapshot exposes `observed_at`, `scan_duration_ms`, and `stale`.
 
-- one merged category list;
-- size, safety, and next action for each category;
-- cleanup preview;
-- cleanup history.
+A delayed startup scan, TTL refresh, and manual force refresh run in the
+background. Completion publishes
+`local-data-lifecycle.inventory-updated`; the page updates without requiring
+re-entry. Large roots do not use recursive long-lived filesystem watches.
 
-Primary action: preview cleanup when reclaimable items exist.
-
-Cleanup execution confirmations must be immediately reachable from every
-category row. If the confirmation is rendered at the page summary rather than
-beside the triggering row, the App scrolls it into view and moves keyboard focus
-to it.
-
-Exception state: unsafe or unprotected candidates are emphasized and execution
-is disabled.
-
-Technical details: `dry-run`, plans, receipt refs, lifecycle ids, SQLite details,
-and raw paths.
-
-Required anchors: `storage-categories`, `cleanup-preview`, `cleanup-history`.
-
-Ordinary copy uses "preview cleanup", "items that will be removed", "archive",
-"restore", and "cleanup record" rather than raw lifecycle terminology.
-The restore probe is diagnostic evidence only. A verified archive exposes one
-ordinary Restore action that recreates the archived conversation without
-overwriting an existing conversation unless the user resolves the collision.
+Storage may show the resolved Workspace-owned log path only as a read-only
+reference. Cleanup uses preview then confirmation; zero-byte categories show
+nothing to clean and no action. Archive requires a receipt before delete, and
+restore never overwrites an existing conversation without an explicit collision
+decision. Docker usage follows the existing `OnePersonLab/data -> /data` mount
+and does not expose generic prune or volume-rewire controls.
 
 ### Preferences
 
-Primary information:
-
-- reply waiting time in human units;
-- performance and agent-idle waiting controls as persistent settings;
-- tray and close-window behavior;
-- hardware acceleration;
-- themes and appearance.
-
-Primary action: none. Preferences use inline controls.
-
-Exception state: restart-required or unsupported hardware states appear next to
-the affected setting only.
-
-Technical details: Preferences has no dedicated diagnostic disclosure. Raw
-millisecond values, Electron flags, and theme implementation ids are not
-rendered; interactive timeout, idle-assistant, and hardware controls remain in
-the named configuration group.
-
-Required anchors: `behavior`, `notifications`, `models-performance`,
-`display-fonts`, and `themes`.
-
-Theme is an anchor on Preferences, not an independent page.
-
-### Personalization
-
-Primary information:
-
-- the user-owned system `AGENTS.md`, with backup and stale-write protection;
-- the currently installed OPL Flow default and an explicit restore action;
-- the read-only OPL App generated base context for new conversations;
-- editable additional instructions that apply only to new OPL App conversations.
-
-Primary action: none. Save and restore actions stay beside the content they own.
-
-Exception state: oversized or externally changed `AGENTS.md`, or an unavailable
-OPL Flow default, appears beside the affected editor only.
-
-Technical details: no separate diagnostic disclosure. The user file path and
-installed OPL Flow version are supporting context, not a second status panel.
-
-Required anchors: `system-agents` and `opl-app-context`.
-
-Workspace remains independent because it owns project paths, file permissions,
-and artifact roots. Personalization owns user-level instructions and defaults
-for future conversations; merging them would mix workspace scope with user
-scope and make both pages harder to reason about.
-
-### Advanced
-
-Surface type: diagnostic page, not Settings/configuration.
-
-Primary information: read-only working directories with user-facing labels.
-
-Primary action: none.
-
-Exception state: missing or inaccessible directories without shell-owned repair
-controls.
-
-Technical details: the resolved workspace and log paths are shown directly in
-two rows with an open-folder action. There is no second summary and no collapsed
-duplicate.
-
-Required anchor: `working-directories`.
-
-Advanced must not contain Developer Mode, Developer Profile, OPL Flow editing,
-source-channel mutation, provider controls, or runtime/domain mutation.
-
-Developer source selection belongs to **Agents & Capabilities**, beside the
-packages it affects. The page exposes one Managed / Automatic / Developer
-segmented control, one safe-maintenance switch, and a compact readback of the
-selected developer workspace and, after full inspection, the GitHub identity
-and repository authority. Fast state must hide deferred identity/authority
-placeholders instead of rendering `Not reported` or a misleading zero count. Each
-package detail exposes Auto / Managed / Developer source selection and shows
-the actual checkout, managed fallback, developer checkout, and any fallback
-reason. The five Developer Profile capability axes remain supporting status;
-they must not become five peer cards or hide the source controls.
-
-The source selector and safe-maintenance switch are independent. Changing
-maintenance permission must not change the selected Framework or package
-checkout, and changing source must not silently grant repository or runtime
-mutation permission.
+Preferences owns application behavior, notifications, performance and waiting,
+display, fonts, and themes. Theme remains an anchor rather than an independent
+page. User instructions and OPL App context stay on Workspace & Personalization
+so paths and personalization are not duplicated across pages.
 
 ### About
 
-Primary information:
+About shows App version, Stable or Nightly channel, cached update status, and
+one Check for updates action. The App performs one update check after startup
+and publishes it to a shared main-process updater state store. Mounting or
+navigating to About only reads that state and never starts a check. The manual
+button refreshes the same shared state.
 
-- One Person Lab App version;
-- Stable or Nightly channel;
-- update status.
+Shell version, Framework revision, build ids, and raw update refs stay in
+technical details. Repair, rollback, package maintenance, and storage cleanup
+remain on their owner pages.
 
-Primary action: Check for updates.
+## Search, Visual, And DOM Contract
 
-Exception state: update available or update check failed, without raw error
-codes on the main surface.
+Settings exposes exactly one bilingual item-level search input,
+`settings-search-input`. Results use `{page_label} > {entry_label}`, navigate to
+the owner carrier route, and focus the declared anchor. Duplicate Settings
+search inputs are forbidden.
 
-Technical details: GUI shell version, OPL Framework revision, build ids, and raw
-update refs.
+Settings preserves the OPL bounded-card baseline:
 
-Required anchors: `version`, `channel`, `updates`.
+- one card answers one user question and contains flat rows;
+- no nested cards, page-wide list wall, or floating dashboard sections;
+- two to four first-viewport groups where the page density supports them;
+- responsive desktop grid and mobile stack;
+- 28 px icon slots, compact type, 8 px maximum radius, 12/16/24 spacing, and 0
+  letter spacing;
+- normal, warning, error, and action use muted, orange, red, and brand
+  semantics;
+- one selected sidebar item and at most one page primary action;
+- the compact footer opens Account & Gateway when an account is connected, or
+  Overview/Settings otherwise, and keeps the theme switcher after it;
+- technical details open explicitly and never hide interactive persistent
+  controls.
 
-About stays at `/settings/about`. Repair, rollback, package maintenance, and
-storage cleanup remain on their owner pages.
-
-## DOM Contract
-
-Every product page always renders:
-
-- `settings-page-<product_page_id>`;
-- `settings-<product_page_id>-primary`;
-
-Pages render `settings-<product_page_id>-technical-details` only while an
-explicit read-only diagnostic modal or drawer is open. Advanced intentionally
-omits a second disclosure because paths are the page's direct expert content.
-
-Attention states render:
-
-- `settings-<product_page_id>-exception`.
-
-Pages with a visible primary action render:
-
-- `settings-<product_page_id>-primary-action`.
-
-Each page also renders its declared anchor values as stable section `id`
-attributes. Conditional actions may be absent when their availability condition
-is false; the page-level limit remains one.
+Every product page renders `settings-page-<product_page_id>` and
+`settings-<product_page_id>-primary`. Conditional exception, primary-action,
+and technical-details test ids follow the machine contract. Every declared
+anchor is a stable, focusable section id.
 
 ## State And Action Boundary
 
-Default reads use:
+Default reads use `opl app state --profile fast --json`. Explicit detail reads
+use `opl app state --profile full --json`. Mutations use
+`opl app action execute --action <action_id> [--payload <json>] [--dry-run]
+--json`.
 
-```text
-opl app state --profile fast --json
-```
+Mutation-capable surfaces are single-flight. Competing actions and pending
+confirmations remain disabled while a read, precheck, mutation, doctor, or
+recovery operation is active. Results stay bound to the operation that produced
+them.
 
-Explicit detail refreshes use:
+## AionUI Adapter Boundary
 
-```text
-opl app state --profile full --json
-```
+OPL Settings is an App-owned overlay, not an AionUI fork-body redesign.
 
-Mutations use:
-
-```text
-opl app action execute --action <action_id> [--payload <json>] [--dry-run] --json
-```
-
-The shell may render state, confirmations, progress, and receipts. It must not
-write runtime truth, provider implementation, domain truth, owner receipts, or
-release readiness.
-
-Mutation-capable Settings surfaces are single-flight. While a read, precheck,
-mutation, doctor, or recovery operation is pending, every competing action and
-pending confirmation on that surface is disabled. A second interaction must not
-issue another bridge call, and the visible result remains bound to the operation
-that produced it.
-
-## AionUI Fork Maintenance Contract
-
-OPL Settings is an App-owned overlay carried by AionUI, not a permanent rewrite
-of every upstream Settings page.
-
-- App contracts own routes, placement, surface classification, labels, and
-  acceptance. Framework catalogs own Framework values and actions.
-- The Shell should add OPL pages as overlay files and keep upstream integration
-  concentrated in `SettingsModal/index.tsx`, `SettingsHost.tsx`,
-  `SettingsShellAdapterSlot.tsx`, and `settingsRegistry.tsx`.
-- A new upstream Settings, Assistant, Skills, Tools, Update, WebUI, language, or
-  extension surface is hidden until App intake records classify it as
-  `accepted`, `adapt`, `redirect`, or `reject`.
-- Unclassified extension tabs never become ordinary OPL navigation merely
-  because an AionUI extension registered them. Hiding an entry never deletes
-  extension-owned data.
-- A change that directly modifies more than four new upstream fork-body choke
-  points requires an App-owner rationale, upstream delta classification,
-  focused merge-conflict tests, and a retirement or upstreaming plan.
-- Generated product profiles and locale files remain expected merge hotspots;
-  sync checks must prove that they project App truth without becoming a second
-  authority.
-
-The intake review runs against every newly fetched AionUI release before merge,
-not only when a conflict appears. This keeps upstream upgrades a bounded adapter
-exercise instead of a later full Settings reimplementation.
+- App contracts own routes, placement, labels, surface classification, and
+  acceptance; Framework catalogs own Framework values and actions.
+- Shell integration stays concentrated in Settings host, adapter slot,
+  registry, generated profile, locale, and OPL overlay files.
+- New upstream Settings or extension entries remain hidden until App intake
+  classifies them as accepted, adapted, redirected, or rejected.
+- Hiding an entry never deletes extension-owned data.
+- Generated profile and locale checks prove they project App truth; they do not
+  become a second authority.
 
 ## Verification Boundary
 
-Contract and focused validation prove the App-owned product requirement and
-matrix consistency. They do not prove that the running shell implements the DOM,
-that every anchor scrolls correctly, that visual screenshots pass, that an
-installed App is current, or that a release is ready.
+Contract and focused tests prove only their App-owned slices. Shell acceptance
+also requires:
 
-Shell acceptance requires:
+- ten ordinary routes, About as the only secondary page, and every redirect;
+- Gateway single ownership and Resources filtering;
+- Agents Chinese/source/OMA defaults and Developer Mode effective-state
+  readback;
+- non-empty Flow-managed capability projection, third-party naming, and
+  AionUI-native ownership routing;
+- visible managed Codex/Temporal currentness and external-install guidance;
+- persisted Storage snapshot, freshness, background event, manual refresh, and
+  unknown-not-zero behavior;
+- one startup update check, shared updater state, and no About mount check;
+- all required DOM, anchors, search behavior, responsive layout, and fresh
+  desktop/mobile screenshots without overlap.
 
-- the single search input and bilingual item results;
-- route plus `section` parsing for all compatibility redirects;
-- screenshot preflight matches requested and resolved routes and matches the
-  expected and visible page titles before capture; mismatches fail closed;
-- all required page roots, primary regions, actions, exception regions,
-  non-duplicative diagnostic surfaces, and stable section-id anchors;
-- `settings-resources-browser-access` remains visible on Resources & Connections;
-- legacy `assistants` returns to the OPL capability directory and never mounts
-  AionUI `AssistantSettings`; hiding the entry does not authorize deletion of
-  underlying AionUI user data;
-- resource `Open`, `Diagnose`, and mutating actions obey their execution and
-  dry-run claim boundaries;
-- one fresh default desktop light check for the ordinary and secondary routes;
-- exactly one selected sidebar item, bounded page-section cards with flat
-  internal rows, shared repeated-entity column headers, and primary actions
-  adjacent to their owning object or section;
-- no nested cards, no sparse page-wide bare-divider layout, no duplicated global
-  search, no text overlap, and no more than one primary action per page.
-
-Release and runtime currentness remain separate owner gates.
+These checks do not prove package installation, runtime currentness, release
+promotion, or owner acceptance. Those remain separate release-owner gates.

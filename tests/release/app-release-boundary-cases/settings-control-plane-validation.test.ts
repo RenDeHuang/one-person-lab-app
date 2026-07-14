@@ -1,4 +1,5 @@
 import { appRoot, assert, fs, path, test } from "./helpers.ts";
+import { validateAppGuiProductContract } from "../../../scripts/validate-active-shell/gui-product-contract-validator.ts";
 import { validateSettingsControlPlane } from "../../../scripts/validate-active-shell/settings-control-plane-validator.ts";
 
 function readJson(relativePath: string) {
@@ -25,7 +26,15 @@ function validate(values = contracts()) {
   );
 }
 
-test("Settings contract keeps nine product pages, two secondary pages, and anchored compatibility routes", () => {
+function validateGui(guiContract) {
+  validateAppGuiProductContract(
+    guiContract,
+    readJson("contracts/app-release-channel.json"),
+    readJson("contracts/app-install-exposure-policy.json"),
+  );
+}
+
+test("Settings contract keeps ten product pages, About as the only secondary page, and anchored compatibility routes", () => {
   const values = contracts();
 
   assert.doesNotThrow(() => validate(values));
@@ -33,7 +42,8 @@ test("Settings contract keeps nine product pages, two secondary pages, and ancho
     values.controlPlane.ordinary_routes.map((route) => route.product_page_id),
     [
       "overview",
-      "access",
+      "gateway",
+      "models",
       "workspace",
       "agents",
       "capabilities",
@@ -47,19 +57,20 @@ test("Settings contract keeps nine product pages, two secondary pages, and ancho
     values.controlPlane.ordinary_routes.map((route) => route.default_label_zh),
     [
       "概览",
-      "模型与访问",
+      "账户与 Gateway",
+      "模型",
       "工作区与个性化",
       "智能体",
       "能力",
       "资源与连接",
-      "本机环境",
+      "维护",
       "数据与存储",
       "偏好",
     ],
   );
   assert.deepStrictEqual(
     values.controlPlane.secondary_pages.map((page) => page.id),
-    ["advanced", "about"],
+    ["about"],
   );
   assert.deepStrictEqual(
     Object.fromEntries(
@@ -79,8 +90,17 @@ test("Settings contract keeps nine product pages, two secondary pages, and ancho
   );
   assert.equal(values.controlPlane.legacy_route_redirects.about, undefined);
   assert.equal(
+    values.controlPlane.legacy_route_redirects.advanced,
+    "environment#diagnostics",
+  );
+  assert.equal(
     values.controlPlane.legacy_route_redirects.assistants,
-    "capabilities?tab=skills",
+    "capabilities#third-party",
+  );
+  assert.equal(
+    values.guiContract.settings_navigation.settings_ia.protocols.deep_link_policy
+      .unknown_route_policy,
+    "redirect_to_overview_default_route",
   );
   assert.deepStrictEqual(
     values.controlPlane.aionui_custom_assistant_boundary,
@@ -88,7 +108,7 @@ test("Settings contract keeps nine product pages, two secondary pages, and ancho
       opl_app_product_surface: false,
       ordinary_navigation_entry_allowed: false,
       entry_may_be_hidden: true,
-      legacy_assistants_target: "capabilities?tab=skills",
+      legacy_assistants_target: "capabilities#third-party",
       underlying_user_data_owner: "aionui",
       underlying_user_data_deletion_policy:
         "forbidden_without_explicit_app_contract_and_migration_or_deletion_evidence",
@@ -98,6 +118,15 @@ test("Settings contract keeps nine product pages, two secondary pages, and ancho
 });
 
 test("Settings validator keeps runnable package lifecycle on Agents", () => {
+  const values = contracts();
+  assert.doesNotThrow(() => validate(values));
+  assert.doesNotThrow(() => validateGui(values.guiContract));
+  assert.equal(
+    values.guiContract.interaction_baseline.capability_selection
+      .management_surface,
+    "settings_agents",
+  );
+
   const staleProfileRef = contracts();
   staleProfileRef.controlPlane.page_adapter_policy.required_pages.agents
     .directory_projection_surface.activation_action_contract_ref =
@@ -105,6 +134,14 @@ test("Settings validator keeps runnable package lifecycle on Agents", () => {
   assert.throws(
     () => validate(staleProfileRef),
     /Settings Agents directory projection.*package activation action/,
+  );
+
+  const packageManagementOnCapabilities = contracts();
+  packageManagementOnCapabilities.guiContract.interaction_baseline.capability_selection.management_surface =
+    "settings_capabilities";
+  assert.throws(
+    () => validate(packageManagementOnCapabilities),
+    /Settings Agents must own Agent package and Home shortcut management/,
   );
 
   const missingActivationAxis = contracts();
@@ -118,6 +155,164 @@ test("Settings validator keeps runnable package lifecycle on Agents", () => {
     () => validate(missingActivationAxis),
     /Settings Agents status axes/,
   );
+});
+
+test("Settings Agents treats the canonical directory as discovery truth and exposes the complete ordinary-user catalog path", () => {
+  const values = contracts();
+  assert.doesNotThrow(() => validate(values));
+
+  const lifecycle =
+    values.guiContract.pages.settings_agents.agent_package_lifecycle_ux;
+  assert.equal(
+    lifecycle.directory_collection_contract.source,
+    "app_state.agent_packages.directory.entries",
+  );
+  assert.deepStrictEqual(lifecycle.directory_collection_contract.required_entry_fields, [
+    "package_id",
+    "display_name",
+    "publisher",
+    "description",
+    "tags",
+    "package_role",
+    "role_state",
+    "trust_tier",
+    "source_explanation",
+    "manifest_url",
+    "selected_version",
+    "stable_version",
+    "installed_version",
+    "installed",
+    "activated",
+    "installability",
+    "readiness",
+    "recommended_action",
+    "recommended_action_ref",
+    "available_actions",
+    "authority_boundary",
+  ]);
+  assert.deepStrictEqual(lifecycle.canonical_action_contract.source_fields, [
+    "directory.entries[].available_actions[]",
+    "directory.entries[].recommended_action_ref",
+  ]);
+  assert.deepStrictEqual(lifecycle.canonical_action_contract.required_action_fields, [
+    "action_id",
+    "action_ref",
+    "payload",
+    "required_payload_fields",
+    "confirmation_required",
+  ]);
+  assert.equal(
+    lifecycle.canonical_action_contract.recommended_action_id_field,
+    "directory.entries[].recommended_action",
+  );
+  assert.deepStrictEqual(lifecycle.readiness_profile_policy.fast_activated, {
+    status: "verification_deferred",
+    operational_ready: false,
+    launch_allowed: false,
+    verification_deferred: true,
+    reason: "live_verification_deferred",
+  });
+  assert.deepStrictEqual(lifecycle.readiness_profile_policy.full_verified, {
+    status: "ready",
+    operational_ready: true,
+    launch_allowed: true,
+    verification_deferred: false,
+    reason: null,
+  });
+  assert.deepStrictEqual(lifecycle.directory_controls.filters, [
+    "package_role",
+    "install_or_activation_status",
+    "source",
+  ]);
+  assert.equal(lifecycle.directory_controls.catalog_search_is_settings_global_search, false);
+  assert.ok(lifecycle.directory_controls.top_controls.includes("refresh_registry"));
+  assert.ok(lifecycle.directory_controls.row_actions.includes("install"));
+  assert.ok(lifecycle.directory_controls.row_actions.includes("activate"));
+  assert.deepStrictEqual(lifecycle.workspace_activation_contract.payload_template, {
+    package_id: "directory.entries[].package_id",
+    scope: "workspace",
+    target_workspace: "app_state.paths.workspace_root_path",
+  });
+  assert.deepStrictEqual(lifecycle.workspace_activation_contract.missing_workspace_policy, {
+    enabled: false,
+    reason_code: "workspace_root_not_configured",
+    route: "/settings/workspace",
+    anchor: "workspace",
+  });
+
+  const directory =
+    values.controlPlane.page_adapter_policy.required_pages.agents
+      .directory_projection_surface;
+  assert.equal(directory.directory_collection_source, "app_state.agent_packages.directory.entries");
+  assert.equal(
+    directory.static_metadata_overlay_source,
+    "contracts/app-product-profile.json#gui.professional_agent_packages",
+  );
+  assert.equal(directory.workspace_path_source, "app_state.paths.workspace_root_path");
+
+  const collectionRegression = contracts();
+  collectionRegression.guiContract.pages.settings_agents.agent_package_lifecycle_ux
+    .directory_collection_contract.source = "professional_agent_packages";
+  assert.throws(() => validateGui(collectionRegression.guiContract), /directory entry fields|collection truth|lifecycle UX/);
+
+  const fallbackRegression = contracts();
+  fallbackRegression.guiContract.pages.settings_agents.agent_package_lifecycle_ux
+    .fallback_state_surface = "app_state.modules.items[]";
+  assert.throws(
+    () => validateGui(fallbackRegression.guiContract),
+    /must not substitute modules or static metadata/,
+  );
+
+  const scalarActionRegression = contracts();
+  scalarActionRegression.guiContract.pages.settings_agents.agent_package_lifecycle_ux
+    .canonical_action_contract.source_fields[1] = "directory.entries[].recommended_action";
+  assert.throws(() => validateGui(scalarActionRegression.guiContract), /canonical actions|lifecycle UX/);
+
+  const globalSearchRegression = contracts();
+  globalSearchRegression.guiContract.pages.settings_agents.agent_package_lifecycle_ux
+    .directory_controls.catalog_search_is_settings_global_search = true;
+  assert.throws(() => validateGui(globalSearchRegression.guiContract), /catalog search|lifecycle UX/);
+
+  const workspaceRegression = contracts();
+  workspaceRegression.guiContract.pages.settings_agents.agent_package_lifecycle_ux
+    .workspace_activation_contract.missing_workspace_policy.enabled = true;
+  assert.throws(() => validateGui(workspaceRegression.guiContract), /workspace activation|lifecycle UX/);
+});
+
+test("Settings Capabilities owns local MCP, image, and voice controls without Preferences duplication", () => {
+  const values = contracts();
+  assert.doesNotThrow(() => validate(values));
+  assert.doesNotThrow(() => validateGui(values.guiContract));
+  assert.deepStrictEqual(values.guiContract.pages.settings_capabilities.entity_kinds, [
+    "skill",
+    "plugin",
+    "mcp_server",
+    "image_generation",
+    "voice_input",
+  ]);
+  assert.ok(
+    values.pageStateMatrix.pages.find((page) => page.id === "capabilities")
+      .required_dom.always.includes("settings-capabilities-voice-input"),
+  );
+  assert.equal(
+    values.controlPlane.experience_contract.page_contracts.preferences.surface_rules
+      .voice_input_configuration_allowed,
+    false,
+  );
+
+  const missingVoiceDom = contracts();
+  const capabilitiesPage = missingVoiceDom.pageStateMatrix.pages.find(
+    (page) => page.id === "capabilities",
+  );
+  capabilitiesPage.required_dom.always = capabilitiesPage.required_dom.always.filter(
+    (testid) => testid !== "settings-capabilities-voice-input",
+  );
+  assert.throws(() => validate(missingVoiceDom), /capabilities required DOM|Capabilities page must own local MCP, image, and voice/i);
+
+  const preferencesVoiceOwner = contracts();
+  preferencesVoiceOwner.controlPlane.experience_contract.page_contracts.preferences
+    .surface_rules.voice_input_configuration_allowed = true;
+  assert.throws(() => validate(preferencesVoiceOwner), /Settings Preferences surface rules/);
 });
 
 test("Settings validator rejects secondary-page and compatibility-route regressions", () => {
@@ -217,11 +412,11 @@ test("Settings validator rejects duplicate search, missing bilingual index data,
   assert.throws(() => validate(invalidAnchor), /declared page anchor/);
 
   const changedAnchorContract = contracts();
-  changedAnchorContract.controlPlane.experience_contract.page_contracts.access.required_anchors =
+  changedAnchorContract.controlPlane.experience_contract.page_contracts.models.required_anchors =
     ["provider-source", "model"];
   assert.throws(
     () => validate(changedAnchorContract),
-    /Access anchors|access anchors|existing page anchor/,
+    /models anchors|existing page anchor/i,
   );
 });
 
@@ -340,7 +535,7 @@ test("Settings visual QA enforces bounded-card grouping, compact footer, recogni
     footer_layout: "compact",
     footer_controls: ["gateway_account_or_settings_entry", "theme_switcher"],
     footer_account_entry_policy:
-      "show_gateway_display_name_when_connected_else_settings_on_all_routes_and_open_models_access_or_overview",
+      "show_gateway_display_name_when_connected_else_settings_on_all_routes_and_open_account_gateway_or_overview",
     footer_secondary_navigation_allowed: false,
     theme_gallery_presentation: "recognizable_preview_tiles",
     theme_swatch_list_allowed: false,
@@ -398,6 +593,7 @@ test("Settings visual QA enforces bounded-card grouping, compact footer, recogni
   });
   assert.deepStrictEqual(visualQa.evidence_dimensions.required_viewports, [
     "desktop",
+    "mobile",
   ]);
   assert.deepStrictEqual(visualQa.evidence_dimensions.required_color_schemes, [
     "light",
@@ -526,19 +722,21 @@ test("Settings strictly separates configuration, status, action, and diagnostic 
     experience.page_contracts.storage.surface_inventory.configuration.length,
     0,
   );
+  assert.ok(
+    experience.page_contracts.workspace.surface_inventory.configuration.some(
+      (surface) => surface.id === "log_directory",
+    ),
+  );
   assert.ok(experience.page_contracts.storage.surface_inventory.action.length > 0);
   assert.ok(
     experience.page_contracts.storage.surface_inventory.diagnostic.some(
       (surface) => surface.id === "storage_restore_probe",
     ),
   );
-  assert.deepStrictEqual(
-    Object.fromEntries(
-      Object.entries(experience.page_contracts.advanced.surface_inventory).map(
-        ([type, entries]) => [type, entries.length],
-      ),
-    ),
-    { configuration: 0, status: 0, action: 0, diagnostic: 1 },
+  assert.equal(experience.page_contracts.advanced, undefined);
+  assert.equal(
+    experience.page_contracts.maintenance.surface_rules.working_path_owner,
+    "Framework and raw paths live only in Maintenance diagnostics",
   );
   assert.equal(
     experience.page_contracts.workspace.surface_rules.workspace_card_count,
@@ -556,10 +754,17 @@ test("Settings strictly separates configuration, status, action, and diagnostic 
     experience.page_contracts.preferences.surface_inventory.diagnostic.length,
     0,
   );
-  assert.ok(
+  assert.equal(
     experience.page_contracts.workspace.first_viewport_groups.includes(
       "personalization",
     ),
+    true,
+  );
+  assert.equal(
+    experience.page_contracts.preferences.first_viewport_groups.includes(
+      "personalization",
+    ),
+    false,
   );
   assert.equal(
     experience.page_contracts.workspace.surface_rules
@@ -608,7 +813,7 @@ test("Settings strictly separates configuration, status, action, and diagnostic 
   assert.throws(() => validate(legacySurfaceType), /strict four-surface model/);
 
   const missingInventoryType = contracts();
-  delete missingInventoryType.controlPlane.experience_contract.page_contracts.access
+  delete missingInventoryType.controlPlane.experience_contract.page_contracts.models
     .surface_inventory.action;
   assert.throws(() => validate(missingInventoryType), /surface inventory types/);
 
@@ -634,13 +839,147 @@ test("Settings strictly separates configuration, status, action, and diagnostic 
     /update channel|maintenance operations remain actions/,
   );
 
-  const advancedConfiguration = contracts();
-  advancedConfiguration.controlPlane.experience_contract.page_contracts.advanced
-    .surface_inventory.configuration.push({
-      id: "developer_mode",
-      owner: "advanced",
-    });
-  assert.throws(() => validate(advancedConfiguration), /diagnostic-only page/);
+  const writableDiagnostics = contracts();
+  writableDiagnostics.controlPlane.experience_contract.page_contracts.maintenance.surface_rules.diagnostic_mutation_controls_allowed =
+    true;
+  assert.throws(() => validate(writableDiagnostics), /Maintenance surface rules/);
+});
+
+test("Settings keeps Gateway ownership, cached storage freshness, managed dependencies, and non-blocking startup checks", () => {
+  const values = contracts();
+  const pages = values.controlPlane.experience_contract.page_contracts;
+  const aboutPage = values.pageStateMatrix.pages.find((page) => page.id === "about");
+  const startup = values.controlPlane.state_action_policy.startup_performance_policy;
+
+  assert.doesNotThrow(() => validate(values));
+  assert.equal(
+    pages.resources.connection_filter_policy,
+    "exclude the built-in OPL Gateway connection and count; show only user-managed external connections",
+  );
+  assert.equal(
+    pages.storage.surface_rules.inventory_initial_state,
+    "last_persisted_snapshot_or_loading_placeholder_never_synthetic_zero_bytes",
+  );
+  assert.deepStrictEqual(pages.storage.surface_rules.inventory_freshness_fields, [
+    "observed_at",
+    "scan_duration_ms",
+    "stale",
+  ]);
+  assert.equal(
+    pages.storage.surface_rules.inventory_event,
+    "local-data-lifecycle.inventory-updated",
+  );
+  assert.equal(
+    pages.maintenance.surface_rules.managed_dependency_primary_visibility,
+    "managed_dependency_summary_is_visible_without_opening_diagnostics",
+  );
+  const managedDependencies =
+    values.controlPlane.page_adapter_policy.required_pages.environment
+      .managed_dependency_summary;
+  assert.equal(
+    managedDependencies.source_ref,
+    "opl update status --json#managed_update.components[component_id=opl_base].current.dependency_catalog.dependencies[]",
+  );
+  assert.deepStrictEqual(managedDependencies.required_ids, [
+    "codex-cli",
+    "temporal-runtime",
+    "temporal-system-cli",
+  ]);
+  assert.deepStrictEqual(managedDependencies.required_fields, [
+    "dependency_id",
+    "dependency_kind",
+    "installed",
+    "version",
+    "latest_version",
+    "currentness",
+    "ownership",
+    "update_policy",
+    "update_mode",
+    "update_action",
+    "activation_policy",
+    "binary_path",
+    "status",
+  ]);
+  assert.equal(aboutPage.updater_state_policy.mount_check, false);
+  assert.equal(startup.cold_budget_ms, 1500);
+  assert.equal(startup.warm_budget_ms, 1500);
+  assert.equal(
+    startup.first_window_failure_policy,
+    "render_recoverable_nonblank_shell_never_fatal_or_blank_candidate_window",
+  );
+  assert.deepStrictEqual(startup.timing_milestones, [
+    "stable_shell_first_paint",
+    "background_hydration_complete",
+  ]);
+  assert.equal(
+    startup.framework_projection_claim,
+    "not_proven_by_ui_contract_or_shell_gate",
+  );
+  assert.equal(startup.startup_projection_payload_budget_bytes, 262144);
+  assert.deepStrictEqual(startup.lazy_drilldown_routes, [
+    "agents",
+    "capabilities",
+    "storage",
+    "about",
+  ]);
+  assert.equal(startup.single_flight_background_refresh, true);
+  assert.equal(startup.global_refresh_on_route_mount, false);
+
+  const gatewayCountRegression = contracts();
+  gatewayCountRegression.controlPlane.experience_contract.page_contracts.resources.connection_filter_policy =
+    "show_all_connections_and_count";
+  assert.throws(
+    () => validate(gatewayCountRegression),
+    /exclude the built-in OPL Gateway connection and count/,
+  );
+
+  const syntheticZero = contracts();
+  syntheticZero.controlPlane.experience_contract.page_contracts.storage.surface_rules.inventory_initial_state =
+    "zero_bytes_until_scan_completes";
+  assert.throws(() => validate(syntheticZero), /Storage surface rules/);
+
+  const missingFreshness = contracts();
+  missingFreshness.controlPlane.experience_contract.page_contracts.storage.surface_rules.inventory_freshness_fields =
+    ["observed_at", "stale"];
+  assert.throws(() => validate(missingFreshness), /Storage surface rules/);
+
+  const missingPushEvent = contracts();
+  missingPushEvent.controlPlane.experience_contract.page_contracts.storage.surface_rules.inventory_event =
+    "none";
+  assert.throws(() => validate(missingPushEvent), /Storage surface rules/);
+
+  const hiddenManagedDependencies = contracts();
+  hiddenManagedDependencies.controlPlane.experience_contract.page_contracts.maintenance.surface_rules.managed_dependency_primary_visibility =
+    "diagnostics_only";
+  assert.throws(
+    () => validate(hiddenManagedDependencies),
+    /Maintenance surface rules/,
+  );
+
+  const checkOnAboutMount = contracts();
+  checkOnAboutMount.pageStateMatrix.pages.find(
+    (page) => page.id === "about",
+  ).updater_state_policy.mount_check = true;
+  assert.throws(
+    () => validate(checkOnAboutMount),
+    /About updater state policy/,
+  );
+
+  const blockingStartup = contracts();
+  blockingStartup.controlPlane.state_action_policy.startup_performance_policy.first_window_blocking_policy =
+    "wait_for_complete_fast_state";
+  assert.throws(
+    () => validate(blockingStartup),
+    /Settings startup performance policy/,
+  );
+
+  const oversizedStartup = contracts();
+  oversizedStartup.pageStateMatrix.settings_startup_performance_policy.startup_projection_payload_budget_bytes =
+    2097152;
+  assert.throws(
+    () => validate(oversizedStartup),
+    /Settings page-state startup performance policy/,
+  );
 });
 
 test("Settings validator rejects page-state DOM and search-entry drift", () => {
@@ -655,7 +994,7 @@ test("Settings validator rejects page-state DOM and search-entry drift", () => {
   const access = searchValues.pageStateMatrix.pages.find(
     (page) => page.id === "access",
   );
-  access.search_entry_ids = ["access.model"];
+  access.search_entry_ids = ["models.model"];
   assert.throws(() => validate(searchValues), /search entries/);
 
   const resourceValues = contracts();
