@@ -147,7 +147,7 @@ jobs:
           OPL_RELEASE_NOTES_PROVIDER: openai_compatible
           OPL_RELEASE_NOTES_CODEX_BASE_URL: ${{ vars.OPL_RELEASE_NOTES_CODEX_BASE_URL || 'https://gflabtoken.cn/v1' }}
           OPL_RELEASE_NOTES_CODEX_API_KEY: ${{ secrets.OPL_RELEASE_NOTES_CODEX_API_KEY }}
-          OPL_RELEASE_NOTES_MODEL: ${{ vars.OPL_RELEASE_NOTES_MODEL || 'gpt-5.4-mini' }}
+          OPL_RELEASE_NOTES_MODEL: ${{ vars.OPL_RELEASE_NOTES_MODEL || 'gpt-5.6-luna' }}
           OPL_RELEASE_NOTES_EVIDENCE_OUTPUT: ${{ runner.temp }}/opl-nightly-notes-evidence.json
           OPL_RELEASE_VERSION: ${{ needs.resolve-nightly.outputs.version }}
         run: |

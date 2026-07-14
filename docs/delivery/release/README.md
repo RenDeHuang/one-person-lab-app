@@ -468,7 +468,7 @@ The release workflows use `OPL_RELEASE_NOTES_PROVIDER=openai_compatible` with
 the OPL gflabtoken compatibility route:
 `OPL_RELEASE_NOTES_CODEX_BASE_URL=https://gflabtoken.cn/v1`,
 `OPL_RELEASE_NOTES_CODEX_API_KEY`, and
-`OPL_RELEASE_NOTES_MODEL=gpt-5.4-mini`. The writer also supports a separate
+`OPL_RELEASE_NOTES_MODEL=gpt-5.6-luna`. The writer also supports a separate
 operator-configured OpenAI-compatible endpoint for non-release probes or local
 drafting.
 There is no GitHub Models fallback and no automatic template fallback for
@@ -492,7 +492,7 @@ OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODEL=auto
 # Release workflow route.
 OPL_RELEASE_NOTES_CODEX_BASE_URL=https://gflabtoken.cn/v1
 OPL_RELEASE_NOTES_CODEX_API_KEY=<repo secret>
-OPL_RELEASE_NOTES_MODEL=gpt-5.4-mini
+OPL_RELEASE_NOTES_MODEL=gpt-5.6-luna
 ```
 
 The release-note writer reads the explicit `OPENAI_COMPATIBLE` route first and
