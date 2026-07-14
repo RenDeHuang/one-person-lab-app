@@ -294,13 +294,36 @@ Advanced 查看。
 
 | 账目 | 本文档与 App 合同能证明什么 | 当前变更后的状态 |
 | --- | --- | --- |
-| Product contract | V2 用户语义、字段、页面结构和 validator 已成为 App machine truth。 | 本分支实现并由 focused tests 验证。 |
-| Framework producer | `opl app state` 是否真实生产完整 V2 projection、inventory、usage 和 availability。 | 不由 App 合同声明完成，需 Framework lane 及 producer tests。 |
-| Shell consumer | active Shell 是否仅渲染 V2、完成交互和响应式实现。 | Runtime V2 Shell lane 以 focused unit/DOM、确定性 Playwright fixture 和 375/768/1024/1440 截图独立验收。 |
-| Live evidence | 本机真实项目、运行、heartbeat、Token、截图和 installed App user path 是否贯通。 | 不由 contract/focused tests 声明完成，需独立 E2E 验收。 |
+| Product contract | V2 用户语义、字段、页面结构和 validator 已成为 App machine truth。 | 已落入 App `main`；focused contract/release tests 已验证。 |
+| Framework producer | `opl app state` 是否真实生产完整 V2 projection、inventory、usage 和 availability。 | 已由 Framework producer tests 和本机 `opl app state --profile fast --json` 回读验证。 |
+| Shell consumer | active Shell 是否仅渲染 V2、完成交互和响应式实现。 | 已由 focused unit/DOM、确定性 Playwright fixture，以及安装版 375/768/1024/1358 px UI 验收验证。 |
+| Live evidence | 本机真实项目、运行、heartbeat、Token、截图和 installed App user path 是否贯通。 | 2026-07-15 本机安装版 user path 已通过；范围仅限当前维护者 Mac，不等于 Stable/Public release。 |
 
 合同、文档或 focused tests 通过，不等于 Framework producer、Shell、像素、安装包或 live runtime
 完成。只有四项分别提供证据，Runtime V2 才能整体关闭。
+
+### 2026-07-15 本机安装版验收
+
+本次验收以 `/Applications/One Person Lab.app` 为唯一 UI 对象，精确记录见
+[`runtime-local-installed-acceptance-2026-07-15.json`](../../delivery/release-evidence/runtime-local-installed-acceptance-2026-07-15.json)。
+
+- 安装版与构建产物的 `app.asar` SHA-256 均为
+  `4b399c3326dcdc989fa1eb6427fd95b5103d6528014ddba9ca7413df5e121c08`，
+  `codesign --verify --deep --strict` 通过；App 退出、重启后再次验收通过。
+- Framework fast readback 为 5 个智能体、6 个项目、9 个 work item、9 visible、0 archived、
+  0 running；MAS 项目名严格为 `DM-CVD-Mortality-Risk`、`NF-PitNET`、`Obesity`。
+- Agent 选 Med Auto Science 后仍有 9 项；Project 选 `DM-CVD-Mortality-Risk` 后为 4 项。
+  默认列表、Stage Popover、详情 Drawer、归档确认和归档库均走真实安装版界面。
+- DM003 展示完整 8 个 MAS Stage，全部为已完成；当前无 Stage/Attempt，当前 Stage Token
+  显示“不适用”，任务累计显示 `25,490 tokens`。历史无 telemetry 的项目继续诚实显示未记录。
+- 归档一项后主列表为 8、归档库为 1；恢复后回到 9 visible、0 archived，并在 App 重启后保持。
+- `zh-CN` 和 `en-US` 均通过；英文 Runtime 与 Stage Map 未混入中文状态、Next Step、owner 或 Stage。
+- 1358、1024、768、375 px 均无 document/body/Runtime 横向溢出，Stage Popover 与 680 px
+  Drawer 完整落位；Playwright 期间 console error 与 page error 均为 0。
+
+这是一条本机安装版 Runtime user-path 证据。它不声明当前显示的 `26.7.14` 等同于已发布的
+同版本公共 cohort，也不声明 Stable/latest、clean VM、跨机器、release-ready、owner acceptance、
+领域 ready 或 OPL family production-ready。
 
 ## 验收标准
 

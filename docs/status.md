@@ -208,6 +208,19 @@ never owns runtime truth, provider implementation, domain truth, artifact body,
 owner receipts, typed blockers, domain verdicts, App release readiness, or
 family production readiness.
 
+The Runtime V2 local installed user path was accepted on the maintainer Mac on
+2026-07-15 against `/Applications/One Person Lab.app`: 9 visible work items,
+0 archived after archive/restore readback, complete eight-stage MAS maps,
+DM003 cumulative usage of 25,490 tokens, Chinese and English rendering, four
+responsive viewport widths, and restart readback all passed without renderer
+console or page errors. The exact local cohort, App hash, source refs, and claim
+boundary are recorded in
+`docs/delivery/release-evidence/runtime-local-installed-acceptance-2026-07-15.json`.
+This closes only the current maintainer-Mac Runtime user path; it does not claim
+Stable/latest publication, public-release cohort equivalence, clean-VM or
+cross-machine proof, release readiness, owner acceptance, domain readiness, or
+OPL family production readiness.
+
 The upstream AionUI Team surface is disabled for ordinary OPL App use. The
 current owner for the exact redirect, sidebar, deep-link, Team MCP scrub,
 agent-switching, and IPC mutation gates is the App GUI / shell adapter contract

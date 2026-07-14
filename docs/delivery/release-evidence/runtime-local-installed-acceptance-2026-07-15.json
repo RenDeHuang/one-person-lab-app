@@ -1,0 +1,103 @@
+{
+  "schema": "opl_app_runtime_local_installed_acceptance.v1",
+  "observed_at": "2026-07-14T17:38:30Z",
+  "scope": "maintainer_mac_local_installed_runtime_user_path",
+  "status": "passed",
+  "installed_app": {
+    "path": "/Applications/One Person Lab.app",
+    "bundle_identifier": "cn.onepersonlab.opl",
+    "reported_bundle_version": "26.7.14",
+    "app_asar_sha256": "4b399c3326dcdc989fa1eb6427fd95b5103d6528014ddba9ca7413df5e121c08",
+    "build_output_app_asar_sha256": "4b399c3326dcdc989fa1eb6427fd95b5103d6528014ddba9ca7413df5e121c08",
+    "codesign_verify_deep_strict": "passed",
+    "restarted_after_install": true
+  },
+  "source_refs": {
+    "app_commit": "6018ab31fdc25773cea803217c4935abcc3b8126",
+    "shell_commit": "882f0e271",
+    "framework_commit": "4aa20dc3a64b26bc32269ad8f2553250e0a1cef1",
+    "agent_stage_catalog_commits": {
+      "med_auto_science": "c2feb9f0b",
+      "med_auto_grant": "8ceb733",
+      "redcube_ai": "0de0631f",
+      "opl_meta_agent": "e261796",
+      "opl_book_forge": "86f3807"
+    }
+  },
+  "framework_readback": {
+    "command": "opl app state --profile fast --json",
+    "agent_count": 5,
+    "project_count": 6,
+    "work_item_count": 9,
+    "visible_work_item_count": 9,
+    "archived_work_item_count": 0,
+    "running_count": 0,
+    "user_attention_count": 0,
+    "system_attention_count": 0,
+    "telemetry_observed_count": 1,
+    "telemetry_missing_count": 8,
+    "mas_project_display_names": ["DM-CVD-Mortality-Risk", "NF-PitNET", "Obesity"]
+  },
+  "installed_ui_acceptance": {
+    "route": "#/runtime",
+    "default_work_item_rows": 9,
+    "med_auto_science_rows": 9,
+    "dm_cvd_mortality_risk_rows": 4,
+    "project_options": ["DM-CVD-Mortality-Risk", "NF-PitNET", "Obesity"],
+    "verified_viewport_widths": [1358, 1024, 768, 375],
+    "horizontal_overflow_count": 0,
+    "console_error_count": 0,
+    "page_error_count": 0,
+    "locales_verified": ["zh-CN", "en-US"],
+    "locale_restored_to": "zh-CN",
+    "chinese_text_leak_in_english_runtime": false,
+    "dm003": {
+      "stage_count": 8,
+      "all_stages_completed": true,
+      "current_stage": null,
+      "current_attempt": null,
+      "current_stage_token_display_zh_cn": "不适用",
+      "cumulative_total_tokens": 25490
+    },
+    "archive_restore": {
+      "archive_action_applied": true,
+      "restore_action_applied": true,
+      "visible_rows_after_restore": 9,
+      "archived_rows_after_restore": 0
+    },
+    "post_restart_readback": {
+      "visible_rows": 9,
+      "archived_rows": 0,
+      "dm003_token_present": true,
+      "dm003_stage_count": 8,
+      "console_or_page_errors": 0
+    }
+  },
+  "transient_playwright_artifacts": {
+    "retention": "local_run_only_not_release_evidence",
+    "acceptance_json_sha256": "d65f3f43827f1aae8831c877594b11c5e890c0464add4282797f5f5a92a5363b",
+    "screenshots": {
+      "runtime_1358_zh_cn": "d8941793a980380e25a8206f2f690bc5da3933c805ce6fbec7798fc1122731a1",
+      "runtime_1024_zh_cn": "a87604bd64b09357090b5ac0ee3929f6a4c6babddbac2c4861566b3f7c2ae4e8",
+      "runtime_768_zh_cn": "005b110a3693f2be390fa4fc9d560c53c8027671d2cfbecfff303cbbc903b836",
+      "runtime_375_zh_cn": "7136d1999e46ee84831a471794e3f3351b1711636a473d2e5cd3840893489a15",
+      "stage_popover_zh_cn": "204a45fa2781a3f1677679eeaad1b7cf37f1311b75d7e25ed2960ebfdb37c337",
+      "dm003_drawer_zh_cn": "8f1f04ab94e2275345151a90d8f994f84dba7eb8bcd45f619e86375f723743a7",
+      "archive_confirmation_zh_cn": "9f9baa37937e9006763358233f135519e23480d44cf2516e7c0da317a56562c6",
+      "archive_library_zh_cn": "4c3899d3de4745056742b9fcc20da432b82d01d7b022c862b3f41f1cb039e5dd",
+      "runtime_1358_en_us": "468bb32561e90fda61759582552be59e07bf8891fd9745b0b9ff7e27e5db7677",
+      "stage_popover_en_us": "550e5562371aa96962cddb2198680e5b1a2e63d40df48a0bcdb402736ed8e74e",
+      "runtime_post_restart_zh_cn": "f9db151697c2efd37f1c1cb24367275a8cb3c0ddd66601b8588a7761e86690eb"
+    }
+  },
+  "claim_boundary": {
+    "local_installed_runtime_user_path_passed": true,
+    "stable_or_public_release_claim": false,
+    "reported_bundle_version_equals_public_release_cohort_claim": false,
+    "cross_machine_or_clean_vm_claim": false,
+    "release_ready_claim": false,
+    "owner_acceptance_claim": false,
+    "family_production_ready_claim": false,
+    "domain_readiness_claim": false
+  }
+}
