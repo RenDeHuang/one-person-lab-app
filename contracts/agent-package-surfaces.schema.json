@@ -163,11 +163,7 @@
           "type": "string",
           "minLength": 1,
           "not": {
-            "enum": [
-              "first_party",
-              "first_party_release_catalog",
-              "first_party_managed_cohort"
-            ]
+            "pattern": "^\\s*[Ff][Ii][Rr][Ss][Tt][^A-Za-z0-9]*[Pp][Aa][Rr][Tt][Yy]"
           }
         },
         "manifest_url": {
@@ -196,7 +192,7 @@
         "trust_tier": {
           "type": "string",
           "minLength": 1,
-          "not": {"pattern": "^first_party(?:$|_)"}
+          "not": {"pattern": "^\\s*[Ff][Ii][Rr][Ss][Tt][^A-Za-z0-9]*[Pp][Aa][Rr][Tt][Yy]"}
         }
       },
       "oneOf": [

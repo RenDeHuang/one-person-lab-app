@@ -58,6 +58,13 @@ export const starterPackageIds = ['mas', 'mag', 'rca', 'obf'];
 export const starterShortcutIds = ['research', 'grant', 'ppt', 'book'];
 export const managedShortcutIds = [...starterShortcutIds, 'oma'];
 export const managedShortcutPackageIds = [...starterPackageIds, 'oma'];
+export const forbiddenExternalFirstPartyClaimPattern =
+  '^\\s*[Ff][Ii][Rr][Ss][Tt][^A-Za-z0-9]*[Pp][Aa][Rr][Tt][Yy]';
+
+export function isExternalFirstPartyClaim(value: unknown): boolean {
+  return typeof value === 'string' && new RegExp(forbiddenExternalFirstPartyClaimPattern).test(value);
+}
+
 export const requiredSkillByPackageId = {
   mas: ['med-autoscience'],
   mag: ['med-autogrant'],

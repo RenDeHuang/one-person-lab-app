@@ -14,6 +14,7 @@ import {
   packagedSkillCopyHandlers,
   readOplFlowFullSkillDependencyClosure,
 } from '../../../scripts/build-full-first-install-package/skills.ts';
+import { forbiddenExternalFirstPartyClaimPattern } from '../../../scripts/app-product-profile-shared-validators.ts';
 
 test('App Full packages the OPL Flow offline skill closure without retired workflow plugins', () => {
   const oplFlowRoot = process.env.OPL_FULL_OPL_FLOW_ROOT?.trim() || path.resolve(appRoot, '..', 'opl-flow');
@@ -322,11 +323,11 @@ test('App package consumers separate the Framework first-party Release Set from 
     ['standard_agent', 'framework_capability_package', 'workflow_profile'],
   );
   assert.deepEqual(registryEntrySchema.properties.package_id.not.enum, canonicalPackageIds);
-  assert.deepEqual(
-    registryEntrySchema.properties.source.not.enum,
-    ['first_party', 'first_party_release_catalog', 'first_party_managed_cohort'],
-  );
-  assert.equal(registryEntrySchema.properties.trust_tier.not.pattern, '^first_party(?:$|_)');
+  assert.equal(registryEntrySchema.properties.source.not.pattern, forbiddenExternalFirstPartyClaimPattern);
+  assert.equal(registryEntrySchema.properties.trust_tier.not.pattern, forbiddenExternalFirstPartyClaimPattern);
+  for (const claim of ['first_party', 'First-Party', 'first party managed', 'first.party', 'firstPartyManaged']) {
+    assert.match(claim, new RegExp(forbiddenExternalFirstPartyClaimPattern));
+  }
   assert.equal(registryEntrySchema.properties.description.pattern, '\\S');
   assert.equal(registryEntrySchema.properties.tags.minItems, 1);
   assert.equal(registryEntrySchema.properties.tags.uniqueItems, true);
@@ -467,6 +468,16 @@ test('agent installation validator rejects invalid external registry metadata an
       mutate: (entry) => { entry.trust_tier = 'first_party_managed_cohort'; },
       expected: /must not claim first-party trust/,
     },
+    {
+      name: 'separated first-party source claim',
+      mutate: (entry) => { entry.source = 'First Party Managed'; },
+      expected: /must not claim first-party source/,
+    },
+    {
+      name: 'camel-case first-party trust claim',
+      mutate: (entry) => { entry.trust_tier = 'firstPartyManaged'; },
+      expected: /must not claim first-party trust/,
+    },
   ];
   const externalEntry = {
     package_id: 'community-review-tools',
@@ -514,6 +525,17 @@ test('agent installation validator rejects invalid external registry metadata an
         invalidRegistryPath,
       ]);
       assert.equal(result.status, 0, `${trustTier}: ${result.stderr || result.stdout}`);
+    }
+    for (const source of ['organization_registry', 'user_registry', 'community.catalog']) {
+      const validRegistry = structuredClone(registry);
+      validRegistry.entries = [{ ...structuredClone(externalEntry), source }];
+      writeFile(invalidRegistryPath, `${JSON.stringify(validRegistry, null, 2)}\n`);
+      const result = runNode([
+        'scripts/validate-agent-installation-contract.ts',
+        '--registry-path',
+        invalidRegistryPath,
+      ]);
+      assert.equal(result.status, 0, `${source}: ${result.stderr || result.stdout}`);
     }
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });

@@ -11,6 +11,7 @@ import {
   assertAppProductProfileSettingsVisualSystem,
   assertHomeComposerStateContract,
   assertProfessionalAgentPackagePolicy,
+  isExternalFirstPartyClaim,
   managedShortcutIds,
   managedShortcutPackageIds,
   requiredSkillByPackageId,
@@ -825,8 +826,8 @@ function assertAgentPackageRegistryProjection(profile: AppProductProfile, profil
   const externalEntries = registry.entries ?? [];
   const collision = externalEntries.find((entry) =>
     (typeof entry.package_id === 'string' && reservedIds.has(entry.package_id)) ||
-    entry.source === 'first_party' ||
-    entry.trust_tier === 'first_party');
+    isExternalFirstPartyClaim(entry.source) ||
+    isExternalFirstPartyClaim(entry.trust_tier));
   if (collision) {
     throw new Error('Default external Agent Package registry must have zero canonical first-party identity or trust collisions');
   }
