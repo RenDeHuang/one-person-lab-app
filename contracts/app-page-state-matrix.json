@@ -104,9 +104,10 @@
           "adapter": "gitWorkspace.inspect_and_ensureManagedWorktree",
           "metadata_schema": "opl_workspace_handoff.v1",
           "failure_policy": "show_unavailable_or_error_without_silent_local_fallback",
-          "snapshot_restore_state": "deferred_not_implemented",
-          "cleanup_state": "deferred_not_exposed",
-          "cross_host_state": "unsupported_unavailable"
+          "snapshot_restore_state": "conversation_environment_source_implemented",
+          "cleanup_state": "conversation_environment_source_implemented",
+          "cross_host_state": "required_target_protocol_owner_blocked_unavailable",
+          "cross_host_blocker_code": "remote_host_handoff_owner_surface_unavailable"
         },
         "home_composer_state_contract": {
           "contract_id": "opl_home_composer_state.v1",
@@ -499,16 +500,17 @@
           "contract_ref": "contracts/app-gui-product-contract.json#interaction_baseline.conversation_scope.local_worktree_lifecycle",
           "surface": "conversation_environment",
           "scope": "same_host_existing_task",
-          "actions": ["local_to_worktree", "worktree_to_local"],
+          "actions": ["local_to_worktree", "worktree_to_local", "create_restore_point_and_remove", "restore_worktree"],
           "eligible_thread_states": ["not_loaded", "idle"],
           "unavailable_thread_states": ["running", "archived", "system_error"],
           "protocol": "thread/settings/update",
           "failure_policy": "show_unavailable_or_error_without_silent_fallback",
           "projection_transaction": "codex_thread_cwd_first_then_aionui_projection_with_best_effort_cwd_rollback",
           "permission_boundary": "codex_permission_approval_and_sandbox_only_no_opl_cross_directory_gate",
-          "snapshot_restore_state": "deferred_not_implemented",
-          "cleanup_state": "deferred_not_exposed",
-          "cross_host_state": "unsupported_unavailable"
+          "snapshot_restore_state": "source_implemented_git_native_snapshot_receipt",
+          "cleanup_state": "source_implemented_explicit_managed_worktree_only",
+          "cross_host_state": "required_target_protocol_owner_blocked_unavailable",
+          "cross_host_blocker_code": "remote_host_handoff_owner_surface_unavailable"
         },
         "transcript_export": {
           "scope": "current_conversation_transcript_only",
@@ -645,6 +647,7 @@
         "same-host Local or Worktree handoff for an existing not-loaded or idle task from Conversation Environment",
         "running, archived, or system-error task handoff shown unavailable without silent fallback",
         "Codex thread cwd updated before AionUI projection with best-effort cwd rollback on projection failure",
+        "durable snapshot-before-remove and receipt restore for deterministic managed worktrees in Conversation Environment",
         "assistant route receipt",
         "Codex default model and reasoning status",
         "current task status slice when a task is active",
@@ -664,7 +667,8 @@
         "persistent project, workspace, locality, branch, attachment, or project-ref context strip",
         "backend, provider, Team, raw MCP, or arbitrary skills in the mobile plus sheet",
         "Local or Worktree handoff control inside the primary composer",
-        "snapshot, restore, or worktree cleanup controls claimed as available",
+        "snapshot or worktree cleanup controls outside Conversation Environment or without a durable receipt",
+        "automatic or remove-before-snapshot managed worktree deletion",
         "cross-host handoff shown as successful or available",
         "duplicate current task or Runtime summary outside the message timeline",
         "workspace bundle export authorization"
@@ -690,9 +694,13 @@
           "protocol_surface": "experimental_dynamic_tools_registered_on_thread_start",
           "implementation_evidence_required": "dynamic_tool_registration_and_item_tool_call_round_trip",
           "user_coordination_surface_evidence_sufficient": false,
-          "missing_implementation_state": "required_target_current_shell_missing",
+          "missing_implementation_state": "source_missing_protocol_blocked_required_target",
+          "blocker_code": "source_missing_protocol_blocked",
+          "protocol_capability": "codex_app_server_dynamic_tools_available",
           "current_shell_transport": "ordinary_conversation_acp_aioncore_codex_acp",
           "current_blocker": "acp_session_new_or_load_has_no_dynamic_tools_input_or_item_tool_call_callback",
+          "primary_owners": ["aioncore", "codex_acp"],
+          "shell_role": "blocked_thin_adapter",
           "required_owner_routes": [
             "aioncore_same_app_server_client_adapter",
             "codex_acp_dynamic_tool_input_response_and_acp_callback"
@@ -838,7 +846,10 @@
         ],
         "unknown_or_stale_status_policy": "refresh_then_route_or_protocol_failure",
         "idempotency_policy": "same_opaque_request_or_idempotency_key_retry_returns_first_receipt_and_result_ok_true_without_second_dispatch_message_content_repeat_allowed",
-        "cross_host_policy": "unsupported_unavailable_no_success_projection",
+        "cross_host_policy": "required_target_protocol_owner_blocked_unavailable_no_success_projection",
+        "cross_host_blocker_code": "remote_host_handoff_owner_surface_unavailable",
+        "cross_host_owner_route": "codex_app_remote_connections_host_handoff_owner",
+        "cross_host_shell_role": "blocked_thin_adapter",
         "opl_extra_confirmation_policy": "none_including_archive_cross_project_cross_workspace_workspace_write_write_set_overlap_running_steer_and_loop_advisory",
         "same_agent_tree_api_boundary": "spawn_agent_send_input_wait_agent_same_tree_only"
       },
@@ -909,13 +920,22 @@
           "delivery_modes": ["inline", "detached"],
           "default_section": "unstaged",
           "sections": ["unstaged", "staged", "commit", "branch", "last_turn"],
-          "capabilities": ["pull_request_context", "inline_comments", "stage", "commit", "push"],
-          "source_status": "partial_last_turn_implemented_inline_comments_protocol_blocked",
+          "capabilities": [
+            "pull_request_context",
+            "inline_comments",
+            "stage",
+            "commit",
+            "push"
+          ],
+          "source_status": "partial_last_turn_and_focus_context_implemented_inline_comments_protocol_blocked",
           "source_capability_status": {
             "last_turn": "source_implemented_existing_message_store",
+            "review_focus_context": "source_implemented_same_review_turn_steer_expected_turn_id",
             "inline_comments": "source_blocked_missing_typed_codex_protocol"
           },
           "last_turn_source_policy": "latest_visible_user_message_then_completed_workspace_edit_tool_calls",
+          "review_focus_delivery_policy": "non_custom_target_plain_text_turn_steer_same_review_thread_expected_turn_id_custom_instructions_not_duplicated",
+          "review_focus_failure_policy": "typed_failure_without_success_on_steer_failure_stale_or_ended_turn",
           "inline_comment_protocol_requirement": "typed_codex_app_server_file_line_comment_request_location_and_failure_semantics",
           "inline_comment_forbidden_fallbacks": ["shell_local_annotation_store", "fake_success"],
           "pull_request_context_dependency": "gh",

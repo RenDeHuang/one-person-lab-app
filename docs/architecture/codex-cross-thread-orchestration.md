@@ -2,14 +2,17 @@
 
 Owner: `one-person-lab-app`
 Purpose: `opl_app_cross_thread_orchestration_boundary`
-State: `accepted_product_target_user_surface_implemented_model_tool_protocol_blocked_remote_deferred`
+State: `accepted_product_target_user_surface_implemented_model_tool_protocol_blocked_remote_host_transport_blocked`
 Date: `2026-07-14`
 Machine boundary: 本文定义产品和架构目标。App contracts、page-state、active-shell validator与
-AionUI main source cohort `d5c7581bd3a2c547e20373ca3df716aa129846dd` 已实现本机 user-facing
-flexible cross-thread policy和可见入口；当前普通 AionUI conversation
+AionUI source cohort `6bd0b83f85e9545be3d1c0e4f230509d16e90780` 已实现本机 user-facing
+flexible cross-thread policy和keyboard-reachable thread-detail context action，普通 navigation
+不展示独立协调页；当前普通 AionUI conversation
 没有注册模型可调用的 coordination dynamic tools。历史 package/pixels仍绑定
 `b2c05a1c8dc4ef81094323b49a67b601e3c425f5`，不能改绑为新 source。Native candidate 的历史
-cohort仍需重做。Installed user path、remote host与 release promotion仍需独立 evidence。
+cohort仍需重做。Installed user path与 release promotion仍需独立 evidence；remote host handoff 是
+当前 parity required target，但公开 host-transfer owner surface 缺失，因此明确 unavailable，而不是
+被降级成可无限延期的 Shell future item。
 
 ## 结论
 
@@ -52,8 +55,8 @@ Codex App Server 当前公开的协议原语包括：
 模型调用 host tool 还依赖 App Server 的 experimental `dynamicTools`。官方文档将其定义在
 `thread/start`，Codex CLI `0.144.3` 的 experimental JSON schema也只在 `ThreadStartParams`
 暴露该字段；已注册工具可随 thread metadata 在 resume 时恢复。当前 AionUI 普通 conversation
-由既有 ACP/AionCore 路径创建，不经过本 coordination port 的 `thread/start`，因此 rail/detail
-可见协调、user dispatch 和 delivery audit 均不能证明模型已经获得 host tool。不得为填平该
+由既有 ACP/AionCore 路径创建，不经过本 coordination port 的 `thread/start`，因此 thread-detail
+context action、user dispatch 和 delivery audit 均不能证明模型已经获得 host tool。不得为填平该
 证据缺口另造第二套 thread runtime、MCP/socket 总线或 duplicate store。
 
 当前 ordinary 发送的实际 owner链路是 `useGuidSend -> /api/conversations -> /messages -> AionCore
@@ -101,10 +104,18 @@ Workspace locality handoff 与跨顶层线程消息是两条不同链路，不�
 4. 更新顺序固定为真实 Codex cwd在先、AionUI conversation projection在后；projection失败时
    best-effort恢复旧 cwd并显示错误，不伪造切换成功。
 5. `opl_workspace_handoff.v1` 只保存 locality、`localWorkspace`、`worktreePath`、task/start ref和
-   `worktreeRetention` 等 projection metadata。`preserve_for_reuse_until_snapshotted_cleanup` 是
-   future cleanup前置标记，不证明 snapshot或 cleanup 已存在。
-6. Worktree当前默认保留复用；snapshot/restore与 cleanup UI deferred。Cross-host handoff当前
-   unsupported/unavailable，不能由本机 Local/Worktree source或跨线程 receipt推导为成功。
+   `worktreeRetention` 等 projection metadata；它不是 snapshot body 或第二 Git store。
+6. Worktree默认保留复用。显式cleanup只对确定的Codex-managed worktree开放，先创建
+   `opl_worktree_snapshot_receipt.v1`并把HEAD、branch或detached HEAD、index、tracked、untracked与
+   ignored user files保留到durable Git ref/object；失败时不得remove。Restore冲突typed fail且不覆盖现有内容。
+7. Cross-host handoff只有连接、目标project、Git state transfer与destination readback来自真实host
+   transport时才可用，不能由本机Local/Worktree source或跨线程receipt推导为成功。
+
+当前 typed blocker 为 `remote_host_handoff_owner_surface_unavailable`。Primary owner 是 Codex App
+Remote Connections / host-handoff；OPL App继续拥有产品合同，AionUI Shell仅为
+`blocked_thin_adapter`。现有生产链路只启动本机 `codex app-server --stdio`，没有
+`thread/handoff`、`host/handoff` 或 transfer/migrate RPC；Aion Remote Agent 和 Framework connection
+registry 都不是 Codex host transport，不得复用它们伪造跨Host成功。
 
 Project/workspace仍只是默认 cwd、侧栏分组和上下文提示。跨目录文件、网络和命令能力只服从
 Codex permission/approval/sandbox，OPL不增加目录授权域或额外确认。
@@ -193,7 +204,7 @@ Codex/App Server，不建立 OPL confirmation layer。
 - Codex policy inheritance、interactive request pending/resolution 状态、project/workspace 上下文、
   write-set/route advisory 和失败原因。Delivery audit 不冒充独立持久化 approval receipt。
 
-当前 source 在 rail/thread detail 的 audit 中可回读，target turn 接收含 sender/reason 的普通
+当前 source 在 thread-detail audit 中可回读，target turn 接收含 sender/reason 的普通
 用户输入；独立 source/target 双边 timeline event 尚未实现，不得用单份 delivery audit 冒充。
 后续增强仍不新增默认常驻第三列，也不把协议 JSON 暴露给普通用户。
 
@@ -273,7 +284,8 @@ Host 在投递时遵循：
 
 跨线程能力复用现有 Codex-based 主工作流：
 
-- **Rail:** project 下展示 conversation/thread 状态与轻量协作标记；不新增 agent dashboard；
+- **Rail:** project 下只展示 canonical conversation/thread directory 与状态；不增加独立协调入口、
+  协作标记区块或 agent dashboard；
 - **Thread detail/popover:** 展示 goal、host、workspace、owner、关系、write set 和最近协调记录；
 - **Composer/command action:** 用户可选择目标线程并发送协作消息；普通 send 保持当前线程；
 - **Timeline:** target 显示含来源/原因的 turn；source 通过 coordination audit 查看投递状态。
@@ -323,10 +335,14 @@ JSONL。AionUI upstream intake 不能删除 OPL 已采纳的跨线程能力；�
 - approval resolution audit 只有建立独立真实 store 后才可声明。
 
 - fork、archive/unarchive、goal/metadata 投影；
-- 用户预授权策略和模型高层工具；当前 AionUI 为 `source_missing_protocol_blocked`，不能由 rail
-  user flow替代，owner route在AionCore/codex-acp ordinary thread client；
+- 用户预授权策略和模型高层工具；当前 AionUI 为 `source_missing_protocol_blocked`，不能由
+  thread-detail user flow替代，owner route在AionCore/codex-acp ordinary thread client；
+- cross-host task handoff；当前为 `remote_host_handoff_owner_surface_unavailable`，owner route在
+  Codex App Remote Connections / host-handoff，Shell不得用远端turn或Aion Remote Agent冒充；
 - wait/result aggregation 与 typed timeout/failure；
 - parent/ancestor capability-detected projection。
+- managed worktree snapshot-before-remove 与 receipt restore 已进入同主机source；自动保留数量策略、
+  archive触发自动cleanup和跨host transfer仍按各自owner/evidence独立验收。
 
 ### P2: 远程 host 聚合
 
@@ -367,9 +383,11 @@ test 替代远程或 packaged evidence。
 - `contracts/app-page-state-matrix.json`：定义状态和负例 acceptance；
 - active-shell validators/tests：证明 shell 消费 App truth，且未退化为同一 agent tree only。
 
-Active AionUI main source cohort `d5c7581bd3a2c547e20373ca3df716aa129846dd` 已实现 production App
+Active AionUI main source cohort从最终Git readback获取；`6bd0b83f85e9545be3d1c0e4f230509d16e90780` 已实现 production App
 Server `thread/*` / `turn/*` adapter、canonical thread directory、flexible routing、可见 delivery
-audit、interactive request pending handling、Runtime cockpit，以及同主机 Local/Worktree source链路。
+audit、interactive request pending handling、Runtime cockpit，以及同主机 Local/Worktree create/reuse、
+idle handoff、durable snapshot-before-remove、cleanup rollback与receipt restore。Cross-host handoff仍因
+Codex Remote Connections/host-handoff owner协议面缺失而typed unavailable。
 模型 high-level tool 仍为 `source_missing_protocol_blocked`；匹配该 source的
 pixels、package与installed-path gate仍由集成 owner独立闭合。Native candidate 的 `c1d9db...`
 历史 cohort仍绑定旧 hard-gate policy，
@@ -377,5 +395,6 @@ pixels、package与installed-path gate仍由集成 owner独立闭合。Native ca
 
 该状态不等于 packaged 产品验收。Packaged UI 两根线程端到端、live `turn/steer` 竞态、current
 pixels、安装路径与 release promotion仍按验收矩阵独立关闭，未取得证据前不得宣称
-`packaged_ready` 或 `release_ready`。Remote host是独立 future capability，当前明确 unavailable；
-只有真实连接、路由与断线恢复 evidence完成后才能声明 `remote_ready`。
+`packaged_ready` 或 `release_ready`。Remote host是当前 parity required target，但被协议owner阻断；
+当前必须明确 unavailable，只有真实连接、任务与Git状态迁移、目标readback和断线恢复 evidence完成后
+才能声明 `remote_ready`。

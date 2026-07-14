@@ -1049,10 +1049,14 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     threadModelToolEvidence.implementation_evidence_required !==
       'dynamic_tool_registration_and_item_tool_call_round_trip' ||
     threadModelToolEvidence.user_coordination_surface_evidence_sufficient !== false ||
-    threadModelToolEvidence.missing_implementation_state !== 'required_target_current_shell_missing' ||
+    threadModelToolEvidence.missing_implementation_state !== 'source_missing_protocol_blocked_required_target' ||
+    threadModelToolEvidence.blocker_code !== 'source_missing_protocol_blocked' ||
+    threadModelToolEvidence.protocol_capability !== 'codex_app_server_dynamic_tools_available' ||
     threadModelToolEvidence.current_shell_transport !== 'ordinary_conversation_acp_aioncore_codex_acp' ||
     threadModelToolEvidence.current_blocker !==
       'acp_session_new_or_load_has_no_dynamic_tools_input_or_item_tool_call_callback' ||
+    !sameStrings(threadModelToolEvidence.primary_owners, ['aioncore', 'codex_acp']) ||
+    threadModelToolEvidence.shell_role !== 'blocked_thin_adapter' ||
     !sameStrings(threadModelToolEvidence.required_owner_routes, [
       'aioncore_same_app_server_client_adapter',
       'codex_acp_dynamic_tool_input_response_and_acp_callback',
@@ -1122,11 +1126,18 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     threadIdempotencyPolicy.same_key_retry_behavior !==
       'return_first_receipt_and_result_with_ok_true_without_second_dispatch' ||
     threadIdempotencyPolicy.message_content_repeat_allowed !== true ||
-    threadCrossHostPolicy.state !== 'unsupported_unavailable' ||
+    threadCrossHostPolicy.state !== 'required_target_protocol_owner_blocked_unavailable' ||
+    threadCrossHostPolicy.blocker_code !== 'remote_host_handoff_owner_surface_unavailable' ||
+    threadCrossHostPolicy.primary_owner !== 'codex_app_remote_connections_host_handoff_owner' ||
+    threadCrossHostPolicy.product_contract_owner !== 'one_person_lab_app' ||
+    threadCrossHostPolicy.shell_role !== 'blocked_thin_adapter' ||
+    threadCrossHostPolicy.current_transport_state !== 'local_app_server_only_no_host_transfer_rpc' ||
+    threadCrossHostPolicy.required_transport !==
+      'connected_host_task_handoff_with_git_state_transfer_destination_readback_and_disconnect_recovery' ||
     threadCrossHostPolicy.direct_message_allowed !== false ||
     threadCrossHostPolicy.handoff_available !== false ||
     threadCrossHostPolicy.success_projection_allowed !== false ||
-    threadCrossHostPolicy.future_scope !== 'deferred_remote_host_coordination' ||
+    threadCrossHostPolicy.parity_requirement !== 'current_required_target_blocked_on_protocol_owner' ||
     !sameStrings(threadCoordination.required_states, coordinationStates) ||
     !sameStrings(threadCoordination.audit_fields, coordinationAuditFields) ||
     threadCoordination.user_visibility_policy !==
@@ -1200,7 +1211,11 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     coordinationViewModel.unknown_or_stale_status_policy !== 'refresh_then_route_or_protocol_failure' ||
     coordinationViewModel.idempotency_policy !==
       'same_opaque_request_or_idempotency_key_retry_returns_first_receipt_and_result_ok_true_without_second_dispatch_message_content_repeat_allowed' ||
-    coordinationViewModel.cross_host_policy !== 'unsupported_unavailable_no_success_projection' ||
+    coordinationViewModel.cross_host_policy !==
+      'required_target_protocol_owner_blocked_unavailable_no_success_projection' ||
+    coordinationViewModel.cross_host_blocker_code !== 'remote_host_handoff_owner_surface_unavailable' ||
+    coordinationViewModel.cross_host_owner_route !== 'codex_app_remote_connections_host_handoff_owner' ||
+    coordinationViewModel.cross_host_shell_role !== 'blocked_thin_adapter' ||
     coordinationViewModel.opl_extra_confirmation_policy !==
       'none_including_archive_cross_project_cross_workspace_workspace_write_write_set_overlap_running_steer_and_loop_advisory' ||
     coordinationViewModel.same_agent_tree_api_boundary !== 'spawn_agent_send_input_wait_agent_same_tree_only'
@@ -1302,12 +1317,25 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     !sameStrings(reviewPane.delivery_modes, ['inline', 'detached']) ||
     reviewPane.default_section !== 'unstaged' ||
     !sameStrings(reviewPane.sections, ['unstaged', 'staged', 'commit', 'branch', 'last_turn']) ||
-    !sameStrings(reviewPane.capabilities, ['pull_request_context', 'inline_comments', 'stage', 'commit', 'push']) ||
-    reviewPane.source_status !== 'partial_last_turn_implemented_inline_comments_protocol_blocked' ||
+    !sameStrings(reviewPane.capabilities, [
+      'pull_request_context',
+      'inline_comments',
+      'stage',
+      'commit',
+      'push',
+    ]) ||
+    reviewPane.source_status !==
+      'partial_last_turn_and_focus_context_implemented_inline_comments_protocol_blocked' ||
     reviewCapabilityStatus.last_turn !== 'source_implemented_existing_message_store' ||
+    reviewCapabilityStatus.review_focus_context !==
+      'source_implemented_same_review_turn_steer_expected_turn_id' ||
     reviewCapabilityStatus.inline_comments !== 'source_blocked_missing_typed_codex_protocol' ||
     reviewPane.last_turn_source_policy !==
       'latest_visible_user_message_then_completed_workspace_edit_tool_calls' ||
+    reviewPane.review_focus_delivery_policy !==
+      'non_custom_target_plain_text_turn_steer_same_review_thread_expected_turn_id_custom_instructions_not_duplicated' ||
+    reviewPane.review_focus_failure_policy !==
+      'typed_failure_without_success_on_steer_failure_stale_or_ended_turn' ||
     reviewPane.inline_comment_protocol_requirement !==
       'typed_codex_app_server_file_line_comment_request_location_and_failure_semantics' ||
     !sameStrings(reviewPane.inline_comment_forbidden_fallbacks, ['shell_local_annotation_store', 'fake_success']) ||

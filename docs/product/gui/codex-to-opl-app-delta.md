@@ -237,6 +237,9 @@ OPL App 在 Codex baseline 上增加可解释的本机准备：
 ## Local-first / Cloud-continuous 增量
 
 - macOS desktop 使用 native window、directory picker 和 packaged App。
+- Local/Worktree只决定任务当前运行位置，不形成目录权限域。Managed worktree默认保留；显式
+  cleanup必须先生成durable Git snapshot receipt，恢复时还原HEAD、branch或detached HEAD、
+  index、tracked、untracked与ignored user files，冲突typed fail且不覆盖用户现有内容。
 - Docker/WebUI 在受控 workspace/volume 中提供同一产品语义。
 - Hosted WebUI 加账号、存储、隔离和资源策略后可以成为 OPL Workspace delivery。
 - Gateway、Fabric、Console、SSH/HPC 和其它资源通过 refs、plan/approve/run/collect/

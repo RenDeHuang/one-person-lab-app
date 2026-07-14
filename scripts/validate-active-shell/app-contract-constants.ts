@@ -976,8 +976,7 @@ export const appOwnedPageStateHomeLayout = {
   ],
 };
 export const appOwnedLocalWorktreeLifecycle = {
-  state:
-    "same_host_source_implemented_snapshot_cleanup_deferred_cross_host_unsupported",
+  state: "same_host_lifecycle_source_implemented_cross_host_protocol_owner_blocked",
   permission_boundary: {
     project_workspace_role:
       "default_cwd_sidebar_grouping_and_context_hint_only_not_authorization_domain",
@@ -1020,7 +1019,7 @@ export const appOwnedLocalWorktreeLifecycle = {
     worktree_retention_value:
       "preserve_for_reuse_until_snapshotted_cleanup",
     retention_value_role:
-      "future_cleanup_precondition_marker_not_snapshot_or_cleanup_proof",
+      "default_preserve_policy_and_cleanup_eligibility_marker_not_snapshot_receipt",
     storage_role:
       "aionui_projection_metadata_only_not_git_or_thread_authority",
   },
@@ -1040,17 +1039,41 @@ export const appOwnedLocalWorktreeLifecycle = {
     default_retention: "preserve_for_reuse",
   },
   snapshot_restore: {
-    state: "deferred_not_implemented",
-    user_visible_actions: [],
-    completion_claim_allowed: false,
+    state: "source_implemented_git_native_snapshot_receipt",
+    user_visible_actions: ["create_restore_point_and_remove", "restore_worktree"],
+    snapshot_scope: [
+      "head",
+      "branch_or_detached_head",
+      "index",
+      "tracked_worktree",
+      "untracked",
+      "ignored",
+    ],
+    receipt_schema: "opl_worktree_snapshot_receipt.v1",
+    durable_git_ref_namespace: "refs/opl/worktree-snapshots",
+    restore_target_policy:
+      "original_managed_worktree_path_or_deterministic_replacement",
+    restore_conflict_policy:
+      "typed_failure_without_overwrite_or_partial_success",
+    completion_claim_allowed: true,
   },
   cleanup: {
-    state: "deferred_not_exposed",
-    current_action_visible: false,
-    future_requirement: "recoverable_snapshot_before_destructive_cleanup",
+    state: "source_implemented_explicit_managed_worktree_only",
+    current_action_visible: true,
+    eligible_scope: "deterministic_codex_managed_worktree_only",
+    snapshot_precondition: "durable_snapshot_receipt_before_remove",
+    branch_or_snapshot_ref_deletion_allowed: false,
+    automatic_cleanup_claimed: false,
+    failure_policy: "typed_failure_without_data_loss_or_silent_success",
   },
   cross_host: {
-    state: "unsupported_unavailable",
+    state: "required_target_protocol_owner_blocked_unavailable",
+    blocker_code: "remote_host_handoff_owner_surface_unavailable",
+    primary_owner: "codex_app_remote_connections_host_handoff_owner",
+    product_contract_owner: "one_person_lab_app",
+    shell_role: "blocked_thin_adapter",
+    required_transport:
+      "connected_host_task_handoff_with_git_state_transfer_destination_readback_and_disconnect_recovery",
     direct_message_allowed: false,
     success_projection_allowed: false,
   },
@@ -1059,8 +1082,7 @@ export const appOwnedLocalWorktreeLifecycle = {
   duplicate_git_or_thread_store_allowed: false,
 };
 export const appOwnedRuntimeBridgeLocalWorktreeHandoffPolicy = {
-  state:
-    "same_host_source_implemented_snapshot_cleanup_deferred_cross_host_unsupported",
+  state: "same_host_lifecycle_source_implemented_cross_host_protocol_owner_blocked",
   authority: "codex_core_app_server_and_existing_git_integration",
   permission_boundary: appOwnedLocalWorktreeLifecycle.permission_boundary,
   new_task: appOwnedLocalWorktreeLifecycle.new_task,
@@ -1083,16 +1105,22 @@ export const appOwnedNewTaskLocality = {
   adapter: "gitWorkspace.inspect_and_ensureManagedWorktree",
   metadata_schema: "opl_workspace_handoff.v1",
   failure_policy: "show_unavailable_or_error_without_silent_local_fallback",
-  snapshot_restore_state: "deferred_not_implemented",
-  cleanup_state: "deferred_not_exposed",
-  cross_host_state: "unsupported_unavailable",
+  snapshot_restore_state: "conversation_environment_source_implemented",
+  cleanup_state: "conversation_environment_source_implemented",
+  cross_host_state: "required_target_protocol_owner_blocked_unavailable",
+  cross_host_blocker_code: "remote_host_handoff_owner_surface_unavailable",
 };
 export const appOwnedGuiContractEnvironmentWorkspaceHandoff = {
   contract_ref:
     "interaction_baseline.conversation_scope.local_worktree_lifecycle",
   surface: "conversation_environment",
   scope: "same_host_existing_task",
-  actions: ["local_to_worktree", "worktree_to_local"],
+  actions: [
+    "local_to_worktree",
+    "worktree_to_local",
+    "create_restore_point_and_remove",
+    "restore_worktree",
+  ],
   eligible_thread_states: ["not_loaded", "idle"],
   unavailable_thread_states: ["running", "archived", "system_error"],
   protocol: "thread/settings/update",
@@ -1101,9 +1129,10 @@ export const appOwnedGuiContractEnvironmentWorkspaceHandoff = {
     "codex_thread_cwd_first_then_aionui_projection_with_best_effort_cwd_rollback",
   permission_boundary:
     "codex_permission_approval_and_sandbox_only_no_opl_cross_directory_gate",
-  snapshot_restore_state: "deferred_not_implemented",
-  cleanup_state: "deferred_not_exposed",
-  cross_host_state: "unsupported_unavailable",
+  snapshot_restore_state: "source_implemented_git_native_snapshot_receipt",
+  cleanup_state: "source_implemented_explicit_managed_worktree_only",
+  cross_host_state: "required_target_protocol_owner_blocked_unavailable",
+  cross_host_blocker_code: "remote_host_handoff_owner_surface_unavailable",
 };
 export const appOwnedPageStateEnvironmentWorkspaceHandoff = {
   ...appOwnedGuiContractEnvironmentWorkspaceHandoff,
@@ -1401,13 +1430,18 @@ export const appOwnedRightContextInspectorPolicy = {
     "interaction_baseline.context_surfaces.environment_popover",
 };
 export const appOwnedReviewSurfaceSourceEvidence = {
-  source_status: "partial_last_turn_implemented_inline_comments_protocol_blocked",
+  source_status: "partial_last_turn_and_focus_context_implemented_inline_comments_protocol_blocked",
   source_capability_status: {
     last_turn: "source_implemented_existing_message_store",
+    review_focus_context: "source_implemented_same_review_turn_steer_expected_turn_id",
     inline_comments: "source_blocked_missing_typed_codex_protocol",
   },
   last_turn_source_policy:
     "latest_visible_user_message_then_completed_workspace_edit_tool_calls",
+  review_focus_delivery_policy:
+    "non_custom_target_plain_text_turn_steer_same_review_thread_expected_turn_id_custom_instructions_not_duplicated",
+  review_focus_failure_policy:
+    "typed_failure_without_success_on_steer_failure_stale_or_ended_turn",
   inline_comment_protocol_requirement:
     "typed_codex_app_server_file_line_comment_request_location_and_failure_semantics",
   inline_comment_forbidden_fallbacks: ["shell_local_annotation_store", "fake_success"],

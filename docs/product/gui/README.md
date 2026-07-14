@@ -52,15 +52,16 @@ release-ready。`26.707.31428` 与 `26.707.31123` 只作为 superseded observati
 Settings -> Agents & Capabilities，`/capabilities` 仅兼容重定向；App updater 与 Framework-owned
 managed lifecycle 分离，不再保留 OPL Flow 专用 post-update 分支。本轮 parity exact cohort
 `b2c05a1c8dc4ef81094323b49a67b601e3c425f5` 已实现 projectless local input、App Server rail、
-absolute-path Preview、首结果 idempotency replay、visible coordination/unarchive、
+absolute-path Preview、首结果 idempotency replay、user coordination/unarchive、
 Local/Worktree/handoff、Review 已采纳子集、Runtime cockpit、typed interactive requests，并完整保留
 Runtime V2 与 Gateway account/UI。该 exact cohort 的 full source gates、macOS arm64 directory-only package、
 codesign 与 9 场景 packaged E2E 已闭合；package 未安装，main/remote currentness 与 release
 promotion仍由操作层 fresh readback决定。模型可调用 host tool仍是必需产品目标，当前 AionUI
-user coordination surface 不能作为其实现证据。当前 Shell main source cohort
-`d5c7581bd3a2c547e20373ca3df716aa129846dd` 在该 package cohort 之后补入 profile-driven
-feedback、Review `Last turn` 与窄窗 Access 单列断点；其 full active-shell、Node/DOM、TypeScript、
-format、i18n与lint 0 errors已通过，但尚无匹配 package/pixel 证据。
+user coordination surface 不能作为其实现证据。当前 Shell source cohort
+`6bd0b83f85e9545be3d1c0e4f230509d16e90780` 在该 package cohort 之后补入 profile-driven
+feedback、Review `Last turn`/same-turn focus steer、窄窗 Access 单列断点，以及managed Worktree
+durable snapshot-before-remove/cleanup rollback/receipt restore；普通 navigation 不再挂载独立协调页。
+其 Node/DOM、TypeScript、format、i18n与lint 0 errors已通过，但尚无匹配 package/pixel 证据。
 
 ## 三层与文件归属
 
@@ -127,6 +128,10 @@ package/user path。当前 contract/source 与 packaged route visual evidence �
 - `model_host_tool.evidence=dynamic_tool_registration_and_item_tool_call_round_trip`
 - `model_host_tool.blocker=acp_session_new_or_load_has_no_dynamic_tools_input_or_item_tool_call_callback`
 - `model_host_tool.owner_route=aioncore_same_app_server_client_adapter_or_codex_acp_dynamic_tool_callback`
+- `ideal_target.cross_host_handoff=true`
+- `active_aionui.cross_host_handoff=required_target_protocol_owner_blocked_unavailable`
+- `cross_host_handoff.blocker=remote_host_handoff_owner_surface_unavailable`
+- `cross_host_handoff.owner_route=codex_app_remote_connections_host_handoff_owner`
 - `active_aionui.review_last_turn=source_implemented_existing_message_store`
 - `active_aionui.review_inline_comments=source_blocked_missing_typed_codex_protocol`
 - `ideal_target.inspector_default_visible=false`

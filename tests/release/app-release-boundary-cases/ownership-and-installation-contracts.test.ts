@@ -553,6 +553,15 @@ test('local data lifecycle separates runtime inventory from managed prune and ca
   const deleteBoundary = localDataLifecycle.user_data_artifacts.delete_execution_boundary;
 
   assert.doesNotThrow(() => validateReleaseChannelContract(release));
+  const missingShellRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-local-data-shell-'));
+  try {
+    assert.throws(
+      () => validateReleaseChannelContract(release, { shellRoot: missingShellRoot }),
+      /Missing active shell implementation file .*localDataLifecycleBridge/,
+    );
+  } finally {
+    fs.rmSync(missingShellRoot, { recursive: true, force: true });
+  }
   assert.deepEqual(
     runtime.inventory_roots.map((root) => root.id),
     ['shell_toolchain_runtime', 'managed_opl_runtime'],

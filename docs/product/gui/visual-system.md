@@ -239,6 +239,11 @@ Composer 是底部唯一主 command surface：
   disclosure；Runtime/Actions/Memory 不升级为同权 tabs。
 - Popover 关闭后焦点回到触发器；drawer 有明确标题、close control 和焦点边界。
 - Environment/details 打开时是当前 conversation 的辅助层，不是独立 dashboard。
+- Worktree lifecycle action使用普通Environment action row。创建恢复点并移除是带确认的显式命令；
+  restore只在真实receipt存在时显示。Pending期间固定action row尺寸，成功显示简短receipt状态，
+  冲突或失败就地显示且不得把面板撑成第二个Git管理页。
+- Cross-host task handoff在协议owner未提供transport时使用稳定的 unavailable row，显示简短owner
+  blocker和后续路径；不得显示可点击成功态、远端Host假数据或把本机Worktree动作换名冒充handoff。
 - Drawer 内避免卡片套卡片；用 section header、divider、row 和 disclosure 表达层级。
 - Bottom panel、file tree、Terminal、Browser 默认关闭；打开时尺寸稳定且不得遮挡 composer。
 

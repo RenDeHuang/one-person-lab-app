@@ -15,17 +15,18 @@ source/tests 与对应 evidence。本文不创建第二套产品 authority，也
 重写，也不得重放 `dbff7370f` 或整体 merge AionUI upstream。AionUI 主线已经在 Home package
 readiness、Settings/Personalization、managed update 和 runtime bridge 上继续前进，因此本计划
 已重新打开 Codex parity 收敛：此前 `complete` 只覆盖 41301 composition 与一部分 flexible
-coordination source。当前 Shell main source cohort
-`d5c7581bd3a2c547e20373ca3df716aa129846dd` 已补齐
+coordination source。当前 Shell source cohort
+`6bd0b83f85e9545be3d1c0e4f230509d16e90780` 已补齐
 projectless 文件能力、App Server rail authority、任意绝对本地路径 Preview、首结果幂等 replay、
-可见协调入口、unarchive、Home managed worktree、同主机 idle task handoff、Runtime v2 与
+thread-detail 按需协调入口、unarchive、Home managed worktree、同主机 idle task handoff、Runtime v2 与
 Environment Git inspection，并恢复 Runtime cockpit，同时保留 Gateway account/UI；其后还补入
-profile-driven feedback、Review `Last turn` 和窄窗 Access 单列断点。历史 full source gates、macOS
+profile-driven feedback、Review `Last turn`、窄窗 Access 单列断点、managed Worktree 的 durable
+snapshot-before-remove/receipt restore，以及向同一 Review turn 的 expected-turn steer。历史 macOS
 arm64 directory-only package、codesign 与9场景 packaged E2E仍精确绑定
 `b2c05a1c8dc4ef81094323b49a67b601e3c425f5`，不能改绑到新 source。剩余产品 source gap 是
-模型可调用 coordination host tool，以及 Review 的 line-level inline comments；snapshot/restore、cleanup UI
-与 cross-host handoff 明确 deferred/unsupported，
-不冒充已实现，也不作为本轮 current package 的完成硬门。当前package未安装；旧cohort证据保留，
+模型可调用 coordination host tool、Review 的 line-level inline comments，以及 cross-host task handoff。
+Cross-host 是 required parity target，但因 Codex App Remote Connections/host-handoff owner 尚无可消费
+协议面而 typed unavailable；Shell 不伪造成功，也不新增第二 store/runtime。当前package未安装；旧cohort证据保留，
 不外推为当前installed-path证据。
 
 最终维护路线固定为：
@@ -49,13 +50,13 @@ fresh gate、pixels、package/user path 和远端回读为准。
 
 | Surface | Fresh 状态 | 边界 |
 | --- | --- | --- |
-| App authority refresh | GUI contract、page-state、runtime bridge、三层文档与validators已形成App main source authority；最终App SHA只由外部main/remote readback记录 | 真实source边界拆分Home new-task、Conversation Environment same-host handoff、metadata/projection transaction、deferred snapshot/cleanup和unsupported cross-host；本文不递归绑定包含自身的App commit。 |
-| Shell current main source cohort | `d5c7581bd3a2c547e20373ca3df716aa129846dd` | 叠加feedback profile、Review Last turn与960px Access单列断点。Model-facing host tool仍缺，line-level comments为protocol blocker；尚无匹配package/pixels。 |
+| App authority refresh | GUI contract、page-state、runtime bridge、三层文档与validators已形成当前 source authority；最终App SHA只由外部main/remote readback记录 | 真实source边界拆分Home new-task、Conversation Environment same-host lifecycle、durable Git-native receipt、Review focus delivery和两个protocol-owner blocker；本文不递归绑定包含自身的App commit。 |
+| Shell current source cohort | `6bd0b83f85e9545be3d1c0e4f230509d16e90780`（基于 main `dcd9157e...`） | 叠加managed Worktree snapshot/cleanup/restore（含ignored user files）与Review focus expected-turn steer。Model-facing host tool、line-level comments和cross-host handoff仍为typed protocol blocker；尚无匹配package/pixels。 |
 | Latest reviewed upstream | `v2.1.33@a819d175683d5a0aada20064888da07bfcecdb6a` | 相比已评估 GUI cohort 无 GUI delta；不整体 merge，release/runtime intake 单独处理。 |
 | Product profile | 使用 App 官方生成器和当前 OPL Flow workflow policy 对 Shell generated profile 重建后，`jq -S` canonical diff 为空 | Generated profile 的 compatibility projection 包含由 OPL Flow policy 派生的字段；不要求与 raw App JSON 字节相等，不提交纯格式噪音。 |
 | Verified GUI ancestor gates | Shell `a0ce713b65801fd9ca7f46ad168c977c75a187de`：full suite `293 files / 2172 tests` 通过、`1 file / 3 tests` skip；root TypeScript、1514-file format、i18n 通过。App active-shell full 通过；release-boundary `293 pass / 2 platform skip / 0 fail` | 证明最低 GUI ancestor 与 source contract 边界，不单独证明 installed path 或 release-ready。 |
-| Current source gate boundary | Shell `d5c7581b...`：full active-shell `301 files pass / 1 file skip`、`2344 tests pass / 9 skip`；独立 Node `168/1539`、DOM `133 files / 805 pass / 6 skip`；TypeScript、1546-file format、i18n与lint `0 errors`通过 | 证明当前 source/tests 与 App active-shell consumer一致；packaged-runtime因该 source worktree没有`out/app.asar`而明确跳过，不提升package/pixels/install状态。 |
-| Historical package-bound visual evidence | `docs/product/gui/evidence/aionui-41301-parity-20260714/manifest.json`绑定Shell `b2c05a1c...`、9场景、0 unmatched anchors、0 failed layout checks、0 coverage gaps | macOS arm64 directory-only package、packaged runtime staging与codesign通过；`app.asar` SHA-256=`726200362ed6038211dfb610b7639cb7fe395df54b92bade752c9b8f5a538823`；未安装，`release_ready=false`，不能改绑到`d5c7581b...`。 |
+| Current source gate boundary | Shell `6bd0b83f8...`：full active-shell `302 files pass / 1 skip`、`2383 pass / 9 skip`；独立 Node `169 files / 1572 pass`、DOM `133 files / 811 pass / 6 skip`、combined focused `6 files / 108 pass`；TypeScript、1547-file format、i18n与lint `0 errors / 889 warnings`通过。App release-boundary `350 pass / 2 platform skip` | Source gate计数均绑定final exact source。没有运行package/build/E2E/install，不提升package/pixels/install状态。 |
+| Historical package-bound visual evidence | `docs/product/gui/evidence/aionui-41301-parity-20260714/manifest.json`绑定Shell `b2c05a1c...`、9场景、0 unmatched anchors、0 failed layout checks、0 coverage gaps | macOS arm64 directory-only package、packaged runtime staging与codesign通过；`app.asar` SHA-256=`726200362ed6038211dfb610b7639cb7fe395df54b92bade752c9b8f5a538823`；未安装，`release_ready=false`，不能改绑到`6bd0b83f8...`。 |
 | Framework release source lock | Canonical Framework main仍为 `c56a9599146ba38184ff0ffbc1b031909d786390`；exact-source gate正在独立 final integration，尚未进入remote main | Framework owner回传新的remote main与Verify前，不重建package、不安装、不dispatch，也不声明`release_ready=true`。 |
 | Live App Server protocol | Codex CLI `0.144.1` + 临时 `CODEX_HOME`：两条 materialized top-level threads 完成 list/source-hint、target turn/start/result/read、resume、fork 与 archive readback | 证明 production adapter 的本机 protocol wire；未覆盖 `turn/steer` 竞态、Shell packaged two-root UI 或 remote host。 |
 | Historical source gates | exact `0ebc1fdd278e8a79602458e15e28cf814dfd917d`：`test:full` 282 files pass / 1 skip、2044 tests pass / 3 skip；TypeScript、1487-file format、i18n 与 lint 0 errors | 只属于历史 cohort。 |
@@ -93,9 +94,9 @@ first-run、中英文，以及本轮纳入 authority 的跨顶层线程协调不
 
 | 层级 | Authority | 当前状态 | 后续规则 |
 | --- | --- | --- | --- |
-| 功能层 | [`feature-inventory.md`](../product/gui/feature-inventory.md)、App contracts | `authority_aligned_to_current_source_boundary` | Same-host locality、projectless、thread coordination、Runtime/Environment 已进入 machine truth；deferred能力不伪装完成。 |
+| 功能层 | [`feature-inventory.md`](../product/gui/feature-inventory.md)、App contracts | `authority_aligned_to_current_source_boundary` | Same-host lifecycle、projectless、thread coordination、Runtime/Environment 已进入 machine truth；protocol-owner blocker不伪装完成。 |
 | 理想交互与视觉层 | [`ideal-interaction-spec.md`](../product/gui/ideal-interaction-spec.md)、[`visual-system.md`](../product/gui/visual-system.md)、[`codex-to-opl-app-delta.md`](../product/gui/codex-to-opl-app-delta.md)、[`element-audit.md`](../product/gui/element-audit.md) | `interaction_boundary_refreshed` | Project 归 rail metadata，权限归 Codex；Home new-task 与 Environment existing-task handoff分层，Review剩余子集明确。 |
-| Shell 实现层 | [`shell-implementation-guide.md`](../product/gui/shell-implementation-guide.md)、[`shell-conformance-matrix.md`](../product/gui/shell-conformance-matrix.md) | `current_source_ahead_of_package_evidence_partial_product_gaps` | `d5c7581b...` 新增Last turn与窄窗修复；package/9场景仍绑定`b2c05a1c...`。Model host tool和line comments缺失，Local/Worktree lifecycle仍partial，安装/user path未闭合。 |
+| Shell 实现层 | [`shell-implementation-guide.md`](../product/gui/shell-implementation-guide.md)、[`shell-conformance-matrix.md`](../product/gui/shell-conformance-matrix.md) | `current_source_ahead_of_package_evidence_protocol_owner_gaps` | `6bd0b83f8...` 闭合同主机managed Worktree lifecycle与Review focus delivery；package/9场景仍绑定`b2c05a1c...`。Model host tool、line comments与cross-host handoff为typed blocker，安装/user path未闭合。 |
 
 ## OPL 已采纳能力收敛结果
 
@@ -111,12 +112,12 @@ first-run、中英文，以及本轮纳入 authority 的跨顶层线程协调不
 | P1 | Current task | `opl_adopted_relocated` | timeline 单一 summary；普通任务不默认 sticky，长任务或用户操作才 pin。App Server approval/user-input 是 target context 的 pending state。 | 真实长任务/approval packaged evidence 单独维护。 |
 | P1 | Transcript export | `opl_adopted_active` | cursor-safe、递归脱敏、Markdown/JSON、失败可见；`/export` 使用同一安全路径。 | workspace bundle 继续要求逐项选择与确认。 |
 | P1 | Desktop navigation | `opl_adopted_active` | 保留 Back/Forward、Previous/Next、New Window 的 OPL 路径，不创建 WebUI 第二 IA。 | 完整快捷键专项验收不阻塞 core GUI。 |
-| P1 | Cross-thread coordination | `opl_adopted_internal` | Canonical directory、App Server lifecycle、同key首结果replay、advisory、delivery audit 与 typed interactive request pending flow 保留；普通 rail 的独立“线程协调”入口退出产品目标。 | 能力由 keyboard-reachable thread-detail context action 与 model host tool 按需调用；普通 navigation 不展示独立页面，cross-host 保持 future scope。 |
-| P1 | Model-triggered coordination | `opl_adopted_required` | 产品合同要求 model host tool；ordinary ACP -> AionCore -> codex-acp链路没有dynamic-tool输入或`item/tool/call` callback，user rail不能替代实现证据。 | 优先由AionCore同一App Server client承接`thread/start(dynamicTools)`；或由codex-acp补齐input/response/callback。禁止第二runtime、post-hoc port handler或Shell tool store。 |
+| P1 | Cross-thread coordination | `opl_adopted_internal` | Canonical directory、App Server lifecycle、同key首结果replay、advisory、delivery audit 与 typed interactive request pending flow 保留；普通 rail 的独立“线程协调”入口退出产品目标。 | 能力由 keyboard-reachable thread-detail context action 与 model host tool 按需调用；普通 navigation 不展示独立页面。Cross-host 是required target，当前因owner协议面缺失typed unavailable。 |
+| P1 | Model-triggered coordination | `opl_adopted_required` | 产品合同要求 model host tool；ordinary ACP -> AionCore -> codex-acp链路没有dynamic-tool输入或`item/tool/call` callback，thread-detail context action不能替代实现证据。 | 优先由AionCore同一App Server client承接`thread/start(dynamicTools)`；或由codex-acp补齐input/response/callback。禁止第二runtime、post-hoc port handler或Shell tool store。 |
 | P1 | Artifact preview adapter | `opl_adopted_active` | `b2c05a1c...` 将用户显式绝对本地路径或workspace-scoped project ref薄接现有Preview并拒绝非法输入；current package覆盖Preview surface。 | 各renderer与ref分流仍需专项pixels，不复制renderer/store。 |
 | P1 | Projectless local input | `opl_adopted_active` | 无 workspace 保留 attachment、file/directory picker、paste/drop、`/open`，只服从 Codex permission/approval/sandbox。 | 补 current pixels/package，禁止恢复 project-required gate。 |
-| P1 | Local / Worktree lifecycle | `opl_adopted_partial` | Same-host subset已实现：Home managed create/reuse；existing idle task经 `thread/settings/update` 切换，`opl_workspace_handoff.v1` 投影，projection failure best-effort回滚。 | Snapshot/restore、cleanup UI deferred，cross-host unsupported；完整 lifecycle不宣称完成。 |
-| P1 | Review pane | `opl_adopted_partial` | `d5c7581b...` 已实现四类 `review/start` target、inline/detached delivery、PR context、stage/commit/push、`gh` unavailable与Last turn；Last turn复用既有message store，只显示最近用户回合后的completed workspace edits。 | Line-level comments等待Codex App Server typed file/line request与失败语义；禁止本地annotation store或假成功。Current pixels/package另行。 |
+| P1 | Local / Worktree lifecycle | `opl_adopted_partial` | `6bd0b83f8...` 已闭合同主机生命周期：Home managed create/reuse、idle task `thread/settings/update` handoff、durable Git tag receipt、完整HEAD/index/tracked/untracked/ignored snapshot、remove失败恢复与typed-conflict restore。 | Cross-host handoff仍是required target且由Codex App Remote Connections/host-handoff owner阻断；Shell只显示unavailable，不复制Git/thread store。 |
+| P1 | Review pane | `opl_adopted_partial` | `6bd0b83f8...` 已实现四类 `review/start` target、inline/detached、PR context、stage/commit/push、`gh` unavailable、Last turn，并把非custom focus经同一client `turn/steer(expectedTurnId)`投递到原Review turn；custom instructions不重复。 | Line-level comments等待Codex App Server typed file/line request与失败语义；禁止本地annotation store或假成功。Current pixels/package另行。 |
 | P2 | Settings | `opl_adopted_active` | 保留 OPL IA、bounded page-section cards 与 flat rows；不恢复旧 quiet/Codex-style Settings 实验。 | 维护模式，只修回归。 |
 
 ## Upstream Selective Intake 结果
@@ -148,33 +149,34 @@ Shell package/version 和 AionCore intake 继续作为独立维护工作。选�
 
 1. App GUI machine contract与三层文档按 final source边界更新；focused authority validators只证明
    产品真相一致，不替代Shell source、packaged evidence或安装readback。
-2. Shell `d5c7581b...` 已闭合同主机handoff、Home worktree、canonical user thread coordination、
+2. Shell `6bd0b83f8...` 已闭合同主机handoff、Home worktree、canonical user thread coordination、
    interactive App Server requests、projectless local input、absolute-path Preview、Runtime v2与
    Environment Git inspection和Runtime cockpit，并保留Gateway account/UI、feedback、Review Last turn与窄窗
-   Access布局。Model host tool仍缺；Review line-level comments为protocol blocker；完整 Local/Worktree
-   lifecycle仍缺 snapshot/cleanup，cross-host unsupported。
-3. `d5c7581b...` 的full active-shell、独立Node/DOM、TypeScript、format、i18n与lint 0 errors已闭合；
+   Access布局；本轮新增durable Worktree snapshot/cleanup/restore与Review focus expected-turn steer。
+   Model host tool、Review line-level comments与cross-host handoff仍为protocol-owner blocker。
+3. `6bd0b83f8...` 的full active-shell、独立Node/DOM、combined focused、TypeScript、format、i18n与
+   lint 0 errors，以及App release-boundary已闭合；
    `b2c05a1c...` 的macOS arm64 package、codesign与packaged E2E只保留历史证据，未来package不得复用
    或改绑旧manifest。
 4. 当前9场景只提升明确覆盖的Home/Runtime unavailable/conversation/composer/Environment/Files/mobile
    Preview pixels；package readiness、first-run、Review、真实coordination detail与Settings仍保持unverified。
-5. Installed user path、Desktop/WebUI parity与release promotion继续独立关闭。Remote host
-   属于 future capability：未实现必须显示 unavailable，但不阻塞本机 current package claim。
+5. Installed user path、Desktop/WebUI parity与release promotion继续独立关闭。Remote host handoff
+   是required parity target；当前owner协议面缺失必须typed unavailable，且不阻塞本机同主机source claim。
 
 ## 完成度审计表
 
 | Requirement | 当前状态 | 完成证据 |
 | --- | --- | --- |
-| 41301 human target 与三层文档一致 | `current_source_boundary_refreshed` | Composition 保留；source已实现项与deferred项在三层分别标注。 |
+| 41301 human target 与三层文档一致 | `current_source_boundary_refreshed` | Composition 保留；source已实现项与protocol-owner blocker在三层分别标注。 |
 | App machine authority 与三层文档一致 | `done_current_refresh` | GUI/page-state/runtime bridge、三层文档与 validators 已同步，并通过本 lane focused authority gates。 |
-| Shell GUI behavior 与 OPL 非降级边界一致 | `current_source_gates_verified_partial_product_gaps` | `d5c7581b...` 保留OPL已用功能、Gateway/UI与Runtime V2，并新增Last turn/feedback/窄窗修复；full source gates已闭合，新package/pixels仍待闭合。 |
+| Shell GUI behavior 与 OPL 非降级边界一致 | `current_source_gates_verified_protocol_owner_gaps` | `6bd0b83f8...` 保留OPL已用功能、Gateway/UI与Runtime V2，并新增durable Worktree lifecycle与Review focus delivery；source gates已闭合，新package/pixels仍待闭合。 |
 | Projectless local input | `source_implemented_pixel_unverified` | 无workspace输入已进入Codex原生permission路径；current conversation fixture含workspace，因此不外推projectless pixels。 |
 | App Server rail authority | `source_implemented` | Rail directory/actions使用 App Server；pin仅 UI metadata，local reset不重写 history。 |
 | Cross-thread coordination | `source_implemented_no_ordinary_navigation` | Canonical directory、unarchive、首结果 replay、advisory 与 typed interactive pending requests 保留；普通 rail 不挂载独立页面，delivery audit 不冒充 approval receipt。 |
 | Model-facing coordination tool | `source_missing_protocol_blocked_required_target` | Thread-detail context action 不构成 dynamic-tool 证据；ACP ordinary owner 缺 input/callback，owner route 为 AionCore/codex-acp。 |
 | Artifact preview path parity | `source_implemented_surface_pixel_verified_adapter_pixel_unverified` | Current package覆盖mobile Preview surface；absolute local path与workspace ref分流、非法输入和各renderer仍靠source/tests。 |
-| Local / Worktree lifecycle | `source_partial` | Same-host create/reuse与idle handoff已实现；snapshot/restore、cleanup UI deferred，cross-host unsupported。 |
-| Review pane | `source_partial` | 四 targets、inline/detached、PR context、stage/commit/push、`gh` unavailable与Last turn已实现；line-level comments因typed protocol缺失而blocked。 |
+| Local / Worktree lifecycle | `source_partial_cross_host_owner_blocked` | Same-host create/reuse、idle handoff、durable snapshot-before-remove、cleanup rollback与receipt restore已实现；cross-host required target因owner协议面缺失typed unavailable。 |
+| Review pane | `source_partial_line_comments_blocked` | 四 targets、inline/detached、PR context、stage/commit/push、`gh` unavailable、Last turn与same-review-turn focus steer已实现；line-level comments因typed protocol缺失而blocked。 |
 | Generated profile current | `done_semantic` | 官方生成器重建后 canonical JSON diff 为空；未提交纯格式差异。 |
 | Core visual matrix | `current_exact_cohort_verified_limited_claims` | Current 9-entry manifest精确绑定`b2c05a1c...`并通过全部anchors/layout checks；historical 8-entry manifest保持原字节。 |
 | Package/install/user path | `historical_package_verified_current_install_unverified` | `b2c05a1c...` 的本地`26.7.13` directory-only package、runtime staging、codesign与packaged E2E只作历史GUI证据；remote `v26.7.13@faeb0d6f...`保持不可变，最终`26.7.14`必须重建，`26.7.12`安装证据不能提升为current。 |
@@ -183,8 +185,9 @@ Shell package/version 和 AionCore intake 继续作为独立维护工作。选�
 
 本文状态为 `active_parity_convergence`。本轮current source gates已闭合，历史package/core pixels按原
 exact cohort保留；App/Shell main/remote currentness由外部operational receipt证明，`26.7.14`重建、
-安装/user path以及明确deferred产品缺口仍按独立owner推进。
-Cross-host保持 future/unsupported，只有单独 remote能力开发和证据完成后才能声明
+安装/user path以及明确的protocol-owner缺口仍按独立owner推进。
+Cross-host保持required-target/typed-unavailable，只有Codex Remote Connections/host-handoff owner
+提供协议面且独立remote能力开发和证据完成后才能声明
 `remote_ready`。当前 `release_ready=false` 与 `parity_1_to_1=false` 保持不变。
 
 ## 维护边界

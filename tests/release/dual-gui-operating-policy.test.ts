@@ -64,15 +64,25 @@ test('Codex parity adapters reject duplicate Git stores and false cross-host suc
   );
 });
 
-test('Codex parity adapters keep snapshot, restore, and cleanup deferred', () => {
+test('Codex parity adapters require durable snapshot receipts before managed Worktree cleanup', () => {
   const runtimeBridge = readJson<any>('contracts/app-runtime-bridge.json');
   const activeAdapter = readJson<any>('contracts/app-shell-adapter.json');
   const invalid = structuredClone(runtimeBridge);
-  invalid.codex_local_worktree_handoff_policy.snapshot_restore.state = 'source_implemented';
-  invalid.codex_local_worktree_handoff_policy.cleanup.current_action_visible = true;
+  invalid.codex_local_worktree_handoff_policy.snapshot_restore.receipt_schema = 'shell_local_snapshot.v1';
+  invalid.codex_local_worktree_handoff_policy.cleanup.snapshot_precondition = 'remove_before_snapshot';
 
   assert.throws(
     () => validateRuntimeBridgeContract(invalid, activeAdapter),
+    /Codex Local and Worktree handoff policy/,
+  );
+
+  const incompleteSnapshot = structuredClone(runtimeBridge);
+  incompleteSnapshot.codex_local_worktree_handoff_policy.snapshot_restore.snapshot_scope =
+    incompleteSnapshot.codex_local_worktree_handoff_policy.snapshot_restore.snapshot_scope.filter(
+      (entry: string) => entry !== 'ignored',
+    );
+  assert.throws(
+    () => validateRuntimeBridgeContract(incompleteSnapshot, activeAdapter),
     /Codex Local and Worktree handoff policy/,
   );
 });

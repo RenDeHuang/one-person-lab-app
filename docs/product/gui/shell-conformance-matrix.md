@@ -56,27 +56,30 @@ Active AionUI 默认状态通过 README 治理段声明的动态 state source �
   `26.707.31428/31123` 只保留为 superseded observations。
 - AionUI GUI conformance ancestor：`opl-aion-shell@a0ce713b65801fd9ca7f46ad168c977c75a187de`。
   当前 Shell HEAD 从 active checkout Git readback 获取，本矩阵不复制瞬时 HEAD。
-- Current Shell main source cohort：
-  `opl-aion-shell@d5c7581bd3a2c547e20373ca3df716aa129846dd`。它合并当前 Runtime V2 main、Gateway
+- Current Shell source cohort：
+  `opl-aion-shell@6bd0b83f85e9545be3d1c0e4f230509d16e90780`（基于main `dcd9157e...`）。它合并当前 Runtime V2 main、Gateway
   account/UI `e282f4d5d...` ancestry 与 parity source，覆盖同主机 Local/Worktree handoff、Home managed
-  worktree、Review四targets与Last turn、可见 thread coordination、projectless file access、Runtime cockpit、
-  Environment Git inspection、profile-driven feedback与窄窗Access布局。Main/remote最终currentness仍从
+  worktree、durable snapshot/cleanup/restore、Review四targets/Last turn/same-turn focus steer、按需 thread
+  coordination、projectless file access、Runtime cockpit、Environment Git inspection、profile-driven feedback
+  与窄窗Access布局。Main/remote最终currentness仍从
   Git readback获取，不由本矩阵推断。
 - Latest reviewed upstream：`AionUI v2.1.33@a819d175683d5a0aada20064888da07bfcecdb6a`；无 GUI delta，
   只进入 release/runtime selective intake，不触发 GUI history merge。
 - Generated profile currentness：使用 App 官方生成器和当前 OPL Flow workflow policy 重建后，
   current Shell generated profile 与生成结果 canonical JSON diff 为空；compatibility projection
   字段是有意派生，不要求与 raw App profile 字节相等。
-- Current source gates：Shell `d5c7581b...` full active-shell `301 files pass / 1 file skip`、
-  `2344 tests pass / 9 skip`；独立Node `168/1539`、DOM `133 files / 805 pass / 6 skip`；TypeScript、
-  1546-file format、i18n与lint `0 errors`通过。Packaged-runtime因该worktree没有`out/app.asar`明确跳过。
+- Current source gates：Shell `6bd0b83f8...` full active-shell `302 files pass / 1 skip`、
+  `2383 pass / 9 skip`；独立Node `169 files / 1572 pass`、DOM `133 files / 811 pass / 6 skip`、
+  combined focused `6 files / 108 pass`；TypeScript、1547-file format、i18n与lint
+  `0 errors / 889 warnings`通过。App release-boundary `350 pass / 2 platform skip`。这些计数均绑定
+  final exact source。本轮未运行package/build/E2E/install。
 - Latest package-bound visual evidence（相对current source为historical）：
   [`evidence/aionui-41301-parity-20260714/manifest.json`](evidence/aionui-41301-parity-20260714/manifest.json)
   精确绑定 Shell `b2c05a1c...`、生成时间 `2026-07-13T17:54:36.964Z` 与 9 个 Home、Runtime、
   conversation/composer/Environment/Files/mobile Preview 场景；unmatched anchors、failed layout checks与
   coverage gaps均为0。Package为 `26.7.13`、bundle id `cn.onepersonlab.opl`，`app.asar` SHA-256为
   `726200362ed6038211dfb610b7639cb7fe395df54b92bade752c9b8f5a538823`，codesign通过但未安装。
-  Manifest明确保持 `parity_1_to_1=false` 与 `release_ready=false`，不得改绑到`d5c7581b...`。
+  Manifest明确保持 `parity_1_to_1=false` 与 `release_ready=false`，不得改绑到`6bd0b83f8...`。
 - Verified GUI ancestor source gates：Shell `a0ce713b...` full suite `293 files / 2172 tests` 通过、
   `1 file / 3 tests` skip；root TypeScript、1514-file format 与 i18n通过。该结果仅保留最低祖先审计价值。
 - Historical source gates：Shell `0ebc1fdd...` 的 `test:full` 为 `282 files pass / 1 skip`、
@@ -135,10 +138,10 @@ Active AionUI 默认状态通过 README 治理段声明的动态 state source �
 | P1 | Progress / approval / receipt | 进入当前 timeline 或 selected target thread context；App Server interactive request 是 pending state，不是 dispatch failure。 | Current-task summary 保持 timeline 单一实例；`f7fd71765...` 接通 command/file/permission approval、user-input、MCP elicitation 与 `currentTime/read`，未知 request fail closed。Delivery audit 只显示 Codex policy inheritance，不宣称独立 approval receipt。 | `source_implemented`, `pixel_unverified` | 补真实 approval/user-input packaged route evidence。 |
 | P1 | Artifacts / evidence | Environment 次级 refs、Preview、Files 或 turn disclosure。 | Files 与 Preview 按需且窄屏互斥；mobile Preview 使用完整可读 overlay；transcript export 已按 cursor 与脱敏合同加固。 | `source_implemented`, `pixel_verified` | Current pixels覆盖desktop Files与mobile Preview composition；PDF/Mermaid/KaTeX内容渲染另做专项 evidence。 |
 | P1 | Artifact preview adapter | 用户显式合法绝对本地路径或 workspace-scoped project ref 薄接现有 Preview；traversal、非法 scheme、自动静默读取返回明确失败。 | `b2c05a1c...` 已复用既有 renderer/store，覆盖 projectless file access、absolute-path 与 workspace-ref 分流。 | `source_implemented`, `pixel_unverified` | Current Preview pixel未证明absolute-path/workspace-ref分流与非法输入；保持行为测试边界。 |
-| P1 | Cross-thread coordination | 普通 navigation 不展示独立页面；keyboard-reachable thread-detail context action 与 model host tool 复用 App Server list/read/resume/fork/archive/unarchive/start/steer；同 key 返回首个 receipt/result、`ok=true`；cross-host 当前明确 unavailable。 | Canonical directory、App Server lifecycle、flexible advisory、running steer、首结果 replay、typed pending requests 与无额外 OPL confirmation 保留；普通 rail 不挂载 `ThreadCoordinationSection`。 | `source_implemented`, `pixel_unverified` | 无独立入口由 source/DOM 负向 gate 证明；真实 dispatch/audit 仍靠 protocol gates，独立非紧急 queue 未实现。 |
-| P1 | Model-triggered coordination | 模型通过同一 host adapter调用 list/read/resume/fork/archive/unarchive/start/steer。 | Ordinary conversation经ACP -> AionCore -> codex-acp创建；ACP session输入/callback没有dynamic tools，coordination port是另一App Server client，因此rail/user dispatch和post-hoc handler都不构成实现。 | `source_missing_protocol_blocked`, `not_applicable` | 优先由AionCore同一client承接`thread/start(dynamicTools)`；或由codex-acp补齐input/response/callback。禁止第二runtime/store。 |
-| P1 | Local / Worktree lifecycle | Home 新任务选择 Local/Worktree 与 starting branch；既有同主机 `not_loaded`/`idle` task 在 Environment 双向 handoff，真实 cwd 先于 projection 更新。 | `b2c05a1c...` 已实现 same-host 子集：复用 `gitWorkspace` 与 `thread/settings/update`，使用 `opl_workspace_handoff.v1`，projection failure best-effort回滚 cwd，worktree默认保留复用。 | `source_partial`, `pixel_unverified` | Snapshot/restore、cleanup UI deferred，cross-host unsupported，完整lifecycle不得宣称完成。 |
-| P1 | Review pane | 复用 Files/Changes；四类 target、inline/detached、PR context、stage/commit/push；缺失能力显示 unavailable。 | `d5c7581b...` 已实现四类 `review/start` target、inline/detached delivery、PR context、stage/commit/push、`gh` unavailable与Last turn；Last turn复用message store并过滤旧回合/失败编辑/workspace外路径。 | `source_partial`, `pixel_unverified` | Line-level comments等待typed Codex file/line request；禁止local annotation store或假成功，不恢复legacy equal-weight Review tab。 |
+| P1 | Cross-thread coordination | 普通 navigation 不展示独立页面；keyboard-reachable thread-detail context action 与 model host tool 复用 App Server list/read/resume/fork/archive/unarchive/start/steer；同 key 返回首个 receipt/result、`ok=true`。 | Canonical directory、App Server lifecycle、flexible advisory、running steer、首结果 replay、typed pending requests 与无额外 OPL confirmation 保留；普通 rail 不挂载 `ThreadCoordinationSection`。 | `source_implemented`, `pixel_unverified` | 无独立入口由 source/DOM 负向 gate 证明；cross-host是required target但owner协议面缺失，当前typed unavailable；独立非紧急 queue 未实现。 |
+| P1 | Model-triggered coordination | 模型通过同一 host adapter调用 list/read/resume/fork/archive/unarchive/start/steer。 | Ordinary conversation经ACP -> AionCore -> codex-acp创建；ACP session输入/callback没有dynamic tools，coordination port是另一App Server client，因此thread-detail user dispatch和post-hoc handler都不构成实现。 | `source_missing_protocol_blocked`, `not_applicable` | 优先由AionCore同一client承接`thread/start(dynamicTools)`；或由codex-acp补齐input/response/callback。禁止第二runtime/store。 |
+| P1 | Local / Worktree lifecycle | Home 新任务选择 Local/Worktree 与 starting branch；既有同主机 `not_loaded`/`idle` task 在 Environment 双向 handoff，真实 cwd 先于 projection 更新；remove前必须可恢复。 | `6bd0b83f8...` 复用 `gitWorkspace` 与 `thread/settings/update`，并以 `opl_worktree_snapshot_receipt.v1` Git ref持久化HEAD/branch或detached/index/tracked/untracked/ignored user files，remove失败恢复，restore冲突typed fail。 | `source_partial`, `pixel_unverified` | Same-host lifecycle已闭合；cross-host required target因Codex Remote Connections/host-handoff owner协议面缺失而blocked。 |
+| P1 | Review pane | 复用 Files/Changes；四类 target、inline/detached、PR context、stage/commit/push；缺失能力显示 unavailable。 | `6bd0b83f8...` 已实现四类 `review/start` target、inline/detached、PR context、stage/commit/push、`gh` unavailable、Last turn，并把非custom focus经同client `turn/steer(expectedTurnId)`送回原Review turn。 | `source_partial`, `pixel_unverified` | Line-level comments等待typed Codex file/line request；禁止local annotation store或假成功，不恢复legacy equal-weight Review tab。 |
 | P2 | Settings | Secondary configuration/control surface，保持 OPL IA。 | 四类 surface 与 bounded cards 已进入 source；本次 core matrix 不复用旧 Settings pixels。 | `source_implemented`, `pixel_unverified` | 冻结 IA，只修回归；按需要重建当前 Settings evidence。 |
 
 ## Cross-shell Detail Appendix
@@ -158,7 +161,7 @@ Native candidate 不得与 active-shell P0 差距竞争实施资源。
 | 项目选择器切换真实 active project | `aligned_contract` | `source_implemented` | `pixel_unverified` | `candidate_target` | `source_missing` | `pixel_unverified` | AionUI 有 workspace/project 路径；Native 当前没有真实项目切换闭环。 |
 | 项目 Context inputs 可选、可增删 | `aligned_contract` | `source_implemented` | `pixel_unverified` | `candidate_target` | `source_partial` | `pixel_verified` | AionUI 使用 workspace-keyed 单一 context source；Native `App.tsx` 仍固定生成四个虚构 inputs。 |
 | 项目附件可添加、查看、移除 | `aligned_contract` | `source_implemented` | `pixel_unverified` | `candidate_target` | `source_missing` | `pixel_unverified` | Native 缺真实 attachment actions；AionUI 附件能力已存在，但缺绑定当前 source 的像素证据。 |
-| 一个项目对应 N 个 App Server threads | `aligned_contract` | `source_implemented` | `pixel_unverified` | `candidate_target` | `source_partial` | `pixel_verified` | `b2c05a1c...` 以 `thread/list/read/resume` 为 canonical directory；current pixel只覆盖coordination入口，不覆盖完整directory。 |
+| 一个项目对应 N 个 App Server threads | `aligned_contract` | `source_implemented` | `pixel_unverified` | `candidate_target` | `source_partial` | `pixel_verified` | `b2c05a1c...` 以 `thread/list/read/resume` 为 canonical directory；当前无ordinary coordination入口pixel，完整directory/actions仍由source/protocol gates证明。 |
 | 对话 search/pin/rename/archive/restore/delete/reset 与独立 Archived | `aligned_contract` | `source_implemented` | `pixel_unverified` | `current_contract_deviation` | `source_missing` | `pixel_unverified` | `b2c05a1c...` 将rename/archive/restore/delete映射App Server；pin仅UI metadata，current matrix未打开这些actions。 |
 | 主区保持单一 conversation timeline | `aligned_contract` | `source_implemented` | `pixel_verified` | `candidate_target` | `source_implemented` | `pixel_verified` | Current AionUI desktop conversation pixel覆盖单timeline、底部composer与按需secondary surface。 |
 | Composer 是 send-local refs/attachments + textarea + bottom action row | `aligned_contract` | `source_implemented` | `pixel_unverified` | `current_contract_deviation` | `source_partial` | `pixel_verified` | Project 归 rail，locality/branch 归 Environment；composer 不再重复持久 context。 |
@@ -175,8 +178,8 @@ Native candidate 不得与 active-shell P0 差距竞争实施资源。
 | Mutation 走 App action preview/confirm/execute/receipt | `aligned_contract` | `source_implemented` | `not_applicable` | `candidate_target` | `source_partial` | `not_applicable` | Native 已有 preview/action bridge，但完整高风险确认、receipt、rollback UX 尚未覆盖全部动作。 |
 | Runtime/Files/Memory/Artifacts 只展示 refs | `aligned_contract` | `source_implemented` | `not_applicable` | `candidate_target` | `source_partial` | `not_applicable` | Native `workbenchModel.ts` 仍保留 `GlycoFold` 等 demo fallback，必须去除后才能算完整真实投影。 |
 | Artifact Markdown/PDF/Mermaid/Code/KaTeX preview | `aligned_contract` | `source_implemented` | `pixel_unverified` | `candidate_target` | `source_partial` | `pixel_unverified` | `b2c05a1c...` 覆盖绝对本地路径、workspace ref与非法输入拒绝；current Preview pixel不证明各renderer内容。 |
-| Local/Worktree new task 与同主机 idle handoff | `aligned_contract` | `source_partial` | `pixel_unverified` | `candidate_target` | `source_not_assessed` | `pixel_unverified` | `b2c05a1c...` 覆盖same-host managed create/reuse、`thread/settings/update`、metadata与rollback；完整lifecycle仍缺snapshot/cleanup。 |
-| Review 复用 Files/Changes diff surface | `aligned_contract` | `source_partial` | `pixel_unverified` | `candidate_target` | `source_not_assessed` | `pixel_unverified` | `d5c7581b...` 覆盖四targets、inline/detached、PR context、stage/commit/push、`gh` unavailable与Last turn；line-level comments为protocol blocker。 |
+| Local/Worktree new task 与同主机 idle handoff | `aligned_contract` | `source_partial` | `pixel_unverified` | `candidate_target` | `source_not_assessed` | `pixel_unverified` | `6bd0b83f8...` 覆盖same-host managed create/reuse、handoff、durable snapshot-before-remove（含ignored user files）、cleanup rollback与receipt restore；cross-host为owner blocker。 |
+| Review 复用 Files/Changes diff surface | `aligned_contract` | `source_partial` | `pixel_unverified` | `candidate_target` | `source_not_assessed` | `pixel_unverified` | `6bd0b83f8...` 覆盖四targets、inline/detached、PR context、stage/commit/push、`gh` unavailable、Last turn与same-turn focus steer；line-level comments为protocol blocker。 |
 | Settings 使用 full-window return/search/grouped rows且 OPL IA 不变 | `aligned_contract` | `source_implemented` | `pixel_unverified` | `current_contract_deviation` | `source_partial` | `pixel_unverified` | AionUI 保留 8+2 IA、search/redirect/state/action semantics，并使用 bounded page-section cards + flat rows；Shell `74848adf77360903c5ac7d64c32455a78fb3901a` 的 42 张图只作为历史专项 evidence，不代表当前 cohort pixels。 |
 | 白色 main、灰色 rail/subtle surface、OPL teal | `aligned_contract` | `source_implemented` | `pixel_verified` | `current_contract_deviation` | `source_partial` | `pixel_verified` | Current 9场景覆盖light/dark、desktop/mobile与双语；只证明指定画面，不宣称完整视觉parity。 |
 | Desktop Back/Forward、Previous/Next Task、New Window | `aligned_contract` | `source_implemented` | `pixel_unverified` | `current_contract_deviation` | `source_not_assessed` | `pixel_unverified` | titlebar/menu、focused/unfocused command gate、focus resync 与 history boundary 已有 focused coverage；packaged multi-window 仍是独立证据缺口。 |
@@ -197,17 +200,18 @@ Native candidate 不得与 active-shell P0 差距竞争实施资源。
   current route/viewport evidence。
 - **Cross-thread coordination：** canonical directory、unarchive、首结果 idempotency replay、same-host
   routing 和 interactive server-request pending flow 保留；普通 rail 不展示独立“线程协调”页面，
-  thread-detail context action 与 model host tool 复用同一 adapter。cross-host 当前返回 unsupported，
-  独立 queue 未实现。
+  thread-detail context action 与 model host tool 复用同一 adapter。cross-host 是required target，但当前
+  Codex Remote Connections/host-handoff owner没有可消费协议面，因此typed unavailable；独立 queue 未实现。
 - **Model host tool：** required target；当前 AionUI source missing/protocol blocked。Ordinary ACP链路没有
   dynamic-tool输入/callback；owner route是AionCore同client adapter或codex-acp上游callback。Thread-detail action、
   focused DOM、post-hoc coordination-port handler或delivery audit都不能替代registration与round-trip evidence。
 - **Artifact ref adapter：** `b2c05a1c...` 已覆盖用户显式任意绝对本地路径、workspace ref、双 scope
   policy和非法输入拒绝；current package只证明Preview surface，不证明各renderer和ref分流。
-- **Codex locality / Review：** `d5c7581b...` 已实现same-host Home worktree与idle task handoff，但
-  snapshot/cleanup deferred、cross-host unsupported。Review已实现四 target、inline/detached、PR
-  context、stage/commit/push、`gh` unavailable与Last turn；line-level comments等待typed protocol。
-- **Narrow Settings：** `d5c7581b...` 将Access摘要卡的双列断点从`md`提高到`xl`，960px窗口保持
+- **Codex locality / Review：** `6bd0b83f8...` 已实现same-host Home worktree、idle task handoff、durable
+  snapshot-before-remove、cleanup rollback与receipt restore；cross-host是owner blocker。Review已实现四 target、
+  inline/detached、PR context、stage/commit/push、`gh` unavailable、Last turn与same-review-turn focus steer；
+  line-level comments等待typed protocol。
+- **Narrow Settings：** `6bd0b83f8...` ancestry 将Access摘要卡的双列断点从`md`提高到`xl`，960px窗口保持
   单列；focused DOM锁定不得在`md`提前双列。匹配installed pixel由最终package owner验收。
 - **Package/install：** `26.7.13` macOS arm64 directory-only package、packaged E2E与codesign已通过，
   但未安装；clean-user-data、first-run、真实coordination detail与公开release promotion仍是独立证据。

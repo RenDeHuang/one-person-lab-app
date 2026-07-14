@@ -1,17 +1,13 @@
-import path from 'node:path';
 import { assertDeepEqualJson, assertIncludesAll } from './assertions.ts';
 import { validateReleaseFullFirstInstallPayloads } from './release-full-first-install-payload-validator.ts';
 import { validateReleaseHomebrewDistribution } from './release-homebrew-distribution-validator.ts';
 import { managedUpdateCarrierAdapters, managedUpdateSoftwareObjectIds } from './managed-update-plane-policy.ts';
 import { assertShellTextIncludesAll } from './shell-implementation-helpers.ts';
-import { root } from './validation-config.ts';
 
-const localDataLifecycleShellPaths = { shellRoot: path.join(root, 'shells', 'aionui') };
-
-export function validateReleaseChannelContract(releaseChannel) {
+export function validateReleaseChannelContract(releaseChannel, shellPaths = null) {
   const managedUpdatePlane = releaseChannel.managed_update_plane;
   validateStandardUpdater(releaseChannel.standard_updater);
-  validateLocalDataLifecycle(releaseChannel.local_data_lifecycle);
+  validateLocalDataLifecycle(releaseChannel.local_data_lifecycle, shellPaths);
   validateWebuiGhcrImage(releaseChannel.webui_ghcr_image);
   validateManagedUpdatePlane(managedUpdatePlane);
   validateReleaseExecutionPolicy(releaseChannel.release_acceleration);
@@ -202,7 +198,7 @@ function validateWebuiGhcrImage(webuiImage) {
   );
 }
 
-function validateLocalDataLifecycle(lifecycle) {
+function validateLocalDataLifecycle(lifecycle, shellPaths) {
   if (
     lifecycle?.owner !== 'one-person-lab-app' ||
     lifecycle?.policy_surface !== 'Settings / Storage and Settings / Updates & Maintenance' ||
@@ -365,7 +361,7 @@ function validateLocalDataLifecycle(lifecycle) {
     ['logs_root', 'dry_run_plan_id', 'deleted_paths', 'deleted_bytes', 'created_at'],
     'Local data lifecycle log rotation execute receipt fields',
   );
-  validateLocalDataLifecycleImplementation(localDataLifecycleShellPaths);
+  if (shellPaths) validateLocalDataLifecycleImplementation(shellPaths);
 }
 
 function validateLocalDataLifecycleImplementation(shellPaths) {

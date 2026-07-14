@@ -63,8 +63,9 @@ contract/实现收敛 lane 处理。
 | Thread directory / coordination adapter | Rail 只投影 App Server canonical thread directory/actions；rename/archive/restore/delete 映射 `thread/name/set`、`thread/archive`、`thread/unarchive`、`thread/delete`，pin 仅 Shell metadata；thread-detail context action 与 model host tool 封装 `turn/*`、advisory、delivery audit 与 interactive request pending flow。 | 用 Shell DB 拥有 history、把 local reset 冒充 history reset、挂载独立“线程协调”页面、隐藏按需 context action/host tool、把 pending approval 当 dispatch failure、用 project/workspace 建 sandbox、增加 OPL confirmation、用 `send_input` 作为跨根线程总线。 |
 | Projectless local-input adapter | 让 attachment、file/directory picker、paste/drop、`/open` 在无 workspace 时继续进入 Codex 原生权限路径。 | 因缺 project 禁用输入、把 workspace membership 当授权、复制第二套 path permission model。 |
 | Artifact ref adapter | 用户显式打开的合法绝对本地路径或 workspace-scoped project ref 解析为现有 Preview target，保持只读和 fail-closed。 | 复制 artifact body、新建 renderer/store、路径穿越、非法 scheme、自动静默读取或猜测未知格式。 |
-| Local / Worktree handoff adapter | Home 通过既有 `gitWorkspace` adapter投影 Local/Worktree、starting branch 和 managed worktree create/reuse；Conversation Environment 为同主机 `not_loaded`/`idle` task 调用 `thread/settings/update` 双向切换。先更新真实 Codex cwd，再更新 AionUI projection；后者失败时 best-effort 恢复旧 cwd。投影 `opl_workspace_handoff.v1`，worktree 默认保留复用。 | 复制 Git/thread store、把 project/workspace 当权限域、running/archived/error 静默 fallback、宣称 snapshot/cleanup/cross-host 已实现、自建 worktree lifecycle truth。 |
-| Review adapter | 在现有 Files/Changes diff surface补 uncommitted/base branch/commit/custom、inline/detached、Unstaged/Staged/Commit/Branch/Last turn、PR context、stage/commit/push；Last turn复用 message store，`gh` 缺失明确 unavailable。Line comments仅在 typed Codex file/line protocol存在后接入。 | 恢复 equal-weight Review tab、复制 diff/Git store、创建本地 annotation store、伪造评论成功或在 React 层直接实现 Git protocol。 |
+| Local / Worktree handoff adapter | Home 通过既有 `gitWorkspace` adapter投影 Local/Worktree、starting branch 和 managed worktree create/reuse；Conversation Environment 为同主机 `not_loaded`/`idle` task 调用 `thread/settings/update` 双向切换。复用同一 Git adapter为确定的 managed worktree创建 durable snapshot receipt，再移除；按 receipt 恢复原 path、HEAD/branch、index、tracked、untracked 与 ignored user files。Worktree默认保留，cleanup只由显式动作触发。 | 复制 Git/thread store、把 project/workspace 当权限域、running/archived/error 静默 fallback、remove-before-snapshot、删除branch/ref、覆盖冲突路径、伪造partial success、把本机lifecycle冒充cross-host handoff。 |
+| Cross-host handoff adapter | 只在Codex App Remote Connections / host-handoff owner提供真实连接、任务与Git状态迁移、目标readback和断线恢复协议后接入；当前返回 `remote_host_handoff_owner_surface_unavailable`，Shell角色是 `blocked_thin_adapter`。 | 用远端`turn/start`、Aion Remote Agent、Framework connection registry或本地receipt冒充任务迁移；把owner blocker降级成无期限future。 |
+| Review adapter | 在现有 Files/Changes diff surface补 uncommitted/base branch/commit/custom、inline/detached、Unstaged/Staged/Commit/Branch/Last turn、PR context、stage/commit/push；Last turn复用 message store，`gh` 缺失明确 unavailable。非 custom focus以`review/start`返回的review thread/turn为前置，通过同一client `turn/steer(expectedTurnId)`发送；custom instructions不重复，失败typed fail。Line comments仅在 typed Codex file/line protocol存在后接入。 | 恢复 equal-weight Review tab、复制 diff/Git store、创建本地 annotation store、丢弃review turn id、把focus只写audit、重复custom instructions、伪造评论成功或在 React 层直接实现 Git protocol。 |
 | Route adapter | 把 legacy/upstream route 映射到 App-owned page。 | 让 compatibility route 重新成为 ordinary navigation。 |
 | Settings slot | 从 Control Plane registry 渲染 ordinary/secondary pages。 | 复制一套 shell-owned Settings IA。 |
 | Presentation adapter | 复用 shell primitives 实现 App layout、tokens、i18n 和 accessibility。 | 复制外部源码或把视觉 token变成产品 truth。 |
@@ -171,11 +172,11 @@ Canonical rows 来自 App Server；rename/archive/restore/delete 映射对应 `t
 metadata，local reset 不能改写 history。Shell DB 只能保存 draft、preference 与可重建 cache。
 任何调试视图也只能消费 typed projection，不直接解析 App Server JSON 或拥有路由策略。
 
-模型 tool access 必须复用同一 host adapter，但实现证据与用户 rail 分开：App Server experimental
+模型 tool access 必须复用同一 host adapter，但实现证据与用户 thread-detail action 分开：App Server experimental
 `dynamicTools` 必须在创建普通 thread 的 `thread/start` 路径注册，并闭合 `item/tool/call`
 request/response 和 turn result。当前 AionUI 的 ACP/AionCore ordinary conversation 未经过本
 coordination port 的 `thread/start`，因此只能声明 user-facing coordination source implemented；
-不得把 rail/detail 结构检查提升为 model tool implemented，也不得为此新增第二套 thread runtime、
+不得把 thread-detail 结构检查提升为 model tool implemented，也不得为此新增第二套 thread runtime、
 MCP/socket 总线或 duplicate store。
 
 当前真实链路是 ordinary conversation HTTP -> AionCore ACP `session/new/load` -> codex-acp
@@ -183,6 +184,11 @@ ThreadManager。ACP session输入与callback都没有 dynamic-tool surface，事
 App Server client加 JSON-RPC handler无法收到 ordinary thread的 `item/tool/call`。优先 owner route是
 AionCore让同一 App Server client执行 `thread/start(dynamicTools)`并代理tool call；若继续使用
 codex-acp，则由 codex-acp补齐dynamic-tool输入、Core response提交和 ACP callback。
+
+Cross-host task handoff也不能由Shell补一条旁路。当前production只拥有本机App Server stdio client，
+没有host transfer/migrate RPC；Aion Remote Agent和Framework connection registry不是Codex host truth。
+因此该项是当前required parity target下的owner-blocked unavailable，路由到Codex App Remote
+Connections / host-handoff owner，Shell不新增remote thread store或伪success投影。
 
 同一 opaque idempotency key 重试必须返回第一次 receipt/result、`ok=true` 且不再次 dispatch；
 不得返回 duplicate-delivery error。同内容不同 key 继续允许。跨 host transition 必须走 handoff，
@@ -320,8 +326,10 @@ command 和可见状态 anchor。
   既有同主机 `not_loaded`/`idle` task 只从 Conversation Environment 通过
   `thread/settings/update` 切换真实 cwd，`running`/`archived`/`system_error` 显示 unavailable且
   不 silent fallback；AionUI projection 失败时 best-effort 恢复旧 cwd；
-- `opl_workspace_handoff.v1` 只承载 projection metadata；worktree 默认保留复用。Snapshot/restore、
-  cleanup UI 与 cross-host handoff 保持 deferred/unsupported，不能进入 source-complete claim；
+- `opl_workspace_handoff.v1` 只承载 locality projection metadata；worktree默认保留复用。显式cleanup
+  只允许确定的managed worktree，必须先生成可解析到durable Git ref/object的
+  `opl_worktree_snapshot_receipt.v1`；restore覆盖HEAD/branch或detached HEAD、index、tracked、
+  untracked与ignored user files，冲突typed fail，不删branch/ref。Cross-host handoff仍需独立真实transport；
 - Review 复用 Files/Changes diff surface，覆盖四类 target、inline/detached、五个 sections、PR
   context/stage/commit/push，并在 `gh` 缺失时明确 unavailable；Last turn复用既有message store且
   不新增状态源，line-level comments在typed Codex protocol缺失时必须保持 unavailable；

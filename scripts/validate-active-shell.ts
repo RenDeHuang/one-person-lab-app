@@ -52,7 +52,7 @@ validatePageStateMatrix(pageStateMatrix, contract, guiProductContract);
 validateSettingsControlPlane(settingsControlPlane, guiProductContract, pageStateMatrix, productProfile, contract);
 validateFirstRunMatrix(firstRunMatrix, contract);
 validateProductProfile(productProfile, installExposurePolicy);
-validateReleaseChannelContract(releaseChannel);
+validateReleaseChannelContract(releaseChannel, shellPaths);
 validateReleaseEvidenceBundle(releaseChannel, pageStateMatrix, firstRunMatrix);
 validateActiveShellImplementation(shellPaths);
 validateShellThreadCoordination(shellPaths);
