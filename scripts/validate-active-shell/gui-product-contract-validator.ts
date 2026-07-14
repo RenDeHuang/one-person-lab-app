@@ -1213,7 +1213,12 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     'status-only saved views without MAS or other agent duplicates',
     'four-column work-item list with agent as a secondary label',
     'one row per canonical work item',
-    'framework-projected primary status and human stage/action copy',
+    'top-level item_id for row and detail identity with full agent_id + project_id + work_item_id mutation and readback tuple',
+    'canonical workspace_path basename as the Runtime Project display name',
+    'Framework-projected state semantics with Shell-localized status, action, Next Step, and owner copy',
+    'visible-only Runtime main list plus separate Archived tasks library with the same Agent then Project scope',
+    'work_item_visibility_set expected-generation mutation followed by fast refresh and authoritative readback',
+    'stale generation conflict refresh and retry state',
     'complete current responsibility before system attention is shown',
     'observed current-stage and total Token usage or an explicit missing reason',
     'no Token limit progress bar when no limit is configured',
@@ -1246,7 +1251,11 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     ],
     'App GUI runtime status forbidden default terms',
   );
-  for (const owner of ['deliverable progress truth', 'platform repair truth']) {
+  for (const owner of [
+    'deliverable progress truth',
+    'platform repair truth',
+    'localStorage work-item visibility truth',
+  ]) {
     if (!pages.runtime_status.must_not_own?.includes(owner)) {
       throw new Error(`App GUI runtime status must not own ${owner}`);
     }

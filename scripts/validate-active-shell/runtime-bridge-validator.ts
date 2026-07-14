@@ -749,7 +749,7 @@ function validateRuntimeBridgeUserTaskStatus(runtimeBridge) {
   }
 }
 
-function validateRuntimeProgressPageDisplayPolicy(runtimeBridge) {
+export function validateRuntimeProgressPageDisplayPolicy(runtimeBridge) {
   const policy = runtimeBridge.runtime_progress_page_display_policy;
   if (policy?.owner !== 'one-person-lab-app') {
     throw new Error('Runtime progress page display policy must be App-owned');
@@ -779,6 +779,7 @@ function validateRuntimeProgressPageDisplayPolicy(runtimeBridge) {
     'top_scope_and_refresh',
     'freshness_summary',
     'status_saved_views',
+    'archived_tasks_entry',
     'work_item_list',
     'agent_availability_panel',
     'advanced_diagnostics_disclosure',
@@ -788,7 +789,7 @@ function validateRuntimeProgressPageDisplayPolicy(runtimeBridge) {
     }
   }
   assertDeepEqualJson(policy?.layout_regions, {
-    top: ['top_scope_and_refresh', 'freshness_summary', 'status_saved_views'],
+    top: ['top_scope_and_refresh', 'freshness_summary', 'status_saved_views', 'archived_tasks_entry'],
     main: ['work_item_list'],
     supporting: ['agent_availability_panel', 'advanced_diagnostics_disclosure'],
   }, 'Runtime progress page layout regions');
@@ -796,28 +797,50 @@ function validateRuntimeProgressPageDisplayPolicy(runtimeBridge) {
     'identity.project_display_name',
     'identity.work_item_display_name',
     'identity.agent_display_name',
-    'lifecycle.primary_state_label',
+    'lifecycle.primary_state',
+    'visibility.state',
     'execution.current_stage_display_name',
     'execution.next_stage_display_name',
     'telemetry.elapsed',
     'telemetry.current_stage_tokens',
     'telemetry.task_total_tokens',
-    'action.title',
+    'action.title_key',
+    'action.message_args',
     'action.owner',
+    'action.owner_kind',
   ], 'Runtime progress page default field allowlist');
   assertIncludesAll(policy?.default_visible_field_groups?.work_item_list ?? [], [
     'identity.project_display_name',
     'identity.work_item_display_name',
     'identity.agent_display_name',
-    'lifecycle.primary_state_label',
+    'lifecycle.primary_state',
+    'visibility.state',
     'execution.current_stage_display_name',
     'execution.next_stage_display_name',
     'telemetry.elapsed',
     'telemetry.current_stage_tokens',
     'telemetry.task_total_tokens',
-    'action.title',
+    'action.title_key',
+    'action.message_args',
     'action.owner',
+    'action.owner_kind',
   ], 'Runtime progress page work item list fields');
+  for (const forbiddenField of [
+    'action.title_args',
+    'action.summary_args',
+    'action.copy_locale',
+    'visibility.token',
+    'identity.generation',
+  ]) {
+    if (
+      policy?.default_field_allowlist?.includes(forbiddenField)
+      || Object.values(policy?.default_visible_field_groups ?? {}).some(
+        (fields) => Array.isArray(fields) && fields.includes(forbiddenField),
+      )
+    ) {
+      throw new Error(`Runtime progress page must not consume nonexistent field ${forbiddenField}`);
+    }
+  }
   const defaultFieldAllowlist = new Set(policy?.default_field_allowlist ?? []);
   for (const [groupName, fields] of Object.entries(policy?.default_visible_field_groups ?? {})) {
     if (!Array.isArray(fields)) {
@@ -830,7 +853,17 @@ function validateRuntimeProgressPageDisplayPolicy(runtimeBridge) {
     }
   }
   if (
-    policy?.task_deduplication_policy?.canonical_row_key !== 'identity.work_item_id' ||
+    policy?.default_label_policy?.primary_state_label_render_owner !== 'shell_current_app_locale' ||
+    policy?.default_label_policy?.action_label_render_owner !== 'shell_current_app_locale' ||
+    policy?.default_label_policy?.framework_hardcoded_locale_copy_default_allowed !== false
+  ) {
+    throw new Error('Runtime progress page labels must render from semantic state/action fields in the current App locale');
+  }
+  if (
+    policy?.task_deduplication_policy?.canonical_row_key !== 'item_id' ||
+    policy?.task_deduplication_policy?.detail_selection_key !== 'item_id' ||
+    policy?.task_deduplication_policy?.identity_work_item_id_scope !== 'project_local' ||
+    policy?.task_deduplication_policy?.duplicate_local_work_item_id_across_projects_allowed !== true ||
     policy?.task_deduplication_policy?.dedupe_owner !== 'opl_framework' ||
     policy?.task_deduplication_policy?.one_row_per_work_item !== true ||
     policy?.task_deduplication_policy?.shell_heuristic_deduplication_allowed !== false ||
@@ -842,8 +875,48 @@ function validateRuntimeProgressPageDisplayPolicy(runtimeBridge) {
   if (policy?.task_deduplication_policy?.raw_duplicate_refs_default_visible !== false) {
     throw new Error('Runtime progress page raw duplicate refs must stay hidden by default');
   }
-  if (policy?.next_step_copy_policy?.long_text_policy !== 'framework_projects_short_human_action_copy_shell_does_not_translate_routes') {
-    throw new Error('Runtime progress page must consume Framework-projected human action copy');
+  const visibilityPolicy = policy?.work_item_visibility_policy;
+  assertDeepEqualJson(
+    visibilityPolicy?.axis_values,
+    ['visible', 'archived'],
+    'Runtime progress page visibility axis values',
+  );
+  for (const [field, expected] of Object.entries({
+    axis: 'work_item_projection.visibility.state',
+    default_list_visibility: 'visible',
+    archived_library_visibility: 'archived',
+    archived_library_is_saved_status_view: false,
+    archived_library_scope: 'same_agent_then_project_scope',
+    status_filters_include_agent_project_or_visibility: false,
+    restore_returns_item_to_default_list: true,
+    local_storage_truth_allowed: false,
+    mutation_contract_ref:
+      'contracts/app-runtime-bridge.json#work_item_projection.visibility_mutation_contract',
+  })) {
+    if (visibilityPolicy?.[field] !== expected) {
+      throw new Error(`Runtime progress page visibility ${field} must be ${expected}`);
+    }
+  }
+  assertDeepEqualJson(
+    policy?.next_step_copy_policy?.source_priority,
+    ['action.title_key + action.message_args', 'action.summary_key + action.message_args'],
+    'Runtime progress page next-step semantic source priority',
+  );
+  assertDeepEqualJson(
+    policy?.next_step_copy_policy?.compatibility_fallback_fields,
+    ['action.title', 'action.summary'],
+    'Runtime progress page next-step compatibility fallback fields',
+  );
+  if (
+    policy?.next_step_copy_policy?.render_owner !== 'shell_current_app_locale' ||
+    policy?.next_step_copy_policy?.long_text_policy !==
+      'framework_projects_locale_independent_action_semantics_shell_renders_current_app_locale' ||
+    policy?.next_step_copy_policy?.compatibility_fallback_only !== true ||
+    policy?.next_step_copy_policy?.cross_locale_raw_fallback_allowed !== false ||
+    policy?.next_step_copy_policy?.missing_semantics_policy !==
+      'localized_generic_action_copy_from_action_kind'
+  ) {
+    throw new Error('Runtime progress page must render Framework action semantics in the current App locale');
   }
   if (policy?.next_step_copy_policy?.raw_route_or_command_default_visible !== false) {
     throw new Error('Runtime progress page raw route/command next steps must stay hidden by default');
@@ -1115,7 +1188,11 @@ function validateRuntimeBridgeProjectionContracts(runtimeBridge) {
 
 function validatePackageReadinessProjection(runtimeBridge) {
   const rows = runtimeBridge.canonical_state_display_action_map?.rows;
+  const runtimeRow = Array.isArray(rows) ? rows.find((row) => row?.semantic_area === 'runtime') : null;
   const packageRow = Array.isArray(rows) ? rows.find((row) => row?.semantic_area === 'package') : null;
+  if (!runtimeRow?.allowed_action_refs?.includes('work_item_visibility_set')) {
+    throw new Error('Runtime bridge canonical Runtime row must expose work_item_visibility_set');
+  }
   if (
     packageRow?.canonical_source !==
     'opl app state --profile fast --json#app_state.agent_packages.directory + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[]'
@@ -1271,6 +1348,7 @@ function validateRuntimeBridgeForbiddenTruthSources(runtimeBridge) {
     'domain_artifact_body_reads',
     'domain_memory_body_reads',
     'shell_private_runtime_status',
+    'shell_local_storage_work_item_visibility',
   ]) {
     if (!runtimeBridge.forbidden_truth_sources?.includes(forbidden)) {
       throw new Error(`Runtime bridge must forbid ${forbidden}`);

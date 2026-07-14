@@ -202,6 +202,7 @@
         "workbench_display_role": "Workbench task cockpit",
         "allowed_action_refs": [
           "app_state.actions[].action_id",
+          "work_item_visibility_set",
           "task_action_receipt_preview",
           "task_export_bundle_preview",
           "provider_readiness_repair"
@@ -824,14 +825,33 @@
       "optional_ref_fields": ["capability_health_refs"],
       "telemetry_missing_copy": "module status unavailable"
     },
-    "task_archive_lifecycle": {
-      "archive_action_id": "runtime_archive_attempt",
-      "restore_action_id": "runtime_restore_attempt",
-      "framework_surface": "opl family-runtime attempt archive|restore <stage_attempt_id>",
-      "eligible_states": ["completed", "failed", "dead_lettered"],
-      "default_projection": "exclude_archived_attempts_from_active_runtime_overview",
-      "data_policy": "archive_is_reversible_metadata_and_must_not_delete_stage_attempt_evidence",
-      "confirmation_required": true
+    "work_item_visibility": {
+      "projection_path": "work_item_projection_v2.items[].visibility",
+      "axis_values": ["visible", "archived"],
+      "default_projection": "visible_only",
+      "archived_surface": "archived_tasks_library",
+      "archived_surface_scope": "same_agent_then_project_scope",
+      "saved_status_view_allowed": false,
+      "status_filter_may_include_visibility": false,
+      "archive_action_id": "work_item_visibility_set",
+      "restore_action_id": "work_item_visibility_set",
+      "archive_payload": { "visibility_state": "archived" },
+      "restore_payload": { "visibility_state": "visible" },
+      "expected_generation_source": "item.visibility.generation",
+      "expected_generation_required_when_available": true,
+      "concurrency_token_source": "item.visibility.generation",
+      "refresh_after_mutation": "opl app state --profile fast --json",
+      "readback_required": true,
+      "generation_conflict_policy": "refresh_authoritative_projection_then_prompt_retry",
+      "local_storage_truth_allowed": false,
+      "archive_changes_business_lifecycle": false,
+      "archive_stops_execution": false,
+      "archive_deletes_evidence": false,
+      "archived_item_preserves_status_stage_usage": true,
+      "restore_returns_to_main_surface": true,
+      "stop_requires_separate_action": true,
+      "confirmation_required": true,
+      "confirmation_must_explain_archive_does_not_stop_work": true
     },
     "mas_runtime_acceptance_display_policy": "show Med Auto Science owner consumption fields as user-facing acceptance/currentness status, e.g. 'Med Auto Science accepted this runtime result' and 'accepted result matches latest runtime closeout'; keep raw refs and stage attempt ids secondary as evidence, not the primary wording",
     "diagnostic_source_policy": "provider/projection/ref/ledger/current_control_state details stay secondary and are not the default page language",
@@ -874,12 +894,13 @@
       "top_scope_and_refresh",
       "freshness_summary",
       "status_saved_views",
+      "archived_tasks_entry",
       "work_item_list",
       "agent_availability_panel",
       "advanced_diagnostics_disclosure"
     ],
     "layout_regions": {
-      "top": ["top_scope_and_refresh", "freshness_summary", "status_saved_views"],
+      "top": ["top_scope_and_refresh", "freshness_summary", "status_saved_views", "archived_tasks_entry"],
       "main": ["work_item_list"],
       "supporting": ["agent_availability_panel", "advanced_diagnostics_disclosure"]
     },
@@ -896,14 +917,17 @@
       "identity.agent_display_name",
       "identity.project_display_name",
       "identity.work_item_display_name",
-      "lifecycle.primary_state_label",
+      "lifecycle.primary_state",
+      "visibility.state",
       "execution.current_stage_display_name",
       "execution.next_stage_display_name",
       "telemetry.elapsed",
       "telemetry.current_stage_tokens",
       "telemetry.task_total_tokens",
-      "action.title",
+      "action.title_key",
+      "action.message_args",
       "action.owner",
+      "action.owner_kind",
       "agent_availability.display_name",
       "agent_availability.availability"
     ],
@@ -925,14 +949,17 @@
         "identity.agent_display_name",
         "identity.project_display_name",
         "identity.work_item_display_name",
-        "lifecycle.primary_state_label",
+        "lifecycle.primary_state",
+        "visibility.state",
         "execution.current_stage_display_name",
         "execution.next_stage_display_name",
         "telemetry.elapsed",
         "telemetry.current_stage_tokens",
         "telemetry.task_total_tokens",
-        "action.title",
-        "action.owner"
+        "action.title_key",
+        "action.message_args",
+        "action.owner",
+        "action.owner_kind"
       ],
       "agent_availability_panel": [
         "agent_availability.display_name",
@@ -945,11 +972,11 @@
         "identity.agent_display_name",
         "identity.project_display_name",
         "identity.work_item_display_name",
-        "lifecycle.primary_state_label",
+        "lifecycle.primary_state",
         "execution.current_stage_display_name",
         "execution.next_stage_display_name",
-        "action.title",
-        "action.owner"
+        "action.title_key",
+        "action.owner_kind"
       ],
       "raw_identifier_default_visible": false,
       "raw_identifier_advanced_only_fields": [
@@ -966,6 +993,9 @@
         "stage_ids",
         "technical_next_step_routes"
       ],
+      "primary_state_label_render_owner": "shell_current_app_locale",
+      "action_label_render_owner": "shell_current_app_locale",
+      "framework_hardcoded_locale_copy_default_allowed": false,
       "default_copy_examples": {
         "agent_or_module": [
           "Med Auto Science",
@@ -979,7 +1009,10 @@
       }
     },
     "task_deduplication_policy": {
-      "canonical_row_key": "identity.work_item_id",
+      "canonical_row_key": "item_id",
+      "detail_selection_key": "item_id",
+      "identity_work_item_id_scope": "project_local",
+      "duplicate_local_work_item_id_across_projects_allowed": true,
       "dedupe_owner": "opl_framework",
       "one_row_per_work_item": true,
       "shell_heuristic_deduplication_allowed": false,
@@ -987,10 +1020,29 @@
       "display_policy": "one_user_visible_row_per_canonical_work_item",
       "raw_duplicate_refs_default_visible": false
     },
+    "work_item_visibility_policy": {
+      "axis": "work_item_projection.visibility.state",
+      "axis_values": ["visible", "archived"],
+      "default_list_visibility": "visible",
+      "archived_library_visibility": "archived",
+      "archived_library_is_saved_status_view": false,
+      "archived_library_scope": "same_agent_then_project_scope",
+      "status_filters_include_agent_project_or_visibility": false,
+      "restore_returns_item_to_default_list": true,
+      "local_storage_truth_allowed": false,
+      "mutation_contract_ref": "contracts/app-runtime-bridge.json#work_item_projection.visibility_mutation_contract"
+    },
     "next_step_copy_policy": {
-      "source_priority": ["action.title", "execution.next_stage_display_name"],
-      "long_text_policy": "framework_projects_short_human_action_copy_shell_does_not_translate_routes",
-      "default_copy_examples": ["继续分析数据", "继续筛选文献", "等待你决定", "系统自动处理"],
+      "source_priority": [
+        "action.title_key + action.message_args",
+        "action.summary_key + action.message_args"
+      ],
+      "render_owner": "shell_current_app_locale",
+      "long_text_policy": "framework_projects_locale_independent_action_semantics_shell_renders_current_app_locale",
+      "compatibility_fallback_fields": ["action.title", "action.summary"],
+      "compatibility_fallback_only": true,
+      "cross_locale_raw_fallback_allowed": false,
+      "missing_semantics_policy": "localized_generic_action_copy_from_action_kind",
       "raw_route_or_command_default_visible": false
     },
     "responsive_acceptance": {
@@ -1070,9 +1122,13 @@
     "project_scope": {
       "all_option": "all_projects",
       "source": "canonical_project_registry_for_selected_agent",
+      "display_name_source": "canonical_workspace_path_basename",
+      "display_name_must_equal_workspace_path_basename": true,
       "work_item_options_allowed": false
     },
     "work_item_scope_allowed": false,
+    "visibility_axis_outside_scope": true,
+    "archived_library_reuses_agent_project_scope": true,
     "saved_views": {
       "dimension": "primary_state_only",
       "required_ids": [
@@ -1085,6 +1141,7 @@
         "sync_pending"
       ],
       "agent_or_project_views_allowed": false,
+      "visibility_views_allowed": false,
       "forbidden_ids": ["mas", "med-autoscience", "med_auto_science"]
     },
     "scope_source_values": ["default_global", "user_selected", "inferred"],
@@ -1101,13 +1158,14 @@
     "source": "app_state.operator.workbench.work_item_projection_v2",
     "authority": "one_person_lab_canonical_work_item_projection",
     "display_policy": "canonical_work_item_axes_default_decision_fields_diagnostics_on_demand",
-    "model_chain": ["Agent", "Project", "Work Item", "Stage", "Action", "Evidence"],
+    "model_chain": ["Agent", "Project", "Work Item", "Visibility", "Stage", "Action", "Evidence"],
     "projection_owner_boundary": {
-      "framework": "joins canonical agent, project, work-item inventory, lifecycle, execution, usage, conditions, freshness, action, timeline, and evidence refs",
+      "framework": "joins canonical agent, project, work-item inventory, lifecycle, execution, usage, conditions, freshness, visibility, action, timeline, and evidence refs",
       "app": "defines field placement, display allowlist, validation, and advanced-only policy",
       "shell": "renders the projection and opens details without deriving runtime truth"
     },
     "required_fields": [
+      "item_id",
       "identity",
       "lifecycle",
       "execution",
@@ -1115,6 +1173,7 @@
       "telemetry",
       "conditions",
       "freshness",
+      "visibility",
       "action"
     ],
     "field_contracts": {
@@ -1123,12 +1182,20 @@
           "agent_id",
           "agent_display_name",
           "project_id",
+          "workspace_path",
           "project_display_name",
           "work_item_id",
-          "work_item_display_name",
-          "generation"
+          "work_item_display_name"
         ],
         "canonical_source": "agent_catalog_plus_project_registry_plus_agent_work_item_inventory",
+        "project_display_name_source": "canonical_workspace_path_basename",
+        "project_display_name_must_equal_workspace_path_basename": true,
+        "project_id_source": "canonical_workspace_path_hash",
+        "workspace_directory_rename_changes_display_name": true,
+        "workspace_directory_rename_changes_project_id": true,
+        "binding_label_may_override_project_display_name": false,
+        "spoken_name_may_override_project_display_name": false,
+        "runtime_history_may_override_project_display_name": false,
         "execution_fallback_allowed": false
       },
       "lifecycle": {
@@ -1139,18 +1206,32 @@
           "reason",
           "last_transition_at"
         ],
-        "business_states": ["active", "delivered_paused", "paused", "stopped", "archived"],
-        "primary_state_labels_zh_cn": {
-          "automatically_advancing": "自动推进中",
-          "awaiting_user_decision": "等待你决定",
-          "system_attention": "系统处理中",
-          "delivered_auto_paused": "已交付自动暂停",
-          "paused": "已暂停",
-          "stopped": "已停止",
-          "sync_pending": "状态待同步"
+        "business_states": ["active", "delivered_paused", "paused", "stopped", "archived", "unknown"],
+        "primary_state_labels_by_locale": {
+          "en-US": {
+            "automatically_advancing": "Automatically advancing",
+            "awaiting_user_decision": "Waiting for your decision",
+            "system_attention": "System handling",
+            "delivered_auto_paused": "Delivered and auto-paused",
+            "paused": "Paused",
+            "stopped": "Stopped",
+            "sync_pending": "Sync pending"
+          },
+          "zh-CN": {
+            "automatically_advancing": "自动推进中",
+            "awaiting_user_decision": "等待你决定",
+            "system_attention": "系统处理中",
+            "delivered_auto_paused": "已交付自动暂停",
+            "paused": "已暂停",
+            "stopped": "已停止",
+            "sync_pending": "状态待同步"
+          }
         },
         "primary_state_projection_owner": "opl_framework",
-        "shell_derivation_allowed": false
+        "primary_state_label_render_owner": "shell_current_app_locale",
+        "shell_state_derivation_allowed": false,
+        "projected_primary_state_label_role": "compatibility_fallback_only",
+        "cross_locale_projected_label_allowed": false
       },
       "execution": {
         "required_fields": [
@@ -1202,9 +1283,51 @@
         "required_fields": ["state", "observed_at", "last_progress_at", "reason"],
         "states": ["fresh", "stale", "unknown"]
       },
+      "visibility": {
+        "required_fields": ["state", "source", "updated_at", "control_ref", "generation"],
+        "states": ["visible", "archived"],
+        "source_values": ["default", "work_item_control_ledger"],
+        "authority": "opl_framework_work_item_visibility",
+        "lifecycle_independent": true,
+        "generation_is_concurrency_token": true,
+        "mutation_requires_expected_generation_when_available": true,
+        "local_storage_truth_allowed": false
+      },
       "action": {
-        "required_fields": ["kind", "title", "owner", "summary", "action_ref", "dry_run_required"]
+        "required_fields": [
+          "kind",
+          "title",
+          "title_key",
+          "summary",
+          "summary_key",
+          "message_args",
+          "owner",
+          "owner_kind",
+          "action_ref",
+          "dry_run_required"
+        ],
+        "owner_kinds": ["user", "system", "agent", "other"],
+        "message_args_policy": "single_structured_values_object_not_prelocalized_sentences",
+        "render_owner": "shell_current_app_locale",
+        "compatibility_fallback_fields": ["title", "summary"],
+        "compatibility_fallback_only": true,
+        "cross_locale_raw_fallback_allowed": false,
+        "raw_owner_default_render_allowed": false
       }
+    },
+    "row_identity_contract": {
+      "canonical_row_key": "item_id",
+      "detail_selection_key": "item_id",
+      "item_id_scope": "globally_canonical",
+      "item_id_derivation": "project_id_plus_encoded_work_item_id",
+      "identity_work_item_id_scope": "project_local",
+      "duplicate_local_work_item_id_across_projects_allowed": true,
+      "mutation_identity_fields": ["agent_id", "project_id", "work_item_id"],
+      "readback_identity_fields": [
+        "identity.agent_id",
+        "identity.project_id",
+        "identity.work_item_id"
+      ]
     },
     "diagnostic_envelope_contract": {
       "diagnostics_items_field_required": true,
@@ -1219,14 +1342,17 @@
       "identity.project_display_name",
       "identity.work_item_display_name",
       "identity.agent_display_name",
-      "lifecycle.primary_state_label",
+      "lifecycle.primary_state",
+      "visibility.state",
       "execution.current_stage_display_name",
       "execution.next_stage_display_name",
       "telemetry.elapsed",
       "telemetry.current_stage_tokens",
       "telemetry.task_total_tokens",
-      "action.title",
-      "action.owner"
+      "action.title_key",
+      "action.message_args",
+      "action.owner",
+      "action.owner_kind"
     ],
     "condition_contract": {
       "style": "kubernetes_conditions",
@@ -1273,13 +1399,72 @@
         "safe_action",
         "blocked_no_action"
       ],
-      "required_fields": ["kind", "title", "owner", "summary", "action_ref", "dry_run_required"],
-      "default_row_fields": ["kind", "title", "owner"],
+      "required_fields": [
+        "kind",
+        "title",
+        "title_key",
+        "summary",
+        "summary_key",
+        "message_args",
+        "owner",
+        "owner_kind",
+        "action_ref",
+        "dry_run_required"
+      ],
+      "owner_kinds": ["user", "system", "agent", "other"],
+      "default_row_fields": ["kind", "title_key", "message_args", "owner", "owner_kind"],
+      "localization_owner": "shell_current_app_locale",
+      "compatibility_fallback_fields": ["title", "summary"],
+      "compatibility_fallback_only": true,
+      "cross_locale_raw_fallback_allowed": false,
+      "raw_owner_default_render_allowed": false,
       "mutating_actions_require_app_action_route": true,
       "blocked_no_action_requires_reason": true
     },
+    "visibility_mutation_contract": {
+      "action_id": "work_item_visibility_set",
+      "action_route": "opl app action execute --action work_item_visibility_set --payload <json> --json",
+      "payload_required_fields": ["agent_id", "project_id", "work_item_id", "visibility_state"],
+      "payload_optional_fields": ["reason", "expected_generation"],
+      "visibility_values": ["visible", "archived"],
+      "expected_generation_source": "item.visibility.generation",
+      "expected_generation_required_when_available": true,
+      "concurrency_token_readback_source": "item.visibility.generation",
+      "optimistic_local_truth_commit_allowed": false,
+      "local_storage_truth_allowed": false,
+      "success_refresh_command": "opl app state --profile fast --json",
+      "success_readback_selector": "work_item_projection_v2.items[identity.agent_id=payload.agent_id && identity.project_id=payload.project_id && identity.work_item_id=payload.work_item_id]",
+      "success_readback_identity_fields": [
+        "identity.agent_id",
+        "identity.project_id",
+        "identity.work_item_id"
+      ],
+      "success_readback_required_fields": [
+        "item_id",
+        "identity.agent_id",
+        "identity.project_id",
+        "identity.work_item_id",
+        "visibility.state",
+        "visibility.source",
+        "visibility.updated_at",
+        "visibility.control_ref",
+        "visibility.generation",
+        "lifecycle",
+        "execution",
+        "telemetry"
+      ],
+      "success_requires_requested_visibility": true,
+      "generation_conflict_error": "work_item_control_generation_conflict",
+      "generation_conflict_policy": "refresh_authoritative_projection_then_prompt_retry",
+      "failure_preserves_authoritative_projection": true,
+      "visibility_mutation_may_change_lifecycle": false,
+      "visibility_mutation_may_stop_execution": false,
+      "visibility_mutation_may_delete_evidence": false,
+      "stop_requires_separate_framework_action": true
+    },
     "detail_layer_contract": {
       "surface": "runtime_work_item_detail",
+      "selection_key": "item_id",
       "default_visibility": "on_selected_work_item_only",
       "primary_sections": [
         "stage_map",
@@ -2387,7 +2572,8 @@
     "direct_state_index_kernel_writes",
     "domain_artifact_body_reads",
     "domain_memory_body_reads",
-    "shell_private_runtime_status"
+    "shell_private_runtime_status",
+    "shell_local_storage_work_item_visibility"
   ],
   "operator_summary_drilldown_command": "opl runtime app-operator-drilldown --json",
   "running_task_projection": {

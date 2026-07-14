@@ -11,6 +11,7 @@ import {
   runtimePrimaryStateValues,
   runtimeScopeRequiredFields,
   actionEnvelopeKinds,
+  actionOwnerKinds,
   systemAttentionResponsibilityFields,
   taskRunProjectionV2FieldGroups,
   taskRunProjectionV2RequiredFields,
@@ -20,9 +21,11 @@ import {
   workItemDetailDiagnosticSections,
   workItemDetailPrimarySections,
   workItemDetailSecondarySections,
-  workItemPrimaryStateLabels,
+  workItemPrimaryStateLabelsByLocale,
+  workItemBusinessStates,
   workItemProjectionFieldContracts,
   workItemProjectionRequiredFields,
+  workItemVisibilityStates,
 } from "./app-contract-constants.ts";
 function assertNonEmptyString(value, label) {
   if (typeof value !== "string" || !value.trim()) {
@@ -286,14 +289,19 @@ export function validateRuntimeScopeProjectionContract(projection, label) {
     projection.agent_scope?.full_display_names_required !== true ||
     projection.project_scope?.all_option !== "all_projects" ||
     projection.project_scope?.source !== "canonical_project_registry_for_selected_agent" ||
+    projection.project_scope?.display_name_source !== "canonical_workspace_path_basename" ||
+    projection.project_scope?.display_name_must_equal_workspace_path_basename !== true ||
     projection.project_scope?.work_item_options_allowed !== false ||
-    projection.work_item_scope_allowed !== false
+    projection.work_item_scope_allowed !== false ||
+    projection.visibility_axis_outside_scope !== true ||
+    projection.archived_library_reuses_agent_project_scope !== true
   ) {
-    throw new Error(`${label} must use Agent -> Project cascade and keep work items out of scope`);
+    throw new Error(`${label} must use Agent -> Project basename scope and keep work items and visibility out of scope`);
   }
   if (
     projection.saved_views?.dimension !== "primary_state_only" ||
     projection.saved_views?.agent_or_project_views_allowed !== false ||
+    projection.saved_views?.visibility_views_allowed !== false ||
     projection.saved_views?.forbidden_ids?.some((value) =>
       ["mas", "med-autoscience", "med_auto_science"].includes(value)
     ) !== true
@@ -305,6 +313,48 @@ export function validateRuntimeScopeProjectionContract(projection, label) {
     ["default_global", "user_selected", "inferred"],
     `${label} scope_source_values`,
   );
+}
+
+export function validateWorkItemRowIdentityFixture(
+  items,
+  label,
+  { requireCrossProjectLocalIdCollision = false } = {},
+) {
+  if (!Array.isArray(items) || items.length === 0) {
+    throw new Error(`${label} must include work-item rows`);
+  }
+  const itemIds = new Set();
+  const mutationTuples = new Set();
+  const projectsByLocalWorkItemId = new Map();
+  for (const [index, item] of items.entries()) {
+    const itemLabel = `${label}[${index}]`;
+    assertNonEmptyString(item?.item_id, `${itemLabel}.item_id`);
+    assertNonEmptyString(item?.identity?.agent_id, `${itemLabel}.identity.agent_id`);
+    assertNonEmptyString(item?.identity?.project_id, `${itemLabel}.identity.project_id`);
+    assertNonEmptyString(item?.identity?.work_item_id, `${itemLabel}.identity.work_item_id`);
+    if (itemIds.has(item.item_id)) {
+      throw new Error(`${label} item_id must be globally unique`);
+    }
+    itemIds.add(item.item_id);
+    const mutationTuple = [
+      item.identity.agent_id,
+      item.identity.project_id,
+      item.identity.work_item_id,
+    ].join("\u0000");
+    if (mutationTuples.has(mutationTuple)) {
+      throw new Error(`${label} mutation identity tuple must be unique`);
+    }
+    mutationTuples.add(mutationTuple);
+    const projectIds = projectsByLocalWorkItemId.get(item.identity.work_item_id) ?? new Set();
+    projectIds.add(item.identity.project_id);
+    projectsByLocalWorkItemId.set(item.identity.work_item_id, projectIds);
+  }
+  if (
+    requireCrossProjectLocalIdCollision
+    && ![...projectsByLocalWorkItemId.values()].some((projectIds) => projectIds.size > 1)
+  ) {
+    throw new Error(`${label} must exercise a project-local work_item_id collision`);
+  }
 }
 
 export function validateWorkItemProjectionContract(projection, label) {
@@ -325,7 +375,7 @@ export function validateWorkItemProjectionContract(projection, label) {
   }
   assertDeepEqualJson(
     projection.model_chain,
-    ["Agent", "Project", "Work Item", "Stage", "Action", "Evidence"],
+    ["Agent", "Project", "Work Item", "Visibility", "Stage", "Action", "Evidence"],
     `${label} model_chain`,
   );
   assertDeepEqualJson(
@@ -341,10 +391,42 @@ export function validateWorkItemProjectionContract(projection, label) {
     );
   }
   assertDeepEqualJson(
-    projection.field_contracts?.lifecycle?.primary_state_labels_zh_cn,
-    workItemPrimaryStateLabels,
+    projection.field_contracts?.lifecycle?.primary_state_labels_by_locale,
+    workItemPrimaryStateLabelsByLocale,
     `${label} lifecycle primary state labels`,
   );
+  const identity = projection.field_contracts?.identity;
+  for (const [field, expected] of Object.entries({
+    project_display_name_source: "canonical_workspace_path_basename",
+    project_display_name_must_equal_workspace_path_basename: true,
+    project_id_source: "canonical_workspace_path_hash",
+    workspace_directory_rename_changes_display_name: true,
+    workspace_directory_rename_changes_project_id: true,
+    binding_label_may_override_project_display_name: false,
+    spoken_name_may_override_project_display_name: false,
+    runtime_history_may_override_project_display_name: false,
+    execution_fallback_allowed: false,
+  })) {
+    if (identity?.[field] !== expected) {
+      throw new Error(`${label} identity.${field} must be ${expected}`);
+    }
+  }
+  assertDeepEqualJson(
+    projection.field_contracts?.lifecycle?.business_states,
+    workItemBusinessStates,
+    `${label} lifecycle business_states`,
+  );
+  for (const [field, expected] of Object.entries({
+    primary_state_projection_owner: "opl_framework",
+    primary_state_label_render_owner: "shell_current_app_locale",
+    shell_state_derivation_allowed: false,
+    projected_primary_state_label_role: "compatibility_fallback_only",
+    cross_locale_projected_label_allowed: false,
+  })) {
+    if (projection.field_contracts?.lifecycle?.[field] !== expected) {
+      throw new Error(`${label} lifecycle.${field} must be ${expected}`);
+    }
+  }
   assertDeepEqualJson(
     projection.field_contracts?.attention?.system_responsibility_required_fields,
     systemAttentionResponsibilityFields,
@@ -382,6 +464,60 @@ export function validateWorkItemProjectionContract(projection, label) {
   ) {
     throw new Error(`${label} token telemetry must be observed-only with no fabricated zero or limit bar`);
   }
+  const visibility = projection.field_contracts?.visibility;
+  assertDeepEqualJson(visibility?.states, workItemVisibilityStates, `${label} visibility states`);
+  for (const [field, expected] of Object.entries({
+    authority: "opl_framework_work_item_visibility",
+    lifecycle_independent: true,
+    generation_is_concurrency_token: true,
+    mutation_requires_expected_generation_when_available: true,
+    local_storage_truth_allowed: false,
+  })) {
+    if (visibility?.[field] !== expected) {
+      throw new Error(`${label} visibility.${field} must be ${expected}`);
+    }
+  }
+  assertDeepEqualJson(
+    visibility?.source_values,
+    ["default", "work_item_control_ledger"],
+    `${label} visibility source_values`,
+  );
+  const action = projection.field_contracts?.action;
+  assertDeepEqualJson(action?.owner_kinds, actionOwnerKinds, `${label} action owner_kinds`);
+  assertDeepEqualJson(
+    action?.compatibility_fallback_fields,
+    ["title", "summary"],
+    `${label} action compatibility_fallback_fields`,
+  );
+  for (const [field, expected] of Object.entries({
+    message_args_policy: "single_structured_values_object_not_prelocalized_sentences",
+    render_owner: "shell_current_app_locale",
+    compatibility_fallback_only: true,
+    cross_locale_raw_fallback_allowed: false,
+    raw_owner_default_render_allowed: false,
+  })) {
+    if (action?.[field] !== expected) {
+      throw new Error(`${label} action.${field} must be ${expected}`);
+    }
+  }
+  assertDeepEqualJson(
+    projection.row_identity_contract,
+    {
+      canonical_row_key: "item_id",
+      detail_selection_key: "item_id",
+      item_id_scope: "globally_canonical",
+      item_id_derivation: "project_id_plus_encoded_work_item_id",
+      identity_work_item_id_scope: "project_local",
+      duplicate_local_work_item_id_across_projects_allowed: true,
+      mutation_identity_fields: ["agent_id", "project_id", "work_item_id"],
+      readback_identity_fields: [
+        "identity.agent_id",
+        "identity.project_id",
+        "identity.work_item_id",
+      ],
+    },
+    `${label} row_identity_contract`,
+  );
   for (const [field, expected] of Object.entries({
     diagnostics_items_field_required: true,
     fast_profile_detail_policy: "summary_only",
@@ -401,14 +537,17 @@ export function validateWorkItemProjectionContract(projection, label) {
       "identity.project_display_name",
       "identity.work_item_display_name",
       "identity.agent_display_name",
-      "lifecycle.primary_state_label",
+      "lifecycle.primary_state",
+      "visibility.state",
       "execution.current_stage_display_name",
       "execution.next_stage_display_name",
       "telemetry.elapsed",
       "telemetry.current_stage_tokens",
       "telemetry.task_total_tokens",
-      "action.title",
+      "action.title_key",
+      "action.message_args",
       "action.owner",
+      "action.owner_kind",
     ],
     `${label} default_display_fields`,
   );
@@ -422,12 +561,100 @@ export function validateWorkItemProjectionContract(projection, label) {
     actionEnvelopeKinds,
     `${label} action envelope kinds`,
   );
+  assertDeepEqualJson(
+    projection.action_envelope_contract?.required_fields,
+    workItemProjectionFieldContracts.action,
+    `${label} action envelope required_fields`,
+  );
+  assertDeepEqualJson(
+    projection.action_envelope_contract?.owner_kinds,
+    actionOwnerKinds,
+    `${label} action envelope owner_kinds`,
+  );
+  assertDeepEqualJson(
+    projection.action_envelope_contract?.default_row_fields,
+    ["kind", "title_key", "message_args", "owner", "owner_kind"],
+    `${label} action envelope default_row_fields`,
+  );
+  assertDeepEqualJson(
+    projection.action_envelope_contract?.compatibility_fallback_fields,
+    ["title", "summary"],
+    `${label} action envelope compatibility_fallback_fields`,
+  );
   if (
     projection.action_envelope_contract?.default_action_source !==
-    "current_owner_delta_or_task_action_cards"
+      "current_owner_delta_or_task_action_cards" ||
+    projection.action_envelope_contract?.localization_owner !== "shell_current_app_locale" ||
+    projection.action_envelope_contract?.compatibility_fallback_only !== true ||
+    projection.action_envelope_contract?.cross_locale_raw_fallback_allowed !== false ||
+    projection.action_envelope_contract?.raw_owner_default_render_allowed !== false ||
+    projection.action_envelope_contract?.mutating_actions_require_app_action_route !== true
   ) {
-    throw new Error(`${label} action envelope must use current owner delta or task action cards`);
+    throw new Error(`${label} action envelope must use semantic locale rendering and the App action route`);
   }
+  const visibilityMutation = projection.visibility_mutation_contract;
+  assertDeepEqualJson(
+    visibilityMutation?.payload_required_fields,
+    ["agent_id", "project_id", "work_item_id", "visibility_state"],
+    `${label} visibility mutation payload_required_fields`,
+  );
+  assertDeepEqualJson(
+    visibilityMutation?.payload_optional_fields,
+    ["reason", "expected_generation"],
+    `${label} visibility mutation payload_optional_fields`,
+  );
+  assertDeepEqualJson(
+    visibilityMutation?.visibility_values,
+    workItemVisibilityStates,
+    `${label} visibility mutation values`,
+  );
+  for (const [field, expected] of Object.entries({
+    action_id: "work_item_visibility_set",
+    action_route: "opl app action execute --action work_item_visibility_set --payload <json> --json",
+    expected_generation_source: "item.visibility.generation",
+    expected_generation_required_when_available: true,
+    concurrency_token_readback_source: "item.visibility.generation",
+    optimistic_local_truth_commit_allowed: false,
+    local_storage_truth_allowed: false,
+    success_refresh_command: "opl app state --profile fast --json",
+    success_readback_selector:
+      "work_item_projection_v2.items[identity.agent_id=payload.agent_id && identity.project_id=payload.project_id && identity.work_item_id=payload.work_item_id]",
+    success_requires_requested_visibility: true,
+    generation_conflict_error: "work_item_control_generation_conflict",
+    generation_conflict_policy: "refresh_authoritative_projection_then_prompt_retry",
+    failure_preserves_authoritative_projection: true,
+    visibility_mutation_may_change_lifecycle: false,
+    visibility_mutation_may_stop_execution: false,
+    visibility_mutation_may_delete_evidence: false,
+    stop_requires_separate_framework_action: true,
+  })) {
+    if (visibilityMutation?.[field] !== expected) {
+      throw new Error(`${label} visibility mutation ${field} must be ${expected}`);
+    }
+  }
+  assertDeepEqualJson(
+    visibilityMutation?.success_readback_identity_fields,
+    ["identity.agent_id", "identity.project_id", "identity.work_item_id"],
+    `${label} visibility mutation success_readback_identity_fields`,
+  );
+  assertDeepEqualJson(
+    visibilityMutation?.success_readback_required_fields,
+    [
+      "item_id",
+      "identity.agent_id",
+      "identity.project_id",
+      "identity.work_item_id",
+      "visibility.state",
+      "visibility.source",
+      "visibility.updated_at",
+      "visibility.control_ref",
+      "visibility.generation",
+      "lifecycle",
+      "execution",
+      "telemetry",
+    ],
+    `${label} visibility mutation success_readback_required_fields`,
+  );
   assertIncludesAll(
     projection.stage_catalog_contract?.required_fields,
     ["stage_id", "display_name", "description", "owner_kind", "next_action_template"],
@@ -460,6 +687,9 @@ export function validateWorkItemProjectionContract(projection, label) {
   );
   if (projection.detail_layer_contract?.default_visibility !== "on_selected_work_item_only") {
     throw new Error(`${label} detail layer must be opened only after selecting a work item`);
+  }
+  if (projection.detail_layer_contract?.selection_key !== "item_id") {
+    throw new Error(`${label} detail layer must select globally canonical item_id`);
   }
   if (
     projection.refs_only !== true ||
@@ -2180,17 +2410,36 @@ export function validateUserTaskStatusProjectionContract(
     `${label} agent_module_status_panel`,
   );
   assertDeepEqualJson(
-    userTaskStatus.task_archive_lifecycle,
+    userTaskStatus.work_item_visibility,
     {
-      archive_action_id: "runtime_archive_attempt",
-      restore_action_id: "runtime_restore_attempt",
-      framework_surface: "opl family-runtime attempt archive|restore <stage_attempt_id>",
-      eligible_states: ["completed", "failed", "dead_lettered"],
-      default_projection: "exclude_archived_attempts_from_active_runtime_overview",
-      data_policy: "archive_is_reversible_metadata_and_must_not_delete_stage_attempt_evidence",
+      projection_path: "work_item_projection_v2.items[].visibility",
+      axis_values: ["visible", "archived"],
+      default_projection: "visible_only",
+      archived_surface: "archived_tasks_library",
+      archived_surface_scope: "same_agent_then_project_scope",
+      saved_status_view_allowed: false,
+      status_filter_may_include_visibility: false,
+      archive_action_id: "work_item_visibility_set",
+      restore_action_id: "work_item_visibility_set",
+      archive_payload: { visibility_state: "archived" },
+      restore_payload: { visibility_state: "visible" },
+      expected_generation_source: "item.visibility.generation",
+      expected_generation_required_when_available: true,
+      concurrency_token_source: "item.visibility.generation",
+      refresh_after_mutation: "opl app state --profile fast --json",
+      readback_required: true,
+      generation_conflict_policy: "refresh_authoritative_projection_then_prompt_retry",
+      local_storage_truth_allowed: false,
+      archive_changes_business_lifecycle: false,
+      archive_stops_execution: false,
+      archive_deletes_evidence: false,
+      archived_item_preserves_status_stage_usage: true,
+      restore_returns_to_main_surface: true,
+      stop_requires_separate_action: true,
       confirmation_required: true,
+      confirmation_must_explain_archive_does_not_stop_work: true,
     },
-    `${label} task_archive_lifecycle`,
+    `${label} work_item_visibility`,
   );
   assertDeepEqualJson(
     userTaskStatus.must_not_default_display_terms,

@@ -1092,6 +1092,8 @@
             "elapsed_and_tokens"
           ],
           "one_row_per_work_item": true,
+          "canonical_row_key": "item_id",
+          "detail_selection_key": "item_id",
           "raw_ids_default_visible": false,
           "horizontal_page_overflow_allowed": false,
           "responsive_viewport_widths_px": [375, 768, 1024, 1440],
@@ -1111,7 +1113,11 @@
             "saved_views_status_only_no_agent_or_mas_view",
             "four_column_default_list_agent_as_secondary_label",
             "one_row_per_canonical_work_item",
-            "framework_projected_primary_state_language",
+            "global_item_id_row_and_detail_identity_full_tuple_mutation_readback",
+            "project_display_name_equals_canonical_workspace_path_basename",
+            "framework_state_semantics_shell_locale_rendering_no_cross_locale_copy",
+            "visibility_library_separate_from_lifecycle_scope_and_saved_status_views",
+            "visibility_mutation_framework_action_generation_refresh_readback",
             "system_attention_requires_complete_current_responsibility",
             "observed_token_usage_missing_never_zero_no_limit_progress",
             "detail_primary_secondary_diagnostic_hierarchy",
@@ -1145,6 +1151,120 @@
           "source": "app_state.actions",
           "fallback_source": "app_state.operator.actions",
           "authority": "framework_refs_only"
+        },
+        "work_item_visibility_state_matrix": {
+          "authority": "opl_framework_work_item_visibility",
+          "projection_path": "app_state.operator.workbench.work_item_projection_v2.items[].visibility",
+          "visibility_values": ["visible", "archived"],
+          "visibility_required_fields": ["state", "source", "updated_at", "control_ref", "generation"],
+          "generation_is_concurrency_token": true,
+          "default_surface": "runtime_main_visible_only",
+          "archived_surface": "archived_tasks_library",
+          "archived_surface_is_saved_status_view": false,
+          "scope_hierarchy": "agent_then_project_for_both_surfaces",
+          "status_filters_include_agent_project_or_visibility": false,
+          "local_storage_truth_allowed": false,
+          "mutation": {
+            "action_id": "work_item_visibility_set",
+            "command": "opl app action execute --action work_item_visibility_set --payload <json> --json",
+            "payload_required_fields": ["agent_id", "project_id", "work_item_id", "visibility_state"],
+            "payload_optional_fields": ["reason", "expected_generation"],
+            "expected_generation_source": "item.visibility.generation",
+            "expected_generation_required_when_available": true,
+            "concurrency_token_source": "item.visibility.generation",
+            "refresh_after_execute": "opl app state --profile fast --json",
+            "readback_selector": "work_item_projection_v2.items[identity.agent_id=payload.agent_id && identity.project_id=payload.project_id && identity.work_item_id=payload.work_item_id]",
+            "readback_identity_fields": [
+              "identity.agent_id",
+              "identity.project_id",
+              "identity.work_item_id"
+            ],
+            "readback_required_fields": [
+              "item_id",
+              "identity.agent_id",
+              "identity.project_id",
+              "identity.work_item_id",
+              "visibility.state",
+              "visibility.source",
+              "visibility.updated_at",
+              "visibility.control_ref",
+              "visibility.generation",
+              "lifecycle",
+              "execution",
+              "telemetry"
+            ],
+            "readback_must_match_requested_visibility": true,
+            "optimistic_local_truth_commit_allowed": false,
+            "failure_preserves_authoritative_projection": true
+          },
+          "archive_confirmation": {
+            "required": true,
+            "must_explain": [
+              "archive_changes_visibility_only",
+              "archive_does_not_change_lifecycle_or_delete_evidence",
+              "work_may_continue_running",
+              "stopping_work_requires_a_separate_action"
+            ]
+          },
+          "page_states": [
+            {
+              "id": "active_empty",
+              "surface": "runtime_main",
+              "when": "no_visible_items_in_selected_agent_project_scope",
+              "required_ui": "localized_active_empty_state_with_archived_tasks_entry_still_reachable"
+            },
+            {
+              "id": "archived_empty",
+              "surface": "archived_tasks_library",
+              "when": "no_archived_items_in_selected_agent_project_scope",
+              "required_ui": "localized_archived_empty_state_with_return_to_runtime_main"
+            },
+            {
+              "id": "archiving",
+              "surface": "runtime_main",
+              "when": "work_item_visibility_set_pending_archived",
+              "required_ui": "localized_archiving_state_disable_duplicate_mutation_keep_authoritative_item_until_refresh_readback"
+            },
+            {
+              "id": "restoring",
+              "surface": "archived_tasks_library",
+              "when": "work_item_visibility_set_pending_visible",
+              "required_ui": "localized_restoring_state_disable_duplicate_mutation_keep_authoritative_item_until_refresh_readback"
+            },
+            {
+              "id": "archive_failed",
+              "surface": "runtime_main",
+              "when": "archive_action_failed_or_readback_mismatch",
+              "required_ui": "localized_inline_failure_keep_framework_readback_and_offer_retry"
+            },
+            {
+              "id": "restore_failed",
+              "surface": "archived_tasks_library",
+              "when": "restore_action_failed_or_readback_mismatch",
+              "required_ui": "localized_inline_failure_keep_framework_readback_and_offer_retry"
+            },
+            {
+              "id": "stale_generation_conflict",
+              "surface": "runtime_main_or_archived_tasks_library",
+              "when": "work_item_control_generation_conflict",
+              "required_ui": "refresh_authoritative_projection_then_prompt_user_to_retry",
+              "automatic_overwrite_allowed": false
+            },
+            {
+              "id": "locale_en_us",
+              "surface": "runtime_main_and_archived_tasks_library",
+              "when": "current_app_locale_en-US",
+              "required_ui": "render_action_next_step_owner_archive_restore_pending_and_error_copy_from_semantic_keys_in_english",
+              "forbidden_ui": "framework_hardcoded_chinese_copy_or_cross_locale_raw_fallback"
+            },
+            {
+              "id": "locale_zh_cn",
+              "surface": "runtime_main_and_archived_tasks_library",
+              "when": "current_app_locale_zh-CN",
+              "required_ui": "render_action_next_step_owner_archive_restore_pending_and_error_copy_from_semantic_keys_in_chinese",
+              "forbidden_ui": "framework_hardcoded_english_copy_or_cross_locale_raw_fallback"
+            }
+          ]
         },
         "user_task_status_projection": {
           "source": "app_state.operator.workbench.summary_cards + app_state.operator.workbench.activity_center + app_state.operator.workbench.task_drilldowns + app_state.operator.visual_ref_groups.active_project_refs",
@@ -1295,14 +1415,33 @@
             "optional_ref_fields": ["capability_health_refs"],
             "telemetry_missing_copy": "module status unavailable"
           },
-          "task_archive_lifecycle": {
-            "archive_action_id": "runtime_archive_attempt",
-            "restore_action_id": "runtime_restore_attempt",
-            "framework_surface": "opl family-runtime attempt archive|restore <stage_attempt_id>",
-            "eligible_states": ["completed", "failed", "dead_lettered"],
-            "default_projection": "exclude_archived_attempts_from_active_runtime_overview",
-            "data_policy": "archive_is_reversible_metadata_and_must_not_delete_stage_attempt_evidence",
-            "confirmation_required": true
+          "work_item_visibility": {
+            "projection_path": "work_item_projection_v2.items[].visibility",
+            "axis_values": ["visible", "archived"],
+            "default_projection": "visible_only",
+            "archived_surface": "archived_tasks_library",
+            "archived_surface_scope": "same_agent_then_project_scope",
+            "saved_status_view_allowed": false,
+            "status_filter_may_include_visibility": false,
+            "archive_action_id": "work_item_visibility_set",
+            "restore_action_id": "work_item_visibility_set",
+            "archive_payload": { "visibility_state": "archived" },
+            "restore_payload": { "visibility_state": "visible" },
+            "expected_generation_source": "item.visibility.generation",
+            "expected_generation_required_when_available": true,
+            "concurrency_token_source": "item.visibility.generation",
+            "refresh_after_mutation": "opl app state --profile fast --json",
+            "readback_required": true,
+            "generation_conflict_policy": "refresh_authoritative_projection_then_prompt_retry",
+            "local_storage_truth_allowed": false,
+            "archive_changes_business_lifecycle": false,
+            "archive_stops_execution": false,
+            "archive_deletes_evidence": false,
+            "archived_item_preserves_status_stage_usage": true,
+            "restore_returns_to_main_surface": true,
+            "stop_requires_separate_action": true,
+            "confirmation_required": true,
+            "confirmation_must_explain_archive_does_not_stop_work": true
           },
           "mas_runtime_acceptance_display_policy": "show Med Auto Science owner consumption fields as user-facing acceptance/currentness status, e.g. 'Med Auto Science accepted this runtime result' and 'accepted result matches latest runtime closeout'; keep raw refs and stage attempt ids secondary as evidence, not the primary wording",
           "diagnostic_source_policy": "provider/projection/ref/ledger/current_control_state details stay secondary and are not the default page language",
@@ -1346,9 +1485,13 @@
           "project_scope": {
             "all_option": "all_projects",
             "source": "canonical_project_registry_for_selected_agent",
+            "display_name_source": "canonical_workspace_path_basename",
+            "display_name_must_equal_workspace_path_basename": true,
             "work_item_options_allowed": false
           },
           "work_item_scope_allowed": false,
+          "visibility_axis_outside_scope": true,
+          "archived_library_reuses_agent_project_scope": true,
           "saved_views": {
             "dimension": "primary_state_only",
             "required_ids": [
@@ -1361,6 +1504,7 @@
               "sync_pending"
             ],
             "agent_or_project_views_allowed": false,
+            "visibility_views_allowed": false,
             "forbidden_ids": ["mas", "med-autoscience", "med_auto_science"]
           },
           "scope_source_values": ["default_global", "user_selected", "inferred"]
@@ -2093,6 +2237,12 @@
         "active project count from framework project-line projection",
         "queued project count from framework project-line projection",
         "attention count from framework blocker and owner-attention projection",
+        "top-level item_id row and detail identity with full agent_id plus project_id plus work_item_id mutation and readback tuple",
+        "project display name from canonical workspace_path basename",
+        "action title_key and summary_key with one message_args object plus owner and owner_kind rendered in the current App locale",
+        "visible Runtime main list and separate archived tasks library using the same Agent then Project scope",
+        "work_item_visibility_set expected generation execute, fast refresh, and authoritative readback",
+        "generation conflict refresh followed by user retry",
         "task title/status/stage/progress label/next step/next owner/owner/accepted answer shape/artifact or blocker/last progress",
         "four-layer mental model from agent/capability to execution run",
         "stage_run_cockpit or equivalent stage_run_current_owner_delta for current stage/elapsed/heartbeat/usage when projected",
@@ -2138,6 +2288,12 @@
         "active project count",
         "queued project count",
         "attention count",
+        "top-level item_id row and detail identity with full mutation and readback tuple",
+        "canonical workspace_path basename as the Runtime Project display name",
+        "localized action, Next Step, and owner copy from semantic keys and owner kind",
+        "visible-only Runtime main list and separate Archived tasks library with restore",
+        "work_item_visibility_set mutation with expected generation, refresh, and readback",
+        "stale generation conflict refresh and retry state",
         "task title/status/stage/progress label/next step/next owner/owner/accepted answer shape/artifact or blocker/last progress",
         "four-layer mental model: agent/capability, project, task/work item, execution run",
         "current stage and stage elapsed or telemetry missing",
@@ -2213,6 +2369,7 @@
         "action route authority",
         "domain action approval override",
         "owner receipt authority",
+        "localStorage work-item visibility truth",
         "shell-owned task store",
         "new task dashboard",
         "family production readiness",

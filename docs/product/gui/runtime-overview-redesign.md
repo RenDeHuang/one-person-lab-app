@@ -17,6 +17,11 @@ Runtime V2 不再直接拼接项目目录、Temporal attempt、业务生命周�
 package 状态。OPL Framework 先生产稳定的 `WorkItemProjection v2` 与独立的
 `AgentAvailabilityProjection`；App 定义用户语言、字段位置和验收；Shell 只渲染。
 
+项目名严格取 canonical `workspace_path` 的 basename；Framework 投出语言无关的 action
+semantic fields，Shell 按当前 App locale 渲染；手工归档是独立 visibility 轴，并进入独立
+归档库。以上均是 App 产品 truth，不由 binding label、runtime history、Shell 本地状态或
+Framework raw 文案覆盖。
+
 ## 问题背景
 
 旧页面把五类事实放进同一条 runtime task：
@@ -47,18 +52,24 @@ raw ID、attempt、workflow、receipt、provider、日志和 refs 不参与默�
 
 ### WorkItemProjection v2
 
-每个 canonical work item 必须投出以下八个一级对象：
+每个 canonical work item 顶层必须有全局 canonical `item_id`，并投出以下九个一级对象：
 
 | 对象 | 职责 |
 | --- | --- |
-| `identity` | 智能体、项目和工作项的稳定 ID、全称、显示名与 generation。项目身份只来自 canonical registry/inventory。 |
+| `identity` | 智能体、项目和工作项的 ID、全称、显示名与 workspace path。项目身份只来自 canonical registry/inventory；并发 generation 只属于 visibility。 |
 | `lifecycle` | 业务生命周期，以及 Framework 投出的用户主状态和原因。 |
+| `visibility` | 独立的 `visible / archived` 可见性、来源、更新时间、control ref 和作为并发 token 的 generation。 |
 | `execution` | 是否运行、当前/下一 stage、开始时间和 heartbeat；没有执行历史也必须保留对象和任务行。 |
 | `attention` | `none/user/system`、摘要、owner；`system` 还必须有完整 responsibility envelope。 |
 | `telemetry` | elapsed、当前 stage Token、任务累计 Token，以及 observed/partial/missing/stale。 |
 | `conditions` | 带 reason、message、owner、transition time 和 observed generation 的当前条件。 |
 | `freshness` | 投影读取时间、最近进展和 fresh/stale/unknown。 |
 | `action` | 下一行动、owner、说明和可执行 action ref；mutating action 仍走 `opl app action`。 |
+
+顶层 `item_id` 由 Framework 以 `project_id + encoded work_item_id` 形成，是列表 row key 和
+详情选择 key。`identity.work_item_id` 只在项目内唯一，不同 MAS workspace 可以重复使用同一
+local ID。因此 Shell 不得用 `identity.work_item_id` 单独去重、选择详情或匹配 mutation
+readback。
 
 `attempt`、runtime ID、workflow ID 和 evidence refs 不再是默认行必需字段。它们可以作为详情
 或诊断 refs 存在，但不能决定 work item 是否存在、属于哪个项目或用户主状态。
@@ -89,17 +100,24 @@ Scope 固定为两个级联层：
 1. **Agent**：全部智能体或某个完整智能体名称。
 2. **Project**：该智能体 canonical Project Registry 中的真实项目；首项为全部项目。
 
-论文或 work item 不进入 scope。它们只作为主列表行出现。workspace path 可以支持 project
-identity，但不再作为与 project 并列的用户范围层。
+论文或 work item 不进入 scope。它们只作为主列表行出现。workspace path 是 Project 名称和
+当前 `project_id` 的 canonical 输入，但不再作为与 project 并列的用户范围层。
+
+Runtime Project 的用户显示名必须严格等于 canonical `workspace_path` basename，例如
+`DM-CVD-Mortality-Risk`、`NF-PitNET`、`Obesity`。binding label、口头名称和 runtime history
+都不能覆盖它。当前 Framework 的 `project_id` 来自 canonical workspace path hash，所以目录
+改名会同时改变 `project_display_name` 和 `project_id`；App 不声称 identity 在改名后保持稳定。
 
 Saved views 只做主状态筛选：全部、自动推进中、等待你决定、系统处理中、已交付或暂停、
 已停止、状态待同步。Saved views 禁止出现 MAS、其他智能体、项目或论文入口，避免与 scope
-形成第二套导航。
+形成第二套导航。visibility 也不进入 saved views；归档库是独立入口，不是一个“已归档”状态
+筛选。
 
 ## 用户主状态
 
 Framework 根据 lifecycle、execution、attention、conditions 和 freshness 投出唯一主状态；
-Shell 不得从原始字段重新推断。
+Shell 不得从原始字段重新推断。`WorkItemBusinessState` 仍可包含 domain/legacy `archived`；这不
+等于手工归档，也不能据此把业务状态集合收窄或把 visibility 反推为 lifecycle。
 
 | machine value | 用户文案 | 含义 |
 | --- | --- | --- |
@@ -123,6 +141,17 @@ Shell 不得从原始字段重新推断。
 责任信息不完整时，保留 lifecycle 推出的主状态，并把技术诊断后置；不得显示笼统的
 “需要系统处理”。历史失败 condition 只进入时间线，不能覆盖更新的已交付、暂停或停止状态。
 
+## Action 与本地化
+
+Framework action 的语言无关字段为 `title_key`、`summary_key`、单一 `message_args`、`owner`
+和 `owner_kind`。`owner_kind` 只允许 `user / system / agent / other`；title 与 summary 共用同一个
+参数对象，不声明分离参数、copy-locale metadata 或额外 semantic key namespace。
+
+Shell 使用当前 App locale 解析 title、summary、Next Step 与 owner；Framework 仍负责状态和
+action 语义，Shell 不得借本地化重新推断状态。raw `title / summary` 仅为兼容 fallback，不能
+覆盖 semantic key 的当前 locale 结果。英文界面不得出现 Framework 硬编码中文 action、Next
+Step 或 owner 文案，中文界面同理。
+
 ## 默认页面
 
 ### 顶部
@@ -141,7 +170,7 @@ Shell 不得从原始字段重新推断。
 3. **当前进展 / 下一步**：当前 stage、下一 stage 或 action、owner。
 4. **时间 / Token**：elapsed、当前 stage Token、任务累计 Token。
 
-一篇论文或一个 work item 只显示一行，row key 为 `identity.work_item_id`。去重由 Framework
+一篇论文或一个 work item 只显示一行，row key 为顶层 `item_id`。去重由 Framework
 canonical projection 完成，Shell 不按标题、stage、binding 或最近时间启发式合并。
 
 当前业务 stage 只读取 canonical `current_stage` 投影。`execution.stage_id` 属于运行尝试诊断，
@@ -171,6 +200,35 @@ Fast profile 的诊断采用渐进披露：`diagnostics.items` 字段仍须存�
 `project_catalog` 和 `items`，不得因为诊断详情未内嵌而隐藏项目或工作项。只有显式 full
 profile 声明 `detail_policy=included` 时，诊断总数才必须与内嵌详情数量一致。
 
+### Visibility 与归档库
+
+默认 Runtime 主列表只显示 `visibility.state=visible`。独立的 `Archived tasks / 归档库` 入口
+显示 archived 项，并继续沿用 Agent -> Project scope；visibility 不混入主列表 status filters。
+归档项保留原 lifecycle status、stage、usage 与 evidence，恢复后回到默认主列表。
+
+手工归档只改变 visibility，不改变业务生命周期、不停止任务，也不删除 evidence。归档确认
+必须明确提示“工作可能继续运行；若要停止必须执行独立 stop action”。执行中的工作也不能因
+归档而被描述为 stopped、paused 或 delivered。
+
+Framework visibility 对象精确包含 `state`、`source`、`updated_at`、`control_ref`、`generation`；
+`generation` 就是并发 token，没有独立 `token` 字段。Shell 禁止以 localStorage 或 optimistic
+state 作为 visibility truth。
+
+归档与恢复统一执行 Framework action `work_item_visibility_set`：
+
+1. payload 必须包含 `agent_id`、`project_id`、`work_item_id`、`visibility_state`。
+2. `reason`、`expected_generation` 可选；projection 有 `visibility.generation` 时 Shell 必须将其
+   作为 `expected_generation` 发送。
+3. mutation 成功后立即读取 `opl app state --profile fast --json`。
+4. readback 必须按 `agent_id + project_id + work_item_id` 完整 tuple 定位，并核对顶层 `item_id`、
+   新 visibility 及原 lifecycle、execution、telemetry；不得只按 local `work_item_id` 匹配。
+5. `work_item_control_generation_conflict` 表示 stale generation。Shell 必须先刷新权威 projection，
+   再提示用户重试，禁止自动覆盖较新的控制状态。
+
+page-state matrix 必须覆盖主列表空态、归档库空态、归档中、恢复中、归档失败、恢复失败、
+stale generation conflict，以及 `en-US / zh-CN` 切换。pending 或失败状态都保留最近一次
+Framework readback，不能提前把本地 optimistic 结果提交为真相。
+
 ### Token
 
 默认显示当前 stage 与任务累计两项。每项 Token 是判别联合：
@@ -184,7 +242,7 @@ profile 声明 `detail_policy=included` 时，诊断总数才必须与内嵌详�
 
 ## 工作项详情
 
-点击工作项后，首屏按工作流判断顺序展示：
+点击由顶层 `item_id` 标识的工作项后，首屏按工作流判断顺序展示：
 
 1. Stage Map。
 2. 当前和下一 stage。
@@ -200,9 +258,9 @@ raw IDs、logs、provider diagnostics 只进入诊断区。详情不得恢复为
 | 模块 | 负责 | 不负责 |
 | --- | --- | --- |
 | Domain Agent | Project/WorkItem inventory、业务 lifecycle、stage catalog 和领域 action refs。 | App copy、页面布局、Shell 本地状态机。 |
-| OPL Framework | Join catalog/inventory/lifecycle/execution/usage，生产 WorkItemProjection v2、availability 和 currentness。 | App 信息层级和视觉布局。 |
+| OPL Framework | Join catalog/inventory/lifecycle/visibility/execution/usage，生产 WorkItemProjection v2、状态语义、action semantic fields、availability 和 currentness。 | App 信息层级、locale 文案和视觉布局。 |
 | One Person Lab App | 产品语言、scope、字段 allowlist、详情层级、validators、page-state 和证据分账。 | runtime/domain truth、Token 估算、owner receipt。 |
-| Shell | 渲染 projection、级联筛选、语义重排、打开详情和 App actions。 | 猜项目、状态、stage、owner、Token，或实现第二套去重。 |
+| Shell | 按当前 App locale 渲染 projection、级联筛选、语义重排、打开详情，并通过 Framework App actions mutation/refresh/readback。 | 猜项目、状态、stage、owner、Token，以 localStorage 保存 visibility truth，或实现第二套去重。 |
 
 ## 证据分账
 
@@ -221,8 +279,13 @@ raw IDs、logs、provider diagnostics 只进入诊断区。详情不得恢复为
 ## 验收标准
 
 - Scope 只有 Agent -> Project 两层，work item 不进入菜单，saved views 不含 MAS。
+- Project 显示名严格等于 canonical workspace path basename；目录改名同时改变当前 path-hash `project_id`。
 - 五个一方智能体使用全称；MAS Scholar Skills 不作为智能体；全健康时 availability 折叠。
-- 每个 canonical work item 一行，默认四列，智能体为次级标签。
+- 每个 canonical work item 以顶层 `item_id` 保持一行并选择详情；跨项目重复 local `work_item_id` 不串行。
+- action 使用 `title_key / summary_key / message_args / owner / owner_kind`，Shell 按当前 locale 渲染，raw title/summary 只作 fallback。
+- 默认列表只显示 visible；归档库独立于 lifecycle、scope 和 saved views，并允许恢复。
+- visibility mutation 使用完整 identity tuple 与可用的 expected generation，随后 refresh/readback；stale conflict 刷新后重试。
+- 归档不改变 lifecycle、不停止执行、不删除 evidence；停止任务必须使用独立动作。
 - 七个主状态只能来自 Framework V2 projection，Shell 不做状态或身份推断。
 - `system_attention` 缺任一责任字段、不是当前 generation 或不再阻塞时不能出现。
 - Token missing 不显示零，无上限时不出现进度条。

@@ -7,6 +7,7 @@ import {
   focusedFirstRunPresentationPolicy,
   progressiveFirstRunRecoveryPolicy,
   progressiveFirstRunRecoveryTestIds,
+  runtimeVisibilityPageStateIds,
 } from './app-contract-constants.ts';
 import {
   assertNonEmptyStringArray,
@@ -41,6 +42,130 @@ const expectedFirstRunCoreItems = assertNonEmptyStringArray(
 );
 const expectedFullReadinessItems = (productProfile.first_run?.full_readiness_layers ?? [])
   .filter((item) => item !== 'core');
+
+function validateRuntimeVisibilityPageStateMatrix(stateMatrix, label) {
+  for (const [field, expected] of Object.entries({
+    authority: 'opl_framework_work_item_visibility',
+    projection_path: 'app_state.operator.workbench.work_item_projection_v2.items[].visibility',
+    default_surface: 'runtime_main_visible_only',
+    archived_surface: 'archived_tasks_library',
+    archived_surface_is_saved_status_view: false,
+    scope_hierarchy: 'agent_then_project_for_both_surfaces',
+    status_filters_include_agent_project_or_visibility: false,
+    local_storage_truth_allowed: false,
+  })) {
+    if (stateMatrix?.[field] !== expected) {
+      throw new Error(`${label}.${field} must be ${expected}`);
+    }
+  }
+  assertDeepEqualJson(
+    stateMatrix?.visibility_values,
+    ['visible', 'archived'],
+    `${label}.visibility_values`,
+  );
+  assertDeepEqualJson(
+    stateMatrix?.visibility_required_fields,
+    ['state', 'source', 'updated_at', 'control_ref', 'generation'],
+    `${label}.visibility_required_fields`,
+  );
+  if (stateMatrix?.generation_is_concurrency_token !== true) {
+    throw new Error(`${label}.generation_is_concurrency_token must be true`);
+  }
+  const mutation = stateMatrix?.mutation;
+  for (const [field, expected] of Object.entries({
+    action_id: 'work_item_visibility_set',
+    command: 'opl app action execute --action work_item_visibility_set --payload <json> --json',
+    expected_generation_source: 'item.visibility.generation',
+    expected_generation_required_when_available: true,
+    concurrency_token_source: 'item.visibility.generation',
+    refresh_after_execute: 'opl app state --profile fast --json',
+    readback_selector:
+      'work_item_projection_v2.items[identity.agent_id=payload.agent_id && identity.project_id=payload.project_id && identity.work_item_id=payload.work_item_id]',
+    readback_must_match_requested_visibility: true,
+    optimistic_local_truth_commit_allowed: false,
+    failure_preserves_authoritative_projection: true,
+  })) {
+    if (mutation?.[field] !== expected) {
+      throw new Error(`${label}.mutation.${field} must be ${expected}`);
+    }
+  }
+  assertDeepEqualJson(
+    mutation?.payload_required_fields,
+    ['agent_id', 'project_id', 'work_item_id', 'visibility_state'],
+    `${label}.mutation.payload_required_fields`,
+  );
+  assertDeepEqualJson(
+    mutation?.payload_optional_fields,
+    ['reason', 'expected_generation'],
+    `${label}.mutation.payload_optional_fields`,
+  );
+  assertDeepEqualJson(
+    mutation?.readback_identity_fields,
+    ['identity.agent_id', 'identity.project_id', 'identity.work_item_id'],
+    `${label}.mutation.readback_identity_fields`,
+  );
+  assertDeepEqualJson(
+    mutation?.readback_required_fields,
+    [
+      'item_id',
+      'identity.agent_id',
+      'identity.project_id',
+      'identity.work_item_id',
+      'visibility.state',
+      'visibility.source',
+      'visibility.updated_at',
+      'visibility.control_ref',
+      'visibility.generation',
+      'lifecycle',
+      'execution',
+      'telemetry',
+    ],
+    `${label}.mutation.readback_required_fields`,
+  );
+  assertDeepEqualJson(
+    stateMatrix?.archive_confirmation,
+    {
+      required: true,
+      must_explain: [
+        'archive_changes_visibility_only',
+        'archive_does_not_change_lifecycle_or_delete_evidence',
+        'work_may_continue_running',
+        'stopping_work_requires_a_separate_action',
+      ],
+    },
+    `${label}.archive_confirmation`,
+  );
+  const pageStates = stateMatrix?.page_states;
+  if (!Array.isArray(pageStates)) {
+    throw new Error(`${label}.page_states must be an array`);
+  }
+  assertDeepEqualJson(
+    pageStates.map((state) => state?.id),
+    runtimeVisibilityPageStateIds,
+    `${label}.page_states ids`,
+  );
+  if (pageStates.some((state) => typeof state?.required_ui !== 'string' || !state.required_ui)) {
+    throw new Error(`${label}.page_states must declare required_ui for every state`);
+  }
+  const conflict = pageStates.find((state) => state.id === 'stale_generation_conflict');
+  if (
+    conflict?.when !== 'work_item_control_generation_conflict'
+    || conflict?.required_ui !== 'refresh_authoritative_projection_then_prompt_user_to_retry'
+    || conflict?.automatic_overwrite_allowed !== false
+  ) {
+    throw new Error(`${label} stale generation conflict must refresh and prompt retry without overwrite`);
+  }
+  const en = pageStates.find((state) => state.id === 'locale_en_us');
+  const zh = pageStates.find((state) => state.id === 'locale_zh_cn');
+  if (
+    en?.when !== 'current_app_locale_en-US'
+    || en?.forbidden_ui !== 'framework_hardcoded_chinese_copy_or_cross_locale_raw_fallback'
+    || zh?.when !== 'current_app_locale_zh-CN'
+    || zh?.forbidden_ui !== 'framework_hardcoded_english_copy_or_cross_locale_raw_fallback'
+  ) {
+    throw new Error(`${label} must cover English and Chinese semantic-copy rendering without cross-locale fallback`);
+  }
+}
 
 export function validatePageStateMatrix(matrix, contract, guiProductContract) {
   if (isDefaultReleaseAdapter(contract) && (matrix.active_shell !== contract.active_shell || matrix.shell_root !== contract.shell_root)) {
@@ -292,6 +417,10 @@ export function validatePageStateMatrix(matrix, contract, guiProductContract) {
     guiProductContract.pages?.runtime_status?.runtime_cockpit_product_contract,
     'Runtime page cockpit acceptance',
   );
+  validateRuntimeVisibilityPageStateMatrix(
+    runtimeViewModel.work_item_visibility_state_matrix,
+    'Runtime work-item visibility page-state matrix',
+  );
   if (
     runtimeViewModel.polling_fallback?.interval_seconds_min !== 5
     || runtimeViewModel.polling_fallback?.interval_seconds_max !== 10
@@ -456,6 +585,12 @@ export function validatePageStateMatrix(matrix, contract, guiProductContract) {
     'active project count from framework project-line projection',
     'queued project count from framework project-line projection',
     'attention count from framework blocker and owner-attention projection',
+    'top-level item_id row and detail identity with full agent_id plus project_id plus work_item_id mutation and readback tuple',
+    'project display name from canonical workspace_path basename',
+    'action title_key and summary_key with one message_args object plus owner and owner_kind rendered in the current App locale',
+    'visible Runtime main list and separate archived tasks library using the same Agent then Project scope',
+    'work_item_visibility_set expected generation execute, fast refresh, and authoritative readback',
+    'generation conflict refresh followed by user retry',
     'task title/status/stage/progress label/next step/next owner/owner/accepted answer shape/artifact or blocker/last progress',
     'four-layer mental model from agent/capability to execution run',
     'stage_run_cockpit or equivalent stage_run_current_owner_delta for current stage/elapsed/heartbeat/usage when projected',
@@ -495,6 +630,12 @@ export function validatePageStateMatrix(matrix, contract, guiProductContract) {
     'active project count',
     'queued project count',
     'attention count',
+    'top-level item_id row and detail identity with full mutation and readback tuple',
+    'canonical workspace_path basename as the Runtime Project display name',
+    'localized action, Next Step, and owner copy from semantic keys and owner kind',
+    'visible-only Runtime main list and separate Archived tasks library with restore',
+    'work_item_visibility_set mutation with expected generation, refresh, and readback',
+    'stale generation conflict refresh and retry state',
     'task title/status/stage/progress label/next step/next owner/owner/accepted answer shape/artifact or blocker/last progress',
     'four-layer mental model: agent/capability, project, task/work item, execution run',
     'current stage and stage elapsed or telemetry missing',
@@ -553,6 +694,7 @@ export function validatePageStateMatrix(matrix, contract, guiProductContract) {
     'deliverable progress truth',
     'platform repair truth',
     'action route authority',
+    'localStorage work-item visibility truth',
     'domain action approval override',
     'owner receipt authority',
     'family production readiness',

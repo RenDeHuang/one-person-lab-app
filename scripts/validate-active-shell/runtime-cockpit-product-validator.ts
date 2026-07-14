@@ -5,7 +5,8 @@ import {
   workItemDetailDiagnosticSections,
   workItemDetailPrimarySections,
   workItemDetailSecondarySections,
-  workItemPrimaryStateLabels,
+  workItemPrimaryStateLabelsByLocale,
+  runtimeVisibilityPageStateIds,
 } from './app-contract-constants.ts';
 
 const runtimeCockpitProductContractRef =
@@ -69,7 +70,11 @@ const runtimeCockpitRequiredInvariants = [
   'saved_views_status_only_no_agent_or_mas_view',
   'four_column_default_list_agent_as_secondary_label',
   'one_row_per_canonical_work_item',
-  'framework_projected_primary_state_language',
+  'global_item_id_row_and_detail_identity_full_tuple_mutation_readback',
+  'project_display_name_equals_canonical_workspace_path_basename',
+  'framework_state_semantics_shell_locale_rendering_no_cross_locale_copy',
+  'visibility_library_separate_from_lifecycle_scope_and_saved_status_views',
+  'visibility_mutation_framework_action_generation_refresh_readback',
   'system_attention_requires_complete_current_responsibility',
   'observed_token_usage_missing_never_zero_no_limit_progress',
   'detail_primary_secondary_diagnostic_hierarchy',
@@ -116,6 +121,7 @@ export function validateRuntimeCockpitProductContract(contract, label) {
     {
       mode: 'two_level_agent_then_project_cascade',
       work_item_scope_allowed: false,
+      visibility_axis_outside_scope: true,
     },
     `${label}.scope_hierarchy`,
   );
@@ -137,6 +143,8 @@ export function validateRuntimeCockpitProductContract(contract, label) {
     {
       all_option: 'all_projects',
       source: 'canonical_project_registry_for_selected_agent',
+      display_name_source: 'canonical_workspace_path_basename',
+      display_name_must_equal_workspace_path_basename: true,
       depends_on_selected_agent: true,
       work_item_options_allowed: false,
     },
@@ -147,6 +155,7 @@ export function validateRuntimeCockpitProductContract(contract, label) {
     {
       dimension: 'primary_state_only',
       agent_or_project_views_allowed: false,
+      visibility_views_allowed: false,
     },
     `${label}.scope_hierarchy.saved_views`,
   );
@@ -167,9 +176,14 @@ export function validateRuntimeCockpitProductContract(contract, label) {
     {
       agent_placement: 'secondary_label_under_identity',
       one_row_per_work_item: true,
-      canonical_row_key: 'identity.work_item_id',
+      canonical_row_key: 'item_id',
+      detail_selection_key: 'item_id',
+      identity_work_item_id_scope: 'project_local',
+      duplicate_local_work_item_id_across_projects_allowed: true,
       dedupe_owner: 'framework_projection',
       shell_heuristic_deduplication_allowed: false,
+      default_visibility: 'visible',
+      archived_items_surface: 'separate_archived_tasks_library',
     },
     `${label}.default_list`,
   );
@@ -212,15 +226,18 @@ export function validateRuntimeCockpitProductContract(contract, label) {
   );
 
   assertDeepEqualJson(
-    contract.primary_state_language?.labels_zh_cn,
-    workItemPrimaryStateLabels,
-    `${label}.primary_state_language.labels_zh_cn`,
+    contract.primary_state_language?.labels_by_locale,
+    workItemPrimaryStateLabelsByLocale,
+    `${label}.primary_state_language.labels_by_locale`,
   );
   assertExpectedFields(
     contract.primary_state_language,
     {
-      projection_owner: 'opl_framework',
-      shell_derivation_allowed: false,
+      state_projection_owner: 'opl_framework',
+      label_render_owner: 'shell_current_app_locale',
+      shell_state_derivation_allowed: false,
+      framework_projected_label_role: 'compatibility_fallback_only',
+      cross_locale_projected_label_allowed: false,
       fallback_when_current_state_unavailable: 'sync_pending',
     },
     `${label}.primary_state_language`,
@@ -233,8 +250,11 @@ export function validateRuntimeCockpitProductContract(contract, label) {
       execution_axis: 'work_item_projection.execution',
       attention_axis: 'work_item_projection.attention',
       telemetry_axis: 'work_item_projection.telemetry',
+      visibility_axis: 'work_item_projection.visibility',
       agent_availability_axis: 'agent_availability_projection.availability',
       combined_source_state_allowed: false,
+      visibility_may_infer_lifecycle_state: false,
+      lifecycle_state_may_infer_visibility: false,
       availability_may_infer_work_item_state: false,
       work_item_state_may_infer_availability: false,
     },
@@ -277,11 +297,93 @@ export function validateRuntimeCockpitProductContract(contract, label) {
     contract.project_identity,
     {
       source: 'canonical_registered_project_identity',
+      workspace_path_field: 'identity.workspace_path',
+      display_name_source: 'canonical_workspace_path_basename',
+      display_name_must_equal_workspace_path_basename: true,
+      project_id_field: 'identity.project_id',
+      project_id_source: 'canonical_workspace_path_hash',
+      workspace_directory_rename_changes_display_name: true,
+      workspace_directory_rename_changes_project_id: true,
+      binding_label_may_override_display_name: false,
+      spoken_name_may_override_display_name: false,
+      runtime_history_may_override_display_name: false,
       execution_history_may_define_identity: false,
       provider_or_attempt_may_define_identity: false,
       shell_fallback_to_active_project_allowed: false,
     },
     `${label}.project_identity`,
+  );
+  assertDeepEqualJson(
+    contract.project_identity?.display_name_examples,
+    ['DM-CVD-Mortality-Risk', 'NF-PitNET', 'Obesity'],
+    `${label}.project_identity.display_name_examples`,
+  );
+  assertDeepEqualJson(
+    contract.action_localization?.required_semantic_fields,
+    ['title_key', 'summary_key', 'message_args', 'owner', 'owner_kind'],
+    `${label}.action_localization.required_semantic_fields`,
+  );
+  assertDeepEqualJson(
+    contract.action_localization?.raw_compatibility_fields,
+    ['title', 'summary'],
+    `${label}.action_localization.raw_compatibility_fields`,
+  );
+  assertExpectedFields(
+    contract.action_localization,
+    {
+      source: 'work_item_projection.action',
+      render_owner: 'shell_current_app_locale',
+      app_locale_source: 'contracts/app-gui-product-contract.json#ui_locale_policy',
+      owner_kind_rendered_by_shell: true,
+      raw_title_summary_role: 'compatibility_fallback_only',
+      raw_owner_default_render_allowed: false,
+      cross_locale_raw_fallback_allowed: false,
+      framework_hardcoded_locale_copy_may_override_semantics: false,
+      missing_semantics_policy: 'localized_generic_action_copy_from_action_kind',
+      status_inference_owner: 'opl_framework',
+      shell_status_inference_allowed: false,
+    },
+    `${label}.action_localization`,
+  );
+  assertDeepEqualJson(
+    contract.work_item_visibility?.states,
+    ['visible', 'archived'],
+    `${label}.work_item_visibility.states`,
+  );
+  assertDeepEqualJson(
+    contract.work_item_visibility?.visibility_required_fields,
+    ['state', 'source', 'updated_at', 'control_ref', 'generation'],
+    `${label}.work_item_visibility.visibility_required_fields`,
+  );
+  assertDeepEqualJson(
+    contract.work_item_visibility?.required_page_state_ids,
+    runtimeVisibilityPageStateIds,
+    `${label}.work_item_visibility.required_page_state_ids`,
+  );
+  assertExpectedFields(
+    contract.work_item_visibility,
+    {
+      axis: 'work_item_projection.visibility',
+      generation_is_concurrency_token: true,
+      default_runtime_surface: 'visible_only',
+      archived_surface: 'archived_tasks_library',
+      archived_surface_is_saved_status_view: false,
+      archived_surface_scope: 'same_agent_then_project_scope',
+      status_filters_may_include_agent_project_or_visibility: false,
+      lifecycle_independent: true,
+      archive_changes_business_lifecycle: false,
+      archive_stops_execution: false,
+      archive_deletes_evidence: false,
+      archived_item_preserves_status_stage_usage: true,
+      restore_returns_to_default_runtime_surface: true,
+      stop_requires_separate_action: true,
+      local_storage_truth_allowed: false,
+      confirmation_required: true,
+      confirmation_must_explain_archive_does_not_stop_work: true,
+      mutation_contract_ref:
+        'contracts/app-runtime-bridge.json#work_item_projection.visibility_mutation_contract',
+    },
+    `${label}.work_item_visibility`,
   );
   assertExpectedFields(
     contract.work_item_inventory,
@@ -333,6 +435,7 @@ export function validateRuntimeCockpitProductContract(contract, label) {
   assertExpectedFields(
     contract.work_item_detail,
     {
+      selection_key: 'item_id',
       primary_sections_visible_on_open: true,
       secondary_sections_default_collapsed: true,
       diagnostic_sections_default_collapsed: true,
@@ -393,6 +496,8 @@ export function validateRuntimeCockpitProductContract(contract, label) {
       projection_inference_allowed: false,
       identity_inference_allowed: false,
       status_derivation_allowed: false,
+      localization_owner: 'shell_current_app_locale',
+      local_storage_visibility_truth_allowed: false,
       technical_execution_stage_may_replace_business_stage: false,
       raw_id_default_visibility: false,
     },
@@ -429,6 +534,8 @@ export function validateRuntimeCockpitPageStateAcceptance(acceptance, productCon
       page_role: productContract?.role,
       scope_hierarchy: 'agent_then_project_work_items_excluded',
       one_row_per_work_item: true,
+      canonical_row_key: 'item_id',
+      detail_selection_key: 'item_id',
       raw_ids_default_visible: false,
       horizontal_page_overflow_allowed: false,
       viewport_evidence_mode: 'deterministic_static_fixture_playwright',

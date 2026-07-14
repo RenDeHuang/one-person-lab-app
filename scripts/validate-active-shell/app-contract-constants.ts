@@ -67,14 +67,25 @@ export const runtimeFirstPartyAgents = [
   { agent_id: "obf", display_name: "OPL Book Forge" },
 ];
 
-export const workItemPrimaryStateLabels = {
-  automatically_advancing: "自动推进中",
-  awaiting_user_decision: "等待你决定",
-  system_attention: "系统处理中",
-  delivered_auto_paused: "已交付自动暂停",
-  paused: "已暂停",
-  stopped: "已停止",
-  sync_pending: "状态待同步",
+export const workItemPrimaryStateLabelsByLocale = {
+  "en-US": {
+    automatically_advancing: "Automatically advancing",
+    awaiting_user_decision: "Waiting for your decision",
+    system_attention: "System handling",
+    delivered_auto_paused: "Delivered and auto-paused",
+    paused: "Paused",
+    stopped: "Stopped",
+    sync_pending: "Sync pending",
+  },
+  "zh-CN": {
+    automatically_advancing: "自动推进中",
+    awaiting_user_decision: "等待你决定",
+    system_attention: "系统处理中",
+    delivered_auto_paused: "已交付自动暂停",
+    paused: "已暂停",
+    stopped: "已停止",
+    sync_pending: "状态待同步",
+  },
 };
 
 export const runtimePrimaryStateValues = [
@@ -93,6 +104,7 @@ export const runtimeAutomationStateValues = [
 ];
 
 export const workItemProjectionRequiredFields = [
+  "item_id",
   "identity",
   "lifecycle",
   "execution",
@@ -100,6 +112,7 @@ export const workItemProjectionRequiredFields = [
   "telemetry",
   "conditions",
   "freshness",
+  "visibility",
   "action",
 ];
 
@@ -108,10 +121,10 @@ export const workItemProjectionFieldContracts = {
     "agent_id",
     "agent_display_name",
     "project_id",
+    "workspace_path",
     "project_display_name",
     "work_item_id",
     "work_item_display_name",
-    "generation",
   ],
   lifecycle: [
     "business_state",
@@ -132,7 +145,19 @@ export const workItemProjectionFieldContracts = {
   attention: ["kind", "summary", "owner_display_name", "responsibility"],
   telemetry: ["state", "elapsed", "current_stage_tokens", "task_total_tokens"],
   freshness: ["state", "observed_at", "last_progress_at", "reason"],
-  action: ["kind", "title", "owner", "summary", "action_ref", "dry_run_required"],
+  visibility: ["state", "source", "updated_at", "control_ref", "generation"],
+  action: [
+    "kind",
+    "title",
+    "title_key",
+    "summary",
+    "summary_key",
+    "message_args",
+    "owner",
+    "owner_kind",
+    "action_ref",
+    "dry_run_required",
+  ],
 };
 
 export const workItemConditionFields = [
@@ -169,6 +194,31 @@ export const actionEnvelopeKinds = [
   "agent_action",
   "safe_action",
   "blocked_no_action",
+];
+
+export const actionOwnerKinds = ["user", "system", "agent", "other"];
+
+export const workItemVisibilityStates = ["visible", "archived"];
+
+export const workItemBusinessStates = [
+  "active",
+  "delivered_paused",
+  "paused",
+  "stopped",
+  "archived",
+  "unknown",
+];
+
+export const runtimeVisibilityPageStateIds = [
+  "active_empty",
+  "archived_empty",
+  "archiving",
+  "restoring",
+  "archive_failed",
+  "restore_failed",
+  "stale_generation_conflict",
+  "locale_en_us",
+  "locale_zh_cn",
 ];
 
 export const workItemDetailPrimarySections = [
