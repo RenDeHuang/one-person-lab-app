@@ -1349,7 +1349,7 @@ function validateHermesFirstRunContract(candidate: ShellCandidate): void {
   assertStringArrayIncludes(contract.background_refresh_sequence, [
     'opl system initialize --json',
     'opl system startup-maintenance --json',
-    'opl packages update --json',
+    'opl system reconcile-modules --json',
     'mas_mag_rca_status_refresh',
     'contracts_diagnostics_refresh',
   ], `${candidate.id}.first_run_contract.background_refresh_sequence`);

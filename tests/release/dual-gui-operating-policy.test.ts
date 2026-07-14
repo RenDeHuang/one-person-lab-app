@@ -52,6 +52,29 @@ test('Hermes builds require an explicit manual technical-verification replay', (
   );
 });
 
+test('Hermes first-run contracts keep module reconciliation out of the hot-launch path', () => {
+  const registry = readJson<ShellCandidateRegistry>('contracts/app-shell-candidates.json');
+  const hermes = registry.candidates.find((candidate) => candidate.id === 'hermes-codex');
+  const adapter = readJson<{
+    first_run_contract: ShellCandidateRegistry['candidates'][number]['first_run_contract'];
+  }>(
+    'contracts/shell-adapters/hermes-codex.json',
+  );
+
+  assert.ok(hermes?.first_run_contract);
+  assert.deepEqual(adapter.first_run_contract, hermes.first_run_contract);
+
+  const firstRun = hermes.first_run_contract;
+  assert.ok(firstRun.background_refresh_sequence.includes('opl system reconcile-modules --json'));
+  assert.equal(firstRun.background_refresh_sequence.includes('opl packages update --json'), false);
+  assert.equal(
+    firstRun.blocking_policy,
+    'full_opl_initialize_and_module_refresh_must_not_block_hot_launch_or_chat_after_light_check_passes',
+  );
+  assert.ok(firstRun.skip_to_chat_policy.must_not_claim.includes('module_reconcile_complete'));
+  assert.equal(firstRun.skip_to_chat_policy.must_not_claim.includes('package_reconcile_complete'), false);
+});
+
 test('dual GUI runtime parity rejects host PATH-only resolution as shared physical runtime proof', () => {
   const runtimeBridge = readJson<any>('contracts/app-runtime-bridge.json');
   const activeAdapter = readJson<any>('contracts/app-shell-adapter.json');

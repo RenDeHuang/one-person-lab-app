@@ -1527,17 +1527,17 @@
         "background_refresh_sequence": [
           "opl system initialize --json",
           "opl system startup-maintenance --json",
-          "opl packages update --json",
+          "opl system reconcile-modules --json",
           "mas_mag_rca_status_refresh",
           "contracts_diagnostics_refresh"
         ],
-        "blocking_policy": "full_opl_initialize_and_package_refresh_must_not_block_hot_launch_or_chat_after_light_check_passes",
+        "blocking_policy": "full_opl_initialize_and_module_refresh_must_not_block_hot_launch_or_chat_after_light_check_passes",
         "skip_to_chat_policy": {
           "trigger": "user_may_skip_non_core_or_slow_first_run_preparation_when_codex_adapter_can_start",
           "marker_state": "user_deferred",
           "must_not_claim": [
             "gflabtoken_api_key_configured",
-            "package_reconcile_complete",
+            "module_reconcile_complete",
             "mas_mag_rca_domain_ready",
             "full_opl_readiness"
           ]

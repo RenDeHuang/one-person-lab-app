@@ -277,7 +277,7 @@ function validateFirstRunAndIconContracts(candidate: ShellCandidateRegistry['can
   const expectedBackgroundSequence = [
     'opl system initialize --json',
     'opl system startup-maintenance --json',
-    'opl packages update --json',
+    'opl system reconcile-modules --json',
     'mas_mag_rca_status_refresh',
     'contracts_diagnostics_refresh',
   ];
@@ -331,7 +331,7 @@ function validateFirstRunAndIconContracts(candidate: ShellCandidateRegistry['can
       throw new Error(`Hermes ${label}.model_access_wizard must define gflabtoken-only Codex model access`);
     }
     if (contract.blocking_policy !== 'full_opl_initialize_and_module_refresh_must_not_block_hot_launch_or_chat_after_light_check_passes') {
-      throw new Error(`Hermes ${label}.blocking_policy must keep full initialize out of hot launch`);
+      throw new Error(`Hermes ${label}.blocking_policy must keep full initialize and module refresh out of hot launch`);
     }
     if (
       contract.skip_to_chat_policy?.trigger !== 'user_may_skip_non_core_or_slow_first_run_preparation_when_codex_adapter_can_start'
@@ -418,9 +418,9 @@ function validateHermesImplementation(checkoutPath: string): void {
     "'app', 'state', '--profile', 'fast', '--json'",
     "'system', 'initialize', '--json'",
     "startup_path: 'lightweight_probe'",
-    "'install', '--headless', '--skip-packages', '--json'",
+    "'install', '--skip-gui-open', '--skip-modules', '--skip-native-helper-repair', '--json'",
     "'system', 'startup-maintenance', '--json'",
-    "'packages', 'update', '--json'",
+    "'system', 'reconcile-modules', '--json'",
     'maintenanceDeferred',
     'user_deferred',
     "route: 'model-access'",
