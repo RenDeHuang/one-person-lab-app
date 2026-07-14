@@ -5,7 +5,7 @@ Purpose: `opl_app_cross_thread_orchestration_boundary`
 State: `accepted_product_target_user_surface_implemented_model_tool_protocol_blocked_remote_host_transport_blocked`
 Date: `2026-07-14`
 Machine boundary: 本文定义产品和架构目标。App contracts、page-state、active-shell validator与
-AionUI source cohort `586b8847840712e536e5b6a85036263a995fb14e` 已实现本机 user-facing
+AionUI source cohort `e218d79b7a5727b72ddce66bcaabd9410a38076b` 已实现本机 user-facing
 flexible cross-thread policy和keyboard-reachable thread-detail context action，普通 navigation
 不展示独立协调页；当前普通 AionUI conversation
 没有注册模型可调用的 coordination dynamic tools。历史 package/pixels仍绑定
@@ -383,7 +383,7 @@ test 替代远程或 packaged evidence。
 - `contracts/app-page-state-matrix.json`：定义状态和负例 acceptance；
 - active-shell validators/tests：证明 shell 消费 App truth，且未退化为同一 agent tree only。
 
-Active AionUI main source cohort从最终Git readback获取；`586b8847840712e536e5b6a85036263a995fb14e` 已实现 production App
+Active AionUI main source cohort从最终Git readback获取；`e218d79b7a5727b72ddce66bcaabd9410a38076b` 已实现 production App
 Server `thread/*` / `turn/*` adapter、canonical thread directory、flexible routing、可见 delivery
 audit、interactive request pending handling、Runtime cockpit，以及同主机 Local/Worktree create/reuse、
 idle handoff、durable snapshot-before-remove、cleanup rollback与receipt restore。Cross-host handoff仍因

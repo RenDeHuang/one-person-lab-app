@@ -58,11 +58,12 @@ Runtime V2 与 Gateway account/UI。该 exact cohort 的 full source gates、mac
 codesign 与 9 场景 packaged E2E 已闭合；package 未安装，main/remote currentness 与 release
 promotion仍由操作层 fresh readback决定。模型可调用 host tool仍是必需产品目标，当前 AionUI
 user coordination surface 不能作为其实现证据。当前 Shell source cohort
-`586b8847840712e536e5b6a85036263a995fb14e` 在该 package cohort 之后补入 profile-driven
+`e218d79b7a5727b72ddce66bcaabd9410a38076b` 在该 package cohort 之后补入 profile-driven
 feedback、Review `Last turn`/same-turn focus steer、窄窗 Access 单列断点、profile-driven
 avatar/help，以及managed Worktree
-durable snapshot-before-remove/cleanup rollback/receipt restore、Runtime generic fallback 本地化与
-disabled workspace selector 合同 marker；普通 navigation 不再挂载独立协调页。
+durable snapshot-before-remove/cleanup rollback/receipt restore、Runtime generic fallback 本地化、
+disabled workspace selector 合同 marker，以及 canonical project/locale Runtime evidence 与 DOM fixture
+对齐；普通 navigation 不再挂载独立协调页。
 其 Node/DOM、TypeScript、format、i18n与lint 0 errors已通过，但尚无匹配 package/pixel 证据。
 
 ## 三层与文件归属
