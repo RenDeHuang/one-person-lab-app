@@ -15,6 +15,10 @@ test('Full first-install args parse boolean and value options through one explic
     'dist/full',
     '--opl-root',
     '../one-person-lab',
+    '--mas-scholar-skills-root',
+    '../mas-scholar-skills',
+    '--mas-scholar-skills-ref',
+    'scholar-ref-test',
     '--runtime-cache-mode',
     'readonly',
   ]);
@@ -27,7 +31,26 @@ test('Full first-install args parse boolean and value options through one explic
   assert.equal(options.version, '26.6.0-test');
   assert.equal(options.outDir, path.resolve('dist/full'));
   assert.equal(options.frameworkRoot, path.resolve('../one-person-lab'));
+  assert.equal(options.masScholarSkillsRoot, path.resolve('../mas-scholar-skills'));
+  assert.equal(options.masScholarSkillsRef, 'scholar-ref-test');
   assert.equal(options.runtimeCacheMode, 'readonly');
+});
+
+test('Full first-install args consume the MAS Scholar Skills root and ref environment defaults', () => {
+  const previousRoot = process.env.OPL_FULL_MAS_SCHOLAR_SKILLS_ROOT;
+  const previousRef = process.env.OPL_FULL_MAS_SCHOLAR_SKILLS_REF;
+  process.env.OPL_FULL_MAS_SCHOLAR_SKILLS_ROOT = path.join('fixtures', 'mas-scholar-skills');
+  process.env.OPL_FULL_MAS_SCHOLAR_SKILLS_REF = 'catalog-current';
+  try {
+    const options = parseFullFirstInstallArgs([]);
+    assert.equal(options.masScholarSkillsRoot, path.join('fixtures', 'mas-scholar-skills'));
+    assert.equal(options.masScholarSkillsRef, 'catalog-current');
+  } finally {
+    if (previousRoot === undefined) delete process.env.OPL_FULL_MAS_SCHOLAR_SKILLS_ROOT;
+    else process.env.OPL_FULL_MAS_SCHOLAR_SKILLS_ROOT = previousRoot;
+    if (previousRef === undefined) delete process.env.OPL_FULL_MAS_SCHOLAR_SKILLS_REF;
+    else process.env.OPL_FULL_MAS_SCHOLAR_SKILLS_REF = previousRef;
+  }
 });
 
 test('Full first-install args reject missing values, unknown options, and unsupported cache modes', () => {

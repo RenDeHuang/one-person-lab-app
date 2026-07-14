@@ -168,6 +168,15 @@ export function buildRuntimeCacheKeyInputs(options, sources) {
     },
     'domain-runtime': {
         mas_commit: readGitHead(options.masRoot),
+        mas_scholar_skills_ref: options.masScholarSkillsRef,
+        mas_scholar_skills_commit: readGitHead(options.masScholarSkillsRoot),
+        mas_scholar_skills_source_manifest_sha256: existingFileSha256(
+          path.join(options.masScholarSkillsRoot, 'contracts', 'opl_capability_package_manifest.json'),
+        ),
+        mas_scholar_skills_fingerprint: directoryFingerprint(
+          options.masScholarSkillsRoot,
+          'modules/mas-scholar-skills',
+        ),
         mag_commit: readGitHead(options.magRoot),
         rca_commit: readGitHead(options.rcaRoot),
         meta_agent_commit: readGitHead(options.metaAgentRoot),

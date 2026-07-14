@@ -8,6 +8,7 @@ import { ensureFullRuntimeNativeTrust } from './runtime-native-trust.ts';
 import { assertFullRuntimeCurrentness } from './runtime-currentness.ts';
 import {
   buildResolvedFullPayloadRefs,
+  resolveMasScholarSkillsFullRuntimeSource,
   writeFullRuntimeManifest,
 } from './manifest-checksum.ts';
 import { commandOutput } from './process.ts';
@@ -27,7 +28,9 @@ import {
   writeDomainMarkers,
 } from './runtime-layers.ts';
 
-export function prepareRuntime(options, sources) {
+export function prepareRuntime(options, sources, sourceResolutions = {}) {
+  const masScholarSkillsSource = sourceResolutions.masScholarSkills
+    ?? resolveMasScholarSkillsFullRuntimeSource(options);
   const stagingRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-full-runtime-'));
   const runtimeRoot = path.join(stagingRoot, 'current');
   fs.mkdirSync(path.join(runtimeRoot, 'bin'), { recursive: true });
@@ -67,6 +70,11 @@ export function prepareRuntime(options, sources) {
       archive_size_bytes: fs.statSync(path.join(runtimeRoot, 'vendor', 'codex', 'codex_cli_darwin_arm64.tar.gz')).size,
     },
     mas: { source_path: options.masRoot, git_commit: readGitHead(options.masRoot), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'modules', 'mas')) },
+    mas_scholar_skills: {
+      source_path: options.masScholarSkillsRoot,
+      git_commit: readGitHead(options.masScholarSkillsRoot),
+      size_bytes: directorySizeBytes(path.join(runtimeRoot, 'modules', 'mas-scholar-skills')),
+    },
     mag: { source_path: options.magRoot, git_commit: readGitHead(options.magRoot), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'modules', 'mag')) },
     rca: { source_path: options.rcaRoot, git_commit: readGitHead(options.rcaRoot), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'modules', 'rca')) },
     meta_agent: { source_path: options.metaAgentRoot, git_commit: readGitHead(options.metaAgentRoot), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'modules', 'meta-agent')) },
@@ -102,7 +110,9 @@ export function prepareRuntime(options, sources) {
         },
   };
 
-  const resolvedRefs = buildResolvedFullPayloadRefs(options, sources, components);
+  const resolvedRefs = buildResolvedFullPayloadRefs(options, sources, components, {
+    masScholarSkills: masScholarSkillsSource,
+  });
   const manifest = writeFullRuntimeManifest(
     runtimeRoot,
     options,
@@ -114,6 +124,8 @@ export function prepareRuntime(options, sources) {
   );
   const currentness = assertFullRuntimeCurrentness(runtimeRoot, {
     frameworkRoot: options.frameworkRoot,
+    masScholarSkillsRoot: options.masScholarSkillsRoot,
+    masScholarSkillsRef: options.masScholarSkillsRef,
   });
 
   return {

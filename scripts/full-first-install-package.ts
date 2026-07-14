@@ -146,6 +146,25 @@ type ResolvedFullPayloadRefs = Record<string, Partial<{
   version: string | null;
   contract_path: string;
   readback_commands: string[];
+  package_role: string;
+  package_version: string;
+  owner_source_commit: string;
+  runtime_module_relative_path: string;
+  framework_catalog_ref: string;
+  mas_manifest_ref: string;
+  mas_manifest_sha256: string;
+  manifest_ref: string;
+  manifest_sha256: string;
+  payload_manifest_ref: string;
+  payload_manifest_sha256: string;
+  source_manifest_ref: string;
+  source_manifest_sha256: string;
+  content_lock_digest: string;
+  payload_file_count: number;
+  requested_ref_commit: string;
+  checksum_status: string;
+  currentness_status: string;
+  currentness: Record<string, boolean>;
 }>>;
 
 type FullPackageManifestInput = Partial<{
@@ -390,6 +409,7 @@ export function buildFullPackageManifest(input: FullPackageManifestInput = {}) {
           foundry_agent_domain_truth: 'gaofeng21cn/opl-meta-agent',
           book_domain_truth: 'gaofeng21cn/opl-bookforge',
           research_domain_truth: 'gaofeng21cn/med-autoscience',
+          scholar_skills_capability_truth: 'gaofeng21cn/mas-scholar-skills',
           grant_domain_truth: 'gaofeng21cn/med-autogrant',
           visual_deliverable_domain_truth: 'gaofeng21cn/redcube-ai',
         },
@@ -431,6 +451,16 @@ export function buildFullPackageManifest(input: FullPackageManifestInput = {}) {
         required: true,
         monolith_runtime: true,
         visible_in_first_run_ui: true,
+      },
+      mas_scholar_skills: {
+        ...normalizeComponent(components.mas_scholar_skills),
+        role: 'mas_required_framework_capability_package',
+        truth_owner: 'gaofeng21cn/mas-scholar-skills',
+        lifecycle_owner: 'gaofeng21cn/one-person-lab',
+        required: true,
+        required_by: ['mas'],
+        visible_in_first_run_ui: false,
+        standard_domain_agent: false,
       },
       mag: {
         ...normalizeComponent(components.mag),
@@ -667,7 +697,7 @@ export function buildFullFirstInstallReadme(input: {
     '2. On first launch, the bundled runtime is installed to the stable runtime path. Later Full package refreshes replace the same path:',
     `   ${installPath}`,
     '3. The runtime version is recorded only in current.json and current/.opl-full-runtime-installed.json; it is not encoded in the runtime directory name.',
-    '4. Bundled MAS, MAG, RCA, and OPL Meta Agent payloads are launch sources inside the Full runtime. Managed repo reconciliation may later populate the standard module directory, but it is deferred maintenance and does not block first launch:',
+    '4. Bundled MAS, its MAS Scholar Skills capability dependency, MAG, RCA, OPL Meta Agent, and OPL Book Forge payloads are launch sources inside the Full runtime. Managed repo reconciliation may later populate the standard module directory, but it is deferred maintenance and does not block first launch:',
     '   ~/Library/Application Support/OPL/state/modules/<repo-name>',
     `5. The Full runtime includes the Codex CLI, the required OPL Flow workflow plugin package, officecli CLI binary, mineru-open-api CLI binary, OPL Meta Agent, and task-routed companion skills such as ${companionSkills}. App initialization installs them into Codex discovery without making every packaged skill an ordinary App menu entry or requiring Command Line Tools or git to finish first.`,
     `6. The bundled Codex profile seeds ${codexProfile} for first-run App sessions after OPL Gateway is configured; existing usable Codex login or provider access can satisfy first-launch model access without forcing Gateway setup.`,
