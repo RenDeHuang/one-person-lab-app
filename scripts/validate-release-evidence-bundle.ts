@@ -69,11 +69,13 @@ type TypedBlockerPolicy = {
 
 type KnownOrUnknownReleaseCohort = ReleaseEvidenceCohort | UnknownReleaseEvidenceCohort;
 
-type OperatorEvidenceBundleContract = {
+type AppReleaseEvidenceBundleContract = {
   purpose?: unknown;
   manifest_path?: unknown;
   acceptance_path?: unknown;
+  release_evidence_contract?: unknown;
   refs_only?: unknown;
+  surface_ownership?: Record<string, unknown>;
   required_artifacts?: unknown;
   conditional_artifacts?: unknown;
   optional_diagnostic_artifacts?: unknown;
@@ -191,22 +193,57 @@ function validateManifestReleaseCohort(
   return cohort;
 }
 
-function validateOperatorEvidenceBundleHeader(record: OperatorEvidenceBundleContract) {
-  if (record.purpose !== 'runtime_page_operator_evidence_acceptance') {
-    throw new Error(`Unexpected operator evidence bundle purpose: ${String(record.purpose)}`);
+function validateAppReleaseEvidenceBundleHeader(record: AppReleaseEvidenceBundleContract) {
+  if (record.purpose !== 'app_release_evidence_acceptance') {
+    throw new Error(`Unexpected App release evidence bundle purpose: ${String(record.purpose)}`);
   }
   if (record.manifest_path !== 'evidence-manifest.json') {
-    throw new Error(`Unexpected operator evidence manifest path: ${String(record.manifest_path)}`);
+    throw new Error(`Unexpected App release evidence manifest path: ${String(record.manifest_path)}`);
   }
-  if (record.acceptance_path !== 'Runtime page') {
-    throw new Error(`Unexpected operator evidence bundle acceptance path: ${String(record.acceptance_path)}`);
+  if (record.acceptance_path !== 'App release verification') {
+    throw new Error(`Unexpected App release evidence acceptance path: ${String(record.acceptance_path)}`);
+  }
+  if (record.release_evidence_contract !== 'contracts/app-release-channel.json#operator_evidence_bundle') {
+    throw new Error(`Unexpected App release evidence contract ref: ${String(record.release_evidence_contract)}`);
+  }
+  if ('runtime_page_contract' in record) {
+    throw new Error('App release evidence bundle must not use Runtime page as its contract owner.');
   }
   if (record.refs_only !== true) {
-    throw new Error('Operator evidence bundle must be refs-only.');
+    throw new Error('App release evidence bundle must be refs-only.');
   }
 }
 
-function validateReleaseCohortContract(record: OperatorEvidenceBundleContract) {
+function validateSurfaceOwnershipContract(record: AppReleaseEvidenceBundleContract) {
+  const ownership = asRecord(record.surface_ownership, 'App release evidence surface_ownership');
+  if (ownership.runtime_visual_evidence !== 'runtime_page_minimal_work_item_status_only') {
+    throw new Error('Runtime evidence must be limited to minimal work-item status visual acceptance.');
+  }
+  if (ownership.full_drilldown_and_raw_diagnostics !== 'settings_advanced_and_release_tooling') {
+    throw new Error('Full drilldown and raw diagnostics must belong to Settings Advanced and release tooling.');
+  }
+  if (
+    ownership.maintenance_actions_and_receipts
+    !== 'settings_environment_or_settings_advanced_and_release_tooling'
+  ) {
+    throw new Error('Maintenance actions and receipts must belong to Settings Environment/Advanced and release tooling.');
+  }
+  const runtimeExcludes = ownership.runtime_page_excludes;
+  if (
+    !Array.isArray(runtimeExcludes)
+    || ![
+      'full_drilldown',
+      'safe_action_catalog',
+      'operator_receipts',
+      'software_update_controls',
+      'provider_repair_controls',
+    ].every((entry) => runtimeExcludes.includes(entry))
+  ) {
+    throw new Error('Runtime exclusions must cover drilldown, safe actions, receipts, updates, and provider repair.');
+  }
+}
+
+function validateReleaseCohortContract(record: AppReleaseEvidenceBundleContract) {
   if (record.release_cohort?.schema !== 'opl_app_release_evidence_cohort_contract.v1') {
     throw new Error('Operator evidence bundle must declare release_cohort contract.');
   }
@@ -229,7 +266,7 @@ function validateReleaseCohortContract(record: OperatorEvidenceBundleContract) {
   }
 }
 
-function validateMissingEvidencePolicyContract(record: OperatorEvidenceBundleContract): string[] {
+function validateMissingEvidencePolicyContract(record: AppReleaseEvidenceBundleContract): string[] {
   if (record.missing_evidence_policy?.default_validation !== 'fail_closed') {
     throw new Error('Operator evidence bundle missing evidence policy must fail closed by default.');
   }
@@ -266,7 +303,7 @@ function validateMissingEvidencePolicyContract(record: OperatorEvidenceBundleCon
   return typedBlockerRequirements as string[];
 }
 
-function validateImageEvidencePolicyContract(record: OperatorEvidenceBundleContract): ImageEvidencePolicy {
+function validateImageEvidencePolicyContract(record: AppReleaseEvidenceBundleContract): ImageEvidencePolicy {
   const imageEvidencePolicy = asRecord(record.image_evidence_policy, 'operator evidence image_evidence_policy') as unknown as ImageEvidencePolicy;
   if (imageEvidencePolicy.applies_to_kind !== 'image') {
     throw new Error('Operator evidence bundle image evidence policy must apply to image artifacts.');
@@ -282,7 +319,7 @@ function validateImageEvidencePolicyContract(record: OperatorEvidenceBundleContr
   return imageEvidencePolicy;
 }
 
-function validateForbiddenAuthority(record: OperatorEvidenceBundleContract) {
+function validateForbiddenAuthority(record: AppReleaseEvidenceBundleContract) {
   const forbiddenAuthority = Array.isArray(record.forbidden_authority) ? record.forbidden_authority : [];
   for (const forbidden of [
     'runtime_truth',
@@ -304,8 +341,9 @@ function validateEvidenceArtifactContractFields(artifact: EvidenceArtifact, erro
 }
 
 function validateContractBoundary(bundle: unknown): EvidenceContract {
-  const record = bundle as OperatorEvidenceBundleContract;
-  validateOperatorEvidenceBundleHeader(record);
+  const record = bundle as AppReleaseEvidenceBundleContract;
+  validateAppReleaseEvidenceBundleHeader(record);
+  validateSurfaceOwnershipContract(record);
   validateReleaseCohortContract(record);
   const typedBlockerRequirements = validateMissingEvidencePolicyContract(record);
   if (!Array.isArray(record.required_artifacts) || record.required_artifacts.length === 0) {
@@ -583,14 +621,17 @@ function validateEvidenceManifestHeader(manifest: Record<string, unknown>) {
   if (manifest.schema_version !== 1) {
     throw new Error(`Evidence manifest schema_version must be 1; got ${String(manifest.schema_version)}`);
   }
-  if (manifest.purpose !== 'app_release_evidence_bundle') {
+  if (manifest.purpose !== 'app_release_evidence_acceptance') {
     throw new Error(`Unexpected evidence manifest purpose: ${String(manifest.purpose)}`);
   }
-  if (manifest.acceptance_path !== 'Runtime page') {
+  if (manifest.acceptance_path !== 'App release verification') {
     throw new Error(`Unexpected evidence manifest acceptance_path: ${String(manifest.acceptance_path)}`);
   }
-  if (manifest.runtime_page_contract !== 'contracts/app-page-state-matrix.json#runtime') {
-    throw new Error(`Unexpected evidence manifest runtime_page_contract: ${String(manifest.runtime_page_contract)}`);
+  if (manifest.release_evidence_contract !== 'contracts/app-release-channel.json#operator_evidence_bundle') {
+    throw new Error(`Unexpected evidence manifest release_evidence_contract: ${String(manifest.release_evidence_contract)}`);
+  }
+  if (Object.hasOwn(manifest, 'runtime_page_contract')) {
+    throw new Error('Evidence manifest must not use Runtime page as its contract owner.');
   }
   if (manifest.refs_only !== true) {
     throw new Error('Evidence manifest must be refs-only.');

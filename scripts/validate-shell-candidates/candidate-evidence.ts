@@ -229,8 +229,8 @@ function validateCandidatePackageManifest(candidate: ShellCandidate, options: { 
     ) {
       throw new Error(`${candidate.id} package manifest must prove narrow desktop/WebUI context layers are visibly usable`);
     }
-    if (Number((manifest as Record<string, unknown>).runtime_safe_action_count ?? 0) < 1) {
-      throw new Error(`${candidate.id} package manifest must prove at least one runtime safe action route`);
+    if (Number((manifest as Record<string, unknown>).runtime_work_item_visibility_action_count ?? 0) < 1) {
+      throw new Error(`${candidate.id} package manifest must prove at least one Runtime archive/restore action route`);
     }
   }
   if ((manifest as Record<string, unknown>).agui_user_visible !== false) {

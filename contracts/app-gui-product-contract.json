@@ -922,9 +922,11 @@
       "workbench_display_contract": "OPL Native Workbench candidate must render the same map without introducing runtime or package truth",
       "fallback_claim_policy": "fallback projections may keep older payloads usable but cannot claim currentness, readiness, domain truth, or mutation authority"
     },
-    "runtime_full_drilldown": {
+    "advanced_full_drilldown": {
       "command": "opl runtime app-operator-drilldown --detail full --json",
-      "policy": "on_demand_only"
+      "policy": "settings_advanced_or_release_evidence_only",
+      "consumer_surfaces": ["/settings/advanced", "release_evidence_tooling"],
+      "runtime_page_allowed": false
     },
     "state_index_sidecar": {
       "source": "app_state.operator.workbench.task_drilldowns.state_index_sidecar_projection",
@@ -933,7 +935,10 @@
       "kernel_owner": "one-person-lab",
       "storage_kind": "sqlite_sidecar_read_model_cache",
       "app_access_mode": "read_only_projection_consumer",
-      "display_policy": "state_index_refs_only_no_sqlite_write_no_domain_truth_claims",
+      "display_policy": "settings_advanced_state_index_refs_only_no_sqlite_write_no_domain_truth_claims",
+      "settings_owner_surface": "/settings/advanced",
+      "consumer_surface": "/settings/advanced",
+      "runtime_page_visible": false,
       "drilldown_target_policy": "refs_drill_down_to_stage_folder_not_domain_body",
       "allowed_input_surfaces": [
         "opl app state --profile fast --json",
@@ -985,7 +990,10 @@
       "authority": "opl_framework_stage_artifact_kernel_refs_projection",
       "framework_contract_ref": "one-person-lab/contracts/opl-framework/stage-artifact-runtime-contract.json",
       "surface_kind": "opl_stage_artifact_runtime_workbench",
-      "display_policy": "artifact_kernel_refs_only_no_body_no_domain_readiness_claims",
+      "display_policy": "right_inspector_artifact_provenance_with_settings_advanced_technical_refs_no_body_no_domain_readiness_claims",
+      "consumer_surface": "right_context_inspector",
+      "technical_details_owner_surface": "/settings/advanced",
+      "runtime_page_visible": false,
       "full_detail_policy": "on_demand_task_drilldown_only",
       "required_ref_fields": [
         "current_pointer_ref",
@@ -1203,8 +1211,8 @@
       "projection_ref": "contracts/app-runtime-bridge.json#task_awareness_projection",
       "source": "app_state.operator.workbench.task_drilldowns",
       "authority": "opl_framework_refs_only_task_awareness_projection",
-      "display_policy": "runtime_global_task_awareness_with_current_task_slices_no_new_dashboard",
-      "global_surface": "runtime_page",
+      "display_policy": "conversation_and_inspector_task_awareness_refs_no_runtime_dashboard",
+      "global_surface": "none_runtime_uses_work_item_projection_v2",
       "current_task_surfaces": [
         "ordinary_conversation",
         "right_context_inspector"
@@ -1370,7 +1378,7 @@
       "schema_name": "TaskRunProjection",
       "schema_version": 2,
       "projection_kind": "task_run_projection_v2",
-      "model_policy": "Runtime is the global task list and task detail surface; ordinary conversation and right inspector are filtered slices of the same TaskRunProjection v2 records.",
+      "model_policy": "Runtime uses WorkItemProjection v2; ordinary conversation and right inspector consume filtered TaskRunProjection v2 refs.",
       "v2_field_groups": {
         "task_identity": [
           "task_id",
@@ -1460,7 +1468,7 @@
         ],
         "diagnostics_ref": ["diagnostics_ref"]
       },
-      "slice_policy": "runtime_global_list_and_detail_conversation_and_inspector_filtered_slices_same_model",
+      "slice_policy": "conversation_and_inspector_filtered_slices_runtime_uses_separate_work_item_projection_v2",
       "domain_authority_policy": "refs_only_no_domain_authority_no_artifact_body_no_domain_verdict"
     },
     "stage_run_cockpit": {
@@ -1476,7 +1484,10 @@
       "projection_ref": "contracts/app-runtime-bridge.json#provider_readiness_repair_projection",
       "source": "app_state.provider + app_state.actions + app_state.operator.default_read_surface_policy",
       "authority": "opl_framework_provider_readiness_refs_projection",
-      "display_policy": "provider_readiness_repair_secondary_without_current_owner_delta_override",
+      "display_policy": "settings_environment_provider_readiness_repair_without_current_owner_delta_override",
+      "settings_owner_surface": "/settings/environment?section=services",
+      "consumer_surface": "/settings/environment?section=services",
+      "runtime_page_visible": false,
       "provider_kind": "temporal",
       "repair_cases": [
         {
@@ -4303,17 +4314,20 @@
       "state_source": "opl app state --profile fast --json",
       "refresh_source": "opl app state --profile fast --json",
       "primary_projection": "app_state.operator.workbench.work_item_projection_v2",
-      "summary_source": "opl runtime app-operator-drilldown --json",
+      "summary_source": "app_state.operator.workbench.work_item_projection_v2",
       "default_state_source": "opl app state --profile fast --json",
-      "diagnostic_source": "opl runtime app-operator-drilldown --json",
-      "full_detail_source": "opl runtime app-operator-drilldown --detail full --json",
-      "full_detail_policy": "on_demand_only",
+      "diagnostic_source": "settings_control_center_only",
+      "full_detail_source": "selected_work_item_from_work_item_projection_v2",
+      "full_detail_policy": "selected_work_item_only_no_global_operator_drilldown",
       "runtime_cockpit_product_contract": {
         "owner": "one-person-lab-app",
-        "role": "user_agent_collaboration_control_console",
+        "role": "minimal_project_work_status_console",
         "observability_dashboard_allowed": false,
         "work_item_projection_ref": "contracts/app-runtime-bridge.json#work_item_projection",
-        "agent_availability_projection_ref": "contracts/app-runtime-bridge.json#agent_availability_projection",
+        "operator_drilldown_allowed": false,
+        "platform_maintenance_actions_allowed": false,
+        "software_update_actions_allowed": false,
+        "module_health_panel_allowed": false,
         "default_layer_required_answers": [
           "selected_agent_and_project_scope",
           "user_cognitive_work_item_status",
@@ -4377,6 +4391,9 @@
           "shell_heuristic_deduplication_allowed": false,
           "default_visibility": "visible",
           "archived_items_surface": "separate_archived_tasks_library",
+          "status_filter_control": "single_select",
+          "summary_metric_cards_allowed": false,
+          "operator_action_panel_allowed": false,
           "responsive_acceptance": {
             "viewport_widths_px": [375, 768, 1024, 1440],
             "layout_by_viewport": {
@@ -4395,11 +4412,31 @@
               "one_row_per_work_item",
               "semantic_column_reflow",
               "no_horizontal_page_overflow",
-              "detail_progressive_disclosure"
+              "detail_progressive_disclosure",
+              "stage_popover_progressive_disclosure"
             ],
             "screenshot_per_viewport_required": true,
             "detail_drawer_screenshot_required": true
           }
+        },
+        "stage_popover": {
+          "trigger_field": "execution.current_stage_display_name",
+          "trigger_does_not_open_task_drawer": true,
+          "required_fields": [
+            "stage_map",
+            "stage_map[].display_names",
+            "execution.current_stage_display_name",
+            "execution.next_stage_display_name",
+            "execution.attempt_id"
+          ],
+          "label_source": "stage_map[].display_names[current_app_locale]",
+          "label_fallback": "stage_map[].display_name",
+          "locale_owner": "shell_current_app_locale",
+          "current_attempt_visible_here": true,
+          "current_attempt_default_row_visible": false,
+          "historical_attempt_ids_visible": false,
+          "viewport_widths_px": [375, 768, 1024, 1440],
+          "horizontal_overflow_allowed": false
         },
         "text_wrapping": {
           "ordinary_user_text_policy": "normal_word_boundaries",
@@ -4562,12 +4599,15 @@
             "stage_and_total_tokens",
             "action"
           ],
-          "secondary_sections": ["artifacts", "timeline", "evidence"],
-          "diagnostic_sections": ["raw_refs", "raw_ids", "logs", "provider_diagnostics"],
+          "secondary_sections": [],
+          "diagnostic_sections": [],
           "primary_sections_visible_on_open": true,
-          "secondary_sections_default_collapsed": true,
-          "diagnostic_sections_default_collapsed": true,
+          "diagnostic_sections_allowed": false,
+          "diagnostics_owner_surface": "/settings/advanced",
+          "artifacts_owner_surface": "right_context_inspector",
+          "timeline_owner_surface": "/settings/advanced",
           "equal_weight_tab_wall_allowed": false,
+          "current_attempt_visibility": "stage_popover_and_selected_work_item_detail_only",
           "delivered_stage_map_terminal_boundary": {
             "terminal_signals": [
               "lifecycle.primary_state=delivered_auto_paused",
@@ -4580,34 +4620,44 @@
             "post_delivery_next_step_source": "work_item_projection.action"
           }
         },
-        "agent_availability_panel": {
-          "purpose": "agent_availability_only",
-          "full_names_required": true,
-          "all_healthy_state": "collapsed_summary",
-          "task_counts_allowed": false,
-          "bare_fraction_allowed": false,
+        "agent_availability_routing": {
+          "runtime_page_visible": false,
+          "settings_owner": "/settings/capabilities",
+          "projection_remains_available_to_settings": true,
+          "task_counts_are_not_availability": true,
           "mas_scholar_skills_role": "med_autoscience_dependency_not_sixth_agent"
         },
         "progressive_disclosure": {
           "default_layer": "decision_and_action_fields_only",
-          "diagnostic_only": [
-            "raw_ids",
+          "raw_technical_fields_default_visible": false,
+          "current_attempt_exception": "visible_only_in_stage_popover_or_selected_work_item_detail",
+          "excluded_technical_detail_owner": "/settings/advanced"
+        },
+        "runtime_surface_exclusions": {
+          "forbidden": [
+            "operator_summary",
+            "safe_action_catalog",
+            "software_install_or_update_actions",
+            "platform_repair_actions",
+            "module_health_panel",
+            "provider_diagnostics",
+            "state_index",
+            "artifact_provenance",
+            "release_evidence",
+            "historical_attempts",
             "raw_logs",
             "raw_refs",
-            "receipt_refs",
-            "provider_diagnostics",
-            "workflow_and_attempt_ids"
+            "raw_runtime_readback"
           ],
-          "raw_technical_fields_default_visible": false
-        },
-        "diagnostic_projection": {
-          "diagnostics_items_field_required": true,
-          "fast_profile_detail_policy": "summary_only",
-          "fast_profile_nonzero_count_with_empty_items_is_valid": true,
-          "fast_profile_embedded_item_count_must_not_exceed_count": true,
-          "full_profile_detail_policy": "included",
-          "included_count_must_equal_embedded_item_count": true,
-          "valid_summary_only_preserves_projects_and_work_items": true
+          "settings_owner_routes": {
+            "software_updates": "/settings/environment?section=updates",
+            "platform_repair": "/settings/environment?section=services",
+            "module_management": "/settings/capabilities",
+            "diagnostics": "/settings/advanced",
+            "state_index": "/settings/advanced",
+            "artifact_provenance": "right_context_inspector",
+            "release_evidence": "release_evidence_tooling"
+          }
         },
         "renderer_policy": {
           "shell_role": "thin_renderer",
@@ -4631,202 +4681,6 @@
           "contract_completion_implies_live_evidence": false,
           "focused_tests_imply_live_readiness": false
         }
-      },
-      "user_task_status_policy": {
-        "source": "app_state.operator.workbench.summary_cards + app_state.operator.workbench.activity_center + app_state.operator.workbench.task_drilldowns + app_state.operator.visual_ref_groups.active_project_refs",
-        "authority": "opl_framework_refs_only_user_task_projection",
-        "display_policy": "scope_switchable_user_task_status_first_provider_projection_diagnostic_only",
-        "default_user_question": "Within the selected scope, which projects are moving, which are paused, which need a user decision, which need system handling, and what is each task's current stage, liveness, and token usage?",
-        "mental_model_layers": [
-          "agent/capability: which agent, capability package, or module is responsible",
-          "project: which project line, study, or deliverable track this work belongs to",
-          "task/work item: the user-visible unit that is advancing, waiting, or blocked",
-          "execution run: the current stage run, heartbeat, usage, and blocker route for this task"
-        ],
-        "scope_fields": [
-          "agent_scope_options",
-          "selected_agent_scope",
-          "project_scope_options",
-          "selected_project_scope",
-          "scope_source",
-          "inferred_scope_hint"
-        ],
-        "summary_fields": [
-          "running_task_count",
-          "active_project_count",
-          "queued_project_count",
-          "attention_count"
-        ],
-        "primary_state_summary_fields": [
-          "in_progress_count",
-          "delivered_auto_paused_count",
-          "paused_count",
-          "owner_decision_count",
-          "system_attention_count",
-          "automation_running_count"
-        ],
-        "primary_state_fields": [
-          "primary_state",
-          "primary_state_label",
-          "primary_state_reason"
-        ],
-        "automation_state_fields": [
-          "automation_state",
-          "automation_state_label",
-          "automation_state_reason"
-        ],
-        "primary_state_values": [
-          "in_progress",
-          "delivered_auto_paused",
-          "paused_waiting_for_direction",
-          "owner_decision_required",
-          "system_attention_required"
-        ],
-        "automation_state_values": [
-          "automation_running",
-          "automation_idle",
-          "result_pending_terminalization",
-          "automation_failed"
-        ],
-        "task_fields": [
-          "task_id",
-          "title",
-          "status",
-          "stage",
-          "progress_label",
-          "next_step",
-          "owner",
-          "last_progress",
-          "next_owner",
-          "active_run_id",
-          "stage_attempt_ids",
-          "stage_run_cockpit",
-          "stage_run_cockpit_summary",
-          "stage_run_current_owner_delta",
-          "runtime_closeout_observed",
-          "runtime_closeout_ref",
-          "mas_owner_consumption_status",
-          "mas_owner_consumption_ref",
-          "mas_owner_consumed_stage_attempt_id",
-          "mas_owner_consumed_closeout_ref",
-          "mas_owner_consumption_matches_runtime_closeout",
-          "artifact_or_blocker",
-          "review_receipt",
-          "action_receipt",
-          "workflow_refs",
-          "export_bundle_action_ref",
-          "gateway_status_ref",
-          "resource_source_refs",
-          "environment_ref",
-          "storage_ref",
-          "resource_plan_ref",
-          "resource_approval_ref",
-          "resource_execute_ref",
-          "resource_monitor_ref",
-          "resource_collect_ref",
-          "resource_usage_ref",
-          "console_policy_ref",
-          "quota_ref",
-          "billing_ref",
-          "permission_ref",
-          "environment_template_ref",
-          "environment_version_ref",
-          "environment_source_ref",
-          "environment_task_refs",
-          "resource_receipt_ref",
-          "cost_estimate_ref",
-          "connector_readiness_refs",
-          "diagnostic_substrate_refs",
-          "openscience_console_projection_ref",
-          "structured_result_panel",
-          "artifact_provenance_card",
-          "ref_level_follow_up_refs",
-          "workflow_skill_candidate_refs"
-        ],
-        "resource_context_policy": {
-          "source": "contracts/app-runtime-bridge.json#task_awareness_projection.resource_context_policy",
-          "display_policy": "show OPL Gateway/Fabric resource context as refs-only plan, approval, execution, collection, and receipt context",
-          "app_role": "display_only_resource_context_consumer",
-          "console_management_boundary": "show Console-managed policy, quota, billing, or permission refs only when Framework projection provides them; user-provided local, SSH, or HPC resources remain self-managed in the App display"
-        },
-        "count_policies": {
-          "running_task_count": "count user tasks projected as actively running or advancing, never raw provider attempts",
-          "active_project_count": "count active user-visible project lines from the framework project-line projection",
-          "queued_project_count": "count queued or waiting user-visible project/task lines without claiming active worker runs",
-          "attention_count": "count user-visible blockers, human gates, failed safe actions, or owner attention states",
-          "in_progress_count": "count tasks whose user-facing primary_state is in_progress",
-          "delivered_auto_paused_count": "count tasks whose user-facing primary_state is delivered_auto_paused",
-          "paused_count": "count tasks whose user-facing primary_state is paused_waiting_for_direction",
-          "owner_decision_count": "count tasks whose user-facing primary_state is owner_decision_required",
-          "system_attention_count": "count tasks whose user-facing primary_state is system_attention_required",
-          "automation_running_count": "count tasks whose automation_state is automation_running"
-        },
-        "running_state_policy": "only explicit running, in_progress, or advancing status/state counts as running; active_run_id alone is context, not liveness proof; queued, pending, and waiting require explicit projected status; blocked or attention_needed stay blocked/attention states; stopped, parked, and checkpointed stay inactive and must not be relabeled queued",
-        "queue_status_policy": "queued, pending, and waiting require explicit projected status; blocked or attention_needed stay blocked/attention states; stopped, parked, and checkpointed stay inactive; non-running must never be inferred as queued",
-        "progress_label_policy": "render framework progress classification and stage labels as human task progress labels without exposing raw projection or ledger names",
-        "stage_run_projection_ref": "contracts/app-runtime-bridge.json#stage_run_cockpit_projection",
-        "default_stage_run_panel_fields": [
-          "current stage",
-          "elapsed",
-          "last heartbeat / running proof",
-          "current stage usage",
-          "task total usage",
-          "typed blocker summary",
-          "typed blocker owner",
-          "resolution route"
-        ],
-        "telemetry_missing_policy": "when stage elapsed, heartbeat, or usage telemetry is absent, the Runtime page must surface telemetry missing instead of leaving the area blank or inferring a healthy run",
-        "agent_module_status_panel": {
-          "source": "task capability/module refs separated from task liveness",
-          "display_policy": "render agent, capability, connector, and module status in a dedicated panel instead of mixing them into stage/run telemetry; explain dirty or missing states in plain language and suppress zero-workload/no-activity filler",
-          "required_ref_fields": [
-            "connector_readiness_refs",
-            "diagnostic_substrate_refs",
-            "gateway_status_ref"
-          ],
-          "optional_ref_fields": ["capability_health_refs"],
-          "telemetry_missing_copy": "module status unavailable"
-        },
-        "work_item_visibility": {
-          "projection_path": "work_item_projection_v2.items[].visibility",
-          "axis_values": ["visible", "archived"],
-          "default_projection": "visible_only",
-          "archived_surface": "archived_tasks_library",
-          "archived_surface_scope": "same_agent_then_project_scope",
-          "saved_status_view_allowed": false,
-          "status_filter_may_include_visibility": false,
-          "archive_action_id": "work_item_visibility_set",
-          "restore_action_id": "work_item_visibility_set",
-          "archive_payload": { "visibility_state": "archived" },
-          "restore_payload": { "visibility_state": "visible" },
-          "expected_generation_source": "item.visibility.generation",
-          "expected_generation_required_when_available": true,
-          "concurrency_token_source": "item.visibility.generation",
-          "refresh_after_mutation": "opl app state --profile fast --json",
-          "readback_required": true,
-          "generation_conflict_policy": "refresh_authoritative_projection_then_prompt_retry",
-          "local_storage_truth_allowed": false,
-          "archive_changes_business_lifecycle": false,
-          "archive_stops_execution": false,
-          "archive_deletes_evidence": false,
-          "archived_item_preserves_status_stage_usage": true,
-          "restore_returns_to_main_surface": true,
-          "stop_requires_separate_action": true,
-          "confirmation_required": true,
-          "confirmation_must_explain_archive_does_not_stop_work": true
-        },
-        "mas_runtime_acceptance_display_policy": "show Med Auto Science owner consumption fields as user-facing acceptance/currentness status, e.g. 'Med Auto Science accepted this runtime result' and 'accepted result matches latest runtime closeout'; keep raw refs and stage attempt ids secondary as evidence, not the primary wording",
-        "diagnostic_source_policy": "provider/projection/ref/ledger/current_control_state details stay secondary and are not the default page language",
-        "must_not_default_display_terms": [
-          "Temporal",
-          "provider",
-          "projection",
-          "ref",
-          "stage attempt",
-          "ledger",
-          "current_control_state"
-        ],
-        "refs_only": true
       },
       "runtime_scope_projection": {
         "source": "app_state.operator.workbench.runtime_scope",
@@ -4877,212 +4731,14 @@
         "scope_source_values": ["default_global", "user_selected", "inferred"]
       },
       "diagnostics_policy": {
-        "default_visibility": "secondary_disclosure",
-        "sections": [
-          "operator summary",
-          "safe actions",
-          "evidence refs",
-          "full detail digest"
-        ]
-      },
-      "project_progress_policy": {
-        "source": "app_state.operator.workbench.task_drilldowns",
-        "authority": "opl_framework_shared_project_progress_projection",
-        "display_policy": "project_progress_refs_secondary_no_module_runtime_dirty_as_project",
-        "required_fields": [
-          "task_id",
-          "title",
-          "domain_id",
-          "state",
-          "active_stage_id",
-          "progress_delta_classification",
-          "deliverable_progress_delta",
-          "platform_repair_delta",
-          "blocker_ref_count",
-          "next_visible_step",
-          "next_owner"
-        ],
-        "optional_user_fields": [
-          "domain_label",
-          "active_stage_label",
-          "next_visible_step",
-          "next_owner",
-          "last_progress_at"
-        ],
-        "diagnostics_treatment": "secondary_disclosure",
-        "safe_actions_treatment": "secondary_operator_disclosure",
-        "active_project_line_projection": {
-          "source": "app_state.operator.workbench.activity_center.active_projects + app_state.operator.visual_ref_groups.active_project_refs",
-          "authority": "opl_framework_refs_only_project_line_projection",
-          "display_policy": "active_project_line_count_can_include_queued_or_escalated_owner_handled_lines_without_active_worker_run",
-          "status_preservation_required": true,
-          "primary_grouping_policy": {
-            "default_order": [
-              "in_progress",
-              "delivered_auto_paused",
-              "paused_waiting_for_direction",
-              "owner_decision_required",
-              "system_attention_required"
-            ],
-            "collapsed_groups": [
-              "delivered_auto_paused",
-              "paused_waiting_for_direction"
-            ],
-            "secondary_badge_fields": [
-              "automation_state_label",
-              "active_stage_label",
-              "last_progress_at"
-            ]
-          },
-          "required_fields": [
-            "task_id",
-            "title",
-            "state",
-            "status",
-            "study_id",
-            "active_run_id",
-            "stage_attempt_ids",
-            "next_visible_step"
-          ],
-          "project_group_expansion_policy": {
-            "running_group_default": "expanded",
-            "attention_group_default": "visible_when_nonempty",
-            "inactive_group_default": "collapsed",
-            "inactive_states": [
-              "queued",
-              "pending",
-              "waiting",
-              "stopped",
-              "parked",
-              "checkpointed",
-              "blocked",
-              "attention_needed"
-            ],
-            "inactive_summary_fields": [
-              "count",
-              "status",
-              "next_visible_step",
-              "runtime_closeout_observed",
-              "runtime_closeout_ref",
-              "mas_owner_consumption_status",
-              "mas_owner_consumed_stage_attempt_id",
-              "mas_owner_consumption_matches_runtime_closeout"
-            ]
-          },
-          "must_not_claim": [
-            "active_worker_run",
-            "provider_execution_running",
-            "domain_ready",
-            "paper_quality_ready"
-          ]
-        }
-      },
-      "progress_delta_policy": {
-        "source": "app_state.operator.workbench.task_drilldowns.progress_delta_classification",
-        "authority": "opl_framework_shared_progress_projection",
-        "display_policy": "classification_only_no_domain_artifact_body",
-        "required_fields": [
-          "deliverable_progress_delta",
-          "platform_repair_delta",
-          "progress_delta_classification"
-        ],
-        "platform_repair_display_treatment": "separate_infrastructure_repair_not_deliverable_progress",
-        "forbidden_delivery_claim_for_platform_repair": true
-      },
-      "state_index_sidecar_policy": {
-        "source": "app_state.operator.workbench.task_drilldowns.state_index_sidecar_projection",
-        "detail_source": "opl runtime app-operator-drilldown --task <task_id> --json",
-        "authority": "opl_framework_state_index_kernel_sqlite_sidecar_projection",
-        "kernel_owner": "one-person-lab",
-        "storage_kind": "sqlite_sidecar_read_model_cache",
-        "app_access_mode": "read_only_projection_consumer",
-        "display_policy": "state_index_refs_only_no_sqlite_write_no_domain_truth_claims",
-        "drilldown_target_policy": "refs_drill_down_to_stage_folder_not_domain_body",
-        "allowed_input_surfaces": [
-          "opl app state --profile fast --json",
-          "opl app state --profile full --json",
-          "opl runtime app-operator-drilldown --task <task_id> --json"
-        ],
-        "required_ref_fields": [
-          "state_index_ref",
-          "stage_folder_ref",
-          "task_ref",
-          "owner_ref",
-          "updated_at"
-        ],
-        "optional_ref_fields": [
-          "artifact_index_refs",
-          "receipt_index_refs",
-          "blocker_index_refs",
-          "readiness_false_flag_refs",
-          "cache_generation_ref"
-        ],
-        "sqlite_direct_read_access": false,
-        "sqlite_write_access": false,
-        "sidecar_mutation_access": false,
-        "domain_truth_write_access": false,
-        "owner_receipt_write_access": false,
-        "artifact_body_access": false,
-        "readiness_authority": false,
-        "artifact_authority": false,
-        "quality_verdict_authority": false,
-        "app_role": "display_only_state_index_read_model_consumer",
-        "forbidden_claims": [
-          "sqlite_truth_owner",
-          "sqlite_sidecar_writer",
-          "state_index_kernel_owner",
-          "domain_truth",
-          "owner_receipt_authority",
-          "artifact_body",
-          "artifact_authority",
-          "domain_readiness",
-          "quality_verdict",
-          "export_readiness",
-          "app_release_readiness",
-          "family_production_readiness"
-        ]
-      },
-      "artifact_native_drilldown_policy": {
-        "source": "app_state.operator.workbench.task_drilldowns.artifact_native_drilldown",
-        "detail_source": "opl runtime app-operator-drilldown --task <task_id> --json",
-        "authority": "opl_framework_stage_artifact_kernel_refs_projection",
-        "framework_contract_ref": "one-person-lab/contracts/opl-framework/stage-artifact-runtime-contract.json",
-        "surface_kind": "opl_stage_artifact_runtime_workbench",
-        "display_policy": "artifact_kernel_refs_only_no_body_no_domain_readiness_claims",
-        "full_detail_policy": "on_demand_task_drilldown_only",
-        "required_ref_fields": [
-          "current_pointer_ref",
-          "canonical_artifact_refs",
-          "export_artifact_refs",
-          "lineage_refs",
-          "retention_policy_ref",
-          "conformance_summary_ref"
-        ],
-        "optional_ref_fields": [
-          "content_hash_refs",
-          "attempt_manifest_refs",
-          "owner_receipt_refs",
-          "typed_blocker_refs",
-          "decision_receipt_refs"
-        ],
-        "artifact_body_access": false,
-        "domain_verdict_authority": false,
-        "app_role": "display_only_stage_artifact_kernel_refs_consumer",
-        "forbidden_claims": [
-          "artifact_body",
-          "domain_artifact_body",
-          "domain_artifact_authority",
-          "domain_quality_verdict",
-          "domain_export_readiness",
-          "domain_readiness",
-          "app_release_readiness",
-          "family_production_readiness"
-        ]
+        "default_visibility": "absent_from_runtime",
+        "sections": [],
+        "owner_surface": "/settings/advanced"
       },
       "must_show": [
         "WorkItemProjection v2 as the default Runtime read model",
         "two-level Agent then Project scope with work items excluded",
-        "status-only saved views without MAS or other agent duplicates",
+        "single-select status filter without MAS or other agent duplicates",
         "four-column work-item list with agent as a secondary label",
         "one row per canonical work item",
         "top-level item_id for row and detail identity with full agent_id + project_id + work_item_id mutation and readback tuple",
@@ -5094,25 +4750,30 @@
         "complete current responsibility before system attention is shown",
         "observed current-stage and total Token usage or an explicit missing reason",
         "no Token limit progress bar when no limit is configured",
-        "Stage Map, current and next stage, heartbeat, Token, and action on detail open",
-        "artifacts and timeline as secondary detail",
-        "agent availability as a separate full-name panel collapsed when healthy",
-        "runtime diagnostics as secondary disclosure",
+        "clickable current Stage popover with complete Stage order, next Stage, and current Attempt",
+        "Stage click does not open the task detail drawer",
+        "Stage Map, current and next stage, current Attempt, heartbeat, Token, and action on detail open",
+        "platform maintenance, software updates, module health, safe actions, and operator diagnostics excluded from Runtime and routed to Settings",
         "responsive semantic row reflow without horizontal page overflow",
         "contract, Framework producer, Shell consumer, and live evidence tracked separately"
       ],
-      "must_not_default_show": [
+      "must_not_show": [
+        "operator summary",
+        "safe action catalog",
+        "software updates",
+        "platform maintenance actions",
+        "module health panel",
+        "provider diagnostics",
+        "State Index",
+        "artifact provenance",
         "raw IDs",
         "raw logs",
         "raw refs",
         "receipt refs",
-        "workflow and attempt IDs",
+        "workflow IDs and historical attempt IDs",
         "Temporal",
-        "provider",
-        "projection",
-        "ref",
-        "stage attempt",
-        "ledger",
+        "raw projection",
+        "evidence ledger",
         "current_control_state"
       ],
       "must_not_own": [
@@ -5133,85 +4794,7 @@
         "shell-owned task store",
         "new task dashboard",
         "App annotation store"
-      ],
-      "structured_result_panel": {
-        "source": "app_state.operator.workbench.task_run_projection_v2.tasks[].structured_result_panel",
-        "authority": "opl_framework_refs_only_structured_result_projection",
-        "projection_kind": "structured_result_panel_projection",
-        "surface_kind": "structured_result_panel",
-        "display_policy": "conversation_current_task_right_inspector_panel_no_new_dashboard",
-        "surfaces": [
-          "ordinary_conversation",
-          "current_task_slice",
-          "right_context_inspector"
-        ],
-        "required_ref_fields": [
-          "result_summary_ref",
-          "status_ref",
-          "evidence_card_refs",
-          "action_card_refs",
-          "artifact_provenance_ref",
-          "follow_up_refs"
-        ],
-        "panel_policy": "structured_result_panel_inside_existing_conversation_current_task_and_right_inspector_surfaces",
-        "content_policy": "refs_only_no_artifact_body_no_domain_verdict",
-        "new_dashboard_allowed": false,
-        "app_role": "display_only_structured_result_panel_consumer",
-        "shell_role": "thin_renderer_existing_task_surfaces_only",
-        "refs_only": true,
-        "artifact_body_access": false,
-        "domain_verdict_authority": false,
-        "quality_verdict_authority": false,
-        "readiness_authority": false,
-        "forbidden_claims": [
-          "new_dashboard",
-          "artifact_body",
-          "domain_artifact_body",
-          "domain_quality_verdict",
-          "domain_readiness",
-          "owner_receipt_authority",
-          "app_release_readiness",
-          "family_production_readiness"
-        ]
-      },
-      "ref_level_follow_up": {
-        "source": "app_state.operator.workbench.task_run_projection_v2.tasks[].ref_level_follow_up_refs",
-        "authority": "opl_framework_refs_only_ref_level_follow_up_projection",
-        "projection_kind": "ref_level_follow_up_projection",
-        "surface_kind": "ref_level_comment_and_follow_up_refs",
-        "display_policy": "review_request_change_follow_up_prompt_action_refs_only_no_app_annotation_store",
-        "surfaces": [
-          "right_context_inspector.review",
-          "right_context_inspector.actions",
-          "ordinary_conversation.current_task_slice"
-        ],
-        "action_kinds": ["review", "request_change", "follow_up_prompt"],
-        "required_ref_fields": [
-          "target_ref",
-          "source_ref",
-          "comment_ref",
-          "prompt_ref",
-          "action_ref",
-          "owner",
-          "content_policy"
-        ],
-        "app_annotation_store_allowed": false,
-        "app_role": "display_only_ref_level_follow_up_refs_consumer",
-        "refs_only": true,
-        "artifact_body_access": false,
-        "app_annotation_store_write": false,
-        "owner_receipt_write_access": false,
-        "domain_verdict_authority": false,
-        "forbidden_claims": [
-          "app_annotation_store",
-          "artifact_body",
-          "review_body",
-          "owner_receipt_authority",
-          "domain_quality_verdict",
-          "domain_readiness",
-          "app_release_readiness"
-        ]
-      }
+      ]
     },
     "settings_general": {
       "state_source": "opl app state --profile fast --json",

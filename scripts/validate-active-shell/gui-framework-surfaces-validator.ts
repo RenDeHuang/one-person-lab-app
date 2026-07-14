@@ -155,13 +155,25 @@ export function validateGuiFrameworkSurfaces(guiContract, releaseChannel, instal
     'App GUI action command',
   );
   assertCommandSurface(
-    guiContract.framework_surfaces.runtime_full_drilldown?.command,
+    guiContract.framework_surfaces.advanced_full_drilldown?.command,
     'opl runtime app-operator-drilldown --detail full --json',
-    'App GUI runtime full drilldown exception',
+    'App GUI advanced full drilldown',
   );
-  if (guiContract.framework_surfaces.runtime_full_drilldown.policy !== 'on_demand_only') {
-    throw new Error('App GUI runtime full drilldown must be on-demand only');
+  const advancedFullDrilldown = guiContract.framework_surfaces.advanced_full_drilldown;
+  if ('runtime_full_drilldown' in guiContract.framework_surfaces) {
+    throw new Error('App GUI must not classify full operator drilldown as a Runtime surface');
   }
+  if (
+    advancedFullDrilldown.policy !== 'settings_advanced_or_release_evidence_only'
+    || advancedFullDrilldown.runtime_page_allowed !== false
+  ) {
+    throw new Error('App GUI full drilldown must be limited to Settings Advanced or release evidence');
+  }
+  assertDeepEqualJson(
+    advancedFullDrilldown.consumer_surfaces,
+    ['/settings/advanced', 'release_evidence_tooling'],
+    'App GUI advanced full drilldown consumer surfaces',
+  );
   validateStateIndexSidecarProjectionContract(
     guiContract.framework_surfaces.state_index_sidecar,
     'App GUI State Index sidecar framework surface',

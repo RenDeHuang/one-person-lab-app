@@ -56,7 +56,7 @@ through the shell `bun run package` entry.
 node --experimental-strip-types scripts/validate-active-shell.ts --quick
 npm run validate:app-root-boundary
 npm run test:release-boundary
-node --experimental-strip-types scripts/collect-release-evidence.ts --bundle-dir release-evidence/<version> --action-id <opl-runtime-safe-action-id> --execute-action --overwrite --evidence-source-dir artifacts/opl-first-run-vm --artifact runtime_screenshot=/path/to/runtime.png
+node --experimental-strip-types scripts/collect-release-evidence.ts --bundle-dir release-evidence/<version> --action-id <framework-action-id> --execute-action --overwrite --evidence-source-dir artifacts/opl-first-run-vm --artifact runtime_screenshot=/path/to/runtime.png
 npm run release:evidence:manifest -- --bundle-dir release-evidence/<version> --overwrite
 npm run release:evidence:validate -- --bundle-dir release-evidence/<version>
 node --experimental-strip-types scripts/prepare-release-assets.ts build-artifacts release-assets
@@ -94,17 +94,17 @@ verifies that `skill` remains the public semantic ABI, MAS/MAG/RCA stay
 plugin-visible domain routes rather than companion skill mirrors, OPL Meta
 Agent stays an OPL-generated surface outside the default home path, and all
 installer surfaces use the shared first-run progress model.
-The runtime page matrix also verifies the App/operator evidence path: a
-multi-task runtime base view, action queue refs, vertical dynamic map refs,
-single-task drilldown refs, MAS paper lens refs, summary read model first, lazy
-full-detail load, 5-10 second lightweight polling fallback when push projection
-is unavailable, refs-only dry-run/execute action commands, receipt/count refresh
-after execute, State Index / SQLite sidecar refs-only consumption through the
-OPL App/operator projection, Stage Artifact Runtime refs-only drilldown, and
-explicit non-authority boundary fields. The gate rejects direct SQLite sidecar
-access, State Index mutation authority, domain truth, owner receipt authority,
-artifact bodies, artifact authority, and domain/readiness verdict claims in App
-contracts, page-state matrices, and the fast App-state fixture.
+The Runtime page matrix verifies the minimal project-status path: Agent ->
+Project scope, one row per canonical Work Item, user-facing status, running and
+elapsed state, current and total Token usage, Stage order, current/next Stage,
+current Attempt, locale-aware next-step/owner text, responsive layout, and
+archive/restore with authoritative refresh/readback. It also rejects provider or
+platform repair, software update, module/agent health, raw diagnostics, State
+Index, operator drilldown, safe-action catalogs, artifact provenance, release
+evidence controls, direct SQLite access, domain truth, owner-receipt authority,
+artifact bodies, artifact authority, and domain/readiness verdict claims on the
+Runtime surface. Settings Environment, Settings Capabilities, Settings Advanced,
+Inspector, and release-tooling tests verify their respective owner surfaces.
 
 Release evidence bundle validation requires `evidence-manifest.json` plus the
 contracted artifact files. When a local lane cannot produce clean VM smoke
@@ -112,8 +112,9 @@ summaries, remote Release verification, OPL runtime JSON, or screenshots, the
 manifest must mark those entries as `missing`; `--allow-missing-evidence` then
 validates the gap report without treating it as packaged App evidence.
 `collect-release-evidence.ts` can fill the OPL runtime JSON and selected
-safe-action dry-run/execute artifacts from the live Framework CLI and runs that
-same missing-evidence validation before reporting collection success. It can
+Framework-action dry-run/execute artifacts from the live Framework CLI and runs
+that same missing-evidence validation before reporting collection success. This
+is release-tooling behavior, not a Runtime-page action path. It can
 also import standard packaged/VM/remote smoke outputs with
 `--evidence-source-dir <dir>` and attach explicit overrides with repeated
 `--artifact <artifact_id>=<source_path>` flags. Explicit artifact mappings take

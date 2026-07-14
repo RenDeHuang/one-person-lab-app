@@ -17,6 +17,7 @@ import {
   validateOpenScienceAcceptedItemsFixture,
   validateOpenScienceConsoleProjectionContract,
   validateProviderReadinessRepairProjectionContract,
+  validateProgressDeltaDisplayContract,
   validateProjectProgressDisplayContract,
   validateRefLevelFollowUpProjectionContract,
   validateRuntimeScopeProjectionContract,
@@ -673,6 +674,7 @@ function validateRuntimeBridgeDeclaredSurfaces(runtimeBridge) {
     full_state_command: 'opl app state --profile full --json',
     full_state_policy: 'diagnostic_or_release_evidence_only',
     full_detail_command: 'opl runtime app-operator-drilldown --detail full --json',
+    runtime_page_full_detail_allowed: false,
     action_command: 'opl app action execute --action <action_id> [--payload json] [--dry-run] --json',
     'projection_sources.primary': 'app_state.operator.workbench.work_item_projection_v2',
     'projection_sources.provider': 'runtime_tray_snapshot.app_operator_drilldown.current_control_state.states.provider_run',
@@ -688,6 +690,11 @@ function validateRuntimeBridgeDeclaredSurfaces(runtimeBridge) {
   if ('compatibility_operator_payload' in runtimeBridge) {
     throw new Error('Runtime bridge must not declare compatibility_operator_payload');
   }
+  assertDeepEqualJson(
+    runtimeBridge.full_detail_consumer_surfaces,
+    ['/settings/advanced', 'release_evidence_tooling'],
+    'Runtime bridge full detail consumer surfaces',
+  );
 }
 
 function validateRuntimeBridgeDefaultReadSurfacePolicy(runtimeBridge) {
@@ -757,11 +764,11 @@ export function validateRuntimeProgressPageDisplayPolicy(runtimeBridge) {
   if (policy?.default_surface !== 'work_item_projection_v2_list') {
     throw new Error('Runtime progress page default surface must be WorkItemProjection v2 list');
   }
-  if (policy?.advanced_surface !== 'task_detail_or_diagnostics') {
-    throw new Error('Runtime progress page advanced surface must be task_detail_or_diagnostics');
+  if (policy?.advanced_surface !== 'selected_work_item_stage_popover_or_detail_drawer') {
+    throw new Error('Runtime progress page advanced surface must be selected work-item detail only');
   }
-  if (policy?.page_role !== 'project_runtime_cockpit_not_runtime_diagnostics') {
-    throw new Error('Runtime progress page must declare itself as project cockpit, not runtime diagnostics');
+  if (policy?.page_role !== 'minimal_project_work_status_not_platform_operations') {
+    throw new Error('Runtime progress page must be project work status, not platform operations');
   }
   if (policy?.work_item_projection_ref !== 'contracts/app-runtime-bridge.json#work_item_projection') {
     throw new Error('Runtime progress page must point at the canonical WorkItemProjection contract');
@@ -775,23 +782,15 @@ export function validateRuntimeProgressPageDisplayPolicy(runtimeBridge) {
     'progress_and_next_step',
     'elapsed_and_tokens',
   ], 'Runtime progress page default task row spine');
-  for (const section of [
+  assertDeepEqualJson(policy?.default_page_sections, [
     'top_scope_and_refresh',
-    'freshness_summary',
-    'status_saved_views',
+    'compact_status_filter',
     'archived_tasks_entry',
     'work_item_list',
-    'agent_availability_panel',
-    'advanced_diagnostics_disclosure',
-  ]) {
-    if (!policy?.default_page_sections?.includes(section)) {
-      throw new Error(`Runtime progress page default sections must include ${section}`);
-    }
-  }
+  ], 'Runtime progress page default sections');
   assertDeepEqualJson(policy?.layout_regions, {
-    top: ['top_scope_and_refresh', 'freshness_summary', 'status_saved_views', 'archived_tasks_entry'],
+    top: ['top_scope_and_refresh', 'compact_status_filter', 'archived_tasks_entry'],
     main: ['work_item_list'],
-    supporting: ['agent_availability_panel', 'advanced_diagnostics_disclosure'],
   }, 'Runtime progress page layout regions');
   assertIncludesAll(policy?.default_field_allowlist ?? [], [
     'identity.project_display_name',
@@ -799,6 +798,7 @@ export function validateRuntimeProgressPageDisplayPolicy(runtimeBridge) {
     'identity.agent_display_name',
     'lifecycle.primary_state',
     'visibility.state',
+    'execution.state',
     'execution.current_stage_display_name',
     'execution.next_stage_display_name',
     'telemetry.elapsed',
@@ -815,6 +815,7 @@ export function validateRuntimeProgressPageDisplayPolicy(runtimeBridge) {
     'identity.agent_display_name',
     'lifecycle.primary_state',
     'visibility.state',
+    'execution.state',
     'execution.current_stage_display_name',
     'execution.next_stage_display_name',
     'telemetry.elapsed',
@@ -868,7 +869,7 @@ export function validateRuntimeProgressPageDisplayPolicy(runtimeBridge) {
     policy?.task_deduplication_policy?.one_row_per_work_item !== true ||
     policy?.task_deduplication_policy?.shell_heuristic_deduplication_allowed !== false ||
     policy?.task_deduplication_policy?.module_runtime_rows_policy !==
-    'module_runtime_never_enters_work_item_list_agent_availability_is_separate'
+    'module_runtime_and_module_health_never_enter_runtime_page_route_to_settings'
   ) {
     throw new Error('Runtime progress page must project one canonical row per work item and keep module runtime separate');
   }
@@ -937,7 +938,6 @@ export function validateRuntimeProgressPageDisplayPolicy(runtimeBridge) {
   assertDeepEqualJson(policy?.advanced_only_fields, [
     'raw_proof_ref',
     'receipt_refs',
-    'stage_attempt_id',
     'stage_attempt_ids',
     'run_id',
     'active_run_id',
@@ -959,6 +959,45 @@ export function validateRuntimeProgressPageDisplayPolicy(runtimeBridge) {
     'current_control_state',
     'full_drilldown',
   ], 'Runtime progress page advanced-only fields');
+  assertDeepEqualJson(policy?.surface_exclusions?.runtime_page_forbidden, [
+    'operator_summary',
+    'safe_action_catalog',
+    'software_install_or_update_actions',
+    'platform_repair_actions',
+    'module_health_panel',
+    'provider_diagnostics',
+    'raw_runtime_readback',
+  ], 'Runtime progress page forbidden surfaces');
+  assertDeepEqualJson(policy?.surface_exclusions?.settings_owner_routes, {
+    software_updates: '/settings/environment?section=updates',
+    platform_repair: '/settings/environment?section=services',
+    module_management: '/settings/capabilities',
+    diagnostics: '/settings/advanced',
+  }, 'Runtime progress page Settings routes');
+  const stagePopover = runtimeBridge.work_item_projection?.stage_popover_contract;
+  assertDeepEqualJson(stagePopover?.required_fields, [
+    'stage_map',
+    'stage_map[].display_names',
+    'execution.current_stage_display_name',
+    'execution.next_stage_display_name',
+    'execution.attempt_id',
+  ], 'Runtime Stage popover required fields');
+  assertDeepEqualJson(stagePopover?.viewport_widths_px, [375, 768, 1024, 1440], 'Runtime Stage popover viewports');
+  for (const [field, expected] of Object.entries({
+    trigger_field: 'execution.current_stage_display_name',
+    trigger_does_not_open_task_drawer: true,
+    label_source: 'stage_map[].display_names[current_app_locale]',
+    label_fallback: 'stage_map[].display_name',
+    locale_owner: 'shell_current_app_locale',
+    current_attempt_visible_here: true,
+    current_attempt_default_row_visible: false,
+    historical_attempt_ids_visible: false,
+    horizontal_overflow_allowed: false,
+  })) {
+    if (stagePopover?.[field] !== expected) {
+      throw new Error(`Runtime Stage popover ${field} must be ${expected}`);
+    }
+  }
   for (const claim of [
     'second_runtime_truth_source',
     'live_runtime_readiness',
@@ -1143,6 +1182,10 @@ function validateRuntimeBridgeProjectionContracts(runtimeBridge) {
     'Runtime bridge agent availability projection',
   );
   validateProjectProgressDisplayContract(runtimeBridge.project_progress_projection, 'Runtime bridge project progress projection');
+  validateProgressDeltaDisplayContract(
+    runtimeBridge.progress_delta_projection,
+    'Runtime bridge progress delta projection',
+  );
   validateProviderReadinessRepairProjectionContract(
     runtimeBridge.provider_readiness_repair_projection,
     'Runtime bridge provider readiness repair projection',
@@ -1184,15 +1227,63 @@ function validateRuntimeBridgeProjectionContracts(runtimeBridge) {
     runtimeBridge.stage_run_cockpit_projection,
     'Runtime bridge StageRun cockpit projection',
   );
+  const advancedOperator = runtimeBridge.advanced_operator_drilldown;
+  if (
+    advancedOperator?.command !== 'opl runtime app-operator-drilldown --json'
+    || advancedOperator.runtime_page_allowed !== false
+  ) {
+    throw new Error('Runtime bridge operator drilldown must stay outside Runtime');
+  }
+  assertDeepEqualJson(
+    advancedOperator.consumer_surfaces,
+    ['/settings/advanced', 'release_evidence_tooling'],
+    'Runtime bridge operator drilldown consumer surfaces',
+  );
+  if (
+    runtimeBridge.running_task_projection?.consumer_surface !== '/settings/advanced'
+    || runtimeBridge.running_task_projection.runtime_page_visible !== false
+  ) {
+    throw new Error('Runtime bridge provider-attempt projection must be Settings Advanced only');
+  }
 }
 
 function validatePackageReadinessProjection(runtimeBridge) {
   const rows = runtimeBridge.canonical_state_display_action_map?.rows;
   const runtimeRow = Array.isArray(rows) ? rows.find((row) => row?.semantic_area === 'runtime') : null;
   const packageRow = Array.isArray(rows) ? rows.find((row) => row?.semantic_area === 'package') : null;
-  if (!runtimeRow?.allowed_action_refs?.includes('work_item_visibility_set')) {
-    throw new Error('Runtime bridge canonical Runtime row must expose work_item_visibility_set');
+  if (
+    runtimeRow?.canonical_source !==
+      'opl app state --profile fast --json#app_state.operator.workbench.work_item_projection_v2'
+    || runtimeRow.aion_display_role !==
+      'minimal WorkItem status, Stage, Attempt, Token, next action, and archive/restore'
+    || runtimeRow.workbench_display_role !== 'same minimal WorkItem status contract'
+  ) {
+    throw new Error('Runtime bridge canonical Runtime row must use the minimal WorkItemProjection v2 contract');
   }
+  assertDeepEqualJson(
+    runtimeRow.allowed_action_refs,
+    ['work_item_visibility_set'],
+    'Runtime bridge canonical Runtime actions',
+  );
+  if (
+    runtimeRow.fallback_policy?.allowed_fallback_source !== 'selected item from work_item_projection_v2'
+    || runtimeRow.fallback_policy.allowed_when !== 'selected work item core detail only'
+    || runtimeRow.fallback_policy.operator_drilldown_allowed !== false
+  ) {
+    throw new Error('Runtime bridge canonical Runtime fallback must remain selected-item-only');
+  }
+  const advancedDetail = runtimeBridge.canonical_state_display_action_map?.advanced_detail_surface;
+  if (
+    advancedDetail?.command !== 'opl runtime app-operator-drilldown --detail full --json'
+    || advancedDetail.runtime_page_allowed !== false
+  ) {
+    throw new Error('Runtime bridge advanced detail must stay outside Runtime');
+  }
+  assertDeepEqualJson(
+    advancedDetail.consumer_surfaces,
+    ['/settings/advanced', 'release_evidence_tooling'],
+    'Runtime bridge advanced detail consumer surfaces',
+  );
   if (
     packageRow?.canonical_source !==
     'opl app state --profile fast --json#app_state.agent_packages.directory + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[]'

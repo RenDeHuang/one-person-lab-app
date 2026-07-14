@@ -96,7 +96,7 @@ file keeps only the current boundary. Use
 the focused release-boundary GUI tests for executable Team and MCP-filtering
 truth.
 
-Active-shell StageRun cockpit panel and telemetry-missing expectations are
+Active-shell Runtime Stage/Attempt detail and telemetry-missing expectations are
 single-sourced from
 `contracts/app-runtime-bridge.json#stage_run_cockpit_projection`. GUI,
 page-state, and user-task-status validators consume that projection as the
@@ -189,26 +189,24 @@ maintenance for ordinary first launch.
 
 First-run and Runtime readouts are contract-backed App consumers of OPL
 Framework surfaces. First-run progress derives from `opl system initialize
---json#system_initialize.setup_flow`, and the Runtime page defaults to
-`opl app state --profile fast --json`; explicit full App state and
-`opl runtime app-operator-drilldown --detail full --json` remain on-demand
-diagnostic or release-evidence surfaces. Runtime bridge command resolution,
-provider readiness repair commands, user-task counts, project progress
-classification, State Index refs and Stage Artifact refs are owned by
-`contracts/app-runtime-bridge.json`, `contracts/app-page-state-matrix.json`,
-`contracts/app-gui-product-contract.json`, `docs/architecture.md`,
-`docs/decisions.md`, `scripts/validate-active-shell.ts`, and focused
-release-boundary tests.
+--json#system_initialize.setup_flow`. Runtime reads
+`opl app state --profile fast --json` and consumes only the contracted Work Item,
+Stage, Attempt, Token, and visibility projection. Explicit full App state and
+`opl runtime app-operator-drilldown --detail full --json` are owned by Settings
+Advanced and release tooling, never by Runtime.
 
-The current Runtime product rule is user-task-status first: the first screen
-answers running, active, queued, attention, and each task's next visible step
-before exposing provider or ledger diagnostics. Provider readiness repair stays
-infrastructure-only; `running_provider_attempt_count`, raw provider refs,
-State Index / SQLite sidecar refs, Stage Artifact refs, active run ids and
-full drilldown fields remain secondary or on-demand evidence. The App displays
-refs-only projections and never owns runtime truth, provider implementation,
-domain truth, artifact body, owner receipts, typed blockers, domain verdicts,
-App release readiness, or family production readiness.
+The current Runtime product rule is a minimal project status surface: Agent ->
+Project scope, one row per canonical Work Item, user-facing status, running and
+elapsed state, current and total Token usage, current/next Stage, current
+Attempt, and read-only next-step/owner semantics. Archive/restore is its only
+mutation. Provider/platform repair and updates live in Settings Environment;
+module/agent health lives in Settings Capabilities; raw diagnostics, State
+Index, operator drilldown, logs, command refs, and safe-action catalogs live in
+Settings Advanced; artifact provenance lives in Inspector; complete same-cohort
+evidence lives in release tooling. The App remains a projection consumer and
+never owns runtime truth, provider implementation, domain truth, artifact body,
+owner receipts, typed blockers, domain verdicts, App release readiness, or
+family production readiness.
 
 The upstream AionUI Team surface is disabled for ordinary OPL App use. The
 current owner for the exact redirect, sidebar, deep-link, Team MCP scrub,
@@ -382,19 +380,19 @@ stay under the active shell checkout. Use `validate:gui-shell` when a change
 must prove active-shell validation and GUI compile evidence through the App
 wrapper path.
 
-Runtime page evidence path is declared in
-`contracts/app-page-state-matrix.json`: the active shell reads default task
-status through `opl app state --profile fast --json`, uses
-`opl runtime app-operator-drilldown --json` only for secondary runtime
-diagnostics, keeps `opl app state --profile full --json` for explicit full-state
-diagnostic or release evidence, and lazy-loads full detail through `opl runtime
-app-operator-drilldown --detail full --json`. The page stays user-task-first,
-loads full detail only on demand, uses a 5-10 second lightweight polling
-fallback when push projection is unavailable, and exposes only refs-only
-`opl app action execute --action <id> [--payload json] [--dry-run] --json`
-controls. Execution refreshes the App state projection so receipt/count fields
-stay framework-owned; MAS/MAG/RCA verdicts and artifact authority remain
-domain-owned refs.
+Runtime page acceptance is declared in
+`contracts/app-page-state-matrix.json`: the active shell reads the minimal task
+projection through `opl app state --profile fast --json`, uses a 5-10 second
+lightweight polling fallback when push projection is unavailable, and exposes
+only archive/restore through the Framework action boundary followed by
+authoritative refresh/readback. Stage interaction may reveal the complete Stage
+order, current/next Stage, and current Attempt, but it cannot lazy-load operator,
+provider, State Index, artifact, or safe-action detail. Settings Advanced and
+release tooling may independently read full App state or operator drilldown;
+release collectors bind those outputs, Runtime screenshots, action receipts,
+VM/installed-App smoke, remote verification, and manifests to the same cohort.
+Those evidence inputs are not Runtime UI or runtime/domain/artifact readiness
+authority.
 
 Current GUI product truth has a compact owner stack: human-readable intent lives
 in `docs/product/gui/ideal-interaction-spec.md`,
@@ -404,7 +402,8 @@ machine-readable GUI truth lives in
 `contracts/app-page-state-matrix.json`, `contracts/app-product-profile.json`,
 and `contracts/app-shell-adapter.json`. These owners define the ordinary Codex
 CLI path, purpose entries, route receipts, model-status surface, Settings
-partition, forbidden selectors, secondary runtime refs, OMA/MDS visibility, and
+partition, forbidden selectors, Runtime/Settings/Inspector ownership, OMA/MDS
+visibility, and
 legacy-route redirects. This status file does not duplicate field-level GUI
 requirements, literal labels, forbidden-display lists, or test matrices.
 

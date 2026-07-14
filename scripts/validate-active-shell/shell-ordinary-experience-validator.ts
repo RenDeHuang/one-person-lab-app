@@ -229,27 +229,13 @@ const runtimePageExpected = [
   'const [selectedProjectId, setSelectedProjectId]',
   'const [selectedStatusView, setSelectedStatusView]',
   'projection.projects.filter((project) => project.agentId === selectedAgentId)',
-  "scopedItems.filter((item) => item.visibility.state === 'visible')",
-  "scopedItems.filter((item) => item.visibility.state === 'archived')",
   'scopedVisibleItems.filter((item) => matchesStatusView(item, selectedStatusView))',
   'i18n.resolvedLanguage ?? i18n.language',
-  "ipcBridge.oplRuntime.getDrilldown.invoke({ detail: 'summary' })",
-  "ipcBridge.oplRuntime.getDrilldown.invoke({ detail: 'full' })",
-  'setSelectedItemSnapshot(item)',
-  'const selectedItem = projectedSelectedItem ?? (selectedItemId ? selectedItemSnapshot : null)',
-  'item={selectedItem}',
-  'readRuntimeSafeActions(fullDrilldown, summaryDrilldown, appStateQuery.appState)',
-  "actionId: 'work_item_visibility_set'",
-  'payload.expected_generation = selectedItem.visibility.generation',
-  'const refreshedItem = findReadbackWorkItem(refreshedPayload, selectedItem)',
-  "actionId: 'runtime_restore_attempt'",
   '<RuntimeScopeBar',
   '<RuntimeStatusBar',
   '<RuntimeWorkItemList',
-  '<AgentAvailability',
   '<RuntimeDetailDrawer',
   "data-testid='runtime-v2-page'",
-  '<RuntimeCockpitPanel',
 ];
 
 const runtimeProjectionExpected = [
@@ -261,38 +247,27 @@ const runtimeProjectionExpected = [
   'const projectedAction = parseAction(value.action)',
   'const currentStageId = optionalString(execution.current_stage_id) ?? optionalString(lifecycle.current_stage_id)',
   'const nextStageId = optionalString(execution.next_stage_id)',
+  'const attemptId = optionalString(execution.attempt_id)',
+  'attemptId,',
   'id: itemEnvelopeId',
-  'workItemId,',
 ];
 
-const runtimeCockpitExpected = [
-  'for (const candidate of actionCandidates(root))',
-  'const explicitlySafe =',
-  'const payloadFree =',
-  'if (!appBoundary || !explicitlySafe || !payloadFree || entry.dry_run_supported === false) return null',
-  'export function readRuntimeSafeActions',
-  'export function readRuntimeArchivedAttempts',
-];
-
-const runtimeCockpitPanelExpected = [
-  "data-testid='runtime-cockpit'",
-  "data-testid='runtime-load-summary'",
-  "data-testid='runtime-load-full'",
-  'disabled={action.dryRunRequired !== false && approvedActionId !== action.id}',
-  'onRestore(attempt)',
+const runtimeStagePopoverExpected = [
+  "data-testid='runtime-stage-popover'",
+  "data-testid='runtime-stage-attempt'",
+  "data-testid='runtime-stage-trigger'",
+  'item.execution.attemptId',
+  'item.stageMap.map',
+  'event.stopPropagation()',
 ];
 
 const runtimeFocusedTestsExpected = [
-  'keeps the V2 list while exposing keyboard-reachable summary and full drilldown requests',
-  'requires a successful dry run before confirming and executing a safe action',
-  'archives by canonical selection but sends the repeated domain work item identity and generation',
-  'restores an archived work item with its visibility generation',
-  'keeps the drawer open when a successful mutation is not confirmed by fresh projection readback',
-  'refreshes a generation conflict and keeps visible retry guidance',
+  'keeps platform maintenance actions and operator drilldown out of the project Runtime page',
+  'opens a stage popup with the complete stage list and current attempt',
+  'shows all nine visible items and keeps repeated work item ids distinct by canonical item id',
   'rejects an item envelope that does not match its canonical identity',
   'preserves projected stages and actions for the detail view',
   'never promotes a telemetry verification attempt to the business stage of a delivered item',
-  'exposes only explicit payload-free App safe actions',
 ];
 
 const runtimePageForbidden = [
@@ -303,6 +278,9 @@ const runtimePageForbidden = [
   'compactCurrentControlState(',
   'controlStateFallbackForTask(',
   'record(controlState?.provider_run)',
+  'getDrilldown.invoke',
+  'RuntimeCockpitPanel',
+  'AgentAvailability',
 ];
 
 export function assertRuntimePageSourceBoundary(runtimePage: string): void {
@@ -500,15 +478,24 @@ export function validateRuntimePageImplementation(shellPaths) {
   );
   assertShellTextIncludesAll(
     shellPaths,
-    'packages/desktop/src/renderer/pages/runtime/cockpit.ts',
-    runtimeCockpitExpected,
-    'Active shell Runtime cockpit thin App bridge adapter',
+    'packages/desktop/src/renderer/pages/runtime/components/RuntimeStagePopover.tsx',
+    runtimeStagePopoverExpected,
+    'Active shell Runtime Stage popover',
   );
-  assertShellTextIncludesAll(
+  const runtimeStatusBar = assertShellTextIncludesAll(
     shellPaths,
-    'packages/desktop/src/renderer/pages/runtime/components/RuntimeCockpitPanel.tsx',
-    runtimeCockpitPanelExpected,
-    'Active shell Runtime cockpit controls',
+    'packages/desktop/src/renderer/pages/runtime/components/RuntimeStatusBar.tsx',
+    [
+      "data-testid='runtime-status-view-select'",
+      "data-testid='runtime-open-archive'",
+      '<Select',
+    ],
+    'Active shell Runtime compact task toolbar',
+  );
+  assertTextExcludesAll(
+    runtimeStatusBar,
+    ['runtime-status-metrics', '<Radio.Group', 'metricGrid'],
+    'Active shell Runtime metric-card and duplicate-filter surfaces',
   );
   const runtimeFocusedTests = [
     readShellText(shellPaths, 'tests/unit/opl-runtime/runtime-v2/RuntimePageV2.dom.test.tsx'),
@@ -557,7 +544,6 @@ export function validateRuntimePageImplementation(shellPaths) {
       "id: 'delivered_or_paused'",
       "id: 'stopped'",
       "id: 'sync_pending'",
-      "data-testid='runtime-status-views'",
       "data-testid='runtime-status-view-select'",
     ],
     'Active shell Runtime seven status-only saved views',
@@ -570,26 +556,44 @@ export function validateRuntimePageImplementation(shellPaths) {
     [
       "data-testid='runtime-task-row'",
       "data-responsive-columns='4'",
-      'currentStageLabel(item, t)',
-      'nextStageLabel(item, t)',
+      '<RuntimeStagePopover item={item} locale={locale} t={t} />',
+      'nextStageLabel(item, locale, t)',
       "t('common.runtime.stageUsageShort')",
       "t('common.runtime.totalUsageShort')",
     ],
     'Active shell Runtime one-row work item list',
   );
-  assertShellTextIncludesAll(
+  const runtimeDetailDrawer = assertShellTextIncludesAll(
     shellPaths,
     'packages/desktop/src/renderer/pages/runtime/components/RuntimeDetailDrawer.tsx',
     [
       "data-testid='runtime-stage-map'",
-      "data-testid='runtime-detail-disclosure'",
-      '<Collapse.Item',
+      'currentStageLabel(item, locale, t)',
+      'nextStageLabel(item, locale, t)',
+      'stageDisplayName(stage, locale)',
+      'item.execution.attemptId',
+      'item.execution.lastHeartbeatAt',
+      'formatTokenObservation(item.stageUsage',
+      'formatTokenObservation(item.taskUsage',
+      "data-testid='runtime-next-action'",
+      "data-testid='runtime-system-attention'",
+      "data-testid={archived ? 'runtime-restore-work-item' : 'runtime-archive-work-item'}",
+    ],
+    'Active shell Runtime minimal selected-work-item detail',
+  );
+  assertTextExcludesAll(
+    runtimeDetailDrawer,
+    [
+      'Collapse',
+      "runtime-detail-disclosure",
       "name='artifacts'",
       "name='timeline'",
       "name='evidence'",
       "name='diagnostics'",
+      'ConditionList',
+      'SourceRefList',
     ],
-    'Active shell Runtime progressive detail disclosure',
+    'Active shell Runtime advanced detail surfaces',
   );
   assertShellTextIncludesAll(
     shellPaths,
@@ -617,8 +621,12 @@ export function validateRuntimePageImplementation(shellPaths) {
       'assertElementsWithinViewport(page',
       'toHaveCount(9',
       'runtime-v2-${locale.id}-${viewport.width}.png',
+      'runtime-v2-${locale.id}-${viewport.width}-stage-popover.png',
       'runtime-v2-${locale.id}-action-detail.png',
-      'runtime-v2-1440-detail-disclosure.png',
+      'runtime-v2-1440-stage-popover.png',
+      'runtime-v2-1440-minimal-detail.png',
+      "keeps task details minimal without evidence or diagnostic surfaces",
+      "toHaveCount(0)",
     ],
     'Active shell Runtime deterministic viewport evidence',
   );

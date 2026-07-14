@@ -17,7 +17,7 @@ import { assertHomeComposerStateContract } from '../app-product-profile-shared-v
 import {
   validateEnvironmentModuleMaintenanceEntry,
 } from './managed-update-plane-validator.ts';
-import { productProfilePath, runtimeBridgePath, settingsControlPlanePath } from './validation-config.ts';
+import { productProfilePath, settingsControlPlanePath } from './validation-config.ts';
 import { validateSettingsControlPlaneBehavior } from './settings-control-plane-validator.ts';
 import {
   validateRuntimeCockpitPreservationPolicy,
@@ -25,16 +25,12 @@ import {
 } from './runtime-cockpit-product-validator.ts';
 import {
   assertNonEmptyStringArray,
-  validateArtifactNativeDrilldownProjectionContract,
   validateBeginnerFirstRunPresentation,
   validateOplFlowContext,
-  validateProgressDeltaDisplayContract,
   validateRefLevelFollowUpProjectionContract,
-  validateStateIndexSidecarProjectionContract,
   validateStructuredResultPanelProjectionContract,
   validateTaskAwarenessProjectionContract,
   validateWorkflowSkillCandidateProjectionContract,
-  validateUserTaskStatusProjectionContract,
   assertFirstRunProgressModelMatches,
 } from './shared-contract-validators.ts';
 
@@ -66,7 +62,6 @@ const aionuiTeamProbeIds = [
   'team_bridge_mutation_gate',
 ];
 const productProfile = readJson(productProfilePath);
-const runtimeBridge = readJson(runtimeBridgePath);
 const settingsControlPlane = readJson(settingsControlPlanePath);
 const expectedFirstRunProgressModel = productProfile.first_run?.progress_model;
 const expectedFirstRunCoreItems = assertNonEmptyStringArray(
@@ -1157,18 +1152,6 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   ) {
     throw new Error('Personalization must redirect to Workspace#personalization');
   }
-  validateProgressDeltaDisplayContract(
-    pages.runtime_status.progress_delta_policy,
-    'App GUI runtime status progress delta policy',
-  );
-  validateStateIndexSidecarProjectionContract(
-    pages.runtime_status.state_index_sidecar_policy,
-    'App GUI runtime status State Index sidecar policy',
-  );
-  validateArtifactNativeDrilldownProjectionContract(
-    pages.runtime_status.artifact_native_drilldown_policy,
-    'App GUI runtime status Stage Artifact drilldown policy',
-  );
   validateRuntimeCockpitProductContract(
     pages.runtime_status.runtime_cockpit_product_contract,
     'App GUI Runtime cockpit product contract',
@@ -1183,14 +1166,26 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   if (pages.runtime_status.default_state_source !== 'opl app state --profile fast --json') {
     throw new Error('App GUI runtime status default source must be fast App state');
   }
-  if (pages.runtime_status.diagnostic_source !== 'opl runtime app-operator-drilldown --json') {
-    throw new Error('App GUI runtime status diagnostic source must be operator drilldown');
+  if (pages.runtime_status.diagnostic_source !== 'settings_control_center_only') {
+    throw new Error('App GUI Runtime diagnostics must be routed to Settings');
   }
-  validateUserTaskStatusProjectionContract(
-    pages.runtime_status.user_task_status_policy,
-    'App GUI runtime status user task status policy',
-    runtimeBridge.stage_run_cockpit_projection,
-  );
+  if (
+    pages.runtime_status.summary_source !== 'app_state.operator.workbench.work_item_projection_v2'
+    || pages.runtime_status.full_detail_source !== 'selected_work_item_from_work_item_projection_v2'
+    || pages.runtime_status.full_detail_policy !== 'selected_work_item_only_no_global_operator_drilldown'
+  ) {
+    throw new Error('App GUI Runtime must use WorkItemProjection v2 for both list and selected-item detail');
+  }
+  if (
+    pages.runtime_status.diagnostics_policy?.default_visibility !== 'absent_from_runtime'
+    || pages.runtime_status.diagnostics_policy?.owner_surface !== '/settings/advanced'
+  ) {
+    throw new Error('App GUI Runtime diagnostics must be absent and owned by Settings Advanced');
+  }
+  assertDeepEqualJson(pages.runtime_status.diagnostics_policy?.sections, [], 'App GUI Runtime diagnostics sections');
+  if ('must_not_default_show' in pages.runtime_status) {
+    throw new Error('App GUI Runtime exclusions must apply to the whole page, not only its default layer');
+  }
   validateTaskAwarenessProjectionContract(
     guiContract.framework_surfaces?.task_awareness,
     'App GUI framework task awareness',
@@ -1207,10 +1202,10 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     guiContract.framework_surfaces?.workflow_skill_candidate,
     'App GUI framework workflow/skill candidate',
   );
-  for (const signal of [
+  assertDeepEqualJson(pages.runtime_status.must_show, [
     'WorkItemProjection v2 as the default Runtime read model',
     'two-level Agent then Project scope with work items excluded',
-    'status-only saved views without MAS or other agent duplicates',
+    'single-select status filter without MAS or other agent duplicates',
     'four-column work-item list with agent as a secondary label',
     'one row per canonical work item',
     'top-level item_id for row and detail identity with full agent_id + project_id + work_item_id mutation and readback tuple',
@@ -1222,34 +1217,35 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     'complete current responsibility before system attention is shown',
     'observed current-stage and total Token usage or an explicit missing reason',
     'no Token limit progress bar when no limit is configured',
-    'Stage Map, current and next stage, heartbeat, Token, and action on detail open',
-    'artifacts and timeline as secondary detail',
-    'agent availability as a separate full-name panel collapsed when healthy',
-    'runtime diagnostics as secondary disclosure',
+    'clickable current Stage popover with complete Stage order, next Stage, and current Attempt',
+    'Stage click does not open the task detail drawer',
+    'Stage Map, current and next stage, current Attempt, heartbeat, Token, and action on detail open',
+    'platform maintenance, software updates, module health, safe actions, and operator diagnostics excluded from Runtime and routed to Settings',
     'responsive semantic row reflow without horizontal page overflow',
     'contract, Framework producer, Shell consumer, and live evidence tracked separately',
-  ]) {
-    if (!pages.runtime_status.must_show?.includes(signal)) {
-      throw new Error(`App GUI runtime status must show ${signal}`);
-    }
-  }
+  ], 'App GUI Runtime must_show');
   assertDeepEqualJson(
-    pages.runtime_status.must_not_default_show,
+    pages.runtime_status.must_not_show,
     [
+      'operator summary',
+      'safe action catalog',
+      'software updates',
+      'platform maintenance actions',
+      'module health panel',
+      'provider diagnostics',
+      'State Index',
+      'artifact provenance',
       'raw IDs',
       'raw logs',
       'raw refs',
       'receipt refs',
-      'workflow and attempt IDs',
+      'workflow IDs and historical attempt IDs',
       'Temporal',
-      'provider',
-      'projection',
-      'ref',
-      'stage attempt',
-      'ledger',
+      'raw projection',
+      'evidence ledger',
       'current_control_state',
     ],
-    'App GUI runtime status forbidden default terms',
+    'App GUI runtime status forbidden terms',
   );
   for (const owner of [
     'deliverable progress truth',

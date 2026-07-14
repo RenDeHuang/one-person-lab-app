@@ -34,9 +34,9 @@ const requiredReleaseEvidenceArtifacts = {
   },
   runtime_screenshot: {
     path: 'screenshots/runtime.png',
-    producer: 'Runtime page screenshot',
+    producer: 'Runtime page minimal work-item status screenshot',
     kind: 'image',
-    source_kind: 'app_runtime_page_screenshot',
+    source_kind: 'app_runtime_page_visual_acceptance_screenshot',
   },
   full_screenshot: {
     path: 'screenshots/full.png',
@@ -46,9 +46,9 @@ const requiredReleaseEvidenceArtifacts = {
   },
   action_screenshot: {
     path: 'screenshots/action.png',
-    producer: 'Runtime action confirmation/result screenshot',
+    producer: 'Settings Environment/Advanced action confirmation/result screenshot',
     kind: 'image',
-    source_kind: 'app_runtime_action_screenshot',
+    source_kind: 'app_settings_action_screenshot',
   },
   first_run_vm_summary: {
     path: 'tart-smoke-summary.json',
@@ -99,7 +99,7 @@ const fullFirstInstallEvidenceArtifacts = [
   'artifacts/codex-functional-check-summary.json',
 ];
 
-const forbiddenOperatorAuthorities = [
+const forbiddenReleaseEvidenceAuthorities = [
   'runtime_truth',
   'provider_implementation',
   'domain_truth',
@@ -110,34 +110,59 @@ const forbiddenOperatorAuthorities = [
 export function validateReleaseEvidenceBundle(releaseChannel, pageStateMatrix, firstRunMatrix) {
   const bundle = releaseChannel.operator_evidence_bundle;
 
-  validateOperatorEvidenceBundleShape(bundle);
+  validateReleaseEvidenceBundleShape(bundle);
+  validateSurfaceOwnership(bundle);
   validateMissingEvidencePolicy(bundle);
   validateImageEvidencePolicy(bundle);
   validateAppReleaseL5ReadoutContract(bundle.l5_evidence_readout);
   validateAppReleaseOwnerVerdictContract(bundle.release_owner_verdict);
   validateRequiredArtifacts(bundle);
   validateOptionalDiagnosticArtifacts(bundle);
-  validateRuntimePageEvidenceRefs(pageStateMatrix);
+  validateRuntimePageVisualEvidence(pageStateMatrix);
   validateFullFirstInstallEvidenceRefs(firstRunMatrix);
-  validateForbiddenOperatorAuthority(bundle);
+  validateForbiddenReleaseEvidenceAuthority(bundle);
 }
 
-function validateOperatorEvidenceBundleShape(bundle) {
-  if (bundle?.purpose !== 'runtime_page_operator_evidence_acceptance') {
-    throw new Error('Release channel must declare operator_evidence_bundle purpose');
+function validateReleaseEvidenceBundleShape(bundle) {
+  if (bundle?.purpose !== 'app_release_evidence_acceptance') {
+    throw new Error('Release channel must declare app_release_evidence_acceptance purpose');
   }
-  if (bundle.acceptance_path !== 'Runtime page') {
-    throw new Error(`Unexpected operator evidence acceptance path: ${bundle.acceptance_path}`);
+  if (bundle.acceptance_path !== 'App release verification') {
+    throw new Error(`Unexpected App release evidence acceptance path: ${bundle.acceptance_path}`);
   }
-  if (bundle.runtime_page_contract !== 'contracts/app-page-state-matrix.json#runtime') {
-    throw new Error(`Unexpected runtime page contract ref: ${bundle.runtime_page_contract}`);
+  if (bundle.release_evidence_contract !== 'contracts/app-release-channel.json#operator_evidence_bundle') {
+    throw new Error(`Unexpected App release evidence contract ref: ${bundle.release_evidence_contract}`);
+  }
+  if (Object.hasOwn(bundle, 'runtime_page_contract')) {
+    throw new Error('App release evidence bundle must not use Runtime page as its contract owner');
   }
   if (bundle.refs_only !== true) {
-    throw new Error('Operator evidence bundle must be refs-only');
+    throw new Error('App release evidence bundle must be refs-only');
   }
   if (bundle.manifest_path !== 'evidence-manifest.json') {
-    throw new Error(`Unexpected operator evidence manifest path: ${bundle.manifest_path}`);
+    throw new Error(`Unexpected App release evidence manifest path: ${bundle.manifest_path}`);
   }
+}
+
+function validateSurfaceOwnership(bundle) {
+  const ownership = bundle.surface_ownership;
+  if (ownership?.runtime_visual_evidence !== 'runtime_page_minimal_work_item_status_only') {
+    throw new Error('Runtime evidence must be limited to the minimal work-item status screenshot');
+  }
+  if (ownership?.full_drilldown_and_raw_diagnostics !== 'settings_advanced_and_release_tooling') {
+    throw new Error('Full drilldown and raw diagnostics must belong to Settings Advanced and release tooling');
+  }
+  if (
+    ownership?.maintenance_actions_and_receipts
+    !== 'settings_environment_or_settings_advanced_and_release_tooling'
+  ) {
+    throw new Error('Maintenance actions and receipts must belong to Settings Environment/Advanced and release tooling');
+  }
+  validateArrayIncludes(
+    ownership?.runtime_page_excludes,
+    ['full_drilldown', 'safe_action_catalog', 'operator_receipts', 'software_update_controls', 'provider_repair_controls'],
+    'Runtime page exclusions must cover drilldown, safe actions, receipts, updates, and provider repair',
+  );
 }
 
 function validateMissingEvidencePolicy(bundle) {
@@ -222,25 +247,43 @@ function validateOptionalDiagnosticArtifacts(bundle) {
   );
 }
 
-function validateRuntimePageEvidenceRefs(pageStateMatrix) {
+function validateRuntimePageVisualEvidence(pageStateMatrix) {
   const runtimePage = (pageStateMatrix.pages ?? []).find((page) => page.id === 'runtime');
-  const acceptancePath = runtimePage?.operator_evidence_acceptance_path;
+  const acceptancePath = runtimePage?.runtime_acceptance_path;
+
+  for (const legacyField of ['operator_evidence_acceptance_path', 'operator_evidence_path']) {
+    if (runtimePage && Object.hasOwn(runtimePage, legacyField)) {
+      throw new Error(`Runtime page must not retain legacy ${legacyField}`);
+    }
+  }
 
   if (acceptancePath?.summary_state_command !== requiredReleaseEvidenceArtifacts.app_state_summary.producer) {
-    throw new Error('Runtime page summary state command must match release evidence bundle producer');
+    throw new Error('Runtime page visual acceptance must use the fast App state summary');
   }
   if (acceptancePath?.refresh_state_command !== requiredReleaseEvidenceArtifacts.app_state_summary.producer) {
-    throw new Error('Runtime page refresh state command must match the fast App state summary producer');
+    throw new Error('Runtime page visual acceptance refresh must use the fast App state summary');
   }
-  if (acceptancePath?.full_drilldown_command !== requiredReleaseEvidenceArtifacts.drilldown_full.producer) {
-    throw new Error('Runtime page full drilldown command must match release evidence bundle producer');
+  if (acceptancePath?.full_drilldown_command !== null) {
+    throw new Error('Runtime page visual acceptance must not expose full drilldown');
   }
-  if (acceptancePath?.action_dry_run_command !== requiredReleaseEvidenceArtifacts.action_dry_run_result.producer) {
-    throw new Error('Runtime page dry-run command must match release evidence bundle producer');
+  if (acceptancePath && Object.hasOwn(acceptancePath, 'action_dry_run_command')) {
+    throw new Error('Runtime page visual acceptance must not expose the platform action catalog');
   }
-  if (acceptancePath?.action_execute_command !== requiredReleaseEvidenceArtifacts.action_execute_result.producer) {
-    throw new Error('Runtime page execute command must match release evidence bundle producer');
+  if (
+    acceptancePath?.action_execute_command
+    !== 'opl app action execute --action work_item_visibility_set --payload <json> --json'
+  ) {
+    throw new Error('Runtime page must expose only selected work-item archive/restore execution');
   }
+  validateArrayIncludes(
+    runtimePage?.runtime_acceptance_evidence,
+    [
+      'task title, lifecycle status, execution state, current Stage, next Stage, next action, owner, elapsed time, and Token usage',
+      'Stage popover with complete Stage order and current Attempt',
+      'operator summaries, safe actions, software updates, platform repair, module health, and provider diagnostics excluded from Runtime and routed to Settings',
+    ],
+    'Runtime visual acceptance must cover task status, Stage/Attempt, Token usage, and Settings exclusions',
+  );
 }
 
 function validateFullFirstInstallEvidenceRefs(firstRunMatrix) {
@@ -252,10 +295,10 @@ function validateFullFirstInstallEvidenceRefs(firstRunMatrix) {
   }
 }
 
-function validateForbiddenOperatorAuthority(bundle) {
-  for (const forbidden of forbiddenOperatorAuthorities) {
+function validateForbiddenReleaseEvidenceAuthority(bundle) {
+  for (const forbidden of forbiddenReleaseEvidenceAuthorities) {
     if (!bundle.forbidden_authority?.includes(forbidden)) {
-      throw new Error(`Operator evidence bundle must exclude ${forbidden}`);
+      throw new Error(`App release evidence bundle must exclude ${forbidden}`);
     }
   }
 }

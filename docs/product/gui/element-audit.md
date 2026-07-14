@@ -61,8 +61,9 @@ Home 的用户问题是“我现在要做什么”。因此主区只保留动态
 稳定排序的轻量 starter、
 conversation、composer、active capability、model/access 和 current-turn feedback。
 Projectless text chat 不依赖 workspace；文件和 project capability 必须说明限制。
-跨项目 Runtime、continue-work、evidence ledger、package maintenance 和 raw diagnostics
-必须留在 secondary surface。
+跨项目 Runtime 保持独立的极简 Work Item 状态页；continue-work 留在 conversation，artifact
+provenance 留在 Inspector，package maintenance 和 raw diagnostics 留在对应 Settings，完整
+evidence ledger 留在 release tooling。它们都不得挤入 Home 主区或相互混装。
 
 ### Rail
 

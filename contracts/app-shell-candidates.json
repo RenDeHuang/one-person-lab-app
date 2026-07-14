@@ -521,7 +521,7 @@
           "chat-first main canvas with pinned composer",
           "right-side collapsible Files, Skills, Routing, Memory, and Always-On context tabs",
           "right-side CopilotKit panel for secondary context",
-          "runtime summary-first status and explicit full drilldown",
+          "minimal Runtime WorkItem status with Stage popover and selected-item detail; full operator drilldown stays in Settings Advanced",
           "active project line projection/state model validation",
           "App-owned Settings partition",
           "candidate .app package through the App wrapper"
@@ -578,7 +578,7 @@
           "grant",
           "ppt"
         ],
-        "runtime_page_policy": "summary_first_full_detail_on_demand",
+        "runtime_page_policy": "minimal_work_item_list_stage_popover_selected_detail_only",
         "settings_policy": "app_state_refs_only"
       },
       "framework_surfaces": {
@@ -1044,7 +1044,7 @@
           "grant",
           "ppt"
         ],
-        "runtime_page_policy": "summary_first_full_detail_on_demand",
+        "runtime_page_policy": "minimal_work_item_list_stage_popover_selected_detail_only",
         "settings_policy": "app_state_refs_only",
         "account_footer_policy": {
           "source_ref": "contracts/app-runtime-bridge.json#opl_gateway_account_projection",
@@ -1571,7 +1571,7 @@
           "grant",
           "ppt"
         ],
-        "runtime_page_policy": "summary_first_full_detail_on_demand",
+        "runtime_page_policy": "minimal_work_item_list_stage_popover_selected_detail_only",
         "settings_policy": "app_state_refs_only"
       },
       "framework_surfaces": {

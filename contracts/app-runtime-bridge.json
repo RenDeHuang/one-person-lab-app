@@ -15,6 +15,8 @@
   "full_state_command": "opl app state --profile full --json",
   "full_state_policy": "diagnostic_or_release_evidence_only",
   "full_detail_command": "opl runtime app-operator-drilldown --detail full --json",
+  "full_detail_consumer_surfaces": ["/settings/advanced", "release_evidence_tooling"],
+  "runtime_page_full_detail_allowed": false,
   "default_read_surface_policy": {
     "default_projection": "opl_current_owner_delta",
     "source_path": "app_state.operator.default_read_surface_policy",
@@ -183,7 +185,11 @@
     "authority": "one-person-lab-app",
     "canonical_state_surface": "opl app state --profile fast --json",
     "canonical_action_surface": "opl app action execute --action <action_id> [--payload json] [--dry-run] --json",
-    "full_detail_exception": "opl runtime app-operator-drilldown --detail full --json",
+    "advanced_detail_surface": {
+      "command": "opl runtime app-operator-drilldown --detail full --json",
+      "consumer_surfaces": ["/settings/advanced", "release_evidence_tooling"],
+      "runtime_page_allowed": false
+    },
     "shells": {
       "aionui": {
         "role": "active_release_shell_thin_display_consumer",
@@ -197,21 +203,16 @@
     "rows": [
       {
         "semantic_area": "runtime",
-        "canonical_source": "opl app state --profile fast --json#app_state.operator.current_owner_delta + app_state.operator.workbench + app_state.actions",
-        "aion_display_role": "Runtime page user-task-status cockpit",
-        "workbench_display_role": "Workbench task cockpit",
-        "allowed_action_refs": [
-          "app_state.actions[].action_id",
-          "work_item_visibility_set",
-          "task_action_receipt_preview",
-          "task_export_bundle_preview",
-          "provider_readiness_repair"
-        ],
+        "canonical_source": "opl app state --profile fast --json#app_state.operator.workbench.work_item_projection_v2",
+        "aion_display_role": "minimal WorkItem status, Stage, Attempt, Token, next action, and archive/restore",
+        "workbench_display_role": "same minimal WorkItem status contract",
+        "allowed_action_refs": ["work_item_visibility_set"],
         "fallback_policy": {
-          "allowed_fallback_source": "opl app state --profile full --json or opl runtime app-operator-drilldown --detail full --json",
-          "allowed_when": "explicit detail, diagnostics, or release evidence readback only",
+          "allowed_fallback_source": "selected item from work_item_projection_v2",
+          "allowed_when": "selected work item core detail only",
           "can_claim_currentness": false,
-          "can_mutate_without_app_action": false
+          "can_mutate_without_app_action": false,
+          "operator_drilldown_allowed": false
         },
         "forbidden_overclaim": [
           "runtime_truth",
@@ -641,7 +642,7 @@
         "surface": "TaskRunProjection v2",
         "source_owner": "one-person-lab",
         "producer_owner": "one-person-lab",
-        "consumer_role": "Runtime is the global task list; conversation and inspector are filtered slices of the same refs-only model.",
+        "consumer_role": "Runtime uses WorkItemProjection v2; conversation and inspector consume filtered refs-only TaskRunProjection v2 slices.",
         "forbidden_second_truth": [
           "new_task_dashboard",
           "shell_task_state_machine",
@@ -870,19 +871,20 @@
   "runtime_progress_page_display_policy": {
     "owner": "one-person-lab-app",
     "state": "active_product_contract",
-    "page_role": "project_runtime_cockpit_not_runtime_diagnostics",
+    "page_role": "minimal_project_work_status_not_platform_operations",
     "default_surface": "work_item_projection_v2_list",
-    "advanced_surface": "task_detail_or_diagnostics",
+    "advanced_surface": "selected_work_item_stage_popover_or_detail_drawer",
     "work_item_projection_ref": "contracts/app-runtime-bridge.json#work_item_projection",
     "detail_layer_ref": "contracts/app-runtime-bridge.json#work_item_projection.detail_layer_contract",
     "default_user_questions": [
       "which_project",
-      "which_agent_or_module",
+      "which_agent",
       "current_user_state",
+      "is_currently_running",
       "current_stage",
+      "current_attempt_on_demand",
       "next_stage_or_action",
-      "needs_user_or_system",
-      "data_freshness"
+      "needs_user_or_system"
     ],
     "default_task_row_spine": [
       "project_and_work_item",
@@ -892,17 +894,13 @@
     ],
     "default_page_sections": [
       "top_scope_and_refresh",
-      "freshness_summary",
-      "status_saved_views",
+      "compact_status_filter",
       "archived_tasks_entry",
-      "work_item_list",
-      "agent_availability_panel",
-      "advanced_diagnostics_disclosure"
+      "work_item_list"
     ],
     "layout_regions": {
-      "top": ["top_scope_and_refresh", "freshness_summary", "status_saved_views", "archived_tasks_entry"],
-      "main": ["work_item_list"],
-      "supporting": ["agent_availability_panel", "advanced_diagnostics_disclosure"]
+      "top": ["top_scope_and_refresh", "compact_status_filter", "archived_tasks_entry"],
+      "main": ["work_item_list"]
     },
     "default_field_allowlist": [
       "agent_scope_options",
@@ -911,14 +909,12 @@
       "selected_project_scope",
       "refresh_action",
       "last_state_read_at",
-      "freshness.state",
-      "freshness.observed_at",
-      "freshness.last_progress_at",
       "identity.agent_display_name",
       "identity.project_display_name",
       "identity.work_item_display_name",
       "lifecycle.primary_state",
       "visibility.state",
+      "execution.state",
       "execution.current_stage_display_name",
       "execution.next_stage_display_name",
       "telemetry.elapsed",
@@ -927,9 +923,7 @@
       "action.title_key",
       "action.message_args",
       "action.owner",
-      "action.owner_kind",
-      "agent_availability.display_name",
-      "agent_availability.availability"
+      "action.owner_kind"
     ],
     "default_visible_field_groups": {
       "scope_and_refresh": [
@@ -940,17 +934,13 @@
         "refresh_action",
         "last_state_read_at"
       ],
-      "freshness_summary": [
-        "freshness.state",
-        "freshness.observed_at",
-        "freshness.last_progress_at"
-      ],
       "work_item_list": [
         "identity.agent_display_name",
         "identity.project_display_name",
         "identity.work_item_display_name",
         "lifecycle.primary_state",
         "visibility.state",
+        "execution.state",
         "execution.current_stage_display_name",
         "execution.next_stage_display_name",
         "telemetry.elapsed",
@@ -960,14 +950,10 @@
         "action.message_args",
         "action.owner",
         "action.owner_kind"
-      ],
-      "agent_availability_panel": [
-        "agent_availability.display_name",
-        "agent_availability.availability"
       ]
     },
     "default_label_policy": {
-      "purpose": "default_cockpit_uses_human_labels_not_runtime_identifiers",
+      "purpose": "default_project_status_uses_human_labels_not_runtime_identifiers",
       "human_label_fields": [
         "identity.agent_display_name",
         "identity.project_display_name",
@@ -1016,7 +1002,7 @@
       "dedupe_owner": "opl_framework",
       "one_row_per_work_item": true,
       "shell_heuristic_deduplication_allowed": false,
-      "module_runtime_rows_policy": "module_runtime_never_enters_work_item_list_agent_availability_is_separate",
+      "module_runtime_rows_policy": "module_runtime_and_module_health_never_enter_runtime_page_route_to_settings",
       "display_policy": "one_user_visible_row_per_canonical_work_item",
       "raw_duplicate_refs_default_visible": false
     },
@@ -1055,7 +1041,6 @@
     "advanced_only_fields": [
       "raw_proof_ref",
       "receipt_refs",
-      "stage_attempt_id",
       "stage_attempt_ids",
       "run_id",
       "active_run_id",
@@ -1077,7 +1062,24 @@
       "current_control_state",
       "full_drilldown"
     ],
-    "field_placement_policy": "default page shows user task cockpit fields first; raw runtime evidence, ids, refs, route internals, and drift diagnostics require explicit task detail or advanced disclosure",
+    "field_placement_policy": "default page shows only project work status; current attempt is available in the Stage popover and task detail; platform maintenance and diagnostics route to Settings",
+    "surface_exclusions": {
+      "runtime_page_forbidden": [
+        "operator_summary",
+        "safe_action_catalog",
+        "software_install_or_update_actions",
+        "platform_repair_actions",
+        "module_health_panel",
+        "provider_diagnostics",
+        "raw_runtime_readback"
+      ],
+      "settings_owner_routes": {
+        "software_updates": "/settings/environment?section=updates",
+        "platform_repair": "/settings/environment?section=services",
+        "module_management": "/settings/capabilities",
+        "diagnostics": "/settings/advanced"
+      }
+    },
     "owner_roles": {
       "app": "owns product information architecture, display contract, field placement, and release-boundary validation",
       "shell": "implementation carrier and thin renderer that consumes App contract and Framework projections without inventing runtime state",
@@ -1473,37 +1475,42 @@
         "stage_and_total_tokens",
         "action"
       ],
-      "secondary_sections": ["artifacts", "timeline", "evidence"],
-      "diagnostic_sections": ["raw_refs", "raw_ids", "logs", "provider_diagnostics"],
+      "secondary_sections": [],
+      "diagnostic_sections": [],
       "equal_weight_tab_wall_allowed": false,
       "stage_map_fields": [
         "stage_id",
         "display_name",
+        "display_names",
         "state",
         "owner",
         "elapsed",
         "usage",
         "next_action"
       ],
-      "timeline_event_fields": [
-        "event_id",
-        "event_type",
-        "at",
-        "stage_id",
-        "owner",
-        "summary",
-        "ref"
+      "diagnostics_policy": "absent_from_runtime_route_to_settings_advanced",
+      "diagnostics_owner_surface": "/settings/advanced",
+      "artifacts_owner_surface": "right_context_inspector",
+      "timeline_owner_surface": "/settings/advanced"
+    },
+    "stage_popover_contract": {
+      "trigger_field": "execution.current_stage_display_name",
+      "trigger_does_not_open_task_drawer": true,
+      "required_fields": [
+        "stage_map",
+        "stage_map[].display_names",
+        "execution.current_stage_display_name",
+        "execution.next_stage_display_name",
+        "execution.attempt_id"
       ],
-      "timeline_event_types": [
-        "stage_entered",
-        "attempt_started",
-        "heartbeat",
-        "artifact_generated",
-        "owner_receipt_observed",
-        "condition_changed",
-        "stopped"
-      ],
-      "diagnostics_policy": "raw_refs_receipts_provider_and_currentness_diagnostics_stay_in_diagnostics_tab"
+      "label_source": "stage_map[].display_names[current_app_locale]",
+      "label_fallback": "stage_map[].display_name",
+      "locale_owner": "shell_current_app_locale",
+      "current_attempt_visible_here": true,
+      "current_attempt_default_row_visible": false,
+      "historical_attempt_ids_visible": false,
+      "viewport_widths_px": [375, 768, 1024, 1440],
+      "horizontal_overflow_allowed": false
     },
     "dedupe_policy_ref": "contracts/app-runtime-bridge.json#runtime_progress_page_display_policy.task_deduplication_policy",
     "refs_only": true,
@@ -1544,8 +1551,8 @@
   "task_awareness_projection": {
     "source": "app_state.operator.workbench.task_drilldowns",
     "authority": "opl_framework_refs_only_task_awareness_projection",
-    "display_policy": "runtime_global_task_awareness_with_current_task_slices_no_new_dashboard",
-    "global_surface": "runtime_page",
+    "display_policy": "conversation_and_inspector_task_awareness_refs_no_runtime_dashboard",
+    "global_surface": "none_runtime_uses_work_item_projection_v2",
     "current_task_surfaces": ["ordinary_conversation", "right_context_inspector"],
     "required_task_ref_fields": [
       "task_identity",
@@ -1713,7 +1720,7 @@
     "schema_name": "TaskRunProjection",
     "schema_version": 2,
     "projection_kind": "task_run_projection_v2",
-    "model_policy": "Runtime is the global task list and task detail surface; ordinary conversation and right inspector are filtered slices of the same TaskRunProjection v2 records.",
+    "model_policy": "Runtime uses WorkItemProjection v2; ordinary conversation and right inspector consume filtered TaskRunProjection v2 refs.",
     "v2_field_groups": {
       "task_identity": [
         "task_id",
@@ -1803,7 +1810,7 @@
       ],
       "diagnostics_ref": ["diagnostics_ref"]
     },
-    "slice_policy": "runtime_global_list_and_detail_conversation_and_inspector_filtered_slices_same_model",
+    "slice_policy": "conversation_and_inspector_filtered_slices_runtime_uses_separate_work_item_projection_v2",
     "domain_authority_policy": "refs_only_no_domain_authority_no_artifact_body_no_domain_verdict"
   },
   "current_task_slice_projection": {
@@ -1902,6 +1909,8 @@
     "source": "app_state.operator.workbench.task_drilldowns",
     "authority": "opl_framework_shared_project_progress_projection",
     "display_policy": "project_progress_refs_secondary_no_module_runtime_dirty_as_project",
+    "consumer_surface": "/settings/advanced",
+    "runtime_page_visible": false,
     "required_fields": [
       "task_id",
       "title",
@@ -1922,8 +1931,8 @@
       "next_owner",
       "last_progress_at"
     ],
-    "diagnostics_treatment": "secondary_disclosure",
-    "safe_actions_treatment": "secondary_operator_disclosure",
+    "diagnostics_treatment": "settings_advanced_only",
+    "safe_actions_treatment": "settings_advanced_only",
     "active_project_line_projection": {
       "source": "app_state.operator.workbench.activity_center.active_projects + app_state.operator.visual_ref_groups.active_project_refs",
       "authority": "opl_framework_refs_only_project_line_projection",
@@ -1998,6 +2007,8 @@
     "source": "app_state.operator.workbench.task_drilldowns.progress_delta_classification",
     "authority": "opl_framework_shared_progress_projection",
     "display_policy": "classification_only_no_domain_artifact_body",
+    "consumer_surface": "/settings/advanced",
+    "runtime_page_visible": false,
     "required_fields": [
       "deliverable_progress_delta",
       "platform_repair_delta",
@@ -2007,13 +2018,17 @@
     "platform_repair_source": "platform_repair_delta",
     "classification_source": "progress_delta_classification",
     "platform_repair_display_treatment": "separate_infrastructure_repair_not_deliverable_progress",
+    "platform_repair_owner_surface": "/settings/environment?section=services",
     "forbidden_delivery_claim_for_platform_repair": true,
     "app_role": "display_only_projection_consumer"
   },
   "provider_readiness_repair_projection": {
     "source": "app_state.provider + app_state.actions + app_state.operator.default_read_surface_policy",
     "authority": "opl_framework_provider_readiness_refs_projection",
-    "display_policy": "provider_readiness_repair_secondary_without_current_owner_delta_override",
+    "display_policy": "settings_environment_provider_readiness_repair_without_current_owner_delta_override",
+    "settings_owner_surface": "/settings/environment?section=services",
+    "consumer_surface": "/settings/environment?section=services",
+    "runtime_page_visible": false,
     "provider_kind": "temporal",
     "repair_cases": [
       {
@@ -2056,7 +2071,10 @@
     "kernel_owner": "one-person-lab",
     "storage_kind": "sqlite_sidecar_read_model_cache",
     "app_access_mode": "read_only_projection_consumer",
-    "display_policy": "state_index_refs_only_no_sqlite_write_no_domain_truth_claims",
+    "display_policy": "settings_advanced_state_index_refs_only_no_sqlite_write_no_domain_truth_claims",
+    "settings_owner_surface": "/settings/advanced",
+    "consumer_surface": "/settings/advanced",
+    "runtime_page_visible": false,
     "drilldown_target_policy": "refs_drill_down_to_stage_folder_not_domain_body",
     "allowed_input_surfaces": [
       "opl app state --profile fast --json",
@@ -2108,7 +2126,10 @@
     "authority": "opl_framework_stage_artifact_kernel_refs_projection",
     "framework_contract_ref": "one-person-lab/contracts/opl-framework/stage-artifact-runtime-contract.json",
     "surface_kind": "opl_stage_artifact_runtime_workbench",
-    "display_policy": "artifact_kernel_refs_only_no_body_no_domain_readiness_claims",
+    "display_policy": "right_inspector_artifact_provenance_with_settings_advanced_technical_refs_no_body_no_domain_readiness_claims",
+    "consumer_surface": "right_context_inspector",
+    "technical_details_owner_surface": "/settings/advanced",
+    "runtime_page_visible": false,
     "full_detail_policy": "on_demand_task_drilldown_only",
     "provenance_projection_ref": "contracts/app-runtime-bridge.json#artifact_provenance_bundle_projection",
     "required_ref_fields": [
@@ -2575,12 +2596,18 @@
     "shell_private_runtime_status",
     "shell_local_storage_work_item_visibility"
   ],
-  "operator_summary_drilldown_command": "opl runtime app-operator-drilldown --json",
+  "advanced_operator_drilldown": {
+    "command": "opl runtime app-operator-drilldown --json",
+    "consumer_surfaces": ["/settings/advanced", "release_evidence_tooling"],
+    "runtime_page_allowed": false
+  },
   "running_task_projection": {
     "source": "runtime_tray_snapshot.app_operator_drilldown.current_control_state.summary + current_control_state.states",
     "command": "opl runtime app-operator-drilldown --json",
     "authority": "opl_framework_provider_attempt_projection",
     "display_policy": "diagnostic_only_no_provider_attempt_count_as_user_running_task_count",
+    "consumer_surface": "/settings/advanced",
+    "runtime_page_visible": false,
     "user_visible_grain": "domain_and_active_execution_summary_until_domain_project_projection_is_available",
     "active_execution_filter": "states where running_provider_attempt is true and provider_run.provider_status or current_attempt_state is running",
     "diagnostic_provider_ref_policy": "running_provider_attempt_count may include checkpointed provider refs and must not be displayed as the user-visible running task count",

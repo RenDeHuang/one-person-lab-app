@@ -4,18 +4,22 @@ Owner: `one-person-lab-app`
 Machine truth:
 `contracts/app-gui-product-contract.json#pages.runtime_status.runtime_cockpit_product_contract`、
 `contracts/app-runtime-bridge.json#work_item_projection`、
-`contracts/app-runtime-bridge.json#agent_availability_projection`、
 `contracts/app-page-state-matrix.json#pages[id=runtime]`
 
 ## 结论
 
-Runtime 是 OPL 的跨项目“用户与智能体协作控制台”，不是 observability dashboard。
-默认页只帮助用户判断：正在看哪个智能体和项目、每项工作处于什么状态、当前和下一
-stage 是什么、下一步归谁、运行与 Token 数据是否可信。
+Runtime 是 OPL 的极简项目工作状态页，不是 observability dashboard，也不是平台运维控制台。
+默认页只帮助用户判断：正在看哪个智能体和项目、有哪些任务、每项任务是什么状态、是否在跑、
+当前和下一 Stage 是什么、用了多少 Token。当前 Attempt 按需在 Stage 弹层和任务详情中显示。
+
+Codex/App 更新、Temporal/provider/platform repair 归 Settings Environment；模块同步和智能体健康归
+Settings Capabilities；safe-action catalog、operator summary、State Index 与 raw diagnostics 归
+Settings Advanced；artifact provenance 归任务/会话 Inspector；同 cohort 完整证据归 release tooling。
+这些内容一律不进入 Runtime。
 
 Runtime V2 不再直接拼接项目目录、Temporal attempt、业务生命周期、Token telemetry 和
-package 状态。OPL Framework 先生产稳定的 `WorkItemProjection v2` 与独立的
-`AgentAvailabilityProjection`；App 定义用户语言、字段位置和验收；Shell 只渲染。
+package 状态。OPL Framework 先生产稳定的 `WorkItemProjection v2`；App 定义用户语言、字段
+位置和验收；Shell 只渲染。`AgentAvailabilityProjection` 仍可供 Settings 使用，但不占据 Runtime。
 
 项目名严格取 canonical `workspace_path` 的 basename；Framework 投出语言无关的 action
 semantic fields，Shell 按当前 App locale 渲染；手工归档是独立 visibility 轴，并进入独立
@@ -44,9 +48,10 @@ Framework raw 文案覆盖。
 2. 每个项目真实有哪些论文或工作项？
 3. 每项工作是在自动推进、等待我、系统处理中、已交付暂停、暂停、停止，还是状态待同步？
 4. 当前 stage、下一 stage 或行动是什么，归谁处理？
-5. 最近是否真的运行过，已用多久，当前 stage 与任务累计 Token 是否有可靠记录？
+5. 最近是否真的运行过，已用多久，当前 Stage 与任务累计 Token 是否有可靠记录？
 
-raw ID、attempt、workflow、receipt、provider、日志和 refs 不参与默认判断，只进入诊断层。
+raw ID、workflow、receipt、provider、日志和 refs 不参与默认判断。唯一例外是当前 Attempt ID：
+它只在用户点击 Stage 后的弹层和所选任务详情中出现，不污染默认任务行。
 
 ## 产品数据模型
 
@@ -64,15 +69,16 @@ raw ID、attempt、workflow、receipt、provider、日志和 refs 不参与默�
 | `telemetry` | elapsed、当前 stage Token、任务累计 Token，以及 observed/partial/missing/stale。 |
 | `conditions` | 带 reason、message、owner、transition time 和 observed generation 的当前条件。 |
 | `freshness` | 投影读取时间、最近进展和 fresh/stale/unknown。 |
-| `action` | 下一行动、owner、说明和可执行 action ref；mutating action 仍走 `opl app action`。 |
+| `action` | 下一行动、owner 和说明的只读语义；Runtime 不执行该 action，归档/恢复使用独立 visibility mutation。 |
 
 顶层 `item_id` 由 Framework 以 `project_id + encoded work_item_id` 形成，是列表 row key 和
 详情选择 key。`identity.work_item_id` 只在项目内唯一，不同 MAS workspace 可以重复使用同一
 local ID。因此 Shell 不得用 `identity.work_item_id` 单独去重、选择详情或匹配 mutation
 readback。
 
-`attempt`、runtime ID、workflow ID 和 evidence refs 不再是默认行必需字段。它们可以作为详情
-或诊断 refs 存在，但不能决定 work item 是否存在、属于哪个项目或用户主状态。
+`attempt`、runtime ID、workflow ID 和 evidence refs 不再是默认行必需字段。当前 Attempt 可在
+Stage 弹层或详情中按需显示；历史 Attempt 和其他 raw ID 只属于 Settings Advanced。任何 Attempt
+都不能决定 work item 是否存在、属于哪个项目或用户主状态。
 
 ### AgentAvailabilityProjection
 
@@ -91,7 +97,7 @@ ID 只用于合同和数据关联，不进入默认页面。App 合同不得用 
 
 MAS Scholar Skills 是 Med Auto Science 的专业能力依赖，不是第六个智能体。availability 只表达
 `available / attention_required / unavailable`；任务数量、运行数量或 `0/2` 不是 availability。
-全部可用时 panel 折叠为一行摘要，出现问题时才展开具体智能体和原因。
+Runtime 不显示 availability panel；智能体安装、可用性和模块健康统一在 Settings > 能力中处理。
 
 ## Scope 与 Saved Views
 
@@ -108,10 +114,9 @@ Runtime Project 的用户显示名必须严格等于 canonical `workspace_path` 
 都不能覆盖它。当前 Framework 的 `project_id` 来自 canonical workspace path hash，所以目录
 改名会同时改变 `project_display_name` 和 `project_id`；App 不声称 identity 在改名后保持稳定。
 
-Saved views 只做主状态筛选：全部、自动推进中、等待你决定、系统处理中、已交付或暂停、
-已停止、状态待同步。Saved views 禁止出现 MAS、其他智能体、项目或论文入口，避免与 scope
-形成第二套导航。visibility 也不进入 saved views；归档库是独立入口，不是一个“已归档”状态
-筛选。
+状态筛选使用单一 Select：全部、自动推进中、等待你决定、系统处理中、已交付或暂停、已停止、
+状态待同步。筛选禁止出现 MAS、其他智能体、项目或论文入口，避免与 scope 形成第二套导航。
+visibility 也不进入状态筛选；归档库是独立入口，不是一个“已归档”状态筛选。
 
 ## 用户主状态
 
@@ -152,14 +157,18 @@ action 语义，Shell 不得借本地化重新推断状态。raw `title / summar
 覆盖 semantic key 的当前 locale 结果。英文界面不得出现 Framework 硬编码中文 action、Next
 Step 或 owner 文案，中文界面同理。
 
+Stage 名称继续由 Agent package 持有。Framework 在 `stage_map[].display_names` 中传输各 locale
+名称，Shell 按当前 App locale 选择；`stage_map[].display_name` 只作旧 projection 的兼容回退。
+App 不维护 MAS 或其他智能体的 Stage 名称对照表，也不根据 Stage id 猜测翻译。
+
 ## 默认页面
 
 ### 顶部
 
 - 标题与一句职责说明。
 - Agent、Project 两级 scope。
-- 刷新动作和 freshness 摘要。
-- 状态 saved views；不重复 scope 中的智能体或项目。
+- 最近读取时间和刷新动作。
+- 一个状态筛选菜单和归档库入口；不使用统计卡片墙，不重复 scope 中的智能体或项目。
 
 ### 工作项列表
 
@@ -172,6 +181,10 @@ Step 或 owner 文案，中文界面同理。
 
 一篇论文或一个 work item 只显示一行，row key 为顶层 `item_id`。去重由 Framework
 canonical projection 完成，Shell 不按标题、stage、binding 或最近时间启发式合并。
+
+当前 Stage 是独立可点击控件。点击后打开轻量 Popover，显示完整 Stage 顺序、当前/下一 Stage
+和当前 Attempt；此点击不得同时打开任务详情 Drawer。默认任务行不显示 Attempt ID，点击任务名称
+才打开完整详情。
 
 当前业务 stage 只读取 canonical `current_stage` 投影。`execution.stage_id` 属于运行尝试诊断，
 不得在业务 stage 为空时回退展示；例如已交付暂停的论文不能把
@@ -191,24 +204,24 @@ ID、hash 等无断点技术长串可在必要时断开，且四个验收视口�
 
 响应式证据使用确定性的九论文静态 fixture：1440 px 为四列，1024/768 px 为两列，375 px
 为单列。每个视口必须同时断言 scope 级联、一论文一行、语义列重排和无页面横向溢出，
-并输出截图；详情 drawer 另存截图，证明 Stage Map 首屏可见且 artifacts、timeline、evidence、
-diagnostics 默认折叠。静态 fixture 证据属于 Shell consumer 验收，不等于 live runtime 证据。
+并输出截图；四个视口还必须分别打开 Stage Popover，证明其不溢出、Stage 顺序完整并能显示当前
+Attempt。详情 drawer 另存截图，证明只呈现 Work Item、Stage/Attempt、运行/heartbeat、Token 和
+只读下一步信息。静态 fixture 证据属于 Shell consumer 验收，不等于 live runtime 证据。
 
-Fast profile 的诊断采用渐进披露：`diagnostics.items` 字段仍须存在，但可以是空数组或只含
-部分详情；`diagnostics.count` 报告完整诊断总数，并声明 `detail_policy=summary_only`。内嵌详情
-数量不得超过总数，但不要求与总数相等。这是一份有效的默认页投影，Shell 必须保留
-`project_catalog` 和 `items`，不得因为诊断详情未内嵌而隐藏项目或工作项。只有显式 full
-profile 声明 `detail_policy=included` 时，诊断总数才必须与内嵌详情数量一致。
+Fast profile 即使携带诊断计数或空的 `diagnostics.items`，Runtime 也不得据此生成 operator summary、
+safe actions 或平台维护区。Shell 必须保留 `project_catalog` 和 `items`，不得因为诊断详情未内嵌
+而隐藏项目或工作项。平台诊断由 Settings 显式读取和呈现。
 
 ### Visibility 与归档库
 
 默认 Runtime 主列表只显示 `visibility.state=visible`。独立的 `Archived tasks / 归档库` 入口
 显示 archived 项，并继续沿用 Agent -> Project scope；visibility 不混入主列表 status filters。
-归档项保留原 lifecycle status、stage、usage 与 evidence，恢复后回到默认主列表。
+归档项保留原 lifecycle status、stage、usage 与 Framework evidence，恢复后回到默认主列表；
+Runtime 不因此展示 evidence refs。
 
 手工归档只改变 visibility，不改变业务生命周期、不停止任务，也不删除 evidence。归档确认
-必须明确提示“工作可能继续运行；若要停止必须执行独立 stop action”。执行中的工作也不能因
-归档而被描述为 stopped、paused 或 delivered。
+必须明确提示“工作可能继续运行；停止任务需前往该任务的所属控制面”。Runtime 不提供 stop 或
+其他 safe-action 控件；执行中的工作也不能因归档而被描述为 stopped、paused 或 delivered。
 
 Framework visibility 对象精确包含 `state`、`source`、`updated_at`、`control_ref`、`generation`；
 `generation` 就是并发 token，没有独立 `token` 字段。Shell 禁止以 localStorage 或 optimistic
@@ -234,7 +247,7 @@ Framework readback，不能提前把本地 optimistic 结果提交为真相。
 默认显示当前 stage 与任务累计两项。每项 Token 是判别联合：
 
 - `observed`：包含 input、output、total、source 和 observed time；只有此状态可显示数字。
-- `missing`：显示“尚无用量记录”，并在详情保留原因。
+- `missing`：显示“尚无用量记录”；技术原因只进入 Settings Advanced。
 - `stale`：显示记录已过期，不把旧数字冒充当前。
 
 整体 telemetry 可以是 `observed / partial / missing / stale`。Missing 不能显示为 `0`；只有明确
@@ -248,19 +261,32 @@ Framework readback，不能提前把本地 optimistic 结果提交为真相。
 2. 当前和下一 stage。
 3. 运行时长与最近 heartbeat。
 4. 当前 stage 与任务累计 Token。
-5. 当前行动、owner 和可执行入口。
+5. 当前行动和 owner 的只读说明。
 
-Artifacts、Timeline 与 Evidence 是次级折叠区；Evidence 承载 Framework 投影的来源引用。
-raw IDs、logs、provider diagnostics 只进入诊断区。详情不得恢复为六个等权 tab 的工具墙。
+当前 Attempt 属于 Stage/运行事实，可显示在详情首屏。Runtime 详情不包含 Artifacts、Timeline、
+Evidence、provider diagnostics、operator drilldown、safe-action catalog、raw workflow IDs、历史
+Attempt 或 logs。artifact provenance 通过任务/会话 Inspector 查看；技术诊断通过 Settings
+Advanced 查看。
+
+## Surface 所有权
+
+| Surface | 拥有 | Runtime 中的处理 |
+| --- | --- | --- |
+| Runtime | Work Item 状态、是否运行、elapsed、Stage/当前 Attempt、Token、archive/restore | 直接显示 |
+| Settings Environment | provider/platform repair、Temporal/worker readiness、Codex/App update、维护 | 全面禁止 |
+| Settings Capabilities | 智能体 package、模块同步、模块/智能体可用性与健康 | 全面禁止 |
+| Settings Advanced | raw diagnostics、State Index、operator drilldown、logs、command refs、safe-action catalog | 全面禁止 |
+| Task/Conversation Inspector | artifact provenance、preview、lineage、manifest/hash/receipt refs | 全面禁止 |
+| Release tooling | 同 cohort Runtime screenshot、full-state/operator capture、action receipt、VM/installed smoke、remote verification 与 manifest | 全面禁止 |
 
 ## 模块边界
 
 | 模块 | 负责 | 不负责 |
 | --- | --- | --- |
 | Domain Agent | Project/WorkItem inventory、业务 lifecycle、stage catalog 和领域 action refs。 | App copy、页面布局、Shell 本地状态机。 |
-| OPL Framework | Join catalog/inventory/lifecycle/visibility/execution/usage，生产 WorkItemProjection v2、状态语义、action semantic fields、availability 和 currentness。 | App 信息层级、locale 文案和视觉布局。 |
-| One Person Lab App | 产品语言、scope、字段 allowlist、详情层级、validators、page-state 和证据分账。 | runtime/domain truth、Token 估算、owner receipt。 |
-| Shell | 按当前 App locale 渲染 projection、级联筛选、语义重排、打开详情，并通过 Framework App actions mutation/refresh/readback。 | 猜项目、状态、stage、owner、Token，以 localStorage 保存 visibility truth，或实现第二套去重。 |
+| OPL Framework | Join catalog/inventory/lifecycle/visibility/execution/usage，生产 WorkItemProjection v2、状态语义、action semantic fields、availability 和 currentness。 | App 信息层级、locale 文案、视觉布局和 Settings/Runtime 路由。 |
+| One Person Lab App | 产品语言、scope、各 surface 字段 allowlist、validators、page-state 和证据分账。 | runtime/domain truth、Token 估算、owner receipt。 |
+| Shell | 按当前 App locale 渲染 projection、级联筛选、语义重排、打开 Stage/任务详情，并仅对 archive/restore 执行 Framework action + refresh/readback。 | 猜项目、状态、stage、owner、Token，以 localStorage 保存 visibility truth，实现第二套去重，或从 Runtime 执行其他 action。 |
 
 ## 证据分账
 
@@ -278,20 +304,22 @@ raw IDs、logs、provider diagnostics 只进入诊断区。详情不得恢复为
 
 ## 验收标准
 
-- Scope 只有 Agent -> Project 两层，work item 不进入菜单，saved views 不含 MAS。
+- Scope 只有 Agent -> Project 两层，work item 不进入菜单，状态筛选不含 MAS。
 - Project 显示名严格等于 canonical workspace path basename；目录改名同时改变当前 path-hash `project_id`。
-- 五个一方智能体使用全称；MAS Scholar Skills 不作为智能体；全健康时 availability 折叠。
+- 五个一方智能体使用全称；MAS Scholar Skills 不作为智能体；Runtime 不显示 availability 或模块健康 panel。
 - 每个 canonical work item 以顶层 `item_id` 保持一行并选择详情；跨项目重复 local `work_item_id` 不串行。
 - action 使用 `title_key / summary_key / message_args / owner / owner_kind`，Shell 按当前 locale 渲染，raw title/summary 只作 fallback。
 - 默认列表只显示 visible；归档库独立于 lifecycle、scope 和 saved views，并允许恢复。
 - visibility mutation 使用完整 identity tuple 与可用的 expected generation，随后 refresh/readback；stale conflict 刷新后重试。
-- 归档不改变 lifecycle、不停止执行、不删除 evidence；停止任务必须使用独立动作。
+- 归档不改变 lifecycle、不停止执行、不删除 evidence；停止任务需前往所属控制面，Runtime 不提供 stop。
 - 七个主状态只能来自 Framework V2 projection，Shell 不做状态或身份推断。
 - `system_attention` 缺任一责任字段、不是当前 generation 或不再阻塞时不能出现。
 - Token missing 不显示零，无上限时不出现进度条。
-- 默认页不显示 raw refs、IDs、logs、receipt 或 provider 术语。
-- 详情首屏先呈现 Stage Map、stage、heartbeat、Token 和行动；artifacts/timeline 次级，诊断后置。
+- 默认页不显示 raw refs、IDs、logs、receipt、provider、operator summary、safe actions、软件更新或平台维护动作。
+- 当前 Stage 可点击；Popover 显示完整 Stage 顺序、当前/下一 Stage 与当前 Attempt，且不打开详情 Drawer。
+- 详情只呈现 Work Item、Stage Map、当前 Attempt、heartbeat、Token 和只读行动；artifact provenance 只在 Inspector。
 - delivered Stage Map 只显示 completed 历程或为空，后续动作只来自 ActionEnvelope。
 - 普通文案按词边界换行，仅无断点技术长串可为防溢出而断开。
 - 375/768/1024/1440 px 均无横向页面溢出与文字重叠。
+- Environment、Capabilities、Advanced、Inspector 与 release tooling 的所有权边界均通过契约和测试验证；Runtime 不提供这些内容的次级或折叠入口。
 - Product contract、Framework producer、Shell consumer、Live evidence 四条完成度独立报告。

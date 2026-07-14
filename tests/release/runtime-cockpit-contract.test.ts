@@ -159,7 +159,7 @@ test('Runtime scope is Agent then Project and saved views cannot duplicate MAS',
   }
 });
 
-test('Runtime product rejects list, status, detail, availability, and renderer regressions', () => {
+test('Runtime product rejects list, status, Stage popover, surface-boundary, and renderer regressions', () => {
   for (const mutate of [
     (contract: any) => { contract.default_list.columns.push('agent'); },
     (contract: any) => { contract.default_list.one_row_per_work_item = false; },
@@ -178,18 +178,19 @@ test('Runtime product rejects list, status, detail, availability, and renderer r
     (contract: any) => { contract.token_usage.progress_bar_allowed = true; },
     (contract: any) => { contract.work_item_detail.primary_sections = ['timeline']; },
     (contract: any) => { contract.work_item_detail.secondary_sections = ['artifacts', 'timeline']; },
+    (contract: any) => { contract.work_item_detail.diagnostic_sections = ['logs']; },
     (contract: any) => { contract.work_item_detail.delivered_stage_map_terminal_boundary.visible_stage_states.push('pending'); },
     (contract: any) => { contract.work_item_detail.delivered_stage_map_terminal_boundary.post_delivery_next_step_source = 'stage_map.next_action'; },
     (contract: any) => { contract.text_wrapping.ordinary_user_text_policy = 'arbitrary_character_boundaries'; },
     (contract: any) => { contract.text_wrapping.unbroken_technical_string_policy = 'always_break_anywhere'; },
-    (contract: any) => { contract.agent_availability_panel.task_counts_allowed = true; },
+    (contract: any) => { contract.agent_availability_routing.runtime_page_visible = true; },
+    (contract: any) => { contract.stage_popover.current_attempt_default_row_visible = true; },
+    (contract: any) => { contract.stage_popover.trigger_does_not_open_task_drawer = false; },
+    (contract: any) => { contract.runtime_surface_exclusions.forbidden = []; },
     (contract: any) => { contract.renderer_policy.status_derivation_allowed = true; },
     (contract: any) => { contract.renderer_policy.technical_execution_stage_may_replace_business_stage = true; },
     (contract: any) => { contract.progressive_disclosure.raw_technical_fields_default_visible = true; },
-    (contract: any) => { contract.diagnostic_projection.diagnostics_items_field_required = false; },
-    (contract: any) => { contract.diagnostic_projection.fast_profile_nonzero_count_with_empty_items_is_valid = false; },
-    (contract: any) => { contract.diagnostic_projection.fast_profile_embedded_item_count_must_not_exceed_count = false; },
-    (contract: any) => { contract.diagnostic_projection.valid_summary_only_preserves_projects_and_work_items = false; },
+    (contract: any) => { contract.progressive_disclosure.excluded_technical_detail_owner = '/runtime'; },
   ]) {
     const gui = runtimeContract();
     mutate(gui.pages.runtime_status.runtime_cockpit_product_contract);
@@ -245,6 +246,9 @@ test('Runtime page-state rejects removal or weakening of V2 acceptance', () => {
     },
     (matrix: any) => {
       matrix.pages.find((page: any) => page.id === 'runtime').runtime_view_model.runtime_cockpit_acceptance.viewport_screenshots_required = false;
+    },
+    (matrix: any) => {
+      matrix.pages.find((page: any) => page.id === 'runtime').runtime_view_model.runtime_cockpit_acceptance.stage_popover_trigger_opens_drawer = true;
     },
     (matrix: any) => {
       const acceptance = matrix.pages.find((page: any) => page.id === 'runtime').runtime_view_model.runtime_cockpit_acceptance;

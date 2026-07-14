@@ -18,9 +18,7 @@ import {
   tokenObservationObservedFields,
   tokenObservationStates,
   workItemConditionFields,
-  workItemDetailDiagnosticSections,
   workItemDetailPrimarySections,
-  workItemDetailSecondarySections,
   workItemPrimaryStateLabelsByLocale,
   workItemBusinessStates,
   workItemProjectionFieldContracts,
@@ -175,8 +173,8 @@ export function validateTaskAwarenessProjectionContract(projection, label) {
   for (const [field, expected] of Object.entries({
     source: "app_state.operator.workbench.task_drilldowns",
     authority: "opl_framework_refs_only_task_awareness_projection",
-    display_policy: "runtime_global_task_awareness_with_current_task_slices_no_new_dashboard",
-    global_surface: "runtime_page",
+    display_policy: "conversation_and_inspector_task_awareness_refs_no_runtime_dashboard",
+    global_surface: "none_runtime_uses_work_item_projection_v2",
     app_role: "display_only_task_awareness_consumer",
     shell_role: "thin_renderer_no_runtime_store",
   })) {
@@ -184,6 +182,11 @@ export function validateTaskAwarenessProjectionContract(projection, label) {
       throw new Error(`${label} ${field} must be ${expected}`);
     }
   }
+  assertDeepEqualJson(
+    projection.current_task_surfaces,
+    ["ordinary_conversation", "right_context_inspector"],
+    `${label} current_task_surfaces`,
+  );
   validateTaskRunProjectionV2Contract(projection, label);
   assertIncludesAll(
     projection.required_task_ref_fields,
@@ -667,12 +670,12 @@ export function validateWorkItemProjectionContract(projection, label) {
   );
   assertDeepEqualJson(
     projection.detail_layer_contract?.secondary_sections,
-    workItemDetailSecondarySections,
+    [],
     `${label} detail secondary sections`,
   );
   assertDeepEqualJson(
     projection.detail_layer_contract?.diagnostic_sections,
-    workItemDetailDiagnosticSections,
+    [],
     `${label} detail diagnostic sections`,
   );
   assertIncludesAll(
@@ -680,11 +683,11 @@ export function validateWorkItemProjectionContract(projection, label) {
     ["stage_id", "display_name", "state", "owner", "elapsed", "usage", "next_action"],
     `${label} stage map fields`,
   );
-  assertIncludesAll(
-    projection.detail_layer_contract?.timeline_event_fields,
-    ["event_id", "event_type", "at", "stage_id", "owner", "summary", "ref"],
-    `${label} timeline event fields`,
-  );
+  for (const forbidden of ["timeline_event_fields", "timeline_event_types"]) {
+    if (Object.hasOwn(projection.detail_layer_contract ?? {}, forbidden)) {
+      throw new Error(`${label} detail layer must not expose ${forbidden} in Runtime`);
+    }
+  }
   if (projection.detail_layer_contract?.default_visibility !== "on_selected_work_item_only") {
     throw new Error(`${label} detail layer must be opened only after selecting a work item`);
   }
@@ -758,9 +761,9 @@ function validateTaskRunProjectionV2Contract(projection, label) {
     schema_version: 2,
     projection_kind: "task_run_projection_v2",
     model_policy:
-      "Runtime is the global task list and task detail surface; ordinary conversation and right inspector are filtered slices of the same TaskRunProjection v2 records.",
+      "Runtime uses WorkItemProjection v2; ordinary conversation and right inspector consume filtered TaskRunProjection v2 refs.",
     slice_policy:
-      "runtime_global_list_and_detail_conversation_and_inspector_filtered_slices_same_model",
+      "conversation_and_inspector_filtered_slices_runtime_uses_separate_work_item_projection_v2",
     domain_authority_policy: "refs_only_no_domain_authority_no_artifact_body_no_domain_verdict",
   })) {
     if (projection[field] !== expected) {
@@ -1165,7 +1168,10 @@ export function validateProgressDeltaDisplayContract(progressDelta, label) {
     source: "app_state.operator.workbench.task_drilldowns.progress_delta_classification",
     authority: "opl_framework_shared_progress_projection",
     display_policy: "classification_only_no_domain_artifact_body",
+    consumer_surface: "/settings/advanced",
+    runtime_page_visible: false,
     platform_repair_display_treatment: "separate_infrastructure_repair_not_deliverable_progress",
+    platform_repair_owner_surface: "/settings/environment?section=services",
   })) {
     if (progressDelta[field] !== expected) {
       throw new Error(`${label} ${field} must be ${expected}`);
@@ -1191,7 +1197,10 @@ export function validateProviderReadinessRepairProjectionContract(projection, la
     source:
       "app_state.provider + app_state.actions + app_state.operator.default_read_surface_policy",
     authority: "opl_framework_provider_readiness_refs_projection",
-    display_policy: "provider_readiness_repair_secondary_without_current_owner_delta_override",
+    display_policy: "settings_environment_provider_readiness_repair_without_current_owner_delta_override",
+    settings_owner_surface: "/settings/environment?section=services",
+    consumer_surface: "/settings/environment?section=services",
+    runtime_page_visible: false,
     provider_kind: "temporal",
     current_owner_delta_policy:
       "never_replace_default_operator_payload_or_owner_delta_show_as_provider_readiness_repair_only",
@@ -1283,7 +1292,10 @@ export function validateStateIndexSidecarProjectionContract(projection, label) {
     kernel_owner: "one-person-lab",
     storage_kind: "sqlite_sidecar_read_model_cache",
     app_access_mode: "read_only_projection_consumer",
-    display_policy: "state_index_refs_only_no_sqlite_write_no_domain_truth_claims",
+    display_policy: "settings_advanced_state_index_refs_only_no_sqlite_write_no_domain_truth_claims",
+    settings_owner_surface: "/settings/advanced",
+    consumer_surface: "/settings/advanced",
+    runtime_page_visible: false,
     drilldown_target_policy: "refs_drill_down_to_stage_folder_not_domain_body",
     app_role: "display_only_state_index_read_model_consumer",
   })) {
@@ -1430,7 +1442,11 @@ export function validateArtifactNativeDrilldownProjectionContract(projection, la
     framework_contract_ref:
       "one-person-lab/contracts/opl-framework/stage-artifact-runtime-contract.json",
     surface_kind: "opl_stage_artifact_runtime_workbench",
-    display_policy: "artifact_kernel_refs_only_no_body_no_domain_readiness_claims",
+    display_policy:
+      "right_inspector_artifact_provenance_with_settings_advanced_technical_refs_no_body_no_domain_readiness_claims",
+    consumer_surface: "right_context_inspector",
+    technical_details_owner_surface: "/settings/advanced",
+    runtime_page_visible: false,
     full_detail_policy: "on_demand_task_drilldown_only",
     app_role: "display_only_stage_artifact_kernel_refs_consumer",
   })) {
@@ -2193,8 +2209,10 @@ export function validateProjectProgressDisplayContract(projectProgress, label) {
     source: "app_state.operator.workbench.task_drilldowns",
     authority: "opl_framework_shared_project_progress_projection",
     display_policy: "project_progress_refs_secondary_no_module_runtime_dirty_as_project",
-    diagnostics_treatment: "secondary_disclosure",
-    safe_actions_treatment: "secondary_operator_disclosure",
+    consumer_surface: "/settings/advanced",
+    runtime_page_visible: false,
+    diagnostics_treatment: "settings_advanced_only",
+    safe_actions_treatment: "settings_advanced_only",
   })) {
     if (projectProgress[field] !== expected) {
       throw new Error(`${label} ${field} must be ${expected}`);

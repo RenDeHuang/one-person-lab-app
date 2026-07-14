@@ -187,6 +187,18 @@ function main() {
   const options = parseArgs(process.argv.slice(2));
   const releaseContract = readJsonFile(releaseContractPath);
   const bundle = releaseContract.operator_evidence_bundle;
+  if (bundle?.purpose !== 'app_release_evidence_acceptance') {
+    throw new Error(`Unexpected release evidence purpose: ${bundle?.purpose}`);
+  }
+  if (bundle?.acceptance_path !== 'App release verification') {
+    throw new Error(`Unexpected release evidence acceptance path: ${bundle?.acceptance_path}`);
+  }
+  if (bundle?.release_evidence_contract !== 'contracts/app-release-channel.json#operator_evidence_bundle') {
+    throw new Error(`Unexpected release evidence contract ref: ${bundle?.release_evidence_contract}`);
+  }
+  if (Object.hasOwn(bundle, 'runtime_page_contract')) {
+    throw new Error('Release evidence must not use Runtime page as its contract owner.');
+  }
   if (bundle?.manifest_path !== 'evidence-manifest.json') {
     throw new Error(`Unexpected release evidence manifest path: ${bundle?.manifest_path}`);
   }
@@ -306,13 +318,13 @@ function main() {
   const releaseCohort = inferReleaseCohort(options.bundleDir, options);
   const manifest = {
     schema_version: 1,
-    purpose: 'app_release_evidence_bundle',
+    purpose: bundle.purpose,
     release_cohort: releaseCohort,
     current_cohort_evidence: releaseCohort.current_cohort_evidence === true,
     status: blockedEvidence.length > 0 ? 'blocked_evidence' : missingEvidence.length > 0 ? 'missing_evidence' : 'passed',
     packaged_app_evidence: missingEvidence.length === 0 && blockedEvidence.length === 0,
     acceptance_path: bundle.acceptance_path,
-    runtime_page_contract: bundle.runtime_page_contract,
+    release_evidence_contract: bundle.release_evidence_contract,
     refs_only: bundle.refs_only,
     authority_boundary: evidenceBoundary,
     artifacts,

@@ -2,9 +2,7 @@ import { assertDeepEqualJson } from './assertions.ts';
 import {
   runtimeFirstPartyAgents,
   systemAttentionResponsibilityFields,
-  workItemDetailDiagnosticSections,
   workItemDetailPrimarySections,
-  workItemDetailSecondarySections,
   workItemPrimaryStateLabelsByLocale,
   runtimeVisibilityPageStateIds,
 } from './app-contract-constants.ts';
@@ -14,7 +12,6 @@ const runtimeCockpitProductContractRef =
 const runtimeCockpitPageStateRef =
   'contracts/app-page-state-matrix.json#pages[id=runtime].runtime_view_model.runtime_cockpit_acceptance';
 const workItemProjectionRef = 'contracts/app-runtime-bridge.json#work_item_projection';
-const agentAvailabilityProjectionRef = 'contracts/app-runtime-bridge.json#agent_availability_projection';
 
 const defaultLayerRequiredAnswers = [
   'selected_agent_and_project_scope',
@@ -56,6 +53,7 @@ const responsiveRequiredAssertions = [
   'semantic_column_reflow',
   'no_horizontal_page_overflow',
   'detail_progressive_disclosure',
+  'stage_popover_progressive_disclosure',
 ];
 
 const deliveredStageMapTerminalSignals = [
@@ -77,10 +75,11 @@ const runtimeCockpitRequiredInvariants = [
   'visibility_mutation_framework_action_generation_refresh_readback',
   'system_attention_requires_complete_current_responsibility',
   'observed_token_usage_missing_never_zero_no_limit_progress',
-  'detail_primary_secondary_diagnostic_hierarchy',
+  'detail_core_sections_only_no_secondary_or_diagnostics',
   'delivered_stage_map_completed_history_only_action_envelope_next_step',
-  'fast_diagnostics_summary_only_preserves_projects_and_work_items',
-  'agent_availability_separate_full_names_collapsed_when_healthy',
+  'stage_popover_complete_order_current_next_and_attempt_without_opening_drawer',
+  'stage_labels_follow_current_app_locale_when_projection_supplies_display_names',
+  'platform_maintenance_and_module_health_excluded_from_runtime_routed_to_settings',
   'thin_renderer_no_raw_ids_or_projection_inference',
   'ordinary_text_normal_word_boundary_technical_tokens_emergency_break_only',
   'responsive_layout_has_no_horizontal_page_overflow',
@@ -103,10 +102,13 @@ export function validateRuntimeCockpitProductContract(contract, label) {
     contract,
     {
       owner: 'one-person-lab-app',
-      role: 'user_agent_collaboration_control_console',
+      role: 'minimal_project_work_status_console',
       observability_dashboard_allowed: false,
       work_item_projection_ref: workItemProjectionRef,
-      agent_availability_projection_ref: agentAvailabilityProjectionRef,
+      operator_drilldown_allowed: false,
+      platform_maintenance_actions_allowed: false,
+      software_update_actions_allowed: false,
+      module_health_panel_allowed: false,
     },
     label,
   );
@@ -184,6 +186,9 @@ export function validateRuntimeCockpitProductContract(contract, label) {
       shell_heuristic_deduplication_allowed: false,
       default_visibility: 'visible',
       archived_items_surface: 'separate_archived_tasks_library',
+      status_filter_control: 'single_select',
+      summary_metric_cards_allowed: false,
+      operator_action_panel_allowed: false,
     },
     `${label}.default_list`,
   );
@@ -259,20 +264,6 @@ export function validateRuntimeCockpitProductContract(contract, label) {
       work_item_state_may_infer_availability: false,
     },
     `${label}.state_separation`,
-  );
-
-  assertExpectedFields(
-    contract.diagnostic_projection,
-    {
-      diagnostics_items_field_required: true,
-      fast_profile_detail_policy: 'summary_only',
-      fast_profile_nonzero_count_with_empty_items_is_valid: true,
-      fast_profile_embedded_item_count_must_not_exceed_count: true,
-      full_profile_detail_policy: 'included',
-      included_count_must_equal_embedded_item_count: true,
-      valid_summary_only_preserves_projects_and_work_items: true,
-    },
-    `${label}.diagnostic_projection`,
   );
 
   assertDeepEqualJson(
@@ -424,12 +415,12 @@ export function validateRuntimeCockpitProductContract(contract, label) {
   );
   assertDeepEqualJson(
     contract.work_item_detail?.secondary_sections,
-    workItemDetailSecondarySections,
+    [],
     `${label}.work_item_detail.secondary_sections`,
   );
   assertDeepEqualJson(
     contract.work_item_detail?.diagnostic_sections,
-    workItemDetailDiagnosticSections,
+    [],
     `${label}.work_item_detail.diagnostic_sections`,
   );
   assertExpectedFields(
@@ -437,9 +428,12 @@ export function validateRuntimeCockpitProductContract(contract, label) {
     {
       selection_key: 'item_id',
       primary_sections_visible_on_open: true,
-      secondary_sections_default_collapsed: true,
-      diagnostic_sections_default_collapsed: true,
+      diagnostic_sections_allowed: false,
+      diagnostics_owner_surface: '/settings/advanced',
+      artifacts_owner_surface: 'right_context_inspector',
+      timeline_owner_surface: '/settings/advanced',
       equal_weight_tab_wall_allowed: false,
+      current_attempt_visibility: 'stage_popover_and_selected_work_item_detail_only',
     },
     `${label}.work_item_detail`,
   );
@@ -463,30 +457,91 @@ export function validateRuntimeCockpitProductContract(contract, label) {
   );
 
   assertExpectedFields(
-    contract.agent_availability_panel,
+    contract.agent_availability_routing,
     {
-      purpose: 'agent_availability_only',
-      full_names_required: true,
-      all_healthy_state: 'collapsed_summary',
-      task_counts_allowed: false,
-      bare_fraction_allowed: false,
+      runtime_page_visible: false,
+      settings_owner: '/settings/capabilities',
+      projection_remains_available_to_settings: true,
+      task_counts_are_not_availability: true,
       mas_scholar_skills_role: 'med_autoscience_dependency_not_sixth_agent',
     },
-    `${label}.agent_availability_panel`,
+    `${label}.agent_availability_routing`,
   );
 
   assertDeepEqualJson(
-    contract.progressive_disclosure?.diagnostic_only,
-    ['raw_ids', 'raw_logs', 'raw_refs', 'receipt_refs', 'provider_diagnostics', 'workflow_and_attempt_ids'],
-    `${label}.progressive_disclosure.diagnostic_only`,
+    contract.stage_popover?.required_fields,
+    [
+      'stage_map',
+      'stage_map[].display_names',
+      'execution.current_stage_display_name',
+      'execution.next_stage_display_name',
+      'execution.attempt_id',
+    ],
+    `${label}.stage_popover.required_fields`,
   );
+  assertDeepEqualJson(
+    contract.stage_popover?.viewport_widths_px,
+    responsiveViewportWidths,
+    `${label}.stage_popover.viewport_widths_px`,
+  );
+  assertExpectedFields(
+    contract.stage_popover,
+    {
+      trigger_field: 'execution.current_stage_display_name',
+      trigger_does_not_open_task_drawer: true,
+      label_source: 'stage_map[].display_names[current_app_locale]',
+      label_fallback: 'stage_map[].display_name',
+      locale_owner: 'shell_current_app_locale',
+      current_attempt_visible_here: true,
+      current_attempt_default_row_visible: false,
+      historical_attempt_ids_visible: false,
+      horizontal_overflow_allowed: false,
+    },
+    `${label}.stage_popover`,
+  );
+
   assertExpectedFields(
     contract.progressive_disclosure,
     {
       default_layer: 'decision_and_action_fields_only',
       raw_technical_fields_default_visible: false,
+      current_attempt_exception: 'visible_only_in_stage_popover_or_selected_work_item_detail',
+      excluded_technical_detail_owner: '/settings/advanced',
     },
     `${label}.progressive_disclosure`,
+  );
+
+  assertDeepEqualJson(
+    contract.runtime_surface_exclusions?.forbidden,
+    [
+      'operator_summary',
+      'safe_action_catalog',
+      'software_install_or_update_actions',
+      'platform_repair_actions',
+      'module_health_panel',
+      'provider_diagnostics',
+      'state_index',
+      'artifact_provenance',
+      'release_evidence',
+      'historical_attempts',
+      'raw_logs',
+      'raw_refs',
+      'raw_runtime_readback',
+    ],
+    `${label}.runtime_surface_exclusions.forbidden`,
+  );
+  assertDeepEqualJson(
+    contract.runtime_surface_exclusions?.settings_owner_routes,
+    {
+      software_updates: '/settings/environment?section=updates',
+      platform_repair: '/settings/environment?section=services',
+      module_management: '/settings/capabilities',
+      diagnostics: '/settings/advanced',
+      state_index: '/settings/advanced',
+      artifact_provenance: 'right_context_inspector',
+      release_evidence: 'release_evidence_tooling',
+    },
+    `${label}.runtime_surface_exclusions.settings_owner_routes`,
   );
 
   assertExpectedFields(
@@ -530,17 +585,25 @@ export function validateRuntimeCockpitPageStateAcceptance(acceptance, productCon
     {
       product_contract_ref: runtimeCockpitProductContractRef,
       work_item_projection_ref: workItemProjectionRef,
-      agent_availability_projection_ref: agentAvailabilityProjectionRef,
       page_role: productContract?.role,
       scope_hierarchy: 'agent_then_project_work_items_excluded',
       one_row_per_work_item: true,
       canonical_row_key: 'item_id',
       detail_selection_key: 'item_id',
+      status_filter_control: 'single_select',
+      summary_metric_cards_allowed: false,
+      operator_drilldown_allowed: false,
+      platform_maintenance_actions_allowed: false,
+      module_health_panel_allowed: false,
       raw_ids_default_visible: false,
       horizontal_page_overflow_allowed: false,
       viewport_evidence_mode: 'deterministic_static_fixture_playwright',
       viewport_screenshots_required: true,
-      detail_progressive_disclosure_evidence_required: true,
+      selected_item_core_detail_evidence_required: true,
+      stage_popover_required: true,
+      stage_popover_current_attempt_visible: true,
+      stage_popover_trigger_opens_drawer: false,
+      stage_popover_viewport_evidence_required: true,
       source_or_upstream_parity_may_override: false,
       feature_removal_or_weakening_allowed: false,
       contract_page_state_validator_tests_update_required: true,

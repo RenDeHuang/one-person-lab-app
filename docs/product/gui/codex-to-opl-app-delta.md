@@ -85,7 +85,7 @@ package entry 和双语等 OPL-owned capability：
 | --- | --- | --- |
 | `adopt_composition_pattern` | App frame、project/conversation rail、单列 timeline、底部 composer、environment floating details、quiet visual grammar。 | 保持参考产品验证过的认知位置，再由 OPL contracts 决定功能、数据、文案和可见状态；不宣称逐像素或逐行为复制。 |
 | `adapt` | Global rail labels、model/access policy、project state、Settings IA、desktop/WebUI affordance。 | 保持 Codex 认知位置，只替换数据和用户语言；不能借适配删除 OPL-owned capability。 |
-| `add` | Project context refs、OPL capabilities、progress、evidence/artifacts、safe actions/receipts。 | 渐进披露；不得抢占主 timeline 或制造 card wall。 |
+| `add` | Project context refs、OPL capabilities、Work Item status，以及 Inspector / Settings 中的 evidence、artifacts、safe actions、receipts。 | 按 owner surface 渐进披露；不得抢占主 timeline、塞入 Runtime 或制造 card wall。 |
 | `reject` | Home dashboard、状态卡片墙、常驻 provider/backend selector、多套 inspector、普通路径 raw runtime/protocol。 | 不以“OPL 专业性”为理由恢复。 |
 
 ## 增量摘要
@@ -96,7 +96,7 @@ package entry 和双语等 OPL-owned capability：
 | Workspace/chat | 支持 project task 与 projectless conversation，并增加 OPL purpose、package 和 refs context。 | App product profile、GUI contract。 |
 | Model control | 保持 Codex-like model/reasoning control，但策略只由 App product profile 提供。 | `contracts/app-product-profile.json`。 |
 | Capabilities | 把普通 agent/tool 入口收敛为 installed OPL Agent Packages 与 assistant-scoped skills。 | App package registry/profile。 |
-| Runtime context | 增加 Framework-backed current-task summary、progress、blocker、owner、receipt 与 safe action refs。 | Framework state/action 与 domain refs。 |
+| Runtime context | 增加 Framework-backed Work Item status、running state、Stage/Attempt、Token、next action/owner 和 archive/restore；receipt、artifact、safe action 与 raw diagnostics 分别留在 Inspector、Settings 或 release tooling。 | Framework WorkItemProjection 与 App Runtime contract。 |
 | Settings | 作为次级配置面保留 OPL Control Center IA，不反向定义主工作流。 | App GUI contract、Settings Control Plane。 |
 | First-run | 增加 Core readiness、guided setup 和 background maintenance。 | App first-run/install contracts。 |
 | Delivery | 增加 desktop/WebUI/Workspace 的同产品语义与受控资源入口。 | App adapters、Framework/Gateway/Fabric refs。 |

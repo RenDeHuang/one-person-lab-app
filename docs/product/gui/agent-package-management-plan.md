@@ -302,7 +302,7 @@ binding GUI and page-state validation to the same map.
 
 | Semantic lane | Canonical source | Aion display role | Native Workbench display role | Action boundary |
 | --- | --- | --- | --- | --- |
-| Runtime | `opl app state --profile fast --json#app_state.operator.current_owner_delta + app_state.operator.workbench + app_state.actions` | Runtime page user-task-status cockpit | Workbench task cockpit | `app_state.actions[]` through `opl app action execute`; full drilldown is explicit detail only. |
+| Runtime | `opl app state --profile fast --json#app_state.operator.workbench.work_item_projection_v2` | Minimal WorkItem status, Stage, Attempt, Token, next action, and archive/restore | Same minimal WorkItem status contract | Only `work_item_visibility_set` through `opl app action execute`; selected-item detail stays projection-bound, while full operator drilldown belongs to Settings Advanced. |
 | Task | `opl app state --profile fast --json#app_state.operator.workbench.task_run_projection_v2.tasks[]` | Current task slice in conversation and right inspector | Task detail and artifact/provenance workbench pane | Task action, follow-up, export, and workflow-skill candidate refs only; no artifact body, owner receipt, or domain verdict authority. |
 | Package | `opl app state --profile fast --json#app_state.agent_packages.directory + app_state.agent_packages.status_index` | Settings Capabilities package directory rows | Packages panel rows | Package lifecycle and Home shortcut preference actions through Framework-backed App action refs; `rollback_ref` is displayed as a recovery reference, not an App-owned rollback verb; `modules.items[]` is fallback only and cannot collapse developer checkout state. |
 

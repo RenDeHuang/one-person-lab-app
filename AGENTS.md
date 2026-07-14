@@ -58,11 +58,15 @@ source of App truth.
   `contracts/app-shell-adapter.json` owns the active shell implementation
   boundary. `contracts/app-release-channel.json` owns stable/nightly release
   gating.
-- Default GUI state reads use `opl app state --profile fast --json`. Explicit
-  refresh/detail reads use `opl app state --profile full --json`, with
-  `opl runtime app-operator-drilldown --detail full --json` reserved for the
-  runtime/Operator full drilldown exception. Mutations go through
-  `opl app action execute --action <id> [--payload <json>] [--dry-run] --json`.
+- Runtime reads use `opl app state --profile fast --json` and consume only the
+  WorkItem, Stage, Attempt, Token, and visibility projection allowed by the
+  Runtime contract. `opl app state --profile full --json` and
+  `opl runtime app-operator-drilldown --detail full --json` are restricted to
+  Settings > Advanced and release tooling; they are never a Runtime-page
+  exception. Mutations still go through
+  `opl app action execute --action <id> [--payload <json>] [--dry-run] --json`,
+  but Runtime may invoke only task archive/restore. Other actions belong to
+  their contracted Settings, Inspector, conversation, or release surface.
 - `shells/aionui/` is the current implementation carrier and upstream-sync
   surface. It may change shape as AionUI evolves, but upstream fork-body code is
   read-only by default and must not become the source of product authority.
@@ -75,8 +79,8 @@ source of App truth.
   authorities. Alignment may relocate an OPL-owned capability, but it must not
   remove it. Any entry relocation must land a visible and keyboard-reachable
   replacement in the same change, update contract/source/tests together, and
-  preserve the cross-project Runtime cockpit separately from conversation-level
-  Runtime details.
+  preserve the cross-project Runtime status page separately from
+  conversation-level task context.
 - Replacing the GUI shell changes the implementation carrier only. Future shells
   must remain under `shells/<candidate>` until the App shell adapter, product
   profile sync, page-state matrix, first-run matrix, active-shell validation,

@@ -2326,12 +2326,24 @@
     }
   },
   "operator_evidence_bundle": {
-    "purpose": "runtime_page_operator_evidence_acceptance",
+    "purpose": "app_release_evidence_acceptance",
     "bundle_root_pattern": "release-evidence/<version>/",
     "manifest_path": "evidence-manifest.json",
-    "acceptance_path": "Runtime page",
-    "runtime_page_contract": "contracts/app-page-state-matrix.json#runtime",
+    "acceptance_path": "App release verification",
+    "release_evidence_contract": "contracts/app-release-channel.json#operator_evidence_bundle",
     "refs_only": true,
+    "surface_ownership": {
+      "runtime_visual_evidence": "runtime_page_minimal_work_item_status_only",
+      "full_drilldown_and_raw_diagnostics": "settings_advanced_and_release_tooling",
+      "maintenance_actions_and_receipts": "settings_environment_or_settings_advanced_and_release_tooling",
+      "runtime_page_excludes": [
+        "full_drilldown",
+        "safe_action_catalog",
+        "operator_receipts",
+        "software_update_controls",
+        "provider_repair_controls"
+      ]
+    },
     "release_cohort": {
       "schema": "opl_app_release_evidence_cohort_contract.v1",
       "required_manifest_fields": [
@@ -2416,8 +2428,8 @@
         "id": "runtime_screenshot",
         "path": "screenshots/runtime.png",
         "kind": "image",
-        "producer": "Runtime page screenshot",
-        "source_kind": "app_runtime_page_screenshot"
+        "producer": "Runtime page minimal work-item status screenshot",
+        "source_kind": "app_runtime_page_visual_acceptance_screenshot"
       },
       {
         "id": "full_screenshot",
@@ -2430,8 +2442,8 @@
         "id": "action_screenshot",
         "path": "screenshots/action.png",
         "kind": "image",
-        "producer": "Runtime action confirmation/result screenshot",
-        "source_kind": "app_runtime_action_screenshot"
+        "producer": "Settings Environment/Advanced action confirmation/result screenshot",
+        "source_kind": "app_settings_action_screenshot"
       },
       {
         "id": "first_run_vm_summary",
@@ -2520,7 +2532,7 @@
     "evidence_scope": {
       "classification": "cohort_bound_app_user_path_evidence",
       "can_support": [
-        "Runtime page acceptance for the same release cohort",
+        "Runtime page minimal visual acceptance for the same release cohort",
         "packaged GUI route smoke for the same release cohort",
         "App release owner promotion review input"
       ],

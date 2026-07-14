@@ -27,9 +27,9 @@ function presentArtifacts() {
 function writeEvidenceManifest(tempRoot, fields) {
   writeFile(path.join(tempRoot, 'evidence-manifest.json'), JSON.stringify({
     schema_version: 1,
-    purpose: 'app_release_evidence_bundle',
-    acceptance_path: 'Runtime page',
-    runtime_page_contract: 'contracts/app-page-state-matrix.json#runtime',
+    purpose: 'app_release_evidence_acceptance',
+    acceptance_path: 'App release verification',
+    release_evidence_contract: 'contracts/app-release-channel.json#operator_evidence_bundle',
     refs_only: true,
     authority_boundary: 'refs_only_no_runtime_truth_domain_truth_artifact_or_quality_authority',
     missing_evidence: [],
@@ -71,7 +71,7 @@ function validateBundle(tempRoot, allowMissing = false) {
   ]);
 }
 
-test('release evidence bundle validator accepts the declared Runtime page artifact set', () => {
+test('release evidence bundle validator accepts the declared App release artifact set', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-'));
   writeEvidenceManifest(tempRoot, {
     status: 'passed',
@@ -105,6 +105,23 @@ test('release evidence bundle validator accepts the declared Runtime page artifa
     missing_artifact_count: 0,
   });
   assert.deepEqual(payload.verified_artifacts.map((artifact) => artifact.id), requiredArtifacts.map((artifact) => artifact.id));
+});
+
+test('release evidence bundle validator rejects legacy Runtime-owned acceptance metadata', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-runtime-owner-'));
+  writeEvidenceManifest(tempRoot, {
+    status: 'passed',
+    packaged_app_evidence: true,
+    release_cohort: releaseEvidenceCohort(),
+    current_cohort_evidence: true,
+    runtime_page_contract: 'contracts/app-page-state-matrix.json#runtime',
+    artifacts: presentArtifacts(),
+  });
+  writePackagedEvidenceFiles(tempRoot);
+
+  const result = validateBundle(tempRoot);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /must not use Runtime page as its contract owner/);
 });
 
 test('release evidence keeps Standard launch gates distinct from Full route receipts', () => {

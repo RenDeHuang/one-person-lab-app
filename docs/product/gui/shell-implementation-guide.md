@@ -139,10 +139,23 @@ Generated product profile 是 shell 的默认值入口：
 opl app state --profile fast --json
 ```
 
-显式刷新通常仍使用 fast profile。Full state 和 Operator full drilldown 只用于
-contract 明确的 detail/diagnostic path。Renderer 只展示返回的 status、conditions、
-refs、recommended action 和 timestamps；不得从 `active_run_id`、module dirt、DOM
-presence 或缓存推断 running、ready、synced、domain-ready 或 release-ready。
+显式刷新通常仍使用 fast profile。Runtime 只消费合同允许的 Work Item、Stage、Attempt、
+Token 和 visibility 投影；Stage Popover 不得触发 Full state 或 Operator drilldown。
+Full state 和 Operator full drilldown 只允许 Settings Advanced 与 release tooling 请求，
+不得作为 Runtime 的 detail fallback。各页面只渲染自身 allowlist；不得从
+`active_run_id`、module dirt、DOM presence 或缓存推断 running、ready、synced、
+domain-ready 或 release-ready。
+
+页面所有权固定如下：
+
+| Surface | Owns | Must not absorb |
+| --- | --- | --- |
+| Runtime | Agent/Project scope、Work Item status、running/elapsed、Stage/Attempt、Token、archive/restore | provider/platform repair、updates、module health、raw diagnostics、artifact provenance、release controls |
+| Settings Environment | provider/platform repair、Temporal/worker readiness、软件更新与维护 | Work Item lifecycle 或论文进度 |
+| Settings Capabilities | 模块/智能体安装、同步、可用性和健康 | 论文/任务状态列表 |
+| Settings Advanced | raw diagnostics、State Index、operator drilldown、logs、command refs、safe-action catalog | 普通 Runtime 默认信息 |
+| Inspector | task/conversation artifact provenance、preview、lineage refs | artifact authority 或 Runtime status |
+| Release tooling | 同 cohort 的完整 evidence bundle | 普通用户 Runtime UI |
 
 Mutation 统一使用：
 
@@ -153,6 +166,9 @@ opl app action execute --action <id> [--payload <json>] [--dry-run] --json
 实现要求：
 
 - 先从 App state/action catalog 取得可用 action 和 disabled reason。
+- Runtime 只能调用任务 archive/restore；next action/owner 在 Runtime 中是只读语义。
+  其他 action 必须由 Environment、Capabilities、Advanced、Inspector、conversation
+  或 release tooling 的合同明确授权。
 - 高风险或状态改变动作先 dry-run/preview，再 confirmation，再 execute。
 - UI 明确显示 what changes、what does not change、receipt/recovery ref 和 refresh 行为。
 - Result receipt 是动作事实，不代表 runtime、domain、artifact 或 release readiness。
