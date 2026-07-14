@@ -30,6 +30,10 @@ contracts, docs, and source truth.
   `hermes-codex` is a retained reference candidate, and AGUI / `agui-codex` is
   archived technical proof. Do not update or polish AGUI unless the user
   explicitly requests AGUI replay work.
+- Hermes is technical-verification-only. Keep its routine validation source-only;
+  build, package, smoke, or install it only for an actual Hermes development need
+  through an explicit manual replay. Do not attach Hermes builds to push, pull
+  request, schedule, watch/on-save, daily patrol, or routine validation paths.
 - GUI role marker: `gui_shell_roles: active=aionui; foreground=opl-native-workbench; retained=hermes-codex; archived=agui-codex`.
 
 Root `docs/`, `contracts/`, and `scripts/` describe the App product layer.

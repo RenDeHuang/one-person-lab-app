@@ -22,6 +22,22 @@
       "hermes-codex"
     ],
     "reference_candidate_policy": "kept_for_explicit_reference_replay_not_default_foreground_scope",
+    "reference_candidate_execution_policy": {
+      "scope": "technical_verification_only",
+      "trigger": "manual_on_demand_only",
+      "automatic_build_allowed": false,
+      "default_validation_includes_build": false,
+      "release_channel_participation": [],
+      "candidate_command_chain_opt_in": "--manual-reference-replay",
+      "forbidden_automatic_triggers": [
+        "push",
+        "pull_request",
+        "schedule",
+        "watch_or_on_save",
+        "daily_patrol",
+        "routine_validation"
+      ]
+    },
     "archived_technical_proofs": [
       "agui-codex"
     ],
@@ -1294,7 +1310,7 @@
       "candidate_root": "shells/hermes",
       "adapter_contract": "contracts/shell-adapters/hermes-codex.json",
       "source_topology": "external_checkout_linked_shell_repo",
-      "release_participation": "selectable_for_explicit_candidate_build",
+      "release_participation": "manual_on_demand_technical_verification_build_only",
       "foreground_alternative_role": "superseded_foreground_alternative_reference",
       "source_upstream": {
         "repo": "NousResearch/hermes-agent",

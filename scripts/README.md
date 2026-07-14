@@ -7,10 +7,12 @@ By default wrappers read `contracts/app-shell-adapter.json`. AionUI is the
 active GUI carrier, `opl-native-workbench` is the foreground alternative,
 Hermes Desktop / `hermes-codex` is a retained reference candidate, and
 AGUI / `agui-codex` is archived technical proof rather than a routine
-implementation, validation, or polish lane. Technical
-verification can select a different linked shell repo with
+implementation, validation, or polish lane. Source-only technical validation
+can select a different linked shell repo with
 `OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/<candidate>.json`;
-AGUI selection should happen only when AGUI replay is explicitly requested.
+Hermes full candidate command execution additionally requires
+`--manual-reference-replay` and an actual development need. AGUI selection
+should happen only when AGUI replay is explicitly requested.
 
 | Script | Purpose |
 | --- | --- |
@@ -18,7 +20,7 @@ AGUI selection should happen only when AGUI replay is explicitly requested.
 | `gui-launcher.ts` | Opens the installed AionUI mainline by default or the isolated Native Candidate for one local run. Candidate launches receive exact OPL/Codex Runtime identity and default to dry-run-only actions; the launcher never changes release adoption or updater state. |
 | `verify.sh` | App-root verification wrapper for smoke, active-shell, release-boundary, candidate-shell, structure, and full lanes without running release packaging by default. |
 | `validate-active-shell.ts` | Validates the selected shell adapter contract and runs selected validation commands. |
-| `validate-shell-candidates.ts` | Validates the foreground GUI alternative from `contracts/app-shell-candidates.json` by default. `opl-native-workbench` is the foreground alternative, Hermes is a retained reference candidate, and archived AGUI proof is checked only with `--candidate agui-codex`. Selectable candidates are packageable only through an explicit adapter contract env override and must emit a real `.app` bundle manifest. |
+| `validate-shell-candidates.ts` | Validates the foreground GUI alternative from `contracts/app-shell-candidates.json` by default. `opl-native-workbench` is the foreground alternative, Hermes is a retained reference candidate, and archived AGUI proof is checked only with `--candidate agui-codex`. Hermes source validation never builds by default; its full command chain requires `--manual-reference-replay` for an actual technical-verification need. |
 | `validate-gui-design-system.ts` | Validates the three-layer GUI definition stack, foundation-doc refs, shell roles, ideal/native versus active AionUI state markers, profile-owned model defaults, and the non-release evidence boundary. It fails closed when foundation docs are absent and never promotes docs or visual QA into release readiness. |
 | `prepare-release-assets.ts` | Calls the active shell release asset normalizer from the App root. |
 | `validate-release.ts` | Verifies release assets and enforces that standard updater metadata excludes Full first-install assets. |
@@ -116,8 +118,9 @@ npm run validate:gui-shell
 npm run validate:shell-candidates -- --candidate opl-native-workbench --run-candidate-commands
 OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/opl-native-workbench.json npm run package
 # Prior Hermes reference only:
-npm run validate:shell-candidates -- --candidate hermes-codex --run-candidate-commands
-OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/hermes-codex.json npm run package
+npm run validate:candidate:hermes
+# Manual packaged replay only when an actual Hermes development task requires it:
+npm run validate:shell-candidates -- --candidate hermes-codex --run-candidate-commands --manual-reference-replay
 # Explicit AGUI replay only:
 npm run validate:shell-candidates -- --candidate agui-codex
 OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/agui-codex.json npm run package

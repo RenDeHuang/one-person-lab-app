@@ -2,7 +2,10 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
 import { validateRuntimeBridgeContract } from '../../scripts/validate-active-shell/runtime-bridge-validator.ts';
-import { validateRegistryShape } from '../../scripts/validate-shell-candidates/registry.ts';
+import {
+  assertReferenceCandidateCommandExecutionAllowed,
+  validateRegistryShape,
+} from '../../scripts/validate-shell-candidates/registry.ts';
 import type { ShellCandidateRegistry } from '../../scripts/validate-shell-candidates/types.ts';
 
 const readJson = <T>(relativePath: string): T => JSON.parse(fs.readFileSync(relativePath, 'utf8')) as T;
@@ -23,6 +26,29 @@ test('dual GUI launcher selection stays separate from release adoption', () => {
   assert.throws(
     () => validateRegistryShape(archivedTarget),
     /selectable_shells must be exactly the active mainline and foreground alternative/,
+  );
+});
+
+test('Hermes builds require an explicit manual technical-verification replay', () => {
+  const registry = readJson<ShellCandidateRegistry>('contracts/app-shell-candidates.json');
+  const hermes = registry.candidates.find((candidate) => candidate.id === 'hermes-codex');
+  assert.equal(hermes?.release_participation, 'manual_on_demand_technical_verification_build_only');
+  assert.throws(
+    () => assertReferenceCandidateCommandExecutionAllowed(registry, ['hermes-codex'], false),
+    /add --manual-reference-replay only when actual Hermes development requires packaged evidence/,
+  );
+  assert.doesNotThrow(
+    () => assertReferenceCandidateCommandExecutionAllowed(registry, ['hermes-codex'], true),
+  );
+  assert.doesNotThrow(
+    () => assertReferenceCandidateCommandExecutionAllowed(registry, ['opl-native-workbench'], false),
+  );
+
+  const automaticBuild = structuredClone(registry);
+  automaticBuild.alternative_gui_policy!.reference_candidate_execution_policy.automatic_build_allowed = true;
+  assert.throws(
+    () => validateRegistryShape(automaticBuild),
+    /Hermes reference candidate builds must stay manual, on-demand, technical-verification-only/,
   );
 });
 

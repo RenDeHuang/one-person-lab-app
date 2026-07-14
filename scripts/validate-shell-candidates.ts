@@ -6,16 +6,25 @@ import {
   validateCandidate,
 } from './validate-shell-candidates/candidate-contract.ts';
 import { runCandidateCommands } from './validate-shell-candidates/candidate-evidence.ts';
-import { validateActiveShellUnaffected, validateRegistryShape } from './validate-shell-candidates/registry.ts';
+import {
+  assertReferenceCandidateCommandExecutionAllowed,
+  validateActiveShellUnaffected,
+  validateRegistryShape,
+} from './validate-shell-candidates/registry.ts';
 import { readJson, registryPath } from './validate-shell-candidates/shared.ts';
 import type { ShellCandidateRegistry } from './validate-shell-candidates/types.ts';
 
-export function parseArgs(argv: string[]): { candidate?: string; runCandidateCommands: boolean } {
+export function parseArgs(argv: string[]): {
+  candidate?: string;
+  runCandidateCommands: boolean;
+  manualReferenceReplay: boolean;
+} {
   const { values } = parseNodeArgs({
     args: argv.slice(2),
     options: {
       candidate: { type: 'string' },
       'run-candidate-commands': { type: 'boolean' },
+      'manual-reference-replay': { type: 'boolean' },
     } as const,
     allowPositionals: false,
     strict: true,
@@ -23,6 +32,7 @@ export function parseArgs(argv: string[]): { candidate?: string; runCandidateCom
   return {
     candidate: values.candidate,
     runCandidateCommands: values['run-candidate-commands'] === true,
+    manualReferenceReplay: values['manual-reference-replay'] === true,
   };
 }
 
@@ -38,6 +48,13 @@ function main(): void {
     : registry.candidates.filter((candidate) => registry.alternative_gui_policy?.default_candidate_validation_scope.includes(candidate.id));
   if (candidates.length === 0) {
     throw new Error(`No shell candidate matched ${args.candidate ?? 'default foreground alternative scope'}`);
+  }
+  if (args.runCandidateCommands) {
+    assertReferenceCandidateCommandExecutionAllowed(
+      registry,
+      candidates.map((candidate) => candidate.id),
+      args.manualReferenceReplay,
+    );
   }
   for (const candidate of candidates) {
     validateCandidate(candidate, validationPolicy);
@@ -57,6 +74,8 @@ function main(): void {
       release_participation: candidate.release_participation,
     })),
     default_validation_scope: args.candidate ? 'explicit_candidate' : 'foreground_alternative_only',
+    command_execution: args.runCandidateCommands ? 'explicit_candidate_commands' : 'source_and_contract_validation_only',
+    manual_reference_replay: args.manualReferenceReplay,
     release_participation: 'explicit_candidate_build_only_until_adopted',
   }, null, 2));
 }

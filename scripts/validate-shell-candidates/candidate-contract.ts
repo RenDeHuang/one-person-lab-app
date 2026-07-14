@@ -301,9 +301,11 @@ function validateCandidateRegistryEntry(candidate: ShellCandidate, policy: Candi
   }
   const expectedReleaseParticipation = isArchivedProof
     ? 'explicit_user_requested_technical_replay_only'
-    : 'selectable_for_explicit_candidate_build';
+    : isReferenceCandidate
+      ? 'manual_on_demand_technical_verification_build_only'
+      : 'selectable_for_explicit_candidate_build';
   if (candidate.release_participation !== expectedReleaseParticipation) {
-    throw new Error(`${candidate.id} must only participate in explicit candidate builds`);
+    throw new Error(`${candidate.id} release participation must be ${expectedReleaseParticipation}`);
   }
   if (candidate.source_topology !== 'external_checkout_linked_shell_repo') {
     throw new Error(`${candidate.id} must declare external_checkout_linked_shell_repo topology`);

@@ -236,6 +236,15 @@ export type ShellCandidateRegistry = {
     default_candidate_validation_scope: string[];
     reference_only_candidates?: string[];
     reference_candidate_policy?: string;
+    reference_candidate_execution_policy: {
+      scope: string;
+      trigger: string;
+      automatic_build_allowed: boolean;
+      default_validation_includes_build: boolean;
+      release_channel_participation: string[];
+      candidate_command_chain_opt_in: string;
+      forbidden_automatic_triggers: string[];
+    };
     archived_technical_proofs: string[];
     archived_proof_policy: string;
     active_shell_switch_policy: string;

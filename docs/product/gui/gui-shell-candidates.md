@@ -14,7 +14,7 @@ package scripts, validation output, and candidate package artifacts.
 | --- | --- | --- | --- | --- |
 | Active App GUI | `aionui` | `shells/aionui` or `OPL_APP_SHELL_ROOT` | `contracts/app-shell-adapter.json` | Stable/nightly App wrapper commands |
 | Foreground candidate | `opl-native-workbench` | `shells/opl-native-workbench` or `../opl-native-workbench` | `contracts/shell-adapters/opl-native-workbench.json` | Default candidate validation |
-| Retained candidate | `hermes-codex` | `shells/hermes` or `../opl-hermes-shell` | `contracts/shell-adapters/hermes-codex.json` | Explicit candidate validation and package builds |
+| Retained candidate | `hermes-codex` | `shells/hermes` or `../opl-hermes-shell` | `contracts/shell-adapters/hermes-codex.json` | Source validation by default; manual on-demand technical replay only |
 | Archived proof | `agui-codex` | `shells/agui-codex` | `contracts/shell-adapters/agui-codex.json` | Explicit AGUI replay only |
 
 Stable role marker:
@@ -59,6 +59,10 @@ executable path/version/cohort readback 前，不得声称物理 Runtime parity�
 Hermes Desktop / `hermes-codex` is not cleanup waste. It is a retained
 candidate line: keep its adapter contract, wrapper commands, and checkout
 policy unless the App owner explicitly retires the candidate.
+Hermes is not a continuously built candidate. Push, pull-request, scheduled,
+watch/on-save, daily-patrol, and routine-validation paths must not compile it.
+Package, smoke, and install evidence is produced only when an actual Hermes
+development task explicitly requests a manual technical replay.
 
 ## Design System Governance
 
@@ -138,18 +142,20 @@ npm run validate:candidate:native
 npm run validate:candidate:hermes
 ```
 
-Build explicit candidate apps through the App wrapper:
+Build the foreground candidate through the App wrapper. Hermes packaging is a
+separate manual replay and must be justified by an actual Hermes development
+need:
 
 ```bash
 npm run package:candidate:native
-npm run package:candidate:hermes
+npm run validate:shell-candidates -- --candidate hermes-codex --run-candidate-commands --manual-reference-replay
 ```
 
 If the candidate checkout is a sibling repo instead of `shells/<candidate>`,
 set `OPL_APP_SHELL_ROOT` for that command:
 
 ```bash
-OPL_APP_SHELL_ROOT=../opl-hermes-shell npm run package:candidate:hermes
+OPL_APP_SHELL_ROOT=../opl-hermes-shell npm run validate:shell-candidates -- --candidate hermes-codex --run-candidate-commands --manual-reference-replay
 OPL_APP_SHELL_ROOT=../opl-native-workbench npm run package:candidate:native
 ```
 

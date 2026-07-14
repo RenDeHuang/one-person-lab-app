@@ -47,6 +47,25 @@ export function validateRegistryShape(registry: ShellCandidateRegistry): void {
   if (alternative.reference_candidate_policy !== 'kept_for_explicit_reference_replay_not_default_foreground_scope') {
     throw new Error('Hermes reference candidate policy must keep Hermes out of default foreground scope');
   }
+  const referenceExecution = alternative.reference_candidate_execution_policy;
+  if (
+    referenceExecution?.scope !== 'technical_verification_only' ||
+    referenceExecution.trigger !== 'manual_on_demand_only' ||
+    referenceExecution.automatic_build_allowed !== false ||
+    referenceExecution.default_validation_includes_build !== false ||
+    referenceExecution.release_channel_participation.length !== 0 ||
+    referenceExecution.candidate_command_chain_opt_in !== '--manual-reference-replay'
+  ) {
+    throw new Error('Hermes reference candidate builds must stay manual, on-demand, technical-verification-only, and outside release channels');
+  }
+  assertStringArrayIncludes(referenceExecution.forbidden_automatic_triggers, [
+    'push',
+    'pull_request',
+    'schedule',
+    'watch_or_on_save',
+    'daily_patrol',
+    'routine_validation',
+  ], 'alternative_gui_policy.reference_candidate_execution_policy.forbidden_automatic_triggers');
   assertStringArrayIncludes(alternative.archived_technical_proofs, ['agui-codex'], 'alternative_gui_policy.archived_technical_proofs');
   validateInteractiveLauncherPolicy(registry);
   for (const [label, expected] of Object.entries({
@@ -102,6 +121,27 @@ export function validateRegistryShape(registry: ShellCandidateRegistry): void {
   }
   validateCandidateNoResurrectionPolicy(registry);
   validateDesignReferences(registry);
+}
+
+export function assertReferenceCandidateCommandExecutionAllowed(
+  registry: ShellCandidateRegistry,
+  candidateIds: string[],
+  manualReferenceReplay: boolean,
+): void {
+  const alternative = registry.alternative_gui_policy;
+  const referenceCandidates = alternative?.reference_only_candidates ?? [];
+  const selectedReferenceCandidates = candidateIds.filter((id) => referenceCandidates.includes(id));
+  if (selectedReferenceCandidates.length === 0) {
+    return;
+  }
+  if (
+    manualReferenceReplay !== true ||
+    alternative?.reference_candidate_execution_policy.candidate_command_chain_opt_in !== '--manual-reference-replay'
+  ) {
+    throw new Error(
+      `${selectedReferenceCandidates.join(', ')} command execution is manual technical verification only; add --manual-reference-replay only when actual Hermes development requires packaged evidence`,
+    );
+  }
 }
 
 function validateInteractiveLauncherPolicy(registry: ShellCandidateRegistry): void {
