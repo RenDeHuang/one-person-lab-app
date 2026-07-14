@@ -67,11 +67,40 @@ const settingsFooterExpected = [
   "data-testid='sider-footer-account-avatar'",
   'bg-success',
   'text-inverse',
-  'const showThemeToggle = isSettings',
-  "data-testid='sider-footer-theme'",
+  'const updateLabel = updateAvailable ?',
+  'onClick={onUpdateClick}',
+  "data-testid='sider-footer-update'",
+  'data-update-available={String(updateAvailable)}',
 ];
 
-const settingsFooterForbidden = ["t('common.back'", 'sider-footer-back', 'sider-footer-help'];
+const settingsFooterForbidden = [
+  "t('common.back'",
+  'sider-footer-back',
+  'sider-footer-help',
+  'showThemeToggle',
+  'sider-footer-theme',
+];
+
+const settingsAppearanceExpected = [
+  "const APPEARANCE_MODES: ThemeAppearanceMode[] = ['system', 'light', 'dark']",
+  'appearanceMode, setAppearanceMode',
+  "role='radiogroup'",
+  "data-testid='appearance-mode-selector'",
+  'data-testid={`appearance-mode-${mode}`}',
+  'aria-checked={selected}',
+];
+
+const settingsSiderReturnExpected = [
+  'resolveSettingsReturnPath',
+  'navigate(resolveSettingsReturnPath())',
+  "data-testid='settings-back-to-app'",
+];
+
+const settingsTitlebarReturnExpected = [
+  'resolveSettingsReturnPath',
+  'navigate(resolveSettingsReturnPath())',
+  "data-testid='settings-titlebar-back-to-app'",
+];
 
 const ordinaryCapabilityFilterExpected = [
   'REQUIRED_ORDINARY_FORBIDDEN_CAPABILITY_POLICY',
@@ -141,12 +170,30 @@ function validateSettingsPartitionImplementation(shellPaths) {
     shellPaths,
     'packages/desktop/src/renderer/components/layout/Sider/SiderFooter.tsx',
     settingsFooterExpected,
-    'Active shell Settings footer account and theme controls',
+    'Active shell Settings footer account and App update controls',
   );
   assertTextExcludesAll(
     settingsFooter,
     settingsFooterForbidden,
-    'Active shell Settings footer secondary navigation',
+    'Active shell Settings footer secondary navigation and retired theme control',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/components/settings/SettingsModal/contents/AppearanceModalContent.tsx',
+    settingsAppearanceExpected,
+    'Active shell Settings three-state appearance controls',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/settings/components/SettingsSider.tsx',
+    settingsSiderReturnExpected,
+    'Active shell Settings sider Back to app resolver',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/components/layout/Titlebar/index.tsx',
+    settingsTitlebarReturnExpected,
+    'Active shell narrow Settings titlebar Back to app resolver',
   );
   assertShellTextIncludesAll(
     shellPaths,

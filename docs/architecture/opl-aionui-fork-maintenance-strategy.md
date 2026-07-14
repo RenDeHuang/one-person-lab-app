@@ -4,7 +4,7 @@ Owner: `one-person-lab-app`
 Purpose: `aionui_fork_maintenance_and_intake_strategy`
 State: `accepted`
 Date: `2026-06-30`
-Updated: `2026-07-13`
+Updated: `2026-07-14`
 Machine boundary: Human-readable architecture strategy. Machine-readable truth
 lives in `contracts/app-settings-control-plane.json`,
 `contracts/app-gui-product-contract.json`, `contracts/app-shell-adapter.json`,
@@ -95,6 +95,9 @@ The product mapping is also fixed:
 
 The exact observed baseline and OPL delta live in
 `docs/product/gui/codex-to-opl-app-delta.md`; this ADR owns maintenance strategy only.
+The repeatable stable-tag, reference-promotion, overlap-budget and visual-comparison
+workflow lives in `docs/product/gui/gui-maintenance-policy.md` and is machine-backed by
+`contracts/app-gui-product-contract.json#gui_maintenance_policy`.
 The host/App Server boundary for discovery and coordination across independent
 top-level threads lives in
 `docs/architecture/codex-cross-thread-orchestration.md`.
@@ -270,12 +273,15 @@ release-owner evidence remain separate. Contract structure, remediation
 ancestry, focused tests, and full tests must not be presented as packaged or
 release readiness.
 
-### AionUI v2.1.33 GUI Review
+### AionUI v2.1.34 GUI Review
 
-The latest reviewed stable upstream is `v2.1.33` at
-`a819d175683d5a0aada20064888da07bfcecdb6a`. Its delta is release/runtime-only
-and contains no GUI behavior that changes the App target. It therefore does not
-justify a broad history merge or a new renderer intake. The active adapter binds
+The latest reviewed stable upstream is `v2.1.34` at
+`0fea1eb82634f3746b9ccf68507277c347fa08a3`, published on `2026-07-13` with
+`draft=false` and `prerelease=false`. Relative to `v2.1.33`, it changes the
+conversation command queue, ACP/AionRS send boxes, Team renderer/runtime and a
+non-supported locale payload. These surfaces require `accept/adapt/redirect/reject`
+classification before selective intake. The release is recorded as reviewed, not
+absorbed, and does not justify a broad history merge. The active adapter binds
 `a0ce713b65801fd9ca7f46ad168c977c75a187de` as the minimum verified GUI
 conformance ancestor; the current shell HEAD is read from the active checkout and
 must contain that ancestor. Human docs do not copy the transient current HEAD.

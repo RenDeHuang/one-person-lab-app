@@ -81,7 +81,7 @@ function validateContract(contract, options = {}) {
   });
 }
 
-test('AionUI intake contract separates the absorbed v2.1.31 cohort from the reviewed v2.1.33 release', () => {
+test('AionUI intake contract separates the absorbed v2.1.31 cohort from the reviewed stable v2.1.34 release', () => {
   const contract = readContract();
   const checkedRefs: string[] = [];
   let packagePath = '';
@@ -116,8 +116,24 @@ test('AionUI intake contract separates the absorbed v2.1.31 cohort from the revi
       '70974c59a275e565e8fc2bd7ecaf2dcac74227f0',
       'e49cd94935f4e461f002a1260a47c1b7b2ce81ca',
       'e38b00ba37cafe56d704b498a4882264836463e4',
-      'a819d175683d5a0aada20064888da07bfcecdb6a',
+      '0fea1eb82634f3746b9ccf68507277c347fa08a3',
     ],
+  );
+  assert.deepEqual(
+    {
+      published_at: intake.source_refs.latest_reviewed_upstream.published_at,
+      draft: intake.source_refs.latest_reviewed_upstream.draft,
+      prerelease: intake.source_refs.latest_reviewed_upstream.prerelease,
+      gui_delta: intake.source_refs.latest_reviewed_upstream.gui_delta,
+      disposition: intake.source_refs.latest_reviewed_upstream.disposition,
+    },
+    {
+      published_at: '2026-07-13T14:57:12Z',
+      draft: false,
+      prerelease: false,
+      gui_delta: 'conversation_queue_and_team_renderer_changes_require_classification',
+      disposition: 'reviewed_not_absorbed_bounded_selective_intake_required',
+    },
   );
   assert.deepEqual([
     capability(contract, 'database_recovery').classification,
@@ -149,6 +165,9 @@ test('AionUI intake contract accepts typed corruption or strict open-stage corru
 
 const invalid = (name, mutate, error, options?) => ({ name, mutate, error, options });
 const invalidCases = [
+  invalid('a prerelease latest-reviewed upstream', (c) => {
+    c.upstream_intake.source_refs.latest_reviewed_upstream.prerelease = true;
+  }, /latest reviewed upstream must record stable v2\.1\.34 as reviewed but not absorbed/),
   invalid('a missing required capability record', (c) => {
     c.upstream_intake.capability_classifications = c.upstream_intake.capability_classifications.filter((entry) => entry.id !== 'cron_history');
   }, /Active shell upstream intake capabilities ids/),

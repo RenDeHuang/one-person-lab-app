@@ -4226,5 +4226,33 @@
       "navigation_encoding": "route_id_plus_anchor_field",
       "shell_transport_hint": "hash_router_uses_query_param_section"
     }
+  },
+  "settings_shell_navigation": {
+    "product_contract_ref": "contracts/app-gui-product-contract.json#settings_navigation.return_to_app",
+    "required_dom": {
+      "expanded": ["settings-back-to-app", "settings-search-input"],
+      "collapsed": ["settings-back-to-app"],
+      "narrow": ["settings-titlebar-back-to-app"]
+    },
+    "destination_behavior": "last_valid_non_settings_location_preserving_search_and_hash_else_guid",
+    "keyboard_reachable": true,
+    "same_resolver_for_sider_and_titlebar": true,
+    "footer_update_entry": {
+      "required_dom": ["sider-footer-update"],
+      "forbidden_dom": ["sider-footer-theme"],
+      "availability_source": "managed_update_plane.components[component_id=opl_app]",
+      "trigger_policy": "reuse_existing_carrier_updater_or_settings_environment_updates",
+      "new_updater_forbidden": true
+    },
+    "appearance_mode": {
+      "required_dom": [
+        "appearance-mode-system",
+        "appearance-mode-light",
+        "appearance-mode-dark"
+      ],
+      "allowed_values": ["system", "light", "dark"],
+      "presentation": "three_visual_preview_cards",
+      "preset_preservation_required": true
+    }
   }
 }

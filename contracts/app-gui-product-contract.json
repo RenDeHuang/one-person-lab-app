@@ -913,6 +913,106 @@
       "bilingual_ui"
     ]
   },
+  "gui_maintenance_policy": {
+    "schema": "opl_app_gui_maintenance_policy.v1",
+    "owner": "one-person-lab-app",
+    "human_policy_ref": "docs/product/gui/gui-maintenance-policy.md",
+    "goal": {
+      "upstream_following": "aionui_stable_tags_through_bounded_selective_intake",
+      "visual_alignment": "versioned_chatgpt_codex_reference_cohorts_with_explicit_opl_deltas",
+      "one_to_one_claim_policy": "scene_bound_comparison_only_never_unqualified_product_wide_claim"
+    },
+    "codex_reference_promotion": {
+      "active_reference_ref": "contracts/app-gui-product-contract.json#interaction_baseline.current_reference",
+      "required_evidence": [
+        "exact_reference_product_build_and_observation_date",
+        "literal_observation_notes_and_reference_screenshots",
+        "contract_delta_classification",
+        "protected_opl_surface_non_regression_review",
+        "desktop_and_narrow_light_dark_zh_en_comparison_manifest"
+      ],
+      "promotion_gate": "all_required_evidence_present_and_app_gui_validator_passes",
+      "supersession_policy": "previous_active_reference_moves_to_interaction_baseline.superseded_observations",
+      "release_independence": true
+    },
+    "aionui_upstream_following": {
+      "channel": "stable_tags_only",
+      "required_release_metadata": [
+        "tag",
+        "commit",
+        "published_at",
+        "draft",
+        "prerelease"
+      ],
+      "draft_or_prerelease_policy": "reject_as_intake_target",
+      "classifications": ["accept", "adapt", "redirect", "reject"],
+      "classification_meanings": {
+        "accept": "reuse_without_changing_app_product_authority",
+        "adapt": "reuse_through_app_contract_profile_bridge_or_overlay",
+        "redirect": "preserve_compatibility_but_route_to_app_owned_surface",
+        "reject": "do_not_expose_or_absorb_into_ordinary_app_behavior"
+      },
+      "intake_gate": "read_release_metadata_then_measure_divergence_and_overlap_then_classify_then_run_focused_and_active_shell_gates",
+      "broad_history_merge_as_default": false,
+      "reviewed_does_not_mean_absorbed": true
+    },
+    "maintenance_budgets": {
+      "audit_baseline": {
+        "shell_ref": "772dd1ef7226fd028bd2c9768a2e66c5e83d3f89",
+        "upstream_tag": "v2.1.34",
+        "upstream_ref": "0fea1eb82634f3746b9ccf68507277c347fa08a3",
+        "merge_base": "70974c59a275e565e8fc2bd7ecaf2dcac74227f0",
+        "upstream_only_commits": 184,
+        "shell_only_commits": 5516,
+        "shell_changed_files": 802,
+        "overlap_files": 342,
+        "renderer_overlap_files": 223
+      },
+      "overlap_growth_policy": "fail_until_intentionally_reviewed_and_rebaselined",
+      "maximum_overlap_file_growth": 0,
+      "maximum_renderer_overlap_file_growth": 0,
+      "codex_overlay": {
+        "important_declarations": 105,
+        "selector_blocks": 52,
+        "growth_policy": "no_growth_without_app_authorized_exception"
+      }
+    },
+    "visual_comparison_protocol": {
+      "schema": "opl_app_gui_visual_comparison.v1",
+      "required_binding_fields": [
+        "reference_product_build",
+        "reference_observed_at",
+        "app_contract_ref",
+        "shell_commit",
+        "package_or_dev_build_identity",
+        "os_version",
+        "architecture",
+        "display_scale",
+        "viewport",
+        "theme",
+        "locale",
+        "route",
+        "state",
+        "reference_screenshot_sha256",
+        "candidate_screenshot_sha256"
+      ],
+      "comparison_modes": [
+        "side_by_side_human_review",
+        "pixel_diff_with_declared_masks_and_thresholds"
+      ],
+      "required_claims": [
+        "scene_compared",
+        "layout_checked",
+        "visual_delta_reviewed"
+      ],
+      "forbidden_inferences": [
+        "product_wide_one_to_one",
+        "release_ready",
+        "installed_current",
+        "upstream_absorbed"
+      ]
+    }
+  },
   "machine_boundary": "App-owned GUI product requirements for active shell implementations. This contract defines user-facing GUI truth and allowed state/action surfaces; it does not own OPL runtime truth, provider implementation, domain truth, quality verdicts, or artifact authority.",
   "active_shell": "aionui",
   "implementation_carrier": "opl-aion-shell",
@@ -3155,7 +3255,20 @@
       "AionUI",
       "Aion UI",
       "AionUi"
-    ]
+    ],
+    "appearance_mode": {
+      "config_key": "theme.appearanceMode",
+      "allowed_values": ["system", "light", "dark"],
+      "default_value": "system",
+      "settings_placement": "preferences_display_before_theme_preset_gallery",
+      "presentation": "three_visual_preview_cards",
+      "selection_indicator": "high_contrast_outline_and_accessible_checked_state",
+      "system_follows_os": true,
+      "theme_preset_config_key": "theme.activeId",
+      "theme_preset_must_be_preserved_when_mode_changes": true,
+      "codex_css_supports_light_and_dark": true,
+      "navigation_rail_quick_toggle": "forbidden"
+    }
   },
   "settings_navigation": {
     "ordinary_visible_tabs": [
@@ -3718,9 +3831,11 @@
             "layout": "compact",
             "controls": [
               "gateway_account_or_settings_entry",
-              "theme_switcher"
+              "app_update_status_and_trigger"
             ],
             "account_entry": "gateway_display_name_when_connected_else_settings_visible_on_all_routes",
+            "update_entry": "reuse_existing_carrier_updater_or_settings_maintenance_route_without_owning_update_truth",
+            "theme_quick_toggle": "forbidden_theme_mode_lives_in_settings_preferences",
             "help_navigation": "forbidden"
           },
           "theme_gallery": {
@@ -3788,7 +3903,8 @@
             "Settings remains quiet, dense, and scannable without a sparse page-wide bare-divider layout",
             "bounded page-section cards do not become a decorative card wall",
             "summary and repeated-entity bounded groups use one layer only",
-            "the compact Settings footer keeps the Gateway account name or Settings entry visible on every route, places the theme switcher after it on Settings, and never renders return-to-chat or help navigation",
+            "the compact Settings footer keeps the Gateway account name or Settings entry visible on every route, places the existing App update status and trigger after it on Settings, and never renders a theme quick toggle, return-to-chat, or help navigation",
+            "Preferences exposes System, Light, and Dark appearance modes without changing the selected CSS theme preset",
             "the theme gallery uses recognizable preview tiles rather than a flat swatch list",
             "visual assertions verify grouping, footer, and theme-gallery structure; radius and spacing alone are insufficient",
             "the Settings sidebar has exactly one selected item",
@@ -4137,7 +4253,37 @@
       "theme",
       "local-services",
       "personalization"
-    ]
+    ],
+    "return_to_app": {
+      "label_zh": "返回应用",
+      "label_en": "Back to app",
+      "placement": "settings_sider_first_row_above_search",
+      "destination_source": "last_valid_non_settings_location",
+      "session_storage_key": "aion:last-non-settings-path",
+      "preserve_search_and_hash": true,
+      "settings_destination_forbidden": true,
+      "fallback_path": "/guid",
+      "keyboard_reachable": true,
+      "expanded_behavior": "icon_and_label",
+      "collapsed_behavior": "icon_only_with_tooltip_and_accessible_name",
+      "narrow_window_behavior": "existing_titlebar_return_action_uses_same_destination_resolver"
+    },
+    "footer_update_entry": {
+      "placement": "settings_footer_after_gateway_account_or_settings_entry",
+      "replaces": "navigation_rail_theme_quick_toggle",
+      "default_label_zh": "检查更新",
+      "default_label_en": "Check for updates",
+      "available_label_zh": "发现新版本",
+      "available_label_en": "Update available",
+      "availability_source": "opl_app_state_fast_managed_update_plane_opl_app_component",
+      "trigger": "existing_carrier_update_modal_or_settings_environment_updates",
+      "settings_route_fallback": "/settings/environment?section=updates",
+      "new_updater_implementation_forbidden": true,
+      "expanded_behavior": "icon_and_label_with_attention_indicator_when_available",
+      "collapsed_behavior": "icon_only_with_tooltip_and_accessible_name",
+      "keyboard_reachable": true,
+      "test_id": "sider-footer-update"
+    }
   },
   "desktop_tray_policy": {
     "default_visible": true,

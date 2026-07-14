@@ -64,6 +64,7 @@ function createFixture(): string {
     'docs/product/gui/codex-to-opl-app-delta.md',
     'docs/product/gui/element-audit.md',
     'docs/product/gui/feature-inventory.md',
+    'docs/product/gui/gui-maintenance-policy.md',
     'docs/active/aionui-mainline-gui-convergence-plan.md',
     'contracts/app-shell-candidates.json',
     'contracts/app-product-profile.json',
@@ -184,6 +185,49 @@ test('GUI design-system validator rejects a fixed Home shortcut limit', () => {
   assert.throws(
     () => validateGuiDesignSystem(root),
     /interaction baseline Home, conversation, composer, Agents management, and task summary markers must match the App target/,
+  );
+});
+
+test('GUI design-system validator rejects prerelease upstream intake and unscoped parity claims', () => {
+  const root = createFixture();
+  const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
+  const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+  contract.gui_maintenance_policy.aionui_upstream_following.channel = 'latest_tag_including_prerelease';
+  contract.gui_maintenance_policy.goal.one_to_one_claim_policy = 'product_wide_one_to_one';
+  writeJson(root, 'contracts/app-gui-product-contract.json', contract);
+
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /GUI maintenance policy must version Codex reference promotion|GUI maintenance policy must follow stable AionUI tags/,
+  );
+});
+
+test('GUI design-system validator rejects a Settings return path that can recurse into Settings', () => {
+  const root = createFixture();
+  const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
+  const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+  contract.settings_navigation.return_to_app.settings_destination_forbidden = false;
+  contract.settings_navigation.return_to_app.fallback_path = '/settings/general';
+  writeJson(root, 'contracts/app-gui-product-contract.json', contract);
+
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /Settings shell must expose one shared, keyboard-reachable Back to app destination resolver/,
+  );
+});
+
+test('GUI design-system validator rejects a footer theme toggle or appearance mode that replaces the active preset', () => {
+  const root = createFixture();
+  const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
+  const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+  contract.settings_navigation.footer_update_entry.replaces = 'gateway_account_entry';
+  contract.theme_and_branding.appearance_mode.theme_preset_must_be_preserved_when_mode_changes = false;
+  contract.theme_and_branding.appearance_mode.presentation = 'segmented_text_control';
+  writeJson(root, 'contracts/app-gui-product-contract.json', contract);
+
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /Settings appearance must use a three-state mode while the footer reuses the existing App updater/,
   );
 });
 

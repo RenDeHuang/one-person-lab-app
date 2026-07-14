@@ -585,6 +585,185 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     }
   }
 
+  const maintenancePolicy = record(guiContract.gui_maintenance_policy);
+  const maintenanceGoal = record(maintenancePolicy.goal);
+  const referencePromotion = record(maintenancePolicy.codex_reference_promotion);
+  const upstreamFollowing = record(maintenancePolicy.aionui_upstream_following);
+  const classificationMeanings = record(upstreamFollowing.classification_meanings);
+  const maintenanceBudgets = record(maintenancePolicy.maintenance_budgets);
+  const auditBaseline = record(maintenanceBudgets.audit_baseline);
+  const codexOverlayBudget = record(maintenanceBudgets.codex_overlay);
+  const visualComparison = record(maintenancePolicy.visual_comparison_protocol);
+  const maintenancePolicyRef = 'docs/product/gui/gui-maintenance-policy.md';
+  if (
+    maintenancePolicy.schema !== 'opl_app_gui_maintenance_policy.v1' ||
+    maintenancePolicy.owner !== 'one-person-lab-app' ||
+    maintenancePolicy.human_policy_ref !== maintenancePolicyRef ||
+    !fs.existsSync(path.join(root, maintenancePolicyRef)) ||
+    maintenanceGoal.upstream_following !== 'aionui_stable_tags_through_bounded_selective_intake' ||
+    maintenanceGoal.visual_alignment !== 'versioned_chatgpt_codex_reference_cohorts_with_explicit_opl_deltas' ||
+    maintenanceGoal.one_to_one_claim_policy !== 'scene_bound_comparison_only_never_unqualified_product_wide_claim' ||
+    referencePromotion.active_reference_ref !==
+      'contracts/app-gui-product-contract.json#interaction_baseline.current_reference' ||
+    !sameStrings(referencePromotion.required_evidence, [
+      'exact_reference_product_build_and_observation_date',
+      'literal_observation_notes_and_reference_screenshots',
+      'contract_delta_classification',
+      'protected_opl_surface_non_regression_review',
+      'desktop_and_narrow_light_dark_zh_en_comparison_manifest',
+    ]) ||
+    referencePromotion.promotion_gate !== 'all_required_evidence_present_and_app_gui_validator_passes' ||
+    referencePromotion.supersession_policy !==
+      'previous_active_reference_moves_to_interaction_baseline.superseded_observations' ||
+    referencePromotion.release_independence !== true
+  ) {
+    issues.add('GUI maintenance policy must version Codex reference promotion without implying release completion');
+  }
+  if (
+    upstreamFollowing.channel !== 'stable_tags_only' ||
+    !sameStrings(upstreamFollowing.required_release_metadata, [
+      'tag',
+      'commit',
+      'published_at',
+      'draft',
+      'prerelease',
+    ]) ||
+    upstreamFollowing.draft_or_prerelease_policy !== 'reject_as_intake_target' ||
+    !sameStrings(upstreamFollowing.classifications, ['accept', 'adapt', 'redirect', 'reject']) ||
+    classificationMeanings.accept !== 'reuse_without_changing_app_product_authority' ||
+    classificationMeanings.adapt !== 'reuse_through_app_contract_profile_bridge_or_overlay' ||
+    classificationMeanings.redirect !== 'preserve_compatibility_but_route_to_app_owned_surface' ||
+    classificationMeanings.reject !== 'do_not_expose_or_absorb_into_ordinary_app_behavior' ||
+    upstreamFollowing.intake_gate !==
+      'read_release_metadata_then_measure_divergence_and_overlap_then_classify_then_run_focused_and_active_shell_gates' ||
+    upstreamFollowing.broad_history_merge_as_default !== false ||
+    upstreamFollowing.reviewed_does_not_mean_absorbed !== true
+  ) {
+    issues.add('GUI maintenance policy must follow stable AionUI tags through classified selective intake');
+  }
+  if (
+    auditBaseline.shell_ref !== '772dd1ef7226fd028bd2c9768a2e66c5e83d3f89' ||
+    auditBaseline.upstream_tag !== 'v2.1.34' ||
+    auditBaseline.upstream_ref !== '0fea1eb82634f3746b9ccf68507277c347fa08a3' ||
+    auditBaseline.merge_base !== '70974c59a275e565e8fc2bd7ecaf2dcac74227f0' ||
+    auditBaseline.upstream_only_commits !== 184 ||
+    auditBaseline.shell_only_commits !== 5516 ||
+    auditBaseline.shell_changed_files !== 802 ||
+    auditBaseline.overlap_files !== 342 ||
+    auditBaseline.renderer_overlap_files !== 223 ||
+    maintenanceBudgets.overlap_growth_policy !== 'fail_until_intentionally_reviewed_and_rebaselined' ||
+    maintenanceBudgets.maximum_overlap_file_growth !== 0 ||
+    maintenanceBudgets.maximum_renderer_overlap_file_growth !== 0 ||
+    codexOverlayBudget.important_declarations !== 105 ||
+    codexOverlayBudget.selector_blocks !== 52 ||
+    codexOverlayBudget.growth_policy !== 'no_growth_without_app_authorized_exception'
+  ) {
+    issues.add('GUI maintenance policy must bind measured upstream overlap and non-growing Codex overlay budgets');
+  }
+  if (
+    visualComparison.schema !== 'opl_app_gui_visual_comparison.v1' ||
+    !sameStrings(visualComparison.required_binding_fields, [
+      'reference_product_build',
+      'reference_observed_at',
+      'app_contract_ref',
+      'shell_commit',
+      'package_or_dev_build_identity',
+      'os_version',
+      'architecture',
+      'display_scale',
+      'viewport',
+      'theme',
+      'locale',
+      'route',
+      'state',
+      'reference_screenshot_sha256',
+      'candidate_screenshot_sha256',
+    ]) ||
+    !sameStrings(visualComparison.comparison_modes, [
+      'side_by_side_human_review',
+      'pixel_diff_with_declared_masks_and_thresholds',
+    ]) ||
+    !sameStrings(visualComparison.required_claims, ['scene_compared', 'layout_checked', 'visual_delta_reviewed']) ||
+    !sameStrings(visualComparison.forbidden_inferences, [
+      'product_wide_one_to_one',
+      'release_ready',
+      'installed_current',
+      'upstream_absorbed',
+    ])
+  ) {
+    issues.add('GUI maintenance visual comparison must bind exact cohorts and keep parity claims scene-scoped');
+  }
+
+  const settingsNavigation = record(guiContract.settings_navigation);
+  const returnToApp = record(settingsNavigation.return_to_app);
+  const footerUpdateEntry = record(settingsNavigation.footer_update_entry);
+  const themeAndBranding = record(guiContract.theme_and_branding);
+  const appearanceMode = record(themeAndBranding.appearance_mode);
+  const settingsShellNavigation = record(pageStateMatrix.settings_shell_navigation);
+  const settingsShellRequiredDom = record(settingsShellNavigation.required_dom);
+  const settingsFooterUpdate = record(settingsShellNavigation.footer_update_entry);
+  const settingsAppearanceMode = record(settingsShellNavigation.appearance_mode);
+  if (
+    returnToApp.label_zh !== '返回应用' ||
+    returnToApp.label_en !== 'Back to app' ||
+    returnToApp.placement !== 'settings_sider_first_row_above_search' ||
+    returnToApp.destination_source !== 'last_valid_non_settings_location' ||
+    returnToApp.session_storage_key !== 'aion:last-non-settings-path' ||
+    returnToApp.preserve_search_and_hash !== true ||
+    returnToApp.settings_destination_forbidden !== true ||
+    returnToApp.fallback_path !== '/guid' ||
+    returnToApp.keyboard_reachable !== true ||
+    returnToApp.expanded_behavior !== 'icon_and_label' ||
+    returnToApp.collapsed_behavior !== 'icon_only_with_tooltip_and_accessible_name' ||
+    returnToApp.narrow_window_behavior !== 'existing_titlebar_return_action_uses_same_destination_resolver' ||
+    settingsShellNavigation.product_contract_ref !==
+      'contracts/app-gui-product-contract.json#settings_navigation.return_to_app' ||
+    !sameStrings(settingsShellRequiredDom.expanded, ['settings-back-to-app', 'settings-search-input']) ||
+    !sameStrings(settingsShellRequiredDom.collapsed, ['settings-back-to-app']) ||
+    !sameStrings(settingsShellRequiredDom.narrow, ['settings-titlebar-back-to-app']) ||
+    settingsShellNavigation.destination_behavior !==
+      'last_valid_non_settings_location_preserving_search_and_hash_else_guid' ||
+    settingsShellNavigation.keyboard_reachable !== true ||
+    settingsShellNavigation.same_resolver_for_sider_and_titlebar !== true
+  ) {
+    issues.add('Settings shell must expose one shared, keyboard-reachable Back to app destination resolver');
+  }
+  if (
+    appearanceMode.config_key !== 'theme.appearanceMode' ||
+    !sameStrings(appearanceMode.allowed_values, ['system', 'light', 'dark']) ||
+    appearanceMode.default_value !== 'system' ||
+    appearanceMode.settings_placement !== 'preferences_display_before_theme_preset_gallery' ||
+    appearanceMode.presentation !== 'three_visual_preview_cards' ||
+    appearanceMode.selection_indicator !== 'high_contrast_outline_and_accessible_checked_state' ||
+    appearanceMode.system_follows_os !== true ||
+    appearanceMode.theme_preset_config_key !== 'theme.activeId' ||
+    appearanceMode.theme_preset_must_be_preserved_when_mode_changes !== true ||
+    appearanceMode.codex_css_supports_light_and_dark !== true ||
+    appearanceMode.navigation_rail_quick_toggle !== 'forbidden' ||
+    footerUpdateEntry.placement !== 'settings_footer_after_gateway_account_or_settings_entry' ||
+    footerUpdateEntry.replaces !== 'navigation_rail_theme_quick_toggle' ||
+    footerUpdateEntry.availability_source !== 'opl_app_state_fast_managed_update_plane_opl_app_component' ||
+    footerUpdateEntry.trigger !== 'existing_carrier_update_modal_or_settings_environment_updates' ||
+    footerUpdateEntry.settings_route_fallback !== '/settings/environment?section=updates' ||
+    footerUpdateEntry.new_updater_implementation_forbidden !== true ||
+    footerUpdateEntry.keyboard_reachable !== true ||
+    footerUpdateEntry.test_id !== 'sider-footer-update' ||
+    !sameStrings(settingsFooterUpdate.required_dom, ['sider-footer-update']) ||
+    !sameStrings(settingsFooterUpdate.forbidden_dom, ['sider-footer-theme']) ||
+    settingsFooterUpdate.availability_source !== 'managed_update_plane.components[component_id=opl_app]' ||
+    settingsFooterUpdate.new_updater_forbidden !== true ||
+    !sameStrings(settingsAppearanceMode.required_dom, [
+      'appearance-mode-system',
+      'appearance-mode-light',
+      'appearance-mode-dark',
+    ]) ||
+    !sameStrings(settingsAppearanceMode.allowed_values, ['system', 'light', 'dark']) ||
+    settingsAppearanceMode.presentation !== 'three_visual_preview_cards' ||
+    settingsAppearanceMode.preset_preservation_required !== true
+  ) {
+    issues.add('Settings appearance must use a three-state mode while the footer reuses the existing App updater');
+  }
+
   const acceptanceBoundary = record(interactionBaseline.acceptance_boundary);
   const historicalPixelShellSha =
     typeof acceptanceBoundary.historical_pixel_shell_sha === 'string'

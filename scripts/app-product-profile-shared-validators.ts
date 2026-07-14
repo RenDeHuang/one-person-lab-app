@@ -375,7 +375,15 @@ export function assertAppProductProfileSettingsVisualSystem(
         expected:
           'show_gateway_display_name_when_connected_else_settings_on_all_routes_and_open_account_gateway_or_overview',
       },
+      {
+        actual: visualSystem?.footer_update_entry_policy,
+        expected:
+          'reuse_existing_carrier_updater_or_settings_maintenance_route_without_owning_update_truth',
+      },
+      { actual: visualSystem?.footer_theme_quick_toggle_allowed, expected: false },
       { actual: visualSystem?.footer_secondary_navigation_allowed, expected: false },
+      { actual: visualSystem?.appearance_mode_presentation, expected: 'three_visual_preview_cards' },
+      { actual: visualSystem?.appearance_mode_preserves_theme_preset, expected: true },
       { actual: visualSystem?.theme_gallery_presentation, expected: 'recognizable_preview_tiles' },
       { actual: visualSystem?.theme_swatch_list_allowed, expected: false },
       { actual: visualSystem?.max_border_radius_px, expected: 8 },
@@ -384,9 +392,12 @@ export function assertAppProductProfileSettingsVisualSystem(
   );
   if (
     JSON.stringify(visualSystem?.footer_controls) !==
-    JSON.stringify(['gateway_account_or_settings_entry', 'theme_switcher'])
+      JSON.stringify(['gateway_account_or_settings_entry', 'app_update_status_and_trigger']) ||
+    JSON.stringify(visualSystem?.appearance_mode_values) !== JSON.stringify(['system', 'light', 'dark'])
   ) {
-    throw new Error(`${label} footer must expose the account-or-Settings entry before the Settings theme switcher`);
+    throw new Error(
+      `${label} footer must expose the account-or-Settings entry before the App update trigger and keep System, Light, and Dark in Settings`,
+    );
   }
 }
 

@@ -1299,8 +1299,15 @@ function validateSettingsVisualQaExpectations(expectations) {
     expectations?.footer_structure,
     {
       layout: "compact",
-      controls: ["gateway_account_or_settings_entry", "theme_switcher"],
+      controls: [
+        "gateway_account_or_settings_entry",
+        "app_update_status_and_trigger",
+      ],
       account_entry: "gateway_display_name_when_connected_else_settings_visible_on_all_routes",
+      update_entry:
+        "reuse_existing_carrier_updater_or_settings_maintenance_route_without_owning_update_truth",
+      theme_quick_toggle:
+        "forbidden_theme_mode_lives_in_settings_preferences",
       help_navigation: "forbidden",
     },
     "Settings visual QA footer structure",
@@ -1390,7 +1397,8 @@ function validateSettingsVisualQaExpectations(expectations) {
       "same-route screenshots preserve or improve spatial and typographic hierarchy against shell baseline 409dd0c3",
       "Settings remains quiet, dense, and scannable without a sparse page-wide bare-divider layout",
       "bounded page-section cards do not become a decorative card wall",
-      "the compact Settings footer keeps the Gateway account name or Settings entry visible on every route, places the theme switcher after it on Settings, and never renders return-to-chat or help navigation",
+      "the compact Settings footer keeps the Gateway account name or Settings entry visible on every route, places the existing App update status and trigger after it on Settings, and never renders a theme quick toggle, return-to-chat, or help navigation",
+      "Preferences exposes System, Light, and Dark appearance modes without changing the selected CSS theme preset",
       "the theme gallery uses recognizable preview tiles rather than a flat swatch list",
       "visual assertions verify grouping, footer, and theme-gallery structure; radius and spacing alone are insufficient",
       "the Settings sidebar has exactly one selected item",

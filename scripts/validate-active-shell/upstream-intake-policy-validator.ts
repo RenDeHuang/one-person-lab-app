@@ -413,11 +413,16 @@ function validateSourceRefs(upstreamIntake) {
     throw new Error('Active shell upstream intake evaluated release must be v2.1.31');
   }
   if (
-    sourceRefs.latest_reviewed_upstream.release !== 'v2.1.33' ||
-    sourceRefs.latest_reviewed_upstream.gui_delta !== 'none' ||
-    sourceRefs.latest_reviewed_upstream.disposition !== 'release_runtime_only_selective_intake'
+    sourceRefs.latest_reviewed_upstream.release !== 'v2.1.34' ||
+    sourceRefs.latest_reviewed_upstream.published_at !== '2026-07-13T14:57:12Z' ||
+    sourceRefs.latest_reviewed_upstream.draft !== false ||
+    sourceRefs.latest_reviewed_upstream.prerelease !== false ||
+    sourceRefs.latest_reviewed_upstream.gui_delta !==
+      'conversation_queue_and_team_renderer_changes_require_classification' ||
+    sourceRefs.latest_reviewed_upstream.disposition !==
+      'reviewed_not_absorbed_bounded_selective_intake_required'
   ) {
-    throw new Error('Active shell latest reviewed upstream must record v2.1.33 as a non-GUI selective intake');
+    throw new Error('Active shell latest reviewed upstream must record stable v2.1.34 as reviewed but not absorbed');
   }
   const refs = Object.values(sourceRefs).map((sourceRef) => sourceRef.ref);
   if (new Set(refs).size !== refs.length) {

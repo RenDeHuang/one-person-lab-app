@@ -594,10 +594,19 @@ test("Settings visual QA enforces bounded-card grouping, compact footer, recogni
     object_accent_policy:
       "use restrained multi-hue navigation icons and card-edge accents to distinguish access, workspace, capabilities, maintenance, and storage without tinting whole pages",
     footer_layout: "compact",
-    footer_controls: ["gateway_account_or_settings_entry", "theme_switcher"],
+    footer_controls: [
+      "gateway_account_or_settings_entry",
+      "app_update_status_and_trigger",
+    ],
     footer_account_entry_policy:
       "show_gateway_display_name_when_connected_else_settings_on_all_routes_and_open_account_gateway_or_overview",
+    footer_update_entry_policy:
+      "reuse_existing_carrier_updater_or_settings_maintenance_route_without_owning_update_truth",
+    footer_theme_quick_toggle_allowed: false,
     footer_secondary_navigation_allowed: false,
+    appearance_mode_values: ["system", "light", "dark"],
+    appearance_mode_presentation: "three_visual_preview_cards",
+    appearance_mode_preserves_theme_preset: true,
     theme_gallery_presentation: "recognizable_preview_tiles",
     theme_swatch_list_allowed: false,
     max_border_radius_px: 8,
@@ -630,9 +639,16 @@ test("Settings visual QA enforces bounded-card grouping, compact footer, recogni
   });
   assert.deepStrictEqual(visualQa.footer_structure, {
     layout: "compact",
-    controls: ["gateway_account_or_settings_entry", "theme_switcher"],
+    controls: [
+      "gateway_account_or_settings_entry",
+      "app_update_status_and_trigger",
+    ],
     account_entry:
       "gateway_display_name_when_connected_else_settings_visible_on_all_routes",
+    update_entry:
+      "reuse_existing_carrier_updater_or_settings_maintenance_route_without_owning_update_truth",
+    theme_quick_toggle:
+      "forbidden_theme_mode_lives_in_settings_preferences",
     help_navigation: "forbidden",
   });
   assert.deepStrictEqual(visualQa.theme_gallery, {
