@@ -201,7 +201,7 @@ function validateAgentPackageLifecycleUx(surface, label) {
     surface.primary_state_surface !== 'app_state.agent_packages.directory.entries + app_state.agent_packages.status_index' ||
     surface.runtime_source_surface !== 'app_state.runtime_source_carriers.items[]' ||
     surface.source_semantics_policy !==
-      'package state is installation truth; runtime source carrier is active run source; never infer installation from checkout presence' ||
+      'directory entries own package discovery plus installed, activated, installability, coarse readiness, and exact actions; status_index contributes canonical dependency readiness, repair availability, activation preparation, dependent guards, exposure, and lower-level runtime diagnostics without overriding directory lifecycle, readiness, or exact actions; never infer installation from checkout presence or synthesize a manageable row without a directory entry' ||
     surface.action_ref_source !== 'app_state.actions' ||
     surface.action_route !== appActionRoute
   ) {
@@ -266,10 +266,12 @@ function validateAgentPackageLifecycleUx(surface, label) {
       'operational_ready_false_or_dependency_repair_required_must_never_render_ready',
       'operational_ready_false_must_disable_ordinary_package_and_agent_launch',
       'blocked_packages_allow_only_status_doctor_and_repair_actions',
-      'show_dependency_readiness_and_dependent_guard_in_normal_details',
-      'trigger_only_projected_repair_action_when_enabled',
+      'show_dependency_readiness_activation_preparation_and_dependent_guard_in_normal_details',
+      'keep_package_dependency_materialization_and_runtime_source_readiness_as_lower_level_diagnostics',
+      'execute_repair_only_from_a_complete_directory_projected_action_while_using_status_index_repair_action_for_availability_and_reason',
       'show_receipt_and_physical_surface_in_details_or_advanced_only',
       'execute_only_projected_action_id_and_payload_without_shell_status_or_payload_inference',
+      'require_status_index_activation_action_enabled_true_before_directory_activation_execution',
       'refresh_fast_state_after_successful_install_then_show_projected_activate_when_recommended',
       'disable_workspace_activation_with_a_workspace_route_and_reason_when_workspace_root_is_missing',
       'keep_registry_refresh_ordinary_and_visible_while_manifest_URL_install_stays_advanced',
@@ -307,10 +309,26 @@ function validateAgentPackageLifecycleUx(surface, label) {
     throw new Error(`${label} catalog search must be distinct from Settings global search`);
   }
   assertDeepEqualJson(
+    surface.advanced_manifest_install_contract,
+    {
+      action_id: 'install_from_manifest_url',
+      visibility: 'advanced_only',
+      payload_fields: ['manifest_url', 'trust_tier'],
+      trust_tier_required: true,
+      default_trust_tier: null,
+      missing_trust_tier_policy: 'disable_submit_and_show_validation',
+      registry_selected_install_affected: false,
+    },
+    `${label} advanced manifest install trust assignment`,
+  );
+  assertDeepEqualJson(
     surface.canonical_action_contract,
     {
       source_fields: ['directory.entries[].available_actions[]', 'directory.entries[].recommended_action_ref'],
       required_action_fields: ['action_id', 'action_ref', 'payload', 'required_payload_fields', 'confirmation_required'],
+      exact_object_field_policy: 'reject missing or additional fields; accept exactly action_id, action_ref, payload, required_payload_fields, confirmation_required',
+      action_ref_policy: 'action_ref must equal app_state.actions#${action_id}',
+      required_payload_alternative_policy: "a required_payload_fields item containing ' or ' is satisfied when at least one named payload field is present",
       recommended_action_id_field: 'directory.entries[].recommended_action',
       recommended_action_ref_match_policy: 'recommended_action_ref is null when recommended_action is null; otherwise it exactly equals the available_actions item with the same action_id',
       action_availability_policy: 'an action is available only when Framework projects its complete action object; action objects do not carry shell-inferred enabled, reason_code, or failure_reason fields',
@@ -388,7 +406,7 @@ function validateAgentPackageLifecycleUx(surface, label) {
   );
   assertIncludesAll(
     surface.failure_reason_fields,
-    ['readiness.status', 'readiness.reason', 'readiness.status_read_error', 'blocker_summary', 'last_action_receipt_ref', 'recommended_action', 'dependency_readiness.status', 'dependency_readiness.checks[].failure_reasons', 'operational_ready', 'launch_allowed', 'launch_blocked_reason', 'allowed_when_blocked', 'dependent_guard.disable.reason_code', 'dependent_guard.uninstall.reason_code'],
+    ['readiness.status', 'readiness.reason', 'readiness.status_read_error', 'blocker_summary', 'last_action_receipt_ref', 'recommended_action', 'dependency_readiness.status', 'dependency_readiness.checks[].failure_reasons', 'activation_action.reason_code', 'dependent_guard.disable.reason_code', 'dependent_guard.uninstall.reason_code', 'capability_exposure.status', 'package_dependency_readiness.status', 'package_dependency_readiness.dependencies[].reasons', 'materialization_readiness.status', 'runtime_source_readiness.reason', 'status_read_error', 'operational_ready', 'launch_allowed', 'launch_blocked_reason', 'allowed_when_blocked'],
     `${label} failure reason fields`,
   );
   const detail = surface.receipt_physical_surface_detail_policy;
@@ -397,7 +415,7 @@ function validateAgentPackageLifecycleUx(surface, label) {
   }
   assertIncludesAll(
     detail.receipt_fields,
-    ['receipt_refs', 'package_lock_ref', 'action_receipt_ref', 'rollback_ref', 'dependency_closure.transaction_id', 'dependency_closure.generation_id', 'dependency_closure.closure_digest', 'dependency_closure.last_known_good_generation_id', 'dependency_closure.last_known_good_closure_digest'],
+    ['receipt_refs', 'package_lock_ref', 'action_receipt_ref', 'rollback_ref', 'dependency_closure.transaction_id', 'dependency_closure.closure_digest', 'dependency_closure.last_known_good_transaction_id', 'dependency_closure.last_known_good_closure_digest'],
     `${label} receipt fields`,
   );
   const projection = surface.package_projection_contract;
@@ -411,13 +429,41 @@ function validateAgentPackageLifecycleUx(surface, label) {
     ['action_id', 'command_ref', 'enabled', 'reason_code'],
     `${label} repair action fields`,
   );
+  assertIncludesAll(
+    projection?.status_index_package_fields?.activation_action,
+    ['action_id', 'command_ref', 'enabled', 'preparation_status', 'reason_code'],
+    `${label} activation action fields`,
+  );
+  assertIncludesAll(
+    projection?.status_index_package_fields?.dependent_guard,
+    ['required_by_package_ids', 'disable.allowed', 'disable.reason_code', 'uninstall.allowed', 'uninstall.reason_code'],
+    `${label} dependent guard fields`,
+  );
   if (
+    projection?.status_index_join_policy !==
+      'required_package_id_keyed_lifecycle_diagnostics_directory_lifecycle_readiness_and_exact_actions_win_on_overlap' ||
+    projection?.status_index_package_fields?.action_receipt_ref !== 'null_or_string' ||
+    projection?.status_index_package_fields?.rollback_ref !== 'null_or_string' ||
     projection?.status_index_package_fields?.operational_ready !== 'boolean' ||
     projection?.status_index_package_fields?.launch_allowed !== 'boolean' ||
     projection?.status_index_package_fields?.launch_blocked_reason !== 'null_or_string' ||
-    projection?.repair_action_id !== 'repair_dependency_closure' ||
+    projection?.status_index_repair_action_id !== 'agent_package_repair' ||
+    projection?.status_index_action_execution_policy !==
+      'status-index repair_action and activation_action expose availability and reason only; execution still requires the matching directory.entries[].available_actions exact five-field object and payload' ||
+    JSON.stringify(projection?.dependent_guard_missing_policy) !== JSON.stringify({
+      disable_enabled_only_when: 'dependent_guard.disable.allowed === true',
+      uninstall_enabled_only_when: 'dependent_guard.uninstall.allowed === true',
+      missing_or_invalid_reason_code: 'dependent_guard_unavailable',
+      unaffected_actions: ['hide', 'unhide', 'enable'],
+    }) ||
+    JSON.stringify(projection?.activation_action_missing_policy) !== JSON.stringify({
+      activation_enabled_only_when: 'activation_action.enabled === true',
+      directory_action_alone_can_enable: false,
+      disabled_reason_source: 'activation_action.reason_code',
+      missing_or_invalid_reason_code: 'activation_status_unavailable',
+    }) ||
     projection?.launch_gate_policy !==
-      'operational_ready_false_requires_launch_allowed_false_and_only_status_doctor_repair_remain_allowed' ||
+      'directory.entries[].readiness owns ordinary launch eligibility; status_index false or verification-deferred signals may only fail closed and never promote directory readiness' ||
     projection?.closure_diagnostics_surface !== 'advanced_diagnostics_only'
   ) {
     throw new Error(`${label} must define generic dependency closure readiness and repair projection`);
@@ -429,21 +475,24 @@ function validateAgentPackageLifecycleUx(surface, label) {
   );
   assertDeepEqualJson(
     projection?.launch_fail_closed_reason_codes,
-    ['package_not_installed'],
+    ['package_not_installed', 'package_activation_required', 'live_verification_deferred', 'package_status_read_failed'],
     `${label} launch fail-closed reasons`,
   );
   assertDeepEqualJson(projection?.forbidden_private_fields, ['staging_path', 'journal_path'], `${label} private fields`);
   assertIncludesAll(
     detail.physical_surface_fields,
     [
+      'surface_kind',
       'status',
+      'package_id',
       'plugin_id',
       'marketplace_id',
+      'codex_home',
       'codex_plugin_cache_path',
       'marketplace_path',
       'codex_config_path',
-      'required_skill_ids',
-      'required_skill_paths',
+      'materialized_required_skill_ids',
+      'materialized_required_skill_paths',
       'reload_required',
     ],
     `${label} physical surface fields`,

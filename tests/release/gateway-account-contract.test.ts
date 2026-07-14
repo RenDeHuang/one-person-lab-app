@@ -28,12 +28,27 @@ test('Fast App state fixture uses the exact public Agent Package directory and a
     && entry.readiness.operational_ready === false
     && entry.readiness.launch_allowed === false
   ));
+  const packageContract = readJson('contracts/app-runtime-bridge.json')
+    .canonical_state_display_action_map.rows.find((row: any) => row.semantic_area === 'package');
+  assert.ok(packageContract.required_projection_fields['status_index.packages[package_id]']);
+  assert.equal(packageContract.optional_enrichment_fields['status_index.packages[package_id]'], undefined);
 });
 
 test('Fast Agent Package directory rejects action, source, workspace, and readiness ABI drift', () => {
   const cases = [
     (fixture: any) => {
       delete fixture.app_state.agent_packages.directory.entries[0].available_actions[0].action_ref;
+    },
+    (fixture: any) => {
+      fixture.app_state.agent_packages.directory.entries[0].available_actions[0].unexpected = true;
+    },
+    (fixture: any) => {
+      fixture.app_state.agent_packages.directory.entries[0].available_actions[0].action_ref =
+        'app_state.actions#wrong_action';
+    },
+    (fixture: any) => {
+      fixture.app_state.agent_packages.directory.entries[0].available_actions[0].required_payload_fields =
+        [''];
     },
     (fixture: any) => {
       fixture.app_state.agent_packages.directory.entries[0].recommended_action_ref.payload.package_id = 'wrong-package';

@@ -40,7 +40,7 @@ test('Codex interaction surfaces stay aligned across the App profile and contrac
   ));
 });
 
-test('product profile projects the canonical Agent Package registry URL', () => {
+test('product profile separates the external registry URL from Framework first-party identities', () => {
   const installExposure = readJson('contracts/app-install-exposure-policy.json');
   const registry = readJson('contracts/agent-package-registry.json');
   const profile = structuredClone(readJson('contracts/app-product-profile.json'));
@@ -49,7 +49,29 @@ test('product profile projects the canonical Agent Package registry URL', () => 
   profile.gui.agent_package_registry.default_registry_url = 'https://example.invalid/registry.json';
   assert.throws(
     () => validateProductProfile(profile, installExposure, registry),
-    /canonical Agent Package registry URL/,
+    /separate the external Agent Package registry/,
+  );
+
+  const missingReleaseSetId = structuredClone(readJson('contracts/app-product-profile.json'));
+  missingReleaseSetId.gui.agent_package_registry.canonical_first_party_package_ids.pop();
+  assert.throws(
+    () => validateProductProfile(missingReleaseSetId, installExposure, registry),
+    /canonical Framework first-party package ids/,
+  );
+
+  const collidingRegistry = structuredClone(registry);
+  collidingRegistry.entries.push({
+    package_id: 'mas',
+    source: 'third_party',
+    trust_tier: 'third_party_unverified',
+  });
+  assert.throws(
+    () => validateProductProfile(
+      readJson('contracts/app-product-profile.json'),
+      installExposure,
+      collidingRegistry,
+    ),
+    /zero canonical first-party identity or trust collisions/,
   );
 });
 

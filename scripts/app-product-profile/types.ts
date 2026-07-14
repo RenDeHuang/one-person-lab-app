@@ -360,6 +360,26 @@ export type AppProductProfile = {
     agent_package_registry: {
       default_registry_url: string;
       source_ref: string;
+      registry_scope: 'external_discovery_only';
+      empty_default_registry_allowed: boolean;
+      first_party_runtime_authority: string;
+      canonical_first_party_package_ids: string[];
+      external_first_party_identity_claims_allowed: boolean;
+      external_first_party_trust_claims_allowed: boolean;
+      collision_failure_code: string;
+      first_party_manifest_fixture_dir: string;
+      first_party_release_set_metadata: Array<{
+        package_id: string;
+        package_kind: string;
+        display_name: string;
+        publisher: string;
+        source: 'first_party';
+        trust_tier: 'first_party';
+        description: string;
+        tags: string[];
+        package_role: 'standard_agent' | 'framework_capability_package' | 'workflow_profile';
+        manifest_fixture_ref: string;
+      }>;
       shell_consumption_policy: string;
     };
     professional_agent_packages: Array<{

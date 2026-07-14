@@ -24,15 +24,20 @@ GUI 产品定义刻意分层。`docs/product/gui/ideal-interaction-spec.md` 定�
 
 Professional agent ownership is deliberately split to keep the App generic. The App should own package management, home shortcut configuration, launch into Codex, invocation receipt display, and refs-only status panels. In Settings, Agents is the installed package directory with integrated Home shortcut management; purpose remains a secondary tag/filter, not the primary row identity. Capabilities separately owns the Skill/Plugin catalog and OPL Flow recommendations. Neither page owns a professional agent's domain workflow, stage model, prompt internals, artifact schema, readiness verdict, quality/export verdict, or owner receipts. There should be no strong App-level `Session Contract` for MAS or any other professional agent. The durable boundary is `Agent Package -> Home Shortcut Metadata -> Codex launch -> Invocation Receipt`.
 
-The OPL Agent Registry adds discovery without changing that boundary. The
-default App registry contract is `contracts/agent-package-registry.json`, and
-operators may add organization or user registry URLs. Registry entries carry
+The Framework built-in Release Set is the only runtime source of canonical
+first-party package identities. The default App registry contract at
+`contracts/agent-package-registry.json` is an external-discovery-only source,
+may be empty, and must not claim a built-in package id, first-party source, or
+`first_party` trust tier. Framework keeps the collision defense fail-closed.
+Operators may add organization or user registry URLs. External registry entries carry
 labels, source/trust hints, and manifest URLs only; they do not define
 business behavior, session contracts, artifact schemas, readiness rules, or
 owner receipt authority. `contracts/agent-package-surfaces.schema.json` and
 `contracts/fixtures/agent-package-manifests/` define the App-side manifest,
-shortcut, invocation receipt, and package lock receipt shapes for first-party
-starter packages. Selecting a package routes the manifest URL to OPL Framework
+shortcut, invocation receipt, and package lock receipt shapes, while
+`contracts/app-product-profile.json#gui.agent_package_registry.first_party_release_set_metadata`
+provides static product metadata for all seven built-in packages without becoming
+directory or install truth. Selecting an external package routes the manifest URL to OPL Framework
 validation and package lifecycle execution. The validated manifest plus
 Framework package lock, rollback ref, and action receipt is the install
 authority for the non-live contract/readback slice. Framework also owns

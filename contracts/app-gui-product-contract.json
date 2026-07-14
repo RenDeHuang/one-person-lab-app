@@ -5939,9 +5939,10 @@
         "static_metadata_overlay_source": "contracts/app-product-profile.json#gui.professional_agent_packages",
         "static_metadata_overlay_policy": "package_id keyed optional UI metadata only; never collection membership, seed, status, readiness, or action authority",
         "runtime_source_projection": "opl app state --profile fast --json#app_state.runtime_source_carriers.items[]",
-        "source_semantics_policy": "directory entries own discovery and projected actions; status_index owns installation and activation truth; runtime source carriers own active run source; the shell infers none of them",
-        "legacy_fallback_projection": "opl app state --profile fast --json#app_state.modules.items[] + home_agent_shortcuts",
-        "normalization_policy": "shell uses directory.entries as the complete collection, joins status_index and runtime_source_carriers by canonical package_id, and may enrich UI metadata only from the static profile overlay",
+        "source_semantics_policy": "directory entries own catalog membership, installed, activated, installability, coarse readiness, recommended_action_ref, and exact available_actions; status_index adds canonical package-id-keyed dependency_readiness, repair_action, activation_action, dependent_guard, capability_exposure, materialization, runtime-source, currentness, receipt, and status-read diagnostics but cannot override directory lifecycle, readiness, or exact actions; package_dependency_readiness remains lower-level diagnostic enrichment; runtime source carriers and modules may enrich source diagnostics only; the shell infers none of them",
+        "diagnostic_enrichment_projection": "opl app state --profile fast --json#app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[] + app_state.modules.items[]",
+        "normalization_policy": "shell uses directory.entries as the only manageable collection, joins optional diagnostics by canonical package_id, keeps directory lifecycle/readiness/actions authoritative on overlap, and may enrich UI metadata only from the static profile overlay",
+        "canonical_directory_absent_policy": "render loading, empty, last-good stale, or failed without synthesizing rows or actions from status_index, runtime_source_carriers, modules, Home shortcuts, or static metadata",
         "developer_source_examples": [
           "runtime_source_carriers.items[].source_origin=sibling_workspace",
           "runtime_source_carriers.items[].source_policy.effective_install_update_source=git_checkout",
@@ -5949,7 +5950,7 @@
           "runtime_source_carriers.items[].git.sync_status=behind",
           "runtime_source_carriers.items[].git.dirty=true"
         ],
-        "completion_boundary": "canonical directory entries, projected actions, status_index, workspace path, and runtime_source_carriers are required; legacy modules may enrich source diagnostics only and never define collection membership or actions"
+        "completion_boundary": "canonical directory entries and their exact projected actions are required for manageable rows; status_index, runtime_source_carriers, modules, and Home shortcuts may enrich diagnostics only and never define collection membership, lifecycle, readiness, or actions"
       },
       "agent_package_lifecycle_ux": {
         "requirement_scope": "product_requirement_not_runtime_authority",
@@ -5987,7 +5988,7 @@
           "first_party_policy": "OMA and every first-party package use the same directory entries and action contract as every other package"
         },
         "runtime_source_surface": "app_state.runtime_source_carriers.items[]",
-        "source_semantics_policy": "package state is installation truth; runtime source carrier is active run source; never infer installation from checkout presence",
+        "source_semantics_policy": "directory entries own package discovery plus installed, activated, installability, coarse readiness, and exact actions; status_index contributes canonical dependency readiness, repair availability, activation preparation, dependent guards, exposure, and lower-level runtime diagnostics without overriding directory lifecycle, readiness, or exact actions; never infer installation from checkout presence or synthesize a manageable row without a directory entry",
         "shell_consumers": [
           "aionui",
           "opl_native_workbench"
@@ -6005,10 +6006,12 @@
           "operational_ready_false_or_dependency_repair_required_must_never_render_ready",
           "operational_ready_false_must_disable_ordinary_package_and_agent_launch",
           "blocked_packages_allow_only_status_doctor_and_repair_actions",
-          "show_dependency_readiness_and_dependent_guard_in_normal_details",
-          "trigger_only_projected_repair_action_when_enabled",
+          "show_dependency_readiness_activation_preparation_and_dependent_guard_in_normal_details",
+          "keep_package_dependency_materialization_and_runtime_source_readiness_as_lower_level_diagnostics",
+          "execute_repair_only_from_a_complete_directory_projected_action_while_using_status_index_repair_action_for_availability_and_reason",
           "show_receipt_and_physical_surface_in_details_or_advanced_only",
           "execute_only_projected_action_id_and_payload_without_shell_status_or_payload_inference",
+          "require_status_index_activation_action_enabled_true_before_directory_activation_execution",
           "refresh_fast_state_after_successful_install_then_show_projected_activate_when_recommended",
           "disable_workspace_activation_with_a_workspace_route_and_reason_when_workspace_root_is_missing",
           "keep_registry_refresh_ordinary_and_visible_while_manifest_URL_install_stays_advanced",
@@ -6059,6 +6062,18 @@
             "failed"
           ]
         },
+        "advanced_manifest_install_contract": {
+          "action_id": "install_from_manifest_url",
+          "visibility": "advanced_only",
+          "payload_fields": [
+            "manifest_url",
+            "trust_tier"
+          ],
+          "trust_tier_required": true,
+          "default_trust_tier": null,
+          "missing_trust_tier_policy": "disable_submit_and_show_validation",
+          "registry_selected_install_affected": false
+        },
         "canonical_action_contract": {
           "source_fields": [
             "directory.entries[].available_actions[]",
@@ -6071,6 +6086,9 @@
             "required_payload_fields",
             "confirmation_required"
           ],
+          "exact_object_field_policy": "reject missing or additional fields; accept exactly action_id, action_ref, payload, required_payload_fields, confirmation_required",
+          "action_ref_policy": "action_ref must equal app_state.actions#${action_id}",
+          "required_payload_alternative_policy": "a required_payload_fields item containing ' or ' is satisfied when at least one named payload field is present",
           "recommended_action_id_field": "directory.entries[].recommended_action",
           "recommended_action_ref_match_policy": "recommended_action_ref is null when recommended_action is null; otherwise it exactly equals the available_actions item with the same action_id",
           "action_availability_policy": "an action is available only when Framework projects its complete action object; action objects do not carry shell-inferred enabled, reason_code, or failure_reason fields",
@@ -6150,13 +6168,19 @@
           "recommended_action",
           "dependency_readiness.status",
           "dependency_readiness.checks[].failure_reasons",
+          "activation_action.reason_code",
+          "dependent_guard.disable.reason_code",
+          "dependent_guard.uninstall.reason_code",
+          "capability_exposure.status",
+          "package_dependency_readiness.status",
+          "package_dependency_readiness.dependencies[].reasons",
+          "materialization_readiness.status",
+          "runtime_source_readiness.reason",
+          "status_read_error",
           "operational_ready",
           "launch_allowed",
           "launch_blocked_reason",
-          "allowed_when_blocked",
-          "activation_action.reason_code",
-          "dependent_guard.disable.reason_code",
-          "dependent_guard.uninstall.reason_code"
+          "allowed_when_blocked"
         ],
         "package_projection_contract": {
           "directory_fast_nested_fields": {
@@ -6202,7 +6226,37 @@
             "lock_ref",
             "scope_materialization_count"
           ],
+          "directory_lifecycle_fields": [
+            "installed",
+            "activated",
+            "installability",
+            "readiness",
+            "recommended_action",
+            "recommended_action_ref",
+            "available_actions"
+          ],
+          "directory_readiness_status_values": [
+            "not_installed",
+            "activation_required",
+            "verification_deferred",
+            "ready",
+            "attention_needed",
+            "migration_required",
+            "repair_required"
+          ],
+          "status_index_join_policy": "required_package_id_keyed_lifecycle_diagnostics_directory_lifecycle_readiness_and_exact_actions_win_on_overlap",
           "status_index_package_fields": {
+            "surface_kind": "string",
+            "package_id": "string",
+            "status": "string",
+            "package_version": "null_or_string",
+            "installed_version": "null_or_string",
+            "version": "null_or_string",
+            "source_kind": "null_or_string",
+            "package_lock_ref": "null_or_string",
+            "lock_ref": "null_or_string",
+            "action_receipt_ref": "null_or_string",
+            "rollback_ref": "null_or_string",
             "dependency_readiness": [
               "status",
               "required_count",
@@ -6236,12 +6290,63 @@
             ],
             "dependency_closure_receipt_fields": [
               "transaction_id",
-              "generation_id",
               "closure_digest",
-              "last_known_good_generation_id",
+              "last_known_good_transaction_id",
               "last_known_good_closure_digest"
             ],
+            "package_dependency_readiness": [
+              "status",
+              "operational_ready",
+              "repair_command",
+              "dependencies"
+            ],
+            "package_dependency_readiness_status_values": [
+              "missing",
+              "current",
+              "incompatible"
+            ],
+            "dependency_item_fields": [
+              "package_id",
+              "required",
+              "version_requirement",
+              "capability_abi",
+              "required_export_ids",
+              "required_module_ids",
+              "installed_version",
+              "manifest_sha256",
+              "content_digest",
+              "status",
+              "reasons",
+              "missing_required_export_ids",
+              "missing_required_module_ids"
+            ],
+            "materialization_readiness": [
+              "status",
+              "scope",
+              "target_root",
+              "required_skill_ids",
+              "materialized_skill_ids",
+              "expected_digest",
+              "actual_digest",
+              "repair_command",
+              "lifecycle_receipt_ref",
+              "core_readiness",
+              "specialty_exposure"
+            ],
+            "runtime_source_readiness": [
+              "status",
+              "operational_ready",
+              "module_id",
+              "checkout_path",
+              "expected_tree_sha256",
+              "actual_tree_sha256",
+              "reason",
+              "verification_mode",
+              "live_verification_deferred",
+              "live_verification_surface"
+            ],
             "operational_ready": "boolean",
+            "operational_ready_scope": "string",
             "launch_allowed": "boolean",
             "launch_blocked_reason": "null_or_string",
             "allowed_when_blocked": [
@@ -6255,6 +6360,7 @@
               "enabled",
               "reason_code"
             ],
+            "repair_command": "null_or_command_ref",
             "activation_action": [
               "action_id",
               "command_ref",
@@ -6268,7 +6374,16 @@
               "disable.reason_code",
               "uninstall.allowed",
               "uninstall.reason_code"
-            ]
+            ],
+            "capability_exposure": [
+              "status",
+              "codex_visible"
+            ],
+            "physical_surface": "null_or_refs_only_record",
+            "codex_visible": "boolean",
+            "status_read_error": "null_or_error_record",
+            "currentness_detail_deferred": "boolean",
+            "detail_surface": "string"
           },
           "activation_preparation_status_values": [
             "not_installed",
@@ -6292,10 +6407,38 @@
               "reason_code": "use_boundary_reconciliation_ready"
             }
           },
-          "repair_action_id": "repair_dependency_closure",
-          "launch_gate_policy": "operational_ready_false_requires_launch_allowed_false_and_only_status_doctor_repair_remain_allowed",
+          "activation_reason_codes": [
+            "package_not_installed",
+            "package_disabled",
+            "status_unavailable",
+            "scope_reconciliation_required",
+            "use_boundary_reconciliation_ready"
+          ],
+          "directory_activation_action_source": "directory.entries[].available_actions[action_id=agent_package_activate]",
+          "status_index_repair_action_id": "agent_package_repair",
+          "status_index_action_execution_policy": "status-index repair_action and activation_action expose availability and reason only; execution still requires the matching directory.entries[].available_actions exact five-field object and payload",
+          "dependent_guard_missing_policy": {
+            "disable_enabled_only_when": "dependent_guard.disable.allowed === true",
+            "uninstall_enabled_only_when": "dependent_guard.uninstall.allowed === true",
+            "missing_or_invalid_reason_code": "dependent_guard_unavailable",
+            "unaffected_actions": [
+              "hide",
+              "unhide",
+              "enable"
+            ]
+          },
+          "activation_action_missing_policy": {
+            "activation_enabled_only_when": "activation_action.enabled === true",
+            "directory_action_alone_can_enable": false,
+            "disabled_reason_source": "activation_action.reason_code",
+            "missing_or_invalid_reason_code": "activation_status_unavailable"
+          },
+          "launch_gate_policy": "directory.entries[].readiness owns ordinary launch eligibility; status_index false or verification-deferred signals may only fail closed and never promote directory readiness",
           "launch_fail_closed_reason_codes": [
-            "package_not_installed"
+            "package_not_installed",
+            "package_activation_required",
+            "live_verification_deferred",
+            "package_status_read_failed"
           ],
           "closure_diagnostics_surface": "advanced_diagnostics_only",
           "forbidden_private_fields": [
@@ -6312,20 +6455,22 @@
             "action_receipt_ref",
             "rollback_ref",
             "dependency_closure.transaction_id",
-            "dependency_closure.generation_id",
             "dependency_closure.closure_digest",
-            "dependency_closure.last_known_good_generation_id",
+            "dependency_closure.last_known_good_transaction_id",
             "dependency_closure.last_known_good_closure_digest"
           ],
           "physical_surface_fields": [
+            "surface_kind",
             "status",
+            "package_id",
             "plugin_id",
             "marketplace_id",
+            "codex_home",
             "codex_plugin_cache_path",
             "marketplace_path",
             "codex_config_path",
-            "required_skill_ids",
-            "required_skill_paths",
+            "materialized_required_skill_ids",
+            "materialized_required_skill_paths",
             "reload_required"
           ]
         },
@@ -6371,14 +6516,20 @@
         "policy": "multi_axis_package_status_no_single_repair_bucket",
         "axes": [
           "install_state",
+          "activation_state",
+          "activation_action",
           "update_state",
           "source_state",
           "trust_state",
           "codex_surface_state",
+          "capability_exposure",
+          "directory_readiness",
           "dependency_readiness",
+          "dependent_guard",
+          "materialization_readiness",
+          "runtime_source_readiness",
           "operational_ready",
-          "launch_allowed",
-          "activation_action"
+          "launch_allowed"
         ],
         "source_inputs": [
           "app_state.agent_packages.directory.entries[]",
@@ -6391,20 +6542,30 @@
           "app_state.agent_packages.status_index.packages[]",
           "app_state.agent_packages.status_index.home_shortcut_preferences[]",
           "app_state.agent_packages.status_index.packages[].dependency_readiness",
+          "app_state.agent_packages.status_index.packages[].package_dependency_readiness",
+          "app_state.agent_packages.status_index.packages[].materialization_readiness",
+          "app_state.agent_packages.status_index.packages[].runtime_source_readiness",
           "app_state.agent_packages.status_index.packages[].operational_ready",
+          "app_state.agent_packages.status_index.packages[].operational_ready_scope",
           "app_state.agent_packages.status_index.packages[].launch_allowed",
           "app_state.agent_packages.status_index.packages[].launch_blocked_reason",
           "app_state.agent_packages.status_index.packages[].allowed_when_blocked",
           "app_state.agent_packages.status_index.packages[].repair_action",
+          "app_state.agent_packages.status_index.packages[].repair_command",
           "app_state.agent_packages.status_index.packages[].activation_action",
           "app_state.agent_packages.status_index.packages[].dependent_guard",
+          "app_state.agent_packages.status_index.packages[].capability_exposure",
+          "app_state.agent_packages.status_index.packages[].action_receipt_ref",
+          "app_state.agent_packages.status_index.packages[].rollback_ref",
+          "app_state.agent_packages.status_index.packages[].physical_surface",
+          "app_state.agent_packages.status_index.packages[].status_read_error",
           "app_state.runtime_source_carriers.items[].source_origin",
           "app_state.runtime_source_carriers.items[].source_path",
           "app_state.runtime_source_carriers.items[].source_policy.effective_install_update_source",
           "app_state.runtime_source_carriers.items[].source_policy.configured_by",
           "app_state.runtime_source_carriers.items[].git.sync_status",
           "app_state.runtime_source_carriers.items[].git.dirty",
-          "app_state.modules.items[] compatibility fallback",
+          "app_state.modules.items[] diagnostic enrichment only",
           "managed_update.components[opl_packages].projection_status"
         ],
         "developer_source_policy": "active runtime developer checkout semantics must surface explicitly, remain distinct from package installation source, and must not be collapsed into a generic repair bucket",

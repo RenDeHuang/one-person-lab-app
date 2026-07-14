@@ -244,14 +244,62 @@ function validateProfessionalAgentPackages(profile) {
 
 function validateAgentPackageRegistryProjection(profile, agentPackageRegistry) {
   const projection = profile.gui?.agent_package_registry;
+  const expectedFirstPartyPackageIds = [
+    'mas',
+    'mag',
+    'rca',
+    'oma',
+    'obf',
+    'mas-scholar-skills',
+    'opl-flow',
+  ];
   if (
     typeof agentPackageRegistry?.registry_url !== 'string' ||
     !agentPackageRegistry.registry_url.trim() ||
     projection?.default_registry_url !== agentPackageRegistry.registry_url ||
     projection?.source_ref !== 'contracts/agent-package-registry.json#registry_url' ||
+    projection?.registry_scope !== 'external_discovery_only' ||
+    projection?.empty_default_registry_allowed !== true ||
+    projection?.first_party_runtime_authority !== 'one-person-lab-framework#built_in_release_set' ||
+    projection?.external_first_party_identity_claims_allowed !== false ||
+    projection?.external_first_party_trust_claims_allowed !== false ||
+    projection?.collision_failure_code !== 'agent_package_registry_first_party_identity_collision' ||
+    projection?.first_party_manifest_fixture_dir !== 'contracts/fixtures/agent-package-manifests' ||
     projection?.shell_consumption_policy !== 'generated_product_profile_only_no_renderer_literal'
   ) {
-    throw new Error('Product profile must project the canonical Agent Package registry URL without a renderer literal');
+    throw new Error('Product profile must separate the external Agent Package registry from the Framework first-party Release Set');
+  }
+  assertDeepEqualJson(
+    projection.canonical_first_party_package_ids,
+    expectedFirstPartyPackageIds,
+    'Product profile canonical Framework first-party package ids',
+  );
+  const metadata = projection.first_party_release_set_metadata ?? [];
+  assertDeepEqualJson(
+    metadata.map((entry) => entry.package_id),
+    expectedFirstPartyPackageIds,
+    'Product profile first-party release metadata ids',
+  );
+  for (const entry of metadata) {
+    if (
+      !entry.package_kind ||
+      !entry.display_name ||
+      entry.publisher !== 'one-person-lab' ||
+      entry.source !== 'first_party' ||
+      entry.trust_tier !== 'first_party' ||
+      !entry.description?.trim() ||
+      !Array.isArray(entry.tags) ||
+      entry.tags.length === 0 ||
+      entry.manifest_fixture_ref !== `contracts/fixtures/agent-package-manifests/${entry.package_id}.json`
+    ) {
+      throw new Error(`Product profile first-party metadata is incomplete for ${entry.package_id}`);
+    }
+  }
+  const reservedIds = new Set(expectedFirstPartyPackageIds);
+  const collision = (agentPackageRegistry.entries ?? []).find((entry) =>
+    reservedIds.has(entry.package_id) || entry.source === 'first_party' || entry.trust_tier === 'first_party');
+  if (collision) {
+    throw new Error('Default external Agent Package registry must have zero canonical first-party identity or trust collisions');
   }
 }
 
