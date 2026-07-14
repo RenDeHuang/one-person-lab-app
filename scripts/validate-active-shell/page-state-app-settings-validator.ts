@@ -805,10 +805,18 @@ function validateSettingsThemePage(matrix) {
     'application behavior and notifications in a full-width group',
     'reply waiting time, idle-assistant release, and hardware acceleration in a named performance and background activity group',
     'tray and close-window behavior',
-    'Light, Dark, and Codex theme choices under the themes anchor',
+    'System, Light, and Dark appearance choices under the display anchor',
   ]) {
     if (!settingsThemePage.must_show?.includes(signal)) {
       throw new Error(`Settings Preferences page must show ${signal}`);
+    }
+  }
+  for (const signal of [
+    'CSS theme preset gallery or Codex preset selector',
+    'custom theme editor in the ordinary Preferences surface',
+  ]) {
+    if (!settingsThemePage.must_not_show?.includes(signal)) {
+      throw new Error(`Settings Preferences page must not show ${signal}`);
     }
   }
 }

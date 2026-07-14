@@ -557,7 +557,7 @@ test("Settings configuration catalog projection preserves owner, page, persisten
   );
 });
 
-test("Settings visual QA enforces bounded-card grouping, compact footer, recognizable theme previews, and responsive color evidence", () => {
+test("Settings visual QA enforces bounded-card grouping, compact footer, one visual baseline, and responsive color evidence", () => {
   const values = contracts();
   const visualSystem = values.controlPlane.experience_contract.visual_system;
   const visualQa =
@@ -601,13 +601,13 @@ test("Settings visual QA enforces bounded-card grouping, compact footer, recogni
     footer_account_entry_policy:
       "show_gateway_display_name_when_connected_else_settings_on_all_routes_and_open_account_gateway_or_overview",
     footer_update_entry_policy:
-      "reuse_existing_carrier_updater_or_settings_maintenance_route_without_owning_update_truth",
+      "show_confirmed_newer_app_update_as_account_row_trailing_action_and_reuse_existing_carrier_updater_without_owning_update_truth",
     footer_theme_quick_toggle_allowed: false,
     footer_secondary_navigation_allowed: false,
     appearance_mode_values: ["system", "light", "dark"],
     appearance_mode_presentation: "three_visual_preview_cards",
-    appearance_mode_preserves_theme_preset: true,
-    theme_gallery_presentation: "recognizable_preview_tiles",
+    appearance_mode_preserves_theme_preset: false,
+    theme_gallery_presentation: "not_exposed",
     theme_swatch_list_allowed: false,
     max_border_radius_px: 8,
     spacing_scale_px: [12, 16, 24],
@@ -646,14 +646,14 @@ test("Settings visual QA enforces bounded-card grouping, compact footer, recogni
     account_entry:
       "gateway_display_name_when_connected_else_settings_visible_on_all_routes",
     update_entry:
-      "reuse_existing_carrier_updater_or_settings_maintenance_route_without_owning_update_truth",
+      "show_confirmed_newer_app_update_as_account_row_trailing_action_and_reuse_existing_carrier_updater_without_owning_update_truth",
     theme_quick_toggle:
       "forbidden_theme_mode_lives_in_settings_preferences",
     help_navigation: "forbidden",
   });
   assert.deepStrictEqual(visualQa.theme_gallery, {
-    presentation: "recognizable_preview_tiles",
-    flat_swatch_list: "forbidden",
+    presentation: "not_exposed",
+    legacy_user_data: "preserved_not_applied",
   });
   assert.deepStrictEqual(visualQa.assertion_focus, {
     required_structure: [
@@ -664,7 +664,7 @@ test("Settings visual QA enforces bounded-card grouping, compact footer, recogni
       "409dd0c3_same_route_non_regression",
       "flat_rows_inside_card",
       "compact_footer",
-      "recognizable_theme_preview_tiles",
+      "single_governed_visual_baseline",
     ],
     radius_and_spacing_only: "insufficient",
   });
@@ -821,7 +821,11 @@ test("Settings strictly separates configuration, status, action, and diagnostic 
   );
   assert.deepStrictEqual(
     experience.page_contracts.preferences.surface_rules.builtin_theme_ids,
-    ["light", "dark", "codex"],
+    [],
+  );
+  assert.deepStrictEqual(
+    experience.page_contracts.preferences.surface_rules.appearance_mode_values,
+    ["system", "light", "dark"],
   );
   assert.equal(
     experience.page_contracts.preferences.surface_rules.full_width_group_count,

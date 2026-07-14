@@ -14,6 +14,7 @@ import {
   isExternalFirstPartyClaim,
   managedShortcutIds,
   managedShortcutPackageIds,
+  defaultVisibleShortcutIds,
   requiredSkillByPackageId,
 } from '../app-product-profile-shared-validators.ts';
 import { appProductProfilePath } from './paths.ts';
@@ -522,8 +523,8 @@ function assertHomePurposeEntries(profile: AppProductProfile): void {
     if (shortcut.package_id === 'oma' && shortcut.shortcut_id !== 'oma') {
       throw new Error('App product profile OMA shortcut id must remain oma');
     }
-    if (shortcut.default_visible !== true) {
-      throw new Error(`App product profile shortcut ${shortcut.shortcut_id} must be visible by default`);
+    if (shortcut.default_visible !== defaultVisibleShortcutIds.includes(shortcut.shortcut_id)) {
+      throw new Error(`App product profile shortcut ${shortcut.shortcut_id} has invalid default visibility`);
     }
   }
   assertStringArray(
@@ -568,6 +569,14 @@ function assertHomeSelectionAndIconPolicy(profile: AppProductProfile): void {
   if (
     homeLayout.default_active_shortcut !== null ||
     homeLayout.shortcut_selection_policy !== 'explicit_user_or_navigation_selection_only_no_saved_preset_restore' ||
+    homeLayout.starter_item_width_policy !== 'compact_fixed_width' ||
+    homeLayout.starter_count_layout_policy !== 'center_actual_visible_count_and_wrap_without_fixed_column_count' ||
+    homeLayout.desktop_composer_max_width_px !== 736 ||
+    homeLayout.desktop_composer_min_height_px !== 98 ||
+    homeLayout.desktop_composer_corner_radius_px !== 22 ||
+    homeLayout.desktop_context_bar_height_px !== 52 ||
+    homeLayout.desktop_context_bar_overlap_px !== 13 ||
+    homeLayout.desktop_context_bar_horizontal_inset_px !== 12 ||
     homeLayout.selected_starter_visual_policy !== 'accent_border_fill_and_check_indicator_not_color_alone'
   ) {
     throw new Error('App product profile Home must require explicit professional-agent selection with a visible selected state');

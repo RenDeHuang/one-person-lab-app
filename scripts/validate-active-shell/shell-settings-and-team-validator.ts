@@ -67,10 +67,10 @@ const settingsFooterExpected = [
   "data-testid='sider-footer-account-avatar'",
   'bg-success',
   'text-inverse',
-  'const updateLabel = updateAvailable ?',
+  'updateAvailable &&',
   'onClick={onUpdateClick}',
   "data-testid='sider-footer-update'",
-  'data-update-available={String(updateAvailable)}',
+  "data-update-available='true'",
 ];
 
 const settingsFooterForbidden = [
@@ -79,6 +79,9 @@ const settingsFooterForbidden = [
   'sider-footer-help',
   'showThemeToggle',
   'sider-footer-theme',
+  'sider-footer-update-row',
+  "t('settings.checkForUpdates')",
+  'isSettings',
 ];
 
 const settingsAppearanceExpected = [
@@ -89,6 +92,8 @@ const settingsAppearanceExpected = [
   'data-testid={`appearance-mode-${mode}`}',
   'aria-checked={selected}',
 ];
+
+const settingsAppearanceForbidden = ['CssThemeSettings', "data-testid='preferences-theme-section'", 'CODEX_THEME_ID'];
 
 const settingsSiderReturnExpected = [
   'resolveSettingsReturnPath',
@@ -135,7 +140,7 @@ const teamSurfaceExpected = ['{TEAM_MODE_ENABLED && (', '<TeamSiderSection'];
 const teamCreatedRedirectExpected = ['if (!TEAM_MODE_ENABLED)', 'return undefined'];
 
 function validateSettingsPartitionImplementation(shellPaths) {
-  assertShellTextIncludesAll(
+  const settingsAppearance = assertShellTextIncludesAll(
     shellPaths,
     'packages/desktop/src/renderer/pages/settings/registry/settingsRegistry.tsx',
     settingsRegistryExpected,
@@ -182,6 +187,11 @@ function validateSettingsPartitionImplementation(shellPaths) {
     'packages/desktop/src/renderer/components/settings/SettingsModal/contents/AppearanceModalContent.tsx',
     settingsAppearanceExpected,
     'Active shell Settings three-state appearance controls',
+  );
+  assertTextExcludesAll(
+    settingsAppearance,
+    settingsAppearanceForbidden,
+    'Active shell Settings retired CSS theme preset surface',
   );
   assertShellTextIncludesAll(
     shellPaths,

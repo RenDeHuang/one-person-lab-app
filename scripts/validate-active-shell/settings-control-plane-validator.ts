@@ -1305,7 +1305,7 @@ function validateSettingsVisualQaExpectations(expectations) {
       ],
       account_entry: "gateway_display_name_when_connected_else_settings_visible_on_all_routes",
       update_entry:
-        "reuse_existing_carrier_updater_or_settings_maintenance_route_without_owning_update_truth",
+        "show_confirmed_newer_app_update_as_account_row_trailing_action_and_reuse_existing_carrier_updater_without_owning_update_truth",
       theme_quick_toggle:
         "forbidden_theme_mode_lives_in_settings_preferences",
       help_navigation: "forbidden",
@@ -1315,8 +1315,8 @@ function validateSettingsVisualQaExpectations(expectations) {
   assertDeepEqualJson(
     expectations?.theme_gallery,
     {
-      presentation: "recognizable_preview_tiles",
-      flat_swatch_list: "forbidden",
+      presentation: "not_exposed",
+      legacy_user_data: "preserved_not_applied",
     },
     "Settings visual QA theme gallery",
   );
@@ -1331,7 +1331,7 @@ function validateSettingsVisualQaExpectations(expectations) {
         "409dd0c3_same_route_non_regression",
         "flat_rows_inside_card",
         "compact_footer",
-        "recognizable_theme_preview_tiles",
+        "single_governed_visual_baseline",
       ],
       radius_and_spacing_only: "insufficient",
     },
@@ -1397,10 +1397,10 @@ function validateSettingsVisualQaExpectations(expectations) {
       "same-route screenshots preserve or improve spatial and typographic hierarchy against shell baseline 409dd0c3",
       "Settings remains quiet, dense, and scannable without a sparse page-wide bare-divider layout",
       "bounded page-section cards do not become a decorative card wall",
-      "the compact Settings footer keeps the Gateway account name or Settings entry visible on every route, places the existing App update status and trigger after it on Settings, and never renders a theme quick toggle, return-to-chat, or help navigation",
-      "Preferences exposes System, Light, and Dark appearance modes without changing the selected CSS theme preset",
-      "the theme gallery uses recognizable preview tiles rather than a flat swatch list",
-      "visual assertions verify grouping, footer, and theme-gallery structure; radius and spacing alone are insufficient",
+      "the compact Settings footer keeps the Gateway account name or Settings entry visible on every route, shows the existing App update trigger as a trailing account-row action only when a newer version is confirmed, and never renders a theme quick toggle, return-to-chat, or help navigation",
+      "Preferences exposes System, Light, and Dark appearance modes over one governed visual baseline",
+      "the CSS theme preset gallery and custom theme editor are not exposed while legacy user theme data is preserved but not applied",
+      "visual assertions verify grouping, the conditional account-row update action, and the single-baseline appearance structure; radius and spacing alone are insufficient",
       "the Settings sidebar has exactly one selected item",
       "repeated entities use shared column headers instead of per-row field labels",
       "the primary action stays adjacent to its owning object or section",
@@ -2261,9 +2261,12 @@ export function validateSettingsExperienceContract(experience) {
     {
       full_width_group_count: 3,
       two_plus_one_grid_allowed: false,
-      builtin_theme_ids: ["light", "dark", "codex"],
+      builtin_theme_ids: [],
       extension_themes_default_visible: false,
-      custom_theme_management: "preserved",
+      custom_theme_management:
+        "not_exposed_user_data_preserved_for_compatibility",
+      appearance_mode_values: ["system", "light", "dark"],
+      visual_baseline: "single_governed_opl_codex_aligned_baseline",
       interactive_controls_inside_diagnostic_surface_allowed: false,
       performance_and_waiting_policy:
         "advanced_but_persistent_controls_use_a_named_configuration_group_not_a_technical_details_disclosure",

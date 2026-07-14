@@ -216,18 +216,19 @@ test('GUI design-system validator rejects a Settings return path that can recurs
   );
 });
 
-test('GUI design-system validator rejects a footer theme toggle or appearance mode that replaces the active preset', () => {
+test('GUI design-system validator rejects a footer update row or a restored theme preset gallery', () => {
   const root = createFixture();
   const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
   const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
   contract.settings_navigation.footer_update_entry.replaces = 'gateway_account_entry';
-  contract.theme_and_branding.appearance_mode.theme_preset_must_be_preserved_when_mode_changes = false;
+  contract.theme_and_branding.allowed_theme_ids.push('codex');
+  contract.theme_and_branding.appearance_mode.theme_preset_surface = 'gallery';
   contract.theme_and_branding.appearance_mode.presentation = 'segmented_text_control';
   writeJson(root, 'contracts/app-gui-product-contract.json', contract);
 
   assert.throws(
     () => validateGuiDesignSystem(root),
-    /Settings appearance must use a three-state mode while the footer reuses the existing App updater/,
+    /Settings appearance must use a single governed baseline with three-state appearance while the account row conditionally reuses the existing App updater/,
   );
 });
 

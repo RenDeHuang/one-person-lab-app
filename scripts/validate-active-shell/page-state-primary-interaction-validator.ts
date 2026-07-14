@@ -172,6 +172,15 @@ function validateGuidHomeRouteAndPurpose(homeViewModel) {
   if (JSON.stringify(homeAgentShortcuts.map((entry) => entry.package_id)) !== JSON.stringify(['mas', 'mag', 'rca', 'obf', 'oma'])) {
     throw new Error('Guid home page package shortcuts must target MAS, MAG, RCA, OBF, and OMA');
   }
+  if (
+    JSON.stringify(homeAgentShortcuts.filter((entry) => entry.default_visible).map((entry) => entry.shortcut_id)) !==
+    JSON.stringify(['research', 'grant', 'ppt', 'oma'])
+  ) {
+    throw new Error('Guid home page must default to Research, Grant, Presentation, and Meta Agent shortcuts');
+  }
+  if (homeAgentShortcuts.some((entry) => entry.user_configurable !== true)) {
+    throw new Error('Guid home page package shortcuts must remain user configurable');
+  }
   const homePurposeEntries = homeViewModel.home_purpose_entries ?? [];
   if (JSON.stringify(homePurposeEntries.map((entry) => entry.id)) !== JSON.stringify(['research', 'grant', 'ppt', 'book'])) {
     throw new Error('Guid home page must expose research, grant, ppt, and book purpose entries');

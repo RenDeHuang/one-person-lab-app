@@ -32,25 +32,31 @@ export function validateActiveShellImplementation(shellPaths) {
   validateShellOrdinaryExperienceImplementation(shellPaths);
   validateShellSettingsAndTeamImplementation(shellPaths);
 
-  const presets = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/settings/AppearanceSettings/presets.ts');
-  if (!presets.includes("export const CODEX_THEME_ID = 'codex'")) {
-    throw new Error('Active shell theme presets must expose CODEX_THEME_ID=codex.');
-  }
-  if (!presets.includes("opl-codex.css?raw")) {
-    throw new Error('Active shell theme presets must load the current App-owned Codex CSS payload.');
-  }
-  const codexCss = readShellText(
-    shellPaths,
-    'packages/desktop/src/renderer/pages/settings/AppearanceSettings/presets/opl-codex.css',
-  );
-  for (const expected of ['--opl-codex-sidebar-bg', '--opl-codex-surface', '--opl-codex-focus-ring']) {
-    if (!codexCss.includes(expected)) {
-      throw new Error(`Active shell OPL Codex CSS must include ${expected}`);
+  const builtinThemes = readShellText(shellPaths, 'packages/desktop/src/renderer/theme/builtinThemes.ts');
+  for (const forbidden of ['CODEX_THEME_ID', 'opl-codex.css?raw', "'Codex'"]) {
+    if (builtinThemes.includes(forbidden)) {
+      throw new Error(`Active shell must not expose the retired Codex theme preset marker ${forbidden}`);
     }
   }
-  for (const forbidden of ['Retroma', 'aurora', 'Palatino']) {
-    if (codexCss.includes(forbidden)) {
-      throw new Error(`Active shell OPL Codex CSS must not include legacy theme marker ${forbidden}`);
+  const themeIndex = readShellText(
+    shellPaths,
+    'packages/desktop/src/renderer/styles/themes/index.css',
+  );
+  if (!themeIndex.includes("@import './opl-product-baseline.css'")) {
+    throw new Error('Active shell theme index must load the always-on OPL product visual baseline.');
+  }
+  const productBaseline = readShellText(
+    shellPaths,
+    'packages/desktop/src/renderer/styles/themes/opl-product-baseline.css',
+  );
+  for (const expected of ['--opl-sidebar-bg', '--opl-main-bg', '--opl-focus-ring']) {
+    if (!productBaseline.includes(expected)) {
+      throw new Error(`Active shell OPL product visual baseline must include ${expected}`);
+    }
+  }
+  for (const forbidden of ['!important', 'url(', 'data:image']) {
+    if (productBaseline.includes(forbidden)) {
+      throw new Error(`Active shell OPL product visual baseline must not include brittle marker ${forbidden}`);
     }
   }
 

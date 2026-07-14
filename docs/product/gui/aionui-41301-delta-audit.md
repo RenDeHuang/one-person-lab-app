@@ -82,10 +82,10 @@ integration 的 keep/adapt/drop 决策。
 | Side-panel infrastructure | `ChatLayout/index.tsx` 提供 resize、overlay、focus/backdrop 与 preview layout。 | `adapt` | 作为单一 advanced surface/preview 基础设施，不与 Environment 并列成常驻第三列；preview 不自动打开综合 inspector。 |
 | Desktop model/reasoning location | `ChatConversation.tsx` 将 model control 作为 `actionsSlot` 放入 `ChatSlider -> Actions`；desktop `AcpSendBox` 没有模型控件。 | `adapt P0` | 保留 resolver/data flow，把 model/reasoning 放回 composer right tools；Home/conversation 共用 policy。 |
 | Permission/access | Composer 已显示 permission，mobile sheet 还有 model。 | `keep + adapt` | Desktop/mobile 都在 composer，不能由 side panel 或 Settings 代替。 |
-| Home layout | `GuidPage.tsx` 使用独立居中 hero、2x2 starters 和 composer，`index.module.css` 垂直居中并上移。 | `adapt` | Home 是 empty conversation canvas；composer 采用与 conversation 相同的底部关系。Home 空状态尚未完成 41301 literal observation，因此 starter 数量/位置保持 `not_evidenced`，不伪装为 1:1。 |
+| Home layout | `GuidPage.tsx` 使用独立居中 hero、按当前可见数量排布的紧凑 starters 和 bottom-docked composer。 | `adapt` | Home 是 empty conversation canvas；starter 固定单项尺寸但不固定列数，按设置中的 visibility/order 居中换行。默认科研、基金、演示、元智能体，写书可重新开启；此为 OPL 产品例外，不伪装为 Codex 原生能力。 |
 | CurrentTaskAwareness | Timeline 顶部 compact summary 默认 pinned，同时在 `ChatSlider -> Runtime` 重复挂载。 | `adapt + drop duplicate` | 保留 status/elapsed/progress/next action/stop；默认 inline/unpinned，长任务或用户动作才 pin；删除 side-panel Runtime duplicate。 |
 | Settings scoped UI | `.settings-page-wrapper` / `.opl-settings-*` 卡片规则主要限定在 Settings。 | `keep P2` | 进入维护模式，不再驱动 P0/P1。 |
-| Global OPL Codex theme | `opl-codex.css` 广域覆盖 `.arco-card`、`.arco-btn`、inputs、composer 和 rail。 | `adapt` | 保留颜色/字体/token，收窄或删除依赖 incidental global DOM 的 component overrides。 |
+| Global OPL visual baseline | 旧 `opl-codex.css` 依赖广域 selector 与大量 `!important`，随 upstream DOM 漂移。 | `adapt` | 取消可选 Codex preset，改为始终启用的 token-first `opl-product-baseline.css`；组件空间关系留在 scoped CSS，旧用户主题数据保留但不应用。 |
 
 ## 最小维护边界
 

@@ -48,11 +48,15 @@ export function assertProjectlessGuidFileAccessSources(guidPage: string): void {
 
 export function assertCurrentGuidHomeSelectionSources({
   guidPage,
+  guidInputCard,
   homeStarters,
+  guidStyles,
   capabilitiesPage,
 }: {
   guidPage: string;
+  guidInputCard: string;
   homeStarters: string;
+  guidStyles: string;
   capabilitiesPage: string;
 }): void {
   assertTextIncludesAll(
@@ -74,12 +78,53 @@ export function assertCurrentGuidHomeSelectionSources({
       "data-testid='opl-home-starters'",
       'aria-pressed={active}',
       'data-opl-active={String(active)}',
-      "? '!border-primary-5 !bg-primary-1 !text-primary-6'",
-      '<FontAwesomeIcon icon={faCheck}',
-      'faChevronRight',
+      'active && styles.homeStarterActive',
+      "data-testid='starter-active-check'",
+      "<CheckOne theme='filled'",
+      'starterIcon(assistant.id)',
       'active && onClear ? onClear() : onSelect(assistant.id)',
     ],
     'Active shell Guid Home starter component',
+  );
+  assertTextExcludesAll(
+    homeStarters,
+    ['FontAwesomeIcon', 'faChevronRight', "!border-primary-5 !bg-primary-1 !text-primary-6"],
+    'Active shell retired Guid Home starter styling',
+  );
+  assertTextIncludesAll(
+    guidStyles,
+    [
+      '.guidComposerDock',
+      'width: min(100%, 736px)',
+      '.guidInputInner',
+      'min-height: 98px',
+      'border-radius: 22px',
+      '.workspaceFootnote',
+      'width: calc(100% - 24px)',
+      'min-height: 52px',
+      'margin: 0 auto -13px',
+      'padding: 4px 14px 12px',
+      '.homeStarterGrid',
+      'display: flex',
+      'flex-wrap: wrap',
+      'justify-content: center',
+      'flex: 0 0 132px',
+    ],
+    'Active shell dynamic Guid Home starter layout',
+  );
+  assertTextExcludesAll(
+    guidStyles,
+    ['grid-template-columns: repeat(4', 'grid-template-columns: repeat(5'],
+    'Active shell fixed-count Guid Home starter layout',
+  );
+  assertTextIncludesAll(
+    guidInputCard,
+    [
+      'const DESKTOP_TEXTAREA_AUTO_SIZE = { minRows: 1, maxRows: 12 }',
+      'className={`${styles.guidInputInner} relative z-1 flex flex-col bg-dialog-fill-0`}',
+      '!pl-5px',
+    ],
+    'Active shell compact Guid Home composer',
   );
   assertTextIncludesAll(
     capabilitiesPage,
@@ -296,8 +341,9 @@ function validateGuidHomeImplementation(shellPaths) {
   );
   const guidInputCard = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/guid/components/GuidInputCard.tsx');
   const homeStarters = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/guid/components/HomeStarters.tsx');
+  const guidStyles = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/guid/index.module.css');
   const capabilitiesPage = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/guid/CapabilitiesPage.tsx');
-  assertCurrentGuidHomeSelectionSources({ guidPage, homeStarters, capabilitiesPage });
+  assertCurrentGuidHomeSelectionSources({ guidPage, guidInputCard, homeStarters, guidStyles, capabilitiesPage });
   assertProjectlessGuidFileAccessSources(guidPage);
   for (const [locale, expectedStrings] of Object.entries(guidLocaleExpected)) {
     const localeText = readShellText(shellPaths, `packages/desktop/src/renderer/services/i18n/locales/${locale}/guid.json`);

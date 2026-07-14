@@ -729,28 +729,50 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     issues.add('Settings shell must expose one shared, keyboard-reachable Back to app destination resolver');
   }
   if (
+    themeAndBranding.default_theme_id !== 'default-theme' ||
+    !sameStrings(themeAndBranding.allowed_theme_ids, ['default-theme']) ||
     appearanceMode.config_key !== 'theme.appearanceMode' ||
     !sameStrings(appearanceMode.allowed_values, ['system', 'light', 'dark']) ||
     appearanceMode.default_value !== 'system' ||
-    appearanceMode.settings_placement !== 'preferences_display_before_theme_preset_gallery' ||
+    appearanceMode.settings_placement !== 'preferences_display' ||
     appearanceMode.presentation !== 'three_visual_preview_cards' ||
     appearanceMode.selection_indicator !== 'high_contrast_outline_and_accessible_checked_state' ||
     appearanceMode.system_follows_os !== true ||
-    appearanceMode.theme_preset_config_key !== 'theme.activeId' ||
-    appearanceMode.theme_preset_must_be_preserved_when_mode_changes !== true ||
-    appearanceMode.codex_css_supports_light_and_dark !== true ||
+    appearanceMode.theme_preset_surface !== 'not_exposed' ||
+    appearanceMode.legacy_theme_data_policy !==
+      'preserve_user_data_but_migrate_active_preset_to_default_theme' ||
+    appearanceMode.legacy_codex_preset_policy !== 'not_selectable_not_applied' ||
+    appearanceMode.default_visual_baseline !== 'always_on_opl_codex_aligned_overlay_supporting_light_and_dark' ||
     appearanceMode.navigation_rail_quick_toggle !== 'forbidden' ||
-    footerUpdateEntry.placement !== 'settings_footer_after_gateway_account_or_settings_entry' ||
+    footerUpdateEntry.placement !== 'account_footer_row_trailing_action' ||
     footerUpdateEntry.replaces !== 'navigation_rail_theme_quick_toggle' ||
     footerUpdateEntry.availability_source !== 'opl_app_state_fast_managed_update_plane_opl_app_component' ||
-    footerUpdateEntry.trigger !== 'existing_carrier_update_modal_or_settings_environment_updates' ||
+    footerUpdateEntry.visibility !== 'only_when_newer_version_confirmed_available' ||
+    !sameStrings(footerUpdateEntry.hidden_states, [
+      'unknown',
+      'checking',
+      'current',
+      'up_to_date',
+      'error_without_confirmed_update',
+    ]) ||
+    footerUpdateEntry.trigger !== 'existing_carrier_updater_update_intent' ||
     footerUpdateEntry.settings_route_fallback !== '/settings/environment?section=updates' ||
     footerUpdateEntry.new_updater_implementation_forbidden !== true ||
+    footerUpdateEntry.expanded_behavior !== 'subtle_trailing_icon_only_with_tooltip_and_accessible_name' ||
+    footerUpdateEntry.collapsed_behavior !== 'subtle_icon_only_with_tooltip_and_accessible_name' ||
     footerUpdateEntry.keyboard_reachable !== true ||
     footerUpdateEntry.test_id !== 'sider-footer-update' ||
-    !sameStrings(settingsFooterUpdate.required_dom, ['sider-footer-update']) ||
-    !sameStrings(settingsFooterUpdate.forbidden_dom, ['sider-footer-theme']) ||
+    !sameStrings(settingsFooterUpdate.required_dom_when_update_available, ['sider-footer-update']) ||
+    !sameStrings(settingsFooterUpdate.forbidden_dom_when_update_unavailable, ['sider-footer-update']) ||
+    !sameStrings(settingsFooterUpdate.forbidden_dom, [
+      'sider-footer-theme',
+      'sider-footer-update-row',
+      'sider-footer-check-updates',
+    ]) ||
+    settingsFooterUpdate.placement !== 'account_footer_row_trailing_action' ||
     settingsFooterUpdate.availability_source !== 'managed_update_plane.components[component_id=opl_app]' ||
+    settingsFooterUpdate.visibility_policy !== 'confirmed_newer_version_only' ||
+    settingsFooterUpdate.trigger_policy !== 'reuse_existing_carrier_updater_with_update_intent' ||
     settingsFooterUpdate.new_updater_forbidden !== true ||
     !sameStrings(settingsAppearanceMode.required_dom, [
       'appearance-mode-system',
@@ -759,9 +781,12 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     ]) ||
     !sameStrings(settingsAppearanceMode.allowed_values, ['system', 'light', 'dark']) ||
     settingsAppearanceMode.presentation !== 'three_visual_preview_cards' ||
-    settingsAppearanceMode.preset_preservation_required !== true
+    settingsAppearanceMode.theme_preset_surface !== 'not_exposed' ||
+    settingsAppearanceMode.legacy_active_preset_migration !== 'default-theme'
   ) {
-    issues.add('Settings appearance must use a three-state mode while the footer reuses the existing App updater');
+    issues.add(
+      'Settings appearance must use a single governed baseline with three-state appearance while the account row conditionally reuses the existing App updater',
+    );
   }
 
   const acceptanceBoundary = record(interactionBaseline.acceptance_boundary);
@@ -1060,6 +1085,16 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     homeTarget.starter_visibility_policy !== 'all_user_visible_configured_shortcuts' ||
     homeTarget.starter_order_policy !== 'stable_configured_order' ||
     homeTarget.starter_layout_policy !== 'responsive_wrap' ||
+    !sameStrings(homeTarget.default_visible_shortcut_ids, ['research', 'grant', 'ppt', 'oma']) ||
+    record(homeTarget.visual_structure).starter_item_width !== 'compact_fixed_width' ||
+    record(homeTarget.visual_structure).starter_count_layout !==
+      'center_actual_visible_count_and_wrap_without_fixed_column_count' ||
+    record(homeTarget.visual_structure).desktop_composer_max_width_px !== 736 ||
+    record(homeTarget.visual_structure).desktop_composer_min_height_px !== 98 ||
+    record(homeTarget.visual_structure).desktop_composer_corner_radius_px !== 22 ||
+    record(homeTarget.visual_structure).desktop_context_bar_height_px !== 52 ||
+    record(homeTarget.visual_structure).desktop_context_bar_overlap_px !== 13 ||
+    record(homeTarget.visual_structure).desktop_context_bar_horizontal_inset_px !== 12 ||
     homeTarget.starter_truncation_allowed !== false ||
     record(homeTarget.workspace_selector_policy).primary_scope !== 'active_workspace_only' ||
     record(homeTarget.workspace_selector_policy).inactive_recent_directories_visible !== false ||

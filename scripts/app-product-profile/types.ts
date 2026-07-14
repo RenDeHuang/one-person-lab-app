@@ -165,6 +165,14 @@ export type AppProductProfile = {
         starter_visibility_policy: string;
         starter_order_policy: string;
         starter_layout_policy: string;
+        starter_item_width_policy: string;
+        starter_count_layout_policy: string;
+        desktop_composer_max_width_px: number;
+        desktop_composer_min_height_px: number;
+        desktop_composer_corner_radius_px: number;
+        desktop_context_bar_height_px: number;
+        desktop_context_bar_overlap_px: number;
+        desktop_context_bar_horizontal_inset_px: number;
         starter_truncation_allowed: boolean;
         selected_starter_visual_policy: string;
         workspace_selector_policy: {

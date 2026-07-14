@@ -175,6 +175,10 @@ function validateDomainExposure(policy) {
   if (expectedDomainExposures.find(({ expected }) => expected.domain_id === 'opl-meta-agent')?.entry.default_home_visible !== true) {
     throw new Error('Install exposure policy must expose OMA through its default Home shortcut');
   }
+  const bookforgeExposure = expectedDomainExposures.find(({ expected }) => expected.domain_id === 'opl-bookforge')?.entry;
+  if (bookforgeExposure?.default_home_visible !== false || bookforgeExposure.home_purpose_entry !== null) {
+    throw new Error('Install exposure policy must keep BookForge available but hidden from the default Home shortcuts');
+  }
 }
 
 function validateInstallerSurfaces(policy) {

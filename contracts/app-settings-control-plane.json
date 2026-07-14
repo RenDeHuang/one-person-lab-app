@@ -409,22 +409,22 @@
         "editable_reason": "Display preferences are local, reversible and immediately visible."
       },
       {
-        "stable_id": "settings.configuration.theme",
-        "configuration_id": "theme",
+        "stable_id": "settings.configuration.appearance_mode",
+        "configuration_id": "appearance_mode",
         "owner_class": "app_local",
         "truth_owner": "one-person-lab-app",
         "page_id": "preferences",
-        "anchor": "themes",
+        "anchor": "display-fonts",
         "lifecycle": "persistent_configuration",
-        "value_type": "theme_id",
+        "value_type": "enum_system_light_dark",
         "sensitivity": "ordinary",
-        "current_value_source_ref": "active CSS theme setting",
-        "write_route": "existing CSS theme settings store",
+        "current_value_source_ref": "theme.appearanceMode",
+        "write_route": "existing appearance mode settings store",
         "persistence_target_ref": "desktop_theme_store",
-        "verify_ref": "active theme readback",
+        "verify_ref": "appearance mode and effective system appearance readback",
         "risk": "low",
         "confirmation_required": false,
-        "editable_reason": "The user may switch among the adopted Light, Dark and Codex themes or add a local custom theme."
+        "editable_reason": "The user may follow the system appearance or choose Light or Dark while the App keeps one governed visual baseline."
       },
       {
         "stable_id": "settings.configuration.model_access_credential",
@@ -1878,7 +1878,8 @@
           "preferences anchors contain behavior/notifications/models-performance/display-fonts/themes only",
           "workspace anchors contain workspace/logs/personalization/system-agents/opl-app-context",
           "raw milliseconds and Electron flags stay collapsed",
-          "Preferences has inline controls and no page-level primary action"
+          "Preferences has inline controls and no page-level primary action",
+          "Preferences exposes System, Light, and Dark but no CSS theme preset gallery"
         ]
       },
       {
@@ -2317,8 +2318,8 @@
       "footer_secondary_navigation_allowed": false,
       "appearance_mode_values": ["system", "light", "dark"],
       "appearance_mode_presentation": "three_visual_preview_cards",
-      "appearance_mode_preserves_theme_preset": true,
-      "theme_gallery_presentation": "recognizable_preview_tiles",
+      "appearance_mode_preserves_theme_preset": false,
+      "theme_gallery_presentation": "not_exposed",
       "theme_swatch_list_allowed": false,
       "max_border_radius_px": 8,
       "spacing_scale_px": [
@@ -3521,7 +3522,7 @@
           "application behavior including startup, close-window behavior, uploads, and reply waiting time",
           "notifications",
           "language, display scale, chat, Markdown, and code font sizes",
-          "theme and appearance including hardware acceleration where relevant"
+          "appearance mode including hardware acceleration where relevant"
         ],
         "first_viewport_groups": [
           "application_behavior_and_notifications",
@@ -3561,7 +3562,9 @@
             "codex"
           ],
           "extension_themes_default_visible": false,
-          "custom_theme_management": "preserved",
+          "custom_theme_management": "not_exposed_user_data_preserved_for_compatibility",
+          "appearance_mode_values": ["system", "light", "dark"],
+          "visual_baseline": "single_governed_opl_codex_aligned_baseline",
           "interactive_controls_inside_diagnostic_surface_allowed": false,
           "performance_and_waiting_policy": "advanced_but_persistent_controls_use_a_named_configuration_group_not_a_technical_details_disclosure",
           "voice_input_configuration_allowed": false,

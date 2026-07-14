@@ -2065,7 +2065,7 @@ function validateAgentInstallEntries(policy: any, contract: any, agentRoots: Age
 
   const bookforgeExposure = findDomainExposure(policy, "opl-bookforge");
   const bookforgeInstallAgent = findInstallAgent(contract, "obf");
-  assertEqual(bookforgeExposure.default_home_visible, true, "BookForge default visibility");
+  assertEqual(bookforgeExposure.default_home_visible, false, "BookForge default visibility");
   assertEqual(
     bookforgeExposure.preferred_app_distribution,
     "opl_generated_codex_plugin_surface",
@@ -2081,6 +2081,7 @@ function validateAgentInstallEntries(policy: any, contract: any, agentRoots: Age
     "opl_generated_codex_plugin_surface",
     "BookForge install distribution",
   );
+  assertEqual(bookforgeInstallAgent.default_home_visible, false, "BookForge install default visibility");
   assertEqual(bookforgeInstallAgent.module_id, "oplbookforge", "BookForge module id");
   assertEqual(
     bookforgeInstallAgent.plugin_registry_required,

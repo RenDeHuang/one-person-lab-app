@@ -29,8 +29,8 @@ carrier 状态和 release evidence 仍归 contracts、source/tests、validators 
 | Project attachments | Selected project 的 context 邻近入口与 composer attach | 长期 project 材料和单次发送附件认知相邻但生命周期不同。 | 两者混成一个列表，或附件只能从 Settings 添加。 |
 | Conversation management | Rail rows、search 与独立 Archived surface | Search/pin/rename/archive/reset 属于持续工作管理。 | Archive 无独立 surface，或 reset 与 delete 语义混淆。 |
 | Conversation timeline | Main canvas | 用户需要按时间理解任务、输出和决策。 | 与 Runtime/Files 并列成多个主面，或被 dashboard 替代。 |
-| Home question/starters | Main 空 conversation；动态问题标题 + 全部用户可见 configured starters，稳定排序并响应式换行 | 帮助开始任务，但不建立 landing/dashboard；用户显式启用的入口不能被静默截断。 | 静态营销 hero、starter card grid、隐藏用户已启用入口或无序重排。 |
-| Composer | Main canvas bottom，浮动或保留安全距 | 输入是普通路径主动作，应始终接近当前 conversation。 | 变成营销卡、单行 input、settings bar、多层 card 或贴边遮挡。 |
+| Home question/starters | Main 空 conversation；动态问题标题 + 全部用户可见 configured starters，紧凑固定宽度、稳定排序、按实际数量居中并响应式换行 | 帮助开始任务，但不建立 landing/dashboard；用户显式启用的入口不能被静默截断。 | 静态营销 hero、固定四/五列的 dashboard card grid、隐藏用户已启用入口或无序重排。 |
+| Composer | Main canvas bottom，浮动或保留安全距；Home 桌面使用 `736px` 最大宽度、`98px` 最小高度和 `22px` 圆角，context bar 只露出约 `39px` | 输入是普通路径主动作，应始终接近当前 conversation，并在 Home 明显重于项目条。 | 变成营销卡、过矮 input、过高 context bar、settings bar、多层 card 或贴边遮挡。 |
 | Project Context inputs | 展开的 project 内、conversation rows 之前 | 项目级文件/目录 refs 需要可见、可增删并在新 conversation 中显式预载。 | 虚构默认项、hidden prompt injection、与当前 conversation attachments 混成一类。 |
 | Active capability chip | Composer action row 邻近的低权重位置 | 显示已选 OPL 能力；选择动作归 Home starter，安装/显示/lifecycle 归 Settings。 | 常驻可变 purpose selector、backend selector 或 agent dashboard。 |
 | Package starter readiness | Home starter 就地 disabled/loading 状态与邻近原因/允许动作 | 用户在选择工作目的时就知道能否 launch；use-boundary activation 必须先于 conversation/send。 | 不可用入口静默消失、无限 loading、无原因 disabled，或 activation 失败后仍发送。 |

@@ -21,7 +21,8 @@ OPL App 在基准上保留以下产品例外：
 
 - App icon、窗口/metadata identity 和发布资产继续使用 One Person Lab App；普通导航栏与
   移动端标题栏只显示文字 `One Person Lab`，不搭配 logo，也不要求深浅主题变体资产。
-- 普通工作入口使用 OPL purpose language，例如科研、基金、演示和写书。
+- 普通工作入口使用 OPL purpose language。默认显示科研、基金、演示和元智能体；写书默认关闭，
+  但继续作为可在 Settings → Agents & Capabilities 中开启并排序的入口。
 - Executor、模型策略和当前默认值由 `contracts/app-product-profile.json` 决定；本文
   不复制 model/reasoning 值或模型 allowlist。
 - Runtime、Home capability starters、Settings → Agents & Capabilities、first-run、receipts 和 action refs 使用
@@ -65,6 +66,8 @@ Codex baseline 是视觉参照，不是 machine truth。当前 carrier 的差异
 - Conversation chrome、timeline 和 composer 使用同一水平节奏。宽屏增加外侧留白，不无限拉宽
   正文或把 composer 缩成小卡片。
 - Home、Runtime、Settings 是全宽页面/主布局，不把整个 section 包成悬浮 card。
+- Home starter 使用紧凑固定宽度，但容器不写死四列或五列；按当前可见入口数量居中并
+  响应式换行，用户开启或关闭入口后不得留下偏斜的固定网格空位。
 
 ## Typography
 
@@ -181,6 +184,8 @@ Dark target：
 
 Composer 是底部唯一主 command surface：
 
+- Home 桌面参考几何固定为 composer 最大宽度 `736px`、最小高度 `98px`、圆角 `22px`；
+  上方 context bar 高 `52px`、水平内缩 `12px`，与 composer 重叠 `13px`，避免项目条比输入区更抢眼。
 - 桌面默认高度至少 `104px`，textarea 可见高度至少 `64px`；按内容增长到合理上限后
   内部滚动。
 - Composer 浮于底部或贴近底部安全距，不能与窗口边缘、bottom panel 或系统 safe area

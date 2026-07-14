@@ -108,15 +108,15 @@ resolver。该入口是导航，不改变 Settings IA，也不替代浏览器/�
 
 ## Appearance And Update Entry
 
-Settings 左下 footer 不再提供明暗快捷切换。该位置只显示 App 更新状态与触发入口：默认是
-`检查更新 / Check for updates`，已知 `opl_app` 有新版本时显示
-`发现新版本 / Update available`。点击复用既有 carrier update modal；该入口不可实现第二套
-updater，必要时只回退到 `/settings/environment?section=updates`。
+Settings 左下 footer 不再提供明暗快捷切换，也不常驻“检查更新”。只有 `opl_app` 已确认存在
+更高版本时，Gateway 账号或 Settings 单行入口最右侧才显示轻量更新图标；点击复用既有
+carrier update modal。该入口不可实现第二套 updater，必要时只回退到
+`/settings/environment?section=updates`。
 
 明暗外观移入 Preferences 的 Display 区，固定为 `系统 / System`、`浅色 / Light`、
-`深色 / Dark` 三态。外观模式与 CSS theme preset 是两条独立配置轴：切换模式只改变
-`data-theme` / Arco appearance，不得把 Codex 或用户 theme preset 切成另一张预设；系统模式
-跟随 OS 变化并继续保留当前 preset。
+`深色 / Dark` 三态。OPL 视觉基线始终启用；CSS theme preset、Codex preset 和自定义主题编辑器
+不再暴露。旧主题数据保留用于兼容和回退，但 active preset 会迁回 `default-theme`，不会继续
+覆盖产品基线；系统模式跟随 OS 变化。
 
 ## Closeout Boundary
 

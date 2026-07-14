@@ -71,7 +71,7 @@ Sites/Chat 等入口可以隐藏或拒绝；它们不构成 OPL 功能回归。
 | Current execution context | Project 在 rail、branch/locality 在 Environment、active capability、project context refs 与 attachment 在 composer 附近；缺 workspace 不禁用显式本地输入。 | GUI contract、workspace/App state refs。 |
 | Model/reasoning control | Home 与普通 conversation 共用一个紧凑 App-owned model/reasoning menu。 | `contracts/app-product-profile.json`；文档不复制 allowlist。 |
 | Permission/access mode | 在 Home 与 conversation composer 以自动化和文件权限的用户语言显示，保留安全透明度但不暴露 provider/backend。 | GUI contract、workspace/access policy。 |
-| Purpose selection | 从 Home starter 选择科研、基金、演示、写书等工作目的；composer 只保留 active capability chip。安装、Home 显示和 lifecycle 管理进入 Settings → Agents & Capabilities。 | Product profile、GUI contract、route receipt policy。 |
+| Purpose selection | 从 Home starter 选择当前启用的工作目的；默认显示科研、基金、演示和元智能体，写书保留为可开启入口。composer 只保留 active capability chip；安装、Home 显示、顺序和 lifecycle 管理进入 Settings → Agents & Capabilities。 | Product profile、GUI contract、route receipt policy。 |
 | Assistant-scoped capabilities | 只显示当前 package/purpose 允许的 required/optional skills。 | App packaged skill profiles 与 ordinary capability policy。 |
 | Package launch readiness | 不可用 starter 保持可识别但 disabled，显示用户可理解的原因和允许动作；发送或启动前必须通过 Framework-owned use-boundary activation，失败时 fail closed。 | Agent package activation policy、Framework state/action receipt。 |
 | User-input and permission prompt | Codex 需要 command/file/permission approval、补充信息或 MCP elicitation 时，显示为相应 target thread 的 pending state并通过 typed bridge 回答；pending 本身不记为 dispatch failure。当前 delivery audit 不冒充独立持久化 approval receipt。 | Codex App Server request/response；OPL typed host bridge。 |

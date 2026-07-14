@@ -592,10 +592,12 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   if (!guiContract.theme_and_branding?.visible_branding_surfaces?.includes('navigation_rail_brand')) {
     throw new Error('App GUI visible branding surfaces must include navigation_rail_brand');
   }
-  for (const themeId of ['codex', 'default-theme']) {
-    if (!guiContract.theme_and_branding.allowed_theme_ids?.includes(themeId)) {
-      throw new Error(`App GUI theme list must include ${themeId}`);
-    }
+  if (
+    !Array.isArray(guiContract.theme_and_branding?.allowed_theme_ids) ||
+    guiContract.theme_and_branding.allowed_theme_ids.length !== 1 ||
+    guiContract.theme_and_branding.allowed_theme_ids[0] !== 'default-theme'
+  ) {
+    throw new Error('App GUI theme list must expose only default-theme');
   }
   for (const section of [
     'general',
@@ -1398,9 +1400,11 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     !pages.settings_theme.must_show?.includes(
       'reply waiting time, idle-assistant release, and hardware acceleration in a named performance and background activity group',
     ) ||
-    !pages.settings_theme.must_show?.includes('Light, Dark, and Codex theme choices under the themes anchor')
+    !pages.settings_theme.must_show?.includes('System, Light, and Dark appearance choices under the display anchor') ||
+    !pages.settings_theme.must_not_show?.includes('CSS theme preset gallery or Codex preset selector') ||
+    !pages.settings_theme.must_not_show?.includes('custom theme editor in the ordinary Preferences surface')
   ) {
-    throw new Error('Settings Preferences must expose behavior, performance, and themes as user configuration');
+    throw new Error('Settings Preferences must expose behavior, performance, and governed appearance configuration');
   }
   if (
     pages.settings_personalization?.page_kind !== 'compatibility_redirect' ||

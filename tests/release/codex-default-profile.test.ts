@@ -115,14 +115,37 @@ test('active-shell source gate requires Home starters and Capabilities routing i
       'setActiveShortcut(resolveOplActiveShortcut(navState.selectedCapabilityId))',
       'agentSelection.setSelectedAgentKey(agentSelection.defaultAgentKey)',
     ].join('\n'),
+    guidInputCard: [
+      'const DESKTOP_TEXTAREA_AUTO_SIZE = { minRows: 1, maxRows: 12 };',
+      'className={`${styles.guidInputInner} relative z-1 flex flex-col bg-dialog-fill-0`}',
+      '!pl-5px',
+    ].join('\n'),
     homeStarters: [
       "data-testid='opl-home-starters'",
       'aria-pressed={active}',
       'data-opl-active={String(active)}',
-      "? '!border-primary-5 !bg-primary-1 !text-primary-6'",
-      '<FontAwesomeIcon icon={faCheck}',
-      'faChevronRight',
+      'active && styles.homeStarterActive',
+      "data-testid='starter-active-check'",
+      "<CheckOne theme='filled'",
+      'starterIcon(assistant.id)',
       'active && onClear ? onClear() : onSelect(assistant.id)',
+    ].join('\n'),
+    guidStyles: [
+      '.guidComposerDock',
+      'width: min(100%, 736px);',
+      '.guidInputInner',
+      'min-height: 98px;',
+      'border-radius: 22px;',
+      '.workspaceFootnote',
+      'width: calc(100% - 24px);',
+      'min-height: 52px;',
+      'margin: 0 auto -13px;',
+      'padding: 4px 14px 12px;',
+      '.homeStarterGrid',
+      'display: flex;',
+      'flex-wrap: wrap;',
+      'justify-content: center;',
+      'flex: 0 0 132px;',
     ].join('\n'),
     capabilitiesPage: [
       'useCustomAgentsLoader',
@@ -140,7 +163,31 @@ test('active-shell source gate requires Home starters and Capabilities routing i
   assert.throws(() =>
     assertCurrentGuidHomeSelectionSources({
       ...currentSources,
-      homeStarters: currentSources.homeStarters.replace('faChevronRight', ''),
+      homeStarters: currentSources.homeStarters.replace("data-testid='starter-active-check'", ''),
+    }),
+  );
+  assert.throws(() =>
+    assertCurrentGuidHomeSelectionSources({
+      ...currentSources,
+      homeStarters: `${currentSources.homeStarters}\nfaChevronRight`,
+    }),
+  );
+  assert.throws(() =>
+    assertCurrentGuidHomeSelectionSources({
+      ...currentSources,
+      guidStyles: `${currentSources.guidStyles}\ngrid-template-columns: repeat(4, minmax(0, 1fr));`,
+    }),
+  );
+  assert.throws(() =>
+    assertCurrentGuidHomeSelectionSources({
+      ...currentSources,
+      guidStyles: currentSources.guidStyles.replace('width: min(100%, 736px);', 'width: min(100%, 680px);'),
+    }),
+  );
+  assert.throws(() =>
+    assertCurrentGuidHomeSelectionSources({
+      ...currentSources,
+      guidInputCard: 'const DESKTOP_TEXTAREA_AUTO_SIZE = { minRows: 2, maxRows: 20 };',
     }),
   );
 });

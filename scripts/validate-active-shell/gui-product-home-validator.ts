@@ -11,6 +11,7 @@ import {
   assertProfessionalAgentPackagePolicy,
   managedShortcutIds,
   managedShortcutPackageIds,
+  defaultVisibleShortcutIds,
   requiredSkillByAssistantId,
   requiredSkillByPackageId,
   starterPackageIds as defaultAssistantIds,
@@ -330,8 +331,8 @@ function validatePurposeEntries(guiContract) {
     if (entry.package_id === 'oma' && entry.shortcut_id !== 'oma') {
       throw new Error('App GUI OMA shortcut id must remain oma');
     }
-    if (entry.default_visible !== true) {
-      throw new Error(`App GUI home agent shortcut ${entry.shortcut_id} must be visible by default`);
+    if (entry.default_visible !== defaultVisibleShortcutIds.includes(entry.shortcut_id)) {
+      throw new Error(`App GUI home agent shortcut ${entry.shortcut_id} has invalid default visibility`);
     }
   }
 }

@@ -201,8 +201,13 @@ export function assertProfessionalAgentPackagePolicy(
       throw new Error(`${label} professional agent package ${entry.package_id} has invalid shortcut or skill policy`);
     }
     if (starterPackageIds.includes(entry.package_id)) {
-      if (entry.package_kind !== 'starter_professional_agent_package' || entry.default_home_visible !== true || entry.home_shortcut_ids.length !== 1) {
-        throw new Error(`${label} starter package ${entry.package_id} must be default home visible through one shortcut`);
+      const expectedDefaultVisible = defaultVisibleShortcutPackageIds.includes(entry.package_id);
+      if (
+        entry.package_kind !== 'starter_professional_agent_package' ||
+        entry.default_home_visible !== expectedDefaultVisible ||
+        entry.home_shortcut_ids.length !== 1
+      ) {
+        throw new Error(`${label} starter package ${entry.package_id} has invalid default Home visibility or shortcut policy`);
       }
     }
     if (entry.package_id === 'oma' && (
@@ -289,6 +294,12 @@ export function assertAppProductProfileGuiInteractionBaseline(
   assertExpectedFields(
     [
       { actual: homeLayout?.composer_position, expected: 'floating_bottom_with_safe_inset' },
+      { actual: homeLayout?.desktop_composer_max_width_px, expected: 736 },
+      { actual: homeLayout?.desktop_composer_min_height_px, expected: 98 },
+      { actual: homeLayout?.desktop_composer_corner_radius_px, expected: 22 },
+      { actual: homeLayout?.desktop_context_bar_height_px, expected: 52 },
+      { actual: homeLayout?.desktop_context_bar_overlap_px, expected: 13 },
+      { actual: homeLayout?.desktop_context_bar_horizontal_inset_px, expected: 12 },
       { actual: homeLayout?.workspace_session_rail_default_state, expected: 'visible_wide_drawer_narrow' },
       { actual: homeLayout?.right_context_inspector_default_state, expected: 'collapsed' },
       {
@@ -378,13 +389,13 @@ export function assertAppProductProfileSettingsVisualSystem(
       {
         actual: visualSystem?.footer_update_entry_policy,
         expected:
-          'reuse_existing_carrier_updater_or_settings_maintenance_route_without_owning_update_truth',
+          'show_confirmed_newer_app_update_as_account_row_trailing_action_and_reuse_existing_carrier_updater_without_owning_update_truth',
       },
       { actual: visualSystem?.footer_theme_quick_toggle_allowed, expected: false },
       { actual: visualSystem?.footer_secondary_navigation_allowed, expected: false },
       { actual: visualSystem?.appearance_mode_presentation, expected: 'three_visual_preview_cards' },
-      { actual: visualSystem?.appearance_mode_preserves_theme_preset, expected: true },
-      { actual: visualSystem?.theme_gallery_presentation, expected: 'recognizable_preview_tiles' },
+      { actual: visualSystem?.appearance_mode_preserves_theme_preset, expected: false },
+      { actual: visualSystem?.theme_gallery_presentation, expected: 'not_exposed' },
       { actual: visualSystem?.theme_swatch_list_allowed, expected: false },
       { actual: visualSystem?.max_border_radius_px, expected: 8 },
     ],
@@ -396,7 +407,7 @@ export function assertAppProductProfileSettingsVisualSystem(
     JSON.stringify(visualSystem?.appearance_mode_values) !== JSON.stringify(['system', 'light', 'dark'])
   ) {
     throw new Error(
-      `${label} footer must expose the account-or-Settings entry before the App update trigger and keep System, Light, and Dark in Settings`,
+      `${label} footer must reserve a conditional account-row update action and keep System, Light, and Dark in Settings`,
     );
   }
 }
