@@ -1,8 +1,10 @@
 import { assertDeepEqualJson, assertIncludesAll } from './assertions.ts';
 import {
   appOwnedCurrentTaskSlice,
+  appOwnedDirectoryGroupPolicy,
   appOwnedGuiContractOrdinaryConversation,
   appOwnedHomeLayout,
+  appOwnedLocalWorktreeLifecycle,
   appOwnedReviewSurfaceSourceEvidence,
   appOwnedRightContextInspectorForbiddenOwners,
   appOwnedRightContextInspectorPolicy,
@@ -124,18 +126,22 @@ function validateHomeLayout(guiContract) {
   );
   assertIncludesAll(guiContract.pages?.ordinary_conversation?.must_show, [
     'desktop attach, permission and access, model and reasoning, and send or stop controls in the composer',
-    'mobile plus sheet limited to OPL attach, project refs, access, model and reasoning, and active capability actions',
-    'attachments and project refs consumed by the current send only',
-    'same-host Local or Worktree handoff for an existing not-loaded or idle task from Conversation Environment',
-    'running, archived, or system-error task handoff shown unavailable without silent fallback',
+    'mobile plus sheet limited to OPL attach, access, model and reasoning, and active capability actions',
+    'explicit attachments, file or directory selection, paste, drop, and /open consumed by the current session send only',
+    'workspace readiness gates project, Worktree, and OPL workspace controls only, never plain local conversation or send-scoped local file inputs',
+    'same-host working-directory or Local/Worktree handoff for an existing not-loaded or idle session from Conversation Environment',
+    'running, archived, or system-error session handoff shown unavailable without silent fallback',
     'Codex thread cwd updated before AionUI projection with best-effort cwd rollback on projection failure',
     'durable snapshot-before-remove and receipt restore for deterministic managed worktrees in Conversation Environment',
     'single current task instance in the message timeline, inline and unpinned for ordinary tasks',
     'current task becomes sticky only after user pin or a true long_running signal',
     'complete paginated redacted transcript export with Markdown default, strict JSON, explicit directory and filename',
+    'Preview accepts only explicit session attachments, visible conversation results, or user-selected legal absolute local paths',
   ], 'App GUI ordinary conversation visible 41301 signals');
   assertIncludesAll(guiContract.pages?.ordinary_conversation?.must_not_show, [
-    'persistent project, workspace, locality, branch, attachment, or project-ref context strip',
+    'persistent project, workspace, locality, branch, attachment, or workspace-context-ref context strip',
+    'workspace-scoped project context inputs or an Add context action in the directory rail',
+    'workspaceRootReady or workspace membership used as a file-access gate',
     'backend, provider, Team, raw MCP, or arbitrary skills in the mobile plus sheet',
     'Local or Worktree handoff control inside the primary composer',
     'snapshot or worktree cleanup controls outside Conversation Environment or without a durable receipt',
@@ -144,6 +150,38 @@ function validateHomeLayout(guiContract) {
     'duplicate current task or Runtime summary outside the message timeline',
     'workspace bundle export authorization',
   ], 'App GUI ordinary conversation forbidden 41301 signals');
+}
+
+function validateSessionDirectoryPolicy(guiContract) {
+  const policy = guiContract.interaction_baseline?.navigation_rail?.thread_directory_policy;
+  if (
+    policy?.canonical_authority !== 'codex_app_server_thread_list_read_resume' ||
+    policy.codex_session_directory_authority !== 'canonical_app_server_thread_overview_when_available' ||
+    policy.canonical_overview_unavailable_policy !==
+      'fallback_to_shell_cache_without_reclassifying_cache_as_authority' ||
+    policy.stale_codex_acp_cache_row_policy !==
+      'exclude_from_ordinary_projection_when_absent_from_available_canonical_overview' ||
+    policy.non_codex_local_row_policy !== 'preserve' ||
+    policy.shell_local_storage_role !== 'drafts_preferences_and_rebuildable_cache_only' ||
+    policy.shell_thread_history_authority !== false ||
+    policy.workspace_directory_role !==
+      'new_session_initial_cwd_mutable_cwd_grouping_and_visible_metadata_only' ||
+    policy.row_identity !== 'canonical_thread_id' ||
+    policy.duplicate_row_per_canonical_thread_allowed !== false ||
+    policy.title_based_deduplication_allowed !== false
+  ) {
+    throw new Error('App GUI thread directory must prefer canonical App Server sessions and use Shell rows as cache only');
+  }
+  assertDeepEqualJson(
+    policy.directory_group_policy,
+    appOwnedDirectoryGroupPolicy,
+    'App GUI directory group ownership policy',
+  );
+  assertDeepEqualJson(
+    guiContract.interaction_baseline?.conversation_scope?.local_worktree_lifecycle,
+    appOwnedLocalWorktreeLifecycle,
+    'App GUI canonical session workspace lifecycle',
+  );
 }
 
 function validateUiLocalePolicy(guiContract) {
@@ -353,6 +391,7 @@ export function validateGuiProductHomeContract(guiContract) {
   validateExecutorPolicy(guiContract);
   validateUiLocalePolicy(guiContract);
   validateHomeLayout(guiContract);
+  validateSessionDirectoryPolicy(guiContract);
   validateAiFirstInteractionModel(guiContract);
   validateRightContextInspector(guiContract);
   validateProfessionalAgentPackages(guiContract);

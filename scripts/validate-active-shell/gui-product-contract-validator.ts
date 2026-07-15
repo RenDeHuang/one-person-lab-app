@@ -760,7 +760,9 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     ordinaryRecovery?.persistent_setup_entry?.must_preserve_current_route_until_clicked !== true ||
     ordinaryRecovery?.plain_conversation?.workspace_root_required !== false ||
     ordinaryRecovery?.plain_conversation?.must_preserve_prompt !== true ||
-    ordinaryRecovery?.file_and_project_context?.plain_conversation_remains_available !== true ||
+    ordinaryRecovery?.send_scoped_local_inputs?.workspace_root_required !== false ||
+    ordinaryRecovery?.workspace_controls?.plain_conversation_remains_available !== true ||
+    ordinaryRecovery?.workspace_controls?.send_scoped_local_inputs_remain_available !== true ||
     ordinaryRecovery?.unknown_readiness_policy !== progressiveFirstRunRecoveryPolicy.unknown_readiness_policy
   ) {
     throw new Error('App GUI first-launch ordinary shell recovery policy is invalid');
@@ -771,9 +773,24 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     'App GUI first-launch plain conversation prerequisites',
   );
   assertDeepEqualJson(
-    ordinaryRecovery.file_and_project_context.required_items,
-    progressiveFirstRunRecoveryPolicy.file_and_project_required_items,
-    'App GUI first-launch file and project prerequisites',
+    ordinaryRecovery.send_scoped_local_inputs.required_items,
+    progressiveFirstRunRecoveryPolicy.send_scoped_local_input_required_items,
+    'App GUI first-launch send-scoped local input prerequisites',
+  );
+  assertDeepEqualJson(
+    ordinaryRecovery.send_scoped_local_inputs.supported_inputs,
+    progressiveFirstRunRecoveryPolicy.send_scoped_local_input_surfaces,
+    'App GUI first-launch send-scoped local input surfaces',
+  );
+  assertDeepEqualJson(
+    ordinaryRecovery.workspace_controls.required_items,
+    progressiveFirstRunRecoveryPolicy.workspace_control_required_items,
+    'App GUI first-launch workspace control prerequisites',
+  );
+  assertDeepEqualJson(
+    ordinaryRecovery.workspace_controls.restricted_capabilities,
+    progressiveFirstRunRecoveryPolicy.workspace_restricted_capabilities,
+    'App GUI first-launch workspace-restricted capabilities',
   );
   assertIncludesAll(
     ordinaryRecovery.required_shell_testids,
@@ -970,6 +987,26 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   if (!pages.guid_home.must_show?.includes('active capability shown as a compact chip')) {
     throw new Error('App GUI home must show the active capability as a compact chip');
   }
+  assertIncludesAll(
+    pages.guid_home.must_show,
+    [
+      'exactly one Home root, composer shell, and footer account or Settings entry at every viewport',
+      'each canonical thread ID rendered as at most one conversation row regardless of title',
+      'canonical App Server thread overview overrides Codex ACP cache rows while preserving non-Codex local rows',
+      'directory groups derived from canonical session cwd as presentation and new-session cwd shortcuts only',
+    ],
+    'App GUI Home session-first identity signals',
+  );
+  assertIncludesAll(
+    pages.guid_home.must_not_show,
+    [
+      'workspace-scoped Add context action in a directory group',
+      'directory-group delete action or cascade deletion of grouped sessions',
+      'title-based conversation deduplication',
+      'stale Codex ACP cache rows absent from an available canonical App Server overview',
+    ],
+    'App GUI Home forbidden directory ownership signals',
+  );
   assertHomeComposerStateContract(
     guiContract.interaction_baseline?.home?.home_composer_state_contract,
     'App GUI Home composer state contract',

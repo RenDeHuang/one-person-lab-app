@@ -191,11 +191,13 @@ Composer 是底部唯一主 command surface：
 - Composer 浮于底部或贴近底部安全距，不能与窗口边缘、bottom panel 或系统 safe area
   相撞。
 - 只保留一层 visible surface。外部 bridge/adapter container 必须透明。
-- Project/local/branch 不在 composer 常驻重复：project 由 rail 表达，branch/locality 由
+- Home root、composer shell 与 footer account/Settings entry 在每个 viewport 各只有一个实例；
+  resize 后必须完整重绘，不能留下旧 composer frame。
+- Project/local/branch 不在 composer 常驻重复：工作目录由 rail 表达，branch/locality 由
   Environment 表达。Textarea 承载任务正文；底部 action row 承载 attachment、active
   capability、permission/access mode、单一紧凑 model/reasoning menu、可选 voice 和 send/stop。
-- Project Context inputs 使用同一层 compact ref chips，位于 textarea 之前并允许移除；
-  conversation attachments 使用文件预览，不把两类内容画成第二层卡片或隐藏注入。
+- 当前 session 的 attachment、paste/drop 与 `/open` 是唯一显式文件输入，不从 rail/workspace
+  预载 context，也不做隐藏注入；attachment 使用同一层文件预览，不形成第二层卡片。
 - Purpose 不作为常驻可变 selector；active capability chip 可按上下文更换，但不得呈现
   为 backend/provider。
 - 模型与推理状态及当前默认值读取 App product profile，不得在 shell 或文档复制
@@ -211,9 +213,12 @@ Composer 是底部唯一主 command surface：
 - 宽桌面默认可见，宽度在 `280-340px` 内可调，窄窗口改 drawer。
 - 顶部固定 New task、Runtime、Archived；capability starter 属于 Home，package/capability
   管理属于 Settings。Sites/Chat 没有 OPL 对应能力时不显示。
-- 中段按 project 组织 conversations，同时容纳 projectless conversations。
-- Project 展开后按 `Context -> Conversations` 排列；Context 使用紧凑 refs rows 和单一添加动作，
-  空状态不生成占位卡片，Attachments 仍由当前 conversation composer 管理。
+- 中段按当前 cwd metadata 组织 canonical sessions，同时容纳 projectless sessions；分组是可变
+  projection，不拥有 session、context 或 artifact。切换目录只移动同一 canonical-thread row 的分组，
+  不复制 row/history，也不按标题或 workspace 去重。
+- Directory group 展开后只显示 conversations 与“使用此工作目录新建对话”；不显示“添加上下文”或组级删除，
+  更不得级联删除分组内 sessions。Canonical App Server overview 可用时排除未返回的 stale Codex ACP
+  cache rows；只有 overview unavailable 时 fallback cache，非 Codex local rows 保留。
 - 底部固定 account、help、Settings；常用 row actions 在 hover/focus
   出现，但 keyboard 用户可达。
 - Active row 使用 tonal fill、清晰标题和轻量状态；不使用大色块或每行独立 card。
@@ -244,6 +249,8 @@ Composer 是底部唯一主 command surface：
   popover；短选项不升级为整页。
 - Environment 使用右上 anchored floating surface，首层汇总 changes、local、branch、
   commit/push、subagents 和 sources。
+- Environment 使用带 folder icon 的“切换工作目录”命令调用系统目录选择器；它更新同一 session 的
+  canonical cwd，成功后刷新 workspace summary 与 rail 分组，running/失败状态就地显示且不伪造移动成功。
 - OPL Artifacts/Evidence 进入 Environment 次级 section、preview 或 conversation
   disclosure；Runtime/Actions/Memory 不升级为同权 tabs。
 - Popover 关闭后焦点回到触发器；drawer 有明确标题、close control 和焦点边界。

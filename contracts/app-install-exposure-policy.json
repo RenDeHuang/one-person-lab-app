@@ -823,10 +823,12 @@
         "codex_cli",
         "codex_config"
       ],
-      "required_before_file_or_project_send": [
-        "workspace_root",
+      "required_before_send_with_local_inputs": [
         "codex_cli",
         "codex_config"
+      ],
+      "required_before_workspace_controls": [
+        "workspace_root"
       ],
       "unknown_readiness_policy": "allow_attempt_without_mutating_readiness",
       "blocked_feedback": "localized_inline_non_modal_setup_notice_preserves_prompt",

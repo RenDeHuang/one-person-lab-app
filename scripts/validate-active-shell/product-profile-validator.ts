@@ -1,8 +1,10 @@
 import path from 'node:path';
 import { assertDeepEqualJson, assertForbiddenCapabilityPolicy, assertIncludesAll, readJson } from './assertions.ts';
 import {
+  appOwnedHomeLayout,
   forbiddenAuthorityOwners,
   focusedFirstRunPresentationPolicy,
+  progressiveFirstRunRecoveryPolicy,
 } from './app-contract-constants.ts';
 import {
   defaultActiveShellContractPath,
@@ -162,6 +164,11 @@ function validateHomeAssistantDefaults(profile) {
   ) {
     throw new Error('Product profile Home must default to the base executor and require explicit professional-agent selection');
   }
+  assertDeepEqualJson(
+    homeLayout.workspace_selector_policy,
+    appOwnedHomeLayout.workspace_selector_policy,
+    'Product profile Home workspace selector session ownership policy',
+  );
   const iconPolicy = profile.gui.home.utility_icon_policy;
   if (
     iconPolicy?.library !== 'font_awesome_free_for_opl_owned_utility_icons' ||
@@ -577,9 +584,13 @@ function validateFirstConversationPolicy(profile) {
     firstConversation?.required_before_plain_send,
     'Product profile first conversation required_before_plain_send',
   );
-  const requiredBeforeFileOrProjectSend = assertNonEmptyStringArray(
-    firstConversation?.required_before_file_or_project_send,
-    'Product profile first conversation required_before_file_or_project_send',
+  const requiredBeforeSendWithLocalInputs = assertNonEmptyStringArray(
+    firstConversation?.required_before_send_with_local_inputs,
+    'Product profile first conversation required_before_send_with_local_inputs',
+  );
+  const requiredBeforeWorkspaceControls = assertNonEmptyStringArray(
+    firstConversation?.required_before_workspace_controls,
+    'Product profile first conversation required_before_workspace_controls',
   );
   if (typeof firstConversation?.failure_policy !== 'string' || !firstConversation.failure_policy.trim()) {
     throw new Error('Product profile first conversation must define a failure_policy');
@@ -596,9 +607,14 @@ function validateFirstConversationPolicy(profile) {
   }
   assertDeepEqualJson(requiredBeforePlainSend, ['codex_cli', 'codex_config'], 'Product profile plain send prerequisites');
   assertDeepEqualJson(
-    requiredBeforeFileOrProjectSend,
-    ['workspace_root', 'codex_cli', 'codex_config'],
-    'Product profile file/project send prerequisites',
+    requiredBeforeSendWithLocalInputs,
+    ['codex_cli', 'codex_config'],
+    'Product profile send with local inputs prerequisites',
+  );
+  assertDeepEqualJson(
+    requiredBeforeWorkspaceControls,
+    ['workspace_root'],
+    'Product profile workspace control prerequisites',
   );
   const ordinaryRecovery = profile.first_run?.ordinary_shell_recovery;
   if (
@@ -606,7 +622,9 @@ function validateFirstConversationPolicy(profile) {
     ordinaryRecovery?.persistent_setup_entry?.surface !== 'ordinary_sidebar_non_modal_entry' ||
     ordinaryRecovery?.plain_conversation?.workspace_root_required !== false ||
     ordinaryRecovery?.plain_conversation?.must_preserve_prompt !== true ||
-    ordinaryRecovery?.file_and_project_context?.plain_conversation_remains_available !== true ||
+    ordinaryRecovery?.send_scoped_local_inputs?.workspace_root_required !== false ||
+    ordinaryRecovery?.workspace_controls?.plain_conversation_remains_available !== true ||
+    ordinaryRecovery?.workspace_controls?.send_scoped_local_inputs_remain_available !== true ||
     ordinaryRecovery?.unknown_readiness_policy !== 'do_not_synthesize_failure_or_mutate_readiness'
   ) {
     throw new Error('Product profile ordinary shell recovery policy is invalid');
@@ -617,9 +635,24 @@ function validateFirstConversationPolicy(profile) {
     'Product profile ordinary plain conversation prerequisites',
   );
   assertDeepEqualJson(
-    ordinaryRecovery.file_and_project_context.required_items,
+    ordinaryRecovery.send_scoped_local_inputs.required_items,
+    ['codex_cli', 'codex_config'],
+    'Product profile ordinary send-scoped local input prerequisites',
+  );
+  assertDeepEqualJson(
+    ordinaryRecovery.send_scoped_local_inputs.supported_inputs,
+    progressiveFirstRunRecoveryPolicy.send_scoped_local_input_surfaces,
+    'Product profile ordinary send-scoped local input surfaces',
+  );
+  assertDeepEqualJson(
+    ordinaryRecovery.workspace_controls.required_items,
     ['workspace_root'],
-    'Product profile ordinary file/project prerequisites',
+    'Product profile ordinary workspace control prerequisites',
+  );
+  assertDeepEqualJson(
+    ordinaryRecovery.workspace_controls.restricted_capabilities,
+    progressiveFirstRunRecoveryPolicy.workspace_restricted_capabilities,
+    'Product profile ordinary workspace-restricted capabilities',
   );
   assertIncludesAll(
     firstConversation.must_wait_for,

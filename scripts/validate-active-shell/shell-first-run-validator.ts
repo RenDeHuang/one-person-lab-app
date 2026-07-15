@@ -19,10 +19,6 @@ export function validateFirstRunImplementation(shellPaths) {
   );
   const sider = readShellText(shellPaths, 'packages/desktop/src/renderer/components/layout/Sider/index.tsx');
   const guidPage = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/guid/GuidPage.tsx');
-  const guidActionRow = readShellText(
-    shellPaths,
-    'packages/desktop/src/renderer/pages/guid/components/GuidActionRow.tsx',
-  );
   const guidSetupNotice = readShellText(
     shellPaths,
     'packages/desktop/src/renderer/pages/guid/components/GuidSetupNotice.tsx',
@@ -133,16 +129,14 @@ export function validateFirstRunImplementation(shellPaths) {
   for (const expected of [
     "setSetupNoticeKind('local_assistant')",
     "setSetupNoticeKind('model_access')",
-    "setSetupNoticeKind('workspace')",
     'sendWithPrerequisiteCheck',
-    'fileAccessEnabled: !fileAccessBlocked',
+    'fileAccessEnabled: true',
+    'fileAccessDisabled={false}',
+    'workspaceAccessDisabled={workspaceAccessBlocked}',
   ]) {
     if (!guidPage.includes(expected)) {
       throw new Error(`Active shell Guid progressive first-run recovery must include ${expected}`);
     }
-  }
-  if (!guidActionRow.includes("'opl-guid-file-access-disabled'")) {
-    throw new Error('Active shell Guid file attachment must expose the workspace prerequisite disabled state');
   }
   if (!guidWorkspaceFootnote.includes("'opl-guid-workspace-access-disabled'")) {
     throw new Error('Active shell Guid project workspace control must expose the workspace prerequisite disabled state');
@@ -156,7 +150,7 @@ export function validateFirstRunImplementation(shellPaths) {
     }
   }
   for (const testId of progressiveFirstRunRecoveryTestIds) {
-    if (![firstRunSetupEntry, guidPage, guidActionRow, guidWorkspaceFootnote, guidSetupNotice].some((source) => source.includes(testId))) {
+    if (![firstRunSetupEntry, guidPage, guidWorkspaceFootnote, guidSetupNotice].some((source) => source.includes(testId))) {
       throw new Error(`Active shell progressive first-run recovery must implement ${testId}`);
     }
   }

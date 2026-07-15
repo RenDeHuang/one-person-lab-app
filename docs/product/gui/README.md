@@ -33,7 +33,7 @@ GUI 运行采用双轴模型：AionUI 继续是 `active release shell`，而本�
 
 产品方向固定为：**先继承 ChatGPT Codex 的主工作流和空间关系，再增加 OPL
 专业能力**。Rail、单列 conversation、底部 composer 和按需环境详情构成基础壳；
-OPL project context、capabilities、跨顶层线程协调、progress、evidence、artifacts 与 safe actions 必须
+OPL capabilities、跨顶层线程协调、progress、evidence、artifacts 与 safe actions 必须
 嵌入这些稳定位置，不得把 Home 改造成 dashboard、launcher 或 card wall。
 
 当前人读观察基准是本机 ChatGPT macOS `26.707.41301`（观察于 `2026-07-11`）。
@@ -57,14 +57,14 @@ Local/Worktree/handoff、Review 已采纳子集、Runtime cockpit、typed intera
 Runtime V2 与 Gateway account/UI。该 exact cohort 的 full source gates、macOS arm64 directory-only package、
 codesign 与 9 场景 packaged E2E 已闭合；package 未安装，main/remote currentness 与 release
 promotion仍由操作层 fresh readback决定。模型可调用 host tool仍是必需产品目标，当前 AionUI
-user coordination surface 不能作为其实现证据。当前 Shell source cohort
-`e218d79b7a5727b72ddce66bcaabd9410a38076b` 在该 package cohort 之后补入 profile-driven
-feedback、Review `Last turn`/same-turn focus steer、窄窗 Access 单列断点、profile-driven
-avatar/help，以及managed Worktree
-durable snapshot-before-remove/cleanup rollback/receipt restore、Runtime generic fallback 本地化、
-disabled workspace selector 合同 marker，以及 canonical project/locale Runtime evidence 与 DOM fixture
-对齐；普通 navigation 不再挂载独立协调页。
-其 Node/DOM、TypeScript、format、i18n与lint 0 errors已通过，但尚无匹配 package/pixel 证据。
+user coordination surface 不能作为其实现证据。当前 Session-first Shell source cohort 不绑定临时
+topic SHA；它由 `WorkspaceHandoffControl.tsx`、`useConversationListSync.ts`、`GroupedHistory/index.tsx`、
+`GuidPage.tsx` 及对应 DOM/source tests 定义，并要求 `ProjectContextSection.tsx` 与
+`projectContext.ts` 缺席。该 cohort 在既有 profile-driven feedback、Review、managed Worktree、Runtime
+与窄窗 Settings 能力上新增同一 canonical session 的 working-directory switch：Environment 通过系统
+目录选择器和 `thread/settings/update` 原位更新 canonical thread，随后更新 conversation projection 与
+rail 分组，projection 失败则恢复操作开始时的 canonical cwd。Exact commit/currentness 只由 App owner
+在 Shell main 吸收后回读；当前仍无匹配 package/pixel/install 证据。
 
 ## 三层与文件归属
 
@@ -122,8 +122,8 @@ package/user path。当前 contract/source 与 packaged route visual evidence �
 - `gui_shell_authority: implementation_only`
 - `ideal_target.workspace_session_rail_default_visible=true`
 - `ideal_target.ordinary_rail_thread_authority=codex_app_server_thread_list_read_resume`
-- `ideal_target.project_workspace_authorization_domain=false`
-- `ideal_target.projectless_local_inputs=attachments,file_picker,directory_picker,paste,drop,/open`
+- `ideal_target.workspace_directory_owner=false`
+- `ideal_target.explicit_session_local_inputs=attachments,file_picker,directory_picker,paste,drop,/open`
 - `ideal_target.local_worktree_lifecycle=local,worktree,starting_branch,handoff,snapshot,restore`
 - `ideal_target.review_surface=existing_files_changes_diff_surface`
 - `ideal_target.model_host_tool_access=true`
@@ -169,17 +169,25 @@ package/user path。当前 contract/source 与 packaged route visual evidence �
 
 当前 Codex-based ideal target 是：
 
-- 宽桌面默认显示项目/对话 rail，保持 project hierarchy 和 conversation history 可见；
+- 宽桌面默认显示目录/对话 rail，保持工作目录分组和 conversation history 可见；
   窄窗口改为 drawer，不能为增加工具而压缩主阅读列。
-- Rail 顶部只保留 New task、Runtime、Archived，主体按 project 分组 App Server threads，底部承载
-  account/help/Settings；canonical history 来自 `thread/list/read/resume`，Shell DB 只保存 draft、
+- Rail 顶部只保留 New task、Runtime、Archived，主体按 session 当前 cwd 分组 App Server threads，底部承载
+  account/help/Settings；App Server canonical overview 可用时是 Codex session directory authority，Shell DB 只保存 draft、
   preference 和可重建 cache。Rename/archive/restore/delete 分别映射 `thread/name/set`、
   `thread/archive`、`thread/unarchive`、`thread/delete`；pin 是 Shell UI metadata，本地 reset 不冒充
-  App Server history reset。OPL 在 project 下增加可选 context refs，不创建第二套导航体系。
+  App Server history reset。Canonical overview 未返回的 stale Codex ACP cache row 不进入 ordinary rail；
+  只有 overview unavailable 时才 fallback cache，非 Codex local row 继续保留。每个 canonical thread ID
+  最多一行，不能按标题或 workspace 去重。
+- Session/thread 是主单位，project/workspace/directory 不拥有 session、context 或 artifact。新 session 以所选目录
+  初始化 cwd；既有同主机 idle session 可在 Environment 选择任意目录并原位更新同一 thread，随后按
+  新 cwd 重新归入 rail 分组，不能通过 fork、复制 history 或新建替代 session 实现“移动”。目录组只提供
+  “使用此工作目录新建对话”的快捷动作，不提供组级删除，更不能级联删除 session。
 - Home/New task 与普通 conversation 共用同一 chat canvas 和 composer，不是
-  landing/dashboard；project task 与 projectless conversation 都可用。未选 workspace 时仍保留
+  landing/dashboard；有无 workspace 都使用同一 session 模型。未选 workspace 时仍保留
   attachment、任意本地文件/目录选择、paste/drop 与 `/open`；Project/workspace 只提供默认 cwd、
-  分组和上下文提示，真实访问只由 Codex permission/approval/sandbox 决定。
+  可变 cwd 和分组，真实访问只由 Codex permission/approval/sandbox 决定。Workspace readiness 只约束
+  project/Worktree/OPL workspace controls，不得禁用普通本地对话或这些显式文件输入；Worktree 仍要求 Git repo，
+  Codex/model prerequisites 不变。Home root、composer shell 与 footer account/Settings entry 在每个 viewport 各只有一个实例。
 - Conversation 顶部只保留当前 task identity 与直接动作。Model/reasoning、
   permission/access、attach 和 send/stop 均留在 composer；不在 header 重复配置。
 - Purpose 从 Home/New task 的 starter 选择；选中后只显示轻量 active capability，
@@ -200,7 +208,8 @@ package/user path。当前 contract/source 与 packaged route visual evidence �
   raw ids、logs、refs、receipts 与 provider 诊断只进入诊断区。
 - Environment 使用右上按需浮层，只渲染真实
   workspace/locality/branch/changes/subtasks/sources；artifact、
-  evidence、receipt refs 属于次级信息，不默认形成全高第三列。
+  evidence、receipt refs 属于次级信息，不默认形成全高第三列。这里同时提供系统目录选择器驱动的
+  “切换工作目录”；成功后保持 canonical thread identity 并刷新本地 projection/rail 分组。
 - Files/Changes 是按需 workspace surface，Preview 独立；Terminal/Browser 只从 Environment
   或任务需要打开。旧八类 inspector taxonomy 与会话级 Runtime duplicate 不再是产品面。
 - Transcript export 只导出完整分页后的、脱敏的 user/assistant text；Markdown 默认、
@@ -221,11 +230,11 @@ package/user path。当前 contract/source 与 packaged route visual evidence �
   Delivery audit 只记录 Codex policy inheritance，不冒充独立 approval receipt。跨 host 当前
   unavailable，不把直接消息或本机 handoff 伪装成已支持。
   `spawn_agent`、`send_input`、`wait_agent` 只用于同一 agent tree，不能成为跨根线程消息总线。
-- Artifact/evidence ref 通过现有 Preview surface 的 ref-only adapter 打开。用户显式选择时可打开
-  合法任意绝对本地路径，不要求属于当前 workspace；project-context refs 仍保持 workspace-scoped。
+- Preview 通过现有 ref-only adapter 打开当前 session 的显式 attachment、可见 conversation result，或用户
+  显式选择的合法绝对本地路径；绝对路径不要求属于当前 workspace，也不存在 workspace-scoped project-context ref。
   traversal、非法 scheme、自动静默读取及 unsupported ref 保持可见并 fail closed，App/shell 不复制
   artifact body，也不猜测内容。
-- New task 支持 Local/Worktree、starting branch 与同主机 idle task 的 Local↔Worktree handoff；
+- New session 支持 Local/Worktree、starting branch 与同主机 idle session 的任意工作目录及 Local↔Worktree handoff；
   Worktree 位于 `$CODEX_HOME/worktrees`，selected branch HEAD detached，可应用所选 Local 未提交
   变更并读取 `.worktreeinclude`，同一 task 复用同一 worktree。Snapshot/restore 与 cleanup UI
   当前 deferred，cross-host unsupported；状态归 Codex Core/App Server 与既有 Git 集成，Shell

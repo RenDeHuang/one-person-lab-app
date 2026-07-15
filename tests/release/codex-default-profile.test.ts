@@ -192,11 +192,15 @@ test('active-shell source gate requires Home starters and Capabilities routing i
   );
 });
 
-test('active-shell source gate preserves projectless local file inputs', () => {
+test('active-shell source gate preserves explicit local file inputs independently of workspace readiness', () => {
   const currentSource = [
-    'fileAccessEnabled: !fileAccessBlocked',
-    'fileAccessDisabled={fileAccessBlocked}',
-    'fileAccessEnabled={!fileAccessBlocked}',
+    'const workspaceAccessBlocked = coreReadiness.known && !coreReadiness.workspaceRootReady;',
+    'workspaceAccessDisabled={workspaceAccessBlocked}',
+    'const guidInput = useGuidInput({',
+    'locationState: navState',
+    'onFilesUploaded={guidInput.handleFilesUploaded}',
+    'onPaste={guidInput.onPaste}',
+    'dragHandlers={guidInput.dragHandlers}',
     "name: 'open'",
   ].join('\n');
 
@@ -205,6 +209,17 @@ test('active-shell source gate preserves projectless local file inputs', () => {
     'fileContextEnabled={!fileAccessBlocked && Boolean(guidInput.dir)}',
     'fileAccessDisabled={fileAccessBlocked || !guidInput.dir}',
     'fileAccessEnabled={!fileAccessBlocked && Boolean(guidInput.dir)}',
+    'const fileAccessBlocked = coreReadiness.known && !coreReadiness.workspaceRootReady;',
+    'fileAccessDisabled={coreReadiness.known && !coreReadiness.workspaceRootReady}',
+    'fileAccessEnabled={!coreReadiness.known || coreReadiness.workspaceRootReady}',
+    'fileAccessEnabled: !workspaceAccessBlocked',
+    'fileAccessDisabled={workspaceAccessBlocked}',
+    'fileAccessEnabled={!workspaceAccessBlocked}',
+    [
+      'const hasWorkspace = Boolean(guidInput.dir);',
+      'const canUseFiles = hasWorkspace;',
+      'fileAccessEnabled={canUseFiles}',
+    ].join('\n'),
   ]) {
     assert.throws(() => assertProjectlessGuidFileAccessSources(`${currentSource}\n${legacyWorkspaceGate}`));
   }
@@ -456,6 +471,15 @@ test('41301 GUI contract rejects persistent project context and legacy inspector
       contract.ordinary_conversation.composer_context_strip = ['project_context_refs', 'active_capability'];
     },
     (contract: any) => {
+      contract.ordinary_conversation.project_context_inputs = { scope: 'canonical_workspace_path' };
+    },
+    (contract: any) => {
+      contract.ordinary_conversation.artifact_preview.project_context_ref_policy = { workspace_scoped: true };
+    },
+    (contract: any) => {
+      contract.ordinary_conversation.session_workspace_model.workspace_owns_context = true;
+    },
+    (contract: any) => {
       contract.right_context_inspector.primary_tools = [
         { id: 'review' },
         { id: 'terminal' },
@@ -477,6 +501,91 @@ test('41301 GUI contract rejects persistent project context and legacy inspector
     const contract = structuredClone(readJson('contracts/app-gui-product-contract.json'));
     mutate(contract);
     assert.throws(() => validate(contract));
+  }
+});
+
+test('session-first contracts reject directory ownership, stale cache authority, and workspace-gated local inputs', () => {
+  const installExposure = readJson('contracts/app-install-exposure-policy.json');
+  const validateGui = (contract: any) => validateAppGuiProductContract(
+    contract,
+    readJson('contracts/app-release-channel.json'),
+    installExposure,
+  );
+
+  for (const mutate of [
+    (contract: any) => {
+      contract.interaction_baseline.navigation_rail.thread_directory_policy.directory_group_policy.cascade_session_delete_allowed = true;
+    },
+    (contract: any) => {
+      contract.interaction_baseline.navigation_rail.thread_directory_policy.stale_codex_acp_cache_row_policy = 'keep';
+    },
+    (contract: any) => {
+      contract.interaction_baseline.navigation_rail.thread_directory_policy.title_based_deduplication_allowed = true;
+    },
+    (contract: any) => {
+      contract.first_launch_readiness_policy.ordinary_shell_recovery_policy.send_scoped_local_inputs.workspace_root_required = true;
+    },
+    (contract: any) => {
+      contract.first_launch_readiness_policy.ordinary_shell_recovery_policy.workspace_controls.send_scoped_local_inputs_remain_available = false;
+    },
+    (contract: any) => {
+      contract.interaction_baseline.conversation_scope.local_worktree_lifecycle
+        .projection_transaction.operation_start_workspace_source = 'aionui_projection';
+    },
+  ]) {
+    const contract = structuredClone(readJson('contracts/app-gui-product-contract.json'));
+    mutate(contract);
+    assert.throws(() => validateGui(contract));
+  }
+
+  for (const mutate of [
+    (profile: any) => {
+      profile.gui.ordinary_conversation.explicit_session_input_policy.workspace_preload_allowed = true;
+    },
+    (profile: any) => {
+      profile.gui.ordinary_conversation.explicit_session_input_policy.workspace_readiness_boundary.send_scoped_local_file_inputs_require_workspace_root = true;
+    },
+    (profile: any) => {
+      profile.gui.home.home_composer_state_contract.semantic_probe.instance_counts['guid-input-card-shell'] = 2;
+    },
+    (profile: any) => {
+      profile.first_run.first_conversation.required_before_send_with_local_inputs.unshift('workspace_root');
+    },
+    (profile: any) => {
+      profile.first_run.ordinary_shell_recovery.send_scoped_local_inputs.workspace_root_required = true;
+    },
+    (profile: any) => {
+      profile.first_run.ordinary_shell_recovery.send_scoped_local_inputs.supported_inputs = [
+        'file_dialog_attachment',
+      ];
+    },
+  ]) {
+    const profile = structuredClone(readJson('contracts/app-product-profile.json'));
+    mutate(profile);
+    assert.throws(() => validateProductProfile(profile, installExposure));
+  }
+
+  for (const mutate of [
+    (matrix: any) => {
+      matrix.pages.find((page: any) => page.id === 'ordinary_conversation')
+        .conversation_view_model.explicit_session_input_policy.implicit_workspace_context_injection_allowed = true;
+    },
+    (matrix: any) => {
+      matrix.pages.find((page: any) => page.id === 'ordinary_conversation')
+        .conversation_view_model.artifact_preview.entry_sources.push('workspace_project_context_ref');
+    },
+    (matrix: any) => {
+      matrix.pages.find((page: any) => page.id === 'guid_home')
+        .home_view_model.home_composer_state_contract.semantic_probe.instance_counts['opl-guid-entry'] = 2;
+    },
+    (matrix: any) => {
+      matrix.pages.find((page: any) => page.id === 'ordinary_conversation')
+        .conversation_view_model.environment_workspace_handoff.no_op_comparison_source = 'mutable_projection';
+    },
+  ]) {
+    const matrix = structuredClone(readJson('contracts/app-page-state-matrix.json'));
+    mutate(matrix);
+    assert.throws(() => validatePrimaryInteractionPages(matrix));
   }
 });
 

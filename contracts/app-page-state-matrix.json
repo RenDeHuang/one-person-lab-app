@@ -149,10 +149,23 @@
             "permission_access_visible": true,
             "executor_selector_visible": false,
             "active_shortcut_changes_executor": false,
-            "default_visibility_governs_execution": false
+            "default_visibility_governs_execution": false,
+            "single_home_root": true,
+            "single_composer_shell": true,
+            "single_footer_account_settings_entry": true
           },
           "semantic_probe": {
             "root_test_id": "opl-guid-entry",
+            "instance_counts": {
+              "opl-guid-entry": 1,
+              "guid-input-card-shell": 1
+            },
+            "instance_count_groups": {
+              "footer_account_or_settings": {
+                "test_ids": ["sider-footer-account", "sider-footer-settings"],
+                "total": 1
+              }
+            },
             "state_attributes": {
               "executor": "data-opl-composer-executor",
               "active_shortcut_id": "data-opl-active-shortcut",
@@ -210,9 +223,12 @@
             "inactive_recent_directories_visible": false,
             "management_entry": "registered_directories_modal",
             "management_scope": "registered_workspaces",
+            "selection_effect": "set_new_session_initial_cwd_only",
             "unregister_effect": "remove_registration_only",
             "filesystem_delete_allowed": false,
-            "active_conversation_change_on_unregister": false
+            "active_conversation_change_on_unregister": false,
+            "session_ownership_effect": "none",
+            "cascade_session_delete_allowed": false
           },
           "home_shortcut_mutation_policy": {
             "pending_scope": "single_shortcut",
@@ -459,11 +475,16 @@
         "workspace selector",
         "file attachment control",
         "projectless attachments, arbitrary local file or directory selection, paste, drop, and /open subject only to Codex permissions",
+        "workspace readiness gates project, Worktree, and OPL workspace controls only, never plain local conversation or send-scoped local file inputs",
         "New task Local or Worktree selection with optional starting branch and create or reuse managed worktree behavior",
         "send action",
         "single composer-first home input with context strip and bottom action row",
+        "exactly one Home root, composer shell, and footer account or Settings entry at every viewport",
         "permission and access mode in user language",
         "workspace/session rail visible on wide desktop and drawer on narrow windows",
+        "each canonical thread ID rendered as at most one conversation row regardless of title",
+        "canonical App Server thread overview overrides Codex ACP cache rows while preserving non-Codex local rows",
+        "directory groups derived from canonical session cwd as presentation and new-session cwd shortcuts only",
         "advanced work surfaces closed by default with no third column",
         "runtime/task progress available from Runtime page, not Home activity grid"
       ],
@@ -493,8 +514,12 @@
         "Home footer favorite/star icon",
         "Home footer web/access globe icon",
         "per-assistant running badges derived from module or domain lane diagnostics",
-        "existing-task Local or Worktree handoff controls on Home",
-        "snapshot, restore, or worktree cleanup controls claimed as available on Home"
+        "existing-session working-directory or Local/Worktree handoff controls on Home",
+        "snapshot, restore, or worktree cleanup controls claimed as available on Home",
+        "workspace-scoped Add context action in a directory group",
+        "directory-group delete action or cascade deletion of grouped sessions",
+        "title-based conversation deduplication",
+        "stale Codex ACP cache rows absent from an available canonical App Server overview"
       ],
       "state_source": "opl app state --profile fast --json",
       "refresh_source": "opl app state --profile fast --json",
@@ -507,7 +532,7 @@
       "page_contract": "ordinary_codex_conversation",
       "conversation_view_model": {
         "path_id": "ordinary_codex_conversation",
-        "entry_source": "home_starter_project_task_or_projectless_new_conversation",
+        "entry_source": "home_starter_workspace_initialized_or_projectless_new_session",
         "executor": "codex_cli",
         "composer_position": "floating_bottom_with_safe_inset",
         "active_capability_chip_visible": true,
@@ -521,13 +546,8 @@
         "provider_selector_visible": false,
         "model_status_surface_ref": "contracts/app-gui-product-contract.json#executor_policy.default_model_display_value",
         "technical_details_policy": "single_compact_model_reasoning_menu_without_backend_or_provider",
-        "composer_context_strip": [
-          "active_capability"
-        ],
-        "composer_send_scoped_inputs": [
-          "attachments",
-          "project_refs"
-        ],
+        "composer_context_strip": ["active_capability"],
+        "composer_send_scoped_inputs": ["attachments"],
         "composer_send_scoped_consumption_policy": "consumed_by_current_send_not_persisted_in_context_strip",
         "composer_forbidden_persistent_context": [
           "project",
@@ -535,7 +555,7 @@
           "locality",
           "branch",
           "attachments",
-          "project_refs"
+          "workspace_context_refs"
         ],
         "composer_bottom_action_row": [
           "attach",
@@ -550,7 +570,6 @@
           "trigger": "+",
           "allowed_actions": [
             "attach",
-            "project_refs",
             "permission_access_mode",
             "model_reasoning",
             "active_capability"
@@ -565,54 +584,51 @@
           ]
         },
         "projectless_conversation_supported": true,
-        "projectless_input_policy": {
-          "surfaces": [
-            "attachments",
-            "local_file_picker",
-            "local_directory_picker",
-            "paste",
-            "drop",
-            "/open"
-          ],
+        "session_workspace_model": {
+          "primary_unit": "session_backed_by_codex_thread_id",
+          "identity_authority": "codex_core_app_server_thread_id",
+          "workspace_binding_role": "new_session_initial_cwd_mutable_default_working_directory_and_sidebar_grouping_metadata_only",
+          "workspace_owns_session": false,
+          "workspace_owns_context": false,
+          "workspace_owns_artifacts": false,
+          "workspace_group_cascade_session_delete_allowed": false,
+          "workspace_change_preserves": ["thread_id", "transcript", "turn_history", "title", "task_state"],
+          "workspace_change_forbids": ["fork_thread", "copy_history", "create_replacement_session", "change_session_owner"]
+        },
+        "explicit_session_input_policy": {
+          "scope": "current_session_composer",
+          "surfaces": ["attachments", "local_file_picker", "local_directory_picker", "paste", "drop", "/open"],
           "selection_scope": "any_user_selected_local_file_or_directory",
           "workspace_required": false,
           "access_authority": "codex_permission_approval_and_sandbox_only",
-          "shell_extra_path_authorization_allowed": false
-        },
-        "project_context_inputs": {
-          "scope": "canonical_workspace_path",
-          "optional": true,
-          "item_kind": "workspace_file_or_directory_ref",
-          "mutations": [
-            "add",
-            "remove"
-          ],
-          "persistence": "shell_client_configuration_keyed_by_workspace",
-          "management_surface": "navigation_rail_project",
-          "composer_consumption": "send_scoped_removable_refs",
+          "shell_extra_path_authorization_allowed": false,
+          "user_initiated_only": true,
+          "workspace_preload_allowed": false,
+          "workspace_scoped_persistence_allowed": false,
+          "implicit_workspace_context_injection_allowed": false,
+          "composer_consumption": "current_send_only",
           "composer_persistence_after_send": "none",
-          "fabricated_defaults_allowed": false,
-          "artifact_body_copy_allowed": false
+          "workspace_readiness_boundary": {
+            "gates": ["project_selection", "worktree_creation", "opl_workspace_controls"],
+            "plain_local_conversation_requires_workspace_root": false,
+            "send_scoped_local_file_inputs_require_workspace_root": false,
+            "worktree_requires_git_repository": true,
+            "codex_and_model_prerequisites_unchanged": true
+          }
         },
         "environment_workspace_handoff": {
           "contract_ref": "contracts/app-gui-product-contract.json#interaction_baseline.conversation_scope.local_worktree_lifecycle",
           "surface": "conversation_environment",
-          "scope": "same_host_existing_task",
-          "actions": [
-            "local_to_worktree",
-            "worktree_to_local",
-            "create_restore_point_and_remove",
-            "restore_worktree"
-          ],
-          "eligible_thread_states": [
-            "not_loaded",
-            "idle"
-          ],
-          "unavailable_thread_states": [
-            "running",
-            "archived",
-            "system_error"
-          ],
+          "scope": "same_host_existing_session",
+          "actions": ["switch_working_directory", "local_to_worktree", "worktree_to_local", "create_restore_point_and_remove", "restore_worktree"],
+          "working_directory_target_scope": "any_user_selected_same_host_local_directory",
+          "session_identity_policy": "preserve_canonical_thread_id_transcript_and_turn_history_without_fork_or_copy",
+          "sidebar_grouping_effect": "reclassify_same_session_by_selected_cwd_without_copy_or_fork",
+          "operation_start_workspace_source": "app_server_canonical_thread_cwd_then_projection_fallback_only_if_unavailable",
+          "no_op_comparison_source": "operation_start_workspace_not_mutable_projection",
+          "rollback_target": "operation_start_workspace",
+          "eligible_thread_states": ["not_loaded", "idle"],
+          "unavailable_thread_states": ["running", "archived", "system_error"],
           "protocol": "thread/settings/update",
           "failure_policy": "show_unavailable_or_error_without_silent_fallback",
           "projection_transaction": "codex_thread_cwd_first_then_aionui_projection_with_best_effort_cwd_rollback",
@@ -724,47 +740,44 @@
           "slice_policy": "same_task_run_projection_v2_filtered_by_current_conversation_or_selected_task"
         },
         "artifact_preview": {
-          "surface": "existing_aionui_preview_context_and_panel",
-          "entry_sources": [
-            "current_task_latest_artifact_ref",
-            "current_task_evidence_ref",
-            "environment_artifact_ref",
-            "conversation_file_or_result_ref"
-          ],
-          "supported_content_types": [
-            "markdown",
-            "pdf",
-            "code",
-            "image",
-            "html",
-            "diff"
-          ],
-          "markdown_embedded_renderers": [
-            "mermaid",
-            "katex",
-            "code"
-          ],
-          "ref_resolution_policy": "explicit_absolute_local_path_or_workspace_scoped_project_ref_to_existing_preview_target_without_copying_artifact_body",
-          "explicit_local_path_policy": {
-            "user_initiated_only": true,
-            "path_form": "legal_absolute_local_file_path",
-            "workspace_membership_required": false,
-            "access_authority": "codex_permission_approval_and_sandbox",
-            "automatic_silent_read_allowed": false
-          },
-          "project_context_ref_policy": {
-            "workspace_scoped": true,
-            "parent_traversal_allowed": false
-          },
-          "forbidden_inputs": [
-            "relative_parent_traversal",
-            "illegal_or_unsupported_scheme",
-            "automatic_silent_read"
-          ],
-          "artifact_body_authority": "external_owner_ref_only",
-          "keyboard_reachable_open_action": true,
-          "failure_policy": "keep_ref_visible_and_fail_closed_with_reason",
-          "unsafe_or_unsupported_ref_policy": "do_not_open_or_guess_content"
+        "surface": "existing_aionui_preview_context_and_panel",
+        "entry_sources": [
+          "session_attachment_ref",
+          "conversation_result_ref",
+          "explicit_absolute_local_path"
+        ],
+        "supported_content_types": [
+          "markdown",
+          "pdf",
+          "code",
+          "image",
+          "html",
+          "diff"
+        ],
+        "markdown_embedded_renderers": [
+          "mermaid",
+          "katex",
+          "code"
+        ],
+        "ref_resolution_policy": "explicit_session_attachment_or_conversation_result_ref_or_user_selected_legal_absolute_local_path_without_copying_artifact_body",
+        "session_reference_policy": {
+          "attachment_ref_scope": "current_session_explicit_attachment_only",
+          "conversation_result_ref_scope": "current_session_visible_result_only",
+          "workspace_membership_required": false,
+          "implicit_workspace_ref_allowed": false
+        },
+        "explicit_local_path_policy": {
+          "user_initiated_only": true,
+          "path_form": "legal_absolute_local_file_path",
+          "workspace_membership_required": false,
+          "access_authority": "codex_permission_approval_and_sandbox",
+          "automatic_silent_read_allowed": false
+        },
+        "forbidden_inputs": ["relative_parent_traversal", "illegal_or_unsupported_scheme", "automatic_silent_read", "implicit_workspace_context_ref"],
+        "artifact_body_authority": "external_owner_ref_only",
+        "keyboard_reachable_open_action": true,
+        "failure_policy": "keep_ref_visible_and_fail_closed_with_reason",
+        "unsafe_or_unsupported_ref_policy": "do_not_open_or_guess_content"
         }
       },
       "must_show": [
@@ -772,13 +785,14 @@
         "floating bottom composer with safe inset",
         "compact active capability chip",
         "desktop attach, permission and access, model and reasoning, and send or stop controls in the composer",
-        "mobile plus sheet limited to OPL attach, project refs, access, model and reasoning, and active capability actions",
-        "attachments and project refs consumed by the current send only",
+        "mobile plus sheet limited to OPL attach, access, model and reasoning, and active capability actions",
+        "explicit attachments, file or directory selection, paste, drop, and /open consumed by the current session send only",
         "permission and access mode in user language",
         "projectless text conversation when no workspace is selected",
         "projectless attachments, arbitrary local file or directory selection, paste, drop, and /open subject only to Codex permissions",
-        "same-host Local or Worktree handoff for an existing not-loaded or idle task from Conversation Environment",
-        "running, archived, or system-error task handoff shown unavailable without silent fallback",
+        "workspace readiness gates project, Worktree, and OPL workspace controls only, never plain local conversation or send-scoped local file inputs",
+        "same-host working-directory or Local/Worktree handoff for an existing not-loaded or idle session from Conversation Environment",
+        "running, archived, or system-error session handoff shown unavailable without silent fallback",
         "Codex thread cwd updated before AionUI projection with best-effort cwd rollback on projection failure",
         "durable snapshot-before-remove and receipt restore for deterministic managed worktrees in Conversation Environment",
         "assistant route receipt",
@@ -789,7 +803,8 @@
         "single current task instance in the message timeline, inline and unpinned for ordinary tasks",
         "current task becomes sticky only after user pin or a true long_running signal",
         "complete paginated redacted transcript export with Markdown default, strict JSON, explicit directory and filename",
-        "keyboard-reachable artifact and evidence refs that open through the existing Preview surface"
+        "keyboard-reachable artifact and evidence refs that open through the existing Preview surface",
+        "Preview accepts only explicit session attachments, visible conversation results, or user-selected legal absolute local paths"
       ],
       "must_not_show": [
         "backend selector as normal conversation control",
@@ -797,7 +812,9 @@
         "provider or backend language inside permission and access mode",
         "persistent variable purpose selector in the composer",
         "new task dashboard inside conversation",
-        "persistent project, workspace, locality, branch, attachment, or project-ref context strip",
+        "persistent project, workspace, locality, branch, attachment, or workspace-context-ref context strip",
+        "workspace-scoped project context inputs or an Add context action in the directory rail",
+        "workspaceRootReady or workspace membership used as a file-access gate",
         "backend, provider, Team, raw MCP, or arbitrary skills in the mobile plus sheet",
         "Local or Worktree handoff control inside the primary composer",
         "snapshot or worktree cleanup controls outside Conversation Environment or without a durable receipt",
@@ -2424,7 +2441,7 @@
         "explicit enter OPL action before readiness without mutating readiness",
         "persistent non-modal complete-first-setup entry in the ordinary sidebar while Core prerequisites remain incomplete",
         "plain conversation send blocked only by Codex CLI or model access readiness with an inline recovery action that preserves the prompt",
-        "workspace root readiness restricts only file attachment and project workspace controls while plain conversation remains available",
+        "workspace root readiness restricts only project selection, Worktree creation, and OPL workspace controls while plain conversation and send-scoped local inputs remain available",
         "functional OPL Gateway and existing Codex access choices",
         "model access method switching and alternate actions disabled while a request is active",
         "pending state without premature ready or no-blocker claims",
@@ -2568,19 +2585,14 @@
       },
       "ordinary_shell_recovery": {
         "persistent_setup_entry_route": "/first-run",
-        "plain_conversation_required_items": [
-          "codex_cli",
-          "codex_config"
-        ],
-        "file_and_project_required_items": [
-          "workspace_root"
-        ],
+        "plain_conversation_required_items": ["codex_cli", "codex_config"],
+        "send_scoped_local_input_required_items": ["codex_cli", "codex_config"],
+        "workspace_control_required_items": ["workspace_root"],
         "unknown_readiness_policy": "do_not_synthesize_failure_or_mutate_readiness",
         "required_shell_testids": [
           "opl-first-run-resume-entry",
           "opl-guid-setup-notice",
           "opl-guid-setup-notice-action",
-          "opl-guid-file-access-disabled",
           "opl-guid-workspace-access-disabled"
         ]
       },

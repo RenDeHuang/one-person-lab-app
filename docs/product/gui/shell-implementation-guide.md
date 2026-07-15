@@ -60,10 +60,10 @@ contract/实现收敛 lane 处理。
 | State bridge | 把 App state readback 规范化为 renderer 可消费 envelope。 | 从本地组件状态推断 runtime/domain readiness。 |
 | Action bridge | 执行 App-owned action，并返回 dry-run/result/receipt。 | 直接调用 domain CLI、绕过 confirmation 或自建 mutation kernel。 |
 | Package launch adapter | 在 Home starter launch 前请求 Framework-owned use-boundary activation，并消费 `launch_allowed`、receipt 与 binding。 | 从 installed flag 推断可用、绕过 activation、在失败后仍创建/发送 conversation。 |
-| Thread directory / coordination adapter | Rail 只投影 App Server canonical thread directory/actions；rename/archive/restore/delete 映射 `thread/name/set`、`thread/archive`、`thread/unarchive`、`thread/delete`，pin 仅 Shell metadata；thread-detail context action 与 model host tool 封装 `turn/*`、advisory、delivery audit 与 interactive request pending flow。 | 用 Shell DB 拥有 history、把 local reset 冒充 history reset、挂载独立“线程协调”页面、隐藏按需 context action/host tool、把 pending approval 当 dispatch failure、用 project/workspace 建 sandbox、增加 OPL confirmation、用 `send_input` 作为跨根线程总线。 |
+| Thread directory / coordination adapter | Rail 只投影 App Server canonical thread directory/actions；project/workspace 仅按当前 cwd 分组同一 session。Rename/archive/restore/delete 映射 `thread/name/set`、`thread/archive`、`thread/unarchive`、`thread/delete`，pin 仅 Shell metadata；thread-detail context action 与 model host tool 封装 `turn/*`、advisory、delivery audit 与 interactive request pending flow。 | 用 Shell DB 拥有 history、把目录分组当 session owner、通过复制/fork 移动 session、把 local reset 冒充 history reset、挂载独立“线程协调”页面、隐藏按需 context action/host tool、把 pending approval 当 dispatch failure、用 project/workspace 建 sandbox、增加 OPL confirmation、用 `send_input` 作为跨根线程总线。 |
 | Projectless local-input adapter | 让 attachment、file/directory picker、paste/drop、`/open` 在无 workspace 时继续进入 Codex 原生权限路径。 | 因缺 project 禁用输入、把 workspace membership 当授权、复制第二套 path permission model。 |
-| Artifact ref adapter | 用户显式打开的合法绝对本地路径或 workspace-scoped project ref 解析为现有 Preview target，保持只读和 fail-closed。 | 复制 artifact body、新建 renderer/store、路径穿越、非法 scheme、自动静默读取或猜测未知格式。 |
-| Local / Worktree handoff adapter | Home 通过既有 `gitWorkspace` adapter投影 Local/Worktree、starting branch 和 managed worktree create/reuse；Conversation Environment 为同主机 `not_loaded`/`idle` task 调用 `thread/settings/update` 双向切换。复用同一 Git adapter为确定的 managed worktree创建 durable snapshot receipt，再移除；按 receipt 恢复原 path、HEAD/branch、index、tracked、untracked 与 ignored user files。Worktree默认保留，cleanup只由显式动作触发。 | 复制 Git/thread store、把 project/workspace 当权限域、running/archived/error 静默 fallback、remove-before-snapshot、删除branch/ref、覆盖冲突路径、伪造partial success、把本机lifecycle冒充cross-host handoff。 |
+| Artifact ref adapter | 当前 session 显式 attachment、可见 conversation result 或用户选择的合法绝对本地路径解析为现有 Preview target，保持只读和 fail-closed。 | 复制 artifact body、新建 renderer/store、隐式 workspace ref、路径穿越、非法 scheme、自动静默读取或猜测未知格式。 |
+| Session workspace / Local / Worktree adapter | Home 通过既有 `gitWorkspace` adapter投影 Local/Worktree、starting branch 和 managed worktree create/reuse；Conversation Environment 为同主机 `not_loaded`/`idle` canonical session 用系统目录选择器取得任意本地目录，调用 `thread/settings/update` 原位更新同一 thread，再更新 `conversation.extra.workspace` 与 rail 分组。Projection 写失败时恢复旧 canonical cwd；Local↔Worktree 继续复用同一 Git adapter，为确定的 managed worktree创建 durable snapshot receipt后再移除，并按 receipt 恢复原 path、HEAD/branch、index、tracked、untracked 与 ignored user files。 | Fork/copy/create replacement session、改变 canonical thread ID、复制 Git/thread store、把 project/workspace 当权限域、projection 失败后保留错误 cwd、running/archived/error 静默 fallback、remove-before-snapshot、删除branch/ref、覆盖冲突路径、伪造partial success、把本机lifecycle冒充cross-host handoff。 |
 | Cross-host handoff adapter | 只在Codex App Remote Connections / host-handoff owner提供真实连接、任务与Git状态迁移、目标readback和断线恢复协议后接入；当前返回 `remote_host_handoff_owner_surface_unavailable`，Shell角色是 `blocked_thin_adapter`。 | 用远端`turn/start`、Aion Remote Agent、Framework connection registry或本地receipt冒充任务迁移；把owner blocker降级成无期限future。 |
 | Review adapter | 在现有 Files/Changes diff surface补 uncommitted/base branch/commit/custom、inline/detached、Unstaged/Staged/Commit/Branch/Last turn、PR context、stage/commit/push；Last turn复用 message store，`gh` 缺失明确 unavailable。非 custom focus以`review/start`返回的review thread/turn为前置，通过同一client `turn/steer(expectedTurnId)`发送；custom instructions不重复，失败typed fail。Line comments仅在 typed Codex file/line protocol存在后接入。 | 恢复 equal-weight Review tab、复制 diff/Git store、创建本地 annotation store、丢弃review turn id、把focus只写audit、重复custom instructions、伪造评论成功或在 React 层直接实现 Git protocol。 |
 | Route adapter | 把 legacy/upstream route 映射到 App-owned page。 | 让 compatibility route 重新成为 ordinary navigation。 |
@@ -336,12 +336,13 @@ command 和可见状态 anchor。
 - 同一 opaque request/idempotency key 重试幂等，同内容不同 key 允许重复投递；
 - 同一 key 重试返回第一次 receipt/result、`ok=true`，不二次 dispatch 或返回 duplicate error；
 - archive 直接且可 unarchive；Shell/host 不得为 read/send/steer/archive 增加 OPL confirmation；
-- 用户显式合法绝对本地路径与 workspace-scoped project refs 只在安全解析后进入现有 Preview，
-  traversal、非法 scheme、自动静默读取失败时保留原 ref 且不打开空 preview；
+- 当前 session 显式 attachment、可见 conversation result 与用户选择的合法绝对本地路径只在安全解析后
+  进入现有 Preview；隐式 workspace ref、traversal、非法 scheme、自动静默读取失败时保留原 ref 且不打开空 preview；
 - Home Local/Worktree、starting branch 与 managed worktree create/reuse 复用既有 `gitWorkspace` adapter；
-  既有同主机 `not_loaded`/`idle` task 只从 Conversation Environment 通过
-  `thread/settings/update` 切换真实 cwd，`running`/`archived`/`system_error` 显示 unavailable且
-  不 silent fallback；AionUI projection 失败时 best-effort 恢复旧 cwd；
+  既有同主机 `not_loaded`/`idle` canonical session 只从 Conversation Environment 通过系统目录选择器与
+  `thread/settings/update` 原位切换到任意真实 cwd，保留 thread identity/history 并刷新 projection/rail
+  分组；`running`/`archived`/`system_error` 显示 unavailable且不 silent fallback；AionUI projection
+  失败时 best-effort 恢复旧 cwd；
 - `opl_workspace_handoff.v1` 只承载 locality projection metadata；worktree默认保留复用。显式cleanup
   只允许确定的managed worktree，必须先生成可解析到durable Git ref/object的
   `opl_worktree_snapshot_receipt.v1`；restore覆盖HEAD/branch或detached HEAD、index、tracked、

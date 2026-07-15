@@ -1,7 +1,9 @@
 import { assertExpectedFields, assertStringArrayIncludes } from './value-assertions.ts';
 import {
+  appOwnedExplicitSessionInputPolicy,
   appOwnedRightContextInspectorForbiddenOwners,
   appOwnedRightContextInspectorPolicy,
+  appOwnedSessionWorkspaceModel,
   appOwnedTranscriptExport,
 } from './validate-active-shell/app-contract-constants.ts';
 
@@ -93,9 +95,22 @@ export const expectedHomeComposerStateContract = {
     executor_selector_visible: false,
     active_shortcut_changes_executor: false,
     default_visibility_governs_execution: false,
+    single_home_root: true,
+    single_composer_shell: true,
+    single_footer_account_settings_entry: true,
   },
   semantic_probe: {
     root_test_id: 'opl-guid-entry',
+    instance_counts: {
+      'opl-guid-entry': 1,
+      'guid-input-card-shell': 1,
+    },
+    instance_count_groups: {
+      footer_account_or_settings: {
+        test_ids: ['sider-footer-account', 'sider-footer-settings'],
+        total: 1,
+      },
+    },
     state_attributes: {
       executor: 'data-opl-composer-executor',
       active_shortcut_id: 'data-opl-active-shortcut',
@@ -306,7 +321,7 @@ export function assertAppProductProfileGuiInteractionBaseline(
       { actual: homeLayout?.right_context_inspector_default_state, expected: 'collapsed' },
       {
         actual: conversation?.entry_source,
-        expected: 'home_starter_project_task_or_projectless_new_conversation',
+        expected: 'home_starter_workspace_initialized_or_projectless_new_session',
       },
       { actual: conversation?.composer_position, expected: 'floating_bottom_with_safe_inset' },
       { actual: conversation?.permission_mode_selector_visible, expected: true },
@@ -323,9 +338,22 @@ export function assertAppProductProfileGuiInteractionBaseline(
   );
   assertExactStringArray(
     conversation?.composer_send_scoped_inputs,
-    ['attachments', 'project_refs'],
+    ['attachments'],
     `${label} GUI composer send-scoped inputs`,
   );
+  assertExactStringArray(
+    conversation?.composer_forbidden_persistent_context,
+    ['project', 'workspace', 'locality', 'branch', 'attachments', 'workspace_context_refs'],
+    `${label} GUI composer forbidden persistent context`,
+  );
+  if (
+    JSON.stringify(conversation?.session_workspace_model) !== JSON.stringify(appOwnedSessionWorkspaceModel) ||
+    JSON.stringify(conversation?.explicit_session_input_policy) !== JSON.stringify(appOwnedExplicitSessionInputPolicy) ||
+    'project_context_inputs' in (conversation ?? {}) ||
+    'projectless_input_policy' in (conversation ?? {})
+  ) {
+    throw new Error(`${label} GUI conversation must keep session identity primary and accept only explicit current-session inputs`);
+  }
   if (
     JSON.stringify(conversation?.transcript_export) !== JSON.stringify(appOwnedTranscriptExport)
   ) {
@@ -353,7 +381,7 @@ export function assertAppProductProfileGuiInteractionBaseline(
   const mobileActionSheet = conversation?.mobile_action_sheet as Record<string, unknown> | undefined;
   assertExactStringArray(
     mobileActionSheet?.allowed_actions,
-    ['attach', 'project_refs', 'permission_access_mode', 'model_reasoning', 'active_capability'],
+    ['attach', 'permission_access_mode', 'model_reasoning', 'active_capability'],
     `${label} GUI mobile action sheet allowed actions`,
   );
   assertExactStringArray(

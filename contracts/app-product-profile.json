@@ -85,10 +85,23 @@
           "permission_access_visible": true,
           "executor_selector_visible": false,
           "active_shortcut_changes_executor": false,
-          "default_visibility_governs_execution": false
+          "default_visibility_governs_execution": false,
+          "single_home_root": true,
+          "single_composer_shell": true,
+          "single_footer_account_settings_entry": true
         },
         "semantic_probe": {
           "root_test_id": "opl-guid-entry",
+          "instance_counts": {
+            "opl-guid-entry": 1,
+            "guid-input-card-shell": 1
+          },
+          "instance_count_groups": {
+            "footer_account_or_settings": {
+              "test_ids": ["sider-footer-account", "sider-footer-settings"],
+              "total": 1
+            }
+          },
           "state_attributes": {
             "executor": "data-opl-composer-executor",
             "active_shortcut_id": "data-opl-active-shortcut",
@@ -152,9 +165,12 @@
           "inactive_recent_directories_visible": false,
           "management_entry": "registered_directories_modal",
           "management_scope": "registered_workspaces",
+          "selection_effect": "set_new_session_initial_cwd_only",
           "unregister_effect": "remove_registration_only",
           "filesystem_delete_allowed": false,
-          "active_conversation_change_on_unregister": false
+          "active_conversation_change_on_unregister": false,
+          "session_ownership_effect": "none",
+          "cascade_session_delete_allowed": false
         },
         "home_shortcut_mutation_policy": {
           "pending_scope": "single_shortcut",
@@ -461,7 +477,7 @@
     },
     "ordinary_conversation": {
       "path_id": "ordinary_codex_conversation",
-      "entry_source": "home_starter_project_task_or_projectless_new_conversation",
+      "entry_source": "home_starter_workspace_initialized_or_projectless_new_session",
       "executor": "codex_cli",
       "composer_position": "floating_bottom_with_safe_inset",
       "active_capability_chip_visible": true,
@@ -479,8 +495,7 @@
         "active_capability"
       ],
       "composer_send_scoped_inputs": [
-        "attachments",
-        "project_refs"
+        "attachments"
       ],
       "composer_send_scoped_consumption_policy": "consumed_by_current_send_not_persisted_in_context_strip",
       "composer_forbidden_persistent_context": [
@@ -489,7 +504,7 @@
         "locality",
         "branch",
         "attachments",
-        "project_refs"
+        "workspace_context_refs"
       ],
       "composer_bottom_action_row": [
         "attach",
@@ -504,7 +519,6 @@
         "trigger": "+",
         "allowed_actions": [
           "attach",
-          "project_refs",
           "permission_access_mode",
           "model_reasoning",
           "active_capability"
@@ -519,20 +533,55 @@
         ]
       },
       "projectless_conversation_supported": true,
-      "project_context_inputs": {
-        "scope": "canonical_workspace_path",
-        "optional": true,
-        "item_kind": "workspace_file_or_directory_ref",
-        "mutations": [
-          "add",
-          "remove"
+      "session_workspace_model": {
+        "primary_unit": "session_backed_by_codex_thread_id",
+        "identity_authority": "codex_core_app_server_thread_id",
+        "workspace_binding_role": "new_session_initial_cwd_mutable_default_working_directory_and_sidebar_grouping_metadata_only",
+        "workspace_owns_session": false,
+        "workspace_owns_context": false,
+        "workspace_owns_artifacts": false,
+        "workspace_group_cascade_session_delete_allowed": false,
+        "workspace_change_preserves": [
+          "thread_id",
+          "transcript",
+          "turn_history",
+          "title",
+          "task_state"
         ],
-        "persistence": "shell_client_configuration_keyed_by_workspace",
-        "management_surface": "navigation_rail_project",
-        "composer_consumption": "send_scoped_removable_refs",
+        "workspace_change_forbids": [
+          "fork_thread",
+          "copy_history",
+          "create_replacement_session",
+          "change_session_owner"
+        ]
+      },
+      "explicit_session_input_policy": {
+        "scope": "current_session_composer",
+        "surfaces": [
+          "attachments",
+          "local_file_picker",
+          "local_directory_picker",
+          "paste",
+          "drop",
+          "/open"
+        ],
+        "selection_scope": "any_user_selected_local_file_or_directory",
+        "workspace_required": false,
+        "access_authority": "codex_permission_approval_and_sandbox_only",
+        "shell_extra_path_authorization_allowed": false,
+        "user_initiated_only": true,
+        "workspace_preload_allowed": false,
+        "workspace_scoped_persistence_allowed": false,
+        "implicit_workspace_context_injection_allowed": false,
+        "composer_consumption": "current_send_only",
         "composer_persistence_after_send": "none",
-        "fabricated_defaults_allowed": false,
-        "artifact_body_copy_allowed": false
+        "workspace_readiness_boundary": {
+          "gates": ["project_selection", "worktree_creation", "opl_workspace_controls"],
+          "plain_local_conversation_requires_workspace_root": false,
+          "send_scoped_local_file_inputs_require_workspace_root": false,
+          "worktree_requires_git_repository": true,
+          "codex_and_model_prerequisites_unchanged": true
+        }
       },
       "transcript_export": {
         "scope": "current_conversation_transcript_only",
@@ -1480,10 +1529,12 @@
         "codex_cli",
         "codex_config"
       ],
-      "required_before_file_or_project_send": [
-        "workspace_root",
+      "required_before_send_with_local_inputs": [
         "codex_cli",
         "codex_config"
+      ],
+      "required_before_workspace_controls": [
+        "workspace_root"
       ],
       "unknown_readiness_policy": "allow_attempt_without_mutating_readiness",
       "blocked_feedback": "localized_inline_non_modal_setup_notice_preserves_prompt",
@@ -1519,18 +1570,32 @@
         "blocked_feedback": "localized_inline_non_modal_notice_with_first_run_action",
         "must_preserve_prompt": true
       },
-      "file_and_project_context": {
+      "send_scoped_local_inputs": {
+        "required_items": [
+          "codex_cli",
+          "codex_config"
+        ],
+        "workspace_root_required": false,
+        "supported_inputs": [
+          "file_dialog_attachment",
+          "directory_dialog_attachment",
+          "file_paste_attachment",
+          "file_drag_attachment",
+          "slash_open_absolute_path"
+        ]
+      },
+      "workspace_controls": {
         "required_items": [
           "workspace_root"
         ],
         "restricted_capabilities": [
-          "file_dialog_attachment",
-          "file_paste_attachment",
-          "file_drag_attachment",
-          "project_workspace_selection"
+          "project_workspace_selection",
+          "worktree_creation",
+          "opl_workspace_controls"
         ],
         "blocked_feedback": "disabled_control_with_local_explanation_and_persistent_setup_entry",
-        "plain_conversation_remains_available": true
+        "plain_conversation_remains_available": true,
+        "send_scoped_local_inputs_remain_available": true
       },
       "unknown_readiness_policy": "do_not_synthesize_failure_or_mutate_readiness"
     },

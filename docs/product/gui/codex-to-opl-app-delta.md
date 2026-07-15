@@ -41,7 +41,8 @@ surfaces。
 
 以下项目不是 26.707.41301 的 literal observation，必须明确标为 OPL-owned delta：
 
-- project 下的可选 context refs、附件边界与 OPL workspace state；
+- 当前 session composer 的显式 attachment/paste/drop/`/open` 边界与 OPL workspace state，不存在 project context preload；
+- canonical session 身份独立于 project/workspace，目录组不拥有或级联删除 session，既有 session 可原位切换 cwd 并重新分组；
 - Research、Grant、Presentation、Book 等 capability/package 语义；
 - OPL task progress、evidence、artifact、action confirmation 与 receipt；
 - OPL Settings IA、first-run、双语、runtime 和 release authority。
@@ -54,8 +55,9 @@ surfaces。
 OPL App 采用下列翻译规则；没有明确 delta 的区域默认复用 reference 的 composition pattern，
 不把外部产品行为或像素解释为 1:1 authority：
 
-1. **Project-first rail。** 保留 Codex project -> N conversations 结构，在选中 project 下
-   增加可选、可移除的 context refs 与附件入口；不增加并列的第二导航栏。
+1. **Session-first grouped rail。** 保留 Codex 按工作目录组织 conversations 的认知分组，但 canonical
+   thread/session 是身份单位，project/workspace 只是初始 cwd、可变分组和可见 metadata。目录组只提供
+   “使用此工作目录新建对话”，不拥有 session，也不提供目录级输入、附件管理或级联删除。
 2. **Chat-first canvas。** Home/New task 和已有 conversation 使用同一 canvas、timeline
    与 composer。Starter 只帮助选择 purpose，不形成长期 dashboard。
 3. **Composer owns execution controls。** Model/reasoning、access、attachment、active
@@ -83,9 +85,9 @@ package entry 和双语等 OPL-owned capability：
 
 | Class | 内容 | 设计约束 |
 | --- | --- | --- |
-| `adopt_composition_pattern` | App frame、project/conversation rail、单列 timeline、底部 composer、environment floating details、quiet visual grammar。 | 保持参考产品验证过的认知位置，再由 OPL contracts 决定功能、数据、文案和可见状态；不宣称逐像素或逐行为复制。 |
-| `adapt` | Global rail labels、model/access policy、project state、Settings IA、desktop/WebUI affordance。 | 保持 Codex 认知位置，只替换数据和用户语言；不能借适配删除 OPL-owned capability。 |
-| `add` | Project context refs、OPL capabilities、Work Item status，以及 Inspector / Settings 中的 evidence、artifacts、safe actions、receipts。 | 按 owner surface 渐进披露；不得抢占主 timeline、塞入 Runtime 或制造 card wall。 |
+| `adopt_composition_pattern` | App frame、directory/session rail、单列 timeline、底部 composer、environment floating details、quiet visual grammar。 | 保持参考产品验证过的认知位置，再由 OPL contracts 决定功能、数据、文案和可见状态；不宣称逐像素或逐行为复制。 |
+| `adapt` | Global rail labels、model/access policy、working-directory metadata、Settings IA、desktop/WebUI affordance。 | 保持 Codex 认知位置，只替换数据和用户语言；不能借适配删除 OPL-owned capability。 |
+| `add` | OPL capability selection、Work Item status，以及 Inspector / Settings 中的 evidence、artifacts、safe actions、receipts。 | 按 owner surface 渐进披露；当前 session 输入只由 composer 显式加入，不建立 workspace/project context preload，也不得抢占主 timeline、塞入 Runtime 或制造 card wall。 |
 | `reject` | Home dashboard、状态卡片墙、常驻 provider/backend selector、多套 inspector、普通路径 raw runtime/protocol。 | 不以“OPL 专业性”为理由恢复。 |
 
 ## 增量摘要

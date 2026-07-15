@@ -33,8 +33,8 @@ Shell merge `1752ba496377a0534ae88e6343f8051d961f79a5` 已把该 lineage 纳入 
 - 19 个测试文件贡献 1824 行新增，约占全部新增行的 66%。视觉 harness 与
   mock-heavy tests 占比过高，并
   反向要求 product DOM 保持旧结构。
-- 有价值的能力包括 project context、artifact export、desktop navigation、rail
-  alignment、Settings anchor focus 与 evidence hardening；但没有一个完整提交同时满足
+- 有价值的能力包括 artifact export、desktop navigation、rail alignment、Settings anchor
+  focus 与 evidence hardening；旧目录级上下文能力已被当前 session-first authority 废弃，且没有一个完整提交同时满足
   41301 交互位置、OPL authority 和最小 upstream delta。
 
 因此，final disposition 是：**保留行为意图，拆分实现；废弃旧视觉目标与分支级
@@ -55,10 +55,10 @@ absorption。** 新 integration 必须从当前 Shell main 与 App authority 重
 | Commit | Scope | Disposition | 保留内容 | 必须重做或删除 | Absorption |
 | --- | --- | --- | --- | --- | --- |
 | `96cb196c9` | Single/batch ZIP export、filename、preview tests | `adapt` | Transcript export、显式 filename/folder、失败可见、existing export platform bridge。 | 默认递归打包整个 workspace、10k message silent boundary、renderer 内存聚合、artifact authority 混写；拆成 transcript export 与显式确认的 local file bundle。 | 禁止整提交吸收。 |
-| `36a021d62` | Project context refs、rail section、Home/conversation plumbing、composer strip | `adapt` | Workspace-scoped refs、path normalization/dedupe、rail 中可选增删、new task 读取同一 project context。 | 删除 route-state copy 和 Guid local duplicate state；长期 context 不并入单次 attachment `files` 生命周期。Composer `project/local/branch` strip 当前存在 authority conflict：41301 observation/新 human target 倾向 project 归 rail、branch/locality 归 Environment，但旧 profile/page-state 仍要求 strip；必须先同步 authority，不能在 Shell lane 单方面删除或保留。 | 禁止整提交吸收。 |
+| `36a021d62` | Workspace-keyed refs、rail section、Home/conversation plumbing、composer strip | `drop` | 路径 normalization/dedupe 算法可在当前 session 显式 picker 中独立复用。 | 删除 rail section、workspace-keyed store、route-state copy、Guid duplicate state 与 composer 持久 strip；不得把历史实现改名后继续作为目录级输入源。 | 不吸收产品面；只允许独立复用通用路径算法。 |
 | `2f668449c` | Native menu、New Window、Back/Forward、Previous/Next Task、menu state IPC | `adapt` | Native menu affordance、localized labels、Back/Forward 与 adjacent task semantics。 | 拆开无关 language-startup change；menu state 必须绑定 focused window，不能使用 process-global stale state；减少 ChatLayout/i18n 冲突面。 | 禁止整提交吸收。 |
 | `5262d9112` | Route-bound Playwright GUI evidence 与 manifest writer | `evidence_only` | Clean exact HEAD、route/viewport/theme/locale/anchor/layout bounds、claim boundary。 | 删除 Home/side-panel 旧 target；HEAD/manifest binding 归 App evidence owner；不为测试新增 fork-body DOM shape。 | 只提取证据协议。 |
-| `68b45b367` | Generated project-context profile | `adapt` | Project context schema projection。 | `31cc78b72e485ed4e3756fff91eff80330df406b` 只是 5.6 Sol `max` policy base，尚无 project-context authority。必须在 composer/context 决策写入 App contracts 后，从同时包含 `max + context` 的新 App commit 完整生成；禁止重放旧 JSON blob。 | Regenerate only。 |
+| `68b45b367` | Generated workspace-keyed input profile | `drop` | 无当前产品 schema。 | 当前 App authority 只允许 session composer 显式输入；不得从旧 blob 或旧字段再生目录级输入。 | 不重放、不再生成。 |
 | `0920b87b1` | Context-strip mocks | `drop` | 无独立产品价值。 | Composer strip 不原样保留；测试随新 context consumer 重写。 | 不吸收。 |
 | `5b7e5de01` | Evidence backend readiness | `evidence_only` | 要求真实可用 test backend port，避免 about:blank/fake page。 | 不外推为 live runtime、packaged App 或 release evidence。 | 合并进新 harness。 |
 | `4760b7044` | Deterministic rail state | `evidence_only` | 每个场景显式设置 rail state。 | 不依赖残留 localStorage；场景改为 41301。 | 合并进新 harness。 |
@@ -76,7 +76,7 @@ integration 的 keep/adapt/drop 决策。
 
 | Surface | Current source / behavior | Disposition | Required target |
 | --- | --- | --- | --- |
-| Project/conversation rail | `Layout.tsx`、`SiderPrimaryNav.tsx`、`GroupedHistory/index.tsx`、`SiderFooter.tsx` 已提供 wide rail、narrow drawer、New task/Archived/Capabilities、project grouping 和 account/help/Settings。 | `keep` | 不重写 rail；只在 selected project 下增加统一 context consumer。 |
+| Directory/session rail | `Layout.tsx`、`SiderPrimaryNav.tsx`、`GroupedHistory/index.tsx`、`SiderFooter.tsx` 已提供 wide rail、narrow drawer、New task/Archived/Capabilities、workspace grouping 和 account/help/Settings。 | `keep + adapt` | 不重写 rail；分组只投影 canonical session 当前 cwd，不挂载目录级输入、组级删除或级联删除。 |
 | Environment summary | `ConversationEnvironmentPopover.tsx` 已是右上 anchored、default-closed summary，显示 workspace/locality/branch/subtasks/sources。 | `keep + adapt` | 增加 changes、commit/push、compare 与 OPL artifact/evidence secondary refs；首层不显示完整 Runtime。 |
 | Multi-tool side panel taxonomy | `ChatSlider.tsx` 把 Review/Terminal/Browser/Files 设为一级 tabs，再把 Artifacts/Runtime/Actions/Memory 设为二级入口。 | `drop taxonomy` | 删除八类综合 inspector 与 More Context；保留底层 Files/Terminal/Browser/Preview 能力，按任务或显式动作打开。 |
 | Side-panel infrastructure | `ChatLayout/index.tsx` 提供 resize、overlay、focus/backdrop 与 preview layout。 | `adapt` | 作为单一 advanced surface/preview 基础设施，不与 Environment 并列成常驻第三列；preview 不自动打开综合 inspector。 |
@@ -91,19 +91,17 @@ integration 的 keep/adapt/drop 决策。
 
 新 integration 按以下顺序执行，避免继续扩大 fork：
 
-1. **Authority sync。** 先裁决 composer context：推荐 project 归 rail、branch/locality
-   归 Environment、active capability 留在 composer；在决定写入 App contracts/page-state
-   前不得改 Shell。以 App `31cc78b72e485ed4e3756fff91eff80330df406b` 作为
-   `gpt-5.6-sol + max` policy base，在其上形成同时包含 41301 context authority 的新
-   commit，再生成最终 Shell profile。Shell max commit
-   `6a65d62fc1706eeac9dfa56d1a671811d5b2fcf6` 只作语义输入，不重放旧 JSON。
+1. **Authority sync。** 当前裁决固定为 session/thread 是身份与工作单位；working directory
+   只作为新 session 初始 cwd、同 session 可变 cwd 与 rail 分组 metadata。Branch/locality 归
+   Environment、active capability 留在 composer；当前 composer 只消费用户显式加入的 send-scoped
+   输入。最终 Shell profile 必须从包含该 authority 的 App commit 生成，不重放旧 JSON。
 2. **P0 composer。** 把 desktop model/reasoning 移到 composer，保持 access/send/stop
    同一决策点；删除 `ChatSlider.actionsSlot` 的模型控制。
 3. **P0 Environment。** 保留并扩展 anchored Environment；删除综合 side-panel taxonomy，
    将 preview/files/terminal/browser 作为按需 advanced surface。
-4. **P0/P1 project context。** 一个 workspace-keyed L1 source；rail 负责编辑，new task 与
-   send 直接消费，不经过 route-state/local-state/多层 props；长期 context 与单次 attachment
-   分开。
+4. **P0/P1 session directory 与 inputs。** Rail 按 canonical thread ID 单行投影，并按当前 cwd
+   分组；overview 可用时排除 stale Codex ACP cache row。Attachment、file/directory picker、paste/drop
+   与 `/open` 只由当前 session composer 显式消费，不预载、不按 workspace 持久化。
 5. **P1 task awareness。** 单一 inline summary，删除 Runtime duplicate，expanded refs
    进入 Environment/preview/turn disclosure。
 6. **P1 export 与 desktop menu。** 分别用最小 platform adapter 重做，不与 rail/context
@@ -117,8 +115,8 @@ integration 的 keep/adapt/drop 决策。
 - 不 merge、rebase 或 cherry-pick 整个 `dbff7370f` branch。
 - 不把旧 side-panel screenshots、DOM tests 或 manifest 作为 41301 pixels。
 - 不重放 `68b45b367` generated JSON；最终 profile 必须来自 App authority。
-- 不把 project context 同时存入 config、route state、Guid local state 和 attachment files；
-  composer strip 在 authority 消歧前保持未决，不由 Shell 自行裁决。
+- 不恢复 workspace-keyed input store、rail 添加入口、route/Guid duplicate state 或持久 composer strip；
+  working directory 不拥有 input、artifact 或 session。
 - 不为了 visual harness 修改生产 DOM shape 或锁死 Arco 内部结构。
 - 不用 Settings 完成度、旧 focused tests 或 docs-only target 声称 P0/P1 已完成。
 

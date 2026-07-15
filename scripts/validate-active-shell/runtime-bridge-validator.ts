@@ -1499,6 +1499,11 @@ function validateCanonicalConversationContinuityPolicy(runtimeBridge) {
     ordinary_rail_authority: 'codex_app_server_thread_list_read_resume',
     shell_local_storage_role: 'ui_preferences_drafts_and_rebuildable_cache_only',
     shell_can_own_thread_history: false,
+    codex_session_directory_authority: 'canonical_app_server_thread_overview_when_available',
+    canonical_overview_unavailable_policy: 'fallback_to_shell_cache_without_reclassifying_cache_as_authority',
+    stale_codex_acp_cache_row_policy:
+      'exclude_from_ordinary_projection_when_absent_from_available_canonical_overview',
+    non_codex_local_row_policy: 'preserve',
     direct_cross_shell_private_store_access_allowed: false,
     duplicate_thread_store_allowed: false,
     simultaneous_same_thread_write_safety_claimed: false,
@@ -1507,7 +1512,11 @@ function validateCanonicalConversationContinuityPolicy(runtimeBridge) {
     pin_role: 'shell_ui_metadata_only',
     local_reset_role: 'retain_existing_aionui_conversation_semantics_not_app_server_history_reset',
     same_idempotency_key_retry_policy: 'return_first_receipt_and_result_with_ok_true_without_second_dispatch',
-    project_workspace_role: 'default_cwd_grouping_and_context_hint_only_not_authorization_domain',
+    workspace_directory_role: 'new_session_initial_cwd_mutable_cwd_grouping_and_visible_metadata_only_not_authorization_domain',
+    row_identity: 'canonical_thread_id',
+    duplicate_row_per_canonical_thread_allowed: false,
+    title_based_deduplication_allowed: false,
+    e2e_fixture_storage_policy: 'isolated_storage_root_never_production_user_data',
     acceptance: 'both_shells_project_the_same_app_server_thread_directory_and_resume_by_canonical_identity',
     implementation_status: 'target_not_proven_across_both_shells',
   })) {
@@ -1542,6 +1551,20 @@ function validateCanonicalConversationContinuityPolicy(runtimeBridge) {
       delete: 'thread/delete',
     },
     'Canonical conversation task action protocols',
+  );
+  assertDeepEqualJson(
+    policy?.directory_group_policy,
+    {
+      source: 'canonical_session_cwd_projection',
+      role: 'presentation_and_new_session_cwd_shortcut_only',
+      owns_sessions: false,
+      owns_context: false,
+      owns_artifacts: false,
+      group_delete_action_allowed: false,
+      cascade_session_delete_allowed: false,
+      new_session_action_language: 'use_this_working_directory_not_create_project_child',
+    },
+    'Canonical conversation directory group policy',
   );
 }
 

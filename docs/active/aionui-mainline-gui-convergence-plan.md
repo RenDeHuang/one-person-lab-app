@@ -18,7 +18,7 @@ readiness、Settings/Personalization、managed update 和 runtime bridge 上继�
 coordination source。当前 Shell source cohort
 `e218d79b7a5727b72ddce66bcaabd9410a38076b` 已补齐
 projectless 文件能力、App Server rail authority、任意绝对本地路径 Preview、首结果幂等 replay、
-thread-detail 按需协调入口、unarchive、Home managed worktree、同主机 idle task handoff、Runtime v2 与
+thread-detail 按需协调入口、unarchive、Home managed worktree、同主机 idle session handoff、Runtime v2 与
 Environment Git inspection，并恢复 Runtime cockpit，同时保留 Gateway account/UI；其后还补入
 profile-driven feedback、Review `Last turn`、窄窗 Access 单列断点、managed Worktree 的 durable
 snapshot-before-remove/receipt restore、向同一 Review turn 的 expected-turn steer，以及 profile-driven
@@ -87,7 +87,7 @@ fresh gate、pixels、package/user path 和远端回读为准。
 
 AionUI generic custom assistants、Team、普通 backend/provider switching、French locale 和其它
 未进入 OPL 产品面的功能可以隐藏。已被 OPL 采用的 conversation、Runtime、Home capability
-starters、project context、Preview、Files、Terminal、Browser、Settings → Agents & Capabilities、
+starters、显式 session inputs、Preview、Files、Terminal、Browser、Settings → Agents & Capabilities、
 first-run、中英文，以及本轮纳入 authority 的跨顶层线程协调不能因来源是 AionUI 而丢失。
 
 ## 三层文档状态
@@ -98,28 +98,28 @@ first-run、中英文，以及本轮纳入 authority 的跨顶层线程协调不
 | 层级 | Authority | 当前状态 | 后续规则 |
 | --- | --- | --- | --- |
 | 功能层 | [`feature-inventory.md`](../product/gui/feature-inventory.md)、App contracts | `authority_aligned_to_current_source_boundary` | Same-host lifecycle、projectless、thread coordination、Runtime/Environment 已进入 machine truth；protocol-owner blocker不伪装完成。 |
-| 理想交互与视觉层 | [`ideal-interaction-spec.md`](../product/gui/ideal-interaction-spec.md)、[`visual-system.md`](../product/gui/visual-system.md)、[`codex-to-opl-app-delta.md`](../product/gui/codex-to-opl-app-delta.md)、[`element-audit.md`](../product/gui/element-audit.md) | `interaction_boundary_refreshed` | Project 归 rail metadata，权限归 Codex；Home new-task 与 Environment existing-task handoff分层，Review剩余子集明确。 |
+| 理想交互与视觉层 | [`ideal-interaction-spec.md`](../product/gui/ideal-interaction-spec.md)、[`visual-system.md`](../product/gui/visual-system.md)、[`codex-to-opl-app-delta.md`](../product/gui/codex-to-opl-app-delta.md)、[`element-audit.md`](../product/gui/element-audit.md) | `interaction_boundary_refreshed` | Working directory 归 rail metadata，权限归 Codex；Home new-session 与 Environment existing-session handoff分层，Review剩余子集明确。 |
 | Shell 实现层 | [`shell-implementation-guide.md`](../product/gui/shell-implementation-guide.md)、[`shell-conformance-matrix.md`](../product/gui/shell-conformance-matrix.md) | `current_source_ahead_of_package_evidence_protocol_owner_gaps` | `e218d79b7...` 闭合同主机managed Worktree lifecycle、Review focus delivery、avatar/help policy、Runtime fallback 本地化、workspace-disabled marker与canonical project/locale evidence；package/9场景仍绑定`b2c05a1c...`。Model host tool、line comments与cross-host handoff为typed blocker，安装/user path未闭合。 |
 
 ## OPL 已采纳能力收敛结果
 
 | Priority | Capability | Adoption | 当前结果 | 剩余边界 |
 | --- | --- | --- | --- | --- |
-| P0 | Project/conversation rail | `opl_adopted_active` | 宽屏 persistent、窄屏 drawer；active workspace 与 registered directory management 分离；project 可拥有 N conversations。 | 维护回归，不恢复 dashboard/assistant rail。 |
+| P0 | Directory/session rail | `opl_adopted_active` | 宽屏 persistent、窄屏 drawer；active workspace 与 registered directory management 分离；目录组只投影 canonical session 当前 cwd，不拥有 session。 | 维护回归，不恢复 dashboard/assistant rail、目录级上下文或级联删除。 |
 | P0 | Home / New task | `opl_adopted_relocated` | 与 conversation 共用 composer-first canvas；全部用户可见 configured starters 按稳定顺序响应式换行；Local/Worktree 与 starting branch 使用既有 `gitWorkspace` create/reuse。 | 不恢复 launcher/card wall，不在 Worktree失败后 silent Local fallback。 |
 | P0 | Composer decisions | `opl_adopted_relocated` | Desktop/mobile 的 attach、permission/access、model/reasoning、active capability 与 send-stop 位于发送决策点；不暴露 backend/provider。 | 上游 intake 只能替换 composition，不能覆盖 App policy。 |
-| P0 | Environment | `opl_adopted_active` | 右上 anchored、默认关闭；承载 live Git workspace/locality/branch/changes 与真实 refs/actions，并为同主机 `not_loaded`/`idle` task 提供 Local↔Worktree。 | `running`/`archived`/`system_error` 显示 unavailable；无真实数据不显示。 |
+| P0 | Environment | `opl_adopted_active` | 右上 anchored、默认关闭；承载 live Git workspace/locality/branch/changes 与真实 refs/actions，并为同主机 `not_loaded`/`idle` session 提供任意工作目录切换及 Local↔Worktree。 | `running`/`archived`/`system_error` 显示 unavailable；无真实数据不显示。 |
 | P0 | Advanced surfaces | `opl_adopted_relocated` | 默认无综合第三列；Files、Preview、Terminal、Browser 按需打开，窄屏 Preview 使用完整 overlay。 | 专项 renderer pixels 不属于 core composition blocker。 |
-| P1 | Project context | `opl_adopted_active` | workspace-keyed 单一 source，rail 编辑，send 直接消费；不复制到 route/local/attachments。 | 保持 missing/remove/dedupe 行为。 |
+| P1 | Session-first directory and inputs | `opl_adopted_active` | Session/thread 是原子单位；目录只提供初始/可变 cwd 与 rail 分组，不拥有 session/context/artifact，不显示“添加上下文”或组级删除。当前 composer 的 attachment/paste/drop/`/open` 是唯一显式输入。 | Canonical thread ID 单行；overview 可用时排除 stale Codex ACP cache row，overview unavailable 才 cache fallback，非 Codex local row 保留；禁止标题/workspace 去重和级联删除。 |
 | P1 | Package launch readiness | `opl_adopted_active` | Unavailable starter 显示原因/允许动作；每次 workspace/quest launch 前执行 Framework-owned activation，失败 fail closed。 | 不从 installed flag 推断 ready，不在 shell 复制 package currentness。 |
 | P1 | Current task | `opl_adopted_relocated` | timeline 单一 summary；普通任务不默认 sticky，长任务或用户操作才 pin。App Server approval/user-input 是 target context 的 pending state。 | 真实长任务/approval packaged evidence 单独维护。 |
 | P1 | Transcript export | `opl_adopted_active` | cursor-safe、递归脱敏、Markdown/JSON、失败可见；`/export` 使用同一安全路径。 | workspace bundle 继续要求逐项选择与确认。 |
 | P1 | Desktop navigation | `opl_adopted_active` | 保留 Back/Forward、Previous/Next、New Window 的 OPL 路径，不创建 WebUI 第二 IA。 | 完整快捷键专项验收不阻塞 core GUI。 |
 | P1 | Cross-thread coordination | `opl_adopted_internal` | Canonical directory、App Server lifecycle、同key首结果replay、advisory、delivery audit 与 typed interactive request pending flow 保留；普通 rail 的独立“线程协调”入口退出产品目标。 | 能力由 keyboard-reachable thread-detail context action 与 model host tool 按需调用；普通 navigation 不展示独立页面。Cross-host 是required target，当前因owner协议面缺失typed unavailable。 |
 | P1 | Model-triggered coordination | `opl_adopted_required` | 产品合同要求 model host tool；ordinary ACP -> AionCore -> codex-acp链路没有dynamic-tool输入或`item/tool/call` callback，thread-detail context action不能替代实现证据。 | 优先由AionCore同一App Server client承接`thread/start(dynamicTools)`；或由codex-acp补齐input/response/callback。禁止第二runtime、post-hoc port handler或Shell tool store。 |
-| P1 | Artifact preview adapter | `opl_adopted_active` | `b2c05a1c...` 将用户显式绝对本地路径或workspace-scoped project ref薄接现有Preview并拒绝非法输入；current package覆盖Preview surface。 | 各renderer与ref分流仍需专项pixels，不复制renderer/store。 |
-| P1 | Projectless local input | `opl_adopted_active` | 无 workspace 保留 attachment、file/directory picker、paste/drop、`/open`，只服从 Codex permission/approval/sandbox。 | 补 current pixels/package，禁止恢复 project-required gate。 |
-| P1 | Local / Worktree lifecycle | `opl_adopted_partial` | `e218d79b7...` 已闭合同主机生命周期：Home managed create/reuse、idle task `thread/settings/update` handoff、durable Git tag receipt、完整HEAD/index/tracked/untracked/ignored snapshot、remove失败恢复与typed-conflict restore。 | Cross-host handoff仍是required target且由Codex App Remote Connections/host-handoff owner阻断；Shell只显示unavailable，不复制Git/thread store。 |
+| P1 | Artifact preview adapter | `opl_adopted_active` | 当前 session 显式 attachment、可见 conversation result 或用户选择的合法绝对本地路径薄接现有 Preview 并拒绝非法输入；current package覆盖 Preview surface。 | 各 renderer 与 ref 分流仍需专项 pixels，不复制 renderer/store 或恢复隐式 workspace ref。 |
+| P1 | Workspace-optional local input | `opl_adopted_active` | 无 workspace 或 workspace readiness 未完成时仍保留 attachment、file/directory picker、paste/drop、`/open`，只服从 Codex permission/approval/sandbox。 | Workspace readiness 只 gate project/Worktree/OPL workspace controls；Worktree 仍要求 repo，Codex/model prerequisites 不变。 |
+| P1 | Local / Worktree lifecycle | `opl_adopted_partial` | `e218d79b7...` 已闭合同主机生命周期：Home managed create/reuse、idle session `thread/settings/update` handoff、durable Git tag receipt、完整HEAD/index/tracked/untracked/ignored snapshot、remove失败恢复与typed-conflict restore。 | Cross-host task handoff仍是required target且由Codex App Remote Connections/host-handoff owner阻断；Shell只显示unavailable，不复制Git/thread store。 |
 | P1 | Review pane | `opl_adopted_partial` | `e218d79b7...` 已实现四类 `review/start` target、inline/detached、PR context、stage/commit/push、`gh` unavailable、Last turn，并把非custom focus经同一client `turn/steer(expectedTurnId)`投递到原Review turn；custom instructions不重复。 | Line-level comments等待Codex App Server typed file/line request与失败语义；禁止本地annotation store或假成功。Current pixels/package另行。 |
 | P2 | Settings | `opl_adopted_active` | 保留 OPL IA、bounded page-section cards 与 flat rows；不恢复旧 quiet/Codex-style Settings 实验。 | 维护模式，只修回归。 |
 
@@ -178,7 +178,7 @@ Shell package/version 和 AionCore intake 继续作为独立维护工作。选�
 | App Server rail authority | `source_implemented` | Rail directory/actions使用 App Server；pin仅 UI metadata，local reset不重写 history。 |
 | Cross-thread coordination | `source_implemented_no_ordinary_navigation` | Canonical directory、unarchive、首结果 replay、advisory 与 typed interactive pending requests 保留；普通 rail 不挂载独立页面，delivery audit 不冒充 approval receipt。 |
 | Model-facing coordination tool | `source_missing_protocol_blocked_required_target` | Thread-detail context action 不构成 dynamic-tool 证据；ACP ordinary owner 缺 input/callback，owner route 为 AionCore/codex-acp。 |
-| Artifact preview path parity | `source_implemented_surface_pixel_verified_adapter_pixel_unverified` | Current package覆盖mobile Preview surface；absolute local path与workspace ref分流、非法输入和各renderer仍靠source/tests。 |
+| Artifact preview path parity | `source_implemented_surface_pixel_verified_adapter_pixel_unverified` | Current package覆盖mobile Preview surface；当前 session attachment、可见 conversation result、absolute local path分流、非法输入和各renderer仍靠source/tests。 |
 | Local / Worktree lifecycle | `source_partial_cross_host_owner_blocked` | Same-host create/reuse、idle handoff、durable snapshot-before-remove、cleanup rollback与receipt restore已实现；cross-host required target因owner协议面缺失typed unavailable。 |
 | Review pane | `source_partial_line_comments_blocked` | 四 targets、inline/detached、PR context、stage/commit/push、`gh` unavailable、Last turn与same-review-turn focus steer已实现；line-level comments因typed protocol缺失而blocked。 |
 | Generated profile current | `done_semantic` | 官方生成器重建后 canonical JSON diff 为空；未提交纯格式差异。 |

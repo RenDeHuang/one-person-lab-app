@@ -589,9 +589,14 @@ function validateSetupFlowContract(setupFlow) {
     'Install exposure plain send prerequisites',
   );
   assertDeepEqualJson(
-    firstConversation.required_before_file_or_project_send,
-    expectedFirstConversation.required_before_file_or_project_send,
-    'Install exposure file/project send prerequisites',
+    firstConversation.required_before_send_with_local_inputs,
+    expectedFirstConversation.required_before_send_with_local_inputs,
+    'Install exposure send with local inputs prerequisites',
+  );
+  assertDeepEqualJson(
+    firstConversation.required_before_workspace_controls,
+    expectedFirstConversation.required_before_workspace_controls,
+    'Install exposure workspace control prerequisites',
   );
   assertIncludesAll(
     firstConversation.must_wait_for,
