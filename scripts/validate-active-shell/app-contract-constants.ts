@@ -879,19 +879,19 @@ export const appOwnedSettingsSearchProtocol = {
   empty_state: "show_no_matching_settings_without_exposing_internal_route_ids",
 };
 export const appOwnedSettingsVisualSystem = {
-  style: "opl_baseline_card_control_center",
-  style_exclusion: "codex_quiet_list",
+  style: "codex_quiet_control_center_with_opl_information_architecture",
+  style_exclusion: "multi_hue_card_dashboard",
   baseline_shell_commit: "409dd0c3b693f1c7c93551654dfac8fb9420843d",
   baseline_comparison_policy:
     "fresh_same_route_screenshots_must_preserve_or_improve_information_hierarchy",
-  card_policy: "one_bounded_card_per_user_question_with_flat_internal_rows",
+  card_policy: "one_quiet_bounded_section_per_user_question_with_flat_internal_rows",
   first_viewport_spatial_group_range: { min: 2, max: 4 },
   nested_cards_allowed: false,
   page_wide_list_wall_allowed: false,
   page_sections_as_floating_cards_allowed: false,
-  desktop_group_layout: "responsive_two_column_grid_where_space_allows",
+  desktop_group_layout: "single_column_reading_lane",
   mobile_group_layout: "single_column_stack",
-  icon_slot_px: 28,
+  icon_slot_px: 20,
   typography: {
     page_title: "20/28/600",
     card_title: "14-16/20-24/600",
@@ -905,7 +905,7 @@ export const appOwnedSettingsVisualSystem = {
     action: "brand",
   },
   object_accent_policy:
-    "use restrained multi-hue navigation icons and card-edge accents to distinguish access, workspace, capabilities, maintenance, and storage without tinting whole pages",
+    "use monochrome utility navigation icons and reserve color for typed warning error success and brand actions",
   footer_layout: "compact",
   footer_controls: [
     "gateway_account_or_settings_entry",

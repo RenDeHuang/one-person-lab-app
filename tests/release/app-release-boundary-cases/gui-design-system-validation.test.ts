@@ -572,6 +572,39 @@ test('GUI design-system validator rejects directory cascade delete and stale Cod
   );
 });
 
+test('GUI design-system validator rejects a full-width rail search row', () => {
+  const root = createFixture();
+  const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
+  const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+  contract.interaction_baseline.navigation_rail.thread_directory_policy.history_search = {
+    placement: 'standalone_row',
+    presentation: 'icon_and_text',
+    accessible_name_required: true,
+    expanded_full_width_row_allowed: true,
+  };
+  writeJson(root, 'contracts/app-gui-product-contract.json', contract);
+
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /interaction baseline navigation rail must preserve the governed desktop and narrow-window skeleton/,
+  );
+});
+
+test('GUI design-system validator rejects stale Codex light surfaces and composer typography', () => {
+  const root = createFixture();
+  const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
+  const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+  contract.interaction_baseline.visual_target.light_surfaces.navigation_rail = '#F4F4F2';
+  contract.interaction_baseline.visual_target.typography.conversation = '16/24/400';
+  contract.interaction_baseline.visual_target.composer_elevation = 'outline_only';
+  writeJson(root, 'contracts/app-gui-product-contract.json', contract);
+
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /interaction baseline must reject the legacy equal-weight inspector taxonomy and keep Settings in maintenance/,
+  );
+});
+
 test('GUI design-system validator rejects restored workspace-scoped project context inputs', () => {
   const root = createFixture();
   const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');

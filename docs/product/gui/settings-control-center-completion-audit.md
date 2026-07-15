@@ -30,12 +30,12 @@ them in generic cards or technical-detail lists:
 4. **Diagnose**: raw paths, refs, payloads, logs, receipts, and implementation
    detail behind one deliberate diagnostic entry.
 
-The UI keeps the OPL bounded-card hierarchy without turning every state into a
-card. Cards group one user question or a set of comparable decisions; internal
-settings remain flat rows. Normal state stays quiet, attention state is
-selectively colored, and the navigation uses restrained multi-hue identity
-cues. AionUI custom assistants remain outside the OPL product surface and their
-underlying data is not deleted.
+This audit records the superseded 2026-07-12 visual cohort. The current visual
+authority keeps the same OPL information architecture and flat-row grouping,
+but replaces multi-hue navigation and responsive card grids with the Codex
+quiet single-column treatment: monochrome utility icons, white bounded groups,
+and color reserved for typed status or brand actions. AionUI custom assistants
+remain outside the OPL product surface and their underlying data is not deleted.
 
 ## Historical Page Audit (2026-07-12)
 
@@ -61,7 +61,7 @@ underlying data is not deleted.
 | Configuration ownership | Done | Framework, App-local and credential/connection items each declare one truth owner, write route, persistence target and verification route |
 | State/action separation | Done | Read models do not masquerade as actions; mutating actions retain precheck, confirmation and result/receipt semantics |
 | Diagnostic separation | Done | Raw implementation data is absent from ordinary rows and available through explicit diagnostic surfaces |
-| Visual hierarchy | Done | Decision-based bounded cards, flat internal rows, selective status color and stable desktop layout |
+| Visual hierarchy | Superseded | The bounded-card cohort is historical; current authority requires Codex quiet single-column groups, monochrome utility icons, and fresh scene-bound visual evidence |
 | Capability scope | Done | Adopted OPL packages remain manageable; unadopted AionUI custom assistants are hidden without deleting data |
 | Personalization | Done | System `AGENTS.md` restore uses confirmation and stale guards; OPL App context keeps a generated read-only base plus editable additional instructions |
 | Compatibility | Done | `update`, `theme`, and `local-services` resolve to their current owner route and anchor before rendering |

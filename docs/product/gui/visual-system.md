@@ -107,8 +107,9 @@ Light target：
 | Token | Value | 用途 |
 | --- | --- | --- |
 | `canvas` | `#FFFFFF` | Main canvas 与 conversation reading area。 |
-| `surface` | `#FFFFFF` | Composer、popover、drawer 和 active content。 |
-| `surface-subtle` | `#F0F1F3` | Rail、selected row、tool event、secondary controls。 |
+| `surface` | `#FFFFFF` | Composer、popover、drawer、Settings bounded group 和 active content。 |
+| `rail` | `#FCFCFC` | Navigation rail；与白色主画布形成极轻层级。 |
+| `surface-subtle` | `#F0F0F0` | Selected row、tool event、secondary controls。 |
 | `border` | `#D9DCE1` | 1px 分隔和 outline。 |
 | `text-primary` | `#17191C` | 正文和主标签。 |
 | `text-secondary` | `#626870` | 元信息和说明。 |
@@ -165,7 +166,8 @@ Dark target：
 
 ## Icons
 
-- OPL-owned Settings 导航、Overview 状态图标和 utility icon 统一使用 Font Awesome Free；不手画
+- OPL-owned Settings 导航、Overview 状态图标和 utility icon 统一使用 Font Awesome Free；普通
+  utility/navigation icon 使用单色，只有 typed warning、error、success 和品牌动作使用语义色。不手画
   SVG，也不借此批量改写 upstream fork-body 图标。纯刷新动作只显示 refresh icon，并用
   tooltip 与 accessible name 提供文字。
 - 全局标题栏帮助/反馈入口使用 Font Awesome Free Regular 的线框圆形问号，保留 tooltip、
@@ -224,7 +226,8 @@ Composer 是底部唯一主 command surface：
 - Active row 使用 tonal fill、清晰标题和轻量状态；不使用大色块或每行独立 card。
 - 标题单行截断，完整值在 tooltip 或 details；状态 badge 不改变行高。
 - 窄窗口转为 drawer，关闭后不丢失 selection；重新打开时保留 scroll position。
-- Search、pin、rename、archive、reset 不改变 row 稳定尺寸；Archived 使用独立 surface。
+- Search 作为“对话历史”标题右侧的 icon-only action，不再占用独立文字 row；pin、rename、
+  archive、reset 同样不得改变 row 稳定尺寸，Archived 使用独立 surface。
 - Desktop application menu 与 conversation header 共享 Back/Forward、Previous/Next Task
   和 New Window 语义；不可用项 disabled，不能用无反馈菜单伪装成功。
 
@@ -265,16 +268,16 @@ Composer 是底部唯一主 command surface：
 
 ## Settings
 
-Settings 采用 OPL 既有的卡片式 Control Center 基线：
+Settings 保留 OPL 信息架构，但视觉采用 Codex quiet Control Center 基线：
 
 - 使用 full-window shell，提供明确 return、search 和 grouped rows。
 - Ordinary navigation 按当前 App-owned Settings IA 渲染；具体 route、label 和顺序从
   contracts/Control Plane 读取，不由 shell 自行扩展。
-- 左侧 section navigation 稳定；右侧每个有独立用户问题的 page section 使用一张
-  8px bounded card，内部继续使用 row、table/list 和 disclosure，不为每个字段或操作
-  再套一层 card。
+- 左侧 section navigation 稳定并使用单色 utility icon；右侧采用单列 reading lane，
+  每个独立用户问题使用一层不超过 8px 的白色 bounded section，内部继续使用 row、
+  table/list 和 disclosure，不为每个字段或操作再套一层 card。
 - 侧栏在任一时刻只显示一个选中项；兼容路由完成跳转后，选中态归属实际落地页。
-- 卡片用于清晰分组；禁止 nested group，也禁止用贯穿全页的裸横线堆叠出空旷、
+- bounded section 只用于清晰分组；禁止 nested group，也禁止用贯穿全页的裸横线堆叠出空旷、
   低密度页面，或把同一个用户问题拆成营销式卡片墙。
 - 重复实体使用一组共享列头；逐行重复“名称 / 状态 / 来源 / 操作”等字段标签会降低
   扫描效率，不作为默认布局。
