@@ -166,6 +166,28 @@ test('active-shell source gate requires Home starters and Capabilities routing i
       homeStarters: currentSources.homeStarters.replace("data-testid='starter-active-check'", ''),
     }),
   );
+  assert.throws(
+    () =>
+      assertCurrentGuidHomeSelectionSources({
+        ...currentSources,
+        homeStarters: currentSources.homeStarters.replace(
+          'active && styles.homeStarterActive',
+          "active ? '!border-primary-5 !bg-primary-1 !text-primary-6' : ''",
+        ),
+      }),
+    /must include active && styles\.homeStarterActive/,
+  );
+  assert.throws(
+    () =>
+      assertCurrentGuidHomeSelectionSources({
+        ...currentSources,
+        homeStarters: currentSources.homeStarters.replace(
+          "<CheckOne theme='filled'",
+          '<FontAwesomeIcon icon={faCheck}',
+        ),
+      }),
+    /must include <CheckOne theme='filled'/,
+  );
   assert.throws(() =>
     assertCurrentGuidHomeSelectionSources({
       ...currentSources,
