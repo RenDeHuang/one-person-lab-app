@@ -213,17 +213,19 @@ export function resolveMasScholarSkillsFullRuntimeSource(options) {
   if (!Array.isArray(masManifest.capability_dependencies)) {
     throw new Error('Full runtime MAS package manifest declares no capability_dependencies.');
   }
-  const masScholarDependency = masManifest.capability_dependencies.find(
+  const masScholarDependencies = masManifest.capability_dependencies.filter(
     (dependency) => dependency?.package_id === MAS_SCHOLAR_SKILLS_PACKAGE_ID,
   );
+  const [masScholarDependency] = masScholarDependencies;
   if (
-    !masScholarDependency
+    masScholarDependencies.length !== 1
+    || !masScholarDependency
     || typeof masScholarDependency !== 'object'
     || masScholarDependency.kind !== 'framework_capability_package'
     || masScholarDependency.required !== true
   ) {
     throw new Error(
-      'Full runtime MAS package manifest must require MAS Scholar Skills as a framework capability package.',
+      'Full runtime MAS package manifest must require MAS Scholar Skills exactly once as a framework capability package.',
     );
   }
 

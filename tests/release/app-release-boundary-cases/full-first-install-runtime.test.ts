@@ -727,17 +727,30 @@ test("MAS Scholar Skills source resolution rejects commit, catalog, dependency, 
     );
     const masManifestPath = path.join(dependencyCatalogRoot, "packages", "mas.json");
     const masManifest = JSON.parse(fs.readFileSync(masManifestPath, "utf8"));
-    masManifest.capability_dependencies[0].required = false;
-    writeJson(masManifestPath, masManifest);
     const dependencyCatalog = JSON.parse(fs.readFileSync(dependencyCatalogPath, "utf8"));
-    dependencyCatalog.packages.mas.manifest_sha256 = fileSha256Ref(masManifestPath);
-    writeJson(dependencyCatalogPath, dependencyCatalog);
-    assert.throws(
-      () => resolveMasScholarSkillsFullRuntimeSource(dependencyFixture.options),
-      /must require MAS Scholar Skills as a framework capability package/,
-    );
+    const scholarDependency = { ...masManifest.capability_dependencies[0] };
+    const assertInvalidMasDependency = () => {
+      writeJson(masManifestPath, masManifest);
+      dependencyCatalog.packages.mas.manifest_sha256 = fileSha256Ref(masManifestPath);
+      writeJson(dependencyCatalogPath, dependencyCatalog);
+      assert.throws(
+        () => resolveMasScholarSkillsFullRuntimeSource(dependencyFixture.options),
+        /must require MAS Scholar Skills exactly once/,
+      );
+    };
 
-    masManifest.capability_dependencies[0].required = true;
+    masManifest.capability_dependencies = [];
+    assertInvalidMasDependency();
+    masManifest.capability_dependencies = [
+      { ...scholarDependency, package_id: "mas-scholar-skills-drifted" },
+    ];
+    assertInvalidMasDependency();
+    masManifest.capability_dependencies = [{ ...scholarDependency, required: false }];
+    assertInvalidMasDependency();
+    masManifest.capability_dependencies = [scholarDependency, { ...scholarDependency }];
+    assertInvalidMasDependency();
+
+    masManifest.capability_dependencies = [scholarDependency];
     writeJson(masManifestPath, masManifest);
     dependencyCatalog.packages.mas.manifest_sha256 = fileSha256Ref(masManifestPath);
     const scholarManifestPath = path.join(
