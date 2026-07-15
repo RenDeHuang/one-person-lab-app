@@ -29,7 +29,7 @@ tests 与 evidence。
 | Priority | Product layer | 包含 | 完成定义 |
 | --- | --- | --- | --- |
 | `P0 Codex Core` | 日常主工作流 | App frame、project/conversation rail、New task、conversation timeline、composer、streaming、history、model/reasoning、access/permission。 | 用户不离开 chat canvas 即可开始、继续和完成普通任务。 |
-| `P1 OPL Professional` | OPL 专业增量 | Capability selection、跨顶层线程协调、task progress、approval、evidence/artifact preview、safe action 与 receipt。 | 增量嵌入 P0 稳定位置；输入由用户在当前 session 显式加入，不引入 workspace preload、dashboard、第二套导航或第二套 thread store。 |
+| `P1 OPL Professional` | OPL 专业增量 | Capability selection、用户触发的线程操作、task progress、approval、evidence/artifact preview、safe action 与 receipt。 | 增量嵌入 P0 稳定位置；输入由用户在当前 session 显式加入，不引入 workspace preload、dashboard、第二套导航或第二套 thread store。 |
 | `P2 Administration` | 配置和运维 | Settings、Runtime 跨项目总览、first-run、安装、更新、诊断。 | 可发现、可恢复，但不反向决定 P0/P1 的布局和视觉。 |
 
 任何工作若只改善 `P2`，不能据此声称 GUI 主体验已对齐 Codex。设计评审和视觉证据
@@ -58,10 +58,8 @@ Sites/Chat 等入口可以隐藏或拒绝；它们不构成 OPL 功能回归。
 | New conversation | 在所选目录初始化 cwd，或不选 workspace 直接开始 Codex session；目录只提供初始 cwd 与分组，不拥有 session。 | GUI contract、conversation page state、Codex bridge。 |
 | Resume conversation | 按 canonical thread ID 找回 recent conversation，保留 transcript/turn history/title/task state；cwd 与 rail 分组可在同一 session 上更新。 | Conversation state/bridge；shell 只持有实现所需 session refs。 |
 | Conversation management | Search、pin、rename、archive、reset conversation，并在独立 Archived surface 管理归档。 | GUI contract、conversation state/bridge。 |
-| Cross-thread discovery | Keyboard-reachable thread-detail context action 按需读取独立顶层线程的 status、summary、workspace、host、owner、goal、parent/ancestor 与 advisory write set；Rail 只保留 canonical thread directory，不增加独立协调区块或 dashboard。 | Codex App Server thread read model；OPL host 只聚合轻量 metadata。 |
-| Model-triggered coordination | 模型可以通过 host tool list/read/resume/fork/archive/unarchive/start/steer 顶层线程；必须由 ordinary thread owner 在同一 App Server client 注册 dynamic tools并闭合 `item/tool/call` round-trip，thread-detail context action 或 user dispatch 不能代替。 | 产品目标为 required；AionCore/codex-acp 应承接同 client adapter或 dynamic-tool callback，Shell 不得另开第二 App Server runtime。当前实现状态只在 conformance matrix声明。 |
-| Cross-thread coordination | 用户或已获得 host tool 的模型按需读取摘要/历史，恢复、分叉、归档或 unarchive 目标线程；idle 使用 `turn/start`，running 使用 `turn/steer`。同 key 重试返回第一次 receipt/result、`ok=true` 且不二次 dispatch。Cross-host task handoff 是 required parity target，但当前因 `remote_host_handoff_owner_surface_unavailable` 明确 unavailable，不伪造成功。 | Codex Core/App Server 拥有 thread/turn 和 permission/approval/sandbox；OPL host 只拥有 opaque-key 幂等、advisory 与 delivery audit。Remote Connections / host-handoff 是跨Host协议 owner，Shell仅为 blocked thin adapter。独立非紧急 queue 尚未实现。 |
-| Session working directory / Local / Worktree lifecycle | Home 新任务可选任意 Local 目录或 managed Worktree 与 starting branch。既有同主机 `not_loaded`/`idle` canonical session 可在 Conversation Environment 通过系统目录选择器与 `thread/settings/update` 原位切换到任意本地目录，保留同一 thread/history，并在成功更新 projection 后刷新 rail 分组；projection 失败时恢复旧 canonical cwd。Local↔Worktree 仍是该能力的专门 lifecycle；`running`/`archived`/`system_error` 显示 unavailable，不 silent fallback。Worktree 默认保留复用；用户可显式创建覆盖 HEAD/branch或detached HEAD、index、tracked、untracked 与 ignored user files 的 durable Git snapshot 后移除确定的 managed worktree，并按 receipt 恢复。Cross-host handoff 仍需真实 host transport。 | Codex Core/App Server 与既有 Git integration；canonical thread ID 是身份 authority，workspace 只是可变 cwd/projection/grouping metadata；`opl_workspace_handoff.v1` 只保存 locality projection，`opl_worktree_snapshot_receipt.v1` 指向 Git ref/object。Shell 仅薄 adapter，不建立第二 Git/thread store。 |
+| User-triggered thread operations | 从现有 conversation directory/actions 读取、创建、恢复、fork、归档或恢复归档线程；普通对话继续走 AionUI ACP，不增加独立 coordination 页面或模型工具。 | 一个 Codex App Server adapter；Shell 只持有 UI metadata 与可重建 cache。 |
+| Session working directory / Local / Worktree | Home 新任务可选任意 Local 目录或 managed Worktree 与 starting branch。既有空闲 canonical session 可原位切换目录并保持同一 thread/history；Worktree只做简单create/reuse并默认保留。 | Codex Core/App Server 与既有 Git integration；workspace 只是可变 cwd/projection/grouping metadata。 |
 | Text instruction | 向固定 Codex executor 发送多行任务说明。 | Product profile、ordinary conversation contract。 |
 | Streaming assistant output | 持续看到 assistant response，不需要查看 raw protocol。 | Codex/App bridge 与 conversation page state。 |
 | Pending/running feedback | 看到当前 turn 正在处理、elapsed time、stop 和失败状态。 | Page-state matrix、bridge events。 |
@@ -74,7 +72,7 @@ Sites/Chat 等入口可以隐藏或拒绝；它们不构成 OPL 功能回归。
 | Purpose selection | 从 Home starter 选择当前启用的工作目的；默认显示科研、基金、演示和元智能体，写书保留为可开启入口。composer 只保留 active capability chip；Package 安装、Home 显示、顺序和 lifecycle 管理进入 Settings → Agents，Skills/Plugins/Flow 管理进入 Settings → Capabilities。 | Product profile、GUI contract、route receipt policy。 |
 | Assistant-scoped capabilities | 只显示当前 package/purpose 允许的 required/optional skills。 | App packaged skill profiles 与 ordinary capability policy。 |
 | Package launch readiness | 不可用 starter 保持可识别但 disabled，显示用户可理解的原因和允许动作；发送或启动前必须通过 Framework-owned use-boundary activation，失败时 fail closed。 | Agent package activation policy、Framework state/action receipt。 |
-| User-input and permission prompt | Codex 需要 command/file/permission approval、补充信息或 MCP elicitation 时，显示为相应 target thread 的 pending state并通过 typed bridge 回答；pending 本身不记为 dispatch failure。当前 delivery audit 不冒充独立持久化 approval receipt。 | Codex App Server request/response；OPL typed host bridge。 |
+| User-input and permission prompt | 当前 conversation 需要 command/file/permission approval、补充信息或 MCP elicitation 时，沿用 AionUI ACP 的现有可见流程；拒绝、取消或协议错误保持真实失败。 | AionUI ACP 与 Codex permission/request flow。 |
 | Turn receipt | 用户可查看本轮 route、action、result 和恢复 refs，不默认暴露 raw JSON。 | App/domain/runtime receipt refs；GUI 不拥有 receipt authority。 |
 
 ## OPL Purpose 与 Agent Packages

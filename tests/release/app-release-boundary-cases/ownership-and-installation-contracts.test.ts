@@ -608,7 +608,7 @@ test('App contracts define one minimal package activation authority', () => {
   assert.deepEqual(policy.required_payload_fields, [
     'package_id',
     'scope',
-    'target_workspace or target_quest',
+    'target_workspace',
   ]);
   assert.equal(policy.request_policy.package_id_source, 'current_selected_professional_agent.package_id');
   assert.equal(policy.request_policy.target_workspace_source, 'normalized_current_session_directory');
@@ -618,7 +618,8 @@ test('App contracts define one minimal package activation authority', () => {
     'activation.package_id_matches_current_selection',
     'activation.package_lock.package_id_matches_current_selection',
     'binding.root_package.package_id_matches_current_selection',
-    'activation.package_lock.package_version_matches_binding.root_package.package_version',
+    'activation.package_lock.package_version_matches_current_selection',
+    'binding.root_package.package_version_matches_current_selection',
     'binding.scope_is_workspace',
     'binding.target_root_matches_normalized_current_session_directory',
   ]);
@@ -666,12 +667,16 @@ test('App contracts define one minimal package activation authority', () => {
   );
 
   const activationRequest = packageSurfaces.$defs.agent_package_activation_request;
-  assert.deepEqual(activationRequest.required, ['package_id', 'scope']);
+  assert.deepEqual(activationRequest.required, ['package_id', 'scope', 'target_workspace']);
   assert.equal(activationRequest.properties.package_version, undefined);
-  assert.equal(activationRequest.allOf.length, 2);
+  assert.deepEqual(activationRequest.properties.scope.enum, ['workspace']);
+  assert.equal(activationRequest.properties.target_quest, undefined);
+  assert.equal(activationRequest.properties.use_boundary_id, undefined);
+  assert.equal(activationRequest.allOf, undefined);
   const activationResult = packageSurfaces.$defs.agent_package_activation_result;
   assert.deepEqual(activationResult.required, ['launch_allowed', 'package_id', 'package_lock']);
   assert.equal(activationResult.properties.launch_allowed.const, true);
+  assert.equal(activationResult.properties.use_receipt_ref, undefined);
   assert.deepEqual(activationResult.properties.package_lock.required, ['package_id', 'package_version']);
   assert.deepEqual(packageSurfaces.$defs.agent_package_use_binding.required, [
     'root_package',
@@ -688,15 +693,13 @@ test('App contracts define one minimal package activation authority', () => {
   const fixtureAction = fastFixture.app_state.actions.find(
     (action: { action_id: string }) => action.action_id === 'agent_package_activate',
   );
-  for (const field of ['package_id', 'scope', 'target_workspace', 'target_quest']) {
-    assert.equal(fixtureAction.payload_fields.includes(field), true, field);
-  }
+  assert.deepEqual(fixtureAction.payload_fields, ['package_id', 'scope', 'target_workspace']);
   assert.deepEqual(fixtureAction.result_fields, [
     'package_id',
     'package_lock',
     'launch_allowed',
     'launch_blocked_reason',
-    'use_receipt_ref',
+    'use_binding',
     'package_use_binding',
   ]);
   const directoryEntries = fastFixture.app_state.agent_packages.directory.entries;
@@ -795,12 +798,6 @@ test('App contracts define one minimal package activation authority', () => {
     exact_producer_fixture: false,
     installed_runtime_readback_required: true,
   });
-  assert.deepEqual(activationResults.required_success_binding_fields, [
-    'root_package.package_id',
-    'root_package.package_version',
-    'scope',
-    'target_root',
-  ]);
   const bindingFor = (result: any) => result.use_binding ?? result.package_use_binding;
   const successMatchesSelection = (entry: any) => {
     const binding = bindingFor(entry.result);

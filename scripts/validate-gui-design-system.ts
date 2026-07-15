@@ -9,7 +9,6 @@ import {
   appOwnedDirectoryGroupPolicy,
   appOwnedExplicitSessionInputPolicy,
   appOwnedGuiContractEnvironmentWorkspaceHandoff,
-  appOwnedLocalWorktreeLifecycle,
   appOwnedNewTaskLocality,
   appOwnedPageStateEnvironmentWorkspaceHandoff,
   appOwnedSessionWorkspaceModel,
@@ -946,7 +945,6 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
       'opl_settings',
       'domain_package_entries',
       'bilingual_ui',
-      'cross_top_level_thread_coordination',
     ]) ||
     relocationGate.replacement_reachable_in_same_change !== true ||
     relocationGate.contract_source_tests_updated_together !== true ||
@@ -1034,25 +1032,13 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     historySearch.placement !== 'conversation_history_heading_trailing_icon' ||
     historySearch.presentation !== 'icon_only' ||
     historySearch.accessible_name_required !== true ||
-    historySearch.expanded_full_width_row_allowed !== false ||
-    threadDirectoryPolicy.ordinary_coordination_entry_visible !== false ||
-    threadDirectoryPolicy.coordination_context_action_keyboard_reachable !== true ||
-    threadDirectoryPolicy.coordination_entry_placement !==
-      'thread_detail_context_action_and_model_host_tool_no_ordinary_navigation'
+    historySearch.expanded_full_width_row_allowed !== false
   ) {
     issues.add('interaction baseline navigation rail must preserve the governed desktop and narrow-window skeleton');
   }
 
   const conversationScope = record(interactionBaseline.conversation_scope);
   const threadCoordination = record(interactionBaseline.thread_coordination);
-  const threadModelToolEvidence = record(threadCoordination.model_tool_access_evidence_boundary);
-  const sameAgentTreeTransport = record(threadCoordination.same_agent_tree_transport);
-  const threadDispatchPolicy = record(threadCoordination.dispatch_policy);
-  const threadDeliveryDefaults = record(threadCoordination.delivery_request_defaults);
-  const threadTurnStartInheritance = record(threadCoordination.turn_start_inheritance_policy);
-  const threadIdempotencyPolicy = record(threadCoordination.idempotency_policy);
-  const threadCrossHostPolicy = record(threadCoordination.cross_host_policy);
-  const threadServerRequestPolicy = record(threadCoordination.interactive_server_request_policy);
   const homeTarget = record(interactionBaseline.home);
   const capabilitySelection = record(interactionBaseline.capability_selection);
   const composerTarget = record(interactionBaseline.composer);
@@ -1087,7 +1073,21 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
       'reset',
     ]) ||
     conversationScope.archived_surface !== 'independent' ||
-    JSON.stringify(localWorktreeLifecycle) !== JSON.stringify(appOwnedLocalWorktreeLifecycle) ||
+    localWorktreeLifecycle.state !== 'minimal_create_reuse_default_preserve' ||
+    !sameStrings(record(localWorktreeLifecycle.new_task).locality_options, ['local', 'worktree']) ||
+    record(localWorktreeLifecycle.new_task).starting_branch_selectable !== true ||
+    record(localWorktreeLifecycle.new_task).worktree_action !== 'create_or_reuse_managed_worktree' ||
+    record(localWorktreeLifecycle.metadata).worktree_retention_value !== 'preserve_for_reuse' ||
+    record(localWorktreeLifecycle.worktree).default_retention !== 'preserve_for_reuse' ||
+    !sameStrings(localWorktreeLifecycle.forbidden_control_planes, [
+      'automatic_worktree_cleanup',
+      'worktree_snapshot_receipt',
+      'worktree_restore',
+    ]) ||
+    localWorktreeLifecycle.duplicate_git_or_thread_store_allowed !== false ||
+    'snapshot_restore' in localWorktreeLifecycle ||
+    'cleanup' in localWorktreeLifecycle ||
+    'cross_host' in localWorktreeLifecycle ||
     homeTarget.title_policy !== 'dynamic_question_title' ||
     homeTarget.starter_limit !== null ||
     homeTarget.starter_visibility_policy !== 'all_user_visible_configured_shortcuts' ||
@@ -1175,291 +1175,51 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   ) {
     issues.add('Guid Home rail must place one accessible icon-only search action in the conversation-history heading');
   }
-  const threadCoordinationPage = pageStates.find((page) => page.id === 'thread_coordination') ?? {};
-  const coordinationViewModel = record(record(threadCoordinationPage).coordination_view_model);
-  const requiredThreadFields = [
-    'thread_id',
-    'status',
-    'summary',
-    'project',
-    'workspace',
-    'host',
-    'owner',
-    'goal',
-    'parent_thread_id',
-    'ancestor_thread_ids',
-    'active_turn_id',
-    'write_set',
+  const requiredThreadProtocols = [
+    'thread/list',
+    'thread/read',
+    'thread/start',
+    'thread/resume',
+    'thread/fork',
+    'thread/archive',
   ];
-  const coordinationHardFailures = [
-    'protocol_unavailable_or_invalid',
-    'target_not_found',
-    'target_archived',
-    'target_not_writable',
-    'cross_host_delivery_unsupported',
-    'codex_permission_or_user_request_declined_or_cancelled',
-    'interactive_server_request_handler_unavailable_or_invalid',
-  ];
-  const coordinationServerRequestMethods = [
-    'item/commandExecution/requestApproval',
-    'item/fileChange/requestApproval',
-    'item/permissions/requestApproval',
-    'item/tool/requestUserInput',
-    'mcpServer/elicitation/request',
-    'execCommandApproval',
-    'applyPatchApproval',
-  ];
-  const coordinationServerRequestKinds = [
-    'command_approval',
-    'file_change_approval',
-    'permissions_approval',
-    'user_input',
-    'mcp_elicitation',
-  ];
-  const coordinationServerRequestFailures = [
-    'user_declined_or_cancelled',
-    'request_no_longer_pending',
-    'handler_unavailable_or_invalid',
-    'protocol_error',
-  ];
-  const coordinationAdvisories = [
-    'project_workspace_difference',
-    'write_set_overlap',
-    'delegation_cycle_or_repeated_route',
-  ];
-  const coordinationNonBlockingSignals = [
-    'cross_project',
-    'cross_workspace',
-    'workspace_write',
-    'write_set_overlap',
-    'running_turn_steer',
-    'delegation_cycle_advisory',
-  ];
-  const coordinationAuditFields = [
-    'delivery_id',
-    'source_thread_id',
-    'target_thread_id',
-    'sender',
-    'reason',
-    'message_summary',
-    'protocol_method',
-    'codex_permission_policy_inheritance',
-    'project_workspace_context',
-    'write_set_advisory',
-    'loop_advisory',
-    'idempotency_result',
-    'status',
-    'result_summary',
-    'created_at',
-    'completed_at',
-  ];
-  const coordinationStates = [
-    'loading',
-    'ready',
-    'empty',
-    'protocol_unavailable',
-    'protocol_invalid',
-    'target_not_found',
-    'archived_target',
-    'target_not_writable',
-    'cross_host_unsupported',
-    'permission_denied',
-    'approval_pending',
-    'user_input_pending',
-    'mcp_elicitation_pending',
-    'server_request_resolving',
-    'server_request_declined',
-    'server_request_handler_unavailable',
-    'stale_status_refreshing',
-    'dispatch_running',
-    'dispatch_completed',
-    'dispatch_failed',
+  const forbiddenThreadKeys = [
+    'model_tool_access_evidence_boundary',
+    'same_agent_tree_transport',
+    'dispatch_policy',
+    'delivery_request_defaults',
+    'turn_start_inheritance_policy',
+    'interactive_server_request_policy',
+    'idempotency_policy',
+    'cross_host_policy',
+    'audit_fields',
   ];
   if (
-    threadCoordination.product_role !== 'opl_host_cross_top_level_codex_thread_coordination' ||
-    threadCoordination.entry_surface !==
-      'thread_detail_context_action_and_model_host_tool_no_ordinary_navigation' ||
+    threadCoordination.product_role !== 'user_initiated_codex_app_server_thread_operations' ||
+    threadCoordination.adapter !== 'single_codex_app_server_adapter' ||
+    threadCoordination.entry_surface !== 'existing_thread_directory_and_user_actions' ||
     threadCoordination.ordinary_navigation_visible !== false ||
-    threadCoordination.keyboard_reachable_entry !== true ||
-    threadCoordination.primary_composer_control_visible !== false ||
-    threadCoordination.thread_detail_context_action_visible !== true ||
-    threadCoordination.model_tool_access !== true ||
-    threadModelToolEvidence.protocol_surface !== 'experimental_dynamic_tools_registered_on_thread_start' ||
-    threadModelToolEvidence.implementation_evidence_required !==
-      'dynamic_tool_registration_and_item_tool_call_round_trip' ||
-    threadModelToolEvidence.user_coordination_surface_evidence_sufficient !== false ||
-    threadModelToolEvidence.missing_implementation_state !== 'source_missing_protocol_blocked_required_target' ||
-    threadModelToolEvidence.blocker_code !== 'source_missing_protocol_blocked' ||
-    threadModelToolEvidence.protocol_capability !== 'codex_app_server_dynamic_tools_available' ||
-    threadModelToolEvidence.current_shell_transport !== 'ordinary_conversation_acp_aioncore_codex_acp' ||
-    threadModelToolEvidence.current_blocker !==
-      'acp_session_new_or_load_has_no_dynamic_tools_input_or_item_tool_call_callback' ||
-    !sameStrings(threadModelToolEvidence.primary_owners, ['aioncore', 'codex_acp']) ||
-    threadModelToolEvidence.shell_role !== 'blocked_thin_adapter' ||
-    !sameStrings(threadModelToolEvidence.required_owner_routes, [
-      'aioncore_same_app_server_client_adapter',
-      'codex_acp_dynamic_tool_input_response_and_acp_callback',
-    ]) ||
-    !sameStrings(threadModelToolEvidence.forbidden_workarounds, [
-      'second_app_server_thread_runtime',
-      'post_hoc_coordination_port_handler',
-      'shell_owned_tool_or_thread_store',
-    ]) ||
-    threadCoordination.default_state !== 'capability_available_no_ordinary_navigation_coordination_panel_closed' ||
-    threadCoordination.model_role !== 'decide_when_and_why_to_coordinate' ||
+    threadCoordination.model_tool_access !== false ||
+    threadCoordination.user_initiated_only !== true ||
     threadCoordination.protocol_owner !== 'codex_core_app_server' ||
-    threadCoordination.app_host_owner !== 'opl_app_host' ||
     threadCoordination.thread_store_owner !== 'codex_core_app_server' ||
-    threadCoordination.thin_shell_behavior_policy !==
-      'codex_app_behavior_with_opl_metadata_and_audit_not_an_additional_workspace_sandbox' ||
-    threadCoordination.project_workspace_role !==
-      'new_thread_default_cwd_sidebar_grouping_and_visible_metadata_only_not_authorization_domain' ||
-    threadCoordination.post_start_filesystem_access_authority !==
-      'codex_native_permissions_approval_and_sandbox' ||
-    sameAgentTreeTransport.scope !== 'same_agent_tree_only' ||
-    !sameStrings(sameAgentTreeTransport.methods, ['spawn_agent', 'send_input', 'wait_agent']) ||
-    sameAgentTreeTransport.cross_top_level_use_forbidden !== true ||
-    !sameStrings(threadCoordination.cross_top_level_protocol, [
-      'thread/list',
-      'thread/read',
-      'thread/resume',
-      'thread/fork',
-      'thread/archive',
-      'thread/unarchive',
-      'turn/start',
-      'turn/steer',
+    !requiredThreadProtocols.every((protocol) => stringArray(threadCoordination.supported_protocols).includes(protocol)) ||
+    threadCoordination.state_authority !== 'codex_app_server' ||
+    threadCoordination.plain_conversation_policy !== 'existing_aionui_acp_unchanged' ||
+    !sameStrings(threadCoordination.forbidden_private_layers, [
+      'second_json_rpc_client',
+      'jsonl_coordination_audit_store',
+      'coordination_idempotency_or_replay_ledger',
+      'write_set_advisory_control_plane',
+      'model_delivery_or_dynamic_thread_tools',
+      'pending_server_request_control_plane',
+      'independent_coordination_page',
+      'cross_host_task_handoff',
     ]) ||
-    !sameStrings(threadCoordination.required_thread_fields, requiredThreadFields) ||
-    !sameStrings(threadCoordination.thread_actions, ['read', 'resume', 'fork', 'archive', 'unarchive']) ||
-    threadDispatchPolicy.idle_thread !== 'turn/start' ||
-    threadDispatchPolicy.running_thread !== 'turn/steer' ||
-    threadDispatchPolicy.unknown_or_stale_status !== 'refresh_then_route_or_protocol_failure' ||
-    threadDispatchPolicy.opl_extra_confirmation_policy !==
-      'none_including_archive_cross_project_cross_workspace_workspace_write_write_set_overlap_running_steer_and_loop_advisory' ||
-    threadDeliveryDefaults.permission !== 'inherit' ||
-    !sameStrings(threadDeliveryDefaults.write_set, []) ||
-    threadDeliveryDefaults.write_set_role !== 'optional_advisory_metadata_not_permission_input' ||
-    threadTurnStartInheritance.target_thread_sticky_settings_inherited !== true ||
-    !sameStrings(threadTurnStartInheritance.fields_must_not_be_sent, [
-      'cwd',
-      'runtimeWorkspaceRoots',
-      'approvalPolicy',
-      'sandboxPolicy',
-    ]) ||
-    !sameStrings(threadCoordination.hard_failure_conditions, coordinationHardFailures) ||
-    threadServerRequestPolicy.pending_state_role !== 'codex_native_interactive_request_not_dispatch_failure' ||
-    !sameStrings(threadServerRequestPolicy.supported_methods, coordinationServerRequestMethods) ||
-    !sameStrings(threadServerRequestPolicy.pending_kinds, coordinationServerRequestKinds) ||
-    threadServerRequestPolicy.context_surface !==
-      'selected_target_thread_detail_with_thread_turn_and_item_context_when_available' ||
-    threadServerRequestPolicy.resolution_owner !== 'user_via_typed_opl_host_bridge' ||
-    threadServerRequestPolicy.current_time_read_policy !== 'automatic_protocol_response' ||
-    threadServerRequestPolicy.unknown_server_request_policy !== 'fail_closed_json_rpc_method_not_found' ||
-    !sameStrings(threadServerRequestPolicy.failure_conditions, coordinationServerRequestFailures) ||
-    threadServerRequestPolicy.delivery_audit_boundary !==
-      'coordination_delivery_audit_records_codex_policy_inheritance_not_independent_approval_decisions' ||
-    threadServerRequestPolicy.separate_persisted_approval_receipt_implemented !== false ||
-    !sameStrings(threadCoordination.advisory_signals, coordinationAdvisories) ||
-    !sameStrings(threadCoordination.must_not_block_or_confirm_for, coordinationNonBlockingSignals) ||
-    threadIdempotencyPolicy.dedupe_scope !== 'same_opaque_request_or_idempotency_key_retry_only' ||
-    threadIdempotencyPolicy.same_key_retry_behavior !==
-      'return_first_receipt_and_result_with_ok_true_without_second_dispatch' ||
-    threadIdempotencyPolicy.message_content_repeat_allowed !== true ||
-    threadCrossHostPolicy.state !== 'required_target_protocol_owner_blocked_unavailable' ||
-    threadCrossHostPolicy.blocker_code !== 'remote_host_handoff_owner_surface_unavailable' ||
-    threadCrossHostPolicy.primary_owner !== 'codex_app_remote_connections_host_handoff_owner' ||
-    threadCrossHostPolicy.product_contract_owner !== 'one_person_lab_app' ||
-    threadCrossHostPolicy.shell_role !== 'blocked_thin_adapter' ||
-    threadCrossHostPolicy.current_transport_state !== 'local_app_server_only_no_host_transfer_rpc' ||
-    threadCrossHostPolicy.required_transport !==
-      'connected_host_task_handoff_with_git_state_transfer_destination_readback_and_disconnect_recovery' ||
-    threadCrossHostPolicy.direct_message_allowed !== false ||
-    threadCrossHostPolicy.handoff_available !== false ||
-    threadCrossHostPolicy.success_projection_allowed !== false ||
-    threadCrossHostPolicy.parity_requirement !== 'current_required_target_blocked_on_protocol_owner' ||
-    !sameStrings(threadCoordination.required_states, coordinationStates) ||
-    !sameStrings(threadCoordination.audit_fields, coordinationAuditFields) ||
-    threadCoordination.user_visibility_policy !==
-      'sender_target_reason_message_result_permission_policy_and_advisory_context_visible_and_auditable_interactive_server_requests_visible_in_target_context' ||
-    !sameStrings(threadCoordination.forbidden_implementations, [
-      'send_input_as_cross_top_level_message_bus',
-      'shell_owned_duplicate_thread_store',
-      'model_generated_thread_id',
-      'shell_owned_permission_model',
-      'project_or_workspace_as_authorization_domain',
-      'write_set_overlap_as_dispatch_blocker',
-      'delegation_loop_as_dispatch_blocker',
-      'message_content_as_dedupe_key',
-      'duplicate_delivery_error_for_same_idempotency_key',
-      'direct_cross_host_message_delivery',
-      'any_opl_confirmation_for_thread_read_dispatch_steer_or_archive',
-      'interactive_server_request_as_immediate_dispatch_failure',
-      'delivery_audit_as_independent_approval_receipt',
-    ]) ||
-    coordinationViewModel.product_role !== threadCoordination.product_role ||
-    coordinationViewModel.entry_surface !== threadCoordination.entry_surface ||
-    coordinationViewModel.ordinary_navigation_visible !== false ||
-    coordinationViewModel.keyboard_reachable_entry !== true ||
-    coordinationViewModel.primary_composer_control_visible !== false ||
-    coordinationViewModel.thread_detail_context_action_visible !== true ||
-    coordinationViewModel.model_tool_access !== true ||
-    JSON.stringify(record(coordinationViewModel.model_tool_access_evidence_boundary)) !==
-      JSON.stringify(threadModelToolEvidence) ||
-    coordinationViewModel.default_state !== 'capability_available_no_ordinary_navigation_coordination_panel_closed' ||
-    coordinationViewModel.thread_list_protocol !== 'thread/list' ||
-    coordinationViewModel.thread_read_protocol !== 'thread/read' ||
-    !sameStrings(coordinationViewModel.thread_actions, ['thread/resume', 'thread/fork', 'thread/archive', 'thread/unarchive']) ||
-    JSON.stringify(coordinationViewModel.task_rail_action_protocols) !==
-      JSON.stringify({
-        rename: 'thread/name/set',
-        archive: 'thread/archive',
-        restore: 'thread/unarchive',
-        delete: 'thread/delete',
-      }) ||
-    coordinationViewModel.pin_role !== 'shell_ui_metadata_only' ||
-    coordinationViewModel.local_reset_role !==
-      'retain_existing_aionui_conversation_semantics_not_app_server_history_reset' ||
-    coordinationViewModel.idle_dispatch_protocol !== 'turn/start' ||
-    coordinationViewModel.running_dispatch_protocol !== 'turn/steer' ||
-    JSON.stringify(coordinationViewModel.delivery_request_defaults) !== JSON.stringify(threadDeliveryDefaults) ||
-    JSON.stringify(coordinationViewModel.turn_start_inheritance_policy) !== JSON.stringify(threadTurnStartInheritance) ||
-    coordinationViewModel.project_workspace_role !== threadCoordination.project_workspace_role ||
-    coordinationViewModel.post_start_filesystem_access_authority !== threadCoordination.post_start_filesystem_access_authority ||
-    !sameStrings(coordinationViewModel.required_thread_fields, requiredThreadFields) ||
-    !sameStrings(coordinationViewModel.hard_failure_conditions, coordinationHardFailures) ||
-    JSON.stringify(record(coordinationViewModel.interactive_server_request_policy)) !==
-      JSON.stringify(threadServerRequestPolicy) ||
-    !sameStrings(coordinationViewModel.advisory_signals, coordinationAdvisories) ||
-    !sameStrings(coordinationViewModel.must_not_block_or_confirm_for, coordinationNonBlockingSignals) ||
-    !sameStrings(coordinationViewModel.required_states, coordinationStates) ||
-    !sameStrings(coordinationViewModel.user_visible_audit_fields, [
-      'sender',
-      'source_thread_id',
-      'target_thread_id',
-      'reason',
-      'message_summary',
-      'protocol_method',
-      'codex_permission_policy_inheritance',
-      'project_workspace_context',
-      'write_set_advisory',
-      'loop_advisory',
-      'idempotency_result',
-      'status',
-      'result_summary',
-    ]) ||
-    coordinationViewModel.unknown_or_stale_status_policy !== 'refresh_then_route_or_protocol_failure' ||
-    coordinationViewModel.idempotency_policy !==
-      'same_opaque_request_or_idempotency_key_retry_returns_first_receipt_and_result_ok_true_without_second_dispatch_message_content_repeat_allowed' ||
-    coordinationViewModel.cross_host_policy !==
-      'required_target_protocol_owner_blocked_unavailable_no_success_projection' ||
-    coordinationViewModel.cross_host_blocker_code !== 'remote_host_handoff_owner_surface_unavailable' ||
-    coordinationViewModel.cross_host_owner_route !== 'codex_app_remote_connections_host_handoff_owner' ||
-    coordinationViewModel.cross_host_shell_role !== 'blocked_thin_adapter' ||
-    coordinationViewModel.opl_extra_confirmation_policy !==
-      'none_including_archive_cross_project_cross_workspace_workspace_write_write_set_overlap_running_steer_and_loop_advisory' ||
-    coordinationViewModel.same_agent_tree_api_boundary !== 'spawn_agent_send_input_wait_agent_same_tree_only'
+    forbiddenThreadKeys.some((key) => key in threadCoordination) ||
+    pageStates.some((page) => page.id === 'thread_coordination')
   ) {
-    issues.add('cross-top-level coordination must preserve Codex App flexibility while keeping OPL metadata, advisories, idempotency, and audit');
+    issues.add('thread operations must use one user-initiated Codex App Server adapter without a private coordination control plane');
   }
 
   const contextSurfaces = record(interactionBaseline.context_surfaces);
@@ -1481,6 +1241,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   const settingsShell = record(interactionBaseline.settings_shell);
   const visualTarget = record(interactionBaseline.visual_target);
   const lightSurfaces = record(visualTarget.light_surfaces);
+  const darkSurfaces = record(visualTarget.dark_surfaces);
   const visualTypography = record(visualTarget.typography);
   const targetDefinitionRole = 'opl_target_translation_not_literal_codex_observation';
   if (oplTargetTranslation.some((key) => record(interactionBaseline[key]).definition_role !== targetDefinitionRole)) {
@@ -1612,13 +1373,33 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     settingsShell.home_or_conversation_structure_authority !== false ||
     settingsShell.settings_objects_or_model_policy_changed_by_41301 !== false ||
     settingsShell.installer_or_runtime_truth_authority !== false ||
+    visualTarget.machine_authority !== 'this_object_only_shell_and_human_docs_are_derived' ||
     visualTarget.main_canvas !== 'white' ||
     JSON.stringify(lightSurfaces) !==
       JSON.stringify({
         main_canvas: '#FFFFFF',
         navigation_rail: '#FCFCFC',
         bounded_surface: '#FFFFFF',
+        hover_row: 'rgba(0, 0, 0, 0.045)',
         selected_row: '#F0F0F0',
+        text_primary: '#202124',
+        text_secondary: '#5F6368',
+        text_muted: '#80868B',
+        hairline_border: 'rgba(0, 0, 0, 0.10)',
+        focus_ring: 'rgba(37, 99, 235, 0.34)',
+        composer_shadow: '0 1px 2px rgba(0, 0, 0, 0.07), 0 8px 24px rgba(0, 0, 0, 0.08)',
+      }) ||
+    JSON.stringify(darkSurfaces) !==
+      JSON.stringify({
+        main_canvas: '#171819',
+        navigation_rail: '#1B1C1E',
+        bounded_surface: '#202224',
+        hover_row: 'rgba(255, 255, 255, 0.06)',
+        selected_row: 'rgba(255, 255, 255, 0.09)',
+        text_primary: '#F4F5F6',
+        text_secondary: '#AEB4BC',
+        hairline_border: 'rgba(255, 255, 255, 0.12)',
+        composer_shadow: '0 1px 2px rgba(0, 0, 0, 0.30), 0 8px 24px rgba(0, 0, 0, 0.24)',
       }) ||
     visualTarget.rail_and_subtle_surfaces !== 'neutral_gray' ||
     visualTarget.composer !== 'floating_or_bottom_safe_inset' ||
@@ -1626,12 +1407,18 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     JSON.stringify(visualTypography) !==
       JSON.stringify({
         ui_font_stack: 'platform_system_sf_pro_text_first',
+        app_chrome: '13/18/400_or_500',
         conversation: '15/22/400',
         body: '14/20/400',
         label: '13/18/500',
+        page_title: '20/28/600',
+        metadata: '12/18/400',
+        code: '12/18/400',
         letter_spacing_px: 0,
       }) ||
     visualTarget.settings_icon_policy !== 'monochrome_utility_icons_with_color_reserved_for_typed_status' ||
+    visualTarget.accent_scope !==
+      'brand_typed_status_and_actions_only_not_ordinary_rail_selection_or_settings_icons' ||
     visualTarget.opl_teal_and_brand_retained !== true
   ) {
     issues.add('interaction baseline must reject the legacy equal-weight inspector taxonomy and keep Settings in maintenance');

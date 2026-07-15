@@ -305,8 +305,8 @@ const expectedAtomicPackageUnitIncludes = [
   "bundled_required_skill_entries",
   "optional_companion_skill_refs",
 ];
-const expectedActivationScopeValues = ["workspace", "quest"];
-const expectedActivationRequestRequiredFields = ["package_id", "scope"];
+const expectedActivationScopeValues = ["workspace"];
+const expectedActivationRequestRequiredFields = ["package_id", "scope", "target_workspace"];
 const expectedActivationResultRequiredFields = ["launch_allowed", "package_id", "package_lock"];
 const expectedRecoveryReadbackRequiredFields = [
   "surface_kind",
@@ -1033,24 +1033,19 @@ function validateAgentPackageSurfaceSchema(contract: any, registry: any, schema:
     expectedActivationScopeValues,
     "agent package activation request scope values",
   );
+  assertEqual(activationRequest.allOf, undefined, "agent package activation request has no alternate target branch");
+  assertEqual(activationRequest.properties?.target_quest, undefined, "App activation request excludes quest targets");
   assertEqual(
-    activationRequest.allOf?.length,
-    2,
-    "agent package activation request conditional target count",
-  );
-  assertJsonEqual(
-    activationRequest.allOf?.map((condition: any) => ({
-      scope: condition?.if?.properties?.scope?.const,
-      required: condition?.then?.required,
-      forbidden: condition?.then?.not?.required,
-    })),
-    [
-      { scope: "workspace", required: ["target_workspace"], forbidden: ["target_quest"] },
-      { scope: "quest", required: ["target_quest"], forbidden: ["target_workspace"] },
-    ],
-    "agent package activation request scope targets",
+    activationRequest.properties?.use_boundary_id,
+    undefined,
+    "App activation request excludes Framework-internal boundary identifiers",
   );
   const activationResult = schemaDef(schema, "agent_package_activation_result");
+  assertEqual(
+    activationResult.properties?.use_receipt_ref,
+    undefined,
+    "App activation result contract does not require Framework-internal receipts",
+  );
   assertArrayEqual(
     activationResult.required,
     expectedActivationResultRequiredFields,
@@ -1207,11 +1202,6 @@ function validateLaunchAuthorityFixtures(): void {
       installed_runtime_readback_required: true,
     },
     "Framework minimal launch component",
-  );
-  assertArrayEqual(
-    activationResults.required_success_binding_fields,
-    ["root_package.package_id", "root_package.package_version", "scope", "target_root"],
-    "minimal launch binding fields",
   );
   for (const example of activationResults.cases ?? []) {
     if (!activationResultConforms(example.result, example.selected)) {

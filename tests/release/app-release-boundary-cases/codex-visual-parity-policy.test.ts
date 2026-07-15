@@ -21,7 +21,9 @@ test('Codex visual parity policy is discoverable and keeps sessions primary', ()
   assert.match(policy, /composer_resting_shadow=required/);
   assert.match(policy, /aioncore_modification=forbidden/);
   assert.match(policy, /visual_acceptance=source_dom_and_installed_pixels/);
-  assert.match(policy, /candidate_webui_pixels=verified_not_release_evidence/);
+  assert.match(policy, /candidate_shell_commit_source=active_shell_checkout_git_head/);
+  assert.doesNotMatch(policy, /candidate_shell_commit=[0-9a-f]{40}/);
+  assert.match(policy, /candidate_webui_pixels=pending_on_clean_release_cohort/);
   assert.match(policy, /installed_pixel_acceptance=pending/);
   assert.match(policy, /visual_parity_complete=false/);
   assert.match(visualSystem, /26\.707\.72221 \/ build 5307/);

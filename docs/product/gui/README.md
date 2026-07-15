@@ -58,12 +58,11 @@ release-ready。`26.707.31428` 与 `26.707.31123` 只作为 superseded observati
 Settings -> Agents 管理 package lifecycle，Settings -> Capabilities 管理 Skills/Plugins/Flow；App updater 与 Framework-owned
 managed lifecycle 分离，不再保留 OPL Flow 专用 post-update 分支。本轮 parity exact cohort
 `b2c05a1c8dc4ef81094323b49a67b601e3c425f5` 已实现 projectless local input、App Server rail、
-absolute-path Preview、首结果 idempotency replay、user coordination/unarchive、
-Local/Worktree/handoff、Review 已采纳子集、Runtime cockpit、typed interactive requests，并完整保留
+absolute-path Preview、用户触发的线程 lifecycle、Local/Worktree/handoff、Review 已采纳子集、
+Runtime cockpit，并完整保留
 Runtime V2 与 Gateway account/UI。该 exact cohort 的 full source gates、macOS arm64 directory-only package、
 codesign 与 9 场景 packaged E2E 已闭合；package 未安装，main/remote currentness 与 release
-promotion仍由操作层 fresh readback决定。模型可调用 host tool仍是必需产品目标，当前 AionUI
-user coordination surface 不能作为其实现证据。当前 Session-first Shell source cohort 不绑定临时
+promotion仍由操作层 fresh readback决定。当前 Session-first Shell source cohort 不绑定临时
 topic SHA；它由 `WorkspaceHandoffControl.tsx`、`useConversationListSync.ts`、`GroupedHistory/index.tsx`、
 `GuidPage.tsx` 及对应 DOM/source tests 定义，并要求 `ProjectContextSection.tsx` 与
 `projectContext.ts` 缺席。该 cohort 在既有 profile-driven feedback、Review、managed Worktree、Runtime
@@ -225,31 +224,19 @@ package/user path。当前 contract/source 与 packaged route visual evidence �
   或任务需要打开。旧八类 inspector taxonomy 与会话级 Runtime duplicate 不再是产品面。
 - Transcript export 只导出完整分页后的、脱敏的 user/assistant text；Markdown 默认、
   strict JSON 可选，目录与文件名显式选择，不授权 workspace bundle。
-- 跨顶层线程协调复用 project/conversation directory、按需 thread detail、target ordinary turn、source
-  delivery audit 和 mobile sheet；独立双边 timeline event 属于后续增强，不能从单份 audit 推导。
-  普通 navigation 不展示独立“线程协调”页面或 rail 区块；keyboard-reachable thread-detail context
-  action 与 model host tool 复用同一 adapter。
-  Thread identity/history 归 Codex Core/App Server；OPL host 通过 `thread/list`、`thread/read`、
-  `thread/resume`、`thread/fork`、`thread/archive`、`turn/start`、`turn/steer` 完成受控路由，
-  并负责 opaque-key 幂等、project/workspace/write-set/route advisory 和可见 delivery audit。Project/
-  workspace 只定义新任务默认 cwd、rail 分组和可见元数据；任务启动后仅服从 Codex 自身
-  permission/approval/sandbox，不增加 OPL 目录边界。跨 project/workspace、workspace-write、overlap、
-  running steer 或 loop advisory 不得被拒绝或额外确认；archive 直接且可通过 `thread/unarchive`
-  恢复。同一 idempotency key 重试返回第一次 receipt/result、`ok=true` 且不再次 dispatch；同内容
-  不同 key 仍可合法重复。Codex approval、permission、user-input 和 MCP elicitation 是 selected
-  target thread 中的 pending state；只有拒绝/取消、请求失效或 handler/protocol 错误才失败。
-  Delivery audit 只记录 Codex policy inheritance，不冒充独立 approval receipt。跨 host 当前
-  unavailable，不把直接消息或本机 handoff 伪装成已支持。
-  `spawn_agent`、`send_input`、`wait_agent` 只用于同一 agent tree，不能成为跨根线程消息总线。
+- Thread identity/history 归 Codex Core/App Server。Shell 只保留一个用户触发的 App Server
+  adapter，复用现有 directory/actions 执行 `thread/list`、`thread/read`、`thread/start`、
+  `thread/resume`、`thread/fork`、archive/restore、rename/delete 和 cwd update；普通 conversation
+  继续走 AionUI 现有 ACP。没有独立“线程协调”页面、模型 dynamic tool、第二 JSON-RPC client、
+  audit/idempotency ledger、pending-request 控制面或 cross-host handoff。
 - Preview 通过现有 ref-only adapter 打开当前 session 的显式 attachment、可见 conversation result，或用户
   显式选择的合法绝对本地路径；绝对路径不要求属于当前 workspace，也不存在 workspace-scoped project-context ref。
   traversal、非法 scheme、自动静默读取及 unsupported ref 保持可见并 fail closed，App/shell 不复制
   artifact body，也不猜测内容。
 - New session 支持 Local/Worktree、starting branch 与同主机 idle session 的任意工作目录及 Local↔Worktree handoff；
-  Worktree 位于 `$CODEX_HOME/worktrees`，selected branch HEAD detached，可应用所选 Local 未提交
-  变更并读取 `.worktreeinclude`，同一 task 复用同一 worktree。Snapshot/restore 与 cleanup UI
-  当前 deferred，cross-host unsupported；状态归 Codex Core/App Server 与既有 Git 集成，Shell
-  只做薄 adapter。
+  Worktree 位于 `$CODEX_HOME/worktrees`，selected branch HEAD detached，同一 task 可复用同一
+  worktree并默认保留。Shell不搬运Local未提交/ignored状态，也不提供snapshot、cleanup、restore或
+  cross-host控制面；状态归 Codex Core/App Server 与既有 Git 集成。
 - Review 复用现有 Files/Changes diff surface，按需增加 PR context、inline comments、stage、commit、
   push；target 至少包含 uncommitted/base branch/commit/custom，交付支持 inline/detached，默认
   Unstaged 并提供 Staged/Commit/Branch/Last turn。PR context 依赖 `gh`，缺失时明确 unavailable；

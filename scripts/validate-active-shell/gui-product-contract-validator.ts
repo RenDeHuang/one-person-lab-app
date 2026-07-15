@@ -210,7 +210,7 @@ function validateMinimalAgentPackageActivationPolicy(policy) {
   }
   assertDeepEqualJson(
     policy.required_payload_fields,
-    ['package_id', 'scope', 'target_workspace or target_quest'],
+    ['package_id', 'scope', 'target_workspace'],
     'App GUI minimal Agent Package activation payload',
   );
   assertDeepEqualJson(
@@ -224,7 +224,8 @@ function validateMinimalAgentPackageActivationPolicy(policy) {
       'activation.package_id_matches_current_selection',
       'activation.package_lock.package_id_matches_current_selection',
       'binding.root_package.package_id_matches_current_selection',
-      'activation.package_lock.package_version_matches_binding.root_package.package_version',
+      'activation.package_lock.package_version_matches_current_selection',
+      'binding.root_package.package_version_matches_current_selection',
       'binding.scope_is_workspace',
       'binding.target_root_matches_normalized_current_session_directory',
     ],

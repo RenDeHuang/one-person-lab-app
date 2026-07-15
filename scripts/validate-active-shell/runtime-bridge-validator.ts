@@ -383,7 +383,9 @@ export function validateOplAppStateFastAgentPackageDirectoryFixture(fixture) {
     || activationEntry.recommended_action_ref?.payload?.scope !== 'workspace'
     || activationEntry.recommended_action_ref?.payload?.target_workspace !== workspaceRoot
     || !activationEntry.recommended_action_ref?.required_payload_fields?.includes('scope')
-    || !activationEntry.recommended_action_ref?.required_payload_fields?.includes('target_workspace or target_quest')
+    || !activationEntry.recommended_action_ref?.required_payload_fields?.includes('target_workspace')
+    || activationEntry.recommended_action_ref?.required_payload_fields?.includes('target_quest')
+    || activationEntry.recommended_action_ref?.required_payload_fields?.includes('use_boundary_id')
   ) {
     throw new Error('Agent Package directory fixture must include a workspace-scoped canonical activation action');
   }
@@ -1547,7 +1549,6 @@ function validateCanonicalConversationContinuityPolicy(runtimeBridge) {
     opl_native_workbench_status: 'resume_capable_full_local_transcript_cache_requires_canonical_thread_directory',
     pin_role: 'shell_ui_metadata_only',
     local_reset_role: 'retain_existing_aionui_conversation_semantics_not_app_server_history_reset',
-    same_idempotency_key_retry_policy: 'return_first_receipt_and_result_with_ok_true_without_second_dispatch',
     workspace_directory_role: 'new_session_initial_cwd_mutable_cwd_grouping_and_visible_metadata_only_not_authorization_domain',
     row_identity: 'canonical_thread_id',
     duplicate_row_per_canonical_thread_allowed: false,

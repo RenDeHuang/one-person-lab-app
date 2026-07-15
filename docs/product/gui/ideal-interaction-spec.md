@@ -35,9 +35,8 @@ Machine boundary: 本文是 shell-neutral 的人读交互目标。机器可读�
    与 raw detail 可按需展开。
 7. **Authority aware。** UI 展示 state/action/domain/release refs，但不推断或接管
    owner truth。
-8. **Coordination is visible and thin。** 跨顶层线程发现、投递、advisory 和结果必须可见、
-   键盘可达、可审计；模型决定何时协调，App Server 拥有 thread/turn 与权限，OPL host 只做
-   路由、幂等、handoff 和 receipt 薄适配。
+8. **Thread operations stay native and thin。** 用户通过现有 directory/actions 执行 thread
+   list/read/start/resume/fork/archive；App Server 拥有 thread truth，Shell 只做一个薄 adapter。
 
 没有明确 OPL delta 的主流程默认采用 OPL contracts 对
 [`codex-to-opl-app-delta.md`](codex-to-opl-app-delta.md) 记录的
@@ -117,8 +116,7 @@ Rail 负责 navigation，不承担 dashboard：
   级联 archive/delete/reset 其下 session。
 - Home 的 New task 可选择 Local/Worktree 与 starting branch；Worktree 通过既有
   `gitWorkspace.inspect` / `ensureManagedWorktree` 创建或复用，位于 `$CODEX_HOME/worktrees`，
-  selected branch HEAD detached，可应用用户所选 Local 未提交变更并读取 `.worktreeinclude`。
-  创建失败保持可见，不 silent fallback 到 Local。
+  selected branch HEAD detached。创建失败保持可见，不 silent fallback 到 Local。
 - 既有同主机 canonical session 只在 `not_loaded`/`idle` 时从 Conversation Environment 提供
   系统目录选择器驱动的任意本地工作目录切换，Local↔Worktree 是其专门 lifecycle。真实切换先调用
   `thread/settings/update { threadId, cwd }`，再更新 AionUI conversation projection 与 rail 分组；
@@ -126,51 +124,19 @@ Rail 负责 navigation，不承担 dashboard：
   `running`/`archived`/`system_error` 显示 unavailable，这是 Codex 协议状态限制，不是目录权限。
 - `opl_workspace_handoff.v1` 只保存 locality、Local/worktree path、task/start ref 和 retention
   projection。Worktree 默认保留复用，不因 archive 或数量阈值在 Shell 内静默删除。
-- Conversation Environment 对确定的 Codex-managed worktree 提供“创建恢复点并移除”。动作必须先
-  创建 `opl_worktree_snapshot_receipt.v1`，将 HEAD、branch或detached HEAD、index、tracked
-  worktree、untracked 与 ignored user files 保存到 durable Git ref/object；snapshot 失败时不得移除。
-- 已有 receipt 时提供“恢复 Worktree”。恢复目标优先原 managed path，路径已占用、Git ref缺失或
-  应用内容冲突时返回 typed failure，不覆盖现有文件、不显示 partial success，也不删除 branch或
-  snapshot ref。Cross-host handoff 只有真实 host transport存在时才显示可用。
+- App 不提供 managed worktree cleanup、snapshot receipt、restore 或 cross-host handoff 控制面。
 - Backend、provider、permission、router 和 raw runtime state 不作为 rail 层级。
 - 外部交互参考可以改变入口位置，但不得删除 OPL-owned capability；任何迁移必须在同一
   变更提供可见、键盘可达的替代入口，并同步更新 contract、source 和 navigation tests。
 
-### 跨顶层线程协调
+### 用户触发的线程操作
 
-- 主界面不提供独立“线程协调”页面或 rail 区块。Project 下的 conversation rows 仍是 App
-  Server top-level thread 的可见入口；协调由模型 host tool 或线程上下文动作按需调用。
-  Status、host、owner、goal、parent/ancestor 与 write-set 只进入按需 detail，不增加 agent dashboard。
-- 默认按当前 project 分组。跨 project 和 archived scope 通过显式 filter 进入；筛选不改变
-  授权。Project/workspace 仅是新任务默认 cwd、侧栏分组和可见元数据，任务后续可按 Codex
-  自身权限访问其他目录；不把全局目录铺在 Home，也不自动把其它线程全文注入当前上下文。
-- 读取采用 metadata/summary first，必要时才 `thread/read` 历史；resume、fork、archive、
-  unarchive 位于 thread action menu，保持键盘可达。
-- 发送协作消息时，用户或模型必须提供 target、reason 和 message；expected write set 可选，
-  只作为 advisory/audit。
-  Idle target 使用 `turn/start`；running target 使用 `turn/steer`；stale/unknown status 先
-  refresh，再按真实状态路由或返回协议失败。独立非紧急 queue 只有落地真实 host queue 后才可声明。
-- 本机跨 project/workspace、workspace-write、active turn steering、write-set overlap 或 loop
-  advisory 不拒绝、不额外确认；OPL 只记录并展示。同一 opaque request/idempotency key 重试
-  返回第一次 receipt/result、`ok=true` 且不二次 dispatch；同内容不同 key 可合法重复。
-- 硬失败仅来自协议无效/不可用、目标不存在/已归档/不可写、cross-host coordination 未支持、
-  用户拒绝/取消 Codex 交互请求，或交互请求 handler 无效/不可用。Approval、permission、
-  user-input 与 MCP elicitation 请求本身是对应 target thread 的可见 pending state，不是 dispatch
-  failure。Archive 直接且可 unarchive，OPL 不对
-  read/send/steer/archive 增加确认；cross-host 是 required parity target，但当前以
-  `remote_host_handoff_owner_surface_unavailable` 显示 unavailable，不转换成伪 handoff success。
-- Target turn 保留 sender、reason 与 message；source 的 coordination audit 显示 target、协议动作、
-  Codex policy inheritance、advisory、当前状态和结果入口。当前没有独立持久化 approval receipt，
-  不能把 delivery audit 冒充 approval 决策历史。Desktop 使用 thread-detail context action + dialog/popover，
-  mobile 使用 action sheet + full-height detail，语义等价。
-- `spawn_agent`、`send_input`、`wait_agent` 继续服务同一 agent tree；跨根线程只经 App Server
-  `thread/*` 与 `turn/*`，AionUI 不拥有 thread ID、history 或路由策略。
-- 模型可调用 host tool 是必需目标，但必须由 thread-start dynamic-tool registration 与
-  `item/tool/call` round-trip 证明；thread-detail context action 或 user dispatch 不能作为替代证据。当前
-  ordinary conversation 经 ACP -> AionCore -> codex-acp 创建，而 ACP `session/new/load` 不承载
-  dynamic tools或 `item/tool/call` callback。应由 AionCore 的同 App Server client adapter优先闭合，
-  或由 codex-acp补齐 typed输入、response提交和 ACP callback；在此之前标为 `source_missing`，
-  不能另造第二套 runtime或事后 coordination-port handler。
+- 主界面不提供独立“线程协调”页面或 rail 区块。Project 下的 conversation rows 是 App
+  Server thread 的可见入口，目录分组不改变身份或授权。
+- 读取采用 metadata first；list/read/start/resume/fork/archive/restore 复用一个 App Server
+  adapter并保持键盘可达。普通 conversation 发送继续走 AionUI 现有 ACP。
+- Shell 不维护第二 JSON-RPC client、JSONL audit/idempotency ledger、write-set advisory、model
+  delivery、dynamic thread tools、pending-request control plane 或 cross-host handoff。
 
 宽桌面 rail persistent 且在 `280-340px` 内可调；窄窗口 drawer 化。关闭 drawer 不清除
 selection 或当前草稿。Back/Forward、Previous/Next Task、New Window 是 desktop
@@ -399,20 +365,12 @@ First-run 的目标是让用户尽快进入可工作的 App：
 - Rail 顶部只有 New task、Runtime、Archived；capability 选择在 Home，管理在 Settings。
 - Environment 首层保持 workspace/locality/branch/changes/subtasks/sources；OPL artifact/evidence 为
   次级 section/preview，advanced tools 默认关闭。
-- 普通 navigation 不展示独立 coordination 页面；App Server thread directory/detail、keyboard-reachable
-  thread-detail context action、rename/archive/unarchive/delete、target sender/reason/message、source delivery
-  audit 与 denied/advisory/offline 状态均可按需发现；approval/
-  user-input pending 不误报失败，且不虚报独立 approval receipt。同 key 重试返回第一次成功结果且
-  不二次 dispatch；跨 host 当前明确 unavailable，跨顶层投递不使用 `send_input`。
-- Model host tool 只有在 dynamic-tool registration、`item/tool/call` 和结果 readback 同 cohort
-  可证时才算实现；用户可见 rail 不构成该证据，ordinary ACP owner链路缺失必须路由到
-  AionCore/codex-acp owner而不是 Shell workaround。
+- 普通 navigation 不展示独立 coordination 页面；用户可从现有 directory/actions 执行
+  list/read/start/resume/fork/archive/restore，普通 conversation 仍走现有 ACP。
 - Home New task 的 Local/Worktree、starting branch 与 managed worktree create/reuse 已由薄 adapter承接；
   既有同主机空闲 canonical session 的任意目录切换位于 Conversation Environment，通过系统目录选择器
   与 `thread/settings/update` 更新真实 cwd，再更新 projection/rail 分组且不改变 thread identity。
-  Environment 只对确定的 managed worktree 提供 durable
-  snapshot-before-remove 与 receipt restore；cross-host handoff由Codex App Remote Connections /
-  host-handoff owner提供真实host transport，Shell当前只显示owner-blocked unavailable。Review复用
+  Worktree只提供简单create/reuse和默认保留，无cleanup/snapshot/restore控制面。Review复用
   Files/Changes diff surface并覆盖四类 target、两种 delivery、五个
   sections 与 `gh` unavailable 状态，其中 Last turn 已实现，custom instructions 只进入
   `review/start.target.custom`。非 custom `Review Focus` 因公开 App Server 缺少对应 input 而

@@ -166,7 +166,7 @@
                 "scope": "workspace",
                 "target_workspace": "/Users/example/OPL Workspace"
               },
-              "required_payload_fields": ["package_id", "scope", "target_workspace or target_quest"],
+              "required_payload_fields": ["package_id", "scope", "target_workspace"],
               "confirmation_required": false
             },
             "available_actions": [
@@ -178,7 +178,7 @@
                   "scope": "workspace",
                   "target_workspace": "/Users/example/OPL Workspace"
                 },
-                "required_payload_fields": ["package_id", "scope", "target_workspace or target_quest"],
+                "required_payload_fields": ["package_id", "scope", "target_workspace"],
                 "confirmation_required": false
               },
               {
@@ -1657,13 +1657,13 @@
         "label": "Prepare package for launch",
         "surface": "opl app action execute",
         "delegated_surface": "opl app action execute --action agent_package_activate --payload <json> --json",
-        "payload_fields": ["package_id", "scope", "target_workspace", "target_quest", "use_boundary_id"],
+        "payload_fields": ["package_id", "scope", "target_workspace"],
         "result_fields": [
           "package_id",
           "package_lock",
           "launch_allowed",
           "launch_blocked_reason",
-          "use_receipt_ref",
+          "use_binding",
           "package_use_binding"
         ],
         "mutates": "framework_owned_package_scope_reconciliation_with_receipt",

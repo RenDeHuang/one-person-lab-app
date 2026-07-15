@@ -575,11 +575,11 @@ function validateSessionFirstDirectoryImplementation(shellPaths) {
     'packages/desktop/src/renderer/pages/conversation/GroupedHistory/hooks/useConversationListSync.ts',
     [
       'export const mergeCanonicalThreadDirectory',
-      "overview.availability.status !== 'available'",
-      'const returnedThreadIds = new Set(overview.threads.map((thread) => thread.id))',
+      'if (!directory) return localConversations',
+      'const returnedThreadIds = new Set(directory.threads.map((thread) => thread.id))',
       'const threadId = canonicalCodexThreadId(conversation)',
       "return conversation.type !== 'acp' || conversation.extra.backend !== 'codex'",
-      '...overview.threads.map((thread) => projectCanonicalThread(thread, cachedByThreadId.get(thread.id)))',
+      '...directory.threads.map((thread) => projectCanonicalThread(thread, cachedByThreadId.get(thread.id)))',
     ],
     'Active shell canonical App Server session directory projection',
   );
@@ -651,9 +651,8 @@ function validateSessionWorkingDirectoryImplementation(shellPaths) {
     'packages/desktop/src/renderer/pages/conversation/components/ChatLayout/WorkspaceHandoffControl.tsx',
     [
       "properties: ['openDirectory', 'createDirectory']",
-      "reason: 'Change session working directory from Environment'",
-      "action: 'handoff'",
-      'targetThreadId: threadId',
+      'setCanonicalWorkspace(thread.workspace)',
+      'await ipcBridge.codexThreads.updateWorkspace.invoke({ threadId, workspace: nextWorkspace })',
       'const operationStartWorkspace = canonicalWorkspace ?? workspace',
       'nextWorkspace === operationStartWorkspace',
       'const nextHandoff = handoffForWorkspace(nextWorkspace)',

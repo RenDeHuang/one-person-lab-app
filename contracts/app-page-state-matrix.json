@@ -84,20 +84,7 @@
         "ordinary_capability_selector_policy_ref": "contracts/app-product-profile.json#gui.ordinary_capability_selector_policy",
         "local_worktree_lifecycle_ref": "contracts/app-gui-product-contract.json#interaction_baseline.conversation_scope.local_worktree_lifecycle",
         "new_task_locality": {
-          "surface": "home_new_task",
-          "options": [
-            "local",
-            "worktree"
-          ],
-          "starting_branch_selectable": true,
-          "worktree_behavior": "create_or_reuse_managed_worktree",
-          "adapter": "gitWorkspace.inspect_and_ensureManagedWorktree",
-          "metadata_schema": "opl_workspace_handoff.v1",
-          "failure_policy": "show_unavailable_or_error_without_silent_local_fallback",
-          "snapshot_restore_state": "conversation_environment_source_implemented",
-          "cleanup_state": "conversation_environment_source_implemented",
-          "cross_host_state": "required_target_protocol_owner_blocked_unavailable",
-          "cross_host_blocker_code": "remote_host_handoff_owner_surface_unavailable"
+          "contract_ref": "contracts/app-gui-product-contract.json#interaction_baseline.conversation_scope.local_worktree_lifecycle"
         },
         "home_composer_state_contract": {
           "contract_id": "opl_home_composer_state.v1",
@@ -593,26 +580,7 @@
           }
         },
         "environment_workspace_handoff": {
-          "contract_ref": "contracts/app-gui-product-contract.json#interaction_baseline.conversation_scope.local_worktree_lifecycle",
-          "surface": "conversation_environment",
-          "scope": "same_host_existing_session",
-          "actions": ["switch_working_directory", "local_to_worktree", "worktree_to_local", "create_restore_point_and_remove", "restore_worktree"],
-          "working_directory_target_scope": "any_user_selected_same_host_local_directory",
-          "session_identity_policy": "preserve_canonical_thread_id_transcript_and_turn_history_without_fork_or_copy",
-          "sidebar_grouping_effect": "reclassify_same_session_by_selected_cwd_without_copy_or_fork",
-          "operation_start_workspace_source": "app_server_canonical_thread_cwd_then_projection_fallback_only_if_unavailable",
-          "no_op_comparison_source": "operation_start_workspace_not_mutable_projection",
-          "rollback_target": "operation_start_workspace",
-          "eligible_thread_states": ["not_loaded", "idle"],
-          "unavailable_thread_states": ["running", "archived", "system_error"],
-          "protocol": "thread/settings/update",
-          "failure_policy": "show_unavailable_or_error_without_silent_fallback",
-          "projection_transaction": "codex_thread_cwd_first_then_aionui_projection_with_best_effort_cwd_rollback",
-          "permission_boundary": "codex_permission_approval_and_sandbox_only_no_opl_cross_directory_gate",
-          "snapshot_restore_state": "source_implemented_git_native_snapshot_receipt",
-          "cleanup_state": "source_implemented_explicit_managed_worktree_only",
-          "cross_host_state": "required_target_protocol_owner_blocked_unavailable",
-          "cross_host_blocker_code": "remote_host_handoff_owner_surface_unavailable"
+          "contract_ref": "contracts/app-gui-product-contract.json#interaction_baseline.conversation_scope.local_worktree_lifecycle"
         },
         "transcript_export": {
           "scope": "current_conversation_transcript_only",
@@ -770,7 +738,6 @@
         "same-host working-directory or Local/Worktree handoff for an existing not-loaded or idle session from Conversation Environment",
         "running, archived, or system-error session handoff shown unavailable without silent fallback",
         "Codex thread cwd updated before AionUI projection with best-effort cwd rollback on projection failure",
-        "durable snapshot-before-remove and receipt restore for deterministic managed worktrees in Conversation Environment",
         "assistant route receipt",
         "Codex default model and reasoning status",
         "current task status slice when a task is active",
@@ -793,231 +760,14 @@
         "workspaceRootReady or workspace membership used as a file-access gate",
         "backend, provider, Team, raw MCP, or arbitrary skills in the mobile plus sheet",
         "Local or Worktree handoff control inside the primary composer",
-        "snapshot or worktree cleanup controls outside Conversation Environment or without a durable receipt",
-        "automatic or remove-before-snapshot managed worktree deletion",
-        "cross-host handoff shown as successful or available",
+        "worktree snapshot, restore, or cleanup controls",
+        "automatic managed worktree deletion",
+        "cross-host task handoff controls",
         "duplicate current task or Runtime summary outside the message timeline",
         "workspace bundle export authorization"
       ],
       "state_source": "opl app state --profile fast --json",
       "refresh_source": "opl app state --profile fast --json"
-    },
-    {
-      "id": "thread_coordination",
-      "expected_source": "App-owned thread coordination contract and Codex App Server thread read model",
-      "machine_source": "contracts/app-gui-product-contract.json#interaction_baseline.thread_coordination + Codex App Server thread and turn protocol",
-      "page_contract": "opl_cross_top_level_thread_coordination_internal_capability_no_ordinary_navigation",
-      "coordination_view_model": {
-        "product_role": "opl_host_cross_top_level_codex_thread_coordination",
-        "entry_surface": "thread_detail_context_action_and_model_host_tool_no_ordinary_navigation",
-        "default_state": "capability_available_no_ordinary_navigation_coordination_panel_closed",
-        "ordinary_navigation_visible": false,
-        "keyboard_reachable_entry": true,
-        "primary_composer_control_visible": false,
-        "thread_detail_context_action_visible": true,
-        "model_tool_access": true,
-        "model_tool_access_evidence_boundary": {
-          "protocol_surface": "experimental_dynamic_tools_registered_on_thread_start",
-          "implementation_evidence_required": "dynamic_tool_registration_and_item_tool_call_round_trip",
-          "user_coordination_surface_evidence_sufficient": false,
-          "missing_implementation_state": "source_missing_protocol_blocked_required_target",
-          "blocker_code": "source_missing_protocol_blocked",
-          "protocol_capability": "codex_app_server_dynamic_tools_available",
-          "current_shell_transport": "ordinary_conversation_acp_aioncore_codex_acp",
-          "current_blocker": "acp_session_new_or_load_has_no_dynamic_tools_input_or_item_tool_call_callback",
-          "primary_owners": [
-            "aioncore",
-            "codex_acp"
-          ],
-          "shell_role": "blocked_thin_adapter",
-          "required_owner_routes": [
-            "aioncore_same_app_server_client_adapter",
-            "codex_acp_dynamic_tool_input_response_and_acp_callback"
-          ],
-          "forbidden_workarounds": [
-            "second_app_server_thread_runtime",
-            "post_hoc_coordination_port_handler",
-            "shell_owned_tool_or_thread_store"
-          ]
-        },
-        "thread_list_protocol": "thread/list",
-        "thread_read_protocol": "thread/read",
-        "thread_actions": [
-          "thread/resume",
-          "thread/fork",
-          "thread/archive",
-          "thread/unarchive"
-        ],
-        "task_rail_action_protocols": {
-          "rename": "thread/name/set",
-          "archive": "thread/archive",
-          "restore": "thread/unarchive",
-          "delete": "thread/delete"
-        },
-        "pin_role": "shell_ui_metadata_only",
-        "local_reset_role": "retain_existing_aionui_conversation_semantics_not_app_server_history_reset",
-        "idle_dispatch_protocol": "turn/start",
-        "running_dispatch_protocol": "turn/steer",
-        "delivery_request_defaults": {
-          "permission": "inherit",
-          "write_set": [],
-          "write_set_role": "optional_advisory_metadata_not_permission_input"
-        },
-        "turn_start_inheritance_policy": {
-          "target_thread_sticky_settings_inherited": true,
-          "fields_must_not_be_sent": [
-            "cwd",
-            "runtimeWorkspaceRoots",
-            "approvalPolicy",
-            "sandboxPolicy"
-          ]
-        },
-        "project_workspace_role": "new_thread_default_cwd_sidebar_grouping_and_visible_metadata_only_not_authorization_domain",
-        "post_start_filesystem_access_authority": "codex_native_permissions_approval_and_sandbox",
-        "required_thread_fields": [
-          "thread_id",
-          "status",
-          "summary",
-          "project",
-          "workspace",
-          "host",
-          "owner",
-          "goal",
-          "parent_thread_id",
-          "ancestor_thread_ids",
-          "active_turn_id",
-          "write_set"
-        ],
-        "hard_failure_conditions": [
-          "protocol_unavailable_or_invalid",
-          "target_not_found",
-          "target_archived",
-          "target_not_writable",
-          "cross_host_delivery_unsupported",
-          "codex_permission_or_user_request_declined_or_cancelled",
-          "interactive_server_request_handler_unavailable_or_invalid"
-        ],
-        "interactive_server_request_policy": {
-          "pending_state_role": "codex_native_interactive_request_not_dispatch_failure",
-          "supported_methods": [
-            "item/commandExecution/requestApproval",
-            "item/fileChange/requestApproval",
-            "item/permissions/requestApproval",
-            "item/tool/requestUserInput",
-            "mcpServer/elicitation/request",
-            "execCommandApproval",
-            "applyPatchApproval"
-          ],
-          "pending_kinds": [
-            "command_approval",
-            "file_change_approval",
-            "permissions_approval",
-            "user_input",
-            "mcp_elicitation"
-          ],
-          "context_surface": "selected_target_thread_detail_with_thread_turn_and_item_context_when_available",
-          "resolution_owner": "user_via_typed_opl_host_bridge",
-          "current_time_read_policy": "automatic_protocol_response",
-          "unknown_server_request_policy": "fail_closed_json_rpc_method_not_found",
-          "failure_conditions": [
-            "user_declined_or_cancelled",
-            "request_no_longer_pending",
-            "handler_unavailable_or_invalid",
-            "protocol_error"
-          ],
-          "delivery_audit_boundary": "coordination_delivery_audit_records_codex_policy_inheritance_not_independent_approval_decisions",
-          "separate_persisted_approval_receipt_implemented": false
-        },
-        "advisory_signals": [
-          "project_workspace_difference",
-          "write_set_overlap",
-          "delegation_cycle_or_repeated_route"
-        ],
-        "must_not_block_or_confirm_for": [
-          "cross_project",
-          "cross_workspace",
-          "workspace_write",
-          "write_set_overlap",
-          "running_turn_steer",
-          "delegation_cycle_advisory"
-        ],
-        "required_states": [
-          "loading",
-          "ready",
-          "empty",
-          "protocol_unavailable",
-          "protocol_invalid",
-          "target_not_found",
-          "archived_target",
-          "target_not_writable",
-          "cross_host_unsupported",
-          "permission_denied",
-          "approval_pending",
-          "user_input_pending",
-          "mcp_elicitation_pending",
-          "server_request_resolving",
-          "server_request_declined",
-          "server_request_handler_unavailable",
-          "stale_status_refreshing",
-          "dispatch_running",
-          "dispatch_completed",
-          "dispatch_failed"
-        ],
-        "user_visible_audit_fields": [
-          "sender",
-          "source_thread_id",
-          "target_thread_id",
-          "reason",
-          "message_summary",
-          "protocol_method",
-          "codex_permission_policy_inheritance",
-          "project_workspace_context",
-          "write_set_advisory",
-          "loop_advisory",
-          "idempotency_result",
-          "status",
-          "result_summary"
-        ],
-        "unknown_or_stale_status_policy": "refresh_then_route_or_protocol_failure",
-        "idempotency_policy": "same_opaque_request_or_idempotency_key_retry_returns_first_receipt_and_result_ok_true_without_second_dispatch_message_content_repeat_allowed",
-        "cross_host_policy": "required_target_protocol_owner_blocked_unavailable_no_success_projection",
-        "cross_host_blocker_code": "remote_host_handoff_owner_surface_unavailable",
-        "cross_host_owner_route": "codex_app_remote_connections_host_handoff_owner",
-        "cross_host_shell_role": "blocked_thin_adapter",
-        "opl_extra_confirmation_policy": "none_including_archive_cross_project_cross_workspace_workspace_write_write_set_overlap_running_steer_and_loop_advisory",
-        "same_agent_tree_api_boundary": "spawn_agent_send_input_wait_agent_same_tree_only"
-      },
-      "must_show": [
-        "cross-thread coordination remains available through a keyboard-reachable thread-detail context action and the model host tool without an ordinary navigation page",
-        "model-facing host tool remains a required product target and requires dynamic-tool registration plus item tool-call round-trip evidence",
-        "task rename, archive, restore, and delete map to App Server while pin remains Shell UI metadata",
-        "project and workspace are default cwd, grouping and visible metadata rather than authorization domains",
-        "write-set overlap, repeated routes and project or workspace differences remain advisory and auditable without blocking dispatch",
-        "same idempotency key retry returns the first receipt and result with ok true without a second dispatch",
-        "cross-host coordination is explicitly unavailable and never projected as successful",
-        "Codex-native approval, permission, user-input and MCP elicitation requests remain visible as pending state in the selected target thread context",
-        "coordination delivery audit shows inherited Codex policy without claiming an independent persisted approval receipt"
-      ],
-      "must_not_show": [
-        "duplicate standalone coordination dashboard or second thread store",
-        "coordination control in the primary conversation composer",
-        "send_input as a cross-top-level-thread transport",
-        "a shell-owned duplicate thread database",
-        "project or workspace treated as an authorization domain",
-        "any OPL confirmation for thread read, dispatch, running steer or reversible archive",
-        "message-content duplicate rejection",
-        "duplicate-delivery error for the same idempotency key retry",
-        "direct cross-host message delivery",
-        "permission radio, write-set input or confirmation modal in the coordination UI",
-        "cwd, runtimeWorkspaceRoots, approvalPolicy or sandboxPolicy overrides in turn/start",
-        "approval or user-input request rendered as an immediate dispatch failure",
-        "independent approval receipt claimed when only the delivery audit is persisted",
-        "rail or thread-detail user coordination claimed as proof that the model-facing host tool is implemented",
-        "standalone thread coordination page or ordinary rail coordination section",
-        "a default-open coordination dashboard"
-      ],
-      "state_source": "Codex App Server thread/list and thread/read",
-      "refresh_source": "Codex App Server thread/list"
     },
     {
       "id": "right_context_inspector",
