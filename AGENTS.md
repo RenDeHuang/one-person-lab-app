@@ -15,7 +15,7 @@
 
 - 普通读取使用 `opl app state --profile fast --json`。`full` 与 operator drilldown 只用于 Settings > Advanced 和 release tooling。
 - Mutation 统一走 `opl app action execute --action <id> [--payload <json>] [--dry-run] --json`；Runtime 页面只允许 task archive/restore。
-- GUI 工作从 `docs/product/gui/README.md` 开始，遵循 `product_definition > visual_system > shell_implementation_conformance`；shell authority 始终是 `implementation_only`。
+- GUI 工作从 `docs/product/gui/README.md` 开始，遵循 `gui_definition_stack: product_definition > visual_system > shell_implementation_conformance`；`gui_shell_authority: implementation_only`。
 - 外部产品只作交互参考。入口迁移必须由 App contract 授权，并在同一变更中保留可见、键盘可达的替代入口和导航测试。
 
 ## Working Rules

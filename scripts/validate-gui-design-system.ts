@@ -1554,17 +1554,17 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
       'push',
     ]) ||
     reviewPane.source_status !==
-      'partial_last_turn_and_focus_context_implemented_inline_comments_protocol_blocked' ||
+      'partial_last_turn_and_custom_target_instructions_implemented_review_focus_and_inline_comments_protocol_blocked' ||
     reviewCapabilityStatus.last_turn !== 'source_implemented_existing_message_store' ||
     reviewCapabilityStatus.review_focus_context !==
-      'source_implemented_same_review_turn_steer_expected_turn_id' ||
+      'source_blocked_missing_public_review_focus_protocol' ||
     reviewCapabilityStatus.inline_comments !== 'source_blocked_missing_typed_codex_protocol' ||
     reviewPane.last_turn_source_policy !==
       'latest_visible_user_message_then_completed_workspace_edit_tool_calls' ||
     reviewPane.review_focus_delivery_policy !==
-      'non_custom_target_plain_text_turn_steer_same_review_thread_expected_turn_id_custom_instructions_not_duplicated' ||
+      'custom_target_instructions_via_review_start_target_custom_only_non_custom_focus_not_exposed' ||
     reviewPane.review_focus_failure_policy !==
-      'typed_failure_without_success_on_steer_failure_stale_or_ended_turn' ||
+      'non_custom_focus_protocol_unavailable_before_review_start_without_turn_steer_fallback_fake_success_audit_or_side_effects' ||
     reviewPane.inline_comment_protocol_requirement !==
       'typed_codex_app_server_file_line_comment_request_location_and_failure_semantics' ||
     !sameStrings(reviewPane.inline_comment_forbidden_fallbacks, ['shell_local_annotation_store', 'fake_success']) ||

@@ -275,7 +275,9 @@ OPL 增量按以下顺序进入：
 4. Review 复用 Files/Changes diff surface；target 支持 uncommitted、base branch、commit、custom，
    交付支持 inline/detached，默认 Unstaged 并提供 Staged、Commit、Branch、Last turn。PR context
    依赖 `gh`，缺失时明确 unavailable；Last turn 只显示最近可见用户消息之后 completed edit
-   tool calls 的 workspace 内相对路径，并提供无编辑空态。Stage、commit、push 使用既有 Git
+   tool calls 的 workspace 内相对路径，并提供无编辑空态。Custom instructions 只通过
+   `review/start.target.custom` 发送；公开协议未提供非 custom Review Focus input，因此不展示该输入，
+   也不得以 `turn/steer`、成功 audit 或其它副作用伪装投递。Stage、commit、push 使用既有 Git
    integration；line-level inline comments等待 typed Codex file/line comment protocol，不制作本地
    annotation store或假成功；不恢复独立 equal-weight Review tab，也不复制 Git store；
 5. 跨项目 Runtime、Actions、Memory 管理保持独立 route，不并列成九个 tabs。
@@ -412,10 +414,10 @@ First-run 的目标是让用户尽快进入可工作的 App：
   snapshot-before-remove 与 receipt restore；cross-host handoff由Codex App Remote Connections /
   host-handoff owner提供真实host transport，Shell当前只显示owner-blocked unavailable。Review复用
   Files/Changes diff surface并覆盖四类 target、两种 delivery、五个
-  sections 与 `gh` unavailable 状态，其中 Last turn 已实现。非 custom `Review Focus` 在
-  `review/start` 返回 thread/turn 后通过同一client的 `turn/steer(expectedTurnId)`发送；custom
-  instructions不重复，steer失败或turn stale/ended不得显示成功。Line-level comments保持
-  protocol-blocked。
+  sections 与 `gh` unavailable 状态，其中 Last turn 已实现，custom instructions 只进入
+  `review/start.target.custom`。非 custom `Review Focus` 因公开 App Server 缺少对应 input 而
+  protocol-blocked；Shell 在启动 Review 前 fail closed，不调用 `turn/steer`，也不写成功 audit 或
+  产生其它副作用。Line-level comments同样保持 protocol-blocked。
 - Settings 使用 full-window shell，OPL IA、first-run、品牌和双语边界保持不变。
 - Pending、elapsed、tool/process、permission、failure 和 receipt 在 turn 中可理解。
 - Runtime/Settings 使用 App state/action/Control Plane，不拥有 owner truth。

@@ -64,7 +64,10 @@ topic SHA；它由 `WorkspaceHandoffControl.tsx`、`useConversationListSync.ts`�
 与窄窗 Settings 能力上新增同一 canonical session 的 working-directory switch：Environment 通过系统
 目录选择器和 `thread/settings/update` 原位更新 canonical thread，随后更新 conversation projection 与
 rail 分组，projection 失败则恢复操作开始时的 canonical cwd。Exact commit/currentness 只由 App owner
-在 Shell main 吸收后回读；当前仍无匹配 package/pixel/install 证据。
+在 Shell main 吸收后回读。Review 保留 `Last turn`，custom instructions 只经
+`review/start.target.custom`；公开协议缺少非 custom Review Focus input 时，正常路径在启动 Review 前
+返回 `protocol_unavailable`，不得回退 `turn/steer`、伪造成功或产生副作用。当前仍无匹配
+package/pixel/install 证据。
 
 ## 三层与文件归属
 
@@ -136,6 +139,8 @@ package/user path。当前 contract/source 与 packaged route visual evidence �
 - `cross_host_handoff.blocker=remote_host_handoff_owner_surface_unavailable`
 - `cross_host_handoff.owner_route=codex_app_remote_connections_host_handoff_owner`
 - `active_aionui.review_last_turn=source_implemented_existing_message_store`
+- `active_aionui.review_custom_target_instructions=review_start_target_custom_only`
+- `active_aionui.review_focus_context=source_blocked_missing_public_review_focus_protocol`
 - `active_aionui.review_inline_comments=source_blocked_missing_typed_codex_protocol`
 - `ideal_target.inspector_default_visible=false`
 - `active_aionui.state_source=contracts/app-product-profile.json#gui.home.home_layout`
