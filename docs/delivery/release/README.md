@@ -180,6 +180,23 @@ If it fails, stop the train, repair the source gate, and dispatch a new cohort
 after the pinned refs are valid. Do not wait for downstream build or VM jobs to
 prove a source-gate failure again.
 
+For a same-Mac development build and installed-App QA, use the separate
+`local-install` profile:
+
+```bash
+npm run release:plan -- --profile local-install --version <version>
+```
+
+This profile binds one exact App/Shell/Framework cohort, runs the source and
+release-boundary gates, builds the arm64 App, hands the exact bundle to
+`/Applications/One Person Lab.app`, and requires bundle-version, codesign
+diagnostic, build/installed `app.asar` SHA-256, relaunch, and startup/runtime-log
+readback. The boundary stops there: GitHub Release publishing, GHCR, clean VM,
+attestation, notarization, Homebrew, release candidate records, and Stable
+promotion are public-distribution concerns and never gate this local profile.
+QA starts as soon as the exact bundle is installed; there is no second QA
+authorization step.
+
 For the Homebrew standard VM gate, the static policy is:
 
 - Install ref: `gaofeng21cn/one-person-lab/one-person-lab`

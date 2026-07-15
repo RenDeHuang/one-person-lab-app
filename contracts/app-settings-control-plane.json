@@ -1004,7 +1004,7 @@
       "gateway": {
         "route_id": "gateway",
         "adapter_entry": "packages/desktop/src/renderer/pages/settings/accessProjection.ts",
-        "renderer_entry": "packages/desktop/src/renderer/pages/settings/sections/GatewaySettings.tsx",
+        "renderer_entry": "packages/desktop/src/renderer/pages/settings/sections/AccessSettings.tsx",
         "state_source": "opl app state --profile fast --json#app_state.settings_control_center.app_settings_read_model.opl_gateway_account",
         "forbidden_sources": [
           "secret bodies in App state or generic action payloads",
@@ -1291,7 +1291,7 @@
           "workspace_path_source": "app_state.paths.workspace_root_path",
           "workspace_path_scope": "settings_global_package_management_only",
           "session_launch_authority": false,
-          "session_launch_contract_ref": "contracts/app-gui-product-contract.json#agent_package_activation_policy.request_scoped_projection_policy",
+          "session_launch_contract_ref": "contracts/app-gui-product-contract.json#agent_package_activation_policy",
           "workspace_missing_policy": "disable activation with workspace_root_not_configured and route to /settings/workspace#workspace",
           "status_model": {
             "policy": "multi_axis_package_status_no_single_repair_bucket",

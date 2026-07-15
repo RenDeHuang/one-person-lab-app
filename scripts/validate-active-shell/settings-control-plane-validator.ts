@@ -457,7 +457,7 @@ export function validateSettingsControlPlane(
   );
   validateSettingsProjection(controlPlane.settings_projection);
   validateSettingsExperienceContract(controlPlane.experience_contract);
-  validateSettingsPageAdapterPolicy(controlPlane);
+  validateSettingsPageAdapterPolicy(controlPlane, productProfile);
   validateSettingsVisualQaPolicy(controlPlane);
   validateSettingsProductSystemChecklist(controlPlane);
   validateSettingsUpstreamIntake(controlPlane);
@@ -2507,7 +2507,7 @@ function validateSettingsProjection(projection) {
   }
 }
 
-function validateSettingsPageAdapterPolicy(controlPlane) {
+function validateSettingsPageAdapterPolicy(controlPlane, productProfile) {
   const policy = controlPlane.page_adapter_policy;
   if (
     policy?.policy !== "settings_pages_consume_explicit_view_model_adapters"
@@ -2584,6 +2584,11 @@ function validateSettingsPageAdapterPolicy(controlPlane) {
   }
   validateSettingsAgentsDirectoryProjection(requiredPages.agents);
   validateWorkspaceAndStorageOwnership(requiredPages.workspace, requiredPages.storage);
+  assertDeepEqualJson(
+    productProfile?.settings?.control_plane?.page_adapter_policy,
+    policy,
+    "Product profile Settings page adapter policy projection",
+  );
 }
 
 function validateWorkspaceAndStorageOwnership(workspacePage, storagePage) {
@@ -2758,7 +2763,7 @@ function validateSettingsAgentsDirectoryProjection(agentsPage) {
     directory.workspace_path_scope !== "settings_global_package_management_only" ||
     directory.session_launch_authority !== false ||
     directory.session_launch_contract_ref !==
-      "contracts/app-gui-product-contract.json#agent_package_activation_policy.request_scoped_projection_policy" ||
+      "contracts/app-gui-product-contract.json#agent_package_activation_policy" ||
     directory.workspace_missing_policy !==
       "disable activation with workspace_root_not_configured and route to /settings/workspace#workspace"
   ) {

@@ -76,7 +76,6 @@
               "status_read_error": null
             },
             "exposure": null,
-            "use_boundary_action": null,
             "recommended_action": "install_from_manifest_url",
             "recommended_action_ref": {
               "action_id": "install_from_manifest_url",
@@ -158,26 +157,6 @@
               "visibility": "visible",
               "codex_visible": true
             },
-            "use_boundary_action": {
-              "surface_kind": "opl_agent_package_use_boundary_action.v1",
-              "action_id": "agent_package_activate",
-              "action_ref": "app_state.actions#agent_package_activate",
-              "payload": {
-                "package_id": "oma",
-                "scope": "workspace",
-                "target_workspace": "/Users/example/OPL Workspace",
-                "use_boundary_id": "use-boundary:oma:workspace:fixture"
-              },
-              "required_payload_fields": ["package_id", "scope", "target_workspace or target_quest", "use_boundary_id"],
-              "confirmation_required": false,
-              "use_boundary_id": "use-boundary:oma:workspace:fixture",
-              "directory_entry_ref": "app_state.agent_packages.directory.entries[package_id=oma]",
-              "readiness_ref": "app_state.agent_packages.directory.entries[package_id=oma].readiness",
-              "enabled": true,
-              "preparation_status": "activation_required",
-              "reason_code": "scope_reconciliation_required",
-              "blocker": null
-            },
             "recommended_action": "agent_package_activate",
             "recommended_action_ref": {
               "action_id": "agent_package_activate",
@@ -187,7 +166,7 @@
                 "scope": "workspace",
                 "target_workspace": "/Users/example/OPL Workspace"
               },
-              "required_payload_fields": ["package_id", "scope", "target_workspace or target_quest"],
+              "required_payload_fields": ["package_id", "scope", "target_workspace"],
               "confirmation_required": false
             },
             "available_actions": [
@@ -199,7 +178,7 @@
                   "scope": "workspace",
                   "target_workspace": "/Users/example/OPL Workspace"
                 },
-                "required_payload_fields": ["package_id", "scope", "target_workspace or target_quest"],
+                "required_payload_fields": ["package_id", "scope", "target_workspace"],
                 "confirmation_required": false
               },
               {
@@ -290,26 +269,6 @@
               "enabled": true,
               "visibility": "visible",
               "codex_visible": true
-            },
-            "use_boundary_action": {
-              "surface_kind": "opl_agent_package_use_boundary_action.v1",
-              "action_id": "agent_package_activate",
-              "action_ref": "app_state.actions#agent_package_activate",
-              "payload": {
-                "package_id": "mas",
-                "scope": "workspace",
-                "target_workspace": "/Users/example/OPL Workspace",
-                "use_boundary_id": "use-boundary:mas:workspace:fixture"
-              },
-              "required_payload_fields": ["package_id", "scope", "target_workspace or target_quest", "use_boundary_id"],
-              "confirmation_required": false,
-              "use_boundary_id": "use-boundary:mas:workspace:fixture",
-              "directory_entry_ref": "app_state.agent_packages.directory.entries[package_id=mas]",
-              "readiness_ref": "app_state.agent_packages.directory.entries[package_id=mas].readiness",
-              "enabled": true,
-              "preparation_status": "verification_deferred",
-              "reason_code": "live_verification_deferred",
-              "blocker": null
             },
             "recommended_action": null,
             "recommended_action_ref": null,
@@ -1698,12 +1657,19 @@
         "label": "Prepare package for launch",
         "surface": "opl app action execute",
         "delegated_surface": "opl app action execute --action agent_package_activate --payload <json> --json",
-        "payload_fields": ["package_id", "scope", "target_workspace", "target_quest", "use_boundary_id"],
-        "result_fields": ["launch_allowed", "use_receipt_ref", "use_binding"],
+        "payload_fields": ["package_id", "scope", "target_workspace"],
+        "result_fields": [
+          "package_id",
+          "package_lock",
+          "launch_allowed",
+          "launch_blocked_reason",
+          "use_binding",
+          "package_use_binding"
+        ],
         "mutates": "framework_owned_package_scope_reconciliation_with_receipt",
         "owner": "opl_framework",
         "submit_via": "opl app action execute",
-        "execution_policy": "framework_owned_package_use_boundary_activation",
+        "execution_policy": "framework_owned_package_activation",
         "route": "opl app action execute --action agent_package_activate --payload <json> --json"
       },
       {

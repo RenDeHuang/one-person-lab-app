@@ -100,12 +100,12 @@ test('dual GUI conversation continuity rejects shell-owned thread history', () =
   );
 });
 
-test('Codex parity adapters reject duplicate Git stores and false cross-host success', () => {
+test('Codex parity adapters stay transport-only and reject shell-owned Git or thread state', () => {
   const runtimeBridge = readJson<any>('contracts/app-runtime-bridge.json');
   const activeAdapter = readJson<any>('contracts/app-shell-adapter.json');
   const invalid = structuredClone(runtimeBridge);
-  invalid.codex_local_worktree_handoff_policy.duplicate_git_store_allowed = true;
-  invalid.codex_local_worktree_handoff_policy.cross_host.success_projection_allowed = true;
+  invalid.codex_local_worktree_handoff_policy.bridge_role = 'state_authority';
+  invalid.codex_local_worktree_handoff_policy.state_authority = 'shell_owned_git_and_thread_store';
 
   assert.throws(
     () => validateRuntimeBridgeContract(invalid, activeAdapter),
@@ -113,25 +113,15 @@ test('Codex parity adapters reject duplicate Git stores and false cross-host suc
   );
 });
 
-test('Codex parity adapters require durable snapshot receipts before managed Worktree cleanup', () => {
+test('Codex parity adapters reject managed Worktree snapshot, cleanup, and cross-host control planes', () => {
   const runtimeBridge = readJson<any>('contracts/app-runtime-bridge.json');
   const activeAdapter = readJson<any>('contracts/app-shell-adapter.json');
-  const invalid = structuredClone(runtimeBridge);
-  invalid.codex_local_worktree_handoff_policy.snapshot_restore.receipt_schema = 'shell_local_snapshot.v1';
-  invalid.codex_local_worktree_handoff_policy.cleanup.snapshot_precondition = 'remove_before_snapshot';
-
-  assert.throws(
-    () => validateRuntimeBridgeContract(invalid, activeAdapter),
-    /Codex Local and Worktree handoff policy/,
-  );
-
-  const incompleteSnapshot = structuredClone(runtimeBridge);
-  incompleteSnapshot.codex_local_worktree_handoff_policy.snapshot_restore.snapshot_scope =
-    incompleteSnapshot.codex_local_worktree_handoff_policy.snapshot_restore.snapshot_scope.filter(
-      (entry: string) => entry !== 'ignored',
+  for (const retiredControlPlane of ['snapshot_restore', 'cleanup', 'cross_host']) {
+    const invalid = structuredClone(runtimeBridge);
+    invalid.codex_local_worktree_handoff_policy[retiredControlPlane] = { state: 'enabled' };
+    assert.throws(
+      () => validateRuntimeBridgeContract(invalid, activeAdapter),
+      /Codex Local and Worktree handoff policy/,
     );
-  assert.throws(
-    () => validateRuntimeBridgeContract(incompleteSnapshot, activeAdapter),
-    /Codex Local and Worktree handoff policy/,
-  );
+  }
 });

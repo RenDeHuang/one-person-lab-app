@@ -173,18 +173,14 @@ App-owned toggle 或后台服务。若 Codex executor 原生提供且 App profil
 可以继续由 composer 的 App-owned model/intelligence menu 投影；这是 authority migration，
 不是删除用户可用的 Codex 原生功能，也不能重新引入第二 provider/service truth。
 
-## 跨线程会话增量
+## 用户触发的线程操作
 
-- 跨顶层线程 list/read/resume/fork/archive/start/steer、advisory、幂等和可见 delivery audit 是
-  OPL-owned capability，不能因对齐 Codex composition 而删除。
-- 普通用户入口位于每条对话的详情/更多菜单，属于当前 thread context action；不增加 rail
-  页面、常驻 dashboard 或主 composer 的“协调”控件。
-- 协调 dialog 默认关闭。模型仍可通过 App host tool 发起相同能力，并与用户入口复用同一
-  typed host adapter、Codex policy inheritance、write-set/route advisory 和 audit projection。
-- Approval、permission、user-input 与 MCP elicitation 是 selected target thread 的 pending state，
-  不是 dispatch failure；delivery audit 不冒充独立 approval receipt。独立非紧急 queue 与双边
-  timeline event 只有真实实现后才可声明。
-- 入口位置可以极简，能力、失败可见性和审计语义不得降级。
+- Thread list/read/start/resume/fork/archive/restore 直接复用一个 Codex App Server adapter；普通
+  conversation 发送继续走 AionUI 现有 ACP。
+- 普通用户入口复用 project/conversation directory 与 row actions；不增加独立协调页面、常驻
+  dashboard、主 composer 控件或模型 dynamic tool。
+- Shell 不维护第二 JSON-RPC client、JSONL audit/idempotency ledger、write-set advisory、
+  pending-request 控制面、model delivery 或 cross-host handoff。
 
 ## Runtime 与 Evidence 增量
 
@@ -243,9 +239,8 @@ OPL App 在 Codex baseline 上增加可解释的本机准备：
 ## Local-first / Cloud-continuous 增量
 
 - macOS desktop 使用 native window、directory picker 和 packaged App。
-- Local/Worktree只决定任务当前运行位置，不形成目录权限域。Managed worktree默认保留；显式
-  cleanup必须先生成durable Git snapshot receipt，恢复时还原HEAD、branch或detached HEAD、
-  index、tracked、untracked与ignored user files，冲突typed fail且不覆盖用户现有内容。
+- Local/Worktree只决定任务当前运行位置，不形成目录权限域。只保留目录选择、简单
+  create/reuse 与 starting branch；managed worktree 默认保留，App 不提供 cleanup/snapshot/restore。
 - Docker/WebUI 在受控 workspace/volume 中提供同一产品语义。
 - Hosted WebUI 加账号、存储、隔离和资源策略后可以成为 OPL Workspace delivery。
 - Gateway、Fabric、Console、SSH/HPC 和其它资源通过 refs、plan/approve/run/collect/

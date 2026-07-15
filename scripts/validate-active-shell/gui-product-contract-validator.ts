@@ -195,13 +195,72 @@ function validateReadOnlyStorageLifecycleSurface(surface, label) {
   );
 }
 
+function validateMinimalAgentPackageActivationPolicy(policy) {
+  if (
+    policy?.release_scope !== 'trusted_local_thin_shell'
+    || policy.action_id !== 'agent_package_activate'
+    || policy.action_ref !== 'app_state.actions#agent_package_activate'
+    || policy.action_route !== 'opl app action execute --action agent_package_activate --payload <json> --json'
+    || policy.result_schema_scope !== 'live_non_dry_package_launch_only'
+    || policy.framework_component?.cohort_commit !== 'e10ec54f29b8a7d5b54c9a44f49ba4d5c492f252'
+    || policy.request_policy?.scope !== 'workspace'
+    || policy.request_policy?.global_workspace_root_mutation_allowed !== false
+  ) {
+    throw new Error('App GUI Agent Package activation must use the final Framework cohort and minimal direct action');
+  }
+  assertDeepEqualJson(
+    policy.required_payload_fields,
+    ['package_id', 'scope', 'target_workspace'],
+    'App GUI minimal Agent Package activation payload',
+  );
+  assertDeepEqualJson(
+    policy.accepted_binding_fields,
+    ['use_binding', 'package_use_binding'],
+    'App GUI Agent Package binding compatibility fields',
+  );
+  assertDeepEqualJson(
+    policy.required_success_validation,
+    [
+      'activation.package_id_matches_current_selection',
+      'activation.package_lock.package_id_matches_current_selection',
+      'binding.root_package.package_id_matches_current_selection',
+      'activation.package_lock.package_version_matches_current_selection',
+      'binding.root_package.package_version_matches_current_selection',
+      'binding.scope_is_workspace',
+      'binding.target_root_matches_normalized_current_session_directory',
+    ],
+    'App GUI minimal Agent Package result validation',
+  );
+  assertDeepEqualJson(
+    policy.typed_failure_codes,
+    [
+      'agent_package_launch_blocked',
+      'agent_package_activation_invalid',
+      'agent_package_selection_mismatch',
+      'agent_package_version_mismatch',
+      'agent_package_target_mismatch',
+    ],
+    'App GUI Agent Package launch failures',
+  );
+  if (
+    policy.failure_policy?.downstream_create_allowed !== false
+    || policy.failure_policy?.draft_preserved !== true
+    || policy.workspace_policy?.session_is_primary_unit !== true
+    || policy.workspace_policy?.project_owns_session !== false
+    || policy.workspace_policy?.working_directory_is_mutable_context !== true
+    || policy.workspace_policy?.plain_conversation_policy !== 'unchanged'
+  ) {
+    throw new Error('App GUI Agent Package activation must remain a trusted local thin-shell check');
+  }
+}
+
 function validateAgentPackageLifecycleUx(surface, label) {
   if (
     surface?.requirement_scope !== 'product_requirement_not_runtime_authority' ||
     surface.primary_state_surface !== 'app_state.agent_packages.directory.entries + app_state.agent_packages.status_index' ||
     surface.runtime_source_surface !== 'app_state.runtime_source_carriers.items[]' ||
     surface.source_semantics_policy !==
-      'directory entries own package discovery plus installed, activated, installability, coarse readiness, orthogonal exposure, lifecycle actions, and the independent use_boundary_action; status_index contributes canonical diagnostics but cannot promote readiness, reconstruct launch authority, or override the directory use-boundary gate' ||
+      'directory entries own package discovery plus installed, activated, installability, coarse readiness, orthogonal exposure, and lifecycle actions; status_index contributes canonical diagnostics but cannot override directory lifecycle or action availability' ||
     surface.action_ref_source !== 'app_state.actions' ||
     surface.action_route !== appActionRoute
   ) {
@@ -247,7 +306,6 @@ function validateAgentPackageLifecycleUx(surface, label) {
       'installability',
       'readiness',
       'exposure',
-      'use_boundary_action',
       'recommended_action',
       'recommended_action_ref',
       'available_actions',
@@ -273,9 +331,8 @@ function validateAgentPackageLifecycleUx(surface, label) {
       'execute_repair_only_from_a_complete_directory_projected_action_while_using_status_index_repair_action_for_availability_and_reason',
       'show_receipt_and_physical_surface_in_details_or_advanced_only',
       'execute_only_projected_action_id_and_payload_without_shell_status_or_payload_inference',
-      'execute_use_boundary_action_independently_from_lifecycle_available_actions_for_every_installed_standard_agent_launch',
-      'treat_live_verification_deferred_as_prelaunch_transition_required_never_locally_ready',
-      'never_execute_use_boundary_action_for_disabled_dependency_physical_carrier_corruption_or_recovery_required_blockers',
+      'validate_package_id_version_and_normalized_target_before_creating_a_package_backed_conversation',
+      'treat_live_verification_deferred_as_requiring_live_activation_before_package_launch',
       'keep_enabled_execution_authority_orthogonal_to_visible_or_hidden_discovery_authority',
       'keep_fast_list_status_and_all_dry_run_reads_pure_when_typed_recovery_state_is_projected',
       'refresh_fast_state_after_successful_install_then_show_projected_activate_when_recommended',
@@ -350,16 +407,13 @@ function validateAgentPackageLifecycleUx(surface, label) {
       action_id: 'agent_package_activate',
       surface_scope: 'settings_global_package_management_only',
       session_launch_authority: false,
-      session_launch_contract_ref: 'contracts/app-gui-product-contract.json#agent_package_activation_policy.request_scoped_projection_policy',
+      session_launch_contract_ref: 'contracts/app-gui-product-contract.json#agent_package_activation_policy',
       workspace_path_source: 'app_state.paths.workspace_root_path',
-      projection_source: 'directory.entries[].use_boundary_action',
-      projection_context: {
+      payload_template: {
+        package_id: 'directory.entries[].package_id',
         scope: 'workspace',
-        target_workspace_source: 'app_state.paths.workspace_root_path',
-        use_boundary_id_source: 'Framework projected single-use authority',
+        target_workspace: 'app_state.paths.workspace_root_path',
       },
-      execution_payload_source: 'directory.entries[].use_boundary_action.payload',
-      exact_payload_policy: 'execute the projected action_id and payload byte-for-byte; Shell must not add package_id, scope, target, or use_boundary_id',
       compatibility_path_policy: 'legacy workspace paths may be normalized only inside the shell adapter and never become product truth',
       missing_workspace_policy: {
         enabled: false,
@@ -368,7 +422,6 @@ function validateAgentPackageLifecycleUx(surface, label) {
         anchor: 'workspace',
       },
       package_id_only_payload_allowed: false,
-      lifecycle_available_action_required: false,
     },
     `${label} workspace activation`,
   );
@@ -413,13 +466,13 @@ function validateAgentPackageLifecycleUx(surface, label) {
         verification_deferred: false,
         reason: null,
       },
-      presentation_policy: 'fast verification_deferred remains locally fail-closed and may transition only through the projected live use_boundary_action; it must not be relabeled ready or repair',
+      presentation_policy: 'fast verification_deferred remains locally fail-closed and may transition only through live agent_package_activate; it must not be relabeled ready or repair',
     },
     `${label} fast and full readiness policy`,
   );
   assertIncludesAll(
     surface.failure_reason_fields,
-    ['readiness.status', 'readiness.reason', 'readiness.status_read_error', 'blocker_summary', 'last_action_receipt_ref', 'recommended_action', 'dependency_readiness.status', 'dependency_readiness.checks[].failure_reasons', 'activation_action.reason_code', 'dependent_guard.disable.reason_code', 'dependent_guard.uninstall.reason_code', 'capability_exposure.enabled', 'capability_exposure.visibility', 'use_boundary_action.reason_code', 'use_boundary_action.blocker.source_ref', 'use_boundary_action.blocker.recovery_action_ref', 'package_dependency_readiness.status', 'package_dependency_readiness.dependencies[].reasons', 'materialization_readiness.status', 'runtime_source_readiness.reason', 'status_read_error', 'operational_ready', 'launch_allowed', 'launch_blocked_reason', 'allowed_when_blocked'],
+    ['readiness.status', 'readiness.reason', 'readiness.status_read_error', 'blocker_summary', 'last_action_receipt_ref', 'recommended_action', 'dependency_readiness.status', 'dependency_readiness.checks[].failure_reasons', 'activation_action.reason_code', 'dependent_guard.disable.reason_code', 'dependent_guard.uninstall.reason_code', 'capability_exposure.enabled', 'capability_exposure.visibility', 'package_dependency_readiness.status', 'package_dependency_readiness.dependencies[].reasons', 'materialization_readiness.status', 'runtime_source_readiness.reason', 'status_read_error', 'operational_ready', 'launch_allowed', 'launch_blocked_reason', 'allowed_when_blocked'],
     `${label} failure reason fields`,
   );
   const detail = surface.receipt_physical_surface_detail_policy;
@@ -437,14 +490,9 @@ function validateAgentPackageLifecycleUx(surface, label) {
     ['enabled', 'visibility', 'codex_visible'],
     `${label} directory exposure fields`,
   );
-  assertDeepEqualJson(
-    projection?.directory_fast_nested_fields?.use_boundary_action,
-    ['surface_kind', 'action_id', 'action_ref', 'payload', 'required_payload_fields', 'confirmation_required', 'use_boundary_id', 'directory_entry_ref', 'readiness_ref', 'enabled', 'preparation_status', 'reason_code', 'blocker'],
-    `${label} directory use-boundary action fields`,
-  );
   assertIncludesAll(
     projection?.directory_lifecycle_fields,
-    ['exposure', 'use_boundary_action'],
+    ['exposure', 'available_actions'],
     `${label} directory launch lifecycle fields`,
   );
   assertDeepEqualJson(
@@ -476,23 +524,16 @@ function validateAgentPackageLifecycleUx(surface, label) {
     projection?.status_index_package_fields?.launch_allowed !== 'boolean' ||
     projection?.status_index_package_fields?.launch_blocked_reason !== 'null_or_string' ||
     projection?.status_index_repair_action_id !== 'agent_package_repair' ||
-    projection?.use_boundary_action_source !== 'directory.entries[].use_boundary_action' ||
     projection?.status_index_action_execution_policy !==
-      'status-index repair_action and activation_action are diagnostics only; every Agent launch executes only the independent directory use_boundary_action exact action_id and payload' ||
+      'status-index repair_action and activation_action are diagnostics only; lifecycle mutations still execute a complete directory action, while package launch uses the App minimal activation policy' ||
     JSON.stringify(projection?.dependent_guard_missing_policy) !== JSON.stringify({
       disable_enabled_only_when: 'dependent_guard.disable.allowed === true',
       uninstall_enabled_only_when: 'dependent_guard.uninstall.allowed === true',
       missing_or_invalid_reason_code: 'dependent_guard_unavailable',
       unaffected_actions: ['hide', 'unhide', 'enable'],
     }) ||
-    JSON.stringify(projection?.use_boundary_action_missing_policy) !== JSON.stringify({
-      installed_standard_agent_requires_projection: true,
-      uninstalled_or_non_standard_agent_requires_null: true,
-      lifecycle_action_or_status_index_can_substitute: false,
-      missing_or_invalid_reason_code: 'use_boundary_action_unavailable',
-    }) ||
     projection?.launch_gate_policy !==
-      'directory readiness remains positive eligibility authority, while live_verification_deferred is a prelaunch transition that must execute the independent use_boundary_action; no local relabeling may promote readiness' ||
+      'directory readiness may fail closed, and the live agent_package_activate result must pass the App minimal package identity, version, and target validation before creating a package-backed conversation' ||
     projection?.closure_diagnostics_surface !== 'advanced_diagnostics_only'
   ) {
     throw new Error(`${label} must define generic dependency closure readiness and repair projection`);
@@ -525,7 +566,6 @@ function validateAgentPackageLifecycleUx(surface, label) {
       },
       read_surfaces: ['fast', 'list', 'status', 'all_dry_run'],
       writes_performed: false,
-      owner_token_exposed: false,
       states: {
         recovery_in_progress: 'live_exact_global_lock_owner_wait_without_shell_recovery',
         recovery_required: 'orphan_or_pending_markers_recoverable_by_the_next_non_dry_Framework_mutation',
@@ -572,10 +612,10 @@ function validateAgentPackageLifecycleUx(surface, label) {
   assertDeepEqualJson(
     projection?.role_launch_matrix,
     {
-      installed_standard_agent: 'use_boundary_action_required',
-      uninstalled_standard_agent: 'use_boundary_action_null_and_launch_blocked',
-      framework_capability_package: 'use_boundary_action_null_and_no_Agent_launch_entry',
-      workflow_profile: 'use_boundary_action_null_and_no_Agent_launch_entry',
+      installed_standard_agent: 'minimal_agent_package_activation_supported',
+      uninstalled_standard_agent: 'package_not_installed_and_launch_blocked',
+      framework_capability_package: 'no_Agent_launch_entry',
+      workflow_profile: 'no_Agent_launch_entry',
     },
     `${label} package role launch matrix`,
   );
@@ -595,12 +635,17 @@ function validateAgentPackageLifecycleUx(surface, label) {
       },
       receipt_post_state_fields: ['enabled', 'visibility'],
       receipt_binding_policy: 'result_package_lock_and_lifecycle_receipt_must_agree_on_both_post_state_axes',
-      disabled_use_boundary_policy: 'both_opl_packages_activate_and_App_agent_package_activate_return_package_disabled_launch_allowed_false_with_zero_scope_or_use_ledger_writes',
-      hidden_enabled_launch_policy: 'ordinary_discovery_and_Home_default_hidden_but_explicit_direct_or_retained_shortcut_launch_still_runs_canonical_use_boundary_action',
+      disabled_use_boundary_policy: 'both_opl_packages_activate_and_App_agent_package_activate_return_package_disabled_launch_allowed_false_with_no_activation_side_effects',
+      hidden_enabled_launch_policy: 'ordinary_discovery_and Home default hide the package while an explicit retained shortcut may still run the minimal agent_package_activate flow',
     },
     `${label} orthogonal exposure state`,
   );
   assertDeepEqualJson(projection?.forbidden_private_fields, ['staging_path', 'journal_path'], `${label} private fields`);
+  assertDeepEqualJson(
+    projection?.minimal_launch_validation_ref,
+    'contracts/app-gui-product-contract.json#agent_package_activation_policy',
+    `${label} minimal launch validation authority`,
+  );
   assertIncludesAll(
     detail.physical_surface_fields,
     [
@@ -680,6 +725,7 @@ function validateDesktopTrayPolicy(guiContract) {
 }
 
 export function validateAppGuiProductContract(guiContract, releaseChannel, installExposurePolicy) {
+  validateMinimalAgentPackageActivationPolicy(guiContract.agent_package_activation_policy);
   validateGuiProductHomeContract(guiContract);
   validateCodexModelPolicy(guiContract);
   validateGuiFrameworkSurfaces(guiContract, releaseChannel, installExposurePolicy);

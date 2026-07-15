@@ -60,7 +60,7 @@ Active AionUI 默认状态通过 README 治理段声明的动态 state source �
 - Current Shell source cohort：symbolic `session_first_directory_current_source_cohort`，由 active checkout 的
   `WorkspaceHandoffControl.tsx`、`useConversationListSync.ts`、`GroupedHistory/index.tsx`、`GuidPage.tsx`、
   删除后的 `ProjectContextSection.tsx` / `projectContext.ts` 与对应 DOM/source tests 共同定义。它保留当前
-  Runtime V2 main、Gateway account/UI、Local/Worktree durable lifecycle、Review、按需 thread coordination、
+  Runtime V2 main、Gateway account/UI、Local/Worktree simple create/reuse、Review、单一 App Server adapter、
   projectless file access、Environment Git inspection、profile-driven feedback/avatar/help 与窄窗 Access，
   并新增同一 canonical session 的任意同主机工作目录切换：系统目录选择器 ->
   `thread/settings/update` -> conversation projection/rail refresh，projection 失败时恢复操作开始时从
@@ -144,13 +144,12 @@ Active AionUI 默认状态通过 README 治理段声明的动态 state source �
 | P0 | Environment details | 右上 anchored floating summary，默认关闭；承载既有同主机 session working-directory handoff 与 Git context。 | `b2c05a1c...` 仅渲染真实 workspace/locality/branch/changes/refs，使用 live Git inspection，并为 `not_loaded`/`idle` session 提供任意目录及 Local↔Worktree切换；与 Files/Preview 分离。 | `source_implemented`, `pixel_verified` | Current pixel覆盖Environment popover与Browser入口；handoff状态仍由focused行为测试证明。 |
 | P0 | Visual grammar | 白 main、浅灰 rail、窄 reading lane、低对比、小圆角、极少页面卡片。 | Current 9场景覆盖light/dark、desktop/mobile与zh-CN/en-US；历史8场景保持原字节。 | `source_implemented`, `pixel_verified` | 只证明指定route/layout非空且无声明溢出，不宣称1:1 parity。 |
 | P1 | OPL capabilities | Purpose 从 Home starter 选择，composer 只显示 active capability；管理进入 Settings。 | Home package shortcuts、Settings directory/visibility/lifecycle 与 fail-closed readiness gate 已实现；generic backend/provider/Team 未回 ordinary UI。 | `source_implemented`, `pixel_unverified` | 补 current unavailable/activating/blocked starter pixels。 |
-| P1 | Progress / approval / receipt | 进入当前 timeline 或 selected target thread context；App Server interactive request 是 pending state，不是 dispatch failure。 | Current-task summary 保持 timeline 单一实例；`f7fd71765...` 接通 command/file/permission approval、user-input、MCP elicitation 与 `currentTime/read`，未知 request fail closed。Delivery audit 只显示 Codex policy inheritance，不宣称独立 approval receipt。 | `source_implemented`, `pixel_unverified` | 补真实 approval/user-input packaged route evidence。 |
+| P1 | Progress / approval / receipt | 进入当前 timeline；沿用 AionUI ACP 的 permission、user-input 与错误状态。 | Current-task summary 保持 timeline 单一实例，不增加跨线程 pending-request 或 delivery-audit 控制面。 | `source_implemented`, `pixel_unverified` | 补真实 approval/user-input packaged route evidence。 |
 | P1 | Artifacts / evidence | Environment 次级 refs、Preview、Files 或 turn disclosure。 | Files 与 Preview 按需且窄屏互斥；mobile Preview 使用完整可读 overlay；transcript export 已按 cursor 与脱敏合同加固。 | `source_implemented`, `pixel_verified` | Current pixels覆盖desktop Files与mobile Preview composition；PDF/Mermaid/KaTeX内容渲染另做专项 evidence。 |
 | P1 | Artifact preview adapter | 当前 session 显式 attachment、可见 conversation result 或用户选择的合法绝对本地路径薄接现有 Preview；隐式 workspace ref、traversal、非法 scheme、自动静默读取返回明确失败。 | `b2c05a1c...` 已复用既有 renderer/store，覆盖 projectless file access、session ref 与 absolute-path 分流。 | `source_implemented`, `pixel_unverified` | Current Preview pixel未证明session/absolute-path分流与非法输入；保持行为测试边界。 |
-| P1 | Cross-thread coordination | 普通 navigation 不展示独立页面；keyboard-reachable thread-detail context action 与 model host tool 复用 App Server list/read/resume/fork/archive/unarchive/start/steer；同 key 返回首个 receipt/result、`ok=true`。 | Canonical directory、App Server lifecycle、flexible advisory、running steer、首结果 replay、typed pending requests 与无额外 OPL confirmation 保留；普通 rail 不挂载 `ThreadCoordinationSection`。 | `source_implemented`, `pixel_unverified` | 无独立入口由 source/DOM 负向 gate 证明；cross-host是required target但owner协议面缺失，当前typed unavailable；独立非紧急 queue 未实现。 |
-| P1 | Model-triggered coordination | 模型通过同一 host adapter调用 list/read/resume/fork/archive/unarchive/start/steer。 | Ordinary conversation经ACP -> AionCore -> codex-acp创建；ACP session输入/callback没有dynamic tools，coordination port是另一App Server client，因此thread-detail user dispatch和post-hoc handler都不构成实现。 | `source_missing_protocol_blocked`, `not_applicable` | 优先由AionCore同一client承接`thread/start(dynamicTools)`；或由codex-acp补齐input/response/callback。禁止第二runtime/store。 |
-| P1 | Session working directory / Local / Worktree lifecycle | Home 新任务选择Local/Worktree与starting branch；既有同主机`not_loaded`/`idle` canonical session在Environment选择任意目录并原位更新同一thread，真实cwd先于projection/rail更新；managed Worktree remove前必须可恢复。 | Current source cohort 使用系统目录选择器、`thread/settings/update`、conversation projection与rail refresh，projection失败恢复操作开始时的canonical cwd；继续复用`gitWorkspace`与durable snapshot receipt完成Worktree cleanup/restore。 | `source_partial`, `pixel_unverified` | 任意同主机目录切换和same-host Worktree lifecycle已闭合；cross-host required target因Codex Remote Connections/host-handoff owner协议面缺失而blocked。 |
-| P1 | Review pane | 复用 Files/Changes；四类 target、inline/detached、PR context、stage/commit/push；缺失能力显示 unavailable。 | Owner-correct Shell topic `166f63041...` 保留四类 `review/start` target、inline/detached、PR context、stage/commit/push、`gh` unavailable与Last turn；custom instructions只经`review/start.target.custom`。非custom focus在公开协议缺少input时于启动前typed fail，不再回退`turn/steer`。 | `source_partial`, `pixel_unverified` | Review focus与line-level comments等待各自typed Codex request；禁止local annotation store、假成功或副作用，不恢复legacy equal-weight Review tab。 |
+| P1 | User-triggered thread operations | Existing directory/actions 复用一个 App Server adapter执行 list/read/start/resume/fork/archive/restore；普通 conversation 继续走现有 ACP。 | 单一 production adapter 与 focused tests 已实现；旧 coordination service/page、dynamic tools、audit/idempotency、pending control plane 和 cross-host 均缺席。 | `source_implemented`, `pixel_unverified` | 安装版覆盖 list/start/resume/fork/archive/restore 的可见路径与错误。 |
+| P1 | Session working directory / Local / Worktree lifecycle | Home 新任务选择Local/Worktree与starting branch；既有同主机`not_loaded`/`idle` canonical session在Environment选择任意目录并原位更新同一thread。 | 使用系统目录选择器、`thread/settings/update`、conversation projection与rail refresh；Worktree只做简单create/reuse并默认保留。 | `source_implemented`, `pixel_unverified` | 安装版覆盖目录选择、create/reuse和默认不删除。 |
+| P1 | Review pane | 复用 Files/Changes；四类 target、inline/detached、PR context、stage/commit/push；缺失能力显示 unavailable。 | 保留四类 `review/start` target、inline/detached、PR context、stage/commit/push、`gh` unavailable与Last turn；custom instructions只经`review/start.target.custom`。 | `source_partial`, `pixel_unverified` | 不开发local annotation store或伪造行级成功。 |
 | P2 | Settings | Secondary configuration/control surface，保持 OPL IA。 | 四类 surface 与 bounded cards 已进入 source；本次 core matrix 不复用旧 Settings pixels。 | `source_implemented`, `pixel_unverified` | 冻结 IA，只修回归；按需要重建当前 Settings evidence。 |
 
 ## Cross-shell Detail Appendix
@@ -188,10 +187,10 @@ Native candidate 不得与 active-shell P0 差距竞争实施资源。
 | Mutation 走 App action preview/confirm/execute/receipt | `aligned_contract` | `source_implemented` | `not_applicable` | `candidate_target` | `source_partial` | `not_applicable` | Native 已有 preview/action bridge，但完整高风险确认、receipt、rollback UX 尚未覆盖全部动作。 |
 | Runtime/Files/Memory/Artifacts 只展示 refs | `aligned_contract` | `source_implemented` | `not_applicable` | `candidate_target` | `source_partial` | `not_applicable` | Native `workbenchModel.ts` 仍保留 `GlycoFold` 等 demo fallback，必须去除后才能算完整真实投影。 |
 | Artifact Markdown/PDF/Mermaid/Code/KaTeX preview | `aligned_contract` | `source_implemented` | `pixel_unverified` | `candidate_target` | `source_partial` | `pixel_unverified` | `b2c05a1c...` 覆盖当前 session ref、绝对本地路径与非法输入拒绝；current Preview pixel不证明各renderer内容。 |
-| Local/Worktree new task 与同主机 idle handoff | `aligned_contract` | `source_partial` | `pixel_unverified` | `candidate_target` | `source_not_assessed` | `pixel_unverified` | Current source cohort 覆盖任意目录切换、same-host managed create/reuse、handoff、durable snapshot-before-remove（含ignored user files）、cleanup rollback与receipt restore；cross-host为owner blocker。 |
+| Local/Worktree new task 与同主机 idle handoff | `aligned_contract` | `source_implemented` | `pixel_unverified` | `candidate_target` | `source_not_assessed` | `pixel_unverified` | Current source cohort 覆盖任意目录切换、same-host managed create/reuse 与默认保留；无cleanup/snapshot/restore或cross-host控制面。 |
 | Review 复用 Files/Changes diff surface | `aligned_contract` | `source_partial` | `pixel_unverified` | `candidate_target` | `source_not_assessed` | `pixel_unverified` | Owner-correct topic `166f63041...` 覆盖四targets、inline/detached、PR context、stage/commit/push、`gh` unavailable、Last turn与custom target instructions；非custom focus和line-level comments为protocol blocker。 |
 | Settings 使用 full-window return/search/grouped rows且 OPL IA 不变 | `aligned_contract` | `source_implemented` | `pixel_unverified` | `current_contract_deviation` | `source_partial` | `pixel_unverified` | AionUI 保留 8+2 IA、search/redirect/state/action semantics，并使用 bounded page-section cards + flat rows；Shell `74848adf77360903c5ac7d64c32455a78fb3901a` 的 42 张图只作为历史专项 evidence，不代表当前 cohort pixels。 |
-| 白色 main、灰色 rail/subtle surface、OPL teal | `aligned_contract` | `source_implemented` | `pixel_verified` | `current_contract_deviation` | `source_partial` | `pixel_verified` | Current 9场景覆盖light/dark、desktop/mobile与双语；只证明指定画面，不宣称完整视觉parity。 |
+| 白色 main、`#FCFCFC` rail、中性 selected surface | `aligned_contract` | `source_implemented` | `pixel_verified` | `current_contract_deviation` | `source_partial` | `pixel_verified` | 视觉 token 只由 App contract 维护；最终同尺寸light/dark/narrow installed pixels仍待验。 |
 | Desktop Back/Forward、Previous/Next Task、New Window | `aligned_contract` | `source_implemented` | `pixel_unverified` | `current_contract_deviation` | `source_not_assessed` | `pixel_unverified` | titlebar/menu、focused/unfocused command gate、focus resync 与 history boundary 已有 focused coverage；packaged multi-window 仍是独立证据缺口。 |
 | OPL 品牌、双语与普通语言一致 | `aligned_contract` | `source_implemented` | `pixel_verified` | `candidate_target` | `source_partial` | `pixel_verified` | Current exact cohort覆盖OPL brand、zh-CN/en-US；文案完整性仍由i18n gate负责。 |
 | Keyboard、focus、contrast、reduced motion | `aligned_contract` | `source_partial` | `pixel_unverified` | `candidate_target` | `source_partial` | `pixel_unverified` | rail/context focus、Escape、inert 和 reduced-motion 已有 focused coverage；contrast 与全键盘矩阵仍待验收。 |
@@ -208,24 +207,19 @@ Native candidate 不得与 active-shell P0 差距竞争实施资源。
   `0ebc1fdd...`，两份manifest均不通过改SHA升级。
 - **Package readiness pixels：** unavailable、activating、blocked、repair/doctor 等新状态尚无
   current route/viewport evidence。
-- **Cross-thread coordination：** canonical directory、unarchive、首结果 idempotency replay、same-host
-  routing 和 interactive server-request pending flow 保留；普通 rail 不展示独立“线程协调”页面，
-  thread-detail context action 与 model host tool 复用同一 adapter。cross-host 是required target，但当前
-  Codex Remote Connections/host-handoff owner没有可消费协议面，因此typed unavailable；独立 queue 未实现。
-- **Model host tool：** required target；当前 AionUI source missing/protocol blocked。Ordinary ACP链路没有
-  dynamic-tool输入/callback；owner route是AionCore同client adapter或codex-acp上游callback。Thread-detail action、
-  focused DOM、post-hoc coordination-port handler或delivery audit都不能替代registration与round-trip evidence。
+- **Thread operations：** 单一 App Server adapter 的 source/focused tests 已闭合；安装版仍需覆盖用户触发的
+  list/start/resume/fork/archive/restore。模型 dynamic tools、第二 client、audit/idempotency 与 cross-host
+  已明确退出本版，不是 pixel 或 release gap。
 - **Artifact ref adapter：** `b2c05a1c...` 已覆盖当前 session 显式 attachment、可见 conversation result、
   用户选择的任意绝对本地路径和非法输入拒绝；current package只证明Preview surface，不证明各renderer和ref分流。
 - **Codex locality / Review：** Current source cohort 已实现same-host canonical session任意目录切换、Home
-  worktree、idle session handoff、durable snapshot-before-remove、cleanup rollback与receipt restore；cross-host
-  是owner blocker。Review owner topic
+  worktree simple create/reuse、idle session handoff和默认保留。Review owner topic
   `166f63041...` 保留四 target、inline/detached、PR context、stage/commit/push、`gh` unavailable、Last turn与
   custom target instructions，并删除same-review-turn focus fallback；非custom focus与line-level comments等待typed protocol。
 - **Narrow Settings：** `e218d79b7...` ancestry 将Access摘要卡的双列断点从`md`提高到`xl`，960px窗口保持
   单列；focused DOM锁定不得在`md`提前双列。匹配installed pixel由最终package owner验收。
 - **Package/install：** `26.7.13` macOS arm64 directory-only package、packaged E2E与codesign已通过，
-  但未安装；clean-user-data、first-run、真实coordination detail与公开release promotion仍是独立证据。
+  但未安装；clean-user-data、first-run、用户线程操作与公开release promotion仍是独立证据。
 - **Settings pixels：** 14-entry desktop Light manifest 绑定 `fadd91f9...`；不把该历史图提升为
   current Settings pixel evidence。
 - **Native contract/source：** candidate contract 与 visual parity 仍绑定 superseded

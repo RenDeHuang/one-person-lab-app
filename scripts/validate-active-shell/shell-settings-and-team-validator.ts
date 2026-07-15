@@ -44,6 +44,7 @@ const settingsShellAdapterSlotExpected = [
   'LocalServicesSettings',
   'RuntimeSettings',
   'CapabilitiesSettingsContent',
+  'GatewaySettingsContent',
   'AccessSettingsContent',
   'ResourcesSettingsContent',
   'AppearanceModalContent',

@@ -13,6 +13,65 @@
     "tag_pattern": "v<version>",
     "rule": "GitHub Release names use the product-prefixed v-version format for both Stable and Nightly; tags remain v<version> for updater and automation compatibility."
   },
+  "release_profiles": {
+    "default": "stable",
+    "allowed": [
+      "stable",
+      "nightly",
+      "local-install"
+    ],
+    "local_install": {
+      "plan_profile": "local_install",
+      "version_channel": "stable",
+      "distribution_scope": "local_machine_only",
+      "build_command": "npm run build-mac:arm64",
+      "build_app_path": "$SHELL_ROOT/out/mac-arm64/One Person Lab.app",
+      "installed_app_path": "/Applications/One Person Lab.app",
+      "required_lanes": [
+        "release_source_gate",
+        "release_boundary",
+        "standard_build",
+        "local_install_handoff",
+        "installed_app_readback"
+      ],
+      "forbidden_lanes": [
+        "publish_standard",
+        "publish_full_assets",
+        "remote_verify_standard_and_full",
+        "standard_dmg_clean_vm_smoke",
+        "full_dmg_clean_vm_smoke",
+        "homebrew_standard_cask_clean_vm_smoke",
+        "docker_webui_smoke",
+        "webui_ghcr_publish",
+        "release_evidence_bundle",
+        "release_readiness_summary",
+        "release_candidate_record",
+        "promote_stable_release",
+        "stable_homebrew_tap_update",
+        "full_homebrew_tap_update",
+        "release_promotion_record",
+        "post_release_user_guide_screenshots"
+      ],
+      "forbidden_external_requirements": [
+        "github_release_publish",
+        "ghcr_publish",
+        "clean_vm",
+        "attestation",
+        "notarization",
+        "homebrew_distribution",
+        "stable_promotion"
+      ],
+      "install_handoff": "quit the running cn.onepersonlab.opl process, replace /Applications/One Person Lab.app with the exact build App, clear quarantine when present, and relaunch",
+      "installed_readback": [
+        "bundle_version",
+        "codesign_diagnostic",
+        "installed_app_asar_sha256_matches_build",
+        "startup_and_runtime_bridge_logs"
+      ],
+      "second_qa_authorization_required": false,
+      "authority_boundary": "The local-install profile builds and verifies one exact local App/Shell/Framework cohort for this Mac only. It cannot publish or promote a release, write GHCR or Homebrew, require notarization, or stand in for public distribution readiness. It cannot claim clean-VM or attestation evidence."
+    }
+  },
   "public_release_notes": {
     "owner": "one-person-lab-app",
     "default_public_writer": "pre_release_prepared_public_copy",

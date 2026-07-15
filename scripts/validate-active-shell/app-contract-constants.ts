@@ -1204,191 +1204,21 @@ export const appOwnedExplicitSessionInputPolicy = {
     codex_and_model_prerequisites_unchanged: true,
   },
 };
-export const appOwnedLocalWorktreeLifecycle = {
-  state: "same_host_lifecycle_source_implemented_cross_host_protocol_owner_blocked",
-  permission_boundary: {
-    workspace_directory_role:
-      "new_session_initial_cwd_mutable_cwd_and_sidebar_grouping_only_not_authorization_domain",
-    filesystem_command_network_authority:
-      "codex_permission_approval_and_sandbox_only",
-    opl_cross_directory_block_or_confirmation_allowed: false,
-  },
-  new_task: {
-    surface: "home_new_task",
-    locality_options: ["local", "worktree"],
-    starting_branch_selectable: true,
-    worktree_action: "create_or_reuse_managed_worktree",
-    adapter: "gitWorkspace.inspect_and_ensureManagedWorktree",
-    failure_policy:
-      "show_unavailable_or_error_without_silent_local_fallback",
-  },
-  existing_session: {
-    surface: "conversation_environment",
-    scope:
-      "any_user_selected_same_host_local_directory_including_local_worktree_handoff",
-    actions: ["switch_working_directory", "local_to_worktree", "worktree_to_local"],
-    directory_picker: "system_directory_picker",
-    eligible_thread_states: ["not_loaded", "idle"],
-    unavailable_thread_states: ["running", "archived", "system_error"],
-    protocol: "thread/settings/update",
-    payload_fields: ["threadId", "cwd"],
-    session_identity_policy:
-      "preserve_canonical_thread_id_transcript_and_turn_history_without_fork_or_copy",
-    sidebar_grouping_effect:
-      "reclassify_same_session_by_selected_cwd_without_copy_or_fork",
-    status_limit_role:
-      "codex_protocol_state_limit_not_workspace_permission",
-    failure_policy:
-      "show_unavailable_or_error_without_silent_fallback",
-  },
-  metadata: {
-    schema: "opl_workspace_handoff.v1",
-    fields: [
-      "locality",
-      "localWorkspace",
-      "worktreePath",
-      "taskId",
-      "startRef",
-      "startCommit",
-      "worktreeRetention",
-    ],
-    worktree_retention_value:
-      "preserve_for_reuse_until_snapshotted_cleanup",
-    retention_value_role:
-      "default_preserve_policy_and_cleanup_eligibility_marker_not_snapshot_receipt",
-    storage_role:
-      "aionui_projection_metadata_only_not_git_or_thread_authority",
-  },
-  projection_transaction: {
-    order: ["codex_thread_cwd", "aionui_conversation_projection"],
-    codex_update: "thread/settings/update",
-    projection_fields: ["conversation.extra.workspace", "sidebar_project_group"],
-    immutable_identity_field: "canonical_thread_id",
-    operation_start_workspace_source:
-      "app_server_canonical_thread_cwd_then_projection_fallback_only_if_unavailable",
-    no_op_comparison_source: "operation_start_workspace_not_mutable_projection",
-    rollback_target: "operation_start_workspace",
-    projection_failure_policy:
-      "best_effort_restore_previous_codex_cwd_and_show_error",
-    silent_success_allowed: false,
-  },
-  worktree: {
-    root: "$CODEX_HOME/worktrees",
-    selected_branch_head_state: "detached",
-    selected_local_uncommitted_changes: "apply_to_new_worktree",
-    include_file: ".worktreeinclude",
-    task_reuse_policy: "same_task_reuses_same_worktree",
-    default_retention: "preserve_for_reuse",
-  },
-  snapshot_restore: {
-    state: "source_implemented_git_native_snapshot_receipt",
-    user_visible_actions: ["create_restore_point_and_remove", "restore_worktree"],
-    snapshot_scope: [
-      "head",
-      "branch_or_detached_head",
-      "index",
-      "tracked_worktree",
-      "untracked",
-      "ignored",
-    ],
-    receipt_schema: "opl_worktree_snapshot_receipt.v1",
-    durable_git_ref_namespace: "refs/opl/worktree-snapshots",
-    restore_target_policy:
-      "original_managed_worktree_path_or_deterministic_replacement",
-    restore_conflict_policy:
-      "typed_failure_without_overwrite_or_partial_success",
-    completion_claim_allowed: true,
-  },
-  cleanup: {
-    state: "source_implemented_explicit_managed_worktree_only",
-    current_action_visible: true,
-    eligible_scope: "deterministic_codex_managed_worktree_only",
-    snapshot_precondition: "durable_snapshot_receipt_before_remove",
-    branch_or_snapshot_ref_deletion_allowed: false,
-    automatic_cleanup_claimed: false,
-    failure_policy: "typed_failure_without_data_loss_or_silent_success",
-  },
-  cross_host: {
-    state: "required_target_protocol_owner_blocked_unavailable",
-    blocker_code: "remote_host_handoff_owner_surface_unavailable",
-    primary_owner: "codex_app_remote_connections_host_handoff_owner",
-    product_contract_owner: "one_person_lab_app",
-    shell_role: "blocked_thin_adapter",
-    required_transport:
-      "connected_host_task_handoff_with_git_state_transfer_destination_readback_and_disconnect_recovery",
-    direct_message_allowed: false,
-    success_projection_allowed: false,
-  },
-  state_authority: "codex_core_app_server_and_existing_git_integration",
-  shell_role: "thin_adapter_only",
-  duplicate_git_or_thread_store_allowed: false,
-};
 export const appOwnedRuntimeBridgeLocalWorktreeHandoffPolicy = {
-  state: "same_host_lifecycle_source_implemented_cross_host_protocol_owner_blocked",
-  authority: "codex_core_app_server_and_existing_git_integration",
-  permission_boundary: appOwnedLocalWorktreeLifecycle.permission_boundary,
-  new_task: appOwnedLocalWorktreeLifecycle.new_task,
-  existing_session: appOwnedLocalWorktreeLifecycle.existing_session,
-  metadata: appOwnedLocalWorktreeLifecycle.metadata,
-  projection_transaction: appOwnedLocalWorktreeLifecycle.projection_transaction,
-  worktree: appOwnedLocalWorktreeLifecycle.worktree,
-  snapshot_restore: appOwnedLocalWorktreeLifecycle.snapshot_restore,
-  cleanup: appOwnedLocalWorktreeLifecycle.cleanup,
-  cross_host: appOwnedLocalWorktreeLifecycle.cross_host,
-  shell_role: "thin_adapter_only",
-  duplicate_git_store_allowed: false,
-  duplicate_thread_store_allowed: false,
+  contract_ref:
+    "contracts/app-gui-product-contract.json#interaction_baseline.conversation_scope.local_worktree_lifecycle",
+  bridge_role: "transport_only",
+  state_authority: "codex_core_app_server_and_existing_git_integration",
 };
 export const appOwnedNewTaskLocality = {
-  surface: "home_new_task",
-  options: ["local", "worktree"],
-  starting_branch_selectable: true,
-  worktree_behavior: "create_or_reuse_managed_worktree",
-  adapter: "gitWorkspace.inspect_and_ensureManagedWorktree",
-  metadata_schema: "opl_workspace_handoff.v1",
-  failure_policy: "show_unavailable_or_error_without_silent_local_fallback",
-  snapshot_restore_state: "conversation_environment_source_implemented",
-  cleanup_state: "conversation_environment_source_implemented",
-  cross_host_state: "required_target_protocol_owner_blocked_unavailable",
-  cross_host_blocker_code: "remote_host_handoff_owner_surface_unavailable",
+  contract_ref:
+    "contracts/app-gui-product-contract.json#interaction_baseline.conversation_scope.local_worktree_lifecycle",
 };
 export const appOwnedGuiContractEnvironmentWorkspaceHandoff = {
   contract_ref:
     "interaction_baseline.conversation_scope.local_worktree_lifecycle",
-  surface: "conversation_environment",
-  scope: "same_host_existing_session",
-  actions: [
-    "switch_working_directory",
-    "local_to_worktree",
-    "worktree_to_local",
-    "create_restore_point_and_remove",
-    "restore_worktree",
-  ],
-  working_directory_target_scope:
-    "any_user_selected_same_host_local_directory",
-  session_identity_policy:
-    "preserve_canonical_thread_id_transcript_and_turn_history_without_fork_or_copy",
-  sidebar_grouping_effect:
-    "reclassify_same_session_by_selected_cwd_without_copy_or_fork",
-  operation_start_workspace_source:
-    "app_server_canonical_thread_cwd_then_projection_fallback_only_if_unavailable",
-  no_op_comparison_source: "operation_start_workspace_not_mutable_projection",
-  rollback_target: "operation_start_workspace",
-  eligible_thread_states: ["not_loaded", "idle"],
-  unavailable_thread_states: ["running", "archived", "system_error"],
-  protocol: "thread/settings/update",
-  failure_policy: "show_unavailable_or_error_without_silent_fallback",
-  projection_transaction:
-    "codex_thread_cwd_first_then_aionui_projection_with_best_effort_cwd_rollback",
-  permission_boundary:
-    "codex_permission_approval_and_sandbox_only_no_opl_cross_directory_gate",
-  snapshot_restore_state: "source_implemented_git_native_snapshot_receipt",
-  cleanup_state: "source_implemented_explicit_managed_worktree_only",
-  cross_host_state: "required_target_protocol_owner_blocked_unavailable",
-  cross_host_blocker_code: "remote_host_handoff_owner_surface_unavailable",
 };
 export const appOwnedPageStateEnvironmentWorkspaceHandoff = {
-  ...appOwnedGuiContractEnvironmentWorkspaceHandoff,
   contract_ref:
     "contracts/app-gui-product-contract.json#interaction_baseline.conversation_scope.local_worktree_lifecycle",
 };

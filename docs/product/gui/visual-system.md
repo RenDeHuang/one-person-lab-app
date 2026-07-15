@@ -101,7 +101,10 @@ Codex baseline 是视觉参照，不是 machine truth。当前 carrier 的差异
 
 ## Color 与 Surface
 
-视觉以中性灰阶为主，OPL teal 只用于品牌强调和选中态；状态色保持独立语义。
+以下表格是
+`contracts/app-gui-product-contract.json#interaction_baseline.visual_target` 的人读投影，不是
+独立 token source。视觉以中性灰阶为主；OPL teal 只用于品牌、typed status 和明确品牌动作，
+不参与普通 rail、selected row、Settings 图标或 composer chrome。
 
 Light target：
 
@@ -111,11 +114,12 @@ Light target：
 | `surface` | `#FFFFFF` | Composer、popover、drawer、Settings bounded group 和 active content。 |
 | `rail` | `#FCFCFC` | Navigation rail；与白色主画布形成极轻层级。 |
 | `surface-subtle` | `#F0F0F0` | Selected row、tool event、secondary controls。 |
-| `border` | `#D9DCE1` | 1px 分隔和 outline。 |
-| `text-primary` | `#17191C` | 正文和主标签。 |
-| `text-secondary` | `#626870` | 元信息和说明。 |
-| `accent` | `#0F766E` | OPL 选中态和品牌动作。 |
-| `focus` | `#2563EB` | Keyboard focus ring。 |
+| `hover` | `rgba(0, 0, 0, 0.045)` | 普通 hover。 |
+| `border` | `rgba(0, 0, 0, 0.10)` | 1px 分隔和 outline。 |
+| `text-primary` | `#202124` | 正文和主标签。 |
+| `text-secondary` | `#5F6368` | 元信息和说明。 |
+| `text-muted` | `#80868B` | 低优先级 metadata。 |
+| `focus` | `rgba(37, 99, 235, 0.34)` | Keyboard focus ring。 |
 | `success` | `#15803D` | 成功。 |
 | `warning` | `#B45309` | 需要注意。 |
 | `danger` | `#B42318` | 失败或破坏性动作。 |
@@ -126,8 +130,10 @@ Dark target：
 | --- | --- | --- |
 | `canvas` | `#171819` | App 背景。 |
 | `surface` | `#202224` | Active content。 |
-| `surface-subtle` | `#292C30` | Selected row 和 tool event。 |
-| `border` | `#3B3F45` | 1px 分隔和 outline。 |
+| `rail` | `#1B1C1E` | Navigation rail。 |
+| `surface-subtle` | `rgba(255, 255, 255, 0.09)` | Selected row 和 tool event。 |
+| `hover` | `rgba(255, 255, 255, 0.06)` | 普通 hover。 |
+| `border` | `rgba(255, 255, 255, 0.12)` | 1px 分隔和 outline。 |
 | `text-primary` | `#F4F5F6` | 正文和主标签。 |
 | `text-secondary` | `#AEB4BC` | 元信息和说明。 |
 | `accent` | `#5EEAD4` | OPL 选中态和品牌动作。 |
@@ -259,11 +265,8 @@ Composer 是底部唯一主 command surface：
   disclosure；Runtime/Actions/Memory 不升级为同权 tabs。
 - Popover 关闭后焦点回到触发器；drawer 有明确标题、close control 和焦点边界。
 - Environment/details 打开时是当前 conversation 的辅助层，不是独立 dashboard。
-- Worktree lifecycle action使用普通Environment action row。创建恢复点并移除是带确认的显式命令；
-  restore只在真实receipt存在时显示。Pending期间固定action row尺寸，成功显示简短receipt状态，
-  冲突或失败就地显示且不得把面板撑成第二个Git管理页。
-- Cross-host task handoff在协议owner未提供transport时使用稳定的 unavailable row，显示简短owner
-  blocker和后续路径；不得显示可点击成功态、远端Host假数据或把本机Worktree动作换名冒充handoff。
+- Worktree 只提供目录选择、简单 create/reuse 与 starting branch，默认保留；不显示 cleanup、
+  snapshot receipt、restore 或 cross-host handoff 控制面。
 - Drawer 内避免卡片套卡片；用 section header、divider、row 和 disclosure 表达层级。
 - Bottom panel、file tree、Terminal、Browser 默认关闭；打开时尺寸稳定且不得遮挡 composer。
 

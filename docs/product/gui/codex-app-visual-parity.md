@@ -2,7 +2,7 @@
 
 Owner: `one-person-lab-app`
 Purpose: `codex_app_visual_parity_execution_and_acceptance`
-State: `candidate_source_and_webui_pixels_verified_install_pending`
+State: `clean_candidate_source_verified_installed_pixels_pending`
 Reference: `ChatGPT Codex macOS 26.707.72221 (build 5307, observed 2026-07-15)`
 
 ## 结论
@@ -15,14 +15,16 @@ OPL App 的主界面以当前 Codex App 为 1:1 视觉目标。除 One Person La
 做可测量复刻。它不授权复制 Codex 的品牌、专有实现、云端能力或内部数据模型；OPL 只
 复用视觉语法、空间关系和交互位置。
 
-本规范补充 [`visual-system.md`](visual-system.md)；发生视觉目标冲突时，本规范对 Codex
-parity 的精度要求优先，机器行为仍以 App contracts、page-state 和 validators 为准。
+本规范与 [`visual-system.md`](visual-system.md) 都是
+`contracts/app-gui-product-contract.json#interaction_baseline.visual_target` 的人读投影；发生
+数值冲突时只修正文档或 Shell，不建立第二套视觉 token authority。
 
 ## 当前落实状态
 
-`2026-07-15` 的 Shell candidate `984995d5c9d2ef591007ec38206bb4d4517539b0`
-（parent `af58910708af814147499d2b35d28269d1350390`）已完成本轮用户可见差异的 source 与
-独立 WebUI 验收：
+`2026-07-15` 的 clean Shell candidate 从 canonical base
+`b6bba802b83dcb472e4de894aa5c0dd4bff1b871` 重建，并选择性重放本轮用户可见差异。当前
+candidate identity 必须在验证时从 active Shell checkout 读取，不能把过渡 HEAD 固化在本
+文档中：
 
 - 对话搜索从独立一级 row 移至“对话历史”标题右侧，桌面与窄窗均为 `32x32px` icon action，
   保留 tooltip、accessible name 和原搜索交互；
@@ -31,16 +33,21 @@ parity 的精度要求优先，机器行为仍以 App contracts、page-state 和
 - Home 与 conversation composer 共用中性 border、resting/focus shadow 和 `14/20` textarea；
 - Settings 导航图标改为中性色，content lane 收敛为 `760px`，彩色 section 边条和多余 card
   shadow 已移除；
-- source `15/15`、DOM `29/29`、typecheck、build、format、i18n、lint `0 error` 与 visual
-  overlay budget 均通过；candidate WebUI 已覆盖 light/dark、`1440x900`、`1024x768`、
-  `375x812`、search hover/open、Home 和 Settings。
+- clean candidate 的 full Node `1584/1584`、full DOM `814 passed / 6 skipped`、focused Node
+  `24/24`、focused DOM `55/55`、typecheck、format、i18n、lint `0 error` 与 diff-check 均通过。
 
-这些结果证明本轮 candidate source 和 WebUI pixels，不等于完整 1:1 或 release-ready。普通
+历史视觉 lane `984995d5c9d2ef591007ec38206bb4d4517539b0`（parent
+`af58910708af814147499d2b35d28269d1350390`）只作为逐文件视觉提取来源；它的祖先包含已撤销
+能力，因此不得整体吸收，也不得作为最终 release cohort 或安装证据。
+
+这些结果只证明本轮 candidate source 结构和自动化行为门，不证明 WebUI 或安装版 pixels，
+也不等于完整 1:1 或 release-ready。普通
 conversation 的真实多状态、zh-CN/en-US 全矩阵、同尺寸 reference/candidate mask diff、macOS
 安装包、最终 Shell main 和安装后 readback 仍须在 release cohort 上重跑。状态标记为：
 
-- `candidate_shell_commit=984995d5c9d2ef591007ec38206bb4d4517539b0`
-- `candidate_webui_pixels=verified_not_release_evidence`
+- `candidate_shell_commit_source=active_shell_checkout_git_head`
+- `historical_visual_extraction_commit=984995d5c9d2ef591007ec38206bb4d4517539b0`
+- `candidate_webui_pixels=pending_on_clean_release_cohort`
 - `installed_pixel_acceptance=pending`
 - `visual_parity_complete=false`
 
@@ -106,14 +113,15 @@ conversation 的真实多状态、zh-CN/en-US 全矩阵、同尺寸 reference/ca
 | Token | Target |
 | --- | --- |
 | Canvas / active surface | `#FFFFFF` |
-| Rail | `#F0F0F0` |
+| Rail | `#FCFCFC` |
 | Hover | `rgba(0, 0, 0, 0.045)` over rail/surface |
-| Selected row | `rgba(0, 0, 0, 0.065)` over rail |
+| Selected row | `#F0F0F0` |
 | Primary text | `#202124` |
 | Secondary text | `#5F6368` |
 | Muted text | `#80868B` |
 | Hairline border | `rgba(0, 0, 0, 0.10)` |
 | Focus ring | `rgba(37, 99, 235, 0.34)` |
+| Composer shadow | `0 1px 2px rgba(0,0,0,.07), 0 8px 24px rgba(0,0,0,.08)` |
 
 ### Dark
 
@@ -127,6 +135,7 @@ conversation 的真实多状态、zh-CN/en-US 全矩阵、同尺寸 reference/ca
 | Primary text | `#F4F5F6` |
 | Secondary text | `#AEB4BC` |
 | Hairline border | `rgba(255, 255, 255, 0.12)` |
+| Composer shadow | `0 1px 2px rgba(0,0,0,.30), 0 8px 24px rgba(0,0,0,.24)` |
 
 OPL accent 只用于品牌动作和必要状态，不参与普通 rail、Settings 导航或 composer chrome。
 

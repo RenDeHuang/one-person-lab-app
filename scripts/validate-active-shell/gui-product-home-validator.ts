@@ -4,7 +4,6 @@ import {
   appOwnedDirectoryGroupPolicy,
   appOwnedGuiContractOrdinaryConversation,
   appOwnedHomeLayout,
-  appOwnedLocalWorktreeLifecycle,
   appOwnedReviewSurfaceSourceEvidence,
   appOwnedRightContextInspectorForbiddenOwners,
   appOwnedRightContextInspectorPolicy,
@@ -132,7 +131,6 @@ function validateHomeLayout(guiContract) {
     'same-host working-directory or Local/Worktree handoff for an existing not-loaded or idle session from Conversation Environment',
     'running, archived, or system-error session handoff shown unavailable without silent fallback',
     'Codex thread cwd updated before AionUI projection with best-effort cwd rollback on projection failure',
-    'durable snapshot-before-remove and receipt restore for deterministic managed worktrees in Conversation Environment',
     'single current task instance in the message timeline, inline and unpinned for ordinary tasks',
     'current task becomes sticky only after user pin or a true long_running signal',
     'complete paginated redacted transcript export with Markdown default, strict JSON, explicit directory and filename',
@@ -144,9 +142,9 @@ function validateHomeLayout(guiContract) {
     'workspaceRootReady or workspace membership used as a file-access gate',
     'backend, provider, Team, raw MCP, or arbitrary skills in the mobile plus sheet',
     'Local or Worktree handoff control inside the primary composer',
-    'snapshot or worktree cleanup controls outside Conversation Environment or without a durable receipt',
-    'automatic or remove-before-snapshot managed worktree deletion',
-    'cross-host handoff shown as successful or available',
+    'worktree snapshot, restore, or cleanup controls',
+    'automatic managed worktree deletion',
+    'cross-host task handoff controls',
     'duplicate current task or Runtime summary outside the message timeline',
     'workspace bundle export authorization',
   ], 'App GUI ordinary conversation forbidden 41301 signals');
@@ -177,11 +175,20 @@ function validateSessionDirectoryPolicy(guiContract) {
     appOwnedDirectoryGroupPolicy,
     'App GUI directory group ownership policy',
   );
-  assertDeepEqualJson(
-    guiContract.interaction_baseline?.conversation_scope?.local_worktree_lifecycle,
-    appOwnedLocalWorktreeLifecycle,
-    'App GUI canonical session workspace lifecycle',
-  );
+  const lifecycle = guiContract.interaction_baseline?.conversation_scope?.local_worktree_lifecycle;
+  if (
+    lifecycle?.state !== 'minimal_create_reuse_default_preserve' ||
+    JSON.stringify(lifecycle?.new_task?.locality_options) !== JSON.stringify(['local', 'worktree']) ||
+    lifecycle?.new_task?.starting_branch_selectable !== true ||
+    lifecycle?.new_task?.worktree_action !== 'create_or_reuse_managed_worktree' ||
+    lifecycle?.metadata?.worktree_retention_value !== 'preserve_for_reuse' ||
+    lifecycle?.worktree?.default_retention !== 'preserve_for_reuse' ||
+    'snapshot_restore' in (lifecycle ?? {}) ||
+    'cleanup' in (lifecycle ?? {}) ||
+    'cross_host' in (lifecycle ?? {})
+  ) {
+    throw new Error('App GUI Worktree lifecycle must keep only create or reuse with default preservation');
+  }
 }
 
 function validateUiLocalePolicy(guiContract) {

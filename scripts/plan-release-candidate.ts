@@ -6,6 +6,9 @@ import { parseArgs as parseNodeArgs } from 'node:util';
 import { assertCanonicalReleaseVersion } from './release-version.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const releaseContract = JSON.parse(
+  fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
+);
 
 type Lane = {
   id: string;
@@ -99,7 +102,7 @@ function parseArgs(argv: string[]) {
   };
   if (values['include-full-package'] === true) parsed.includeFullPackage = true;
   if (values.profile !== undefined) {
-    if (values.profile !== 'stable' && values.profile !== 'nightly') {
+    if (values.profile !== 'stable' && values.profile !== 'nightly' && values.profile !== 'local-install') {
       throw new Error(`Unsupported release profile: ${values.profile}`);
     }
     parsed.profile = values.profile;
@@ -109,11 +112,88 @@ function parseArgs(argv: string[]) {
   if (!parsed.version.trim()) {
     throw new Error('Missing release version. Pass --version <version> or set OPL_RELEASE_VERSION.');
   }
+  if (parsed.profile === 'local-install' && parsed.includeFullPackage) {
+    throw new Error('The local-install profile does not accept --include-full-package.');
+  }
+  if (parsed.profile === 'local-install' && !parsed.settingsVm) {
+    throw new Error('The local-install profile does not accept --no-settings-vm because VM gates are not part of this profile.');
+  }
   return parsed;
 }
 
 function buildPlan(options: ReturnType<typeof parseArgs>) {
-  assertCanonicalReleaseVersion(options.profile, options.version);
+  assertCanonicalReleaseVersion(options.profile === 'nightly' ? 'nightly' : 'stable', options.version);
+  if (options.profile === 'local-install') {
+    const profile = releaseContract.release_profiles?.local_install;
+    if (!profile || !Array.isArray(profile.required_lanes) || !Array.isArray(profile.forbidden_lanes)) {
+      throw new Error('Release channel contract is missing release_profiles.local_install.');
+    }
+    const lanes: Lane[] = [
+      {
+        id: 'release_source_gate',
+        phase: 'fast_candidate',
+        depends_on: [],
+        can_run_with: [],
+        command: `npm run release:source-gate -- --version ${options.version} --app-ref "$APP_SHA" --shell-ref "$SHELL_REF" --framework-ref "$FRAMEWORK_REF" --framework-root "$FRAMEWORK_ROOT" --require-shell-format true --run-shell-tests true --output local-install-source-gate.json --json`,
+        required_for: ['local_installed_app'],
+      },
+      {
+        id: 'release_boundary',
+        phase: 'fast_candidate',
+        depends_on: ['release_source_gate'],
+        can_run_with: ['standard_build'],
+        command: 'npm run test:release-boundary',
+        required_for: ['local_installed_app'],
+      },
+      {
+        id: 'standard_build',
+        phase: 'parallel_build',
+        depends_on: ['release_source_gate'],
+        can_run_with: ['release_boundary'],
+        command: profile.build_command,
+        required_for: ['local_installed_app'],
+      },
+      {
+        id: 'local_install_handoff',
+        phase: 'installation_gate',
+        depends_on: ['release_boundary', 'standard_build'],
+        can_run_with: [],
+        command: profile.install_handoff,
+        required_for: ['local_installed_app'],
+      },
+      {
+        id: 'installed_app_readback',
+        phase: 'installation_gate',
+        depends_on: ['local_install_handoff'],
+        can_run_with: [],
+        command: `verify ${profile.installed_app_path} bundle version, codesign diagnostic, build/installed app.asar SHA-256 equality, relaunch, and startup/runtime bridge logs`,
+        required_for: ['local_installed_app'],
+      },
+    ];
+    const laneIds = lanes.map((lane) => lane.id);
+    if (JSON.stringify(laneIds) !== JSON.stringify(profile.required_lanes)) {
+      throw new Error('Local-install plan lanes drift from the release channel contract.');
+    }
+    if (profile.forbidden_lanes.some((laneId: string) => laneIds.includes(laneId))) {
+      throw new Error('Local-install plan contains a public-distribution lane.');
+    }
+    return {
+      schema_version: 1,
+      version: options.version,
+      profile: profile.plan_profile,
+      release_repo: 'gaofeng21cn/one-person-lab-app',
+      strategy: {
+        distribution_scope: profile.distribution_scope,
+        exact_cohort_required: true,
+        build_app_path: profile.build_app_path,
+        installed_app_path: profile.installed_app_path,
+        second_qa_authorization_required: profile.second_qa_authorization_required,
+        public_distribution_requirements: 'not_applicable',
+      },
+      lanes,
+      authority_boundary: profile.authority_boundary,
+    };
+  }
   if (options.profile === 'nightly') {
     return {
       schema_version: 1,

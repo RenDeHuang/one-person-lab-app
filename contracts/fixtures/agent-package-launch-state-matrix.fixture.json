@@ -1,193 +1,245 @@
 {
   "surface_kind": "opl_app_agent_package_launch_state_matrix.v1",
   "authority": "one-person-lab-app",
-  "projection_profile": "fast",
-  "use_boundary_action_schema_ref": "contracts/agent-package-surfaces.schema.json#/$defs/agent_package_use_boundary_action",
-  "framework_recovery_vocabulary_ref": {
-    "owner": "one-person-lab",
-    "surface_kind": "opl_agent_package_recovery_readback",
-    "vocabulary_version": "opl-agent-package-recovery.v1",
-    "status_envelope_version": "g2",
-    "directory_surface_kind": "opl_agent_package_directory.v1"
+  "release_scope": "trusted_local_thin_shell",
+  "read_and_action_sources": {
+    "status": "opl app state --profile fast --json",
+    "activation": "opl app action execute --action agent_package_activate --payload <json> --json",
+    "status_and_dry_run_write_count": 0
   },
-  "single_use_replay_contract": {
-    "token_scope": "globally_unique_within_agent_package_use_ledger",
-    "identity_fields": [
-      "package_id",
-      "scope",
-      "target_workspace_or_target_quest",
-      "directory_entry_ref",
-      "readiness_ref",
-      "root_package.package_id",
-      "root_package.package_lock_ref",
-      "root_package.package_version",
-      "root_package.manifest_sha256",
-      "root_package.content_digest",
-      "dependency_closure_digest",
-      "provider_packages"
+  "exposure_state": {
+    "fields": [
+      "enabled",
+      "visibility"
     ],
-    "first_execution": "check_and_reserve_under_Framework_package_mutation_lock_before_any_currentness_scope_use_or_activation_write",
-    "exact_retry": "return_original_canonical_use_receipt_and_use_binding_with_zero_new_writes",
-    "identity_conflict": "agent_package_use_boundary_replay_conflict_zero_write",
-    "currentness_drift": "agent_package_use_boundary_replay_stale_zero_write",
-    "concurrency": "one_commit_plus_one_identical_idempotent_readback",
-    "receipt_lookup": "direct_use_boundary_id_index",
-    "fast_refresh": "project_fresh_token_after_every_terminal_attempt",
-    "consumed_action": "cannot_authorize_a_new_conversation_but_exact_IPC_retry_may_recover_the_original_result"
-  },
-  "projection_token_rotation": {
-    "consumed_token": "use-boundary:example-ready-agent:workspace:1",
-    "refreshed_token": "use-boundary:example-ready-agent:workspace:2",
-    "old_token_new_launch_allowed": false,
-    "old_token_exact_retry_allowed": true
-  },
-  "request_scoped_projection_contract": {
-    "authority": "one-person-lab",
-    "surface_kind": "opl_agent_package_session_launch_projection.v1",
-    "schema_ref": "contracts/agent-package-surfaces.schema.json#/$defs/agent_package_session_launch_projection",
-    "producer_cli_route": null,
-    "producer_cli_route_policy": "Framework_owned_and_not_App_authority_until_published",
-    "cases": [
-      {
-        "case_id": "global_A_session_B_zero_write",
-        "settings_global_workspace_root_before": "/Users/example/Global A",
-        "selected_session_target_workspace": "/Users/example/Session B",
-        "projection_result": {
-          "surface_kind": "opl_agent_package_session_launch_projection.v1",
-          "package_id": "example-ready-agent",
-          "normalized_target_workspace": "/Users/example/Session B",
-          "directory": {
-            "surface_kind": "opl_agent_package_directory.v1",
-            "entries": [
-              {
-                "package_id": "example-ready-agent",
-                "readiness": {
-                  "status": "ready",
-                  "launch_allowed": true,
-                  "reason": null
-                },
-                "use_boundary_action": {
-                  "surface_kind": "opl_agent_package_use_boundary_action.v1",
-                  "action_id": "agent_package_activate",
-                  "action_ref": "app_state.actions#agent_package_activate",
-                  "payload": {
-                    "package_id": "example-ready-agent",
-                    "scope": "workspace",
-                    "target_workspace": "/Users/example/Session B",
-                    "use_boundary_id": "use-boundary:example-ready-agent:session-b:1"
-                  },
-                  "required_payload_fields": ["package_id", "scope", "target_workspace or target_quest", "use_boundary_id"],
-                  "confirmation_required": false,
-                  "use_boundary_id": "use-boundary:example-ready-agent:session-b:1",
-                  "directory_entry_ref": "request_scoped_directory.entries[package_id=example-ready-agent]",
-                  "readiness_ref": "request_scoped_directory.entries[package_id=example-ready-agent].readiness",
-                  "enabled": true,
-                  "preparation_status": "ready",
-                  "reason_code": "use_boundary_reconciliation_ready",
-                  "blocker": null
-                }
-              }
-            ]
-          },
-          "directory_entry_ref": "request_scoped_directory.entries[package_id=example-ready-agent]",
-          "readiness_ref": "request_scoped_directory.entries[package_id=example-ready-agent].readiness",
-          "use_boundary_action": {
-            "surface_kind": "opl_agent_package_use_boundary_action.v1",
-            "action_id": "agent_package_activate",
-            "action_ref": "app_state.actions#agent_package_activate",
-            "payload": {
-              "package_id": "example-ready-agent",
-              "scope": "workspace",
-              "target_workspace": "/Users/example/Session B",
-              "use_boundary_id": "use-boundary:example-ready-agent:session-b:1"
-            },
-            "required_payload_fields": ["package_id", "scope", "target_workspace or target_quest", "use_boundary_id"],
-            "confirmation_required": false,
-            "use_boundary_id": "use-boundary:example-ready-agent:session-b:1",
-            "directory_entry_ref": "request_scoped_directory.entries[package_id=example-ready-agent]",
-            "readiness_ref": "request_scoped_directory.entries[package_id=example-ready-agent].readiness",
-            "enabled": true,
-            "preparation_status": "ready",
-            "reason_code": "use_boundary_reconciliation_ready",
-            "blocker": null
-          },
-          "projection_currentness_ref": "opl://agent-package-session-launch-projection/example-ready-agent/session-b/1",
-          "writes_performed": false,
-          "global_workspace_root_unchanged": true
-        },
-        "settings_global_workspace_root_after": "/Users/example/Global A",
-        "workspace_root_set_called": false
+    "visibility_values": [
+      "visible",
+      "hidden"
+    ],
+    "transitions": {
+      "hide": {
+        "enabled": "preserve",
+        "visibility": "hidden"
       },
-      {
-        "case_id": "rapid_A_to_B_discards_late_A",
-        "request_sequence": ["/Users/example/Session A", "/Users/example/Session B"],
-        "response_arrival_sequence": ["/Users/example/Session B", "/Users/example/Session A"],
-        "accepted_target_workspace": "/Users/example/Session B",
-        "late_A_response_discarded": true,
-        "cache_and_inflight_key_includes_normalized_target": true
+      "unhide": {
+        "enabled": "preserve",
+        "visibility": "visible"
       },
-      {
-        "case_id": "projectless_package_launch",
-        "selected_target_workspace": null,
-        "projection_requested": false,
-        "activation_executed": false,
-        "launch_allowed": false,
-        "reason_code": "agent_package_target_workspace_required"
+      "disable": {
+        "enabled": false,
+        "visibility": "preserve"
       },
-      {
-        "case_id": "session_B_to_C_transition",
-        "old_target_workspace": "/Users/example/Session B",
-        "new_target_workspace": "/Users/example/Session C",
-        "fresh_projection_target_workspace": "/Users/example/Session C",
-        "fresh_projection_required_before": ["conversation_warmup", "runtime_ensure", "turn_or_message_send_build"],
-        "old_token_can_authorize_new_root": false
-      },
-      {
-        "case_id": "projection_target_drift",
-        "projected_target_workspace": "/Users/example/Session B",
-        "current_target_workspace": "/Users/example/Session C",
-        "accepted": false,
-        "reason_code": "agent_package_target_workspace_mismatch",
-        "write_delta": {
-          "conversation": 0,
-          "message": 0,
-          "turn": 0,
-          "runtime_task": 0
-        }
+      "enable": {
+        "enabled": true,
+        "visibility": "preserve"
       }
-    ]
+    }
   },
+  "cases": [
+    {
+      "case_id": "ready_visible_enabled",
+      "installed": true,
+      "package_role": "standard_agent",
+      "readiness": "ready",
+      "exposure": {
+        "enabled": true,
+        "visibility": "visible"
+      },
+      "activation_required_before_launch": true,
+      "ordinary_discovery_visible": true,
+      "explicit_launch_allowed_after_activation": true
+    },
+    {
+      "case_id": "verification_deferred_visible_enabled",
+      "installed": true,
+      "package_role": "standard_agent",
+      "readiness": "verification_deferred",
+      "exposure": {
+        "enabled": true,
+        "visibility": "visible"
+      },
+      "activation_required_before_launch": true,
+      "ordinary_discovery_visible": true,
+      "explicit_launch_allowed_after_activation": true
+    },
+    {
+      "case_id": "activation_required_visible_enabled",
+      "installed": true,
+      "package_role": "standard_agent",
+      "readiness": "activation_required",
+      "exposure": {
+        "enabled": true,
+        "visibility": "visible"
+      },
+      "activation_required_before_launch": true,
+      "ordinary_discovery_visible": true,
+      "explicit_launch_allowed_after_activation": true
+    },
+    {
+      "case_id": "disabled_visible_standard_agent",
+      "installed": true,
+      "package_role": "standard_agent",
+      "readiness": "blocked",
+      "exposure": {
+        "enabled": false,
+        "visibility": "visible"
+      },
+      "activation_required_before_launch": false,
+      "blocked_reason": "package_disabled",
+      "ordinary_discovery_visible": false,
+      "explicit_launch_allowed_after_activation": false
+    },
+    {
+      "case_id": "hidden_enabled_standard_agent",
+      "installed": true,
+      "package_role": "standard_agent",
+      "readiness": "ready",
+      "exposure": {
+        "enabled": true,
+        "visibility": "hidden"
+      },
+      "activation_required_before_launch": true,
+      "ordinary_discovery_visible": false,
+      "explicit_launch_allowed_after_activation": true,
+      "retained_shortcut_launch_allowed_after_activation": true
+    },
+    {
+      "case_id": "not_installed_standard_agent",
+      "installed": false,
+      "package_role": "standard_agent",
+      "readiness": "not_installed",
+      "exposure": null,
+      "activation_required_before_launch": false,
+      "blocked_reason": "package_not_installed",
+      "ordinary_discovery_visible": false,
+      "explicit_launch_allowed_after_activation": false
+    },
+    {
+      "case_id": "installed_capability_package",
+      "installed": true,
+      "package_role": "framework_capability_package",
+      "readiness": "ready",
+      "exposure": {
+        "enabled": true,
+        "visibility": "hidden"
+      },
+      "activation_required_before_launch": false,
+      "ordinary_discovery_visible": false,
+      "explicit_launch_allowed_after_activation": false
+    },
+    {
+      "case_id": "installed_workflow_profile",
+      "installed": true,
+      "package_role": "workflow_profile",
+      "readiness": "ready",
+      "exposure": {
+        "enabled": true,
+        "visibility": "hidden"
+      },
+      "activation_required_before_launch": false,
+      "ordinary_discovery_visible": false,
+      "explicit_launch_allowed_after_activation": false
+    },
+    {
+      "case_id": "installed_standard_agent_lock_corrupt",
+      "installed": true,
+      "package_role": "standard_agent",
+      "readiness": "blocked",
+      "exposure": {
+        "enabled": true,
+        "visibility": "visible"
+      },
+      "activation_required_before_launch": false,
+      "blocked_reason": "package_lock_corrupt",
+      "ordinary_discovery_visible": true,
+      "explicit_launch_allowed_after_activation": false
+    },
+    {
+      "case_id": "recovery_in_progress",
+      "installed": true,
+      "package_role": "standard_agent",
+      "readiness": "blocked",
+      "exposure": {
+        "enabled": true,
+        "visibility": "visible"
+      },
+      "activation_required_before_launch": false,
+      "blocked_reason": "package_recovery_in_progress",
+      "read_surfaces_are_pure": [
+        "fast",
+        "list",
+        "status",
+        "dry_run"
+      ],
+      "recovery_action": {
+        "state": "wait_only",
+        "enabled": false
+      },
+      "explicit_launch_allowed_after_activation": false
+    },
+    {
+      "case_id": "recovery_required_executable",
+      "installed": true,
+      "package_role": "standard_agent",
+      "readiness": "blocked",
+      "exposure": {
+        "enabled": true,
+        "visibility": "visible"
+      },
+      "activation_required_before_launch": false,
+      "blocked_reason": "package_recovery_required",
+      "read_surfaces_are_pure": [
+        "fast",
+        "list",
+        "status",
+        "dry_run"
+      ],
+      "recovery_action": {
+        "state": "executable",
+        "enabled": true,
+        "action_id": "agent_package_repair"
+      },
+      "explicit_launch_allowed_after_activation": false
+    },
+    {
+      "case_id": "recovery_required_manual_owner_intervention",
+      "installed": true,
+      "package_role": "standard_agent",
+      "readiness": "blocked",
+      "exposure": {
+        "enabled": true,
+        "visibility": "visible"
+      },
+      "activation_required_before_launch": false,
+      "blocked_reason": "package_recovery_required",
+      "read_surfaces_are_pure": [
+        "fast",
+        "list",
+        "status",
+        "dry_run"
+      ],
+      "recovery_action": {
+        "state": "manual_owner_intervention_required",
+        "enabled": false
+      },
+      "explicit_launch_allowed_after_activation": false
+    }
+  ],
   "workspace_transition_contract": {
-    "binding_authority_fields": [
-      "scope",
-      "target_root",
-      "use_boundary_id"
-    ],
+    "primary_unit": "canonical_session_thread",
+    "workspace_role": "mutable_context",
     "cases": [
       {
         "case_id": "workspace_a_to_b",
         "package_backed": true,
-        "old_target_root": "/Users/example/Workspace A",
-        "new_target_root": "/Users/example/Workspace B",
-        "old_binding_state_after_transition": "stale",
-        "fresh_activation_required_before": ["warmup", "runtime_ensure", "turn", "message"],
-        "failure_effect": "zero_warmup_zero_runtime_task_zero_turn_zero_message",
-        "success_binding_target_root": "/Users/example/Workspace B",
-        "old_token_can_authorize_new_root": false
+        "fresh_minimal_validation_required_before_next_launch": true
       },
       {
-        "case_id": "local_to_worktree_to_local",
+        "case_id": "workspace_b_to_c_validation_failure",
         "package_backed": true,
-        "transition_sequence": ["local", "worktree", "local"],
-        "fresh_activation_required_at_each_transition": true,
-        "old_token_can_authorize_new_root": false
-      },
-      {
-        "case_id": "workspace_cleanup_or_restore",
-        "package_backed": true,
-        "transition_sequence": ["cleanup", "restore"],
-        "fresh_activation_required_at_each_transition": true,
-        "old_token_can_authorize_new_root": false
+        "accepted": false,
+        "reason_code": "agent_package_target_mismatch",
+        "session_remains_recoverable": true
       },
       {
         "case_id": "plain_conversation_workspace_transition",
@@ -197,523 +249,45 @@
       }
     ]
   },
-  "host_launch_authorization_contract": {
-    "renderer_extra_is_authority": false,
-    "enforcement_owner": "opl_aion_shell_OPL_adapter_or_OPL_owned_local_gateway",
-    "aioncore_write_policy": "forbid_OPL_domain_semantics_ledger_DB_migration_or_launch_gate_changes",
-    "current_p0_case_ids": ["normal_shell_create_missing_or_invalid_activation", "warmup_or_send_stale_workspace", "normal_shell_valid_activation", "plain_conversation"],
-    "deferred_hardening": {
-      "release_blocking_for_26_7_14": false,
-      "preferred_future_owner": "OPL_owned_local_gateway_or_Electron_main_adapter_or_upstream_generic_authorization_hook",
-      "case_ids": ["direct_create_missing_or_forged_binding", "same_token_two_conversations", "clone_reuses_source_extra", "exact_create_retry_same_conversation"]
-    },
+  "normal_shell_launch_contract": {
     "cases": [
       {
-        "case_id": "normal_shell_create_missing_or_invalid_activation",
-        "scope": "current_p0",
-        "package_backed": true,
+        "case_id": "framework_blocked",
         "accepted": false,
-        "downstream_create_called": false,
-        "write_delta": {
-          "conversation": 0,
-          "message": 0,
-          "turn": 0,
-          "runtime_task": 0
-        }
+        "reason_code": "agent_package_launch_blocked"
       },
       {
-        "case_id": "direct_create_missing_or_forged_binding",
-        "scope": "deferred_hardening",
-        "package_backed": true,
+        "case_id": "malformed_activation",
         "accepted": false,
-        "write_delta": {
-          "conversation": 0,
-          "message": 0,
-          "turn": 0,
-          "runtime_task": 0
-        }
+        "reason_code": "agent_package_activation_invalid"
       },
       {
-        "case_id": "same_token_two_conversations",
-        "scope": "deferred_hardening",
-        "package_backed": true,
-        "concurrent_accept_count": 1,
-        "loser_write_delta": {
-          "conversation": 0,
-          "message": 0,
-          "turn": 0,
-          "runtime_task": 0
-        }
-      },
-      {
-        "case_id": "clone_reuses_source_extra",
-        "scope": "deferred_hardening",
-        "package_backed": true,
+        "case_id": "selection_drift",
         "accepted": false,
-        "fresh_use_boundary_action_required": true,
-        "write_delta": {
-          "conversation": 0,
-          "message": 0,
-          "turn": 0,
-          "runtime_task": 0
-        }
+        "reason_code": "agent_package_selection_mismatch"
       },
       {
-        "case_id": "warmup_or_send_stale_workspace",
-        "scope": "current_p0",
-        "package_backed": true,
+        "case_id": "version_drift",
         "accepted": false,
-        "protected_boundaries": ["conversation_warmup", "runtime_ensure", "turn_or_message_send_build"],
-        "write_delta": {
-          "message": 0,
-          "turn": 0,
-          "runtime_task": 0
-        }
+        "reason_code": "agent_package_version_mismatch"
       },
       {
-        "case_id": "exact_create_retry_same_conversation",
-        "scope": "deferred_hardening",
-        "package_backed": true,
+        "case_id": "target_drift",
+        "accepted": false,
+        "reason_code": "agent_package_target_mismatch"
+      },
+      {
+        "case_id": "valid_package_launch",
         "accepted": true,
-        "second_binding_delta": 0
-      },
-      {
-        "case_id": "normal_shell_valid_activation",
-        "scope": "current_p0",
-        "package_backed": true,
-        "accepted": true,
-        "deep_validation_passed": true,
-        "canonical_use_receipt_ref_forwarded": true,
-        "canonical_use_binding_persisted": true,
-        "downstream_create_called": true
+        "selected_identity_matches": true,
+        "target_matches": true
       },
       {
         "case_id": "plain_conversation",
-        "scope": "current_p0",
         "package_backed": false,
-        "accepted": true,
-        "activation_required": false
+        "activation_required": false,
+        "accepted": true
       }
     ]
-  },
-  "exposure_state": {
-    "fields": ["enabled", "visibility"],
-    "visibility_values": ["visible", "hidden"],
-    "codex_visible_derivation": "enabled === true && visibility === 'visible'",
-    "transitions": {
-      "hide": {"enabled": "preserve", "visibility": "hidden"},
-      "unhide": {"enabled": "preserve", "visibility": "visible"},
-      "disable": {"enabled": false, "visibility": "preserve"},
-      "enable": {"enabled": true, "visibility": "preserve"}
-    },
-    "receipt_post_state_fields": ["enabled", "visibility"]
-  },
-  "cases": [
-    {
-      "case_id": "ready_visible_enabled",
-      "package_role": "standard_agent",
-      "installed": true,
-      "exposure": {"enabled": true, "visibility": "visible", "codex_visible": true},
-      "readiness": {"status": "ready", "launch_allowed": true, "reason": null},
-      "ordinary_discovery_visible": true,
-      "explicit_launch_allowed_after_activation": true,
-      "activation_must_execute": true,
-      "use_boundary_action": {
-        "surface_kind": "opl_agent_package_use_boundary_action.v1",
-        "action_id": "agent_package_activate",
-        "action_ref": "app_state.actions#agent_package_activate",
-        "payload": {
-          "package_id": "example-ready-agent",
-          "scope": "workspace",
-          "target_workspace": "/Users/example/OPL Workspace",
-          "use_boundary_id": "use-boundary:example-ready-agent:workspace:1"
-        },
-        "required_payload_fields": ["package_id", "scope", "target_workspace or target_quest", "use_boundary_id"],
-        "confirmation_required": false,
-        "use_boundary_id": "use-boundary:example-ready-agent:workspace:1",
-        "directory_entry_ref": "app_state.agent_packages.directory.entries[package_id=example-ready-agent]",
-        "readiness_ref": "app_state.agent_packages.directory.entries[package_id=example-ready-agent].readiness",
-        "enabled": true,
-        "preparation_status": "ready",
-        "reason_code": "use_boundary_reconciliation_ready",
-        "blocker": null
-      }
-    },
-    {
-      "case_id": "verification_deferred_visible_enabled",
-      "package_role": "standard_agent",
-      "installed": true,
-      "exposure": {"enabled": true, "visibility": "visible", "codex_visible": true},
-      "readiness": {"status": "verification_deferred", "launch_allowed": false, "reason": "live_verification_deferred"},
-      "ordinary_discovery_visible": true,
-      "explicit_launch_allowed_after_activation": true,
-      "activation_must_execute": true,
-      "use_boundary_action": {
-        "surface_kind": "opl_agent_package_use_boundary_action.v1",
-        "action_id": "agent_package_activate",
-        "action_ref": "app_state.actions#agent_package_activate",
-        "payload": {
-          "package_id": "example-deferred-agent",
-          "scope": "workspace",
-          "target_workspace": "/Users/example/OPL Workspace",
-          "use_boundary_id": "use-boundary:example-deferred-agent:workspace:1"
-        },
-        "required_payload_fields": ["package_id", "scope", "target_workspace or target_quest", "use_boundary_id"],
-        "confirmation_required": false,
-        "use_boundary_id": "use-boundary:example-deferred-agent:workspace:1",
-        "directory_entry_ref": "app_state.agent_packages.directory.entries[package_id=example-deferred-agent]",
-        "readiness_ref": "app_state.agent_packages.directory.entries[package_id=example-deferred-agent].readiness",
-        "enabled": true,
-        "preparation_status": "verification_deferred",
-        "reason_code": "live_verification_deferred",
-        "blocker": null
-      }
-    },
-    {
-      "case_id": "activation_required_visible_enabled",
-      "package_role": "standard_agent",
-      "installed": true,
-      "exposure": {"enabled": true, "visibility": "visible", "codex_visible": true},
-      "readiness": {"status": "activation_required", "launch_allowed": false, "reason": "package_activation_required"},
-      "ordinary_discovery_visible": true,
-      "explicit_launch_allowed_after_activation": true,
-      "activation_must_execute": true,
-      "use_boundary_action": {
-        "surface_kind": "opl_agent_package_use_boundary_action.v1",
-        "action_id": "agent_package_activate",
-        "action_ref": "app_state.actions#agent_package_activate",
-        "payload": {
-          "package_id": "example-unactivated-agent",
-          "scope": "workspace",
-          "target_workspace": "/Users/example/OPL Workspace",
-          "use_boundary_id": "use-boundary:example-unactivated-agent:workspace:1"
-        },
-        "required_payload_fields": ["package_id", "scope", "target_workspace or target_quest", "use_boundary_id"],
-        "confirmation_required": false,
-        "use_boundary_id": "use-boundary:example-unactivated-agent:workspace:1",
-        "directory_entry_ref": "app_state.agent_packages.directory.entries[package_id=example-unactivated-agent]",
-        "readiness_ref": "app_state.agent_packages.directory.entries[package_id=example-unactivated-agent].readiness",
-        "enabled": true,
-        "preparation_status": "activation_required",
-        "reason_code": "scope_reconciliation_required",
-        "blocker": null
-      }
-    },
-    {
-      "case_id": "disabled_visible_standard_agent",
-      "package_role": "standard_agent",
-      "installed": true,
-      "exposure": {"enabled": false, "visibility": "visible", "codex_visible": false},
-      "readiness": {"status": "attention_needed", "launch_allowed": false, "reason": "package_disabled"},
-      "ordinary_discovery_visible": true,
-      "explicit_launch_allowed_after_activation": false,
-      "activation_must_execute": false,
-      "expected_receipt_delta": {"scope": 0, "use": 0, "activation": 0},
-      "use_boundary_action": {
-        "surface_kind": "opl_agent_package_use_boundary_action.v1",
-        "action_id": "agent_package_activate",
-        "action_ref": "app_state.actions#agent_package_activate",
-        "payload": {
-          "package_id": "example-disabled-agent",
-          "scope": "workspace",
-          "target_workspace": "/Users/example/OPL Workspace",
-          "use_boundary_id": "use-boundary:example-disabled-agent:workspace:1"
-        },
-        "required_payload_fields": ["package_id", "scope", "target_workspace or target_quest", "use_boundary_id"],
-        "confirmation_required": false,
-        "use_boundary_id": "use-boundary:example-disabled-agent:workspace:1",
-        "directory_entry_ref": "app_state.agent_packages.directory.entries[package_id=example-disabled-agent]",
-        "readiness_ref": "app_state.agent_packages.directory.entries[package_id=example-disabled-agent].readiness",
-        "enabled": false,
-        "preparation_status": "blocked",
-        "reason_code": "package_disabled",
-        "blocker": {
-          "code": "package_disabled",
-          "source_ref": "opl://agent-package-lock/example-disabled-agent",
-          "reason": "Package execution is disabled by the canonical installed lock.",
-          "recovery_action_ref": "app_state.actions#agent_package_preferences_set"
-        }
-      }
-    },
-    {
-      "case_id": "hidden_enabled_standard_agent",
-      "package_role": "standard_agent",
-      "installed": true,
-      "exposure": {"enabled": true, "visibility": "hidden", "codex_visible": false},
-      "readiness": {"status": "ready", "launch_allowed": true, "reason": null},
-      "ordinary_discovery_visible": false,
-      "explicit_launch_allowed_after_activation": true,
-      "retained_shortcut_launch_allowed_after_activation": true,
-      "activation_must_execute": true,
-      "use_boundary_action": {
-        "surface_kind": "opl_agent_package_use_boundary_action.v1",
-        "action_id": "agent_package_activate",
-        "action_ref": "app_state.actions#agent_package_activate",
-        "payload": {
-          "package_id": "example-hidden-agent",
-          "scope": "workspace",
-          "target_workspace": "/Users/example/OPL Workspace",
-          "use_boundary_id": "use-boundary:example-hidden-agent:workspace:1"
-        },
-        "required_payload_fields": ["package_id", "scope", "target_workspace or target_quest", "use_boundary_id"],
-        "confirmation_required": false,
-        "use_boundary_id": "use-boundary:example-hidden-agent:workspace:1",
-        "directory_entry_ref": "app_state.agent_packages.directory.entries[package_id=example-hidden-agent]",
-        "readiness_ref": "app_state.agent_packages.directory.entries[package_id=example-hidden-agent].readiness",
-        "enabled": true,
-        "preparation_status": "ready",
-        "reason_code": "use_boundary_reconciliation_ready",
-        "blocker": null
-      }
-    },
-    {
-      "case_id": "not_installed_standard_agent",
-      "package_role": "standard_agent",
-      "installed": false,
-      "exposure": null,
-      "readiness": {"status": "not_installed", "launch_allowed": false, "reason": "package_not_installed"},
-      "ordinary_discovery_visible": true,
-      "explicit_launch_allowed_after_activation": false,
-      "activation_must_execute": false,
-      "use_boundary_action": null
-    },
-    {
-      "case_id": "installed_capability_package",
-      "package_role": "framework_capability_package",
-      "installed": true,
-      "exposure": {"enabled": true, "visibility": "visible", "codex_visible": true},
-      "readiness": {"status": "ready", "launch_allowed": false, "reason": "agent_launch_not_applicable"},
-      "ordinary_discovery_visible": false,
-      "explicit_launch_allowed_after_activation": false,
-      "activation_must_execute": false,
-      "use_boundary_action": null
-    },
-    {
-      "case_id": "installed_workflow_profile",
-      "package_role": "workflow_profile",
-      "installed": true,
-      "exposure": {"enabled": true, "visibility": "visible", "codex_visible": true},
-      "readiness": {"status": "ready", "launch_allowed": false, "reason": "agent_launch_not_applicable"},
-      "ordinary_discovery_visible": false,
-      "explicit_launch_allowed_after_activation": false,
-      "activation_must_execute": false,
-      "use_boundary_action": null
-    },
-    {
-      "case_id": "installed_standard_agent_lock_corrupt",
-      "package_role": "standard_agent",
-      "installed": true,
-      "exposure": {"enabled": true, "visibility": "visible", "codex_visible": true},
-      "readiness": {"status": "repair_required", "launch_allowed": false, "reason": "package_lock_corrupt"},
-      "ordinary_discovery_visible": true,
-      "explicit_launch_allowed_after_activation": false,
-      "activation_must_execute": false,
-      "expected_receipt_delta": {"scope": 0, "use": 0, "activation": 0},
-      "use_boundary_action": {
-        "surface_kind": "opl_agent_package_use_boundary_action.v1",
-        "action_id": "agent_package_activate",
-        "action_ref": "app_state.actions#agent_package_activate",
-        "payload": {
-          "package_id": "example-corrupt-agent",
-          "scope": "workspace",
-          "target_workspace": "/Users/example/OPL Workspace",
-          "use_boundary_id": "use-boundary:example-corrupt-agent:workspace:1"
-        },
-        "required_payload_fields": ["package_id", "scope", "target_workspace or target_quest", "use_boundary_id"],
-        "confirmation_required": false,
-        "use_boundary_id": "use-boundary:example-corrupt-agent:workspace:1",
-        "directory_entry_ref": "app_state.agent_packages.directory.entries[package_id=example-corrupt-agent]",
-        "readiness_ref": "app_state.agent_packages.directory.entries[package_id=example-corrupt-agent].readiness",
-        "enabled": false,
-        "preparation_status": "blocked",
-        "reason_code": "package_lock_corrupt",
-        "blocker": {
-          "code": "package_lock_corrupt",
-          "source_ref": "file:///Users/example/.one-person-lab/agent-package-locks.json",
-          "reason": "The installed package lock cannot be trusted.",
-          "recovery_action_ref": "app_state.actions#agent_package_repair"
-        }
-      }
-    },
-    {
-      "case_id": "recovery_in_progress",
-      "package_role": "standard_agent",
-      "installed": true,
-      "exposure": {"enabled": true, "visibility": "visible", "codex_visible": true},
-      "readiness": {"status": "repair_required", "launch_allowed": false, "reason": "package_recovery_in_progress"},
-      "ordinary_discovery_visible": true,
-      "explicit_launch_allowed_after_activation": false,
-      "activation_must_execute": false,
-      "read_surfaces_are_pure": ["fast", "list", "status", "dry_run"],
-      "owner_token_exposed": false,
-      "expected_receipt_delta": {"scope": 0, "use": 0, "activation": 0},
-      "framework_recovery_projection": {
-        "surface_kind": "opl_agent_package_recovery_readback",
-        "vocabulary_version": "opl-agent-package-recovery.v1",
-        "status": "recovery_in_progress",
-        "launch_blocked_reason": "package_recovery_in_progress",
-        "managed_update_lock": {"status": "held"},
-        "recovery_action": "wait_for_the_current_package_mutation_to_finish",
-        "recovery_action_state": "wait_only",
-        "recovery_action_executable": false,
-        "recovery_action_ref": null
-      },
-      "status_index_repair_action": {
-        "action_id": "agent_package_repair",
-        "command_ref": "opl app action execute --action agent_package_repair --payload <json> --json",
-        "enabled": false,
-        "reason_code": "recovery_in_progress"
-      },
-      "directory_repair_action": null,
-      "use_boundary_action": {
-        "surface_kind": "opl_agent_package_use_boundary_action.v1",
-        "action_id": "agent_package_activate",
-        "action_ref": "app_state.actions#agent_package_activate",
-        "payload": {
-          "package_id": "example-recovery-active-agent",
-          "scope": "workspace",
-          "target_workspace": "/Users/example/OPL Workspace",
-          "use_boundary_id": "use-boundary:example-recovery-active-agent:workspace:1"
-        },
-        "required_payload_fields": ["package_id", "scope", "target_workspace or target_quest", "use_boundary_id"],
-        "confirmation_required": false,
-        "use_boundary_id": "use-boundary:example-recovery-active-agent:workspace:1",
-        "directory_entry_ref": "app_state.agent_packages.directory.entries[package_id=example-recovery-active-agent]",
-        "readiness_ref": "app_state.agent_packages.directory.entries[package_id=example-recovery-active-agent].readiness",
-        "enabled": false,
-        "preparation_status": "blocked",
-        "reason_code": "package_recovery_in_progress",
-        "blocker": {
-          "code": "package_recovery_in_progress",
-          "source_ref": "opl://agent-package-recovery/example-recovery-active-agent",
-          "reason": "A live Framework mutation owner is completing exact recovery.",
-          "recovery_action_state": "wait_only",
-          "recovery_action_executable": false,
-          "recovery_action_ref": null
-        }
-      }
-    },
-    {
-      "case_id": "recovery_required_executable",
-      "package_role": "standard_agent",
-      "installed": true,
-      "exposure": {"enabled": true, "visibility": "visible", "codex_visible": true},
-      "readiness": {"status": "repair_required", "launch_allowed": false, "reason": "package_recovery_required"},
-      "ordinary_discovery_visible": true,
-      "explicit_launch_allowed_after_activation": false,
-      "activation_must_execute": false,
-      "read_surfaces_are_pure": ["fast", "list", "status", "dry_run"],
-      "owner_token_exposed": false,
-      "expected_receipt_delta": {"scope": 0, "use": 0, "activation": 0},
-      "framework_recovery_projection": {
-        "surface_kind": "opl_agent_package_recovery_readback",
-        "vocabulary_version": "opl-agent-package-recovery.v1",
-        "status": "recovery_required",
-        "launch_blocked_reason": "package_recovery_required",
-        "managed_update_lock": {"status": "orphaned"},
-        "recovery_action": "retry_a_non_dry_package_mutation",
-        "recovery_action_state": "executable",
-        "recovery_action_executable": true,
-        "recovery_action_ref": "app_state.actions#agent_package_repair"
-      },
-      "status_index_repair_action": {
-        "action_id": "agent_package_repair",
-        "command_ref": "opl app action execute --action agent_package_repair --payload <json> --json",
-        "enabled": true,
-        "reason_code": "recovery_required"
-      },
-      "directory_repair_action": {
-        "action_id": "agent_package_repair",
-        "action_ref": "app_state.actions#agent_package_repair",
-        "payload": {"package_id": "example-recovery-agent"},
-        "required_payload_fields": ["package_id"],
-        "confirmation_required": true
-      },
-      "use_boundary_action": {
-        "surface_kind": "opl_agent_package_use_boundary_action.v1",
-        "action_id": "agent_package_activate",
-        "action_ref": "app_state.actions#agent_package_activate",
-        "payload": {
-          "package_id": "example-recovery-agent",
-          "scope": "workspace",
-          "target_workspace": "/Users/example/OPL Workspace",
-          "use_boundary_id": "use-boundary:example-recovery-agent:workspace:1"
-        },
-        "required_payload_fields": ["package_id", "scope", "target_workspace or target_quest", "use_boundary_id"],
-        "confirmation_required": false,
-        "use_boundary_id": "use-boundary:example-recovery-agent:workspace:1",
-        "directory_entry_ref": "app_state.agent_packages.directory.entries[package_id=example-recovery-agent]",
-        "readiness_ref": "app_state.agent_packages.directory.entries[package_id=example-recovery-agent].readiness",
-        "enabled": false,
-        "preparation_status": "blocked",
-        "reason_code": "package_recovery_required",
-        "blocker": {
-          "code": "package_recovery_required",
-          "source_ref": "opl://agent-package-recovery/example-recovery-agent",
-          "reason": "Framework recovery must complete before package execution.",
-          "recovery_action_state": "executable",
-          "recovery_action_executable": true,
-          "recovery_action_ref": "app_state.actions#agent_package_repair"
-        }
-      }
-    },
-    {
-      "case_id": "recovery_required_manual_owner_intervention",
-      "package_role": "standard_agent",
-      "installed": true,
-      "exposure": {"enabled": true, "visibility": "visible", "codex_visible": true},
-      "readiness": {"status": "repair_required", "launch_allowed": false, "reason": "package_recovery_required"},
-      "ordinary_discovery_visible": true,
-      "explicit_launch_allowed_after_activation": false,
-      "activation_must_execute": false,
-      "read_surfaces_are_pure": ["fast", "list", "status", "dry_run"],
-      "owner_token_exposed": false,
-      "expected_receipt_delta": {"scope": 0, "use": 0, "activation": 0},
-      "framework_recovery_projection": {
-        "surface_kind": "opl_agent_package_recovery_readback",
-        "vocabulary_version": "opl-agent-package-recovery.v1",
-        "status": "recovery_required",
-        "launch_blocked_reason": "package_recovery_required",
-        "managed_update_lock": {"status": "stale_live_owner"},
-        "recovery_action": "verify_the_lock_owner_then_run_explicit_stale_lock_repair",
-        "recovery_action_state": "manual_owner_intervention_required",
-        "recovery_action_executable": false,
-        "recovery_action_ref": null
-      },
-      "status_index_repair_action": {
-        "action_id": "agent_package_repair",
-        "command_ref": "opl app action execute --action agent_package_repair --payload <json> --json",
-        "enabled": false,
-        "reason_code": "recovery_owner_intervention_required"
-      },
-      "directory_repair_action": null,
-      "use_boundary_action": {
-        "surface_kind": "opl_agent_package_use_boundary_action.v1",
-        "action_id": "agent_package_activate",
-        "action_ref": "app_state.actions#agent_package_activate",
-        "payload": {
-          "package_id": "example-recovery-manual-agent",
-          "scope": "workspace",
-          "target_workspace": "/Users/example/OPL Workspace",
-          "use_boundary_id": "use-boundary:example-recovery-manual-agent:workspace:1"
-        },
-        "required_payload_fields": ["package_id", "scope", "target_workspace or target_quest", "use_boundary_id"],
-        "confirmation_required": false,
-        "use_boundary_id": "use-boundary:example-recovery-manual-agent:workspace:1",
-        "directory_entry_ref": "app_state.agent_packages.directory.entries[package_id=example-recovery-manual-agent]",
-        "readiness_ref": "app_state.agent_packages.directory.entries[package_id=example-recovery-manual-agent].readiness",
-        "enabled": false,
-        "preparation_status": "blocked",
-        "reason_code": "package_recovery_required",
-        "blocker": {
-          "code": "package_recovery_required",
-          "source_ref": "opl://agent-package-recovery/example-recovery-manual-agent",
-          "reason": "The recorded lock owner requires explicit operator verification.",
-          "recovery_action_state": "manual_owner_intervention_required",
-          "recovery_action_executable": false,
-          "recovery_action_ref": null
-        }
-      }
-    }
-  ]
+  }
 }

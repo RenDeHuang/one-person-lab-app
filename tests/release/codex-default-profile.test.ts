@@ -550,10 +550,6 @@ test('session-first contracts reject directory ownership, stale cache authority,
     (contract: any) => {
       contract.first_launch_readiness_policy.ordinary_shell_recovery_policy.workspace_controls.send_scoped_local_inputs_remain_available = false;
     },
-    (contract: any) => {
-      contract.interaction_baseline.conversation_scope.local_worktree_lifecycle
-        .projection_transaction.operation_start_workspace_source = 'aionui_projection';
-    },
   ]) {
     const contract = structuredClone(readJson('contracts/app-gui-product-contract.json'));
     mutate(contract);

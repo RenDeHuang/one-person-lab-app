@@ -283,7 +283,6 @@
             "installability",
             "readiness",
             "exposure",
-            "use_boundary_action",
             "recommended_action",
             "recommended_action_ref",
             "available_actions",
@@ -330,168 +329,10 @@
             "git"
           ]
         },
-        "use_boundary_activation_contract": {
-          "projection_source": "app_state.agent_packages.directory.entries[].use_boundary_action",
-          "projection_scope": "installed_standard_agent_only",
-          "projection_independence": "independent_from_lifecycle_available_actions_recommended_action_and_status_index_activation_action",
-          "request_scoped_projection_policy": {
-            "authority": "one-person-lab",
-            "result_surface_kind": "opl_agent_package_session_launch_projection.v1",
-            "result_schema_ref": "contracts/agent-package-surfaces.schema.json#/$defs/agent_package_session_launch_projection",
-            "producer_cli_route": null,
-            "producer_cli_route_policy": "Framework_owned_and_not_App_authority_until_published",
-            "applies_to": ["guid_home_launch", "package_backed_session_workspace_transition"],
-            "settings_global_status_source": "app_state.paths.workspace_root_path_allowed",
-            "session_target_source": "normalized_selected_local_directory",
-            "request_fields": ["package_id", "target_workspace"],
-            "projectless_policy": "fail_closed_without_projection_or_activation",
-            "projectless_reason_code": "agent_package_target_workspace_required",
-            "global_workspace_root_policy": "read_only_unchanged_and_never_call_workspace_root_set",
-            "projection_read_policy": "request_scoped_fast_or_prepare_and_zero_write",
-            "result_required_fields": ["surface_kind", "package_id", "normalized_target_workspace", "directory", "directory_entry_ref", "readiness_ref", "use_boundary_action", "projection_currentness_ref", "writes_performed", "global_workspace_root_unchanged"],
-            "action_source": "result.directory.entries[package_id].use_boundary_action",
-            "action_execution_policy": "execute_exact_projected_action_id_and_payload_byte_for_byte",
-            "cache_and_inflight_identity_fields": ["surface_kind", "package_id", "normalized_target_workspace"],
-            "stale_response_policy": "discard_response_when_any_cache_or_inflight_identity_field_no_longer_matches_current_selection",
-            "workspace_transition_policy": "B_to_C_requires_fresh_C_projection_before_warmup_runtime_ensure_or_send",
-            "host_target_policy": "validate_the_same_normalized_target_and_use_binding.target_root_before_any_conversation_message_turn_or_runtime_task_write"
-          },
-          "action_id": "agent_package_activate",
-          "action_route": "opl app action execute --action agent_package_activate --payload <json> --json",
-          "trigger": "before_every_installed_package_workspace_or_quest_launch",
-          "payload_fields": ["package_id", "scope", "target_workspace", "target_quest", "use_boundary_id"],
-          "scope_values": ["workspace", "quest"],
-          "scope_target_policy": {
-            "workspace": "target_workspace_required_target_quest_forbidden",
-            "quest": "target_quest_required_target_workspace_forbidden"
-          },
-          "result_fields": ["launch_allowed", "launch_blocked_reason", "use_boundary_id", "use_receipt_ref", "use_binding"],
-          "launch_policy": "launch_only_when_launch_allowed_true_and_use_receipt_ref_and_use_binding_are_present",
-          "result_contract": {
-            "launch_allowed_true": "requires_nonempty_use_receipt_ref_and_canonical_use_binding",
-            "launch_allowed_false": "requires_typed_launch_blocked_reason_and_allows_use_receipt_ref_and_use_binding_only_as_null_or_absent",
-            "canonical_binding_field": "use_binding",
-            "temporary_compatibility_alias": "package_use_binding",
-            "temporary_alias_policy": "read_only_during_bounded_migration_only_when_canonical_use_binding_is_also_present_and_identical; alias_only_never_satisfies_the_App_contract"
-          },
-          "transition_policy": {
-            "prelaunch_transition_reason_codes": ["scope_reconciliation_required", "live_verification_deferred", "use_boundary_reconciliation_ready"],
-            "hard_block_reason_codes": ["package_not_installed", "package_disabled", "package_status_read_failed", "status_unavailable", "package_dependency_missing", "package_dependency_incompatible", "physical_surface_not_ready", "runtime_source_missing", "runtime_source_incompatible", "carrier_authority_invalid", "package_lock_corrupt", "package_ledger_corrupt", "package_recovery_in_progress", "package_recovery_required"],
-            "hard_block_policy": "do_not_execute_use_boundary_action_and_preserve_typed_reason_source_ref_and_recovery_action",
-            "blocked_result_write_policy": "every_non_scope_hard_block_has_zero_scope_use_and_activation_receipt_delta; partial_success_is_forbidden",
-            "success_policy": "create_or_launch_only_after_live_result_has_launch_allowed_true_complete_use_receipt_ref_and_deeply_consistent_use_binding"
-          },
-          "recovery_state_policy": {
-            "framework_vocabulary": {
-              "owner": "one-person-lab",
-              "surface_kind": "opl_agent_package_recovery_readback",
-              "vocabulary_version": "opl-agent-package-recovery.v1",
-              "status_envelope_version": "g2",
-              "directory_surface_kind": "opl_agent_package_directory.v1",
-              "private_alias_normalization_allowed": false
-            },
-            "read_surfaces": ["fast", "list", "status", "all_dry_run"],
-            "writes_performed": false,
-            "owner_token_exposed": false,
-            "states": {
-              "recovery_in_progress": "live_exact_global_lock_owner_wait_without_shell_recovery",
-              "recovery_required": "orphan_or_pending_markers_recoverable_by_the_next_non_dry_Framework_mutation"
-            },
-            "launch_blocked_reason_by_status": {
-              "recovery_in_progress": "package_recovery_in_progress",
-              "recovery_required": "package_recovery_required"
-            },
-            "action_projection_fields": ["recovery_action_state", "recovery_action_executable", "recovery_action_ref"],
-            "action_availability_policy": "consume_the_Framework_projection_without_deriving_action_availability_from_bare_status_or_private_aliases",
-            "repair_action_policy": {
-              "recovery_in_progress": {
-                "launch_blocked_reason": "package_recovery_in_progress",
-                "required_recovery_action_state": "wait_only",
-                "required_recovery_action_executable": false,
-                "required_recovery_action_ref": null,
-                "status_index_repair_enabled": false,
-                "status_index_reason_code": "recovery_in_progress"
-              },
-              "recovery_required_executable": {
-                "readback_status": "recovery_required",
-                "launch_blocked_reason": "package_recovery_required",
-                "required_recovery_action_state": "executable",
-                "required_recovery_action_executable": true,
-                "required_recovery_action_ref": "app_state.actions#agent_package_repair",
-                "status_index_repair_enabled": true,
-                "status_index_reason_code": "recovery_required",
-                "execution_policy": "execute_only_the_exact_Framework_directory_projected_agent_package_repair_action"
-              },
-              "recovery_required_manual_owner_intervention": {
-                "readback_status": "recovery_required",
-                "managed_update_lock_statuses": ["stale_live_owner", "invalid"],
-                "launch_blocked_reason": "package_recovery_required",
-                "required_recovery_action_state": "manual_owner_intervention_required",
-                "required_recovery_action_executable": false,
-                "required_recovery_action_ref": null,
-                "status_index_repair_enabled": false,
-                "status_index_reason_code": "recovery_owner_intervention_required"
-              }
-            }
-          },
-          "role_policy": {
-            "standard_agent": "installed_entries_require_use_boundary_action_even_when_blocked",
-            "framework_capability_package": "use_boundary_action_must_be_null_and_no_Agent_launch_entry_is_allowed",
-            "workflow_profile": "use_boundary_action_must_be_null_and_no_Agent_launch_entry_is_allowed"
-          },
-          "exposure_policy": {
-            "execution_authority": "directory.entries[].exposure.enabled",
-            "discovery_authority": "directory.entries[].exposure.visibility",
-            "disabled": "package_disabled_launch_allowed_false_and_no_activation_or_use_execution",
-            "hidden_enabled": "removed_from_ordinary_discovery_and_Home_default_but_explicit_direct_or_retained_shortcut_launch_remains_eligible",
-            "enable": "restore_execution_without_changing_visibility"
-          },
-          "action_identity_policy": "execute_the_Framework_projected_action_id_and_payload_byte_for_byte_including_use_boundary_id",
-          "single_use_policy": {
-            "token_scope": "globally_unique_within_agent_package_use_ledger",
-            "first_execution_policy": "under_the_Framework_package_mutation_lock_check_use_boundary_id_before_any_currentness_scope_use_or_activation_write",
-            "identity_fields": ["package_id", "scope", "target_workspace_or_target_quest", "directory_entry_ref", "readiness_ref", "root_package.package_id", "root_package.package_lock_ref", "root_package.package_version", "root_package.manifest_sha256", "root_package.content_digest", "dependency_closure_digest", "provider_packages"],
-            "exact_retry_policy": "same_token_and_exact_identity_returns_the_original_canonical_use_receipt_and_use_binding_with_zero_new_writes",
-            "conflict_reason_codes": ["agent_package_use_boundary_replay_conflict", "agent_package_use_boundary_replay_stale"],
-            "conflict_policy": "same_token_with_request_identity_drift_is_replay_conflict; same_token_after_current_lock_or_closure_drift_is_replay_stale; both_are_zero_write",
-            "concurrency_policy": "two_concurrent_exact_invocations_commit_one_receipt_and_the_other_returns_the_same_idempotent_readback",
-            "receipt_index_policy": "canonical_use_ledger_is_directly_indexed_by_use_boundary_id_and_never_guessed_by_receipt_ref_scan",
-            "refresh_policy": "every_terminal_attempt_refreshes_canonical_fast_state; a_new_launch_uses_a_fresh_projected_token",
-            "consumed_action_policy": "a_consumed_projected_action_cannot_authorize_a_new_conversation; exact_IPC_retry_may_only_recover_the_original_result"
-          },
-          "workspace_transition_policy": {
-            "applies_to": "package_backed_canonical_sessions",
-            "stale_on": ["workspace_root_change", "local_to_worktree", "worktree_to_local", "workspace_cleanup", "workspace_restore"],
-            "old_binding_policy": "immediately_mark_stale_or_pending_and_never_authorize_warmup_runtime_ensure_turn_or_message_for_the_new_target_root",
-            "reactivation_trigger": "before_any_warmup_runtime_ensure_turn_or_message_send_after_the_transition",
-            "reactivation_source": "fresh_canonical_fast_state_use_boundary_action_projected_for_the_new_target_root",
-            "success_policy": "persist_the_canonical_activation_and_use_binding_with_target_root_equal_to_the_new_workspace_before_warmup_runtime_ensure_or_send",
-            "failure_policy": "zero_warmup_zero_runtime_task_zero_turn_zero_message_and_preserve_a_recoverable_consistent_session_state",
-            "handoff_transaction_policy": "if_activation_runs_inside_handoff_then_later_thread_or_projection_failure_requires_typed_compensation_or_an_explicit_noncurrent_orphan_receipt; never_display_the_old_binding_as_current",
-            "plain_conversation_policy": "unchanged"
-          },
-          "host_launch_authorization_policy": {
-            "enforcement_owner": "opl_aion_shell_OPL_adapter_or_OPL_owned_local_gateway",
-            "aioncore_write_policy": "forbid_OPL_domain_semantics_ledger_DB_migration_or_launch_gate_changes",
-            "current_p0_scope": "normal_OPL_shell_package_launch_path",
-            "renderer_extra_role": "persistence_and_transport_only_after_deep_validation_not_independent_authority",
-            "protected_boundaries": ["conversation_create", "conversation_warmup", "runtime_ensure", "turn_or_message_send_build"],
-            "required_validation": ["canonical_use_receipt_and_use_binding", "normalized_request_scoped_projection_target_and_use_binding.target_root_match_current_conversation_workspace", "root_lock_manifest_content_and_dependency_provider_closure_identity", "use_boundary_action_is_the_exact_fresh_Framework_projected_action_for_this_package_and_target"],
-            "normal_path_failure_policy": "block_before_calling_create_warmup_runtime_ensure_or_send_and_preserve_zero_downstream_write",
-            "persistence_policy": "persist_and_forward_canonical_use_receipt_ref_and_use_binding_only_after_deep_validation",
-            "plain_conversation_policy": "unchanged",
-            "deferred_hardening": {
-              "release_blocking_for_26_7_14": false,
-              "preferred_future_owner": "OPL_owned_local_gateway_or_Electron_main_adapter_or_upstream_generic_authorization_hook",
-              "aioncore_domain_semantics_allowed": false,
-              "items": ["direct_renderer_or_main_process_bypass", "same_token_cross_conversation_atomic_binding", "exact_create_retry", "conversation_clone_authorization", "AionCore_internal_cron_team_or_channel_launch_gate"]
-            }
-          },
-          "currentness_policy": "framework_reconciles_latest_stable_compatible_package_closure_once_at_use_boundary_and_pins_use_binding_for_the_session",
-          "package_identity_policy": "generic_package_id_no_hardcoded_agent_or_capability_package_ids",
-          "app_role": "prepare_then_launch_using_framework_readback_without_owning_package_currentness_or_materialization"
+        "agent_package_activation_contract": {
+          "contract_ref": "contracts/app-gui-product-contract.json#agent_package_activation_policy"
         },
-        "projection_authority_policy": "directory.entries owns catalog membership plus installed, activated, installability, coarse readiness, orthogonal exposure, lifecycle actions, and the independent exact use_boundary_action; status_index adds diagnostics only and cannot synthesize or promote launch authority",
+        "projection_authority_policy": "directory.entries owns catalog membership plus installed, activated, installability, coarse readiness, orthogonal exposure, and lifecycle actions; status_index adds diagnostics only and cannot override directory lifecycle or action availability",
         "fallback_policy": {
           "manageable_collection_fallback": null,
           "diagnostic_enrichment_sources": [
@@ -642,7 +483,6 @@
     },
     "pin_role": "shell_ui_metadata_only",
     "local_reset_role": "retain_existing_aionui_conversation_semantics_not_app_server_history_reset",
-    "same_idempotency_key_retry_policy": "return_first_receipt_and_result_with_ok_true_without_second_dispatch",
     "workspace_directory_role": "new_session_initial_cwd_mutable_cwd_grouping_and_visible_metadata_only_not_authorization_domain",
     "row_identity": "canonical_thread_id",
     "duplicate_row_per_canonical_thread_allowed": false,
@@ -662,101 +502,9 @@
     "implementation_status": "target_not_proven_across_both_shells"
   },
   "codex_local_worktree_handoff_policy": {
-    "state": "same_host_lifecycle_source_implemented_cross_host_protocol_owner_blocked",
-    "authority": "codex_core_app_server_and_existing_git_integration",
-    "permission_boundary": {
-      "workspace_directory_role": "new_session_initial_cwd_mutable_cwd_and_sidebar_grouping_only_not_authorization_domain",
-      "filesystem_command_network_authority": "codex_permission_approval_and_sandbox_only",
-      "opl_cross_directory_block_or_confirmation_allowed": false
-    },
-    "new_task": {
-      "surface": "home_new_task",
-      "locality_options": ["local", "worktree"],
-      "starting_branch_selectable": true,
-      "worktree_action": "create_or_reuse_managed_worktree",
-      "adapter": "gitWorkspace.inspect_and_ensureManagedWorktree",
-      "failure_policy": "show_unavailable_or_error_without_silent_local_fallback"
-    },
-    "existing_session": {
-      "surface": "conversation_environment",
-      "scope": "any_user_selected_same_host_local_directory_including_local_worktree_handoff",
-      "actions": ["switch_working_directory", "local_to_worktree", "worktree_to_local"],
-      "directory_picker": "system_directory_picker",
-      "eligible_thread_states": ["not_loaded", "idle"],
-      "unavailable_thread_states": ["running", "archived", "system_error"],
-      "protocol": "thread/settings/update",
-      "payload_fields": ["threadId", "cwd"],
-      "session_identity_policy": "preserve_canonical_thread_id_transcript_and_turn_history_without_fork_or_copy",
-      "sidebar_grouping_effect": "reclassify_same_session_by_selected_cwd_without_copy_or_fork",
-      "status_limit_role": "codex_protocol_state_limit_not_workspace_permission",
-      "failure_policy": "show_unavailable_or_error_without_silent_fallback"
-    },
-    "metadata": {
-      "schema": "opl_workspace_handoff.v1",
-      "fields": [
-        "locality",
-        "localWorkspace",
-        "worktreePath",
-        "taskId",
-        "startRef",
-        "startCommit",
-        "worktreeRetention"
-      ],
-      "worktree_retention_value": "preserve_for_reuse_until_snapshotted_cleanup",
-      "retention_value_role": "default_preserve_policy_and_cleanup_eligibility_marker_not_snapshot_receipt",
-      "storage_role": "aionui_projection_metadata_only_not_git_or_thread_authority"
-    },
-    "projection_transaction": {
-      "order": ["codex_thread_cwd", "aionui_conversation_projection"],
-      "codex_update": "thread/settings/update",
-      "projection_fields": ["conversation.extra.workspace", "sidebar_project_group"],
-      "immutable_identity_field": "canonical_thread_id",
-      "operation_start_workspace_source": "app_server_canonical_thread_cwd_then_projection_fallback_only_if_unavailable",
-      "no_op_comparison_source": "operation_start_workspace_not_mutable_projection",
-      "rollback_target": "operation_start_workspace",
-      "projection_failure_policy": "best_effort_restore_previous_codex_cwd_and_show_error",
-      "silent_success_allowed": false
-    },
-    "worktree": {
-      "root": "$CODEX_HOME/worktrees",
-      "selected_branch_head_state": "detached",
-      "selected_local_uncommitted_changes": "apply_to_new_worktree",
-      "include_file": ".worktreeinclude",
-      "task_reuse_policy": "same_task_reuses_same_worktree",
-      "default_retention": "preserve_for_reuse"
-    },
-    "snapshot_restore": {
-      "state": "source_implemented_git_native_snapshot_receipt",
-      "user_visible_actions": ["create_restore_point_and_remove", "restore_worktree"],
-      "snapshot_scope": ["head", "branch_or_detached_head", "index", "tracked_worktree", "untracked", "ignored"],
-      "receipt_schema": "opl_worktree_snapshot_receipt.v1",
-      "durable_git_ref_namespace": "refs/opl/worktree-snapshots",
-      "restore_target_policy": "original_managed_worktree_path_or_deterministic_replacement",
-      "restore_conflict_policy": "typed_failure_without_overwrite_or_partial_success",
-      "completion_claim_allowed": true
-    },
-    "cleanup": {
-      "state": "source_implemented_explicit_managed_worktree_only",
-      "current_action_visible": true,
-      "eligible_scope": "deterministic_codex_managed_worktree_only",
-      "snapshot_precondition": "durable_snapshot_receipt_before_remove",
-      "branch_or_snapshot_ref_deletion_allowed": false,
-      "automatic_cleanup_claimed": false,
-      "failure_policy": "typed_failure_without_data_loss_or_silent_success"
-    },
-    "cross_host": {
-      "state": "required_target_protocol_owner_blocked_unavailable",
-      "blocker_code": "remote_host_handoff_owner_surface_unavailable",
-      "primary_owner": "codex_app_remote_connections_host_handoff_owner",
-      "product_contract_owner": "one_person_lab_app",
-      "shell_role": "blocked_thin_adapter",
-      "required_transport": "connected_host_task_handoff_with_git_state_transfer_destination_readback_and_disconnect_recovery",
-      "direct_message_allowed": false,
-      "success_projection_allowed": false
-    },
-    "shell_role": "thin_adapter_only",
-    "duplicate_git_store_allowed": false,
-    "duplicate_thread_store_allowed": false
+    "contract_ref": "contracts/app-gui-product-contract.json#interaction_baseline.conversation_scope.local_worktree_lifecycle",
+    "bridge_role": "transport_only",
+    "state_authority": "codex_core_app_server_and_existing_git_integration"
   },
   "codex_review_surface_policy": {
     "state": "source_partial_last_turn_and_custom_target_instructions_implemented_review_focus_and_inline_comments_protocol_blocked",

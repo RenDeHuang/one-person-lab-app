@@ -1,454 +1,68 @@
 {
   "surface_kind": "opl_app_agent_package_activation_result_examples.v1",
   "authority": "one-person-lab-app",
+  "release_scope": "trusted_local_thin_shell",
   "schema_ref": "contracts/agent-package-surfaces.schema.json#/$defs/agent_package_activation_result",
-  "canonical_binding_field": "use_binding",
-  "framework_binding_admission": {
-    "status": "pending_exact_Framework_producer_checkpoint",
-    "producer_repository": "gaofeng21cn/one-person-lab",
-    "producer_commit": null,
-    "source_type_ref": "src/modules/connect/agent-package-registry-parts/types.ts#AgentPackageUseBinding",
-    "surface_kind": "opl_agent_package_use_binding.v1",
-    "canonical_case_id": "ready_live",
-    "fixture_role": "App_design_authority_only_not_cross_repo_admission_evidence",
-    "cross_repo_admission_satisfied": false,
-    "required_admission_consumers": ["App_schema", "App_validator", "Shell_parser"],
-    "admission_policy": "regenerate_from_the_exact_future_Framework_activation_producer_and_pass_the_bytes_unchanged_through_App_schema_validator_and_Shell_parser"
+  "framework_component": {
+    "status": "canonical_release_cohort_reference",
+    "repository": "gaofeng21cn/one-person-lab",
+    "commit": "e10ec54f29b8a7d5b54c9a44f49ba4d5c492f252",
+    "fixture_role": "minimal_live_consumer_examples_not_an_exact_producer_fixture",
+    "exact_producer_fixture": false,
+    "installed_runtime_readback_required": true
   },
-  "framework_recovery_vocabulary_version": "opl-agent-package-recovery.v1",
   "cases": [
     {
       "case_id": "ready_live",
-      "result": {
-        "surface_kind": "opl_agent_package_activation",
-        "status": "activated",
-        "dry_run": false,
-        "writes_performed": true,
+      "selected": {
         "package_id": "example-ready-agent",
-        "operational_ready": true,
-        "launch_allowed": true,
-        "launch_blocked_reason": null,
-        "use_boundary_id": "use-boundary:example-ready-agent:workspace:1",
-        "use_receipt_ref": "opl://agent-package-use/example-ready-agent/workspace/1",
-        "use_binding": {
-          "surface_kind": "opl_agent_package_use_binding.v1",
-          "use_boundary_id": "use-boundary:example-ready-agent:workspace:1",
-          "use_receipt_ref": "opl://agent-package-use/example-ready-agent/workspace/1",
-          "root_package": {
-            "package_id": "example-ready-agent",
-            "package_version": "1.0.0",
-            "owner_language_version": {"scheme": "pep440", "value": "1.0.0"},
-            "package_lock_ref": "opl://agent-package-lock/example-ready-agent/1.0.0",
-            "manifest_sha256": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
-            "content_digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
-            "source_artifact_ref": null,
-            "artifact_digest": null,
-            "owner_source_commit": null,
-            "carrier_authority": null
-          },
-          "provider_packages": [
-            {
-              "package_id": "example-ready-provider",
-              "package_version": "1.2.0",
-              "owner_language_version": null,
-              "package_lock_ref": "opl://agent-package-lock/example-ready-provider/1.2.0",
-              "manifest_sha256": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
-              "content_digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
-              "source_artifact_ref": null,
-              "artifact_digest": null,
-              "owner_source_commit": null,
-              "carrier_authority": null
-            }
-          ],
-          "dependency_closure_digest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
-          "freshness_mode": "channel_verified",
-          "latest_verified": true,
-          "checked_at": "2026-07-15T08:00:00.000Z",
-          "refresh_outcome": "current",
-          "channel_ref": "opl://agent-package-channel/example-ready-agent/stable",
-          "channel_digest": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
-          "scope": "workspace",
-          "target_root": "/Users/example/OPL Workspace",
-          "core_skill_tree_digest": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
-          "skill_tree_digest": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
-          "core_readiness": {
-            "status": "current",
-            "required_skill_ids": ["example-ready-core"],
-            "materialized_skill_ids": ["example-ready-core"]
-          },
-          "specialty_exposure": {
-            "status": "current",
-            "declared_skill_ids": ["example-ready-specialty"],
-            "materialized_skill_ids": ["example-ready-specialty"],
-            "missing_skill_ids": []
-          }
-        }
-      }
-    },
-    {
-      "case_id": "exact_retry_live",
-      "replay_of_case_id": "ready_live",
-      "invocation_write_delta": {
-        "package_transaction": 0,
-        "scope_receipt": 0,
-        "use_receipt": 0,
-        "activation_receipt": 0
+        "package_version": "1.0.0",
+        "normalized_target_workspace": "/Users/example/Workspace A"
       },
       "result": {
-        "surface_kind": "opl_agent_package_activation",
         "status": "activated",
-        "dry_run": false,
-        "writes_performed": true,
         "package_id": "example-ready-agent",
         "operational_ready": true,
         "launch_allowed": true,
-        "launch_blocked_reason": null,
-        "use_boundary_id": "use-boundary:example-ready-agent:workspace:1",
-        "use_receipt_ref": "opl://agent-package-use/example-ready-agent/workspace/1",
-        "use_binding": {
+        "package_lock": {
+          "package_id": "example-ready-agent",
+          "package_version": "1.0.0"
+        },
+        "package_use_binding": {
           "surface_kind": "opl_agent_package_use_binding.v1",
-          "use_boundary_id": "use-boundary:example-ready-agent:workspace:1",
-          "use_receipt_ref": "opl://agent-package-use/example-ready-agent/workspace/1",
           "root_package": {
             "package_id": "example-ready-agent",
-            "package_version": "1.0.0",
-            "owner_language_version": {"scheme": "pep440", "value": "1.0.0"},
-            "package_lock_ref": "opl://agent-package-lock/example-ready-agent/1.0.0",
-            "manifest_sha256": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
-            "content_digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
-            "source_artifact_ref": null,
-            "artifact_digest": null,
-            "owner_source_commit": null,
-            "carrier_authority": null
+            "package_version": "1.0.0"
           },
-          "provider_packages": [
-            {
-              "package_id": "example-ready-provider",
-              "package_version": "1.2.0",
-              "owner_language_version": null,
-              "package_lock_ref": "opl://agent-package-lock/example-ready-provider/1.2.0",
-              "manifest_sha256": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
-              "content_digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
-              "source_artifact_ref": null,
-              "artifact_digest": null,
-              "owner_source_commit": null,
-              "carrier_authority": null
-            }
-          ],
-          "dependency_closure_digest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
-          "freshness_mode": "channel_verified",
-          "latest_verified": true,
-          "checked_at": "2026-07-15T08:00:00.000Z",
-          "refresh_outcome": "current",
-          "channel_ref": "opl://agent-package-channel/example-ready-agent/stable",
-          "channel_digest": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
           "scope": "workspace",
-          "target_root": "/Users/example/OPL Workspace",
-          "core_skill_tree_digest": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
-          "skill_tree_digest": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
-          "core_readiness": {
-            "status": "current",
-            "required_skill_ids": ["example-ready-core"],
-            "materialized_skill_ids": ["example-ready-core"]
-          },
-          "specialty_exposure": {
-            "status": "current",
-            "declared_skill_ids": ["example-ready-specialty"],
-            "materialized_skill_ids": ["example-ready-specialty"],
-            "missing_skill_ids": []
-          }
+          "target_root": "/Users/example/Workspace A"
         }
       }
     },
     {
       "case_id": "already_ready_live",
+      "selected": {
+        "package_id": "example-ready-agent",
+        "package_version": "1.0.0",
+        "normalized_target_workspace": "/Users/example/Workspace A"
+      },
       "result": {
-        "surface_kind": "opl_agent_package_activation",
         "status": "already_activated",
-        "dry_run": false,
-        "writes_performed": true,
-        "package_id": "example-current-agent",
-        "operational_ready": true,
-        "launch_allowed": true,
-        "launch_blocked_reason": null,
-        "use_boundary_id": "use-boundary:example-current-agent:workspace:2",
-        "use_receipt_ref": "opl://agent-package-use/example-current-agent/workspace/2",
-        "use_binding": {
-          "surface_kind": "opl_agent_package_use_binding.v1",
-          "use_boundary_id": "use-boundary:example-current-agent:workspace:2",
-          "use_receipt_ref": "opl://agent-package-use/example-current-agent/workspace/2",
-          "root_package": {
-            "package_id": "example-current-agent",
-            "package_version": "1.0.0",
-            "owner_language_version": null,
-            "package_lock_ref": "opl://agent-package-lock/example-current-agent/1.0.0",
-            "manifest_sha256": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
-            "content_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-            "source_artifact_ref": null,
-            "artifact_digest": null,
-            "owner_source_commit": null,
-            "carrier_authority": null
-          },
-          "provider_packages": [],
-          "dependency_closure_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-          "freshness_mode": "offline_lkg",
-          "latest_verified": false,
-          "checked_at": "2026-07-15T08:01:00.000Z",
-          "refresh_outcome": "recovered_last_known_good",
-          "channel_ref": null,
-          "channel_digest": null,
-          "scope": "workspace",
-          "target_root": "/Users/example/OPL Workspace",
-          "core_skill_tree_digest": null,
-          "skill_tree_digest": null,
-          "core_readiness": {
-            "status": "not_required",
-            "required_skill_ids": [],
-            "materialized_skill_ids": []
-          },
-          "specialty_exposure": {
-            "status": "not_required",
-            "declared_skill_ids": [],
-            "materialized_skill_ids": [],
-            "missing_skill_ids": []
-          }
-        }
-      }
-    },
-    {
-      "case_id": "dry_run",
-      "result": {
-        "surface_kind": "opl_agent_package_activation",
-        "status": "validated_no_write",
-        "dry_run": true,
-        "writes_performed": false,
-        "package_id": "example-ready-agent",
-        "operational_ready": false,
-        "launch_allowed": false,
-        "launch_blocked_reason": "dry_run_no_launch",
-        "use_boundary_id": "use-boundary:example-ready-agent:workspace:dry-run",
-        "use_receipt_ref": null,
-        "use_binding": null
-      }
-    },
-    {
-      "case_id": "not_installed",
-      "result": {
-        "surface_kind": "opl_agent_package_activation",
-        "status": "blocked",
-        "dry_run": false,
-        "writes_performed": false,
-        "package_id": "example-missing-agent",
-        "operational_ready": false,
-        "launch_allowed": false,
-        "launch_blocked_reason": "package_not_installed",
-        "scope_receipt_delta": 0,
-        "use_receipt_delta": 0,
-        "activation_receipt_delta": 0,
-        "use_boundary_id": "use-boundary:example-missing-agent:workspace:1",
-        "use_receipt_ref": null,
-        "use_binding": null
-      }
-    },
-    {
-      "case_id": "dependency_blocked",
-      "result": {
-        "surface_kind": "opl_agent_package_activation",
-        "status": "blocked",
-        "dry_run": false,
-        "writes_performed": false,
-        "package_id": "example-blocked-agent",
-        "operational_ready": false,
-        "launch_allowed": false,
-        "launch_blocked_reason": "package_dependency_missing",
-        "scope_receipt_delta": 0,
-        "use_receipt_delta": 0,
-        "activation_receipt_delta": 0,
-        "use_boundary_id": "use-boundary:example-blocked-agent:workspace:1",
-        "use_receipt_ref": null,
-        "use_binding": null
-      }
-    },
-    {
-      "case_id": "disabled",
-      "result": {
-        "surface_kind": "opl_agent_package_activation",
-        "status": "blocked",
-        "dry_run": false,
-        "writes_performed": false,
-        "package_id": "example-disabled-agent",
-        "operational_ready": false,
-        "launch_allowed": false,
-        "launch_blocked_reason": "package_disabled",
-        "scope_receipt_delta": 0,
-        "use_receipt_delta": 0,
-        "activation_receipt_delta": 0,
-        "use_boundary_id": "use-boundary:example-disabled-agent:workspace:1",
-        "use_receipt_ref": null,
-        "use_binding": null
-      }
-    },
-    {
-      "case_id": "recovery_in_progress",
-      "result": {
-        "surface_kind": "opl_agent_package_activation",
-        "status": "blocked",
-        "dry_run": false,
-        "writes_performed": false,
-        "package_id": "example-recovery-active-agent",
-        "operational_ready": false,
-        "launch_allowed": false,
-        "launch_blocked_reason": "package_recovery_in_progress",
-        "scope_receipt_delta": 0,
-        "use_receipt_delta": 0,
-        "activation_receipt_delta": 0,
-        "use_boundary_id": "use-boundary:example-recovery-active-agent:workspace:1",
-        "use_receipt_ref": null,
-        "use_binding": null
-      }
-    },
-    {
-      "case_id": "recovery_required_executable",
-      "result": {
-        "surface_kind": "opl_agent_package_activation",
-        "status": "blocked",
-        "dry_run": false,
-        "writes_performed": false,
-        "package_id": "example-recovery-agent",
-        "operational_ready": false,
-        "launch_allowed": false,
-        "launch_blocked_reason": "package_recovery_required",
-        "scope_receipt_delta": 0,
-        "use_receipt_delta": 0,
-        "activation_receipt_delta": 0,
-        "use_boundary_id": "use-boundary:example-recovery-agent:workspace:1",
-        "use_receipt_ref": null,
-        "use_binding": null
-      }
-    },
-    {
-      "case_id": "recovery_required_manual_owner_intervention",
-      "result": {
-        "surface_kind": "opl_agent_package_activation",
-        "status": "blocked",
-        "dry_run": false,
-        "writes_performed": false,
-        "package_id": "example-recovery-manual-agent",
-        "operational_ready": false,
-        "launch_allowed": false,
-        "launch_blocked_reason": "package_recovery_required",
-        "scope_receipt_delta": 0,
-        "use_receipt_delta": 0,
-        "activation_receipt_delta": 0,
-        "use_boundary_id": "use-boundary:example-recovery-manual-agent:workspace:1",
-        "use_receipt_ref": null,
-        "use_binding": null
-      }
-    },
-    {
-      "case_id": "replay_identity_conflict",
-      "result": {
-        "surface_kind": "opl_agent_package_activation",
-        "status": "blocked",
-        "dry_run": false,
-        "writes_performed": false,
-        "package_id": "example-ready-agent",
-        "operational_ready": false,
-        "launch_allowed": false,
-        "launch_blocked_reason": "agent_package_use_boundary_replay_conflict",
-        "scope_receipt_delta": 0,
-        "use_receipt_delta": 0,
-        "activation_receipt_delta": 0,
-        "use_boundary_id": "use-boundary:example-ready-agent:workspace:1",
-        "use_receipt_ref": null,
-        "use_binding": null
-      }
-    },
-    {
-      "case_id": "replay_currentness_stale",
-      "result": {
-        "surface_kind": "opl_agent_package_activation",
-        "status": "blocked",
-        "dry_run": false,
-        "writes_performed": false,
-        "package_id": "example-ready-agent",
-        "operational_ready": false,
-        "launch_allowed": false,
-        "launch_blocked_reason": "agent_package_use_boundary_replay_stale",
-        "scope_receipt_delta": 0,
-        "use_receipt_delta": 0,
-        "activation_receipt_delta": 0,
-        "use_boundary_id": "use-boundary:example-ready-agent:workspace:1",
-        "use_receipt_ref": null,
-        "use_binding": null
-      }
-    },
-    {
-      "case_id": "fresh_token_after_refresh",
-      "previous_use_boundary_id": "use-boundary:example-ready-agent:workspace:1",
-      "result": {
-        "surface_kind": "opl_agent_package_activation",
-        "status": "already_activated",
-        "dry_run": false,
-        "writes_performed": true,
         "package_id": "example-ready-agent",
         "operational_ready": true,
         "launch_allowed": true,
-        "launch_blocked_reason": null,
-        "use_boundary_id": "use-boundary:example-ready-agent:workspace:2",
-        "use_receipt_ref": "opl://agent-package-use/example-ready-agent/workspace/2",
+        "package_lock": {
+          "package_id": "example-ready-agent",
+          "package_version": "1.0.0"
+        },
         "use_binding": {
           "surface_kind": "opl_agent_package_use_binding.v1",
-          "use_boundary_id": "use-boundary:example-ready-agent:workspace:2",
-          "use_receipt_ref": "opl://agent-package-use/example-ready-agent/workspace/2",
           "root_package": {
             "package_id": "example-ready-agent",
-            "package_version": "1.0.0",
-            "owner_language_version": {"scheme": "pep440", "value": "1.0.0"},
-            "package_lock_ref": "opl://agent-package-lock/example-ready-agent/1.0.0",
-            "manifest_sha256": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
-            "content_digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
-            "source_artifact_ref": null,
-            "artifact_digest": null,
-            "owner_source_commit": null,
-            "carrier_authority": null
+            "package_version": "1.0.0"
           },
-          "provider_packages": [
-            {
-              "package_id": "example-ready-provider",
-              "package_version": "1.2.0",
-              "owner_language_version": null,
-              "package_lock_ref": "opl://agent-package-lock/example-ready-provider/1.2.0",
-              "manifest_sha256": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
-              "content_digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
-              "source_artifact_ref": null,
-              "artifact_digest": null,
-              "owner_source_commit": null,
-              "carrier_authority": null
-            }
-          ],
-          "dependency_closure_digest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
-          "freshness_mode": "channel_verified",
-          "latest_verified": true,
-          "checked_at": "2026-07-15T08:02:00.000Z",
-          "refresh_outcome": "current",
-          "channel_ref": "opl://agent-package-channel/example-ready-agent/stable",
-          "channel_digest": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
           "scope": "workspace",
-          "target_root": "/Users/example/OPL Workspace",
-          "core_skill_tree_digest": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
-          "skill_tree_digest": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
-          "core_readiness": {
-            "status": "current",
-            "required_skill_ids": ["example-ready-core"],
-            "materialized_skill_ids": ["example-ready-core"]
-          },
-          "specialty_exposure": {
-            "status": "current",
-            "declared_skill_ids": ["example-ready-specialty"],
-            "materialized_skill_ids": ["example-ready-specialty"],
-            "missing_skill_ids": []
-          }
+          "target_root": "/Users/example/Workspace A"
         }
       }
     }
