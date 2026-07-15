@@ -164,14 +164,14 @@ export function validateGuiFrameworkSurfaces(guiContract, releaseChannel, instal
     throw new Error('App GUI must not classify full operator drilldown as a Runtime surface');
   }
   if (
-    advancedFullDrilldown.policy !== 'settings_advanced_or_release_evidence_only'
+    advancedFullDrilldown.policy !== 'settings_maintenance_diagnostics_or_release_evidence_only'
     || advancedFullDrilldown.runtime_page_allowed !== false
   ) {
-    throw new Error('App GUI full drilldown must be limited to Settings Advanced or release evidence');
+    throw new Error('App GUI full drilldown must be limited to Maintenance diagnostics or release evidence');
   }
   assertDeepEqualJson(
     advancedFullDrilldown.consumer_surfaces,
-    ['/settings/advanced', 'release_evidence_tooling'],
+    ['/settings/environment?section=diagnostics', 'release_evidence_tooling'],
     'App GUI advanced full drilldown consumer surfaces',
   );
   validateStateIndexSidecarProjectionContract(
@@ -282,7 +282,6 @@ export function validateGuiFrameworkSurfaces(guiContract, releaseChannel, instal
         'capabilities',
         'environment',
         'settings_theme',
-        'advanced',
         'about',
         'update',
         'settings_resources',
@@ -299,7 +298,7 @@ export function validateGuiFrameworkSurfaces(guiContract, releaseChannel, instal
         'agent_capability',
         'local_environment_status',
         'appearance_preference',
-        'advanced_diagnostic_link',
+        'maintenance_diagnostic_link',
         'about_update_fact',
         'provider_readiness_repair',
       ],

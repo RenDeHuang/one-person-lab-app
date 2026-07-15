@@ -83,11 +83,11 @@ The ordinary package manager UX checklist is:
   action;
 - keep receipt refs, `physical_surface`, paths, manifest refs, cache config,
   marketplace config, workflow refs, connector refs, and resource refs in the
-  detail panel or Advanced diagnostics, not primary row density;
+  detail panel or Maintenance diagnostics, not primary row density;
 - use the same dry-run/confirmation/receipt pattern for hide, unhide, disable,
   enable, update, repair, uninstall, manifest URL install, and launch;
-- keep registry-selected install on its projected action payload; Advanced direct
-  manifest installation requires the user to choose an explicit `trust_tier`,
+- keep registry-selected install on its projected action payload; the Agents
+  advanced manifest-URL entry requires the user to choose an explicit `trust_tier`,
   never defaults to a verified tier, and sends `{ manifest_url, trust_tier }`;
 - show `rollback_ref` only as a recovery reference; do not add an App-owned
   rollback verb.
@@ -326,7 +326,7 @@ binding GUI and page-state validation to the same map.
 
 | Semantic lane | Canonical source | Aion display role | Native Workbench display role | Action boundary |
 | --- | --- | --- | --- | --- |
-| Runtime | `opl app state --profile fast --json#app_state.operator.workbench.work_item_projection_v2` | Minimal WorkItem status, Stage, Attempt, Token, next action, and archive/restore | Same minimal WorkItem status contract | Only `work_item_visibility_set` through `opl app action execute`; selected-item detail stays projection-bound, while full operator drilldown belongs to Settings Advanced. |
+| Runtime | `opl app state --profile fast --json#app_state.operator.workbench.work_item_projection_v2` | Minimal WorkItem status, Stage, Attempt, Token, next action, and archive/restore | Same minimal WorkItem status contract | Only `work_item_visibility_set` through `opl app action execute`; selected-item detail stays projection-bound, while full operator drilldown belongs to Maintenance diagnostics. |
 | Task | `opl app state --profile fast --json#app_state.operator.workbench.task_run_projection_v2.tasks[]` | Current task slice in conversation and right inspector | Task detail and artifact/provenance workbench pane | Task action, follow-up, export, and workflow-skill candidate refs only; no artifact body, owner receipt, or domain verdict authority. |
 | Package | `opl app state --profile fast --json#app_state.agent_packages.directory.entries + app_state.agent_packages.status_index` | Settings Agents package directory rows | Packages panel rows | Package lifecycle and Home shortcut preference actions through Framework-backed App action refs; `rollback_ref` is displayed as a recovery reference, not an App-owned rollback verb; diagnostic enrichments cannot define rows or actions. |
 

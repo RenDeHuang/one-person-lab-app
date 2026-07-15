@@ -71,7 +71,7 @@ Sites/Chat 等入口可以隐藏或拒绝；它们不构成 OPL 功能回归。
 | Current execution context | Project 在 rail、branch/locality 在 Environment、active capability、project context refs 与 attachment 在 composer 附近；缺 workspace 不禁用显式本地输入。 | GUI contract、workspace/App state refs。 |
 | Model/reasoning control | Home 与普通 conversation 共用一个紧凑 App-owned model/reasoning menu。 | `contracts/app-product-profile.json`；文档不复制 allowlist。 |
 | Permission/access mode | 在 Home 与 conversation composer 以自动化和文件权限的用户语言显示，保留安全透明度但不暴露 provider/backend。 | GUI contract、workspace/access policy。 |
-| Purpose selection | 从 Home starter 选择科研、基金、演示、写书等工作目的；composer 只保留 active capability chip。安装、Home 显示和 lifecycle 管理进入 Settings → Agents & Capabilities。 | Product profile、GUI contract、route receipt policy。 |
+| Purpose selection | 从 Home starter 选择科研、基金、演示、写书等工作目的；composer 只保留 active capability chip。Package 安装、Home 显示和 lifecycle 管理进入 Settings → Agents；Skills/Plugins/Flow 管理进入 Settings → Capabilities。 | Product profile、GUI contract、route receipt policy。 |
 | Assistant-scoped capabilities | 只显示当前 package/purpose 允许的 required/optional skills。 | App packaged skill profiles 与 ordinary capability policy。 |
 | Package launch readiness | 不可用 starter 保持可识别但 disabled，显示用户可理解的原因和允许动作；发送或启动前必须通过 Framework-owned use-boundary activation，失败时 fail closed。 | Agent package activation policy、Framework state/action receipt。 |
 | User-input and permission prompt | Codex 需要 command/file/permission approval、补充信息或 MCP elicitation 时，显示为相应 target thread 的 pending state并通过 typed bridge 回答；pending 本身不记为 dispatch failure。当前 delivery audit 不冒充独立持久化 approval receipt。 | Codex App Server request/response；OPL typed host bridge。 |
@@ -121,15 +121,16 @@ GUI contract 与 Settings Control Plane 拥有。
 | 功能组 | 用户结果 | Authority / machine owner |
 | --- | --- | --- |
 | Overview | 判断 App 当前是否可用，以及最重要的下一步。 | Settings Control Plane、fast App state。 |
-| Access | 通过 OPL Gateway 账户登录或手工 API Key 配置模型访问；账户连接时查看脱敏身份、余额、Token/实际成本、专用 Key 状态和数据新鲜度。 | Framework Gateway account projection/secret bridge、App access contracts；密码不进入 App state 或 generic action。 |
-| Workspace | 查看、切换、验证工作目录和权限。 | Workspace state/action。 |
+| Account & Gateway | 登录 OPL Gateway 或配置手工 API Key；账户连接时查看脱敏身份、余额、Token/实际成本、专用 Key 状态和数据新鲜度。 | Framework Gateway account projection/secret bridge；密码不进入 App state 或 generic action。 |
+| Models | 查看模型访问来源、默认模型、推理偏好与 Codex CLI 版本，不复制 Gateway 账户和凭据控制。 | Framework model access projection、App model/reasoning preference。 |
+| Workspace & Personalization | 查看、切换、验证工作目录，配置 App 日志目录、用户 AGENTS.md 与 OPL App context。 | Workspace state/action、App host configuration。 |
 | Agents | 管理可运行 Agent packages、依赖就绪、Home shortcuts 与 launch/lifecycle。 | Agent package state/action 与 product profile。 |
 | Capabilities | 分组管理 OPL Flow dependency closure 内的推荐 Skill/Plugin，以及手工或第三方 Skill/Plugin；Flow 不拥有第二套 updater。 | Settings control plane、OPL Packages closure 与 Codex/shell registries。 |
-| Resources & Connections | 查看本机、远程、托管资源与连接 refs。 | Framework/Gateway/Fabric/Console refs；App 只展示。 |
+| Resources & Connections | 查看本机、远程、托管资源与外部连接 refs；内置 OPL Gateway 不在这里重复。 | Framework/Connect/Fabric/Console refs；App 只展示。 |
 | Maintenance & Updates | 查看 App、runtime、packages、Codex Surface 和本机服务维护动作。 | Managed update/status/action contracts。 |
 | Data & Storage | 查看空间、数据分类、preview 和安全 cleanup action。 | App-owned storage lifecycle state/action。 |
 | Preferences | 配置语言、主题、通知、启动、密度、字体和 motion。 | App settings/profile；不承载 runtime diagnostics。 |
-| Advanced / About / Update details | 按需查看 raw refs、logs、版本、链接和 release/update details。 | Secondary routes、release/settings contracts。 |
+| Maintenance diagnostics / About | 在 Maintenance 按需查看 raw Framework refs 与日志；About 查看版本、链接和 update summary。 | Maintenance owner surface、About secondary route、release/settings contracts。 |
 
 Legacy/upstream routes 只作为 compatibility redirects，不构成功能目录中的新 ordinary
 页面。Settings 详细设计见

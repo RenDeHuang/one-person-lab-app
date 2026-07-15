@@ -15,7 +15,7 @@
   "full_state_command": "opl app state --profile full --json",
   "full_state_policy": "diagnostic_or_release_evidence_only",
   "full_detail_command": "opl runtime app-operator-drilldown --detail full --json",
-  "full_detail_consumer_surfaces": ["/settings/advanced", "release_evidence_tooling"],
+  "full_detail_consumer_surfaces": ["/settings/environment?section=diagnostics", "release_evidence_tooling"],
   "runtime_page_full_detail_allowed": false,
   "default_read_surface_policy": {
     "default_projection": "opl_current_owner_delta",
@@ -187,7 +187,7 @@
     "canonical_action_surface": "opl app action execute --action <action_id> [--payload json] [--dry-run] --json",
     "advanced_detail_surface": {
       "command": "opl runtime app-operator-drilldown --detail full --json",
-      "consumer_surfaces": ["/settings/advanced", "release_evidence_tooling"],
+      "consumer_surfaces": ["/settings/environment?section=diagnostics", "release_evidence_tooling"],
       "runtime_page_allowed": false
     },
     "shells": {
@@ -1127,8 +1127,9 @@
       "settings_owner_routes": {
         "software_updates": "/settings/environment?section=updates",
         "platform_repair": "/settings/environment?section=services",
-        "module_management": "/settings/capabilities",
-        "diagnostics": "/settings/advanced"
+        "agent_package_management": "/settings/agents",
+        "capability_management": "/settings/capabilities",
+        "diagnostics": "/settings/environment?section=diagnostics"
       }
     },
     "owner_roles": {
@@ -1214,7 +1215,7 @@
     "model_chain": ["Agent", "Project", "Work Item", "Visibility", "Stage", "Action", "Evidence"],
     "projection_owner_boundary": {
       "framework": "joins canonical agent, project, work-item inventory, lifecycle, execution, usage, conditions, freshness, visibility, action, timeline, and evidence refs",
-      "app": "defines field placement, display allowlist, validation, and advanced-only policy",
+      "app": "defines field placement, display allowlist, validation, and diagnostics-only policy",
       "shell": "renders the projection and opens details without deriving runtime truth"
     },
     "required_fields": [
@@ -1539,10 +1540,10 @@
         "usage",
         "next_action"
       ],
-      "diagnostics_policy": "absent_from_runtime_route_to_settings_advanced",
-      "diagnostics_owner_surface": "/settings/advanced",
+      "diagnostics_policy": "absent_from_runtime_route_to_maintenance_diagnostics",
+      "diagnostics_owner_surface": "/settings/environment?section=diagnostics",
       "artifacts_owner_surface": "right_context_inspector",
-      "timeline_owner_surface": "/settings/advanced"
+      "timeline_owner_surface": "/settings/environment?section=diagnostics"
     },
     "stage_popover_contract": {
       "trigger_field": "execution.current_stage_display_name",
@@ -1719,32 +1720,15 @@
     },
     "settings_capabilities_surface": {
       "surface": "settings_capabilities",
-      "source": "same_task_awareness_projection_refs_aggregated_for_capabilities",
+      "source": "same_task_awareness_projection_capability_and_workflow_refs_only",
       "required_ref_fields": [
         "capability_health_refs",
-        "connector_readiness_refs",
         "workflow_refs",
         "export_bundle_action_ref",
-        "resource_source_refs",
-        "gateway_status_ref",
-        "environment_ref",
-        "environment_template_ref",
-        "environment_version_ref",
-        "environment_source_ref",
-        "environment_task_refs",
-        "console_policy_ref",
-        "storage_ref",
-        "resource_receipt_ref",
-        "cost_estimate_ref",
         "candidate_report_refs",
         "workflow_skill_candidate_refs"
       ],
-      "display_policy": "capability_health_connector_workflow_and_export_refs_only_no_skill_body_no_domain_verdict",
-      "connector_grouping_policy": "OPL Connect groups connector readiness refs by literature databases, research databases, storage, tools/APIs, internal systems, and compute schedulers while keeping connector bodies and credentials outside App authority",
-      "resource_grouping_policy": {
-        "grouping_source": "OPL Connect/Fabric resource refs",
-        "allowed_groups": ["OPL Connect", "Fabric resources"]
-      },
+      "display_policy": "capability_health_workflow_and_candidate_refs_only_no_agent_package_gateway_or_resource_fields",
       "action_policy": "export_bundle_action_ref_may_open_app_action_dry_run_receipt_only_until_domain_owner_execute_exists",
       "refs_only": true,
       "skill_body_access": false,
@@ -1960,7 +1944,7 @@
     "source": "app_state.operator.workbench.task_drilldowns",
     "authority": "opl_framework_shared_project_progress_projection",
     "display_policy": "project_progress_refs_secondary_no_module_runtime_dirty_as_project",
-    "consumer_surface": "/settings/advanced",
+    "consumer_surface": "/settings/environment?section=diagnostics",
     "runtime_page_visible": false,
     "required_fields": [
       "task_id",
@@ -1982,8 +1966,8 @@
       "next_owner",
       "last_progress_at"
     ],
-    "diagnostics_treatment": "settings_advanced_only",
-    "safe_actions_treatment": "settings_advanced_only",
+    "diagnostics_treatment": "maintenance_diagnostics_only",
+    "safe_actions_treatment": "maintenance_diagnostics_only",
     "active_project_line_projection": {
       "source": "app_state.operator.workbench.activity_center.active_projects + app_state.operator.visual_ref_groups.active_project_refs",
       "authority": "opl_framework_refs_only_project_line_projection",
@@ -2058,7 +2042,7 @@
     "source": "app_state.operator.workbench.task_drilldowns.progress_delta_classification",
     "authority": "opl_framework_shared_progress_projection",
     "display_policy": "classification_only_no_domain_artifact_body",
-    "consumer_surface": "/settings/advanced",
+    "consumer_surface": "/settings/environment?section=diagnostics",
     "runtime_page_visible": false,
     "required_fields": [
       "deliverable_progress_delta",
@@ -2122,9 +2106,9 @@
     "kernel_owner": "one-person-lab",
     "storage_kind": "sqlite_sidecar_read_model_cache",
     "app_access_mode": "read_only_projection_consumer",
-    "display_policy": "settings_advanced_state_index_refs_only_no_sqlite_write_no_domain_truth_claims",
-    "settings_owner_surface": "/settings/advanced",
-    "consumer_surface": "/settings/advanced",
+    "display_policy": "maintenance_diagnostics_state_index_refs_only_no_sqlite_write_no_domain_truth_claims",
+    "settings_owner_surface": "/settings/environment?section=diagnostics",
+    "consumer_surface": "/settings/environment?section=diagnostics",
     "runtime_page_visible": false,
     "drilldown_target_policy": "refs_drill_down_to_stage_folder_not_domain_body",
     "allowed_input_surfaces": [
@@ -2177,9 +2161,9 @@
     "authority": "opl_framework_stage_artifact_kernel_refs_projection",
     "framework_contract_ref": "one-person-lab/contracts/opl-framework/stage-artifact-runtime-contract.json",
     "surface_kind": "opl_stage_artifact_runtime_workbench",
-    "display_policy": "right_inspector_artifact_provenance_with_settings_advanced_technical_refs_no_body_no_domain_readiness_claims",
+    "display_policy": "right_inspector_artifact_provenance_with_maintenance_diagnostics_technical_refs_no_body_no_domain_readiness_claims",
     "consumer_surface": "right_context_inspector",
-    "technical_details_owner_surface": "/settings/advanced",
+    "technical_details_owner_surface": "/settings/environment?section=diagnostics",
     "runtime_page_visible": false,
     "full_detail_policy": "on_demand_task_drilldown_only",
     "provenance_projection_ref": "contracts/app-runtime-bridge.json#artifact_provenance_bundle_projection",
@@ -2649,7 +2633,7 @@
   ],
   "advanced_operator_drilldown": {
     "command": "opl runtime app-operator-drilldown --json",
-    "consumer_surfaces": ["/settings/advanced", "release_evidence_tooling"],
+    "consumer_surfaces": ["/settings/environment?section=diagnostics", "release_evidence_tooling"],
     "runtime_page_allowed": false
   },
   "running_task_projection": {
@@ -2657,7 +2641,7 @@
     "command": "opl runtime app-operator-drilldown --json",
     "authority": "opl_framework_provider_attempt_projection",
     "display_policy": "diagnostic_only_no_provider_attempt_count_as_user_running_task_count",
-    "consumer_surface": "/settings/advanced",
+    "consumer_surface": "/settings/environment?section=diagnostics",
     "runtime_page_visible": false,
     "user_visible_grain": "domain_and_active_execution_summary_until_domain_project_projection_is_available",
     "active_execution_filter": "states where running_provider_attempt is true and provider_run.provider_status or current_attempt_state is running",

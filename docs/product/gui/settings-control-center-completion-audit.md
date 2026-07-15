@@ -2,15 +2,24 @@
 
 Audit date: 2026-07-12
 
+State: `historical_snapshot_superseded_for_information_architecture`
+
 Authority owner: `one-person-lab-app`
 
 App Settings authority source: `1dd03b0f0f720d2314d4a8a77360c147b5635173`
 
 Verified Shell source: `fadd91f9f0808eb090087f48c34d7c26d69df6ab`
 
+This file is immutable evidence for the 2026-07-12 Settings cohort, not current
+Settings authority. The later `settings_ia.v1` reorganization replaces its
+combined Model/Access, Agents/Capabilities, and standalone Advanced structure.
+Current authority is `contracts/app-settings-control-plane.json` and
+`docs/product/gui/settings-control-center.md`; current installed visual/timing
+acceptance requires a new cohort.
+
 ## Conclusion
 
-The Settings control center is complete for its current product scope. The
+The Settings control center was complete for its 2026-07-12 product scope. The
 implementation now separates four different user concerns instead of mixing
 them in generic cards or technical-detail lists:
 
@@ -28,7 +37,7 @@ selectively colored, and the navigation uses restrained multi-hue identity
 cues. AionUI custom assistants remain outside the OPL product surface and their
 underlying data is not deleted.
 
-## Page Audit
+## Historical Page Audit (2026-07-12)
 
 | Page | Configure | View | Act | Diagnose | Terminal state |
 | --- | --- | --- | --- | --- | --- |
@@ -47,7 +56,7 @@ underlying data is not deleted.
 
 | Boundary | Result | Evidence |
 | --- | --- | --- |
-| Information architecture | Done | Eight ordinary routes, Advanced and About as secondary routes, and three compatibility redirects are machine contracted |
+| Information architecture | Superseded | This row records the 2026-07-12 eight-route cohort; current `settings_ia.v1` has ten ordinary routes, About as the only independent secondary page, and Advanced as a redirect to Maintenance diagnostics |
 | Single global search | Done | One bilingual item-level search routes to the owner page and anchor; empty state has visual evidence |
 | Configuration ownership | Done | Framework, App-local and credential/connection items each declare one truth owner, write route, persistence target and verification route |
 | State/action separation | Done | Read models do not masquerade as actions; mutating actions retain precheck, confirmation and result/receipt semantics |

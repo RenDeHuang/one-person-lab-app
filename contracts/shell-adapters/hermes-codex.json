@@ -66,7 +66,7 @@
     "reasoning_effort": "max",
     "ordinary_ui_surfaces": [
       "model access wizard",
-      "Settings Access tab"
+      "Settings Models page"
     ],
     "forbidden_ordinary_controls": [
       "OPENAI_BASE_URL",
@@ -108,7 +108,7 @@
         "domain_authority_repo": "redcube-ai"
       }
     ],
-    "required_surface": "composer Codex Skill entries plus structured Codex skill input plus Settings Agents & Capabilities summaries",
+    "required_surface": "composer Codex Skill entries plus structured Codex skill input plus separate Settings Agents and Settings Capabilities summaries",
     "forbidden_claims": [
       "domain_ready",
       "agent_runtime_authority",
@@ -118,24 +118,28 @@
   },
   "settings_information_architecture": {
     "ordinary_tabs": [
-      "General",
-      "Access",
-      "Agents & Capabilities",
-      "Local Environment",
-      "Storage",
-      "Appearance",
-      "Advanced",
-      "About & Updates"
+      "Overview",
+      "Account & Gateway",
+      "Models",
+      "Workspace & Personalization",
+      "Agents",
+      "Capabilities",
+      "Resources & Connections",
+      "Maintenance",
+      "Data & Storage",
+      "Preferences"
     ],
     "opl_semantics": [
-      "模型策略",
-      "模型访问",
-      "智能体与能力",
-      "本机环境",
-      "存储",
-      "外观与语言",
-      "高级与诊断",
-      "关于与更新"
+      "概览",
+      "账户与 Gateway",
+      "模型",
+      "工作区与个性化",
+      "智能体",
+      "能力",
+      "资源与连接",
+      "维护",
+      "数据与存储",
+      "偏好"
     ],
     "hidden_or_advanced": [
       "Hermes backend selection",

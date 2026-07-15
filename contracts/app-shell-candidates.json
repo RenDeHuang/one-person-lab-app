@@ -521,7 +521,7 @@
           "chat-first main canvas with pinned composer",
           "right-side collapsible Files, Skills, Routing, Memory, and Always-On context tabs",
           "right-side CopilotKit panel for secondary context",
-          "minimal Runtime WorkItem status with Stage popover and selected-item detail; full operator drilldown stays in Settings Advanced",
+          "minimal Runtime WorkItem status with Stage popover and selected-item detail; full operator drilldown stays in Maintenance diagnostics",
           "active project line projection/state model validation",
           "App-owned Settings partition",
           "candidate .app package through the App wrapper"
@@ -738,7 +738,7 @@
           "packaged UI smoke runs a real Codex app-server turn and receives OK",
           "packaged UI smoke proves page-state matrix mapping, first-run matrix mapping, runtime full-drilldown lazy load, and safe App action dry-run",
           "ordinary UI shows the CopilotKit-backed chat surface, not AG-UI protocol/debug copy",
-          "ordinary Settings uses Overview, Setup & Access, Capabilities, Maintenance & Updates, Data & Storage, Preferences, and Advanced, with About/Update/Theme secondary",
+          "ordinary Settings uses Overview, Account & Gateway, Models, Workspace & Personalization, Agents, Capabilities, Resources & Connections, Maintenance, Data & Storage, and Preferences; About is the only secondary page and Advanced redirects to Maintenance diagnostics",
           "ordinary home does not expose runtime activity, continue-work, per-agent running badges, or footer quick icons; Runtime and secondary context surfaces carry refs-only activity details",
           "tool/process/diff/file/receipt/user-input/permission events render as compact conversation events or expandable refs",
           "WebUI parity evidence proves the same React/CopilotKit renderer and product semantics as Electron",
@@ -1370,7 +1370,7 @@
         "reasoning_effort": "max",
         "ordinary_ui_surfaces": [
           "model access wizard",
-          "Settings Access tab"
+          "Settings Models page"
         ],
         "forbidden_ordinary_controls": [
           "OPENAI_BASE_URL",
@@ -1412,7 +1412,7 @@
             "domain_authority_repo": "redcube-ai"
           }
         ],
-        "required_surface": "composer Codex Skill entries plus structured Codex skill input plus Settings Agents & Capabilities summaries",
+        "required_surface": "composer Codex Skill entries plus structured Codex skill input plus separate Settings Agents and Settings Capabilities summaries",
         "forbidden_claims": [
           "domain_ready",
           "agent_runtime_authority",
@@ -1422,24 +1422,28 @@
       },
       "settings_information_architecture": {
         "ordinary_tabs": [
-          "General",
-          "Access",
-          "Agents & Capabilities",
-          "Local Environment",
-          "Storage",
-          "Appearance",
-          "Advanced",
-          "About & Updates"
+          "Overview",
+          "Account & Gateway",
+          "Models",
+          "Workspace & Personalization",
+          "Agents",
+          "Capabilities",
+          "Resources & Connections",
+          "Maintenance",
+          "Data & Storage",
+          "Preferences"
         ],
         "opl_semantics": [
-          "模型策略",
-          "模型访问",
-          "智能体与能力",
-          "本机环境",
-          "存储",
-          "外观与语言",
-          "高级与诊断",
-          "关于与更新"
+          "概览",
+          "账户与 Gateway",
+          "模型",
+          "工作区与个性化",
+          "智能体",
+          "能力",
+          "资源与连接",
+          "维护",
+          "数据与存储",
+          "偏好"
         ],
         "hidden_or_advanced": [
           "Hermes backend selection",

@@ -1435,9 +1435,9 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   }
   if (
     pages.runtime_status.diagnostics_policy?.default_visibility !== 'absent_from_runtime'
-    || pages.runtime_status.diagnostics_policy?.owner_surface !== '/settings/advanced'
+    || pages.runtime_status.diagnostics_policy?.owner_surface !== '/settings/environment?section=diagnostics'
   ) {
-    throw new Error('App GUI Runtime diagnostics must be absent and owned by Settings Advanced');
+    throw new Error('App GUI Runtime diagnostics must be absent and owned by Maintenance diagnostics');
   }
   assertDeepEqualJson(pages.runtime_status.diagnostics_policy?.sections, [], 'App GUI Runtime diagnostics sections');
   if ('must_not_default_show' in pages.runtime_status) {

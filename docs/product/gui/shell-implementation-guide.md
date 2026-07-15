@@ -141,7 +141,7 @@ opl app state --profile fast --json
 
 显式刷新通常仍使用 fast profile。Runtime 只消费合同允许的 Work Item、Stage、Attempt、
 Token 和 visibility 投影；Stage Popover 不得触发 Full state 或 Operator drilldown。
-Full state 和 Operator full drilldown 只允许 Settings Advanced 与 release tooling 请求，
+Full state 和 Operator full drilldown 只允许 Maintenance diagnostics 与 release tooling 请求，
 不得作为 Runtime 的 detail fallback。各页面只渲染自身 allowlist；不得从
 `active_run_id`、module dirt、DOM presence 或缓存推断 running、ready、synced、
 domain-ready 或 release-ready。
@@ -151,9 +151,9 @@ domain-ready 或 release-ready。
 | Surface | Owns | Must not absorb |
 | --- | --- | --- |
 | Runtime | Agent/Project scope、Work Item status、running/elapsed、Stage/Attempt、Token、archive/restore | provider/platform repair、updates、module health、raw diagnostics、artifact provenance、release controls |
-| Settings Environment | provider/platform repair、Temporal/worker readiness、软件更新与维护 | Work Item lifecycle 或论文进度 |
-| Settings Capabilities | 模块/智能体安装、同步、可用性和健康 | 论文/任务状态列表 |
-| Settings Advanced | raw diagnostics、State Index、operator drilldown、logs、command refs、safe-action catalog | 普通 Runtime 默认信息 |
+| Settings Maintenance | provider/platform repair、Temporal/worker readiness、托管依赖、软件更新、raw diagnostics、State Index、operator drilldown、logs、command refs、safe-action catalog | Work Item lifecycle 或论文进度 |
+| Settings Agents | Agent Package 目录、安装/激活/更新/修复、开发来源、Home visibility | Skills/Plugins/Flow、Gateway 或资源连接 |
+| Settings Capabilities | Skills、Plugins、OPL Flow、MCP、图像与语音能力 | Agent Package lifecycle、Gateway 或资源连接 |
 | Inspector | task/conversation artifact provenance、preview、lineage refs | artifact authority 或 Runtime status |
 | Release tooling | 同 cohort 的完整 evidence bundle | 普通用户 Runtime UI |
 
@@ -235,7 +235,8 @@ adapter slot 承接，而不是遍历 upstream settings pages 后临时隐藏。
 - Upstream 新增 Settings 页面必须先经过下面的 intake classification，不能自动进入
   ordinary navigation。
 - Capability 选择从 Home starter 进入；package 安装、Home visibility 和 lifecycle 进入
-  Settings → Agents & Capabilities。`/capabilities` 等历史入口只允许 compatibility redirect。
+  Settings → Agents 管理 package lifecycle，Settings → Capabilities 管理
+  Skills/Plugins/Flow 和本机能力；历史入口只允许 compatibility redirect。
 
 ## Settings Upstream Intake 分类
 

@@ -1324,7 +1324,7 @@
         "diagnostics": {
           "default_visibility": "absent_from_runtime",
           "sections": [],
-          "owner_surface": "/settings/advanced"
+          "owner_surface": "/settings/environment?section=diagnostics"
         },
         "action_queue": {
           "runtime_page_allowed_action": "work_item_visibility_set_only",
@@ -3162,20 +3162,8 @@
       "task_awareness_refs_source": "contracts/app-runtime-bridge.json#task_awareness_projection.settings_capabilities_surface",
       "task_awareness_ref_fields": [
         "capability_health_refs",
-        "connector_readiness_refs",
         "workflow_refs",
         "export_bundle_action_ref",
-        "resource_source_refs",
-        "gateway_status_ref",
-        "environment_ref",
-        "environment_template_ref",
-        "environment_version_ref",
-        "environment_source_ref",
-        "environment_task_refs",
-        "console_policy_ref",
-        "storage_ref",
-        "resource_receipt_ref",
-        "cost_estimate_ref",
         "candidate_report_refs",
         "workflow_skill_candidate_refs"
       ],
@@ -3999,7 +3987,7 @@
           "marketplace_config",
           "raw_refs_json"
         ],
-        "first_screen_policy": "default detail shows user-decision fields only; raw package_id, codex_visible_entry, receipt refs, paths, manifest, cache, and marketplace config stay collapsed in Advanced diagnostics",
+        "first_screen_policy": "default detail shows user-decision fields only; raw package_id, codex_visible_entry, receipt refs, paths, manifest, cache, and marketplace config stay collapsed in the Agents page diagnostic disclosure",
         "empty_field_policy": "hide empty, unknown, unavailable, not_applicable, null, or unreported fields; never render 未报告 or Not reported as default user detail text"
       },
       "developer_mode_control": {
@@ -4026,7 +4014,7 @@
         "Developer Mode as Maintain authorized development repositories with automatic effective state, repository authority scope, and dirty-worktree protection",
         "all discoverable packages from app_state.agent_packages.directory.entries as the only primary Agents catalog",
         "a dedicated package catalog search plus package role, install or activation status, and source filters",
-        "registry refresh as an ordinary visible action and manifest URL installation only in Advanced",
+        "registry refresh as an ordinary visible action and manifest URL installation only in the Agents page advanced install disclosure",
         "row install, activate, update, repair, enable, disable, hide, unhide, and uninstall actions exactly as projected by Framework",
         "workspace activation payload with scope and target_workspace from app_state.paths.workspace_root_path, or a disabled reason and Workspace route when it is missing",
         "Chinese product display names and explicit managed or developer runtime source labels",
@@ -4177,8 +4165,8 @@
   ],
   "advanced_detail_surface": {
     "command": "opl runtime app-operator-drilldown --detail full --json",
-    "policy": "settings_advanced_or_release_evidence_only",
-    "consumer_surfaces": ["/settings/advanced", "release_evidence_tooling"],
+    "policy": "settings_maintenance_diagnostics_or_release_evidence_only",
+    "consumer_surfaces": ["/settings/environment?section=diagnostics", "release_evidence_tooling"],
     "runtime_page_allowed": false
   },
   "settings_compatibility_redirects": {

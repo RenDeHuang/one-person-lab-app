@@ -12,9 +12,9 @@ Runtime 是 OPL 的极简项目工作状态页，不是 observability dashboard�
 默认页只帮助用户判断：正在看哪个智能体和项目、有哪些任务、每项任务是什么状态、是否在跑、
 当前和下一 Stage 是什么、用了多少 Token。当前 Attempt 按需在 Stage 弹层和任务详情中显示。
 
-Codex/App 更新、Temporal/provider/platform repair 归 Settings Environment；模块同步和智能体健康归
-Settings Capabilities；safe-action catalog、operator summary、State Index 与 raw diagnostics 归
-Settings Advanced；artifact provenance 归任务/会话 Inspector；同 cohort 完整证据归 release tooling。
+Codex/App 更新、Temporal/provider/platform repair、托管依赖与 raw diagnostics 归 Maintenance；
+Agent Package lifecycle 归 Agents；Skills/Plugins/Flow 和本机能力归 Capabilities；artifact
+provenance 归任务/会话 Inspector；同 cohort 完整证据归 release tooling。
 这些内容一律不进入 Runtime。
 
 Runtime V2 不再直接拼接项目目录、Temporal attempt、业务生命周期、Token telemetry 和
@@ -77,7 +77,7 @@ local ID。因此 Shell 不得用 `identity.work_item_id` 单独去重、选择�
 readback。
 
 `attempt`、runtime ID、workflow ID 和 evidence refs 不再是默认行必需字段。当前 Attempt 可在
-Stage 弹层或详情中按需显示；历史 Attempt 和其他 raw ID 只属于 Settings Advanced。任何 Attempt
+Stage 弹层或详情中按需显示；历史 Attempt 和其他 raw ID 只属于 Maintenance diagnostics。任何 Attempt
 都不能决定 work item 是否存在、属于哪个项目或用户主状态。
 
 ### AgentAvailabilityProjection
@@ -247,7 +247,7 @@ Framework readback，不能提前把本地 optimistic 结果提交为真相。
 默认显示当前 stage 与任务累计两项。每项 Token 是判别联合：
 
 - `observed`：包含 input、output、total、source 和 observed time；只有此状态可显示数字。
-- `missing`：显示“尚无用量记录”；技术原因只进入 Settings Advanced。
+- `missing`：显示“尚无用量记录”；技术原因只进入 Maintenance diagnostics。
 - `stale`：显示记录已过期，不把旧数字冒充当前。
 
 整体 telemetry 可以是 `observed / partial / missing / stale`。Missing 不能显示为 `0`；只有明确
@@ -266,16 +266,16 @@ Framework readback，不能提前把本地 optimistic 结果提交为真相。
 当前 Attempt 属于 Stage/运行事实，可显示在详情首屏。Runtime 详情不包含 Artifacts、Timeline、
 Evidence、provider diagnostics、operator drilldown、safe-action catalog、raw workflow IDs、历史
 Attempt 或 logs。artifact provenance 通过任务/会话 Inspector 查看；技术诊断通过 Settings
-Advanced 查看。
+Maintenance diagnostics 查看。
 
 ## Surface 所有权
 
 | Surface | 拥有 | Runtime 中的处理 |
 | --- | --- | --- |
 | Runtime | Work Item 状态、是否运行、elapsed、Stage/当前 Attempt、Token、archive/restore | 直接显示 |
-| Settings Environment | provider/platform repair、Temporal/worker readiness、Codex/App update、维护 | 全面禁止 |
-| Settings Capabilities | 智能体 package、模块同步、模块/智能体可用性与健康 | 全面禁止 |
-| Settings Advanced | raw diagnostics、State Index、operator drilldown、logs、command refs、safe-action catalog | 全面禁止 |
+| Settings Maintenance | provider/platform repair、Temporal/worker readiness、Codex/App update、托管依赖、raw diagnostics 与维护 | 全面禁止 |
+| Settings Agents | Agent Package lifecycle、开发来源与 Home visibility | 全面禁止 |
+| Settings Capabilities | Skills、Plugins、OPL Flow、MCP、图像与语音能力 | 全面禁止 |
 | Task/Conversation Inspector | artifact provenance、preview、lineage、manifest/hash/receipt refs | 全面禁止 |
 | Release tooling | 同 cohort Runtime screenshot、full-state/operator capture、action receipt、VM/installed smoke、remote verification 与 manifest | 全面禁止 |
 

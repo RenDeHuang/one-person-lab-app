@@ -777,7 +777,7 @@ function validateCandidateMinimumAcceptance(candidate: ShellCandidate): void {
   }
   assertStringArrayIncludes(candidate.technical_verification?.minimum_acceptance ?? [], [
     'candidate state-model validation proves active project line projection consumption from opl app state without domain-ready, production-ready, clean-VM-ready, Full-release-ready, or active-shell-adopted claims',
-    'ordinary Settings uses Overview, Setup & Access, Capabilities, Maintenance & Updates, Data & Storage, Preferences, and Advanced, with About/Update/Theme secondary',
+    'ordinary Settings uses Overview, Account & Gateway, Models, Workspace & Personalization, Agents, Capabilities, Resources & Connections, Maintenance, Data & Storage, and Preferences; About is the only secondary page and Advanced redirects to Maintenance diagnostics',
     'ordinary home does not expose runtime activity, continue-work, per-agent running badges, or footer quick icons; Runtime and secondary context surfaces carry refs-only activity details',
     'tool/process/diff/file/receipt/user-input/permission events render as compact conversation events or expandable refs',
     'WebUI parity evidence proves the same React/CopilotKit renderer and product semantics as Electron',
@@ -1214,7 +1214,7 @@ function validateHermesTargetStateContracts(
   }
   assertStringArrayIncludes(modelAccess.ordinary_ui_surfaces, [
     'model access wizard',
-    'Settings Access tab',
+    'Settings Models page',
   ], `${candidate.id}.model_access_policy.ordinary_ui_surfaces`);
   assertStringArrayIncludes(modelAccess.forbidden_ordinary_controls, [
     'OPENAI_BASE_URL',
@@ -1231,7 +1231,7 @@ function validateHermesTargetStateContracts(
   if (
     routes.owner !== 'one-person-lab-app'
     || routes.route_authority !== 'App-owned Codex Skill declaration only; Codex remains the invocation authority and runtime/domain truth remain in OPL Framework and domain repos'
-    || routes.required_surface !== 'composer Codex Skill entries plus structured Codex skill input plus Settings Agents & Capabilities summaries'
+    || routes.required_surface !== 'composer Codex Skill entries plus structured Codex skill input plus separate Settings Agents and Settings Capabilities summaries'
   ) {
     throw new Error(`${candidate.id}.agent_route_contract must keep Codex Skill declaration App-owned without taking invocation, runtime, or domain authority`);
   }
@@ -1257,24 +1257,28 @@ function validateHermesTargetStateContracts(
     throw new Error(`${candidate.id}.settings_information_architecture must be declared`);
   }
   assertStringArrayIncludes(settings.ordinary_tabs, [
-    'General',
-    'Access',
-    'Agents & Capabilities',
-    'Local Environment',
-    'Storage',
-    'Appearance',
-    'Advanced',
-    'About & Updates',
+    'Overview',
+    'Account & Gateway',
+    'Models',
+    'Workspace & Personalization',
+    'Agents',
+    'Capabilities',
+    'Resources & Connections',
+    'Maintenance',
+    'Data & Storage',
+    'Preferences',
   ], `${candidate.id}.settings_information_architecture.ordinary_tabs`);
   assertStringArrayIncludes(settings.opl_semantics, [
-    '模型策略',
-    '模型访问',
-    '智能体与能力',
-    '本机环境',
-    '存储',
-    '外观与语言',
-    '高级与诊断',
-    '关于与更新',
+    '概览',
+    '账户与 Gateway',
+    '模型',
+    '工作区与个性化',
+    '智能体',
+    '能力',
+    '资源与连接',
+    '维护',
+    '数据与存储',
+    '偏好',
   ], `${candidate.id}.settings_information_architecture.opl_semantics`);
   assertStringArrayIncludes(settings.hidden_or_advanced, [
     'Hermes backend selection',

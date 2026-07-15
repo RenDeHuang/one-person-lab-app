@@ -46,7 +46,7 @@ const requiredReleaseEvidenceArtifacts = {
   },
   action_screenshot: {
     path: 'screenshots/action.png',
-    producer: 'Settings Environment/Advanced action confirmation/result screenshot',
+    producer: 'Settings Maintenance action confirmation/result screenshot',
     kind: 'image',
     source_kind: 'app_settings_action_screenshot',
   },
@@ -149,14 +149,14 @@ function validateSurfaceOwnership(bundle) {
   if (ownership?.runtime_visual_evidence !== 'runtime_page_minimal_work_item_status_only') {
     throw new Error('Runtime evidence must be limited to the minimal work-item status screenshot');
   }
-  if (ownership?.full_drilldown_and_raw_diagnostics !== 'settings_advanced_and_release_tooling') {
-    throw new Error('Full drilldown and raw diagnostics must belong to Settings Advanced and release tooling');
+  if (ownership?.full_drilldown_and_raw_diagnostics !== 'settings_maintenance_diagnostics_and_release_tooling') {
+    throw new Error('Full drilldown and raw diagnostics must belong to Maintenance diagnostics and release tooling');
   }
   if (
     ownership?.maintenance_actions_and_receipts
-    !== 'settings_environment_or_settings_advanced_and_release_tooling'
+    !== 'settings_maintenance_and_release_tooling'
   ) {
-    throw new Error('Maintenance actions and receipts must belong to Settings Environment/Advanced and release tooling');
+    throw new Error('Maintenance actions and receipts must belong to Settings Maintenance and release tooling');
   }
   validateArrayIncludes(
     ownership?.runtime_page_excludes,

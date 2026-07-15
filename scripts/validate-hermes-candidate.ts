@@ -173,7 +173,7 @@ function validateTargetStateContracts(label: string, target: HermesTargetStateCo
   }
   assertIncludes(modelAccess.ordinary_ui_surfaces, [
     'model access wizard',
-    'Settings Access tab',
+    'Settings Models page',
   ], `${label}.model_access_policy.ordinary_ui_surfaces`);
   assertIncludes(modelAccess.forbidden_ordinary_controls, [
     'OPENAI_BASE_URL',
@@ -187,7 +187,7 @@ function validateTargetStateContracts(label: string, target: HermesTargetStateCo
   if (
     routes?.owner !== 'one-person-lab-app'
     || routes.route_authority !== 'App-owned Codex Skill declaration only; Codex remains the invocation authority and runtime/domain truth remain in OPL Framework and domain repos'
-    || routes.required_surface !== 'composer Codex Skill entries plus structured Codex skill input plus Settings Agents & Capabilities summaries'
+    || routes.required_surface !== 'composer Codex Skill entries plus structured Codex skill input plus separate Settings Agents and Settings Capabilities summaries'
   ) {
     throw new Error(`Hermes ${label}.agent_route_contract must declare App-owned Codex Skill entries`);
   }
@@ -210,24 +210,28 @@ function validateTargetStateContracts(label: string, target: HermesTargetStateCo
 
   const settings = target.settings_information_architecture;
   assertIncludes(settings?.ordinary_tabs, [
-    'General',
-    'Access',
-    'Agents & Capabilities',
-    'Local Environment',
-    'Storage',
-    'Appearance',
-    'Advanced',
-    'About & Updates',
+    'Overview',
+    'Account & Gateway',
+    'Models',
+    'Workspace & Personalization',
+    'Agents',
+    'Capabilities',
+    'Resources & Connections',
+    'Maintenance',
+    'Data & Storage',
+    'Preferences',
   ], `${label}.settings_information_architecture.ordinary_tabs`);
   assertIncludes(settings?.opl_semantics, [
-    '模型策略',
-    '模型访问',
-    '智能体与能力',
-    '本机环境',
-    '存储',
-    '外观与语言',
-    '高级与诊断',
-    '关于与更新',
+    '概览',
+    '账户与 Gateway',
+    '模型',
+    '工作区与个性化',
+    '智能体',
+    '能力',
+    '资源与连接',
+    '维护',
+    '数据与存储',
+    '偏好',
   ], `${label}.settings_information_architecture.opl_semantics`);
   assertIncludes(settings?.hidden_or_advanced, [
     'Hermes backend selection',

@@ -1103,7 +1103,7 @@ function validateRuntimeBridgeDeclaredSurfaces(runtimeBridge) {
   }
   assertDeepEqualJson(
     runtimeBridge.full_detail_consumer_surfaces,
-    ['/settings/advanced', 'release_evidence_tooling'],
+    ['/settings/environment?section=diagnostics', 'release_evidence_tooling'],
     'Runtime bridge full detail consumer surfaces',
   );
 }
@@ -1382,8 +1382,9 @@ export function validateRuntimeProgressPageDisplayPolicy(runtimeBridge) {
   assertDeepEqualJson(policy?.surface_exclusions?.settings_owner_routes, {
     software_updates: '/settings/environment?section=updates',
     platform_repair: '/settings/environment?section=services',
-    module_management: '/settings/capabilities',
-    diagnostics: '/settings/advanced',
+    agent_package_management: '/settings/agents',
+    capability_management: '/settings/capabilities',
+    diagnostics: '/settings/environment?section=diagnostics',
   }, 'Runtime progress page Settings routes');
   const stagePopover = runtimeBridge.work_item_projection?.stage_popover_contract;
   assertDeepEqualJson(stagePopover?.required_fields, [
@@ -1647,14 +1648,14 @@ function validateRuntimeBridgeProjectionContracts(runtimeBridge) {
   }
   assertDeepEqualJson(
     advancedOperator.consumer_surfaces,
-    ['/settings/advanced', 'release_evidence_tooling'],
+    ['/settings/environment?section=diagnostics', 'release_evidence_tooling'],
     'Runtime bridge operator drilldown consumer surfaces',
   );
   if (
-    runtimeBridge.running_task_projection?.consumer_surface !== '/settings/advanced'
+    runtimeBridge.running_task_projection?.consumer_surface !== '/settings/environment?section=diagnostics'
     || runtimeBridge.running_task_projection.runtime_page_visible !== false
   ) {
-    throw new Error('Runtime bridge provider-attempt projection must be Settings Advanced only');
+    throw new Error('Runtime bridge provider-attempt projection must be Maintenance diagnostics only');
   }
 }
 
@@ -1692,7 +1693,7 @@ function validatePackageReadinessProjection(runtimeBridge) {
   }
   assertDeepEqualJson(
     advancedDetail.consumer_surfaces,
-    ['/settings/advanced', 'release_evidence_tooling'],
+    ['/settings/environment?section=diagnostics', 'release_evidence_tooling'],
     'Runtime bridge advanced detail consumer surfaces',
   );
   if (

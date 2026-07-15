@@ -36,7 +36,7 @@ import {
   appOwnedSettingsVisualSystem,
   legacySettingsRouteRedirects,
 } from "./app-contract-constants.ts";
-import { validateSettingsCapabilitiesResourceGrouping } from "./shared-contract-validators.ts";
+import { validateSettingsCapabilitiesTaskAwarenessSurface } from "./shared-contract-validators.ts";
 
 const settingsIaRef =
   "contracts/app-gui-product-contract.json#settings_navigation.settings_ia";
@@ -399,7 +399,7 @@ export function validateSettingsControlPlane(
   );
   assertDeepEqualJson(
     [...new Set(controlPlane.ordinary_routes?.map((route) => route.ia_group))],
-    appOwnedSettingsIaGroupIds.filter((groupId) => groupId !== "advanced"),
+    appOwnedSettingsIaGroupIds,
     "Settings control plane IA groups",
   );
   assertDeepEqualJson(
@@ -2553,9 +2553,9 @@ function validateSettingsPageAdapterPolicy(controlPlane) {
     appOwnedSettingsManagedDependencySummary,
     "Settings Maintenance managed dependency summary",
   );
-  validateSettingsCapabilitiesResourceGrouping(
-    requiredPages.capabilities?.resource_grouping_surface,
-    "Settings Capabilities page adapter resource grouping surface",
+  validateSettingsCapabilitiesTaskAwarenessSurface(
+    requiredPages.capabilities?.task_awareness_surface,
+    "Settings Capabilities page adapter task-awareness surface",
   );
   assertDeepEqualJson(
     requiredPages.capabilities?.entity_kinds,

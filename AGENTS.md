@@ -62,8 +62,8 @@ source of App truth.
   WorkItem, Stage, Attempt, Token, and visibility projection allowed by the
   Runtime contract. `opl app state --profile full --json` and
   `opl runtime app-operator-drilldown --detail full --json` are restricted to
-  Settings > Advanced and release tooling; they are never a Runtime-page
-  exception. Mutations still go through
+  Maintenance diagnostics and release tooling; legacy Settings > Advanced only
+  redirects there and is never a Runtime-page exception. Mutations still go through
   `opl app action execute --action <id> [--payload <json>] [--dry-run] --json`,
   but Runtime may invoke only task archive/restore. Other actions belong to
   their contracted Settings, Inspector, conversation, or release surface.

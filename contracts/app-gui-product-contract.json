@@ -1076,8 +1076,8 @@
     },
     "advanced_full_drilldown": {
       "command": "opl runtime app-operator-drilldown --detail full --json",
-      "policy": "settings_advanced_or_release_evidence_only",
-      "consumer_surfaces": ["/settings/advanced", "release_evidence_tooling"],
+      "policy": "settings_maintenance_diagnostics_or_release_evidence_only",
+      "consumer_surfaces": ["/settings/environment?section=diagnostics", "release_evidence_tooling"],
       "runtime_page_allowed": false
     },
     "state_index_sidecar": {
@@ -1087,9 +1087,9 @@
       "kernel_owner": "one-person-lab",
       "storage_kind": "sqlite_sidecar_read_model_cache",
       "app_access_mode": "read_only_projection_consumer",
-      "display_policy": "settings_advanced_state_index_refs_only_no_sqlite_write_no_domain_truth_claims",
-      "settings_owner_surface": "/settings/advanced",
-      "consumer_surface": "/settings/advanced",
+      "display_policy": "maintenance_diagnostics_state_index_refs_only_no_sqlite_write_no_domain_truth_claims",
+      "settings_owner_surface": "/settings/environment?section=diagnostics",
+      "consumer_surface": "/settings/environment?section=diagnostics",
       "runtime_page_visible": false,
       "drilldown_target_policy": "refs_drill_down_to_stage_folder_not_domain_body",
       "allowed_input_surfaces": [
@@ -1142,9 +1142,9 @@
       "authority": "opl_framework_stage_artifact_kernel_refs_projection",
       "framework_contract_ref": "one-person-lab/contracts/opl-framework/stage-artifact-runtime-contract.json",
       "surface_kind": "opl_stage_artifact_runtime_workbench",
-      "display_policy": "right_inspector_artifact_provenance_with_settings_advanced_technical_refs_no_body_no_domain_readiness_claims",
+      "display_policy": "right_inspector_artifact_provenance_with_maintenance_diagnostics_technical_refs_no_body_no_domain_readiness_claims",
       "consumer_surface": "right_context_inspector",
-      "technical_details_owner_surface": "/settings/advanced",
+      "technical_details_owner_surface": "/settings/environment?section=diagnostics",
       "runtime_page_visible": false,
       "full_detail_policy": "on_demand_task_drilldown_only",
       "required_ref_fields": [
@@ -1419,20 +1419,10 @@
       "settings_capabilities_surface_ref": "contracts/app-runtime-bridge.json#task_awareness_projection.settings_capabilities_surface",
       "settings_capabilities_required_ref_fields": [
         "capability_health_refs",
-        "connector_readiness_refs",
         "workflow_refs",
         "export_bundle_action_ref",
-        "resource_source_refs",
-        "gateway_status_ref",
-        "environment_ref",
-        "environment_template_ref",
-        "environment_version_ref",
-        "environment_source_ref",
-        "environment_task_refs",
-        "console_policy_ref",
-        "storage_ref",
-        "resource_receipt_ref",
-        "cost_estimate_ref"
+        "candidate_report_refs",
+        "workflow_skill_candidate_refs"
       ],
       "artifact_or_blocker_policy": "summary_ref_only_no_artifact_body",
       "review_receipt_policy": "receipt_ref_only_no_quality_or_readiness_verdict",
@@ -1442,34 +1432,15 @@
       "resource_context_policy_ref": "contracts/app-runtime-bridge.json#task_awareness_projection.resource_context_policy",
       "settings_capabilities_surface": {
         "surface": "settings_capabilities",
-        "source": "same_task_awareness_projection_refs_aggregated_for_capabilities",
+        "source": "same_task_awareness_projection_capability_and_workflow_refs_only",
         "required_ref_fields": [
           "capability_health_refs",
-          "connector_readiness_refs",
           "workflow_refs",
           "export_bundle_action_ref",
-          "resource_source_refs",
-          "gateway_status_ref",
-          "environment_ref",
-          "environment_template_ref",
-          "environment_version_ref",
-          "environment_source_ref",
-          "environment_task_refs",
-          "console_policy_ref",
-          "storage_ref",
-          "resource_receipt_ref",
-          "cost_estimate_ref",
           "candidate_report_refs",
           "workflow_skill_candidate_refs"
         ],
-        "display_policy": "capability_health_connector_workflow_and_export_refs_only_no_skill_body_no_domain_verdict",
-        "resource_grouping_policy": {
-          "grouping_source": "OPL Connect/Fabric resource refs",
-          "allowed_groups": [
-            "OPL Connect",
-            "Fabric resources"
-          ]
-        },
+        "display_policy": "capability_health_workflow_and_candidate_refs_only_no_agent_package_gateway_or_resource_fields",
         "action_policy": "export_bundle_action_ref_may_open_app_action_dry_run_receipt_only_until_domain_owner_execute_exists",
         "refs_only": true,
         "skill_body_access": false,
@@ -5225,9 +5196,9 @@
           "diagnostic_sections": [],
           "primary_sections_visible_on_open": true,
           "diagnostic_sections_allowed": false,
-          "diagnostics_owner_surface": "/settings/advanced",
+          "diagnostics_owner_surface": "/settings/environment?section=diagnostics",
           "artifacts_owner_surface": "right_context_inspector",
-          "timeline_owner_surface": "/settings/advanced",
+          "timeline_owner_surface": "/settings/environment?section=diagnostics",
           "equal_weight_tab_wall_allowed": false,
           "current_attempt_visibility": "stage_popover_and_selected_work_item_detail_only",
           "delivered_stage_map_terminal_boundary": {
@@ -5244,7 +5215,7 @@
         },
         "agent_availability_routing": {
           "runtime_page_visible": false,
-          "settings_owner": "/settings/capabilities",
+          "settings_owner": "/settings/agents",
           "projection_remains_available_to_settings": true,
           "task_counts_are_not_availability": true,
           "mas_scholar_skills_role": "med_autoscience_dependency_not_sixth_agent"
@@ -5253,7 +5224,7 @@
           "default_layer": "decision_and_action_fields_only",
           "raw_technical_fields_default_visible": false,
           "current_attempt_exception": "visible_only_in_stage_popover_or_selected_work_item_detail",
-          "excluded_technical_detail_owner": "/settings/advanced"
+          "excluded_technical_detail_owner": "/settings/environment?section=diagnostics"
         },
         "runtime_surface_exclusions": {
           "forbidden": [
@@ -5274,9 +5245,10 @@
           "settings_owner_routes": {
             "software_updates": "/settings/environment?section=updates",
             "platform_repair": "/settings/environment?section=services",
-            "module_management": "/settings/capabilities",
-            "diagnostics": "/settings/advanced",
-            "state_index": "/settings/advanced",
+            "agent_package_management": "/settings/agents",
+            "capability_management": "/settings/capabilities",
+            "diagnostics": "/settings/environment?section=diagnostics",
+            "state_index": "/settings/environment?section=diagnostics",
             "artifact_provenance": "right_context_inspector",
             "release_evidence": "release_evidence_tooling"
           }
@@ -5381,7 +5353,7 @@
       "diagnostics_policy": {
         "default_visibility": "absent_from_runtime",
         "sections": [],
-        "owner_surface": "/settings/advanced"
+        "owner_surface": "/settings/environment?section=diagnostics"
       },
       "must_show": [
         "WorkItemProjection v2 as the default Runtime read model",
@@ -5760,20 +5732,8 @@
       "task_awareness_refs_source": "contracts/app-runtime-bridge.json#task_awareness_projection.settings_capabilities_surface",
       "task_awareness_ref_fields": [
         "capability_health_refs",
-        "connector_readiness_refs",
         "workflow_refs",
         "export_bundle_action_ref",
-        "resource_source_refs",
-        "gateway_status_ref",
-        "environment_ref",
-        "environment_template_ref",
-        "environment_version_ref",
-        "environment_source_ref",
-        "environment_task_refs",
-        "console_policy_ref",
-        "storage_ref",
-        "resource_receipt_ref",
-        "cost_estimate_ref",
         "candidate_report_refs",
         "workflow_skill_candidate_refs"
       ],
@@ -6626,7 +6586,7 @@
           "marketplace_config",
           "raw_refs_json"
         ],
-        "first_screen_policy": "default detail shows user-decision fields only; raw package_id, codex_visible_entry, receipt refs, paths, manifest, cache, and marketplace config stay collapsed in Advanced diagnostics",
+        "first_screen_policy": "default detail shows user-decision fields only; raw package_id, codex_visible_entry, receipt refs, paths, manifest, cache, and marketplace config stay collapsed in the Agents page diagnostic disclosure",
         "empty_field_policy": "hide empty, unknown, unavailable, not_applicable, null, or unreported fields; never render 未报告 or Not reported as default user detail text"
       },
       "developer_mode_control": {
@@ -6653,7 +6613,7 @@
         "Developer Mode as Maintain authorized development repositories with automatic effective state, repository authority scope, and dirty-worktree protection",
         "all discoverable packages from app_state.agent_packages.directory.entries as the only primary Agents catalog",
         "a dedicated package catalog search plus package role, install or activation status, and source filters",
-        "registry refresh as an ordinary visible action and manifest URL installation only in Advanced",
+        "registry refresh as an ordinary visible action and manifest URL installation only in the Agents page advanced install disclosure",
         "row install, activate, update, repair, enable, disable, hide, unhide, and uninstall actions exactly as projected by Framework",
         "workspace activation payload with scope and target_workspace from app_state.paths.workspace_root_path, or a disabled reason and Workspace route when it is missing",
         "Chinese product display names and explicit managed or developer runtime source labels",
@@ -7110,7 +7070,6 @@
       "capabilities",
       "environment",
       "settings_theme",
-      "advanced",
       "about",
       "update",
       "settings_resources"
@@ -7127,7 +7086,7 @@
       "agent_capability",
       "local_environment_status",
       "appearance_preference",
-      "advanced_diagnostic_link",
+      "maintenance_diagnostic_link",
       "about_update_fact",
       "provider_readiness_repair"
     ],

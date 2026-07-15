@@ -192,17 +192,18 @@ Framework surfaces. First-run progress derives from `opl system initialize
 --json#system_initialize.setup_flow`. Runtime reads
 `opl app state --profile fast --json` and consumes only the contracted Work Item,
 Stage, Attempt, Token, and visibility projection. Explicit full App state and
-`opl runtime app-operator-drilldown --detail full --json` are owned by Settings
-Advanced and release tooling, never by Runtime.
+`opl runtime app-operator-drilldown --detail full --json` are owned by
+Maintenance diagnostics and release tooling, never by Runtime.
 
 The current Runtime product rule is a minimal project status surface: Agent ->
 Project scope, one row per canonical Work Item, user-facing status, running and
 elapsed state, current and total Token usage, current/next Stage, current
 Attempt, and read-only next-step/owner semantics. Archive/restore is its only
-mutation. Provider/platform repair and updates live in Settings Environment;
-module/agent health lives in Settings Capabilities; raw diagnostics, State
-Index, operator drilldown, logs, command refs, and safe-action catalogs live in
-Settings Advanced; artifact provenance lives in Inspector; complete same-cohort
+mutation. Provider/platform repair, managed dependencies, updates, raw
+diagnostics, State Index, operator drilldown, logs, command refs, and safe-action
+catalogs live in Maintenance; Agent Package lifecycle lives in Agents;
+Skill/Plugin/Flow and local capability health lives in Capabilities; artifact
+provenance lives in Inspector; complete same-cohort
 evidence lives in release tooling. The App remains a projection consumer and
 never owns runtime truth, provider implementation, domain truth, artifact body,
 owner receipts, typed blockers, domain verdicts, App release readiness, or
@@ -369,9 +370,10 @@ must-show/must-not-show expectations derive from
 hand-written `settingsPageExpectations` mirror. App product-profile validation
 derives Settings route, secondary page, IA group, and query-free legacy redirect
 expectations from its projected `settings.control_plane` instead of local
-route arrays. Settings Capabilities task-awareness ref
-fields now share one App-owned validator constant, and the Settings Environment module
-maintenance entry uses the managed-update validator helper instead of repeating
+route arrays. Settings Capabilities task-awareness ref fields now share one
+App-owned validator constant limited to capability/workflow refs, and the
+Maintenance managed-dependency entry uses the managed-update validator helper
+instead of repeating
 the same assertion block in GUI and page-state validators. `release-operator.ts`
 and `validate-release-preflight.ts` intentionally keep their non-native parsers:
 the former owns subcommands plus parameter forwarding, while the latter keeps an
@@ -400,8 +402,8 @@ lightweight polling fallback when push projection is unavailable, and exposes
 only archive/restore through the Framework action boundary followed by
 authoritative refresh/readback. Stage interaction may reveal the complete Stage
 order, current/next Stage, and current Attempt, but it cannot lazy-load operator,
-provider, State Index, artifact, or safe-action detail. Settings Advanced and
-release tooling may independently read full App state or operator drilldown;
+provider, State Index, artifact, or safe-action detail. Maintenance diagnostics
+and release tooling may independently read full App state or operator drilldown;
 release collectors bind those outputs, Runtime screenshots, action receipts,
 VM/installed-App smoke, remote verification, and manifests to the same cohort.
 Those evidence inputs are not Runtime UI or runtime/domain/artifact readiness
