@@ -1,134 +1,29 @@
-# One Person Lab App Repository Guide
+# One Person Lab App
 
-This repository is the One Person Lab App product repository. It owns desktop
-App packaging, release assets, updater metadata, user guides, screenshots,
-first-run checks, GUI product requirements, and GUI page-state tests.
-It is the sole control root for GUI product truth, App-owned documentation,
-machine-readable GUI contracts, page-state validation, and App release gates.
+本仓持有桌面 App 的产品定义、GUI contracts、页面状态、打包、更新、文档与发布 truth。
 
-The OPL Framework remains in `gaofeng21cn/one-person-lab`. App code must consume
-framework-owned machine-readable contracts, CLI JSON, provider receipts, and
-domain-owned projections. Do not copy runtime truth, domain truth, provider
-implementation, or domain artifact authority into this repository.
+## Authority
 
-The user-level `~/.codex/TASTE.md` records the shared OPL family maintenance
-taste for architecture, code, docs, tests, review, cleanup, and closeout
-decisions. Use it as the preference layer, then apply this App repository guide,
-contracts, docs, and source truth.
+- OPL Framework runtime、package lifecycle 和 generic reconciliation 归 `one-person-lab`；领域判断、artifact 与交付 authority 归对应 domain agent。本仓只消费其机器合同、CLI JSON、receipts 和 projections。
+- `contracts/app-gui-product-contract.json`、`contracts/app-page-state-matrix.json`、`contracts/app-shell-adapter.json`、`contracts/app-release-channel.json` 是 App 侧核心机器边界。
+- `shells/aionui/` 是外部 shell checkout。App 定义产品行为和验收，`opl-aion-shell` 承载 renderer、process、package、测试与 upstream intake；不得把 AionUI Git 历史 vendoring 到 App `main`。
+- GUI 角色固定为 `gui_shell_roles: active=aionui; foreground=opl-native-workbench; retained=hermes-codex; archived=agui-codex`。Hermes 只按显式需求手工验证；AGUI 只保留技术证明。
+- 用户可见行为、页面状态、模型/引导策略或 release-ready 边界变化时，先更新 App contract、docs 和 tests，再实现 Shell；Shell 与上游默认值不得反向成为产品 authority。
+- 上游 fork body 默认只读。App 工作只触碰 App contracts、adapters、OPL overlays、packaging/readback hooks 与这些表面的验证。
 
-## Repository Boundaries
+## Runtime And GUI
 
-- `origin/main` is the clean One Person Lab App product mainline.
-- `shells/aionui/` is an external checkout of the upstream-following AionUI fork
-  repository, currently `gaofeng21cn/opl-aion-shell`; it is an implementation
-  carrier, not an App-owned design surface.
-- The App repo must not merge or vendor the AionUI Git history into its default
-  branch. Keep AionUI upstream intake and shell implementation commits in the
-  shell repository.
-- Current GUI direction is fixed: AionUI is the active implementation carrier,
-  `opl-native-workbench` is the foreground alternative, Hermes Desktop /
-  `hermes-codex` is a retained reference candidate, and AGUI / `agui-codex` is
-  archived technical proof. Do not update or polish AGUI unless the user
-  explicitly requests AGUI replay work.
-- Hermes is technical-verification-only. Keep its routine validation source-only;
-  build, package, smoke, or install it only for an actual Hermes development need
-  through an explicit manual replay. Do not attach Hermes builds to push, pull
-  request, schedule, watch/on-save, daily patrol, or routine validation paths.
-- GUI role marker: `gui_shell_roles: active=aionui; foreground=opl-native-workbench; retained=hermes-codex; archived=agui-codex`.
-
-Root `docs/`, `contracts/`, and `scripts/` describe the App product layer.
-AionUI-specific source, package metadata, tests, shell release hooks, and
-upstream intake rules live in the shell repository and are consumed here through
-the active shell checkout. Do not use App work to slim, refactor, restyle, or
-rewrite upstream AionUI fork-body code or tests; App-owned work is limited to
-contracts, adapters, OPL overlays, packaging/readback hooks, and validation of
-those surfaces. If fork-body files are touched by mistake, revert that local
-change before continuing.
-When a behavior changes what users see, what page state is accepted, or what
-counts as release-ready, change the App-owned contract, docs, and tests first;
-then implement the shell behavior in the shell checkout. Do not let shell code,
-upstream AionUI defaults, or local GUI implementation details become the hidden
-source of App truth.
-
-## GUI Product Authority
-
-- The App repo is the authority for what the One Person Lab App GUI should be,
-  regardless of which shell implementation is currently active.
-- Product-level GUI decisions, user-facing page behavior, model-selection
-  policy, onboarding flow, release screenshots, and page-state expectations must
-  be documented, contracted, or tested from this repo when they define App truth.
-- `contracts/app-gui-product-contract.json` owns the GUI product requirements.
-  `contracts/app-page-state-matrix.json` owns GUI page-state expectations.
-  `contracts/app-shell-adapter.json` owns the active shell implementation
-  boundary. `contracts/app-release-channel.json` owns stable/nightly release
-  gating.
-- Runtime reads use `opl app state --profile fast --json` and consume only the
-  WorkItem, Stage, Attempt, Token, and visibility projection allowed by the
-  Runtime contract. `opl app state --profile full --json` and
-  `opl runtime app-operator-drilldown --detail full --json` are restricted to
-  Settings > Advanced and release tooling; they are never a Runtime-page
-  exception. Mutations still go through
-  `opl app action execute --action <id> [--payload <json>] [--dry-run] --json`,
-  but Runtime may invoke only task archive/restore. Other actions belong to
-  their contracted Settings, Inspector, conversation, or release surface.
-- `shells/aionui/` is the current implementation carrier and upstream-sync
-  surface. It may change shape as AionUI evolves, but upstream fork-body code is
-  read-only by default and must not become the source of product authority.
-- When a GUI behavior is implemented in the shell repo, keep the App-level
-  rationale and acceptance boundary in this repo, then apply the shell code
-  change in the shell checkout.
-- Upstream AionUI behavior can be reused as implementation material only after
-  checking it against App-owned GUI requirements and contracts.
-- Codex and other external products are interaction references, not feature
-  authorities. Alignment may relocate an OPL-owned capability, but it must not
-  remove it. Any entry relocation must land a visible and keyboard-reachable
-  replacement in the same change, update contract/source/tests together, and
-  preserve the cross-project Runtime status page separately from
-  conversation-level task context.
-- Replacing the GUI shell changes the implementation carrier only. Future shells
-  must remain under `shells/<candidate>` until the App shell adapter, product
-  profile sync, page-state matrix, first-run matrix, active-shell validation,
-  GUI package compile, and external checkout history policy all pass.
-
-## GUI Design System Governance
-
-- Start GUI design and implementation work from
-  `docs/product/gui/README.md`.
-- The definition priority is
-  `gui_definition_stack: product_definition > visual_system > shell_implementation_conformance`.
-  Product docs and App contracts define behavior first, the visual system
-  translates that product truth, and shell guides/matrices implement and verify
-  it.
-- Shell authority is `gui_shell_authority: implementation_only`. A shell may
-  implement or report a tracked deviation, but it cannot redefine App product
-  truth from renderer code, screenshots, upstream defaults, or local behavior.
-- The current visual and interaction reference is ChatGPT Codex macOS
-  `26.707.41301` observed on `2026-07-11`. It is a reference only; OPL contracts
-  remain authoritative.
+- 普通读取使用 `opl app state --profile fast --json`。`full` 与 operator drilldown 只用于 Settings > Advanced 和 release tooling。
+- Mutation 统一走 `opl app action execute --action <id> [--payload <json>] [--dry-run] --json`；Runtime 页面只允许 task archive/restore。
+- GUI 工作从 `docs/product/gui/README.md` 开始，遵循 `product_definition > visual_system > shell_implementation_conformance`；shell authority 始终是 `implementation_only`。
+- 外部产品只作交互参考。入口迁移必须由 App contract 授权，并在同一变更中保留可见、键盘可达的替代入口和导航测试。
 
 ## Working Rules
 
-- Start App product work from `origin/main`.
-- Use the shell repository only for explicit AionUI upstream-intake or
-  OPL-owned overlay/adapter work; do not route general cleanup or test slimming
-  into the fork body.
-- Keep App-level changes at the root when they define product, release, testing,
-  or user documentation behavior.
-- Keep shell implementation changes in the shell repository unless they are
-  changing the active shell contract or root release wrapper.
-- Run root contract validation after changing App-level contracts or wrappers:
-
-```bash
-bun run validate:active-shell
-```
-
-Run `npm run ensure:shell` before local build or validation if
-`shells/aionui/` has not been checked out yet.
-
-## OPL App Full Profile Boundary
-
-- OPL App does not directly delete skills, write the user profile, or maintain a second Base/Packages update catalog. On first launch and after any supported App carrier identity changes, it requests the Framework-owned generic Base and Packages reconciliation and projects terminal readback plus any apply receipts.
-- OPL Flow owns the recommended workflow profile and its explicit conflict policy. Its profile migration and conflict retirement run only as Framework-owned OPL Package transaction hooks with backup and rollback receipts; skills outside that declared policy remain user-owned.
+- 修改前确认 canonical `main`、远端 currentness、当前唯一 owner 与写集；不得并发覆盖活跃 integration lane。
+- App 产品、合同、release、测试和用户文档改在本仓根；AionUI 实现改在 Shell 仓。
+- 修改 App contracts 或 wrappers 后运行 `bun run validate:active-shell`。本地缺少 `shells/aionui/` 时先运行 `npm run ensure:shell`。
+- OPL Flow 只定义推荐 workflow profile 与冲突策略；实际安装、迁移、回滚由 Framework package transaction 执行。
 
 <!-- CODEGRAPH_START -->
 ## CodeGraph
