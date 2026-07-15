@@ -59,12 +59,12 @@ codesign 与 9 场景 packaged E2E 已闭合；package 未安装，main/remote c
 promotion仍由操作层 fresh readback决定。模型可调用 host tool仍是必需产品目标，当前 AionUI
 user coordination surface 不能作为其实现证据。当前 Shell source cohort
 `e218d79b7a5727b72ddce66bcaabd9410a38076b` 在该 package cohort 之后补入 profile-driven
-feedback、Review `Last turn`/same-turn focus steer、窄窗 Access 单列断点、profile-driven
-avatar/help，以及managed Worktree
+feedback、Review `Last turn`、窄窗 Access 单列断点、profile-driven avatar/help，以及managed Worktree
 durable snapshot-before-remove/cleanup rollback/receipt restore、Runtime generic fallback 本地化、
 disabled workspace selector 合同 marker，以及 canonical project/locale Runtime evidence 与 DOM fixture
-对齐；普通 navigation 不再挂载独立协调页。
-其 Node/DOM、TypeScript、format、i18n与lint 0 errors已通过，但尚无匹配 package/pixel 证据。
+对齐；普通 navigation 不再挂载独立协调页。Review owner topic `166f63041...` 进一步删除unsupported
+same-turn focus steer，保留custom `review/start.target.custom`并在非custom focus时启动前typed fail，等待
+release owner吸收。其topic gate已通过，但尚无匹配 package/pixel 证据。
 
 ## 三层与文件归属
 
@@ -136,6 +136,8 @@ package/user path。当前 contract/source 与 packaged route visual evidence �
 - `cross_host_handoff.blocker=remote_host_handoff_owner_surface_unavailable`
 - `cross_host_handoff.owner_route=codex_app_remote_connections_host_handoff_owner`
 - `active_aionui.review_last_turn=source_implemented_existing_message_store`
+- `active_aionui.review_custom_target_instructions=review_start_target_custom_only`
+- `active_aionui.review_focus_context=source_blocked_missing_public_review_focus_protocol`
 - `active_aionui.review_inline_comments=source_blocked_missing_typed_codex_protocol`
 - `ideal_target.inspector_default_visible=false`
 - `active_aionui.state_source=contracts/app-product-profile.json#gui.home.home_layout`

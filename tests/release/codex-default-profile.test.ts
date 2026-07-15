@@ -422,23 +422,50 @@ test('41301 profile and page state reject the legacy eight-surface inspector', (
   assert.throws(() => validatePrimaryInteractionPages(matrix));
 });
 
-test('41301 GUI contract and page state reject false Review source completion', () => {
-  const guiContract = structuredClone(readJson('contracts/app-gui-product-contract.json'));
-  guiContract.right_context_inspector.review_surface.source_capability_status.inline_comments =
-    'source_implemented_shell_annotation_store';
-  assert.throws(() =>
-    validateAppGuiProductContract(
-      guiContract,
-      readJson('contracts/app-release-channel.json'),
-      readJson('contracts/app-install-exposure-policy.json'),
-    ),
-  );
+test('41301 GUI authority rejects false Review focus and inline-comment completion', () => {
+  for (const mutate of [
+    (contract: any) => {
+      contract.right_context_inspector.review_surface.source_capability_status.review_focus_context =
+        'source_implemented_same_review_turn_steer_expected_turn_id';
+    },
+    (contract: any) => {
+      contract.interaction_baseline.context_surfaces.review_pane.review_focus_delivery_policy =
+        'non_custom_target_plain_text_turn_steer_same_review_thread_expected_turn_id_custom_instructions_not_duplicated';
+    },
+    (contract: any) => {
+      contract.right_context_inspector.review_surface.source_capability_status.inline_comments =
+        'source_implemented_shell_annotation_store';
+    },
+  ]) {
+    const guiContract = structuredClone(readJson('contracts/app-gui-product-contract.json'));
+    mutate(guiContract);
+    assert.throws(() =>
+      validateAppGuiProductContract(
+        guiContract,
+        readJson('contracts/app-release-channel.json'),
+        readJson('contracts/app-install-exposure-policy.json'),
+      ),
+    );
+  }
 
-  const matrix = structuredClone(readJson('contracts/app-page-state-matrix.json'));
-  const inspector = matrix.pages.find(({ id }: { id: string }) => id === 'right_context_inspector');
-  inspector.inspector_view_model.review_surface.source_capability_status.inline_comments =
-    'source_implemented_shell_annotation_store';
-  assert.throws(() => validatePrimaryInteractionPages(matrix));
+  for (const mutate of [
+    (reviewSurface: any) => {
+      reviewSurface.source_capability_status.review_focus_context =
+        'source_implemented_same_review_turn_steer_expected_turn_id';
+    },
+    (reviewSurface: any) => {
+      reviewSurface.review_focus_delivery_policy =
+        'non_custom_target_plain_text_turn_steer_same_review_thread_expected_turn_id_custom_instructions_not_duplicated';
+    },
+    (reviewSurface: any) => {
+      reviewSurface.source_capability_status.inline_comments = 'source_implemented_shell_annotation_store';
+    },
+  ]) {
+    const matrix = structuredClone(readJson('contracts/app-page-state-matrix.json'));
+    const inspector = matrix.pages.find(({ id }: { id: string }) => id === 'right_context_inspector');
+    mutate(inspector.inspector_view_model.review_surface);
+    assert.throws(() => validatePrimaryInteractionPages(matrix));
+  }
 });
 
 test('page-state matrix rejects Codex Auto policy source drift', () => {

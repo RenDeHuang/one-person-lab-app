@@ -192,15 +192,34 @@ function validateAiFirstInteractionModel(guiContract) {
   );
 }
 
+function reviewSurfaceProductPolicy(reviewSurface) {
+  const sourceEvidenceFields = Object.keys(appOwnedReviewSurfaceSourceEvidence);
+  return Object.fromEntries(
+    Object.entries(reviewSurface).filter(([key]) => !sourceEvidenceFields.includes(key)),
+  );
+}
+
+function validateReviewSurface(reviewSurface, label) {
+  const sourceEvidenceFields = Object.keys(appOwnedReviewSurfaceSourceEvidence);
+  assertDeepEqualJson(
+    reviewSurfaceProductPolicy(reviewSurface),
+    appOwnedRightContextInspectorPolicy.review_surface,
+    `${label} product policy`,
+  );
+  assertDeepEqualJson(
+    Object.fromEntries(sourceEvidenceFields.map((key) => [key, reviewSurface[key]])),
+    appOwnedReviewSurfaceSourceEvidence,
+    `${label} source evidence`,
+  );
+}
+
 function validateRightContextInspector(guiContract) {
   const inspector = guiContract.right_context_inspector ?? {};
   const reviewSurface = inspector.review_surface ?? {};
-  const sourceEvidenceFields = Object.keys(appOwnedReviewSurfaceSourceEvidence);
+  const interactionReviewSurface = guiContract.interaction_baseline?.context_surfaces?.review_pane ?? {};
   const productPolicy = {
     ...inspector,
-    review_surface: Object.fromEntries(
-      Object.entries(reviewSurface).filter(([key]) => !sourceEvidenceFields.includes(key)),
-    ),
+    review_surface: reviewSurfaceProductPolicy(reviewSurface),
   };
   assertDeepEqualJson(
     Object.fromEntries(
@@ -209,11 +228,8 @@ function validateRightContextInspector(guiContract) {
     appOwnedRightContextInspectorPolicy,
     'App GUI on-demand advanced workspace surface policy',
   );
-  assertDeepEqualJson(
-    Object.fromEntries(sourceEvidenceFields.map((key) => [key, reviewSurface[key]])),
-    appOwnedReviewSurfaceSourceEvidence,
-    'App GUI Review source evidence',
-  );
+  validateReviewSurface(reviewSurface, 'App GUI right-context Review');
+  validateReviewSurface(interactionReviewSurface, 'App GUI interaction-baseline Review');
   for (const legacyField of ['tabs', 'primary_tools', 'secondary_sections']) {
     if (legacyField in inspector) {
       throw new Error(`App GUI must not restore legacy equal-weight inspector taxonomy field ${legacyField}`);
