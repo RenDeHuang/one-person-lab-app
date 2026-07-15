@@ -974,6 +974,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   const railWidth = record(navigationRail.resizable_width_px);
   const desktopAffordancePolicy = record(navigationRail.desktop_affordance_policy);
   const threadDirectoryPolicy = record(navigationRail.thread_directory_policy);
+  const historySearch = record(threadDirectoryPolicy.history_search);
   if (
     navigationRail.wide_desktop_default !== 'expanded' ||
     navigationRail.narrow_window_mode !== 'drawer' ||
@@ -1030,6 +1031,10 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     threadDirectoryPolicy.title_based_deduplication_allowed !== false ||
     threadDirectoryPolicy.e2e_fixture_storage_policy !== 'isolated_storage_root_never_production_user_data' ||
     JSON.stringify(threadDirectoryPolicy.directory_group_policy) !== JSON.stringify(appOwnedDirectoryGroupPolicy) ||
+    historySearch.placement !== 'conversation_history_heading_trailing_icon' ||
+    historySearch.presentation !== 'icon_only' ||
+    historySearch.accessible_name_required !== true ||
+    historySearch.expanded_full_width_row_allowed !== false ||
     threadDirectoryPolicy.ordinary_coordination_entry_visible !== false ||
     threadDirectoryPolicy.coordination_context_action_keyboard_reachable !== true ||
     threadDirectoryPolicy.coordination_entry_placement !==
@@ -1159,6 +1164,16 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   const guidHomeViewModel = record(record(guidHomePage).home_view_model);
   if (JSON.stringify(record(guidHomeViewModel.new_task_locality)) !== JSON.stringify(appOwnedNewTaskLocality)) {
     issues.add('Guid Home must expose only the implemented new-task Local or Worktree selection boundary');
+  }
+  if (
+    !stringArray(record(guidHomePage).must_show).includes(
+      'history search as one accessible icon at the trailing edge of the conversation-history heading',
+    ) ||
+    !stringArray(record(guidHomePage).must_not_show).includes(
+      'standalone full-width conversation-history search row',
+    )
+  ) {
+    issues.add('Guid Home rail must place one accessible icon-only search action in the conversation-history heading');
   }
   const threadCoordinationPage = pageStates.find((page) => page.id === 'thread_coordination') ?? {};
   const coordinationViewModel = record(record(threadCoordinationPage).coordination_view_model);
@@ -1465,6 +1480,8 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   const pageReviewPane = record(record(record(rightContextInspectorPage).inspector_view_model).review_surface);
   const settingsShell = record(interactionBaseline.settings_shell);
   const visualTarget = record(interactionBaseline.visual_target);
+  const lightSurfaces = record(visualTarget.light_surfaces);
+  const visualTypography = record(visualTarget.typography);
   const targetDefinitionRole = 'opl_target_translation_not_literal_codex_observation';
   if (oplTargetTranslation.some((key) => record(interactionBaseline[key]).definition_role !== targetDefinitionRole)) {
     issues.add('each OPL target translation section must declare that it is not a literal Codex observation');
@@ -1596,7 +1613,25 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     settingsShell.settings_objects_or_model_policy_changed_by_41301 !== false ||
     settingsShell.installer_or_runtime_truth_authority !== false ||
     visualTarget.main_canvas !== 'white' ||
+    JSON.stringify(lightSurfaces) !==
+      JSON.stringify({
+        main_canvas: '#FFFFFF',
+        navigation_rail: '#FCFCFC',
+        bounded_surface: '#FFFFFF',
+        selected_row: '#F0F0F0',
+      }) ||
     visualTarget.rail_and_subtle_surfaces !== 'neutral_gray' ||
+    visualTarget.composer !== 'floating_or_bottom_safe_inset' ||
+    visualTarget.composer_elevation !== 'single_outline_with_restrained_shadow' ||
+    JSON.stringify(visualTypography) !==
+      JSON.stringify({
+        ui_font_stack: 'platform_system_sf_pro_text_first',
+        conversation: '15/22/400',
+        body: '14/20/400',
+        label: '13/18/500',
+        letter_spacing_px: 0,
+      }) ||
+    visualTarget.settings_icon_policy !== 'monochrome_utility_icons_with_color_reserved_for_typed_status' ||
     visualTarget.opl_teal_and_brand_retained !== true
   ) {
     issues.add('interaction baseline must reject the legacy equal-weight inspector taxonomy and keep Settings in maintenance');

@@ -592,7 +592,7 @@ test("Settings configuration catalog projection preserves owner, page, persisten
   );
 });
 
-test("Settings visual QA enforces bounded-card grouping, compact footer, one visual baseline, and responsive color evidence", () => {
+test("Settings visual QA enforces Codex quiet grouping, compact footer, and monochrome utility hierarchy", () => {
   const values = contracts();
   const visualSystem = values.controlPlane.experience_contract.visual_system;
   const visualQa =
@@ -601,19 +601,19 @@ test("Settings visual QA enforces bounded-card grouping, compact footer, one vis
 
   assert.doesNotThrow(() => validate(values));
   assert.deepStrictEqual(visualSystem, {
-    style: "opl_baseline_card_control_center",
-    style_exclusion: "codex_quiet_list",
+    style: "codex_quiet_control_center_with_opl_information_architecture",
+    style_exclusion: "multi_hue_card_dashboard",
     baseline_shell_commit: "409dd0c3b693f1c7c93551654dfac8fb9420843d",
     baseline_comparison_policy:
       "fresh_same_route_screenshots_must_preserve_or_improve_information_hierarchy",
-    card_policy: "one_bounded_card_per_user_question_with_flat_internal_rows",
+    card_policy: "one_quiet_bounded_section_per_user_question_with_flat_internal_rows",
     first_viewport_spatial_group_range: { min: 2, max: 4 },
     nested_cards_allowed: false,
     page_wide_list_wall_allowed: false,
     page_sections_as_floating_cards_allowed: false,
-    desktop_group_layout: "responsive_two_column_grid_where_space_allows",
+    desktop_group_layout: "single_column_reading_lane",
     mobile_group_layout: "single_column_stack",
-    icon_slot_px: 28,
+    icon_slot_px: 20,
     typography: {
       page_title: "20/28/600",
       card_title: "14-16/20-24/600",
@@ -627,7 +627,7 @@ test("Settings visual QA enforces bounded-card grouping, compact footer, one vis
       action: "brand",
     },
     object_accent_policy:
-      "use restrained multi-hue navigation icons and card-edge accents to distinguish access, workspace, capabilities, maintenance, and storage without tinting whole pages",
+      "use monochrome utility navigation icons and reserve color for typed warning error success and brand actions",
     footer_layout: "compact",
     footer_controls: [
       "gateway_account_or_settings_entry",
@@ -667,7 +667,7 @@ test("Settings visual QA enforces bounded-card grouping, compact footer, one vis
     allowed_bounded_group_kinds: ["page_section", "summary", "repeated_entity"],
     bounded_group_nesting: "single_layer_only",
     page_section_card_policy:
-      "one_bounded_card_per_user_question_with_flat_internal_rows",
+      "one_quiet_bounded_section_per_user_question_with_flat_internal_rows",
     first_viewport_spatial_group_range: { min: 2, max: 4 },
     page_wide_bare_divider_layout: "forbidden",
     page_wide_list_wall: "forbidden",
@@ -692,10 +692,10 @@ test("Settings visual QA enforces bounded-card grouping, compact footer, one vis
   });
   assert.deepStrictEqual(visualQa.assertion_focus, {
     required_structure: [
-      "user_question_to_bounded_card",
+      "user_question_to_quiet_bounded_section",
       "two_to_four_first_viewport_spatial_groups",
-      "responsive_grid_to_stack",
-      "icon_typography_and_status_hierarchy",
+      "single_column_reading_lane_to_mobile_stack",
+      "monochrome_icon_typography_and_typed_status_hierarchy",
       "409dd0c3_same_route_non_regression",
       "flat_rows_inside_card",
       "compact_footer",
@@ -741,10 +741,10 @@ test("Settings visual QA enforces bounded-card grouping, compact footer, one vis
     "sufficient";
   assert.throws(() => validate(metricsOnly), /assertion focus/);
 
-  const quietList = contracts();
-  quietList.controlPlane.experience_contract.visual_system.style_exclusion =
-    "allowed";
-  assert.throws(() => validate(quietList), /visual system/);
+  const multiHueDashboard = contracts();
+  multiHueDashboard.controlPlane.experience_contract.visual_system.style_exclusion =
+    "multi_hue_icons_allowed";
+  assert.throws(() => validate(multiHueDashboard), /visual system/);
 
   const staleProfileVisualSystem = contracts();
   staleProfileVisualSystem.productProfile.settings.control_plane.experience_contract.visual_system.theme_swatch_list_allowed = true;

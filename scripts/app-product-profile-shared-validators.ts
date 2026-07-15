@@ -401,11 +401,11 @@ export function assertAppProductProfileSettingsVisualSystem(
   const visualSystem = profile.settings?.control_plane?.experience_contract?.visual_system;
   assertExpectedFields(
     [
-      { actual: visualSystem?.style, expected: 'opl_baseline_card_control_center' },
-      { actual: visualSystem?.style_exclusion, expected: 'codex_quiet_list' },
+      { actual: visualSystem?.style, expected: 'codex_quiet_control_center_with_opl_information_architecture' },
+      { actual: visualSystem?.style_exclusion, expected: 'multi_hue_card_dashboard' },
       {
         actual: visualSystem?.card_policy,
-        expected: 'one_bounded_card_per_user_question_with_flat_internal_rows',
+        expected: 'one_quiet_bounded_section_per_user_question_with_flat_internal_rows',
       },
       { actual: visualSystem?.nested_cards_allowed, expected: false },
       { actual: visualSystem?.page_wide_list_wall_allowed, expected: false },
@@ -429,7 +429,7 @@ export function assertAppProductProfileSettingsVisualSystem(
       { actual: visualSystem?.theme_swatch_list_allowed, expected: false },
       { actual: visualSystem?.max_border_radius_px, expected: 8 },
     ],
-    `${label} Settings visual system must preserve the OPL bounded-card baseline`,
+    `${label} Settings visual system must preserve the Codex quiet baseline with OPL information architecture`,
   );
   if (
     JSON.stringify(visualSystem?.footer_controls) !==

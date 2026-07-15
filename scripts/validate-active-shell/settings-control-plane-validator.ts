@@ -1261,7 +1261,7 @@ function validateSettingsVisualQaExpectations(expectations) {
       ],
       bounded_group_nesting: "single_layer_only",
       page_section_card_policy:
-        "one_bounded_card_per_user_question_with_flat_internal_rows",
+        "one_quiet_bounded_section_per_user_question_with_flat_internal_rows",
       first_viewport_spatial_group_range: { min: 2, max: 4 },
       page_wide_bare_divider_layout: "forbidden",
       page_wide_list_wall: "forbidden",
@@ -1271,9 +1271,9 @@ function validateSettingsVisualQaExpectations(expectations) {
   assertDeepEqualJson(
     expectations?.responsive_hierarchy,
     {
-      desktop: "responsive_two_column_grid_where_space_allows",
+      desktop: "single_column_reading_lane",
       mobile: "single_column_stack",
-      icon_slot_px: 28,
+      icon_slot_px: 20,
       page_title: "20/28/600",
       card_title: "14-16/20-24/600",
       description: "13/20/400",
@@ -1324,10 +1324,10 @@ function validateSettingsVisualQaExpectations(expectations) {
     expectations?.assertion_focus,
     {
       required_structure: [
-        "user_question_to_bounded_card",
+        "user_question_to_quiet_bounded_section",
         "two_to_four_first_viewport_spatial_groups",
-        "responsive_grid_to_stack",
-        "icon_typography_and_status_hierarchy",
+        "single_column_reading_lane_to_mobile_stack",
+        "monochrome_icon_typography_and_typed_status_hierarchy",
         "409dd0c3_same_route_non_regression",
         "flat_rows_inside_card",
         "compact_footer",
@@ -1389,11 +1389,11 @@ function validateSettingsVisualQaExpectations(expectations) {
   assertIncludesAll(
     expectations?.must_check,
     [
-      "page sections use bounded cards with flat internal rows, nested cards are absent, radius is at most 8px, and spacing uses 12/16/24",
-      "each user question is one bounded card with flat internal rows; page-wide list walls and nested cards are absent",
+      "page sections use quiet white bounded groups with flat internal rows, nested cards are absent, radius is at most 8px, and spacing uses 12/16/24",
+      "each user question is one quiet bounded section with flat internal rows; page-wide list walls and nested cards are absent",
       "each page first viewport contains two to four independent spatial groups",
-      "desktop groups use a responsive grid and mobile groups stack without losing hierarchy",
-      "28px visual anchors, compact typography levels, and muted/orange/red/brand status semantics remain visible",
+      "desktop groups use a single reading lane and mobile groups stack without losing hierarchy",
+      "20px monochrome visual anchors, compact typography levels, and muted/orange/red/brand status semantics remain visible",
       "same-route screenshots preserve or improve spatial and typographic hierarchy against shell baseline 409dd0c3",
       "Settings remains quiet, dense, and scannable without a sparse page-wide bare-divider layout",
       "bounded page-section cards do not become a decorative card wall",
@@ -1976,7 +1976,7 @@ function validatePageSurfaceInventory(pageId, inventory) {
 
 export function validateSettingsExperienceContract(experience) {
   if (
-    experience?.schema !== "settings_opl_card_experience.v1" ||
+    experience?.schema !== "settings_codex_quiet_experience.v2" ||
     experience.owner !== "one-person-lab-app" ||
     experience.purpose !==
       "machine_verifiable_settings_visual_search_page_and_dom_contract"

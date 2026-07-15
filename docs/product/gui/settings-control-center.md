@@ -27,7 +27,7 @@ The root design rule is **one user question, one owner page**:
 
 These contracts own the ten ordinary product pages, About as the only
 secondary page, compatibility redirects, Settings search, page experience and
-DOM requirements, and the bounded-card visual grammar. They do not own runtime
+DOM requirements, and the Codex quiet visual grammar. They do not own runtime
 truth, provider implementation, domain truth, release readiness, installed App
 currentness, or owner acceptance.
 
@@ -144,10 +144,11 @@ and a path shown in diagnostics is not a second path configuration.
 
 ## Visual Contract
 
-Settings keeps the OPL bounded-card control-center structure while using the
-shared Codex-aligned typography, color, radius, spacing, icon, and interaction
-baseline. Quiet and scannable describe the tone; they do not turn complex OPL
-controls into a page-wide list wall or nested cards.
+Settings keeps the OPL information architecture while using the Codex quiet
+control-center visual grammar: a single reading lane, white bounded groups,
+flat internal rows, monochrome utility icons, and color reserved for typed
+status or brand actions. It does not turn complex OPL controls into a page-wide
+list wall or nested cards.
 
 - the compact footer always shows the connected Gateway display name, otherwise
   Settings; it opens Account & Gateway or Overview;
@@ -395,13 +396,13 @@ Settings exposes exactly one bilingual item-level search input,
 the owner carrier route, and focus the declared anchor. Duplicate Settings
 search inputs are forbidden.
 
-Settings preserves the OPL bounded-card baseline:
+Settings preserves OPL IA inside the Codex quiet visual baseline:
 
-- one card answers one user question and contains flat rows;
+- one quiet bounded section answers one user question and contains flat rows;
 - no nested cards, page-wide list wall, or floating dashboard sections;
 - two to four first-viewport groups where the page density supports them;
-- responsive desktop grid and mobile stack;
-- 28 px icon slots, compact type, 8 px maximum radius, 12/16/24 spacing, and 0
+- a single desktop reading lane and mobile stack;
+- 20 px monochrome icon slots, compact type, 8 px maximum radius, 12/16/24 spacing, and 0
   letter spacing;
 - normal, warning, error, and action use muted, orange, red, and brand
   semantics;

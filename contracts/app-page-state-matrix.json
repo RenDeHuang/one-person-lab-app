@@ -456,6 +456,7 @@
         "exactly one Home root, composer shell, and footer account or Settings entry at every viewport",
         "permission and access mode in user language",
         "workspace/session rail visible on wide desktop and drawer on narrow windows",
+        "history search as one accessible icon at the trailing edge of the conversation-history heading",
         "each canonical thread ID rendered as at most one conversation row regardless of title",
         "canonical App Server thread overview overrides Codex ACP cache rows while preserving non-Codex local rows",
         "directory groups derived from canonical session cwd as presentation and new-session cwd shortcuts only",
@@ -491,6 +492,7 @@
         "existing-session working-directory or Local/Worktree handoff controls on Home",
         "snapshot, restore, or worktree cleanup controls claimed as available on Home",
         "workspace-scoped Add context action in a directory group",
+        "standalone full-width conversation-history search row",
         "directory-group delete action or cascade deletion of grouped sessions",
         "title-based conversation deduplication",
         "stale Codex ACP cache rows absent from an available canonical App Server overview"

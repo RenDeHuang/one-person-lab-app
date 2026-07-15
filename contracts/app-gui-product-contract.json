@@ -198,6 +198,12 @@
           "cascade_session_delete_allowed": false,
           "new_session_action_language": "use_this_working_directory_not_create_project_child"
         },
+        "history_search": {
+          "placement": "conversation_history_heading_trailing_icon",
+          "presentation": "icon_only",
+          "accessible_name_required": true,
+          "expanded_full_width_row_allowed": false
+        },
         "ordinary_coordination_entry_visible": false,
         "coordination_context_action_keyboard_reachable": true,
         "coordination_entry_placement": "thread_detail_context_action_and_model_host_tool_no_ordinary_navigation"
@@ -938,9 +944,24 @@
     "visual_target": {
       "definition_role": "opl_target_translation_not_literal_codex_observation",
       "main_canvas": "white",
+      "light_surfaces": {
+        "main_canvas": "#FFFFFF",
+        "navigation_rail": "#FCFCFC",
+        "bounded_surface": "#FFFFFF",
+        "selected_row": "#F0F0F0"
+      },
       "rail_and_subtle_surfaces": "neutral_gray",
       "side_panel_resizable": true,
       "composer": "floating_or_bottom_safe_inset",
+      "composer_elevation": "single_outline_with_restrained_shadow",
+      "typography": {
+        "ui_font_stack": "platform_system_sf_pro_text_first",
+        "conversation": "15/22/400",
+        "body": "14/20/400",
+        "label": "13/18/500",
+        "letter_spacing_px": 0
+      },
+      "settings_icon_policy": "monochrome_utility_icons_with_color_reserved_for_typed_status",
       "opl_teal_and_brand_retained": true
     },
     "opl_retained_differences": [
@@ -3836,7 +3857,7 @@
               "repeated_entity"
             ],
             "bounded_group_nesting": "single_layer_only",
-            "page_section_card_policy": "one_bounded_card_per_user_question_with_flat_internal_rows",
+            "page_section_card_policy": "one_quiet_bounded_section_per_user_question_with_flat_internal_rows",
             "first_viewport_spatial_group_range": {
               "min": 2,
               "max": 4
@@ -3845,9 +3866,9 @@
             "page_wide_list_wall": "forbidden"
           },
           "responsive_hierarchy": {
-            "desktop": "responsive_two_column_grid_where_space_allows",
+            "desktop": "single_column_reading_lane",
             "mobile": "single_column_stack",
-            "icon_slot_px": 28,
+            "icon_slot_px": 20,
             "page_title": "20/28/600",
             "card_title": "14-16/20-24/600",
             "description": "13/20/400",
@@ -3859,7 +3880,7 @@
             "error": "red",
             "action": "brand"
           },
-          "object_accent_policy": "use restrained multi-hue navigation icons and card-edge accents to distinguish access, workspace, capabilities, maintenance, and storage without tinting whole pages",
+          "object_accent_policy": "use monochrome utility navigation icons and reserve color for typed warning error success and brand actions",
           "baseline_comparison": {
             "shell_commit": "409dd0c3b693f1c7c93551654dfac8fb9420843d",
             "comparison_scope": "same_route_spatial_typographic_and_status_hierarchy",
@@ -3882,10 +3903,10 @@
           },
           "assertion_focus": {
             "required_structure": [
-              "user_question_to_bounded_card",
+              "user_question_to_quiet_bounded_section",
               "two_to_four_first_viewport_spatial_groups",
-              "responsive_grid_to_stack",
-              "icon_typography_and_status_hierarchy",
+              "single_column_reading_lane_to_mobile_stack",
+              "monochrome_icon_typography_and_typed_status_hierarchy",
               "409dd0c3_same_route_non_regression",
               "flat_rows_inside_card",
               "compact_footer",
@@ -3932,11 +3953,11 @@
             "update, theme, local-services, and personalization land on their owner route and anchor",
             "exactly one global search entry is rendered",
             "search results use page > item labels and focus the declared anchor",
-            "page sections use bounded cards with flat internal rows, nested cards are absent, radius is at most 8px, and spacing uses 12/16/24",
-            "each user question is one bounded card with flat internal rows; page-wide list walls and nested cards are absent",
+            "page sections use quiet white bounded groups with flat internal rows, nested cards are absent, radius is at most 8px, and spacing uses 12/16/24",
+            "each user question is one quiet bounded section with flat internal rows; page-wide list walls and nested cards are absent",
             "each page first viewport contains two to four independent spatial groups",
-            "desktop groups use a responsive grid and mobile groups stack without losing hierarchy",
-            "28px visual anchors, compact typography levels, and muted/orange/red/brand status semantics remain visible",
+            "desktop groups use a single reading lane and mobile groups stack without losing hierarchy",
+            "20px monochrome visual anchors, compact typography levels, and muted/orange/red/brand status semantics remain visible",
             "same-route screenshots preserve or improve spatial and typographic hierarchy against shell baseline 409dd0c3",
             "Settings remains quiet, dense, and scannable without a sparse page-wide bare-divider layout",
             "bounded page-section cards do not become a decorative card wall",
