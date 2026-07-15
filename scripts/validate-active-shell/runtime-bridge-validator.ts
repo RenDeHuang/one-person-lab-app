@@ -208,6 +208,8 @@ const agentPackageDirectoryEntryFields = [
   'activated',
   'installability',
   'readiness',
+  'exposure',
+  'use_boundary_action',
   'recommended_action',
   'recommended_action_ref',
   'available_actions',
@@ -219,6 +221,21 @@ const agentPackageActionFields = [
   'payload',
   'required_payload_fields',
   'confirmation_required',
+];
+const agentPackageUseBoundaryActionFields = [
+  'surface_kind',
+  'action_id',
+  'action_ref',
+  'payload',
+  'required_payload_fields',
+  'confirmation_required',
+  'use_boundary_id',
+  'directory_entry_ref',
+  'readiness_ref',
+  'enabled',
+  'preparation_status',
+  'reason_code',
+  'blocker',
 ];
 
 function assertExactObjectFields(value, expectedFields, label) {
@@ -248,6 +265,53 @@ function validateAgentPackageDirectoryAction(action, label) {
   }
 }
 
+function validateAgentPackageUseBoundaryAction(entry, label) {
+  const action = entry.use_boundary_action;
+  const requiresAction = entry.installed === true && entry.package_role === 'standard_agent';
+  if (!requiresAction) {
+    if (action !== null) {
+      throw new Error(`${label} must not project Agent launch authority`);
+    }
+    return;
+  }
+  assertExactObjectFields(action, agentPackageUseBoundaryActionFields, `${label} use_boundary_action`);
+  if (
+    action.surface_kind !== 'opl_agent_package_use_boundary_action.v1'
+    || action.action_id !== 'agent_package_activate'
+    || action.action_ref !== 'app_state.actions#agent_package_activate'
+    || action.confirmation_required !== false
+    || action.payload?.package_id !== entry.package_id
+    || action.payload?.use_boundary_id !== action.use_boundary_id
+    || action.directory_entry_ref !== `app_state.agent_packages.directory.entries[package_id=${entry.package_id}]`
+    || action.readiness_ref !== `app_state.agent_packages.directory.entries[package_id=${entry.package_id}].readiness`
+    || JSON.stringify(action.required_payload_fields) !== JSON.stringify([
+      'package_id',
+      'scope',
+      'target_workspace or target_quest',
+      'use_boundary_id',
+    ])
+  ) {
+    throw new Error(`${label} use_boundary_action must preserve the exact Framework identity, payload, and refs`);
+  }
+  if (action.enabled === true) {
+    if (
+      !['activation_required', 'verification_deferred', 'ready'].includes(action.preparation_status)
+      || action.blocker !== null
+      || entry.exposure?.enabled !== true
+    ) {
+      throw new Error(`${label} executable use_boundary_action has invalid preparation or exposure state`);
+    }
+  } else if (
+    action.preparation_status !== 'blocked'
+    || !action.blocker
+    || action.blocker.code !== action.reason_code
+    || typeof action.blocker.source_ref !== 'string'
+    || typeof action.blocker.recovery_action_ref !== 'string'
+  ) {
+    throw new Error(`${label} blocked use_boundary_action must preserve its typed blocker and recovery refs`);
+  }
+}
+
 export function validateOplAppStateFastAgentPackageDirectoryFixture(fixture) {
   const directory = lookupPath(fixture, 'app_state.agent_packages.directory');
   assertExactObjectFields(directory, agentPackageDirectoryFields, 'Agent Package directory fixture');
@@ -270,6 +334,7 @@ export function validateOplAppStateFastAgentPackageDirectoryFixture(fixture) {
     throw new Error('Agent Package directory fixture counts must match its entries');
   }
 
+  const projectedUseBoundaryIds = new Set();
   for (const entry of directory.entries) {
     assertExactObjectFields(entry, agentPackageDirectoryEntryFields, `Agent Package directory entry ${entry?.package_id ?? '<unknown>'}`);
     if (
@@ -306,6 +371,32 @@ export function validateOplAppStateFastAgentPackageDirectoryFixture(fixture) {
       ['status', 'operational_ready', 'launch_allowed', 'verification_deferred', 'reason', 'detail_surface', 'status_read_error'],
       `Agent Package directory entry ${entry.package_id} readiness`,
     );
+    if (entry.installed) {
+      assertExactObjectFields(
+        entry.exposure,
+        ['enabled', 'visibility', 'codex_visible'],
+        `Agent Package directory entry ${entry.package_id} exposure`,
+      );
+      if (
+        typeof entry.exposure.enabled !== 'boolean'
+        || !['visible', 'hidden'].includes(entry.exposure.visibility)
+        || entry.exposure.codex_visible !== (entry.exposure.enabled && entry.exposure.visibility === 'visible')
+      ) {
+        throw new Error(`Agent Package directory entry ${entry.package_id} has invalid orthogonal exposure state`);
+      }
+    } else if (entry.exposure !== null) {
+      throw new Error(`Uninstalled Agent Package directory entry ${entry.package_id} exposure must be null`);
+    }
+    validateAgentPackageUseBoundaryAction(
+      entry,
+      `Agent Package directory entry ${entry.package_id}`,
+    );
+    if (entry.use_boundary_action) {
+      if (projectedUseBoundaryIds.has(entry.use_boundary_action.use_boundary_id)) {
+        throw new Error(`Agent Package directory use_boundary_id ${entry.use_boundary_action.use_boundary_id} must be globally unique`);
+      }
+      projectedUseBoundaryIds.add(entry.use_boundary_action.use_boundary_id);
+    }
     if (
       typeof entry.source_explanation.kind !== 'string'
       || typeof entry.source_explanation.source !== 'string'
@@ -361,6 +452,8 @@ export function validateOplAppStateFastAgentPackageDirectoryFixture(fixture) {
     || activationEntry.recommended_action_ref?.payload?.target_workspace !== workspaceRoot
     || !activationEntry.recommended_action_ref?.required_payload_fields?.includes('scope')
     || !activationEntry.recommended_action_ref?.required_payload_fields?.includes('target_workspace or target_quest')
+    || activationEntry.use_boundary_action?.preparation_status !== 'activation_required'
+    || activationEntry.use_boundary_action?.payload?.target_workspace !== workspaceRoot
   ) {
     throw new Error('Agent Package directory fixture must include a workspace-scoped canonical activation action');
   }
@@ -374,6 +467,9 @@ export function validateOplAppStateFastAgentPackageDirectoryFixture(fixture) {
     || activatedEntry.readiness.launch_allowed !== false
     || activatedEntry.recommended_action !== null
     || activatedEntry.recommended_action_ref !== null
+    || activatedEntry.use_boundary_action?.enabled !== true
+    || activatedEntry.use_boundary_action?.preparation_status !== 'verification_deferred'
+    || activatedEntry.use_boundary_action?.reason_code !== 'live_verification_deferred'
   ) {
     throw new Error('Agent Package fast directory fixture must keep activated readiness verification deferred until full verification');
   }
@@ -420,6 +516,18 @@ export function validateOplAppStateFastAgentPackageDirectoryFixture(fixture) {
     ['status', 'operational_ready', 'repair_command', 'dependencies'],
     'Agent Package dependency readiness',
   );
+  assertExactObjectFields(
+    representativeStatus.capability_exposure,
+    ['enabled', 'visibility', 'codex_visible'],
+    'Agent Package canonical orthogonal exposure',
+  );
+  if (
+    representativeStatus.capability_exposure.enabled !== true
+    || representativeStatus.capability_exposure.visibility !== 'visible'
+    || representativeStatus.capability_exposure.codex_visible !== true
+  ) {
+    throw new Error('Agent Package representative status must project orthogonal exposure fields');
+  }
   assertExactObjectFields(
     representativeStatus.dependency_readiness,
     ['status', 'required_count', 'ready_count', 'checks', 'closure'],
@@ -1748,30 +1856,170 @@ function validatePackageReadinessProjection(runtimeBridge) {
     ['source_origin', 'source_path', 'source_policy', 'git'],
     'Runtime bridge optional active source diagnostic fields',
   );
+  const useBoundary = packageRow?.use_boundary_activation_contract;
+  if (
+    useBoundary?.projection_source !== 'app_state.agent_packages.directory.entries[].use_boundary_action'
+    || useBoundary.projection_scope !== 'installed_standard_agent_only'
+    || useBoundary.projection_independence !==
+      'independent_from_lifecycle_available_actions_recommended_action_and_status_index_activation_action'
+    || useBoundary.action_id !== 'agent_package_activate'
+    || useBoundary.trigger !== 'before_every_installed_package_workspace_or_quest_launch'
+    || useBoundary.result_contract?.canonical_binding_field !== 'use_binding'
+    || !useBoundary.result_contract?.temporary_alias_policy?.includes('alias_only_never_satisfies')
+    || useBoundary.request_scoped_projection_policy?.result_surface_kind !==
+      'opl_agent_package_session_launch_projection.v1'
+    || useBoundary.request_scoped_projection_policy?.producer_cli_route !== null
+    || useBoundary.request_scoped_projection_policy?.session_target_source !==
+      'normalized_selected_local_directory'
+    || useBoundary.request_scoped_projection_policy?.projectless_reason_code !==
+      'agent_package_target_workspace_required'
+    || !useBoundary.request_scoped_projection_policy?.global_workspace_root_policy?.includes(
+      'never_call_workspace_root_set',
+    )
+    || useBoundary.action_identity_policy !==
+      'execute_the_Framework_projected_action_id_and_payload_byte_for_byte_including_use_boundary_id'
+  ) {
+    throw new Error('Runtime bridge package use-boundary activation must use the independent canonical directory action and binding');
+  }
   assertDeepEqualJson(
-    packageRow?.use_boundary_activation_contract,
-    {
-      action_id: 'agent_package_activate',
-      action_route: 'opl app action execute --action agent_package_activate --payload <json> --json',
-      trigger: 'before_every_installed_package_workspace_or_quest_launch',
-      payload_fields: ['package_id', 'scope', 'target_workspace', 'target_quest', 'use_boundary_id'],
-      scope_values: ['workspace', 'quest'],
-      scope_target_policy: {
-        workspace: 'target_workspace_required_target_quest_forbidden',
-        quest: 'target_quest_required_target_workspace_forbidden',
-      },
-      result_fields: ['launch_allowed', 'use_receipt_ref', 'use_binding'],
-      launch_policy: 'launch_only_when_launch_allowed_true_and_use_receipt_ref_and_use_binding_are_present',
-      currentness_policy: 'framework_reconciles_latest_stable_compatible_package_closure_once_at_use_boundary_and_pins_use_binding_for_the_session',
-      package_identity_policy: 'generic_package_id_no_hardcoded_agent_or_capability_package_ids',
-      app_role: 'prepare_then_launch_using_framework_readback_without_owning_package_currentness_or_materialization',
-    },
-    'Runtime bridge package use-boundary activation contract',
+    useBoundary.result_fields,
+    ['launch_allowed', 'launch_blocked_reason', 'use_boundary_id', 'use_receipt_ref', 'use_binding'],
+    'Runtime bridge package activation result fields',
+  );
+  assertDeepEqualJson(
+    useBoundary.transition_policy?.prelaunch_transition_reason_codes,
+    ['scope_reconciliation_required', 'live_verification_deferred', 'use_boundary_reconciliation_ready'],
+    'Runtime bridge package prelaunch transitions',
+  );
+  assertIncludesAll(
+    useBoundary.transition_policy?.hard_block_reason_codes,
+    ['package_not_installed', 'package_disabled', 'package_dependency_missing', 'physical_surface_not_ready', 'package_lock_corrupt', 'package_ledger_corrupt', 'package_recovery_in_progress', 'package_recovery_required'],
+    'Runtime bridge package hard launch blockers',
   );
   if (
+    useBoundary.transition_policy?.hard_block_policy !==
+      'do_not_execute_use_boundary_action_and_preserve_typed_reason_source_ref_and_recovery_action'
+    || !useBoundary.transition_policy?.blocked_result_write_policy?.includes('zero_scope_use_and_activation_receipt_delta')
+    || useBoundary.exposure_policy?.execution_authority !== 'directory.entries[].exposure.enabled'
+    || useBoundary.exposure_policy?.discovery_authority !== 'directory.entries[].exposure.visibility'
+  ) {
+    throw new Error('Runtime bridge package use-boundary hard blockers and exposure axes must remain fail closed');
+  }
+  const recoveryPolicy = useBoundary.recovery_state_policy;
+  assertDeepEqualJson(
+    recoveryPolicy?.framework_vocabulary,
+    {
+      owner: 'one-person-lab',
+      surface_kind: 'opl_agent_package_recovery_readback',
+      vocabulary_version: 'opl-agent-package-recovery.v1',
+      status_envelope_version: 'g2',
+      directory_surface_kind: 'opl_agent_package_directory.v1',
+      private_alias_normalization_allowed: false,
+    },
+    'Runtime bridge Framework recovery vocabulary',
+  );
+  assertDeepEqualJson(
+    recoveryPolicy?.launch_blocked_reason_by_status,
+    {
+      recovery_in_progress: 'package_recovery_in_progress',
+      recovery_required: 'package_recovery_required',
+    },
+    'Runtime bridge Framework recovery launch reasons',
+  );
+  if (
+    recoveryPolicy?.writes_performed !== false
+    || recoveryPolicy?.owner_token_exposed !== false
+    || recoveryPolicy?.repair_action_policy?.recovery_in_progress?.required_recovery_action_state !== 'wait_only'
+    || recoveryPolicy?.repair_action_policy?.recovery_required_executable?.required_recovery_action_executable !== true
+    || recoveryPolicy?.repair_action_policy?.recovery_required_manual_owner_intervention
+      ?.required_recovery_action_executable !== false
+  ) {
+    throw new Error('Runtime bridge recovery states must distinguish wait, executable repair, and manual intervention');
+  }
+  assertDeepEqualJson(
+    useBoundary.single_use_policy?.identity_fields,
+    ['package_id', 'scope', 'target_workspace_or_target_quest', 'directory_entry_ref', 'readiness_ref', 'root_package.package_id', 'root_package.package_lock_ref', 'root_package.package_version', 'root_package.manifest_sha256', 'root_package.content_digest', 'dependency_closure_digest', 'provider_packages'],
+    'Runtime bridge package use-boundary replay identity',
+  );
+  assertDeepEqualJson(
+    useBoundary.single_use_policy?.conflict_reason_codes,
+    ['agent_package_use_boundary_replay_conflict', 'agent_package_use_boundary_replay_stale'],
+    'Runtime bridge package use-boundary replay reasons',
+  );
+  if (
+    useBoundary.single_use_policy?.token_scope !== 'globally_unique_within_agent_package_use_ledger'
+    || !useBoundary.single_use_policy?.first_execution_policy?.includes('before_any_currentness_scope_use_or_activation_write')
+    || !useBoundary.single_use_policy?.exact_retry_policy?.includes('zero_new_writes')
+    || useBoundary.single_use_policy?.receipt_index_policy !==
+      'canonical_use_ledger_is_directly_indexed_by_use_boundary_id_and_never_guessed_by_receipt_ref_scan'
+    || !useBoundary.single_use_policy?.consumed_action_policy?.includes('cannot_authorize_a_new_conversation')
+  ) {
+    throw new Error('Runtime bridge package use-boundary replay must be indexed, idempotent, and single-launch only');
+  }
+  assertDeepEqualJson(
+    useBoundary.workspace_transition_policy?.stale_on,
+    ['workspace_root_change', 'local_to_worktree', 'worktree_to_local', 'workspace_cleanup', 'workspace_restore'],
+    'Runtime bridge package workspace transition invalidation',
+  );
+  if (
+    useBoundary.workspace_transition_policy?.applies_to !== 'package_backed_canonical_sessions'
+    || !useBoundary.workspace_transition_policy?.old_binding_policy?.includes('never_authorize_warmup_runtime_ensure_turn_or_message_for_the_new_target_root')
+    || useBoundary.workspace_transition_policy?.reactivation_trigger !== 'before_any_warmup_runtime_ensure_turn_or_message_send_after_the_transition'
+    || !useBoundary.workspace_transition_policy?.success_policy?.includes('target_root_equal_to_the_new_workspace')
+    || !useBoundary.workspace_transition_policy?.failure_policy?.includes('zero_warmup_zero_runtime_task_zero_turn_zero_message')
+    || useBoundary.workspace_transition_policy?.plain_conversation_policy !== 'unchanged'
+  ) {
+    throw new Error('Runtime bridge package-backed workspace transitions must invalidate old bindings before warmup or turn');
+  }
+  assertDeepEqualJson(
+    useBoundary.host_launch_authorization_policy?.protected_boundaries,
+    ['conversation_create', 'conversation_warmup', 'runtime_ensure', 'turn_or_message_send_build'],
+    'Runtime bridge current P0 package launch boundaries',
+  );
+  assertDeepEqualJson(
+    useBoundary.host_launch_authorization_policy?.required_validation,
+    [
+      'canonical_use_receipt_and_use_binding',
+      'normalized_request_scoped_projection_target_and_use_binding.target_root_match_current_conversation_workspace',
+      'root_lock_manifest_content_and_dependency_provider_closure_identity',
+      'use_boundary_action_is_the_exact_fresh_Framework_projected_action_for_this_package_and_target',
+    ],
+    'Runtime bridge current P0 package launch validation',
+  );
+  assertDeepEqualJson(
+    useBoundary.host_launch_authorization_policy?.deferred_hardening?.items,
+    [
+      'direct_renderer_or_main_process_bypass',
+      'same_token_cross_conversation_atomic_binding',
+      'exact_create_retry',
+      'conversation_clone_authorization',
+      'AionCore_internal_cron_team_or_channel_launch_gate',
+    ],
+    'Runtime bridge deferred package launch hardening',
+  );
+  if (
+    useBoundary.host_launch_authorization_policy?.enforcement_owner !== 'opl_aion_shell_OPL_adapter_or_OPL_owned_local_gateway'
+    || useBoundary.host_launch_authorization_policy?.aioncore_write_policy !==
+      'forbid_OPL_domain_semantics_ledger_DB_migration_or_launch_gate_changes'
+    || useBoundary.host_launch_authorization_policy?.current_p0_scope !== 'normal_OPL_shell_package_launch_path'
+    || useBoundary.host_launch_authorization_policy?.renderer_extra_role !==
+      'persistence_and_transport_only_after_deep_validation_not_independent_authority'
+    || useBoundary.host_launch_authorization_policy?.normal_path_failure_policy !==
+      'block_before_calling_create_warmup_runtime_ensure_or_send_and_preserve_zero_downstream_write'
+    || useBoundary.host_launch_authorization_policy?.persistence_policy !==
+      'persist_and_forward_canonical_use_receipt_ref_and_use_binding_only_after_deep_validation'
+    || useBoundary.host_launch_authorization_policy?.plain_conversation_policy !== 'unchanged'
+    || useBoundary.host_launch_authorization_policy?.deferred_hardening?.release_blocking_for_26_7_14 !== false
+    || useBoundary.host_launch_authorization_policy?.deferred_hardening?.preferred_future_owner !==
+      'OPL_owned_local_gateway_or_Electron_main_adapter_or_upstream_generic_authorization_hook'
+    || useBoundary.host_launch_authorization_policy?.deferred_hardening?.aioncore_domain_semantics_allowed !== false
+  ) {
+    throw new Error('Runtime bridge must keep current launch enforcement in the OPL-owned shell boundary and AionCore domain-clean');
+  }
+  if (
     !packageRow?.projection_authority_policy?.includes('directory.entries owns catalog membership')
-    || !packageRow.projection_authority_policy.includes('cannot override directory lifecycle, readiness, or exact actions')
-    || !packageRow.projection_authority_policy.includes('canonical dependency_readiness')
+    || !packageRow.projection_authority_policy.includes('independent exact use_boundary_action')
+    || !packageRow.projection_authority_policy.includes('cannot synthesize or promote launch authority')
     || packageRow?.fallback_policy?.manageable_collection_fallback !== null
     || packageRow?.fallback_policy?.can_define_collection_membership !== false
     || packageRow?.fallback_policy?.can_define_actions !== false

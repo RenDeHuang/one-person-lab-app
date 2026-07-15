@@ -75,6 +75,8 @@
               "detail_surface": "opl packages status --package-id obf --json",
               "status_read_error": null
             },
+            "exposure": null,
+            "use_boundary_action": null,
             "recommended_action": "install_from_manifest_url",
             "recommended_action_ref": {
               "action_id": "install_from_manifest_url",
@@ -150,6 +152,31 @@
               "reason": "scope_materialization_missing",
               "detail_surface": "opl packages status --package-id oma --json",
               "status_read_error": null
+            },
+            "exposure": {
+              "enabled": true,
+              "visibility": "visible",
+              "codex_visible": true
+            },
+            "use_boundary_action": {
+              "surface_kind": "opl_agent_package_use_boundary_action.v1",
+              "action_id": "agent_package_activate",
+              "action_ref": "app_state.actions#agent_package_activate",
+              "payload": {
+                "package_id": "oma",
+                "scope": "workspace",
+                "target_workspace": "/Users/example/OPL Workspace",
+                "use_boundary_id": "use-boundary:oma:workspace:fixture"
+              },
+              "required_payload_fields": ["package_id", "scope", "target_workspace or target_quest", "use_boundary_id"],
+              "confirmation_required": false,
+              "use_boundary_id": "use-boundary:oma:workspace:fixture",
+              "directory_entry_ref": "app_state.agent_packages.directory.entries[package_id=oma]",
+              "readiness_ref": "app_state.agent_packages.directory.entries[package_id=oma].readiness",
+              "enabled": true,
+              "preparation_status": "activation_required",
+              "reason_code": "scope_reconciliation_required",
+              "blocker": null
             },
             "recommended_action": "agent_package_activate",
             "recommended_action_ref": {
@@ -258,6 +285,31 @@
               "reason": "live_verification_deferred",
               "detail_surface": "opl packages status --package-id mas --json",
               "status_read_error": null
+            },
+            "exposure": {
+              "enabled": true,
+              "visibility": "visible",
+              "codex_visible": true
+            },
+            "use_boundary_action": {
+              "surface_kind": "opl_agent_package_use_boundary_action.v1",
+              "action_id": "agent_package_activate",
+              "action_ref": "app_state.actions#agent_package_activate",
+              "payload": {
+                "package_id": "mas",
+                "scope": "workspace",
+                "target_workspace": "/Users/example/OPL Workspace",
+                "use_boundary_id": "use-boundary:mas:workspace:fixture"
+              },
+              "required_payload_fields": ["package_id", "scope", "target_workspace or target_quest", "use_boundary_id"],
+              "confirmation_required": false,
+              "use_boundary_id": "use-boundary:mas:workspace:fixture",
+              "directory_entry_ref": "app_state.agent_packages.directory.entries[package_id=mas]",
+              "readiness_ref": "app_state.agent_packages.directory.entries[package_id=mas].readiness",
+              "enabled": true,
+              "preparation_status": "verification_deferred",
+              "reason_code": "live_verification_deferred",
+              "blocker": null
             },
             "recommended_action": null,
             "recommended_action_ref": null,
@@ -416,7 +468,8 @@
             },
             "codex_visible": true,
             "capability_exposure": {
-              "status": "visible",
+              "enabled": true,
+              "visibility": "visible",
               "codex_visible": true
             },
             "dependency_readiness": {

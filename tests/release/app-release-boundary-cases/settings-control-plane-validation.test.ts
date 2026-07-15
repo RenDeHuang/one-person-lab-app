@@ -185,6 +185,8 @@ test("Settings Agents treats the canonical directory as discovery truth and expo
     "activated",
     "installability",
     "readiness",
+    "exposure",
+    "use_boundary_action",
     "recommended_action",
     "recommended_action_ref",
     "available_actions",
@@ -245,11 +247,22 @@ test("Settings Agents treats the canonical directory as discovery truth and expo
     missing_trust_tier_policy: "disable_submit_and_show_validation",
     registry_selected_install_affected: false,
   });
-  assert.deepStrictEqual(lifecycle.workspace_activation_contract.payload_template, {
-    package_id: "directory.entries[].package_id",
+  assert.deepStrictEqual(lifecycle.workspace_activation_contract.projection_context, {
     scope: "workspace",
-    target_workspace: "app_state.paths.workspace_root_path",
+    target_workspace_source: "app_state.paths.workspace_root_path",
+    use_boundary_id_source: "Framework projected single-use authority",
   });
+  assert.equal(lifecycle.workspace_activation_contract.surface_scope, "settings_global_package_management_only");
+  assert.equal(lifecycle.workspace_activation_contract.session_launch_authority, false);
+  assert.equal(
+    lifecycle.workspace_activation_contract.session_launch_contract_ref,
+    "contracts/app-gui-product-contract.json#agent_package_activation_policy.request_scoped_projection_policy",
+  );
+  assert.equal(
+    lifecycle.workspace_activation_contract.execution_payload_source,
+    "directory.entries[].use_boundary_action.payload",
+  );
+  assert.equal(lifecycle.workspace_activation_contract.lifecycle_available_action_required, false);
   assert.deepStrictEqual(lifecycle.workspace_activation_contract.missing_workspace_policy, {
     enabled: false,
     reason_code: "workspace_root_not_configured",
@@ -266,14 +279,23 @@ test("Settings Agents treats the canonical directory as discovery truth and expo
     },
   );
   assert.deepStrictEqual(
-    lifecycle.package_projection_contract.activation_action_missing_policy,
+    lifecycle.package_projection_contract.use_boundary_action_missing_policy,
     {
-      activation_enabled_only_when: "activation_action.enabled === true",
-      directory_action_alone_can_enable: false,
-      disabled_reason_source: "activation_action.reason_code",
-      missing_or_invalid_reason_code: "activation_status_unavailable",
+      installed_standard_agent_requires_projection: true,
+      uninstalled_or_non_standard_agent_requires_null: true,
+      lifecycle_action_or_status_index_can_substitute: false,
+      missing_or_invalid_reason_code: "use_boundary_action_unavailable",
     },
   );
+  assert.deepStrictEqual(
+    lifecycle.package_projection_contract.launch_pretransition_reason_codes,
+    ["package_activation_required", "live_verification_deferred", "use_boundary_reconciliation_ready"],
+  );
+  assert.equal(
+    lifecycle.package_projection_contract.launch_fail_closed_reason_codes.includes("live_verification_deferred"),
+    false,
+  );
+  assert.deepStrictEqual(lifecycle.exposure_state_contract.state_fields, ["enabled", "visibility"]);
 
   const directory =
     values.controlPlane.page_adapter_policy.required_pages.agents
@@ -284,6 +306,8 @@ test("Settings Agents treats the canonical directory as discovery truth and expo
     "contracts/app-product-profile.json#gui.professional_agent_packages",
   );
   assert.equal(directory.workspace_path_source, "app_state.paths.workspace_root_path");
+  assert.equal(directory.workspace_path_scope, "settings_global_package_management_only");
+  assert.equal(directory.session_launch_authority, false);
 
   const collectionRegression = contracts();
   collectionRegression.guiContract.pages.settings_agents.agent_package_lifecycle_ux
@@ -332,8 +356,8 @@ test("Settings Agents treats the canonical directory as discovery truth and expo
 
   const permissiveActivationRegression = contracts();
   permissiveActivationRegression.guiContract.pages.settings_agents.agent_package_lifecycle_ux
-    .package_projection_contract.activation_action_missing_policy.activation_enabled_only_when =
-    "directory action exists";
+    .package_projection_contract.use_boundary_action_missing_policy.lifecycle_action_or_status_index_can_substitute =
+    true;
   assert.throws(
     () => validateGui(permissiveActivationRegression.guiContract),
     /dependency closure readiness|lifecycle UX/,

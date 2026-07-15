@@ -25,6 +25,18 @@ const agentPackageManifestFixtureDir = path.join(
   "fixtures",
   "agent-package-manifests",
 );
+const agentPackageActivationResultsFixturePath = path.join(
+  appRoot,
+  "contracts",
+  "fixtures",
+  "agent-package-activation-results.fixture.json",
+);
+const agentPackageLaunchStateMatrixFixturePath = path.join(
+  appRoot,
+  "contracts",
+  "fixtures",
+  "agent-package-launch-state-matrix.fixture.json",
+);
 const packageJsonPath = path.join(appRoot, "package.json");
 const activeShellRoot = path.resolve(
   process.env.OPL_AION_SHELL_ROOT || path.join(appRoot, "shells", "aionui"),
@@ -293,7 +305,112 @@ const expectedAtomicPackageUnitIncludes = [
   "bundled_required_skill_entries",
   "optional_companion_skill_refs",
 ];
+const expectedRecoveryStatePolicy = {
+  framework_vocabulary: {
+    owner: "one-person-lab",
+    surface_kind: "opl_agent_package_recovery_readback",
+    vocabulary_version: "opl-agent-package-recovery.v1",
+    status_envelope_version: "g2",
+    directory_surface_kind: "opl_agent_package_directory.v1",
+    private_alias_normalization_allowed: false,
+  },
+  read_surfaces: ["fast", "list", "status", "all_dry_run"],
+  writes_performed: false,
+  owner_token_exposed: false,
+  states: {
+    recovery_in_progress: "live_exact_global_lock_owner_wait_without_shell_recovery",
+    recovery_required:
+      "orphan_or_pending_markers_recoverable_by_the_next_non_dry_Framework_mutation",
+  },
+  launch_blocked_reason_by_status: {
+    recovery_in_progress: "package_recovery_in_progress",
+    recovery_required: "package_recovery_required",
+  },
+  action_projection_fields: [
+    "recovery_action_state",
+    "recovery_action_executable",
+    "recovery_action_ref",
+  ],
+  action_availability_policy:
+    "consume_the_Framework_projection_without_deriving_action_availability_from_bare_status_or_private_aliases",
+  repair_action_policy: {
+    recovery_in_progress: {
+      launch_blocked_reason: "package_recovery_in_progress",
+      required_recovery_action_state: "wait_only",
+      required_recovery_action_executable: false,
+      required_recovery_action_ref: null,
+      status_index_repair_enabled: false,
+      status_index_reason_code: "recovery_in_progress",
+    },
+    recovery_required_executable: {
+      readback_status: "recovery_required",
+      launch_blocked_reason: "package_recovery_required",
+      required_recovery_action_state: "executable",
+      required_recovery_action_executable: true,
+      required_recovery_action_ref: "app_state.actions#agent_package_repair",
+      status_index_repair_enabled: true,
+      status_index_reason_code: "recovery_required",
+      execution_policy:
+        "execute_only_the_exact_Framework_directory_projected_agent_package_repair_action",
+    },
+    recovery_required_manual_owner_intervention: {
+      readback_status: "recovery_required",
+      managed_update_lock_statuses: ["stale_live_owner", "invalid"],
+      launch_blocked_reason: "package_recovery_required",
+      required_recovery_action_state: "manual_owner_intervention_required",
+      required_recovery_action_executable: false,
+      required_recovery_action_ref: null,
+      status_index_repair_enabled: false,
+      status_index_reason_code: "recovery_owner_intervention_required",
+    },
+  },
+};
 const expectedActivationPolicy = {
+  projection_source: "app_state.agent_packages.directory.entries[].use_boundary_action",
+  projection_scope: "installed_standard_agent_only",
+  projection_independence:
+    "independent_from_lifecycle_available_actions_recommended_action_and_status_index_activation_action",
+  request_scoped_projection_policy: {
+    authority: "one-person-lab",
+    result_surface_kind: "opl_agent_package_session_launch_projection.v1",
+    result_schema_ref:
+      "contracts/agent-package-surfaces.schema.json#/$defs/agent_package_session_launch_projection",
+    producer_cli_route: null,
+    producer_cli_route_policy: "Framework_owned_and_not_App_authority_until_published",
+    applies_to: ["guid_home_launch", "package_backed_session_workspace_transition"],
+    settings_global_status_source: "app_state.paths.workspace_root_path_allowed",
+    session_target_source: "normalized_selected_local_directory",
+    request_fields: ["package_id", "target_workspace"],
+    projectless_policy: "fail_closed_without_projection_or_activation",
+    projectless_reason_code: "agent_package_target_workspace_required",
+    global_workspace_root_policy: "read_only_unchanged_and_never_call_workspace_root_set",
+    projection_read_policy: "request_scoped_fast_or_prepare_and_zero_write",
+    result_required_fields: [
+      "surface_kind",
+      "package_id",
+      "normalized_target_workspace",
+      "directory",
+      "directory_entry_ref",
+      "readiness_ref",
+      "use_boundary_action",
+      "projection_currentness_ref",
+      "writes_performed",
+      "global_workspace_root_unchanged",
+    ],
+    action_source: "result.directory.entries[package_id].use_boundary_action",
+    action_execution_policy: "execute_exact_projected_action_id_and_payload_byte_for_byte",
+    cache_and_inflight_identity_fields: [
+      "surface_kind",
+      "package_id",
+      "normalized_target_workspace",
+    ],
+    stale_response_policy:
+      "discard_response_when_any_cache_or_inflight_identity_field_no_longer_matches_current_selection",
+    workspace_transition_policy:
+      "B_to_C_requires_fresh_C_projection_before_warmup_runtime_ensure_or_send",
+    host_target_policy:
+      "validate_the_same_normalized_target_and_use_binding.target_root_before_any_conversation_message_turn_or_runtime_task_write",
+  },
   action_id: "agent_package_activate",
   action_route: "opl app action execute --action agent_package_activate --payload <json> --json",
   trigger: "before_every_installed_package_workspace_or_quest_launch",
@@ -303,9 +420,158 @@ const expectedActivationPolicy = {
     workspace: "target_workspace_required_target_quest_forbidden",
     quest: "target_quest_required_target_workspace_forbidden",
   },
-  result_fields: ["launch_allowed", "use_receipt_ref", "use_binding"],
+  result_fields: ["launch_allowed", "launch_blocked_reason", "use_boundary_id", "use_receipt_ref", "use_binding"],
   launch_policy:
     "launch_only_when_launch_allowed_true_and_use_receipt_ref_and_use_binding_are_present",
+  result_contract: {
+    launch_allowed_true: "requires_nonempty_use_receipt_ref_and_canonical_use_binding",
+    launch_allowed_false:
+      "requires_typed_launch_blocked_reason_and_allows_use_receipt_ref_and_use_binding_only_as_null_or_absent",
+    canonical_binding_field: "use_binding",
+    temporary_compatibility_alias: "package_use_binding",
+    temporary_alias_policy:
+      "read_only_during_bounded_migration_only_when_canonical_use_binding_is_also_present_and_identical; alias_only_never_satisfies_the_App_contract",
+  },
+  transition_policy: {
+    prelaunch_transition_reason_codes: [
+      "scope_reconciliation_required",
+      "live_verification_deferred",
+      "use_boundary_reconciliation_ready",
+    ],
+    hard_block_reason_codes: [
+      "package_not_installed",
+      "package_disabled",
+      "package_status_read_failed",
+      "status_unavailable",
+      "package_dependency_missing",
+      "package_dependency_incompatible",
+      "physical_surface_not_ready",
+      "runtime_source_missing",
+      "runtime_source_incompatible",
+      "carrier_authority_invalid",
+      "package_lock_corrupt",
+      "package_ledger_corrupt",
+      "package_recovery_in_progress",
+      "package_recovery_required",
+    ],
+    hard_block_policy:
+      "do_not_execute_use_boundary_action_and_preserve_typed_reason_source_ref_and_recovery_action",
+    blocked_result_write_policy:
+      "every_non_scope_hard_block_has_zero_scope_use_and_activation_receipt_delta; partial_success_is_forbidden",
+    success_policy:
+      "create_or_launch_only_after_live_result_has_launch_allowed_true_complete_use_receipt_ref_and_deeply_consistent_use_binding",
+  },
+  recovery_state_policy: expectedRecoveryStatePolicy,
+  role_policy: {
+    standard_agent: "installed_entries_require_use_boundary_action_even_when_blocked",
+    framework_capability_package:
+      "use_boundary_action_must_be_null_and_no_Agent_launch_entry_is_allowed",
+    workflow_profile: "use_boundary_action_must_be_null_and_no_Agent_launch_entry_is_allowed",
+  },
+  exposure_policy: {
+    execution_authority: "directory.entries[].exposure.enabled",
+    discovery_authority: "directory.entries[].exposure.visibility",
+    disabled: "package_disabled_launch_allowed_false_and_no_activation_or_use_execution",
+    hidden_enabled:
+      "removed_from_ordinary_discovery_and_Home_default_but_explicit_direct_or_retained_shortcut_launch_remains_eligible",
+    enable: "restore_execution_without_changing_visibility",
+  },
+  action_identity_policy:
+    "execute_the_Framework_projected_action_id_and_payload_byte_for_byte_including_use_boundary_id",
+  single_use_policy: {
+    token_scope: "globally_unique_within_agent_package_use_ledger",
+    first_execution_policy:
+      "under_the_Framework_package_mutation_lock_check_use_boundary_id_before_any_currentness_scope_use_or_activation_write",
+    identity_fields: [
+      "package_id",
+      "scope",
+      "target_workspace_or_target_quest",
+      "directory_entry_ref",
+      "readiness_ref",
+      "root_package.package_id",
+      "root_package.package_lock_ref",
+      "root_package.package_version",
+      "root_package.manifest_sha256",
+      "root_package.content_digest",
+      "dependency_closure_digest",
+      "provider_packages",
+    ],
+    exact_retry_policy:
+      "same_token_and_exact_identity_returns_the_original_canonical_use_receipt_and_use_binding_with_zero_new_writes",
+    conflict_reason_codes: [
+      "agent_package_use_boundary_replay_conflict",
+      "agent_package_use_boundary_replay_stale",
+    ],
+    conflict_policy:
+      "same_token_with_request_identity_drift_is_replay_conflict; same_token_after_current_lock_or_closure_drift_is_replay_stale; both_are_zero_write",
+    concurrency_policy:
+      "two_concurrent_exact_invocations_commit_one_receipt_and_the_other_returns_the_same_idempotent_readback",
+    receipt_index_policy:
+      "canonical_use_ledger_is_directly_indexed_by_use_boundary_id_and_never_guessed_by_receipt_ref_scan",
+    refresh_policy:
+      "every_terminal_attempt_refreshes_canonical_fast_state; a_new_launch_uses_a_fresh_projected_token",
+    consumed_action_policy:
+      "a_consumed_projected_action_cannot_authorize_a_new_conversation; exact_IPC_retry_may_only_recover_the_original_result",
+  },
+  workspace_transition_policy: {
+    applies_to: "package_backed_canonical_sessions",
+    stale_on: [
+      "workspace_root_change",
+      "local_to_worktree",
+      "worktree_to_local",
+      "workspace_cleanup",
+      "workspace_restore",
+    ],
+    old_binding_policy:
+      "immediately_mark_stale_or_pending_and_never_authorize_warmup_runtime_ensure_turn_or_message_for_the_new_target_root",
+    reactivation_trigger: "before_any_warmup_runtime_ensure_turn_or_message_send_after_the_transition",
+    reactivation_source:
+      "fresh_canonical_fast_state_use_boundary_action_projected_for_the_new_target_root",
+    success_policy:
+      "persist_the_canonical_activation_and_use_binding_with_target_root_equal_to_the_new_workspace_before_warmup_runtime_ensure_or_send",
+    failure_policy:
+      "zero_warmup_zero_runtime_task_zero_turn_zero_message_and_preserve_a_recoverable_consistent_session_state",
+    handoff_transaction_policy:
+      "if_activation_runs_inside_handoff_then_later_thread_or_projection_failure_requires_typed_compensation_or_an_explicit_noncurrent_orphan_receipt; never_display_the_old_binding_as_current",
+    plain_conversation_policy: "unchanged",
+  },
+  host_launch_authorization_policy: {
+    enforcement_owner: "opl_aion_shell_OPL_adapter_or_OPL_owned_local_gateway",
+    aioncore_write_policy: "forbid_OPL_domain_semantics_ledger_DB_migration_or_launch_gate_changes",
+    current_p0_scope: "normal_OPL_shell_package_launch_path",
+    renderer_extra_role:
+      "persistence_and_transport_only_after_deep_validation_not_independent_authority",
+    protected_boundaries: [
+      "conversation_create",
+      "conversation_warmup",
+      "runtime_ensure",
+      "turn_or_message_send_build",
+    ],
+    required_validation: [
+      "canonical_use_receipt_and_use_binding",
+      "normalized_request_scoped_projection_target_and_use_binding.target_root_match_current_conversation_workspace",
+      "root_lock_manifest_content_and_dependency_provider_closure_identity",
+      "use_boundary_action_is_the_exact_fresh_Framework_projected_action_for_this_package_and_target",
+    ],
+    normal_path_failure_policy:
+      "block_before_calling_create_warmup_runtime_ensure_or_send_and_preserve_zero_downstream_write",
+    persistence_policy:
+      "persist_and_forward_canonical_use_receipt_ref_and_use_binding_only_after_deep_validation",
+    plain_conversation_policy: "unchanged",
+    deferred_hardening: {
+      release_blocking_for_26_7_14: false,
+      preferred_future_owner:
+        "OPL_owned_local_gateway_or_Electron_main_adapter_or_upstream_generic_authorization_hook",
+      aioncore_domain_semantics_allowed: false,
+      items: [
+        "direct_renderer_or_main_process_bypass",
+        "same_token_cross_conversation_atomic_binding",
+        "exact_create_retry",
+        "conversation_clone_authorization",
+        "AionCore_internal_cron_team_or_channel_launch_gate",
+      ],
+    },
+  },
   currentness_policy:
     "framework_reconciles_latest_stable_compatible_package_closure_once_at_use_boundary_and_pins_use_binding_for_the_session",
   package_identity_policy: "generic_package_id_no_hardcoded_agent_or_capability_package_ids",
@@ -313,7 +579,62 @@ const expectedActivationPolicy = {
     "prepare_then_launch_using_framework_readback_without_owning_package_currentness_or_materialization",
 };
 const expectedActivationRequestRequiredFields = ["package_id", "scope", "use_boundary_id"];
-const expectedActivationResultRequiredFields = ["launch_allowed", "use_receipt_ref", "use_binding"];
+const expectedActivationResultRequiredFields = ["launch_allowed", "use_boundary_id"];
+const expectedRecoveryReadbackRequiredFields = [
+  "surface_kind",
+  "vocabulary_version",
+  "status",
+  "launch_blocked_reason",
+  "managed_update_lock",
+  "recovery_action",
+  "recovery_action_state",
+  "recovery_action_executable",
+  "recovery_action_ref",
+];
+const expectedUseBindingRequiredFields = [
+  "surface_kind",
+  "use_boundary_id",
+  "use_receipt_ref",
+  "root_package",
+  "provider_packages",
+  "dependency_closure_digest",
+  "freshness_mode",
+  "latest_verified",
+  "checked_at",
+  "refresh_outcome",
+  "channel_ref",
+  "channel_digest",
+  "scope",
+  "target_root",
+  "core_skill_tree_digest",
+  "skill_tree_digest",
+  "core_readiness",
+  "specialty_exposure",
+];
+const expectedUseBindingPackageRequiredFields = [
+  "package_id",
+  "package_version",
+  "owner_language_version",
+  "package_lock_ref",
+  "manifest_sha256",
+  "content_digest",
+  "source_artifact_ref",
+  "artifact_digest",
+  "owner_source_commit",
+  "carrier_authority",
+];
+const expectedSessionLaunchProjectionRequiredFields = [
+  "surface_kind",
+  "package_id",
+  "normalized_target_workspace",
+  "directory",
+  "directory_entry_ref",
+  "readiness_ref",
+  "use_boundary_action",
+  "projection_currentness_ref",
+  "writes_performed",
+  "global_workspace_root_unchanged",
+];
 const expectedActivationActionRequiredFields = [
   "action_id",
   "command_ref",
@@ -322,6 +643,27 @@ const expectedActivationActionRequiredFields = [
   "reason_code",
 ];
 const expectedActivationPreparationStatuses = ["not_installed", "prepare_required", "ready"];
+const expectedUseBoundaryActionRequiredFields = [
+  "surface_kind",
+  "action_id",
+  "action_ref",
+  "payload",
+  "required_payload_fields",
+  "confirmation_required",
+  "use_boundary_id",
+  "directory_entry_ref",
+  "readiness_ref",
+  "enabled",
+  "preparation_status",
+  "reason_code",
+  "blocker",
+];
+const expectedUseBoundaryPreparationStatuses = [
+  "activation_required",
+  "verification_deferred",
+  "ready",
+  "blocked",
+];
 
 function readJson(filePath: string): any {
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
@@ -676,6 +1018,7 @@ function validateContract(
   validatePublicAbi(policy, packageJson);
   const contract = validateAgentInstallationContract(policy);
   validateAgentPackageSurfaceSchema(contract, registry, agentPackageSurfaceSchema);
+  validateLaunchAuthorityFixtures(agentPackageSurfaceSchema);
   assertJsonEqual(
     profile.gui?.agent_package_activation_policy,
     expectedActivationPolicy,
@@ -1038,9 +1381,108 @@ function validateAgentPackageSurfaceSchema(contract: any, registry: any, schema:
     "agent package activation result launch gate",
   );
   assertEqual(
-    activationResult.properties?.use_binding?.type,
-    "object",
-    "agent package activation result use binding",
+    activationResult.properties?.use_boundary_id?.type,
+    "string",
+    "agent package activation result use-boundary identity",
+  );
+  assertEqual(
+    schema.properties?.agent_package_use_binding?.$ref,
+    "#/$defs/agent_package_use_binding",
+    "agent package use binding schema ref",
+  );
+  const useBinding = schemaDef(schema, "agent_package_use_binding");
+  assertArrayEqual(
+    useBinding.required,
+    expectedUseBindingRequiredFields,
+    "agent package use binding required fields",
+  );
+  assertEqual(
+    useBinding.properties?.surface_kind?.const,
+    "opl_agent_package_use_binding.v1",
+    "agent package use binding surface",
+  );
+  const useBindingPackage = schemaDef(schema, "agent_package_use_binding_package");
+  assertArrayEqual(
+    useBindingPackage.required,
+    expectedUseBindingPackageRequiredFields,
+    "agent package use binding package required fields",
+  );
+  assertJsonEqual(
+    activationResult.properties?.use_binding?.oneOf,
+    [
+      { type: "null" },
+      { $ref: "#/$defs/agent_package_use_binding" },
+    ],
+    "agent package activation result canonical use binding",
+  );
+  assertJsonEqual(
+    activationResult.properties?.package_use_binding?.oneOf,
+    [
+      { type: "null" },
+      { $ref: "#/$defs/agent_package_use_binding" },
+    ],
+    "agent package activation result compatibility use binding",
+  );
+  assertArrayEqual(
+    activationResult.dependentRequired?.package_use_binding,
+    ["use_binding"],
+    "agent package activation result alias requires canonical binding",
+  );
+  assertJsonEqual(
+    activationResult.properties?.launch_blocked_reason?.type,
+    ["string", "null"],
+    "agent package activation result blocked reason",
+  );
+  assertJsonEqual(
+    activationResult.properties?.launch_blocked_reason?.not?.enum,
+    ["recovery_in_progress", "recovery_required"],
+    "agent package activation result rejects bare recovery launch aliases",
+  );
+  assertEqual(
+    activationResult.oneOf?.length,
+    2,
+    "agent package activation result conditional branch count",
+  );
+  assertArrayEqual(
+    activationResult.oneOf?.[0]?.required,
+    ["use_receipt_ref", "use_binding"],
+    "agent package activation success conditional fields",
+  );
+  assertArrayEqual(
+    activationResult.oneOf?.[1]?.required,
+    ["launch_blocked_reason"],
+    "agent package activation blocked conditional fields",
+  );
+  assertEqual(
+    schema.properties?.agent_package_recovery_readback?.$ref,
+    "#/$defs/agent_package_recovery_readback",
+    "agent package recovery readback schema ref",
+  );
+  const recoveryReadback = schemaDef(schema, "agent_package_recovery_readback");
+  assertArrayEqual(
+    recoveryReadback.required,
+    expectedRecoveryReadbackRequiredFields,
+    "agent package recovery readback required fields",
+  );
+  assertEqual(
+    recoveryReadback.properties?.surface_kind?.const,
+    "opl_agent_package_recovery_readback",
+    "agent package recovery readback surface",
+  );
+  assertEqual(
+    recoveryReadback.properties?.vocabulary_version?.const,
+    "opl-agent-package-recovery.v1",
+    "agent package recovery vocabulary version",
+  );
+  assertJsonEqual(
+    recoveryReadback.properties?.status?.enum,
+    ["not_required", "recovery_in_progress", "recovery_required", "recovered"],
+    "agent package recovery readback status vocabulary",
+  );
+  assertEqual(
+    recoveryReadback.oneOf?.length,
+    4,
+    "agent package recovery action availability branches",
   );
   const activationAction = schemaDef(schema, "agent_package_activation_action");
   assertArrayEqual(
@@ -1059,6 +1501,79 @@ function validateAgentPackageSurfaceSchema(contract: any, registry: any, schema:
     "agent package activation preparation statuses",
   );
   assertEqual(
+    schema.properties?.agent_package_use_boundary_action?.$ref,
+    "#/$defs/agent_package_use_boundary_action",
+    "agent package use-boundary action schema ref",
+  );
+  const useBoundaryAction = schemaDef(schema, "agent_package_use_boundary_action");
+  assertArrayEqual(
+    useBoundaryAction.required,
+    expectedUseBoundaryActionRequiredFields,
+    "agent package use-boundary action required fields",
+  );
+  assertEqual(
+    useBoundaryAction.properties?.surface_kind?.const,
+    "opl_agent_package_use_boundary_action.v1",
+    "agent package use-boundary action surface",
+  );
+  assertEqual(
+    useBoundaryAction.properties?.action_id?.const,
+    "agent_package_activate",
+    "agent package use-boundary action id",
+  );
+  assertJsonEqual(
+    useBoundaryAction.properties?.reason_code?.not?.enum,
+    ["recovery_in_progress", "recovery_required"],
+    "agent package use-boundary action rejects bare recovery aliases",
+  );
+  const blockerSchema = useBoundaryAction.properties?.blocker?.oneOf?.[1];
+  assertJsonEqual(
+    blockerSchema?.properties?.code?.not?.enum,
+    ["recovery_in_progress", "recovery_required"],
+    "agent package use-boundary blocker rejects bare recovery aliases",
+  );
+  assertJsonEqual(
+    blockerSchema?.properties?.recovery_action_ref?.type,
+    ["string", "null"],
+    "agent package use-boundary blocker nullable recovery action ref",
+  );
+  assertArrayEqual(
+    useBoundaryAction.properties?.preparation_status?.enum,
+    expectedUseBoundaryPreparationStatuses,
+    "agent package use-boundary preparation statuses",
+  );
+  assertEqual(
+    useBoundaryAction.oneOf?.length,
+    2,
+    "agent package use-boundary executable and blocked branches",
+  );
+  assertEqual(
+    schema.properties?.agent_package_session_launch_projection?.$ref,
+    "#/$defs/agent_package_session_launch_projection",
+    "agent package session launch projection schema ref",
+  );
+  const sessionLaunchProjection = schemaDef(schema, "agent_package_session_launch_projection");
+  assertArrayEqual(
+    sessionLaunchProjection.required,
+    expectedSessionLaunchProjectionRequiredFields,
+    "agent package session launch projection required fields",
+  );
+  assertEqual(
+    sessionLaunchProjection.properties?.surface_kind?.const,
+    "opl_agent_package_session_launch_projection.v1",
+    "agent package session launch projection surface",
+  );
+  assertEqual(
+    sessionLaunchProjection.properties?.writes_performed?.const,
+    false,
+    "agent package session launch projection is read only",
+  );
+  assertEqual(
+    sessionLaunchProjection.properties?.global_workspace_root_unchanged?.const,
+    true,
+    "agent package session launch projection preserves global root",
+  );
+  assertEqual(
     contract.agent_registry_policy.manifest_schema_ref,
     registry.manifest_schema_ref,
     "registry manifest schema ref",
@@ -1067,6 +1582,289 @@ function validateAgentPackageSurfaceSchema(contract: any, registry: any, schema:
     registry.registry_schema_ref,
     "contracts/agent-package-surfaces.schema.json#/$defs/external_agent_package_registry",
     "external registry schema ref",
+  );
+}
+
+function hasExactFields(value: any, expected: string[]): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return false;
+  }
+  const actual = Object.keys(value).sort();
+  return JSON.stringify(actual) === JSON.stringify([...expected].sort());
+}
+
+function frameworkUseBindingConforms(binding: any, result: any): boolean {
+  if (
+    !hasExactFields(binding, expectedUseBindingRequiredFields)
+    || binding.surface_kind !== "opl_agent_package_use_binding.v1"
+    || binding.use_boundary_id !== result.use_boundary_id
+    || binding.use_receipt_ref !== result.use_receipt_ref
+    || binding.root_package?.package_id !== result.package_id
+    || !hasExactFields(binding.root_package, expectedUseBindingPackageRequiredFields)
+    || !Array.isArray(binding.provider_packages)
+    || binding.provider_packages.some(
+      (entry: any) => !hasExactFields(entry, expectedUseBindingPackageRequiredFields),
+    )
+    || !["workspace", "quest"].includes(binding.scope)
+    || typeof binding.target_root !== "string"
+    || binding.target_root.length === 0
+    || !["channel_verified", "offline_lkg"].includes(binding.freshness_mode)
+    || typeof binding.latest_verified !== "boolean"
+    || typeof binding.checked_at !== "string"
+    || !["updated", "current", "recovered_last_known_good"].includes(binding.refresh_outcome)
+    || !hasExactFields(binding.core_readiness, ["status", "required_skill_ids", "materialized_skill_ids"])
+    || !hasExactFields(binding.specialty_exposure, [
+      "status",
+      "declared_skill_ids",
+      "materialized_skill_ids",
+      "missing_skill_ids",
+    ])
+  ) {
+    return false;
+  }
+  return true;
+}
+
+function activationResultConforms(result: any): boolean {
+  if (
+    typeof result?.launch_allowed !== "boolean"
+    || typeof result?.use_boundary_id !== "string"
+    || result.use_boundary_id.length === 0
+    || ["recovery_in_progress", "recovery_required"].includes(result.launch_blocked_reason)
+  ) {
+    return false;
+  }
+  if (result.launch_allowed) {
+    if (
+      typeof result.use_receipt_ref !== "string"
+      || result.use_receipt_ref.length === 0
+      || !frameworkUseBindingConforms(result.use_binding, result)
+    ) {
+      return false;
+    }
+    return result.package_use_binding === undefined
+      || JSON.stringify(result.package_use_binding) === JSON.stringify(result.use_binding);
+  }
+  return typeof result.launch_blocked_reason === "string"
+    && result.launch_blocked_reason.length > 0
+    && (result.use_receipt_ref === null || result.use_receipt_ref === undefined)
+    && (result.use_binding === null || result.use_binding === undefined)
+    && (result.package_use_binding === null || result.package_use_binding === undefined);
+}
+
+function validateLaunchAuthorityFixtures(schema: any): void {
+  const activationResults = readJson(agentPackageActivationResultsFixturePath);
+  const launchMatrix = readJson(agentPackageLaunchStateMatrixFixturePath);
+  assertJsonEqual(
+    activationResults.framework_binding_admission,
+    {
+      status: "pending_exact_Framework_producer_checkpoint",
+      producer_repository: "gaofeng21cn/one-person-lab",
+      producer_commit: null,
+      source_type_ref:
+        "src/modules/connect/agent-package-registry-parts/types.ts#AgentPackageUseBinding",
+      surface_kind: "opl_agent_package_use_binding.v1",
+      canonical_case_id: "ready_live",
+      fixture_role: "App_design_authority_only_not_cross_repo_admission_evidence",
+      cross_repo_admission_satisfied: false,
+      required_admission_consumers: ["App_schema", "App_validator", "Shell_parser"],
+      admission_policy:
+        "regenerate_from_the_exact_future_Framework_activation_producer_and_pass_the_bytes_unchanged_through_App_schema_validator_and_Shell_parser",
+    },
+    "pending Framework use binding admission",
+  );
+  for (const example of activationResults.cases ?? []) {
+    if (!activationResultConforms(example.result)) {
+      fail(`activation result fixture ${example.case_id} does not satisfy the public App contract`);
+    }
+  }
+  const activationCases = new Map(
+    activationResults.cases.map((entry: any) => [entry.case_id, entry]),
+  );
+  const canonicalSuccess = structuredClone((activationCases.get("ready_live") as any).result);
+  const aliasCompatible = structuredClone(canonicalSuccess);
+  aliasCompatible.package_use_binding = structuredClone(aliasCompatible.use_binding);
+  assertEqual(activationResultConforms(aliasCompatible), true, "deep-identical binding alias");
+  const aliasOnly = structuredClone(aliasCompatible);
+  delete aliasOnly.use_binding;
+  assertEqual(activationResultConforms(aliasOnly), false, "alias-only binding rejection");
+  const aliasRootDrift = structuredClone(aliasCompatible);
+  aliasRootDrift.package_use_binding.root_package.package_lock_ref = "opl://drift/root-lock";
+  assertEqual(activationResultConforms(aliasRootDrift), false, "binding alias root drift rejection");
+  const aliasProviderDrift = structuredClone(aliasCompatible);
+  aliasProviderDrift.package_use_binding.provider_packages[0].package_version = "9.9.9";
+  assertEqual(activationResultConforms(aliasProviderDrift), false, "binding alias provider drift rejection");
+  const invalidSurface = structuredClone(canonicalSuccess);
+  invalidSurface.use_binding.surface_kind = "opl_agent_package_use_binding";
+  assertEqual(activationResultConforms(invalidSurface), false, "unversioned binding surface rejection");
+  const flatBinding = structuredClone(canonicalSuccess);
+  flatBinding.use_binding = {
+    surface_kind: "opl_agent_package_use_binding.v1",
+    package_id: canonicalSuccess.package_id,
+    use_boundary_id: canonicalSuccess.use_boundary_id,
+    use_receipt_ref: canonicalSuccess.use_receipt_ref,
+  };
+  assertEqual(activationResultConforms(flatBinding), false, "flat binding rejection");
+
+  const projectionContract = launchMatrix.request_scoped_projection_contract;
+  assertEqual(
+    projectionContract.schema_ref,
+    "contracts/agent-package-surfaces.schema.json#/$defs/agent_package_session_launch_projection",
+    "session launch projection fixture schema ref",
+  );
+  assertEqual(projectionContract.producer_cli_route, null, "session launch producer route remains Framework-owned");
+  const projectionCases = new Map(
+    projectionContract.cases.map((entry: any) => [entry.case_id, entry]),
+  );
+  const globalAndSession = projectionCases.get("global_A_session_B_zero_write") as any;
+  const projection = globalAndSession.projection_result;
+  assertIncludesAll(
+    Object.keys(projection),
+    schemaDef(schema, "agent_package_session_launch_projection").required,
+    "session launch projection fixture fields",
+  );
+  assertEqual(projection.surface_kind, "opl_agent_package_session_launch_projection.v1", "session launch projection surface");
+  assertEqual(projection.writes_performed, false, "session launch projection write policy");
+  assertEqual(projection.global_workspace_root_unchanged, true, "session launch global root policy");
+  assertEqual(globalAndSession.workspace_root_set_called, false, "session launch workspace_root_set policy");
+  assertEqual(
+    globalAndSession.settings_global_workspace_root_before,
+    globalAndSession.settings_global_workspace_root_after,
+    "session launch preserves global Settings root",
+  );
+  assertEqual(
+    projection.normalized_target_workspace,
+    globalAndSession.selected_session_target_workspace,
+    "session launch selected target",
+  );
+  const selectedEntry = projection.directory.entries.find(
+    (entry: any) => entry.package_id === projection.package_id,
+  );
+  assertJsonEqual(projection.use_boundary_action, selectedEntry?.use_boundary_action, "session launch exact directory action");
+  assertEqual(
+    projection.use_boundary_action.payload.target_workspace,
+    projection.normalized_target_workspace,
+    "session launch action target",
+  );
+  const rapidSwitch = projectionCases.get("rapid_A_to_B_discards_late_A") as any;
+  assertEqual(rapidSwitch.late_A_response_discarded, true, "rapid target switch stale response");
+  assertEqual(rapidSwitch.cache_and_inflight_key_includes_normalized_target, true, "target-scoped cache identity");
+  const projectless = projectionCases.get("projectless_package_launch") as any;
+  assertFieldsEqual(
+    projectless,
+    {
+      projection_requested: false,
+      activation_executed: false,
+      launch_allowed: false,
+      reason_code: "agent_package_target_workspace_required",
+    },
+    "projectless package launch",
+  );
+  const transition = projectionCases.get("session_B_to_C_transition") as any;
+  assertEqual(
+    transition.fresh_projection_target_workspace,
+    transition.new_target_workspace,
+    "workspace transition fresh target projection",
+  );
+  assertArrayEqual(
+    transition.fresh_projection_required_before,
+    ["conversation_warmup", "runtime_ensure", "turn_or_message_send_build"],
+    "workspace transition protected boundaries",
+  );
+  const drift = projectionCases.get("projection_target_drift") as any;
+  assertEqual(drift.accepted, false, "projection target drift admission");
+  assertJsonEqual(
+    drift.write_delta,
+    { conversation: 0, message: 0, turn: 0, runtime_task: 0 },
+    "projection target drift write delta",
+  );
+
+  const hostContract = launchMatrix.host_launch_authorization_contract;
+  assertFieldsEqual(
+    hostContract,
+    {
+      renderer_extra_is_authority: false,
+      enforcement_owner: "opl_aion_shell_OPL_adapter_or_OPL_owned_local_gateway",
+      aioncore_write_policy: "forbid_OPL_domain_semantics_ledger_DB_migration_or_launch_gate_changes",
+    },
+    "current P0 package launch owner boundary",
+  );
+  assertArrayEqual(
+    hostContract.current_p0_case_ids,
+    [
+      "normal_shell_create_missing_or_invalid_activation",
+      "warmup_or_send_stale_workspace",
+      "normal_shell_valid_activation",
+      "plain_conversation",
+    ],
+    "current P0 package launch cases",
+  );
+  assertFieldsEqual(
+    hostContract.deferred_hardening,
+    {
+      release_blocking_for_26_7_14: false,
+      preferred_future_owner:
+        "OPL_owned_local_gateway_or_Electron_main_adapter_or_upstream_generic_authorization_hook",
+    },
+    "deferred package launch hardening boundary",
+  );
+  assertArrayEqual(
+    hostContract.deferred_hardening.case_ids,
+    [
+      "direct_create_missing_or_forged_binding",
+      "same_token_two_conversations",
+      "clone_reuses_source_extra",
+      "exact_create_retry_same_conversation",
+    ],
+    "deferred package launch hardening cases",
+  );
+  const hostCases = new Map(
+    hostContract.cases.map((entry: any) => [entry.case_id, entry]),
+  );
+  for (const caseId of hostContract.current_p0_case_ids) {
+    assertEqual((hostCases.get(caseId) as any)?.scope, "current_p0", `${caseId} release scope`);
+  }
+  for (const caseId of hostContract.deferred_hardening.case_ids) {
+    assertEqual((hostCases.get(caseId) as any)?.scope, "deferred_hardening", `${caseId} release scope`);
+  }
+  const invalidNormalCreate = hostCases.get("normal_shell_create_missing_or_invalid_activation") as any;
+  assertFieldsEqual(
+    invalidNormalCreate,
+    { accepted: false, downstream_create_called: false },
+    "normal Shell invalid activation admission",
+  );
+  assertJsonEqual(
+    invalidNormalCreate.write_delta,
+    { conversation: 0, message: 0, turn: 0, runtime_task: 0 },
+    "normal Shell invalid activation write delta",
+  );
+  const stalePreRuntime = hostCases.get("warmup_or_send_stale_workspace") as any;
+  assertArrayEqual(
+    stalePreRuntime.protected_boundaries,
+    ["conversation_warmup", "runtime_ensure", "turn_or_message_send_build"],
+    "normal Shell stale activation boundaries",
+  );
+  assertJsonEqual(
+    stalePreRuntime.write_delta,
+    { message: 0, turn: 0, runtime_task: 0 },
+    "normal Shell stale activation write delta",
+  );
+  const validNormalActivation = hostCases.get("normal_shell_valid_activation") as any;
+  assertFieldsEqual(
+    validNormalActivation,
+    {
+      accepted: true,
+      deep_validation_passed: true,
+      canonical_use_receipt_ref_forwarded: true,
+      canonical_use_binding_persisted: true,
+      downstream_create_called: true,
+    },
+    "normal Shell valid activation admission",
+  );
+  assertFieldsEqual(
+    hostCases.get("plain_conversation"),
+    { accepted: true, activation_required: false },
+    "plain conversation launch admission",
   );
 }
 
@@ -1620,7 +2418,8 @@ function validatePackageManagerLifecycle(contract: any): void {
   );
   const activationContractJson = JSON.stringify(lifecycle?.activation_contract);
   for (const agentId of expectedRequiredAgentIds) {
-    if (activationContractJson.includes(agentId)) {
+    const explicitAgentIdentity = new RegExp(`(^|[^A-Za-z0-9_-])${agentId}($|[^A-Za-z0-9_-])`);
+    if (explicitAgentIdentity.test(activationContractJson)) {
       fail(`package manager lifecycle activation contract must remain generic, found ${agentId}`);
     }
   }

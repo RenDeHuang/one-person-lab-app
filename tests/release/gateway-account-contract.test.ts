@@ -28,6 +28,19 @@ test('Fast App state fixture uses the exact public Agent Package directory and a
     && entry.readiness.operational_ready === false
     && entry.readiness.launch_allowed === false
   ));
+  const installedAgents = directory.entries.filter((entry: any) => entry.installed && entry.package_role === 'standard_agent');
+  assert.equal(installedAgents.every((entry: any) => entry.use_boundary_action?.action_id === 'agent_package_activate'), true);
+  assert.equal(installedAgents.every((entry: any) => entry.use_boundary_action?.payload === undefined), false);
+  assert.equal(new Set(installedAgents.map((entry: any) => entry.use_boundary_action.use_boundary_id)).size, installedAgents.length);
+  for (const entry of installedAgents) {
+    assert.equal(entry.use_boundary_action.payload.package_id, entry.package_id);
+    assert.equal(entry.use_boundary_action.payload.use_boundary_id, entry.use_boundary_action.use_boundary_id);
+    assert.equal(entry.use_boundary_action.action_ref, 'app_state.actions#agent_package_activate');
+  }
+  assert.equal(
+    directory.entries.find((entry: any) => !entry.installed && entry.package_role === 'standard_agent').use_boundary_action,
+    null,
+  );
   const packageContract = readJson('contracts/app-runtime-bridge.json')
     .canonical_state_display_action_map.rows.find((row: any) => row.semantic_area === 'package');
   assert.ok(packageContract.required_projection_fields['status_index.packages[package_id]']);
@@ -69,6 +82,28 @@ test('Fast Agent Package directory rejects action, source, workspace, and readin
     },
     (fixture: any) => {
       delete fixture.app_state.agent_packages.directory.entries[0].source_explanation.version_source_ref;
+    },
+    (fixture: any) => {
+      const entry = fixture.app_state.agent_packages.directory.entries.find((candidate: any) => candidate.installed);
+      delete entry.use_boundary_action;
+    },
+    (fixture: any) => {
+      const uninstalled = fixture.app_state.agent_packages.directory.entries.find((candidate: any) => !candidate.installed);
+      const installed = fixture.app_state.agent_packages.directory.entries.find((candidate: any) => candidate.installed);
+      uninstalled.use_boundary_action = structuredClone(installed.use_boundary_action);
+    },
+    (fixture: any) => {
+      const entry = fixture.app_state.agent_packages.directory.entries.find((candidate: any) => candidate.installed);
+      entry.use_boundary_action.payload.use_boundary_id = 'use-boundary:drift';
+    },
+    (fixture: any) => {
+      const installed = fixture.app_state.agent_packages.directory.entries.filter((candidate: any) => candidate.installed);
+      installed[1].use_boundary_action.use_boundary_id = installed[0].use_boundary_action.use_boundary_id;
+      installed[1].use_boundary_action.payload.use_boundary_id = installed[0].use_boundary_action.use_boundary_id;
+    },
+    (fixture: any) => {
+      const entry = fixture.app_state.agent_packages.directory.entries.find((candidate: any) => candidate.installed);
+      entry.package_role = 'framework_capability_package';
     },
   ];
 
