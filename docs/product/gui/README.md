@@ -36,7 +36,13 @@ GUI 运行采用双轴模型：AionUI 继续是 `active release shell`，而本�
 OPL capabilities、跨顶层线程协调、progress、evidence、artifacts 与 safe actions 必须
 嵌入这些稳定位置，不得把 Home 改造成 dashboard、launcher 或 card wall。
 
-当前人读观察基准是本机 ChatGPT macOS `26.707.41301`（观察于 `2026-07-11`）。
+视觉执行与验收以 [`codex-app-visual-parity.md`](codex-app-visual-parity.md) 为准：除 OPL
+品牌与 OPL-owned 产品能力外，字体、颜色、图标、密度、阴影、圆角、布局和交互状态以
+当前安装的 Codex App 做 1:1 对齐。既有 `26.707.41301` 仍是 machine contract 中的交互
+observation；最新视觉像素 cohort 独立绑定 `26.707.72221` / build `5307`，不得混用。
+
+当前人读交互 observation 基准是本机 ChatGPT macOS `26.707.41301`（观察于 `2026-07-11`）；
+它不替代上面的最新视觉像素 cohort。
 App machine authority 已升为 baseline schema v2；最低已验证 AionUI GUI conformance ancestor 是
 `a0ce713b65801fd9ca7f46ad168c977c75a187de`，当前 Shell HEAD 必须从 active checkout Git
 readback 获取，不复制成动态默认值。`0ebc1fdd278e8a79602458e15e28cf814dfd917d`
@@ -74,7 +80,7 @@ package/pixel/install 证据。
 | 层级 | 核心问题 | 人读文件 | 不应包含 |
 | --- | --- | --- | --- |
 | 功能层 | OPL App 能做什么，用户可以完成哪些工作？ | [`feature-inventory.md`](feature-inventory.md) | AionUI/Hermes/AGUI 实现历史、视觉 token、完成流水、截图结论。 |
-| 理想交互与视觉层 | 功能如何组织成低摩擦工作流，视觉基准和元素位置是什么？ | [`ideal-interaction-spec.md`](ideal-interaction-spec.md)、[`visual-system.md`](visual-system.md)、[`codex-to-opl-app-delta.md`](codex-to-opl-app-delta.md)、[`element-audit.md`](element-audit.md) | carrier-specific 组件路径、fork 复制步骤、当前实现已完成声明。 |
+| 理想交互与视觉层 | 功能如何组织成低摩擦工作流，视觉基准和元素位置是什么？ | [`ideal-interaction-spec.md`](ideal-interaction-spec.md)、[`visual-system.md`](visual-system.md)、[`codex-app-visual-parity.md`](codex-app-visual-parity.md)、[`codex-to-opl-app-delta.md`](codex-to-opl-app-delta.md)、[`element-audit.md`](element-audit.md) | carrier-specific 组件路径、fork 复制步骤、当前实现已完成声明。 |
 | 具体 shell 实现层 | shell 如何消费 App truth，当前对齐、偏差和验证入口是什么？ | [`shell-implementation-guide.md`](shell-implementation-guide.md)、[`shell-conformance-matrix.md`](shell-conformance-matrix.md) | 新的产品规则、模型 allowlist、runtime/domain truth、release-ready 推断。 |
 
 专题设计继续由现有 owner 文档承接：Settings 见

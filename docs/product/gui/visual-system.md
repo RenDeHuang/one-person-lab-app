@@ -11,11 +11,12 @@ shell source 承接；机器可读产品状态、模型策略、page-state 和 r
 
 ## 基准与例外
 
-当前视觉与交互基准固定为 **ChatGPT macOS 26.707.41301
-(2026-07-11)**。`26.707.31428` 与 `26.707.31123` 只保留为历史 observation，不再称为
-latest/current。使用范围仅限布局、密度、层级、时间线、composer、项目 rail 和按需
-环境详情交互的对齐；不得复制 ChatGPT/Codex 源码、品牌资产、文案、
-账户权限或产品 authority。
+当前视觉像素基准固定为 **ChatGPT Codex macOS 26.707.72221 / build 5307
+(2026-07-15)**，执行与验收细节见 [`codex-app-visual-parity.md`](codex-app-visual-parity.md)。
+`26.707.41301` 继续保留为既有交互 observation；`26.707.31428` 与 `26.707.31123` 只保留为
+历史 observation，不再称为 latest/current。使用范围仅限布局、密度、层级、时间线、
+composer、项目 rail 和按需环境详情交互的对齐；不得复制 ChatGPT/Codex 源码、品牌资产、
+文案、账户权限或产品 authority。
 
 OPL App 在基准上保留以下产品例外：
 
@@ -160,7 +161,7 @@ Dark target：
 | Icon button | circle | 固定正方形 hit area。 |
 | Chip / status | pill | 文本短、单行；长状态改普通文本。 |
 | Popover / drawer panel | `10-12px` | 1px border，轻 shadow。 |
-| Composer | `22-28px` | 单层 surface、单层 outline、克制 shadow。 |
+| Composer | `20-22px` | 单层 surface、单层 outline、resting shadow；focus 不改变几何。 |
 
 禁止 nested cards、重复白底、双重 shadow 和未裁剪的矩形 adapter container。
 
@@ -268,17 +269,17 @@ Composer 是底部唯一主 command surface：
 
 ## Settings
 
-Settings 保留 OPL 信息架构，但视觉采用 Codex quiet Control Center 基线：
+Settings 保留 OPL 信息架构，但视觉采用 Codex 式窄内容列与 quiet grouped-row Control Center 基线：
 
 - 使用 full-window shell，提供明确 return、search 和 grouped rows。
 - Ordinary navigation 按当前 App-owned Settings IA 渲染；具体 route、label 和顺序从
   contracts/Control Plane 读取，不由 shell 自行扩展。
-- 左侧 section navigation 稳定并使用单色 utility icon；右侧采用单列 reading lane，
-  每个独立用户问题使用一层不超过 8px 的白色 bounded section，内部继续使用 row、
-  table/list 和 disclosure，不为每个字段或操作再套一层 card。
+- 左侧 section navigation 稳定并使用单色 utility icon；右侧采用单列 reading lane，优先使用
+  section heading、grouped rows、hairline divider 和不超过 8px 的安静 bounded list group。
+  只有重复实体、confirmation 或确有独立边界的工具才使用 card，不为每个字段或操作再套一层 card。
 - 侧栏在任一时刻只显示一个选中项；兼容路由完成跳转后，选中态归属实际落地页。
-- bounded section 只用于清晰分组；禁止 nested group，也禁止用贯穿全页的裸横线堆叠出空旷、
-  低密度页面，或把同一个用户问题拆成营销式卡片墙。
+- bounded group 用于清晰分组；禁止 nested group、彩色 category 边条和重 shadow，也禁止
+  用贯穿全页的裸横线堆叠出空旷、低密度页面，或把同一个用户问题拆成营销式卡片墙。
 - 重复实体使用一组共享列头；逐行重复“名称 / 状态 / 来源 / 操作”等字段标签会降低
   扫描效率，不作为默认布局。
 - 主操作贴近其拥有的对象或 section；不把对象级动作抽离成远端页面工具栏动作。
@@ -355,8 +356,9 @@ accent border、轻量 fill 与 check indicator，不能只靠低对比背景色
 3. 窄桌面/WebUI：rail 与 Environment/details 以 drawer/overlay 实际可见，不是 hidden DOM。
 4. Home、conversation、Runtime、Settings、first-run 的 light/dark 与中英文。
 5. Composer 的单层 surface、稳定尺寸、model/reasoning controls、send/stop states。
-6. Baseline screenshot 与 ChatGPT macOS 26.707.41301 的布局/密度比较，以及
-   OPL branding exception 的明确说明。
+6. Visual screenshot 与 ChatGPT Codex macOS 26.707.72221 / build 5307 的同 cohort
+   布局、密度和稳定像素比较；`26.707.41301` 仅用于既有交互 observation，并明确记录 OPL
+   branding exception。
 7. Environment floating details 保持按需、anchored 和 summary-first；OPL 次级 refs 与
    advanced work surfaces 默认折叠或关闭。
 8. Settings 截图在记录证据前校验 requested/resolved route 与 expected/visible page title；

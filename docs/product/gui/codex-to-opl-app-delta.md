@@ -52,8 +52,9 @@ surfaces。
 
 ## OPL Target Translation
 
-OPL App 采用下列翻译规则；没有明确 delta 的区域默认复用 reference 的 composition pattern，
-不把外部产品行为或像素解释为 1:1 authority：
+OPL App 采用下列翻译规则；没有明确 delta 的区域默认复用 reference 的 composition pattern。
+视觉质量按 [`codex-app-visual-parity.md`](codex-app-visual-parity.md) 做 1:1 对齐；产品行为、
+数据、品牌与 authority 仍只来自 OPL contracts，不能从像素反推：
 
 1. **Session-first grouped rail。** 保留 Codex 按工作目录组织 conversations 的认知分组，但 canonical
    thread/session 是身份单位，project/workspace 只是初始 cwd、可变分组和可见 metadata。目录组只提供
@@ -85,7 +86,7 @@ package entry 和双语等 OPL-owned capability：
 
 | Class | 内容 | 设计约束 |
 | --- | --- | --- |
-| `adopt_composition_pattern` | App frame、directory/session rail、单列 timeline、底部 composer、environment floating details、quiet visual grammar。 | 保持参考产品验证过的认知位置，再由 OPL contracts 决定功能、数据、文案和可见状态；不宣称逐像素或逐行为复制。 |
+| `adopt_composition_pattern` | App frame、directory/session rail、单列 timeline、底部 composer、environment floating details、quiet visual grammar。 | 保持参考产品验证过的认知位置；稳定视觉 chrome 逐像素对齐，功能、数据、文案和可见状态仍由 OPL contracts 决定。 |
 | `adapt` | Global rail labels、model/access policy、working-directory metadata、Settings IA、desktop/WebUI affordance。 | 保持 Codex 认知位置，只替换数据和用户语言；不能借适配删除 OPL-owned capability。 |
 | `add` | OPL capability selection、Work Item status，以及 Inspector / Settings 中的 evidence、artifacts、safe actions、receipts。 | 按 owner surface 渐进披露；当前 session 输入只由 composer 显式加入，不建立 workspace/project context preload，也不得抢占主 timeline、塞入 Runtime 或制造 card wall。 |
 | `reject` | Home dashboard、状态卡片墙、常驻 provider/backend selector、多套 inspector、普通路径 raw runtime/protocol。 | 不以“OPL 专业性”为理由恢复。 |
