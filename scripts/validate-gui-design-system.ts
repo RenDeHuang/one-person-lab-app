@@ -709,27 +709,29 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   if (
     returnToApp.label_zh !== '返回应用' ||
     returnToApp.label_en !== 'Back to app' ||
-    returnToApp.placement !== 'settings_sider_first_row_above_search' ||
-    returnToApp.destination_source !== 'last_valid_non_settings_location' ||
+    returnToApp.placement !== 'top_titlebar_history_back_desktop_and_titlebar_back_narrow' ||
+    returnToApp.destination_source !== 'desktop_navigation_history_or_last_valid_non_settings_location' ||
     returnToApp.session_storage_key !== 'aion:last-non-settings-path' ||
     returnToApp.preserve_search_and_hash !== true ||
     returnToApp.settings_destination_forbidden !== true ||
     returnToApp.fallback_path !== '/guid' ||
     returnToApp.keyboard_reachable !== true ||
-    returnToApp.expanded_behavior !== 'icon_and_label' ||
-    returnToApp.collapsed_behavior !== 'icon_only_with_tooltip_and_accessible_name' ||
-    returnToApp.narrow_window_behavior !== 'existing_titlebar_return_action_uses_same_destination_resolver' ||
+    returnToApp.desktop_behavior !== 'existing_top_titlebar_history_back' ||
+    returnToApp.narrow_window_behavior !==
+      'existing_titlebar_return_action_uses_last_valid_non_settings_destination_resolver' ||
+    returnToApp.settings_sider_entry !== 'forbidden' ||
     settingsShellNavigation.product_contract_ref !==
       'contracts/app-gui-product-contract.json#settings_navigation.return_to_app' ||
-    !sameStrings(settingsShellRequiredDom.expanded, ['settings-back-to-app', 'settings-search-input']) ||
-    !sameStrings(settingsShellRequiredDom.collapsed, ['settings-back-to-app']) ||
+    !sameStrings(settingsShellRequiredDom.expanded, ['settings-titlebar-history-back', 'settings-search-input']) ||
+    !sameStrings(settingsShellRequiredDom.collapsed, ['settings-titlebar-history-back']) ||
     !sameStrings(settingsShellRequiredDom.narrow, ['settings-titlebar-back-to-app']) ||
+    !sameStrings(settingsShellNavigation.forbidden_dom, ['settings-back-to-app']) ||
     settingsShellNavigation.destination_behavior !==
-      'last_valid_non_settings_location_preserving_search_and_hash_else_guid' ||
+      'desktop_titlebar_history_back_or_narrow_last_valid_non_settings_location_preserving_search_and_hash_else_guid' ||
     settingsShellNavigation.keyboard_reachable !== true ||
-    settingsShellNavigation.same_resolver_for_sider_and_titlebar !== true
+    settingsShellNavigation.settings_sider_return_forbidden !== true
   ) {
-    issues.add('Settings shell must expose one shared, keyboard-reachable Back to app destination resolver');
+    issues.add('Settings shell must keep Back to app in the top titlebar and forbid a duplicate Settings-sider entry');
   }
   if (
     themeAndBranding.default_theme_id !== 'default-theme' ||

@@ -4256,16 +4256,16 @@
     "return_to_app": {
       "label_zh": "返回应用",
       "label_en": "Back to app",
-      "placement": "settings_sider_first_row_above_search",
-      "destination_source": "last_valid_non_settings_location",
+      "placement": "top_titlebar_history_back_desktop_and_titlebar_back_narrow",
+      "destination_source": "desktop_navigation_history_or_last_valid_non_settings_location",
       "session_storage_key": "aion:last-non-settings-path",
       "preserve_search_and_hash": true,
       "settings_destination_forbidden": true,
       "fallback_path": "/guid",
       "keyboard_reachable": true,
-      "expanded_behavior": "icon_and_label",
-      "collapsed_behavior": "icon_only_with_tooltip_and_accessible_name",
-      "narrow_window_behavior": "existing_titlebar_return_action_uses_same_destination_resolver"
+      "desktop_behavior": "existing_top_titlebar_history_back",
+      "narrow_window_behavior": "existing_titlebar_return_action_uses_last_valid_non_settings_destination_resolver",
+      "settings_sider_entry": "forbidden"
     },
     "footer_update_entry": {
       "placement": "account_footer_row_trailing_action",
@@ -7192,7 +7192,7 @@
         "current workspace identity, path, and writability merged into one normal-state summary",
         "permission or trust explanation only when attention is required",
         "where project and task artifacts are stored",
-        "desktop App log directory changed through application.updateSystemInfo while preserving cacheDir/workDir; WebUI /data/logs remains read-only under OnePersonLab/data -> /data",
+        "desktop App log directory changed through application.setLogDirectory { path }; its success value contains hostLogDir, persists before switching the live writer, and rolls persistence back with a typed failure when the switch fails; cacheDir/workDir remain unchanged and WebUI /data/logs remains read-only under OnePersonLab/data -> /data",
         "editable user-level AGENTS.md with stale-write protection and backup",
         "generated OPL App base context read-only plus editable additional instructions",
         "one change workspace action",

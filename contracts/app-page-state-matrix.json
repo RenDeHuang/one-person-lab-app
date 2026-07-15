@@ -2719,7 +2719,7 @@
         "current workspace identity, path, and writability merged into one normal-state summary",
         "permission or trust explanation only when attention is required",
         "where project and task artifacts are stored",
-        "desktop App log directory changed through application.updateSystemInfo while preserving cacheDir/workDir; WebUI /data/logs remains read-only under OnePersonLab/data -> /data",
+        "desktop App log directory changed through application.setLogDirectory { path }; its success value contains hostLogDir, persists before switching the live writer, and rolls persistence back with a typed failure when the switch fails; cacheDir/workDir remain unchanged and WebUI /data/logs remains read-only under OnePersonLab/data -> /data",
         "editable user-level AGENTS.md with stale-write protection and backup",
         "generated OPL App base context read-only plus editable additional instructions",
         "one change workspace action",
@@ -4240,13 +4240,14 @@
   "settings_shell_navigation": {
     "product_contract_ref": "contracts/app-gui-product-contract.json#settings_navigation.return_to_app",
     "required_dom": {
-      "expanded": ["settings-back-to-app", "settings-search-input"],
-      "collapsed": ["settings-back-to-app"],
+      "expanded": ["settings-titlebar-history-back", "settings-search-input"],
+      "collapsed": ["settings-titlebar-history-back"],
       "narrow": ["settings-titlebar-back-to-app"]
     },
-    "destination_behavior": "last_valid_non_settings_location_preserving_search_and_hash_else_guid",
+    "forbidden_dom": ["settings-back-to-app"],
+    "destination_behavior": "desktop_titlebar_history_back_or_narrow_last_valid_non_settings_location_preserving_search_and_hash_else_guid",
     "keyboard_reachable": true,
-    "same_resolver_for_sider_and_titlebar": true,
+    "settings_sider_return_forbidden": true,
     "footer_update_entry": {
       "required_dom_when_update_available": ["sider-footer-update"],
       "forbidden_dom_when_update_unavailable": ["sider-footer-update"],

@@ -211,7 +211,24 @@ test('GUI design-system validator rejects a Settings return path that can recurs
 
   assert.throws(
     () => validateGuiDesignSystem(root),
-    /Settings shell must expose one shared, keyboard-reachable Back to app destination resolver/,
+    /Settings shell must keep Back to app in the top titlebar and forbid a duplicate Settings-sider entry/,
+  );
+});
+
+test('GUI design-system validator rejects restoring the duplicate Settings-sider return control', () => {
+  const root = createFixture();
+  const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
+  const pageStatePath = path.join(root, 'contracts/app-page-state-matrix.json');
+  const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+  const pageState = JSON.parse(fs.readFileSync(pageStatePath, 'utf8'));
+  contract.settings_navigation.return_to_app.placement = 'settings_sider_first_row_above_search';
+  pageState.settings_shell_navigation.required_dom.expanded = ['settings-back-to-app', 'settings-search-input'];
+  writeJson(root, 'contracts/app-gui-product-contract.json', contract);
+  writeJson(root, 'contracts/app-page-state-matrix.json', pageState);
+
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /Settings shell must keep Back to app in the top titlebar and forbid a duplicate Settings-sider entry/,
   );
 });
 

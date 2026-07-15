@@ -226,9 +226,11 @@ override executor permission mode when deciding usability.
 
 The same page owns the desktop App log directory, the user-level
 `$CODEX_HOME/AGENTS.md` editor, and the OPL App new-conversation context. Log
-changes use the existing typed `application.updateSystemInfo` action with the
-current `cacheDir` and `workDir` preserved, then read back
-`application.systemInfo.logDir`. In WebUI, `/data/logs` is a read-only
+changes use the dedicated typed `application.setLogDirectory { path }` action.
+The host persists `hostLogDir` before switching the live writer; if the switch
+fails it rolls the persisted value back and returns a typed failure. The success
+directory value is only `hostLogDir`, `cacheDir` and `workDir` remain unchanged,
+and `application.systemInfo.logDir` provides readback. In WebUI, `/data/logs` is a read-only
 projection of the existing host `OnePersonLab/data -> /data` mount; Settings
 never rewires that Docker volume. Framework and raw working paths remain in
 Maintenance diagnostics.
@@ -247,7 +249,7 @@ The page has its own package-catalog search, separate from Settings global
 search, across display name, package id, description, tags, and publisher. The
 ordinary filters are package role, install or activation status, and source.
 Registry refresh is a visible ordinary action; direct manifest URL installation
-stays in Advanced. Loading, refreshing, empty, stale, and failed catalog states
+stays in the Agents page's advanced install entry. Loading, refreshing, empty, stale, and failed catalog states
 remain explicit instead of falling back to the static profile.
 
 Each row renders identity, role, publisher, source explanation, versions,

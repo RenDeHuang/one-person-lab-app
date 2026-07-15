@@ -2194,7 +2194,7 @@ export function validateSettingsExperienceContract(experience) {
       log_directory_source:
         "application.systemInfo.logDir_not_Framework_app_state.paths.logs_dir",
       log_directory_mutation:
-        "application.updateSystemInfo_preserves_current_cacheDir_and_workDir_and_persists_desktop_client_system_info",
+        "application.setLogDirectory_path_persists_hostLogDir_then_switches_live_writer_rolls_back_on_failure_and_preserves_cacheDir_workDir",
       log_directory_webui_policy:
         "read_only_/data/logs_projection_from_existing_OnePersonLab/data_to_/data_volume",
       desktop_directory_mapping:
@@ -2592,12 +2592,19 @@ function validateWorkspaceAndStorageOwnership(workspacePage, storagePage) {
     logDirectory,
     {
       owner_page: "workspace",
-      typed_action: "application.updateSystemInfo",
-      typed_action_payload_fields: ["cacheDir", "workDir", "logDir"],
+      typed_action: "application.setLogDirectory",
+      typed_action_payload_fields: ["path"],
+      typed_action_success_value_fields: ["hostLogDir"],
+      typed_action_forbidden_success_value_fields: ["cacheDir", "workDir", "logDir"],
+      mutation_sequence: [
+        "persist_hostLogDir",
+        "switch_live_log_writer",
+        "rollback_persisted_hostLogDir_and_return_typed_failure_on_switch_failure",
+      ],
       preserved_fields: ["cacheDir", "workDir"],
       host_projection: "application.systemInfo.logDir",
-      persistence_target: "desktop_client_system_info",
-      readback_ref: "application.systemInfo.logDir",
+      persistence_target: "desktop_client_system_info.logDir",
+      readback_ref: "application.setLogDirectory.hostLogDir plus application.systemInfo.logDir",
       desktop_change_supported: true,
       webui_log_projection: "/data/logs",
       docker_volume_mapping: "OnePersonLab/data -> /data",

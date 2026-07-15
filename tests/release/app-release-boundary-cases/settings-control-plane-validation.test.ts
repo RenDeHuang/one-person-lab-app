@@ -518,6 +518,40 @@ test("Settings configuration catalog projection preserves owner, page, persisten
       .configuration_catalog_projection,
     projection,
   );
+  const logDirectoryItem = projection.items.find(
+    (item) => item.configuration_id === "log_directory",
+  );
+  assert.equal(
+    logDirectoryItem.write_route,
+    "application.setLogDirectory { path } typed IPC; the success directory value is hostLogDir, persistence happens before the live writer switch, and a switch failure rolls persistence back with a typed failure",
+  );
+  assert.equal(
+    logDirectoryItem.verify_ref,
+    "application.setLogDirectory.hostLogDir success value plus application.systemInfo.logDir readback",
+  );
+  assert.deepStrictEqual(
+    values.controlPlane.page_adapter_policy.required_pages.workspace.log_directory,
+    {
+      owner_page: "workspace",
+      typed_action: "application.setLogDirectory",
+      typed_action_payload_fields: ["path"],
+      typed_action_success_value_fields: ["hostLogDir"],
+      typed_action_forbidden_success_value_fields: ["cacheDir", "workDir", "logDir"],
+      mutation_sequence: [
+        "persist_hostLogDir",
+        "switch_live_log_writer",
+        "rollback_persisted_hostLogDir_and_return_typed_failure_on_switch_failure",
+      ],
+      preserved_fields: ["cacheDir", "workDir"],
+      host_projection: "application.systemInfo.logDir",
+      persistence_target: "desktop_client_system_info.logDir",
+      readback_ref: "application.setLogDirectory.hostLogDir plus application.systemInfo.logDir",
+      desktop_change_supported: true,
+      webui_log_projection: "/data/logs",
+      docker_volume_mapping: "OnePersonLab/data -> /data",
+      docker_volume_rewire_allowed: false,
+    },
+  );
 
   const duplicateId = contracts();
   duplicateId.controlPlane.configuration_catalog_projection.items[1].stable_id =

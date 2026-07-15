@@ -94,16 +94,18 @@ const settingsAppearanceExpected = [
 
 const settingsAppearanceForbidden = ['CssThemeSettings', "data-testid='preferences-theme-section'", 'CODEX_THEME_ID'];
 
-const settingsSiderReturnExpected = [
+const settingsSiderReturnForbidden = [
   'resolveSettingsReturnPath',
   'navigate(resolveSettingsReturnPath())',
   "data-testid='settings-back-to-app'",
+  "t('settings.backToApp')",
 ];
 
 const settingsTitlebarReturnExpected = [
   'resolveSettingsReturnPath',
   'navigate(resolveSettingsReturnPath())',
   "data-testid='settings-titlebar-back-to-app'",
+  "'settings-titlebar-history-back'",
 ];
 
 const ordinaryCapabilityFilterExpected = [
@@ -192,11 +194,14 @@ function validateSettingsPartitionImplementation(shellPaths) {
     settingsAppearanceForbidden,
     'Active shell Settings retired CSS theme preset surface',
   );
-  assertShellTextIncludesAll(
+  const settingsSider = readShellText(
     shellPaths,
     'packages/desktop/src/renderer/pages/settings/components/SettingsSider.tsx',
-    settingsSiderReturnExpected,
-    'Active shell Settings sider Back to app resolver',
+  );
+  assertTextExcludesAll(
+    settingsSider,
+    settingsSiderReturnForbidden,
+    'Active shell retired Settings sider Back to app control',
   );
   assertShellTextIncludesAll(
     shellPaths,
