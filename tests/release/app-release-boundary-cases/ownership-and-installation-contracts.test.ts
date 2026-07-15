@@ -586,7 +586,7 @@ test('agent installation validator rejects invalid external registry metadata an
   }
 });
 
-test('App contracts require one generic package use-boundary activation before launch', () => {
+test('App contracts define one minimal package activation authority', () => {
   const readContract = (name: string) => JSON.parse(
     fs.readFileSync(path.join(process.cwd(), 'contracts', name), 'utf8'),
   );
@@ -600,615 +600,243 @@ test('App contracts require one generic package use-boundary activation before l
   const launchMatrix = readContract('fixtures/agent-package-launch-state-matrix.fixture.json');
   const activationResults = readContract('fixtures/agent-package-activation-results.fixture.json');
 
-  const expectedActivationPolicy = guiProduct.agent_package_activation_policy;
-  assert.equal(expectedActivationPolicy.projection_source, 'app_state.agent_packages.directory.entries[].use_boundary_action');
-  assert.equal(expectedActivationPolicy.projection_scope, 'installed_standard_agent_only');
-  assert.equal(
-    expectedActivationPolicy.projection_independence,
-    'independent_from_lifecycle_available_actions_recommended_action_and_status_index_activation_action',
-  );
-  assert.equal(expectedActivationPolicy.request_scoped_projection_policy.producer_cli_route, null);
-  assert.equal(
-    expectedActivationPolicy.request_scoped_projection_policy.result_schema_ref,
-    'contracts/agent-package-surfaces.schema.json#/$defs/agent_package_session_launch_projection',
-  );
-  assert.equal(
-    expectedActivationPolicy.request_scoped_projection_policy.settings_global_status_source,
-    'app_state.paths.workspace_root_path_allowed',
-  );
-  assert.equal(
-    expectedActivationPolicy.request_scoped_projection_policy.session_target_source,
-    'normalized_selected_local_directory',
-  );
-  assert.match(
-    expectedActivationPolicy.request_scoped_projection_policy.global_workspace_root_policy,
-    /never_call_workspace_root_set/,
-  );
-  assert.deepEqual(expectedActivationPolicy.result_fields, [
-    'launch_allowed',
-    'launch_blocked_reason',
-    'use_boundary_id',
-    'use_receipt_ref',
-    'use_binding',
+  const policy = guiProduct.agent_package_activation_policy;
+  assert.equal(policy.release_scope, 'trusted_local_thin_shell');
+  assert.equal(policy.action_id, 'agent_package_activate');
+  assert.equal(policy.action_ref, 'app_state.actions#agent_package_activate');
+  assert.equal(policy.result_schema_scope, 'live_non_dry_package_launch_only');
+  assert.deepEqual(policy.required_payload_fields, [
+    'package_id',
+    'scope',
+    'target_workspace or target_quest',
   ]);
-  assert.equal(expectedActivationPolicy.result_contract.canonical_binding_field, 'use_binding');
-  assert.match(expectedActivationPolicy.result_contract.temporary_alias_policy, /alias_only_never_satisfies/);
-  assert.deepEqual(expectedActivationPolicy.transition_policy.prelaunch_transition_reason_codes, [
-    'scope_reconciliation_required',
-    'live_verification_deferred',
-    'use_boundary_reconciliation_ready',
+  assert.equal(policy.request_policy.package_id_source, 'current_selected_professional_agent.package_id');
+  assert.equal(policy.request_policy.target_workspace_source, 'normalized_current_session_directory');
+  assert.equal(policy.request_policy.global_workspace_root_mutation_allowed, false);
+  assert.deepEqual(policy.accepted_binding_fields, ['use_binding', 'package_use_binding']);
+  assert.deepEqual(policy.required_success_validation, [
+    'activation.package_id_matches_current_selection',
+    'activation.package_lock.package_id_matches_current_selection',
+    'binding.root_package.package_id_matches_current_selection',
+    'activation.package_lock.package_version_matches_binding.root_package.package_version',
+    'binding.scope_is_workspace',
+    'binding.target_root_matches_normalized_current_session_directory',
   ]);
-  assert.equal(expectedActivationPolicy.transition_policy.hard_block_reason_codes.includes('package_recovery_required'), true);
-  assert.match(expectedActivationPolicy.transition_policy.blocked_result_write_policy, /zero_scope_use_and_activation_receipt_delta/);
-  assert.equal(
-    expectedActivationPolicy.recovery_state_policy.framework_vocabulary.vocabulary_version,
-    'opl-agent-package-recovery.v1',
-  );
-  assert.deepEqual(expectedActivationPolicy.recovery_state_policy.launch_blocked_reason_by_status, {
-    recovery_in_progress: 'package_recovery_in_progress',
-    recovery_required: 'package_recovery_required',
-  });
-  assert.equal(
-    expectedActivationPolicy.recovery_state_policy.repair_action_policy.recovery_required_executable
-      .required_recovery_action_executable,
-    true,
-  );
-  assert.equal(
-    expectedActivationPolicy.recovery_state_policy.repair_action_policy.recovery_required_manual_owner_intervention
-      .required_recovery_action_executable,
-    false,
-  );
-  assert.equal(expectedActivationPolicy.single_use_policy.token_scope, 'globally_unique_within_agent_package_use_ledger');
-  assert.deepEqual(expectedActivationPolicy.single_use_policy.conflict_reason_codes, [
-    'agent_package_use_boundary_replay_conflict',
-    'agent_package_use_boundary_replay_stale',
+  assert.deepEqual(policy.typed_failure_codes, [
+    'agent_package_launch_blocked',
+    'agent_package_activation_invalid',
+    'agent_package_selection_mismatch',
+    'agent_package_version_mismatch',
+    'agent_package_target_mismatch',
   ]);
-  assert.match(expectedActivationPolicy.single_use_policy.exact_retry_policy, /zero_new_writes/);
-  assert.match(expectedActivationPolicy.single_use_policy.receipt_index_policy, /indexed_by_use_boundary_id/);
-  assert.deepEqual(expectedActivationPolicy.workspace_transition_policy.stale_on, [
-    'workspace_root_change',
-    'local_to_worktree',
-    'worktree_to_local',
-    'workspace_cleanup',
-    'workspace_restore',
-  ]);
-  assert.match(expectedActivationPolicy.workspace_transition_policy.failure_policy, /zero_warmup_zero_runtime_task_zero_turn_zero_message/);
-  assert.equal(
-    expectedActivationPolicy.host_launch_authorization_policy.enforcement_owner,
-    'opl_aion_shell_OPL_adapter_or_OPL_owned_local_gateway',
-  );
-  assert.equal(
-    expectedActivationPolicy.host_launch_authorization_policy.aioncore_write_policy,
-    'forbid_OPL_domain_semantics_ledger_DB_migration_or_launch_gate_changes',
-  );
-  assert.equal(
-    expectedActivationPolicy.host_launch_authorization_policy.current_p0_scope,
-    'normal_OPL_shell_package_launch_path',
-  );
-  assert.equal(
-    expectedActivationPolicy.host_launch_authorization_policy.renderer_extra_role,
-    'persistence_and_transport_only_after_deep_validation_not_independent_authority',
-  );
-  assert.deepEqual(expectedActivationPolicy.host_launch_authorization_policy.protected_boundaries, [
-    'conversation_create',
-    'conversation_warmup',
-    'runtime_ensure',
-    'turn_or_message_send_build',
-  ]);
-  assert.match(
-    expectedActivationPolicy.host_launch_authorization_policy.normal_path_failure_policy,
-    /block_before_calling_create_warmup_runtime_ensure_or_send/,
-  );
-  assert.equal(
-    expectedActivationPolicy.host_launch_authorization_policy.deferred_hardening.release_blocking_for_26_7_14,
-    false,
-  );
-  assert.equal(
-    expectedActivationPolicy.host_launch_authorization_policy.deferred_hardening.aioncore_domain_semantics_allowed,
-    false,
-  );
-  const expectedActivationStates = {
-    package_not_installed: {
-      preparation_status: 'not_installed',
-      enabled: false,
-      reason_code: 'package_not_installed',
-    },
-    installed_scope_stale: {
-      preparation_status: 'prepare_required',
-      enabled: true,
-      reason_code: 'scope_reconciliation_required',
-    },
-    installed_scope_current: {
-      preparation_status: 'ready',
-      enabled: true,
-      reason_code: 'use_boundary_reconciliation_ready',
-    },
-  };
+  assert.equal(policy.failure_policy.downstream_create_allowed, false);
+  assert.equal(policy.failure_policy.draft_preserved, true);
+  assert.equal(policy.workspace_policy.session_is_primary_unit, true);
+  assert.equal(policy.workspace_policy.project_owns_session, false);
+  assert.equal(policy.workspace_policy.working_directory_is_mutable_context, true);
+  assert.equal(policy.workspace_policy.plain_conversation_policy, 'unchanged');
+  assert.equal(policy.framework_component.cohort_commit, 'e10ec54f29b8a7d5b54c9a44f49ba4d5c492f252');
 
-  assert.deepEqual(
-    installExposure.agent_installation_contract.package_manager_lifecycle.activation_contract,
-    expectedActivationPolicy,
+  const authorityRef = 'contracts/app-gui-product-contract.json#agent_package_activation_policy';
+  assert.equal(
+    installExposure.agent_installation_contract.package_manager_lifecycle.activation_contract.contract_ref,
+    authorityRef,
   );
-  assert.deepEqual(guiProduct.agent_package_activation_policy, expectedActivationPolicy);
-  assert.deepEqual(productProfile.gui.agent_package_activation_policy, expectedActivationPolicy);
-  assert.deepEqual(
-    pageState.pages.find((page: { id: string }) => page.id === 'guid_home').home_view_model.agent_package_activation_policy,
-    expectedActivationPolicy,
+  assert.equal(productProfile.gui.agent_package_activation_policy.contract_ref, authorityRef);
+  assert.equal(
+    pageState.pages.find((page: { id: string }) => page.id === 'guid_home')
+      .home_view_model.agent_package_activation_policy.contract_ref,
+    authorityRef,
+  );
+  const agentsPage = pageState.pages.find((page: { id: string }) => page.id === 'agents');
+  assert.equal(agentsPage.agent_package_lifecycle_ux.package_launch_contract_ref, authorityRef);
+  assert.equal(
+    agentsPage.agent_package_lifecycle_ux.contract_ref,
+    'contracts/app-gui-product-contract.json#pages.settings_agents.agent_package_lifecycle_ux',
   );
 
   const packageRow = runtimeBridge.canonical_state_display_action_map.rows.find(
     (row: { semantic_area: string }) => row.semantic_area === 'package',
   );
-  assert.equal(packageRow.allowed_action_refs.includes('agent_package_activate'), true);
-  assert.equal(packageRow.allowed_action_refs.includes('agent_package_repair'), true);
-  assert.equal(packageRow.allowed_action_refs.includes('repair_dependency_closure'), false);
-  assert.deepEqual(packageRow.use_boundary_activation_contract, expectedActivationPolicy);
-
-  const agentsProjection = guiProduct.pages.settings_agents.agent_package_lifecycle_ux.package_projection_contract;
-  assert.deepEqual(
-    agentsProjection.status_index_package_fields.activation_action,
-    ['action_id', 'command_ref', 'enabled', 'preparation_status', 'reason_code'],
-  );
-  assert.deepEqual(
-    agentsProjection.activation_preparation_status_values,
-    ['not_installed', 'prepare_required', 'ready'],
-  );
-  assert.deepEqual(agentsProjection.activation_preparation_policy, expectedActivationStates);
-  assert.deepEqual(
-    pageState.pages.find((page: { id: string }) => page.id === 'agents')
-      .agent_package_lifecycle_ux.package_projection_contract,
-    agentsProjection,
-  );
-  const profilePackageSurface = productProfile.settings.control_plane.page_adapter_policy.required_pages
-    .agents.directory_projection_surface;
-  assert.equal(profilePackageSurface.surface, 'settings_agents');
+  assert.equal(packageRow.agent_package_activation_contract.contract_ref, authorityRef);
   assert.equal(
-    profilePackageSurface.activation_action_contract_ref,
-    'contracts/app-gui-product-contract.json#pages.settings_agents.agent_package_lifecycle_ux.workspace_activation_contract',
+    guiProduct.pages.settings_agents.agent_package_lifecycle_ux
+      .package_projection_contract.minimal_launch_validation_ref,
+    authorityRef,
   );
-  assert.equal(profilePackageSurface.status_model.axes.includes('activation_action'), true);
-  assert.equal(profilePackageSurface.detail_surface.detail_fields.includes('activation_action'), true);
 
-  assert.deepEqual(packageSurfaces.$defs.agent_package_activation_request.required, [
-    'package_id',
-    'scope',
-    'use_boundary_id',
-  ]);
-  assert.deepEqual(packageSurfaces.$defs.agent_package_activation_result.required, ['launch_allowed', 'use_boundary_id']);
-  assert.equal(packageSurfaces.$defs.agent_package_activation_result.oneOf.length, 2);
-  assert.deepEqual(packageSurfaces.$defs.agent_package_activation_result.oneOf[0].required, [
-    'use_receipt_ref',
-    'use_binding',
-  ]);
-  assert.deepEqual(packageSurfaces.$defs.agent_package_activation_result.oneOf[1].required, [
-    'launch_blocked_reason',
-  ]);
-  assert.deepEqual(packageSurfaces.$defs.agent_package_activation_action.required, [
-    'action_id',
-    'command_ref',
-    'enabled',
-    'preparation_status',
-    'reason_code',
-  ]);
-  assert.deepEqual(packageSurfaces.$defs.agent_package_use_boundary_action.required, [
-    'surface_kind',
-    'action_id',
-    'action_ref',
-    'payload',
-    'required_payload_fields',
-    'confirmation_required',
-    'use_boundary_id',
-    'directory_entry_ref',
-    'readiness_ref',
-    'enabled',
-    'preparation_status',
-    'reason_code',
-    'blocker',
-  ]);
-  assert.equal(
-    packageSurfaces.$defs.agent_package_activation_request.allOf.length,
-    2,
-    'workspace and quest payload targets must be mutually exclusive',
-  );
+  const activationRequest = packageSurfaces.$defs.agent_package_activation_request;
+  assert.deepEqual(activationRequest.required, ['package_id', 'scope']);
+  assert.equal(activationRequest.properties.package_version, undefined);
+  assert.equal(activationRequest.allOf.length, 2);
+  const activationResult = packageSurfaces.$defs.agent_package_activation_result;
+  assert.deepEqual(activationResult.required, ['launch_allowed', 'package_id', 'package_lock']);
+  assert.equal(activationResult.properties.launch_allowed.const, true);
+  assert.deepEqual(activationResult.properties.package_lock.required, ['package_id', 'package_version']);
   assert.deepEqual(packageSurfaces.$defs.agent_package_use_binding.required, [
-    'surface_kind',
-    'use_boundary_id',
-    'use_receipt_ref',
     'root_package',
-    'provider_packages',
-    'dependency_closure_digest',
-    'freshness_mode',
-    'latest_verified',
-    'checked_at',
-    'refresh_outcome',
-    'channel_ref',
-    'channel_digest',
     'scope',
     'target_root',
-    'core_skill_tree_digest',
-    'skill_tree_digest',
-    'core_readiness',
-    'specialty_exposure',
-  ]);
-  assert.equal(
-    packageSurfaces.$defs.agent_package_use_binding.properties.surface_kind.const,
-    'opl_agent_package_use_binding.v1',
-  );
-  assert.deepEqual(packageSurfaces.$defs.agent_package_use_binding_package.required, [
-    'package_id',
-    'package_version',
-    'owner_language_version',
-    'package_lock_ref',
-    'manifest_sha256',
-    'content_digest',
-    'source_artifact_ref',
-    'artifact_digest',
-    'owner_source_commit',
-    'carrier_authority',
   ]);
   assert.deepEqual(
-    packageSurfaces.$defs.agent_package_activation_result.dependentRequired.package_use_binding,
-    ['use_binding'],
+    packageSurfaces.$defs.agent_package_use_binding.properties.root_package.required,
+    ['package_id', 'package_version'],
   );
-  assert.equal(
-    packageSurfaces.$defs.agent_package_session_launch_projection.properties.surface_kind.const,
-    'opl_agent_package_session_launch_projection.v1',
-  );
-  assert.equal(
-    packageSurfaces.$defs.agent_package_session_launch_projection.properties.writes_performed.const,
-    false,
-  );
+  assert.equal(packageSurfaces.$defs.agent_package_use_boundary_action, undefined);
+  assert.equal(packageSurfaces.$defs.agent_package_session_launch_projection, undefined);
 
-  const fixtureStatus = fastFixture.app_state.agent_packages.status_index.packages.mas;
-  assert.equal(fixtureStatus.source_kind, 'first_party_managed_cohort');
-  assert.equal(fixtureStatus.physical_surface.status, 'materialized');
-  assert.equal(
-    fixtureStatus.dependency_readiness.checks[0].physical_surface_status,
-    'materialized',
+  const fixtureAction = fastFixture.app_state.actions.find(
+    (action: { action_id: string }) => action.action_id === 'agent_package_activate',
   );
-  assert.deepEqual(fixtureStatus.activation_action, {
-    action_id: 'agent_package_activate',
-    command_ref: 'opl app action execute --action agent_package_activate --payload <json> --json',
-    enabled: true,
-    preparation_status: 'ready',
-    reason_code: 'use_boundary_reconciliation_ready',
-  });
-  assert.deepEqual(fixtureStatus.capability_exposure, {
-    enabled: true,
-    visibility: 'visible',
-    codex_visible: true,
-  });
-  const fastDirectoryEntries = fastFixture.app_state.agent_packages.directory.entries;
-  const deferredEntry = fastDirectoryEntries.find((entry: { package_id: string }) => entry.package_id === 'mas');
-  assert.equal(deferredEntry.use_boundary_action.preparation_status, 'verification_deferred');
-  assert.equal(deferredEntry.use_boundary_action.reason_code, 'live_verification_deferred');
-  assert.deepEqual(deferredEntry.use_boundary_action.payload, {
-    package_id: 'mas',
+  for (const field of ['package_id', 'scope', 'target_workspace', 'target_quest']) {
+    assert.equal(fixtureAction.payload_fields.includes(field), true, field);
+  }
+  assert.deepEqual(fixtureAction.result_fields, [
+    'package_id',
+    'package_lock',
+    'launch_allowed',
+    'launch_blocked_reason',
+    'use_receipt_ref',
+    'package_use_binding',
+  ]);
+  const directoryEntries = fastFixture.app_state.agent_packages.directory.entries;
+  assert.equal(directoryEntries.some((entry: any) => 'use_boundary_action' in entry), false);
+  const activationEntry = directoryEntries.find(
+    (entry: any) => entry.recommended_action === 'agent_package_activate',
+  );
+  assert.deepEqual(activationEntry.recommended_action_ref.payload, {
+    package_id: activationEntry.package_id,
     scope: 'workspace',
-    target_workspace: '/Users/example/OPL Workspace',
-    use_boundary_id: deferredEntry.use_boundary_action.use_boundary_id,
+    target_workspace: fastFixture.app_state.paths.workspace_root_path,
   });
-  assert.equal(
-    fastDirectoryEntries.find((entry: { package_id: string }) => entry.package_id === 'obf').use_boundary_action,
-    null,
-  );
 
-  const launchCases = new Map(launchMatrix.cases.map((entry: { case_id: string }) => [entry.case_id, entry]));
+  assert.equal(launchMatrix.read_and_action_sources.status_and_dry_run_write_count, 0);
+  const shellCases = new Map(
+    launchMatrix.normal_shell_launch_contract.cases.map(
+      (entry: { case_id: string }) => [entry.case_id, entry],
+    ),
+  );
+  assert.deepEqual(
+    ['framework_blocked', 'malformed_activation', 'selection_drift', 'version_drift', 'target_drift']
+      .map((caseId) => (shellCases.get(caseId) as any).reason_code),
+    policy.typed_failure_codes,
+  );
+  assert.equal((shellCases.get('valid_package_launch') as any).accepted, true);
+  assert.deepEqual(shellCases.get('plain_conversation'), {
+    case_id: 'plain_conversation',
+    package_backed: false,
+    activation_required: false,
+    accepted: true,
+  });
+
+  const lifecycleCases = new Map(
+    launchMatrix.cases.map((entry: { case_id: string }) => [entry.case_id, entry]),
+  );
   for (const caseId of [
     'ready_visible_enabled',
     'verification_deferred_visible_enabled',
     'activation_required_visible_enabled',
     'hidden_enabled_standard_agent',
   ]) {
-    const launchCase: any = launchCases.get(caseId);
-    assert.equal(launchCase.activation_must_execute, true, caseId);
-    assert.equal(launchCase.use_boundary_action.enabled, true, caseId);
-    assert.equal(
-      launchCase.use_boundary_action.payload.use_boundary_id,
-      launchCase.use_boundary_action.use_boundary_id,
-      caseId,
-    );
+    assert.equal((lifecycleCases.get(caseId) as any).activation_required_before_launch, true, caseId);
   }
-  const disabledCase: any = launchCases.get('disabled_visible_standard_agent');
-  assert.deepEqual(disabledCase.exposure, { enabled: false, visibility: 'visible', codex_visible: false });
-  assert.equal(disabledCase.activation_must_execute, false);
-  assert.equal(disabledCase.use_boundary_action.enabled, false);
-  assert.equal(disabledCase.use_boundary_action.reason_code, 'package_disabled');
-  const hiddenCase: any = launchCases.get('hidden_enabled_standard_agent');
-  assert.equal(hiddenCase.ordinary_discovery_visible, false);
-  assert.equal(hiddenCase.retained_shortcut_launch_allowed_after_activation, true);
-  assert.equal(hiddenCase.use_boundary_action.enabled, true);
-  assert.deepEqual(launchMatrix.exposure_state.transitions, {
-    hide: { enabled: 'preserve', visibility: 'hidden' },
-    unhide: { enabled: 'preserve', visibility: 'visible' },
-    disable: { enabled: false, visibility: 'preserve' },
-    enable: { enabled: true, visibility: 'preserve' },
-  });
   for (const caseId of [
+    'disabled_visible_standard_agent',
     'not_installed_standard_agent',
     'installed_capability_package',
     'installed_workflow_profile',
-  ]) {
-    assert.equal((launchCases.get(caseId) as any).use_boundary_action, null, caseId);
-  }
-  for (const caseId of [
     'installed_standard_agent_lock_corrupt',
     'recovery_in_progress',
     'recovery_required_executable',
     'recovery_required_manual_owner_intervention',
   ]) {
-    const launchCase: any = launchCases.get(caseId);
-    assert.equal(launchCase.activation_must_execute, false, caseId);
-    assert.equal(launchCase.use_boundary_action.enabled, false, caseId);
-    assert.deepEqual(launchCase.expected_receipt_delta, {
-      scope: 0,
-      use: 0,
-      activation: 0,
-    });
+    assert.equal((lifecycleCases.get(caseId) as any).activation_required_before_launch, false, caseId);
   }
+  assert.equal(
+    (lifecycleCases.get('hidden_enabled_standard_agent') as any).ordinary_discovery_visible,
+    false,
+  );
+  assert.equal(
+    (lifecycleCases.get('hidden_enabled_standard_agent') as any)
+      .retained_shortcut_launch_allowed_after_activation,
+    true,
+  );
   for (const caseId of [
     'recovery_in_progress',
     'recovery_required_executable',
     'recovery_required_manual_owner_intervention',
   ]) {
-    const launchCase: any = launchCases.get(caseId);
-    assert.deepEqual(launchCase.read_surfaces_are_pure, ['fast', 'list', 'status', 'dry_run'], caseId);
-    assert.equal(launchCase.owner_token_exposed, false, caseId);
+    assert.deepEqual(
+      (lifecycleCases.get(caseId) as any).read_surfaces_are_pure,
+      ['fast', 'list', 'status', 'dry_run'],
+      caseId,
+    );
   }
-  const recoveryInProgress: any = launchCases.get('recovery_in_progress');
-  assert.equal(recoveryInProgress.framework_recovery_projection.recovery_action_state, 'wait_only');
-  assert.equal(recoveryInProgress.status_index_repair_action.enabled, false);
-  assert.equal(recoveryInProgress.directory_repair_action, null);
-  const executableRecovery: any = launchCases.get('recovery_required_executable');
-  assert.equal(executableRecovery.framework_recovery_projection.recovery_action_state, 'executable');
-  assert.equal(executableRecovery.status_index_repair_action.enabled, true);
-  assert.equal(executableRecovery.directory_repair_action.action_id, 'agent_package_repair');
-  const manualRecovery: any = launchCases.get('recovery_required_manual_owner_intervention');
-  assert.equal(
-    manualRecovery.framework_recovery_projection.recovery_action_state,
-    'manual_owner_intervention_required',
-  );
-  assert.equal(manualRecovery.status_index_repair_action.enabled, false);
-  assert.equal(manualRecovery.directory_repair_action, null);
-
-  const hasExactFields = (value: any, expected: string[]) => value
-    && typeof value === 'object'
-    && !Array.isArray(value)
-    && JSON.stringify(Object.keys(value).sort()) === JSON.stringify([...expected].sort());
-  const bindingFields = packageSurfaces.$defs.agent_package_use_binding.required;
-  const bindingPackageFields = packageSurfaces.$defs.agent_package_use_binding_package.required;
-  const activationResultConformsToPublicContract = (result: any) => {
-    if (
-      typeof result?.launch_allowed !== 'boolean'
-      || typeof result?.use_boundary_id !== 'string'
-      || !result.use_boundary_id
-      || ['recovery_in_progress', 'recovery_required'].includes(result.launch_blocked_reason)
-    ) {
-      return false;
-    }
-    if (result.launch_allowed) {
-      if (typeof result.use_receipt_ref !== 'string' || !result.use_receipt_ref || !result.use_binding) return false;
-      if (!hasExactFields(result.use_binding, bindingFields)) return false;
-      if (result.use_binding.surface_kind !== 'opl_agent_package_use_binding.v1') return false;
-      if (!hasExactFields(result.use_binding.root_package, bindingPackageFields)) return false;
-      if (result.use_binding.root_package.package_id !== result.package_id) return false;
-      if (!Array.isArray(result.use_binding.provider_packages)) return false;
-      if (result.use_binding.provider_packages.some((entry: any) => !hasExactFields(entry, bindingPackageFields))) return false;
-      if (
-        result.package_use_binding !== undefined
-        && JSON.stringify(result.package_use_binding) !== JSON.stringify(result.use_binding)
-      ) return false;
-      return result.use_binding.use_boundary_id === result.use_boundary_id
-        && result.use_binding.use_receipt_ref === result.use_receipt_ref;
-    }
-    return typeof result.launch_blocked_reason === 'string'
-      && result.launch_blocked_reason.length > 0
-      && (result.use_receipt_ref === null || result.use_receipt_ref === undefined)
-      && (result.use_binding === null || result.use_binding === undefined)
-      && (result.package_use_binding === null || result.package_use_binding === undefined);
-  };
-  assert.equal(
-    activationResults.framework_binding_admission.status,
-    'pending_exact_Framework_producer_checkpoint',
-  );
-  assert.equal(activationResults.framework_binding_admission.producer_commit, null);
-  assert.equal(
-    activationResults.framework_binding_admission.fixture_role,
-    'App_design_authority_only_not_cross_repo_admission_evidence',
-  );
-  assert.equal(activationResults.framework_binding_admission.cross_repo_admission_satisfied, false);
-  assert.deepEqual(
-    activationResults.framework_binding_admission.required_admission_consumers,
-    ['App_schema', 'App_validator', 'Shell_parser'],
-  );
-  for (const example of activationResults.cases) {
-    const result = example.result;
-    assert.equal(activationResultConformsToPublicContract(result), true, example.case_id);
-    if (result.launch_allowed) {
-      assert.equal(typeof result.use_receipt_ref, 'string', example.case_id);
-      assert.equal(typeof result.use_binding, 'object', example.case_id);
-      assert.equal(result.use_binding.use_receipt_ref, result.use_receipt_ref, example.case_id);
-      assert.equal(result.use_binding.use_boundary_id, result.use_boundary_id, example.case_id);
-    } else {
-      assert.equal(typeof result.launch_blocked_reason, 'string', example.case_id);
-      assert.equal(result.use_receipt_ref, null, example.case_id);
-      assert.equal(result.use_binding, null, example.case_id);
-      assert.equal(result.writes_performed, false, example.case_id);
-    }
-  }
-  const activationCases = new Map(activationResults.cases.map((entry: { case_id: string }) => [entry.case_id, entry]));
-  const canonicalSuccess = structuredClone((activationCases.get('ready_live') as any).result);
-  const compatibleAlias = structuredClone(canonicalSuccess);
-  compatibleAlias.package_use_binding = structuredClone(compatibleAlias.use_binding);
-  assert.equal(activationResultConformsToPublicContract(compatibleAlias), true, 'deep-identical alias may migrate');
-  const aliasOnly = structuredClone(canonicalSuccess);
-  aliasOnly.package_use_binding = structuredClone(aliasOnly.use_binding);
-  delete aliasOnly.use_binding;
-  assert.equal(activationResultConformsToPublicContract(aliasOnly), false, 'alias-only success must fail');
-  const aliasRootDrift = structuredClone(compatibleAlias);
-  aliasRootDrift.package_use_binding.root_package.package_lock_ref = 'opl://drift/root-lock';
-  assert.equal(activationResultConformsToPublicContract(aliasRootDrift), false, 'alias root drift must fail');
-  const aliasProviderDrift = structuredClone(compatibleAlias);
-  aliasProviderDrift.package_use_binding.provider_packages[0].package_version = '9.9.9';
-  assert.equal(activationResultConformsToPublicContract(aliasProviderDrift), false, 'alias provider drift must fail');
-  const invalidSurface = structuredClone(canonicalSuccess);
-  invalidSurface.use_binding.surface_kind = 'opl_agent_package_use_binding';
-  assert.equal(activationResultConformsToPublicContract(invalidSurface), false, 'unversioned binding must fail');
-  const rootIdentityDrift = structuredClone(canonicalSuccess);
-  rootIdentityDrift.use_binding.root_package.package_id = 'different-root';
-  assert.equal(activationResultConformsToPublicContract(rootIdentityDrift), false, 'root identity drift must fail');
-  const missingBinding = structuredClone(canonicalSuccess);
-  delete missingBinding.use_binding;
-  assert.equal(activationResultConformsToPublicContract(missingBinding), false, 'success without binding must fail');
-  const blockedWithoutReason = structuredClone((activationCases.get('not_installed') as any).result);
-  delete blockedWithoutReason.launch_blocked_reason;
-  assert.equal(activationResultConformsToPublicContract(blockedWithoutReason), false, 'blocked result without reason must fail');
-  assert.deepEqual(
-    (activationCases.get('exact_retry_live') as any).result,
-    (activationCases.get('ready_live') as any).result,
-  );
-  assert.deepEqual((activationCases.get('exact_retry_live') as any).invocation_write_delta, {
-    package_transaction: 0,
-    scope_receipt: 0,
-    use_receipt: 0,
-    activation_receipt: 0,
-  });
-  assert.equal(
-    (activationCases.get('replay_identity_conflict') as any).result.launch_blocked_reason,
-    'agent_package_use_boundary_replay_conflict',
+  const workspaceCases = new Map(
+    launchMatrix.workspace_transition_contract.cases.map(
+      (entry: { case_id: string }) => [entry.case_id, entry],
+    ),
   );
   assert.equal(
-    (activationCases.get('replay_currentness_stale') as any).result.launch_blocked_reason,
-    'agent_package_use_boundary_replay_stale',
-  );
-  assert.notEqual(
-    (activationCases.get('fresh_token_after_refresh') as any).result.use_boundary_id,
-    (activationCases.get('fresh_token_after_refresh') as any).previous_use_boundary_id,
-  );
-  const workspaceCases = new Map(launchMatrix.workspace_transition_contract.cases.map(
-    (entry: { case_id: string }) => [entry.case_id, entry],
-  ));
-  assert.equal((workspaceCases.get('workspace_a_to_b') as any).old_token_can_authorize_new_root, false);
-  assert.equal(
-    (workspaceCases.get('workspace_a_to_b') as any).failure_effect,
-    'zero_warmup_zero_runtime_task_zero_turn_zero_message',
-  );
-  assert.equal((workspaceCases.get('plain_conversation_workspace_transition') as any).activation_required, false);
-  const projectionCases = new Map(launchMatrix.request_scoped_projection_contract.cases.map(
-    (entry: { case_id: string }) => [entry.case_id, entry],
-  ));
-  const globalAndSession: any = projectionCases.get('global_A_session_B_zero_write');
-  assert.equal(
-    globalAndSession.settings_global_workspace_root_before,
-    globalAndSession.settings_global_workspace_root_after,
-  );
-  assert.notEqual(
-    globalAndSession.settings_global_workspace_root_before,
-    globalAndSession.selected_session_target_workspace,
-  );
-  assert.equal(globalAndSession.projection_result.writes_performed, false);
-  assert.equal(globalAndSession.projection_result.global_workspace_root_unchanged, true);
-  assert.equal(globalAndSession.workspace_root_set_called, false);
-  assert.equal(
-    globalAndSession.projection_result.use_boundary_action.payload.target_workspace,
-    globalAndSession.selected_session_target_workspace,
-  );
-  const selectedProjectionEntry = globalAndSession.projection_result.directory.entries.find(
-    (entry: any) => entry.package_id === globalAndSession.projection_result.package_id,
-  );
-  assert.deepEqual(
-    globalAndSession.projection_result.use_boundary_action,
-    selectedProjectionEntry.use_boundary_action,
-  );
-  assert.equal((projectionCases.get('rapid_A_to_B_discards_late_A') as any).late_A_response_discarded, true);
-  assert.equal(
-    (projectionCases.get('rapid_A_to_B_discards_late_A') as any).cache_and_inflight_key_includes_normalized_target,
+    (workspaceCases.get('workspace_a_to_b') as any)
+      .fresh_minimal_validation_required_before_next_launch,
     true,
   );
-  const projectless: any = projectionCases.get('projectless_package_launch');
-  assert.equal(projectless.activation_executed, false);
-  assert.equal(projectless.launch_allowed, false);
-  assert.equal(projectless.reason_code, 'agent_package_target_workspace_required');
-  const transitionToC: any = projectionCases.get('session_B_to_C_transition');
-  assert.equal(transitionToC.fresh_projection_target_workspace, transitionToC.new_target_workspace);
-  assert.deepEqual(transitionToC.fresh_projection_required_before, [
-    'conversation_warmup',
-    'runtime_ensure',
-    'turn_or_message_send_build',
-  ]);
-  const targetDrift: any = projectionCases.get('projection_target_drift');
-  assert.equal(targetDrift.accepted, false);
-  assert.deepEqual(targetDrift.write_delta, {
-    conversation: 0,
-    message: 0,
-    turn: 0,
-    runtime_task: 0,
-  });
-  const hostCases = new Map(launchMatrix.host_launch_authorization_contract.cases.map(
-    (entry: { case_id: string }) => [entry.case_id, entry],
-  ));
   assert.equal(
-    launchMatrix.host_launch_authorization_contract.enforcement_owner,
-    'opl_aion_shell_OPL_adapter_or_OPL_owned_local_gateway',
-  );
-  assert.equal(
-    launchMatrix.host_launch_authorization_contract.aioncore_write_policy,
-    'forbid_OPL_domain_semantics_ledger_DB_migration_or_launch_gate_changes',
-  );
-  assert.deepEqual(launchMatrix.host_launch_authorization_contract.current_p0_case_ids, [
-    'normal_shell_create_missing_or_invalid_activation',
-    'warmup_or_send_stale_workspace',
-    'normal_shell_valid_activation',
-    'plain_conversation',
-  ]);
-  assert.equal(
-    launchMatrix.host_launch_authorization_contract.deferred_hardening.release_blocking_for_26_7_14,
+    (workspaceCases.get('plain_conversation_workspace_transition') as any).activation_required,
     false,
   );
-  assert.deepEqual(launchMatrix.host_launch_authorization_contract.deferred_hardening.case_ids, [
-    'direct_create_missing_or_forged_binding',
-    'same_token_two_conversations',
-    'clone_reuses_source_extra',
-    'exact_create_retry_same_conversation',
-  ]);
-  for (const caseId of launchMatrix.host_launch_authorization_contract.current_p0_case_ids) {
-    assert.equal((hostCases.get(caseId) as any).scope, 'current_p0');
-  }
-  for (const caseId of launchMatrix.host_launch_authorization_contract.deferred_hardening.case_ids) {
-    assert.equal((hostCases.get(caseId) as any).scope, 'deferred_hardening');
-  }
-  const invalidNormalCreate: any = hostCases.get('normal_shell_create_missing_or_invalid_activation');
-  assert.equal(invalidNormalCreate.accepted, false);
-  assert.equal(invalidNormalCreate.downstream_create_called, false);
-  assert.deepEqual(invalidNormalCreate.write_delta, {
-    conversation: 0,
-    message: 0,
-    turn: 0,
-    runtime_task: 0,
+
+  assert.deepEqual(activationResults.framework_component, {
+    status: 'canonical_release_cohort_reference',
+    repository: 'gaofeng21cn/one-person-lab',
+    commit: 'e10ec54f29b8a7d5b54c9a44f49ba4d5c492f252',
+    fixture_role: 'minimal_live_consumer_examples_not_an_exact_producer_fixture',
+    exact_producer_fixture: false,
+    installed_runtime_readback_required: true,
   });
-  const stalePreRuntime: any = hostCases.get('warmup_or_send_stale_workspace');
-  assert.equal(stalePreRuntime.accepted, false);
-  assert.deepEqual(stalePreRuntime.protected_boundaries, [
-    'conversation_warmup',
-    'runtime_ensure',
-    'turn_or_message_send_build',
+  assert.deepEqual(activationResults.required_success_binding_fields, [
+    'root_package.package_id',
+    'root_package.package_version',
+    'scope',
+    'target_root',
   ]);
-  assert.deepEqual(stalePreRuntime.write_delta, { message: 0, turn: 0, runtime_task: 0 });
-  const validNormalActivation: any = hostCases.get('normal_shell_valid_activation');
-  assert.equal(validNormalActivation.accepted, true);
-  assert.equal(validNormalActivation.deep_validation_passed, true);
-  assert.equal(validNormalActivation.canonical_use_receipt_ref_forwarded, true);
-  assert.equal(validNormalActivation.canonical_use_binding_persisted, true);
-  assert.equal(validNormalActivation.downstream_create_called, true);
-  assert.equal((hostCases.get('plain_conversation') as any).accepted, true);
-  assert.equal((hostCases.get('plain_conversation') as any).activation_required, false);
-  const fixtureAction = fastFixture.app_state.actions.find(
-    (action: { action_id: string }) => action.action_id === 'agent_package_activate',
+  const bindingFor = (result: any) => result.use_binding ?? result.package_use_binding;
+  const successMatchesSelection = (entry: any) => {
+    const binding = bindingFor(entry.result);
+    return entry.result.launch_allowed === true
+      && (entry.result.launch_blocked_reason === null || entry.result.launch_blocked_reason === undefined)
+      && entry.result.package_id === entry.selected.package_id
+      && entry.result.package_lock.package_id === entry.selected.package_id
+      && entry.result.package_lock.package_version === entry.selected.package_version
+      && binding.root_package.package_id === entry.selected.package_id
+      && binding.root_package.package_version === entry.selected.package_version
+      && binding.scope === 'workspace'
+      && binding.target_root === entry.selected.normalized_target_workspace;
+  };
+  const resultCases = new Map(
+    activationResults.cases.map((entry: { case_id: string }) => [entry.case_id, entry]),
   );
-  assert.deepEqual(fixtureAction.payload_fields, expectedActivationPolicy.payload_fields);
-  assert.equal(JSON.stringify(fixtureAction).includes('settings_reload_codex_surface'), false);
-  assert.equal(JSON.stringify(expectedActivationPolicy).includes('med-autoscience'), false);
-  assert.equal(JSON.stringify(expectedActivationPolicy).includes('mas-scholar-skills'), false);
+  assert.equal(successMatchesSelection(resultCases.get('ready_live')), true);
+  assert.equal(successMatchesSelection(resultCases.get('already_ready_live')), true);
+  const activationPackageDrift = structuredClone(resultCases.get('ready_live') as any);
+  activationPackageDrift.result.package_id = 'other-agent';
+  assert.equal(successMatchesSelection(activationPackageDrift), false);
+  const lockPackageDrift = structuredClone(resultCases.get('ready_live') as any);
+  lockPackageDrift.result.package_lock.package_id = 'other-agent';
+  assert.equal(successMatchesSelection(lockPackageDrift), false);
+  const rootPackageDrift = structuredClone(resultCases.get('ready_live') as any);
+  bindingFor(rootPackageDrift.result).root_package.package_id = 'other-agent';
+  assert.equal(successMatchesSelection(rootPackageDrift), false);
+  const versionDrift = structuredClone(resultCases.get('ready_live') as any);
+  bindingFor(versionDrift.result).root_package.package_version = '9.9.9';
+  assert.equal(successMatchesSelection(versionDrift), false);
+  const targetDrift = structuredClone(resultCases.get('already_ready_live') as any);
+  bindingFor(targetDrift.result).target_root = '/Users/example/Other';
+  assert.equal(successMatchesSelection(targetDrift), false);
+
+  assert.equal(JSON.stringify(policy).includes('med-autoscience'), false);
+  assert.equal(JSON.stringify(policy).includes('mas-scholar-skills'), false);
 });
 
 test('App install policy selects exactly one compatible OPL Framework carrier', () => {
@@ -1398,7 +1026,8 @@ test('managed update payload and public actions use only the three software obje
   const guiManagedUpdate = gui.framework_surfaces.managed_update_plane;
   const guiEnvironment = gui.pages.settings_environment;
   const environmentPage = pageState.pages.find((page) => page.id === 'environment');
-  const agentsPage = pageState.pages.find((page) => page.id === 'agents');
+  const agentsPage = gui.pages.settings_agents;
+  const agentsPageState = pageState.pages.find((page) => page.id === 'agents');
 
   assert.doesNotThrow(() => validateReleaseChannelContract(release));
   assert.deepEqual(lifecycle.public_component_keys, ['opl_base', 'opl_app', 'opl_packages']);
@@ -1477,6 +1106,10 @@ test('managed update payload and public actions use only the three software obje
     agentsPage.status_model.source_inputs.includes('managed_update.components[opl_packages].projection_status'),
     true,
   );
+  assert.equal(
+    agentsPageState.agent_package_lifecycle_ux.contract_ref,
+    'contracts/app-gui-product-contract.json#pages.settings_agents.agent_package_lifecycle_ux',
+  );
   assert.deepEqual(
     agentsPage.agent_package_lifecycle_ux.directory_controls.filters,
     ['package_role', 'install_or_activation_status', 'source'],
@@ -1499,7 +1132,7 @@ test('managed update payload and public actions use only the three software obje
   );
   assert.equal(
     agentsPage.agent_package_lifecycle_ux.package_projection_contract.launch_gate_policy,
-    'directory readiness remains positive eligibility authority, while live_verification_deferred is a prelaunch transition that must execute the independent use_boundary_action; no local relabeling may promote readiness',
+    'directory readiness may fail closed, and the live agent_package_activate result must pass the App minimal package identity, version, and target validation before creating a package-backed conversation',
   );
   assert.deepEqual(
     agentsPage.agent_package_lifecycle_ux.package_projection_contract.launch_fail_closed_reason_codes,

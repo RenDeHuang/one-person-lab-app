@@ -2758,7 +2758,7 @@ function validateSettingsAgentsDirectoryProjection(agentsPage) {
     directory.workspace_path_scope !== "settings_global_package_management_only" ||
     directory.session_launch_authority !== false ||
     directory.session_launch_contract_ref !==
-      "contracts/app-gui-product-contract.json#agent_package_activation_policy.request_scoped_projection_policy" ||
+      "contracts/app-gui-product-contract.json#agent_package_activation_policy" ||
     directory.workspace_missing_policy !==
       "disable activation with workspace_root_not_configured and route to /settings/workspace#workspace"
   ) {
