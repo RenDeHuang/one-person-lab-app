@@ -25,7 +25,7 @@ OPL App 在基准上保留以下产品例外：
   但继续作为可在 Settings → Agents & Capabilities 中开启并排序的入口。
 - Executor、模型策略和当前默认值由 `contracts/app-product-profile.json` 决定；本文
   不复制 model/reasoning 值或模型 allowlist。
-- Runtime、Home capability starters、Settings → Agents & Capabilities、first-run、receipts 和 action refs 使用
+- Runtime、Home capability starters、Settings → Agents / Capabilities、first-run、receipts 和 action refs 使用
   App-owned contracts 与 OPL authority boundary。
 - OPL accent、状态语义和双语 copy 可以偏离 Codex 品牌，但不能改变 Codex-based
   chat-first composition。

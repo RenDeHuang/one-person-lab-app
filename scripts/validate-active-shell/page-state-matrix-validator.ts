@@ -463,8 +463,8 @@ export function validatePageStateMatrix(matrix, contract, guiProductContract) {
     [],
     'Runtime page diagnostics sections',
   );
-  if (runtimeViewModel.diagnostics?.owner_surface !== '/settings/advanced') {
-    throw new Error('Runtime diagnostics owner surface must be /settings/advanced');
+  if (runtimeViewModel.diagnostics?.owner_surface !== '/settings/environment?section=diagnostics') {
+    throw new Error('Runtime diagnostics owner surface must be Maintenance diagnostics');
   }
   if (runtimeViewModel.authority_boundary?.refs_only !== true) {
     throw new Error('Runtime page view model must be refs-only');
@@ -567,14 +567,14 @@ export function validatePageStateMatrix(matrix, contract, guiProductContract) {
   const advancedDetail = matrix.advanced_detail_surface;
   if (
     advancedDetail?.command !== 'opl runtime app-operator-drilldown --detail full --json'
-    || advancedDetail.policy !== 'settings_advanced_or_release_evidence_only'
+    || advancedDetail.policy !== 'settings_maintenance_diagnostics_or_release_evidence_only'
     || advancedDetail.runtime_page_allowed !== false
   ) {
-    throw new Error('Page-state matrix full detail must be limited to Settings Advanced or release evidence');
+    throw new Error('Page-state matrix full detail must be limited to Maintenance diagnostics or release evidence');
   }
   assertDeepEqualJson(
     advancedDetail.consumer_surfaces,
-    ['/settings/advanced', 'release_evidence_tooling'],
+    ['/settings/environment?section=diagnostics', 'release_evidence_tooling'],
     'Page-state matrix advanced detail consumer surfaces',
   );
 }

@@ -48,7 +48,6 @@ const settingsShellAdapterSlotExpected = [
   'ResourcesSettingsContent',
   'AppearanceModalContent',
   'AboutModalContent',
-  'SystemModalContent',
   'StorageSettings',
   'withWrapper={false}',
 ];

@@ -1,11 +1,19 @@
 # Settings Degradation Audit And Reorganization
 
 Owner: `one-person-lab-app`
-Purpose: `settings_user_cognition_reorg_proposal`
-State: `proposed_target`
-Machine boundary: This document is a product audit and target IA proposal. Current
-machine-readable truth still lives in `contracts/`, source, validators, and
-tests until those surfaces are updated.
+Purpose: `settings_user_cognition_reorg_proposal_history`
+State: `superseded_by_settings_ia_v1`
+Machine boundary: This document preserves the diagnosis and rejected interim IA
+that led to the current design. It is not current product authority. Current
+truth lives in `contracts/app-settings-control-plane.json`,
+`docs/product/gui/settings-control-center.md`, source, validators, and tests.
+
+Supersession: the final IA has ten ordinary pages: Overview, Account & Gateway,
+Models, Workspace & Personalization, Agents, Capabilities, Resources &
+Connections, Maintenance, Data & Storage, and Preferences. About is the only
+independent secondary page; Advanced only redirects to Maintenance diagnostics.
+The combined Agent/Capabilities and standalone Advanced proposals below are
+retained as historical reasoning and must not be implemented.
 
 ## Conclusion
 

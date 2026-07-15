@@ -22,7 +22,7 @@ screenshot paths are:
 
 - `screenshots/runtime.png`: minimal Runtime Work Item / Stage / Attempt / Token visual acceptance view.
 - `screenshots/full.png`: Full first-install release path.
-- `screenshots/action.png`: Settings Environment or Settings Advanced maintenance-action confirmation/result view.
+- `screenshots/action.png`: Settings Maintenance action confirmation/result view; raw diagnostic refs remain under its diagnostics disclosure.
 
 The screenshot set proves the App can display OPL-produced refs-only evidence on
 the correct owner surfaces. Runtime visual evidence does not include full

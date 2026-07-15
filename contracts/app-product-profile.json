@@ -3389,36 +3389,17 @@
               "display_name_policy": "use_product_profile_display_names_and_never_raw_provider_ids_as_primary_labels",
               "aionui_native_policy": "keep_AionUI_native_skills_tools_assistants_MCP_helpers_image_controls_and_voice_input_controls_in_local_or_third_party_ownership_never_OPL_Flow_managed"
             },
-            "resource_grouping_surface": {
+            "task_awareness_surface": {
               "surface": "settings_capabilities",
-              "source": "same_task_awareness_projection_refs_aggregated_for_capabilities",
+              "source": "same_task_awareness_projection_capability_and_workflow_refs_only",
               "required_ref_fields": [
                 "capability_health_refs",
-                "connector_readiness_refs",
                 "workflow_refs",
                 "export_bundle_action_ref",
-                "resource_source_refs",
-                "gateway_status_ref",
-                "environment_ref",
-                "console_policy_ref",
-                "environment_task_refs",
-                "environment_source_ref",
-                "environment_version_ref",
-                "environment_template_ref",
-                "storage_ref",
-                "resource_receipt_ref",
-                "cost_estimate_ref",
                 "candidate_report_refs",
                 "workflow_skill_candidate_refs"
               ],
-              "display_policy": "capability_health_connector_workflow_and_export_refs_only_no_skill_body_no_domain_verdict",
-              "resource_grouping_policy": {
-                "grouping_source": "OPL Connect/Fabric resource refs",
-                "allowed_groups": [
-                  "OPL Connect",
-                  "Fabric resources"
-                ]
-              },
+              "display_policy": "capability_health_workflow_and_candidate_refs_only_no_agent_package_gateway_or_resource_fields",
               "action_policy": "export_bundle_action_ref_may_open_app_action_dry_run_receipt_only_until_domain_owner_execute_exists",
               "refs_only": true,
               "skill_body_access": false,

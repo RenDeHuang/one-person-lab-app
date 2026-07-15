@@ -73,7 +73,7 @@ header、隐藏 project rail、默认打开 inspector，或用 Settings/card lay
    conversation，并从独立 Archived surface 管理归档。
 3. **选择工作目的。** 用户从 Home starter 选择科研、基金、演示、写书等能力；
    composer 只保留 active capability chip。Package 安装、Home 显示与 lifecycle 管理在
-   Settings → Agents & Capabilities 完成。
+   Settings → Agents 完成 package lifecycle；Settings → Capabilities 完成 Skills/Plugins/Flow 管理。
 4. **提交任务。** 用户输入说明、附加材料、确认模型/推理状态并发送。
 5. **观察执行。** Timeline 显示 pending、elapsed time、assistant output、tool/process
    summary、permission/input prompt 和当前 turn result。
@@ -89,7 +89,8 @@ Rail 负责 navigation，不承担 dashboard：
 
 - 顶部只保留 New task、Runtime 和 Archived；Runtime 是跨项目工作状态 cockpit。
   会话级 Runtime details 只能补充当前任务，不能替代全局 Runtime 入口。Package/capability
-  选择由 Home starter 承接，管理由 Settings → Agents & Capabilities 承接，不在 rail 重复。
+  选择由 Home starter 承接，package 管理由 Settings → Agents 承接，Skills/Plugins/Flow
+  管理由 Settings → Capabilities 承接，不在 rail 重复。
   其它全局入口仅在 OPL 有真实对应能力时保留。
 - 中段按 canonical session 当前 cwd 分组 App Server threads。App Server overview 可用时是 Codex
   session directory authority；Shell DB 只保存 draft、preference 和可重建 cache，不拥有 history。
@@ -254,7 +255,8 @@ Composer 是普通路径唯一主 command surface：
 - OMA 或其它 package 是否显示由 product profile/package exposure 决定，不由 shell
   discovery 自动加入。
 - Ordinary capability selector 不展示未被 App allowlist 接受的 helper skill 或 MCP。
-- Settings → Agents & Capabilities 负责 package 安装、Home visibility 和 lifecycle；历史
+- Settings → Agents 负责 package 安装、Home visibility 和 lifecycle；Settings → Capabilities
+  负责 Skills/Plugins/Flow 与本机能力；历史
   `/capabilities` 只能作为 compatibility redirect，不能重新挂载第二套 capability directory。
 
 ## Environment Floating Details 与 Advanced Surfaces
@@ -315,9 +317,10 @@ Settings 是 OPL Control Center，不是 upstream 配置列表：
 
 - 使用独立 Settings route：明确 return、search 和 grouped rows；不把 Settings 塞进
   Environment/details。
-- Ordinary navigation 按 App-owned Settings IA 组织 Overview、Access、Workspace、
-  Capabilities、Resources & Connections、Maintenance & Updates、Data & Storage 和
-  Preferences；Advanced/About/Update 等保持 secondary。
+- Ordinary navigation 按 App-owned Settings IA 组织 Overview、Account & Gateway、
+  Models、Workspace & Personalization、Agents、Capabilities、Resources & Connections、
+  Maintenance、Data & Storage 和 Preferences。About 是唯一 secondary page；Advanced、
+  Update、Theme、Local Services 和 Personalization 只作为 owner route 的兼容重定向。
 - 每页先回答用户问题，再给 recommended action；raw ids、paths、receipts 和 JSON
   默认折叠。
 - Search 只帮助导航，不创建第二 status source。

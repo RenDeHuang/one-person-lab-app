@@ -87,7 +87,7 @@ fresh gate、pixels、package/user path 和远端回读为准。
 
 AionUI generic custom assistants、Team、普通 backend/provider switching、French locale 和其它
 未进入 OPL 产品面的功能可以隐藏。已被 OPL 采用的 conversation、Runtime、Home capability
-starters、显式 session inputs、Preview、Files、Terminal、Browser、Settings → Agents & Capabilities、
+starters、显式 session inputs、Preview、Files、Terminal、Browser、Settings → Agents / Capabilities、
 first-run、中英文，以及本轮纳入 authority 的跨顶层线程协调不能因来源是 AionUI 而丢失。
 
 ## 三层文档状态

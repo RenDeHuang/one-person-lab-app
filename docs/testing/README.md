@@ -72,10 +72,11 @@ The App GUI product contract is declared in
 checks the Codex CLI fixed executor, purpose-first Research/Grant/Presentation/Book
 home entries routed to MAS/MAG/RCA/BookForge, hidden home-path executor/provider
 selectors with visible App-owned model/reasoning and user-language permission/access
-controls, home prompt, App-owned ordinary Settings navigation for Overview, Access,
-Workspace, Agents & Capabilities, Resources & Connections, Maintenance, Data & Storage,
-and Preferences, with Advanced/About/Update/Theme/Local Services as secondary surfaces, legacy upstream route
-redirects, module path source explanation, stable/nightly release gating, MDS
+controls, home prompt, App-owned ordinary Settings navigation for Overview,
+Account & Gateway, Models, Workspace & Personalization, Agents, Capabilities,
+Resources & Connections, Maintenance, Data & Storage, and Preferences, with About
+as the only secondary page and Advanced/Update/Theme/Local Services/Personalization
+as compatibility redirects, module path source explanation, stable/nightly release gating, MDS
 non-default display, and OPL Flow context before shell validation runs.
 The App product profile is declared in
 `contracts/app-product-profile.json`; `validate-active-shell.ts --quick` and
@@ -103,8 +104,9 @@ platform repair, software update, module/agent health, raw diagnostics, State
 Index, operator drilldown, safe-action catalogs, artifact provenance, release
 evidence controls, direct SQLite access, domain truth, owner-receipt authority,
 artifact bodies, artifact authority, and domain/readiness verdict claims on the
-Runtime surface. Settings Environment, Settings Capabilities, Settings Advanced,
-Inspector, and release-tooling tests verify their respective owner surfaces.
+Runtime surface. Maintenance, Agents, Capabilities, Inspector, and
+release-tooling tests verify their respective owner surfaces; Advanced is tested
+only as a redirect to Maintenance diagnostics.
 
 Release evidence bundle validation requires `evidence-manifest.json` plus the
 contracted artifact files. When a local lane cannot produce clean VM smoke

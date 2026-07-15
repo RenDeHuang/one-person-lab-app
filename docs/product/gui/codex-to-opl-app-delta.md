@@ -73,7 +73,7 @@ OPL App 采用下列翻译规则；没有明确 delta 的区域默认复用 refe
 Codex baseline 只能帮助确定信息放在哪里、怎样交互，不能决定 OPL 有哪些功能。“不降级”
 只保护已经进入 OPL App contracts、ordinary routes 或正式用户路径的能力；AionUI 自带但未被
 OPL 采纳的 Team、provider/backend、任意 skills/MCP、Sites/Chat 等入口可以隐藏或拒绝。
-对 Runtime、Home capability starters、Settings → Agents & Capabilities、first-run、domain
+对 Runtime、Home capability starters、Settings → Agents / Capabilities、first-run、domain
 package entry 和双语等 OPL-owned capability：
 
 - 可以在用户认知更清晰时调整位置，但不得因 Codex 没有同名入口而删除；
@@ -97,7 +97,7 @@ package entry 和双语等 OPL-owned capability：
 | Product identity | 使用 One Person Lab App 名称、icon、窗口与 release identity。 | App GUI/release contracts 与 assets。 |
 | Workspace/chat | 支持 project task 与 projectless conversation，并增加 OPL purpose、package 和 refs context。 | App product profile、GUI contract。 |
 | Model control | 保持 Codex-like model/reasoning control，但策略只由 App product profile 提供。 | `contracts/app-product-profile.json`。 |
-| Capabilities | 把普通 agent/tool 入口收敛为 installed OPL Agent Packages 与 assistant-scoped skills。 | App package registry/profile。 |
+| Agents / Capabilities | Agents 消费公共 Agent Package directory 并管理 lifecycle/Home visibility；Capabilities 管理 Skills、Plugins、OPL Flow、MCP、图像和语音能力。 | Framework package directory、App package metadata overlay 与 capability registries。 |
 | Runtime context | 增加 Framework-backed Work Item status、running state、Stage/Attempt、Token、next action/owner 和 archive/restore；receipt、artifact、safe action 与 raw diagnostics 分别留在 Inspector、Settings 或 release tooling。 | Framework WorkItemProjection 与 App Runtime contract。 |
 | Settings | 作为次级配置面保留 OPL Control Center IA，不反向定义主工作流。 | App GUI contract、Settings Control Plane。 |
 | First-run | 增加 Core readiness、guided setup 和 background maintenance。 | App first-run/install contracts。 |
@@ -134,7 +134,7 @@ Codex App 的模型控制在 OPL App 中进一步收敛：
 
 OPL App 在普通 Codex conversation 上增加工作目的和 package shortcuts。Purpose 从
 composer 常驻 selector 移出，只从 Home starter 选择；package 安装、Home visibility 与
-lifecycle 进入 Settings → Agents & Capabilities，composer/context strip 只显示 active
+lifecycle 进入 Settings → Agents，Skills/Plugins/Flow 管理进入 Settings → Capabilities，composer/context strip 只显示 active
 capability chip：
 
 | 用户目的 | 用户结果 | Domain owner |
@@ -212,16 +212,19 @@ OPL App 把通用 Agent App settings 收敛为用户任务导向的 Control Cent
   OPL IA 不变，且 Settings 视觉不得成为 Home/Conversation 的设计来源。
 
 - Overview：App 是否可用、下一步是什么。
-- Access：模型访问、Codex CLI 和远程访问。
-- Workspace：工作目录与权限。
-- Capabilities：packages、skills 与 Home shortcuts。
+- Account & Gateway：账户、用量、凭据、刷新、修复和断开连接。
+- Models：模型访问来源、Codex CLI 版本和模型/推理偏好。
+- Workspace & Personalization：工作目录、日志目录、用户 AGENTS.md 和 OPL App context。
+- Agents：公共 Agent Package 目录、lifecycle 与 Home shortcuts。
+- Capabilities：Skills、Plugins、OPL Flow、MCP、图像和语音能力。
 - Resources & Connections：本机、远程、托管资源和连接 refs。
 - Maintenance & Updates：App/runtime/packages/local services 的维护。
 - Data & Storage：空间、数据分类、preview 和安全 cleanup。
 - Preferences：语言、主题、通知、启动、密度、字体和 motion。
 
-Advanced/About/Update 等保持 secondary。具体 route registry、labels、redirects、actions
-和 page-state 只由 contracts/Control Plane 提供，本文不复制。
+About 是唯一 secondary page；Advanced、Update、Theme、Local Services 和 Personalization
+只 redirect 到 owner route/anchor。具体 registry、labels、redirects、actions 和 page-state
+只由 contracts/Control Plane 提供，本文不复制。
 
 ## First-run、安装与更新增量
 

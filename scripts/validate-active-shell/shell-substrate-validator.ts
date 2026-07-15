@@ -16,32 +16,6 @@ const runtimeBridgeExpected = [
   "['app', 'action', 'execute', '--action', assertActionId(request.actionId)]",
 ];
 
-const systemSettingsExpected = [
-  "useOplAppState('fast')",
-  "data-testid='settings-page-advanced'",
-  "data-testid='settings-advanced-primary'",
-  "id='working-directories'",
-  'workspace_root_path',
-  'selected_path',
-  'logs_dir',
-];
-
-const systemSettingsPathExpected = [
-  'const appPaths = oplRecord(appStateQuery.appState.paths)',
-  'oplString(appPaths.workspace_root_path)',
-  'oplPathString(appPaths.workspace_root)',
-  'oplString(appPaths.logs_dir)',
-];
-
-const systemSettingsForbidden = [
-  "data-testid='settings-advanced-technical-details'",
-  'application.updateSystemInfo.invoke',
-  'shell.runOplCommand.invoke',
-  "actionId: 'workspace_root_set'",
-  'opl_flow_context',
-  'settings.oplFlowContext',
-];
-
 const firstRunLocaleExpected = ['"firstRun"', 'One Person Lab', 'Codex'];
 const firstRunLocaleForbidden = [
   '"title": "Prepare One Person Lab"',
@@ -184,17 +158,6 @@ function validateRuntimeBridgeSurface(shellPaths) {
   );
 }
 
-function validateSystemSettings(shellPaths) {
-  const systemSettings = assertShellTextIncludesAll(
-    shellPaths,
-    'packages/desktop/src/renderer/components/settings/SettingsModal/contents/SystemModalContent/index.tsx',
-    systemSettingsExpected,
-    'Active shell System settings',
-  );
-  assertTextExcludesAll(systemSettings, systemSettingsForbidden, 'Active shell System settings legacy OPL truth/action source');
-  assertTextIncludesAll(systemSettings, systemSettingsPathExpected, 'Active shell System settings visible OPL paths from app_state.paths');
-}
-
 function enabledLocales(requiresLocale) {
   return ['zh-CN', ...(requiresLocale('zh-TW') ? ['zh-TW'] : [])];
 }
@@ -277,7 +240,6 @@ function validateTrayStartup(shellPaths) {
 export function validateShellSubstrateImplementation(shellPaths, requiresLocale) {
   validateAppStateHook(shellPaths);
   validateRuntimeBridgeSurface(shellPaths);
-  validateSystemSettings(shellPaths);
   validateShellLocalizedRuntimeText(shellPaths, requiresLocale);
   validateRuntimeSettings(shellPaths);
   validateTrayStartup(shellPaths);

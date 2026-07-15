@@ -43,7 +43,7 @@ Phase 1 的核心不是“尽量实现所有 Hermes Desktop 功能”，而是�
 | 分类 | 处理规则 | 例子 |
 | --- | --- | --- |
 | `implement` | 与 Codex App-like OPL 普通路径一致，补 adapter 或 UI。 | chat session、`prompt.submit` ack/event stream、gflabtoken 模型访问、`/mas` `/mag` `/rca` slash。 |
-| `adapt` | upstream 有入口，但必须改成 Codex/OPL 语义。 | Settings provider 面改成“模型访问”；MCP reload 改成 adapter diagnostics；Agents & Capabilities 改成 Skill 状态/调用说明。 |
+| `adapt` | upstream 有入口，但必须改成 Codex/OPL 语义。 | Settings provider 面改成“模型访问”；MCP reload 改成 adapter diagnostics；Agents 管 package lifecycle，Capabilities 管 Skill/Plugin/Flow 状态与调用说明。 |
 | `diagnostic_only` | 工程排障有价值，但普通用户不应以为这是主能力。 | raw MCP config、gateway logs、unsupported backend route readback、advanced config JSON。 |
 | `hide_or_remove` | 当前无法实现、会误导用户，或会创建第二 truth source。 | provider marketplace、OAuth accounts、自定义 Base URL、完整 Hermes MCP manager、Hermes Agent installer、普通路径 backend selector。 |
 
@@ -76,7 +76,7 @@ Hermes prior foreground alternative reference 的 App-owned 目标态已经由�
   `OPENAI_BASE_URL`、OAuth provider accounts、provider marketplace、自定义 provider key
   或第二个 `auto` 模型 id。
 - MAS/MAG/RCA 是 Codex Skill/Plugin 能力入口：`$mas`、`$mag`、`$rca`。Hermes
-  普通界面可以展示 composer Skill shortcuts 和 Settings 的“智能体与能力”摘要，但不能
+  普通界面可以展示 composer Skill shortcuts，以及 Settings 中分离的“智能体”和“能力”摘要，但不能
   只藏在 Settings。chat-first home 必须可见 One Person Lab 品牌，并以轻量 chip 露出
   科研/MAS、基金/MAG、演示/RCA 入口；点击入口只把显式 Skill prompt 写入下一条普通
   prompt。是否加载 MAS/MAG/RCA、下层如何调用 CLI/MCP/工具，必须由 Codex runtime
@@ -175,7 +175,8 @@ Codex App-like 心智重命名和收窄：
 | 记忆与上下文 | 延后提升 | 只有接入 OPL memory refs 后再作为普通能力；Hermes memory provider 不作为 OPL authority。 |
 | 模型访问 | 保留并重写 | 只显示 gflabtoken API key；不显示 OAuth accounts、provider marketplace、OpenAI-compatible Base URL 或其它 provider key。 |
 | 工具与密钥 | 保留为空态/诊断 | 只显示真实可配置且有 owner 的工具密钥；不要为了填满页面伪造 keys。 |
-| 智能体与能力 | OPL 新增摘要页 | 这不是 upstream Hermes Desktop 原版设置页的一比一保留。Hermes 原版更接近 Skills/Toolsets/MCP/Providers 管理面；OPL candidate 当前把它收敛为 Codex 当前发现的 MAS/MAG/RCA Skill 入口、调用格式和 authority boundary 摘要。真正的 Skill 安装、启用与调用权威仍归 Codex/OPL 插件与本机 Skill registry。 |
+| 智能体 | OPL 新增 package 目录摘要 | 消费公共 Agent Package directory，管理 lifecycle、开发来源与 Home visibility；不得从本地 Skill 列表推断 package 状态。 |
+| 能力 | OPL 新增能力摘要 | 展示 Codex 当前发现的 Skills/Plugins/Flow/MCP 等能力、调用格式和 authority boundary；不得聚合 Gateway 或 Resources 状态。 |
 | MCP / Capabilities | 后续接入 | 接入 App-owned skill/capability whitelist 后再提升；不展示 raw helper skills。 |
 | 连接诊断 | 保留为诊断 | Gateway、unsupported backend routes、raw bridge 状态只进 diagnostics。 |
 | 关于与更新 | 保留 | 品牌、版本、候选状态、upstream ref 和 release shell 边界清楚显示。 |
@@ -209,7 +210,7 @@ Codex App-like 心智重命名和收窄：
 **已接入能力与证据边界：**
 
 - MAS/MAG/RCA 的 Codex Skill catalog、`/mas` `/mag` `/rca` slash shortcuts 和
-  Settings“智能体与能力”摘要已经进入 App-owned 目标态。可接受证据应来自
+  Settings 中分离的“智能体”和“能力”摘要已经进入 App-owned 目标态。可接受证据应来自
   Hermes source/unit tests、candidate manifests、packaged smoke 或 live app-server
   readback，并证明 GUI 只把显式 Skill prompt 交给 Codex Skill/Plugin 机制；GUI 不做
   关键词 route，不产生 GUI 侧 route receipt/error，也不直接调用 OPL/MAS CLI。

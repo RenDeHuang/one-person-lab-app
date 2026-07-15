@@ -541,20 +541,8 @@ export const appOwnedSettingsManagedDependencySummary = {
 };
 export const appOwnedTaskAwarenessRefFields = [
   "capability_health_refs",
-  "connector_readiness_refs",
   "workflow_refs",
   "export_bundle_action_ref",
-  "resource_source_refs",
-  "gateway_status_ref",
-  "environment_ref",
-  "environment_template_ref",
-  "environment_version_ref",
-  "environment_source_ref",
-  "environment_task_refs",
-  "console_policy_ref",
-  "storage_ref",
-  "resource_receipt_ref",
-  "cost_estimate_ref",
   "candidate_report_refs",
   "workflow_skill_candidate_refs",
 ];

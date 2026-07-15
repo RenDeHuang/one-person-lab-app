@@ -2354,8 +2354,8 @@
     "refs_only": true,
     "surface_ownership": {
       "runtime_visual_evidence": "runtime_page_minimal_work_item_status_only",
-      "full_drilldown_and_raw_diagnostics": "settings_advanced_and_release_tooling",
-      "maintenance_actions_and_receipts": "settings_environment_or_settings_advanced_and_release_tooling",
+      "full_drilldown_and_raw_diagnostics": "settings_maintenance_diagnostics_and_release_tooling",
+      "maintenance_actions_and_receipts": "settings_maintenance_and_release_tooling",
       "runtime_page_excludes": [
         "full_drilldown",
         "safe_action_catalog",
@@ -2462,7 +2462,7 @@
         "id": "action_screenshot",
         "path": "screenshots/action.png",
         "kind": "image",
-        "producer": "Settings Environment/Advanced action confirmation/result screenshot",
+        "producer": "Settings Maintenance action confirmation/result screenshot",
         "source_kind": "app_settings_action_screenshot"
       },
       {

@@ -222,7 +222,7 @@ export function validateTaskAwarenessProjectionContract(projection, label) {
       throw new Error(`${label} ${field} must be ${expected}`);
     }
   }
-  validateSettingsCapabilitiesResourceGrouping(
+  validateSettingsCapabilitiesTaskAwarenessSurface(
     projection.settings_capabilities_surface,
     `${label} settings_capabilities_surface`,
   );
@@ -897,15 +897,15 @@ function validateResourceContextPolicy(policy, label) {
   }
 }
 
-export function validateSettingsCapabilitiesResourceGrouping(surface, label) {
+export function validateSettingsCapabilitiesTaskAwarenessSurface(surface, label) {
   if (!surface || typeof surface !== "object") {
     throw new Error(`${label} must be declared`);
   }
   for (const [field, expected] of Object.entries({
     surface: "settings_capabilities",
-    source: "same_task_awareness_projection_refs_aggregated_for_capabilities",
+    source: "same_task_awareness_projection_capability_and_workflow_refs_only",
     display_policy:
-      "capability_health_connector_workflow_and_export_refs_only_no_skill_body_no_domain_verdict",
+      "capability_health_workflow_and_candidate_refs_only_no_agent_package_gateway_or_resource_fields",
     action_policy:
       "export_bundle_action_ref_may_open_app_action_dry_run_receipt_only_until_domain_owner_execute_exists",
   })) {
@@ -917,20 +917,8 @@ export function validateSettingsCapabilitiesResourceGrouping(surface, label) {
     surface.required_ref_fields,
     [
       "capability_health_refs",
-      "connector_readiness_refs",
       "workflow_refs",
       "export_bundle_action_ref",
-      "resource_source_refs",
-      "gateway_status_ref",
-      "environment_ref",
-      "environment_template_ref",
-      "environment_version_ref",
-      "environment_source_ref",
-      "environment_task_refs",
-      "console_policy_ref",
-      "storage_ref",
-      "resource_receipt_ref",
-      "cost_estimate_ref",
       "candidate_report_refs",
       "workflow_skill_candidate_refs",
     ],
@@ -942,14 +930,22 @@ export function validateSettingsCapabilitiesResourceGrouping(surface, label) {
   ) {
     throw new Error(`${label} must keep workflow/skill candidates report-first and no-auto-enable`);
   }
-  if (surface.resource_grouping_policy?.grouping_source !== "OPL Connect/Fabric resource refs") {
-    throw new Error(`${label} resource grouping must use OPL Connect/Fabric resource refs`);
+  for (const forbiddenField of [
+    "connector_readiness_refs",
+    "resource_source_refs",
+    "gateway_status_ref",
+    "environment_ref",
+    "storage_ref",
+    "resource_receipt_ref",
+    "cost_estimate_ref",
+  ]) {
+    if (surface.required_ref_fields?.includes(forbiddenField)) {
+      throw new Error(`${label} must not own Gateway or Resources field ${forbiddenField}`);
+    }
   }
-  assertIncludesAll(
-    surface.resource_grouping_policy?.allowed_groups,
-    ["OPL Connect", "Fabric resources"],
-    `${label} resource grouping allowed groups`,
-  );
+  if ("resource_grouping_policy" in surface || "connector_grouping_policy" in surface) {
+    throw new Error(`${label} must not aggregate Gateway, connector, or Fabric resource groups`);
+  }
   for (const [field, expected] of Object.entries({
     refs_only: true,
     skill_body_access: false,
@@ -1168,7 +1164,7 @@ export function validateProgressDeltaDisplayContract(progressDelta, label) {
     source: "app_state.operator.workbench.task_drilldowns.progress_delta_classification",
     authority: "opl_framework_shared_progress_projection",
     display_policy: "classification_only_no_domain_artifact_body",
-    consumer_surface: "/settings/advanced",
+    consumer_surface: "/settings/environment?section=diagnostics",
     runtime_page_visible: false,
     platform_repair_display_treatment: "separate_infrastructure_repair_not_deliverable_progress",
     platform_repair_owner_surface: "/settings/environment?section=services",
@@ -1292,9 +1288,9 @@ export function validateStateIndexSidecarProjectionContract(projection, label) {
     kernel_owner: "one-person-lab",
     storage_kind: "sqlite_sidecar_read_model_cache",
     app_access_mode: "read_only_projection_consumer",
-    display_policy: "settings_advanced_state_index_refs_only_no_sqlite_write_no_domain_truth_claims",
-    settings_owner_surface: "/settings/advanced",
-    consumer_surface: "/settings/advanced",
+    display_policy: "maintenance_diagnostics_state_index_refs_only_no_sqlite_write_no_domain_truth_claims",
+    settings_owner_surface: "/settings/environment?section=diagnostics",
+    consumer_surface: "/settings/environment?section=diagnostics",
     runtime_page_visible: false,
     drilldown_target_policy: "refs_drill_down_to_stage_folder_not_domain_body",
     app_role: "display_only_state_index_read_model_consumer",
@@ -1443,9 +1439,9 @@ export function validateArtifactNativeDrilldownProjectionContract(projection, la
       "one-person-lab/contracts/opl-framework/stage-artifact-runtime-contract.json",
     surface_kind: "opl_stage_artifact_runtime_workbench",
     display_policy:
-      "right_inspector_artifact_provenance_with_settings_advanced_technical_refs_no_body_no_domain_readiness_claims",
+      "right_inspector_artifact_provenance_with_maintenance_diagnostics_technical_refs_no_body_no_domain_readiness_claims",
     consumer_surface: "right_context_inspector",
-    technical_details_owner_surface: "/settings/advanced",
+    technical_details_owner_surface: "/settings/environment?section=diagnostics",
     runtime_page_visible: false,
     full_detail_policy: "on_demand_task_drilldown_only",
     app_role: "display_only_stage_artifact_kernel_refs_consumer",
@@ -2209,10 +2205,10 @@ export function validateProjectProgressDisplayContract(projectProgress, label) {
     source: "app_state.operator.workbench.task_drilldowns",
     authority: "opl_framework_shared_project_progress_projection",
     display_policy: "project_progress_refs_secondary_no_module_runtime_dirty_as_project",
-    consumer_surface: "/settings/advanced",
+    consumer_surface: "/settings/environment?section=diagnostics",
     runtime_page_visible: false,
-    diagnostics_treatment: "settings_advanced_only",
-    safe_actions_treatment: "settings_advanced_only",
+    diagnostics_treatment: "maintenance_diagnostics_only",
+    safe_actions_treatment: "maintenance_diagnostics_only",
   })) {
     if (projectProgress[field] !== expected) {
       throw new Error(`${label} ${field} must be ${expected}`);
