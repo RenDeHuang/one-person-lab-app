@@ -186,6 +186,9 @@ export function validateFullQualificationOverride(options: FullQualificationOver
   if (receipt.build_manifest?.sha256 !== manifestSha256) {
     errors.push(`build manifest sha256 is ${String(receipt.build_manifest?.sha256)}`);
   }
+  if (receipt.build_manifest?.smoke_harness_sha256 !== manifest.digests?.smoke_harness_sha256) {
+    errors.push(`build manifest smoke_harness_sha256 is ${String(receipt.build_manifest?.smoke_harness_sha256)}`);
+  }
   return {
     applied: errors.length === 0,
     errors,

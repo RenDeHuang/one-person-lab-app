@@ -158,6 +158,22 @@ test('Full qualification override rejects a receipt for different artifact bytes
   }
 });
 
+test('Full qualification override rejects a receipt for a different build smoke harness', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-addon-readiness-'));
+  try {
+    const fixture = writeFixture(root);
+    fixture.receipt.build_manifest.smoke_harness_sha256 = '8'.repeat(64);
+    fs.writeFileSync(fixture.receiptPath, `${JSON.stringify(fixture.receipt, null, 2)}\n`);
+    const result = validateReleaseAddonReadiness(options(fixture));
+    assert.equal(result.status, 'blocked');
+    assert.equal(result.full_qualification_override.applied, false);
+    assert.match(result.errors.join('\n'), /build manifest smoke_harness_sha256/);
+    assert.match(result.errors.join('\n'), /full-first-run-vm-smoke is failure/);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('owner resolution accepts a failed source readiness only through the exact retry receipt', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-owner-override-'));
   try {
