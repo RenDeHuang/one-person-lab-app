@@ -34,6 +34,22 @@ function validateGui(guiContract) {
   );
 }
 
+test("Settings product profile mirrors the control-plane page adapter claims", () => {
+  const values = contracts();
+
+  assert.deepStrictEqual(
+    values.productProfile.settings.control_plane.page_adapter_policy,
+    values.controlPlane.page_adapter_policy,
+  );
+
+  values.productProfile.settings.control_plane.page_adapter_policy.required_pages.gateway.renderer_entry =
+    "packages/desktop/src/renderer/pages/settings/sections/GatewaySettings.tsx";
+  assert.throws(
+    () => validate(values),
+    /Product profile Settings page adapter policy projection/,
+  );
+});
+
 test("Settings contract keeps ten product pages, About as the only secondary page, and anchored compatibility routes", () => {
   const values = contracts();
 
