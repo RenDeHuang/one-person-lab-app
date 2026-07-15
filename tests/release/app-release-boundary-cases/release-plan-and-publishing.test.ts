@@ -46,6 +46,71 @@ function assertCheck(payload: { checks: Array<{ id: string; status: string; mess
   }
 }
 
+test('local-install plan stops at exact local build, install handoff, and installed readback', () => {
+  const result = runNode([
+    'scripts/plan-release-candidate.ts',
+    '--profile',
+    'local-install',
+    '--version',
+    '26.7.15',
+  ]);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const payload = JSON.parse(result.stdout);
+  assert.equal(payload.profile, 'local_install');
+  assert.equal(payload.strategy.distribution_scope, 'local_machine_only');
+  assert.equal(payload.strategy.build_app_path, '$SHELL_ROOT/out/mac-arm64/One Person Lab.app');
+  assert.equal(payload.strategy.installed_app_path, '/Applications/One Person Lab.app');
+  assert.equal(payload.strategy.second_qa_authorization_required, false);
+  assert.equal(payload.strategy.public_distribution_requirements, 'not_applicable');
+
+  const lanes = new Map(payload.lanes.map((lane) => [lane.id, lane]));
+  assert.deepEqual([...lanes.keys()], [
+    'release_source_gate',
+    'release_boundary',
+    'standard_build',
+    'local_install_handoff',
+    'installed_app_readback',
+  ]);
+  assert.match(lanes.get('release_source_gate').command, /npm run release:source-gate/);
+  assert.match(lanes.get('release_source_gate').command, /--require-shell-format true --run-shell-tests true/);
+  assert.deepEqual(lanes.get('release_boundary').depends_on, ['release_source_gate']);
+  assert.deepEqual(lanes.get('standard_build').depends_on, ['release_source_gate']);
+  assert.equal(lanes.get('standard_build').command, 'npm run build-mac:arm64');
+  assert.deepEqual(lanes.get('local_install_handoff').depends_on, ['release_boundary', 'standard_build']);
+  assert.deepEqual(lanes.get('installed_app_readback').depends_on, ['local_install_handoff']);
+  assert.match(lanes.get('installed_app_readback').command, /app\.asar SHA-256 equality/);
+
+  const laneIds = new Set(lanes.keys());
+  for (const forbidden of [
+    'publish_standard',
+    'remote_verify_standard_and_full',
+    'standard_dmg_clean_vm_smoke',
+    'webui_ghcr_publish',
+    'release_candidate_record',
+    'promote_stable_release',
+    'stable_homebrew_tap_update',
+  ]) {
+    assert.equal(laneIds.has(forbidden), false, `${forbidden} must not enter local-install`);
+  }
+  assert.match(payload.authority_boundary, /cannot publish or promote a release/);
+
+  for (const unsupportedArgs of [
+    ['--include-full-package'],
+    ['--no-settings-vm'],
+  ]) {
+    const unsupported = runNode([
+      'scripts/plan-release-candidate.ts',
+      '--profile',
+      'local-install',
+      '--version',
+      '26.7.15',
+      ...unsupportedArgs,
+    ]);
+    assert.notEqual(unsupported.status, 0);
+  }
+});
+
 test('release plan exposes the standard VM fail-fast gate before expensive Full lanes', () => {
   const result = runNode([
     'scripts/plan-release-candidate.ts',

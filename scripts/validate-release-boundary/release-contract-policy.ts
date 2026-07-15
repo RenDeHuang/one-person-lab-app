@@ -257,6 +257,94 @@ function validateReleaseImmutability(releaseContract: Record<string, any>): numb
   return 0;
 }
 
+function validateLocalInstallReleaseProfile(releaseContract: Record<string, any>): number {
+  const profile = releaseContract.release_profiles?.local_install;
+  const expectedRequiredLanes = [
+    'release_source_gate',
+    'release_boundary',
+    'standard_build',
+    'local_install_handoff',
+    'installed_app_readback',
+  ];
+  const expectedForbiddenLanes = [
+    'publish_standard',
+    'publish_full_assets',
+    'remote_verify_standard_and_full',
+    'standard_dmg_clean_vm_smoke',
+    'full_dmg_clean_vm_smoke',
+    'homebrew_standard_cask_clean_vm_smoke',
+    'docker_webui_smoke',
+    'webui_ghcr_publish',
+    'release_evidence_bundle',
+    'release_readiness_summary',
+    'release_candidate_record',
+    'promote_stable_release',
+    'stable_homebrew_tap_update',
+    'full_homebrew_tap_update',
+    'release_promotion_record',
+    'post_release_user_guide_screenshots',
+  ];
+  const expectedForbiddenRequirements = [
+    'github_release_publish',
+    'ghcr_publish',
+    'clean_vm',
+    'attestation',
+    'notarization',
+    'homebrew_distribution',
+    'stable_promotion',
+  ];
+  let failures = 0;
+
+  if (
+    releaseContract.release_profiles?.default !== 'stable' ||
+    !sameStringSet(releaseContract.release_profiles?.allowed, ['stable', 'nightly', 'local-install']) ||
+    profile?.plan_profile !== 'local_install' ||
+    profile?.version_channel !== 'stable' ||
+    profile?.distribution_scope !== 'local_machine_only'
+  ) {
+    console.error('FAIL local_install_release_profile: release profiles must expose local-install as a local-machine-only Stable-version plan');
+    failures += 1;
+  }
+  if (
+    profile?.build_command !== 'npm run build-mac:arm64' ||
+    profile?.build_app_path !== '$SHELL_ROOT/out/mac-arm64/One Person Lab.app' ||
+    profile?.installed_app_path !== '/Applications/One Person Lab.app' ||
+    profile?.second_qa_authorization_required !== false
+  ) {
+    console.error('FAIL local_install_release_profile: local build, installed App path, and direct QA handoff must be canonical');
+    failures += 1;
+  }
+  if (!sameStringSet(profile?.required_lanes, expectedRequiredLanes)) {
+    console.error('FAIL local_install_release_profile: local-install must require only source, boundary, build, install handoff, and installed readback lanes');
+    failures += 1;
+  }
+  if (!sameStringSet(profile?.forbidden_lanes, expectedForbiddenLanes)) {
+    console.error('FAIL local_install_release_profile: every public-distribution and promotion lane must remain forbidden');
+    failures += 1;
+  }
+  if (!sameStringSet(profile?.forbidden_external_requirements, expectedForbiddenRequirements)) {
+    console.error('FAIL local_install_release_profile: public publish, GHCR, VM, attestation, notarization, Homebrew, and promotion must stay outside local-install');
+    failures += 1;
+  }
+  if (
+    !Array.isArray(profile?.installed_readback) ||
+    !stringArrayIncludesAll(profile.installed_readback, [
+      'bundle_version',
+      'codesign_diagnostic',
+      'installed_app_asar_sha256_matches_build',
+      'startup_and_runtime_bridge_logs',
+    ]) ||
+    typeof profile?.authority_boundary !== 'string' ||
+    !profile.authority_boundary.includes('cannot publish or promote a release') ||
+    !profile.authority_boundary.includes('cannot claim clean-VM or attestation evidence')
+  ) {
+    console.error('FAIL local_install_release_profile: installed readback and non-public authority boundary are incomplete');
+    failures += 1;
+  }
+
+  return failures;
+}
+
 function validateStandardUpdaterCompressionPolicy(appRoot: string, releaseContract: Record<string, any>): number {
   let failures = 0;
   const compression = releaseContract.standard_updater?.dmg_compression;
@@ -1048,6 +1136,7 @@ export function validateReleaseContractPolicies(appRoot: string): number {
 
   failures += validateGithubReleaseName(releaseContract);
   failures += validateReleaseImmutability(releaseContract);
+  failures += validateLocalInstallReleaseProfile(releaseContract);
   failures += validateStandardUpdaterCompressionPolicy(appRoot, releaseContract);
   failures += validateReleasePreflightContract(releaseContract);
   failures += validateHomebrewVmGateStaticPolicy(appRoot, releaseContract, firstRunMatrix);
