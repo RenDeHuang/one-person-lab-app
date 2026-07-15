@@ -6,10 +6,13 @@ import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import {
+  appOwnedDirectoryGroupPolicy,
+  appOwnedExplicitSessionInputPolicy,
   appOwnedGuiContractEnvironmentWorkspaceHandoff,
   appOwnedLocalWorktreeLifecycle,
   appOwnedNewTaskLocality,
   appOwnedPageStateEnvironmentWorkspaceHandoff,
+  appOwnedSessionWorkspaceModel,
 } from './validate-active-shell/app-contract-constants.ts';
 
 type JsonRecord = Record<string, unknown>;
@@ -390,9 +393,9 @@ function validateAionuiSnapshot(root: string, text: string, issues: Set<string>)
     issues.add('shell conformance matrix must bind an exact 40-character AionUI GUI conformance ancestor');
     return;
   }
-  const currentSourceMatch = text.match(/Current Shell source cohort：\s*`opl-aion-shell@([0-9a-f]{40})`/);
-  if (!currentSourceMatch) {
-    issues.add('shell conformance matrix must bind an exact 40-character current Shell source cohort');
+  const currentSourceMatch = text.match(/Current Shell source cohort：symbolic `([a-z0-9_]+)`/);
+  if (!currentSourceMatch || currentSourceMatch[1] !== 'session_first_directory_current_source_cohort') {
+    issues.add('shell conformance matrix must use the symbolic current Shell source cohort without pinning a transient HEAD');
     return;
   }
   if (text.includes('pages/guid/components/AssistantSelectionArea.tsx')) {
@@ -404,8 +407,8 @@ function validateAionuiSnapshot(root: string, text: string, issues: Set<string>)
     const currentHead = execFileSync('git', ['-C', shellRoot, 'rev-parse', 'HEAD'], {
       encoding: 'utf8',
     }).trim();
-    if (currentSourceMatch[1] !== currentHead) {
-      issues.add(`shell conformance matrix current source cohort must match current shell HEAD ${currentHead}`);
+    if (!/^[0-9a-f]{40}$/.test(currentHead)) {
+      issues.add('active AionUI current source checkout must resolve a 40-character Git HEAD');
     }
   } catch (error) {
     issues.add(`unable to read active AionUI current source checkout: ${error instanceof Error ? error.message : String(error)}`);
@@ -807,7 +810,20 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
       'retain_existing_aionui_conversation_semantics_not_app_server_history_reset' ||
     threadDirectoryPolicy.shell_local_storage_role !== 'drafts_preferences_and_rebuildable_cache_only' ||
     threadDirectoryPolicy.shell_thread_history_authority !== false ||
-    threadDirectoryPolicy.project_workspace_role !== 'default_cwd_grouping_and_visible_metadata_only' ||
+    threadDirectoryPolicy.codex_session_directory_authority !==
+      'canonical_app_server_thread_overview_when_available' ||
+    threadDirectoryPolicy.canonical_overview_unavailable_policy !==
+      'fallback_to_shell_cache_without_reclassifying_cache_as_authority' ||
+    threadDirectoryPolicy.stale_codex_acp_cache_row_policy !==
+      'exclude_from_ordinary_projection_when_absent_from_available_canonical_overview' ||
+    threadDirectoryPolicy.non_codex_local_row_policy !== 'preserve' ||
+    threadDirectoryPolicy.workspace_directory_role !==
+      'new_session_initial_cwd_mutable_cwd_grouping_and_visible_metadata_only' ||
+    threadDirectoryPolicy.row_identity !== 'canonical_thread_id' ||
+    threadDirectoryPolicy.duplicate_row_per_canonical_thread_allowed !== false ||
+    threadDirectoryPolicy.title_based_deduplication_allowed !== false ||
+    threadDirectoryPolicy.e2e_fixture_storage_policy !== 'isolated_storage_root_never_production_user_data' ||
+    JSON.stringify(threadDirectoryPolicy.directory_group_policy) !== JSON.stringify(appOwnedDirectoryGroupPolicy) ||
     threadDirectoryPolicy.ordinary_coordination_entry_visible !== false ||
     threadDirectoryPolicy.coordination_context_action_keyboard_reachable !== true ||
     threadDirectoryPolicy.coordination_entry_placement !==
@@ -829,32 +845,27 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   const homeTarget = record(interactionBaseline.home);
   const capabilitySelection = record(interactionBaseline.capability_selection);
   const composerTarget = record(interactionBaseline.composer);
-  const projectContextInputs = record(conversationScope.project_context_inputs);
-  const projectlessInputPolicy = record(conversationScope.projectless_input_policy);
+  const explicitSessionInputPolicy = record(conversationScope.explicit_session_input_policy);
+  const sessionWorkspaceModel = record(conversationScope.session_workspace_model);
   const localWorktreeLifecycle = record(conversationScope.local_worktree_lifecycle);
   const permissionTarget = record(interactionBaseline.permission_access_mode);
   const taskSummaryTarget = record(interactionBaseline.current_task_summary_bar);
   const mobileActionSheet = record(composerTarget.mobile_action_sheet);
+  if (JSON.stringify(sessionWorkspaceModel) !== JSON.stringify(appOwnedSessionWorkspaceModel)) {
+    issues.add(
+      'conversation scope must keep the canonical session identity while treating workspace as mutable cwd and grouping metadata',
+    );
+  }
   if (
-    conversationScope.project_task_supported !== true ||
+    conversationScope.workspace_initialized_session_supported !== true ||
     conversationScope.projectless_conversation_supported !== true ||
     conversationScope.text_chat_without_workspace !== 'available' ||
-    conversationScope.file_and_project_features_without_workspace !==
-      'available_through_explicit_local_input_subject_to_codex_permissions' ||
-    conversationScope.project_workspace_role !==
-      'new_task_default_cwd_sidebar_grouping_and_context_hint_only_not_authorization_domain' ||
-    !sameStrings(projectlessInputPolicy.surfaces, [
-      'attachments',
-      'local_file_picker',
-      'local_directory_picker',
-      'paste',
-      'drop',
-      '/open',
-    ]) ||
-    projectlessInputPolicy.selection_scope !== 'any_user_selected_local_file_or_directory' ||
-    projectlessInputPolicy.workspace_required !== false ||
-    projectlessInputPolicy.access_authority !== 'codex_permission_approval_and_sandbox_only' ||
-    projectlessInputPolicy.shell_extra_path_authorization_allowed !== false ||
+    conversationScope.explicit_session_inputs_without_workspace !== 'available_subject_to_codex_permissions' ||
+    conversationScope.workspace_directory_role !==
+      'new_session_initial_cwd_mutable_cwd_sidebar_grouping_and_visible_metadata_only_not_owner_or_authorization_domain' ||
+    JSON.stringify(explicitSessionInputPolicy) !== JSON.stringify(appOwnedExplicitSessionInputPolicy) ||
+    'project_context_inputs' in conversationScope ||
+    'projectless_input_policy' in conversationScope ||
     !sameStrings(conversationScope.conversation_management, [
       'search',
       'pin',
@@ -865,16 +876,6 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
       'reset',
     ]) ||
     conversationScope.archived_surface !== 'independent' ||
-    projectContextInputs.scope !== 'canonical_workspace_path' ||
-    projectContextInputs.optional !== true ||
-    projectContextInputs.item_kind !== 'workspace_file_or_directory_ref' ||
-    !sameStrings(projectContextInputs.mutations, ['add', 'remove']) ||
-    projectContextInputs.persistence !== 'shell_client_configuration_keyed_by_workspace' ||
-    projectContextInputs.management_surface !== 'navigation_rail_project' ||
-    projectContextInputs.composer_consumption !== 'send_scoped_removable_refs' ||
-    projectContextInputs.composer_persistence_after_send !== 'none' ||
-    projectContextInputs.fabricated_defaults_allowed !== false ||
-    projectContextInputs.artifact_body_copy_allowed !== false ||
     JSON.stringify(localWorktreeLifecycle) !== JSON.stringify(appOwnedLocalWorktreeLifecycle) ||
     homeTarget.title_policy !== 'dynamic_question_title' ||
     homeTarget.starter_limit !== null ||
@@ -886,9 +887,12 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     record(homeTarget.workspace_selector_policy).inactive_recent_directories_visible !== false ||
     record(homeTarget.workspace_selector_policy).management_entry !== 'registered_directories_modal' ||
     record(homeTarget.workspace_selector_policy).management_scope !== 'registered_workspaces' ||
+    record(homeTarget.workspace_selector_policy).selection_effect !== 'set_new_session_initial_cwd_only' ||
     record(homeTarget.workspace_selector_policy).unregister_effect !== 'remove_registration_only' ||
     record(homeTarget.workspace_selector_policy).filesystem_delete_allowed !== false ||
     record(homeTarget.workspace_selector_policy).active_conversation_change_on_unregister !== false ||
+    record(homeTarget.workspace_selector_policy).session_ownership_effect !== 'none' ||
+    record(homeTarget.workspace_selector_policy).cascade_session_delete_allowed !== false ||
     record(homeTarget.home_shortcut_mutation_policy).pending_scope !== 'single_shortcut' ||
     record(homeTarget.home_shortcut_mutation_policy).pending_key !== 'shortcut_id' ||
     record(homeTarget.home_shortcut_mutation_policy).other_shortcuts_remain_interactive !== true ||
@@ -900,7 +904,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     capabilitySelection.composer_context_surface !== 'active_capability_chip' ||
     composerTarget.placement !== 'floating_bottom_with_safe_inset' ||
     !sameStrings(composerTarget.persistent_context, ['active_capability']) ||
-    !sameStrings(composerTarget.send_scoped_inputs, ['attachments', 'project_refs']) ||
+    !sameStrings(composerTarget.send_scoped_inputs, ['attachments']) ||
     composerTarget.send_scoped_consumption_policy !== 'consumed_by_current_send_not_persisted_in_context_strip' ||
     !sameStrings(composerTarget.forbidden_persistent_context, [
       'project',
@@ -908,12 +912,11 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
       'locality',
       'branch',
       'attachments',
-      'project_refs',
+      'workspace_context_refs',
     ]) ||
     !sameStrings(composerTarget.desktop_action_row, ['attach', 'permission_access_mode', 'model_reasoning', 'send_stop']) ||
     !sameStrings(mobileActionSheet.allowed_actions, [
       'attach',
-      'project_refs',
       'permission_access_mode',
       'model_reasoning',
       'active_capability',
@@ -1261,26 +1264,31 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   if (
     artifactPreview.surface !== 'existing_aionui_preview_context_and_panel' ||
     !sameStrings(artifactPreview.entry_sources, [
-      'current_task_latest_artifact_ref',
-      'current_task_evidence_ref',
-      'environment_artifact_ref',
-      'conversation_file_or_result_ref',
+      'session_attachment_ref',
+      'conversation_result_ref',
+      'explicit_absolute_local_path',
     ]) ||
     !sameStrings(artifactPreview.supported_content_types, ['markdown', 'pdf', 'code', 'image', 'html', 'diff']) ||
     !sameStrings(artifactPreview.markdown_embedded_renderers, ['mermaid', 'katex', 'code']) ||
     artifactPreview.ref_resolution_policy !==
-      'explicit_absolute_local_path_or_workspace_scoped_project_ref_to_existing_preview_target_without_copying_artifact_body' ||
+      'explicit_session_attachment_or_conversation_result_ref_or_user_selected_legal_absolute_local_path_without_copying_artifact_body' ||
+    JSON.stringify(artifactPreview.session_reference_policy) !== JSON.stringify({
+      attachment_ref_scope: 'current_session_explicit_attachment_only',
+      conversation_result_ref_scope: 'current_session_visible_result_only',
+      workspace_membership_required: false,
+      implicit_workspace_ref_allowed: false,
+    }) ||
     record(artifactPreview.explicit_local_path_policy).user_initiated_only !== true ||
     record(artifactPreview.explicit_local_path_policy).path_form !== 'legal_absolute_local_file_path' ||
     record(artifactPreview.explicit_local_path_policy).workspace_membership_required !== false ||
     record(artifactPreview.explicit_local_path_policy).access_authority !== 'codex_permission_approval_and_sandbox' ||
     record(artifactPreview.explicit_local_path_policy).automatic_silent_read_allowed !== false ||
-    record(artifactPreview.project_context_ref_policy).workspace_scoped !== true ||
-    record(artifactPreview.project_context_ref_policy).parent_traversal_allowed !== false ||
+    'project_context_ref_policy' in artifactPreview ||
     !sameStrings(artifactPreview.forbidden_inputs, [
       'relative_parent_traversal',
       'illegal_or_unsupported_scheme',
       'automatic_silent_read',
+      'implicit_workspace_context_ref',
     ]) ||
     artifactPreview.artifact_body_authority !== 'external_owner_ref_only' ||
     artifactPreview.keyboard_reachable_open_action !== true ||
@@ -1292,8 +1300,8 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
       supported_content_types: artifactPreview.supported_content_types,
       markdown_embedded_renderers: artifactPreview.markdown_embedded_renderers,
       ref_resolution_policy: artifactPreview.ref_resolution_policy,
+      session_reference_policy: artifactPreview.session_reference_policy,
       explicit_local_path_policy: artifactPreview.explicit_local_path_policy,
-      project_context_ref_policy: artifactPreview.project_context_ref_policy,
       forbidden_inputs: artifactPreview.forbidden_inputs,
       artifact_body_authority: artifactPreview.artifact_body_authority,
       keyboard_reachable_open_action: artifactPreview.keyboard_reachable_open_action,

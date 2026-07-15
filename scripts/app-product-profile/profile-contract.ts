@@ -101,8 +101,12 @@ function assertFirstRunProfileShape(profile: AppProductProfile): void {
     'first_run.first_conversation.required_before_plain_send',
   );
   assertStringArray(
-    profile.first_run.first_conversation.required_before_file_or_project_send,
-    'first_run.first_conversation.required_before_file_or_project_send',
+    profile.first_run.first_conversation.required_before_send_with_local_inputs,
+    'first_run.first_conversation.required_before_send_with_local_inputs',
+  );
+  assertStringArray(
+    profile.first_run.first_conversation.required_before_workspace_controls,
+    'first_run.first_conversation.required_before_workspace_controls',
   );
   assertStringArray(profile.first_run.beginner_presentation.primary_steps, 'first_run.beginner_presentation.primary_steps');
   const beginnerPresentation = profile.first_run.beginner_presentation;
@@ -134,9 +138,14 @@ function assertFirstRunProfileShape(profile: AppProductProfile): void {
     'first_run.first_conversation.required_before_plain_send',
   );
   assertDeepEqualJson(
-    profile.first_run.first_conversation.required_before_file_or_project_send,
-    ['workspace_root', 'codex_cli', 'codex_config'],
-    'first_run.first_conversation.required_before_file_or_project_send',
+    profile.first_run.first_conversation.required_before_send_with_local_inputs,
+    ['codex_cli', 'codex_config'],
+    'first_run.first_conversation.required_before_send_with_local_inputs',
+  );
+  assertDeepEqualJson(
+    profile.first_run.first_conversation.required_before_workspace_controls,
+    ['workspace_root'],
+    'first_run.first_conversation.required_before_workspace_controls',
   );
   const ordinaryRecovery = profile.first_run.ordinary_shell_recovery;
   if (
@@ -144,7 +153,9 @@ function assertFirstRunProfileShape(profile: AppProductProfile): void {
     ordinaryRecovery.persistent_setup_entry.surface !== 'ordinary_sidebar_non_modal_entry' ||
     ordinaryRecovery.plain_conversation.workspace_root_required !== false ||
     ordinaryRecovery.plain_conversation.must_preserve_prompt !== true ||
-    ordinaryRecovery.file_and_project_context.plain_conversation_remains_available !== true ||
+    ordinaryRecovery.send_scoped_local_inputs.workspace_root_required !== false ||
+    ordinaryRecovery.workspace_controls.plain_conversation_remains_available !== true ||
+    ordinaryRecovery.workspace_controls.send_scoped_local_inputs_remain_available !== true ||
     ordinaryRecovery.unknown_readiness_policy !== 'do_not_synthesize_failure_or_mutate_readiness'
   ) {
     throw new Error('Invalid App product profile first_run.ordinary_shell_recovery policy');
@@ -155,9 +166,30 @@ function assertFirstRunProfileShape(profile: AppProductProfile): void {
     'first_run.ordinary_shell_recovery.plain_conversation.required_items',
   );
   assertDeepEqualJson(
-    ordinaryRecovery.file_and_project_context.required_items,
+    ordinaryRecovery.send_scoped_local_inputs.required_items,
+    ['codex_cli', 'codex_config'],
+    'first_run.ordinary_shell_recovery.send_scoped_local_inputs.required_items',
+  );
+  assertDeepEqualJson(
+    ordinaryRecovery.send_scoped_local_inputs.supported_inputs,
+    [
+      'file_dialog_attachment',
+      'directory_dialog_attachment',
+      'file_paste_attachment',
+      'file_drag_attachment',
+      'slash_open_absolute_path',
+    ],
+    'first_run.ordinary_shell_recovery.send_scoped_local_inputs.supported_inputs',
+  );
+  assertDeepEqualJson(
+    ordinaryRecovery.workspace_controls.required_items,
     ['workspace_root'],
-    'first_run.ordinary_shell_recovery.file_and_project_context.required_items',
+    'first_run.ordinary_shell_recovery.workspace_controls.required_items',
+  );
+  assertDeepEqualJson(
+    ordinaryRecovery.workspace_controls.restricted_capabilities,
+    ['project_workspace_selection', 'worktree_creation', 'opl_workspace_controls'],
+    'first_run.ordinary_shell_recovery.workspace_controls.restricted_capabilities',
   );
   assertIncludesAll(
     profile.first_run.first_conversation.must_wait_for,

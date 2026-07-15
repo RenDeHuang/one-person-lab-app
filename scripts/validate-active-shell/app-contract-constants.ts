@@ -425,13 +425,25 @@ export const progressiveFirstRunRecoveryTestIds = [
   "opl-first-run-resume-entry",
   "opl-guid-setup-notice",
   "opl-guid-setup-notice-action",
-  "opl-guid-file-access-disabled",
   "opl-guid-workspace-access-disabled",
 ];
 export const progressiveFirstRunRecoveryPolicy = {
   persistent_setup_entry_route: "/first-run",
   plain_conversation_required_items: ["codex_cli", "codex_config"],
-  file_and_project_required_items: ["workspace_root"],
+  send_scoped_local_input_required_items: ["codex_cli", "codex_config"],
+  send_scoped_local_input_surfaces: [
+    "file_dialog_attachment",
+    "directory_dialog_attachment",
+    "file_paste_attachment",
+    "file_drag_attachment",
+    "slash_open_absolute_path",
+  ],
+  workspace_control_required_items: ["workspace_root"],
+  workspace_restricted_capabilities: [
+    "project_workspace_selection",
+    "worktree_creation",
+    "opl_workspace_controls",
+  ],
   unknown_readiness_policy: "do_not_synthesize_failure_or_mutate_readiness",
 };
 export const appOwnedSettingsTabs = [
@@ -991,9 +1003,12 @@ export const appOwnedHomeLayout = {
     inactive_recent_directories_visible: false,
     management_entry: "registered_directories_modal",
     management_scope: "registered_workspaces",
+    selection_effect: "set_new_session_initial_cwd_only",
     unregister_effect: "remove_registration_only",
     filesystem_delete_allowed: false,
     active_conversation_change_on_unregister: false,
+    session_ownership_effect: "none",
+    cascade_session_delete_allowed: false,
   },
   home_shortcut_mutation_policy: {
     pending_scope: "single_shortcut",
@@ -1025,11 +1040,72 @@ export const appOwnedPageStateHomeLayout = {
     "AionUI Team page as ordinary App surface",
   ],
 };
+export const appOwnedSessionWorkspaceModel = {
+  primary_unit: "session_backed_by_codex_thread_id",
+  identity_authority: "codex_core_app_server_thread_id",
+  workspace_binding_role:
+    "new_session_initial_cwd_mutable_default_working_directory_and_sidebar_grouping_metadata_only",
+  workspace_owns_session: false,
+  workspace_owns_context: false,
+  workspace_owns_artifacts: false,
+  workspace_group_cascade_session_delete_allowed: false,
+  workspace_change_preserves: [
+    "thread_id",
+    "transcript",
+    "turn_history",
+    "title",
+    "task_state",
+  ],
+  workspace_change_forbids: [
+    "fork_thread",
+    "copy_history",
+    "create_replacement_session",
+    "change_session_owner",
+  ],
+};
+export const appOwnedDirectoryGroupPolicy = {
+  source: "canonical_session_cwd_projection",
+  role: "presentation_and_new_session_cwd_shortcut_only",
+  owns_sessions: false,
+  owns_context: false,
+  owns_artifacts: false,
+  group_delete_action_allowed: false,
+  cascade_session_delete_allowed: false,
+  new_session_action_language: "use_this_working_directory_not_create_project_child",
+};
+export const appOwnedExplicitSessionInputPolicy = {
+  scope: "current_session_composer",
+  surfaces: [
+    "attachments",
+    "local_file_picker",
+    "local_directory_picker",
+    "paste",
+    "drop",
+    "/open",
+  ],
+  selection_scope: "any_user_selected_local_file_or_directory",
+  workspace_required: false,
+  access_authority: "codex_permission_approval_and_sandbox_only",
+  shell_extra_path_authorization_allowed: false,
+  user_initiated_only: true,
+  workspace_preload_allowed: false,
+  workspace_scoped_persistence_allowed: false,
+  implicit_workspace_context_injection_allowed: false,
+  composer_consumption: "current_send_only",
+  composer_persistence_after_send: "none",
+  workspace_readiness_boundary: {
+    gates: ["project_selection", "worktree_creation", "opl_workspace_controls"],
+    plain_local_conversation_requires_workspace_root: false,
+    send_scoped_local_file_inputs_require_workspace_root: false,
+    worktree_requires_git_repository: true,
+    codex_and_model_prerequisites_unchanged: true,
+  },
+};
 export const appOwnedLocalWorktreeLifecycle = {
   state: "same_host_lifecycle_source_implemented_cross_host_protocol_owner_blocked",
   permission_boundary: {
-    project_workspace_role:
-      "default_cwd_sidebar_grouping_and_context_hint_only_not_authorization_domain",
+    workspace_directory_role:
+      "new_session_initial_cwd_mutable_cwd_and_sidebar_grouping_only_not_authorization_domain",
     filesystem_command_network_authority:
       "codex_permission_approval_and_sandbox_only",
     opl_cross_directory_block_or_confirmation_allowed: false,
@@ -1043,13 +1119,20 @@ export const appOwnedLocalWorktreeLifecycle = {
     failure_policy:
       "show_unavailable_or_error_without_silent_local_fallback",
   },
-  existing_task: {
+  existing_session: {
     surface: "conversation_environment",
-    scope: "same_host_local_to_worktree_and_worktree_to_local",
+    scope:
+      "any_user_selected_same_host_local_directory_including_local_worktree_handoff",
+    actions: ["switch_working_directory", "local_to_worktree", "worktree_to_local"],
+    directory_picker: "system_directory_picker",
     eligible_thread_states: ["not_loaded", "idle"],
     unavailable_thread_states: ["running", "archived", "system_error"],
     protocol: "thread/settings/update",
     payload_fields: ["threadId", "cwd"],
+    session_identity_policy:
+      "preserve_canonical_thread_id_transcript_and_turn_history_without_fork_or_copy",
+    sidebar_grouping_effect:
+      "reclassify_same_session_by_selected_cwd_without_copy_or_fork",
     status_limit_role:
       "codex_protocol_state_limit_not_workspace_permission",
     failure_policy:
@@ -1076,6 +1159,12 @@ export const appOwnedLocalWorktreeLifecycle = {
   projection_transaction: {
     order: ["codex_thread_cwd", "aionui_conversation_projection"],
     codex_update: "thread/settings/update",
+    projection_fields: ["conversation.extra.workspace", "sidebar_project_group"],
+    immutable_identity_field: "canonical_thread_id",
+    operation_start_workspace_source:
+      "app_server_canonical_thread_cwd_then_projection_fallback_only_if_unavailable",
+    no_op_comparison_source: "operation_start_workspace_not_mutable_projection",
+    rollback_target: "operation_start_workspace",
     projection_failure_policy:
       "best_effort_restore_previous_codex_cwd_and_show_error",
     silent_success_allowed: false,
@@ -1136,7 +1225,7 @@ export const appOwnedRuntimeBridgeLocalWorktreeHandoffPolicy = {
   authority: "codex_core_app_server_and_existing_git_integration",
   permission_boundary: appOwnedLocalWorktreeLifecycle.permission_boundary,
   new_task: appOwnedLocalWorktreeLifecycle.new_task,
-  existing_task: appOwnedLocalWorktreeLifecycle.existing_task,
+  existing_session: appOwnedLocalWorktreeLifecycle.existing_session,
   metadata: appOwnedLocalWorktreeLifecycle.metadata,
   projection_transaction: appOwnedLocalWorktreeLifecycle.projection_transaction,
   worktree: appOwnedLocalWorktreeLifecycle.worktree,
@@ -1164,13 +1253,24 @@ export const appOwnedGuiContractEnvironmentWorkspaceHandoff = {
   contract_ref:
     "interaction_baseline.conversation_scope.local_worktree_lifecycle",
   surface: "conversation_environment",
-  scope: "same_host_existing_task",
+  scope: "same_host_existing_session",
   actions: [
+    "switch_working_directory",
     "local_to_worktree",
     "worktree_to_local",
     "create_restore_point_and_remove",
     "restore_worktree",
   ],
+  working_directory_target_scope:
+    "any_user_selected_same_host_local_directory",
+  session_identity_policy:
+    "preserve_canonical_thread_id_transcript_and_turn_history_without_fork_or_copy",
+  sidebar_grouping_effect:
+    "reclassify_same_session_by_selected_cwd_without_copy_or_fork",
+  operation_start_workspace_source:
+    "app_server_canonical_thread_cwd_then_projection_fallback_only_if_unavailable",
+  no_op_comparison_source: "operation_start_workspace_not_mutable_projection",
+  rollback_target: "operation_start_workspace",
   eligible_thread_states: ["not_loaded", "idle"],
   unavailable_thread_states: ["running", "archived", "system_error"],
   protocol: "thread/settings/update",
@@ -1192,7 +1292,7 @@ export const appOwnedPageStateEnvironmentWorkspaceHandoff = {
 const appOwnedOrdinaryConversation = {
   path_id: "ordinary_codex_conversation",
   entry_source:
-    "home_starter_project_task_or_projectless_new_conversation",
+    "home_starter_workspace_initialized_or_projectless_new_session",
   executor: "codex_cli",
   composer_position: "floating_bottom_with_safe_inset",
   active_capability_chip_visible: true,
@@ -1208,7 +1308,7 @@ const appOwnedOrdinaryConversation = {
   technical_details_policy:
     "single_compact_model_reasoning_menu_without_backend_or_provider",
   composer_context_strip: ["active_capability"],
-  composer_send_scoped_inputs: ["attachments", "project_refs"],
+  composer_send_scoped_inputs: ["attachments"],
   composer_send_scoped_consumption_policy:
     "consumed_by_current_send_not_persisted_in_context_strip",
   composer_forbidden_persistent_context: [
@@ -1217,7 +1317,7 @@ const appOwnedOrdinaryConversation = {
     "locality",
     "branch",
     "attachments",
-    "project_refs",
+    "workspace_context_refs",
   ],
   composer_bottom_action_row: [
     "attach",
@@ -1230,7 +1330,6 @@ const appOwnedOrdinaryConversation = {
     trigger: "+",
     allowed_actions: [
       "attach",
-      "project_refs",
       "permission_access_mode",
       "model_reasoning",
       "active_capability",
@@ -1245,32 +1344,8 @@ const appOwnedOrdinaryConversation = {
     ],
   },
   projectless_conversation_supported: true,
-  projectless_input_policy: {
-    surfaces: [
-      "attachments",
-      "local_file_picker",
-      "local_directory_picker",
-      "paste",
-      "drop",
-      "/open",
-    ],
-    selection_scope: "any_user_selected_local_file_or_directory",
-    workspace_required: false,
-    access_authority: "codex_permission_approval_and_sandbox_only",
-    shell_extra_path_authorization_allowed: false,
-  },
-  project_context_inputs: {
-    scope: "canonical_workspace_path",
-    optional: true,
-    item_kind: "workspace_file_or_directory_ref",
-    mutations: ["add", "remove"],
-    persistence: "shell_client_configuration_keyed_by_workspace",
-    management_surface: "navigation_rail_project",
-    composer_consumption: "send_scoped_removable_refs",
-    composer_persistence_after_send: "none",
-    fabricated_defaults_allowed: false,
-    artifact_body_copy_allowed: false,
-  },
+  session_workspace_model: appOwnedSessionWorkspaceModel,
+  explicit_session_input_policy: appOwnedExplicitSessionInputPolicy,
   environment_workspace_handoff:
     appOwnedGuiContractEnvironmentWorkspaceHandoff,
 };
@@ -1303,15 +1378,20 @@ export const appOwnedTranscriptExport = {
 export const appOwnedArtifactPreview = {
   surface: "existing_aionui_preview_context_and_panel",
   entry_sources: [
-    "current_task_latest_artifact_ref",
-    "current_task_evidence_ref",
-    "environment_artifact_ref",
-    "conversation_file_or_result_ref",
+    "session_attachment_ref",
+    "conversation_result_ref",
+    "explicit_absolute_local_path",
   ],
   supported_content_types: ["markdown", "pdf", "code", "image", "html", "diff"],
   markdown_embedded_renderers: ["mermaid", "katex", "code"],
   ref_resolution_policy:
-    "explicit_absolute_local_path_or_workspace_scoped_project_ref_to_existing_preview_target_without_copying_artifact_body",
+    "explicit_session_attachment_or_conversation_result_ref_or_user_selected_legal_absolute_local_path_without_copying_artifact_body",
+  session_reference_policy: {
+    attachment_ref_scope: "current_session_explicit_attachment_only",
+    conversation_result_ref_scope: "current_session_visible_result_only",
+    workspace_membership_required: false,
+    implicit_workspace_ref_allowed: false,
+  },
   explicit_local_path_policy: {
     user_initiated_only: true,
     path_form: "legal_absolute_local_file_path",
@@ -1319,14 +1399,11 @@ export const appOwnedArtifactPreview = {
     access_authority: "codex_permission_approval_and_sandbox",
     automatic_silent_read_allowed: false,
   },
-  project_context_ref_policy: {
-    workspace_scoped: true,
-    parent_traversal_allowed: false,
-  },
   forbidden_inputs: [
     "relative_parent_traversal",
     "illegal_or_unsupported_scheme",
     "automatic_silent_read",
+    "implicit_workspace_context_ref",
   ],
   artifact_body_authority: "external_owner_ref_only",
   keyboard_reachable_open_action: true,

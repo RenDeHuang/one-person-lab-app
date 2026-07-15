@@ -52,6 +52,7 @@ test("first-run matrix delegates policy shape to the active-shell validator", ()
   assert.deepEqual(fullDmg.diagnostics_contract.home_composer_probe.required_summary_fields, [
     "missing_controls",
     "composer_state",
+    "instance_counts",
   ]);
   const launchGateExpectations = matrix.scenarios
     .flatMap((scenario) => scenario.expects ?? [])

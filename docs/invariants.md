@@ -9,6 +9,7 @@ Machine boundary: Human-readable invariants. Machine-readable truth lives in `co
 - Temporary visual, Playwright, and Codex screenshots are local run artifacts, not repo truth. Keep them out of git unless they are promoted into `docs/site/latest`, a release evidence bundle, or an explicit manifest-backed evidence surface.
 - The App repo is a purpose-first Codex wrapper product authority. It owns how users enter research, grant, presentation, and book work; it does not own the runtime, domain, memory, artifact, or family production truth behind those entries.
 - The App repo owns One Person Lab App GUI product truth. The active shell may implement renderer/process/package/test/release-hook details and absorb upstream AionUI changes, but App page behavior, model-selection policy, onboarding policy, screenshots, and release/user docs stay App-owned.
+- Conversation/session backed by the canonical Codex App Server thread ID is the primary user-work unit. Project, workspace, and directory are mutable initial/default cwd, rail grouping, and context metadata; changing a same-host working directory must preserve thread identity, transcript, turn history, title, and task state without fork, copy, or replacement-session creation.
 - GUI 定义必须按
   `gui_definition_stack: product_definition > visual_system > shell_implementation_conformance`
   从 App-owned product docs 流向 implementation。Product definition 入口是

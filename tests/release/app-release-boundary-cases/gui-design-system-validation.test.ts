@@ -12,8 +12,7 @@ const designRoot = 'docs/product/gui';
 const conformanceMatrix = `# Shell conformance matrix
 
 - AionUI GUI conformance ancestor：\`opl-aion-shell@0000000000000000000000000000000000000000\`；fixture only。
-- Current Shell source cohort：
-  \`opl-aion-shell@1111111111111111111111111111111111111111\`；fixture only。
+- Current Shell source cohort：symbolic \`session_first_directory_current_source_cohort\`；fixture only。
 
 | 功能或交互要求 | AionUI contract | AionUI source | AionUI pixel | Native contract | Native source | Native pixel | 验证入口与边界 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -432,26 +431,24 @@ test('GUI design-system validator rejects a GUI ancestor that drifts from the co
   );
 });
 
-test('GUI design-system validator compares the current source cohort, not the minimum ancestor, to the shell checkout', () => {
+test('GUI design-system validator reads the current checkout without pinning its transient HEAD in human docs', () => {
   const root = createFixture();
   const currentHead = createShellCheckout(root);
   const matrixPath = path.join(root, 'docs/product/gui/shell-conformance-matrix.md');
   const matrix = fs.readFileSync(matrixPath, 'utf8');
-  writeFile(
-    root,
-    'docs/product/gui/shell-conformance-matrix.md',
-    matrix.replace(/(Current Shell source cohort：\s*`opl-aion-shell@)[0-9a-f]{40}/, `$1${currentHead}`),
-  );
   assert.equal(validateGuiDesignSystem(root).status, 'consistent');
 
   writeFile(
     root,
     'docs/product/gui/shell-conformance-matrix.md',
-    fs.readFileSync(matrixPath, 'utf8').replace(currentHead, '2222222222222222222222222222222222222222'),
+    matrix.replace(
+      'symbolic `session_first_directory_current_source_cohort`',
+      `\`opl-aion-shell@${currentHead}\``,
+    ),
   );
   assert.throws(
     () => validateGuiDesignSystem(root),
-    new RegExp(`shell conformance matrix current source cohort must match current shell HEAD ${currentHead}`),
+    /must use the symbolic current Shell source cohort without pinning a transient HEAD/,
   );
 });
 
@@ -469,11 +466,57 @@ test('GUI design-system validator rejects artifact preview body copying or unsaf
   );
 });
 
-test('GUI design-system validator rejects workspace-gating projectless local inputs', () => {
+test('GUI design-system validator rejects workspace-readiness gating explicit session local inputs', () => {
   const root = createFixture();
   const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
   const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
-  contract.interaction_baseline.conversation_scope.projectless_input_policy.workspace_required = true;
+  contract.interaction_baseline.conversation_scope.explicit_session_input_policy
+    .workspace_readiness_boundary.send_scoped_local_file_inputs_require_workspace_root = true;
+  writeJson(root, 'contracts/app-gui-product-contract.json', contract);
+
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /interaction baseline Home, conversation, composer, access, and task summary markers must match the App target/,
+  );
+});
+
+test('GUI design-system validator rejects workspace-owned sessions and lossy workspace rebinding', () => {
+  const root = createFixture();
+  const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
+  const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+  const sessionWorkspaceModel = contract.interaction_baseline.conversation_scope.session_workspace_model;
+  sessionWorkspaceModel.workspace_owns_session = true;
+  sessionWorkspaceModel.workspace_change_forbids = ['preserve_thread_id_by_copying_history'];
+  writeJson(root, 'contracts/app-gui-product-contract.json', contract);
+
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /conversation scope must keep the canonical session identity while treating workspace as mutable cwd and grouping metadata/,
+  );
+});
+
+test('GUI design-system validator rejects directory cascade delete and stale Codex cache authority', () => {
+  const root = createFixture();
+  const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
+  const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+  const threadDirectory = contract.interaction_baseline.navigation_rail.thread_directory_policy;
+  threadDirectory.directory_group_policy.cascade_session_delete_allowed = true;
+  threadDirectory.stale_codex_acp_cache_row_policy = 'preserve_in_ordinary_projection';
+  writeJson(root, 'contracts/app-gui-product-contract.json', contract);
+
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /interaction baseline navigation rail must preserve the governed desktop and narrow-window skeleton/,
+  );
+});
+
+test('GUI design-system validator rejects restored workspace-scoped project context inputs', () => {
+  const root = createFixture();
+  const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
+  const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+  contract.interaction_baseline.conversation_scope.project_context_inputs = {
+    scope: 'canonical_workspace_path',
+  };
   writeJson(root, 'contracts/app-gui-product-contract.json', contract);
 
   assert.throws(

@@ -22,9 +22,9 @@ Machine boundary: 本文是 shell-neutral 的人读交互目标。机器可读�
 ## 产品原则
 
 1. **Chat first。** 用户打开 App 后直接开始或继续 conversation，不先阅读 dashboard。
-2. **Context visible。** 当前 project/local/branch 与 conversation context 始终可理解；
-   project/workspace 只作默认 cwd、分组和提示，不是权限域；没有 workspace 时仍允许显式
-   选择任意本地文件/目录。
+2. **Session first, context visible。** Canonical Codex thread 是 conversation 身份单位；当前
+   project/local/branch 与 conversation context 始终可理解。Project/workspace 只作初始/默认 cwd、
+   可变分组和提示，不拥有 session，也不是权限域；没有 workspace 时仍允许显式选择任意本地文件/目录。
 3. **One primary timeline。** 当前任务、assistant output 和 turn-local events 在同一
    conversation flow 中发生。
 4. **Secondary context on demand。** Environment floating details、preview 和 advanced
@@ -48,12 +48,12 @@ header、隐藏 project rail、默认打开 inspector，或用 Settings/card lay
 
 宽桌面首次进入 ordinary Home 或 conversation 时：
 
-- 左侧项目/对话 rail 默认可见，展示由 App Server `thread/list/read/resume` 投影的 threads；
-  project/workspace 只用于分组和默认 cwd。
+- 左侧目录/对话 rail 默认可见，展示由 App Server canonical overview 投影的 threads；
+  project/workspace/directory 只用于新 session 初始 cwd、可变 cwd 和分组，不拥有 session、context 或 artifact。
 - 主区域是一条 conversation timeline；空 conversation 仍使用同一工作画布。
 - Composer 浮于主区底部并保留安全距，可直接输入多行任务。
-- Project identity 与 project context management 位于 rail；locality/branch 位于 Environment。
-  Composer 只保留 active capability、send-scoped attachments/project refs、模型/推理和
+- Working-directory grouping 位于 rail；locality/branch 位于 Environment。
+  Composer 只保留 active capability、当前发送的显式 attachments、模型/推理和
   permission/access mode；access mode 使用自动化与文件权限的用户语言。
 - 右上 Environment details 默认关闭；bottom panel、file tree、Terminal、Browser 和
   独立 artifact preview 也默认关闭。
@@ -66,8 +66,9 @@ header、隐藏 project rail、默认打开 inspector，或用 Settings/card lay
 
 ## 核心用户流程
 
-1. **进入工作上下文。** App 恢复最近 App Server thread；用户可选择 Local/Worktree 与 starting
-   branch，也可不选 workspace，直接开始 projectless conversation。
+1. **进入工作上下文。** App 按 canonical thread ID 恢复最近 App Server session；用户可用 Local/
+   Worktree 与 starting branch 初始化 cwd，也可不选 workspace 直接开始 projectless conversation。
+   初始化后 cwd 仍可更换，不会创建替代 session。
 2. **开始或继续对话。** 用户从 rail 新建、搜索、pin、rename、archive、reset 或切换
    conversation，并从独立 Archived surface 管理归档。
 3. **选择工作目的。** 用户从 Home starter 选择科研、基金、演示、写书等能力；
@@ -90,30 +91,37 @@ Rail 负责 navigation，不承担 dashboard：
   会话级 Runtime details 只能补充当前任务，不能替代全局 Runtime 入口。Package/capability
   选择由 Home starter 承接，管理由 Settings → Agents & Capabilities 承接，不在 rail 重复。
   其它全局入口仅在 OPL 有真实对应能力时保留。
-- 中段按 project metadata 分组 App Server threads。Shell DB 只保存 draft、preference 和可重建
-  cache，不拥有 history。Selected project 下依次组织可选 context refs、
-  attachments 入口和最近 conversations；context 与 attachments 都不是建项前置条件。
+- 中段按 canonical session 当前 cwd 分组 App Server threads。App Server overview 可用时是 Codex
+  session directory authority；Shell DB 只保存 draft、preference 和可重建 cache，不拥有 history。
+  Canonical overview 未返回的 stale Codex ACP cache row 不进入 ordinary projection；仅 overview
+  unavailable 时 fallback cache，非 Codex local row 保留。每个 canonical thread ID 最多一行，
+  不按标题或 workspace 去重。
 - Projectless conversation 继续可用，但不伪造 project/context 层级，也不禁用 attachment、
   任意本地 file/directory picker、paste/drop 或 `/open`。这些访问只服从 Codex
   permission/approval/sandbox。
-- Context refs 是该 workspace 内的文件或目录引用，支持添加和移除，不生成示例项，也不复制
-  artifact body；按 canonical workspace path 持久化，并在该 project 新建 conversation 时
-  作为可见、可移除的 context 预载。Attachments 仍属于当前 conversation draft，不自动继承为
-  project defaults。
+- Session 输入只从当前 composer 通过 attachment、file/directory picker、paste/drop 或 `/open`
+  显式加入，当前 send 消费后不持久化为 workspace defaults；禁止 rail “添加上下文”、workspace-keyed
+  preload 和隐式 prompt injection。Workspace readiness 只约束 project/Worktree/OPL workspace controls，
+  不约束普通本地对话或 send-scoped local file inputs；Worktree 仍要求 Git repo，Codex/model prerequisites 不变。
 - 支持 search、pin、rename、archive、restore、delete、reset；rename/archive/restore/delete
   直接映射 `thread/name/set`、`thread/archive`、`thread/unarchive`、`thread/delete`。Pin 只是
   Shell UI metadata；AionUI local reset 保留既有会话语义，但不得冒充 App Server history reset。
 - 底部固定 account、help、Settings。
+- Home root、composer shell 与 footer account/Settings entry 在每个 viewport 各渲染一次。
 - Active conversation、running/blocked/completed 等状态只用轻量标记，不改变 row 布局。
 - 切换 conversation 保留各自 scroll、draft 和 refs context。
-- Workspace switch 明确说明新 turn 会在哪个目录执行。
+- Workspace switch 明确说明新 turn 会在哪个目录执行，并保持同一 canonical thread、transcript、
+  turn history、title 与 task state；rail 只按新 cwd 重新分组该 session。
+- 目录组只提供“使用此工作目录新建对话”的快捷动作；目录组无 owner 语义，不提供组级删除，也不得
+  级联 archive/delete/reset 其下 session。
 - Home 的 New task 可选择 Local/Worktree 与 starting branch；Worktree 通过既有
   `gitWorkspace.inspect` / `ensureManagedWorktree` 创建或复用，位于 `$CODEX_HOME/worktrees`，
   selected branch HEAD detached，可应用用户所选 Local 未提交变更并读取 `.worktreeinclude`。
   创建失败保持可见，不 silent fallback 到 Local。
-- 既有同主机 task 只在 `not_loaded`/`idle` 时从 Conversation Environment 提供
-  Local↔Worktree。真实切换先调用 `thread/settings/update { threadId, cwd }`，再更新 AionUI
-  conversation projection；projection 失败时 best-effort 恢复旧 cwd 并显示错误。
+- 既有同主机 canonical session 只在 `not_loaded`/`idle` 时从 Conversation Environment 提供
+  系统目录选择器驱动的任意本地工作目录切换，Local↔Worktree 是其专门 lifecycle。真实切换先调用
+  `thread/settings/update { threadId, cwd }`，再更新 AionUI conversation projection 与 rail 分组；
+  projection 失败时 best-effort 恢复旧 cwd 并显示错误。不得 fork thread、复制 history 或创建替代 session。
   `running`/`archived`/`system_error` 显示 unavailable，这是 Codex 协议状态限制，不是目录权限。
 - `opl_workspace_handoff.v1` 只保存 locality、Local/worktree path、task/start ref 和 retention
   projection。Worktree 默认保留复用，不因 archive 或数量阈值在 Shell 内静默删除。
@@ -212,12 +220,11 @@ Streaming 期间用户始终知道 App 仍在工作。即使已有 tool event，
 Composer 是普通路径唯一主 command surface：
 
 - 文本输入默认可用，支持多行、paste、keyboard shortcuts 和 IME。
-- 由 41301 reference 翻译出的 OPL-owned target 不在 composer 常驻重复 project/local/branch：project 由 rail 表达，
-  branch/locality 由 Environment 表达；composer 只保留与下一次发送直接相关的 attachment、
-  project context refs 和 active capability。
-- Project Context inputs 以可见 refs 预载，发送前可逐项移除；不允许 hidden prompt injection，
-  也不把项目默认 context 与当前 conversation attachments 混为一类。
-- 中层是 textarea；底层 action row 放 attachments/project refs、permission/access mode、
+- 由 41301 reference 翻译出的 OPL-owned target 不在 composer 常驻重复 project/local/branch：目录由 rail 表达，
+  branch/locality 由 Environment 表达；composer 只保留与下一次发送直接相关的显式 attachment 和 active capability。
+- 不存在 workspace/project context preload；attachment、paste/drop 与 `/open` 都是用户在当前 session
+  显式加入的 send-scoped 输入，不允许 hidden prompt injection 或 workspace-keyed 持久化。
+- 中层是 textarea；底层 action row 放 attach、permission/access mode、
   单一紧凑 model/reasoning menu、可选 voice 和 send/stop。
 - Home 与 ordinary conversation 使用同一 App-owned model control。
 - 模型策略与当前默认值只读取 `contracts/app-product-profile.json`；本文不复制
@@ -225,8 +232,8 @@ Composer 是普通路径唯一主 command surface：
 - Executor 固定为 Codex CLI；backend/provider 不作为普通控件。Permission/access mode
   在 Home 与 conversation 可见，以自动化和文件权限表达并保留安全透明度。
 - Attachments 在发送前可预览、移除并显示访问失败。
-- Projectless attachment 与 `/open` 不受 workspace membership 限制；project context refs 继续
-  workspace-scoped，二者不可混成同一授权规则。
+- Attachment、paste/drop 与 `/open` 不受 workspace membership 或 workspace readiness 限制，只服从
+  Codex permission/approval/sandbox。
 - Running 时 send 转为 stop 或明确 queue 行为；stopping、blocked、failed 有可理解状态。
 - Model/reasoning 与 permission/access 不在 conversation header 或 Settings 快捷条中重复。
 - Composer draft 不因打开 Environment/preview、切换 details、window resize 或临时 error
@@ -259,8 +266,9 @@ Environment details 采用 Codex reference 的右上 anchored floating surface�
 OPL 增量按以下顺序进入：
 
 1. 与当前 task 直接相关的 artifact/evidence refs 进入 Environment 次级 section；
-2. 需要阅读的 Markdown/PDF/code/result 在独立 preview 或 conversation disclosure 打开；用户
-   显式打开合法绝对本地路径时不要求属于 workspace，project-context ref 仍受 workspace scope；
+2. 需要阅读的 Markdown/PDF/code/result 在独立 preview 或 conversation disclosure 打开；Preview
+   只接受当前 session 显式 attachment、可见 conversation result 或用户选择的合法绝对本地路径，
+   绝对路径不要求属于 workspace；
 3. Terminal、Browser、Files 等 advanced surfaces 只从 Environment 或任务需要打开；
 4. Review 复用 Files/Changes diff surface；target 支持 uncommitted、base branch、commit、custom，
    交付支持 inline/detached，默认 Unstaged 并提供 Staged、Commit、Branch、Last turn。PR context
@@ -395,8 +403,9 @@ First-run 的目标是让用户尽快进入可工作的 App：
   可证时才算实现；用户可见 rail 不构成该证据，ordinary ACP owner链路缺失必须路由到
   AionCore/codex-acp owner而不是 Shell workaround。
 - Home New task 的 Local/Worktree、starting branch 与 managed worktree create/reuse 已由薄 adapter承接；
-  既有同主机空闲 task 的双向 handoff 位于 Conversation Environment，并通过
-  `thread/settings/update` 更新真实 cwd。Environment 只对确定的 managed worktree 提供 durable
+  既有同主机空闲 canonical session 的任意目录切换位于 Conversation Environment，通过系统目录选择器
+  与 `thread/settings/update` 更新真实 cwd，再更新 projection/rail 分组且不改变 thread identity。
+  Environment 只对确定的 managed worktree 提供 durable
   snapshot-before-remove 与 receipt restore；cross-host handoff由Codex App Remote Connections /
   host-handoff owner提供真实host transport，Shell当前只显示owner-blocked unavailable。Review复用
   Files/Changes diff surface并覆盖四类 target、两种 delivery、五个

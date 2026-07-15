@@ -85,11 +85,12 @@ thin adaptation.
 
 The product mapping is also fixed:
 
-- inherit the ChatGPT `26.707.41301` project/conversation rail, single timeline,
+- inherit the ChatGPT `26.707.41301` directory/session rail, single timeline,
   bottom composer, quiet visual grammar and on-demand Environment details;
 - adapt labels, product profile, model/access policy and desktop/WebUI affordances;
-- add project context refs, OPL capabilities, progress, evidence/artifacts and safe
-  action receipts through progressive disclosure;
+- add OPL capability selection, progress, evidence/artifacts and safe action receipts
+  through progressive disclosure while keeping all user-selected inputs scoped to the
+  current session;
 - reject Home dashboards, card walls, ordinary provider/backend controls, permanent
   third columns and raw runtime/protocol surfaces.
 

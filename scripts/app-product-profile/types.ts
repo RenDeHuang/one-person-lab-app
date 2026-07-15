@@ -61,9 +61,14 @@ export type AppProductProfile = {
           executor_selector_visible: boolean;
           active_shortcut_changes_executor: boolean;
           default_visibility_governs_execution: boolean;
+          single_home_root: boolean;
+          single_composer_shell: boolean;
+          single_footer_account_settings_entry: boolean;
         };
         semantic_probe: {
           root_test_id: string;
+          instance_counts: Record<string, number>;
+          instance_count_groups: Record<string, { test_ids: string[]; total: number }>;
           state_attributes: Record<string, string>;
           desktop_required_controls: string[];
           mobile_required_controls: string[];
@@ -172,9 +177,12 @@ export type AppProductProfile = {
           inactive_recent_directories_visible: boolean;
           management_entry: string;
           management_scope: string;
+          selection_effect: string;
           unregister_effect: string;
           filesystem_delete_allowed: boolean;
           active_conversation_change_on_unregister: boolean;
+          session_ownership_effect: string;
+          cascade_session_delete_allowed: boolean;
         };
         home_shortcut_mutation_policy: {
           pending_scope: string;
@@ -244,17 +252,37 @@ export type AppProductProfile = {
         forbidden_actions: string[];
       };
       projectless_conversation_supported: boolean;
-      project_context_inputs: {
+      session_workspace_model: {
+        primary_unit: string;
+        identity_authority: string;
+        workspace_binding_role: string;
+        workspace_owns_session: boolean;
+        workspace_owns_context: boolean;
+        workspace_owns_artifacts: boolean;
+        workspace_group_cascade_session_delete_allowed: boolean;
+        workspace_change_preserves: string[];
+        workspace_change_forbids: string[];
+      };
+      explicit_session_input_policy: {
         scope: string;
-        optional: boolean;
-        item_kind: string;
-        mutations: string[];
-        persistence: string;
-        management_surface: string;
+        surfaces: string[];
+        selection_scope: string;
+        workspace_required: boolean;
+        access_authority: string;
+        shell_extra_path_authorization_allowed: boolean;
+        user_initiated_only: boolean;
+        workspace_preload_allowed: boolean;
+        workspace_scoped_persistence_allowed: boolean;
+        implicit_workspace_context_injection_allowed: boolean;
         composer_consumption: string;
         composer_persistence_after_send: string;
-        fabricated_defaults_allowed: boolean;
-        artifact_body_copy_allowed: boolean;
+        workspace_readiness_boundary: {
+          gates: string[];
+          plain_local_conversation_requires_workspace_root: boolean;
+          send_scoped_local_file_inputs_require_workspace_root: boolean;
+          worktree_requires_git_repository: boolean;
+          codex_and_model_prerequisites_unchanged: boolean;
+        };
       };
       transcript_export: {
         scope: string;
@@ -499,7 +527,8 @@ export type AppProductProfile = {
       source_command: string;
       ready_to_launch_must_be_true: boolean;
       required_before_plain_send: string[];
-      required_before_file_or_project_send: string[];
+      required_before_send_with_local_inputs: string[];
+      required_before_workspace_controls: string[];
       unknown_readiness_policy: string;
       blocked_feedback: string;
       must_wait_for: string[];
@@ -520,11 +549,17 @@ export type AppProductProfile = {
         blocked_feedback: string;
         must_preserve_prompt: boolean;
       };
-      file_and_project_context: {
+      send_scoped_local_inputs: {
+        required_items: string[];
+        workspace_root_required: boolean;
+        supported_inputs: string[];
+      };
+      workspace_controls: {
         required_items: string[];
         restricted_capabilities: string[];
         blocked_feedback: string;
         plain_conversation_remains_available: boolean;
+        send_scoped_local_inputs_remain_available: boolean;
       };
       unknown_readiness_policy: string;
     };

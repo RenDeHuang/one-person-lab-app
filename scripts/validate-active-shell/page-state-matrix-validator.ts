@@ -236,9 +236,14 @@ export function validatePageStateMatrix(matrix, contract, guiProductContract) {
     'First-launch page-state plain conversation prerequisites',
   );
   assertDeepEqualJson(
-    ordinaryRecovery.file_and_project_required_items,
-    progressiveFirstRunRecoveryPolicy.file_and_project_required_items,
-    'First-launch page-state file and project prerequisites',
+    ordinaryRecovery.send_scoped_local_input_required_items,
+    progressiveFirstRunRecoveryPolicy.send_scoped_local_input_required_items,
+    'First-launch page-state send-scoped local input prerequisites',
+  );
+  assertDeepEqualJson(
+    ordinaryRecovery.workspace_control_required_items,
+    progressiveFirstRunRecoveryPolicy.workspace_control_required_items,
+    'First-launch page-state workspace control prerequisites',
   );
   assertIncludesAll(
     ordinaryRecovery.required_shell_testids,

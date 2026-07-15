@@ -1,3 +1,5 @@
+import { existsSync } from 'node:fs';
+import path from 'node:path';
 import {
   assertShellTextIncludesAll,
   assertTextDoesNotMatch,
@@ -17,7 +19,12 @@ const guidHomeExpected = [
   'GuidModelSelector',
   'selectedAgentLabelOverride',
   'onClear={() =>',
-  'fileAccessEnabled={!fileAccessBlocked}',
+  'const workspaceAccessBlocked = coreReadiness.known && !coreReadiness.workspaceRootReady;',
+  'workspaceAccessDisabled={workspaceAccessBlocked}',
+  'const guidInput = useGuidInput({',
+  'onFilesUploaded={guidInput.handleFilesUploaded}',
+  'onPaste={guidInput.onPaste}',
+  'dragHandlers={guidInput.dragHandlers}',
   'useCoreLaunchPrerequisites',
   'GuidSetupNotice',
 ];
@@ -28,22 +35,61 @@ export function assertProjectlessGuidFileAccessSources(guidPage: string): void {
   assertTextIncludesAll(
     guidPage,
     [
-      'fileAccessEnabled: !fileAccessBlocked',
-      'fileAccessDisabled={fileAccessBlocked}',
-      'fileAccessEnabled={!fileAccessBlocked}',
+      'const workspaceAccessBlocked = coreReadiness.known && !coreReadiness.workspaceRootReady;',
+      'workspaceAccessDisabled={workspaceAccessBlocked}',
+      'const guidInput = useGuidInput({',
+      'locationState: navState',
+      'onFilesUploaded={guidInput.handleFilesUploaded}',
+      'onPaste={guidInput.onPaste}',
+      'dragHandlers={guidInput.dragHandlers}',
       "name: 'open'",
     ],
-    'Active shell projectless Guid file access',
+    'Active shell explicit session file access',
   );
-  assertTextExcludesAll(
-    guidPage,
-    [
-      'fileContextEnabled',
-      'fileAccessBlocked || !guidInput.dir',
-      'fileAccessEnabled={!fileAccessBlocked && Boolean(guidInput.dir)}',
-    ],
-    'Active shell projectless Guid workspace gate',
+
+  const assignments = Array.from(
+    guidPage.matchAll(/(?:const|let)\s+([A-Za-z_$][\w$]*)\s*=\s*([^;\n]+)/g),
+    (match) => ({ name: match[1], expression: match[2] }),
   );
+  const workspaceDerivedIdentifiers = new Set<string>();
+  const hasWorkspaceSource = (expression: string): boolean =>
+    /\bworkspaceRootReady\b|\bworkspaceAccessBlocked\b|\bguidInput\.dir\b|\blocationState\??\.workspace\b/.test(
+      expression,
+    ) ||
+    Array.from(workspaceDerivedIdentifiers).some((identifier) =>
+      new RegExp(`\\b${identifier.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).test(expression),
+    );
+
+  let discoveredWorkspaceAlias = true;
+  while (discoveredWorkspaceAlias) {
+    discoveredWorkspaceAlias = false;
+    for (const assignment of assignments) {
+      if (!workspaceDerivedIdentifiers.has(assignment.name) && hasWorkspaceSource(assignment.expression)) {
+        workspaceDerivedIdentifiers.add(assignment.name);
+        discoveredWorkspaceAlias = true;
+      }
+    }
+  }
+
+  const fileGateName = /(?:files?|attachments?|paste|drop).*(?:access|enabled?|disabled?|blocked?|allowed?|available)|(?:access|enabled?|disabled?|blocked?|allowed?|available).*(?:files?|attachments?|paste|drop)/i;
+  const workspaceDerivedFileGate = assignments.find(
+    (assignment) => fileGateName.test(assignment.name) && hasWorkspaceSource(assignment.expression),
+  );
+  if (workspaceDerivedFileGate) {
+    throw new Error(
+      `Active shell explicit session input must not derive ${workspaceDerivedFileGate.name} from workspace readiness or membership`,
+    );
+  }
+
+  const fileAccessExpressions = Array.from(
+    guidPage.matchAll(/\b(?:fileAccessEnabled|fileAccessDisabled|fileContextEnabled)\s*(?::|=)\s*(?:\{([^}\n]*)\}|([^,\n]+))/g),
+    (match) => (match[1] ?? match[2] ?? '').trim(),
+  );
+  if (fileAccessExpressions.some((expression) => hasWorkspaceSource(expression))) {
+    throw new Error(
+      'Active shell explicit session input file-access props must not depend on workspace readiness or membership',
+    );
+  }
 }
 
 export function assertCurrentGuidHomeSelectionSources({
@@ -440,6 +486,152 @@ function validateCodexConversationImplementation(shellPaths) {
   validateCodexConversationSurfaces(shellPaths);
 }
 
+function validateSessionFirstDirectoryImplementation(shellPaths) {
+  for (const retiredPath of [
+    'packages/desktop/src/renderer/components/layout/Sider/ProjectContextSection.tsx',
+    'packages/desktop/src/renderer/utils/workspace/projectContext.ts',
+  ]) {
+    if (existsSync(path.join(shellPaths.shellRoot, retiredPath))) {
+      throw new Error(`Active shell session-first directory must remove retired workspace context surface ${retiredPath}`);
+    }
+  }
+
+  for (const sourcePath of [
+    'packages/desktop/src/common/config/configKeys.ts',
+    'packages/desktop/src/renderer/pages/conversation/GroupedHistory/index.tsx',
+    'packages/desktop/src/renderer/pages/guid/GuidPage.tsx',
+    'packages/desktop/src/renderer/pages/guid/components/GuidInputCard.tsx',
+    'packages/desktop/src/renderer/pages/guid/components/GuidWorkspaceFootnote.tsx',
+    'packages/desktop/src/renderer/pages/guid/hooks/useGuidSend.ts',
+  ]) {
+    assertTextExcludesAll(
+      readShellText(shellPaths, sourcePath),
+      ['ProjectContext', 'projectContext', 'project_context_refs', 'workspace.projectContextInputs'],
+      `Active shell session-first input surface in ${sourcePath}`,
+    );
+  }
+
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/guid/hooks/useGuidSend.ts',
+    ['const initialFiles = Array.from(new Set(files))', 'default_files: initialFiles', 'files: initialFiles.length > 0'],
+    'Active shell explicit current-session input projection',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'tests/unit/guid/useGuidSend.oplWhitelist.dom.test.tsx',
+    ['sends only explicit session attachments and deduplicates them in insertion order'],
+    'Active shell explicit current-session input regression',
+  );
+
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/conversation/GroupedHistory/hooks/useConversationListSync.ts',
+    [
+      'export const mergeCanonicalThreadDirectory',
+      "overview.availability.status !== 'available'",
+      'const returnedThreadIds = new Set(overview.threads.map((thread) => thread.id))',
+      'const threadId = canonicalCodexThreadId(conversation)',
+      "return conversation.type !== 'acp' || conversation.extra.backend !== 'codex'",
+      '...overview.threads.map((thread) => projectCanonicalThread(thread, cachedByThreadId.get(thread.id)))',
+    ],
+    'Active shell canonical App Server session directory projection',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'tests/unit/conversation/runtime/conversationListSyncGuard.test.ts',
+    [
+      'drops unmatched stale Codex cache rows when the complete App Server overview is available',
+      'retains unmatched non-Codex local rows without title or workspace deduplication',
+      'deduplicates local canonical rows only when the App Server returns',
+      'falls back to shell cache when the canonical directory is unavailable',
+    ],
+    'Active shell canonical session directory regressions',
+  );
+
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/guid/components/GuidInputCard.tsx',
+    ["data-testid='guid-input-card-shell'"],
+    'Active shell single Home composer marker',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/components/layout/Sider/SiderFooter.tsx',
+    ["data-testid={account ? 'sider-footer-account' : 'sider-footer-settings'}"],
+    'Active shell single account or Settings footer marker',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/guid/index.module.css',
+    ['.guidContainer {', 'background: var(--bg-base);'],
+    'Active shell Home repaint background',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'tests/e2e/features/visual-evidence/gui-baseline.e2e.ts',
+    [
+      'const GUI_BASELINE_FIXTURE_MARKER',
+      'async function removeFixtureConversations',
+      'await expect(homeEntry).toHaveCount(1)',
+      "page.locator('[data-testid=\"guid-input-card-shell\"]')",
+      "page.locator('[data-testid=\"sider-footer-account\"], [data-testid=\"sider-footer-settings\"]')",
+      'await waitForStablePaint(page)',
+    ],
+    'Active shell single-instance Home visual regression',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/process/utils/utils.ts',
+    ['AIONUI_E2E_TEST', 'AIONUI_E2E_STORAGE_ROOT', 'path.isAbsolute(root)', "path.join(e2eStorageRoot, 'data')"],
+    'Active shell E2E storage isolation',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'tests/unit/opl-runtime/oplStoragePaths.test.ts',
+    [
+      'keeps E2E data and config inside the explicit test storage root',
+      'fails closed when E2E mode has no isolated storage root',
+      'fails closed when the E2E storage root is relative',
+      'ignores the E2E storage root outside E2E mode',
+    ],
+    'Active shell E2E storage isolation regressions',
+  );
+}
+
+function validateSessionWorkingDirectoryImplementation(shellPaths) {
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/conversation/components/ChatLayout/WorkspaceHandoffControl.tsx',
+    [
+      "properties: ['openDirectory', 'createDirectory']",
+      "reason: 'Change session working directory from Environment'",
+      "action: 'handoff'",
+      'targetThreadId: threadId',
+      'const operationStartWorkspace = canonicalWorkspace ?? workspace',
+      'nextWorkspace === operationStartWorkspace',
+      'const nextHandoff = handoffForWorkspace(nextWorkspace)',
+      'persistWorkspaceProjection(nextWorkspace, nextHandoff)',
+      'const rollbackSucceeded = await rollbackThreadWorkspace(operationStartWorkspace)',
+      "emitter.emit('chat.history.refresh')",
+      "t('conversation.environment.workingDirectoryChangeSuccess')",
+    ],
+    'Active shell canonical session working-directory switch',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'tests/unit/conversation/context/ConversationEnvironmentPopover.dom.test.tsx',
+    [
+      'moves the same idle session from a managed Worktree to another directory and clears stale handoff metadata',
+      'binds a projectless canonical session to a selected working directory without replacing the session',
+      'rolls back to the operation-start canonical cwd when the local projection was already stale',
+      'updates canonical cwd when the selected directory only matches a stale local projection',
+      'keeps working-directory selection unavailable while the canonical session is running',
+    ],
+    'Active shell canonical session working-directory focused regressions',
+  );
+}
+
 export function validateRuntimePageImplementation(shellPaths) {
   assertShellTextIncludesAll(
     shellPaths,
@@ -649,6 +841,8 @@ export function validateShellOrdinaryExperienceImplementation(shellPaths) {
   validateProductProfileDefaults(shellPaths);
   validateGuidAssistantsAndSkills(shellPaths, guidPage);
   validateCodexConversationImplementation(shellPaths);
+  validateSessionFirstDirectoryImplementation(shellPaths);
+  validateSessionWorkingDirectoryImplementation(shellPaths);
   validateRuntimePageImplementation(shellPaths);
   validateSkillsHubImplementation(shellPaths);
 }

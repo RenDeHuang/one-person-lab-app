@@ -22,21 +22,21 @@ carrier 状态和 release evidence 仍归 contracts、source/tests、validators 
 | 元素 | 稳定位置 | 位置理由 | 漂移信号 |
 | --- | --- | --- | --- |
 | Product identity | 普通导航 chrome 使用 text-only `One Person Lab`；完整 App identity 保留在 window metadata、About 与 release assets | 用户必须知道正在使用 One Person Lab，同时避免 logo 在深浅主题间产生不协调。 | 普通导航 chrome 出现 App logo、`App` 后缀或 carrier identity。 |
-| Current context | Project 在 rail，branch/locality 在 Environment，active capability/attachment 在 composer 附近 | Context 必须可理解，但不应在多个 surface 重复。 | 只在 Settings/raw path 中可见、无 workspace 时静默禁用，或 composer 重复 rail/Environment 全量状态。 |
-| Project/conversation rail | 宽桌面左侧 `280-340px` 可调；窄窗口 drawer | Navigation 是连续工作所需，不应占用 conversation 主区。 | 宽桌面缺失、被移到 Home grid，或关闭 drawer 后丢 selection。 |
-| Rail global skeleton | 顶部 New task/Runtime/Archived，主体 project hierarchy，底部 account/help/Settings | 稳定全局入口与 project history 分层；capability 选择归 Home starter，管理归 Settings。 | 无真实能力的入口照搬、Capabilities 重回 rail，或 Settings 混入 conversation rows。 |
-| Project context refs | Selected project 下、recent conversations 之前 | Context 属于 project，可选且影响该项目后续 task；不能伪装成 attachment 或全局设置。 | Context 堆进 composer、跨 project 泄漏、强制添加或用虚构默认项填充。 |
-| Project attachments | Selected project 的 context 邻近入口与 composer attach | 长期 project 材料和单次发送附件认知相邻但生命周期不同。 | 两者混成一个列表，或附件只能从 Settings 添加。 |
+| Current context | Working directory 在 rail，branch/locality 在 Environment，active capability/attachment 在 composer 附近 | 当前执行环境必须可理解，但目录不拥有 context。 | 只在 Settings/raw path 中可见、无 workspace 时静默禁用，或 composer 重复 rail/Environment 全量状态。 |
+| Directory/conversation rail | 宽桌面左侧 `280-340px` 可调；窄窗口 drawer | Navigation 是连续工作所需，不应占用 conversation 主区。 | 宽桌面缺失、被移到 Home grid，或关闭 drawer 后丢 selection。 |
+| Rail global skeleton | 顶部 New task/Runtime/Archived，主体按 canonical session cwd 分组，底部 account/help/Settings | 稳定全局入口与 session history 分层；capability 选择归 Home starter，管理归 Settings。 | 无真实能力的入口照搬、Capabilities 重回 rail，或 Settings 混入 conversation rows。 |
+| Directory group semantics | Conversations rows 与“使用此工作目录新建对话” | 目录组只是当前 cwd projection 和新 session 快捷入口。 | “添加上下文”、组级删除、级联删除 session，或按标题/workspace 去重。 |
+| Session attachments | 当前 composer | 文件/目录只由用户为当前 session/send 显式加入。 | 从 workspace 预载、隐式注入，或附件只能从 Settings/rail 添加。 |
 | Conversation management | Rail rows、search 与独立 Archived surface | Search/pin/rename/archive/reset 属于持续工作管理。 | Archive 无独立 surface，或 reset 与 delete 语义混淆。 |
 | Conversation timeline | Main canvas | 用户需要按时间理解任务、输出和决策。 | 与 Runtime/Files 并列成多个主面，或被 dashboard 替代。 |
-| Home question/starters | Main 空 conversation；动态问题标题 + 全部用户可见 configured starters，稳定排序并响应式换行 | 帮助开始任务，但不建立 landing/dashboard；用户显式启用的入口不能被静默截断。 | 静态营销 hero、starter card grid、隐藏用户已启用入口或无序重排。 |
+| Home question/starters | Main 空 conversation；动态问题标题 + 全部用户可见 configured starters，稳定排序并响应式换行 | 帮助开始任务，但不建立 landing/dashboard；Home root、composer shell 与 footer account/Settings entry 各只有一个实例。 | 静态营销 hero、starter card grid、隐藏用户已启用入口、无序重排或 resize 后重复画面。 |
 | Composer | Main canvas bottom，浮动或保留安全距 | 输入是普通路径主动作，应始终接近当前 conversation。 | 变成营销卡、单行 input、settings bar、多层 card 或贴边遮挡。 |
-| Project Context inputs | 展开的 project 内、conversation rows 之前 | 项目级文件/目录 refs 需要可见、可增删并在新 conversation 中显式预载。 | 虚构默认项、hidden prompt injection、与当前 conversation attachments 混成一类。 |
+| Preview inputs | 独立 Preview 或 conversation disclosure | 只打开当前 session 显式 attachment、可见 conversation result 或用户选择的合法绝对路径。 | Workspace-scoped project ref、hidden prompt injection、静默读取或复制 artifact body。 |
 | Active capability chip | Composer action row 邻近的低权重位置 | 显示已选 OPL 能力；选择动作归 Home starter，安装/显示/lifecycle 归 Settings。 | 常驻可变 purpose selector、backend selector 或 agent dashboard。 |
 | Package starter readiness | Home starter 就地 disabled/loading 状态与邻近原因/允许动作 | 用户在选择工作目的时就知道能否 launch；use-boundary activation 必须先于 conversation/send。 | 不可用入口静默消失、无限 loading、无原因 disabled，或 activation 失败后仍发送。 |
 | Model/reasoning control | Composer 中的 App-owned model control | 用户可见但不应抢占输入；策略由 product profile 统一。 | Shell 复制 allowlist、Home/Conversation 不一致、provider 进入普通层。 |
 | Permission/access mode | Home/conversation bottom action row | 用用户语言解释自动化与文件权限，保留安全透明度。 | 隐藏关键权限，或显示 provider/backend 术语。 |
-| Attach/context controls | Composer action row | 附件和 refs 直接影响下一次发送。 | 藏在 Settings，或 overlay 覆盖输入/不可点击。 |
+| Attach controls | Composer action row | Attachment、paste/drop 与 `/open` 只影响当前发送。 | 藏在 Settings、被 workspace readiness 禁用，或 overlay 覆盖输入/不可点击。 |
 | Send/stop | Composer 主动作 | 与当前 draft/running state 同一决策点。 | 位置随状态跳动、running 时无 stop、disabled 无原因。 |
 | Pending/elapsed state | 当前 assistant turn 或 composer status | 用户需要持续知道请求仍在推进。 | 只在 console/raw event 中可见，或 tool event 后状态消失。 |
 | Current-task summary bar | Timeline 顶部/当前 turn 邻近，可 pin | 长任务与 OPL projection 共用 status/elapsed/progress/next action/stop。 | 与 current turn 分叉成第二状态源，或缺 stop/next action。 |
@@ -60,15 +60,16 @@ carrier 状态和 release evidence 仍归 contracts、source/tests、validators 
 Home 的用户问题是“我现在要做什么”。因此主区只保留动态问题标题、全部用户可见且
 稳定排序的轻量 starter、
 conversation、composer、active capability、model/access 和 current-turn feedback。
-Projectless text chat 不依赖 workspace；文件和 project capability 必须说明限制。
+普通本地对话和显式文件输入不依赖 workspace readiness；project/Worktree/OPL workspace controls
+可按自己的 readiness 说明限制，Worktree 仍要求 Git repo。
 跨项目 Runtime 保持独立的极简 Work Item 状态页；continue-work 留在 conversation，artifact
 provenance 留在 Inspector，package maintenance 和 raw diagnostics 留在对应 Settings，完整
 evidence ledger 留在 release tooling。它们都不得挤入 Home 主区或相互混装。
 
 ### Rail
 
-Rail 的用户问题是“我在哪个项目/对话，下一步切到哪里”。顶部/底部全局骨架与中段
-project history 分层；宽桌面 persistent 可以减少恢复成本，窄窗口 drawer 化保护 main。
+Rail 的用户问题是“我在哪个工作目录/对话，下一步切到哪里”。顶部/底部全局骨架与中段
+session history 分层；宽桌面 persistent 可以减少恢复成本，窄窗口 drawer 化保护 main。
 Rail 不应承担运行总览、provider 配置或无对应 OPL 能力的 Sites/Chat 入口。
 
 ### Environment 与 Advanced Surfaces
@@ -88,7 +89,7 @@ Runtime 回答“工作现在处于什么状态、下一步是谁”；Settings 
 
 ### 结构漂移
 
-- 宽桌面是否仍有 persistent project/conversation rail？
+- 宽桌面是否仍有 persistent directory/conversation rail？
 - Rail 是否保持 `280-340px`、全局骨架和独立 Archived surface？
 - Rail 是否只保留 New task/Runtime/Archived，而没有恢复 Capabilities、Team 或其它未采纳入口？
 - Main 是否仍是一条 timeline，而不是 dashboard 或三列 workbench？
@@ -105,6 +106,8 @@ Runtime 回答“工作现在处于什么状态、下一步是谁”；Settings 
 - Runtime/domain/artifact/memory/receipt/release truth 是否仍由原 owner 持有？
 - Settings route/label/redirect 是否来自 Control Plane，而非 upstream discovery？
 - UI 是否把 docs、cache、module dirt 或 active id 包装成 ready/running/current？
+- App Server overview 可用时是否排除未返回的 stale Codex ACP cache rows，同时保留非 Codex local rows；
+  overview unavailable 时才 fallback cache？
 
 ### 交互漂移
 

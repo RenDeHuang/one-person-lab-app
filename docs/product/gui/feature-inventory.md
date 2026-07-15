@@ -29,7 +29,7 @@ tests 与 evidence。
 | Priority | Product layer | 包含 | 完成定义 |
 | --- | --- | --- | --- |
 | `P0 Codex Core` | 日常主工作流 | App frame、project/conversation rail、New task、conversation timeline、composer、streaming、history、model/reasoning、access/permission。 | 用户不离开 chat canvas 即可开始、继续和完成普通任务。 |
-| `P1 OPL Professional` | OPL 专业增量 | Project context refs、capability selection、跨顶层线程协调、task progress、approval、evidence/artifact preview、safe action 与 receipt。 | 增量嵌入 P0 稳定位置，不引入 dashboard、第二套导航或第二套 thread store。 |
+| `P1 OPL Professional` | OPL 专业增量 | Capability selection、跨顶层线程协调、task progress、approval、evidence/artifact preview、safe action 与 receipt。 | 增量嵌入 P0 稳定位置；输入由用户在当前 session 显式加入，不引入 workspace preload、dashboard、第二套导航或第二套 thread store。 |
 | `P2 Administration` | 配置和运维 | Settings、Runtime 跨项目总览、first-run、安装、更新、诊断。 | 可发现、可恢复，但不反向决定 P0/P1 的布局和视觉。 |
 
 任何工作若只改善 `P2`，不能据此声称 GUI 主体验已对齐 Codex。设计评审和视觉证据
@@ -43,10 +43,10 @@ Sites/Chat 等入口可以隐藏或拒绝；它们不构成 OPL 功能回归。
 
 | 功能 | 用户结果 | Authority / machine owner |
 | --- | --- | --- |
-| Workspace-aware App frame | 用户始终知道当前 project/local/branch context；project/workspace 只提供新任务默认 cwd、分组和上下文提示，不构成授权域。 | GUI contract、product profile、Codex permission/approval/sandbox。 |
-| Project/conversation navigation | 宽桌面 rail 默认展开，窄窗口变 drawer；canonical rows 来自 App Server。Rename/archive/restore/delete 分别映射 `thread/name/set`、`thread/archive`、`thread/unarchive`、`thread/delete`；pin 是 Shell metadata，local reset 不重写 App Server history。 | GUI contract、page-state matrix、runtime bridge。 |
-| Chat-first main canvas | 打开 App 后可以直接开始或继续工作，不先经过 dashboard/landing。 | GUI contract、page-state matrix。 |
-| Projectless conversation | 不建立 project 也能使用 attachment、任意本地文件/目录选择、paste/drop 与 `/open`；真实访问只受 Codex permission/approval/sandbox 约束。 | GUI contract、conversation state/bridge。 |
+| Session-first workspace-aware App frame | Session/thread 是主单位；project/workspace/directory 只提供新 session 初始 cwd、可变 cwd 和 rail 分组，不拥有 session、context 或 artifact，也不构成授权域。 | GUI contract、product profile、Codex permission/approval/sandbox。 |
+| Directory/conversation navigation | 宽桌面 rail 默认展开，窄窗口变 drawer；App Server overview 可用时是 Codex session directory authority，未返回的 stale Codex ACP cache rows 不进入 ordinary rail，overview unavailable 才 fallback cache，非 Codex local rows 保留。每个 canonical thread ID 最多一行，不按标题/workspace 去重；目录组不提供组级删除或 session 级联删除。 | GUI contract、page-state matrix、runtime bridge。 |
+| Chat-first main canvas | 打开 App 后可以直接开始或继续工作，不先经过 dashboard/landing；Home root、composer shell、footer account/Settings entry 各只有一个实例。 | GUI contract、page-state matrix。 |
+| Workspace-optional conversation | 不建立 workspace 也能使用 attachment、任意本地文件/目录选择、paste/drop 与 `/open`；workspace readiness 不 gate 这些输入，真实访问只受 Codex permission/approval/sandbox 约束。 | GUI contract、conversation state/bridge。 |
 | Secondary context surfaces | 右上 Environment floating details 汇总当前 workspace/git/subagents/sources；artifact/evidence preview 与 advanced tools 按需展开。 | GUI contract、runtime bridge、domain/runtime refs。 |
 | Product identity | 所有可见产品面使用 One Person Lab App 品牌，而不是 carrier/upstream 品牌。 | GUI contract、release assets、shell branding validation。 |
 | Global issue feedback | 标题栏右侧可随时打开预填页面与版本信息的 OPL App GitHub Issue；用户在外部浏览器确认并提交。 | GUI contract、product profile、active shell adapter。 |
@@ -55,20 +55,20 @@ Sites/Chat 等入口可以隐藏或拒绝；它们不构成 OPL 功能回归。
 
 | 功能 | 用户结果 | Authority / machine owner |
 | --- | --- | --- |
-| New conversation | 在 project 中开始 task，或直接开始 projectless Codex conversation。 | GUI contract、conversation page state、Codex bridge。 |
-| Resume conversation | 找回 recent conversation，并保留关联 workspace。 | Conversation state/bridge；shell 只持有实现所需 session refs。 |
+| New conversation | 在所选目录初始化 cwd，或不选 workspace 直接开始 Codex session；目录只提供初始 cwd 与分组，不拥有 session。 | GUI contract、conversation page state、Codex bridge。 |
+| Resume conversation | 按 canonical thread ID 找回 recent conversation，保留 transcript/turn history/title/task state；cwd 与 rail 分组可在同一 session 上更新。 | Conversation state/bridge；shell 只持有实现所需 session refs。 |
 | Conversation management | Search、pin、rename、archive、reset conversation，并在独立 Archived surface 管理归档。 | GUI contract、conversation state/bridge。 |
 | Cross-thread discovery | Keyboard-reachable thread-detail context action 按需读取独立顶层线程的 status、summary、workspace、host、owner、goal、parent/ancestor 与 advisory write set；Rail 只保留 canonical thread directory，不增加独立协调区块或 dashboard。 | Codex App Server thread read model；OPL host 只聚合轻量 metadata。 |
 | Model-triggered coordination | 模型可以通过 host tool list/read/resume/fork/archive/unarchive/start/steer 顶层线程；必须由 ordinary thread owner 在同一 App Server client 注册 dynamic tools并闭合 `item/tool/call` round-trip，thread-detail context action 或 user dispatch 不能代替。 | 产品目标为 required；AionCore/codex-acp 应承接同 client adapter或 dynamic-tool callback，Shell 不得另开第二 App Server runtime。当前实现状态只在 conformance matrix声明。 |
 | Cross-thread coordination | 用户或已获得 host tool 的模型按需读取摘要/历史，恢复、分叉、归档或 unarchive 目标线程；idle 使用 `turn/start`，running 使用 `turn/steer`。同 key 重试返回第一次 receipt/result、`ok=true` 且不二次 dispatch。Cross-host task handoff 是 required parity target，但当前因 `remote_host_handoff_owner_surface_unavailable` 明确 unavailable，不伪造成功。 | Codex Core/App Server 拥有 thread/turn 和 permission/approval/sandbox；OPL host 只拥有 opaque-key 幂等、advisory 与 delivery audit。Remote Connections / host-handoff 是跨Host协议 owner，Shell仅为 blocked thin adapter。独立非紧急 queue 尚未实现。 |
-| Local / Worktree lifecycle | Home 新任务可选 Local/Worktree 与 starting branch，并通过既有 `gitWorkspace` adapter 创建或复用 managed worktree。既有同主机 `not_loaded`/`idle` task 可在 Conversation Environment 通过 `thread/settings/update` 双向切换；`running`/`archived`/`system_error` 显示 unavailable，不 silent fallback。Worktree 默认保留复用；用户可显式创建覆盖 HEAD/branch或detached HEAD、index、tracked、untracked 与 ignored user files 的 durable Git snapshot 后移除确定的 managed worktree，并按 receipt 恢复。Cross-host handoff 仍需真实 host transport。 | Codex Core/App Server 与既有 Git integration；`opl_workspace_handoff.v1` 只保存 locality projection，`opl_worktree_snapshot_receipt.v1` 指向 Git ref/object。Shell 仅薄 adapter，不建立第二 Git/thread store。 |
+| Session working directory / Local / Worktree lifecycle | Home 新任务可选任意 Local 目录或 managed Worktree 与 starting branch。既有同主机 `not_loaded`/`idle` canonical session 可在 Conversation Environment 通过系统目录选择器与 `thread/settings/update` 原位切换到任意本地目录，保留同一 thread/history，并在成功更新 projection 后刷新 rail 分组；projection 失败时恢复旧 canonical cwd。Local↔Worktree 仍是该能力的专门 lifecycle；`running`/`archived`/`system_error` 显示 unavailable，不 silent fallback。Worktree 默认保留复用；用户可显式创建覆盖 HEAD/branch或detached HEAD、index、tracked、untracked 与 ignored user files 的 durable Git snapshot 后移除确定的 managed worktree，并按 receipt 恢复。Cross-host handoff 仍需真实 host transport。 | Codex Core/App Server 与既有 Git integration；canonical thread ID 是身份 authority，workspace 只是可变 cwd/projection/grouping metadata；`opl_workspace_handoff.v1` 只保存 locality projection，`opl_worktree_snapshot_receipt.v1` 指向 Git ref/object。Shell 仅薄 adapter，不建立第二 Git/thread store。 |
 | Text instruction | 向固定 Codex executor 发送多行任务说明。 | Product profile、ordinary conversation contract。 |
 | Streaming assistant output | 持续看到 assistant response，不需要查看 raw protocol。 | Codex/App bridge 与 conversation page state。 |
 | Pending/running feedback | 看到当前 turn 正在处理、elapsed time、stop 和失败状态。 | Page-state matrix、bridge events。 |
 | Tool/process event summary | 在当前 turn 中理解 command、tool、diff、file、permission 和 receipt 发生了什么。 | Codex/App bridge；raw details 保持 diagnostics。 |
 | File/folder attachment | 无论是否选择 project，发送前都可加入任意用户显式选择的本地文件/目录，并可预览或移除。 | File platform adapter 与 Codex permission/approval/sandbox。 |
-| Project Context inputs | 在 rail 的 project 下添加或移除 workspace 文件/目录 refs；新建该 project conversation 时以可见、可移除 context 预载，不生成默认样例或复制正文。 | App GUI contract；Shell client configuration keyed by canonical workspace path。 |
-| Current execution context | Project 在 rail、branch/locality 在 Environment、active capability、project context refs 与 attachment 在 composer 附近；缺 workspace 不禁用显式本地输入。 | GUI contract、workspace/App state refs。 |
+| Explicit session inputs | 仅通过当前 composer 的 attachment、file/directory picker、paste/drop 或 `/open` 显式加入当前 send；不从 workspace 预载、不按目录持久化、不隐式注入。 | App GUI contract、Codex permission/approval/sandbox。 |
+| Current execution context | Working directory 在 rail、branch/locality 在 Environment、active capability 与 attachment 在 composer 附近；缺 workspace 或 workspace readiness 未完成都不禁用普通本地对话与显式文件输入。 | GUI contract、workspace/App state refs。 |
 | Model/reasoning control | Home 与普通 conversation 共用一个紧凑 App-owned model/reasoning menu。 | `contracts/app-product-profile.json`；文档不复制 allowlist。 |
 | Permission/access mode | 在 Home 与 conversation composer 以自动化和文件权限的用户语言显示，保留安全透明度但不暴露 provider/backend。 | GUI contract、workspace/access policy。 |
 | Purpose selection | 从 Home starter 选择科研、基金、演示、写书等工作目的；composer 只保留 active capability chip。安装、Home 显示和 lifecycle 管理进入 Settings → Agents & Capabilities。 | Product profile、GUI contract、route receipt policy。 |
@@ -106,7 +106,7 @@ short name 和 technical refs 进入 details/receipt。
 | Task/project drilldown | 按需查看 evidence、blocker、owner、resource 和 next-action refs。 | Runtime bridge / domain-owned refs。 |
 | Safe action | 对允许的运行或维护动作先 preview，再 confirm/execute。 | `opl app action execute ... --json`。 |
 | Files and artifact refs | 从 conversation、Environment details 或 preview 打开输入、输出和交付引用。 | Workspace/domain artifact refs；App 不拥有 artifact body。 |
-| Artifact preview adapter | 用户显式打开时，合法任意绝对本地路径进入现有 Preview；project-context refs 仍 workspace-scoped。Traversal、非法 scheme、自动静默读取及 unsafe/unsupported ref fail closed。 | App GUI contract定义 ref policy；外部 owner 继续拥有 artifact body。 |
+| Artifact preview adapter | 用户显式打开时，当前 session attachment、可见 conversation result 或合法任意绝对本地路径进入现有 Preview。Traversal、非法 scheme、隐式 workspace ref、自动静默读取及 unsafe/unsupported ref fail closed。 | App GUI contract定义 ref policy；外部 owner 继续拥有 artifact body。 |
 | Review pane | 复用 Files/Changes diff surface；target 支持 uncommitted/base branch/commit/custom，交付支持 inline/detached，默认 Unstaged 并有 Staged/Commit/Branch/Last turn；Last turn 读取最近用户回合之后已完成的 workspace edits。非 custom `Review Focus` 通过同一 review thread 的 `turn/steer(expectedTurnId)` 投递，custom instructions 不重复；失败不得显示成功。PR context 依赖 `gh`，缺失时明确 unavailable。行级评论只有在 Codex App Server 提供 typed file/line request与失败语义后才可提交。 | 既有 message store、Codex `review/start` / `turn/steer` 与 Git integration；Shell 不复制 Git store，也不建立本地 annotation store。 |
 | Provenance and receipts | 查看来源、owner handoff、action result 和 lineage refs。 | Domain/runtime/release owner refs。 |
 

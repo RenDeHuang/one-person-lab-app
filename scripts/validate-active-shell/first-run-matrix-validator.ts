@@ -95,7 +95,8 @@ function validateHomeComposerProbe(scenario, label) {
     JSON.stringify(probe.viewports) !== JSON.stringify(expectedHomeComposerStateContract.viewports) ||
     JSON.stringify(probe.availability_states) !==
       JSON.stringify(expectedHomeComposerStateContract.availability_states) ||
-    JSON.stringify(probe.required_summary_fields) !== JSON.stringify(['missing_controls', 'composer_state']) ||
+    JSON.stringify(probe.required_summary_fields) !==
+      JSON.stringify(['missing_controls', 'composer_state', 'instance_counts']) ||
     probe.fail_fast_seconds !== 60
   ) {
     throw new Error(`${label} must consume the App-owned Home composer state contract and fail within 60 seconds`);
@@ -243,9 +244,9 @@ export function validateFirstRunMatrix(matrix, contract) {
   for (const expected of [
     'incomplete Core readiness never blocks authenticated navigation to /guid',
     'ordinary sidebar keeps a non-modal localized entry back to /first-run until Core prerequisites are complete',
-    'plain conversation send requires Codex CLI and model access but does not require workspace_root',
+    'plain conversation and send-scoped local file or directory inputs require Codex CLI and model access but do not require workspace_root',
     'blocked send keeps the draft prompt and shows an inline localized recovery action',
-    'missing workspace_root disables file dialog, file paste, file drag, and project workspace selection only',
+    'missing workspace_root disables project selection, Worktree creation, and OPL workspace controls only',
     'unknown readiness does not synthesize failure or mutate ready_to_launch',
   ]) {
     if (!progressiveRecovery.expects?.includes(expected)) {
