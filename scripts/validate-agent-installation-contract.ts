@@ -279,7 +279,7 @@ const expectedFirstPartyDistributionPayloadFields = [
   "install_truth",
 ];
 const expectedPackageSourceKinds = [
-  "first_party_ghcr_oci_artifact",
+  "first_party_managed_cohort",
   "bundled_full_runtime_modules",
   "local_manifest_file",
   "manifest_url",
@@ -903,15 +903,26 @@ function validateRepoPluginSkillSource(skillDir: string, pluginName: string, lab
 type ParsedArgs = {
   agentRoots: AgentRootMap;
   codexSkillsRoot: string | null;
+  policyPath: string;
   registryPath: string;
 };
 
 function parseArgs(argv: string[]): ParsedArgs {
   const roots = new Map<string, string>();
   let codexSkillsRoot: string | null = null;
+  let selectedPolicyPath = policyPath;
   let selectedRegistryPath = registryPath;
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
+    if (token === "--policy-path") {
+      const policyOverride = argv[index + 1]?.trim();
+      if (!policyOverride) {
+        fail("--policy-path requires <path>");
+      }
+      index += 1;
+      selectedPolicyPath = path.resolve(policyOverride);
+      continue;
+    }
     if (token === "--registry-path") {
       const registryOverride = argv[index + 1]?.trim();
       if (!registryOverride) {
@@ -945,7 +956,12 @@ function parseArgs(argv: string[]): ParsedArgs {
     }
     roots.set(agentId, path.resolve(root));
   }
-  return { agentRoots: roots, codexSkillsRoot, registryPath: selectedRegistryPath };
+  return {
+    agentRoots: roots,
+    codexSkillsRoot,
+    policyPath: selectedPolicyPath,
+    registryPath: selectedRegistryPath,
+  };
 }
 
 function findExposureClass(policy: any, id: string): any {
@@ -2459,7 +2475,7 @@ function validateThirdPartyManualSourcePolicy(contract: any): void {
   const sourcePolicy = contract.third_party_manual_source_policy;
   assertArrayEqual(
     sourcePolicy?.ordinary_user_default_source_kinds,
-    ["first_party_ghcr_oci_artifact", "bundled_full_runtime_modules"],
+    ["first_party_managed_cohort", "bundled_full_runtime_modules"],
     "manual source ordinary defaults",
   );
   assertArrayEqual(
@@ -2924,12 +2940,17 @@ function validateAgentInstallEntries(policy: any, contract: any, agentRoots: Age
   }
 }
 
-const { agentRoots, codexSkillsRoot, registryPath: selectedRegistryPath } = parseArgs(
+const {
+  agentRoots,
+  codexSkillsRoot,
+  policyPath: selectedPolicyPath,
+  registryPath: selectedRegistryPath,
+} = parseArgs(
   process.argv.slice(2),
 );
 validateActiveShellInstallConsumers();
 validateContract(
-  readJson(policyPath),
+  readJson(selectedPolicyPath),
   readJson(profilePath),
   readJson(selectedRegistryPath),
   readJson(agentPackageSurfaceSchemaPath),

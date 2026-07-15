@@ -256,6 +256,50 @@ test('agent installation contract validator accepts repository contracts', () =>
   assert.match(result.stdout, /App agent installation contract is consistent/);
 });
 
+test('agent installation validator rejects the retired first-party GHCR lifecycle source kind', () => {
+  const policy = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-install-exposure-policy.json'), 'utf8'),
+  );
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-agent-source-kind-invalid-'));
+  const invalidPolicyPath = path.join(tempRoot, 'app-install-exposure-policy.json');
+  const invalidCases = [
+    {
+      name: 'ordinary default source kind',
+      mutate: (candidate: any) => {
+        candidate.agent_installation_contract.third_party_manual_source_policy
+          .ordinary_user_default_source_kinds[0] = 'first_party_ghcr_oci_artifact';
+      },
+      expected: /manual source ordinary defaults expected/,
+    },
+    {
+      name: 'package lock receipt source kind',
+      mutate: (candidate: any) => {
+        candidate.agent_installation_contract.package_lock_receipt_contract
+          .source_kind_allowed_values[0] = 'first_party_ghcr_oci_artifact';
+      },
+      expected: /package lock source kinds expected/,
+    },
+  ];
+
+  assert.equal(JSON.stringify(policy).includes('first_party_ghcr_oci_artifact'), false);
+  try {
+    for (const invalidCase of invalidCases) {
+      const invalidPolicy = structuredClone(policy);
+      invalidCase.mutate(invalidPolicy);
+      writeFile(invalidPolicyPath, `${JSON.stringify(invalidPolicy, null, 2)}\n`);
+      const result = runNode([
+        'scripts/validate-agent-installation-contract.ts',
+        '--policy-path',
+        invalidPolicyPath,
+      ]);
+      assert.notEqual(result.status, 0, invalidCase.name);
+      assert.match(result.stderr, invalidCase.expected, invalidCase.name);
+    }
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
 test('App package consumers separate the Framework first-party Release Set from external discovery', () => {
   const readContract = (name: string) => JSON.parse(
     fs.readFileSync(path.join(appRoot, 'contracts', name), 'utf8'),

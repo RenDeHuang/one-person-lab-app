@@ -1433,7 +1433,7 @@
     },
     "third_party_manual_source_policy": {
       "ordinary_user_default_source_kinds": [
-        "first_party_ghcr_oci_artifact",
+        "first_party_managed_cohort",
         "bundled_full_runtime_modules"
       ],
       "manual_third_party_allowed_source_kinds": [
@@ -1489,7 +1489,7 @@
         "physical_surface"
       ],
       "source_kind_allowed_values": [
-        "first_party_ghcr_oci_artifact",
+        "first_party_managed_cohort",
         "bundled_full_runtime_modules",
         "local_manifest_file",
         "manifest_url",
