@@ -74,6 +74,7 @@ jobs:
       framework_sha: ${{ steps.cohort.outputs.framework_sha }}
       session_hex: ${{ steps.cohort.outputs.session_hex }}
       full_vm_evidence_ref: ${{ steps.full-vm.outputs.evidence_ref }}
+      full_vm_evidence_base64: ${{ steps.full-vm.outputs.evidence_base64 }}
       full_vm_evidence_sha256: ${{ steps.full-vm.outputs.evidence_sha256 }}
       promotion_request_id: ${{ steps.cohort.outputs.promotion_request_id }}
       app_artifact_digest: ${{ steps.component.outputs.app_artifact_digest }}
@@ -219,6 +220,18 @@ jobs:
           evidence_ref="opl-first-run-vm-full-${{ inputs.full_vm_run_id }}"
           echo "evidence_ref=$evidence_ref" >> "$GITHUB_OUTPUT"
           echo "evidence_sha256=$digest" >> "$GITHUB_OUTPUT"
+          RECEIPT_PATH="$receipt" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const receiptPath = process.env.RECEIPT_PATH;
+          if (!receiptPath) throw new Error('Validated Full VM receipt path is required.');
+          const bytes = fs.readFileSync(receiptPath);
+          if (bytes.length === 0) throw new Error('Validated Full VM receipt is empty.');
+          const encoded = bytes.toString('base64');
+          if (/\r|\n/.test(encoded) || !Buffer.from(encoded, 'base64').equals(bytes)) {
+            throw new Error('Full VM receipt encoding must be canonical single-line base64.');
+          }
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `evidence_base64=${encoded}\n`);
+          NODE
 
       - name: Verify same-cohort add-on readiness
         shell: bash
@@ -469,9 +482,14 @@ jobs:
           GH_TOKEN: ${{ secrets.OPL_HOMEBREW_TAP_TOKEN }}
           TAP_REPO: gaofeng21cn/homebrew-one-person-lab
           TAP_WORKFLOW: stable-distribution.yml
+          FULL_VM_EVIDENCE_BASE64: ${{ needs.prepare.outputs.full_vm_evidence_base64 }}
         shell: bash
         run: |
           set -euo pipefail
+          test -n "$FULL_VM_EVIDENCE_BASE64" || {
+            echo "::error::Validated Full VM receipt bytes are required for Stable distribution."
+            exit 1
+          }
           session_hex="${{ inputs.stable_session_id }}"
           session_hex="${session_hex#sha256:}"
           receipt_artifact="opl-stable-distribution-receipt-${{ inputs.opl_version }}-${session_hex}"
@@ -505,6 +523,7 @@ jobs:
             --field source_release_run_id="${{ inputs.release_run_id }}" \
             --field full_vm_run_id="${{ inputs.full_vm_run_id }}" \
             --field full_vm_evidence_ref="${{ needs.prepare.outputs.full_vm_evidence_ref }}" \
+            --field full_vm_evidence_base64="$FULL_VM_EVIDENCE_BASE64" \
             --field full_vm_evidence_sha256="${{ needs.prepare.outputs.full_vm_evidence_sha256 }}" \
             --field full_vm_result=passed
           run_id=""

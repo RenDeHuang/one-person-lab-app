@@ -1293,7 +1293,26 @@
           "app_latest_activated"
         ],
         "redispatch_after_partial_failure_allowed": false,
-        "immutable_distribution_receipt_reuse_required": true
+        "immutable_distribution_receipt_reuse_required": true,
+        "tap_full_vm_evidence_transport": {
+          "source": "validated_artifact_qualification_receipt_raw_bytes",
+          "encoding": "canonical_single_line_base64",
+          "dispatch_field": "full_vm_evidence_base64",
+          "required": true,
+          "tap_cross_repository_artifact_download_allowed": false,
+          "integrity_bindings": [
+            "stable_session_id",
+            "release_cohort_ref",
+            "app_sha",
+            "shell_sha",
+            "framework_sha",
+            "source_release_run_id",
+            "full_vm_run_id",
+            "full_vm_evidence_sha256",
+            "artifact.sha256",
+            "build_manifest.smoke_harness_sha256"
+          ]
+        }
       },
       "receipts": {
         "framework_promotion": "opl_release_set_promotion_receipt.v1",

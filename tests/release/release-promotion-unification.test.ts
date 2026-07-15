@@ -145,6 +145,24 @@ test('Framework promotion dispatch carries the frozen Framework SHA through both
   assert.match(helper, /--framework-source-commit "\$OPL_FRAMEWORK_SOURCE_COMMIT"/);
 });
 
+test('Homebrew Stable dispatch carries the validated Full VM receipt raw bytes without cross-repo download', () => {
+  const workflow = fs.readFileSync(path.join(appRoot, '.github/workflows/desktop-release-promote.yml'), 'utf8');
+  assert.match(
+    workflow,
+    /full_vm_evidence_base64: \$\{\{ steps\.full-vm\.outputs\.evidence_base64 \}\}/,
+  );
+  assert.match(workflow, /const bytes = fs\.readFileSync\(receiptPath\)/);
+  assert.match(workflow, /const encoded = bytes\.toString\('base64'\)/);
+  assert.match(workflow, /evidence_base64=\$\{encoded\}/);
+  assert.match(
+    workflow,
+    /FULL_VM_EVIDENCE_BASE64: \$\{\{ needs\.prepare\.outputs\.full_vm_evidence_base64 \}\}/,
+  );
+  assert.match(workflow, /test -n "\$FULL_VM_EVIDENCE_BASE64"/);
+  assert.match(workflow, /--field full_vm_evidence_base64="\$FULL_VM_EVIDENCE_BASE64"/);
+  assert.doesNotMatch(workflow, /repos\/\$TAP_REPO\/actions\/artifacts[\s\S]*artifact-qualification-receipt/);
+});
+
 test('Homebrew Stable distribution v2 binds Formula and App casks to the Framework Release Set digest', () => {
   const formula = {
     path: 'Formula/opl.rb',

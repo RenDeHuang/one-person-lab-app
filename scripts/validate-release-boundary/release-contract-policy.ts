@@ -462,6 +462,7 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
   const scheduledVmGuard = firstRunVmConcurrency?.scheduled_desktop_release_activity_guard;
   const vmGates = Array.isArray(acceleration?.vm_gates) ? acceleration.vm_gates : [];
   const assistantRouteSmoke = acceleration?.assistant_route_smoke_policy;
+  const tapFullVmEvidenceTransport = stableReleaseStateMachine?.promotion_saga?.tap_full_vm_evidence_transport;
 
   if (
     stableReleaseStateMachine?.package_script !== 'release:stable' ||
@@ -513,6 +514,16 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
     stableReleaseStateMachine?.promotion_saga?.webui_stable_writer_count !== 1 ||
     stableReleaseStateMachine?.promotion_saga?.source_desktop_release_mutates_stable_or_full_tap !== false ||
     stableReleaseStateMachine?.promotion_saga?.redispatch_after_partial_failure_allowed !== false ||
+    tapFullVmEvidenceTransport?.source !== 'validated_artifact_qualification_receipt_raw_bytes' ||
+    tapFullVmEvidenceTransport?.encoding !== 'canonical_single_line_base64' ||
+    tapFullVmEvidenceTransport?.dispatch_field !== 'full_vm_evidence_base64' ||
+    tapFullVmEvidenceTransport?.required !== true ||
+    tapFullVmEvidenceTransport?.tap_cross_repository_artifact_download_allowed !== false ||
+    !sameStringSet(tapFullVmEvidenceTransport?.integrity_bindings, [
+      'stable_session_id', 'release_cohort_ref', 'app_sha', 'shell_sha', 'framework_sha',
+      'source_release_run_id', 'full_vm_run_id', 'full_vm_evidence_sha256',
+      'artifact.sha256', 'build_manifest.smoke_harness_sha256',
+    ]) ||
     stableReleaseStateMachine?.receipts?.framework_promotion !== 'opl_release_set_promotion_receipt.v1' ||
     stableReleaseStateMachine?.receipts?.distribution !== 'opl_stable_distribution_receipt.v2' ||
     stableReleaseStateMachine?.receipts?.webui_stable_activation !== 'opl_webui_stable_activation_receipt.v1' ||
