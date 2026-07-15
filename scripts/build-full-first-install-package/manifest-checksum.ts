@@ -443,6 +443,11 @@ export function assertMasScholarSkillsRuntimePayload(runtimeRoot, resolution) {
   if (!fs.existsSync(moduleRoot) || !fs.statSync(moduleRoot).isDirectory()) {
     throw new Error(`Full runtime MAS Scholar Skills module root is missing: ${moduleRoot}`);
   }
+  assertFileChecksum(
+    path.join(moduleRoot, ...resolution.source_manifest_ref.split('/')),
+    resolution.source_manifest_sha256,
+    'packaged MAS Scholar Skills owner capability manifest',
+  );
   for (const payloadFile of resolution.payload_files) {
     assertFileChecksum(
       path.join(moduleRoot, ...payloadFile.path.split('/')),

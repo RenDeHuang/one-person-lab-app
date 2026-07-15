@@ -354,7 +354,7 @@ function masScholarSkillsPayloadStatuses(runtimeRoot) {
   payloads.push(...normalizedContentPaths.map((relativePath) => (
     runtimePayloadStatus(runtimeRoot, `${modulePath}/${relativePath}`)
   )));
-  return payloads;
+  return [...new Map(payloads.map((entry) => [entry.path, entry])).values()];
 }
 
 function listRuntimeRelativePaths(runtimeRoot) {

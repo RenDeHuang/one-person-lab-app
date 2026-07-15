@@ -577,6 +577,11 @@ test("real Full domain and prepareRuntime builders package the current MAS Schol
     assert.equal(resolved.currentness.source_payload_checksums_verified, true);
 
     const requiredPayloads = prepared.manifest.runtime_assertions.offline_required_payloads;
+    assert.equal(
+      new Set(requiredPayloads.map((entry) => entry.path)).size,
+      requiredPayloads.length,
+      "offline required payload assertions must have unique paths",
+    );
     for (const entryPath of [
       "modules/mas-scholar-skills/.codex-plugin/plugin.json",
       "modules/mas-scholar-skills/contracts/opl_capability_package_manifest.json",
@@ -626,6 +631,53 @@ test("real Full domain and prepareRuntime builders package the current MAS Schol
         masScholarSkillsRef: fixture.options.masScholarSkillsRef,
       }),
       /packaged MAS Scholar Skills payload skills\/mas-scholar-skills\/SKILL\.md checksum drifted/,
+    );
+    writeFile(
+      path.join(packagedScholarRoot, "skills", "mas-scholar-skills", "SKILL.md"),
+      "# Scholar Skills\n",
+    );
+    const packagedOwnerManifestPath = path.join(
+      packagedScholarRoot,
+      "contracts",
+      "opl_capability_package_manifest.json",
+    );
+    const packagedOwnerManifest = JSON.parse(
+      fs.readFileSync(packagedOwnerManifestPath, "utf8"),
+    );
+    packagedOwnerManifest.package_id = "mas-scholar-skills-drifted";
+    writeJson(packagedOwnerManifestPath, packagedOwnerManifest);
+    assert.throws(
+      () => assertFullRuntimeCurrentness(prepared.runtimeRoot, {
+        frameworkRoot: fixture.options.frameworkRoot,
+        masScholarSkillsRoot: fixture.options.masScholarSkillsRoot,
+        masScholarSkillsRef: fixture.options.masScholarSkillsRef,
+      }),
+      /packaged MAS Scholar Skills owner capability manifest checksum drifted/,
+    );
+    fs.copyFileSync(
+      path.join(
+        fixture.options.masScholarSkillsRoot,
+        "contracts",
+        "opl_capability_package_manifest.json",
+      ),
+      packagedOwnerManifestPath,
+    );
+    const packagedManifestPath = path.join(
+      prepared.runtimeRoot,
+      "manifest",
+      "full-package-manifest.json",
+    );
+    const packagedManifest = JSON.parse(fs.readFileSync(packagedManifestPath, "utf8"));
+    packagedManifest.resolved_refs.mas_scholar_skills.framework_catalog_ref =
+      "contracts/opl-framework/drifted-catalog.json";
+    writeJson(packagedManifestPath, packagedManifest);
+    assert.throws(
+      () => assertFullRuntimeCurrentness(prepared.runtimeRoot, {
+        frameworkRoot: fixture.options.frameworkRoot,
+        masScholarSkillsRoot: fixture.options.masScholarSkillsRoot,
+        masScholarSkillsRef: fixture.options.masScholarSkillsRef,
+      }),
+      /resolved MAS Scholar Skills framework_catalog_ref drifted/,
     );
   } finally {
     if (previousStrictSigning === undefined) delete process.env.OPL_MAC_STRICT_SIGNING_CHECKS;

@@ -110,8 +110,16 @@ function assertManifestMasScholarSkillsRef(
       `Full runtime MAS Scholar Skills payload is stale: manifest has ${packagedCommit}, expected ${expectedCommit}.`,
     );
   }
-  if (component.standard_domain_agent !== false) {
-    throw new Error("Full runtime MAS Scholar Skills component must not claim standard_domain_agent.");
+  if (
+    component.role !== "mas_required_framework_capability_package"
+    || component.required !== true
+    || JSON.stringify(component.required_by) !== JSON.stringify(["mas"])
+    || component.visible_in_first_run_ui !== false
+    || component.standard_domain_agent !== false
+  ) {
+    throw new Error(
+      "Full runtime MAS Scholar Skills component must remain MAS's required hidden non-agent capability dependency.",
+    );
   }
 
   const resolvedRefs = objectValue(manifest.resolved_refs, "manifest.resolved_refs");
@@ -147,10 +155,14 @@ function assertManifestMasScholarSkillsRef(
   for (const field of [
     "package_role",
     "package_version",
+    "framework_catalog_ref",
     "mas_manifest_ref",
     "mas_manifest_sha256",
+    "manifest_ref",
     "manifest_sha256",
+    "payload_manifest_ref",
     "payload_manifest_sha256",
+    "source_manifest_ref",
     "source_manifest_sha256",
     "content_lock_digest",
     "payload_file_count",
@@ -160,6 +172,9 @@ function assertManifestMasScholarSkillsRef(
         `Full runtime resolved MAS Scholar Skills ${field} drifted: manifest has ${String(resolvedRef[field])}, expected ${String(source[field])}.`,
       );
     }
+  }
+  if (JSON.stringify(resolvedRef.currentness) !== JSON.stringify(source.currentness)) {
+    throw new Error("Full runtime resolved MAS Scholar Skills currentness evidence drifted.");
   }
   if (resolvedRef.checksum_status !== "verified" || resolvedRef.currentness_status !== "current") {
     throw new Error(
