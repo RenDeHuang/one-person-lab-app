@@ -3,7 +3,7 @@
 Owner: `one-person-lab-app`
 Purpose: `app_gui_shell_conformance_read_model`
 State: `active_read_model`
-Snapshot basis: `2026-07-14`
+Snapshot basis: `2026-07-15`
 Machine boundary: 本文是人读 read model，不是第二真相源。状态必须能回指 App
 contracts、adapter/candidate contracts、shell source/tests 或 fresh evidence；本文不能
 改变 product truth、active shell、candidate stage 或 release readiness。
@@ -51,9 +51,10 @@ Active AionUI 默认状态通过 README 治理段声明的动态 state source �
 
 ## Snapshot evidence
 
-- Current human reference：本机 ChatGPT macOS `26.707.41301`（bundle build `5103`），
-  `2026-07-11` 观察。App GUI contract、product profile 与 page-state matrix 已统一为 schema v2；
-  `26.707.31428/31123` 只保留为 superseded observations。
+- Current visual reference：本机 ChatGPT Codex macOS `26.707.72221`（bundle build `5307`），
+  `2026-07-15` 观察，精度与例外见 [`codex-app-visual-parity.md`](codex-app-visual-parity.md)。
+  `26.707.41301` 继续保留为既有交互 observation；`26.707.31428/31123` 只保留为
+  superseded observations。
 - AionUI GUI conformance ancestor：`opl-aion-shell@a0ce713b65801fd9ca7f46ad168c977c75a187de`。
   该字段绑定最低 verified ancestor；active checkout exact HEAD 由下一项 current source cohort 记录。
 - Current Shell source cohort：symbolic `session_first_directory_current_source_cohort`，由 active checkout 的
@@ -136,7 +137,7 @@ Active AionUI 默认状态通过 README 治理段声明的动态 state source �
 | --- | --- | --- | --- | --- | --- |
 | P0 | App frame | 左 project/conversation rail + 中央单列 timeline + 底部 composer + 右上按需 Environment details。 | Rail/timeline/composer/Environment composition 保留；默认无综合第三列。 | `source_implemented`, `pixel_verified` | Current desktop/mobile Home与conversation package pixels覆盖主 composition；不外推为完整视觉 parity。 |
 | P0 | Runtime cockpit | 独立跨项目用户与智能体协作控制台，不用 conversation Runtime 或诊断页替代。 | Runtime V2 与 cockpit入口保留；summary-only diagnostics与 projection unavailable均有显式状态。 | `source_implemented`, `pixel_verified` | Current pixel只覆盖 `/runtime` 的 projection-unavailable状态；真实 populated/blocked/action states仍需独立 live evidence。 |
-| P0 | Project hierarchy | Project 是 thread 的默认 cwd、分组与 context hint；rail canonical history/actions 来自 App Server。 | App Server canonical thread directory/actions 保留；pin 保持 UI metadata，local reset 不冒充 history reset。 | `source_implemented`, `pixel_unverified` | Current pixels只证明 rail composition，未覆盖完整 hierarchy/actions。 |
+| P0 | Project hierarchy | Project/directory 只提供 thread 的初始/当前 cwd、可见 metadata 与可变分组，不拥有 session、context 或 artifact；rail canonical history/actions 来自 App Server。 | App Server canonical thread directory/actions 保留；pin 保持 UI metadata，local reset 不冒充 history reset。 | `source_implemented`, `pixel_unverified` | Current pixels只证明 rail composition，未覆盖完整 hierarchy/actions。 |
 | P0 | Home / New task | 与 conversation 共用 chat canvas/composer，不是 dashboard；新任务可选 Local/Worktree 与 starting branch。 | Composer-first Home、全部用户可见 starters、stable order、responsive wrap、package readiness 以及既有 `gitWorkspace` managed worktree create/reuse 已实现。 | `source_implemented`, `pixel_verified` | Current desktop/mobile pixels覆盖Home、rail与mobile action sheet；Worktree lifecycle仍按source/tests验收。 |
 | P0 | Conversation chrome | 只显示 task identity/直接动作；model/access 留在 composer。 | Header 保留 identity/navigation/Environment/Files；model/access 不再重复挂 header/side panel。 | `source_implemented`, `pixel_verified` | Current desktop pixels覆盖timeline、composer、Environment与Files composition；维持compact chrome。 |
 | P0 | Composer | Add/access、model/reasoning 与 send-stop 位于发送决策点；不重复 rail/Environment context。 | Desktop/mobile 共用 App resolver/profile；mobile `+` sheet 收纳次级动作；legacy intelligence proxy controls 已移除。 | `source_implemented`, `pixel_verified` | Current pixels覆盖desktop controls/model menu与mobile action sheet；不恢复第二 provider/service truth。 |
