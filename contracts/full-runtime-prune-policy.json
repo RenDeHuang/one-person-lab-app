@@ -85,6 +85,7 @@
       "^python\\/[^/]+\\/lib\\/python\\d+\\.\\d+\\/(?:test|idlelib\\/idle_test|tkinter\\/test|unittest\\/test|ctypes\\/test|distutils\\/tests|lib2to3\\/tests)(?:\\/|$)"
     ],
     "included_path_patterns": [
+      "^modules\\/mas-scholar-skills\\/runtime(?:\\/|$)",
       "^modules\\/meta-agent\\/runtime$",
       "^modules\\/meta-agent\\/runtime\\/authority_functions(?:\\/|$)"
     ]
@@ -195,6 +196,7 @@
       ],
       "retained": [
         "modules/mas/src/med_autoscience/__init__.py",
+        "modules/mas-scholar-skills/runtime/reference-provider-adapters/index.ts",
         "modules/rca/contracts/runtime-program/schema.json",
         "modules/meta-agent/runtime/authority_functions/meta-agent-authority-functions.json",
         "modules/rca/prompts/xiaohongshu/style-references/ref.png",

@@ -30,6 +30,29 @@ test("Full workflow checks out and validates the OPL Flow source before cache re
   );
 });
 
+test("Full workflow checks out MAS Scholar Skills and binds both runtime assembly passes", () => {
+  const workflow = fs.readFileSync(
+    path.join(appRoot, ".github/workflows/full-first-install-release.yml"),
+    "utf8",
+  );
+  assert.match(
+    workflow,
+    /name: Checkout MAS Scholar Skills[\s\S]*repository: gaofeng21cn\/mas-scholar-skills[\s\S]*ref: main[\s\S]*path: mas-scholar-skills/,
+  );
+  assert.match(
+    workflow,
+    /name: Validate Full source roots[\s\S]*mas-scholar-skills\/\.codex-plugin\/plugin\.json[\s\S]*mas-scholar-skills\/contracts\/opl_capability_package_manifest\.json/,
+  );
+  assert.equal(
+    workflow.match(/export OPL_FULL_MAS_SCHOLAR_SKILLS_ROOT="\$GITHUB_WORKSPACE\/mas-scholar-skills"/g)?.length,
+    2,
+  );
+  assert.match(
+    workflow,
+    /assert-full-runtime-currentness\.ts[\s\S]*--mas-scholar-skills-root "\$GITHUB_WORKSPACE\/mas-scholar-skills"/,
+  );
+});
+
 test("Full runtime cache classifies hit and miss modes from one canonical key", async () => {
   const mod = await import("../../../scripts/full-first-install-package.ts");
   const cacheDir = path.join(os.tmpdir(), "opl-full-runtime-cache-test");

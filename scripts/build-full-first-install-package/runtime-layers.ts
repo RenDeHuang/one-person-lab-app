@@ -273,6 +273,90 @@ function oplFlowPluginPayloadStatuses(runtimeRoot) {
   return payloads;
 }
 
+function masScholarSkillsPayloadStatuses(runtimeRoot) {
+  const modulePath = 'modules/mas-scholar-skills';
+  const pluginManifestPath = `${modulePath}/.codex-plugin/plugin.json`;
+  const capabilityManifestPath = `${modulePath}/contracts/opl_capability_package_manifest.json`;
+  const payloads = [
+    runtimePayloadStatus(runtimeRoot, pluginManifestPath),
+    runtimePayloadStatus(runtimeRoot, capabilityManifestPath),
+  ];
+  if (!payloads.every((entry) => entry.exists)) {
+    return payloads;
+  }
+
+  const pluginManifest = JSON.parse(
+    fs.readFileSync(path.join(runtimeRoot, ...pluginManifestPath.split('/')), 'utf8'),
+  );
+  if (pluginManifest.name !== 'mas-scholar-skills') {
+    throw new Error(`Full runtime MAS Scholar Skills plugin identity drifted: ${String(pluginManifest.name)}.`);
+  }
+  const declaredSkillRoots = Array.isArray(pluginManifest.skills)
+    ? pluginManifest.skills
+    : [pluginManifest.skills];
+  if (declaredSkillRoots.length === 0 || declaredSkillRoots.some((value) => typeof value !== 'string')) {
+    throw new Error('Full runtime MAS Scholar Skills plugin manifest must declare a relative skills path.');
+  }
+
+  const capabilityManifest = JSON.parse(
+    fs.readFileSync(path.join(runtimeRoot, ...capabilityManifestPath.split('/')), 'utf8'),
+  );
+  if (capabilityManifest.package_id !== 'mas-scholar-skills') {
+    throw new Error(
+      `Full runtime MAS Scholar Skills capability manifest identity drifted: ${String(capabilityManifest.package_id)}.`,
+    );
+  }
+  const contentLockPaths = capabilityManifest.content_lock?.paths;
+  if (!Array.isArray(contentLockPaths) || contentLockPaths.length === 0) {
+    throw new Error('Full runtime MAS Scholar Skills capability manifest declares no content_lock paths.');
+  }
+
+  const normalizedContentPaths = contentLockPaths.map((relativePath) => {
+    if (typeof relativePath !== 'string') {
+      throw new Error('Full runtime MAS Scholar Skills content_lock path must be a string.');
+    }
+    const normalized = path.posix.normalize(relativePath).replace(/^\.\//, '');
+    if (
+      normalized === ''
+      || normalized === '.'
+      || normalized === '..'
+      || normalized.startsWith('../')
+      || path.posix.isAbsolute(normalized)
+    ) {
+      throw new Error(`Full runtime MAS Scholar Skills content_lock path is unsafe: ${relativePath}`);
+    }
+    return normalized;
+  });
+  if (new Set(normalizedContentPaths).size !== normalizedContentPaths.length) {
+    throw new Error('Full runtime MAS Scholar Skills content_lock contains duplicate paths.');
+  }
+
+  for (const declaredRoot of declaredSkillRoots) {
+    const normalizedRoot = path.posix.normalize(declaredRoot).replace(/^\.\//, '').replace(/\/$/, '');
+    if (
+      normalizedRoot === ''
+      || normalizedRoot === '..'
+      || normalizedRoot.startsWith('../')
+      || path.posix.isAbsolute(normalizedRoot)
+    ) {
+      throw new Error(`Full runtime MAS Scholar Skills plugin manifest declares an unsafe skills path: ${declaredRoot}`);
+    }
+    const skillPrefix = `${normalizedRoot}/`;
+    if (!normalizedContentPaths.some((relativePath) => (
+      relativePath.startsWith(skillPrefix) && relativePath.endsWith('/SKILL.md')
+    ))) {
+      throw new Error(
+        `Full runtime MAS Scholar Skills content_lock contains no SKILL.md under declared root: ${normalizedRoot}`,
+      );
+    }
+  }
+
+  payloads.push(...normalizedContentPaths.map((relativePath) => (
+    runtimePayloadStatus(runtimeRoot, `${modulePath}/${relativePath}`)
+  )));
+  return [...new Map(payloads.map((entry) => [entry.path, entry])).values()];
+}
+
 function listRuntimeRelativePaths(runtimeRoot) {
   if (!fs.existsSync(runtimeRoot)) return [];
   const paths = [];
@@ -342,6 +426,7 @@ export function collectRuntimeAssertions(runtimeRoot) {
       runtimePayloadStatus(runtimeRoot, 'skills/opl-bookforge/SKILL.md'),
       runtimePayloadStatus(runtimeRoot, 'modules/opl-flow/contracts/workflow-policy.json'),
       runtimePayloadStatus(runtimeRoot, 'modules/opl-flow/templates/AGENTS.md'),
+      ...masScholarSkillsPayloadStatuses(runtimeRoot),
       ...oplFlowPluginPayloadStatuses(runtimeRoot),
       ...domainPluginPayloadStatuses(runtimeRoot),
     ],
@@ -379,6 +464,11 @@ export function buildToolchainLayer(layerRoot, sources) {
 
 export function buildDomainLayer(layerRoot, options) {
   copyTreeFiltered(options.masRoot, path.join(layerRoot, 'modules', 'mas'), 'modules/mas');
+  copyTreeFiltered(
+    options.masScholarSkillsRoot,
+    path.join(layerRoot, 'modules', 'mas-scholar-skills'),
+    'modules/mas-scholar-skills',
+  );
   copyTreeFiltered(options.magRoot, path.join(layerRoot, 'modules', 'mag'), 'modules/mag');
   copyTreeFiltered(options.rcaRoot, path.join(layerRoot, 'modules', 'rca'), 'modules/rca');
   copyTreeFiltered(options.metaAgentRoot, path.join(layerRoot, 'modules', 'meta-agent'), 'modules/meta-agent');

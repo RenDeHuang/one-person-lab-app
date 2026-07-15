@@ -197,6 +197,13 @@ jobs:
           ref: main
           path: med-autoscience
 
+      - name: Checkout MAS Scholar Skills
+        uses: actions/checkout@v6
+        with:
+          repository: gaofeng21cn/mas-scholar-skills
+          ref: main
+          path: mas-scholar-skills
+
       - name: Checkout MAG
         uses: actions/checkout@v6
         with:
@@ -261,6 +268,8 @@ jobs:
             one-person-lab/package.json
             one-person-lab-app/shells/aionui/package.json
             med-autoscience/pyproject.toml
+            mas-scholar-skills/.codex-plugin/plugin.json
+            mas-scholar-skills/contracts/opl_capability_package_manifest.json
             med-autogrant/pyproject.toml
             redcube-ai/package.json
             opl-meta-agent/package.json
@@ -283,6 +292,7 @@ jobs:
           set -euo pipefail
           echo "OPL_RELEASE_VERSION=${{ inputs.opl_version }}" >> "$GITHUB_ENV"
           echo "OPL_FULL_FRAMEWORK_REF=${{ inputs.framework_ref || 'main' }}" >> "$GITHUB_ENV"
+          echo "OPL_FULL_MAS_SCHOLAR_SKILLS_REF=main" >> "$GITHUB_ENV"
           echo "OPL_FULL_WORKFLOW_STARTED_AT=$(date +%s)" >> "$GITHUB_ENV"
 
       - name: Setup Node.js
@@ -517,6 +527,7 @@ jobs:
           export OPL_FULL_UV_BIN="$(command -v uv)"
           export OPL_FULL_TEMPORAL_CLI_BIN="${OPL_FULL_TEMPORAL_CLI_BIN:-$(command -v temporal)}"
           export OPL_FULL_MAS_ROOT="$GITHUB_WORKSPACE/med-autoscience"
+          export OPL_FULL_MAS_SCHOLAR_SKILLS_ROOT="$GITHUB_WORKSPACE/mas-scholar-skills"
           export OPL_FULL_MAG_ROOT="$GITHUB_WORKSPACE/med-autogrant"
           export OPL_FULL_RCA_ROOT="$GITHUB_WORKSPACE/redcube-ai"
           export OPL_FULL_META_AGENT_ROOT="$GITHUB_WORKSPACE/opl-meta-agent"
@@ -685,6 +696,7 @@ jobs:
           export OPL_FULL_UV_BIN="$(command -v uv)"
           export OPL_FULL_TEMPORAL_CLI_BIN="${OPL_FULL_TEMPORAL_CLI_BIN:-$(command -v temporal)}"
           export OPL_FULL_MAS_ROOT="$GITHUB_WORKSPACE/med-autoscience"
+          export OPL_FULL_MAS_SCHOLAR_SKILLS_ROOT="$GITHUB_WORKSPACE/mas-scholar-skills"
           export OPL_FULL_MAG_ROOT="$GITHUB_WORKSPACE/med-autogrant"
           export OPL_FULL_RCA_ROOT="$GITHUB_WORKSPACE/redcube-ai"
           export OPL_FULL_META_AGENT_ROOT="$GITHUB_WORKSPACE/opl-meta-agent"
@@ -737,6 +749,7 @@ jobs:
           node --experimental-strip-types one-person-lab-app/scripts/assert-full-runtime-currentness.ts \
             --runtime-root "$mounted_runtime_root" \
             --framework-root "$GITHUB_WORKSPACE/one-person-lab" \
+            --mas-scholar-skills-root "$GITHUB_WORKSPACE/mas-scholar-skills" \
             > one-person-lab-app/dist/opl-full-release/full-runtime-currentness-probe.json
           if [ "${OPL_MAC_STRICT_SIGNING_CHECKS:-false}" = "true" ]; then
             codesign --verify --deep --strict --verbose=2 "$app_path"

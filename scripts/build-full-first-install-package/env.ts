@@ -55,6 +55,10 @@ function defaultWorkspaceRoots() {
     ),
     guiRoot: envValue('OPL_FULL_GUI_ROOT', resolveActiveShellPaths().shellRoot),
     masRoot: envValue('OPL_FULL_MAS_ROOT', path.join(workspaceRoot, 'med-autoscience')),
+    masScholarSkillsRoot: envValue(
+      'OPL_FULL_MAS_SCHOLAR_SKILLS_ROOT',
+      path.join(workspaceRoot, 'mas-scholar-skills'),
+    ),
     magRoot: envValue('OPL_FULL_MAG_ROOT', path.join(workspaceRoot, 'med-autogrant')),
     rcaRoot: envValue('OPL_FULL_RCA_ROOT', path.join(workspaceRoot, 'redcube-ai')),
     metaAgentRoot: envValue('OPL_FULL_META_AGENT_ROOT', path.join(workspaceRoot, 'opl-meta-agent')),
@@ -100,6 +104,7 @@ function defaultRuntimeRefs() {
   return {
     frameworkRef: firstEnvValue(['OPL_FULL_FRAMEWORK_REF', 'OPL_FRAMEWORK_REF'], null),
     masRef: defaultMainRef('OPL_FULL_MAS_REF'),
+    masScholarSkillsRef: defaultMainRef('OPL_FULL_MAS_SCHOLAR_SKILLS_REF'),
     magRef: defaultMainRef('OPL_FULL_MAG_REF'),
     rcaRef: defaultMainRef('OPL_FULL_RCA_REF'),
     metaAgentRef: defaultMainRef('OPL_FULL_META_AGENT_REF'),
@@ -136,6 +141,10 @@ const valueOptionSetters = {
   'opl-root': (parsed, value) => { parsed.frameworkRoot = path.resolve(value); },
   'gui-root': (parsed, value) => { parsed.guiRoot = path.resolve(value); },
   'mas-root': (parsed, value) => { parsed.masRoot = path.resolve(value); },
+  'mas-scholar-skills-root': (parsed, value) => {
+    parsed.masScholarSkillsRoot = path.resolve(value);
+  },
+  'mas-scholar-skills-ref': (parsed, value) => { parsed.masScholarSkillsRef = value; },
   'mag-root': (parsed, value) => { parsed.magRoot = path.resolve(value); },
   'rca-root': (parsed, value) => { parsed.rcaRoot = path.resolve(value); },
   'meta-agent-root': (parsed, value) => { parsed.metaAgentRoot = path.resolve(value); },

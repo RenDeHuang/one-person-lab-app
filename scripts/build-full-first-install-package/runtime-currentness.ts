@@ -4,6 +4,10 @@ import path from "node:path";
 import { readGitHead } from "./git.ts";
 import { run } from "./process.ts";
 import { readManagedUpdateLifecycleProviderMap } from "../managed-update-lifecycle-contract.ts";
+import {
+  assertMasScholarSkillsRuntimePayload,
+  resolveMasScholarSkillsFullRuntimeSource,
+} from "./manifest-checksum.ts";
 
 const REQUIRED_MANAGED_UPDATE_COMPONENTS = readManagedUpdateLifecycleProviderMap();
 
@@ -85,6 +89,99 @@ function assertManifestFrameworkRef(
     );
   }
   return manifest;
+}
+
+function assertManifestMasScholarSkillsRef(
+  manifest: Record<string, unknown>,
+  source: ReturnType<typeof resolveMasScholarSkillsFullRuntimeSource>,
+): string {
+  const expectedCommit = source.source_commit;
+  const components = objectValue(manifest.components, "manifest.components");
+  const component = objectValue(
+    components.mas_scholar_skills,
+    "manifest.components.mas_scholar_skills",
+  );
+  const packagedCommit = stringValue(
+    component.git_commit,
+    "manifest.components.mas_scholar_skills.git_commit",
+  );
+  if (packagedCommit !== expectedCommit) {
+    throw new Error(
+      `Full runtime MAS Scholar Skills payload is stale: manifest has ${packagedCommit}, expected ${expectedCommit}.`,
+    );
+  }
+  if (
+    component.role !== "mas_required_framework_capability_package"
+    || component.required !== true
+    || JSON.stringify(component.required_by) !== JSON.stringify(["mas"])
+    || component.visible_in_first_run_ui !== false
+    || component.standard_domain_agent !== false
+  ) {
+    throw new Error(
+      "Full runtime MAS Scholar Skills component must remain MAS's required hidden non-agent capability dependency.",
+    );
+  }
+
+  const resolvedRefs = objectValue(manifest.resolved_refs, "manifest.resolved_refs");
+  const resolvedRef = objectValue(
+    resolvedRefs.mas_scholar_skills,
+    "manifest.resolved_refs.mas_scholar_skills",
+  );
+  const resolvedCommit = stringValue(
+    resolvedRef.resolved_commit,
+    "manifest.resolved_refs.mas_scholar_skills.resolved_commit",
+  );
+  if (resolvedCommit !== expectedCommit) {
+    throw new Error(
+      `Full runtime resolved MAS Scholar Skills ref is stale: manifest has ${resolvedCommit}, expected ${expectedCommit}.`,
+    );
+  }
+  if (resolvedRef.requested_ref !== source.requested_ref) {
+    throw new Error(
+      `Full runtime resolved MAS Scholar Skills requested ref drifted: manifest has ${String(resolvedRef.requested_ref)}, expected ${source.requested_ref}.`,
+    );
+  }
+  if (resolvedRef.requested_ref_commit !== source.requested_ref_commit) {
+    throw new Error(
+      `Full runtime resolved MAS Scholar Skills requested ref commit drifted: manifest has ${String(resolvedRef.requested_ref_commit)}, expected ${source.requested_ref_commit}.`,
+    );
+  }
+  if (resolvedRef.owner_source_commit !== source.owner_source_commit) {
+    throw new Error("Full runtime resolved MAS Scholar Skills owner source commit drifted.");
+  }
+  if (resolvedRef.runtime_module_relative_path !== source.runtime_module_relative_path) {
+    throw new Error("Full runtime resolved MAS Scholar Skills module path drifted.");
+  }
+  for (const field of [
+    "package_role",
+    "package_version",
+    "framework_catalog_ref",
+    "mas_manifest_ref",
+    "mas_manifest_sha256",
+    "manifest_ref",
+    "manifest_sha256",
+    "payload_manifest_ref",
+    "payload_manifest_sha256",
+    "source_manifest_ref",
+    "source_manifest_sha256",
+    "content_lock_digest",
+    "payload_file_count",
+  ]) {
+    if (resolvedRef[field] !== source[field]) {
+      throw new Error(
+        `Full runtime resolved MAS Scholar Skills ${field} drifted: manifest has ${String(resolvedRef[field])}, expected ${String(source[field])}.`,
+      );
+    }
+  }
+  if (JSON.stringify(resolvedRef.currentness) !== JSON.stringify(source.currentness)) {
+    throw new Error("Full runtime resolved MAS Scholar Skills currentness evidence drifted.");
+  }
+  if (resolvedRef.checksum_status !== "verified" || resolvedRef.currentness_status !== "current") {
+    throw new Error(
+      "Full runtime resolved MAS Scholar Skills ref must have verified checksums and current source status.",
+    );
+  }
+  return expectedCommit;
 }
 
 export function assertManagedUpdateProbe(payload: unknown): Record<string, unknown> {
@@ -201,7 +298,11 @@ export function assertAppStateProbe(payload: unknown): Record<string, unknown> {
 
 export function assertFullRuntimeCurrentness(
   runtimeRoot: string,
-  options: { frameworkRoot: string },
+  options: {
+    frameworkRoot: string;
+    masScholarSkillsRoot: string;
+    masScholarSkillsRef: string;
+  },
 ) {
   const command = path.join(runtimeRoot, "bin", "opl");
   if (!fs.existsSync(command)) {
@@ -209,6 +310,15 @@ export function assertFullRuntimeCurrentness(
   }
 
   const manifest = assertManifestFrameworkRef(runtimeRoot, options.frameworkRoot);
+  const masScholarSkillsSource = resolveMasScholarSkillsFullRuntimeSource(options);
+  const masScholarSkillsCommit = assertManifestMasScholarSkillsRef(
+    manifest,
+    masScholarSkillsSource,
+  );
+  const masScholarSkillsPayload = assertMasScholarSkillsRuntimePayload(
+    runtimeRoot,
+    masScholarSkillsSource,
+  );
   const env = runtimeProbeEnv(runtimeRoot);
   const managedUpdate = assertManagedUpdateProbe(
     parseJsonCommand(command, ["update", "status", "--json"], env),
@@ -229,6 +339,10 @@ export function assertFullRuntimeCurrentness(
       ).git_commit,
       "manifest.components.opl.git_commit",
     ),
+    mas_scholar_skills_commit: masScholarSkillsCommit,
+    mas_scholar_skills_checksum_status: "verified",
+    mas_scholar_skills_currentness_status: "current",
+    mas_scholar_skills_payload_file_count: masScholarSkillsPayload.payload_file_count,
     managed_update_surface_id: managedUpdate.surface_id,
     managed_update_components: Object.keys(REQUIRED_MANAGED_UPDATE_COMPONENTS),
     managed_update_component_providers: REQUIRED_MANAGED_UPDATE_COMPONENTS,

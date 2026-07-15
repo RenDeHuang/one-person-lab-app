@@ -21,6 +21,7 @@ import { parseArgs } from './build-full-first-install-package/env.ts';
 import { requirePath } from './build-full-first-install-package/filesystem.ts';
 import { ensureAppBundleAdHocCodesign } from './build-full-first-install-package/macos-trust.ts';
 import {
+  resolveMasScholarSkillsFullRuntimeSource,
   writeChecksums,
   writeJsonFile,
 } from './build-full-first-install-package/manifest-checksum.ts';
@@ -83,6 +84,7 @@ function main() {
     ['GUI root', options.guiRoot],
     ['Framework root', options.frameworkRoot],
     ['MAS root', options.masRoot],
+    ['MAS Scholar Skills root', options.masScholarSkillsRoot],
     ['MAG root', options.magRoot],
     ['RCA root', options.rcaRoot],
     ['OPL Meta Agent root', options.metaAgentRoot],
@@ -94,6 +96,9 @@ function main() {
   }
 
   options.officeCliRelease = resolveOfficeCliReleaseSource(options.officeCliRoot, options.officeCliRef);
+  const sourceResolutions = {
+    masScholarSkills: resolveMasScholarSkillsFullRuntimeSource(options),
+  };
   const sources = resolveRuntimeSources(options);
   if (options.printRuntimeCacheKeys) {
     console.log(JSON.stringify(buildRuntimeCacheKeyReport(options, sources), null, 2));
@@ -102,7 +107,7 @@ function main() {
 
   const timings = {};
   const buildStartedAt = monotonicSeconds();
-  const prepared = prepareRuntime(options, sources);
+  const prepared = prepareRuntime(options, sources, sourceResolutions);
   const runtimePreparedAt = monotonicSeconds();
   timings.runtime_materialize = durationSeconds(buildStartedAt, runtimePreparedAt);
   timings.runtime_cache_materialize = Number(prepared.runtime_cache.events.reduce((sum, event) => {

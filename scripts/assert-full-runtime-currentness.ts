@@ -41,6 +41,8 @@ function main() {
   const options = parseFullPackageArgs(forwardedArgs);
   const report = assertFullRuntimeCurrentness(runtimeRoot, {
     frameworkRoot: options.frameworkRoot,
+    masScholarSkillsRoot: options.masScholarSkillsRoot,
+    masScholarSkillsRef: options.masScholarSkillsRef,
   });
   console.log(JSON.stringify(report, null, 2));
 }
