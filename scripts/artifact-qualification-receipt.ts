@@ -122,15 +122,124 @@ function temporalReadbackPid(value: unknown): number | null {
   return positiveInteger(supervisor.pid) ? supervisor.pid : null;
 }
 
-function validateTemporalAction(value: unknown, actionId: string, delegatedSurface: string): string[] {
+function validateManagedTemporalServiceStatus(value: unknown, label: string): string[] {
+  const errors: string[] = [];
+  const status = isRecord(value) ? value : {};
+  const supervisor = isRecord(status.supervisor) ? status.supervisor : {};
+  if (status.service_status !== 'running') {
+    errors.push(`${label}.service_status is ${String(status.service_status)}`);
+  }
+  if (status.server_reachable !== true) errors.push(`${label}.server_reachable is not true`);
+  for (const field of [
+    'supported',
+    'applicable',
+    'required',
+    'installed',
+    'loaded',
+    'ready',
+    'configuration_current',
+  ]) {
+    if (supervisor[field] !== true) errors.push(`${label}.supervisor.${field} is not true`);
+  }
+  if (supervisor.process_state !== 'running') {
+    errors.push(`${label}.supervisor.process_state is ${String(supervisor.process_state)}`);
+  }
+  if (!positiveInteger(supervisor.pid)) errors.push(`${label}.supervisor.pid is invalid`);
+  if (supervisor.error !== null) errors.push(`${label}.supervisor.error is ${String(supervisor.error)}`);
+  return errors;
+}
+
+function validateTemporalActionEnvelope(
+  value: unknown,
+  label: string,
+  actionId: string,
+  delegatedSurface: string,
+): { errors: string[]; service: Record<string, unknown> } {
   const action = isRecord(value) ? value : {};
   const errors: string[] = [];
-  if (action.action_id !== actionId) errors.push(`${actionId}.action_id is ${String(action.action_id)}`);
-  if (action.dry_run !== false) errors.push(`${actionId}.dry_run is not false`);
+  if (action.action_id !== actionId) errors.push(`${label}.action_id is ${String(action.action_id)}`);
+  if (action.dry_run !== false) errors.push(`${label}.dry_run is not false`);
   if (action.delegated_surface !== delegatedSurface) {
-    errors.push(`${actionId}.delegated_surface is ${String(action.delegated_surface)}`);
+    errors.push(`${label}.delegated_surface is ${String(action.delegated_surface)}`);
   }
-  if (!isRecord(action.result)) errors.push(`${actionId}.result is missing`);
+  const result = isRecord(action.result) ? action.result : {};
+  if (!isRecord(action.result)) errors.push(`${label}.result is missing`);
+  const service = isRecord(result.family_runtime_service) ? result.family_runtime_service : {};
+  if (!isRecord(result.family_runtime_service)) {
+    errors.push(`${label}.result.family_runtime_service is missing`);
+  }
+  return { errors, service };
+}
+
+function temporalActionService(value: unknown): Record<string, unknown> {
+  const action = isRecord(value) ? value : {};
+  const result = isRecord(action.result) ? action.result : {};
+  return isRecord(result.family_runtime_service) ? result.family_runtime_service : {};
+}
+
+function temporalActionStatusPid(value: unknown): number | null {
+  const service = temporalActionService(value);
+  const status = isRecord(service.status) ? service.status : {};
+  const supervisor = isRecord(status.supervisor) ? status.supervisor : {};
+  return positiveInteger(supervisor.pid) ? supervisor.pid : null;
+}
+
+function validateTemporalStartAction(value: unknown): string[] {
+  const label = 'start_action';
+  const { errors, service } = validateTemporalActionEnvelope(
+    value,
+    label,
+    'provider_service_start',
+    'opl family-runtime service start --provider temporal',
+  );
+  if (service.action !== 'start') errors.push(`${label}.result.family_runtime_service.action is ${String(service.action)}`);
+  if (service.start_status !== 'started_supervised' && service.start_status !== 'already_running') {
+    errors.push(`${label}.result.family_runtime_service.start_status is ${String(service.start_status)}`);
+  }
+  errors.push(...validateManagedTemporalServiceStatus(
+    service.status,
+    `${label}.result.family_runtime_service.status`,
+  ));
+  return errors;
+}
+
+function validateTemporalRestartAction(value: unknown): string[] {
+  const label = 'restart_action';
+  const { errors, service } = validateTemporalActionEnvelope(
+    value,
+    label,
+    'provider_service_restart',
+    'opl family-runtime service restart --provider temporal',
+  );
+  if (service.action !== 'restart') {
+    errors.push(`${label}.result.family_runtime_service.action is ${String(service.action)}`);
+  }
+  if (service.restart_status !== 'restarted') {
+    errors.push(`${label}.result.family_runtime_service.restart_status is ${String(service.restart_status)}`);
+  }
+  if (service.applicable !== true) errors.push(`${label}.result.family_runtime_service.applicable is not true`);
+  if (service.ready !== true) errors.push(`${label}.result.family_runtime_service.ready is not true`);
+  if (service.supervisor_pid_changed !== true) {
+    errors.push(`${label}.result.family_runtime_service.supervisor_pid_changed is not true`);
+  }
+  const previousPid = positiveInteger(service.previous_supervisor_pid) ? service.previous_supervisor_pid : null;
+  const currentPid = positiveInteger(service.supervisor_pid) ? service.supervisor_pid : null;
+  if (previousPid === null) {
+    errors.push(`${label}.result.family_runtime_service.previous_supervisor_pid is invalid`);
+  }
+  if (currentPid === null) errors.push(`${label}.result.family_runtime_service.supervisor_pid is invalid`);
+  if (previousPid !== null && currentPid !== null && previousPid === currentPid) {
+    errors.push(`${label}.result.family_runtime_service supervisor PID did not change`);
+  }
+  errors.push(...validateManagedTemporalServiceStatus(
+    service.status,
+    `${label}.result.family_runtime_service.status`,
+  ));
+  const status = isRecord(service.status) ? service.status : {};
+  const supervisor = isRecord(status.supervisor) ? status.supervisor : {};
+  if (currentPid !== null && supervisor.pid !== currentPid) {
+    errors.push(`${label}.result.family_runtime_service.status.supervisor.pid does not match supervisor_pid`);
+  }
   return errors;
 }
 
@@ -150,16 +259,8 @@ export function validateTemporalServiceSupervisorProof(proof: unknown): string[]
     errors.push(`temporal supervisor label is ${String(value.supervisor_label)}`);
   }
 
-  errors.push(...validateTemporalAction(
-    value.start_action,
-    'provider_service_start',
-    'opl family-runtime service start --provider temporal',
-  ));
-  errors.push(...validateTemporalAction(
-    value.restart_action,
-    'provider_service_restart',
-    'opl family-runtime service restart --provider temporal',
-  ));
+  errors.push(...validateTemporalStartAction(value.start_action));
+  errors.push(...validateTemporalRestartAction(value.restart_action));
 
   const persistentDatabase = isRecord(value.persistent_database) ? value.persistent_database : {};
   const databasePath = typeof persistentDatabase.path === 'string' ? persistentDatabase.path : '';
@@ -219,6 +320,14 @@ export function validateTemporalServiceSupervisorProof(proof: unknown): string[]
   const keepAlivePid = temporalReadbackPid(keepAliveRecovery.readback);
   const restartPid = temporalReadbackPid(value.restart_readback);
   const sessionReloadPid = temporalReadbackPid(sessionReload.readback);
+  const startActionPid = temporalActionStatusPid(value.start_action);
+  const restartActionService = temporalActionService(value.restart_action);
+  const restartActionPreviousPid = positiveInteger(restartActionService.previous_supervisor_pid)
+    ? restartActionService.previous_supervisor_pid
+    : null;
+  const restartActionPid = positiveInteger(restartActionService.supervisor_pid)
+    ? restartActionService.supervisor_pid
+    : null;
   const termination = isRecord(keepAliveRecovery.termination) ? keepAliveRecovery.termination : {};
   if (termination.pid !== initialPid || termination.signal !== 'SIGTERM' || termination.status !== 'sent') {
     errors.push('temporal supervisor KeepAlive termination receipt is inconsistent');
@@ -231,6 +340,19 @@ export function validateTemporalServiceSupervisorProof(proof: unknown): string[]
   }
   if (restartPid !== null && sessionReloadPid === restartPid) {
     errors.push('temporal supervisor session reload did not produce a fresh PID');
+  }
+  if (startActionPid !== null && initialPid !== null && startActionPid !== initialPid) {
+    errors.push('temporal supervisor start action PID does not match initial readback PID');
+  }
+  if (
+    restartActionPreviousPid !== null &&
+    keepAlivePid !== null &&
+    restartActionPreviousPid !== keepAlivePid
+  ) {
+    errors.push('temporal supervisor restart action previous PID does not match KeepAlive readback PID');
+  }
+  if (restartActionPid !== null && restartPid !== null && restartActionPid !== restartPid) {
+    errors.push('temporal supervisor restart action PID does not match restart readback PID');
   }
 
   const bootout = isRecord(sessionReload.bootout) ? sessionReload.bootout : {};

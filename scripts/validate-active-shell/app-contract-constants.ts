@@ -1542,6 +1542,7 @@ export const temporalLocalServiceDefaults = {
 };
 export const temporalManagedCommands = [
   "opl family-runtime service start --provider temporal",
+  "opl family-runtime service restart --provider temporal",
   "opl family-runtime service supervisor status --provider temporal",
   "opl family-runtime service supervisor install --provider temporal",
   "opl family-runtime service supervisor trigger --provider temporal",
