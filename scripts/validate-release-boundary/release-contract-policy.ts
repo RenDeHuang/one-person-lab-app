@@ -602,6 +602,29 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
     !sameStringSet(stableReleaseStateMachine?.qualification_receipt?.verification_harness_required_fields, [
       'app_sha', 'shell_sha', 'smoke_harness_sha256', 'differs_from_artifact_cohort', 'change_scope', 'scope_proof',
     ]) ||
+    stableReleaseStateMachine?.qualification_receipt?.full_temporal_service_supervisor_proof?.receipt_path !== 'smoke_summary.temporal_service_supervisor_proof' ||
+    stableReleaseStateMachine?.qualification_receipt?.full_temporal_service_supervisor_proof?.schema !== 'opl_temporal_service_supervisor_proof.v1' ||
+    !sameStringSet(
+      stableReleaseStateMachine?.qualification_receipt?.full_temporal_service_supervisor_proof?.required_for_passed_package_profiles,
+      ['full', 'homebrew-full'],
+    ) ||
+    !sameStringSet(
+      stableReleaseStateMachine?.qualification_receipt?.full_temporal_service_supervisor_proof?.not_applicable_package_profiles,
+      ['standard', 'homebrew-standard'],
+    ) ||
+    !sameStringSet(
+      stableReleaseStateMachine?.qualification_receipt?.full_temporal_service_supervisor_proof?.mandatory_evidence,
+      [
+        'provider_service_start_live_action',
+        'sigterm_keep_alive_fresh_pid',
+        'provider_service_restart_live_action_fresh_pid',
+        'launchd_bootout_bootstrap_fresh_pid',
+        'fresh_fast_state_ready_after_each_transition',
+        'plist_label_program_arguments_run_at_load_keep_alive',
+        'persistent_sqlite_exact_default_app_support_path_header_and_file_identity',
+      ],
+    ) ||
+    stableReleaseStateMachine?.qualification_receipt?.full_temporal_service_supervisor_proof_pass_policy !== 'passed Full or homebrew-full receipts require a bound smoke summary path and sha plus validator-clean supervisor proof; missing or invalid proof cannot produce or validate a passed receipt, override the Full VM gate, or authorize promotion' ||
     stableReleaseStateMachine?.qualification_receipt?.artifact_cohort_fields_remain_product_identity !== true ||
     stableReleaseStateMachine?.qualification_receipt?.cross_artifact_or_cross_cohort_override_allowed !== false ||
     stableReleaseStateMachine?.promotion_saga?.owner_workflow !== '.github/workflows/desktop-release-promote.yml' ||

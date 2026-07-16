@@ -1613,6 +1613,8 @@
         ],
         "component_status_policy": "server_worker_and_scheduler_have_independent_status_reason_and_action_rows",
         "component_projection_policy": "server_worker_and_scheduler_readiness_require_explicit_component_fields_must_never_be_inferred_from_provider_ready_and_take_precedence_over_aggregate_provider_status",
+        "service_supervisor_state_source": "app_state.provider.temporal.details.worker_readiness.temporal_service_lifecycle.supervisor",
+        "service_supervisor_policy": "desktop_macos_local_managed_service_requires_login_resident_run_at_load_keep_alive_stable_launcher_persistent_store_and_idempotent_provider_service_start_repair_while_external_container_and_non_macos_foreground_services_report_supervisor_not_applicable",
         "ready_state_policy": "server_worker_and_scheduler_all_explicitly_ready_is_muted_normal_state_while_check_and_maintenance_actions_remain_reachable",
         "worker_mutation_guard_policy": {
           "blocked_status": "blocked_developer_checkout_shared_state",
@@ -1640,13 +1642,16 @@
             "provider_worker_start"
           ],
           "restart": [
-            "provider_service_start",
+            "provider_service_restart",
             "provider_worker_restart"
+          ],
+          "run_now": [
+            "provider_scheduler_trigger"
           ]
         },
         "runtime_dependency_action_source": "managed_dependency_summary[dependency_id=temporal-runtime].update_action",
         "mutation_readback": "single_force_fresh_fast_app_state_executes_and_projects_temporal_server_worker_scheduler_component_readback",
-        "success_policy": "service_ready_and_worker_ready_and_scheduler_ready_and_fresh_no_error_readback_only",
+        "success_policy": "service_ready_and_required_platform_supervisor_ready_and_worker_ready_and_scheduler_ready_and_fresh_no_error_readback_only",
         "failure_policy": "failed_stale_or_guidance_only_results_never_show_success_or_route_to_settings_sync_capabilities"
       },
       "ia_group": "maintenance",

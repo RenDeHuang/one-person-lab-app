@@ -1529,6 +1529,15 @@
       "provider_kind": "temporal",
       "repair_cases": [
         {
+          "blocker": "service_supervisor_not_ready",
+          "source_status": "app_state.provider.temporal.details.worker_readiness.temporal_service_lifecycle.supervisor.ready=false_or_error",
+          "display_state": "temporal_service_supervisor_not_ready",
+          "next_repair_command_source": "app_state.provider.temporal.details.worker_readiness.temporal_service_lifecycle.repair_action.next_command",
+          "safe_action_id": "provider_service_start",
+          "runtime_action_id": null,
+          "command_role": "provider_server_restart_self_healing_repair_only"
+        },
+        {
           "blocker": "worker_not_ready",
           "source_status": "temporal_worker_readiness.readiness_status=worker_not_ready",
           "display_state": "provider_worker_not_ready",
@@ -7217,6 +7226,14 @@
           "localized_reason",
           "service_ready",
           "server_reachable",
+          "service_supervisor_supported",
+          "service_supervisor_applicable",
+          "service_supervisor_required",
+          "service_supervisor_installed",
+          "service_supervisor_loaded",
+          "service_supervisor_ready",
+          "service_supervisor_observed_at",
+          "service_supervisor_error",
           "worker_ready",
           "scheduler_status",
           "scheduler_ready",
@@ -7225,6 +7242,74 @@
         ],
         "component_status_policy": "server_worker_and_scheduler_have_independent_status_reason_and_action_rows",
         "component_projection_policy": "server_worker_and_scheduler_readiness_require_explicit_component_fields_must_never_be_inferred_from_provider_ready_and_take_precedence_over_aggregate_provider_status",
+        "service_supervisor_policy": {
+          "role": "login_resident_temporal_server_supervisor_required_for_restart_self_healing",
+          "platform_scope": {
+            "required_on": [
+              "desktop_macos_local_managed_service"
+            ],
+            "not_applicable_on": [
+              "webui_container_managed_service",
+              "explicit_external_temporal_service",
+              "non_macos_foreground_service"
+            ],
+            "not_applicable_readiness_policy": "supervisor_ready_is_not_required_but_server_worker_scheduler_and_fresh_no_error_readback_remain_required"
+          },
+          "state_source": "app_state.provider.temporal.details.worker_readiness.temporal_service_lifecycle.supervisor",
+          "required_summary_fields": [
+            "supported",
+            "applicable",
+            "required",
+            "installed",
+            "loaded",
+            "ready",
+            "observed_at",
+            "error"
+          ],
+          "diagnostic_fields": [
+            "status",
+            "configuration_current",
+            "pid",
+            "process_state",
+            "last_exit_status",
+            "last_exit_signal",
+            "run_at_load",
+            "keep_alive",
+            "throttle_interval_seconds",
+            "address",
+            "launcher_source"
+          ],
+          "launcher_policy": "bind_a_canonical_executable_realpath_or_packaged_runtime_path_never_a_repo_TypeScript_checkout",
+          "persistent_store_policy": {
+            "required_for_desktop_macos_local_managed_service": true,
+            "default_database_path": "${HOME}/Library/Application Support/OPL/state/family-runtime/temporal-server/temporal.sqlite",
+            "required_launcher_argument": "--db-filename <absolute_database_path>",
+            "configuration_current_requires": [
+              "database_path_matches_family_runtime_root",
+              "launcher_args_bind_exact_database_path",
+              "launchd_plist_binds_exact_database_path"
+            ],
+            "prior_in_memory_history_migration_policy": "not_available_and_must_be_reported_without_lossless_migration_claim"
+          },
+          "login_reconciliation_order": [
+            "temporal_service_supervisor",
+            "temporal_worker_supervisor",
+            "temporal_scheduler"
+          ],
+          "framework_cli": [
+            "opl family-runtime service supervisor status --provider temporal",
+            "opl family-runtime service supervisor install --provider temporal",
+            "opl family-runtime service supervisor trigger --provider temporal",
+            "opl family-runtime service supervisor remove --provider temporal"
+          ],
+          "ordinary_app_action_policy": "provider_service_status_reads_supervisor_state_provider_service_start_idempotently_installs_or_repairs_it_and_provider_service_restart_performs_a_real_bounded_restart",
+          "repair_source": "app_state.provider.temporal.details.worker_readiness.temporal_service_lifecycle.repair_action",
+          "repair_action_ids": [
+            "install_temporal_service_supervisor",
+            "trigger_temporal_service_supervisor",
+            "none"
+          ]
+        },
         "scheduler_status_source": "app_state.provider.temporal.details.scheduler.{status,ready,observed_at} with details.scheduler_status as display-only compatibility fallback",
         "ready_state_policy": "server_worker_and_scheduler_all_explicitly_ready_is_muted_normal_state_while_check_and_maintenance_actions_remain_reachable",
         "worker_mutation_guard_policy": {
@@ -7267,10 +7352,16 @@
           },
           "restart": {
             "action_ids": [
-              "provider_service_start",
+              "provider_service_restart",
               "provider_worker_restart"
             ],
-            "order": "idempotent_service_start_then_supervisor_aware_worker_restart"
+            "order": "bounded_service_restart_then_supervisor_aware_worker_restart"
+          },
+          "run_now": {
+            "action_ids": [
+              "provider_scheduler_trigger"
+            ],
+            "order": "trigger_scheduler_then_single_force_fresh_component_readback"
           }
         },
         "post_action_readback": {
@@ -7279,6 +7370,7 @@
           "component_readback_semantics": "fresh_fast_app_state_executes_and_projects_explicit_temporal_server_worker_scheduler_component_readback",
           "component_field_paths": {
             "server": "app_state.provider.temporal.details.worker_readiness.service_ready",
+            "server_supervisor": "app_state.provider.temporal.details.worker_readiness.temporal_service_lifecycle.supervisor.ready",
             "worker": "app_state.provider.temporal.details.worker_readiness.worker_ready",
             "scheduler": "app_state.provider.temporal.details.scheduler.ready"
           },
@@ -7295,6 +7387,7 @@
           "freshness_required": true,
           "success_requires": [
             "service_ready_true",
+            "service_supervisor_ready_true_when_required",
             "worker_ready_true",
             "scheduler_ready_true",
             "no_error",

@@ -24,7 +24,11 @@ test('Codex visual parity policy is discoverable and keeps sessions primary', ()
   assert.match(policy, /composer_resting_shadow=required/);
   assert.match(policy, /home_starter_selected_alignment=centered_no_layout_shift/);
   assert.match(policy, /settings_surface_audit=all_routes_light_dark_desktop_narrow/);
-  assert.match(policy, /temporal_maintenance=server_worker_detect_install_configure_start_restart_readback/);
+  assert.match(policy, /temporal_maintenance=server_worker_detect_install_configure_start_restart_run_now_readback/);
+  assert.match(
+    policy,
+    /temporal_server_supervisor=login_resident_stable_launcher_run_at_load_keep_alive_repairable/,
+  );
   assert.match(policy, /aioncore_modification=forbidden/);
   assert.match(policy, /visual_acceptance=source_dom_and_installed_pixels/);
   assert.match(policy, /candidate_shell_commit_source=active_shell_checkout_git_head/);

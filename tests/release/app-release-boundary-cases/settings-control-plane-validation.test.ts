@@ -1285,6 +1285,7 @@ test("Settings binds flat visual repair and complete Temporal maintenance to all
   assert.deepStrictEqual(pageTemporal.visible_components, expectedTemporalComponents);
   assert.deepStrictEqual(guiTemporal.post_action_readback.success_requires, [
     "service_ready_true",
+    "service_supervisor_ready_true_when_required",
     "worker_ready_true",
     "scheduler_ready_true",
     "no_error",
@@ -1294,8 +1295,34 @@ test("Settings binds flat visual repair and complete Temporal maintenance to all
   assert.match(guiTemporal.component_projection_policy, /explicit_component_fields/);
   assert.match(guiTemporal.component_projection_policy, /take_precedence_over_aggregate_provider_status/);
   assert.equal(
+    guiTemporal.service_supervisor_policy.state_source,
+    "app_state.provider.temporal.details.worker_readiness.temporal_service_lifecycle.supervisor",
+  );
+  assert.deepStrictEqual(guiTemporal.service_supervisor_policy.required_summary_fields, [
+    "supported",
+    "applicable",
+    "required",
+    "installed",
+    "loaded",
+    "ready",
+    "observed_at",
+    "error",
+  ]);
+  assert.deepStrictEqual(guiTemporal.service_supervisor_policy.login_reconciliation_order, [
+    "temporal_service_supervisor",
+    "temporal_worker_supervisor",
+    "temporal_scheduler",
+  ]);
+  assert.deepStrictEqual(guiTemporal.service_supervisor_policy.platform_scope.required_on, [
+    "desktop_macos_local_managed_service",
+  ]);
+  assert.equal(
+    guiTemporal.service_supervisor_policy.persistent_store_policy.default_database_path,
+    "${HOME}/Library/Application Support/OPL/state/family-runtime/temporal-server/temporal.sqlite",
+  );
+  assert.equal(
     controlTemporal.success_policy,
-    "service_ready_and_worker_ready_and_scheduler_ready_and_fresh_no_error_readback_only",
+    "service_ready_and_required_platform_supervisor_ready_and_worker_ready_and_scheduler_ready_and_fresh_no_error_readback_only",
   );
   assert.equal(pageTemporal.success_policy, controlTemporal.success_policy);
   const expectedActionIds = {
@@ -1309,13 +1336,15 @@ test("Settings binds flat visual repair and complete Temporal maintenance to all
       "provider_scheduler_install",
     ],
     start: ["provider_service_start", "provider_worker_start"],
-    restart: ["provider_service_start", "provider_worker_restart"],
+    restart: ["provider_service_restart", "provider_worker_restart"],
+    run_now: ["provider_scheduler_trigger"],
   };
   assert.deepStrictEqual(controlTemporal.action_ids, expectedActionIds);
   assert.deepStrictEqual(pageTemporal.action_ids, expectedActionIds);
   assert.deepStrictEqual(guiTemporal.action_roles.detect.action_ids, expectedActionIds.detect);
   assert.deepStrictEqual(guiTemporal.action_roles.start.action_ids, expectedActionIds.start);
   assert.deepStrictEqual(guiTemporal.action_roles.restart.action_ids, expectedActionIds.restart);
+  assert.deepStrictEqual(guiTemporal.action_roles.run_now.action_ids, expectedActionIds.run_now);
   assert.equal(
     guiTemporal.post_action_readback.execution,
     "single_force_fresh_fast_app_state_load",
@@ -1326,6 +1355,8 @@ test("Settings binds flat visual repair and complete Temporal maintenance to all
   );
   assert.deepStrictEqual(guiTemporal.post_action_readback.component_field_paths, {
     server: "app_state.provider.temporal.details.worker_readiness.service_ready",
+    server_supervisor:
+      "app_state.provider.temporal.details.worker_readiness.temporal_service_lifecycle.supervisor.ready",
     worker: "app_state.provider.temporal.details.worker_readiness.worker_ready",
     scheduler: "app_state.provider.temporal.details.scheduler.ready",
   });

@@ -102,15 +102,35 @@ function validateTemporalAutoConfiguration(temporalAutoConfig) {
   }
   assertIncludesAll(
     temporalAutoConfig.first_run_policy?.required_diagnostics,
-    ['temporal_cli_version', 'temporal_service_lifecycle', 'temporal_worker_lifecycle_status', 'worker_dependency_health'],
+    [
+      'temporal_cli_version',
+      'temporal_service_lifecycle',
+      'temporal_service_supervisor_state',
+      'temporal_worker_lifecycle_status',
+      'worker_dependency_health',
+    ],
     'Install exposure Temporal diagnostics',
   );
+  if (
+    temporalAutoConfig.startup_maintenance_policy?.must_reconcile_temporal_service_supervisor_before_worker !== true ||
+    JSON.stringify(temporalAutoConfig.startup_maintenance_policy?.login_reconciliation_order) !==
+      JSON.stringify(['temporal_service_supervisor', 'temporal_worker_supervisor', 'temporal_scheduler'])
+  ) {
+    throw new Error('Install exposure Temporal startup maintenance must reconcile service, worker, then scheduler');
+  }
   if (
     temporalAutoConfig.packaged_runtime_policy?.full_wrapper_must_export_defaults !== true ||
     temporalAutoConfig.packaged_runtime_policy?.must_include_temporal_cli_wrapper !== true ||
     temporalAutoConfig.packaged_runtime_policy?.temporal_cli_wrapper_must_execute_offline_archive !== true ||
     temporalAutoConfig.packaged_runtime_policy?.must_include_temporal_node_runtime_packages !== true ||
     temporalAutoConfig.packaged_runtime_policy?.must_exclude_temporal_testing_package !== true ||
+    temporalAutoConfig.packaged_runtime_policy?.service_supervisor_launcher_policy !==
+      'canonical_executable_realpath_or_packaged_runtime_path_never_repo_TypeScript_checkout' ||
+    temporalAutoConfig.packaged_runtime_policy?.service_supervisor_platform_scope !==
+      'desktop_macos_local_managed_service' ||
+    temporalAutoConfig.packaged_runtime_policy?.service_supervisor_persistent_database_path !==
+      '${HOME}/Library/Application Support/OPL/state/family-runtime/temporal-server/temporal.sqlite' ||
+    temporalAutoConfig.packaged_runtime_policy?.service_supervisor_persistent_database_argument !== '--db-filename' ||
     temporalAutoConfig.packaged_runtime_policy?.native_core_bridge_target !== 'aarch64-apple-darwin'
   ) {
     throw new Error('Install exposure Temporal packaged runtime policy must require wrapper defaults and macOS arm64 runtime payloads');
@@ -121,6 +141,8 @@ function validateTemporalAutoConfiguration(temporalAutoConfig) {
       'missing_temporal_cli_wrapper',
       'missing_temporal_node_runtime_package',
       'temporal_worker_dependency_unavailable',
+      'temporal_service_supervisor_unready',
+      'temporal_service_supervisor_configuration_drift',
       'temporal_local_service_stale_state',
       'temporal_worker_process_exited',
       'temporal_worker_source_stale',

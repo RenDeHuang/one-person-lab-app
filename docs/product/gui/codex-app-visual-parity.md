@@ -93,11 +93,22 @@ Maintenance 消费真实 Framework action，不自行拼 CLI 或虚构 action id
 - 检测：`provider_service_status`、`provider_scheduler_status`、`provider_worker_status`；
 - 安装/配置：消费 `temporal-runtime` dependency 投影的真实 `update_action`，再使用
   `provider_service_start`；provider ready 后才允许 `provider_scheduler_install`；
+- 常驻自愈：`provider_service_start` 幂等安装或触发 Framework 托管的 Temporal server
+  supervisor；该 supervisor 必须使用稳定可执行文件 realpath 或 packaged runtime 路径，设置
+  `RunAtLoad`、`KeepAlive` 与有限节流，并在登录维护中先于 worker、scheduler 恢复。该要求只
+  适用于 Desktop macOS 本地托管服务；WebUI/container、显式外部 Temporal 与非 macOS
+  foreground service 显示为 supervisor 不适用，而不是错误地显示“未安装”；
+- 持久化：Desktop macOS 本地托管 server 必须使用 OPL state root 下的
+  `family-runtime/temporal-server/temporal.sqlite`，launcher 通过 `--db-filename` 绑定 exact
+  absolute path，config、plist 与 fresh projection 三方不一致时显示配置漂移并提供修复；
 - 启动：`provider_service_start` 后执行 `provider_worker_start`；
-- 重启：幂等 `provider_service_start` 后执行 `provider_worker_restart`；
+- 重启：`provider_service_restart` 执行受管 server 的真实有界重启，随后按需执行
+  `provider_worker_restart`；
+- 立即运行：`provider_scheduler_trigger`，完成后仍执行同一份 fresh 三组件 readback；
 - readback：每次 mutation 后重新执行 service/worker status，并读取 fresh
-  `opl app state --profile fast --json#app_state.provider.temporal`。只有 server reachable、worker
-  ready、fresh 且无 error 才能显示完整 workflow 可用。
+  `opl app state --profile fast --json#app_state.provider.temporal`。只有 server reachable、要求
+  supervisor 的平台上 supervisor ready、worker ready、scheduler ready、fresh 且无 error 才能
+  显示完整 workflow 可用。
 
 Server ready 与 worker blocked 必须分别显示。若 worker mutation guard 为
 `blocked_developer_checkout_shared_state`，用户文案说明“当前 OPL CLI 指向开发源码，已阻止它
@@ -288,7 +299,8 @@ App contracts、Framework projection 和既有 Shell state。
 - `settings_icon_text_action=currentColor_stable_slot`
 - `gateway_disconnect=identity_row_trailing`
 - `temporal_dependency=required_for_complete_opl_durable_workflow`
-- `temporal_maintenance=server_worker_detect_install_configure_start_restart_readback`
+- `temporal_maintenance=server_worker_detect_install_configure_start_restart_run_now_readback`
+- `temporal_server_supervisor=login_resident_stable_launcher_run_at_load_keep_alive_repairable`
 - `aioncore_modification=forbidden`
 - `visual_acceptance=source_dom_and_installed_pixels`
 - `stable_geometry_tolerance_px=1`

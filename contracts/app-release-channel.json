@@ -829,6 +829,10 @@
         },
         "managed_commands": [
           "opl family-runtime service start --provider temporal",
+          "opl family-runtime service restart --provider temporal",
+          "opl family-runtime service supervisor status --provider temporal",
+          "opl family-runtime service supervisor install --provider temporal",
+          "opl family-runtime service supervisor trigger --provider temporal",
           "opl family-runtime worker status --provider temporal",
           "opl family-runtime worker start --provider temporal",
           "opl family-runtime residency proof --provider temporal --production"
@@ -846,7 +850,18 @@
         "native_core_bridge_releases": [
           "aarch64-apple-darwin"
         ],
-        "verification": "Full manifest runtime_assertions.temporal_core_bridge_releases must be exactly aarch64-apple-darwin and wrapper must export local Temporal defaults"
+        "service_supervisor": {
+          "required": true,
+          "platform_scope": "desktop_macos_local_managed_service",
+          "login_resident": true,
+          "run_at_load": true,
+          "keep_alive": true,
+          "launcher_policy": "canonical_executable_realpath_or_packaged_runtime_path_never_repo_TypeScript_checkout",
+          "persistent_database_path": "${HOME}/Library/Application Support/OPL/state/family-runtime/temporal-server/temporal.sqlite",
+          "persistent_database_argument": "--db-filename",
+          "configuration_current_required": true
+        },
+        "verification": "Full manifest runtime_assertions.temporal_core_bridge_releases must be exactly aarch64-apple-darwin, wrapper must export local Temporal defaults, and the same-run Full qualification receipt must bind a passed opl_temporal_service_supervisor_proof.v1"
       }
     },
     "optional_payloads": {
@@ -1341,6 +1356,28 @@
           "change_scope",
           "scope_proof"
         ],
+        "full_temporal_service_supervisor_proof": {
+          "receipt_path": "smoke_summary.temporal_service_supervisor_proof",
+          "schema": "opl_temporal_service_supervisor_proof.v1",
+          "required_for_passed_package_profiles": [
+            "full",
+            "homebrew-full"
+          ],
+          "not_applicable_package_profiles": [
+            "standard",
+            "homebrew-standard"
+          ],
+          "mandatory_evidence": [
+            "provider_service_start_live_action",
+            "sigterm_keep_alive_fresh_pid",
+            "provider_service_restart_live_action_fresh_pid",
+            "launchd_bootout_bootstrap_fresh_pid",
+            "fresh_fast_state_ready_after_each_transition",
+            "plist_label_program_arguments_run_at_load_keep_alive",
+            "persistent_sqlite_exact_default_app_support_path_header_and_file_identity"
+          ]
+        },
+        "full_temporal_service_supervisor_proof_pass_policy": "passed Full or homebrew-full receipts require a bound smoke summary path and sha plus validator-clean supervisor proof; missing or invalid proof cannot produce or validate a passed receipt, override the Full VM gate, or authorize promotion",
         "artifact_cohort_fields_remain_product_identity": true,
         "cross_artifact_or_cross_cohort_override_allowed": false
       },

@@ -84,6 +84,21 @@ function validateReleaseFullTemporalRuntimeProvider(temporalRuntimeProvider) {
     ['aarch64-apple-darwin'],
     'Release channel Full Temporal core bridge target',
   );
+  if (
+    temporalRuntimeProvider?.service_supervisor?.required !== true ||
+    temporalRuntimeProvider?.service_supervisor?.platform_scope !== 'desktop_macos_local_managed_service' ||
+    temporalRuntimeProvider?.service_supervisor?.login_resident !== true ||
+    temporalRuntimeProvider?.service_supervisor?.run_at_load !== true ||
+    temporalRuntimeProvider?.service_supervisor?.keep_alive !== true ||
+    temporalRuntimeProvider?.service_supervisor?.launcher_policy !==
+      'canonical_executable_realpath_or_packaged_runtime_path_never_repo_TypeScript_checkout' ||
+    temporalRuntimeProvider?.service_supervisor?.persistent_database_path !==
+      '${HOME}/Library/Application Support/OPL/state/family-runtime/temporal-server/temporal.sqlite' ||
+    temporalRuntimeProvider?.service_supervisor?.persistent_database_argument !== '--db-filename' ||
+    temporalRuntimeProvider?.service_supervisor?.configuration_current_required !== true
+  ) {
+    throw new Error('Release channel Full Temporal provider must require a stable login-resident service supervisor');
+  }
   if (!/wrapper must export local Temporal defaults/.test(temporalRuntimeProvider?.verification ?? '')) {
     throw new Error('Release channel Full Temporal provider verification must include wrapper default exports');
   }

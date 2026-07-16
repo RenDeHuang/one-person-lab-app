@@ -1984,6 +1984,15 @@
     "provider_kind": "temporal",
     "repair_cases": [
       {
+        "blocker": "service_supervisor_not_ready",
+        "source_status": "app_state.provider.temporal.details.worker_readiness.temporal_service_lifecycle.supervisor.ready=false_or_error",
+        "display_state": "temporal_service_supervisor_not_ready",
+        "next_repair_command_source": "app_state.provider.temporal.details.worker_readiness.temporal_service_lifecycle.repair_action.next_command",
+        "safe_action_id": "provider_service_start",
+        "runtime_action_id": null,
+        "command_role": "provider_server_restart_self_healing_repair_only"
+      },
+      {
         "blocker": "worker_not_ready",
         "source_status": "temporal_worker_readiness.readiness_status=worker_not_ready",
         "display_state": "provider_worker_not_ready",

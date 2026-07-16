@@ -1222,6 +1222,26 @@ export function validateProviderReadinessRepairProjectionContract(projection, la
     throw new Error(`${label} provider_readiness_authority must be false`);
   }
   const cases = projection.repair_cases ?? [];
+  const serviceSupervisorNotReady = cases.find(
+    (repairCase) => repairCase?.blocker === "service_supervisor_not_ready",
+  );
+  if (!serviceSupervisorNotReady) {
+    throw new Error(`${label} must declare service_supervisor_not_ready repair case`);
+  }
+  for (const [field, expected] of Object.entries({
+    source_status:
+      "app_state.provider.temporal.details.worker_readiness.temporal_service_lifecycle.supervisor.ready=false_or_error",
+    display_state: "temporal_service_supervisor_not_ready",
+    next_repair_command_source:
+      "app_state.provider.temporal.details.worker_readiness.temporal_service_lifecycle.repair_action.next_command",
+    safe_action_id: "provider_service_start",
+    runtime_action_id: null,
+    command_role: "provider_server_restart_self_healing_repair_only",
+  })) {
+    if (serviceSupervisorNotReady[field] !== expected) {
+      throw new Error(`${label} service_supervisor_not_ready.${field} must be ${expected}`);
+    }
+  }
   const workerNotReady = cases.find((repairCase) => repairCase?.blocker === "worker_not_ready");
   if (!workerNotReady) {
     throw new Error(`${label} must declare worker_not_ready repair case`);
