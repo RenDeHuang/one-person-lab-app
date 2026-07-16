@@ -47,8 +47,8 @@ test('Codex visual parity policy is discoverable and keeps sessions primary', ()
   assert.equal(homeVisual.selected_starter_layout_shift_allowed, false);
   assert.deepStrictEqual(guiContract.interaction_baseline.composer.visual_metrics, {
     textarea_typography: '14/20/400',
-    bottom_control_typography: '13/18/400_or_500',
-    bottom_control_max_font_px: 13,
+    bottom_control_typography: '12/18/400_or_500',
+    bottom_control_max_font_px: 12,
     icon_size_px: 16,
     action_height_px: 32,
     border_px: 1,
@@ -69,6 +69,14 @@ test('Codex visual parity policy is discoverable and keeps sessions primary', ()
     disabled_policy:
       'apply_disabled_opacity_to_the_whole_control_never_hide_only_the_icon',
   });
+  assert.equal(
+    guiContract.interaction_baseline.visual_target.light_surfaces.composer_shadow,
+    '0 1px 2px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.05)',
+  );
+  assert.equal(
+    guiContract.interaction_baseline.visual_target.dark_surfaces.composer_shadow,
+    '0 1px 2px rgba(0, 0, 0, 0.28), 0 4px 12px rgba(0, 0, 0, 0.18)',
+  );
   const settingsAudit =
     guiContract.settings_navigation.settings_ia.protocols.visual_qa_expectations
       .settings_component_audit;

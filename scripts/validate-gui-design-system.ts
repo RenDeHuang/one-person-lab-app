@@ -1369,7 +1369,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
         text_muted: '#80868B',
         hairline_border: 'rgba(0, 0, 0, 0.10)',
         focus_ring: 'rgba(37, 99, 235, 0.34)',
-        composer_shadow: '0 1px 2px rgba(0, 0, 0, 0.07), 0 8px 24px rgba(0, 0, 0, 0.08)',
+        composer_shadow: '0 1px 2px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.05)',
       }) ||
     JSON.stringify(darkSurfaces) !==
       JSON.stringify({
@@ -1381,7 +1381,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
         text_primary: '#F4F5F6',
         text_secondary: '#AEB4BC',
         hairline_border: 'rgba(255, 255, 255, 0.12)',
-        composer_shadow: '0 1px 2px rgba(0, 0, 0, 0.30), 0 8px 24px rgba(0, 0, 0, 0.24)',
+        composer_shadow: '0 1px 2px rgba(0, 0, 0, 0.28), 0 4px 12px rgba(0, 0, 0, 0.18)',
       }) ||
     visualTarget.rail_and_subtle_surfaces !== 'neutral_gray' ||
     visualTarget.composer !== 'floating_or_bottom_safe_inset' ||

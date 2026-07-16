@@ -2452,7 +2452,7 @@
         "primary_information": [
           "one overall usability summary led by Codex CLI and model-access readiness",
           "signed-in Gateway identity, connection and availability with compact today token, cost, and balance summaries",
-          "localized Temporal server and worker status with a plain-language reason and direct Maintenance route",
+          "localized Temporal server, worker, and scheduler status with a plain-language reason and direct Maintenance route",
           "issue queue ordered by user impact and limited to actionable exceptions",
           "one next useful action",
           "workspace path stays on Workspace and is not a primary Overview card",
@@ -2462,10 +2462,12 @@
           "dependency_role": "required_for_complete_opl_durable_workflow",
           "visible_components": [
             "temporal_server",
-            "temporal_worker"
+            "temporal_worker",
+            "temporal_scheduler"
           ],
-          "component_status_policy": "show_server_and_worker_independently_so_server_ready_worker_blocked_is_not_collapsed_into_one_opaque_attention_state",
-          "normal_state_policy": "when_server_and_worker_are_ready_show_one_quiet_localized_ready_summary_without_attention_emphasis",
+          "component_status_policy": "show_server_worker_and_scheduler_independently_so_one_ready_component_never_collapses_an_unready_or_unknown_component_into_one_opaque_state",
+          "projection_policy": "server_worker_and_scheduler_readiness_require_explicit_component_fields_must_never_be_inferred_from_provider_ready_and_take_precedence_over_aggregate_provider_status",
+          "normal_state_policy": "when_server_worker_and_scheduler_are_all_explicitly_ready_show_one_quiet_localized_ready_summary_without_attention_emphasis",
           "copy_policy": "localized_user_language_status_and_reason_never_raw_enum_or_blocker_id",
           "attention_route": "/settings/environment#services",
           "recommended_action_policy": "real_projected_Temporal_action_or_Maintenance_route_never_settings_sync_capabilities"
@@ -2518,7 +2520,9 @@
             "settings-overview-primary",
             "settings-overview-card-codex",
             "settings-overview-card-gateway",
-            "settings-overview-temporal"
+            "settings-overview-temporal-server",
+            "settings-overview-temporal-worker",
+            "settings-overview-temporal-scheduler"
           ],
           "conditional": [
             {
@@ -3414,10 +3418,12 @@
           "dependency_role": "required_for_complete_opl_durable_workflow",
           "visible_components": [
             "temporal_server",
-            "temporal_worker"
+            "temporal_worker",
+            "temporal_scheduler"
           ],
-          "component_status_policy": "server_and_worker_have_independent_status_reason_and_action_rows",
-          "ready_state_policy": "server_and_worker_ready_is_muted_normal_state_while_check_and_maintenance_actions_remain_reachable",
+          "component_status_policy": "server_worker_and_scheduler_have_independent_status_reason_and_action_rows",
+          "component_projection_policy": "server_worker_and_scheduler_readiness_require_explicit_component_fields_must_never_be_inferred_from_provider_ready_and_take_precedence_over_aggregate_provider_status",
+          "ready_state_policy": "server_worker_and_scheduler_all_explicitly_ready_is_muted_normal_state_while_check_and_maintenance_actions_remain_reachable",
           "worker_mutation_guard_policy": {
             "blocked_status": "blocked_developer_checkout_shared_state",
             "applies_when": "the_fresh_projected_mutation_guard_status_is_blocked_developer_checkout_shared_state",
@@ -3449,8 +3455,8 @@
             ]
           },
           "runtime_dependency_action_source": "managed_dependency_summary[dependency_id=temporal-runtime].update_action",
-          "mutation_readback": "provider_service_status_then_provider_worker_status_then_fresh_fast_app_state",
-          "success_policy": "server_reachable_and_worker_ready_and_fresh_no_error_readback_only",
+          "mutation_readback": "single_force_fresh_fast_app_state_executes_and_projects_temporal_server_worker_scheduler_component_readback",
+          "success_policy": "service_ready_and_worker_ready_and_scheduler_ready_and_fresh_no_error_readback_only",
           "failure_policy": "failed_stale_or_guidance_only_results_never_show_success_or_route_to_settings_sync_capabilities"
         },
         "primary_action": {
@@ -3467,9 +3473,10 @@
             "settings-page-maintenance",
             "settings-maintenance-primary",
             "settings-maintenance-managed-dependencies",
+            "settings-maintenance-temporal",
             "settings-maintenance-temporal-server",
             "settings-maintenance-temporal-worker",
-            "settings-maintenance-temporal-check",
+            "settings-maintenance-temporal-scheduler",
             "settings-maintenance-management-action",
             "settings-maintenance-diagnostics-action"
           ],

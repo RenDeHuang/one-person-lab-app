@@ -175,7 +175,7 @@ Server ready 与 worker blocked 必须分别显示。若 worker mutation guard �
 | Muted text | `#80868B` |
 | Hairline border | `rgba(0, 0, 0, 0.10)` |
 | Focus ring | `rgba(37, 99, 235, 0.34)` |
-| Composer shadow | `0 1px 2px rgba(0,0,0,.07), 0 8px 24px rgba(0,0,0,.08)` |
+| Composer shadow | `0 1px 2px rgba(0,0,0,.06), 0 4px 12px rgba(0,0,0,.05)` |
 
 ### Dark
 
@@ -189,7 +189,7 @@ Server ready 与 worker blocked 必须分别显示。若 worker mutation guard �
 | Primary text | `#F4F5F6` |
 | Secondary text | `#AEB4BC` |
 | Hairline border | `rgba(255, 255, 255, 0.12)` |
-| Composer shadow | `0 1px 2px rgba(0,0,0,.30), 0 8px 24px rgba(0,0,0,.24)` |
+| Composer shadow | `0 1px 2px rgba(0,0,0,.28), 0 4px 12px rgba(0,0,0,.18)` |
 
 OPL accent 只用于品牌动作和必要状态，不参与普通 rail、Settings 导航或 composer chrome。
 
@@ -216,10 +216,11 @@ OPL accent 只用于品牌动作和必要状态，不参与普通 rail、Setting
   不出现整块灰底卡片。复制/时间仅在 hover/focus 显示，不能为每条消息永久预留 `32px` 空行。
 - 首批加载 skeleton 使用无框文本线，不画 bordered assistant/user bubble。
 - Composer 单层 surface，桌面最大宽度 `736-800px`，圆角 `20-22px`，1px hairline。
-- Resting shadow 必须存在：light 使用 `0 1px 2px rgba(0,0,0,.07), 0 8px 24px rgba(0,0,0,.08)`；
-  dark 使用 `0 1px 2px rgba(0,0,0,.30), 0 8px 24px rgba(0,0,0,.24)`。
+- Resting shadow 必须存在：light 使用 `0 1px 2px rgba(0,0,0,.06), 0 4px 12px rgba(0,0,0,.05)`；
+  dark 使用 `0 1px 2px rgba(0,0,0,.28), 0 4px 12px rgba(0,0,0,.18)`。
 - Focus 只增强 border/ring，不删除 resting shadow，不改变尺寸。
 - Textarea 使用 `14/20`、正常字重、无私有字距；placeholder 与正文基线必须一致。
+- Model/reasoning 与 permission/access 底部控件使用 `12/18`，不能比 Codex reference 放大一档。
 - Attachment、permission、model/reasoning、voice 和 send/stop 使用稳定 action row；图标
   `16px`，同层 stroke 视觉重量一致。
 

@@ -1236,9 +1236,26 @@ test("Settings binds flat visual repair and complete Temporal maintenance to all
     guiPages.settings_general.background_services_summary.dependency_role,
     "required_for_complete_opl_durable_workflow",
   );
-  assert.equal(
-    experiencePages.overview.background_services_summary.component_status_policy,
-    "show_server_and_worker_independently_so_server_ready_worker_blocked_is_not_collapsed_into_one_opaque_attention_state",
+  const expectedTemporalComponents = [
+    "temporal_server",
+    "temporal_worker",
+    "temporal_scheduler",
+  ];
+  assert.deepStrictEqual(
+    guiPages.settings_general.background_services_summary.visible_components,
+    expectedTemporalComponents,
+  );
+  assert.deepStrictEqual(
+    experiencePages.overview.background_services_summary.visible_components,
+    expectedTemporalComponents,
+  );
+  assert.match(
+    experiencePages.overview.background_services_summary.projection_policy,
+    /must_never_be_inferred_from_provider_ready/,
+  );
+  assert.match(
+    experiencePages.overview.background_services_summary.projection_policy,
+    /take_precedence_over_aggregate_provider_status/,
   );
   assert.ok(
     guiPages.settings_general.must_not_show.some((item: string) =>
@@ -1249,15 +1266,38 @@ test("Settings binds flat visual repair and complete Temporal maintenance to all
     pageById("settings_general").background_services_summary.attention_route,
     "/settings/environment#services",
   );
-  assert.ok(
-    pageById("settings_general").required_dom.always.includes(
-      "settings-overview-temporal",
+  assert.deepStrictEqual(
+    pageById("settings_general").required_dom.always.filter((id: string) =>
+      id.startsWith("settings-overview-temporal-"),
     ),
+    [
+      "settings-overview-temporal-server",
+      "settings-overview-temporal-worker",
+      "settings-overview-temporal-scheduler",
+    ],
   );
 
   const guiTemporal = guiPages.settings_environment.temporal_maintenance_contract;
   const controlTemporal = experiencePages.maintenance.temporal_service_management;
   const pageTemporal = pageById("environment").temporal_maintenance_contract;
+  assert.deepStrictEqual(guiTemporal.visible_components, expectedTemporalComponents);
+  assert.deepStrictEqual(controlTemporal.visible_components, expectedTemporalComponents);
+  assert.deepStrictEqual(pageTemporal.visible_components, expectedTemporalComponents);
+  assert.deepStrictEqual(guiTemporal.post_action_readback.success_requires, [
+    "service_ready_true",
+    "worker_ready_true",
+    "scheduler_ready_true",
+    "no_error",
+    "fresh_observation",
+  ]);
+  assert.match(guiTemporal.scheduler_status_source, /details\.scheduler/);
+  assert.match(guiTemporal.component_projection_policy, /explicit_component_fields/);
+  assert.match(guiTemporal.component_projection_policy, /take_precedence_over_aggregate_provider_status/);
+  assert.equal(
+    controlTemporal.success_policy,
+    "service_ready_and_worker_ready_and_scheduler_ready_and_fresh_no_error_readback_only",
+  );
+  assert.equal(pageTemporal.success_policy, controlTemporal.success_policy);
   const expectedActionIds = {
     detect: [
       "provider_service_status",
@@ -1276,11 +1316,36 @@ test("Settings binds flat visual repair and complete Temporal maintenance to all
   assert.deepStrictEqual(guiTemporal.action_roles.detect.action_ids, expectedActionIds.detect);
   assert.deepStrictEqual(guiTemporal.action_roles.start.action_ids, expectedActionIds.start);
   assert.deepStrictEqual(guiTemporal.action_roles.restart.action_ids, expectedActionIds.restart);
-  assert.deepStrictEqual(guiTemporal.post_action_readback.action_ids, [
+  assert.equal(
+    guiTemporal.post_action_readback.execution,
+    "single_force_fresh_fast_app_state_load",
+  );
+  assert.match(
+    guiTemporal.post_action_readback.component_readback_semantics,
+    /explicit_temporal_server_worker_scheduler_component_readback/,
+  );
+  assert.deepStrictEqual(guiTemporal.post_action_readback.component_field_paths, {
+    server: "app_state.provider.temporal.details.worker_readiness.service_ready",
+    worker: "app_state.provider.temporal.details.worker_readiness.worker_ready",
+    scheduler: "app_state.provider.temporal.details.scheduler.ready",
+  });
+  assert.equal(guiTemporal.post_action_readback.ordinary_and_post_action_readback_command_count, 1);
+  assert.equal(guiTemporal.post_action_readback.shell_must_not_fan_out_delegated_status_cli, true);
+  assert.equal(
+    guiTemporal.post_action_readback.manual_component_check_policy,
+    "explicit_user_diagnostic_only_not_final_state_source",
+  );
+  assert.match(guiTemporal.post_action_readback.legacy_or_aggregate_ready_policy, /must_not_infer_component_ready/);
+  assert.deepStrictEqual(guiTemporal.post_action_readback.manual_component_check_action_ids, [
     "provider_service_status",
     "provider_scheduler_status",
     "provider_worker_status",
   ]);
+  assert.equal(
+    controlTemporal.mutation_readback,
+    "single_force_fresh_fast_app_state_executes_and_projects_temporal_server_worker_scheduler_component_readback",
+  );
+  assert.equal(pageTemporal.mutation_readback, controlTemporal.mutation_readback);
   assert.equal(guiTemporal.post_action_readback.freshness_required, true);
   assert.match(guiTemporal.failure_semantics, /never_route_to_settings_sync_capabilities/);
   assert.equal(
@@ -1302,6 +1367,11 @@ test("Settings binds flat visual repair and complete Temporal maintenance to all
   assert.ok(
     experiencePages.maintenance.required_dom.always.includes(
       "settings-maintenance-temporal-worker",
+    ),
+  );
+  assert.ok(
+    experiencePages.maintenance.required_dom.always.includes(
+      "settings-maintenance-temporal-scheduler",
     ),
   );
 

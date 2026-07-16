@@ -462,8 +462,8 @@
       "model_reasoning_control": "single_compact_menu",
       "visual_metrics": {
         "textarea_typography": "14/20/400",
-        "bottom_control_typography": "13/18/400_or_500",
-        "bottom_control_max_font_px": 13,
+        "bottom_control_typography": "12/18/400_or_500",
+        "bottom_control_max_font_px": 12,
         "icon_size_px": 16,
         "action_height_px": 32,
         "border_px": 1,
@@ -664,7 +664,7 @@
         "text_muted": "#80868B",
         "hairline_border": "rgba(0, 0, 0, 0.10)",
         "focus_ring": "rgba(37, 99, 235, 0.34)",
-        "composer_shadow": "0 1px 2px rgba(0, 0, 0, 0.07), 0 8px 24px rgba(0, 0, 0, 0.08)"
+        "composer_shadow": "0 1px 2px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.05)"
       },
       "dark_surfaces": {
         "main_canvas": "#171819",
@@ -675,7 +675,7 @@
         "text_primary": "#F4F5F6",
         "text_secondary": "#AEB4BC",
         "hairline_border": "rgba(255, 255, 255, 0.12)",
-        "composer_shadow": "0 1px 2px rgba(0, 0, 0, 0.30), 0 8px 24px rgba(0, 0, 0, 0.24)"
+        "composer_shadow": "0 1px 2px rgba(0, 0, 0, 0.28), 0 4px 12px rgba(0, 0, 0, 0.18)"
       },
       "rail_and_subtle_surfaces": "neutral_gray",
       "side_panel_resizable": true,
@@ -5595,7 +5595,7 @@
       "must_show": [
         "overall usability and attention count",
         "signed-in Gateway identity, compact today token/cost/balance and availability summary",
-        "localized Temporal server and worker status with a plain-language reason and direct Maintenance route",
+        "localized Temporal server, worker, and scheduler status with a plain-language reason and direct Maintenance route",
         "necessary direct Codex and Gateway technical rows without a second disclosure",
         "one next useful action",
         "Overview without duplicated sidebar navigation or page-directory cards"
@@ -5614,14 +5614,17 @@
         "state_sources": [
           "app_state.provider.temporal",
           "app_state.provider.temporal.details.worker_readiness",
+          "app_state.provider.temporal.details.scheduler",
           "settings_control_center.status_summary.temporal_provider"
         ],
         "visible_components": [
           "temporal_server",
-          "temporal_worker"
+          "temporal_worker",
+          "temporal_scheduler"
         ],
-        "component_status_policy": "show_server_and_worker_independently_so_server_ready_worker_blocked_is_not_collapsed_into_one_opaque_attention_state",
-        "normal_state_policy": "when_server_and_worker_are_ready_show_one_quiet_localized_ready_summary_without_attention_emphasis",
+        "component_status_policy": "show_server_worker_and_scheduler_independently_so_one_ready_component_never_collapses_an_unready_or_unknown_component_into_one_opaque_state",
+        "projection_policy": "server_worker_and_scheduler_readiness_require_explicit_component_fields_must_never_be_inferred_from_provider_ready_and_take_precedence_over_aggregate_provider_status",
+        "normal_state_policy": "when_server_worker_and_scheduler_are_all_explicitly_ready_show_one_quiet_localized_ready_summary_without_attention_emphasis",
         "copy_policy": "localized_user_language_status_and_reason_never_raw_enum_or_blocker_id",
         "attention_route": "/settings/environment#services",
         "action_policy": "route_to_Maintenance_and_only_use_real_projected_Temporal_actions_never_settings_sync_capabilities"
@@ -7206,17 +7209,24 @@
         "status_source": "opl app state --profile fast --json#app_state.provider.temporal",
         "visible_components": [
           "temporal_server",
-          "temporal_worker"
+          "temporal_worker",
+          "temporal_scheduler"
         ],
         "visible_fields": [
           "localized_status",
           "localized_reason",
+          "service_ready",
           "server_reachable",
           "worker_ready",
+          "scheduler_status",
+          "scheduler_ready",
+          "scheduler_observed_at",
           "observed_at"
         ],
-        "component_status_policy": "server_and_worker_have_independent_status_reason_and_action_rows",
-        "ready_state_policy": "server_and_worker_ready_is_muted_normal_state_while_check_and_maintenance_actions_remain_reachable",
+        "component_status_policy": "server_worker_and_scheduler_have_independent_status_reason_and_action_rows",
+        "component_projection_policy": "server_worker_and_scheduler_readiness_require_explicit_component_fields_must_never_be_inferred_from_provider_ready_and_take_precedence_over_aggregate_provider_status",
+        "scheduler_status_source": "app_state.provider.temporal.details.scheduler.{status,ready,observed_at} with details.scheduler_status as display-only compatibility fallback",
+        "ready_state_policy": "server_worker_and_scheduler_all_explicitly_ready_is_muted_normal_state_while_check_and_maintenance_actions_remain_reachable",
         "worker_mutation_guard_policy": {
           "source": "app_state.provider.temporal.details.worker_readiness.worker_mutation_guard",
           "applies_when": "the_fresh_projected_mutation_guard_status_is_blocked_developer_checkout_shared_state",
@@ -7265,7 +7275,18 @@
         },
         "post_action_readback": {
           "required_after_mutation": true,
-          "action_ids": [
+          "execution": "single_force_fresh_fast_app_state_load",
+          "component_readback_semantics": "fresh_fast_app_state_executes_and_projects_explicit_temporal_server_worker_scheduler_component_readback",
+          "component_field_paths": {
+            "server": "app_state.provider.temporal.details.worker_readiness.service_ready",
+            "worker": "app_state.provider.temporal.details.worker_readiness.worker_ready",
+            "scheduler": "app_state.provider.temporal.details.scheduler.ready"
+          },
+          "ordinary_and_post_action_readback_command_count": 1,
+          "shell_must_not_fan_out_delegated_status_cli": true,
+          "manual_component_check_policy": "explicit_user_diagnostic_only_not_final_state_source",
+          "legacy_or_aggregate_ready_policy": "null_legacy_server_reachable_and_aggregate_provider_ready_must_not_infer_component_ready",
+          "manual_component_check_action_ids": [
             "provider_service_status",
             "provider_scheduler_status",
             "provider_worker_status"
@@ -7273,8 +7294,9 @@
           "final_state_source": "opl app state --profile fast --json#app_state.provider.temporal",
           "freshness_required": true,
           "success_requires": [
-            "server_reachable_true",
+            "service_ready_true",
             "worker_ready_true",
+            "scheduler_ready_true",
             "no_error",
             "fresh_observation"
           ]
