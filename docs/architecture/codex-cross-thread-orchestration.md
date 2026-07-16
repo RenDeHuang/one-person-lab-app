@@ -90,26 +90,18 @@ OPL 不直接改写 Codex 的线程存储，不复制完整 thread history，也
 runtime 或权限模型。App Server 始终是线程身份、历史和运行状态的 source of truth；OPL 仅
 保存幂等重试、用户解释和审计所需的轻量协调元数据与 receipt。
 
-## Local/Worktree 与跨线程协调的边界
+## Session workspace 与跨线程协调的边界
 
-Workspace locality handoff 与跨顶层线程消息是两条不同链路，不能共用一个含糊的
-“handoff”完成声明：
+Workspace context 与跨顶层线程消息是两条不同链路：
 
-1. Home 的 New task 可选 Local/Worktree 与 starting branch。Worktree 通过既有
-   `gitWorkspace.inspect` / `ensureManagedWorktree` 创建或复用，不建立第二 Git store。
-2. 既有同主机 task 只在 `not_loaded`/`idle` 时从 Conversation Environment 提供
-   Local↔Worktree；真实协议是 `thread/settings/update { threadId, cwd }`。
-3. `running`/`archived`/`system_error` 时 locality action 显示 unavailable，不 silent fallback。
-   这是 Codex thread protocol 的状态限制，不是 workspace permission gate。
-4. 更新顺序固定为真实 Codex cwd在先、AionUI conversation projection在后；projection失败时
-   best-effort恢复旧 cwd并显示错误，不伪造切换成功。
-5. `opl_workspace_handoff.v1` 只保存 locality、`localWorkspace`、`worktreePath`、task/start ref和
-   `worktreeRetention` 等 projection metadata；它不是 snapshot body 或第二 Git store。
-6. Worktree默认保留复用。显式cleanup只对确定的Codex-managed worktree开放，先创建
-   `opl_worktree_snapshot_receipt.v1`并把HEAD、branch或detached HEAD、index、tracked、untracked与
-   ignored user files保留到durable Git ref/object；失败时不得remove。Restore冲突typed fail且不覆盖现有内容。
-7. Cross-host handoff只有连接、目标project、Git state transfer与destination readback来自真实host
-   transport时才可用，不能由本机Local/Worktree source或跨线程receipt推导为成功。
+1. Home 的 workspace selector 只设置新 task 初始 cwd，不提供 Local/Worktree、starting branch 或
+   managed Worktree create/reuse。
+2. 既有 task 的 recorded workspace 和 rail 分组保持只读；命令或 turn 的实际 `pwd` 属于 Codex
+   执行上下文，不反写 App metadata。
+3. Conversation Environment 只读显示 recorded workspace 与 live Git inspection，不调用
+   `thread/settings/update`，不保存 `opl_workspace_handoff.v1`，也不维护 projection rollback transaction。
+4. Cross-host handoff只有连接、目标project、Git state transfer与destination readback来自真实host
+   transport时才可用，不能由本机 workspace source或跨线程receipt推导为成功。
 
 当前 typed blocker 为 `remote_host_handoff_owner_surface_unavailable`。Primary owner 是 Codex App
 Remote Connections / host-handoff；OPL App继续拥有产品合同，AionUI Shell仅为
@@ -341,8 +333,8 @@ JSONL。AionUI upstream intake 不能删除 OPL 已采纳的跨线程能力；�
   Codex App Remote Connections / host-handoff，Shell不得用远端turn或Aion Remote Agent冒充；
 - wait/result aggregation 与 typed timeout/failure；
 - parent/ancestor capability-detected projection。
-- managed worktree snapshot-before-remove 与 receipt restore 已进入同主机source；自动保留数量策略、
-  archive触发自动cleanup和跨host transfer仍按各自owner/evidence独立验收。
+- managed Worktree、snapshot-before-remove、cleanup 与 receipt restore 不进入当前 App；未来只在明确
+  产品需求和稳定 owner protocol 同时成立时重新评估。
 
 ### P2: 远程 host 聚合
 
@@ -385,8 +377,8 @@ test 替代远程或 packaged evidence。
 
 Active AionUI main source cohort从最终Git readback获取；`e218d79b7a5727b72ddce66bcaabd9410a38076b` 已实现 production App
 Server `thread/*` / `turn/*` adapter、canonical thread directory、flexible routing、可见 delivery
-audit、interactive request pending handling、Runtime cockpit，以及同主机 Local/Worktree create/reuse、
-idle handoff、durable snapshot-before-remove、cleanup rollback与receipt restore。Cross-host handoff仍因
+audit、interactive request pending handling与Runtime cockpit。当前 App 已删除同主机 Local/Worktree
+create/reuse、idle handoff、snapshot、cleanup与restore控制面。Cross-host handoff仍因
 Codex Remote Connections/host-handoff owner协议面缺失而typed unavailable。
 模型 high-level tool 仍为 `source_missing_protocol_blocked`；匹配该 source的
 pixels、package与installed-path gate仍由集成 owner独立闭合。Native candidate 的 `c1d9db...`

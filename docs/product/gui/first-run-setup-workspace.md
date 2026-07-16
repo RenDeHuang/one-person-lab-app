@@ -99,9 +99,9 @@ API Key 输入保留可见字段标签、密码显隐、安全说明和 renderer
 
 - 普通侧栏在任一 Core 前置条件未完成时持续显示“完成首次设置”，点击后返回 `/first-run`；它不是模态框，也不会自动改变当前路由。
 - 普通文字对话只要求本机助手与模型访问。发送被拦截时保留草稿，在输入区下方显示本地化原因和“完成设置”动作。
-- 工作目录未完成时，只禁用 project/Worktree/OPL workspace controls；普通本地对话以及当前 composer 的
+- 工作目录未完成时，只禁用 project/OPL workspace controls；普通本地对话以及当前 composer 的
   attachment、file/directory picker、paste/drop 与 `/open` 继续可用并只服从 Codex permission/approval/sandbox。
-  Worktree 仍要求 Git repository，Codex CLI/model prerequisites 保持原有约束。
+  Codex CLI/model prerequisites 保持原有约束。
 - readiness 尚未读取成功时，不合成失败状态、不修改 `ready_to_launch`，也不凭缓存之外的信息阻断普通操作尝试。
 - 所有恢复提示必须非模态、可键盘访问，并给出直接返回首启工作台的合法入口。
 

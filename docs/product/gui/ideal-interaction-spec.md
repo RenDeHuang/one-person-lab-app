@@ -48,7 +48,8 @@ header、隐藏 project rail、默认打开 inspector，或用 Settings/card lay
 宽桌面首次进入 ordinary Home 或 conversation 时：
 
 - 左侧目录/对话 rail 默认可见，展示由 App Server canonical overview 投影的 threads；
-  project/workspace/directory 只用于新 session 初始 cwd、可变 cwd 和分组，不拥有 session、context 或 artifact。
+  project/workspace/directory 只用于新 session 初始 cwd 和 recorded workspace 分组，不拥有 session、context 或 artifact。
+  命令或 turn 的实际 `pwd` 可变化，但不反写该记录或分组。
 - 主区域是一条 conversation timeline；空 conversation 仍使用同一工作画布。
 - Composer 浮于主区底部并保留安全距，可直接输入多行任务。
 - Working-directory grouping 位于 rail；locality/branch 位于 Environment。
@@ -65,9 +66,9 @@ header、隐藏 project rail、默认打开 inspector，或用 Settings/card lay
 
 ## 核心用户流程
 
-1. **进入工作上下文。** App 按 canonical thread ID 恢复最近 App Server session；用户可用 Local/
-   Worktree 与 starting branch 初始化 cwd，也可不选 workspace 直接开始 projectless conversation。
-   初始化后 cwd 仍可更换，不会创建替代 session。
+1. **进入工作上下文。** App 按 canonical thread ID 恢复最近 App Server session；新任务可通过
+   workspace selector 设置初始 cwd，也可不选 workspace 直接开始 projectless conversation。命令或 turn
+   的实际 `pwd` 可按任务需要变化，但不会反写 recorded workspace 或 rail 分组；既有 session 不提供 cwd 重绑。
 2. **开始或继续对话。** 用户从 rail 新建、搜索、pin、rename、archive、reset 或切换
    conversation，并从独立 Archived surface 管理归档。
 3. **选择工作目的。** 用户从 Home starter 选择科研、基金、演示、写书等能力；
@@ -91,7 +92,7 @@ Rail 负责 navigation，不承担 dashboard：
   选择由 Home starter 承接，package 管理由 Settings → Agents 承接，Skills/Plugins/Flow
   管理由 Settings → Capabilities 承接，不在 rail 重复。
   其它全局入口仅在 OPL 有真实对应能力时保留。
-- 中段按 canonical session 当前 cwd 分组 App Server threads。App Server overview 可用时是 Codex
+- 中段按 canonical session 的 recorded workspace 分组 App Server threads。App Server overview 可用时是 Codex
   session directory authority；Shell DB 只保存 draft、preference 和可重建 cache，不拥有 history。
   Canonical overview 未返回的 stale Codex ACP cache row 不进入 ordinary projection；仅 overview
   unavailable 时 fallback cache，非 Codex local row 保留。每个 canonical thread ID 最多一行，
@@ -101,8 +102,8 @@ Rail 负责 navigation，不承担 dashboard：
   permission/approval/sandbox。
 - Session 输入只从当前 composer 通过 attachment、file/directory picker、paste/drop 或 `/open`
   显式加入，当前 send 消费后不持久化为 workspace defaults；禁止 rail “添加上下文”、workspace-keyed
-  preload 和隐式 prompt injection。Workspace readiness 只约束 project/Worktree/OPL workspace controls，
-  不约束普通本地对话或 send-scoped local file inputs；Worktree 仍要求 Git repo，Codex/model prerequisites 不变。
+  preload 和隐式 prompt injection。Workspace/managed-target readiness 只约束 manifest 明确声明该要求的
+  Agent/package，不约束普通 Codex conversation 或 send-scoped local file inputs；Codex/model prerequisites 不变。
 - 支持 search、pin、rename、archive、restore、delete、reset；rename/archive/restore/delete
   直接映射 `thread/name/set`、`thread/archive`、`thread/unarchive`、`thread/delete`。Pin 只是
   Shell UI metadata；AionUI local reset 保留既有会话语义，但不得冒充 App Server history reset。
@@ -110,21 +111,16 @@ Rail 负责 navigation，不承担 dashboard：
 - Home root、composer shell 与 footer account/Settings entry 在每个 viewport 各渲染一次。
 - Active conversation、running/blocked/completed 等状态只用轻量标记，不改变 row 布局。
 - 切换 conversation 保留各自 scroll、draft 和 refs context。
-- Workspace switch 明确说明新 turn 会在哪个目录执行，并保持同一 canonical thread、transcript、
-  turn history、title 与 task state；rail 只按新 cwd 重新分组该 session。
+- Workspace selector 明确说明新 session 的初始工作目录；既有 session 的 recorded workspace 与 rail
+  分组只读，命令或 turn 的实际 `pwd` 不反写 App metadata。
 - 目录组只提供“使用此工作目录新建对话”的快捷动作；目录组无 owner 语义，不提供组级删除，也不得
   级联 archive/delete/reset 其下 session。
-- Home 的 New task 可选择 Local/Worktree 与 starting branch；Worktree 通过既有
-  `gitWorkspace.inspect` / `ensureManagedWorktree` 创建或复用，位于 `$CODEX_HOME/worktrees`，
-  selected branch HEAD detached。创建失败保持可见，不 silent fallback 到 Local。
-- 既有同主机 canonical session 只在 `not_loaded`/`idle` 时从 Conversation Environment 提供
-  系统目录选择器驱动的任意本地工作目录切换，Local↔Worktree 是其专门 lifecycle。真实切换先调用
-  `thread/settings/update { threadId, cwd }`，再更新 AionUI conversation projection 与 rail 分组；
-  projection 失败时 best-effort 恢复旧 cwd 并显示错误。不得 fork thread、复制 history 或创建替代 session。
-  `running`/`archived`/`system_error` 显示 unavailable，这是 Codex 协议状态限制，不是目录权限。
-- `opl_workspace_handoff.v1` 只保存 locality、Local/worktree path、task/start ref 和 retention
-  projection。Worktree 默认保留复用，不因 archive 或数量阈值在 Shell 内静默删除。
-- App 不提供 managed worktree cleanup、snapshot receipt、restore 或 cross-host handoff 控制面。
+- Home 的 New task 只通过现有 workspace selector 选择初始 cwd；不显示 Local/Worktree、starting branch
+  或 managed Worktree create/reuse。
+- Conversation Environment 只读显示 recorded workspace 与 live Git context，不提供既有 session 的目录
+  重绑、Local↔Worktree lifecycle、projection transaction 或 rail 重分组。
+- App 不保存 `opl_workspace_handoff.v1`，不调用 `thread/settings/update` 修改 cwd，也不提供 managed
+  Worktree、cleanup、snapshot receipt、restore 或 cross-host handoff 控制面。
 - Backend、provider、permission、router 和 raw runtime state 不作为 rail 层级。
 - 外部交互参考可以改变入口位置，但不得删除 OPL-owned capability；任何迁移必须在同一
   变更提供可见、键盘可达的替代入口，并同步更新 contract、source 和 navigation tests。
@@ -363,14 +359,12 @@ First-run 的目标是让用户尽快进入可工作的 App：
 - Current-task summary bar 可 pin，并包含 status/elapsed/progress/next action/stop。
 - Rail/Archived/conversation management 与 desktop affordances 完整可达。
 - Rail 顶部只有 New task、Runtime、Archived；capability 选择在 Home，管理在 Settings。
-- Environment 首层保持 workspace/locality/branch/changes/subtasks/sources；OPL artifact/evidence 为
+- Environment 首层保持 recorded workspace/branch/changes/subtasks/sources；OPL artifact/evidence 为
   次级 section/preview，advanced tools 默认关闭。
 - 普通 navigation 不展示独立 coordination 页面；用户可从现有 directory/actions 执行
   list/read/start/resume/fork/archive/restore，普通 conversation 仍走现有 ACP。
-- Home New task 的 Local/Worktree、starting branch 与 managed worktree create/reuse 已由薄 adapter承接；
-  既有同主机空闲 canonical session 的任意目录切换位于 Conversation Environment，通过系统目录选择器
-  与 `thread/settings/update` 更新真实 cwd，再更新 projection/rail 分组且不改变 thread identity。
-  Worktree只提供简单create/reuse和默认保留，无cleanup/snapshot/restore控制面。Review复用
+- Home New task 只用 workspace selector 设置初始 cwd；Conversation Environment 保持只读，Shell 不含
+  managed Worktree/Handoff 或任意目录重绑。Review复用
   Files/Changes diff surface并覆盖四类 target、两种 delivery、五个
   sections 与 `gh` unavailable 状态，其中 Last turn 已实现，custom instructions 只进入
   `review/start.target.custom`。非 custom `Review Focus` 因公开 App Server 缺少对应 input 而

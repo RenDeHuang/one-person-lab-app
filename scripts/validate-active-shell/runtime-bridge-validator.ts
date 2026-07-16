@@ -2,10 +2,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { assertDeepEqualJson, assertIncludesAll } from './assertions.ts';
-import {
-  appOwnedRuntimeBridgeLocalWorktreeHandoffPolicy,
-  forbiddenAuthorityOwners,
-} from './app-contract-constants.ts';
+import { forbiddenAuthorityOwners } from './app-contract-constants.ts';
 import { isDefaultReleaseAdapter } from './active-shell-contract.ts';
 import { assertFile, commandMaxBuffer, root } from './validation-config.ts';
 import { lookupPath } from './value-helpers.ts';
@@ -1549,7 +1546,7 @@ function validateCanonicalConversationContinuityPolicy(runtimeBridge) {
     opl_native_workbench_status: 'resume_capable_full_local_transcript_cache_requires_canonical_thread_directory',
     pin_role: 'shell_ui_metadata_only',
     local_reset_role: 'retain_existing_aionui_conversation_semantics_not_app_server_history_reset',
-    workspace_directory_role: 'new_session_initial_cwd_mutable_cwd_grouping_and_visible_metadata_only_not_authorization_domain',
+    workspace_directory_role: 'new_session_initial_cwd_grouping_and_visible_metadata_only_not_authorization_domain',
     row_identity: 'canonical_thread_id',
     duplicate_row_per_canonical_thread_allowed: false,
     title_based_deduplication_allowed: false,
@@ -1592,7 +1589,7 @@ function validateCanonicalConversationContinuityPolicy(runtimeBridge) {
   assertDeepEqualJson(
     policy?.directory_group_policy,
     {
-      source: 'canonical_session_cwd_projection',
+      source: 'canonical_recorded_session_cwd_projection',
       role: 'presentation_and_new_session_cwd_shortcut_only',
       owns_sessions: false,
       owns_context: false,
@@ -1606,11 +1603,9 @@ function validateCanonicalConversationContinuityPolicy(runtimeBridge) {
 }
 
 function validateCodexParityAdapterPolicies(runtimeBridge) {
-  assertDeepEqualJson(
-    runtimeBridge.codex_local_worktree_handoff_policy,
-    appOwnedRuntimeBridgeLocalWorktreeHandoffPolicy,
-    'Codex Local and Worktree handoff policy',
-  );
+  if ('codex_local_worktree_handoff_policy' in runtimeBridge) {
+    throw new Error('Runtime bridge must not own a Local or Worktree handoff policy');
+  }
   assertDeepEqualJson(
     runtimeBridge.codex_review_surface_policy,
     {

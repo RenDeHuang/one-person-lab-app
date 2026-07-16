@@ -251,7 +251,7 @@ export function validateFirstRunMatrix(matrix, contract) {
     'ordinary sidebar keeps a non-modal localized entry back to /first-run until Core prerequisites are complete',
     'plain conversation and send-scoped local file or directory inputs require Codex CLI and model access but do not require workspace_root',
     'blocked send keeps the draft prompt and shows an inline localized recovery action',
-    'missing workspace_root disables project selection, Worktree creation, and OPL workspace controls only',
+    'missing workspace_root disables project selection and OPL workspace controls only',
     'unknown readiness does not synthesize failure or mutate ready_to_launch',
   ]) {
     if (!progressiveRecovery.expects?.includes(expected)) {

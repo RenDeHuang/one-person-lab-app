@@ -8,9 +8,6 @@ import { fileURLToPath } from 'node:url';
 import {
   appOwnedDirectoryGroupPolicy,
   appOwnedExplicitSessionInputPolicy,
-  appOwnedGuiContractEnvironmentWorkspaceHandoff,
-  appOwnedNewTaskLocality,
-  appOwnedPageStateEnvironmentWorkspaceHandoff,
   appOwnedSessionWorkspaceModel,
 } from './validate-active-shell/app-contract-constants.ts';
 
@@ -393,7 +390,7 @@ function validateAionuiSnapshot(root: string, text: string, issues: Set<string>)
     return;
   }
   const currentSourceMatch = text.match(/Current Shell source cohort：symbolic `([a-z0-9_]+)`/);
-  if (!currentSourceMatch || currentSourceMatch[1] !== 'session_first_directory_current_source_cohort') {
+  if (!currentSourceMatch || currentSourceMatch[1] !== 'session_workspace_minimal_current_source_cohort') {
     issues.add('shell conformance matrix must use the symbolic current Shell source cohort without pinning a transient HEAD');
     return;
   }
@@ -1023,7 +1020,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
       'exclude_from_ordinary_projection_when_absent_from_available_canonical_overview' ||
     threadDirectoryPolicy.non_codex_local_row_policy !== 'preserve' ||
     threadDirectoryPolicy.workspace_directory_role !==
-      'new_session_initial_cwd_mutable_cwd_grouping_and_visible_metadata_only' ||
+      'new_session_initial_cwd_grouping_and_visible_metadata_only' ||
     threadDirectoryPolicy.row_identity !== 'canonical_thread_id' ||
     threadDirectoryPolicy.duplicate_row_per_canonical_thread_allowed !== false ||
     threadDirectoryPolicy.title_based_deduplication_allowed !== false ||
@@ -1044,13 +1041,12 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   const composerTarget = record(interactionBaseline.composer);
   const explicitSessionInputPolicy = record(conversationScope.explicit_session_input_policy);
   const sessionWorkspaceModel = record(conversationScope.session_workspace_model);
-  const localWorktreeLifecycle = record(conversationScope.local_worktree_lifecycle);
   const permissionTarget = record(interactionBaseline.permission_access_mode);
   const taskSummaryTarget = record(interactionBaseline.current_task_summary_bar);
   const mobileActionSheet = record(composerTarget.mobile_action_sheet);
   if (JSON.stringify(sessionWorkspaceModel) !== JSON.stringify(appOwnedSessionWorkspaceModel)) {
     issues.add(
-      'conversation scope must keep the canonical session identity while treating workspace as mutable cwd and grouping metadata',
+      'conversation scope must keep canonical session identity while limiting workspace to initial cwd and grouping metadata',
     );
   }
   if (
@@ -1059,8 +1055,9 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     conversationScope.text_chat_without_workspace !== 'available' ||
     conversationScope.explicit_session_inputs_without_workspace !== 'available_subject_to_codex_permissions' ||
     conversationScope.workspace_directory_role !==
-      'new_session_initial_cwd_mutable_cwd_sidebar_grouping_and_visible_metadata_only_not_owner_or_authorization_domain' ||
+      'new_session_initial_cwd_sidebar_grouping_and_visible_metadata_only_not_owner_or_authorization_domain' ||
     JSON.stringify(explicitSessionInputPolicy) !== JSON.stringify(appOwnedExplicitSessionInputPolicy) ||
+    'local_worktree_lifecycle' in conversationScope ||
     'project_context_inputs' in conversationScope ||
     'projectless_input_policy' in conversationScope ||
     !sameStrings(conversationScope.conversation_management, [
@@ -1073,21 +1070,6 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
       'reset',
     ]) ||
     conversationScope.archived_surface !== 'independent' ||
-    localWorktreeLifecycle.state !== 'minimal_create_reuse_default_preserve' ||
-    !sameStrings(record(localWorktreeLifecycle.new_task).locality_options, ['local', 'worktree']) ||
-    record(localWorktreeLifecycle.new_task).starting_branch_selectable !== true ||
-    record(localWorktreeLifecycle.new_task).worktree_action !== 'create_or_reuse_managed_worktree' ||
-    record(localWorktreeLifecycle.metadata).worktree_retention_value !== 'preserve_for_reuse' ||
-    record(localWorktreeLifecycle.worktree).default_retention !== 'preserve_for_reuse' ||
-    !sameStrings(localWorktreeLifecycle.forbidden_control_planes, [
-      'automatic_worktree_cleanup',
-      'worktree_snapshot_receipt',
-      'worktree_restore',
-    ]) ||
-    localWorktreeLifecycle.duplicate_git_or_thread_store_allowed !== false ||
-    'snapshot_restore' in localWorktreeLifecycle ||
-    'cleanup' in localWorktreeLifecycle ||
-    'cross_host' in localWorktreeLifecycle ||
     homeTarget.title_policy !== 'modest_dynamic_prompt_in_composer_reading_lane' ||
     homeTarget.starter_limit !== null ||
     homeTarget.starter_visibility_policy !== 'all_user_visible_configured_shortcuts' ||
@@ -1166,8 +1148,8 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   const pageStates = Array.isArray(pageStateMatrix.pages) ? pageStateMatrix.pages.map(record) : [];
   const guidHomePage = pageStates.find((page) => page.id === 'guid_home') ?? {};
   const guidHomeViewModel = record(record(guidHomePage).home_view_model);
-  if (JSON.stringify(record(guidHomeViewModel.new_task_locality)) !== JSON.stringify(appOwnedNewTaskLocality)) {
-    issues.add('Guid Home must expose only the implemented new-task Local or Worktree selection boundary');
+  if ('new_task_locality' in guidHomeViewModel || 'local_worktree_lifecycle_ref' in guidHomeViewModel) {
+    issues.add('Guid Home must keep workspace selection limited to the new task initial cwd');
   }
   if (
     !stringArray(record(guidHomePage).must_show).includes(
@@ -1208,6 +1190,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     threadCoordination.protocol_owner !== 'codex_core_app_server' ||
     threadCoordination.thread_store_owner !== 'codex_core_app_server' ||
     !requiredThreadProtocols.every((protocol) => stringArray(threadCoordination.supported_protocols).includes(protocol)) ||
+    stringArray(threadCoordination.supported_protocols).includes('thread/settings/update') ||
     threadCoordination.state_authority !== 'codex_app_server' ||
     threadCoordination.plain_conversation_policy !== 'existing_aionui_acp_unchanged' ||
     !sameStrings(threadCoordination.forbidden_private_layers, [
@@ -1230,10 +1213,6 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   const artifactPreview = record(interactionBaseline.artifact_preview);
   const ordinaryConversationPage = pageStates.find((page) => page.id === 'ordinary_conversation') ?? {};
   const ordinaryConversationViewModel = record(record(ordinaryConversationPage).conversation_view_model);
-  const pageEnvironmentWorkspaceHandoff = record(ordinaryConversationViewModel.environment_workspace_handoff);
-  const conversationEnvironmentWorkspaceHandoff = record(
-    record(guiContract.ordinary_conversation).environment_workspace_handoff,
-  );
   const pageArtifactPreview = record(ordinaryConversationViewModel.artifact_preview);
   const conversationArtifactPreview = record(record(guiContract.ordinary_conversation).artifact_preview);
   const environmentPopover = record(contextSurfaces.environment_popover);
@@ -1253,12 +1232,10 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     issues.add('each OPL target translation section must declare that it is not a literal Codex observation');
   }
   if (
-    JSON.stringify(pageEnvironmentWorkspaceHandoff) !==
-      JSON.stringify(appOwnedPageStateEnvironmentWorkspaceHandoff) ||
-    JSON.stringify(conversationEnvironmentWorkspaceHandoff) !==
-      JSON.stringify(appOwnedGuiContractEnvironmentWorkspaceHandoff)
+    'environment_workspace_handoff' in ordinaryConversationViewModel ||
+    'environment_workspace_handoff' in record(guiContract.ordinary_conversation)
   ) {
-    issues.add('ordinary conversation must keep same-host idle workspace handoff in Environment without claiming deferred capabilities');
+    issues.add('ordinary conversation Environment must remain read-only without workspace handoff state');
   }
   if (
     artifactPreview.surface !== 'existing_aionui_preview_context_and_panel' ||

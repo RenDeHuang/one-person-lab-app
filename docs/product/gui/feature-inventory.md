@@ -43,7 +43,7 @@ Sites/Chat 等入口可以隐藏或拒绝；它们不构成 OPL 功能回归。
 
 | 功能 | 用户结果 | Authority / machine owner |
 | --- | --- | --- |
-| Session-first workspace-aware App frame | Session/thread 是主单位；project/workspace/directory 只提供新 session 初始 cwd、可变 cwd 和 rail 分组，不拥有 session、context 或 artifact，也不构成授权域。 | GUI contract、product profile、Codex permission/approval/sandbox。 |
+| Session-first workspace-aware App frame | Session/thread 是主单位；project/workspace/directory 只提供新 session 初始 cwd 和只读 recorded workspace rail 分组，不拥有 session、context 或 artifact，也不构成授权域。命令或 turn 的实际 `pwd` 变化不反写该记录。 | GUI contract、product profile、Codex permission/approval/sandbox。 |
 | Directory/conversation navigation | 宽桌面 rail 默认展开，窄窗口变 drawer；App Server overview 可用时是 Codex session directory authority，未返回的 stale Codex ACP cache rows 不进入 ordinary rail，overview unavailable 才 fallback cache，非 Codex local rows 保留。每个 canonical thread ID 最多一行，不按标题/workspace 去重；目录组不提供组级删除或 session 级联删除。 | GUI contract、page-state matrix、runtime bridge。 |
 | Chat-first main canvas | 打开 App 后可以直接开始或继续工作，不先经过 dashboard/landing；Home root、composer shell、footer account/Settings entry 各只有一个实例。 | GUI contract、page-state matrix。 |
 | Workspace-optional conversation | 不建立 workspace 也能使用 attachment、任意本地文件/目录选择、paste/drop 与 `/open`；workspace readiness 不 gate 这些输入，真实访问只受 Codex permission/approval/sandbox 约束。 | GUI contract、conversation state/bridge。 |
@@ -56,10 +56,10 @@ Sites/Chat 等入口可以隐藏或拒绝；它们不构成 OPL 功能回归。
 | 功能 | 用户结果 | Authority / machine owner |
 | --- | --- | --- |
 | New conversation | 在所选目录初始化 cwd，或不选 workspace 直接开始 Codex session；目录只提供初始 cwd 与分组，不拥有 session。 | GUI contract、conversation page state、Codex bridge。 |
-| Resume conversation | 按 canonical thread ID 找回 recent conversation，保留 transcript/turn history/title/task state；cwd 与 rail 分组可在同一 session 上更新。 | Conversation state/bridge；shell 只持有实现所需 session refs。 |
+| Resume conversation | 按 canonical thread ID 找回 recent conversation，保留 transcript/turn history/title/task state 和 recorded workspace 展示。 | Conversation state/bridge；shell 只持有实现所需 session refs。 |
 | Conversation management | Search、pin、rename、archive、reset conversation，并在独立 Archived surface 管理归档。 | GUI contract、conversation state/bridge。 |
 | User-triggered thread operations | 从现有 conversation directory/actions 读取、创建、恢复、fork、归档或恢复归档线程；普通对话继续走 AionUI ACP，不增加独立 coordination 页面或模型工具。 | 一个 Codex App Server adapter；Shell 只持有 UI metadata 与可重建 cache。 |
-| Session working directory / Local / Worktree | Home 新任务可选任意 Local 目录或 managed Worktree 与 starting branch。既有空闲 canonical session 可原位切换目录并保持同一 thread/history；Worktree只做简单create/reuse并默认保留。 | Codex Core/App Server 与既有 Git integration；workspace 只是可变 cwd/projection/grouping metadata。 |
+| Session working directory | Home workspace selector 只设置新任务初始 cwd；Conversation Environment 只读显示 recorded workspace 和可用的 live Git context。既有 session 不提供 cwd 重绑、Local/Worktree 切换或 managed Worktree。 | Codex Core/App Server；workspace 只是初始 cwd、展示与分组 metadata。 |
 | Text instruction | 向固定 Codex executor 发送多行任务说明。 | Product profile、ordinary conversation contract。 |
 | Streaming assistant output | 持续看到 assistant response，不需要查看 raw protocol。 | Codex/App bridge 与 conversation page state。 |
 | Pending/running feedback | 看到当前 turn 正在处理、elapsed time、stop 和失败状态。 | Page-state matrix、bridge events。 |

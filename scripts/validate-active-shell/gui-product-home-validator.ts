@@ -2,11 +2,13 @@ import { assertDeepEqualJson, assertIncludesAll } from './assertions.ts';
 import {
   appOwnedCurrentTaskSlice,
   appOwnedDirectoryGroupPolicy,
+  appOwnedExplicitSessionInputPolicy,
   appOwnedGuiContractOrdinaryConversation,
   appOwnedHomeLayout,
   appOwnedReviewSurfaceSourceEvidence,
   appOwnedRightContextInspectorForbiddenOwners,
   appOwnedRightContextInspectorPolicy,
+  appOwnedSessionWorkspaceModel,
 } from './app-contract-constants.ts';
 import {
   assertProfessionalAgentPackagePolicy,
@@ -62,6 +64,16 @@ function validateExecutorPolicy(guiContract) {
 
 function validateHomeLayout(guiContract) {
   assertDeepEqualJson(guiContract.home_layout, appOwnedHomeLayout, 'App GUI home layout');
+  assertDeepEqualJson(
+    guiContract.interaction_baseline?.conversation_scope?.session_workspace_model,
+    appOwnedSessionWorkspaceModel,
+    'App GUI interaction session workspace model',
+  );
+  assertDeepEqualJson(
+    guiContract.interaction_baseline?.conversation_scope?.explicit_session_input_policy,
+    appOwnedExplicitSessionInputPolicy,
+    'App GUI interaction explicit session input policy',
+  );
   if (
     guiContract.utility_icon_policy?.library !== 'icon_park_react_for_opl_owned_utility_icons' ||
     guiContract.utility_icon_policy?.opl_owned_settings_navigation_and_overview !==
@@ -130,10 +142,8 @@ function validateHomeLayout(guiContract) {
     'desktop attach, permission and access, model and reasoning, and send or stop controls in the composer',
     'mobile plus sheet limited to OPL attach, access, model and reasoning, and active capability actions',
     'explicit attachments, file or directory selection, paste, drop, and /open consumed by the current session send only',
-    'workspace readiness gates project, Worktree, and OPL workspace controls only, never plain local conversation or send-scoped local file inputs',
-    'same-host working-directory or Local/Worktree handoff for an existing not-loaded or idle session from Conversation Environment',
-    'running, archived, or system-error session handoff shown unavailable without silent fallback',
-    'Codex thread cwd updated before AionUI projection with best-effort cwd rollback on projection failure',
+    'workspace readiness gates project selection and OPL workspace controls only, never plain local conversation or send-scoped local file inputs',
+    'read-only Conversation Environment showing the recorded workspace and live Git context when available',
     'single current task instance in the message timeline, inline and unpinned for ordinary tasks',
     'current task becomes sticky only after user pin or a true long_running signal',
     'complete paginated redacted transcript export with Markdown default, strict JSON, explicit directory and filename',
@@ -144,9 +154,8 @@ function validateHomeLayout(guiContract) {
     'workspace-scoped project context inputs or an Add context action in the directory rail',
     'workspaceRootReady or workspace membership used as a file-access gate',
     'backend, provider, Team, raw MCP, or arbitrary skills in the mobile plus sheet',
-    'Local or Worktree handoff control inside the primary composer',
-    'worktree snapshot, restore, or cleanup controls',
-    'automatic managed worktree deletion',
+    'existing-session working-directory rebinding controls',
+    'Local or Worktree launch modes, starting branch, managed worktree, handoff, snapshot, restore, cleanup, or deletion controls',
     'cross-host task handoff controls',
     'duplicate current task or Runtime summary outside the message timeline',
     'workspace bundle export authorization',
@@ -166,7 +175,7 @@ function validateSessionDirectoryPolicy(guiContract) {
     policy.shell_local_storage_role !== 'drafts_preferences_and_rebuildable_cache_only' ||
     policy.shell_thread_history_authority !== false ||
     policy.workspace_directory_role !==
-      'new_session_initial_cwd_mutable_cwd_grouping_and_visible_metadata_only' ||
+      'new_session_initial_cwd_grouping_and_visible_metadata_only' ||
     policy.row_identity !== 'canonical_thread_id' ||
     policy.duplicate_row_per_canonical_thread_allowed !== false ||
     policy.title_based_deduplication_allowed !== false
@@ -178,19 +187,8 @@ function validateSessionDirectoryPolicy(guiContract) {
     appOwnedDirectoryGroupPolicy,
     'App GUI directory group ownership policy',
   );
-  const lifecycle = guiContract.interaction_baseline?.conversation_scope?.local_worktree_lifecycle;
-  if (
-    lifecycle?.state !== 'minimal_create_reuse_default_preserve' ||
-    JSON.stringify(lifecycle?.new_task?.locality_options) !== JSON.stringify(['local', 'worktree']) ||
-    lifecycle?.new_task?.starting_branch_selectable !== true ||
-    lifecycle?.new_task?.worktree_action !== 'create_or_reuse_managed_worktree' ||
-    lifecycle?.metadata?.worktree_retention_value !== 'preserve_for_reuse' ||
-    lifecycle?.worktree?.default_retention !== 'preserve_for_reuse' ||
-    'snapshot_restore' in (lifecycle ?? {}) ||
-    'cleanup' in (lifecycle ?? {}) ||
-    'cross_host' in (lifecycle ?? {})
-  ) {
-    throw new Error('App GUI Worktree lifecycle must keep only create or reuse with default preservation');
+  if ('local_worktree_lifecycle' in (guiContract.interaction_baseline?.conversation_scope ?? {})) {
+    throw new Error('App GUI conversation scope must not expose a managed Worktree lifecycle');
   }
 }
 

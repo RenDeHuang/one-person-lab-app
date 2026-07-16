@@ -476,7 +476,6 @@ export const progressiveFirstRunRecoveryPolicy = {
   workspace_control_required_items: ["workspace_root"],
   workspace_restricted_capabilities: [
     "project_workspace_selection",
-    "worktree_creation",
     "opl_workspace_controls",
   ],
   unknown_readiness_policy: "do_not_synthesize_failure_or_mutate_readiness",
@@ -1189,27 +1188,17 @@ export const appOwnedSessionWorkspaceModel = {
   primary_unit: "session_backed_by_codex_thread_id",
   identity_authority: "codex_core_app_server_thread_id",
   workspace_binding_role:
-    "new_session_initial_cwd_mutable_default_working_directory_and_sidebar_grouping_metadata_only",
+    "new_session_initial_cwd_and_sidebar_grouping_metadata_only",
+  runtime_pwd_role:
+    "command_or_turn_execution_context_not_persisted_as_session_workspace_binding",
+  existing_session_workspace_rebinding: "not_exposed",
   workspace_owns_session: false,
   workspace_owns_context: false,
   workspace_owns_artifacts: false,
   workspace_group_cascade_session_delete_allowed: false,
-  workspace_change_preserves: [
-    "thread_id",
-    "transcript",
-    "turn_history",
-    "title",
-    "task_state",
-  ],
-  workspace_change_forbids: [
-    "fork_thread",
-    "copy_history",
-    "create_replacement_session",
-    "change_session_owner",
-  ],
 };
 export const appOwnedDirectoryGroupPolicy = {
-  source: "canonical_session_cwd_projection",
+  source: "canonical_recorded_session_cwd_projection",
   role: "presentation_and_new_session_cwd_shortcut_only",
   owns_sessions: false,
   owns_context: false,
@@ -1239,30 +1228,14 @@ export const appOwnedExplicitSessionInputPolicy = {
   composer_consumption: "current_send_only",
   composer_persistence_after_send: "none",
   workspace_readiness_boundary: {
-    gates: ["project_selection", "worktree_creation", "opl_workspace_controls"],
+    gates: ["project_selection", "opl_workspace_controls"],
     plain_local_conversation_requires_workspace_root: false,
     send_scoped_local_file_inputs_require_workspace_root: false,
-    worktree_requires_git_repository: true,
+    agent_package_workspace_requirement_policy:
+      "package_manifest_declared_workspace_or_managed_target_only",
+    ordinary_codex_conversation_independent_of_agent_package_readiness: true,
     codex_and_model_prerequisites_unchanged: true,
   },
-};
-export const appOwnedRuntimeBridgeLocalWorktreeHandoffPolicy = {
-  contract_ref:
-    "contracts/app-gui-product-contract.json#interaction_baseline.conversation_scope.local_worktree_lifecycle",
-  bridge_role: "transport_only",
-  state_authority: "codex_core_app_server_and_existing_git_integration",
-};
-export const appOwnedNewTaskLocality = {
-  contract_ref:
-    "contracts/app-gui-product-contract.json#interaction_baseline.conversation_scope.local_worktree_lifecycle",
-};
-export const appOwnedGuiContractEnvironmentWorkspaceHandoff = {
-  contract_ref:
-    "interaction_baseline.conversation_scope.local_worktree_lifecycle",
-};
-export const appOwnedPageStateEnvironmentWorkspaceHandoff = {
-  contract_ref:
-    "contracts/app-gui-product-contract.json#interaction_baseline.conversation_scope.local_worktree_lifecycle",
 };
 const appOwnedOrdinaryConversation = {
   path_id: "ordinary_codex_conversation",
@@ -1321,8 +1294,6 @@ const appOwnedOrdinaryConversation = {
   projectless_conversation_supported: true,
   session_workspace_model: appOwnedSessionWorkspaceModel,
   explicit_session_input_policy: appOwnedExplicitSessionInputPolicy,
-  environment_workspace_handoff:
-    appOwnedGuiContractEnvironmentWorkspaceHandoff,
 };
 export const appOwnedTranscriptExport = {
   scope: "current_conversation_transcript_only",
@@ -1455,8 +1426,6 @@ export const appOwnedPageStateOrdinaryConversation = {
   ),
   conversation_rendering_ref:
     "contracts/app-gui-product-contract.json#interaction_baseline.visual_target.conversation_rendering",
-  environment_workspace_handoff:
-    appOwnedPageStateEnvironmentWorkspaceHandoff,
   transcript_export: appOwnedTranscriptExport,
   current_task_slice: appOwnedCurrentTaskSlice,
   artifact_preview: appOwnedArtifactPreview,

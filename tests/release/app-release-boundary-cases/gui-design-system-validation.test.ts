@@ -12,7 +12,7 @@ const designRoot = 'docs/product/gui';
 const conformanceMatrix = `# Shell conformance matrix
 
 - AionUI GUI conformance ancestor：\`opl-aion-shell@0000000000000000000000000000000000000000\`；fixture only。
-- Current Shell source cohort：symbolic \`session_first_directory_current_source_cohort\`；fixture only。
+- Current Shell source cohort：symbolic \`session_workspace_minimal_current_source_cohort\`；fixture only。
 
 | 功能或交互要求 | AionUI contract | AionUI source | AionUI pixel | Native contract | Native source | Native pixel | 验证入口与边界 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -504,7 +504,7 @@ test('GUI design-system validator reads the current checkout without pinning its
     root,
     'docs/product/gui/shell-conformance-matrix.md',
     matrix.replace(
-      'symbolic `session_first_directory_current_source_cohort`',
+      'symbolic `session_workspace_minimal_current_source_cohort`',
       `\`opl-aion-shell@${currentHead}\``,
     ),
   );
@@ -542,18 +542,18 @@ test('GUI design-system validator rejects workspace-readiness gating explicit se
   );
 });
 
-test('GUI design-system validator rejects workspace-owned sessions and lossy workspace rebinding', () => {
+test('GUI design-system validator rejects workspace-owned sessions and reintroduced cwd rebinding', () => {
   const root = createFixture();
   const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
   const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
   const sessionWorkspaceModel = contract.interaction_baseline.conversation_scope.session_workspace_model;
   sessionWorkspaceModel.workspace_owns_session = true;
-  sessionWorkspaceModel.workspace_change_forbids = ['preserve_thread_id_by_copying_history'];
+  sessionWorkspaceModel.existing_session_workspace_rebinding = 'exposed';
   writeJson(root, 'contracts/app-gui-product-contract.json', contract);
 
   assert.throws(
     () => validateGuiDesignSystem(root),
-    /conversation scope must keep the canonical session identity while treating workspace as mutable cwd and grouping metadata/,
+    /conversation scope must keep canonical session identity while limiting workspace to initial cwd and grouping metadata/,
   );
 });
 
@@ -704,11 +704,10 @@ test('GUI design-system validator rejects a false line-comment source-complete c
   );
 });
 
-test('GUI design-system validator rejects duplicate Git stores for Worktree and Review parity', () => {
+test('GUI design-system validator rejects a duplicate Git store for Review parity', () => {
   const root = createFixture();
   const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
   const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
-  contract.interaction_baseline.conversation_scope.local_worktree_lifecycle.duplicate_git_or_thread_store_allowed = true;
   contract.interaction_baseline.context_surfaces.review_pane.duplicate_git_store_allowed = true;
   writeJson(root, 'contracts/app-gui-product-contract.json', contract);
 
@@ -718,13 +717,13 @@ test('GUI design-system validator rejects duplicate Git stores for Worktree and 
   );
 });
 
-test('GUI design-system validator rejects Worktree snapshot and cleanup control planes', () => {
+test('GUI design-system validator rejects a reintroduced managed Worktree lifecycle', () => {
   const root = createFixture();
   const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
   const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
-  const lifecycle = contract.interaction_baseline.conversation_scope.local_worktree_lifecycle;
-  lifecycle.metadata.worktree_retention_value = 'preserve_for_reuse_until_snapshotted_cleanup';
-  lifecycle.cleanup = { state: 'source_implemented' };
+  contract.interaction_baseline.conversation_scope.local_worktree_lifecycle = {
+    state: 'managed_create_reuse',
+  };
   writeJson(root, 'contracts/app-gui-product-contract.json', contract);
 
   assert.throws(

@@ -62,13 +62,13 @@ conversation 的真实多状态、zh-CN/en-US 全矩阵、同尺寸 reference/ca
 ## 产品模型
 
 - `session/thread` 是唯一对话身份；`project/workspace/directory` 只是新对话的初始 cwd、
-  可变分组和可见 metadata。
-- `project_owns_session=false`。更换 cwd 只重新归组同一 session，必须保留 thread id、
-  transcript、turn history、title 和 task state。
+  recorded rail 分组和可见 metadata。
+- `project_owns_session=false`。命令或 turn 的实际 `pwd` 可以变化，但不会重写 recorded workspace、
+  rail 分组、thread id、transcript、turn history、title 或 task state。
 - 项目下直接显示 sessions。禁止显示“上下文 / 添加上下文”层级，禁止把目录描述成
   session、附件或 artifact 的 owner。
-- 拖动 session 到另一目录不是本版本硬要求；可见且键盘可达的“更改工作目录”是等价
-  能力。未来增加拖动时仍必须调用同一 canonical rebinding path。
+- 目录组只提供“以此目录新建任务”的快捷动作；当前版本不提供拖动 session 改组、既有 session
+  工作目录重绑、Local/Worktree launch mode 或 managed Worktree/Handoff。
 - MAS、MAG、RCA、OMA、BookForge 等在产品认知上是 Codex 插件；在 OPL 中由 Agent
   Package 提供更强的安装、更新、启停、可见性和运行状态能力，但不得把普通对话改成
   agent dashboard。

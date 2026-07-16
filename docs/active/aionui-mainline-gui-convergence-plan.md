@@ -20,8 +20,8 @@ OPL App 是 AionUI 上的可信本机薄壳，目标是在不长期维护上游�
 5. AionUI 基础 ACP 和一个 Codex App Server adapter 承载普通会话与用户触发的线程操作；
 6. App 定义产品和验收，Shell 不建立第二状态源，AionCore 保持 no-write。
 
-因此项目下不显示“上下文 / 添加上下文”，也不把会话描述成归属于某个项目。目录切换必须更新
-同一 canonical session 的 cwd，而不是复制、fork 或重建会话。
+因此项目下不显示“上下文 / 添加上下文”，也不把会话描述成归属于某个项目。Workspace selector
+只设置新 session 初始 cwd；既有 session 不提供目录重绑。
 
 ## 当前发布边界
 
@@ -29,8 +29,8 @@ OPL App 是 AionUI 上的可信本机薄壳，目标是在不长期维护上游�
 | --- | --- | --- |
 | ACP 与会话 | 普通 create/send/stop/resume、模型与权限、slash command、warmup | OPL 私有 ACP 扩展、AionCore deep host gate |
 | Thread 操作 | 一个 App Server adapter；用户触发 list/read/start/resume/fork/archive 和必要 turn 操作 | 第二 JSON-RPC client、独立 coordination 页面、model delivery |
-| Session / cwd | 任意本机目录选择；canonical-first update；投影失败回滚；projectless session 可绑定目录 | project 拥有 session/context、目录切换生成新 thread |
-| Worktree | 选择既有目录、简单 create/reuse、starting branch，默认保留 | 自动 cleanup、全量 snapshot receipt、restore 控制面、默认删除 |
+| Session / cwd | 新任务选择初始 cwd；projectless session 可直接开始；Environment 只读 | project 拥有 session/context、既有 session cwd 重绑或 rail 重分组 |
+| Worktree | 当前版本不提供 managed Worktree/Handoff | Local/Worktree launch mode、starting branch、create/reuse、snapshot、cleanup、restore |
 | Agent Package | package ID、installed/root version、canonical managed target、current selection、`launch_allowed` 和 typed error | owner ledger、single-use token、anti-replay、provenance、deep alias/provider closure |
 | Review | 复用普通 diff/files；上游无 typed 能力时 truthful unavailable | 私有行级 annotation、伪造成功、cross-host/model-delivery 依赖 |
 | Settings | 单一 Settings IA、System/Light/Dark、账户行复用现有 updater | 主题预设画廊、侧栏重复返回、第二 updater |

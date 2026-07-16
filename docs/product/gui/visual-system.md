@@ -235,9 +235,9 @@ Composer 是底部唯一主 command surface：
 - 宽桌面默认可见，宽度在 `280-340px` 内可调，窄窗口改 drawer。
 - 顶部固定 New task、Runtime、Archived；capability starter 属于 Home，package/capability
   管理属于 Settings。Sites/Chat 没有 OPL 对应能力时不显示。
-- 中段按当前 cwd metadata 组织 canonical sessions，同时容纳 projectless sessions；分组是可变
-  projection，不拥有 session、context 或 artifact。切换目录只移动同一 canonical-thread row 的分组，
-  不复制 row/history，也不按标题或 workspace 去重。
+- 中段按 recorded workspace metadata 组织 canonical sessions，同时容纳 projectless sessions；分组是
+  只读 projection，不拥有 session、context 或 artifact。命令或 turn 的实际 `pwd` 变化不移动
+  canonical-thread row，也不复制 row/history 或按标题/workspace 去重。
 - Directory group 展开后只显示 conversations 与“使用此工作目录新建对话”；不显示“添加上下文”或组级删除，
   更不得级联删除分组内 sessions。Canonical App Server overview 可用时排除未返回的 stale Codex ACP
   cache rows；只有 overview unavailable 时 fallback cache，非 Codex local rows 保留。
@@ -272,18 +272,18 @@ Composer 是底部唯一主 command surface：
 
 ## Popover、Drawer 与 Environment Details
 
-- Model/reasoning、workspace switch 和 compact action sets 使用 anchored
+- Model/reasoning、new-task workspace selector 和 compact action sets 使用 anchored
   popover；短选项不升级为整页。
-- Environment 使用右上 anchored floating surface，首层汇总 changes、local、branch、
+- Environment 使用右上 anchored floating surface，首层只读汇总 recorded workspace、changes、branch、
   commit/push、subagents 和 sources。
-- Environment 使用带 folder icon 的“切换工作目录”命令调用系统目录选择器；它更新同一 session 的
-  canonical cwd，成功后刷新 workspace summary 与 rail 分组，running/失败状态就地显示且不伪造移动成功。
+- Environment 不提供“切换工作目录”、Local/Worktree 或其它 workspace mutation；运行时命令/turn 的
+  `pwd` 不作为 App rail metadata 反写。
 - OPL Artifacts/Evidence 进入 Environment 次级 section、preview 或 conversation
   disclosure；Runtime/Actions/Memory 不升级为同权 tabs。
 - Popover 关闭后焦点回到触发器；drawer 有明确标题、close control 和焦点边界。
 - Environment/details 打开时是当前 conversation 的辅助层，不是独立 dashboard。
-- Worktree 只提供目录选择、简单 create/reuse 与 starting branch，默认保留；不显示 cleanup、
-  snapshot receipt、restore 或 cross-host handoff 控制面。
+- Home 只保留 workspace selector 作为新 session 初始 cwd 控件，不显示 Local/Worktree、starting branch、
+  managed Worktree、handoff、cleanup、snapshot receipt、restore 或 cross-host 控制面。
 - Drawer 内避免卡片套卡片；用 section header、divider、row 和 disclosure 表达层级。
 - Bottom panel、file tree、Terminal、Browser 默认关闭；打开时尺寸稳定且不得遮挡 composer。
 

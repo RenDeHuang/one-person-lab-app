@@ -566,6 +566,12 @@ test('session-first contracts reject directory ownership, stale cache authority,
     (contract: any) => {
       contract.first_launch_readiness_policy.ordinary_shell_recovery_policy.workspace_controls.send_scoped_local_inputs_remain_available = false;
     },
+    (contract: any) => {
+      contract.interaction_baseline.conversation_scope.explicit_session_input_policy.workspace_readiness_boundary.agent_package_workspace_requirement_policy = 'all_agent_packages_require_workspace';
+    },
+    (contract: any) => {
+      contract.interaction_baseline.conversation_scope.explicit_session_input_policy.workspace_readiness_boundary.ordinary_codex_conversation_independent_of_agent_package_readiness = false;
+    },
   ]) {
     const contract = structuredClone(readJson('contracts/app-gui-product-contract.json'));
     mutate(contract);
@@ -593,6 +599,12 @@ test('session-first contracts reject directory ownership, stale cache authority,
         'file_dialog_attachment',
       ];
     },
+    (profile: any) => {
+      profile.gui.ordinary_conversation.explicit_session_input_policy.workspace_readiness_boundary.agent_package_workspace_requirement_policy = 'all_agent_packages_require_workspace';
+    },
+    (profile: any) => {
+      profile.gui.ordinary_conversation.explicit_session_input_policy.workspace_readiness_boundary.ordinary_codex_conversation_independent_of_agent_package_readiness = false;
+    },
   ]) {
     const profile = structuredClone(readJson('contracts/app-product-profile.json'));
     mutate(profile);
@@ -613,8 +625,9 @@ test('session-first contracts reject directory ownership, stale cache authority,
         .home_view_model.home_composer_state_contract.semantic_probe.instance_counts['opl-guid-entry'] = 2;
     },
     (matrix: any) => {
-      matrix.pages.find((page: any) => page.id === 'ordinary_conversation')
-        .conversation_view_model.environment_workspace_handoff.no_op_comparison_source = 'mutable_projection';
+      matrix.pages.find((page: any) => page.id === 'ordinary_conversation').conversation_view_model.environment_workspace_handoff = {
+        contract_ref: 'retired_worktree_handoff',
+      };
     },
   ]) {
     const matrix = structuredClone(readJson('contracts/app-page-state-matrix.json'));

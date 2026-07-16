@@ -100,28 +100,17 @@ test('dual GUI conversation continuity rejects shell-owned thread history', () =
   );
 });
 
-test('Codex parity adapters stay transport-only and reject shell-owned Git or thread state', () => {
+test('runtime bridge rejects a reintroduced managed Worktree handoff policy', () => {
   const runtimeBridge = readJson<any>('contracts/app-runtime-bridge.json');
   const activeAdapter = readJson<any>('contracts/app-shell-adapter.json');
   const invalid = structuredClone(runtimeBridge);
-  invalid.codex_local_worktree_handoff_policy.bridge_role = 'state_authority';
-  invalid.codex_local_worktree_handoff_policy.state_authority = 'shell_owned_git_and_thread_store';
+  invalid.codex_local_worktree_handoff_policy = {
+    bridge_role: 'state_authority',
+    state_authority: 'shell_owned_git_and_thread_store',
+  };
 
   assert.throws(
     () => validateRuntimeBridgeContract(invalid, activeAdapter),
-    /Codex Local and Worktree handoff policy/,
+    /must not own a Local or Worktree handoff policy/,
   );
-});
-
-test('Codex parity adapters reject managed Worktree snapshot, cleanup, and cross-host control planes', () => {
-  const runtimeBridge = readJson<any>('contracts/app-runtime-bridge.json');
-  const activeAdapter = readJson<any>('contracts/app-shell-adapter.json');
-  for (const retiredControlPlane of ['snapshot_restore', 'cleanup', 'cross_host']) {
-    const invalid = structuredClone(runtimeBridge);
-    invalid.codex_local_worktree_handoff_policy[retiredControlPlane] = { state: 'enabled' };
-    assert.throws(
-      () => validateRuntimeBridgeContract(invalid, activeAdapter),
-      /Codex Local and Worktree handoff policy/,
-    );
-  }
 });

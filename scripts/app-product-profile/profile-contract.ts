@@ -191,7 +191,7 @@ function assertFirstRunProfileShape(profile: AppProductProfile): void {
   );
   assertDeepEqualJson(
     ordinaryRecovery.workspace_controls.restricted_capabilities,
-    ['project_workspace_selection', 'worktree_creation', 'opl_workspace_controls'],
+    ['project_workspace_selection', 'opl_workspace_controls'],
     'first_run.ordinary_shell_recovery.workspace_controls.restricted_capabilities',
   );
   assertIncludesAll(

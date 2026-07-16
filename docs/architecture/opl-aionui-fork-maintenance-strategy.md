@@ -4,7 +4,7 @@ Owner: `one-person-lab-app`
 Purpose: `aionui_fork_maintenance_and_intake_strategy`
 State: `accepted`
 Date: `2026-06-30`
-Updated: `2026-07-14`
+Updated: `2026-07-16`
 Machine boundary: Human-readable architecture strategy. Machine-readable truth
 lives in `contracts/app-settings-control-plane.json`,
 `contracts/app-gui-product-contract.json`, `contracts/app-shell-adapter.json`,
@@ -63,6 +63,12 @@ Maintain the AionUI fork through the existing App-owned control path:
    screenshot and rendering behavior for the active shell. It cannot
    prove release readiness, packaged App readiness, runtime currentness, owner
    acceptance, or production readiness.
+6. **Session workspace stays minimal.** The thread ID owns task identity; the
+   workspace selector only sets a new task's initial cwd and Environment is
+   read-only. The fork does not maintain existing-session cwd rebinding,
+   managed Worktree/Handoff, projection rollback, or `workspace_handoff`
+   metadata. These capabilities may return only through a stable owner protocol
+   and a separately accepted product requirement.
 
 This keeps the App contract first and the shell delta thin. The fork can absorb
 upstream fixes, but only after checking them against App-owned contracts.

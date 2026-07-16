@@ -21,8 +21,9 @@ required capabilities, release blockers, or an authority source for the active A
 - Codex Core/App Server owns canonical thread identity, history, lifecycle, permissions, and turn state.
 - A candidate may consume the same minimal user-triggered thread operations as the active shell:
   list, read, start, resume, fork, archive, and restore.
-- Session/thread is the primary identity. A project or directory is initial/current cwd and presentation
-  grouping only; it does not own sessions, context, or artifacts.
+- Session/thread is the primary identity. A project or directory may provide a new session's initial cwd
+  and read-only recorded-workspace grouping; runtime `pwd` changes do not rewrite either, and the directory
+  does not own sessions, context, or artifacts.
 - Ordinary conversation uses the platform's existing ACP surface.
 - Candidate-specific storage, protocol, renderer, package, or live-smoke evidence never proves active-shell
   adoption, release readiness, or shared physical Runtime parity.

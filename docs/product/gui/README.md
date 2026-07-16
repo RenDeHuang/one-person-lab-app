@@ -58,17 +58,18 @@ release-ready。`26.707.31428` 与 `26.707.31123` 只作为 superseded observati
 Settings -> Agents 管理 package lifecycle，Settings -> Capabilities 管理 Skills/Plugins/Flow；App updater 与 Framework-owned
 managed lifecycle 分离，不再保留 OPL Flow 专用 post-update 分支。本轮 parity exact cohort
 `b2c05a1c8dc4ef81094323b49a67b601e3c425f5` 已实现 projectless local input、App Server rail、
-absolute-path Preview、用户触发的线程 lifecycle、Local/Worktree/handoff、Review 已采纳子集、
+absolute-path Preview、用户触发的线程 lifecycle、Review 已采纳子集、
 Runtime cockpit，并完整保留
 Runtime V2 与 Gateway account/UI。该 exact cohort 的 full source gates、macOS arm64 directory-only package、
 codesign 与 9 场景 packaged E2E 已闭合；package 未安装，main/remote currentness 与 release
 promotion仍由操作层 fresh readback决定。当前 Session-first Shell source cohort 不绑定临时
-topic SHA；它由 `WorkspaceHandoffControl.tsx`、`useConversationListSync.ts`、`GroupedHistory/index.tsx`、
-`GuidPage.tsx` 及对应 DOM/source tests 定义，并要求 `ProjectContextSection.tsx` 与
-`projectContext.ts` 缺席。该 cohort 在既有 profile-driven feedback、Review、managed Worktree、Runtime
-与窄窗 Settings 能力上新增同一 canonical session 的 working-directory switch：Environment 通过系统
-目录选择器和 `thread/settings/update` 原位更新 canonical thread，随后更新 conversation projection 与
-rail 分组，projection 失败则恢复操作开始时的 canonical cwd。Exact commit/currentness 只由 App owner
+topic SHA；它由 `useConversationListSync.ts`、`GroupedHistory/index.tsx`、`GuidPage.tsx`、只读
+`ConversationEnvironmentPopover.tsx` 及对应 DOM/source tests 定义，并要求 `WorkspaceHandoffControl.tsx`、
+`ProjectContextSection.tsx` 与 `projectContext.ts` 缺席。Workspace selector 只设置新 session 初始 cwd，
+Environment 只读显示 recorded workspace 与 live Git context；Shell 不自建 managed Worktree/Handoff，
+也不持久重绑既有 session cwd。Workspace selector 缺失或不可用时，projectless new task、输入、显式
+send-scoped local inputs 与普通 Codex conversation 仍保持可用；只有 package manifest 明确声明 Workspace
+或 managed target 前提时，才对该 Agent launch 做局部校验。Exact commit/currentness 只由 App owner
 在 Shell main 吸收后回读。Review 保留 `Last turn`，custom instructions 只经
 `review/start.target.custom`；公开协议缺少非 custom Review Focus input 时，正常路径在启动 Review 前
 返回 `protocol_unavailable`，不得回退 `turn/steer`、伪造成功或产生副作用。当前仍无匹配
@@ -132,7 +133,7 @@ package/user path。当前 contract/source 与 packaged route visual evidence �
 - `ideal_target.ordinary_rail_thread_authority=codex_app_server_thread_list_read_resume`
 - `ideal_target.workspace_directory_owner=false`
 - `ideal_target.explicit_session_local_inputs=attachments,file_picker,directory_picker,paste,drop,/open`
-- `ideal_target.local_worktree_lifecycle=local,worktree,starting_branch,handoff,snapshot,restore`
+- `ideal_target.workspace_selection=new_session_initial_cwd_only`
 - `ideal_target.review_surface=existing_files_changes_diff_surface`
 - `ideal_target.model_host_tool_access=true`
 - `active_aionui.model_host_tool_access=source_missing`
@@ -181,7 +182,7 @@ package/user path。当前 contract/source 与 packaged route visual evidence �
 
 - 宽桌面默认显示目录/对话 rail，保持工作目录分组和 conversation history 可见；
   窄窗口改为 drawer，不能为增加工具而压缩主阅读列。
-- Rail 顶部只保留 New task、Runtime、Archived，主体按 session 当前 cwd 分组 App Server threads，底部承载
+- Rail 顶部只保留 New task、Runtime、Archived，主体按 session 的 recorded workspace 分组 App Server threads，底部承载
   account/help/Settings；App Server canonical overview 可用时是 Codex session directory authority，Shell DB 只保存 draft、
   preference 和可重建 cache。Rename/archive/restore/delete 分别映射 `thread/name/set`、
   `thread/archive`、`thread/unarchive`、`thread/delete`；pin 是 Shell UI metadata，本地 reset 不冒充
@@ -189,14 +190,14 @@ package/user path。当前 contract/source 与 packaged route visual evidence �
   只有 overview unavailable 时才 fallback cache，非 Codex local row 继续保留。每个 canonical thread ID
   最多一行，不能按标题或 workspace 去重。
 - Session/thread 是主单位，project/workspace/directory 不拥有 session、context 或 artifact。新 session 以所选目录
-  初始化 cwd；既有同主机 idle session 可在 Environment 选择任意目录并原位更新同一 thread，随后按
-  新 cwd 重新归入 rail 分组，不能通过 fork、复制 history 或新建替代 session 实现“移动”。目录组只提供
+  初始化 cwd；既有 session 的 recorded workspace 与 rail 分组保持只读，命令或 turn 的实际 `pwd` 不反写
+  session metadata。目录组只提供
   “使用此工作目录新建对话”的快捷动作，不提供组级删除，更不能级联删除 session。
 - Home/New task 与普通 conversation 共用同一 chat canvas 和 composer，不是
   landing/dashboard；有无 workspace 都使用同一 session 模型。未选 workspace 时仍保留
-  attachment、任意本地文件/目录选择、paste/drop 与 `/open`；Project/workspace 只提供默认 cwd、
-  可变 cwd 和分组，真实访问只由 Codex permission/approval/sandbox 决定。Workspace readiness 只约束
-  project/Worktree/OPL workspace controls，不得禁用普通本地对话或这些显式文件输入；Worktree 仍要求 Git repo，
+  attachment、任意本地文件/目录选择、paste/drop 与 `/open`；Project/workspace 只提供初始 cwd、
+  只读分组和展示，真实访问只由 Codex permission/approval/sandbox 决定。Workspace readiness 只约束
+  project/OPL workspace controls，不得禁用普通本地对话或这些显式文件输入；
   Codex/model prerequisites 不变。Home root、composer shell 与 footer account/Settings entry 在每个 viewport 各只有一个实例。
 - Conversation 顶部只保留当前 task identity 与直接动作。Model/reasoning、
   permission/access、attach 和 send/stop 均留在 composer；不在 header 重复配置。
@@ -226,17 +227,17 @@ package/user path。当前 contract/source 与 packaged route visual evidence �
   strict JSON 可选，目录与文件名显式选择，不授权 workspace bundle。
 - Thread identity/history 归 Codex Core/App Server。Shell 只保留一个用户触发的 App Server
   adapter，复用现有 directory/actions 执行 `thread/list`、`thread/read`、`thread/start`、
-  `thread/resume`、`thread/fork`、archive/restore、rename/delete 和 cwd update；普通 conversation
+  `thread/resume`、`thread/fork`、archive/restore 和 rename/delete；普通 conversation
   继续走 AionUI 现有 ACP。没有独立“线程协调”页面、模型 dynamic tool、第二 JSON-RPC client、
   audit/idempotency ledger、pending-request 控制面或 cross-host handoff。
 - Preview 通过现有 ref-only adapter 打开当前 session 的显式 attachment、可见 conversation result，或用户
   显式选择的合法绝对本地路径；绝对路径不要求属于当前 workspace，也不存在 workspace-scoped project-context ref。
   traversal、非法 scheme、自动静默读取及 unsupported ref 保持可见并 fail closed，App/shell 不复制
   artifact body，也不猜测内容。
-- New session 支持 Local/Worktree、starting branch 与同主机 idle session 的任意工作目录及 Local↔Worktree handoff；
-  Worktree 位于 `$CODEX_HOME/worktrees`，selected branch HEAD detached，同一 task 可复用同一
-  worktree并默认保留。Shell不搬运Local未提交/ignored状态，也不提供snapshot、cleanup、restore或
-  cross-host控制面；状态归 Codex Core/App Server 与既有 Git 集成。
+- New session 只通过现有 workspace selector 设置初始 cwd。Shell 不创建 managed Worktree、不保存
+  `workspace_handoff` metadata，也不提供既有 session 的任意目录重绑或 Local↔Worktree handoff。
+- Workspace/cwd 缺失按 fail-open 处理：保留 projectless new task、composer、显式本地输入和普通 Codex
+  conversation；单个 Agent Package 的 Workspace/managed-target 前提或 readiness 故障不得升级为全局聊天门禁。
 - Review 复用现有 Files/Changes diff surface，按需增加 PR context、inline comments、stage、commit、
   push；target 至少包含 uncommitted/base branch/commit/custom，交付支持 inline/detached，默认
   Unstaged 并提供 Staged/Commit/Branch/Last turn。PR context 依赖 `gh`，缺失时明确 unavailable；

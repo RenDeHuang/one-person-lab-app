@@ -653,36 +653,38 @@ function validateSessionFirstDirectoryImplementation(shellPaths) {
   );
 }
 
-function validateSessionWorkingDirectoryImplementation(shellPaths) {
+function validateReadOnlySessionEnvironmentImplementation(shellPaths) {
+  const retiredHandoffControl =
+    'packages/desktop/src/renderer/pages/conversation/components/ChatLayout/WorkspaceHandoffControl.tsx';
+  if (existsSync(path.join(shellPaths.shellRoot, retiredHandoffControl))) {
+    throw new Error(`Active shell must remove retired workspace handoff control ${retiredHandoffControl}`);
+  }
+
   assertShellTextIncludesAll(
     shellPaths,
-    'packages/desktop/src/renderer/pages/conversation/components/ChatLayout/WorkspaceHandoffControl.tsx',
-    [
-      "properties: ['openDirectory', 'createDirectory']",
-      'setCanonicalWorkspace(thread.workspace)',
-      'await ipcBridge.codexThreads.updateWorkspace.invoke({ threadId, workspace: nextWorkspace })',
-      'const operationStartWorkspace = canonicalWorkspace ?? workspace',
-      'nextWorkspace === operationStartWorkspace',
-      'const nextHandoff = handoffForWorkspace(nextWorkspace)',
-      'persistWorkspaceProjection(nextWorkspace, nextHandoff)',
-      'const rollbackSucceeded = await rollbackThreadWorkspace(operationStartWorkspace)',
-      "emitter.emit('chat.history.refresh')",
-      "t('conversation.environment.workingDirectoryChangeSuccess')",
-    ],
-    'Active shell canonical session working-directory switch',
+    'packages/desktop/src/renderer/pages/conversation/components/ChatLayout/ConversationEnvironmentPopover.tsx',
+    ['ipcBridge.gitWorkspace.inspect.invoke({ cwd: summary.workspace })'],
+    'Active shell read-only conversation environment Git inspection',
   );
   assertShellTextIncludesAll(
     shellPaths,
     'tests/unit/conversation/context/ConversationEnvironmentPopover.dom.test.tsx',
-    [
-      'moves the same idle session from a managed Worktree to another directory and clears stale handoff metadata',
-      'binds a projectless canonical session to a selected working directory without replacing the session',
-      'rolls back to the operation-start canonical cwd when the local projection was already stale',
-      'updates canonical cwd when the selected directory only matches a stale local projection',
-      'keeps working-directory selection unavailable while the canonical session is running',
-    ],
-    'Active shell canonical session working-directory focused regressions',
+    ['renders the recorded workspace and live Git context without mutation controls'],
+    'Active shell read-only conversation environment regression',
   );
+
+  for (const sourcePath of [
+    'packages/desktop/src/renderer/pages/conversation/components/ChatLayout/ConversationEnvironmentPopover.tsx',
+    'packages/desktop/src/renderer/pages/guid/GuidPage.tsx',
+    'packages/desktop/src/renderer/pages/guid/components/GuidWorkspaceFootnote.tsx',
+    'packages/desktop/src/renderer/pages/guid/hooks/useGuidSend.ts',
+  ]) {
+    assertTextExcludesAll(
+      readShellText(shellPaths, sourcePath),
+      ['ensureManagedWorktree', 'workspace_handoff', 'thread/settings/update'],
+      `Active shell simplified workspace surface in ${sourcePath}`,
+    );
+  }
 }
 
 export function validateRuntimePageImplementation(shellPaths) {
@@ -895,7 +897,7 @@ export function validateShellOrdinaryExperienceImplementation(shellPaths) {
   validateGuidAssistantsAndSkills(shellPaths, guidPage);
   validateCodexConversationImplementation(shellPaths);
   validateSessionFirstDirectoryImplementation(shellPaths);
-  validateSessionWorkingDirectoryImplementation(shellPaths);
+  validateReadOnlySessionEnvironmentImplementation(shellPaths);
   validateRuntimePageImplementation(shellPaths);
   validateSkillsHubImplementation(shellPaths);
 }

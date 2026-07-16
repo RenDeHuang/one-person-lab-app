@@ -2,7 +2,6 @@ import { assertDeepEqualJson, assertIncludesAll } from './assertions.ts';
 import {
   appOwnedPageStateHomeLayout,
   appOwnedPageStateOrdinaryConversation,
-  appOwnedNewTaskLocality,
   appOwnedReviewSurfaceSourceEvidence,
   appOwnedRightContextInspectorForbiddenOwners,
   appOwnedRightContextInspectorPolicy,
@@ -62,8 +61,6 @@ function validateGuidHomeViewModelFields(homeViewModel) {
     agent_package_skill_source_ref: 'contracts/app-gui-product-contract.json#professional_agent_packages.required_skill_ids + optional_skill_ids',
     assistant_source_ref: 'contracts/app-gui-product-contract.json#default_assistants',
     assistant_skill_profile_source_ref: 'contracts/app-gui-product-contract.json#assistant_skill_profiles',
-    local_worktree_lifecycle_ref:
-      'contracts/app-gui-product-contract.json#interaction_baseline.conversation_scope.local_worktree_lifecycle',
     ordinary_capability_selector_policy_ref: 'contracts/app-product-profile.json#gui.ordinary_capability_selector_policy',
     codex_only_default: true,
     codex_cli_fixed_executor: true,
@@ -86,11 +83,9 @@ function validateGuidHomeViewModelFields(homeViewModel) {
     conversation_permission_mode_selector_visible: true,
   };
   assertDeepEqualJson(fieldsFrom(homeViewModel, expectedFields), expectedFields, 'Guid home page view model fields');
-  assertDeepEqualJson(
-    homeViewModel.new_task_locality,
-    appOwnedNewTaskLocality,
-    'Guid Home new-task Local or Worktree boundary',
-  );
+  if ('new_task_locality' in homeViewModel || 'local_worktree_lifecycle_ref' in homeViewModel) {
+    throw new Error('Guid Home must not expose managed Worktree launch state');
+  }
   for (const field of [
     'codex_default_model',
     'codex_default_reasoning_effort',
@@ -206,8 +201,8 @@ function validateGuidHomeVisibleSignals(guidHomePage) {
     'workspace selector',
     'file attachment control',
     'projectless attachments, arbitrary local file or directory selection, paste, drop, and /open subject only to Codex permissions',
-    'workspace readiness gates project, Worktree, and OPL workspace controls only, never plain local conversation or send-scoped local file inputs',
-    'New task Local or Worktree selection with optional starting branch and create or reuse managed worktree behavior',
+    'workspace readiness gates project selection and OPL workspace controls only, never plain local conversation or send-scoped local file inputs',
+    'workspace selection sets the new task initial cwd only',
     'send action',
     'single composer-first home input with integrated context controls and bottom action row',
     'exactly one Home root, composer shell, and footer account or Settings entry at every viewport',
@@ -246,8 +241,8 @@ function validateGuidHomeHiddenSignals(guidHomePage) {
     'Home footer favorite/star icon',
     'Home footer web/access globe icon',
     'per-assistant running badges derived from module or domain lane diagnostics',
-    'existing-session working-directory or Local/Worktree handoff controls on Home',
-    'snapshot, restore, or worktree cleanup controls claimed as available on Home',
+    'existing-session working-directory rebinding controls on Home',
+    'Local or Worktree launch modes, starting branch, managed worktree, handoff, snapshot, restore, or cleanup controls on Home',
     'workspace-scoped Add context action in a directory group',
     'directory-group delete action or cascade deletion of grouped sessions',
     'title-based conversation deduplication',
@@ -335,9 +330,7 @@ function validateOrdinaryConversationPage(matrix) {
     'permission and access mode in user language',
     'projectless text conversation when no workspace is selected',
     'projectless attachments, arbitrary local file or directory selection, paste, drop, and /open subject only to Codex permissions',
-    'same-host working-directory or Local/Worktree handoff for an existing not-loaded or idle session from Conversation Environment',
-    'running, archived, or system-error session handoff shown unavailable without silent fallback',
-    'Codex thread cwd updated before AionUI projection with best-effort cwd rollback on projection failure',
+    'read-only Conversation Environment showing the recorded workspace and live Git context when available',
     'assistant route receipt',
     'Codex default model and reasoning status',
     'single current task instance in the message timeline, inline and unpinned for ordinary tasks',
@@ -354,9 +347,8 @@ function validateOrdinaryConversationPage(matrix) {
     'workspace-scoped project context inputs or an Add context action in the directory rail',
     'workspaceRootReady or workspace membership used as a file-access gate',
     'backend, provider, Team, raw MCP, or arbitrary skills in the mobile plus sheet',
-    'Local or Worktree handoff control inside the primary composer',
-    'worktree snapshot, restore, or cleanup controls',
-    'automatic managed worktree deletion',
+    'existing-session working-directory rebinding controls',
+    'Local or Worktree launch modes, starting branch, managed worktree, handoff, snapshot, restore, cleanup, or deletion controls',
     'cross-host task handoff controls',
     'duplicate current task or Runtime summary outside the message timeline',
     'workspace bundle export authorization',

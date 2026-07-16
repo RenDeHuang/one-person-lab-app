@@ -22,10 +22,10 @@ carrier 状态和 release evidence 仍归 contracts、source/tests、validators 
 | 元素 | 稳定位置 | 位置理由 | 漂移信号 |
 | --- | --- | --- | --- |
 | Product identity | 普通导航 chrome 使用 text-only `One Person Lab`；完整 App identity 保留在 window metadata、About 与 release assets | 用户必须知道正在使用 One Person Lab，同时避免 logo 在深浅主题间产生不协调。 | 普通导航 chrome 出现 App logo、`App` 后缀或 carrier identity。 |
-| Current context | Working directory 在 rail，branch/locality 在 Environment，active capability/attachment 在 composer 附近 | 当前执行环境必须可理解，但目录不拥有 context。 | 只在 Settings/raw path 中可见、无 workspace 时静默禁用，或 composer 重复 rail/Environment 全量状态。 |
+| Current context | Recorded workspace 在 rail，live branch/locality 在 Environment，active capability/attachment 在 composer 附近 | 当前执行环境必须可理解，但目录不拥有 context；runtime `pwd` 不反写 rail。 | 只在 Settings/raw path 中可见、无 workspace 时静默禁用，或 composer 重复 rail/Environment 全量状态。 |
 | Directory/conversation rail | 宽桌面左侧 `280-340px` 可调；窄窗口 drawer | Navigation 是连续工作所需，不应占用 conversation 主区。 | 宽桌面缺失、被移到 Home grid，或关闭 drawer 后丢 selection。 |
-| Rail global skeleton | 顶部 New task/Runtime/Archived，主体按 canonical session cwd 分组，底部 account/help/Settings | 稳定全局入口与 session history 分层；capability 选择归 Home starter，管理归 Settings。 | 无真实能力的入口照搬、Capabilities 重回 rail，或 Settings 混入 conversation rows。 |
-| Directory group semantics | Conversations rows 与“使用此工作目录新建对话” | 目录组只是当前 cwd projection 和新 session 快捷入口。 | “添加上下文”、组级删除、级联删除 session，或按标题/workspace 去重。 |
+| Rail global skeleton | 顶部 New task/Runtime/Archived，主体按 canonical session 的 recorded workspace 分组，底部 account/help/Settings | 稳定全局入口与 session history 分层；capability 选择归 Home starter，管理归 Settings。 | 无真实能力的入口照搬、Capabilities 重回 rail，或 Settings 混入 conversation rows。 |
+| Directory group semantics | Conversations rows 与“使用此工作目录新建对话” | 目录组只是 recorded workspace projection 和新 session 快捷入口。 | “添加上下文”、组级删除、级联删除 session，或按标题/workspace 去重。 |
 | Session attachments | 当前 composer | 文件/目录只由用户为当前 session/send 显式加入。 | 从 workspace 预载、隐式注入，或附件只能从 Settings/rail 添加。 |
 | Conversation management | Rail rows、search 与独立 Archived surface | Search/pin/rename/archive/reset 属于持续工作管理。 | Archive 无独立 surface，或 reset 与 delete 语义混淆。 |
 | Conversation timeline | Main canvas | 用户需要按时间理解任务、输出和决策。 | 与 Runtime/Files 并列成多个主面，或被 dashboard 替代。 |
@@ -44,7 +44,7 @@ carrier 状态和 release evidence 仍归 contracts、source/tests、validators 
 | Permission/user-input prompt | 当前 turn 的 AionUI ACP disclosure | 保留当前 conversation 与请求上下文；拒绝、取消和协议失败可见。 | 跳到不相关全局 modal、丢失当前 draft 或伪造成功。 |
 | Turn receipt / result refs | Turn summary/details | 证明本轮发生了什么，同时保持 timeline 可读。 | Raw JSON 默认展开，或 receipt 被当成 domain/release verdict。 |
 | Environment trigger | Conversation 右上次级 icon action | 当前环境随时可达，但不占普通路径主权重。 | Toggle active 但 surface hidden，或默认常驻打开。 |
-| Environment floating details | 右上 anchored floating surface；窄屏 drawer | Workspace/locality/branch/changes/subtasks/sources 是当前 task 的快速摘要。 | 变成默认全高第三列、完整 diagnostics 或跨项目 dashboard。 |
+| Environment floating details | 右上 anchored floating surface；窄屏 drawer | Recorded workspace/locality/branch/changes/subtasks/sources 是当前 task 的快速摘要。 | 变成默认全高第三列、完整 diagnostics 或跨项目 dashboard。 |
 | OPL secondary refs | Environment 次级 section、preview 或 turn disclosure | Artifacts、Evidence、Runtime、Actions 是按需投影。 | 与环境摘要同权常驻，或取得 artifact/runtime authority。 |
 | Advanced work surfaces | Bottom panel/file tree/Terminal/Browser | 保留高级工作能力，但默认关闭。 | App 启动即打开，遮挡 timeline/composer。 |
 | Runtime overview | 独立 Runtime page | 跨 project/conversation 状态需要更大 scope 与筛选。 | Running/queued/attention 混成 Home badge 或 assistant card。 |
@@ -60,8 +60,8 @@ carrier 状态和 release evidence 仍归 contracts、source/tests、validators 
 Home 的用户问题是“我现在要做什么”。因此主区只保留动态问题标题、全部用户可见且
 稳定排序的轻量 starter、
 conversation、composer、active capability、model/access 和 current-turn feedback。
-普通本地对话和显式文件输入不依赖 workspace readiness；project/Worktree/OPL workspace controls
-可按自己的 readiness 说明限制，Worktree 仍要求 Git repo。
+普通本地对话和显式文件输入不依赖 workspace readiness；Workspace/managed target 只在
+Agent/package manifest 明确声明需要时校验，单个 package 故障只局部影响对应入口。
 跨项目 Runtime 保持独立的极简 Work Item 状态页；continue-work 留在 conversation，artifact
 provenance 留在 Inspector，package maintenance 和 raw diagnostics 留在对应 Settings，完整
 evidence ledger 留在 release tooling。它们都不得挤入 Home 主区或相互混装。

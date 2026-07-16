@@ -264,12 +264,12 @@ export type AppProductProfile = {
         primary_unit: string;
         identity_authority: string;
         workspace_binding_role: string;
+        runtime_pwd_role: string;
+        existing_session_workspace_rebinding: string;
         workspace_owns_session: boolean;
         workspace_owns_context: boolean;
         workspace_owns_artifacts: boolean;
         workspace_group_cascade_session_delete_allowed: boolean;
-        workspace_change_preserves: string[];
-        workspace_change_forbids: string[];
       };
       explicit_session_input_policy: {
         scope: string;
@@ -288,7 +288,8 @@ export type AppProductProfile = {
           gates: string[];
           plain_local_conversation_requires_workspace_root: boolean;
           send_scoped_local_file_inputs_require_workspace_root: boolean;
-          worktree_requires_git_repository: boolean;
+          agent_package_workspace_requirement_policy: string;
+          ordinary_codex_conversation_independent_of_agent_package_readiness: boolean;
           codex_and_model_prerequisites_unchanged: boolean;
         };
       };
