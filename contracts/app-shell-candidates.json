@@ -754,7 +754,7 @@
           "packaged UI smoke runs a real Codex app-server turn and receives OK",
           "packaged UI smoke proves page-state matrix mapping, first-run matrix mapping, runtime full-drilldown lazy load, and safe App action dry-run",
           "ordinary UI shows the CopilotKit-backed chat surface, not AG-UI protocol/debug copy",
-          "ordinary Settings uses Overview, Account & Gateway, Models, Workspace & Personalization, Agents, Capabilities, Resources & Connections, Maintenance, Data & Storage, and Preferences; About is the only secondary page and Advanced redirects to Maintenance diagnostics",
+          "ordinary Settings uses Overview, Account & Access, Models, Workspace, Agents, Capabilities, Resources & Connections, Maintenance, Data & Storage, and Preferences; About is the only secondary page and Advanced redirects to Maintenance diagnostics",
           "ordinary home does not expose runtime activity, continue-work, per-agent running badges, or footer quick icons; Runtime and secondary context surfaces carry refs-only activity details",
           "tool/process/diff/file/receipt/user-input/permission events render as compact conversation events or expandable refs",
           "WebUI parity evidence proves the same React/CopilotKit renderer and product semantics as Electron",
@@ -1439,9 +1439,9 @@
       "settings_information_architecture": {
         "ordinary_tabs": [
           "Overview",
-          "Account & Gateway",
+          "Account & Access",
           "Models",
-          "Workspace & Personalization",
+          "Workspace",
           "Agents",
           "Capabilities",
           "Resources & Connections",

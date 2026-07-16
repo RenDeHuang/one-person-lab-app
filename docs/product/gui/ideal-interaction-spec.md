@@ -153,11 +153,11 @@ Previous/Next 只在当前可见 ordinary conversations 中移动，不扩张 We
 - 默认不激活任何专业智能体。历史保存的 preset 不得反向成为 Home 默认值；只有用户点击
   starter 或从明确 capability 路由进入时才设置 active capability。
 - Starter click-to-start 只准备 route context 与 active capability，不自动执行隐藏 workflow。
-- Package 不可用时 starter 保持可识别但 disabled，邻近显示用户可理解的原因和允许动作；
-  不用 spinner、空白或静默隐藏掩盖 readiness 问题。
-- 点击可用 package starter 只进入 prepare 状态；真正 launch 前调用 Framework-owned
-  use-boundary activation。只有 `launch_allowed`、`use_receipt_ref` 和 `use_binding` 完整时
-  才创建/发送 conversation，失败时 fail closed 并保留修复入口。
+- Package 不可用时 starter 仍可选择；发送时才根据 Framework-owned action 给出用户可理解的
+  typed reason 和允许动作，不用 spinner、空白、禁用入口或静默隐藏掩盖 readiness 问题。
+- 点击 package starter 只进入 prepare 状态；真正 launch 前调用 Framework-owned use-boundary
+  activation。`launch_allowed` 为 true 且 owner-projected required payload fields 已满足时才创建/发送
+  conversation；`use_receipt_ref` 是可选 readback。失败时保留输入、普通 Codex fallback 和修复入口。
 - 无 workspace 时仍可发送文字、attachment、任意本地 file/directory picker、paste/drop 与
   `/open`；只有 Codex permission/approval/sandbox 可以阻止真实访问。
 - Home 不查询或渲染跨项目 activity、needs-attention、recent refs 或 per-assistant

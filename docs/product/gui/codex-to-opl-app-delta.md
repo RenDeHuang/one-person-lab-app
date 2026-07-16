@@ -209,9 +209,9 @@ OPL App 把通用 Agent App settings 收敛为用户任务导向的 Control Cent
   OPL IA 不变，且 Settings 视觉不得成为 Home/Conversation 的设计来源。
 
 - Overview：App 是否可用、下一步是什么。
-- Account & Gateway：账户、用量、凭据、刷新、修复和断开连接。
+- Account & Access：账户、用量、凭据、刷新、修复和断开连接。
 - Models：模型访问来源、Codex CLI 版本和模型/推理偏好。
-- Workspace & Personalization：工作目录、日志目录、用户 AGENTS.md 和 OPL App context。
+- Workspace：工作目录、日志目录、用户 AGENTS.md 和 new-conversation additions。
 - Agents：公共 Agent Package 目录、lifecycle 与 Home shortcuts。
 - Capabilities：Skills、Plugins、OPL Flow、MCP、图像和语音能力。
 - Resources & Connections：本机、远程、托管资源和连接 refs。

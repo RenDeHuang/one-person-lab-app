@@ -8,8 +8,8 @@ that led to the current design. It is not current product authority. Current
 truth lives in `contracts/app-settings-control-plane.json`,
 `docs/product/gui/settings-control-center.md`, source, validators, and tests.
 
-Supersession: the final IA has ten ordinary pages: Overview, Account & Gateway,
-Models, Workspace & Personalization, Agents, Capabilities, Resources &
+Supersession: the final IA has ten ordinary pages: Overview, Account & Access,
+Models, Workspace, Agents, Capabilities, Resources &
 Connections, Maintenance, Data & Storage, and Preferences. About is the only
 independent secondary page; Advanced only redirects to Maintenance diagnostics.
 The combined Agent/Capabilities and standalone Advanced proposals below are

@@ -919,7 +919,7 @@ export const appOwnedSettingsVisualSystem = {
   baseline_shell_commit: "409dd0c3b693f1c7c93551654dfac8fb9420843d",
   baseline_comparison_policy:
     "fresh_same_route_screenshots_must_preserve_or_improve_information_hierarchy",
-  card_policy: "one_quiet_bounded_section_per_user_question_with_flat_internal_rows",
+  card_policy: "unframed_sections_with_bounded_groups_only_for_repeated_entities_or_confirmation",
   first_viewport_spatial_group_range: { min: 2, max: 4 },
   nested_cards_allowed: false,
   page_wide_list_wall_allowed: false,

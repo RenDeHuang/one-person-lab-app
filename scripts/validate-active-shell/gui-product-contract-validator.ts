@@ -1440,7 +1440,7 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     gatewayAccount.first_run_scope !== 'desktop_account_default_webui_manual_api_key_only' ||
     gatewayAccount.personal_profile_navigation !== 'not_added'
   ) {
-    throw new Error('Settings Account & Gateway must declare the canonical OPL Gateway account product contract');
+    throw new Error('Settings Account & Access must declare the canonical OPL Gateway account product contract');
   }
   assertDeepEqualJson(gatewayAccount.access_paths, ['account_login', 'manual_api_key'], 'Settings Gateway access paths');
   assertDeepEqualJson(

@@ -88,8 +88,8 @@ function validateReleaseExecutionPolicy(acceleration) {
     assistantRouteSmoke?.standard?.required,
     [
       'MAS_MAG_RCA_home_starters_visible',
-      'package_not_installed_starters_disabled',
-      'launch_allowed_false',
+      'package_not_installed_starters_selectable',
+      'launch_allowed_false_at_send',
       'readiness_and_repair_hint_visible',
     ],
     'Standard assistant launch-gate requirements',
@@ -97,7 +97,7 @@ function validateReleaseExecutionPolicy(acceleration) {
   assertIncludesAll(
     assistantRouteSmoke?.full?.required,
     [
-      'workspace_scope_selected_before_send',
+      'owner_projected_required_payload_fields_satisfied_before_send',
       'agent_package_activate_action_per_starter',
       'real_guid_composer_send_per_starter',
       'conversation_get_readback_per_starter',

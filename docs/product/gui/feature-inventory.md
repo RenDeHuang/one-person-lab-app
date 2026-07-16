@@ -119,9 +119,9 @@ GUI contract 与 Settings Control Plane 拥有。
 | 功能组 | 用户结果 | Authority / machine owner |
 | --- | --- | --- |
 | Overview | 判断 App 当前是否可用，以及最重要的下一步。 | Settings Control Plane、fast App state。 |
-| Account & Gateway | 登录 OPL Gateway 或配置手工 API Key；账户连接时查看脱敏身份、余额、Token/实际成本、专用 Key 状态和数据新鲜度。 | Framework Gateway account projection/secret bridge；密码不进入 App state 或 generic action。 |
+| Account & Access | 登录 OPL Gateway 或配置手工 API Key；账户连接时查看脱敏身份、余额、Token/实际成本、专用 Key 状态和数据新鲜度。 | Framework Gateway account projection/secret bridge；密码不进入 App state 或 generic action。 |
 | Models | 查看模型访问来源、默认模型、推理偏好与 Codex CLI 版本，不复制 Gateway 账户和凭据控制。 | Framework model access projection、App model/reasoning preference。 |
-| Workspace & Personalization | 查看、切换、验证工作目录，配置 App 日志目录、用户 AGENTS.md 与 OPL App context。 | Workspace state/action、App host configuration。 |
+| Workspace | 查看、切换、验证工作目录，配置 App 日志目录、用户 AGENTS.md 与 new-conversation additions。 | Workspace state/action、App host configuration。 |
 | Agents | 管理可运行 Agent packages、依赖就绪、Home shortcuts 与 launch/lifecycle。 | Agent package state/action 与 product profile。 |
 | Capabilities | 分组管理 OPL Flow dependency closure 内的推荐 Skill/Plugin，以及手工或第三方 Skill/Plugin；Flow 不拥有第二套 updater。 | Settings control plane、OPL Packages closure 与 Codex/shell registries。 |
 | Resources & Connections | 查看本机、远程、托管资源与外部连接 refs；内置 OPL Gateway 不在这里重复。 | Framework/Connect/Fabric/Console refs；App 只展示。 |

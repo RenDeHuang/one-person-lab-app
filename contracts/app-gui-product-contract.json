@@ -3198,7 +3198,7 @@
     },
     "source": "persisted_narrow_settings_snapshot_then_opl_app_state_fast_background_refresh_and_full_explicit_detail",
     "refresh_source": "opl app state --profile fast --json",
-    "policy": "ten App-owned ordinary product pages; Workspace & Personalization owns workspace/log/context configuration; About is the only secondary page; compatibility routes resolve to owner anchors before render",
+    "policy": "ten App-owned ordinary product pages; Workspace owns workspace/log/context configuration; About is the only secondary page; compatibility routes resolve to owner anchors before render",
     "agents_capabilities_ownership_ref": "contracts/app-settings-control-plane.json#agents_capabilities_ownership",
     "settings_ia": {
       "schema": "settings_ia.v1",
@@ -3693,12 +3693,12 @@
           },
           "assertion_focus": {
             "required_structure": [
-              "user_question_to_quiet_bounded_section",
+              "user_question_to_unframed_section_or_allowed_bounded_group",
               "two_to_four_first_viewport_spatial_groups",
               "single_column_reading_lane_to_mobile_stack",
               "monochrome_icon_typography_and_typed_status_hierarchy",
               "409dd0c3_same_route_non_regression",
-              "flat_rows_inside_card",
+              "flat_rows_without_section_card_frames",
               "compact_footer",
               "single_governed_visual_baseline"
             ],

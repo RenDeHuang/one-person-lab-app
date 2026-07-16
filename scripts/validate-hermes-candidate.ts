@@ -211,9 +211,9 @@ function validateTargetStateContracts(label: string, target: HermesTargetStateCo
   const settings = target.settings_information_architecture;
   assertIncludes(settings?.ordinary_tabs, [
     'Overview',
-    'Account & Gateway',
+    'Account & Access',
     'Models',
-    'Workspace & Personalization',
+    'Workspace',
     'Agents',
     'Capabilities',
     'Resources & Connections',

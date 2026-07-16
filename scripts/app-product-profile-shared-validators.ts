@@ -405,7 +405,7 @@ export function assertAppProductProfileSettingsVisualSystem(
       { actual: visualSystem?.style_exclusion, expected: 'multi_hue_card_dashboard' },
       {
         actual: visualSystem?.card_policy,
-        expected: 'one_quiet_bounded_section_per_user_question_with_flat_internal_rows',
+        expected: 'unframed_sections_with_bounded_groups_only_for_repeated_entities_or_confirmation',
       },
       { actual: visualSystem?.nested_cards_allowed, expected: false },
       { actual: visualSystem?.page_wide_list_wall_allowed, expected: false },

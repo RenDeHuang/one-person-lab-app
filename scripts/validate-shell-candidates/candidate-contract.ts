@@ -779,7 +779,7 @@ function validateCandidateMinimumAcceptance(candidate: ShellCandidate): void {
   }
   assertStringArrayIncludes(candidate.technical_verification?.minimum_acceptance ?? [], [
     'candidate state-model validation proves active project line projection consumption from opl app state without domain-ready, production-ready, clean-VM-ready, Full-release-ready, or active-shell-adopted claims',
-    'ordinary Settings uses Overview, Account & Gateway, Models, Workspace & Personalization, Agents, Capabilities, Resources & Connections, Maintenance, Data & Storage, and Preferences; About is the only secondary page and Advanced redirects to Maintenance diagnostics',
+    'ordinary Settings uses Overview, Account & Access, Models, Workspace, Agents, Capabilities, Resources & Connections, Maintenance, Data & Storage, and Preferences; About is the only secondary page and Advanced redirects to Maintenance diagnostics',
     'ordinary home does not expose runtime activity, continue-work, per-agent running badges, or footer quick icons; Runtime and secondary context surfaces carry refs-only activity details',
     'tool/process/diff/file/receipt/user-input/permission events render as compact conversation events or expandable refs',
     'WebUI parity evidence proves the same React/CopilotKit renderer and product semantics as Electron',
@@ -1260,9 +1260,9 @@ function validateHermesTargetStateContracts(
   }
   assertStringArrayIncludes(settings.ordinary_tabs, [
     'Overview',
-    'Account & Gateway',
+    'Account & Access',
     'Models',
-    'Workspace & Personalization',
+    'Workspace',
     'Agents',
     'Capabilities',
     'Resources & Connections',

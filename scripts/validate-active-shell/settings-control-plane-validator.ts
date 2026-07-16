@@ -1323,12 +1323,12 @@ function validateSettingsVisualQaExpectations(expectations) {
     expectations?.assertion_focus,
     {
       required_structure: [
-        "user_question_to_quiet_bounded_section",
+        "user_question_to_unframed_section_or_allowed_bounded_group",
         "two_to_four_first_viewport_spatial_groups",
         "single_column_reading_lane_to_mobile_stack",
         "monochrome_icon_typography_and_typed_status_hierarchy",
         "409dd0c3_same_route_non_regression",
-        "flat_rows_inside_card",
+        "flat_rows_without_section_card_frames",
         "compact_footer",
         "single_governed_visual_baseline",
       ],
@@ -2174,6 +2174,18 @@ export function validateSettingsExperienceContract(experience) {
       "Settings browser access must be owned by Resources & Connections, not Models",
     );
   }
+  assertDeepEqualJson(
+    pageContracts.gateway.surface_rules,
+    {
+      content_group_presentation: "single_unframed_content_group",
+      account_container_border_count: 0,
+      metrics_container_border_count: 0,
+      metric_cell_divider_count: 0,
+      footer_border_count: 0,
+      stale_error_presentation: "inline_status_text_without_banner_frame",
+    },
+    "Settings Gateway flat content rules",
+  );
   if (
     pageContracts.workspace.readiness_precedence !==
     "filesystem_writability_and_health_override_executor_permission_mode"
@@ -2957,7 +2969,7 @@ function validateSettingsAccessCloudBoundary(accessPage) {
   );
   if (
     boundary.display_policy !==
-    "model selection stays on Models; Gateway credentials route to Account & Gateway; browser, resource, and deployment refs route to Settings Resources"
+    "model selection stays on Models; Gateway credentials route to Account & Access; browser, resource, and deployment refs route to Settings Resources"
   ) {
     throw new Error(
       "Settings Models must route Gateway credentials and resource refs to their owning pages",

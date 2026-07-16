@@ -63,7 +63,7 @@ remain outside the OPL product surface and their underlying data is not deleted.
 | Diagnostic separation | Done | Raw implementation data is absent from ordinary rows and available through explicit diagnostic surfaces |
 | Visual hierarchy | Superseded | The bounded-card cohort is historical; current authority requires Codex quiet single-column groups, monochrome utility icons, and fresh scene-bound visual evidence |
 | Capability scope | Done | Adopted OPL packages remain manageable; unadopted AionUI custom assistants are hidden without deleting data |
-| Personalization | Done | System `AGENTS.md` restore uses confirmation and stale guards; OPL App context keeps a generated read-only base plus editable additional instructions |
+| Personalization | Done | System `AGENTS.md` restore uses confirmation and stale guards; new-conversation additions keeps a generated read-only base plus editable additional instructions |
 | Compatibility | Done | `update`, `theme`, and `local-services` resolve to their current owner route and anchor before rendering |
 | Upstream maintainability | Done | Product truth stays in App contracts; Shell changes remain OPL overlays/adapters and do not redefine Settings from upstream defaults |
 

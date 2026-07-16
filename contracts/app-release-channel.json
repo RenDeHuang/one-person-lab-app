@@ -2209,12 +2209,12 @@
       "standard": {
         "required": [
           "MAS_MAG_RCA_home_starters_visible",
-          "package_not_installed_starters_disabled",
-          "launch_allowed_false",
+          "package_not_installed_starters_selectable",
+          "launch_allowed_false_at_send",
           "readiness_and_repair_hint_visible"
         ],
         "forbidden": [
-          "click_blocked_starter",
+          "package_not_installed_starter_disabled_before_selection",
           "claim_agent_package_shortcut_route_receipt"
         ],
         "verification_mode": "launch_gate"
@@ -2223,7 +2223,7 @@
         "required": [
           "MAS_MAG_RCA_home_starters_visible",
           "starters_launchable",
-          "workspace_scope_selected_before_send",
+          "owner_projected_required_payload_fields_satisfied_before_send",
           "agent_package_activate_action_per_starter",
           "real_guid_composer_send_per_starter",
           "conversation_get_readback_per_starter",
@@ -2237,7 +2237,7 @@
         ],
         "verification_mode": "route_receipt"
       },
-      "rule": "Standard proves that uninstalled professional Agent Packages remain discoverable but cannot launch and expose a repair path. Full selects a real workspace, invokes Framework-owned package activation through the production Guid send path, creates the conversation through the visible composer, then reads that same conversation back with matching activation and route receipts. Direct conversation POSTs and synthetic receipts cannot satisfy the Full gate. A Standard launch gate must never be counted as a Full route receipt."
+      "rule": "Standard proves that uninstalled professional Agent Packages remain discoverable and selectable while send remains blocked with a repair path. Full satisfies the required payload fields projected by the Framework-owned action, invokes package activation through the production Guid send path, creates the conversation through the visible composer, then reads that same conversation back with matching activation and route receipts. Workspace is required only when the projected action requires target_workspace. Direct conversation POSTs and synthetic receipts cannot satisfy the Full gate. A Standard launch gate must never be counted as a Full route receipt."
     },
     "vm_gates": [
       {

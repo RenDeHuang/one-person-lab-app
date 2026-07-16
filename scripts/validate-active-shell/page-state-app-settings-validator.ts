@@ -87,7 +87,7 @@ export function validateAppSettingsPages(matrix, guiContract) {
     gatewayAccount.first_run_scope !== 'desktop_account_default_webui_manual_api_key_only' ||
     gatewayAccount.personal_profile_navigation !== 'not_added'
   ) {
-    throw new Error('Account & Gateway must consume the canonical Gateway account projection and preserve its product boundaries');
+    throw new Error('Account & Access must consume the canonical Gateway account projection and preserve its product boundaries');
   }
   assertDeepEqualJson(gatewayAccount.access_paths, ['account_login', 'manual_api_key'], 'Gateway access paths');
   assertDeepEqualJson(
@@ -115,7 +115,7 @@ export function validateAppSettingsPages(matrix, guiContract) {
     'settings-gateway-disconnect-confirm': 'gateway_account_disconnect_requested',
   })) {
     if (gatewayConditionalDom.get(testid) !== when) {
-      throw new Error(`Account & Gateway DOM ${testid} must be conditional on ${when}`);
+      throw new Error(`Account & Access DOM ${testid} must be conditional on ${when}`);
     }
   }
 

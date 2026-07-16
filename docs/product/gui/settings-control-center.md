@@ -132,15 +132,15 @@ and a path shown in diagnostics is not a second path configuration.
 
 | Question | Owner | Allowed summaries elsewhere | Forbidden duplication |
 | --- | --- | --- | --- |
-| Who is connected to OPL Gateway and what account, usage, Key, or credential state applies? | Account & Gateway | Overview: signed-in identity, connection and availability, plus compact today token, cost, and balance summary. Models: access-source summary and owner link. | Full account card, total historical usage or cost, login, Key lifecycle, refresh, or disconnect outside Gateway. |
+| Who is connected to OPL Gateway and what account, usage, Key, or credential state applies? | Account & Access | Overview: signed-in identity, connection and availability, plus compact today token, cost, and balance summary. Models: access-source summary and owner link. | Full account card, total historical usage or cost, login, Key lifecycle, refresh, or disconnect outside Gateway. |
 | Which model source, default model, and reasoning preference apply? | Models | Overview: overall model-access readiness. | Gateway account and credential controls on Models. |
-| Which workspace is active and writable, where are App logs stored, and what user instructions apply? | Workspace & Personalization | Overview may count an actionable exception. Storage may link to the resolved log path read-only. | Framework/raw paths, Storage-owned log configuration, Preferences-owned personalization, or four separate normal-state cards. |
+| Which workspace is active and writable, where are App logs stored, and what user instructions apply? | Workspace | Overview may count an actionable exception. Storage may link to the resolved log path read-only. | Framework/raw paths, Storage-owned log configuration, Preferences-owned personalization, or four separate normal-state cards. |
 | Which Agents are installed and which source is active? | Agents | Home may show an active Agent shortcut. | Skills/Plugins or a separate Developer Profile page. |
 | Which Skills and Plugins are available? | Capabilities | Agent dependency readiness may link here. | A hardcoded Flow list or AionUI-native assistants presented as OPL capabilities. |
 | Which external resources and connections are available? | Resources & Connections | Other pages may link to a resource. | Built-in OPL Gateway connection or Gateway count; selected local workspace controls. |
 | Which managed dependencies, updates, and raw Framework paths need attention? | Maintenance | Models may show the active Codex CLI version. | Update controls on Models, raw paths on Workspace, or a separate Advanced page. |
 | How much local and Docker data is used, and what can be cleaned safely? | Data & Storage | Maintenance may link to cleanup attention; the Workspace-owned log path may be referenced read-only. | Log-directory configuration or generic Docker prune. |
-| How should the App behave and look? | Preferences | Theme legacy routes redirect here. | Workspace paths, user instructions, or OPL App context. |
+| How should the App behave and look? | Preferences | Theme legacy routes redirect here. | Workspace paths, user instructions, or new-conversation additions. |
 
 ## Visual Contract
 
@@ -151,7 +151,7 @@ status or brand actions. It does not turn complex OPL controls into a page-wide
 list wall or nested cards.
 
 - the compact footer always shows the connected Gateway display name, otherwise
-  Settings; it opens Account & Gateway or Overview;
+  Settings; it opens Account & Access or Overview;
 - only a confirmed newer App version adds a subtle trailing update action on
   that same account row; the footer has no theme, return, or help shortcut;
 - Preferences exposes System, Light, and Dark only; the CSS theme gallery and
@@ -374,7 +374,7 @@ and does not expose generic prune or volume-rewire controls.
 
 Preferences owns application behavior, notifications, performance and waiting,
 display, fonts, and themes. Theme remains an anchor rather than an independent
-page. User instructions and OPL App context stay on Workspace & Personalization
+page. User instructions and new-conversation additions stay on Workspace
 so paths and personalization are not duplicated across pages.
 
 ### About
@@ -407,7 +407,7 @@ Settings preserves OPL IA inside the Codex quiet visual baseline:
 - normal, warning, error, and action use muted, orange, red, and brand
   semantics;
 - one selected sidebar item and at most one page primary action;
-- the compact footer opens Account & Gateway when an account is connected, or
+- the compact footer opens Account & Access when an account is connected, or
   Overview/Settings otherwise, and keeps the theme switcher after it;
 - technical details open explicitly and never hide interactive persistent
   controls.

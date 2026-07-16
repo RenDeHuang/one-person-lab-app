@@ -622,7 +622,7 @@ test("Settings visual QA enforces Codex quiet grouping, compact footer, and mono
     baseline_shell_commit: "409dd0c3b693f1c7c93551654dfac8fb9420843d",
     baseline_comparison_policy:
       "fresh_same_route_screenshots_must_preserve_or_improve_information_hierarchy",
-    card_policy: "one_quiet_bounded_section_per_user_question_with_flat_internal_rows",
+    card_policy: "unframed_sections_with_bounded_groups_only_for_repeated_entities_or_confirmation",
     first_viewport_spatial_group_range: { min: 2, max: 4 },
     nested_cards_allowed: false,
     page_wide_list_wall_allowed: false,
@@ -709,12 +709,12 @@ test("Settings visual QA enforces Codex quiet grouping, compact footer, and mono
   });
   assert.deepStrictEqual(visualQa.assertion_focus, {
     required_structure: [
-      "user_question_to_quiet_bounded_section",
+      "user_question_to_unframed_section_or_allowed_bounded_group",
       "two_to_four_first_viewport_spatial_groups",
       "single_column_reading_lane_to_mobile_stack",
       "monochrome_icon_typography_and_typed_status_hierarchy",
       "409dd0c3_same_route_non_regression",
-      "flat_rows_inside_card",
+      "flat_rows_without_section_card_frames",
       "compact_footer",
       "single_governed_visual_baseline",
     ],
@@ -867,6 +867,14 @@ test("Settings strictly separates configuration, status, action, and diagnostic 
     experience.page_contracts.maintenance.surface_rules.working_path_owner,
     "Framework and raw paths live only in Maintenance diagnostics",
   );
+  assert.deepStrictEqual(experience.page_contracts.gateway.surface_rules, {
+    content_group_presentation: "single_unframed_content_group",
+    account_container_border_count: 0,
+    metrics_container_border_count: 0,
+    metric_cell_divider_count: 0,
+    footer_border_count: 0,
+    stale_error_presentation: "inline_status_text_without_banner_frame",
+  });
   assert.equal(
     experience.page_contracts.workspace.surface_rules.workspace_card_count,
     0,
@@ -988,6 +996,12 @@ test("Settings strictly separates configuration, status, action, and diagnostic 
   writableDiagnostics.controlPlane.experience_contract.page_contracts.maintenance.surface_rules.diagnostic_mutation_controls_allowed =
     true;
   assert.throws(() => validate(writableDiagnostics), /Maintenance surface rules/);
+});
+
+test("Settings rejects a framed Gateway account surface", () => {
+  const framedGateway = contracts();
+  framedGateway.controlPlane.experience_contract.page_contracts.gateway.surface_rules.footer_border_count = 1;
+  assert.throws(() => validate(framedGateway), /Gateway flat content rules/);
 });
 
 test("Settings keeps Gateway ownership, cached storage freshness, managed dependencies, and non-blocking startup checks", () => {

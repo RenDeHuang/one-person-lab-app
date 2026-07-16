@@ -649,7 +649,7 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
     assistantRouteSmoke?.standard?.verification_mode !== 'launch_gate' ||
     assistantRouteSmoke?.full?.verification_mode !== 'route_receipt' ||
     !assistantRouteSmoke?.standard?.forbidden?.includes('claim_agent_package_shortcut_route_receipt') ||
-    !assistantRouteSmoke?.full?.required?.includes('workspace_scope_selected_before_send') ||
+    !assistantRouteSmoke?.full?.required?.includes('owner_projected_required_payload_fields_satisfied_before_send') ||
     !assistantRouteSmoke?.full?.required?.includes('agent_package_activate_action_per_starter') ||
     !assistantRouteSmoke?.full?.required?.includes('real_guid_composer_send_per_starter') ||
     !assistantRouteSmoke?.full?.required?.includes('conversation_get_readback_per_starter') ||
@@ -659,7 +659,7 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
     !assistantRouteSmoke?.full?.forbidden?.includes('synthetic_agent_package_activation_receipt') ||
     !assistantRouteSmoke?.full?.forbidden?.includes('synthetic_agent_package_route_receipt')
   ) {
-    console.error('FAIL assistant_route_smoke_policy: Full receipts must come from a real workspace-scoped Guid activation and send path');
+    console.error('FAIL assistant_route_smoke_policy: Full receipts must come from the real Guid activation and send path with owner-projected payload requirements satisfied');
     failures += 1;
   }
 

@@ -197,7 +197,7 @@ test('Gateway account runtime bridge rejects secret leakage and generic-action l
   }
 });
 
-test('Account & Gateway rejects account visibility and state-path drift', () => {
+test('Account & Access rejects account visibility and state-path drift', () => {
   const adapter = readJson('contracts/app-shell-adapter.json');
   const guiContract = readJson('contracts/app-gui-product-contract.json');
   for (const mutate of [
