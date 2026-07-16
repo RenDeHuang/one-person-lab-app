@@ -59,6 +59,52 @@ conversation 的真实多状态、zh-CN/en-US 全矩阵、同尺寸 reference/ca
 - `installed_pixel_acceptance=pending`
 - `visual_parity_complete=false`
 
+## 本轮细化合同
+
+用户验收暴露的差异不归类为零散 CSS 问题，而是进入同一 Codex visual parity 合同：
+
+- Home starter 使用 `13/18/500`，icon、label 与选中 check 共用同一垂直中心线；选中填充、
+  focus outline 和未选中内容使用相同 line box 与 block inset，选中不能把文字推到边框顶部，
+  也不能改变 row 几何；
+- Home 与 conversation composer 均使用 `14/20/400` textarea、`13/18` 底部控件、16px
+  图标、32px action height、1px hairline 与 22px radius。Model/reasoning、permission 和
+  workspace chrome 不得另起更大字号；resting shadow 在 focus 时仍保留；
+- Settings 普通 section 一律是 unframed heading + flat rows + section-scoped hairline。
+  `能力 > 手工添加`、`资源与连接`、`维护` 是本轮强制逐项复核页；只有 repeated entity 和
+  confirmation 可以使用一层 bounded group，禁止 ordinary configuration/status/action 的边框墙；
+- `账户与访问` 的断开动作属于 account identity row，放在显示名、邮箱与连接状态的 trailing
+  位置；禁止作为脱离对象的页脚或页面最右侧动作；
+- `数据与存储` 及所有同类 icon + text action 使用 16px icon、20px 稳定 slot、8px gap、
+  `currentColor` 和透明 icon background。按钮前景色同时控制图标与文字，不能让图标底色或
+  独立 opacity 把图标遮没；
+- 全 Settings component audit 覆盖 light/dark、desktop/narrow，以及 default、hover、focus、
+  disabled、loading、error。检查 nested borders、icon contrast、baseline、换行、横向溢出和
+  交互时 geometry shift；单张截图或 source DOM 不能单独结案。
+
+### Temporal 状态与维护
+
+Temporal server 与 worker 是完整 OPL durable workflow 的必要依赖。Plain Codex chat 可以在
+它们异常时继续可用，但这不把 Temporal 降级为 optional，也不能把问题藏成原始
+`attention_needed`。Overview 必须分别显示 server/worker 的本地化状态与原因，并路由到
+`Maintenance > Services`。
+
+Maintenance 消费真实 Framework action，不自行拼 CLI 或虚构 action id：
+
+- 检测：`provider_service_status`、`provider_scheduler_status`、`provider_worker_status`；
+- 安装/配置：消费 `temporal-runtime` dependency 投影的真实 `update_action`，再使用
+  `provider_service_start`；provider ready 后才允许 `provider_scheduler_install`；
+- 启动：`provider_service_start` 后执行 `provider_worker_start`；
+- 重启：幂等 `provider_service_start` 后执行 `provider_worker_restart`；
+- readback：每次 mutation 后重新执行 service/worker status，并读取 fresh
+  `opl app state --profile fast --json#app_state.provider.temporal`。只有 server reachable、worker
+  ready、fresh 且无 error 才能显示完整 workflow 可用。
+
+Server ready 与 worker blocked 必须分别显示。若 worker mutation guard 为
+`blocked_developer_checkout_shared_state`，用户文案说明“当前 OPL CLI 指向开发源码，已阻止它
+接管共享的托管 Worker”，下一步只允许“切回托管运行时”或“显式启用已授权开发维护”；不得
+建议环境变量 bypass。Failed、stale、guidance-only 都不能显示 success，也不能错误路由到
+`settings_sync_capabilities`。
+
 ## 产品模型
 
 - `session/thread` 是唯一对话身份；`project/workspace/directory` 只是新对话的初始 cwd、
@@ -234,6 +280,14 @@ App contracts、Framework projection 和既有 Shell state。
 - `project_context_row=forbidden`
 - `conversation_search_location=rail_history_header_icon_button`
 - `composer_resting_shadow=required`
+- `home_starter_selected_alignment=centered_no_layout_shift`
+- `composer_textarea=14/20/400`
+- `composer_bottom_controls=13/18_max_13px`
+- `settings_surface_audit=all_routes_light_dark_desktop_narrow`
+- `settings_icon_text_action=currentColor_stable_slot`
+- `gateway_disconnect=identity_row_trailing`
+- `temporal_dependency=required_for_complete_opl_durable_workflow`
+- `temporal_maintenance=server_worker_detect_install_configure_start_restart_readback`
 - `aioncore_modification=forbidden`
 - `visual_acceptance=source_dom_and_installed_pixels`
 - `stable_geometry_tolerance_px=1`

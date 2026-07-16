@@ -11,6 +11,9 @@ test('Codex visual parity policy is discoverable and keeps sessions primary', ()
   const delta = readFileSync(join(appRoot, 'docs/product/gui/codex-to-opl-app-delta.md'), 'utf8');
   const visualSystem = readFileSync(join(appRoot, 'docs/product/gui/visual-system.md'), 'utf8');
   const conformance = readFileSync(join(appRoot, 'docs/product/gui/shell-conformance-matrix.md'), 'utf8');
+  const guiContract = JSON.parse(
+    readFileSync(join(appRoot, 'contracts/app-gui-product-contract.json'), 'utf8'),
+  );
 
   assert.match(readme, /codex-app-visual-parity\.md/);
   assert.match(policy, /visual_parity_target=codex_app_1_to_1_except_opl_owned_deltas/);
@@ -19,6 +22,9 @@ test('Codex visual parity policy is discoverable and keeps sessions primary', ()
   assert.match(policy, /project_context_row=forbidden/);
   assert.match(policy, /conversation_search_location=rail_history_header_icon_button/);
   assert.match(policy, /composer_resting_shadow=required/);
+  assert.match(policy, /home_starter_selected_alignment=centered_no_layout_shift/);
+  assert.match(policy, /settings_surface_audit=all_routes_light_dark_desktop_narrow/);
+  assert.match(policy, /temporal_maintenance=server_worker_detect_install_configure_start_restart_readback/);
   assert.match(policy, /aioncore_modification=forbidden/);
   assert.match(policy, /visual_acceptance=source_dom_and_installed_pixels/);
   assert.match(policy, /candidate_shell_commit_source=active_shell_checkout_git_head/);
@@ -31,4 +37,46 @@ test('Codex visual parity policy is discoverable and keeps sessions primary', ()
   assert.doesNotMatch(conformance, /默认 cwd、分组与 context hint/);
   assert.match(delta, /稳定视觉 chrome 逐像素对齐/);
   assert.doesNotMatch(delta, /不宣称逐像素或逐行为复制/);
+
+  const homeVisual = guiContract.interaction_baseline.home.visual_structure;
+  assert.equal(homeVisual.starter_typography, '13/18/500');
+  assert.equal(
+    homeVisual.starter_content_alignment,
+    'icon_label_and_check_share_one_vertical_centerline',
+  );
+  assert.equal(homeVisual.selected_starter_layout_shift_allowed, false);
+  assert.deepStrictEqual(guiContract.interaction_baseline.composer.visual_metrics, {
+    textarea_typography: '14/20/400',
+    bottom_control_typography: '13/18/400_or_500',
+    bottom_control_max_font_px: 13,
+    icon_size_px: 16,
+    action_height_px: 32,
+    border_px: 1,
+    corner_radius_px: 22,
+    resting_shadow_source:
+      'interaction_baseline.visual_target.light_surfaces.composer_shadow_or_dark_surfaces.composer_shadow',
+    focus_geometry_policy:
+      'enhance_border_or_ring_without_removing_resting_shadow_or_changing_size',
+  });
+  assert.deepStrictEqual(guiContract.utility_icon_policy.icon_text_action_geometry, {
+    icon_size_px: 16,
+    icon_slot_px: 20,
+    icon_color: 'currentColor',
+    icon_background: 'transparent_none',
+    icon_label_gap_px: 8,
+    alignment: 'icon_slot_and_label_share_one_vertical_centerline',
+    contrast_policy: 'button_foreground_color_applies_to_icon_and_label_together',
+    disabled_policy:
+      'apply_disabled_opacity_to_the_whole_control_never_hide_only_the_icon',
+  });
+  const settingsAudit =
+    guiContract.settings_navigation.settings_ia.protocols.visual_qa_expectations
+      .settings_component_audit;
+  assert.deepStrictEqual(settingsAudit.allowed_bounded_group_kinds, [
+    'repeated_entity',
+    'confirmation',
+  ]);
+  assert.equal(settingsAudit.source_dom_or_single_screenshot_only_is_sufficient, false);
+  assert.ok(settingsAudit.checks.includes('no_nested_card_or_border_wall'));
+  assert.ok(settingsAudit.checks.includes('icon_uses_currentColor_with_stable_slot_and_visible_contrast'));
 });

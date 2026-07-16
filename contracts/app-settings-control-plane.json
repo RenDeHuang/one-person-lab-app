@@ -1443,6 +1443,31 @@
   },
   "visual_qa_policy": {
     "policy": "settings_control_center_visual_qa_is_shell_behavior_evidence",
+    "component_audit": {
+      "contract_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia.protocols.visual_qa_expectations.settings_component_audit",
+      "scope": "all_Settings_routes_sections_rows_actions_and_interaction_states",
+      "required_color_schemes": [
+        "light",
+        "dark"
+      ],
+      "required_focus_routes": [
+        "/settings/capabilities#third-party",
+        "/settings/resources",
+        "/settings/environment",
+        "/settings/storage",
+        "/settings/gateway"
+      ],
+      "required_checks": [
+        "unframed_ordinary_sections",
+        "no_nested_card_or_border_wall",
+        "currentColor_icon_contrast",
+        "stable_icon_slot_and_label_alignment",
+        "owned_action_adjacency",
+        "localized_text_wrap_and_no_horizontal_overflow",
+        "stable_hover_focus_disabled_loading_error_geometry"
+      ],
+      "acceptance": "fresh_same_cohort_source_DOM_and_installed_pixel_review"
+    },
     "required_viewports": [
       "desktop",
       "mobile"
@@ -2427,11 +2452,24 @@
         "primary_information": [
           "one overall usability summary led by Codex CLI and model-access readiness",
           "signed-in Gateway identity, connection and availability with compact today token, cost, and balance summaries",
+          "localized Temporal server and worker status with a plain-language reason and direct Maintenance route",
           "issue queue ordered by user impact and limited to actionable exceptions",
           "one next useful action",
           "workspace path stays on Workspace and is not a primary Overview card",
           "necessary Codex and Gateway technical rows remain directly visible after duplicate fields are removed"
         ],
+        "background_services_summary": {
+          "dependency_role": "required_for_complete_opl_durable_workflow",
+          "visible_components": [
+            "temporal_server",
+            "temporal_worker"
+          ],
+          "component_status_policy": "show_server_and_worker_independently_so_server_ready_worker_blocked_is_not_collapsed_into_one_opaque_attention_state",
+          "normal_state_policy": "when_server_and_worker_are_ready_show_one_quiet_localized_ready_summary_without_attention_emphasis",
+          "copy_policy": "localized_user_language_status_and_reason_never_raw_enum_or_blocker_id",
+          "attention_route": "/settings/environment#services",
+          "recommended_action_policy": "real_projected_Temporal_action_or_Maintenance_route_never_settings_sync_capabilities"
+        },
         "first_viewport_groups": [
           "system_status",
           "attention_queue",
@@ -2479,7 +2517,8 @@
             "settings-page-overview",
             "settings-overview-primary",
             "settings-overview-card-codex",
-            "settings-overview-card-gateway"
+            "settings-overview-card-gateway",
+            "settings-overview-temporal"
           ],
           "conditional": [
             {
@@ -2591,6 +2630,8 @@
           "display_policy_ref": "contracts/app-runtime-bridge.json#opl_gateway_account_projection.display_policy",
           "group_resolution_policy_ref": "contracts/app-runtime-bridge.json#opl_gateway_account_projection.group_resolution_policy",
           "normal_state_action_policy": "refresh_icon_adjacent_to_local_time_and_disconnect_only",
+          "disconnect_placement": "identity_row_trailing_adjacent_to_display_name_email_and_connection_status",
+          "disconnect_detached_footer_or_page_edge_allowed": false,
           "exception_action_policy": "complete_connection_retry_connection_or_sign_in_again_only_when_required",
           "webui_password_login_allowed": false,
           "generic_action_secret_payload_allowed": false
@@ -2953,6 +2994,12 @@
           "default_tab": "opl_flow_managed",
           "on_demand_tab_ids": []
         },
+        "layout_policy": {
+          "section_presentation": "unframed_heading_plus_flat_rows",
+          "row_separation": "section_scoped_hairlines",
+          "manual_group_presentation": "one_aligned_settings_list",
+          "nested_card_or_gray_block_allowed": false
+        },
         "exception_state": "highlight failed sync or owner attention without mutating third-party items",
         "technical_details_boundary": "raw registry paths, package closure refs, and receipts stay collapsed",
         "required_dom": {
@@ -3215,6 +3262,12 @@
           "implementation_provenance_visibility": "technical_details_only"
         },
         "connection_filter_policy": "exclude the built-in OPL Gateway connection and count; show only user-managed external connections",
+        "layout_policy": {
+          "section_presentation": "unframed_heading_plus_flat_rows",
+          "row_separation": "section_scoped_hairlines",
+          "status_and_action_alignment": "shared_row_grid_without_per_item_card_frames",
+          "nested_card_or_border_wall_allowed": false
+        },
         "primary_action": {
           "id": "open_selected_resource_action",
           "availability": "executable_action_available",
@@ -3350,6 +3403,56 @@
           "managed_dependency_primary_visibility": "managed_dependency_summary_is_visible_without_opening_diagnostics",
           "working_path_owner": "Framework and raw paths live only in Maintenance diagnostics"
         },
+        "layout_policy": {
+          "section_presentation": "unframed_heading_plus_flat_rows",
+          "row_separation": "section_scoped_hairlines",
+          "managed_dependency_presentation": "shared_column_headers_and_flat_component_rows",
+          "nested_card_or_border_wall_allowed": false
+        },
+        "temporal_service_management": {
+          "contract_ref": "contracts/app-gui-product-contract.json#pages.settings_environment.temporal_maintenance_contract",
+          "dependency_role": "required_for_complete_opl_durable_workflow",
+          "visible_components": [
+            "temporal_server",
+            "temporal_worker"
+          ],
+          "component_status_policy": "server_and_worker_have_independent_status_reason_and_action_rows",
+          "ready_state_policy": "server_and_worker_ready_is_muted_normal_state_while_check_and_maintenance_actions_remain_reachable",
+          "worker_mutation_guard_policy": {
+            "blocked_status": "blocked_developer_checkout_shared_state",
+            "applies_when": "the_fresh_projected_mutation_guard_status_is_blocked_developer_checkout_shared_state",
+            "localized_reason_zh": "当前 OPL CLI 指向开发源码，已阻止它接管共享的托管 Worker。",
+            "localized_reason_en": "The active OPL CLI points to a developer checkout, so it cannot take over the shared managed worker.",
+            "allowed_next_steps": [
+              "switch_to_managed_runtime",
+              "explicitly_enable_authorized_developer_maintenance"
+            ],
+            "environment_bypass_guidance_allowed": false
+          },
+          "action_ids": {
+            "detect": [
+              "provider_service_status",
+              "provider_scheduler_status",
+              "provider_worker_status"
+            ],
+            "install_or_configure": [
+              "provider_service_start",
+              "provider_scheduler_install"
+            ],
+            "start": [
+              "provider_service_start",
+              "provider_worker_start"
+            ],
+            "restart": [
+              "provider_service_start",
+              "provider_worker_restart"
+            ]
+          },
+          "runtime_dependency_action_source": "managed_dependency_summary[dependency_id=temporal-runtime].update_action",
+          "mutation_readback": "provider_service_status_then_provider_worker_status_then_fresh_fast_app_state",
+          "success_policy": "server_reachable_and_worker_ready_and_fresh_no_error_readback_only",
+          "failure_policy": "failed_stale_or_guidance_only_results_never_show_success_or_route_to_settings_sync_capabilities"
+        },
         "primary_action": {
           "id": "run_recommended_maintenance",
           "availability": "attention_only",
@@ -3364,6 +3467,9 @@
             "settings-page-maintenance",
             "settings-maintenance-primary",
             "settings-maintenance-managed-dependencies",
+            "settings-maintenance-temporal-server",
+            "settings-maintenance-temporal-worker",
+            "settings-maintenance-temporal-check",
             "settings-maintenance-management-action",
             "settings-maintenance-diagnostics-action"
           ],
@@ -3375,6 +3481,10 @@
             {
               "testid": "settings-maintenance-primary-action",
               "when": "attention_only"
+            },
+            {
+              "testid": "settings-maintenance-temporal-action",
+              "when": "temporal_attention_or_user_requested_maintenance"
             },
             {
               "testid": "settings-maintenance-management-details",
@@ -3476,6 +3586,15 @@
           ],
           "docker_data_volume_mapping": "OnePersonLab/data -> /data",
           "docker_cleanup_policy": "preview_before_prune_no_generic_prune"
+        },
+        "action_visual_policy": {
+          "icon_size_px": 16,
+          "icon_slot_px": 20,
+          "icon_color": "currentColor",
+          "icon_background": "transparent_none",
+          "icon_label_gap_px": 8,
+          "alignment": "icon_slot_and_label_share_one_vertical_centerline",
+          "contrast_policy": "button_foreground_color_applies_to_icon_and_label_together"
         },
         "primary_action": {
           "id": "preview_cleanup",

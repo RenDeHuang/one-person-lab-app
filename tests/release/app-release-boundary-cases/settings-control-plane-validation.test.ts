@@ -1222,3 +1222,143 @@ test("Settings validator rejects page-state DOM and search-entry drift", () => {
     /Capabilities source-group tab contract/,
   );
 });
+
+test("Settings binds flat visual repair and complete Temporal maintenance to all App authority layers", () => {
+  const values = contracts();
+  assert.doesNotThrow(() => validate(values));
+
+  const guiPages = values.guiContract.pages;
+  const experiencePages = values.controlPlane.experience_contract.page_contracts;
+  const pageById = (id: string) =>
+    values.pageStateMatrix.pages.find((page) => page.id === id);
+
+  assert.equal(
+    guiPages.settings_general.background_services_summary.dependency_role,
+    "required_for_complete_opl_durable_workflow",
+  );
+  assert.equal(
+    experiencePages.overview.background_services_summary.component_status_policy,
+    "show_server_and_worker_independently_so_server_ready_worker_blocked_is_not_collapsed_into_one_opaque_attention_state",
+  );
+  assert.ok(
+    guiPages.settings_general.must_not_show.some((item: string) =>
+      item.includes("raw attention_needed"),
+    ),
+  );
+  assert.equal(
+    pageById("settings_general").background_services_summary.attention_route,
+    "/settings/environment#services",
+  );
+  assert.ok(
+    pageById("settings_general").required_dom.always.includes(
+      "settings-overview-temporal",
+    ),
+  );
+
+  const guiTemporal = guiPages.settings_environment.temporal_maintenance_contract;
+  const controlTemporal = experiencePages.maintenance.temporal_service_management;
+  const pageTemporal = pageById("environment").temporal_maintenance_contract;
+  const expectedActionIds = {
+    detect: [
+      "provider_service_status",
+      "provider_scheduler_status",
+      "provider_worker_status",
+    ],
+    install_or_configure: [
+      "provider_service_start",
+      "provider_scheduler_install",
+    ],
+    start: ["provider_service_start", "provider_worker_start"],
+    restart: ["provider_service_start", "provider_worker_restart"],
+  };
+  assert.deepStrictEqual(controlTemporal.action_ids, expectedActionIds);
+  assert.deepStrictEqual(pageTemporal.action_ids, expectedActionIds);
+  assert.deepStrictEqual(guiTemporal.action_roles.detect.action_ids, expectedActionIds.detect);
+  assert.deepStrictEqual(guiTemporal.action_roles.start.action_ids, expectedActionIds.start);
+  assert.deepStrictEqual(guiTemporal.action_roles.restart.action_ids, expectedActionIds.restart);
+  assert.deepStrictEqual(guiTemporal.post_action_readback.action_ids, [
+    "provider_service_status",
+    "provider_scheduler_status",
+    "provider_worker_status",
+  ]);
+  assert.equal(guiTemporal.post_action_readback.freshness_required, true);
+  assert.match(guiTemporal.failure_semantics, /never_route_to_settings_sync_capabilities/);
+  assert.equal(
+    guiTemporal.worker_mutation_guard_policy.environment_bypass_guidance_allowed,
+    false,
+  );
+  assert.deepStrictEqual(
+    guiTemporal.worker_mutation_guard_policy.allowed_next_steps,
+    [
+      "switch_to_managed_runtime",
+      "explicitly_enable_authorized_developer_maintenance",
+    ],
+  );
+  assert.ok(
+    experiencePages.maintenance.required_dom.always.includes(
+      "settings-maintenance-temporal-server",
+    ),
+  );
+  assert.ok(
+    experiencePages.maintenance.required_dom.always.includes(
+      "settings-maintenance-temporal-worker",
+    ),
+  );
+
+  assert.equal(
+    guiPages.settings_gateway.opl_gateway_account.disconnect_placement,
+    "identity_row_trailing_adjacent_to_display_name_email_and_connection_status",
+  );
+  assert.equal(
+    experiencePages.gateway.gateway_account_surface
+      .disconnect_detached_footer_or_page_edge_allowed,
+    false,
+  );
+  assert.equal(
+    pageById("gateway").opl_gateway_account.disconnect_placement,
+    "identity_row_trailing_adjacent_to_display_name_email_and_connection_status",
+  );
+
+  assert.equal(
+    guiPages.settings_capabilities.surface_layout_contract
+      .nested_card_or_gray_block_allowed,
+    false,
+  );
+  assert.equal(
+    experiencePages.resources.layout_policy.nested_card_or_border_wall_allowed,
+    false,
+  );
+  assert.equal(
+    pageById("environment").ordinary_layout_policy
+      .nested_card_or_border_wall_allowed,
+    false,
+  );
+
+  const storageVisual = {
+    icon_size_px: 16,
+    icon_slot_px: 20,
+    icon_color: "currentColor",
+    icon_background: "transparent_none",
+    icon_label_gap_px: 8,
+    alignment: "icon_slot_and_label_share_one_vertical_centerline",
+    contrast_policy: "button_foreground_color_applies_to_icon_and_label_together",
+  };
+  assert.deepStrictEqual(experiencePages.storage.action_visual_policy, storageVisual);
+  assert.deepStrictEqual(pageById("storage").action_visual_policy, storageVisual);
+  assert.deepStrictEqual(
+    Object.fromEntries(
+      Object.entries(guiPages.settings_storage.action_visual_policy).filter(
+        ([key]) => key !== "applies_to",
+      ),
+    ),
+    storageVisual,
+  );
+
+  const componentAudit = values.controlPlane.visual_qa_policy.component_audit;
+  assert.deepStrictEqual(componentAudit.required_color_schemes, ["light", "dark"]);
+  assert.ok(componentAudit.required_checks.includes("no_nested_card_or_border_wall"));
+  assert.equal(
+    componentAudit.acceptance,
+    "fresh_same_cohort_source_DOM_and_installed_pixel_review",
+  );
+});
