@@ -124,6 +124,7 @@ export function assertCurrentGuidHomeSelectionSources({
       "data-testid='opl-home-starters'",
       'aria-pressed={active}',
       'data-opl-active={String(active)}',
+      'data-opl-launch-ready={String(launchGate.launchAllowed !== false)}',
       'active && styles.homeStarterActive',
       "data-testid='starter-active-check'",
       "<CheckOne theme='filled'",
@@ -134,7 +135,13 @@ export function assertCurrentGuidHomeSelectionSources({
   );
   assertTextExcludesAll(
     homeStarters,
-    ['FontAwesomeIcon', 'faChevronRight', "!border-primary-5 !bg-primary-1 !text-primary-6"],
+    [
+      'FontAwesomeIcon',
+      'faChevronRight',
+      "!border-primary-5 !bg-primary-1 !text-primary-6",
+      '<Right',
+      'disabled={launchBlocked}',
+    ],
     'Active shell retired Guid Home starter styling',
   );
   assertTextIncludesAll(
@@ -146,17 +153,18 @@ export function assertCurrentGuidHomeSelectionSources({
       'min-height: 98px',
       'border-radius: 22px',
       '.workspaceFootnote',
-      'width: calc(100% - 24px)',
-      'min-height: 52px',
-      'margin: 0 auto -13px',
-      'padding: 4px 14px 12px',
+      'width: 100%',
+      'min-height: 28px',
+      'margin: 4px 0',
+      'background: transparent',
       '.homeStarterGrid',
       'display: flex',
       'flex-wrap: wrap',
       'justify-content: center',
-      'flex: 0 0 132px',
+      'width: auto !important',
+      'height: 32px !important',
     ],
-    'Active shell dynamic Guid Home starter layout',
+    'Active shell integrated Guid Home reading lane',
   );
   assertTextExcludesAll(
     guidStyles,
@@ -218,7 +226,7 @@ const productProfileDefaultsExpected = [
   '"button_label_policy": "resolved_model_compact_label_with_selected_reasoning_effort_no_auto_prefix"',
   '"default_active_shortcut": null',
   '"shortcut_selection_policy": "explicit_user_or_navigation_selection_only_no_saved_preset_restore"',
-  '"selected_starter_visual_policy": "accent_border_fill_and_check_indicator_not_color_alone"',
+  '"selected_starter_visual_policy": "quiet_fill_and_check_indicator_not_color_alone"',
   '"zh": "推理最高"',
   '"policy_source_ref": "contracts/app-product-profile.json#codex.auto_model_policy"',
   '"model_catalog_source": "codex_cli_model_list"',

@@ -1088,21 +1088,25 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     'snapshot_restore' in localWorktreeLifecycle ||
     'cleanup' in localWorktreeLifecycle ||
     'cross_host' in localWorktreeLifecycle ||
-    homeTarget.title_policy !== 'dynamic_question_title' ||
+    homeTarget.title_policy !== 'modest_dynamic_prompt_in_composer_reading_lane' ||
     homeTarget.starter_limit !== null ||
     homeTarget.starter_visibility_policy !== 'all_user_visible_configured_shortcuts' ||
     homeTarget.starter_order_policy !== 'stable_configured_order' ||
-    homeTarget.starter_layout_policy !== 'responsive_wrap' ||
+    homeTarget.starter_layout_policy !== 'compact_inline_wrap' ||
     !sameStrings(homeTarget.default_visible_shortcut_ids, ['research', 'grant', 'ppt', 'oma']) ||
-    record(homeTarget.visual_structure).starter_item_width !== 'compact_fixed_width' ||
+    record(homeTarget.visual_structure).starter_region !==
+      'composer_reading_lane_immediately_above_input_not_page_navigation' ||
+    record(homeTarget.visual_structure).starter_item_width !== 'content_sized' ||
     record(homeTarget.visual_structure).starter_count_layout !==
-      'center_actual_visible_count_and_wrap_without_fixed_column_count' ||
+      'center_actual_visible_count_and_wrap_without_navigation_chevrons' ||
+    record(homeTarget.visual_structure).composer !== 'bottom_reading_lane_with_safe_inset' ||
     record(homeTarget.visual_structure).desktop_composer_max_width_px !== 736 ||
     record(homeTarget.visual_structure).desktop_composer_min_height_px !== 98 ||
     record(homeTarget.visual_structure).desktop_composer_corner_radius_px !== 22 ||
-    record(homeTarget.visual_structure).desktop_context_bar_height_px !== 52 ||
-    record(homeTarget.visual_structure).desktop_context_bar_overlap_px !== 13 ||
-    record(homeTarget.visual_structure).desktop_context_bar_horizontal_inset_px !== 12 ||
+    record(homeTarget.visual_structure).desktop_context_bar_height_px !== 0 ||
+    record(homeTarget.visual_structure).desktop_context_bar_overlap_px !== 0 ||
+    record(homeTarget.visual_structure).desktop_context_bar_horizontal_inset_px !== 0 ||
+    record(homeTarget.visual_structure).single_centered_reading_lane_for_prompt_starters_and_composer !== true ||
     homeTarget.starter_truncation_allowed !== false ||
     record(homeTarget.workspace_selector_policy).primary_scope !== 'active_workspace_only' ||
     record(homeTarget.workspace_selector_policy).inactive_recent_directories_visible !== false ||

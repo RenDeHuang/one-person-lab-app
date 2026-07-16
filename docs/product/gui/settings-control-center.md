@@ -77,9 +77,9 @@ adapter ids.
 | Product page | Chinese label | Carrier route | Path | Scope |
 | --- | --- | --- | --- | --- |
 | `overview` | 概览 | `general` | `/settings/general` | ordinary |
-| `gateway` | 账户与 Gateway | `gateway` | `/settings/gateway` | ordinary |
+| `gateway` | 账户与访问 | `gateway` | `/settings/gateway` | ordinary |
 | `models` | 模型 | `access` | `/settings/access` | ordinary |
-| `workspace` | 工作区与个性化 | `workspace` | `/settings/workspace` | ordinary |
+| `workspace` | 工作区 | `workspace` | `/settings/workspace` | ordinary |
 | `agents` | 智能体 | `agents` | `/settings/agents` | ordinary |
 | `capabilities` | 能力 | `capabilities` | `/settings/capabilities` | ordinary |
 | `resources` | 资源与连接 | `resources` | `/settings/resources` | ordinary |
@@ -185,9 +185,9 @@ copy of every Settings page, or a second technical summary. Necessary direct
 Codex and Gateway technical rows appear once; raw paths, receipts, payloads, and
 owner-page diagnostics stay on their owner pages.
 
-### Account & Gateway
+### Account & Access
 
-Account & Gateway is the single owner for:
+Account & Access is the single owner for:
 
 - account login and the manual API-key path;
 - full public account identity and localized connection state;
@@ -214,13 +214,13 @@ Models owns model-access readiness, the real
 reasoning preference for new conversations, and the active Codex CLI version
 as an execution prerequisite.
 
-When credentials need attention it exposes one route to Account & Gateway. It
+When credentials need attention it exposes one route to Account & Access. It
 does not show the Gateway account card, balance, usage, login form, manual Key
 form, managed Key lifecycle, raw provider paths, or Codex CLI update controls.
 
-### Workspace & Personalization
+### Workspace
 
-Workspace & Personalization shows the active workspace identity, resolved path,
+Workspace shows the active workspace identity, resolved path,
 and writability once in one normal-state summary. Permission or trust detail
 appears only when attention is required. Filesystem health and writability
 override executor permission mode when deciding usability.

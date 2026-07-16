@@ -2190,6 +2190,10 @@ export function validateSettingsExperienceContract(experience) {
         "one unframed File locations group with two equal rows for workspace and desktop logs",
       permission_presentation:
         "one merged writability status inside the workspace row",
+      responsive_row_policy:
+        "container_width_below_620px_stacks_copy_status_and_actions_without_word_breaking_paths",
+      personalization_presentation:
+        "unframed_field_groups_with_section_hairlines_no_nested_cards",
       maintenance_action_visibility: "attention_only",
       diagnostics_entry: "explicit_modal_action",
       log_directory_source:

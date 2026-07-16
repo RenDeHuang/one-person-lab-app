@@ -600,16 +600,17 @@ function assertHomeSelectionAndIconPolicy(profile: AppProductProfile): void {
   const iconPolicy = profile.gui.home.utility_icon_policy;
   if (
     homeLayout.default_active_shortcut !== null ||
-    homeLayout.shortcut_selection_policy !== 'explicit_user_or_navigation_selection_only_no_saved_preset_restore' ||
-    homeLayout.starter_item_width_policy !== 'compact_fixed_width' ||
-    homeLayout.starter_count_layout_policy !== 'center_actual_visible_count_and_wrap_without_fixed_column_count' ||
+    homeLayout.shortcut_selection_policy !==
+      'explicit_user_or_navigation_selection_only_no_saved_preset_restore_and_never_disabled_by_launch_readiness' ||
+    homeLayout.starter_item_width_policy !== 'content_sized' ||
+    homeLayout.starter_count_layout_policy !== 'center_actual_visible_count_and_wrap_without_navigation_chevrons' ||
     homeLayout.desktop_composer_max_width_px !== 736 ||
     homeLayout.desktop_composer_min_height_px !== 98 ||
     homeLayout.desktop_composer_corner_radius_px !== 22 ||
-    homeLayout.desktop_context_bar_height_px !== 52 ||
-    homeLayout.desktop_context_bar_overlap_px !== 13 ||
-    homeLayout.desktop_context_bar_horizontal_inset_px !== 12 ||
-    homeLayout.selected_starter_visual_policy !== 'accent_border_fill_and_check_indicator_not_color_alone'
+    homeLayout.desktop_context_bar_height_px !== 0 ||
+    homeLayout.desktop_context_bar_overlap_px !== 0 ||
+    homeLayout.desktop_context_bar_horizontal_inset_px !== 0 ||
+    homeLayout.selected_starter_visual_policy !== 'quiet_fill_and_check_indicator_not_color_alone'
   ) {
     throw new Error('App product profile Home must require explicit professional-agent selection with a visible selected state');
   }

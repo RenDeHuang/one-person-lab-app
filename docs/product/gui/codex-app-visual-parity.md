@@ -35,8 +35,12 @@ candidate identity 必须在验证时从 active Shell checkout 读取，不能�
 - Home 与 conversation composer 共用中性 border、resting/focus shadow 和 `14/20` textarea；
 - Settings 导航图标改为中性色，content lane 收敛为 `760px`，彩色 section 边条和多余 card
   shadow 已移除；
-- Account & Gateway 的 connected state 使用 unframed identity/metrics/action group；stale 文案
-  内联呈现，账户、指标和操作不再由多层矩形边框包围；
+- Account & Access 的 connected Gateway state 使用 unframed identity/metrics/action group；
+  stale 文案内联呈现，账户、指标、footer 和操作不再由多层矩形边框包围；
+- Home 的 prompt、content-sized agent shortcuts 与 composer 进入一个 bottom reading lane；入口无
+  chevron，所有可见官方智能体都可选择，运行就绪只在发送时以 typed guidance 阻止；
+- 项目、Local/Worktree 与 branch 控件并入 composer 内部，不再形成独立灰色顶栏或第二条能力标签；
+- Workspace 使用 content-container 响应式单列，Codex instructions 与新对话附加说明保持 unframed；
 - clean candidate 的 full Node `1584/1584`、full DOM `814 passed / 6 skipped`、focused Node
   `24/24`、focused DOM `55/55`、typecheck、format、i18n、lint `0 error` 与 diff-check 均通过。
 

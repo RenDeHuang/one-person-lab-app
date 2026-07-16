@@ -67,8 +67,13 @@ Codex baseline 是视觉参照，不是 machine truth。当前 carrier 的差异
 - Conversation chrome、timeline 和 composer 使用同一水平节奏。宽屏增加外侧留白，不无限拉宽
   正文或把 composer 缩成小卡片。
 - Home、Runtime、Settings 是全宽页面/主布局，不把整个 section 包成悬浮 card。
-- Home starter 使用紧凑固定宽度，但容器不写死四列或五列；按当前可见入口数量居中并
-  响应式换行，用户开启或关闭入口后不得留下偏斜的固定网格空位。
+- Home 的提示、智能体快捷入口和 composer 共享靠近窗口底部的单一 reading lane；提示使用
+  modest heading，不形成 hero，也不把智能体入口放大成全宽分类导航。
+- Home starter 使用 content-sized 紧凑入口；容器不写死四列或五列、不显示连续 chevron，按当前
+  可见入口数量居中并响应式换行。包的运行就绪状态可以在发送时给 typed guidance，但不得让可见
+  智能体在选择阶段失去交互。
+- 项目、Local/Worktree 和 starting branch 是 composer 内部的紧凑上下文控制，不使用独立灰色
+  顶栏、负 margin overlap 或第二条 capability 标签。
 
 ## Typography
 
@@ -293,9 +298,13 @@ Settings 保留 OPL 信息架构，但视觉采用 Codex 式窄内容列与 quie
 - 侧栏在任一时刻只显示一个选中项；兼容路由完成跳转后，选中态归属实际落地页。
 - bounded group 用于清晰分组；禁止 nested group、彩色 category 边条和重 shadow，也禁止
   用贯穿全页的裸横线堆叠出空旷、低密度页面，或把同一个用户问题拆成营销式卡片墙。
-- Account & Gateway 的已连接账户使用单一 unframed content group：身份、指标、托管 Key 与
-  操作通过留白和最多一条 section-scoped hairline 组织；stale/error 是内联状态文字，不再
-  形成 banner 外框、账户卡片外框或指标区的 nested frame。
+- Account & Access 的已连接 Gateway 账户使用单一 unframed content group：身份、指标、托管
+  Key 与操作只通过留白组织；stale/error 是内联状态文字，不形成 banner、账户卡片、指标区或
+  footer 的 nested frame。
+- Settings 响应式断点按右侧 reading lane 的真实内容宽度判断，而不是按整个窗口宽度判断。内容列
+  低于 `620px` 时，路径摘要、状态和操作切为单列；路径允许在分隔符处自然折行，不逐字断裂。
+- Workspace 的 Codex instructions 和新对话附加说明使用 unframed field groups 与 section hairline，
+  不在 section 内再套灰底卡片或带框内容块。
 - 重复实体使用一组共享列头；逐行重复“名称 / 状态 / 来源 / 操作”等字段标签会降低
   扫描效率，不作为默认布局。
 - 主操作贴近其拥有的对象或 section；不把对象级动作抽离成远端页面工具栏动作。

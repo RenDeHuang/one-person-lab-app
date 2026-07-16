@@ -1158,9 +1158,26 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   ) {
     throw new Error('App GUI home must show every user-visible configured OPL starter without silent truncation');
   }
-  if (!pages.guid_home.must_show?.includes('active capability shown as a compact chip')) {
-    throw new Error('App GUI home must show the active capability as a compact chip');
+  if (
+    !pages.guid_home.must_show?.includes(
+      'all visible professional-agent shortcuts remain selectable while launch readiness is enforced on send with typed guidance',
+    ) ||
+    !pages.guid_home.must_show?.includes('prompt, compact shortcuts, and composer share one bottom reading lane') ||
+    !pages.guid_home.must_show?.includes(
+      'active capability shown by a quiet selected shortcut state without a second composer label',
+    )
+  ) {
+    throw new Error('App GUI home must keep agent shortcuts selectable and subordinate to the chat-first composer');
   }
+  assertIncludesAll(
+    pages.guid_home.must_not_show,
+    [
+      'full-width professional-agent navigation row or inactive-item chevrons',
+      'separate framed project, locality, or capability cap above the composer',
+      'professional-agent selection disabled only because package launch is not ready',
+    ],
+    'App GUI Home retired agent-portal and context-cap signals',
+  );
   assertIncludesAll(
     pages.guid_home.must_show,
     [
@@ -1419,7 +1436,7 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   );
   assertIncludesAll(
     pages.settings_access.must_show,
-    ['page label Models or 模型', 'selected and default model', 'one route to Account & Gateway when credentials need attention'],
+    ['page label Models or 模型', 'selected and default model', 'one route to Account & Access when credentials need attention'],
     'Settings Models user entry contract',
   );
   assertIncludesAll(
@@ -1447,7 +1464,7 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     pages.settings_resources.must_not_show,
     [
       'selected local workspace path, change-workspace controls, or permission summary duplicated from Workspace',
-      'built-in OPL Gateway connection or Gateway count owned by Account & Gateway',
+      'built-in OPL Gateway connection or Gateway count owned by Account & Access',
       'dry-run success presented as resource opened, diagnosis completed, deployment completed, or mutation completed',
     ],
     'Settings Resources Workspace deduplication',
@@ -1484,11 +1501,15 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     !pages.settings_workspace.sections?.includes('log_directory') ||
     !pages.settings_workspace.sections?.includes('system_agents') ||
     !pages.settings_workspace.sections?.includes('opl_app_context') ||
-    !pages.settings_workspace.must_show?.includes('Workspace & Personalization as a top-level Settings entry') ||
+    !pages.settings_workspace.must_show?.includes('Workspace as a top-level Settings entry') ||
+    !pages.settings_workspace.must_show?.includes(
+      'content-width responsive single-column rows when the Settings reading lane is narrow',
+    ) ||
+    !pages.settings_workspace.must_show?.includes('Codex instruction editors use unframed field groups without nested cards') ||
     !pages.settings_workspace.must_not_show?.includes('Storage-owned log configuration') ||
     !pages.settings_workspace.must_not_show?.includes('Framework and raw paths duplicated from Maintenance diagnostics')
   ) {
-    throw new Error('Settings Workspace & Personalization must own workspace, App logs, and personalization without raw Framework path duplication');
+    throw new Error('Settings Workspace must own workspace, App logs, and Codex instructions without raw Framework path duplication');
   }
   if (
     pages.settings_storage.sections?.includes('log_directory') ||

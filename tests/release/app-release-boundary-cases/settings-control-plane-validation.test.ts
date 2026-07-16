@@ -73,9 +73,9 @@ test("Settings contract keeps ten product pages, About as the only secondary pag
     values.controlPlane.ordinary_routes.map((route) => route.default_label_zh),
     [
       "概览",
-      "账户与 Gateway",
+      "账户与访问",
       "模型",
-      "工作区与个性化",
+      "工作区",
       "智能体",
       "能力",
       "资源与连接",
@@ -874,6 +874,14 @@ test("Settings strictly separates configuration, status, action, and diagnostic 
   assert.equal(
     experience.page_contracts.workspace.surface_rules.location_presentation,
     "one unframed File locations group with two equal rows for workspace and desktop logs",
+  );
+  assert.equal(
+    experience.page_contracts.workspace.surface_rules.responsive_row_policy,
+    "container_width_below_620px_stacks_copy_status_and_actions_without_word_breaking_paths",
+  );
+  assert.equal(
+    experience.page_contracts.workspace.surface_rules.personalization_presentation,
+    "unframed_field_groups_with_section_hairlines_no_nested_cards",
   );
   assert.deepStrictEqual(
     experience.page_contracts.preferences.surface_rules.builtin_theme_ids,

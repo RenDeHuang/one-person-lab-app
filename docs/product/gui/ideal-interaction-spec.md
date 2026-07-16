@@ -285,8 +285,8 @@ Settings 是 OPL Control Center，不是 upstream 配置列表：
 
 - 使用独立 Settings route：明确 return、search 和 grouped rows；不把 Settings 塞进
   Environment/details。
-- Ordinary navigation 按 App-owned Settings IA 组织 Overview、Account & Gateway、
-  Models、Workspace & Personalization、Agents、Capabilities、Resources & Connections、
+- Ordinary navigation 按 App-owned Settings IA 组织 Overview、Account & Access、
+  Models、Workspace、Agents、Capabilities、Resources & Connections、
   Maintenance、Data & Storage 和 Preferences。About 是唯一 secondary page；Advanced、
   Update、Theme、Local Services 和 Personalization 只作为 owner route 的兼容重定向。
 - 每页先回答用户问题，再给 recommended action；raw ids、paths、receipts 和 JSON

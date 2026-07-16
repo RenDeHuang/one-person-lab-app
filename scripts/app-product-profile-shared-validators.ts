@@ -314,9 +314,9 @@ export function assertAppProductProfileGuiInteractionBaseline(
       { actual: homeLayout?.desktop_composer_max_width_px, expected: 736 },
       { actual: homeLayout?.desktop_composer_min_height_px, expected: 98 },
       { actual: homeLayout?.desktop_composer_corner_radius_px, expected: 22 },
-      { actual: homeLayout?.desktop_context_bar_height_px, expected: 52 },
-      { actual: homeLayout?.desktop_context_bar_overlap_px, expected: 13 },
-      { actual: homeLayout?.desktop_context_bar_horizontal_inset_px, expected: 12 },
+      { actual: homeLayout?.desktop_context_bar_height_px, expected: 0 },
+      { actual: homeLayout?.desktop_context_bar_overlap_px, expected: 0 },
+      { actual: homeLayout?.desktop_context_bar_horizontal_inset_px, expected: 0 },
       { actual: homeLayout?.workspace_session_rail_default_state, expected: 'visible_wide_drawer_narrow' },
       { actual: homeLayout?.right_context_inspector_default_state, expected: 'collapsed' },
       {
