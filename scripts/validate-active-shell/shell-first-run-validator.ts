@@ -97,8 +97,8 @@ export function validateFirstRunImplementation(shellPaths) {
       throw new Error(`Active shell FirstRun page must render shared initialize progress: ${expected}`);
     }
   }
-  if (firstRunPage.includes("ipcBridge.oplRuntime.getAppState.invoke({ profile: 'fast' })")) {
-    throw new Error('Active shell FirstRun page must not auto-enter /guid from fast App state; use opl system initialize first-run setup_flow');
+  if (!firstRunPage.includes("ipcBridge.oplRuntime.getAppState.invoke({ profile: 'fast' })")) {
+    throw new Error('Active shell FirstRun Gateway account login must read back fast App state before completing setup');
   }
   const deferredEntry = firstRunPage.match(/\{!readyToLaunch && \([\s\S]*?data-testid='opl-first-run-enter-app'[\s\S]*?\)\}/)?.[0] ?? '';
   if (
@@ -282,14 +282,24 @@ export function validateFirstRunImplementation(shellPaths) {
     }
   }
   for (const expected of [
-    "data-testid='opl-first-run-gateway-method'",
-    "data-testid='opl-first-run-existing-codex-method'",
+    "data-testid='opl-first-run-gateway-account-method'",
+    "data-testid='opl-first-run-gateway-key-method'",
+    "data-testid='opl-first-run-gateway-email-input'",
+    "data-testid='opl-first-run-gateway-password-input'",
+    "data-testid='opl-first-run-gateway-login-button'",
     "data-testid='opl-first-run-recheck-existing'",
     "data-testid='opl-first-run-codex-api-key-input'",
     "data-testid='opl-first-run-configure-codex-button'",
     "data-testid='opl-first-run-ready-entry'",
+    "isDesktopRuntime ? 'gateway_account' : 'api_key'",
+    "ipcBridge.oplRuntime.loginGatewayAccount.invoke({",
+    "ipcBridge.oplRuntime.getAppState.invoke({ profile: 'fast' })",
+    "actionId: 'gateway_account_complete_setup'",
+    "resolveDefaultGatewayGroup",
+    "readGatewayAccountProjection",
     "ipcBridge.oplRuntime.configureCodex.invoke({ apiKey: trimmed })",
     "onClick={() => void refreshInitialize()}",
+    "onChange={changeAccessMethod}",
     "disabled={requestInFlight}",
     "aria-label={t('settings.firstRun.modelAccess.methodLabel')}",
     "t('settings.firstRun.checking.itemsPending')",
@@ -303,6 +313,7 @@ export function validateFirstRunImplementation(shellPaths) {
     "const initializeUnresolved = initialize === null;",
     "const requestInFlight = initializeLoading || actionLoading !== null;",
     "disabled={requestInFlight}",
+    "setGatewayPassword('')",
     "redactSensitiveValue(message, trimmed)",
     "redactCommandResult(result, trimmed)",
     "throw new Error('OPL initialize payload is missing or invalid.')",

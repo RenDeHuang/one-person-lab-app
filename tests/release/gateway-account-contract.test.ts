@@ -91,6 +91,44 @@ test('Fast Agent Package directory rejects action, source, workspace, and readin
 
 test('Gateway account contracts keep the canonical projection, actions, and typed secret bridge', () => {
   const runtimeBridge = readJson('contracts/app-runtime-bridge.json');
+  const guiContract = readJson('contracts/app-gui-product-contract.json');
+  const productProfile = readJson('contracts/app-product-profile.json');
+  const pageState = readJson('contracts/app-page-state-matrix.json');
+  const firstLaunchPage = pageState.pages.find((page: any) => page.id === 'first_launch_readiness');
+  const expectedFirstRunSetup = {
+    desktopDefaultMethod: 'gateway_account',
+    desktopMethodOrder: ['gateway_account', 'api_key'],
+    credentials: ['email', 'password'],
+    deviceLabelPolicy: 'framework_default_not_rendered',
+    secretBridgeRef: 'contracts/app-runtime-bridge.json#opl_gateway_account_secret_bridge',
+    postLoginStateSource: 'opl app state --profile fast --json',
+    uniqueGroupAction: 'gateway_account_complete_setup',
+    unresolvedGroupError: 'group_selection_required',
+    passwordClearPolicy: 'success_failure_or_method_switch',
+    existingCodexRecheckRole: 'secondary_action_outside_method_switch',
+    webuiAllowedMethods: ['api_key'],
+    webuiPasswordLogin: false,
+  };
+  for (const setup of [
+    guiContract.first_launch_readiness_policy.beginner_presentation.model_access_setup,
+    productProfile.first_run.beginner_presentation.model_access_setup,
+    firstLaunchPage.beginner_view_model.model_access_setup,
+  ]) {
+    assert.deepEqual({
+      desktopDefaultMethod: setup.desktop_default_method,
+      desktopMethodOrder: setup.desktop_method_order,
+      credentials: setup.gateway_account.credentials,
+      deviceLabelPolicy: setup.gateway_account.device_label_policy,
+      secretBridgeRef: setup.gateway_account.secret_bridge_ref,
+      postLoginStateSource: setup.gateway_account.post_login_state_source,
+      uniqueGroupAction: setup.gateway_account.unique_group_action,
+      unresolvedGroupError: setup.gateway_account.unresolved_group_error,
+      passwordClearPolicy: setup.gateway_account.password_clear_policy,
+      existingCodexRecheckRole: setup.existing_codex_recheck.role,
+      webuiAllowedMethods: setup.webui.allowed_methods,
+      webuiPasswordLogin: setup.webui.gateway_password_login,
+    }, expectedFirstRunSetup);
+  }
   assert.deepEqual(runtimeBridge.opl_gateway_account_projection.nested_field_allowlist.account, [
     'display_name',
     'email',

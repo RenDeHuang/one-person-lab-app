@@ -2171,7 +2171,9 @@
         "persistent non-modal complete-first-setup entry in the ordinary sidebar while Core prerequisites remain incomplete",
         "plain conversation send blocked only by Codex CLI or model access readiness with an inline recovery action that preserves the prompt",
         "workspace root readiness restricts only project selection, Worktree creation, and OPL workspace controls while plain conversation and send-scoped local inputs remain available",
-        "functional OPL Gateway and existing Codex access choices",
+        "Desktop model access defaults to OPL Gateway account login with email and password while API Key remains a compatibility choice",
+        "existing Codex recheck remains a secondary action outside the account and API Key method switch",
+        "WebUI model access exposes API Key only and never renders Gateway password login",
         "model access method switching and alternate actions disabled while a request is active",
         "pending state without premature ready or no-blocker claims",
         "required Core checklist items reject disabled status as ready",
@@ -2241,8 +2243,46 @@
         "current_task_policy": "one_current_task_panel",
         "current_task_selection_policy": "first_unready_core_item_in_fixed_step_order_then_completion",
         "progress_display_policy": "completed_step_count_no_percentage",
-        "model_access_choice_policy": "opl_gateway_or_existing_codex_configuration",
+        "model_access_choice_policy": "desktop_gateway_account_default_with_api_key_compatibility_and_secondary_existing_codex_recheck",
         "model_access_inflight_policy": "disable_method_switch_and_alternate_action_until_current_request_settles",
+        "model_access_setup": {
+          "desktop_default_method": "gateway_account",
+          "desktop_method_order": [
+            "gateway_account",
+            "api_key"
+          ],
+          "gateway_account": {
+            "credentials": [
+              "email",
+              "password"
+            ],
+            "device_label_policy": "framework_default_not_rendered",
+            "secret_bridge_ref": "contracts/app-runtime-bridge.json#opl_gateway_account_secret_bridge",
+            "post_login_state_source": "opl app state --profile fast --json",
+            "unique_group_action": "gateway_account_complete_setup",
+            "unresolved_group_error": "group_selection_required",
+            "ready_claim_policy": "only_after_initialize_confirms_codex_config_ready",
+            "password_clear_policy": "success_failure_or_method_switch",
+            "diagnostic_policy": "no_password_in_state_action_stdout_stderr_receipt_or_renderer_diagnostics"
+          },
+          "api_key": {
+            "role": "compatibility",
+            "bridge": "configureCodex",
+            "transport": "stdin",
+            "redaction_policy": "redact_before_renderer_diagnostics"
+          },
+          "existing_codex_recheck": {
+            "role": "secondary_action_outside_method_switch",
+            "bridge": "getInitialize",
+            "mutates_configuration": false
+          },
+          "webui": {
+            "allowed_methods": [
+              "api_key"
+            ],
+            "gateway_password_login": false
+          }
+        },
         "completion_transition_policy": "replace_current_task_in_place",
         "completion_navigation_policy": "manual_guid_entry_available_before_or_after_ready_no_automatic_route",
         "defer_navigation_policy": "explicit_enter_guid_available_before_ready_without_mutating_readiness",
@@ -2254,7 +2294,7 @@
         "background_shell_interaction_policy": "inert_and_aria_hidden_until_user_enters_guid",
         "window_control_policy": "preserve_mac_traffic_light_safe_area_and_render_non_mac_desktop_controls",
         "raw_error_policy": "localized_inline_current_task_and_technical_details_only_no_beginner_toast",
-        "secret_diagnostic_policy": "redact_submitted_access_key_from_renderer_diagnostics",
+        "secret_diagnostic_policy": "never_persist_or_render_gateway_password_and_redact_submitted_api_key_from_renderer_diagnostics",
         "accessible_name_policy": "localized_visible_label_or_aria_labelledby_no_testid_names",
         "post_install_ai_self_check_entry": {
           "trigger": "explicit ready entry after ready_to_launch first-run completion",
@@ -2284,8 +2324,11 @@
           "opl-first-run-step-rail",
           "opl-first-run-task-panel",
           "opl-first-run-access-methods",
-          "opl-first-run-gateway-method",
-          "opl-first-run-existing-codex-method",
+          "opl-first-run-gateway-account-method",
+          "opl-first-run-gateway-key-method",
+          "opl-first-run-gateway-email-input",
+          "opl-first-run-gateway-password-input",
+          "opl-first-run-gateway-login-button",
           "opl-first-run-codex-api-key-input",
           "opl-first-run-configure-codex-button",
           "opl-first-run-recheck-existing",
@@ -2344,7 +2387,9 @@
         "concurrent model access method actions",
         "automatic navigation away from the FirstRun completion state",
         "ordinary Settings routes from FirstRun technical details",
-        "submitted access keys in renderer errors or diagnostics"
+        "Gateway account device label controls during first-run",
+        "Gateway password login in WebUI",
+        "submitted Gateway passwords or access keys in renderer errors or diagnostics"
       ]
     },
     {
@@ -2625,7 +2670,7 @@
           "managed_key_identity_drift",
           "disconnect_pending"
         ],
-        "first_run_scope": "unchanged",
+        "first_run_scope": "desktop_account_default_webui_manual_api_key_only",
         "personal_profile_navigation": "not_added"
       }
     },

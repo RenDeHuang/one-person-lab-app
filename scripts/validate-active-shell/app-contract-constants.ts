@@ -372,8 +372,11 @@ export const beginnerFirstRunTestIds = [
   "opl-first-run-step-rail",
   "opl-first-run-task-panel",
   "opl-first-run-access-methods",
-  "opl-first-run-gateway-method",
-  "opl-first-run-existing-codex-method",
+  "opl-first-run-gateway-account-method",
+  "opl-first-run-gateway-key-method",
+  "opl-first-run-gateway-email-input",
+  "opl-first-run-gateway-password-input",
+  "opl-first-run-gateway-login-button",
   "opl-first-run-codex-api-key-input",
   "opl-first-run-configure-codex-button",
   "opl-first-run-recheck-existing",
@@ -392,7 +395,8 @@ export const focusedFirstRunPresentationPolicy = {
   current_task_selection_policy:
     "first_unready_core_item_in_fixed_step_order_then_completion",
   progress_display_policy: "completed_step_count_no_percentage",
-  model_access_choice_policy: "opl_gateway_or_existing_codex_configuration",
+  model_access_choice_policy:
+    "desktop_gateway_account_default_with_api_key_compatibility_and_secondary_existing_codex_recheck",
   model_access_inflight_policy:
     "disable_method_switch_and_alternate_action_until_current_request_settles",
   completion_transition_policy: "replace_current_task_in_place",
@@ -417,9 +421,40 @@ export const focusedFirstRunPresentationPolicy = {
   raw_error_policy:
     "localized_inline_current_task_and_technical_details_only_no_beginner_toast",
   secret_diagnostic_policy:
-    "redact_submitted_access_key_from_renderer_diagnostics",
+    "never_persist_or_render_gateway_password_and_redact_submitted_api_key_from_renderer_diagnostics",
   accessible_name_policy:
     "localized_visible_label_or_aria_labelledby_no_testid_names",
+};
+export const firstRunModelAccessSetupPolicy = {
+  desktop_default_method: "gateway_account",
+  desktop_method_order: ["gateway_account", "api_key"],
+  gateway_account: {
+    credentials: ["email", "password"],
+    device_label_policy: "framework_default_not_rendered",
+    secret_bridge_ref: "contracts/app-runtime-bridge.json#opl_gateway_account_secret_bridge",
+    post_login_state_source: "opl app state --profile fast --json",
+    unique_group_action: "gateway_account_complete_setup",
+    unresolved_group_error: "group_selection_required",
+    ready_claim_policy: "only_after_initialize_confirms_codex_config_ready",
+    password_clear_policy: "success_failure_or_method_switch",
+    diagnostic_policy:
+      "no_password_in_state_action_stdout_stderr_receipt_or_renderer_diagnostics",
+  },
+  api_key: {
+    role: "compatibility",
+    bridge: "configureCodex",
+    transport: "stdin",
+    redaction_policy: "redact_before_renderer_diagnostics",
+  },
+  existing_codex_recheck: {
+    role: "secondary_action_outside_method_switch",
+    bridge: "getInitialize",
+    mutates_configuration: false,
+  },
+  webui: {
+    allowed_methods: ["api_key"],
+    gateway_password_login: false,
+  },
 };
 export const progressiveFirstRunRecoveryTestIds = [
   "opl-first-run-resume-entry",

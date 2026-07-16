@@ -206,14 +206,19 @@ export function validateFirstRunMatrix(matrix, contract) {
   for (const expected of [
     'Chinese locale first-run primary area uses beginner labels such as 工作目录, 本机助手, and 模型访问 even when initialize checklist labels are English',
     'Chinese locale first-run primary area does not expose Codex API Configuration, Unknown, Needs setup, raw setup_flow fields, or opl system commands',
-    'OPL Gateway access key entry uses beginner-facing 访问密钥 copy while existing usable Codex model access can skip first-launch Gateway setup',
+    'Desktop model access defaults to OPL Gateway account login with email and password, while API Key remains a compatibility method',
+    'existing Codex recheck is a secondary action outside the account and API Key method switch',
+    'Gateway account login uses desktop-only typed secret IPC, omits device label, reads fast App state, and completes setup only for a uniquely resolved Codex group',
+    'unresolved Gateway group selection shows localized group_selection_required and never claims model access ready',
+    'Gateway password clears after success, failure, or method switch and never enters renderer diagnostics',
+    'WebUI exposes API Key only and never renders Gateway password login',
     'first-run uses a focused full-window setup workspace and hides ordinary product navigation until the user enters /guid',
     'first-run renders as an authenticated standalone route outside the ordinary product layout',
     'startup preflight skip enters /guid while readiness is unknown without mutating readiness',
     'the three Core items render as a stable step rail while only the current task occupies the main panel',
     'the active rail step and task panel select the first unready Core item in fixed step order before completion',
     'Core progress uses completed step count without percentage progress',
-    'model access offers functional OPL Gateway and existing Codex configuration paths without competing primary actions',
+    'model access offers functional Gateway account and API Key compatibility paths without competing primary actions',
     'model access method switching and alternate actions remain disabled until the current request settles',
     'ready state replaces the current task in place and keeps one primary entry action',
     'FirstRun never navigates automatically after initialize and explicit user entry can open /guid before or after readiness',
@@ -226,7 +231,7 @@ export function validateFirstRunMatrix(matrix, contract) {
     'macOS preserves traffic-light safe area while Windows and Linux retain desktop window controls',
     'interactive controls use localized accessible names rather than testid strings',
     'beginner errors are localized inline while raw diagnostics remain in technical details',
-    'submitted access keys are redacted before any renderer diagnostic is stored or rendered',
+    'Gateway passwords are never stored in renderer diagnostics and submitted access keys are redacted before diagnostics are stored or rendered',
   ]) {
     if (!beginnerScenario.expects?.includes(expected)) {
       throw new Error(`Beginner first-run scenario must require localized beginner setup UX: ${expected}`);

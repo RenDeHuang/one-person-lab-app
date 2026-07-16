@@ -2,6 +2,7 @@ import path from 'node:path';
 import { assertDeepEqualJson, assertForbiddenCapabilityPolicy, assertIncludesAll, readJson } from './assertions.ts';
 import {
   appOwnedHomeLayout,
+  firstRunModelAccessSetupPolicy,
   forbiddenAuthorityOwners,
   focusedFirstRunPresentationPolicy,
   progressiveFirstRunRecoveryPolicy,
@@ -537,6 +538,11 @@ function validateFullFirstInstallCoreReadyPolicy(profile) {
       );
     }
   }
+  assertDeepEqualJson(
+    profile.first_run?.beginner_presentation?.model_access_setup,
+    firstRunModelAccessSetupPolicy,
+    'Product profile first-run model access setup policy',
+  );
   validateReadyToLaunchGate(profile, firstRunCoreItems);
   validateFirstConversationPolicy(profile);
   validateFullFirstInstallBackgroundPolicy(profile);

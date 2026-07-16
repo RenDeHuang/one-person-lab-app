@@ -2,6 +2,7 @@ import { assertDeepEqualJson, assertIncludesAll, readJson } from './assertions.t
 import { isDefaultReleaseAdapter } from './active-shell-contract.ts';
 import {
   beginnerFirstRunTestIds,
+  firstRunModelAccessSetupPolicy,
   focusedFirstRunPresentationPolicy,
   progressiveFirstRunRecoveryPolicy,
   progressiveFirstRunRecoveryTestIds,
@@ -220,6 +221,11 @@ export function validatePageStateMatrix(matrix, contract, guiProductContract) {
     }
   }
   assertDeepEqualJson(
+    firstLaunchPage.beginner_view_model?.model_access_setup,
+    firstRunModelAccessSetupPolicy,
+    'First-launch readiness model access setup policy',
+  );
+  assertDeepEqualJson(
     firstLaunchPage.beginner_view_model?.primary_steps,
     expectedFirstRunCoreItems,
     "First-launch readiness beginner primary steps",
@@ -285,7 +291,9 @@ export function validatePageStateMatrix(matrix, contract, guiProductContract) {
     'authenticated standalone first-run route outside the ordinary product layout',
     'startup preflight escape into /guid while readiness is unknown without mutating readiness',
     'explicit enter OPL action before readiness without mutating readiness',
-    'functional OPL Gateway and existing Codex access choices',
+    'Desktop model access defaults to OPL Gateway account login with email and password while API Key remains a compatibility choice',
+    'existing Codex recheck remains a secondary action outside the account and API Key method switch',
+    'WebUI model access exposes API Key only and never renders Gateway password login',
     'model access method switching and alternate actions disabled while a request is active',
     'pending state without premature ready or no-blocker claims',
     'required Core checklist items reject disabled status as ready',
@@ -320,7 +328,9 @@ export function validatePageStateMatrix(matrix, contract, guiProductContract) {
     'concurrent model access method actions',
     'automatic navigation away from the FirstRun completion state',
     'ordinary Settings routes from FirstRun technical details',
-    'submitted access keys in renderer errors or diagnostics',
+    'Gateway account device label controls during first-run',
+    'Gateway password login in WebUI',
+    'submitted Gateway passwords or access keys in renderer errors or diagnostics',
   ]) {
     if (!firstLaunchPage.must_not_show?.includes(hiddenSignal)) {
       throw new Error(`First-launch readiness page must not show ${hiddenSignal}`);

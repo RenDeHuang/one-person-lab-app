@@ -627,6 +627,36 @@ export type AppProductProfile = {
       progress_display_policy: string;
       model_access_choice_policy: string;
       model_access_inflight_policy: string;
+      model_access_setup: {
+        desktop_default_method: string;
+        desktop_method_order: string[];
+        gateway_account: {
+          credentials: string[];
+          device_label_policy: string;
+          secret_bridge_ref: string;
+          post_login_state_source: string;
+          unique_group_action: string;
+          unresolved_group_error: string;
+          ready_claim_policy: string;
+          password_clear_policy: string;
+          diagnostic_policy: string;
+        };
+        api_key: {
+          role: string;
+          bridge: string;
+          transport: string;
+          redaction_policy: string;
+        };
+        existing_codex_recheck: {
+          role: string;
+          bridge: string;
+          mutates_configuration: boolean;
+        };
+        webui: {
+          allowed_methods: string[];
+          gateway_password_login: boolean;
+        };
+      };
       completion_transition_policy: string;
       completion_navigation_policy: string;
       defer_navigation_policy: string;

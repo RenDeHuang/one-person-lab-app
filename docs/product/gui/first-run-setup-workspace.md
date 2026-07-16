@@ -48,14 +48,19 @@ focused tests 与用户路径截图。
 
 ## 模型访问
 
-模型访问是唯一需要用户输入的常见首启步骤，提供两条真实路径：
+模型访问是唯一需要用户输入的常见首启步骤。Desktop 提供两条真实路径，并默认选择账户登录：
 
-- `OPL Gateway`：输入访问密钥，验证后刷新 initialize 状态。
-- `已有 Codex 配置`：重新检测本机已有模型访问；检测仍未通过时保留当前页，并允许切回 Gateway。
+- `OPL Gateway 账户`：输入邮箱和密码，通过 Desktop-only typed IPC 调用
+  `opl connect gateway login --credentials-stdin --json`；首启不显示设备名称，使用 Framework 默认值。
+- `API Key`：保留现有 `configureCodex` stdin bridge，作为兼容方式。
 
-两条路径使用分段控件切换。当前路径只能有一个主操作，不同时展示多个竞争按钮。
-配置或重检请求进行中时，禁用路径切换和另一条动作，直到当前请求结束。
-密钥输入必须有可见字段标签、密码显隐和“保存在本机，仅发送到已配置模型端点”的安全说明。
+账户登录和 API Key 使用分段控件切换。`已有 Codex 配置` 不再占用分段控件，而是在其外提供独立次要重检入口。
+当前路径只能有一个主操作；配置或重检请求进行中时，禁用路径切换和另一条动作，直到当前请求结束。
+
+账户登录成功后必须读取 `opl app state --profile fast --json`。只有唯一解析出 Codex 分组时才执行
+`gateway_account_complete_setup`；无法唯一解析时显示本地化 `group_selection_required`，不得宣称模型访问已就绪。
+密码在成功、失败或切换方式后立即清空，不进入 App state、generic action、stdout/stderr、receipt 或 renderer diagnostics。
+API Key 输入保留可见字段标签、密码显隐、安全说明和 renderer 脱敏。WebUI 只展示 API Key，不渲染账户密码登录。
 
 ## 状态模型
 
@@ -77,7 +82,7 @@ focused tests 与用户路径截图。
 ### 验证中
 
 - 主按钮原位显示 loading，防止重复提交。
-- 不清空密钥，除非验证成功。
+- API Key 仅在验证成功后清空；Gateway 密码无论成功或失败都清空。
 
 ### 完成
 
@@ -111,6 +116,7 @@ focused tests 与用户路径截图。
 - initialize、模型访问和维护动作共享一个页面级请求锁；任一请求进行中时不得启动竞争动作。
 - 技术详情只在首启页内展开，不提供提前离开到普通 Settings 的入口。
 - 访问密钥可以保存在本机并只发送到已配置的模型端点；任何 renderer 错误和诊断在显示前必须脱敏本次提交的密钥。
+- Gateway 密码只通过 Desktop typed IPC 的 stdin secret bridge 使用；WebUI 不展示该入口，renderer 不保存或显示密码。
 - 中英文都只显示 App-owned beginner copy；raw setup fields、命令、路径和 provider 细节默认隐藏。
 
 ## 不做的事
@@ -127,7 +133,7 @@ focused tests 与用户路径截图。
 完成需要同时具备：
 
 - App 合同和 page-state matrix 校验通过。
-- first-run test matrix 覆盖专注模式、三步栏、无百分比和两条访问路径。
-- active shell DOM 测试覆盖 initialize pending、Gateway 配置、已有 Codex 重检、完成态、技术详情，以及未就绪/后台请求期间始终可用的纯导航入口。
+- first-run test matrix 覆盖专注模式、三步栏、无百分比、Desktop 账户默认、API Key 兼容、独立 Codex 重检与 WebUI API Key-only 边界。
+- active shell DOM 测试覆盖 initialize pending、Gateway 账户登录与唯一分组完成设置、API Key 配置、已有 Codex 重检、密码生命周期、WebUI 边界、完成态、技术详情，以及未就绪/后台请求期间始终可用的纯导航入口。
 - i18n、TypeScript 与 package build 通过。
 - 桌面、常规窄屏与 400×600 最小窗口截图证明普通导航不存在、文本无溢出、主操作清晰、状态切换不造成结构跳动。
