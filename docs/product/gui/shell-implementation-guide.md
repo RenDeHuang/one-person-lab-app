@@ -59,7 +59,7 @@ contract/实现收敛 lane 处理。
 | Product profile consumer | 读取 generated App profile，提供品牌、默认模型、purpose、locale 和 feature flags。 | 硬编码模型 allowlist、provider policy 或 shell-local default。 |
 | State bridge | 把 App state readback 规范化为 renderer 可消费 envelope。 | 从本地组件状态推断 runtime/domain readiness。 |
 | Action bridge | 执行 App-owned action，并返回 dry-run/result/receipt。 | 直接调用 domain CLI、绕过 confirmation 或自建 mutation kernel。 |
-| Package launch adapter | 在 Home starter launch 前请求 Framework activation，并校验 `launch_allowed`、package ID、installed/root version 与当前 normalized target。 | 从 installed flag 推断可用、要求receipt/token/provenance、在失败后仍创建/发送 conversation。 |
+| Package launch adapter | 把 owner projection 归一为 `ready / degraded / package_unavailable`；只在 exact projected action 存在时 JIT activation，填充其 `required_payload_fields`，并校验 package ID、兼容版本、入口及被要求的 safe target。 | 从 installed flag 推断可用、从 manifest 推断 action payload、把 optional activation receipt/binding/closure 当硬门槛，或在 `package_unavailable` 后仍创建/发送 conversation。 |
 | Thread directory adapter | Rail 投影 App Server canonical thread directory/actions；project/workspace 仅按 recorded cwd 分组 session。List/read/start/resume/fork/archive/restore 复用一个 adapter。 | 用 Shell DB 拥有 history、把目录分组当 session owner、挂载独立 coordination 页面、第二 JSON-RPC client、audit/idempotency、dynamic tools或cross-host控制面。 |
 | Projectless local-input adapter | 让 attachment、file/directory picker、paste/drop、`/open` 在无 workspace 时继续进入 Codex 原生权限路径。 | 因缺 project 禁用输入、把 workspace membership 当授权、复制第二套 path permission model。 |
 | Artifact ref adapter | 当前 session 显式 attachment、可见 conversation result 或用户选择的合法绝对本地路径解析为现有 Preview target，保持只读和 fail-closed。 | 复制 artifact body、新建 renderer/store、隐式 workspace ref、路径穿越、非法 scheme、自动静默读取或猜测未知格式。 |

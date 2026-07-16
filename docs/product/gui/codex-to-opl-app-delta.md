@@ -96,6 +96,17 @@ Fail-open 不等于吞错或伪造成功。以下边界仍局部 fail-closed：�
 不可逆外部 mutation，以及任何无法得到真实证据的成功/authority 声明。故障范围只允许落到所选
 Agent；普通 Codex、其他 Agent、draft 和既有 session 必须继续可用。
 
+Launch runtime state 固定为 `ready / degraded / package_unavailable`，不增加 `strict` 第四状态。
+若受监管或可复现 package 需要精确 closure、binding、receipt 或其它前置证据，应由 owner policy
+投影为 action required fields 和 typed reason；不满足时仍归入上述三态，并只限制该 package。
+Workspace/managed target 同样只看 exact owner-projected action 的 `required_payload_fields`，Shell
+不得自行解析 manifest 后增加启动条件。
+
+Receipt 必须区分用途：activation result 的 `use_receipt_ref` 是可选审计证据，缺失不构成普通启动
+前提；package shortcut 的 invocation receipt 仍必须记录实际 launch fact，但它不证明 binding、
+closure、domain readiness 或 release readiness。不得用前者的可选性删除后者，也不得用后者反向
+制造 readiness gate。
+
 ### OPL Feature Preservation Gate
 
 Codex baseline 只能帮助确定信息放在哪里、怎样交互，不能决定 OPL 有哪些功能。“不降级”

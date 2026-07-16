@@ -39,6 +39,10 @@ contracts、adapter/candidate contracts、shell source/tests 或 fresh evidence�
 `pixel_verified` 可以与 `source_partial` 同时出现。它只证明画面非空且对应路径被实际
 打开，不能证明元素位置、交互、视觉一致、package/VM acceptance 或 release-ready。
 
+R1/U1 功能实现程度不得再用 `2/4`、`3/4` 等单一分数表示；这种写法会把 contract、source、
+pixel、install 和 release 混成一个不可审计结论。需要功能摘要时仍逐轴报告，不能把
+`source_implemented` 外推为 installed 或 released。
+
 ## R1 / U1 必要功能实现矩阵
 
 本表只维护 OPL 必须自维护的 12 项。功能定义对 AionUI 与 Native 完全相同，source

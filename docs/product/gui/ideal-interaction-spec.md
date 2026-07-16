@@ -102,8 +102,9 @@ Rail 负责 navigation，不承担 dashboard：
   permission/approval/sandbox。
 - Session 输入只从当前 composer 通过 attachment、file/directory picker、paste/drop 或 `/open`
   显式加入，当前 send 消费后不持久化为 workspace defaults；禁止 rail “添加上下文”、workspace-keyed
-  preload 和隐式 prompt injection。Workspace/managed-target readiness 只约束 manifest 明确声明该要求的
-  Agent/package，不约束普通 Codex conversation 或 send-scoped local file inputs；Codex/model prerequisites 不变。
+  preload 和隐式 prompt injection。Workspace/managed-target readiness 只约束 owner-projected action 的
+  `required_payload_fields` 明确要求该上下文的 Agent/package；Shell 不从 manifest 推断，不约束普通 Codex
+  conversation 或 send-scoped local file inputs；Codex/model prerequisites 不变。
 - 支持 search、pin、rename、archive、restore、delete、reset；rename/archive/restore/delete
   直接映射 `thread/name/set`、`thread/archive`、`thread/unarchive`、`thread/delete`。Pin 只是
   Shell UI metadata；AionUI local reset 保留既有会话语义，但不得冒充 App Server history reset。

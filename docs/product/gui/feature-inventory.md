@@ -61,7 +61,13 @@ Native 将来需要独立实现同一用户结果。视觉 1:1 是独立的 pixe
 | `B0-13` | Memory、personalization、instructions | 稳定偏好和项目指令决定长期易用性。 | 复用 owner-correct profile/refs，不新建独立 memory 平台。 |
 | `B0-14` | 通用 Settings 容器、search/back/redirect、a11y、theme、i18n | 所有配置与长期使用能力需要一致容器。 | 容器行为属于 B0；OPL 栏目、owner route 与数据语义归 `R1-05`。 |
 
-B0 不进入 OPL 自维护 12 项完成率。AionUI 已有的基线不为追求理论完整度重写；Native
+B0 保护的是 Codex 必要用户结果，不是把上游所有同名入口自动纳入 OPL。Skill/Plugin/MCP
+的执行、权限与 elicitation 底座可复用 B0，但面向用户的管理 IA 归 `R1-04`；未经 App
+profile 接受的任意上游 Skill/MCP 不构成功能回归。Local Git、Terminal、Browser 与显式选择的
+本地 checkout 属 B0；SSH/HPC 可作为 Resources refs 接入，但托管远程 Workspace、资源调度和
+跨主机 handoff 仍归 `X0-04/X0-05`。`B0-10` 也不授权 Shell 自建 managed Worktree/Handoff。
+
+B0 不进入 OPL 自维护的 R1/U1 12 项实现矩阵。AionUI 已有的基线不为追求理论完整度重写；Native
 候选最终必须自行补齐。当前 carrier 实现程度见
 [`shell-conformance-matrix.md`](shell-conformance-matrix.md)，未 fresh 核对的能力一律
 `source_not_assessed`。
