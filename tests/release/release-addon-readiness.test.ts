@@ -17,10 +17,105 @@ const releaseCohortRef = `sha256:${'2'.repeat(64)}`;
 const artifactSha256 = '3'.repeat(64);
 const sourceArtifactName = 'opl-full-first-install-dmg-26.7.13-mac-arm64';
 
+function temporalSupervisorProof() {
+  const databasePath = '/Users/opl/Library/Application Support/OPL/state/family-runtime/temporal-server/temporal.sqlite';
+  const plistPath = '/Users/opl/Library/LaunchAgents/ai.opl.family-runtime.temporal-service.plist';
+  const readback = (pid: number) => ({
+    service_ready: true,
+    server_reachable: true,
+    service_status: 'running',
+    supervisor: {
+      surface_kind: 'opl_temporal_service_supervisor_state',
+      status: 'loaded_running',
+      installed: true,
+      loaded: true,
+      ready: true,
+      observed_at: `2026-07-17T00:00:0${pid - 101}.000Z`,
+      error: null,
+      supported: true,
+      applicable: true,
+      required: true,
+      configuration_current: true,
+      process_state: 'running',
+      pid,
+      last_exit_status: 0,
+      last_exit_signal: null,
+      run_at_load: true,
+      keep_alive: true,
+      throttle_interval_seconds: 15,
+      address: '127.0.0.1:7233',
+      database_path: databasePath,
+      launcher_source: 'temporal_cli_path',
+      schedule_independent: true,
+    },
+  });
+  return {
+    schema: 'opl_temporal_service_supervisor_proof.v1',
+    status: 'passed',
+    runtime_profile: 'full',
+    applicable: true,
+    required: true,
+    supervisor_label: 'ai.opl.family-runtime.temporal-service',
+    start_action: {
+      action_id: 'provider_service_start',
+      dry_run: false,
+      delegated_surface: 'opl family-runtime service start --provider temporal',
+      result: { status: 'ready' },
+    },
+    restart_action: {
+      action_id: 'provider_service_restart',
+      dry_run: false,
+      delegated_surface: 'opl family-runtime service restart --provider temporal',
+      result: { status: 'ready' },
+    },
+    plist: {
+      path: plistPath,
+      label: 'ai.opl.family-runtime.temporal-service',
+      program_arguments: ['/runtime/bin/temporal', 'server', 'start-dev', '--db-filename', databasePath],
+      run_at_load: true,
+      keep_alive: true,
+      database_path: databasePath,
+    },
+    initial_readback: readback(101),
+    keep_alive_recovery: {
+      termination: { pid: 101, signal: 'SIGTERM', status: 'sent' },
+      readback: readback(102),
+    },
+    restart_readback: readback(103),
+    session_reload: {
+      bootout: {
+        args: ['bootout', 'gui/501/ai.opl.family-runtime.temporal-service'],
+        status: 0,
+        signal: null,
+        stdout: '',
+        stderr: '',
+      },
+      bootstrap: {
+        args: ['bootstrap', 'gui/501', plistPath],
+        status: 0,
+        signal: null,
+        stdout: '',
+        stderr: '',
+      },
+      readback: readback(104),
+    },
+    persistent_database: {
+      path: databasePath,
+      sqlite_header_valid: true,
+      initial_size_bytes: 4096,
+      file_identity: '1:42',
+      same_file_after_keep_alive_recovery: true,
+      same_file_after_restart: true,
+      same_file_after_session_reload: true,
+    },
+  } as const;
+}
+
 function writeFixture(root: string) {
   const manifestPath = path.join(root, 'opl-build-cohort.json');
   const receiptPath = path.join(root, 'artifact-qualification-receipt.json');
   const recordPath = path.join(root, 'release-addon-readiness-summary.json');
+  const smokeSummaryPath = path.join(root, 'tart-smoke-summary.json');
   const manifest: BuildArtifactCohortV2 = {
     schema: 'opl_app_build_artifact_cohort.v2',
     release: { stable_session_id: stableSessionId, release_cohort_ref: releaseCohortRef },
@@ -36,6 +131,12 @@ function writeFixture(root: string) {
     },
   };
   fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+  fs.writeFileSync(smokeSummaryPath, `${JSON.stringify({
+    surface_id: 'opl_tart_gui_first_run_smoke',
+    status: 'passed',
+    runtime_profile: 'full',
+    temporal_service_supervisor_proof: temporalSupervisorProof(),
+  }, null, 2)}\n`);
   const receipt = buildArtifactQualificationReceipt({
     manifest,
     manifestPath,
@@ -45,6 +146,7 @@ function writeFixture(root: string) {
     sourceArtifactRunId: '101',
     sourceArtifactName,
     evidenceRef: 'opl-first-run-vm-full-202',
+    smokeSummaryPath,
   });
   fs.writeFileSync(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`);
   fs.writeFileSync(recordPath, `${JSON.stringify({
@@ -60,7 +162,7 @@ function writeFixture(root: string) {
       'operator-evidence-bundle-validation': 'success',
     },
   }, null, 2)}\n`);
-  return { manifestPath, receiptPath, recordPath, receipt };
+  return { manifestPath, receiptPath, recordPath, smokeSummaryPath, receipt };
 }
 
 function options(fixture: ReturnType<typeof writeFixture>) {
@@ -104,6 +206,7 @@ test('qualification receipt records a separately pinned smoke-only verification 
       sourceArtifactRunId: '101',
       sourceArtifactName,
       evidenceRef: 'opl-first-run-vm-full-203',
+      smokeSummaryPath: fixture.smokeSummaryPath,
       verificationHarness: {
         appSha: verificationAppSha,
         shellSha: verificationShellSha,
@@ -123,6 +226,91 @@ test('qualification receipt records a separately pinned smoke-only verification 
       verificationShellSha,
       verificationScopeProof: scopeProof,
     }), []);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('passed Full qualification receipt fails closed without the Temporal supervisor proof', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-qualification-temporal-proof-'));
+  try {
+    const fixture = writeFixture(root);
+    const missingProofPath = path.join(root, 'missing-temporal-proof.json');
+    fs.writeFileSync(missingProofPath, `${JSON.stringify({
+      surface_id: 'opl_tart_gui_first_run_smoke',
+      status: 'passed',
+      runtime_profile: 'full',
+    })}\n`);
+    assert.throws(
+      () => buildArtifactQualificationReceipt({
+        manifest: JSON.parse(fs.readFileSync(fixture.manifestPath, 'utf8')) as BuildArtifactCohortV2,
+        manifestPath: fixture.manifestPath,
+        result: 'passed',
+        packageProfile: 'full',
+        qualificationRunId: '204',
+        sourceArtifactRunId: '101',
+        sourceArtifactName,
+        evidenceRef: 'opl-first-run-vm-full-204',
+        smokeSummaryPath: missingProofPath,
+      }),
+      /requires a valid Temporal service supervisor proof/,
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('Standard qualification receipt does not require the Full-only Temporal supervisor proof', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-qualification-standard-'));
+  try {
+    const fixture = writeFixture(root);
+    const receipt = buildArtifactQualificationReceipt({
+      manifest: JSON.parse(fs.readFileSync(fixture.manifestPath, 'utf8')) as BuildArtifactCohortV2,
+      manifestPath: fixture.manifestPath,
+      result: 'passed',
+      packageProfile: 'standard',
+      qualificationRunId: '205',
+      sourceArtifactRunId: '101',
+      sourceArtifactName,
+      evidenceRef: 'opl-first-run-vm-standard-205',
+    });
+    assert.equal(receipt.smoke_summary.temporal_service_supervisor_proof, null);
+    assert.deepEqual(validateArtifactQualificationReceipt(receipt, {
+      stableSessionId,
+      releaseCohortRef,
+      version: '26.7.13',
+      packageProfile: 'standard',
+      result: 'passed',
+    }), []);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('Full qualification validator rejects tampered plist, PID recovery, and SQLite persistence proof', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-qualification-temporal-proof-'));
+  try {
+    const fixture = writeFixture(root);
+    const receipt = structuredClone(fixture.receipt);
+    const proof = receipt.smoke_summary.temporal_service_supervisor_proof!;
+    (proof.plist.program_arguments as string[])[4] = '/tmp/ephemeral.sqlite';
+    const keepAlive = proof.keep_alive_recovery as {
+      readback: { supervisor: { pid: number } };
+    };
+    const initial = proof.initial_readback as { supervisor: { pid: number } };
+    keepAlive.readback.supervisor.pid = initial.supervisor.pid;
+    proof.persistent_database.same_file_after_session_reload = false;
+
+    const errors = validateArtifactQualificationReceipt(receipt, {
+      stableSessionId,
+      releaseCohortRef,
+      version: '26.7.13',
+      packageProfile: 'full',
+      result: 'passed',
+    });
+    assert.match(errors.join('\n'), /ProgramArguments has an invalid --db-filename/);
+    assert.match(errors.join('\n'), /KeepAlive recovery did not produce a fresh PID/);
+    assert.match(errors.join('\n'), /same_file_after_session_reload is not true/);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
