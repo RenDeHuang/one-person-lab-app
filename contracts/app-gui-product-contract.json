@@ -3069,6 +3069,21 @@
       "logo_visible": false,
       "theme_variant_asset_required": false
     },
+    "desktop_app_icon_policy": {
+      "source_asset": "active_shell/resources/icon.png",
+      "source_artwork_unchanged": true,
+      "macos_canvas_px": 1024,
+      "macos_alpha_threshold_percent": 50,
+      "macos_expected_alpha_bounds": "824x824+100+100",
+      "macos_safe_margin_required": true,
+      "macos_derived_assets": [
+        "active_shell/resources/app.png",
+        "active_shell/resources/app_dev.png",
+        "active_shell/resources/app.icns",
+        "packaged .app Contents/Resources/icon.icns"
+      ],
+      "pwa_and_in_app_brand_assets_unchanged": true
+    },
     "legacy_upstream_branding_forbidden": true,
     "visible_branding_surfaces": [
       "desktop_app_icon",

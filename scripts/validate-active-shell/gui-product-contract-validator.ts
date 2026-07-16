@@ -725,6 +725,28 @@ function validateDesktopTrayPolicy(guiContract) {
   );
 }
 
+function validateDesktopApplicationIconPolicy(guiContract) {
+  assertDeepEqualJson(
+    guiContract.theme_and_branding?.desktop_app_icon_policy,
+    {
+      source_asset: 'active_shell/resources/icon.png',
+      source_artwork_unchanged: true,
+      macos_canvas_px: 1024,
+      macos_alpha_threshold_percent: 50,
+      macos_expected_alpha_bounds: '824x824+100+100',
+      macos_safe_margin_required: true,
+      macos_derived_assets: [
+        'active_shell/resources/app.png',
+        'active_shell/resources/app_dev.png',
+        'active_shell/resources/app.icns',
+        'packaged .app Contents/Resources/icon.icns',
+      ],
+      pwa_and_in_app_brand_assets_unchanged: true,
+    },
+    'App GUI desktop application icon policy',
+  );
+}
+
 export function validateAppGuiProductContract(guiContract, releaseChannel, installExposurePolicy) {
   validateMinimalAgentPackageActivationPolicy(guiContract.agent_package_activation_policy);
   validateGuiProductHomeContract(guiContract);
@@ -732,6 +754,7 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   validateGuiFrameworkSurfaces(guiContract, releaseChannel, installExposurePolicy);
   validateSettingsControlPlaneBehavior({ guiContract });
   validateDesktopTrayPolicy(guiContract);
+  validateDesktopApplicationIconPolicy(guiContract);
 
   const startupReadModelPolicy = guiContract.framework_surfaces?.canonical_state?.startup_read_model_policy;
   if (

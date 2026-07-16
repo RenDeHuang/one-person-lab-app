@@ -225,7 +225,7 @@ const productProfileDefaultsExpected = [
   '"codex_precise_model_display_policy": "friendly_model_primary_reasoning_primary_model_secondary_menu"',
   '"button_label_policy": "resolved_model_compact_label_with_selected_reasoning_effort_no_auto_prefix"',
   '"default_active_shortcut": null',
-  '"shortcut_selection_policy": "explicit_user_or_navigation_selection_only_no_saved_preset_restore"',
+  '"shortcut_selection_policy": "explicit_user_or_navigation_selection_only_no_saved_preset_restore_and_never_disabled_by_launch_readiness"',
   '"selected_starter_visual_policy": "quiet_fill_and_check_indicator_not_color_alone"',
   '"zh": "推理最高"',
   '"policy_source_ref": "contracts/app-product-profile.json#codex.auto_model_policy"',

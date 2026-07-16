@@ -40,6 +40,20 @@ test('Codex interaction surfaces stay aligned across the App profile and contrac
   ));
 });
 
+test('desktop App icon keeps the Codex-aligned macOS safe margin', () => {
+  const guiContract = structuredClone(readJson('contracts/app-gui-product-contract.json'));
+  guiContract.theme_and_branding.desktop_app_icon_policy.macos_expected_alpha_bounds = '1024x1024+0+0';
+
+  assert.throws(
+    () => validateAppGuiProductContract(
+      guiContract,
+      readJson('contracts/app-release-channel.json'),
+      readJson('contracts/app-install-exposure-policy.json'),
+    ),
+    /desktop application icon policy/,
+  );
+});
+
 test('product profile separates the external registry URL from Framework first-party identities', () => {
   const installExposure = readJson('contracts/app-install-exposure-policy.json');
   const registry = readJson('contracts/agent-package-registry.json');
@@ -124,6 +138,7 @@ test('active-shell source gate requires Home starters and Capabilities routing i
       "data-testid='opl-home-starters'",
       'aria-pressed={active}',
       'data-opl-active={String(active)}',
+      'data-opl-launch-ready={String(launchGate.launchAllowed !== false)}',
       'active && styles.homeStarterActive',
       "data-testid='starter-active-check'",
       "<CheckOne theme='filled'",
@@ -137,15 +152,16 @@ test('active-shell source gate requires Home starters and Capabilities routing i
       'min-height: 98px;',
       'border-radius: 22px;',
       '.workspaceFootnote',
-      'width: calc(100% - 24px);',
-      'min-height: 52px;',
-      'margin: 0 auto -13px;',
-      'padding: 4px 14px 12px;',
+      'width: 100%;',
+      'min-height: 28px;',
+      'margin: 4px 0;',
+      'background: transparent;',
       '.homeStarterGrid',
       'display: flex;',
       'flex-wrap: wrap;',
       'justify-content: center;',
-      'flex: 0 0 132px;',
+      'width: auto !important;',
+      'height: 32px !important;',
     ].join('\n'),
     capabilitiesPage: [
       'useCustomAgentsLoader',

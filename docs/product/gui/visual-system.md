@@ -205,7 +205,7 @@ hairline divider。只有独立重复实体、确认或明确 bounded tool 才�
 Composer 是底部唯一主 command surface：
 
 - Home 桌面参考几何固定为 composer 最大宽度 `736px`、最小高度 `98px`、圆角 `22px`；
-  上方 context bar 高 `52px`、水平内缩 `12px`，与 composer 重叠 `13px`，避免项目条比输入区更抢眼。
+  工作目录、Local/Worktree 与 starting branch 使用 composer 内部的紧凑透明控制行，不再渲染外置 context cap。
 - 桌面默认高度至少 `104px`，textarea 可见高度至少 `64px`；按内容增长到合理上限后
   内部滚动。
 - Composer 浮于底部或贴近底部安全距，不能与窗口边缘、bottom panel 或系统 safe area
@@ -213,13 +213,15 @@ Composer 是底部唯一主 command surface：
 - 只保留一层 visible surface。外部 bridge/adapter container 必须透明。
 - Home root、composer shell 与 footer account/Settings entry 在每个 viewport 各只有一个实例；
   resize 后必须完整重绘，不能留下旧 composer frame。
-- Project/local/branch 不在 composer 常驻重复：工作目录由 rail 表达，branch/locality 由
-  Environment 表达。Textarea 承载任务正文；底部 action row 承载 attachment、active
-  capability、permission/access mode、单一紧凑 model/reasoning menu、可选 voice 和 send/stop。
+- Home composer 只保留一组工作目录、Local/Worktree 与 starting branch 控件；rail 仅按当前 cwd
+  组织对话，不拥有对话或上下文，Environment 可按需展示同一运行信息。Textarea 承载任务正文；
+  底部 action row 承载 attachment、permission/access mode、单一紧凑 model/reasoning menu、
+  可选 voice 和 send/stop。
 - 当前 session 的 attachment、paste/drop 与 `/open` 是唯一显式文件输入，不从 rail/workspace
   预载 context，也不做隐藏注入；attachment 使用同一层文件预览，不形成第二层卡片。
-- Purpose 不作为常驻可变 selector；active capability chip 可按上下文更换，但不得呈现
-  为 backend/provider。
+- Purpose 不作为常驻可变 selector；Home 用紧凑 starter 的选中态表达 active capability，
+  不在 composer 重复“能力：”标签。进入 conversation 后可按上下文显示低权重 capability chip，
+  但不得呈现为 backend/provider。
 - 模型与推理状态及当前默认值读取 App product profile，不得在 shell 或文档复制
   model/reasoning 值或 allowlist。
 - Backend、provider、executor 不进入普通 composer。Permission/access mode 保持可见，

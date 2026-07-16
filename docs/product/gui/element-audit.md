@@ -30,10 +30,10 @@ carrier 状态和 release evidence 仍归 contracts、source/tests、validators 
 | Conversation management | Rail rows、search 与独立 Archived surface | Search/pin/rename/archive/reset 属于持续工作管理。 | Archive 无独立 surface，或 reset 与 delete 语义混淆。 |
 | Conversation timeline | Main canvas | 用户需要按时间理解任务、输出和决策。 | 与 Runtime/Files 并列成多个主面，或被 dashboard 替代。 |
 | Home question/starters | Main 空 conversation；动态问题标题 + 全部用户可见 configured starters，紧凑固定宽度、稳定排序、按实际数量居中并响应式换行 | 帮助开始任务，但不建立 landing/dashboard；用户显式启用的入口不能被静默截断，Home root、composer shell 与 footer account/Settings entry 各只有一个实例。 | 静态营销 hero、固定四/五列的 dashboard card grid、隐藏用户已启用入口、无序重排或 resize 后重复画面。 |
-| Composer | Main canvas bottom，浮动或保留安全距；Home 桌面使用 `736px` 最大宽度、`98px` 最小高度和 `22px` 圆角，context bar 只露出约 `39px` | 输入是普通路径主动作，应始终接近当前 conversation。 | 变成营销卡、单行或过矮 input、过高 context bar、settings bar、多层 card 或贴边遮挡。 |
+| Composer | Main canvas bottom，浮动或保留安全距；Home 桌面使用 `736px` 最大宽度、`98px` 最小高度和 `22px` 圆角，目录/模式/branch 控件在同一 composer 内部透明排列 | 输入是普通路径主动作，应始终接近当前 conversation。 | 变成营销卡、单行或过矮 input、外置 context cap、settings bar、多层 card 或贴边遮挡。 |
 | Preview inputs | 独立 Preview 或 conversation disclosure | 只打开当前 session 显式 attachment、可见 conversation result 或用户选择的合法绝对路径。 | Workspace-scoped project ref、hidden prompt injection、静默读取或复制 artifact body。 |
-| Active capability chip | Composer action row 邻近的低权重位置 | 显示已选 OPL 能力；选择动作归 Home starter，安装/显示/lifecycle 归 Settings。 | 常驻可变 purpose selector、backend selector 或 agent dashboard。 |
-| Package starter readiness | Home starter 就地 disabled/loading 状态与邻近原因/允许动作 | 用户在选择工作目的时就知道能否 launch；use-boundary activation 必须先于 conversation/send。 | 不可用入口静默消失、无限 loading、无原因 disabled，或 activation 失败后仍发送。 |
+| Active capability | Home 使用 starter 的安静选中态；conversation 可在 action row 邻近显示低权重 chip | 显示已选 OPL 能力；选择动作归 Home starter，安装/显示/lifecycle 归 Settings。 | Home 重复“能力：”标签、常驻可变 purpose selector、backend selector 或 agent dashboard。 |
+| Package starter readiness | Home starter 始终可选择；选中后在 composer/send 边界显示 readiness 原因、loading 与允许动作 | 用户先选择工作目的，再在实际 launch 前获得明确状态；use-boundary activation 必须先于 conversation/send。 | 不可用入口静默消失、因 readiness 被禁选、无限 loading、无原因阻断，或 activation 失败后仍发送。 |
 | Model/reasoning control | Composer 中的 App-owned model control | 用户可见但不应抢占输入；策略由 product profile 统一。 | Shell 复制 allowlist、Home/Conversation 不一致、provider 进入普通层。 |
 | Permission/access mode | Home/conversation bottom action row | 用用户语言解释自动化与文件权限，保留安全透明度。 | 隐藏关键权限，或显示 provider/backend 术语。 |
 | Attach controls | Composer action row | Attachment、paste/drop 与 `/open` 只影响当前发送。 | 藏在 Settings、被 workspace readiness 禁用，或 overlay 覆盖输入/不可点击。 |

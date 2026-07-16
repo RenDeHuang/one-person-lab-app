@@ -4867,7 +4867,7 @@
               "availability": "model_access_attention_only",
               "max_visible": 1,
               "label_zh": "前往账户与访问",
-              "label_en": "Open Account & Gateway"
+              "label_en": "Open Account & Access"
             },
             "exception_state": "highlight unavailable model access and route credential repair to Account & Gateway",
             "technical_details_boundary": "Gateway account, balance, usage, Key management, raw provider ids, paths, and update actions stay on Gateway or Maintenance",

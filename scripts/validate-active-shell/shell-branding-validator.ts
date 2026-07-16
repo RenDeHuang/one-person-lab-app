@@ -118,19 +118,25 @@ export function validateShellBrandingAssets(shellPaths) {
     throw new Error('Active shell web manifest must not expose upstream AionUi branding.');
   }
 
-  for (const relativePath of ['resources/app.png', 'resources/icon.png', 'resources/app_dev.png']) {
+  for (const relativePath of ['resources/app.png', 'resources/app_dev.png']) {
     assertShellFileHash(
       shellPaths,
       relativePath,
-      '540a7a393e26ab84c9ab9a4ccae121bc41d8963b19febcef5cf7acc685d5786c',
-      `${relativePath} OPL icon`,
+      'e6d84a1453b828523cf68f8cb4b704fc0d79f25455f69c5325f12507d4bb9dd6',
+      `${relativePath} Dock-safe OPL icon`,
     );
   }
   assertShellFileHash(
     shellPaths,
+    'resources/icon.png',
+    '540a7a393e26ab84c9ab9a4ccae121bc41d8963b19febcef5cf7acc685d5786c',
+    'resources/icon.png unchanged OPL icon source',
+  );
+  assertShellFileHash(
+    shellPaths,
     'resources/app.icns',
-    'cafe7b133ef70027332b97d5a25ddf1223e870a137814cb86ec3f0e51ca73216',
-    'resources/app.icns OPL icon',
+    'a1ac4f498c8a4a23e11ca66ae88c6c52f2b6802f1c9862f29ec24f8e53428241',
+    'resources/app.icns Dock-safe OPL icon',
   );
   assertShellFileHash(
     shellPaths,
