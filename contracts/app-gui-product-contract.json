@@ -1922,6 +1922,31 @@
   "ai_first_interaction_model": {
     "default_visual_basis": "codex_app_composer_first",
     "primary_policy": "maximize_direct_ai_interaction_on_the_chat_canvas",
+    "default_failure_semantics": "fail_open_with_bounded_self_repair_jit_preparation_degradation_or_fallback",
+    "progress_policy": "preserve_user_momentum_and_attempt_safe_progress_before_requesting_manual_repair",
+    "recovery_order": [
+      "consume_owner_projected_action_or_self_repair",
+      "prepare_missing_use_boundary_state_just_in_time",
+      "continue_in_degraded_mode_or_use_a_safe_fallback",
+      "preserve_draft_and_offer_an_owner_route_when_the_selected_capability_is_unavailable"
+    ],
+    "must_not_preemptively_block_on": [
+      "stale_or_verification_deferred_status",
+      "update_available",
+      "optional_dependency_missing",
+      "optional_receipt_or_binding_absent",
+      "workspace_absent_when_the_owner_projected_action_does_not_require_target_workspace"
+    ],
+    "localized_fail_closed_boundaries": [
+      "selected_package_identity_or_incompatible_version_mismatch",
+      "selected_package_entrypoint_missing",
+      "unsafe_managed_target_or_path_traversal",
+      "permission_sandbox_or_account_authorization_denial",
+      "unconfirmed_irreversible_external_mutation",
+      "success_or_authority_claim_cannot_be_truthfully_supported"
+    ],
+    "fault_isolation_policy": "a_selected_capability_failure_may_block_only_that_capability_while_plain_Codex_other_Agents_drafts_and_existing_sessions_remain_available",
+    "error_visibility_policy": "never_swallow_or_relabel_a_real_failure_and_always_keep_a_user_comprehensible_reason_and_next_action",
     "right_context_policy": "on_demand_advanced_surfaces_no_default_third_column",
     "mas_autonomy_policy": "MAS_runs_as_autonomous_research_execution_not_co_scientist_pair_work",
     "open_science_learning_policy": "adopt_artifact_provenance_review_and_plain_language_data_flow_patterns_as_secondary_context_only",
@@ -2401,43 +2426,107 @@
     "action_id": "agent_package_activate",
     "action_ref": "app_state.actions#agent_package_activate",
     "action_route": "opl app action execute --action agent_package_activate --payload <json> --json",
-    "trigger": "before_creating_a_package_backed_conversation_for_the_current_session_target",
-    "required_payload_fields": [
-      "package_id",
-      "scope",
-      "target_workspace"
-    ],
+    "trigger": "just_in_time_before_package_backed_send_only_when_the_selected_directory_entry_projects_an_activation_action_or_degraded_preparation_is_needed",
+    "projected_action_source": "app_state.agent_packages.directory.entries[].available_actions[action_id=agent_package_activate]",
+    "required_payload_fields_source": "projected_action.required_payload_fields",
     "request_policy": {
       "package_id_source": "current_selected_professional_agent.package_id",
-      "scope": "workspace",
-      "target_workspace_source": "normalized_current_session_directory",
-      "missing_target_reason_code": "agent_package_target_workspace_required",
+      "action_object_policy": "consume_the_exact_owner_projected_action_id_action_ref_payload_required_payload_fields_and_confirmation_required_without_shell_inference",
+      "payload_policy": "start_from_projected_action.payload_and_fill_only_owner_required_context_fields",
+      "scope_policy": "use_projected_scope_without_assuming_workspace",
+      "target_workspace_source": "normalized_current_session_directory_only_when_required_payload_fields_contains_target_workspace",
+      "missing_optional_target_policy": "continue_without_target_workspace_when_the_projected_action_does_not_require_it",
+      "missing_required_target_policy": "preserve_draft_and_limit_unavailability_to_the_selected_package_with_a_workspace_selection_route",
       "global_workspace_root_mutation_allowed": false
     },
     "result_schema_ref": "contracts/agent-package-surfaces.schema.json#/$defs/agent_package_activation_result",
     "result_schema_scope": "live_non_dry_package_launch_only",
-    "accepted_binding_fields": [
+    "optional_diagnostic_binding_fields": [
       "use_binding",
       "package_use_binding"
     ],
-    "required_success_validation": [
+    "result_contract": {
+      "required_fields": [
+        "launch_state",
+        "launch_allowed",
+        "package_id",
+        "launch_state_reason"
+      ],
+      "optional_audit_or_identity_fields": [
+        "package_version",
+        "package_lock",
+        "use_receipt_ref",
+        "use_binding",
+        "package_use_binding"
+      ],
+      "state_boolean_consistency": {
+        "ready": true,
+        "degraded": true,
+        "package_unavailable": false
+      },
+      "reason_policy": "ready_requires_null_reason_degraded_requires_visible_nonblocking_reason_and_package_unavailable_requires_visible_typed_blocking_reason"
+    },
+    "minimal_launch_validation": [
       "activation.package_id_matches_current_selection",
-      "activation.package_lock.package_id_matches_current_selection",
-      "binding.root_package.package_id_matches_current_selection",
-      "activation.package_lock.package_version_matches_current_selection",
-      "binding.root_package.package_version_matches_current_selection",
-      "binding.scope_is_workspace",
-      "binding.target_root_matches_normalized_current_session_directory"
+      "returned_package_version_is_compatible_with_current_selection_when_present",
+      "selected_package_entrypoint_exists_and_is_callable",
+      "managed_target_is_safe_and_matches_the_owner_required_target_when_present"
     ],
+    "receipt_policy": "use_receipt_ref_is_optional_audit_evidence_not_a_launch_precondition",
+    "binding_policy": "validate_binding_when_present_but_do_not_require_a_complete_binding_for_ordinary_launch",
+    "closure_policy": "Framework_owned_just_in_time_reconciliation_or_diagnostics_not_a_shell_preflight_gate",
+    "launch_state_machine": {
+      "states": [
+        "ready",
+        "degraded",
+        "package_unavailable"
+      ],
+      "ready": {
+        "selected_package_send_allowed": true,
+        "policy": "launch_directly_and_refresh_status_in_the_background_when_useful"
+      },
+      "degraded": {
+        "selected_package_send_allowed": true,
+        "policy": "attempt_owner_projected_JIT_prepare_repair_or_safe_fallback_and_continue_with_visible_degradation_without_claiming_full_readiness",
+        "eligible_signals": [
+          "verification_deferred",
+          "stale_status",
+          "update_available",
+          "optional_dependency_missing",
+          "optional_receipt_or_binding_absent"
+        ]
+      },
+      "package_unavailable": {
+        "selected_package_send_allowed": false,
+        "policy": "block_only_the_selected_package_preserve_the_draft_and_offer_plain_Codex_other_Agents_or_an_owner_repair_route",
+        "eligible_signals": [
+          "package_not_installed_or_disabled_without_an_executable_projected_recovery_action",
+          "package_identity_mismatch",
+          "incompatible_package_version",
+          "entrypoint_missing",
+          "unsafe_managed_target",
+          "permission_or_authorization_denied"
+        ]
+      }
+    },
     "typed_failure_codes": [
-      "agent_package_launch_blocked",
+      "agent_package_unavailable",
       "agent_package_activation_invalid",
       "agent_package_selection_mismatch",
       "agent_package_version_mismatch",
+      "agent_package_entrypoint_missing",
       "agent_package_target_mismatch"
     ],
     "failure_policy": {
-      "downstream_create_allowed": false,
+      "default_interaction_policy": "fail_open",
+      "selected_package_create_allowed_by_state": {
+        "ready": true,
+        "degraded": true,
+        "package_unavailable": false
+      },
+      "plain_codex_create_allowed": true,
+      "other_agent_selection_allowed": true,
+      "existing_sessions_remain_available": true,
       "draft_preserved": true,
       "message_source": "typed_shell_failure_or_Framework_launch_blocked_reason"
     },
@@ -2445,7 +2534,8 @@
       "session_is_primary_unit": true,
       "project_owns_session": false,
       "working_directory_is_mutable_context": true,
-      "new_package_backed_conversation_uses_current_normalized_directory": true,
+      "workspace_is_not_a_universal_agent_launch_precondition": true,
+      "new_package_backed_conversation_uses_current_normalized_directory_only_when_owner_required": true,
       "plain_conversation_policy": "unchanged"
     },
     "read_policy": {
@@ -2463,7 +2553,7 @@
       "cohort_commit": "e10ec54f29b8a7d5b54c9a44f49ba4d5c492f252"
     },
     "package_identity_policy": "generic_package_id_no_hardcoded_agent_or_capability_package_ids",
-    "app_role": "trusted_local_thin_shell_consumer_of_Framework_package_identity_version_and_target_readback"
+    "app_role": "trusted_local_thin_shell_consumer_of_owner_projected_actions_and_minimal_identity_version_entrypoint_and_safe_target_readback"
   },
   "builtin_assistant_route_receipt_policy": {
     "migration_alias_for": "agent_package_invocation_receipt_policy",
@@ -5989,15 +6079,16 @@
           "distinguish_package_install_source_from_active_runtime_source_in_user_language",
           "show_failure_reason_only_when_failed_blocked_or_needs_user_action",
           "operational_ready_false_or_dependency_repair_required_must_never_render_ready",
-          "operational_ready_false_must_disable_ordinary_package_and_agent_launch",
-          "blocked_packages_allow_only_status_doctor_and_repair_actions",
+          "operational_ready_false_must_render_degraded_or_package_unavailable_by_owner_signals_and_must_not_alone_disable_launch",
+          "package_unavailable_allows_only_owner_projected_status_doctor_repair_or_workspace_selection_actions_for_that_package",
           "show_dependency_readiness_activation_preparation_and_dependent_guard_in_normal_details",
           "keep_package_dependency_materialization_and_runtime_source_readiness_as_lower_level_diagnostics",
           "execute_repair_only_from_a_complete_directory_projected_action_while_using_status_index_repair_action_for_availability_and_reason",
           "show_receipt_and_physical_surface_in_details_or_advanced_only",
           "execute_only_projected_action_id_and_payload_without_shell_status_or_payload_inference",
           "validate_package_id_version_and_normalized_target_before_creating_a_package_backed_conversation",
-          "treat_live_verification_deferred_as_requiring_live_activation_before_package_launch",
+          "treat_live_verification_deferred_as_degraded_and_attempt_owner_projected_JIT_activation_without_preemptive_blocking",
+          "never_require_complete_receipt_binding_or_dependency_closure_as_a_universal_launch_precondition",
           "keep_enabled_execution_authority_orthogonal_to_visible_or_hidden_discovery_authority",
           "keep_fast_list_status_and_all_dry_run_reads_pure_when_typed_recovery_state_is_projected",
           "refresh_fast_state_after_successful_install_then_show_projected_activate_when_recommended",
@@ -6089,20 +6180,20 @@
           "surface_scope": "settings_global_package_management_only",
           "session_launch_authority": false,
           "session_launch_contract_ref": "contracts/app-gui-product-contract.json#agent_package_activation_policy",
+          "payload_source": "directory.entries[].available_actions[action_id=agent_package_activate].payload",
+          "required_payload_fields_source": "directory.entries[].available_actions[action_id=agent_package_activate].required_payload_fields",
           "workspace_path_source": "app_state.paths.workspace_root_path",
-          "payload_template": {
-            "package_id": "directory.entries[].package_id",
-            "scope": "workspace",
-            "target_workspace": "app_state.paths.workspace_root_path"
-          },
+          "context_fill_policy": "fill_target_workspace_from_workspace_path_source_only_when_it_is_an_unresolved_owner_required_payload_field",
+          "scope_inference_allowed": false,
           "compatibility_path_policy": "legacy workspace paths may be normalized only inside the shell adapter and never become product truth",
           "missing_workspace_policy": {
+            "applies_when": "unresolved_required_payload_fields_contains_target_workspace",
             "enabled": false,
             "reason_code": "workspace_root_not_configured",
             "route": "/settings/workspace",
             "anchor": "workspace"
           },
-          "package_id_only_payload_allowed": false
+          "package_id_only_payload_allowed": true
         },
         "source_explanation_fields": [
           "kind",
@@ -6139,16 +6230,18 @@
           "operational_ready": false,
           "launch_allowed": false,
           "verification_deferred": true,
-          "reason": "live_verification_deferred"
-          },
-          "full_verified": {
-            "status": "ready",
-            "operational_ready": true,
-            "launch_allowed": true,
-            "verification_deferred": false,
-            "reason": null
-          },
-          "presentation_policy": "fast verification_deferred remains locally fail-closed and may transition only through live agent_package_activate; it must not be relabeled ready or repair"
+          "reason": "live_verification_deferred",
+          "session_launch_disposition": "degraded_JIT_activation_allowed"
+        },
+        "full_verified": {
+          "status": "ready",
+          "operational_ready": true,
+          "launch_allowed": true,
+          "verification_deferred": false,
+          "reason": null,
+          "session_launch_disposition": "ready"
+        },
+        "presentation_policy": "fast verification_deferred must stay visibly degraded rather than being relabeled ready or repair; session launch may attempt owner-projected JIT activation without a preemptive hard block"
         },
         "failure_reason_fields": [
           "readiness.status",
@@ -6425,27 +6518,37 @@
               "enable"
             ]
           },
-          "launch_gate_policy": "directory readiness may fail closed, and the live agent_package_activate result must pass the App minimal package identity, version, and target validation before creating a package-backed conversation",
+        "launch_gate_policy": "directory readiness is advisory for session launch; use the App ready_degraded_package_unavailable state machine, consume owner-projected JIT actions, and fail closed only for the selected package on identity version entrypoint safe-target permission or authorization boundaries",
           "launch_pretransition_reason_codes": [
             "package_activation_required",
             "live_verification_deferred",
             "use_boundary_reconciliation_ready"
           ],
-          "launch_fail_closed_reason_codes": [
-            "package_not_installed",
-            "package_disabled",
-            "package_status_read_failed",
-            "package_dependency_missing",
-            "package_dependency_incompatible",
-            "physical_surface_not_ready",
-            "runtime_source_missing",
-            "runtime_source_incompatible",
-            "carrier_authority_invalid",
-            "package_lock_corrupt",
-            "package_ledger_corrupt",
-            "package_recovery_in_progress",
-            "package_recovery_required"
-          ],
+        "package_unavailable_reason_codes": [
+          "package_not_installed",
+          "package_disabled",
+          "package_dependency_incompatible",
+          "package_identity_mismatch",
+          "package_version_mismatch",
+          "package_entrypoint_missing",
+          "unsafe_managed_target",
+          "permission_or_authorization_denied",
+          "package_lock_corrupt",
+          "package_ledger_corrupt",
+          "package_recovery_in_progress",
+          "package_recovery_required"
+        ],
+        "degraded_reason_codes": [
+          "package_status_read_failed",
+          "package_dependency_missing",
+          "physical_surface_not_ready",
+          "runtime_source_missing",
+          "runtime_source_incompatible",
+          "carrier_authority_invalid",
+          "live_verification_deferred",
+          "update_available",
+          "optional_dependency_missing"
+        ],
           "role_launch_matrix": {
             "installed_standard_agent": "minimal_agent_package_activation_supported",
             "uninstalled_standard_agent": "package_not_installed_and_launch_blocked",
@@ -6741,7 +6844,7 @@
         "a dedicated package catalog search plus package role, install or activation status, and source filters",
         "registry refresh as an ordinary visible action and manifest URL installation only in the Agents page advanced install disclosure",
         "row install, activate, update, repair, enable, disable, hide, unhide, and uninstall actions exactly as projected by Framework",
-        "workspace activation payload with scope and target_workspace from app_state.paths.workspace_root_path, or a disabled reason and Workspace route when it is missing",
+        "the exact owner-projected activation payload, adding target_workspace from app_state.paths.workspace_root_path only when required_payload_fields requires it; otherwise package-id-only activation stays enabled",
         "Chinese product display names and explicit managed or developer runtime source labels",
         "global automatic, managed, or developer source selection kept independent from maintenance permission",
         "OPL Meta Agent as an explicit default-visible managed package row without becoming a legacy default assistant",

@@ -306,8 +306,28 @@ const expectedAtomicPackageUnitIncludes = [
   "optional_companion_skill_refs",
 ];
 const expectedActivationScopeValues = ["workspace"];
-const expectedActivationRequestRequiredFields = ["package_id", "scope", "target_workspace"];
-const expectedActivationResultRequiredFields = ["launch_allowed", "package_id", "package_lock"];
+const expectedActivationRequestRequiredFields = ["package_id"];
+const expectedActivationResultRequiredFields = [
+  "launch_state",
+  "launch_allowed",
+  "package_id",
+  "launch_state_reason",
+];
+const expectedActivationLaunchStates = ["ready", "degraded", "package_unavailable"];
+const expectedHardUnavailableReasons = [
+  "package_not_installed",
+  "package_disabled",
+  "package_dependency_incompatible",
+  "package_identity_mismatch",
+  "package_version_mismatch",
+  "package_entrypoint_missing",
+  "unsafe_managed_target",
+  "permission_or_authorization_denied",
+  "package_lock_corrupt",
+  "package_ledger_corrupt",
+  "package_recovery_in_progress",
+  "package_recovery_required",
+];
 const expectedRecoveryReadbackRequiredFields = [
   "surface_kind",
   "vocabulary_version",
@@ -1033,7 +1053,11 @@ function validateAgentPackageSurfaceSchema(contract: any, registry: any, schema:
     expectedActivationScopeValues,
     "agent package activation request scope values",
   );
-  assertEqual(activationRequest.allOf, undefined, "agent package activation request has no alternate target branch");
+  assertEqual(
+    activationRequest.properties?.target_workspace?.type,
+    "string",
+    "agent package activation request optional target workspace",
+  );
   assertEqual(activationRequest.properties?.target_quest, undefined, "App activation request excludes quest targets");
   assertEqual(
     activationRequest.properties?.use_boundary_id,
@@ -1041,17 +1065,37 @@ function validateAgentPackageSurfaceSchema(contract: any, registry: any, schema:
     "App activation request excludes Framework-internal boundary identifiers",
   );
   const activationResult = schemaDef(schema, "agent_package_activation_result");
-  assertEqual(
-    activationResult.properties?.use_receipt_ref,
-    undefined,
-    "App activation result contract does not require Framework-internal receipts",
-  );
   assertArrayEqual(
     activationResult.required,
     expectedActivationResultRequiredFields,
     "agent package activation result required fields",
   );
-  assertEqual(activationResult.properties?.launch_allowed?.const, true, "agent package activation live launch gate");
+  assertArrayEqual(
+    activationResult.properties?.launch_state?.enum,
+    expectedActivationLaunchStates,
+    "agent package activation launch states",
+  );
+  assertEqual(
+    activationResult.properties?.launch_allowed?.type,
+    "boolean",
+    "agent package activation launch allowance",
+  );
+  const launchStateReasonShape = JSON.stringify(
+    activationResult.properties?.launch_state_reason ?? null,
+  );
+  if (!launchStateReasonShape.includes('"string"') || !launchStateReasonShape.includes('"null"')) {
+    fail("agent package activation launch_state_reason must support string and null");
+  }
+  assertEqual(
+    activationResult.required.includes("use_receipt_ref"),
+    false,
+    "agent package activation receipt is optional",
+  );
+  assertEqual(
+    activationResult.properties?.use_receipt_ref?.type,
+    "string",
+    "agent package optional activation receipt",
+  );
   assertEqual(
     schema.properties?.agent_package_use_binding?.$ref,
     "#/$defs/agent_package_use_binding",
@@ -1084,16 +1128,26 @@ function validateAgentPackageSurfaceSchema(contract: any, registry: any, schema:
     ],
     "agent package activation result compatibility binding",
   );
-  assertEqual(activationResult.properties?.launch_blocked_reason?.type, "null", "live success blocked reason");
+  assertEqual(
+    activationResult.required.includes("package_lock"),
+    false,
+    "agent package activation lock is optional",
+  );
   assertArrayEqual(
     activationResult.properties?.package_lock?.required,
     ["package_id", "package_version"],
     "agent package activation lock identity fields",
   );
-  assertArrayEqual(
-    activationResult.anyOf?.map((branch: any) => branch.required?.[0]),
-    ["use_binding", "package_use_binding"],
-    "agent package activation success conditional fields",
+  assertEqual(
+    activationResult.required.includes("use_binding") ||
+      activationResult.required.includes("package_use_binding"),
+    false,
+    "agent package activation bindings are optional",
+  );
+  assertEqual(
+    activationResult.anyOf,
+    undefined,
+    "agent package activation does not require a diagnostic binding branch",
   );
   assertEqual(
     schema.properties?.agent_package_recovery_readback?.$ref,
@@ -1170,22 +1224,85 @@ function minimalUseBindingConforms(binding: any, selected: any): boolean {
     && (!selected || (
       binding.root_package.package_id === selected.package_id
       && binding.root_package.package_version === selected.package_version
-      && binding.target_root === selected.normalized_target_workspace
+      && (
+        !selected.normalized_target_workspace
+        || binding.target_root === selected.normalized_target_workspace
+      )
     ));
 }
 
 function activationResultConforms(result: any, selected: any): boolean {
-  if (result?.launch_allowed !== true) {
+  if (!result || typeof result !== "object" || Array.isArray(result)) {
     return false;
   }
-  const binding = result.use_binding ?? result.package_use_binding;
-  return (result.launch_blocked_reason === null || result.launch_blocked_reason === undefined)
-    && minimalUseBindingConforms(binding, selected)
-    && (!selected || (
-      result.package_id === selected.package_id
-      && result.package_lock?.package_id === selected.package_id
-      && result.package_lock?.package_version === selected.package_version
-    ));
+  if (!expectedActivationLaunchStates.includes(result.launch_state)) {
+    return false;
+  }
+  const sendAllowed = result.launch_state !== "package_unavailable";
+  if (result.launch_allowed !== sendAllowed) {
+    return false;
+  }
+  if (
+    (result.launch_state === "ready" && result.launch_state_reason !== null)
+    || (
+      result.launch_state !== "ready"
+      && (typeof result.launch_state_reason !== "string" || !result.launch_state_reason.trim())
+    )
+  ) {
+    return false;
+  }
+  if (
+    result.launch_state === "package_unavailable"
+    && !expectedHardUnavailableReasons.includes(result.launch_state_reason)
+  ) {
+    return false;
+  }
+  if (typeof result.package_id !== "string" || !result.package_id.trim()) {
+    return false;
+  }
+  if (selected?.package_id && result.package_id !== selected.package_id) {
+    return false;
+  }
+  if (
+    result.package_version !== undefined
+    && (
+      typeof result.package_version !== "string"
+      || !result.package_version.trim()
+      || (selected?.package_version && result.package_version !== selected.package_version)
+    )
+  ) {
+    return false;
+  }
+  if (result.package_lock !== undefined) {
+    if (
+      !result.package_lock
+      || typeof result.package_lock !== "object"
+      || Array.isArray(result.package_lock)
+      || typeof result.package_lock.package_id !== "string"
+      || typeof result.package_lock.package_version !== "string"
+      || result.package_lock.package_id !== result.package_id
+      || (selected?.package_id && result.package_lock.package_id !== selected.package_id)
+      || (selected?.package_version && result.package_lock.package_version !== selected.package_version)
+    ) {
+      return false;
+    }
+  }
+  if (
+    result.use_receipt_ref !== undefined
+    && (typeof result.use_receipt_ref !== "string" || !result.use_receipt_ref.trim())
+  ) {
+    return false;
+  }
+  for (const field of ["use_binding", "package_use_binding"] as const) {
+    if (
+      result[field] !== undefined
+      && result[field] !== null
+      && !minimalUseBindingConforms(result[field], selected)
+    ) {
+      return false;
+    }
+  }
+  return true;
 }
 
 function validateLaunchAuthorityFixtures(): void {
@@ -1211,42 +1328,127 @@ function validateLaunchAuthorityFixtures(): void {
   const activationCases = new Map(
     activationResults.cases.map((entry: any) => [entry.case_id, entry]),
   );
-  const readyLive = activationCases.get("ready_live") as any;
-  assertEqual(activationResultConforms(readyLive?.result, readyLive?.selected), true, "canonical minimal binding");
-  const activationPackageDrift = structuredClone(readyLive);
+  const readyMinimal = activationCases.get("ready_minimal_without_optional_evidence") as any;
+  const readyWithEvidence = activationCases.get("ready_with_optional_evidence") as any;
+  const degraded = activationCases.get("degraded_without_optional_evidence") as any;
+  const unavailable = activationCases.get("package_unavailable_local_only") as any;
+  assertEqual(
+    activationResultConforms(readyMinimal?.result, readyMinimal?.selected),
+    true,
+    "ready activation without optional evidence",
+  );
+  assertEqual(
+    activationResultConforms(readyWithEvidence?.result, readyWithEvidence?.selected),
+    true,
+    "ready activation with optional evidence",
+  );
+  assertEqual(
+    activationResultConforms(degraded?.result, degraded?.selected),
+    true,
+    "degraded activation without optional evidence",
+  );
+  assertEqual(
+    activationResultConforms(unavailable?.result, unavailable?.selected),
+    true,
+    "localized package unavailable result",
+  );
+  const activationPackageDrift = structuredClone(readyMinimal);
   activationPackageDrift.result.package_id = "other-agent";
   assertEqual(activationResultConforms(activationPackageDrift.result, activationPackageDrift.selected), false, "activation package selection drift");
-  const lockPackageDrift = structuredClone(readyLive);
+  const launchAllowanceDrift = structuredClone(degraded);
+  launchAllowanceDrift.result.launch_allowed = false;
+  assertEqual(activationResultConforms(launchAllowanceDrift.result, launchAllowanceDrift.selected), false, "degraded launch allowance drift");
+  const reasonDrift = structuredClone(degraded);
+  reasonDrift.result.launch_state_reason = null;
+  assertEqual(activationResultConforms(reasonDrift.result, reasonDrift.selected), false, "degraded reason drift");
+  const receiptDrift = structuredClone(readyWithEvidence);
+  receiptDrift.result.use_receipt_ref = "";
+  assertEqual(activationResultConforms(receiptDrift.result, receiptDrift.selected), false, "optional receipt strict validation");
+  const lockPackageDrift = structuredClone(readyWithEvidence);
   lockPackageDrift.result.package_lock.package_id = "other-agent";
   assertEqual(activationResultConforms(lockPackageDrift.result, lockPackageDrift.selected), false, "lock package selection drift");
-  const rootPackageDrift = structuredClone(readyLive);
+  const rootPackageDrift = structuredClone(readyWithEvidence);
   (rootPackageDrift.result.use_binding ?? rootPackageDrift.result.package_use_binding).root_package.package_id = "other-agent";
   assertEqual(activationResultConforms(rootPackageDrift.result, rootPackageDrift.selected), false, "binding root package selection drift");
-  const versionDrift = structuredClone(readyLive);
+  const versionDrift = structuredClone(readyWithEvidence);
   (versionDrift.result.use_binding ?? versionDrift.result.package_use_binding).root_package.package_version = "9.9.9";
   assertEqual(activationResultConforms(versionDrift.result, versionDrift.selected), false, "binding version drift");
-  const targetDrift = structuredClone(readyLive);
+  const targetDrift = structuredClone(readyWithEvidence);
   (targetDrift.result.use_binding ?? targetDrift.result.package_use_binding).target_root = "/Users/example/Other";
-  assertEqual(activationResultConforms(targetDrift.result, targetDrift.selected), false, "binding target drift");
+  assertEqual(activationResultConforms(targetDrift.result, targetDrift.selected), false, "required binding target drift");
+  const optionalTargetDifference = structuredClone(targetDrift);
+  delete optionalTargetDifference.selected.normalized_target_workspace;
+  optionalTargetDifference.selected.required_payload_fields = ["package_id"];
+  assertEqual(
+    activationResultConforms(optionalTargetDifference.result, optionalTargetDifference.selected),
+    true,
+    "optional workspace does not constrain diagnostic binding target",
+  );
 
   const normalShellCases = new Map(
     launchMatrix.normal_shell_launch_contract.cases.map((entry: any) => [entry.case_id, entry]),
   );
   for (const caseId of [
-    "framework_blocked",
+    "package_unavailable",
     "malformed_activation",
     "selection_drift",
     "version_drift",
-    "target_drift",
+    "entrypoint_missing",
+    "required_target_drift",
+    "invalid_optional_receipt",
+    "invalid_optional_binding",
   ]) {
     assertEqual((normalShellCases.get(caseId) as any)?.accepted, false, `${caseId} launch admission`);
   }
-  assertEqual((normalShellCases.get("valid_package_launch") as any)?.accepted, true, "valid package launch admission");
+  for (const caseId of [
+    "ready_without_optional_evidence",
+    "degraded_without_optional_evidence",
+    "valid_optional_evidence",
+    "optional_target_difference",
+  ]) {
+    assertEqual((normalShellCases.get(caseId) as any)?.accepted, true, `${caseId} launch admission`);
+  }
   assertFieldsEqual(
     normalShellCases.get("plain_conversation"),
     { accepted: true, activation_required: false },
     "plain conversation launch admission",
   );
+
+  assertArrayEqual(
+    launchMatrix.launch_state_contract?.states,
+    expectedActivationLaunchStates,
+    "launch matrix states",
+  );
+  assertFieldsEqual(
+    launchMatrix.launch_state_contract?.selected_package_send_allowed,
+    { ready: true, degraded: true, package_unavailable: false },
+    "launch matrix state allowance",
+  );
+  assertFieldsEqual(
+    launchMatrix.launch_state_contract?.fault_isolation,
+    {
+      plain_codex_send_allowed: true,
+      other_agent_selection_allowed: true,
+      existing_sessions_remain_available: true,
+      draft_preserved: true,
+    },
+    "launch matrix fault isolation",
+  );
+  for (const entry of launchMatrix.cases ?? []) {
+    if (!expectedActivationLaunchStates.includes(entry.launch_state)) {
+      fail(`launch lifecycle fixture ${entry.case_id} has invalid launch state`);
+    }
+    assertEqual(
+      entry.selected_package_send_allowed,
+      entry.launch_state !== "package_unavailable",
+      `${entry.case_id} selected package send allowance`,
+    );
+    assertEqual(
+      entry.activation_required_before_launch,
+      false,
+      `${entry.case_id} has no universal activation precondition`,
+    );
+  }
 }
 
 function validateRegistryEntryMetadata(entry: any): void {

@@ -605,36 +605,58 @@ test('App contracts define one minimal package activation authority', () => {
   assert.equal(policy.action_id, 'agent_package_activate');
   assert.equal(policy.action_ref, 'app_state.actions#agent_package_activate');
   assert.equal(policy.result_schema_scope, 'live_non_dry_package_launch_only');
-  assert.deepEqual(policy.required_payload_fields, [
-    'package_id',
-    'scope',
-    'target_workspace',
-  ]);
+  assert.equal(
+    policy.projected_action_source,
+    'app_state.agent_packages.directory.entries[].available_actions[action_id=agent_package_activate]',
+  );
+  assert.equal(policy.required_payload_fields_source, 'projected_action.required_payload_fields');
   assert.equal(policy.request_policy.package_id_source, 'current_selected_professional_agent.package_id');
-  assert.equal(policy.request_policy.target_workspace_source, 'normalized_current_session_directory');
+  assert.equal(policy.request_policy.scope_policy, 'use_projected_scope_without_assuming_workspace');
+  assert.equal(
+    policy.request_policy.target_workspace_source,
+    'normalized_current_session_directory_only_when_required_payload_fields_contains_target_workspace',
+  );
   assert.equal(policy.request_policy.global_workspace_root_mutation_allowed, false);
-  assert.deepEqual(policy.accepted_binding_fields, ['use_binding', 'package_use_binding']);
-  assert.deepEqual(policy.required_success_validation, [
+  assert.deepEqual(policy.optional_diagnostic_binding_fields, ['use_binding', 'package_use_binding']);
+  assert.deepEqual(policy.minimal_launch_validation, [
     'activation.package_id_matches_current_selection',
-    'activation.package_lock.package_id_matches_current_selection',
-    'binding.root_package.package_id_matches_current_selection',
-    'activation.package_lock.package_version_matches_current_selection',
-    'binding.root_package.package_version_matches_current_selection',
-    'binding.scope_is_workspace',
-    'binding.target_root_matches_normalized_current_session_directory',
+    'returned_package_version_is_compatible_with_current_selection_when_present',
+    'selected_package_entrypoint_exists_and_is_callable',
+    'managed_target_is_safe_and_matches_the_owner_required_target_when_present',
   ]);
+  assert.equal(
+    policy.receipt_policy,
+    'use_receipt_ref_is_optional_audit_evidence_not_a_launch_precondition',
+  );
+  assert.equal(
+    policy.binding_policy,
+    'validate_binding_when_present_but_do_not_require_a_complete_binding_for_ordinary_launch',
+  );
+  assert.deepEqual(policy.launch_state_machine.states, ['ready', 'degraded', 'package_unavailable']);
+  assert.equal(policy.launch_state_machine.ready.selected_package_send_allowed, true);
+  assert.equal(policy.launch_state_machine.degraded.selected_package_send_allowed, true);
+  assert.equal(policy.launch_state_machine.package_unavailable.selected_package_send_allowed, false);
   assert.deepEqual(policy.typed_failure_codes, [
-    'agent_package_launch_blocked',
+    'agent_package_unavailable',
     'agent_package_activation_invalid',
     'agent_package_selection_mismatch',
     'agent_package_version_mismatch',
+    'agent_package_entrypoint_missing',
     'agent_package_target_mismatch',
   ]);
-  assert.equal(policy.failure_policy.downstream_create_allowed, false);
+  assert.deepEqual(policy.failure_policy.selected_package_create_allowed_by_state, {
+    ready: true,
+    degraded: true,
+    package_unavailable: false,
+  });
+  assert.equal(policy.failure_policy.plain_codex_create_allowed, true);
+  assert.equal(policy.failure_policy.other_agent_selection_allowed, true);
+  assert.equal(policy.failure_policy.existing_sessions_remain_available, true);
   assert.equal(policy.failure_policy.draft_preserved, true);
   assert.equal(policy.workspace_policy.session_is_primary_unit, true);
   assert.equal(policy.workspace_policy.project_owns_session, false);
   assert.equal(policy.workspace_policy.working_directory_is_mutable_context, true);
+  assert.equal(policy.workspace_policy.workspace_is_not_a_universal_agent_launch_precondition, true);
   assert.equal(policy.workspace_policy.plain_conversation_policy, 'unchanged');
   assert.equal(policy.framework_component.cohort_commit, 'e10ec54f29b8a7d5b54c9a44f49ba4d5c492f252');
 
@@ -667,16 +689,27 @@ test('App contracts define one minimal package activation authority', () => {
   );
 
   const activationRequest = packageSurfaces.$defs.agent_package_activation_request;
-  assert.deepEqual(activationRequest.required, ['package_id', 'scope', 'target_workspace']);
+  assert.deepEqual(activationRequest.required, ['package_id']);
   assert.equal(activationRequest.properties.package_version, undefined);
   assert.deepEqual(activationRequest.properties.scope.enum, ['workspace']);
+  assert.equal(activationRequest.properties.target_workspace.type, 'string');
   assert.equal(activationRequest.properties.target_quest, undefined);
   assert.equal(activationRequest.properties.use_boundary_id, undefined);
-  assert.equal(activationRequest.allOf, undefined);
   const activationResult = packageSurfaces.$defs.agent_package_activation_result;
-  assert.deepEqual(activationResult.required, ['launch_allowed', 'package_id', 'package_lock']);
-  assert.equal(activationResult.properties.launch_allowed.const, true);
-  assert.equal(activationResult.properties.use_receipt_ref, undefined);
+  assert.deepEqual(activationResult.required, [
+    'launch_state',
+    'launch_allowed',
+    'package_id',
+    'launch_state_reason',
+  ]);
+  assert.deepEqual(
+    activationResult.properties.launch_state.enum,
+    ['ready', 'degraded', 'package_unavailable'],
+  );
+  assert.equal(activationResult.properties.launch_allowed.type, 'boolean');
+  assert.equal(activationResult.required.includes('package_lock'), false);
+  assert.equal(activationResult.required.includes('use_receipt_ref'), false);
+  assert.equal(activationResult.properties.use_receipt_ref.type, 'string');
   assert.deepEqual(activationResult.properties.package_lock.required, ['package_id', 'package_version']);
   assert.deepEqual(packageSurfaces.$defs.agent_package_use_binding.required, [
     'root_package',
@@ -687,6 +720,9 @@ test('App contracts define one minimal package activation authority', () => {
     packageSurfaces.$defs.agent_package_use_binding.properties.root_package.required,
     ['package_id', 'package_version'],
   );
+  assert.equal(activationResult.required.includes('use_binding'), false);
+  assert.equal(activationResult.required.includes('package_use_binding'), false);
+  assert.equal(activationResult.anyOf, undefined);
   assert.equal(packageSurfaces.$defs.agent_package_use_boundary_action, undefined);
   assert.equal(packageSurfaces.$defs.agent_package_session_launch_projection, undefined);
 
@@ -694,14 +730,8 @@ test('App contracts define one minimal package activation authority', () => {
     (action: { action_id: string }) => action.action_id === 'agent_package_activate',
   );
   assert.deepEqual(fixtureAction.payload_fields, ['package_id', 'scope', 'target_workspace']);
-  assert.deepEqual(fixtureAction.result_fields, [
-    'package_id',
-    'package_lock',
-    'launch_allowed',
-    'launch_blocked_reason',
-    'use_binding',
-    'package_use_binding',
-  ]);
+  assert.equal(fixtureAction.result_fields.includes('package_id'), true);
+  assert.equal(fixtureAction.result_fields.includes('launch_allowed'), true);
   const directoryEntries = fastFixture.app_state.agent_packages.directory.entries;
   assert.equal(directoryEntries.some((entry: any) => 'use_boundary_action' in entry), false);
   const activationEntry = directoryEntries.find(
@@ -712,19 +742,59 @@ test('App contracts define one minimal package activation authority', () => {
     scope: 'workspace',
     target_workspace: fastFixture.app_state.paths.workspace_root_path,
   });
+  assert.deepEqual(
+    activationEntry.recommended_action_ref.required_payload_fields,
+    ['package_id', 'scope', 'target_workspace'],
+  );
 
   assert.equal(launchMatrix.read_and_action_sources.status_and_dry_run_write_count, 0);
+  assert.deepEqual(launchMatrix.launch_state_contract.states, [
+    'ready',
+    'degraded',
+    'package_unavailable',
+  ]);
+  assert.deepEqual(launchMatrix.launch_state_contract.selected_package_send_allowed, {
+    ready: true,
+    degraded: true,
+    package_unavailable: false,
+  });
+  assert.deepEqual(launchMatrix.launch_state_contract.fault_isolation, {
+    plain_codex_send_allowed: true,
+    other_agent_selection_allowed: true,
+    existing_sessions_remain_available: true,
+    draft_preserved: true,
+  });
   const shellCases = new Map(
     launchMatrix.normal_shell_launch_contract.cases.map(
       (entry: { case_id: string }) => [entry.case_id, entry],
     ),
   );
   assert.deepEqual(
-    ['framework_blocked', 'malformed_activation', 'selection_drift', 'version_drift', 'target_drift']
+    [
+      'package_unavailable',
+      'malformed_activation',
+      'selection_drift',
+      'version_drift',
+      'entrypoint_missing',
+      'required_target_drift',
+    ]
       .map((caseId) => (shellCases.get(caseId) as any).reason_code),
     policy.typed_failure_codes,
   );
-  assert.equal((shellCases.get('valid_package_launch') as any).accepted, true);
+  for (const caseId of [
+    'ready_without_optional_evidence',
+    'degraded_without_optional_evidence',
+    'valid_optional_evidence',
+    'optional_target_difference',
+  ]) {
+    assert.equal((shellCases.get(caseId) as any).accepted, true, caseId);
+  }
+  for (const caseId of ['invalid_optional_receipt', 'invalid_optional_binding']) {
+    assert.equal((shellCases.get(caseId) as any).accepted, false, caseId);
+  }
+  assert.equal((shellCases.get('package_unavailable') as any).failure_scope, 'selected_package_only');
+  assert.equal((shellCases.get('package_unavailable') as any).plain_codex_send_allowed, true);
+  assert.equal((shellCases.get('package_unavailable') as any).other_agent_selection_allowed, true);
   assert.deepEqual(shellCases.get('plain_conversation'), {
     case_id: 'plain_conversation',
     package_backed: false,
@@ -735,13 +805,25 @@ test('App contracts define one minimal package activation authority', () => {
   const lifecycleCases = new Map(
     launchMatrix.cases.map((entry: { case_id: string }) => [entry.case_id, entry]),
   );
+  for (const entry of launchMatrix.cases) {
+    assert.equal(entry.activation_required_before_launch, false, entry.case_id);
+    assert.equal(
+      entry.selected_package_send_allowed,
+      entry.launch_state !== 'package_unavailable',
+      entry.case_id,
+    );
+  }
+  for (const caseId of ['ready_visible_enabled', 'hidden_enabled_standard_agent']) {
+    assert.equal((lifecycleCases.get(caseId) as any).launch_state, 'ready', caseId);
+  }
   for (const caseId of [
-    'ready_visible_enabled',
     'verification_deferred_visible_enabled',
     'activation_required_visible_enabled',
-    'hidden_enabled_standard_agent',
+    'stale_status_visible_enabled',
+    'optional_dependency_missing_visible_enabled',
   ]) {
-    assert.equal((lifecycleCases.get(caseId) as any).activation_required_before_launch, true, caseId);
+    assert.equal((lifecycleCases.get(caseId) as any).launch_state, 'degraded', caseId);
+    assert.equal((lifecycleCases.get(caseId) as any).selected_package_send_allowed, true, caseId);
   }
   for (const caseId of [
     'disabled_visible_standard_agent',
@@ -753,7 +835,8 @@ test('App contracts define one minimal package activation authority', () => {
     'recovery_required_executable',
     'recovery_required_manual_owner_intervention',
   ]) {
-    assert.equal((lifecycleCases.get(caseId) as any).activation_required_before_launch, false, caseId);
+    assert.equal((lifecycleCases.get(caseId) as any).launch_state, 'package_unavailable', caseId);
+    assert.equal((lifecycleCases.get(caseId) as any).selected_package_send_allowed, false, caseId);
   }
   assert.equal(
     (lifecycleCases.get('hidden_enabled_standard_agent') as any).ordinary_discovery_visible,
@@ -761,7 +844,7 @@ test('App contracts define one minimal package activation authority', () => {
   );
   assert.equal(
     (lifecycleCases.get('hidden_enabled_standard_agent') as any)
-      .retained_shortcut_launch_allowed_after_activation,
+      .retained_shortcut_send_allowed,
     true,
   );
   for (const caseId of [
@@ -781,9 +864,18 @@ test('App contracts define one minimal package activation authority', () => {
     ),
   );
   assert.equal(
-    (workspaceCases.get('workspace_a_to_b') as any)
+    (workspaceCases.get('workspace_required_a_to_b') as any)
       .fresh_minimal_validation_required_before_next_launch,
     true,
+  );
+  assert.equal(
+    (workspaceCases.get('workspace_optional_a_to_b') as any).target_workspace_required,
+    false,
+  );
+  assert.equal((workspaceCases.get('workspace_optional_a_to_b') as any).accepted, true);
+  assert.equal(
+    (workspaceCases.get('workspace_required_b_to_c_validation_failure') as any).failure_scope,
+    'selected_package_only',
   );
   assert.equal(
     (workspaceCases.get('plain_conversation_workspace_transition') as any).activation_required,
@@ -798,39 +890,88 @@ test('App contracts define one minimal package activation authority', () => {
     exact_producer_fixture: false,
     installed_runtime_readback_required: true,
   });
-  const bindingFor = (result: any) => result.use_binding ?? result.package_use_binding;
-  const successMatchesSelection = (entry: any) => {
-    const binding = bindingFor(entry.result);
-    return entry.result.launch_allowed === true
-      && (entry.result.launch_blocked_reason === null || entry.result.launch_blocked_reason === undefined)
-      && entry.result.package_id === entry.selected.package_id
-      && entry.result.package_lock.package_id === entry.selected.package_id
-      && entry.result.package_lock.package_version === entry.selected.package_version
-      && binding.root_package.package_id === entry.selected.package_id
-      && binding.root_package.package_version === entry.selected.package_version
-      && binding.scope === 'workspace'
-      && binding.target_root === entry.selected.normalized_target_workspace;
+  const activationResultMatchesSelection = (entry: any) => {
+    const { result, selected } = entry;
+    if (!['ready', 'degraded', 'package_unavailable'].includes(result.launch_state)) return false;
+    if (result.launch_allowed !== (result.launch_state !== 'package_unavailable')) return false;
+    if (result.launch_state === 'ready' && result.launch_state_reason !== null) return false;
+    if (
+      result.launch_state !== 'ready'
+      && (typeof result.launch_state_reason !== 'string' || !result.launch_state_reason.trim())
+    ) return false;
+    if (result.package_id !== selected.package_id) return false;
+    if (result.package_version !== undefined && result.package_version !== selected.package_version) return false;
+    if (result.package_lock !== undefined && (
+      result.package_lock.package_id !== selected.package_id
+      || result.package_lock.package_version !== selected.package_version
+    )) return false;
+    if (
+      result.use_receipt_ref !== undefined
+      && (typeof result.use_receipt_ref !== 'string' || !result.use_receipt_ref.trim())
+    ) return false;
+    for (const field of ['use_binding', 'package_use_binding']) {
+      const binding = result[field];
+      if (binding === undefined || binding === null) continue;
+      if (
+        binding.root_package?.package_id !== selected.package_id
+        || binding.root_package?.package_version !== selected.package_version
+        || binding.scope !== 'workspace'
+        || typeof binding.target_root !== 'string'
+        || !binding.target_root
+        || (
+          selected.normalized_target_workspace
+          && binding.target_root !== selected.normalized_target_workspace
+        )
+      ) return false;
+    }
+    return true;
   };
   const resultCases = new Map(
     activationResults.cases.map((entry: { case_id: string }) => [entry.case_id, entry]),
   );
-  assert.equal(successMatchesSelection(resultCases.get('ready_live')), true);
-  assert.equal(successMatchesSelection(resultCases.get('already_ready_live')), true);
-  const activationPackageDrift = structuredClone(resultCases.get('ready_live') as any);
+  assert.equal(
+    activationResultMatchesSelection(resultCases.get('ready_minimal_without_optional_evidence')),
+    true,
+  );
+  assert.equal(
+    activationResultMatchesSelection(resultCases.get('ready_with_optional_evidence')),
+    true,
+  );
+  assert.equal(
+    activationResultMatchesSelection(resultCases.get('degraded_without_optional_evidence')),
+    true,
+  );
+  assert.equal(
+    activationResultMatchesSelection(resultCases.get('package_unavailable_local_only')),
+    true,
+  );
+  const activationPackageDrift = structuredClone(
+    resultCases.get('ready_minimal_without_optional_evidence') as any,
+  );
   activationPackageDrift.result.package_id = 'other-agent';
-  assert.equal(successMatchesSelection(activationPackageDrift), false);
-  const lockPackageDrift = structuredClone(resultCases.get('ready_live') as any);
+  assert.equal(activationResultMatchesSelection(activationPackageDrift), false);
+  const lockPackageDrift = structuredClone(resultCases.get('ready_with_optional_evidence') as any);
   lockPackageDrift.result.package_lock.package_id = 'other-agent';
-  assert.equal(successMatchesSelection(lockPackageDrift), false);
-  const rootPackageDrift = structuredClone(resultCases.get('ready_live') as any);
-  bindingFor(rootPackageDrift.result).root_package.package_id = 'other-agent';
-  assert.equal(successMatchesSelection(rootPackageDrift), false);
-  const versionDrift = structuredClone(resultCases.get('ready_live') as any);
-  bindingFor(versionDrift.result).root_package.package_version = '9.9.9';
-  assert.equal(successMatchesSelection(versionDrift), false);
-  const targetDrift = structuredClone(resultCases.get('already_ready_live') as any);
-  bindingFor(targetDrift.result).target_root = '/Users/example/Other';
-  assert.equal(successMatchesSelection(targetDrift), false);
+  assert.equal(activationResultMatchesSelection(lockPackageDrift), false);
+  const rootPackageDrift = structuredClone(resultCases.get('ready_with_optional_evidence') as any);
+  rootPackageDrift.result.package_use_binding.root_package.package_id = 'other-agent';
+  assert.equal(activationResultMatchesSelection(rootPackageDrift), false);
+  const versionDrift = structuredClone(resultCases.get('ready_with_optional_evidence') as any);
+  versionDrift.result.package_use_binding.root_package.package_version = '9.9.9';
+  assert.equal(activationResultMatchesSelection(versionDrift), false);
+  const targetDrift = structuredClone(resultCases.get('ready_with_optional_evidence') as any);
+  targetDrift.result.package_use_binding.target_root = '/Users/example/Other';
+  assert.equal(activationResultMatchesSelection(targetDrift), false);
+  const optionalTargetDifference = structuredClone(targetDrift);
+  delete optionalTargetDifference.selected.normalized_target_workspace;
+  optionalTargetDifference.selected.required_payload_fields = ['package_id'];
+  assert.equal(activationResultMatchesSelection(optionalTargetDifference), true);
+  const receiptDrift = structuredClone(resultCases.get('ready_with_optional_evidence') as any);
+  receiptDrift.result.use_receipt_ref = '';
+  assert.equal(activationResultMatchesSelection(receiptDrift), false);
+  const allowanceDrift = structuredClone(resultCases.get('degraded_without_optional_evidence') as any);
+  allowanceDrift.result.launch_allowed = false;
+  assert.equal(activationResultMatchesSelection(allowanceDrift), false);
 
   assert.equal(JSON.stringify(policy).includes('med-autoscience'), false);
   assert.equal(JSON.stringify(policy).includes('mas-scholar-skills'), false);
@@ -1129,11 +1270,15 @@ test('managed update payload and public actions use only the three software obje
   );
   assert.equal(
     agentsPage.agent_package_lifecycle_ux.package_projection_contract.launch_gate_policy,
-    'directory readiness may fail closed, and the live agent_package_activate result must pass the App minimal package identity, version, and target validation before creating a package-backed conversation',
+    'directory readiness is advisory for session launch; use the App ready_degraded_package_unavailable state machine, consume owner-projected JIT actions, and fail closed only for the selected package on identity version entrypoint safe-target permission or authorization boundaries',
   );
   assert.deepEqual(
-    agentsPage.agent_package_lifecycle_ux.package_projection_contract.launch_fail_closed_reason_codes,
-    ['package_not_installed', 'package_disabled', 'package_status_read_failed', 'package_dependency_missing', 'package_dependency_incompatible', 'physical_surface_not_ready', 'runtime_source_missing', 'runtime_source_incompatible', 'carrier_authority_invalid', 'package_lock_corrupt', 'package_ledger_corrupt', 'package_recovery_in_progress', 'package_recovery_required'],
+    agentsPage.agent_package_lifecycle_ux.package_projection_contract.package_unavailable_reason_codes,
+    ['package_not_installed', 'package_disabled', 'package_dependency_incompatible', 'package_identity_mismatch', 'package_version_mismatch', 'package_entrypoint_missing', 'unsafe_managed_target', 'permission_or_authorization_denied', 'package_lock_corrupt', 'package_ledger_corrupt', 'package_recovery_in_progress', 'package_recovery_required'],
+  );
+  assert.deepEqual(
+    agentsPage.agent_package_lifecycle_ux.package_projection_contract.degraded_reason_codes,
+    ['package_status_read_failed', 'package_dependency_missing', 'physical_surface_not_ready', 'runtime_source_missing', 'runtime_source_incompatible', 'carrier_authority_invalid', 'live_verification_deferred', 'update_available', 'optional_dependency_missing'],
   );
   assert.equal(
     JSON.stringify(agentsPage.agent_package_lifecycle_ux.package_projection_contract).includes('med-autoscience'),

@@ -35,6 +35,74 @@ tests 与 evidence。
 任何工作若只改善 `P2`，不能据此声称 GUI 主体验已对齐 Codex。设计评审和视觉证据
 默认先覆盖 `P0`，再覆盖 `P1`，最后覆盖 `P2`。
 
+## 功能来源分类
+
+`B0 / R1 / U1 / X0` 回答“功能从哪里来、OPL 是否必须自维护”；`P0 / P1 / P2`
+回答“先做什么”。两条轴不得互相替代。AionUI active 与 Native candidate 是同一
+`B0 + R1 + U1` 产品定义的两种 carrier，不是两层产品：AionUI 能复用就复用并保持薄适配，
+Native 将来需要独立实现同一用户结果。视觉 1:1 是独立的 pixel 目标，不改变功能来源分类。
+
+### B0 Codex 必要 Baseline
+
+| ID | 必要基线 | 为什么必要 | 当前产品边界 |
+| --- | --- | --- | --- |
+| `B0-01` | App shell、窗口、rail、响应式导航、键盘历史 | 没有稳定的桌面骨架就不是可持续使用的 Codex 工作台。 | AionUI 优先复用；Native 自行实现。视觉参考不复制 Codex 品牌或 authority。 |
+| `B0-02` | Home/New task、session/thread 目录与历史管理 | 新建、恢复、搜索、pin、rename、archive/restore 是日常入口。 | Session 是身份单位；workspace/project 只提供初始 cwd、记录与分组。 |
+| `B0-03` | Conversation timeline、streaming、stop/retry、tool/process 与错误 | 这是 AI 工作闭环，不应被 OPL 管理面取代。 | 复用 Codex/AionUI conversation adapter；错误保持真实且可恢复。 |
+| `B0-04` | Composer、文本、附件、paste/drop、显式 file/directory input | 用户必须能直接把本地上下文交给 Agent。 | 输入只进入当前 send，不做隐式 workspace preload。 |
+| `B0-05` | Model/reasoning 与 Auto/fixed 偏好 | 用户需要在发送点控制质量、速度和成本。 | 交互属于 B0；模型 entitlement、余额和默认目录 owner 归 `R1-02`。 |
+| `B0-06` | Access/permission、sandbox、approval、补充输入 | 本地 Agent 必须让权限与不可逆动作透明。 | 安全边界 fail closed；单个 OPL package 故障不得改变普通 Codex 权限流。 |
+| `B0-07` | Files、Changes、artifact preview 与常用 renderer | 用户需要查看代码、文件和交付物，而不是只读聊天文本。 | Preview/renderer 属 B0；完整 OPL evidence 平台归 `X0-02`。 |
+| `B0-08` | Git、branch、diff、review、commit/push、PR context | 编码任务需要可审查、可交付的版本控制闭环。 | 协议缺口显示 unavailable，不建立本地伪成功 store。 |
+| `B0-09` | Terminal、Browser、Environment details | Agent 工作经常需要按需查看运行与环境。 | 作为次级工具按需打开，不做默认第三栏或 OPL dashboard。 |
+| `B0-10` | Workspace 初始 cwd 与本地 Worktree 工作模式 | 本地任务需要隔离目录和执行上下文。 | 当前 AionUI 不自造既有 session cwd 重绑或 managed handoff；未来复用稳定 upstream 或由 Native 实现。 |
+| `B0-11` | Subagents / 并行子任务 | 复杂任务需要并行探索、验证与汇总。 | 展示真实状态和结果，不为 OPL 再造第二套编排 authority。 |
+| `B0-12` | Scheduled tasks/Cron、后台继续与通知 | 长任务和周期任务需要离开前台后继续。 | 属 Codex 基线候选；未 fresh 验证的 carrier 不得宣称已实现。 |
+| `B0-13` | Memory、personalization、instructions | 稳定偏好和项目指令决定长期易用性。 | 复用 owner-correct profile/refs，不新建独立 memory 平台。 |
+| `B0-14` | 通用 Settings 容器、search/back/redirect、a11y、theme、i18n | 所有配置与长期使用能力需要一致容器。 | 容器行为属于 B0；OPL 栏目、owner route 与数据语义归 `R1-05`。 |
+
+B0 不进入 OPL 自维护 12 项完成率。AionUI 已有的基线不为追求理论完整度重写；Native
+候选最终必须自行补齐。当前 carrier 实现程度见
+[`shell-conformance-matrix.md`](shell-conformance-matrix.md)，未 fresh 核对的能力一律
+`source_not_assessed`。
+
+### List 1：等价功能替换类（R1）
+
+| ID | 功能 | Codex 对应 | OPL 定义 | 为什么必要 | 优先级 | 最小验收边界 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `R1-01` | Gateway 身份 | OpenAI/ChatGPT 身份登录。 | 以 OPL Gateway 身份替换产品账号入口，同时兼容既有 Codex/API Key。 | OPL 必须能管理自己的智能体账号，又不能破坏用户已有 Codex 路径。 | `P1` | 登录、刷新、退出、脱敏身份和 secret boundary 由 Gateway owner 提供；失败不清除可用的兼容凭据。 |
+| `R1-02` | 模型 entitlement 与用量 | OpenAI 模型访问资格和账户用量。 | 由 Gateway 投影模型访问、余额、Token、成本、managed key 与 freshness。 | 账号管理若看不到可用模型和消耗，就无法做真实选择。 | `P1` | 访问来源、余额、今日/累计 Token、实际成本、managed key 与 freshness 有 owner projection；UI 不推算。 |
+| `R1-03` | OPL 首启 | Codex 登录和首次项目初始化。 | 首屏可用 Codex 核心，Gateway、Framework 与 package 环境渐进/JIT 准备。 | OPL 多了运行依赖，但首启不能成为长时间阻断页。 | `P2` | 可自修复项后台/JIT 处理；只有确认的身份、安全或核心执行器失败才局部 gate。 |
+| `R1-04` | Agents/Capabilities IA | Codex Plugins/Skills 管理入口。 | Agents 管 Agent Packages；Capabilities 管 Skills、Plugins 与 Flow，底层可复用 carrier registry。 | 用户要按“智能体”和“能力”理解 OPL，而不是理解底层打包机制。 | `P1` | 两类入口、目录、状态和动作 owner 清晰；不得复制第二份 package/skill truth。 |
+| `R1-05` | OPL Control Center | Codex Settings。 | 在同一 Settings 容器中按 App、Gateway、Framework、Packages 的唯一 owner routes 组织设置。 | 多个 authority 必须有统一可发现入口。 | `P2` | 每个设置项路由到唯一 owner state/action；Shell 不复制 runtime truth 或自造 mutation。 |
+| `R1-06` | OPL 产品分发与支持 | Codex bundle、update、deep link、feedback/support。 | 使用 OPL bundle id、更新通道、`opl://`、反馈与 support 入口。 | 用户安装、唤起、更新和求助时必须看到同一个 OPL 产品身份。 | `P2` | 冷/热启动、更新、反馈/support 与 readback 闭环；源码、安装和 release 证据分开。 |
+
+### List 2：OPL 独有功能类（U1）
+
+| ID | 功能 | Codex 对应 | OPL 定义 | 为什么必要 | 优先级 | 最小验收边界 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `U1-01` | Agent Package 目录与 lifecycle | 无直接对应；Codex 仅有通用 Plugins/Skills。 | 统一查看、安装、更新、启停、隐藏、卸载、修复和配置 OPL Agent Packages。 | OPL App 的核心定位是方便调用和管理自己的智能体账号/包。 | `P1` | 全部消费 Framework directory/actions/readback；Shell 不直接修改 package truth。 |
+| `U1-02` | Purpose/Starter 与 active context | 无直接对应；最接近 Codex New task/prompt 入口。 | 从用户目标直接选择专业 Agent，并以低权重 active context 表达当前能力。 | 用户不应先配置技术组件才能调用专业 Agent。 | `P1` | Starter 可选择、active context 可见、管理入口可达，并绑定真实 package identity。 |
+| `U1-03` | 弹性 Agent 启动与 JIT prepare | 无直接对应。 | 以 `ready / degraded / package_unavailable` 消费 owner-projected action，局部准备或降级继续。 | 既要防止错包执行，也不能因 stale/deferred/可选证据缺失动辄全局 block。 | `P1` | Workspace 仅按 action 需要；单包不可用不影响普通 Codex、其他 Agent、draft 或既有 session。 |
+| `U1-04` | App / OPL Base / Packages 三对象 lifecycle | 无直接对应；Codex 只有自身 App 更新。 | 三对象分别安装、更新、修复、恢复并由各自 owner 给出终态 readback。 | 三类生命周期、重启和回滚 owner 不同，混成一个 updater 会产生假成功。 | `P2` | 三对象均可见，各走 owner route；有中断恢复和 terminal readback，不强求共用 mutation API。 |
+| `U1-05` | Docker/WebUI 同产品语义 | 无直接对应。 | Desktop 与 Docker/WebUI 共享核心 route、状态、action、错误和 authority 语义。 | WebUI 是 OPL 的部署与远程使用入口，不能成为另一个产品。 | `P2` | 核心语义一致；transport 和 Desktop-only 安全能力可明确不同。 |
+| `U1-06` | OPL 数据与安全清理 | 无直接对应。 | 对 Agent packages、runtime、本地缓存和 WebUI volume 提供 owner inventory 与受管清理。 | 长期使用会持续增长数据，普通用户需要可预览、可确认、可恢复的清理。 | `P2` | 独立 inventory、owner dry-run、managed path/hash guard、确认、receipt；不得泛化删除 workspace 或 domain artifact。 |
+
+R1 与 U1 的当前实现程度按 carrier 分开维护在
+[`shell-conformance-matrix.md#r1--u1-必要功能实现矩阵`](shell-conformance-matrix.md#r1--u1-必要功能实现矩阵)。
+`implemented / partial / missing` 只描述 source；pixel、install 和 release 是独立证据轴。
+
+### X0 条件保留 / 当前非目标
+
+| ID | 条件能力 | 当前处理 |
+| --- | --- | --- |
+| `X0-01` | 全局跨项目 Runtime cockpit / Work Item 总览 | AionUI 已有 route 可维护，Native 可延后；不阻断 B0/R1/U1。 |
+| `X0-02` | 完整 Evidence/Provenance/receipt/route-ref 平台 | 只保留 owner-required refs、confirmation 与 receipt；完整 cockpit 条件推进。 |
+| `X0-03` | Hosted Workspace / cloud-continuous execution | 等稳定后端、账户和计费 owner 出现后再启用，不用占位 UI 宣称可用。 |
+| `X0-04` | Fabric/HPC/远程资源控制面 | Settings 最多提供连接 refs/owner route；完整调度归 domain/runtime 产品。 |
+| `X0-05` | 跨主机 handoff、carrier 自建 managed remote Worktree 或第二协调面 | 当前明确不自造；只有稳定 upstream 能力与真实需求同时成立才重评。 |
+| `X0-06` | Raw runtime/operator diagnostics 与完整 repair cockpit | 仅留 Settings > Advanced 和 release tooling，ordinary UI 不展示 raw protocol。 |
+
 本文的“现有功能不降级”只保护已经进入 OPL App contracts、ordinary routes 或正式用户路径的
 能力。AionUI 上游自带但未被 OPL App 采纳的 Team、provider/backend、任意 skills/MCP、
 Sites/Chat 等入口可以隐藏或拒绝；它们不构成 OPL 功能回归。
@@ -71,7 +139,7 @@ Sites/Chat 等入口可以隐藏或拒绝；它们不构成 OPL 功能回归。
 | Permission/access mode | 在 Home 与 conversation composer 以自动化和文件权限的用户语言显示，保留安全透明度但不暴露 provider/backend。 | GUI contract、workspace/access policy。 |
 | Purpose selection | 从 Home starter 选择当前启用的工作目的；默认显示科研、基金、演示和元智能体，写书保留为可开启入口。Home 只用 starter 选中态表达 active capability，不在 composer 重复标签；conversation 可显示低权重 chip。Package 安装、Home 显示、顺序和 lifecycle 管理进入 Settings → Agents，Skills/Plugins/Flow 管理进入 Settings → Capabilities。 | Product profile、GUI contract、route receipt policy。 |
 | Assistant-scoped capabilities | 只显示当前 package/purpose 允许的 required/optional skills。 | App packaged skill profiles 与 ordinary capability policy。 |
-| Package launch readiness | 所有可见 starter 始终可选择；选择后可显示用户可理解的 readiness 原因和允许动作，发送或启动前必须通过 Framework-owned use-boundary activation，失败时 fail closed。 | Agent package activation policy、Framework state/action receipt。 |
+| Package launch readiness | 所有可见 starter 始终可选择；发送时按 owner projection 进入 `ready / degraded / package_unavailable`。优先 JIT prepare、自修复或安全 fallback；只有明确身份/版本/入口/安全目标/权限失败时局部阻止所选 Agent。 | Agent package activation policy、Framework state/action projection。 |
 | User-input and permission prompt | 当前 conversation 需要 command/file/permission approval、补充信息或 MCP elicitation 时，沿用 AionUI ACP 的现有可见流程；拒绝、取消或协议错误保持真实失败。 | AionUI ACP 与 Codex permission/request flow。 |
 | Turn receipt | 用户可查看本轮 route、action、result 和恢复 refs，不默认暴露 raw JSON。 | App/domain/runtime receipt refs；GUI 不拥有 receipt authority。 |
 
@@ -86,7 +154,7 @@ Sites/Chat 等入口可以隐藏或拒绝；它们不构成 OPL 功能回归。
 | Optional package shortcuts | 用户可按安装状态和个人选择显示其它 compliant packages。 | Agent package registry、App shortcut preference。 |
 | Package directory | 查看已安装 package、exposure、状态轴、来源和推荐动作。 | `app_state.agent_packages`、App action catalog。 |
 | Package lifecycle actions | 通过统一 preview/confirm/receipt flow 安装、更新、修复、隐藏、禁用或卸载。 | App state/action；shell 不直接修改 package/runtime truth。 |
-| Package use-boundary activation | 每次已安装 package 的 workspace/quest launch 前请求 Framework reconcile compatible closure，并只在 `launch_allowed` 与 use receipt/binding 完整时进入 Codex conversation。 | Framework package lifecycle owner；App 只 prepare、投影 readback 并 launch。 |
+| Package use-boundary activation | 只在所选 directory entry 投影 activation action 或需要 degraded JIT prepare 时消费该 exact action；`required_payload_fields` 决定是否需要 Workspace。receipt、binding 和 closure 是可审计结果或 diagnostics，不是普通启动必须齐备的硬门槛。 | Framework package lifecycle owner；App 只消费 projected action、最小身份/版本/入口/安全目标 readback 并隔离单包失败。 |
 
 Purpose shortcut 只改变 route context 和 capability profile，不定义 domain workflow、
 artifact schema、quality verdict 或 readiness。普通用户标签描述工作目的；package id、

@@ -13,7 +13,7 @@ contracts、adapter/candidate contracts、shell source/tests 或 fresh evidence�
 
 ## 读法
 
-状态必须同时读取三条独立轴，不能用 contract 状态代替 source 或 pixel 结论：
+状态必须独立读取 contract、source、pixel、install 与 release，不能用任一轴替代另一轴：
 
 | Axis | Status | 含义 |
 | --- | --- | --- |
@@ -29,9 +29,42 @@ contracts、adapter/candidate contracts、shell source/tests 或 fresh evidence�
 | `pixel_status` | `pixel_unverified` | 没有足够的当前像素证据。 |
 | `pixel_status` | `pixel_blocked` | 已尝试当前视觉验证，但被明确启动/环境断点阻断。 |
 | `pixel_status` | `not_applicable` | 该项是 authority/transport/release-role 等非像素结论。 |
+| `install_status` | `install_verified` | 有 exact source/package binding 和安装后 readback；不表示 release promotion。 |
+| `install_status` | `install_unverified` | 没有绑定当前 exact source 的安装/readback 证据。 |
+| `install_status` | `install_blocked` | 已尝试安装验收，但被明确环境或授权断点阻断。 |
+| `release_status` | `release_verified` | 有 owner-approved release、公开 artifact 与安装/运行 readback。 |
+| `release_status` | `release_unverified` | 没有该功能绑定当前 release cohort 的完整证据。 |
+| `release_status` | `release_blocked` | release owner 已记录明确 terminal blocker。 |
 
 `pixel_verified` 可以与 `source_partial` 同时出现。它只证明画面非空且对应路径被实际
 打开，不能证明元素位置、交互、视觉一致、package/VM acceptance 或 release-ready。
+
+## R1 / U1 必要功能实现矩阵
+
+本表只维护 OPL 必须自维护的 12 项。功能定义对 AionUI 与 Native 完全相同，source
+状态按 carrier 分开；`P/I/R` 依次为 pixel/install/release。当前 12 项均为
+`pixel_unverified / install_unverified / release_unverified`：已有截图、安装包或测试都没有同时
+绑定当前 exact feature source、安装 readback 和 release promotion，不能按功能外推完成。
+
+| ID | 功能与为什么必要 | Contract | AionUI 承载方式 | AionUI source | AionUI P/I/R | Native target/current | Native P/I/R | 当前最小缺口 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `R1-01` | Gateway 身份。OPL 必须管理自己的智能体账号，同时保留既有 Codex/API Key。 | `aligned_contract` | `L2 bridge/adapter + L3 composition` | `source_implemented` | `pixel_unverified` / `install_unverified` / `release_unverified` | 同一身份结果；`source_partial` | `pixel_unverified` / `install_unverified` / `release_unverified` | Native 补 typed login、refresh、disconnect；WebUI manual-key-only 保持安全边界。 |
+| `R1-02` | Gateway 模型 entitlement、余额、Token 和成本。没有真实访问与消耗信息就无法做模型选择。 | `aligned_contract` | `L2 bridge/adapter + L3 composition` | `source_implemented` | `pixel_unverified` / `install_unverified` / `release_unverified` | 同一 entitlement/usage 结果；`source_partial` | `pixel_unverified` / `install_unverified` / `release_unverified` | Native 补余额、今日/累计 Token、actual cost、managed key 和 freshness。 |
+| `R1-03` | 非阻断 OPL Core setup。OPL 多了环境准备，但首启不能变成长时间 blocker。 | `aligned_contract` | `L2 bridge/adapter + L3 composition` | `source_implemented` | `pixel_unverified` / `install_unverified` / `release_unverified` | 同一渐进首启结果；`source_missing` | `pixel_unverified` / `install_unverified` / `release_unverified` | Native 实现可恢复、尽量非阻断的 Core setup；只局部 gate 确认的身份/安全/核心执行器失败。 |
+| `R1-04` | Agents / Capabilities IA。用户按智能体和能力理解 OPL，而不是理解底层 Plugins/Skills 打包。 | `aligned_contract` | `upstream reuse + L1 profile + L3 composition` | `source_implemented` | `pixel_unverified` / `install_unverified` / `release_unverified` | 同一 IA/owner route；`source_partial` | `pixel_unverified` / `install_unverified` / `release_unverified` | Native 补独立 owner routes/registry；AionUI 底层复用 SkillsHub 不算缺口。 |
+| `R1-05` | OPL Control Center owner routes。多 authority 必须有统一、可发现且不复制 truth 的入口。 | `aligned_contract` | `upstream reuse + L1 profile + L2/L3` | `source_implemented` | `pixel_unverified` / `install_unverified` / `release_unverified` | 同一 hydrated Settings registry；`source_partial` | `pixel_unverified` / `install_unverified` / `release_unverified` | Native 消费 registry、redirect 和 anchor，不停留在 shell-local localStorage。 |
+| `R1-06` | OPL bundle、update、deep link、feedback/support。安装、唤起、更新和求助必须是同一产品。 | `aligned_contract` | `L1 profile + L2 bridge/adapter` | `source_partial` | `pixel_unverified` / `install_unverified` / `release_unverified` | 同一分发/协议结果；`source_partial` | `pixel_unverified` / `install_unverified` / `release_unverified` | AionUI 补 `opl://` parser、协议注册、冷启动/二次实例；Native 补正式 updater/deep-link/support。 |
+| `U1-01` | Agent Package 目录与 lifecycle。这是“调用和管理自己的智能体账号/包”的核心。 | `aligned_contract` | `L2 bridge/adapter + L3 composition` | `source_implemented` | `pixel_unverified` / `install_unverified` / `release_unverified` | 同一 Framework lifecycle/readback；`source_partial` | `pixel_unverified` / `install_unverified` / `release_unverified` | Native 从 preview/dry-run 补到真实 lifecycle 与 readback。 |
+| `U1-02` | Purpose/Starter 与 active context。用户应从目标直接进入专业 Agent。 | `aligned_contract` | `L1 profile + L3 composition` | `source_implemented` | `pixel_unverified` / `install_unverified` / `release_unverified` | 同一 package-backed starter；`source_partial` | `pixel_unverified` / `install_unverified` / `release_unverified` | Native 把 prompt/dry-run 接到 package-backed launch 和 active binding。 |
+| `U1-03` | 弹性 Agent 启动/JIT prepare。需要准备 use boundary，但 AI-first 交互不能动辄全局 block。 | `aligned_contract` | `L2 bridge/adapter` | `source_implemented` | `pixel_unverified` / `install_unverified` / `release_unverified` | 同一 projected action/三态；`source_missing` | `pixel_unverified` / `install_unverified` / `release_unverified` | AionUI 已消费 owner-projected action 和三态，移除 `operational_ready=false` 二次一刀切与普遍 Workspace 要求；仍需绑定当前 source 的 pixels/install/release 证据。 |
+| `U1-04` | App / OPL Base / Packages 三对象 lifecycle。三类 owner 不同，混成一个 updater 会产生假成功。 | `aligned_contract` | `L2 bridge/adapter + L3 composition` | `source_partial` | `pixel_unverified` / `install_unverified` / `release_unverified` | 同一三对象 terminal readback；`source_partial` | `pixel_unverified` / `install_unverified` / `release_unverified` | 补三对象各自 first-install、终态 readback 和中断恢复，不强求同一 mutation API。 |
+| `U1-05` | Docker/WebUI 同产品语义。WebUI 是 OPL 的部署入口，不能成为另一个产品。 | `aligned_contract` | `upstream reuse + L2 transport adapter` | `source_partial` | `pixel_unverified` / `install_unverified` / `release_unverified` | 同一 Web product target；`source_partial` | `pixel_unverified` / `install_unverified` / `release_unverified` | 补 Web Storage/core route parity 与当前 Docker cohort；Desktop-only 安全差异必须显式。 |
+| `U1-06` | OPL 数据、缓存、包体空间与安全清理。长期使用必须可预览、可确认、可恢复。 | `aligned_contract` | `L2 bridge/adapter + L3 composition` | `source_partial` | `pixel_unverified` / `install_unverified` / `release_unverified` | 同一 owner inventory/cleanup；`source_missing` | `pixel_unverified` / `install_unverified` / `release_unverified` | AionUI 增加 Agent Package store 独立 inventory/owner cleanup 和 Web transport；Native 实现完整路径。 |
+
+Source 状态说明：AionUI `R1-01..05`、`U1-01..03` 为 `source_implemented`；
+`R1-06`、`U1-04..06` 为 `source_partial`，没有完全 missing。Native 的 `R1-03`、
+`U1-03`、`U1-06` 为 `source_missing`，其余为 `source_partial`。这里的 `source_implemented`
+只证明主要源码路径和专项测试存在，不等于本轮 fresh test pass，更不等于 pixels、install 或 release。
 
 本矩阵的功能/交互目标来自：
 
@@ -142,7 +175,7 @@ Active AionUI 默认状态通过 README 治理段声明的动态 state source �
 | P0 | Composer | Add/access、model/reasoning 与 send-stop 位于发送决策点；不重复 rail/Environment context。 | Desktop/mobile 共用 App resolver/profile；mobile `+` sheet 收纳次级动作；legacy intelligence proxy controls 已移除。 | `source_implemented`, `pixel_verified` | Current pixels覆盖desktop controls/model menu与mobile action sheet；不恢复第二 provider/service truth。 |
 | P0 | Environment details | 右上 anchored floating summary，默认关闭；只读显示 recorded workspace 与 live Git context。 | Environment 渲染真实 workspace、branch、changes 与 refs，使用 live Git inspection，不提供 cwd、locality 或 Worktree mutation；与 Files/Preview 分离。 | `source_implemented`, `pixel_verified` | Current pixel覆盖Environment popover与Browser入口；只读边界由 focused DOM/source tests 证明。 |
 | P0 | Visual grammar | 白 main、浅灰 rail、窄 reading lane、低对比、小圆角、极少页面卡片。 | Current 9场景覆盖light/dark、desktop/mobile与zh-CN/en-US；历史8场景保持原字节。 | `source_implemented`, `pixel_verified` | 只证明指定route/layout非空且无声明溢出，不宣称1:1 parity。 |
-| P1 | OPL capabilities | Purpose 从 Home starter 选择，composer 只显示 active capability；管理进入 Settings。 | Home package shortcuts、Settings directory/visibility/lifecycle 与 fail-closed readiness gate 已实现；generic backend/provider/Team 未回 ordinary UI。 | `source_implemented`, `pixel_unverified` | 补 current unavailable/activating/blocked starter pixels。 |
+| P1 | OPL capabilities | Purpose 从 Home starter 选择，composer 只显示 active capability；管理进入 Settings。 | Home package shortcuts、Settings directory/visibility/lifecycle 已实现；启动消费 owner-projected `ready / degraded / package_unavailable`，只在 action 明确要求时 gate Workspace；generic backend/provider/Team 未回 ordinary UI。 | `source_implemented`, `pixel_unverified` | 补绑定当前 source 的三态 pixels/install 证据。 |
 | P1 | Progress / approval / receipt | 进入当前 timeline；沿用 AionUI ACP 的 permission、user-input 与错误状态。 | Current-task summary 保持 timeline 单一实例，不增加跨线程 pending-request 或 delivery-audit 控制面。 | `source_implemented`, `pixel_unverified` | 补真实 approval/user-input packaged route evidence。 |
 | P1 | Artifacts / evidence | Environment 次级 refs、Preview、Files 或 turn disclosure。 | Files 与 Preview 按需且窄屏互斥；mobile Preview 使用完整可读 overlay；transcript export 已按 cursor 与脱敏合同加固。 | `source_implemented`, `pixel_verified` | Current pixels覆盖desktop Files与mobile Preview composition；PDF/Mermaid/KaTeX内容渲染另做专项 evidence。 |
 | P1 | Artifact preview adapter | 当前 session 显式 attachment、可见 conversation result 或用户选择的合法绝对本地路径薄接现有 Preview；隐式 workspace ref、traversal、非法 scheme、自动静默读取返回明确失败。 | `b2c05a1c...` 已复用既有 renderer/store，覆盖 projectless file access、session ref 与 absolute-path 分流。 | `source_implemented`, `pixel_unverified` | Current Preview pixel未证明session/absolute-path分流与非法输入；保持行为测试边界。 |
@@ -176,7 +209,7 @@ Native candidate 不得与 active-shell P0 差距竞争实施资源。
 | 模型与推理策略由 App profile 驱动 | `aligned_contract` | `source_implemented` | `pixel_unverified` | `candidate_target` | `source_partial` | `pixel_verified` | AionUI desktop/mobile controls 共用 App Auto/fixed resolver；legacy intelligence proxy UI 已移除。 |
 | Permission/access mode 在 composer 可见且不用 backend/provider 术语 | `aligned_contract` | `source_implemented` | `pixel_verified` | `current_contract_deviation` | `source_missing` | `pixel_unverified` | Current desktop composer与mobile action-sheet pixels均绑定access control且不暴露backend/provider。 |
 | Purpose 从 Home starter 选择，Home 不重复 capability 标签，管理进入 Settings | `aligned_contract` | `source_implemented` | `pixel_unverified` | `current_contract_deviation` | `source_partial` | `pixel_verified` | AionUI 使用 `HomeStarters + Settings Capabilities`，Home 由 starter 选中态表达能力，普通 composer 不再持久显示 purpose selector。 |
-| Selected package launch fail closed without gating ordinary Codex | `aligned_contract` | `source_implemented` | `pixel_unverified` | `not_claimed` | `source_missing` | `pixel_unverified` | Current AionUI source覆盖 selected package 的 missing/unavailable/blocked、activation wait/readback 和 send guard；普通 projectless Codex conversation 独立可用，manifest-only Workspace 前提的 activation 细节由对应 owner 整合。 |
+| Selected package launch uses ready/degraded/package_unavailable without gating ordinary Codex | `aligned_contract` | `source_implemented` | `pixel_unverified` | `not_claimed` | `source_missing` | `pixel_unverified` | AionUI 已精确消费 owner-projected action、支持 JIT/degraded continuation、optional Workspace 和单包故障隔离；仍需绑定当前 source 的三态 pixels/install 证据。 |
 | 可 pin current-task summary bar | `aligned_contract` | `source_implemented` | `pixel_unverified` | `current_contract_deviation` | `source_partial` | `pixel_unverified` | `CurrentTaskAwareness` 提供 pin、status、elapsed、progress、next action 和 stop。 |
 | Environment popover 与 workspace surfaces 分离 | `aligned_contract` | `source_implemented` | `pixel_verified` | `current_contract_deviation` | `source_partial` | `pixel_unverified` | Current dark desktop pixel覆盖Environment popover与Browser入口；recorded workspace 与 Git context 保持只读。 |
 | Advanced surfaces 默认无第三列；Files/Changes 按需，Preview 独立 | `aligned_contract` | `source_implemented` | `pixel_verified` | `current_contract_deviation` | `source_partial` | `pixel_verified` | Current desktop Files与mobile Preview pixels证明按需surface；旧八类equal-weight taxonomy保持退出。 |

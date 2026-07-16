@@ -348,8 +348,9 @@ First-run 的目标是让用户尽快进入可工作的 App：
 - Environment details 默认关闭且 anchored，打开后不破坏 conversation/draft。
 - Home 使用动态问题标题与全部用户可见 configured starters，不静默截断，也不是
   dashboard/landing。
-- Package starter unavailable 时有原因和允许动作；launch 前 activation fail closed，成功时
-  绑定 use receipt/binding。
+- Package starter 始终可选，发送时明确呈现 `ready / degraded / package_unavailable`；degraded
+  允许 JIT prepare、自修复或安全 fallback，只有明确不兼容或不安全边界才局部阻止所选 package。
+  Workspace 仅在 owner-projected action 要求时提供；receipt/binding 有则校验，不作为普遍启动门槛。
 - Project task 与 projectless conversation 均可用；无 workspace 时 attachment、任意本地文件/目录
   选择、paste/drop 与 `/open` 保持可用，访问只由 Codex permission/approval/sandbox 决定。
 - Composer 只有 textarea、send-local controls 和 bottom action row；purpose 不再常驻可变

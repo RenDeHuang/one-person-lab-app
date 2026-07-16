@@ -210,12 +210,52 @@ function validateAiFirstInteractionModel(guiContract) {
     !model ||
     model.default_visual_basis !== 'codex_app_composer_first' ||
     model.primary_policy !== 'maximize_direct_ai_interaction_on_the_chat_canvas' ||
+    model.default_failure_semantics !==
+      'fail_open_with_bounded_self_repair_jit_preparation_degradation_or_fallback' ||
+    model.progress_policy !== 'preserve_user_momentum_and_attempt_safe_progress_before_requesting_manual_repair' ||
+    model.fault_isolation_policy !==
+      'a_selected_capability_failure_may_block_only_that_capability_while_plain_Codex_other_Agents_drafts_and_existing_sessions_remain_available' ||
+    model.error_visibility_policy !==
+      'never_swallow_or_relabel_a_real_failure_and_always_keep_a_user_comprehensible_reason_and_next_action' ||
     model.right_context_policy !== 'on_demand_advanced_surfaces_no_default_third_column' ||
     model.mas_autonomy_policy !== 'MAS_runs_as_autonomous_research_execution_not_co_scientist_pair_work' ||
     model.open_science_learning_policy !== 'adopt_artifact_provenance_review_and_plain_language_data_flow_patterns_as_secondary_context_only'
   ) {
     throw new Error('App GUI AI-first interaction model must keep Codex App composer-first defaults and collapsed secondary context');
   }
+  assertIncludesAll(
+    model.recovery_order,
+    [
+      'consume_owner_projected_action_or_self_repair',
+      'prepare_missing_use_boundary_state_just_in_time',
+      'continue_in_degraded_mode_or_use_a_safe_fallback',
+      'preserve_draft_and_offer_an_owner_route_when_the_selected_capability_is_unavailable',
+    ],
+    'App GUI AI-first recovery order',
+  );
+  assertIncludesAll(
+    model.must_not_preemptively_block_on,
+    [
+      'stale_or_verification_deferred_status',
+      'update_available',
+      'optional_dependency_missing',
+      'optional_receipt_or_binding_absent',
+      'workspace_absent_when_the_owner_projected_action_does_not_require_target_workspace',
+    ],
+    'App GUI AI-first fail-open signals',
+  );
+  assertIncludesAll(
+    model.localized_fail_closed_boundaries,
+    [
+      'selected_package_identity_or_incompatible_version_mismatch',
+      'selected_package_entrypoint_missing',
+      'unsafe_managed_target_or_path_traversal',
+      'permission_sandbox_or_account_authorization_denial',
+      'unconfirmed_irreversible_external_mutation',
+      'success_or_authority_claim_cannot_be_truthfully_supported',
+    ],
+    'App GUI AI-first localized fail-closed boundaries',
+  );
   assertIncludesAll(
     model.allowed_adoptions,
     [

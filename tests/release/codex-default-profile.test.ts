@@ -138,7 +138,8 @@ test('active-shell source gate requires Home starters and Capabilities routing i
       "data-testid='opl-home-starters'",
       'aria-pressed={active}',
       'data-opl-active={String(active)}',
-      'data-opl-launch-ready={String(launchGate.launchAllowed !== false)}',
+      "const launchReady = launchGate.state !== 'package_unavailable'",
+      'data-opl-launch-ready={String(launchReady)}',
       'active && styles.homeStarterActive',
       "data-testid='starter-active-check'",
       "<CheckOne theme='filled'",
@@ -712,4 +713,49 @@ test('page-state matrix rejects Codex Auto policy source drift', () => {
   guidHome.home_view_model.codex_auto_model_policy_ref = 'shell-local-policy';
 
   assert.throws(() => validatePrimaryInteractionPages(matrix));
+});
+
+test('GUI contract rejects restoring global fail-closed Agent launch behavior', () => {
+  const guiContract = structuredClone(readJson('contracts/app-gui-product-contract.json'));
+  guiContract.agent_package_activation_policy.failure_policy.default_interaction_policy =
+    'fail_closed';
+
+  assert.throws(
+    () => validateAppGuiProductContract(
+      guiContract,
+      readJson('contracts/app-release-channel.json'),
+      readJson('contracts/app-install-exposure-policy.json'),
+    ),
+    /keeping ready, degraded, and plain Codex usable/,
+  );
+});
+
+test('GUI contract rejects making Workspace a universal Agent launch prerequisite', () => {
+  const guiContract = structuredClone(readJson('contracts/app-gui-product-contract.json'));
+  guiContract.agent_package_activation_policy.workspace_policy
+    .workspace_is_not_a_universal_agent_launch_precondition = false;
+
+  assert.throws(
+    () => validateAppGuiProductContract(
+      guiContract,
+      readJson('contracts/app-release-channel.json'),
+      readJson('contracts/app-install-exposure-policy.json'),
+    ),
+    /keeping ready, degraded, and plain Codex usable/,
+  );
+});
+
+test('GUI contract rejects blocking sends for degraded Agent launch state', () => {
+  const guiContract = structuredClone(readJson('contracts/app-gui-product-contract.json'));
+  guiContract.agent_package_activation_policy.launch_state_machine.degraded
+    .selected_package_send_allowed = false;
+
+  assert.throws(
+    () => validateAppGuiProductContract(
+      guiContract,
+      readJson('contracts/app-release-channel.json'),
+      readJson('contracts/app-install-exposure-policy.json'),
+    ),
+    /keeping ready, degraded, and plain Codex usable/,
+  );
 });

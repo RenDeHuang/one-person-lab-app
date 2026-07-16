@@ -307,7 +307,8 @@ command 和可见状态 anchor。
   context/stage/commit/push，并在 `gh` 缺失时明确 unavailable；Last turn复用既有message store且
   不新增状态源，line-level comments在typed Codex protocol缺失时必须保持 unavailable；
 - Settings 从 Control Plane registry/slots 渲染，legacy routes 只 redirect；
-- Home package starter 在 unavailable/activating/blocked 状态有真实 readback，launch 前
-  activation fail closed；
+- Home package starter 始终可选，发送时从 owner projection 归一为
+  `ready / degraded / package_unavailable`；degraded 允许 JIT prepare、自修复或安全 fallback，
+  只有明确身份/版本/入口/安全目标/权限失败才局部阻止所选 package；
 - 普通 UI 不拥有 runtime/domain/artifact/release truth；
 - focused behavior、visual pixels 和 package/release claim 使用匹配层级的证据。

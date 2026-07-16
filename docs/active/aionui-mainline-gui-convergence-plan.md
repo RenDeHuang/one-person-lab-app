@@ -15,10 +15,15 @@ OPL App 是 AionUI 上的可信本机薄壳，目标是在不长期维护上游�
 
 1. session/thread 是唯一会话身份；
 2. project/directory 只是当前工作目录、历史分组和新会话快捷入口，不拥有会话或上下文；
-3. 同一 session 可以切换到任意本机目录，同时保留 thread、transcript、turn history、title 和 task state；
+3. workspace 只记录新任务初始 cwd 与只读分组；命令或 turn 的实际 `pwd` 不持久反写 session；
 4. OPL Agent Package 是受管的官方插件，提供更强安装和状态管理，但不改变 Codex 的会话模型；
 5. AionUI 基础 ACP 和一个 Codex App Server adapter 承载普通会话与用户触发的线程操作；
 6. App 定义产品和验收，Shell 不建立第二状态源，AionCore 保持 no-write。
+
+功能来源与实现优先级不混用：`B0 / R1 / U1 / X0` 及两张必要功能 List 只在
+[`../product/gui/feature-inventory.md`](../product/gui/feature-inventory.md) 定义；AionUI/Native
+当前 source、pixel、install、release 状态只在
+[`../product/gui/shell-conformance-matrix.md`](../product/gui/shell-conformance-matrix.md) 维护。
 
 因此项目下不显示“上下文 / 添加上下文”，也不把会话描述成归属于某个项目。Workspace selector
 只设置新 session 初始 cwd；既有 session 不提供目录重绑。
@@ -31,7 +36,7 @@ OPL App 是 AionUI 上的可信本机薄壳，目标是在不长期维护上游�
 | Thread 操作 | 一个 App Server adapter；用户触发 list/read/start/resume/fork/archive 和必要 turn 操作 | 第二 JSON-RPC client、独立 coordination 页面、model delivery |
 | Session / cwd | 新任务选择初始 cwd；projectless session 可直接开始；Environment 只读 | project 拥有 session/context、既有 session cwd 重绑或 rail 重分组 |
 | Worktree | 当前版本不提供 managed Worktree/Handoff | Local/Worktree launch mode、starting branch、create/reuse、snapshot、cleanup、restore |
-| Agent Package | package ID、installed/root version、canonical managed target、current selection、`launch_allowed` 和 typed error | owner ledger、single-use token、anti-replay、provenance、deep alias/provider closure |
+| Agent Package | exact owner-projected action、`required_payload_fields`、`ready / degraded / package_unavailable`、最小 package identity/version/entrypoint/safe-target 校验与 typed error | Shell 预解析 manifest、普遍 Workspace 前提、完整 receipt/binding/closure 硬门槛、owner ledger、anti-replay |
 | Review | 复用普通 diff/files；上游无 typed 能力时 truthful unavailable | 私有行级 annotation、伪造成功、cross-host/model-delivery 依赖 |
 | Settings | 单一 Settings IA、System/Light/Dark、账户行复用现有 updater | 主题预设画廊、侧栏重复返回、第二 updater |
 | Visual | Codex App 的字体、颜色、图标、间距、排版和阴影作为 human target | 用合同或 source gate 代替 installed pixels |
@@ -49,8 +54,10 @@ OPL App 是 AionUI 上的可信本机薄壳，目标是在不长期维护上游�
 4. Shell focused behavior/DOM tests证明实现，不以大段 source-string 断言替代行为验证；
 5. release profile 将 local install 与 explicit public Stable 分开。
 
-Agent Package 的失败语义只要求 fail closed：无匹配 package、版本或受管目标时，不创建用户可见
-成功状态，并返回明确 typed error。普通 conversation 不受 package 路径误伤。
+Agent Package 默认 fail-open：先执行 owner-projected 自修复/JIT action，再降级或 fallback；
+`package_unavailable` 只阻止所选 Agent 并保留 draft。只有 package 身份/不兼容版本、入口、
+不安全 managed target、权限/授权或不可逆 mutation 等真实性与安全边界局部 fail closed。
+普通 Codex、其他 Agent 和既有 session 不受单包路径误伤。
 
 ## 视觉收敛
 

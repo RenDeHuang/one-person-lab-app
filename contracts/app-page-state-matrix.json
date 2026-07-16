@@ -3267,7 +3267,7 @@
         "a dedicated package catalog search plus package role, install or activation status, and source filters",
         "registry refresh as an ordinary visible action and manifest URL installation only in the Agents page advanced install disclosure",
         "row install, activate, update, repair, enable, disable, hide, unhide, and uninstall actions exactly as projected by Framework",
-        "workspace activation payload with scope and target_workspace from app_state.paths.workspace_root_path, or a disabled reason and Workspace route when it is missing",
+        "the exact owner-projected activation payload, adding target_workspace from app_state.paths.workspace_root_path only when required_payload_fields requires it; otherwise package-id-only activation stays enabled",
         "Chinese product display names and explicit managed or developer runtime source labels",
         "global automatic, managed, or developer source selection kept independent from maintenance permission",
         "OPL Meta Agent as an explicit default-visible managed package row without becoming a legacy default assistant",

@@ -618,7 +618,7 @@ export function validateOplAppStateFastAgentPackageDirectoryFixture(fixture) {
     || representativeStatus.activation_action.action_id !== 'agent_package_activate'
     || representativeStatus.dependent_guard.disable.allowed !== true
   ) {
-    throw new Error('Agent Package fast status fixture must match the fail-closed producer ABI with canonical status-index fields');
+    throw new Error('Agent Package fast status fixture must preserve the advisory producer ABI and canonical status-index fields');
   }
 }
 

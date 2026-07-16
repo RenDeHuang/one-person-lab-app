@@ -7,6 +7,24 @@
     "activation": "opl app action execute --action agent_package_activate --payload <json> --json",
     "status_and_dry_run_write_count": 0
   },
+  "launch_state_contract": {
+    "states": [
+      "ready",
+      "degraded",
+      "package_unavailable"
+    ],
+    "selected_package_send_allowed": {
+      "ready": true,
+      "degraded": true,
+      "package_unavailable": false
+    },
+    "fault_isolation": {
+      "plain_codex_send_allowed": true,
+      "other_agent_selection_allowed": true,
+      "existing_sessions_remain_available": true,
+      "draft_preserved": true
+    }
+  },
   "exposure_state": {
     "fields": [
       "enabled",
@@ -41,45 +59,80 @@
       "installed": true,
       "package_role": "standard_agent",
       "readiness": "ready",
+      "launch_state": "ready",
       "exposure": {
         "enabled": true,
         "visibility": "visible"
       },
-      "activation_required_before_launch": true,
+      "activation_required_before_launch": false,
       "ordinary_discovery_visible": true,
-      "explicit_launch_allowed_after_activation": true
+      "selected_package_send_allowed": true
     },
     {
       "case_id": "verification_deferred_visible_enabled",
       "installed": true,
       "package_role": "standard_agent",
       "readiness": "verification_deferred",
+      "launch_state": "degraded",
       "exposure": {
         "enabled": true,
         "visibility": "visible"
       },
-      "activation_required_before_launch": true,
+      "activation_required_before_launch": false,
+      "jit_activation_attempt_before_send": true,
       "ordinary_discovery_visible": true,
-      "explicit_launch_allowed_after_activation": true
+      "selected_package_send_allowed": true
     },
     {
       "case_id": "activation_required_visible_enabled",
       "installed": true,
       "package_role": "standard_agent",
       "readiness": "activation_required",
+      "launch_state": "degraded",
       "exposure": {
         "enabled": true,
         "visibility": "visible"
       },
-      "activation_required_before_launch": true,
+      "activation_required_before_launch": false,
+      "jit_activation_attempt_before_send": true,
       "ordinary_discovery_visible": true,
-      "explicit_launch_allowed_after_activation": true
+      "selected_package_send_allowed": true
+    },
+    {
+      "case_id": "stale_status_visible_enabled",
+      "installed": true,
+      "package_role": "standard_agent",
+      "readiness": "stale",
+      "launch_state": "degraded",
+      "exposure": {
+        "enabled": true,
+        "visibility": "visible"
+      },
+      "activation_required_before_launch": false,
+      "background_refresh_allowed": true,
+      "ordinary_discovery_visible": true,
+      "selected_package_send_allowed": true
+    },
+    {
+      "case_id": "optional_dependency_missing_visible_enabled",
+      "installed": true,
+      "package_role": "standard_agent",
+      "readiness": "optional_dependency_missing",
+      "launch_state": "degraded",
+      "exposure": {
+        "enabled": true,
+        "visibility": "visible"
+      },
+      "activation_required_before_launch": false,
+      "ordinary_discovery_visible": true,
+      "selected_package_send_allowed": true
     },
     {
       "case_id": "disabled_visible_standard_agent",
       "installed": true,
       "package_role": "standard_agent",
       "readiness": "blocked",
+      "launch_state": "package_unavailable",
       "exposure": {
         "enabled": false,
         "visibility": "visible"
@@ -87,64 +140,71 @@
       "activation_required_before_launch": false,
       "blocked_reason": "package_disabled",
       "ordinary_discovery_visible": false,
-      "explicit_launch_allowed_after_activation": false
+      "selected_package_send_allowed": false
     },
     {
       "case_id": "hidden_enabled_standard_agent",
       "installed": true,
       "package_role": "standard_agent",
       "readiness": "ready",
+      "launch_state": "ready",
       "exposure": {
         "enabled": true,
         "visibility": "hidden"
       },
-      "activation_required_before_launch": true,
+      "activation_required_before_launch": false,
       "ordinary_discovery_visible": false,
-      "explicit_launch_allowed_after_activation": true,
-      "retained_shortcut_launch_allowed_after_activation": true
+      "selected_package_send_allowed": true,
+      "retained_shortcut_send_allowed": true
     },
     {
       "case_id": "not_installed_standard_agent",
       "installed": false,
       "package_role": "standard_agent",
       "readiness": "not_installed",
+      "launch_state": "package_unavailable",
       "exposure": null,
       "activation_required_before_launch": false,
       "blocked_reason": "package_not_installed",
       "ordinary_discovery_visible": false,
-      "explicit_launch_allowed_after_activation": false
+      "selected_package_send_allowed": false
     },
     {
       "case_id": "installed_capability_package",
       "installed": true,
       "package_role": "framework_capability_package",
       "readiness": "ready",
+      "launch_state": "package_unavailable",
       "exposure": {
         "enabled": true,
         "visibility": "hidden"
       },
       "activation_required_before_launch": false,
+      "blocked_reason": "package_entrypoint_missing",
       "ordinary_discovery_visible": false,
-      "explicit_launch_allowed_after_activation": false
+      "selected_package_send_allowed": false
     },
     {
       "case_id": "installed_workflow_profile",
       "installed": true,
       "package_role": "workflow_profile",
       "readiness": "ready",
+      "launch_state": "package_unavailable",
       "exposure": {
         "enabled": true,
         "visibility": "hidden"
       },
       "activation_required_before_launch": false,
+      "blocked_reason": "package_entrypoint_missing",
       "ordinary_discovery_visible": false,
-      "explicit_launch_allowed_after_activation": false
+      "selected_package_send_allowed": false
     },
     {
       "case_id": "installed_standard_agent_lock_corrupt",
       "installed": true,
       "package_role": "standard_agent",
       "readiness": "blocked",
+      "launch_state": "package_unavailable",
       "exposure": {
         "enabled": true,
         "visibility": "visible"
@@ -152,13 +212,14 @@
       "activation_required_before_launch": false,
       "blocked_reason": "package_lock_corrupt",
       "ordinary_discovery_visible": true,
-      "explicit_launch_allowed_after_activation": false
+      "selected_package_send_allowed": false
     },
     {
       "case_id": "recovery_in_progress",
       "installed": true,
       "package_role": "standard_agent",
       "readiness": "blocked",
+      "launch_state": "package_unavailable",
       "exposure": {
         "enabled": true,
         "visibility": "visible"
@@ -175,13 +236,14 @@
         "state": "wait_only",
         "enabled": false
       },
-      "explicit_launch_allowed_after_activation": false
+      "selected_package_send_allowed": false
     },
     {
       "case_id": "recovery_required_executable",
       "installed": true,
       "package_role": "standard_agent",
       "readiness": "blocked",
+      "launch_state": "package_unavailable",
       "exposure": {
         "enabled": true,
         "visibility": "visible"
@@ -199,13 +261,14 @@
         "enabled": true,
         "action_id": "agent_package_repair"
       },
-      "explicit_launch_allowed_after_activation": false
+      "selected_package_send_allowed": false
     },
     {
       "case_id": "recovery_required_manual_owner_intervention",
       "installed": true,
       "package_role": "standard_agent",
       "readiness": "blocked",
+      "launch_state": "package_unavailable",
       "exposure": {
         "enabled": true,
         "visibility": "visible"
@@ -222,7 +285,7 @@
         "state": "manual_owner_intervention_required",
         "enabled": false
       },
-      "explicit_launch_allowed_after_activation": false
+      "selected_package_send_allowed": false
     }
   ],
   "workspace_transition_contract": {
@@ -230,16 +293,37 @@
     "workspace_role": "mutable_context",
     "cases": [
       {
-        "case_id": "workspace_a_to_b",
+        "case_id": "workspace_required_a_to_b",
         "package_backed": true,
+        "owner_required_payload_fields": [
+          "package_id",
+          "scope",
+          "target_workspace"
+        ],
         "fresh_minimal_validation_required_before_next_launch": true
       },
       {
-        "case_id": "workspace_b_to_c_validation_failure",
+        "case_id": "workspace_required_b_to_c_validation_failure",
         "package_backed": true,
+        "owner_required_payload_fields": [
+          "package_id",
+          "scope",
+          "target_workspace"
+        ],
         "accepted": false,
         "reason_code": "agent_package_target_mismatch",
-        "session_remains_recoverable": true
+        "session_remains_recoverable": true,
+        "failure_scope": "selected_package_only"
+      },
+      {
+        "case_id": "workspace_optional_a_to_b",
+        "package_backed": true,
+        "owner_required_payload_fields": [
+          "package_id"
+        ],
+        "activation_required": false,
+        "target_workspace_required": false,
+        "accepted": true
       },
       {
         "case_id": "plain_conversation_workspace_transition",
@@ -252,9 +336,13 @@
   "normal_shell_launch_contract": {
     "cases": [
       {
-        "case_id": "framework_blocked",
+        "case_id": "package_unavailable",
+        "launch_state": "package_unavailable",
         "accepted": false,
-        "reason_code": "agent_package_launch_blocked"
+        "reason_code": "agent_package_unavailable",
+        "failure_scope": "selected_package_only",
+        "plain_codex_send_allowed": true,
+        "other_agent_selection_allowed": true
       },
       {
         "case_id": "malformed_activation",
@@ -263,24 +351,69 @@
       },
       {
         "case_id": "selection_drift",
+        "launch_state": "package_unavailable",
         "accepted": false,
         "reason_code": "agent_package_selection_mismatch"
       },
       {
         "case_id": "version_drift",
+        "launch_state": "package_unavailable",
         "accepted": false,
         "reason_code": "agent_package_version_mismatch"
       },
       {
-        "case_id": "target_drift",
+        "case_id": "entrypoint_missing",
+        "launch_state": "package_unavailable",
+        "accepted": false,
+        "reason_code": "agent_package_entrypoint_missing"
+      },
+      {
+        "case_id": "required_target_drift",
+        "launch_state": "package_unavailable",
         "accepted": false,
         "reason_code": "agent_package_target_mismatch"
       },
       {
-        "case_id": "valid_package_launch",
+        "case_id": "ready_without_optional_evidence",
+        "launch_state": "ready",
         "accepted": true,
         "selected_identity_matches": true,
-        "target_matches": true
+        "optional_receipt_present": false,
+        "optional_binding_present": false
+      },
+      {
+        "case_id": "degraded_without_optional_evidence",
+        "launch_state": "degraded",
+        "accepted": true,
+        "selected_identity_matches": true,
+        "optional_receipt_present": false,
+        "optional_binding_present": false
+      },
+      {
+        "case_id": "valid_optional_evidence",
+        "launch_state": "ready",
+        "accepted": true,
+        "selected_identity_matches": true,
+        "required_target_matches": true
+      },
+      {
+        "case_id": "invalid_optional_receipt",
+        "accepted": false,
+        "reason_code": "agent_package_activation_invalid"
+      },
+      {
+        "case_id": "invalid_optional_binding",
+        "accepted": false,
+        "reason_code": "agent_package_selection_mismatch"
+      },
+      {
+        "case_id": "optional_target_difference",
+        "launch_state": "ready",
+        "owner_required_payload_fields": [
+          "package_id"
+        ],
+        "accepted": true,
+        "target_workspace_required": false
       },
       {
         "case_id": "plain_conversation",

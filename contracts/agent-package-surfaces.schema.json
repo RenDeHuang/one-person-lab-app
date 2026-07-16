@@ -231,7 +231,7 @@
     "agent_package_activation_request": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["package_id", "scope", "target_workspace"],
+      "required": ["package_id"],
       "properties": {
         "package_id": {"type": "string", "minLength": 1},
         "scope": {
@@ -338,13 +338,18 @@
       ]
     },
     "agent_package_activation_result": {
-      "description": "Live non-dry activation result consumed before creating a package-backed conversation.",
+      "description": "Normalized live package launch disposition. Ready and degraded preserve send; package_unavailable blocks only the selected package.",
       "type": "object",
       "additionalProperties": true,
-      "required": ["launch_allowed", "package_id", "package_lock"],
+      "required": ["launch_state", "launch_allowed", "package_id", "launch_state_reason"],
       "properties": {
-        "launch_allowed": {"const": true},
+        "launch_state": {
+          "enum": ["ready", "degraded", "package_unavailable"]
+        },
+        "launch_allowed": {"type": "boolean"},
+        "launch_state_reason": {"type": ["string", "null"]},
         "package_id": {"type": "string", "minLength": 1},
+        "package_version": {"type": "string", "minLength": 1},
         "package_lock": {
           "type": "object",
           "additionalProperties": true,
@@ -354,7 +359,8 @@
             "package_version": {"type": "string", "minLength": 1}
           }
         },
-        "launch_blocked_reason": {"type": "null"},
+        "launch_blocked_reason": {"type": ["string", "null"]},
+        "use_receipt_ref": {"type": "string", "minLength": 1},
         "use_binding": {
           "oneOf": [
             {"type": "null"},
@@ -368,18 +374,33 @@
           ]
         }
       },
-      "anyOf": [
+      "oneOf": [
         {
           "properties": {
-            "use_binding": {"$ref": "#/$defs/agent_package_use_binding"}
+            "launch_state": {"const": "ready"},
+            "launch_allowed": {"const": true},
+            "launch_state_reason": {"type": "null"},
+            "launch_blocked_reason": {"type": "null"}
           },
-          "required": ["use_binding"]
+          "required": ["launch_state", "launch_allowed", "launch_state_reason"]
         },
         {
           "properties": {
-            "package_use_binding": {"$ref": "#/$defs/agent_package_use_binding"}
+            "launch_state": {"const": "degraded"},
+            "launch_allowed": {"const": true},
+            "launch_state_reason": {"type": "string", "minLength": 1},
+            "launch_blocked_reason": {"type": "null"}
           },
-          "required": ["package_use_binding"]
+          "required": ["launch_state", "launch_allowed", "launch_state_reason"]
+        },
+        {
+          "properties": {
+            "launch_state": {"const": "package_unavailable"},
+            "launch_allowed": {"const": false},
+            "launch_state_reason": {"type": "string", "minLength": 1},
+            "launch_blocked_reason": {"type": "string", "minLength": 1}
+          },
+          "required": ["launch_state", "launch_allowed", "launch_state_reason"]
         }
       ]
     },

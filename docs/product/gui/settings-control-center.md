@@ -263,12 +263,13 @@ uninstall execute only the projected `available_actions[]` or object
 never an action-payload source. The shell does not synthesize enabled state,
 reason codes, action ids, payload fields, or ready/synced/available labels.
 
-Workspace activation uses `{ package_id, scope: "workspace",
-target_workspace }`, with `target_workspace` read from
-`app_state.paths.workspace_root_path`. When no Workspace is configured, the
-action is disabled with `workspace_root_not_configured` and routes to
-`/settings/workspace#workspace`. After a successful install or activation, the
-page refreshes fast App state and renders the next projected action.
+Activation starts from the exact owner-projected payload and never invents
+`scope=workspace`. Only when an unresolved `required_payload_fields` item names
+`target_workspace` may the shell fill it from `app_state.paths.workspace_root_path`.
+If that required Workspace is absent, only that activation is disabled with
+`workspace_root_not_configured` and routes to `/settings/workspace#workspace`;
+package-id-only actions remain enabled. After a successful install or activation,
+the page refreshes fast App state and renders the next projected action.
 
 Fast state deliberately reports an activated package as
 `readiness.status=verification_deferred`,

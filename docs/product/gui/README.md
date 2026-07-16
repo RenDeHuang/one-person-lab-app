@@ -33,8 +33,15 @@ GUI 运行采用双轴模型：AionUI 继续是 `active release shell`，而本�
 
 产品方向固定为：**先继承 ChatGPT Codex 的主工作流和空间关系，再增加 OPL
 专业能力**。Rail、单列 conversation、底部 composer 和按需环境详情构成基础壳；
-OPL capabilities、跨顶层线程协调、progress、evidence、artifacts 与 safe actions 必须
+OPL capabilities、progress、evidence refs、artifacts 与 safe actions 必须
 嵌入这些稳定位置，不得把 Home 改造成 dashboard、launcher 或 card wall。
+
+功能来源使用独立的 `B0 / R1 / U1 / X0` 轴：B0 是 Codex 必要 baseline，R1 是等价
+替换，U1 是 OPL 定位必须增加，X0 是条件保留/当前非目标；`P0/P1/P2` 继续只表示优先级。
+AionUI 与 Native 是同一 `B0 + R1 + U1` 产品定义的两种 carrier。两张必要功能 List 和
+“为什么必要”见 [`feature-inventory.md#功能来源分类`](feature-inventory.md#功能来源分类)，
+双 carrier 当前实现证据见
+[`shell-conformance-matrix.md#r1--u1-必要功能实现矩阵`](shell-conformance-matrix.md#r1--u1-必要功能实现矩阵)。
 
 视觉执行与验收以 [`codex-app-visual-parity.md`](codex-app-visual-parity.md) 为准：除 OPL
 品牌与 OPL-owned 产品能力外，字体、颜色、图标、密度、阴影、圆角、布局和交互状态以
@@ -68,8 +75,10 @@ topic SHA；它由 `useConversationListSync.ts`、`GroupedHistory/index.tsx`、`
 `ProjectContextSection.tsx` 与 `projectContext.ts` 缺席。Workspace selector 只设置新 session 初始 cwd，
 Environment 只读显示 recorded workspace 与 live Git context；Shell 不自建 managed Worktree/Handoff，
 也不持久重绑既有 session cwd。Workspace selector 缺失或不可用时，projectless new task、输入、显式
-send-scoped local inputs 与普通 Codex conversation 仍保持可用；只有 package manifest 明确声明 Workspace
-或 managed target 前提时，才对该 Agent launch 做局部校验。Exact commit/currentness 只由 App owner
+send-scoped local inputs 与普通 Codex conversation 仍保持可用；只有 owner-projected action 的
+`required_payload_fields` 明确要求 Workspace 或 managed target 时，才对该 Agent launch 做局部校验。
+Activation 默认按 `ready / degraded / package_unavailable` 三态自修复、JIT、降级或 fallback；receipt、
+binding、closure 不构成普遍硬门槛。Exact commit/currentness 只由 App owner
 在 Shell main 吸收后回读。Review 保留 `Last turn`，custom instructions 只经
 `review/start.target.custom`；公开协议缺少非 custom Review Focus input 时，正常路径在启动 Review 前
 返回 `protocol_unavailable`，不得回退 `turn/steer`、伪造成功或产生副作用。当前仍无匹配
@@ -113,8 +122,9 @@ Runtime 是 OPL 自有的跨项目“用户与智能体协作控制台”，不�
 任何 Runtime 入口迁移或实现重写，都必须在同一变更中保持产品合同的默认问题、page-state
 acceptance、validator 与 tests；无法保持时记录 shell deviation，不修改 App 产品真相迁就上游。
 
-Conformance 必须按 `contract_status`、`source_status`、`pixel_status` 三条独立轴读取；
-`pixel_verified` 只证明存在当前像素证据，不等于视觉对齐或 release-ready。
+Conformance 必须按 `contract_status`、`source_status`、`pixel_status`、`install_status`、
+`release_status` 独立读取；`pixel_verified` 只证明存在当前像素证据，不等于视觉对齐、
+安装验收或 release-ready。
 
 证据分层固定为：`docs` 解释意图，`contract` 决定 machine acceptance，`source/tests`
 证明 implementation，`pixel` 证明指定 cohort 的可见结果，`release` 证明最终
@@ -203,8 +213,10 @@ package/user path。当前 contract/source 与 packaged route visual evidence �
   permission/access、attach 和 send/stop 均留在 composer；不在 header 重复配置。
 - Purpose 从 Home/New task 的 starter 选择；选中后只显示轻量 active capability，
   不用独立 Capabilities 主导航页重复同一组说明。能力安装、首页显示与维护继续归 Settings。
-- Package starter 必须投影真实 availability；不可用时说明原因和允许动作，launch 前由
-  Framework-owned use-boundary activation fail closed，App/shell 不拥有 package currentness。
+- Package starter 必须投影真实 availability；发送时按 `ready / degraded / package_unavailable`
+  处理。Shell 优先消费 owner-projected action 做 JIT prepare、自修复或安全 fallback；只有明确
+  身份/版本/入口/安全目标/权限失败才局部阻止所选 package。Workspace、receipt、binding 和 closure
+  不得成为普遍启动前提，App/shell 不拥有 package currentness。
 - 当前 task progress、tool events、approval 与 receipts 进入 timeline；后台 target 的 interactive
   requests 在 selected thread detail 保留 thread/turn/item context；跨项目总览才进入
   Runtime。Current task 只有 timeline 单一实例；普通任务 inline/unpinned，只有用户 pin

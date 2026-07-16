@@ -69,6 +69,33 @@ OPL App 采用下列翻译规则；没有明确 delta 的区域默认复用 refe
    与 evidence 作为次级 section/preview 扩展；默认不打开全高 inspector。
 6. **Settings stays secondary。** Settings 只负责持久配置和控制面，不决定主工作流。
 
+### Carrier-neutral 产品模型
+
+功能来源固定为 `B0 Codex 必要 Baseline`、`R1 等价功能替换`、`U1 OPL 独有` 和
+`X0 条件保留/当前非目标`。其中 `B0 + R1 + U1` 是唯一产品定义：
+
+- AionUI active 是 reuse-first、薄适配的当前 carrier；上游已有能力优先复用，不为目录完整度重写核心。
+- Native candidate 是同一产品定义的候选实现；将来从头实现时必须自行补齐 B0，并实现同一 R1/U1 用户结果。
+- carrier、功能来源、`P0/P1/P2` 优先级、source 完成度和视觉 1:1 是彼此独立的轴。
+- X0 可以条件保留，但不得扩大或阻断当前 `B0 + R1 + U1` 薄壳基线。
+
+完整 B0 目录、R1/U1 两张必要功能 List 与“为什么必要”见
+[`feature-inventory.md#功能来源分类`](feature-inventory.md#功能来源分类)；当前 AionUI/Native
+source、pixel、install、release 证据见
+[`shell-conformance-matrix.md#r1--u1-必要功能实现矩阵`](shell-conformance-matrix.md#r1--u1-必要功能实现矩阵)。
+
+### AI-first failure semantics
+
+OPL 系列交互默认 fail-open：先消费 owner-projected action 自修复，再 JIT prepare，再降级或
+使用安全 fallback；只有仍无法真实执行时才保留 draft 并给 owner route。不得预先因为 stale、
+`verification_deferred`、update available、可选依赖、可选 receipt/binding，或 owner action
+并未要求的 Workspace 而 block。
+
+Fail-open 不等于吞错或伪造成功。以下边界仍局部 fail-closed：所选 package 身份或不兼容版本
+不匹配、入口不存在、不安全 managed target/path traversal、权限/sandbox/账户授权拒绝、未确认的
+不可逆外部 mutation，以及任何无法得到真实证据的成功/authority 声明。故障范围只允许落到所选
+Agent；普通 Codex、其他 Agent、draft 和既有 session 必须继续可用。
+
 ### OPL Feature Preservation Gate
 
 Codex baseline 只能帮助确定信息放在哪里、怎样交互，不能决定 OPL 有哪些功能。“不降级”
@@ -153,9 +180,11 @@ Home 只用 starter 选中态表达 active capability；conversation 可显示�
 - 不把 domain workflow、stage、artifact schema 或 verdict 写进 GUI；
 - 产生 launch/route refs，供用户按需审计；
 - 是否显示由 App product profile、安装状态和用户 shortcut preference 决定。
-- 不可用 starter 显示可理解原因和 contract 允许动作；launch 前由 Framework 在
-  use boundary reconcile current compatible package closure，App 只在 `launch_allowed` 和
-  use receipt/binding 完整时继续。
+- Starter 始终可选择；send 时消费 directory entry 投影的 exact action，并由 action 的
+  `required_payload_fields` 决定是否需要 Workspace。
+- `ready` 直接启动；`degraded` 先做 owner-projected JIT prepare/repair/fallback 并明确降级；
+  `package_unavailable` 只局部阻止所选 Agent、保留 draft，并提供普通 Codex、其他 Agent 或 owner route。
+- receipt、binding 和 closure 是可审计结果或 diagnostics，不是普通启动必须全部齐备的硬门槛。
 
 ## Capability 增量
 

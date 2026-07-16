@@ -2776,13 +2776,16 @@ function validateSettingsAgentsDirectoryProjection(agentsPage) {
       "contracts/app-gui-product-contract.json#pages.settings_agents.agent_package_lifecycle_ux.canonical_action_contract" ||
     directory.activation_action_contract_ref !==
       "contracts/app-gui-product-contract.json#pages.settings_agents.agent_package_lifecycle_ux.workspace_activation_contract" ||
+    directory.required_payload_fields_source !==
+      "directory.entries[].available_actions[action_id=agent_package_activate].required_payload_fields" ||
     directory.workspace_path_source !== "app_state.paths.workspace_root_path" ||
-    directory.workspace_path_scope !== "settings_global_package_management_only" ||
+    directory.workspace_path_scope !== "only_when_projected_activation_requires_target_workspace" ||
+    directory.scope_inference_allowed !== false ||
     directory.session_launch_authority !== false ||
     directory.session_launch_contract_ref !==
       "contracts/app-gui-product-contract.json#agent_package_activation_policy" ||
     directory.workspace_missing_policy !==
-      "disable activation with workspace_root_not_configured and route to /settings/workspace#workspace"
+      "disable only an activation whose unresolved required_payload_fields includes target_workspace, with workspace_root_not_configured and route to /settings/workspace#workspace"
   ) {
     throw new Error(
       "Settings Agents directory projection must explain canonical projection preference, no-fallback states, and package activation action",
