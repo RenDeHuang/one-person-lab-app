@@ -19,7 +19,7 @@ Machine boundary: Human-readable product overview. Machine truth lives in `contr
 -->
 
 <p align="center">
-  <img src="assets/branding/opl-app-product-map.png" alt="One Person Lab App product packaging map" width="100%" />
+  <img src="assets/branding/opl-app-user-journey-v2.png" alt="One Person Lab App user journey from choosing work to delivery" width="100%" />
 </p>
 
 ## Why It Exists

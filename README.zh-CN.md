@@ -19,7 +19,7 @@ Machine boundary: 人读产品入口。机器真相在 `contracts/`、源码、r
 -->
 
 <p align="center">
-  <img src="assets/branding/opl-app-product-map.png" alt="One Person Lab App 产品打包关系图" width="100%" />
+  <img src="assets/branding/opl-app-user-journey-v2.png" alt="One Person Lab App 从选择任务到成果交付的用户旅程" width="100%" />
 </p>
 
 ## 为什么需要它
