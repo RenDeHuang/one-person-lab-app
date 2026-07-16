@@ -8,7 +8,10 @@ import {
 } from './helpers.ts';
 import {
   assertCanonicalReleaseVersion,
+  nightlyMaximumRebuildRevision,
   nightlyReleaseVersionPatternSource,
+  releaseCalendarParts,
+  resolveNightlyReleaseVersion,
   stableReleaseVersionPatternSource,
 } from '../../../scripts/release-version.ts';
 
@@ -21,20 +24,60 @@ test('Stable and Nightly versions use exact contract-backed canonical regexes', 
   );
   assert.equal(
     nightlyReleaseVersionPatternSource,
-    String.raw`^[0-9]{2}\.(?:[1-9]|1[0-2])\.(?:[1-9]|[12][0-9]|3[01])-nightly\.[1-9][0-9]*\.[1-9][0-9]*$`,
+    String.raw`^[0-9]{2}\.(?:[1-9]|1[0-2])\.(?:[1-9]|[12][0-9]|3[01])-nightly(?:\.r[1-9])?$`,
   );
+  assert.equal(nightlyMaximumRebuildRevision, 9);
   assert.doesNotThrow(() => assertCanonicalReleaseVersion('stable', '26.7.13'));
-  assert.doesNotThrow(() => assertCanonicalReleaseVersion('nightly', '26.7.13-nightly.123456789.1'));
+  assert.doesNotThrow(() => assertCanonicalReleaseVersion('nightly', '26.7.13-nightly'));
+  assert.doesNotThrow(() => assertCanonicalReleaseVersion('nightly', '26.7.13-nightly.r1'));
+  assert.doesNotThrow(() => assertCanonicalReleaseVersion('nightly', '26.7.13-nightly.r9'));
+  assert.deepEqual(releaseCalendarParts('nightly', '26.7.13-nightly'), { year: 2026, month: 7, day: 13 });
+  assert.deepEqual(releaseCalendarParts('nightly', '26.7.13-nightly.r1'), { year: 2026, month: 7, day: 13 });
   for (const [channel, version] of [
     ['stable', '026.07.013'],
-    ['stable', '26.7.13-nightly.123456789.1'],
+    ['stable', '26.7.13-nightly.r1'],
     ['stable', '26.2.30'],
     ['nightly', '26.7.13'],
-    ['nightly', '26.07.13-nightly.123456789.1'],
-    ['nightly', '26.7.13-nightly.0.1'],
+    ['nightly', '26.07.13-nightly.r1'],
+    ['nightly', '26.7.13-nightly.r0'],
+    ['nightly', '26.7.13-nightly.r10'],
+    ['nightly', '26.7.13-nightly.123456789.1'],
   ] as const) {
     assert.throws(() => assertCanonicalReleaseVersion(channel, version));
   }
+});
+
+test('Nightly version resolution keeps the first release clean and allocates bounded rebuild suffixes', () => {
+  const baseVersion = '26.7.13-nightly';
+  assert.deepEqual(resolveNightlyReleaseVersion(baseVersion, []), {
+    baseVersion,
+    version: baseVersion,
+    rebuildRevision: null,
+    observedSameDayVersions: [],
+  });
+
+  const rebuilt = resolveNightlyReleaseVersion(baseVersion, [
+    `refs/tags/v${baseVersion}`,
+    `v${baseVersion}.r2`,
+    `deadbeef\trefs/tags/v${baseVersion}.r1`,
+    'v26.7.12-nightly.r9',
+  ]);
+  assert.equal(rebuilt.version, `${baseVersion}.r3`);
+  assert.equal(rebuilt.rebuildRevision, 3);
+
+  const migrated = resolveNightlyReleaseVersion(baseVersion, [
+    `v${baseVersion}.29280129578.1`,
+  ]);
+  assert.equal(migrated.version, `${baseVersion}.r1`);
+
+  assert.throws(
+    () => resolveNightlyReleaseVersion(baseVersion, [`v${baseVersion}.r9`]),
+    /same-day rebuilds stop at \.r9 to preserve SemVer ordering/,
+  );
+  assert.throws(
+    () => resolveNightlyReleaseVersion(`${baseVersion}.r1`, []),
+    /must not include a rebuild suffix/,
+  );
 });
 
 function assertCheck(payload: { checks: Array<{ id: string; status: string; message?: string }> }, id: string, status: string, message?: RegExp) {
@@ -301,7 +344,7 @@ test('release preflight rejects same-day Stable suffixes', () => {
 });
 
 test('Nightly plan uses its executable source gate instead of Stable preflight', () => {
-  const version = '26.7.12-nightly.123456789.1';
+  const version = '26.7.12-nightly';
   const result = runNode([
     'scripts/plan-release-candidate.ts',
     '--profile',
@@ -326,7 +369,8 @@ test('Nightly plan uses its executable source gate instead of Stable preflight',
 
   for (const [profile, invalidVersion] of [
     ['nightly', '26.7.12'],
-    ['nightly', '26.7.12-nightly.0.1'],
+    ['nightly', '26.7.12-nightly.r0'],
+    ['nightly', '26.7.12-nightly.123456789.1'],
     ['stable', version],
   ]) {
     const invalid = runNode([

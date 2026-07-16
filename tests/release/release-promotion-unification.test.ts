@@ -222,7 +222,7 @@ test('Homebrew Stable distribution v2 binds Formula and App casks to the Framewo
       annotated_tag: 'stable-distribution/v26.7.13', formula,
       standard_cask: cask('one-person-lab'),
       full_cask: cask('one-person-lab-full'),
-      nightly_cask: cask('one-person-lab-nightly', '26.7.13-nightly.1.1'),
+      nightly_cask: cask('one-person-lab-nightly', '26.7.13-nightly.r1'),
     },
   };
   assert.deepEqual(validateStableDistributionReceipt(receipt, {

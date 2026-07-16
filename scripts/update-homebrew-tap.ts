@@ -174,7 +174,7 @@ function validateOptions(options: Options): ResolvedOptions {
     assertCanonicalReleaseVersion(options.channel, options.version);
   } catch {
     if (options.channel === 'nightly') {
-      throw new Error('Nightly Homebrew tap updates must use YY.M.D-nightly.<run_id>.<run_attempt>.');
+      throw new Error('Nightly Homebrew tap updates must use YY.M.D-nightly or YY.M.D-nightly.r1 through .r9.');
     }
     throw new Error('Stable Homebrew tap updates must use YY.M.D without a same-day suffix.');
   }
@@ -523,11 +523,11 @@ function runSelfCheck(): void {
   const nightlyPlan = buildPlan({
     channel: 'nightly',
     packageKind: 'app_standard',
-    version: '26.6.4-nightly.123456789.1',
+    version: '26.6.4-nightly.r1',
     tapRoot: tempRoot,
-    manifestUrl: 'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4-nightly.123456789.1/latest-arm64-mac.yml',
+    manifestUrl: 'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4-nightly.r1/latest-arm64-mac.yml',
     checksumSha256: digest,
-    downloadUrl: 'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4-nightly.123456789.1/One-Person-Lab-26.6.4-nightly.123456789.1-mac-arm64.dmg',
+    downloadUrl: 'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4-nightly.r1/One-Person-Lab-26.6.4-nightly.r1-mac-arm64.dmg',
     targets: ['Casks/one-person-lab-nightly.rb'],
     write: false,
     summaryPath: null,
@@ -541,14 +541,14 @@ function runSelfCheck(): void {
     {
       channel: 'nightly' as Channel,
       packageKind: 'app_standard' as PackageKind,
-      version: '26.6.4-nightly.123456789.1',
+      version: '26.6.4-nightly.r1',
       targets: ['Casks/one-person-lab.rb'],
       message: 'Nightly App cask target',
     },
     {
       channel: 'stable' as Channel,
       packageKind: 'app_standard' as PackageKind,
-      version: '26.6.4-nightly.123456789.1',
+      version: '26.6.4-nightly.r1',
       targets: ['Casks/one-person-lab.rb'],
       message: 'Stable Homebrew tap updates must use YY.M.D',
     },
@@ -562,7 +562,7 @@ function runSelfCheck(): void {
     {
       channel: 'nightly' as Channel,
       packageKind: 'app_standard' as PackageKind,
-      version: '026.06.04-nightly.123456789.1',
+      version: '026.06.04-nightly.r1',
       targets: ['Casks/one-person-lab-nightly.rb'],
       message: 'Nightly Homebrew tap updates must use YY.M.D-nightly',
     },
@@ -593,7 +593,7 @@ function runSelfCheck(): void {
     {
       channel: 'nightly' as Channel,
       packageKind: 'app_full_first_install' as PackageKind,
-      version: '26.6.4-nightly.123456789.1',
+      version: '26.6.4-nightly.r1',
       targets: ['Casks/one-person-lab-full.rb'],
       message: 'Full first-install Homebrew cask updates must stay on the stable channel',
     },

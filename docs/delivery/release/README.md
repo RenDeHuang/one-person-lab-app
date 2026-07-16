@@ -65,12 +65,15 @@ App release versions have two exact forms, owned by
 `npm run release:version:validate`:
 
 - Stable: `^[0-9]{2}\.(?:[1-9]|1[0-2])\.(?:[1-9]|[12][0-9]|3[01])$`
-- Nightly: `^[0-9]{2}\.(?:[1-9]|1[0-2])\.(?:[1-9]|[12][0-9]|3[01])-nightly\.[1-9][0-9]*\.[1-9][0-9]*$`
+- Nightly: `^[0-9]{2}\.(?:[1-9]|1[0-2])\.(?:[1-9]|[12][0-9]|3[01])-nightly(?:\.r[1-9])?$`
 
 Both forms also require a real calendar date. Stable is `YY.M.D` without
-leading zeroes or a same-day suffix. Every Nightly workflow attempt gets a
-unique immutable `YY.M.D-nightly.<github_run_id>.<github_run_attempt>` identity;
-Nightly is never a Stable refresh or promotion source.
+leading zeroes or a same-day suffix. The first Nightly release for a UTC date
+uses `YY.M.D-nightly`; a same-day rebuild uses the next immutable `.r1` through
+`.r9` suffix found after reading both Git tags and GitHub Releases. The bounded
+suffix keeps SemVer ordering valid; the workflow fails closed after `.r9`.
+GitHub run ID and attempt remain release evidence instead of user-visible
+version components. Nightly is never a Stable refresh or promotion source.
 
 Standard macOS DMGs use electron-builder-supported `ULFO` / LZFSE compression
 by default. Current electron-builder 26.8.1 does not accept `ULMO` in

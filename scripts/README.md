@@ -96,11 +96,12 @@ node --experimental-strip-types scripts/prepare-release-assets.ts build-artifact
 node --experimental-strip-types scripts/validate-release.ts release-assets
 npm run release:publish -- --no-build --version <version> --standard-artifacts-dir release-assets
 npm run release:version:validate -- --channel stable --version <YY.M.D>
-npm run release:version:validate -- --channel nightly --version <YY.M.D-nightly.run_id.attempt>
+npm run release:version:validate -- --channel nightly --version <YY.M.D-nightly-or-YY.M.D-nightly.r1>
+npm run release:nightly-version:resolve -- --base-version <YY.M.D-nightly> --existing-ref-file <path>
 npm run release:notes -- --version <version> --channel stable --include-full-package
-npm run release:notes -- --version <YY.M.D-nightly.run_id.attempt> --channel nightly
+npm run release:notes -- --version <YY.M.D-nightly-or-rebuild> --channel nightly
 npm run verify-remote-release -- --version <version> --include-full-package
-npm run verify-remote-release -- --version <YY.M.D-nightly.run_id.attempt>
+npm run verify-remote-release -- --version <YY.M.D-nightly-or-rebuild>
 npm run release:cleanup-drafts -- --version <version>
 npm run release:cleanup-drafts -- --version <version> --execute
 npm run release:cleanup-webui-ghcr -- --summary-path webui-ghcr-cleanup.json
@@ -385,11 +386,13 @@ workflow checkout and the release-boundary check in the same change.
 `.github/workflows/nightly-standard-release.yml` is the standard-only Nightly
 publisher. It reuses the standard build workflow, prepares and validates
 standard updater assets, validates the contract-owned canonical Nightly version,
-creates one unique immutable prerelease per workflow run attempt, keeps `latest`
-unchanged, writes release notes that compare against the previous Nightly, and
-runs the remote standard asset verifier without Full assets. Its operator plan
-starts with the Nightly version gate and source gate; it never calls Stable
-preflight.
+creates one immutable prerelease for the UTC date and allocates `.r1` through
+`.r9` only for same-day rebuilds, keeps `latest` unchanged, writes release notes
+that compare against the previous Nightly, and runs the remote standard asset
+verifier without Full assets. Version allocation reads both remote Git tags and
+GitHub Releases and fails closed if inventory cannot be read or `.r9` is already
+used. Its operator plan starts with the Nightly version gate and source gate; it
+never calls Stable preflight.
 
 AI release-note drafting is a pre-release preparation path, not publish/promote
 critical-path work. Stable desktop release jobs prepare release-blocking notes

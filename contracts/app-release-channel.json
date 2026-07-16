@@ -7,9 +7,9 @@
   "github_release_name": {
     "format": "One Person Lab v<version>",
     "stable_example": "One Person Lab v26.6.5",
-    "nightly_example": "One Person Lab v26.6.5-nightly.123456789.1",
+    "nightly_example": "One Person Lab v26.6.5-nightly",
     "stable_version_pattern": "^[0-9]{2}\\.(?:[1-9]|1[0-2])\\.(?:[1-9]|[12][0-9]|3[01])$",
-    "nightly_version_pattern": "^[0-9]{2}\\.(?:[1-9]|1[0-2])\\.(?:[1-9]|[12][0-9]|3[01])-nightly\\.[1-9][0-9]*\\.[1-9][0-9]*$",
+    "nightly_version_pattern": "^[0-9]{2}\\.(?:[1-9]|1[0-2])\\.(?:[1-9]|[12][0-9]|3[01])-nightly(?:\\.r[1-9])?$",
     "tag_pattern": "v<version>",
     "rule": "GitHub Release names use the product-prefixed v-version format for both Stable and Nightly; tags remain v<version> for updater and automation compatibility."
   },
@@ -419,14 +419,24 @@
     "prerelease": true,
     "full_first_install_allowed": false,
     "latest_release_allowed": false,
-    "tag_pattern": "v<YY.M.D>-nightly.<github_run_id>.<github_run_attempt>",
+    "tag_pattern": "v<YY.M.D>-nightly[.r<1-9>]",
+    "same_day_rebuild": {
+      "first_release_suffix": null,
+      "suffix_pattern": ".r<revision>",
+      "first_revision": 1,
+      "maximum_revision": 9,
+      "allocation": "highest_existing_same_day_tag_or_release_plus_one",
+      "legacy_run_identity_counts_as_existing_release": true,
+      "github_actions_run_identity_in_version": false,
+      "exhaustion_policy": "fail_closed"
+    },
     "asset_scope": [
       "One-Person-Lab-<version>-mac-arm64.dmg",
       "One-Person-Lab-<version>-mac-arm64.zip",
       "One-Person-Lab-<version>-mac-arm64.zip.blockmap",
       "latest-arm64-mac.yml"
     ],
-    "rule": "Each Nightly workflow attempt creates a unique immutable prerelease tag and release, publishes standard macOS arm64 updater assets only, and remains visible only to prerelease opt-in update checks; the moving nightly image tag is a channel pointer, not version identity."
+    "rule": "The first Nightly release for a UTC date uses YY.M.D-nightly. A same-day rebuild allocates the next immutable .r1 through .r9 suffix from existing Git tags and GitHub Releases, while GitHub run identity remains in release evidence instead of the user-visible version. Nightly publishes standard macOS arm64 updater assets only and remains visible only to prerelease opt-in update checks; the moving nightly image tag is a channel pointer, not version identity."
   },
   "webui_ghcr_image": {
     "owner": "one-person-lab-app",

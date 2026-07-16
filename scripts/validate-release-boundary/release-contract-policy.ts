@@ -225,9 +225,9 @@ function validateGithubReleaseName(releaseContract: Record<string, any>): number
   if (
     releaseName?.format !== 'One Person Lab v<version>' ||
     releaseName?.stable_example !== 'One Person Lab v26.6.5' ||
-    releaseName?.nightly_example !== 'One Person Lab v26.6.5-nightly.123456789.1' ||
+    releaseName?.nightly_example !== 'One Person Lab v26.6.5-nightly' ||
     releaseName?.stable_version_pattern !== '^[0-9]{2}\\.(?:[1-9]|1[0-2])\\.(?:[1-9]|[12][0-9]|3[01])$' ||
-    releaseName?.nightly_version_pattern !== '^[0-9]{2}\\.(?:[1-9]|1[0-2])\\.(?:[1-9]|[12][0-9]|3[01])-nightly\\.[1-9][0-9]*\\.[1-9][0-9]*$' ||
+    releaseName?.nightly_version_pattern !== '^[0-9]{2}\\.(?:[1-9]|1[0-2])\\.(?:[1-9]|[12][0-9]|3[01])-nightly(?:\\.r[1-9])?$' ||
     releaseName?.tag_pattern !== 'v<version>'
   ) {
     console.error('FAIL github_release_name: release names must use One Person Lab v<version> for Stable and Nightly while tags stay v<version>');
@@ -240,6 +240,7 @@ function validateReleaseImmutability(releaseContract: Record<string, any>): numb
   const standardDraft = releaseContract.standard_updater?.draft_refresh;
   const fullDraft = releaseContract.full_first_install?.draft_refresh;
   const nightly = releaseContract.nightly_standard;
+  const sameDayRebuild = nightly?.same_day_rebuild;
   if (
     standardDraft?.allowed !== true ||
     standardDraft?.published_release_mutation_allowed !== false ||
@@ -247,11 +248,19 @@ function validateReleaseImmutability(releaseContract: Record<string, any>): numb
     fullDraft?.allowed !== true ||
     fullDraft?.published_release_mutation_allowed !== false ||
     fullDraft?.mode !== 'unpublished_draft_release_upload_clobber' ||
-    nightly?.tag_pattern !== 'v<YY.M.D>-nightly.<github_run_id>.<github_run_attempt>' ||
+    nightly?.tag_pattern !== 'v<YY.M.D>-nightly[.r<1-9>]' ||
+    sameDayRebuild?.first_release_suffix !== null ||
+    sameDayRebuild?.suffix_pattern !== '.r<revision>' ||
+    sameDayRebuild?.first_revision !== 1 ||
+    sameDayRebuild?.maximum_revision !== 9 ||
+    sameDayRebuild?.allocation !== 'highest_existing_same_day_tag_or_release_plus_one' ||
+    sameDayRebuild?.legacy_run_identity_counts_as_existing_release !== true ||
+    sameDayRebuild?.github_actions_run_identity_in_version !== false ||
+    sameDayRebuild?.exhaustion_policy !== 'fail_closed' ||
     nightly?.prerelease !== true ||
     nightly?.latest_release_allowed !== false
   ) {
-    console.error('FAIL release_immutability: only unpublished drafts may refresh and every Nightly attempt must have a unique immutable version');
+    console.error('FAIL release_immutability: only unpublished drafts may refresh; Nightly must use an immutable date identity with bounded .r1-.r9 same-day rebuilds');
     return 1;
   }
   return 0;

@@ -44,11 +44,31 @@ jobs:
       - name: Resolve nightly version
         id: version
         shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          version="$(date -u +'%y.%-m.%-d')-nightly.${GITHUB_RUN_ID}.${GITHUB_RUN_ATTEMPT}"
+          base_version="$(date -u +'%y.%-m.%-d')-nightly"
+          existing_refs_file="$RUNNER_TEMP/opl-nightly-existing-refs.txt"
+          {
+            timeout 30s git ls-remote --tags origin \
+              "refs/tags/v${base_version}" \
+              "refs/tags/v${base_version}.r*" \
+              "refs/tags/v${base_version}.*.*"
+            timeout 30s gh release list \
+              --repo "$GITHUB_REPOSITORY" \
+              --limit 100 \
+              --exclude-drafts=false \
+              --exclude-pre-releases=false \
+              --json tagName \
+              --jq '.[].tagName'
+          } | sort -u > "$existing_refs_file"
+          version="$(npm run --silent release:nightly-version:resolve -- \
+            --base-version "$base_version" \
+            --existing-ref-file "$existing_refs_file")"
           tag="v${version}"
           npm run release:version:validate -- --channel nightly --version "$version"
+          echo "Resolved immutable Nightly version $version"
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
 

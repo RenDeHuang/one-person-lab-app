@@ -168,10 +168,10 @@ test('Homebrew tap updater is a local cohort-bound manifest and checksum planner
 
   const nightlyResult = runTap({
     channel: 'nightly',
-    version: '26.6.4-nightly.123456789.1',
+    version: '26.6.4-nightly.r1',
     target: 'Casks/one-person-lab-nightly.rb',
     manifest: 'latest-arm64-mac.yml',
-    download: standardDmg('26.6.4-nightly.123456789.1'),
+    download: standardDmg('26.6.4-nightly.r1'),
     write: true,
   });
   assert.equal(nightlyResult.status, 0, nightlyResult.stderr || nightlyResult.stdout);
@@ -181,19 +181,19 @@ test('Homebrew tap updater is a local cohort-bound manifest and checksum planner
 
   const nightlyToStable = runTap({
     channel: 'nightly',
-    version: '26.6.4-nightly.123456789.1',
+    version: '26.6.4-nightly.r1',
     target: 'Casks/one-person-lab.rb',
     manifest: 'latest-arm64-mac.yml',
-    download: standardDmg('26.6.4-nightly.123456789.1'),
+    download: standardDmg('26.6.4-nightly.r1'),
   });
   assert.notEqual(nightlyToStable.status, 0);
   assert.match(nightlyToStable.stderr, /Nightly Homebrew tap updates may only update the Nightly App cask target/);
 
   const stableNightlyPromotion = runTap({
-    version: '26.6.4-nightly.123456789.1',
+    version: '26.6.4-nightly.r1',
     target: 'Casks/one-person-lab.rb',
     manifest: 'latest-arm64-mac.yml',
-    download: standardDmg('26.6.4-nightly.123456789.1'),
+    download: standardDmg('26.6.4-nightly.r1'),
   });
   assert.notEqual(stableNightlyPromotion.status, 0);
   assert.match(stableNightlyPromotion.stderr, /Stable Homebrew tap updates must use YY\.M\.D/);
@@ -219,10 +219,10 @@ test('Homebrew tap updater is a local cohort-bound manifest and checksum planner
   const fullNightly = runTap({
     channel: 'nightly',
     packageKind: 'app_full_first_install',
-    version: '26.6.4-nightly.123456789.1',
+    version: '26.6.4-nightly.r1',
     target: 'Casks/one-person-lab-full.rb',
     manifest: 'opl-release-manifest.json',
-    download: fullDmg('26.6.4-nightly.123456789.1'),
+    download: fullDmg('26.6.4-nightly.r1'),
   });
   assert.notEqual(fullNightly.status, 0);
   assert.match(fullNightly.stderr, /Full first-install Homebrew cask updates must stay on the stable channel/);
