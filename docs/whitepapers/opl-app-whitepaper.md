@@ -26,6 +26,8 @@ AI 已经很擅长回答问题、生成文字和修改文件。真正困难的�
 
 OPL App 是 One Person Lab 面向用户的专业工作台：让目标、对话、材料、阶段、产物、审阅、回执和下一步形成一条可以继续的工作线。
 
+![OPL App 从选择工作目的到持续推进、审阅与交付的用户旅程。](assets/branding/opl-app-user-journey-v2.png)
+
 ## 设计一：从工作目的开始
 
 用户打开 OPL App，首先表达“我要完成什么”，系统随后按工作目标配置仓库、provider、shell 等内部选择。
