@@ -28,11 +28,15 @@ candidate identity 必须在验证时从 active Shell checkout 读取，不能�
 
 - 对话搜索从独立一级 row 移至“对话历史”标题右侧，桌面与窄窗均为 `32x32px` icon action，
   保留 tooltip、accessible name 和原搜索交互；
+- 对话历史空状态使用 `20px` IconPark `MessageOne` 单色 outline 与 `13/18` 次级文案，移除
+  carrier 默认的大号抽屉插画和装饰性 empty-state frame；
 - rail 使用最新 reference 的中性 light/dark surface；项目组直接显示 sessions，source 与 DOM
   均不存在 project-owned“上下文 / 添加上下文”层；
 - Home 与 conversation composer 共用中性 border、resting/focus shadow 和 `14/20` textarea；
 - Settings 导航图标改为中性色，content lane 收敛为 `760px`，彩色 section 边条和多余 card
   shadow 已移除；
+- Account & Gateway 的 connected state 使用 unframed identity/metrics/action group；stale 文案
+  内联呈现，账户、指标和操作不再由多层矩形边框包围；
 - clean candidate 的 full Node `1584/1584`、full DOM `814 passed / 6 skipped`、focused Node
   `24/24`、focused DOM `55/55`、typecheck、format、i18n、lint `0 error` 与 diff-check 均通过。
 

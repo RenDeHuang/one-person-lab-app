@@ -180,6 +180,9 @@ hairline divider。只有独立重复实体、确认或明确 bounded tool 才�
   只有 typed warning、error、success 和品牌动作使用语义色。不手画 SVG，也不借此批量改写
   upstream fork-body 图标。纯刷新动作只显示 refresh icon，并用
   tooltip 与 accessible name 提供文字。
+- 项目/对话 rail 的空状态使用同一套 IconPark 单色 outline 语法：`20px` `MessageOne` 配
+  `13/18` muted 文案。不得回退到 Arco 默认的大号插画、彩色 empty illustration、边框卡片
+  或占据 rail 主体的装饰性图形。
 - 全局标题栏帮助/反馈入口使用 Font Awesome Free Regular 的线框圆形问号，保留 tooltip、
   accessible name 和既有 GitHub issue 路由；不再使用 AionUI 的对话气泡图标。
 - 已连接账户在 rail footer 使用绿色圆形 identity avatar。非中文姓名显示前两个词的首字母，
@@ -290,6 +293,9 @@ Settings 保留 OPL 信息架构，但视觉采用 Codex 式窄内容列与 quie
 - 侧栏在任一时刻只显示一个选中项；兼容路由完成跳转后，选中态归属实际落地页。
 - bounded group 用于清晰分组；禁止 nested group、彩色 category 边条和重 shadow，也禁止
   用贯穿全页的裸横线堆叠出空旷、低密度页面，或把同一个用户问题拆成营销式卡片墙。
+- Account & Gateway 的已连接账户使用单一 unframed content group：身份、指标、托管 Key 与
+  操作通过留白和最多一条 section-scoped hairline 组织；stale/error 是内联状态文字，不再
+  形成 banner 外框、账户卡片外框或指标区的 nested frame。
 - 重复实体使用一组共享列头；逐行重复“名称 / 状态 / 来源 / 操作”等字段标签会降低
   扫描效率，不作为默认布局。
 - 主操作贴近其拥有的对象或 section；不把对象级动作抽离成远端页面工具栏动作。
