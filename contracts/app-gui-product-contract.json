@@ -737,7 +737,21 @@
         "code": "12/18/400",
         "letter_spacing_px": 0
       },
-      "settings_icon_policy": "monochrome_utility_icons_with_color_reserved_for_typed_status",
+      "conversation_rendering": {
+        "timeline": "single_column_reading_lane",
+        "assistant_surface": "unframed",
+        "user_surface": "lightweight_bounded",
+        "markdown_default_typography": "15/22/400",
+        "paragraph_margin_block_px": 10,
+        "list_item_margin_block_px": 2,
+        "inline_code": "subtle_neutral_capsule_12_18",
+        "tool_event": "compact_localized_disclosure_row_without_card_background",
+        "process_and_file_events": "compact_localized_unframed_disclosure_rows_with_file_changes_collapsed_by_default",
+        "message_actions": "hover_or_focus_revealed_without_permanent_32px_blank_row",
+        "loading_skeleton": "unframed_text_lines_without_bordered_message_bubbles"
+      },
+      "settings_icon_policy": "icon_park_react_16px_monochrome_outline_with_color_reserved_for_typed_status",
+      "settings_surface_policy": "ordinary_pages_use_unframed_sections_flat_rows_and_hairline_dividers_bounded_cards_only_for_repeated_entities_or_confirmation",
       "accent_scope": "brand_typed_status_and_actions_only_not_ordinary_rail_selection_or_settings_icons",
       "opl_teal_and_brand_retained": true
     },
@@ -1931,8 +1945,9 @@
     ]
   },
   "utility_icon_policy": {
-    "library": "font_awesome_free_for_opl_owned_utility_icons",
-    "opl_owned_settings_navigation_and_overview": "font_awesome_free",
+    "library": "icon_park_react_for_opl_owned_utility_icons",
+    "opl_owned_settings_navigation_and_overview": "icon_park_react_outline_16px_monochrome",
+    "settings_icon_geometry": "stable_16px_slot_1_5_to_1_75px_visual_stroke_no_colored_tile_or_letter_avatar",
     "upstream_fork_body_bulk_icon_rewrite": "forbidden",
     "refresh_actions": "icon_only_with_tooltip_and_accessible_name",
     "model_reasoning_control": "text_and_disclosure_without_brain_icon",
@@ -3610,17 +3625,16 @@
           ],
           "surface_grouping": {
             "allowed_bounded_group_kinds": [
-              "page_section",
-              "summary",
-              "repeated_entity"
+              "repeated_entity",
+              "confirmation"
             ],
-            "bounded_group_nesting": "single_layer_only",
-            "page_section_card_policy": "one_quiet_bounded_section_per_user_question_with_flat_internal_rows",
+            "bounded_group_nesting": "none",
+            "page_section_card_policy": "ordinary_page_sections_are_unframed_heading_plus_flat_rows_with_hairline_dividers",
             "first_viewport_spatial_group_range": {
               "min": 2,
               "max": 4
             },
-            "page_wide_bare_divider_layout": "forbidden",
+            "page_wide_bare_divider_layout": "section_scoped_hairlines_allowed_no_box_per_section",
             "page_wide_list_wall": "forbidden"
           },
           "responsive_hierarchy": {
@@ -5723,8 +5737,8 @@
           "label_en": "Recommended by OPL Flow"
         },
         "manual_and_third_party": {
-          "label_zh": "本机能力",
-          "label_en": "Local capabilities"
+          "label_zh": "手工添加",
+          "label_en": "Manually added"
         }
       },
       "lifecycle_policy": {
@@ -5740,8 +5754,10 @@
       },
       "third_party_projection_policy": {
         "display_name_policy": "use_product_profile_display_names_and_never_raw_provider_ids_as_primary_labels",
-        "aionui_native_policy": "keep_AionUI_native_skills_tools_assistants_MCP_helpers_image_controls_and_voice_input_controls_in_local_or_third_party_ownership_never_OPL_Flow_managed"
+        "aionui_native_policy": "keep_AionUI_native_skills_tools_assistants_MCP_helpers_image_controls_and_voice_input_controls_in_local_or_third_party_ownership_never_OPL_Flow_managed",
+        "manual_skill_inventory_semantics": "the_count_and_empty_state_describe_only_user_imports_under_the_shell_manual_skill_directory_never_total_OPL_or_OPL_Flow_capability_readiness"
       },
+      "ordinary_layout_policy": "tabs_then_unframed_groups_with_flat_rows; MCP image generation and voice input use one aligned settings list without nested gray cards",
       "local_capability_configuration_source": "AionUI local configuration#MCP servers + image generation + voice input",
       "task_awareness_refs_source": "contracts/app-runtime-bridge.json#task_awareness_projection.settings_capabilities_surface",
       "task_awareness_ref_fields": [

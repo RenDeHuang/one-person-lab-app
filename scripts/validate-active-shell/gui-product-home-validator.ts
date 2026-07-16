@@ -63,8 +63,11 @@ function validateExecutorPolicy(guiContract) {
 function validateHomeLayout(guiContract) {
   assertDeepEqualJson(guiContract.home_layout, appOwnedHomeLayout, 'App GUI home layout');
   if (
-    guiContract.utility_icon_policy?.library !== 'font_awesome_free_for_opl_owned_utility_icons' ||
-    guiContract.utility_icon_policy?.opl_owned_settings_navigation_and_overview !== 'font_awesome_free' ||
+    guiContract.utility_icon_policy?.library !== 'icon_park_react_for_opl_owned_utility_icons' ||
+    guiContract.utility_icon_policy?.opl_owned_settings_navigation_and_overview !==
+      'icon_park_react_outline_16px_monochrome' ||
+    guiContract.utility_icon_policy?.settings_icon_geometry !==
+      'stable_16px_slot_1_5_to_1_75px_visual_stroke_no_colored_tile_or_letter_avatar' ||
     guiContract.utility_icon_policy?.upstream_fork_body_bulk_icon_rewrite !== 'forbidden' ||
     guiContract.utility_icon_policy?.refresh_actions !== 'icon_only_with_tooltip_and_accessible_name' ||
     guiContract.utility_icon_policy?.model_reasoning_control !== 'text_and_disclosure_without_brain_icon' ||

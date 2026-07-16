@@ -156,6 +156,11 @@ OPL accent 只用于品牌动作和必要状态，不参与普通 rail、Setting
 
 - Timeline 保持单列，assistant 正文 unframed；内容宽度、Markdown、代码块和 diff 与 Codex
   reference 对齐。
+- 默认 assistant Markdown 使用 `15/22`、段落上下 `10px`、列表项上下 `2px`；行内代码使用
+  `12/18` 中性浅灰胶囊。不得继续使用 AionUI 的 `16/28` 松散正文或按 viewport 缩小字号。
+- Tool/process 过程使用本地化的低对比度 disclosure row；展开内容仍按行与 hairline 组织，
+  不出现整块灰底卡片。复制/时间仅在 hover/focus 显示，不能为每条消息永久预留 `32px` 空行。
+- 首批加载 skeleton 使用无框文本线，不画 bordered assistant/user bubble。
 - Composer 单层 surface，桌面最大宽度 `736-800px`，圆角 `20-22px`，1px hairline。
 - Resting shadow 必须存在：light 使用 `0 1px 2px rgba(0,0,0,.07), 0 8px 24px rgba(0,0,0,.08)`；
   dark 使用 `0 1px 2px rgba(0,0,0,.30), 0 8px 24px rgba(0,0,0,.24)`。
@@ -171,6 +176,8 @@ OPL accent 只用于品牌动作和必要状态，不参与普通 rail、Setting
 - 导航图标统一中性色，不用不同品牌色区分类目；16px icon，13-14px label，34px row。
 - 主内容优先 section heading + grouped rows + hairline divider。只有确有边界的重复实体或
   confirmation 才使用 card。
+- Settings 的 OPL-owned 图标统一来自 `@icon-park/react`，使用 16px 单色 outline；不混用
+  Font Awesome、彩色图标块、filled 插画式图标或字母头像。
 - 移除彩色左边条、重灰背景、卡片套卡片和营销式说明块；状态色只用于状态本身。
 - Toggle、segmented control、select、stepper 和 swatch 按控件语义使用，不用文本胶囊模拟。
 

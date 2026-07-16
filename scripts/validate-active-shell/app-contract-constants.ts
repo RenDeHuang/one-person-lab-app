@@ -1411,6 +1411,8 @@ export const appOwnedPageStateOrdinaryConversation = {
         : [key, value],
     ),
   ),
+  conversation_rendering_ref:
+    "contracts/app-gui-product-contract.json#interaction_baseline.visual_target.conversation_rendering",
   environment_workspace_handoff:
     appOwnedPageStateEnvironmentWorkspaceHandoff,
   transcript_export: appOwnedTranscriptExport,

@@ -605,6 +605,20 @@ test('GUI design-system validator rejects stale Codex light surfaces and compose
   );
 });
 
+test('GUI design-system validator rejects card-backed or loosely spaced conversation output', () => {
+  const root = createFixture();
+  const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
+  const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+  contract.interaction_baseline.visual_target.conversation_rendering.paragraph_margin_block_px = 16;
+  contract.interaction_baseline.visual_target.conversation_rendering.tool_event = 'card_backed_tool_summary';
+  writeJson(root, 'contracts/app-gui-product-contract.json', contract);
+
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /interaction baseline must reject the legacy equal-weight inspector taxonomy and keep Settings in maintenance/,
+  );
+});
+
 test('GUI design-system validator rejects restored workspace-scoped project context inputs', () => {
   const root = createFixture();
   const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
