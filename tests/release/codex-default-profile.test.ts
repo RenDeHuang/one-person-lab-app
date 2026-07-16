@@ -142,7 +142,7 @@ test('active-shell source gate requires Home starters and Capabilities routing i
       'data-opl-launch-ready={String(launchReady)}',
       'active && styles.homeStarterActive',
       "data-testid='starter-active-check'",
-      "<CheckOne theme='filled'",
+      "<CheckOne theme='outline'",
       'starterIcon(assistant.id)',
       'active && onClear ? onClear() : onSelect(assistant.id)',
     ].join('\n'),
@@ -199,11 +199,11 @@ test('active-shell source gate requires Home starters and Capabilities routing i
       assertCurrentGuidHomeSelectionSources({
         ...currentSources,
         homeStarters: currentSources.homeStarters.replace(
-          "<CheckOne theme='filled'",
+          "<CheckOne theme='outline'",
           '<FontAwesomeIcon icon={faCheck}',
         ),
       }),
-    /must include <CheckOne theme='filled'/,
+    /must include <CheckOne theme='outline'/,
   );
   assert.throws(() =>
     assertCurrentGuidHomeSelectionSources({

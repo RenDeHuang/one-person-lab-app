@@ -128,7 +128,7 @@ export function assertCurrentGuidHomeSelectionSources({
       'data-opl-launch-ready={String(launchReady)}',
       'active && styles.homeStarterActive',
       "data-testid='starter-active-check'",
-      "<CheckOne theme='filled'",
+      "<CheckOne theme='outline'",
       'starterIcon(assistant.id)',
       'active && onClear ? onClear() : onSelect(assistant.id)',
     ],
