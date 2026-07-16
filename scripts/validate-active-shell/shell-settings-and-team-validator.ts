@@ -11,6 +11,7 @@ const settingsNavExpected = [
 ];
 
 const settingsRegistryExpected = [
+  "from '@icon-park/react'",
   'getOplGuiSettingsControlPlane',
   'getOplGuiSettingsVisibleTabs',
   'getOplGuiLegacySettingsRouteRedirects',
@@ -20,7 +21,48 @@ const settingsRegistryExpected = [
   'LEGACY_SETTINGS_ROUTE_REDIRECTS',
   'LEGACY_ANCHOR_REMAP',
   'buildSettingsItemsWithExtensions',
+  "theme='outline'",
+  '{icon(16)}',
 ];
+
+const conversationMarkdownExpected = [
+  'line-height: 1.4667;',
+  'font-size: var(--chat-font-size, 15px);',
+  'margin-block-start: 10px;',
+  'margin-block-start: 2px;',
+  'font-size: 12px;',
+  'line-height: 18px;',
+];
+
+const conversationMessageExpected = [
+  "classNames('h-20px flex items-center mt-2px gap-6px'",
+  "data-testid='message-hover-actions'",
+];
+
+const conversationMessageStylesExpected = [
+  '.message-item .whitespace-pre-wrap',
+  'font-size: var(--chat-font-size, 15px);',
+  'line-height: 1.4667;',
+];
+
+const conversationToolSummaryExpected = [
+  "from '@icon-park/react'",
+  'useTranslation',
+  "type='button'",
+  'aria-expanded={showMore}',
+  'messages.toolSteps.completed',
+  'messages.toolSteps.input',
+  'messages.toolSteps.output',
+];
+
+const conversationFileChangesExpected = [
+  "variant?: 'panel' | 'conversation'",
+  "variant = 'panel'",
+  'data-variant={variant}',
+  "compact ? 'py-2px'",
+];
+
+const conversationSkeletonExpected = ["data-testid='message-list-skeleton-lines'"];
 
 const settingsModalExpected = [
   'SettingsHost',
@@ -195,6 +237,11 @@ function validateSettingsPartitionImplementation(shellPaths) {
     settingsAppearanceForbidden,
     'Active shell Settings retired CSS theme preset surface',
   );
+  assertTextExcludesAll(
+    settingsAppearance,
+    ['@fortawesome', "size='18'"],
+    'Active shell Settings navigation icon library and geometry',
+  );
   const settingsSider = readShellText(
     shellPaths,
     'packages/desktop/src/renderer/pages/settings/components/SettingsSider.tsx',
@@ -215,6 +262,83 @@ function validateSettingsPartitionImplementation(shellPaths) {
     'packages/desktop/src/renderer/pages/settings/accessProjection.ts',
     ['const hanCharacter = name.match(/\\p{Script=Han}/u)?.[0]', 'if (hanCharacter) return hanCharacter'],
     'Active shell account identity initials policy',
+  );
+}
+
+function validateConversationVisualImplementation(shellPaths) {
+  const markdown = assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/components/Markdown/ShadowView.tsx',
+    conversationMarkdownExpected,
+    'Active shell Codex-aligned conversation Markdown typography',
+  );
+  assertTextExcludesAll(
+    markdown,
+    ["isMobile ? '19.6px'", "isMobile ? 'var(--chat-font-size, 14px)'"],
+    'Active shell viewport-independent conversation typography',
+  );
+  const messageText = assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/conversation/Messages/components/MessageText.tsx',
+    conversationMessageExpected,
+    'Active shell compact hover-only message actions',
+  );
+  assertTextExcludesAll(messageText, ["classNames('h-32px"], 'Active shell retired 32px message action spacer');
+  const messageStyles = assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/conversation/Messages/messages.css',
+    conversationMessageStylesExpected,
+    'Active shell viewport-independent plain-text message typography',
+  );
+  assertTextExcludesAll(
+    messageStyles,
+    ['font-size: 14px !important;', 'line-height: 1.4 !important;'],
+    'Active shell retired narrow-window message typography override',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/conversation/Messages/components/MessageToolGroupSummary.tsx',
+    conversationToolSummaryExpected,
+    'Active shell localized tool disclosure row',
+  );
+  const toolStyles = assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/conversation/Messages/components/MessageToolGroupSummary.css',
+    ['padding: 6px 0 0;', 'margin-left: 20px;'],
+    'Active shell unframed tool disclosure body',
+  );
+  assertTextExcludesAll(
+    toolStyles,
+    ['background: color-mix(in srgb, var(--aou-1)', "[data-theme='dark'] .tool-group-summary__body"],
+    'Active shell retired tool disclosure card background',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/components/base/FileChangesPanel.tsx',
+    conversationFileChangesExpected,
+    'Active shell compact file-change disclosure variant',
+  );
+  const thinkingStyles = assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/conversation/Messages/components/MessageThinking.module.css',
+    ['border-left: 2px solid var(--color-border-2);'],
+    'Active shell unframed process disclosure body',
+  );
+  assertTextExcludesAll(
+    thinkingStyles,
+    ['background: color-mix(in srgb, var(--aou-1)'],
+    'Active shell retired process disclosure card background',
+  );
+  const messageList = assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/conversation/Messages/MessageList.tsx',
+    conversationSkeletonExpected,
+    'Active shell unframed conversation loading skeleton',
+  );
+  assertTextExcludesAll(
+    messageList,
+    ["border: '1px solid var(--color-border-2)'"],
+    'Active shell retired bordered message skeleton',
   );
 }
 
@@ -303,6 +427,7 @@ function validateOrdinaryCapabilityScrub(shellPaths) {
 
 export function validateShellSettingsAndTeamImplementation(shellPaths) {
   validateSettingsPartitionImplementation(shellPaths);
+  validateConversationVisualImplementation(shellPaths);
   validateTeamRouteDisablement(shellPaths);
   validateTeamSurfaceDisablement(shellPaths);
   validateOrdinaryCapabilityScrub(shellPaths);

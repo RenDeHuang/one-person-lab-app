@@ -54,10 +54,10 @@
           "cli_currentness_owner": "opl_base"
         },
         "manual_and_third_party": {
-          "label_zh": "本机能力",
-          "label_en": "Local capabilities",
+          "label_zh": "手工添加",
+          "label_en": "Manually added",
           "source": "codex_and_shell_skill_plugin_registries_plus_aionui_mcp_image_voice_configuration",
-          "membership_policy": "show_user_managed_and_third_party_skills_plugins_MCP_image_and_voice_controls_without_reclassifying_them_as_opl_flow_managed",
+          "membership_policy": "show_user_managed_and_third_party_skills_plugins_MCP_image_and_voice_controls_without_reclassifying_them_as_opl_flow_managed; manual skill counts and empty states describe only the shell import directory",
           "display_name_policy": "use_product_profile_display_names_and_never_raw_provider_ids_as_primary_labels",
           "aionui_native_policy": "keep_AionUI_native_skills_tools_assistants_MCP_helpers_image_controls_and_voice_input_controls_in_local_or_third_party_ownership_never_OPL_Flow_managed",
           "lifecycle_owner": "detected_install_source_or_user",
@@ -2810,8 +2810,9 @@
           ]
         },
         "surface_rules": {
-          "workspace_card_count": 1,
-          "permission_presentation": "one merged writability status inside the workspace card",
+          "workspace_card_count": 0,
+          "location_presentation": "one unframed File locations group with two equal rows for workspace and desktop logs",
+          "permission_presentation": "one merged writability status inside the workspace row",
           "maintenance_action_visibility": "attention_only",
           "diagnostics_entry": "explicit_modal_action",
           "log_directory_source": "application.systemInfo.logDir_not_Framework_app_state.paths.logs_dir",
@@ -3096,7 +3097,7 @@
           "default_tab": "agents",
           "on_demand_tab_ids": []
         },
-        "exception_state": "highlight failed or blocked Agent packages and keep normal packages visually quiet",
+        "exception_state": "highlight failed blocked dependency-broken or scope-materialization-missing Agent packages; installed but not activated packages stay neutral and read as available to enable",
         "technical_details_boundary": "package ids, receipts, paths, manifests, and raw status axes stay collapsed",
         "required_dom": {
           "always": [

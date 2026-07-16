@@ -680,12 +680,13 @@ test("Settings visual QA enforces Codex quiet grouping, compact footer, and mono
     "scannable",
   ]);
   assert.deepStrictEqual(visualQa.surface_grouping, {
-    allowed_bounded_group_kinds: ["page_section", "summary", "repeated_entity"],
-    bounded_group_nesting: "single_layer_only",
+    allowed_bounded_group_kinds: ["repeated_entity", "confirmation"],
+    bounded_group_nesting: "none",
     page_section_card_policy:
-      "one_quiet_bounded_section_per_user_question_with_flat_internal_rows",
+      "ordinary_page_sections_are_unframed_heading_plus_flat_rows_with_hairline_dividers",
     first_viewport_spatial_group_range: { min: 2, max: 4 },
-    page_wide_bare_divider_layout: "forbidden",
+    page_wide_bare_divider_layout:
+      "section_scoped_hairlines_allowed_no_box_per_section",
     page_wide_list_wall: "forbidden",
   });
   assert.deepStrictEqual(visualQa.footer_structure, {
@@ -868,7 +869,11 @@ test("Settings strictly separates configuration, status, action, and diagnostic 
   );
   assert.equal(
     experience.page_contracts.workspace.surface_rules.workspace_card_count,
-    1,
+    0,
+  );
+  assert.equal(
+    experience.page_contracts.workspace.surface_rules.location_presentation,
+    "one unframed File locations group with two equal rows for workspace and desktop logs",
   );
   assert.deepStrictEqual(
     experience.page_contracts.preferences.surface_rules.builtin_theme_ids,

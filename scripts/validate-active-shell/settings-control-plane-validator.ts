@@ -499,8 +499,10 @@ export function validateSettingsControlPlane(
     capabilityOwnership?.groups?.opl_flow_managed?.cli_currentness_owner !== "opl_base" ||
     capabilityOwnership?.groups?.manual_and_third_party?.source !==
       "codex_and_shell_skill_plugin_registries_plus_aionui_mcp_image_voice_configuration" ||
+    capabilityOwnership?.groups?.manual_and_third_party?.label_zh !== "手工添加" ||
+    capabilityOwnership?.groups?.manual_and_third_party?.label_en !== "Manually added" ||
     capabilityOwnership?.groups?.manual_and_third_party?.membership_policy !==
-      "show_user_managed_and_third_party_skills_plugins_MCP_image_and_voice_controls_without_reclassifying_them_as_opl_flow_managed" ||
+      "show_user_managed_and_third_party_skills_plugins_MCP_image_and_voice_controls_without_reclassifying_them_as_opl_flow_managed; manual skill counts and empty states describe only the shell import directory" ||
     capabilityOwnership?.groups?.manual_and_third_party?.aionui_native_policy !==
       "keep_AionUI_native_skills_tools_assistants_MCP_helpers_image_controls_and_voice_input_controls_in_local_or_third_party_ownership_never_OPL_Flow_managed" ||
     capabilityOwnership?.groups?.manual_and_third_party?.mutation_policy !== "explicit_user_action_only"
@@ -1254,16 +1256,13 @@ function validateSettingsVisualQaExpectations(expectations) {
   assertDeepEqualJson(
     expectations?.surface_grouping,
     {
-      allowed_bounded_group_kinds: [
-        "page_section",
-        "summary",
-        "repeated_entity",
-      ],
-      bounded_group_nesting: "single_layer_only",
+      allowed_bounded_group_kinds: ["repeated_entity", "confirmation"],
+      bounded_group_nesting: "none",
       page_section_card_policy:
-        "one_quiet_bounded_section_per_user_question_with_flat_internal_rows",
+        "ordinary_page_sections_are_unframed_heading_plus_flat_rows_with_hairline_dividers",
       first_viewport_spatial_group_range: { min: 2, max: 4 },
-      page_wide_bare_divider_layout: "forbidden",
+      page_wide_bare_divider_layout:
+        "section_scoped_hairlines_allowed_no_box_per_section",
       page_wide_list_wall: "forbidden",
     },
     "Settings visual QA surface grouping",
@@ -2186,9 +2185,11 @@ export function validateSettingsExperienceContract(experience) {
   assertDeepEqualJson(
     pageContracts.workspace.surface_rules,
     {
-      workspace_card_count: 1,
+      workspace_card_count: 0,
+      location_presentation:
+        "one unframed File locations group with two equal rows for workspace and desktop logs",
       permission_presentation:
-        "one merged writability status inside the workspace card",
+        "one merged writability status inside the workspace row",
       maintenance_action_visibility: "attention_only",
       diagnostics_entry: "explicit_modal_action",
       log_directory_source:
@@ -2250,7 +2251,7 @@ export function validateSettingsExperienceContract(experience) {
   );
   if (
     pageContracts.agents.exception_state !==
-    "highlight failed or blocked Agent packages and keep normal packages visually quiet"
+    "highlight failed blocked dependency-broken or scope-materialization-missing Agent packages; installed but not activated packages stay neutral and read as available to enable"
   ) {
     throw new Error(
       "Settings Agents exception state must use Agent package semantics",

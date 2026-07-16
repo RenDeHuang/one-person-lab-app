@@ -582,6 +582,7 @@
         "environment_workspace_handoff": {
           "contract_ref": "contracts/app-gui-product-contract.json#interaction_baseline.conversation_scope.local_worktree_lifecycle"
         },
+        "conversation_rendering_ref": "contracts/app-gui-product-contract.json#interaction_baseline.visual_target.conversation_rendering",
         "transcript_export": {
           "scope": "current_conversation_transcript_only",
           "history_loading_policy": "load_all_pages_before_export",
@@ -726,6 +727,7 @@
       },
       "must_show": [
         "Codex CLI ordinary conversation",
+        "single-column assistant output using unframed 15/22 Markdown, compact localized tool rows, subtle inline-code capsules, and no permanent 32px action spacer",
         "floating bottom composer with safe inset",
         "compact active capability chip",
         "desktop attach, permission and access, model and reasoning, and send or stop controls in the composer",
@@ -754,6 +756,7 @@
         "provider selector as normal conversation control",
         "provider or backend language inside permission and access mode",
         "persistent variable purpose selector in the composer",
+        "assistant cards, bordered loading bubbles, card-backed tool-event groups, or viewport-scaled conversation typography",
         "new task dashboard inside conversation",
         "persistent project, workspace, locality, branch, attachment, or workspace-context-ref context strip",
         "workspace-scoped project context inputs or an Add context action in the directory rail",
@@ -2867,7 +2870,9 @@
         "AionUI-native Skills, Plugins, MCP helpers, image generation, and voice input inside local or third-party ownership instead of OPL Flow",
         "product-profile display names instead of raw provider ids as primary labels",
         "a non-empty OPL Flow managed group whenever the canonical Flow dependency catalog contains entries",
-        "source, owner, version, currentness, and available explicit actions"
+        "source, owner, version, currentness, and available explicit actions",
+        "manual import count and empty state explicitly scoped to the shell manual skill directory rather than total OPL capabilities",
+        "MCP, image generation, and voice input as one aligned flat settings list without nested gray cards"
       ],
       "must_not_show": [
         "runnable Agent package lifecycle",
@@ -2877,7 +2882,9 @@
         "AionUI-native capabilities reclassified as OPL Flow managed",
         "a second OPL Flow updater or scheduler",
         "silent mutation of manual or third-party Skills and Plugins",
-        "voice input configuration on Preferences or Advanced"
+        "voice input configuration on Preferences or Advanced",
+        "the manual skill directory labeled as total local or OPL capability readiness",
+        "nested cards or large gray blocks around MCP, image generation, or voice input"
       ],
       "product_page_id": "capabilities",
       "experience_contract_ref": "contracts/app-settings-control-plane.json#experience_contract.page_contracts.capabilities",
@@ -3220,7 +3227,9 @@
         "OPL Meta Agent as an explicit default-visible managed package row without becoming a legacy default assistant",
         "Home shortcut visibility and order inline on Agent package rows",
         "launch readiness and lifecycle actions bound to projected Agent package state",
-        "normal Agent rows visually quiet with package diagnostics collapsed"
+        "normal Agent rows visually quiet with package diagnostics collapsed",
+        "installed activation-required packages with operational_ready and launch_allowed not false shown as neutral not-enabled state rather than attention",
+        "scope_materialization_missing and genuinely blocked or failed packages retained as attention or repair"
       ],
       "must_not_show": [
         "Skills, Plugins, tools, MCP helpers, workflows, connectors, or AionUI-native capability catalogs",

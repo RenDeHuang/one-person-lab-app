@@ -1243,6 +1243,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   const lightSurfaces = record(visualTarget.light_surfaces);
   const darkSurfaces = record(visualTarget.dark_surfaces);
   const visualTypography = record(visualTarget.typography);
+  const conversationRendering = record(visualTarget.conversation_rendering);
   const targetDefinitionRole = 'opl_target_translation_not_literal_codex_observation';
   if (oplTargetTranslation.some((key) => record(interactionBaseline[key]).definition_role !== targetDefinitionRole)) {
     issues.add('each OPL target translation section must declare that it is not a literal Codex observation');
@@ -1416,7 +1417,27 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
         code: '12/18/400',
         letter_spacing_px: 0,
       }) ||
-    visualTarget.settings_icon_policy !== 'monochrome_utility_icons_with_color_reserved_for_typed_status' ||
+    JSON.stringify(conversationRendering) !==
+      JSON.stringify({
+        timeline: 'single_column_reading_lane',
+        assistant_surface: 'unframed',
+        user_surface: 'lightweight_bounded',
+        markdown_default_typography: '15/22/400',
+        paragraph_margin_block_px: 10,
+        list_item_margin_block_px: 2,
+        inline_code: 'subtle_neutral_capsule_12_18',
+        tool_event: 'compact_localized_disclosure_row_without_card_background',
+        process_and_file_events:
+          'compact_localized_unframed_disclosure_rows_with_file_changes_collapsed_by_default',
+        message_actions: 'hover_or_focus_revealed_without_permanent_32px_blank_row',
+        loading_skeleton: 'unframed_text_lines_without_bordered_message_bubbles',
+      }) ||
+    ordinaryConversationViewModel.conversation_rendering_ref !==
+      'contracts/app-gui-product-contract.json#interaction_baseline.visual_target.conversation_rendering' ||
+    visualTarget.settings_icon_policy !==
+      'icon_park_react_16px_monochrome_outline_with_color_reserved_for_typed_status' ||
+    visualTarget.settings_surface_policy !==
+      'ordinary_pages_use_unframed_sections_flat_rows_and_hairline_dividers_bounded_cards_only_for_repeated_entities_or_confirmation' ||
     visualTarget.accent_scope !==
       'brand_typed_status_and_actions_only_not_ordinary_rail_selection_or_settings_icons' ||
     visualTarget.opl_teal_and_brand_retained !== true

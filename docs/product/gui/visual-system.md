@@ -169,13 +169,16 @@ Dark target：
 | Popover / drawer panel | `10-12px` | 1px border，轻 shadow。 |
 | Composer | `20-22px` | 单层 surface、单层 outline、resting shadow；focus 不改变几何。 |
 
-禁止 nested cards、重复白底、双重 shadow 和未裁剪的矩形 adapter container。
+Settings 普通页面默认不用 card 包 section：使用 section heading、扁平设置行和 section 内
+hairline divider。只有独立重复实体、确认或明确 bounded tool 才使用 card。禁止 nested cards、
+重复白底、双重 shadow 和未裁剪的矩形 adapter container。
 
 ## Icons
 
-- OPL-owned Settings 导航、Overview 状态图标和 utility icon 统一使用 Font Awesome Free；普通
-  utility/navigation icon 使用单色，只有 typed warning、error、success 和品牌动作使用语义色。不手画
-  SVG，也不借此批量改写 upstream fork-body 图标。纯刷新动作只显示 refresh icon，并用
+- OPL-owned Settings 导航、Overview 状态图标和 utility icon 统一使用 `@icon-park/react`
+  16px outline 图标；普通 utility/navigation icon 使用单色，不使用彩色图标底板或字母头像，
+  只有 typed warning、error、success 和品牌动作使用语义色。不手画 SVG，也不借此批量改写
+  upstream fork-body 图标。纯刷新动作只显示 refresh icon，并用
   tooltip 与 accessible name 提供文字。
 - 全局标题栏帮助/反馈入口使用 Font Awesome Free Regular 的线框圆形问号，保留 tooltip、
   accessible name 和既有 GitHub issue 路由；不再使用 AionUI 的对话气泡图标。
@@ -242,7 +245,11 @@ Composer 是底部唯一主 command surface：
 
 - 主区只有一条时间线。Assistant 正文默认 unframed；用户消息可以使用轻量 bounded
   surface，但不做同权重大气泡墙。
-- Tool、process、diff、file、receipt 和 permission event 使用 compact disclosure row。
+- Assistant Markdown 默认 `15/22`，段落上下 `10px`、列表项上下 `2px`；行内 code/path
+  使用 `12/18` 中性浅灰胶囊，不按 viewport 改字号。
+- Tool、process、diff、file、receipt 和 permission event 使用本地化 compact disclosure row，
+  不使用整块灰底 card。消息 hover/focus action 不得永久占用 `32px` 空白行；初始 skeleton
+  只画无框文本线，不画 bordered message bubble。
 - Approval、permission、user-input 与 MCP elicitation pending 使用同一层级的 compact bounded
   disclosure。后台 target 可放在 selected thread detail，但必须显示 thread/turn/item context；
   不使用无上下文全局 modal，也不把 pending 绘制成 error。
