@@ -14,6 +14,9 @@ test('Codex visual parity policy is discoverable and keeps sessions primary', ()
   const guiContract = JSON.parse(
     readFileSync(join(appRoot, 'contracts/app-gui-product-contract.json'), 'utf8'),
   );
+  const productProfile = JSON.parse(
+    readFileSync(join(appRoot, 'contracts/app-product-profile.json'), 'utf8'),
+  );
 
   assert.match(readme, /codex-app-visual-parity\.md/);
   assert.match(policy, /visual_parity_target=codex_app_1_to_1_except_opl_owned_deltas/);
@@ -73,6 +76,37 @@ test('Codex visual parity policy is discoverable and keeps sessions primary', ()
     disabled_policy:
       'apply_disabled_opacity_to_the_whole_control_never_hide_only_the_icon',
   });
+  assert.deepStrictEqual(
+    productProfile.gui.home.utility_icon_policy,
+    guiContract.utility_icon_policy,
+  );
+  assert.equal(guiContract.home_layout.workspace_selector_visible, false);
+  assert.equal(guiContract.home_layout.projectless_context_placeholder_visible, false);
+  assert.deepStrictEqual(
+    guiContract.ordinary_conversation.unified_context_menu.groups.map(
+      (group: { id: string }) => group.id,
+    ),
+    ['local_inputs', 'working_directory', 'skills', 'apps_and_connections'],
+  );
+  assert.ok(
+    guiContract.ordinary_conversation.unified_context_menu.forbidden_entries.includes(
+      'unavailable_or_synthetic_plugins',
+    ),
+  );
+  const catalogPolicy = productProfile.gui.agent_package_registry.catalog_presentation_policy;
+  assert.deepStrictEqual(catalogPolicy.section_order, [
+    'professional_agents',
+    'workflow_profiles',
+    'shared_dependencies',
+    'other_packages',
+  ]);
+  assert.equal(catalogPolicy.raw_package_role_visible, false);
+  assert.equal(
+    catalogPolicy.dependency_hierarchy.source,
+    'app_state.agent_packages.status_index.packages[].dependent_guard.required_by_package_ids',
+  );
+  assert.equal(catalogPolicy.dependency_hierarchy.hardcoded_package_relationships_allowed, false);
+  assert.equal(catalogPolicy.dependency_hierarchy.duplicate_rows_allowed, false);
   assert.equal(
     guiContract.interaction_baseline.visual_target.light_surfaces.composer_shadow,
     '0 1px 2px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.05)',

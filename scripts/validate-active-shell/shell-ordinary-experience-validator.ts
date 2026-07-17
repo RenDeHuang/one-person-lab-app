@@ -153,17 +153,18 @@ export function assertCurrentGuidHomeSelectionSources({
       '.guidInputInner',
       'min-height: 98px',
       'border-radius: 22px',
-      '.workspaceFootnote',
+      '.actionRow',
+      'align-items: flex-end',
       'width: 100%',
-      'min-height: 28px',
-      'margin: 4px 0',
-      'background: transparent',
+      '.workspaceChip',
+      'height: 28px',
+      'background: var(--color-fill-2)',
       '.homeStarterGrid',
       'display: flex',
       'flex-wrap: wrap',
       'justify-content: center',
       'width: auto !important',
-      'height: 32px !important',
+      'height: 34px !important',
     ],
     'Active shell integrated Guid Home reading lane',
   );
@@ -501,7 +502,7 @@ function validateCodexModelControls(shellPaths) {
   assertShellTextIncludesAll(
     shellPaths,
     'packages/desktop/src/renderer/components/opl/OplRefreshIconButton.tsx',
-    ['@fortawesome/free-solid-svg-icons', 'FontAwesomeIcon', 'faRotateRight', 'aria-label={label}', '<Tooltip content={label}>'],
+    ["Refresh } from '@icon-park/react'", "theme='outline'", "fill='currentColor'", 'aria-label={label}', '<Tooltip content={label}>'],
     'Active shell OPL refresh icon button',
   );
   for (const settingsSurface of [
@@ -545,6 +546,7 @@ function validateSessionFirstDirectoryImplementation(shellPaths) {
   for (const retiredPath of [
     'packages/desktop/src/renderer/components/layout/Sider/ProjectContextSection.tsx',
     'packages/desktop/src/renderer/utils/workspace/projectContext.ts',
+    'packages/desktop/src/renderer/pages/guid/components/GuidWorkspaceFootnote.tsx',
   ]) {
     if (existsSync(path.join(shellPaths.shellRoot, retiredPath))) {
       throw new Error(`Active shell session-first directory must remove retired workspace context surface ${retiredPath}`);
@@ -556,7 +558,7 @@ function validateSessionFirstDirectoryImplementation(shellPaths) {
     'packages/desktop/src/renderer/pages/conversation/GroupedHistory/index.tsx',
     'packages/desktop/src/renderer/pages/guid/GuidPage.tsx',
     'packages/desktop/src/renderer/pages/guid/components/GuidInputCard.tsx',
-    'packages/desktop/src/renderer/pages/guid/components/GuidWorkspaceFootnote.tsx',
+    'packages/desktop/src/renderer/pages/guid/components/GuidActionRow.tsx',
     'packages/desktop/src/renderer/pages/guid/hooks/useGuidSend.ts',
   ]) {
     assertTextExcludesAll(
@@ -566,6 +568,23 @@ function validateSessionFirstDirectoryImplementation(shellPaths) {
     );
   }
 
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/guid/components/GuidActionRow.tsx',
+    [
+      "key='attach-file'",
+      "key='attach-directory'",
+      "key='workspace'",
+      "key='skills'",
+      "key='connections'",
+      "<Dropdown trigger='click'",
+      '<MobileActionSheet',
+      "data-testid='guid-workspace-chip'",
+      "data-testid='guid-workspace-clear'",
+      "data-testid='opl-guid-workspace-access-disabled'",
+    ],
+    'Active shell unified Home context menu and selected working-directory chip',
+  );
   assertShellTextIncludesAll(
     shellPaths,
     'packages/desktop/src/renderer/pages/guid/hooks/useGuidSend.ts',
@@ -677,7 +696,7 @@ function validateReadOnlySessionEnvironmentImplementation(shellPaths) {
   for (const sourcePath of [
     'packages/desktop/src/renderer/pages/conversation/components/ChatLayout/ConversationEnvironmentPopover.tsx',
     'packages/desktop/src/renderer/pages/guid/GuidPage.tsx',
-    'packages/desktop/src/renderer/pages/guid/components/GuidWorkspaceFootnote.tsx',
+    'packages/desktop/src/renderer/pages/guid/components/GuidActionRow.tsx',
     'packages/desktop/src/renderer/pages/guid/hooks/useGuidSend.ts',
   ]) {
     assertTextExcludesAll(

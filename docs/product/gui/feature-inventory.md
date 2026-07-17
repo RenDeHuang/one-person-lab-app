@@ -133,14 +133,14 @@ Sites/Chat 等入口可以隐藏或拒绝；它们不构成 OPL 功能回归。
 | Resume conversation | 按 canonical thread ID 找回 recent conversation，保留 transcript/turn history/title/task state 和 recorded workspace 展示。 | Conversation state/bridge；shell 只持有实现所需 session refs。 |
 | Conversation management | Search、pin、rename、archive、reset conversation，并在独立 Archived surface 管理归档。 | GUI contract、conversation state/bridge。 |
 | User-triggered thread operations | 从现有 conversation directory/actions 读取、创建、恢复、fork、归档或恢复归档线程；普通对话继续走 AionUI ACP，不增加独立 coordination 页面或模型工具。 | 一个 Codex App Server adapter；Shell 只持有 UI metadata 与可重建 cache。 |
-| Session working directory | Home workspace selector 只设置新任务初始 cwd；Conversation Environment 只读显示 recorded workspace 和可用的 live Git context。既有 session 不提供 cwd 重绑、Local/Worktree 切换或 managed Worktree。 | Codex Core/App Server；workspace 只是初始 cwd、展示与分组 metadata。 |
+| Session working directory | Composer 统一 `+` 菜单只设置新任务初始 cwd；未选时无占位行，选中后显示可移除 chip。Conversation Environment 只读显示 recorded workspace 和可用的 live Git context。既有 session 不提供 cwd 重绑、Local/Worktree 切换或 managed Worktree。 | Codex Core/App Server；workspace 只是初始 cwd、展示与分组 metadata。 |
 | Text instruction | 向固定 Codex executor 发送多行任务说明。 | Product profile、ordinary conversation contract。 |
 | Streaming assistant output | 持续看到 assistant response，不需要查看 raw protocol。 | Codex/App bridge 与 conversation page state。 |
 | Pending/running feedback | 看到当前 turn 正在处理、elapsed time、stop 和失败状态。 | Page-state matrix、bridge events。 |
 | Tool/process event summary | 在当前 turn 中理解 command、tool、diff、file、permission 和 receipt 发生了什么。 | Codex/App bridge；raw details 保持 diagnostics。 |
 | File/folder attachment | 无论是否选择 project，发送前都可加入任意用户显式选择的本地文件/目录，并可预览或移除。 | File platform adapter 与 Codex permission/approval/sandbox。 |
 | Explicit session inputs | 仅通过当前 composer 的 attachment、file/directory picker、paste/drop 或 `/open` 显式加入当前 send；不从 workspace 预载、不按目录持久化、不隐式注入。 | App GUI contract、Codex permission/approval/sandbox。 |
-| Current execution context | Working directory 在 rail、branch/locality 在 Environment、active capability 与 attachment 在 composer 附近；缺 workspace 或 workspace readiness 未完成都不禁用普通本地对话与显式文件输入。 | GUI contract、workspace/App state refs。 |
+| Current execution context | Working directory 在 rail，branch/locality 在 Environment；文件、文件夹、新会话 cwd、allowlisted Skill 与真实可用连接从 composer `+` 菜单选择并以紧凑 chip 展示。缺 workspace 或 workspace readiness 未完成都不禁用普通本地对话与显式文件输入。 | GUI contract、workspace/App state refs。 |
 | Model/reasoning control | Home 与普通 conversation 共用一个紧凑 App-owned model/reasoning menu。 | `contracts/app-product-profile.json`；文档不复制 allowlist。 |
 | Permission/access mode | 在 Home 与 conversation composer 以自动化和文件权限的用户语言显示，保留安全透明度但不暴露 provider/backend。 | GUI contract、workspace/access policy。 |
 | Purpose selection | 从 Home starter 选择当前启用的工作目的；默认显示科研、基金、演示和元智能体，写书保留为可开启入口。Home 只用 starter 选中态表达 active capability，不在 composer 重复标签；conversation 可显示低权重 chip。Package 安装、Home 显示、顺序和 lifecycle 管理进入 Settings → Agents，Skills/Plugins/Flow 管理进入 Settings → Capabilities。 | Product profile、GUI contract、route receipt policy。 |

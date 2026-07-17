@@ -72,9 +72,10 @@ codesign 与 9 场景 packaged E2E 已闭合；package 未安装，main/remote c
 promotion仍由操作层 fresh readback决定。当前 Session-first Shell source cohort 不绑定临时
 topic SHA；它由 `useConversationListSync.ts`、`GroupedHistory/index.tsx`、`GuidPage.tsx`、只读
 `ConversationEnvironmentPopover.tsx` 及对应 DOM/source tests 定义，并要求 `WorkspaceHandoffControl.tsx`、
-`ProjectContextSection.tsx` 与 `projectContext.ts` 缺席。Workspace selector 只设置新 session 初始 cwd，
+`ProjectContextSection.tsx` 与 `projectContext.ts` 缺席。Composer 的统一 `+` 菜单承载文件、目录、新 session 初始 cwd、
+App allowlist 内的 Skills 与真实可用连接；选中 cwd 后只显示一个可移除的紧凑 chip，未选时不显示“不使用项目”占位行。
 Environment 只读显示 recorded workspace 与 live Git context；Shell 不自建 managed Worktree/Handoff，
-也不持久重绑既有 session cwd。Workspace selector 缺失或不可用时，projectless new task、输入、显式
+也不持久重绑既有 session cwd。工作目录 picker 缺失或不可用时，projectless new task、输入、显式
 send-scoped local inputs 与普通 Codex conversation 仍保持可用；只有 owner-projected action 的
 `required_payload_fields` 明确要求 Workspace 或 managed target 时，才对该 Agent launch 做局部校验。
 Activation 默认按 `ready / degraded / package_unavailable` 三态自修复、JIT、降级或 fallback；receipt、
@@ -210,7 +211,7 @@ package/user path。当前 contract/source 与 packaged route visual evidence �
   project/OPL workspace controls，不得禁用普通本地对话或这些显式文件输入；
   Codex/model prerequisites 不变。Home root、composer shell 与 footer account/Settings entry 在每个 viewport 各只有一个实例。
 - Conversation 顶部只保留当前 task identity 与直接动作。Model/reasoning、
-  permission/access、attach 和 send/stop 均留在 composer；不在 header 重复配置。
+  permission/access、统一 `+` 菜单和 send/stop 均留在 composer；不在 header 重复配置。
 - Purpose 从 Home/New task 的 starter 选择；选中后只显示轻量 active capability，
   不用独立 Capabilities 主导航页重复同一组说明。能力安装、首页显示与维护继续归 Settings。
 - Package starter 必须投影真实 availability；发送时按 `ready / degraded / package_unavailable`
@@ -246,7 +247,7 @@ package/user path。当前 contract/source 与 packaged route visual evidence �
   显式选择的合法绝对本地路径；绝对路径不要求属于当前 workspace，也不存在 workspace-scoped project-context ref。
   traversal、非法 scheme、自动静默读取及 unsupported ref 保持可见并 fail closed，App/shell 不复制
   artifact body，也不猜测内容。
-- New session 只通过现有 workspace selector 设置初始 cwd。Shell 不创建 managed Worktree、不保存
+- New session 只通过 composer `+` 菜单里的工作目录动作设置初始 cwd。Shell 不创建 managed Worktree、不保存
   `workspace_handoff` metadata，也不提供既有 session 的任意目录重绑或 Local↔Worktree handoff。
 - Workspace/cwd 缺失按 fail-open 处理：保留 projectless new task、composer、显式本地输入和普通 Codex
   conversation；单个 Agent Package 的 Workspace/managed-target 前提或 readiness 故障不得升级为全局聊天门禁。

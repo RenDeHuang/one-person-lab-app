@@ -5,6 +5,7 @@ import {
   appOwnedRightContextInspectorPolicy,
   appOwnedSessionWorkspaceModel,
   appOwnedTranscriptExport,
+  appOwnedUnifiedContextMenu,
 } from './validate-active-shell/app-contract-constants.ts';
 
 type ProductProfileLike = {
@@ -317,6 +318,16 @@ export function assertAppProductProfileGuiInteractionBaseline(
       { actual: homeLayout?.desktop_context_bar_height_px, expected: 0 },
       { actual: homeLayout?.desktop_context_bar_overlap_px, expected: 0 },
       { actual: homeLayout?.desktop_context_bar_horizontal_inset_px, expected: 0 },
+      { actual: homeLayout?.workspace_selector_visible, expected: false },
+      {
+        actual: homeLayout?.workspace_selector_entry,
+        expected: 'ordinary_conversation.unified_context_menu',
+      },
+      { actual: homeLayout?.projectless_context_placeholder_visible, expected: false },
+      {
+        actual: homeLayout?.selected_working_directory_visual_policy,
+        expected: 'compact_removable_chip_only_when_selected_for_a_new_session',
+      },
       { actual: homeLayout?.workspace_session_rail_default_state, expected: 'visible_wide_drawer_narrow' },
       { actual: homeLayout?.right_context_inspector_default_state, expected: 'collapsed' },
       {
@@ -330,6 +341,11 @@ export function assertAppProductProfileGuiInteractionBaseline(
       { actual: inspector?.equal_weight_tool_taxonomy_allowed, expected: false },
     ],
     `${label} GUI interaction profile must match the Codex baseline`,
+  );
+  assertExactStringArray(
+    conversation?.composer_bottom_action_row,
+    ['unified_context_menu', 'permission_access_mode', 'model_reasoning', 'send_stop'],
+    `${label} GUI composer bottom action row`,
   );
   assertExactStringArray(
     conversation?.composer_context_strip,
@@ -381,7 +397,7 @@ export function assertAppProductProfileGuiInteractionBaseline(
   const mobileActionSheet = conversation?.mobile_action_sheet as Record<string, unknown> | undefined;
   assertExactStringArray(
     mobileActionSheet?.allowed_actions,
-    ['attach', 'permission_access_mode', 'model_reasoning', 'active_capability'],
+    ['unified_context_menu', 'permission_access_mode', 'model_reasoning', 'active_capability'],
     `${label} GUI mobile action sheet allowed actions`,
   );
   assertExactStringArray(
@@ -391,6 +407,9 @@ export function assertAppProductProfileGuiInteractionBaseline(
   );
   if (mobileActionSheet?.send_stop_location !== 'composer_primary_action_outside_sheet') {
     throw new Error(`${label} GUI mobile send/stop must remain the composer primary action`);
+  }
+  if (JSON.stringify(conversation?.unified_context_menu) !== JSON.stringify(appOwnedUnifiedContextMenu)) {
+    throw new Error(`${label} GUI unified context menu must expose only real App-authorized context actions`);
   }
 }
 

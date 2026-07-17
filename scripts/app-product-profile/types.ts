@@ -163,6 +163,8 @@ export type AppProductProfile = {
         composer_position: string;
         composer_primary: boolean;
         workspace_selector_visible: boolean;
+        workspace_selector_entry: string;
+        projectless_context_placeholder_visible: boolean;
         purpose_entries_visible: string[];
         purpose_entry_placement: string;
         dynamic_question_title: boolean;
@@ -180,6 +182,7 @@ export type AppProductProfile = {
         desktop_context_bar_horizontal_inset_px: number;
         starter_truncation_allowed: boolean;
         selected_starter_visual_policy: string;
+        selected_working_directory_visual_policy: string;
         workspace_selector_policy: {
           primary_scope: string;
           inactive_recent_directories_visible: boolean;
@@ -207,6 +210,17 @@ export type AppProductProfile = {
       utility_icon_policy: {
         library: string;
         opl_owned_settings_navigation_and_overview: string;
+        settings_icon_geometry: string;
+        icon_text_action_geometry: {
+          icon_size_px: number;
+          icon_slot_px: number;
+          icon_color: string;
+          icon_background: string;
+          icon_label_gap_px: number;
+          alignment: string;
+          contrast_policy: string;
+          disabled_policy: string;
+        };
         upstream_fork_body_bulk_icon_rewrite: string;
         refresh_actions: string;
         model_reasoning_control: string;
@@ -258,6 +272,29 @@ export type AppProductProfile = {
         allowed_actions: string[];
         send_stop_location: string;
         forbidden_actions: string[];
+      };
+      unified_context_menu: {
+        trigger: string;
+        placement: string;
+        shared_desktop_mobile_content: boolean;
+        groups: Array<{
+          id: string;
+          actions: string[];
+          scope: string;
+          source?: string;
+          source_ref?: string;
+          availability_policy?: string;
+          label_policy?: string;
+          existing_session_rebinding_allowed?: boolean;
+        }>;
+        selected_context_presentation: {
+          projectless_placeholder: string;
+          working_directory: string;
+          attachments: string;
+          skills_and_connections: string;
+        };
+        authority_policy: string;
+        forbidden_entries: string[];
       };
       projectless_conversation_supported: boolean;
       session_workspace_model: {
@@ -405,6 +442,29 @@ export type AppProductProfile = {
       external_first_party_trust_claims_allowed: boolean;
       collision_failure_code: string;
       first_party_manifest_fixture_dir: string;
+      catalog_presentation_policy: {
+        section_order: string[];
+        professional_agent_order_source: string;
+        professional_agent_order_policy: string;
+        workflow_profile_policy: string;
+        package_role_labels_i18n: Record<string, Record<'zh-CN' | 'en-US', string>>;
+        raw_package_role_visible: boolean;
+        dependency_hierarchy: {
+          source: string;
+          direction: string;
+          single_parent_policy: string;
+          multiple_parent_policy: string;
+          missing_or_invisible_parent_policy: string;
+          hardcoded_package_relationships_allowed: boolean;
+          duplicate_rows_allowed: boolean;
+          status_and_actions_source: string;
+        };
+        developer_controls_disclosure: {
+          default_state: string;
+          contains: string[];
+          ordinary_catalog_remains_visible_when_collapsed: boolean;
+        };
+      };
       first_party_release_set_metadata: Array<{
         package_id: string;
         package_kind: string;

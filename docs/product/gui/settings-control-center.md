@@ -253,6 +253,17 @@ Registry refresh is a visible ordinary action; direct manifest URL installation
 stays in the Agents page's advanced install entry. Loading, refreshing, empty, stale, and failed catalog states
 remain explicit instead of falling back to the static profile.
 
+The ordinary catalog is grouped to reduce cognitive load. Professional Agents
+follow the App product-metadata order; workflow profiles render in their own
+section; role labels are localized product language rather than raw internal
+enums. Capability-package hierarchy comes only from
+`status_index.packages[].dependent_guard.required_by_package_ids`: a package
+with one visible parent nests once under that parent, while multi-parent or
+parent-not-visible packages render once under Shared dependencies. The Shell
+must not hardcode MAS relationships or duplicate a package row. Runtime-source
+and authorized-repository maintenance controls remain available in one
+advanced disclosure that is collapsed by default.
+
 Each row renders identity, role, publisher, source explanation, versions,
 trust, installability, readiness, and the Framework-projected recommended
 action. Install, activate, update, repair, enable, disable, hide, unhide, and

@@ -3046,6 +3046,9 @@
           "Developer Mode auto activation state, authorized repository scope, and dirty-worktree protection",
           "per-package automatic, managed, or developer source selection in package details",
           "Home visibility, shortcut order, launch readiness, and lifecycle management on Agent rows",
+          "localized package-role labels with no raw internal enum in ordinary rows",
+          "professional Agents ordered by App metadata, workflow profiles separated, and dependency packages grouped from dependent_guard.required_by_package_ids",
+          "runtime source and authorized repository maintenance collapsed as advanced configuration by default",
           "Skills and Plugins excluded and routed to Capabilities",
           "AionUI custom assistants excluded from the OPL product surface"
         ],
@@ -3099,7 +3102,21 @@
             "auto",
             "off"
           ],
-          "shared_runtime_mutation_boundary": "still requires enabled=on, mode=developer_apply_safe, and source=user_config"
+          "shared_runtime_mutation_boundary": "still requires enabled=on, mode=developer_apply_safe, and source=user_config",
+          "default_disclosure": "collapsed"
+        },
+        "catalog_presentation": {
+          "policy_ref": "contracts/app-product-profile.json#gui.agent_package_registry.catalog_presentation_policy",
+          "section_order": [
+            "professional_agents",
+            "workflow_profiles",
+            "shared_dependencies",
+            "other_packages"
+          ],
+          "role_label_policy": "localized_product_label_never_raw_package_role_enum",
+          "dependency_source": "app_state.agent_packages.status_index.packages[].dependent_guard.required_by_package_ids",
+          "dependency_policy": "single_parent_nested_multi_parent_or_missing_parent_shared_each_package_rendered_once",
+          "hardcoded_relationships_allowed": false
         },
         "first_viewport_groups": [
           "agent_package_catalog_controls",

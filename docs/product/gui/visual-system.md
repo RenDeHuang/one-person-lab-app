@@ -188,7 +188,7 @@ hairline divider。只有独立重复实体、确认或明确 bounded tool 才�
 - 项目/对话 rail 的空状态使用同一套 IconPark 单色 outline 语法：`20px` `MessageOne` 配
   `13/18` muted 文案。不得回退到 Arco 默认的大号插画、彩色 empty illustration、边框卡片
   或占据 rail 主体的装饰性图形。
-- 全局标题栏帮助/反馈入口使用 Font Awesome Free Regular 的线框圆形问号，保留 tooltip、
+- 全局标题栏帮助/反馈入口使用同一 IconPark 单色 outline 圆形问号，保留 tooltip、
   accessible name 和既有 GitHub issue 路由；不再使用 AionUI 的对话气泡图标。
 - 已连接账户在 rail footer 使用绿色圆形 identity avatar。非中文姓名显示前两个词的首字母，
   连续中文姓名只显示第一个汉字；无姓名时回退到邮箱 local part 的前两个字符，再回退到 `OP`。
@@ -205,7 +205,7 @@ hairline divider。只有独立重复实体、确认或明确 bounded tool 才�
 Composer 是底部唯一主 command surface：
 
 - Home 桌面参考几何固定为 composer 最大宽度 `736px`、最小高度 `98px`、圆角 `22px`；
-  工作目录、Local/Worktree 与 starting branch 使用 composer 内部的紧凑透明控制行，不再渲染外置 context cap。
+  未选工作目录时不显示占位行，选中后只显示一个可移除的紧凑 chip，不再渲染外置 context cap。
 - 桌面默认高度至少 `104px`，textarea 可见高度至少 `64px`；按内容增长到合理上限后
   内部滚动。
 - Composer 浮于底部或贴近底部安全距，不能与窗口边缘、bottom panel 或系统 safe area
@@ -213,9 +213,9 @@ Composer 是底部唯一主 command surface：
 - 只保留一层 visible surface。外部 bridge/adapter container 必须透明。
 - Home root、composer shell 与 footer account/Settings entry 在每个 viewport 各只有一个实例；
   resize 后必须完整重绘，不能留下旧 composer frame。
-- Home composer 只保留一组工作目录、Local/Worktree 与 starting branch 控件；rail 仅按当前 cwd
+- Home composer 只保留一个统一 `+` 菜单；rail 仅按当前 cwd
   组织对话，不拥有对话或上下文，Environment 可按需展示同一运行信息。Textarea 承载任务正文；
-  底部 action row 承载 attachment、permission/access mode、单一紧凑 model/reasoning menu、
+  底部 action row 承载统一 `+` 菜单、permission/access mode、单一紧凑 model/reasoning menu、
   可选 voice 和 send/stop。
 - 当前 session 的 attachment、paste/drop 与 `/open` 是唯一显式文件输入，不从 rail/workspace
   预载 context，也不做隐藏注入；attachment 使用同一层文件预览，不形成第二层卡片。
@@ -272,7 +272,7 @@ Composer 是底部唯一主 command surface：
 
 ## Popover、Drawer 与 Environment Details
 
-- Model/reasoning、new-task workspace selector 和 compact action sets 使用 anchored
+- Model/reasoning、统一 `+` 菜单和 compact action sets 使用 anchored
   popover；短选项不升级为整页。
 - Environment 使用右上 anchored floating surface，首层只读汇总 recorded workspace、changes、branch、
   commit/push、subagents 和 sources。
@@ -282,7 +282,7 @@ Composer 是底部唯一主 command surface：
   disclosure；Runtime/Actions/Memory 不升级为同权 tabs。
 - Popover 关闭后焦点回到触发器；drawer 有明确标题、close control 和焦点边界。
 - Environment/details 打开时是当前 conversation 的辅助层，不是独立 dashboard。
-- Home 只保留 workspace selector 作为新 session 初始 cwd 控件，不显示 Local/Worktree、starting branch、
+- Home 只在统一 `+` 菜单中提供新 session 初始 cwd，不显示独立 workspace selector、Local/Worktree、starting branch、
   managed Worktree、handoff、cleanup、snapshot receipt、restore 或 cross-host 控制面。
 - Drawer 内避免卡片套卡片；用 section header、divider、row 和 disclosure 表达层级。
 - Bottom panel、file tree、Terminal、Browser 默认关闭；打开时尺寸稳定且不得遮挡 composer。

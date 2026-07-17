@@ -1567,6 +1567,36 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   ) {
     throw new Error('Settings Capabilities must derive Flow membership from package closure and leave CLI currentness to OPL Base');
   }
+  const agentDirectoryTarget = pages.settings_agents.codex_plugin_directory_target;
+  if (
+    agentDirectoryTarget?.primary_layout !==
+      'compact_grouped_package_list_with_inline_dependency_children_and_right_details_panel' ||
+    agentDirectoryTarget?.catalog_presentation_policy_ref !==
+      'contracts/app-product-profile.json#gui.agent_package_registry.catalog_presentation_policy' ||
+    agentDirectoryTarget?.developer_configuration_disclosure !==
+      'collapsed_by_default_above_the_catalog' ||
+    pages.settings_agents.list_density_policy?.grouping_policy_ref !==
+      'contracts/app-product-profile.json#gui.agent_package_registry.catalog_presentation_policy' ||
+    pages.settings_agents.list_density_policy?.row_hierarchy_policy !==
+      'one_projected_package_one_row_with_single_parent_dependencies_nested_and_shared_dependencies_grouped' ||
+    pages.settings_agents.developer_mode_control?.default_disclosure !== 'collapsed'
+  ) {
+    throw new Error('Settings Agents must use the App-owned grouped catalog presentation with collapsed developer controls');
+  }
+  assertIncludesAll(
+    pages.settings_agents.must_show,
+    [
+      'localized package role labels with no raw internal enum on the ordinary row',
+      'professional Agents ordered by App product metadata, workflow profiles separated, and dependency packages grouped from dependent_guard.required_by_package_ids',
+      'runtime source and authorized repository maintenance controls collapsed as advanced configuration by default',
+    ],
+    'Settings Agents grouped catalog signals',
+  );
+  assertIncludesAll(
+    pages.settings_agents.must_not_show,
+    ['hardcoded package parent-child relationships or duplicate dependency rows'],
+    'Settings Agents forbidden dependency synthesis',
+  );
   validateAgentPackageLifecycleUx(
     pages.settings_agents.agent_package_lifecycle_ux,
     'Settings Agents Agent Package lifecycle UX',

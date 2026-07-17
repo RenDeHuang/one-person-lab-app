@@ -139,8 +139,9 @@ function validateHomeLayout(guiContract) {
     'App GUI ordinary conversation current task slice fields',
   );
   assertIncludesAll(guiContract.pages?.ordinary_conversation?.must_show, [
-    'desktop attach, permission and access, model and reasoning, and send or stop controls in the composer',
-    'mobile plus sheet limited to OPL attach, access, model and reasoning, and active capability actions',
+    'desktop unified plus menu, permission and access, model and reasoning, and send or stop controls in the composer',
+    'mobile plus sheet reusing the unified context menu with access, model and reasoning, and active capability actions',
+    'unified plus menu groups for files, folders, new-session working directory, allowlisted Skills, and available App connections',
     'explicit attachments, file or directory selection, paste, drop, and /open consumed by the current session send only',
     'workspace readiness gates project selection and OPL workspace controls only, never plain local conversation or send-scoped local file inputs',
     'read-only Conversation Environment showing the recorded workspace and live Git context when available',
@@ -159,6 +160,7 @@ function validateHomeLayout(guiContract) {
     'cross-host task handoff controls',
     'duplicate current task or Runtime summary outside the message timeline',
     'workspace bundle export authorization',
+    'standalone projectless or no working directory placeholder row',
   ], 'App GUI ordinary conversation forbidden 41301 signals');
 }
 

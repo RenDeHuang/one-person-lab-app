@@ -1117,7 +1117,9 @@ export const appOwnedHomeLayout = {
   first_screen_policy: "chat_first_single_reading_lane_no_dashboard_landing_or_agent_portal",
   composer_position: "floating_bottom_with_safe_inset",
   composer_primary: true,
-  workspace_selector_visible: true,
+  workspace_selector_visible: false,
+  workspace_selector_entry: "ordinary_conversation.unified_context_menu",
+  projectless_context_placeholder_visible: false,
   purpose_entries_visible: ["research", "grant", "ppt", "book"],
   purpose_entry_placement:
     "compact_shortcuts_immediately_above_composer_with_management_in_settings_agents_not_persistent_composer_selector",
@@ -1136,6 +1138,8 @@ export const appOwnedHomeLayout = {
   desktop_context_bar_horizontal_inset_px: 0,
   starter_truncation_allowed: false,
   selected_starter_visual_policy: "quiet_fill_and_check_indicator_not_color_alone",
+  selected_working_directory_visual_policy:
+    "compact_removable_chip_only_when_selected_for_a_new_session",
   workspace_selector_policy: {
     primary_scope: "active_workspace_only",
     inactive_recent_directories_visible: false,
@@ -1237,6 +1241,64 @@ export const appOwnedExplicitSessionInputPolicy = {
     codex_and_model_prerequisites_unchanged: true,
   },
 };
+export const appOwnedUnifiedContextMenu = {
+  trigger: "+",
+  placement: "composer_leading_action",
+  shared_desktop_mobile_content: true,
+  groups: [
+    {
+      id: "local_inputs",
+      actions: ["attach_file", "attach_folder"],
+      scope: "current_send_only",
+      source: "user_selected_local_paths",
+    },
+    {
+      id: "working_directory",
+      actions: [
+        "select_initial_working_directory",
+        "clear_initial_working_directory",
+      ],
+      scope: "new_session_initial_cwd_only",
+      source: "registered_directories_and_system_directory_picker",
+      existing_session_rebinding_allowed: false,
+    },
+    {
+      id: "skills",
+      actions: ["select_session_skill"],
+      scope: "current_session_configuration",
+      source_ref: "ordinary_capability_selector_policy",
+      availability_policy:
+        "show_only_app_allowlisted_skills_for_the_selected_professional_agent",
+    },
+    {
+      id: "apps_and_connections",
+      actions: ["select_session_app_or_connection"],
+      scope: "current_session_configuration",
+      source_ref: "ordinary_capability_selector_policy.visible_mcp_server_ids",
+      availability_policy:
+        "hide_group_when_no_app_allowlisted_session_connection_is_available",
+      label_policy: "localized_product_name_never_raw_mcp_or_provider_id",
+    },
+  ],
+  selected_context_presentation: {
+    projectless_placeholder: "hidden",
+    working_directory:
+      "compact_removable_chip_only_when_selected_before_thread_start",
+    attachments: "existing_send_scoped_attachment_chips",
+    skills_and_connections: "compact_session_context_chips_only_when_selected",
+  },
+  authority_policy:
+    "render_only_real_picker_actions_and_App_allowlisted_session_capabilities_supported_by_the_active_adapter",
+  forbidden_entries: [
+    "project_object",
+    "backend",
+    "provider",
+    "team",
+    "raw_mcp",
+    "arbitrary_skills",
+    "unavailable_or_synthetic_plugins",
+  ],
+};
 const appOwnedOrdinaryConversation = {
   path_id: "ordinary_codex_conversation",
   entry_source:
@@ -1268,7 +1330,7 @@ const appOwnedOrdinaryConversation = {
     "workspace_context_refs",
   ],
   composer_bottom_action_row: [
-    "attach",
+    "unified_context_menu",
     "permission_access_mode",
     "model_reasoning",
     "send_stop",
@@ -1277,7 +1339,7 @@ const appOwnedOrdinaryConversation = {
   mobile_action_sheet: {
     trigger: "+",
     allowed_actions: [
-      "attach",
+      "unified_context_menu",
       "permission_access_mode",
       "model_reasoning",
       "active_capability",
@@ -1291,6 +1353,7 @@ const appOwnedOrdinaryConversation = {
       "arbitrary_skills",
     ],
   },
+  unified_context_menu: appOwnedUnifiedContextMenu,
   projectless_conversation_supported: true,
   session_workspace_model: appOwnedSessionWorkspaceModel,
   explicit_session_input_policy: appOwnedExplicitSessionInputPolicy,

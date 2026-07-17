@@ -615,8 +615,21 @@ function assertHomeSelectionAndIconPolicy(profile: AppProductProfile): void {
     throw new Error('App product profile Home must require explicit professional-agent selection with a visible selected state');
   }
   if (
-    iconPolicy.library !== 'font_awesome_free_for_opl_owned_utility_icons' ||
-    iconPolicy.opl_owned_settings_navigation_and_overview !== 'font_awesome_free' ||
+    iconPolicy.library !== 'icon_park_react_for_opl_owned_utility_icons' ||
+    iconPolicy.opl_owned_settings_navigation_and_overview !== 'icon_park_react_outline_16px_monochrome' ||
+    iconPolicy.settings_icon_geometry !==
+      'stable_16px_slot_1_5_to_1_75px_visual_stroke_no_colored_tile_or_letter_avatar' ||
+    JSON.stringify(iconPolicy.icon_text_action_geometry) !==
+      JSON.stringify({
+        icon_size_px: 16,
+        icon_slot_px: 20,
+        icon_color: 'currentColor',
+        icon_background: 'transparent_none',
+        icon_label_gap_px: 8,
+        alignment: 'icon_slot_and_label_share_one_vertical_centerline',
+        contrast_policy: 'button_foreground_color_applies_to_icon_and_label_together',
+        disabled_policy: 'apply_disabled_opacity_to_the_whole_control_never_hide_only_the_icon',
+      }) ||
     iconPolicy.upstream_fork_body_bulk_icon_rewrite !== 'forbidden' ||
     iconPolicy.refresh_actions !== 'icon_only_with_tooltip_and_accessible_name' ||
     iconPolicy.model_reasoning_control !== 'text_and_disclosure_without_brain_icon' ||
@@ -863,6 +876,47 @@ function assertAgentPackageRegistryProjection(profile: AppProductProfile, profil
     ) {
       throw new Error(`App product profile first-party metadata is incomplete for ${entry.package_id}`);
     }
+  }
+  const presentation = projection.catalog_presentation_policy;
+  if (
+    JSON.stringify(presentation.section_order) !==
+      JSON.stringify(['professional_agents', 'workflow_profiles', 'shared_dependencies', 'other_packages']) ||
+    presentation.professional_agent_order_source !== 'gui.professional_agent_packages[].package_id' ||
+    presentation.professional_agent_order_policy !==
+      'match_projected_directory_entries_then_append_unlisted_standard_agents_by_localized_display_name' ||
+    presentation.workflow_profile_policy !==
+      'render_in_a_separate_workflow_section_not_mixed_with_runnable_agents' ||
+    JSON.stringify(presentation.package_role_labels_i18n) !==
+      JSON.stringify({
+        standard_agent: { 'zh-CN': '专业智能体', 'en-US': 'Professional agent' },
+        framework_capability_package: { 'zh-CN': '配套能力包', 'en-US': 'Companion capability package' },
+        workflow_profile: { 'zh-CN': '工作流配置', 'en-US': 'Workflow profile' },
+      }) ||
+    presentation.raw_package_role_visible !== false ||
+    presentation.dependency_hierarchy.source !==
+      'app_state.agent_packages.status_index.packages[].dependent_guard.required_by_package_ids' ||
+    presentation.dependency_hierarchy.direction !==
+      'a_package_with_one_visible_required_by_package_id_is_nested_under_that_parent_package' ||
+    presentation.dependency_hierarchy.single_parent_policy !==
+      'render_once_as_a_compact_child_row_under_the_visible_parent' ||
+    presentation.dependency_hierarchy.multiple_parent_policy !==
+      'render_once_in_shared_dependencies_with_localized_parent_labels' ||
+    presentation.dependency_hierarchy.missing_or_invisible_parent_policy !==
+      'render_once_in_shared_dependencies' ||
+    presentation.dependency_hierarchy.hardcoded_package_relationships_allowed !== false ||
+    presentation.dependency_hierarchy.duplicate_rows_allowed !== false ||
+    presentation.dependency_hierarchy.status_and_actions_source !==
+      'unchanged_Framework_directory_and_status_index_projection' ||
+    presentation.developer_controls_disclosure.default_state !== 'collapsed' ||
+    JSON.stringify(presentation.developer_controls_disclosure.contains) !==
+      JSON.stringify([
+        'global_runtime_source',
+        'authorized_repository_maintenance',
+        'workspace_and_repository_protection_summary',
+      ]) ||
+    presentation.developer_controls_disclosure.ordinary_catalog_remains_visible_when_collapsed !== true
+  ) {
+    throw new Error('App product profile Agent catalog must use localized product ordering and projected dependency hierarchy');
   }
   const reservedIds = new Set(expectedFirstPartyPackageIds);
   const externalEntries = registry.entries ?? [];

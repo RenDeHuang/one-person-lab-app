@@ -53,7 +53,7 @@ header、隐藏 project rail、默认打开 inspector，或用 Settings/card lay
 - 主区域是一条 conversation timeline；空 conversation 仍使用同一工作画布。
 - Composer 浮于主区底部并保留安全距，可直接输入多行任务。
 - Working-directory grouping 位于 rail；locality/branch 位于 Environment。
-  Composer 只保留 active capability、当前发送的显式 attachments、模型/推理和
+  Composer 只保留 active capability、统一 `+` 菜单、当前已选的紧凑上下文 chip、模型/推理和
   permission/access mode；access mode 使用自动化与文件权限的用户语言。
 - 右上 Environment details 默认关闭；bottom panel、file tree、Terminal、Browser 和
   独立 artifact preview 也默认关闭。
@@ -67,7 +67,8 @@ header、隐藏 project rail、默认打开 inspector，或用 Settings/card lay
 ## 核心用户流程
 
 1. **进入工作上下文。** App 按 canonical thread ID 恢复最近 App Server session；新任务可通过
-   workspace selector 设置初始 cwd，也可不选 workspace 直接开始 projectless conversation。命令或 turn
+   composer `+` 菜单选择初始 cwd，也可不选目录直接开始 projectless conversation。未选时不显示
+   “不使用项目”占位行；命令或 turn
    的实际 `pwd` 可按任务需要变化，但不会反写 recorded workspace 或 rail 分组；既有 session 不提供 cwd 重绑。
 2. **开始或继续对话。** 用户从 rail 新建、搜索、pin、rename、archive、reset 或切换
    conversation，并从独立 Archived surface 管理归档。
@@ -112,11 +113,11 @@ Rail 负责 navigation，不承担 dashboard：
 - Home root、composer shell 与 footer account/Settings entry 在每个 viewport 各渲染一次。
 - Active conversation、running/blocked/completed 等状态只用轻量标记，不改变 row 布局。
 - 切换 conversation 保留各自 scroll、draft 和 refs context。
-- Workspace selector 明确说明新 session 的初始工作目录；既有 session 的 recorded workspace 与 rail
+- `+` 菜单中的工作目录动作明确说明只设置新 session 的初始工作目录；既有 session 的 recorded workspace 与 rail
   分组只读，命令或 turn 的实际 `pwd` 不反写 App metadata。
 - 目录组只提供“使用此工作目录新建对话”的快捷动作；目录组无 owner 语义，不提供组级删除，也不得
   级联 archive/delete/reset 其下 session。
-- Home 的 New task 只通过现有 workspace selector 选择初始 cwd；不显示 Local/Worktree、starting branch
+- Home 的 New task 只通过统一 `+` 菜单选择初始 cwd；不显示独立 selector、Local/Worktree、starting branch
   或 managed Worktree create/reuse。
 - Conversation Environment 只读显示 recorded workspace 与 live Git context，不提供既有 session 的目录
   重绑、Local↔Worktree lifecycle、projection transaction 或 rail 重分组。
@@ -185,10 +186,11 @@ Composer 是普通路径唯一主 command surface：
 
 - 文本输入默认可用，支持多行、paste、keyboard shortcuts 和 IME。
 - 由 41301 reference 翻译出的 OPL-owned target 不在 composer 常驻重复 project/local/branch：目录由 rail 表达，
-  branch/locality 由 Environment 表达；composer 只保留与下一次发送直接相关的显式 attachment 和 active capability。
+  branch/locality 由 Environment 表达；composer 通过统一 `+` 菜单添加文件、文件夹、新 session 初始 cwd、
+  App allowlist 内的 Skill 和真实可用连接，只把已选项显示为紧凑 chip。
 - 不存在 workspace/project context preload；attachment、paste/drop 与 `/open` 都是用户在当前 session
   显式加入的 send-scoped 输入，不允许 hidden prompt injection 或 workspace-keyed 持久化。
-- 中层是 textarea；底层 action row 放 attach、permission/access mode、
+- 中层是 textarea；底层 action row 放统一 `+` 菜单、permission/access mode、
   单一紧凑 model/reasoning menu、可选 voice 和 send/stop。
 - Home 与 ordinary conversation 使用同一 App-owned model control。
 - 模型策略与当前默认值只读取 `contracts/app-product-profile.json`；本文不复制
@@ -218,6 +220,7 @@ Composer 是普通路径唯一主 command surface：
 - OMA 或其它 package 是否显示由 product profile/package exposure 决定，不由 shell
   discovery 自动加入。
 - Ordinary capability selector 不展示未被 App allowlist 接受的 helper skill 或 MCP。
+- `+` 菜单不伪造 Plugin、provider、backend、team 或 raw MCP；无真实可用连接时隐藏对应分组。
 - Settings → Agents 负责 package 安装、Home visibility 和 lifecycle；Settings → Capabilities
   负责 Skills/Plugins/Flow 与本机能力；历史
   `/capabilities` 只能作为 compatibility redirect，不能重新挂载第二套 capability directory。
@@ -365,7 +368,7 @@ First-run 的目标是让用户尽快进入可工作的 App：
   次级 section/preview，advanced tools 默认关闭。
 - 普通 navigation 不展示独立 coordination 页面；用户可从现有 directory/actions 执行
   list/read/start/resume/fork/archive/restore，普通 conversation 仍走现有 ACP。
-- Home New task 只用 workspace selector 设置初始 cwd；Conversation Environment 保持只读，Shell 不含
+- Home New task 只用统一 `+` 菜单设置初始 cwd；Conversation Environment 保持只读，Shell 不含
   managed Worktree/Handoff 或任意目录重绑。Review复用
   Files/Changes diff surface并覆盖四类 target、两种 delivery、五个
   sections 与 `gh` unavailable 状态，其中 Last turn 已实现，custom instructions 只进入

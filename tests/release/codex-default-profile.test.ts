@@ -89,6 +89,38 @@ test('product profile separates the external registry URL from Framework first-p
   );
 });
 
+test('Agent catalog presentation rejects raw roles, hardcoded hierarchy, and duplicate rows', () => {
+  const installExposure = readJson('contracts/app-install-exposure-policy.json');
+  const registry = readJson('contracts/agent-package-registry.json');
+  for (const mutate of [
+    (profile: any) => {
+      profile.gui.agent_package_registry.catalog_presentation_policy.raw_package_role_visible = true;
+    },
+    (profile: any) => {
+      profile.gui.agent_package_registry.catalog_presentation_policy.package_role_labels_i18n.standard_agent['zh-CN'] =
+        'standard_agent';
+    },
+    (profile: any) => {
+      profile.gui.agent_package_registry.catalog_presentation_policy.dependency_hierarchy.hardcoded_package_relationships_allowed =
+        true;
+    },
+    (profile: any) => {
+      profile.gui.agent_package_registry.catalog_presentation_policy.dependency_hierarchy.duplicate_rows_allowed = true;
+    },
+    (profile: any) => {
+      profile.gui.agent_package_registry.catalog_presentation_policy.developer_controls_disclosure.default_state =
+        'expanded';
+    },
+  ]) {
+    const profile = structuredClone(readJson('contracts/app-product-profile.json'));
+    mutate(profile);
+    assert.throws(
+      () => validateProductProfile(profile, installExposure, registry),
+      /localized product ordering and projected dependency hierarchy/,
+    );
+  }
+});
+
 test('product profile rejects pre-Codex-baseline interaction states', () => {
   const installExposure = readJson('contracts/app-install-exposure-policy.json');
   for (const mutate of [
@@ -152,17 +184,18 @@ test('active-shell source gate requires Home starters and Capabilities routing i
       '.guidInputInner',
       'min-height: 98px;',
       'border-radius: 22px;',
-      '.workspaceFootnote',
+      '.actionRow',
+      'align-items: flex-end;',
       'width: 100%;',
-      'min-height: 28px;',
-      'margin: 4px 0;',
-      'background: transparent;',
+      '.workspaceChip',
+      'height: 28px;',
+      'background: var(--color-fill-2);',
       '.homeStarterGrid',
       'display: flex;',
       'flex-wrap: wrap;',
       'justify-content: center;',
       'width: auto !important;',
-      'height: 32px !important;',
+      'height: 34px !important;',
     ].join('\n'),
     capabilitiesPage: [
       'useCustomAgentsLoader',

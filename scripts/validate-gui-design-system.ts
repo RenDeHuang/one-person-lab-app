@@ -1044,6 +1044,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   const permissionTarget = record(interactionBaseline.permission_access_mode);
   const taskSummaryTarget = record(interactionBaseline.current_task_summary_bar);
   const mobileActionSheet = record(composerTarget.mobile_action_sheet);
+  const unifiedContextMenu = record(record(guiContract.ordinary_conversation).unified_context_menu);
   if (JSON.stringify(sessionWorkspaceModel) !== JSON.stringify(appOwnedSessionWorkspaceModel)) {
     issues.add(
       'conversation scope must keep canonical session identity while limiting workspace to initial cwd and grouping metadata',
@@ -1121,15 +1122,27 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
       'attachments',
       'workspace_context_refs',
     ]) ||
-    !sameStrings(composerTarget.desktop_action_row, ['attach', 'permission_access_mode', 'model_reasoning', 'send_stop']) ||
+    !sameStrings(composerTarget.desktop_action_row, [
+      'unified_context_menu',
+      'permission_access_mode',
+      'model_reasoning',
+      'send_stop',
+    ]) ||
     !sameStrings(mobileActionSheet.allowed_actions, [
-      'attach',
+      'unified_context_menu',
       'permission_access_mode',
       'model_reasoning',
       'active_capability',
     ]) ||
     !sameStrings(mobileActionSheet.forbidden_actions, ['backend', 'provider', 'team', 'raw_mcp', 'arbitrary_skills']) ||
     mobileActionSheet.send_stop_location !== 'composer_primary_action_outside_sheet' ||
+    composerTarget.unified_context_menu_ref !== 'ordinary_conversation.unified_context_menu' ||
+    unifiedContextMenu.trigger !== '+' ||
+    unifiedContextMenu.placement !== 'composer_leading_action' ||
+    unifiedContextMenu.shared_desktop_mobile_content !== true ||
+    record(unifiedContextMenu.selected_context_presentation).projectless_placeholder !== 'hidden' ||
+    record(unifiedContextMenu.selected_context_presentation).working_directory !==
+      'compact_removable_chip_only_when_selected_before_thread_start' ||
     composerTarget.model_reasoning_control !== 'single_compact_menu' ||
     !sameStrings(permissionTarget.visible_on, ['home_composer', 'conversation_composer']) ||
     permissionTarget.provider_or_backend_terms_visible !== false ||

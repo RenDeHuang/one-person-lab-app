@@ -2265,6 +2265,32 @@ export function validateSettingsExperienceContract(experience) {
     ],
     "Settings Agents first-viewport groups",
   );
+  assertDeepEqualJson(
+    pageContracts.agents.catalog_presentation,
+    {
+      policy_ref:
+        "contracts/app-product-profile.json#gui.agent_package_registry.catalog_presentation_policy",
+      section_order: [
+        "professional_agents",
+        "workflow_profiles",
+        "shared_dependencies",
+        "other_packages",
+      ],
+      role_label_policy:
+        "localized_product_label_never_raw_package_role_enum",
+      dependency_source:
+        "app_state.agent_packages.status_index.packages[].dependent_guard.required_by_package_ids",
+      dependency_policy:
+        "single_parent_nested_multi_parent_or_missing_parent_shared_each_package_rendered_once",
+      hardcoded_relationships_allowed: false,
+    },
+    "Settings Agents catalog presentation",
+  );
+  if (pageContracts.agents.developer_mode_surface?.default_disclosure !== "collapsed") {
+    throw new Error(
+      "Settings Agents developer source and repository maintenance configuration must be collapsed by default",
+    );
+  }
   if (
     pageContracts.agents.exception_state !==
     "highlight failed blocked dependency-broken or scope-materialization-missing Agent packages; installed but not activated packages stay neutral and read as available to enable"

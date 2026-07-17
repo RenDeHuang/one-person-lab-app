@@ -198,8 +198,8 @@ function validateGuidHomeVisibleSignals(guidHomePage) {
     'all user-visible configured OPL starters in stable order without silent truncation',
     'assistant-scoped skill menu with required skill checked',
     'ordinary skill selector filtered to App-owned assistant profile skill allowlist',
-    'workspace selector',
-    'file attachment control',
+    'one unified plus menu for files, folders, new-session working directory, allowlisted Skills, and available App connections',
+    'selected new-session working directory shown as one compact removable chip',
     'projectless attachments, arbitrary local file or directory selection, paste, drop, and /open subject only to Codex permissions',
     'workspace readiness gates project selection and OPL workspace controls only, never plain local conversation or send-scoped local file inputs',
     'workspace selection sets the new task initial cwd only',
@@ -324,8 +324,9 @@ function validateOrdinaryConversationPage(matrix) {
     'Codex CLI ordinary conversation',
     'floating bottom composer with safe inset',
     'compact active capability chip',
-    'desktop attach, permission and access, model and reasoning, and send or stop controls in the composer',
-    'mobile plus sheet limited to OPL attach, access, model and reasoning, and active capability actions',
+    'desktop unified plus menu, permission and access, model and reasoning, and send or stop controls in the composer',
+    'mobile plus sheet reusing the unified context menu with access, model and reasoning, and active capability actions',
+    'unified plus menu groups for files, folders, new-session working directory, allowlisted Skills, and available App connections',
     'explicit attachments, file or directory selection, paste, drop, and /open consumed by the current session send only',
     'permission and access mode in user language',
     'projectless text conversation when no workspace is selected',
@@ -352,6 +353,7 @@ function validateOrdinaryConversationPage(matrix) {
     'cross-host task handoff controls',
     'duplicate current task or Runtime summary outside the message timeline',
     'workspace bundle export authorization',
+    'standalone projectless or no working directory placeholder row',
   ], 'Ordinary conversation page hidden signals');
 }
 

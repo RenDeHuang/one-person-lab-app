@@ -39,7 +39,9 @@ candidate identity 必须在验证时从 active Shell checkout 读取，不能�
   stale 文案内联呈现，账户、指标、footer 和操作不再由多层矩形边框包围；
 - Home 的 prompt、content-sized agent shortcuts 与 composer 进入一个 bottom reading lane；入口无
   chevron，所有可见官方智能体都可选择，运行就绪只在发送时以 typed guidance 阻止；
-- 项目、Local/Worktree 与 branch 控件并入 composer 内部，不再形成独立灰色顶栏或第二条能力标签；
+- Composer leading `+` 是唯一上下文入口：文件、文件夹、新 session 初始 cwd、App allowlist Skill
+  与真实可用连接共享一个菜单；未选 cwd 时不显示“不使用项目”占位，选中后仅显示可移除 chip；
+- Local/Worktree 与 branch 不进入普通 composer，不再形成独立灰色顶栏或第二条能力标签；
 - Workspace 使用 content-container 响应式单列，Codex instructions 与新对话附加说明保持 unframed；
 - clean candidate 的 full Node `1584/1584`、full DOM `814 passed / 6 skipped`、focused Node
   `24/24`、focused DOM `55/55`、typecheck、format、i18n、lint `0 error` 与 diff-check 均通过。
@@ -129,6 +131,8 @@ Server ready 与 worker blocked 必须分别显示。若 worker mutation guard �
 - MAS、MAG、RCA、OMA、BookForge 等在产品认知上是 Codex 插件；在 OPL 中由 Agent
   Package 提供更强的安装、更新、启停、可见性和运行状态能力，但不得把普通对话改成
   agent dashboard。
+- Agents 普通列表本地化角色名，按 App product metadata 排专业智能体，workflow 独立成组；
+  dependency 只读取 Framework `dependent_guard.required_by_package_ids`，不硬编码 MAS 关系或重复行。
 
 ## 允许的视觉差异
 
