@@ -58,6 +58,12 @@ test('WorkItemProjection V2 requires global item identity, all nine axes, and ob
     (projection: any) => { projection.domain_detail_view_read_contract.payload_contracts.scientific_reasoning_map.working_checkpoint_sources_and_basis_source = 'source_refs'; },
     (projection: any) => { projection.domain_detail_view_read_contract.payload_contracts.scientific_reasoning_map.machine_source_refs_default_visible = true; },
     (projection: any) => { projection.domain_detail_view_read_contract.payload_contracts.scientific_reasoning_map.v2_accepted_route_membership_fields = ['active_branch_node_refs']; },
+    (projection: any) => { projection.domain_detail_view_read_contract.payload_contracts.scientific_reasoning_map.required_fields = projection.domain_detail_view_read_contract.payload_contracts.scientific_reasoning_map.required_fields.filter((field: string) => field !== 'active_branch_node_refs'); },
+    (projection: any) => { projection.domain_detail_view_read_contract.payload_contracts.scientific_reasoning_map.accepted_trajectory_fields = projection.domain_detail_view_read_contract.payload_contracts.scientific_reasoning_map.accepted_trajectory_fields.filter((field: string) => field !== 'active_branch_node_refs'); },
+    (projection: any) => { projection.domain_detail_view_read_contract.payload_contracts.scientific_reasoning_map.required_fields_by_schema['scientific-reasoning-map.v2'] = projection.domain_detail_view_read_contract.payload_contracts.scientific_reasoning_map.required_fields_by_schema['scientific-reasoning-map.v2'].filter((field: string) => field !== 'active_branch_node_refs'); },
+    (projection: any) => { projection.domain_detail_view_read_contract.payload_contracts.scientific_reasoning_map.required_fields_by_schema['scientific-reasoning-map.v1'].push('active_branch_node_refs'); },
+    (projection: any) => { projection.domain_detail_view_read_contract.payload_contracts.scientific_reasoning_map.accepted_trajectory_fields_by_schema['scientific-reasoning-map.v2'] = projection.domain_detail_view_read_contract.payload_contracts.scientific_reasoning_map.accepted_trajectory_fields_by_schema['scientific-reasoning-map.v2'].filter((field: string) => field !== 'active_branch_node_refs'); },
+    (projection: any) => { projection.domain_detail_view_read_contract.payload_contracts.scientific_reasoning_map.medical_prose_policy.shell_may_translate = true; },
     (projection: any) => { projection.domain_detail_view_read_contract.payload_contracts.scientific_reasoning_map.current_branch_membership_source_by_schema['scientific-reasoning-map.v2'] = 'node.branch_id'; },
     (projection: any) => { projection.domain_detail_view_read_contract.payload_contracts.scientific_reasoning_map.v2_current_branch_membership_inference_allowed = true; },
   ]) {
@@ -218,6 +224,8 @@ test('Runtime product rejects list, status, Stage popover, surface-boundary, and
     (contract: any) => { contract.domain_detail_views.full_canvas.v2_current_branch_membership_inference_allowed = true; },
     (contract: any) => { contract.domain_detail_views.full_canvas.content_order.reverse(); },
     (contract: any) => { contract.domain_detail_views.full_canvas.working_checkpoints_may_precede_accepted_map = true; },
+    (contract: any) => { contract.domain_detail_views.medical_prose_policy.shell_may_rewrite = true; },
+    (contract: any) => { contract.domain_detail_views.medical_prose_policy.app_may_summarize = true; },
   ]) {
     const gui = runtimeContract();
     mutate(gui.pages.runtime_status.runtime_cockpit_product_contract);

@@ -201,6 +201,71 @@ export const scientificReasoningV2RouteMembershipFields = [
   "active_branch_node_refs",
 ];
 
+const scientificReasoningV1RequiredFields = [
+  "study_id",
+  "status",
+  "summary",
+  "current_focus",
+  "active_branch",
+  "nodes",
+  "edges",
+  "source_refs",
+  "conditions",
+];
+
+export const scientificReasoningRequiredFieldsBySchema = {
+  "scientific-reasoning-map.v1": scientificReasoningV1RequiredFields,
+  "scientific-reasoning-map.v2": [
+    "study_id",
+    "status",
+    "summary",
+    "current_focus",
+    "active_branch",
+    ...scientificReasoningV2RouteMembershipFields,
+    "nodes",
+    "edges",
+    "source_refs",
+    "working_checkpoints",
+    "conditions",
+  ],
+};
+
+const scientificReasoningV1AcceptedTrajectoryFields = [
+  "summary",
+  "current_focus",
+  "active_branch",
+  "nodes",
+  "edges",
+  "source_refs",
+];
+
+export const scientificReasoningAcceptedTrajectoryFieldsBySchema = {
+  "scientific-reasoning-map.v1": scientificReasoningV1AcceptedTrajectoryFields,
+  "scientific-reasoning-map.v2": [
+    "summary",
+    "current_focus",
+    "active_branch",
+    ...scientificReasoningV2RouteMembershipFields,
+    "nodes",
+    "edges",
+    "source_refs",
+  ],
+};
+
+export const scientificReasoningMedicalProsePolicy = {
+  source: "domain_owner_projected_exact_field_values",
+  exact_passthrough_required: true,
+  app_may_generate: false,
+  app_may_translate: false,
+  app_may_summarize: false,
+  app_may_rewrite: false,
+  shell_may_generate: false,
+  shell_may_translate: false,
+  shell_may_summarize: false,
+  shell_may_rewrite: false,
+  localization_scope: "app_owned_chrome_only_never_domain_medical_prose",
+};
+
 export const scientificReasoningCurrentBranchMembershipBySchema = {
   "scientific-reasoning-map.v1": "node.branch_id_compatibility_fallback",
   "scientific-reasoning-map.v2": "active_branch_node_refs_exact",

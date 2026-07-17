@@ -4,6 +4,7 @@ import {
   runtimeFirstPartyAgents,
   scientificReasoningCompatibleSchemaVersions,
   scientificReasoningCurrentBranchMembershipBySchema,
+  scientificReasoningMedicalProsePolicy,
   scientificReasoningSummaryFields,
   scientificReasoningV2RouteMembershipFields,
   systemAttentionResponsibilityFields,
@@ -499,6 +500,11 @@ export function validateRuntimeCockpitProductContract(contract, label) {
     domainViews?.compatible_scientific_reasoning_schemas,
     scientificReasoningCompatibleSchemaVersions,
     `${label}.domain_detail_views.compatible_scientific_reasoning_schemas`,
+  );
+  assertDeepEqualJson(
+    domainViews?.medical_prose_policy,
+    scientificReasoningMedicalProsePolicy,
+    `${label}.domain_detail_views.medical_prose_policy`,
   );
   assertExpectedFields(
     domainViews?.trajectory_layers?.accepted_trajectory,

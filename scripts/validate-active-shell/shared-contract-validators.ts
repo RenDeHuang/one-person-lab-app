@@ -15,9 +15,12 @@ import {
   domainDetailViewAvailabilityValues,
   domainDetailViewDescriptorFields,
   scientificReasoningEdgeKinds,
+  scientificReasoningAcceptedTrajectoryFieldsBySchema,
   scientificReasoningCompatibleSchemaVersions,
   scientificReasoningCurrentBranchMembershipBySchema,
+  scientificReasoningMedicalProsePolicy,
   scientificReasoningNodeKinds,
+  scientificReasoningRequiredFieldsBySchema,
   scientificReasoningSummaryFields,
   scientificReasoningV2RouteMembershipFields,
   scientificReasoningWorkingCheckpointFields,
@@ -808,6 +811,31 @@ export function validateWorkItemProjectionContract(projection, label) {
     reasoningPayload?.compatible_payload_schemas,
     scientificReasoningCompatibleSchemaVersions,
     `${label} scientific reasoning compatible payload schemas`,
+  );
+  assertDeepEqualJson(
+    reasoningPayload?.required_fields,
+    scientificReasoningRequiredFieldsBySchema["scientific-reasoning-map.v2"],
+    `${label} scientific reasoning v2 required fields`,
+  );
+  assertDeepEqualJson(
+    reasoningPayload?.required_fields_by_schema,
+    scientificReasoningRequiredFieldsBySchema,
+    `${label} scientific reasoning required fields by schema`,
+  );
+  assertDeepEqualJson(
+    reasoningPayload?.accepted_trajectory_fields,
+    scientificReasoningAcceptedTrajectoryFieldsBySchema["scientific-reasoning-map.v2"],
+    `${label} scientific reasoning v2 accepted trajectory fields`,
+  );
+  assertDeepEqualJson(
+    reasoningPayload?.accepted_trajectory_fields_by_schema,
+    scientificReasoningAcceptedTrajectoryFieldsBySchema,
+    `${label} scientific reasoning accepted trajectory fields by schema`,
+  );
+  assertDeepEqualJson(
+    reasoningPayload?.medical_prose_policy,
+    scientificReasoningMedicalProsePolicy,
+    `${label} scientific reasoning medical prose policy`,
   );
   assertDeepEqualJson(
     reasoningPayload?.summary_required_fields,

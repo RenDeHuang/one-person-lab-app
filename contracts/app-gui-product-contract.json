@@ -5543,6 +5543,19 @@
             "scientific-reasoning-map.v1",
             "scientific-reasoning-map.v2"
           ],
+          "medical_prose_policy": {
+            "source": "domain_owner_projected_exact_field_values",
+            "exact_passthrough_required": true,
+            "app_may_generate": false,
+            "app_may_translate": false,
+            "app_may_summarize": false,
+            "app_may_rewrite": false,
+            "shell_may_generate": false,
+            "shell_may_translate": false,
+            "shell_may_summarize": false,
+            "shell_may_rewrite": false,
+            "localization_scope": "app_owned_chrome_only_never_domain_medical_prose"
+          },
           "trajectory_layers": {
             "accepted_trajectory": {
               "source_fields": [

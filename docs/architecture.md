@@ -180,11 +180,15 @@ adjustment, next research step, and a collapsed Sources and rationale section.
 Machine fields such as generation, digest, ref, payload, provider, or attempt are
 never user-facing.
 
-The scientific reasoning payload keeps accepted and working research states
+The scientific reasoning payload keeps accepted and interim research states
 separate. Receipt-bound nodes, edges, and summary fields form the accepted
-trajectory. Running checkpoints may appear in a distinct "awaiting confirmation"
-section, but they cannot alter the accepted graph or be presented as formal
-research conclusions until the domain owner accepts them.
+trajectory. Interim records appear in a distinct section: pending records are
+awaiting confirmation, while rejected records are identified as not included in
+the formal conclusions. Neither state can alter the accepted graph or be
+presented as a formal research conclusion. Medical prose is passed through from
+the domain-owner projection field for field; the App and Shell do not generate,
+translate, summarize, or rewrite it. Localization applies only to App-owned
+chrome.
 For `scientific-reasoning-map.v2`, the current-route mode uses the domain-owned
 `active_branch_node_refs` set exactly; only the v1 compatibility reader may fall
 back to node branch labels. The App and Shell do not infer v2 route membership.

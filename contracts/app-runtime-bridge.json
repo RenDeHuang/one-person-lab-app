@@ -1509,13 +1509,77 @@
             "summary",
             "current_focus",
             "active_branch",
+            "current_focus_node_refs",
+            "active_branch_node_refs",
             "nodes",
             "edges",
             "source_refs",
             "working_checkpoints",
             "conditions"
           ],
-          "accepted_trajectory_fields": ["summary", "current_focus", "active_branch", "nodes", "edges", "source_refs"],
+          "required_fields_by_schema": {
+            "scientific-reasoning-map.v1": [
+              "study_id",
+              "status",
+              "summary",
+              "current_focus",
+              "active_branch",
+              "nodes",
+              "edges",
+              "source_refs",
+              "conditions"
+            ],
+            "scientific-reasoning-map.v2": [
+              "study_id",
+              "status",
+              "summary",
+              "current_focus",
+              "active_branch",
+              "current_focus_node_refs",
+              "active_branch_node_refs",
+              "nodes",
+              "edges",
+              "source_refs",
+              "working_checkpoints",
+              "conditions"
+            ]
+          },
+          "accepted_trajectory_fields": [
+            "summary",
+            "current_focus",
+            "active_branch",
+            "current_focus_node_refs",
+            "active_branch_node_refs",
+            "nodes",
+            "edges",
+            "source_refs"
+          ],
+          "accepted_trajectory_fields_by_schema": {
+            "scientific-reasoning-map.v1": ["summary", "current_focus", "active_branch", "nodes", "edges", "source_refs"],
+            "scientific-reasoning-map.v2": [
+              "summary",
+              "current_focus",
+              "active_branch",
+              "current_focus_node_refs",
+              "active_branch_node_refs",
+              "nodes",
+              "edges",
+              "source_refs"
+            ]
+          },
+          "medical_prose_policy": {
+            "source": "domain_owner_projected_exact_field_values",
+            "exact_passthrough_required": true,
+            "app_may_generate": false,
+            "app_may_translate": false,
+            "app_may_summarize": false,
+            "app_may_rewrite": false,
+            "shell_may_generate": false,
+            "shell_may_translate": false,
+            "shell_may_summarize": false,
+            "shell_may_rewrite": false,
+            "localization_scope": "app_owned_chrome_only_never_domain_medical_prose"
+          },
           "v2_accepted_route_membership_fields": ["current_focus_node_refs", "active_branch_node_refs"],
           "current_branch_membership_source_by_schema": {
             "scientific-reasoning-map.v1": "node.branch_id_compatibility_fallback",
