@@ -60,11 +60,11 @@ contract/实现收敛 lane 处理。
 | State bridge | 把 App state readback 规范化为 renderer 可消费 envelope。 | 从本地组件状态推断 runtime/domain readiness。 |
 | Action bridge | 执行 App-owned action，并返回 dry-run/result/receipt。 | 直接调用 domain CLI、绕过 confirmation 或自建 mutation kernel。 |
 | Package launch adapter | 把 owner projection 归一为 `ready / degraded / package_unavailable`；只在 exact projected action 存在时 JIT activation，填充其 `required_payload_fields`，并校验 package ID、兼容版本、入口及被要求的 safe target。 | 从 installed flag 推断可用、从 manifest 推断 action payload、把 optional activation receipt/binding/closure 当硬门槛，或在 `package_unavailable` 后仍创建/发送 conversation。 |
-| Thread directory adapter | Rail 投影 App Server canonical thread directory/actions；project/workspace 仅按 recorded cwd 分组 session。List/read/start/resume/fork/archive/restore 复用一个 adapter。 | 用 Shell DB 拥有 history、把目录分组当 session owner、挂载独立 coordination 页面、第二 JSON-RPC client、audit/idempotency、dynamic tools或cross-host控制面。 |
+| Thread directory adapter | Rail 投影 App Server canonical thread directory/actions；canonical recorded cwd 是 Project 分组 authority。List/read/start/resume/fork/archive/restore/settings-update 复用一个 adapter。 | 用 Shell DB 拥有 history、让本地 affinity 覆盖 canonical cwd、把目录分组当 session owner、挂载独立 coordination 页面、第二 JSON-RPC client、audit/idempotency、dynamic tools或cross-host控制面。 |
 | Projectless local-input adapter | 让 attachment、file/directory picker、paste/drop、`/open` 在无 workspace 时继续进入 Codex 原生权限路径。 | 因缺 project 禁用输入、把 workspace membership 当授权、复制第二套 path permission model。 |
 | Artifact ref adapter | 当前 session 显式 attachment、可见 conversation result 或用户选择的合法绝对本地路径解析为现有 Preview target，保持只读和 fail-closed。 | 复制 artifact body、新建 renderer/store、隐式 workspace ref、路径穿越、非法 scheme、自动静默读取或猜测未知格式。 |
-| Unified context adapter | Composer `+` 菜单复用真实 file/folder picker、新 session 初始 cwd、App allowlist Skill 与可用连接；无选择时不显示 projectless 占位，已选项使用可移除 chip。 | 伪造 Plugin/provider/backend/team/raw MCP、把 cwd 选择升级为 project owner，或让既有 session cwd 重绑。 |
-| Session workspace adapter | `+` 菜单中的工作目录动作只设置新 session 初始 cwd；Conversation Environment 只读显示 recorded workspace 与 live Git inspection。 | 既有 session cwd 重绑、`thread/settings/update`、Local/Worktree launch mode、starting branch、managed Worktree/Handoff 或 `workspace_handoff` metadata。 |
+| Unified context adapter | Composer `+` 菜单复用真实 file/folder picker、新 session 初始 cwd、App allowlist Skill 与可用连接；无选择时不显示 projectless 占位，已选项使用可移除 chip。 | 伪造 Plugin/provider/backend/team/raw MCP、把 cwd 选择升级为 project owner，或让已绑定 session 任意换 Project。 |
+| Session Project-affinity adapter | `+` 菜单中的工作目录动作只设置新 session 初始 cwd；rail 只允许 `custom_workspace=false` 或无 canonical recorded cwd 的 session 通过拖动或键盘等价动作一次归口。Shell 调用现有 `thread/settings/update.cwd`，以 `thread/read` exact readback 成功为提交点，随后才写本地 `workspace + custom_workspace=true` projection 并移动 row；失败保持 projectless 且对话可用。Conversation Environment 只读显示 recorded workspace 与 live Git inspection；turn cwd、shell `pwd`、显式输入和 writable roots 不反写 affinity。 | `bound(A) -> bound(B)` 任意重绑、从 turn/command `pwd` 推断 Project、要求 Project 覆盖显式输入、修改 writable roots、先改本地分组再验证、私有 adoption RPC、第二 App Server client、pending 状态机、Local/Worktree launch mode、starting branch、managed Worktree/Handoff、receipt/rollback ledger 或 `workspace_handoff` metadata。 |
 | Review adapter | 在现有 Files/Changes diff surface补 uncommitted/base branch/commit/custom、inline/detached、PR context、stage/commit/push；`gh` 缺失明确 unavailable。协议缺失时显示 truthful unavailable。 | 恢复 equal-weight Review tab、复制 diff/Git store、创建本地 annotation store、伪造行级成功。 |
 | Route adapter | 把 legacy/upstream route 映射到 App-owned page。 | 让 compatibility route 重新成为 ordinary navigation。 |
 | Settings slot | 从 Control Plane registry 渲染 ordinary/secondary pages。 | 复制一套 shell-owned Settings IA。 |
@@ -304,9 +304,13 @@ command 和可见状态 anchor。
 - 当前 session 显式 attachment、可见 conversation result 与用户选择的合法绝对本地路径只在安全解析后
   进入现有 Preview；隐式 workspace ref、traversal、非法 scheme、自动静默读取失败时保留原 ref 且不打开空 preview；
 - Home 统一 `+` 菜单只设置新 session 初始 cwd；Conversation Environment 保持只读并复用
-  `gitWorkspace.inspect` 展示可用的 branch/changes/refs；
-- Shell 中不存在 `ensureManagedWorktree`、`WorkspaceHandoffControl`、`workspace_handoff` metadata 或
-  `thread/settings/update` cwd transaction；
+  `gitWorkspace.inspect` 展示可用的 branch/changes/refs；projectless adoption 是独立、单向的 rail action，
+  必须验证 `custom_workspace=false` 或无 canonical recorded cwd、单一 canonical directory 和一次性 transition；turn/command
+  `pwd` 不是 eligibility 前提，也不参与 reclassification。Shell 必须完成 `thread/settings/update.cwd` 与 exact
+  `thread/read` 后才提交本地 projection 和移动 row，不能恢复通用 cwd transaction，
+  也不能修改 writable roots；
+- Shell 中不存在 `ensureManagedWorktree`、`WorkspaceHandoffControl`、`workspace_handoff` metadata、handoff
+  receipt 或 rollback ledger；
 - Review 复用 Files/Changes diff surface，覆盖四类 target、inline/detached、五个 sections、PR
   context/stage/commit/push，并在 `gh` 缺失时明确 unavailable；Last turn复用既有message store且
   不新增状态源，line-level comments在typed Codex protocol缺失时必须保持 unavailable；

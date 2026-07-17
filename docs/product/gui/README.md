@@ -74,7 +74,13 @@ topic SHA；它由 `useConversationListSync.ts`、`GroupedHistory/index.tsx`、`
 `ProjectContextSection.tsx` 与 `projectContext.ts` 缺席。Composer 的统一 `+` 菜单承载文件、目录、新 session 初始 cwd、
 App allowlist 内的 Skills 与真实可用连接；选中 cwd 后只显示一个可移除的紧凑 chip，未选时不显示“不使用项目”占位行。
 Environment 只读显示 recorded workspace 与 live Git context；Shell 不自建 managed Worktree/Handoff，
-也不持久重绑既有 session cwd。工作目录 picker 缺失或不可用时，projectless new task、输入、显式
+也不允许已绑定 session 在 Project 之间任意重分组。只有 `custom_workspace=false` 或无 canonical recorded cwd 的
+projectless session 可执行一次 Project adoption：用户选择唯一 canonical Project directory 后，Shell 通过既有
+`thread/settings/update.cwd` 写入该 thread 的 recorded cwd，再以 `thread/read` exact readback 验证。只有 readback
+匹配时才提交本地 `workspace + custom_workspace=true` projection 并移动 rail row；已有 recorded cwd 时禁止改绑。
+App Server 继续持有 canonical thread ID、history 和 recorded cwd authority；OPL 不增加私有 adoption RPC 或第二 client。
+它不从 turn/command `pwd` 推断绑定、要求 Project 覆盖显式输入、修改 writable roots，或创建 pending/receipt/Handoff 层。
+工作目录 picker 缺失或不可用时，projectless new task、输入、显式
 send-scoped local inputs 与普通 Codex conversation 仍保持可用；只有 owner-projected action 的
 `required_payload_fields` 明确要求 Workspace 或 managed target 时，才对该 Agent launch 做局部校验。
 Activation 默认按 `ready / degraded / package_unavailable` 三态自修复、JIT、降级或 fallback；receipt、
@@ -198,21 +204,23 @@ rules；在该 machine change 落地前保留它们只为避免 docs-only 变更
 
 - 宽桌面默认显示目录/对话 rail，保持工作目录分组和 conversation history 可见；
   窄窗口改为 drawer，不能为增加工具而压缩主阅读列。
-- Rail 顶部固定 New task、Archived；仅在 X0-01 route 显式启用时显示 Runtime。主体按 session 的 recorded workspace 分组 App Server threads，底部承载
-  account/help/Settings；App Server canonical overview 可用时是 Codex session directory authority，Shell DB 只保存 draft、
-  preference 和可重建 cache。Rename/archive/restore/delete 分别映射 `thread/name/set`、
+- Rail 顶部固定 New task、Archived；仅在 X0-01 route 显式启用时显示 Runtime。主体按 canonical thread ID 关联的显式
+  Project affinity 分组 App Server threads，底部承载 account/help/Settings；App Server canonical overview 可用时是 Codex
+  session directory authority，carrier 只保存 affinity、draft、preference 和可重建 cache。Git origin 与 runtime cwd 不作为
+  Project identity。Rename/archive/restore/delete 分别映射 `thread/name/set`、
   `thread/archive`、`thread/unarchive`、`thread/delete`；pin 是 Shell UI metadata，本地 reset 不冒充
   App Server history reset。Canonical overview 未返回的 stale Codex ACP cache row 不进入 ordinary rail；
   只有 overview unavailable 时才 fallback cache，非 Codex local row 继续保留。每个 canonical thread ID
   最多一行，不能按标题或 workspace 去重。
 - Session/thread 是主单位，project/workspace/directory 不拥有 session、context 或 artifact。新 session 以所选目录
-  初始化 cwd；既有 session 的 recorded workspace 与 rail 分组保持只读，命令或 turn 的实际 `pwd` 不反写
-  session metadata。目录组只提供
+  初始化 cwd 或以 projectless 状态开始；projectless session 可由用户一次性归入一个 canonical directory group，
+  保留 thread identity 与 history。已绑定 session 的 Project affinity 不提供 A→B 任意重分组，命令或 turn 的实际
+  `pwd` 不反写 affinity。目录组提供
   “使用此工作目录新建对话”的快捷动作，不提供组级删除，更不能级联删除 session。
 - Home/New task 与普通 conversation 共用同一 chat canvas 和 composer，不是
   landing/dashboard；有无 workspace 都使用同一 session 模型。未选 workspace 时仍保留
   attachment、任意本地文件/目录选择、paste/drop 与 `/open`；Project/workspace 只提供初始 cwd、
-  只读分组和展示，真实访问只由 Codex permission/approval/sandbox 决定。Workspace readiness 只约束
+  projectless 一次性 adoption、分组和展示，真实访问只由 Codex permission/approval/sandbox 决定。Workspace readiness 只约束
   project/OPL workspace controls，不得禁用普通本地对话或这些显式文件输入；
   Codex/model prerequisites 不变。Home root、composer shell 与 footer account/Settings entry 在每个 viewport 各只有一个实例。
 - Conversation 顶部只保留当前 task identity 与直接动作。Model/reasoning、
@@ -250,8 +258,8 @@ rules；在该 machine change 落地前保留它们只为避免 docs-only 变更
   raw ids、logs、refs、receipts 与 provider 诊断只进入诊断区。
 - Environment 使用右上按需浮层，只读渲染真实
   recorded workspace/locality/branch/changes/subtasks/sources；artifact、
-  evidence、receipt refs 属于次级信息，不默认形成全高第三列。它不提供既有 session cwd
-  重绑或 rail 重分组；新任务初始 cwd 只从 composer `+` 菜单选择。
+  evidence、receipt refs 属于次级信息，不默认形成全高第三列。它不提供已绑定 session cwd
+  重绑或 rail 重分组；新任务初始 cwd 只从 composer `+` 菜单选择，projectless adoption 留在 rail。
 - Files/Changes 是按需 workspace surface，Preview 独立；Terminal/Browser 只从 Environment
   或任务需要打开。旧八类 inspector taxonomy 与会话级 Runtime duplicate 不再是产品面。
 - Transcript export 只导出完整分页后的、脱敏的 user/assistant text；Markdown 默认、
@@ -265,8 +273,9 @@ rules；在该 machine change 落地前保留它们只为避免 docs-only 变更
   显式选择的合法绝对本地路径；绝对路径不要求属于当前 workspace，也不存在 workspace-scoped project-context ref。
   traversal、非法 scheme、自动静默读取及 unsupported ref 保持可见并 fail closed，App/shell 不复制
   artifact body，也不猜测内容。
-- New session 只通过 composer `+` 菜单里的工作目录动作设置初始 cwd。Shell 不创建 managed Worktree、不保存
-  `workspace_handoff` metadata，也不提供既有 session 的任意目录重绑或 Local↔Worktree handoff。
+- New session 只通过 composer `+` 菜单里的工作目录动作设置初始 cwd；projectless session 可从 rail 通过拖动或
+  键盘可达的等价动作一次性归入一个目录组。失败时保持 projectless 和对话可用。Shell 不创建 managed Worktree、
+  不保存 `workspace_handoff` metadata，也不提供已绑定 session 的任意目录重绑或 Local↔Worktree handoff。
 - Workspace/cwd 缺失按 fail-open 处理：保留 projectless new task、composer、显式本地输入和普通 Codex
   conversation；单个 Agent Package 的 Workspace/managed-target 前提或 readiness 故障不得升级为全局聊天门禁。
 - Review 复用现有 Files/Changes diff surface，按需增加 PR context、inline comments、stage、commit、

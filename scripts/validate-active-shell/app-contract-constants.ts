@@ -1403,25 +1403,71 @@ export const appOwnedPageStateHomeLayout = {
 export const appOwnedSessionWorkspaceModel = {
   primary_unit: "session_backed_by_codex_thread_id",
   identity_authority: "codex_core_app_server_thread_id",
+  project_affinity_states: ["unbound", "bound"],
+  project_affinity_cardinality: "zero_or_one",
+  projectless_session_semantics:
+    "no_user_selected_project_affinity_not_no_runtime_cwd",
+  projectless_detection:
+    "custom_workspace_equals_false_or_canonical_recorded_cwd_absent_never_turn_or_command_pwd",
+  project_affinity_role:
+    "canonical_recorded_thread_cwd_for_ui_grouping_and_default_turn_cwd_hint",
   workspace_binding_role:
-    "new_session_initial_cwd_and_sidebar_grouping_metadata_only",
+    "new_session_initial_cwd_or_projectless_one_time_canonical_cwd_adoption_and_sidebar_grouping_metadata_only",
   runtime_pwd_role:
-    "command_or_turn_execution_context_not_persisted_as_session_workspace_binding",
-  existing_session_workspace_rebinding: "not_exposed",
+    "turn_cwd_or_command_pwd_execution_context_not_persisted_as_project_affinity",
+  turn_cwd_override_allowed: true,
+  writable_roots_role:
+    "sandbox_permission_surface_independent_of_project_affinity",
+  core_workspace_application:
+    "thread_settings_update_cwd_with_exact_thread_read_before_local_projection_commit",
+  runtime_pwd_changes_project_affinity: false,
+  project_affinity_changes_writable_roots: false,
+  project_adoption_transition:
+    "projectless_to_bound_once_via_thread_settings_update_cwd",
+  bound_project_reassignment: "not_exposed",
   workspace_owns_session: false,
   workspace_owns_context: false,
   workspace_owns_artifacts: false,
   workspace_group_cascade_session_delete_allowed: false,
 };
 export const appOwnedDirectoryGroupPolicy = {
-  source: "canonical_recorded_session_cwd_projection",
-  role: "presentation_and_new_session_cwd_shortcut_only",
+  source: "explicit_project_affinity_projection_joined_by_canonical_thread_id",
+  role: "presentation_new_session_cwd_shortcut_and_projectless_adoption_only",
   owns_sessions: false,
   owns_context: false,
   owns_artifacts: false,
   group_delete_action_allowed: false,
   cascade_session_delete_allowed: false,
   new_session_action_language: "use_this_working_directory_not_create_project_child",
+  project_directory_cardinality: "one_project_affinity_one_canonical_directory",
+  legacy_missing_marker_policy:
+    "existing_recorded_thread_cwd_is_bound_and_may_only_hydrate_local_projection_without_cwd_update",
+  git_origin_url_project_identity_allowed: false,
+  turn_cwd_reclassifies_bound_session: false,
+  project_adoption_policy: {
+    eligible_state:
+      "custom_workspace_equals_false_or_canonical_recorded_cwd_absent",
+    triggers: ["drag_to_directory_group", "keyboard_move_to_project_action"],
+    destination_policy:
+      "one_user_selected_canonical_project_directory_independent_of_explicit_inputs_turn_cwd_and_writable_roots",
+    result:
+      "persist_selected_directory_as_the_canonical_recorded_cwd_preserving_thread_id_and_history",
+    assignment_commit_policy:
+      "only_after_thread_read_exact_readback_cwd_matches_selected_directory",
+    transport: "codex_app_server_thread_settings_update_cwd",
+    core_workspace_application:
+      "thread_settings_update_cwd_then_thread_read_exact_readback_then_local_projection_custom_workspace_true",
+    turn_or_command_pwd_requirement:
+      "never_used_for_adoption_eligibility_or_readback",
+    assignment_failure_policy:
+      "keep_unbound_conversation_available_and_show_lightweight_error",
+    canonical_thread_cwd_initialization_allowed: true,
+    canonical_thread_cwd_exact_readback_required: true,
+    existing_canonical_thread_cwd_blocks_reassignment: true,
+    runtime_workspace_roots_mutation_allowed: false,
+    bound_session_reassignment_allowed: false,
+    private_pending_deferred_revision_state_allowed: false,
+  },
 };
 export const appOwnedExplicitSessionInputPolicy = {
   scope: "current_session_composer",

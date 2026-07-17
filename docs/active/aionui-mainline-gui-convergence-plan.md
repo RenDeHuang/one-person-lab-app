@@ -18,8 +18,8 @@ OPL App 是 AionUI 上的可信本机薄壳，目标是在不长期维护上游�
 1:1 对齐 Codex App 的桌面交互和视觉。当前产品模型固定为：
 
 1. session/thread 是唯一会话身份；
-2. project/directory 只是新会话初始 cwd、recorded 分组和新会话快捷入口，不拥有会话或上下文；
-3. workspace 只记录新任务初始 cwd 与只读分组；命令或 turn 的实际 `pwd` 不持久反写 session；
+2. project/directory 是零或一个 affinity，用于新会话初始 cwd、projectless 一次性 adoption、recorded 分组和新会话快捷入口，不拥有会话或上下文；adoption 只允许 `custom_workspace=false` 或无 recorded cwd，经 `thread/settings/update.cwd` 与 exact `thread/read` 后完成；
+3. workspace 记录单一 Project affinity；命令或 turn 的实际 `pwd`、显式输入和 writable roots 不持久反写或扩展该 affinity；
 4. OPL Agent Package 是受管的官方插件，提供更强安装和状态管理，但不改变 Codex 的会话模型；
 5. AionUI 基础 ACP 和一个 Codex App Server adapter 承载普通会话与用户触发的线程操作；
 6. App 定义产品和验收，Shell 不建立第二状态源，AionCore 保持 no-write。
@@ -29,8 +29,8 @@ OPL App 是 AionUI 上的可信本机薄壳，目标是在不长期维护上游�
 当前 source、pixel、install、release 状态只在
 [`../product/gui/shell-conformance-matrix.md`](../product/gui/shell-conformance-matrix.md) 维护。
 
-因此项目下不显示“上下文 / 添加上下文”，也不把会话描述成归属于某个项目。Workspace selector
-只设置新 session 初始 cwd；既有 session 不提供目录重绑。
+因此项目下不显示“上下文 / 添加上下文”，也不把项目描述成 session owner。Workspace selector
+只设置新 session 初始 cwd；projectless session 可一次性归口，已绑定 session 不提供任意目录重绑。归口失败保持 projectless 和对话可用，turn/command `pwd` 与 writable roots 不受影响。
 
 ## 当前产品与维护边界
 
@@ -40,7 +40,7 @@ OPL App 是 AionUI 上的可信本机薄壳，目标是在不长期维护上游�
 | Thread 操作 | 一个 App Server adapter；用户触发 list/read/start/resume/fork/archive 和必要 turn 操作 | 第二 JSON-RPC client、独立 coordination 页面、model delivery |
 | Codex subagents | 复用 Codex delegated execution 与现有 App Server adapter；先用真实 fixture 证明 read-only Active/Done、completed detail/result、open thread 与 owner-supported control 缺口 | AionUI Team、第二 App Server client、Team store/scheduler、Shell 自有执行 authority、bespoke direct-control buttons |
 | X0 retained routes | Runtime cockpit 可作为条件 owner route 保留；Hosted Workspace/Fabric/HPC/Console 只在真实 owner/backend 存在时给 refs | 把 Runtime 当 P0/default release gate/Native phase-1 parity，或为 Cloud/Remote 维护占位状态和 literal control plane |
-| Session / cwd | 新任务选择初始 cwd；projectless session 可直接开始；Environment 只读 | project 拥有 session/context、既有 session cwd 重绑或 rail 重分组 |
+| Session / Project affinity | 新任务选择初始 cwd；projectless session 可直接开始并一次性归入一个目录组；Environment 只读 | project 拥有 session/context、已绑定 session 任意换组、仅改 Shell rail、receipt/rollback/Handoff 子系统 |
 | Worktree | 当前版本不提供 managed Worktree/Handoff | Local/Worktree launch mode、starting branch、create/reuse、snapshot、cleanup、restore |
 | Agent Package | exact owner-projected action、`required_payload_fields`、`ready / degraded / package_unavailable`、最小 package identity/version/entrypoint/safe-target 校验与 typed error | Shell 预解析 manifest、普遍 Workspace 前提、完整 receipt/binding/closure 硬门槛、owner ledger、anti-replay |
 | Review | 复用普通 diff/files；上游无 typed 能力时 truthful unavailable | 私有行级 annotation、伪造成功、cross-host/model-delivery 依赖 |

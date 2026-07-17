@@ -63,12 +63,16 @@ Maintain the AionUI fork through the existing App-owned control path:
    screenshot and rendering behavior for the active shell. It cannot
    prove release readiness, packaged App readiness, runtime currentness, owner
    acceptance, or production readiness.
-6. **Session workspace stays minimal.** The thread ID owns task identity; the
-   workspace selector only sets a new task's initial cwd and Environment is
-   read-only. The fork does not maintain existing-session cwd rebinding,
-   managed Worktree/Handoff, projection rollback, or `workspace_handoff`
-   metadata. These capabilities may return only through a stable owner protocol
-   and a separately accepted product requirement.
+6. **Session Project affinity stays minimal.** The thread ID owns task identity;
+   the workspace selector only sets a new task's initial cwd. A projectless
+   session with `custom_workspace=false` or no canonical recorded cwd may make
+   one user-triggered `unbound -> bound` transition. The existing App Server
+   adapter calls `thread/settings/update.cwd`, requires exact `thread/read`, and
+   only then commits the local projection. Failure leaves the session projectless
+   and usable; an existing cwd blocks reassignment. Environment stays read-only,
+   and turn/command `pwd` plus writable roots remain independent. The fork does
+   not maintain a private adoption RPC, managed Worktree/Handoff, projection
+   rollback, receipt, or `workspace_handoff` metadata.
 
 This keeps the App contract first and the shell delta thin. The fork can absorb
 upstream fixes, but only after checking them against App-owned contracts.

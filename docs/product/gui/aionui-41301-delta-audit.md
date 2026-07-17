@@ -77,7 +77,7 @@ integration 的 keep/adapt/drop 决策。
 
 | Surface | Current source / behavior | Disposition | Required target |
 | --- | --- | --- | --- |
-| Directory/session rail | `Layout.tsx`、`SiderPrimaryNav.tsx`、`GroupedHistory/index.tsx`、`SiderFooter.tsx` 已提供 wide rail、narrow drawer、New task/Archived/Capabilities、workspace grouping 和 account/help/Settings。 | `keep + adapt` | 不重写 rail；分组只投影 canonical session 的 recorded workspace，不挂载目录级输入、组级删除或级联删除。 |
+| Directory/session rail | `Layout.tsx`、`SiderPrimaryNav.tsx`、`GroupedHistory/index.tsx`、`SiderFooter.tsx` 已提供 wide rail、narrow drawer、New task/Archived/Capabilities、workspace grouping 和 account/help/Settings。 | `keep + adapt` | 不重写 rail；分组使用 canonical thread ID 关联的显式 Project affinity 和单一 directory identity，不挂载目录级输入、组级删除或级联删除；Git-origin collapse 已从 source 移除。 |
 | Environment summary | `ConversationEnvironmentPopover.tsx` 已是右上 anchored、default-closed summary，显示 workspace/locality/branch/subtasks/sources。 | `keep + adapt` | 增加 changes、commit/push、compare 与 OPL artifact/evidence secondary refs；首层不显示完整 Runtime。 |
 | Multi-tool side panel taxonomy | `ChatSlider.tsx` 把 Review/Terminal/Browser/Files 设为一级 tabs，再把 Artifacts/Runtime/Actions/Memory 设为二级入口。 | `drop taxonomy` | 删除八类综合 inspector 与 More Context；保留底层 Files/Terminal/Browser/Preview 能力，按任务或显式动作打开。 |
 | Side-panel infrastructure | `ChatLayout/index.tsx` 提供 resize、overlay、focus/backdrop 与 preview layout。 | `adapt` | 作为单一 advanced surface/preview 基础设施，不与 Environment 并列成常驻第三列；preview 不自动打开综合 inspector。 |
@@ -93,16 +93,17 @@ integration 的 keep/adapt/drop 决策。
 新 integration 按以下顺序执行，避免继续扩大 fork：
 
 1. **Authority sync。** 当前裁决固定为 session/thread 是身份与工作单位；working directory
-   只作为新 session 初始 cwd 与只读 recorded workspace rail 分组 metadata，命令或 turn 的实际 `pwd`
-   变化不反写该记录。Branch/locality 归
+   作为新 session 初始 cwd、projectless 一次性 adoption 与 Project-affinity rail 分组 metadata，
+   仅 `custom_workspace=false` 或无 canonical recorded cwd 可经 `thread/settings/update.cwd` 与 exact
+   `thread/read` 完成一次 adoption；已有 cwd 不任意换组，命令或 turn 的实际 `pwd` 变化不反写该记录。Branch/locality 归
    Environment、active capability 留在 composer；当前 composer 只消费用户显式加入的 send-scoped
    输入。最终 Shell profile 必须从包含该 authority 的 App commit 生成，不重放旧 JSON。
 2. **P0 composer。** 把 desktop model/reasoning 移到 composer，保持 access/send/stop
    同一决策点；删除 `ChatSlider.actionsSlot` 的模型控制。
 3. **P0 Environment。** 保留并扩展 anchored Environment；删除综合 side-panel taxonomy，
    将 preview/files/terminal/browser 作为按需 advanced surface。
-4. **P0/P1 session directory 与 inputs。** Rail 按 canonical thread ID 单行投影，并按 recorded workspace
-   分组；overview 可用时排除 stale Codex ACP cache row。Attachment、file/directory picker、paste/drop
+4. **P0/P1 session directory 与 inputs。** Rail 按 canonical thread ID 单行投影，并按显式 Project affinity
+   分组；持续验证 Project identity 只使用单一 directory，不按 Git origin 合并。overview 可用时排除 stale Codex ACP cache row。Attachment、file/directory picker、paste/drop
    与 `/open` 只由当前 session composer 显式消费，不预载、不按 workspace 持久化。
 5. **P1 task awareness。** 单一 inline summary，删除 Runtime duplicate，expanded refs
    进入 Environment/preview/turn disclosure。

@@ -24,8 +24,8 @@ carrier 状态和 release evidence 仍归 contracts、source/tests、validators 
 | Product identity | 普通导航 chrome 使用 text-only `One Person Lab`；完整 App identity 保留在 window metadata、About 与 release assets | 用户必须知道正在使用 One Person Lab，同时避免 logo 在深浅主题间产生不协调。 | 普通导航 chrome 出现 App logo、`App` 后缀或 carrier identity。 |
 | Current context | Recorded workspace 在 rail，live branch/locality 在 Environment，active capability/attachment 在 composer 附近 | 当前执行环境必须可理解，但目录不拥有 context；runtime `pwd` 不反写 rail。 | 只在 Settings/raw path 中可见、无 workspace 时静默禁用，或 composer 重复 rail/Environment 全量状态。 |
 | Directory/conversation rail | 宽桌面左侧 `280-340px` 可调；窄窗口 drawer | Navigation 是连续工作所需，不应占用 conversation 主区。 | 宽桌面缺失、被移到 Home grid，或关闭 drawer 后丢 selection。 |
-| Rail global skeleton | 顶部固定 New task/Archived；X0-01 显式启用时才显示 Runtime。主体按 canonical session 的 recorded workspace 分组，底部 account/help/Settings | 稳定全局入口与 session history 分层；capability 选择归 Home starter，管理归 Settings。 | 把条件 Runtime 复活为核心入口、无真实能力的入口照搬、Capabilities 重回 rail，或 Settings 混入 conversation rows。 |
-| Directory group semantics | Conversations rows 与“使用此工作目录新建对话” | 目录组只是 recorded workspace projection 和新 session 快捷入口。 | “添加上下文”、组级删除、级联删除 session，或按标题/workspace 去重。 |
+| Rail global skeleton | 顶部固定 New task/Archived；X0-01 显式启用时才显示 Runtime。主体按 canonical session 的显式 Project affinity 分组，底部 account/help/Settings | 稳定全局入口与 session history 分层；capability 选择归 Home starter，管理归 Settings。 | 把条件 Runtime 复活为核心入口、无真实能力的入口照搬、Capabilities 重回 rail，或 Settings 混入 conversation rows。 |
+| Directory group semantics | Conversations rows、“使用此工作目录新建对话”与 projectless adoption target | 目录组只是单一 Project-affinity projection、新 session 快捷入口和 projectless session 的一次性归口目标；拖动必须有键盘等价动作。 | “添加上下文”、组级删除、级联删除 session、已绑定 session 任意换组、仅改 Shell 分组，或按标题/workspace/Git origin 去重。 |
 | Session attachments | 当前 composer | 文件/目录只由用户为当前 session/send 显式加入。 | 从 workspace 预载、隐式注入，或附件只能从 Settings/rail 添加。 |
 | Conversation management | Rail rows、search 与独立 Archived surface | Search/pin/rename/archive/reset 属于持续工作管理。 | Archive 无独立 surface，或 reset 与 delete 语义混淆。 |
 | Conversation timeline | Main canvas | 用户需要按时间理解任务、输出和决策。 | 与 Runtime/Files 并列成多个主面，或被 dashboard 替代。 |

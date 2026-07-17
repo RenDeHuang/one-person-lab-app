@@ -155,7 +155,7 @@ function validateHomeLayout(guiContract) {
     'workspace-scoped project context inputs or an Add context action in the directory rail',
     'workspaceRootReady or workspace membership used as a file-access gate',
     'backend, provider, Team, raw MCP, or arbitrary skills in the mobile plus sheet',
-    'existing-session working-directory rebinding controls',
+    'bound-session arbitrary project or working-directory reassignment controls',
     'Local or Worktree launch modes, starting branch, managed worktree, handoff, snapshot, restore, cleanup, or deletion controls',
     'cross-host task handoff controls',
     'duplicate current task or Runtime summary outside the message timeline',
@@ -177,7 +177,7 @@ function validateSessionDirectoryPolicy(guiContract) {
     policy.shell_local_storage_role !== 'drafts_preferences_and_rebuildable_cache_only' ||
     policy.shell_thread_history_authority !== false ||
     policy.workspace_directory_role !==
-      'new_session_initial_cwd_grouping_and_visible_metadata_only' ||
+      'new_session_initial_cwd_projectless_adoption_grouping_and_visible_metadata_only' ||
     policy.row_identity !== 'canonical_thread_id' ||
     policy.duplicate_row_per_canonical_thread_allowed !== false ||
     policy.title_based_deduplication_allowed !== false

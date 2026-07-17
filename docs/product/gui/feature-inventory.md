@@ -47,7 +47,7 @@ Native 将来需要独立实现同一用户结果。视觉 1:1 是独立的 pixe
 | ID | 必要基线 | 为什么必要 | 当前产品边界 |
 | --- | --- | --- | --- |
 | `B0-01` | App shell、窗口、rail、响应式导航、键盘历史 | 没有稳定的桌面骨架就不是可持续使用的 Codex 工作台。 | AionUI 优先复用；Native 自行实现。视觉参考不复制 Codex 品牌或 authority。 |
-| `B0-02` | Home/New task、session/thread 目录与历史管理 | 新建、恢复、搜索、pin、rename、archive/restore 是日常入口。 | Session 是身份单位；workspace/project 只提供初始 cwd、记录与分组。 |
+| `B0-02` | Home/New task、session/thread 目录与历史管理 | 新建、恢复、搜索、pin、rename、archive/restore 是日常入口。 | Session 是身份单位；Project affinity 为零或一。新 session 可 projectless；未归口 session 可一次性进入一个目录组，已绑定 session 不任意换组。 |
 | `B0-03` | Conversation timeline、streaming、stop/retry、tool/process 与错误 | 这是 AI 工作闭环，不应被 OPL 管理面取代。 | 复用 Codex/AionUI conversation adapter；错误保持真实且可恢复。 |
 | `B0-04` | Composer、文本、附件、paste/drop、显式 file/directory input | 用户必须能直接把本地上下文交给 Agent。 | 输入只进入当前 send，不做隐式 workspace preload。 |
 | `B0-05` | Model/reasoning 与 Auto/fixed 偏好 | 用户需要在发送点控制质量、速度和成本。 | 交互属于 B0；模型 entitlement、余额和默认目录 owner 归 `R1-02`。 |
@@ -55,7 +55,7 @@ Native 将来需要独立实现同一用户结果。视觉 1:1 是独立的 pixe
 | `B0-07` | Files、Changes、artifact preview 与常用 renderer | 用户需要查看代码、文件和交付物，而不是只读聊天文本。 | Preview/renderer 属 B0；完整 OPL evidence 平台归 `X0-02`。 |
 | `B0-08` | Git、branch、diff、review、commit/push、PR context | 编码任务需要可审查、可交付的版本控制闭环。 | 协议缺口显示 unavailable，不建立本地伪成功 store。 |
 | `B0-09` | Terminal、Browser、Environment details | Agent 工作经常需要按需查看运行与环境。 | 作为次级工具按需打开，不做默认第三栏或 OPL dashboard。 |
-| `B0-10` | Workspace 初始 cwd 与本地 Worktree 工作模式 | 本地任务需要隔离目录和执行上下文。 | 当前 AionUI 不自造既有 session cwd 重绑或 managed handoff；未来复用稳定 upstream 或由 Native 实现。 |
+| `B0-10` | Workspace 初始 cwd、Project adoption 与本地 Worktree 工作模式 | 本地任务需要明确主要目录、隔离目录和执行上下文。 | Composer 只设置新 session 初始 cwd；projectless session 允许一次性 adoption。已绑定 session 不任意重绑，当前 AionUI 不自造 managed handoff；Worktree 未来复用稳定 upstream 或由 Native 实现。 |
 | `B0-11` | Codex Subagents / 并行子任务 | 复杂任务需要并行探索、验证与汇总。 | Portable core 是 read-only Active/Done lists、completed detail/result、open subagent thread，以及既有 App Server/ACP owner-supported controls。AionUI Team 继续关闭；不新增第二 App Server client、Team store、scheduler、执行 authority 或 bespoke direct-control buttons。 |
 | `B0-12` | Scheduled tasks/Cron、后台继续与通知 | 长任务和周期任务需要离开前台后继续。 | 属 Codex 必要基线；AionUI 已有 scheduler engine，当前缺口是 ordinary discoverability 与固定 Codex executor composition，不新建第二 scheduler。 |
 | `B0-13` | Memory、personalization、instructions | 稳定偏好和项目指令决定长期易用性。 | 复用 owner-correct profile/refs，不新建独立 memory 平台。 |
@@ -124,7 +124,7 @@ Sites/Chat 等入口可以隐藏或拒绝；它们不构成 OPL 功能回归。
 
 | 功能 | 用户结果 | Authority / machine owner |
 | --- | --- | --- |
-| Session-first workspace-aware App frame | Session/thread 是主单位；project/workspace/directory 只提供新 session 初始 cwd 和只读 recorded workspace rail 分组，不拥有 session、context 或 artifact，也不构成授权域。命令或 turn 的实际 `pwd` 变化不反写该记录。 | GUI contract、product profile、Codex permission/approval/sandbox。 |
+| Session-first workspace-aware App frame | Session/thread 是主单位；Project affinity 为 `unbound | bound` 且最多一个。project/workspace/directory 提供新 session 初始 cwd、projectless 一次性 adoption 和 affinity rail 分组，不拥有 session、context 或 artifact，也不构成授权域。命令或 turn 的实际 `pwd`、显式输入与 writable roots 不反写或扩展该 affinity；Git origin 不作为 Project identity。 | GUI contract、product profile、Codex permission/approval/sandbox。 |
 | Directory/conversation navigation | 宽桌面 rail 默认展开，窄窗口变 drawer；App Server overview 可用时是 Codex session directory authority，未返回的 stale Codex ACP cache rows 不进入 ordinary rail，overview unavailable 才 fallback cache，非 Codex local rows 保留。每个 canonical thread ID 最多一行，不按标题/workspace 去重；目录组不提供组级删除或 session 级联删除。 | GUI contract、page-state matrix、runtime bridge。 |
 | Chat-first main canvas | 打开 App 后可以直接开始或继续工作，不先经过 dashboard/landing；Home root、composer shell、footer account/Settings entry 各只有一个实例。 | GUI contract、page-state matrix。 |
 | Workspace-optional conversation | 不建立 workspace 也能使用 attachment、任意本地文件/目录选择、paste/drop 与 `/open`；workspace readiness 不 gate 这些输入，真实访问只受 Codex permission/approval/sandbox 约束。 | GUI contract、conversation state/bridge。 |
@@ -136,11 +136,11 @@ Sites/Chat 等入口可以隐藏或拒绝；它们不构成 OPL 功能回归。
 
 | 功能 | 用户结果 | Authority / machine owner |
 | --- | --- | --- |
-| New conversation | 在所选目录初始化 cwd，或不选 workspace 直接开始 Codex session；目录只提供初始 cwd 与分组，不拥有 session。 | GUI contract、conversation page state、Codex bridge。 |
-| Resume conversation | 按 canonical thread ID 找回 recent conversation，保留 transcript/turn history/title/task state 和 recorded workspace 展示。 | Conversation state/bridge；shell 只持有实现所需 session refs。 |
+| New conversation | 在所选目录初始化 cwd，或不选 Project 直接开始 projectless Codex session；底层仍有 runtime cwd，projectless 仅表示无用户选择的 Project affinity。 | GUI contract、conversation page state、Codex bridge。 |
+| Resume conversation | 按 canonical thread ID 找回 recent conversation，保留 transcript/turn history/title/task state、Project-affinity 分组和 recorded runtime cwd 展示。 | Conversation state/bridge；shell 只持有 affinity/UI metadata 与实现所需 session refs。 |
 | Conversation management | Search、pin、rename、archive、reset conversation，并在独立 Archived surface 管理归档。 | GUI contract、conversation state/bridge。 |
 | User-triggered thread operations | 从现有 conversation directory/actions 读取、创建、恢复、fork、归档或恢复归档线程；普通对话继续走 AionUI ACP，不增加独立 coordination 页面或模型工具。 | 一个 Codex App Server adapter；Shell 只持有 UI metadata 与可重建 cache。 |
-| Session working directory | Composer 统一 `+` 菜单只设置新任务初始 cwd；未选时无占位行，选中后显示可移除 chip。Conversation Environment 只读显示 recorded workspace 和可用的 live Git context。既有 session 不提供 cwd 重绑、Local/Worktree 切换或 managed Worktree。 | Codex Core/App Server；workspace 只是初始 cwd、展示与分组 metadata。 |
+| Session Project affinity / working directory | Composer 统一 `+` 菜单只设置新任务初始 cwd；未选时无占位行。仅 `custom_workspace=false` 或无 canonical recorded cwd 的 projectless session 可由用户从 rail 一次性归入一个目录：通过 `thread/settings/update.cwd` 写入，并在 `thread/read` exact readback 匹配后提交本地 projection 和移动 row。失败保持 projectless 且对话可继续；已有 recorded cwd 的 session 不提供 A→B 改绑、Local/Worktree 切换或 managed Worktree。Turn cwd、shell `pwd`、显式文件/目录输入与 writable roots 均独立。 | Codex Core/App Server canonical thread ID + recorded cwd authority；Shell 仅持有 UI projection。Project 是单一目录 affinity、后续默认 cwd hint、展示与分组 metadata，不是 thread identity 或授权域。 |
 | Text instruction | 向固定 Codex executor 发送多行任务说明。 | Product profile、ordinary conversation contract。 |
 | Streaming assistant output | 持续看到 assistant response，不需要查看 raw protocol。 | Codex/App bridge 与 conversation page state。 |
 | Pending/running feedback | 看到当前 turn 正在处理、elapsed time、stop 和失败状态。 | Page-state matrix、bridge events。 |

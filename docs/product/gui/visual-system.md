@@ -236,10 +236,12 @@ Composer 是底部唯一主 command surface：
 - 宽桌面默认可见，宽度在 `280-340px` 内可调，窄窗口改 drawer。
 - 顶部固定 New task、Archived；Runtime 仅在 X0-01 route 显式启用时出现。capability starter
   属于 Home，package/capability 管理属于 Settings。Sites/Chat 没有 OPL 对应能力时不显示。
-- 中段按 recorded workspace metadata 组织 canonical sessions，同时容纳 projectless sessions；分组是
-  只读 projection，不拥有 session、context 或 artifact。命令或 turn 的实际 `pwd` 变化不移动
-  canonical-thread row，也不复制 row/history 或按标题/workspace 去重。
-- Directory group 展开后只显示 conversations 与“使用此工作目录新建对话”；不显示“添加上下文”或组级删除，
+- 中段按显式 Project-affinity metadata 组织 canonical sessions，同时容纳 projectless sessions；分组不拥有
+  session、context 或 artifact。只有 `custom_workspace=false` 或无 canonical recorded cwd 的 Projectless row 可经
+  canonical update/readback 一次归入一个目录组；已绑定 row 不任意换组。命令或 turn
+  的实际 `pwd` 变化不移动 canonical-thread row，也不复制 row/history 或按标题/workspace 去重。
+- Directory group 展开后显示 conversations、“使用此工作目录新建对话”，并作为 projectless adoption 的拖动目标；
+  同一动作必须有键盘可达等价入口。失败时 row 留在 projectless 组。不显示“添加上下文”或组级删除，
   更不得级联删除分组内 sessions。Canonical App Server overview 可用时排除未返回的 stale Codex ACP
   cache rows；只有 overview unavailable 时 fallback cache，非 Codex local rows 保留。
 - 底部固定 account、help、Settings；常用 row actions 在 hover/focus
@@ -277,8 +279,8 @@ Composer 是底部唯一主 command surface：
   popover；短选项不升级为整页。
 - Environment 使用右上 anchored floating surface，首层只读汇总 recorded workspace、changes、branch、
   commit/push、subagents 和 sources。
-- Environment 不提供“切换工作目录”、Local/Worktree 或其它 workspace mutation；运行时命令/turn 的
-  `pwd` 不作为 App rail metadata 反写。
+- Environment 不提供已绑定 session 的“切换 Project/工作目录”、Local/Worktree 或其它 workspace mutation；
+  projectless adoption 位于 rail。运行时命令/turn 的 `pwd` 不作为 App rail metadata 反写。
 - OPL Artifacts/Evidence 进入 Environment 次级 section、preview 或 conversation
   disclosure；Runtime/Actions/Memory 不升级为同权 tabs。
 - Popover 关闭后焦点回到触发器；drawer 有明确标题、close control 和焦点边界。

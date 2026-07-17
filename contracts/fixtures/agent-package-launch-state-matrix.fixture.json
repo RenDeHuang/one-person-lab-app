@@ -288,12 +288,15 @@
       "selected_package_send_allowed": false
     }
   ],
-  "workspace_transition_contract": {
+  "send_target_context_contract": {
     "primary_unit": "canonical_session_thread",
-    "workspace_role": "mutable_context",
+    "target_workspace_role": "explicit_owner_projected_action_payload_not_project_affinity_mutation",
+    "runtime_pwd_changes_project_affinity": false,
+    "project_affinity_changes_writable_roots": false,
+    "bound_project_reassignment_allowed": false,
     "cases": [
       {
-        "case_id": "workspace_required_a_to_b",
+        "case_id": "package_owner_requires_target_workspace",
         "package_backed": true,
         "owner_required_payload_fields": [
           "package_id",
@@ -303,7 +306,7 @@
         "fresh_minimal_validation_required_before_next_launch": true
       },
       {
-        "case_id": "workspace_required_b_to_c_validation_failure",
+        "case_id": "package_owner_target_workspace_validation_failure",
         "package_backed": true,
         "owner_required_payload_fields": [
           "package_id",
@@ -316,7 +319,7 @@
         "failure_scope": "selected_package_only"
       },
       {
-        "case_id": "workspace_optional_a_to_b",
+        "case_id": "package_owner_optional_target_workspace",
         "package_backed": true,
         "owner_required_payload_fields": [
           "package_id"
@@ -326,7 +329,7 @@
         "accepted": true
       },
       {
-        "case_id": "plain_conversation_workspace_transition",
+        "case_id": "plain_conversation_explicit_target_context",
         "package_backed": false,
         "activation_required": false,
         "behavior": "unchanged"

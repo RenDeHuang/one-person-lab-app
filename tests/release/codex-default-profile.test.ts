@@ -552,6 +552,9 @@ test('41301 GUI contract rejects persistent project context and legacy inspector
       contract.ordinary_conversation.session_workspace_model.workspace_owns_context = true;
     },
     (contract: any) => {
+      contract.ordinary_conversation.session_workspace_model.bound_project_reassignment = 'exposed';
+    },
+    (contract: any) => {
       contract.right_context_inspector.primary_tools = [
         { id: 'review' },
         { id: 'terminal' },
@@ -639,6 +642,9 @@ test('session-first contracts reject directory ownership, stale cache authority,
     (profile: any) => {
       profile.gui.ordinary_conversation.explicit_session_input_policy.workspace_readiness_boundary.ordinary_codex_conversation_independent_of_agent_package_readiness = false;
     },
+    (profile: any) => {
+      profile.gui.ordinary_conversation.session_workspace_model.project_adoption_transition = 'not_exposed';
+    },
   ]) {
     const profile = structuredClone(readJson('contracts/app-product-profile.json'));
     mutate(profile);
@@ -662,6 +668,10 @@ test('session-first contracts reject directory ownership, stale cache authority,
       matrix.pages.find((page: any) => page.id === 'ordinary_conversation').conversation_view_model.environment_workspace_handoff = {
         contract_ref: 'retired_worktree_handoff',
       };
+    },
+    (matrix: any) => {
+      matrix.pages.find((page: any) => page.id === 'ordinary_conversation')
+        .conversation_view_model.session_workspace_model.bound_project_reassignment = 'exposed';
     },
   ]) {
     const matrix = structuredClone(readJson('contracts/app-page-state-matrix.json'));

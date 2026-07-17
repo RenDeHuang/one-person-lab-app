@@ -293,7 +293,10 @@ function validateMinimalAgentPackageActivationPolicy(policy) {
     || policy.failure_policy?.draft_preserved !== true
     || policy.workspace_policy?.session_is_primary_unit !== true
     || policy.workspace_policy?.project_owns_session !== false
-    || policy.workspace_policy?.working_directory_is_mutable_context !== true
+    || policy.workspace_policy?.project_affinity_cardinality !== 'zero_or_one'
+    || policy.workspace_policy?.bound_project_reassignment_allowed !== false
+    || policy.workspace_policy?.runtime_pwd_changes_project_affinity !== false
+    || policy.workspace_policy?.project_affinity_changes_writable_roots !== false
     || policy.workspace_policy?.workspace_is_not_a_universal_agent_launch_precondition !== true
     || policy.workspace_policy?.plain_conversation_policy !== 'unchanged'
   ) {

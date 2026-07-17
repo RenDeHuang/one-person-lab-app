@@ -123,14 +123,17 @@ Server ready 与 worker blocked 必须分别显示。若 worker mutation guard �
 
 ## 产品模型
 
-- `session/thread` 是唯一对话身份；`project/workspace/directory` 只是新对话的初始 cwd、
-  recorded rail 分组和可见 metadata。
-- `project_owns_session=false`。命令或 turn 的实际 `pwd` 可以变化，但不会重写 recorded workspace、
+- `session/thread` 是唯一对话身份；Project affinity 为 `unbound | bound` 且最多一个。
+  `project/workspace/directory` 只是新对话的初始 cwd、projectless 一次性 adoption、显式 affinity rail 分组和可见 metadata。
+- `project_owns_session=false`。命令或 turn 的实际 `pwd` 可以变化，但不会重写 Project affinity、
   rail 分组、thread id、transcript、turn history、title 或 task state。
 - 项目下直接显示 sessions。禁止显示“上下文 / 添加上下文”层级，禁止把目录描述成
   session、附件或 artifact 的 owner。
-- 目录组只提供“以此目录新建任务”的快捷动作；当前版本不提供拖动 session 改组、既有 session
-  工作目录重绑、Local/Worktree launch mode 或 managed Worktree/Handoff。
+- 目录组提供“以此目录新建任务”的快捷动作，并允许 `custom_workspace=false` 或无 canonical recorded cwd 的
+  projectless session 通过拖动或键盘等价动作一次性归入该组；实现必须依次执行
+  `thread/settings/update.cwd`、exact `thread/read`、本地 projection commit。已有 cwd 不允许任意换组，也不提供
+  Local/Worktree launch mode 或 managed Worktree/Handoff。当前 AionUI 仍缺这条 canonical adoption source，不能把
+  contract target 写成已实现。
 - MAS、MAG、RCA、OMA、BookForge 等在产品认知上是 Codex 插件；在 OPL 中由 Agent
   Package 提供更强的安装、更新、启停、可见性和运行状态能力，但不得把普通对话改成
   agent dashboard。

@@ -623,6 +623,130 @@ function validateSessionFirstDirectoryImplementation(shellPaths) {
     'Active shell canonical session directory regressions',
   );
 
+  const threadAdapter = assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/process/services/codexAppServer/adapter.ts',
+    [
+      "workspace: optionalString(raw.cwd) ?? ''",
+      "result = await this.rpc.request('thread/read', { threadId, includeTurns: true })",
+      "await this.rpc.request('thread/resume', { threadId, excludeTurns: false })",
+      "await this.rpc.request('thread/settings/update'",
+      'async updateThreadSettings(',
+    ],
+    'Active shell single canonical App Server thread adapter',
+  );
+  assertTextExcludesAll(
+    threadAdapter,
+    [
+      'gitInfo?.originUrl',
+      'runtimeWorkspaceRoots',
+      'workspace_handoff',
+      'adoptProjectlessThread',
+    ],
+    'Active shell Project identity and adoption adapter private-layer boundary',
+  );
+  assertTextExcludesAll(
+    [
+      readShellText(shellPaths, 'packages/desktop/src/common/types/codex/appServerThreads.ts'),
+      readShellText(shellPaths, 'packages/desktop/src/common/adapter/ipcBridge.ts'),
+      readShellText(shellPaths, 'packages/desktop/src/process/bridge/codexAppServerBridge.ts'),
+    ].join('\n'),
+    ['CodexThreadProjectAdoptionRequest', 'codex-threads.adopt-project', 'adoptProject'],
+    'Active shell has no private project-adoption RPC or IPC surface',
+  );
+  assertTextIncludesAll(
+    [
+      readShellText(shellPaths, 'packages/desktop/src/common/types/codex/appServerThreads.ts'),
+      readShellText(shellPaths, 'packages/desktop/src/common/adapter/ipcBridge.ts'),
+      readShellText(shellPaths, 'packages/desktop/src/process/bridge/codexAppServerBridge.ts'),
+    ].join('\n'),
+    [
+      'CodexThreadSettingsUpdateRequest',
+      'codex-threads.update-settings',
+      'codexThreads.updateSettings',
+      'adapter.updateThreadSettings',
+    ],
+    'Active shell existing Codex App Server thread settings transport',
+  );
+  const projectAffinityLifecycle = assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/conversation/GroupedHistory/hooks/canonicalThreadLifecycle.ts',
+    [
+      'conversation?.extra.custom_workspace === false',
+      '!conversation?.extra.workspace?.trim()',
+      'const selectedWorkspace = workspace.trim()',
+      'ipcBridge.codexThreads.updateSettings.invoke',
+      'ipcBridge.codexThreads.read.invoke',
+      'canonicalReadback.thread.workspace !== selectedWorkspace',
+      'ipcBridge.conversation.update.invoke',
+      'ipcBridge.conversation.get.invoke',
+      'Canonical thread cwd readback did not match the selected project',
+      'custom_workspace: true',
+      'return false',
+    ],
+    'Active shell explicit unbound project adoption lifecycle',
+  );
+  assertTextExcludesAll(
+    projectAffinityLifecycle,
+    [
+      'conversation?.extra.custom_workspace !== true',
+      'conversation.extra.custom_workspace !== true',
+      'Boolean(conversation.extra.workspace?.trim())',
+      'runtimeWorkspaceRoots',
+      'workspace_handoff',
+      'codexThreads.adoptProject',
+    ],
+    'Active shell explicit projectless marker and affinity isolation',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/conversation/GroupedHistory/hooks/useConversationListSync.ts',
+    [
+      'const hasCanonicalRecordedCwd = Boolean(thread.workspace.trim())',
+      'cached?.extra.custom_workspace === false ? false : hasCanonicalRecordedCwd',
+      'cached?.extra.custom_workspace === true',
+      'workspace: projectAffinityWorkspace',
+    ],
+    'Active shell canonical cwd projection and legacy affinity hydration',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/conversation/GroupedHistory/ConversationRow.tsx',
+    ["key='move-to-project'", "t('conversation.history.moveToProject')", 'onMoveToProject?.(conversation)'],
+    'Active shell keyboard-reachable project adoption menu action',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/conversation/GroupedHistory/index.tsx',
+    [
+      'draggable={draggable}',
+      'handleProjectAdoptionDrop(group.workspace)',
+      'isProjectlessCanonicalConversation(conversation)',
+      'onMoveToProject:',
+    ],
+    'Active shell native drag and menu project adoption paths',
+  );
+  const projectAffinityTests = [
+    readShellText(shellPaths, 'tests/unit/codex-app-server/adapter.test.ts'),
+    readShellText(shellPaths, 'tests/unit/conversation/runtime/conversationListSyncGuard.test.ts'),
+    readShellText(shellPaths, 'tests/unit/conversation/useConversationActions.dom.test.tsx'),
+    readShellText(shellPaths, 'tests/unit/conversation/export/GroupedHistoryExportEntry.dom.test.tsx'),
+  ].join('\n');
+  assertTextIncludesAll(
+    projectAffinityTests,
+    [
+      'keeps directories distinct even when threads share one Git origin',
+      'hydrates a legacy missing affinity marker from the canonical recorded cwd',
+      'adopts an explicitly projectless canonical conversation without a cached workspace',
+      'updates the App Server cwd before committing the local affinity projection',
+      'keeps the conversation projectless when canonical cwd readback does not match',
+      'blocks reassignment after a canonical cwd is recorded',
+      'does not change turn pwd or sandbox writable roots during adoption',
+      'moves an eligible projectless row through native drag and drop',
+    ],
+    'Active shell project affinity focused regressions',
+  );
+
   assertShellTextIncludesAll(
     shellPaths,
     'packages/desktop/src/renderer/pages/guid/components/GuidInputCard.tsx',

@@ -542,18 +542,32 @@ test('GUI design-system validator rejects workspace-readiness gating explicit se
   );
 });
 
-test('GUI design-system validator rejects workspace-owned sessions and reintroduced cwd rebinding', () => {
+test('GUI design-system validator rejects workspace-owned sessions and bound-session project reassignment', () => {
   const root = createFixture();
   const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
   const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
   const sessionWorkspaceModel = contract.interaction_baseline.conversation_scope.session_workspace_model;
   sessionWorkspaceModel.workspace_owns_session = true;
-  sessionWorkspaceModel.existing_session_workspace_rebinding = 'exposed';
+  sessionWorkspaceModel.bound_project_reassignment = 'exposed';
   writeJson(root, 'contracts/app-gui-product-contract.json', contract);
 
   assert.throws(
     () => validateGuiDesignSystem(root),
-    /conversation scope must keep canonical session identity while limiting workspace to initial cwd and grouping metadata/,
+    /conversation scope must keep canonical session identity, allow one projectless adoption, and forbid bound-session reassignment/,
+  );
+});
+
+test('GUI design-system validator rejects removal of projectless one-time project adoption', () => {
+  const root = createFixture();
+  const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
+  const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+  const sessionWorkspaceModel = contract.interaction_baseline.conversation_scope.session_workspace_model;
+  sessionWorkspaceModel.project_adoption_transition = 'not_exposed';
+  writeJson(root, 'contracts/app-gui-product-contract.json', contract);
+
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /conversation scope must keep canonical session identity, allow one projectless adoption, and forbid bound-session reassignment/,
   );
 });
 

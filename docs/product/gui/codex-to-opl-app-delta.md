@@ -51,7 +51,7 @@ direct-control buttons。
 以下项目不是 26.707.41301 的 literal observation，必须明确标为 OPL-owned delta：
 
 - 当前 session composer 的显式 attachment/paste/drop/`/open` 边界与 OPL workspace state，不存在 project context preload；
-- canonical session 身份独立于 project/workspace，目录组不拥有或级联删除 session；workspace 只设置新 session 初始 cwd，运行时 `pwd` 不反写 rail 分组；
+- canonical session 身份独立于 project/workspace，目录组不拥有或级联删除 session；workspace 设置新 session 初始 cwd，projectless session 可经 `thread/settings/update.cwd` 与 exact `thread/read` 一次性 adoption，已有 recorded cwd 不任意换组，运行时 `pwd` 不反写 rail 分组；
 - Research、Grant、Presentation、Book 等 capability/package 语义；
 - OPL task progress、evidence、artifact、action confirmation 与 receipt；
 - OPL Settings IA、first-run、双语、runtime 和 release authority。
@@ -66,8 +66,8 @@ OPL App 采用下列翻译规则；没有明确 delta 的区域默认复用 refe
 数据、品牌与 authority 仍只来自 OPL contracts，不能从像素反推：
 
 1. **Session-first grouped rail。** 保留 Codex 按工作目录组织 conversations 的认知分组，但 canonical
-   thread/session 是身份单位，project/workspace 只是初始 cwd、只读分组和可见 metadata。目录组只提供
-   “使用此工作目录新建对话”，不拥有 session，也不提供目录级输入、附件管理或级联删除。
+   thread/session 是身份单位，project/workspace 是零或一个 affinity，用于初始 cwd、projectless 一次性
+   adoption、分组和可见 metadata。目录组不拥有 session，也不提供目录级输入、附件管理或级联删除。
 2. **Chat-first canvas。** Home/New task 和已有 conversation 使用同一 canvas、timeline
    与 composer。Starter 只帮助选择 purpose，不形成长期 dashboard。
 3. **Composer owns execution controls。** Model/reasoning、access、attachment、active
@@ -292,8 +292,10 @@ OPL App 在 Codex baseline 上增加可解释的本机准备：
 ## Local-first 与条件 Cloud/Remote 增量
 
 - macOS desktop 使用 native window、directory picker 和 packaged App。
-- Desktop 只在新任务创建时选择初始工作目录，不自建 managed Worktree/Handoff，也不提供既有
-  session 的持久 cwd 重绑。命令或 turn 的实际 `pwd` 仍由 Codex 执行上下文决定。
+- Desktop 在新任务创建时选择初始工作目录，也允许 projectless session 用户触发一次性 Project adoption；
+  adoption 只允许 `custom_workspace=false` 或无 canonical recorded cwd，且 exact readback 成功后才提交本地 projection。
+  不自建 managed Worktree/Handoff，也不提供已绑定 session 的持久 cwd 重绑。命令或 turn 的实际 `pwd`
+  仍由 Codex 执行上下文决定，不扩展 Project affinity。
 - Docker/WebUI 在受控 workspace/volume 中提供同一产品语义。
 - Hosted Workspace 属 X0-03；只有稳定账户、计费、存储与隔离 backend/owner 存在时才启用，普通
   Settings 不维护占位状态。

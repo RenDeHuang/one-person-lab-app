@@ -300,9 +300,20 @@ export type AppProductProfile = {
       session_workspace_model: {
         primary_unit: string;
         identity_authority: string;
+        project_affinity_states: string[];
+        project_affinity_cardinality: string;
+        projectless_session_semantics: string;
+        projectless_detection: string;
+        project_affinity_role: string;
         workspace_binding_role: string;
         runtime_pwd_role: string;
-        existing_session_workspace_rebinding: string;
+        turn_cwd_override_allowed: boolean;
+        writable_roots_role: string;
+        core_workspace_application: string;
+        runtime_pwd_changes_project_affinity: boolean;
+        project_affinity_changes_writable_roots: boolean;
+        project_adoption_transition: string;
+        bound_project_reassignment: string;
         workspace_owns_session: boolean;
         workspace_owns_context: boolean;
         workspace_owns_artifacts: boolean;

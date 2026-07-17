@@ -100,6 +100,72 @@ test('dual GUI conversation continuity rejects shell-owned thread history', () =
   );
 });
 
+test('dual GUI conversation continuity accepts only projectless one-time adoption', () => {
+  const runtimeBridge = readJson<any>('contracts/app-runtime-bridge.json');
+  const activeAdapter = readJson<any>('contracts/app-shell-adapter.json');
+  assert.doesNotThrow(() => validateRuntimeBridgeContract(runtimeBridge, activeAdapter));
+
+  const policy = runtimeBridge.canonical_conversation_continuity_policy.directory_group_policy
+    .project_adoption_policy;
+  assert.equal(policy.canonical_thread_cwd_initialization_allowed, true);
+  assert.equal(policy.canonical_thread_cwd_exact_readback_required, true);
+  assert.equal(policy.existing_canonical_thread_cwd_blocks_reassignment, true);
+  assert.equal(policy.runtime_workspace_roots_mutation_allowed, false);
+  assert.equal(policy.private_pending_deferred_revision_state_allowed, false);
+  assert.equal(
+    policy.core_workspace_application,
+    'thread_settings_update_cwd_then_thread_read_exact_readback_then_local_projection_custom_workspace_true',
+  );
+  assert.equal(
+    policy.turn_or_command_pwd_requirement,
+    'never_used_for_adoption_eligibility_or_readback',
+  );
+  assert.equal(policy.transport, 'codex_app_server_thread_settings_update_cwd');
+  assert.ok(
+    runtimeBridge.canonical_conversation_continuity_policy.required_operations.includes(
+      'thread/settings/update',
+    ),
+  );
+
+  const invalid = structuredClone(runtimeBridge);
+  invalid.canonical_conversation_continuity_policy.directory_group_policy
+    .project_adoption_policy.bound_session_reassignment_allowed = true;
+
+  assert.throws(
+    () => validateRuntimeBridgeContract(invalid, activeAdapter),
+    /Canonical conversation directory group policy/,
+  );
+
+  const missingCwdReadback = structuredClone(runtimeBridge);
+  missingCwdReadback.canonical_conversation_continuity_policy.directory_group_policy
+    .project_adoption_policy.canonical_thread_cwd_exact_readback_required = false;
+
+  assert.throws(
+    () => validateRuntimeBridgeContract(missingCwdReadback, activeAdapter),
+    /Canonical conversation directory group policy/,
+  );
+
+  const reassignsExistingCwd = structuredClone(runtimeBridge);
+  reassignsExistingCwd.canonical_conversation_continuity_policy.directory_group_policy
+    .project_adoption_policy.existing_canonical_thread_cwd_blocks_reassignment = false;
+
+  assert.throws(
+    () => validateRuntimeBridgeContract(reassignsExistingCwd, activeAdapter),
+    /Canonical conversation directory group policy/,
+  );
+
+  const missingCanonicalUpdate = structuredClone(runtimeBridge);
+  missingCanonicalUpdate.canonical_conversation_continuity_policy.required_operations =
+    missingCanonicalUpdate.canonical_conversation_continuity_policy.required_operations.filter(
+      (operation: string) => operation !== 'thread/settings/update',
+    );
+
+  assert.throws(
+    () => validateRuntimeBridgeContract(missingCanonicalUpdate, activeAdapter),
+    /Canonical conversation continuity operations/,
+  );
+});
+
 test('runtime bridge rejects a reintroduced managed Worktree handoff policy', () => {
   const runtimeBridge = readJson<any>('contracts/app-runtime-bridge.json');
   const activeAdapter = readJson<any>('contracts/app-shell-adapter.json');

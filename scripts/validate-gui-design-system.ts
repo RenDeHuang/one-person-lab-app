@@ -1003,6 +1003,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
       'thread/list',
       'thread/read',
       'thread/resume',
+      'thread/settings/update',
       'thread/name/set',
       'thread/archive',
       'thread/unarchive',
@@ -1028,7 +1029,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
       'exclude_from_ordinary_projection_when_absent_from_available_canonical_overview' ||
     threadDirectoryPolicy.non_codex_local_row_policy !== 'preserve' ||
     threadDirectoryPolicy.workspace_directory_role !==
-      'new_session_initial_cwd_grouping_and_visible_metadata_only' ||
+      'new_session_initial_cwd_projectless_adoption_grouping_and_visible_metadata_only' ||
     threadDirectoryPolicy.row_identity !== 'canonical_thread_id' ||
     threadDirectoryPolicy.duplicate_row_per_canonical_thread_allowed !== false ||
     threadDirectoryPolicy.title_based_deduplication_allowed !== false ||
@@ -1055,7 +1056,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   const unifiedContextMenu = record(record(guiContract.ordinary_conversation).unified_context_menu);
   if (JSON.stringify(sessionWorkspaceModel) !== JSON.stringify(appOwnedSessionWorkspaceModel)) {
     issues.add(
-      'conversation scope must keep canonical session identity while limiting workspace to initial cwd and grouping metadata',
+      'conversation scope must keep canonical session identity, allow one projectless adoption, and forbid bound-session reassignment',
     );
   }
   if (
@@ -1064,7 +1065,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     conversationScope.text_chat_without_workspace !== 'available' ||
     conversationScope.explicit_session_inputs_without_workspace !== 'available_subject_to_codex_permissions' ||
     conversationScope.workspace_directory_role !==
-      'new_session_initial_cwd_sidebar_grouping_and_visible_metadata_only_not_owner_or_authorization_domain' ||
+      'new_session_initial_cwd_projectless_adoption_sidebar_grouping_and_visible_metadata_only_not_owner_or_authorization_domain' ||
     JSON.stringify(explicitSessionInputPolicy) !== JSON.stringify(appOwnedExplicitSessionInputPolicy) ||
     'local_worktree_lifecycle' in conversationScope ||
     'project_context_inputs' in conversationScope ||
@@ -1188,6 +1189,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     'thread/start',
     'thread/resume',
     'thread/fork',
+    'thread/settings/update',
     'thread/archive',
   ];
   const forbiddenThreadKeys = [
@@ -1211,7 +1213,6 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     threadCoordination.protocol_owner !== 'codex_core_app_server' ||
     threadCoordination.thread_store_owner !== 'codex_core_app_server' ||
     !requiredThreadProtocols.every((protocol) => stringArray(threadCoordination.supported_protocols).includes(protocol)) ||
-    stringArray(threadCoordination.supported_protocols).includes('thread/settings/update') ||
     threadCoordination.state_authority !== 'codex_app_server' ||
     threadCoordination.plain_conversation_policy !== 'existing_aionui_acp_unchanged' ||
     !sameStrings(threadCoordination.forbidden_private_layers, [

@@ -655,7 +655,10 @@ test('App contracts define one minimal package activation authority', () => {
   assert.equal(policy.failure_policy.draft_preserved, true);
   assert.equal(policy.workspace_policy.session_is_primary_unit, true);
   assert.equal(policy.workspace_policy.project_owns_session, false);
-  assert.equal(policy.workspace_policy.working_directory_is_mutable_context, true);
+  assert.equal(policy.workspace_policy.project_affinity_cardinality, 'zero_or_one');
+  assert.equal(policy.workspace_policy.bound_project_reassignment_allowed, false);
+  assert.equal(policy.workspace_policy.runtime_pwd_changes_project_affinity, false);
+  assert.equal(policy.workspace_policy.project_affinity_changes_writable_roots, false);
   assert.equal(policy.workspace_policy.workspace_is_not_a_universal_agent_launch_precondition, true);
   assert.equal(policy.workspace_policy.plain_conversation_policy, 'unchanged');
   assert.equal(policy.framework_component.cohort_commit, 'e10ec54f29b8a7d5b54c9a44f49ba4d5c492f252');
@@ -858,27 +861,43 @@ test('App contracts define one minimal package activation authority', () => {
       caseId,
     );
   }
+  assert.equal(
+    launchMatrix.send_target_context_contract.target_workspace_role,
+    'explicit_owner_projected_action_payload_not_project_affinity_mutation',
+  );
+  assert.equal(
+    launchMatrix.send_target_context_contract.runtime_pwd_changes_project_affinity,
+    false,
+  );
+  assert.equal(
+    launchMatrix.send_target_context_contract.project_affinity_changes_writable_roots,
+    false,
+  );
+  assert.equal(
+    launchMatrix.send_target_context_contract.bound_project_reassignment_allowed,
+    false,
+  );
   const workspaceCases = new Map(
-    launchMatrix.workspace_transition_contract.cases.map(
+    launchMatrix.send_target_context_contract.cases.map(
       (entry: { case_id: string }) => [entry.case_id, entry],
     ),
   );
   assert.equal(
-    (workspaceCases.get('workspace_required_a_to_b') as any)
+    (workspaceCases.get('package_owner_requires_target_workspace') as any)
       .fresh_minimal_validation_required_before_next_launch,
     true,
   );
   assert.equal(
-    (workspaceCases.get('workspace_optional_a_to_b') as any).target_workspace_required,
+    (workspaceCases.get('package_owner_optional_target_workspace') as any).target_workspace_required,
     false,
   );
-  assert.equal((workspaceCases.get('workspace_optional_a_to_b') as any).accepted, true);
+  assert.equal((workspaceCases.get('package_owner_optional_target_workspace') as any).accepted, true);
   assert.equal(
-    (workspaceCases.get('workspace_required_b_to_c_validation_failure') as any).failure_scope,
+    (workspaceCases.get('package_owner_target_workspace_validation_failure') as any).failure_scope,
     'selected_package_only',
   );
   assert.equal(
-    (workspaceCases.get('plain_conversation_workspace_transition') as any).activation_required,
+    (workspaceCases.get('plain_conversation_explicit_target_context') as any).activation_required,
     false,
   );
 

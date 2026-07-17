@@ -20,14 +20,20 @@ thread surface needed by an ordinary user:
 - one existing Codex App Server adapter owns canonical thread discovery and
   user-triggered operations;
 - the existing thread directory/actions may list, read, start, resume, fork,
-  archive, restore, rename, and delete threads according to the App contract;
+  archive, restore, rename, delete, and update the cwd of an eligible projectless
+  thread according to the App contract;
 - ordinary conversation continues through the existing AionUI ACP path;
 - ordinary navigation has no independent coordination page or agent dashboard;
 - Codex Core/App Server remains the authority for thread identity, history,
   execution state, permissions, approval, and lifecycle;
 - Shell-local persistence is limited to drafts, preferences, and rebuildable cache;
-- project/workspace is initial cwd, visible metadata, and sidebar grouping only,
-  never an authorization domain or a second thread owner.
+- project/workspace is a zero-or-one affinity used for initial cwd, projectless
+  one-time adoption, visible metadata, and sidebar grouping only, never an
+  authorization domain or a second thread owner. Only `custom_workspace=false`
+  or no canonical recorded cwd is eligible; adoption uses the same adapter's
+  `thread/settings/update.cwd`, requires exact `thread/read`, and commits local
+  projection only after a match. Existing cwd blocks reassignment. Runtime `pwd`
+  and writable roots do not create additional project membership.
 
 These operations are `user_initiated_only=true` and
 `model_tool_access=false`. A newer model or Codex release does not authorize the
@@ -68,7 +74,7 @@ authorize a Team store, second client, scheduler, or Shell execution authority.
 | Coordination receipts, audit, replay, idempotency, queue, or write-set advisory | Superseded X0-05; no App-owned ledger or control plane. |
 | Model-callable list/read/send/fork/wait tools | Superseded X0-05; `model_tool_access=false`. |
 | Cross-host aggregation, transfer, or remote parity | Superseded X0-05; not an App, Shell, Native phase-1, or release requirement. |
-| User-triggered thread list/read/start/resume/fork/archive/restore | Retained B0 behavior through the existing adapter and existing directory/actions. |
+| User-triggered thread list/read/start/resume/fork/archive/restore/settings-update | Retained B0 behavior through the existing adapter and existing directory/actions; settings-update is limited to one-time projectless cwd adoption. |
 | Codex delegated subagent activity | Separate B0-11 axis; execution and metadata are implemented while ordinary activity/detail UI remains partial. |
 
 The former P0/P1/P2 implementation phases and remote acceptance matrix are

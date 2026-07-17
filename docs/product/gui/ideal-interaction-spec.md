@@ -23,8 +23,9 @@ Machine boundary: 本文是 shell-neutral 的人读交互目标。机器可读�
 
 1. **Chat first。** 用户打开 App 后直接开始或继续 conversation，不先阅读 dashboard。
 2. **Session first, context visible。** Canonical Codex thread 是 conversation 身份单位；当前
-   project/local/branch 与 conversation context 始终可理解。Project/workspace 只作新任务初始 cwd、
-   recorded rail 分组和提示，不拥有 session，也不是权限域；没有 workspace 时仍允许显式选择任意本地文件/目录。
+   project/local/branch 与 conversation context 始终可理解。Project affinity 为零或一，用于新任务初始 cwd、
+   projectless 一次性 adoption、recorded rail 分组和提示，不拥有 session，也不是权限域；没有 workspace
+   时仍允许显式选择任意本地文件/目录。
 3. **One primary timeline。** 当前任务、assistant output 和 turn-local events 在同一
    conversation flow 中发生。
 4. **Secondary context on demand。** Environment floating details、preview 和 advanced
@@ -48,8 +49,9 @@ header、隐藏 project rail、默认打开 inspector，或用 Settings/card lay
 宽桌面首次进入 ordinary Home 或 conversation 时：
 
 - 左侧目录/对话 rail 默认可见，展示由 App Server canonical overview 投影的 threads；
-  project/workspace/directory 只用于新 session 初始 cwd 和 recorded workspace 分组，不拥有 session、context 或 artifact。
-  命令或 turn 的实际 `pwd` 可变化，但不反写该记录或分组。
+  project/workspace/directory 只用于新 session 初始 cwd、projectless session 一次性 adoption 和 Project-affinity 分组，
+  不拥有 session、context 或 artifact。一个 session 的 Project affinity 最多一个。
+  命令或 turn 的实际 `pwd` 可变化，但不反写 affinity 或分组。
 - 主区域是一条 conversation timeline；空 conversation 仍使用同一工作画布。
 - Composer 浮于主区底部并保留安全距，可直接输入多行任务。
 - Working-directory grouping 位于 rail；locality/branch 位于 Environment。
@@ -67,9 +69,10 @@ header、隐藏 project rail、默认打开 inspector，或用 Settings/card lay
 ## 核心用户流程
 
 1. **进入工作上下文。** App 按 canonical thread ID 恢复最近 App Server session；新任务可通过
-   composer `+` 菜单选择初始 cwd，也可不选目录直接开始 projectless conversation。未选时不显示
-   “不使用项目”占位行；命令或 turn
-   的实际 `pwd` 可按任务需要变化，但不会反写 recorded workspace 或 rail 分组；既有 session 不提供 cwd 重绑。
+   composer `+` 菜单选择初始 cwd，也可不选目录直接开始 projectless conversation。Projectless 表示没有
+   用户选择的 Project affinity，不表示底层没有 runtime cwd。未选时不显示“不使用项目”占位行；用户可稍后
+   把 projectless session 一次性归入一个目录组，保留同一 thread 和 history。命令或 turn 的实际 `pwd` 可按
+   任务需要变化，但不会反写 Project affinity 或 rail 分组；已绑定 session 不提供 A→B 任意重分组。
 2. **开始或继续对话。** 用户从 rail 新建、搜索、pin、rename、archive、reset 或切换
    conversation，并从独立 Archived surface 管理归档。
 3. **选择工作目的。** 用户从 Home starter 选择科研、基金、演示、写书等能力；
@@ -93,8 +96,10 @@ Rail 负责 navigation，不承担 dashboard：
   选择由 Home starter 承接，package 管理由 Settings → Agents 承接，Skills/Plugins/Flow
   管理由 Settings → Capabilities 承接，不在 rail 重复。
   其它全局入口仅在 OPL 有真实对应能力时保留。
-- 中段按 canonical session 的 recorded workspace 分组 App Server threads。App Server overview 可用时是 Codex
-  session directory authority；Shell DB 只保存 draft、preference 和可重建 cache，不拥有 history。
+- 中段按显式 Project-affinity marker 分组 App Server threads，并以 canonical thread ID join。App Server overview
+  可用时是 Codex session directory authority；carrier 只持有 affinity、draft、preference 和可重建 cache，不拥有 history。
+  Git origin URL 与 turn/command runtime `pwd` 只进入 Environment，不作为 Project identity；缺 marker 但已有
+  canonical recorded cwd 的 legacy thread 按该 cwd 水合为 bound，不发起 cwd update，也不按 Git origin 合并。
   Canonical overview 未返回的 stale Codex ACP cache row 不进入 ordinary projection；仅 overview
   unavailable 时 fallback cache，非 Codex local row 保留。每个 canonical thread ID 最多一行，
   不按标题或 workspace 去重。
@@ -113,16 +118,24 @@ Rail 负责 navigation，不承担 dashboard：
 - Home root、composer shell 与 footer account/Settings entry 在每个 viewport 各渲染一次。
 - Active conversation、running/blocked/completed 等状态只用轻量标记，不改变 row 布局。
 - 切换 conversation 保留各自 scroll、draft 和 refs context。
-- `+` 菜单中的工作目录动作明确说明只设置新 session 的初始工作目录；既有 session 的 recorded workspace 与 rail
-  分组只读，命令或 turn 的实际 `pwd` 不反写 App metadata。
-- 目录组只提供“使用此工作目录新建对话”的快捷动作；目录组无 owner 语义，不提供组级删除，也不得
-  级联 archive/delete/reset 其下 session。
+- `+` 菜单中的工作目录动作明确说明只设置新 session 的初始工作目录；runtime `pwd` 不反写 App metadata。
+- 目录组提供“使用此工作目录新建对话”和 projectless session adoption。Adoption 支持拖动及键盘可达的等价动作，
+  仅 `custom_workspace=false` 或无 canonical recorded cwd 的 thread eligible。Destination 是用户选择的唯一 canonical
+  Project directory，不要求覆盖 thread 曾引用的文件或目录；这些显式输入与 writable roots 仍是独立上下文/权限。
+  Carrier 通过现有 `thread/settings/update.cwd` 写 canonical recorded cwd，并以 `thread/read` exact readback 验证；只有
+  readback 匹配才持久化本地 `workspace + custom_workspace=true` projection 并移动 row。任一步失败都保持 projectless、
+  显示轻提示且不阻止对话。已有 recorded cwd 的 session 不执行更新。目录组无 owner 语义，不提供组级删除，也不得级联
+  archive/delete/reset 其下 session。
 - Home 的 New task 只通过统一 `+` 菜单选择初始 cwd；不显示独立 selector、Local/Worktree、starting branch
   或 managed Worktree create/reuse。
-- Conversation Environment 只读显示 recorded workspace 与 live Git context，不提供既有 session 的目录
-  重绑、Local↔Worktree lifecycle、projection transaction 或 rail 重分组。
-- App 不保存 `opl_workspace_handoff.v1`，不调用 `thread/settings/update` 修改 cwd，也不提供 managed
-  Worktree、cleanup、snapshot receipt、restore 或 cross-host handoff 控制面。
+- Conversation Environment 只读显示 recorded workspace 与 live Git context，不提供已绑定 session 的目录
+  重绑、Local↔Worktree lifecycle、projection transaction 或任意 rail 重分组。Projectless adoption 只走上述
+  单向、用户触发、affinity-assignment-backed 的 rail 动作；不能从 thread/runtime cwd 是否存在推断 projectless。
+- App 不保存 `opl_workspace_handoff.v1`，不发明私有 App Server adoption RPC，也不提供 managed Worktree、cleanup、
+  snapshot receipt、restore 或 cross-host handoff 控制面。Projectless adoption 只执行一次公开
+  `thread/settings/update.cwd -> thread/read`，不创建第二套 thread client、pending 状态机或 receipt，不修改 sandbox
+  writable roots，也不授权 `bound(A) -> bound(B)`。用户或执行器为某一 turn 覆盖 cwd、在 shell 中改变 `pwd`，均不反写
+  canonical recorded cwd 或 Project affinity。
 - Backend、provider、permission、router 和 raw runtime state 不作为 rail 层级。
 - 外部交互参考可以改变入口位置，但不得删除 OPL-owned capability；任何迁移必须在同一
   变更提供可见、键盘可达的替代入口，并同步更新 contract、source 和 navigation tests。
@@ -359,6 +372,8 @@ First-run 的目标是让用户尽快进入可工作的 App：
   Workspace 仅在 owner-projected action 要求时提供；receipt/binding 有则校验，不作为普遍启动门槛。
 - Project task 与 projectless conversation 均可用；无 workspace 时 attachment、任意本地文件/目录
   选择、paste/drop 与 `/open` 保持可用，访问只由 Codex permission/approval/sandbox 决定。
+- Projectless session 可一次性归入一个 canonical directory group；已绑定 session 不任意换组，runtime `pwd`
+  和额外 writable roots 不改变 Project affinity。
 - Composer 只有 textarea、send-local controls 和 bottom action row；purpose 不再常驻可变
   selector，project/local/branch 不与 rail/Environment 重复。
 - Permission/access mode 可见并用用户语言表达，不暴露 backend/provider。
@@ -371,8 +386,10 @@ First-run 的目标是让用户尽快进入可工作的 App：
   次级 section/preview，advanced tools 默认关闭。
 - 普通 navigation 不展示独立 coordination 页面；用户可从现有 directory/actions 执行
   list/read/start/resume/fork/archive/restore，普通 conversation 仍走现有 ACP。
-- Home New task 只用统一 `+` 菜单设置初始 cwd；Conversation Environment 保持只读，Shell 不含
-  managed Worktree/Handoff 或任意目录重绑。Review复用
+- Home New task 只用统一 `+` 菜单设置初始 cwd；projectless adoption 从 rail 触发，经
+  `thread/settings/update.cwd` 与 exact `thread/read` 成功后持久化本地 projection，后续 conversation
+  以 canonical recorded cwd 作为默认 workspace hint。Conversation Environment 保持只读，Shell 不含 managed Worktree/Handoff 或已绑定 session
+  的任意目录重绑。Review复用
   Files/Changes diff surface并覆盖四类 target、两种 delivery、五个
   sections 与 `gh` unavailable 状态，其中 Last turn 已实现，custom instructions 只进入
   `review/start.target.custom`。非 custom `Review Focus` 因公开 App Server 缺少对应 input 而
