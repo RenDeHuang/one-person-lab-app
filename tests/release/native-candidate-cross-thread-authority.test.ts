@@ -4,149 +4,118 @@ import test from 'node:test';
 import {
   candidateValidationPolicyFromRegistry,
   validateCandidate,
-  validateNativeCrossTopLevelThreadAuthority,
+  validateNativeThreadAdapterBoundary,
 } from '../../scripts/validate-shell-candidates/candidate-contract.ts';
 import type {
-  NativeCrossTopLevelThreadAuthority,
+  NativeThreadAdapterBoundary,
   ShellCandidateRegistry,
 } from '../../scripts/validate-shell-candidates/types.ts';
 
-const readJson = <T>(relativePath: string): T => JSON.parse(fs.readFileSync(relativePath, 'utf8')) as T;
+const readJson = <T>(relativePath: string): T =>
+  JSON.parse(fs.readFileSync(relativePath, 'utf8')) as T;
 
-const readAuthority = (): NativeCrossTopLevelThreadAuthority => {
-  const adapter = readJson<{ cross_top_level_thread_authority: NativeCrossTopLevelThreadAuthority }>(
-    'contracts/shell-adapters/opl-native-workbench.json',
-  );
-  return adapter.cross_top_level_thread_authority;
-};
+const readAdapter = (): Record<string, unknown> & {
+  thread_adapter_boundary: NativeThreadAdapterBoundary;
+} => readJson('contracts/shell-adapters/opl-native-workbench.json');
 
-test('native candidate accepts flexible dispatch authority while old protocol evidence remains superseded', () => {
-  const authority = readAuthority();
-  assert.equal(
-    authority.implementation_status,
-    'local_protocol_cohort_verified_flexible_dispatch_policy_rework_required_candidate_only',
-  );
-  assert.equal(authority.local_p0_p1_implementation_evidence.claim_boundary.local_p0_p1_implemented, false);
-  assert.equal(authority.local_p0_p1_implementation_evidence.claim_boundary.flexible_dispatch_policy_conformant, false);
-  assert.equal(authority.local_p0_p1_implementation_evidence.native_source_sha, '5a0bf268c97f289d79c08ee34274d730f674c91f');
-  assert.equal(authority.primary_composer_control_visible, false);
-  assert.equal(authority.thread_detail_context_action_visible, true);
-  assert.deepEqual(authority.local_p0_p1_implementation_evidence.packaged_native_live.screenshot_markers, [
-    'One Person Lab',
-    '5.6 Sol',
+test('native candidate keeps one App Server thread adapter and Codex subagent projection', () => {
+  const adapter = readAdapter();
+  const boundary = adapter.thread_adapter_boundary;
+
+  assert.doesNotThrow(() => validateNativeThreadAdapterBoundary(boundary));
+  assert.deepEqual(boundary.supported_protocols, [
+    'thread/list',
+    'thread/read',
+    'thread/start',
+    'thread/resume',
+    'thread/fork',
+    'thread/archive',
+    'thread/unarchive',
+    'turn/start',
+    'turn/steer',
   ]);
-  assert.deepEqual(authority.local_p0_p1_implementation_evidence.packaged_native_live.screenshot_absent_markers, [
-    'Codex',
-  ]);
-  assert.equal(authority.local_p0_p1_implementation_evidence.packaged_native_live.display_name, 'One Person Lab Native');
-  assert.equal(
-    authority.local_p0_p1_implementation_evidence.installed_native_app.app_path,
-    '/Applications/One Person Lab Native.app',
-  );
-  assert.equal(authority.local_p0_p1_implementation_evidence.installed_native_app.candidate_actions, 'dry_run_only');
-  assert.equal(authority.local_p0_p1_implementation_evidence.claim_boundary.active_shell_adopted, false);
-  assert.equal(authority.local_p0_p1_implementation_evidence.claim_boundary.release_ready, false);
-  assert.doesNotThrow(() => validateNativeCrossTopLevelThreadAuthority(authority));
-});
-
-test('native candidate keeps coordination out of the primary composer without removing the contextual entry', () => {
-  const primaryComposerEntry = structuredClone(readAuthority());
-  primaryComposerEntry.primary_composer_control_visible = true;
-  assert.throws(
-    () => validateNativeCrossTopLevelThreadAuthority(primaryComposerEntry),
-    /cross-thread authority must preserve/,
-  );
-
-  const missingContextEntry = structuredClone(readAuthority());
-  missingContextEntry.thread_detail_context_action_visible = false;
-  assert.throws(
-    () => validateNativeCrossTopLevelThreadAuthority(missingContextEntry),
-    /cross-thread authority must preserve/,
-  );
-});
-
-test('native candidate rejects legacy project, steer, archive, loop, duplicate-content, or write-set hard gates', () => {
-  const authority = structuredClone(readAuthority());
-  Object.assign(authority.local_p0_p1_acceptance, {
-    safety_gates: ['project_and_workspace_scope_check', 'concurrent_write_set_conflict_check'],
+  assert.deepEqual(boundary.codex_subagent_projection, {
+    mode: 'read_only_thread_metadata_and_items',
+    thread_source_kinds: [
+      'subAgent',
+      'subAgentReview',
+      'subAgentCompact',
+      'subAgentThreadSpawn',
+      'subAgentOther',
+    ],
+    thread_item_types: ['collabAgentToolCall', 'subAgentActivity'],
+    metadata_fields: ['parentThreadId', 'agentRole', 'agentNickname'],
   });
-  authority.local_p0_p1_acceptance.dispatch_policy.archive_lifecycle_confirmation_required = true;
-  authority.local_p0_p1_acceptance.required_typed_failure_states.push('write_set_conflict');
+  assert.equal('cross_top_level_thread_authority' in adapter, false);
+});
+
+test('native candidate rejects an incomplete thread lifecycle protocol', () => {
+  const boundary = structuredClone(readAdapter().thread_adapter_boundary);
+  boundary.supported_protocols = boundary.supported_protocols.filter(
+    (method) => method !== 'thread/start',
+  );
 
   assert.throws(
-    () => validateNativeCrossTopLevelThreadAuthority(authority),
-    /must remove legacy project, workspace, loop, duplicate-content, steer, and write-set hard gates/,
+    () => validateNativeThreadAdapterBoundary(boundary),
+    /single user-initiated Codex App Server adapter/,
   );
 });
 
-test('native candidate rejects an implementation claim detached from the exact evidence cohort', () => {
-  const authority = structuredClone(readAuthority());
-  authority.local_p0_p1_implementation_evidence.native_source_sha = '0'.repeat(40);
-
+test('native candidate rejects a private coordination layer', () => {
+  const enabled = structuredClone(readAdapter().thread_adapter_boundary);
+  enabled.private_coordination_layer_allowed = true;
   assert.throws(
-    () => validateNativeCrossTopLevelThreadAuthority(authority),
-    /exact verified cohort/,
+    () => validateNativeThreadAdapterBoundary(enabled),
+    /no private coordination layer/,
+  );
+
+  const extraPrivateState = {
+    ...readAdapter().thread_adapter_boundary,
+    host_queue: { enabled: true },
+  } as unknown as NativeThreadAdapterBoundary;
+  assert.throws(
+    () => validateNativeThreadAdapterBoundary(extraPrivateState),
+    /no private coordination layer/,
   );
 });
 
-test('native candidate rejects generated-schema inference in place of a dynamicTools runtime probe', () => {
-  const authority = structuredClone(readAuthority());
-  authority.p1_model_tool_bridge.runtime_capability_probe_required = false;
+test('native candidate rejects removal of Codex subagent projections', () => {
+  const missingMetadata = structuredClone(readAdapter().thread_adapter_boundary);
+  missingMetadata.codex_subagent_projection.metadata_fields = ['parentThreadId'];
 
-  assert.throws(
-    () => validateNativeCrossTopLevelThreadAuthority(authority),
-    /client-executed dynamicTools with runtime probing/,
-  );
-});
+  const missingSourceKind = structuredClone(readAdapter().thread_adapter_boundary);
+  missingSourceKind.codex_subagent_projection.thread_source_kinds = ['subAgent'];
 
-test('native candidate rejects Desktop-only cross-thread coordination', () => {
-  const authority = structuredClone(readAuthority());
-  authority.desktop_webui_parity.desktop_only_coordination_capability_allowed = true;
+  const missingThreadItem = structuredClone(readAdapter().thread_adapter_boundary);
+  missingThreadItem.codex_subagent_projection.thread_item_types = ['subAgentActivity'];
 
-  assert.throws(
-    () => validateNativeCrossTopLevelThreadAuthority(authority),
-    /Desktop and WebUI must preserve equivalent coordination actions/,
-  );
-});
-
-test('native candidate rejects missing lifecycle protocol, queue routing, or bilateral target receipt', () => {
-  const missingUnarchive = structuredClone(readAuthority());
-  missingUnarchive.typed_host_bridge.required_protocol_methods =
-    missingUnarchive.typed_host_bridge.required_protocol_methods.filter((method) => method !== 'thread/unarchive');
-  assert.throws(
-    () => validateNativeCrossTopLevelThreadAuthority(missingUnarchive),
-    /must include thread\/unarchive/,
-  );
-
-  const bypassedQueue = structuredClone(readAuthority());
-  bypassedQueue.local_p0_p1_acceptance.dispatch_policy.running_nonurgent_message = 'turn/steer';
-  assert.throws(
-    () => validateNativeCrossTopLevelThreadAuthority(bypassedQueue),
-    /preserve Codex-style cross-project flexibility, opaque-key idempotency, direct running steer/,
-  );
-
-  const unilateralReceipt = structuredClone(readAuthority());
-  unilateralReceipt.local_p0_p1_acceptance.bilateral_receipt.target_timeline_projection = false;
-  assert.throws(
-    () => validateNativeCrossTopLevelThreadAuthority(unilateralReceipt),
-    /bilateral source and target receipt projections/,
-  );
-});
-
-test('native candidate rejects release, adoption, packaged, or remote readiness inferred from focused authority gates', () => {
-  for (const field of [
-    'contract_or_docs_prove_implementation_complete',
-    'focused_tests_prove_packaged_capability',
-    'active_shell_adopted',
-    'release_ready',
-    'remote_ready',
-  ]) {
-    const authority = structuredClone(readAuthority());
-    authority.false_ready_boundary[field] = true;
+  for (const boundary of [missingMetadata, missingSourceKind, missingThreadItem]) {
     assert.throws(
-      () => validateNativeCrossTopLevelThreadAuthority(authority),
-      new RegExp(`${field} must remain false`),
+      () => validateNativeThreadAdapterBoundary(boundary),
+      /preserve Codex subagent metadata, source kinds, and thread items/,
     );
+  }
+});
+
+test('native candidate machine contract removes retired private capabilities', () => {
+  const registry = readJson<ShellCandidateRegistry>('contracts/app-shell-candidates.json');
+  const policy = candidateValidationPolicyFromRegistry(registry);
+  const candidate = registry.candidates.find((entry) => entry.id === 'opl-native-workbench');
+  assert.ok(candidate);
+  assert.doesNotThrow(() => validateCandidate(candidate, policy));
+  assert.equal(candidate.candidate_stage, 'opl_native_workbench_single_app_server_adapter_candidate_only');
+  assert.equal('local_p0_p1_implementation_evidence' in candidate, false);
+  assert.ok(candidate.required_capabilities.includes('single_codex_app_server_thread_adapter'));
+  assert.ok(candidate.required_capabilities.includes('codex_subagent_event_projection'));
+  for (const retired of [
+    'typed_cross_top_level_thread_host_bridge',
+    'client_executed_dynamic_tools_coordination_bridge',
+    'local_cross_thread_p0_p1',
+    'turn_start_steer_with_host_queue',
+    'bilateral_coordination_receipts',
+    'remote_host_aggregation_p2_deferred',
+  ]) {
+    assert.equal(candidate.required_capabilities.includes(retired), false);
   }
 });
 
@@ -167,7 +136,8 @@ test('native candidate keeps 41301 interaction authority and pins 61608 visual s
 
   const staleCandidate = structuredClone(candidate);
   assert.ok(staleCandidate.visual_parity_contract);
-  staleCandidate.visual_parity_contract.comparison_baseline = 'ChatGPT Codex macOS 26.707.31123 (2026-07-10)';
+  staleCandidate.visual_parity_contract.comparison_baseline =
+    'ChatGPT Codex macOS 26.707.31123 (2026-07-10)';
   assert.throws(
     () => validateCandidate(staleCandidate, policy),
     /visual_parity_contract must consume the App-owned configured model policy/,

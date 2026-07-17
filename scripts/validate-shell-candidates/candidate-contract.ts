@@ -1,8 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import type {
-  NativeCrossTopLevelThreadAuthority,
-  NativeLocalP0P1ImplementationEvidence,
+  NativeThreadAdapterBoundary,
   ShellCandidate,
   ShellCandidateRegistry,
   ValidationCommand,
@@ -21,6 +20,7 @@ import {
   forbiddenSeriesDomainFields,
   readJson,
   requiredNativeCapabilities,
+  requiredNativeThreadCapabilities,
   root,
   validateActiveProjectLineStateModel,
 } from './shared.ts';
@@ -64,7 +64,7 @@ type CandidateAdapterContract = {
   agent_route_contract?: ShellCandidate['agent_route_contract'];
   settings_information_architecture?: ShellCandidate['settings_information_architecture'];
   visual_parity_contract?: ShellCandidate['visual_parity_contract'];
-  cross_top_level_thread_authority?: NativeCrossTopLevelThreadAuthority;
+  thread_adapter_boundary?: NativeThreadAdapterBoundary;
 };
 
 type NativeVisualParityContract = NonNullable<ShellCandidate['visual_parity_contract']> & {
@@ -90,9 +90,10 @@ export const requiredNativeVisualParitySurfaces = [
   'settings_locale_surface',
 ];
 
-const requiredCrossThreadProtocolMethods = [
+const requiredNativeThreadProtocols = [
   'thread/list',
   'thread/read',
+  'thread/start',
   'thread/resume',
   'thread/fork',
   'thread/archive',
@@ -101,7 +102,7 @@ const requiredCrossThreadProtocolMethods = [
   'turn/steer',
 ];
 
-const requiredNativeCrossThreadCapabilities = [
+const forbiddenNativePrivateCapabilities = [
   'typed_cross_top_level_thread_host_bridge',
   'client_executed_dynamic_tools_coordination_bridge',
   'local_cross_thread_p0_p1',
@@ -113,123 +114,15 @@ const requiredNativeCrossThreadCapabilities = [
   'remote_host_aggregation_p2_deferred',
 ];
 
-const requiredCrossThreadHardFailures = [
-  'protocol_unavailable_or_invalid',
-  'target_not_found',
-  'target_archived',
-  'target_not_writable',
-  'cross_host_unsupported',
-  'codex_permission_or_user_request_declined_or_cancelled',
-  'interactive_server_request_handler_unavailable_or_invalid',
+const requiredNativeSubagentMetadata = ['parentThreadId', 'agentRole', 'agentNickname'];
+const requiredNativeSubagentSourceKinds = [
+  'subAgent',
+  'subAgentReview',
+  'subAgentCompact',
+  'subAgentThreadSpawn',
+  'subAgentOther',
 ];
-
-const requiredCrossThreadAdvisories = [
-  'project_workspace_difference',
-  'write_set_overlap',
-  'delegation_cycle_or_repeated_route',
-];
-
-const requiredCrossThreadNonBlockingSignals = [
-  'cross_project',
-  'cross_workspace',
-  'workspace_write',
-  'write_set_overlap',
-  'running_turn_steer',
-  'delegation_cycle_advisory',
-];
-
-const requiredCrossThreadProtocolBoundaries = [
-  'host_scope_check',
-  'target_identity_and_status_validation',
-  'codex_permission_and_approval_passthrough',
-];
-
-const requiredFalseReadyFields = [
-  'contract_or_docs_prove_implementation_complete',
-  'focused_tests_prove_packaged_capability',
-  'candidate_validation_proves_active_shell_adopted',
-  'candidate_validation_proves_release_ready',
-  'candidate_validation_proves_production_ready',
-  'candidate_validation_proves_clean_vm_ready',
-  'candidate_validation_proves_remote_ready',
-  'active_shell_adopted',
-  'release_ready',
-  'production_ready',
-  'clean_vm_ready',
-  'remote_ready',
-];
-
-const nativeEvidenceSourceSha = '5a0bf268c97f289d79c08ee34274d730f674c91f';
-const nativeEvidenceAppProductAuthoritySha = 'e53dad1293aa6d7f13417818f118a3f0efce3571';
-
-function validateNativeLocalP0P1ImplementationEvidence(
-  evidence: NativeLocalP0P1ImplementationEvidence | undefined,
-): void {
-  const source = evidence?.source_and_package_gates ?? {};
-  const dynamicTools = evidence?.dynamic_tools_live ?? {};
-  const coordination = evidence?.coordination_live ?? {};
-  const packaged = evidence?.packaged_native_live ?? {};
-  const installed = evidence?.installed_native_app ?? {};
-  const boundary = evidence?.claim_boundary ?? {};
-  if (
-    !evidence ||
-    evidence.status !== 'verified_local_protocol_cohort_superseded_for_flexible_dispatch_policy' ||
-    evidence.observed_at !== '2026-07-13' ||
-    evidence.app_product_authority_sha !== nativeEvidenceAppProductAuthoritySha ||
-    evidence.native_source_sha !== nativeEvidenceSourceSha ||
-    evidence.native_source_ref !== 'origin/main' ||
-    evidence.codex_cli_version !== '0.144.1' ||
-    evidence.fixed_cohort !== true ||
-    source.native_test_suite !== 'passed' ||
-    source.coordination_security_cases !== 10 ||
-    source.webui_host_tests !== 9 ||
-    source.fast_gui_projection_bytes !== 132753 ||
-    dynamicTools.thread_id !== '019f599c-ea66-7523-bc3f-85106d15540c' ||
-    dynamicTools.request_id_preserved !== true ||
-    dynamicTools.turn_completed !== true ||
-    coordination.source_thread_id !== '019f599d-399d-7ec1-9274-433e7481c630' ||
-    coordination.target_thread_id !== '019f599d-4557-7351-a74d-c8f41c697fbc' ||
-    coordination.forked_thread_id !== '019f599d-f0c4-7933-9487-9cab6d18d140' ||
-    coordination.list_terminal_cursor !== null ||
-    coordination.direct_turn_start !== 'completed' ||
-    coordination.host_queue_then_turn_start !== 'completed' ||
-    coordination.urgent_turn_steer !== 'completed' ||
-    packaged.display_name !== 'One Person Lab Native' ||
-    packaged.bundle_id !== 'cn.gflab.opl.native-workbench.candidate' ||
-    packaged.installed_app_path !== '/Applications/One Person Lab Native.app' ||
-    packaged.window_evidence !== 'core_graphics_fallback_after_ax_denied_-25211' ||
-    packaged.window_id !== 113023 ||
-    packaged.renderer_sha256 !== 'dae7dcbe9ec0b82649d361579b06d10e0ee492c505047fa803b497f0b1f64379' ||
-    packaged.package_manifest_sha256 !== '50e1b3a7f9e62525078c3ae1a9752ae1ca2cddd3165f32ed733a7145d31689be' ||
-    packaged.icon_sha256 !== 'ce551a9c7b3bd1e0137dbe79a013c3154af658f6195d5cce25433f706d48044e' ||
-    packaged.screenshot_sha256 !== 'c667763e0024e02db59d23c9963cddcc87a6be8717ef30f798409545df202d95' ||
-    packaged.process_cleanup !== true ||
-    installed.status !== 'verified_local_install' ||
-    installed.app_path !== '/Applications/One Person Lab Native.app' ||
-    installed.display_name !== 'One Person Lab Native' ||
-    installed.bundle_id !== 'cn.gflab.opl.native-workbench.candidate' ||
-    installed.active_mainline_app_path !== '/Applications/One Person Lab.app' ||
-    installed.active_mainline_bundle_id !== 'cn.onepersonlab.opl' ||
-    installed.renderer_sha256 !== 'dae7dcbe9ec0b82649d361579b06d10e0ee492c505047fa803b497f0b1f64379' ||
-    installed.icon_sha256 !== 'ce551a9c7b3bd1e0137dbe79a013c3154af658f6195d5cce25433f706d48044e' ||
-    installed.installed_window_id !== 112896 ||
-    installed.installed_screenshot_sha256 !== '154f8a8ebb6d48e3c8745ec87925f1af04ae4862f3f8b8599e66d02efdf7f59d' ||
-    installed.candidate_actions !== 'dry_run_only' ||
-    boundary.local_protocol_cohort_implemented !== true ||
-    boundary.flexible_dispatch_policy_conformant !== false ||
-    boundary.local_p0_p1_implemented !== false ||
-    boundary.candidate_only !== true ||
-    boundary.active_shell_adopted !== false ||
-    boundary.release_ready !== false ||
-    boundary.production_ready !== false ||
-    boundary.clean_vm_ready !== false ||
-    boundary.remote_ready !== false
-  ) {
-    throw new Error('native candidate historical protocol evidence must bind the exact verified cohort while remaining superseded for flexible dispatch and false for current P0 plus P1 conformance');
-  }
-  assertStringArrayIncludes(packaged.screenshot_markers, ['One Person Lab', '5.6 Sol'], 'native candidate packaged screenshot markers');
-  assertStringArrayIncludes(packaged.screenshot_absent_markers, ['Codex'], 'native candidate packaged screenshot absent markers');
-}
+const requiredNativeSubagentItemTypes = ['collabAgentToolCall', 'subAgentActivity'];
 
 const appProductProfile = readJson<{
   codex: { default_model: string; default_reasoning_effort: string };
@@ -318,285 +211,54 @@ function readCandidateAdapterContract(candidate: ShellCandidate): CandidateAdapt
   return readJson<CandidateAdapterContract>(path.join(root, candidate.adapter_contract));
 }
 
-export function validateNativeCrossTopLevelThreadAuthority(
-  authority: NativeCrossTopLevelThreadAuthority | undefined,
+export function validateNativeThreadAdapterBoundary(
+  boundary: NativeThreadAdapterBoundary | undefined,
 ): void {
-  if (
-    !authority ||
-    authority.authority_model !== 'three_layer_thread_coordination_authority' ||
-    authority.implementation_status !==
-      'local_protocol_cohort_verified_flexible_dispatch_policy_rework_required_candidate_only' ||
-    authority.product_role !== 'opl_host_cross_top_level_codex_thread_coordination' ||
-    authority.entry_surface !== 'thread_detail_context_action_and_model_host_tool_no_ordinary_navigation' ||
-    authority.ordinary_navigation_visible !== false ||
-    authority.primary_composer_control_visible !== false ||
-    authority.thread_detail_context_action_visible !== true ||
-    authority.model_tool_access !== true ||
-    authority.default_state !== 'thread_detail_action_available_coordination_dialog_closed' ||
-    authority.model_role !== 'decide_when_and_why_to_coordinate' ||
-    authority.protocol_owner !== 'codex_core_app_server' ||
-    authority.app_host_owner !== 'opl_app_host' ||
-    authority.coordination_owner !== 'opl_app_typed_host_bridge' ||
-    authority.renderer_role !== 'typed_projection_and_intent_consumer_only' ||
-    authority.thread_store_owner !== 'codex_core_app_server' ||
-    authority.thread_id_policy !== 'opaque_app_server_returned_key_never_model_or_shell_generated'
-  ) {
-    throw new Error('opl-native-workbench cross-thread authority must preserve Codex protocol ownership, typed OPL host routing, opaque thread ids, and flexible-policy rework status');
-  }
-  validateNativeLocalP0P1ImplementationEvidence(authority.local_p0_p1_implementation_evidence);
-
-  const sameTree = authority.authority_layers.same_agent_tree ?? {};
-  const local = authority.authority_layers.local_cross_top_level ?? {};
-  const remote = authority.authority_layers.remote_cross_machine ?? {};
-  if (
-    sameTree.level !== 'L0' ||
-    sameTree.scope !== 'same_agent_tree_only' ||
-    sameTree.owner !== 'codex_runtime_agent_registry' ||
-    sameTree.cross_top_level_use_forbidden !== true
-  ) {
-    throw new Error('same-agent-tree tools must remain L0 runtime tools and must not become a cross-top-level message bus');
-  }
-  assertStringArrayIncludes(sameTree.methods, ['spawn_agent', 'send_input', 'wait_agent'], 'cross-thread authority L0 methods');
-  if (
-    local.level !== 'L1' ||
-    local.phase !== 'P0_plus_P1' ||
-    local.acceptance_status !== 'required_for_candidate_acceptance' ||
-    local.owner !== 'opl_app_typed_host_bridge_over_local_codex_app_server'
-  ) {
-    throw new Error('local independent top-level threads must be the required L1 P0 plus P1 candidate target');
-  }
-  if (
-    remote.level !== 'L2' ||
-    remote.phase !== 'P2' ||
-    remote.acceptance_status !== 'deferred_not_required_for_local_candidate_acceptance' ||
-    remote.ready !== false
-  ) {
-    throw new Error('remote cross-machine coordination must remain deferred L2 P2 and false-ready');
-  }
-
-  const host = authority.typed_host_bridge;
-  if (
-    host.required !== true ||
-    host.transport_contract !== 'typed_request_response_event_and_receipt_envelopes' ||
-    host.renderer_direct_app_server_json_rpc_forbidden !== true ||
-    host.shell_owned_thread_store_forbidden !== true ||
-    host.shell_owned_permission_model_forbidden !== true ||
-    host.required_status_event !== 'thread/status/changed' ||
-    host.optional_relationship_fields_policy !== 'capability_detect_parent_and_ancestor_fields_and_degrade_without_blocking_list_read_or_dispatch'
-  ) {
-    throw new Error('native candidate must use a typed host bridge without renderer protocol access or shell-owned thread and permission stores');
-  }
-  assertStringArrayIncludes(host.required_protocol_methods, requiredCrossThreadProtocolMethods, 'cross-thread typed host protocol methods');
-  const hostLedger = host.host_owned_minimal_coordination_ledger;
-  if (
-    hostLedger.allowed !== true ||
-    hostLedger.storage_policy !== 'append_only_queue_and_bilateral_receipt_metadata' ||
-    hostLedger.thread_history_allowed !== false ||
-    hostLedger.thread_truth_authority !== false
-  ) {
-    throw new Error('typed host may own only a minimal append-only queue and receipt ledger without thread history or thread truth authority');
-  }
-
-  const modelTools = authority.p1_model_tool_bridge;
-  const generatedSchema = modelTools.codex_cli_schema_observation;
-  const liveProbe = modelTools.ephemeral_live_probe_observation;
-  if (
-    modelTools.current_transport !== 'client_executed_dynamic_tools' ||
-    modelTools.bridge_must_reuse_typed_host_gate !== true ||
-    modelTools.direct_app_server_or_ledger_bypass_forbidden !== true ||
-    modelTools.tool_calls_must_apply_same_dispatch_advisory_idempotency_and_receipt_policy_as_gui !== true ||
-    generatedSchema.version !== '0.144.1' ||
-    generatedSchema.generator !== 'generate-ts' ||
-    generatedSchema.dynamic_tools_field_present !== false ||
-    liveProbe.dynamic_tools_registration_accepted !== true ||
-    liveProbe.received_event !== 'item/tool/call' ||
-    liveProbe.turn_completed !== true ||
-    modelTools.schema_drift_record_required !== true ||
-    modelTools.runtime_capability_probe_required !== true ||
-    modelTools.probe_policy !== 'probe_runtime_behavior_instead_of_inferring_support_from_generate_ts' ||
-    modelTools.fallback_policy !== 'typed_model_tool_unavailable_with_user_driven_host_coordination_preserved' ||
-    modelTools.fallback_must_not_claim_p1_model_tool_ready !== true
-  ) {
-    throw new Error('P1 model tools must use client-executed dynamicTools with runtime probing, schema-drift recording, shared flexible dispatch and audit policy, and a non-ready fallback');
-  }
-  assertStringArrayIncludes(modelTools.required_high_level_tools, [
-    'list_threads',
-    'read_thread',
-    'send_message_to_thread',
-    'fork_thread',
-    'archive_thread',
-    'unarchive_thread',
-    'wait_thread',
-  ], 'P1 client-executed dynamicTools');
-
-  const localAcceptance = authority.local_p0_p1_acceptance;
-  const directory = localAcceptance.thread_directory;
-  const dispatch = localAcceptance.dispatch_policy;
-  const deliveryDefaults = localAcceptance.delivery_request_defaults;
-  const turnStartInheritance = localAcceptance.turn_start_inheritance_policy;
-  const idempotency = localAcceptance.idempotency_policy;
-  const receipt = localAcceptance.bilateral_receipt;
-  const serverRequests = localAcceptance.interactive_server_request_policy;
-  if (
-    localAcceptance.scope !== 'local_machine_only' ||
-    directory.list_protocol !== 'thread/list' ||
-    directory.read_protocol !== 'thread/read' ||
-    directory.default_scope !== 'current_project' ||
-    directory.project_workspace_role !== 'default_cwd_sidebar_grouping_and_visible_metadata_not_authorization_domain' ||
-    directory.cross_project_filter_changes_authorization !== false ||
-    directory.archived_scope_requires_explicit_filter !== true
-  ) {
-    throw new Error('local P0 plus P1 must provide a current-project grouped directory without treating project or workspace as authorization');
-  }
-  assertStringArrayIncludes(directory.required_fields, [
-    'thread_id', 'status', 'summary', 'project', 'workspace', 'host', 'owner', 'goal',
-    'archived', 'parent_thread_id', 'ancestor_thread_ids', 'active_turn_id', 'write_set',
-  ], 'local thread directory fields');
-  assertStringArrayIncludes(localAcceptance.lifecycle_actions, ['read', 'resume', 'fork', 'archive', 'unarchive'], 'local thread lifecycle actions');
-  if (
-    dispatch.persisted_unloaded_thread !== 'thread/resume_then_turn/start' ||
-    dispatch.loaded_idle_thread !== 'turn/start' ||
-    dispatch.running_urgent_message !== 'turn/steer_with_explicit_realtime_label' ||
-    dispatch.running_nonurgent_message !== 'host_queue_then_turn/start_when_idle' ||
-    dispatch.unknown_or_stale_status !== 'refresh_then_route_or_protocol_failure' ||
-    dispatch.archived_thread !== 'typed_failure_until_explicit_unarchive_no_silent_replacement' ||
-    dispatch.opl_extra_confirmation_policy !==
-      'none_including_archive_cross_project_cross_workspace_workspace_write_write_set_overlap_running_steer_and_loop_advisory' ||
-    dispatch.queue_owner !== 'opl_app_typed_host_bridge' ||
-    dispatch.queue_must_not_copy_or_own_thread_history !== true ||
-    deliveryDefaults.permission !== 'inherit' ||
-    JSON.stringify(deliveryDefaults.write_set) !== '[]' ||
-    deliveryDefaults.write_set_role !== 'optional_advisory_metadata_not_permission_input' ||
-    turnStartInheritance.target_thread_sticky_settings_inherited !== true ||
-    JSON.stringify(turnStartInheritance.fields_must_not_be_sent) !==
-      JSON.stringify(['cwd', 'runtimeWorkspaceRoots', 'approvalPolicy', 'sandboxPolicy']) ||
-    idempotency.dedupe_scope !== 'same_opaque_request_or_idempotency_key_retry_only' ||
-    idempotency.same_key_retry_behavior !== 'return_idempotent_duplicate_result_without_second_dispatch' ||
-    idempotency.message_content_repeat_allowed !== true
-  ) {
-    throw new Error('local dispatch must preserve Codex-style cross-project flexibility, opaque-key idempotency, direct running steer, and explicit archived-target handling');
-  }
-  assertStringArrayIncludes(localAcceptance.hard_failure_conditions, requiredCrossThreadHardFailures, 'cross-thread hard failures');
-  if (
-    serverRequests.pending_state_role !== 'codex_native_interactive_request_not_dispatch_failure' ||
-    serverRequests.resolution_owner !== 'user_via_typed_opl_host_bridge' ||
-    serverRequests.unknown_server_request_policy !== 'fail_closed_json_rpc_method_not_found' ||
-    serverRequests.separate_persisted_approval_receipt_required !== false
-  ) {
-    throw new Error('cross-thread interactive requests must remain visible pending Codex requests rather than dispatch failures');
-  }
-  assertStringArrayIncludes(serverRequests.supported_kinds, [
-    'command_approval', 'file_change_approval', 'permissions_approval', 'user_input', 'mcp_elicitation',
-  ], 'cross-thread interactive server request kinds');
-  assertStringArrayIncludes(localAcceptance.advisory_signals, requiredCrossThreadAdvisories, 'cross-thread advisory signals');
-  assertStringArrayIncludes(
-    localAcceptance.must_not_block_or_confirm_for,
-    requiredCrossThreadNonBlockingSignals,
-    'cross-thread non-blocking signals',
-  );
-  assertStringArrayIncludes(
-    localAcceptance.protocol_boundaries,
-    requiredCrossThreadProtocolBoundaries,
-    'cross-thread protocol boundaries',
-  );
-  const legacyHardGateFailures = [
-    'duplicate_rejected',
-    'loop_rejected',
-    'scope_mismatch',
-    'write_set_conflict',
-    'stale_status',
+  const expectedBoundaryKeys = [
+    'adapter',
+    'codex_subagent_projection',
+    'private_coordination_layer_allowed',
+    'protocol_owner',
+    'source_ref',
+    'supported_protocols',
+    'thread_store_owner',
+    'user_initiated_only',
   ];
   if (
-    'safety_gates' in localAcceptance ||
-    'explicit_user_confirmation_when_scope_or_permission_changes' in dispatch ||
-    'archive_lifecycle_confirmation_required' in dispatch ||
-    localAcceptance.required_typed_failure_states.some((state) => legacyHardGateFailures.includes(state)) ||
-    localAcceptance.hard_failure_conditions.length !== requiredCrossThreadHardFailures.length
+    !boundary ||
+    JSON.stringify(Object.keys(boundary).sort()) !== JSON.stringify(expectedBoundaryKeys) ||
+    boundary.source_ref !==
+      'contracts/app-gui-product-contract.json#interaction_baseline.thread_coordination' ||
+    boundary.adapter !== 'single_codex_app_server_adapter' ||
+    boundary.protocol_owner !== 'codex_core_app_server' ||
+    boundary.thread_store_owner !== 'codex_core_app_server' ||
+    boundary.user_initiated_only !== true ||
+    boundary.private_coordination_layer_allowed !== false ||
+    JSON.stringify(boundary.supported_protocols) !==
+      JSON.stringify(requiredNativeThreadProtocols)
   ) {
-    throw new Error('cross-thread candidate must remove legacy project, workspace, loop, duplicate-content, steer, and write-set hard gates');
+    throw new Error(
+      'native candidate thread adapter must stay a single user-initiated Codex App Server adapter with no private coordination layer',
+    );
   }
-  if (
-    receipt.required !== true ||
-    receipt.source_timeline_projection !== true ||
-    receipt.target_timeline_projection !== true ||
-    receipt.rail_or_thread_detail_readback !== true ||
-    receipt.full_thread_history_copy_forbidden !== true
-  ) {
-    throw new Error('cross-thread dispatch must produce bilateral source and target receipt projections without copying thread history');
-  }
-  assertStringArrayIncludes(receipt.statuses, [
-    'created', 'accepted', 'queued', 'delivered', 'running', 'completed', 'failed', 'cancelled', 'rejected',
-  ], 'bilateral receipt statuses');
-  assertStringArrayIncludes(receipt.required_fields, [
-    'delivery_id', 'coordination_id', 'source_thread_id', 'target_thread_id', 'source_host_id', 'target_host_id',
-    'project_key', 'sender', 'intent', 'reason', 'message_summary', 'protocol_method', 'queue_decision',
-    'codex_permission_policy_inheritance', 'project_workspace_context', 'write_set_advisory', 'loop_advisory',
-    'idempotency_result', 'status', 'result_summary_or_ref', 'created_at', 'completed_at',
-  ], 'bilateral receipt fields');
-  assertStringArrayIncludes(localAcceptance.required_typed_failure_states, [
-    'protocol_unavailable', 'protocol_invalid', 'target_not_found', 'archived_target', 'target_not_writable',
-    'cross_host_unsupported', 'permission_denied', 'dispatch_failed', 'wait_timeout',
-  ], 'cross-thread typed failure states');
-  assertStringArrayIncludes(localAcceptance.required_pending_states, [
-    'approval_pending', 'user_input_pending', 'mcp_elicitation_pending', 'server_request_resolving',
-  ], 'cross-thread interactive pending states');
-  if (
-    localAcceptance.user_visibility_policy !==
-      'sender_target_reason_message_result_permission_policy_and_advisory_context_visible_and_auditable_interactive_server_requests_visible_in_target_context'
-  ) {
-    throw new Error('cross-thread permission results and advisory context must remain user-visible and auditable');
-  }
-  assertStringArrayIncludes(localAcceptance.forbidden_implementations, [
-    'send_input_as_cross_top_level_message_bus',
-    'shell_owned_duplicate_thread_store',
-    'model_generated_thread_id',
-    'shell_owned_permission_model',
-    'project_or_workspace_as_authorization_domain',
-    'write_set_overlap_as_dispatch_blocker',
-    'delegation_loop_as_dispatch_blocker',
-    'message_content_as_dedupe_key',
-    'any_opl_confirmation_for_thread_read_dispatch_steer_or_archive',
-    'interactive_server_request_as_immediate_dispatch_failure',
-    'delivery_audit_as_independent_approval_receipt',
-  ], 'cross-thread forbidden implementations');
 
-  const parity = authority.desktop_webui_parity;
+  const subagents = boundary.codex_subagent_projection;
   if (
-    parity.required !== true ||
-    parity.same_typed_host_bridge_contract !== true ||
-    parity.same_thread_actions !== true ||
-    parity.same_queue_advisory_idempotency_and_codex_permission_semantics !== true ||
-    parity.same_bilateral_receipt_and_failure_visibility !== true ||
-    parity.delivery_transport_may_differ !== true ||
-    parity.desktop_only_coordination_capability_allowed !== false ||
-    parity.webui_browser_renderer_direct_app_server_access_allowed !== false ||
-    parity.webui_node_host_typed_app_server_adapter_allowed !== true
+    JSON.stringify(Object.keys(subagents).sort()) !==
+      JSON.stringify(['metadata_fields', 'mode', 'thread_item_types', 'thread_source_kinds']) ||
+    subagents.mode !== 'read_only_thread_metadata_and_items' ||
+    JSON.stringify(subagents.thread_source_kinds) !==
+      JSON.stringify(requiredNativeSubagentSourceKinds) ||
+    JSON.stringify(subagents.thread_item_types) !==
+      JSON.stringify(requiredNativeSubagentItemTypes) ||
+    JSON.stringify(subagents.metadata_fields) !==
+      JSON.stringify(requiredNativeSubagentMetadata)
   ) {
-    throw new Error('Desktop and WebUI must preserve equivalent coordination actions, queue and advisory semantics, Codex permission policy, interactive pending requests, receipts, and failures');
-  }
-  const remoteP2 = authority.remote_p2;
-  if (
-    remoteP2.status !== 'deferred' ||
-    remoteP2.local_p0_p1_must_not_depend_on_remote_host_aggregation !== true ||
-    remoteP2.remote_ready_claim_allowed !== false ||
-    remoteP2.local_focused_tests_prove_remote_ready !== false
-  ) {
-    throw new Error('remote host P2 must remain deferred and must not be inferred from local focused evidence');
-  }
-  assertStringArrayIncludes(remoteP2.future_scope, [
-    'authenticated_saved_app_server_connections',
-    'host_scoped_thread_directory_and_health',
-    'cross_host_permission_and_route_policy',
-    'disconnect_recovery_and_bilateral_receipt',
-  ], 'remote P2 future scope');
-
-  for (const field of requiredFalseReadyFields) {
-    if (authority.false_ready_boundary[field] !== false) {
-      throw new Error(`native candidate false-ready boundary ${field} must remain false`);
-    }
+    throw new Error(
+      'native candidate must preserve Codex subagent metadata, source kinds, and thread items as read-only App Server projections',
+    );
   }
 }
-
 function validateCandidateAdapterContract(
   candidate: ShellCandidate,
   adapterContract: CandidateAdapterContract,
@@ -618,10 +280,10 @@ function validateCandidateAdapterContract(
       adapterContract.purpose !== 'active_shell_adapter' ||
       adapterContract.state !== 'active' ||
       adapterContract.candidate_stage !==
-        'opl_native_workbench_local_protocol_cohort_verified_flexible_dispatch_policy_rework_required_candidate_only' ||
+        'opl_native_workbench_single_app_server_adapter_candidate_only' ||
       adapterContract.gui_authority?.implementation_role !== 'active_shell_implementation_carrier'
     ) {
-      throw new Error(`${candidate.id} adapter must preserve the shared adapter schema while candidate_stage records verified protocol evidence and pending flexible-policy rework`);
+      throw new Error(`${candidate.id} adapter must preserve the shared adapter schema and single App Server adapter candidate stage`);
     }
   } else if (adapterContract.active_shell !== candidate.id) {
     throw new Error(`${candidate.id} adapter contract must identify ${candidate.id}`);
@@ -650,16 +312,21 @@ function validateCandidateAdapterContract(
   if (candidate.id === 'opl-native-workbench') {
     assertStringArrayIncludes(
       adapterContract.shell_contract.capabilities,
-      requiredNativeCrossThreadCapabilities,
-      `${candidate.id} adapter shell capabilities`,
+      requiredNativeThreadCapabilities,
+      `${candidate.id} adapter thread capabilities`,
     );
-    validateNativeCrossTopLevelThreadAuthority(adapterContract.cross_top_level_thread_authority);
     if (
-      JSON.stringify(candidate.local_p0_p1_implementation_evidence)
-      !== JSON.stringify(adapterContract.cross_top_level_thread_authority?.local_p0_p1_implementation_evidence)
+      'cross_top_level_thread_authority' in adapterContract ||
+      'local_p0_p1_implementation_evidence' in candidate ||
+      forbiddenNativePrivateCapabilities.some(
+        (capability) =>
+          candidate.required_capabilities.includes(capability) ||
+          adapterContract.shell_contract.capabilities.includes(capability),
+      )
     ) {
-      throw new Error(`${candidate.id} registry and adapter must bind the same local P0 plus P1 evidence cohort`);
+      throw new Error(`${candidate.id} registry and adapter must not retain private cross-thread coordination contracts or capabilities`);
     }
+    validateNativeThreadAdapterBoundary(adapterContract.thread_adapter_boundary);
   }
   if (!adapterContract.validation_commands.some((entry) => entry.id === 'candidate_app_bundle_build')) {
     throw new Error(`${candidate.id} adapter validation_commands must include candidate_app_bundle_build`);
@@ -778,6 +445,9 @@ function validateCandidateMinimumAcceptance(candidate: ShellCandidate): void {
       'Electron and WebUI use the same native React renderer and App-owned bridge shape',
       'ordinary UI stays chat-first while prioritizing results, files, receipts, and delivery refs',
       'WebUI parity evidence proves the same renderer and product semantics as Electron',
+      'one Codex App Server adapter exposes canonical thread list, read, start, resume, fork, archive, unarchive, and ordinary turn start and steer',
+      'Codex subagent metadata, source kinds, and thread items remain read-only projections from Codex Core and App Server',
+      'Native source acceptance requires no private coordination host, model-triggered cross-thread tools, OPL-owned host queue, JSONL coordination ledger, bilateral receipts, write-set advisory, coordination idempotency, or cross-host handoff layer',
     ], `${candidate.id}.technical_verification.minimum_acceptance`);
     return;
   }
@@ -864,6 +534,7 @@ function validateCandidateAuthorityBoundaries(candidate: ShellCandidate): void {
       'do not enter default stable or nightly release packaging',
       'do not introduce runtime or domain truth into the App repo',
       'do not continue AGUI/CopilotKit implementation as the native workbench route',
+      'do not add a private coordination host, model-triggered cross-thread tools, OPL-owned queue, coordination ledger, receipts, advisory, idempotency, or cross-host handoff layer',
       'do not claim release-ready from contract-only evidence',
     ], `${candidate.id}.non_goals`);
     return;
@@ -1086,11 +757,10 @@ function validateNativeWorkbenchCandidateContract(candidate: ShellCandidate): vo
   }
   if (
     candidate.candidate_stage !==
-    'opl_native_workbench_local_protocol_cohort_verified_flexible_dispatch_policy_rework_required_candidate_only'
+    'opl_native_workbench_single_app_server_adapter_candidate_only'
   ) {
-    throw new Error(`${candidate.id}.candidate_stage must keep old protocol evidence separate from pending flexible dispatch conformance`);
+    throw new Error(`${candidate.id}.candidate_stage must remain a single App Server adapter candidate only`);
   }
-  validateNativeLocalP0P1ImplementationEvidence(candidate.local_p0_p1_implementation_evidence);
   if (
     candidate.checkout_policy?.primary_path !== 'shells/opl-native-workbench' ||
     candidate.checkout_policy.accepted_alternate_path !== '../opl-native-workbench' ||

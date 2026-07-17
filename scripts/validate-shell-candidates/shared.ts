@@ -48,6 +48,12 @@ export const requiredCapabilities = [
   'release_isolation',
   'candidate_app_bundle_package',
 ];
+export const requiredNativeThreadCapabilities = [
+  'single_codex_app_server_thread_adapter',
+  'thread_list_read_start_resume_fork_archive_unarchive',
+  'turn_start_steer',
+  'codex_subagent_event_projection',
+];
 export const requiredNativeCapabilities = [
   'codex_cli_fixed_executor_home',
   'codex_app_server_thread_turn_backend',
@@ -78,17 +84,9 @@ export const requiredNativeCapabilities = [
   'secondary_runtime_context_refs',
   'conversation_event_ref_rendering',
   'webui_renderer_parity',
-  'typed_cross_top_level_thread_host_bridge',
-  'client_executed_dynamic_tools_coordination_bridge',
-  'local_cross_thread_p0_p1',
-  'thread_list_read_resume_fork_archive_unarchive',
-  'turn_start_steer_with_host_queue',
-  'cross_thread_codex_permission_and_advisory_audit',
-  'bilateral_coordination_receipts',
-  'desktop_webui_coordination_parity',
-  'remote_host_aggregation_p2_deferred',
   'release_isolation',
   'candidate_app_bundle_package',
+  ...requiredNativeThreadCapabilities,
 ];
 export const requiredSettingsTabs = ['general', 'access', 'capabilities', 'environment', 'storage', 'appearance', 'advanced'];
 export const forbiddenLegacySettingsTabs = [

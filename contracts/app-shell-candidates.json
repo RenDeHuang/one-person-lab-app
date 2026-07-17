@@ -840,8 +840,7 @@
         "OpenClaudeScience scientific task-awareness patterns adapted without domain authority transfer",
         "Open Science artifact/provenance/review affordances adapted as secondary context without default split-screen workbench assumptions",
         "results and artifact delivery-first presentation",
-        "typed OPL host bridge for local cross-top-level thread coordination",
-        "client-executed dynamicTools for P1 model tools with runtime capability probe and schema-drift fallback",
+        "single Codex App Server adapter for canonical thread directory and lifecycle operations",
         "independent shell repo mounted under shells/opl-native-workbench"
       ],
       "codex_app_like_chat_target": {
@@ -851,8 +850,7 @@
           "workspace directory picker",
           "new conversation and lightweight thread history rail",
           "Codex app-server backed chat turns",
-        "local P0 plus P1 cross-top-level thread discovery, read, lifecycle, flexible dispatch, queue, advisory audit, and bilateral receipt target",
-        "client-executed dynamicTools model-tool bridge reusing the same typed host dispatch and audit policy",
+          "single Codex App Server thread directory, lifecycle actions, and standard subagent metadata and event projection",
           "shared native React renderer for Electron and WebUI",
           "Web transport bridge with HTTP actions and SSE Codex events",
           "K-Dense-informed project sandbox and delivery artifact organization as reference-only",
@@ -930,81 +928,7 @@
         "missing_checkout_blocker_allowed": true,
         "sibling_checkout_command": "OPL_APP_SHELL_ROOT=../opl-native-workbench OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/opl-native-workbench.json npm run package"
       },
-      "candidate_stage": "opl_native_workbench_local_protocol_cohort_verified_flexible_dispatch_policy_rework_required_candidate_only",
-      "local_p0_p1_implementation_evidence": {
-        "status": "verified_local_protocol_cohort_superseded_for_flexible_dispatch_policy",
-        "observed_at": "2026-07-13",
-        "app_product_authority_sha": "e53dad1293aa6d7f13417818f118a3f0efce3571",
-        "native_source_sha": "5a0bf268c97f289d79c08ee34274d730f674c91f",
-        "native_source_ref": "origin/main",
-        "codex_cli_version": "0.144.1",
-        "fixed_cohort": true,
-        "source_and_package_gates": {
-          "native_test_suite": "passed",
-          "coordination_security_cases": 10,
-          "webui_host_tests": 9,
-          "fast_gui_projection_bytes": 132753
-        },
-        "dynamic_tools_live": {
-          "thread_id": "019f599c-ea66-7523-bc3f-85106d15540c",
-          "request_id_preserved": true,
-          "turn_completed": true
-        },
-        "coordination_live": {
-          "source_thread_id": "019f599d-399d-7ec1-9274-433e7481c630",
-          "target_thread_id": "019f599d-4557-7351-a74d-c8f41c697fbc",
-          "forked_thread_id": "019f599d-f0c4-7933-9487-9cab6d18d140",
-          "list_terminal_cursor": null,
-          "direct_turn_start": "completed",
-          "host_queue_then_turn_start": "completed",
-          "urgent_turn_steer": "completed"
-        },
-        "packaged_native_live": {
-          "display_name": "One Person Lab Native",
-          "bundle_id": "cn.gflab.opl.native-workbench.candidate",
-          "installed_app_path": "/Applications/One Person Lab Native.app",
-          "window_evidence": "core_graphics_fallback_after_ax_denied_-25211",
-          "window_id": 113023,
-          "renderer_sha256": "dae7dcbe9ec0b82649d361579b06d10e0ee492c505047fa803b497f0b1f64379",
-          "package_manifest_sha256": "50e1b3a7f9e62525078c3ae1a9752ae1ca2cddd3165f32ed733a7145d31689be",
-          "icon_sha256": "ce551a9c7b3bd1e0137dbe79a013c3154af658f6195d5cce25433f706d48044e",
-          "screenshot_sha256": "c667763e0024e02db59d23c9963cddcc87a6be8717ef30f798409545df202d95",
-          "screenshot_markers": [
-            "One Person Lab",
-            "5.6 Sol"
-          ],
-          "screenshot_absent_markers": [
-            "Codex"
-          ],
-          "process_cleanup": true
-        },
-        "installed_native_app": {
-          "status": "verified_local_install",
-          "app_path": "/Applications/One Person Lab Native.app",
-          "display_name": "One Person Lab Native",
-          "bundle_id": "cn.gflab.opl.native-workbench.candidate",
-          "active_mainline_app_path": "/Applications/One Person Lab.app",
-          "active_mainline_bundle_id": "cn.onepersonlab.opl",
-          "renderer_sha256": "dae7dcbe9ec0b82649d361579b06d10e0ee492c505047fa803b497f0b1f64379",
-          "icon_sha256": "ce551a9c7b3bd1e0137dbe79a013c3154af658f6195d5cce25433f706d48044e",
-          "runtime_cohort_ref": "sha256:d34996610c63fb13e9f321e107bf32c1821b989b8e807e497569f63d884b0e76",
-          "workspace": "/Users/gaofeng/workspace/one-person-lab-app",
-          "candidate_actions": "dry_run_only",
-          "installed_window_id": 112896,
-          "installed_screenshot_sha256": "154f8a8ebb6d48e3c8745ec87925f1af04ae4862f3f8b8599e66d02efdf7f59d"
-        },
-        "claim_boundary": {
-          "local_protocol_cohort_implemented": true,
-          "flexible_dispatch_policy_conformant": false,
-          "local_p0_p1_implemented": false,
-          "candidate_only": true,
-          "active_shell_adopted": false,
-          "release_ready": false,
-          "production_ready": false,
-          "clean_vm_ready": false,
-          "remote_ready": false
-        }
-      },
+      "candidate_stage": "opl_native_workbench_single_app_server_adapter_candidate_only",
       "visual_parity_contract": {
         "comparison_baseline": "ChatGPT Codex macOS 26.707.41301 (2026-07-11)",
         "visual_style_baseline": "ChatGPT Codex macOS 26.707.61608 (2026-07-13)",
@@ -1162,17 +1086,12 @@
         "secondary_runtime_context_refs",
         "conversation_event_ref_rendering",
         "webui_renderer_parity",
-        "typed_cross_top_level_thread_host_bridge",
-        "client_executed_dynamic_tools_coordination_bridge",
-        "local_cross_thread_p0_p1",
-        "thread_list_read_resume_fork_archive_unarchive",
-        "turn_start_steer_with_host_queue",
-        "cross_thread_codex_permission_and_advisory_audit",
-        "bilateral_coordination_receipts",
-        "desktop_webui_coordination_parity",
-        "remote_host_aggregation_p2_deferred",
         "release_isolation",
-        "candidate_app_bundle_package"
+        "candidate_app_bundle_package",
+        "single_codex_app_server_thread_adapter",
+        "thread_list_read_start_resume_fork_archive_unarchive",
+        "turn_start_steer",
+        "codex_subagent_event_projection"
       ],
       "technical_verification": {
         "app_root_commands": [
@@ -1228,12 +1147,9 @@
           "Electron and WebUI use the same native React renderer and App-owned bridge shape",
           "ordinary UI stays chat-first while prioritizing results, files, receipts, and delivery refs",
           "WebUI parity evidence proves the same renderer and product semantics as Electron",
-          "local P0 and P1 coordination require the typed host bridge, thread/list read resume fork archive unarchive, turn/start and turn/steer routing, nonurgent queue, Codex permission passthrough, advisory audit, opaque-key idempotency, and bilateral receipts",
-          "P1 model tools use client-executed dynamicTools through the same host dispatch and audit policy; codex-cli 0.144.1 generate-ts schema drift is recorded, runtime support is probed, and fallback cannot claim P1 model-tool readiness",
-          "project and workspace remain default cwd, grouping, and visible metadata; cross-project, cross-workspace, workspace-write, write-set-overlap, running-steer, and loop advisories do not block or add confirmation",
-          "Desktop and WebUI expose equivalent local coordination actions, queue decisions, advisory context, Codex permission failures, and bilateral receipt readback",
-          "the previously verified c1d9dbda cohort remains protocol and package evidence only and does not prove the corrected flexible dispatch policy",
-          "remote cross-machine P2 remains deferred and local focused evidence cannot prove remote readiness",
+          "one Codex App Server adapter exposes canonical thread list, read, start, resume, fork, archive, unarchive, and ordinary turn start and steer",
+          "Codex subagent metadata, source kinds, and thread items remain read-only projections from Codex Core and App Server",
+          "Native source acceptance requires no private coordination host, model-triggered cross-thread tools, OPL-owned host queue, JSONL coordination ledger, bilateral receipts, write-set advisory, coordination idempotency, or cross-host handoff layer",
           "candidate evidence must not claim release-ready, active-shell-adopted, production-ready, or full-release-ready from contract-only validation"
         ]
       },
@@ -1290,8 +1206,7 @@
         "do not introduce runtime or domain truth into the App repo",
         "do not continue AGUI/CopilotKit implementation as the native workbench route",
         "do not use same-agent-tree send_input as a cross-top-level message bus",
-        "do not infer dynamicTools runtime support or absence from the generated TypeScript schema alone",
-        "do not claim remote cross-machine P2 from local P0 or P1 evidence",
+        "do not add a private coordination host, model-triggered cross-thread tools, OPL-owned queue, coordination ledger, receipts, advisory, idempotency, or cross-host handoff layer",
         "do not claim release-ready from contract-only evidence"
       ],
       "product_truth_policy": {

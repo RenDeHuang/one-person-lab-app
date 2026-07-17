@@ -15,88 +15,20 @@ export type ActiveProjectLineStateModel = {
   forbidden_claims: string[];
 };
 
-export type NativeLocalP0P1ImplementationEvidence = {
-  status: string;
-  observed_at: string;
-  app_product_authority_sha: string;
-  native_source_sha: string;
-  native_source_ref: string;
-  codex_cli_version: string;
-  fixed_cohort: boolean;
-  source_and_package_gates: Record<string, unknown>;
-  dynamic_tools_live: Record<string, unknown>;
-  coordination_live: Record<string, unknown>;
-  packaged_native_live: Record<string, unknown>;
-  installed_native_app: Record<string, unknown>;
-  claim_boundary: Record<string, unknown>;
-};
-
-export type NativeCrossTopLevelThreadAuthority = {
-  authority_model: string;
-  implementation_status: string;
-  local_p0_p1_implementation_evidence: NativeLocalP0P1ImplementationEvidence;
-  product_role: string;
-  entry_surface: string;
-  ordinary_navigation_visible: boolean;
-  primary_composer_control_visible: boolean;
-  thread_detail_context_action_visible: boolean;
-  model_tool_access: boolean;
-  default_state: string;
-  model_role: string;
+export type NativeThreadAdapterBoundary = {
+  source_ref: string;
+  adapter: string;
   protocol_owner: string;
-  app_host_owner: string;
-  coordination_owner: string;
-  renderer_role: string;
   thread_store_owner: string;
-  thread_id_policy: string;
-  authority_layers: Record<string, Record<string, unknown>>;
-  typed_host_bridge: {
-    required: boolean;
-    transport_contract: string;
-    renderer_direct_app_server_json_rpc_forbidden: boolean;
-    shell_owned_thread_store_forbidden: boolean;
-    shell_owned_permission_model_forbidden: boolean;
-    required_protocol_methods: string[];
-    required_status_event: string;
-    optional_relationship_fields_policy: string;
-    host_owned_minimal_coordination_ledger: Record<string, unknown>;
+  user_initiated_only: boolean;
+  supported_protocols: string[];
+  codex_subagent_projection: {
+    mode: string;
+    thread_source_kinds: string[];
+    thread_item_types: string[];
+    metadata_fields: string[];
   };
-  p1_model_tool_bridge: {
-    current_transport: string;
-    bridge_must_reuse_typed_host_gate: boolean;
-    direct_app_server_or_ledger_bypass_forbidden: boolean;
-    required_high_level_tools: string[];
-    tool_calls_must_apply_same_dispatch_advisory_idempotency_and_receipt_policy_as_gui: boolean;
-    codex_cli_schema_observation: Record<string, unknown>;
-    ephemeral_live_probe_observation: Record<string, unknown>;
-    schema_drift_record_required: boolean;
-    runtime_capability_probe_required: boolean;
-    probe_policy: string;
-    fallback_policy: string;
-    fallback_must_not_claim_p1_model_tool_ready: boolean;
-  };
-  local_p0_p1_acceptance: {
-    scope: string;
-    thread_directory: Record<string, unknown>;
-    lifecycle_actions: string[];
-    dispatch_policy: Record<string, unknown>;
-    delivery_request_defaults: Record<string, unknown>;
-    turn_start_inheritance_policy: Record<string, unknown>;
-    hard_failure_conditions: string[];
-    interactive_server_request_policy: Record<string, unknown>;
-    advisory_signals: string[];
-    idempotency_policy: Record<string, unknown>;
-    must_not_block_or_confirm_for: string[];
-    protocol_boundaries: string[];
-    bilateral_receipt: Record<string, unknown>;
-    required_typed_failure_states: string[];
-    required_pending_states: string[];
-    user_visibility_policy: string;
-    forbidden_implementations: string[];
-  };
-  desktop_webui_parity: Record<string, unknown>;
-  remote_p2: Record<string, unknown>;
-  false_ready_boundary: Record<string, unknown>;
+  private_coordination_layer_allowed: boolean;
 };
 
 export type ShellCandidate = HermesTargetStateContract & {
@@ -134,7 +66,6 @@ export type ShellCandidate = HermesTargetStateContract & {
     missing_checkout_blocker_allowed: boolean;
   };
   candidate_stage?: string;
-  local_p0_p1_implementation_evidence?: NativeLocalP0P1ImplementationEvidence;
   first_run_contract?: FirstRunContract;
   icon_contract?: IconContract;
   deferred_until_feature_comparison?: string[];

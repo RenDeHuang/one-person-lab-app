@@ -18,7 +18,7 @@
     "upstream_ref": "main"
   },
   "release_role": "experimental_candidate_shell",
-  "candidate_stage": "opl_native_workbench_local_protocol_cohort_verified_flexible_dispatch_policy_rework_required_candidate_only",
+  "candidate_stage": "opl_native_workbench_single_app_server_adapter_candidate_only",
   "gui_authority": {
     "source_of_truth": "one-person-lab-app",
     "implementation_role": "active_shell_implementation_carrier",
@@ -116,16 +116,11 @@
       "app_owned_runtime_bridge_contract",
       "opl_app_state_bridge",
       "opl_app_action_bridge",
-      "typed_cross_top_level_thread_host_bridge",
-      "client_executed_dynamic_tools_coordination_bridge",
-      "local_cross_thread_p0_p1",
-      "thread_list_read_resume_fork_archive_unarchive",
-      "turn_start_steer_with_host_queue",
-      "cross_thread_codex_permission_and_advisory_audit",
-      "bilateral_coordination_receipts",
-      "desktop_webui_coordination_parity",
-      "remote_host_aggregation_p2_deferred",
-      "app_gui_release_channel_gating"
+      "app_gui_release_channel_gating",
+      "single_codex_app_server_thread_adapter",
+      "thread_list_read_start_resume_fork_archive_unarchive",
+      "turn_start_steer",
+      "codex_subagent_event_projection"
     ]
   },
   "gui_product_contract": "contracts/app-gui-product-contract.json",
@@ -152,396 +147,6 @@
       "direct reads of OPL internal state files",
       "GUI-local project database as runtime truth"
     ]
-  },
-  "cross_top_level_thread_authority": {
-    "authority_model": "three_layer_thread_coordination_authority",
-    "implementation_status": "local_protocol_cohort_verified_flexible_dispatch_policy_rework_required_candidate_only",
-    "local_p0_p1_implementation_evidence": {
-      "status": "verified_local_protocol_cohort_superseded_for_flexible_dispatch_policy",
-      "observed_at": "2026-07-13",
-      "app_product_authority_sha": "e53dad1293aa6d7f13417818f118a3f0efce3571",
-      "native_source_sha": "5a0bf268c97f289d79c08ee34274d730f674c91f",
-      "native_source_ref": "origin/main",
-      "codex_cli_version": "0.144.1",
-      "fixed_cohort": true,
-      "source_and_package_gates": {
-        "native_test_suite": "passed",
-        "coordination_security_cases": 10,
-        "webui_host_tests": 9,
-        "fast_gui_projection_bytes": 132753
-      },
-      "dynamic_tools_live": {
-        "thread_id": "019f599c-ea66-7523-bc3f-85106d15540c",
-        "request_id_preserved": true,
-        "turn_completed": true
-      },
-      "coordination_live": {
-        "source_thread_id": "019f599d-399d-7ec1-9274-433e7481c630",
-        "target_thread_id": "019f599d-4557-7351-a74d-c8f41c697fbc",
-        "forked_thread_id": "019f599d-f0c4-7933-9487-9cab6d18d140",
-        "list_terminal_cursor": null,
-        "direct_turn_start": "completed",
-        "host_queue_then_turn_start": "completed",
-        "urgent_turn_steer": "completed"
-      },
-      "packaged_native_live": {
-        "display_name": "One Person Lab Native",
-        "bundle_id": "cn.gflab.opl.native-workbench.candidate",
-        "installed_app_path": "/Applications/One Person Lab Native.app",
-        "window_evidence": "core_graphics_fallback_after_ax_denied_-25211",
-        "window_id": 113023,
-        "renderer_sha256": "dae7dcbe9ec0b82649d361579b06d10e0ee492c505047fa803b497f0b1f64379",
-        "package_manifest_sha256": "50e1b3a7f9e62525078c3ae1a9752ae1ca2cddd3165f32ed733a7145d31689be",
-        "icon_sha256": "ce551a9c7b3bd1e0137dbe79a013c3154af658f6195d5cce25433f706d48044e",
-        "screenshot_sha256": "c667763e0024e02db59d23c9963cddcc87a6be8717ef30f798409545df202d95",
-        "screenshot_markers": [
-          "One Person Lab",
-          "5.6 Sol"
-        ],
-        "screenshot_absent_markers": [
-          "Codex"
-        ],
-        "process_cleanup": true
-      },
-      "installed_native_app": {
-        "status": "verified_local_install",
-        "app_path": "/Applications/One Person Lab Native.app",
-        "display_name": "One Person Lab Native",
-        "bundle_id": "cn.gflab.opl.native-workbench.candidate",
-        "active_mainline_app_path": "/Applications/One Person Lab.app",
-        "active_mainline_bundle_id": "cn.onepersonlab.opl",
-        "renderer_sha256": "dae7dcbe9ec0b82649d361579b06d10e0ee492c505047fa803b497f0b1f64379",
-        "icon_sha256": "ce551a9c7b3bd1e0137dbe79a013c3154af658f6195d5cce25433f706d48044e",
-        "runtime_cohort_ref": "sha256:d34996610c63fb13e9f321e107bf32c1821b989b8e807e497569f63d884b0e76",
-        "workspace": "/Users/gaofeng/workspace/one-person-lab-app",
-        "candidate_actions": "dry_run_only",
-        "installed_window_id": 112896,
-        "installed_screenshot_sha256": "154f8a8ebb6d48e3c8745ec87925f1af04ae4862f3f8b8599e66d02efdf7f59d"
-      },
-      "claim_boundary": {
-        "local_protocol_cohort_implemented": true,
-        "flexible_dispatch_policy_conformant": false,
-        "local_p0_p1_implemented": false,
-        "candidate_only": true,
-        "active_shell_adopted": false,
-        "release_ready": false,
-        "production_ready": false,
-        "clean_vm_ready": false,
-        "remote_ready": false
-      }
-    },
-    "product_role": "opl_host_cross_top_level_codex_thread_coordination",
-    "entry_surface": "thread_detail_context_action_and_model_host_tool_no_ordinary_navigation",
-    "default_state": "thread_detail_action_available_coordination_dialog_closed",
-    "ordinary_navigation_visible": false,
-    "primary_composer_control_visible": false,
-    "thread_detail_context_action_visible": true,
-    "model_tool_access": true,
-    "model_role": "decide_when_and_why_to_coordinate",
-    "protocol_owner": "codex_core_app_server",
-    "app_host_owner": "opl_app_host",
-    "coordination_owner": "opl_app_typed_host_bridge",
-    "renderer_role": "typed_projection_and_intent_consumer_only",
-    "thread_store_owner": "codex_core_app_server",
-    "thread_id_policy": "opaque_app_server_returned_key_never_model_or_shell_generated",
-    "authority_layers": {
-      "same_agent_tree": {
-        "level": "L0",
-        "scope": "same_agent_tree_only",
-        "owner": "codex_runtime_agent_registry",
-        "methods": [
-          "spawn_agent",
-          "send_input",
-          "wait_agent"
-        ],
-        "cross_top_level_use_forbidden": true
-      },
-      "local_cross_top_level": {
-        "level": "L1",
-        "scope": "independent_top_level_threads_on_one_local_machine",
-        "phase": "P0_plus_P1",
-        "acceptance_status": "required_for_candidate_acceptance",
-        "owner": "opl_app_typed_host_bridge_over_local_codex_app_server"
-      },
-      "remote_cross_machine": {
-        "level": "L2",
-        "scope": "host_scoped_threads_across_authenticated_machines",
-        "phase": "P2",
-        "acceptance_status": "deferred_not_required_for_local_candidate_acceptance",
-        "owner": "future_opl_host_connection_adapter",
-        "ready": false
-      }
-    },
-    "typed_host_bridge": {
-      "required": true,
-      "transport_contract": "typed_request_response_event_and_receipt_envelopes",
-      "renderer_direct_app_server_json_rpc_forbidden": true,
-      "shell_owned_thread_store_forbidden": true,
-      "shell_owned_permission_model_forbidden": true,
-      "required_protocol_methods": [
-        "thread/list",
-        "thread/read",
-        "thread/resume",
-        "thread/fork",
-        "thread/archive",
-        "thread/unarchive",
-        "turn/start",
-        "turn/steer"
-      ],
-      "required_status_event": "thread/status/changed",
-      "optional_relationship_fields_policy": "capability_detect_parent_and_ancestor_fields_and_degrade_without_blocking_list_read_or_dispatch",
-      "host_owned_minimal_coordination_ledger": {
-        "allowed": true,
-        "storage_policy": "append_only_queue_and_bilateral_receipt_metadata",
-        "thread_history_allowed": false,
-        "thread_truth_authority": false
-      }
-    },
-    "p1_model_tool_bridge": {
-      "current_transport": "client_executed_dynamic_tools",
-      "bridge_must_reuse_typed_host_gate": true,
-      "direct_app_server_or_ledger_bypass_forbidden": true,
-      "required_high_level_tools": [
-        "list_threads",
-        "read_thread",
-        "send_message_to_thread",
-        "fork_thread",
-        "archive_thread",
-        "unarchive_thread",
-        "wait_thread"
-      ],
-      "tool_calls_must_apply_same_dispatch_advisory_idempotency_and_receipt_policy_as_gui": true,
-      "codex_cli_schema_observation": {
-        "version": "0.144.1",
-        "generator": "generate-ts",
-        "dynamic_tools_field_present": false,
-        "observed_at": "2026-07-13"
-      },
-      "ephemeral_live_probe_observation": {
-        "dynamic_tools_registration_accepted": true,
-        "received_event": "item/tool/call",
-        "turn_completed": true,
-        "observed_at": "2026-07-13"
-      },
-      "schema_drift_record_required": true,
-      "runtime_capability_probe_required": true,
-      "probe_policy": "probe_runtime_behavior_instead_of_inferring_support_from_generate_ts",
-      "fallback_policy": "typed_model_tool_unavailable_with_user_driven_host_coordination_preserved",
-      "fallback_must_not_claim_p1_model_tool_ready": true
-    },
-    "local_p0_p1_acceptance": {
-      "scope": "local_machine_only",
-      "thread_directory": {
-        "list_protocol": "thread/list",
-        "read_protocol": "thread/read",
-        "required_fields": [
-          "thread_id",
-          "status",
-          "summary",
-          "project",
-          "workspace",
-          "host",
-          "owner",
-          "goal",
-          "archived",
-          "parent_thread_id",
-          "ancestor_thread_ids",
-          "active_turn_id",
-          "write_set"
-        ],
-        "default_scope": "current_project",
-        "project_workspace_role": "default_cwd_sidebar_grouping_and_visible_metadata_not_authorization_domain",
-        "cross_project_filter_changes_authorization": false,
-        "archived_scope_requires_explicit_filter": true
-      },
-      "lifecycle_actions": [
-        "read",
-        "resume",
-        "fork",
-        "archive",
-        "unarchive"
-      ],
-      "dispatch_policy": {
-        "persisted_unloaded_thread": "thread/resume_then_turn/start",
-        "loaded_idle_thread": "turn/start",
-        "running_urgent_message": "turn/steer_with_explicit_realtime_label",
-        "running_nonurgent_message": "host_queue_then_turn/start_when_idle",
-        "unknown_or_stale_status": "refresh_then_route_or_protocol_failure",
-        "archived_thread": "typed_failure_until_explicit_unarchive_no_silent_replacement",
-        "opl_extra_confirmation_policy": "none_including_archive_cross_project_cross_workspace_workspace_write_write_set_overlap_running_steer_and_loop_advisory",
-        "queue_owner": "opl_app_typed_host_bridge",
-        "queue_must_not_copy_or_own_thread_history": true
-      },
-      "delivery_request_defaults": {
-        "permission": "inherit",
-        "write_set": [],
-        "write_set_role": "optional_advisory_metadata_not_permission_input"
-      },
-      "turn_start_inheritance_policy": {
-        "target_thread_sticky_settings_inherited": true,
-        "fields_must_not_be_sent": [
-          "cwd",
-          "runtimeWorkspaceRoots",
-          "approvalPolicy",
-          "sandboxPolicy"
-        ]
-      },
-      "hard_failure_conditions": [
-        "protocol_unavailable_or_invalid",
-        "target_not_found",
-        "target_archived",
-        "target_not_writable",
-        "cross_host_unsupported",
-        "codex_permission_or_user_request_declined_or_cancelled",
-        "interactive_server_request_handler_unavailable_or_invalid"
-      ],
-      "interactive_server_request_policy": {
-        "pending_state_role": "codex_native_interactive_request_not_dispatch_failure",
-        "supported_kinds": [
-          "command_approval",
-          "file_change_approval",
-          "permissions_approval",
-          "user_input",
-          "mcp_elicitation"
-        ],
-        "resolution_owner": "user_via_typed_opl_host_bridge",
-        "unknown_server_request_policy": "fail_closed_json_rpc_method_not_found",
-        "separate_persisted_approval_receipt_required": false
-      },
-      "advisory_signals": [
-        "project_workspace_difference",
-        "write_set_overlap",
-        "delegation_cycle_or_repeated_route"
-      ],
-      "idempotency_policy": {
-        "dedupe_scope": "same_opaque_request_or_idempotency_key_retry_only",
-        "same_key_retry_behavior": "return_idempotent_duplicate_result_without_second_dispatch",
-        "message_content_repeat_allowed": true
-      },
-      "must_not_block_or_confirm_for": [
-        "cross_project",
-        "cross_workspace",
-        "workspace_write",
-        "write_set_overlap",
-        "running_turn_steer",
-        "delegation_cycle_advisory"
-      ],
-      "protocol_boundaries": [
-        "host_scope_check",
-        "target_identity_and_status_validation",
-        "codex_permission_and_approval_passthrough"
-      ],
-      "bilateral_receipt": {
-        "required": true,
-        "source_timeline_projection": true,
-        "target_timeline_projection": true,
-        "rail_or_thread_detail_readback": true,
-        "statuses": [
-          "created",
-          "accepted",
-          "queued",
-          "delivered",
-          "running",
-          "completed",
-          "failed",
-          "cancelled",
-          "rejected"
-        ],
-        "required_fields": [
-          "delivery_id",
-          "coordination_id",
-          "source_thread_id",
-          "target_thread_id",
-          "source_host_id",
-          "target_host_id",
-          "project_key",
-          "sender",
-          "intent",
-          "reason",
-          "message_summary",
-          "protocol_method",
-          "queue_decision",
-          "codex_permission_policy_inheritance",
-          "project_workspace_context",
-          "write_set_advisory",
-          "loop_advisory",
-          "idempotency_result",
-          "status",
-          "result_summary_or_ref",
-          "created_at",
-          "completed_at"
-        ],
-        "full_thread_history_copy_forbidden": true
-      },
-      "required_typed_failure_states": [
-        "protocol_unavailable",
-        "protocol_invalid",
-        "target_not_found",
-        "archived_target",
-        "target_not_writable",
-        "cross_host_unsupported",
-        "permission_denied",
-        "dispatch_failed",
-        "wait_timeout"
-      ],
-      "required_pending_states": [
-        "approval_pending",
-        "user_input_pending",
-        "mcp_elicitation_pending",
-        "server_request_resolving"
-      ],
-      "user_visibility_policy": "sender_target_reason_message_result_permission_policy_and_advisory_context_visible_and_auditable_interactive_server_requests_visible_in_target_context",
-      "forbidden_implementations": [
-        "send_input_as_cross_top_level_message_bus",
-        "shell_owned_duplicate_thread_store",
-        "model_generated_thread_id",
-        "shell_owned_permission_model",
-        "project_or_workspace_as_authorization_domain",
-        "write_set_overlap_as_dispatch_blocker",
-        "delegation_loop_as_dispatch_blocker",
-        "message_content_as_dedupe_key",
-        "any_opl_confirmation_for_thread_read_dispatch_steer_or_archive",
-        "interactive_server_request_as_immediate_dispatch_failure",
-        "delivery_audit_as_independent_approval_receipt"
-      ]
-    },
-    "desktop_webui_parity": {
-      "required": true,
-      "same_typed_host_bridge_contract": true,
-      "same_thread_actions": true,
-      "same_queue_advisory_idempotency_and_codex_permission_semantics": true,
-      "same_bilateral_receipt_and_failure_visibility": true,
-      "delivery_transport_may_differ": true,
-      "desktop_only_coordination_capability_allowed": false,
-      "webui_browser_renderer_direct_app_server_access_allowed": false,
-      "webui_node_host_typed_app_server_adapter_allowed": true
-    },
-    "remote_p2": {
-      "status": "deferred",
-      "local_p0_p1_must_not_depend_on_remote_host_aggregation": true,
-      "future_scope": [
-        "authenticated_saved_app_server_connections",
-        "host_scoped_thread_directory_and_health",
-        "cross_host_permission_and_route_policy",
-        "disconnect_recovery_and_bilateral_receipt"
-      ],
-      "remote_ready_claim_allowed": false,
-      "local_focused_tests_prove_remote_ready": false
-    },
-    "false_ready_boundary": {
-      "contract_or_docs_prove_implementation_complete": false,
-      "focused_tests_prove_packaged_capability": false,
-      "candidate_validation_proves_active_shell_adopted": false,
-      "candidate_validation_proves_release_ready": false,
-      "candidate_validation_proves_production_ready": false,
-      "candidate_validation_proves_clean_vm_ready": false,
-      "candidate_validation_proves_remote_ready": false,
-      "active_shell_adopted": false,
-      "release_ready": false,
-      "production_ready": false,
-      "clean_vm_ready": false,
-      "remote_ready": false
-    }
   },
   "validation_commands": [
     {
@@ -572,5 +177,43 @@
       "command": "npm run smoke:visual",
       "policy": "manual_or_vm_foreground_only"
     }
-  ]
+  ],
+  "thread_adapter_boundary": {
+    "source_ref": "contracts/app-gui-product-contract.json#interaction_baseline.thread_coordination",
+    "adapter": "single_codex_app_server_adapter",
+    "protocol_owner": "codex_core_app_server",
+    "thread_store_owner": "codex_core_app_server",
+    "user_initiated_only": true,
+    "supported_protocols": [
+      "thread/list",
+      "thread/read",
+      "thread/start",
+      "thread/resume",
+      "thread/fork",
+      "thread/archive",
+      "thread/unarchive",
+      "turn/start",
+      "turn/steer"
+    ],
+    "codex_subagent_projection": {
+      "mode": "read_only_thread_metadata_and_items",
+      "thread_source_kinds": [
+        "subAgent",
+        "subAgentReview",
+        "subAgentCompact",
+        "subAgentThreadSpawn",
+        "subAgentOther"
+      ],
+      "thread_item_types": [
+        "collabAgentToolCall",
+        "subAgentActivity"
+      ],
+      "metadata_fields": [
+        "parentThreadId",
+        "agentRole",
+        "agentNickname"
+      ]
+    },
+    "private_coordination_layer_allowed": false
+  }
 }

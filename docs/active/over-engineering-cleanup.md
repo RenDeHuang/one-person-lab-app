@@ -10,11 +10,13 @@ retirement by itself.
 
 ## Current conclusion
 
-The previously approved 2026-07-10 cleanup tranche is complete and is not an
-active work queue. Its dated scope and verification are archived in
+The dated 2026-07-10 cleanup tranche is complete. Its scope and verification are archived in
 [`2026-07-10-over-engineering-cleanup.md`](../history/process/2026-07-10-over-engineering-cleanup.md).
-The P1a-P1c/M1 rows below are separately authorized narrow machine-cleanup
-slices; they do not reopen the archived tranche or authorize broad source deletion.
+The current reduction program is active and ordered by
+[`app-ideal-state-gap-plan.md`](app-ideal-state-gap-plan.md). Each tranche must
+start from a current owner surface, a real consumer, and a focused behavioral
+failure or maintenance cost; this document records the safe deletion boundary,
+not a second completion ledger.
 
 The GUI role boundary remains fixed: AionUI is active,
 `opl-native-workbench` is the foreground alternative, Hermes is retained, and
@@ -38,15 +40,17 @@ retirement.
 
 ## Ordered machine-cleanup candidates
 
-These are authorized narrow machine-cleanup slices. Each row is limited to its
-owner surface and five-axis acceptance; X0 classification alone is never delete authority:
+These are the authorized reduction tranches. Their status remains split by the
+five evidence axes in `app-ideal-state-gap-plan.md`; the compact status below is
+only an execution pointer and must not be used to infer Pixel, Install, or Release.
+X0 classification alone is never delete authority.
 
-| Order | Candidate | Safe boundary and acceptance |
-| --- | --- | --- |
-| P1a | X0-01 Runtime cockpit default-gate pruning | App machine/source slice is implemented: preserve the Framework producer and optional AionUI route, keep route-specific checks in `validate:runtime-route`, and exclude Runtime from B0/R1/U1, P0, default release/design-system gates, and Native phase-1 parity. Pixel/Install/Release remain unverified. |
-| P1b | X0-03/X0-04 Workspace/Fabric/HPC/Console literal-gate pruning | App contract/fixture/validator slice is implemented: optional owner refs appear only with a canonical projection and absent projections create no placeholder. Remaining AionUI source work must split group visibility and remove hosted-platform promise copy; App-owned scheduling, billing, credentials, storage execution, and provider truth remain absent. |
-| P1c | X0-05 private cross-thread pruning | Preserve the single App Server directory/user-action adapter and B0 thread operations. Remove Native candidate hard requirements for private host, dynamic model tools, ledger/receipts, advisory/idempotency, and cross-host parity. Candidate validation must still prove one adapter and no private layer. |
-| M1 | Alternative-carrier default-gate decoupling | After P1c, default AionUI/full/release gates keep only minimal fixed-role registry integrity. Native, Hermes, and AGUI detail validation becomes explicit on demand; archived/reference schemas shrink to role tombstones and replay refs. Active AionUI gates must not fail on untouched candidate drift, while `validate:candidate:native` and other explicit replay commands remain functional. |
+| Order | Candidate | Current state | Safe boundary and acceptance |
+| --- | --- | --- | --- |
+| P1a | X0-01 Runtime cockpit default-gate pruning | App machine/source slice implemented; Pixel, Install, and Release remain unverified. | Preserve the Framework producer and optional AionUI route, keep route-specific checks in `validate:runtime-route`, and exclude Runtime from B0/R1/U1, P0, default release/design-system gates, and Native phase-1 parity. |
+| P1b | X0-03/X0-04 Workspace/Fabric/HPC/Console literal-gate pruning | App contract/fixture/validator slice implemented; AionUI conditional rendering and copy remain Source work. | Optional owner refs appear only with a canonical projection and absent projections create no placeholder. Split Shell group visibility and remove hosted-platform promise copy; App-owned scheduling, billing, credentials, storage execution, and provider truth remain absent. |
+| P1c | X0-05 private cross-thread pruning | App candidate machine truth and Native Source implemented; Pixel, Install, and Release remain unverified. | Preserve one App Server directory/user-action adapter, the standard thread lifecycle, and read-only Codex subagent metadata/source kinds/thread items. Keep the Native private host, model-triggered cross-thread tools, OPL-owned queue, coordination ledger/receipts, advisory/idempotency, and cross-host layer absent. Candidate validation must continue to reject a second control plane. |
+| M1 | Alternative-carrier default-gate decoupling | Queued after P1c Source cleanup. | Default AionUI/full/release gates keep only minimal fixed-role registry integrity. Native, Hermes, and AGUI detail validation becomes explicit on demand; archived/reference schemas shrink to role tombstones and replay refs. Active AionUI gates must not fail on untouched candidate drift, while `validate:candidate:native` and other explicit replay commands remain functional. |
 
 ## Future slice requirements
 
