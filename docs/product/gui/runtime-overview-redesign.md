@@ -4,13 +4,14 @@ Owner: `one-person-lab-app`
 Purpose: `runtime_work_item_projection_retained_support`
 State: `active_retained_route_reference`
 Product classification: `X0-01`
-Maintenance debt: `core_gate_pruning_pending`
+Maintenance state: `default_gate_decoupled_explicit_route_validation`
 Machine boundary: 本文解释条件保留 Runtime route 的既有字段职责。当前机器实现归
 `contracts/app-gui-product-contract.json#pages.runtime_status.runtime_cockpit_product_contract`、
 `contracts/app-runtime-bridge.json#work_item_projection`、
 `contracts/app-page-state-matrix.json#pages[id=runtime]`、validators、source 与 tests；本文不拥有
-Framework runtime、domain truth、artifact authority 或 release evidence。上述 contract/validator
-目前仍把 Runtime 当硬门，后续需单独收薄；validator pass 只证明现有 contract/source 一致。
+Framework runtime、domain truth、artifact authority 或 release evidence。默认 contract/validator
+只保留 Framework producer/authority 边界；完整 route/page-state/display 行为由显式
+`validate:runtime-route` / `test:runtime-route` 验证。
 
 ## 结论
 
@@ -20,10 +21,10 @@ Runtime 是当前 AionUI 条件保留的极简项目工作状态页，不是 obs
 项目、有哪些任务、每项任务是什么状态、是否在跑、当前和下一 Stage 是什么、用了多少 Token。
 当前 Attempt 按需在 Stage 弹层和任务详情中显示。
 
-现有 Runtime cockpit contract、page-state、design-system/release validators 仍带 core hard gate。
-产品分类是 `retained_x0_route`，Source 状态只在五轴矩阵读取，`core_gate_pruning_pending`
-作为独立 maintenance debt。移出这些硬门是后续 machine cleanup；本文只纠正文档读法，
-不把现有一致性检查解释为产品必要性。
+Runtime 产品分类是 `retained_x0_route`，Source 状态只在五轴矩阵读取。默认
+product/design/release/Native phase-1 gates 已与 route detail 解耦；Framework producer 保持必需，
+route detail 仅在显式可选入口验证。该收敛不把现有 Source、历史像素或安装记录解释为
+Pixel、Install、Release 或产品核心必要性。
 
 Codex/App 更新、Temporal/provider/platform repair、托管依赖与 raw diagnostics 归 Maintenance；
 Agent Package lifecycle 归 Agents；Skills/Plugins/Flow 和本机能力归 Capabilities；artifact

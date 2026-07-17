@@ -11,7 +11,6 @@ const contractPaths = {
   productProfile: 'contracts/app-product-profile.json',
   guiProductContract: 'contracts/app-gui-product-contract.json',
   pageStateMatrix: 'contracts/app-page-state-matrix.json',
-  shellCandidates: 'contracts/app-shell-candidates.json',
 } as const;
 
 function readOplFlowConfiguredDefault(): { model: string; reasoning_effort: string } {

@@ -153,7 +153,7 @@ test('GUI design-system validator accepts a complete fixture without promoting r
   assert.equal(summary.superseded_codex_reference, supersededCodexReference);
   assert.equal(summary.reference_boundary.app_contract_status, 'aligned_contract');
   assert.equal(summary.reference_boundary.page_state_status, 'aligned_contract');
-  assert.equal(summary.reference_boundary.native_candidate_status, 'aligned_contract');
+  assert.equal(summary.reference_boundary.candidate_detail_validation, 'explicit_on_demand');
   assert.equal(summary.state_boundary.ideal_native_rail_visible, true);
   assert.equal(summary.state_boundary.active_aionui_rail_state, 'visible_wide_drawer_narrow');
   assert.equal(summary.state_boundary.active_aionui_conformance.rail_matches_ideal, true);
@@ -174,6 +174,19 @@ test('GUI design-system validator accepts a complete fixture without promoting r
     entries_verified: 8,
     packaged_command: true,
   });
+});
+
+test('GUI design-system validator rejects explicit candidate detail in default convergence', () => {
+  const root = createFixture();
+  const packagePath = path.join(root, 'package.json');
+  const packageJson = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
+  packageJson.scripts['validate:shell-convergence'] += ' && npm run validate:candidate:native';
+  writeJson(root, 'package.json', packageJson);
+
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /must not pull explicit candidate detail into default gates/,
+  );
 });
 
 test('GUI design-system validator rejects a fixed Home shortcut limit', () => {
@@ -296,16 +309,23 @@ test('GUI design-system validator rejects an unknown convergence plan state', ()
 test('GUI design-system validator follows a changed App-profile reasoning default', () => {
   const root = createFixture();
   const profilePath = path.join(root, 'contracts/app-product-profile.json');
-  const registryPath = path.join(root, 'contracts/app-shell-candidates.json');
   const profile = JSON.parse(fs.readFileSync(profilePath, 'utf8'));
-  const registry = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
   profile.codex.default_reasoning_effort = 'future-effort';
-  registry.candidates.find((candidate) => candidate.id === 'opl-native-workbench').visual_parity_contract.default_reasoning_effort =
-    'future-effort';
   writeJson(root, 'contracts/app-product-profile.json', profile);
-  writeJson(root, 'contracts/app-shell-candidates.json', registry);
 
   assert.equal(validateGuiDesignSystem(root).model_defaults.reasoning_effort, 'future-effort');
+});
+
+test('GUI design-system validator ignores explicit Native candidate detail drift', () => {
+  const root = createFixture();
+  const registryPath = path.join(root, 'contracts/app-shell-candidates.json');
+  const registry = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
+  const native = registry.candidates.find((candidate) => candidate.id === 'opl-native-workbench');
+  native.visual_parity_contract.default_reasoning_effort = 'candidate-only-drift';
+  native.required_capabilities = [];
+  writeJson(root, 'contracts/app-shell-candidates.json', registry);
+
+  assert.equal(validateGuiDesignSystem(root).status, 'consistent');
 });
 
 test('GUI design-system validator reports a collapsed active AionUI rail as a contract deviation', () => {
@@ -414,20 +434,7 @@ test('GUI design-system validator rejects an undeclared candidate-registry Codex
   writeJson(root, 'contracts/app-shell-candidates.json', registry);
   assert.throws(
     () => validateGuiDesignSystem(root),
-    /candidate registry Codex comparison baseline must be current or a declared superseded observation/,
-  );
-});
-
-test('GUI design-system validator rejects a Native fallback to a superseded reference without deviation status', () => {
-  const root = createFixture();
-  const registryPath = path.join(root, 'contracts/app-shell-candidates.json');
-  const registry = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
-  registry.candidates.find((candidate) => candidate.id === 'opl-native-workbench').visual_parity_contract.comparison_baseline =
-    'ChatGPT Codex macOS 26.707.31123 (2026-07-10)';
-  writeJson(root, 'contracts/app-shell-candidates.json', registry);
-  assert.throws(
-    () => validateGuiDesignSystem(root),
-    /native candidate must explicitly declare its superseded Codex reference as a candidate deviation/,
+    /design-system governance Codex comparison baseline must be current or a declared superseded observation/,
   );
 });
 
@@ -827,17 +834,15 @@ test('GUI design-system validator rejects a candidate-owned ideal target', () =>
   );
 });
 
-test('GUI design-system validator rejects a native ideal rail regression', () => {
+test('GUI design-system validator rejects an App-owned ideal rail regression', () => {
   const root = createFixture();
   const registryPath = path.join(root, 'contracts', 'app-shell-candidates.json');
   const registry = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
-  registry.candidates.find(
-    (candidate) => candidate.id === 'opl-native-workbench',
-  ).target_product_shape.workspace_session_rail_default_visible = false;
+  registry.design_system_governance.state_boundary.ideal_target.workspace_session_rail_default_visible = false;
   writeJson(root, 'contracts/app-shell-candidates.json', registry);
   assert.throws(
     () => validateGuiDesignSystem(root),
-    /native candidate and ideal target must keep the desktop workspace\/session rail visible/,
+    /App-owned ideal target must keep the desktop workspace\/session rail visible/,
   );
 });
 

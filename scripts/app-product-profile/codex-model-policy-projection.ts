@@ -9,7 +9,6 @@ export type CodexModelPolicyContractBundle = {
   productProfile: JsonObject;
   guiProductContract: JsonObject;
   pageStateMatrix: JsonObject;
-  shellCandidates: JsonObject;
 };
 
 function requireNonEmptyString(value: unknown, label: string): string {
@@ -43,7 +42,7 @@ export function projectCodexModelPolicyContracts(
   source: CodexModelPolicyContractBundle,
 ): CodexModelPolicyContractBundle {
   const bundle = structuredClone(source);
-  const { productProfile, guiProductContract, pageStateMatrix, shellCandidates } = bundle;
+  const { productProfile, guiProductContract, pageStateMatrix } = bundle;
   const configuredDefault = readCodexConfiguredDefault(productProfile);
   const { model, reasoning_effort: reasoningEffort } = configuredDefault;
   const policy = productProfile.codex.auto_model_policy;
@@ -102,21 +101,6 @@ export function projectCodexModelPolicyContracts(
   guidHome.home_view_model.codex_default_reasoning_effort = reasoningEffort;
   guidHome.home_view_model.codex_default_display_label = displayLabelZh;
   guidHome.home_view_model.codex_default_model_display_value = displayLabelZh;
-
-  const nativeCandidate = shellCandidates.candidates.find((candidate: JsonObject) => candidate.id === 'opl-native-workbench');
-  if (!nativeCandidate?.visual_parity_contract) {
-    throw new Error('app-shell-candidates must expose opl-native-workbench.visual_parity_contract');
-  }
-  nativeCandidate.visual_parity_contract.default_model = model;
-  nativeCandidate.visual_parity_contract.default_reasoning_effort = reasoningEffort;
-
-  const hermesCandidate = shellCandidates.candidates.find((candidate: JsonObject) => candidate.id === 'hermes-codex');
-  if (!hermesCandidate?.model_access_policy || !hermesCandidate?.first_run_contract?.model_access_wizard) {
-    throw new Error('app-shell-candidates must expose hermes-codex model access contracts');
-  }
-  hermesCandidate.model_access_policy.default_model = model;
-  hermesCandidate.model_access_policy.reasoning_effort = reasoningEffort;
-  hermesCandidate.first_run_contract.model_access_wizard.default_model = model;
 
   return bundle;
 }

@@ -38,8 +38,7 @@ export type GuiDesignSystemValidation = {
   reference_boundary: {
     app_contract_status: 'aligned_contract';
     page_state_status: 'aligned_contract';
-    native_candidate_reference: string;
-    native_candidate_status: ContractConformanceStatus;
+    candidate_detail_validation: 'explicit_on_demand';
   };
   model_defaults: {
     model: string;
@@ -492,10 +491,21 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   if (alternatives.only_foreground_alternative !== 'opl-native-workbench') {
     issues.add('candidate registry must keep opl-native-workbench foreground');
   }
-  if (!stringArray(alternatives.reference_only_candidates).includes('hermes-codex') || hermesCandidate.state !== 'technical_reference') {
+  if (stringArray(alternatives.default_candidate_validation_scope).length !== 0) {
+    issues.add('default GUI design validation must use role registry only, not candidate detail');
+  }
+  if (
+    !stringArray(alternatives.reference_only_candidates).includes('hermes-codex') ||
+    hermesCandidate.state !== 'technical_reference' ||
+    hermesCandidate.role_tombstone !== true
+  ) {
     issues.add('candidate registry must keep hermes-codex as a retained reference candidate');
   }
-  if (!stringArray(alternatives.archived_technical_proofs).includes('agui-codex') || aguiCandidate.state !== 'archived_technical_proof') {
+  if (
+    !stringArray(alternatives.archived_technical_proofs).includes('agui-codex') ||
+    aguiCandidate.state !== 'archived_technical_proof' ||
+    aguiCandidate.role_tombstone !== true
+  ) {
     issues.add('candidate registry must keep agui-codex as archived technical proof');
   }
   if (nativeCandidate.foreground_alternative_role !== 'only_foreground_alternative') {
@@ -1526,15 +1536,13 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     issues.add('page-state acceptance boundary must keep human target separate from source and pixel completion');
   }
 
-  const nativeShape = record(nativeCandidate.target_product_shape);
-  const nativeVisualContract = record(nativeCandidate.visual_parity_contract);
   const stateBoundary = record(governance.state_boundary);
   const idealTarget = record(stateBoundary.ideal_target);
-  if (nativeShape.workspace_session_rail_default_visible !== true || idealTarget.workspace_session_rail_default_visible !== true) {
-    issues.add('native candidate and ideal target must keep the desktop workspace/session rail visible');
+  if (idealTarget.workspace_session_rail_default_visible !== true) {
+    issues.add('App-owned ideal target must keep the desktop workspace/session rail visible');
   }
-  if (nativeShape.inspector_default_visible !== false || idealTarget.inspector_default_visible !== false) {
-    issues.add('native candidate and ideal target must keep the inspector closed by default');
+  if (idealTarget.inspector_default_visible !== false) {
+    issues.add('App-owned ideal target must keep the inspector closed by default');
   }
   if (
     idealTarget.owner !== 'one-person-lab-app' ||
@@ -1615,9 +1623,6 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   if (!defaultModel || !defaultReasoningEffort) {
     issues.add('app-product-profile Codex defaults must be non-empty strings');
   }
-  if (nativeVisualContract.default_model !== defaultModel || nativeVisualContract.default_reasoning_effort !== defaultReasoningEffort) {
-    issues.add('native candidate model defaults must derive from app-product-profile');
-  }
   const mentionedModels = new Set((governedText.match(/\bgpt-[a-z0-9.-]+\b/gi) ?? []).map((value) => value.toLowerCase()));
   for (const model of mentionedModels) {
     if (model !== defaultModel) {
@@ -1634,23 +1639,11 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   }
 
   const codexGovernance = record(governance.codex_reference);
-  const nativeCandidateReference =
-    typeof nativeVisualContract.comparison_baseline === 'string' ? nativeVisualContract.comparison_baseline : '';
   if (![codexReference, ...supersededCodexReferences].includes(String(codexGovernance.comparison_baseline))) {
-    issues.add(`candidate registry Codex comparison baseline must be current or a declared superseded observation`);
-  }
-  if (![codexReference, ...supersededCodexReferences].includes(nativeCandidateReference)) {
-    issues.add(`native candidate Codex comparison baseline must be ${codexReference} or a declared superseded observation`);
+    issues.add(`design-system governance Codex comparison baseline must be current or a declared superseded observation`);
   }
   if (
-    supersededCodexReferences.includes(nativeCandidateReference) &&
-    nativeVisualContract.current_reference_status !== 'superseded_reference_candidate_deviation'
-  ) {
-    issues.add('native candidate must explicitly declare its superseded Codex reference as a candidate deviation');
-  }
-  if (
-    codexGovernance.source_usage !== 'visual_and_interaction_reference_only_no_code_or_brand_copy' ||
-    nativeVisualContract.source_usage !== codexGovernance.source_usage
+    codexGovernance.source_usage !== 'visual_and_interaction_reference_only_no_code_or_brand_copy'
   ) {
     issues.add('Codex comparison baseline must remain a visual/interaction reference only');
   }
@@ -1660,8 +1653,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     evidenceBoundary.validation_scope !== 'design_system_governance_consistency_only' ||
     evidenceBoundary.docs_or_visual_qa_can_claim_release_ready !== false ||
     evidenceBoundary.pixel_verified_implies_visual_parity !== false ||
-    evidenceBoundary.pixel_verified_implies_release_ready !== false ||
-    nativeVisualContract.docs_or_contract_only_completion_allowed !== false
+    evidenceBoundary.pixel_verified_implies_release_ready !== false
   ) {
     issues.add('design-system validation and visual/docs evidence must not claim release readiness');
   }
@@ -1670,11 +1662,18 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   if (scripts['validate:gui-design-system'] !== 'node --experimental-strip-types scripts/validate-gui-design-system.ts') {
     issues.add('package.json must expose validate:gui-design-system');
   }
+  const shellConvergence = typeof scripts['validate:shell-convergence'] === 'string'
+    ? scripts['validate:shell-convergence']
+    : '';
   if (
-    typeof scripts['validate:shell-convergence'] !== 'string' ||
-    !scripts['validate:shell-convergence'].includes('npm run validate:gui-design-system')
+    !shellConvergence.includes('npm run validate:gui-design-system') ||
+    !shellConvergence.includes('npm run validate:active-shell -- --quick') ||
+    !shellConvergence.includes('npm run validate:shell-candidates')
   ) {
-    issues.add('validate:shell-convergence must include validate:gui-design-system');
+    issues.add('validate:shell-convergence must include design, active-shell quick, and role-registry validation');
+  }
+  if (shellConvergence.includes('validate:candidate:') || shellConvergence.includes('--candidate')) {
+    issues.add('validate:shell-convergence must not pull explicit candidate detail into default gates');
   }
 
   if (issues.size > 0) {
@@ -1697,8 +1696,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     reference_boundary: {
       app_contract_status: 'aligned_contract',
       page_state_status: 'aligned_contract',
-      native_candidate_reference: nativeCandidateReference,
-      native_candidate_status: conformanceStatus(nativeCandidateReference === codexReference),
+      candidate_detail_validation: 'explicit_on_demand',
     },
     model_defaults: {
       model: defaultModel,

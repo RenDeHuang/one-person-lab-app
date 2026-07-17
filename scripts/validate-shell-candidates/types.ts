@@ -148,6 +148,34 @@ export type ShellCandidate = HermesTargetStateContract & {
   non_goals: string[];
 };
 
+export type ShellCandidateRoleTombstone = {
+  id: string;
+  state: 'technical_reference' | 'archived_technical_proof';
+  archived_reason?: string;
+  default_update_policy?: string;
+  foreground_alternative_role?: string;
+  candidate_root: string;
+  adapter_contract: string;
+  source_topology: 'external_checkout_linked_shell_repo';
+  release_participation:
+    | 'manual_on_demand_technical_verification_build_only'
+    | 'explicit_user_requested_technical_replay_only';
+  role_tombstone: true;
+  checkout_policy?: {
+    primary_path: string;
+    accepted_alternate_path: string;
+    missing_checkout_status: string;
+  };
+  replay: {
+    mode: 'manual_on_demand_only' | 'explicit_user_request_only';
+    validator_command: string;
+    runbook_ref: string;
+    source_checkout_policy: 'optional_until_explicit_replay';
+  };
+};
+
+export type ShellCandidateEntry = ShellCandidate | ShellCandidateRoleTombstone;
+
 export type ShellCandidateRegistry = {
   schema_version: number;
   owner: string;
@@ -165,6 +193,7 @@ export type ShellCandidateRegistry = {
     only_foreground_alternative: string;
     basis: string;
     default_candidate_validation_scope: string[];
+    explicit_candidate_validation_scope: string[];
     reference_only_candidates?: string[];
     reference_candidate_policy?: string;
     reference_candidate_execution_policy: {
@@ -224,7 +253,14 @@ export type ShellCandidateRegistry = {
     candidate_validation_script: string;
     adoption_gate: string[];
     default_validation_scope?: string;
+    default_validation_contract?: string;
     archived_technical_proof_policy?: string;
+    role_tombstone_contract?: {
+      applies_to_states: string[];
+      required_fields: string[];
+      detail_owner: string;
+      forbidden_detailed_fields: string[];
+    };
     no_resurrection_policy?: {
       policy_id: string;
       default_validation_scope_must_exclude_archived_proofs: boolean;
@@ -255,5 +291,5 @@ export type ShellCandidateRegistry = {
     opl_mapping: string[];
     forbidden_reuse: string[];
   }>;
-  candidates: ShellCandidate[];
+  candidates: ShellCandidateEntry[];
 };

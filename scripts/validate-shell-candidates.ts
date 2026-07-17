@@ -45,9 +45,9 @@ function main(): void {
 
   const candidates = args.candidate
     ? registry.candidates.filter((candidate) => candidate.id === args.candidate)
-    : registry.candidates.filter((candidate) => registry.alternative_gui_policy?.default_candidate_validation_scope.includes(candidate.id));
-  if (candidates.length === 0) {
-    throw new Error(`No shell candidate matched ${args.candidate ?? 'default foreground alternative scope'}`);
+    : [];
+  if (args.candidate && candidates.length === 0) {
+    throw new Error(`No shell candidate matched ${args.candidate}`);
   }
   if (args.runCandidateCommands) {
     assertReferenceCandidateCommandExecutionAllowed(
@@ -73,8 +73,18 @@ function main(): void {
       role: candidate.foreground_alternative_role ?? candidate.state,
       release_participation: candidate.release_participation,
     })),
-    default_validation_scope: args.candidate ? 'explicit_candidate' : 'foreground_alternative_only',
-    command_execution: args.runCandidateCommands ? 'explicit_candidate_commands' : 'source_and_contract_validation_only',
+    role_registry: {
+      active: registry.active_gui_mainline?.shell,
+      foreground: registry.alternative_gui_policy?.only_foreground_alternative,
+      retained: registry.alternative_gui_policy?.reference_only_candidates,
+      archived: registry.alternative_gui_policy?.archived_technical_proofs,
+    },
+    default_validation_scope: args.candidate ? 'explicit_candidate' : 'role_registry_only',
+    command_execution: args.runCandidateCommands
+      ? 'explicit_candidate_commands'
+      : args.candidate
+        ? 'explicit_source_and_contract_validation_only'
+        : 'none_role_registry_only',
     manual_reference_replay: args.manualReferenceReplay,
     release_participation: 'explicit_candidate_build_only_until_adopted',
   }, null, 2));

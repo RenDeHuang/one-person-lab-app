@@ -199,11 +199,14 @@ Active AionUI 默认状态通过 README 治理段声明的动态 state source �
 | --- | --- | --- |
 | `A1` | `bun run validate:active-shell -- --quick` | Active adapter、contracts 和 source probes 的快速结构检查。 |
 | `A2` | `bun run validate:active-shell` | Active shell 完整 App-root contract validation。 |
-| `N1` | `npm run validate:candidate:native` | Native candidate registry 与声明边界。 |
+| `C1` | `npm run validate:shell-candidates` | 只验证 active/foreground/retained/archived 固定角色，不读取 candidate detail。 |
+| `N1` | `npm run test:candidate:native` | Explicit Native candidate contract、单 App Server adapter、Codex subagent projection 与 no-private-layer 边界。 |
 | `N2` | `OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/opl-native-workbench.json node --experimental-strip-types scripts/validate-active-shell.ts --quick` | Explicit native adapter contract 结构。 |
 | `N3` | Candidate repo `npm run validate:candidate` 和 `npm run validate:state-model` | Candidate source 与 state-model consumption。 |
 | `N4` | Candidate repo `npm run smoke:visual` | Manual/foreground visual smoke；不等于 packaged acceptance。 |
 | `N5` | `npm run package:candidate:native` | Explicit candidate package path；不改变 active release shell。 |
+| `H1` | `npm run validate:candidate:hermes` | Hermes role tombstone + adapter-owned source route；缺 checkout 返回 typed blocked，不进入默认门。 |
+| `G1` | `npm run validate:candidate:agui` | AGUI archived role tombstone 与显式 replay route；不恢复 routine lane。 |
 | `V1` | Route/viewport/ref-bound screenshots、pixel checks、packaged/VM evidence | 对应视觉、package 或用户路径；每层 evidence 只证明自身。 |
 
 ## Active AionUI Priority Matrix

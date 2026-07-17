@@ -20,7 +20,6 @@ const readModelPolicyBundle = () => ({
   productProfile: readJson('contracts/app-product-profile.json'),
   guiProductContract: readJson('contracts/app-gui-product-contract.json'),
   pageStateMatrix: readJson('contracts/app-page-state-matrix.json'),
-  shellCandidates: readJson('contracts/app-shell-candidates.json'),
 });
 
 test('Codex interaction surfaces stay aligned across the App profile and contracts', () => {
@@ -435,7 +434,7 @@ test('product profile rejects catalog fallback drift from the configured default
   ));
 });
 
-test('one configured default projects across every App model-policy contract', () => {
+test('one configured default projects across every active App model-policy contract', () => {
   const bundle = readModelPolicyBundle();
   bundle.productProfile.codex.auto_model_policy.configured_default = {
     model: 'gpt-future',
@@ -445,8 +444,6 @@ test('one configured default projects across every App model-policy contract', (
   const projected = projectCodexModelPolicyContracts(bundle);
   const home = projected.productProfile.gui.home;
   const guidHome = projected.pageStateMatrix.pages.find(({ id }) => id === 'guid_home');
-  const native = projected.shellCandidates.candidates.find(({ id }) => id === 'opl-native-workbench');
-  const hermes = projected.shellCandidates.candidates.find(({ id }) => id === 'hermes-codex');
 
   assert.equal(projected.productProfile.codex.default_model, 'gpt-future');
   assert.equal(projected.productProfile.gui.home.codex_model_display_options.visible_models[0].id, 'gpt-future');
@@ -455,8 +452,6 @@ test('one configured default projects across every App model-policy contract', (
   assert.equal(home.codex_model_display_options.auto_option.catalog_unavailable_fallback_model, 'gpt-future');
   assert.equal(projected.guiProductContract.executor_policy.default_reasoning_effort, 'future-deep');
   assert.equal(guidHome.home_view_model.codex_default_model, 'gpt-future');
-  assert.equal(native.visual_parity_contract.default_reasoning_effort, 'future-deep');
-  assert.equal(hermes.model_access_policy.default_model, 'gpt-future');
   assert.equal(
     projected.productProfile.codex.auto_model_policy.known_model_reasoning_effort_overrides['gpt-future'],
     'future-deep',

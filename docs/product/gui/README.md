@@ -125,9 +125,9 @@ contract 的 lane 决定是否修改 machine truth、实现或目标。
 
 Runtime cockpit 是 X0-01 条件保留的跨项目 owner projection/route，不是 B0/R1/U1、P0、
 默认 release gate 或 Native phase-1 parity。现有 source 可以保留，但普通路径只在该 X0 route
-显式启用时展示；conversation current-task 与 Inspector refs 不依赖它。当前 machine contracts、
-page-state、design-system/release validators 仍把 Runtime 当硬门，这是待单独清理的
-`core_gate_pruning_pending`，validator pass 只能证明现有合同与 source 一致。
+显式启用时展示；conversation current-task 与 Inspector refs 不依赖它。默认 machine、
+design-system 与 release gates 只保留 Framework producer/authority 约束，不要求 Runtime route；
+完整 route/page-state/display 验证只通过显式 `validate:runtime-route` / `test:runtime-route` 执行。
 
 Conformance 必须按 `contract_status`、`source_status`、`pixel_status`、`install_status`、
 `release_status` 独立读取；`pixel_verified` 只证明存在当前像素证据，不等于视觉对齐、

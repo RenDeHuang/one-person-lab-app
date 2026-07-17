@@ -30,7 +30,7 @@ promoted into release-ready or family production-ready proof.
 - Active shell root: `shells/aionui` as an external checkout.
 - Active shell source repo: `gaofeng21cn/opl-aion-shell`.
 - Foreground alternative GUI candidate: `opl-native-workbench`, an independent shell checkout governed by the App candidate registry and adapter contract.
-- Retained GUI candidate: `hermes-codex`, based on Hermes Desktop. It remains selectable for explicit candidate validation and package builds and must not be treated as cleanup waste.
+- Retained GUI reference: `hermes-codex`, based on Hermes Desktop. Its active registry entry is a role tombstone; explicit validation, package replay, adapter, and runbook remain available without creating a routinely maintained second product line.
 - Archived technical GUI proof: `agui-codex`; do not update or improve it unless AGUI is explicitly requested.
 - App product profile: `contracts/app-product-profile.json`.
 - Framework dependency: `gaofeng21cn/one-person-lab`.
@@ -39,16 +39,14 @@ The App repo must not merge AionUI history into its default branch. AionUI
 upstream-following work stays in `opl-aion-shell`; App product release and user
 docs stay in `one-person-lab-app`.
 
-Current GUI development follows one active mainline plus retained candidate
-lanes: AionUI is the stable App GUI mainline, `opl-native-workbench` is the
-foreground alternative candidate, and Hermes Desktop / `hermes-codex` is a
-retained explicit candidate for validation, feature comparison, and candidate
-package builds. See `docs/product/gui/gui-shell-candidates.md` for the current
-topology and commands. Hermes is not the default foreground scope, but it is
-also not historical cleanup residue. The previous AG-UI/CopilotKit work
-remains useful as technical verification provenance and explicit replay
-material, but it is not a default candidate lane and should not receive routine
-updates or polish work. Treat
+Current GUI development follows one active mainline plus explicit alternative
+routes: AionUI is the stable App GUI mainline, `opl-native-workbench` is the
+foreground alternative candidate, Hermes Desktop / `hermes-codex` is a retained
+reference, and AGUI is archived proof. Default shell-candidate validation checks
+only the fixed role registry. Native detail remains explicit; Hermes/AGUI detail
+lives in adapter and replay-runbook owners rather than duplicated active-registry
+snapshots. See `docs/product/gui/gui-shell-candidates.md` for the topology and
+commands. Neither retained route receives routine builds, updates, or polish. Treat
 `candidate` in AGUI filenames, manifests, scripts, and adapter contracts as a
 backward-compatible replay label only; it does not reopen AGUI as a foreground
 candidate or default validation target. The App-owned convergence aggregate is
@@ -335,8 +333,8 @@ wrapper path.
 The existing Runtime source is retained as X0-01 and its current behavior is
 described below, but it is not a B0/R1/U1 core requirement, default release gate,
 or Native phase-1 parity target. Product/page-state/design-system/release hard
-gates are `core_gate_pruning_pending`; their current pass proves only contract/source
-consistency. Runtime page acceptance is currently declared in
+gates are now decoupled; full route behavior is checked only by the explicit
+`validate:runtime-route` / `test:runtime-route` entries. Runtime page acceptance is declared in
 `contracts/app-page-state-matrix.json`: the active shell reads the minimal task
 projection through `opl app state --profile fast --json`, uses a 5-10 second
 lightweight polling fallback when push projection is unavailable, and exposes
@@ -366,11 +364,12 @@ requirements, literal labels, forbidden-display lists, or test matrices.
 Shell alternative work is separated from the active release adapter.
 `contracts/app-shell-candidates.json` owns the registry,
 `contracts/shell-adapters/opl-native-workbench.json` owns the foreground
-alternative adapter when selected, and
-`contracts/shell-adapters/agui-codex.json` remains explicit replay only.
+alternative adapter when selected, while Hermes and AGUI active-registry entries
+are role tombstones whose detailed truth stays in their adapters and runbooks.
 `npm run validate:shell-convergence` is the thin aggregate gate for that policy:
-it runs the active-shell quick guard and shell-candidate registry validator
-without maintaining a second JSON readback surface. `docs/product/gui/opl-native-workbench-plan.md`
+it runs the active-shell quick guard and the role-registry-only candidate validator
+without maintaining a second JSON readback surface or pulling dormant candidate
+detail into default maintenance. `docs/product/gui/opl-native-workbench-plan.md`
 owns the active candidate plan. Hermes docs remain prior-candidate reference:
 `docs/product/shell-alternatives/hermes-gui-adaptation-plan.md` and
 `docs/product/shell-alternatives/hermes-first-run-flow.md`.
@@ -433,6 +432,9 @@ npm run validate:release-boundary
 npm run hygiene:fallow -- --format json --summary
 npm run validate:gui-shell
 npm run validate:shell-candidates
+npm run test:candidate:native
+npm run validate:candidate:hermes
+npm run validate:candidate:agui
 bun run i18n:types
 bun run test
 node --experimental-strip-types scripts/prepare-release-assets.ts build-artifacts release-assets

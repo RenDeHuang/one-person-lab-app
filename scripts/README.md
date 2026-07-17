@@ -21,7 +21,7 @@ should happen only when AGUI replay is explicitly requested.
 | `verify.sh` | App-root verification wrapper for smoke, active-shell, release-boundary, candidate-shell, structure, and full lanes without running release packaging by default. |
 | `validate-active-shell.ts` | Validates the selected shell adapter contract and runs selected validation commands. |
 | `validate-runtime-route.ts` | Explicitly validates the retained optional X0-01 Runtime route, including its product contract, page-state matrix, display policy, and required Framework producer. Default active-shell/release gates do not require the route. |
-| `validate-shell-candidates.ts` | Validates the foreground GUI alternative from `contracts/app-shell-candidates.json` by default. `opl-native-workbench` is the foreground alternative, Hermes is a retained reference candidate, and archived AGUI proof is checked only with `--candidate agui-codex`. Hermes source validation never builds by default; its full command chain requires `--manual-reference-replay` for an actual technical-verification need. |
+| `validate-shell-candidates.ts` | Validates only the fixed active/foreground/retained/archived role registry by default. `--candidate opl-native-workbench` enables Native detail validation; Hermes and AGUI remain role tombstones whose explicit validation/replay detail is owned by their adapters and runbooks. Hermes command execution requires `--manual-reference-replay` for an actual technical-verification need. |
 | `validate-gui-design-system.ts` | Validates the three-layer GUI definition stack, foundation-doc refs, shell roles, ideal/native versus active AionUI state markers, profile-owned model defaults, and the non-release evidence boundary. It fails closed when foundation docs are absent and never promotes docs or visual QA into release readiness. |
 | `prepare-release-assets.ts` | Calls the active shell release asset normalizer from the App root. |
 | `validate-release.ts` | Verifies release assets and enforces that standard updater metadata excludes Full first-install assets. |
@@ -53,7 +53,8 @@ should happen only when AGUI replay is explicitly requested.
 | `smoke-hermes-candidate-tart.ts` | Runs the packaged `One Person Lab Hermes Candidate.app` first-run fixture smoke inside a Tart clean VM, copying guest artifacts back to the App repo. This is candidate technical verification only and does not promote Hermes to the release shell. |
 
 Stable App-root npm entries are `verify`, `typecheck`, `validate:release-boundary`,
-`validate:gui-design-system`, `validate:gui-shell`, `test:smoke`, `test:full`, `release:evidence:manifest`,
+`validate:gui-design-system`, `validate:gui-shell`, `validate:shell-candidates`,
+`test:smoke`, `test:full`, `release:evidence:manifest`,
 `release:evidence:validate`, and `hygiene:fallow`. `npm test` aliases the smoke
 entry so ordinary development does not run the full active-shell DOM portfolio;
 full shell Vitest evidence remains explicit through `npm run test:full`,
@@ -121,6 +122,8 @@ npm run test:runtime-route
 node --experimental-strip-types scripts/collect-release-evidence.ts --bundle-dir release-evidence/<version> --overwrite --artifact runtime_screenshot=/path/to/runtime.png --require-conditional runtime_screenshot
 npm run hygiene:fallow -- --format json --summary
 npm run validate:gui-shell
+npm run validate:shell-candidates
+npm run test:candidate:native
 npm run validate:shell-candidates -- --candidate opl-native-workbench --run-candidate-commands
 OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/opl-native-workbench.json npm run package
 # Prior Hermes reference only:
@@ -128,7 +131,7 @@ npm run validate:candidate:hermes
 # Manual packaged replay only when an actual Hermes development task requires it:
 npm run validate:shell-candidates -- --candidate hermes-codex --run-candidate-commands --manual-reference-replay
 # Explicit AGUI replay only:
-npm run validate:shell-candidates -- --candidate agui-codex
+npm run validate:candidate:agui
 OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/agui-codex.json npm run package
 npm run smoke:hermes-candidate:tart -- --no-graphics --artifacts artifacts/hermes-candidate-tart-<timestamp> --timeout-ms 600000
 npm --prefix shells/hermes run smoke:settings-visual -- --allow-foreground --out out/smoke-settings-visual
@@ -169,25 +172,22 @@ product wrapper without a second runtime dependency tree. The root
 entrypoints; the active shell's full renderer typecheck remains owned by the
 shell repository and its own `tsconfig.json`.
 
-For shell alternatives, `npm run validate:shell-candidates` covers the
-registry-selected foreground alternative by default. The current foreground
-candidate is `opl-native-workbench` once
-`contracts/app-shell-candidates.json` selects it; Hermes Desktop is the prior
-foreground alternative reference. `agui-codex` is archived technical proof and
-is validated only with `--candidate agui-codex`. When AGUI replay is
-explicitly requested, `npm run validate:shell-candidates -- --candidate agui-codex --run-candidate-commands`
-expects the selected package command to produce
-`out/agui-codex-candidate-manifest.json` with `candidate_app_bundle_ready`,
-`explicit_candidate_app_bundle`, and a relative `.app` bundle path whose bundle
-contains `Contents/Info.plist` and a `Contents/MacOS` executable. A `.txt` smoke
-output is intentionally rejected.
-Candidate validation is non-release by default: the App-root candidate command
-chain may build the `.app` and run packaged smoke for the selected candidate,
-but it must not switch the active release shell, claim release readiness, or run
-screenshot capture / focus the user's active desktop unless a visual smoke lane
-explicitly requests it. Packaged Settings visual smoke is manual/VM evidence
-only and requires `--allow-foreground`; prefer Tart/VM for that command when
-the maintainer is using the Mac.
+For shell alternatives, `npm run validate:shell-candidates` covers only the
+minimal fixed-role registry by default. The current foreground candidate is
+`opl-native-workbench`; its full contract/evidence path is explicit through
+`validate:candidate:native`, `test:candidate:native`, or
+`--candidate opl-native-workbench --run-candidate-commands`. Hermes and AGUI are
+active-registry tombstones: `validate:candidate:hermes` and
+`validate:candidate:agui` validate their explicit routes, while command replay
+reads the detailed commands from the selected adapter. Generic App validation
+does not duplicate or reinterpret their package manifests.
+
+Candidate validation remains non-release: an explicit command chain may build
+the selected `.app` and run its adapter-owned smoke, but it must not switch the
+active release shell, claim release readiness, or focus the user's desktop
+unless a visual smoke lane explicitly requests it. Packaged Settings visual
+smoke is manual/VM evidence only and requires `--allow-foreground`; prefer
+Tart/VM when the maintainer is using the Mac.
 
 For `opl-native-workbench`, the current non-live product-surface target includes
 basic UI modules, artifact preview tabs, provenance drawer, starter forms,

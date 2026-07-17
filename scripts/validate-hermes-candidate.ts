@@ -70,6 +70,9 @@ function main(): void {
   if (!candidate) {
     throw new Error('Hermes candidate is not declared in contracts/app-shell-candidates.json');
   }
+  if (!('role_tombstone' in candidate) || candidate.role_tombstone !== true) {
+    throw new Error('Hermes registry entry must stay a role tombstone; detailed truth belongs to its adapter');
+  }
   if (candidate.adapter_contract !== hermesAdapter) {
     throw new Error(`Hermes candidate adapter_contract must be ${hermesAdapter}`);
   }
@@ -106,11 +109,10 @@ function main(): void {
       throw new Error(`Hermes adapter must declare ${capability}`);
     }
   }
-  validateFirstRunAndIconContracts(candidate, adapter);
+  validateFirstRunAndIconContracts(adapter);
   if (!adapter.deferred_until_feature_comparison?.surfaces?.includes('opl_app_state_action_bridge')) {
     throw new Error('Hermes adapter must defer OPL app state/action bridge until Hermes feature comparison is recorded');
   }
-  validateTargetStateContracts('candidate', candidate);
   validateTargetStateContracts('adapter', adapter);
 
   const checkout = resolveHermesCheckout();
@@ -261,7 +263,7 @@ function validateTargetStateContracts(label: string, target: HermesTargetStateCo
   ], `${label}.visual_parity_contract.required_evidence`);
 }
 
-function validateFirstRunAndIconContracts(candidate: ShellCandidateRegistry['candidates'][number], adapter: ReturnType<typeof readAppShellAdapterContract>): void {
+function validateFirstRunAndIconContracts(adapter: ReturnType<typeof readAppShellAdapterContract>): void {
   const expectedStartupSequence = [
     'check-opl-app-initialization-marker',
     'check-one-person-lab-cli',
@@ -286,7 +288,6 @@ function validateFirstRunAndIconContracts(candidate: ShellCandidateRegistry['can
     'contracts_diagnostics_refresh',
   ];
   for (const [label, contract] of [
-    ['candidate.first_run_contract', candidate.first_run_contract],
     ['adapter.first_run_contract', adapter.first_run_contract],
   ] as const) {
     if (!contract) throw new Error(`Hermes ${label} must be declared`);
@@ -380,7 +381,6 @@ function validateFirstRunAndIconContracts(candidate: ShellCandidateRegistry['can
   }
 
   for (const [label, contract] of [
-    ['candidate.icon_contract', candidate.icon_contract],
     ['adapter.icon_contract', adapter.icon_contract],
   ] as const) {
     if (!contract) throw new Error(`Hermes ${label} must be declared`);

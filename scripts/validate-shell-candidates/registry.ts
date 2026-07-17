@@ -1,5 +1,9 @@
 import path from 'node:path';
-import type { ShellCandidateRegistry } from './types.ts';
+import type {
+  ShellCandidateEntry,
+  ShellCandidateRegistry,
+  ShellCandidateRoleTombstone,
+} from './types.ts';
 import {
   activeAdapterPath,
   assertFile,
@@ -42,7 +46,17 @@ export function validateRegistryShape(registry: ShellCandidateRegistry): void {
   ) {
     throw new Error('candidate registry must keep OPL native workbench as the foreground alternative, Hermes as a reference candidate, and AGUI as explicit-only archived proof');
   }
-  assertStringArrayIncludes(alternative.default_candidate_validation_scope, ['opl-native-workbench'], 'alternative_gui_policy.default_candidate_validation_scope');
+  if (alternative.default_candidate_validation_scope.length !== 0) {
+    throw new Error('default candidate validation scope must stay empty; default gates validate role registry only');
+  }
+  assertStringArrayIncludes(
+    alternative.explicit_candidate_validation_scope,
+    ['opl-native-workbench', 'hermes-codex', 'agui-codex'],
+    'alternative_gui_policy.explicit_candidate_validation_scope',
+  );
+  if (alternative.explicit_candidate_validation_scope.length !== 3) {
+    throw new Error('explicit candidate validation scope must contain exactly Native, Hermes, and AGUI');
+  }
   assertStringArrayIncludes(alternative.reference_only_candidates ?? [], ['hermes-codex'], 'alternative_gui_policy.reference_only_candidates');
   if (alternative.reference_candidate_policy !== 'kept_for_explicit_reference_replay_not_default_foreground_scope') {
     throw new Error('Hermes reference candidate policy must keep Hermes out of default foreground scope');
@@ -85,7 +99,7 @@ export function validateRegistryShape(registry: ShellCandidateRegistry): void {
   if (policy.candidate_root_pattern !== 'shells/<candidate>') {
     throw new Error('candidate roots must stay under shells/<candidate>');
   }
-  if (policy.candidate_state !== 'foreground_alternative_or_archived_technical_proof') {
+  if (policy.candidate_state !== 'foreground_alternative_or_role_tombstone') {
     throw new Error(`Unexpected candidate policy state: ${policy.candidate_state}`);
   }
   if (policy.release_participation_until_adopted !== 'explicit_candidate_build_only') {
@@ -113,14 +127,151 @@ export function validateRegistryShape(registry: ShellCandidateRegistry): void {
     'candidate passes App-root candidate validation',
     'contracts/app-shell-adapter.json is changed only when candidate becomes active release shell',
   ], 'candidate_policy.adoption_gate');
-  if (policy.default_validation_scope !== 'foreground_alternative_only') {
-    throw new Error('candidate policy default validation scope must stay foreground_alternative_only');
+  if (
+    policy.default_validation_scope !== 'role_registry_only' ||
+    policy.default_validation_contract !== 'minimal_role_registry_only'
+  ) {
+    throw new Error('candidate policy default validation must stay minimal role registry only');
   }
   if (policy.archived_technical_proof_policy !== 'explicit_user_request_only') {
     throw new Error('candidate policy archived technical proof validation must be explicit_user_request_only');
   }
   validateCandidateNoResurrectionPolicy(registry);
+  validateCandidateRoleEntries(registry);
   validateDesignReferences(registry);
+}
+
+function validateCandidateRoleEntries(registry: ShellCandidateRegistry): void {
+  const entries = registry.candidates;
+  const ids = entries.map((entry) => entry.id).sort();
+  if (JSON.stringify(ids) !== JSON.stringify(['agui-codex', 'hermes-codex', 'opl-native-workbench'])) {
+    throw new Error('candidate role registry must contain exactly Native, Hermes, and AGUI');
+  }
+
+  const native = entries.find((entry) => entry.id === 'opl-native-workbench');
+  if (
+    !native ||
+    'role_tombstone' in native ||
+    native.state !== 'technical_verification' ||
+    native.foreground_alternative_role !== 'only_foreground_alternative' ||
+    native.adapter_contract !== 'contracts/shell-adapters/opl-native-workbench.json' ||
+    native.release_participation !== 'selectable_for_explicit_candidate_build'
+  ) {
+    throw new Error('Native must remain the explicit foreground candidate and must not collapse into a role tombstone');
+  }
+
+  validateRoleTombstone(
+    entries.find((entry) => entry.id === 'hermes-codex'),
+    {
+      state: 'technical_reference',
+      releaseParticipation: 'manual_on_demand_technical_verification_build_only',
+      adapterContract: 'contracts/shell-adapters/hermes-codex.json',
+      replayMode: 'manual_on_demand_only',
+      validatorCommand: 'npm run validate:candidate:hermes',
+      runbookRef: 'docs/product/shell-alternatives/hermes-first-run-flow.md',
+    },
+  );
+  validateRoleTombstone(
+    entries.find((entry) => entry.id === 'agui-codex'),
+    {
+      state: 'archived_technical_proof',
+      releaseParticipation: 'explicit_user_requested_technical_replay_only',
+      adapterContract: 'contracts/shell-adapters/agui-codex.json',
+      replayMode: 'explicit_user_request_only',
+      validatorCommand: 'npm run validate:candidate:agui',
+      runbookRef: 'docs/history/shell-candidates/agui-codex-candidate-verification.md',
+    },
+  );
+
+  const tombstoneContract = registry.candidate_policy.role_tombstone_contract;
+  if (
+    !tombstoneContract ||
+    tombstoneContract.detail_owner !== 'candidate_adapter_contract_and_replay_runbook' ||
+    JSON.stringify(tombstoneContract.applies_to_states) !==
+      JSON.stringify(['technical_reference', 'archived_technical_proof'])
+  ) {
+    throw new Error('candidate policy must keep reference and archived detail in adapters and replay runbooks');
+  }
+  const requiredFields = [
+    'id',
+    'state',
+    'candidate_root',
+    'adapter_contract',
+    'source_topology',
+    'release_participation',
+    'role_tombstone',
+    'replay',
+  ];
+  assertStringArrayIncludes(
+    tombstoneContract.required_fields,
+    requiredFields,
+    'candidate_policy.role_tombstone_contract.required_fields',
+  );
+  const forbiddenDetailedFields = [
+    'target_product_shape',
+    'framework_surfaces',
+    'required_capabilities',
+    'technical_verification',
+    'validation_commands',
+    'visual_parity_contract',
+    'first_run_contract',
+    'icon_contract',
+    'implementation_evidence',
+  ];
+  assertStringArrayIncludes(
+    tombstoneContract.forbidden_detailed_fields,
+    forbiddenDetailedFields,
+    'candidate_policy.role_tombstone_contract.forbidden_detailed_fields',
+  );
+}
+
+function validateRoleTombstone(
+  entry: ShellCandidateEntry | undefined,
+  expected: {
+    state: ShellCandidateRoleTombstone['state'];
+    releaseParticipation: ShellCandidateRoleTombstone['release_participation'];
+    adapterContract: string;
+    replayMode: ShellCandidateRoleTombstone['replay']['mode'];
+    validatorCommand: string;
+    runbookRef: string;
+  },
+): void {
+  if (!entry || !('role_tombstone' in entry) || entry.role_tombstone !== true) {
+    throw new Error('reference and archived candidates must be role tombstones');
+  }
+  if (
+    entry.state !== expected.state ||
+    entry.release_participation !== expected.releaseParticipation ||
+    entry.adapter_contract !== expected.adapterContract ||
+    entry.replay.mode !== expected.replayMode ||
+    entry.replay.validator_command !== expected.validatorCommand ||
+    entry.replay.runbook_ref !== expected.runbookRef ||
+    entry.replay.source_checkout_policy !== 'optional_until_explicit_replay'
+  ) {
+    throw new Error(`${entry.id} role tombstone must preserve its adapter and explicit replay route`);
+  }
+  if (!entry.candidate_root.startsWith('shells/') || entry.candidate_root.split(/[\\/]+/).includes('..')) {
+    throw new Error(`${entry.id} candidate_root must stay under shells/<candidate>`);
+  }
+  assertFile(path.join(root, entry.adapter_contract), `${entry.id} adapter contract`);
+  assertFile(path.join(root, entry.replay.runbook_ref), `${entry.id} replay runbook`);
+
+  const forbiddenFields = [
+    'target_product_shape',
+    'framework_surfaces',
+    'required_capabilities',
+    'technical_verification',
+    'validation_commands',
+    'visual_parity_contract',
+    'first_run_contract',
+    'icon_contract',
+    'local_p0_p1_implementation_evidence',
+  ];
+  for (const field of forbiddenFields) {
+    if (field in entry) {
+      throw new Error(`${entry.id} role tombstone must not duplicate detailed field ${field}`);
+    }
+  }
 }
 
 export function assertReferenceCandidateCommandExecutionAllowed(
@@ -258,6 +409,8 @@ function validateCandidateNoResurrectionPolicy(registry: ShellCandidateRegistry)
     'agui-codex in candidate_policy.adoption_gate',
     'candidate filename label treated as foreground alternative',
     'archived proof validation run by default',
+    'candidate implementation detail validated without explicit --candidate',
+    'reference or archived snapshot copied into default App gates',
     'release wrapper default switched without contracts/app-shell-adapter.json',
   ], 'candidate_policy.no_resurrection_policy.forbidden_default_routes');
 

@@ -1292,11 +1292,15 @@ AI exploratory release checks are non-blocking. They can provide exploratory tri
 
 Shell alternative work stays outside the default release adapter until the App release owner deliberately changes `contracts/app-shell-adapter.json`. AionUI is the active GUI mainline, `opl-native-workbench` is the foreground alternative candidate, Hermes Desktop / `hermes-codex` is the prior foreground alternative reference, and AGUI / `agui-codex` is archived technical proof replayed only when AGUI is explicitly requested; neither Hermes nor AGUI is a routine default validation or polish lane. Use `contracts/app-shell-candidates.json`, `contracts/shell-adapters/<candidate>.json`, replay runbooks, shell artifacts, manifests, and validation scripts for technical proof.
 
-Default release packaging continues to use the active adapter. Foreground alternative validation covers `opl-native-workbench` by default:
+Default release packaging continues to use the active adapter. The default shell-alternative check validates only fixed role-registry integrity; it does not inspect or build the foreground candidate:
 
 ```bash
 npm run validate:shell-candidates
 ```
+
+Native detail is explicit through `npm run validate:candidate:native` or
+`npm run test:candidate:native`. Hermes/AGUI detail remains adapter/runbook-owned
+explicit replay and never participates in default release qualification.
 
 Explicit AGUI replay requires both an explicit registry selection and an explicit adapter override:
 

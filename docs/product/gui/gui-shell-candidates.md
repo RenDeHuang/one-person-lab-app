@@ -13,12 +13,27 @@ package scripts, validation output, and candidate package artifacts.
 | Role | Shell | Physical checkout | Adapter contract | Default scope |
 | --- | --- | --- | --- | --- |
 | Active App GUI | `aionui` | `shells/aionui` or `OPL_APP_SHELL_ROOT` | `contracts/app-shell-adapter.json` | Stable/nightly App wrapper commands |
-| Foreground candidate | `opl-native-workbench` | `shells/opl-native-workbench` or `../opl-native-workbench` | `contracts/shell-adapters/opl-native-workbench.json` | Default candidate validation |
-| Retained candidate | `hermes-codex` | `shells/hermes` or `../opl-hermes-shell` | `contracts/shell-adapters/hermes-codex.json` | Source validation by default; manual on-demand technical replay only |
+| Foreground candidate | `opl-native-workbench` | `shells/opl-native-workbench` or `../opl-native-workbench` | `contracts/shell-adapters/opl-native-workbench.json` | Explicit Native validation/build only |
+| Retained candidate | `hermes-codex` | `shells/hermes` or `../opl-hermes-shell` | `contracts/shell-adapters/hermes-codex.json` | Role registry by default; explicit source validation or manual technical replay only |
 | Archived proof | `agui-codex` | `shells/agui-codex` | `contracts/shell-adapters/agui-codex.json` | Explicit AGUI replay only |
 
 Stable role marker:
 `gui_shell_roles: active=aionui; foreground=opl-native-workbench; retained=hermes-codex; archived=agui-codex`.
+
+Default maintenance validates only this four-role registry. Detailed candidate
+contracts are intentionally carrier-owned and explicit:
+
+| Validation scope | Owner entry | Default/release participation |
+| --- | --- | --- |
+| Fixed role registry | `npm run validate:shell-candidates` | Included in default structural gates; does not inspect candidate implementation detail. |
+| Native foreground detail | `npm run validate:candidate:native` / `npm run test:candidate:native` | Explicit on demand; full candidate evidence is Native-only. |
+| Hermes retained detail | `npm run validate:candidate:hermes` | Explicit source check; package/smoke command replay additionally requires `--manual-reference-replay`. |
+| AGUI archived proof | `npm run validate:candidate:agui` | Explicit historical replay only. |
+
+Hermes and AGUI are role tombstones in the active registry. Their detailed
+commands and source/package expectations live in their adapter contracts and
+replay runbooks, so changes to dormant candidate detail cannot block AionUI,
+model-policy, design-system, full, or release-boundary maintenance.
 
 ## 双 GUI、单控制面
 
@@ -32,7 +47,7 @@ OPL App 采用“同一逻辑基座、多个独立 GUI 客户端”的运行模�
 | --- | --- | --- |
 | GUI product truth、profile、page-state | `one-person-lab-app`，两个 shell 共用 | 已有 machine contracts。 |
 | OPL state/action 与 domain/package refs | OPL Framework/domain owner，两个 shell 只消费 | 已有 canonical bridge；shell 不得创建第二 truth。 |
-| Codex thread history 与 opaque thread id | Codex Core/App Server | Authority 已固定；AionUI private repository 与 Native full-transcript localStorage cache 都是 current deviations，跨 GUI directory/read/resume continuity 未证明。 |
+| Codex thread history 与 opaque thread id | Codex Core/App Server | Authority 已固定。P1c candidate bytes remove the Native private coordination/cache requirement and preserve one App Server adapter, but canonical App/Native absorption and cross-GUI directory/read/resume continuity are not yet proved. AionUI private repository remains outside this candidate cleanup. |
 | OPL/Codex executable identity | App command-resolution policy + OPL runtime owner | App launcher 已向 Native 注入 exact path/version/cohort；AionUI physical parity 仍未证明，Native 直接打开 bundle 时仍是 host-PATH fallback。 |
 | Workspace、source files、artifact refs | 用户 workspace / domain owner | 可由两个 GUI 指向同一逻辑工作区，但不据此声明并发写安全。 |
 | Renderer、framework、lockfile、`node_modules` | 每个 shell 独立 | AionUI 与 Native 不共享依赖树。 |
@@ -56,9 +71,11 @@ executable path/version/cohort readback 前，不得声称物理 Runtime parity�
 或与 AionUI 的 Runtime/session parity。两个 bundle 可并存，但在 host coordination 与并发
 负向证据完成前，只承诺快速顺序切换，不承诺两个 GUI 同时写同一 workspace/thread 的安全性。
 
-Hermes Desktop / `hermes-codex` is not cleanup waste. It is a retained
-candidate line: keep its adapter contract, wrapper commands, and checkout
-policy unless the App owner explicitly retires the candidate.
+Hermes Desktop / `hermes-codex` remains a retained technical reference, not a
+second routinely maintained product line. Keep its role tombstone, adapter,
+wrapper commands, checkout policy, and runbook unless the App owner explicitly
+retires the replay route; do not duplicate its detailed state in the active
+candidate registry.
 Hermes is not a continuously built candidate. Push, pull-request, scheduled,
 watch/on-save, daily-patrol, and routine-validation paths must not compile it.
 Package, smoke, and install evidence is produced only when an actual Hermes
@@ -134,17 +151,20 @@ Validate the default active GUI:
 npm run validate:active-shell -- --quick
 ```
 
-Validate retained or foreground candidates without changing the active GUI:
+Validate the fixed role registry, then select candidate detail explicitly
+without changing the active GUI:
 
 ```bash
 npm run validate:shell-candidates
 npm run validate:candidate:native
 npm run validate:candidate:hermes
+npm run validate:candidate:agui
 ```
 
-Build the foreground candidate through the App wrapper. Hermes packaging is a
-separate manual replay and must be justified by an actual Hermes development
-need:
+Build the foreground candidate through the App wrapper. Full Native evidence is
+owned by the Native candidate path. Hermes/AGUI command chains are read from
+their adapters; Hermes packaging remains a separate manual replay justified by
+an actual Hermes development need:
 
 ```bash
 npm run package:candidate:native
@@ -178,6 +198,6 @@ is deliberately outside that authority path.
 | 1 | Operating policy | Contracts declare launcher selection, shared Runtime resolution and conversation continuity boundaries; validators reject policy drift and false-ready flags. | Implemented for local launch policy; stronger parity/readiness claims remain gated. |
 | 2 | App-root launcher | One `--shell/--mode` interface selects active or foreground shell without mutating release adoption. | Implemented with plan/readback, isolated bundle identity and Candidate default read-only policy. |
 | 3 | Shared Runtime resolver | Both GUI clients consume the App resolver and emit exact OPL/Codex path, version and cohort readback. | Implemented for launcher-started Native only; active AionUI parity and Native direct-launch fallback remain unproven. |
-| 4 | Canonical conversation continuity | Both clients project App Server `thread/list/read/resume`; local stores contain UI state/drafts/rebuildable cache only. | AionUI private repository and Native full-transcript localStorage cache remain current deviations. |
+| 4 | Canonical conversation continuity | Both clients project App Server `thread/list/read/resume`; local stores contain UI state/drafts/rebuildable cache only. | P1c App/Native candidate bytes remove the Native private coordination/cache requirement, but canonical absorption and cross-GUI continuity evidence remain pending; AionUI private repository is unchanged by this slice. |
 | 5 | Side-by-side acceptance | Distinct bundle identities, sequential switching, same-workspace readback and negative concurrent-write cases use one exact cohort. | Pending; no simultaneous-write claim. |
 | 6 | Optional adoption | Candidate changes the active adapter and passes full release/owner gates. | Separate later decision. |

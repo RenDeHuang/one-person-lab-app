@@ -76,6 +76,8 @@ test('App verification owns one parallel release plan and one full shell executi
   const fullBody = verify.match(/full\)\n([\s\S]*?)\n\s*;;/)?.[1] ?? '';
   assert.match(fullBody, /run_lane active-shell/);
   assert.match(fullBody, /run_lane release-boundary/);
+  assert.match(fullBody, /run_lane candidate-shell/);
+  assert.doesNotMatch(fullBody, /validate:candidate:|--candidate/);
   assert.doesNotMatch(fullBody, /npm run test:full/);
 
   const adapter = JSON.parse(fs.readFileSync(path.join(appRoot, 'contracts', 'app-shell-adapter.json'), 'utf8'));
