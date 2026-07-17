@@ -20,7 +20,9 @@
 
 ## Working Rules
 
-- 修改前确认 canonical `main`、远端 currentness、当前唯一 owner 与写集；不得并发覆盖活跃 integration lane。
+- App 写入任务默认使用任务自有 worktree；根仓 `main` 只用于短时集成、最终验证和发布，不作为普通开发工作区。
+- 修改前确认 canonical `main`、远端 currentness、当前 integration owner 与本任务精确写集。仓库级单一 writer 不是默认门禁；同仓非重叠任务应在独立 worktree 并行，只有重叠写集和 `main` 吸收窗口需要串行协调。
+- 吸收前基于最新 canonical `main` 按 App contracts 和当前产品 truth 解决冲突；禁止用旧分支、旧生成物或上游默认值覆盖新主线。
 - App 产品、合同、release、测试和用户文档改在本仓根；AionUI 实现改在 Shell 仓。
 - 修改 App contracts 或 wrappers 后运行 `bun run validate:active-shell`。本地缺少 `shells/aionui/` 时先运行 `npm run ensure:shell`。
 - OPL Flow 只定义推荐 workflow profile 与冲突策略；实际安装、迁移、回滚由 Framework package transaction 执行。
