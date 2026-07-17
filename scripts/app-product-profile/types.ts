@@ -264,6 +264,15 @@ export type AppProductProfile = {
       composer_context_strip: string[];
       composer_send_scoped_inputs: string[];
       composer_send_scoped_consumption_policy: string;
+      send_failure_input_policy: {
+        must_preserve_send_scoped_local_inputs: boolean;
+        failure_scopes: string[];
+        preserved_inputs: string[];
+        success_consumption_policy: string;
+        failure_restore_policy: string;
+        concurrent_edit_merge_policy: string;
+        initial_message_handoff_policy: string;
+      };
       composer_forbidden_persistent_context: string[];
       composer_bottom_action_row: string[];
       composer_optional_actions: string[];

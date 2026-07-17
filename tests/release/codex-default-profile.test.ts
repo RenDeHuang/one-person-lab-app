@@ -680,6 +680,42 @@ test('session-first contracts reject directory ownership, stale cache authority,
   }
 });
 
+test('conversation contracts reject clearing send-scoped inputs on creation or send failure', () => {
+  const installExposure = readJson('contracts/app-install-exposure-policy.json');
+
+  const guiContract = structuredClone(readJson('contracts/app-gui-product-contract.json'));
+  guiContract.ordinary_conversation.send_failure_input_policy.must_preserve_send_scoped_local_inputs = false;
+  assert.throws(
+    () =>
+      validateAppGuiProductContract(
+        guiContract,
+        readJson('contracts/app-release-channel.json'),
+        installExposure,
+      ),
+    /ordinary conversation contract/,
+  );
+
+  const productProfile = structuredClone(readJson('contracts/app-product-profile.json'));
+  productProfile.gui.ordinary_conversation.send_failure_input_policy.failure_scopes = [
+    'conversation_creation',
+    'in_conversation_send',
+  ];
+  assert.throws(
+    () => validateProductProfile(productProfile, installExposure),
+    /must preserve prompt and attachments/,
+  );
+
+  const pageMatrix = structuredClone(readJson('contracts/app-page-state-matrix.json'));
+  pageMatrix.pages.find(
+    (page: any) => page.id === 'ordinary_conversation',
+  ).conversation_view_model.send_failure_input_policy.concurrent_edit_merge_policy =
+    'replace_current_composer';
+  assert.throws(
+    () => validatePrimaryInteractionPages(pageMatrix),
+    /Ordinary conversation view model shell policy/,
+  );
+});
+
 test('41301 profile and page state reject the legacy eight-surface inspector', () => {
   const installExposure = readJson('contracts/app-install-exposure-policy.json');
   const profile = structuredClone(readJson('contracts/app-product-profile.json'));

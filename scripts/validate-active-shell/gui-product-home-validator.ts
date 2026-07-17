@@ -143,6 +143,7 @@ function validateHomeLayout(guiContract) {
     'mobile plus sheet reusing the unified context menu with access, model and reasoning, and active capability actions',
     'unified plus menu groups for files, folders, new-session working directory, allowlisted Skills, and available App connections',
     'explicit attachments, file or directory selection, paste, drop, and /open consumed by the current session send only',
+    'failed conversation creation, initial send, or in-conversation send restores prompt and attachments without overwriting post-submit input',
     'workspace readiness gates project selection and OPL workspace controls only, never plain local conversation or send-scoped local file inputs',
     'read-only Conversation Environment showing the recorded workspace and live Git context when available',
     'single current task instance in the message timeline, inline and unpinned for ordinary tasks',

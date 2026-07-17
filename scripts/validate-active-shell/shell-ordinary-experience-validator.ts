@@ -537,9 +537,90 @@ function validateCodexConversationSurfaces(shellPaths) {
   assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/components/chat/ThoughtDisplay.tsx', ['formatElapsedTime', "t('conversation.chat.processing')", 'elapsedTime'], 'Active shell ThoughtDisplay elapsed processing feedback');
 }
 
+function validateSendFailureDraftPreservation(shellPaths) {
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/hooks/chat/useSendBoxDraft.ts',
+    [
+      'export const mergeFailedSendContent',
+      'export const mergeFailedSendDraft',
+      'currentContent.startsWith(`${failedContent}\\n\\n`)',
+      'new Set([...failedFiles.filter(Boolean), ...currentDraft.uploadFile.filter(Boolean)])',
+    ],
+    'Active shell failed-send draft merge helper',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/guid/hooks/useGuidSend.ts',
+    [
+      'handleSend: () => Promise<boolean>',
+      '.then((accepted) =>',
+      'if (!accepted) return',
+      "setInput((currentInput) => (currentInput === sentInput ? '' : currentInput))",
+      'setFiles((currentFiles) => currentFiles.filter((file) => !sentFiles.has(file)))',
+    ],
+    'Active shell Home conversation-creation draft preservation',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/conversation/platforms/acp/AcpSendBox.tsx',
+    [
+      'mergeFailedSendDraft',
+      'restoreFailedSend(message, allFiles)',
+      'restoreFailedSend,',
+    ],
+    'Active shell ACP failed-send draft restoration',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/conversation/platforms/acp/useAcpInitialMessage.ts',
+    [
+      'restoreFailedSend: (input: string, files: string[]) => void',
+      'restoreFailedSend(input, files)',
+    ],
+    'Active shell ACP initial-message draft restoration',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/conversation/platforms/aionrs/AionrsSendBox.tsx',
+    [
+      'mergeFailedSendDraft',
+      'restoreFailedSend(input, initialFiles)',
+      'restoreFailedSend(message, filesToSend)',
+    ],
+    'Active shell AionRS initial and in-conversation draft restoration',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'tests/unit/guid/useGuidSend.oplWhitelist.dom.test.tsx',
+    [
+      'preserves the Home draft when conversation creation returns no conversation',
+      'preserves the Home draft when conversation creation rejects',
+      'consumes only the accepted Home snapshot and keeps post-submit input',
+    ],
+    'Active shell Home failed-create regressions',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'tests/unit/renderer/useAcpInitialMessage.dom.test.ts',
+    [
+      'restores the GUID initial prompt and attachments when the first send fails',
+      'merges a failed snapshot ahead of new input and deduplicates attachments by path',
+    ],
+    'Active shell initial-message and shared draft-merge regressions',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'tests/unit/renderer/AcpSendBox.dom.test.tsx',
+    ['restores the failed prompt and attachments without overwriting input typed while waiting'],
+    'Active shell ACP in-conversation failed-send regression',
+  );
+}
+
 function validateCodexConversationImplementation(shellPaths) {
   validateCodexModelControls(shellPaths);
   validateCodexConversationSurfaces(shellPaths);
+  validateSendFailureDraftPreservation(shellPaths);
 }
 
 function validateSessionFirstDirectoryImplementation(shellPaths) {

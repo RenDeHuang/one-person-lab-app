@@ -1557,6 +1557,23 @@ export const appOwnedUnifiedContextMenu = {
     "unavailable_or_synthetic_plugins",
   ],
 };
+export const appOwnedSendFailureInputPolicy = {
+  must_preserve_send_scoped_local_inputs: true,
+  failure_scopes: [
+    "conversation_creation",
+    "initial_message_send",
+    "in_conversation_send",
+  ],
+  preserved_inputs: ["prompt", "attachments"],
+  success_consumption_policy: "clear_only_the_accepted_send_snapshot",
+  failure_restore_policy:
+    "restore_failed_send_snapshot_to_the_current_composer",
+  concurrent_edit_merge_policy:
+    "prepend_failed_prompt_before_post_submit_user_input_without_overwriting_it_and_union_attachments_by_path",
+  initial_message_handoff_policy:
+    "consume_single_attempt_storage_before_send_and_restore_to_composer_on_failure",
+};
+
 const appOwnedOrdinaryConversation = {
   path_id: "ordinary_codex_conversation",
   entry_source:
@@ -1579,6 +1596,7 @@ const appOwnedOrdinaryConversation = {
   composer_send_scoped_inputs: ["attachments"],
   composer_send_scoped_consumption_policy:
     "consumed_by_current_send_not_persisted_in_context_strip",
+  send_failure_input_policy: appOwnedSendFailureInputPolicy,
   composer_forbidden_persistent_context: [
     "project",
     "workspace",

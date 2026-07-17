@@ -542,6 +542,20 @@ test('GUI design-system validator rejects workspace-readiness gating explicit se
   );
 });
 
+test('GUI design-system validator rejects dropping failed send input restoration', () => {
+  const root = createFixture();
+  const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
+  const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+  contract.ordinary_conversation.send_failure_input_policy.concurrent_edit_merge_policy =
+    'replace_current_composer';
+  writeJson(root, 'contracts/app-gui-product-contract.json', contract);
+
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /send failures must restore prompt and attachments without overwriting post-submit input/,
+  );
+});
+
 test('GUI design-system validator rejects workspace-owned sessions and bound-session project reassignment', () => {
   const root = createFixture();
   const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');

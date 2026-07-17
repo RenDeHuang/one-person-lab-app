@@ -3,6 +3,7 @@ import {
   appOwnedExplicitSessionInputPolicy,
   appOwnedRightContextInspectorForbiddenOwners,
   appOwnedRightContextInspectorPolicy,
+  appOwnedSendFailureInputPolicy,
   appOwnedSessionWorkspaceModel,
   appOwnedTranscriptExport,
   appOwnedUnifiedContextMenu,
@@ -358,6 +359,14 @@ export function assertAppProductProfileGuiInteractionBaseline(
     ['attachments'],
     `${label} GUI composer send-scoped inputs`,
   );
+  if (
+    JSON.stringify(conversation?.send_failure_input_policy) !==
+    JSON.stringify(appOwnedSendFailureInputPolicy)
+  ) {
+    throw new Error(
+      `${label} GUI conversation must preserve prompt and attachments across creation, initial-send, and in-conversation send failures`,
+    );
+  }
   assertExactStringArray(
     conversation?.composer_forbidden_persistent_context,
     ['project', 'workspace', 'locality', 'branch', 'attachments', 'workspace_context_refs'],

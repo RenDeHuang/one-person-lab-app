@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import {
   appOwnedDirectoryGroupPolicy,
   appOwnedExplicitSessionInputPolicy,
+  appOwnedSendFailureInputPolicy,
   appOwnedSessionWorkspaceModel,
 } from './validate-active-shell/app-contract-constants.ts';
 
@@ -1054,9 +1055,15 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   const taskSummaryTarget = record(interactionBaseline.current_task_summary_bar);
   const mobileActionSheet = record(composerTarget.mobile_action_sheet);
   const unifiedContextMenu = record(record(guiContract.ordinary_conversation).unified_context_menu);
+  const sendFailureInputPolicy = record(record(guiContract.ordinary_conversation).send_failure_input_policy);
   if (JSON.stringify(sessionWorkspaceModel) !== JSON.stringify(appOwnedSessionWorkspaceModel)) {
     issues.add(
       'conversation scope must keep canonical session identity, allow one projectless adoption, and forbid bound-session reassignment',
+    );
+  }
+  if (JSON.stringify(sendFailureInputPolicy) !== JSON.stringify(appOwnedSendFailureInputPolicy)) {
+    issues.add(
+      'ordinary conversation send failures must restore prompt and attachments without overwriting post-submit input',
     );
   }
   if (

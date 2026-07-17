@@ -328,6 +328,7 @@ function validateOrdinaryConversationPage(matrix) {
     'mobile plus sheet reusing the unified context menu with access, model and reasoning, and active capability actions',
     'unified plus menu groups for files, folders, new-session working directory, allowlisted Skills, and available App connections',
     'explicit attachments, file or directory selection, paste, drop, and /open consumed by the current session send only',
+    'failed conversation creation, initial send, or in-conversation send restores prompt and attachments without overwriting post-submit input',
     'permission and access mode in user language',
     'projectless text conversation when no workspace is selected',
     'projectless attachments, arbitrary local file or directory selection, paste, drop, and /open subject only to Codex permissions',
