@@ -1309,7 +1309,8 @@
         "renderer_selection_field": "view_kind",
         "registered_view_kinds": {
           "scientific_reasoning_map": {
-            "schema_version": "scientific-reasoning-map.v1",
+            "schema_version": "scientific-reasoning-map.v2",
+            "compatible_schema_versions": ["scientific-reasoning-map.v1", "scientific-reasoning-map.v2"],
             "view_id": "scientific-reasoning",
             "current_focus_fields": ["node_id", "primary_hypothesis"],
             "latest_outcome_fields": ["finding", "judgment", "next_step"],
@@ -1500,7 +1501,8 @@
       "availability_values": ["available", "missing", "stale", "unsupported", "oversize"],
       "payload_contracts": {
         "scientific_reasoning_map": {
-          "payload_schema": "scientific-reasoning-map.v1",
+          "payload_schema": "scientific-reasoning-map.v2",
+          "compatible_payload_schemas": ["scientific-reasoning-map.v1", "scientific-reasoning-map.v2"],
           "required_fields": [
             "study_id",
             "status",
@@ -1510,8 +1512,24 @@
             "nodes",
             "edges",
             "source_refs",
+            "working_checkpoints",
             "conditions"
           ],
+          "accepted_trajectory_fields": ["summary", "current_focus", "active_branch", "nodes", "edges", "source_refs"],
+          "accepted_trajectory_authority": "receipt_bound_domain_owner_acceptance_only",
+          "working_checkpoint_content_in_accepted_fields_allowed": false,
+          "working_checkpoint_required_fields": [
+            "checkpoint_id",
+            "status",
+            "occurred_at",
+            "title",
+            "summary",
+            "medical_narrative",
+            "source_refs"
+          ],
+          "working_checkpoint_status_values": ["pending", "rejected"],
+          "working_checkpoint_machine_only_fields": ["checkpoint_id"],
+          "working_checkpoint_presentation": "separate_review_state_not_formal_research_conclusion",
           "summary_required_fields": [
             "primary_hypothesis",
             "latest_finding",

@@ -1159,7 +1159,8 @@
           "scientific_reasoning": {
             "view_id": "scientific-reasoning",
             "view_kind": "scientific_reasoning_map",
-            "schema_version": "scientific-reasoning-map.v1",
+            "schema_version": "scientific-reasoning-map.v2",
+            "compatible_schema_versions": ["scientific-reasoning-map.v1", "scientific-reasoning-map.v2"],
             "drawer_summary_fields": [
               "primary_hypothesis",
               "latest_finding",
@@ -1170,7 +1171,11 @@
             "route": "/runtime/item/:itemId/insights/:viewId",
             "layout": "full_width_graph_with_right_node_inspector",
             "modes": ["map", "current_branch"],
-            "source_refs_surface": "collapsed_sources_and_basis"
+            "source_refs_surface": "collapsed_sources_and_basis",
+            "accepted_trajectory_source": "receipt_bound_nodes_edges_and_summary",
+            "working_checkpoints_source": "separate_working_checkpoints_field",
+            "working_checkpoints_presentation": "localized_awaiting_confirmation_not_formal_conclusion",
+            "working_checkpoints_may_change_accepted_graph": false
           },
           "states": [
             {

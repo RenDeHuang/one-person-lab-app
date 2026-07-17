@@ -191,6 +191,23 @@ export const scientificReasoningSummaryFields = [
   "updated_at",
 ];
 
+export const scientificReasoningCompatibleSchemaVersions = [
+  "scientific-reasoning-map.v1",
+  "scientific-reasoning-map.v2",
+];
+
+export const scientificReasoningWorkingCheckpointFields = [
+  "checkpoint_id",
+  "status",
+  "occurred_at",
+  "title",
+  "summary",
+  "medical_narrative",
+  "source_refs",
+];
+
+export const scientificReasoningWorkingCheckpointStatuses = ["pending", "rejected"];
+
 export const scientificReasoningNodeKinds = [
   "hypothesis",
   "test",

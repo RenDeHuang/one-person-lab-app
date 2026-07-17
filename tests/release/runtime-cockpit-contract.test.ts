@@ -53,6 +53,7 @@ test('WorkItemProjection V2 requires global item identity, all nine axes, and ob
     (projection: any) => { projection.domain_detail_view_read_contract.app_may_submit_ref_or_path = true; },
     (projection: any) => { projection.domain_detail_view_read_contract.unchanged_response.not_modified = false; },
     (projection: any) => { projection.domain_detail_view_read_contract.payload_contracts.scientific_reasoning_map.edge_kinds.push('refutes'); },
+    (projection: any) => { projection.domain_detail_view_read_contract.payload_contracts.scientific_reasoning_map.working_checkpoint_content_in_accepted_fields_allowed = true; },
   ]) {
     const projection = structuredClone(runtimeBridge().work_item_projection);
     mutate(projection);
@@ -200,6 +201,7 @@ test('Runtime product rejects list, status, Stage popover, surface-boundary, and
     (contract: any) => { contract.domain_detail_views.full_payload_in_fast_state_allowed = true; },
     (contract: any) => { contract.domain_detail_views.drawer_presentation.machine_fields_visible = true; },
     (contract: any) => { contract.domain_detail_views.full_canvas.horizontal_page_overflow_allowed = true; },
+    (contract: any) => { contract.domain_detail_views.trajectory_layers.working_checkpoints.may_change_accepted_graph = true; },
   ]) {
     const gui = runtimeContract();
     mutate(gui.pages.runtime_status.runtime_cockpit_product_contract);
@@ -282,6 +284,9 @@ test('Runtime page-state rejects removal or weakening of V2 acceptance', () => {
     },
     (matrix: any) => {
       matrix.pages.find((page: any) => page.id === 'runtime').runtime_view_model.domain_detail_view.states = [];
+    },
+    (matrix: any) => {
+      matrix.pages.find((page: any) => page.id === 'runtime').runtime_view_model.domain_detail_view.scientific_reasoning.working_checkpoints_may_change_accepted_graph = true;
     },
   ]) {
     const matrix = structuredClone(readJson('contracts/app-page-state-matrix.json'));

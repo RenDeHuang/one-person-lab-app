@@ -2,6 +2,7 @@ import { assertDeepEqualJson } from './assertions.ts';
 import {
   domainDetailViewAvailabilityValues,
   runtimeFirstPartyAgents,
+  scientificReasoningCompatibleSchemaVersions,
   scientificReasoningSummaryFields,
   systemAttentionResponsibilityFields,
   workItemDetailPrimarySections,
@@ -478,7 +479,7 @@ export function validateRuntimeCockpitProductContract(contract, label) {
       renderer_selection: 'typed_registry_by_view_kind',
       agent_id_branching_allowed: false,
       scientific_reasoning_view_id: 'scientific-reasoning',
-      scientific_reasoning_schema: 'scientific-reasoning-map.v1',
+      scientific_reasoning_schema: 'scientific-reasoning-map.v2',
       availability_copy_policy: 'localized_medical_research_copy_no_machine_enum',
       not_modified_policy: 'retain_last_valid_view',
       full_payload_in_fast_state_allowed: false,
@@ -493,6 +494,29 @@ export function validateRuntimeCockpitProductContract(contract, label) {
     `${label}.domain_detail_views.registered_view_kinds`,
   );
   assertDeepEqualJson(
+    domainViews?.compatible_scientific_reasoning_schemas,
+    scientificReasoningCompatibleSchemaVersions,
+    `${label}.domain_detail_views.compatible_scientific_reasoning_schemas`,
+  );
+  assertExpectedFields(
+    domainViews?.trajectory_layers?.accepted_trajectory,
+    {
+      authority: 'receipt_bound_domain_owner_acceptance',
+      working_checkpoint_content_allowed: false,
+    },
+    `${label}.domain_detail_views.trajectory_layers.accepted_trajectory`,
+  );
+  assertExpectedFields(
+    domainViews?.trajectory_layers?.working_checkpoints,
+    {
+      presentation: 'separate_review_state_not_formal_research_conclusion',
+      may_change_accepted_summary: false,
+      may_change_accepted_graph: false,
+      empty_allowed: true,
+    },
+    `${label}.domain_detail_views.trajectory_layers.working_checkpoints`,
+  );
+  assertDeepEqualJson(
     domainViews?.availability_states,
     domainDetailViewAvailabilityValues,
     `${label}.domain_detail_views.availability_states`,
@@ -504,6 +528,12 @@ export function validateRuntimeCockpitProductContract(contract, label) {
   );
   if (domainViews?.drawer_presentation?.machine_fields_visible !== false) {
     throw new Error(`${label}.domain_detail_views drawer must hide machine fields`);
+  }
+  if (
+    typeof domainViews?.full_canvas?.working_checkpoints_notice_copy?.['zh-CN'] !== 'string'
+    || !domainViews.full_canvas.working_checkpoints_notice_copy['zh-CN'].includes('尚未纳入正式科研结论')
+  ) {
+    throw new Error(`${label}.domain_detail_views must label working checkpoints as unaccepted research`);
   }
   assertExpectedFields(
     domainViews?.full_canvas,

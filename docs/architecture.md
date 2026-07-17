@@ -180,6 +180,12 @@ adjustment, next research step, and a collapsed Sources and rationale section.
 Machine fields such as generation, digest, ref, payload, provider, or attempt are
 never user-facing.
 
+The scientific reasoning payload keeps accepted and working research states
+separate. Receipt-bound nodes, edges, and summary fields form the accepted
+trajectory. Running checkpoints may appear in a distinct "awaiting confirmation"
+section, but they cannot alter the accepted graph or be presented as formal
+research conclusions until the domain owner accepts them.
+
 Claude Science-style task awareness lands first in conversation current-task
 context and the right inspector rather than as a new dashboard. The optional
 X0-01 Runtime route may show the cross-project slice of the same `opl app state`

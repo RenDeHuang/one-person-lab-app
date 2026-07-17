@@ -5538,7 +5538,26 @@
           "agent_id_branching_allowed": false,
           "registered_view_kinds": ["scientific_reasoning_map"],
           "scientific_reasoning_view_id": "scientific-reasoning",
-          "scientific_reasoning_schema": "scientific-reasoning-map.v1",
+          "scientific_reasoning_schema": "scientific-reasoning-map.v2",
+          "compatible_scientific_reasoning_schemas": [
+            "scientific-reasoning-map.v1",
+            "scientific-reasoning-map.v2"
+          ],
+          "trajectory_layers": {
+            "accepted_trajectory": {
+              "source_fields": ["nodes", "edges", "summary", "current_focus", "active_branch"],
+              "authority": "receipt_bound_domain_owner_acceptance",
+              "working_checkpoint_content_allowed": false
+            },
+            "working_checkpoints": {
+              "source_field": "working_checkpoints",
+              "status_values": ["pending", "rejected"],
+              "presentation": "separate_review_state_not_formal_research_conclusion",
+              "may_change_accepted_summary": false,
+              "may_change_accepted_graph": false,
+              "empty_allowed": true
+            }
+          },
           "drawer_presentation": {
             "surface": "selected_work_item_detail",
             "heading_copy": {
@@ -5566,6 +5585,14 @@
             "source_refs_heading_copy": {
               "zh-CN": "来源与依据",
               "en-US": "Sources and rationale"
+            },
+            "working_checkpoints_heading_copy": {
+              "zh-CN": "待确认的研究进展",
+              "en-US": "Research updates awaiting confirmation"
+            },
+            "working_checkpoints_notice_copy": {
+              "zh-CN": "以下内容仍在审核中，尚未纳入正式科研结论。",
+              "en-US": "These updates remain under review and are not part of the accepted research conclusions."
             }
           },
           "medical_copy_vocabulary": {

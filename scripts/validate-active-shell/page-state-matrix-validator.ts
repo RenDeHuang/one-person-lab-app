@@ -463,9 +463,23 @@ export function validatePageStateMatrix(matrix, contract, guiProductContract) {
   if (
     domainDetail?.scientific_reasoning?.view_id !== 'scientific-reasoning'
     || domainDetail?.scientific_reasoning?.view_kind !== 'scientific_reasoning_map'
+    || domainDetail?.scientific_reasoning?.schema_version !== 'scientific-reasoning-map.v2'
     || domainDetail?.scientific_reasoning?.route !== '/runtime/item/:itemId/insights/:viewId'
   ) {
     throw new Error('Runtime scientific reasoning must use the stable item-scoped view identity and route');
+  }
+  assertDeepEqualJson(
+    domainDetail?.scientific_reasoning?.compatible_schema_versions,
+    ['scientific-reasoning-map.v1', 'scientific-reasoning-map.v2'],
+    'Runtime scientific reasoning compatible schemas',
+  );
+  if (
+    domainDetail?.scientific_reasoning?.accepted_trajectory_source !== 'receipt_bound_nodes_edges_and_summary'
+    || domainDetail?.scientific_reasoning?.working_checkpoints_source !== 'separate_working_checkpoints_field'
+    || domainDetail?.scientific_reasoning?.working_checkpoints_presentation !== 'localized_awaiting_confirmation_not_formal_conclusion'
+    || domainDetail?.scientific_reasoning?.working_checkpoints_may_change_accepted_graph !== false
+  ) {
+    throw new Error('Runtime scientific reasoning must separate working checkpoints from accepted conclusions');
   }
   assertDeepEqualJson(
     domainDetail?.states?.map((state) => state.id),

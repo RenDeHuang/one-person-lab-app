@@ -15,8 +15,11 @@ import {
   domainDetailViewAvailabilityValues,
   domainDetailViewDescriptorFields,
   scientificReasoningEdgeKinds,
+  scientificReasoningCompatibleSchemaVersions,
   scientificReasoningNodeKinds,
   scientificReasoningSummaryFields,
+  scientificReasoningWorkingCheckpointFields,
+  scientificReasoningWorkingCheckpointStatuses,
   systemAttentionResponsibilityFields,
   taskRunProjectionV2FieldGroups,
   taskRunProjectionV2RequiredFields,
@@ -540,11 +543,16 @@ export function validateWorkItemProjectionContract(projection, label) {
   }
   const scientificDescriptor = domainDetailViews?.registered_view_kinds?.scientific_reasoning_map;
   if (
-    scientificDescriptor?.schema_version !== "scientific-reasoning-map.v1" ||
+    scientificDescriptor?.schema_version !== "scientific-reasoning-map.v2" ||
     scientificDescriptor?.view_id !== "scientific-reasoning"
   ) {
     throw new Error(`${label} must register the scientific reasoning view kind and stable view id`);
   }
+  assertDeepEqualJson(
+    scientificDescriptor?.compatible_schema_versions,
+    scientificReasoningCompatibleSchemaVersions,
+    `${label} scientific reasoning compatible schemas`,
+  );
   assertDeepEqualJson(
     projection.row_identity_contract,
     {
@@ -791,6 +799,14 @@ export function validateWorkItemProjectionContract(projection, label) {
     throw new Error(`${label} domain detail read must preserve the prior view on not_modified`);
   }
   const reasoningPayload = detailRead?.payload_contracts?.scientific_reasoning_map;
+  if (reasoningPayload?.payload_schema !== "scientific-reasoning-map.v2") {
+    throw new Error(`${label} scientific reasoning payload must use v2`);
+  }
+  assertDeepEqualJson(
+    reasoningPayload?.compatible_payload_schemas,
+    scientificReasoningCompatibleSchemaVersions,
+    `${label} scientific reasoning compatible payload schemas`,
+  );
   assertDeepEqualJson(
     reasoningPayload?.summary_required_fields,
     scientificReasoningSummaryFields,
@@ -806,6 +822,23 @@ export function validateWorkItemProjectionContract(projection, label) {
     scientificReasoningEdgeKinds,
     `${label} scientific reasoning edge kinds`,
   );
+  assertDeepEqualJson(
+    reasoningPayload?.working_checkpoint_required_fields,
+    scientificReasoningWorkingCheckpointFields,
+    `${label} scientific reasoning working checkpoint fields`,
+  );
+  assertDeepEqualJson(
+    reasoningPayload?.working_checkpoint_status_values,
+    scientificReasoningWorkingCheckpointStatuses,
+    `${label} scientific reasoning working checkpoint statuses`,
+  );
+  if (
+    reasoningPayload?.accepted_trajectory_authority !== "receipt_bound_domain_owner_acceptance_only" ||
+    reasoningPayload?.working_checkpoint_content_in_accepted_fields_allowed !== false ||
+    reasoningPayload?.working_checkpoint_presentation !== "separate_review_state_not_formal_research_conclusion"
+  ) {
+    throw new Error(`${label} scientific reasoning must keep working checkpoints outside accepted conclusions`);
+  }
   if (reasoningPayload?.edge_kinds?.includes("refutes")) {
     throw new Error(`${label} scientific reasoning must not overstate a result as refutation`);
   }
