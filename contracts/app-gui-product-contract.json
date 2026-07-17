@@ -5545,7 +5545,15 @@
           ],
           "trajectory_layers": {
             "accepted_trajectory": {
-              "source_fields": ["nodes", "edges", "summary", "current_focus", "active_branch"],
+              "source_fields": [
+                "nodes",
+                "edges",
+                "summary",
+                "current_focus",
+                "active_branch",
+                "current_focus_node_refs",
+                "active_branch_node_refs"
+              ],
               "authority": "receipt_bound_domain_owner_acceptance",
               "working_checkpoint_content_allowed": false
             },
@@ -5583,6 +5591,13 @@
             "route": "/runtime/item/:itemId/insights/:viewId",
             "layout": "full_width_graph_with_right_node_inspector",
             "required_modes": ["map", "current_branch"],
+            "content_order": ["accepted_trajectory_map", "working_checkpoints"],
+            "working_checkpoints_may_precede_accepted_map": false,
+            "current_branch_membership_source_by_schema": {
+              "scientific-reasoning-map.v1": "node.branch_id_compatibility_fallback",
+              "scientific-reasoning-map.v2": "active_branch_node_refs_exact"
+            },
+            "v2_current_branch_membership_inference_allowed": false,
             "required_interactions": ["fit", "pan", "zoom", "keyboard_node_navigation", "node_detail_selection"],
             "responsive_viewport_widths_px": [375, 768, 1024, 1440],
             "horizontal_page_overflow_allowed": false,

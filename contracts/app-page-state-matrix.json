@@ -1171,6 +1171,13 @@
             "route": "/runtime/item/:itemId/insights/:viewId",
             "layout": "full_width_graph_with_right_node_inspector",
             "modes": ["map", "current_branch"],
+            "content_order": ["accepted_trajectory_map", "working_checkpoints"],
+            "working_checkpoints_may_precede_accepted_map": false,
+            "current_branch_membership_source_by_schema": {
+              "scientific-reasoning-map.v1": "node.branch_id_compatibility_fallback",
+              "scientific-reasoning-map.v2": "active_branch_node_refs_exact"
+            },
+            "v2_current_branch_membership_inference_allowed": false,
             "sources_and_basis_source": "medical_narrative.sources_and_basis",
             "sources_and_basis_surface": "collapsed_sources_and_basis",
             "machine_source_refs_visible": false,

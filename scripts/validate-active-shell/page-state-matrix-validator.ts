@@ -473,6 +473,19 @@ export function validatePageStateMatrix(matrix, contract, guiProductContract) {
     ['scientific-reasoning-map.v1', 'scientific-reasoning-map.v2'],
     'Runtime scientific reasoning compatible schemas',
   );
+  assertDeepEqualJson(
+    domainDetail?.scientific_reasoning?.current_branch_membership_source_by_schema,
+    {
+      'scientific-reasoning-map.v1': 'node.branch_id_compatibility_fallback',
+      'scientific-reasoning-map.v2': 'active_branch_node_refs_exact',
+    },
+    'Runtime scientific reasoning current branch membership source',
+  );
+  assertDeepEqualJson(
+    domainDetail?.scientific_reasoning?.content_order,
+    ['accepted_trajectory_map', 'working_checkpoints'],
+    'Runtime scientific reasoning content order',
+  );
   if (
     domainDetail?.scientific_reasoning?.accepted_trajectory_source !== 'receipt_bound_nodes_edges_and_summary'
     || domainDetail?.scientific_reasoning?.working_checkpoints_source !== 'separate_working_checkpoints_field'
@@ -482,6 +495,8 @@ export function validatePageStateMatrix(matrix, contract, guiProductContract) {
     || domainDetail?.scientific_reasoning?.machine_source_refs_visible !== false
     || domainDetail?.scientific_reasoning?.rejected_checkpoint_may_imply_scientific_refutation !== false
     || domainDetail?.scientific_reasoning?.working_checkpoints_may_change_accepted_graph !== false
+    || domainDetail?.scientific_reasoning?.v2_current_branch_membership_inference_allowed !== false
+    || domainDetail?.scientific_reasoning?.working_checkpoints_may_precede_accepted_map !== false
   ) {
     throw new Error('Runtime scientific reasoning must separate working checkpoints from accepted conclusions');
   }

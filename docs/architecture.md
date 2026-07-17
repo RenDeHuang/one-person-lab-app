@@ -185,6 +185,11 @@ separate. Receipt-bound nodes, edges, and summary fields form the accepted
 trajectory. Running checkpoints may appear in a distinct "awaiting confirmation"
 section, but they cannot alter the accepted graph or be presented as formal
 research conclusions until the domain owner accepts them.
+For `scientific-reasoning-map.v2`, the current-route mode uses the domain-owned
+`active_branch_node_refs` set exactly; only the v1 compatibility reader may fall
+back to node branch labels. The App and Shell do not infer v2 route membership.
+The accepted map remains the primary content and precedes the separate working
+checkpoint section so pending or rejected records cannot visually displace it.
 
 Claude Science-style task awareness lands first in conversation current-task
 context and the right inspector rather than as a new dashboard. The optional

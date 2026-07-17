@@ -16,8 +16,10 @@ import {
   domainDetailViewDescriptorFields,
   scientificReasoningEdgeKinds,
   scientificReasoningCompatibleSchemaVersions,
+  scientificReasoningCurrentBranchMembershipBySchema,
   scientificReasoningNodeKinds,
   scientificReasoningSummaryFields,
+  scientificReasoningV2RouteMembershipFields,
   scientificReasoningWorkingCheckpointFields,
   scientificReasoningWorkingCheckpointStatuses,
   systemAttentionResponsibilityFields,
@@ -837,6 +839,16 @@ export function validateWorkItemProjectionContract(projection, label) {
     ["checkpoint_id", "source_refs"],
     `${label} scientific reasoning working checkpoint machine-only fields`,
   );
+  assertDeepEqualJson(
+    reasoningPayload?.v2_accepted_route_membership_fields,
+    scientificReasoningV2RouteMembershipFields,
+    `${label} scientific reasoning v2 route membership fields`,
+  );
+  assertDeepEqualJson(
+    reasoningPayload?.current_branch_membership_source_by_schema,
+    scientificReasoningCurrentBranchMembershipBySchema,
+    `${label} scientific reasoning current branch membership source`,
+  );
   if (
     reasoningPayload?.accepted_trajectory_authority !== "receipt_bound_domain_owner_acceptance_only" ||
     reasoningPayload?.working_checkpoint_content_in_accepted_fields_allowed !== false ||
@@ -844,7 +856,8 @@ export function validateWorkItemProjectionContract(projection, label) {
     reasoningPayload?.working_checkpoint_sources_and_basis_source !== "medical_narrative.sources_and_basis" ||
     reasoningPayload?.sources_and_basis_source !== "medical_narrative.sources_and_basis" ||
     reasoningPayload?.sources_and_basis_default_surface !== "collapsed_sources_and_basis" ||
-    reasoningPayload?.machine_source_refs_default_visible !== false
+    reasoningPayload?.machine_source_refs_default_visible !== false ||
+    reasoningPayload?.v2_current_branch_membership_inference_allowed !== false
   ) {
     throw new Error(`${label} scientific reasoning must keep working checkpoints and machine refs outside accepted conclusions`);
   }

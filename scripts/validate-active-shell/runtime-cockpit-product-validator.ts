@@ -3,7 +3,9 @@ import {
   domainDetailViewAvailabilityValues,
   runtimeFirstPartyAgents,
   scientificReasoningCompatibleSchemaVersions,
+  scientificReasoningCurrentBranchMembershipBySchema,
   scientificReasoningSummaryFields,
+  scientificReasoningV2RouteMembershipFields,
   systemAttentionResponsibilityFields,
   workItemDetailPrimarySections,
   runtimeWorkItemDetailSecondarySections,
@@ -506,6 +508,11 @@ export function validateRuntimeCockpitProductContract(contract, label) {
     },
     `${label}.domain_detail_views.trajectory_layers.accepted_trajectory`,
   );
+  assertDeepEqualJson(
+    domainViews?.trajectory_layers?.accepted_trajectory?.source_fields,
+    ['nodes', 'edges', 'summary', 'current_focus', 'active_branch', ...scientificReasoningV2RouteMembershipFields],
+    `${label}.domain_detail_views.trajectory_layers.accepted_trajectory.source_fields`,
+  );
   assertExpectedFields(
     domainViews?.trajectory_layers?.working_checkpoints,
     {
@@ -569,8 +576,20 @@ export function validateRuntimeCockpitProductContract(contract, label) {
       sources_and_basis_source: 'medical_narrative.sources_and_basis',
       sources_and_basis_surface: 'collapsed_sources_and_basis',
       machine_source_refs_visible: false,
+      v2_current_branch_membership_inference_allowed: false,
+      working_checkpoints_may_precede_accepted_map: false,
     },
     `${label}.domain_detail_views.full_canvas`,
+  );
+  assertDeepEqualJson(
+    domainViews?.full_canvas?.current_branch_membership_source_by_schema,
+    scientificReasoningCurrentBranchMembershipBySchema,
+    `${label}.domain_detail_views.full_canvas.current_branch_membership_source_by_schema`,
+  );
+  assertDeepEqualJson(
+    domainViews?.full_canvas?.content_order,
+    ['accepted_trajectory_map', 'working_checkpoints'],
+    `${label}.domain_detail_views.full_canvas.content_order`,
   );
   assertDeepEqualJson(
     domainViews?.full_canvas?.responsive_viewport_widths_px,

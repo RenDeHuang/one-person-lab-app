@@ -1516,6 +1516,12 @@
             "conditions"
           ],
           "accepted_trajectory_fields": ["summary", "current_focus", "active_branch", "nodes", "edges", "source_refs"],
+          "v2_accepted_route_membership_fields": ["current_focus_node_refs", "active_branch_node_refs"],
+          "current_branch_membership_source_by_schema": {
+            "scientific-reasoning-map.v1": "node.branch_id_compatibility_fallback",
+            "scientific-reasoning-map.v2": "active_branch_node_refs_exact"
+          },
+          "v2_current_branch_membership_inference_allowed": false,
           "accepted_trajectory_authority": "receipt_bound_domain_owner_acceptance_only",
           "working_checkpoint_content_in_accepted_fields_allowed": false,
           "working_checkpoint_required_fields": [

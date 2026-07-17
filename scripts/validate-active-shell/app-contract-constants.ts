@@ -196,6 +196,16 @@ export const scientificReasoningCompatibleSchemaVersions = [
   "scientific-reasoning-map.v2",
 ];
 
+export const scientificReasoningV2RouteMembershipFields = [
+  "current_focus_node_refs",
+  "active_branch_node_refs",
+];
+
+export const scientificReasoningCurrentBranchMembershipBySchema = {
+  "scientific-reasoning-map.v1": "node.branch_id_compatibility_fallback",
+  "scientific-reasoning-map.v2": "active_branch_node_refs_exact",
+};
+
 export const scientificReasoningWorkingCheckpointFields = [
   "checkpoint_id",
   "status",

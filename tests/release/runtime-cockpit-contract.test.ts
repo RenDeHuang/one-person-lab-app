@@ -57,6 +57,9 @@ test('WorkItemProjection V2 requires global item identity, all nine axes, and ob
     (projection: any) => { projection.domain_detail_view_read_contract.payload_contracts.scientific_reasoning_map.working_checkpoint_machine_only_fields = ['checkpoint_id']; },
     (projection: any) => { projection.domain_detail_view_read_contract.payload_contracts.scientific_reasoning_map.working_checkpoint_sources_and_basis_source = 'source_refs'; },
     (projection: any) => { projection.domain_detail_view_read_contract.payload_contracts.scientific_reasoning_map.machine_source_refs_default_visible = true; },
+    (projection: any) => { projection.domain_detail_view_read_contract.payload_contracts.scientific_reasoning_map.v2_accepted_route_membership_fields = ['active_branch_node_refs']; },
+    (projection: any) => { projection.domain_detail_view_read_contract.payload_contracts.scientific_reasoning_map.current_branch_membership_source_by_schema['scientific-reasoning-map.v2'] = 'node.branch_id'; },
+    (projection: any) => { projection.domain_detail_view_read_contract.payload_contracts.scientific_reasoning_map.v2_current_branch_membership_inference_allowed = true; },
   ]) {
     const projection = structuredClone(runtimeBridge().work_item_projection);
     mutate(projection);
@@ -210,6 +213,11 @@ test('Runtime product rejects list, status, Stage popover, surface-boundary, and
     (contract: any) => { contract.domain_detail_views.trajectory_layers.working_checkpoints.rejected_status_semantics = 'scientific_hypothesis_refuted'; },
     (contract: any) => { contract.domain_detail_views.full_canvas.sources_and_basis_source = 'source_refs'; },
     (contract: any) => { contract.domain_detail_views.full_canvas.machine_source_refs_visible = true; },
+    (contract: any) => { contract.domain_detail_views.trajectory_layers.accepted_trajectory.source_fields = ['nodes']; },
+    (contract: any) => { contract.domain_detail_views.full_canvas.current_branch_membership_source_by_schema['scientific-reasoning-map.v2'] = 'node.branch_id'; },
+    (contract: any) => { contract.domain_detail_views.full_canvas.v2_current_branch_membership_inference_allowed = true; },
+    (contract: any) => { contract.domain_detail_views.full_canvas.content_order.reverse(); },
+    (contract: any) => { contract.domain_detail_views.full_canvas.working_checkpoints_may_precede_accepted_map = true; },
   ]) {
     const gui = runtimeContract();
     mutate(gui.pages.runtime_status.runtime_cockpit_product_contract);
@@ -304,6 +312,18 @@ test('Runtime page-state rejects removal or weakening of V2 acceptance', () => {
     },
     (matrix: any) => {
       matrix.pages.find((page: any) => page.id === 'runtime').runtime_view_model.domain_detail_view.scientific_reasoning.machine_source_refs_visible = true;
+    },
+    (matrix: any) => {
+      matrix.pages.find((page: any) => page.id === 'runtime').runtime_view_model.domain_detail_view.scientific_reasoning.current_branch_membership_source_by_schema['scientific-reasoning-map.v2'] = 'node.branch_id';
+    },
+    (matrix: any) => {
+      matrix.pages.find((page: any) => page.id === 'runtime').runtime_view_model.domain_detail_view.scientific_reasoning.v2_current_branch_membership_inference_allowed = true;
+    },
+    (matrix: any) => {
+      matrix.pages.find((page: any) => page.id === 'runtime').runtime_view_model.domain_detail_view.scientific_reasoning.content_order.reverse();
+    },
+    (matrix: any) => {
+      matrix.pages.find((page: any) => page.id === 'runtime').runtime_view_model.domain_detail_view.scientific_reasoning.working_checkpoints_may_precede_accepted_map = true;
     },
   ]) {
     const matrix = structuredClone(readJson('contracts/app-page-state-matrix.json'));
