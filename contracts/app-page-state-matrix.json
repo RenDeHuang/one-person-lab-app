@@ -1566,6 +1566,8 @@
         "developer_checkout_silent_update_allowed": false,
         "dirty_checkout_silent_update_allowed": false
       },
+      "app_update_state_policy_ref": "contracts/app-gui-product-contract.json#framework_surfaces.managed_update_plane.app_update_state_policy",
+      "managed_update_repair_availability_policy_ref": "contracts/app-gui-product-contract.json#framework_surfaces.managed_update_plane.repair_availability_policy",
       "managed_dependency_summary": {
         "source_ref": "opl update status --json#managed_update.components[component_id=opl_base].current.dependency_catalog.dependencies[]",
         "required_ids": [
@@ -1587,6 +1589,9 @@
           "activation_policy",
           "binary_path",
           "status"
+        ],
+        "optional_fields": [
+          "real_path"
         ],
         "optional_fields_by_dependency_id": {
           "codex-cli": [
@@ -1623,7 +1628,11 @@
           "detect_only_guidance"
         ],
         "display_policy": "show active Codex CLI, OPL-managed Temporal Runtime, and optional system Temporal CLI directly on Maintenance with version, source, currentness, and owner-specific update guidance",
-        "path_deduplication_policy": "deduplicate Codex PATH candidates by realpath and retain shadowed candidates in diagnostics",
+        "path_deduplication_policy": "deduplicate Codex PATH candidates by normalized real_path when present otherwise binary_path and retain shadowed candidates in diagnostics",
+        "path_identity_precedence": [
+          "real_path",
+          "binary_path"
+        ],
         "external_update_policy": "OPL-managed roots use the existing OPL Base update route; identified external owners require confirmation; unknown owners receive guidance only",
         "manual_operation_policy": {
           "silent_managed": "route to the existing OPL Base update or repair action and never synthesize a per-dependency action",
@@ -1646,7 +1655,10 @@
             "update_action",
             "guidance"
           ],
-          "path_policy": "normalize_realpath_before_deduplication_and_keep_shadowed_rows_in_diagnostics"
+          "optional_fields": [
+            "real_path"
+          ],
+          "path_policy": "normalize_real_path_when_present_otherwise_binary_path_before_deduplication_and_keep_shadowed_rows_in_diagnostics"
         },
         "temporal_component_version_policy": {
           "runtime_component_id": "temporal-runtime",
@@ -2011,7 +2023,8 @@
         "startup_check": "once_after_App_startup",
         "mount_check": false,
         "shared_state": "single_main_process_updater_state_store",
-        "manual_check": "refresh_the_same_shared_state"
+        "manual_check": "refresh_the_same_shared_state",
+        "app_update_state_policy_ref": "contracts/app-gui-product-contract.json#framework_surfaces.managed_update_plane.app_update_state_policy"
       },
       "ia_group": "about",
       "route_id": "about",
@@ -3660,7 +3673,9 @@
       "forbidden_dom_when_update_unavailable": ["sider-footer-update"],
       "forbidden_dom": ["sider-footer-theme", "sider-footer-update-row", "sider-footer-check-updates"],
       "placement": "account_footer_row_trailing_action",
-      "availability_source": "managed_update_plane.components[component_id=opl_app]",
+      "availability_source": "single_main_process_updater_state_store",
+      "webui_fallback_source": "opl app state --profile fast --json#managed_update.components[component_id=opl_app]",
+      "app_update_state_policy_ref": "contracts/app-gui-product-contract.json#framework_surfaces.managed_update_plane.app_update_state_policy",
       "visibility_policy": "confirmed_newer_version_only",
       "trigger_policy": "reuse_existing_carrier_updater_with_update_intent",
       "new_updater_forbidden": true

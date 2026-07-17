@@ -157,7 +157,10 @@ list wall or nested cards.
 - the compact footer always shows the connected Gateway display name, otherwise
   Settings; it opens Account & Access or Overview;
 - only a confirmed newer App version adds a subtle trailing update action on
-  that same account row; the footer has no theme, return, or help shortcut;
+  that same account row; on desktop this reads the same main-process updater
+  store as About and Maintenance, while WebUI falls back to the managed
+  `opl_app` projection only because no desktop updater exists there; the footer
+  has no theme, return, or help shortcut;
 - Preferences exposes System, Light, and Dark only; the CSS theme gallery and
   custom editor are hidden, while legacy theme data is preserved but inactive;
 - the governed OPL visual baseline remains active in all three appearance modes;
@@ -368,6 +371,19 @@ overwrites Homebrew, npm, PATH, or system installs. The Temporal JavaScript
 runtime moves with the OPL Base generation; the optional Temporal CLI remains
 external unless explicitly managed by its owner.
 
+Desktop App currentness comes from the same main-process updater store consumed
+by About and the Settings footer. WebUI alone falls back to the Framework-managed
+`opl_app` component. `not_checked`, `checking`, `not-available`, `available`,
+`downloading`, `downloaded`, `error`, and `cancelled` stay distinct. Runtime or
+service attention and App-update attention are calculated independently, then
+the latter contributes at most one item to the aggregate count. A historical
+receipt may appear in diagnostics, but it never enables a current Repair action;
+without a live current repair signal the primary operation is Check.
+
+Dependency catalogs may provide optional `real_path`. Identity and de-duplication
+use normalized `real_path` first and fall back to `binary_path`; shadowed paths
+remain diagnostic detail.
+
 Update channel is the one inline persistent control. Apply, repair, rollback,
 package sync, and other commands live in an explicit management modal.
 Framework paths, raw working directories, ids, command mappings, receipts, and
@@ -406,6 +422,11 @@ one Check for updates action. The App performs one update check after startup
 and publishes it to a shared main-process updater state store. Mounting or
 navigating to About only reads that state and never starts a check. The manual
 button refreshes the same shared state.
+
+Maintenance and the compact Settings footer subscribe to that same store rather
+than reading a second desktop App-update truth. WebUI uses the managed `opl_app`
+projection only as its no-desktop-updater fallback. Mounting any of these
+consumer surfaces never starts another automatic check.
 
 Shell version, Framework revision, build ids, and raw update refs stay in
 technical details. Repair, rollback, package maintenance, and storage cleanup
@@ -479,7 +500,10 @@ also requires:
 - visible managed Codex/Temporal currentness and external-install guidance;
 - persisted Storage snapshot, freshness, background event, manual refresh, and
   unknown-not-zero behavior;
-- one startup update check, shared updater state, and no About mount check;
+- one startup update check, one shared desktop updater state across About,
+  Maintenance, and footer, WebUI managed fallback, and no consumer mount check;
+- complete App updater states, independent runtime/App-update attention,
+  current-only Repair availability, and `real_path`-first dependency identity;
 - all required DOM, anchors, search behavior, responsive layout, and fresh
   desktop/mobile screenshots without overlap.
 

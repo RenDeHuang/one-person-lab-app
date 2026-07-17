@@ -747,7 +747,11 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     appearanceMode.navigation_rail_quick_toggle !== 'forbidden' ||
     footerUpdateEntry.placement !== 'account_footer_row_trailing_action' ||
     footerUpdateEntry.replaces !== 'navigation_rail_theme_quick_toggle' ||
-    footerUpdateEntry.availability_source !== 'opl_app_state_fast_managed_update_plane_opl_app_component' ||
+    footerUpdateEntry.availability_source !== 'single_main_process_updater_state_store' ||
+    footerUpdateEntry.webui_fallback_source !==
+      'opl app state --profile fast --json#managed_update.components[component_id=opl_app]' ||
+    footerUpdateEntry.app_update_state_policy_ref !==
+      'contracts/app-gui-product-contract.json#framework_surfaces.managed_update_plane.app_update_state_policy' ||
     footerUpdateEntry.visibility !== 'only_when_newer_version_confirmed_available' ||
     !sameStrings(footerUpdateEntry.hidden_states, [
       'unknown',
@@ -771,7 +775,11 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
       'sider-footer-check-updates',
     ]) ||
     settingsFooterUpdate.placement !== 'account_footer_row_trailing_action' ||
-    settingsFooterUpdate.availability_source !== 'managed_update_plane.components[component_id=opl_app]' ||
+    settingsFooterUpdate.availability_source !== 'single_main_process_updater_state_store' ||
+    settingsFooterUpdate.webui_fallback_source !==
+      'opl app state --profile fast --json#managed_update.components[component_id=opl_app]' ||
+    settingsFooterUpdate.app_update_state_policy_ref !==
+      'contracts/app-gui-product-contract.json#framework_surfaces.managed_update_plane.app_update_state_policy' ||
     settingsFooterUpdate.visibility_policy !== 'confirmed_newer_version_only' ||
     settingsFooterUpdate.trigger_policy !== 'reuse_existing_carrier_updater_with_update_intent' ||
     settingsFooterUpdate.new_updater_forbidden !== true ||

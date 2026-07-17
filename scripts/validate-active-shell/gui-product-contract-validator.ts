@@ -1,6 +1,7 @@
 import { assertDeepEqualJson, assertForbiddenCapabilityPolicy, assertIncludesAll, readJson } from './assertions.ts';
 import {
   appActionRoute,
+  appOwnedSettingsAboutUpdaterStatePolicy,
   appOwnedSettingsResourcesBrowserEntry,
   appOwnedSettingsCapabilitiesTabContract,
   appOwnedSettingsManagedDependencySummary,
@@ -1717,12 +1718,7 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   }
   assertDeepEqualJson(
     pages.about.updater_state_policy,
-    {
-      startup_check: 'once_after_App_startup',
-      mount_check: false,
-      shared_state: 'single_main_process_updater_state_store',
-      manual_check: 'refresh_the_same_shared_state',
-    },
+    appOwnedSettingsAboutUpdaterStatePolicy,
     'About updater state policy',
   );
   if (

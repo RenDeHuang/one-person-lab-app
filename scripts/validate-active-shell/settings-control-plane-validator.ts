@@ -9,9 +9,14 @@ import {
   appOwnedSettingsConfirmationFields,
   appOwnedSettingsIaGroupIds,
   appOwnedSettingsIssueStatuses,
+  appOwnedSettingsAboutUpdaterStatePolicy,
+  appOwnedSettingsAppUpdateStatePolicy,
+  appOwnedSettingsAppUpdateStatePolicyRef,
   appOwnedSettingsMakeUsableAllowedSteps,
   appOwnedSettingsMakeUsableForbiddenSteps,
   appOwnedSettingsManagedDependencySummary,
+  appOwnedSettingsManagedUpdateRepairPolicy,
+  appOwnedSettingsManagedUpdateRepairPolicyRef,
   appOwnedSettingsProductSystemItemIds,
   appOwnedSettingsProductSystemTracks,
   appOwnedSettingsProjectionItemFields,
@@ -222,6 +227,12 @@ export function validateSettingsControlPlane(
   productProfile,
   adapterContract,
 ) {
+  validateSettingsAppUpdateAuthority({
+    controlPlane,
+    guiContract,
+    pageStateMatrix,
+    productProfile,
+  });
   if (controlPlane?.purpose !== "app_owned_settings_control_plane") {
     throw new Error(
       "Settings control plane purpose must be app_owned_settings_control_plane",
@@ -648,6 +659,11 @@ export function validateSettingsControlPlaneBehavior({
   productProfile,
   adapterContract,
 }) {
+  validateSettingsAppUpdateAuthority({
+    guiContract,
+    pageStateMatrix,
+    productProfile,
+  });
   if (guiContract) {
     validateSettingsIa(guiContract?.settings_navigation?.settings_ia);
   }
@@ -663,6 +679,183 @@ export function validateSettingsControlPlaneBehavior({
   }
   if (adapterContract) {
     validateSettingsShellAdapterSlot(adapterContract);
+  }
+}
+
+function validateSettingsAppUpdateAuthority({
+  controlPlane,
+  guiContract,
+  pageStateMatrix,
+  productProfile,
+}) {
+  const assertPolicyRef = (actual, label) => {
+    if (actual !== appOwnedSettingsAppUpdateStatePolicyRef) {
+      throw new Error(
+        `${label} must reference the shared App update state policy`,
+      );
+    }
+  };
+  const assertRepairPolicyRef = (actual, label) => {
+    if (actual !== appOwnedSettingsManagedUpdateRepairPolicyRef) {
+      throw new Error(
+        `${label} must reference the current managed-update repair policy`,
+      );
+    }
+  };
+  const validateFooter = (footer, label) => {
+    if (
+      footer?.availability_source !==
+        "single_main_process_updater_state_store" ||
+      footer?.webui_fallback_source !==
+        "opl app state --profile fast --json#managed_update.components[component_id=opl_app]" ||
+      footer?.app_update_state_policy_ref !==
+        appOwnedSettingsAppUpdateStatePolicyRef
+    ) {
+      throw new Error(
+        `${label} must use the shared desktop updater store with the WebUI managed fallback`,
+      );
+    }
+  };
+
+  if (guiContract) {
+    assertDeepEqualJson(
+      guiContract.framework_surfaces?.managed_update_plane
+        ?.app_update_state_policy,
+      appOwnedSettingsAppUpdateStatePolicy,
+      "App GUI shared App update state policy",
+    );
+    assertDeepEqualJson(
+      guiContract.framework_surfaces?.managed_update_plane
+        ?.repair_availability_policy,
+      appOwnedSettingsManagedUpdateRepairPolicy,
+      "App GUI managed-update repair availability policy",
+    );
+    assertDeepEqualJson(
+      guiContract.pages?.about?.updater_state_policy,
+      appOwnedSettingsAboutUpdaterStatePolicy,
+      "App GUI About updater state policy",
+    );
+    assertPolicyRef(
+      guiContract.pages?.settings_environment?.app_update_state_policy_ref,
+      "App GUI Maintenance",
+    );
+    assertRepairPolicyRef(
+      guiContract.pages?.settings_environment
+        ?.managed_update_repair_availability_policy_ref,
+      "App GUI Maintenance",
+    );
+    validateFooter(
+      guiContract.settings_navigation?.footer_update_entry,
+      "App GUI Settings footer",
+    );
+  }
+
+  if (pageStateMatrix) {
+    assertDeepEqualJson(
+      pageById(pageStateMatrix, "about").updater_state_policy,
+      appOwnedSettingsAboutUpdaterStatePolicy,
+      "Page-state About updater state policy",
+    );
+    assertPolicyRef(
+      pageById(pageStateMatrix, "environment").app_update_state_policy_ref,
+      "Page-state Maintenance",
+    );
+    assertRepairPolicyRef(
+      pageById(pageStateMatrix, "environment")
+        .managed_update_repair_availability_policy_ref,
+      "Page-state Maintenance",
+    );
+    validateFooter(
+      pageStateMatrix.settings_shell_navigation?.footer_update_entry,
+      "Page-state Settings footer",
+    );
+  }
+
+  if (controlPlane) {
+    assertDeepEqualJson(
+      controlPlane.app_update_state_policy,
+      appOwnedSettingsAppUpdateStatePolicy,
+      "Settings control-plane App update state policy",
+    );
+    assertDeepEqualJson(
+      controlPlane.managed_update_repair_availability_policy,
+      appOwnedSettingsManagedUpdateRepairPolicy,
+      "Settings control-plane managed-update repair availability policy",
+    );
+    assertPolicyRef(
+      controlPlane.page_adapter_policy?.required_pages?.about
+        ?.app_update_state_policy_ref,
+      "Settings About adapter",
+    );
+    assertPolicyRef(
+      controlPlane.page_adapter_policy?.required_pages?.environment
+        ?.app_update_state_policy_ref,
+      "Settings Maintenance adapter",
+    );
+    assertRepairPolicyRef(
+      controlPlane.page_adapter_policy?.required_pages?.environment
+        ?.managed_update_repair_availability_policy_ref,
+      "Settings Maintenance adapter",
+    );
+    assertPolicyRef(
+      controlPlane.experience_contract?.page_contracts?.about
+        ?.app_update_state_policy_ref,
+      "Settings About experience",
+    );
+    assertPolicyRef(
+      controlPlane.experience_contract?.page_contracts?.maintenance
+        ?.app_update_state_policy_ref,
+      "Settings Maintenance experience",
+    );
+    assertRepairPolicyRef(
+      controlPlane.experience_contract?.page_contracts?.maintenance
+        ?.managed_update_repair_availability_policy_ref,
+      "Settings Maintenance experience",
+    );
+  }
+
+  const profileControlPlane = productProfile?.settings?.control_plane;
+  if (profileControlPlane) {
+    assertDeepEqualJson(
+      profileControlPlane.app_update_state_policy,
+      appOwnedSettingsAppUpdateStatePolicy,
+      "Product profile App update state policy projection",
+    );
+    assertDeepEqualJson(
+      profileControlPlane.managed_update_repair_availability_policy,
+      appOwnedSettingsManagedUpdateRepairPolicy,
+      "Product profile managed-update repair availability policy projection",
+    );
+    assertPolicyRef(
+      profileControlPlane.page_adapter_policy?.required_pages?.about
+        ?.app_update_state_policy_ref,
+      "Product profile About adapter",
+    );
+    assertPolicyRef(
+      profileControlPlane.page_adapter_policy?.required_pages?.environment
+        ?.app_update_state_policy_ref,
+      "Product profile Maintenance adapter",
+    );
+    assertRepairPolicyRef(
+      profileControlPlane.page_adapter_policy?.required_pages?.environment
+        ?.managed_update_repair_availability_policy_ref,
+      "Product profile Maintenance adapter",
+    );
+    assertPolicyRef(
+      profileControlPlane.experience_contract?.page_contracts?.about
+        ?.app_update_state_policy_ref,
+      "Product profile About experience",
+    );
+    assertPolicyRef(
+      profileControlPlane.experience_contract?.page_contracts?.maintenance
+        ?.app_update_state_policy_ref,
+      "Product profile Maintenance experience",
+    );
+    assertRepairPolicyRef(
+      profileControlPlane.experience_contract?.page_contracts?.maintenance
+        ?.managed_update_repair_availability_policy_ref,
+      "Product profile Maintenance experience",
+    );
   }
 }
 
@@ -1503,12 +1696,7 @@ function validateSettingsPageStateMatrix(
   }
   assertDeepEqualJson(
     pageById(pageStateMatrix, "about").updater_state_policy,
-    {
-      startup_check: "once_after_App_startup",
-      mount_check: false,
-      shared_state: "single_main_process_updater_state_store",
-      manual_check: "refresh_the_same_shared_state",
-    },
+    appOwnedSettingsAboutUpdaterStatePolicy,
     "Page-state About updater state policy",
   );
 }

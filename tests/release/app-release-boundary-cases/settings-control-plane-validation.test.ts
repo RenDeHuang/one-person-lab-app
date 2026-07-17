@@ -1098,6 +1098,15 @@ test("Settings keeps Gateway ownership, cached storage freshness, managed depend
     "binary_path",
     "status",
   ]);
+  assert.deepStrictEqual(managedDependencies.optional_fields, ["real_path"]);
+  assert.deepStrictEqual(managedDependencies.path_identity_precedence, [
+    "real_path",
+    "binary_path",
+  ]);
+  assert.deepStrictEqual(
+    managedDependencies.external_installations_policy.optional_fields,
+    ["real_path"],
+  );
   assert.equal(aboutPage.updater_state_policy.mount_check, false);
   assert.equal(startup.cold_budget_ms, 1500);
   assert.equal(startup.warm_budget_ms, 1500);
@@ -1178,6 +1187,136 @@ test("Settings keeps Gateway ownership, cached storage freshness, managed depend
     () => validate(oversizedStartup),
     /Settings page-state startup performance policy/,
   );
+});
+
+test("Settings keeps one desktop App updater source, WebUI fallback, independent attention, and current-only repair", () => {
+  const values = contracts();
+  assert.doesNotThrow(() => validate(values));
+
+  const updaterPolicy =
+    values.guiContract.framework_surfaces.managed_update_plane
+      .app_update_state_policy;
+  const repairPolicy =
+    values.guiContract.framework_surfaces.managed_update_plane
+      .repair_availability_policy;
+  const policyRef =
+    "contracts/app-gui-product-contract.json#framework_surfaces.managed_update_plane.app_update_state_policy";
+  const repairPolicyRef =
+    "contracts/app-gui-product-contract.json#framework_surfaces.managed_update_plane.repair_availability_policy";
+  const webuiFallback =
+    "opl app state --profile fast --json#managed_update.components[component_id=opl_app]";
+
+  assert.deepStrictEqual(updaterPolicy.desktop.consumers, [
+    "about",
+    "maintenance",
+    "settings_footer",
+  ]);
+  assert.equal(updaterPolicy.desktop.mount_check, false);
+  assert.deepStrictEqual(updaterPolicy.desktop.status_values, [
+    "not_checked",
+    "checking",
+    "not-available",
+    "available",
+    "downloading",
+    "downloaded",
+    "error",
+    "cancelled",
+  ]);
+  assert.deepStrictEqual(updaterPolicy.desktop.attention_states, [
+    "available",
+    "downloading",
+    "downloaded",
+    "error",
+  ]);
+  assert.equal(updaterPolicy.webui.fallback_source, webuiFallback);
+  assert.equal(updaterPolicy.attention_accounting.independent, true);
+  assert.equal(
+    updaterPolicy.attention_accounting.aggregation,
+    "runtime_service_attention_count_plus_one_when_app_update_attention_is_true",
+  );
+  assert.deepStrictEqual(
+    values.controlPlane.app_update_state_policy,
+    updaterPolicy,
+  );
+  assert.deepStrictEqual(
+    values.productProfile.settings.control_plane.app_update_state_policy,
+    updaterPolicy,
+  );
+
+  const guiFooter = values.guiContract.settings_navigation.footer_update_entry;
+  const matrixFooter =
+    values.pageStateMatrix.settings_shell_navigation.footer_update_entry;
+  for (const footer of [guiFooter, matrixFooter]) {
+    assert.equal(
+      footer.availability_source,
+      "single_main_process_updater_state_store",
+    );
+    assert.equal(footer.webui_fallback_source, webuiFallback);
+    assert.equal(footer.app_update_state_policy_ref, policyRef);
+  }
+  assert.equal(
+    values.guiContract.pages.settings_environment.app_update_state_policy_ref,
+    policyRef,
+  );
+  assert.equal(
+    values.pageStateMatrix.pages.find((page) => page.id === "environment")
+      .app_update_state_policy_ref,
+    policyRef,
+  );
+
+  assert.deepStrictEqual(
+    values.controlPlane.managed_update_repair_availability_policy,
+    repairPolicy,
+  );
+  assert.equal(repairPolicy.historical_receipt_role, "diagnostics_only");
+  assert.equal(
+    repairPolicy.historical_receipt_may_activate_current_repair,
+    false,
+  );
+  assert.equal(
+    values.controlPlane.experience_contract.page_contracts.maintenance
+      .managed_update_repair_availability_policy_ref,
+    repairPolicyRef,
+  );
+
+  const managedFooterRegression = contracts();
+  managedFooterRegression.guiContract.settings_navigation.footer_update_entry.availability_source =
+    "managed_update_plane.components[component_id=opl_app]";
+  assert.throws(
+    () => validate(managedFooterRegression),
+    /Settings footer.*shared desktop updater store/,
+  );
+
+  const missingUpdaterState = contracts();
+  missingUpdaterState.guiContract.framework_surfaces.managed_update_plane.app_update_state_policy.desktop.status_values =
+    ["not_checked", "checking", "not-available", "available"];
+  assert.throws(
+    () => validate(missingUpdaterState),
+    /shared App update state policy/,
+  );
+
+  const coupledAttention = contracts();
+  coupledAttention.controlPlane.app_update_state_policy.attention_accounting.independent = false;
+  assert.throws(() => validate(coupledAttention), /App update state policy/);
+
+  const mountCheck = contracts();
+  mountCheck.productProfile.settings.control_plane.app_update_state_policy.desktop.mount_check = true;
+  assert.throws(
+    () => validate(mountCheck),
+    /Product profile App update state policy projection/,
+  );
+
+  const historicalReceiptRepair = contracts();
+  historicalReceiptRepair.guiContract.framework_surfaces.managed_update_plane.repair_availability_policy.historical_receipt_may_activate_current_repair = true;
+  assert.throws(
+    () => validate(historicalReceiptRepair),
+    /managed-update repair availability policy/,
+  );
+
+  const binaryPathFirst = contracts();
+  binaryPathFirst.controlPlane.page_adapter_policy.required_pages.environment.managed_dependency_summary.path_identity_precedence =
+    ["binary_path", "real_path"];
+  assert.throws(() => validate(binaryPathFirst), /managed dependency summary/);
 });
 
 test("Settings validator rejects page-state DOM and search-entry drift", () => {
