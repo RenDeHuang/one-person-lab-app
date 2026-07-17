@@ -4,6 +4,151 @@ import {
   readShellText,
 } from './shell-implementation-helpers.ts';
 
+const brandedDeepLinkProbeIds = [
+  'opl_scheme_only',
+  'navigate_schema_and_secret_rejection',
+  'app_owned_exact_route_registry',
+  'shared_cold_warm_second_instance_parser',
+  'invalid_link_fail_open_and_redacted',
+];
+
+export function validateBrandedDeepLinkProbeContract(adapterContract) {
+  const surface = adapterContract?.implementation_probes?.branded_deep_link_surface;
+  if (
+    surface?.source !== 'app_branded_deep_link_policy' ||
+    surface?.source_ref !== 'contracts/app-gui-product-contract.json#branded_deep_link_policy' ||
+    surface?.policy !== 'behavior_tests_plus_narrow_source_guards'
+  ) {
+    throw new Error('Active shell branded deep-link probe must consume the App-owned policy');
+  }
+  const probes = Array.isArray(surface.probes) ? surface.probes : [];
+  const ids = probes.map((probe) => probe?.id);
+  if (JSON.stringify(ids) !== JSON.stringify(brandedDeepLinkProbeIds)) {
+    throw new Error('Active shell branded deep-link probe ids must match the App-owned policy');
+  }
+  if (
+    probes.some(
+      (probe) =>
+        probe?.required !== true ||
+        !Array.isArray(probe.required_evidence) ||
+        probe.required_evidence.length < 2 ||
+        probe.required_evidence.some((entry) => typeof entry !== 'string' || !entry.trim()),
+    )
+  ) {
+    throw new Error('Active shell branded deep-link probes must require concrete evidence');
+  }
+}
+
+function validateBrandedDeepLinkImplementation(shellPaths) {
+  const processDeepLink = assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/process/utils/deepLink.ts',
+    [
+      "export const PROTOCOL_SCHEME = 'opl';",
+      "parsed.hostname !== 'navigate' || parsed.pathname !== ''",
+      'parameterEntries.some(([key, value]) => containsSensitiveData(key) || containsSensitiveData(value))',
+      "parameterKeys.some((key) => key !== 'route')",
+      "const routes = parsed.searchParams.getAll('route');",
+      "if (routes.length !== 1) return reject('duplicate_parameter');",
+      'isOplAppDeepLinkRoute(route)',
+      'validateDeepLinkPayload(additionalData.deepLinkPayload)',
+      'ipcBridge.deepLink.takePending.provider(async () => activateDeepLinkConsumer())',
+      'console.warn(`[DeepLink] rejected: ${reason}`)',
+      'bearer\\s+',
+      'sk-',
+      'eyj',
+      'ghp_',
+      'github_pat_',
+    ],
+    'Active shell OPL deep-link parser, secret rejection, and pending delivery',
+  );
+  assertTextExcludesAll(
+    processDeepLink,
+    ['aionui://', 'Buffer.from(', 'api_key', 'add-provider', 'provider/add'],
+    'Active shell retired credential-bearing deep-link parser',
+  );
+
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/common/config/oplProductProfile/index.ts',
+    [
+      'export function getOplAppDeepLinkRoutes(): string[]',
+      "'/guid'",
+      "'/archived'",
+      "'/scheduled'",
+      '...controlPlane.ordinary_routes.map((route) => route.path)',
+      '...controlPlane.secondary_pages.map((page) => page.path)',
+      'return getOplAppDeepLinkRoutes().includes(route)',
+    ],
+    'Active shell App-owned exact deep-link route registry',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/index.ts',
+    [
+      'registerDeepLinkBridge()',
+      'extractDeepLinkPayloadFromArgv(process.argv)',
+      'app.requestSingleInstanceLock(deepLinkFromArgv ? { deepLinkPayload: deepLinkFromArgv } : {})',
+      'extractSecondInstanceDeepLinkPayload(argv, additionalData)',
+      'app.setAsDefaultProtocolClient(PROTOCOL_SCHEME)',
+      "app.on('open-url', (event, url) => {",
+      'const result = handleDeepLinkUrl(url)',
+    ],
+    'Active shell shared cold, second-instance, and macOS deep-link delivery',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/hooks/system/useDeepLink.ts',
+    [
+      'isOplAppDeepLinkRoute(payload.params.route)',
+      'ipcBridge.deepLink.received.on(handler)',
+      'ipcBridge.deepLink.takePending',
+      'pendingPayloads.forEach(handler)',
+    ],
+    'Active shell renderer exact-route validation and ready-state pending pull',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/common/adapter/ipcBridge.ts',
+    [
+      "action: 'navigate'",
+      'route: string',
+      "bridge.buildEmitter<DeepLinkNavigatePayload>('deep-link.received')",
+      "bridge.buildProvider<DeepLinkNavigatePayload[], void>('deep-link.take-pending')",
+    ],
+    'Active shell secret-free branded deep-link IPC payload',
+  );
+
+  const builder = assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/electron-builder.yml',
+    ['protocols:', 'schemes:', '      - opl'],
+    'Active shell packaged OPL protocol registration',
+  );
+  assertTextExcludesAll(builder, ['      - aionui'], 'Active shell retired packaged AionUI protocol registration');
+  const ubuntuInstaller = assertShellTextIncludesAll(
+    shellPaths,
+    'scripts/install-ubuntu.sh',
+    ['x-scheme-handler/opl'],
+    'Active shell Ubuntu OPL protocol registration',
+  );
+  assertTextExcludesAll(
+    ubuntuInstaller,
+    ['x-scheme-handler/aionui'],
+    'Active shell retired Ubuntu AionUI protocol registration',
+  );
+
+  const addPlatformModal = readShellText(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/settings/components/AddPlatformModal.tsx',
+  );
+  assertTextExcludesAll(
+    addPlatformModal,
+    ['aionui://', 'add-provider', 'provider/add'],
+    'Active shell retired provider credential deep-link instructions',
+  );
+}
+
 const settingsNavExpected = [
   "from '../registry/settingsRegistry'",
   'buildSettingsNavItems',
@@ -426,6 +571,8 @@ function validateOrdinaryCapabilityScrub(shellPaths) {
 }
 
 export function validateShellSettingsAndTeamImplementation(shellPaths) {
+  validateBrandedDeepLinkProbeContract(shellPaths.contract);
+  validateBrandedDeepLinkImplementation(shellPaths);
   validateSettingsPartitionImplementation(shellPaths);
   validateConversationVisualImplementation(shellPaths);
   validateTeamRouteDisablement(shellPaths);

@@ -619,6 +619,53 @@
         "AionUI upstream settings intake is classified as accepted/adapt/redirect/reject before registry or slot changes"
       ]
     },
+    "branded_deep_link_surface": {
+      "source": "app_branded_deep_link_policy",
+      "source_ref": "contracts/app-gui-product-contract.json#branded_deep_link_policy",
+      "policy": "behavior_tests_plus_narrow_source_guards",
+      "probes": [
+        {
+          "id": "opl_scheme_only",
+          "required": true,
+          "required_evidence": [
+            "desktop registration and every intake path use opl://",
+            "aionui:// is neither registered nor accepted without an explicit compatibility contract"
+          ]
+        },
+        {
+          "id": "navigate_schema_and_secret_rejection",
+          "required": true,
+          "required_evidence": [
+            "navigate is the only action and route is the only accepted query parameter",
+            "credential actions, unknown or duplicate params, encoded payloads, and secret-like material are rejected before queue or emit"
+          ]
+        },
+        {
+          "id": "app_owned_exact_route_registry",
+          "required": true,
+          "required_evidence": [
+            "renderer derives Settings routes from the App Settings control-plane registry",
+            "only App-owned static and exact Settings paths can navigate"
+          ]
+        },
+        {
+          "id": "shared_cold_warm_second_instance_parser",
+          "required": true,
+          "required_evidence": [
+            "cold argv, macOS open-url, and second-instance delivery share one parser",
+            "only a validated payload can be queued or emitted"
+          ]
+        },
+        {
+          "id": "invalid_link_fail_open_and_redacted",
+          "required": true,
+          "required_evidence": [
+            "invalid input preserves the current App route, composer input, and startup availability",
+            "logs contain a reason code but no raw URL or parameter value"
+          ]
+        }
+      ]
+    },
     "aionui_team_disabled_surface": {
       "source": "app_shell_upgrade_architecture_hardening",
       "policy": "fail_closed_required_for_active_shell_upgrade",
