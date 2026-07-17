@@ -22,7 +22,7 @@ OPL App 在基准上保留以下产品例外：
 
 - App icon、窗口/metadata identity 和发布资产继续使用 One Person Lab App；普通导航栏与
   移动端标题栏只显示文字 `One Person Lab`，不搭配 logo，也不要求深浅主题变体资产。
-- 普通工作入口使用 OPL purpose language。默认显示科研、基金、演示和元智能体；写书默认关闭，
+- 普通工作入口使用 OPL purpose language。默认顺序为科研、演示、基金、元智能体；写书默认关闭，
   但继续作为可在 Settings → Agents & Capabilities 中开启并排序的入口。
 - Executor、模型策略和当前默认值由 `contracts/app-product-profile.json` 决定；本文
   不复制 model/reasoning 值或模型 allowlist。

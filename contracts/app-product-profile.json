@@ -397,14 +397,14 @@
           "user_configurable": true
         },
         {
-          "shortcut_id": "grant",
-          "package_id": "mag",
-          "agent_id": "mag",
-          "primary_label": "基金",
-          "package_short_name": "MAG",
-          "codex_visible_entry": "med-autogrant",
+          "shortcut_id": "ppt",
+          "package_id": "rca",
+          "agent_id": "rca",
+          "primary_label": "演示",
+          "package_short_name": "RCA",
+          "codex_visible_entry": "redcube-ai",
           "required_skill_ids": [
-            "med-autogrant"
+            "redcube-ai"
           ],
           "source": "opl_app_home",
           "executor": "codex_cli",
@@ -414,14 +414,14 @@
           "user_configurable": true
         },
         {
-          "shortcut_id": "ppt",
-          "package_id": "rca",
-          "agent_id": "rca",
-          "primary_label": "演示",
-          "package_short_name": "RCA",
-          "codex_visible_entry": "redcube-ai",
+          "shortcut_id": "grant",
+          "package_id": "mag",
+          "agent_id": "mag",
+          "primary_label": "基金",
+          "package_short_name": "MAG",
+          "codex_visible_entry": "med-autogrant",
           "required_skill_ids": [
-            "redcube-ai"
+            "med-autogrant"
           ],
           "source": "opl_app_home",
           "executor": "codex_cli",
@@ -791,8 +791,8 @@
       "scope": "package_shortcut_launch_to_codex_conversation",
       "required_for_package_shortcuts": [
         "research",
-        "grant",
         "ppt",
+        "grant",
         "book",
         "oma"
       ],

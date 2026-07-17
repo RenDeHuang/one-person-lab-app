@@ -59,10 +59,11 @@ type RouteReceiptOptions = {
 
 export const starterPackageIds = ['mas', 'mag', 'rca', 'obf'];
 export const starterShortcutIds = ['research', 'grant', 'ppt', 'book'];
-export const managedShortcutIds = [...starterShortcutIds, 'oma'];
-export const managedShortcutPackageIds = [...starterPackageIds, 'oma'];
-export const defaultVisibleShortcutIds = ['research', 'grant', 'ppt', 'oma'];
-export const defaultVisibleShortcutPackageIds = ['mas', 'mag', 'rca', 'oma'];
+export const professionalAgentPackageIds = [...starterPackageIds, 'oma'];
+export const managedShortcutIds = ['research', 'ppt', 'grant', 'book', 'oma'];
+export const managedShortcutPackageIds = ['mas', 'rca', 'mag', 'obf', 'oma'];
+export const defaultVisibleShortcutIds = ['research', 'ppt', 'grant', 'oma'];
+export const defaultVisibleShortcutPackageIds = ['mas', 'rca', 'mag', 'oma'];
 export const forbiddenExternalFirstPartyClaimPattern =
   '^\\s*[Ff][Ii][Rr][Ss][Tt][^A-Za-z0-9]*[Pp][Aa][Rr][Tt][Yy]';
 
@@ -198,7 +199,7 @@ export function assertProfessionalAgentPackagePolicy(
   const entries = packages ?? [];
   assertExactStringArray(
     entries.map((entry) => entry.package_id),
-    managedShortcutPackageIds,
+    professionalAgentPackageIds,
     `${label} professional agent packages`,
   );
   for (const entry of entries) {

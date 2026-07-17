@@ -161,17 +161,17 @@ function validateGuidHomeRouteAndPurpose(homeViewModel) {
     'Guid home page route receipt non-authority fields',
   );
   const homeAgentShortcuts = homeViewModel.home_agent_shortcuts ?? [];
-  if (JSON.stringify(homeAgentShortcuts.map((entry) => entry.shortcut_id)) !== JSON.stringify(['research', 'grant', 'ppt', 'book', 'oma'])) {
-    throw new Error('Guid home page must expose MAS, MAG, RCA, OBF, and OMA package shortcuts');
+  if (JSON.stringify(homeAgentShortcuts.map((entry) => entry.shortcut_id)) !== JSON.stringify(['research', 'ppt', 'grant', 'book', 'oma'])) {
+    throw new Error('Guid home page must expose MAS, RCA, MAG, OBF, and OMA package shortcuts');
   }
-  if (JSON.stringify(homeAgentShortcuts.map((entry) => entry.package_id)) !== JSON.stringify(['mas', 'mag', 'rca', 'obf', 'oma'])) {
-    throw new Error('Guid home page package shortcuts must target MAS, MAG, RCA, OBF, and OMA');
+  if (JSON.stringify(homeAgentShortcuts.map((entry) => entry.package_id)) !== JSON.stringify(['mas', 'rca', 'mag', 'obf', 'oma'])) {
+    throw new Error('Guid home page package shortcuts must target MAS, RCA, MAG, OBF, and OMA');
   }
   if (
     JSON.stringify(homeAgentShortcuts.filter((entry) => entry.default_visible).map((entry) => entry.shortcut_id)) !==
-    JSON.stringify(['research', 'grant', 'ppt', 'oma'])
+    JSON.stringify(['research', 'ppt', 'grant', 'oma'])
   ) {
-    throw new Error('Guid home page must default to Research, Grant, Presentation, and Meta Agent shortcuts');
+    throw new Error('Guid home page must default to Research, Presentation, Grant, and Meta Agent shortcuts');
   }
   if (homeAgentShortcuts.some((entry) => entry.user_configurable !== true)) {
     throw new Error('Guid home page package shortcuts must remain user configurable');
