@@ -193,9 +193,9 @@ Server ready 与 worker blocked 必须分别显示。若 worker mutation guard �
 | Selected row | `#F0F0F0` |
 | Primary text | `#202124` |
 | Secondary text | `#5F6368` |
-| Muted text | `#80868B` |
+| Muted text | `#70757A` |
 | Hairline border | `rgba(0, 0, 0, 0.10)` |
-| Focus ring | `rgba(37, 99, 235, 0.34)` |
+| Focus ring | `#2563EB` |
 | Composer shadow | `0 1px 2px rgba(0,0,0,.06), 0 4px 12px rgba(0,0,0,.05)` |
 
 ### Dark
@@ -209,7 +209,9 @@ Server ready 与 worker blocked 必须分别显示。若 worker mutation guard �
 | Selected row | `rgba(255, 255, 255, 0.09)` |
 | Primary text | `#F4F5F6` |
 | Secondary text | `#AEB4BC` |
+| Muted text | `#9298A1` |
 | Hairline border | `rgba(255, 255, 255, 0.12)` |
+| Focus ring | `#60A5FA` |
 | Composer shadow | `0 1px 2px rgba(0,0,0,.28), 0 4px 12px rgba(0,0,0,.18)` |
 
 OPL accent 只用于品牌动作和必要状态，不参与普通 rail、Settings 导航或 composer chrome。
@@ -286,6 +288,10 @@ App contracts、Framework projection 和既有 Shell state。
 - `1440x900`、`1024x768`、最小支持窗口和 mobile/WebUI viewport；
 - default、hover、pressed、focus-visible、disabled、loading、error、streaming；
 - reduced motion、键盘遍历、ARIA/accessibility name 和正文对比度。
+
+Semantic token 与 focused DOM regression 只关闭 Source 轴。真实 screen-reader traversal、完整
+keyboard traversal、rendered contrast 和安装版 readback 仍分别由 Pixel/Install evidence 关闭，
+不得从 CSS 或单元测试外推。
 
 同 cohort 稳定 chrome 的目标：关键几何每轴误差不超过 `1px`；对动态文本、时间、头像和
 系统 chrome 做 mask 后，主要稳定区域 pixel mismatch 不超过 `1%`。像素阈值是回归信号，

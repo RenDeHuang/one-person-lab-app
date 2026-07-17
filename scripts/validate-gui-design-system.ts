@@ -1254,6 +1254,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   const visualTarget = record(interactionBaseline.visual_target);
   const lightSurfaces = record(visualTarget.light_surfaces);
   const darkSurfaces = record(visualTarget.dark_surfaces);
+  const accessibility = record(visualTarget.accessibility);
   const visualTypography = record(visualTarget.typography);
   const conversationRendering = record(visualTarget.conversation_rendering);
   const targetDefinitionRole = 'opl_target_translation_not_literal_codex_observation';
@@ -1395,9 +1396,9 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
         selected_row: '#F0F0F0',
         text_primary: '#202124',
         text_secondary: '#5F6368',
-        text_muted: '#80868B',
+        text_muted: '#70757A',
         hairline_border: 'rgba(0, 0, 0, 0.10)',
-        focus_ring: 'rgba(37, 99, 235, 0.34)',
+        focus_ring: '#2563EB',
         composer_shadow: '0 1px 2px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.05)',
       }) ||
     JSON.stringify(darkSurfaces) !==
@@ -1409,7 +1410,9 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
         selected_row: 'rgba(255, 255, 255, 0.09)',
         text_primary: '#F4F5F6',
         text_secondary: '#AEB4BC',
+        text_muted: '#9298A1',
         hairline_border: 'rgba(255, 255, 255, 0.12)',
+        focus_ring: '#60A5FA',
         composer_shadow: '0 1px 2px rgba(0, 0, 0, 0.28), 0 4px 12px rgba(0, 0, 0, 0.18)',
       }) ||
     visualTarget.rail_and_subtle_surfaces !== 'neutral_gray' ||
@@ -1453,6 +1456,24 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     visualTarget.opl_teal_and_brand_retained !== true
   ) {
     issues.add('interaction baseline must reject the legacy equal-weight inspector taxonomy and keep Settings in maintenance');
+  }
+  if (
+    accessibility.ordinary_text_min_contrast_ratio !== 4.5 ||
+    accessibility.large_text_non_text_and_focus_indicator_min_contrast_ratio !== 3 ||
+    !sameStrings(accessibility.source_regression_scope, [
+      'semantic_light_dark_muted_text_contrast',
+      'semantic_light_dark_focus_indicator_contrast',
+      'keyboard_focus_aria_escape_and_reduced_motion',
+    ]) ||
+    accessibility.source_evidence_closes_pixel_or_install !== false ||
+    !sameStrings(accessibility.remaining_evidence, [
+      'real_screen_reader_traversal',
+      'complete_rendered_keyboard_traversal',
+      'rendered_contrast_across_supported_surfaces',
+      'installed_app_readback',
+    ])
+  ) {
+    issues.add('B0-14 accessibility contract must keep WCAG thresholds and source evidence separate from Pixel and Install');
   }
 
   const pageStateBoundary = record(pageStateMatrix.acceptance_boundary);

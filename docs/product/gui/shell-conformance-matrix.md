@@ -75,8 +75,9 @@ shell-owned subagent execution path。若现有 adapter 能表达真实 fixture�
 | `B0-08` Review | `aligned_contract` | `source_implemented` | `pixel_unverified` | `install_unverified` | `release_unverified` | 四类 target、inline/detached、PR context、stage/commit/push、Last turn/custom 与 truthful unavailable 已有 source。Line-level comment 和 non-custom focus 是可选 protocol limit，不降级 baseline，也不授权 local annotation store。 |
 | `B0-12` Scheduled Tasks | `current_contract_deviation` | `source_partial` | `pixel_unverified` | `install_unverified` | `release_unverified` | Machine refs 是 `app-product-profile#companion_payloads.native_automation` 与 `app-shell-adapter#upstream_intake.managed_agent_api_contract.write_contracts.cron`。现有 Cron routes 已覆盖 CRUD、run-now、pause/resume、history、timezone 与 tests；只补 ordinary Sider discoverability 与 OPL fixed-Codex-executor create/edit composition，复用现有 Cron，不建第二 scheduler。 |
 | `B0-13` Personalization / instructions | `aligned_contract` | `source_implemented` | `pixel_unverified` | `install_unverified` | `release_unverified` | Workspace & Personalization、AGENTS/action routes 与 tests 已形成 baseline source；下一步只走独立 Pixel/Install/Release。 |
+| `B0-14` Settings shell / accessibility | `aligned_contract` | `source_implemented` | `pixel_unverified` | `install_unverified` | `release_unverified` | 既有 focused suites 覆盖 keyboard、focus、ARIA、Escape/focus restore、Settings search focus 与 reduced motion；semantic token regression 锁定 light/dark muted text `4.5:1` 和 focus indicator `3:1` 基线。真实 screen-reader、完整 rendered keyboard traversal、rendered contrast 与 installed readback 仍按后轴独立验收。 |
 
-本轮 fresh B0 slice 为 `B0-08/B0-13 source_implemented`、`B0-12 source_partial`；B0-11
+本轮 fresh B0 slice 为 `B0-08/B0-13/B0-14 source_implemented`、`B0-12 source_partial`；B0-11
 必须分组件读取：execution、metadata intake 与 canonical discovery 是 `source_implemented`，activity
 UI 是 `source_partial`。其它 B0 未在本 snapshot 重新汇总，不能从这四项外推完整 B0 完成度。
 
@@ -272,7 +273,7 @@ Install、Release 五轴；没有 exact-feature installed/release evidence 的�
 |   白色 main、`#FCFCFC` rail、中性 selected surface | `aligned_contract` | `source_implemented` | `pixel_verified` | `current_contract_deviation` | `source_partial` | `pixel_verified` | `install_unverified` | `release_unverified` | `install_unverified` | `release_unverified` | 视觉 token 只由 App contract 维护；最终同尺寸light/dark/narrow installed pixels仍待验。   |
 |   Desktop Back/Forward、Previous/Next Task、New Window | `aligned_contract` | `source_implemented` | `pixel_unverified` | `current_contract_deviation` | `source_not_assessed` | `pixel_unverified` | `install_unverified` | `release_unverified` | `install_unverified` | `release_unverified` | titlebar/menu、focused/unfocused command gate、focus resync 与 history boundary 已有 focused coverage；packaged multi-window 仍是独立证据缺口。   |
 |   OPL 品牌、双语与普通语言一致 | `aligned_contract` | `source_implemented` | `pixel_verified` | `candidate_target` | `source_partial` | `pixel_verified` | `install_unverified` | `release_unverified` | `install_unverified` | `release_unverified` | Current exact cohort覆盖OPL brand、zh-CN/en-US；文案完整性仍由i18n gate负责。   |
-|   Keyboard、focus、contrast、reduced motion | `aligned_contract` | `source_partial` | `pixel_unverified` | `candidate_target` | `source_partial` | `pixel_unverified` | `install_unverified` | `release_unverified` | `install_unverified` | `release_unverified` | rail/context focus、Escape、inert 和 reduced-motion 已有 focused coverage；contrast 与全键盘矩阵仍待验收。   |
+|   Keyboard、focus、contrast、reduced motion | `aligned_contract` | `source_implemented` | `pixel_unverified` | `candidate_target` | `source_partial` | `pixel_unverified` | `install_unverified` | `release_unverified` | `install_unverified` | `release_unverified` | AionUI 既有 focused coverage 加上 light/dark semantic contrast regression 关闭 Source；真实 screen-reader、完整 rendered keyboard traversal、rendered contrast 和 installed readback 仍未验证。Native 仍须单独完成自身 Source。   |
 |   First-run 使用 App-owned readiness/page-state | `aligned_contract` | `source_implemented` | `pixel_unverified` | `candidate_target` | `source_missing` | `pixel_unverified` | `install_unverified` | `release_unverified` | `install_unverified` | `release_unverified` | Native 尚无完整 FirstRun；contract 和 test matrix 不能替代 clean-machine path。   |
 |   Desktop/WebUI 同 product semantics | `not_claimed` | `source_not_assessed` | `not_applicable` | `candidate_target` | `source_partial` | `pixel_unverified` | `install_unverified` | `release_unverified` | `install_unverified` | `release_unverified` | Native 共享 renderer/bridge 有基础，但缺当前 Desktop/WebUI route-by-route parity evidence。   |
 |   Release role | `aligned_contract` | `source_implemented` | `not_applicable` | `candidate_target` | `source_implemented` | `not_applicable` | `install_unverified` | `release_unverified` | `install_unverified` | `release_unverified` | AionUI 仍是 active stable shell；Native 是 experimental candidate，package/smoke 不得推导 adoption 或 release-ready。   |
@@ -297,6 +298,9 @@ Install、Release 五轴；没有 exact-feature installed/release evidence 的�
   custom target instructions，并删除same-review-turn focus fallback；非custom focus与line-level comments等待typed protocol。
 - **Narrow Settings：** `e218d79b7...` ancestry 将Access摘要卡的双列断点从`md`提高到`xl`，960px窗口保持
   单列；focused DOM锁定不得在`md`提前双列。匹配installed pixel由最终package owner验收。
+- **Accessibility：** AionUI Source 已复用既有 keyboard/focus/ARIA/Escape/reduced-motion coverage，并以
+  semantic token regression 锁定 WCAG contrast；真实 screen-reader、完整 rendered keyboard traversal、
+  rendered contrast 和 installed readback 不由 Source test 代替。
 - **Package/install：** `26.7.13` macOS arm64 directory-only package、packaged E2E与codesign已通过，
   但未安装；clean-user-data、first-run、用户线程操作与公开release promotion仍是独立证据。
 - **Settings pixels：** 14-entry desktop Light manifest 绑定 `fadd91f9...`；不把该历史图提升为

@@ -124,8 +124,8 @@ Light target：
 | `border` | `rgba(0, 0, 0, 0.10)` | 1px 分隔和 outline。 |
 | `text-primary` | `#202124` | 正文和主标签。 |
 | `text-secondary` | `#5F6368` | 元信息和说明。 |
-| `text-muted` | `#80868B` | 低优先级 metadata。 |
-| `focus` | `rgba(37, 99, 235, 0.34)` | Keyboard focus ring。 |
+| `text-muted` | `#70757A` | 低优先级 metadata；对白色 canvas 为 `4.65:1`，对 rail 为 `4.53:1`。 |
+| `focus` | `#2563EB` | Keyboard focus ring；对白色 canvas 为 `5.17:1`。 |
 | `success` | `#15803D` | 成功。 |
 | `warning` | `#B45309` | 需要注意。 |
 | `danger` | `#B42318` | 失败或破坏性动作。 |
@@ -142,8 +142,9 @@ Dark target：
 | `border` | `rgba(255, 255, 255, 0.12)` | 1px 分隔和 outline。 |
 | `text-primary` | `#F4F5F6` | 正文和主标签。 |
 | `text-secondary` | `#AEB4BC` | 元信息和说明。 |
+| `text-muted` | `#9298A1` | 低优先级 metadata；对 canvas、surface 和 rail 均高于 `5.4:1`。 |
 | `accent` | `#5EEAD4` | OPL 选中态和品牌动作。 |
-| `focus` | `#60A5FA` | Keyboard focus ring。 |
+| `focus` | `#60A5FA` | Keyboard focus ring；对 canvas、surface 和 rail 均高于 `6.2:1`。 |
 | `success` | `#4ADE80` | 成功。 |
 | `warning` | `#FBBF24` | 需要注意。 |
 | `danger` | `#FB7185` | 失败或破坏性动作。 |
@@ -350,6 +351,8 @@ check indicator；`unavailable` 在发送时显示原因和允许动作，`activ
 ## 可访问性
 
 - 正文与背景对比至少 `4.5:1`；大字、非文本边界和 focus indicator 至少 `3:1`。
+- Source gate 只锁定语义 token 和 focused DOM 行为；真实 screen-reader traversal、完整键盘遍历、
+  rendered contrast 与安装版 readback 分别属于 Pixel/Install evidence，不能由 token test 代替。
 - 所有功能可 keyboard-only 完成，Tab order 与视觉顺序一致。
 - Focus ring 清晰，不被 overflow 裁掉；drawer/modal 使用正确 focus trap 和 Escape。
 - Icon button 有 accessible name；tooltip 不作为唯一信息来源。

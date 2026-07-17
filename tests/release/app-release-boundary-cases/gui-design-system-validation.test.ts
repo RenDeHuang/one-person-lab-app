@@ -633,6 +633,20 @@ test('GUI design-system validator rejects stale Codex light surfaces and compose
   );
 });
 
+test('GUI design-system validator rejects weakened B0-14 contrast and evidence boundaries', () => {
+  const root = createFixture();
+  const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
+  const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+  contract.interaction_baseline.visual_target.accessibility.ordinary_text_min_contrast_ratio = 3;
+  contract.interaction_baseline.visual_target.accessibility.source_evidence_closes_pixel_or_install = true;
+  writeJson(root, 'contracts/app-gui-product-contract.json', contract);
+
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /B0-14 accessibility contract must keep WCAG thresholds and source evidence separate from Pixel and Install/,
+  );
+});
+
 test('GUI design-system validator rejects card-backed or loosely spaced conversation output', () => {
   const root = createFixture();
   const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
