@@ -43,6 +43,8 @@ tranche:
 
 | Order | Candidate | Safe boundary and acceptance |
 | --- | --- | --- |
+| P1a | X0-01 Runtime cockpit default-gate pruning | Preserve the retained optional Work Item projection and route-specific checks. Remove Runtime cockpit from B0/R1/U1, P0, default release/design-system gates, and Native phase-1 parity; acceptance requires those machine gates to stop treating the optional route as a core product requirement without deleting its source. |
+| P1b | X0-03/X0-04 Workspace/Fabric/HPC/Console literal-gate pruning | Preserve optional owner refs and routes, but show them only when a real backend and owner exist. Remove placeholder groups and literal contract/fixture/validator requirements from the ordinary App; acceptance requires App-owned scheduling, billing, credentials, storage execution, and provider truth to remain absent. |
 | P1c | X0-05 private cross-thread pruning | Preserve the single App Server directory/user-action adapter and B0 thread operations. Remove Native candidate hard requirements for private host, dynamic model tools, ledger/receipts, advisory/idempotency, and cross-host parity. Candidate validation must still prove one adapter and no private layer. |
 | M1 | Alternative-carrier default-gate decoupling | After P1c, default AionUI/full/release gates keep only minimal fixed-role registry integrity. Native, Hermes, and AGUI detail validation becomes explicit on demand; archived/reference schemas shrink to role tombstones and replay refs. Active AionUI gates must not fail on untouched candidate drift, while `validate:candidate:native` and other explicit replay commands remain functional. |
 
