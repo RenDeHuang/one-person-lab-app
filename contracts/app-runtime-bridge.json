@@ -1284,6 +1284,40 @@
         "compatibility_fallback_only": true,
         "cross_locale_raw_fallback_allowed": false,
         "raw_owner_default_render_allowed": false
+      },
+      "domain_detail_views": {
+        "optional": true,
+        "collection_kind": "typed_agent_owned_item_detail_descriptors",
+        "required_fields": [
+          "view_id",
+          "view_kind",
+          "schema_version",
+          "availability",
+          "current_focus",
+          "latest_outcome",
+          "active_branch",
+          "updated_at",
+          "revision",
+          "generation",
+          "ref",
+          "digest"
+        ],
+        "availability_values": ["available", "missing", "stale", "unsupported", "oversize"],
+        "fast_profile_role": "bounded_medical_summary_and_lazy_read_descriptor_only",
+        "full_payload_in_fast_state_allowed": false,
+        "app_agent_id_branching_allowed": false,
+        "renderer_selection_field": "view_kind",
+        "registered_view_kinds": {
+          "scientific_reasoning_map": {
+            "schema_version": "scientific-reasoning-map.v1",
+            "view_id": "scientific-reasoning",
+            "current_focus_fields": ["node_id", "primary_hypothesis"],
+            "latest_outcome_fields": ["finding", "judgment", "next_step"],
+            "active_branch_fields": ["branch_id", "label"]
+          }
+        },
+        "machine_only_fields": ["ref", "digest", "revision", "generation"],
+        "machine_fields_default_visible": false
       }
     },
     "row_identity_contract": {
@@ -1433,6 +1467,99 @@
       "visibility_mutation_may_delete_evidence": false,
       "stop_requires_separate_framework_action": true
     },
+    "domain_detail_view_read_contract": {
+      "surface_kind": "opl_domain_detail_view",
+      "schema_version": "opl_domain_detail_view.v1",
+      "descriptor_path": "items[].domain_detail_views[]",
+      "selection_fields": ["item_id", "view_id"],
+      "command": "opl app view read --item-id <canonical-item-id> --view-id <view-id> [--if-generation <generation>] --json",
+      "scientific_reasoning_command": "opl app view read --item-id <canonical-item-id> --view-id scientific-reasoning [--if-generation <generation>] --json",
+      "optional_generation_argument": "--if-generation <generation>",
+      "unchanged_response": {
+        "not_modified": true,
+        "payload": null,
+        "shell_policy": "retain_last_valid_view"
+      },
+      "response_required_fields": [
+        "schema_version",
+        "surface_kind",
+        "item_id",
+        "view_id",
+        "view_kind",
+        "availability",
+        "updated_at",
+        "revision",
+        "generation",
+        "ref",
+        "digest",
+        "not_modified",
+        "payload_schema",
+        "payload",
+        "conditions"
+      ],
+      "availability_values": ["available", "missing", "stale", "unsupported", "oversize"],
+      "payload_contracts": {
+        "scientific_reasoning_map": {
+          "payload_schema": "scientific-reasoning-map.v1",
+          "required_fields": [
+            "study_id",
+            "status",
+            "summary",
+            "current_focus",
+            "active_branch",
+            "nodes",
+            "edges",
+            "source_refs",
+            "conditions"
+          ],
+          "summary_required_fields": [
+            "primary_hypothesis",
+            "latest_finding",
+            "current_judgment",
+            "next_research_step",
+            "updated_at"
+          ],
+          "node_kinds": ["hypothesis", "test", "finding", "decision", "route", "artifact", "human_gate"],
+          "node_required_fields": [
+            "id",
+            "kind",
+            "label",
+            "status",
+            "summary",
+            "branch_id",
+            "occurred_at",
+            "details",
+            "source_refs"
+          ],
+          "edge_kinds": [
+            "tests",
+            "supports",
+            "does_not_support",
+            "inconclusive",
+            "revises",
+            "supersedes",
+            "routes_to",
+            "requires",
+            "produces"
+          ],
+          "edge_required_fields": ["id", "source", "target", "kind", "label", "status", "source_refs"],
+          "edge_status_values": ["active", "historical", "blocked"],
+          "source_ref_default_surface": "collapsed_sources_and_basis",
+          "raw_machine_terms_default_visible": false
+        }
+      },
+      "resolver_owner": "opl_framework_standard_agent_descriptor",
+      "app_may_submit_ref_or_path": false,
+      "arbitrary_path_read_allowed": false,
+      "workspace_containment_required": true,
+      "symlink_escape_allowed": false,
+      "schema_validation_required": true,
+      "size_limit_fail_closed": true,
+      "digest_validation_required_when_present": true,
+      "owner_projection_body_kind": "typed_domain_read_model_not_artifact_body",
+      "app_role": "typed_display_consumer",
+      "shell_renderer_registry": "view_kind_keyed_no_agent_id_branching"
+    },
     "detail_layer_contract": {
       "surface": "runtime_work_item_detail",
       "selection_key": "item_id",
@@ -1444,9 +1571,19 @@
         "stage_and_total_tokens",
         "action"
       ],
-      "secondary_sections": [],
+      "secondary_sections": ["domain_detail_view_summary"],
       "diagnostic_sections": [],
       "equal_weight_tab_wall_allowed": false,
+      "domain_detail_view_summary_fields": [
+        "primary_hypothesis",
+        "latest_finding",
+        "current_judgment",
+        "next_research_step",
+        "updated_at"
+      ],
+      "domain_detail_view_route": "/runtime/item/:itemId/insights/:viewId",
+      "domain_detail_view_full_canvas_required": true,
+      "domain_detail_view_machine_fields_visible": false,
       "stage_map_fields": [
         "stage_id",
         "display_name",

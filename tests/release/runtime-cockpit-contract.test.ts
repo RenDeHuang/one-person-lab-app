@@ -48,6 +48,11 @@ test('WorkItemProjection V2 requires global item identity, all nine axes, and ob
     (projection: any) => { projection.diagnostic_envelope_contract.fast_profile_nonzero_count_with_empty_items_is_valid = false; },
     (projection: any) => { projection.diagnostic_envelope_contract.fast_profile_embedded_item_count_must_not_exceed_count = false; },
     (projection: any) => { projection.diagnostic_envelope_contract.valid_summary_only_preserves_projects_and_work_items = false; },
+    (projection: any) => { projection.field_contracts.domain_detail_views.full_payload_in_fast_state_allowed = true; },
+    (projection: any) => { projection.field_contracts.domain_detail_views.app_agent_id_branching_allowed = true; },
+    (projection: any) => { projection.domain_detail_view_read_contract.app_may_submit_ref_or_path = true; },
+    (projection: any) => { projection.domain_detail_view_read_contract.unchanged_response.not_modified = false; },
+    (projection: any) => { projection.domain_detail_view_read_contract.payload_contracts.scientific_reasoning_map.edge_kinds.push('refutes'); },
   ]) {
     const projection = structuredClone(runtimeBridge().work_item_projection);
     mutate(projection);
@@ -191,6 +196,10 @@ test('Runtime product rejects list, status, Stage popover, surface-boundary, and
     (contract: any) => { contract.renderer_policy.technical_execution_stage_may_replace_business_stage = true; },
     (contract: any) => { contract.progressive_disclosure.raw_technical_fields_default_visible = true; },
     (contract: any) => { contract.progressive_disclosure.excluded_technical_detail_owner = '/runtime'; },
+    (contract: any) => { contract.domain_detail_views.agent_id_branching_allowed = true; },
+    (contract: any) => { contract.domain_detail_views.full_payload_in_fast_state_allowed = true; },
+    (contract: any) => { contract.domain_detail_views.drawer_presentation.machine_fields_visible = true; },
+    (contract: any) => { contract.domain_detail_views.full_canvas.horizontal_page_overflow_allowed = true; },
   ]) {
     const gui = runtimeContract();
     mutate(gui.pages.runtime_status.runtime_cockpit_product_contract);
@@ -267,6 +276,12 @@ test('Runtime page-state rejects removal or weakening of V2 acceptance', () => {
     (matrix: any) => {
       const states = matrix.pages.find((page: any) => page.id === 'runtime').runtime_view_model.work_item_visibility_state_matrix.page_states;
       states.find((state: any) => state.id === 'stale_generation_conflict').when = 'generation_conflict';
+    },
+    (matrix: any) => {
+      matrix.pages.find((page: any) => page.id === 'runtime').runtime_view_model.domain_detail_view.agent_id_branching_allowed = true;
+    },
+    (matrix: any) => {
+      matrix.pages.find((page: any) => page.id === 'runtime').runtime_view_model.domain_detail_view.states = [];
     },
   ]) {
     const matrix = structuredClone(readJson('contracts/app-page-state-matrix.json'));

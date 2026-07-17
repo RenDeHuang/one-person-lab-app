@@ -160,6 +160,61 @@ export const workItemProjectionFieldContracts = {
   ],
 };
 
+export const domainDetailViewAvailabilityValues = [
+  "available",
+  "missing",
+  "stale",
+  "unsupported",
+  "oversize",
+];
+
+export const domainDetailViewDescriptorFields = [
+  "view_id",
+  "view_kind",
+  "schema_version",
+  "availability",
+  "current_focus",
+  "latest_outcome",
+  "active_branch",
+  "updated_at",
+  "revision",
+  "generation",
+  "ref",
+  "digest",
+];
+
+export const scientificReasoningSummaryFields = [
+  "primary_hypothesis",
+  "latest_finding",
+  "current_judgment",
+  "next_research_step",
+  "updated_at",
+];
+
+export const scientificReasoningNodeKinds = [
+  "hypothesis",
+  "test",
+  "finding",
+  "decision",
+  "route",
+  "artifact",
+  "human_gate",
+];
+
+export const scientificReasoningEdgeKinds = [
+  "tests",
+  "supports",
+  "does_not_support",
+  "inconclusive",
+  "revises",
+  "supersedes",
+  "routes_to",
+  "requires",
+  "produces",
+];
+
+export const runtimeWorkItemDetailSecondarySections = ["domain_detail_view_summary"];
+
 export const workItemConditionFields = [
   "type",
   "status",

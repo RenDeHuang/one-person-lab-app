@@ -231,6 +231,14 @@ rules；在该 machine change 落地前保留它们只为避免 docs-only 变更
   下一 stage、下一行动与 owner、运行和 telemetry 可信度。Scope 不包含论文/work item；状态
   saved views 不重复 MAS 或其他智能体。默认列表固定为项目/论文、状态、当前进展/下一步、
   时间/Token 四列，智能体全称作为次级标签；一个 canonical work item 只显示一行。
+- Runtime 的领域详情是 item-scoped progressive disclosure，不改变四列表。fast projection 只携带
+  bounded `domain_detail_views[]` descriptor；完整内容由 `opl app view read --item-id ... --view-id ...
+  [--if-generation ...] --json` 按需读取。Shell 按 `view_kind` 选择 typed renderer，禁止按 MAS id
+  分支、提交任意路径、解析 Markdown/Codex session 或把 read model 提升为领域裁决。
+- 首个 typed view 是 `scientific_reasoning_map`。Drawer 只显示“当前主要假设、最新研究发现、当前判断、
+  下一研究步骤、更新时间”和“查看科研路线”；独立 `/runtime/item/:itemId/insights/:viewId` 全幅画布
+  显示科研路线与右侧研究对象详情。来源只在折叠“来源与依据”中出现；generation、digest、ref、
+  payload、attempt、provider 等机器字段不得进入用户文案。
 - 条件 Runtime route 的 Token 只显示 observed 当前阶段与累计值；missing 必须说明原因，不能渲染成 `0`，
   未配置上限时不得画进度条。Agent availability 使用独立 projection，五个一方智能体使用全称，
   全健康时折叠；任务数和裸 `0/2` 不构成 availability，MAS Scholar Skills 只是 MAS 依赖。

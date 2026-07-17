@@ -102,6 +102,16 @@ runtime projections and cannot read artifact bodies, own artifact authority, or
 turn runtime refs into domain quality, export, readiness, App release or family
 production claims.
 
+Domain-owned work-item detail views use the same authority split. Fast App state
+may carry only bounded `domain_detail_views[]` descriptors and user-facing
+summaries. A selected item may then read one typed view through
+`opl app view read --item-id ... --view-id ... [--if-generation ...] --json`.
+The Framework resolves only descriptor-declared refs inside the owning workspace;
+the App and Shell never submit paths, scan Markdown or Codex sessions, or infer a
+domain verdict. Renderers are selected by `view_kind`, not by a first-party agent
+id. `scientific_reasoning_map` is the first registered view kind, but it does not
+make MAS a hard-coded App dependency.
+
 OPL App is the local-first workbench for One Person Lab. The current required
 surfaces are the macOS desktop App and U1-05 Docker/WebUI on Linux, Windows, a
 server, or a cloud VM. They keep the same project, task, artifact, progress, and
@@ -159,6 +169,16 @@ attention requires a complete, current responsibility envelope that still
 blocks execution. Product contract, Framework producer, Shell consumer, and
 live user-path evidence are independent completion dimensions: none may promote
 another to complete.
+
+When a selected item advertises `scientific_reasoning_map`, the drawer adds only
+a concise research summary and a route-map button. The full graph lives at the
+item-scoped `/runtime/item/:itemId/insights/:viewId` route, where the main canvas
+shows the research trajectory and the right inspector explains the selected
+research object. User copy is written for medical researchers: current primary
+hypothesis, validation method, principal finding, evidence assessment, route
+adjustment, next research step, and a collapsed Sources and rationale section.
+Machine fields such as generation, digest, ref, payload, provider, or attempt are
+never user-facing.
 
 Claude Science-style task awareness lands first in conversation current-task
 context and the right inspector rather than as a new dashboard. The optional

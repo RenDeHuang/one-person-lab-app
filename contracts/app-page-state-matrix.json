@@ -1057,7 +1057,7 @@
         "role": "opl_runtime_user_task_status",
         "bridge_contract": "contracts/app-runtime-bridge.json",
         "default_mode": "user_task_status_first",
-        "full_detail_policy": "selected_work_item_only_no_global_operator_drilldown",
+        "full_detail_policy": "selected_work_item_core_plus_typed_domain_detail_view_no_global_operator_drilldown",
         "runtime_cockpit_acceptance": {
           "product_contract_ref": "contracts/app-gui-product-contract.json#pages.runtime_status.runtime_cockpit_product_contract",
           "work_item_projection_ref": "contracts/app-runtime-bridge.json#work_item_projection",
@@ -1112,7 +1112,11 @@
             "visibility_mutation_framework_action_generation_refresh_readback",
             "system_attention_requires_complete_current_responsibility",
             "observed_token_usage_missing_never_zero_no_limit_progress",
-            "detail_core_sections_only_no_secondary_or_diagnostics",
+            "detail_core_plus_typed_domain_detail_summary_no_diagnostics",
+            "domain_detail_view_lazy_read_by_item_and_view_id_no_path_input",
+            "scientific_reasoning_renderer_selected_by_view_kind_not_agent_id",
+            "scientific_reasoning_medical_copy_machine_fields_hidden",
+            "scientific_reasoning_full_canvas_responsive_and_keyboard_accessible",
             "delivered_stage_map_completed_history_only_action_envelope_next_step",
             "stage_popover_complete_order_current_next_and_attempt_without_opening_drawer",
             "stage_labels_follow_current_app_locale_when_projection_supplies_display_names",
@@ -1130,6 +1134,74 @@
           "interval_seconds_min": 5,
           "interval_seconds_max": 10,
           "policy": "lightweight_polling_until_push_projection_available"
+        },
+        "domain_detail_view": {
+          "descriptor_path": "app_state.operator.workbench.work_item_projection_v2.items[].domain_detail_views[]",
+          "descriptor_required_fields": [
+            "view_id",
+            "view_kind",
+            "schema_version",
+            "availability",
+            "current_focus",
+            "latest_outcome",
+            "active_branch",
+            "updated_at",
+            "revision",
+            "generation",
+            "ref",
+            "digest"
+          ],
+          "lazy_read_command": "opl app view read --item-id <canonical-item-id> --view-id <view-id> [--if-generation <generation>] --json",
+          "selection_fields": ["item_id", "view_id"],
+          "renderer_selection_field": "view_kind",
+          "agent_id_branching_allowed": false,
+          "full_payload_in_fast_state_allowed": false,
+          "scientific_reasoning": {
+            "view_id": "scientific-reasoning",
+            "view_kind": "scientific_reasoning_map",
+            "schema_version": "scientific-reasoning-map.v1",
+            "drawer_summary_fields": [
+              "primary_hypothesis",
+              "latest_finding",
+              "current_judgment",
+              "next_research_step",
+              "updated_at"
+            ],
+            "route": "/runtime/item/:itemId/insights/:viewId",
+            "layout": "full_width_graph_with_right_node_inspector",
+            "modes": ["map", "current_branch"],
+            "source_refs_surface": "collapsed_sources_and_basis"
+          },
+          "states": [
+            {
+              "id": "loading",
+              "required_ui": "localized_research_trajectory_loading_preserve_page_frame"
+            },
+            {
+              "id": "missing",
+              "required_ui": "localized_no_research_trajectory_yet"
+            },
+            {
+              "id": "stale",
+              "required_ui": "localized_previous_research_trajectory_with_refresh_age"
+            },
+            {
+              "id": "unsupported",
+              "required_ui": "localized_view_version_not_supported_no_payload_guessing"
+            },
+            {
+              "id": "oversize",
+              "required_ui": "localized_research_trajectory_too_large_no_partial_truth"
+            },
+            {
+              "id": "not_modified",
+              "required_ui": "retain_last_valid_view_without_blank_or_layout_shift"
+            }
+          ],
+          "responsive_viewport_widths_px": [375, 768, 1024, 1440],
+          "horizontal_page_overflow_allowed": false,
+          "keyboard_access_required": true,
+          "machine_fields_visible": false
         },
         "diagnostics": {
           "default_visibility": "absent_from_runtime",
@@ -1360,7 +1432,7 @@
         "primary_state_source": "opl app state --profile fast --json",
         "refresh_state_source": "opl app state --profile fast --json",
         "summary_source": "app_state.operator.workbench.work_item_projection_v2",
-        "full_detail_source": "selected_work_item_from_work_item_projection_v2",
+        "full_detail_source": "selected_work_item_from_work_item_projection_v2_plus_item_scoped_domain_detail_view",
         "must_not_default_display_terms": [
           "Temporal",
           "provider",

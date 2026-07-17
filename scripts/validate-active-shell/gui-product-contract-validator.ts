@@ -1766,8 +1766,8 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   }
   if (
     pages.runtime_status.summary_source !== 'app_state.operator.workbench.work_item_projection_v2'
-    || pages.runtime_status.full_detail_source !== 'selected_work_item_from_work_item_projection_v2'
-    || pages.runtime_status.full_detail_policy !== 'selected_work_item_only_no_global_operator_drilldown'
+    || pages.runtime_status.full_detail_source !== 'selected_work_item_from_work_item_projection_v2_plus_item_scoped_domain_detail_view'
+    || pages.runtime_status.full_detail_policy !== 'selected_work_item_core_plus_typed_domain_detail_view_no_global_operator_drilldown'
   ) {
     throw new Error('App GUI Runtime must use WorkItemProjection v2 for both list and selected-item detail');
   }
@@ -1815,6 +1815,8 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     'clickable current Stage popover with complete Stage order, next Stage, and current Attempt',
     'Stage click does not open the task detail drawer',
     'Stage Map, current and next stage, current Attempt, heartbeat, Token, and action on detail open',
+    'typed domain detail summary in the selected work-item drawer without changing the four-column list',
+    'item-scoped scientific reasoning map with medical research copy, interactive graph, and collapsed sources and rationale',
     'platform maintenance, software updates, module health, safe actions, and operator diagnostics excluded from Runtime and routed to Settings',
     'responsive semantic row reflow without horizontal page overflow',
     'contract, Framework producer, Shell consumer, and live evidence tracked separately',

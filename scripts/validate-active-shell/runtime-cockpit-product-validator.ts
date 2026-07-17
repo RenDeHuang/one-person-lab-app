@@ -1,8 +1,11 @@
 import { assertDeepEqualJson } from './assertions.ts';
 import {
+  domainDetailViewAvailabilityValues,
   runtimeFirstPartyAgents,
+  scientificReasoningSummaryFields,
   systemAttentionResponsibilityFields,
   workItemDetailPrimarySections,
+  runtimeWorkItemDetailSecondarySections,
   workItemPrimaryStateLabelsByLocale,
   runtimeVisibilityPageStateIds,
 } from './app-contract-constants.ts';
@@ -75,7 +78,11 @@ const runtimeCockpitRequiredInvariants = [
   'visibility_mutation_framework_action_generation_refresh_readback',
   'system_attention_requires_complete_current_responsibility',
   'observed_token_usage_missing_never_zero_no_limit_progress',
-  'detail_core_sections_only_no_secondary_or_diagnostics',
+  'detail_core_plus_typed_domain_detail_summary_no_diagnostics',
+  'domain_detail_view_lazy_read_by_item_and_view_id_no_path_input',
+  'scientific_reasoning_renderer_selected_by_view_kind_not_agent_id',
+  'scientific_reasoning_medical_copy_machine_fields_hidden',
+  'scientific_reasoning_full_canvas_responsive_and_keyboard_accessible',
   'delivered_stage_map_completed_history_only_action_envelope_next_step',
   'stage_popover_complete_order_current_next_and_attempt_without_opening_drawer',
   'stage_labels_follow_current_app_locale_when_projection_supplies_display_names',
@@ -415,8 +422,13 @@ export function validateRuntimeCockpitProductContract(contract, label) {
   );
   assertDeepEqualJson(
     contract.work_item_detail?.secondary_sections,
-    [],
+    runtimeWorkItemDetailSecondarySections,
     `${label}.work_item_detail.secondary_sections`,
+  );
+  assertDeepEqualJson(
+    contract.work_item_detail?.domain_detail_view_summary_fields,
+    scientificReasoningSummaryFields,
+    `${label}.work_item_detail.domain_detail_view_summary_fields`,
   );
   assertDeepEqualJson(
     contract.work_item_detail?.diagnostic_sections,
@@ -434,6 +446,8 @@ export function validateRuntimeCockpitProductContract(contract, label) {
       timeline_owner_surface: '/settings/environment?section=diagnostics',
       equal_weight_tab_wall_allowed: false,
       current_attempt_visibility: 'stage_popover_and_selected_work_item_detail_only',
+      domain_detail_view_summary_visibility: 'only_when_typed_descriptor_is_present',
+      domain_detail_view_open_command: 'button_with_route_map_icon',
     },
     `${label}.work_item_detail`,
   );
@@ -455,6 +469,62 @@ export function validateRuntimeCockpitProductContract(contract, label) {
     },
     `${label}.work_item_detail.delivered_stage_map_terminal_boundary`,
   );
+
+  const domainViews = contract.domain_detail_views;
+  assertExpectedFields(
+    domainViews,
+    {
+      owner: 'domain_agent_projection_via_opl_framework',
+      renderer_selection: 'typed_registry_by_view_kind',
+      agent_id_branching_allowed: false,
+      scientific_reasoning_view_id: 'scientific-reasoning',
+      scientific_reasoning_schema: 'scientific-reasoning-map.v1',
+      availability_copy_policy: 'localized_medical_research_copy_no_machine_enum',
+      not_modified_policy: 'retain_last_valid_view',
+      full_payload_in_fast_state_allowed: false,
+      markdown_or_session_parsing_in_app_allowed: false,
+      domain_truth_or_evidence_judgment_allowed: false,
+    },
+    `${label}.domain_detail_views`,
+  );
+  assertDeepEqualJson(
+    domainViews?.registered_view_kinds,
+    ['scientific_reasoning_map'],
+    `${label}.domain_detail_views.registered_view_kinds`,
+  );
+  assertDeepEqualJson(
+    domainViews?.availability_states,
+    domainDetailViewAvailabilityValues,
+    `${label}.domain_detail_views.availability_states`,
+  );
+  assertDeepEqualJson(
+    domainViews?.drawer_presentation?.summary_labels?.['zh-CN'],
+    ['当前主要假设', '最新研究发现', '当前判断', '下一研究步骤', '更新时间'],
+    `${label}.domain_detail_views.drawer_presentation.summary_labels.zh-CN`,
+  );
+  if (domainViews?.drawer_presentation?.machine_fields_visible !== false) {
+    throw new Error(`${label}.domain_detail_views drawer must hide machine fields`);
+  }
+  assertExpectedFields(
+    domainViews?.full_canvas,
+    {
+      route: '/runtime/item/:itemId/insights/:viewId',
+      layout: 'full_width_graph_with_right_node_inspector',
+      horizontal_page_overflow_allowed: false,
+      source_refs_surface: 'collapsed_sources_and_basis',
+    },
+    `${label}.domain_detail_views.full_canvas`,
+  );
+  assertDeepEqualJson(
+    domainViews?.full_canvas?.responsive_viewport_widths_px,
+    responsiveViewportWidths,
+    `${label}.domain_detail_views.full_canvas.responsive_viewport_widths_px`,
+  );
+  for (const forbidden of ['node', 'event', 'payload', 'revision', 'hash', 'attempt', 'provider']) {
+    if (!domainViews?.medical_copy_vocabulary?.forbidden_user_facing_terms?.includes(forbidden)) {
+      throw new Error(`${label}.domain_detail_views must hide ${forbidden} from user-facing copy`);
+    }
+  }
 
   assertExpectedFields(
     contract.agent_availability_routing,

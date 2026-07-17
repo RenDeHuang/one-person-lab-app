@@ -12,6 +12,11 @@ import {
   runtimeScopeRequiredFields,
   actionEnvelopeKinds,
   actionOwnerKinds,
+  domainDetailViewAvailabilityValues,
+  domainDetailViewDescriptorFields,
+  scientificReasoningEdgeKinds,
+  scientificReasoningNodeKinds,
+  scientificReasoningSummaryFields,
   systemAttentionResponsibilityFields,
   taskRunProjectionV2FieldGroups,
   taskRunProjectionV2RequiredFields,
@@ -19,6 +24,7 @@ import {
   tokenObservationStates,
   workItemConditionFields,
   workItemDetailPrimarySections,
+  runtimeWorkItemDetailSecondarySections,
   workItemPrimaryStateLabelsByLocale,
   workItemBusinessStates,
   workItemProjectionFieldContracts,
@@ -503,6 +509,42 @@ export function validateWorkItemProjectionContract(projection, label) {
       throw new Error(`${label} action.${field} must be ${expected}`);
     }
   }
+  const domainDetailViews = projection.field_contracts?.domain_detail_views;
+  assertDeepEqualJson(
+    domainDetailViews?.required_fields,
+    domainDetailViewDescriptorFields,
+    `${label} domain detail descriptor fields`,
+  );
+  assertDeepEqualJson(
+    domainDetailViews?.availability_values,
+    domainDetailViewAvailabilityValues,
+    `${label} domain detail availability values`,
+  );
+  assertDeepEqualJson(
+    domainDetailViews?.machine_only_fields,
+    ["ref", "digest", "revision", "generation"],
+    `${label} domain detail machine-only fields`,
+  );
+  for (const [field, expected] of Object.entries({
+    optional: true,
+    collection_kind: "typed_agent_owned_item_detail_descriptors",
+    fast_profile_role: "bounded_medical_summary_and_lazy_read_descriptor_only",
+    full_payload_in_fast_state_allowed: false,
+    app_agent_id_branching_allowed: false,
+    renderer_selection_field: "view_kind",
+    machine_fields_default_visible: false,
+  })) {
+    if (domainDetailViews?.[field] !== expected) {
+      throw new Error(`${label} domain detail views ${field} must be ${expected}`);
+    }
+  }
+  const scientificDescriptor = domainDetailViews?.registered_view_kinds?.scientific_reasoning_map;
+  if (
+    scientificDescriptor?.schema_version !== "scientific-reasoning-map.v1" ||
+    scientificDescriptor?.view_id !== "scientific-reasoning"
+  ) {
+    throw new Error(`${label} must register the scientific reasoning view kind and stable view id`);
+  }
   assertDeepEqualJson(
     projection.row_identity_contract,
     {
@@ -670,8 +712,13 @@ export function validateWorkItemProjectionContract(projection, label) {
   );
   assertDeepEqualJson(
     projection.detail_layer_contract?.secondary_sections,
-    [],
+    runtimeWorkItemDetailSecondarySections,
     `${label} detail secondary sections`,
+  );
+  assertDeepEqualJson(
+    projection.detail_layer_contract?.domain_detail_view_summary_fields,
+    scientificReasoningSummaryFields,
+    `${label} domain detail summary fields`,
   );
   assertDeepEqualJson(
     projection.detail_layer_contract?.diagnostic_sections,
@@ -693,6 +740,74 @@ export function validateWorkItemProjectionContract(projection, label) {
   }
   if (projection.detail_layer_contract?.selection_key !== "item_id") {
     throw new Error(`${label} detail layer must select globally canonical item_id`);
+  }
+  const detailRead = projection.domain_detail_view_read_contract;
+  assertDeepEqualJson(
+    detailRead?.availability_values,
+    domainDetailViewAvailabilityValues,
+    `${label} domain detail read availability values`,
+  );
+  assertDeepEqualJson(
+    detailRead?.response_required_fields,
+    [
+      "schema_version",
+      "surface_kind",
+      "item_id",
+      "view_id",
+      "view_kind",
+      "availability",
+      "updated_at",
+      "revision",
+      "generation",
+      "ref",
+      "digest",
+      "not_modified",
+      "payload_schema",
+      "payload",
+      "conditions",
+    ],
+    `${label} domain detail response fields`,
+  );
+  for (const [field, expected] of Object.entries({
+    surface_kind: "opl_domain_detail_view",
+    schema_version: "opl_domain_detail_view.v1",
+    command: "opl app view read --item-id <canonical-item-id> --view-id <view-id> [--if-generation <generation>] --json",
+    optional_generation_argument: "--if-generation <generation>",
+    resolver_owner: "opl_framework_standard_agent_descriptor",
+    app_may_submit_ref_or_path: false,
+    arbitrary_path_read_allowed: false,
+    workspace_containment_required: true,
+    symlink_escape_allowed: false,
+    schema_validation_required: true,
+    size_limit_fail_closed: true,
+    owner_projection_body_kind: "typed_domain_read_model_not_artifact_body",
+    shell_renderer_registry: "view_kind_keyed_no_agent_id_branching",
+  })) {
+    if (detailRead?.[field] !== expected) {
+      throw new Error(`${label} domain detail read ${field} must be ${expected}`);
+    }
+  }
+  if (detailRead?.unchanged_response?.not_modified !== true || detailRead?.unchanged_response?.payload !== null) {
+    throw new Error(`${label} domain detail read must preserve the prior view on not_modified`);
+  }
+  const reasoningPayload = detailRead?.payload_contracts?.scientific_reasoning_map;
+  assertDeepEqualJson(
+    reasoningPayload?.summary_required_fields,
+    scientificReasoningSummaryFields,
+    `${label} scientific reasoning summary fields`,
+  );
+  assertDeepEqualJson(
+    reasoningPayload?.node_kinds,
+    scientificReasoningNodeKinds,
+    `${label} scientific reasoning node kinds`,
+  );
+  assertDeepEqualJson(
+    reasoningPayload?.edge_kinds,
+    scientificReasoningEdgeKinds,
+    `${label} scientific reasoning edge kinds`,
+  );
+  if (reasoningPayload?.edge_kinds?.includes("refutes")) {
+    throw new Error(`${label} scientific reasoning must not overstate a result as refutation`);
   }
   if (
     projection.refs_only !== true ||

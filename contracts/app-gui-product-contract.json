@@ -5177,8 +5177,8 @@
       "summary_source": "app_state.operator.workbench.work_item_projection_v2",
       "default_state_source": "opl app state --profile fast --json",
       "diagnostic_source": "settings_control_center_only",
-      "full_detail_source": "selected_work_item_from_work_item_projection_v2",
-      "full_detail_policy": "selected_work_item_only_no_global_operator_drilldown",
+      "full_detail_source": "selected_work_item_from_work_item_projection_v2_plus_item_scoped_domain_detail_view",
+      "full_detail_policy": "selected_work_item_core_plus_typed_domain_detail_view_no_global_operator_drilldown",
       "runtime_cockpit_product_contract": {
         "owner": "one-person-lab-app",
         "role": "minimal_project_work_status_console",
@@ -5499,7 +5499,7 @@
             "stage_and_total_tokens",
             "action"
           ],
-          "secondary_sections": [],
+          "secondary_sections": ["domain_detail_view_summary"],
           "diagnostic_sections": [],
           "primary_sections_visible_on_open": true,
           "diagnostic_sections_allowed": false,
@@ -5508,6 +5508,15 @@
           "timeline_owner_surface": "/settings/environment?section=diagnostics",
           "equal_weight_tab_wall_allowed": false,
           "current_attempt_visibility": "stage_popover_and_selected_work_item_detail_only",
+          "domain_detail_view_summary_fields": [
+            "primary_hypothesis",
+            "latest_finding",
+            "current_judgment",
+            "next_research_step",
+            "updated_at"
+          ],
+          "domain_detail_view_summary_visibility": "only_when_typed_descriptor_is_present",
+          "domain_detail_view_open_command": "button_with_route_map_icon",
           "delivered_stage_map_terminal_boundary": {
             "terminal_signals": [
               "lifecycle.primary_state=delivered_auto_paused",
@@ -5519,6 +5528,76 @@
             "empty_stage_map_allowed": true,
             "post_delivery_next_step_source": "work_item_projection.action"
           }
+        },
+        "domain_detail_views": {
+          "owner": "domain_agent_projection_via_opl_framework",
+          "descriptor_source": "work_item_projection_v2.items[].domain_detail_views[]",
+          "descriptor_contract_ref": "contracts/app-runtime-bridge.json#work_item_projection.field_contracts.domain_detail_views",
+          "read_contract_ref": "contracts/app-runtime-bridge.json#work_item_projection.domain_detail_view_read_contract",
+          "renderer_selection": "typed_registry_by_view_kind",
+          "agent_id_branching_allowed": false,
+          "registered_view_kinds": ["scientific_reasoning_map"],
+          "scientific_reasoning_view_id": "scientific-reasoning",
+          "scientific_reasoning_schema": "scientific-reasoning-map.v1",
+          "drawer_presentation": {
+            "surface": "selected_work_item_detail",
+            "heading_copy": {
+              "zh-CN": "科研路线",
+              "en-US": "Research trajectory"
+            },
+            "summary_labels": {
+              "zh-CN": ["当前主要假设", "最新研究发现", "当前判断", "下一研究步骤", "更新时间"],
+              "en-US": ["Current primary hypothesis", "Latest research finding", "Current assessment", "Next research step", "Updated"]
+            },
+            "open_button_copy": {
+              "zh-CN": "查看科研路线",
+              "en-US": "View research trajectory"
+            },
+            "machine_fields_visible": false
+          },
+          "full_canvas": {
+            "route": "/runtime/item/:itemId/insights/:viewId",
+            "layout": "full_width_graph_with_right_node_inspector",
+            "required_modes": ["map", "current_branch"],
+            "required_interactions": ["fit", "pan", "zoom", "keyboard_node_navigation", "node_detail_selection"],
+            "responsive_viewport_widths_px": [375, 768, 1024, 1440],
+            "horizontal_page_overflow_allowed": false,
+            "source_refs_surface": "collapsed_sources_and_basis",
+            "source_refs_heading_copy": {
+              "zh-CN": "来源与依据",
+              "en-US": "Sources and rationale"
+            }
+          },
+          "medical_copy_vocabulary": {
+            "required_zh_CN": [
+              "研究问题",
+              "当前主要假设",
+              "验证方法",
+              "主要发现",
+              "证据判断",
+              "路线调整",
+              "下一研究步骤",
+              "来源与依据"
+            ],
+            "forbidden_user_facing_terms": [
+              "node",
+              "event",
+              "payload",
+              "revision",
+              "hash",
+              "attempt",
+              "provider",
+              "winning path",
+              "superseded",
+              "route_back"
+            ]
+          },
+          "availability_states": ["available", "missing", "stale", "unsupported", "oversize"],
+          "availability_copy_policy": "localized_medical_research_copy_no_machine_enum",
+          "not_modified_policy": "retain_last_valid_view",
+          "full_payload_in_fast_state_allowed": false,
+          "markdown_or_session_parsing_in_app_allowed": false,
+          "domain_truth_or_evidence_judgment_allowed": false
         },
         "agent_availability_routing": {
           "runtime_page_visible": false,
@@ -5680,6 +5759,8 @@
         "clickable current Stage popover with complete Stage order, next Stage, and current Attempt",
         "Stage click does not open the task detail drawer",
         "Stage Map, current and next stage, current Attempt, heartbeat, Token, and action on detail open",
+        "typed domain detail summary in the selected work-item drawer without changing the four-column list",
+        "item-scoped scientific reasoning map with medical research copy, interactive graph, and collapsed sources and rationale",
         "platform maintenance, software updates, module health, safe actions, and operator diagnostics excluded from Runtime and routed to Settings",
         "responsive semantic row reflow without horizontal page overflow",
         "contract, Framework producer, Shell consumer, and live evidence tracked separately"

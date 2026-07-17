@@ -426,8 +426,8 @@ export function validatePageStateMatrix(matrix, contract, guiProductContract) {
   if (runtimeViewModel.default_mode !== 'user_task_status_first') {
     throw new Error('Runtime page view model must default to user_task_status_first');
   }
-  if (runtimeViewModel.full_detail_policy !== 'selected_work_item_only_no_global_operator_drilldown') {
-    throw new Error('Runtime page detail must stay selected-work-item only');
+  if (runtimeViewModel.full_detail_policy !== 'selected_work_item_core_plus_typed_domain_detail_view_no_global_operator_drilldown') {
+    throw new Error('Runtime page detail must stay selected-work-item only with typed domain detail views');
   }
   validateRuntimeCockpitAcceptanceBoundary(
     matrix.acceptance_boundary,
@@ -449,11 +449,34 @@ export function validatePageStateMatrix(matrix, contract, guiProductContract) {
   ) {
     throw new Error('Runtime page polling fallback must be lightweight 5-10 second polling');
   }
+  const domainDetail = runtimeViewModel.domain_detail_view;
+  if (
+    domainDetail?.lazy_read_command !==
+      'opl app view read --item-id <canonical-item-id> --view-id <view-id> [--if-generation <generation>] --json'
+    || domainDetail?.renderer_selection_field !== 'view_kind'
+    || domainDetail?.agent_id_branching_allowed !== false
+    || domainDetail?.full_payload_in_fast_state_allowed !== false
+    || domainDetail?.machine_fields_visible !== false
+  ) {
+    throw new Error('Runtime domain detail views must be lazy, typed, agent-agnostic, and hide machine fields');
+  }
+  if (
+    domainDetail?.scientific_reasoning?.view_id !== 'scientific-reasoning'
+    || domainDetail?.scientific_reasoning?.view_kind !== 'scientific_reasoning_map'
+    || domainDetail?.scientific_reasoning?.route !== '/runtime/item/:itemId/insights/:viewId'
+  ) {
+    throw new Error('Runtime scientific reasoning must use the stable item-scoped view identity and route');
+  }
+  assertDeepEqualJson(
+    domainDetail?.states?.map((state) => state.id),
+    ['loading', 'missing', 'stale', 'unsupported', 'oversize', 'not_modified'],
+    'Runtime domain detail view states',
+  );
   for (const [field, expected] of Object.entries({
     primary_state_source: 'opl app state --profile fast --json',
     refresh_state_source: 'opl app state --profile fast --json',
     summary_source: 'app_state.operator.workbench.work_item_projection_v2',
-    full_detail_source: 'selected_work_item_from_work_item_projection_v2',
+    full_detail_source: 'selected_work_item_from_work_item_projection_v2_plus_item_scoped_domain_detail_view',
     'action_queue.runtime_page_allowed_action': 'work_item_visibility_set_only',
     'action_queue.platform_action_catalog_visible': false,
     'action_queue.platform_action_owner_surface': '/settings/environment',
