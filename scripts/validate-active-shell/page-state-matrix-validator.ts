@@ -476,11 +476,20 @@ export function validatePageStateMatrix(matrix, contract, guiProductContract) {
   if (
     domainDetail?.scientific_reasoning?.accepted_trajectory_source !== 'receipt_bound_nodes_edges_and_summary'
     || domainDetail?.scientific_reasoning?.working_checkpoints_source !== 'separate_working_checkpoints_field'
-    || domainDetail?.scientific_reasoning?.working_checkpoints_presentation !== 'localized_awaiting_confirmation_not_formal_conclusion'
+    || domainDetail?.scientific_reasoning?.working_checkpoints_presentation !== 'localized_status_specific_pending_or_rejected_not_formal_conclusion'
+    || domainDetail?.scientific_reasoning?.sources_and_basis_source !== 'medical_narrative.sources_and_basis'
+    || domainDetail?.scientific_reasoning?.sources_and_basis_surface !== 'collapsed_sources_and_basis'
+    || domainDetail?.scientific_reasoning?.machine_source_refs_visible !== false
+    || domainDetail?.scientific_reasoning?.rejected_checkpoint_may_imply_scientific_refutation !== false
     || domainDetail?.scientific_reasoning?.working_checkpoints_may_change_accepted_graph !== false
   ) {
     throw new Error('Runtime scientific reasoning must separate working checkpoints from accepted conclusions');
   }
+  assertDeepEqualJson(
+    domainDetail?.scientific_reasoning?.working_checkpoint_status_values,
+    ['pending', 'rejected'],
+    'Runtime scientific reasoning working checkpoint status values',
+  );
   assertDeepEqualJson(
     domainDetail?.states?.map((state) => state.id),
     ['loading', 'missing', 'stale', 'unsupported', 'oversize', 'not_modified'],

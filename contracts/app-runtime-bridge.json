@@ -1528,7 +1528,8 @@
             "source_refs"
           ],
           "working_checkpoint_status_values": ["pending", "rejected"],
-          "working_checkpoint_machine_only_fields": ["checkpoint_id"],
+          "working_checkpoint_machine_only_fields": ["checkpoint_id", "source_refs"],
+          "working_checkpoint_sources_and_basis_source": "medical_narrative.sources_and_basis",
           "working_checkpoint_presentation": "separate_review_state_not_formal_research_conclusion",
           "summary_required_fields": [
             "primary_hypothesis",
@@ -1562,7 +1563,9 @@
           ],
           "edge_required_fields": ["id", "source", "target", "kind", "label", "status", "source_refs"],
           "edge_status_values": ["active", "historical", "blocked"],
-          "source_ref_default_surface": "collapsed_sources_and_basis",
+          "sources_and_basis_source": "medical_narrative.sources_and_basis",
+          "sources_and_basis_default_surface": "collapsed_sources_and_basis",
+          "machine_source_refs_default_visible": false,
           "raw_machine_terms_default_visible": false
         }
       },

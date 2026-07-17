@@ -832,12 +832,21 @@ export function validateWorkItemProjectionContract(projection, label) {
     scientificReasoningWorkingCheckpointStatuses,
     `${label} scientific reasoning working checkpoint statuses`,
   );
+  assertDeepEqualJson(
+    reasoningPayload?.working_checkpoint_machine_only_fields,
+    ["checkpoint_id", "source_refs"],
+    `${label} scientific reasoning working checkpoint machine-only fields`,
+  );
   if (
     reasoningPayload?.accepted_trajectory_authority !== "receipt_bound_domain_owner_acceptance_only" ||
     reasoningPayload?.working_checkpoint_content_in_accepted_fields_allowed !== false ||
-    reasoningPayload?.working_checkpoint_presentation !== "separate_review_state_not_formal_research_conclusion"
+    reasoningPayload?.working_checkpoint_presentation !== "separate_review_state_not_formal_research_conclusion" ||
+    reasoningPayload?.working_checkpoint_sources_and_basis_source !== "medical_narrative.sources_and_basis" ||
+    reasoningPayload?.sources_and_basis_source !== "medical_narrative.sources_and_basis" ||
+    reasoningPayload?.sources_and_basis_default_surface !== "collapsed_sources_and_basis" ||
+    reasoningPayload?.machine_source_refs_default_visible !== false
   ) {
-    throw new Error(`${label} scientific reasoning must keep working checkpoints outside accepted conclusions`);
+    throw new Error(`${label} scientific reasoning must keep working checkpoints and machine refs outside accepted conclusions`);
   }
   if (reasoningPayload?.edge_kinds?.includes("refutes")) {
     throw new Error(`${label} scientific reasoning must not overstate a result as refutation`);

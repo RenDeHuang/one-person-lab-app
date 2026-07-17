@@ -510,11 +510,25 @@ export function validateRuntimeCockpitProductContract(contract, label) {
     domainViews?.trajectory_layers?.working_checkpoints,
     {
       presentation: 'separate_review_state_not_formal_research_conclusion',
+      rejected_status_semantics: 'checkpoint_not_included_never_scientific_hypothesis_refutation',
       may_change_accepted_summary: false,
       may_change_accepted_graph: false,
       empty_allowed: true,
     },
     `${label}.domain_detail_views.trajectory_layers.working_checkpoints`,
+  );
+  assertDeepEqualJson(
+    domainViews?.trajectory_layers?.working_checkpoints?.status_values,
+    ['pending', 'rejected'],
+    `${label}.domain_detail_views.trajectory_layers.working_checkpoints.status_values`,
+  );
+  assertExpectedFields(
+    domainViews?.trajectory_layers?.working_checkpoints?.status_presentation,
+    {
+      pending: 'awaiting_confirmation_not_formal_conclusion',
+      rejected: 'not_included_in_formal_conclusion_never_scientific_refutation',
+    },
+    `${label}.domain_detail_views.trajectory_layers.working_checkpoints.status_presentation`,
   );
   assertDeepEqualJson(
     domainViews?.availability_states,
@@ -532,16 +546,29 @@ export function validateRuntimeCockpitProductContract(contract, label) {
   if (
     typeof domainViews?.full_canvas?.working_checkpoints_notice_copy?.['zh-CN'] !== 'string'
     || !domainViews.full_canvas.working_checkpoints_notice_copy['zh-CN'].includes('尚未纳入正式科研结论')
+    || domainViews.full_canvas.working_checkpoints_notice_copy['zh-CN'].includes('仍在审核中')
   ) {
     throw new Error(`${label}.domain_detail_views must label working checkpoints as unaccepted research`);
   }
+  assertExpectedFields(
+    domainViews?.full_canvas?.working_checkpoint_status_copy?.pending,
+    { 'zh-CN': '待确认', 'en-US': 'Awaiting confirmation' },
+    `${label}.domain_detail_views.full_canvas.working_checkpoint_status_copy.pending`,
+  );
+  assertExpectedFields(
+    domainViews?.full_canvas?.working_checkpoint_status_copy?.rejected,
+    { 'zh-CN': '未纳入正式科研结论', 'en-US': 'Not included in accepted conclusions' },
+    `${label}.domain_detail_views.full_canvas.working_checkpoint_status_copy.rejected`,
+  );
   assertExpectedFields(
     domainViews?.full_canvas,
     {
       route: '/runtime/item/:itemId/insights/:viewId',
       layout: 'full_width_graph_with_right_node_inspector',
       horizontal_page_overflow_allowed: false,
-      source_refs_surface: 'collapsed_sources_and_basis',
+      sources_and_basis_source: 'medical_narrative.sources_and_basis',
+      sources_and_basis_surface: 'collapsed_sources_and_basis',
+      machine_source_refs_visible: false,
     },
     `${label}.domain_detail_views.full_canvas`,
   );

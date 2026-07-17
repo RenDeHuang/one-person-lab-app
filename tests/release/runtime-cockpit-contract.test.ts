@@ -54,6 +54,9 @@ test('WorkItemProjection V2 requires global item identity, all nine axes, and ob
     (projection: any) => { projection.domain_detail_view_read_contract.unchanged_response.not_modified = false; },
     (projection: any) => { projection.domain_detail_view_read_contract.payload_contracts.scientific_reasoning_map.edge_kinds.push('refutes'); },
     (projection: any) => { projection.domain_detail_view_read_contract.payload_contracts.scientific_reasoning_map.working_checkpoint_content_in_accepted_fields_allowed = true; },
+    (projection: any) => { projection.domain_detail_view_read_contract.payload_contracts.scientific_reasoning_map.working_checkpoint_machine_only_fields = ['checkpoint_id']; },
+    (projection: any) => { projection.domain_detail_view_read_contract.payload_contracts.scientific_reasoning_map.working_checkpoint_sources_and_basis_source = 'source_refs'; },
+    (projection: any) => { projection.domain_detail_view_read_contract.payload_contracts.scientific_reasoning_map.machine_source_refs_default_visible = true; },
   ]) {
     const projection = structuredClone(runtimeBridge().work_item_projection);
     mutate(projection);
@@ -202,6 +205,11 @@ test('Runtime product rejects list, status, Stage popover, surface-boundary, and
     (contract: any) => { contract.domain_detail_views.drawer_presentation.machine_fields_visible = true; },
     (contract: any) => { contract.domain_detail_views.full_canvas.horizontal_page_overflow_allowed = true; },
     (contract: any) => { contract.domain_detail_views.trajectory_layers.working_checkpoints.may_change_accepted_graph = true; },
+    (contract: any) => { delete contract.domain_detail_views.full_canvas.working_checkpoint_status_copy.rejected; },
+    (contract: any) => { contract.domain_detail_views.full_canvas.working_checkpoint_status_copy.rejected['zh-CN'] = '科学假设被否定'; },
+    (contract: any) => { contract.domain_detail_views.trajectory_layers.working_checkpoints.rejected_status_semantics = 'scientific_hypothesis_refuted'; },
+    (contract: any) => { contract.domain_detail_views.full_canvas.sources_and_basis_source = 'source_refs'; },
+    (contract: any) => { contract.domain_detail_views.full_canvas.machine_source_refs_visible = true; },
   ]) {
     const gui = runtimeContract();
     mutate(gui.pages.runtime_status.runtime_cockpit_product_contract);
@@ -287,6 +295,15 @@ test('Runtime page-state rejects removal or weakening of V2 acceptance', () => {
     },
     (matrix: any) => {
       matrix.pages.find((page: any) => page.id === 'runtime').runtime_view_model.domain_detail_view.scientific_reasoning.working_checkpoints_may_change_accepted_graph = true;
+    },
+    (matrix: any) => {
+      matrix.pages.find((page: any) => page.id === 'runtime').runtime_view_model.domain_detail_view.scientific_reasoning.rejected_checkpoint_may_imply_scientific_refutation = true;
+    },
+    (matrix: any) => {
+      matrix.pages.find((page: any) => page.id === 'runtime').runtime_view_model.domain_detail_view.scientific_reasoning.sources_and_basis_source = 'source_refs';
+    },
+    (matrix: any) => {
+      matrix.pages.find((page: any) => page.id === 'runtime').runtime_view_model.domain_detail_view.scientific_reasoning.machine_source_refs_visible = true;
     },
   ]) {
     const matrix = structuredClone(readJson('contracts/app-page-state-matrix.json'));
