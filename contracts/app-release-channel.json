@@ -2459,7 +2459,7 @@
     "release_evidence_contract": "contracts/app-release-channel.json#operator_evidence_bundle",
     "refs_only": true,
     "surface_ownership": {
-      "runtime_visual_evidence": "runtime_page_minimal_work_item_status_only",
+      "runtime_visual_evidence": "conditional_runtime_route_minimal_work_item_status_only",
       "full_drilldown_and_raw_diagnostics": "settings_maintenance_diagnostics_and_release_tooling",
       "maintenance_actions_and_receipts": "settings_maintenance_and_release_tooling",
       "runtime_page_excludes": [
@@ -2551,13 +2551,6 @@
         "source_kind": "opl_app_action_execute"
       },
       {
-        "id": "runtime_screenshot",
-        "path": "screenshots/runtime.png",
-        "kind": "image",
-        "producer": "Runtime page minimal work-item status screenshot",
-        "source_kind": "app_runtime_page_visual_acceptance_screenshot"
-      },
-      {
         "id": "full_screenshot",
         "path": "screenshots/full.png",
         "kind": "image",
@@ -2629,6 +2622,14 @@
       }
     ],
     "conditional_artifacts": [
+      {
+        "id": "runtime_screenshot",
+        "path": "screenshots/runtime.png",
+        "kind": "image",
+        "producer": "Runtime page minimal work-item status screenshot",
+        "source_kind": "app_runtime_page_visual_acceptance_screenshot",
+        "required_when": "runtime_route_evidence_requested"
+      },
       {
         "id": "docker_webui_clean_vm_evidence",
         "path": "docker-webui-clean-vm-evidence-validation.json",

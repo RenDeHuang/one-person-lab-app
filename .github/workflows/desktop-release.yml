@@ -1653,17 +1653,11 @@ jobs:
             if [ -d "$full_source_dir/artifacts" ]; then
               collector_args+=(--evidence-source-dir "$full_source_dir/artifacts")
             fi
-            if [ -f "$full_source_dir/artifacts/settings-pages/runtime-status.png" ]; then
-              collector_args+=(--artifact "runtime_screenshot=$full_source_dir/artifacts/settings-pages/runtime-status.png")
-            fi
           fi
           if [ -d "$standard_source_dir" ]; then
             collector_args+=(--evidence-source-dir "$standard_source_dir")
             if [ -d "$standard_source_dir/artifacts" ]; then
               collector_args+=(--evidence-source-dir "$standard_source_dir/artifacts")
-            fi
-            if [ ! -f "$full_source_dir/artifacts/settings-pages/runtime-status.png" ] && [ -f "$standard_source_dir/artifacts/settings-pages/runtime-status.png" ]; then
-              collector_args+=(--artifact "runtime_screenshot=$standard_source_dir/artifacts/settings-pages/runtime-status.png")
             fi
           fi
           if [ -d "$remote_source_dir" ]; then

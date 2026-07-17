@@ -181,7 +181,7 @@ export type ShellCandidate = HermesTargetStateContract & {
     co_scientist_split_screen_default?: boolean;
     mas_autonomous_research_default?: boolean;
     purpose_entries: string[];
-    runtime_page_policy: string;
+    runtime_page_policy?: string;
     settings_policy: string;
     account_footer_policy?: {
       source_ref: string;

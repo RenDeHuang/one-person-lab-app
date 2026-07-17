@@ -109,12 +109,12 @@ R1 与 U1 的当前实现程度按 carrier 分开维护在
 
 | ID | 条件能力 | 当前处理 |
 | --- | --- | --- |
-| `X0-01` | 全局跨项目 Runtime cockpit / Work Item 总览 | `retained_x0_route`：AionUI Source 为 `source_implemented`，route 可条件保留；Native phase-1 可不实现，不阻断 B0/R1/U1，也不进入默认 release gate。现有 machine hard gate 是独立 cleanup debt。 |
+| `X0-01` | 全局跨项目 Runtime cockpit / Work Item 总览 | `retained_optional_x0_owner_route`：Framework producer 必须保留，AionUI Source 为 `source_implemented` 且 route 可条件保留；Native phase-1 不要求页面、full drilldown 或 Runtime bridge capability。默认门不要求该 route，完整校验使用 `npm run validate:runtime-route`。 |
 | `X0-02` | 完整 Evidence/Provenance/receipt/route-ref 平台 | 只保留 owner-required refs、confirmation 与 receipt；完整 cockpit 条件推进。 |
-| `X0-03` | Hosted Workspace / cloud-continuous execution | `retained_x0_route`：Source 为 `source_partial`；等稳定后端、账户和计费 owner 出现后再启用。普通 Settings 不维护占位状态，现有 literal contracts/validators 待收薄。 |
-| `X0-04` | Fabric/HPC/远程资源控制面 | `retained_x0_route`：Source 为 `source_partial`；Settings 最多在真实 owner 存在时提供连接 refs/owner route。完整调度归 domain/runtime 产品，现有 literal contracts/validators 待收薄。 |
+| `X0-03` | Hosted Workspace / cloud-continuous execution | `optional_owner_projected_resource_refs`：App contract 已收敛为 owner projection 条件启用且无占位；整体 Source 仍为 `source_partial`，等待 AionUI 完成独立条件渲染并移除 hosted promise copy。 |
+| `X0-04` | Fabric/HPC/远程资源控制面 | `optional_owner_projected_resource_refs`：App contract 已收敛为真实 owner/backend projection 存在时才提供 refs/owner route；整体 Source 仍为 `source_partial`。完整调度归 domain/runtime 产品。 |
 | `X0-05` | 跨主机 handoff、carrier 自建 managed remote Worktree 或第二协调面 | 当前明确不自造；只有稳定 upstream 能力与真实需求同时成立才重评。 |
-| `X0-06` | Raw runtime/operator diagnostics 与完整 repair cockpit | 仅留 Settings > Advanced 和 release tooling，ordinary UI 不展示 raw protocol。 |
+| `X0-06` | Raw runtime/operator diagnostics 与完整 repair cockpit | 仅留 Settings > Maintenance diagnostics 和 release tooling；Advanced 只重定向，ordinary UI 不展示 raw protocol。 |
 
 本文的“现有功能不降级”只保护已经进入 OPL App contracts、ordinary routes 或正式用户路径的
 能力。AionUI 上游自带但未被 OPL App 采纳的 Team、provider/backend、任意 skills/MCP、
@@ -176,9 +176,9 @@ short name 和 technical refs 进入 details/receipt。
 ## X0-01 条件保留的 Runtime 支撑面
 
 以下表格描述 AionUI 当前已保留 route 的可选行为，不是 B0/R1/U1 定义、默认 release gate 或
-Native phase-1 parity。产品分类统一为 `retained_x0_route`；Source 状态只从五轴矩阵读取，
-现有 Runtime cockpit contract、page-state、design-system/release validator 的硬门作为独立 maintenance debt 在后续机器变更中
-移除。Validator pass 只证明现有 contract/source 一致，不能证明产品必要性。
+Native phase-1 parity。产品分类统一为 `retained_optional_x0_owner_route`；Framework producer 继续由默认 bridge
+gate 保护，完整 cockpit product/page-state/display 检查只由 `npm run validate:runtime-route` 显式执行。
+Validator pass 只证明对应 contract/source 一致，不能证明产品必要性或关闭 Pixel/Install/Release。
 
 | 功能 | 用户结果 | Authority / machine owner |
 | --- | --- | --- |

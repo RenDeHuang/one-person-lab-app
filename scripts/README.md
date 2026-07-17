@@ -20,6 +20,7 @@ should happen only when AGUI replay is explicitly requested.
 | `gui-launcher.ts` | Opens the installed AionUI mainline by default or the isolated Native Candidate for one local run. Candidate launches receive exact OPL/Codex Runtime identity and default to dry-run-only actions; the launcher never changes release adoption or updater state. |
 | `verify.sh` | App-root verification wrapper for smoke, active-shell, release-boundary, candidate-shell, structure, and full lanes without running release packaging by default. |
 | `validate-active-shell.ts` | Validates the selected shell adapter contract and runs selected validation commands. |
+| `validate-runtime-route.ts` | Explicitly validates the retained optional X0-01 Runtime route, including its product contract, page-state matrix, display policy, and required Framework producer. Default active-shell/release gates do not require the route. |
 | `validate-shell-candidates.ts` | Validates the foreground GUI alternative from `contracts/app-shell-candidates.json` by default. `opl-native-workbench` is the foreground alternative, Hermes is a retained reference candidate, and archived AGUI proof is checked only with `--candidate agui-codex`. Hermes source validation never builds by default; its full command chain requires `--manual-reference-replay` for an actual technical-verification need. |
 | `validate-gui-design-system.ts` | Validates the three-layer GUI definition stack, foundation-doc refs, shell roles, ideal/native versus active AionUI state markers, profile-owned model defaults, and the non-release evidence boundary. It fails closed when foundation docs are absent and never promotes docs or visual QA into release readiness. |
 | `prepare-release-assets.ts` | Calls the active shell release asset normalizer from the App root. |
@@ -48,7 +49,7 @@ should happen only when AGUI replay is explicitly requested.
 | `analyze-full-package-size.ts` | Reads `full-package-manifest.json` and reports Full runtime component/layer size, budget use, and optional runtime-root top entries. |
 | `collect-release-evidence.ts` | Collects live OPL runtime snapshot, App/operator drilldown, selected safe-action dry-run/execute JSON, and standard smoke source-dir artifacts into a release evidence bundle, writes the manifest, and validates the bundle in missing-evidence mode without claiming absent screenshot, VM, settings, or remote evidence. |
 | `write-release-evidence-manifest.ts` | Writes `evidence-manifest.json` for a release evidence bundle and marks absent VM/remote artifacts as missing evidence. |
-| `validate-release-evidence-bundle.ts` | Validates a release evidence bundle manifest and artifact files, including real screenshot dimensions; default validation fails closed when required evidence is missing. |
+| `validate-release-evidence-bundle.ts` | Validates a release evidence bundle manifest and artifact files, including real screenshot dimensions; default validation fails closed when required evidence is missing. `runtime_screenshot` is conditional and is enforced only with `--require-conditional runtime_screenshot` or the equivalent environment setting. |
 | `smoke-hermes-candidate-tart.ts` | Runs the packaged `One Person Lab Hermes Candidate.app` first-run fixture smoke inside a Tart clean VM, copying guest artifacts back to the App repo. This is candidate technical verification only and does not promote Hermes to the release shell. |
 
 Stable App-root npm entries are `verify`, `typecheck`, `validate:release-boundary`,
@@ -59,6 +60,8 @@ full shell Vitest evidence remains explicit through `npm run test:full`,
 `scripts/verify.sh full`, and the active-shell validation contract. These keep
 release boundary/evidence scripts visible as production entrypoints while the
 files remain thin App-owned wrappers around contracts and release artifacts.
+The retained X0-01 route uses the explicit `validate:runtime-route` and
+`test:runtime-route` entries and is intentionally absent from default release gates.
 App-root fallow config excludes
 `shells/aionui/**` and `shells/agui-codex/**` because those paths are ignored
 external shell checkouts.
@@ -112,8 +115,10 @@ npm run cleanup:local-artifacts -- --scope artifacts --keep-days 0 --execute
 npm run validate:release-boundary
 npm run validate:gui-design-system
 npm run release:evidence:manifest -- --bundle-dir release-evidence/<version>
-node --experimental-strip-types scripts/collect-release-evidence.ts --bundle-dir release-evidence/<version> --action-id <opl-runtime-safe-action-id> --execute-action --overwrite --evidence-source-dir artifacts/opl-first-run-vm --artifact runtime_screenshot=/path/to/runtime.png
+node --experimental-strip-types scripts/collect-release-evidence.ts --bundle-dir release-evidence/<version> --action-id <framework-action-id> --execute-action --overwrite --evidence-source-dir artifacts/opl-first-run-vm
 npm run release:evidence:validate -- --bundle-dir release-evidence/<version>
+npm run test:runtime-route
+node --experimental-strip-types scripts/collect-release-evidence.ts --bundle-dir release-evidence/<version> --overwrite --artifact runtime_screenshot=/path/to/runtime.png --require-conditional runtime_screenshot
 npm run hygiene:fallow -- --format json --summary
 npm run validate:gui-shell
 npm run validate:shell-candidates -- --candidate opl-native-workbench --run-candidate-commands

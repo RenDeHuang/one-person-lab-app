@@ -216,8 +216,8 @@ function validateAppReleaseEvidenceBundleHeader(record: AppReleaseEvidenceBundle
 
 function validateSurfaceOwnershipContract(record: AppReleaseEvidenceBundleContract) {
   const ownership = asRecord(record.surface_ownership, 'App release evidence surface_ownership');
-  if (ownership.runtime_visual_evidence !== 'runtime_page_minimal_work_item_status_only') {
-    throw new Error('Runtime evidence must be limited to minimal work-item status visual acceptance.');
+  if (ownership.runtime_visual_evidence !== 'conditional_runtime_route_minimal_work_item_status_only') {
+    throw new Error('Runtime evidence must be conditional and limited to minimal work-item status visual acceptance.');
   }
   if (ownership.full_drilldown_and_raw_diagnostics !== 'settings_maintenance_diagnostics_and_release_tooling') {
     throw new Error('Full drilldown and raw diagnostics must belong to Maintenance diagnostics and release tooling.');

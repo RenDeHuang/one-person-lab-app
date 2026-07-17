@@ -174,6 +174,56 @@ test('native candidate keeps 41301 interaction authority and pins 61608 visual s
   );
 });
 
+test('native phase one keeps the optional Runtime owner route out of required parity', () => {
+  const registry = readJson<ShellCandidateRegistry>('contracts/app-shell-candidates.json');
+  const policy = candidateValidationPolicyFromRegistry(registry);
+  const candidate = registry.candidates.find((entry) => entry.id === 'opl-native-workbench');
+  assert.ok(candidate);
+  assert.equal(Object.hasOwn(candidate.target_product_shape, 'runtime_page_policy'), false);
+  assert.equal(Object.hasOwn(candidate.framework_surfaces, 'full_drilldown'), false);
+  assert.equal(candidate.required_capabilities.includes('runtime_summary_detail_action_bridge'), false);
+  assert.equal(
+    candidate.codex_app_like_chat_target?.capability_inventory.includes(
+      'right-side collapsible Files, Skills, Routing, Memory, Always-On, Runtime, and Settings context tabs',
+    ),
+    false,
+  );
+  assert.doesNotThrow(() => validateCandidate(candidate, policy));
+
+  const resurrectedPolicy = structuredClone(candidate);
+  resurrectedPolicy.target_product_shape.runtime_page_policy =
+    'minimal_work_item_list_stage_popover_selected_detail_only';
+  assert.throws(
+    () => validateCandidate(resurrectedPolicy, policy),
+    /must not make the optional Runtime route part of Native phase-one parity/,
+  );
+
+  const resurrectedDrilldown = structuredClone(candidate);
+  resurrectedDrilldown.framework_surfaces.full_drilldown =
+    'opl runtime app-operator-drilldown --detail full --json';
+  assert.throws(
+    () => validateCandidate(resurrectedDrilldown, policy),
+    /must not require optional Runtime full drilldown in Native phase one/,
+  );
+
+  const resurrectedCapability = structuredClone(candidate);
+  resurrectedCapability.required_capabilities.push('runtime_summary_detail_action_bridge');
+  assert.throws(
+    () => validateCandidate(resurrectedCapability, policy),
+    /must keep the optional Runtime route outside Native phase one/,
+  );
+
+  const resurrectedTab = structuredClone(candidate);
+  assert.ok(resurrectedTab.codex_app_like_chat_target);
+  resurrectedTab.codex_app_like_chat_target.capability_inventory.push(
+    'right-side collapsible Files, Skills, Routing, Memory, Always-On, Runtime, and Settings context tabs',
+  );
+  assert.throws(
+    () => validateCandidate(resurrectedTab, policy),
+    /must keep the optional Runtime route outside Native phase-one context tabs/,
+  );
+});
+
 test('native candidate account footer consumes only the canonical Gateway display name', () => {
   const registry = readJson<ShellCandidateRegistry>('contracts/app-shell-candidates.json');
   const candidate = registry.candidates.find((entry) => entry.id === 'opl-native-workbench');

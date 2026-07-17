@@ -17,12 +17,18 @@ Shell-specific source screenshots used by tests may remain under
 `shells/aionui/tests/` or the test artifact output directories.
 
 Release evidence screenshots are recorded by the release evidence bundle rather
-than treated as guide screenshots or runtime truth. The required bundle
+than treated as guide screenshots or runtime truth. The always-required bundle
 screenshot paths are:
 
-- `screenshots/runtime.png`: minimal Runtime Work Item / Stage / Attempt / Token visual acceptance view.
 - `screenshots/full.png`: Full first-install release path.
 - `screenshots/action.png`: Settings Maintenance action confirmation/result view; raw diagnostic refs remain under its diagnostics disclosure.
+
+`screenshots/runtime.png` is a conditional artifact. It is required only when
+the evidence request declares `runtime_route_evidence_requested`, for example
+with `--require-conditional runtime_screenshot` or the equivalent environment
+setting. Ordinary Stable evidence does not require an X0-01 Runtime pixel.
+When present, this image can close only the Pixel axis for the exact bound
+source/package cohort; it does not prove Source, Install, or Release.
 
 The screenshot set proves the App can display OPL-produced refs-only evidence on
 the correct owner surfaces. Runtime visual evidence does not include full

@@ -846,7 +846,7 @@
       ],
       "codex_app_like_chat_target": {
         "scope": "OPL-native chat-first desktop and WebUI target optimized for results, deliverables, and artifact refs",
-        "primary_user_flow": "choose workspace, start or continue a Codex conversation, route the turn to an OPL purpose, and inspect result refs, files, receipts, runtime state, and delivery handoff from secondary context without displacing the chat canvas",
+        "primary_user_flow": "choose workspace, start or continue a Codex conversation, route the turn to an OPL purpose, and inspect result refs, files, receipts, current-task status refs, and delivery handoff from secondary context without displacing the chat canvas",
         "capability_inventory": [
           "workspace directory picker",
           "new conversation and lightweight thread history rail",
@@ -860,7 +860,7 @@
           "Open Science-informed artifact, provenance, and review affordances as collapsed secondary context",
           "chat-first main canvas with pinned composer",
           "results, files, receipts, and delivery refs as first-class context",
-          "right-side collapsible Files, Skills, Routing, Memory, Always-On, Runtime, and Settings context tabs",
+          "right-side collapsible Files, Skills, Routing, Memory, Always-On, and Settings context tabs",
           "App-owned model access and Settings summaries",
           "candidate .app package through the App wrapper"
         ]
@@ -1060,7 +1060,6 @@
           "grant",
           "ppt"
         ],
-        "runtime_page_policy": "minimal_work_item_list_stage_popover_selected_detail_only",
         "settings_policy": "app_state_refs_only",
         "account_footer_policy": {
           "source_ref": "contracts/app-runtime-bridge.json#opl_gateway_account_projection",
@@ -1092,7 +1091,6 @@
         "state": "opl app state --profile fast --json",
         "refresh": "opl app state --profile fast --json",
         "full_state": "opl app state --profile full --json",
-        "full_drilldown": "opl runtime app-operator-drilldown --detail full --json",
         "action": "opl app action execute --action <action_id> [--payload json] [--dry-run] --json"
       },
       "active_project_line_state_model": {
@@ -1159,7 +1157,6 @@
         "opl_app_action_bridge",
         "page_state_matrix_mapping",
         "first_run_matrix_mapping",
-        "runtime_summary_detail_action_bridge",
         "foundry_agent_series_shared_progress_display",
         "app_owned_settings_information_architecture",
         "secondary_runtime_context_refs",

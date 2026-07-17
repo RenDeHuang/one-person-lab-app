@@ -56,9 +56,11 @@ through the shell `bun run package` entry.
 node --experimental-strip-types scripts/validate-active-shell.ts --quick
 npm run validate:app-root-boundary
 npm run test:release-boundary
-node --experimental-strip-types scripts/collect-release-evidence.ts --bundle-dir release-evidence/<version> --action-id <framework-action-id> --execute-action --overwrite --evidence-source-dir artifacts/opl-first-run-vm --artifact runtime_screenshot=/path/to/runtime.png
+node --experimental-strip-types scripts/collect-release-evidence.ts --bundle-dir release-evidence/<version> --action-id <framework-action-id> --execute-action --overwrite --evidence-source-dir artifacts/opl-first-run-vm
 npm run release:evidence:manifest -- --bundle-dir release-evidence/<version> --overwrite
 npm run release:evidence:validate -- --bundle-dir release-evidence/<version>
+npm run test:runtime-route
+node --experimental-strip-types scripts/collect-release-evidence.ts --bundle-dir release-evidence/<version> --overwrite --artifact runtime_screenshot=/path/to/runtime.png --require-conditional runtime_screenshot
 node --experimental-strip-types scripts/prepare-release-assets.ts build-artifacts release-assets
 node --experimental-strip-types scripts/validate-release.ts release-assets
 npm run hygiene:fallow -- --format json --summary
@@ -95,7 +97,7 @@ verifies that `skill` remains the public semantic ABI, MAS/MAG/RCA stay
 plugin-visible domain routes rather than companion skill mirrors, OPL Meta
 Agent stays an OPL-generated surface outside the default home path, and all
 installer surfaces use the shared first-run progress model.
-The Runtime page matrix verifies the minimal project-status path: Agent ->
+`npm run test:runtime-route` is the explicit optional-route gate. It verifies the Runtime page matrix and the minimal project-status path: Agent ->
 Project scope, one row per canonical Work Item, user-facing status, running and
 elapsed state, current and total Token usage, Stage order, current/next Stage,
 current Attempt, locale-aware next-step/owner text, responsive layout, and
@@ -106,7 +108,12 @@ evidence controls, direct SQLite access, domain truth, owner-receipt authority,
 artifact bodies, artifact authority, and domain/readiness verdict claims on the
 Runtime surface. Maintenance, Agents, Capabilities, Inspector, and
 release-tooling tests verify their respective owner surfaces; Advanced is tested
-only as a redirect to Maintenance diagnostics.
+only as a redirect to Maintenance diagnostics. Default active-shell and release
+gates retain the Framework producer/authority checks but do not require the
+X0-01 route or its page-level display contract.
+P1b App tests prove only the projection-gated optional-resource contract. Active
+AionUI must separately prove workspace-only, external-only, and empty projection
+rendering in Shell source/DOM tests before the Source axis can become implemented.
 
 Release evidence bundle validation requires `evidence-manifest.json` plus the
 contracted artifact files. When a local lane cannot produce clean VM smoke
@@ -123,6 +130,9 @@ also import standard packaged/VM/remote smoke outputs with
 precedence over source-dir discovery. Every imported file is copied into the
 contract path and then validated through the release evidence bundle validator
 instead of trusting its original path.
+The Runtime page screenshot is conditional: require it only for an explicit
+Runtime-route evidence request with `--require-conditional runtime_screenshot`
+or `OPL_RELEASE_EVIDENCE_REQUIRED_CONDITIONALS=runtime_screenshot`.
 
 `hygiene:fallow` is scoped to App-owned root wrappers, contracts, and docs.
 `.fallowrc.json` excludes the ignored `shells/aionui/**` external checkout so
@@ -183,7 +193,7 @@ release-boundary tests.
 | Standard release assets | `node --experimental-strip-types scripts/validate-release.ts release-assets` | Local release assets and updater metadata have the expected App shape before publish. |
 | Active GUI shell validation | `npm run validate:gui-shell` | App-owned product profile and release payload sync into the active shell, and the shell validates/compiles through the App wrapper. |
 | Full first-install package | `npm run release:full -- --version <version>` | The Full package builder can assemble declared runtime payloads and manifests for the selected cohort. |
-| Evidence bundle | `npm run release:evidence:manifest` and `npm run release:evidence:validate` | The current cohort's artifacts are classified as `present`, `missing`, `typed_blocker`, or `not_applicable`; only all-present verified bundles become packaged App evidence. |
+| Evidence bundle | `npm run release:evidence:manifest` and `npm run release:evidence:validate` | The current cohort's artifacts are classified as `present`, `missing`, `typed_blocker`, or `not_applicable`; only bundles with every required and explicitly requested conditional artifact present become packaged App evidence. |
 | Root wrapper hygiene | `npm run hygiene:fallow -- --format json --summary` | App-root wrappers, contracts, and docs are free of scoped production hygiene findings; this is not shell build or release evidence. |
 
 Nightly, Stable, refresh, Homebrew, Full, WebUI, one-shot installer, VM smoke,

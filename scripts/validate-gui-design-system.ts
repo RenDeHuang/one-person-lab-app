@@ -877,13 +877,25 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   );
   requireExactMarkerLine(
     foundationReadme,
-    'runtime_cockpit.role=user_agent_collaboration_control_console',
+    'runtime_cockpit.role=retained_optional_x0_owner_route',
     foundationDocs.readme,
     issues,
   );
   requireExactMarkerLine(
     foundationReadme,
-    'runtime_cockpit.upstream_alignment_may_remove_or_weaken=false',
+    'runtime_cockpit.upstream_alignment_may_remove_or_weaken=true_when_core_gate_removed_and_owner_route_boundary_preserved',
+    foundationDocs.readme,
+    issues,
+  );
+  requireExactMarkerLine(
+    foundationReadme,
+    'runtime_cockpit.core_requirement=false',
+    foundationDocs.readme,
+    issues,
+  );
+  requireExactMarkerLine(
+    foundationReadme,
+    'runtime_cockpit.explicit_validation_command=npm run validate:runtime-route',
     foundationDocs.readme,
     issues,
   );
@@ -945,7 +957,6 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     featurePreservation.authority !== 'opl_product_capability_over_external_reference_parity' ||
     featurePreservation.external_reference_role !== 'placement_and_interaction_reference_only' ||
     !sameStrings(featurePreservation.protected_surfaces, [
-      'runtime_cross_project_overview',
       'agent_capabilities',
       'first_run',
       'opl_settings',
@@ -955,20 +966,25 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     relocationGate.replacement_reachable_in_same_change !== true ||
     relocationGate.contract_source_tests_updated_together !== true ||
     relocationGate.removal_before_replacement_forbidden !== true ||
-    runtimeSurfaceRoles.navigation_runtime !== 'cross_project_work_status_cockpit' ||
+    runtimeSurfaceRoles.navigation_runtime !== 'retained_optional_x0_owner_route' ||
+    runtimeSurfaceRoles.navigation_runtime_default_visible !== false ||
     runtimeSurfaceRoles.context_runtime !== 'selected_conversation_or_task_details' ||
-    runtimeSurfaceRoles.context_runtime_can_replace_navigation_runtime !== false ||
+    runtimeSurfaceRoles.context_runtime_independent_of_navigation_runtime !== true ||
     runtimePreservationGate.product_contract_ref !==
       'contracts/app-gui-product-contract.json#pages.runtime_status.runtime_cockpit_product_contract' ||
     runtimePreservationGate.page_state_ref !==
       'contracts/app-page-state-matrix.json#pages[id=runtime].runtime_view_model.runtime_cockpit_acceptance' ||
-    runtimePreservationGate.upstream_alignment_may_remove_or_weaken !== false ||
-    runtimePreservationGate.replacement_must_preserve_required_answers !== true ||
-    !sameStrings(runtimePreservationGate.same_change_requirements, [
+    runtimePreservationGate.route_classification !== 'retained_optional_x0_owner_route' ||
+    runtimePreservationGate.default_product_requirement !== false ||
+    runtimePreservationGate.default_release_gate !== false ||
+    runtimePreservationGate.native_phase_one_requirement !== false ||
+    runtimePreservationGate.upstream_alignment_may_remove_or_weaken !== true ||
+    runtimePreservationGate.explicit_validation_command !== 'npm run validate:runtime-route' ||
+    !sameStrings(runtimePreservationGate.route_change_requirements, [
       'product_contract',
       'page_state_acceptance',
-      'validators',
-      'tests',
+      'explicit_route_validator',
+      'route_tests',
     ])
   ) {
     issues.add('Codex reference alignment must preserve OPL-owned capabilities and same-change reachability');
@@ -984,8 +1000,13 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     navigationRail.narrow_window_mode !== 'drawer' ||
     railWidth.min !== 280 ||
     railWidth.max !== 340 ||
-    !sameStrings(navigationRail.top_entries, ['new_task', 'runtime', 'archived']) ||
-    navigationRail.runtime_entry_role !== 'cross_project_work_status_cockpit' ||
+    !sameStrings(navigationRail.top_entries, ['new_task', 'archived']) ||
+    JSON.stringify(navigationRail.conditional_entries) !== JSON.stringify([{
+      id: 'runtime',
+      role: 'retained_optional_x0_owner_route',
+      when: 'runtime_route_enabled_by_owner_profile',
+    }]) ||
+    navigationRail.runtime_entry_role !== 'retained_optional_x0_owner_route_not_default_navigation' ||
     navigationRail.capabilities_mapping !==
       'capability_selection_lives_in_new_task_home_and_capability_management_lives_in_settings_without_a_duplicate_primary_navigation_page' ||
     navigationRail.legacy_capabilities_route !==
@@ -1495,8 +1516,12 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     pageStateBoundary.pixel_evidence_ref !== 'docs/product/gui/evidence/aionui-41301/manifest.json' ||
     pageStateBoundary.runtime_product_contract_ref !==
       'contracts/app-gui-product-contract.json#pages.runtime_status.runtime_cockpit_product_contract' ||
-    pageStateBoundary.runtime_upstream_alignment_may_remove_or_weaken !== false ||
-    pageStateBoundary.runtime_acceptance_requires_contract_page_state_validators_tests !== true
+    pageStateBoundary.runtime_route_classification !== 'retained_optional_x0_owner_route' ||
+    pageStateBoundary.runtime_default_gate_required !== false ||
+    pageStateBoundary.runtime_native_phase_one_required !== false ||
+    pageStateBoundary.runtime_upstream_alignment_may_remove_or_weaken !== true ||
+    pageStateBoundary.runtime_explicit_validation_command !== 'npm run validate:runtime-route' ||
+    pageStateBoundary.runtime_acceptance_requires_contract_page_state_validators_tests !== 'when_route_selected_or_changed'
   ) {
     issues.add('page-state acceptance boundary must keep human target separate from source and pixel completion');
   }

@@ -13,6 +13,7 @@ import {
   assertRelativePath,
   assertStringArrayIncludes,
   expectedFrameworkSurfaces,
+  expectedOptionalRuntimeFrameworkSurfaces,
   findMacAppExecutable,
   firstRunMatrixPath,
   forbiddenLegacySettingsTabs,
@@ -587,26 +588,16 @@ function validateNativeWorkbenchImplementationEvidence(candidate: ShellCandidate
   );
   if (
     evidence.secondary_runtime_context_refs?.authority !== 'opl_framework_refs_only_projection' ||
-    evidence.secondary_runtime_context_refs?.source !== 'Runtime page and secondary context surfaces only' ||
-    evidence.secondary_runtime_context_refs?.default_placement !== 'runtime_page_or_secondary_context_not_home' ||
     evidence.secondary_runtime_context_refs?.home_surface_policy !== 'ordinary_home_must_not_render_runtime_activity_or_continue_work'
   ) {
-    throw new Error(`${candidate.id} evidence must keep refs-only activity out of ordinary Home and in Runtime/secondary context`);
+    throw new Error(`${candidate.id} evidence must keep current-task refs Framework-owned and out of ordinary Home`);
   }
-  assertStringArrayIncludes(evidence.secondary_runtime_context_refs?.display_groups ?? [], requiredActivityGroups, `${candidate.id} evidence secondary_runtime_context_refs.display_groups`);
   assertStringArrayIncludes(evidence.conversation_event_rendering?.event_kinds ?? [], requiredConversationEventKinds, `${candidate.id} evidence conversation_event_rendering.event_kinds`);
-  assertStringArrayIncludes(evidence.page_state_matrix_mapping?.runtime_testids ?? [], requiredContextTestIds, `${candidate.id} evidence runtime testids`);
   assertStringArrayIncludes(evidence.first_run_matrix_mapping?.required_shell_testids ?? [], [
     'opl-native-workbench-root',
     'opl-model-access-entry',
     'opl-skip-to-chat',
   ], `${candidate.id} evidence first-run testids`);
-  if (
-    evidence.runtime_summary_detail_action_bridge?.full_detail_policy !== 'lazy_full_drilldown_only' ||
-    evidence.runtime_summary_detail_action_bridge?.action_policy !== 'dry_run_first_then_explicit_execute'
-  ) {
-    throw new Error(`${candidate.id} evidence must keep full drilldown lazy and actions dry-run first`);
-  }
   if (
     evidence.webui_parity?.shared_renderer !== true ||
     evidence.webui_parity?.bridge_shape !== 'window.oplNativeWorkbench' ||
@@ -677,9 +668,9 @@ function validateCandidateImplementationEvidence(candidate: ShellCandidate): voi
     };
     webui_transport: { renderer: string; electron_transport: string; web_transport: string; gateway: string; shared_surface: boolean; events: string };
     pilotdeck_reference: { source_usage: string; license: string; copied_source: boolean; runtime_authority_transfer: boolean; mapped_surfaces: string[] };
-    page_state_matrix_mapping: { page_ids: string[]; runtime_testids: string[]; settings_testids: string[] };
+    page_state_matrix_mapping: { page_ids: string[]; runtime_testids?: string[]; settings_testids: string[] };
     first_run_matrix_mapping: { required_shell_testids: string[] };
-    runtime_summary_detail_action_bridge: { renderer_testids: string[]; full_detail_policy: string; action_policy: string };
+    runtime_summary_detail_action_bridge?: { renderer_testids: string[]; full_detail_policy: string; action_policy: string };
     settings_information_architecture?: { visible_tabs: string[]; labels_en: string[]; legacy_tabs_hidden: string[] };
     bilingual_ui?: {
       default_locale: string;
@@ -896,7 +887,7 @@ function validateCandidateImplementationEvidence(candidate: ShellCandidate): voi
     refresh: expectedFrameworkSurfaces.refresh,
     full_state: expectedFrameworkSurfaces.full_state,
     initialize: 'opl system initialize --json',
-    full_drilldown: expectedFrameworkSurfaces.full_drilldown,
+    full_drilldown: expectedOptionalRuntimeFrameworkSurfaces.full_drilldown,
     action: expectedFrameworkSurfaces.action,
   })) {
     if (evidence.framework_surfaces?.[surface] !== expected) {

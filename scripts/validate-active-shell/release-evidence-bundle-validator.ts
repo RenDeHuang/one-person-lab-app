@@ -32,12 +32,6 @@ const requiredReleaseEvidenceArtifacts = {
     kind: 'json',
     source_kind: 'opl_app_action_execute',
   },
-  runtime_screenshot: {
-    path: 'screenshots/runtime.png',
-    producer: 'Runtime page minimal work-item status screenshot',
-    kind: 'image',
-    source_kind: 'app_runtime_page_visual_acceptance_screenshot',
-  },
   full_screenshot: {
     path: 'screenshots/full.png',
     producer: 'Full first-install release screenshot',
@@ -77,6 +71,13 @@ const requiredReleaseEvidenceArtifacts = {
 };
 
 const optionalReleaseEvidenceArtifacts = {
+  runtime_screenshot: {
+    path: 'screenshots/runtime.png',
+    producer: 'Runtime page minimal work-item status screenshot',
+    kind: 'image',
+    source_kind: 'app_runtime_page_visual_acceptance_screenshot',
+    required_when: 'runtime_route_evidence_requested',
+  },
   docker_webui_clean_vm_evidence: {
     path: 'docker-webui-clean-vm-evidence-validation.json',
     producer: 'docker-webui-clean-vm-evidence job aggregate validation',
@@ -107,7 +108,7 @@ const forbiddenReleaseEvidenceAuthorities = [
   'domain_artifact_authority',
 ];
 
-export function validateReleaseEvidenceBundle(releaseChannel, pageStateMatrix, firstRunMatrix) {
+export function validateReleaseEvidenceBundle(releaseChannel, firstRunMatrix) {
   const bundle = releaseChannel.operator_evidence_bundle;
 
   validateReleaseEvidenceBundleShape(bundle);
@@ -118,7 +119,6 @@ export function validateReleaseEvidenceBundle(releaseChannel, pageStateMatrix, f
   validateAppReleaseOwnerVerdictContract(bundle.release_owner_verdict);
   validateRequiredArtifacts(bundle);
   validateOptionalDiagnosticArtifacts(bundle);
-  validateRuntimePageVisualEvidence(pageStateMatrix);
   validateFullFirstInstallEvidenceRefs(firstRunMatrix);
   validateForbiddenReleaseEvidenceAuthority(bundle);
 }
@@ -146,8 +146,8 @@ function validateReleaseEvidenceBundleShape(bundle) {
 
 function validateSurfaceOwnership(bundle) {
   const ownership = bundle.surface_ownership;
-  if (ownership?.runtime_visual_evidence !== 'runtime_page_minimal_work_item_status_only') {
-    throw new Error('Runtime evidence must be limited to the minimal work-item status screenshot');
+  if (ownership?.runtime_visual_evidence !== 'conditional_runtime_route_minimal_work_item_status_only') {
+    throw new Error('Runtime evidence must be conditional and limited to the minimal work-item status screenshot');
   }
   if (ownership?.full_drilldown_and_raw_diagnostics !== 'settings_maintenance_diagnostics_and_release_tooling') {
     throw new Error('Full drilldown and raw diagnostics must belong to Maintenance diagnostics and release tooling');
@@ -225,6 +225,15 @@ function validateRequiredArtifacts(bundle) {
 
 function validateOptionalDiagnosticArtifacts(bundle) {
   const conditionalArtifactById = new Map((bundle.conditional_artifacts ?? []).map((artifact) => [artifact.id, artifact]));
+  const runtimeScreenshot = conditionalArtifactById.get('runtime_screenshot');
+  if (!runtimeScreenshot) {
+    throw new Error('Operator evidence bundle missing conditional artifact runtime_screenshot');
+  }
+  validateArtifactFields(
+    runtimeScreenshot,
+    optionalReleaseEvidenceArtifacts.runtime_screenshot,
+    'Operator evidence bundle conditional runtime_screenshot',
+  );
   const dockerCleanVmEvidence = conditionalArtifactById.get('docker_webui_clean_vm_evidence');
   if (!dockerCleanVmEvidence) {
     throw new Error('Operator evidence bundle missing conditional artifact docker_webui_clean_vm_evidence');
@@ -244,45 +253,6 @@ function validateOptionalDiagnosticArtifacts(bundle) {
     codexAiSelfCheck,
     optionalReleaseEvidenceArtifacts.codex_ai_self_check_summary,
     'Operator evidence bundle optional diagnostic codex_ai_self_check_summary',
-  );
-}
-
-function validateRuntimePageVisualEvidence(pageStateMatrix) {
-  const runtimePage = (pageStateMatrix.pages ?? []).find((page) => page.id === 'runtime');
-  const acceptancePath = runtimePage?.runtime_acceptance_path;
-
-  for (const legacyField of ['operator_evidence_acceptance_path', 'operator_evidence_path']) {
-    if (runtimePage && Object.hasOwn(runtimePage, legacyField)) {
-      throw new Error(`Runtime page must not retain legacy ${legacyField}`);
-    }
-  }
-
-  if (acceptancePath?.summary_state_command !== requiredReleaseEvidenceArtifacts.app_state_summary.producer) {
-    throw new Error('Runtime page visual acceptance must use the fast App state summary');
-  }
-  if (acceptancePath?.refresh_state_command !== requiredReleaseEvidenceArtifacts.app_state_summary.producer) {
-    throw new Error('Runtime page visual acceptance refresh must use the fast App state summary');
-  }
-  if (acceptancePath?.full_drilldown_command !== null) {
-    throw new Error('Runtime page visual acceptance must not expose full drilldown');
-  }
-  if (acceptancePath && Object.hasOwn(acceptancePath, 'action_dry_run_command')) {
-    throw new Error('Runtime page visual acceptance must not expose the platform action catalog');
-  }
-  if (
-    acceptancePath?.action_execute_command
-    !== 'opl app action execute --action work_item_visibility_set --payload <json> --json'
-  ) {
-    throw new Error('Runtime page must expose only selected work-item archive/restore execution');
-  }
-  validateArrayIncludes(
-    runtimePage?.runtime_acceptance_evidence,
-    [
-      'task title, lifecycle status, execution state, current Stage, next Stage, next action, owner, elapsed time, and Token usage',
-      'Stage popover with complete Stage order and current Attempt',
-      'operator summaries, safe actions, software updates, platform repair, module health, and provider diagnostics excluded from Runtime and routed to Settings',
-    ],
-    'Runtime visual acceptance must cover task status, Stage/Attempt, Token usage, and Settings exclusions',
   );
 }
 

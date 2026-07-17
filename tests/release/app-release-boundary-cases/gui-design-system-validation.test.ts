@@ -99,8 +99,10 @@ function createFixture(): string {
     `active_aionui.gui_conformance_ref=${guiConformanceRef}`,
     'active_aionui.current_shell_head_source=active_shell_checkout_git_head',
     `active_aionui.historical_41301_evidence_sha=${historicalPixelShellSha}`,
-    'runtime_cockpit.role=user_agent_collaboration_control_console',
-    'runtime_cockpit.upstream_alignment_may_remove_or_weaken=false',
+    'runtime_cockpit.role=retained_optional_x0_owner_route',
+    'runtime_cockpit.upstream_alignment_may_remove_or_weaken=true_when_core_gate_removed_and_owner_route_boundary_preserved',
+    'runtime_cockpit.core_requirement=false',
+    'runtime_cockpit.explicit_validation_command=npm run validate:runtime-route',
     'runtime_cockpit.acceptance_ref=contracts/app-page-state-matrix.json#pages[id=runtime].runtime_view_model.runtime_cockpit_acceptance',
     'docs_or_contract_imply_source_complete=false',
     'docs_or_contract_imply_pixel_complete=false',
@@ -380,11 +382,11 @@ test('GUI design-system validator rejects mixing OPL target entries into literal
   assert.throws(() => validateGuiDesignSystem(root), /must separate literal Codex observations from OPL-owned target translation/);
 });
 
-test('GUI design-system validator rejects removing the OPL Runtime entry for Codex parity', () => {
+test('GUI design-system validator rejects restoring Runtime as a default rail entry', () => {
   const root = createFixture();
   const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
   const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
-  contract.interaction_baseline.navigation_rail.top_entries = ['new_task', 'archived', 'capabilities'];
+  contract.interaction_baseline.navigation_rail.top_entries.push('runtime');
   writeJson(root, 'contracts/app-gui-product-contract.json', contract);
   assert.throws(
     () => validateGuiDesignSystem(root),
@@ -392,11 +394,11 @@ test('GUI design-system validator rejects removing the OPL Runtime entry for Cod
   );
 });
 
-test('GUI design-system validator rejects weakening the Runtime cockpit for upstream parity', () => {
+test('GUI design-system validator rejects making the optional Runtime route a default requirement', () => {
   const root = createFixture();
   const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
   const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
-  contract.interaction_baseline.feature_preservation_policy.runtime_preservation_gate.upstream_alignment_may_remove_or_weaken = true;
+  contract.interaction_baseline.feature_preservation_policy.runtime_preservation_gate.default_product_requirement = true;
   writeJson(root, 'contracts/app-gui-product-contract.json', contract);
   assert.throws(
     () => validateGuiDesignSystem(root),
@@ -441,11 +443,11 @@ test('GUI design-system validator rejects a page-state boundary that promotes co
   );
 });
 
-test('GUI design-system validator rejects Runtime page-state acceptance weakened for upstream parity', () => {
+test('GUI design-system validator rejects restoring the optional Runtime route as an upstream-parity hard gate', () => {
   const root = createFixture();
   const matrixPath = path.join(root, 'contracts/app-page-state-matrix.json');
   const matrix = JSON.parse(fs.readFileSync(matrixPath, 'utf8'));
-  matrix.acceptance_boundary.runtime_upstream_alignment_may_remove_or_weaken = true;
+  matrix.acceptance_boundary.runtime_upstream_alignment_may_remove_or_weaken = false;
   writeJson(root, 'contracts/app-page-state-matrix.json', matrix);
   assert.throws(
     () => validateGuiDesignSystem(root),

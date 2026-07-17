@@ -1,9 +1,8 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
-import { validateAppGuiProductContract } from '../../scripts/validate-active-shell/gui-product-contract-validator.ts';
-import { validatePageStateMatrix } from '../../scripts/validate-active-shell/page-state-matrix-validator.ts';
 import { validateRuntimeProgressPageDisplayPolicy } from '../../scripts/validate-active-shell/runtime-bridge-validator.ts';
+import { validateOptionalRuntimeRoute } from '../../scripts/validate-active-shell/runtime-route-validator.ts';
 import {
   validateAgentAvailabilityProjectionContract,
   validateRuntimeScopeProjectionContract,
@@ -13,14 +12,22 @@ import {
 
 const readJson = (relativePath: string) => JSON.parse(fs.readFileSync(relativePath, 'utf8'));
 
-const validateGuiContract = (guiContract: any) => validateAppGuiProductContract(
-  guiContract,
-  readJson('contracts/app-release-channel.json'),
-  readJson('contracts/app-install-exposure-policy.json'),
-);
+const validateRoute = ({
+  guiContract = readJson('contracts/app-gui-product-contract.json'),
+  matrix = readJson('contracts/app-page-state-matrix.json'),
+} = {}) => validateOptionalRuntimeRoute({
+  guiProductContract: guiContract,
+  pageStateMatrix: matrix,
+  shellAdapter: readJson('contracts/app-shell-adapter.json'),
+  runtimeBridge: readJson('contracts/app-runtime-bridge.json'),
+  releaseChannel: readJson('contracts/app-release-channel.json'),
+  installExposurePolicy: readJson('contracts/app-install-exposure-policy.json'),
+});
+
+const validateGuiContract = (guiContract: any) => validateRoute({ guiContract });
 
 const validatePageState = (matrix: any, guiContract = readJson('contracts/app-gui-product-contract.json')) =>
-  validatePageStateMatrix(matrix, readJson('contracts/app-shell-adapter.json'), guiContract);
+  validateRoute({ guiContract, matrix });
 
 const runtimeContract = () => readJson('contracts/app-gui-product-contract.json');
 const runtimeBridge = () => readJson('contracts/app-runtime-bridge.json');
@@ -85,6 +92,16 @@ test('MAS research trajectory is one exact lightweight snapshot behind a transpo
   ]) {
     assert.equal(serialized.includes(removedControlLayer), false);
   }
+});
+
+test('explicit Runtime route gate rejects an absent optional route', () => {
+  const guiContract = runtimeContract();
+  delete guiContract.pages.runtime_status;
+  assert.throws(() => validateGuiContract(guiContract));
+
+  const matrix = readJson('contracts/app-page-state-matrix.json');
+  matrix.pages = matrix.pages.filter((page: any) => page.id !== 'runtime');
+  assert.throws(() => validatePageState(matrix));
 });
 
 test('WorkItemProjection V2 requires global item identity, all nine axes, and observed-only Token semantics', () => {

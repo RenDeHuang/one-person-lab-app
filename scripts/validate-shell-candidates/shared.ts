@@ -73,7 +73,6 @@ export const requiredNativeCapabilities = [
   'opl_app_action_bridge',
   'page_state_matrix_mapping',
   'first_run_matrix_mapping',
-  'runtime_summary_detail_action_bridge',
   'foundry_agent_series_shared_progress_display',
   'app_owned_settings_information_architecture',
   'secondary_runtime_context_refs',
@@ -144,8 +143,10 @@ export const expectedFrameworkSurfaces: Record<string, string> = {
   state: 'opl app state --profile fast --json',
   refresh: 'opl app state --profile fast --json',
   full_state: 'opl app state --profile full --json',
-  full_drilldown: 'opl runtime app-operator-drilldown --detail full --json',
   action: 'opl app action execute --action <action_id> [--payload json] [--dry-run] --json',
+};
+export const expectedOptionalRuntimeFrameworkSurfaces: Record<string, string> = {
+  full_drilldown: 'opl runtime app-operator-drilldown --detail full --json',
 };
 export const requiredSeriesProgressFields = [
   'progress_delta_classification',

@@ -16,9 +16,11 @@ import {
   writeDockerWebuiCleanVmEvidenceSummary,
 } from './helpers.ts';
 
-const requiredArtifacts = JSON.parse(
+const evidenceBundle = JSON.parse(
   fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
-).operator_evidence_bundle.required_artifacts;
+).operator_evidence_bundle;
+const requiredArtifacts = evidenceBundle.required_artifacts;
+const runtimeScreenshot = evidenceBundle.conditional_artifacts.find((artifact) => artifact.id === 'runtime_screenshot');
 
 function presentArtifacts() {
   return requiredArtifacts.map((artifact) => ({ ...artifact, status: 'present' }));
@@ -38,7 +40,7 @@ function writeEvidenceManifest(tempRoot, fields) {
   }));
 }
 
-function writeEvidenceScreenshots(tempRoot, ids = ['runtime', 'full', 'action']) {
+function writeEvidenceScreenshots(tempRoot, ids = ['full', 'action']) {
   for (const id of ids) writeScreenshotPng(path.join(tempRoot, 'screenshots', id + '.png'));
 }
 
@@ -62,16 +64,19 @@ function evidenceGaps(artifacts) {
   }));
 }
 
-function validateBundle(tempRoot, allowMissing = false) {
+function validateBundle(tempRoot, allowMissing = false, requiredConditionals = []) {
   return runNode([
     'scripts/validate-release-evidence-bundle.ts',
     '--bundle-dir',
     tempRoot,
     ...(allowMissing ? ['--allow-missing-evidence'] : []),
+    ...requiredConditionals.flatMap((artifactId) => ['--require-conditional', artifactId]),
   ]);
 }
 
 test('release evidence bundle validator accepts the declared App release artifact set', () => {
+  assert.equal(requiredArtifacts.some((artifact) => artifact.id === 'runtime_screenshot'), false);
+  assert.equal(runtimeScreenshot?.required_when, 'runtime_route_evidence_requested');
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-'));
   writeEvidenceManifest(tempRoot, {
     status: 'passed',
@@ -100,11 +105,41 @@ test('release evidence bundle validator accepts the declared App release artifac
     release_cohort: releaseEvidenceCohort(),
     current_cohort_evidence: true,
     evidence_boundary: 'refs_only_no_runtime_truth_domain_truth_artifact_or_quality_authority',
-    verified_artifact_count: 16,
+    verified_artifact_count: requiredArtifacts.length,
     verified_diagnostic_count: 0,
     missing_artifact_count: 0,
   });
   assert.deepEqual(payload.verified_artifacts.map((artifact) => artifact.id), requiredArtifacts.map((artifact) => artifact.id));
+});
+
+test('Runtime screenshot is required only when optional route evidence is requested', () => {
+  const missingRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-runtime-conditional-missing-'));
+  writeEvidenceManifest(missingRoot, {
+    status: 'passed',
+    packaged_app_evidence: true,
+    release_cohort: releaseEvidenceCohort(),
+    current_cohort_evidence: true,
+    artifacts: presentArtifacts(),
+  });
+  writePackagedEvidenceFiles(missingRoot);
+
+  const missing = validateBundle(missingRoot, false, ['runtime_screenshot']);
+  assert.notEqual(missing.status, 0);
+  assert.match(missing.stderr, /missing required conditional artifact runtime_screenshot/);
+
+  const presentRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-runtime-conditional-present-'));
+  writeEvidenceManifest(presentRoot, {
+    status: 'passed',
+    packaged_app_evidence: true,
+    release_cohort: releaseEvidenceCohort(),
+    current_cohort_evidence: true,
+    artifacts: [...presentArtifacts(), { ...runtimeScreenshot, status: 'present' }],
+  });
+  writePackagedEvidenceFiles(presentRoot, { screenshotIds: ['full', 'action', 'runtime'] });
+
+  const present = validateBundle(presentRoot, false, ['runtime_screenshot']);
+  assert.equal(present.status, 0, present.stderr || present.stdout);
+  assert.equal(JSON.parse(present.stdout).verified_artifact_count, requiredArtifacts.length + 1);
 });
 
 test('release evidence bundle validator rejects legacy Runtime-owned acceptance metadata', () => {
@@ -187,7 +222,7 @@ test('release evidence bundle validator fails closed for incomplete packaged App
   }, {
     status: 'missing_evidence',
     packaged_app_evidence: false,
-    verified_artifact_count: 8,
+    verified_artifact_count: requiredArtifacts.length - missingArtifactIds.size,
     missing_artifact_count: 8,
     missing_artifacts: [...missingArtifactIds],
   });

@@ -196,16 +196,20 @@
         "implementation_carrier": "opl-aion-shell"
       },
       "opl_native_workbench": {
-        "role": "foreground_candidate_same_contract_display_consumer",
+        "role": "foreground_candidate_optional_runtime_consumer_not_phase_one_parity",
         "implementation_carrier": "opl-native-workbench"
       }
     },
     "rows": [
       {
         "semantic_area": "runtime",
+        "route_classification": "retained_optional_x0_owner_route",
+        "producer_required": true,
+        "aionui_optional_route": true,
+        "native_phase_one_required": false,
         "canonical_source": "opl app state --profile fast --json#app_state.operator.workbench.work_item_projection_v2",
         "aion_display_role": "minimal WorkItem status, Stage, Attempt, Token, next action, and archive/restore",
-        "workbench_display_role": "same minimal WorkItem status contract",
+        "workbench_display_role": "optional Runtime owner-route consumer outside Native phase-one parity",
         "allowed_action_refs": ["work_item_visibility_set"],
         "fallback_policy": {
           "allowed_fallback_source": "selected item from work_item_projection_v2",

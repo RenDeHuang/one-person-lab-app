@@ -100,6 +100,44 @@ const expectedLegacyRedirects = {
   ...legacySettingsRouteRedirects,
 };
 
+const expectedOptionalResourceProjectionPolicy = {
+  source: "settings_control_center.app_settings_read_model.resource_sources",
+  record_eligibility:
+    "canonical_record_exists_and_contains_at_least_one_resource_source_owner_or_route_ref",
+  group_visibility:
+    "render_each_resource_category_only_when_that_category_has_at_least_one_eligible_record",
+  empty_projection_policy:
+    "render_no_external_resource_group_anchor_or_placeholder",
+  excluded_builtin_ids: ["opl_gateway", "gateway"],
+  ordinary_display_fields: [
+    "status",
+    "management_mode",
+    "resource_source_refs",
+    "owner_ref",
+    "route_ref",
+    "projected_action_refs",
+  ],
+  forbidden_app_authority: [
+    "resource_scheduling",
+    "resource_billing",
+    "credential_ownership",
+    "storage_execution",
+    "provider_truth",
+  ],
+};
+
+const expectedConditionalResourceGroup = {
+  id: "conditional_external_resource_refs",
+  when:
+    "at_least_one_canonical_owner_projected_resource_record_has_a_resource_or_route_ref",
+  empty_policy: "omit_group_anchor_and_placeholder",
+};
+
+const expectedConditionalResourceSection = {
+  ...expectedConditionalResourceGroup,
+  empty_policy: "omit_section_anchor_and_placeholder",
+};
+
 const expectedAnchorRemap = Object.fromEntries(
   Object.entries(expectedLegacyRedirects).map(([id, target]) => [
     id,
@@ -638,6 +676,12 @@ export function validateSettingsControlPlane(
     "Settings control plane shell_must_not_own",
   );
   validateCrossContractConsistency(
+    controlPlane,
+    guiContract,
+    pageStateMatrix,
+    productProfile,
+  );
+  validateSettingsOptionalResourceProjection(
     controlPlane,
     guiContract,
     pageStateMatrix,
@@ -2343,7 +2387,7 @@ export function validateSettingsExperienceContract(experience) {
   );
   if (
     pageContracts.resources.connection_filter_policy !==
-    "exclude the built-in OPL Gateway connection and count; show only user-managed external connections"
+    "exclude the built-in OPL Gateway connection and count; show only canonical owner-projected external connections with at least one resource or route ref"
   ) {
     throw new Error(
       "Settings Resources must exclude the built-in OPL Gateway connection and count",
@@ -2788,7 +2832,7 @@ function validateSettingsPageAdapterPolicy(controlPlane, productProfile) {
       );
     }
   }
-  validateSettingsAccessCloudBoundary(requiredPages.access);
+  validateSettingsAccessResourceBoundary(requiredPages.access);
   validateSettingsGatewayAccountBoundary(controlPlane, requiredPages.gateway);
   assertDeepEqualJson(
     requiredPages.environment?.managed_dependency_summary,
@@ -3111,7 +3155,7 @@ function validateSettingsAgentsDirectoryProjection(agentsPage) {
   }
 }
 
-function validateSettingsAccessCloudBoundary(accessPage) {
+function validateSettingsAccessResourceBoundary(accessPage) {
   if (
     accessPage?.model_access_source !==
     "app_state.core.codex.model_access_source"
@@ -3155,7 +3199,7 @@ function validateSettingsAccessCloudBoundary(accessPage) {
   if (
     presentation.resources_route !== "resources" ||
     presentation.resources_route_policy !==
-      "local browser access, Docker WebUI, OPL Workspace, SSH/HPC, cloud, Fabric, and Console-managed refs live on Resources & Connections"
+      "local browser access, Docker WebUI, and owner-projected optional resource refs live on Resources & Connections; absent optional projections create no groups or placeholders"
   ) {
     throw new Error(
       "Settings Access must route browser and resource surfaces to Settings Resources",
@@ -3173,16 +3217,20 @@ function validateSettingsAccessCloudBoundary(accessPage) {
     "Settings Access hidden normal-state terms",
   );
 
-  const boundary = accessPage?.cloud_remote_boundary;
+  const boundary = accessPage?.resource_route_boundary;
   if (!boundary || typeof boundary !== "object") {
     throw new Error(
-      "Settings Access page adapter must declare cloud_remote_boundary",
+      "Settings Access page adapter must declare resource_route_boundary",
     );
   }
   assertDeepEqualJson(
     boundary.required_boundary_terms,
-    ["App", "Workspace", "Gateway", "Fabric", "Console"],
-    "Settings Access cloud remote boundary terms",
+    [
+      "Account & Access",
+      "Resources & Connections",
+      "owner-projected optional resource refs",
+    ],
+    "Settings Access resource route boundary terms",
   );
   if (
     boundary.display_policy !==
@@ -3192,9 +3240,17 @@ function validateSettingsAccessCloudBoundary(accessPage) {
       "Settings Models must route Gateway credentials and resource refs to their owning pages",
     );
   }
+  if (
+    boundary.optional_resource_policy !==
+    "render only canonical owner-projected records with at least one resource or route ref; omit empty categories and placeholders"
+  ) {
+    throw new Error(
+      "Settings Access resource route boundary must keep optional resources conditional",
+    );
+  }
   if (boundary.refs_only !== true) {
     throw new Error(
-      "Settings Access cloud remote boundary refs_only must be true",
+      "Settings Access resource route boundary refs_only must be true",
     );
   }
   assertIncludesAll(
@@ -3206,8 +3262,83 @@ function validateSettingsAccessCloudBoundary(accessPage) {
       "domain_readiness",
       "app_release_readiness",
     ],
-    "Settings Access cloud remote boundary forbidden claims",
+    "Settings Access resource route boundary forbidden claims",
   );
+}
+
+function validateSettingsOptionalResourceProjection(
+  controlPlane,
+  guiContract,
+  pageStateMatrix,
+  productProfile,
+) {
+  const experience =
+    controlPlane?.experience_contract?.page_contracts?.resources;
+  const guiPage = guiContract?.pages?.settings_resources;
+  const matrixPage = pageById(pageStateMatrix, "settings_resources");
+  const profileExperience =
+    productProfile?.settings?.control_plane?.experience_contract?.page_contracts
+      ?.resources;
+
+  for (const [label, policy] of [
+    ["Settings experience", experience?.external_resource_projection_policy],
+    ["GUI Settings Resources", guiPage?.external_resource_projection_policy],
+    [
+      "Page-state Settings Resources",
+      matrixPage?.external_resource_projection_policy,
+    ],
+    [
+      "Product profile Settings Resources",
+      profileExperience?.external_resource_projection_policy,
+    ],
+  ]) {
+    assertDeepEqualJson(
+      policy,
+      expectedOptionalResourceProjectionPolicy,
+      `${label} optional resource projection policy`,
+    );
+  }
+
+  assertDeepEqualJson(
+    experience?.conditional_groups,
+    [expectedConditionalResourceGroup],
+    "Settings Resources conditional groups",
+  );
+  assertDeepEqualJson(
+    profileExperience?.conditional_groups,
+    [expectedConditionalResourceGroup],
+    "Product profile Settings Resources conditional groups",
+  );
+  assertDeepEqualJson(
+    guiPage?.conditional_sections,
+    [expectedConditionalResourceSection],
+    "GUI Settings Resources conditional sections",
+  );
+  assertDeepEqualJson(
+    matrixPage?.conditional_sections,
+    [expectedConditionalResourceSection],
+    "Page-state Settings Resources conditional sections",
+  );
+
+  const ordinaryResourceContract = JSON.stringify({
+    access: controlPlane?.page_adapter_policy?.required_pages?.access,
+    experience,
+    guiPage,
+    matrixPage,
+    profileExperience,
+  });
+  for (const forbiddenLiteral of [
+    "OPL Workspace",
+    "Fabric",
+    "HPC",
+    "Console-managed",
+  ]) {
+    if (ordinaryResourceContract.includes(forbiddenLiteral)) {
+      throw new Error(
+        `Settings Resources must not hard-require optional platform literal ${forbiddenLiteral}`,
+      );
+    }
+  }
 }
 
 function validateSettingsVisualQaPolicy(controlPlane) {

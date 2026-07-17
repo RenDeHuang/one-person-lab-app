@@ -334,7 +334,6 @@ export const releaseBoundaryChecks: ReleaseBoundaryCheck[] = [
       '--evidence-source-dir "$full_source_dir"',
       '--evidence-source-dir "$standard_source_dir"',
       '--evidence-source-dir "$remote_source_dir"',
-      "runtime_screenshot=$full_source_dir/artifacts/settings-pages/runtime-status.png",
       "manifest_args=(",
       "manifest_args+=(--require-conditional docker_webui_clean_vm_evidence)",
       'node --experimental-strip-types scripts/write-release-evidence-manifest.ts "${manifest_args[@]}"',

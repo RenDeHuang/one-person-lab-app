@@ -19,8 +19,12 @@
     "historical_pixel_shell_sha_binding_status": "bound_to_exact_historical_evidence",
     "pixel_evidence_ref": "docs/product/gui/evidence/aionui-41301/manifest.json",
     "runtime_product_contract_ref": "contracts/app-gui-product-contract.json#pages.runtime_status.runtime_cockpit_product_contract",
-    "runtime_upstream_alignment_may_remove_or_weaken": false,
-    "runtime_acceptance_requires_contract_page_state_validators_tests": true,
+    "runtime_route_classification": "retained_optional_x0_owner_route",
+    "runtime_default_gate_required": false,
+    "runtime_native_phase_one_required": false,
+    "runtime_upstream_alignment_may_remove_or_weaken": true,
+    "runtime_explicit_validation_command": "npm run validate:runtime-route",
+    "runtime_acceptance_requires_contract_page_state_validators_tests": "when_route_selected_or_changed",
     "runtime_contract_implies_framework_producer_complete": false,
     "runtime_contract_implies_shell_consumer_complete": false,
     "runtime_contract_implies_live_evidence_complete": false
@@ -1068,6 +1072,10 @@
     },
     {
       "id": "runtime",
+      "route_classification": "retained_optional_x0_owner_route",
+      "default_gate_required": false,
+      "native_phase_one_required": false,
+      "explicit_validation_command": "npm run validate:runtime-route",
       "expected_source": "OPL App WorkItemProjection v2 project status",
       "machine_source": "opl app state --profile fast --json",
       "primary_projection": "app_state.operator.workbench.work_item_projection_v2",
@@ -2862,7 +2870,7 @@
       ],
       "must_not_show": [
         "model preference controls or Codex CLI update actions",
-        "Docker WebUI, OPL Workspace, SSH/HPC, cloud, Fabric, or Console-managed resource cards",
+        "resource cards owned by Resources & Connections",
         "local browser access, WebUI, Workspace, or remote resource entries",
         "Gateway password login in browser WebUI",
         "password, access token, refresh token, API Key material, remote Key id, credential path, raw response, or raw error",
@@ -2985,7 +2993,7 @@
       ],
       "must_not_show": [
         "Gateway account card, balance, usage, login form, managed Key lifecycle, or manual API-key form",
-        "Docker WebUI, OPL Workspace, SSH/HPC, cloud, Fabric, or Console-managed resource cards",
+        "resource cards owned by Resources & Connections",
         "raw base URL, environment variable, token path, or provider id on the ordinary Models surface",
         "Codex CLI update controls owned by Maintenance"
       ],
@@ -3033,7 +3041,7 @@
     {
       "id": "settings_resources",
       "expected_source": "OPL App state resource-source and Docker WebUI action projection",
-      "machine_source": "opl app state --profile fast --json#settings_control_center.app_settings_read_model.resource_sources + docker_webui",
+      "machine_source": "opl app state --profile fast --json#settings_control_center.connection_registry + settings_control_center.app_settings_read_model.resource_sources + docker_webui",
       "refresh_source": "opl app state --profile fast --json",
       "page_contract": "settings_resources",
       "sections": [
@@ -3041,8 +3049,16 @@
         "web_access",
         "resource_readiness",
         "action_readiness",
-        "external_resources",
+        "external_connections",
+        "conditional_external_resource_refs",
         "technical_details"
+      ],
+      "conditional_sections": [
+        {
+          "id": "conditional_external_resource_refs",
+          "when": "at_least_one_canonical_owner_projected_resource_record_has_a_resource_or_route_ref",
+          "empty_policy": "omit_section_anchor_and_placeholder"
+        }
       ],
       "state_sections": [
         "settings_control_center.app_settings_read_model.docker_webui",
@@ -3053,10 +3069,11 @@
       ],
       "must_show": [
         "browser access to this computer with port, account, and password management entry",
-        "Docker WebUI and OPL Workspace deployment entries",
+        "Docker WebUI deployment and access entry",
         "resource readiness and action executability as separate states",
-        "owner or management mode",
-        "Docker WebUI, OPL Workspace, SSH/HPC, cloud, Fabric, and Console-managed refs when projected",
+        "user-managed external connections while the built-in OPL Gateway remains on Account & Access",
+        "owner or management mode only for a projected optional resource record",
+        "optional external resource refs only when a canonical owner or backend projection is present",
         "one available action only when the related operation is executable",
         "read-only Open navigates the shell to the projected browser_url",
         "read-only Diagnose executes the projected diagnose action and renders its result",
@@ -3065,6 +3082,8 @@
       "must_not_show": [
         "built-in OPL Gateway connection or Gateway count owned by Account & Access",
         "selected local workspace path, change-workspace controls, or permission summary duplicated from Workspace",
+        "empty optional resource group, placeholder state, or hosted platform promise without a canonical owner projection",
+        "App-owned resource scheduling, billing, credential ownership, storage execution, or provider truth",
         "resource readiness used as proof that an operation is executable",
         "resource availability as release-ready or runtime-ready proof",
         "raw connector, quota, billing, credential, or deployment payloads before technical-details disclosure",
@@ -3077,6 +3096,31 @@
         "visibility": "always",
         "action_policy": "open_existing_local_browser_access_settings",
         "implementation_provenance_visibility": "technical_details_only"
+      },
+      "external_resource_projection_policy": {
+        "source": "settings_control_center.app_settings_read_model.resource_sources",
+        "record_eligibility": "canonical_record_exists_and_contains_at_least_one_resource_source_owner_or_route_ref",
+        "group_visibility": "render_each_resource_category_only_when_that_category_has_at_least_one_eligible_record",
+        "empty_projection_policy": "render_no_external_resource_group_anchor_or_placeholder",
+        "excluded_builtin_ids": [
+          "opl_gateway",
+          "gateway"
+        ],
+        "ordinary_display_fields": [
+          "status",
+          "management_mode",
+          "resource_source_refs",
+          "owner_ref",
+          "route_ref",
+          "projected_action_refs"
+        ],
+        "forbidden_app_authority": [
+          "resource_scheduling",
+          "resource_billing",
+          "credential_ownership",
+          "storage_execution",
+          "provider_truth"
+        ]
       },
       "layout_policy": {
         "section_presentation": "unframed_heading_plus_flat_rows",
@@ -3125,9 +3169,14 @@
           "settings-page-resources",
           "settings-resources-primary",
           "settings-resources-browser-access",
-          "settings-resources-diagnostics-action"
+          "settings-resources-diagnostics-action",
+          "opl-connections-section"
         ],
         "conditional": [
+          {
+            "testid": "settings-resources-external",
+            "when": "eligible_external_resource_projection_present"
+          },
           {
             "testid": "settings-resources-exception",
             "when": "attention_required"

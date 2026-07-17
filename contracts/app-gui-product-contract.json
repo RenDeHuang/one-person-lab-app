@@ -51,7 +51,6 @@
       "authority": "opl_product_capability_over_external_reference_parity",
       "external_reference_role": "placement_and_interaction_reference_only",
       "protected_surfaces": [
-        "runtime_cross_project_overview",
         "agent_capabilities",
         "first_run",
         "opl_settings",
@@ -64,20 +63,25 @@
         "removal_before_replacement_forbidden": true
       },
       "runtime_surface_roles": {
-        "navigation_runtime": "cross_project_work_status_cockpit",
+        "navigation_runtime": "retained_optional_x0_owner_route",
+        "navigation_runtime_default_visible": false,
         "context_runtime": "selected_conversation_or_task_details",
-        "context_runtime_can_replace_navigation_runtime": false
+        "context_runtime_independent_of_navigation_runtime": true
       },
       "runtime_preservation_gate": {
         "product_contract_ref": "contracts/app-gui-product-contract.json#pages.runtime_status.runtime_cockpit_product_contract",
         "page_state_ref": "contracts/app-page-state-matrix.json#pages[id=runtime].runtime_view_model.runtime_cockpit_acceptance",
-        "upstream_alignment_may_remove_or_weaken": false,
-        "replacement_must_preserve_required_answers": true,
-        "same_change_requirements": [
+        "route_classification": "retained_optional_x0_owner_route",
+        "default_product_requirement": false,
+        "default_release_gate": false,
+        "native_phase_one_requirement": false,
+        "upstream_alignment_may_remove_or_weaken": true,
+        "explicit_validation_command": "npm run validate:runtime-route",
+        "route_change_requirements": [
           "product_contract",
           "page_state_acceptance",
-          "validators",
-          "tests"
+          "explicit_route_validator",
+          "route_tests"
         ]
       }
     },
@@ -124,10 +128,16 @@
       },
       "top_entries": [
         "new_task",
-        "runtime",
         "archived"
       ],
-      "runtime_entry_role": "cross_project_work_status_cockpit",
+      "conditional_entries": [
+        {
+          "id": "runtime",
+          "role": "retained_optional_x0_owner_route",
+          "when": "runtime_route_enabled_by_owner_profile"
+        }
+      ],
+      "runtime_entry_role": "retained_optional_x0_owner_route_not_default_navigation",
       "capabilities_mapping": "capability_selection_lives_in_new_task_home_and_capability_management_lives_in_settings_without_a_duplicate_primary_navigation_page",
       "legacy_capabilities_route": "/capabilities redirects to /guid without deleting capability data or Settings management",
       "forbidden_entries_without_opl_product_capability": [
@@ -4123,8 +4133,8 @@
       "resources": {
         "label_zh": "资源与连接",
         "label_en": "Resources & Connections",
-        "role": "resources_connections_and_advanced_deployment",
-        "primary_question": "Which local, remote, hosted, or managed resources can my tasks use?",
+        "role": "local_access_webui_and_optional_owner_projected_connections",
+        "primary_question": "Which local access paths and currently projected external connections can my tasks use?",
         "ia_group": "resources",
         "ordinary_entry_policy": "top_level_control_center_route"
       },
@@ -4242,16 +4252,14 @@
         "id": "resources",
         "label_zh": "资源与连接",
         "label_en": "Resources & Connections",
-        "role": "resources_connections_and_advanced_deployment",
+        "role": "local_access_webui_and_optional_owner_projected_connections",
         "ordinary_entries": [
           "settings_resources"
         ],
         "primary_tasks": [
           "resources_connections",
           "docker_webui",
-          "opl_workspace",
-          "ssh_hpc",
-          "fabric_console_refs"
+          "optional_owner_projected_resource_refs"
         ]
       },
       {
@@ -5251,6 +5259,11 @@
       }
     },
     "runtime_status": {
+      "route_classification": "retained_optional_x0_owner_route",
+      "default_product_requirement": false,
+      "default_release_gate": false,
+      "native_phase_one_requirement": false,
+      "explicit_validation_command": "npm run validate:runtime-route",
       "state_source": "opl app state --profile fast --json",
       "refresh_source": "opl app state --profile fast --json",
       "primary_projection": "app_state.operator.workbench.work_item_projection_v2",
@@ -6024,7 +6037,7 @@
       ],
       "must_not_show": [
         "model preference controls or Codex CLI update actions",
-        "Docker WebUI, OPL Workspace, SSH/HPC, cloud, Fabric, or Console-managed resource cards",
+        "resource cards owned by Resources & Connections",
         "local browser access, WebUI, Workspace, or remote resource entries",
         "Gateway password login in browser WebUI",
         "password, access token, refresh token, API Key material, remote Key id, credential path, raw response, or raw error",
@@ -6086,7 +6099,7 @@
       ],
       "must_not_show": [
         "Gateway account card, balance, usage, login form, managed Key lifecycle, or manual API-key form",
-        "Docker WebUI, OPL Workspace, SSH/HPC, cloud, Fabric, or Console-managed resource cards",
+        "resource cards owned by Resources & Connections",
         "raw base URL, environment variable, token path, or provider id on the ordinary Models surface",
         "Codex CLI update controls owned by Maintenance"
       ],
@@ -6095,22 +6108,31 @@
       "experience_contract_ref": "contracts/app-settings-control-plane.json#experience_contract.page_contracts.models"
     },
     "settings_resources": {
-      "state_source": "opl app state --profile fast --json#settings_control_center.app_settings_read_model.resource_sources + docker_webui",
+      "state_source": "opl app state --profile fast --json#settings_control_center.connection_registry + settings_control_center.app_settings_read_model.resource_sources + docker_webui",
       "refresh_source": "opl app state --profile fast --json",
       "sections": [
         "local_browser_access",
         "web_access",
         "resource_readiness",
         "action_readiness",
-        "external_resources",
+        "external_connections",
+        "conditional_external_resource_refs",
         "technical_details"
+      ],
+      "conditional_sections": [
+        {
+          "id": "conditional_external_resource_refs",
+          "when": "at_least_one_canonical_owner_projected_resource_record_has_a_resource_or_route_ref",
+          "empty_policy": "omit_section_anchor_and_placeholder"
+        }
       ],
       "must_show": [
         "browser access to this computer with port, account, and password management entry",
-        "Docker WebUI and OPL Workspace deployment entries",
+        "Docker WebUI deployment and access entry",
         "resource readiness and action executability as separate states",
-        "owner or management mode",
-        "Docker WebUI, OPL Workspace, SSH/HPC, cloud, Fabric, and Console-managed refs when projected",
+        "user-managed external connections while the built-in OPL Gateway remains on Account & Access",
+        "owner or management mode only for a projected optional resource record",
+        "optional external resource refs only when a canonical owner or backend projection is present",
         "one available action only when the related operation is executable",
         "read-only Open navigates the shell to the projected browser_url",
         "read-only Diagnose executes the projected diagnose action and renders its result",
@@ -6119,6 +6141,8 @@
       "must_not_show": [
         "built-in OPL Gateway connection or Gateway count owned by Account & Access",
         "selected local workspace path, change-workspace controls, or permission summary duplicated from Workspace",
+        "empty optional resource group, placeholder state, or hosted platform promise without a canonical owner projection",
+        "App-owned resource scheduling, billing, credential ownership, storage execution, or provider truth",
         "resource readiness used as proof that an operation is executable",
         "resource availability as release-ready or runtime-ready proof",
         "raw connector, quota, billing, credential, or deployment payloads before technical-details disclosure",
@@ -6171,55 +6195,30 @@
           ]
         }
       },
-      "cloud_fabric_surface": {
-        "surface": "settings_resources",
-        "display_name": "Remote access and advanced deployment",
-        "source": "opl app state --profile fast --json optional cloud_fabric refs",
-        "gateway_entry": "OPL Gateway",
-        "deployment_surfaces": [
-          "OPL App",
-          "Docker WebUI",
-          "OPL Workspace"
+      "external_resource_projection_policy": {
+        "source": "settings_control_center.app_settings_read_model.resource_sources",
+        "record_eligibility": "canonical_record_exists_and_contains_at_least_one_resource_source_owner_or_route_ref",
+        "group_visibility": "render_each_resource_category_only_when_that_category_has_at_least_one_eligible_record",
+        "empty_projection_policy": "render_no_external_resource_group_anchor_or_placeholder",
+        "excluded_builtin_ids": [
+          "opl_gateway",
+          "gateway"
         ],
-        "fabric_resource_sources": [
-          "local_app",
-          "docker_webui",
-          "opl_workspace",
-          "user_provided_ssh",
-          "user_provided_hpc",
-          "opl_cloud_managed_compute",
-          "managed_storage",
-          "institutional_data_source"
+        "ordinary_display_fields": [
+          "status",
+          "management_mode",
+          "resource_source_refs",
+          "owner_ref",
+          "route_ref",
+          "projected_action_refs"
         ],
-        "console_management_boundary": "OPL Console manages organization policy, quota, billing, permissions, Workspace lifecycle, connector approval, and managed resource packages only for Console-managed resources",
-        "app_role": "display_and_action_route_consumer_only",
-        "environment_catalog": {
-          "source": "app_state.settings_control_center.app_settings_read_model.environment_catalog",
-          "display_policy": "read_only_template_version_source_task_fit_refs",
-          "required_ref_fields": [
-            "environment_ref",
-            "environment_template_ref",
-            "environment_version_ref",
-            "environment_source_ref",
-            "environment_task_refs"
-          ],
-          "environment_body_access": false,
-          "package_lock_body_access": false
-        },
-        "console_management": {
-          "source": "app_state.settings_control_center.app_settings_read_model.resource_sources.*",
-          "management_modes": [
-            "self_managed",
-            "console_managed"
-          ],
-          "managed_ref_fields": [
-            "console_policy_ref",
-            "quota_ref",
-            "billing_ref",
-            "permission_ref"
-          ],
-          "display_policy": "managed_resources_show_console_refs_self_managed_resources_show_owner_context"
-        }
+        "forbidden_app_authority": [
+          "resource_scheduling",
+          "resource_billing",
+          "credential_ownership",
+          "storage_execution",
+          "provider_truth"
+        ]
       },
       "ia_group": "resources",
       "product_page_id": "resources",

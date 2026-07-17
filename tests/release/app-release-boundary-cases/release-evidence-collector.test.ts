@@ -17,8 +17,11 @@ import {
   fileSha256,
 } from './helpers.ts';
 
+const evidenceBundle = JSON.parse(
+  fs.readFileSync(path.join(process.cwd(), 'contracts', 'app-release-channel.json'), 'utf8'),
+).operator_evidence_bundle;
+const requiredArtifactCount = evidenceBundle.required_artifacts.length;
 const attachedArtifactPaths = {
-  runtime_screenshot: 'runtime.png',
   full_screenshot: 'full.png',
   action_screenshot: 'action.png',
   first_run_vm_summary: 'tart-smoke-summary.json',
@@ -36,11 +39,11 @@ const completeAttachedArtifacts = Object.keys(attachedArtifactPaths);
 const collectorActionId = 'provider-scheduler:temporal:trigger';
 
 function writeCompleteEvidence(root, {
-  runtime = 'runtime.png',
+  runtime = null,
   full = 'full.png',
   action = 'action.png',
 } = {}) {
-  for (const file of [runtime, full, action]) {
+  for (const file of [runtime, full, action].filter(Boolean)) {
     writeScreenshotPng(path.join(root, file));
   }
   writeVmSmokeSummaryFiles(root);
@@ -86,18 +89,22 @@ function parseCollectedPayload(collected) {
   return JSON.parse(collected.stdout);
 }
 
-function validateBundle(bundleDir, allowMissing = false) {
+function validateBundle(bundleDir, allowMissing = false, requiredConditionals = []) {
   const validation = runNode([
     'scripts/validate-release-evidence-bundle.ts',
     '--bundle-dir',
     bundleDir,
     ...(allowMissing ? ['--allow-missing-evidence'] : []),
+    ...requiredConditionals.flatMap((artifactId) => ['--require-conditional', artifactId]),
   ]);
   assert.equal(validation.status, 0, validation.stderr || validation.stdout);
   return JSON.parse(validation.stdout);
 }
 
-function assertPassedBundle(bundleDir, payload) {
+function assertPassedBundle(bundleDir, payload, {
+  expectedAttachedArtifacts = completeAttachedArtifacts,
+  requiredConditionals = [],
+} = {}) {
   assert.deepEqual({
     status: payload.status,
     packaged_app_evidence: payload.packaged_app_evidence,
@@ -108,15 +115,20 @@ function assertPassedBundle(bundleDir, payload) {
     ...releaseEvidenceCohort(),
     source: 'write-release-evidence-manifest',
   });
-  assert.deepEqual(payload.attached_artifacts, completeAttachedArtifacts);
+  assert.deepEqual([...payload.attached_artifacts].sort(), [...expectedAttachedArtifacts].sort());
 
-  const validationPayload = validateBundle(bundleDir);
+  const validationPayload = validateBundle(bundleDir, false, requiredConditionals);
   assert.deepEqual({
     status: validationPayload.status,
     verified_artifact_count: validationPayload.verified_artifact_count,
     verified_diagnostic_count: validationPayload.verified_diagnostic_count,
     missing_artifact_count: validationPayload.missing_artifact_count,
-  }, { status: 'passed', verified_artifact_count: 16, verified_diagnostic_count: 1, missing_artifact_count: 0 });
+  }, {
+    status: 'passed',
+    verified_artifact_count: requiredArtifactCount + requiredConditionals.length,
+    verified_diagnostic_count: 1,
+    missing_artifact_count: 0,
+  });
 }
 
 test('release evidence collector preserves argument error boundaries', () => {
@@ -153,7 +165,7 @@ test('release evidence collector captures live OPL runtime refs and keeps missin
     validationPayload.status,
     validationPayload.verified_artifact_count,
     validationPayload.missing_artifact_count,
-  ], ['missing_evidence', 5, 11]);
+  ], ['missing_evidence', 5, requiredArtifactCount - 5]);
 
   const actionArgs = fs.readFileSync(actionLog, 'utf8').trim().split('\n').map((line) => JSON.parse(line));
   assert.deepEqual(actionArgs, [
@@ -207,10 +219,15 @@ test('release evidence collector imports standard smoke source directories witho
     sourceDir,
     '--artifact',
     `runtime_screenshot=${overrideScreenshot}`,
+    '--require-conditional',
+    'runtime_screenshot',
   ]);
 
   const payload = parseCollectedPayload(collected);
-  assertPassedBundle(bundleDir, payload);
+  assertPassedBundle(bundleDir, payload, {
+    expectedAttachedArtifacts: [...completeAttachedArtifacts, 'runtime_screenshot'],
+    requiredConditionals: ['runtime_screenshot'],
+  });
   assert.equal(
     fileSha256(path.join(bundleDir, 'screenshots', 'runtime.png')),
     fileSha256(overrideScreenshot),
@@ -255,7 +272,12 @@ test('release evidence collector imports typed blockers as blocked evidence', ()
     validationPayload.verified_artifact_count,
     validationPayload.blocked_artifact_count,
     validationPayload.blocked_artifacts[0].typed_blocker_ref,
-  ], ['blocked_evidence', 15, 1, 'typed_blocker_ref://one-person-lab-app/test/collector-first-run-vm-summary']);
+  ], [
+    'blocked_evidence',
+    requiredArtifactCount - 1,
+    1,
+    'typed_blocker_ref://one-person-lab-app/test/collector-first-run-vm-summary',
+  ]);
 });
 
 test('release evidence bundle validator rejects non-canonical typed blocker paths', () => {

@@ -1750,14 +1750,20 @@ function validatePackageReadinessProjection(runtimeBridge) {
   const rows = runtimeBridge.canonical_state_display_action_map?.rows;
   const runtimeRow = Array.isArray(rows) ? rows.find((row) => row?.semantic_area === 'runtime') : null;
   const packageRow = Array.isArray(rows) ? rows.find((row) => row?.semantic_area === 'package') : null;
+  const nativeShellRole = runtimeBridge.canonical_state_display_action_map?.shells?.opl_native_workbench?.role;
   if (
-    runtimeRow?.canonical_source !==
+    runtimeRow?.route_classification !== 'retained_optional_x0_owner_route'
+    || runtimeRow.producer_required !== true
+    || runtimeRow.aionui_optional_route !== true
+    || runtimeRow.native_phase_one_required !== false
+    || runtimeRow?.canonical_source !==
       'opl app state --profile fast --json#app_state.operator.workbench.work_item_projection_v2'
     || runtimeRow.aion_display_role !==
       'minimal WorkItem status, Stage, Attempt, Token, next action, and archive/restore'
-    || runtimeRow.workbench_display_role !== 'same minimal WorkItem status contract'
+    || runtimeRow.workbench_display_role !== 'optional Runtime owner-route consumer outside Native phase-one parity'
+    || nativeShellRole !== 'foreground_candidate_optional_runtime_consumer_not_phase_one_parity'
   ) {
-    throw new Error('Runtime bridge canonical Runtime row must use the minimal WorkItemProjection v2 contract');
+    throw new Error('Runtime bridge canonical Runtime row must preserve the required Framework producer while keeping AionUI optional and Native phase one independent');
   }
   assertDeepEqualJson(
     runtimeRow.allowed_action_refs,
@@ -1949,7 +1955,6 @@ export function validateRuntimeBridgeContract(runtimeBridge, contract) {
   validateRuntimeBridgeDeclaredSurfaces(runtimeBridge);
   validateOplGatewayAccountContract(runtimeBridge);
   validateRuntimeBridgeDefaultReadSurfacePolicy(runtimeBridge);
-  validateRuntimeProgressPageDisplayPolicy(runtimeBridge);
   validateRuntimeBridgeCommandResolutionPolicy(runtimeBridge);
   validateSharedGuiRuntimeResolutionPolicy(runtimeBridge);
   validateCanonicalConversationContinuityPolicy(runtimeBridge);

@@ -755,15 +755,19 @@ export function validateRuntimeCockpitPreservationPolicy(policy, label) {
     {
       product_contract_ref: runtimeCockpitProductContractRef,
       page_state_ref: runtimeCockpitPageStateRef,
-      upstream_alignment_may_remove_or_weaken: false,
-      replacement_must_preserve_required_answers: true,
+      route_classification: 'retained_optional_x0_owner_route',
+      default_product_requirement: false,
+      default_release_gate: false,
+      native_phase_one_requirement: false,
+      upstream_alignment_may_remove_or_weaken: true,
+      explicit_validation_command: 'npm run validate:runtime-route',
     },
     label,
   );
   assertDeepEqualJson(
-    policy.same_change_requirements,
-    ['product_contract', 'page_state_acceptance', 'validators', 'tests'],
-    `${label}.same_change_requirements`,
+    policy.route_change_requirements,
+    ['product_contract', 'page_state_acceptance', 'explicit_route_validator', 'route_tests'],
+    `${label}.route_change_requirements`,
   );
 }
 
@@ -772,8 +776,12 @@ export function validateRuntimeCockpitAcceptanceBoundary(boundary, label) {
     boundary,
     {
       runtime_product_contract_ref: runtimeCockpitProductContractRef,
-      runtime_upstream_alignment_may_remove_or_weaken: false,
-      runtime_acceptance_requires_contract_page_state_validators_tests: true,
+      runtime_route_classification: 'retained_optional_x0_owner_route',
+      runtime_default_gate_required: false,
+      runtime_native_phase_one_required: false,
+      runtime_upstream_alignment_may_remove_or_weaken: true,
+      runtime_explicit_validation_command: 'npm run validate:runtime-route',
+      runtime_acceptance_requires_contract_page_state_validators_tests: 'when_route_selected_or_changed',
       runtime_contract_implies_framework_producer_complete: false,
       runtime_contract_implies_shell_consumer_complete: false,
       runtime_contract_implies_live_evidence_complete: false,

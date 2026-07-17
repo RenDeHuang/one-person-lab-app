@@ -170,7 +170,7 @@ Conformance 必须按 `contract_status`、`source_status`、`pixel_status`、`in
 - `runtime_cockpit.role=retained_optional_x0_owner_route`
 - `runtime_cockpit.upstream_alignment_may_remove_or_weaken=true_when_core_gate_removed_and_owner_route_boundary_preserved`
 - `runtime_cockpit.core_requirement=false`
-- `runtime_cockpit.machine_gate_pruning_pending=true`
+- `runtime_cockpit.explicit_validation_command=npm run validate:runtime-route`
 - `runtime_cockpit.acceptance_ref=contracts/app-page-state-matrix.json#pages[id=runtime].runtime_view_model.runtime_cockpit_acceptance`
 - `docs_or_contract_imply_source_complete=false`
 - `docs_or_contract_imply_pixel_complete=false`
@@ -185,18 +185,6 @@ Conformance 必须按 `contract_status`、`source_status`、`pixel_status`、`in
 - `entry_docs=docs/product/gui/README.md,docs/product/gui/feature-inventory.md,docs/product/gui/ideal-interaction-spec.md,docs/product/gui/visual-system.md,docs/product/gui/codex-to-opl-app-delta.md,docs/product/gui/element-audit.md,docs/product/gui/shell-implementation-guide.md,docs/product/gui/shell-conformance-matrix.md`
 - `codex_auto_model_policy=contracts/app-product-profile.json#codex.auto_model_policy`
 - `contract_refs=contracts/app-gui-product-contract.json,contracts/app-product-profile.json,contracts/app-page-state-matrix.json,contracts/app-shell-candidates.json,contracts/app-shell-adapter.json`
-
-### Legacy validator compatibility
-
-下列两行只逐字投影当前尚未清理的 GUI validator hard gate，属于
-`current_machine_deviation`，不是 product target、P0 requirement、default release gate 或 Native
-phase-1 parity。P1a owns their removal together with the matching product/page-state/design-system/release
-rules；在该 machine change 落地前保留它们只为避免 docs-only 变更制造默认门回归：
-
-- `runtime_cockpit.role=user_agent_collaboration_control_console`
-- `runtime_cockpit.upstream_alignment_may_remove_or_weaken=false`
-- `legacy_validator_compatibility.not_product_target=true`
-- `legacy_validator_compatibility.owner=docs/active/app-ideal-state-gap-plan.md#p1a`
 
 ## 当前目标与实现边界
 

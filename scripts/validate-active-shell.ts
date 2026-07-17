@@ -53,7 +53,7 @@ validateSettingsControlPlane(settingsControlPlane, guiProductContract, pageState
 validateFirstRunMatrix(firstRunMatrix, contract);
 validateProductProfile(productProfile, installExposurePolicy);
 validateReleaseChannelContract(releaseChannel, shellPaths);
-validateReleaseEvidenceBundle(releaseChannel, pageStateMatrix, firstRunMatrix);
+validateReleaseEvidenceBundle(releaseChannel, firstRunMatrix);
 validateActiveShellImplementation(shellPaths);
 validateShellThreadCoordination(shellPaths);
 validateLiveOplConformance(runtimeBridge);

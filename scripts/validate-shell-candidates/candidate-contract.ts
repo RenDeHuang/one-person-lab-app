@@ -11,6 +11,7 @@ import {
   assertFile,
   assertStringArrayIncludes,
   expectedFrameworkSurfaces,
+  expectedOptionalRuntimeFrameworkSurfaces,
   forbiddenAuthority,
   requiredCapabilities,
   requiredContextSurfaces,
@@ -726,6 +727,9 @@ function validateCandidateTargetProductShape(candidate: ShellCandidate): void {
     throw new Error(`${candidate.id}.target_product_shape.settings_policy must keep Settings App-owned and refs-only`);
   }
   if (candidate.id === 'opl-native-workbench') {
+    if (Object.hasOwn(candidate.target_product_shape, 'runtime_page_policy')) {
+      throw new Error(`${candidate.id}.target_product_shape must not make the optional Runtime route part of Native phase-one parity`);
+    }
     if (
       candidate.target_product_shape.default_visual_basis !== 'codex_app_composer_first' ||
       candidate.target_product_shape.right_context_user_request_only !== true ||
@@ -792,6 +796,17 @@ function validateCandidateFrameworkSurfaces(candidate: ShellCandidate): void {
       throw new Error(`${candidate.id}.framework_surfaces.${surface} must be ${expected}`);
     }
   }
+  if (candidate.id === 'opl-native-workbench') {
+    if (Object.hasOwn(candidate.framework_surfaces, 'full_drilldown')) {
+      throw new Error(`${candidate.id}.framework_surfaces must not require optional Runtime full drilldown in Native phase one`);
+    }
+    return;
+  }
+  for (const [surface, expected] of Object.entries(expectedOptionalRuntimeFrameworkSurfaces)) {
+    if (candidate.framework_surfaces[surface] !== expected) {
+      throw new Error(`${candidate.id}.framework_surfaces.${surface} must be ${expected}`);
+    }
+  }
 }
 
 function validateCandidateStateModelCommand(candidate: ShellCandidate): void {
@@ -832,6 +847,9 @@ function validateCandidateSeriesDisplayContract(candidate: ShellCandidate): void
 function validateCandidateAuthorityBoundaries(candidate: ShellCandidate): void {
   if (candidate.id === 'opl-native-workbench') {
     assertStringArrayIncludes(candidate.required_capabilities, requiredNativeCapabilities, `${candidate.id}.required_capabilities`);
+    if (candidate.required_capabilities.includes('runtime_summary_detail_action_bridge')) {
+      throw new Error(`${candidate.id}.required_capabilities must keep the optional Runtime route outside Native phase one`);
+    }
     assertStringArrayIncludes(candidate.must_not_own, forbiddenAuthority, `${candidate.id}.must_not_own`);
     assertStringArrayIncludes(candidate.forbidden_home_controls, [
       'Aion CLI backend choice',
@@ -1498,7 +1516,6 @@ export function validateCandidateImplementationFiles(candidate: ShellCandidate):
     assertCandidateFileContains(candidate, 'src/bridge/oplBridge.ts', [
       'opl app state --profile fast --json',
       'opl app state --profile full --json',
-      'opl runtime app-operator-drilldown --detail full --json',
       'opl app action execute --action',
     ], 'OPL App state/action bridge');
     assertCandidateFileContains(candidate, 'src/workbench/workbenchModel.ts', [
@@ -1556,9 +1573,14 @@ function validateCandidateChatTarget(candidate: ShellCandidate): void {
       'Open Science-informed artifact, provenance, and review affordances as collapsed secondary context',
       'chat-first main canvas with pinned composer',
       'results, files, receipts, and delivery refs as first-class context',
-      'right-side collapsible Files, Skills, Routing, Memory, Always-On, Runtime, and Settings context tabs',
+      'right-side collapsible Files, Skills, Routing, Memory, Always-On, and Settings context tabs',
       'candidate .app package through the App wrapper',
     ], `${candidate.id}.codex_app_like_chat_target.capability_inventory`);
+    if (target.capability_inventory.includes(
+      'right-side collapsible Files, Skills, Routing, Memory, Always-On, Runtime, and Settings context tabs',
+    )) {
+      throw new Error(`${candidate.id} target must keep the optional Runtime route outside Native phase-one context tabs`);
+    }
   } else {
   if (target.scope !== 'Codex App-style chat-first desktop and WebUI target, not a full workbench first screen or AionUI modification list') {
     throw new Error(`${candidate.id} target must stay Codex App-style chat-first, not a full workbench first screen`);

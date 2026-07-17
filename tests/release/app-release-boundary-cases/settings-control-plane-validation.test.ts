@@ -51,6 +51,55 @@ test("Settings product profile mirrors the control-plane page adapter claims", (
   );
 });
 
+test("Settings optional resource groups stay owner-projected and absent by default", () => {
+  const values = contracts();
+  const fastFixture = readJson(
+    "contracts/fixtures/opl-app-state-fast.fixture.json",
+  );
+  const runtimeBridge = readJson("contracts/app-runtime-bridge.json");
+
+  assert.doesNotThrow(() => validate(values));
+  assert.deepStrictEqual(
+    fastFixture.app_state.settings_control_center.app_settings_read_model
+      .resource_sources,
+    {},
+  );
+  assert.equal(
+    runtimeBridge.task_awareness_projection.resource_context_policy.app_role,
+    "display_only_resource_context_consumer",
+  );
+  assert.ok(
+    runtimeBridge.task_awareness_projection.resource_context_policy.optional_ref_fields.includes(
+      "resource_source_refs",
+    ),
+  );
+
+  const legacyLiteral = contracts();
+  legacyLiteral.controlPlane.experience_contract.page_contracts.resources.primary_information.push(
+    "OPL Workspace",
+  );
+  assert.throws(
+    () => validate(legacyLiteral),
+    /must not hard-require optional platform literal OPL Workspace/,
+  );
+
+  const emptyPlaceholder = contracts();
+  emptyPlaceholder.guiContract.pages.settings_resources.external_resource_projection_policy.empty_projection_policy =
+    "render_empty_placeholder";
+  assert.throws(
+    () => validate(emptyPlaceholder),
+    /optional resource projection policy/,
+  );
+
+  const unconditionalGroup = contracts();
+  unconditionalGroup.controlPlane.experience_contract.page_contracts.resources.conditional_groups =
+    [];
+  assert.throws(
+    () => validate(unconditionalGroup),
+    /conditional groups/,
+  );
+});
+
 test("Settings contract keeps ten product pages, About as the only secondary page, and anchored compatibility routes", () => {
   const values = contracts();
 
@@ -1052,7 +1101,7 @@ test("Settings keeps Gateway ownership, cached storage freshness, managed depend
   assert.doesNotThrow(() => validate(values));
   assert.equal(
     pages.resources.connection_filter_policy,
-    "exclude the built-in OPL Gateway connection and count; show only user-managed external connections",
+    "exclude the built-in OPL Gateway connection and count; show only canonical owner-projected external connections with at least one resource or route ref",
   );
   assert.equal(
     pages.storage.surface_rules.inventory_initial_state,
