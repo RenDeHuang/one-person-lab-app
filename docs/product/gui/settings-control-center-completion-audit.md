@@ -1,10 +1,14 @@
 # Settings Control Center Completion Audit
 
-Audit date: 2026-07-12
-
+Owner: `one-person-lab-app`
+Purpose: `settings_control_center_2026_07_12_evidence_snapshot`
 State: `historical_snapshot_superseded_for_information_architecture`
+Machine boundary: This file preserves one historical Settings cohort. Current
+Settings authority belongs to `contracts/app-settings-control-plane.json`, the
+current product docs, source, tests, exact-cohort visual evidence, and installed
+readback; this snapshot cannot prove current completion.
 
-Authority owner: `one-person-lab-app`
+Audit date: 2026-07-12
 
 App Settings authority source: `1dd03b0f0f720d2314d4a8a77360c147b5635173`
 

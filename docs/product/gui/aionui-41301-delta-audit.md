@@ -2,17 +2,18 @@
 
 Owner: `one-person-lab-app`
 Purpose: `aionui_41301_keep_adapt_drop_read_model`
+State: `historical_branch_audit`
+Machine boundary: 本文是 App-owned historical implementation read model。产品目标来自
+[`codex-to-opl-app-delta.md`](codex-to-opl-app-delta.md) 与
+[`ideal-interaction-spec.md`](ideal-interaction-spec.md)；实际行为仍以 current Shell source/tests
+为准。本文不吸收分支、不改变 contracts、active shell 或 release readiness。
 
 Currentness note: 本文是 `dbff7370f` 与最初 41301 convergence 的历史 disposition 记录，
-不描述 current Shell `a0ce713b65801fd9ca7f46ad168c977c75a187de`。当前 rail 已收敛为
-New task / Runtime / Archived，capability 选择由 Home starter 承接、管理进入 Settings；
-current source/pixel 状态只读取 [`shell-conformance-matrix.md`](shell-conformance-matrix.md)。
-State: `historical_branch_audit`
+不描述 current Shell 或 current product requirement。当时的 New task / Runtime / Archived
+rail 只证明该历史 cohort；当前固定入口为 New task / Archived，Runtime 仅在 X0-01 route
+显式启用时出现。current source/pixel 状态只读取
+[`shell-conformance-matrix.md`](shell-conformance-matrix.md)。
 Date: `2026-07-11`
-Machine boundary: 本文是 App-owned implementation read model。产品目标来自
-[`codex-to-opl-app-delta.md`](codex-to-opl-app-delta.md) 与
-[`ideal-interaction-spec.md`](ideal-interaction-spec.md)；实际行为仍以 Shell source/tests
-为准。本文不吸收分支、不改变 contracts、active shell 或 release readiness。
 
 Historical boundary: 本文记录 `dbff7370f` 尚未进入 Shell main 时的逐提交判断。后续
 Shell merge `1752ba496377a0534ae88e6343f8051d961f79a5` 已把该 lineage 纳入 main，

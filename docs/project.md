@@ -7,10 +7,11 @@ Machine boundary: Human-readable project boundary. Machine-readable truth lives 
 
 One Person Lab App is the desktop product repository for One Person Lab. It owns packaging, release assets, updater metadata, user guides, screenshots, first-run checks, App product contracts, GUI runtime bridge contract, GUI product truth, and GUI page-state validation.
 
-The intended product shape is a local-first, cloud-continuous workbench for the
-OPL family: users start from a chat-first App, choose the work they want to do,
-and keep the same project/task/artifact/receipt language whether they are on the
-macOS desktop App, Docker/WebUI in a browser, or hosted OPL Workspace. Codex CLI
+The current required product shape is a local-first workbench for the OPL family:
+users start from a chat-first App, choose the work they want to do, and keep the
+same project/task/artifact/receipt language on the macOS desktop App and
+Docker/WebUI in a browser. Hosted OPL Workspace is an X0-03 conditional route,
+enabled only when account, storage, isolation, backend, and owner policy exist. Codex CLI
 is the fixed executor on the ordinary user path. Professional agents such as
 MAS, MAG, RCA, BookForge, and OMA are first-party starter packages and shortcuts
 for research, grants, presentation work, book writing, and agent-building work;
@@ -20,12 +21,10 @@ multi-backend selection as a normal user workflow. Selecting a shortcut creates
 a Codex CLI conversation with an App-owned invocation receipt; it is not a
 backend switcher or a session-behavior contract.
 
-Docker/WebUI is the browser runtime form of the same App workbench, suitable for
-Linux, Windows, servers, and cloud VMs. OPL Workspace is the hosted product form
-of that WebUI when account, storage, isolation, and managed-resource policy are
-attached. This keeps the user promise simple: start where your files and work
-already are, then move to remote or cloud execution without learning a second
-work system.
+Docker/WebUI is the U1-05 browser runtime form of the same App workbench,
+suitable for Linux, Windows, servers, and cloud VMs. A hosted OPL Workspace may
+reuse that surface only after its X0-03 owner/backend gates exist; it is not a
+current ordinary App requirement, default release gate, or placeholder state.
 
 不绑定具体 shell 的目标交互写在 `docs/product/gui/ideal-interaction-spec.md`。
 Codex App 到 OPL App 的产品增量写在 `docs/product/gui/codex-to-opl-app-delta.md`。跨 shell
@@ -33,7 +32,7 @@ Codex App 到 OPL App 的产品增量写在 `docs/product/gui/codex-to-opl-app-d
 
 The App consumes OPL Framework CLI JSON, machine-readable contracts, provider receipts, and domain-owned projections. It does not own OPL runtime truth, provider implementation, MAS/MAG/RCA/BookForge domain truth, domain quality verdicts, memory body, artifact body, or artifact authority.
 
-The Runtime page is an App product projection, not a runtime ledger or operations console. It owns only Agent -> Project scope, one row per canonical Work Item, user-facing task status, running state, elapsed time, current and total Token usage, Stage order, current/next Stage, current Attempt, and task archive/restore. The next action and owner are read-only Work Item semantics; Runtime does not expose a safe-action catalog or platform mutation controls. Provider/platform repair, managed dependencies, software updates, raw diagnostics, State Index, and operator drilldown belong to Maintenance; Agent Package lifecycle belongs to Agents; Skills, Plugins, OPL Flow, MCP, image, and voice capability health belongs to Capabilities; artifact provenance belongs to the task/conversation Inspector; complete same-cohort evidence belongs to release tooling. App release and user-path evidence is cohort-bound App evidence and cannot be promoted into MAS/MAG/RCA/BookForge readiness or OPL family production readiness.
+The retained X0-01 Runtime page is an optional App projection, not a runtime ledger, core product gate, or operations console. When enabled it shows only Agent -> Project scope, one row per canonical Work Item, user-facing task status, running state, elapsed time, current and total Token usage, Stage order, current/next Stage, current Attempt, and task archive/restore. The next action and owner are read-only Work Item semantics; Runtime does not expose a safe-action catalog or platform mutation controls. Provider/platform repair, managed dependencies, software updates, raw diagnostics, State Index, and operator drilldown belong to Maintenance; Agent Package lifecycle belongs to Agents; Skills, Plugins, OPL Flow, MCP, image, and voice capability health belongs to Capabilities; artifact provenance belongs to the task/conversation Inspector; complete same-cohort evidence belongs to release tooling. Existing Runtime machine hard gates are `core_gate_pruning_pending`. App release and user-path evidence is cohort-bound App evidence and cannot be promoted into MAS/MAG/RCA/BookForge readiness or OPL family production readiness.
 
 The active GUI shell is `aionui`, checked out from `gaofeng21cn/opl-aion-shell` under `shells/aionui/`. Shell implementation history stays in the shell repository; this repository keeps App product, release, contract, testing, screenshot, and user documentation in the App mainline. Replacing the active shell changes the implementation carrier only; App GUI behavior and runtime bridge remain governed by `contracts/app-shell-adapter.json`, `contracts/app-runtime-bridge.json`, `contracts/app-product-profile.json`, `contracts/app-page-state-matrix.json`, `contracts/app-first-run-test-matrix.json`, and `contracts/app-release-channel.json`.
 

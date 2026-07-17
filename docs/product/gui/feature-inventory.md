@@ -30,7 +30,7 @@ tests 与 evidence。
 | --- | --- | --- | --- |
 | `P0 Codex Core` | 日常主工作流 | App frame、project/conversation rail、New task、conversation timeline、composer、streaming、history、model/reasoning、access/permission。 | 用户不离开 chat canvas 即可开始、继续和完成普通任务。 |
 | `P1 OPL Professional` | OPL 专业增量 | Capability selection、用户触发的线程操作、task progress、approval、evidence/artifact preview、safe action 与 receipt。 | 增量嵌入 P0 稳定位置；输入由用户在当前 session 显式加入，不引入 workspace preload、dashboard、第二套导航或第二套 thread store。 |
-| `P2 Administration` | 配置和运维 | Settings、Runtime 跨项目总览、first-run、安装、更新、诊断。 | 可发现、可恢复，但不反向决定 P0/P1 的布局和视觉。 |
+| `P2 Administration` | 配置和运维 | Settings、first-run、安装、更新、诊断。 | 可发现、可恢复，但不反向决定 P0/P1 的布局和视觉。跨项目 Runtime 只有在 X0-01 被显式保留时才参与该 route 自身优先级，不成为核心完成门。 |
 
 任何工作若只改善 `P2`，不能据此声称 GUI 主体验已对齐 Codex。设计评审和视觉证据
 默认先覆盖 `P0`，再覆盖 `P1`，最后覆盖 `P2`。
@@ -56,8 +56,8 @@ Native 将来需要独立实现同一用户结果。视觉 1:1 是独立的 pixe
 | `B0-08` | Git、branch、diff、review、commit/push、PR context | 编码任务需要可审查、可交付的版本控制闭环。 | 协议缺口显示 unavailable，不建立本地伪成功 store。 |
 | `B0-09` | Terminal、Browser、Environment details | Agent 工作经常需要按需查看运行与环境。 | 作为次级工具按需打开，不做默认第三栏或 OPL dashboard。 |
 | `B0-10` | Workspace 初始 cwd 与本地 Worktree 工作模式 | 本地任务需要隔离目录和执行上下文。 | 当前 AionUI 不自造既有 session cwd 重绑或 managed handoff；未来复用稳定 upstream 或由 Native 实现。 |
-| `B0-11` | Subagents / 并行子任务 | 复杂任务需要并行探索、验证与汇总。 | 展示真实状态和结果，不为 OPL 再造第二套编排 authority。 |
-| `B0-12` | Scheduled tasks/Cron、后台继续与通知 | 长任务和周期任务需要离开前台后继续。 | 属 Codex 基线候选；未 fresh 验证的 carrier 不得宣称已实现。 |
+| `B0-11` | Codex Subagents / 并行子任务 | 复杂任务需要并行探索、验证与汇总。 | Portable core 是 read-only Active/Done lists、completed detail/result、open subagent thread，以及既有 App Server/ACP owner-supported controls。AionUI Team 继续关闭；不新增第二 App Server client、Team store、scheduler、执行 authority 或 bespoke direct-control buttons。 |
+| `B0-12` | Scheduled tasks/Cron、后台继续与通知 | 长任务和周期任务需要离开前台后继续。 | 属 Codex 必要基线；AionUI 已有 scheduler engine，当前缺口是 ordinary discoverability 与固定 Codex executor composition，不新建第二 scheduler。 |
 | `B0-13` | Memory、personalization、instructions | 稳定偏好和项目指令决定长期易用性。 | 复用 owner-correct profile/refs，不新建独立 memory 平台。 |
 | `B0-14` | 通用 Settings 容器、search/back/redirect、a11y、theme、i18n | 所有配置与长期使用能力需要一致容器。 | 容器行为属于 B0；OPL 栏目、owner route 与数据语义归 `R1-05`。 |
 
@@ -71,6 +71,13 @@ B0 不进入 OPL 自维护的 R1/U1 12 项实现矩阵。AionUI 已有的基线�
 候选最终必须自行补齐。当前 carrier 实现程度见
 [`shell-conformance-matrix.md`](shell-conformance-matrix.md)，未 fresh 核对的能力一律
 `source_not_assessed`。
+
+`B0-11` 必须与 AionUI Team 分轴读取：关闭 Team 只移除 upstream shell-local Team
+产品面，不表示 Codex subagent 缺失。当前状态按 contract、Codex runtime/execution、App Server
+adapter、ordinary activity UI、pixel、install 和 release 分账，见
+[`shell-conformance-matrix.md#b0-11-codex-subagent-证据`](shell-conformance-matrix.md#b0-11-codex-subagent-证据)。
+未来 UI 改动必须先用真实 `codex-acp` delegated-turn fixture 证明现有 adapter 的具体展示缺口；
+schema 或 unit fixture 只能作为 supporting source evidence。
 
 ### List 1：等价功能替换类（R1）
 
@@ -102,10 +109,10 @@ R1 与 U1 的当前实现程度按 carrier 分开维护在
 
 | ID | 条件能力 | 当前处理 |
 | --- | --- | --- |
-| `X0-01` | 全局跨项目 Runtime cockpit / Work Item 总览 | AionUI 已有 route 可维护，Native 可延后；不阻断 B0/R1/U1。 |
+| `X0-01` | 全局跨项目 Runtime cockpit / Work Item 总览 | `retained_x0_route`：AionUI Source 为 `source_implemented`，route 可条件保留；Native phase-1 可不实现，不阻断 B0/R1/U1，也不进入默认 release gate。现有 machine hard gate 是独立 cleanup debt。 |
 | `X0-02` | 完整 Evidence/Provenance/receipt/route-ref 平台 | 只保留 owner-required refs、confirmation 与 receipt；完整 cockpit 条件推进。 |
-| `X0-03` | Hosted Workspace / cloud-continuous execution | 等稳定后端、账户和计费 owner 出现后再启用，不用占位 UI 宣称可用。 |
-| `X0-04` | Fabric/HPC/远程资源控制面 | Settings 最多提供连接 refs/owner route；完整调度归 domain/runtime 产品。 |
+| `X0-03` | Hosted Workspace / cloud-continuous execution | `retained_x0_route`：Source 为 `source_partial`；等稳定后端、账户和计费 owner 出现后再启用。普通 Settings 不维护占位状态，现有 literal contracts/validators 待收薄。 |
+| `X0-04` | Fabric/HPC/远程资源控制面 | `retained_x0_route`：Source 为 `source_partial`；Settings 最多在真实 owner 存在时提供连接 refs/owner route。完整调度归 domain/runtime 产品，现有 literal contracts/validators 待收薄。 |
 | `X0-05` | 跨主机 handoff、carrier 自建 managed remote Worktree 或第二协调面 | 当前明确不自造；只有稳定 upstream 能力与真实需求同时成立才重评。 |
 | `X0-06` | Raw runtime/operator diagnostics 与完整 repair cockpit | 仅留 Settings > Advanced 和 release tooling，ordinary UI 不展示 raw protocol。 |
 
@@ -160,13 +167,18 @@ Sites/Chat 等入口可以隐藏或拒绝；它们不构成 OPL 功能回归。
 | Optional package shortcuts | 用户可按安装状态和个人选择显示其它 compliant packages。 | Agent package registry、App shortcut preference。 |
 | Package directory | 查看已安装 package、exposure、状态轴、来源和推荐动作。 | `app_state.agent_packages`、App action catalog。 |
 | Package lifecycle actions | 通过统一 preview/confirm/receipt flow 安装、更新、修复、隐藏、禁用或卸载。 | App state/action；shell 不直接修改 package/runtime truth。 |
-| Package use-boundary activation | 只在所选 directory entry 投影 activation action 或需要 degraded JIT prepare 时消费该 exact action；`required_payload_fields` 决定是否需要 Workspace。receipt、binding 和 closure 是可审计结果或 diagnostics，不是普通启动必须齐备的硬门槛。 | Framework package lifecycle owner；App 只消费 projected action、最小身份/版本/入口/安全目标 readback 并隔离单包失败。 |
+| 弹性 Agent 启动适配 | 只在所选 directory entry 投影 package launch adapter action 或需要 degraded JIT prepare 时消费该 exact action；`required_payload_fields` 决定是否需要 Workspace。receipt、binding 和 closure 是可审计结果或 diagnostics，不是普通启动必须齐备的硬门槛。 | Framework package lifecycle owner；App 只消费 projected action、最小身份/版本/入口/安全目标 readback 并隔离单包失败。 |
 
 Purpose shortcut 只改变 route context 和 capability profile，不定义 domain workflow、
 artifact schema、quality verdict 或 readiness。普通用户标签描述工作目的；package id、
 short name 和 technical refs 进入 details/receipt。
 
-## Runtime、Progress 与 Evidence
+## X0-01 条件保留的 Runtime 支撑面
+
+以下表格描述 AionUI 当前已保留 route 的可选行为，不是 B0/R1/U1 定义、默认 release gate 或
+Native phase-1 parity。产品分类统一为 `retained_x0_route`；Source 状态只从五轴矩阵读取，
+现有 Runtime cockpit contract、page-state、design-system/release validator 的硬门作为独立 maintenance debt 在后续机器变更中
+移除。Validator pass 只证明现有 contract/source 一致，不能证明产品必要性。
 
 | 功能 | 用户结果 | Authority / machine owner |
 | --- | --- | --- |
@@ -183,7 +195,8 @@ short name 和 technical refs 进入 details/receipt。
 | Provenance and receipts | 查看来源、owner handoff、action result 和 lineage refs。 | Domain/runtime/release owner refs。 |
 
 Home 不承担跨项目 Runtime、continue-work、needs-attention、activity grid 或 evidence
-dashboard；这些能力进入 Runtime 或按需 context surface。
+dashboard。当前任务需要的状态进入 timeline 或按需 context surface；跨项目总览只在 X0-01
+显式保留时进入可选 Runtime route。
 
 ## Settings / OPL Control Center
 
@@ -198,7 +211,7 @@ GUI contract 与 Settings Control Plane 拥有。
 | Workspace | 查看、切换、验证工作目录，配置 App 日志目录、用户 AGENTS.md 与 new-conversation additions。 | Workspace state/action、App host configuration。 |
 | Agents | 管理可运行 Agent packages、依赖就绪、Home shortcuts 与 launch/lifecycle。 | Agent package state/action 与 product profile。 |
 | Capabilities | 分组管理 OPL Flow dependency closure 内的推荐 Skill/Plugin，以及手工或第三方 Skill/Plugin；Flow 不拥有第二套 updater。 | Settings control plane、OPL Packages closure 与 Codex/shell registries。 |
-| Resources & Connections | 查看本机、远程、托管资源与外部连接 refs；内置 OPL Gateway 不在这里重复。 | Framework/Connect/Fabric/Console refs；App 只展示。 |
+| Resources & Connections | 查看真实存在的本机资源与外部连接 refs；内置 OPL Gateway 不在这里重复。Hosted Workspace、Fabric/HPC、Console 只在稳定 owner/backend 存在时提供可选 owner route，不维护占位状态。 | Framework/Connect refs；X0-03/X0-04 owner routes 条件启用，App 不拥有资源 truth。 |
 | Maintenance & Updates | 查看 App、runtime、packages、Codex Surface 和本机服务维护动作。 | Managed update/status/action contracts。 |
 | Data & Storage | 查看空间、数据分类、preview 和安全 cleanup action。 | App-owned storage lifecycle state/action。 |
 | Preferences | 配置语言、主题、通知、启动、密度、字体和 motion。 | App settings/profile；不承载 runtime diagnostics。 |

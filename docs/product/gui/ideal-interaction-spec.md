@@ -23,8 +23,8 @@ Machine boundary: 本文是 shell-neutral 的人读交互目标。机器可读�
 
 1. **Chat first。** 用户打开 App 后直接开始或继续 conversation，不先阅读 dashboard。
 2. **Session first, context visible。** Canonical Codex thread 是 conversation 身份单位；当前
-   project/local/branch 与 conversation context 始终可理解。Project/workspace 只作初始/默认 cwd、
-   可变分组和提示，不拥有 session，也不是权限域；没有 workspace 时仍允许显式选择任意本地文件/目录。
+   project/local/branch 与 conversation context 始终可理解。Project/workspace 只作新任务初始 cwd、
+   recorded rail 分组和提示，不拥有 session，也不是权限域；没有 workspace 时仍允许显式选择任意本地文件/目录。
 3. **One primary timeline。** 当前任务、assistant output 和 turn-local events 在同一
    conversation flow 中发生。
 4. **Secondary context on demand。** Environment floating details、preview 和 advanced
@@ -82,14 +82,14 @@ header、隐藏 project rail、默认打开 inspector，或用 Settings/card lay
    locality、branch、changes、subtasks 和 sources；artifact/evidence 使用次级 section、
    preview 或 conversation disclosure，Terminal/Browser/Files 从 Environment 或任务需要打开。
 7. **继续或恢复。** Turn 完成后保留 compact receipt/next action；用户可继续提问、
-   切换 conversation 或回到 Runtime 处理跨项目工作。
+   切换 conversation；仅在 X0-01 route 显式启用时，才进入 Runtime 查看跨项目工作。
 
 ## Project / Conversation Rail
 
 Rail 负责 navigation，不承担 dashboard：
 
-- 顶部只保留 New task、Runtime 和 Archived；Runtime 是跨项目工作状态 cockpit。
-  会话级 Runtime details 只能补充当前任务，不能替代全局 Runtime 入口。Package/capability
+- 顶部固定 New task 和 Archived；Runtime 仅在 X0-01 route 显式启用时出现，且不是核心
+  navigation 或 release gate。会话级 current-task context 独立成立，不依赖全局 Runtime。Package/capability
   选择由 Home starter 承接，package 管理由 Settings → Agents 承接，Skills/Plugins/Flow
   管理由 Settings → Capabilities 承接，不在 rail 重复。
   其它全局入口仅在 OPL 有真实对应能力时保留。
@@ -153,8 +153,8 @@ Previous/Next 只在当前可见 ordinary conversations 中移动，不扩张 We
 - Starter click-to-start 只准备 route context 与 active capability，不自动执行隐藏 workflow。
 - Package 不可用时 starter 仍可选择；发送时才根据 Framework-owned action 给出用户可理解的
   typed reason 和允许动作，不用 spinner、空白、禁用入口或静默隐藏掩盖 readiness 问题。
-- 点击 package starter 只进入 prepare 状态；真正 launch 前调用 Framework-owned use-boundary
-  activation。`launch_allowed` 为 true 且 owner-projected required payload fields 已满足时才创建/发送
+- 点击 package starter 只进入 prepare 状态；真正 launch 前调用 Framework-owned package launch
+  adapter / JIT prepare。`launch_allowed` 为 true 且 owner-projected required payload fields 已满足时才创建/发送
   conversation；`use_receipt_ref` 是可选 readback。失败时保留输入、普通 Codex fallback 和修复入口。
 - 无 workspace 时仍可发送文字、attachment、任意本地 file/directory picker、paste/drop 与
   `/open`；只有 Codex permission/approval/sandbox 可以阻止真实访问。
@@ -260,9 +260,11 @@ OPL 增量按以下顺序进入：
 Bottom panel、file tree、Terminal、Browser 等 advanced work surfaces 保留，但默认关闭；
 用户显式打开后必须真实可见、可调、可关闭，不以 hidden DOM 冒充功能。
 
-## Runtime 交互
+## 条件 Runtime 交互（X0-01）
 
-Runtime 是跨 conversation/project 的工作状态页：
+Runtime 是显式启用 X0-01 时的跨 conversation/project 工作状态页。它不是核心导航、
+默认 release gate 或 Native phase-1 parity；未启用时，current-task context 与 Inspector refs
+仍在 conversation 内独立成立：
 
 - 普通读取和 refresh 使用 `opl app state --profile fast --json`。
 - Full state/operator drilldown 只在 explicit detail/diagnostic path 使用。
@@ -276,7 +278,7 @@ Runtime 是跨 conversation/project 的工作状态页：
 - UI 不从 progress/readback 推断 domain-ready、artifact quality、production-ready 或
   release-ready。
 
-Runtime 专题设计见
+该条件 route 的专题设计见
 [`runtime-overview-redesign.md`](runtime-overview-redesign.md)。
 
 ## Settings 交互
@@ -363,7 +365,8 @@ First-run 的目标是让用户尽快进入可工作的 App：
 - Model/reasoning 及当前默认值来自 App product profile。
 - Current-task summary bar 可 pin，并包含 status/elapsed/progress/next action/stop。
 - Rail/Archived/conversation management 与 desktop affordances 完整可达。
-- Rail 顶部只有 New task、Runtime、Archived；capability 选择在 Home，管理在 Settings。
+- Rail 顶部固定 New task、Archived；Runtime 仅在 X0-01 route 显式启用时出现。capability
+  选择在 Home，管理在 Settings。
 - Environment 首层保持 recorded workspace/branch/changes/subtasks/sources；OPL artifact/evidence 为
   次级 section/preview，advanced tools 默认关闭。
 - 普通 navigation 不展示独立 coordination 页面；用户可从现有 directory/actions 执行

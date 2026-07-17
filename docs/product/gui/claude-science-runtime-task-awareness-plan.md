@@ -2,7 +2,13 @@
 
 Owner: `one-person-lab-app`
 Purpose: `claude_science_runtime_task_awareness_landing_plan`
-State: `landed_mainline`
+State: `superseded_as_core_retained_x0_reference`
+Currentness boundary: 本文是历史 implementation/design record。正文中的 `100%` 不得作为
+当前完成度或关单 authority；当前唯一五轴账本是
+[`app-ideal-state-gap-plan.md`](../../active/app-ideal-state-gap-plan.md) 与
+[`shell-conformance-matrix.md`](shell-conformance-matrix.md)。Conversation current-task 与
+Inspector refs 仍是 core thin consumers；跨项目 Runtime 仅为 X0-01 条件保留 route，Cloud、
+Hosted Workspace、Fabric、HPC 与 Console 仅为 X0-03/X0-04 retained references。
 Machine boundary: Human-readable external-learning landing plan. Machine-readable truth lives in `contracts/`, `opl app state`, `opl app action`, source, tests, active-shell validation, and OPL Framework/domain read-model output consumed by the App.
 
 ## 当前状态

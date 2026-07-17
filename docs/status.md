@@ -34,10 +34,6 @@ promoted into release-ready or family production-ready proof.
 - Archived technical GUI proof: `agui-codex`; do not update or improve it unless AGUI is explicitly requested.
 - App product profile: `contracts/app-product-profile.json`.
 - Framework dependency: `gaofeng21cn/one-person-lab`.
-- Local App repo path on the maintainer Mac:
-  `/Users/gaofeng/workspace/one-person-lab-app`.
-- Local shell repo path on the maintainer Mac:
-  `/Users/gaofeng/workspace/opl-aion-shell`.
 
 The App repo must not merge AionUI history into its default branch. AionUI
 upstream-following work stays in `opl-aion-shell`; App product release and user
@@ -187,16 +183,17 @@ start, worker lifecycle, readiness diagnostics, residency proof, and repair
 receipts. Temporal provider readiness remains Full readiness/background
 maintenance for ordinary first launch.
 
-First-run and Runtime readouts are contract-backed App consumers of OPL
-Framework surfaces. First-run progress derives from `opl system initialize
---json#system_initialize.setup_flow`. Runtime reads
+First-run and, when the retained X0-01 route is enabled, Runtime readouts are
+contract-backed App consumers of OPL Framework surfaces. First-run progress
+derives from `opl system initialize --json#system_initialize.setup_flow`. The
+optional Runtime route reads
 `opl app state --profile fast --json` and consumes only the contracted Work Item,
 Stage, Attempt, Token, and visibility projection. Explicit full App state and
 `opl runtime app-operator-drilldown --detail full --json` are owned by
 Maintenance diagnostics and release tooling, never by Runtime.
 
-The current Runtime product rule is a minimal project status surface: Agent ->
-Project scope, one row per canonical Work Item, user-facing status, running and
+When the retained optional X0-01 Runtime route is enabled, its product rule is a
+minimal project status surface: Agent -> Project scope, one row per canonical Work Item, user-facing status, running and
 elapsed state, current and total Token usage, current/next Stage, current
 Attempt, and read-only next-step/owner semantics. Archive/restore is its only
 mutation. Provider/platform repair, managed dependencies, updates, raw
@@ -209,15 +206,16 @@ never owns runtime truth, provider implementation, domain truth, artifact body,
 owner receipts, typed blockers, domain verdicts, App release readiness, or
 family production readiness.
 
-The Runtime V2 local installed user path was accepted on the maintainer Mac on
-2026-07-15 against `/Applications/One Person Lab.app`: 9 visible work items,
+The retained optional X0-01 Runtime V2 route's local installed user path was
+accepted on the maintainer Mac on 2026-07-15 against
+`/Applications/One Person Lab.app`: 9 visible work items,
 0 archived after archive/restore readback, complete eight-stage MAS maps,
 DM003 cumulative usage of 25,490 tokens, Chinese and English rendering, four
 responsive viewport widths, and restart readback all passed without renderer
 console or page errors. The exact local cohort, App hash, source refs, and claim
 boundary are recorded in
 `docs/delivery/release-evidence/runtime-local-installed-acceptance-2026-07-15.json`.
-This closes only the current maintainer-Mac Runtime user path; it does not claim
+This closes only that historical maintainer-Mac conditional-route user path; it does not claim
 Stable/latest publication, public-release cohort equivalence, clean-VM or
 cross-machine proof, release readiness, owner acceptance, domain readiness, or
 OPL family production readiness.
@@ -226,7 +224,11 @@ The upstream AionUI Team surface is disabled for ordinary OPL App use. The
 current owner for the exact redirect, sidebar, deep-link, Team MCP scrub,
 agent-switching, and IPC mutation gates is the App GUI / shell adapter contract
 set plus active-shell validation. This status file does not freeze the probe
-list, test names, or historical snapshot examples.
+list, test names, or historical snapshot examples. Team is independent from
+Codex subagents: delegated execution, metadata intake, and canonical discovery
+already use the Codex runtime plus the single existing App Server adapter;
+ordinary Active/Done/detail/open-thread UI remains partial. A second client,
+Team store, scheduler, or shell-owned execution path is forbidden.
 
 The App first-run screen presents that shared model in a beginner-first way:
 the primary view shows a plain readiness summary, three user-facing setup
@@ -317,76 +319,11 @@ Detailed run/timing/asset profiles are historical provenance under
 release artifacts, contracts, workflows, validators, CI outputs, and the release
 guide rather than dated status prose.
 
-Current cleanup state: release helper JSON/file access is consolidated under
-`scripts/release-json-helpers.ts` and `scripts/release-file-helpers.ts`,
-readiness-summary gate construction uses shared helper builders instead of
-inline duplicate blocks, release readiness JSON reads use the shared JSON file
-helper, Settings control-plane redirect expectations derive from the App
-contract constants, page-state Settings validation no longer repeats route
-identity checks already covered by the Settings control-plane validator, and GUI
-contract validation derives hidden legacy tabs and Developer Profile axis
-consistency from the GUI contract instead of mirrored constants. Agent package
-and shortcut ids used by the App product profile, active-shell product profile
-validator, and GUI home validator share the existing App product profile helper
-constants instead of maintaining three local copies; professional-agent package
-policy validation is also shared instead of repeated across product-profile and
-active-shell validators. Release size scripts share byte-size formatting through
-`scripts/release-size-reporting.ts` instead of local `formatBytes` copies.
-Product-profile package entry lookup is private to its validator module, Full
-runtime trust/prune scripts use Node's native argument parser instead of local
-argv walkers, and active-shell boundary validators reuse the App shell adapter's
-boundary types and constants instead of copying the same adoption gates and
-state-surface expectations. Shell replacement gate validation is now shared
-through the App shell adapter helper while preserving the Hermes candidate
-chain as explicit-candidate validation, and Full first-install filesystem
-copying reuses local directory traversal and portable-symlink helpers instead
-of repeating the same recurse-and-copy blocks. Full first-install hashing now
-uses one private tree-fingerprint walker for runtime and production
-node_modules fingerprints, and first-run matrix validation derives host-tool
-and deferred-maintenance expectations from the App product profile instead of
-duplicating those arrays in contract constants. Release candidate record
-validation, release readiness summary generation, full-package size analysis,
-Homebrew tap update planning, release candidate planning, release closeout,
-GitHub Actions timing summaries, release cohort manifest generation,
-release-owner candidate resolution and verification, draft release cleanup,
-WebUI GHCR cleanup, and release source-gate validation now use Node's native
-argument parser instead of local argv loops, and first-run progress model
-expectations for GUI, page-state, first-run
-matrix, and install-exposure validators derive from
-`contracts/app-product-profile.json#first_run.progress_model` instead of
-mirroring the same command, path, field, visible-element, and consumer package
-lists in `app-contract-constants.ts`. Product-profile-specific host-tool,
-full-readiness, deferred-maintenance, ecosystem-module, and companion-skill
-expectations are local to the product-profile validator; other validators read
-the product profile for those expectations instead of importing global mirror
-constants. Settings product-system item and track constants remain fixed
-validator assertions rather than contract-derived values, because deriving them
-from the Settings contract or its product-profile projection would self-validate
-the same checklist. Domain exposure expectations are derived from the App
-product profile plus Home shortcut projection instead of a hard-coded
-`app-contract-constants.ts` mirror. Page-state Settings page sections and
-must-show/must-not-show expectations derive from
-`contracts/app-gui-product-contract.json#pages.settings_*` instead of a
-hand-written `settingsPageExpectations` mirror. App product-profile validation
-derives Settings route, secondary page, IA group, and query-free legacy redirect
-expectations from its projected `settings.control_plane` instead of local
-route arrays. Settings Capabilities task-awareness ref fields now share one
-App-owned validator constant limited to capability/workflow refs, and the
-Maintenance managed-dependency entry uses the managed-update validator helper
-instead of repeating
-the same assertion block in GUI and page-state validators. `release-operator.ts`
-and `validate-release-preflight.ts` intentionally keep their non-native parsers:
-the former owns subcommands plus parameter forwarding, while the latter keeps an
-optional-value evidence-artifact flag that is not equivalent to a simple
-`node:util.parseArgs` option. Tracked guide screenshot PNGs remain intentional
-App-owned guide and release-doc artifacts, so cleanup closed the unused renderer
-and selected duplication/constant mirrors only; broad tracked-screenshot
-deletion and large `buildSummary` / validator thinning remain follow-up items,
-not completed cleanup. `npm run hygiene:fallow -- --format json --summary`
-is the production hygiene check for unused files/exports and duplicate exports.
-This is code-health and validation-structure evidence only; it is not a
-release-ready, currentness, packaged-App, clean-VM, owner-acceptance, or Live
-Evidence claim.
+The approved cleanup tranche is complete. Its current reopening boundary lives in
+`docs/active/over-engineering-cleanup.md`, while dated execution details live in
+`docs/history/process/2026-07-10-over-engineering-cleanup.md`. Hygiene commands
+prove code health only, not currentness, package/install, release, owner acceptance,
+or production readiness.
 
 Current release validation is App-root first. Root wrappers prepare App-owned
 payloads and call active-shell build/release scripts; `validate:app-root-boundary`
@@ -395,7 +332,11 @@ stay under the active shell checkout. Use `validate:gui-shell` when a change
 must prove active-shell validation and GUI compile evidence through the App
 wrapper path.
 
-Runtime page acceptance is declared in
+The existing Runtime source is retained as X0-01 and its current behavior is
+described below, but it is not a B0/R1/U1 core requirement, default release gate,
+or Native phase-1 parity target. Product/page-state/design-system/release hard
+gates are `core_gate_pruning_pending`; their current pass proves only contract/source
+consistency. Runtime page acceptance is currently declared in
 `contracts/app-page-state-matrix.json`: the active shell reads the minimal task
 projection through `opl app state --profile fast --json`, uses a 5-10 second
 lightweight polling fallback when push projection is unavailable, and exposes

@@ -86,8 +86,9 @@ Installation and maintenance expose exactly three software objects:
 
 `managed_update.components` therefore has exactly `opl_base`, `opl_app`, and `opl_packages`. The ordinary App has no component picker and no legacy component mapping. Full carriers may seed Base or Package payload bytes for first install, but activation and later mutation still route to the owning lifecycle. User data/artifacts remain a separate storage and cleanup boundary, not a software updater object.
 
-The runtime page contract is display and routing only. Its default user view
-consumes `opl app state --profile fast --json`; OPL Framework owns the
+The retained X0-01 Runtime route contract is display and routing only. When the
+route is enabled, its user view consumes `opl app state --profile fast --json`;
+OPL Framework owns the
 task/project projection, action execution, provider diagnostics and full
 drilldown surfaces. App architecture keeps only the boundary: user-visible
 running, active, queued and attention counts come from framework-projected user
@@ -101,28 +102,26 @@ runtime projections and cannot read artifact bodies, own artifact authority, or
 turn runtime refs into domain quality, export, readiness, App release or family
 production claims.
 
-OPL App is the local-first, cloud-continuous workbench for One Person Lab. The
-user-facing promise is not "desktop versus web" but "the same workbench follows
-where the work lives." A user can start on the macOS desktop App, open the same
-App experience through Docker/WebUI on Linux, Windows, a server, or a cloud VM,
-and later use OPL Workspace when that WebUI is hosted with account, storage,
-isolation, and managed-resource policy. Across those entry points, users keep
-the same project, task, artifact, progress, and receipt language.
+OPL App is the local-first workbench for One Person Lab. The current required
+surfaces are the macOS desktop App and U1-05 Docker/WebUI on Linux, Windows, a
+server, or a cloud VM. They keep the same project, task, artifact, progress, and
+receipt language. Hosted OPL Workspace is X0-03 and appears only after account,
+storage, isolation, backend, and owner policy exist; it is not a current ordinary
+App requirement or default release gate.
 
-OPL App, Docker/WebUI, and OPL Workspace are deployment surfaces for the same App
-experience. They present the same chat-first product model and consume the same
-Framework state/action contracts. OPL Workspace may add hosted URL, account,
+OPL App and Docker/WebUI present the same chat-first product model and consume
+the same Framework state/action contracts. A conditionally retained OPL Workspace may add hosted URL, account,
 isolation, storage volume, and managed-resource receipts, and the user still
 sees the same App task flow: choose the work, confirm the resource plan when
-needed, run the task, review artifacts and receipts, and continue. OPL Console
-manages organization policy, users, quota, billing, Workspace lifecycle,
+needed, run the task, review artifacts and receipts, and continue. When a real
+X0-04 owner/backend exists, OPL Console may manage organization policy, users, quota, billing, Workspace lifecycle,
 connector approval, environment policy, and managed resource packages for
 Console-managed resources. User-provided local, SSH, or HPC resources remain
 self-managed unless Framework projections explicitly mark them as
 Console-managed.
 
-OPL Fabric is the resource capability layer behind App and Workspace, not a new
-ordinary Settings top-level product. In App contracts it appears as refs-only
+OPL Fabric is an X0-04 retained resource reference, not an ordinary Settings
+top-level product or required App layer. When a real owner/backend exists it appears as refs-only
 resource context: OPL Gateway for AI access, OPL Connect for connector
 readiness, OPL Compute for local/remote/managed execution, Storage refs for
 where work lands, and Environment Catalog refs for template, version, source,
@@ -143,7 +142,7 @@ surfaces should extend that matrix and the existing projection contracts before
 adding any shell-local task store, resource state machine, cleanup authority, or
 distribution currentness gate.
 
-The default Runtime page is WorkItemProjection v2 first. OPL Framework joins
+The retained X0-01 Runtime route is WorkItemProjection v2 first when explicitly enabled. OPL Framework joins
 canonical agent/project/work-item inventory with lifecycle, execution, attention,
 telemetry, conditions, freshness, and action facts before the App or Shell sees
 them. Agent availability is a separate projection and cannot define project or
@@ -161,25 +160,27 @@ blocks execution. Product contract, Framework producer, Shell consumer, and
 live user-path evidence are independent completion dimensions: none may promote
 another to complete.
 
-Claude Science-style task awareness lands inside this Runtime model rather than
-as a new dashboard. The Runtime page remains the global task-awareness center;
-chat and the right inspector may show only the current-task slice of the same
-`opl app state` projection. Artifact provenance, reviewer receipts, reusable
+Claude Science-style task awareness lands first in conversation current-task
+context and the right inspector rather than as a new dashboard. The optional
+X0-01 Runtime route may show the cross-project slice of the same `opl app state`
+projection, but core current-task behavior does not depend on it. Artifact provenance, reviewer receipts, reusable
 workflow refs, connector readiness, and reproducibility export actions are
 Framework/domain refs consumed through App contracts. Temporal workflow,
 activity, worker, queue, attempt, and Search Attribute details remain
 diagnostic substrate fields and must not become the ordinary user task model.
 The active shell's role is a thin renderer over App state/profile and App action
 routes, not reviewer logic, artifact-body access, readiness judgment, or a
-shell-owned runtime store. The active landing plan is
+shell-owned runtime store. The historical landing reference is
 `docs/product/gui/claude-science-runtime-task-awareness-plan.md`.
 
 The upstream AionUI Team surface is not an OPL ordinary-user capability. It is
 configured around shell-local team leaders and agents, so the active shell keeps
 Team mode disabled, hides the Team sidebar entry, rejects Team deep links, and
-redirects any compatible `/team/*` route back to the App-owned home path. Future
-shells may implement their own collaboration features only through App-owned
-contracts and page-state gates.
+redirects any compatible `/team/*` route back to the App-owned home path. This is
+independent from Codex subagents: delegated execution, metadata intake, and canonical
+thread discovery already use the Codex runtime plus the single existing App Server
+adapter; ordinary Active/Done/detail/open-thread UI remains partial. No shell may
+add a second App Server client, Team store, scheduler, or execution authority.
 
 Active shell upgrades now carry an App-owned upstream intake ledger in
 `contracts/app-shell-adapter.json#upstream_intake`. Each upstream feature must be

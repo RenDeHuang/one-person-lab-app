@@ -1,7 +1,11 @@
 # Settings Control Center
 
-State: active product authority
-Owner: one-person-lab-app
+Owner: `one-person-lab-app`
+Purpose: `settings_control_center_product_authority`
+State: `active_product_authority`
+Machine boundary: 本文解释 Settings 的产品职责与信息架构。机器真相归
+`contracts/app-settings-control-plane.json`、App GUI/page-state contracts、validators、
+Shell source/tests 与 installed evidence；本文不拥有 Framework runtime 或 domain truth。
 Machine contract: `contracts/app-settings-control-plane.json`
 GUI product contract: `contracts/app-gui-product-contract.json#settings_navigation`
 Page-state contract: `contracts/app-page-state-matrix.json#pages`
@@ -289,7 +293,10 @@ Fast state deliberately reports an activated package as
 verified read may present verified `ready`. Manifest, receipt, physical
 surface, conditions, and failure diagnostics stay in the detail panel rather
 than becoming invented top-level fast-directory fields. Skills and Plugins do
-not appear here.
+not appear here. Ordinary send maps this fast-only uncertainty to `degraded`
+and remains fail-open through the owner-projected package launch adapter / JIT
+prepare; it must not apply a second hard block from the raw fast flags. Only the
+selected package's explicit `package_unavailable` condition may be locally disabled.
 
 Developer Mode appears here as **允许维护已授权的开发仓库**. The control is
 `auto|off`, defaults to `auto`, and is independent from source selection. A
@@ -331,10 +338,13 @@ to the capability directory without deleting AionUI data.
 
 ### Resources & Connections
 
-Resources shows local browser access, WebUI, OPL Workspace, SSH/HPC, cloud,
-Fabric, Console-managed refs, and user-managed external connections when
-projected. The built-in OPL Gateway connection and its count are always
-filtered out because Gateway owns them.
+Resources shows current local browser access and WebUI plus user-managed external
+connections when projected. Hosted OPL Workspace/cloud is X0-03; SSH/HPC, Fabric,
+and Console-managed refs are X0-04. Those conditional rows appear only when a real
+backend and owner projection exist, and ordinary Settings must not maintain
+placeholder status, scheduling, billing, credential, or execution truth. The
+built-in OPL Gateway connection and its count are always filtered out because
+Gateway owns them.
 
 Read-only Open navigates to the exact `browser_url`; Diagnose executes the
 projected diagnose action and displays its result. Mutations require a

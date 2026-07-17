@@ -2,16 +2,20 @@
 
 Owner: `one-person-lab-app`
 Purpose: `opl_native_workbench_candidate_boundary`
-State: `deferred_not_in_26_7_15_release_scope`
+State: `deferred_not_in_active_release_scope`
+Machine boundary: 本文只记录 foreground alternative 的人读候选边界。当前 GUI
+角色归 App contracts，候选实现归独立 Shell source/tests，adoption、package、pixel、install
+与 release 结论归对应 owner evidence；本文不改变 active AionUI 角色。
 
 ## Decision
 
 `opl-native-workbench` remains a foreground alternative candidate. AionUI remains the active release
-shell. The candidate is not part of the `26.7.15` release cohort and cannot define current App or Shell
-requirements.
+shell. The candidate is not part of the current active AionUI release cohort and cannot define current
+App or Shell requirements.
 
-The prior unified coordination plan is superseded by
-`/Users/gaofeng/Documents/Codex/2026-07-15/OPL-App-thin-shell-low-maintenance-decision-2026-07-15.md`.
+The prior unified coordination plan is superseded by the repo-owned boundaries in
+[`aionui-mainline-gui-convergence-plan.md`](../../active/aionui-mainline-gui-convergence-plan.md),
+[`feature-inventory.md`](feature-inventory.md), and [`decisions.md`](../../decisions.md).
 Historical candidate experiments involving model-triggered cross-thread tools, private delivery ledgers,
 cross-host handoff, or a second thread runtime are evidence of those experiments only. They are not
 required capabilities, release blockers, or an authority source for the active AionUI shell.

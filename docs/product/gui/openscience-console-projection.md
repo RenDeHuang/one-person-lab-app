@@ -2,7 +2,10 @@
 
 Owner: `one-person-lab-app`
 Purpose: `console_product_projection_contract`
-State: `active_product_contract_note`
+State: `retained_x0_reference`
+Currentness boundary: 本文只保留 X0-03/X0-04 refs-only projection 参考。Console、Hosted
+Workspace、Fabric 或 HPC 只有在真实 backend 与 owner route 存在时才可显示，不构成 ordinary
+App requirement、默认 release gate 或 Native phase-1 parity，也不得维护 placeholder state。
 Machine boundary: Human-readable product note. Machine-readable acceptance lives
 in `contracts/app-runtime-bridge.json#openscience_console_projection` and
 `contracts/app-page-state-matrix.json` Runtime page state.

@@ -65,9 +65,8 @@ release-ready。`26.707.31428` 与 `26.707.31123` 只作为 superseded observati
 Settings -> Agents 管理 package lifecycle，Settings -> Capabilities 管理 Skills/Plugins/Flow；App updater 与 Framework-owned
 managed lifecycle 分离，不再保留 OPL Flow 专用 post-update 分支。本轮 parity exact cohort
 `b2c05a1c8dc4ef81094323b49a67b601e3c425f5` 已实现 projectless local input、App Server rail、
-absolute-path Preview、用户触发的线程 lifecycle、Review 已采纳子集、
-Runtime cockpit，并完整保留
-Runtime V2 与 Gateway account/UI。该 exact cohort 的 full source gates、macOS arm64 directory-only package、
+absolute-path Preview、用户触发的线程 lifecycle、Review 已采纳子集，以及当时仍启用的
+Runtime cockpit；Runtime V2 现仅作为 X0-01 条件保留 route。该 exact cohort 的 full source gates、macOS arm64 directory-only package、
 codesign 与 9 场景 packaged E2E 已闭合；package 未安装，main/remote currentness 与 release
 promotion仍由操作层 fresh readback决定。当前 Session-first Shell source cohort 不绑定临时
 topic SHA；它由 `useConversationListSync.ts`、`GroupedHistory/index.tsx`、`GuidPage.tsx`、只读
@@ -118,19 +117,20 @@ adoption 边界见 [`gui-shell-candidates.md`](gui-shell-candidates.md)，候选
 [`shell-conformance-matrix.md`](shell-conformance-matrix.md) 标成明确偏差，再由拥有
 contract 的 lane 决定是否修改 machine truth、实现或目标。
 
-Runtime 是 OPL 自有的跨项目“用户与智能体协作控制台”，不是 observability dashboard。
-外部产品或 AionUI upstream 只能影响布局与交互材料，不能删除、降级或用会话详情替代该能力。
-任何 Runtime 入口迁移或实现重写，都必须在同一变更中保持产品合同的默认问题、page-state
-acceptance、validator 与 tests；无法保持时记录 shell deviation，不修改 App 产品真相迁就上游。
+Runtime cockpit 是 X0-01 条件保留的跨项目 owner projection/route，不是 B0/R1/U1、P0、
+默认 release gate 或 Native phase-1 parity。现有 source 可以保留，但普通路径只在该 X0 route
+显式启用时展示；conversation current-task 与 Inspector refs 不依赖它。当前 machine contracts、
+page-state、design-system/release validators 仍把 Runtime 当硬门，这是待单独清理的
+`core_gate_pruning_pending`，validator pass 只能证明现有合同与 source 一致。
 
 Conformance 必须按 `contract_status`、`source_status`、`pixel_status`、`install_status`、
 `release_status` 独立读取；`pixel_verified` 只证明存在当前像素证据，不等于视觉对齐、
 安装验收或 release-ready。
 
 证据分层固定为：`docs` 解释意图，`contract` 决定 machine acceptance，`source/tests`
-证明 implementation，`pixel` 证明指定 cohort 的可见结果，`release` 证明最终
-package/user path。当前 contract/source 与 packaged route visual evidence 已绑定；公开发布、
-远端 currentness 与 owner promotion 仍必须由 release authority 独立证明。
+证明 implementation，`pixel` 证明指定 cohort 的可见结果，`install` 证明最终安装字节与
+用户路径回读，`release` 证明 owner promotion。当前 Contract、Source、Pixel、Install、Release
+必须逐轴记录；公开发布、远端 currentness 与 owner promotion 仍必须由 release authority 独立证明。
 
 ## 治理标记（供 validator 读取）
 
@@ -146,19 +146,10 @@ package/user path。当前 contract/source 与 packaged route visual evidence �
 - `ideal_target.explicit_session_local_inputs=attachments,file_picker,directory_picker,paste,drop,/open`
 - `ideal_target.workspace_selection=new_session_initial_cwd_only`
 - `ideal_target.review_surface=existing_files_changes_diff_surface`
-- `ideal_target.model_host_tool_access=true`
-- `active_aionui.model_host_tool_access=source_missing`
-- `model_host_tool.evidence=dynamic_tool_registration_and_item_tool_call_round_trip`
-- `model_host_tool.blocker=acp_session_new_or_load_has_no_dynamic_tools_input_or_item_tool_call_callback`
-- `model_host_tool.owner_route=aioncore_same_app_server_client_adapter_or_codex_acp_dynamic_tool_callback`
-- `ideal_target.cross_host_handoff=true`
-- `active_aionui.cross_host_handoff=required_target_protocol_owner_blocked_unavailable`
-- `cross_host_handoff.blocker=remote_host_handoff_owner_surface_unavailable`
-- `cross_host_handoff.owner_route=codex_app_remote_connections_host_handoff_owner`
 - `active_aionui.review_last_turn=source_implemented_existing_message_store`
 - `active_aionui.review_custom_target_instructions=review_start_target_custom_only`
-- `active_aionui.review_focus_context=source_blocked_missing_public_review_focus_protocol`
-- `active_aionui.review_inline_comments=source_blocked_missing_typed_codex_protocol`
+- `active_aionui.review_focus_context=optional_protocol_limit_non_blocking`
+- `active_aionui.review_inline_comments=optional_protocol_limit_non_blocking`
 - `ideal_target.inspector_default_visible=false`
 - `active_aionui.state_source=contracts/app-product-profile.json#gui.home.home_layout`
 - `active_shell_switch_contract=contracts/app-shell-adapter.json`
@@ -170,8 +161,10 @@ package/user path。当前 contract/source 与 packaged route visual evidence �
 - `active_aionui.current_shell_head_source=active_shell_checkout_git_head`
 - `active_aionui.historical_41301_evidence_sha=0ebc1fdd278e8a79602458e15e28cf814dfd917d`
 - `active_aionui.current_parity_evidence_ref=docs/product/gui/evidence/aionui-41301-parity-20260714/manifest.json`
-- `runtime_cockpit.role=user_agent_collaboration_control_console`
-- `runtime_cockpit.upstream_alignment_may_remove_or_weaken=false`
+- `runtime_cockpit.role=retained_optional_x0_owner_route`
+- `runtime_cockpit.upstream_alignment_may_remove_or_weaken=true_when_core_gate_removed_and_owner_route_boundary_preserved`
+- `runtime_cockpit.core_requirement=false`
+- `runtime_cockpit.machine_gate_pruning_pending=true`
 - `runtime_cockpit.acceptance_ref=contracts/app-page-state-matrix.json#pages[id=runtime].runtime_view_model.runtime_cockpit_acceptance`
 - `docs_or_contract_imply_source_complete=false`
 - `docs_or_contract_imply_pixel_complete=false`
@@ -187,13 +180,25 @@ package/user path。当前 contract/source 与 packaged route visual evidence �
 - `codex_auto_model_policy=contracts/app-product-profile.json#codex.auto_model_policy`
 - `contract_refs=contracts/app-gui-product-contract.json,contracts/app-product-profile.json,contracts/app-page-state-matrix.json,contracts/app-shell-candidates.json,contracts/app-shell-adapter.json`
 
+### Legacy validator compatibility
+
+下列两行只逐字投影当前尚未清理的 GUI validator hard gate，属于
+`current_machine_deviation`，不是 product target、P0 requirement、default release gate 或 Native
+phase-1 parity。P1a owns their removal together with the matching product/page-state/design-system/release
+rules；在该 machine change 落地前保留它们只为避免 docs-only 变更制造默认门回归：
+
+- `runtime_cockpit.role=user_agent_collaboration_control_console`
+- `runtime_cockpit.upstream_alignment_may_remove_or_weaken=false`
+- `legacy_validator_compatibility.not_product_target=true`
+- `legacy_validator_compatibility.owner=docs/active/app-ideal-state-gap-plan.md#p1a`
+
 ## 当前目标与实现边界
 
 当前 Codex-based ideal target 是：
 
 - 宽桌面默认显示目录/对话 rail，保持工作目录分组和 conversation history 可见；
   窄窗口改为 drawer，不能为增加工具而压缩主阅读列。
-- Rail 顶部只保留 New task、Runtime、Archived，主体按 session 的 recorded workspace 分组 App Server threads，底部承载
+- Rail 顶部固定 New task、Archived；仅在 X0-01 route 显式启用时显示 Runtime。主体按 session 的 recorded workspace 分组 App Server threads，底部承载
   account/help/Settings；App Server canonical overview 可用时是 Codex session directory authority，Shell DB 只保存 draft、
   preference 和可重建 cache。Rename/archive/restore/delete 分别映射 `thread/name/set`、
   `thread/archive`、`thread/unarchive`、`thread/delete`；pin 是 Shell UI metadata，本地 reset 不冒充
@@ -219,21 +224,21 @@ package/user path。当前 contract/source 与 packaged route visual evidence �
   身份/版本/入口/安全目标/权限失败才局部阻止所选 package。Workspace、receipt、binding 和 closure
   不得成为普遍启动前提，App/shell 不拥有 package currentness。
 - 当前 task progress、tool events、approval 与 receipts 进入 timeline；后台 target 的 interactive
-  requests 在 selected thread detail 保留 thread/turn/item context；跨项目总览才进入
-  Runtime。Current task 只有 timeline 单一实例；普通任务 inline/unpinned，只有用户 pin
+  requests 在 selected thread detail 保留 thread/turn/item context；条件启用的跨项目总览可进入
+  X0-01 Runtime route。Current task 只有 timeline 单一实例；普通任务 inline/unpinned，只有用户 pin
   或真实 `long_running` 信号才 sticky，并保留 status/elapsed/progress/next/stop。
-- Runtime 默认层消费 `WorkItemProjection v2`，只回答 Agent -> Project 范围、用户主状态、当前/
+- X0-01 Runtime route 启用时消费 `WorkItemProjection v2`，只回答 Agent -> Project 范围、用户主状态、当前/
   下一 stage、下一行动与 owner、运行和 telemetry 可信度。Scope 不包含论文/work item；状态
   saved views 不重复 MAS 或其他智能体。默认列表固定为项目/论文、状态、当前进展/下一步、
   时间/Token 四列，智能体全称作为次级标签；一个 canonical work item 只显示一行。
-- Runtime Token 只显示 observed 当前阶段与累计值；missing 必须说明原因，不能渲染成 `0`，
+- 条件 Runtime route 的 Token 只显示 observed 当前阶段与累计值；missing 必须说明原因，不能渲染成 `0`，
   未配置上限时不得画进度条。Agent availability 使用独立 projection，五个一方智能体使用全称，
   全健康时折叠；任务数和裸 `0/2` 不构成 availability，MAS Scholar Skills 只是 MAS 依赖。
   raw ids、logs、refs、receipts 与 provider 诊断只进入诊断区。
-- Environment 使用右上按需浮层，只渲染真实
-  workspace/locality/branch/changes/subtasks/sources；artifact、
-  evidence、receipt refs 属于次级信息，不默认形成全高第三列。这里同时提供系统目录选择器驱动的
-  “切换工作目录”；成功后保持 canonical thread identity 并刷新本地 projection/rail 分组。
+- Environment 使用右上按需浮层，只读渲染真实
+  recorded workspace/locality/branch/changes/subtasks/sources；artifact、
+  evidence、receipt refs 属于次级信息，不默认形成全高第三列。它不提供既有 session cwd
+  重绑或 rail 重分组；新任务初始 cwd 只从 composer `+` 菜单选择。
 - Files/Changes 是按需 workspace surface，Preview 独立；Terminal/Browser 只从 Environment
   或任务需要打开。旧八类 inspector taxonomy 与会话级 Runtime duplicate 不再是产品面。
 - Transcript export 只导出完整分页后的、脱敏的 user/assistant text；Markdown 默认、
@@ -266,7 +271,7 @@ Active AionUI 通过上面的动态 state-source marker 读取默认状态；
 `opl-native-workbench` candidate contract 则把 rail 记为 default visible。当前是否
 收敛由 validator readback 动态计算，不在本文复制 profile 值。右上 Environment/details
 的理想目标为默认关闭。Product target、active source 和 pixel evidence 必须
-分轴记录；Runtime 还必须把 Product contract、Framework producer、Shell consumer、Live evidence
+分轴记录；条件 Runtime 还必须把 Product contract、Framework producer、Shell consumer、Live evidence
 四条完成度独立记账。合同或文档落地不表示 Framework、AionUI source、像素或 live user path
 已经完成。具体状态、允许偏差和验证入口只在
 [`shell-conformance-matrix.md`](shell-conformance-matrix.md) 维护。
@@ -278,12 +283,13 @@ Active AionUI 通过上面的动态 state-source marker 读取默认状态；
 2. **判定是否改变 machine behavior。** 若改变普通用户可见状态、page-state
    acceptance、模型策略、Settings IA、first-run gate 或 release gate，必须由对应
    contract/validator lane 先更新 machine truth，不能只改人读文档。
-   Runtime 的删除、入口替代、字段降级或状态合并都属于 machine behavior 变更；“对齐上游”
-   不能豁免产品合同、page-state、validator 与 test 的同变更审查。
+   Runtime X0-01 route 的启用、入口、字段或状态变化属于 machine behavior 变更；把它从默认
+   hard gate 降为条件 route 也必须同步清理 product/page-state/design-system/release validators。
+   保留 optional owner route 不等于继续维护核心发布义务。
 3. **更新人读目标。** 功能、交互、视觉和元素位置只在各自 owner 文件定义一次，
    其它文件使用链接，不复制长列表。
 4. **实现 thin adapter。** Shell 通过 generated profile、state/action bridge、
-   Settings Control Plane、App Server coordination host adapter、route redirect、局部 renderer composition、i18n/CSS 和
+   Settings Control Plane、single existing App Server thread-directory/user-action adapter、route redirect、局部 renderer composition、i18n/CSS 和
    focused tests 承接，不创建 shell-local 产品规则。
 5. **更新 conformance read model。** 记录来源、当前状态、允许偏差、验证入口和
    evidence boundary；不把 docs-only 或 contract-only 状态写成已实现。

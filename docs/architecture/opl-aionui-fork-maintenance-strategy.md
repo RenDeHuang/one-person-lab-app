@@ -45,12 +45,12 @@ Maintain the AionUI fork through the existing App-owned control path:
 
 1. **App-owned product definition** stays the source for Codex baseline translation,
    OPL deltas, ordinary navigation, page-state, model/access policy, Settings IA,
-   cross-thread orchestration, state/action source policy and visual acceptance.
+   user-triggered thread operations, state/action source policy and visual acceptance.
 2. **Thin shell adapter** remains the implementation boundary. AionUI may own
    upstream renderer primitives, route sync, slot mounting, shell-local i18n,
    styling, process/preload details, package metadata and focused shell tests.
    It must not own product IA, model/provider policy, runtime/domain truth,
-   thread identity/history, cross-thread routing policy, release readiness, or
+   thread identity/history, thread-operation policy, release readiness, or
    owner receipt authority.
 3. **Upstream intake gate** classifies every required shell capability and
    dependency before App release admission. Settings-specific changes must also
@@ -105,8 +105,8 @@ The exact observed baseline and OPL delta live in
 The repeatable stable-tag, reference-promotion, overlap-budget and visual-comparison
 workflow lives in `docs/product/gui/gui-maintenance-policy.md` and is machine-backed by
 `contracts/app-gui-product-contract.json#gui_maintenance_policy`.
-The host/App Server boundary for discovery and coordination across independent
-top-level threads lives in
+The single App Server adapter boundary for canonical thread discovery and
+user-triggered operations lives in
 `docs/architecture/codex-cross-thread-orchestration.md`.
 
 ## Historical Settings Proposal Disposition
@@ -334,8 +334,8 @@ Allowed AionUI shell delta:
 - App-owned bridge and platform adapters;
 - composition slots for rail context, composer context, timeline events and
   Environment secondary refs;
-- an App-owned coordination host adapter that projects App Server threads and
-  receipts into existing rail, composer, timeline and mobile composition slots;
+- the single existing App Server thread-directory and user-action adapter,
+  projected through existing rail, composer, timeline and mobile composition slots;
 - route and tab compatibility redirects;
 - `SettingsHost` and `SettingsShellAdapterSlot` rendering and route sync;
 - thin renderer components for App-owned Settings slots;

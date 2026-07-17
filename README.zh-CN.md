@@ -8,8 +8,8 @@
 
 <h1 align="center">One Person Lab App</h1>
 
-<p align="center"><strong>面向复杂知识工作的本地优先、云端连续 AI 工作台</strong></p>
-<p align="center">在本机、浏览器或云端 Workspace 里进入科研、基金、演示、写书和通用任务，查看进度、继续长任务、检查交付物</p>
+<p align="center"><strong>面向复杂知识工作的本地优先 AI 工作台</strong></p>
+<p align="center">在本机或浏览器里进入科研、基金、演示、写书和通用任务，查看进度、继续长任务、检查交付物</p>
 
 <!--
 Owner: `one-person-lab-app`
@@ -36,15 +36,15 @@ AI 已经很擅长回答问题和生成内容，但当工作变成一篇论文�
 
 它不是把研究、基金、汇报压成一排按钮，而是把“开始、继续、查看进度、打开文件、处理阻塞”放到同一个产品里。用户不用关心背后是哪一个专业 Agent 在工作，只需要看到当前任务做到哪一步、生成了什么、还缺什么、下一步怎么继续。
 
-OPL App 也不是只能装在一台 Mac 上的本地工具。它的工作台体验可以作为 macOS 桌面 App 使用，也可以通过 Docker/WebUI 在 Linux、Windows、服务器或云主机上用浏览器打开；当同一套 WebUI 由云端托管、绑定账号、存储和资源策略时，它就是 OPL Workspace。用户面对的仍然是同一套项目、任务、产物和回执语言，而不是换一套系统。
+OPL App 也不是只能装在一台 Mac 上的本地工具。当前必要产品面包括 macOS 桌面 App，以及 Linux、Windows、服务器或云主机上的 Docker/WebUI。Hosted OPL Workspace 是 X0-03 条件 route，只有真实账号、存储、隔离、backend 和 owner policy 就绪后才出现，不是当前普通产品承诺。
 
 ## 核心亮点
 
 **一个入口进入多类专业 AI 工作**<br/>
 从桌面应用进入通用工作、科研、基金、演示和写书，不需要在多个命令、仓库和工具之间切换。
 
-**工作台跟着你的工作走**<br/>
-同一套 OPL 工作台可以在本机 App、浏览器 WebUI 或云端 Workspace 中使用。工作从本机开始，之后需要远程访问、团队环境或更强资源时，可以自然进入云端，而不需要重新学习一套入口。
+**桌面与浏览器共享一套工作台**<br/>
+本机 App 与 Docker/WebUI 共享任务、产物、进度和回执语义。Hosted Workspace 只有满足 X0 owner/backend gate 后才复用这套表面。
 
 **看得见长任务进度**<br/>
 应用展示任务进展、文件、运行状态和可继续的上下文。用户回来时可以直接看到做到了哪一步、有哪些结果、是否需要人工处理。
@@ -169,7 +169,7 @@ guide 也提供
 One Person Lab App 是面向用户的日常 chat-first 桌面入口：
 
 - 从一个桌面界面进入通用工作，以及科研、基金、演示、写书四个默认目的入口。
-- 在 macOS 桌面、本机/服务器浏览器 WebUI、以及云端 OPL Workspace 之间保留同一套工作台体验。
+- 在 macOS 桌面与本机/服务器浏览器 WebUI 之间保留同一套工作台语义；Hosted Workspace 仍是条件 X0-03。
 - 默认提供科研、基金、演示和写书入口；更多专业能力由可扩展 Agent Packages 提供。
 - 展示进度、文件、运行状态和可恢复的工作上下文，帮助用户继续长任务和检查交付物。
 - 首次启动先完成最基本的可用准备，再让更完整的运行环境和专业 Agent 载荷在后台维护。
@@ -198,7 +198,7 @@ One Person Lab App 负责桌面产品体验：打包、发布、更新、首次�
 
 App 决定用户看到的安装形态、默认入口、首次启动体验和设置界面。One Person Lab Framework 提供背后的运行、初始化和进度数据，MAS、MAG、RCA、OBF 承载各自专业判断和交付物。App 只负责把这些能力呈现为用户能使用的桌面产品体验，不替专业 Agent 做领域判断。
 
-OPL App 的工作台体验横跨三种入口：本机桌面 App、Docker/WebUI 浏览器入口和云端 OPL Workspace。Docker/WebUI 不是第二套产品，它是同一个 App 体验的浏览器运行形态；OPL Workspace 是这套 WebUI 在云端托管后的产品形态。三者共享同一套任务、产物、进度和回执语言。
+当前 OPL App 工作台有两个必要入口：本机桌面 App 与 Docker/WebUI 浏览器入口。Docker/WebUI 是 U1-05 的同产品浏览器形态，不是第二套产品。Hosted OPL Workspace 是 X0-03，只有真实账号、存储、隔离、backend 和 owner policy 存在时才可复用这套语言；本仓不为它维护 placeholder state 或默认发布义务。
 
 GUI 产品事实也由 App 仓维护。当前 GUI 主线是基于 AionUI 的 OPL 品牌壳；Native Workbench 是开发备选和 foreground candidate；Hermes Desktop / `hermes-codex` 保留为 prior-candidate reference。`agui-codex`、PilotDeck 等只作为已归档技术验证或参考材料，不再作为日常实现、默认验证或抛光路线；真正进入产品的界面、默认行为和发布体验，以 App 仓的产品文档、合同和验证结果为准。
 
@@ -284,7 +284,7 @@ App 产品默认策略由
 声明，release channel 策略由
 [`contracts/app-release-channel.json`](contracts/app-release-channel.json)
 声明。这些 contracts 维护用户可见安装面、standard 与 Full package 边界、
-7 层安装/更新分类、updater 可见性、Homebrew cask policy、运行状态页桥接行为、
+7 层安装/更新分类、updater 可见性、Homebrew cask policy、条件保留的 X0-01 运行状态页桥接行为、
 App 管理的 Codex 暴露、Workflow Profile merge 边界和 release validation gates。
 
 OPL Framework 仍生产 install/sync/read-model surfaces、runtime state 和 action

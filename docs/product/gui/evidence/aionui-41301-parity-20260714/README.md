@@ -2,7 +2,10 @@
 
 Owner: `one-person-lab-app`
 Purpose: `aionui_41301_final_parity_packaged_route_visual_evidence`
-State: `current_exact_cohort_evidence`
+State: `historical_exact_cohort_evidence`
+Machine boundary: `manifest.json` and `source-manifest.json` bind this exact
+historical cohort. These files prove only the declared packaged visual states;
+they do not prove installed acceptance, whole-product parity, or release.
 
 This directory promotes the final parity cohort from the Shell-local generated
 evidence surface into App-owned evidence. It is bound to

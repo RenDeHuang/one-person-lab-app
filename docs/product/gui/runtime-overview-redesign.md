@@ -1,16 +1,29 @@
 # Runtime V2 产品设计
 
 Owner: `one-person-lab-app`
-Machine truth:
+Purpose: `runtime_work_item_projection_retained_support`
+State: `active_retained_route_reference`
+Product classification: `X0-01`
+Maintenance debt: `core_gate_pruning_pending`
+Machine boundary: 本文解释条件保留 Runtime route 的既有字段职责。当前机器实现归
 `contracts/app-gui-product-contract.json#pages.runtime_status.runtime_cockpit_product_contract`、
 `contracts/app-runtime-bridge.json#work_item_projection`、
-`contracts/app-page-state-matrix.json#pages[id=runtime]`
+`contracts/app-page-state-matrix.json#pages[id=runtime]`、validators、source 与 tests；本文不拥有
+Framework runtime、domain truth、artifact authority 或 release evidence。上述 contract/validator
+目前仍把 Runtime 当硬门，后续需单独收薄；validator pass 只证明现有 contract/source 一致。
 
 ## 结论
 
-Runtime 是 OPL 的极简项目工作状态页，不是 observability dashboard，也不是平台运维控制台。
-默认页只帮助用户判断：正在看哪个智能体和项目、有哪些任务、每项任务是什么状态、是否在跑、
-当前和下一 Stage 是什么、用了多少 Token。当前 Attempt 按需在 Stage 弹层和任务详情中显示。
+Runtime 是当前 AionUI 条件保留的极简项目工作状态页，不是 observability dashboard，也不是平台
+运维控制台。它归 `X0-01`，不是 B0/R1/U1 核心、P0、默认 release gate 或 Native phase-1 parity。
+已有 route/source/pixel 可以继续维护；若 route 启用，默认页只帮助用户判断：正在看哪个智能体和
+项目、有哪些任务、每项任务是什么状态、是否在跑、当前和下一 Stage 是什么、用了多少 Token。
+当前 Attempt 按需在 Stage 弹层和任务详情中显示。
+
+现有 Runtime cockpit contract、page-state、design-system/release validators 仍带 core hard gate。
+产品分类是 `retained_x0_route`，Source 状态只在五轴矩阵读取，`core_gate_pruning_pending`
+作为独立 maintenance debt。移出这些硬门是后续 machine cleanup；本文只纠正文档读法，
+不把现有一致性检查解释为产品必要性。
 
 Codex/App 更新、Temporal/provider/platform repair、托管依赖与 raw diagnostics 归 Maintenance；
 Agent Package lifecycle 归 Agents；Skills/Plugins/Flow 和本机能力归 Capabilities；artifact
@@ -288,19 +301,15 @@ Maintenance diagnostics 查看。
 | One Person Lab App | 产品语言、scope、各 surface 字段 allowlist、validators、page-state 和证据分账。 | runtime/domain truth、Token 估算、owner receipt。 |
 | Shell | 按当前 App locale 渲染 projection、级联筛选、语义重排、打开 Stage/任务详情，并仅对 archive/restore 执行 Framework action + refresh/readback。 | 猜项目、状态、stage、owner、Token，以 localStorage 保存 visibility truth，实现第二套去重，或从 Runtime 执行其他 action。 |
 
-## 证据分账
+## 历史 exact-cohort 证据边界
 
-以下四项必须独立记录，禁止用百分比合并：
-
-| 账目 | 本文档与 App 合同能证明什么 | 当前变更后的状态 |
-| --- | --- | --- |
-| Product contract | V2 用户语义、字段、页面结构和 validator 已成为 App machine truth。 | 已落入 App `main`；focused contract/release tests 已验证。 |
-| Framework producer | `opl app state` 是否真实生产完整 V2 projection、inventory、usage 和 availability。 | 已由 Framework producer tests 和本机 `opl app state --profile fast --json` 回读验证。 |
-| Shell consumer | active Shell 是否仅渲染 V2、完成交互和响应式实现。 | 已由 focused unit/DOM、确定性 Playwright fixture，以及安装版 375/768/1024/1358 px UI 验收验证。 |
-| Live evidence | 本机真实项目、运行、heartbeat、Token、截图和 installed App user path 是否贯通。 | 2026-07-15 本机安装版 user path 已通过；范围仅限当前维护者 Mac，不等于 Stable/Public release。 |
-
-合同、文档或 focused tests 通过，不等于 Framework producer、Shell、像素、安装包或 live runtime
-完成。只有四项分别提供证据，Runtime V2 才能整体关闭。
+下方只保留 `2026-07-15` exact-cohort 的历史实现与安装验收事实，不是当前完成度账本，也不得
+外推新的 Source、Pixel、Install 或 Release 状态。当前唯一五轴 authority 是
+[`app-ideal-state-gap-plan.md`](../../active/app-ideal-state-gap-plan.md) 与
+[`shell-conformance-matrix.md`](shell-conformance-matrix.md)；Contract、Source、Pixel、Install、
+Release 必须在那里逐轴读取。该历史 cohort 的合同、Framework producer、Shell consumer 与本机
+installed user path 证据只证明 retained X0-01 route 的对应字节和路径，不把它提升为核心产品门、
+默认 release gate 或当前 release-ready 结论。
 
 ### 2026-07-15 本机安装版验收
 
@@ -326,6 +335,9 @@ Maintenance diagnostics 查看。
 领域 ready 或 OPL family production-ready。
 
 ## 验收标准
+
+以下标准只在 X0-01 route 被显式保留或启用时约束该 route，自身不进入默认 release gate，也不
+要求 Native phase-1 实现。机器 hard gate 移除前，现有 validator pass 仅作 retained source 回归证据。
 
 - Scope 只有 Agent -> Project 两层，work item 不进入菜单，状态筛选不含 MAS。
 - Project 显示名严格等于 canonical workspace path basename；目录改名同时改变当前 path-hash `project_id`。

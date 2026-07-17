@@ -2,7 +2,10 @@
 
 Owner: `one-person-lab-app`
 Purpose: `aionui_41301_packaged_route_visual_evidence`
-State: `current_cohort_evidence`
+State: `historical_cohort_evidence`
+Machine boundary: `manifest.json` and `source-manifest.json` bind this exact
+historical cohort. These files prove only the declared packaged visual states;
+they do not prove current source, installed acceptance, parity, or release.
 
 This directory promotes the final packaged route screenshots from the Shell-local
 ignored evidence directory into an App-owned, manifest-backed evidence surface.

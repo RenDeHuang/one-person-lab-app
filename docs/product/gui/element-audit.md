@@ -24,7 +24,7 @@ carrier 状态和 release evidence 仍归 contracts、source/tests、validators 
 | Product identity | 普通导航 chrome 使用 text-only `One Person Lab`；完整 App identity 保留在 window metadata、About 与 release assets | 用户必须知道正在使用 One Person Lab，同时避免 logo 在深浅主题间产生不协调。 | 普通导航 chrome 出现 App logo、`App` 后缀或 carrier identity。 |
 | Current context | Recorded workspace 在 rail，live branch/locality 在 Environment，active capability/attachment 在 composer 附近 | 当前执行环境必须可理解，但目录不拥有 context；runtime `pwd` 不反写 rail。 | 只在 Settings/raw path 中可见、无 workspace 时静默禁用，或 composer 重复 rail/Environment 全量状态。 |
 | Directory/conversation rail | 宽桌面左侧 `280-340px` 可调；窄窗口 drawer | Navigation 是连续工作所需，不应占用 conversation 主区。 | 宽桌面缺失、被移到 Home grid，或关闭 drawer 后丢 selection。 |
-| Rail global skeleton | 顶部 New task/Runtime/Archived，主体按 canonical session 的 recorded workspace 分组，底部 account/help/Settings | 稳定全局入口与 session history 分层；capability 选择归 Home starter，管理归 Settings。 | 无真实能力的入口照搬、Capabilities 重回 rail，或 Settings 混入 conversation rows。 |
+| Rail global skeleton | 顶部固定 New task/Archived；X0-01 显式启用时才显示 Runtime。主体按 canonical session 的 recorded workspace 分组，底部 account/help/Settings | 稳定全局入口与 session history 分层；capability 选择归 Home starter，管理归 Settings。 | 把条件 Runtime 复活为核心入口、无真实能力的入口照搬、Capabilities 重回 rail，或 Settings 混入 conversation rows。 |
 | Directory group semantics | Conversations rows 与“使用此工作目录新建对话” | 目录组只是 recorded workspace projection 和新 session 快捷入口。 | “添加上下文”、组级删除、级联删除 session，或按标题/workspace 去重。 |
 | Session attachments | 当前 composer | 文件/目录只由用户为当前 session/send 显式加入。 | 从 workspace 预载、隐式注入，或附件只能从 Settings/rail 添加。 |
 | Conversation management | Rail rows、search 与独立 Archived surface | Search/pin/rename/archive/reset 属于持续工作管理。 | Archive 无独立 surface，或 reset 与 delete 语义混淆。 |
@@ -33,7 +33,7 @@ carrier 状态和 release evidence 仍归 contracts、source/tests、validators 
 | Composer | Main canvas bottom，浮动或保留安全距；Home 桌面使用 `736px` 最大宽度、`98px` 最小高度和 `22px` 圆角，目录/模式/branch 控件在同一 composer 内部透明排列 | 输入是普通路径主动作，应始终接近当前 conversation。 | 变成营销卡、单行或过矮 input、外置 context cap、settings bar、多层 card 或贴边遮挡。 |
 | Preview inputs | 独立 Preview 或 conversation disclosure | 只打开当前 session 显式 attachment、可见 conversation result 或用户选择的合法绝对路径。 | Workspace-scoped project ref、hidden prompt injection、静默读取或复制 artifact body。 |
 | Active capability | Home 使用 starter 的安静选中态；conversation 可在 action row 邻近显示低权重 chip | 显示已选 OPL 能力；选择动作归 Home starter，安装/显示/lifecycle 归 Settings。 | Home 重复“能力：”标签、常驻可变 purpose selector、backend selector 或 agent dashboard。 |
-| Package starter readiness | Home starter 始终可选择；选中后在 composer/send 边界显示 readiness 原因、loading 与允许动作 | 用户先选择工作目的，再在实际 launch 前获得明确状态；use-boundary activation 必须先于 conversation/send。 | 不可用入口静默消失、因 readiness 被禁选、无限 loading、无原因阻断，或 activation 失败后仍发送。 |
+| Package starter readiness | Home starter 始终可选择；选中后在 composer/send 边界显示 readiness 原因、loading 与允许动作 | 用户先选择工作目的，再在实际 launch 前获得明确状态；package launch adapter / JIT prepare 只在 exact package 需要时发生，并保留 `ready / degraded / package_unavailable`。 | 不可用入口静默消失、因 readiness 被禁选、无限 loading、无原因阻断，或 JIT prepare 明确失败后仍发送。 |
 | Model/reasoning control | Composer 中的 App-owned model control | 用户可见但不应抢占输入；策略由 product profile 统一。 | Shell 复制 allowlist、Home/Conversation 不一致、provider 进入普通层。 |
 | Permission/access mode | Home/conversation bottom action row | 用用户语言解释自动化与文件权限，保留安全透明度。 | 隐藏关键权限，或显示 provider/backend 术语。 |
 | Attach controls | Composer action row | Attachment、paste/drop 与 `/open` 只影响当前发送。 | 藏在 Settings、被 workspace readiness 禁用，或 overlay 覆盖输入/不可点击。 |
@@ -47,8 +47,8 @@ carrier 状态和 release evidence 仍归 contracts、source/tests、validators 
 | Environment floating details | 右上 anchored floating surface；窄屏 drawer | Recorded workspace/locality/branch/changes/subtasks/sources 是当前 task 的快速摘要。 | 变成默认全高第三列、完整 diagnostics 或跨项目 dashboard。 |
 | OPL secondary refs | Environment 次级 section、preview 或 turn disclosure | Artifacts、Evidence、Runtime、Actions 是按需投影。 | 与环境摘要同权常驻，或取得 artifact/runtime authority。 |
 | Advanced work surfaces | Bottom panel/file tree/Terminal/Browser | 保留高级工作能力，但默认关闭。 | App 启动即打开，遮挡 timeline/composer。 |
-| Runtime overview | 独立 Runtime page | 跨 project/conversation 状态需要更大 scope 与筛选。 | Running/queued/attention 混成 Home badge 或 assistant card。 |
-| Safe runtime action | Runtime/Settings 的 action area 与 confirmation surface | Action 需要状态、影响和 receipt context。 | Composer 直接执行隐藏 mutation，或绕过 dry-run/confirmation。 |
+| Runtime overview | X0-01 显式启用时的独立 Runtime page | 条件保留的跨 project/conversation route 需要更大 scope 与筛选，但不构成 core gate。 | 把 Runtime 复活为默认入口，或把 running/queued/attention 混成 Home badge 或 assistant card。 |
+| Safe runtime action | 条件 Runtime/Settings 的 action area 与 confirmation surface | Action 需要状态、影响和 receipt context。 | Composer 直接执行隐藏 mutation，或绕过 dry-run/confirmation。 |
 | Settings shell | Full-window return/search/grouped rows | 全局配置需要独立、可扫描 shell，同时保持 OPL IA。 | 塞进 side panel、upstream tabs 自动加入或每个功能新增一级 route。 |
 | Raw diagnostics | Details disclosure / Advanced | 技术信息用于解释异常，不是 ordinary user task。 | Paths、ids、schema、JSON 成为首屏主文案。 |
 | First-run blocker / next step | First-run 主区 | 新用户只需知道能否进入 App 和下一步。 | Full maintenance、domain status 或 terminal narrative 抢占 Core gate。 |
@@ -62,7 +62,7 @@ Home 的用户问题是“我现在要做什么”。因此主区只保留动态
 conversation、composer、active capability、model/access 和 current-turn feedback。
 普通本地对话和显式文件输入不依赖 workspace readiness；Workspace/managed target 只在
 Agent/package manifest 明确声明需要时校验，单个 package 故障只局部影响对应入口。
-跨项目 Runtime 保持独立的极简 Work Item 状态页；continue-work 留在 conversation，artifact
+跨项目 Runtime 仅在 X0-01 显式启用时保留独立的极简 Work Item 状态页；continue-work 留在 conversation，artifact
 provenance 留在 Inspector，package maintenance 和 raw diagnostics 留在对应 Settings，完整
 evidence ledger 留在 release tooling。它们都不得挤入 Home 主区或相互混装。
 
@@ -81,7 +81,7 @@ runtime/domain/artifact truth。
 
 ### Runtime 与 Settings
 
-Runtime 回答“工作现在处于什么状态、下一步是谁”；Settings 回答“App 如何配置、维护
+条件 Runtime 回答“跨项目工作现在处于什么状态、下一步是谁”；Settings 回答“App 如何配置、维护
 和个性化”。把 progress 放进 Settings 会混淆配置与工作，把 maintenance 放进 Runtime
 会混淆任务与平台。两者可以互相 deep link，但不合并 authority 或首屏。
 
@@ -91,7 +91,8 @@ Runtime 回答“工作现在处于什么状态、下一步是谁”；Settings 
 
 - 宽桌面是否仍有 persistent directory/conversation rail？
 - Rail 是否保持 `280-340px`、全局骨架和独立 Archived surface？
-- Rail 是否只保留 New task/Runtime/Archived，而没有恢复 Capabilities、Team 或其它未采纳入口？
+- Rail 是否固定 New task/Archived，并只在 X0-01 显式启用时显示 Runtime，而没有恢复
+  Capabilities、Team 或其它未采纳入口？
 - Main 是否仍是一条 timeline，而不是 dashboard 或三列 workbench？
 - Environment details 是否默认关闭、anchored，且打开/关闭不丢 draft、scroll、selection？
 - OPL artifact/evidence 是否作为次级内容，而不是默认全高第三列？

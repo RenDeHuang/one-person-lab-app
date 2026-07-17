@@ -1,5 +1,12 @@
 # OPL App Managed Update Model
 
+Owner: `one-person-lab-app`
+Purpose: `managed_update_three_layer_product_model`
+State: `active_product_support`
+Machine boundary: 本文解释 App carrier、Framework lifecycle 与用户状态的分层。
+机器真相归 App update/install contracts、Framework update contracts and CLI、source、tests、
+lifecycle receipts 与 installed readback；本文不证明 currentness 或 release readiness。
+
 OPL App presents one consistent maintenance experience regardless of how the
 App was installed. The implementation is divided into three layers so an
 installer never becomes a second update owner.

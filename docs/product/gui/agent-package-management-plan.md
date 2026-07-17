@@ -2,7 +2,12 @@
 
 Owner: `one-person-lab-app`
 Purpose: `professional_agent_package_management_plan`
-State: `functional_complete_non_live_live_evidence_deferred`
+State: `historical_implementation_record`
+Currentness boundary: 本文保留 package-management 设计与当时的 non-live implementation
+记录；其中 `100%` 只描述各行当时声明的 docs/contract/source/test slice，不得作为当前完成度、
+关单、Pixel、Install 或 Release authority。当前唯一五轴账本是
+[`app-ideal-state-gap-plan.md`](../../active/app-ideal-state-gap-plan.md) 与
+[`shell-conformance-matrix.md`](shell-conformance-matrix.md)。
 Machine boundary: Human-readable product and architecture plan. Machine-readable
 truth lives in `contracts/`, source, validators, package manifests, and OPL
 Framework readback/receipt outputs. As of the App landing, App-owned

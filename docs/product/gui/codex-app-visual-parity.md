@@ -2,13 +2,16 @@
 
 Owner: `one-person-lab-app`
 Purpose: `codex_app_visual_parity_execution_and_acceptance`
-State: `clean_candidate_source_verified_installed_pixels_pending`
+State: `active_visual_target_and_acceptance_protocol`
+Machine boundary: 本文是人读视觉目标与验收协议。机器真相归 App GUI contracts、
+validators、Shell source/tests 与 exact-cohort pixel/install/release evidence；source 或候选
+截图不能替代 installed pixels 或 release readback。
 Reference: `ChatGPT Codex macOS 26.707.72221 (build 5307, observed 2026-07-15)`
 
 ## 结论
 
 OPL App 的主界面以当前 Codex App 为 1:1 视觉目标。除 One Person Lab 品牌、OPL
-原生 Agent Package/Runtime/Settings 能力及其必要状态外，用户不应在第一眼从字体、颜色、
+原生 Agent Package/Settings 能力、条件 X0-01 Runtime route 及其必要状态外，用户不应在第一眼从字体、颜色、
 图标、间距、阴影、圆角、排版或交互反馈上感知到另一套设计系统。
 
 这里的 1:1 指同一机器、同一缩放、同一窗口尺寸和同一内容状态下，对稳定界面 chrome
@@ -213,10 +216,11 @@ OPL accent 只用于品牌动作和必要状态，不参与普通 rail、Setting
 ### Rail 与对话历史
 
 - 桌面宽度 `280-340px` 可调；默认 row 高 `30-32px`，section label 高 `24px`。
-- New task、Runtime、Archived 保留在顶部；账户、help、Settings 保留在底部。
+- New task、Archived 固定在顶部；Runtime 仅在 X0-01 route 显式启用时出现。账户、help、
+  Settings 保留在底部。
 - 对话搜索位于“对话历史”标题右侧，使用 `32x32px` icon button；展开/窄窗时均有
   tooltip、accessible name、focus-visible 和 `Cmd/Ctrl+Shift+F`。
-- Search 不占用一整行，不与 Runtime/Archived 同级呈现。
+- Search 不占用一整行，不与 Archived 或条件 Runtime 入口同级呈现。
 - 项目行使用 16px folder icon 和 13px label；展开后直接显示 sessions。
 - 不渲染“上下文 / 添加上下文”、project-owned attachment 或 project-level delete。
 - Session row 保持稳定高度；hover actions 不挤压标题，selected state 不改变几何。

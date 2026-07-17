@@ -39,6 +39,15 @@ surfaces。
 | Environment details | 右上浮层按需显示 changes、local、branch、commit/push、compare、subagents 与 sources。 | `inherit_and_extend_opl_refs` |
 | Visual grammar | 白色主画布、浅灰 rail、细边界、低对比选中态、小圆角和紧凑字号；几乎没有页面级卡片。 | `adopt_composition_pattern` |
 
+其中 `subagents` 指 Codex runtime 的真实 delegated execution 与 activity，不是 AionUI Team。
+OPL 继承 read-only Active/Done lists、parent/child identity、completed detail/result、open subagent
+thread，以及既有 App Server/ACP owner-supported controls，但只通过现有 App Server adapter 做薄
+metadata/display 映射。当前 adapter 已能消费 `subAgent*` source
+kinds，并投影 `parentThreadId`、`agentRole` 与 `agentNickname`；完整 Codex App 式 activity/detail/
+open-thread 仍是 source gap，pixel/install/release 均未验证。关闭 Team 不能被写成缺失 subagent，
+也不能借 B0-11 新建第二 App Server client、Team store、scheduler、shell-owned execution 或 bespoke
+direct-control buttons。
+
 以下项目不是 26.707.41301 的 literal observation，必须明确标为 OPL-owned delta：
 
 - 当前 session composer 的显式 attachment/paste/drop/`/open` 边界与 OPL workspace state，不存在 project context preload；
@@ -64,7 +73,7 @@ OPL App 采用下列翻译规则；没有明确 delta 的区域默认复用 refe
 3. **Composer owns execution controls。** Model/reasoning、access、attachment、active
    capability 与 send/stop 都在 composer 附近；header 不重复这些配置。
 4. **Timeline owns task interaction。** Streaming、tool/process、approval、progress、result
-   和 receipt 在当前 conversation 中完成；Runtime 只做跨项目管理。
+   和 receipt 在当前 conversation 中完成；跨项目 Runtime 是条件保留的 X0-01 route，不是核心替代面。
 5. **Environment owns secondary context。** 先继承右上按需浮层，再把 OPL refs、artifact
    与 evidence 作为次级 section/preview 扩展；默认不打开全高 inspector。
 6. **Settings stays secondary。** Settings 只负责持久配置和控制面，不决定主工作流。
@@ -112,13 +121,14 @@ closure、domain readiness 或 release readiness。不得用前者的可选性�
 Codex baseline 只能帮助确定信息放在哪里、怎样交互，不能决定 OPL 有哪些功能。“不降级”
 只保护已经进入 OPL App contracts、ordinary routes 或正式用户路径的能力；AionUI 自带但未被
 OPL 采纳的 Team、provider/backend、任意 skills/MCP、Sites/Chat 等入口可以隐藏或拒绝。
-对 Runtime、Home capability starters、Settings → Agents / Capabilities、first-run、domain
-package entry 和双语等 OPL-owned capability：
+对 Home capability starters、Settings → Agents / Capabilities、first-run、domain package entry 和
+双语等 B0/R1/U1 capability：
 
 - 可以在用户认知更清晰时调整位置，但不得因 Codex 没有同名入口而删除；
 - 旧入口只能在同一变更已经提供可见、键盘可达的替代入口后移除；
 - contract、shell source、navigation tests 和需要的 visual evidence 必须一起更新；
-- 跨项目 Runtime cockpit 与会话级 Runtime details 是两个不同职责，后者不能替代前者。
+- 跨项目 Runtime cockpit 归 X0-01，可保留但不是核心 preservation gate、默认 release blocker 或
+  Native phase-1 parity；会话级 current-task status 继续由 timeline/context 承担。
 
 ### Inherit / Adapt / Add / Reject
 
@@ -137,10 +147,10 @@ package entry 和双语等 OPL-owned capability：
 | Workspace/chat | 支持 project task 与 projectless conversation，并增加 OPL purpose、package 和 refs context。 | App product profile、GUI contract。 |
 | Model control | 保持 Codex-like model/reasoning control，但策略只由 App product profile 提供。 | `contracts/app-product-profile.json`。 |
 | Agents / Capabilities | Agents 消费公共 Agent Package directory 并管理 lifecycle/Home visibility；Capabilities 管理 Skills、Plugins、OPL Flow、MCP、图像和语音能力。 | Framework package directory、App package metadata overlay 与 capability registries。 |
-| Runtime context | 增加 Framework-backed Work Item status、running state、Stage/Attempt、Token、next action/owner 和 archive/restore；receipt、artifact、safe action 与 raw diagnostics 分别留在 Inspector、Settings 或 release tooling。 | Framework WorkItemProjection 与 App Runtime contract。 |
+| Current-task context | 在 timeline/context 中增加 Framework-backed current Work Item status、running state、next action/owner 与必要 refs；跨项目 Runtime route 仅为 X0-01 retained source。 | Framework WorkItemProjection 与 App current-task slice；Runtime hard gate 待清理。 |
 | Settings | 作为次级配置面保留 OPL Control Center IA，不反向定义主工作流。 | App GUI contract、Settings Control Plane。 |
 | First-run | 增加 Core readiness、guided setup 和 background maintenance。 | App first-run/install contracts。 |
-| Delivery | 增加 desktop/WebUI/Workspace 的同产品语义与受控资源入口。 | App adapters、Framework/Gateway/Fabric refs。 |
+| Delivery | 增加 desktop/WebUI 的同产品语义；Hosted Workspace 与远程资源只在 X0 owner/backend 存在时给 refs/owner route。 | App adapters、Framework/Gateway refs；X0-03/X0-04 条件启用。 |
 | Evidence | 增加 route/action/release/visual evidence 边界。 | App/domain/runtime/release owner surfaces。 |
 
 ## OPL 品牌增量
@@ -222,11 +232,13 @@ App-owned toggle 或后台服务。若 Codex executor 原生提供且 App profil
 - Shell 不维护第二 JSON-RPC client、JSONL audit/idempotency ledger、write-set advisory、
   pending-request 控制面、model delivery 或 cross-host handoff。
 
-## Runtime 与 Evidence 增量
+## Current-task 与条件 Runtime 增量
 
-普通 Codex timeline 主要关心当前 turn；OPL App 额外提供跨项目 runtime context：
+普通 Codex timeline 主要关心当前 turn，并承载核心 current-task context。跨项目 Runtime cockpit
+统一按 X0-01 `retained_x0_route` 读取；已有 AionUI route/source 可保留，Source 按五轴单独记录，
+core-gate pruning 是 maintenance debt。它不属于 B0/R1/U1、默认 release gate 或 Native phase-1 parity。
 
-- Runtime overview 展示真实 running、仍在推进的 project lines、queued 和 attention。
+- 条件启用的 Runtime overview 只展示 owner projection 提供的真实 running、project lines、queued 和 attention。
 - Current-turn artifact 与 OPL current-task projection 共用可 pin summary bar，展示
   status、elapsed、progress、next action、stop。
 - Environment 浮层采用 workspace/locality/branch/changes/subtasks/sources 的紧凑结构；
@@ -254,7 +266,8 @@ OPL App 把通用 Agent App settings 收敛为用户任务导向的 Control Cent
 - Workspace：工作目录、日志目录、用户 AGENTS.md 和 new-conversation additions。
 - Agents：公共 Agent Package 目录、lifecycle 与 Home shortcuts。
 - Capabilities：Skills、Plugins、OPL Flow、MCP、图像和语音能力。
-- Resources & Connections：本机、远程、托管资源和连接 refs。
+- Resources & Connections：真实本机资源和连接 refs；Hosted Workspace、Fabric/HPC、Console 仅在
+  X0 owner/backend 存在时提供可选 route，不维护占位状态。
 - Maintenance & Updates：App/runtime/packages/local services 的维护。
 - Data & Storage：空间、数据分类、preview 和安全 cleanup。
 - Preferences：语言、主题、通知、启动、密度、字体和 motion。
@@ -276,15 +289,16 @@ OPL App 在 Codex baseline 上增加可解释的本机准备：
   边界。
 - Docs、contract 或 source smoke 不替代 clean-machine、same-cohort 或 release evidence。
 
-## Local-first / Cloud-continuous 增量
+## Local-first 与条件 Cloud/Remote 增量
 
 - macOS desktop 使用 native window、directory picker 和 packaged App。
 - Desktop 只在新任务创建时选择初始工作目录，不自建 managed Worktree/Handoff，也不提供既有
   session 的持久 cwd 重绑。命令或 turn 的实际 `pwd` 仍由 Codex 执行上下文决定。
 - Docker/WebUI 在受控 workspace/volume 中提供同一产品语义。
-- Hosted WebUI 加账号、存储、隔离和资源策略后可以成为 OPL Workspace delivery。
-- Gateway、Fabric、Console、SSH/HPC 和其它资源通过 refs、plan/approve/run/collect/
-  receipt 进入任务上下文；GUI 不拥有资源、计费或 provider truth。
+- Hosted Workspace 属 X0-03；只有稳定账户、计费、存储与隔离 backend/owner 存在时才启用，普通
+  Settings 不维护占位状态。
+- Fabric/HPC/Console 属 X0-04；只有真实 owner projection 存在时才以 refs/owner route 进入
+  Resources 或任务上下文，不把 plan/approve/run/collect/receipt 字面合同当成 App 核心能力。
 - Desktop/WebUI 可以使用不同 transport/native affordance，但不能分叉 product profile、
   Settings IA、runtime truth 或 release channel。
 

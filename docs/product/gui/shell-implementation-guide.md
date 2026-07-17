@@ -173,8 +173,11 @@ opl app action execute --action <id> [--payload <json>] [--dry-run] --json
 - UI 明确显示 what changes、what does not change、receipt/recovery ref 和 refresh 行为。
 - Result receipt 是动作事实，不代表 runtime、domain、artifact 或 release readiness。
 - 网络、CLI、schema 和 permission failure 保留 typed reason，不转换成模糊 `unknown`。
-- Package launch 是独立的 fail-closed prepare/activate/launch 流程。Shell 不拥有 package
-  currentness 或 materialization，只在 Framework 返回完整 use receipt/binding 后继续。
+- Package launch 复用 owner-projected launch adapter / JIT prepare，并按
+  `ready / degraded / package_unavailable` 三态消费。只有 package identity、版本兼容、entrypoint、
+  safe managed target、permission/authorization 等真实性或安全边界 fail closed；deferred verification、
+  optional receipt/binding/closure 走 degraded/fail-open。Shell 不拥有 package currentness 或
+  materialization，receipt 存在时只做 readback，不把 receipt 缺失升级为 ordinary send 的第二硬门。
 
 Thread directory 是一条窄 host boundary：Codex Core/App Server 拥有 opaque thread ID、history、
 status 和 lifecycle；Shell 用一个 adapter执行 list/read/start/resume/fork/archive/restore并投影现有

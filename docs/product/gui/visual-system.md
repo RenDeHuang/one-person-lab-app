@@ -66,14 +66,15 @@ Codex baseline 是视觉参照，不是 machine truth。当前 carrier 的差异
   和当前 selection；关闭后不改变业务数据。
 - Conversation chrome、timeline 和 composer 使用同一水平节奏。宽屏增加外侧留白，不无限拉宽
   正文或把 composer 缩成小卡片。
-- Home、Runtime、Settings 是全宽页面/主布局，不把整个 section 包成悬浮 card。
+- Home、Settings 是普通全宽页面/主布局；X0-01 Runtime 仅在显式启用时使用同一全宽规则。
+  不把整个 section 包成悬浮 card。
 - Home 的提示、智能体快捷入口和 composer 共享靠近窗口底部的单一 reading lane；提示使用
   modest heading，不形成 hero，也不把智能体入口放大成全宽分类导航。
 - Home starter 使用 content-sized 紧凑入口；容器不写死四列或五列、不显示连续 chevron，按当前
   可见入口数量居中并响应式换行。包的运行就绪状态可以在发送时给 typed guidance，但不得让可见
   智能体在选择阶段失去交互。
-- 项目、Local/Worktree 和 starting branch 是 composer 内部的紧凑上下文控制，不使用独立灰色
-  顶栏、负 margin overlap 或第二条 capability 标签。
+- 新 session 的 initial cwd 由 composer `+` 菜单中的紧凑 action/chip 表达；Local/Worktree、
+  starting branch 和既有 session cwd mutation 不进入普通 composer，也不形成独立灰色顶栏或第二条 capability 标签。
 
 ## Typography
 
@@ -233,8 +234,8 @@ Composer 是底部唯一主 command surface：
 ## Project / Conversation Rail
 
 - 宽桌面默认可见，宽度在 `280-340px` 内可调，窄窗口改 drawer。
-- 顶部固定 New task、Runtime、Archived；capability starter 属于 Home，package/capability
-  管理属于 Settings。Sites/Chat 没有 OPL 对应能力时不显示。
+- 顶部固定 New task、Archived；Runtime 仅在 X0-01 route 显式启用时出现。capability starter
+  属于 Home，package/capability 管理属于 Settings。Sites/Chat 没有 OPL 对应能力时不显示。
 - 中段按 recorded workspace metadata 组织 canonical sessions，同时容纳 projectless sessions；分组是
   只读 projection，不拥有 session、context 或 artifact。命令或 turn 的实际 `pwd` 变化不移动
   canonical-thread row，也不复制 row/history 或按标题/workspace 去重。
@@ -380,7 +381,8 @@ check indicator；`unavailable` 在发送时显示原因和允许动作，`activ
 1. 宽桌面：persistent project rail、单一 timeline、composer、Environment details closed。
 2. Environment/details open：右上浮层不遮挡关键内容，close/focus/scroll 正常。
 3. 窄桌面/WebUI：rail 与 Environment/details 以 drawer/overlay 实际可见，不是 hidden DOM。
-4. Home、conversation、Runtime、Settings、first-run 的 light/dark 与中英文。
+4. Home、conversation、Settings、first-run 的 light/dark 与中英文；仅当 X0-01 Runtime route
+   被本 cohort 显式启用时，才把 Runtime 纳入该 route 自身的视觉 QA。
 5. Composer 的单层 surface、稳定尺寸、model/reasoning controls、send/stop states。
 6. Visual screenshot 与 ChatGPT Codex macOS 26.707.72221 / build 5307 的同 cohort
    布局、密度和稳定像素比较；`26.707.41301` 仅用于既有交互 observation，并明确记录 OPL

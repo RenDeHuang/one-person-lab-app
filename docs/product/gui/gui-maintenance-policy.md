@@ -39,8 +39,8 @@ OPL App 同时维持两条独立轨道：
 1. 精确 product/build、观察日期和原始 reference screenshots；
 2. literal observation 与推断/OPL delta 分开记录；
 3. contract delta 按 `accept/adapt/redirect/reject` 分类；
-4. Runtime、Settings、双语、first-run、Agent Packages、跨顶层线程协调等 protected surfaces
-   完成非降级复核；
+4. Runtime、Settings、双语、first-run、Agent Packages、用户触发的 canonical thread operations
+   与独立的 Codex subagent event/display 轴等 protected surfaces 完成非降级复核；
 5. 桌面与窄窗、light/dark、中文/英文比较 manifest 完整；
 6. App GUI validator 通过。
 
@@ -65,7 +65,7 @@ Shell source、package、安装或 release 已同步。
 | --- | --- |
 | `accept` | 直接复用，但不得改变 App authority。 |
 | `adapt` | 通过 App contract/profile/bridge/overlay 复用。 |
-| `redirect` | 仅保留兼容入口，转到 App-owned surface。 |
+| `redirect` | 仅保留历史重定向入口，转到 App-owned surface。 |
 | `reject` | 不进入 ordinary App 行为。 |
 
 当前最新已审阅 stable release 是 `v2.1.34@0fea1eb82634f3746b9ccf68507277c347fa08a3`。
