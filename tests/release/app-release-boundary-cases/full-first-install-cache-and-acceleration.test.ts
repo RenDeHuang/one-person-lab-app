@@ -37,7 +37,15 @@ test("Full workflow checks out MAS Scholar Skills and binds both runtime assembl
   );
   assert.match(
     workflow,
-    /name: Checkout MAS Scholar Skills[\s\S]*repository: gaofeng21cn\/mas-scholar-skills[\s\S]*ref: main[\s\S]*path: mas-scholar-skills/,
+    /name: Resolve managed Full package refs[\s\S]*bundled-full-runtime-package-catalog\.json[\s\S]*\.packages\["mas-scholar-skills"\]\.owner_source_commit[\s\S]*\^\[0-9a-f\]\{40\}\$[\s\S]*mas_scholar_skills_ref=\$mas_scholar_skills_ref/,
+  );
+  assert.match(
+    workflow,
+    /name: Checkout MAS Scholar Skills[\s\S]*repository: gaofeng21cn\/mas-scholar-skills[\s\S]*ref: \$\{\{ steps\.managed-package-refs\.outputs\.mas_scholar_skills_ref \}\}[\s\S]*path: mas-scholar-skills/,
+  );
+  assert.match(
+    workflow,
+    /OPL_FULL_MAS_SCHOLAR_SKILLS_REF=\$\{\{ steps\.managed-package-refs\.outputs\.mas_scholar_skills_ref \}\}/,
   );
   assert.match(
     workflow,
