@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { assertDeepEqualJson, readJson } from './assertions.ts';
+import { validateScheduledTasksAionuiAdapter } from './scheduled-tasks-policy-validator.ts';
 
 const ALLOWED_CLASSIFICATIONS = ['absorbed', 'rejected', 'deferred'];
 const REQUIRED_RECORD_FIELDS = [
@@ -212,8 +213,34 @@ const REQUIRED_MANAGED_AGENT_API_CONTRACT = {
       identity_source: 'Assistant.id',
     },
     cron: {
+      product_policy_ref: 'contracts/app-gui-product-contract.json#scheduled_tasks_policy',
+      authority: 'aioncore_cron_store_and_routes',
+      route: '/scheduled',
+      list_endpoint: 'listJobs',
+      get_endpoint: 'getJob',
       create_endpoint: 'addJob',
       update_endpoint: 'updateJob',
+      delete_endpoint: 'removeJob',
+      run_now_endpoint: 'runNow',
+      pause_resume_endpoint: 'updateJob.enabled',
+      history_route_template: '/api/cron/jobs/{id}/conversations',
+      timezone_policy: 'local_iana_timezone_on_write_and_fail_open_repair_for_missing_timezone',
+      ordinary_sider_entry_visible: true,
+      sider_placement: 'primary_navigation_between_runtime_and_archived',
+      job_section_visible_when_non_empty: true,
+      executor: 'codex_cli',
+      executor_selector_visible: false,
+      assistant_candidate_source: 'useConversationAgents.cliAgents',
+      assistant_candidate_requirements: [
+        'Assistant.source=generated',
+        'Assistant.enabled=true',
+        'managed_agent_runnable=true',
+        'assistantRuntimeKey=codex',
+      ],
+      assistant_identity_source: 'Assistant.id',
+      candidate_cardinality: 'exactly_one',
+      assistant_unavailable_policy: 'disable_new_task_create_and_codex_executor_save_only_with_inline_guidance',
+      existing_task_management_remains_available: true,
       identity_path: 'agent_config.assistant_id',
       schedule_field_map: {
         atMs: 'at_ms',
@@ -221,6 +248,17 @@ const REQUIRED_MANAGED_AGENT_API_CONTRACT = {
       },
       existing_conversation_update_agent_config: 'omit',
       aionrs_provider_identity_path: 'agent_config.model.provider_id',
+      legacy_non_codex_job_policy: {
+        visible: true,
+        run_now_allowed: true,
+        pause_resume_allowed: true,
+        delete_allowed: true,
+        editable_fields: ['schedule', 'prompt'],
+        preserve_existing_agent_config: true,
+        executor_mutation_allowed: false,
+        silent_migration_allowed: false,
+      },
+      second_scheduler_store_allowed: false,
     },
     team: {
       create_endpoint: 'create',
@@ -516,6 +554,7 @@ function validateManagedAgentApiCompatibility(rootContract, shellPaths, options)
     REQUIRED_MANAGED_AGENT_API_CONTRACT,
     'Active shell managed-agent API compatibility contract',
   );
+  validateScheduledTasksAionuiAdapter(contract.write_contracts.cron);
 
   const surfaces = contract.implementation_surfaces;
   const requiredSourcePaths = Object.entries(surfaces).flatMap(([key, value]) => {

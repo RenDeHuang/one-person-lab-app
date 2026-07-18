@@ -896,6 +896,13 @@ export type AppProductProfile = {
       owner: string;
       cron_skill_packaged: boolean;
       exposure: string;
+      product_policy_ref: string;
+      route: string;
+      scheduler_authority: string;
+      single_scheduler_store_required: boolean;
+      ordinary_sider_entry_visible: boolean;
+      executor: string;
+      executor_selector_visible: boolean;
     };
     default_packaged_codex_skill_ids: string[];
     additional_package_skill_ids: string[];

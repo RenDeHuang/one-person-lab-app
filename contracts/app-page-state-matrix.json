@@ -501,6 +501,51 @@
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget"
     },
     {
+      "id": "scheduled_tasks",
+      "expected_source": "active carrier native scheduler and App-owned Scheduled Tasks policy",
+      "machine_source": "contracts/app-gui-product-contract.json#scheduled_tasks_policy + contracts/app-shell-adapter.json#upstream_intake.managed_agent_api_contract.write_contracts.cron",
+      "page_contract": "ordinary_scheduled_codex_tasks",
+      "scheduled_tasks_view_model": {
+        "product_policy_ref": "contracts/app-gui-product-contract.json#scheduled_tasks_policy",
+        "route": "/scheduled",
+        "scheduler_authority": "active_carrier_native_scheduler_and_store",
+        "ordinary_sider_entry_visible": true,
+        "sider_placement": "primary_navigation_between_runtime_and_archived",
+        "job_section_visible_when_non_empty": true,
+        "executor": "codex_cli",
+        "executor_selector_visible": false,
+        "executor_identity_source": "active_carrier_canonical_runnable_codex_identity",
+        "assistant_candidate_cardinality": "exactly_one",
+        "assistant_unavailable_scope": "new_task_create_and_codex_executor_save_only",
+        "existing_task_management_remains_available": true,
+        "ordinary_app_remains_available": true,
+        "legacy_non_codex_jobs_remain_visible": true,
+        "legacy_edit_preserves_agent_config": true,
+        "legacy_executor_mutation_allowed": false,
+        "second_scheduler_store_allowed": false
+      },
+      "states": [
+        "loading",
+        "empty",
+        "ready",
+        "scheduler_error",
+        "codex_assistant_unavailable_or_ambiguous"
+      ],
+      "must_show": [
+        "ordinary Sider Scheduled Tasks entry",
+        "existing scheduled tasks even when new-task Codex composition is unavailable",
+        "create, update, delete, run-now, pause, resume, history, and timezone behavior from one carrier scheduler",
+        "inline guidance when the generated runnable Codex assistant is missing or ambiguous",
+        "legacy non-Codex jobs without silent executor migration"
+      ],
+      "must_not_show": [
+        "executor selector for new OPL scheduled tasks",
+        "second scheduler, second task store, migration ledger, or receipt state machine",
+        "global App or existing-task management block caused by Codex scheduled-task assistant discovery",
+        "silent rewrite of a legacy job executor during edit"
+      ]
+    },
+    {
       "id": "ordinary_conversation",
       "expected_source": "App-owned GUI product contract and OPL App state projection",
       "machine_source": "contracts/app-gui-product-contract.json#ordinary_conversation + opl app state --profile fast --json",

@@ -25,6 +25,7 @@ import {
   validateRuntimeCockpitAcceptanceBoundary,
   validateRuntimeCockpitPageStateAcceptance,
 } from './runtime-cockpit-product-validator.ts';
+import { validateScheduledTasksPageState } from './scheduled-tasks-policy-validator.ts';
 
 const productProfile = readJson(productProfilePath);
 const expectedFirstRunProgressModel = productProfile.first_run?.progress_model;
@@ -166,6 +167,7 @@ export function validatePageStateMatrix(matrix, contract, guiProductContract, op
 
   const requiredPages = new Set([
     'guid_home',
+    'scheduled_tasks',
     'settings_general',
     'gateway',
     'access',
@@ -210,6 +212,10 @@ export function validatePageStateMatrix(matrix, contract, guiProductContract, op
 
   validatePrimaryInteractionPages(matrix);
   validateAppSettingsPages(matrix, guiProductContract);
+  validateScheduledTasksPageState(
+    (matrix.pages ?? []).find((page) => page.id === 'scheduled_tasks'),
+    guiProductContract.scheduled_tasks_policy,
+  );
 
   const firstLaunchPage = (matrix.pages ?? []).find((page) => page.id === 'first_launch_readiness');
   if (!firstLaunchPage) {

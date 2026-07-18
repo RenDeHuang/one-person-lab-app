@@ -1969,6 +1969,71 @@
     },
     "send_after_model_display_policy": "must_not_require_model_or_executor_choice_before_send"
   },
+  "scheduled_tasks_policy": {
+    "feature_id": "B0-12",
+    "product_role": "ordinary_scheduled_codex_tasks",
+    "route": "/scheduled",
+    "scheduler_authority": "active_carrier_native_scheduler_and_store",
+    "single_scheduler_store_required": true,
+    "active_aionui_contract_ref": "contracts/app-shell-adapter.json#upstream_intake.managed_agent_api_contract.write_contracts.cron",
+    "navigation": {
+      "ordinary_sider_entry_visible": true,
+      "placement": "primary_navigation_between_runtime_and_archived",
+      "job_section_visible_when_non_empty": true
+    },
+    "capabilities": [
+      "list",
+      "get",
+      "create",
+      "update",
+      "delete",
+      "run_now",
+      "pause",
+      "resume",
+      "history",
+      "timezone_repair"
+    ],
+    "executor_composition": {
+      "executor": "codex_cli",
+      "executor_selector_visible": false,
+      "executor_identity_source": "active_carrier_canonical_runnable_codex_identity",
+      "executor_identity_requirements": [
+        "canonical",
+        "enabled",
+        "runnable",
+        "codex_cli"
+      ],
+      "candidate_cardinality": "exactly_one",
+      "unavailable_policy": "disable_new_task_create_and_codex_executor_save_only_with_inline_guidance",
+      "existing_task_management_remains_available": true,
+      "ordinary_app_remains_available": true
+    },
+    "legacy_non_codex_job_policy": {
+      "visible": true,
+      "run_now_allowed": true,
+      "pause_resume_allowed": true,
+      "delete_allowed": true,
+      "editable_fields": [
+        "schedule",
+        "prompt"
+      ],
+      "preserve_existing_agent_config": true,
+      "executor_mutation_allowed": false,
+      "silent_migration_allowed": false
+    },
+    "forbidden_implementation_layers": [
+      "second_scheduler",
+      "second_task_store",
+      "scheduler_migration_ledger",
+      "scheduler_receipt_or_pending_state_machine"
+    ],
+    "evidence_axes": {
+      "contract_implies_source": false,
+      "source_implies_pixel": false,
+      "source_implies_install": false,
+      "source_implies_release": false
+    }
+  },
   "home_layout": {
     "default_mode": "composer_first_chat_canvas",
     "default_active_shortcut": null,
@@ -5210,6 +5275,27 @@
         ],
         "rationale": "ordinary Home stays composer-first; no footer utility row is rendered, while the global titlebar feedback action opens a prefilled OPL App GitHub issue and detailed help remains in About"
       }
+    },
+    "scheduled_tasks": {
+      "state_source": "active_carrier_native_scheduler_projection",
+      "action_source": "active_carrier_native_scheduler_actions",
+      "policy_ref": "scheduled_tasks_policy",
+      "route": "/scheduled",
+      "page_kind": "ordinary_product_page",
+      "ia_group": "automation",
+      "must_show": [
+        "ordinary Sider entry",
+        "scheduled task list and detail",
+        "create, update, delete, run now, pause, resume, history, and timezone behavior from the active carrier scheduler",
+        "fixed Codex executor composition for new scheduled tasks",
+        "legacy non-Codex tasks without silent executor migration"
+      ],
+      "must_not_show": [
+        "executor selector for new OPL scheduled tasks",
+        "second scheduler or task store",
+        "global App blocking when the Codex scheduled-task assistant is missing or ambiguous",
+        "receipt, pending, or migration ledger invented by the App"
+      ]
     },
     "ordinary_conversation": {
       "state_source": "opl app state --profile fast --json",

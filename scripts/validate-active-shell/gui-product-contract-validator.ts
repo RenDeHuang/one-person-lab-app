@@ -35,6 +35,10 @@ import {
   validateWorkflowSkillCandidateProjectionContract,
   assertFirstRunProgressModelMatches,
 } from './shared-contract-validators.ts';
+import {
+  validateScheduledTasksPageContract,
+  validateScheduledTasksProductPolicy,
+} from './scheduled-tasks-policy-validator.ts';
 
 const ordinaryForbiddenCapabilityPolicy = {
   forbidden_mcp_matchers: {
@@ -897,6 +901,8 @@ export function validateBrandedDeepLinkPolicy(policy) {
 export function validateAppGuiProductContract(guiContract, releaseChannel, installExposurePolicy) {
   validateMinimalAgentPackageActivationPolicy(guiContract.agent_package_activation_policy);
   validateBrandedDeepLinkPolicy(guiContract.branded_deep_link_policy);
+  validateScheduledTasksProductPolicy(guiContract.scheduled_tasks_policy);
+  validateScheduledTasksPageContract(guiContract.pages?.scheduled_tasks, guiContract.scheduled_tasks_policy);
   validateGuiProductHomeContract(guiContract);
   validateCodexModelPolicy(guiContract);
   validateGuiFrameworkSurfaces(guiContract, releaseChannel, installExposurePolicy);

@@ -22,6 +22,7 @@ import {
   validateBeginnerFirstRunPresentation,
   validateOplFlowContext,
 } from './shared-contract-validators.ts';
+import { validateScheduledTasksProfileProjection } from './scheduled-tasks-policy-validator.ts';
 import { validateSettingsControlPlaneBehavior } from './settings-control-plane-validator.ts';
 import { assertDefaultCodexSessionProfile } from '../app-product-profile-default-session.ts';
 import { assertAppProductProfileIdentity } from '../app-product-profile-identity.ts';
@@ -899,5 +900,6 @@ export function validateProductProfile(
   validateCommandLineToolsPolicy(profile);
   validateStandardUpdatePolicy(profile);
   validateCompanionPayloadAuthority(profile, installExposurePolicy);
+  validateScheduledTasksProfileProjection(profile.companion_payloads?.native_automation);
   validateProductProfileBoundary(profile);
 }
