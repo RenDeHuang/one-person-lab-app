@@ -6,6 +6,7 @@ import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import {
+  appOwnedCodexSubagentActivityPolicy,
   appOwnedDirectoryGroupPolicy,
   appOwnedExplicitSessionInputPolicy,
   appOwnedSendFailureInputPolicy,
@@ -1208,6 +1209,16 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   const pageStates = Array.isArray(pageStateMatrix.pages) ? pageStateMatrix.pages.map(record) : [];
   const guidHomePage = pageStates.find((page) => page.id === 'guid_home') ?? {};
   const guidHomeViewModel = record(record(guidHomePage).home_view_model);
+  const ordinaryConversationPage = pageStates.find((page) => page.id === 'ordinary_conversation') ?? {};
+  const subagentPolicyJson = JSON.stringify(appOwnedCodexSubagentActivityPolicy);
+  if (
+    JSON.stringify(record(record(profile.gui).ordinary_conversation).codex_subagent_activity) !== subagentPolicyJson ||
+    JSON.stringify(record(guiContract.ordinary_conversation).codex_subagent_activity) !== subagentPolicyJson ||
+    JSON.stringify(record(record(ordinaryConversationPage).conversation_view_model).codex_subagent_activity) !==
+      subagentPolicyJson
+  ) {
+    issues.add('Codex subagent activity must stay a read-only single-adapter projection without private orchestration');
+  }
   if ('new_task_locality' in guidHomeViewModel || 'local_worktree_lifecycle_ref' in guidHomeViewModel) {
     issues.add('Guid Home must keep workspace selection limited to the new task initial cwd');
   }
@@ -1271,7 +1282,6 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
 
   const contextSurfaces = record(interactionBaseline.context_surfaces);
   const artifactPreview = record(interactionBaseline.artifact_preview);
-  const ordinaryConversationPage = pageStates.find((page) => page.id === 'ordinary_conversation') ?? {};
   const ordinaryConversationViewModel = record(record(ordinaryConversationPage).conversation_view_model);
   const pageArtifactPreview = record(ordinaryConversationViewModel.artifact_preview);
   const conversationArtifactPreview = record(record(guiContract.ordinary_conversation).artifact_preview);

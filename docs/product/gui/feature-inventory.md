@@ -76,8 +76,9 @@ B0 不进入 OPL 自维护的 R1/U1 12 项实现矩阵。AionUI 已有的基线�
 产品面，不表示 Codex subagent 缺失。当前状态按 contract、Codex runtime/execution、App Server
 adapter、ordinary activity UI、pixel、install 和 release 分账，见
 [`shell-conformance-matrix.md#b0-11-codex-subagent-证据`](shell-conformance-matrix.md#b0-11-codex-subagent-证据)。
-未来 UI 改动必须先用真实 `codex-acp` delegated-turn fixture 证明现有 adapter 的具体展示缺口；
-schema 或 unit fixture 只能作为 supporting source evidence。
+当前 AionUI source 已按真实 `codex-acp` delegated-turn metadata shape 补齐只读
+Active/Done、详情/结果和 canonical task 打开；它复用现有 adapter，不建立新的执行或编排层。
+Pixel、Install 和 Release 仍须在 exact source/package 上独立验证。
 
 ### List 1：等价功能替换类（R1）
 

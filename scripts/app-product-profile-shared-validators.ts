@@ -1,5 +1,6 @@
 import { assertExpectedFields, assertStringArrayIncludes } from './value-assertions.ts';
 import {
+  appOwnedCodexSubagentActivityPolicy,
   appOwnedExplicitSessionInputPolicy,
   appOwnedRightContextInspectorForbiddenOwners,
   appOwnedRightContextInspectorPolicy,
@@ -379,6 +380,12 @@ export function assertAppProductProfileGuiInteractionBaseline(
     'projectless_input_policy' in (conversation ?? {})
   ) {
     throw new Error(`${label} GUI conversation must keep session identity primary and accept only explicit current-session inputs`);
+  }
+  if (
+    JSON.stringify(conversation?.codex_subagent_activity) !==
+    JSON.stringify(appOwnedCodexSubagentActivityPolicy)
+  ) {
+    throw new Error(`${label} GUI Codex subagent activity must remain a read-only projection without private orchestration`);
   }
   if (
     JSON.stringify(conversation?.transcript_export) !== JSON.stringify(appOwnedTranscriptExport)

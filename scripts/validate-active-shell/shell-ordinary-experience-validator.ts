@@ -688,7 +688,7 @@ function validateSessionFirstDirectoryImplementation(shellPaths) {
       'const returnedThreadIds = new Set(directory.threads.map((thread) => thread.id))',
       'const threadId = canonicalCodexThreadId(conversation)',
       "return conversation.type !== 'acp' || conversation.extra.backend !== 'codex'",
-      '...directory.threads.map((thread) => projectCanonicalThread(thread, cachedByThreadId.get(thread.id)))',
+      '...directory.threads.map((thread) => projectCanonicalCodexThread(thread, cachedByThreadId.get(thread.id)))',
     ],
     'Active shell canonical App Server session directory projection',
   );
@@ -826,6 +826,42 @@ function validateSessionFirstDirectoryImplementation(shellPaths) {
       'moves an eligible projectless row through native drag and drop',
     ],
     'Active shell project affinity focused regressions',
+  );
+
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/common/chat/normalizeToolCall.ts',
+    [
+      'export function normalizeSubagentActivities',
+      "const ACTIVE_SUBAGENT_STATES = new Set(['pendingInit', 'running'])",
+      "const DONE_SUBAGENT_STATES = new Set(['interrupted', 'completed', 'errored', 'shutdown', 'notFound'])",
+      'const collaboration = asRecord(codex?.collaboration)',
+      'const subagent = asRecord(codex?.subagent)',
+      'byThreadId.set(threadId, mergeSubagentActivity(byThreadId.get(threadId), candidate))',
+    ],
+    'Active shell read-only Codex subagent metadata projection',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/conversation/Messages/components/MessageToolGroupSummary.tsx',
+    [
+      'normalizeSubagentActivities(messages)',
+      "subagents.filter((item) => item.status === 'active')",
+      "subagents.filter((item) => item.status === 'done')",
+      'projectCanonicalCodexThread(detail.thread, undefined, { materialized: true })',
+      "Message.error(t('messages.subagents.openFailed'))",
+    ],
+    'Active shell Codex subagent Active/Done detail and canonical task projection',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'tests/unit/renderer/messageToolGroupSummary.dom.test.tsx',
+    [
+      'groups Codex subagents as Active and Done and materializes a canonical task on open',
+      'keeps the current conversation usable when a canonical subagent task cannot be opened',
+      'reuses a migrated local projection instead of creating a duplicate canonical task',
+    ],
+    'Active shell Codex subagent read-only UI regressions',
   );
 
   assertShellTextIncludesAll(

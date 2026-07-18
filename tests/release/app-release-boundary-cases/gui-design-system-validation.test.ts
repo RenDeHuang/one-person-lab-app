@@ -565,6 +565,20 @@ test('GUI design-system validator rejects dropping failed send input restoration
   );
 });
 
+test('GUI design-system validator rejects weakened Codex subagent projection or private orchestration', () => {
+  const root = createFixture();
+  const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
+  const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+  contract.ordinary_conversation.codex_subagent_activity.display.read_only = false;
+  contract.ordinary_conversation.codex_subagent_activity.forbidden_layers = [];
+  writeJson(root, 'contracts/app-gui-product-contract.json', contract);
+
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /Codex subagent activity must stay a read-only single-adapter projection without private orchestration/,
+  );
+});
+
 test('GUI design-system validator rejects workspace-owned sessions and bound-session project reassignment', () => {
   const root = createFixture();
   const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');

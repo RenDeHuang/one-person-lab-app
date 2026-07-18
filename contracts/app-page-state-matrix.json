@@ -667,6 +667,64 @@
             "codex_and_model_prerequisites_unchanged": true
           }
         },
+        "codex_subagent_activity": {
+          "feature_id": "B0-11",
+          "product_role": "read_only_delegated_execution_projection",
+          "source": "existing_codex_acp_tool_call_metadata_and_single_codex_app_server_adapter",
+          "metadata_authority": {
+            "collaboration": "_meta.codex.collaboration",
+            "subagent": "_meta.codex.subagent"
+          },
+          "state_mapping": {
+            "active_agent_states": [
+              "pendingInit",
+              "running"
+            ],
+            "done_agent_states": [
+              "interrupted",
+              "completed",
+              "errored",
+              "shutdown",
+              "notFound"
+            ],
+            "active_tool_call_statuses": [
+              "pending",
+              "in_progress"
+            ],
+            "done_tool_call_statuses": [
+              "completed",
+              "failed"
+            ],
+            "unknown_or_malformed": "generic_tool_call_fallback",
+            "canonical_child_thread_status_not_loaded_is_not_activity_state": true
+          },
+          "display": {
+            "groups": [
+              "active",
+              "done"
+            ],
+            "read_only": true,
+            "detail_fields": [
+              "prompt",
+              "message",
+              "result",
+              "model",
+              "reasoning_effort",
+              "agent_path",
+              "thread_id"
+            ],
+            "open_thread_action": "canonical_conversation_route_after_existing_projection_or_thread_read_materialization",
+            "open_failure_policy": "non_blocking_keep_current_conversation_usable"
+          },
+          "forbidden_layers": [
+            "second_app_server_client",
+            "background_subagent_poller",
+            "aionui_team_store",
+            "shell_subagent_scheduler",
+            "shell_owned_subagent_execution_authority",
+            "bespoke_direct_subagent_control_buttons"
+          ]
+        },
         "conversation_rendering_ref": "contracts/app-gui-product-contract.json#interaction_baseline.visual_target.conversation_rendering",
         "transcript_export": {
           "scope": "current_conversation_transcript_only",
@@ -832,6 +890,7 @@
         "structured result panel inside the current task slice when a task returns structured refs",
         "single current task instance in the message timeline, inline and unpinned for ordinary tasks",
         "current task becomes sticky only after user pin or a true long_running signal",
+        "read-only Codex subagent activity grouped as Active and Done with detail, result, and open canonical task",
         "complete paginated redacted transcript export with Markdown default, strict JSON, explicit directory and filename",
         "keyboard-reachable artifact and evidence refs that open through the existing Preview surface",
         "Preview accepts only explicit session attachments, visible conversation results, or user-selected legal absolute local paths"
@@ -851,6 +910,7 @@
         "Local or Worktree launch modes, starting branch, managed worktree, handoff, snapshot, restore, cleanup, or deletion controls",
         "cross-host task handoff controls",
         "duplicate current task or Runtime summary outside the message timeline",
+        "AionUI Team, second App Server client, background polling, Team store, subagent scheduler, Shell execution authority, or direct subagent control buttons",
         "workspace bundle export authorization",
         "standalone projectless or no working directory placeholder row"
       ],

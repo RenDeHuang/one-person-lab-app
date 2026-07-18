@@ -1574,6 +1574,54 @@ export const appOwnedSendFailureInputPolicy = {
     "consume_single_attempt_storage_before_send_and_restore_to_composer_on_failure",
 };
 
+export const appOwnedCodexSubagentActivityPolicy = {
+  feature_id: "B0-11",
+  product_role: "read_only_delegated_execution_projection",
+  source:
+    "existing_codex_acp_tool_call_metadata_and_single_codex_app_server_adapter",
+  metadata_authority: {
+    collaboration: "_meta.codex.collaboration",
+    subagent: "_meta.codex.subagent",
+  },
+  state_mapping: {
+    active_agent_states: ["pendingInit", "running"],
+    done_agent_states: [
+      "interrupted",
+      "completed",
+      "errored",
+      "shutdown",
+      "notFound",
+    ],
+    active_tool_call_statuses: ["pending", "in_progress"],
+    done_tool_call_statuses: ["completed", "failed"],
+    unknown_or_malformed: "generic_tool_call_fallback",
+    canonical_child_thread_status_not_loaded_is_not_activity_state: true,
+  },
+  display: {
+    groups: ["active", "done"],
+    read_only: true,
+    detail_fields: [
+      "prompt",
+      "message",
+      "result",
+      "model",
+      "reasoning_effort",
+      "agent_path",
+      "thread_id",
+    ],
+    open_thread_action:
+      "canonical_conversation_route_after_existing_projection_or_thread_read_materialization",
+    open_failure_policy: "non_blocking_keep_current_conversation_usable",
+  },
+  forbidden_layers: [
+    "second_app_server_client",
+    "background_subagent_poller",
+    "aionui_team_store",
+    "shell_subagent_scheduler",
+    "shell_owned_subagent_execution_authority",
+    "bespoke_direct_subagent_control_buttons",
+  ],
+};
 const appOwnedOrdinaryConversation = {
   path_id: "ordinary_codex_conversation",
   entry_source:
@@ -1633,6 +1681,7 @@ const appOwnedOrdinaryConversation = {
   projectless_conversation_supported: true,
   session_workspace_model: appOwnedSessionWorkspaceModel,
   explicit_session_input_policy: appOwnedExplicitSessionInputPolicy,
+  codex_subagent_activity: appOwnedCodexSubagentActivityPolicy,
 };
 export const appOwnedTranscriptExport = {
   scope: "current_conversation_transcript_only",

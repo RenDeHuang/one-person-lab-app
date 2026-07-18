@@ -337,6 +337,7 @@ function validateOrdinaryConversationPage(matrix) {
     'Codex default model and reasoning status',
     'single current task instance in the message timeline, inline and unpinned for ordinary tasks',
     'current task becomes sticky only after user pin or a true long_running signal',
+    'read-only Codex subagent activity grouped as Active and Done with detail, result, and open canonical task',
     'complete paginated redacted transcript export with Markdown default, strict JSON, explicit directory and filename',
     'Preview accepts only explicit session attachments, visible conversation results, or user-selected legal absolute local paths',
   ], 'Ordinary conversation page visible signals');
@@ -353,6 +354,7 @@ function validateOrdinaryConversationPage(matrix) {
     'Local or Worktree launch modes, starting branch, managed worktree, handoff, snapshot, restore, cleanup, or deletion controls',
     'cross-host task handoff controls',
     'duplicate current task or Runtime summary outside the message timeline',
+    'AionUI Team, second App Server client, background polling, Team store, subagent scheduler, Shell execution authority, or direct subagent control buttons',
     'workspace bundle export authorization',
     'standalone projectless or no working directory placeholder row',
   ], 'Ordinary conversation page hidden signals');

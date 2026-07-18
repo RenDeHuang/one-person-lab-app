@@ -350,6 +350,31 @@ export type AppProductProfile = {
           codex_and_model_prerequisites_unchanged: boolean;
         };
       };
+      codex_subagent_activity: {
+        feature_id: 'B0-11';
+        product_role: string;
+        source: string;
+        metadata_authority: {
+          collaboration: string;
+          subagent: string;
+        };
+        state_mapping: {
+          active_agent_states: string[];
+          done_agent_states: string[];
+          active_tool_call_statuses: string[];
+          done_tool_call_statuses: string[];
+          unknown_or_malformed: string;
+          canonical_child_thread_status_not_loaded_is_not_activity_state: boolean;
+        };
+        display: {
+          groups: string[];
+          read_only: boolean;
+          detail_fields: string[];
+          open_thread_action: string;
+          open_failure_policy: string;
+        };
+        forbidden_layers: string[];
+      };
       transcript_export: {
         scope: string;
         history_loading_policy: string;

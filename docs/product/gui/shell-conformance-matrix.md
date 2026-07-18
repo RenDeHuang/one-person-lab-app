@@ -59,7 +59,7 @@ upstream collaboration surface；ordinary App 关闭 Team 与 Codex subagent 是
 | Codex runtime / execution | `source_implemented` | Codex CLI `0.144.3` schema/events 包含 `spawnAgent`、`collabAgentToolCall`、`subAgentActivity` 与 `parentThreadId`，manual 默认执行可产生真实 subagent。版本/schema readback 不替代 App UI evidence。 |
 | Existing App Server adapter | `source_implemented` for metadata intake | Shell adapter 接受 `subAgent`、`subAgentReview`、`subAgentCompact`、`subAgentThreadSpawn` 与 `subAgentOther` source kinds，并投影 `parentThreadId`、`agentRole`、`agentNickname`。 |
 | Canonical discovery / generic tool display | `source_implemented` | Canonical thread discovery 与基本 generic tool display 已有 source。真实 delegated-turn fixture 与 ordinary Active/Done/detail/open-thread UI 的缺口单独记在下一行，不能反向降级 discovery source。 |
-| Codex App-style activity UI | `source_partial` | Portable core 只要求 read-only Active/Done lists、completed detail/result、open subagent thread，以及既有 App Server/ACP 能支持的 controls；不要求 Shell 自造 direct-control button。下一步先捕获真实 `codex-acp` delegated-turn fixture，再只补 fixture 证明缺失的 metadata/display mapping。 |
+| Codex App-style activity UI | `source_implemented` | AionUI 从现有 ACP tool-call 的 `_meta.codex.collaboration` / `_meta.codex.subagent` 读取真实 delegated-turn metadata shape，按 canonical child thread 去重为 read-only Active/Done，展示 prompt/update/result/model/reasoning/path/thread id，并通过既有 App Server adapter 复用或按需 materialize canonical task。未知 metadata 回退 generic tool row；打开失败保留当前对话且可重试。没有第二 client、Team store、scheduler、Shell execution authority 或 bespoke direct-control button。 |
 | Pixel | `pixel_unverified` | Unit fixture、schema inspection、docs 或 source test 不能关闭像素轴。 |
 | Install | `install_unverified` | 没有绑定该 UI 的 exact installed readback。 |
 | Release | `release_unverified` | 没有绑定该功能的 release-owner cohort evidence。 |
@@ -77,9 +77,10 @@ shell-owned subagent execution path。若现有 adapter 能表达真实 fixture�
 | `B0-13` Personalization / instructions | `aligned_contract` | `source_implemented` | `pixel_unverified` | `install_unverified` | `release_unverified` | Workspace & Personalization、AGENTS/action routes 与 tests 已形成 baseline source；下一步只走独立 Pixel/Install/Release。 |
 | `B0-14` Settings shell / accessibility | `aligned_contract` | `source_implemented` | `pixel_unverified` | `install_unverified` | `release_unverified` | 既有 focused suites 覆盖 keyboard、focus、ARIA、Escape/focus restore、Settings search focus 与 reduced motion；semantic token regression 锁定 light/dark muted text `4.5:1` 和 focus indicator `3:1` 基线。真实 screen-reader、完整 rendered keyboard traversal、rendered contrast 与 installed readback 仍按后轴独立验收。 |
 
-本轮 fresh B0 slice 为 `B0-08/B0-13/B0-14 source_implemented`、`B0-12 source_partial`；B0-11
-必须分组件读取：execution、metadata intake 与 canonical discovery 是 `source_implemented`，activity
-UI 是 `source_partial`。其它 B0 未在本 snapshot 重新汇总，不能从这四项外推完整 B0 完成度。
+本轮 fresh B0 slice 为 `B0-08/B0-11/B0-13/B0-14 source_implemented`、`B0-12 source_partial`。
+B0-11 的 execution、metadata intake、canonical discovery 与 ordinary activity UI 都已有 source
+和 focused tests；Pixel、Install、Release 仍是独立未验证轴。其它 B0 未在本 snapshot 重新汇总，
+不能从该 slice 外推完整 B0 完成度。
 
 ## R1 / U1 必要功能实现矩阵
 
