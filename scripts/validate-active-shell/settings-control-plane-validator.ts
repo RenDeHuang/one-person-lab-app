@@ -27,6 +27,7 @@ import {
   appOwnedSettingsPageSearchEntryIds,
   appOwnedSettingsProductPageIds,
   appOwnedSettingsResourceActionBehavior,
+  appOwnedStorageCarrierBehavior,
   appOwnedSettingsRouteScopes,
   appOwnedSettingsSearchEntryFields,
   appOwnedSettingsSearchProtocol,
@@ -1737,6 +1738,13 @@ function validateSettingsPageStateMatrix(
         "Page-state Resources action behavior",
       );
     }
+    if (productPageId === "storage") {
+      assertDeepEqualJson(
+        page.storage_carrier_behavior,
+        contract.surface_rules.storage_carrier_behavior,
+        "Page-state Storage carrier behavior",
+      );
+    }
   }
   assertDeepEqualJson(
     pageById(pageStateMatrix, "about").updater_state_policy,
@@ -2608,6 +2616,7 @@ export function validateSettingsExperienceContract(experience) {
       webui_data_volume_mapping: "OnePersonLab/data -> /data",
       webui_cleanup_policy: "owner_projected_dry_run_exact_confirmation_fresh_terminal_readback_and_recovery",
       generic_docker_prune_allowed: false,
+      storage_carrier_behavior: appOwnedStorageCarrierBehavior,
     },
     "Settings Storage surface rules",
   );
@@ -2941,6 +2950,11 @@ function validateWorkspaceAndStorageOwnership(workspacePage, storagePage) {
       "projected_action",
     ],
     "Settings Storage owner projection fields",
+  );
+  assertDeepEqualJson(
+    storagePage?.storage_carrier_behavior,
+    appOwnedStorageCarrierBehavior,
+    "Settings Storage adapter carrier behavior",
   );
 }
 

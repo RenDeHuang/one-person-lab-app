@@ -1151,6 +1151,37 @@ function validateSkillsHubImplementation(shellPaths) {
   ], 'Active shell SkillsHubSettings App packaged policy');
 }
 
+function validateStorageCarrierImplementation(shellPaths) {
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/settings/StorageSettings/index.tsx',
+    [
+      "import { isElectronDesktop } from '@/renderer/utils/platform'",
+      'const desktopCarrier = isElectronDesktop()',
+      'const ownerInventoryRefresh = Promise.allSettled',
+      'if (!desktopCarrier)',
+      'desktopCarrier &&',
+    ],
+    'Active shell Storage carrier split',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'tests/unit/settings/StorageSettings.dom.test.tsx',
+    [
+      'keeps the WebUI Storage core route fail-open without invoking desktop local lifecycle',
+      'expect(bridgeMocks.getInventorySnapshot).not.toHaveBeenCalled()',
+      'expect(bridgeMocks.refreshInventory).not.toHaveBeenCalled()',
+    ],
+    'Active shell WebUI Storage carrier regression',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/web-host/src/static-server.unit.test.ts',
+    ["'/settings/storage'", 'SPA fallback: %s returns index.html'],
+    'Active shell Web host Storage core-route regression',
+  );
+}
+
 export function validateShellOrdinaryExperienceImplementation(shellPaths) {
   const guidPage = validateGuidHomeImplementation(shellPaths);
   validateGuidAgentSelection(shellPaths);
@@ -1161,4 +1192,5 @@ export function validateShellOrdinaryExperienceImplementation(shellPaths) {
   validateReadOnlySessionEnvironmentImplementation(shellPaths);
   validateRuntimePageImplementation(shellPaths);
   validateSkillsHubImplementation(shellPaths);
+  validateStorageCarrierImplementation(shellPaths);
 }

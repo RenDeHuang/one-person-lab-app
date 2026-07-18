@@ -920,6 +920,33 @@ export const appOwnedSettingsTopLevelLabels = {
   storage: { label_zh: "数据与存储", label_en: "Data & Storage" },
   preferences: { label_zh: "偏好", label_en: "Preferences" },
 };
+export const appOwnedStorageCarrierBehavior = {
+  desktop: {
+    core_route: "/settings/storage",
+    local_lifecycle_transport: "electron_ipc",
+    local_sections: [
+      "updater_cache",
+      "user_data_artifacts",
+      "runtime_substrate",
+      "logs",
+    ],
+    owner_projection_policy: "merge_valid_sections_non_blocking",
+  },
+  webui: {
+    core_route: "/settings/storage",
+    local_lifecycle_transport: "not_available_and_must_not_be_invoked",
+    local_sections: [],
+    visible_section_source: "valid_owner_projections_only",
+    missing_projection_policy:
+      "fail_open_keep_route_available_and_omit_missing_sections",
+    manual_refresh:
+      "owner_inventory_actions_all_settled_then_force_fresh_fast_app_state",
+    unknown_bytes_policy: "unavailable_never_zero",
+    host_action_required_policy: "status_only_without_destructive_cta",
+    shell_or_docker_action_inference_allowed: false,
+    raw_host_paths_visible: false,
+  },
+};
 export const appOwnedSettingsProductPageIds = [
   ...appOwnedSettingsTopLevelEntryIds,
   ...appOwnedSecondarySettingsPages,

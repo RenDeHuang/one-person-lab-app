@@ -3,6 +3,7 @@ import { validateReleaseFullFirstInstallPayloads } from './release-full-first-in
 import { validateReleaseHomebrewDistribution } from './release-homebrew-distribution-validator.ts';
 import { managedUpdateCarrierAdapters, managedUpdateSoftwareObjectIds } from './managed-update-plane-policy.ts';
 import { assertShellTextIncludesAll } from './shell-implementation-helpers.ts';
+import { appOwnedStorageCarrierBehavior } from './app-contract-constants.ts';
 
 export function validateReleaseChannelContract(releaseChannel, shellPaths = null) {
   const managedUpdatePlane = releaseChannel.managed_update_plane;
@@ -377,6 +378,11 @@ function validateLocalDataLifecycle(lifecycle, shellPaths) {
   ) {
     throw new Error('Local data lifecycle must retain user artifacts and bind runtime/log cleanup to explicit policy surfaces');
   }
+  assertDeepEqualJson(
+    lifecycle.storage_carrier_behavior,
+    appOwnedStorageCarrierBehavior,
+    'Local data lifecycle Storage carrier behavior',
+  );
   assertDeepEqualJson(
     lifecycle.user_data_artifacts?.archive_receipt_required_fields,
     ['conversation_id', 'source_paths', 'archive_path', 'archive_sha256', 'manifest_path', 'restore_probe_path', 'created_at'],

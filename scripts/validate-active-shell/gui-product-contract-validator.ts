@@ -6,6 +6,7 @@ import {
   appOwnedSettingsCapabilitiesTabContract,
   appOwnedSettingsManagedDependencySummary,
   appOwnedSettingsResourceActionBehavior,
+  appOwnedStorageCarrierBehavior,
   appOwnedTaskAwarenessRefFields,
   firstRunModelAccessSetupPolicy,
   focusedFirstRunPresentationPolicy,
@@ -1823,6 +1824,11 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   ) {
     throw new Error('Settings Storage owner projections must remain fail-open and owner-routed without direct Shell cleanup');
   }
+  assertDeepEqualJson(
+    pages.settings_storage.storage_carrier_behavior,
+    appOwnedStorageCarrierBehavior,
+    'Settings Storage carrier behavior',
+  );
   validateReadOnlyStorageLifecycleSurface(
     pages.settings_storage.read_only_lifecycle_surface,
     'Settings Storage read-only lifecycle surface',

@@ -2,6 +2,7 @@ import { appRoot, assert, fs, path, test } from "./helpers.ts";
 import { validateAppGuiProductContract } from "../../../scripts/validate-active-shell/gui-product-contract-validator.ts";
 import { validatePageStateMatrix } from "../../../scripts/validate-active-shell/page-state-matrix-validator.ts";
 import { validateSettingsControlPlane } from "../../../scripts/validate-active-shell/settings-control-plane-validator.ts";
+import { appOwnedStorageCarrierBehavior } from "../../../scripts/validate-active-shell/app-contract-constants.ts";
 
 function readJson(relativePath: string) {
   return JSON.parse(fs.readFileSync(path.join(appRoot, relativePath), "utf8"));
@@ -1649,6 +1650,16 @@ test("Settings binds flat visual repair and complete Temporal maintenance to all
   assert.equal(ownerStorage.agent_package_store.direct_storage_mutation_allowed, false);
   assert.equal(ownerStorage.webui_data_volume.generic_docker_prune_allowed, false);
   assert.equal(ownerStorage.webui_data_volume.shell_direct_path_delete_allowed, false);
+  assert.deepStrictEqual(guiPages.settings_storage.storage_carrier_behavior, appOwnedStorageCarrierBehavior);
+  assert.deepStrictEqual(pageById("storage").storage_carrier_behavior, appOwnedStorageCarrierBehavior);
+  assert.deepStrictEqual(
+    experiencePages.storage.surface_rules.storage_carrier_behavior,
+    appOwnedStorageCarrierBehavior,
+  );
+  assert.deepStrictEqual(
+    values.controlPlane.page_adapter_policy.required_pages.storage.storage_carrier_behavior,
+    appOwnedStorageCarrierBehavior,
+  );
   assert.equal(
     values.controlPlane.product_system_checklist.items.some((entry) => entry.id === 'docker_storage_projection'),
     false,
@@ -1657,6 +1668,26 @@ test("Settings binds flat visual repair and complete Temporal maintenance to all
     values.controlPlane.product_system_checklist.items.some((entry) => entry.id === 'owner_storage_projection'),
     true,
   );
+
+  const webuiLocalBridge = contracts();
+  webuiLocalBridge.controlPlane.experience_contract.page_contracts.storage.surface_rules
+    .storage_carrier_behavior.webui.local_lifecycle_transport = "electron_ipc";
+  assert.throws(() => validate(webuiLocalBridge), /Storage surface rules/);
+
+  const pageStateLocalBridge = contracts();
+  pageStateLocalBridge.pageStateMatrix.pages.find((page) => page.id === "storage")
+    .storage_carrier_behavior.webui.local_lifecycle_transport = "electron_ipc";
+  assert.throws(() => validate(pageStateLocalBridge), /Page-state Storage carrier behavior/);
+
+  const adapterLocalBridge = contracts();
+  adapterLocalBridge.controlPlane.page_adapter_policy.required_pages.storage
+    .storage_carrier_behavior.webui.local_lifecycle_transport = "electron_ipc";
+  assert.throws(() => validate(adapterLocalBridge), /adapter carrier behavior/);
+
+  const guiLocalBridge = contracts();
+  guiLocalBridge.guiContract.pages.settings_storage.storage_carrier_behavior.webui.local_lifecycle_transport =
+    "electron_ipc";
+  assert.throws(() => validateGui(guiLocalBridge.guiContract), /Storage carrier behavior/);
 
   const componentAudit = values.controlPlane.visual_qa_policy.component_audit;
   assert.deepStrictEqual(componentAudit.required_color_schemes, ["light", "dark"]);
