@@ -161,27 +161,31 @@ export const workItemProjectionFieldContracts = {
 };
 
 export const domainDetailViewAvailabilityValues = [
+  "unread",
   "available",
   "missing",
   "stale",
-  "unsupported",
-  "oversize",
+  "invalid",
+  "read_error",
+];
+
+export const domainDetailViewReadAvailabilityValues = [
+  "available",
+  "missing",
+  "stale",
+  "invalid",
+  "read_error",
 ];
 
 export const domainDetailViewDescriptorFields = [
+  "item_id",
   "view_id",
   "view_kind",
   "schema_version",
   "availability",
-  "current_focus",
-  "latest_outcome",
-  "active_branch",
-  "updated_at",
-  "revision",
-  "generation",
-  "ref",
-  "digest",
 ];
+
+export const domainDetailViewDescriptorOptionalFields = ["revision", "digest"];
 
 export const scientificReasoningSummaryFields = [
   "primary_hypothesis",
@@ -196,12 +200,7 @@ export const scientificReasoningCompatibleSchemaVersions = [
   "scientific-reasoning-map.v2",
 ];
 
-export const scientificReasoningV2RouteMembershipFields = [
-  "current_focus_node_refs",
-  "active_branch_node_refs",
-];
-
-const scientificReasoningV1RequiredFields = [
+const scientificReasoningV1SnapshotFields = [
   "study_id",
   "status",
   "summary",
@@ -213,43 +212,28 @@ const scientificReasoningV1RequiredFields = [
   "conditions",
 ];
 
-export const scientificReasoningRequiredFieldsBySchema = {
-  "scientific-reasoning-map.v1": scientificReasoningV1RequiredFields,
-  "scientific-reasoning-map.v2": [
-    "study_id",
-    "status",
-    "summary",
-    "current_focus",
-    "active_branch",
-    ...scientificReasoningV2RouteMembershipFields,
-    "nodes",
-    "edges",
-    "source_refs",
-    "working_checkpoints",
-    "conditions",
-  ],
-};
-
-const scientificReasoningV1AcceptedTrajectoryFields = [
+export const scientificReasoningV2SnapshotFields = [
+  "surface_kind",
+  "version",
+  "study_id",
+  "study_ref",
+  "revision",
+  "status",
   "summary",
   "current_focus",
   "active_branch",
+  "current_focus_node_refs",
+  "active_branch_node_refs",
   "nodes",
   "edges",
+  "medical_narrative",
   "source_refs",
+  "conditions",
 ];
 
-export const scientificReasoningAcceptedTrajectoryFieldsBySchema = {
-  "scientific-reasoning-map.v1": scientificReasoningV1AcceptedTrajectoryFields,
-  "scientific-reasoning-map.v2": [
-    "summary",
-    "current_focus",
-    "active_branch",
-    ...scientificReasoningV2RouteMembershipFields,
-    "nodes",
-    "edges",
-    "source_refs",
-  ],
+export const scientificReasoningSnapshotFieldsBySchema = {
+  "scientific-reasoning-map.v1": scientificReasoningV1SnapshotFields,
+  "scientific-reasoning-map.v2": scientificReasoningV2SnapshotFields,
 };
 
 export const scientificReasoningMedicalProsePolicy = {
@@ -271,18 +255,6 @@ export const scientificReasoningCurrentBranchMembershipBySchema = {
   "scientific-reasoning-map.v2": "active_branch_node_refs_exact",
 };
 
-export const scientificReasoningWorkingCheckpointFields = [
-  "checkpoint_id",
-  "status",
-  "occurred_at",
-  "title",
-  "summary",
-  "medical_narrative",
-  "source_refs",
-];
-
-export const scientificReasoningWorkingCheckpointStatuses = ["pending", "rejected"];
-
 export const scientificReasoningNodeKinds = [
   "hypothesis",
   "test",
@@ -291,6 +263,27 @@ export const scientificReasoningNodeKinds = [
   "route",
   "artifact",
   "human_gate",
+];
+
+export const scientificReasoningNodeStatuses = [
+  "proposed",
+  "planned",
+  "active",
+  "completed",
+  "execution_failed",
+  "not_assessed",
+  "supported",
+  "does_not_support",
+  "inconclusive",
+  "design_invalid",
+  "refined",
+  "superseded",
+  "continued",
+  "narrowed",
+  "pivoted",
+  "stopped",
+  "human_review_required",
+  "produced",
 ];
 
 export const scientificReasoningEdgeKinds = [

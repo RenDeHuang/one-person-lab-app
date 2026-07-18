@@ -6,7 +6,7 @@ import {
   scientificReasoningCurrentBranchMembershipBySchema,
   scientificReasoningMedicalProsePolicy,
   scientificReasoningSummaryFields,
-  scientificReasoningV2RouteMembershipFields,
+  scientificReasoningV2SnapshotFields,
   systemAttentionResponsibilityFields,
   workItemDetailPrimarySections,
   runtimeWorkItemDetailSecondarySections,
@@ -507,41 +507,18 @@ export function validateRuntimeCockpitProductContract(contract, label) {
     `${label}.domain_detail_views.medical_prose_policy`,
   );
   assertExpectedFields(
-    domainViews?.trajectory_layers?.accepted_trajectory,
+    domainViews?.trajectory_snapshot,
     {
-      authority: 'receipt_bound_domain_owner_acceptance',
-      working_checkpoint_content_allowed: false,
+      authority: 'mas_authored_lightweight_runtime_reference',
+      update_unit: 'single_domain_authored_snapshot',
+      app_role: 'read_validate_layout_and_display_only',
     },
-    `${label}.domain_detail_views.trajectory_layers.accepted_trajectory`,
+    `${label}.domain_detail_views.trajectory_snapshot`,
   );
   assertDeepEqualJson(
-    domainViews?.trajectory_layers?.accepted_trajectory?.source_fields,
-    ['nodes', 'edges', 'summary', 'current_focus', 'active_branch', ...scientificReasoningV2RouteMembershipFields],
-    `${label}.domain_detail_views.trajectory_layers.accepted_trajectory.source_fields`,
-  );
-  assertExpectedFields(
-    domainViews?.trajectory_layers?.working_checkpoints,
-    {
-      presentation: 'separate_review_state_not_formal_research_conclusion',
-      rejected_status_semantics: 'checkpoint_not_included_never_scientific_hypothesis_refutation',
-      may_change_accepted_summary: false,
-      may_change_accepted_graph: false,
-      empty_allowed: true,
-    },
-    `${label}.domain_detail_views.trajectory_layers.working_checkpoints`,
-  );
-  assertDeepEqualJson(
-    domainViews?.trajectory_layers?.working_checkpoints?.status_values,
-    ['pending', 'rejected'],
-    `${label}.domain_detail_views.trajectory_layers.working_checkpoints.status_values`,
-  );
-  assertExpectedFields(
-    domainViews?.trajectory_layers?.working_checkpoints?.status_presentation,
-    {
-      pending: 'awaiting_confirmation_not_formal_conclusion',
-      rejected: 'not_included_in_formal_conclusion_never_scientific_refutation',
-    },
-    `${label}.domain_detail_views.trajectory_layers.working_checkpoints.status_presentation`,
+    domainViews?.trajectory_snapshot?.source_fields,
+    scientificReasoningV2SnapshotFields,
+    `${label}.domain_detail_views.trajectory_snapshot.source_fields`,
   );
   assertDeepEqualJson(
     domainViews?.availability_states,
@@ -556,23 +533,6 @@ export function validateRuntimeCockpitProductContract(contract, label) {
   if (domainViews?.drawer_presentation?.machine_fields_visible !== false) {
     throw new Error(`${label}.domain_detail_views drawer must hide machine fields`);
   }
-  if (
-    typeof domainViews?.full_canvas?.working_checkpoints_notice_copy?.['zh-CN'] !== 'string'
-    || !domainViews.full_canvas.working_checkpoints_notice_copy['zh-CN'].includes('尚未纳入正式科研结论')
-    || domainViews.full_canvas.working_checkpoints_notice_copy['zh-CN'].includes('仍在审核中')
-  ) {
-    throw new Error(`${label}.domain_detail_views must label working checkpoints as unaccepted research`);
-  }
-  assertExpectedFields(
-    domainViews?.full_canvas?.working_checkpoint_status_copy?.pending,
-    { 'zh-CN': '待确认', 'en-US': 'Awaiting confirmation' },
-    `${label}.domain_detail_views.full_canvas.working_checkpoint_status_copy.pending`,
-  );
-  assertExpectedFields(
-    domainViews?.full_canvas?.working_checkpoint_status_copy?.rejected,
-    { 'zh-CN': '未纳入正式科研结论', 'en-US': 'Not included in accepted conclusions' },
-    `${label}.domain_detail_views.full_canvas.working_checkpoint_status_copy.rejected`,
-  );
   assertExpectedFields(
     domainViews?.full_canvas,
     {
@@ -583,7 +543,6 @@ export function validateRuntimeCockpitProductContract(contract, label) {
       sources_and_basis_surface: 'collapsed_sources_and_basis',
       machine_source_refs_visible: false,
       v2_current_branch_membership_inference_allowed: false,
-      working_checkpoints_may_precede_accepted_map: false,
     },
     `${label}.domain_detail_views.full_canvas`,
   );
@@ -594,9 +553,15 @@ export function validateRuntimeCockpitProductContract(contract, label) {
   );
   assertDeepEqualJson(
     domainViews?.full_canvas?.content_order,
-    ['accepted_trajectory_map', 'working_checkpoints'],
+    ['trajectory_map'],
     `${label}.domain_detail_views.full_canvas.content_order`,
   );
+  if (
+    domainViews?.availability_is_transport_state_only !== true
+    || domainViews?.transport_state_may_be_interpreted_as_scientific_outcome !== false
+  ) {
+    throw new Error(`${label}.domain_detail_views availability must remain transport-only`);
+  }
   assertDeepEqualJson(
     domainViews?.full_canvas?.responsive_viewport_widths_px,
     responsiveViewportWidths,

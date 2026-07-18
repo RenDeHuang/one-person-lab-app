@@ -14,17 +14,17 @@ import {
   actionOwnerKinds,
   domainDetailViewAvailabilityValues,
   domainDetailViewDescriptorFields,
+  domainDetailViewDescriptorOptionalFields,
+  domainDetailViewReadAvailabilityValues,
   scientificReasoningEdgeKinds,
-  scientificReasoningAcceptedTrajectoryFieldsBySchema,
   scientificReasoningCompatibleSchemaVersions,
   scientificReasoningCurrentBranchMembershipBySchema,
   scientificReasoningMedicalProsePolicy,
   scientificReasoningNodeKinds,
-  scientificReasoningRequiredFieldsBySchema,
+  scientificReasoningNodeStatuses,
+  scientificReasoningSnapshotFieldsBySchema,
   scientificReasoningSummaryFields,
-  scientificReasoningV2RouteMembershipFields,
-  scientificReasoningWorkingCheckpointFields,
-  scientificReasoningWorkingCheckpointStatuses,
+  scientificReasoningV2SnapshotFields,
   systemAttentionResponsibilityFields,
   taskRunProjectionV2FieldGroups,
   taskRunProjectionV2RequiredFields,
@@ -529,14 +529,19 @@ export function validateWorkItemProjectionContract(projection, label) {
     `${label} domain detail availability values`,
   );
   assertDeepEqualJson(
+    domainDetailViews?.optional_fields,
+    domainDetailViewDescriptorOptionalFields,
+    `${label} domain detail optional descriptor fields`,
+  );
+  assertDeepEqualJson(
     domainDetailViews?.machine_only_fields,
-    ["ref", "digest", "revision", "generation"],
+    ["revision", "digest"],
     `${label} domain detail machine-only fields`,
   );
   for (const [field, expected] of Object.entries({
     optional: true,
     collection_kind: "typed_agent_owned_item_detail_descriptors",
-    fast_profile_role: "bounded_medical_summary_and_lazy_read_descriptor_only",
+    fast_profile_role: "declaration_derived_locator_and_transport_state_only",
     full_payload_in_fast_state_allowed: false,
     app_agent_id_branching_allowed: false,
     renderer_selection_field: "view_kind",
@@ -547,16 +552,14 @@ export function validateWorkItemProjectionContract(projection, label) {
     }
   }
   const scientificDescriptor = domainDetailViews?.registered_view_kinds?.scientific_reasoning_map;
-  if (
-    scientificDescriptor?.schema_version !== "scientific-reasoning-map.v2" ||
-    scientificDescriptor?.view_id !== "scientific-reasoning"
-  ) {
-    throw new Error(`${label} must register the scientific reasoning view kind and stable view id`);
-  }
   assertDeepEqualJson(
-    scientificDescriptor?.compatible_schema_versions,
-    scientificReasoningCompatibleSchemaVersions,
-    `${label} scientific reasoning compatible schemas`,
+    scientificDescriptor,
+    {
+      schema_version: "scientific-reasoning-map.v2",
+      compatible_schema_versions: scientificReasoningCompatibleSchemaVersions,
+      view_id: "scientific-reasoning",
+    },
+    `${label} scientific reasoning descriptor`,
   );
   assertDeepEqualJson(
     projection.row_identity_contract,
@@ -757,7 +760,7 @@ export function validateWorkItemProjectionContract(projection, label) {
   const detailRead = projection.domain_detail_view_read_contract;
   assertDeepEqualJson(
     detailRead?.availability_values,
-    domainDetailViewAvailabilityValues,
+    domainDetailViewReadAvailabilityValues,
     `${label} domain detail read availability values`,
   );
   assertDeepEqualJson(
@@ -769,11 +772,7 @@ export function validateWorkItemProjectionContract(projection, label) {
       "view_id",
       "view_kind",
       "availability",
-      "updated_at",
       "revision",
-      "generation",
-      "ref",
-      "digest",
       "not_modified",
       "payload_schema",
       "payload",
@@ -781,11 +780,19 @@ export function validateWorkItemProjectionContract(projection, label) {
     ],
     `${label} domain detail response fields`,
   );
+  assertDeepEqualJson(
+    detailRead?.response_optional_fields,
+    ["digest", "generation"],
+    `${label} domain detail optional response fields`,
+  );
   for (const [field, expected] of Object.entries({
     surface_kind: "opl_domain_detail_view",
     schema_version: "opl_domain_detail_view.v1",
-    command: "opl app view read --item-id <canonical-item-id> --view-id <view-id> [--if-generation <generation>] --json",
-    optional_generation_argument: "--if-generation <generation>",
+    descriptor_path: "items[].domain_detail_views[]",
+    command: "opl app view read --item-id <canonical-item-id> --view-id <view-id> [--if-revision <revision>] --json",
+    scientific_reasoning_command: "opl app view read --item-id <canonical-item-id> --view-id scientific-reasoning [--if-revision <revision>] --json",
+    optional_revision_argument: "--if-revision <revision>",
+    compatibility_generation_policy: "deprecated_optional_alias_must_equal_revision",
     resolver_owner: "opl_framework_standard_agent_descriptor",
     app_may_submit_ref_or_path: false,
     arbitrary_path_read_allowed: false,
@@ -793,13 +800,22 @@ export function validateWorkItemProjectionContract(projection, label) {
     symlink_escape_allowed: false,
     schema_validation_required: true,
     size_limit_fail_closed: true,
+    digest_validation_required_when_present: true,
+    availability_is_transport_state_only: true,
+    transport_state_may_be_interpreted_as_scientific_outcome: false,
     owner_projection_body_kind: "typed_domain_read_model_not_artifact_body",
+    app_role: "typed_display_consumer",
     shell_renderer_registry: "view_kind_keyed_no_agent_id_branching",
   })) {
     if (detailRead?.[field] !== expected) {
       throw new Error(`${label} domain detail read ${field} must be ${expected}`);
     }
   }
+  assertDeepEqualJson(
+    detailRead?.selection_fields,
+    ["item_id", "view_id"],
+    `${label} domain detail read selection fields`,
+  );
   if (detailRead?.unchanged_response?.not_modified !== true || detailRead?.unchanged_response?.payload !== null) {
     throw new Error(`${label} domain detail read must preserve the prior view on not_modified`);
   }
@@ -813,24 +829,29 @@ export function validateWorkItemProjectionContract(projection, label) {
     `${label} scientific reasoning compatible payload schemas`,
   );
   assertDeepEqualJson(
-    reasoningPayload?.required_fields,
-    scientificReasoningRequiredFieldsBySchema["scientific-reasoning-map.v2"],
-    `${label} scientific reasoning v2 required fields`,
+    reasoningPayload?.snapshot_fields,
+    scientificReasoningV2SnapshotFields,
+    `${label} scientific reasoning v2 snapshot fields`,
   );
   assertDeepEqualJson(
-    reasoningPayload?.required_fields_by_schema,
-    scientificReasoningRequiredFieldsBySchema,
-    `${label} scientific reasoning required fields by schema`,
+    reasoningPayload?.snapshot_fields_by_schema,
+    scientificReasoningSnapshotFieldsBySchema,
+    `${label} scientific reasoning snapshot fields by schema`,
   );
   assertDeepEqualJson(
-    reasoningPayload?.accepted_trajectory_fields,
-    scientificReasoningAcceptedTrajectoryFieldsBySchema["scientific-reasoning-map.v2"],
-    `${label} scientific reasoning v2 accepted trajectory fields`,
+    reasoningPayload?.v2_machine_only_fields,
+    ["surface_kind", "version", "study_id", "study_ref", "revision", "source_refs", "conditions"],
+    `${label} scientific reasoning v2 machine-only fields`,
   );
   assertDeepEqualJson(
-    reasoningPayload?.accepted_trajectory_fields_by_schema,
-    scientificReasoningAcceptedTrajectoryFieldsBySchema,
-    `${label} scientific reasoning accepted trajectory fields by schema`,
+    reasoningPayload?.v2_identity_binding,
+    {
+      study_id_source: "selected_work_item.identity.work_item_id",
+      study_ref_kind: "mas_study",
+      study_ref_template: "mas-study:<study_id>",
+      app_validation_role: "shape_and_item_binding_only_no_domain_judgment",
+    },
+    `${label} scientific reasoning v2 identity binding`,
   );
   assertDeepEqualJson(
     reasoningPayload?.medical_prose_policy,
@@ -848,29 +869,14 @@ export function validateWorkItemProjectionContract(projection, label) {
     `${label} scientific reasoning node kinds`,
   );
   assertDeepEqualJson(
+    reasoningPayload?.node_status_values,
+    scientificReasoningNodeStatuses,
+    `${label} scientific reasoning node statuses`,
+  );
+  assertDeepEqualJson(
     reasoningPayload?.edge_kinds,
     scientificReasoningEdgeKinds,
     `${label} scientific reasoning edge kinds`,
-  );
-  assertDeepEqualJson(
-    reasoningPayload?.working_checkpoint_required_fields,
-    scientificReasoningWorkingCheckpointFields,
-    `${label} scientific reasoning working checkpoint fields`,
-  );
-  assertDeepEqualJson(
-    reasoningPayload?.working_checkpoint_status_values,
-    scientificReasoningWorkingCheckpointStatuses,
-    `${label} scientific reasoning working checkpoint statuses`,
-  );
-  assertDeepEqualJson(
-    reasoningPayload?.working_checkpoint_machine_only_fields,
-    ["checkpoint_id", "source_refs"],
-    `${label} scientific reasoning working checkpoint machine-only fields`,
-  );
-  assertDeepEqualJson(
-    reasoningPayload?.v2_accepted_route_membership_fields,
-    scientificReasoningV2RouteMembershipFields,
-    `${label} scientific reasoning v2 route membership fields`,
   );
   assertDeepEqualJson(
     reasoningPayload?.current_branch_membership_source_by_schema,
@@ -878,17 +884,27 @@ export function validateWorkItemProjectionContract(projection, label) {
     `${label} scientific reasoning current branch membership source`,
   );
   if (
-    reasoningPayload?.accepted_trajectory_authority !== "receipt_bound_domain_owner_acceptance_only" ||
-    reasoningPayload?.working_checkpoint_content_in_accepted_fields_allowed !== false ||
-    reasoningPayload?.working_checkpoint_presentation !== "separate_review_state_not_formal_research_conclusion" ||
-    reasoningPayload?.working_checkpoint_sources_and_basis_source !== "medical_narrative.sources_and_basis" ||
+    reasoningPayload?.v1_compatibility_mode !== "read_only_no_write_upgrade_or_domain_inference" ||
+    reasoningPayload?.v2_surface_kind !== "mas_research_trajectory_snapshot" ||
+    reasoningPayload?.v2_version !== "mas-research-trajectory-snapshot.v2" ||
+    reasoningPayload?.v2_additional_properties_allowed !== false ||
+    reasoningPayload?.snapshot_authority !== "mas_authored_lightweight_runtime_reference" ||
+    reasoningPayload?.snapshot_update_model !== "single_mas_authored_snapshot" ||
+    reasoningPayload?.app_validation_proves_medical_copy_quality_or_scientific_validity !== false ||
+    reasoningPayload?.node_status_display_policy !== "domain_authored_layout_cue_only_medical_explanation_from_exact_prose" ||
+    reasoningPayload?.execution_failed_and_not_assessed_remain_distinct !== true ||
     reasoningPayload?.sources_and_basis_source !== "medical_narrative.sources_and_basis" ||
     reasoningPayload?.sources_and_basis_default_surface !== "collapsed_sources_and_basis" ||
     reasoningPayload?.machine_source_refs_default_visible !== false ||
     reasoningPayload?.v2_current_branch_membership_inference_allowed !== false
   ) {
-    throw new Error(`${label} scientific reasoning must keep working checkpoints and machine refs outside accepted conclusions`);
+    throw new Error(`${label} scientific reasoning must remain a lightweight MAS-authored snapshot and display-only App view`);
   }
+  assertDeepEqualJson(
+    reasoningPayload?.app_validation_scope,
+    ["schema_shape", "node_edge_drawability", "machine_field_visibility"],
+    `${label} scientific reasoning App validation scope`,
+  );
   if (reasoningPayload?.edge_kinds?.includes("refutes")) {
     throw new Error(`${label} scientific reasoning must not overstate a result as refutation`);
   }

@@ -103,10 +103,10 @@ turn runtime refs into domain quality, export, readiness, App release or family
 production claims.
 
 Domain-owned work-item detail views use the same authority split. Fast App state
-may carry only bounded `domain_detail_views[]` descriptors and user-facing
-summaries. A selected item may then read one typed view through
-`opl app view read --item-id ... --view-id ... [--if-generation ...] --json`.
-The Framework resolves only descriptor-declared refs inside the owning workspace;
+may carry only bounded `domain_detail_views[]` locators and transport state. A
+selected item may then read one typed view through
+`opl app view read --item-id ... --view-id ... [--if-revision ...] --json`.
+The Framework resolves only declaration-derived locators inside the owning workspace;
 the App and Shell never submit paths, scan Markdown or Codex sessions, or infer a
 domain verdict. Renderers are selected by `view_kind`, not by a first-party agent
 id. `scientific_reasoning_map` is the first registered view kind, but it does not
@@ -180,20 +180,22 @@ adjustment, next research step, and a collapsed Sources and rationale section.
 Machine fields such as generation, digest, ref, payload, provider, or attempt are
 never user-facing.
 
-The scientific reasoning payload keeps accepted and interim research states
-separate. Receipt-bound nodes, edges, and summary fields form the accepted
-trajectory. Interim records appear in a distinct section: pending records are
-awaiting confirmation, while rejected records are identified as not included in
-the formal conclusions. Neither state can alter the accepted graph or be
-presented as a formal research conclusion. Medical prose is passed through from
-the domain-owner projection field for field; the App and Shell do not generate,
-translate, summarize, or rewrite it. Localization applies only to App-owned
-chrome.
+The scientific reasoning payload is one lightweight, MAS-authored runtime
+reference. MAS updates its summary, focus, route, nodes, edges, medical narrative,
+sources, and conditions together when the research direction meaningfully
+changes. The App does not introduce a second quality-gate or interim-record
+control layer around this progress view.
+Medical prose is passed through from the domain-owner projection field for field;
+the App and Shell do not generate, translate, summarize, rewrite, or review it.
+Localization applies only to App-owned chrome. Contract tests prove transport,
+schema, drawability, privacy, and layout boundaries; they do not prove medical
+writing quality, scientific validity, or strength of evidence.
 For `scientific-reasoning-map.v2`, the current-route mode uses the domain-owned
 `active_branch_node_refs` set exactly; only the v1 compatibility reader may fall
 back to node branch labels. The App and Shell do not infer v2 route membership.
-The accepted map remains the primary content and precedes the separate working
-checkpoint section so pending or rejected records cannot visually displace it.
+The complete map is the only trajectory content layer. Transport states such as
+unread, available, missing, stale, invalid, and read error must never be rendered
+as scientific findings or evidence judgments.
 
 Claude Science-style task awareness lands first in conversation current-task
 context and the right inspector rather than as a new dashboard. The optional

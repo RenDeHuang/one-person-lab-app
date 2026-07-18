@@ -1138,20 +1138,14 @@
         "domain_detail_view": {
           "descriptor_path": "app_state.operator.workbench.work_item_projection_v2.items[].domain_detail_views[]",
           "descriptor_required_fields": [
+            "item_id",
             "view_id",
             "view_kind",
             "schema_version",
-            "availability",
-            "current_focus",
-            "latest_outcome",
-            "active_branch",
-            "updated_at",
-            "revision",
-            "generation",
-            "ref",
-            "digest"
+            "availability"
           ],
-          "lazy_read_command": "opl app view read --item-id <canonical-item-id> --view-id <view-id> [--if-generation <generation>] --json",
+          "descriptor_optional_fields": ["revision", "digest"],
+          "lazy_read_command": "opl app view read --item-id <canonical-item-id> --view-id <view-id> [--if-revision <revision>] --json",
           "selection_fields": ["item_id", "view_id"],
           "renderer_selection_field": "view_kind",
           "agent_id_branching_allowed": false,
@@ -1171,8 +1165,7 @@
             "route": "/runtime/item/:itemId/insights/:viewId",
             "layout": "full_width_graph_with_right_node_inspector",
             "modes": ["map", "current_branch"],
-            "content_order": ["accepted_trajectory_map", "working_checkpoints"],
-            "working_checkpoints_may_precede_accepted_map": false,
+            "content_order": ["trajectory_map"],
             "current_branch_membership_source_by_schema": {
               "scientific-reasoning-map.v1": "node.branch_id_compatibility_fallback",
               "scientific-reasoning-map.v2": "active_branch_node_refs_exact"
@@ -1181,17 +1174,23 @@
             "sources_and_basis_source": "medical_narrative.sources_and_basis",
             "sources_and_basis_surface": "collapsed_sources_and_basis",
             "machine_source_refs_visible": false,
-            "accepted_trajectory_source": "receipt_bound_nodes_edges_and_summary",
-            "working_checkpoints_source": "separate_working_checkpoints_field",
-            "working_checkpoints_presentation": "localized_status_specific_pending_or_rejected_not_formal_conclusion",
-            "working_checkpoint_status_values": ["pending", "rejected"],
-            "rejected_checkpoint_may_imply_scientific_refutation": false,
-            "working_checkpoints_may_change_accepted_graph": false
+            "snapshot_source": "mas_authored_lightweight_runtime_reference",
+            "snapshot_update_unit": "single_domain_authored_snapshot",
+            "app_validation_scope": ["schema_shape", "node_edge_drawability", "machine_field_visibility", "responsive_layout"],
+            "app_validation_proves_medical_copy_quality_or_scientific_validity": false
           },
           "states": [
             {
               "id": "loading",
               "required_ui": "localized_research_trajectory_loading_preserve_page_frame"
+            },
+            {
+              "id": "unread",
+              "required_ui": "localized_research_trajectory_available_for_lazy_read"
+            },
+            {
+              "id": "available",
+              "required_ui": "render_domain_authored_snapshot_without_scientific_relabeling"
             },
             {
               "id": "missing",
@@ -1202,12 +1201,12 @@
               "required_ui": "localized_previous_research_trajectory_with_refresh_age"
             },
             {
-              "id": "unsupported",
-              "required_ui": "localized_view_version_not_supported_no_payload_guessing"
+              "id": "invalid",
+              "required_ui": "localized_invalid_research_trajectory_no_payload_guessing"
             },
             {
-              "id": "oversize",
-              "required_ui": "localized_research_trajectory_too_large_no_partial_truth"
+              "id": "read_error",
+              "required_ui": "localized_research_trajectory_read_error_preserve_last_valid_view"
             },
             {
               "id": "not_modified",

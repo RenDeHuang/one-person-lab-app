@@ -2,11 +2,14 @@ import { assertDeepEqualJson, assertIncludesAll, readJson } from './assertions.t
 import { isDefaultReleaseAdapter } from './active-shell-contract.ts';
 import {
   beginnerFirstRunTestIds,
+  domainDetailViewDescriptorFields,
+  domainDetailViewDescriptorOptionalFields,
   firstRunModelAccessSetupPolicy,
   focusedFirstRunPresentationPolicy,
   progressiveFirstRunRecoveryPolicy,
   progressiveFirstRunRecoveryTestIds,
   runtimeVisibilityPageStateIds,
+  scientificReasoningV2SnapshotFields,
 } from './app-contract-constants.ts';
 import {
   assertNonEmptyStringArray,
@@ -450,9 +453,19 @@ export function validatePageStateMatrix(matrix, contract, guiProductContract) {
     throw new Error('Runtime page polling fallback must be lightweight 5-10 second polling');
   }
   const domainDetail = runtimeViewModel.domain_detail_view;
+  assertDeepEqualJson(
+    domainDetail?.descriptor_required_fields,
+    domainDetailViewDescriptorFields,
+    'Runtime domain detail descriptor required fields',
+  );
+  assertDeepEqualJson(
+    domainDetail?.descriptor_optional_fields,
+    domainDetailViewDescriptorOptionalFields,
+    'Runtime domain detail descriptor optional fields',
+  );
   if (
     domainDetail?.lazy_read_command !==
-      'opl app view read --item-id <canonical-item-id> --view-id <view-id> [--if-generation <generation>] --json'
+      'opl app view read --item-id <canonical-item-id> --view-id <view-id> [--if-revision <revision>] --json'
     || domainDetail?.renderer_selection_field !== 'view_kind'
     || domainDetail?.agent_id_branching_allowed !== false
     || domainDetail?.full_payload_in_fast_state_allowed !== false
@@ -483,31 +496,28 @@ export function validatePageStateMatrix(matrix, contract, guiProductContract) {
   );
   assertDeepEqualJson(
     domainDetail?.scientific_reasoning?.content_order,
-    ['accepted_trajectory_map', 'working_checkpoints'],
+    ['trajectory_map'],
     'Runtime scientific reasoning content order',
   );
   if (
-    domainDetail?.scientific_reasoning?.accepted_trajectory_source !== 'receipt_bound_nodes_edges_and_summary'
-    || domainDetail?.scientific_reasoning?.working_checkpoints_source !== 'separate_working_checkpoints_field'
-    || domainDetail?.scientific_reasoning?.working_checkpoints_presentation !== 'localized_status_specific_pending_or_rejected_not_formal_conclusion'
+    domainDetail?.scientific_reasoning?.snapshot_source !== 'mas_authored_lightweight_runtime_reference'
+    || domainDetail?.scientific_reasoning?.snapshot_update_unit !== 'single_domain_authored_snapshot'
     || domainDetail?.scientific_reasoning?.sources_and_basis_source !== 'medical_narrative.sources_and_basis'
     || domainDetail?.scientific_reasoning?.sources_and_basis_surface !== 'collapsed_sources_and_basis'
     || domainDetail?.scientific_reasoning?.machine_source_refs_visible !== false
-    || domainDetail?.scientific_reasoning?.rejected_checkpoint_may_imply_scientific_refutation !== false
-    || domainDetail?.scientific_reasoning?.working_checkpoints_may_change_accepted_graph !== false
     || domainDetail?.scientific_reasoning?.v2_current_branch_membership_inference_allowed !== false
-    || domainDetail?.scientific_reasoning?.working_checkpoints_may_precede_accepted_map !== false
+    || domainDetail?.scientific_reasoning?.app_validation_proves_medical_copy_quality_or_scientific_validity !== false
   ) {
-    throw new Error('Runtime scientific reasoning must separate working checkpoints from accepted conclusions');
+    throw new Error('Runtime scientific reasoning must remain a lightweight MAS-authored display-only snapshot');
   }
   assertDeepEqualJson(
-    domainDetail?.scientific_reasoning?.working_checkpoint_status_values,
-    ['pending', 'rejected'],
-    'Runtime scientific reasoning working checkpoint status values',
+    domainDetail?.scientific_reasoning?.app_validation_scope,
+    ['schema_shape', 'node_edge_drawability', 'machine_field_visibility', 'responsive_layout'],
+    'Runtime scientific reasoning App validation scope',
   );
   assertDeepEqualJson(
     domainDetail?.states?.map((state) => state.id),
-    ['loading', 'missing', 'stale', 'unsupported', 'oversize', 'not_modified'],
+    ['loading', 'unread', 'available', 'missing', 'stale', 'invalid', 'read_error', 'not_modified'],
     'Runtime domain detail view states',
   );
   for (const [field, expected] of Object.entries({

@@ -232,13 +232,18 @@ rules；在该 machine change 落地前保留它们只为避免 docs-only 变更
   saved views 不重复 MAS 或其他智能体。默认列表固定为项目/论文、状态、当前进展/下一步、
   时间/Token 四列，智能体全称作为次级标签；一个 canonical work item 只显示一行。
 - Runtime 的领域详情是 item-scoped progressive disclosure，不改变四列表。fast projection 只携带
-  bounded `domain_detail_views[]` descriptor；完整内容由 `opl app view read --item-id ... --view-id ...
-  [--if-generation ...] --json` 按需读取。Shell 按 `view_kind` 选择 typed renderer，禁止按 MAS id
+  declaration-derived `domain_detail_views[]` locator 与 transport 状态，不携带医学摘要；完整内容由
+  `opl app view read --item-id ... --view-id ... [--if-revision ...] --json` 按需读取。Shell 按
+  `view_kind` 选择 typed renderer，禁止按 MAS id
   分支、提交任意路径、解析 Markdown/Codex session 或把 read model 提升为领域裁决。
 - 首个 typed view 是 `scientific_reasoning_map`。Drawer 只显示“当前主要假设、最新研究发现、当前判断、
   下一研究步骤、更新时间”和“查看科研路线”；独立 `/runtime/item/:itemId/insights/:viewId` 全幅画布
   显示科研路线与右侧研究对象详情。来源只在折叠“来源与依据”中出现；generation、digest、ref、
   payload、attempt、provider 等机器字段不得进入用户文案。
+- 科研路线是 MAS 在有意义科研变化时一次写入的轻量只读快照，不增加第二套质量门或阶段记录控制层。
+  App/Shell 只做 schema/格式、节点边可绘制、机器字段隐藏和多视口排版检查；医学叙述逐值透传，
+  禁止生成、翻译、摘要、改写或审核。
+  unread、available、missing、stale、invalid、read_error 仅表示 transport 状态，不得转译为科研结论。
 - 条件 Runtime route 的 Token 只显示 observed 当前阶段与累计值；missing 必须说明原因，不能渲染成 `0`，
   未配置上限时不得画进度条。Agent availability 使用独立 projection，五个一方智能体使用全称，
   全健康时折叠；任务数和裸 `0/2` 不构成 availability，MAS Scholar Skills 只是 MAS 依赖。

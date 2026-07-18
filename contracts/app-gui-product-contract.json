@@ -5556,33 +5556,28 @@
             "shell_may_rewrite": false,
             "localization_scope": "app_owned_chrome_only_never_domain_medical_prose"
           },
-          "trajectory_layers": {
-            "accepted_trajectory": {
-              "source_fields": [
-                "nodes",
-                "edges",
-                "summary",
-                "current_focus",
-                "active_branch",
-                "current_focus_node_refs",
-                "active_branch_node_refs"
-              ],
-              "authority": "receipt_bound_domain_owner_acceptance",
-              "working_checkpoint_content_allowed": false
-            },
-            "working_checkpoints": {
-              "source_field": "working_checkpoints",
-              "status_values": ["pending", "rejected"],
-              "presentation": "separate_review_state_not_formal_research_conclusion",
-              "status_presentation": {
-                "pending": "awaiting_confirmation_not_formal_conclusion",
-                "rejected": "not_included_in_formal_conclusion_never_scientific_refutation"
-              },
-              "rejected_status_semantics": "checkpoint_not_included_never_scientific_hypothesis_refutation",
-              "may_change_accepted_summary": false,
-              "may_change_accepted_graph": false,
-              "empty_allowed": true
-            }
+          "trajectory_snapshot": {
+            "source_fields": [
+              "surface_kind",
+              "version",
+              "study_id",
+              "study_ref",
+              "revision",
+              "status",
+              "summary",
+              "current_focus",
+              "active_branch",
+              "current_focus_node_refs",
+              "active_branch_node_refs",
+              "nodes",
+              "edges",
+              "medical_narrative",
+              "source_refs",
+              "conditions"
+            ],
+            "authority": "mas_authored_lightweight_runtime_reference",
+            "update_unit": "single_domain_authored_snapshot",
+            "app_role": "read_validate_layout_and_display_only"
           },
           "drawer_presentation": {
             "surface": "selected_work_item_detail",
@@ -5604,8 +5599,7 @@
             "route": "/runtime/item/:itemId/insights/:viewId",
             "layout": "full_width_graph_with_right_node_inspector",
             "required_modes": ["map", "current_branch"],
-            "content_order": ["accepted_trajectory_map", "working_checkpoints"],
-            "working_checkpoints_may_precede_accepted_map": false,
+            "content_order": ["trajectory_map"],
             "current_branch_membership_source_by_schema": {
               "scientific-reasoning-map.v1": "node.branch_id_compatibility_fallback",
               "scientific-reasoning-map.v2": "active_branch_node_refs_exact"
@@ -5620,24 +5614,6 @@
             "sources_and_basis_heading_copy": {
               "zh-CN": "来源与依据",
               "en-US": "Sources and rationale"
-            },
-            "working_checkpoints_heading_copy": {
-              "zh-CN": "阶段性研究记录",
-              "en-US": "Interim research records"
-            },
-            "working_checkpoints_notice_copy": {
-              "zh-CN": "以下内容尚未纳入正式科研结论，请根据状态区分待确认与未采纳记录。",
-              "en-US": "These records are not part of the accepted research conclusions; use their status to distinguish pending review from records not included."
-            },
-            "working_checkpoint_status_copy": {
-              "pending": {
-                "zh-CN": "待确认",
-                "en-US": "Awaiting confirmation"
-              },
-              "rejected": {
-                "zh-CN": "未纳入正式科研结论",
-                "en-US": "Not included in accepted conclusions"
-              }
             }
           },
           "medical_copy_vocabulary": {
@@ -5664,8 +5640,10 @@
               "route_back"
             ]
           },
-          "availability_states": ["available", "missing", "stale", "unsupported", "oversize"],
+          "availability_states": ["unread", "available", "missing", "stale", "invalid", "read_error"],
           "availability_copy_policy": "localized_medical_research_copy_no_machine_enum",
+          "availability_is_transport_state_only": true,
+          "transport_state_may_be_interpreted_as_scientific_outcome": false,
           "not_modified_policy": "retain_last_valid_view",
           "full_payload_in_fast_state_allowed": false,
           "markdown_or_session_parsing_in_app_allowed": false,

@@ -1289,21 +1289,15 @@
         "optional": true,
         "collection_kind": "typed_agent_owned_item_detail_descriptors",
         "required_fields": [
+          "item_id",
           "view_id",
           "view_kind",
           "schema_version",
-          "availability",
-          "current_focus",
-          "latest_outcome",
-          "active_branch",
-          "updated_at",
-          "revision",
-          "generation",
-          "ref",
-          "digest"
+          "availability"
         ],
-        "availability_values": ["available", "missing", "stale", "unsupported", "oversize"],
-        "fast_profile_role": "bounded_medical_summary_and_lazy_read_descriptor_only",
+        "optional_fields": ["revision", "digest"],
+        "availability_values": ["unread", "available", "missing", "stale", "invalid", "read_error"],
+        "fast_profile_role": "declaration_derived_locator_and_transport_state_only",
         "full_payload_in_fast_state_allowed": false,
         "app_agent_id_branching_allowed": false,
         "renderer_selection_field": "view_kind",
@@ -1311,13 +1305,10 @@
           "scientific_reasoning_map": {
             "schema_version": "scientific-reasoning-map.v2",
             "compatible_schema_versions": ["scientific-reasoning-map.v1", "scientific-reasoning-map.v2"],
-            "view_id": "scientific-reasoning",
-            "current_focus_fields": ["node_id", "primary_hypothesis"],
-            "latest_outcome_fields": ["finding", "judgment", "next_step"],
-            "active_branch_fields": ["branch_id", "label"]
+            "view_id": "scientific-reasoning"
           }
         },
-        "machine_only_fields": ["ref", "digest", "revision", "generation"],
+        "machine_only_fields": ["revision", "digest"],
         "machine_fields_default_visible": false
       }
     },
@@ -1473,9 +1464,9 @@
       "schema_version": "opl_domain_detail_view.v1",
       "descriptor_path": "items[].domain_detail_views[]",
       "selection_fields": ["item_id", "view_id"],
-      "command": "opl app view read --item-id <canonical-item-id> --view-id <view-id> [--if-generation <generation>] --json",
-      "scientific_reasoning_command": "opl app view read --item-id <canonical-item-id> --view-id scientific-reasoning [--if-generation <generation>] --json",
-      "optional_generation_argument": "--if-generation <generation>",
+      "command": "opl app view read --item-id <canonical-item-id> --view-id <view-id> [--if-revision <revision>] --json",
+      "scientific_reasoning_command": "opl app view read --item-id <canonical-item-id> --view-id scientific-reasoning [--if-revision <revision>] --json",
+      "optional_revision_argument": "--if-revision <revision>",
       "unchanged_response": {
         "not_modified": true,
         "payload": null,
@@ -1488,23 +1479,25 @@
         "view_id",
         "view_kind",
         "availability",
-        "updated_at",
         "revision",
-        "generation",
-        "ref",
-        "digest",
         "not_modified",
         "payload_schema",
         "payload",
         "conditions"
       ],
-      "availability_values": ["available", "missing", "stale", "unsupported", "oversize"],
+      "response_optional_fields": ["digest", "generation"],
+      "compatibility_generation_policy": "deprecated_optional_alias_must_equal_revision",
+      "availability_values": ["available", "missing", "stale", "invalid", "read_error"],
       "payload_contracts": {
         "scientific_reasoning_map": {
           "payload_schema": "scientific-reasoning-map.v2",
           "compatible_payload_schemas": ["scientific-reasoning-map.v1", "scientific-reasoning-map.v2"],
-          "required_fields": [
+          "snapshot_fields": [
+            "surface_kind",
+            "version",
             "study_id",
+            "study_ref",
+            "revision",
             "status",
             "summary",
             "current_focus",
@@ -1513,11 +1506,11 @@
             "active_branch_node_refs",
             "nodes",
             "edges",
+            "medical_narrative",
             "source_refs",
-            "working_checkpoints",
             "conditions"
           ],
-          "required_fields_by_schema": {
+          "snapshot_fields_by_schema": {
             "scientific-reasoning-map.v1": [
               "study_id",
               "status",
@@ -1530,7 +1523,11 @@
               "conditions"
             ],
             "scientific-reasoning-map.v2": [
+              "surface_kind",
+              "version",
               "study_id",
+              "study_ref",
+              "revision",
               "status",
               "summary",
               "current_focus",
@@ -1539,34 +1536,26 @@
               "active_branch_node_refs",
               "nodes",
               "edges",
+              "medical_narrative",
               "source_refs",
-              "working_checkpoints",
               "conditions"
             ]
           },
-          "accepted_trajectory_fields": [
-            "summary",
-            "current_focus",
-            "active_branch",
-            "current_focus_node_refs",
-            "active_branch_node_refs",
-            "nodes",
-            "edges",
-            "source_refs"
-          ],
-          "accepted_trajectory_fields_by_schema": {
-            "scientific-reasoning-map.v1": ["summary", "current_focus", "active_branch", "nodes", "edges", "source_refs"],
-            "scientific-reasoning-map.v2": [
-              "summary",
-              "current_focus",
-              "active_branch",
-              "current_focus_node_refs",
-              "active_branch_node_refs",
-              "nodes",
-              "edges",
-              "source_refs"
-            ]
+          "v2_surface_kind": "mas_research_trajectory_snapshot",
+          "v2_version": "mas-research-trajectory-snapshot.v2",
+          "v2_additional_properties_allowed": false,
+          "v2_machine_only_fields": ["surface_kind", "version", "study_id", "study_ref", "revision", "source_refs", "conditions"],
+          "v2_identity_binding": {
+            "study_id_source": "selected_work_item.identity.work_item_id",
+            "study_ref_kind": "mas_study",
+            "study_ref_template": "mas-study:<study_id>",
+            "app_validation_role": "shape_and_item_binding_only_no_domain_judgment"
           },
+          "v1_compatibility_mode": "read_only_no_write_upgrade_or_domain_inference",
+          "snapshot_authority": "mas_authored_lightweight_runtime_reference",
+          "snapshot_update_model": "single_mas_authored_snapshot",
+          "app_validation_scope": ["schema_shape", "node_edge_drawability", "machine_field_visibility"],
+          "app_validation_proves_medical_copy_quality_or_scientific_validity": false,
           "medical_prose_policy": {
             "source": "domain_owner_projected_exact_field_values",
             "exact_passthrough_required": true,
@@ -1580,27 +1569,11 @@
             "shell_may_rewrite": false,
             "localization_scope": "app_owned_chrome_only_never_domain_medical_prose"
           },
-          "v2_accepted_route_membership_fields": ["current_focus_node_refs", "active_branch_node_refs"],
           "current_branch_membership_source_by_schema": {
             "scientific-reasoning-map.v1": "node.branch_id_compatibility_fallback",
             "scientific-reasoning-map.v2": "active_branch_node_refs_exact"
           },
           "v2_current_branch_membership_inference_allowed": false,
-          "accepted_trajectory_authority": "receipt_bound_domain_owner_acceptance_only",
-          "working_checkpoint_content_in_accepted_fields_allowed": false,
-          "working_checkpoint_required_fields": [
-            "checkpoint_id",
-            "status",
-            "occurred_at",
-            "title",
-            "summary",
-            "medical_narrative",
-            "source_refs"
-          ],
-          "working_checkpoint_status_values": ["pending", "rejected"],
-          "working_checkpoint_machine_only_fields": ["checkpoint_id", "source_refs"],
-          "working_checkpoint_sources_and_basis_source": "medical_narrative.sources_and_basis",
-          "working_checkpoint_presentation": "separate_review_state_not_formal_research_conclusion",
           "summary_required_fields": [
             "primary_hypothesis",
             "latest_finding",
@@ -1609,6 +1582,28 @@
             "updated_at"
           ],
           "node_kinds": ["hypothesis", "test", "finding", "decision", "route", "artifact", "human_gate"],
+          "node_status_values": [
+            "proposed",
+            "planned",
+            "active",
+            "completed",
+            "execution_failed",
+            "not_assessed",
+            "supported",
+            "does_not_support",
+            "inconclusive",
+            "design_invalid",
+            "refined",
+            "superseded",
+            "continued",
+            "narrowed",
+            "pivoted",
+            "stopped",
+            "human_review_required",
+            "produced"
+          ],
+          "node_status_display_policy": "domain_authored_layout_cue_only_medical_explanation_from_exact_prose",
+          "execution_failed_and_not_assessed_remain_distinct": true,
           "node_required_fields": [
             "id",
             "kind",
@@ -1647,6 +1642,8 @@
       "schema_validation_required": true,
       "size_limit_fail_closed": true,
       "digest_validation_required_when_present": true,
+      "availability_is_transport_state_only": true,
+      "transport_state_may_be_interpreted_as_scientific_outcome": false,
       "owner_projection_body_kind": "typed_domain_read_model_not_artifact_body",
       "app_role": "typed_display_consumer",
       "shell_renderer_registry": "view_kind_keyed_no_agent_id_branching"
